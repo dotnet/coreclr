@@ -38,44 +38,68 @@ class Constants {
     // as Windows_NT but without the tests.
     def static osList = ['Ubuntu', 'Debian8.4', 'OSX', 'Windows_NT', 'Windows_NT_BuildOnly', 'FreeBSD', 'CentOS7.1', 'OpenSUSE13.2', 'OpenSUSE42.1', 'RHEL7.2', 'LinuxARMEmulator', 'Ubuntu16.04', 'Ubuntu16.10', 'Fedora23']
     def static crossList = ['Ubuntu', 'OSX', 'CentOS7.1', 'RHEL7.2', 'Debian8.4', 'OpenSUSE13.2']
+
     // This is a set of JIT stress modes combined with the set of variables that
     // need to be set to actually enable that stress mode.  The key of the map is the stress mode and
     // the values are the environment variables
-    def static jitStressModeScenarios = ['minopts' : ['COMPlus_JITMinOpts' : '1'], 'forcerelocs' : ['COMPlus_ForceRelocs' : '1'],
-               'jitstress1' : ['COMPlus_JitStress' : '1'], 'jitstress2' : ['COMPlus_JitStress' : '2'],
-               'jitstressregs1' : ['COMPlus_JitStressRegs' : '1'], 'jitstressregs2' : ['COMPlus_JitStressRegs' : '2'],
-               'jitstressregs3' : ['COMPlus_JitStressRegs' : '3'], 'jitstressregs4' : ['COMPlus_JitStressRegs' : '4'],
-               'jitstressregs8' : ['COMPlus_JitStressRegs' : '8'], 'jitstressregs0x10' : ['COMPlus_JitStressRegs' : '0x10'],
-               'jitstressregs0x80' : ['COMPlus_JitStressRegs' : '0x80'],
-               'jitstress2_jitstressregs1'    : ['COMPlus_JitStress' : '2', 'COMPlus_JitStressRegs' : '1'],
-               'jitstress2_jitstressregs2'    : ['COMPlus_JitStress' : '2', 'COMPlus_JitStressRegs' : '2'],
-               'jitstress2_jitstressregs3'    : ['COMPlus_JitStress' : '2', 'COMPlus_JitStressRegs' : '3'],
-               'jitstress2_jitstressregs4'    : ['COMPlus_JitStress' : '2', 'COMPlus_JitStressRegs' : '4'],
-               'jitstress2_jitstressregs8'    : ['COMPlus_JitStress' : '2', 'COMPlus_JitStressRegs' : '8'],
-               'jitstress2_jitstressregs0x10' : ['COMPlus_JitStress' : '2', 'COMPlus_JitStressRegs' : '0x10'],
-               'jitstress2_jitstressregs0x80' : ['COMPlus_JitStress' : '2', 'COMPlus_JitStressRegs' : '0x80'],
-               'corefx_baseline' : [ : ], // corefx baseline
-               'corefx_minopts' : ['COMPlus_JITMinOpts' : '1'],
-               'corefx_jitstress1' : ['COMPlus_JitStress' : '1'], 
-               'corefx_jitstress2' : ['COMPlus_JitStress' : '2'],
-               'corefx_jitstressregs1' : ['COMPlus_JitStressRegs' : '1'], 'corefx_jitstressregs2' : ['COMPlus_JitStressRegs' : '2'],
-               'corefx_jitstressregs3' : ['COMPlus_JitStressRegs' : '3'], 'corefx_jitstressregs4' : ['COMPlus_JitStressRegs' : '4'],
-               'corefx_jitstressregs8' : ['COMPlus_JitStressRegs' : '8'], 'corefx_jitstressregs0x10' : ['COMPlus_JitStressRegs' : '0x10'],
-               'corefx_jitstressregs0x80' : ['COMPlus_JitStressRegs' : '0x80'],
-               'gcstress0x3' : ['COMPlus_GCStress'  : '0x3'], 'gcstress0xc' : ['COMPlus_GCStress'  : '0xC'],
-               'zapdisable' : ['COMPlus_ZapDisable'  : '0xC'],
-               'heapverify1' : ['COMPlus_HeapVerify'  : '1'],
-               'gcstress0xc_zapdisable' : ['COMPlus_GCStress'  : '0xC', 'COMPlus_ZapDisable'  : '1'],
-               'gcstress0xc_zapdisable_jitstress2' : ['COMPlus_GCStress'  : '0xC', 'COMPlus_ZapDisable'  : '1', 'COMPlus_JitStress'  : '2'],
-               'gcstress0xc_zapdisable_heapverify1' : ['COMPlus_GCStress'  : '0xC', 'COMPlus_ZapDisable'  : '1', 'COMPlus_HeapVerify'  : '1'],
-               'gcstress0xc_jitstress1' : ['COMPlus_GCStress'  : '0xC', 'COMPlus_JitStress'  : '1'],
-               'gcstress0xc_jitstress2' : ['COMPlus_GCStress'  : '0xC', 'COMPlus_JitStress'  : '2'],
-               'gcstress0xc_minopts_heapverify1' : ['COMPlus_GCStress'  : '0xC', 'COMPlus_JITMinOpts'  : '1', 'COMPlus_HeapVerify'  : '1']
-               ]
+    def static jitStressModeScenarios = [
+        'minopts'                           : ['COMPlus_JITMinOpts' : '1'],
+        'forcerelocs'                       : ['COMPlus_ForceRelocs' : '1'],
+        'jitstress1'                        : ['COMPlus_JitStress' : '1'],
+        'jitstress2'                        : ['COMPlus_JitStress' : '2'],
+        'jitstressregs1'                    : ['COMPlus_JitStressRegs' : '1'],
+        'jitstressregs2'                    : ['COMPlus_JitStressRegs' : '2'],
+        'jitstressregs3'                    : ['COMPlus_JitStressRegs' : '3'],
+        'jitstressregs4'                    : ['COMPlus_JitStressRegs' : '4'],
+        'jitstressregs8'                    : ['COMPlus_JitStressRegs' : '8'],
+        'jitstressregs0x10'                 : ['COMPlus_JitStressRegs' : '0x10'],
+        'jitstressregs0x80'                 : ['COMPlus_JitStressRegs' : '0x80'],
+        'jitstress2_jitstressregs1'         : ['COMPlus_JitStress' : '2', 'COMPlus_JitStressRegs' : '1'],
+        'jitstress2_jitstressregs2'         : ['COMPlus_JitStress' : '2', 'COMPlus_JitStressRegs' : '2'],
+        'jitstress2_jitstressregs3'         : ['COMPlus_JitStress' : '2', 'COMPlus_JitStressRegs' : '3'],
+        'jitstress2_jitstressregs4'         : ['COMPlus_JitStress' : '2', 'COMPlus_JitStressRegs' : '4'],
+        'jitstress2_jitstressregs8'         : ['COMPlus_JitStress' : '2', 'COMPlus_JitStressRegs' : '8'],
+        'jitstress2_jitstressregs0x10'      : ['COMPlus_JitStress' : '2', 'COMPlus_JitStressRegs' : '0x10'],
+        'jitstress2_jitstressregs0x80'      : ['COMPlus_JitStress' : '2', 'COMPlus_JitStressRegs' : '0x80'],
+        'corefx_baseline'                   : [ : ],
+        'corefx_minopts'                    : ['COMPlus_JITMinOpts' : '1'],
+        'corefx_jitstress1'                 : ['COMPlus_JitStress' : '1'],
+        'corefx_jitstress2'                 : ['COMPlus_JitStress' : '2'],
+        'corefx_jitstressregs1'             : ['COMPlus_JitStressRegs' : '1'],
+        'corefx_jitstressregs2'             : ['COMPlus_JitStressRegs' : '2'],
+        'corefx_jitstressregs3'             : ['COMPlus_JitStressRegs' : '3'],
+        'corefx_jitstressregs4'             : ['COMPlus_JitStressRegs' : '4'],
+        'corefx_jitstressregs8'             : ['COMPlus_JitStressRegs' : '8'],
+        'corefx_jitstressregs0x10'          : ['COMPlus_JitStressRegs' : '0x10'],
+        'corefx_jitstressregs0x80'          : ['COMPlus_JitStressRegs' : '0x80'],
+        'gcstress0x3'                       : ['COMPlus_GCStress' : '0x3'],
+        'gcstress0xc'                       : ['COMPlus_GCStress' : '0xC'],
+        'gcstress0xc_zapdisable'            : ['COMPlus_GCStress' : '0xC', 'COMPlus_ZapDisable' : '1'],
+        'gcstress0xc_zapdisable_jitstress2' : ['COMPlus_GCStress' : '0xC', 'COMPlus_ZapDisable' : '1', 'COMPlus_JitStress' : '2'],
+        'gcstress0xc_zapdisable_heapverify1': ['COMPlus_GCStress' : '0xC', 'COMPlus_ZapDisable' : '1', 'COMPlus_HeapVerify' : '1'],
+        'gcstress0xc_jitstress1'            : ['COMPlus_GCStress' : '0xC', 'COMPlus_JitStress' : '1'],
+        'gcstress0xc_jitstress2'            : ['COMPlus_GCStress' : '0xC', 'COMPlus_JitStress' : '2'],
+        'gcstress0xc_minopts_heapverify1'   : ['COMPlus_GCStress' : '0xC', 'COMPlus_JITMinOpts' : '1', 'COMPlus_HeapVerify' : '1'],
+        'heapverify1'                       : ['COMPlus_HeapVerify' : '1'],
+        'zapdisable'                        : ['COMPlus_ZapDisable' : '1'],
+        'tailcallstress'                    : ['COMPlus_TailcallStress' : '1'],
+        ]
+
     // This is a set of r2r jit stress scenarios
-    def static r2rJitStressScenarios = ['r2r_jitstress1', 'r2r_jitstress2', 'r2r_jitstressregs1', 'r2r_jitstressregs2', 'r2r_jitstressregs3',
-                                        'r2r_jitstressregs4', 'r2r_jitstressregs8', 'r2r_jitstressregsx10', 'r2r_jitstressregsx80',
-                                        'r2r_jitminopts', 'r2r_jitforcerelocs']
+    def static r2rJitStressScenarios = [
+        'r2r_jitstress1',
+        'r2r_jitstress2',
+        'r2r_jitstressregs1',
+        'r2r_jitstressregs2',
+        'r2r_jitstressregs3',
+        'r2r_jitstressregs4',
+        'r2r_jitstressregs8',
+        'r2r_jitstressregsx10',
+        'r2r_jitstressregsx80',
+        'r2r_jitminopts',
+        'r2r_jitforcerelocs'
+        ]
+
     // This is the basic set of scenarios
     def static basicScenarios = ['default', 'pri1', 'ilrt', 'r2r', 'pri1r2r', 'gcstress15_pri1r2r', 'longgc', 'coverage', 'formatting', 'gcsimulator'] + r2rJitStressScenarios
     def static configurationList = ['Debug', 'Checked', 'Release']
@@ -175,8 +199,8 @@ def static getStressModeDisplayName(def scenario) {
 }
 
 // Generates the string for creating a file that sets environment variables
-// that makes it possible to run stress modes.  Writes the script to a file called
-// SetStressModes.[sh/cmd]
+// that makes it possible to run stress modes.  Writes the script to the file
+// specified by the stepScriptLocation parameter.
 def static genStressModeScriptStep(def os, def stressModeName, def stressModeVars, def stepScriptLocation) {
     def stepScript = ''
     if (os == 'Windows_NT') {
@@ -208,28 +232,6 @@ def static genStressModeScriptStep(def os, def stressModeName, def stressModeVar
         stepScript += "chmod +x ${stepScriptLocation}\n"
     }
     return stepScript
-}
-
-// Corefx doesn't have a support to pass stress mode environment variables. This function
-// generates commands to set or export environment variables
-def static getStressModeEnvSetCmd(def os, def stressModeName) {
-    def envVars = Constants.jitStressModeScenarios[stressModeName]
-    def setEnvVars = ''
-    if (os == 'Windows_NT') {
-        envVars.each{ VarName, Value   ->
-            if (VarName != '') {
-                setEnvVars += "set ${VarName}=${Value}\n"
-            }
-        }
-    }
-    else {
-        envVars.each{ VarName, Value   ->
-            if (VarName != '') {
-                setEnvVars += "export ${VarName}=${Value}\n"
-            }
-        }
-    }
-    return setEnvVars
 }
 
 // Calculates the name of the build job based on some typical parameters.
@@ -487,6 +489,7 @@ def static addTriggers(def job, def branch, def isPR, def architecture, def os, 
             case 'corefx_jitstressregs0x10':
             case 'corefx_jitstressregs0x80':
             case 'zapdisable':           
+            case 'tailcallstress':
                 if (os != 'CentOS7.1' && !(os in bidailyCrossList)) {
                     assert (os == 'Windows_NT') || (os in Constants.crossList)
                     Utilities.addPeriodicTrigger(job, '@daily')
@@ -748,6 +751,7 @@ def static addTriggers(def job, def branch, def isPR, def architecture, def os, 
                         case 'gcstress0x3':
                         case 'gcstress0xc':
                         case 'zapdisable':
+                        case 'tailcallstress':
                         case 'heapverify1':
                         case 'gcstress0xc_zapdisable':
                         case 'gcstress0xc_zapdisable_jitstress2':
@@ -1026,6 +1030,7 @@ def static addTriggers(def job, def branch, def isPR, def architecture, def os, 
                         case 'gcstress0x3': 
                         case 'gcstress0xc':
                         case 'zapdisable':
+                        case 'tailcallstress':
                         case 'heapverify1':
                         case 'gcstress0xc_zapdisable':
                         case 'gcstress0xc_zapdisable_jitstress2':
@@ -1037,7 +1042,7 @@ def static addTriggers(def job, def branch, def isPR, def architecture, def os, 
                             assert (os == 'Windows_NT') || (os in Constants.crossList)
                             Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} ${configuration} Build and Test (Jit - ${displayStr})",
                                "(?i).*test\\W+${os}\\W+${scenario}.*")
-                            break                                   
+                            break
                         case 'corefx_baseline':
                         case 'corefx_minopts':
                         case 'corefx_jitstress1':
@@ -1303,6 +1308,7 @@ def static addTriggers(def job, def branch, def isPR, def architecture, def os, 
                 case 'gcstress0x3': 
                 case 'gcstress0xc':
                 case 'zapdisable':
+                case 'tailcallstress':
                 case 'heapverify1':
                 case 'gcstress0xc_zapdisable':
                 case 'gcstress0xc_zapdisable_jitstress2':
@@ -1315,6 +1321,22 @@ def static addTriggers(def job, def branch, def isPR, def architecture, def os, 
                     Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${arch} ${jit} ${configuration} Build and Test (Jit - ${displayStr})",
                        "(?i).*test\\W+${os}\\W+${arch}\\W+${jit}\\W+${configuration}\\W+${scenario}.*")
                     break                                   
+                case 'corefx_baseline':
+                case 'corefx_minopts':
+                case 'corefx_jitstress1':
+                case 'corefx_jitstress2':
+                case 'corefx_jitstressregs1':
+                case 'corefx_jitstressregs2':
+                case 'corefx_jitstressregs3':
+                case 'corefx_jitstressregs4':
+                case 'corefx_jitstressregs8':
+                case 'corefx_jitstressregs0x10':
+                case 'corefx_jitstressregs0x80':
+                    def displayName = 'CoreFx ' + getStressModeDisplayName(scenario)
+                    assert (os == 'Windows_NT')
+                    Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${arch} ${jit} ${configuration} Build and Test (Jit - ${displayName})",
+                       "(?i).*test\\W+${os}\\W+${arch}\\W+${jit}\\W+${configuration}\\W+${scenario}.*")
+                    break
                 default:
                     println("Unknown scenario: ${arch} ${jit} ${scenario}");
                     assert false
@@ -1556,12 +1578,8 @@ combinedScenarios.each { scenario ->
                                 }
                                 break
                             case 'x64':
-                                // Everything implemented
-                                break
                             case 'x86ryujit':
-                                if (enableCorefxTesting) {
-                                    return
-                                }
+                                // Everything implemented
                                 break
                             default:
                                 return
@@ -1832,30 +1850,28 @@ combinedScenarios.each { scenario ->
                                         runtestArguments = "${lowerConfiguration} ${arch} ${gcstressStr} ${crossgenStr} ${runcrossgentestsStr} ${runjitstressStr} ${runjitstressregsStr} ${runjitmioptsStr} ${runjitforcerelocsStr} ${gcTestArguments}"
                                         if (Constants.jitStressModeScenarios.containsKey(scenario)) {
                                             if (enableCorefxTesting) {
-                                                // Sync to corefx repo
                                                 // Move coreclr files to a subdirectory, %workspace%/clr. Otherwise, corefx build 
                                                 // thinks that %workspace% is the project base directory.
                                                 buildCommands += "powershell new-item clr -type directory -force"
                                                 buildCommands += 'powershell foreach ($x in get-childitem -force) { if (\$x.name -ne \'clr\') { move-item $x clr }}'
+                                            }
+
+                                            def stepScriptLocation = "%WORKSPACE%\\SetStressModes.bat"
+                                            def vars = Constants.jitStressModeScenarios[scenario]
+                                            if (architecture == 'x86ryujit') {
+                                                vars = vars + ['COMPlus_AltJit' : '*', 'COMPlus_AltJitName' : 'protojit.dll']
+                                            }
+
+                                            buildCommands += genStressModeScriptStep(os, scenario, vars, stepScriptLocation)
+
+                                            if (enableCorefxTesting) {
+                                                // Sync to corefx repo
                                                 buildCommands += "git clone -b $branch --single-branch https://github.com/dotnet/corefx fx"
                                                 
-                                                buildCommands += getStressModeEnvSetCmd(os, scenario);
-                                                
                                                 // Run corefx build and testing
-                                                buildCommands += "cd fx && call \"C:\\Program Files (x86)\\Microsoft Visual Studio 14.0\\VC\\vcvarsall.bat\" x86 && Build.cmd -Release -- /p:BUILDTOOLS_OVERRIDE_RUNTIME=%WORKSPACE%\\clr\\bin\\Product\\Windows_NT.x64.Checked "                                                                                              
+                                                buildCommands += "call ${stepScriptLocation} && cd fx && call \"C:\\Program Files (x86)\\Microsoft Visual Studio 14.0\\VC\\vcvarsall.bat\" x86 && Build.cmd -Release -- /p:BUILDTOOLS_OVERRIDE_RUNTIME=%WORKSPACE%\\clr\\bin\\Product\\Windows_NT.${arch}.Checked "
                                             }
                                             else {
-                                                def stepScriptLocation = "%WORKSPACE%\\bin\\tests\\SetStressModes.bat"
-                                                
-                                                if (architecture == 'x86ryujit'){
-                                                    def x86Vars = ['COMPLUS_AltJit' : '*', 'COMPLUS_AltJitName' : 'protojit.dll', 'COMPLUS_NoGuiOnAssert' : '1']
-                                                    buildCommands += genStressModeScriptStep(os, scenario, Constants.jitStressModeScenarios[scenario] + x86Vars, stepScriptLocation)
-                                                }
-                                                else {
-                                                    buildCommands += genStressModeScriptStep(os, scenario, Constants.jitStressModeScenarios[scenario], stepScriptLocation)
-                                                }
-                                                
-                                                // Run tests with the 
                                                 buildCommands += "tests\\runtest.cmd ${runtestArguments} TestEnv ${stepScriptLocation}"
                                             }
                                         }
@@ -1863,9 +1879,7 @@ combinedScenarios.each { scenario ->
                                             buildCommands += "tests\\runtest.cmd ${runtestArguments}"
                                         }                                        
                                         else if (architecture == 'x86ryujit') {
-                                            def testEnvLocation = "%WORKSPACE%\\tests\\x86\\ryujit_x86_testenv.cmd"
-                                            
-                                            buildCommands += "tests\\runtest.cmd ${runtestArguments} TestEnv ${testEnvLocation}"
+                                            buildCommands += "tests\\runtest.cmd ${runtestArguments} TestEnv %WORKSPACE%\\tests\\x86\\ryujit_x86_testenv.cmd"
                                         }
                                         else if (architecture == 'x86lb') {
                                             buildCommands += "tests\\runtest.cmd ${runtestArguments} Exclude0 x86_legacy_backend_issues.targets"
@@ -2004,6 +2018,7 @@ combinedScenarios.each { scenario ->
                                         assert os == 'Ubuntu'
                                         assert architecture == 'x64'
                                         assert lowerConfiguration == 'checked'
+                                        assert Constants.jitStressModeScenarios.containsKey(scenario)
                                         
                                         // Build coreclr and move it to clr directory
                                         buildCommands += "./build.sh verbose ${lowerConfiguration} ${architecture}"
@@ -2012,13 +2027,12 @@ combinedScenarios.each { scenario ->
                                         // Get corefx
                                         buildCommands += "git clone -b $branch --single-branch https://github.com/dotnet/corefx fx"
                                         
-                                        // Set environment variable
-                                        def setEnvVar = getStressModeEnvSetCmd(os, scenario)
+                                        def scriptFileName = "\$WORKSPACE/set_stress_test_env.sh"
+                                        buildCommands += genStressModeScriptStep(os, scenario, Constants.jitStressModeScenarios[scenario], scriptFileName)
 
                                         // Build and text corefx
                                         buildCommands += "rm -rf \$WORKSPACE/fx_home; mkdir \$WORKSPACE/fx_home"
-                                        buildCommands += setEnvVar
-                                        buildCommands += "cd fx; export HOME=\$WORKSPACE/fx_home; ./build.sh -Release -Outerloop -TestWithLocalLibraries -- /p:BUILDTOOLS_OVERRIDE_RUNTIME=\$WORKSPACE/clr/bin/Product/Linux.x64.Checked"  
+                                        buildCommands += ". ${scriptFileName}; cd fx; export HOME=\$WORKSPACE/fx_home; ./build.sh -Release -TestWithLocalLibraries -- /p:BUILDTOOLS_OVERRIDE_RUNTIME=\$WORKSPACE/clr/bin/Product/Linux.${arch}.Checked"  
 
                                         // Archive and process test result
                                         Utilities.addArchival(newJob, "fx/bin/tests/**/testResults.xml")
@@ -2507,10 +2521,8 @@ combinedScenarios.each { scenario ->
                                 if (Constants.jitStressModeScenarios.containsKey(scenario)) {
                                     def scriptFileName = "\$WORKSPACE/set_stress_test_env.sh"
                                     def createScriptCmds = genStressModeScriptStep(os, scenario, Constants.jitStressModeScenarios[scenario], scriptFileName)
-                                    if (createScriptCmds != "") {
-                                        shell("${createScriptCmds}")
-                                        testEnvOpt = "--test-env=" + scriptFileName
-                                    }
+                                    shell("${createScriptCmds}")
+                                    testEnvOpt = "--test-env=" + scriptFileName
                                 }
                                 
                                 if (isGCStressRelatedTesting(scenario)) {
