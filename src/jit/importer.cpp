@@ -65,10 +65,10 @@ void Compiler::impInit()
 {
 
 #ifdef DEBUG
-    impTreeList = impTreeLast = nullptr;
+    impTreeList        = nullptr;
+    impTreeLast        = nullptr;
     impInlinedCodeSize = 0;
 #endif
-
 }
 
 /*****************************************************************************
