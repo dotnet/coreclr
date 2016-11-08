@@ -1831,12 +1831,8 @@ combinedScenarios.each { scenario ->
                                 }
                                 break
                             case 'x64':
-                                // Everything implemented
-                                break
                             case 'x86':
-                                if (enableCorefxTesting) {
-                                    return
-                                }
+                                // Everything implemented
                                 break
                             case 'x86compatjit':
                             case 'x86lb':
