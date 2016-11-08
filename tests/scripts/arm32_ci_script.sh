@@ -129,10 +129,6 @@ function clean_env {
     #Check for revert of git changes
     check_git_head
 
-    if [ -d "$__ARMEmulRootfs/bindings/tmp" ]; then
-	    sudo umount -l "$__ARMEmulRootfs/bindings/tmp"
-	fi
-
     sudo rm -rf "/mnt/arm32_ci_temp"
 }
 
