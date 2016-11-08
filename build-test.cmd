@@ -109,17 +109,6 @@ call %__ProjectDir%\init-tools.cmd
 
 REM =========================================================================================
 REM ===
-REM === Resolve runtime dependences
-REM ===
-REM =========================================================================================
-call %__TestDir%\setup-runtime-dependencies.cmd /arch %__BuildArch% /outputdir %__BinDir%
-
-if defined __UpdateInvalidPackagesArg (
-  goto skipnative
-)
-
-REM =========================================================================================
-REM ===
 REM === Native test build section
 REM ===
 REM =========================================================================================
