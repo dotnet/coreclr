@@ -21657,9 +21657,28 @@ void       Compiler::fgInvokeInlineeCompiler(GenTreeCall*  call,
     inlineResult->NoteSuccess();
 }
 
-// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-// The inlining attempt cannot be failed starting from this point.
-// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+//------------------------------------------------------------------------
+// fgInsertInlineeBlocks: incorporate statements for an inline into the
+// root method.
+//
+// Arguments:
+//    inlineInfo -- info for the inline
+//
+// Notes:
+//    The inlining attempt cannot be failed once this method is called.
+//
+//    Adds all inlinee statements, plus any glue statements needed
+//    either before or after the inlined call.
+//
+//    Updates flow graph and assigns weights to inlinee
+//    blocks. Currently does not attempt to read IBC data for the
+//    inlinee.
+//
+//    Updates relevant root method status flags (eg optMethodFlags) to
+//    include information from the inlinee.
+//
+//    Marks newly added statements with an appropriate inline context.
+
 void Compiler::fgInsertInlineeBlocks(InlineInfo* pInlineInfo)
 {
     GenTreeCall* iciCall     = pInlineInfo->iciCall;
@@ -21682,14 +21701,11 @@ void Compiler::fgInsertInlineeBlocks(InlineInfo* pInlineInfo)
         printf("\n\n----------- Statements (and blocks) added due to the inlining of call ");
         printTreeID(iciCall);
         printf(" -----------\n");
-        // gtDispTree(iciStmt);
     }
 
 #endif // DEBUG
 
-    //
     // Create a new inline context and mark the inlined statements with it
-    //
     InlineContext* calleeContext = m_inlineStrategy->NewSuccess(pInlineInfo);
 
     for (block = InlineeCompiler->fgFirstBB;
@@ -21704,7 +21720,7 @@ void Compiler::fgInsertInlineeBlocks(InlineInfo* pInlineInfo)
         }
     }
 
-    // Prepend statements.
+    // Prepend statements
     GenTreePtr stmtAfter = fgInlinePrependStatements(pInlineInfo);
 
 #ifdef DEBUG
@@ -22006,28 +22022,39 @@ _Done:
 }
 
 //------------------------------------------------------------------------
-// fgInlinePrependStatements: Prepend statements that are needed
-// before the inlined call. 
+// fgInlinePrependStatements: prepend statements needed to match up
+// caller and inlined callee
 //
 // Arguments:
-//    inlineInfo - information about the inline
+//    inlineInfo -- info for the inline
 //
 // Return Value:
-//    The last statement that was prepended.
+//    The last statement that was added, or the original call if no
+//    statements were added.
+//
+// Notes:
+//    Statements prepended may include the following:
+//    * This pointer null check
+//    * Class initialization
+//    * Zeroing of must-init locals in the callee
+//    * Passing of call arguments via temps
+//
+//    Newly added statements are placed just after the original call
+//    and are are given the same inline context as the call any calls
+//    added here will appear have been part of the immediate caller.
 
-GenTreePtr      Compiler::fgInlinePrependStatements(InlineInfo* inlineInfo)
+GenTreePtr Compiler::fgInlinePrependStatements(InlineInfo* inlineInfo)
 {
     BasicBlock* block = inlineInfo->iciBlock;
-
     GenTreeStmt* callStmt  = inlineInfo->iciStmt;
-    noway_assert(callStmt->gtOper == GT_STMT);
     IL_OFFSETX callILOffset = callStmt->gtStmtILoffsx;
-
+    GenTreeStmt* postStmt  = callStmt->gtNextStmt;
     GenTreePtr afterStmt = callStmt; // afterStmt is the place where the new statements should be inserted after.
-    GenTreePtr newStmt;
-
+    GenTreePtr newStmt = nullptr;
     GenTreePtr call = inlineInfo->iciCall;
+
     noway_assert(call->gtOper == GT_CALL);
+    noway_assert(callStmt->gtOper == GT_STMT);
 
 #ifdef DEBUG
     if (0 && verbose)
@@ -22289,6 +22316,15 @@ GenTreePtr      Compiler::fgInlinePrependStatements(InlineInfo* inlineInfo)
 #endif // DEBUG
             }
         }
+    }
+
+    // Update any newly added statements with the appropriate context.
+    InlineContext* context = callStmt->gtInlineContext;
+    assert(context != nullptr);
+    for (GenTreeStmt* addedStmt = callStmt->gtNextStmt; addedStmt != postStmt; addedStmt = addedStmt->gtNextStmt)
+    {
+        assert(addedStmt->gtInlineContext == nullptr);
+        addedStmt->gtInlineContext = context;
     }
 
     return afterStmt;
