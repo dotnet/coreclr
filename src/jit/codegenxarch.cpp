@@ -4190,6 +4190,7 @@ void CodeGen::genCodeForShiftLong(GenTreePtr tree)
 {
     // Only the non-RMW case here.
     genTreeOps oper = tree->OperGet();
+        //this is a bad comment
     assert(oper == GT_LSH_HI || oper == GT_RSH_LO);
 
     GenTree* operand = tree->gtOp.gtOp1;
