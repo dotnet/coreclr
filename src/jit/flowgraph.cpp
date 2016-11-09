@@ -20909,7 +20909,7 @@ void Compiler::fgDebugCheckBlockLinks()
 unsigned     Compiler::fgCheckInlineDepthAndRecursion(InlineInfo* inlineInfo)
 {
     BYTE*          candidateCode = inlineInfo->inlineCandidateInfo->methInfo.ILCode;
-    InlineContext* inlineContext = inlineInfo->iciStmt->gtStmt.gtInlineContext;
+    InlineContext* inlineContext = inlineInfo->iciStmt->gtInlineContext;
     InlineResult*  inlineResult  = inlineInfo->inlineResult;
 
     // There should be a context for all candidates.
@@ -21098,7 +21098,7 @@ Compiler::fgWalkResult      Compiler::fgFindNonInlineCandidate(GenTreePtr* pTree
     if (tree->gtOper == GT_CALL)
     {
         Compiler*    compiler = data->compiler;
-        GenTreePtr   stmt     = (GenTreePtr) data->pCallbackData;
+        GenTreeStmt* stmt     = (GenTreeStmt*) data->pCallbackData;
         GenTreeCall* call     = tree->AsCall();
 
         compiler->fgNoteNonInlineCandidate(stmt, call);
@@ -21111,14 +21111,14 @@ Compiler::fgWalkResult      Compiler::fgFindNonInlineCandidate(GenTreePtr* pTree
 // not marked as inline candidates.
 //
 // Arguments:
-//    tree  - statement containing the call
+//    stmt  - statement containing the call
 //    call  - the call itself
 //
 // Notes:
 //    Used in debug only to try and place descriptions of inline failures
 //    into the proper context in the inline tree.
 
-void Compiler::fgNoteNonInlineCandidate(GenTreePtr   tree,
+void Compiler::fgNoteNonInlineCandidate(GenTreeStmt* stmt,
                                         GenTreeCall* call)
 {
     InlineResult inlineResult(this, call, nullptr, "fgNotInlineCandidate");
@@ -21154,7 +21154,7 @@ void Compiler::fgNoteNonInlineCandidate(GenTreePtr   tree,
     if (call->gtCallType == CT_USER_FUNC)
     {
         // Create InlineContext for the failure
-        m_inlineStrategy->NewFailure(tree, &inlineResult);
+        m_inlineStrategy->NewFailure(stmt, &inlineResult);
     }
 }
 
@@ -21662,15 +21662,15 @@ void       Compiler::fgInvokeInlineeCompiler(GenTreeCall*  call,
 // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 void Compiler::fgInsertInlineeBlocks(InlineInfo* pInlineInfo)
 {
-    GenTreePtr   iciCall     = pInlineInfo->iciCall;
-    GenTreePtr   iciStmt     = pInlineInfo->iciStmt;
+    GenTreeCall* iciCall     = pInlineInfo->iciCall;
+    GenTreeStmt* iciStmt     = pInlineInfo->iciStmt;
     BasicBlock*  iciBlock    = pInlineInfo->iciBlock;
     BasicBlock*  block;
 
     // We can write better assert here. For example, we can check that
     // iciBlock contains iciStmt, which in turn contains iciCall.
     noway_assert(iciBlock->bbTreeList != nullptr);
-    noway_assert(iciStmt->gtStmt.gtStmtExpr != nullptr);
+    noway_assert(iciStmt->gtStmtExpr != nullptr);
     noway_assert(iciCall->gtOper == GT_CALL);
 
 #ifdef DEBUG
@@ -21878,9 +21878,9 @@ void Compiler::fgInsertInlineeBlocks(InlineInfo* pInlineInfo)
         block->copyEHRegion(iciBlock);
         block->bbFlags   |=  iciBlock->bbFlags & BBF_BACKWARD_JUMP;
 
-        if (iciStmt->gtStmt.gtStmtILoffsx != BAD_IL_OFFSET)
+        if (iciStmt->gtStmtILoffsx != BAD_IL_OFFSET)
         {
-            block->bbCodeOffs    = jitGetILoffs(iciStmt->gtStmt.gtStmtILoffsx);
+            block->bbCodeOffs    = jitGetILoffs(iciStmt->gtStmtILoffsx);
             block->bbCodeOffsEnd = block->bbCodeOffs + 1;  // TODO: is code size of 1 some magic number for inlining?
         }
         else
@@ -22002,7 +22002,7 @@ _Done:
     // Detach the GT_CALL node from the original statement by hanging a "nothing" node under it,
     // so that fgMorphStmts can remove the statement once we return from here.
     //
-    iciStmt->gtStmt.gtStmtExpr = gtNewNothingNode();
+    iciStmt->gtStmtExpr = gtNewNothingNode();
 }
 
 //------------------------------------------------------------------------
@@ -22019,9 +22019,9 @@ GenTreePtr      Compiler::fgInlinePrependStatements(InlineInfo* inlineInfo)
 {
     BasicBlock* block = inlineInfo->iciBlock;
 
-    GenTreePtr callStmt  = inlineInfo->iciStmt;
+    GenTreeStmt* callStmt  = inlineInfo->iciStmt;
     noway_assert(callStmt->gtOper == GT_STMT);
-    IL_OFFSETX callILOffset = callStmt->gtStmt.gtStmtILoffsx;
+    IL_OFFSETX callILOffset = callStmt->gtStmtILoffsx;
 
     GenTreePtr afterStmt = callStmt; // afterStmt is the place where the new statements should be inserted after.
     GenTreePtr newStmt;

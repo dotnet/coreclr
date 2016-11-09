@@ -1220,7 +1220,7 @@ InlineContext* InlineStrategy::NewSuccess(InlineInfo* inlineInfo)
 //    A new InlineContext for diagnostic purposes, or nullptr if
 //    the desired context could not be created.
 
-InlineContext* InlineStrategy::NewFailure(GenTree* stmt, InlineResult* inlineResult)
+InlineContext* InlineStrategy::NewFailure(GenTreeStmt* stmt, InlineResult* inlineResult)
 {
     // Check for a parent context first. We may insert new statements
     // between the caller and callee that do not pick up either's
@@ -1229,7 +1229,7 @@ InlineContext* InlineStrategy::NewFailure(GenTree* stmt, InlineResult* inlineRes
     //
     // See fgInlinePrependStatements for examples.
 
-    InlineContext* parentContext = stmt->gtStmt.gtInlineContext;
+    InlineContext* parentContext = stmt->gtInlineContext;
 
     if (parentContext == nullptr)
     {
@@ -1248,7 +1248,7 @@ InlineContext* InlineStrategy::NewFailure(GenTree* stmt, InlineResult* inlineRes
     failedContext->m_Sibling     = parentContext->m_Child;
     parentContext->m_Child       = failedContext;
     failedContext->m_Child       = nullptr;
-    failedContext->m_Offset      = stmt->AsStmt()->gtStmtILoffsx;
+    failedContext->m_Offset      = stmt->gtStmtILoffsx;
     failedContext->m_Observation = inlineResult->GetObservation();
     failedContext->m_Callee      = inlineResult->GetCallee();
     failedContext->m_Success     = false;
