@@ -58,7 +58,7 @@ namespace System {
         {
             get 
             {
-                return (m_standardName);
+                return m_standardName;
             }    
         }
 
@@ -66,7 +66,7 @@ namespace System {
         {
             get
             {
-                return (m_daylightName);
+                return m_daylightName;
             }
         }
 

@@ -324,12 +324,12 @@ namespace System {
         // as the rules now is public, we should fill it properly so the caller doesn’t have to know how we use it internally 
         // and can use it as it is used in Windows
 
-        private AdjustmentRule [] GetFilledRules()
+        private AdjustmentRule[] GetFilledRules()
         {
             Contract.Assert(m_adjustmentRules != null, "m_adjustmentRules expected to be not null");
-            AdjustmentRule [] rules = new AdjustmentRule[m_adjustmentRules.Length];
+            AdjustmentRule[] rules = new AdjustmentRule[m_adjustmentRules.Length];
 
-            for (int i=0; i<m_adjustmentRules.Length; i++)
+            for (int i = 0; i < m_adjustmentRules.Length; i++)
             {
                 var rule = m_adjustmentRules[i];
                 var start = rule.DateStart.Kind == DateTimeKind.Utc ?
