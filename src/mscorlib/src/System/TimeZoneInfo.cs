@@ -334,10 +334,10 @@ namespace System {
                 var rule = m_adjustmentRules[i];
                 var start = rule.DateStart.Kind == DateTimeKind.Utc ?
                             new DateTime(TimeZoneInfo.ConvertTime(rule.DateStart, this).Ticks, DateTimeKind.Unspecified) :
-                            rule.DateStart.Date;
+                            rule.DateStart;
                 var end = rule.DateEnd.Kind == DateTimeKind.Utc ?
                             new DateTime(TimeZoneInfo.ConvertTime(rule.DateEnd, this).Ticks - 1, DateTimeKind.Unspecified) :
-                            rule.DateEnd.Date;
+                            rule.DateEnd;
 
                 var startTransition = TimeZoneInfo.TransitionTime.CreateFixedDateRule(new DateTime(1, 1, 1, start.Hour, start.Minute, start.Second), start.Month, start.Day);
                 var endTransition = TimeZoneInfo.TransitionTime.CreateFixedDateRule(new DateTime(1, 1, 1, end.Hour, end.Minute, end.Second), end.Month, end.Day);
