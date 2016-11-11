@@ -196,7 +196,7 @@ protected:
     bool m_IsNoReturnKnown : 1;
 };
 
-#ifdef DEBUG
+#if defined(DEBUG) || defined(INLINE_DATA)
 
 // RandomPolicy implements a policy that inlines at random.
 // It is mostly useful for stress testing.
@@ -205,7 +205,7 @@ class RandomPolicy : public LegalPolicy
 {
 public:
     // Construct a RandomPolicy
-    RandomPolicy(Compiler* compiler, bool isPrejitRoot, unsigned seed);
+    RandomPolicy(Compiler* compiler, bool isPrejitRoot);
 
     // Policy observations
     void NoteSuccess() override;
@@ -245,7 +245,7 @@ private:
     bool       m_IsForceInlineKnown : 1;
 };
 
-#endif // DEBUG
+#endif // defined(DEBUG) || defined(INLINE_DATA)
 
 // DiscretionaryPolicy is a variant of the enhanced legacy policy.  It
 // differs in that there is no ALWAYS_INLINE class, there is no IL
