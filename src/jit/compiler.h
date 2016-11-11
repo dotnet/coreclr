@@ -7819,10 +7819,6 @@ public:
 #endif
     }
 
-#ifdef DEBUG
-    CLRRandom* inlRNG;
-#endif
-
     //--------------------- Info about the procedure --------------------------
 
     struct Info
