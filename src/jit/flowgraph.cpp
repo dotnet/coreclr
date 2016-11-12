@@ -22041,7 +22041,7 @@ _Done:
 //
 //    Newly added statements are placed just after the original call
 //    and are are given the same inline context as the call any calls
-//    added here will appear have been part of the immediate caller.
+//    added here will appear to have been part of the immediate caller.
 
 GenTreePtr Compiler::fgInlinePrependStatements(InlineInfo* inlineInfo)
 {
@@ -22054,7 +22054,6 @@ GenTreePtr Compiler::fgInlinePrependStatements(InlineInfo* inlineInfo)
     GenTreePtr call = inlineInfo->iciCall;
 
     noway_assert(call->gtOper == GT_CALL);
-    noway_assert(callStmt->gtOper == GT_STMT);
 
 #ifdef DEBUG
     if (0 && verbose)
