@@ -13,7 +13,7 @@ using Xunit;
 [assembly: OptimizeForBenchmarks]
 [assembly: MeasureInstructionsRetired]
 
-namespace Benchstone.benchf
+namespace Benchstone.BenchF
 {
 public static class FFT
 {

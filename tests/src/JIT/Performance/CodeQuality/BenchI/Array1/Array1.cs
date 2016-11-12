@@ -18,7 +18,7 @@ using Xunit;
 [assembly: OptimizeForBenchmarks]
 [assembly: MeasureInstructionsRetired]
 
-namespace Benchstone.benchi
+namespace Benchstone.BenchI
 {
 public static class Array1
 {

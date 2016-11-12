@@ -47,7 +47,7 @@ for /R %CORECLR_PERF% %%T in (*.%TEST_FILE_EXT%) do (
 
 @rem optionally upload results to benchview
 if not [%BENCHVIEW_PATH%] == [] (
-  py %BENCHVIEW_PATH%\submission.py measurement.json ^
+  py "%BENCHVIEW_PATH%\submission.py" measurement.json ^
                                     --build ..\build.json ^
                                     --machine-data ..\machinedata.json ^
                                     --metadata ..\submission-metadata.json ^
@@ -58,7 +58,7 @@ if not [%BENCHVIEW_PATH%] == [] (
                                     --config OS "Windows_NT" ^
                                     --arch "%TEST_ARCH%" ^
                                     --machinepool "PerfSnake"
-  py %BENCHVIEW_PATH%\upload.py submission.json --container coreclr
+  py "%BENCHVIEW_PATH%\upload.py" submission.json --container coreclr
 )
 
 goto :EOF
@@ -80,7 +80,7 @@ xunit.performance.analysis.exe %PERFOUT%.xml -xml %XMLOUT% > %BENCHNAME%-analysi
 
 @rem optionally generate results for benchview
 if not [%BENCHVIEW_PATH%] == [] (
-  py %BENCHVIEW_PATH%\measurement.py xunit perf-%BENCHNAME%.xml --better desc --drop-first-value --append
+  py "%BENCHVIEW_PATH%\measurement.py" xunit "perf-%BENCHNAME%.xml" --better desc --drop-first-value --append
   REM Save off the results to the root directory for recovery later in Jenkins
   xcopy perf-%BENCHNAME%*.xml %CORECLR_REPO%\
   xcopy perf-%BENCHNAME%*.etl %CORECLR_REPO%\

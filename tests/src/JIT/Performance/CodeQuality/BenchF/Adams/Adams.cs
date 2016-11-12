@@ -18,7 +18,7 @@ using Microsoft.Xunit.Performance;
 [assembly: MeasureInstructionsRetired]
 #endif // XUNIT_PERF
 
-namespace Benchstone.benchf
+namespace Benchstone.BenchF
 {
 public static class Adams
 {
