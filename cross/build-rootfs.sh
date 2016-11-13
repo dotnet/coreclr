@@ -62,6 +62,7 @@ for i in "$@"
         xenial)
         if [ "$__UbuntuCodeName" != "jessie" ]; then
             __UbuntuCodeName=xenial
+			__LLDB_Package="liblldb-3.8-dev"
         fi
         ;;
         jessie)
