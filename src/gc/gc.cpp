@@ -9330,7 +9330,7 @@ void gc_heap::update_card_table_bundle()
             bool success = GCToOSInterface::GetWriteWatch (false /* resetState */ , base_address, region_size,
                                                            (void**)g_addresses,
                                                            &bcount);
-            assert (success);
+            assert (success && "GetWriteWatch failed!");
             dprintf (3,("Found %d pages written", bcount));
             for (unsigned  i = 0; i < bcount; i++)
             {
