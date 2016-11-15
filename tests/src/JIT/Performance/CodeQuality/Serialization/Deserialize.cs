@@ -28,7 +28,7 @@ public class JsonBenchmarks
     public const int JsonNetIterations = 90000;
 #endif
 
-    const string DataContractXml = @"<JsonBenchmarks.TestObject xmlns=""http://schemas.datacontract.org/2004/07/Serialization/"" xmlns:i=""http://www.w3.org/2001/XMLSchema-instance""><Id>33</Id><Name>SqMtx</Name><Results xmlns:a=""http://schemas.microsoft.com/2003/10/Serialization/Arrays""><a:double>101.3</a:double><a:double>99.8</a:double><a:double>99.6</a:double><a:double>100.4</a:double></Results><WhenRun>2015-01-01T00:00:00-08:00</WhenRun></JsonBenchmarks.TestObject>";
+    const string DataContractXml = @"<JsonBenchmarks.TestObject xmlns=""http://schemas.datacontract.org/2004/07/Serialization"" xmlns:i=""http://www.w3.org/2001/XMLSchema-instance""><Id>33</Id><Name>SqMtx</Name><Results xmlns:a=""http://schemas.microsoft.com/2003/10/Serialization/Arrays""><a:double>101.3</a:double><a:double>99.8</a:double><a:double>99.6</a:double><a:double>100.4</a:double></Results><WhenRun>2015-01-01T00:00:00-08:00</WhenRun></JsonBenchmarks.TestObject>";
 
     const string DataContractJson = @"{""Id"":33,""Name"":""SqMtx"",""Results"":[101.3,99.8,99.6,100.4],""WhenRun"":""\/Date(1420099200000-0800)\/""}";
 
