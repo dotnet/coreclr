@@ -166,7 +166,7 @@ void GCToOSInterface::YieldThread(uint32_t switchCount)
 //  flags     - flags to control special settings like write watching
 // Return:
 //  Starting virtual address of the reserved range
-void* GCToOSInterface::VirtualReserve(void* address, size_t size, size_t alignment, uint32_t flags)
+void* GCToOSInterface::VirtualReserve(size_t size, size_t alignment, uint32_t flags)
 {
     LIMITED_METHOD_CONTRACT;
 
@@ -255,7 +255,7 @@ bool GCToOSInterface::SupportsWriteWatch()
     // check if the OS supports write-watch. 
     // Drawbridge does not support write-watch so we still need to do the runtime detection for them.
     // Otherwise, all currently supported OSes do support write-watch.
-    void* mem = VirtualReserve (0, g_SystemInfo.dwAllocationGranularity, 0, VirtualReserveFlags::WriteWatch);
+    void* mem = VirtualReserve (g_SystemInfo.dwAllocationGranularity, 0, VirtualReserveFlags::WriteWatch);
     if (mem != NULL)
     {
         VirtualRelease (mem, g_SystemInfo.dwAllocationGranularity);

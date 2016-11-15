@@ -54,12 +54,12 @@ inline bool RunningOnWin8()
 // in the traditional dll.
 HINSTANCE LoadDllForAPI(const WCHAR* dllTraditional, const WCHAR* dllApiSet)
 {
-    HINSTANCE hinst = LoadLibraryEx(dllTraditional, nullptr, 0);
+    HINSTANCE hinst = LoadLibraryEx(dllTraditional, nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32);
 
     if (!hinst)
     {
         if(RunningOnWin8())
-            hinst = LoadLibraryEx(dllApiSet, nullptr, 0);
+            hinst = LoadLibraryEx(dllApiSet, nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32);
     }
 
     return hinst;
@@ -76,19 +76,14 @@ static size_t GetRestrictedPhysicalMemoryLimit()
 
     size_t job_physical_memory_limit = (size_t)UINTPTR_MAX;
     BOOL in_job_p = FALSE;
-#ifdef FEATURE_CORECLR
     HINSTANCE hinstApiSetPsapiOrKernel32 = 0;
     // these 2 modules will need to be freed no matter what as we only use them locally in this method.
     HINSTANCE hinstApiSetJob1OrKernel32 = 0;
     HINSTANCE hinstApiSetJob2OrKernel32 = 0;
-#else
-    HINSTANCE hinstPsapi = 0;
-#endif
 
     PIS_PROCESS_IN_JOB GCIsProcessInJob = 0;
     PQUERY_INFORMATION_JOB_OBJECT GCQueryInformationJobObject = 0;
 
-#ifdef FEATURE_CORECLR
     hinstApiSetJob1OrKernel32 = LoadDllForAPI(L"kernel32.dll", L"api-ms-win-core-job-l1-1-0.dll");
     if (!hinstApiSetJob1OrKernel32)
         goto exit;
@@ -96,43 +91,26 @@ static size_t GetRestrictedPhysicalMemoryLimit()
     GCIsProcessInJob = (PIS_PROCESS_IN_JOB)GetProcAddress(hinstApiSetJob1OrKernel32, "IsProcessInJob");
     if (!GCIsProcessInJob)
         goto exit;
-#else
-    GCIsProcessInJob = &(::IsProcessInJob);
-#endif
 
     if (!GCIsProcessInJob(GetCurrentProcess(), NULL, &in_job_p))
         goto exit;
 
     if (in_job_p)
     {
-#ifdef FEATURE_CORECLR
         hinstApiSetPsapiOrKernel32 = LoadDllForAPI(L"kernel32.dll", L"api-ms-win-core-psapi-l1-1-0");
         if (!hinstApiSetPsapiOrKernel32)
             goto exit;
 
         GCGetProcessMemoryInfo = (PGET_PROCESS_MEMORY_INFO)GetProcAddress(hinstApiSetPsapiOrKernel32, "K32GetProcessMemoryInfo");
-#else
-        // We need a way to get the working set in a job object and GetProcessMemoryInfo 
-        // is the way to get that. According to MSDN, we should use GetProcessMemoryInfo In order to 
-        // compensate for the incompatibility that psapi.dll introduced we are getting this dynamically.
-        hinstPsapi = WszLoadLibrary(L"psapi.dll");
-        if (!hinstPsapi)
-            return 0;
-        GCGetProcessMemoryInfo = (PGET_PROCESS_MEMORY_INFO)GetProcAddress(hinstPsapi, "GetProcessMemoryInfo");
-#endif
 
         if (!GCGetProcessMemoryInfo)
             goto exit;
 
-#ifdef FEATURE_CORECLR
         hinstApiSetJob2OrKernel32 = LoadDllForAPI(L"kernel32.dll", L"api-ms-win-core-job-l2-1-0");
         if (!hinstApiSetJob2OrKernel32)
             goto exit;
 
         GCQueryInformationJobObject = (PQUERY_INFORMATION_JOB_OBJECT)GetProcAddress(hinstApiSetJob2OrKernel32, "QueryInformationJobObject");
-#else
-        GCQueryInformationJobObject = &(::QueryInformationJobObject);
-#endif 
 
         if (!GCQueryInformationJobObject)
             goto exit;
@@ -175,22 +153,16 @@ static size_t GetRestrictedPhysicalMemoryLimit()
     }
 
 exit:
-#ifdef FEATURE_CORECLR
     if (hinstApiSetJob1OrKernel32)
         FreeLibrary(hinstApiSetJob1OrKernel32);
     if (hinstApiSetJob2OrKernel32)
         FreeLibrary(hinstApiSetJob2OrKernel32);
-#endif
 
     if (job_physical_memory_limit == (size_t)UINTPTR_MAX)
     {
         job_physical_memory_limit = 0;
 
-#ifdef FEATURE_CORECLR
         FreeLibrary(hinstApiSetPsapiOrKernel32);
-#else
-        FreeLibrary(hinstPsapi);
-#endif
     }
 
     VolatileStore(&g_RestrictedPhysicalMemoryLimit, job_physical_memory_limit);
@@ -333,7 +305,7 @@ void GCToOSInterface::YieldThread(uint32_t switchCount)
 //  flags     - flags to control special settings like write watching
 // Return:
 //  Starting virtual address of the reserved range
-void* GCToOSInterface::VirtualReserve(void* address, size_t size, size_t alignment, uint32_t flags)
+void* GCToOSInterface::VirtualReserve(size_t size, size_t alignment, uint32_t flags)
 {
     // Windows already ensures 64kb alignment on VirtualAlloc. The current CLR
     // implementation ignores it on Windows, other than making some sanity checks on it.
@@ -400,7 +372,7 @@ bool GCToOSInterface::VirtualReset(void * address, size_t size, bool unlock)
 // Check if the OS supports write watching
 bool GCToOSInterface::SupportsWriteWatch()
 {
-    void* mem = GCToOSInterface::VirtualReserve(0, g_SystemInfo.dwAllocationGranularity, 0, VirtualReserveFlags::WriteWatch);
+    void* mem = GCToOSInterface::VirtualReserve(g_SystemInfo.dwAllocationGranularity, 0, VirtualReserveFlags::WriteWatch);
     if (mem != nullptr)
     {
         GCToOSInterface::VirtualRelease(mem, g_SystemInfo.dwAllocationGranularity);
