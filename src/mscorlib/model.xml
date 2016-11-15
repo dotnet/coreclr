@@ -232,6 +232,7 @@
       <Member Name="BinarySearch&lt;T&gt;(T[],T,System.Collections.Generic.IComparer&lt;T&gt;)" />
       <Member Name="Clear(System.Array,System.Int32,System.Int32)" />
       <Member Name="Clone" />
+      <Member Name="Clone&lt;T&gt;(T[])" />
       <Member Name="ConstrainedCopy(System.Array,System.Int32,System.Array,System.Int32,System.Int32)" />
       <Member Name="ConvertAll&lt;TInput,TOutput&gt;(TInput[],System.Converter&lt;TInput,TOutput&gt;)" />
       <Member Name="Copy(System.Array,System.Array,System.Int32)" />
