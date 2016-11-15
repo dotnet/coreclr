@@ -10,13 +10,17 @@ namespace System.IO
 {
     // Provides methods for processing file system strings in a cross-platform manner.
     // Most of the methods don't do a complete parsing (such as examining a UNC hostname), 
-    // but they will handle most string operations.  
+    // but they will handle most string operations.
     public static partial class Path
     {
-        // Platform specific alternate directory separator character.  
+        // Platform specific alternate directory separator character.
         // There is only one directory separator char on Unix, which is the same
         // as the alternate separator on Windows, so same definition is used for both.
         public static readonly char AltDirectorySeparatorChar = '/';
+
+        // For generating random file names
+        // 8 random bytes provides 12 chars in our encoding for the 8.3 name.
+        const int KeyLength = 8;
 
         [Obsolete("Please use GetInvalidPathChars or GetInvalidFileNameChars instead.")]
         public static readonly char[] InvalidPathChars = GetInvalidPathChars();
@@ -152,8 +156,7 @@ namespace System.IO
         // used as either a folder name or a file name.
         public static unsafe string GetRandomFileName()
         {
-            // 8 random bytes provides 12 chars in our encoding for the 8.3 name.
-            const int KeyLength = 8;
+
             byte* pKey = stackalloc byte[KeyLength];
             GetCryptoRandomBytes(pKey, KeyLength);
 

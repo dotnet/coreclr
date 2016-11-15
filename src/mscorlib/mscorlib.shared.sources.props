@@ -768,10 +768,6 @@
     <ThreadingSources Include="$(BclSourcesRoot)\System\Threading\Tasks\TaskToApm.cs" />
     <ThreadingSources Condition="'$(FeatureCominterop)' == 'true'" Include="$(BclSourcesRoot)\System\Threading\Tasks\IAsyncCausalityTracerStatics.cs" />
   </ItemGroup>
-  <ItemGroup Condition="'$(FeatureCoreFxFileStream)' != 'true'">
-    <FileStreamSources Include="$(BclSourcesRoot)\System\IO\FileStream.cs" />
-    <SafehandleSources Include="$(BclSourcesRoot)\Microsoft\Win32\SafeHandles\SafeFileHandle.cs" />
-  </ItemGroup>
   <ItemGroup Condition="'$(FeatureCoreFxFileStream)' == 'true'">
     <FileStreamSources Include="$(CoreFxSourcesRoot)\System\IO\FileStream.cs" />
     <FileStreamSources Include="$(CoreFxSourcesRoot)\System\IO\FileStream.NetStandard17.cs" />
@@ -786,12 +782,6 @@
     <FileStreamSources Include="$(CoreFxSourcesRoot)\System\IO\FileStream.Win32.cs" />
     <FileStreamSources Include="$(CoreFxSourcesRoot)\System\IO\FileStreamCompletionSource.Win32.cs" />
     <FileStreamSources Include="$(CoreFxSourcesRoot)\System\IO\Win32Marshal.cs" />
-  </ItemGroup>
-  <ItemGroup Condition="'$(FeatureCoreFxPath)' != 'true'">
-    <IoSources Include="$(BclSourcesRoot)\System\IO\Path.cs" />
-    <IoSources Include="$(BclSourcesRoot)\System\IO\PathHelper.cs" />
-    <IoSources Condition="'$(TargetsUnix)' != 'true'" Include="$(BclSourcesRoot)\System\IO\LongPathHelper.cs" />
-    <IoSources Include="$(BclSourcesRoot)\System\IO\PathInternal.cs" />
   </ItemGroup>
   <ItemGroup Condition="'$(FeatureCoreFxPath)' == 'true'">
     <IoSources Include="$(CoreFxSourcesRoot)\System\IO\Path.cs" />

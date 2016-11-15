@@ -208,6 +208,13 @@ namespace System.IO
 
         private static unsafe void GetCryptoRandomBytes(byte* bytes, int byteCount)
         {
+#if FEATURE_CORECLR
+            // We want to avoid dependencies on the Crypto library when compiling in CoreCLR. This
+            // will use the existing PAL implementation.
+            byte[] buffer = new byte[KeyLength];
+            Microsoft.Win32.Win32Native.Random(bStrong: true, buffer: buffer, length: KeyLength);
+            Runtime.InteropServices.Marshal.Copy(buffer, 0, (IntPtr)bytes, KeyLength);
+#else
             if (s_isMac)
             {
                 GetCryptoRandomBytesApple(bytes, byteCount);
@@ -216,6 +223,7 @@ namespace System.IO
             {
                 GetCryptoRandomBytesOpenSsl(bytes, byteCount);
             }
+#endif
         }
 
         private static unsafe void GetCryptoRandomBytesApple(byte* bytes, int byteCount)
