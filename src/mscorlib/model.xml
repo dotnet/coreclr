@@ -2844,23 +2844,6 @@
       <Member MemberType="Property" Name="MinSupportedDateTime" />
       <Member MemberType="Property" Name="TwoDigitYearMax" />
     </Type>
-    <Type Name="System.Globalization.IdnMapping">
-      <Member Name="#ctor" />
-      <Member Name="Equals(System.Object)" />
-      <Member Name="get_AllowUnassigned" />
-      <Member Name="get_UseStd3AsciiRules" />
-      <Member Name="GetAscii(System.String)" />
-      <Member Name="GetAscii(System.String,System.Int32)" />
-      <Member Name="GetAscii(System.String,System.Int32,System.Int32)" />
-      <Member Name="GetHashCode" />
-      <Member Name="GetUnicode(System.String)" />
-      <Member Name="GetUnicode(System.String,System.Int32)" />
-      <Member Name="GetUnicode(System.String,System.Int32,System.Int32)" />
-      <Member Name="set_AllowUnassigned(System.Boolean)" />
-      <Member Name="set_UseStd3AsciiRules(System.Boolean)" />
-      <Member MemberType="Property" Name="AllowUnassigned" />
-      <Member MemberType="Property" Name="UseStd3AsciiRules" />
-    </Type>
     <Type Name="System.Globalization.KoreanCalendar">
       <Member MemberType="Field" Name="KoreanEra" />
       <Member Name="#ctor" />

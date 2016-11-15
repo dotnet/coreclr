@@ -6080,20 +6080,6 @@ namespace System.Globalization
         public override System.DateTime ToDateTime(int year, int month, int day, int hour, int minute, int second, int millisecond, int era) { throw null; }
         public override int ToFourDigitYear(int year) { throw null; }
     }
-    public sealed partial class IdnMapping
-    {
-        public IdnMapping() { }
-        public bool AllowUnassigned { get { throw null; } set { throw null; } }
-        public bool UseStd3AsciiRules { get { throw null; } set { throw null; } }
-        public override bool Equals(object obj) { throw null; }
-        public string GetAscii(string unicode) { throw null; }
-        public string GetAscii(string unicode, int index) { throw null; }
-        public string GetAscii(string unicode, int index, int count) { throw null; }
-        public override int GetHashCode() { throw null; }
-        public string GetUnicode(string ascii) { throw null; }
-        public string GetUnicode(string ascii, int index) { throw null; }
-        public string GetUnicode(string ascii, int index, int count) { throw null; }
-    }
     [System.Runtime.InteropServices.ComVisibleAttribute(true)]
     public partial class JapaneseCalendar : System.Globalization.Calendar
     {
