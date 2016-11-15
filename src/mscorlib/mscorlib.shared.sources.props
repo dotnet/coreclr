@@ -620,7 +620,6 @@
     <GlobalizationSources Include="$(CoreFxSourcesRoot)\SR.cs" />
   </ItemGroup>
   <ItemGroup Condition="'$(FeatureCoreFxGlobalization)' == 'true'">
-    <GlobalizationSources Condition="'$(FeatureCoreClr)'=='true'" Include="$(CoreFxSourcesRoot)\System\Globalization\STUBS.cs" />
     <GlobalizationSources Include="$(CoreFxSourcesRoot)\System\Globalization\Calendar.cs" />
     <GlobalizationSources Include="$(CoreFxSourcesRoot)\System\Globalization\CalendarAlgorithmType.cs" />
     <GlobalizationSources Include="$(CoreFxSourcesRoot)\System\Globalization\CalendarData.cs" />
