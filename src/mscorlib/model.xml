@@ -12187,6 +12187,7 @@
       <Member Name="get_ThreadContextChanged"/>
     </Type>
     <Type Name="System.Threading.ExecutionContext">
+      <Member Status="ImplRoot" Name="#ctor(System.Runtime.Serialization.SerializationInfo,System.Runtime.Serialization.StreamingContext)" />
       <Member Name="Capture" />
       <Member Name="CreateCopy" />
       <Member Name="Dispose" />
