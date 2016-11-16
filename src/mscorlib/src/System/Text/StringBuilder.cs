@@ -56,6 +56,7 @@ namespace System.Text {
         internal StringBuilder m_ChunkPrevious;      // Link to the block logically before this block
         internal int m_ChunkLength;                  // The index in m_ChunkChars that represent the end of the block
         internal int m_ChunkOffset;                  // The logical offset (sum of all characters in previous blocks)
+        internal bool m_ChunkCopyOnChange;           // Two or more StringBuilders have common m_ChunkChars after fast Append or Insert
         internal int m_MaxCapacity = 0;
 
         //
@@ -1006,6 +1007,90 @@ namespace System.Text {
                 unsafe {
                     fixed (char* valueChars = &value[0])
                         Append(valueChars, value.Length);
+                }
+            }
+            return this;
+        }
+        
+        public StringBuilder Append(StringBuilder value)
+        {
+            return Append(value, 0, value.Length);
+        }
+
+        public StringBuilder Append(StringBuilder value, int startIndex, int count)
+        {
+            var srcChunk = value.FindChunkForIndex(startIndex + count);
+
+            var srcOffset = startIndex - srcChunk.m_ChunkOffset;
+            if (srcOffset > 0)
+            {
+                // Slow append part of one chunk
+                unsafe
+                {
+                    fixed (char* valueChars = &srcChunk.m_ChunkChars[srcOffset])
+                        return Append(valueChars, count);
+                }
+            }
+
+            // Fast append the first chunk
+            var prevChunk = new StringBuilder(this);
+            m_ChunkPrevious = prevChunk;
+
+            m_ChunkCopyOnChange = true;
+            srcChunk.m_ChunkCopyOnChange = true;
+            m_ChunkChars = srcChunk.m_ChunkChars;
+            m_ChunkOffset += m_ChunkLength + count + srcOffset;
+            m_ChunkLength = count + srcOffset;
+
+            count -= m_ChunkLength; // count = count - count - srcOffset = -srcOffset;
+            //count = -srcOffset;
+
+            var destChunk = this;
+            while (count > 0)
+            {
+                srcChunk = srcChunk.m_ChunkPrevious;
+                srcOffset = startIndex - srcChunk.m_ChunkOffset;
+                if (srcOffset <= 0)
+                {
+                    // Fast append full chunck
+                    prevChunk = new StringBuilder(destChunk);
+                    destChunk.m_ChunkPrevious = prevChunk;
+
+                    prevChunk.m_ChunkCopyOnChange = true;
+                    srcChunk.m_ChunkCopyOnChange = true;
+                    prevChunk.m_ChunkChars = srcChunk.m_ChunkChars;
+                    prevChunk.m_ChunkOffset -= srcChunk.m_ChunkLength;
+                    prevChunk.m_ChunkLength = srcChunk.m_ChunkLength;
+
+                    count -= srcChunk.m_ChunkLength;
+                    destChunk = prevChunk;
+                }
+                else 
+                {
+                    // Slow append part of the last chunk
+                    if (!destChunk.m_ChunkCopyOnChange)
+                    {
+                        var len = destChunk.m_ChunkChars.Length - destChunk.Length;
+                        if (len > 0) // destChunk have a gap
+                        {
+                            if (len > count)
+                                len = count;
+                            Array.Copy(srcChunk.m_ChunkChars, srcOffset, destChunk.m_ChunkChars, destChunk.Length, len);
+                            destChunk.Length += len;
+                            count -= len;
+                            if (count == 0)
+                                return this;
+                            srcOffset += len;
+                        }
+                    }
+                    prevChunk = new StringBuilder(destChunk);
+                    destChunk.m_ChunkPrevious = prevChunk;
+
+                    prevChunk.m_ChunkChars = new char[count];
+                    Array.Copy(srcChunk.m_ChunkChars, srcOffset, prevChunk.m_ChunkChars, 0, count);
+                    prevChunk.m_ChunkOffset -= count;
+                    prevChunk.m_ChunkLength = count;
+                    return this;
                 }
             }
             return this;
