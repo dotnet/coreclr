@@ -132,15 +132,15 @@ namespace System.Globalization
 
         public string GetAscii(String unicode, int index, int count)
         {
-            if (unicode == null) throw new ArgumentNullException("unicode");
+            if (unicode == null) throw new ArgumentNullException(nameof(unicode));
             if (index < 0 || count < 0)
-                throw new ArgumentOutOfRangeException((index < 0) ? "index" : "count",
+                throw new ArgumentOutOfRangeException((index < 0) ? nameof(index) : nameof(count),
                       Environment.GetResourceString("ArgumentOutOfRange_NeedNonNegNum"));
             if (index > unicode.Length)
-                throw new ArgumentOutOfRangeException("byteIndex",
+                throw new ArgumentOutOfRangeException(nameof(index),
                     Environment.GetResourceString("ArgumentOutOfRange_Index"));
             if (index > unicode.Length - count)
-                throw new ArgumentOutOfRangeException("unicode",
+                throw new ArgumentOutOfRangeException(nameof(unicode),
                       Environment.GetResourceString("ArgumentOutOfRange_IndexCountBuffer"));
             Contract.EndContractBlock();
 
@@ -165,7 +165,7 @@ namespace System.Globalization
             {
                 throw new ArgumentException(
                     Environment.GetResourceString("Argument_InvalidCharSequence", unicode.Length-1 ),
-                    "unicode");
+                    nameof(unicode));
             }
 
             // Have to correctly IDNA normalize the string and Unassigned flags
@@ -177,7 +177,7 @@ namespace System.Globalization
             if ((!bHasLastDot) && unicode.Length > 0 && IsDot(unicode[unicode.Length - 1]))
             {
                 throw new ArgumentException(Environment.GetResourceString(
-                    "Argument_IdnBadLabelSize"), "unicode");
+                    "Argument_IdnBadLabelSize"), nameof(unicode));
             }
 
             // May need to check Std3 rules again for non-ascii
