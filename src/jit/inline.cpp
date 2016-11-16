@@ -1474,10 +1474,12 @@ void InlineStrategy::DumpXml(FILE* file, unsigned indent)
 
             if (dumpDataSetting == 1)
             {
+                // JitInlineDumpData=1 -- dump schema for data plus deltas
                 DumpDataSchema(file);
             }
             else if (dumpDataSetting == 2)
             {
+                // JitInlineDumpData=2 -- dump schema for data only
                 m_LastSuccessfulPolicy->DumpSchema(file);
             }
 
