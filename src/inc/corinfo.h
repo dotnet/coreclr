@@ -2968,7 +2968,7 @@ public:
                         BOOL                            fEmbedParent, // TRUE - embeds parent type handle of the field/method handle
                         CORINFO_GENERICHANDLE_RESULT *  pResult) = 0;
 
-    // Return information used to locate the exact enclosing type of the current method.
+    // Return information used to locate the exact enclosing type of the context method.
     // Used only to invoke .cctor method from code shared across generic instantiations
     //   !needsRuntimeLookup       statically known (enclosing type of method itself)
     //   needsRuntimeLookup:

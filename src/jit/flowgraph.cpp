@@ -22228,18 +22228,17 @@ GenTreePtr Compiler::fgInlinePrependStatements(InlineInfo* inlineInfo)
     if (inlineInfo->inlineCandidateInfo->initClassResult & CORINFO_INITCLASS_USE_HELPER)
     {
         CORINFO_CONTEXT_HANDLE exactContext = inlineInfo->inlineCandidateInfo->exactContextHnd;
-        CORINFO_CLASS_HANDLE exactClass;
-
-        if (((SIZE_T)exactContext & CORINFO_CONTEXTFLAGS_MASK) == CORINFO_CONTEXTFLAGS_CLASS)
+        GenTreePtr thisArg = nullptr;
+        if (inlineInfo->argCnt > 0)
         {
-            exactClass = CORINFO_CLASS_HANDLE((SIZE_T)exactContext & ~CORINFO_CONTEXTFLAGS_MASK);
+            int thisArgNumb = 0;
+            InlArgInfo thisArgInfo = inlineInfo->inlArgInfo[thisArgNumb];
+            if (thisArgInfo.argIsThis)
+            {
+                thisArg = thisArgInfo.argNode;
+            }
         }
-        else
-        {
-            exactClass = info.compCompHnd->getMethodClass(CORINFO_METHOD_HANDLE((SIZE_T)exactContext & ~CORINFO_CONTEXTFLAGS_MASK));
-        }
-
-        tree = fgGetSharedCCtor(exactClass);
+        tree = fgInitClass(exactContext, thisArg);
         newStmt = gtNewStmt(tree, callILOffset);
         afterStmt = fgInsertStmtAfter(block, afterStmt, newStmt);
     }
