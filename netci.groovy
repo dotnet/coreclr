@@ -2258,6 +2258,10 @@ combinedScenarios.each { scenario ->
                                     return
                                 }
                                 break
+                            case 'standalone_gc':
+                                if (configuration != 'Release' || configuration != 'Checked') {
+                                    return
+                                }
                             case 'coverage':
                                 //We only want Ubuntu Release for coverage
                                 if (os != 'Ubuntu') {
