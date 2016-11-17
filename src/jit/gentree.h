@@ -4799,6 +4799,23 @@ struct GenTreeJumpCC final : public GenTree
 #endif // DEBUGGABLE_GENTREE
 };
 
+struct GenTreeSelectCC final : public GenTreeOp
+{
+    genTreeOps gtCondition; // any relop
+
+    GenTreeSelectCC(genTreeOps condition, var_types type, GenTree* op1, GenTree* op2)
+        : GenTreeOp(GT_SELCC, type, op1, op2 DEBUGARG(/*largeNode*/ FALSE)), gtCondition(condition)
+    {
+        assert(OperIsCompare(condition));
+    }
+
+#if DEBUGGABLE_GENTREE
+    GenTreeSelectCC() : GenTreeOp()
+    {
+    }
+#endif // DEBUGGABLE_GENTREE
+};
+
 //------------------------------------------------------------------------
 // Deferred inline functions of GenTree -- these need the subtypes above to
 // be defined already.

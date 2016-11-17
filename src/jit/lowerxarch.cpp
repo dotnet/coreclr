@@ -593,6 +593,10 @@ void Lowering::TreeNodeInfoInit(GenTree* tree)
             TreeNodeInfoInitShiftRotate(tree);
             break;
 
+        case GT_SELCC:
+            TreeNodeInfoInitSelect(tree->AsSelectCC());
+            break;
+
         case GT_EQ:
         case GT_NE:
         case GT_LT:
@@ -3229,6 +3233,41 @@ void Lowering::SetIndirAddrOpCounts(GenTreePtr indirTree)
     }
 }
 
+//------------------------------------------------------------------------
+// TreeNodeInfoInitSelect: Set the NodeInfo for a GT_SELCC
+//
+// Arguments:
+//    select - the select node
+//
+
+void Lowering::TreeNodeInfoInitSelect(GenTreeSelectCC* select)
+{
+    TreeNodeInfo* info = &(select->gtLsraInfo);
+
+    info->srcCount = 2;
+    info->dstCount = 1;
+
+    GenTree* op2 = select->gtGetOp2();
+
+    if (op2->isMemoryOp())
+    {
+        //
+        // There's no byte-sized CMOV so we can't contain a memory operand unless it's
+        // TYP_INT (and TYP_LONG on x64). There's a word-sized CMOV but to use it we
+        // we would likely need to widen the result of CMOV the same way a GT_IND does.
+        //
+
+        if (varTypeIsIntOrI(op2))
+        {
+            MakeSrcContained(select, op2);
+        }
+    }
+    else
+    {
+        SetRegOptional(op2);
+    }
+}
+
 void Lowering::TreeNodeInfoInitCmp(GenTreePtr tree)
 {
     assert(tree->OperIsCompare());
@@ -3253,17 +3292,7 @@ void Lowering::TreeNodeInfoInitCmp(GenTreePtr tree)
     var_types  op2Type = op2->TypeGet();
 
 #if !defined(_TARGET_64BIT_)
-    // Long compares will consume GT_LONG nodes, each of which produces two results.
-    // Thus for each long operand there will be an additional source.
-    // TODO-X86-CQ: Mark hiOp2 and loOp2 as contained if it is a constant or a memory op.
-    if (varTypeIsLong(op1Type))
-    {
-        info->srcCount++;
-    }
-    if (varTypeIsLong(op2Type))
-    {
-        info->srcCount++;
-    }
+    assert(!varTypeIsLong(op1Type) && !varTypeIsLong(op2Type));
 #endif // !defined(_TARGET_64BIT_)
 
     // If either of op1 or op2 is floating point values, then we need to use

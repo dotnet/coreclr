@@ -141,8 +141,7 @@ GenTree* Lowering::LowerNode(GenTree* node)
         case GT_GE:
         case GT_EQ:
         case GT_NE:
-            LowerCompare(node);
-            break;
+            return LowerCompare(node);
 
         case GT_JMP:
             LowerJmpMethod(node);
@@ -1902,251 +1901,315 @@ GenTree* Lowering::LowerTailCallViaHelper(GenTreeCall* call, GenTree* callTarget
 }
 
 //------------------------------------------------------------------------
-// Lowering::LowerCompare: lowers a compare node.
+// LowerCompare: On 32 bit targets this replaces TYP_LONG compares with
+// multiple TYP_INT compares, otherwise it does nothing.
 //
-// For 64-bit targets, this doesn't do much of anything: all comparisons
-// that we support can be handled in code generation on such targets.
+// Arguments:
+//    cmp - pointer to a GT_EQ/NE/GT/GE/LT/LE node to be lowered
 //
-// For 32-bit targets, however, any comparison that feeds a `GT_JTRUE`
-// node must be lowered such that the liveness of the operands to the
-// comparison is properly visible to the rest of the backend. As such,
-// a 64-bit comparison is lowered from something like this:
-//
-//    ------------ BB02 [004..014) -> BB02 (cond), preds={BB02,BB01} succs={BB03,BB02}
-//    N001 (  1,  1) [000006] ------------        t6 =    lclVar    int    V02 loc0         u:5 $148
-//
-//                                                     /--*  t6     int
-//    N002 (  2,  3) [000007] ---------U--        t7 = *  cast      long <- ulong <- uint $3c0
-//
-//    N003 (  3, 10) [000009] ------------        t9 =    lconst    long   0x0000000000000003 $101
-//
-//                                                     /--*  t7     long
-//                                                     +--*  t9     long
-//    N004 (  9, 17) [000010] N------N-U--       t10 = *  <         int    $149
-//
-//                                                     /--*  t10    int
-//    N005 ( 11, 19) [000011] ------------             *  jmpTrue   void
-//
-// To something like this:
-//
-//    ------------ BB02 [004..014) -> BB03 (cond), preds={BB06,BB07,BB01} succs={BB06,BB03}
-//                   [000099] ------------       t99 =    const     int    0
-//
-//                   [000101] ------------      t101 =    const     int    0
-//
-//                                                     /--*  t99    int
-//                                                     +--*  t101   int
-//    N004 (  9, 17) [000010] N------N-U--       t10 = *  >         int    $149
-//
-//                                                     /--*  t10    int
-//    N005 ( 11, 19) [000011] ------------             *  jmpTrue   void
-//
-//
-//    ------------ BB06 [???..???) -> BB02 (cond), preds={BB02} succs={BB07,BB02}
-//                   [000105] -------N-U--                jcc       void   cond=<
-//
-//
-//    ------------ BB07 [???..???) -> BB02 (cond), preds={BB06} succs={BB03,BB02}
-//    N001 (  1,  1) [000006] ------------        t6 =    lclVar    int    V02 loc0         u:5 $148
-//
-//    N003 (  3, 10) [000009] ------------        t9 =    const     int    3
-//
-//                                                     /--*  t6     int
-//                                                     +--*  t9     int
-//                   [000106] N------N-U--      t106 = *  <         int
-//
-//                                                     /--*  t106   int
-//                   [000107] ------------             *  jmpTrue   void
-//
-// Which will eventually generate code similar to the following:
-//
-//    33DB         xor      ebx, ebx
-//    85DB         test     ebx, ebx
-//    7707         ja       SHORT G_M50523_IG04
-//    72E7         jb       SHORT G_M50523_IG03
-//    83F803       cmp      eax, 3
-//    72E2         jb       SHORT G_M50523_IG03
-//
-void Lowering::LowerCompare(GenTree* cmp)
+
+GenTree* Lowering::LowerCompare(GenTree* cmp)
 {
+    assert(GenTree::OperIsCompare(cmp->OperGet()));
+
+    GenTree* next = cmp->gtNext;
+
 #ifndef _TARGET_64BIT_
-    if (cmp->gtGetOp1()->TypeGet() != TYP_LONG)
+    if (cmp->gtGetOp1()->TypeGet() == TYP_LONG)
     {
-        return;
-    }
+        LIR::Use cmpUse;
 
-    LIR::Use cmpUse;
-
-    if (!BlockRange().TryGetUse(cmp, &cmpUse) || cmpUse.User()->OperGet() != GT_JTRUE)
-    {
-        return;
-    }
-
-    GenTree* src1   = cmp->gtGetOp1();
-    GenTree* src2   = cmp->gtGetOp2();
-    unsigned weight = m_block->getBBWeight(comp);
-
-    LIR::Use loSrc1(BlockRange(), &(src1->gtOp.gtOp1), src1);
-    LIR::Use loSrc2(BlockRange(), &(src2->gtOp.gtOp1), src2);
-
-    if (loSrc1.Def()->OperGet() != GT_CNS_INT && loSrc1.Def()->OperGet() != GT_LCL_VAR)
-    {
-        loSrc1.ReplaceWithLclVar(comp, weight);
-    }
-
-    if (loSrc2.Def()->OperGet() != GT_CNS_INT && loSrc2.Def()->OperGet() != GT_LCL_VAR)
-    {
-        loSrc2.ReplaceWithLclVar(comp, weight);
-    }
-
-    BasicBlock* jumpDest = m_block->bbJumpDest;
-    BasicBlock* nextDest = m_block->bbNext;
-    BasicBlock* newBlock = comp->fgSplitBlockAtEnd(m_block);
-
-    cmp->gtType     = TYP_INT;
-    cmp->gtOp.gtOp1 = src1->gtOp.gtOp2;
-    cmp->gtOp.gtOp2 = src2->gtOp.gtOp2;
-
-    if (cmp->OperGet() == GT_EQ || cmp->OperGet() == GT_NE)
-    {
-        // 64-bit equality comparisons (no matter the polarity) require two 32-bit comparisons: one for the upper 32
-        // bits and one for the lower 32 bits. As such, we update the flow graph like so:
-        //
-        //     Before:
-        //                 BB0: cond
-        //                   /   \
-        //                false  true
-        //                  |     |
-        //                 BB1   BB2
-        //
-        //     After:
-        //                  BB0: cond(hi)
-        //                   /        \
-        //                false       true
-        //                  |          |
-        //                  |     BB3: cond(lo)
-        //                  |      /       \
-        //                  |   false      true
-        //                  \    /          |
-        //                    BB1          BB2
-        //
-
-        BlockRange().Remove(loSrc1.Def());
-        BlockRange().Remove(loSrc2.Def());
-        GenTree* loCmp   = comp->gtNewOperNode(cmp->OperGet(), TYP_INT, loSrc1.Def(), loSrc2.Def());
-        loCmp->gtFlags   = cmp->gtFlags;
-        GenTree* loJtrue = comp->gtNewOperNode(GT_JTRUE, TYP_VOID, loCmp);
-        LIR::AsRange(newBlock).InsertAfter(nullptr, loSrc1.Def(), loSrc2.Def(), loCmp, loJtrue);
-
-        m_block->bbJumpKind = BBJ_COND;
-
-        if (cmp->OperGet() == GT_EQ)
+        if (!BlockRange().TryGetUse(cmp, &cmpUse))
         {
-            cmp->gtOper         = GT_NE;
-            m_block->bbJumpDest = nextDest;
-            nextDest->bbFlags |= BBF_JMP_TARGET;
-            comp->fgAddRefPred(nextDest, m_block);
+            BlockRange().Remove(cmp);
+        }
+        else if (cmpUse.User()->OperGet() == GT_JTRUE)
+        {
+            // For 32-bit targets any comparison that feeds a `GT_JTRUE` node
+            // must be lowered such that the liveness of the operands to the
+            // comparison is properly visible to the rest of the backend. As such,
+            // a 64-bit comparison is lowered from something like this:
+            //
+            //    ------------ BB02 [004..014) -> BB02 (cond), preds={BB02,BB01} succs={BB03,BB02}
+            //    N001 (  1,  1) [000006] ------------        t6 =    lclVar    int    V02 loc0         u:5 $148
+            //
+            //                                                     /--*  t6     int
+            //    N002 (  2,  3) [000007] ---------U--        t7 = *  cast      long <- ulong <- uint $3c0
+            //
+            //    N003 (  3, 10) [000009] ------------        t9 =    lconst    long   0x0000000000000003 $101
+            //
+            //                                                     /--*  t7     long
+            //                                                     +--*  t9     long
+            //    N004 (  9, 17) [000010] N------N-U--       t10 = *  <         int    $149
+            //
+            //                                                     /--*  t10    int
+            //    N005 ( 11, 19) [000011] ------------             *  jmpTrue   void
+            //
+            // To something like this:
+            //
+            //    ------------ BB02 [004..014) -> BB03 (cond), preds={BB06,BB07,BB01} succs={BB06,BB03}
+            //                   [000099] ------------       t99 =    const     int    0
+            //
+            //                   [000101] ------------      t101 =    const     int    0
+            //
+            //                                                     /--*  t99    int
+            //                                                     +--*  t101   int
+            //    N004 (  9, 17) [000010] N------N-U--       t10 = *  >         int    $149
+            //
+            //                                                     /--*  t10    int
+            //    N005 ( 11, 19) [000011] ------------             *  jmpTrue   void
+            //
+            //
+            //    ------------ BB06 [???..???) -> BB02 (cond), preds={BB02} succs={BB07,BB02}
+            //                   [000105] -------N-U--                jcc       void   cond=<
+            //
+            //
+            //    ------------ BB07 [???..???) -> BB02 (cond), preds={BB06} succs={BB03,BB02}
+            //    N001 (  1,  1) [000006] ------------        t6 =    lclVar    int    V02 loc0         u:5 $148
+            //
+            //    N003 (  3, 10) [000009] ------------        t9 =    const     int    3
+            //
+            //                                                     /--*  t6     int
+            //                                                     +--*  t9     int
+            //                   [000106] N------N-U--      t106 = *  <         int
+            //
+            //                                                     /--*  t106   int
+            //                   [000107] ------------             *  jmpTrue   void
+            //
+            // Which will eventually generate code similar to the following:
+            //
+            //    33DB         xor      ebx, ebx
+            //    85DB         test     ebx, ebx
+            //    7707         ja       SHORT G_M50523_IG04
+            //    72E7         jb       SHORT G_M50523_IG03
+            //    83F803       cmp      eax, 3
+            //    72E2         jb       SHORT G_M50523_IG03
+            //
+
+            GenTree* src1   = cmp->gtGetOp1();
+            GenTree* src2   = cmp->gtGetOp2();
+            unsigned weight = m_block->getBBWeight(comp);
+
+            LIR::Use loSrc1(BlockRange(), &(src1->gtOp.gtOp1), src1);
+            LIR::Use loSrc2(BlockRange(), &(src2->gtOp.gtOp1), src2);
+
+            if (loSrc1.Def()->OperGet() != GT_CNS_INT && loSrc1.Def()->OperGet() != GT_LCL_VAR)
+            {
+                loSrc1.ReplaceWithLclVar(comp, weight);
+            }
+
+            if (loSrc2.Def()->OperGet() != GT_CNS_INT && loSrc2.Def()->OperGet() != GT_LCL_VAR)
+            {
+                loSrc2.ReplaceWithLclVar(comp, weight);
+            }
+
+            BasicBlock* jumpDest = m_block->bbJumpDest;
+            BasicBlock* nextDest = m_block->bbNext;
+            BasicBlock* newBlock = comp->fgSplitBlockAtEnd(m_block);
+
+            cmp->gtType     = TYP_INT;
+            cmp->gtOp.gtOp1 = src1->gtOp.gtOp2;
+            cmp->gtOp.gtOp2 = src2->gtOp.gtOp2;
+
+            if (cmp->OperGet() == GT_EQ || cmp->OperGet() == GT_NE)
+            {
+                // 64-bit equality comparisons (no matter the polarity) require two 32-bit comparisons: one for
+                // the upper 32 bits and one for the lower 32 bits. As such, we update the flow graph like so:
+                //
+                //     Before:
+                //                 BB0: cond
+                //                   /   \
+                //                false  true
+                //                  |     |
+                //                 BB1   BB2
+                //
+                //     After:
+                //                  BB0: cond(hi)
+                //                   /        \
+                //                false       true
+                //                  |          |
+                //                  |     BB3: cond(lo)
+                //                  |      /       \
+                //                  |   false      true
+                //                  \    /          |
+                //                    BB1          BB2
+                //
+
+                BlockRange().Remove(loSrc1.Def());
+                BlockRange().Remove(loSrc2.Def());
+                GenTree* loCmp   = comp->gtNewOperNode(cmp->OperGet(), TYP_INT, loSrc1.Def(), loSrc2.Def());
+                loCmp->gtFlags   = cmp->gtFlags;
+                GenTree* loJtrue = comp->gtNewOperNode(GT_JTRUE, TYP_VOID, loCmp);
+                LIR::AsRange(newBlock).InsertAfter(nullptr, loSrc1.Def(), loSrc2.Def(), loCmp, loJtrue);
+
+                m_block->bbJumpKind = BBJ_COND;
+
+                if (cmp->OperGet() == GT_EQ)
+                {
+                    cmp->gtOper         = GT_NE;
+                    m_block->bbJumpDest = nextDest;
+                    nextDest->bbFlags |= BBF_JMP_TARGET;
+                    comp->fgAddRefPred(nextDest, m_block);
+                }
+                else
+                {
+                    m_block->bbJumpDest = jumpDest;
+                    comp->fgAddRefPred(jumpDest, m_block);
+                }
+
+                assert(newBlock->bbJumpKind == BBJ_COND);
+                assert(newBlock->bbJumpDest == jumpDest);
+            }
+            else
+            {
+                // 64-bit ordinal comparisons are more complicated: they require two comparisons for the upper 32 bits
+                // and one comparison for the lower 32 bits. We update the flowgraph as such:
+                //
+                //     Before:
+                //                 BB0: cond
+                //                   /   \
+                //                false  true
+                //                  |     |
+                //                 BB1   BB2
+                //
+                //     After:
+                //           BB0: (!cond(hi) && !eq(hi))
+                //               /                \
+                //             true              false
+                //              |                  |
+                //              |      BB3: (cond(hi) && !eq(hi))
+                //              |             /        \
+                //              |          false      true
+                //              |            |          |
+                //              |      BB4: cond(lo)    |
+                //              |       /         \     |
+                //              |    false        true  |
+                //              \     /             \   /
+                //                BB1                BB2
+                //
+                //
+                // Note that the actual comparisons used to implement "(!cond(hi) && !eq(hi))" and
+                // "(cond(hi) && !eq(hi))" differ based on the original condition, and all consist of
+                // a single node. The switch statement below performs the necessary mapping.
+                //
+
+                genTreeOps hiCmpOper;
+                genTreeOps loCmpOper;
+
+                switch (cmp->OperGet())
+                {
+                    case GT_LT:
+                        cmp->gtOper = GT_GT;
+                        hiCmpOper   = GT_LT;
+                        loCmpOper   = GT_LT;
+                        break;
+                    case GT_LE:
+                        cmp->gtOper = GT_GT;
+                        hiCmpOper   = GT_LT;
+                        loCmpOper   = GT_LE;
+                        break;
+                    case GT_GT:
+                        cmp->gtOper = GT_LT;
+                        hiCmpOper   = GT_GT;
+                        loCmpOper   = GT_GT;
+                        break;
+                    case GT_GE:
+                        cmp->gtOper = GT_LT;
+                        hiCmpOper   = GT_GT;
+                        loCmpOper   = GT_GE;
+                        break;
+                    default:
+                        unreached();
+                }
+
+                BasicBlock* newBlock2 = comp->fgSplitBlockAtEnd(newBlock);
+
+                GenTree* hiJcc = new (comp, GT_JCC) GenTreeJumpCC(hiCmpOper);
+                hiJcc->gtFlags = cmp->gtFlags;
+                LIR::AsRange(newBlock).InsertAfter(nullptr, hiJcc);
+
+                BlockRange().Remove(loSrc1.Def());
+                BlockRange().Remove(loSrc2.Def());
+                GenTree* loCmp   = comp->gtNewOperNode(loCmpOper, TYP_INT, loSrc1.Def(), loSrc2.Def());
+                loCmp->gtFlags   = cmp->gtFlags | GTF_UNSIGNED;
+                GenTree* loJtrue = comp->gtNewOperNode(GT_JTRUE, TYP_VOID, loCmp);
+                LIR::AsRange(newBlock2).InsertAfter(nullptr, loSrc1.Def(), loSrc2.Def(), loCmp, loJtrue);
+
+                m_block->bbJumpKind = BBJ_COND;
+                m_block->bbJumpDest = nextDest;
+                nextDest->bbFlags |= BBF_JMP_TARGET;
+                comp->fgAddRefPred(nextDest, m_block);
+
+                newBlock->bbJumpKind = BBJ_COND;
+                newBlock->bbJumpDest = jumpDest;
+                comp->fgAddRefPred(jumpDest, newBlock);
+
+                assert(newBlock2->bbJumpKind == BBJ_COND);
+                assert(newBlock2->bbJumpDest == jumpDest);
+            }
+
+            BlockRange().Remove(src1);
+            BlockRange().Remove(src2);
         }
         else
         {
-            m_block->bbJumpDest = jumpDest;
-            comp->fgAddRefPred(jumpDest, m_block);
+            //
+            // While it's possible to pass long comparisons to codegen directly doing so may
+            // require 4 registers to be allocated to the comparison rather than 1 or 2. To
+            // avoid this we split the TYP_LONG comparison into 2 TYP_INT comparisons of the
+            // low and high parts and select the appropiate result using a GT_SELCC(EQ).
+            // If the high parts are equal then we select the result of the low comparison,
+            // otherwise we select the result of the high comparison.
+            //
+            // This should generate code that looks like below:
+            //
+            // 3BC1         cmp      eax, ecx  ; low compare
+            // 0F92C0       setb     al
+            // 3BD3         cmp      edx, ebx  ; high compare
+            // 0F9CC2       setl     dl
+            // 0F44D0       cmove    edx, eax
+            // 0FB6D2       movzx    edx, dl
+            //
+            // This approach avoids introducing new basic blocks and it's faster than other
+            // approaches that require flow control. However, the generated code is slightly
+            // larger.
+            //
+
+            GenTree* src1 = cmp->gtGetOp1();
+            GenTree* src2 = cmp->gtGetOp2();
+
+            //
+            // Set the comparison type to TYP_BYTE, otherwise we'll get one MOVZX instruction for
+            // each comparison. We'll add a cast from TYP_UBYTE (yes, unsigned because we get a
+            // zero latency MOVZX instead of a MOVSX) after the select to compensate.
+            //
+            // Note that there's no byte-size CMOV instruction so we'll end up using a register
+            // after a partial update. That may cause a stall but this doesn't appear to degrade
+            // performance if the low 8 byte registers are used.
+            //
+
+            cmp->gtType     = TYP_BYTE;
+            cmp->gtOp.gtOp1 = src1->gtGetOp1();
+            cmp->gtOp.gtOp2 = src2->gtGetOp1();
+
+            GenTree* hiCmp = comp->gtNewOperNode(cmp->OperGet(), TYP_BYTE, src1->gtGetOp2(), src2->gtGetOp2());
+
+            hiCmp->gtFlags = cmp->gtFlags;
+            cmp->gtFlags |= GTF_UNSIGNED;
+
+            GenTree* select = new (comp, GT_SELCC) GenTreeSelectCC(GT_EQ, TYP_INT, hiCmp, cmp);
+            GenTree* cast   = comp->gtNewCastNode(TYP_INT, select, TYP_UBYTE);
+
+            cmpUse.ReplaceWith(comp, cast);
+            BlockRange().InsertAfter(cmp, hiCmp, select, cast);
+
+            BlockRange().Remove(src1);
+            BlockRange().Remove(src2);
         }
-
-        assert(newBlock->bbJumpKind == BBJ_COND);
-        assert(newBlock->bbJumpDest == jumpDest);
     }
-    else
-    {
-        // 64-bit ordinal comparisons are more complicated: they require two comparisons for the upper 32 bits and one
-        // comparison for the lower 32 bits. We update the flowgraph as such:
-        //
-        //     Before:
-        //                 BB0: cond
-        //                   /   \
-        //                false  true
-        //                  |     |
-        //                 BB1   BB2
-        //
-        //     After:
-        //           BB0: (!cond(hi) && !eq(hi))
-        //               /                \
-        //             true              false
-        //              |                  |
-        //              |      BB3: (cond(hi) && !eq(hi))
-        //              |             /        \
-        //              |          false      true
-        //              |            |          |
-        //              |      BB4: cond(lo)    |
-        //              |       /         \     |
-        //              |    false        true  |
-        //              \     /             \   /
-        //                BB1                BB2
-        //
-        //
-        // Note that the actual comparisons used to implement "(!cond(hi) && !eq(hi))" and "(cond(hi) && !eq(hi))"
-        // differ based on the original condition, and all consist of a single node. The switch statement below
-        // performs the necessary mapping.
-        //
-
-        genTreeOps hiCmpOper;
-        genTreeOps loCmpOper;
-
-        switch (cmp->OperGet())
-        {
-            case GT_LT:
-                cmp->gtOper = GT_GT;
-                hiCmpOper   = GT_LT;
-                loCmpOper   = GT_LT;
-                break;
-            case GT_LE:
-                cmp->gtOper = GT_GT;
-                hiCmpOper   = GT_LT;
-                loCmpOper   = GT_LE;
-                break;
-            case GT_GT:
-                cmp->gtOper = GT_LT;
-                hiCmpOper   = GT_GT;
-                loCmpOper   = GT_GT;
-                break;
-            case GT_GE:
-                cmp->gtOper = GT_LT;
-                hiCmpOper   = GT_GT;
-                loCmpOper   = GT_GE;
-                break;
-            default:
-                unreached();
-        }
-
-        BasicBlock* newBlock2 = comp->fgSplitBlockAtEnd(newBlock);
-
-        GenTree* hiJcc = new (comp, GT_JCC) GenTreeJumpCC(hiCmpOper);
-        hiJcc->gtFlags = cmp->gtFlags;
-        LIR::AsRange(newBlock).InsertAfter(nullptr, hiJcc);
-
-        BlockRange().Remove(loSrc1.Def());
-        BlockRange().Remove(loSrc2.Def());
-        GenTree* loCmp   = comp->gtNewOperNode(loCmpOper, TYP_INT, loSrc1.Def(), loSrc2.Def());
-        loCmp->gtFlags   = cmp->gtFlags | GTF_UNSIGNED;
-        GenTree* loJtrue = comp->gtNewOperNode(GT_JTRUE, TYP_VOID, loCmp);
-        LIR::AsRange(newBlock2).InsertAfter(nullptr, loSrc1.Def(), loSrc2.Def(), loCmp, loJtrue);
-
-        m_block->bbJumpKind = BBJ_COND;
-        m_block->bbJumpDest = nextDest;
-        nextDest->bbFlags |= BBF_JMP_TARGET;
-        comp->fgAddRefPred(nextDest, m_block);
-
-        newBlock->bbJumpKind = BBJ_COND;
-        newBlock->bbJumpDest = jumpDest;
-        comp->fgAddRefPred(jumpDest, newBlock);
-
-        assert(newBlock2->bbJumpKind == BBJ_COND);
-        assert(newBlock2->bbJumpDest == jumpDest);
-    }
-
-    BlockRange().Remove(src1);
-    BlockRange().Remove(src2);
 #endif
+
+    return next;
 }
 
 // Lower "jmp <method>" tail call to insert PInvoke method epilog if required.
