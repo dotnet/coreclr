@@ -3975,6 +3975,9 @@
       <Member Name="GetExecutingAssembly" />
       <Member Name="GetEntryAssembly" />
       <Member Name="GetExportedTypes" />
+      <Member Name="GetFile(System.String)" />
+      <Member Name="GetFiles" />
+      <Member Name="GetFiles(System.Boolean)" />
       <Member Name="GetLoadedModules" />
       <Member Name="GetLoadedModules(System.Boolean)" />
       <Member Name="GetManifestResourceNames" />
@@ -5763,6 +5766,7 @@
       <Member Name="get_IsStatic" />
       <Member Name="get_IsVirtual" />
       <Member Name="get_IsSecurityCritical" />
+      <Member Name="get_IsSecuritySafeCritical" />
       <Member Name="get_IsSecurityTransparent" />
       <Member Name="get_MethodHandle" />
       <Member Name="get_MethodImplementationFlags" />
@@ -5798,6 +5802,7 @@
       <Member MemberType="Property" Name="IsStatic" />
       <Member MemberType="Property" Name="IsVirtual" />
       <Member MemberType="Property" Name="IsSecurityCritical" />
+      <Member MemberType="Property" Name="IsSecuritySafeCritical" />
       <Member MemberType="Property" Name="IsSecurityTransparent" />
       <Member MemberType="Property" Name="MethodHandle" />
       <Member MemberType="Property" Name="MethodImplementationFlags" />
@@ -6416,6 +6421,7 @@
       <Member MemberType="Field" Name="value__" />
     </Type>
     <Type Name="System.Runtime.CompilerServices.RuntimeHelpers">
+      <Member Name="Equals(System.Object,System.Object)" />
       <Member Name="GetUninitializedObject(System.Type)" />
       <Member Name="EnsureSufficientExecutionStack" />
       <Member Name="TryEnsureSufficientExecutionStack" />
@@ -7990,6 +7996,15 @@
       <Member MemberType="Field" Name="STA" />
       <Member MemberType="Field" Name="Unknown" />
       <Member MemberType="Field" Name="value__" />
+    </Type>
+    <Type Name="System.Threading.AsyncFlowControl">
+      <Member Name="Dispose" />
+      <Member Name="Equals(System.Object)" />
+      <Member Name="Equals(System.Threading.AsyncFlowControl)" />
+      <Member Name="GetHashCode" />
+      <Member Name="op_Equality(System.Threading.AsyncFlowControl,System.Threading.AsyncFlowControl)" />
+      <Member Name="op_Inequality(System.Threading.AsyncFlowControl,System.Threading.AsyncFlowControl)" />
+      <Member Name="Undo" />
     </Type>
     <Type Name="System.Threading.AutoResetEvent">
       <Member Name="#ctor(System.Boolean)" />
@@ -10076,7 +10091,7 @@
     </Type>
     <Type Name="System.Reflection.StrongNameKeyPair">
       <Member Name="#ctor(System.Byte[])" />
-      <!--      <Member Name="#ctor(System.IO.FileStream)" /> -->
+      <Member Name="#ctor(System.IO.FileStream)" />
       <Member Name="#ctor(System.Runtime.Serialization.SerializationInfo,System.Runtime.Serialization.StreamingContext)" />
       <Member Name="#ctor(System.String)" />
       <Member Name="get_PublicKey" />
@@ -12178,8 +12193,15 @@
       <Member Name="get_ThreadContextChanged"/>
     </Type>
     <Type Name="System.Threading.ExecutionContext">
+      <Member Status="ImplRoot" Name="#ctor(System.Runtime.Serialization.SerializationInfo,System.Runtime.Serialization.StreamingContext)" />
       <Member Name="Capture" />
+      <Member Name="CreateCopy" />
+      <Member Name="Dispose" />
+      <Member Name="GetObjectData(System.Runtime.Serialization.SerializationInfo,System.Runtime.Serialization.StreamingContext)" />
+      <Member Name="IsFlowSuppressed" />
+      <Member Name="RestoreFlow" />
       <Member Name="Run(System.Threading.ExecutionContext,System.Threading.ContextCallback,System.Object)"/>
+      <Member Name="SuppressFlow" />
     </Type>
     <Type Name="System.Threading.CancellationToken">
       <Member Name="#ctor(System.Boolean)"/>
