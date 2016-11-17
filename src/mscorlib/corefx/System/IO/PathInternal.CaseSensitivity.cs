@@ -9,7 +9,14 @@ namespace System.IO
     /// <summary>Contains internal path helpers that are shared between many projects.</summary>
     internal static partial class PathInternal
     {
-        private static bool? s_isCaseSensitive;
+        private enum Tristate : byte
+        {
+            NotInitialized,
+            True,
+            False,
+        }
+
+        private static Tristate s_isCaseSensitive = Tristate.NotInitialized;
 
         /// <summary>Returns a comparison that can be used to compare file and directory names for equality.</summary>
         internal static StringComparison StringComparison
@@ -29,10 +36,10 @@ namespace System.IO
             {
                 // This must be lazily initialized as there are dependencies on PathInternal's static constructor
                 // being fully initialized. (GetIsCaseSensitive() calls GetFullPath() which needs to use PathInternal)
-                if (!s_isCaseSensitive.HasValue)
-                    s_isCaseSensitive = GetIsCaseSensitive();
+                if (s_isCaseSensitive == Tristate.NotInitialized)
+                    s_isCaseSensitive = GetIsCaseSensitive() ? Tristate.True : Tristate.False;
 
-                return s_isCaseSensitive.Value;
+                return s_isCaseSensitive == Tristate.True;
             }
         }
 
