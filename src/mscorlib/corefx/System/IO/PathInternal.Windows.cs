@@ -56,7 +56,7 @@ namespace System.IO
         internal const int UncPrefixLength = 2;
         // \\?\UNC\, \\.\UNC\
         internal const int UncExtendedPrefixLength = 8;
-        internal static readonly int MaxComponentLength = 255;
+        internal const int MaxComponentLength = 255;
 
         internal static char[] GetInvalidPathChars() => new char[]
         {

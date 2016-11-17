@@ -226,6 +226,7 @@ namespace System.IO
 #endif
         }
 
+#if !FEATURE_CORECLR
         private static unsafe void GetCryptoRandomBytesApple(byte* bytes, int byteCount)
         {
             Debug.Assert(bytes != null);
@@ -247,6 +248,7 @@ namespace System.IO
                 throw new InvalidOperationException(SR.InvalidOperation_Cryptography);
             }
         }
+#endif
 
         /// <summary>Gets whether the system is case-sensitive.</summary>
         internal static bool IsCaseSensitive { get { return !s_isMac; } }

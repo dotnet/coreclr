@@ -1244,8 +1244,6 @@
 
   <ItemGroup Condition="'$(FeatureCoreFxUnixInterop)' == 'true'">
     <WindowsInteropSources Include="$(CoreFxSourcesRoot)\System\HResults.cs" />
-    <UnixInteropSources Include="$(CoreFxSourcesRoot)\Interop\OSX\Interop.CommonCrypto.cs" />
-    <UnixInteropSources Include="$(CoreFxSourcesRoot)\Interop\OSX\Interop.Libraries.cs" />
     <UnixInteropSources Include="$(CoreFxSourcesRoot)\Interop\Unix\Interop.Errors.cs" />
     <UnixInteropSources Include="$(CoreFxSourcesRoot)\Interop\Unix\Interop.IOErrors.cs" />
     <UnixInteropSources Include="$(CoreFxSourcesRoot)\Interop\Unix\Interop.Libraries.cs" />
@@ -1262,7 +1260,6 @@
     <UnixInteropSources Include="$(CoreFxSourcesRoot)\Interop\Unix\System.Native\Interop.PathConf.cs" />
     <UnixInteropSources Include="$(CoreFxSourcesRoot)\Interop\Unix\System.Native\Interop.Permissions.cs" />
     <UnixInteropSources Include="$(CoreFxSourcesRoot)\Interop\Unix\System.Native\Interop.PosixFAdvise.cs" />
-    <UnixInteropSources Include="$(CoreFxSourcesRoot)\Interop\Unix\System.Security.Cryptography.Native\Interop.RAND.cs" />
     <UnixInteropSources Include="$(CoreFxSourcesRoot)\Interop\Unix\System.Native\Interop.Read.cs" />
     <UnixInteropSources Include="$(CoreFxSourcesRoot)\Interop\Unix\System.Native\Interop.Stat.cs" />
     <UnixInteropSources Include="$(CoreFxSourcesRoot)\Interop\Unix\System.Native\Interop.Unlink.cs" />

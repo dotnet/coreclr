@@ -9,21 +9,32 @@ namespace System.IO
     /// <summary>Contains internal path helpers that are shared between many projects.</summary>
     internal static partial class PathInternal
     {
-        private static readonly bool s_isCaseSensitive = GetIsCaseSensitive();
+        private static bool? s_isCaseSensitive;
 
         /// <summary>Returns a comparison that can be used to compare file and directory names for equality.</summary>
         internal static StringComparison StringComparison
         {
             get
             {
-                return s_isCaseSensitive ?
+                return IsCaseSensitive ?
                     StringComparison.Ordinal :
                     StringComparison.OrdinalIgnoreCase;
             }
         }
 
         /// <summary>Gets whether the system is case-sensitive.</summary>
-        internal static bool IsCaseSensitive { get { return s_isCaseSensitive; } }
+        internal static bool IsCaseSensitive
+        {
+            get
+            {
+                // This must be lazily initialized as there are dependencies on PathInternal's static constructor
+                // being fully initialized. (GetIsCaseSensitive() calls GetFullPath() which needs to use PathInternal)
+                if (!s_isCaseSensitive.HasValue)
+                    s_isCaseSensitive = GetIsCaseSensitive();
+
+                return s_isCaseSensitive.Value;
+            }
+        }
 
         /// <summary>
         /// Determines whether the file system is case sensitive.
