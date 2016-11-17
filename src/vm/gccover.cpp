@@ -38,32 +38,11 @@
 MethodDesc* AsMethodDesc(size_t addr);
 static SLOT getTargetOfCall(SLOT instrPtr, PCONTEXT regs, SLOT*nextInstr);
 bool isCallToStopForGCJitHelper(SLOT instrPtr);
+
 #if defined(_TARGET_ARM_) || defined(_TARGET_ARM64_)
 static void replaceSafePointInstructionWithGcStressInstr(UINT32 safePointOffset, LPVOID codeStart);
 static bool replaceInterruptibleRangesWithGcStressInstr (UINT32 startOffset, UINT32 stopOffset, LPVOID codeStart);
 #endif
-
-static MethodDesc* getTargetMethodDesc(PCODE target)
-{
-    MethodDesc* targetMD = ExecutionManager::GetCodeMethodDesc(target);
-    if (targetMD == 0) 
-    {
-        VirtualCallStubManager::StubKind vsdStubKind = VirtualCallStubManager::SK_UNKNOWN;
-        VirtualCallStubManager *pVSDStubManager = VirtualCallStubManager::FindStubManager(target, &vsdStubKind);
-        if (vsdStubKind != VirtualCallStubManager::SK_BREAKPOINT && vsdStubKind != VirtualCallStubManager::SK_UNKNOWN)
-        {
-            DispatchToken token = VirtualCallStubManager::GetTokenFromStubQuick(pVSDStubManager, target, vsdStubKind);
-            _ASSERTE(token.IsValid());
-            targetMD = VirtualCallStubManager::GetInterfaceMethodDescFromToken(token);
-        }
-        else
-        {
-            targetMD = AsMethodDesc(size_t(MethodDesc::GetMethodDescFromStubAddr(target, TRUE)));
-        }
-    }
-    return targetMD;
-}
-
 
 void SetupAndSprinkleBreakpoints(
     MethodDesc                    * pMD,     
@@ -418,11 +397,143 @@ public:
 //
 // Similarly, inserting breakpoints can be avoided for JIT_PollGC() and JIT_StressGC().
 
+static void SetGCInterruptInstruction(PBYTE ptr, bool returnsGCValue)
+{
+#if (defined(_TARGET_X86_) || defined(_TARGET_AMD64_))
+    *ptr = (returnsGCValue) ? INTERRUPT_INSTR_PROTECT_RET : INTERRUPT_INSTR;
+#elif defined(_TARGET_ARM_)
+    size_t instrLen = GetARMInstructionLength(ptr);
+    if (instrLen == 2)
+    {
+        _ASSERTE(*((WORD*)ptr) != INTERRUPT_INSTR &&
+            *((WORD*)ptr) != INTERRUPT_INSTR_CALL &&
+            *((WORD*)ptr) != INTERRUPT_INSTR_PROTECT_RET);
+
+        *((WORD*)ptr) = (returnsGCValue) ? INTERRUPT_INSTR_PROTECT_RET : INTERRUPT_INSTR;
+    }
+    else
+    {
+        _ASSERTE(*((DWORD*)ptr) != INTERRUPT_INSTR_32 &&
+            *((DWORD*)ptr) != INTERRUPT_INSTR_CALL_32 &&
+            *((DWORD*)ptr) != INTERRUPT_INSTR_PROTECT_RET_32);
+
+        *((DWORD*)ptr) = (returnsGCValue) ? INTERRUPT_INSTR_PROTECT_RET_32 : INTERRUPT_INSTR_32;
+    }
+#elif defined(_TARGET_ARM64_)
+    _ASSERTE(*((DWORD*)ptr) != INTERRUPT_INSTR &&
+        *((DWORD*)ptr) != INTERRUPT_INSTR_CALL &&
+        *((DWORD*)ptr) != INTERRUPT_INSTR_PROTECT_RET);
+
+    *((WORD*)ptr) = (returnsGCValue) ? INTERRUPT_INSTR_PROTECT_RET : INTERRUPT_INSTR;
+#endif // Target_Architectures
+}
+
+bool SetGCInterruptAfterCallViaGcInfo(PBYTE postCall, PCODE callee)
+{
+    EECodeInfo targetCodeInfo(callee);
+    if (!targetCodeInfo.IsValid()) {
+        return false;
+    }
+
+    GCInfoToken gcInfoToken = targetCodeInfo.GetGCInfoToken();
+    if (!gcInfoToken.IsReturnKindAvailable()) {
+        return false;
+    }
+
+    ReturnKind returnKind = targetCodeInfo.GetCodeManager()->GetReturnKind(gcInfoToken);
+    _ASSERTE(IsValidReturnKind(returnKind));
+
+    bool returnsGCValue = IsGCReturnKind(returnKind);
+    SetGCInterruptInstruction(postCall, returnsGCValue);
+    return true;
+}
+
+static MethodDesc* getTargetMethodDesc(PCODE target)
+{
+    MethodDesc* targetMD = ExecutionManager::GetCodeMethodDesc(target);
+    if (targetMD == 0)
+    {
+        VirtualCallStubManager::StubKind vsdStubKind = VirtualCallStubManager::SK_UNKNOWN;
+        VirtualCallStubManager *pVSDStubManager = VirtualCallStubManager::FindStubManager(target, &vsdStubKind);
+        if (vsdStubKind != VirtualCallStubManager::SK_BREAKPOINT && vsdStubKind != VirtualCallStubManager::SK_UNKNOWN)
+        {
+            DispatchToken token = VirtualCallStubManager::GetTokenFromStubQuick(pVSDStubManager, target, vsdStubKind);
+            _ASSERTE(token.IsValid());
+            targetMD = VirtualCallStubManager::GetInterfaceMethodDescFromToken(token);
+        }
+        else
+        {
+            targetMD = AsMethodDesc(size_t(MethodDesc::GetMethodDescFromStubAddr(target, TRUE)));
+        }
+    }
+    return targetMD;
+}
+
+bool SetGCInterruptAfterCallViaMethodTable(PBYTE postCall, PCODE callee)
+{
+    MethodDesc *calleeMD = getTargetMethodDesc(callee);
+    bool returnsGCValue = calleeMD->ReturnsObject(true) != MetaSig::RETNONOBJ;
+    SetGCInterruptInstruction(postCall, returnsGCValue);
+    return true;
+}
+
+bool SetGCInterruptAfterCall(PBYTE postCall, PCODE callee)
+{
+    bool success = SetGCInterruptAfterCallViaGcInfo(postCall, callee);
+    if (success)
+        return success;
+
+    static ConfigDWORD fGcStressOnDirectCalls; // ConfigDWORD must be a static variable
+    if (fGcStressOnDirectCalls.val(CLRConfig::INTERNAL_GcStressOnDirectCalls))
+    {
+        return SetGCInterruptAfterCallViaMethodTable(postCall, callee);
+    }
+
+    return false;
+}
+
+
 #if defined(_TARGET_ARM_) || defined(_TARGET_AMD64_)
 extern "C" FCDECL0(VOID, JIT_RareDisableHelper);
 #else
 FCDECL0(VOID, JIT_RareDisableHelper);
 #endif
+
+//  NOTE: GCStress on Direct Calls
+//
+// The Functions GCCoverageInfo::SprinkleBreakpoints() and 
+// replaceInterruptibleRangesWithGcStressInstr() insert GCStress interrupts in place 
+// of actual instructions where a GC can be performed. 
+//
+// There is a nuance while inserting GCStress instructions at the safe-points 
+// after direct calls -- wrt obtaining the return type of the called method.
+//
+// If the target of the CALL is a managed method that is already JITted/Ngened, we 
+// can readily obtain the return-kind information from the callee's GcInfo. Otherwise,
+// we need to consult the type of the callee, which may involve running the typeloader.
+//
+// When applying GC coverage breakpoints at native image load time, the code here runs
+// before eager fixups are applied for the module being loaded.  The direct call target
+// never requires restore, however it is possible that it is initially in an invalid state
+// and remains invalid until one or more eager fixups are applied.
+//
+// MethodDesc::ReturnsObject() consults the method signature, meaning it consults the
+// metadata in the owning module.  For generic instantiations stored in non-preferred
+// modules, reaching the owning module requires following the module override pointer for
+// the enclosing MethodTable.  In this case, the module override pointer is generally
+// invalid until an associated eager fixup is applied. In situations like this, 
+// MethodDesc::ReturnsObject() will try to dereference an unresolved fixup and will AV.
+//
+// In order to sidestep the above unexpected and non-deterministic AV, GCStress instructions 
+// are inserted after direct calls (only) if:
+// a) The GcInfo for the target is available
+// b) Native images are not used (ex: ZapDisable -- TODO)
+// c) COMPlus_GcStressOnDirectCalls is set (forced stress -- unreliable).
+//
+// Eventually, the right fix for this problem would be to use a different kind of 
+// GCSrtess Interrupt (similar to INTERRUPT_INSTR_CALL) such that the displacement
+// is kept unaffected in place, and fixed up by DoGCStress() as necessary 
+// at run time.
 
 /****************************************************************************/
 /* sprinkle interupt instructions that will stop on every GCSafe location
@@ -455,9 +566,6 @@ void GCCoverageInfo::SprinkleBreakpoints(
 
     EECodeInfo codeInfo((PCODE)codeStart);
 
-    static ConfigDWORD fGcStressOnDirectCalls; // ConfigDWORD must be a static variable
-
-
 #ifdef _TARGET_AMD64_
     GCCoverageRangeEnumerator rangeEnum(codeMan, gcInfoToken, codeStart, codeSize);
 
@@ -476,7 +584,7 @@ void GCCoverageInfo::SprinkleBreakpoints(
     //  the disassembly
     // This variable is non-null if the previous instruction was a direct call,
     //  and we have found it's target MethodDesc
-    MethodDesc* prevDirectCallTargetMD = NULL;
+    PCODE prevDirectCallTarget = NULL;
 
     /* TODO. Simulating the hijack could cause problems in cases where the 
        return register is not always a valid GC ref on the return offset. 
@@ -496,7 +604,7 @@ void GCCoverageInfo::SprinkleBreakpoints(
     {
         _ASSERTE(*cur != INTERRUPT_INSTR && *cur != INTERRUPT_INSTR_CALL);
 
-        MethodDesc* targetMD = NULL;
+        PCODE currDirectCallTarget = NULL;
         InstructionType instructionType;
         size_t len = disassembler.DisassembleInstruction(cur, codeEnd - cur, &instructionType);
 
@@ -512,7 +620,7 @@ void GCCoverageInfo::SprinkleBreakpoints(
         {
             LOG((LF_JIT, LL_WARNING, "invalid instruction at %p (possibly start of switch table)\n", cur));
             cur = rangeEnum.SkipToNextRange();
-            prevDirectCallTargetMD = NULL;
+            prevDirectCallTarget = NULL;
             fSawPossibleSwitch = false;
             continue;
         }
@@ -533,23 +641,16 @@ void GCCoverageInfo::SprinkleBreakpoints(
             break;
 
         case InstructionType::Call_DirectUnconditional:
-            if(fGcStressOnDirectCalls.val(CLRConfig::INTERNAL_GcStressOnDirectCalls))
-            {       
 #ifdef _TARGET_AMD64_
-                if(safePointDecoder.IsSafePoint((UINT32)(cur + len - codeStart + regionOffsetAdj)))
+            if (safePointDecoder.IsSafePoint((UINT32)(cur + len - codeStart + regionOffsetAdj)))
 #endif
-                {
-                    SLOT nextInstr;
-                    SLOT target = getTargetOfCall(cur, NULL, &nextInstr);
+            {
+                SLOT nextInstr;
+                currDirectCallTarget = (PCODE)getTargetOfCall(cur, NULL, &nextInstr);
 
-                    if (target != 0)
-                    {
-                        // JIT_RareDisableHelper() is expected to be an indirect call.
-                        // If we encounter a direct call (in future), skip the call 
-                        _ASSERTE(target != (SLOT)JIT_RareDisableHelper); 
-                        targetMD = getTargetMethodDesc((PCODE)target);
-                    }
-                }
+                // JIT_RareDisableHelper() is expected to be an indirect call.
+                // If we encounter a direct call (in future), skip the call 
+                _ASSERTE(currDirectCallTarget != (PCODE)JIT_RareDisableHelper);
             }
             break;
 
@@ -564,13 +665,13 @@ void GCCoverageInfo::SprinkleBreakpoints(
             break;
         }
 
-        if (prevDirectCallTargetMD != 0)
+        if (prevDirectCallTarget != 0)
         {
-            if (prevDirectCallTargetMD->ReturnsObject(true) != MetaSig::RETNONOBJ)
-                *cur = INTERRUPT_INSTR_PROTECT_RET;  
-            else
-                *cur = INTERRUPT_INSTR;
+            SetGCInterruptAfterCall(cur, prevDirectCallTarget);
         }
+
+        // If we couldn't find the method desc currDirectCallTarget is NULL
+        prevDirectCallTarget = currDirectCallTarget;
 
         // For fully interruptible code, we end up whacking every instruction
         // to INTERRUPT_INSTR.  For non-fully interruptible code, we end
@@ -588,16 +689,13 @@ void GCCoverageInfo::SprinkleBreakpoints(
         }
 #endif
 
-        // If we couldn't find the method desc targetMD is zero
-        prevDirectCallTargetMD = targetMD;                        
-
         cur += len;
 
 #ifdef _TARGET_AMD64_
         SLOT newCur = rangeEnum.EnsureInRange(cur);
         if(newCur != cur)
         {
-            prevDirectCallTargetMD = NULL;
+            prevDirectCallTarget = NULL;
             cur = newCur;
             fSawPossibleSwitch = false;
         }
@@ -759,85 +857,7 @@ void replaceSafePointInstructionWithGcStressInstr(UINT32 safePointOffset, LPVOID
             //Find the real target wrt the real instruction pointer
             int delta = static_cast<int>(target - savedInstrPtr);
             target = delta + instrPtr;
-
-            MethodDesc* targetMD = getTargetMethodDesc((PCODE)target);
-
-            if (targetMD != 0)
-            {
-
-                // The instruction about to be replaced cannot already be a gcstress instruction
-#if defined(_TARGET_ARM_)
-                size_t instrLen = GetARMInstructionLength(instrPtr);
-                if (instrLen == 2)
-                {
-                    _ASSERTE(*((WORD*)instrPtr) != INTERRUPT_INSTR && 
-                             *((WORD*)instrPtr) != INTERRUPT_INSTR_CALL &&
-                             *((WORD*)instrPtr) != INTERRUPT_INSTR_PROTECT_RET);
-                }
-                else 
-                {
-                    _ASSERTE(*((DWORD*)instrPtr) != INTERRUPT_INSTR_32 && 
-                             *((DWORD*)instrPtr) != INTERRUPT_INSTR_CALL_32 &&
-                             *((DWORD*)instrPtr) != INTERRUPT_INSTR_PROTECT_RET_32);
-                }
-#elif defined(_TARGET_ARM64_)
-                {
-                    _ASSERTE(*((DWORD*)instrPtr) != INTERRUPT_INSTR && 
-                             *((DWORD*)instrPtr) != INTERRUPT_INSTR_CALL &&
-                             *((DWORD*)instrPtr) != INTERRUPT_INSTR_PROTECT_RET);
-                }
-#endif
-                //
-                // When applying GC coverage breakpoints at native image load time, the code here runs
-                // before eager fixups are applied for the module being loaded.  The direct call target
-                // never requires restore, however it is possible that it is initially in an invalid state
-                // and remains invalid until one or more eager fixups are applied.
-                //
-                // MethodDesc::ReturnsObject() consults the method signature, meaning it consults the
-                // metadata in the owning module.  For generic instantiations stored in non-preferred
-                // modules, reaching the owning module requires following the module override pointer for
-                // the enclosing MethodTable.  In this case, the module override pointer is generally
-                // invalid until an associated eager fixup is applied.
-                //
-                // In situations like this, MethodDesc::ReturnsObject() will try to dereference an
-                // unresolved fixup and will AV.
-                //
-                // Given all of this, skip the MethodDesc::ReturnsObject() call by default to avoid
-                // unexpected AVs.  This implies leaving out the GC coverage breakpoints for direct calls
-                // unless COMPlus_GcStressOnDirectCalls=1 is explicitly set in the environment.
-                //
-
-                static ConfigDWORD fGcStressOnDirectCalls;
-
-                if (fGcStressOnDirectCalls.val(CLRConfig::INTERNAL_GcStressOnDirectCalls))
-                {
-                    // If the method returns an object then should protect the return object
-                    if (targetMD->ReturnsObject(true) != MetaSig::RETNONOBJ)
-                    {
-                        // replace with corresponding 2 or 4 byte illegal instruction (which roots the return value)
-#if defined(_TARGET_ARM_)
-                        if (instrLen == 2)
-                            *((WORD*)instrPtr)  = INTERRUPT_INSTR_PROTECT_RET;
-                        else
-                            *((DWORD*)instrPtr) = INTERRUPT_INSTR_PROTECT_RET_32;
-#elif defined(_TARGET_ARM64_)
-                        *((DWORD*)instrPtr) = INTERRUPT_INSTR_PROTECT_RET;
-#endif
-                    }
-                    else // method does not return an objectref
-                    {
-                        // replace with corresponding 2 or 4 byte illegal instruction
-#if defined(_TARGET_ARM_)
-                        if (instrLen == 2)
-                            *((WORD*)instrPtr)  = INTERRUPT_INSTR;
-                        else
-                            *((DWORD*)instrPtr) = INTERRUPT_INSTR_32;
-#elif defined(_TARGET_ARM64_)
-                        *((DWORD*)instrPtr) = INTERRUPT_INSTR;
-#endif
-                    }
-                }
-            }
+            SetGCInterruptAfterCall(instrPtr, (PCODE)target);
         }
     }
 }
@@ -1662,7 +1682,7 @@ void DoGcStress (PCONTEXT regs, MethodDesc *pMD)
                             *(DWORD*)nextInstr = INTERRUPT_INSTR_32;
 #elif defined(_TARGET_ARM64_)
                     if (targetMD->ReturnsObject(true) != MetaSig::RETNONOBJ)
-                        *(DWORD *)nextInstr = INTERRUPT_INSTR_PROTECT_RET;  
+                        *(DWORD *)nextInstr = INTERRUPT_INSTR_PROTECT_RET;
                     else
                         *(DWORD *)nextInstr = INTERRUPT_INSTR;
 #else

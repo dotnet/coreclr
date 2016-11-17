@@ -240,6 +240,25 @@ inline bool IsValidReturnKind(ReturnKind returnKind)
         ;
 }
 
+inline bool IsGCReturnKind(ReturnKind returnKind)
+{
+    switch (returnKind)
+    {
+    case RT_Object:
+    case RT_ByRef:
+    case RT_Scalar_Obj:
+    case RT_Scalar_ByRef:
+    case RT_Obj_Obj:
+    case RT_Obj_ByRef:
+    case RT_ByRef_Obj:
+    case RT_ByRef_ByRef:
+        return true;
+
+    default:
+        return false;
+    }
+}
+
 // Identify ReturnKinds that can be a part of a multi-reg struct return
 inline bool IsValidFieldReturnKind(ReturnKind returnKind)
 {
