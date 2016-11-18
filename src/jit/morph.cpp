@@ -9590,6 +9590,16 @@ GenTreePtr Compiler::fgMorphCopyBlock(GenTreePtr tree)
         bool requiresCopyBlock  = false;
         bool srcSingleLclVarAsg = false;
 
+        if ((destLclVar != nullptr) && (srcLclVar == destLclVar))
+        {
+            // Beyond perf reasons, it is not prudent to have a copy of a struct to itself.
+            GenTree* nop = gtNewNothingNode();
+#ifdef DEBUG
+            nop->gtDebugFlags |= GTF_DEBUG_NODE_MORPHED;
+#endif
+            return nop;
+        }
+
         // If either src or dest is a reg-sized non-field-addressed struct, keep the copyBlock.
         if ((destLclVar != nullptr && destLclVar->lvRegStruct) || (srcLclVar != nullptr && srcLclVar->lvRegStruct))
         {
