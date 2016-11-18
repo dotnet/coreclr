@@ -1674,6 +1674,10 @@ combinedScenarios.each { scenario ->
                                     return
                                 }
 
+                                if (architecture != 'x64') {
+                                    return
+                                }
+
                                 if (configuration != 'Release' && configuration != 'Checked') {
                                     return
                                 }
