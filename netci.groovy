@@ -2259,7 +2259,7 @@ combinedScenarios.each { scenario ->
                                 }
                                 break
                             case 'standalone_gc':
-                                if (configuration != 'Release' || configuration != 'Checked') {
+                                if (configuration != 'Release' && configuration != 'Checked') {
                                     return
                                 }
                             case 'coverage':
