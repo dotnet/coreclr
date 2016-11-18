@@ -1677,6 +1677,7 @@ combinedScenarios.each { scenario ->
                                 if (configuration != 'Release' && configuration != 'Checked') {
                                     return
                                 }
+                                break
                             // We need Windows x64 Release bits for the code coverage build
                             case 'coverage':
                                 if (os != 'Windows_NT') {
