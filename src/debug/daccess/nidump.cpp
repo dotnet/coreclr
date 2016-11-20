@@ -4088,6 +4088,7 @@ void NativeImageDumper::DumpModule( PTR_Module module )
                  (int)(module->m_maxDynamicEntries
                  * sizeof(*(module->m_pDynamicStaticsInfo))));
 
+#ifndef FEATURE_CORECLR
     DisplayWriteFieldInt( m_dwReliabilityContract,
                           module->m_dwReliabilityContract, Module, MODULE );
 
@@ -4105,6 +4106,7 @@ void NativeImageDumper::DumpModule( PTR_Module module )
                            offsetof(Module, m_pCerNgenRootTable),
                            fieldsize(Module, m_pCerNgenRootTable) );
     }
+#endif
 
 
     _ASSERTE(module->m_debuggerSpecificData.m_pDynamicILCrst == NULL);

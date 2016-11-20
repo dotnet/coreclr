@@ -16,7 +16,6 @@ set(VM_CROSSGEN_SOURCES
     ../comdelegate.cpp
     ../codeman.cpp
     ../compile.cpp
-    ../constrainedexecutionregion.cpp
     ../custommarshalerinfo.cpp
     ../domainfile.cpp
     ../baseassemblyspec.cpp

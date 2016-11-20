@@ -2508,6 +2508,7 @@ FCIMPL1(void, ReflectionInvocation::PrepareContractedDelegate, Object * delegate
     }
     CONTRACTL_END;
     
+#ifndef FEATURE_CORECLR
     if (delegateUNSAFE == NULL)
         return;
 
@@ -2517,9 +2518,11 @@ FCIMPL1(void, ReflectionInvocation::PrepareContractedDelegate, Object * delegate
     PrepareDelegateHelper(&delegate, TRUE);
 
     HELPER_METHOD_FRAME_END();
+#endif // !FEATURE_CORECLR
 }
 FCIMPLEND
 
+#ifndef FEATURE_CORECLR
 void ReflectionInvocation::PrepareDelegateHelper(OBJECTREF *pDelegate, BOOL onlyContractedMethod)
 {
     CONTRACTL {
@@ -2601,6 +2604,7 @@ void ReflectionInvocation::PrepareDelegateHelper(OBJECTREF *pDelegate, BOOL only
                           onlyContractedMethod);
     }
 }
+#endif // !FEATURE_CORECLR
 
 FCIMPL0(void, ReflectionInvocation::ProbeForSufficientStack)
 {
@@ -2847,6 +2851,7 @@ FCIMPL3(void, ReflectionInvocation::ExecuteCodeWithGuaranteedCleanup, Object* co
     if (gc.backoutDelegate == NULL)
         COMPlusThrowArgumentNull(W("backoutCode"));
 
+#ifndef FEATURE_CORECLR
     if (!IsCompilationProcess())
     {
         // Delegates are prepared as part of the ngen process, so only prepare the backout 
@@ -2857,6 +2862,7 @@ FCIMPL3(void, ReflectionInvocation::ExecuteCodeWithGuaranteedCleanup, Object* co
         // attempt to run the backout code.
         PrepareMethodDesc(g_pExecuteBackoutCodeHelperMethod, Instantiation(), Instantiation(), FALSE, TRUE);
     }
+#endif // !FEATURE_CORECLR
 
     ExecuteCodeWithGuaranteedCleanupHelper(&gc);
 

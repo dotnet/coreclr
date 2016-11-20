@@ -155,7 +155,6 @@ set(VM_SOURCES_WKS
     comthreadpool.cpp
     comutilnative.cpp
     comwaithandle.cpp
-    constrainedexecutionregion.cpp
     coverage.cpp
     customattribute.cpp
     custommarshalerinfo.cpp

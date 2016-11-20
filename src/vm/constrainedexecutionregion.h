@@ -405,6 +405,7 @@ public:
 };
 
 
+#ifndef FEATURE_CORECLR
 class MethodCallGraphPreparer
 {
     MethodDesc *m_pRootMD;
@@ -525,6 +526,7 @@ void PrepareCriticalType(MethodTable *pMT);
 void PrePrepareMethodIfNecessary(CORINFO_METHOD_HANDLE hMethod);
 
 #endif
+#endif // !FEATURE_CORECLR
 
 
 // A fixed sized hash table keyed by pointers and storing two bits worth of value for every entry. The value is stored in the low

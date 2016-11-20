@@ -5038,6 +5038,7 @@ void CEEInfo::getCallInfo(
     }
 
 
+#ifndef FEATURE_CORECLR
     if (pMD == g_pPrepareConstrainedRegionsMethod && !isVerifyOnly())
     {
         MethodDesc * methodFromContext = GetMethodFromContext(pResolvedToken->tokenContext);
@@ -5059,6 +5060,7 @@ void CEEInfo::getCallInfo(
             }
         }
     }
+#endif
 
     TypeHandle exactType = TypeHandle(pResolvedToken->hClass);
 
@@ -8378,6 +8380,7 @@ bool CEEInfo::canTailCall (CORINFO_METHOD_HANDLE hCaller,
         }
     }
 
+#ifndef FEATURE_CORECLR
     // We cannot tail call from a root CER method, the thread abort algorithm to
     // detect CERs depends on seeing such methods on the stack.
     if (IsCerRootMethod(pCaller))
@@ -8386,6 +8389,7 @@ bool CEEInfo::canTailCall (CORINFO_METHOD_HANDLE hCaller,
         szFailReason = "Caller is a CER root";
         goto exit;
     }
+#endif
 
     result = true;
 

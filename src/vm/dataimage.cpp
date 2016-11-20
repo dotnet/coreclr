@@ -896,8 +896,10 @@ void DataImage::FixupRVAs()
     FixupModuleRVAs();
     FixupRvaStructure();
 
+#ifndef FEATURE_CORECLR
     if (m_module->m_pCerNgenRootTable != NULL)
         m_module->m_pCerNgenRootTable->FixupRVAs(this);
+#endif
 
     // Dev11 bug 181494 instrumentation
     if (m_Fixups.GetCount() != m_iCurrentFixup) EEPOLICY_HANDLE_FATAL_ERROR(COR_E_EXECUTIONENGINE);
