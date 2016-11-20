@@ -35,6 +35,7 @@ from collections import defaultdict
 g_arm64ci_path = os.path.join(os.environ["USERPROFILE"], "bin")
 g_dotnet_url = "https://go.microsoft.com/fwlink/?LinkID=831469"
 g_test_url = "https://clrjit.blob.core.windows.net/arm64ci/CoreCLRTests-2c0a2c05ba82460a8d8a4b1e2d98e908e59d5d54.zip"
+g_test_url_winarm = "https://dotnetcli.blob.core.windows.net/dotnet/tests/winarm32/coreclr_winarm32_p1.zip"
 g_x64_client_url = "https://clrjit.blob.core.windows.net/arm64ci/x64_client.zip"
 
 ################################################################################
@@ -274,6 +275,10 @@ def main(args):
    shutil.copy2(lst_file, core_root)
    log("Copied %s to %s." % (lst_file, core_root))
 
+   # Update the url to reflect winarm32 tests
+   if arch == "arm":
+         g_test_url = g_test_url_winarm
+         
    args = ["dotnet", 
            os.path.join(g_arm64ci_path, "x64_client.dll"), 
            arch, 

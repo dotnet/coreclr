@@ -921,7 +921,7 @@ RelativePath=baseservices\exceptions\unittests\EHPatternTests\EHPatternTests.cmd
 WorkingDir=baseservices\exceptions\unittests\EHPatternTests
 Expected=(set CLRTestExpectedExitCode=100)
 MaxAllowedDurationSeconds=600
-Categories=NEW;EXPECTED_PASS;EXPECTED_FAIL_WINARM32
+Categories=NEW;EXPECTED_PASS;REL_FAIL
 HostStyle=0
 [GoryManagedPresent.cmd_138]
 RelativePath=baseservices\exceptions\unittests\GoryManagedPresent\GoryManagedPresent.cmd
@@ -935,7 +935,7 @@ RelativePath=baseservices\exceptions\unittests\GoryNativePast\GoryNativePast.cmd
 WorkingDir=baseservices\exceptions\unittests\GoryNativePast
 Expected=(set CLRTestExpectedExitCode=100)
 MaxAllowedDurationSeconds=600
-Categories=NEW;EXPECTED_PASS;EXPECTED_FAIL_WINARM32
+Categories=NEW;EXPECTED_PASS;REL_FAIL
 HostStyle=0
 [InnerFinally.cmd_140]
 RelativePath=baseservices\exceptions\unittests\InnerFinally\InnerFinally.cmd
@@ -17525,7 +17525,7 @@ RelativePath=CoreMangLib\cti\system\string\StringJoin\StringJoin.cmd
 WorkingDir=CoreMangLib\cti\system\string\StringJoin
 Expected=(set CLRTestExpectedExitCode=100)
 MaxAllowedDurationSeconds=600
-Categories=Pri1;RT;EXPECTED_PASS;EXPECTED_FAIL_WINARM32
+Categories=Pri1;RT;EXPECTED_PASS;REL_FAIL
 HostStyle=0
 [StringJoin1.cmd_2510]
 RelativePath=CoreMangLib\cti\system\string\StringJoin1\StringJoin1.cmd
@@ -19968,7 +19968,7 @@ RelativePath=Exceptions\ForeignThread\ForeignThreadExceptions\ForeignThreadExcep
 WorkingDir=Exceptions\ForeignThread\ForeignThreadExceptions
 Expected=(set CLRTestExpectedExitCode=100)
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;EXPECTED_FAIL_WINARM32
+Categories=EXPECTED_PASS;REL_FAIL
 HostStyle=0
 [AddMemoryPressureTest.cmd_2859]
 RelativePath=GC\API\GC\AddMemoryPressureTest\AddMemoryPressureTest.cmd
@@ -20500,7 +20500,7 @@ RelativePath=GC\Features\BackgroundGC\foregroundgc\foregroundgc.cmd
 WorkingDir=GC\Features\BackgroundGC\foregroundgc
 Expected=(set CLRTestExpectedExitCode=100)
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;EXPECTED_FAIL_WINARM32
+Categories=EXPECTED_PASS;REL_FAIL
 HostStyle=0
 [finalizeio.cmd_2935]
 RelativePath=GC\Features\Finalizer\finalizeio\finalizeio\finalizeio.cmd
@@ -20780,7 +20780,7 @@ RelativePath=GC\Features\SustainedLowLatency\scenario\scenario.cmd
 WorkingDir=GC\Features\SustainedLowLatency\scenario
 Expected=(set CLRTestExpectedExitCode=100)
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;EXPECTED_FAIL_WINARM32
+Categories=EXPECTED_PASS;REL_FAIL
 HostStyle=0
 [sustainedlowlatency_race.cmd_2975]
 RelativePath=GC\Features\SustainedLowLatency\sustainedlowlatency_race\sustainedlowlatency_race.cmd
@@ -20815,14 +20815,14 @@ RelativePath=GC\LargeMemory\API\gc\collect\collect.cmd
 WorkingDir=GC\LargeMemory\API\gc\collect
 Expected=(set CLRTestExpectedExitCode=100)
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;EXPECTED_FAIL_WINARM32
+Categories=EXPECTED_PASS;REL_FAIL
 HostStyle=0
 [getgeneration.cmd_2980]
 RelativePath=GC\LargeMemory\API\gc\getgeneration\getgeneration.cmd
 WorkingDir=GC\LargeMemory\API\gc\getgeneration
 Expected=(set CLRTestExpectedExitCode=100)
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;EXPECTED_FAIL_WINARM32
+Categories=EXPECTED_PASS;REL_FAIL
 HostStyle=0
 [gettotalmemory.cmd_2981]
 RelativePath=GC\LargeMemory\API\gc\gettotalmemory\gettotalmemory.cmd
@@ -20871,7 +20871,7 @@ RelativePath=GC\Regressions\dev10bugs\536168\536168\536168.cmd
 WorkingDir=GC\Regressions\dev10bugs\536168\536168
 Expected=(set CLRTestExpectedExitCode=100)
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;EXPECTED_FAIL_WINARM32
+Categories=EXPECTED_PASS;REL_FAIL
 HostStyle=0
 [149926.cmd_2988]
 RelativePath=GC\Regressions\v2.0-beta1\149926\149926\149926.cmd
@@ -24224,7 +24224,7 @@ RelativePath=GC\Scenarios\muldimjagary\muldimjagary\muldimjagary.cmd
 WorkingDir=GC\Scenarios\muldimjagary\muldimjagary
 Expected=(set CLRTestExpectedExitCode=100)
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;EXPECTED_FAIL_WINARM32
+Categories=EXPECTED_PASS;REL_FAIL
 HostStyle=0
 [ndpin.cmd_3467]
 RelativePath=GC\Scenarios\NDPin\ndpin\ndpin.cmd
@@ -26387,14 +26387,14 @@ RelativePath=JIT\Directed\coverage\importer\Desktop\bleref_il_d\bleref_il_d.cmd
 WorkingDir=JIT\Directed\coverage\importer\Desktop\bleref_il_d
 Expected=(set CLRTestExpectedExitCode=100)
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;EXPECTED_FAIL_WINARM32
+Categories=EXPECTED_PASS;REL_FAIL
 HostStyle=0
 [bleref_il_r.cmd_3776]
 RelativePath=JIT\Directed\coverage\importer\Desktop\bleref_il_r\bleref_il_r.cmd
 WorkingDir=JIT\Directed\coverage\importer\Desktop\bleref_il_r
 Expected=(set CLRTestExpectedExitCode=100)
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;EXPECTED_FAIL_WINARM32
+Categories=EXPECTED_PASS;REL_FAIL
 HostStyle=0
 [byrefsubbyref1_il_d.cmd_3777]
 RelativePath=JIT\Directed\coverage\importer\Desktop\byrefsubbyref1_il_d\byrefsubbyref1_il_d.cmd
@@ -26443,14 +26443,14 @@ RelativePath=JIT\Directed\coverage\importer\Desktop\ldelemnullarr1_il_d\ldelemnu
 WorkingDir=JIT\Directed\coverage\importer\Desktop\ldelemnullarr1_il_d
 Expected=(set CLRTestExpectedExitCode=100)
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;EXPECTED_FAIL_WINARM32
+Categories=EXPECTED_PASS;REL_FAIL
 HostStyle=0
 [ldelemnullarr1_il_r.cmd_3784]
 RelativePath=JIT\Directed\coverage\importer\Desktop\ldelemnullarr1_il_r\ldelemnullarr1_il_r.cmd
 WorkingDir=JIT\Directed\coverage\importer\Desktop\ldelemnullarr1_il_r
 Expected=(set CLRTestExpectedExitCode=100)
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;EXPECTED_FAIL_WINARM32
+Categories=EXPECTED_PASS;REL_FAIL
 HostStyle=0
 [ldelemnullarr2_il_d.cmd_3785]
 RelativePath=JIT\Directed\coverage\importer\Desktop\ldelemnullarr2_il_d\ldelemnullarr2_il_d.cmd
@@ -26527,14 +26527,14 @@ RelativePath=JIT\Directed\coverage\importer\Desktop\nonrefsdarr_il_d\nonrefsdarr
 WorkingDir=JIT\Directed\coverage\importer\Desktop\nonrefsdarr_il_d
 Expected=(set CLRTestExpectedExitCode=100)
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;EXPECTED_FAIL_WINARM32
+Categories=EXPECTED_PASS;REL_FAIL
 HostStyle=0
 [nonrefsdarr_il_r.cmd_3796]
 RelativePath=JIT\Directed\coverage\importer\Desktop\nonrefsdarr_il_r\nonrefsdarr_il_r.cmd
 WorkingDir=JIT\Directed\coverage\importer\Desktop\nonrefsdarr_il_r
 Expected=(set CLRTestExpectedExitCode=100)
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;EXPECTED_FAIL_WINARM32
+Categories=EXPECTED_PASS;REL_FAIL
 HostStyle=0
 [nullsdarr_il_d.cmd_3797]
 RelativePath=JIT\Directed\coverage\importer\Desktop\nullsdarr_il_d\nullsdarr_il_d.cmd
@@ -27416,28 +27416,28 @@ RelativePath=JIT\Directed\intrinsic\interlocked\rva_rvastatic1\rva_rvastatic1.cm
 WorkingDir=JIT\Directed\intrinsic\interlocked\rva_rvastatic1
 Expected=(set CLRTestExpectedExitCode=100)
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;EXPECTED_FAIL_WINARM32
+Categories=EXPECTED_PASS;REL_FAIL
 HostStyle=0
 [rva_rvastatic2.cmd_3923]
 RelativePath=JIT\Directed\intrinsic\interlocked\rva_rvastatic2\rva_rvastatic2.cmd
 WorkingDir=JIT\Directed\intrinsic\interlocked\rva_rvastatic2
 Expected=(set CLRTestExpectedExitCode=100)
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;EXPECTED_FAIL_WINARM32
+Categories=EXPECTED_PASS;REL_FAIL
 HostStyle=0
 [rva_rvastatic3.cmd_3924]
 RelativePath=JIT\Directed\intrinsic\interlocked\rva_rvastatic3\rva_rvastatic3.cmd
 WorkingDir=JIT\Directed\intrinsic\interlocked\rva_rvastatic3
 Expected=(set CLRTestExpectedExitCode=100)
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;EXPECTED_FAIL_WINARM32
+Categories=EXPECTED_PASS;REL_FAIL
 HostStyle=0
 [rva_rvastatic4.cmd_3925]
 RelativePath=JIT\Directed\intrinsic\interlocked\rva_rvastatic4\rva_rvastatic4.cmd
 WorkingDir=JIT\Directed\intrinsic\interlocked\rva_rvastatic4
 Expected=(set CLRTestExpectedExitCode=100)
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;EXPECTED_FAIL_WINARM32
+Categories=EXPECTED_PASS;REL_FAIL
 HostStyle=0
 [pow0_cs_d.cmd_3926]
 RelativePath=JIT\Directed\intrinsic\pow\pow0_cs_d\pow0_cs_d.cmd
@@ -28613,7 +28613,7 @@ RelativePath=JIT\Directed\PREFIX\unaligned\1\arglist\arglist.cmd
 WorkingDir=JIT\Directed\PREFIX\unaligned\1\arglist
 Expected=(set CLRTestExpectedExitCode=100)
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;EXPECTED_FAIL_WINARM32
+Categories=EXPECTED_PASS;REL_FAIL
 HostStyle=0
 [array_tests.cmd_4094]
 RelativePath=JIT\Directed\PREFIX\unaligned\1\array_tests\array_tests.cmd
@@ -28718,7 +28718,7 @@ RelativePath=JIT\Directed\PREFIX\unaligned\2\arglist\arglist.cmd
 WorkingDir=JIT\Directed\PREFIX\unaligned\2\arglist
 Expected=(set CLRTestExpectedExitCode=100)
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;EXPECTED_FAIL_WINARM32
+Categories=EXPECTED_PASS;REL_FAIL
 HostStyle=0
 [array_tests.cmd_4109]
 RelativePath=JIT\Directed\PREFIX\unaligned\2\array_tests\array_tests.cmd
@@ -28816,7 +28816,7 @@ RelativePath=JIT\Directed\PREFIX\unaligned\4\arglist\arglist.cmd
 WorkingDir=JIT\Directed\PREFIX\unaligned\4\arglist
 Expected=(set CLRTestExpectedExitCode=100)
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;EXPECTED_FAIL_WINARM32
+Categories=EXPECTED_PASS;REL_FAIL
 HostStyle=0
 [array_tests.cmd_4123]
 RelativePath=JIT\Directed\PREFIX\unaligned\4\array_tests\array_tests.cmd
@@ -28921,7 +28921,7 @@ RelativePath=JIT\Directed\PREFIX\volatile\1\arglist\arglist.cmd
 WorkingDir=JIT\Directed\PREFIX\volatile\1\arglist
 Expected=(set CLRTestExpectedExitCode=100)
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;EXPECTED_FAIL_WINARM32
+Categories=EXPECTED_PASS;REL_FAIL
 HostStyle=0
 [array_tests.cmd_4138]
 RelativePath=JIT\Directed\PREFIX\volatile\1\array_tests\array_tests.cmd
@@ -29089,7 +29089,7 @@ RelativePath=JIT\Directed\RVAInit\extended\extended.cmd
 WorkingDir=JIT\Directed\RVAInit\extended
 Expected=(set CLRTestExpectedExitCode=100)
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;EXPECTED_FAIL_WINARM32
+Categories=EXPECTED_PASS;REL_FAIL
 HostStyle=0
 [gcref1.cmd_4162]
 RelativePath=JIT\Directed\RVAInit\gcref1\gcref1.cmd
@@ -29124,7 +29124,7 @@ RelativePath=JIT\Directed\RVAInit\overlap\overlap.cmd
 WorkingDir=JIT\Directed\RVAInit\overlap
 Expected=(set CLRTestExpectedExitCode=100)
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;EXPECTED_FAIL_WINARM32
+Categories=EXPECTED_PASS;REL_FAIL
 HostStyle=0
 [simple.cmd_4167]
 RelativePath=JIT\Directed\RVAInit\simple\simple.cmd
@@ -29138,35 +29138,35 @@ RelativePath=JIT\Directed\rvastatics\rvastatic1\rvastatic1.cmd
 WorkingDir=JIT\Directed\rvastatics\rvastatic1
 Expected=(set CLRTestExpectedExitCode=100)
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;EXPECTED_FAIL_WINARM32
+Categories=EXPECTED_PASS;REL_FAIL
 HostStyle=0
 [rvastatic2.cmd_4169]
 RelativePath=JIT\Directed\rvastatics\rvastatic2\rvastatic2.cmd
 WorkingDir=JIT\Directed\rvastatics\rvastatic2
 Expected=(set CLRTestExpectedExitCode=100)
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;EXPECTED_FAIL_WINARM32
+Categories=EXPECTED_PASS;REL_FAIL
 HostStyle=0
 [rvastatic3.cmd_4170]
 RelativePath=JIT\Directed\rvastatics\rvastatic3\rvastatic3.cmd
 WorkingDir=JIT\Directed\rvastatics\rvastatic3
 Expected=(set CLRTestExpectedExitCode=100)
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;EXPECTED_FAIL_WINARM32
+Categories=EXPECTED_PASS;REL_FAIL
 HostStyle=0
 [rvastatic4.cmd_4171]
 RelativePath=JIT\Directed\rvastatics\rvastatic4\rvastatic4.cmd
 WorkingDir=JIT\Directed\rvastatics\rvastatic4
 Expected=(set CLRTestExpectedExitCode=100)
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;EXPECTED_FAIL_WINARM32
+Categories=EXPECTED_PASS;REL_FAIL
 HostStyle=0
 [rvastatic5.cmd_4172]
 RelativePath=JIT\Directed\rvastatics\rvastatic5\rvastatic5.cmd
 WorkingDir=JIT\Directed\rvastatics\rvastatic5
 Expected=(set CLRTestExpectedExitCode=100)
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;EXPECTED_FAIL_WINARM32
+Categories=EXPECTED_PASS;REL_FAIL
 HostStyle=0
 [int16_cs_d.cmd_4173]
 RelativePath=JIT\Directed\shift\int16_cs_d\int16_cs_d.cmd
@@ -29642,7 +29642,7 @@ RelativePath=JIT\Directed\StructABI\StructABI\StructABI.cmd
 WorkingDir=JIT\Directed\StructABI\StructABI
 Expected=(set CLRTestExpectedExitCode=100)
 MaxAllowedDurationSeconds=600
-Categories=Pri0;JIT;EXPECTED_PASS;NATIVE_INTEROP;NEED_TRIAGE;EXPECTED_FAIL_WINARM32
+Categories=Pri0;JIT;EXPECTED_PASS;NATIVE_INTEROP;NEED_TRIAGE;REL_FAIL
 HostStyle=0
 [structfieldparam_r.cmd_4241]
 RelativePath=JIT\Directed\StructABI\structfieldparam_r\structfieldparam_r.cmd
@@ -29782,14 +29782,14 @@ RelativePath=JIT\Directed\tls\mutualrecurthd-tls\mutualrecurthd-tls.cmd
 WorkingDir=JIT\Directed\tls\mutualrecurthd-tls
 Expected=(set CLRTestExpectedExitCode=100)
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;EXPECTED_FAIL_WINARM32
+Categories=EXPECTED_PASS;REL_FAIL
 HostStyle=0
 [test-tls.cmd_4261]
 RelativePath=JIT\Directed\tls\test-tls\test-tls.cmd
 WorkingDir=JIT\Directed\tls\test-tls
 Expected=(set CLRTestExpectedExitCode=100)
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;EXPECTED_FAIL_WINARM32
+Categories=EXPECTED_PASS;REL_FAIL
 HostStyle=0
 [TypedReference.cmd_4262]
 RelativePath=JIT\Directed\TypedReference\TypedReference\TypedReference.cmd
@@ -34542,7 +34542,7 @@ RelativePath=JIT\jit64\gc\misc\funclet\funclet.cmd
 WorkingDir=JIT\jit64\gc\misc\funclet
 Expected=(set CLRTestExpectedExitCode=100)
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;EXPECTED_FAIL_WINARM32
+Categories=EXPECTED_PASS;REL_FAIL
 HostStyle=0
 [gc-pinned-code-motion.cmd_4941]
 RelativePath=JIT\jit64\gc\misc\gc-pinned-code-motion\gc-pinned-code-motion.cmd
@@ -36348,21 +36348,21 @@ RelativePath=JIT\jit64\localloc\verify\verify01_dynamic\verify01_dynamic.cmd
 WorkingDir=JIT\jit64\localloc\verify\verify01_dynamic
 Expected=(set CLRTestExpectedExitCode=100)
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;EXPECTED_FAIL_WINARM32
+Categories=EXPECTED_PASS;REL_FAIL
 HostStyle=0
 [verify01_large.cmd_5199]
 RelativePath=JIT\jit64\localloc\verify\verify01_large\verify01_large.cmd
 WorkingDir=JIT\jit64\localloc\verify\verify01_large
 Expected=(set CLRTestExpectedExitCode=100)
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;EXPECTED_FAIL_WINARM32
+Categories=EXPECTED_PASS;REL_FAIL
 HostStyle=0
 [verify01_small.cmd_5200]
 RelativePath=JIT\jit64\localloc\verify\verify01_small\verify01_small.cmd
 WorkingDir=JIT\jit64\localloc\verify\verify01_small
 Expected=(set CLRTestExpectedExitCode=100)
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;EXPECTED_FAIL_WINARM32
+Categories=EXPECTED_PASS;REL_FAIL
 HostStyle=0
 [zeroinit01_large.cmd_5201]
 RelativePath=JIT\jit64\localloc\zeroinit\zeroinit01_large\zeroinit01_large.cmd
@@ -36383,28 +36383,28 @@ RelativePath=JIT\jit64\mcc\interop\mcc_i00\mcc_i00.cmd
 WorkingDir=JIT\jit64\mcc\interop\mcc_i00
 Expected=(set CLRTestExpectedExitCode=100)
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;EXPECTED_FAIL_WINARM32
+Categories=EXPECTED_PASS;REL_FAIL
 HostStyle=0
 [mcc_i01.cmd_5204]
 RelativePath=JIT\jit64\mcc\interop\mcc_i01\mcc_i01.cmd
 WorkingDir=JIT\jit64\mcc\interop\mcc_i01
 Expected=(set CLRTestExpectedExitCode=100)
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;EXPECTED_FAIL_WINARM32
+Categories=EXPECTED_PASS;REL_FAIL
 HostStyle=0
 [mcc_i02.cmd_5205]
 RelativePath=JIT\jit64\mcc\interop\mcc_i02\mcc_i02.cmd
 WorkingDir=JIT\jit64\mcc\interop\mcc_i02
 Expected=(set CLRTestExpectedExitCode=100)
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;EXPECTED_FAIL_WINARM32
+Categories=EXPECTED_PASS;REL_FAIL
 HostStyle=0
 [mcc_i03.cmd_5206]
 RelativePath=JIT\jit64\mcc\interop\mcc_i03\mcc_i03.cmd
 WorkingDir=JIT\jit64\mcc\interop\mcc_i03
 Expected=(set CLRTestExpectedExitCode=100)
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;EXPECTED_FAIL_WINARM32
+Categories=EXPECTED_PASS;REL_FAIL
 HostStyle=0
 [mcc_i04.cmd_5207]
 RelativePath=JIT\jit64\mcc\interop\mcc_i04\mcc_i04.cmd
@@ -36439,28 +36439,28 @@ RelativePath=JIT\jit64\mcc\interop\mcc_i10\mcc_i10.cmd
 WorkingDir=JIT\jit64\mcc\interop\mcc_i10
 Expected=(set CLRTestExpectedExitCode=100)
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;EXPECTED_FAIL_WINARM32
+Categories=EXPECTED_PASS;REL_FAIL
 HostStyle=0
 [mcc_i11.cmd_5212]
 RelativePath=JIT\jit64\mcc\interop\mcc_i11\mcc_i11.cmd
 WorkingDir=JIT\jit64\mcc\interop\mcc_i11
 Expected=(set CLRTestExpectedExitCode=100)
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;EXPECTED_FAIL_WINARM32
+Categories=EXPECTED_PASS;REL_FAIL
 HostStyle=0
 [mcc_i12.cmd_5213]
 RelativePath=JIT\jit64\mcc\interop\mcc_i12\mcc_i12.cmd
 WorkingDir=JIT\jit64\mcc\interop\mcc_i12
 Expected=(set CLRTestExpectedExitCode=100)
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;EXPECTED_FAIL_WINARM32
+Categories=EXPECTED_PASS;REL_FAIL
 HostStyle=0
 [mcc_i13.cmd_5214]
 RelativePath=JIT\jit64\mcc\interop\mcc_i13\mcc_i13.cmd
 WorkingDir=JIT\jit64\mcc\interop\mcc_i13
 Expected=(set CLRTestExpectedExitCode=100)
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;EXPECTED_FAIL_WINARM32
+Categories=EXPECTED_PASS;REL_FAIL
 HostStyle=0
 [mcc_i14.cmd_5215]
 RelativePath=JIT\jit64\mcc\interop\mcc_i14\mcc_i14.cmd
@@ -36495,28 +36495,28 @@ RelativePath=JIT\jit64\mcc\interop\mcc_i30\mcc_i30.cmd
 WorkingDir=JIT\jit64\mcc\interop\mcc_i30
 Expected=(set CLRTestExpectedExitCode=100)
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;EXPECTED_FAIL_WINARM32
+Categories=EXPECTED_PASS;REL_FAIL
 HostStyle=0
 [mcc_i31.cmd_5220]
 RelativePath=JIT\jit64\mcc\interop\mcc_i31\mcc_i31.cmd
 WorkingDir=JIT\jit64\mcc\interop\mcc_i31
 Expected=(set CLRTestExpectedExitCode=100)
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;EXPECTED_FAIL_WINARM32
+Categories=EXPECTED_PASS;REL_FAIL
 HostStyle=0
 [mcc_i32.cmd_5221]
 RelativePath=JIT\jit64\mcc\interop\mcc_i32\mcc_i32.cmd
 WorkingDir=JIT\jit64\mcc\interop\mcc_i32
 Expected=(set CLRTestExpectedExitCode=100)
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;EXPECTED_FAIL_WINARM32
+Categories=EXPECTED_PASS;REL_FAIL
 HostStyle=0
 [mcc_i33.cmd_5222]
 RelativePath=JIT\jit64\mcc\interop\mcc_i33\mcc_i33.cmd
 WorkingDir=JIT\jit64\mcc\interop\mcc_i33
 Expected=(set CLRTestExpectedExitCode=100)
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;EXPECTED_FAIL_WINARM32
+Categories=EXPECTED_PASS;REL_FAIL
 HostStyle=0
 [mcc_i34.cmd_5223]
 RelativePath=JIT\jit64\mcc\interop\mcc_i34\mcc_i34.cmd
@@ -36551,28 +36551,28 @@ RelativePath=JIT\jit64\mcc\interop\mcc_i50\mcc_i50.cmd
 WorkingDir=JIT\jit64\mcc\interop\mcc_i50
 Expected=(set CLRTestExpectedExitCode=100)
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;EXPECTED_FAIL_WINARM32
+Categories=EXPECTED_PASS;REL_FAIL
 HostStyle=0
 [mcc_i51.cmd_5228]
 RelativePath=JIT\jit64\mcc\interop\mcc_i51\mcc_i51.cmd
 WorkingDir=JIT\jit64\mcc\interop\mcc_i51
 Expected=(set CLRTestExpectedExitCode=100)
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;EXPECTED_FAIL_WINARM32
+Categories=EXPECTED_PASS;REL_FAIL
 HostStyle=0
 [mcc_i52.cmd_5229]
 RelativePath=JIT\jit64\mcc\interop\mcc_i52\mcc_i52.cmd
 WorkingDir=JIT\jit64\mcc\interop\mcc_i52
 Expected=(set CLRTestExpectedExitCode=100)
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;EXPECTED_FAIL_WINARM32
+Categories=EXPECTED_PASS;REL_FAIL
 HostStyle=0
 [mcc_i53.cmd_5230]
 RelativePath=JIT\jit64\mcc\interop\mcc_i53\mcc_i53.cmd
 WorkingDir=JIT\jit64\mcc\interop\mcc_i53
 Expected=(set CLRTestExpectedExitCode=100)
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;EXPECTED_FAIL_WINARM32
+Categories=EXPECTED_PASS;REL_FAIL
 HostStyle=0
 [mcc_i54.cmd_5231]
 RelativePath=JIT\jit64\mcc\interop\mcc_i54\mcc_i54.cmd
@@ -36607,28 +36607,28 @@ RelativePath=JIT\jit64\mcc\interop\mcc_i60\mcc_i60.cmd
 WorkingDir=JIT\jit64\mcc\interop\mcc_i60
 Expected=(set CLRTestExpectedExitCode=100)
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;EXPECTED_FAIL_WINARM32
+Categories=EXPECTED_PASS;REL_FAIL
 HostStyle=0
 [mcc_i61.cmd_5236]
 RelativePath=JIT\jit64\mcc\interop\mcc_i61\mcc_i61.cmd
 WorkingDir=JIT\jit64\mcc\interop\mcc_i61
 Expected=(set CLRTestExpectedExitCode=100)
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;EXPECTED_FAIL_WINARM32
+Categories=EXPECTED_PASS;REL_FAIL
 HostStyle=0
 [mcc_i62.cmd_5237]
 RelativePath=JIT\jit64\mcc\interop\mcc_i62\mcc_i62.cmd
 WorkingDir=JIT\jit64\mcc\interop\mcc_i62
 Expected=(set CLRTestExpectedExitCode=100)
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;EXPECTED_FAIL_WINARM32
+Categories=EXPECTED_PASS;REL_FAIL
 HostStyle=0
 [mcc_i63.cmd_5238]
 RelativePath=JIT\jit64\mcc\interop\mcc_i63\mcc_i63.cmd
 WorkingDir=JIT\jit64\mcc\interop\mcc_i63
 Expected=(set CLRTestExpectedExitCode=100)
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;EXPECTED_FAIL_WINARM32
+Categories=EXPECTED_PASS;REL_FAIL
 HostStyle=0
 [mcc_i64.cmd_5239]
 RelativePath=JIT\jit64\mcc\interop\mcc_i64\mcc_i64.cmd
@@ -36663,28 +36663,28 @@ RelativePath=JIT\jit64\mcc\interop\mcc_i70\mcc_i70.cmd
 WorkingDir=JIT\jit64\mcc\interop\mcc_i70
 Expected=(set CLRTestExpectedExitCode=100)
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;EXPECTED_FAIL_WINARM32
+Categories=EXPECTED_PASS;REL_FAIL
 HostStyle=0
 [mcc_i71.cmd_5244]
 RelativePath=JIT\jit64\mcc\interop\mcc_i71\mcc_i71.cmd
 WorkingDir=JIT\jit64\mcc\interop\mcc_i71
 Expected=(set CLRTestExpectedExitCode=100)
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;EXPECTED_FAIL_WINARM32
+Categories=EXPECTED_PASS;REL_FAIL
 HostStyle=0
 [mcc_i72.cmd_5245]
 RelativePath=JIT\jit64\mcc\interop\mcc_i72\mcc_i72.cmd
 WorkingDir=JIT\jit64\mcc\interop\mcc_i72
 Expected=(set CLRTestExpectedExitCode=100)
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;EXPECTED_FAIL_WINARM32
+Categories=EXPECTED_PASS;REL_FAIL
 HostStyle=0
 [mcc_i73.cmd_5246]
 RelativePath=JIT\jit64\mcc\interop\mcc_i73\mcc_i73.cmd
 WorkingDir=JIT\jit64\mcc\interop\mcc_i73
 Expected=(set CLRTestExpectedExitCode=100)
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;EXPECTED_FAIL_WINARM32
+Categories=EXPECTED_PASS;REL_FAIL
 HostStyle=0
 [mcc_i74.cmd_5247]
 RelativePath=JIT\jit64\mcc\interop\mcc_i74\mcc_i74.cmd
@@ -36719,28 +36719,28 @@ RelativePath=JIT\jit64\mcc\interop\mcc_i80\mcc_i80.cmd
 WorkingDir=JIT\jit64\mcc\interop\mcc_i80
 Expected=(set CLRTestExpectedExitCode=100)
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;EXPECTED_FAIL_WINARM32
+Categories=EXPECTED_PASS;REL_FAIL
 HostStyle=0
 [mcc_i81.cmd_5252]
 RelativePath=JIT\jit64\mcc\interop\mcc_i81\mcc_i81.cmd
 WorkingDir=JIT\jit64\mcc\interop\mcc_i81
 Expected=(set CLRTestExpectedExitCode=100)
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;EXPECTED_FAIL_WINARM32
+Categories=EXPECTED_PASS;REL_FAIL
 HostStyle=0
 [mcc_i82.cmd_5253]
 RelativePath=JIT\jit64\mcc\interop\mcc_i82\mcc_i82.cmd
 WorkingDir=JIT\jit64\mcc\interop\mcc_i82
 Expected=(set CLRTestExpectedExitCode=100)
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;EXPECTED_FAIL_WINARM32
+Categories=EXPECTED_PASS;REL_FAIL
 HostStyle=0
 [mcc_i83.cmd_5254]
 RelativePath=JIT\jit64\mcc\interop\mcc_i83\mcc_i83.cmd
 WorkingDir=JIT\jit64\mcc\interop\mcc_i83
 Expected=(set CLRTestExpectedExitCode=100)
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;EXPECTED_FAIL_WINARM32
+Categories=EXPECTED_PASS;REL_FAIL
 HostStyle=0
 [mcc_i84.cmd_5255]
 RelativePath=JIT\jit64\mcc\interop\mcc_i84\mcc_i84.cmd
@@ -37860,7 +37860,7 @@ RelativePath=JIT\jit64\regress\ndpw\21220\b21220\b21220.cmd
 WorkingDir=JIT\jit64\regress\ndpw\21220\b21220
 Expected=(set CLRTestExpectedExitCode=100)
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;EXPECTED_FAIL_WINARM32
+Categories=EXPECTED_PASS;REL_FAIL
 HostStyle=0
 [test.cmd_5415]
 RelativePath=JIT\jit64\regress\phoenix\62322\test\test.cmd
@@ -42830,14 +42830,14 @@ RelativePath=JIT\Methodical\cctor\misc\global_il_d\global_il_d.cmd
 WorkingDir=JIT\Methodical\cctor\misc\global_il_d
 Expected=(set CLRTestExpectedExitCode=100)
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;EXPECTED_FAIL_WINARM32
+Categories=EXPECTED_PASS;REL_FAIL
 HostStyle=0
 [global_il_r.cmd_6125]
 RelativePath=JIT\Methodical\cctor\misc\global_il_r\global_il_r.cmd
 WorkingDir=JIT\Methodical\cctor\misc\global_il_r
 Expected=(set CLRTestExpectedExitCode=100)
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;EXPECTED_FAIL_WINARM32
+Categories=EXPECTED_PASS;REL_FAIL
 HostStyle=0
 [threads1_cs_d.cmd_6126]
 RelativePath=JIT\Methodical\cctor\misc\threads1_cs_d\threads1_cs_d.cmd
@@ -43201,7 +43201,7 @@ RelativePath=JIT\Methodical\Coverage\arglist_pos\arglist_pos.cmd
 WorkingDir=JIT\Methodical\Coverage\arglist_pos
 Expected=(set CLRTestExpectedExitCode=100)
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;EXPECTED_FAIL_WINARM32
+Categories=EXPECTED_PASS;REL_FAIL
 HostStyle=0
 [b39946.cmd_6178]
 RelativePath=JIT\Methodical\Coverage\b39946\b39946.cmd
@@ -44496,14 +44496,14 @@ RelativePath=JIT\Methodical\eh\deadcode\badcodeafterfinally_d\badcodeafterfinall
 WorkingDir=JIT\Methodical\eh\deadcode\badcodeafterfinally_d
 Expected=(set CLRTestExpectedExitCode=100)
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;EXPECTED_FAIL_WINARM32
+Categories=EXPECTED_PASS;REL_FAIL
 HostStyle=0
 [badcodeafterfinally_r.cmd_6363]
 RelativePath=JIT\Methodical\eh\deadcode\badcodeafterfinally_r\badcodeafterfinally_r.cmd
 WorkingDir=JIT\Methodical\eh\deadcode\badcodeafterfinally_r
 Expected=(set CLRTestExpectedExitCode=100)
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;EXPECTED_FAIL_WINARM32
+Categories=EXPECTED_PASS;REL_FAIL
 HostStyle=0
 [badcodeaftertry_d.cmd_6364]
 RelativePath=JIT\Methodical\eh\deadcode\badcodeaftertry_d\badcodeaftertry_d.cmd
@@ -48682,7 +48682,7 @@ RelativePath=JIT\Methodical\flowgraph\dev10_bug679955\volatileLocal1\volatileLoc
 WorkingDir=JIT\Methodical\flowgraph\dev10_bug679955\volatileLocal1
 Expected=(set CLRTestExpectedExitCode=100)
 MaxAllowedDurationSeconds=600
-Categories=Pri0;JIT;EXPECTED_PASS;EXPECTED_FAIL_WINARM32
+Categories=Pri0;JIT;EXPECTED_PASS;REL_FAIL
 HostStyle=0
 [volatileLocal2.cmd_6961]
 RelativePath=JIT\Methodical\flowgraph\dev10_bug679955\volatileLocal2\volatileLocal2.cmd
@@ -48794,7 +48794,7 @@ RelativePath=JIT\Methodical\fp\exgen\10w5d_cs_do\10w5d_cs_do.cmd
 WorkingDir=JIT\Methodical\fp\exgen\10w5d_cs_do
 Expected=(set CLRTestExpectedExitCode=100)
 MaxAllowedDurationSeconds=600
-Categories=Pri0;EXPECTED_PASS;EXPECTED_FAIL_WINARM32
+Categories=Pri0;EXPECTED_PASS;REL_FAIL
 HostStyle=0
 [10w5d_cs_r.cmd_6977]
 RelativePath=JIT\Methodical\fp\exgen\10w5d_cs_r\10w5d_cs_r.cmd
@@ -48808,7 +48808,7 @@ RelativePath=JIT\Methodical\fp\exgen\10w5d_cs_ro\10w5d_cs_ro.cmd
 WorkingDir=JIT\Methodical\fp\exgen\10w5d_cs_ro
 Expected=(set CLRTestExpectedExitCode=100)
 MaxAllowedDurationSeconds=600
-Categories=Pri0;EXPECTED_PASS;EXPECTED_FAIL_WINARM32
+Categories=Pri0;EXPECTED_PASS;REL_FAIL
 HostStyle=0
 [200w1d-01_cs_d.cmd_6979]
 RelativePath=JIT\Methodical\fp\exgen\200w1d-01_cs_d\200w1d-01_cs_d.cmd
@@ -52700,7 +52700,7 @@ RelativePath=JIT\Methodical\Overflow\FloatOvfToInt2_do\FloatOvfToInt2_do.cmd
 WorkingDir=JIT\Methodical\Overflow\FloatOvfToInt2_do
 Expected=(set CLRTestExpectedExitCode=100)
 MaxAllowedDurationSeconds=600
-Categories=Pri0;JIT;EXPECTED_PASS;EXPECTED_FAIL_WINARM32
+Categories=Pri0;JIT;EXPECTED_PASS;REL_FAIL
 HostStyle=0
 [FloatOvfToInt2_r.cmd_7535]
 RelativePath=JIT\Methodical\Overflow\FloatOvfToInt2_r\FloatOvfToInt2_r.cmd
@@ -52714,7 +52714,7 @@ RelativePath=JIT\Methodical\Overflow\FloatOvfToInt2_ro\FloatOvfToInt2_ro.cmd
 WorkingDir=JIT\Methodical\Overflow\FloatOvfToInt2_ro
 Expected=(set CLRTestExpectedExitCode=100)
 MaxAllowedDurationSeconds=600
-Categories=Pri0;JIT;EXPECTED_PASS;EXPECTED_FAIL_WINARM32
+Categories=Pri0;JIT;EXPECTED_PASS;REL_FAIL
 HostStyle=0
 [array1.cmd_7537]
 RelativePath=JIT\Methodical\refany\array1\array1.cmd
@@ -52861,7 +52861,7 @@ RelativePath=JIT\Methodical\refany\_il_dbgseq\_il_dbgseq.cmd
 WorkingDir=JIT\Methodical\refany\_il_dbgseq
 Expected=(set CLRTestExpectedExitCode=100)
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;EXPECTED_FAIL_WINARM32
+Categories=EXPECTED_PASS;REL_FAIL
 HostStyle=0
 [_il_dbgshortsig.cmd_7558]
 RelativePath=JIT\Methodical\refany\_il_dbgshortsig\_il_dbgshortsig.cmd
@@ -52945,7 +52945,7 @@ RelativePath=JIT\Methodical\refany\_il_relseq\_il_relseq.cmd
 WorkingDir=JIT\Methodical\refany\_il_relseq
 Expected=(set CLRTestExpectedExitCode=100)
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;EXPECTED_FAIL_WINARM32
+Categories=EXPECTED_PASS;REL_FAIL
 HostStyle=0
 [_il_relshortsig.cmd_7570]
 RelativePath=JIT\Methodical\refany\_il_relshortsig\_il_relshortsig.cmd
@@ -53400,14 +53400,14 @@ RelativePath=JIT\Methodical\tailcall\_il_dbgpointer\_il_dbgpointer.cmd
 WorkingDir=JIT\Methodical\tailcall\_il_dbgpointer
 Expected=(set CLRTestExpectedExitCode=100)
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;EXPECTED_FAIL_WINARM32
+Categories=EXPECTED_PASS;REL_FAIL
 HostStyle=0
 [_il_dbgpointer_i.cmd_7635]
 RelativePath=JIT\Methodical\tailcall\_il_dbgpointer_i\_il_dbgpointer_i.cmd
 WorkingDir=JIT\Methodical\tailcall\_il_dbgpointer_i
 Expected=(set CLRTestExpectedExitCode=100)
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;EXPECTED_FAIL_WINARM32
+Categories=EXPECTED_PASS;REL_FAIL
 HostStyle=0
 [_il_dbgrecurse_ep.cmd_7636]
 RelativePath=JIT\Methodical\tailcall\_il_dbgrecurse_ep\_il_dbgrecurse_ep.cmd
@@ -53638,14 +53638,14 @@ RelativePath=JIT\Methodical\tailcall\_il_relpointer\_il_relpointer.cmd
 WorkingDir=JIT\Methodical\tailcall\_il_relpointer
 Expected=(set CLRTestExpectedExitCode=100)
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;EXPECTED_FAIL_WINARM32
+Categories=EXPECTED_PASS;REL_FAIL
 HostStyle=0
 [_il_relpointer_i.cmd_7669]
 RelativePath=JIT\Methodical\tailcall\_il_relpointer_i\_il_relpointer_i.cmd
 WorkingDir=JIT\Methodical\tailcall\_il_relpointer_i
 Expected=(set CLRTestExpectedExitCode=100)
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;EXPECTED_FAIL_WINARM32
+Categories=EXPECTED_PASS;REL_FAIL
 HostStyle=0
 [_il_relrecurse_ep.cmd_7670]
 RelativePath=JIT\Methodical\tailcall\_il_relrecurse_ep\_il_relrecurse_ep.cmd
@@ -54982,7 +54982,7 @@ RelativePath=JIT\Methodical\xxobj\operand\_il_dbglocalloc\_il_dbglocalloc.cmd
 WorkingDir=JIT\Methodical\xxobj\operand\_il_dbglocalloc
 Expected=(set CLRTestExpectedExitCode=100)
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;EXPECTED_FAIL_WINARM32
+Categories=EXPECTED_PASS;REL_FAIL
 HostStyle=0
 [_il_dbgmdarray.cmd_7861]
 RelativePath=JIT\Methodical\xxobj\operand\_il_dbgmdarray\_il_dbgmdarray.cmd
@@ -55024,7 +55024,7 @@ RelativePath=JIT\Methodical\xxobj\operand\_il_rellocalloc\_il_rellocalloc.cmd
 WorkingDir=JIT\Methodical\xxobj\operand\_il_rellocalloc
 Expected=(set CLRTestExpectedExitCode=100)
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;EXPECTED_FAIL_WINARM32
+Categories=EXPECTED_PASS;REL_FAIL
 HostStyle=0
 [_il_relmdarray.cmd_7867]
 RelativePath=JIT\Methodical\xxobj\operand\_il_relmdarray\_il_relmdarray.cmd
@@ -55766,7 +55766,7 @@ RelativePath=JIT\opt\Tailcall\TailcallVerifyWithPrefix\TailcallVerifyWithPrefix.
 WorkingDir=JIT\opt\Tailcall\TailcallVerifyWithPrefix
 Expected=(set CLRTestExpectedExitCode=100)
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;EXPECTED_FAIL_WINARM32
+Categories=EXPECTED_PASS;REL_FAIL
 HostStyle=0
 [bigvtbl_cs_d.cmd_7973]
 RelativePath=JIT\opt\virtualstubdispatch\bigvtbl\bigvtbl_cs_d\bigvtbl_cs_d.cmd
@@ -56235,7 +56235,7 @@ RelativePath=JIT\Performance\CodeQuality\Burgers\Burgers\Burgers.cmd
 WorkingDir=JIT\Performance\CodeQuality\Burgers\Burgers
 Expected=(set CLRTestExpectedExitCode=100)
 MaxAllowedDurationSeconds=600
-Categories=Pri0;EXPECTED_PASS;EXPECTED_FAIL_WINARM32
+Categories=Pri0;EXPECTED_PASS;REL_FAIL
 HostStyle=0
 [Bytemark.cmd_8040]
 RelativePath=JIT\Performance\CodeQuality\Bytemark\Bytemark\Bytemark.cmd
@@ -56501,7 +56501,7 @@ RelativePath=JIT\Regression\CLR-x86-EJIT\v1-m10\b07847\b07847\b07847.cmd
 WorkingDir=JIT\Regression\CLR-x86-EJIT\v1-m10\b07847\b07847
 Expected=(set CLRTestExpectedExitCode=100)
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;EXPECTED_FAIL_WINARM32
+Categories=EXPECTED_PASS;REL_FAIL
 HostStyle=0
 [b40089.cmd_8078]
 RelativePath=JIT\Regression\CLR-x86-EJIT\V1-M11-Beta1\b40089\b40089\b40089.cmd
@@ -56543,7 +56543,7 @@ RelativePath=JIT\Regression\CLR-x86-EJIT\V1-M12-Beta2\b26323\b26323\b26323.cmd
 WorkingDir=JIT\Regression\CLR-x86-EJIT\V1-M12-Beta2\b26323\b26323
 Expected=(set CLRTestExpectedExitCode=100)
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;EXPECTED_FAIL_WINARM32
+Categories=EXPECTED_PASS;REL_FAIL
 HostStyle=0
 [b35455.cmd_8084]
 RelativePath=JIT\Regression\CLR-x86-EJIT\V1-M12-Beta2\b35455\b35455\b35455.cmd
@@ -57320,7 +57320,7 @@ RelativePath=JIT\Regression\CLR-x86-JIT\V1-M09.5-PDC\b16423\b16423\b16423.cmd
 WorkingDir=JIT\Regression\CLR-x86-JIT\V1-M09.5-PDC\b16423\b16423
 Expected=(set CLRTestExpectedExitCode=100)
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;EXPECTED_FAIL_WINARM32
+Categories=EXPECTED_PASS;REL_FAIL
 HostStyle=0
 [b16498.cmd_8195]
 RelativePath=JIT\Regression\CLR-x86-JIT\V1-M09.5-PDC\b16498\b16498\b16498.cmd
@@ -57600,14 +57600,14 @@ RelativePath=JIT\Regression\CLR-x86-JIT\V1-M09.5-PDC\b26324\b26324a\b26324a.cmd
 WorkingDir=JIT\Regression\CLR-x86-JIT\V1-M09.5-PDC\b26324\b26324a
 Expected=(set CLRTestExpectedExitCode=100)
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;EXPECTED_FAIL_WINARM32
+Categories=EXPECTED_PASS;REL_FAIL
 HostStyle=0
 [b26324b.cmd_8235]
 RelativePath=JIT\Regression\CLR-x86-JIT\V1-M09.5-PDC\b26324\b26324b\b26324b.cmd
 WorkingDir=JIT\Regression\CLR-x86-JIT\V1-M09.5-PDC\b26324\b26324b
 Expected=(set CLRTestExpectedExitCode=100)
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;EXPECTED_FAIL_WINARM32
+Categories=EXPECTED_PASS;REL_FAIL
 HostStyle=0
 [b26332.cmd_8236]
 RelativePath=JIT\Regression\CLR-x86-JIT\V1-M09.5-PDC\b26332\b26332\b26332.cmd
@@ -57845,7 +57845,7 @@ RelativePath=JIT\Regression\CLR-x86-JIT\V1-M09.5-PDC\b28901\b28901\b28901.cmd
 WorkingDir=JIT\Regression\CLR-x86-JIT\V1-M09.5-PDC\b28901\b28901
 Expected=(set CLRTestExpectedExitCode=100)
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;EXPECTED_FAIL_WINARM32
+Categories=EXPECTED_PASS;REL_FAIL
 HostStyle=0
 [b28927.cmd_8270]
 RelativePath=JIT\Regression\CLR-x86-JIT\V1-M09.5-PDC\b28927\b28927\b28927.cmd
@@ -57922,7 +57922,7 @@ RelativePath=JIT\Regression\CLR-x86-JIT\V1-M09.5-PDC\b30838\b30838\b30838.cmd
 WorkingDir=JIT\Regression\CLR-x86-JIT\V1-M09.5-PDC\b30838\b30838
 Expected=(set CLRTestExpectedExitCode=100)
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;EXPECTED_FAIL_WINARM32
+Categories=EXPECTED_PASS;REL_FAIL
 HostStyle=0
 [b30862.cmd_8281]
 RelativePath=JIT\Regression\CLR-x86-JIT\V1-M09.5-PDC\b30862\b30862\b30862.cmd
@@ -57936,7 +57936,7 @@ RelativePath=JIT\Regression\CLR-x86-JIT\V1-M09.5-PDC\b30864\b30864\b30864.cmd
 WorkingDir=JIT\Regression\CLR-x86-JIT\V1-M09.5-PDC\b30864\b30864
 Expected=(set CLRTestExpectedExitCode=100)
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;EXPECTED_FAIL_WINARM32
+Categories=EXPECTED_PASS;REL_FAIL
 HostStyle=0
 [b30869.cmd_8283]
 RelativePath=JIT\Regression\CLR-x86-JIT\V1-M09.5-PDC\b30869\b30869\b30869.cmd
@@ -58062,7 +58062,7 @@ RelativePath=JIT\Regression\CLR-x86-JIT\V1-M09.5-PDC\b32374\b32374\b32374.cmd
 WorkingDir=JIT\Regression\CLR-x86-JIT\V1-M09.5-PDC\b32374\b32374
 Expected=(set CLRTestExpectedExitCode=100)
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;EXPECTED_FAIL_WINARM32
+Categories=EXPECTED_PASS;REL_FAIL
 HostStyle=0
 [b32551a.cmd_8301]
 RelativePath=JIT\Regression\CLR-x86-JIT\V1-M09.5-PDC\b32551\b32551a\b32551a.cmd
@@ -58601,7 +58601,7 @@ RelativePath=JIT\Regression\CLR-x86-JIT\V1-M11-Beta1\b35784\b35784\b35784.cmd
 WorkingDir=JIT\Regression\CLR-x86-JIT\V1-M11-Beta1\b35784\b35784
 Expected=(set CLRTestExpectedExitCode=100)
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;EXPECTED_FAIL_WINARM32
+Categories=EXPECTED_PASS;REL_FAIL
 HostStyle=0
 [b36030.cmd_8378]
 RelativePath=JIT\Regression\CLR-x86-JIT\V1-M11-Beta1\b36030\b36030\b36030.cmd
@@ -58643,7 +58643,7 @@ RelativePath=JIT\Regression\CLR-x86-JIT\V1-M11-Beta1\b36472\b36472\b36472.cmd
 WorkingDir=JIT\Regression\CLR-x86-JIT\V1-M11-Beta1\b36472\b36472
 Expected=(set CLRTestExpectedExitCode=100)
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;EXPECTED_FAIL_WINARM32
+Categories=EXPECTED_PASS;REL_FAIL
 HostStyle=0
 [b37131.cmd_8384]
 RelativePath=JIT\Regression\CLR-x86-JIT\V1-M11-Beta1\b37131\b37131\b37131.cmd
@@ -58657,7 +58657,7 @@ RelativePath=JIT\Regression\CLR-x86-JIT\V1-M11-Beta1\b37598\b37598\b37598.cmd
 WorkingDir=JIT\Regression\CLR-x86-JIT\V1-M11-Beta1\b37598\b37598
 Expected=(set CLRTestExpectedExitCode=100)
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;EXPECTED_FAIL_WINARM32
+Categories=EXPECTED_PASS;REL_FAIL
 HostStyle=0
 [b37608.cmd_8386]
 RelativePath=JIT\Regression\CLR-x86-JIT\V1-M11-Beta1\b37608\b37608\b37608.cmd
@@ -58860,7 +58860,7 @@ RelativePath=JIT\Regression\CLR-x86-JIT\V1-M11-Beta1\b41129\b41129\b41129.cmd
 WorkingDir=JIT\Regression\CLR-x86-JIT\V1-M11-Beta1\b41129\b41129
 Expected=(set CLRTestExpectedExitCode=100)
 MaxAllowedDurationSeconds=600
-Categories=Pri0;JIT;EXPECTED_PASS;EXPECTED_FAIL_WINARM32
+Categories=Pri0;JIT;EXPECTED_PASS;REL_FAIL
 HostStyle=0
 [b41149.cmd_8415]
 RelativePath=JIT\Regression\CLR-x86-JIT\V1-M11-Beta1\b41149\b41149\b41149.cmd
@@ -58902,7 +58902,7 @@ RelativePath=JIT\Regression\CLR-x86-JIT\V1-M11-Beta1\b41391\b41391\b41391.cmd
 WorkingDir=JIT\Regression\CLR-x86-JIT\V1-M11-Beta1\b41391\b41391
 Expected=(set CLRTestExpectedExitCode=100)
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;EXPECTED_FAIL_WINARM32
+Categories=EXPECTED_PASS;REL_FAIL
 HostStyle=0
 [b41470.cmd_8421]
 RelativePath=JIT\Regression\CLR-x86-JIT\V1-M11-Beta1\b41470\b41470\b41470.cmd
@@ -59336,7 +59336,7 @@ RelativePath=JIT\Regression\CLR-x86-JIT\V1-M11-Beta1\b46867\b46867\b46867.cmd
 WorkingDir=JIT\Regression\CLR-x86-JIT\V1-M11-Beta1\b46867\b46867
 Expected=(set CLRTestExpectedExitCode=100)
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;EXPECTED_FAIL_WINARM32
+Categories=EXPECTED_PASS;REL_FAIL
 HostStyle=0
 [b46897.cmd_8483]
 RelativePath=JIT\Regression\CLR-x86-JIT\V1-M11-Beta1\b46897\b46897\b46897.cmd
@@ -59497,7 +59497,7 @@ RelativePath=JIT\Regression\CLR-x86-JIT\V1-M11-Beta1\b49644\b49644\b49644.cmd
 WorkingDir=JIT\Regression\CLR-x86-JIT\V1-M11-Beta1\b49644\b49644
 Expected=(set CLRTestExpectedExitCode=100)
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;EXPECTED_FAIL_WINARM32
+Categories=EXPECTED_PASS;REL_FAIL
 HostStyle=0
 [b49717.cmd_8506]
 RelativePath=JIT\Regression\CLR-x86-JIT\V1-M11-Beta1\b49717\b49717\b49717.cmd
@@ -59609,14 +59609,14 @@ RelativePath=JIT\Regression\CLR-x86-JIT\V1-M12-Beta2\b31745\b31745\b31745.cmd
 WorkingDir=JIT\Regression\CLR-x86-JIT\V1-M12-Beta2\b31745\b31745
 Expected=(set CLRTestExpectedExitCode=100)
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;EXPECTED_FAIL_WINARM32
+Categories=EXPECTED_PASS;REL_FAIL
 HostStyle=0
 [b31746.cmd_8522]
 RelativePath=JIT\Regression\CLR-x86-JIT\V1-M12-Beta2\b31746\b31746\b31746.cmd
 WorkingDir=JIT\Regression\CLR-x86-JIT\V1-M12-Beta2\b31746\b31746
 Expected=(set CLRTestExpectedExitCode=100)
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;EXPECTED_FAIL_WINARM32
+Categories=EXPECTED_PASS;REL_FAIL
 HostStyle=0
 [b31762.cmd_8523]
 RelativePath=JIT\Regression\CLR-x86-JIT\V1-M12-Beta2\b31762\b31762\b31762.cmd
@@ -59882,7 +59882,7 @@ RelativePath=JIT\Regression\CLR-x86-JIT\V1-M12-Beta2\b37646\b37646\b37646.cmd
 WorkingDir=JIT\Regression\CLR-x86-JIT\V1-M12-Beta2\b37646\b37646
 Expected=(set CLRTestExpectedExitCode=100)
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;EXPECTED_FAIL_WINARM32
+Categories=EXPECTED_PASS;REL_FAIL
 HostStyle=0
 [b37830.cmd_8561]
 RelativePath=JIT\Regression\CLR-x86-JIT\V1-M12-Beta2\b37830\b37830\b37830.cmd
@@ -59917,7 +59917,7 @@ RelativePath=JIT\Regression\CLR-x86-JIT\V1-M12-Beta2\b41852\b41852\b41852.cmd
 WorkingDir=JIT\Regression\CLR-x86-JIT\V1-M12-Beta2\b41852\b41852
 Expected=(set CLRTestExpectedExitCode=100)
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;EXPECTED_FAIL_WINARM32
+Categories=EXPECTED_PASS;REL_FAIL
 HostStyle=0
 [b43693.cmd_8566]
 RelativePath=JIT\Regression\CLR-x86-JIT\V1-M12-Beta2\b43693\b43693\b43693.cmd
@@ -60092,7 +60092,7 @@ RelativePath=JIT\Regression\CLR-x86-JIT\V1-M12-Beta2\b51515\b51515\b51515.cmd
 WorkingDir=JIT\Regression\CLR-x86-JIT\V1-M12-Beta2\b51515\b51515
 Expected=(set CLRTestExpectedExitCode=100)
 MaxAllowedDurationSeconds=600
-Categories=Pri0;JIT;EXPECTED_PASS;EXPECTED_FAIL_WINARM32
+Categories=Pri0;JIT;EXPECTED_PASS;REL_FAIL
 HostStyle=0
 [b51565.cmd_8591]
 RelativePath=JIT\Regression\CLR-x86-JIT\V1-M12-Beta2\b51565\b51565\b51565.cmd
@@ -60316,7 +60316,7 @@ RelativePath=JIT\Regression\CLR-x86-JIT\V1-M12-Beta2\b54566\b54566\b54566.cmd
 WorkingDir=JIT\Regression\CLR-x86-JIT\V1-M12-Beta2\b54566\b54566
 Expected=(set CLRTestExpectedExitCode=100)
 MaxAllowedDurationSeconds=600
-Categories=Pri0;JIT;EXPECTED_PASS;EXPECTED_FAIL_WINARM32
+Categories=Pri0;JIT;EXPECTED_PASS;REL_FAIL
 HostStyle=0
 [b54611.cmd_8623]
 RelativePath=JIT\Regression\CLR-x86-JIT\V1-M12-Beta2\b54611\b54611\b54611.cmd
@@ -60589,7 +60589,7 @@ RelativePath=JIT\Regression\CLR-x86-JIT\V1-M12-Beta2\b59782\b59782\b59782.cmd
 WorkingDir=JIT\Regression\CLR-x86-JIT\V1-M12-Beta2\b59782\b59782
 Expected=(set CLRTestExpectedExitCode=100)
 MaxAllowedDurationSeconds=600
-Categories=Pri0;JIT;EXPECTED_PASS;EXPECTED_FAIL_WINARM32
+Categories=Pri0;JIT;EXPECTED_PASS;REL_FAIL
 HostStyle=0
 [b59822.cmd_8662]
 RelativePath=JIT\Regression\CLR-x86-JIT\V1-M12-Beta2\b59822\b59822\b59822.cmd
@@ -61688,7 +61688,7 @@ RelativePath=JIT\Regression\CLR-x86-JIT\V1-M13-RTM\b88793\b88793\b88793.cmd
 WorkingDir=JIT\Regression\CLR-x86-JIT\V1-M13-RTM\b88793\b88793
 Expected=(set CLRTestExpectedExitCode=100)
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;EXPECTED_FAIL_WINARM32
+Categories=EXPECTED_PASS;REL_FAIL
 HostStyle=0
 [b88797.cmd_8819]
 RelativePath=JIT\Regression\CLR-x86-JIT\V1-M13-RTM\b88797\b88797\b88797.cmd
@@ -61800,7 +61800,7 @@ RelativePath=JIT\Regression\CLR-x86-JIT\V1-M13-RTM\b91248\b91248\b91248.cmd
 WorkingDir=JIT\Regression\CLR-x86-JIT\V1-M13-RTM\b91248\b91248
 Expected=(set CLRTestExpectedExitCode=100)
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;EXPECTED_FAIL_WINARM32
+Categories=EXPECTED_PASS;REL_FAIL
 HostStyle=0
 [b91359.cmd_8835]
 RelativePath=JIT\Regression\CLR-x86-JIT\V1-M13-RTM\b91359\b91359\b91359.cmd
@@ -62101,7 +62101,7 @@ RelativePath=JIT\Regression\CLR-x86-JIT\V1.2-Beta1\b102637\b102637\b102637.cmd
 WorkingDir=JIT\Regression\CLR-x86-JIT\V1.2-Beta1\b102637\b102637
 Expected=(set CLRTestExpectedExitCode=100)
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;EXPECTED_FAIL_WINARM32
+Categories=EXPECTED_PASS;REL_FAIL
 HostStyle=0
 [b102879.cmd_8878]
 RelativePath=JIT\Regression\CLR-x86-JIT\V1.2-Beta1\b102879\b102879\b102879.cmd
@@ -62262,7 +62262,7 @@ RelativePath=JIT\Regression\CLR-x86-JIT\V1.2-M01\b03689\b03689\b03689.cmd
 WorkingDir=JIT\Regression\CLR-x86-JIT\V1.2-M01\b03689\b03689
 Expected=(set CLRTestExpectedExitCode=100)
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;EXPECTED_FAIL_WINARM32
+Categories=EXPECTED_PASS;REL_FAIL
 HostStyle=0
 [b04319.cmd_8901]
 RelativePath=JIT\Regression\CLR-x86-JIT\V1.2-M01\b04319\b04319\b04319.cmd
@@ -62325,7 +62325,7 @@ RelativePath=JIT\Regression\CLR-x86-JIT\V1.2-M01\b08046\b08046\b08046.cmd
 WorkingDir=JIT\Regression\CLR-x86-JIT\V1.2-M01\b08046\b08046
 Expected=(set CLRTestExpectedExitCode=100)
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;EXPECTED_FAIL_WINARM32
+Categories=EXPECTED_PASS;REL_FAIL
 HostStyle=0
 [b11762.cmd_8910]
 RelativePath=JIT\Regression\CLR-x86-JIT\V1.2-M01\b11762\b11762\b11762.cmd
@@ -62612,7 +62612,7 @@ RelativePath=JIT\Regression\CLR-x86-JIT\V2.0-Beta2\b409748\b409748\b409748.cmd
 WorkingDir=JIT\Regression\CLR-x86-JIT\V2.0-Beta2\b409748\b409748
 Expected=(set CLRTestExpectedExitCode=100)
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;EXPECTED_FAIL_WINARM32
+Categories=EXPECTED_PASS;REL_FAIL
 HostStyle=0
 [b415164.cmd_8951]
 RelativePath=JIT\Regression\CLR-x86-JIT\V2.0-Beta2\b415164\b415164\b415164.cmd
@@ -63046,7 +63046,7 @@ RelativePath=JIT\Regression\Dev11\dev10_865840\dev10_865840\dev10_865840.cmd
 WorkingDir=JIT\Regression\Dev11\dev10_865840\dev10_865840
 Expected=(set CLRTestExpectedExitCode=100)
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;EXPECTED_FAIL_WINARM32
+Categories=EXPECTED_PASS;REL_FAIL
 HostStyle=0
 [loopvt.cmd_9013]
 RelativePath=JIT\Regression\Dev11\dev10_94677\loopvt\loopvt.cmd
@@ -63704,7 +63704,7 @@ RelativePath=JIT\Regression\JitBlue\GitHub_3449\GitHub_3449\GitHub_3449.cmd
 WorkingDir=JIT\Regression\JitBlue\GitHub_3449\GitHub_3449
 Expected=(set CLRTestExpectedExitCode=100)
 MaxAllowedDurationSeconds=600
-Categories=NEW;EXPECTED_PASS;EXPECTED_FAIL_WINARM32
+Categories=NEW;EXPECTED_PASS;REL_FAIL
 HostStyle=0
 [GitHub_4044.cmd_9107]
 RelativePath=JIT\Regression\JitBlue\GitHub_4044\GitHub_4044\GitHub_4044.cmd
@@ -64712,7 +64712,7 @@ RelativePath=JIT\Regression\VS-ia64-JIT\V2.0-Beta2\b410474\b410474\b410474.cmd
 WorkingDir=JIT\Regression\VS-ia64-JIT\V2.0-Beta2\b410474\b410474
 Expected=(set CLRTestExpectedExitCode=100)
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;EXPECTED_FAIL_WINARM32
+Categories=EXPECTED_PASS;REL_FAIL
 HostStyle=0
 [b431098.cmd_9251]
 RelativePath=JIT\Regression\VS-ia64-JIT\V2.0-Beta2\b431098\b431098\b431098.cmd
