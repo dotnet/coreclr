@@ -168,6 +168,7 @@ bool MethodCallGraphPreparer::Run()
 {
     STANDARD_VM_CONTRACT;
 
+#ifdef FEATURE_CER
     // Avoid recursion while jitting methods for another preparation.
     if (!m_pThread->GetCerPreparationState()->CanPreparationProceed(m_pRootMD, m_pRootTypeContext))
         return TRUE;   // Assume the worst
@@ -371,6 +372,9 @@ bool MethodCallGraphPreparer::Run()
     PrepareMethods();
 
     return RecordResults();
+#else
+    return FALSE;
+#endif
 }
 
 
@@ -1262,6 +1266,7 @@ void PrepareCriticalFinalizerObject(MethodTable *pMT, Module *pModule)
     }
     _ASSERTE(pParent != NULL);
 
+#ifdef FEATURE_CER
     BinderMethodID rgMethods[5];
     int nMethods;
 
@@ -1311,6 +1316,7 @@ void PrepareCriticalFinalizerObject(MethodTable *pMT, Module *pModule)
             }
         }
     }
+#endif
 
     // Note the fact that we've prepared this type before to prevent repetition of the work above. (Though repetition is harmless in
     // all other respects, so there's no need to worry about the race setting this flag).
@@ -1781,7 +1787,7 @@ void PrepopulateGenericHandleCache(DictionaryLayout  *pDictionaryLayout,
 // is a no-op).
 void CerNgenRootTable::Restore(MethodDesc *pRootMD)
 {
-#ifndef CROSSGEN_COMPILE
+#if !defined(CROSSGEN_COMPILE) && defined(FEATURE_CER)
     STANDARD_VM_CONTRACT;
 
     // We don't have a restoration bitmap at ngen time. No matter, we just always claim everything is restored.
@@ -1904,7 +1910,7 @@ void CerNgenRootTable::Restore(MethodDesc *pRootMD)
         }
         pEntry++;
     }
-#endif // CROSSGEN_COMPILE
+#endif // !CROSSGEN_COMPILE && FEATURE_CER
 }
 
 #ifdef FEATURE_NATIVE_IMAGE_GENERATION
