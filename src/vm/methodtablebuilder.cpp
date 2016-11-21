@@ -191,7 +191,7 @@ MethodTableBuilder::CreateClass( Module *pModule,
         pEEClass->GetSecurityProperties()->SetFlags(dwSecFlags, dwNullDeclFlags);
     }
 
-#ifndef FEATURE_CORECLR
+#ifdef FEATURE_CER
     // Cache class level reliability contract info.
     DWORD dwReliabilityContract = ::GetReliabilityContract(pInternalImport, cl);
     if (dwReliabilityContract != RC_NULL)
@@ -202,7 +202,7 @@ MethodTableBuilder::CreateClass( Module *pModule,
         
         pEEClass->SetReliabilityContract(dwReliabilityContract);
     }
-#endif
+#endif // FEATURE_CER
 
     if (fHasLayout)
         pEEClass->SetHasLayout();

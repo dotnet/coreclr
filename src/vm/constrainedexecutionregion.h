@@ -13,6 +13,7 @@
 #ifndef __CONSTRAINED_EXECUTION_REGION_H
 #define __CONSTRAINED_EXECUTION_REGION_H
 
+#ifdef FEATURE_CER
 
 #include <corhlpr.h>
 #include <typestring.h>
@@ -405,7 +406,6 @@ public:
 };
 
 
-#ifndef FEATURE_CORECLR
 class MethodCallGraphPreparer
 {
     MethodDesc *m_pRootMD;
@@ -526,7 +526,6 @@ void PrepareCriticalType(MethodTable *pMT);
 void PrePrepareMethodIfNecessary(CORINFO_METHOD_HANDLE hMethod);
 
 #endif
-#endif // !FEATURE_CORECLR
 
 
 // A fixed sized hash table keyed by pointers and storing two bits worth of value for every entry. The value is stored in the low
@@ -561,5 +560,7 @@ private:
     DWORD       m_dwMisses;
 #endif
 };
+
+#endif // FEATURE_CER
 
 #endif

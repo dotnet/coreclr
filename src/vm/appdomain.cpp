@@ -2949,7 +2949,7 @@ void SystemDomain::LoadBaseSystemClasses()
     g_pExecutionEngineExceptionClass = MscorlibBinder::GetException(kExecutionEngineException);
     g_pThreadAbortExceptionClass = MscorlibBinder::GetException(kThreadAbortException);
 
-#ifndef FEATURE_CORECLR
+#ifdef FEATURE_CER
     // Used for determining whether a class has a critical finalizer
     // To determine whether a class has a critical finalizer, we
     // currently will simply see if it's parent class has a critical
@@ -2988,7 +2988,7 @@ void SystemDomain::LoadBaseSystemClasses()
 
     // Load a special marker method used to detect Constrained Execution Regions
     // at jit time.
-#ifndef FEATURE_CORECLR
+#ifdef FEATURE_CER
     g_pPrepareConstrainedRegionsMethod = MscorlibBinder::GetMethod(METHOD__RUNTIME_HELPERS__PREPARE_CONSTRAINED_REGIONS);
 #endif
     g_pExecuteBackoutCodeHelperMethod = MscorlibBinder::GetMethod(METHOD__RUNTIME_HELPERS__EXECUTE_BACKOUT_CODE_HELPER);

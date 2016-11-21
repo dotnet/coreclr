@@ -754,7 +754,7 @@ static StackWalkAction TAStackCrawlCallBackWorker(CrawlFrame* pCf, StackCrawlCon
     }
     #undef METHODNAME
 
-#ifndef FEATURE_CORECLR
+#ifdef FEATURE_CER
     // If we're asking about CERs and we don't yet have a definite answer either way then take a closer look at the current method.
     if (pData->eType & StackCrawlContext::SCC_CheckWithinCer && !pData->fUnprotectedCode && !pData->fWithinCer)
     {
@@ -776,7 +776,7 @@ static StackWalkAction TAStackCrawlCallBackWorker(CrawlFrame* pCf, StackCrawlCon
                     pData->fUnprotectedCode = true;
         }
     }
-#endif
+#endif // FEATURE_CER
 
     // If we weren't asked about EH clauses then we can return now (stop the stack trace if we have a definitive answer on the CER
     // question, move to the next frame otherwise).
@@ -1124,7 +1124,7 @@ struct CerStackCrawlContext
     bool        m_fWithinCer;           // The result
 };
 
-#ifndef FEATURE_CORECLR
+#ifdef FEATURE_CER
 // Callback used on the stack crawl described above.
 StackWalkAction CerStackCrawlCallBack(CrawlFrame *pCf, void *pData)
 {
@@ -1167,7 +1167,7 @@ StackWalkAction CerStackCrawlCallBack(CrawlFrame *pCf, void *pData)
     // Otherwise everything looks OK so far and we need to investigate the next frame.
     return SWA_CONTINUE;
 }
-#endif
+#endif // FEATURE_CER
 
 // Determine whether the method at the given depth in the thread's execution stack is executing within a CER.
 BOOL Thread::IsWithinCer(CrawlFrame *pCf)
@@ -1179,7 +1179,7 @@ BOOL Thread::IsWithinCer(CrawlFrame *pCf)
     }
     CONTRACTL_END;
 
-#ifdef FEATURE_CORECLR
+#ifndef FEATURE_CER
     return FALSE;
 #else
     // There had better be a method associated with this frame.
@@ -1298,7 +1298,7 @@ BOOL Thread::IsWithinCer(CrawlFrame *pCf)
     _ASSERTE(!sContext.m_fFirstFrame);
 
     return sContext.m_fWithinCer;
-#endif // FEATURE_CORECLR
+#endif // FEATURE_CER
 }
 
 #if defined(_TARGET_AMD64_) && defined(FEATURE_HIJACK)

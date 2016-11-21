@@ -3394,7 +3394,7 @@ public:
     //-----------------------------------------------------------------------------------------
     BOOL                    IsPreV4Assembly();
 
-#ifndef FEATURE_CORECLR
+#ifdef FEATURE_CER
     //-----------------------------------------------------------------------------------------
     // Get reliability contract info, see ConstrainedExecutionRegion.cpp for details.
     //-----------------------------------------------------------------------------------------
@@ -3408,7 +3408,7 @@ public:
 
 protected:
 
-#ifndef FEATURE_CORECLR
+#ifdef FEATURE_CER
     Volatile<DWORD>         m_dwReliabilityContract;
 #endif
 
@@ -3416,7 +3416,7 @@ protected:
     void                    InitializeDynamicILCrst();
 
 public:
-#if !defined(DACCESS_COMPILE) && !defined(FEATURE_CORECLR)
+#if !defined(DACCESS_COMPILE) && defined(FEATURE_CER)
 
     // Support for getting and creating information about Constrained Execution Regions rooted in this module.
 
@@ -3447,7 +3447,7 @@ public:
         LIMITED_METHOD_CONTRACT;
         return m_pCerCrst;
     }
-#endif // !DACCESS_COMPILE && !FEATURE_CORECLR
+#endif // !DACCESS_COMPILE && FEATURE_CER
 
 #ifdef FEATURE_CORECLR
     void VerifyAllMethods();
@@ -3460,7 +3460,7 @@ public:
     }
 
 private:
-#ifndef FEATURE_CORECLR
+#ifdef FEATURE_CER
     EEPtrHashTable       *m_pCerPrepInfo;       // Root methods prepared for Constrained Execution Regions
     Crst                 *m_pCerCrst;           // Mutex protecting update access to both of the above hashes
 #ifdef FEATURE_PREJIT

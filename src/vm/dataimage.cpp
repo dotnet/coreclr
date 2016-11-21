@@ -896,7 +896,7 @@ void DataImage::FixupRVAs()
     FixupModuleRVAs();
     FixupRvaStructure();
 
-#ifndef FEATURE_CORECLR
+#ifdef FEATURE_CER
     if (m_module->m_pCerNgenRootTable != NULL)
         m_module->m_pCerNgenRootTable->FixupRVAs(this);
 #endif

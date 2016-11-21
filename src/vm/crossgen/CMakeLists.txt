@@ -96,6 +96,12 @@ set(VM_CROSSGEN_SOURCES
     ../crossgencompile.cpp
 )
 
+if(FEATURE_CER)
+    list(APPEND VM_CROSSGEN_SOURCES
+      ../constrainedexecutionregion.cpp
+        )
+endif(FEATURE_CER)
+
 if(FEATURE_READYTORUN)
     list(APPEND VM_CROSSGEN_SOURCES
       ../readytoruninfo.cpp

@@ -1656,7 +1656,7 @@ void Module::Destruct()
     m_InstMethodHashTableCrst.Destroy();
     m_ISymUnmanagedReaderCrst.Destroy();
 
-#ifndef FEATURE_CORECLR
+#ifdef FEATURE_CER
     if (m_pCerPrepInfo)
     {
         _ASSERTE(m_pCerCrst != NULL);
@@ -1673,7 +1673,7 @@ void Module::Destruct()
     }
     if (m_pCerCrst)
         delete m_pCerCrst;
-#endif // !FEATURE_CORECLR
+#endif // FEATURE_CER
 
     if (m_debuggerSpecificData.m_pDynamicILCrst)
     {
@@ -1704,7 +1704,7 @@ void Module::Destruct()
     }
 
 #ifdef FEATURE_PREJIT 
-#ifndef FEATURE_CORECLR
+#ifdef FEATURE_CER
     if (m_pCerNgenRootTable && (m_dwTransientFlags & M_CER_ROOT_TABLE_ON_HEAP))
         delete m_pCerNgenRootTable;
 #endif
@@ -3158,7 +3158,7 @@ BOOL Module::IsPreV4Assembly()
     return !!(m_dwPersistedFlags & IS_PRE_V4_ASSEMBLY);
 }
 
-#ifndef FEATURE_CORECLR
+#ifdef FEATURE_CER
 DWORD Module::GetReliabilityContract()
 {
     CONTRACTL
@@ -3185,7 +3185,7 @@ DWORD Module::GetReliabilityContract()
 
     return m_dwReliabilityContract;
 }
-#endif // !FEATURE_CORECLR
+#endif // FEATURE_CER
 
 ArrayDPTR(FixupPointer<PTR_MethodTable>) ModuleCtorInfo::GetGCStaticMTs(DWORD index)
 {
@@ -9866,12 +9866,12 @@ void Module::PrepareTypesForSave(DataImage *image)
             PrepareRemotableMethodInfo(pMT);
 #endif // FEATURE_REMOTING
 
-#ifndef FEATURE_CORECLR
+#ifdef FEATURE_CER
             // If this module defines any CriticalFinalizerObject derived classes,
             // then we'll prepare these types for Constrained Execution Regions (CER) now.
             // (Normally they're prepared at object instantiation time, a little too late for ngen).
             PrepareCriticalType(pMT);
-#endif
+#endif // FEATURE_CER
         }
     }
 
@@ -9955,7 +9955,7 @@ void Module::Save(DataImage *image)
     // Cache values of all persisted flags computed from custom attributes
     IsNoStringInterning();
     IsRuntimeWrapExceptions();
-#ifndef FEATURE_CORECLR
+#ifdef FEATURE_CER
     GetReliabilityContract();
 #endif
     IsPreV4Assembly();
@@ -10312,7 +10312,7 @@ void Module::Save(DataImage *image)
                           m_nPropertyNameSet * sizeof(BYTE),
                           DataImage::ITEM_PROPERTY_NAME_SET);
 
-#ifndef FEATURE_CORECLR
+#ifdef FEATURE_CER
     // Save Constrained Execution Region (CER) fixup information (used to eagerly fixup trees of methods to avoid any runtime
     // induced failures when invoking the tree).
     if (m_pCerNgenRootTable != NULL)
@@ -10773,7 +10773,7 @@ void Module::PlaceMethod(DataImage *image, MethodDesc *pMD, DWORD profilingFlags
         image->PlaceStructureForAddress(pMD, CORCOMPILE_SECTION_WRITE);
     }
 
-#ifndef FEATURE_CORECLR
+#ifdef FEATURE_CER
     if (profilingFlags & (1 << ReadCerMethodList))
     {
         // protect against stale IBC data
@@ -10784,7 +10784,7 @@ void Module::PlaceMethod(DataImage *image, MethodDesc *pMD, DWORD profilingFlags
             image->PlaceStructureForAddress(m_pCerNgenRootTable->GetList(pMD), CORCOMPILE_SECTION_HOT);
         }
     }
-#endif
+#endif // FEATURE_CER
 
     if (profilingFlags & (1 << WriteMethodPrecode))
     {
@@ -11328,7 +11328,7 @@ void Module::Fixup(DataImage *image)
     image->ZeroField(m_FileReferencesMap.pTable, 0,
                      m_FileReferencesMap.GetSize() * sizeof(void*));
 
-#ifndef FEATURE_CORECLR
+#ifdef FEATURE_CER
     //
     // Fixup Constrained Execution Regions restoration records.
     //
@@ -11345,7 +11345,7 @@ void Module::Fixup(DataImage *image)
     // Zero out fields we always compute at runtime lazily.
     image->ZeroField(this, offsetof(Module, m_pCerPrepInfo), sizeof(m_pCerPrepInfo));
     image->ZeroField(this, offsetof(Module, m_pCerCrst), sizeof(m_pCerCrst));
-#endif
+#endif // FEATURE_CER
 
     image->ZeroField(this, offsetof(Module, m_debuggerSpecificData), sizeof(m_debuggerSpecificData));
 
@@ -15609,7 +15609,7 @@ FieldDesc *Module::LookupFieldDef(mdFieldDef token)
 #endif // DACCESS_COMPILE
 
 
-#if !defined(DACCESS_COMPILE) && !defined(FEATURE_CORECLR)
+#if !defined(DACCESS_COMPILE) && defined(FEATURE_CER)
 
 // Access to CerPrepInfo, the structure used to track CERs prepared at runtime (as opposed to ngen time). GetCerPrepInfo will
 // return the structure associated with the given method desc if it exists or NULL otherwise. CreateCerPrepInfo will get the
@@ -15761,7 +15761,7 @@ void Module::RestoreCer(MethodDesc *pMD)
 
 #endif // FEATURE_PREJIT
 
-#endif // !DACCESS_COMPILE && !FEATURE_CORECLR
+#endif // !DACCESS_COMPILE && FEATURE_CER
 
 
 

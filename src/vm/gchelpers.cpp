@@ -1006,7 +1006,7 @@ OBJECTREF AllocateObject(MethodTable *pMT
     g_IBCLogger.LogMethodTableAccess(pMT);
     SetTypeHandleOnThreadForAlloc(TypeHandle(pMT));
 
-#ifndef FEATURE_CORECLR
+#ifdef FEATURE_CER
     if (pMT->HasCriticalFinalizer())
         PrepareCriticalFinalizerObject(pMT);
 #endif

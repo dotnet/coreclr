@@ -6603,7 +6603,7 @@ void CEEPreloader::PrePrepareMethodIfNecessary(CORINFO_METHOD_HANDLE hMethod)
 {
     STANDARD_VM_CONTRACT;
 
-#ifndef FEATURE_CORECLR
+#ifdef FEATURE_CER
     ::PrePrepareMethodIfNecessary(hMethod);
 #endif
 }

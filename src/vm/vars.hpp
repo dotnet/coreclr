@@ -418,8 +418,10 @@ GPTR_DECL(MethodTable,      g_pFreeObjectMethodTable);
 GPTR_DECL(MethodTable,      g_pValueTypeClass);
 GPTR_DECL(MethodTable,      g_pEnumClass);
 GPTR_DECL(MethodTable,      g_pThreadClass);
-#ifndef FEATURE_CORECLR
+#ifdef FEATURE_CER
 GPTR_DECL(MethodTable,      g_pCriticalFinalizerObjectClass);
+#endif
+#ifndef FEATURE_CORECLR
 GPTR_DECL(MethodTable,      g_pAsyncFileStream_AsyncResultClass);
 #endif // !FEATURE_CORECLR
 GPTR_DECL(MethodTable,      g_pOverlappedDataClass);
@@ -437,7 +439,7 @@ GPTR_DECL(MethodTable,      g_pBaseRuntimeClass);
 GPTR_DECL(MethodTable,      g_pICastableInterface);
 #endif // FEATURE_ICASTABLE
 
-#ifndef FEATURE_CORECLR
+#ifdef FEATURE_CER
 GPTR_DECL(MethodDesc,       g_pPrepareConstrainedRegionsMethod);
 #endif
 GPTR_DECL(MethodDesc,       g_pExecuteBackoutCodeHelperMethod);
