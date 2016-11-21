@@ -2229,7 +2229,7 @@ bool NotifyGdb::BuildSymbolTableSection(MemBuf& buf, PCODE addr, TADDR codeSize)
         sym[i].st_name = SymbolNames[i].m_off;
         sym[i].setBindingAndType(STB_GLOBAL, STT_FUNC);
         sym[i].st_other = 0;
-        sym[i].st_value = DataPointerToThumbCode<TADDR,PCODE>(SymbolNames[i].m_value - addr);
+        sym[i].st_value = PINSTRToPCODE(SymbolNames[i].m_value - addr);
         sym[i].st_shndx = textSectionIndex;
         sym[i].st_size = SymbolNames[i].m_size;
     }
