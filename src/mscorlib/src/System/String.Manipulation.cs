@@ -552,39 +552,10 @@ namespace System
             return Join(separator, value, 0, value.Length);
         }
 
-        public static string Join(char separator, params object[] values)
+        public unsafe static string Join(char separator, params object[] values)
         {
-            if (values == null)
-            {
-                throw new ArgumentNullException(nameof(values));
-            }
-
-            if (values.Length == 0)
-            {
-                return string.Empty;
-            }
-
-            string firstString = values[0]?.ToString();
-
-            if (values.Length == 1)
-            {
-                return firstString ?? string.Empty;
-            }
-
-            StringBuilder result = StringBuilderCache.Acquire();
-            result.Append(firstString);
-
-            for (int i = 1; i < values.Length; i++)
-            {
-                result.Append(separator);
-                object value = values[i];
-                if (value != null)
-                {
-                    result.Append(value.ToString());
-                }
-            }
-
-            return StringBuilderCache.GetStringAndRelease(result);
+            // Defer argument validation to the internal function
+            return JoinCore(&separator, 1, values);
         }
 
         public unsafe static string Join<T>(char separator, IEnumerable<T> values)
@@ -611,39 +582,14 @@ namespace System
         }
 
         [ComVisible(false)]
-        public static string Join(string separator, params object[] values)
+        public unsafe static string Join(string separator, params object[] values)
         {
-            if (values == null)
+            separator = separator ?? string.Empty;
+            fixed (char* pSeparator = &separator.m_firstChar)
             {
-                throw new ArgumentNullException(nameof(values));
+                // Defer argument validation to the internal function
+                return JoinCore(pSeparator, separator.Length, values);
             }
-
-            if (values.Length == 0)
-            {
-                return string.Empty;
-            }
-
-            string firstString = values[0]?.ToString();
-
-            if (values.Length == 1)
-            {
-                return firstString ?? string.Empty;
-            }
-
-            StringBuilder result = StringBuilderCache.Acquire();
-            result.Append(firstString);
-
-            for (int i = 1; i < values.Length; i++)
-            {
-                result.Append(separator);
-                object value = values[i];
-                if (value != null)
-                {
-                    result.Append(value.ToString());
-                }
-            }
-
-            return StringBuilderCache.GetStringAndRelease(result);
         }
 
         [ComVisible(false)]
@@ -706,6 +652,41 @@ namespace System
                 // Defer argument validation to the internal function
                 return JoinCore(pSeparator, separator.Length, value, startIndex, count);
             }
+        }
+
+        private unsafe static string JoinCore(char* separator, int separatorLength, object[] values)
+        {
+            if (values == null)
+            {
+                throw new ArgumentNullException(nameof(values));
+            }
+
+            if (values.Length == 0)
+            {
+                return string.Empty;
+            }
+
+            string firstString = values[0]?.ToString();
+
+            if (values.Length == 1)
+            {
+                return firstString ?? string.Empty;
+            }
+
+            StringBuilder result = StringBuilderCache.Acquire();
+            result.Append(firstString);
+
+            for (int i = 1; i < values.Length; i++)
+            {
+                result.Append(separator, separatorLength);
+                object value = values[i];
+                if (value != null)
+                {
+                    result.Append(value.ToString());
+                }
+            }
+
+            return StringBuilderCache.GetStringAndRelease(result);
         }
 
         private unsafe static string JoinCore<T>(char* separator, int separatorLength, IEnumerable<T> values)
