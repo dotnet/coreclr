@@ -260,8 +260,8 @@ namespace System.Threading
         [SecurityCritical]
         internal static object GetLocalValue(IAsyncLocal local)
         {
-            ExecutionContext current = Thread.CurrentThread.ExecutionContext;
-            if (current == null)
+            ExecutionContext current = Thread.CurrentThread.ExecutionContext ?? ExecutionContext.Default;
+            if (current == ExecutionContext.Default)
                 return null;
 
             object value;
@@ -274,14 +274,29 @@ namespace System.Threading
         {
             ExecutionContext current = Thread.CurrentThread.ExecutionContext ?? ExecutionContext.Default;
 
+            // No change, fast exit
+            if (newValue == null && current == ExecutionContext.Default)
+                return;
+
             object previousValue;
             bool hadPreviousValue = current.m_localValues.TryGetValue(local, out previousValue);
 
+            // No change, fast exit
             if (previousValue == newValue)
                 return;
 
             IAsyncLocalValueMap newValues = current.m_localValues.Set(local, newValue);
 
+            if (newValue == null && newValues.Count == 0)
+            {
+                // Async locals cleared - set ExecutionContext back to Default to move back to fast-path
+                Thread.CurrentThread.ExecutionContext = ExecutionContext.Default;
+                if (needChangeNotifications)
+                {
+                    local.OnValueChanged(previousValue, null, false);
+                }
+                return;
+            }
             //
             // Either copy the change notification array, or create a new one, depending on whether we need to add a new item.
             //
