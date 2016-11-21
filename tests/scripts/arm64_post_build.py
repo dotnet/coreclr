@@ -277,7 +277,7 @@ def main(args):
 
    # Update the url to reflect winarm32 tests
    if arch == "arm":
-         g_test_url = g_test_url_winarm
+      g_test_url = g_test_url_winarm
          
    args = ["dotnet", 
            os.path.join(g_arm64ci_path, "x64_client.dll"), 
