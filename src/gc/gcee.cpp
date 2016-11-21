@@ -884,6 +884,29 @@ void GCHeap::UnregisterFrozenSegment(segment_handle seg)
 #endif // FEATURE_BASICFREEZE
 }
 
+void GCHeap::SetDirty(void* address, size_t size)
+{
+#ifdef FEATURE_USE_SOFTWARE_WRITE_WATCH_FOR_GC_HEAP
+    if (SoftwareWriteWatch::IsEnabledForGCHeap())
+    {
+        SoftwareWriteWatch::SetDirty(address, size);
+    }
+#endif // FEATURE_USE_SOFTWARE_WRITE_WATCH_FOR_GC_HEAP
+}
+
+void* GCHeap::GetTable()
+{
+#ifdef FEATURE_USE_SOFTWARE_WRITE_WATCH_FOR_GC_HEAP
+    return SoftwareWriteWatch::GetTable();
+#endif // FEATURE_USE_SOFTWARE_WRITE_WATCH_FOR_GC_HEAP
+    assert(!"Should not call GCHeap::GetTable called without FEATURE_USE_SOFTWARE_WRITE_WATCH_FOR_GC_HEAP defined!");
+    return nullptr;
+}
+
+bool GCHeap::GetGcRuntimeStructuresValid()
+{
+    return GCScan::GetGcRuntimeStructuresValid();
+}
 
 #endif // !DACCESS_COMPILE
 

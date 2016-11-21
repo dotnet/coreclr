@@ -35,7 +35,7 @@
 #endif // FEATURE_COMINTEROP
 
 #include "rcwwalker.h"
-#include "../gc/softwarewritewatch.h"
+#include "gcheaputilities.h"
 
 //========================================================================
 //
@@ -1239,10 +1239,7 @@ extern "C" HCIMPL2_RAW(VOID, JIT_CheckedWriteBarrier, Object **dst, Object *ref)
 #endif
 
 #ifdef FEATURE_USE_SOFTWARE_WRITE_WATCH_FOR_GC_HEAP
-    if (SoftwareWriteWatch::IsEnabledForGCHeap())
-    {
-        SoftwareWriteWatch::SetDirty(dst, sizeof(*dst));
-    }
+    GCHeapUtilities::GetGCHeap()->SetDirty(dst, sizeof(*dst));
 #endif // FEATURE_USE_SOFTWARE_WRITE_WATCH_FOR_GC_HEAP
 
 #ifdef FEATURE_COUNT_GC_WRITE_BARRIERS
@@ -1296,10 +1293,7 @@ extern "C" HCIMPL2_RAW(VOID, JIT_WriteBarrier, Object **dst, Object *ref)
 #endif
     
 #ifdef FEATURE_USE_SOFTWARE_WRITE_WATCH_FOR_GC_HEAP
-    if (SoftwareWriteWatch::IsEnabledForGCHeap())
-    {
-        SoftwareWriteWatch::SetDirty(dst, sizeof(*dst));
-    }
+    GCHeapUtilities::GetGCHeap()->SetDirty(dst, sizeof(*dst));
 #endif // FEATURE_USE_SOFTWARE_WRITE_WATCH_FOR_GC_HEAP
 
 #ifdef FEATURE_COUNT_GC_WRITE_BARRIERS
@@ -1364,10 +1358,7 @@ void ErectWriteBarrier(OBJECTREF *dst, OBJECTREF ref)
 #endif
 
 #ifdef FEATURE_USE_SOFTWARE_WRITE_WATCH_FOR_GC_HEAP
-    if (SoftwareWriteWatch::IsEnabledForGCHeap())
-    {
-        SoftwareWriteWatch::SetDirty(dst, sizeof(*dst));
-    }
+    GCHeapUtilities::GetGCHeap()->SetDirty(dst, sizeof(*dst));
 #endif // FEATURE_USE_SOFTWARE_WRITE_WATCH_FOR_GC_HEAP
 
     if((BYTE*) OBJECTREFToObject(ref) >= g_ephemeral_low && (BYTE*) OBJECTREFToObject(ref) < g_ephemeral_high)
@@ -1397,10 +1388,7 @@ void ErectWriteBarrierForMT(MethodTable **dst, MethodTable *ref)
     if (ref->Collectible())
     {
 #ifdef FEATURE_USE_SOFTWARE_WRITE_WATCH_FOR_GC_HEAP
-        if (SoftwareWriteWatch::IsEnabledForGCHeap())
-        {
-            SoftwareWriteWatch::SetDirty(dst, sizeof(*dst));
-        }
+        GCHeapUtilities::GetGCHeap()->SetDirty(dst, sizeof(*dst));
 #endif // FEATURE_USE_SOFTWARE_WRITE_WATCH_FOR_GC_HEAP
 
         BYTE *refObject = *(BYTE **)((MethodTable*)ref)->GetLoaderAllocatorObjectHandle();

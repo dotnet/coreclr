@@ -274,6 +274,13 @@ protected:
 
     virtual void DescrGenerationsToProfiler (gen_walk_fn fn, void *context);
 
+    virtual void SetDirty(void* address, size_t size);
+
+    virtual void* GetTable();
+
+    virtual bool GetGcRuntimeStructuresValid();
+
+
 public:
     Object * NextObj (Object * object);
 #if defined (FEATURE_BASICFREEZE) && defined (VERIFY_HEAP)
