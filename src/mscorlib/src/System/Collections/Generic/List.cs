@@ -42,14 +42,12 @@ namespace System.Collections.Generic {
         [NonSerialized]
         private Object _syncRoot;
         
-        static readonly T[]  _emptyArray = new T[0];        
-            
         // Constructs a List. The list is initially empty and has a capacity
         // of zero. Upon adding the first element to the list the capacity is
         // increased to _defaultCapacity, and then increased in multiples of two
         // as required.
         public List() {
-            _items = _emptyArray;
+            _items = EmptyArray<T>.Value;
         }
     
         // Constructs a List with a given initial capacity. The list is
@@ -61,7 +59,7 @@ namespace System.Collections.Generic {
             Contract.EndContractBlock();
 
             if (capacity == 0)
-                _items = _emptyArray;
+                _items = EmptyArray<T>.Value;
             else
                 _items = new T[capacity];
         }
@@ -80,7 +78,7 @@ namespace System.Collections.Generic {
                 int count = c.Count;
                 if (count == 0)
                 {
-                    _items = _emptyArray;
+                    _items = EmptyArray<T>.Value;
                 }
                 else {
                     _items = new T[count];
@@ -90,7 +88,7 @@ namespace System.Collections.Generic {
             }    
             else {                
                 _size = 0;
-                _items = _emptyArray;
+                _items = EmptyArray<T>.Value;
                 // This enumerable could be empty.  Let Add allocate a new array, if needed.
                 // Note it will also go to _defaultCapacity first, not 1, then 2, etc.
                 
@@ -126,7 +124,7 @@ namespace System.Collections.Generic {
                         _items = newItems;
                     }
                     else {
-                        _items = _emptyArray;
+                        _items = EmptyArray<T>.Value;
                     }
                 }
             }
