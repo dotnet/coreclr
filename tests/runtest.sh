@@ -1178,15 +1178,6 @@ else
     load_failing_tests
 fi
 
-# Other architectures are not supported yet.
-if [ "$ARCH" == "x64" ]
-then
-    scriptPath=$(dirname $0)
-    ${scriptPath}/setup-runtime-dependencies.sh --outputDir=$coreOverlayDir
-else
-    echo "Skip preparing for GC stress test. Dependent package is not supported on this architecture."
-fi
-
 export __TestEnv=$testEnv
 
 cd "$testRootDir"
