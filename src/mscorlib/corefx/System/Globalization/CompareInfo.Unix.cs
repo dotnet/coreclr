@@ -252,8 +252,11 @@ namespace System.Globalization
         {
             if (source==null) { throw new ArgumentNullException(nameof(source)); }
             Contract.EndContractBlock();
+            
+            // Allow 0x01000000 with sortkey creation for handling uppercase first sorting case used in System.Xml.Xsl
+            CompareOptions co = ValidSortkeyCtorMaskOffFlags & (~ (CompareOptions) 0x01000000);
 
-            if ((options & ValidSortkeyCtorMaskOffFlags) != 0)
+            if ((options & co) != 0)
             {
                 throw new ArgumentException(Environment.GetResourceString("Argument_InvalidFlag"), nameof(options));
             }

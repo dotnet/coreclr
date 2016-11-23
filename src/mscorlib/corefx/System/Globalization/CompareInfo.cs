@@ -37,6 +37,10 @@ namespace System.Globalization
         OrdinalIgnoreCase = 0x10000000,   // This flag can not be used with other flags.
         StringSort = 0x20000000,   // use string sort method
         Ordinal = 0x40000000,   // This flag can not be used with other flags.
+        
+        // UpperCaseFirst = 0x01000000
+        // This can be useful to expose in the future but we reserve the spot here as we'll use it
+        // to perform sorting uppercase first in Linux whch is used by System.Xml.Xsl
     }
 
     [Serializable]

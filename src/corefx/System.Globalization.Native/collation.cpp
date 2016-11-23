@@ -18,6 +18,8 @@ const int32_t CompareOptionsIgnoreNonSpace = 0x2;
 const int32_t CompareOptionsIgnoreSymbols = 0x4;
 const int32_t CompareOptionsIgnoreKanaType = 0x8;
 const int32_t CompareOptionsIgnoreWidth = 0x10;
+const int32_t CompareOptionsUpperCaseFirst = 0x01000000;
+
 // const int32_t CompareOptionsStringSort = 0x20000000;
 // ICU's default is to use "StringSort", i.e. nonalphanumeric symbols come before alphanumeric.
 // When StringSort is not specified (.NET's default), the sort order will be different between
@@ -227,6 +229,7 @@ UCollator* CloneCollatorWithOptions(const UCollator* pCollator, int32_t options,
     bool isIgnoreCase = (options & CompareOptionsIgnoreCase) == CompareOptionsIgnoreCase;
     bool isIgnoreNonSpace = (options & CompareOptionsIgnoreNonSpace) == CompareOptionsIgnoreNonSpace;
     bool isIgnoreSymbols = (options & CompareOptionsIgnoreSymbols) == CompareOptionsIgnoreSymbols;
+    bool isUpperCaseFirst =  (options & CompareOptionsUpperCaseFirst) == CompareOptionsUpperCaseFirst;
 
     if (isIgnoreCase)
     {
@@ -288,6 +291,11 @@ UCollator* CloneCollatorWithOptions(const UCollator* pCollator, int32_t options,
     if (strength < UCOL_TERTIARY && !isIgnoreCase)
     {
         ucol_setAttribute(pClonedCollator, UCOL_CASE_LEVEL, UCOL_ON, pErr);
+    }
+    
+    if (isUpperCaseFirst)
+    {
+        ucol_setAttribute(pClonedCollator, UCOL_CASE_FIRST, UCOL_UPPER_FIRST, pErr);
     }
 
     return pClonedCollator;
