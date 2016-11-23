@@ -1,0 +1,79 @@
+{
+  "runtimes": {
+    "win7-x64": {
+      "Microsoft.NETCore.TestHost": {
+        "runtime.win7-x64.Microsoft.NETCore.TestHost": "1.2.0-beta-24807-0"
+      }
+    },
+    "win10-arm64": {
+      "Microsoft.NETCore.TestHost": {
+        "runtime.win10-arm64.Microsoft.NETCore.TestHost": "1.2.0-beta-24807-0"
+      }
+    },
+    "win7-x86": {
+      "Microsoft.NETCore.TestHost": {
+        "runtime.win7-x86.Microsoft.NETCore.TestHost": "1.2.0-beta-24807-0"
+      }
+    },
+    "win8-arm": {
+      "Microsoft.NETCore.TestHost": {
+        "runtime.win8-arm.Microsoft.NETCore.TestHost": "1.2.0-beta-24807-0"
+      }
+    },
+    "debian.8-x64": {
+      "Microsoft.NETCore.TestHost": {
+        "runtime.debian.8-x64.Microsoft.NETCore.TestHost": "1.2.0-beta-24807-0"
+      }
+    },
+    "fedora.23-x64": {
+      "Microsoft.NETCore.TestHost": {
+        "runtime.fedora.23-x64.Microsoft.NETCore.TestHost": "1.2.0-beta-24807-0"
+      }
+    },
+    "fedora.24-x64": {
+      "Microsoft.NETCore.TestHost": {
+        "runtime.fedora.24-x64.Microsoft.NETCore.TestHost": "1.2.0-beta-24807-0"
+      }
+    },
+    "opensuse.13.2-x64": {
+      "Microsoft.NETCore.TestHost": {
+        "runtime.opensuse.13.2-x64.Microsoft.NETCore.TestHost": "1.2.0-beta-24807-0"
+      }
+    },
+    "opensuse.42.1-x64": {
+      "Microsoft.NETCore.TestHost": {
+        "runtime.opensuse.42.1-x64.Microsoft.NETCore.TestHost": "1.2.0-beta-24807-0"
+      }
+    },
+    "rhel.7-x64": {
+      "Microsoft.NETCore.TestHost": {
+        "runtime.rhel.7-x64.Microsoft.NETCore.TestHost": "1.2.0-beta-24807-0"
+      }
+    },
+    "ubuntu.14.04-x64": {
+      "Microsoft.NETCore.TestHost": {
+        "runtime.ubuntu.14.04-x64.Microsoft.NETCore.TestHost": "1.2.0-beta-24807-0"
+      }
+    },
+    "ubuntu.16.04-x64": {
+      "Microsoft.NETCore.TestHost": {
+        "runtime.ubuntu.16.04-x64.Microsoft.NETCore.TestHost": "1.2.0-beta-24807-0"
+      }
+    },
+    "ubuntu.16.10-x64": {
+      "Microsoft.NETCore.TestHost": {
+        "runtime.ubuntu.16.10-x64.Microsoft.NETCore.TestHost": "1.2.0-beta-24807-0"
+      }
+    },
+    "alpine.3.4.3-x64": {
+      "Microsoft.NETCore.TestHost": {
+        "runtime.alpine.3.4.3-x64.Microsoft.NETCore.TestHost": "1.2.0-beta-24807-0"
+      }
+    },
+    "osx.10.10-x64": {
+      "Microsoft.NETCore.TestHost": {
+        "runtime.osx.10.10-x64.Microsoft.NETCore.TestHost": "1.2.0-beta-24807-0"
+      }
+    }
+  }
+}
