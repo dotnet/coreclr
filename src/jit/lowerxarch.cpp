@@ -665,6 +665,12 @@ void Lowering::TreeNodeInfoInit(GenTree* tree)
             TreeNodeInfoInitBlockStore(tree->AsBlk());
             break;
 
+        case GT_INIT_VAL:
+            // Always a passthrough of its child's value.
+            info->srcCount = 0;
+            info->dstCount = 0;
+            break;
+
         case GT_LCLHEAP:
             TreeNodeInfoInitLclHeap(tree);
             break;
@@ -1667,7 +1673,7 @@ void Lowering::TreeNodeInfoInitBlockStore(GenTreeBlk* blkNode)
             }
             m_lsra->clearOperandCounts(source);
         }
-        else if (!source->OperIsSIMD())
+        else if (!source->IsMultiRegCall() && !source->OperIsSIMD())
         {
             assert(source->IsLocal());
             MakeSrcContained(blkNode, source);
@@ -1677,7 +1683,11 @@ void Lowering::TreeNodeInfoInitBlockStore(GenTreeBlk* blkNode)
     if (isInitBlk)
     {
         GenTree* initVal = source;
-        srcAddrOrFill    = source;
+        if (initVal->OperIsInitVal())
+        {
+            initVal = initVal->gtGetOp1();
+        }
+        srcAddrOrFill = initVal;
         // If we have an InitBlk with constant block size we can optimize several ways:
         // a) If the size is smaller than a small memory page but larger than INITBLK_UNROLL_LIMIT bytes
         //    we use rep stosb since this reduces the register pressure in LSRA and we have
@@ -1729,6 +1739,10 @@ void Lowering::TreeNodeInfoInitBlockStore(GenTreeBlk* blkNode)
                     // a pack of 16 init value constants.
                     blkNode->gtLsraInfo.internalFloatCount = 1;
                     blkNode->gtLsraInfo.setInternalCandidates(l, l->internalFloatRegCandidates());
+                    if ((fill == 0) && ((size & 0xf) == 0))
+                    {
+                        MakeSrcContained(blkNode, source);
+                    }
                 }
                 blkNode->gtBlkOpKind = GenTreeBlk::BlkOpKindUnroll;
 
@@ -2492,6 +2506,10 @@ void Lowering::TreeNodeInfoInitModDiv(GenTree* tree)
         // Src count is actually 3, so increment.
         assert(op2->IsCnsIntOrI());
         info->srcCount++;
+
+        // This situation also requires an internal register.
+        info->internalIntCount = 1;
+        info->setInternalCandidates(l, l->allRegs(TYP_INT));
 
         loVal->gtLsraInfo.setSrcCandidates(l, RBM_EAX);
         hiVal->gtLsraInfo.setSrcCandidates(l, RBM_EDX);
@@ -4365,16 +4383,21 @@ void Lowering::SetMulOpCounts(GenTreePtr tree)
         info->setDstCandidates(m_lsra, RBM_RAX);
         hasImpliedFirstOperand = true;
     }
-    else if (tree->gtOper == GT_MULHI
+    else if (tree->OperGet() == GT_MULHI)
+    {
+        // Have to use the encoding:RDX:RAX = RAX * rm. Since we only care about the
+        // upper 32 bits of the result set the destination candidate to REG_RDX.
+        info->setDstCandidates(m_lsra, RBM_RDX);
+        hasImpliedFirstOperand = true;
+    }
 #if defined(_TARGET_X86_)
-             || tree->OperGet() == GT_MUL_LONG
-#endif
-             )
+    else if (tree->OperGet() == GT_MUL_LONG)
     {
         // have to use the encoding:RDX:RAX = RAX * rm
         info->setDstCandidates(m_lsra, RBM_RAX);
         hasImpliedFirstOperand = true;
     }
+#endif
     else if (IsContainableImmed(tree, op2) || IsContainableImmed(tree, op1))
     {
         if (IsContainableImmed(tree, op2))

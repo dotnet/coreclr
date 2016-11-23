@@ -104,6 +104,8 @@ else (WIN32)
       if (DEFINED ENV{CROSSCOMPILE})
         if (CMAKE_SYSTEM_PROCESSOR STREQUAL armv7l OR CMAKE_SYSTEM_PROCESSOR STREQUAL aarch64)
           find_program(OBJCOPY ${TOOLCHAIN}-objcopy)
+        elseif(CMAKE_SYSTEM_PROCESSOR STREQUAL i686)
+          find_program(OBJCOPY objcopy)
         else()
           clr_unknown_arch()
         endif()
@@ -135,6 +137,8 @@ if(CMAKE_SYSTEM_NAME STREQUAL Linux)
         set(CLR_CMAKE_PLATFORM_UNIX_ARM 1)
     elseif(CMAKE_SYSTEM_PROCESSOR STREQUAL aarch64)
         set(CLR_CMAKE_PLATFORM_UNIX_ARM64 1)
+    elseif(CMAKE_SYSTEM_PROCESSOR STREQUAL i686)
+        set(CLR_CMAKE_PLATFORM_UNIX_X86 1)
     else()
         clr_unknown_arch()
     endif()
@@ -215,6 +219,9 @@ elseif(CLR_CMAKE_PLATFORM_UNIX_ARM64)
 elseif(CLR_CMAKE_PLATFORM_UNIX_AMD64)
   set(CLR_CMAKE_PLATFORM_ARCH_AMD64 1)
   set(CLR_CMAKE_HOST_ARCH "x64")
+elseif(CLR_CMAKE_PLATFORM_UNIX_X86)
+  set(CLR_CMAKE_PLATFORM_ARCH_I386 1)
+  set(CLR_CMAKE_HOST_ARCH "x86")
 elseif(WIN32)
   # CLR_CMAKE_HOST_ARCH is passed in as param to cmake
   if (CLR_CMAKE_HOST_ARCH STREQUAL x64)
@@ -293,7 +300,12 @@ if (WIN32)
   #
   # Disable the following line for UNIX altjit on Windows
   set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} /MANIFEST:NO") #Do not create Side-by-Side Assembly Manifest
-  set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} /SUBSYSTEM:WINDOWS,6.00") #windows subsystem
+  if (CLR_CMAKE_HOST_ARCH STREQUAL arm)
+    set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} /SUBSYSTEM:WINDOWS,6.02") #windows subsystem - arm minimum is 6.02
+  else ()
+    set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} /SUBSYSTEM:WINDOWS,6.00") #windows subsystem
+  endif ()
+    
   set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} /LARGEADDRESSAWARE") # can handle addresses larger than 2 gigabytes
   set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} /RELEASE") #sets the checksum in the header
   set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} /NXCOMPAT") #Compatible with Data Execution Prevention
@@ -440,6 +452,9 @@ if (CLR_CMAKE_PLATFORM_UNIX)
     elseif(CLR_CMAKE_PLATFORM_UNIX_ARM64)
       message("Detected Linux ARM64")
       add_definitions(-DLINUX64)
+    elseif(CLR_CMAKE_PLATFORM_UNIX_X86)
+      message("Detected Linux i686")
+      add_definitions(-DLINUX32)
     else()
       clr_unknown_arch()
     endif()

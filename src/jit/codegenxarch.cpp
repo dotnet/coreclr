@@ -515,7 +515,7 @@ void CodeGen::genCodeForMulHi(GenTreeOp* treeNode)
     GenTree* rmOp  = op2;
 
     // Set rmOp to the contained memory operand (if any)
-    if (op1->isContained() || (!op2->isContained() && (op2->gtRegNum == targetReg)))
+    if (op1->isContained() || (!op2->isContained() && (op2->gtRegNum == REG_RAX)))
     {
         regOp = op2;
         rmOp  = op1;
@@ -523,9 +523,9 @@ void CodeGen::genCodeForMulHi(GenTreeOp* treeNode)
     assert(!regOp->isContained());
 
     // Setup targetReg when neither of the source operands was a matching register
-    if (regOp->gtRegNum != targetReg)
+    if (regOp->gtRegNum != REG_RAX)
     {
-        inst_RV_RV(ins_Copy(targetType), targetReg, regOp->gtRegNum, targetType);
+        inst_RV_RV(ins_Copy(targetType), REG_RAX, regOp->gtRegNum, targetType);
     }
 
     instruction ins;
@@ -546,6 +546,90 @@ void CodeGen::genCodeForMulHi(GenTreeOp* treeNode)
     }
 }
 
+#ifdef _TARGET_X86_
+//------------------------------------------------------------------------
+// genCodeForLongUMod: Generate code for a tree of the form
+//                     `(umod (gt_long x y) (const int))`
+//
+// Arguments:
+//   node - the node for which to generate code
+//
+void CodeGen::genCodeForLongUMod(GenTreeOp* node)
+{
+    assert(node != nullptr);
+    assert(node->OperGet() == GT_UMOD);
+    assert(node->TypeGet() == TYP_INT);
+
+    GenTreeOp* const dividend = node->gtOp1->AsOp();
+    assert(dividend->OperGet() == GT_LONG);
+    assert(varTypeIsLong(dividend));
+
+    GenTree* const dividendLo = dividend->gtOp1;
+    GenTree* const dividendHi = dividend->gtOp2;
+    assert(!dividendLo->isContained());
+    assert(!dividendHi->isContained());
+
+    GenTreeIntCon* const divisor = node->gtOp2->AsIntCon();
+    assert(!divisor->isContained());
+    assert(divisor->gtIconVal >= 2);
+    assert(divisor->gtIconVal <= 0x3fffffff);
+
+    genConsumeOperands(node);
+
+    // dividendLo must be in RAX; dividendHi must be in RDX
+    genCopyRegIfNeeded(dividendLo, REG_EAX);
+    genCopyRegIfNeeded(dividendHi, REG_EDX);
+
+    // At this point, EAX:EDX contains the 64bit dividend and op2->gtRegNum
+    // contains the 32bit divisor. We want to generate the following code:
+    //
+    //   cmp edx, divisor->gtRegNum
+    //   jb noOverflow
+    //
+    //   mov temp, eax
+    //   mov eax, edx
+    //   xor edx, edx
+    //   div divisor->gtRegNum
+    //   mov eax, temp
+    //
+    // noOverflow:
+    //   div divisor->gtRegNum
+    //
+    // This works because (a * 2^32 + b) % c = ((a % c) * 2^32 + b) % c.
+
+    BasicBlock* const noOverflow = genCreateTempLabel();
+
+    //   cmp edx, divisor->gtRegNum
+    //   jb noOverflow
+    inst_RV_RV(INS_cmp, REG_EDX, divisor->gtRegNum);
+    inst_JMP(EJ_jb, noOverflow);
+
+    //   mov temp, eax
+    //   mov eax, edx
+    //   xor edx, edx
+    //   div divisor->gtRegNum
+    //   mov eax, temp
+    const regNumber tempReg = genRegNumFromMask(node->gtRsvdRegs);
+    inst_RV_RV(INS_mov, tempReg, REG_EAX, TYP_INT);
+    inst_RV_RV(INS_mov, REG_EAX, REG_EDX, TYP_INT);
+    instGen_Set_Reg_To_Zero(EA_PTRSIZE, REG_EDX);
+    inst_RV(INS_div, divisor->gtRegNum, TYP_INT);
+    inst_RV_RV(INS_mov, REG_EAX, tempReg, TYP_INT);
+
+    // noOverflow:
+    //   div divisor->gtRegNum
+    genDefineTempLabel(noOverflow);
+    inst_RV(INS_div, divisor->gtRegNum, TYP_INT);
+
+    const regNumber targetReg = node->gtRegNum;
+    if (targetReg != REG_EDX)
+    {
+        inst_RV_RV(INS_mov, targetReg, REG_RDX, TYP_INT);
+    }
+    genProduceReg(node);
+}
+#endif // _TARGET_X86_
+
 //------------------------------------------------------------------------
 // genCodeForDivMod: Generate code for a DIV or MOD operation.
 //
@@ -554,7 +638,15 @@ void CodeGen::genCodeForMulHi(GenTreeOp* treeNode)
 //
 void CodeGen::genCodeForDivMod(GenTreeOp* treeNode)
 {
-    GenTree*   dividend   = treeNode->gtOp1;
+    GenTree* dividend = treeNode->gtOp1;
+#ifdef _TARGET_X86_
+    if (varTypeIsLong(dividend->TypeGet()))
+    {
+        genCodeForLongUMod(treeNode);
+        return;
+    }
+#endif // _TARGET_X86_
+
     GenTree*   divisor    = treeNode->gtOp2;
     genTreeOps oper       = treeNode->OperGet();
     emitAttr   size       = emitTypeSize(treeNode);
@@ -562,27 +654,8 @@ void CodeGen::genCodeForDivMod(GenTreeOp* treeNode)
     var_types  targetType = treeNode->TypeGet();
     emitter*   emit       = getEmitter();
 
-#ifdef _TARGET_X86_
-    bool     dividendIsLong = varTypeIsLong(dividend->TypeGet());
-    GenTree* dividendLo     = nullptr;
-    GenTree* dividendHi     = nullptr;
-
-    if (dividendIsLong)
-    {
-        // If dividend is a GT_LONG, the we need to make sure its lo and hi parts are not contained.
-        dividendLo = dividend->gtGetOp1();
-        dividendHi = dividend->gtGetOp2();
-
-        assert(!dividendLo->isContained());
-        assert(!dividendHi->isContained());
-        assert(divisor->IsCnsIntOrI());
-    }
-    else
-#endif
-    {
-        // dividend is not contained.
-        assert(!dividend->isContained());
-    }
+    // dividend is not contained.
+    assert(!dividend->isContained());
 
     genConsumeOperands(treeNode->AsOp());
     if (varTypeIsFloating(targetType))
@@ -617,37 +690,19 @@ void CodeGen::genCodeForDivMod(GenTreeOp* treeNode)
     }
     else
     {
-#ifdef _TARGET_X86_
-        if (dividendIsLong)
-        {
-            assert(dividendLo != nullptr && dividendHi != nullptr);
+        // dividend must be in RAX
+        genCopyRegIfNeeded(dividend, REG_RAX);
 
-            // dividendLo must be in RAX; dividendHi must be in RDX
-            genCopyRegIfNeeded(dividendLo, REG_EAX);
-            genCopyRegIfNeeded(dividendHi, REG_EDX);
+        // zero or sign extend rax to rdx
+        if (oper == GT_UMOD || oper == GT_UDIV)
+        {
+            instGen_Set_Reg_To_Zero(EA_PTRSIZE, REG_EDX);
         }
         else
-#endif
         {
-            // dividend must be in RAX
-            genCopyRegIfNeeded(dividend, REG_RAX);
-        }
-
-#ifdef _TARGET_X86_
-        if (!dividendIsLong)
-#endif
-        {
-            // zero or sign extend rax to rdx
-            if (oper == GT_UMOD || oper == GT_UDIV)
-            {
-                instGen_Set_Reg_To_Zero(EA_PTRSIZE, REG_EDX);
-            }
-            else
-            {
-                emit->emitIns(INS_cdq, size);
-                // the cdq instruction writes RDX, So clear the gcInfo for RDX
-                gcInfo.gcMarkRegSetNpt(RBM_RDX);
-            }
+            emit->emitIns(INS_cdq, size);
+            // the cdq instruction writes RDX, So clear the gcInfo for RDX
+            gcInfo.gcMarkRegSetNpt(RBM_RDX);
         }
 
         // Perform the 'targetType' (64-bit or 32-bit) divide instruction
@@ -2766,6 +2821,10 @@ void CodeGen::genCodeForInitBlkRepStos(GenTreeBlk* initBlkNode)
     unsigned   size    = initBlkNode->Size();
     GenTreePtr dstAddr = initBlkNode->Addr();
     GenTreePtr initVal = initBlkNode->Data();
+    if (initVal->OperIsInitVal())
+    {
+        initVal = initVal->gtGetOp1();
+    }
 
 #ifdef DEBUG
     assert(!dstAddr->isContained());
@@ -2800,6 +2859,10 @@ void CodeGen::genCodeForInitBlkUnroll(GenTreeBlk* initBlkNode)
     unsigned   size    = initBlkNode->Size();
     GenTreePtr dstAddr = initBlkNode->Addr();
     GenTreePtr initVal = initBlkNode->Data();
+    if (initVal->OperIsInitVal())
+    {
+        initVal = initVal->gtGetOp1();
+    }
 
     assert(!dstAddr->isContained());
     assert(!initVal->isContained() || (initVal->IsIntegralConst(0) && ((size & 0xf) == 0)));
@@ -2897,6 +2960,10 @@ void CodeGen::genCodeForInitBlk(GenTreeBlk* initBlkNode)
     unsigned   blockSize = initBlkNode->Size();
     GenTreePtr dstAddr   = initBlkNode->Addr();
     GenTreePtr initVal   = initBlkNode->Data();
+    if (initVal->OperIsInitVal())
+    {
+        initVal = initVal->gtGetOp1();
+    }
 
     assert(!dstAddr->isContained());
     assert(!initVal->isContained());
@@ -3509,7 +3576,7 @@ void CodeGen::genCodeForCpObj(GenTreeObj* cpObjNode)
     }
 #endif // DEBUG
 
-    // Consume these registers.
+    // Consume the operands and get them into the right registers.
     // They may now contain gc pointers (depending on their type; gcMarkRegPtrVal will "do the right thing").
     genConsumeBlockOp(cpObjNode, REG_RDI, REG_RSI, REG_NA);
     gcInfo.gcMarkRegPtrVal(REG_RSI, srcAddrType);
@@ -4533,21 +4600,22 @@ void CodeGen::genStoreInd(GenTreePtr node)
                     assert(rmwSrc == data->gtGetOp2());
                     genCodeForShiftRMW(storeInd);
                 }
-                else if (data->OperGet() == GT_ADD && rmwSrc->IsIntegralConst(1))
+                else if (!compiler->opts.compDbgCode && data->OperGet() == GT_ADD &&
+                         (rmwSrc->IsIntegralConst(1) || rmwSrc->IsIntegralConst(-1)))
                 {
-                    // Generate inc [mem] instead of "add [mem], 1".
-                    // Note that we don't need to check for GT_SUB of -1 because
-                    // global morph would transform it to GT_ADD of 1.
+                    // Generate "inc/dec [mem]" instead of "add/sub [mem], 1".
+                    //
+                    // Notes:
+                    //  1) Global morph transforms GT_SUB(x, +/-1) into GT_ADD(x, -/+1).
+                    //  2) TODO-AMD64: Debugger routine NativeWalker::Decode() runs into
+                    //     an assert while decoding ModR/M byte of "inc dword ptr [rax]".
+                    //     It is not clear whether Decode() can handle all possible
+                    //     addr modes with inc/dec.  For this reason, inc/dec [mem]
+                    //     is not generated while generating debuggable code.  Update
+                    //     the above if condition once Decode() routine is fixed.
                     assert(rmwSrc->isContainedIntOrIImmed());
-                    getEmitter()->emitInsRMW(INS_inc, emitTypeSize(storeInd), storeInd);
-                }
-                else if (data->OperGet() == GT_ADD && rmwSrc->IsIntegralConst(-1))
-                {
-                    // Generate dec [mem] instead of "add [mem], -1".
-                    // Note that we don't need to check for GT_SUB of 1 because
-                    // global morph would transform it to GT_ADD of -1.
-                    assert(rmwSrc->isContainedIntOrIImmed());
-                    getEmitter()->emitInsRMW(INS_dec, emitTypeSize(storeInd), storeInd);
+                    instruction ins = rmwSrc->IsIntegralConst(1) ? INS_inc : INS_dec;
+                    getEmitter()->emitInsRMW(ins, emitTypeSize(storeInd), storeInd);
                 }
                 else
                 {
@@ -5802,10 +5870,6 @@ void CodeGen::genCompareLong(GenTreePtr treeNode)
         emitJumpKind jumpKindLo = genJumpKindForOper(tree->gtOper, CK_UNSIGNED);
 
         inst_SET(jumpKindLo, targetReg);
-        // Set the higher bytes to 0
-        inst_RV_RV(ins_Move_Extend(TYP_UBYTE, true), targetReg, targetReg, TYP_UBYTE, emitTypeSize(TYP_UBYTE));
-        genProduceReg(tree);
-
         inst_JMP(EJ_jmp, labelFinal);
 
         // Define the label for hi jump target here. If we have jumped here, we want to set
@@ -5814,11 +5878,10 @@ void CodeGen::genCompareLong(GenTreePtr treeNode)
         genDefineTempLabel(labelHi);
         inst_SET(genJumpKindForOper(tree->gtOper, compareKind), targetReg);
 
+        genDefineTempLabel(labelFinal);
         // Set the higher bytes to 0
         inst_RV_RV(ins_Move_Extend(TYP_UBYTE, true), targetReg, targetReg, TYP_UBYTE, emitTypeSize(TYP_UBYTE));
         genProduceReg(tree);
-
-        genDefineTempLabel(labelFinal);
     }
     else
     {
@@ -7020,27 +7083,27 @@ void CodeGen::genCkfinite(GenTreePtr treeNode)
     //
     // For TYP_DOUBLE, we'll generate (for targetReg != op1->gtRegNum):
     //    movaps targetReg, op1->gtRegNum
-    //    shufps targetReg, targetReg, 0xB1	// WZYX => ZWXY
-    //    mov_xmm2i tmpReg, targetReg		// tmpReg <= Y
+    //    shufps targetReg, targetReg, 0xB1    // WZYX => ZWXY
+    //    mov_xmm2i tmpReg, targetReg          // tmpReg <= Y
     //    and tmpReg, <mask>
     //    cmp tmpReg, <mask>
     //    je <throw block>
     //    movaps targetReg, op1->gtRegNum   // copy the value again, instead of un-shuffling it
     //
     // For TYP_DOUBLE with (targetReg == op1->gtRegNum):
-    //    shufps targetReg, targetReg, 0xB1	// WZYX => ZWXY
-    //    mov_xmm2i tmpReg, targetReg		// tmpReg <= Y
+    //    shufps targetReg, targetReg, 0xB1    // WZYX => ZWXY
+    //    mov_xmm2i tmpReg, targetReg          // tmpReg <= Y
     //    and tmpReg, <mask>
     //    cmp tmpReg, <mask>
     //    je <throw block>
-    //    shufps targetReg, targetReg, 0xB1	// ZWXY => WZYX
+    //    shufps targetReg, targetReg, 0xB1    // ZWXY => WZYX
     //
     // For TYP_FLOAT, it's the same as _TARGET_64BIT_:
-    //    mov_xmm2i tmpReg, targetReg		// tmpReg <= low 32 bits
+    //    mov_xmm2i tmpReg, targetReg          // tmpReg <= low 32 bits
     //    and tmpReg, <mask>
     //    cmp tmpReg, <mask>
     //    je <throw block>
-    //    movaps targetReg, op1->gtRegNum   // only if targetReg != op1->gtRegNum
+    //    movaps targetReg, op1->gtRegNum      // only if targetReg != op1->gtRegNum
 
     regNumber copyToTmpSrcReg; // The register we'll copy to the integer temp.
 

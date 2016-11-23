@@ -385,8 +385,9 @@ void Compiler::lvaInitThisPtr(InitVarDscInfo* varDscInfo)
                 if (simdBaseType != TYP_UNKNOWN)
                 {
                     assert(varTypeIsSIMD(type));
-                    varDsc->lvSIMDType = true;
-                    varDsc->lvBaseType = simdBaseType;
+                    varDsc->lvSIMDType  = true;
+                    varDsc->lvBaseType  = simdBaseType;
+                    varDsc->lvExactSize = genTypeSize(type);
                 }
             }
 #endif // FEATURE_SIMD
@@ -1895,6 +1896,10 @@ void Compiler::lvaSetVarDoNotEnregister(unsigned varNum DEBUGARG(DoNotEnregister
             break;
         case DNER_IsStruct:
             JITDUMP("it is a struct\n");
+            assert(varTypeIsStruct(varDsc));
+            break;
+        case DNER_IsStructArg:
+            JITDUMP("it is a struct arg\n");
             assert(varTypeIsStruct(varDsc));
             break;
         case DNER_BlockOp:

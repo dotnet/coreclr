@@ -837,9 +837,9 @@ namespace System
     public static partial class Console
     {
         [System.Security.SecuritySafeCriticalAttribute]
-        public static void Write(string s) { }
+        public static void Write(string value) { }
         public static void WriteLine() { }
-        public static void WriteLine(string s) { }
+        public static void WriteLine(string value) { }
     }
     public static partial class Convert
     {
@@ -4473,6 +4473,8 @@ namespace System.Collections.Generic
         public Dictionary() { }
         public Dictionary(System.Collections.Generic.IDictionary<TKey, TValue> dictionary) { }
         public Dictionary(System.Collections.Generic.IDictionary<TKey, TValue> dictionary, System.Collections.Generic.IEqualityComparer<TKey> comparer) { }
+        public Dictionary(System.Collections.Generic.IEnumerable<System.Collections.Generic.KeyValuePair<TKey, TValue>> collection) { }
+        public Dictionary(System.Collections.Generic.IEnumerable<System.Collections.Generic.KeyValuePair<TKey, TValue>> collection, System.Collections.Generic.IEqualityComparer<TKey> comparer) { }
         public Dictionary(System.Collections.Generic.IEqualityComparer<TKey> comparer) { }
         public Dictionary(int capacity) { }
         public Dictionary(int capacity, System.Collections.Generic.IEqualityComparer<TKey> comparer) { }

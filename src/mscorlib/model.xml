@@ -644,6 +644,8 @@
       <Member Name="#ctor" />
       <Member Name="#ctor(System.Collections.Generic.IDictionary&lt;TKey,TValue&gt;)" />
       <Member Name="#ctor(System.Collections.Generic.IDictionary&lt;TKey,TValue&gt;,System.Collections.Generic.IEqualityComparer&lt;TKey&gt;)" />
+      <Member Name="#ctor(System.Collections.Generic.IEnumerable&lt;System.Collections.Generic.KeyValuePair&lt;TKey,TValue&gt;&gt;)" />
+      <Member Name="#ctor(System.Collections.Generic.IEnumerable&lt;System.Collections.Generic.KeyValuePair&lt;TKey,TValue&gt;&gt;,System.Collections.Generic.IEqualityComparer&lt;TKey&gt;)" />
       <Member Name="#ctor(System.Collections.Generic.IEqualityComparer&lt;TKey&gt;)" />
       <Member Name="#ctor(System.Int32)" />
       <Member Name="#ctor(System.Int32,System.Collections.Generic.IEqualityComparer&lt;TKey&gt;)" />
@@ -9425,15 +9427,18 @@
       <Member MemberType="Field" Name="DirectorySeparatorChar" />
       <Member MemberType="Field" Name="PathSeparator" />
       <Member MemberType="Field" Name="VolumeSeparatorChar" />
+      <Member MemberType="Field" Name="InvalidPathChars" />
       <Member Name="ChangeExtension(System.String,System.String)" />
       <Member Name="Combine(System.String,System.String)" />
-      <Member Name="Combine(System.String,System.String,System.String)"  />
+      <Member Name="Combine(System.String,System.String,System.String)" />
+      <Member Name="Combine(System.String,System.String,System.String,System.String)" />
       <Member Name="Combine(System.String[])"  />
       <Member Name="GetDirectoryName(System.String)" />
       <Member Name="GetExtension(System.String)" />
       <Member Name="GetFileName(System.String)" />
       <Member Name="GetFileNameWithoutExtension(System.String)" />
       <Member Name="GetFullPath(System.String)" />
+      <Member Name="GetRelativePath(System.String,System.String)" />
       <Member Name="GetInvalidPathChars" />
       <Member Name="GetInvalidFileNameChars"  />
       <Member Name="GetPathRoot(System.String)" />
