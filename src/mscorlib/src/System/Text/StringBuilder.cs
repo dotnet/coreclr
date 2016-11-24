@@ -21,6 +21,7 @@ namespace System.Text {
     using System.Threading;
     using System.Globalization;
     using System.Diagnostics.Contracts;
+    using Collections.Generic;
 
     // This class represents a mutable string.  It is convenient for situations in
     // which it is desirable to modify a string, perhaps by removing, replacing, or 
@@ -1007,6 +1008,100 @@ namespace System.Text {
                     fixed (char* valueChars = &value[0])
                         Append(valueChars, value.Length);
                 }
+            }
+            return this;
+        }
+
+        // Append joined values with a separator between each value.
+        public StringBuilder AppendJoin<T>(string separator, IEnumerable<T> values)
+        {
+            Contract.Ensures(Contract.Result<StringBuilder>() != null);
+
+            using (var en = values.GetEnumerator())
+            {
+                if (!en.MoveNext())
+                    return this;
+
+                var value = en.Current;
+                if (value != null)
+                    Append(value.ToString());
+
+                while (en.MoveNext())
+                {
+                    Append(separator);
+                    value = en.Current;
+                    if (value != null)
+                        Append(value.ToString());
+                }
+            }
+            return this;
+        }
+
+        // Append joined values with a separator between each value.
+        public StringBuilder AppendJoin<T>(string separator, params T[] values)
+        {
+            Contract.Ensures(Contract.Result<StringBuilder>() != null);
+
+            if (values.Length == 0)
+                return this;
+
+            var value = values[0];
+            if (value != null)
+                Append(value.ToString());
+
+            for (var i = 1; i < values.Length; i++)
+            {
+                Append(separator);
+                value = values[i];
+                if (value != null)
+                    Append(value.ToString());
+            }
+            return this;
+        }
+
+        // Append joined values with a separator between each value.
+        public StringBuilder AppendJoin<T>(char separator, IEnumerable<T> values)
+        {
+            Contract.Ensures(Contract.Result<StringBuilder>() != null);
+
+            using (var en = values.GetEnumerator())
+            {
+                if (!en.MoveNext())
+                    return this;
+
+                var value = en.Current;
+                if (value != null)
+                    Append(value.ToString());
+
+                while (en.MoveNext())
+                {
+                    Append(separator);
+                    value = en.Current;
+                    if (value != null)
+                        Append(value.ToString());
+                }
+            }
+            return this;
+        }
+
+        // Append joined values with a separator between each value.
+        public StringBuilder AppendJoin<T>(char separator, params T[] values)
+        {
+            Contract.Ensures(Contract.Result<StringBuilder>() != null);
+
+            if (values.Length == 0)
+                return this;
+
+            var value = values[0];
+            if (value != null)
+                Append(value.ToString());
+
+            for (var i = 1; i < values.Length; i++)
+            {
+                Append(separator);
+                value = values[i];
+                if (value != null)
+                    Append(value.ToString());
             }
             return this;
         }
