@@ -1017,6 +1017,8 @@ namespace System.Text {
         {
             Contract.Ensures(Contract.Result<StringBuilder>() != null);
 
+            Contract.Requires<ArgumentNullException>(values != null, nameof(values));
+
             using (var en = values.GetEnumerator())
             {
                 if (!en.MoveNext())
@@ -1042,6 +1044,8 @@ namespace System.Text {
         {
             Contract.Ensures(Contract.Result<StringBuilder>() != null);
 
+            Contract.Requires<ArgumentNullException>(values != null, nameof(values));
+
             if (values.Length == 0)
                 return this;
 
@@ -1064,20 +1068,22 @@ namespace System.Text {
         {
             Contract.Ensures(Contract.Result<StringBuilder>() != null);
 
+            Contract.Requires<ArgumentNullException>(values != null, nameof(values));
+
             using (var en = values.GetEnumerator())
             {
                 if (!en.MoveNext())
                     return this;
 
                 var value = en.Current;
-                if (value != null)
+                if (null != value)
                     Append(value.ToString());
 
                 while (en.MoveNext())
                 {
                     Append(separator);
                     value = en.Current;
-                    if (value != null)
+                    if (null != value)
                         Append(value.ToString());
                 }
             }
@@ -1089,18 +1095,20 @@ namespace System.Text {
         {
             Contract.Ensures(Contract.Result<StringBuilder>() != null);
 
+            Contract.Requires<ArgumentNullException>(values != null, nameof(values));
+
             if (values.Length == 0)
                 return this;
 
             var value = values[0];
-            if (value != null)
+            if (null != value)
                 Append(value.ToString());
 
             for (var i = 1; i < values.Length; i++)
             {
                 Append(separator);
                 value = values[i];
-                if (value != null)
+                if (null != value)
                     Append(value.ToString());
             }
             return this;
