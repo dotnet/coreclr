@@ -1610,11 +1610,11 @@ protected:
     // This is the only frame that the ranges are valid in.    
     FramePointer            m_fp;
 
-#if defined(WIN64EXCEPTIONS)
+#if defined(WIN64EXCEPTIONS) && !defined(_TARGET_X86_)
     // This frame pointer is used for funclet stepping.
     // See IsRangeAppropriate() for more information.
     FramePointer            m_fpParentMethod;
-#endif // WIN64EXCEPTIONS
+#endif // WIN64EXCEPTIONS && !_TARGET_X86_
     
     //m_fpException is 0 if we haven't stepped into an exception, 
     //  and is ignored.  If we get a TriggerUnwind while mid-step, we note

@@ -961,7 +961,7 @@ void IJitManager::EnumMemoryRegions(CLRDataEnumMemoryFlags flags)
 
 #endif // #ifdef DACCESS_COMPILE
 
-#if defined(WIN64EXCEPTIONS)
+#if defined(WIN64EXCEPTIONS) && !defined(_TARGET_X86_)
 
 PTR_VOID GetUnwindDataBlob(TADDR moduleBase, PTR_RUNTIME_FUNCTION pRuntimeFunction, /* out */ SIZE_T * pSize)
 {
@@ -1162,7 +1162,7 @@ BOOL IJitManager::IsFilterFunclet(EECodeInfo * pCodeInfo)
     return false;
 }
 
-#else // WIN64EXCEPTIONS
+#else // WIN64EXCEPTIONS && !_TARGET_X86_
 
 PTR_VOID GetUnwindDataBlob(TADDR moduleBase, PTR_RUNTIME_FUNCTION pRuntimeFunction, /* out */ SIZE_T * pSize)
 {
@@ -1170,7 +1170,7 @@ PTR_VOID GetUnwindDataBlob(TADDR moduleBase, PTR_RUNTIME_FUNCTION pRuntimeFuncti
     return dac_cast<PTR_VOID>(pRuntimeFunction->UnwindData + moduleBase);
 }
 
-#endif // WIN64EXCEPTIONS
+#endif // WIN64EXCEPTIONS && !_TARGET_X86_
 
 
 #ifndef CROSSGEN_COMPILE
@@ -1720,7 +1720,7 @@ BOOL EEJitManager::LoadJIT()
         {
             // Now, load the compat jit and initialize it.
 
-            LPCWSTR pwzJitName = MAKEDLLNAME_W(L"compatjit");
+            LPCWSTR pwzJitName = MAKEDLLNAME_W(W("compatjit"));
 
             // Note: if the compatjit fails to load, we ignore it, and continue to use the main JIT for
             // everything. You can imagine a policy where if the user requests the compatjit, and we fail
@@ -2653,7 +2653,7 @@ CodeHeader* EEJitManager::allocCode(MethodDesc* pMD, size_t blockSize, CorJitAll
         pCodeHdr->SetEHInfo(NULL);
         pCodeHdr->SetGCInfo(NULL);
         pCodeHdr->SetMethodDesc(pMD);
-#ifdef WIN64EXCEPTIONS
+#if defined(WIN64EXCEPTIONS) && !defined(_TARGET_X86_)
         pCodeHdr->SetNumberOfUnwindInfos(nUnwindInfos);
         *pModuleBase = (TADDR)pCodeHeap;
 #endif
@@ -3717,7 +3717,7 @@ BOOL EEJitManager::JitCodeToMethodInfo(
         // take into account cold code.
         pCodeInfo->m_relOffset = (DWORD)(PCODEToPINSTR(currentPC) - pCHdr->GetCodeStartAddress());
 
-#ifdef WIN64EXCEPTIONS
+#if defined(WIN64EXCEPTIONS) && !defined(_TARGET_X86_)
         // Computed lazily by code:EEJitManager::LazyGetFunctionEntry
         pCodeInfo->m_pFunctionEntry = NULL;
 #endif
@@ -3889,7 +3889,7 @@ void EEJitManager::NibbleMapSet(HeapList * pHp, TADDR pCode, BOOL bSet)
 }
 #endif // !DACCESS_COMPILE
 
-#if defined(WIN64EXCEPTIONS)
+#if defined(WIN64EXCEPTIONS) && !defined(_TARGET_X86_)
 PTR_RUNTIME_FUNCTION EEJitManager::LazyGetFunctionEntry(EECodeInfo * pCodeInfo)
 {
     CONTRACTL {
@@ -4094,7 +4094,7 @@ Exit:
 
     END_PRESERVE_LAST_ERROR;
 }
-#endif // WIN64EXCEPTIONS
+#endif // WIN64EXCEPTIONS && !_TARGET_X86_
 
 #ifdef DACCESS_COMPILE
 
@@ -5358,7 +5358,7 @@ BOOL NativeImageJitManager::JitCodeToMethodInfo(RangeSection * pRangeSection,
         if (ColdMethodIndex < 0)
             return FALSE;
 
-#ifdef WIN64EXCEPTIONS
+#if defined(WIN64EXCEPTIONS) && !defined(_TARGET_X86_)
         // Save the raw entry
         int RawColdMethodIndex = ColdMethodIndex;
 
@@ -5407,7 +5407,7 @@ BOOL NativeImageJitManager::JitCodeToMethodInfo(RangeSection * pRangeSection,
             // We are using RUNTIME_FUNCTION as METHODTOKEN
             pCodeInfo->m_methodToken = METHODTOKEN(pRangeSection, dac_cast<TADDR>(FunctionEntry));
 
-#ifdef WIN64EXCEPTIONS
+#if defined(WIN64EXCEPTIONS) && !defined(_TARGET_X86_)
             PTR_RUNTIME_FUNCTION RawColdFunctionEntry = ColdFunctionTable + RawColdMethodIndex;
 #ifdef _TARGET_AMD64_
             if ((RawColdFunctionEntry->UnwindData & RUNTIME_FUNCTION_INDIRECT) != 0)
@@ -5447,7 +5447,7 @@ BOOL NativeImageJitManager::JitCodeToMethodInfo(RangeSection * pRangeSection,
         if (MethodIndex < 0)
             return FALSE;
 
-#ifdef WIN64EXCEPTIONS
+#if defined(WIN64EXCEPTIONS) && !defined(_TARGET_X86_)
         // Save the raw entry
         PTR_RUNTIME_FUNCTION RawFunctionEntry = FunctionTable + MethodIndex;;
 
@@ -5484,7 +5484,7 @@ BOOL NativeImageJitManager::JitCodeToMethodInfo(RangeSection * pRangeSection,
             // We are using RUNTIME_FUNCTION as METHODTOKEN
             pCodeInfo->m_methodToken = METHODTOKEN(pRangeSection, dac_cast<TADDR>(FunctionEntry));
 
-#ifdef WIN64EXCEPTIONS
+#if defined(WIN64EXCEPTIONS) && !defined(_TARGET_X86_)
             AMD64_ONLY(_ASSERTE((RawFunctionEntry->UnwindData & RUNTIME_FUNCTION_INDIRECT) == 0));
             pCodeInfo->m_pFunctionEntry = RawFunctionEntry;
 #endif
@@ -5494,7 +5494,7 @@ BOOL NativeImageJitManager::JitCodeToMethodInfo(RangeSection * pRangeSection,
     return TRUE;
 }
 
-#if defined(WIN64EXCEPTIONS)
+#if defined(WIN64EXCEPTIONS) && !defined(_TARGET_X86_)
 PTR_RUNTIME_FUNCTION NativeImageJitManager::LazyGetFunctionEntry(EECodeInfo * pCodeInfo)
 {
     CONTRACTL {
@@ -5658,7 +5658,7 @@ BOOL NativeImageJitManager::IsFilterFunclet(EECodeInfo * pCodeInfo)
     return fRet;
 }
 
-#endif  // WIN64EXCEPTIONS
+#endif  // WIN64EXCEPTIONS && !_TARGET_X86_
  
 StubCodeBlockKind NativeImageJitManager::GetStubCodeBlockKind(RangeSection * pRangeSection, PCODE currentPC)
 {
@@ -5764,7 +5764,7 @@ void NativeImageJitManager::JitTokenToMethodRegionInfo(const METHODTOKEN& Method
 
         PTR_RUNTIME_FUNCTION FunctionEntry;
 
-#ifdef WIN64EXCEPTIONS
+#if defined(WIN64EXCEPTIONS) && !defined(_TARGET_X86_)
         while (pColdCodeMap[ColdMethodIndex].mainFunctionEntryRVA == 0)
             ColdMethodIndex--;
 
@@ -5819,7 +5819,7 @@ void NativeImageJitManager::EnumMemoryRegions(CLRDataEnumMemoryFlags flags)
     IJitManager::EnumMemoryRegions(flags);
 }
 
-#if defined(WIN64EXCEPTIONS)
+#if defined(WIN64EXCEPTIONS) && !defined(_TARGET_X86_)
 
 // 
 // To locate an entry in the function entry table (the program exceptions data directory), the debugger
@@ -5931,7 +5931,7 @@ void NativeImageJitManager::EnumMemoryRegionsForMethodUnwindInfo(CLRDataEnumMemo
         DacEnumMemoryRegion(PTR_TO_TADDR(pUnwindData), size); 
 }
 
-#endif //WIN64EXCEPTIONS
+#endif //WIN64EXCEPTIONS && !_TARGET_X86_
 #endif // #ifdef DACCESS_COMPILE
 
 // Return start of exception info for a method, or 0 if the method has no EH info
@@ -6270,7 +6270,7 @@ BOOL MethodIterator::Next()
         //iterate the hot methods 
         if (methodIteratorOptions & Hot)
         {
-#ifdef WIN64EXCEPTIONS
+#if defined(WIN64EXCEPTIONS) && !defined(_TARGET_X86_)
             //Skip to the next method.
             // skip over method fragments and funclets.
             while (m_CurrentRuntimeFunctionIndex < m_pNgenLayout->m_nRuntimeFunctions[0])
@@ -6290,7 +6290,7 @@ BOOL MethodIterator::Next()
 
     if (methodIteratorOptions & Unprofiled)
     {
-#ifdef WIN64EXCEPTIONS
+#if defined(WIN64EXCEPTIONS) && !defined(_TARGET_X86_)
          //Skip to the next method.
         // skip over method fragments and funclets.
         while (m_CurrentRuntimeFunctionIndex < m_pNgenLayout->m_nRuntimeFunctions[1])
@@ -6355,7 +6355,7 @@ TADDR MethodIterator::GetMethodColdStartAddress()
 
         PTR_RUNTIME_FUNCTION FunctionEntry;
 
-#ifdef WIN64EXCEPTIONS
+#if defined(WIN64EXCEPTIONS) && !defined(_TARGET_X86_)
         DWORD MainFunctionEntryRVA = m_pNgenLayout->m_ColdCodeMap[m_CurrentColdRuntimeFunctionIndex].mainFunctionEntryRVA;
 
         if (MainFunctionEntryRVA == 0)
@@ -6785,7 +6785,7 @@ BOOL ReadyToRunJitManager::JitCodeToMethodInfo(RangeSection * pRangeSection,
     if (MethodIndex < 0)
         return FALSE;
 
-#ifdef WIN64EXCEPTIONS
+#if defined(WIN64EXCEPTIONS) && !defined(_TARGET_X86_)
     // Save the raw entry
     PTR_RUNTIME_FUNCTION RawFunctionEntry = pRuntimeFunctions + MethodIndex;
 
@@ -6798,7 +6798,7 @@ BOOL ReadyToRunJitManager::JitCodeToMethodInfo(RangeSection * pRangeSection,
 
     if (ppMethodDesc)
     {
-#ifdef WIN64EXCEPTIONS
+#if defined(WIN64EXCEPTIONS) && !defined(_TARGET_X86_)
         *ppMethodDesc = pMethodDesc;
 #else
         *ppMethodDesc = pInfo->GetMethodDescForEntryPoint(ImageBase + RUNTIME_FUNCTION__BeginAddress(FunctionEntry));
@@ -6814,7 +6814,7 @@ BOOL ReadyToRunJitManager::JitCodeToMethodInfo(RangeSection * pRangeSection,
         // We are using RUNTIME_FUNCTION as METHODTOKEN
         pCodeInfo->m_methodToken = METHODTOKEN(pRangeSection, dac_cast<TADDR>(FunctionEntry));
 
-#ifdef WIN64EXCEPTIONS
+#if defined(WIN64EXCEPTIONS) && !defined(_TARGET_X86_)
         AMD64_ONLY(_ASSERTE((RawFunctionEntry->UnwindData & RUNTIME_FUNCTION_INDIRECT) == 0));
         pCodeInfo->m_pFunctionEntry = RawFunctionEntry;
 #endif
@@ -6823,7 +6823,7 @@ BOOL ReadyToRunJitManager::JitCodeToMethodInfo(RangeSection * pRangeSection,
     return TRUE;
 }
 
-#if defined(WIN64EXCEPTIONS)
+#if defined(WIN64EXCEPTIONS) && !defined(_TARGET_X86_)
 PTR_RUNTIME_FUNCTION ReadyToRunJitManager::LazyGetFunctionEntry(EECodeInfo * pCodeInfo)
 {
     CONTRACTL {
@@ -6913,7 +6913,7 @@ BOOL ReadyToRunJitManager::IsFilterFunclet(EECodeInfo * pCodeInfo)
     return fRet;
 }
 
-#endif  // WIN64EXCEPTIONS
+#endif  // WIN64EXCEPTIONS && !_TARGET_X86_
 
 void ReadyToRunJitManager::JitTokenToMethodRegionInfo(const METHODTOKEN& MethodToken, 
                                                    MethodRegionInfo * methodRegionInfo)
@@ -6941,7 +6941,7 @@ void ReadyToRunJitManager::EnumMemoryRegions(CLRDataEnumMemoryFlags flags)
     IJitManager::EnumMemoryRegions(flags);
 }
 
-#if defined(WIN64EXCEPTIONS)
+#if defined(WIN64EXCEPTIONS) && !defined(_TARGET_X86_)
 
 //
 // EnumMemoryRegionsForMethodUnwindInfo - enumerate the memory necessary to read the unwind info for the
@@ -6978,7 +6978,7 @@ void ReadyToRunJitManager::EnumMemoryRegionsForMethodUnwindInfo(CLRDataEnumMemor
         DacEnumMemoryRegion(PTR_TO_TADDR(pUnwindData), size); 
 }
 
-#endif //WIN64EXCEPTIONS
+#endif //WIN64EXCEPTIONS && !_TARGET_X86_
 #endif // #ifdef DACCESS_COMPILE
 
 #endif

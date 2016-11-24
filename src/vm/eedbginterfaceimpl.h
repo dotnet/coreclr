@@ -136,7 +136,7 @@ public:
                              size_t *hotSize,
                              size_t *coldSize);
 
-#if defined(WIN64EXCEPTIONS)
+#if defined(WIN64EXCEPTIONS) && !defined(_TARGET_X86_)
     DWORD GetFuncletStartOffsets(const BYTE *pStart, DWORD* pStartOffsets, DWORD dwLength);
     StackFrame FindParentStackFrame(CrawlFrame* pCF);
 #endif // WIN64EXCEPTIONS

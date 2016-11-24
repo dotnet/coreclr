@@ -1247,9 +1247,9 @@ private:
 
 class DebuggerJitInfo;
 
-#if defined(WIN64EXCEPTIONS)
+#if defined(WIN64EXCEPTIONS) && !defined(_TARGET_X86_)
 const int PARENT_METHOD_INDEX     = -1;
-#endif // WIN64EXCEPTIONS
+#endif // WIN64EXCEPTIONS && !_TARGET_X86_
 
 class CodeRegionInfo
 {
@@ -1507,10 +1507,10 @@ public:
     // The version number of this jitted code
     SIZE_T                   m_encVersion;
 
-#if defined(WIN64EXCEPTIONS)
+#if defined(WIN64EXCEPTIONS) && !defined(_TARGET_X86_)
     DWORD                   *m_rgFunclet;
     int                      m_funcletCount;
-#endif // WIN64EXCEPTIONS
+#endif // WIN64EXCEPTIONS && !_TARGET_X86_
 
 #ifndef DACCESS_COMPILE
 
@@ -1537,7 +1537,7 @@ public:
 
     private:
         SIZE_T m_ilOffset;
-#ifdef WIN64EXCEPTIONS
+#if defined(WIN64EXCEPTIONS) && !defined(_TARGET_X86_)
         int m_funcletIndex;
 #endif
     };
@@ -1586,7 +1586,7 @@ public:
     SIZE_T MapSpecialToNative(CorDebugMappingResult mapping,
                               SIZE_T which,
                               BOOL *pfAccurate);
-#if defined(WIN64EXCEPTIONS)
+#if defined(WIN64EXCEPTIONS) && !defined(_TARGET_X86_)
     void   MapSpecialToNative(int funcletIndex, DWORD* pPrologEndOffset, DWORD* pEpilogStartOffset);
     SIZE_T MapILOffsetToNativeForSetIP(SIZE_T offsetILTo, int funcletIndexFrom, EHRangeTree* pEHRT, BOOL* pExact);
 #endif // _WIN64
@@ -1607,7 +1607,7 @@ public:
 
     void Init(TADDR newAddress);
 
-#if defined(WIN64EXCEPTIONS)
+#if defined(WIN64EXCEPTIONS) && !defined(_TARGET_X86_)
     enum GetFuncletIndexMode
     {
         GFIM_BYOFFSET,
@@ -1618,7 +1618,7 @@ public:
     DWORD GetFuncletOffsetByIndex(int index);
     int   GetFuncletIndex(CORDB_ADDRESS offset, GetFuncletIndexMode mode);
     int   GetFuncletCount() {return m_funcletCount;}
-#endif // WIN64EXCEPTIONS
+#endif // WIN64EXCEPTIONS && !_TARGET_X86_
 
     void SetVars(ULONG32 cVars, ICorDebugInfo::NativeVarInfo *pVars);
     void SetBoundaries(ULONG32 cMap, ICorDebugInfo::OffsetMapping *pMap);
