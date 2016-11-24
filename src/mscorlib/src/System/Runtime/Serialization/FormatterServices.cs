@@ -255,7 +255,11 @@ namespace System.Runtime.Serialization {
         // instance of an immutable type.
         //
         [System.Security.SecurityCritical]  // auto-generated_required
+#if FEATURE_CORECLR // In CoreCLR, we expose on RuntimeHelpers instead
+        internal static Object GetUninitializedObject(Type type) {
+#else
         public static Object GetUninitializedObject(Type type) {
+#endif // FEATURE_CORECLR
             if ((object)type == null) {
                 throw new ArgumentNullException(nameof(type));
             }
