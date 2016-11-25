@@ -32,6 +32,12 @@
 #include <limits.h>
 #include "ilformatter.h"
 
+#ifdef __clang__
+// Needed for using interopsafe.
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wnull-dereference"
+#endif
+
 #ifndef DACCESS_COMPILE
 
 //
@@ -3982,3 +3988,7 @@ FuncEvalHijackPersonalityRoutine(IN     PEXCEPTION_RECORD   pExceptionRecord
 #endif // WIN64EXCEPTIONS && !FEATURE_PAL
 
 #endif // ifndef DACCESS_COMPILE
+
+#ifdef __clang__
+#pragma GCC diagnostic pop
+#endif

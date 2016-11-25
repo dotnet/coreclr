@@ -14,10 +14,18 @@ else()
     set(CMAKE_REQUIRED_LIBRARIES ${ICUCORE})
 endif()
 
+if(CMAKE_SYSTEM_NAME STREQUAL FreeBSD)
+    # Somehow check_symbol_exists() failed to link to the required icu libraries
+    # and hence failed the test and cause problem about using deprecated function
+    # later on. With icu58 (lastest from ports as of today), this can be forced
+    # and at least everything get built.
+    set(HAVE_SET_MAX_VARIABLE 1)
+else()
 check_symbol_exists(
     ucol_setMaxVariable
     "unicode/ucol.h"
     HAVE_SET_MAX_VARIABLE)
+endif()
 
 unset(CMAKE_REQUIRED_LIBRARIES)
 unset(CMAKE_REQUIRED_INCLUDES)

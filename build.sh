@@ -44,11 +44,11 @@ usage()
     echo "skipnuget - skip building nuget packages."
     echo "verbose - optional argument to enable verbose build output."
     echo "-skiprestore: skip restoring packages ^(default: packages are restored during build^)."
-	echo "-disableoss: Disable Open Source Signing for System.Private.CoreLib."
-	echo "-sequential: force a non-parallel build ^(default is to build in parallel"
-	echo "   using all processors^)."
-	echo "-officialbuildid=^<ID^>: specify the official build ID to be used by this build."
-	echo "-Rebuild: passes /t:rebuild to the build projects."
+    echo "-disableoss: Disable Open Source Signing for System.Private.CoreLib."
+    echo "-sequential: force a non-parallel build ^(default is to build in parallel"
+    echo "   using all processors^)."
+    echo "-officialbuildid=^<ID^>: specify the official build ID to be used by this build."
+    echo "-Rebuild: passes /t:rebuild to the build projects."
     echo "skipgenerateversion - disable version generation even if MSBuild is supported."
     echo "cmakeargs - user-settable additional arguments passed to CMake."
     echo "bindir - output directory (defaults to $__ProjectRoot/bin)"
@@ -176,7 +176,7 @@ build_coreclr()
             echo $__versionSourceLine > $__versionSourceFile
         fi
 
-		pushd "$__IntermediatesDir"
+        pushd "$__IntermediatesDir"
         # Regenerate the CMake solution
         __ExtraCmakeArgs="-DCLR_CMAKE_TARGET_OS=$__BuildOS -DCLR_CMAKE_PACKAGES_DIR=$__PackagesDir -DCLR_CMAKE_PGO_INSTRUMENT=$__PgoInstrument"
         echo "Invoking \"$__ProjectRoot/src/pal/tools/gen-buildsys-clang.sh\" \"$__ProjectRoot\" $__ClangMajorVersion $__ClangMinorVersion $__BuildArch $__BuildType $__CodeCoverage $__IncludeTests $generator $__ExtraCmakeArgs $__cmakeargs"
@@ -220,13 +220,25 @@ build_coreclr()
 
     echo "Verifying System.Globalization.Native.so dependencies"
 
-    ldd -r $__BinDir/System.Globalization.Native.so | awk 'BEGIN {count=0} /undefined symbol:/ { if (count==0) {print "Undefined symbol(s) found:"} print " " $3; count++ } END {if (count>0) exit(1)}'
+    if [ `uname` = "FreeBSD" ]; then
+        # FreeBSD ldd does not support -r option.
+        $PYTHON <<EOF
+import ctypes
+try:
+    ctypes.CDLL("$__BinDir/System.Globalization.Native.so")
+except OSError:
+    exit(1)
+exit(0)
+EOF
+    else
+        ldd -r $__BinDir/System.Globalization.Native.so | awk 'BEGIN {count=0} /undefined symbol:/ { if (count==0) {print "Undefined symbol(s) found:"} print " " $3; count++ } END {if (count>0) exit(1)}'
+    fi
     if [ $? != 0 ]; then
         echo "Failed. System.Globalization.Native.so has undefined dependencies. These are likely ICU APIs that need to be added to icushim.h"
         exit 1
     fi
 
-	popd
+    popd
 }
 
 isMSBuildOnNETCoreSupported()
@@ -395,7 +407,7 @@ case $CPUName in
         __HostArch=x86
         ;;
 
-    x86_64)
+    amd64|x86_64)
         __BuildArch=x64
         __HostArch=x64
         ;;
@@ -540,7 +552,7 @@ while :; do
             __CrossBuild=1
             ;;
 
-		verbose)
+        verbose)
         __VerboseBuild=1
         ;;
 
@@ -655,7 +667,7 @@ __RunArgs="-BuildArch=$__BuildArch -BuildType=$__BuildType -BuildOS=$__BuildOS"
 # Configure environment if we are doing a verbose build
 if [ $__VerboseBuild == 1 ]; then
     export VERBOSE=1
-	__RunArgs="$__RunArgs -verbose"
+    __RunArgs="$__RunArgs -verbose"
 fi
 
 # Set default clang version

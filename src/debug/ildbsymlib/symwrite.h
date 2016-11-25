@@ -839,7 +839,14 @@ public:
         {
             // Help mitigate the impact of buffer overflow
             // Fail fast with a null-reference AV
+#ifdef __clang__
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wnull-dereference"
+#endif
             return *(static_cast<T*>(0)) ;
+#ifdef __clang__
+#pragma GCC diagnostic pop
+#endif
         }
         return m_array[ i ];
     }

@@ -22,10 +22,16 @@ if which "clang-$2.$3" > /dev/null 2>&1
     then
         export CC="$(which clang-$2.$3)"
         export CXX="$(which clang++-$2.$3)"
+        if [ `uname` = "FreeBSD" ]; then
+            export LLVM_HOME=${LLVM_HOME:-/usr/local/llvm$2$3}
+        fi
 elif which "clang$2$3" > /dev/null 2>&1
     then
         export CC="$(which clang$2$3)"
         export CXX="$(which clang++$2$3)"
+        if [ `uname` = "FreeBSD" ]; then
+            export LLVM_HOME=${LLVM_HOME:-/usr/local/llvm$2$3}
+        fi
 elif which clang > /dev/null 2>&1
     then
         export CC="$(which clang)"
