@@ -101,7 +101,14 @@ void DacDbiArrayList<T>::Alloc(int nElements)
     Dealloc();
     if (nElements > 0)
     {
+#ifdef __clang__
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wnull-dereference"
+#endif
         m_pList = new(forDbi) T[(size_t)nElements];
+#ifdef __clang__
+#pragma GCC diagnostic pop
+#endif
         m_nEntries = nElements;
     }
 }

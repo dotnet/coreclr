@@ -839,7 +839,14 @@ SIZE_T DacDbiInterfaceImpl::GetArgCount(MethodDesc * pMD)
 // Allocator to pass to DebugInfoStores, allocating forDBI
 BYTE* InfoStoreForDbiNew(void * pData, size_t cBytes)
 {
+#ifdef __clang__
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wnull-dereference"
+#endif
     return new(forDbi) BYTE[cBytes];
+#ifdef __clang__
+#pragma GCC diagnostic pop
+#endif
 }
 
 // Allocator to pass to the debug-info-stores...

@@ -24,6 +24,12 @@
 
 #include "../../vm/methoditer.h"
 
+#ifdef __clang__
+// Needed for using interopsafe and interopsafeEXEC.
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wnull-dereference"
+#endif
+
 const char *GetTType( TraceType tt);
 
 #define IsSingleStep(exception) (exception == EXCEPTION_SINGLE_STEP)
@@ -8890,3 +8896,7 @@ bool DebuggerContinuableExceptionBreakpoint::SendEvent(Thread *thread, bool fIpC
     return true;
 }
 #endif // !DACCESS_COMPILE
+
+#ifdef __clang__
+#pragma GCC diagnostic pop
+#endif

@@ -20,6 +20,12 @@
 #include "debuginfostore.h"
 #include "../../vm/methoditer.h"
 
+#ifdef __clang__
+// Needed for using interopsafe.
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wnull-dereference"
+#endif
+
 #ifndef DACCESS_COMPILE
 
 bool DbgIsSpecialILOffset(DWORD offset)
@@ -2473,3 +2479,7 @@ void DebuggerMethodInfoTable::EnumMemoryRegions(CLRDataEnumMemoryFlags flags)
     }
 }
 #endif // #ifdef DACCESS_COMPILE
+
+#ifdef __clang__
+#pragma GCC diagnostic pop
+#endif

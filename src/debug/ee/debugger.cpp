@@ -51,6 +51,12 @@
 
 #include "threadsuspend.h"
 
+#ifdef __clang__
+// Needed for using interopsafe and interopsafeEXEC.
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wnull-dereference"
+#endif
+
 class CCLRSecurityAttributeManager;
 extern CCLRSecurityAttributeManager s_CLRSecurityAttributeManager;
 
@@ -17071,3 +17077,7 @@ void Debugger::StartCanaryThread()
 #endif // DACCESS_COMPILE
 
 #endif //DEBUGGING_SUPPORTED
+
+#ifdef __clang__
+#pragma GCC diagnostic pop
+#endif
