@@ -395,7 +395,7 @@ case $CPUName in
         __HostArch=x86
         ;;
 
-    x86_64)
+    amd64|x86_64)
         __BuildArch=x64
         __HostArch=x64
         ;;
