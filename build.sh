@@ -220,7 +220,19 @@ build_coreclr()
 
     echo "Verifying System.Globalization.Native.so dependencies"
 
-    ldd -r $__BinDir/System.Globalization.Native.so | awk 'BEGIN {count=0} /undefined symbol:/ { if (count==0) {print "Undefined symbol(s) found:"} print " " $3; count++ } END {if (count>0) exit(1)}'
+    if [ `uname` = "FreeBSD" ]; then
+        # FreeBSD ldd does not support -r option.
+        $PYTHON <<EOF
+import ctypes
+try:
+    ctypes.CDLL("$__BinDir/System.Globalization.Native.so")
+except OSError:
+    exit(1)
+exit(0)
+EOF
+    else
+        ldd -r $__BinDir/System.Globalization.Native.so | awk 'BEGIN {count=0} /undefined symbol:/ { if (count==0) {print "Undefined symbol(s) found:"} print " " $3; count++ } END {if (count>0) exit(1)}'
+    fi
     if [ $? != 0 ]; then
         echo "Failed. System.Globalization.Native.so has undefined dependencies. These are likely ICU APIs that need to be added to icushim.h"
         exit 1
