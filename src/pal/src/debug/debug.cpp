@@ -76,6 +76,10 @@ extern "C" void DBG_DebugBreak_End();
 #define CTL_WAIT        "wait"
 #endif   // HAVE_PROCFS_CTL
 
+#ifndef PROCFS_MEM_NAME
+#define PROCFS_MEM_NAME "mem"
+#endif
+
 /* ------------------- Constant definitions ----------------------------------*/
 
 #if !HAVE_VM_READ && !HAVE_PROCFS_CTL
