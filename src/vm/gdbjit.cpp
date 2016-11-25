@@ -1948,6 +1948,13 @@ bool NotifyGdb::BuildLineProg(MemBuf& buf, PCODE startAddr, TADDR codeSize, Symb
             prevFile = lines[i].fileIndex;
         }
 
+        // GCC don't use the is_prologue_end flag to mark the first instruction after the prologue.
+        // Instead of it it is issueing a line table entry for the first instruction of the prologue
+        // and one for the first instruction after the prologue.
+        // We do not want to confuse the debugger so we have to avoid adding a line in such case.
+        if (i > 0 && lines[i - 1].nativeOffset == lines[i].nativeOffset)
+            continue;
+
         IssueSetAddress(ptr, startAddr + lines[i].nativeOffset);
 
         if (lines[i].lineNumber != prevLine) {
