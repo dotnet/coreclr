@@ -1432,13 +1432,11 @@ void NotifyGdb::MethodCompiled(MethodDesc* MethodDescPtr)
     CodeHeader* pCH = (CodeHeader*)pCode - 1;
     CalledMethod* pCalledMethods = reinterpret_cast<CalledMethod*>(pCH->GetCalledMethods());
     /* Collect addresses of thunks called by method */
-    if (!CollectCalledMethods(pCalledMethods))
+    if (!CollectCalledMethods(pCalledMethods, (TADDR)MethodDescPtr->GetNativeCode()))
     {
         return;
     }
     pCH->SetCalledMethods(NULL);
-    if (!codeAddrs.Contains((TADDR)pCode))
-        codeAddrs.Add((TADDR)pCode);
 
     MetaSig sig(MethodDescPtr);
     int nArgsCount = sig.NumFixedArgs();
@@ -2139,9 +2137,12 @@ bool NotifyGdb::BuildDebugPub(MemBuf& buf, const char* name, uint32_t size, uint
 }
 
 /* Store addresses and names of the called methods into symbol table */
-bool NotifyGdb::CollectCalledMethods(CalledMethod* pCalledMethods)
+bool NotifyGdb::CollectCalledMethods(CalledMethod* pCalledMethods, TADDR nativeCode)
 {
     AddrSet tmpCodeAddrs;
+
+    if (!codeAddrs.Contains(nativeCode))
+        codeAddrs.Add(nativeCode);
 
     CalledMethod* pList = pCalledMethods;
 
