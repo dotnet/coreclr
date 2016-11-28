@@ -246,7 +246,7 @@ extern "C" __declspec(naked) Object* F_CALL_CONV JIT_IsInstanceOfClass(MethodTab
         jne             SlowPath
 #endif
     // It didn't match and it isn't a proxy and it doesn't have type equivalence
-        xor             eax, eax
+        XOR             eax, eax
         ret
 
     // Cast didn't match, so try the worker to check for the proxy/equivalence case.

@@ -1738,15 +1738,15 @@ extern "C" DWORD __stdcall xmmYmmStateSupport()
 
     __asm
     {
-        mov     ecx, 0                  ; Specify xcr0
-        xgetbv                          ; result in EDX:EAX
-        and eax, 06H
-        cmp eax, 06H                    ; check OS has enabled both XMM and YMM state support
-        jne     not_supported
-        mov     eax, 1
-        jmp     done
+        MOV     ecx, 0                  ; Specify xcr0
+        XGETBV                          ; result in EDX:EAX
+        AND eax, 06H
+        CMP eax, 06H                    ; check OS has enabled both XMM and YMM state support
+        JNE     not_supported
+        MOV     eax, 1
+        JMP     done
     not_supported:
-        mov     eax, 0
+        MOV     eax, 0
     done:
     }
 }
@@ -1782,13 +1782,14 @@ DWORD GetLogicalCpuCount()
     PAL_TRY(Param *, pParam, &param)
     {
         unsigned char buffer[16];
+        DWORD* dwBuffer = NULL;
 
         DWORD maxCpuId = getcpuid(0, buffer);
 
         if (maxCpuId < 1)
             goto lDone;
 
-        DWORD* dwBuffer = (DWORD*)buffer;
+        dwBuffer = (DWORD*)buffer;
 
         if (dwBuffer[1] == 'uneG') {
             if (dwBuffer[3] == 'Ieni') {

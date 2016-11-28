@@ -94,21 +94,21 @@ wchar_t* COMNumber::Int32ToDecChars(__in wchar_t* p, unsigned int value, int dig
     LIMITED_METHOD_CONTRACT
 
     _asm {
-        mov     eax,value
-        mov     ebx,10
-        mov     ecx,digits
-        mov     edi,p
-        jmp     L2
-L1:             xor     edx,edx
-        div     ebx
-        add     edx,'0'          //promote dl to edx to avoid partial register stall and LCP stall  
-        sub     edi,2
-        mov     [edi],dx
+        MOV     eax,value
+        MOV     ebx,10
+        MOV     ecx,digits
+        MOV     edi,p
+        JMP     L2
+L1:             XOR     edx,edx
+        DIV     ebx
+        ADD     edx,'0'          //promote dl to edx to avoid partial register stall and LCP stall
+        SUB     edi,2
+        MOV     [edi],dx
 L2:             dec     ecx
-        jge     L1
-        or      eax,eax
-        jne     L1
-        mov     eax,edi
+        JGE     L1
+        OR      eax,eax
+        JNE     L1
+        MOV     eax,edi
     }
 }
 
@@ -117,16 +117,16 @@ unsigned int Int64DivMod1E9(unsigned __int64* value)
     LIMITED_METHOD_CONTRACT
 
     _asm {
-        mov     ebx,value
-        mov     ecx,1000000000
-        xor     edx,edx
-        mov     eax,[ebx+4]
-        div     ecx
-        mov     [ebx+4],eax
-        mov     eax,[ebx]
-        div     ecx
-        mov     [ebx],eax
-        mov     eax,edx
+        MOV     ebx,value
+        MOV     ecx,1000000000
+        XOR     edx,edx
+        MOV     eax,[ebx+4]
+        DIV     ecx
+        MOV     [ebx+4],eax
+        MOV     eax,[ebx]
+        DIV     ecx
+        MOV     [ebx],eax
+        MOV     eax,edx
     }
 }
 
