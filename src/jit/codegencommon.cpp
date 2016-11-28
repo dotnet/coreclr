@@ -8741,12 +8741,6 @@ void CodeGen::genFnProlog()
     // when compInitMem is true the genZeroInitFrame will zero out the shadow SP slots
     if (compiler->ehNeedsShadowSPslots() && !compiler->info.compInitMem)
     {
-        /*
-        // size/speed option?
-        getEmitter()->emitIns_I_ARR(INS_mov, EA_PTRSIZE, 0,
-                                REG_EBP, REG_NA, -compiler->lvaLocAllocSPvar);
-        */
-
         // The last slot is reserved for ICodeManager::FixContext(ppEndRegion)
         unsigned filterEndOffsetSlotOffs = compiler->lvaLclSize(compiler->lvaShadowSPslotsVar) - (sizeof(void*));
 
@@ -9711,7 +9705,7 @@ void CodeGen::genFnEpilog(BasicBlock* block)
  *      |Pre-spill regs space   |   // This is only necessary to keep the PSP slot at the same offset
  *      |                       |   // in function and funclet
  *      |-----------------------|
- *      |        PSP slot       |
+ *      |        PSP slot       |   // Omitted in CoreRT ABI
  *      |-----------------------|
  *      ~  possible 4 byte pad  ~
  *      ~     for alignment     ~
@@ -10010,7 +10004,7 @@ void CodeGen::genCaptureFuncletPrologEpilogInfo()
  *      ~  possible 8 byte pad  ~
  *      ~     for alignment     ~
  *      |-----------------------|
- *      |        PSP slot       |
+ *      |        PSP slot       | // Omitted in CoreRT ABI
  *      |-----------------------|
  *      |   Outgoing arg space  | // this only exists if the function makes a call
  *      |-----------------------| <---- Initial SP
@@ -10081,7 +10075,7 @@ void CodeGen::genFuncletProlog(BasicBlock* block)
     // This is the end of the OS-reported prolog for purposes of unwinding
     compiler->unwindEndProlog();
 
-    // If there is no PSPSym (used by CoreRT ABI), we are done.
+    // If there is no PSPSym (CoreRT ABI), we are done.
     if (compiler->lvaPSPSym == BAD_VAR_NUM)
     {
         return;

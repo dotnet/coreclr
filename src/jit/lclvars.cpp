@@ -3400,6 +3400,8 @@ void Compiler::lvaMarkLocalVars()
         }
 #endif // FEATURE_EH_FUNCLETS
 
+        // TODO: LocAllocSPvar should be only required by the implicit frame layout expected by the VM on x86.
+        // It should be removed on other platforms once we check there are no other implicit dependencies.
         if (compLocallocUsed)
         {
             lvaLocAllocSPvar         = lvaGrabTempWithImplicitUse(false DEBUGARG("LocAllocSPvar"));

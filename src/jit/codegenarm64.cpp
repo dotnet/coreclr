@@ -747,7 +747,7 @@ void CodeGen::genRestoreCalleeSavedRegistersHelp(regMaskTP regsToRestoreMask, in
  *      +=======================+ <---- Caller's SP
  *      |Callee saved registers | // multiple of 8 bytes
  *      |-----------------------|
- *      |        PSP slot       | // 8 bytes
+ *      |        PSP slot       | // 8 bytes (omitted in CoreRT ABI)
  *      |-----------------------|
  *      ~  alignment padding    ~ // To make the whole frame 16 byte aligned.
  *      |-----------------------|
@@ -773,7 +773,7 @@ void CodeGen::genRestoreCalleeSavedRegistersHelp(regMaskTP regsToRestoreMask, in
  *      +=======================+ <---- Caller's SP
  *      |Callee saved registers | // multiple of 8 bytes
  *      |-----------------------|
- *      |        PSP slot       | // 8 bytes
+ *      |        PSP slot       | // 8 bytes (omitted in CoreRT ABI)
  *      |-----------------------|
  *      ~  alignment padding    ~ // To make the whole frame 16 byte aligned.
  *      |-----------------------|
@@ -801,7 +801,7 @@ void CodeGen::genRestoreCalleeSavedRegistersHelp(regMaskTP regsToRestoreMask, in
  *      +=======================+ <---- Caller's SP
  *      |Callee saved registers | // multiple of 8 bytes
  *      |-----------------------|
- *      |        PSP slot       | // 8 bytes
+ *      |        PSP slot       | // 8 bytes (omitted in CoreRT ABI)
  *      |-----------------------|
  *      ~  alignment padding    ~ // To make the first SP subtraction 16 byte aligned
  *      |-----------------------|
@@ -883,7 +883,7 @@ void CodeGen::genRestoreCalleeSavedRegistersHelp(regMaskTP regsToRestoreMask, in
  *      +=======================+ <---- Caller's SP
  *      |Callee saved registers | // multiple of 8 bytes
  *      |-----------------------|
- *      |        PSP slot       | // 8 bytes
+ *      |        PSP slot       | // 8 bytes (omitted in CoreRT ABI)
  *      |-----------------------|
  *      |      Saved FP, LR     | // 16 bytes
  *      |-----------------------|
@@ -988,7 +988,7 @@ void CodeGen::genFuncletProlog(BasicBlock* block)
     // This is the end of the OS-reported prolog for purposes of unwinding
     compiler->unwindEndProlog();
 
-    // If there is no PSPSym (used by CoreRT ABI), we are done.
+    // If there is no PSPSym (CoreRT ABI), we are done.
     if (compiler->lvaPSPSym == BAD_VAR_NUM)
     {
         return;
@@ -1329,7 +1329,7 @@ void CodeGen::genEmitGSCookieCheck(bool pushReg)
 BasicBlock* CodeGen::genCallFinally(BasicBlock* block, BasicBlock* lblk)
 {
     // Generate a call to the finally, like this:
-    //      mov         x0,qword ptr [fp + 10H]         // Load x0 with PSPSym
+    //      mov         x0,qword ptr [fp + 10H] / sp    // Load x0 with PSPSym, or sp if PSPSym is not used
     //      bl          finally-funclet
     //      b           finally-return                  // Only for non-retless finally calls
     // The 'b' can be a NOP if we're going to the next block.
