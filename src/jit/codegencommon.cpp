@@ -8744,7 +8744,7 @@ void CodeGen::genFnProlog()
         /*
         // size/speed option?
         getEmitter()->emitIns_I_ARR(INS_mov, EA_PTRSIZE, 0,
-                                REG_EBP, REG_NA, -compiler->lvaShadowSPfirstOffs);
+                                REG_EBP, REG_NA, -compiler->lvaLocAllocSPvar);
         */
 
         // The last slot is reserved for ICodeManager::FixContext(ppEndRegion)
@@ -8784,9 +8784,8 @@ void CodeGen::genFnProlog()
 
     // Initialize any "hidden" slots/locals
 
-    if (compiler->compLocallocUsed)
+    if (compiler->lvaLocAllocSPvar != BAD_VAR_NUM)
     {
-        noway_assert(compiler->lvaLocAllocSPvar != BAD_VAR_NUM);
 #ifdef _TARGET_ARM64_
         getEmitter()->emitIns_S_R(ins_Store(TYP_I_IMPL), EA_PTRSIZE, REG_FPBASE, compiler->lvaLocAllocSPvar, 0);
 #else
@@ -10082,6 +10081,12 @@ void CodeGen::genFuncletProlog(BasicBlock* block)
     // This is the end of the OS-reported prolog for purposes of unwinding
     compiler->unwindEndProlog();
 
+    // If there is no PSPSym (used by CoreRT ABI), we are done.
+    if (compiler->lvaPSPSym == BAD_VAR_NUM)
+    {
+        return;
+    }
+
     getEmitter()->emitIns_R_AR(INS_mov, EA_PTRSIZE, REG_FPBASE, REG_ARG_0, genFuncletInfo.fiPSP_slot_InitialSP_offset);
 
     regTracker.rsTrackRegTrash(REG_FPBASE);
@@ -10175,10 +10180,12 @@ void CodeGen::genCaptureFuncletPrologEpilogInfo()
     unsigned calleeFPRegsSavedSize = genCountBits(compiler->compCalleeFPRegsSavedMask) * XMM_REGSIZE_BYTES;
     unsigned FPRegsPad             = (calleeFPRegsSavedSize > 0) ? AlignmentPad(totalFrameSize, XMM_REGSIZE_BYTES) : 0;
 
+    unsigned PSPSymSize = (compiler->lvaPSPSym != BAD_VAR_NUM) ? REGSIZE_BYTES : 0;
+
     totalFrameSize += FPRegsPad               // Padding before pushing entire xmm regs
                       + calleeFPRegsSavedSize // pushed callee-saved float regs
                       // below calculated 'pad' will go here
-                      + REGSIZE_BYTES                     // PSPSym
+                      + PSPSymSize                        // PSPSym
                       + compiler->lvaOutgoingArgSpaceSize // outgoing arg space
         ;
 
@@ -10186,7 +10193,7 @@ void CodeGen::genCaptureFuncletPrologEpilogInfo()
 
     genFuncletInfo.fiSpDelta = FPRegsPad                           // Padding to align SP on XMM_REGSIZE_BYTES boundary
                                + calleeFPRegsSavedSize             // Callee saved xmm regs
-                               + pad + REGSIZE_BYTES               // PSPSym
+                               + pad + PSPSymSize                  // PSPSym
                                + compiler->lvaOutgoingArgSpaceSize // outgoing arg space
         ;
 
@@ -10199,12 +10206,14 @@ void CodeGen::genCaptureFuncletPrologEpilogInfo()
         printf("                         SP delta: %d\n", genFuncletInfo.fiSpDelta);
         printf("       PSP slot Initial SP offset: %d\n", genFuncletInfo.fiPSP_slot_InitialSP_offset);
     }
-#endif // DEBUG
 
-    assert(compiler->lvaPSPSym != BAD_VAR_NUM);
-    assert(genFuncletInfo.fiPSP_slot_InitialSP_offset ==
-           compiler->lvaGetInitialSPRelativeOffset(compiler->lvaPSPSym)); // same offset used in main function and
-                                                                          // funclet!
+    if (compiler->lvaPSPSym != BAD_VAR_NUM)
+    {
+        assert(genFuncletInfo.fiPSP_slot_InitialSP_offset ==
+               compiler->lvaGetInitialSPRelativeOffset(compiler->lvaPSPSym)); // same offset used in main function and
+                                                                              // funclet!
+    }
+#endif // DEBUG
 }
 
 #elif defined(_TARGET_ARM64_)
@@ -10324,13 +10333,12 @@ void CodeGen::genSetPSPSym(regNumber initReg, bool* pInitRegZeroed)
 {
     assert(compiler->compGeneratingProlog);
 
-    if (!compiler->ehNeedsPSPSym())
+    if (compiler->lvaPSPSym == BAD_VAR_NUM)
     {
         return;
     }
 
-    noway_assert(isFramePointerUsed());         // We need an explicit frame pointer
-    assert(compiler->lvaPSPSym != BAD_VAR_NUM); // We should have created the PSPSym variable
+    noway_assert(isFramePointerUsed()); // We need an explicit frame pointer
 
 #if defined(_TARGET_ARM_)
 

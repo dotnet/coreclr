@@ -238,7 +238,8 @@ BasicBlock* CodeGen::genCallFinally(BasicBlock* block, BasicBlock* lblk)
     // then RSP at this point is the same value as that stored in the PSPsym. So just copy RSP
     // instead of loading the PSPSym in this case.
 
-    if (!compiler->compLocallocUsed && (compiler->funCurrentFunc()->funKind == FUNC_ROOT))
+    if ((compiler->lvaPSPSym == BAD_VAR_NUM) ||
+        (!compiler->compLocallocUsed && (compiler->funCurrentFunc()->funKind == FUNC_ROOT)))
     {
         inst_RV_RV(INS_mov, REG_ARG_0, REG_SPBASE, TYP_I_IMPL);
     }
@@ -2718,8 +2719,10 @@ ALLOC_DONE:
 BAILOUT:
 
     // Write the lvaLocAllocSPvar stack frame slot
-    noway_assert(compiler->lvaLocAllocSPvar != BAD_VAR_NUM);
-    getEmitter()->emitIns_S_R(ins_Store(TYP_I_IMPL), EA_PTRSIZE, REG_SPBASE, compiler->lvaLocAllocSPvar, 0);
+    if (compiler->lvaLocAllocSPvar != BAD_VAR_NUM)
+    {
+        getEmitter()->emitIns_S_R(ins_Store(TYP_I_IMPL), EA_PTRSIZE, REG_SPBASE, compiler->lvaLocAllocSPvar, 0);
+    }
 
 #if STACK_PROBES
     if (compiler->opts.compNeedStackProbes)

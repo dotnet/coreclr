@@ -988,6 +988,12 @@ void CodeGen::genFuncletProlog(BasicBlock* block)
     // This is the end of the OS-reported prolog for purposes of unwinding
     compiler->unwindEndProlog();
 
+    // If there is no PSPSym (used by CoreRT ABI), we are done.
+    if (compiler->lvaPSPSym == BAD_VAR_NUM)
+    {
+        return;
+    }
+
     if (isFilter)
     {
         // This is the first block of a filter
@@ -1134,8 +1140,10 @@ void CodeGen::genCaptureFuncletPrologEpilogInfo()
     assert((rsMaskSaveRegs & RBM_LR) != 0);
     assert((rsMaskSaveRegs & RBM_FP) != 0);
 
+    unsigned PSPSize = (compiler->lvaPSPSym != BAD_VAR_NUM) ? REGSIZE_BYTES : 0;
+
     unsigned saveRegsCount       = genCountBits(rsMaskSaveRegs);
-    unsigned saveRegsPlusPSPSize = saveRegsCount * REGSIZE_BYTES + /* PSPSym */ REGSIZE_BYTES;
+    unsigned saveRegsPlusPSPSize = saveRegsCount * REGSIZE_BYTES + PSPSize;
     if (compiler->info.compIsVarArgs)
     {
         // For varargs we always save all of the integer register arguments
@@ -1222,22 +1230,29 @@ void CodeGen::genCaptureFuncletPrologEpilogInfo()
         printf("                       SP delta 1: %d\n", genFuncletInfo.fiSpDelta1);
         printf("                       SP delta 2: %d\n", genFuncletInfo.fiSpDelta2);
 
-        if (CallerSP_to_PSP_slot_delta != compiler->lvaGetCallerSPRelativeOffset(compiler->lvaPSPSym)) // for debugging
+        if (compiler->lvaPSPSym != BAD_VAR_NUM)
         {
-            printf("lvaGetCallerSPRelativeOffset(lvaPSPSym): %d\n",
-                   compiler->lvaGetCallerSPRelativeOffset(compiler->lvaPSPSym));
+            if (CallerSP_to_PSP_slot_delta !=
+                compiler->lvaGetCallerSPRelativeOffset(compiler->lvaPSPSym)) // for debugging
+            {
+                printf("lvaGetCallerSPRelativeOffset(lvaPSPSym): %d\n",
+                       compiler->lvaGetCallerSPRelativeOffset(compiler->lvaPSPSym));
+            }
         }
     }
-#endif // DEBUG
 
     assert(genFuncletInfo.fiSP_to_FPLR_save_delta >= 0);
     assert(genFuncletInfo.fiSP_to_PSP_slot_delta >= 0);
     assert(genFuncletInfo.fiSP_to_CalleeSave_delta >= 0);
     assert(genFuncletInfo.fiCallerSP_to_PSP_slot_delta <= 0);
-    assert(compiler->lvaPSPSym != BAD_VAR_NUM);
-    assert(genFuncletInfo.fiCallerSP_to_PSP_slot_delta ==
-           compiler->lvaGetCallerSPRelativeOffset(compiler->lvaPSPSym)); // same offset used in main function and
-                                                                         // funclet!
+
+    if (compiler->lvaPSPSym != BAD_VAR_NUM)
+    {
+        assert(genFuncletInfo.fiCallerSP_to_PSP_slot_delta ==
+               compiler->lvaGetCallerSPRelativeOffset(compiler->lvaPSPSym)); // same offset used in main function and
+                                                                             // funclet!
+    }
+#endif // DEBUG
 }
 
 /*
@@ -1319,7 +1334,14 @@ BasicBlock* CodeGen::genCallFinally(BasicBlock* block, BasicBlock* lblk)
     //      b           finally-return                  // Only for non-retless finally calls
     // The 'b' can be a NOP if we're going to the next block.
 
-    getEmitter()->emitIns_R_S(ins_Load(TYP_I_IMPL), EA_PTRSIZE, REG_R0, compiler->lvaPSPSym, 0);
+    if (compiler->lvaPSPSym != BAD_VAR_NUM)
+    {
+        getEmitter()->emitIns_R_S(ins_Load(TYP_I_IMPL), EA_PTRSIZE, REG_R0, compiler->lvaPSPSym, 0);
+    }
+    else
+    {
+        getEmitter()->emitIns_R_R(INS_mov, EA_PTRSIZE, REG_R0, REG_SPBASE);
+    }
     getEmitter()->emitIns_J(INS_bl_local, block->bbJumpDest);
 
     if (block->bbFlags & BBF_RETLESS_CALL)
@@ -3275,9 +3297,11 @@ BAILOUT:
     if (endLabel != nullptr)
         genDefineTempLabel(endLabel);
 
-    // Write the lvaShadowSPfirst stack frame slot
-    noway_assert(compiler->lvaLocAllocSPvar != BAD_VAR_NUM);
-    getEmitter()->emitIns_S_R(ins_Store(TYP_I_IMPL), EA_PTRSIZE, targetReg, compiler->lvaLocAllocSPvar, 0);
+    // Write the lvaLocAllocSPvar stack frame slot
+    if (compiler->lvaLocAllocSPvar != BAD_VAR_NUM)
+    {
+        getEmitter()->emitIns_S_R(ins_Store(TYP_I_IMPL), EA_PTRSIZE, targetReg, compiler->lvaLocAllocSPvar, 0);
+    }
 
 #if STACK_PROBES
     if (compiler->opts.compNeedStackProbes)
