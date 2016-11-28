@@ -5,6 +5,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading;
@@ -34,6 +35,9 @@ class Program
 
     static void RunTest1()
     {
+        var originalCultureInfo = CultureInfo.CurrentCulture;
+        CultureInfo.CurrentCulture = CultureInfo.InvariantCulture;
+
         DateTime dt = new DateTime(1776, 7, 4);
         string dtString = dt.ToString();
         Assert.AreEqual(new GenClass1c<DateTime>(dt).ToStringEx(7), dtString + " 7");
@@ -74,6 +78,8 @@ class Program
         Assert.AreEqual(CallGenVirtMethod<int>(n, 42).ToString(), "System.Int32[]");
         Assert.AreEqual(CallGenVirtMethod<string>(n).ToString(), "GenClass1a`1[System.String]");
         Assert.AreEqual(CallGenVirtMethod<string>(n, "forty-two").ToString(), "System.String[]");
+
+        CultureInfo.CurrentCulture = originalCultureInfo;
     }
 
     static void RunTest2()
