@@ -21,7 +21,7 @@ namespace System.Text {
     using System.Threading;
     using System.Globalization;
     using System.Diagnostics.Contracts;
-    using Collections.Generic;
+    using System.Collections.Generic;
 
     // This class represents a mutable string.  It is convenient for situations in
     // which it is desirable to modify a string, perhaps by removing, replacing, or 
