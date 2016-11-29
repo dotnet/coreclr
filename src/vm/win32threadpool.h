@@ -520,7 +520,7 @@ public:
         LPOVERLAPPED lpOverlapped
     );
 
-    static VOID CallbackForContinueDrainageOfCompletionPortQueue(
+    static VOID WINAPI CallbackForContinueDrainageOfCompletionPortQueue(
         DWORD dwErrorCode,
         DWORD dwNumberOfBytesTransfered,
         LPOVERLAPPED lpOverlapped
