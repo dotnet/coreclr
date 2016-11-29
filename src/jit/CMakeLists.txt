@@ -9,7 +9,9 @@ include_directories("../inc")
 
 if (CLR_CMAKE_TARGET_ARCH_AMD64 OR CLR_CMAKE_TARGET_ARCH_I386)
   add_definitions(-DFEATURE_SIMD)
-  add_definitions(-DFEATURE_AVX_SUPPORT)
+  if (!CLR_CMAKE_PLATFORM_UNIX)
+    add_definitions(-DFEATURE_AVX_SUPPORT)
+  endif()
 endif ()
 
 
