@@ -6757,11 +6757,11 @@ void emitter::emitDispIns(
         case IF_RRD_ARD:
         case IF_RWR_ARD:
         case IF_RRW_ARD:
-            if (IsAVXInstruction(ins))
+            if (IsAVXInstruction(ins) && attr == EA_32BYTE)
             {
                 printf("%s, %s", emitYMMregName((unsigned)id->idReg1()), sstr);
             }
-            else if (IsSSE2Instruction(ins))
+            else if (IsSSE2Instruction(ins) || IsAVXInstruction(ins))
             {
                 printf("%s, %s", emitXMMregName((unsigned)id->idReg1()), sstr);
             }
@@ -6790,11 +6790,11 @@ void emitter::emitDispIns(
 
             printf("%s", sstr);
             emitDispAddrMode(id);
-            if (IsAVXInstruction(ins))
+            if (IsAVXInstruction(ins) && attr == EA_32BYTE)
             {
                 printf(", %s", emitYMMregName((unsigned)id->idReg1()));
             }
-            else if (IsSSE2Instruction(ins))
+            else if (IsSSE2Instruction(ins) || IsAVXInstruction(ins))
             {
                 printf(", %s", emitXMMregName((unsigned)id->idReg1()));
             }
@@ -6879,11 +6879,11 @@ void emitter::emitDispIns(
             emitDispFrameRef(id->idAddr()->iiaLclVar.lvaVarNum(), id->idAddr()->iiaLclVar.lvaOffset(),
                              id->idDebugOnlyInfo()->idVarRefOffs, asmfm);
 
-            if (IsAVXInstruction(ins))
+            if (IsAVXInstruction(ins) && attr == EA_32BYTE)
             {
                 printf(", %s", emitYMMregName((unsigned)id->idReg1()));
             }
-            else if (IsSSE2Instruction(ins))
+            else if (IsSSE2Instruction(ins) || IsAVXInstruction(ins))
             {
                 printf(", %s", emitXMMregName((unsigned)id->idReg1()));
             }
@@ -6932,11 +6932,11 @@ void emitter::emitDispIns(
         case IF_RRD_SRD:
         case IF_RWR_SRD:
         case IF_RRW_SRD:
-            if (IsAVXInstruction(ins))
+            if (IsAVXInstruction(ins) && attr == EA_32BYTE)
             {
                 printf("%s, %s", emitYMMregName((unsigned)id->idReg1()), sstr);
             }
-            else if (IsSSE2Instruction(ins))
+            else if (IsSSE2Instruction(ins) || IsAVXInstruction(ins))
             {
                 printf("%s, %s", emitXMMregName((unsigned)id->idReg1()), sstr);
             }
@@ -6988,11 +6988,11 @@ void emitter::emitDispIns(
             {
                 printf(" %s, %s", emitRegName(id->idReg1(), attr), emitXMMregName((unsigned)id->idReg2()));
             }
-            else if (IsAVXInstruction(ins))
+            else if (IsAVXInstruction(ins) && attr == EA_32BYTE)
             {
                 printf("%s, %s", emitYMMregName((unsigned)id->idReg1()), emitYMMregName((unsigned)id->idReg2()));
             }
-            else if (IsSSE2Instruction(ins))
+            else if (IsSSE2Instruction(ins) || IsAVXInstruction(ins))
             {
                 printf("%s, %s", emitXMMregName((unsigned)id->idReg1()), emitXMMregName((unsigned)id->idReg2()));
             }
@@ -7028,7 +7028,7 @@ void emitter::emitDispIns(
             break;
 #endif
         case IF_RRW_RRW_CNS:
-            if (IsAVXInstruction(ins))
+            if (IsAVXInstruction(ins) && attr == EA_32BYTE)
             {
                 printf("%s,", emitYMMregName((unsigned)id->idReg1()), attr);
                 printf(" %s", emitYMMregName((unsigned)id->idReg2()), attr);
@@ -7082,11 +7082,11 @@ void emitter::emitDispIns(
                 attr = EA_PTRSIZE;
             }
 #endif
-            if (IsAVXInstruction(ins))
+            if (IsAVXInstruction(ins) && attr == EA_32BYTE)
             {
                 printf("%s, %s", emitYMMregName((unsigned)id->idReg1()), sstr);
             }
-            else if (IsSSE2Instruction(ins))
+            else if (IsSSE2Instruction(ins) || IsAVXInstruction(ins))
             {
                 printf("%s, %s", emitXMMregName((unsigned)id->idReg1()), sstr);
             }
