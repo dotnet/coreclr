@@ -14,6 +14,9 @@
     <Dependency Include="Microsoft.NETCore.Windows.ApiSets">
       <Version>$(WindowsAPISetPackageVersion)</Version>
     </Dependency>
+    <Dependency Include="runtime.native.System">
+      <Version>$(SystemNativePackageVersion)</Version>
+    </Dependency>
     <ProjectReference Include="..\Microsoft.NETCore.Jit\Microsoft.NETCore.Jit.pkgproj" />
     <ProjectReference Include="win\Microsoft.NETCore.Runtime.CoreCLR.pkgproj">
       <Platform>amd64</Platform>
