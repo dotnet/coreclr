@@ -544,7 +544,10 @@ namespace System
 
         public unsafe static string Join(char separator, params string[] value)
         {
-            // Defer argument validation to the internal function
+            if (value == null)
+            {
+                throw new ArgumentNullException(nameof(value));
+            }
             return JoinCore(&separator, 1, value, 0, value.Length);
         }
 
@@ -570,11 +573,14 @@ namespace System
         //
         public unsafe static string Join(string separator, params string[] value)
         {
+            if (value == null)
+            {
+                throw new ArgumentNullException(nameof(value));
+            }
             if (string.IsNullOrEmpty(separator))
                 return string.Concat(value);
             fixed (char* pSeparator = &separator.m_firstChar)
             {
-                // Defer argument validation to the internal function
                 return JoinCore(pSeparator, separator.Length, value, 0, value.Length);
             }
         }
@@ -630,6 +636,11 @@ namespace System
 
         private unsafe static string JoinCore(char* separator, int separatorLength, object[] values)
         {
+            // If the separator is null, it is converted to an empty string before entering this function.
+            // Even for empty strings, fixed should never return null (it should return a pointer to a null char).
+            Contract.Assert(separator != null);
+            Contract.Assert(separatorLength >= 0);
+
             if (values == null)
             {
                 throw new ArgumentNullException(nameof(values));
@@ -665,6 +676,11 @@ namespace System
 
         private unsafe static string JoinCore<T>(char* separator, int separatorLength, IEnumerable<T> values)
         {
+            // If the separator is null, it is converted to an empty string before entering this function.
+            // Even for empty strings, fixed should never return null (it should return a pointer to a null char).
+            Contract.Assert(separator != null);
+            Contract.Assert(separatorLength >= 0);
+
             if (values == null)
             {
                 throw new ArgumentNullException(nameof(values));
