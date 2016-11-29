@@ -1169,10 +1169,10 @@ HRESULT CeeFileGenWriter::emitResourceSection()
         S_SIZE_T cbTotalSizeOfRawData;
 
         char *data = NULL;
-        SIZE_T            cReloc        = 0;
-        IMAGE_RELOCATION *pReloc        = NULL;
-        SIZE_T            cSymbol       = 0;
-        IMAGE_SYMBOL     *pSymbolTable  = NULL;
+        SIZE_T cReloc = 0;
+        IMAGE_RELOCATION *pReloc = NULL;
+        SIZE_T cSymbol = 0;
+        IMAGE_SYMBOL *pSymbolTable = NULL;
 
         // create a mapped view of the .res file
         pParam->hFile = WszCreateFile(pParam->szResFileName, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);

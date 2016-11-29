@@ -2408,7 +2408,7 @@ HRESULT WinMDAdapter::TranslateWinMDAttributeUsageAttribute(mdTypeDef tkTypeDefO
         IfFailGo(COR_E_BADIMAGEFORMAT);
     }
 
-    { // limiting the scope of wfTargetValue
+    {
         DWORD wfTargetValue = *(DWORD*)(pbWFUsageBlob + 2);
         *pClrTargetValue = ConvertToClrAttributeTarget(wfTargetValue);
     }

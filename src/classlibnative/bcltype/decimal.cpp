@@ -399,19 +399,19 @@ unsigned int DecDivMod1E9(DECIMAL* value)
     LIMITED_METHOD_CONTRACT
 
     _asm {
-        MOV     ebx,value
-        MOV     ecx,1000000000
-        XOR     edx,edx
-        MOV     eax,[ebx+4]
-        DIV     ecx
-        MOV     [ebx+4],eax
-        MOV     eax,[ebx+12]
-        DIV     ecx
-        MOV     [ebx+12],eax
-        MOV     eax,[ebx+8]
-        DIV     ecx
-        MOV     [ebx+8],eax
-        MOV     eax,edx
+        mov     ebx,value
+        mov     ecx,1000000000
+        xor     edx,edx
+        mov     eax,[ebx+4]
+        div     ecx
+        mov     [ebx+4],eax
+        mov     eax,[ebx+12]
+        div     ecx
+        mov     [ebx+12],eax
+        mov     eax,[ebx+8]
+        div     ecx
+        mov     [ebx+8],eax
+        mov     eax,edx
     }
 }
 
@@ -420,25 +420,25 @@ void DecMul10(DECIMAL* value)
     LIMITED_METHOD_CONTRACT
 
     _asm {
-        MOV     ebx,value
-        MOV     eax,[ebx+8]
-        MOV     edx,[ebx+12]
-        MOV     ecx,[ebx+4]
-        SHL     eax,1
-        RCL     edx,1
-        RCL     ecx,1
-        SHL     eax,1
-        RCL     edx,1
-        RCL     ecx,1
-        ADD     eax,[ebx+8]
-        ADC     edx,[ebx+12]
-        ADC     ecx,[ebx+4]
-        SHL     eax,1
-        RCL     edx,1
-        RCL     ecx,1
-        MOV     [ebx+8],eax
-        MOV     [ebx+12],edx
-        MOV     [ebx+4],ecx
+        mov     ebx,value
+        mov     eax,[ebx+8]
+        mov     edx,[ebx+12]
+        mov     ecx,[ebx+4]
+        shl     eax,1
+        rcl     edx,1
+        rcl     ecx,1
+        shl     eax,1
+        rcl     edx,1
+        rcl     ecx,1
+        add     eax,[ebx+8]
+        adc     edx,[ebx+12]
+        adc     ecx,[ebx+4]
+        shl     eax,1
+        rcl     edx,1
+        rcl     ecx,1
+        mov     [ebx+8],eax
+        mov     [ebx+12],edx
+        mov     [ebx+4],ecx
     }
 }
 
@@ -447,11 +447,11 @@ void DecAddInt32(DECIMAL* value, unsigned int i)
     LIMITED_METHOD_CONTRACT
 
     _asm {
-        MOV     edx,value
-        MOV     eax,i
-        ADD     dword ptr [edx+8],eax
-        ADC     dword ptr [edx+12],0
-        ADC     dword ptr [edx+4],0
+        mov     edx,value
+        mov     eax,i
+        add     dword ptr [edx+8],eax
+        adc     dword ptr [edx+12],0
+        adc     dword ptr [edx+4],0
     }
 }
 

@@ -466,7 +466,7 @@ HRESULT SidBuffer::InitFromProcessAppContainerSidNoThrow(DWORD pid)
         goto exit;
     }
 
-    { // limiting the scope of declared variables
+    {
         PTOKEN_APPCONTAINER_INFORMATION pTokPack = (PTOKEN_APPCONTAINER_INFORMATION)&PackSid;
         PSID pLowBoxPackage = pTokPack->TokenPackage;
         DWORD dwSidLen = GetLengthSid(pLowBoxPackage);

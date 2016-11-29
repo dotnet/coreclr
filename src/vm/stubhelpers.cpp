@@ -252,10 +252,10 @@ FORCEINLINE static void GetCOMIPFromRCW_ClearFP()
     // and is faster than _clearfp().
     __asm
     {
-        FNSTSW ax
-        AND    eax, 0x3F
-        JZ     NoNeedToClear
-        FNCLEX
+        fnstsw ax
+        and    eax, 0x3F
+        jz     NoNeedToClear
+        fnclex
 NoNeedToClear:
     }
 #endif // _TARGET_X86_

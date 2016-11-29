@@ -1657,7 +1657,7 @@ class WinMDImport : public IMetaDataImport2
             IfFailGo(m_pRawAssemblyImport->EnumAssemblyRefs(phEnum, NULL, 0, NULL));
 
             {
-                // Step 2: Increment the cound to include the extra assembly refs
+                // Step 2: Increment the count to include the extra assembly refs
                 HENUMInternal *phInternalEnum = static_cast<HENUMInternal*>(*phEnum);
 
                 _ASSERTE(phInternalEnum->m_EnumType == MDSimpleEnum);
