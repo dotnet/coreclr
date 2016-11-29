@@ -150,6 +150,7 @@ publish/
 *.nupkg
 **/packages/*
 project.lock.json
+src/.nuget/**/localpkg
 
 # Windows Azure Build Output
 csx/
