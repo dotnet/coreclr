@@ -7083,9 +7083,9 @@ void CodeGen::genCodeForTreeSmpBinArithLogOp(GenTreePtr tree, regMaskTP destReg,
         /* Compute the new value */
 
         if (isArith && !op2->InReg() && (op2->OperKind() & GTK_CONST)
-    #if !CPU_HAS_FP_SUPPORT
+#if !CPU_HAS_FP_SUPPORT
             && (treeType == TYP_INT || treeType == TYP_I_IMPL)
-    #endif
+#endif
                 )
         {
             ssize_t ival = op2->gtIntCon.gtIconVal;
@@ -7097,8 +7097,8 @@ void CodeGen::genCodeForTreeSmpBinArithLogOp(GenTreePtr tree, regMaskTP destReg,
             else if (oper == GT_SUB)
             {
                 if (ovfl && ((tree->gtFlags & GTF_UNSIGNED) ||
-                            (ival == ((treeType == TYP_INT) ? INT32_MIN : SSIZE_T_MIN))) // -0x80000000 == 0x80000000.
-                                                                                        // Therefore we can't use -ival.
+                             (ival == ((treeType == TYP_INT) ? INT32_MIN : SSIZE_T_MIN))) // -0x80000000 == 0x80000000.
+                    // Therefore we can't use -ival.
                     )
                 {
                     /* For unsigned overflow, we have to use INS_sub to set
