@@ -578,7 +578,9 @@ namespace System
                 throw new ArgumentNullException(nameof(value));
             }
             if (string.IsNullOrEmpty(separator))
+            {
                 return string.Concat(value);
+            }
             fixed (char* pSeparator = &separator.m_firstChar)
             {
                 return JoinCore(pSeparator, separator.Length, value, 0, value.Length);
@@ -589,7 +591,10 @@ namespace System
         public unsafe static string Join(string separator, params object[] values)
         {
             if (string.IsNullOrEmpty(separator))
+            {
+                // Defer argument validation to the internal function
                 return string.Concat(values);
+            }
             fixed (char* pSeparator = &separator.m_firstChar)
             {
                 // Defer argument validation to the internal function
@@ -601,7 +606,10 @@ namespace System
         public unsafe static string Join<T>(string separator, IEnumerable<T> values)
         {
             if (string.IsNullOrEmpty(separator))
+            {
+                // Defer argument validation to the internal function
                 return string.Concat(values);
+            }
             fixed (char* pSeparator = &separator.m_firstChar)
             {
                 // Defer argument validation to the internal function
@@ -613,7 +621,10 @@ namespace System
         public unsafe static string Join(string separator, IEnumerable<string> values)
         {
             if (string.IsNullOrEmpty(separator))
+            {
+                // Defer argument validation to the internal function
                 return string.Concat(values);
+            }
             fixed (char* pSeparator = &separator.m_firstChar)
             {
                 // Defer argument validation to the internal function
