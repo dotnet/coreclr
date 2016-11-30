@@ -1214,3 +1214,51 @@ void GCToEEInterface::DiagWalkBGCSurvivors(void* gcContext)
 #endif //GC_PROFILING || FEATURE_EVENT_TRACE
 }
 
+void GCToEEInterface::StompWriteBarrierResize(WriteBarrierResizeArgs args)
+{
+    g_card_table = args.new_card_table;
+    ::StompWriteBarrierResize(args.is_runtime_suspended, args.requires_upper_bounds_check);
+
+    // We need to make sure that other threads executing checked write barriers
+    // will see the g_card_table update before g_lowest/highest_address updates.
+    // Otherwise, the checked write barrier may AV accessing the old card table
+    // with address that it does not cover. Write barriers access card table 
+    // without memory barriers for performance reasons, so we need to flush 
+    // the store buffers here.
+    FlushProcessWriteBuffers();
+
+    g_lowest_address = args.new_lowest_address;
+    VolatileStore(&g_highest_address, args.new_highest_address);
+}
+
+void GCToEEInterface::StompWriteBarrierEphemeral(WriteBarrierEphemeralArgs args)
+{
+    // It is not correct to update g_ephemeral_low and g_ephemeral_high when
+    // using Server GC, since there is no single ephemeral generation across
+    // all of the heaps. Server GC write barriers do not reference these two
+    // globals, but ErectWriteBarrier does.
+    if (!GCHeapUtilities::IsServerHeap())
+    {
+        g_ephemeral_low = args.new_ephemeral_low;
+        g_ephemeral_high = args.new_ephemeral_high;
+    }
+    
+    ::StompWriteBarrierEphemeral(args.is_runtime_suspended);
+}
+
+void GCToEEInterface::StompWriteBarrierInitialize(WriteBarrierResizeArgs args)
+{
+    // This method should only be called once, upon initialization.
+    assert(g_card_table == nullptr);
+    assert(g_lowest_address == nullptr);
+    assert(g_highest_address == nullptr);
+    assert(args.is_runtime_suspended && "the runtime must be suspended here!");
+    assert(!args.requires_upper_bounds_check && "the ephemeral generation must be at the top of the heap!");
+
+    g_card_table = args.new_card_table;
+    FlushProcessWriteBuffers();
+    g_lowest_address = args.new_lowest_address;
+    VolatileStore(&g_highest_address, args.new_highest_address);
+    ::StompWriteBarrierResize(true, false);
+}
+

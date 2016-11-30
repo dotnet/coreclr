@@ -249,6 +249,18 @@ void GCToEEInterface::DiagWalkBGCSurvivors(void* gcContext)
 {
 }
 
+void GCToEEInterface::StompWriteBarrierResize(WriteBarrierResizeArgs args)
+{
+}
+
+void GCToEEInterface::StompWriteBarrierEphemeral(WriteBarrierEphemeralArgs args)
+{
+}
+
+void GCToEEInterface::StompWriteBarrierInitialize(WriteBarrierResizeArgs args)
+{
+}
+
 void FinalizerThread::EnableFinalization()
 {
     // Signal to finalizer thread that there are objects to finalize
@@ -264,14 +276,6 @@ bool IsGCSpecialThread()
 {
     // TODO: Implement for background GC
     return false;
-}
-
-void StompWriteBarrierEphemeral(bool /* isRuntimeSuspended */)
-{
-}
-
-void StompWriteBarrierResize(bool /* isRuntimeSuspended */, bool /*bReqUpperBoundsCheck*/)
-{
 }
 
 bool IsGCThread()

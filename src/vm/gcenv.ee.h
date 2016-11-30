@@ -41,6 +41,9 @@ public:
     void DiagWalkSurvivors(void* gcContext);
     void DiagWalkLOHSurvivors(void* gcContext);
     void DiagWalkBGCSurvivors(void* gcContext);
+    void StompWriteBarrierResize(WriteBarrierResizeArgs args);
+    void StompWriteBarrierEphemeral(WriteBarrierEphemeralArgs args);
+    void StompWriteBarrierInitialize(WriteBarrierEphemeralArgs args);
 };
 
 #endif // FEATURE_STANDALONE_GC

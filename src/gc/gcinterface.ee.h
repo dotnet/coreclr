@@ -123,6 +123,21 @@ public:
     // At the end of a background GC, gives the diagnostics code a chance to run.
     virtual
     void DiagWalkBGCSurvivors(void* gcContext) = 0;
+
+    // Informs the EE of changes to the location of the card table, potentially updating the write
+    // barrier if it needs to be updated.
+    virtual
+    void StompWriteBarrierResize(WriteBarrierResizeArgs args) = 0;
+
+    // Informs the EE of changes to the bounds of the ephemeral generation, potentially
+    // updating the write barrier if it needs to be updated.
+    virtual
+    void StompWriteBarrierEphemeral(WriteBarrierEphemeralArgs args) = 0;
+
+    // Informs the EE of the initial configuration of the heap upon startup, potentially
+    // initializing the write barrier.
+    virtual
+    void StompWriteBarrierInitialize(WriteBarrierResizeArgs args) = 0;
 };
 
 #endif // _GCINTERFACE_EE_H_

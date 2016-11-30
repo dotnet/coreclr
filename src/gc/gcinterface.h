@@ -41,6 +41,51 @@ typedef enum
     walk_for_loh = 3
 } walk_surv_type;
 
+// Arguments to GCToEEInterface::StompWriteBarrierResize and
+// GCToEEInterface::StompWriteBarrierInitialize. 
+struct WriteBarrierResizeArgs 
+{
+    // Whether or not the runtime is currently suspended. If it is not,
+    // the EE will need to suspend it before bashing the write barrier.
+    bool is_runtime_suspended;
+
+    // Whether or not the GC has moved the ephemeral generation to no longer
+    // be at the top of the heap. When the ephemeral generation is at the top
+    // of the heap, and the write barrier observes that a pointer is greater than
+    // g_ephemeral_low, it does not need to check that the pointer is less than
+    // g_ephemeral_high because there is nothing in the GC heap above the ephemeral
+    // generation. When this is not the case, however, the GC must inform the EE
+    // so that the EE can switch to a write barrier that checks that a pointer
+    // is both greater than g_ephemeral_low and less than g_ephemeral_high.
+    bool requires_upper_bounds_check;
+
+    // The new card table location. May or may not be the same as the previous
+    // card table.
+    uint32_t* new_card_table;
+
+    // The heap's new low boundary. May or may not be the same as the previous
+    // value.
+    uint8_t* new_lowest_address;
+
+    // The heap's new high boundary. May or may not be the same as the previous
+    // value.
+    uint8_t* new_highest_address;
+};
+
+// Arguments to GCToEEInterface::StompWriteBarrierEphemeral.
+struct WriteBarrierEphemeralArgs 
+{
+    // Whether or not the runtime is currently suspended. If it is not,
+    // the EE will need to suspend it before bashing the write barrier.
+    bool is_runtime_suspended;
+
+    // The new start of the ephemeral generation. 
+    uint8_t* new_ephemeral_low;
+
+    // The new end of the ephemeral generation.
+    uint8_t* new_ephemeral_high;
+};
+
 #include "gcinterface.ee.h"
 
 // The allocation context must be known to the VM for use in the allocation
@@ -109,19 +154,6 @@ IGCHeap* InitializeGarbageCollector(IGCToCLR* clrToGC);
 // heap that will be created, before InitializeGarbageCollector is called
 // and the heap is actually recated.
 void InitializeHeapType(bool bServerHeap);
-
-#ifndef DACCESS_COMPILE
-extern "C" {
-#endif // !DACCESS_COMPILE
-GPTR_DECL(uint8_t,g_lowest_address);
-GPTR_DECL(uint8_t,g_highest_address);
-GPTR_DECL(uint32_t,g_card_table);
-#ifndef DACCESS_COMPILE
-} 
-#endif // !DACCESS_COMPILE
-
-extern "C" uint8_t* g_ephemeral_low;
-extern "C" uint8_t* g_ephemeral_high;
 
 #ifdef WRITE_BARRIER_CHECK
 //always defined, but should be 0 in Server GC
