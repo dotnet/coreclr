@@ -181,18 +181,6 @@ namespace System.Globalization {
         // genitive form or leap year month names.
         [OptionalField(VersionAdded = 2)]
         internal DateTimeFormatFlags formatFlags = DateTimeFormatFlags.NotInitialized;
-        internal static bool preferExistingTokens = InitPreferExistingTokens();
-
-
-        [System.Security.SecuritySafeCritical]
-        static bool InitPreferExistingTokens()
-        {
-            bool ret = false;
-#if !FEATURE_CORECLR
-            ret = DateTime.LegacyParseMode();
-#endif
-            return ret;
-        }
 
         private String CultureName
         {
