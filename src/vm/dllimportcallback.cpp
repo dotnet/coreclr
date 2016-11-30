@@ -709,8 +709,10 @@ VOID UMEntryThunk::CompileUMThunkWorker(UMThunkStubInfo *pInfo,
     static const BYTE codeSEH[] = { 0x64, 0x89, 0x15, 0x0, 0x0, 0x0, 0x0 };
     pcpusl->EmitBytes(codeSEH, sizeof(codeSEH));
 
+#ifndef FEATURE_PAL
     // deallocate SEH frame
     pcpusl->X86EmitAddEsp(sizeof(FrameHandlerExRecord));
+#endif
 
 #ifdef PROFILING_SUPPORTED
     if (CORProfilerTrackTransitions())
