@@ -2881,7 +2881,7 @@ namespace System.Globalization {
                                 // - if the app is targetting 4.5.1 or above OR the compat flag is set, use the correct behavior by default.
                                 // - if the app is targetting 4.5 or below AND the compat switch is set, use the correct behavior
                                 // - if the app is targetting 4.5 or below AND the compat switch is NOT set, use the incorrect behavior
-                                if (preferExistingTokens || BinaryCompatibility.TargetsAtLeast_Desktop_V4_5_1)
+                                if (preferExistingTokens)
                                 {
                                     if (((nCurrentTokenTypeInHash & (int)TokenType.RegularTokenMask) == 0) && ((nTokenType & (int)TokenType.RegularTokenMask) != 0) ||
                                        ((nCurrentTokenTypeInHash & (int)TokenType.SeparatorTokenMask) == 0) && ((nTokenType & (int)TokenType.SeparatorTokenMask) != 0))
