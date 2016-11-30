@@ -1135,7 +1135,7 @@ public:
     }
 #endif
 
-#if defined(_TARGET_X86_) && !defined(FEATURE_PAL)
+#if (defined(_TARGET_X86_) && !defined(FEATURE_PAL)) || defined(WIN64EXCEPTIONS)
     virtual TADDR GetReturnAddressPtr()
     {
         LIMITED_METHOD_DAC_CONTRACT;
