@@ -1134,6 +1134,7 @@ public:
 #define HCCALL5(funcname, a1, a2, a3, a4, a5)   funcname(0, a2, a1, a5, a4, a3)
 #define HCCALL1_PTR(rettype, funcptr, a1)        rettype (F_CALL_CONV * funcptr)(int /* EAX */, int /* EDX */, a1)
 #define HCCALL2_PTR(rettype, funcptr, a1, a2)    rettype (F_CALL_CONV * funcptr)(int /* EAX */, a2, a1)
+#define HCCALL2_TYPEDEF(rettype, ty, a1, a2)     typedef rettype (F_CALL_CONV * ty)(int /* EAX */, a2, a1)
 #else
 
 #define HCIMPL0(rettype, funcname) rettype F_CALL_CONV funcname() { HCIMPL_PROLOG(funcname) 
@@ -1157,6 +1158,7 @@ public:
 #define HCCALL5(funcname, a1, a2, a3, a4, a5)   funcname(a1, a2, a5, a4, a3)
 #define HCCALL1_PTR(rettype, funcptr, a1)        rettype (F_CALL_CONV * funcptr)(a1)
 #define HCCALL2_PTR(rettype, funcptr, a1, a2)    rettype (F_CALL_CONV * funcptr)(a1, a2)
+#define HCCALL2_TYPEDEF(rettype, ty, a1, a2)     typedef rettype (F_CALL_CONV * ty)(a1, a2)
 
 #endif
 
@@ -1186,6 +1188,7 @@ public:
 #define HCCALL5(funcname, a1, a2, a3, a4, a5)   funcname(a1, a2, a3, a4, a5)
 #define HCCALL1_PTR(rettype, funcptr, a1)        rettype (F_CALL_CONV * funcptr)(a1)
 #define HCCALL2_PTR(rettype, funcptr, a1, a2)    rettype (F_CALL_CONV * funcptr)(a1, a2)
+#define HCCALL2_TYPEDEF(rettype, ty, a1, a2)     typedef rettype (F_CALL_CONV * ty)(a1, a2)
 
 #endif
 
