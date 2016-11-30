@@ -198,7 +198,7 @@ Epilog:
     }
 }
 
-extern "C" __declspec(naked) Object* F_CALL_CONV JIT_IsInstanceOfClass(MethodTable *pMT, Object *pObject)
+HCIMPL2(Object*, JIT_IsInstanceOfClass, MethodTable *pMT, Object *pObject)
 {
     STATIC_CONTRACT_SO_TOLERANT;
     STATIC_CONTRACT_THROWS;
@@ -256,8 +256,9 @@ extern "C" __declspec(naked) Object* F_CALL_CONV JIT_IsInstanceOfClass(MethodTab
 #endif            
     }
 }
+HCIMPLEND
 
-extern "C" __declspec(naked) Object* F_CALL_CONV JIT_ChkCastClass(MethodTable *pMT, Object *pObject)
+HCIMPL2(Object*, JIT_ChkCastClass, MethodTable *pMT, Object *pObject)
 {
     STATIC_CONTRACT_SO_TOLERANT;
     STATIC_CONTRACT_THROWS;
@@ -296,8 +297,9 @@ extern "C" __declspec(naked) Object* F_CALL_CONV JIT_ChkCastClass(MethodTable *p
         jmp             JITutil_ChkCastAny
     }
 }
+HCIMPLEND
 
-extern "C" __declspec(naked) Object* F_CALL_CONV JIT_ChkCastClassSpecial(MethodTable *pMT, Object *pObject)
+HCIMPL2(Object*, JIT_ChkCastClassSpecial, MethodTable *pMT, Object *pObject)
 {
     STATIC_CONTRACT_SO_TOLERANT;
     STATIC_CONTRACT_THROWS;
@@ -330,6 +332,7 @@ extern "C" __declspec(naked) Object* F_CALL_CONV JIT_ChkCastClassSpecial(MethodT
         jmp             JITutil_ChkCastAny
     }
 }
+HCIMPLEND
 
 HCIMPL1_V(INT32, JIT_Dbl2IntOvf, double val)
 {
