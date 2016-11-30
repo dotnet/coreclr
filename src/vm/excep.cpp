@@ -1675,7 +1675,7 @@ bool FinallyIsUnwinding(EHRangeTreeNode *pNode,
         return false;
 }
 
-#ifndef WIN64EXCEPTIONS
+#if !defined(WIN64EXCEPTIONS) && !defined(FEATURE_PAL)
 BOOL LeaveCatch(ICodeManager* pEECM,
                 Thread *pThread,
                 CONTEXT *pCtx,
@@ -1865,7 +1865,7 @@ HRESULT IsLegalTransition(Thread *pThread,
                 case TCF_NONE:
                 case TCF_TRY:
                 {
-#if !defined(WIN64EXCEPTIONS)
+#if !defined(WIN64EXCEPTIONS) && !defined(FEATURE_PAL)
                     CONTEXT *pFilterCtx = pThread->GetFilterContext();
                     if (pFilterCtx == NULL)
                         return CORDBG_E_SET_IP_IMPOSSIBLE;
