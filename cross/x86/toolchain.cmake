@@ -7,7 +7,6 @@ set(CMAKE_SYSTEM_PROCESSOR i686)
 add_compile_options("-m32")
 add_compile_options("--sysroot=${CROSS_ROOTFS}")
 add_compile_options("-Wno-error=unused-command-line-argument")
-add_compile_options("-Wno-missing-prototype-for-cc")
 
 set(CROSS_LINK_FLAGS "${CROSS_LINK_FLAGS} --sysroot=${CROSS_ROOTFS}")
 set(CROSS_LINK_FLAGS "${CROSS_LINK_FLAGS} -B ${CROSS_ROOTFS}/usr/lib/gcc/i686-linux-gnu")
