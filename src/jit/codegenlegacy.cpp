@@ -457,6 +457,7 @@ regNumber CodeGen::genGetRegSetToIcon(ssize_t val, regMaskTP regBest /* = 0 */, 
 void CodeGen::genIncRegBy(regNumber reg, ssize_t ival, GenTreePtr tree, var_types dstType, bool ovfl)
 {
     bool setFlags = (tree != NULL) && tree->gtSetFlags();
+    insFlags flags = INS_FLAGS_DONT_CARE;
 
 #ifdef _TARGET_XARCH_
     /* First check to see if we can generate inc or dec instruction(s) */
@@ -486,7 +487,7 @@ void CodeGen::genIncRegBy(regNumber reg, ssize_t ival, GenTreePtr tree, var_type
     }
 #endif
 
-    insFlags flags = setFlags ? INS_FLAGS_SET : INS_FLAGS_DONT_CARE;
+    flags = setFlags ? INS_FLAGS_SET : INS_FLAGS_DONT_CARE;
     inst_RV_IV(INS_add, reg, ival, emitActualTypeSize(dstType), flags);
 
 #ifdef _TARGET_XARCH_
@@ -6952,6 +6953,8 @@ void CodeGen::genCodeForTreeSmpBinArithLogOp(GenTreePtr tree, regMaskTP destReg,
     /* Make the second operand addressable */
 
     regMaskTP addrReg = genMakeRvalueAddressable(op2, RBM_ALLINT, RegSet::KEEP_REG, isSmallConst);
+    bool op2Released = false;
+    emitAttr opSize = EA_UNKNOWN;
 
 #if CPU_LOAD_STORE_ARCH
     genRecoverReg(op1, RBM_ALLINT, RegSet::KEEP_REG);
@@ -7071,12 +7074,10 @@ void CodeGen::genCodeForTreeSmpBinArithLogOp(GenTreePtr tree, regMaskTP destReg,
 
     regTracker.rsTrackRegTrash(reg);
 
-    bool op2Released = false;
-
     // For overflow instructions, tree->gtType is the accurate type,
     // and gives us the size for the operands.
 
-    emitAttr opSize = emitTypeSize(treeType);
+    opSize = emitTypeSize(treeType);
 
     /* Compute the new value */
 
