@@ -205,12 +205,16 @@ namespace System.Collections.Generic {
             }
         }
 
-        public TValue this[TKey key] {
-            get {
-                int i = FindEntry(key);
-                if (i >= 0) return entries[i].value;
-                ThrowHelper.ThrowKeyNotFoundException();
-                return default(TValue);
+        public TValue this[TKey key]
+        {
+            get
+            {
+                TValue result;
+                if (!TryGetValue(key, out result))
+                {
+                    ThrowHelper.ThrowKeyNotFoundException();
+                }
+                return result;
             }
             set {
                 Insert(key, value, false);
@@ -225,17 +229,17 @@ namespace System.Collections.Generic {
             Add(keyValuePair.Key, keyValuePair.Value);
         }
 
-        bool ICollection<KeyValuePair<TKey, TValue>>.Contains(KeyValuePair<TKey, TValue> keyValuePair) {
-            int i = FindEntry(keyValuePair.Key);
-            if( i >= 0 && EqualityComparer<TValue>.Default.Equals(entries[i].value, keyValuePair.Value)) {
-                return true;
-            }
-            return false;
+        bool ICollection<KeyValuePair<TKey, TValue>>.Contains(KeyValuePair<TKey, TValue> keyValuePair)
+        {
+            TValue value;
+            return TryGetValue(keyValuePair.Key, out value) && EqualityComparer<TValue>.Default.Equals(value, keyValuePair.Value);
         }
 
-        bool ICollection<KeyValuePair<TKey, TValue>>.Remove(KeyValuePair<TKey, TValue> keyValuePair) {
-            int i = FindEntry(keyValuePair.Key);
-            if( i >= 0 && EqualityComparer<TValue>.Default.Equals(entries[i].value, keyValuePair.Value)) {
+        bool ICollection<KeyValuePair<TKey, TValue>>.Remove(KeyValuePair<TKey, TValue> keyValuePair)
+        {
+            TValue value;
+            if (TryGetValue(keyValuePair.Key, out value) && EqualityComparer<TValue>.Default.Equals(value, keyValuePair.Value))
+            {
                 Remove(keyValuePair.Key);
                 return true;
             }
@@ -253,8 +257,10 @@ namespace System.Collections.Generic {
             }
         }
 
-        public bool ContainsKey(TKey key) {
-            return FindEntry(key) >= 0;
+        public bool ContainsKey(TKey key)
+        {
+            TValue unused;
+            return TryGetValue(key, out unused);
         }
 
         public bool ContainsValue(TValue value) {
@@ -321,20 +327,6 @@ namespace System.Collections.Generic {
                 CopyTo(array, 0);
                 info.AddValue(KeyValuePairsName, array, typeof(KeyValuePair<TKey, TValue>[]));
             }
-        }
-
-        private int FindEntry(TKey key) {
-            if( key == null) {
-                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.key);
-            }
-
-            if (buckets != null) {
-                int hashCode = comparer.GetHashCode(key) & 0x7FFFFFFF;
-                for (int i = buckets[hashCode % buckets.Length]; i >= 0; i = entries[i].next) {
-                    if (entries[i].hashCode == hashCode && comparer.Equals(entries[i].key, key)) return i;
-                }
-            }
-            return -1;
         }
 
         private void Initialize(int capacity) {
@@ -528,12 +520,26 @@ namespace System.Collections.Generic {
             return false;
         }
 
-        public bool TryGetValue(TKey key, out TValue value) {
-            int i = FindEntry(key);
-            if (i >= 0) {
-                value = entries[i].value;
-                return true;
+        public bool TryGetValue(TKey key, out TValue value)
+        {
+            if (key == null)
+            {
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.key);
             }
+
+            if (buckets != null)
+            {
+                int hashCode = comparer.GetHashCode(key) & 0x7FFFFFFF;
+                for (int i = buckets[hashCode % buckets.Length]; i >= 0; i = entries[i].next)
+                {
+                    if (entries[i].hashCode == hashCode && comparer.Equals(entries[i].key, key))
+                    {
+                        value = entries[i].value;
+                        return true;
+                    }
+                }
+            }
+
             value = default(TValue);
             return false;
         }
@@ -542,12 +548,11 @@ namespace System.Collections.Generic {
         // Many were combining key doesn't exist and key exists but null value (for non-value types) checks.
         // This allows them to continue getting that behavior with minimal code delta. This is basically
         // TryGetValue without the out param
-        internal TValue GetValueOrDefault(TKey key) {
-            int i = FindEntry(key);
-            if (i >= 0) {
-                return entries[i].value;
-            }
-            return default(TValue);
+        internal TValue GetValueOrDefault(TKey key)
+        {
+            TValue result;
+            TryGetValue(key, out result);
+            return result;
         }
 
         bool ICollection<KeyValuePair<TKey,TValue>>.IsReadOnly {
@@ -646,14 +651,18 @@ namespace System.Collections.Generic {
             get { return (ICollection)Values; }
         }
     
-        object IDictionary.this[object key] {
-            get { 
-                if( IsCompatibleKey(key)) {                
-                    int i = FindEntry((TKey)key);
-                    if (i >= 0) { 
-                        return entries[i].value;                
+        object IDictionary.this[object key]
+        {
+            get
+            {
+                if (IsCompatibleKey(key))
+                {
+                    TValue result;
+                    if (TryGetValue((TKey)key, out result))
+                    {
+                        return result;
                     }
-                }
+                } 
                 return null;
             }
             set {                 
