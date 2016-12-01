@@ -1595,12 +1595,7 @@ extern "C" VOID STDCALL StubRareDisableTHROWWorker(Thread *pThread)
     pThread->HandleThreadAbort();
 }
 
-#ifdef FEATURE_PAL
-VOID __cdecl PopSEHRecords(LPVOID pTargetSP)
-{
-  _ASSERTE("NYI");
-}
-#else // FEATURE_PAL
+#ifndef FEATURE_PAL
 // Note that this logic is copied below, in PopSEHRecords
 __declspec(naked)
 VOID __cdecl PopSEHRecords(LPVOID pTargetSP)
