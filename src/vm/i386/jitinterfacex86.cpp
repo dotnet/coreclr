@@ -72,37 +72,14 @@ extern "C" void STDCALL WriteBarrierAssert(BYTE* ptr, Object* obj)
 
 #endif // _DEBUG
 
-#ifdef FEATURE_PAL
-FCDECL3(void, JIT_Stelem_Ref, PtrArray* array, unsigned idx, Object* val)
-{
-    PORTABILITY_ASSERT("JIT_Stelem_Ref");
-}
-
-FCDECL2(Object*, JIT_IsInstanceOfClass, MethodTable *pMT, Object *pObject)
-{
-    PORTABILITY_ASSERT("JIT_IsInstanceOfClass");
-    return NULL;
-}
-
-FCDECL2(Object*, JIT_ChkCastClass, MethodTable *pMT, Object *pObject)
-{
-    PORTABILITY_ASSERT("JIT_ChkCastClass");
-    return NULL;
-}
-
-FCDECL2(Object*, JIT_ChkCastClassSpecial, MethodTable *pMT, Object *pObject)
-{
-    PORTABILITY_ASSERT("JIT_ChkCastClassSpecial");
-    return NULL;
-}
-#else  // FEATURE_PAL
+#ifdef _MSCVER
 /****************************************************************************/
 /* assigns 'val to 'array[idx], after doing all the proper checks */
 
 /* note that we can do almost as well in portable code, but this
    squezes the last little bit of perf out */
 
-__declspec(naked) FCDECL3(void, JIT_Stelem_Ref, PtrArray* array, unsigned idx, Object* val)
+__declspec(naked) void F_CALL_CONV JIT_Stelem_Ref(PtrArray* array, unsigned idx, Object* val)
 {
     STATIC_CONTRACT_SO_TOLERANT;
     STATIC_CONTRACT_THROWS;
@@ -222,7 +199,7 @@ Epilog:
     }
 }
 
-extern "C" __declspec(naked) FCDECL2(Object*, JIT_IsInstanceOfClass, MethodTable *pMT, Object *pObject)
+extern "C" __declspec(naked) Object* F_CALL_CONV JIT_IsInstanceOfClass(MethodTable *pMT, Object *pObject)
 {
     STATIC_CONTRACT_SO_TOLERANT;
     STATIC_CONTRACT_THROWS;
@@ -281,7 +258,7 @@ extern "C" __declspec(naked) FCDECL2(Object*, JIT_IsInstanceOfClass, MethodTable
     }
 }
 
-extern "C" __declspec(naked) FCDECL2(Object*, JIT_ChkCastClass, MethodTable *pMT, Object *pObject)
+extern "C" __declspec(naked) Object* F_CALL_CONV JIT_ChkCastClass(MethodTable *pMT, Object *pObject)
 {
     STATIC_CONTRACT_SO_TOLERANT;
     STATIC_CONTRACT_THROWS;
@@ -321,7 +298,7 @@ extern "C" __declspec(naked) FCDECL2(Object*, JIT_ChkCastClass, MethodTable *pMT
     }
 }
 
-extern "C" __declspec(naked) FCDECL2(Object*, JIT_ChkCastClassSpecial, MethodTable *pMT, Object *pObject)
+extern "C" __declspec(naked) Object* F_CALL_CONV JIT_ChkCastClassSpecial(MethodTable *pMT, Object *pObject)
 {
     STATIC_CONTRACT_SO_TOLERANT;
     STATIC_CONTRACT_THROWS;
