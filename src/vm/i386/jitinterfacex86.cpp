@@ -331,7 +331,7 @@ extern "C" __declspec(naked) Object* F_CALL_CONV JIT_ChkCastClassSpecial(MethodT
         jmp             JITutil_ChkCastAny
     }
 }
-#endif // FEATURE_PAL
+#endif // _MSCVER
 
 HCIMPL1_V(INT32, JIT_Dbl2IntOvf, double val)
 {
