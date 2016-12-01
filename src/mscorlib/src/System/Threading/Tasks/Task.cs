@@ -5498,7 +5498,7 @@ namespace System.Threading.Tasks
         /// <returns>The successfully completed task.</returns>
         public static Task<TResult> FromResult<TResult>(TResult result)
         {
-            return new Task<TResult>(result);
+            return Task<TResult>.GetTaskForResult(result);
         }
 
         /// <summary>Creates a <see cref="Task{TResult}"/> that's completed exceptionally with the specified exception.</summary>
