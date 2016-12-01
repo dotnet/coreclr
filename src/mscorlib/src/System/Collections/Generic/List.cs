@@ -1068,7 +1068,7 @@ namespace System.Collections.Generic {
                     ThrowHelper.ThrowInvalidOperationException_InvalidOperation_EnumFailedVersion();
                 }
 
-                index = list._size + 1;
+                index = -1; // Current shoud throw InvalidOperationException even after new elements was added to list
                 current = default(T);
                 return false;                
             }
@@ -1081,7 +1081,8 @@ namespace System.Collections.Generic {
 
             Object System.Collections.IEnumerator.Current {
                 get {
-                    if( index == 0 || index == list._size + 1) {
+                    // Following trick can reduce the range check by one
+                    if (index <= 0) {
                          ThrowHelper.ThrowInvalidOperationException_InvalidOperation_EnumOpCantHappen();
                     }
                     return Current;
