@@ -570,15 +570,5 @@ inline BOOL ClrFlushInstructionCache(LPCVOID pCodeAddr, size_t sizeOfCode)
 #define JIT_IsInstanceOfInterface   JIT_IsInstanceOfInterface
 #define JIT_NewCrossContext         JIT_NewCrossContext
 #define JIT_Stelem_Ref              JIT_Stelem_Ref
-
-#else // FEATURE_PAL
-#define JIT_ChkCastClass            JIT_ChkCastClass_Portable
-#define JIT_ChkCastClassSpecial     JIT_ChkCastClassSpecial_Portable
-#define JIT_IsInstanceOfClass       JIT_IsInstanceOfClass_Portable
-#define JIT_ChkCastInterface        JIT_ChkCastInterface_Portable
-#define JIT_IsInstanceOfInterface   JIT_IsInstanceOfInterface_Portable
-#define JIT_NewCrossContext         JIT_NewCrossContext_Portable
-#define JIT_Stelem_Ref              JIT_Stelem_Ref_Portable
-
 #endif // FEATURE_PAL
 #endif // __cgenx86_h__
