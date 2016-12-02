@@ -760,7 +760,6 @@ WORD GetUnpatchedCodeData(LPCBYTE pAddr)
 
 #ifndef DACCESS_COMPILE
 
-#ifdef _TARGET_X86_
 //-------------------------------------------------------------------------
 // One-time creation of special prestub to initialize UMEntryThunks.
 //-------------------------------------------------------------------------
@@ -810,7 +809,6 @@ Stub *GenerateUMThunkPrestub()
 
     RETURN psl->Link(SystemDomain::GetGlobalLoaderAllocator()->GetExecutableHeap());
 }
-#endif // _TARGET_X86_
 
 Stub *GenerateInitPInvokeFrameHelper()
 {
