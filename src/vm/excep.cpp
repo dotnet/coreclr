@@ -1675,7 +1675,7 @@ bool FinallyIsUnwinding(EHRangeTreeNode *pNode,
         return false;
 }
 
-#if !defined(WIN64EXCEPTIONS)
+#ifndef WIN64EXCEPTIONS
 BOOL LeaveCatch(ICodeManager* pEECM,
                 Thread *pThread,
                 CONTEXT *pCtx,
