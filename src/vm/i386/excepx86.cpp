@@ -431,6 +431,7 @@ CPFH_AdjustContextForThreadSuspensionRace(CONTEXT *pContext, Thread *pThread)
 #endif // FEATURE_HIJACK
 
 
+#if 0
 // We want to leave true null reference exceptions alone.  But if we are
 // trashing memory, we don't want the application to swallow it.  The 0x100
 // below will give us false positives for debugging, if the app is accessing
@@ -443,6 +444,7 @@ CPFH_ShouldIgnoreException(EXCEPTION_RECORD *pExceptionRecord) {
     LIMITED_METHOD_CONTRACT;
      return FALSE;
 }
+#endif
 
 static inline void
 CPFH_UpdatePerformanceCounters() {
