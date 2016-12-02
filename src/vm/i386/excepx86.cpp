@@ -2247,6 +2247,7 @@ int COMPlusThrowCallbackHelper(IJitManager *pJitManager,
     int iFilt = 0;
     BOOL impersonating = FALSE;
 
+#ifndef FEATURE_PAL
     EX_TRY
     {
         GCPROTECT_BEGIN (throwable);
@@ -2297,6 +2298,10 @@ int COMPlusThrowCallbackHelper(IJitManager *pJitManager,
     EX_END_CATCH(SwallowAllExceptions)
 
     return iFilt;
+#else   // FEATURE_PAL
+    PORTABILITY_ASSERT("COMPlusThrowCallbackHelper");
+    return EXCEPTION_CONTINUE_SEARCH;
+#endif  // FEATURE_PAL
 }
 
 //******************************************************************************
