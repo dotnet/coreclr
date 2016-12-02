@@ -3721,7 +3721,7 @@ private:
     ARG_SLOT CallPropertyGet(BinderMethodID id, OBJECTREF pObject);
     ARG_SLOT CallPropertySet(BinderMethodID id, OBJECTREF pObject, OBJECTREF pValue);
 
-#if defined(FEATURE_HIJACK) && !defined(PLATFORM_UNIX)
+#if defined(FEATURE_HIJACK) && !defined(FEATURE_PAL)
     // Used in suspension code to redirect a thread at a HandledJITCase
     BOOL RedirectThreadAtHandledJITCase(PFN_REDIRECTTARGET pTgt);
     BOOL RedirectCurrentThreadAtHandledJITCase(PFN_REDIRECTTARGET pTgt, T_CONTEXT *pCurrentThreadCtx);
@@ -3743,7 +3743,7 @@ public:
 private:
     bool        m_fPreemptiveGCDisabledForGCStress;
 #endif // HAVE_GCCOVER && USE_REDIRECT_FOR_GCSTRESS
-#endif // FEATURE_HIJACK && !PLATFORM_UNIX
+#endif // FEATURE_HIJACK && !FEATURE_PAL
 
 public:
 
