@@ -569,12 +569,12 @@ private:
     AppDomain *m_pDomain;
 };
 
-#ifndef WIN64EXCEPTIONS
+#ifdef _TARGET_X86_
 //-------------------------------------------------------------------------
 // One-time creation of special prestub to initialize UMEntryThunks.
 //-------------------------------------------------------------------------
 Stub *GenerateUMThunkPrestub();
-#endif
+#endif // _TARGET_X86_
 
 //-------------------------------------------------------------------------
 // NExport stub
