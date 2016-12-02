@@ -422,7 +422,7 @@ VOID DECLSPEC_NORETURN RealCOMPlusThrowInvalidCastException(TypeHandle thCastFro
 VOID DECLSPEC_NORETURN RealCOMPlusThrowInvalidCastException(OBJECTREF *pObj, TypeHandle thCastTo);
 
 
-#ifndef WIN64EXCEPTIONS
+#ifdef _TARGET_X86_
 
 #include "eexcp.h"
 #include "exinfo.h"
@@ -461,7 +461,7 @@ struct NestedHandlerExRecord : public FrameHandlerExRecord
     }
 };
 
-#endif // WIN64EXCEPTIONS
+#endif // _TARGET_X86_
 
 #if defined(ENABLE_CONTRACTS_IMPL)
 
