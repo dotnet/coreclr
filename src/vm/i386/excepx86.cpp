@@ -2316,6 +2316,7 @@ StackWalkAction COMPlusThrowCallback(       // SWA value
     STATIC_CONTRACT_GC_TRIGGERS;
     STATIC_CONTRACT_MODE_COOPERATIVE;
 
+#ifndef FEATURE_PAL
     Frame *pFrame = pCf->GetFrame();
     MethodDesc *pFunc = pCf->GetFunction();
 
@@ -2762,6 +2763,10 @@ StackWalkAction COMPlusThrowCallback(       // SWA value
     if (fGiveDebuggerAndProfilerNotification)
         EEToProfilerExceptionInterfaceWrapper::ExceptionSearchFunctionLeave(pFunc);
     return SWA_CONTINUE;
+#else  // FEATURE_PAL
+    PORTABILITY_ASSERT("COMPlusThrowCallback");
+    return SWA_ABORT;
+#endif // FEATURE_PAL
 } // StackWalkAction COMPlusThrowCallback()
 
 
