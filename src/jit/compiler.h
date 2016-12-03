@@ -2770,8 +2770,8 @@ protected:
 
     void impImportNewObjArray(CORINFO_RESOLVED_TOKEN* pResolvedToken, CORINFO_CALL_INFO* pCallInfo);
 
-    bool impCanPInvokeInline(var_types callRetTyp);
-    bool impCanPInvokeInlineCallSite(var_types callRetTyp);
+    bool impCanPInvokeInline();
+    bool impCanPInvokeInlineCallSite();
     void impCheckForPInvokeCall(GenTreePtr call, CORINFO_METHOD_HANDLE methHnd, CORINFO_SIG_INFO* sig, unsigned mflags);
     GenTreePtr impImportIndirectCall(CORINFO_SIG_INFO* sig, IL_OFFSETX ilOffset = BAD_IL_OFFSET);
     void impPopArgsForUnmanagedCall(GenTreePtr call, CORINFO_SIG_INFO* sig);
@@ -2820,7 +2820,7 @@ protected:
 
     void impImportLeave(BasicBlock* block);
     void impResetLeaveBlock(BasicBlock* block, unsigned jmpAddr);
-    BOOL       impLocAllocOnStack();
+
     GenTreePtr impIntrinsic(CORINFO_CLASS_HANDLE  clsHnd,
                             CORINFO_METHOD_HANDLE method,
                             CORINFO_SIG_INFO*     sig,
