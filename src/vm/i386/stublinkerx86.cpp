@@ -79,6 +79,7 @@ EXCEPTION_HELPERS(ArrayOpStubNullException);
 EXCEPTION_HELPERS(ArrayOpStubRangeException);
 EXCEPTION_HELPERS(ArrayOpStubTypeMismatchException);
 #undef EXCEPTION_HELPERS
+#endif // !_TARGET_AMD64_
 #endif // !FEATURE_ARRAYSTUB_AS_IL
 
 #if defined(_DEBUG) 
