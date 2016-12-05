@@ -280,11 +280,13 @@ FCFuncStart(gEnvironmentFuncs)
     FCFuncElement("get_ExitCode", SystemNative::GetExitCode)
     FCFuncElement("get_HasShutdownStarted", SystemNative::HasShutdownStarted)
     QCFuncElement("GetProcessorCount", SystemNative::GetProcessorCount)
-#ifndef FEATURE_CORECLR
     QCFuncElement("GetWorkingSet", SystemNative::GetWorkingSet)
+#ifndef FEATURE_CORECLR
     FCFuncElement("nativeGetEnvironmentVariable", SystemNative::_GetEnvironmentVariable)
     FCFuncElement("GetCompatibilityFlag", SystemNative::_GetCompatibilityFlag)
+#endif // !FEATURE_CORECLR
     QCFuncElement("GetCommandLine", SystemNative::_GetCommandLine)
+#ifndef FEATURE_CORECLR
     FCFuncElement("GetResourceFromDefault", GetResourceFromDefault)
 #endif // !FEATURE_CORECLR
     FCFuncElement("GetCommandLineArgsNative", SystemNative::GetCommandLineArgs)

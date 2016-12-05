@@ -34,10 +34,8 @@ namespace System {
     [ComVisible(true)]
     public enum EnvironmentVariableTarget {
         Process = 0,
-#if FEATURE_WIN32_REGISTRY            
         User = 1,
         Machine = 2,
-#endif        
     }
 
     [ComVisible(true)]
@@ -323,12 +321,15 @@ namespace System {
             [SecuritySafeCritical]
             get { return GetIsCLRHosted(); }
         }
+#endif // !FEATURE_CORECLR
 
         public static String CommandLine {
             [System.Security.SecuritySafeCritical]  // auto-generated
-            get {
+            get
+            {
+#if !FEATURE_CORECLR
                 new EnvironmentPermission(EnvironmentPermissionAccess.Read, "Path").Demand();
-
+#endif
                 String commandLine = null;
                 GetCommandLine(JitHelpers.GetStringHandleOnStack(ref commandLine));
                 return commandLine;
@@ -338,7 +339,6 @@ namespace System {
         [System.Security.SecurityCritical]  // auto-generated
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode), SuppressUnmanagedCodeSecurity]
         private static extern void GetCommandLine(StringHandleOnStack retString);
-#endif // !FEATURE_CORECLR
 
         /*===============================CurrentDirectory===============================
         **Action:  Provides a getter and setter for the current directory.  The original
@@ -369,6 +369,9 @@ namespace System {
             [System.Security.SecuritySafeCritical]  // auto-generated
 #endif
             get {
+#if PLATFORM_UNIX
+                return Path.DirectorySeparatorCharAsString; // TODO: anything better to return?
+#else
                 StringBuilder sb = new StringBuilder(Path.MaxPath);
                 int r = Win32Native.GetSystemDirectory(sb, Path.MaxPath);
                 Contract.Assert(r < Path.MaxPath, "r < Path.MaxPath");
@@ -381,6 +384,7 @@ namespace System {
 #endif
 
                 return path;
+#endif // !PLATFORM_UNIX
             }
         }
 
@@ -557,7 +561,9 @@ namespace System {
         public static int SystemPageSize {
             [System.Security.SecuritySafeCritical]  // auto-generated
             get {
+#if !FEATURE_CORECLR
                 (new EnvironmentPermission(PermissionState.Unrestricted)).Demand();
+#endif
                 Win32Native.SYSTEM_INFO info = new Win32Native.SYSTEM_INFO();
                 Win32Native.GetSystemInfo(ref info);
                 return info.dwPageSize;
@@ -574,7 +580,6 @@ namespace System {
         [System.Security.SecuritySafeCritical]  // auto-generated
         public static String[] GetCommandLineArgs()
         {
-            new EnvironmentPermission(EnvironmentPermissionAccess.Read, "Path").Demand();
 #if FEATURE_CORECLR
             /*
              * There are multiple entry points to a hosted app.
@@ -591,6 +596,8 @@ namespace System {
              */
             if(s_CommandLineArgs != null)
                 return (string[])s_CommandLineArgs.Clone();
+#else
+            new EnvironmentPermission(EnvironmentPermissionAccess.Read, "Path").Demand();
 #endif
             return GetCommandLineArgsNative();
         }
@@ -672,7 +679,14 @@ namespace System {
                 return GetEnvironmentVariable(variable);
             }
 
-#if FEATURE_WIN32_REGISTRY
+#if PLATFORM_UNIX
+            else if (target == EnvironmentVariableTarget.Machine ||
+                     target == EnvironmentVariableTarget.User)
+            {
+                return null;
+            }
+            else
+#elif FEATURE_WIN32_REGISTRY
             (new EnvironmentPermission(PermissionState.Unrestricted)).Demand();
 
             if( target == EnvironmentVariableTarget.Machine) {
@@ -864,8 +878,14 @@ namespace System {
             if( target == EnvironmentVariableTarget.Process) {
                 return GetEnvironmentVariables();
             }
-
-#if FEATURE_WIN32_REGISTRY
+#if PLATFORM_UNIX
+            else if (target == EnvironmentVariableTarget.Machine ||
+                     target == EnvironmentVariableTarget.User)
+            {
+                return new Hashtable(0);
+            }
+            else
+#elif FEATURE_WIN32_REGISTRY
             (new EnvironmentPermission(PermissionState.Unrestricted)).Demand();
 
             if( target == EnvironmentVariableTarget.Machine) {
@@ -883,7 +903,7 @@ namespace System {
             }
             else 
 #endif // FEATURE_WIN32_REGISTRY                
-                {
+            {
                 throw new ArgumentException(Environment.GetResourceString("Arg_EnumIllegalVal", (int)target));
             }
         }
@@ -970,12 +990,24 @@ namespace System {
                 throw new ArgumentException(Environment.GetResourceString("Argument_LongEnvVarName"));
             }
 
+#if PLATFORM_UNIX
+            if (target == EnvironmentVariableTarget.Machine ||
+                target == EnvironmentVariableTarget.User)
+            {
+                return;
+            }
+#endif
+
+#if !FEATURE_CORECLR
             new EnvironmentPermission(PermissionState.Unrestricted).Demand();
+#endif
+
+#if FEATURE_WIN32_REGISTRY
             // explicitly null out value if is the empty string. 
             if (String.IsNullOrEmpty(value) || value[0] == '\0') {
                 value = null;
             }
-#if FEATURE_WIN32_REGISTRY
+
             if( target == EnvironmentVariableTarget.Machine) {
                 using (RegistryKey environmentKey = 
                        Registry.LocalMachine.OpenSubKey(@"System\CurrentControlSet\Control\Session Manager\Environment", true)) {
@@ -1029,8 +1061,10 @@ namespace System {
         ==============================================================================*/
         [System.Security.SecuritySafeCritical]  // auto-generated
         public static String[] GetLogicalDrives() {
+#if !PLATFORM_UNIX
+#if !FEATURE_CORECLR
             new EnvironmentPermission(PermissionState.Unrestricted).Demand();
-                                 
+#endif
             int drives = Win32Native.GetLogicalDrives();
             if (drives==0)
                 __Error.WinIOError();
@@ -1052,8 +1086,27 @@ namespace System {
                 root[0]++;
             }
             return result;
+#else // PLATFORM_UNIX
+            // Use reflection to access the unix implementation in System.IO.FileSystem.DriveInfo.dll
+            Type driveInfoType = Type.GetType(
+                "System.IO.DriveInfo, System.IO.FileSystem.DriveInfo, Version=4.0.0.0, Culture=neutral, PublicKeyToken=" + AssemblyRef.MicrosoftPublicKeyToken,
+                throwOnError: false);
+            Array drives = (Array)driveInfoType?.GetMethod("GetDrives")?.Invoke(null, null) as Array;
+            if (drives != null)
+            {
+                string[] logicalDrives = new string[drives.Length];
+                int i = 0;
+                foreach (object drive in drives)
+                {
+                    logicalDrives[i++] = drive.ToString();
+                }
+                return logicalDrives;
+            }
+
+            throw new PlatformNotSupportedException();
+#endif // PLATFORM_UNIX
         }
-        
+
         /*===================================NewLine====================================
         **Action: A property which returns the appropriate newline string for the given
         **        platform.
@@ -1104,7 +1157,9 @@ namespace System {
         public static long WorkingSet {
             [System.Security.SecuritySafeCritical]  // auto-generated
             get {
+#if !FEATURE_CORECLR
                 new EnvironmentPermission(PermissionState.Unrestricted).Demand();
+#endif
                 return GetWorkingSet();
             }
         }
@@ -1225,8 +1280,9 @@ namespace System {
             [System.Security.SecuritySafeCritical]  // auto-generated
             get {
                 Contract.Ensures(Contract.Result<String>() != null);
-
+#if !FEATURE_CORECLR
                 new EnvironmentPermission(PermissionState.Unrestricted).Demand();
+#endif
                 return GetStackTrace(null, true);
             }
         }
@@ -1389,6 +1445,8 @@ namespace System {
 #if BIT64
                     // 64-bit programs run only on 64-bit
                     return true;
+#elif PLATFORM_UNIX
+                    return IntPtr.Size == 8; // TODO: use uname and match utsname.machine?
 #else // 32
                     bool isWow64; // WinXP SP2+ and Win2k3 SP1+
                     return Win32Native.DoesWin32MethodExist(Win32Native.KERNEL32, "IsWow64Process")
@@ -1414,8 +1472,9 @@ namespace System {
         public static string UserName {
             [System.Security.SecuritySafeCritical]  // auto-generated
             get {
+#if !FEATURE_CORECLR
                 new EnvironmentPermission(EnvironmentPermissionAccess.Read,"UserName").Demand();
-
+#endif
                 StringBuilder sb = new StringBuilder(256);
                 int size = sb.Capacity;
                 if (Win32Native.GetUserName(sb, ref size))
@@ -1488,6 +1547,11 @@ namespace System {
         [System.Security.SecurityCritical]
         private static string InternalGetFolderPath(SpecialFolder folder, SpecialFolderOption option, bool suppressSecurityChecks = false)
         {
+            // TODO: FEATURE_CORESYSTEM is set when compiling FEATURE_CORECLR.  On Windows we want to
+            // take the path that calls SHGetFolderPath, and on Unix we want to either do so as well and
+            // put SHGetFolderPath in the PAL, or provide a PLATFORM_UNIX implementation of it here. (For
+            // Unix many of the folders will simply return empty string or throw PlatformNotSupportedException, 
+            // but some can be supported well.)
 #if FEATURE_CORESYSTEM
             // This is currently customized for Windows Phone since CoreSystem doesn't support
             // SHGetFolderPath. The allowed folder values are based on the version of .NET CF WP7 was using.
@@ -1570,8 +1634,11 @@ namespace System {
         {
             [System.Security.SecuritySafeCritical]  // auto-generated
             get {
+#if PLATFORM_UNIX
+                return MachineName;
+#elif !FEATURE_CORECLR
                 new EnvironmentPermission(EnvironmentPermissionAccess.Read,"UserDomain").Demand();
-
+#endif
                 byte[] sid = new byte[1024];
                 int sidLen = sid.Length;
                 StringBuilder domainName = new StringBuilder(1024);
@@ -1710,7 +1777,6 @@ namespace System {
             //     Represents the folder for components that are shared across applications. 
             //  
             CommonProgramFiles =  Win32Native.CSIDL_PROGRAM_FILES_COMMON,            
-#if !FEATURE_CORECLR
             //
             //      <user name>\Start Menu\Programs\Administrative Tools
             //
@@ -1803,7 +1869,6 @@ namespace System {
             //      GetWindowsDirectory()
             //
             Windows                = Win32Native.CSIDL_WINDOWS,
-#endif // !FEATURE_CORECLR
         }
 
         public static int CurrentManagedThreadId

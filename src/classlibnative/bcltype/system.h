@@ -77,10 +77,8 @@ public:
     static FCDECL1(FC_BOOL_RET, GetOSVersion, OSVERSIONINFOObject *osVer);
     static FCDECL1(FC_BOOL_RET, GetOSVersionEx, OSVERSIONINFOEXObject *osVer);
 
-#ifndef FEATURE_CORECLR
     static
     INT64 QCALLTYPE GetWorkingSet();
-#endif // !FEATURE_CORECLR
 
     static
     void QCALLTYPE Exit(INT32 exitcode);

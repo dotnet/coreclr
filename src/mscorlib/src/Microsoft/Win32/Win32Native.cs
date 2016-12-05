@@ -701,14 +701,15 @@ namespace Microsoft.Win32 {
         internal const String OLE32    = "ole32.dll";
         internal const String OLEAUT32 = "oleaut32.dll";
         internal const String NTDLL    = "ntdll.dll";
+        internal const String ADVAPI32 = "advapi32.dll";
 #else //FEATURE_PAL
         internal const String KERNEL32 = "libcoreclr";
         internal const String USER32   = "libcoreclr";
         internal const String OLE32    = "libcoreclr";
         internal const String OLEAUT32 = "libcoreclr";
         internal const String NTDLL    = "libcoreclr";
+        internal const String ADVAPI32 = "libcoreclr";
 #endif //FEATURE_PAL         
-        internal const String ADVAPI32 = "advapi32.dll";
         internal const String SHELL32  = "shell32.dll";
         internal const String SHIM     = "mscoree.dll";
         internal const String CRYPT32  = "crypt32.dll";

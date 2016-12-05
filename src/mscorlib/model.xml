@@ -1974,31 +1974,122 @@
       <Member Name="TryParse&lt;TEnum&gt;(System.String,TEnum@)" />
       <Member Name="TryParse&lt;TEnum&gt;(System.String,System.Boolean,TEnum@)" />
     </Type>
+    <Type Name="System.EnvironmentVariableTarget">
+      <Member MemberType="Field" Name="Process" />
+      <Member MemberType="Field" Name="User" />
+      <Member MemberType="Field" Name="Machine" />
+    </Type>
+    <Type Name="System.Environment+SpecialFolderOption">
+      <Member MemberType="Field" Name="None" />
+      <Member MemberType="Field" Name="Create" />
+      <Member MemberType="Field" Name="DoNotVerify" />
+    </Type>
+    <Type Name="System.Environment+SpecialFolder">
+      <Member MemberType="Field" Name="ApplicationData" />
+      <Member MemberType="Field" Name="CommonApplicationData" />
+      <Member MemberType="Field" Name="LocalApplicationData" />
+      <Member MemberType="Field" Name="Cookies" />
+      <Member MemberType="Field" Name="Desktop" />
+      <Member MemberType="Field" Name="Favorites" />
+      <Member MemberType="Field" Name="History" />
+      <Member MemberType="Field" Name="InternetCache" />
+      <Member MemberType="Field" Name="Programs" />
+      <Member MemberType="Field" Name="MyComputer" />
+      <Member MemberType="Field" Name="MyMusic" />
+      <Member MemberType="Field" Name="MyPictures" />
+      <Member MemberType="Field" Name="MyVideos" />
+      <Member MemberType="Field" Name="Recent" />
+      <Member MemberType="Field" Name="SendTo" />
+      <Member MemberType="Field" Name="StartMenu" />
+      <Member MemberType="Field" Name="Startup" />
+      <Member MemberType="Field" Name="System" />
+      <Member MemberType="Field" Name="Templates" />
+      <Member MemberType="Field" Name="DesktopDirectory" />
+      <Member MemberType="Field" Name="Personal" />
+      <Member MemberType="Field" Name="MyDocuments" />
+      <Member MemberType="Field" Name="ProgramFiles" />
+      <Member MemberType="Field" Name="CommonProgramFiles" />
+      <Member MemberType="Field" Name="AdminTools" />
+      <Member MemberType="Field" Name="CDBurning" />
+      <Member MemberType="Field" Name="CommonAdminTools" />
+      <Member MemberType="Field" Name="CommonDocuments" />
+      <Member MemberType="Field" Name="CommonMusic" />
+      <Member MemberType="Field" Name="CommonOemLinks" />
+      <Member MemberType="Field" Name="CommonPictures" />
+      <Member MemberType="Field" Name="CommonStartMenu" />
+      <Member MemberType="Field" Name="CommonPrograms" />
+      <Member MemberType="Field" Name="CommonStartup" />
+      <Member MemberType="Field" Name="CommonDesktopDirectory" />
+      <Member MemberType="Field" Name="CommonTemplates" />
+      <Member MemberType="Field" Name="CommonVideos" />
+      <Member MemberType="Field" Name="Fonts" />
+      <Member MemberType="Field" Name="NetworkShortcuts" />
+      <Member MemberType="Field" Name="PrinterShortcuts" />
+      <Member MemberType="Field" Name="UserProfile" />
+      <Member MemberType="Field" Name="CommonProgramFilesX86" />
+      <Member MemberType="Field" Name="ProgramFilesX86" />
+      <Member MemberType="Field" Name="Resources" />
+      <Member MemberType="Field" Name="LocalizedResources" />
+      <Member MemberType="Field" Name="SystemX86" />
+      <Member MemberType="Field" Name="Windows" />
+    </Type>
     <Type Name="System.Environment">
+      <Member Name="get_CommandLine"  />
+      <Member Name="get_CurrentDirectory"  />
       <Member Name="get_CurrentManagedThreadId"  />
+      <Member Name="get_ExitCode"  />
+      <Member Name="get_HasShutdownStarted"  />
+      <Member Name="get_Is64BitProcess"  />
+      <Member Name="get_Is64BitOperatingSystem"  />
       <Member Name="get_MachineName"  />
+      <Member Name="get_NewLine"  />
       <Member Name="get_OSVersion" />
       <Member Name="get_ProcessorCount" />
       <Member Name="get_StackTrace" />
-      <Member Name="GetEnvironmentVariable(System.String)" />
-      <Member Name="GetEnvironmentVariables" />
-      <Member Name="GetCommandLineArgs" />
-      <Member Name="SetEnvironmentVariable(System.String,System.String)" />
-      <Member Name="ExpandEnvironmentVariables(System.String)" />
+      <Member Name="get_SystemDirectory"  />
+      <Member Name="get_SystemPageSize"  />
+      <Member Name="get_TickCount"  />
+      <Member Name="get_UserDomainName"  />
+      <Member Name="get_UserInteractive"  />
+      <Member Name="get_UserName"  />
+      <Member Name="get_Version"  />
+      <Member Name="get_WorkingSet"  />
+      <Member MemberType="Property" Name="CommandLine"  />
+      <Member MemberType="Property" Name="CurrentDirectory"  />
+      <Member MemberType="Property" Name="CurrentManagedThreadId"  />
+      <Member MemberType="Property" Name="ExitCode" />
+      <Member MemberType="Property" Name="HasShutdownStarted" />
+      <Member MemberType="Property" Name="Is64BitProcess" />
+      <Member MemberType="Property" Name="Is64BitOperatingSystem" />
+      <Member MemberType="Property" Name="MachineName" />
+      <Member MemberType="Property" Name="NewLine" />
       <Member MemberType="Property" Name="OSVersion" />
       <Member MemberType="Property" Name="ProcessorCount" />
-      <Member MemberType="Property" Name="CurrentManagedThreadId"  />
-      <Member MemberType="Property" Name="HasShutdownStarted" />
-      <Member MemberType="Property" Name="NewLine" />
       <Member MemberType="Property" Name="StackTrace" />
+      <Member MemberType="Property" Name="SystemDirectory"  />
+      <Member MemberType="Property" Name="SystemPageSize"  />
       <Member MemberType="Property" Name="TickCount" />
+      <Member MemberType="Property" Name="UserInteractive" />
+      <Member MemberType="Property" Name="UserDomainName" />
+      <Member MemberType="Property" Name="UserName" />
       <Member MemberType="Property" Name="Version" />
-      <Member MemberType="Property" Name="ExitCode" />
-      <Member Status="ImplRoot" Name="GetResourceStringLocal(System.String)" />
-      <Member Status="ImplRoot" Name="SetCommandLineArgs(System.String[])" />
+      <Member MemberType="Property" Name="WorkingSet" />
+      <Member Name="Exit(System.Int32)" />
+      <Member Name="ExpandEnvironmentVariables(System.String)" />
       <Member Name="FailFast(System.String)"  />
       <Member Name="FailFast(System.String,System.Exception)"  />
-      <Member Name="Exit(System.Int32)" />
+      <Member Name="GetCommandLineArgs" />
+      <Member Name="GetFolderPath(System.Environment+SpecialFolder)" />
+      <Member Name="GetFolderPath(System.Environment+SpecialFolder,System.Environment+SpecialFolderOption)" />
+      <Member Name="GetEnvironmentVariable(System.String)" />
+      <Member Name="GetEnvironmentVariable(System.String,System.EnvironmentVariableTarget)" />
+      <Member Name="GetEnvironmentVariables" />
+      <Member Name="GetEnvironmentVariables(System.EnvironmentVariableTarget)" />
+      <Member Name="GetLogicalDrives" />
+      <Member Name="SetEnvironmentVariable(System.String,System.String)" />
+      <Member Name="SetEnvironmentVariable(System.String,System.String,System.EnvironmentVariableTarget)" />
+      <Member Status="ImplRoot" Name="GetResourceStringLocal(System.String)" />
+      <Member Status="ImplRoot" Name="SetCommandLineArgs(System.String[])" />
     </Type>
     <Type Name="Internal.Runtime.Augments.EnvironmentAugments">
       <Member MemberType="Property" Name="CurrentManagedThreadId"  />

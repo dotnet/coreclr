@@ -83,9 +83,11 @@ FCIMPLEND;
 
 
 
-#ifndef FEATURE_CORECLR
 INT64 QCALLTYPE SystemNative::GetWorkingSet()
 {
+#if PLATFORM_UNIX
+    return 0; // TODO: Implement in PAL
+#else
     QCALL_CONTRACT;
 
     DWORD memUsage = 0;
@@ -95,8 +97,8 @@ INT64 QCALLTYPE SystemNative::GetWorkingSet()
     END_QCALL;
     
     return memUsage;
+#endif
 }
-#endif // !FEATURE_CORECLR
 
 VOID QCALLTYPE SystemNative::Exit(INT32 exitcode)
 {
