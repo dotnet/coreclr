@@ -460,7 +460,7 @@ HCIMPL2_VV(UINT64, JIT_ULMod, UINT64 dividend, UINT64 divisor)
 }
 HCIMPLEND
 
-#if !defined(_TARGET_X86_) | defined(FEATURE_PAL)
+#if !defined(_TARGET_X86_) || defined(FEATURE_PAL)
 /*********************************************************************/
 HCIMPL2_VV(UINT64, JIT_LLsh, UINT64 num, int shift)
 {
