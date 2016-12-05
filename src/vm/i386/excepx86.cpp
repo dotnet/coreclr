@@ -2316,7 +2316,6 @@ StackWalkAction COMPlusThrowCallback(       // SWA value
     STATIC_CONTRACT_GC_TRIGGERS;
     STATIC_CONTRACT_MODE_COOPERATIVE;
 
-#ifndef FEATURE_PAL
     Frame *pFrame = pCf->GetFrame();
     MethodDesc *pFunc = pCf->GetFunction();
 
@@ -2412,6 +2411,7 @@ StackWalkAction COMPlusThrowCallback(       // SWA value
         pData->bSkipLastElement = FALSE;
     }
 
+#ifndef FEATURE_PAL
     // Check for any impersonation on the frame and save that for use during EH filter callbacks
     OBJECTREF* pRefSecDesc = pCf->GetAddrOfSecurityObject();
     if (pRefSecDesc != NULL && *pRefSecDesc != NULL)
@@ -2430,6 +2430,7 @@ StackWalkAction COMPlusThrowCallback(       // SWA value
             }
         }
     }
+#endif // !FEATURE_PAL
 
     // now we've got the stack trace, if we aren't allowed to catch this and we're first pass, return
     if (pData->bDontCatch)
@@ -2763,10 +2764,6 @@ StackWalkAction COMPlusThrowCallback(       // SWA value
     if (fGiveDebuggerAndProfilerNotification)
         EEToProfilerExceptionInterfaceWrapper::ExceptionSearchFunctionLeave(pFunc);
     return SWA_CONTINUE;
-#else  // FEATURE_PAL
-    PORTABILITY_ASSERT("COMPlusThrowCallback");
-    return SWA_ABORT;
-#endif // FEATURE_PAL
 } // StackWalkAction COMPlusThrowCallback()
 
 
