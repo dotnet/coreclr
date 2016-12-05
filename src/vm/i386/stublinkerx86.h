@@ -395,12 +395,14 @@ class StubLinkerCPU : public StubLinker
         VOID EmitShuffleThunk(struct ShuffleEntry *pShuffleEntryArray);
 
 
+#ifndef FEATURE_ARRAYSTUB_AS_IL
         //===========================================================================
         // Emits code to do an array operation.
         VOID EmitArrayOpStub(const ArrayOpScript*);
 
         //Worker function to emit throw helpers for array ops.
         VOID EmitArrayOpStubThrow(unsigned exConst, unsigned cbRetArg);
+#endif
 
         //===========================================================================
         // Emits code to break into debugger

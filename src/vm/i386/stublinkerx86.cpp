@@ -4824,8 +4824,9 @@ VOID StubLinkerCPU::EmitSecureDelegateInvoke(UINT_PTR hash)
     // Epilog
     EmitMethodStubEpilog(numStackBytes, SecureDelegateFrame::GetOffsetOfTransitionBlock());
 }
+#endif // !CROSSGEN_COMPILE && !FEATURE_STUBS_AS_IL
 
-#ifndef FEATURE_ARRAYSTUB_AS_IL
+#if !defined(CROSSGEN_COMPILE) && !defined(FEATURE_ARRAYSTUB_AS_IL)
 
 // Little helper to generate code to move nbytes bytes of non Ref memory
 
@@ -5768,8 +5769,9 @@ COPY_VALUE_CLASS:
 #pragma warning(pop)
 #endif
 
-#endif // FEATURE_ARRAYSTUB_AS_IL
+#endif // !CROSSGEN_COMPILE && !FEATURE_ARRAYSTUB_AS_IL
 
+#if !defined(CROSSGEN_COMPILE) && !defined(FEATURE_STUBS_AS_IL)
 //===========================================================================
 // Emits code to break into debugger
 VOID StubLinkerCPU::EmitDebugBreak()
@@ -5841,9 +5843,9 @@ Thread* __stdcall CreateThreadBlockReturnHr(ComMethodFrame *pFrame)
 #pragma warning(pop)
 #endif
 
-#endif // defined(FEATURE_COMINTEROP) && defined(_TARGET_X86_)
+#endif // FEATURE_COMINTEROP && _TARGET_X86_
 
-#endif // !defined(CROSSGEN_COMPILE) && !defined(FEATURE_STUBS_AS_IL)
+#endif // !CROSSGEN_COMPILE && !FEATURE_STUBS_AS_IL
 
 #endif // !DACCESS_COMPILE
 
