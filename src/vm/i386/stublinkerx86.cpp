@@ -82,9 +82,10 @@ EXCEPTION_HELPERS(ArrayOpStubTypeMismatchException);
 #endif // !_TARGET_AMD64_
 #endif // !FEATURE_ARRAYSTUB_AS_IL
 
-#if defined(_DEBUG) 
+#if defined(_TARGET_AMD64_)
+#if defined(_DEBUG)
 extern "C" VOID __cdecl DebugCheckStubUnwindInfo();
-#endif
+#endif // _DEBUG
 #endif // _TARGET_AMD64_
 
 // Presumably this code knows what it is doing with TLS.  If we are hiding these
