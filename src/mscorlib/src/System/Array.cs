@@ -976,7 +976,7 @@ namespace System {
             if (array==null)
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
             Contract.EndContractBlock();
-            return BinarySearch<T>(array, 0, array.Length, value, null);
+            return BinarySearch<T>(array, 0, array.Length, value, (IComparer<T>)null);
         }
 
         [Pure]
@@ -990,8 +990,22 @@ namespace System {
 
         [Pure]
         [ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]
+        public static int BinarySearch<T>(T[] array, T value, System.Comparison<T> comparison)
+        {
+            if (array == null)
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
+            if (comparison == null)
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.comparison);
+            Contract.EndContractBlock();
+
+            IComparer<T> comparer = Comparer<T>.Create(comparison);
+            return BinarySearch<T>(array, 0, array.Length, value, comparer);
+        }
+
+        [Pure]
+        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]
         public static int BinarySearch<T>(T[] array, int index, int length, T value) {
-            return BinarySearch<T>(array, index, length, value, null);
+            return BinarySearch<T>(array, index, length, value, (IComparer<T>)null);
         }
 
         [Pure]
@@ -1008,6 +1022,27 @@ namespace System {
                 ThrowHelper.ThrowArgumentException(ExceptionResource.Argument_InvalidOffLen);
             Contract.EndContractBlock();
 
+            return ArraySortHelper<T>.Default.BinarySearch(array, index, length, value, comparer);
+        }
+
+        [Pure]
+        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]
+        public static int BinarySearch<T>(T[] array, int index, int length, T value, System.Comparison<T> comparison)
+        {
+            if (array == null)
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
+            if (index < 0)
+                ThrowHelper.ThrowIndexArgumentOutOfRange_NeedNonNegNumException();
+            if (length < 0)
+                ThrowHelper.ThrowLengthArgumentOutOfRange_ArgumentOutOfRange_NeedNonNegNum();
+
+            if (array.Length - index < length)
+                ThrowHelper.ThrowArgumentException(ExceptionResource.Argument_InvalidOffLen);
+            if (comparison == null)
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.comparison);
+            Contract.EndContractBlock();
+
+            IComparer<T> comparer = Comparer<T>.Create(comparison);
             return ArraySortHelper<T>.Default.BinarySearch(array, index, length, value, comparer);
         }
 
