@@ -1884,13 +1884,15 @@ static void fixLineMapping(SymbolsInfo* lines, unsigned nlines)
     int prevLine = 0;
     for (int i = 0; i < nlines; ++i)
     {
+        if (lines[i].lineNumber == HiddenLine)
+            continue;
         if (lines[i].ilOffset == ICorDebugInfo::PROLOG) // will be fixed in next step
         {
             prevLine = 0;
         }
         else
         {
-            if (lines[i].lineNumber == 0 || lines[i].lineNumber == HiddenLine)
+            if (lines[i].lineNumber == 0)
             {
                 if (prevLine != 0)
                 {
@@ -1907,10 +1909,22 @@ static void fixLineMapping(SymbolsInfo* lines, unsigned nlines)
     prevLine = lines[nlines - 1].lineNumber;
     for (int i = nlines - 1; i >= 0; --i)
     {
-        if (lines[i].lineNumber == 0 || lines[i].lineNumber == HiddenLine)
+        if (lines[i].lineNumber == HiddenLine)
+            continue;
+        if (lines[i].lineNumber == 0)
             lines[i].lineNumber = prevLine;
         else
             prevLine = lines[i].lineNumber;
+    }
+    // Skip HiddenLines
+    for (int i = 0; i < nlines; ++i)
+    {
+        if (lines[i].lineNumber == HiddenLine)
+        {
+            lines[i].lineNumber = 0;
+            if (i + 1 < nlines && lines[i + 1].ilOffset == ICorDebugInfo::NO_MAPPING)
+                lines[i + 1].lineNumber = 0;
+        }
     }
 }
 
