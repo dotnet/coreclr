@@ -15,6 +15,7 @@
 #include "posterror.h"
 #include "eemessagebox.h"
 #include "newapis.h"
+#include "utilcode.h"
 
 #include <shlobj.h>
 
@@ -2551,7 +2552,7 @@ extern BOOL EEHeapFreeInProcessHeap(DWORD dwFlags, LPVOID lpMem);
 extern void ShutdownRuntimeWithoutExiting(int exitCode);
 extern BOOL IsRuntimeStarted(DWORD *pdwStartupFlags);
 
-void * GetCLRFunction(LPCSTR FunctionName)
+void * __stdcall GetCLRFunction(LPCSTR FunctionName)
 {
 
     void* func = NULL;

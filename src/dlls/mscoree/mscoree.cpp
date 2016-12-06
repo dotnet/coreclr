@@ -75,7 +75,7 @@ HINSTANCE g_hThisInst;  // This library.
 
 #include <process.h> // for __security_init_cookie()
 
-void* __stdcall GetCLRFunction(LPCSTR FunctionName);
+#include <utilcode.h>
 
 extern "C" IExecutionEngine* __stdcall IEE();
 
