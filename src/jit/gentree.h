@@ -267,7 +267,7 @@ struct GenTree
 #define GTSTRUCT_0(fn, en)                                                                                             \
     GenTree##fn* As##fn()                                                                                              \
     {                                                                                                                  \
-        assert(this->OperIsSimple());                                                                                  \
+        assert(this->OperIsSimple() || this->OperIsBlk());                                                             \
         return reinterpret_cast<GenTree##fn*>(this);                                                                   \
     }                                                                                                                  \
     GenTree##fn& As##fn##Ref()                                                                                         \
