@@ -504,7 +504,6 @@ function_name() to call the system's implementation
 #undef wprintf
 #undef sprintf
 #undef swprintf
-#undef sscanf
 #undef wcstod
 #undef wcstol
 #undef wcstoul

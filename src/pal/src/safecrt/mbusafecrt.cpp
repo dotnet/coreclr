@@ -197,14 +197,12 @@ void _safecrt_fassign(int flag, void* argument, char* number )
 {
     if ( flag != 0 )    // double
     {
-        double dblValue = 0.0;
-        (void)sscanf( number, "%lf", &dblValue );
+        double dblValue = strtod(number, NULL);
         *( ( double* )argument ) = dblValue;
     }
     else                // float
     {
-        float fltValue = 0.0;
-        (void)sscanf( number, "%f", &fltValue );
+        float fltValue = strtof(number, NULL);
         *( ( float* )argument ) = fltValue;
     }
 }
