@@ -138,6 +138,41 @@ namespace System.Runtime.CompilerServices
         }
 
         //--------------------------------------------------------------------------------------------
+        // key: key to add or update. May not be null.
+        // value: value to associate with key.
+        //
+        // If the key is already entered into the dictionary, this method will update the value associated with key.
+        //--------------------------------------------------------------------------------------------
+        [System.Security.SecurityCritical]
+        public void AddOrUpdate(TKey key, TValue value)
+        {
+            if (key == null)
+            {
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.key);
+            }
+
+            lock (_lock)
+            {
+                VerifyIntegrity();
+                _invalid = true;
+                int entryIndex = FindEntry(key);
+
+                // if we found a key we should just update, if no we should create a new entry.
+                if (entryIndex != -1)
+                {
+                    _entries[entryIndex].depHnd.Free();
+                    _entries[entryIndex].depHnd = new DependentHandle(key, value);
+                }
+                else
+                {
+                    CreateEntry(key, value);
+                }
+
+                _invalid = false;
+            }
+        }
+
+        //--------------------------------------------------------------------------------------------
         // key: key to remove. May not be null.
         //
         // Returns true if the key is found and removed. Returns false if the key was not in the dictionary.
