@@ -13,7 +13,7 @@ namespace System
     /// characteristics on par with T[]. Unlike arrays, it can point to either managed
     /// or native memory, or to memory allocated on the stack. It is type- and memory-safe.
     /// </summary>
-    public unsafe struct ReadOnlySpan<T>
+    public struct ReadOnlySpan<T>
     {
         /// <summary>A byref or a native ptr.</summary>
         private readonly ByReference<T> _pointer;
@@ -119,7 +119,7 @@ namespace System
         /// Returns a reference to the 0th element of the Span. If the Span is empty, returns a reference to the location where the 0th element
         /// would have been stored. Such a reference can be used for pinning but must never be dereferenced.
         /// </summary>
-        public unsafe ref T DangerousGetPinnableReference()
+        public ref T DangerousGetPinnableReference()
         {
             return ref _pointer.Value;
         }

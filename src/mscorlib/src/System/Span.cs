@@ -13,7 +13,7 @@ namespace System
     /// characteristics on par with T[]. Unlike arrays, it can point to either managed
     /// or native memory, or to memory allocated on the stack. It is type- and memory-safe.
     /// </summary>
-    public unsafe struct Span<T>
+    public struct Span<T>
     {
         /// <summary>A byref or a native ptr.</summary>
         private readonly ByReference<T> _pointer;
@@ -134,7 +134,7 @@ namespace System
         /// Returns a reference to the 0th element of the Span. If the Span is empty, returns a reference to the location where the 0th element
         /// would have been stored. Such a reference can be used for pinning but must never be dereferenced.
         /// </summary>
-        public unsafe ref T DangerousGetPinnableReference()
+        public ref T DangerousGetPinnableReference()
         {
             return ref _pointer.Value;
         }
@@ -338,7 +338,7 @@ namespace System
         /// <exception cref="System.ArgumentException">
         /// Thrown when <typeparamref name="TFrom"/> or <typeparamref name="TTo"/> contains pointers.
         /// </exception>
-        public static unsafe Span<TTo> NonPortableCast<TFrom, TTo>(this Span<TFrom> source)
+        public static Span<TTo> NonPortableCast<TFrom, TTo>(this Span<TFrom> source)
             where TFrom : struct
             where TTo : struct
         {
@@ -363,7 +363,7 @@ namespace System
         /// <exception cref="System.ArgumentException">
         /// Thrown when <typeparamref name="TFrom"/> or <typeparamref name="TTo"/> contains pointers.
         /// </exception>
-        public static unsafe ReadOnlySpan<TTo> NonPortableCast<TFrom, TTo>(this ReadOnlySpan<TFrom> source)
+        public static ReadOnlySpan<TTo> NonPortableCast<TFrom, TTo>(this ReadOnlySpan<TFrom> source)
             where TFrom : struct
             where TTo : struct
         {
@@ -414,26 +414,6 @@ namespace System
                     for (int i = elementsCount - 1; i >= 0; i--)
                         Unsafe.Add(ref destination, i) = Unsafe.Add(ref source, i);
                 }
-            }
-        }
-    }
-
-    internal unsafe struct ByReference<T>
-    {
-        private IntPtr _value;
-
-        public ByReference(ref T value)
-        {
-            // TODO-SPAN: This has GC hole. It needs to be JIT intrinsic instead
-            _value = (IntPtr)Unsafe.AsPointer(ref value);
-        }
-
-        public ref T Value
-        {
-            get
-            {
-                // TODO-SPAN: This has GC hole. It needs to be JIT intrinsic instead
-                return ref Unsafe.As<IntPtr, T>(ref *(IntPtr*)_value);
             }
         }
     }
