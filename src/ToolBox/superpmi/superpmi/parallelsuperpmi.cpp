@@ -138,7 +138,7 @@ bool WriteArrayToMCL(char *mclFilename, int *arr, int count)
         DWORD charCount = 0;
         DWORD bytesWritten = 0;
 
-        charCount = sprintf(strMethodIndex, "%d\r\n", arr[i]);
+        charCount = sprintf_s(strMethodIndex, sizeof(strMethodIndex), "%d\r\n", arr[i]);
 
         if (!WriteFile(hMCLFile, strMethodIndex, charCount, &bytesWritten, nullptr) || (bytesWritten != charCount))
         {

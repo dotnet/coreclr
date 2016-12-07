@@ -134,8 +134,8 @@ void DoI64NumTest(char *inputstr, const char *formatstr, INT64 checknum)
 
     if (checknum != num)
     {
-        sprintf(buf, "%I64d", num);
-        sprintf(check, "%I64d", checknum);
+        sprintf_s(buf, _countof(buf), "%I64d", num);
+        sprintf_s(check, _countof(check), "%I64d", checknum);
         Fail("ERROR: scanned I64 number incorrectly from \"%s\" using \"%s\".\n"
             "Expected %s, got %s.\n", inputstr, formatstr, check, buf);
     }

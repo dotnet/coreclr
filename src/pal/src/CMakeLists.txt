@@ -186,7 +186,7 @@ set(SOURCES
   safecrt/safecrt_winput_s.cpp
   safecrt/safecrt_woutput_s.cpp
   safecrt/splitpath_s.cpp
-  safecrt/sprintf.cpp
+  safecrt/sprintf_s.cpp
   safecrt/sscanf_s.cpp
   safecrt/strcat_s.cpp
   safecrt/strcpy_s.cpp

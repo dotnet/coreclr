@@ -147,7 +147,6 @@ int _ungetwc_nolock( wchar_t inChar, miniFILE* inStream )
 
 /***
 *   _safecrt_cfltcvt - convert a float to an ascii string.
-*       Uses sprintf - this usage is OK.
 ****/
 
 /* routine used for floating-point output */
