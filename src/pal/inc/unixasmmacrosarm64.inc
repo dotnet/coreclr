@@ -180,6 +180,7 @@ C_FUNC(\Name\()_End):
         stp                    x2, x3, [\reg, #(\ofs + 16)]
         stp                    x4, x5, [\reg, #(\ofs + 32)]
         stp                    x6, x7, [\reg, #(\ofs + 48)]
+        str                    x8, [\reg, #(\ofs + 64)]
 
 .endm
 
@@ -199,6 +200,7 @@ C_FUNC(\Name\()_End):
         ldp                    x2, x3, [\reg, #(\ofs + 16)]
         ldp                    x4, x5, [\reg, #(\ofs + 32)]
         ldp                    x6, x7, [\reg, #(\ofs + 48)]
+        ldr                    x8, [\reg, #(\ofs + 64)]
 
 .endm
 
