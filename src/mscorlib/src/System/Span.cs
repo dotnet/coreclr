@@ -289,6 +289,17 @@ namespace System
 
             SpanHelper.CopyTo<T>(ref GetRawPointer(), ref values.GetRawPointer(), values.Length);
         }
+
+        /// <summary>
+        /// Fills the contents of this span with the value.
+        /// </summary>
+        /// <param name="value">The value to fill the span content with.</param>
+        public void Fill(T value)
+        {
+            if (_length > 0)
+                SpanHelper.Fill<T>(ref GetRawPointer(), value, _length);
+        }
+
     }
 
     public static class SpanExtensions
@@ -418,6 +429,22 @@ namespace System
                     for (int i = elementsCount - 1; i >= 0; i--)
                         Unsafe.Add(ref destination, i) = Unsafe.Add(ref source, i);
                 }
+            }
+        }
+
+        internal static unsafe void Fill<T>(ref T destination, T source, int elementsCount)
+        {
+            int copiedCount = Math.Min(16, elementsCount); // Fill up to 16 items at start
+            for (int i = copiedCount; i > 0; i--)
+                Unsafe.Add(ref destination, i) = source;
+
+            elementsCount -= copiedCount;
+            while (elementsCount > 0)
+            {
+                int copyLen = Math.Min(copiedCount, elementsCount);
+                CopyTo(ref Unsafe.Add(ref destination, copiedCount), ref destination, copyLen);
+                copiedCount += copyLen;
+                elementsCount -= copyLen;
             }
         }
     }
