@@ -300,6 +300,14 @@ namespace System
                 SpanHelper.Fill<T>(ref GetRawPointer(), value, _length);
         }
 
+        /// <summary>
+        /// Fills the contents of this span with the default value.
+        /// </summary>
+        public void Clear()
+        {
+            if (_length > 0)
+                SpanHelper.Fill<T>(ref GetRawPointer(), default(T), _length);
+        }
     }
 
     public static class SpanExtensions
