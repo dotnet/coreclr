@@ -432,23 +432,45 @@ namespace System
             }
         }
 
-        internal static unsafe void Fill<T>(ref T destination, T source, int elementsCount)
+        internal static unsafe void Fill<T>(ref T destination, T value, int elementsCount)
         {
-            // Fill up to 16 * 3 items at start
-            int copiedCount = 16 * 2;
-            if (elementsCount <= 16 * 3)
-                copiedCount = elementsCount;
-
-            for (int i = copiedCount; i > 0; i--)
-                Unsafe.Add(ref destination, i) = source;
-
-            elementsCount -= copiedCount;
-            while (elementsCount > 0)
+            if (!JitHelpers.ContainsReferences<T>())
             {
-                int copyLen = Math.Min(copiedCount, elementsCount);
-                CopyTo(ref Unsafe.Add(ref destination, copiedCount), ref destination, copyLen);
-                copiedCount += copyLen;
-                elementsCount -= copyLen;
+                // Fill up to 512 * 3 bytes at start
+                int size =  Unsafe.SizeOf<T>();
+                int copiedCount = ((512 * 2) + size - 1) / size;
+                if (elementsCount <= ((512 * 3) + size - 1) / size)
+                    copiedCount = elementsCount;
+
+                for (int i = copiedCount - 1; i >= 0; i--)
+                    Unsafe.Add(ref destination, i) = value;
+
+                elementsCount -= copiedCount;
+                if (elementsCount <= 0)
+                    return;
+
+                fixed (byte* pSource = &Unsafe.As<T, byte>(ref destination))
+                {
+                    while (elementsCount > 0)
+                    {
+                        int copyLen = Math.Min(copiedCount, elementsCount);
+                        fixed (byte* pDestination = &Unsafe.As<T, byte>(ref Unsafe.Add(ref destination, copiedCount)))
+                        {
+#if BIT64
+                            Buffer.Memmove(pDestination, pSource, (ulong)copyLen * (ulong)size);
+#else
+                            Buffer.Memmove(pDestination, pSource, (uint)copyLen * (uint)size);
+#endif
+                        }
+                        copiedCount += copyLen;
+                        elementsCount -= copyLen;
+                    }
+                }
+            }
+            else
+            {
+                for (int i = elementsCount - 1; i >= 0; i--)
+                    Unsafe.Add(ref destination, i) = value;
             }
         }
     }
