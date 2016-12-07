@@ -92,6 +92,8 @@ EXTERN _TransparentProxyStub_CrossContext@0:PROC
 EXTERN _InContextTPQuickDispatchAsmStub@0:PROC
 endif
 
+EXTERN _COMPlusEndCatch@20:PROC
+
 .686P
 .XMM
 ; The following macro is needed because of a MASM issue with the

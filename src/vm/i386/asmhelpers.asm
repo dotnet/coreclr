@@ -43,7 +43,6 @@ TlsGetValue PROTO stdcall
 ifdef FEATURE_HIJACK
 EXTERN _OnHijackWorker@4:PROC
 endif ;FEATURE_HIJACK
-EXTERN _COMPlusEndCatch@20:PROC
 EXTERN _COMPlusFrameHandler:PROC
 ifdef FEATURE_COMINTEROP
 EXTERN _COMPlusFrameHandlerRevCom:PROC
