@@ -436,11 +436,13 @@ namespace System
         {
             if (!JitHelpers.ContainsReferences<T>())
             {
-                // Fill up to 512 * 3 bytes at start
-                int size =  Unsafe.SizeOf<T>();
-                int copiedCount = ((512 * 2) + size - 1) / size;
-                if (elementsCount <= ((512 * 3) + size - 1) / size)
-                    copiedCount = elementsCount;
+                int size = Unsafe.SizeOf<T>();
+
+                int copiedCount; // Fill up to copiedCount in first loop
+                if (size <= sizeof(int))
+                    copiedCount = elementsCount <= 512 / 4 * 3 ? elementsCount : 512 / 4 * 2;
+                else
+                    copiedCount = elementsCount <= (512 * 3 + size - 1) / size ? elementsCount : (512 * 2 + size - 1) / size;
 
                 for (int i = copiedCount - 1; i >= 0; i--)
                     Unsafe.Add(ref destination, i) = value;
