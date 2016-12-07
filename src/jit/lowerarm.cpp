@@ -109,9 +109,62 @@ void Lowering::LowerRotate(GenTreePtr tree)
     NYI_ARM("ARM Lowering for ROL and ROR");
 }
 
-void Lowering::TreeNodeInfoInit(GenTree* stmt)
+void Lowering::TreeNodeInfoInit(GenTree* tree)
 {
-    NYI("ARM TreeNodInfoInit");
+    Compiler* compiler = comp;
+
+    unsigned      kind         = tree->OperKind();
+    TreeNodeInfo* info         = &(tree->gtLsraInfo);
+    RegisterType  registerType = TypeGet(tree);
+
+    JITDUMP("TreeNodeInfoInit for: ");
+    DISPNODE(tree);
+    JITDUMP("\n");
+
+    switch (tree->OperGet())
+    {
+        // Please add new types below "default" case except cases which can be fit into "default" case.
+
+        // TODO-ARM-Cleanup: These cases should be replaced with "default" case after
+        // other remaining types are implmented.
+        case GT_IL_OFFSET:
+        case GT_CNS_INT:
+            info->dstCount = (tree->TypeGet() == TYP_VOID) ? 0 : 1;
+            if (kind & (GTK_CONST | GTK_LEAF))
+            {
+                info->srcCount = 0;
+            }
+            else if (kind & (GTK_SMPOP))
+            {
+                if (tree->gtGetOp2() != nullptr)
+                {
+                    info->srcCount = 2;
+                }
+                else
+                {
+                    info->srcCount = 1;
+                }
+            }
+            else
+            {
+                unreached();
+            }
+            break;
+
+        // TODO-ARM-Cleanup: Remove this "default" case, and replace above cases with
+        // "default" after other operators are implemented.(see comments above)
+        default:
+            NYI("ARM TreeNodeInfoInit(default)");
+            break;
+
+        // Please add new types below
+        case GT_RETURN:
+            NYI("ARM TreeNodeInfoInit(GT_RETURN)");
+            break;
+    } // end switch (tree->OperGet())
+
+    // We need to be sure that we've set info->srcCount and info->dstCount appropriately
+    assert((info->dstCount < 2) || tree->IsMultiRegCall());
 }
 
 // returns true if the tree can use the read-modify-write memory instruction form
