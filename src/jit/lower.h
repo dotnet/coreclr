@@ -228,7 +228,7 @@ private:
     void AddrModeCleanupHelper(GenTreeAddrMode* addrMode, GenTree* node);
 
     GenTree* LowerSwitch(GenTree* node);
-    void LowerCast(GenTree* node);
+    GenTree* LowerCast(GenTree* node);
 
 #if defined(_TARGET_XARCH_)
     void SetMulOpCounts(GenTreePtr tree);
