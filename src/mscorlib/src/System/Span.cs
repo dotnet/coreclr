@@ -434,7 +434,11 @@ namespace System
 
         internal static unsafe void Fill<T>(ref T destination, T source, int elementsCount)
         {
-            int copiedCount = Math.Min(16, elementsCount); // Fill up to 16 items at start
+            // Fill up to 16 * 3 items at start
+            int copiedCount = 16 * 2;
+            if (elementsCount <= 16 * 3)
+                copiedCount = elementsCount;
+
             for (int i = copiedCount; i > 0; i--)
                 Unsafe.Add(ref destination, i) = source;
 
