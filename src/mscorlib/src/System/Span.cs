@@ -403,6 +403,9 @@ namespace System
 
     internal static class SpanHelper
     {
+        private const int copyInLoopBufferSize = 512;
+        private const int cashBufferSize = 1024;
+
         internal static unsafe void CopyTo<T>(ref T destination, ref T source, int elementsCount)
         {
             if (elementsCount == 0)
@@ -448,9 +451,9 @@ namespace System
 
                 int copiedCount; // Fill up to copiedCount in first loop
                 if (size <= sizeof(int))
-                    copiedCount = elementsCount <= 512 / 4 * 3 ? elementsCount : 512 / 4 * 2;
+                    copiedCount = elementsCount <= copyInLoopBufferSize / 4 * 3 ? elementsCount : copyInLoopBufferSize / 4 * 2;
                 else
-                    copiedCount = elementsCount <= (512 * 3 + size - 1) / size ? elementsCount : (512 * 2 + size - 1) / size;
+                    copiedCount = elementsCount <= copyInLoopBufferSize * 3 / size ? elementsCount : Math.Min(1, copyInLoopBufferSize * 2 / size);
 
                 for (int i = copiedCount - 1; i >= 0; i--)
                     Unsafe.Add(ref destination, i) = value;
@@ -459,11 +462,13 @@ namespace System
                 if (elementsCount <= 0)
                     return;
 
+                var cashCount = Math.Min(1, cashBufferSize / size);
+
                 fixed (byte* pSource = &Unsafe.As<T, byte>(ref destination))
                 {
                     while (elementsCount > 0)
                     {
-                        int copyLen = Math.Min(copiedCount, elementsCount);
+                        int copyLen = Math.Min(Math.Min(copiedCount, elementsCount), cashCount);
                         fixed (byte* pDestination = &Unsafe.As<T, byte>(ref Unsafe.Add(ref destination, copiedCount)))
                         {
 #if BIT64
