@@ -400,13 +400,10 @@ LEAF_END ArrayOpStubTypeMismatchException, _TEXT
 //  void STDCALL CallDescrWorkerInternal(CallDescrWorkerParams *  pParams)
 NESTED_ENTRY CallDescrWorkerInternal, _TEXT, NoHandler
     PROLOG_BEG
-    PROLOG_PUSH eax
     PROLOG_PUSH ebx
-    PROLOG_PUSH ecx
-    PROLOG_PUSH edx
     PROLOG_END
 
-    mov     ebx, [esp + ((2 + 4) * 4)]
+    mov     ebx, [esp + ((2 + 1) * 4)]
 
     // copy the stack
     mov     ecx, [ebx +CallDescrData__numStackSlots]
@@ -459,10 +456,7 @@ LOCAL_LABEL(ReturnsInt):
 
 LOCAL_LABEL(Epilog):
     EPILOG_BEG
-    EPILOG_POP edx
-    EPILOG_POP ecx
     EPILOG_POP ebx
-    EPILOG_POP eax
     EPILOG_END
     ret     4
 

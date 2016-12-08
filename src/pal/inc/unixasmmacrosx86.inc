@@ -36,28 +36,37 @@ C_FUNC(\Name\()_End):
         LEAF_END \Name, \Section
 .endm
 
+.macro push_nonvol_reg Reg
+        push \Reg
+        .cfi_adjust_cfa_offset 4
+        .cfi_rel_offset \Reg, 0
+.endm
+
+.macro pop_nonvol_reg Reg
+        pop \Reg
+        .cfi_restore \Reg
+.endm
+
 .macro PROLOG_BEG
-        push    ebp
-        mov     ebp, esp
-        .cfi_def_cfa_offset     0
+        .cfi_def_cfa_offset 4
+        push_nonvol_reg ebp
+        mov ebp, esp
 .endm
 
 .macro PROLOG_PUSH Reg
-        push \Reg
-        .cfi_adjust_cfa_offset  -4
-        .cfi_rel_offset \Reg,   0
+        push_nonvol_reg \Reg
 .endm
 
 .macro PROLOG_END
-        .cfi_def_cfa_offset     4
-        .cfi_def_cfa_register   ebp
+        .cfi_def_cfa_register ebp
+        .cfi_def_cfa_offset 8
 .endm
 
 .macro EPILOG_BEG
 .endm
 
 .macro EPILOG_POP Reg
-        pop \Reg
+        pop_nonvol_reg \Reg
 .endm
 
 .macro EPILOG_END
