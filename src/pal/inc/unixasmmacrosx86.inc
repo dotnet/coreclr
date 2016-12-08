@@ -35,3 +35,31 @@ C_FUNC(\Name\()_End):
         .global C_FUNC(\Name\()_End)
         LEAF_END \Name, \Section
 .endm
+
+.macro PROLOG_BEG
+        push    ebp
+        mov     ebp, esp
+        .cfi_def_cfa_offset     0
+.endm
+
+.macro PROLOG_PUSH Reg
+        push \Reg
+        .cfi_adjust_cfa_offset  -4
+        .cfi_rel_offset \Reg,   0
+.endm
+
+.macro PROLOG_END
+        .cfi_def_cfa_offset     4
+        .cfi_def_cfa_register   ebp
+.endm
+
+.macro EPILOG_BEG
+.endm
+
+.macro EPILOG_POP Reg
+        pop \Reg
+.endm
+
+.macro EPILOG_END
+        pop ebp
+.endm
