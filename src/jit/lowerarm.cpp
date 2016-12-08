@@ -164,12 +164,61 @@ void Lowering::TreeNodeInfoInit(GenTree* tree)
 
         // Please add new types below
         case GT_RETURN:
-            NYI("ARM TreeNodeInfoInit(GT_RETURN)");
+            TreeNodeInfoInitReturn(tree);
             break;
     } // end switch (tree->OperGet())
 
     // We need to be sure that we've set info->srcCount and info->dstCount appropriately
     assert((info->dstCount < 2) || tree->IsMultiRegCall());
+}
+//------------------------------------------------------------------------
+// TreeNodeInfoInitReturn: Set the NodeInfo for a GT_RETURN.
+//
+// Arguments:
+//    tree      - The node of interest
+//
+// Return Value:
+//    None.
+//
+void Lowering::TreeNodeInfoInitReturn(GenTree* tree)
+{
+    TreeNodeInfo* info     = &(tree->gtLsraInfo);
+    LinearScan*   l        = m_lsra;
+    Compiler*     compiler = comp;
+
+    GenTree*  op1           = tree->gtGetOp1();
+    regMaskTP useCandidates = RBM_NONE;
+
+    info->srcCount = (tree->TypeGet() == TYP_VOID) ? 0 : 1;
+    info->dstCount = 0;
+
+    if (varTypeIsStruct(tree))
+    {
+        NYI_ARM("ARM TreeNodeInfoInitReturn for struct");
+    }
+    else
+    {
+        // Non-struct type return - determine useCandidates
+        switch (tree->TypeGet())
+        {
+            case TYP_VOID:
+                useCandidates = RBM_NONE;
+                break;
+            case TYP_FLOAT:
+            case TYP_DOUBLE:
+            case TYP_LONG: // We should consider register layout for TYP_LONG
+                NYI_ARM("ARM TreeNodeInfoInitReturn for VOID, FLOAT, DOUBLE, LONG");
+                break;
+            default:
+                useCandidates = RBM_INTRET;
+                break;
+        }
+    }
+
+    if (useCandidates != RBM_NONE)
+    {
+        op1->gtLsraInfo.setSrcCandidates(l, useCandidates);
+    }
 }
 
 // returns true if the tree can use the read-modify-write memory instruction form
