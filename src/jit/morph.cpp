@@ -16174,6 +16174,63 @@ void Compiler::fgSetOptions()
     // printf("method will %s be fully interruptible\n", genInterruptible ? "   " : "not");
 }
 
+//------------------------------------------------------------------------------
+// fgInitClass : Init class that is described by context and this argument.
+//
+// Arguments:
+//    context  - exact context of method,
+//    thisArgAsLocalVar - this arg to get vtable pointer, can be null for static methods.
+//
+// Return Value:
+//    GenTreePtr that contains call to .cctor for targeted class.
+GenTreePtr Compiler::fgInitClass(CORINFO_CONTEXT_HANDLE context, GenTreePtr thisArg)
+{
+    CORINFO_CLASS_HANDLE exactClass;
+    bool isInstantiatedType = (((SIZE_T)context & CORINFO_CONTEXTFLAGS_MASK) == CORINFO_CONTEXTFLAGS_CLASS);
+    if (isInstantiatedType)
+    {
+        exactClass = CORINFO_CLASS_HANDLE((SIZE_T)context & ~CORINFO_CONTEXTFLAGS_MASK);
+        return fgGetSharedCCtor(exactClass);
+    }
+    else
+    {
+        CORINFO_METHOD_HANDLE exactMethod = CORINFO_METHOD_HANDLE((SIZE_T)context & ~CORINFO_CONTEXTFLAGS_MASK);
+        exactClass                        = info.compCompHnd->getMethodClass(exactMethod);
+        CORINFO_LOOKUP_KIND kind          = info.compCompHnd->getLocationOfThisType(exactMethod);
+        assert(kind.runtimeLookupKind == CORINFO_LOOKUP_THISOBJ);
+        if (!kind.needsRuntimeLookup)
+        {
+            return fgGetSharedCCtor(exactClass);
+        }
+#ifdef FEATURE_READYTORUN_COMPILER
+        // Only CoreRT understands CORINFO_HELP_READYTORUN_GENERIC_STATIC_BASE. Don't do this on CoreCLR.
+        assert(eeGetEEInfo()->targetAbi != CORINFO_CORERT_ABI || opts.IsReadyToRun());
+        if (thisArg != NULL)
+        {
+            CORINFO_RESOLVED_TOKEN resolvedToken;
+            memset(&resolvedToken, 0, sizeof(resolvedToken));
+
+            GenTreePtr ctxTree = thisArg;
+
+            // Vtable pointer of this object
+            ctxTree = gtNewOperNode(GT_IND, TYP_I_IMPL, ctxTree);
+            ctxTree->gtFlags |= GTF_EXCEPT; // Null-pointer exception
+            ctxTree->gtFlags |= GTF_IND_INVARIANT;
+            return impReadyToRunHelperToTree(&resolvedToken, CORINFO_HELP_READYTORUN_GENERIC_STATIC_BASE, TYP_BYREF,
+                                             gtNewArgList(ctxTree), &kind);
+        }
+        else
+        {
+            noway_assert(!"there is no R2R helper that finds R2R generic static base for static method handle");
+            UNREACHABLE();
+        }
+#else
+        noway_assert(!"needsRuntimeLookup can'be true when not ready to run");
+        UNREACHABLE();
+#endif
+    }
+}
+
 /*****************************************************************************/
 
 GenTreePtr Compiler::fgInitThisClass()

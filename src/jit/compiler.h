@@ -3559,6 +3559,8 @@ public:
 
     bool fgShouldCreateAssignOp(GenTreePtr tree, bool* bReverse);
 
+    GenTreePtr fgInitClass(CORINFO_CONTEXT_HANDLE context, GenTreePtr thisArg);
+
     GenTreePtr fgInitThisClass();
 
     GenTreePtr fgGetStaticsCCtorHelper(CORINFO_CLASS_HANDLE cls, CorInfoHelpFunc helper);
