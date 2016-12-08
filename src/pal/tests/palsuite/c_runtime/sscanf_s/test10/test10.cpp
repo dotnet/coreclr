@@ -6,7 +6,7 @@
 **
 ** Source:  test10.c
 **
-** Purpose:  Tests sscanf_s with wide charactersn
+** Purpose:  Tests sscanf_s with wide characters
 **
 **
 **==========================================================================*/

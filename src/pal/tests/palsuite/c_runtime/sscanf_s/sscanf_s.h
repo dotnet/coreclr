@@ -43,7 +43,7 @@ void DoStrTest(char *inputstr, const char *formatstr, const char *checkstr)
     char buf[256] = { 0 };
     int ret;
 
-    ret = sscanf_s(inputstr, formatstr, buf, sizeof(buf));
+    ret = sscanf_s(inputstr, formatstr, buf, _countof(buf));
     if (ret != 1)
     {
         Fail("ERROR: Expected sscanf_s to return 1, got %d.\n"
@@ -64,7 +64,7 @@ void DoWStrTest(char *inputstr, const char *formatstr, const WCHAR *checkstr)
     WCHAR buf[256] = { 0 };
     int ret;
 
-    ret = sscanf_s(inputstr, formatstr, buf, sizeof(buf) / sizeof(buf[0]));
+    ret = sscanf_s(inputstr, formatstr, buf, _countof(buf));
     if (ret != 1)
     {
         Fail("ERROR: Expected sscanf_s to return 1, got %d.\n"
@@ -150,7 +150,7 @@ void DoCharTest(char *inputstr, const char *formatstr, char* checkchars, int num
     for (i=0; i<256; i++)
         buf[i] = (char)-1;
 
-    ret = sscanf_s(inputstr, formatstr, buf);
+    ret = sscanf_s(inputstr, formatstr, buf, _countof(buf));
     if (ret != 1)
     {
         Fail("ERROR: Expected sscanf_s to return 1, got %d.\n"
@@ -183,7 +183,7 @@ void DoWCharTest(char *inputstr, const char *formatstr, WCHAR* checkchars, int n
     for (i=0; i<256; i++)
         buf[i] = (WCHAR)-1;
 
-    ret = sscanf_s(inputstr, formatstr, buf);
+    ret = sscanf_s(inputstr, formatstr, buf, _countof(buf));
     if (ret != 1)
     {
         Fail("ERROR: Expected sscanf_s to return 1, got %d.\n"
