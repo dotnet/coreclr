@@ -41,12 +41,23 @@ typedef enum
     walk_for_loh = 3
 } walk_surv_type;
 
-// Arguments to GCToEEInterface::StompWriteBarrierResize and
-// GCToEEInterface::StompWriteBarrierInitialize. 
-struct WriteBarrierResizeArgs 
+// Different operations that can be done by GCToEEInterface::StompWriteBarrier
+enum class WriteBarrierOp
 {
+    StompResize,
+    StompEphemeral,
+    Initialize
+};
+
+// Arguments to GCToEEInterface::StompWriteBarrier
+struct WriteBarrierArgs
+{
+    // The operation that StompWriteBarrier will perform.
+    WriteBarrierOp operation;
+
     // Whether or not the runtime is currently suspended. If it is not,
     // the EE will need to suspend it before bashing the write barrier.
+    // Used for all operations.
     bool is_runtime_suspended;
 
     // Whether or not the GC has moved the ephemeral generation to no longer
@@ -57,32 +68,27 @@ struct WriteBarrierResizeArgs
     // generation. When this is not the case, however, the GC must inform the EE
     // so that the EE can switch to a write barrier that checks that a pointer
     // is both greater than g_ephemeral_low and less than g_ephemeral_high.
+    // Used for WriteBarrierOp::StompResize.
     bool requires_upper_bounds_check;
 
     // The new card table location. May or may not be the same as the previous
-    // card table.
+    // card table. Used for WriteBarrierOp::Initialize and WriteBarrierOp::StompResize.
     uint32_t* new_card_table;
 
     // The heap's new low boundary. May or may not be the same as the previous
-    // value.
+    // value. Used for WriteBarrierOp::Initialize and WriteBarrierOp::StompResize.
     uint8_t* new_lowest_address;
 
     // The heap's new high boundary. May or may not be the same as the previous
-    // value.
+    // value. Used for WriteBarrierOp::Initialize and WriteBarrierOp::StompResize.
     uint8_t* new_highest_address;
-};
-
-// Arguments to GCToEEInterface::StompWriteBarrierEphemeral.
-struct WriteBarrierEphemeralArgs 
-{
-    // Whether or not the runtime is currently suspended. If it is not,
-    // the EE will need to suspend it before bashing the write barrier.
-    bool is_runtime_suspended;
 
     // The new start of the ephemeral generation. 
+    // Used for WriteBarrierOp::StompEphemeral.
     uint8_t* new_ephemeral_low;
 
     // The new end of the ephemeral generation.
+    // Used for WriteBarrierOp::StompEphemeral.
     uint8_t* new_ephemeral_high;
 };
 

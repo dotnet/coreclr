@@ -167,22 +167,10 @@ inline void GCToEEInterface::DiagWalkBGCSurvivors(void* gcContext)
     return g_theGCToCLR->DiagWalkBGCSurvivors(gcContext);
 }
 
-inline void GCToEEInterface::StompWriteBarrierResize(WriteBarrierResizeArgs args)
+inline void GCToEEInterface::StompWriteBarrier(WriteBarrierArgs* args)
 {
     assert(g_theGCToCLR != nullptr);
-    g_theGCToCLR->StompWriteBarrierResize(args);
-}
-
-inline void GCToEEInterface::StompWriteBarrierEphemeral(WriteBarrierEphemeralArgs args)
-{
-    assert(g_theGCToCLR != nullptr);
-    g_theGCToCLR->StompWriteBarrierEphemeral(args);
-}
-
-inline void GCToEEInterface::StompWriteBarrierInitialize(WriteBarrierResizeArgs args)
-{
-    assert(g_theGCToCLR != nullptr);
-    g_theGCToCLR->StompWriteBarrierInitialize(args);
+    g_theGCToCLR->StompWriteBarrier(args);
 }
 
 #endif // __GCTOENV_EE_STANDALONE_INL__

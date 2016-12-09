@@ -2177,35 +2177,50 @@ int log2(unsigned int n)
 }
 
 #ifndef DACCESS_COMPILE
+
 void stomp_write_barrier_resize(bool is_runtime_suspended, bool requires_upper_bounds_check)
 {
-    WriteBarrierResizeArgs args;
+    WriteBarrierArgs args = {};
+    args.operation = WriteBarrierOp::StompResize;
     args.is_runtime_suspended = is_runtime_suspended;
     args.requires_upper_bounds_check = requires_upper_bounds_check;
     args.new_card_table = g_gc_card_table;
     args.new_lowest_address = g_gc_lowest_address;
     args.new_highest_address = g_gc_highest_address;
-    GCToEEInterface::StompWriteBarrierResize(args);
+    GCToEEInterface::StompWriteBarrier(&args);
 }
 
 void stomp_write_barrier_ephemeral(bool is_runtime_suspended, uint8_t* ephemeral_lo, uint8_t* ephemeral_hi)
 {
-    WriteBarrierEphemeralArgs args;
+    WriteBarrierArgs args = {};
+    args.operation = WriteBarrierOp::StompEphemeral;
     args.is_runtime_suspended = is_runtime_suspended;
-    args.new_ephemeral_low = ephemeral_lo;
-    args.new_ephemeral_high = ephemeral_hi;
-    GCToEEInterface::StompWriteBarrierEphemeral(args);
+    args.new_ephemeral_low = g_gc_ephemeral_low;
+    args.new_ephemeral_high = g_gc_ephemeral_high;
+#ifdef MULTIPLE_HEAPS
+    // It is not correct to update the EE's g_ephemeral_low and g_ephemeral_high
+    // to anything other than their default values when using Server GC, since
+    // there is no single ephemeral generation across all of the heaps.
+    // Server GC write barriers do not reference these two globals, but ErectWriteBarrier does.
+    //
+    // When MULTIPLE_HEAPS is defined, g_gc_ephemeral_low and g_gc_ephemeral_high should
+    // always have their default values.
+    assert(args.new_ephemeral_low == (uint8_t*)1);
+    assert(args.new_ephemeral_high == (uint8_t*)~0);
+#endif // MULTIPLE_HEAPS
+    GCToEEInterface::StompWriteBarrier(&args);
 }
 
 void stomp_write_barrier_initialize()
 {
-    WriteBarrierResizeArgs args;
+    WriteBarrierArgs args = {};
+    args.operation = WriteBarrierOp::Initialize;
     args.is_runtime_suspended = true;
     args.requires_upper_bounds_check = false;
     args.new_card_table = g_gc_card_table;
     args.new_lowest_address = g_gc_lowest_address;
     args.new_highest_address = g_gc_highest_address;
-    GCToEEInterface::StompWriteBarrierInitialize(args);
+    GCToEEInterface::StompWriteBarrier(&args);
 }
 
 #endif // DACCESS_COMPILE
