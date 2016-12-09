@@ -300,7 +300,7 @@ namespace System
         public void Clear()
         {
             if (_length > 0)
-                SpanHelper.Fill<T>(ref DangerousGetPinnableReference(), default(T), _length);
+                SpanHelper.Clear<T>(ref DangerousGetPinnableReference(), _length);
         }
     }
 
@@ -480,6 +480,22 @@ namespace System
             {
                 for (int i = elementsCount - 1; i >= 0; i--)
                     Unsafe.Add(ref destination, i) = value;
+            }
+        }
+
+        internal static unsafe void Clear<T>(ref T destination, int elementsCount)
+        {
+            if (!JitHelpers.ContainsReferences<T>())
+            {
+                fixed (byte* pDestination = &Unsafe.As<T, byte>(ref destination))
+                {
+                    Buffer.ZeroMemory(pDestination, (long)elementsCount * Unsafe.SizeOf<T>());
+                }
+            }
+            else
+            {
+                for (int i = elementsCount - 1; i >= 0; i--)
+                    Unsafe.Add(ref destination, i) = default(T);
             }
         }
     }
