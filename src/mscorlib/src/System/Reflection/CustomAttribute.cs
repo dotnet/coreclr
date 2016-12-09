@@ -1885,19 +1885,6 @@ namespace System.Reflection
                 return false;
             }
 
-#if FEATURE_APTCA
-            // APTCA checks
-            RuntimeAssembly attributeAssembly = (RuntimeAssembly)attributeType.Assembly;
-            RuntimeAssembly decoratedModuleAssembly = (RuntimeAssembly)decoratedModule.Assembly;
-
-            if (attributeAssembly != lastAptcaOkAssembly && 
-                !RuntimeAssembly.AptcaCheck(attributeAssembly, decoratedModuleAssembly))
-                return false;
-
-            // Cache last successful APTCA check (optimization)
-            lastAptcaOkAssembly = decoratedModuleAssembly;
-#endif // FEATURE_APTCA
-
             // Resolve the attribute ctor
             ConstArray ctorSig = scope.GetMethodSignature(caRecord.tkCtor);
             isVarArg = (ctorSig[0] & 0x05) != 0;
@@ -2089,21 +2076,10 @@ namespace System.Reflection
         #endregion
 
         #region FCalls
-#if FEATURE_CAS_POLICY
-        [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        unsafe private static extern void _GetSecurityAttributes(RuntimeModule module, int token, bool assembly, out object[] securityAttributes);
-        [System.Security.SecurityCritical]  // auto-generated
-        unsafe internal static void GetSecurityAttributes(RuntimeModule module, int token, bool assembly, out object[] securityAttributes)
-        {
-            _GetSecurityAttributes(module.GetNativeHandle(), token, assembly, out securityAttributes);
-        }
-#else
         internal static void GetSecurityAttributes(RuntimeModule module, int token, bool assembly, out object[] securityAttributes)
         {
             securityAttributes = null;
         }
-#endif
         #endregion
 
         #region Static Constructor

@@ -90,9 +90,6 @@
 namespace Microsoft.Win32 {
     using System;
     using System.Security;
-#if FEATURE_IMPERSONATION
-    using System.Security.Principal;
-#endif
     using System.Text;
     using System.Configuration.Assemblies;
     using System.Runtime.Remoting;
@@ -909,58 +906,6 @@ namespace Microsoft.Win32 {
 
         [DllImport(KERNEL32, SetLastError = true, CharSet = CharSet.Unicode, ExactSpelling = true)]
         internal static extern uint GetLongPathNameW(string lpszShortPath, SafeHandle lpszLongPath, uint cchBuffer);
-
-#if !FEATURE_CORECLR
-        // Disallow access to all non-file devices from methods that take
-        // a String.  This disallows DOS devices like "con:", "com1:", 
-        // "lpt1:", etc.  Use this to avoid security problems, like allowing
-        // a web client asking a server for "http://server/com1.aspx" and
-        // then causing a worker process to hang.
-        [System.Security.SecurityCritical]  // auto-generated
-        internal static SafeFileHandle SafeCreateFile(String lpFileName,
-                    int dwDesiredAccess, System.IO.FileShare dwShareMode,
-                    SECURITY_ATTRIBUTES securityAttrs, System.IO.FileMode dwCreationDisposition,
-                    int dwFlagsAndAttributes, IntPtr hTemplateFile)
-        {
-            SafeFileHandle handle = CreateFile( lpFileName, dwDesiredAccess, dwShareMode,
-                                securityAttrs, dwCreationDisposition,
-                                dwFlagsAndAttributes, hTemplateFile );
-
-            if (!handle.IsInvalid)
-            {
-                int fileType = Win32Native.GetFileType(handle);
-                if (fileType != Win32Native.FILE_TYPE_DISK) {
-                    handle.Dispose();
-                    throw new NotSupportedException(Environment.GetResourceString("NotSupported_FileStreamOnNonFiles"));
-                }
-            }
-
-            return handle;
-        }
-
-        [System.Security.SecurityCritical]  // auto-generated
-        internal static SafeFileHandle UnsafeCreateFile(String lpFileName,
-                    int dwDesiredAccess, System.IO.FileShare dwShareMode,
-                    SECURITY_ATTRIBUTES securityAttrs, System.IO.FileMode dwCreationDisposition,
-                    int dwFlagsAndAttributes, IntPtr hTemplateFile)
-        {
-            SafeFileHandle handle = CreateFile( lpFileName, dwDesiredAccess, dwShareMode,
-                                securityAttrs, dwCreationDisposition,
-                                dwFlagsAndAttributes, hTemplateFile );
-
-            return handle;
-        }
-
-        // Do not use these directly, use the safe or unsafe versions above.
-        // The safe version does not support devices (aka if will only open
-        // files on disk), while the unsafe version give you the full semantic
-        // of the native version.
-        [DllImport(KERNEL32, SetLastError=true, CharSet=CharSet.Auto, BestFitMapping=false)]
-        private static extern SafeFileHandle CreateFile(String lpFileName,
-                    int dwDesiredAccess, System.IO.FileShare dwShareMode,
-                    SECURITY_ATTRIBUTES securityAttrs, System.IO.FileMode dwCreationDisposition,
-                    int dwFlagsAndAttributes, IntPtr hTemplateFile);
-#endif
 
         [DllImport(KERNEL32, SetLastError=true, CharSet=CharSet.Auto, BestFitMapping=false)]
         internal static extern SafeFileMappingHandle CreateFileMapping(SafeFileHandle hFile, IntPtr lpAttributes, uint fProtect, uint dwMaximumSizeHigh, uint dwMaximumSizeLow, String lpName);
@@ -1930,28 +1875,6 @@ namespace Microsoft.Win32 {
             [In]     bool                       bInheritHandle,
             [In]     uint                       dwOptions);
 
-#if FEATURE_IMPERSONATION
-        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]
-        [DllImport(ADVAPI32, CharSet=CharSet.Auto, SetLastError=true)]
-        internal static extern 
-        bool DuplicateTokenEx (
-            [In]     SafeAccessTokenHandle       ExistingTokenHandle,
-            [In]     TokenAccessLevels           DesiredAccess,
-            [In]     IntPtr                      TokenAttributes,
-            [In]     SECURITY_IMPERSONATION_LEVEL ImpersonationLevel,
-            [In]     System.Security.Principal.TokenType TokenType,
-            [In,Out] ref SafeAccessTokenHandle   DuplicateTokenHandle );
-
-        [DllImport(ADVAPI32, CharSet=CharSet.Auto, SetLastError=true)]
-        internal static extern 
-        bool DuplicateTokenEx (
-            [In]     SafeAccessTokenHandle      hExistingToken,
-            [In]     uint                       dwDesiredAccess,
-            [In]     IntPtr                     lpTokenAttributes,   // LPSECURITY_ATTRIBUTES
-            [In]     uint                       ImpersonationLevel,
-            [In]     uint                       TokenType,
-            [In,Out] ref SafeAccessTokenHandle  phNewToken);
-#endif
         [DllImport(
              ADVAPI32,
              EntryPoint="EqualDomainSid",
@@ -2345,15 +2268,6 @@ namespace Microsoft.Win32 {
         [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
         internal static extern int LsaFreeReturnBuffer(IntPtr handle);
 
-#if FEATURE_IMPERSONATION
-        [DllImport (ADVAPI32, CharSet=CharSet.Unicode, SetLastError=true)]
-        internal static extern 
-        bool OpenProcessToken (
-            [In]     IntPtr                     ProcessToken,
-            [In]     TokenAccessLevels          DesiredAccess,
-            [Out]    out SafeAccessTokenHandle  TokenHandle);
-#endif
-
         [DllImport(
              ADVAPI32,
              EntryPoint="SetNamedSecurityInfoW",
@@ -2385,15 +2299,6 @@ namespace Microsoft.Win32 {
             byte[] group,
             byte[] dacl,
             byte[] sacl );
-
-        // Fusion APIs
-#if FEATURE_FUSION
-        [DllImport(MSCORWKS, CharSet=CharSet.Unicode)]
-        internal static extern int CreateAssemblyNameObject(out IAssemblyName ppEnum, String szAssemblyName, uint dwFlags, IntPtr pvReserved);
-    
-        [DllImport(MSCORWKS, CharSet=CharSet.Auto)]
-        internal static extern int CreateAssemblyEnum(out IAssemblyEnum ppEnum, IApplicationContext pAppCtx, IAssemblyName pName, uint dwFlags, IntPtr pvReserved);
-#endif // FEATURE_FUSION
 
 #if FEATURE_CORECLR
         [DllImport(KERNEL32, CharSet=CharSet.Unicode)]

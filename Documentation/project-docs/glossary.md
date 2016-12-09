@@ -15,6 +15,7 @@ As much as possible, we should link to the most authoritative and recent source 
 * JIT: [Just-in-Time](https://github.com/dotnet/coreclr/blob/master/Documentation/botr/ryujit-overview.md) compiler. RyuJIT is the code name for the next generation Just-in-Time(aka "JIT") for the .NET runtime.
 * LCG: Lightweight Code Generation. An early name for [dynamic methods](https://github.com/dotnet/coreclr/blob/master/src/mscorlib/src/System/Reflection/Emit/DynamicMethod.cs).
 * NGen: Native Image Generator.
+* NYI: Not Yet Implemented
 * PAL: [Platform Adaptation Layer](http://archive.oreilly.com/pub/a/dotnet/2002/03/04/rotor.html). Provides an abstraction layer between the runtime and the operating system
 * PE: Portable Executable.
 * ProjectN: Codename for the first version of [.NET Native for UWP](https://msdn.microsoft.com/en-us/vstudio/dotnetnative.aspx).
@@ -22,6 +23,7 @@ As much as possible, we should link to the most authoritative and recent source 
 * Redhawk: Codename for experimental minimal managed code runtime that evolved into [CoreRT](https://github.com/dotnet/corert/).
 * SOS: [Son of Strike](http://blogs.msdn.com/b/jasonz/archive/2003/10/21/53581.aspx). The debugging extension for DbgEng based debuggers. Uses the DAC as an abstraction layer for its operation.
 * SVR: The CLR used to be built as two variants, with one called "mscorsvr.dll", to mean the "server" version. In particular, it contained the server GC implementation, which was intended for multi-threaded apps capable of taking advantage of multiple processors. In the .NET Framework 2 release, the two variants were merged into "mscorwks.dll". The WKS version was the default, however the SVR version remained available.
+* TPA: Trusted Platform Assemblies used to be a special set of assemblies that comprised the platform assemblies, when it was originally designed. As of today, it is simply the set of assemblies known to constitute the application.
 * URT: Universal Runtime. Ancient name for what ended up being .NET, is used in the WinError facility name FACILITY_URT.
 * VSD: [Virtual Stub Dispatch](../botr/virtual-stub-dispatch.md). Technique of using stubs for virtual method invocations instead of the traditional virtual method table.
 * VM: Virtual machine.
