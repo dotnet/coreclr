@@ -34,7 +34,7 @@ related to .NET Core including:
 ## What Can you Make from this Repository?
 
 .NET Core relies heavily on the [Nuget](https://en.wikipedia.org/wiki/NuGet) package manager,
-which is the system to package, distribute and version software components.  See [https://www.nuget.org/](https://www.nuget.org/) 
+which is a system to package, distribute and version software components.  See [https://www.nuget.org/](https://www.nuget.org/) 
 for more information on Nuget.   For now it is enough to know Nuget is a system that
 bundles components into `*.nupkg` files (which are ZIP archives) and these packages can be 'published' 
 either through a local file system path or by a URL (e.g. https://www.nuget.org/).   There are then tools 
@@ -91,7 +91,7 @@ you use dotnet.exe for this).
 These extra pieces are not defined here, however you don't need to build them in order to use the CoreCLR 
 Nuget package you create here.   There are already versions of the CoreFX packages published on 
 https://www.nuget.org/ so you can have your test application's project.json specify the CoreCLR you 
-built and it will naturally pull anything else it needs from the official location https://www.nuget.org/, to 
+built and it will naturally pull anything else it needs from the official location https://www.nuget.org/ to 
 make a complete application.  More on this in the [Using Your Build](Documentation/workflow/UsingYourBuild.md) page.
 
 --------------------------
