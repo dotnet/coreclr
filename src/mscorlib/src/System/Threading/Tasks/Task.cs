@@ -5994,7 +5994,10 @@ namespace System.Threading.Tasks
             foreach (Task task in tasks)
             {
                 if (task == null) ThrowHelper.ThrowArgumentException(ExceptionResource.Task_MultiTaskContinuation_NullTask, ExceptionArgument.tasks);
-                taskList.Add(task);
+                if (!task.IsRanToCompletion) // no need to wait on the task if it's already successfully completed
+                {
+                    taskList.Add(task);
+                }
             }
 
             // Delegate the rest to InternalWhenAll()
