@@ -291,9 +291,9 @@ namespace System
         public struct Enumerator : IEnumerator<T>
         {
             private readonly T[] _array;
-            private readonly int _offset;
-            private readonly int _endIndex; // cache Offset + Count, since it's a little slow
-            private int _index;
+            private readonly int _start;
+            private readonly int _end; // cache Offset + Count, since it's a little slow
+            private int _current;
 
             internal Enumerator(ArraySegment<T> arraySegment)
             {
@@ -303,17 +303,17 @@ namespace System
                 Contract.Requires(arraySegment.Offset + arraySegment.Count <= arraySegment.Array.Length);
 
                 _array = arraySegment.Array;
-                _offset = arraySegment.Offset;
-                _endIndex = arraySegment.Offset + arraySegment.Count;
-                _index = arraySegment.Offset - 1;
+                _start = arraySegment.Offset;
+                _end = arraySegment.Offset + arraySegment.Count;
+                _current = arraySegment.Offset - 1;
             }
 
             public bool MoveNext()
             {
-                if (_index < _endIndex)
+                if (_current < _end)
                 {
-                    _index++;
-                    return (_index < _endIndex);
+                    _current++;
+                    return (_current < _end);
                 }
                 return false;
             }
@@ -322,11 +322,11 @@ namespace System
             {
                 get
                 {
-                    if (_index < _offset)
+                    if (_current < _start)
                         ThrowHelper.ThrowInvalidOperationException_InvalidOperation_EnumNotStarted();
-                    if (_index >= _endIndex)
+                    if (_current >= _end)
                         ThrowHelper.ThrowInvalidOperationException_InvalidOperation_EnumEnded();
-                    return _array[_index];
+                    return _array[_current];
                 }
             }
 
@@ -334,7 +334,7 @@ namespace System
 
             void IEnumerator.Reset()
             {
-                _index = _offset - 1;
+                _current = _start - 1;
             }
 
             public void Dispose()
