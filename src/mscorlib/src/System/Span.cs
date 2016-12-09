@@ -160,10 +160,28 @@ namespace System
         }
 
         /// <summary>
-        /// Copies the contents of this span into destination span. The destination
-        /// must be at least as big as the source, and may be bigger.
+        /// Copies the contents of this span into destination span. If the source
+        /// and destinations overlap, this method behaves as if the original values in
+        /// a temporary location before the destination is overwritten.
         /// </summary>
         /// <param name="destination">The span to copy items into.</param>
+        /// <exception cref="System.ArgumentException">
+        /// Thrown when the destination Span is shorter than the source Span.
+        /// </exception>
+        public void CopyTo(Span<T> destination)
+        {
+            if (!TryCopyTo(destination))
+                ThrowHelper.ThrowArgumentException_DestinationTooShort();
+        }
+
+        /// <summary>
+        /// Copies the contents of this span into destination span. If the source
+        /// and destinations overlap, this method behaves as if the original values in
+        /// a temporary location before the destination is overwritten.
+        /// </summary>
+        /// <param name="destination">The span to copy items into.</param>
+        /// <returns>If the destination span is shorter than the source span, this method
+        /// return false and no data is written to the destination.</returns>        
         public bool TryCopyTo(Span<T> destination)
         {
             if ((uint)_length > (uint)destination.Length)
@@ -174,6 +192,24 @@ namespace System
         }
 
         /// <summary>
+        /// Returns true if left and right point at the same memory and have the same length.  Note that
+        /// this does *not* check to see if the *contents* are equal.
+        /// </summary>
+        public static bool operator ==(Span<T> left, Span<T> right)
+        {
+            return left.Equals(right);
+        }
+
+        /// <summary>
+        /// Returns false if left and right point at the same memory and have the same length.  Note that
+        /// this does *not* check to see if the *contents* are equal.
+        /// </summary>
+        public static bool operator !=(Span<T> left, Span<T> right)
+        {
+            return !left.Equals(right);
+        }
+
+        /// <summary>
         /// Checks to see if two spans point at the same memory.  Note that
         /// this does *not* check to see if the *contents* are equal.
         /// </summary>
@@ -181,6 +217,36 @@ namespace System
         {
             return (_length == other.Length) &&
                 (_length == 0 || Unsafe.AreSame(ref GetRawPointer(), ref other.GetRawPointer()));
+        }
+
+        /// <summary>
+        /// This method is not supported as spans cannot be boxed. To compare two spans, use operator==.
+        /// <exception cref="System.NotSupportedException">
+        /// Always thrown by this method.
+        /// </exception>
+        /// </summary>
+        [Obsolete("Equals() on Span will always throw an exception. Use == instead.")]
+        public override bool Equals(object obj)
+        {
+            ThrowHelper.ThrowNotSupportedException_CannotCallEqualsOnSpan();
+            // line above will always throw, but the compiler doesn't agree
+            // error CS0161: 'Span<T>.Equals(object)': not all code paths return a value
+            return false; 
+        }
+
+        /// <summary>
+        /// This method is not supported as spans cannot be boxed.
+        /// <exception cref="System.NotSupportedException">
+        /// Always thrown by this method.
+        /// </exception>
+        /// </summary>
+        [Obsolete("GetHashCode() on Span will always throw an exception.")]
+        public override int GetHashCode()
+        {
+            ThrowHelper.ThrowNotSupportedException_CannotCallGetHashCodeOnSpan();
+            // line above will always throw, but the compiler doesn't agree
+            // error CS0161: 'Span<T>.GetHashCode()': not all code paths return a value
+            return -1; 
         }
 
         /// <summary>
@@ -272,17 +338,6 @@ namespace System
         {
             // TODO-SPAN: This has GC hole. It needs to be JIT intrinsic instead
             return ref Unsafe.As<IntPtr, T>(ref *(IntPtr*)_rawPointer);
-        }
-
-        /// <exception cref="System.ArgumentOutOfRangeException">
-        /// Thrown when the specified <paramref name="values"/>'s Length is longer than source span's Length.
-        /// </exception>
-        public void Set(ReadOnlySpan<T> values)
-        {
-            if ((uint)values.Length > (uint)_length)
-                ThrowHelper.ThrowArgumentOutOfRangeException();
-
-            SpanHelper.CopyTo<T>(ref GetRawPointer(), ref values.GetRawPointer(), values.Length);
         }
 
         /// <summary>A byref or a native ptr. Do not access directly</summary>
