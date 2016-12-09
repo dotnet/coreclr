@@ -3684,7 +3684,51 @@ void LinearScan::buildRefPositionsForNode(GenTree*                  tree,
     // (i.e. the target is read-modify-write), preference the dst to op1.
 
     bool hasDelayFreeSrc = tree->gtLsraInfo.hasDelayFreeSrc;
-    if (tree->OperGet() == GT_PUTARG_REG && isCandidateLocalRef(tree->gtGetOp1()) &&
+
+#if defined(DEBUG) && defined(_TARGET_X86_)
+    // On x86, `LSRA_LIMIT_CALLER` is too restrictive to allow the use of special put args: this stress mode
+    // leaves only three registers allocatable--eax, ecx, and edx--of which the latter two are also used for the
+    // first two integral arguments to a call. This can leave us with too few registers to succesfully allocate in
+    // situations like the following:
+    //
+    //     t1026 =    lclVar    ref    V52 tmp35        u:3 REG NA <l:$3a1, c:$98d>
+    //
+    //             /--*  t1026  ref
+    //     t1352 = *  putarg_reg ref    REG NA
+    //
+    //      t342 =    lclVar    int    V14 loc6         u:4 REG NA $50c
+    //
+    //      t343 =    const     int    1 REG NA $41
+    //
+    //             /--*  t342   int
+    //             +--*  t343   int
+    //      t344 = *  +         int    REG NA $495
+    //
+    //      t345 =    lclVar    int    V04 arg4         u:2 REG NA $100
+    //
+    //             /--*  t344   int
+    //             +--*  t345   int
+    //      t346 = *  %         int    REG NA $496
+    //
+    //             /--*  t346   int
+    //     t1353 = *  putarg_reg int    REG NA
+    //
+    //     t1354 =    lclVar    ref    V52 tmp35         (last use) REG NA
+    //
+    //             /--*  t1354  ref
+    //     t1355 = *  lea(b+0)  byref  REG NA
+    //
+    // Here, the first `putarg_reg` would normally be considered a special put arg, which would remove `ecx` from the
+    // set of allocatable registers, leaving only `eax` and `edx`. The allocator will then fail to allocate a register
+    // for the def of `t345` if arg4 is not a register candidate: the corresponding ref position will be constrained to
+    // { `ecx`, `ebx`, `esi`, `edi` }, which `LSRA_LIMIT_CALLER` will further constrain to `ecx`, which will not be
+    // available due to the special put arg.
+    const bool supportsSpecialPutArg = getStressLimitRegs() != LSRA_LIMIT_CALLER;
+#else
+    const bool supportsSpecialPutArg = true;
+#endif
+
+    if (supportsSpecialPutArg && tree->OperGet() == GT_PUTARG_REG && isCandidateLocalRef(tree->gtGetOp1()) &&
         (tree->gtGetOp1()->gtFlags & GTF_VAR_DEATH) == 0)
     {
         // This is the case for a "pass-through" copy of a lclVar.  In the case where it is a non-last-use,
@@ -3931,7 +3975,7 @@ void LinearScan::buildRefPositionsForNode(GenTree*                  tree,
     {
         // Build RefPositions for saving any live large vectors.
         // This must be done after the kills, so that we know which large vectors are still live.
-        VarSetOps::AssignNoCopy(compiler, liveLargeVectors, buildUpperVectorSaveRefPositions(tree, currentLoc));
+        VarSetOps::AssignNoCopy(compiler, liveLargeVectors, buildUpperVectorSaveRefPositions(tree, currentLoc + 1));
     }
 #endif // FEATURE_PARTIAL_SIMD_CALLEE_SAVE
 
@@ -4015,7 +4059,8 @@ void LinearScan::buildRefPositionsForNode(GenTree*                  tree,
     }
 
 #if FEATURE_PARTIAL_SIMD_CALLEE_SAVE
-    buildUpperVectorRestoreRefPositions(tree, currentLoc, liveLargeVectors);
+    // SaveDef position must be at the same location as Def position of call node.
+    buildUpperVectorRestoreRefPositions(tree, defLocation, liveLargeVectors);
 #endif // FEATURE_PARTIAL_SIMD_CALLEE_SAVE
 
     bool isContainedNode = !noAdd && consume == 0 && produce == 0 &&
@@ -7279,23 +7324,39 @@ void LinearScan::allocateRegisters()
             // then find a register to spill
             if (assignedRegister == REG_NA)
             {
-#ifdef FEATURE_SIMD
+#if FEATURE_PARTIAL_SIMD_CALLEE_SAVE
                 if (refType == RefTypeUpperVectorSaveDef)
                 {
                     // TODO-CQ: Determine whether copying to two integer callee-save registers would be profitable.
-                    currentRefPosition->registerAssignment = (allRegs(TYP_FLOAT) & RBM_FLT_CALLEE_TRASH);
-                    assignedRegister                       = tryAllocateFreeReg(currentInterval, currentRefPosition);
+
+                    // SaveDef position occurs after the Use of args and at the same location as Kill/Def
+                    // positions of a call node.  But SaveDef position cannot use any of the arg regs as
+                    // they are needed for call node.
+                    currentRefPosition->registerAssignment =
+                        (allRegs(TYP_FLOAT) & RBM_FLT_CALLEE_TRASH & ~RBM_FLTARG_REGS);
+                    assignedRegister = tryAllocateFreeReg(currentInterval, currentRefPosition);
+
                     // There MUST be caller-save registers available, because they have all just been killed.
+                    // Amd64 Windows: xmm4-xmm5 are guaranteed to be available as xmm0-xmm3 are used for passing args.
+                    // Amd64 Unix: xmm8-xmm15 are guaranteed to be avilable as xmm0-xmm7 are used for passing args.
+                    // X86 RyuJIT Windows: xmm4-xmm7 are guanrateed to be available.
                     assert(assignedRegister != REG_NA);
+
                     // Now, spill it.
-                    // (These will look a bit backward in the dump, but it's a pain to dump the alloc before the spill).
+                    // Note:
+                    //   i) The reason we have to spill is that SaveDef position is allocated after the Kill positions
+                    //      of the call node are processed.  Since callee-trash registers are killed by call node
+                    //      we explicity spill and unassign the register.
+                    //  ii) These will look a bit backward in the dump, but it's a pain to dump the alloc before the
+                    //  spill).
                     unassignPhysReg(getRegisterRecord(assignedRegister), currentRefPosition);
                     INDEBUG(dumpLsraAllocationEvent(LSRA_EVENT_ALLOC_REG, currentInterval, assignedRegister));
+
                     // Now set assignedRegister to REG_NA again so that we don't re-activate it.
                     assignedRegister = REG_NA;
                 }
                 else
-#endif // FEATURE_SIMD
+#endif // FEATURE_PARTIAL_SIMD_CALLEE_SAVE
                     if (currentRefPosition->RequiresRegister() || currentRefPosition->AllocateIfProfitable())
                 {
                     if (allocateReg)
@@ -11771,15 +11832,14 @@ void LinearScan::verifyFinalAllocation()
                     interval->physReg     = REG_NA;
                     interval->assignedReg = nullptr;
 
-                    // regRegcord could be null if RefPosition is to be allocated a
-                    // reg only if profitable.
+                    // regRegcord could be null if the RefPosition does not require a register.
                     if (regRecord != nullptr)
                     {
                         regRecord->assignedInterval = nullptr;
                     }
                     else
                     {
-                        assert(currentRefPosition->AllocateIfProfitable());
+                        assert(!currentRefPosition->RequiresRegister());
                     }
                 }
             }

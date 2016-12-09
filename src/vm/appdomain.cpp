@@ -2871,9 +2871,8 @@ void SystemDomain::LoadBaseSystemClasses()
     g_pSZArrayHelperClass = MscorlibBinder::GetClass(CLASS__SZARRAYHELPER);
 
 #ifdef FEATURE_SPAN_OF_T
-    // Load Span class
-    g_pSpanClass = MscorlibBinder::GetClass(CLASS__SPAN);
-    g_pReadOnlySpanClass = MscorlibBinder::GetClass(CLASS__READONLY_SPAN);
+    // Load ByReference class
+    g_pByReferenceClass = MscorlibBinder::GetClass(CLASS__BYREFERENCE);
 #endif
 
     // Load Nullable class
@@ -11145,14 +11144,14 @@ void AppDomain::Unload(BOOL fForceUnload)
     if (takeSnapShot)
     {
         char buffer[1024];
-        sprintf(buffer, "vadump -p %d -o > vadump.%d", GetCurrentProcessId(), unloadCount);
+        sprintf_s(buffer, _countof(buffer), "vadump -p %d -o > vadump.%d", GetCurrentProcessId(), unloadCount);
         system(buffer);
-        sprintf(buffer, "umdh -p:%d -d -i:1 -f:umdh.%d", GetCurrentProcessId(), unloadCount);
+        sprintf_s(buffer, _countof(buffer), "umdh -p:%d -d -i:1 -f:umdh.%d", GetCurrentProcessId(), unloadCount);
         system(buffer);
         int takeDHSnapShot = CLRConfig::GetConfigValue(CLRConfig::INTERNAL_ADTakeDHSnapShot);
         if (takeDHSnapShot)
         {
-            sprintf(buffer, "dh -p %d -s -g -h -b -f dh.%d", GetCurrentProcessId(), unloadCount);
+            sprintf_s(buffer, _countof(buffer), "dh -p %d -s -g -h -b -f dh.%d", GetCurrentProcessId(), unloadCount);
             system(buffer);
         }
     }
