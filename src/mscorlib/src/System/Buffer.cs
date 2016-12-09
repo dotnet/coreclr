@@ -4,7 +4,7 @@
 
 namespace System {
     
-    //Only contains static methods.  Does not require serialization
+    // Only contains static methods. Does not require serialization
     
     using System;
     using System.Runtime.CompilerServices;
@@ -273,7 +273,7 @@ namespace System {
         internal unsafe static void Memmove(byte* dest, byte* src, nuint len)
         {
             // P/Invoke into the native version when the buffers are overlapping and the copy needs to be performed backwards
-            // This check can produce false positives for lengths greater than Int32.MaxInt. It is fine because we want to use PInvoke path for the large lengths anyway.
+            // This check can produce false positives for lengths greater than int.MaxValue. It is fine because we want to use the P/Invoke path for the large lengths anyway.
 
             if ((nuint)dest - (nuint)src < len) goto PInvoke;
 
@@ -282,8 +282,8 @@ namespace System {
             // Ideally, we would just use the cpblk IL instruction here. Unfortunately, cpblk IL instruction is not as efficient as
             // possible yet and so we have this implementation here for now.
 
-            // Note: It's important that this switch handles lengths at least up to 22.
-            // See notes below near the main loop for why.
+            // Note: It's important that this switch handles lengths at least up to 15 for AMD64.
+            // We assume below len is at least 16 and make one 128-bit write without checking.
 
             // The switch will be very fast since it can be implemented using a jump
             // table in assembly. See http://stackoverflow.com/a/449297/4077294 for more info.
@@ -321,279 +321,354 @@ namespace System {
             case 8:
 #if BIT64
                 *(long*)dest = *(long*)src;
-#else
+#else // BIT64
                 *(int*)dest = *(int*)src;
                 *(int*)(dest + 4) = *(int*)(src + 4);
-#endif
+#endif // BIT64
                 return;
             case 9:
 #if BIT64
                 *(long*)dest = *(long*)src;
-#else
+#else // BIT64
                 *(int*)dest = *(int*)src;
                 *(int*)(dest + 4) = *(int*)(src + 4);
-#endif
+#endif // BIT64
                 *(dest + 8) = *(src + 8);
                 return;
             case 10:
 #if BIT64
                 *(long*)dest = *(long*)src;
-#else
+#else // BIT64
                 *(int*)dest = *(int*)src;
                 *(int*)(dest + 4) = *(int*)(src + 4);
-#endif
+#endif // BIT64
                 *(short*)(dest + 8) = *(short*)(src + 8);
                 return;
             case 11:
 #if BIT64
                 *(long*)dest = *(long*)src;
-#else
+#else // BIT64
                 *(int*)dest = *(int*)src;
                 *(int*)(dest + 4) = *(int*)(src + 4);
-#endif
+#endif // BIT64
                 *(short*)(dest + 8) = *(short*)(src + 8);
                 *(dest + 10) = *(src + 10);
                 return;
             case 12:
 #if BIT64
                 *(long*)dest = *(long*)src;
-#else
+#else // BIT64
                 *(int*)dest = *(int*)src;
                 *(int*)(dest + 4) = *(int*)(src + 4);
-#endif
+#endif // BIT64
                 *(int*)(dest + 8) = *(int*)(src + 8);
                 return;
             case 13:
 #if BIT64
                 *(long*)dest = *(long*)src;
-#else
+#else // BIT64
                 *(int*)dest = *(int*)src;
                 *(int*)(dest + 4) = *(int*)(src + 4);
-#endif
+#endif // BIT64
                 *(int*)(dest + 8) = *(int*)(src + 8);
                 *(dest + 12) = *(src + 12);
                 return;
             case 14:
 #if BIT64
                 *(long*)dest = *(long*)src;
-#else
+#else // BIT64
                 *(int*)dest = *(int*)src;
                 *(int*)(dest + 4) = *(int*)(src + 4);
-#endif
+#endif // BIT64
                 *(int*)(dest + 8) = *(int*)(src + 8);
                 *(short*)(dest + 12) = *(short*)(src + 12);
                 return;
             case 15:
 #if BIT64
                 *(long*)dest = *(long*)src;
-#else
+#else // BIT64
                 *(int*)dest = *(int*)src;
                 *(int*)(dest + 4) = *(int*)(src + 4);
-#endif
+#endif // BIT64
                 *(int*)(dest + 8) = *(int*)(src + 8);
                 *(short*)(dest + 12) = *(short*)(src + 12);
                 *(dest + 14) = *(src + 14);
                 return;
-            case 16:
-#if BIT64
-                *(long*)dest = *(long*)src;
-                *(long*)(dest + 8) = *(long*)(src + 8);
-#else
-                *(int*)dest = *(int*)src;
-                *(int*)(dest + 4) = *(int*)(src + 4);
-                *(int*)(dest + 8) = *(int*)(src + 8);
-                *(int*)(dest + 12) = *(int*)(src + 12);
-#endif
-                return;
-            case 17:
-#if BIT64
-                *(long*)dest = *(long*)src;
-                *(long*)(dest + 8) = *(long*)(src + 8);
-#else
-                *(int*)dest = *(int*)src;
-                *(int*)(dest + 4) = *(int*)(src + 4);
-                *(int*)(dest + 8) = *(int*)(src + 8);
-                *(int*)(dest + 12) = *(int*)(src + 12);
-#endif
-                *(dest + 16) = *(src + 16);
-                return;
-            case 18:
-#if BIT64
-                *(long*)dest = *(long*)src;
-                *(long*)(dest + 8) = *(long*)(src + 8);
-#else
-                *(int*)dest = *(int*)src;
-                *(int*)(dest + 4) = *(int*)(src + 4);
-                *(int*)(dest + 8) = *(int*)(src + 8);
-                *(int*)(dest + 12) = *(int*)(src + 12);
-#endif
-                *(short*)(dest + 16) = *(short*)(src + 16);
-                return;
-            case 19:
-#if BIT64
-                *(long*)dest = *(long*)src;
-                *(long*)(dest + 8) = *(long*)(src + 8);
-#else
-                *(int*)dest = *(int*)src;
-                *(int*)(dest + 4) = *(int*)(src + 4);
-                *(int*)(dest + 8) = *(int*)(src + 8);
-                *(int*)(dest + 12) = *(int*)(src + 12);
-#endif
-                *(short*)(dest + 16) = *(short*)(src + 16);
-                *(dest + 18) = *(src + 18);
-                return;
-            case 20:
-#if BIT64
-                *(long*)dest = *(long*)src;
-                *(long*)(dest + 8) = *(long*)(src + 8);
-#else
-                *(int*)dest = *(int*)src;
-                *(int*)(dest + 4) = *(int*)(src + 4);
-                *(int*)(dest + 8) = *(int*)(src + 8);
-                *(int*)(dest + 12) = *(int*)(src + 12);
-#endif
-                *(int*)(dest + 16) = *(int*)(src + 16);
-                return;
-            case 21:
-#if BIT64
-                *(long*)dest = *(long*)src;
-                *(long*)(dest + 8) = *(long*)(src + 8);
-#else
-                *(int*)dest = *(int*)src;
-                *(int*)(dest + 4) = *(int*)(src + 4);
-                *(int*)(dest + 8) = *(int*)(src + 8);
-                *(int*)(dest + 12) = *(int*)(src + 12);
-#endif
-                *(int*)(dest + 16) = *(int*)(src + 16);
-                *(dest + 20) = *(src + 20);
-                return;
-            case 22:
-#if BIT64
-                *(long*)dest = *(long*)src;
-                *(long*)(dest + 8) = *(long*)(src + 8);
-#else
-                *(int*)dest = *(int*)src;
-                *(int*)(dest + 4) = *(int*)(src + 4);
-                *(int*)(dest + 8) = *(int*)(src + 8);
-                *(int*)(dest + 12) = *(int*)(src + 12);
-#endif
-                *(int*)(dest + 16) = *(int*)(src + 16);
-                *(short*)(dest + 20) = *(short*)(src + 20);
-                return;
             }
 
-            // P/Invoke into the native version for large lengths
-            if (len >= 512) goto PInvoke;
+            // P/Invoke into the native version for large lengths.
+            // Currently the threshold at which the native version is faster seems to be around 1024
+            // on amd64 Windows, but this is subject to change if this implementation can be made faster,
+            // or new benchmarks are posted, or the case is different for other platforms.
+#if AMD64
+            const nuint NativeThreshold = 1024;
+#else // AMD64
+            const nuint NativeThreshold = 512;
+#endif // AMD64
+            if (len > NativeThreshold) goto PInvoke;
 
-            nuint i = 0; // byte offset at which we're copying
+            // So far SIMD is only enabled for AMD64, so on that plaform we want
+            // to 16-byte align while on others (including arm64) we'll want to word-align
+#if AMD64
+            nuint alignment = 16u;
+#else // AMD64
+            nuint alignment = (nuint)sizeof(nuint);
+#endif // AMD64
 
-            if (((int)dest & 3) != 0)
+            // (nuint)dest % alignment calculates how far we are from the previous aligned address
+            // Note that it's *very* important alignment is unsigned.
+            // (int)dest % (int)alignment for example will give different results if the lhs is negative.
+            
+            // If dest is aligned this will be 0.
+            nuint i = (nuint)dest % alignment;
+
+            // We know from the above switch-case that len is at least 16, so here
+            // we subtract i from 16. This represents the furthest aligned address
+            // we know it's okay to write upto.
+            // To make it clearer, (dest + i) after this is equivalent to
+            // [previous aligned address] + 16.
+            i = 16u - i;
+
+#if AMD64
+            // SIMD is enabled for AMD64, so take advantage of that and use movdqu
+            *(Buffer16*)dest = *(Buffer16*)src;
+#elif ARM64
+            // ARM64 has 64-bit words but no SIMD yet, so make 2 word writes
+            // First one isn't aligned, second one is (remember from earlier notes dest + i is 8-aligned)
+            *(long*)dest = *(long*)src;
+            *(long*)(dest + i - 8) = *(long*)(src + i - 8);
+#else // AMD64, ARM64
+            // i386 and ARM: 32-bit words, no SIMD (yet)
+            // make 1 unaligned word write, then 3 4-byte aligned ones
+            *(int*)dest = *(int*)src;
+            *(int*)(dest + i - 12) = *(int*)(src + i - 12);
+            *(int*)(dest + i - 8) = *(int*)(src + i - 8);
+            *(int*)(dest + i - 4) = *(int*)(src + i - 4);
+#endif // AMD64, ARM64
+
+            // i now represents the number of bytes we've copied so far.
+            Contract.Assert(i <= len && i > 0 && i <= 16);
+            Contract.Assert((nuint)(dest + i) % alignment == 0);
+
+            // chunk: bytes processed per iteration in unrolled loop
+#if AMD64
+            nuint chunk = 64;
+#elif ARM64
+            nuint chunk = 32;
+#else // AMD64, ARM64
+            nuint chunk = 24; // 6 4-byte words per iteration
+#endif // AMD64, ARM64
+
+            // Protect ourselves from unsigned overflow
+            if (len < chunk)
+                goto LoopCleanup;
+
+            // end: point after which we stop the unrolled loop
+            // This is the end of the buffer, minus the space
+            // required for 1 iteration of the loop.
+            nuint end = len - chunk;
+
+            // This can return false in the first iteration if the process of
+            // aligning the pointer for writes has not left enough space
+            // for this loop to run, so unfortunately this can't be a do-while loop.
+            while (i <= end)
             {
-                if (((int)dest & 1) != 0)
-                {
-                    *(dest + i) = *(src + i);
-                    i += 1;
-                    if (((int)dest & 2) != 0)
-                        goto IntAligned;
-                }
-                *(short*)(dest + i) = *(short*)(src + i);
-                i += 2;
-            }
-
-            IntAligned:
-
-#if BIT64
-            // On 64-bit IntPtr.Size == 8, so we want to advance to the next 8-aligned address. If
-            // (int)dest % 8 is 0, 5, 6, or 7, we will already have advanced by 0, 3, 2, or 1
-            // bytes to the next aligned address (respectively), so do nothing. On the other hand,
-            // if it is 1, 2, 3, or 4 we will want to copy-and-advance another 4 bytes until
-            // we're aligned.
-            // The thing 1, 2, 3, and 4 have in common that the others don't is that if you
-            // subtract one from them, their 3rd lsb will not be set. Hence, the below check.
-
-            if ((((int)dest - 1) & 4) == 0)
-            {
-                *(int*)(dest + i) = *(int*)(src + i);
-                i += 4;
-            }
-#endif // BIT64
-
-            nuint end = len - 16;
-            len -= i; // lower 4 bits of len represent how many bytes are left *after* the unrolled loop
-
-            // We know due to the above switch-case that this loop will always run 1 iteration; max
-            // bytes we copy before checking is 23 (7 to align the pointers, 16 for 1 iteration) so
-            // the switch handles lengths 0-22.
-            Contract.Assert(end >= 7 && i <= end);
-
-            // This is separated out into a different variable, so the i + 16 addition can be
-            // performed at the start of the pipeline and the loop condition does not have
-            // a dependency on the writes.
-            nuint counter; 
-
-            do
-            {
-                counter = i + 16;
-
-                // This loop looks very costly since there appear to be a bunch of temporary values
-                // being created with the adds, but the jit (for x86 anyways) will convert each of
-                // these to use memory addressing operands.
+                // Some versions of this loop looks very costly since there appear
+                // to be a bunch of temporary values being created with the adds,
+                // but the jit (for x86 anyways) will convert each of these to
+                // use memory addressing operands.
 
                 // So the only cost is a bit of code size, which is made up for by the fact that
                 // we save on writes to dest/src.
 
-#if BIT64
+#if AMD64
+                // Write 64 bytes at a time, taking advantage of xmm register on AMD64
+                // This will be translated to 4 movdqus (maybe movdqas in the future, dotnet/coreclr#2725)
+                *(Buffer64*)(dest + i) = *(Buffer64*)(src + i);
+#elif ARM64
+                // ARM64: Unroll by 32 bytes, this time using longs since we don't
+                // take advantage of SIMD for that plaform yet.
                 *(long*)(dest + i) = *(long*)(src + i);
                 *(long*)(dest + i + 8) = *(long*)(src + i + 8);
-#else
+                *(long*)(dest + i + 16) = *(long*)(src + i + 16);
+                *(long*)(dest + i + 24) = *(long*)(src + i + 24);
+#else // AMD64, ARM64
+                // i386/ARM32:
+                // Write 24 bytes at a time, via 6 32-bit word writes
                 *(int*)(dest + i) = *(int*)(src + i);
                 *(int*)(dest + i + 4) = *(int*)(src + i + 4);
                 *(int*)(dest + i + 8) = *(int*)(src + i + 8);
                 *(int*)(dest + i + 12) = *(int*)(src + i + 12);
-#endif
+                *(int*)(dest + i + 16) = *(int*)(src + i + 16);
+                *(int*)(dest + i + 20) = *(int*)(src + i + 20);
+#endif // AMD64, ARM64
 
-                i = counter;
-                
-                // See notes above for why this wasn't used instead
-                // i += 16;
+                i += chunk;
             }
-            while (counter <= end);
 
-            if ((len & 8) != 0)
+            LoopCleanup:
+            // If we've reached this point, there are at most chunk - 1 bytes left
+
+            len -= i; // len now represents the number of bytes left
+
+#if AMD64
+            // if the len & 32 bit is set that means this number
+            // will be >= 32. (same principle applies for other
+            // powers of 2 below)
+            if ((len & 32) != 0)
             {
-#if BIT64
+                *(Buffer32*)(dest + i) = *(Buffer32*)(src + i);
+                i += 32;
+            }
+#endif // AMD64
+
+            // Now there can be at most 31 bytes left (23 for 32-bit)
+
+            if ((len & 16) != 0)
+            {
+#if AMD64
+                *(Buffer16*)(dest + i) = *(Buffer16*)(src + i);
+#elif ARM64
                 *(long*)(dest + i) = *(long*)(src + i);
-#else
+                *(long*)(dest + i + 8) = *(long*)(src + i + 8);
+#else // AMD64, ARM64
                 *(int*)(dest + i) = *(int*)(src + i);
                 *(int*)(dest + i + 4) = *(int*)(src + i + 4);
-#endif
-                i += 8;
+                *(int*)(dest + i + 8) = *(int*)(src + i + 8);
+                *(int*)(dest + i + 12) = *(int*)(src + i + 12);
+#endif // AMD64, ARM64
+
+                i += 16;
             }
-            if ((len & 4) != 0) 
+
+            // Now there can be at most 15 bytes left
+            // For AMD64 we just want to make 1 (potentially) unaligned xmm write and quit.
+            // For other platforms we have another switch-case for 0..15.
+            // Again, this is implemented with a jump table so it's very fast.
+
+#if AMD64
+            i = len - 16;
+            *(Buffer16*)(dest + i) = *(Buffer16*)(src + i);
+#else // AMD64
+
+            switch (len & 15)
             {
-                *(int*)(dest + i) = *(int*)(src + i);
-                i += 4;
+                case 0:
+                    // No-op: We already finished copying all the bytes.
+                    return;
+                case 1:
+                    *(dest + i) = *(src + i);
+                    return;
+                case 2:
+                    *(short*)(dest + i) = *(short*)(src + i);
+                    return;
+                case 3:
+                    *(short*)(dest + i) = *(short*)(src + i);
+                    *(dest + i + 2) = *(src + i + 2);
+                    return;
+                case 4:
+                    *(int*)(dest + i) = *(int*)(src + i);
+                    return;
+                case 5:
+                    *(int*)(dest + i) = *(int*)(src + i);
+                    *(dest + i + 4) = *(src + i + 4);
+                    return;
+                case 6:
+                    *(int*)(dest + i) = *(int*)(src + i);
+                    *(short*)(dest + i + 4) = *(short*)(src + i + 4);
+                    return;
+                case 7:
+                    *(int*)(dest + i) = *(int*)(src + i);
+                    *(short*)(dest + i + 4) = *(short*)(src + i + 4);
+                    *(dest + i + 6) = *(src + i + 6);
+                    return;
+                case 8:
+#if BIT64
+                    *(long*)(dest + i) = *(long*)(src + i);
+#else // BIT64
+                    *(int*)(dest + i) = *(int*)(src + i);
+                    *(int*)(dest + i + 4) = *(int*)(src + i + 4);
+#endif // BIT64
+                    return;
+                case 9:
+#if BIT64
+                    *(long*)(dest + i) = *(long*)(src + i);
+#else // BIT64
+                    *(int*)(dest + i) = *(int*)(src + i);
+                    *(int*)(dest + i + 4) = *(int*)(src + i + 4);
+#endif // BIT64
+                    *(dest + i + 8) = *(src + i + 8);
+                    return;
+                case 10:
+#if BIT64
+                    *(long*)(dest + i) = *(long*)(src + i);
+#else // BIT64
+                    *(int*)(dest + i) = *(int*)(src + i);
+                    *(int*)(dest + i + 4) = *(int*)(src + i + 4);
+#endif // BIT64
+                    *(short*)(dest + i + 8) = *(short*)(src + i + 8);
+                    return;
+                case 11:
+#if BIT64
+                    *(long*)(dest + i) = *(long*)(src + i);
+#else // BIT64
+                    *(int*)(dest + i) = *(int*)(src + i);
+                    *(int*)(dest + i + 4) = *(int*)(src + i + 4);
+#endif // BIT64
+                    *(short*)(dest + i + 8) = *(short*)(src + i + 8);
+                    *(dest + i + 10) = *(src + i + 10);
+                    return;
+                case 12:
+#if BIT64
+                    *(long*)(dest + i) = *(long*)(src + i);
+#else // BIT64
+                    *(int*)(dest + i) = *(int*)(src + i);
+                    *(int*)(dest + i + 4) = *(int*)(src + i + 4);
+#endif // BIT64
+                    *(int*)(dest + i + 8) = *(int*)(src + i + 8);
+                    return;
+                case 13:
+#if BIT64
+                    *(long*)(dest + i) = *(long*)(src + i);
+#else // BIT64
+                    *(int*)(dest + i) = *(int*)(src + i);
+                    *(int*)(dest + i + 4) = *(int*)(src + i + 4);
+#endif // BIT64
+                    *(int*)(dest + i + 8) = *(int*)(src + i + 8);
+                    *(dest + i + 12) = *(src + i + 12);
+                    return;
+                case 14:
+#if BIT64
+                    *(long*)(dest + i) = *(long*)(src + i);
+#else // BIT64
+                    *(int*)(dest + i) = *(int*)(src + i);
+                    *(int*)(dest + i + 4) = *(int*)(src + i + 4);
+#endif // BIT64
+                    *(int*)(dest + i + 8) = *(int*)(src + i + 8);
+                    *(short*)(dest + i + 12) = *(short*)(src + i + 12);
+                    return;
+                case 15:
+#if BIT64
+                    *(long*)(dest + i) = *(long*)(src + i);
+#else // BIT64
+                    *(int*)(dest + i) = *(int*)(src + i);
+                    *(int*)(dest + i + 4) = *(int*)(src + i + 4);
+#endif // BIT64
+                    *(int*)(dest + i + 8) = *(int*)(src + i + 8);
+                    *(short*)(dest + i + 12) = *(short*)(src + i + 12);
+                    *(dest + i + 14) = *(src + i + 14);
+                    return;
             }
-            if ((len & 2) != 0) 
-            {
-                *(short*)(dest + i) = *(short*)(src + i);
-                i += 2;
-            }
-            if ((len & 1) != 0)
-            {
-                *(dest + i) = *(src + i);
-                // We're not using i after this, so not needed
-                // i += 1;
-            }
+
+#endif // AMD64
 
             return;
 
             PInvoke:
             _Memmove(dest, src, len);
-
         }
 
-        // Non-inlinable wrapper around the QCall that avoids poluting the fast path
+        // Non-inlinable wrapper around the QCall that avoids polluting the fast path
         // with P/Invoke prolog/epilog.
         [SecurityCritical]
         [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
@@ -640,6 +715,28 @@ namespace System {
 #else // BIT64
             Memmove((byte*)destination, (byte*)source, checked((uint)sourceBytesToCopy));
 #endif // BIT64
+        }
+
+        // These structs are used for fast copying of large buffers in
+        // MemoryCopy. If you use these, you would do best not to make
+        // unnecessary copies of them. e.g. *dest = *src where both dest
+        // and src have type Buffer64* will generate 8 movdqu instructions
+        // on AMD64, and potentially even more code on platforms where
+        // RyuJIT does not take advantage of SIMD.
+
+        [StructLayout(LayoutKind.Sequential, Size = 64)]
+        private struct Buffer64
+        {
+        }
+
+        [StructLayout(LayoutKind.Sequential, Size = 32)]
+        private struct Buffer32
+        {
+        }
+
+        [StructLayout(LayoutKind.Sequential, Size = 16)]
+        private struct Buffer16
+        {
         }
     }
 }
