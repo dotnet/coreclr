@@ -31,7 +31,7 @@ namespace System
         private T[] _array;
         private int _offset;
         private int _count;
-        
+
         public ArraySegment(T[] array)
         {
             if (array == null)
@@ -67,7 +67,7 @@ namespace System
                 Contract.Assert(    (null == _array && 0 == _offset && 0 == _count)
                                  || (null != _array && _offset >= 0 && _count >= 0 && _offset + _count <= _array.Length),
                                 "ArraySegment is invalid");
-                
+
                 return _array;
             }
         }
@@ -109,7 +109,16 @@ namespace System
                 return _count;
             }
         }
-        
+
+        public Enumerator GetEnumerator()
+        {
+            if (_array == null)
+                ThrowHelper.ThrowInvalidOperationException(ExceptionResource.InvalidOperation_NullArray);
+            Contract.EndContractBlock();
+
+            return new Enumerator(this);
+        }
+
         public override int GetHashCode()
         {
             if (_array == null)
@@ -184,7 +193,7 @@ namespace System
 
             int index = System.Array.IndexOf<T>(_array, item, _offset, _count);
 
-            Contract.Assert(index == -1 || 
+            Contract.Assert(index == -1 ||
                             (index >= _offset && index < _offset + _count));
 
             return index >= 0 ? index - _offset : -1;
@@ -269,54 +278,42 @@ namespace System
         #endregion
 
         #region IEnumerable<T>
-        IEnumerator<T> IEnumerable<T>.GetEnumerator()
-        {
-            if (_array == null)
-                ThrowHelper.ThrowInvalidOperationException(ExceptionResource.InvalidOperation_NullArray);
-            Contract.EndContractBlock();
 
-            return new ArraySegmentEnumerator(this);
-        }
+        IEnumerator<T> IEnumerable<T>.GetEnumerator() => GetEnumerator();
         #endregion
 
         #region IEnumerable
-        IEnumerator IEnumerable.GetEnumerator()
-        {
-            if (_array == null)
-                ThrowHelper.ThrowInvalidOperationException(ExceptionResource.InvalidOperation_NullArray);
-            Contract.EndContractBlock();
 
-            return new ArraySegmentEnumerator(this);
-        }
+        IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
         #endregion
 
         [Serializable]
-        private sealed class ArraySegmentEnumerator : IEnumerator<T>
+        public struct Enumerator : IEnumerator<T>
         {
-            private T[] _array;
-            private int _start;
-            private int _end;
-            private int _current;
+            private T[] array { get; }
+            private int offset { get; }
+            private int endIndex { get; } // cache Offset + Count, since it's a little slow
+            private int index;
 
-            internal ArraySegmentEnumerator(ArraySegment<T> arraySegment)
+            internal Enumerator(ArraySegment<T> arraySegment)
             {
                 Contract.Requires(arraySegment.Array != null);
                 Contract.Requires(arraySegment.Offset >= 0);
                 Contract.Requires(arraySegment.Count >= 0);
                 Contract.Requires(arraySegment.Offset + arraySegment.Count <= arraySegment.Array.Length);
 
-                _array = arraySegment._array;
-                _start = arraySegment._offset;
-                _end = _start + arraySegment._count;
-                _current = _start - 1;
+                array = arraySegment.Array;
+                offset = arraySegment.Offset;
+                endIndex = arraySegment.Offset + arraySegment.Count;
+                index = arraySegment.Offset - 1;
             }
 
             public bool MoveNext()
             {
-                if (_current < _end)
+                if (index < endIndex)
                 {
-                    _current++;
-                    return (_current < _end);
+                    index++;
+                    return (index < endIndex);
                 }
                 return false;
             }
@@ -325,23 +322,19 @@ namespace System
             {
                 get
                 {
-                    if (_current < _start) ThrowHelper.ThrowInvalidOperationException_InvalidOperation_EnumNotStarted();
-                    if (_current >= _end) ThrowHelper.ThrowInvalidOperationException_InvalidOperation_EnumEnded();
-                    return _array[_current];
+                    if (index < offset)
+                        ThrowHelper.ThrowInvalidOperationException_InvalidOperation_EnumNotStarted();
+                    if (index >= endIndex)
+                        ThrowHelper.ThrowInvalidOperationException_InvalidOperation_EnumEnded();
+                    return array[index];
                 }
             }
 
-            object IEnumerator.Current
-            {
-                get
-                {
-                    return Current;
-                }
-            }
+            object IEnumerator.Current => Current;
 
             void IEnumerator.Reset()
             {
-                _current = _start - 1;
+                index = offset - 1;
             }
 
             public void Dispose()
