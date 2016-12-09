@@ -15,18 +15,13 @@ namespace System
     /// </summary>
     public unsafe struct Span<T>
     {
-        /// <summary>A byref or a native ptr. Do not access directly</summary>
-        private readonly IntPtr _rawPointer;
-        /// <summary>The number of elements this Span contains.</summary>
-        private readonly int _length;
-
         /// <summary>
         /// Creates a new span over the entirety of the target array.
         /// </summary>
         /// <param name="array">The target array.</param>
         /// <exception cref="System.ArgumentNullException">Thrown when <paramref name="array"/> is a null
         /// reference (Nothing in Visual Basic).</exception>
-        /// <exception cref="System.ArrayTypeMismatchException">Thrown when <paramref name="array"/> is covariant.</exception>
+        /// <exception cref="System.ArrayTypeMismatchException">Thrown when <paramref name="array"/> is covariant and array's type is not exactly T[].</exception>
         public Span(T[] array)
         {
             if (array == null)
@@ -49,7 +44,7 @@ namespace System
         /// <param name="start">The index at which to begin the span.</param>
         /// <exception cref="System.ArgumentNullException">Thrown when <paramref name="array"/> is a null
         /// reference (Nothing in Visual Basic).</exception>
-        /// <exception cref="System.ArrayTypeMismatchException">Thrown when <paramref name="array"/> is covariant.</exception>
+        /// <exception cref="System.ArrayTypeMismatchException">Thrown when <paramref name="array"/> is covariant and array's type is not exactly T[].</exception>
         /// <exception cref="System.ArgumentOutOfRangeException">
         /// Thrown when the specified <paramref name="start"/> is not in the range (&lt;0 or &gt;=Length).
         /// </exception>
@@ -78,7 +73,7 @@ namespace System
         /// <param name="length">The number of items in the span.</param>
         /// <exception cref="System.ArgumentNullException">Thrown when <paramref name="array"/> is a null
         /// reference (Nothing in Visual Basic).</exception>
-        /// <exception cref="System.ArrayTypeMismatchException">Thrown when <paramref name="array"/> is covariant.</exception>
+        /// <exception cref="System.ArrayTypeMismatchException">Thrown when <paramref name="array"/> is covariant and array's type is not exactly T[].</exception>
         /// <exception cref="System.ArgumentOutOfRangeException">
         /// Thrown when the specified <paramref name="start"/> or end index is not in the range (&lt;0 or &gt;=Length).
         /// </exception>
@@ -104,7 +99,7 @@ namespace System
         /// out of a void*-typed block of memory.  And the length is not checked.
         /// But if this creation is correct, then all subsequent uses are correct.
         /// </summary>
-        /// <param name="ptr">An unmanaged pointer to memory.</param>
+        /// <param name="pointer">An unmanaged pointer to memory.</param>
         /// <param name="length">The number of <typeparamref name="T"/> elements the memory contains.</param>
         /// <exception cref="System.ArgumentException">
         /// Thrown when <typeparamref name="T"/> is reference type or contains pointers and hence cannot be stored in unmanaged memory.
@@ -125,54 +120,11 @@ namespace System
         }
 
         /// <summary>
-        /// An internal helper for creating spans.
-        /// </summary>
-        internal Span(ref T ptr, int length)
-        {
-            // TODO-SPAN: This has GC hole. It needs to be JIT intrinsic instead
-            _rawPointer = (IntPtr)Unsafe.AsPointer(ref ptr);
-            _length = length;
-        }
-
-        /// <summary>
-        /// An internal helper for accessing spans.
-        /// </summary>
-        internal unsafe ref T GetRawPointer()
-        {
-            // TODO-SPAN: This has GC hole. It needs to be JIT intrinsic instead
-            return ref Unsafe.As<IntPtr, T>(ref *(IntPtr*)_rawPointer);
-        }
-
-        /// <summary>
-        /// Defines an implicit conversion of an array to a <see cref="Span{T}"/>
-        /// </summary>
-        public static implicit operator Span<T>(T[] array)
-        {
-            return new Span<T>(array);
-        }
-
-        /// <summary>
-        /// Defines an implicit conversion of a <see cref="ArraySegment{T}"/> to a <see cref="Span{T}"/>
-        /// </summary>
-        public static implicit operator Span<T>(ArraySegment<T> arraySegment)
-        {
-            return new Span<T>(arraySegment.Array, arraySegment.Offset, arraySegment.Count);
-        }
-
-        /// <summary>
         /// Gets the number of elements contained in the <see cref="Span{T}"/>
         /// </summary>
         public int Length
         {
             get { return _length; }
-        }
-
-        /// <summary>
-        /// Returns an empty <see cref="Span{T}"/>
-        /// </summary>
-        public static Span<T> Empty
-        {
-            get { return default(Span<T>); }
         }
 
         /// <summary>
@@ -208,18 +160,43 @@ namespace System
         }
 
         /// <summary>
-        /// Copies the contents of this span into a new array.  This heap
-        /// allocates, so should generally be avoided, however is sometimes
-        /// necessary to bridge the gap with APIs written in terms of arrays.
+        /// Copies the contents of this span into destination span. The destination
+        /// must be at least as big as the source, and may be bigger.
         /// </summary>
-        public T[] ToArray()
+        /// <param name="destination">The span to copy items into.</param>
+        public bool TryCopyTo(Span<T> destination)
         {
-            if (_length == 0)
-                return Array.Empty<T>();
+            if ((uint)_length > (uint)destination.Length)
+                return false;
 
-            var destination = new T[_length];
-            SpanHelper.CopyTo<T>(ref JitHelpers.GetArrayData(destination), ref GetRawPointer(), _length);
-            return destination;
+            SpanHelper.CopyTo<T>(ref destination.GetRawPointer(), ref GetRawPointer(), _length);
+            return true;
+        }
+
+        /// <summary>
+        /// Checks to see if two spans point at the same memory.  Note that
+        /// this does *not* check to see if the *contents* are equal.
+        /// </summary>
+        public bool Equals(Span<T> other)
+        {
+            return (_length == other.Length) &&
+                (_length == 0 || Unsafe.AreSame(ref GetRawPointer(), ref other.GetRawPointer()));
+        }
+
+        /// <summary>
+        /// Defines an implicit conversion of an array to a <see cref="Span{T}"/>
+        /// </summary>
+        public static implicit operator Span<T>(T[] array)
+        {
+            return new Span<T>(array);
+        }
+
+        /// <summary>
+        /// Defines an implicit conversion of a <see cref="ArraySegment{T}"/> to a <see cref="Span{T}"/>
+        /// </summary>
+        public static implicit operator Span<T>(ArraySegment<T> arraySegment)
+        {
+            return new Span<T>(arraySegment.Array, arraySegment.Offset, arraySegment.Count);
         }
 
         /// <summary>
@@ -242,7 +219,7 @@ namespace System
         /// Forms a slice out of the given span, beginning at 'start', of given length
         /// </summary>
         /// <param name="start">The index at which to begin this slice.</param>
-        /// <param name="end">The index at which to end this slice (exclusive).</param>
+        /// <param name="length">The desired length for the slice (exclusive).</param>
         /// <exception cref="System.ArgumentOutOfRangeException">
         /// Thrown when the specified <paramref name="start"/> or end index is not in range (&lt;0 or &gt;&eq;Length).
         /// </exception>
@@ -256,27 +233,45 @@ namespace System
         }
 
         /// <summary>
-        /// Checks to see if two spans point at the same memory.  Note that
-        /// this does *not* check to see if the *contents* are equal.
+        /// Copies the contents of this span into a new array.  This heap
+        /// allocates, so should generally be avoided, however it is sometimes
+        /// necessary to bridge the gap with APIs written in terms of arrays.
         /// </summary>
-        public bool Equals(Span<T> other)
+        public T[] ToArray()
         {
-            return (_length == other.Length) &&
-                (_length == 0 || Unsafe.AreSame(ref GetRawPointer(), ref other.GetRawPointer()));
+            if (_length == 0)
+                return Array.Empty<T>();
+
+            var destination = new T[_length];
+            SpanHelper.CopyTo<T>(ref JitHelpers.GetArrayData(destination), ref GetRawPointer(), _length);
+            return destination;
+        }
+
+        // <summary>
+        /// Returns an empty <see cref="Span{T}"/>
+        /// </summary>
+        public static Span<T> Empty
+        {
+            get { return default(Span<T>); }
+        }
+
+        // <summary>
+        /// An internal helper for creating spans.
+        /// </summary>
+        internal Span(ref T ptr, int length)
+        {
+            // TODO-SPAN: This has GC hole. It needs to be JIT intrinsic instead
+            _rawPointer = (IntPtr)Unsafe.AsPointer(ref ptr);
+            _length = length;
         }
 
         /// <summary>
-        /// Copies the contents of this span into destination span. The destination
-        /// must be at least as big as the source, and may be bigger.
+        /// An internal helper for accessing spans.
         /// </summary>
-        /// <param name="destination">The span to copy items into.</param>
-        public bool TryCopyTo(Span<T> destination)
+        internal unsafe ref T GetRawPointer()
         {
-            if ((uint)_length > (uint)destination.Length)
-                return false;
-
-            SpanHelper.CopyTo<T>(ref destination.GetRawPointer(), ref GetRawPointer(), _length);
-            return true;
+            // TODO-SPAN: This has GC hole. It needs to be JIT intrinsic instead
+            return ref Unsafe.As<IntPtr, T>(ref *(IntPtr*)_rawPointer);
         }
 
         /// <exception cref="System.ArgumentOutOfRangeException">
@@ -289,6 +284,11 @@ namespace System
 
             SpanHelper.CopyTo<T>(ref GetRawPointer(), ref values.GetRawPointer(), values.Length);
         }
+
+        /// <summary>A byref or a native ptr. Do not access directly</summary>
+        private readonly IntPtr _rawPointer;
+        /// <summary>The number of elements this Span contains.</summary>
+        private readonly int _length;
     }
 
     public static class SpanExtensions
