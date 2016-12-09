@@ -28,9 +28,9 @@ namespace System
     [Serializable]
     public struct ArraySegment<T> : IList<T>, IReadOnlyList<T>
     {
-        private T[] _array;
-        private int _offset;
-        private int _count;
+        private readonly T[] _array;
+        private readonly int _offset;
+        private readonly int _count;
 
         public ArraySegment(T[] array)
         {
@@ -290,9 +290,9 @@ namespace System
         [Serializable]
         public struct Enumerator : IEnumerator<T>
         {
-            private T[] array { get; }
-            private int offset { get; }
-            private int endIndex { get; } // cache Offset + Count, since it's a little slow
+            private readonly T[] array;
+            private readonly int offset;
+            private readonly int endIndex; // cache Offset + Count, since it's a little slow
             private int index;
 
             internal Enumerator(ArraySegment<T> arraySegment)
