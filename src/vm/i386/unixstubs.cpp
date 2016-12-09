@@ -123,11 +123,6 @@ EXTERN_C VOID ResolveWorkerChainLookupAsmStub()
     PORTABILITY_ASSERT("ResolveWorkerChainLookupAsmStub");
 }
 
-EXTERN_C VOID ResolveWorkerAsmStub()
-{
-    PORTABILITY_ASSERT("ResolveWorkerAsmStub");
-}
-
 EXTERN_C VOID BackPatchWorkerAsmStub()
 {
     PORTABILITY_ASSERT("BackPatchWorkerAsmStub");
