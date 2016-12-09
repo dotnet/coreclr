@@ -293,7 +293,7 @@ namespace System
         public void Fill(T value)
         {
             if (_length > 0)
-                SpanHelper.Fill<T>(ref GetRawPointer(), value, _length);
+                SpanHelper.Fill<T>(ref DangerousGetPinnableReference(), value, _length);
         }
 
         /// <summary>
@@ -302,7 +302,7 @@ namespace System
         public void Clear()
         {
             if (_length > 0)
-                SpanHelper.Fill<T>(ref GetRawPointer(), default(T), _length);
+                SpanHelper.Fill<T>(ref DangerousGetPinnableReference(), default(T), _length);
         }
     }
 
