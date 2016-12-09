@@ -108,7 +108,7 @@ FCFuncStart(gDependentHandleFuncs)
     FCFuncElement("nGetPrimary",             DependentHandle::nGetPrimary)
     FCFuncElement("nGetPrimaryAndSecondary", DependentHandle::nGetPrimaryAndSecondary)
     FCFuncElement("nFree",                   DependentHandle::nFree)
-    FCFuncElement("nSetDependentHandle",     SetDependentHandleSecondary)
+    FCFuncElement("nSetDependentHandleSecondary",     SetDependentHandleSecondary)
 FCFuncEnd()
 
 #ifndef FEATURE_CORECLR
