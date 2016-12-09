@@ -290,10 +290,10 @@ namespace System
         [Serializable]
         public struct Enumerator : IEnumerator<T>
         {
-            private readonly T[] array;
-            private readonly int offset;
-            private readonly int endIndex; // cache Offset + Count, since it's a little slow
-            private int index;
+            private readonly T[] _array;
+            private readonly int _offset;
+            private readonly int _endIndex; // cache Offset + Count, since it's a little slow
+            private int _index;
 
             internal Enumerator(ArraySegment<T> arraySegment)
             {
@@ -302,18 +302,18 @@ namespace System
                 Contract.Requires(arraySegment.Count >= 0);
                 Contract.Requires(arraySegment.Offset + arraySegment.Count <= arraySegment.Array.Length);
 
-                array = arraySegment.Array;
-                offset = arraySegment.Offset;
-                endIndex = arraySegment.Offset + arraySegment.Count;
-                index = arraySegment.Offset - 1;
+                _array = arraySegment.Array;
+                _offset = arraySegment.Offset;
+                _endIndex = arraySegment.Offset + arraySegment.Count;
+                _index = arraySegment.Offset - 1;
             }
 
             public bool MoveNext()
             {
-                if (index < endIndex)
+                if (_index < _endIndex)
                 {
-                    index++;
-                    return (index < endIndex);
+                    _index++;
+                    return (_index < _endIndex);
                 }
                 return false;
             }
@@ -322,11 +322,11 @@ namespace System
             {
                 get
                 {
-                    if (index < offset)
+                    if (_index < _offset)
                         ThrowHelper.ThrowInvalidOperationException_InvalidOperation_EnumNotStarted();
-                    if (index >= endIndex)
+                    if (_index >= _endIndex)
                         ThrowHelper.ThrowInvalidOperationException_InvalidOperation_EnumEnded();
-                    return array[index];
+                    return _array[_index];
                 }
             }
 
@@ -334,7 +334,7 @@ namespace System
 
             void IEnumerator.Reset()
             {
-                index = offset - 1;
+                _index = _offset - 1;
             }
 
             public void Dispose()
