@@ -1358,13 +1358,14 @@ namespace System.Globalization {
             }
         }
 
-
-
         public void ClearCachedData() {
             s_userDefaultUICulture = null;
             s_userDefaultCulture = null;
 
             RegionInfo.s_currentRegionInfo = null;
+#pragma warning disable CS0618
+            TimeZone.ResetTimeZone();
+#pragma warning restore CS0618
             TimeZoneInfo.ClearCachedData();
 
             // Delete the cached cultures.
