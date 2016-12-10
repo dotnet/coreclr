@@ -531,7 +531,12 @@ namespace System.Runtime.CompilerServices
             {
                 Debug.Assert(entryIndex != -1);
 
+                VerifyIntegrity();
+                _invalid = true;
+
                 _entries[entryIndex].depHnd.SetSecondary(newValue);
+
+                _invalid = false;
             }
 
             //----------------------------------------------------------------------------------------
