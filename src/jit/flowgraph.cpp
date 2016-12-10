@@ -19674,18 +19674,29 @@ void Compiler::fgDispBasicBlocks(BasicBlock* firstBlock, BasicBlock* lastBlock, 
 
     padWidth += maxBlockNumWidth - 2; // Account for functions with a large number of blocks.
 
+    // clang-format off
+
     printf("\n");
-    printf("------%*s------------------------------------%*s-----------------------%*s---------------------------------"
-           "-------\n",
-           padWidth, "------------", ibcColWidth, "------------", maxBlockNumWidth, "----");
-    printf(
-        "BBnum %*sdescAddr ref try hnd %s     weight  %*s%s [IL range]      [jump]%*s    [EH region]         [flags]\n",
-        padWidth, "", fgCheapPredsValid ? "cheap preds" : (fgComputePredsDone ? "preds      " : "           "),
-        ((ibcColWidth > 0) ? ibcColWidth - 3 : 0), "", // Subtract 3 for the width of "IBC", printed next.
-        ((ibcColWidth > 0) ? "IBC" : ""), maxBlockNumWidth, "");
-    printf("------%*s------------------------------------%*s-----------------------%*s---------------------------------"
-           "-------\n",
-           padWidth, "------------", ibcColWidth, "------------", maxBlockNumWidth, "----");
+    printf("------%*s------------------------------------%*s-----------------------%*s----------------------------------------\n",
+        padWidth, "------------",
+        ibcColWidth, "------------",
+        maxBlockNumWidth, "----");
+    printf("BBnum %*sdescAddr ref try hnd %s     weight  %*s%s [IL range]      [jump]%*s    [EH region]         [flags]\n",
+        padWidth, "",
+        fgCheapPredsValid       ? "cheap preds" :
+        (fgComputePredsDone     ? "preds      "
+                                : "           "),
+        ((ibcColWidth > 0) ? ibcColWidth - 3 : 0), "",  // Subtract 3 for the width of "IBC", printed next.
+        ((ibcColWidth > 0)      ? "IBC"
+                                : ""),
+        maxBlockNumWidth, ""
+        );
+    printf("------%*s------------------------------------%*s-----------------------%*s----------------------------------------\n",
+        padWidth, "------------",
+        ibcColWidth, "------------",
+        maxBlockNumWidth, "----");
+
+    // clang-format on
 
     for (block = firstBlock; block; block = block->bbNext)
     {
@@ -20255,16 +20266,18 @@ void Compiler::fgDebugCheckBBlist(bool checkBBNum /* = false */, bool checkBBRef
         // For instance method:
         assert(info.compThisArg != BAD_VAR_NUM);
         bool compThisArgAddrExposedOK = !lvaTable[info.compThisArg].lvAddrExposed;
+
 #ifndef JIT32_GCENCODER
         compThisArgAddrExposedOK = compThisArgAddrExposedOK || copiedForGenericsCtxt;
-#endif                                                         // !JIT32_GCENCODER
-        noway_assert(compThisArgAddrExposedOK &&               //     should never expose the address of arg 0 or
-                     !lvaTable[info.compThisArg].lvArgWrite && //     write to arg 0.
-                     (                                         //   In addition,
-                         lvaArg0Var == info.compThisArg || //     lvArg0Var should remain 0 if arg0 is not written to or
-                                                           //     address-exposed.
-                         lvaArg0Var != info.compThisArg && (lvaTable[lvaArg0Var].lvAddrExposed ||
-                                                            lvaTable[lvaArg0Var].lvArgWrite || copiedForGenericsCtxt)));
+#endif // !JIT32_GCENCODER
+
+        // Should never expose the address of arg 0 or write to arg 0.
+        // In addition, lvArg0Var should remain 0 if arg0 is not
+        // written to or address-exposed.
+        noway_assert(compThisArgAddrExposedOK && !lvaTable[info.compThisArg].lvArgWrite &&
+                     (lvaArg0Var == info.compThisArg ||
+                      lvaArg0Var != info.compThisArg && (lvaTable[lvaArg0Var].lvAddrExposed ||
+                                                         lvaTable[lvaArg0Var].lvArgWrite || copiedForGenericsCtxt)));
     }
 }
 
@@ -20317,20 +20330,22 @@ void Compiler::fgDebugCheckFlags(GenTreePtr tree)
         // TYP_INT up to the GT_ASG tree is only correct if we don't need to propagate the TYP_INT back up.
         // The following checks will ensure this.
 
-        // Is the left child of "tree" a GT_ASG?,
+        // Is the left child of "tree" a GT_ASG?
+        //
+        // If parent is a TYP_VOID, we don't no need to propagate TYP_INT up. We are fine.
+        // (or) If GT_ASG is the left child of a GT_COMMA, the type of the GT_COMMA node will
+        // be determined by its right child. So we don't need to propagate TYP_INT up either. We are fine.
         if (op1 && op1->gtOper == GT_ASG)
         {
-            assert(tree->gtType ==
-                       TYP_VOID || // If parent is a TYP_VOID, we don't no need to propagate TYP_INT up. We are fine.
-                   tree->gtOper ==
-                       GT_COMMA); // (or) If GT_ASG is the left child of a GT_COMMA, the type of the GT_COMMA node will
-        } // be determined by its right child. So we don't need to propagate TYP_INT up either. We are fine.
+            assert(tree->gtType == TYP_VOID || tree->gtOper == GT_COMMA);
+        }
 
-        // Is the right child of "tree" a GT_ASG?,
+        // Is the right child of "tree" a GT_ASG?
+        //
+        // If parent is a TYP_VOID, we don't no need to propagate TYP_INT up. We are fine.
         if (op2 && op2->gtOper == GT_ASG)
         {
-            assert(tree->gtType ==
-                   TYP_VOID); // If parent is a TYP_VOID, we don't no need to propagate TYP_INT up. We are fine.
+            assert(tree->gtType == TYP_VOID);
         }
 
         switch (oper)
@@ -22123,9 +22138,10 @@ GenTreePtr Compiler::fgInlinePrependStatements(InlineInfo* inlineInfo)
                         noway_assert(structHnd != NO_CLASS_HANDLE);
                     }
 
-                    // Unsafe value cls check is not needed for argTmpNum here since in-linee compiler instance would
-                    // have
-                    // iterated over these and marked them accordingly.
+                    // Unsafe value cls check is not needed for
+                    // argTmpNum here since in-linee compiler instance
+                    // would have iterated over these and marked them
+                    // accordingly.
                     impAssignTempGen(inlArgInfo[argNum].argTmpNum, inlArgInfo[argNum].argNode, structHnd,
                                      (unsigned)CHECK_SPILL_NONE, &afterStmt, callILOffset, block);
 
