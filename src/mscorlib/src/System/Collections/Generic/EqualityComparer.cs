@@ -314,6 +314,17 @@ namespace System.Collections.Generic
         }
 
         [Pure]
+        public new bool Equals(object x, object y) {
+            if (!(x is string) || !(y is string)) ThrowHelper.ThrowArgumentException(ExceptionResource.Argument_InvalidArgumentForComparison);
+            return string.Equals((string)x, (string)y);
+        }
+
+        [Pure]
+        public override bool Equals(string x, string y) {
+            return string.Equals(x, y);
+        }
+
+        [Pure]
         public override int GetHashCode(string obj)  {
             if (obj == null) return 0;
             return obj.GetLegacyNonRandomizedHashCode();
@@ -530,21 +541,13 @@ namespace System.Collections.Generic
         }
 
         public new bool Equals(object x, object y) {
-            if (x == y) return true;
-            if (x == null || y == null) return false;
-            if ((x is string) && (y is string)) return Equals((string)x, (string)y);
-            ThrowHelper.ThrowArgumentException(ExceptionResource.Argument_InvalidArgumentForComparison);
-            return false;
+            if (!(x is string) || !(y is string)) ThrowHelper.ThrowArgumentException(ExceptionResource.Argument_InvalidArgumentForComparison);
+            return string.Equals((string)x, (string)y);
         }
 
         [Pure]
         public bool Equals(string x, string y) {
-            if (x != null) {
-                if (y != null) return x.Equals(y);
-                return false;
-            }
-            if (y != null) return false;
-            return true;
+            return string.Equals(x, y);
         }
 
         [Pure]

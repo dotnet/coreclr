@@ -261,14 +261,39 @@ namespace System {
             bool success = Number.TryParseDouble(s, style, info, out result);
             if (!success) {
                 String sTrim = s.Trim();
-                if (sTrim.Equals(info.PositiveInfinitySymbol)) {
-                    result = PositiveInfinity;
-                } else if (sTrim.Equals(info.NegativeInfinitySymbol)) {
-                    result = NegativeInfinity;
-                } else if (sTrim.Equals(info.NaNSymbol)) {
-                    result = NaN;
-                } else
-                    return false; // We really failed
+                for (var i = 0; i < 3; i++)
+                {
+                    string comparison;
+                    switch (i)
+                    {
+                        case 0:
+                            comparison = info.PositiveInfinitySymbol;
+                            break;
+                        case 1:
+                            comparison = info.NegativeInfinitySymbol;
+                            break;
+                        default:
+                            comparison = info.NaNSymbol;
+                            break;
+                    }
+                    // This is done in a loop as String.Equals will partially inline; so this reduces the function size by 21 bytes of asm
+                    if (!sTrim.Equals(comparison)) continue;
+                    switch (i)
+                    {
+                        case 0:
+                            result = PositiveInfinity;
+                            break;
+                        case 1:
+                            result = NegativeInfinity;
+                            break;
+                        default:
+                            result = NaN;
+                            break;
+                    }
+                    return true;
+                }
+
+                return false; // We really failed
             }
             return true;
         }

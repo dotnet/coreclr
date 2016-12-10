@@ -95,17 +95,7 @@ namespace System {
 
        
         public new bool Equals(Object x, Object y) {
-            if (x == y) return true;
-            if (x == null || y == null) return false;
-            
-            String sa = x as String;
-            if (sa != null) {
-                String sb = y as String;                
-                if( sb != null) {
-                    return Equals(sa, sb);
-                }
-            }
-            return x.Equals(y);                        
+            return string.Equals(x, y);                        
         }
         
         public int GetHashCode(object obj) {
@@ -297,16 +287,7 @@ namespace System {
         }
                 
         public override bool Equals(string x, string y) {
-            if (Object.ReferenceEquals(x ,y)) return true;
-            if (x == null || y == null) return false;
-
-            if( _ignoreCase) {
-                if( x.Length != y.Length) {
-                    return false;
-                }
-                return (String.Compare(x, y, StringComparison.OrdinalIgnoreCase) == 0);                                            
-            }
-            return x.Equals(y);
+            return string.Equals(x, y);
         }               
                 
         public override int GetHashCode(string obj) {
@@ -373,16 +354,7 @@ namespace System {
         }
                 
         public override bool Equals(string x, string y) {
-            if (Object.ReferenceEquals(x ,y)) return true;
-            if (x == null || y == null) return false;
-
-            if( _ignoreCase) {
-                if( x.Length != y.Length) {
-                    return false;
-                }
-                return (String.Compare(x, y, StringComparison.OrdinalIgnoreCase) == 0);                                            
-            }
-            return x.Equals(y);
+            return string.Equals(x, y, StringComparison.OrdinalIgnoreCase);
         }               
 
         public override int GetHashCode(string obj) {
