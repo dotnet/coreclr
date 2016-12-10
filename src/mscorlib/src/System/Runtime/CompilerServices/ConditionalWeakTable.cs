@@ -153,22 +153,19 @@ namespace System.Runtime.CompilerServices
 
             lock (_lock)
             {
-                VerifyIntegrity();
-                _invalid = true;
-                int entryIndex = FindEntry(key);
+                object otherValue;
+                int entryIndex = _container.FindEntry(key, out otherValue);
 
                 // if we found a key we should just update, if no we should create a new entry.
                 if (entryIndex != -1)
                 {
-                    _entries[entryIndex].depHnd.Free();
-                    _entries[entryIndex].depHnd = new DependentHandle(key, value);
+                    _container.UpdateValue(entryIndex, value);
                 }
                 else
                 {
                     CreateEntry(key, value);
                 }
 
-                _invalid = false;
             }
         }
 
@@ -530,6 +527,14 @@ namespace System.Runtime.CompilerServices
                 return false;
             }
 
+
+            internal void UpdateValue(int entryIndex, TValue newValue)
+            {
+                Debug.Assert(entryIndex != -1);
+
+                _entries[entryIndex].depHnd.SetSecondary(newValue);
+            }
+
             //----------------------------------------------------------------------------------------
             // This does two things: resize and scrub expired keys off bucket lists.
             //
@@ -831,6 +836,11 @@ namespace System.Runtime.CompilerServices
             nGetPrimaryAndSecondary(_handle, out primary, out secondary);
         }
 
+        public void SetSecondary(object secondary)
+        {
+            nSetSecondary(_handle, secondary);
+        }
+
         //----------------------------------------------------------------------
         // Forces dependentHandle back to non-allocated state (if not already there)
         // and frees the handle if needed.
@@ -855,6 +865,9 @@ namespace System.Runtime.CompilerServices
 
         [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern void nGetPrimaryAndSecondary(IntPtr dependentHandle, out object primary, out object secondary);
+
+        [MethodImpl(MethodImplOptions.InternalCall)]
+        private static extern void nSetSecondary(IntPtr dependentHandle, object secondary);
 
         [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern void nFree(IntPtr dependentHandle);
