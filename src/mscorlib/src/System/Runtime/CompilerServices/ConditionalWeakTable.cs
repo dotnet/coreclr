@@ -143,7 +143,6 @@ namespace System.Runtime.CompilerServices
         //
         // If the key is already entered into the dictionary, this method will update the value associated with key.
         //--------------------------------------------------------------------------------------------
-        [System.Security.SecurityCritical]
         public void AddOrUpdate(TKey key, TValue value)
         {
             if (key == null)
