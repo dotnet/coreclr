@@ -2180,23 +2180,23 @@ int log2(unsigned int n)
 
 void stomp_write_barrier_resize(bool is_runtime_suspended, bool requires_upper_bounds_check)
 {
-    WriteBarrierArgs args = {};
+    WriteBarrierParameters args = {};
     args.operation = WriteBarrierOp::StompResize;
     args.is_runtime_suspended = is_runtime_suspended;
     args.requires_upper_bounds_check = requires_upper_bounds_check;
-    args.new_card_table = g_gc_card_table;
-    args.new_lowest_address = g_gc_lowest_address;
-    args.new_highest_address = g_gc_highest_address;
+    args.card_table = g_gc_card_table;
+    args.lowest_address = g_gc_lowest_address;
+    args.highest_address = g_gc_highest_address;
     GCToEEInterface::StompWriteBarrier(&args);
 }
 
 void stomp_write_barrier_ephemeral(bool is_runtime_suspended, uint8_t* ephemeral_lo, uint8_t* ephemeral_hi)
 {
-    WriteBarrierArgs args = {};
+    WriteBarrierParameters args = {};
     args.operation = WriteBarrierOp::StompEphemeral;
     args.is_runtime_suspended = is_runtime_suspended;
-    args.new_ephemeral_low = g_gc_ephemeral_low;
-    args.new_ephemeral_high = g_gc_ephemeral_high;
+    args.ephemeral_lo = g_gc_ephemeral_low;
+    args.ephemeral_hi = g_gc_ephemeral_high;
 #ifdef MULTIPLE_HEAPS
     // It is not correct to update the EE's g_ephemeral_low and g_ephemeral_high
     // to anything other than their default values when using Server GC, since
@@ -2205,21 +2205,21 @@ void stomp_write_barrier_ephemeral(bool is_runtime_suspended, uint8_t* ephemeral
     //
     // When MULTIPLE_HEAPS is defined, g_gc_ephemeral_low and g_gc_ephemeral_high should
     // always have their default values.
-    assert(args.new_ephemeral_low == (uint8_t*)1);
-    assert(args.new_ephemeral_high == (uint8_t*)~0);
+    assert(args.ephemeral_lo == (uint8_t*)1);
+    assert(args.ephemeral_hi == (uint8_t*)~0);
 #endif // MULTIPLE_HEAPS
     GCToEEInterface::StompWriteBarrier(&args);
 }
 
 void stomp_write_barrier_initialize()
 {
-    WriteBarrierArgs args = {};
+    WriteBarrierParameters args = {};
     args.operation = WriteBarrierOp::Initialize;
     args.is_runtime_suspended = true;
     args.requires_upper_bounds_check = false;
-    args.new_card_table = g_gc_card_table;
-    args.new_lowest_address = g_gc_lowest_address;
-    args.new_highest_address = g_gc_highest_address;
+    args.card_table = g_gc_card_table;
+    args.lowest_address = g_gc_lowest_address;
+    args.highest_address = g_gc_highest_address;
     GCToEEInterface::StompWriteBarrier(&args);
 }
 

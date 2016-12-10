@@ -249,7 +249,7 @@ void GCToEEInterface::DiagWalkBGCSurvivors(void* gcContext)
 {
 }
 
-void GCToEEInterface::StompWriteBarrier(WriteBarrierArgs* args)
+void GCToEEInterface::StompWriteBarrier(WriteBarrierParameters* args)
 {
 }
 

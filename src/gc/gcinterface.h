@@ -50,7 +50,7 @@ enum class WriteBarrierOp
 };
 
 // Arguments to GCToEEInterface::StompWriteBarrier
-struct WriteBarrierArgs
+struct WriteBarrierParameters
 {
     // The operation that StompWriteBarrier will perform.
     WriteBarrierOp operation;
@@ -73,23 +73,23 @@ struct WriteBarrierArgs
 
     // The new card table location. May or may not be the same as the previous
     // card table. Used for WriteBarrierOp::Initialize and WriteBarrierOp::StompResize.
-    uint32_t* new_card_table;
+    uint32_t* card_table;
 
     // The heap's new low boundary. May or may not be the same as the previous
     // value. Used for WriteBarrierOp::Initialize and WriteBarrierOp::StompResize.
-    uint8_t* new_lowest_address;
+    uint8_t* lowest_address;
 
     // The heap's new high boundary. May or may not be the same as the previous
     // value. Used for WriteBarrierOp::Initialize and WriteBarrierOp::StompResize.
-    uint8_t* new_highest_address;
+    uint8_t* highest_address;
 
     // The new start of the ephemeral generation. 
     // Used for WriteBarrierOp::StompEphemeral.
-    uint8_t* new_ephemeral_low;
+    uint8_t* ephemeral_lo;
 
     // The new end of the ephemeral generation.
     // Used for WriteBarrierOp::StompEphemeral.
-    uint8_t* new_ephemeral_high;
+    uint8_t* ephemeral_hi;
 };
 
 #include "gcinterface.ee.h"

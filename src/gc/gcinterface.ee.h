@@ -127,7 +127,7 @@ public:
     // Informs the EE of changes to the location of the card table, potentially updating the write
     // barrier if it needs to be updated.
     virtual
-    void StompWriteBarrier(WriteBarrierArgs* args) = 0;
+    void StompWriteBarrier(WriteBarrierParameters* args) = 0;
 };
 
 #endif // _GCINTERFACE_EE_H_
