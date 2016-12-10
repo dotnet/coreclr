@@ -865,7 +865,9 @@ namespace System
             if (ReferenceEquals(a, b)) return true;
             if (NotPossiblyEquals(a, b)) return false;
 
-            if (a.IsAscii() && b.IsAscii())
+            var isAscii = a.IsAscii();
+            if (isAscii != b.IsAscii()) return false;
+            if (isAscii)
             {
                 return (CompareOrdinalIgnoreCaseHelper(a, b) == 0);
             }
