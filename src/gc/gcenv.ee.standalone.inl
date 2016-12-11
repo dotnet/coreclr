@@ -167,7 +167,7 @@ inline void GCToEEInterface::DiagWalkBGCSurvivors(void* gcContext)
     return g_theGCToCLR->DiagWalkBGCSurvivors(gcContext);
 }
 
-inline void GCToEEInterface::StompWriteBarrier(WriteBarrierArgs* args)
+inline void GCToEEInterface::StompWriteBarrier(WriteBarrierParameters* args)
 {
     assert(g_theGCToCLR != nullptr);
     g_theGCToCLR->StompWriteBarrier(args);
