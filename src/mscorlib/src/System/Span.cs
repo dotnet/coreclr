@@ -6,6 +6,8 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 
+#pragma warning disable 0809  //warning CS0809: Obsolete member 'Span<T>.Equals(object)' overrides non-obsolete member 'object.Equals(object)'
+
 namespace System
 {
     /// <summary>
@@ -15,6 +17,11 @@ namespace System
     /// </summary>
     public struct Span<T>
     {
+        /// <summary>A byref or a native ptr.</summary>
+        private readonly ByReference<T> _pointer;
+        /// <summary>The number of elements this Span contains.</summary>
+        private readonly int _length;
+
         /// <summary>
         /// Creates a new span over the entirety of the target array.
         /// </summary>
@@ -126,20 +133,23 @@ namespace System
         }
 
         /// <summary>
+        /// Returns a reference to the 0th element of the Span. If the Span is empty, returns a reference to the location where the 0th element
+        /// would have been stored. Such a reference can be used for pinning but must never be dereferenced.
+        /// </summary>
+        public ref T DangerousGetPinnableReference()
+        {
+            return ref _pointer.Value;
+        }
+
+        /// <summary>
         /// Gets the number of elements contained in the <see cref="Span{T}"/>
         /// </summary>
-        public int Length
-        {
-            get { return _length; }
-        }
+        public int Length => _length;
 
         /// <summary>
         /// Returns whether the <see cref="Span{T}"/> is empty.
         /// </summary>
-        public bool IsEmpty
-        {
-            get { return _length == 0; }
-        }
+        public bool IsEmpty => _length == 0;
 
         /// <summary>
         /// Fetches the element at the specified index.
@@ -201,19 +211,13 @@ namespace System
         /// Returns true if left and right point at the same memory and have the same length.  Note that
         /// this does *not* check to see if the *contents* are equal.
         /// </summary>
-        public static bool operator ==(Span<T> left, Span<T> right)
-        {
-            return left.Equals(right);
-        }
+        public static bool operator ==(Span<T> left, Span<T> right) => left.Equals(right);
 
         /// <summary>
         /// Returns false if left and right point at the same memory and have the same length.  Note that
         /// this does *not* check to see if the *contents* are equal.
         /// </summary>
-        public static bool operator !=(Span<T> left, Span<T> right)
-        {
-            return !left.Equals(right);
-        }
+        public static bool operator !=(Span<T> left, Span<T> right) => !left.Equals(right);
 
         /// <summary>
         /// Checks to see if two spans point at the same memory.  Note that
@@ -256,18 +260,12 @@ namespace System
         /// <summary>
         /// Defines an implicit conversion of an array to a <see cref="Span{T}"/>
         /// </summary>
-        public static implicit operator Span<T>(T[] array)
-        {
-            return new Span<T>(array);
-        }
+        public static implicit operator Span<T>(T[] array) => new Span<T>(array);
 
         /// <summary>
         /// Defines an implicit conversion of a <see cref="ArraySegment{T}"/> to a <see cref="Span{T}"/>
         /// </summary>
-        public static implicit operator Span<T>(ArraySegment<T> arraySegment)
-        {
-            return new Span<T>(arraySegment.Array, arraySegment.Offset, arraySegment.Count);
-        }
+        public static implicit operator Span<T>(ArraySegment<T> arraySegment) =>  new Span<T>(arraySegment.Array, arraySegment.Offset, arraySegment.Count);
 
         /// <summary>
         /// Forms a slice out of the given span, beginning at 'start'.
@@ -320,24 +318,7 @@ namespace System
         // <summary>
         /// Returns an empty <see cref="Span{T}"/>
         /// </summary>
-        public static Span<T> Empty
-        {
-            get { return default(Span<T>); }
-        }
-
-        /// <summary>
-        /// Returns a reference to the 0th element of the Span. If the Span is empty, returns a reference to the location where the 0th element
-        /// would have been stored. Such a reference can be used for pinning but must never be dereferenced.
-        /// </summary>
-        public ref T DangerousGetPinnableReference()
-        {
-            return ref _pointer.Value;
-        }
-
-        /// <summary>A byref or a native ptr.</summary>
-        private readonly ByReference<T> _pointer;
-        /// <summary>The number of elements this Span contains.</summary>
-        private readonly int _length;
+        public static Span<T> Empty => default(Span<T>);
     }
 
     public static class SpanExtensions
