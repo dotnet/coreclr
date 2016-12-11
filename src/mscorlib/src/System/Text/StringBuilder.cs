@@ -566,19 +566,41 @@ namespace System.Text {
             }
 
             int idx = m_ChunkLength;
-            while (repeatCount > 0)
+            if (value != '\0')
             {
-                if (idx < m_ChunkChars.Length)
+                while (repeatCount > 0)
                 {
-                    m_ChunkChars[idx++] = value;
-                    --repeatCount;
+                    if (idx < m_ChunkChars.Length)
+                    {
+                        m_ChunkChars[idx++] = value;
+                        --repeatCount;
+                    }
+                    else
+                    {
+                        m_ChunkLength = idx;
+                        ExpandByABlock(repeatCount);
+                        Contract.Assert(m_ChunkLength == 0, "Expand should create a new block");
+                        idx = 0;
+                    }
                 }
-                else
+            }
+            else
+            {
+                while (repeatCount > 0)
                 {
-                    m_ChunkLength = idx;
-                    ExpandByABlock(repeatCount);
-                    Contract.Assert(m_ChunkLength == 0, "Expand should create a new block");
-                    idx = 0;
+                    if (idx < m_ChunkChars.Length)
+                    {
+                        int diff = m_ChunkChars.Length - idx;
+                        idx += diff;
+                        repeatCount -= diff;
+                    }
+                    else
+                    {
+                        m_ChunkLength = idx;
+                        ExpandByABlock(repeatCount);
+                        Contract.Assert(m_ChunkLength == 0, "Expand should create a new block");
+                        idx = 0;
+                    }
                 }
             }
             m_ChunkLength = idx;
