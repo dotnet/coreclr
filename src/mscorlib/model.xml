@@ -12433,6 +12433,8 @@
       <Member Name="Equals(System.Span&lt;T&gt;)" />
       <Member Name="TryCopyTo(System.Span&lt;T&gt;)" />
       <Member Name="Set(System.ReadOnlySpan&lt;T&gt;)" />
+      <Member Name="Clear" />
+      <Member Name="Fill(T)" />
     </Type>
     <Type Name="System.ReadOnlySpan&lt;T&gt;" Condition="FEATURE_SPAN_OF_T">
       <Member Name="#ctor(T[])" />

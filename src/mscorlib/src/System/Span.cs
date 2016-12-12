@@ -2,8 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-using System.Collections.Generic;
-using System.Diagnostics;
 using System.Runtime.CompilerServices;
 
 namespace System
@@ -285,6 +283,25 @@ namespace System
 
             SpanHelper.CopyTo<T>(ref DangerousGetPinnableReference(), ref values.DangerousGetPinnableReference(), values.Length);
         }
+
+        /// <summary>
+        /// Fills the contents of this span with the value.
+        /// </summary>
+        /// <param name="value">The value to fill the span content with.</param>
+        public void Fill(T value)
+        {
+            if (_length > 0)
+                SpanHelper.Fill<T>(ref DangerousGetPinnableReference(), value, _length);
+        }
+
+        /// <summary>
+        /// Fills the contents of this span with the default value.
+        /// </summary>
+        public void Clear()
+        {
+            if (_length > 0)
+                SpanHelper.Clear<T>(ref DangerousGetPinnableReference(), _length);
+        }
     }
 
     public static class SpanExtensions
@@ -380,6 +397,9 @@ namespace System
 
     internal static class SpanHelper
     {
+        private const int copyInLoopBufferSize = 512;
+        private const int cashBufferSize = 1024;
+
         internal static unsafe void CopyTo<T>(ref T destination, ref T source, int elementsCount)
         {
             if (elementsCount == 0)
@@ -414,6 +434,68 @@ namespace System
                     for (int i = elementsCount - 1; i >= 0; i--)
                         Unsafe.Add(ref destination, i) = Unsafe.Add(ref source, i);
                 }
+            }
+        }
+
+        internal static unsafe void Fill<T>(ref T destination, T value, int elementsCount)
+        {
+            if (!JitHelpers.ContainsReferences<T>())
+            {
+                int size = Unsafe.SizeOf<T>();
+
+                int copiedCount; // Fill up to copiedCount in first loop
+                if (size <= sizeof(int))
+                    copiedCount = elementsCount <= copyInLoopBufferSize / 4 * 3 ? elementsCount : copyInLoopBufferSize / 4 * 2;
+                else
+                    copiedCount = elementsCount <= copyInLoopBufferSize * 3 / size ? elementsCount : Math.Min(1, copyInLoopBufferSize * 2 / size);
+
+                for (int i = copiedCount - 1; i >= 0; i--)
+                    Unsafe.Add(ref destination, i) = value;
+
+                elementsCount -= copiedCount;
+                if (elementsCount <= 0)
+                    return;
+
+                var cashCount = Math.Min(1, cashBufferSize / size);
+
+                fixed (byte* pSource = &Unsafe.As<T, byte>(ref destination))
+                {
+                    while (elementsCount > 0)
+                    {
+                        int copyLen = Math.Min(Math.Min(copiedCount, elementsCount), cashCount);
+                        fixed (byte* pDestination = &Unsafe.As<T, byte>(ref Unsafe.Add(ref destination, copiedCount)))
+                        {
+#if BIT64
+                            Buffer.Memmove(pDestination, pSource, (ulong)copyLen * (ulong)size);
+#else
+                            Buffer.Memmove(pDestination, pSource, (uint)copyLen * (uint)size);
+#endif
+                        }
+                        copiedCount += copyLen;
+                        elementsCount -= copyLen;
+                    }
+                }
+            }
+            else
+            {
+                for (int i = elementsCount - 1; i >= 0; i--)
+                    Unsafe.Add(ref destination, i) = value;
+            }
+        }
+
+        internal static unsafe void Clear<T>(ref T destination, int elementsCount)
+        {
+            if (!JitHelpers.ContainsReferences<T>())
+            {
+                fixed (byte* pDestination = &Unsafe.As<T, byte>(ref destination))
+                {
+                    Buffer.ZeroMemory(pDestination, (long)elementsCount * Unsafe.SizeOf<T>());
+                }
+            }
+            else
+            {
+                for (int i = elementsCount - 1; i >= 0; i--)
+                    Unsafe.Add(ref destination, i) = default(T);
             }
         }
     }
