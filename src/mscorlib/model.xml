@@ -348,7 +348,9 @@
         <Member Name="get_IsEmpty" />
         <Member Name="Slice(System.Int32)" />
         <Member Name="Slice(System.Int32,System.Int32)" />
-        <Member Name="CopyTo(System.Span&lt;T&gt;)" />
+        <Member Name="CopyTo(T[])" />
+        <Member Name="CopyTo(T[],System.Int32)" />
+        <Member Name="CopyTo(System.ArraySegment&lt;T&gt;)" />
         <Member Name="ToArray" />
         <Member Name="GetEnumerator" />
         <Member Name="GetHashCode" />

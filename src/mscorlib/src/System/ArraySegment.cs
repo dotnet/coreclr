@@ -152,7 +152,7 @@ namespace System
             if (_array == null)
                 ThrowHelper.ThrowInvalidOperationException(ExceptionResource.InvalidOperation_NullArray);
             if ((uint)start > (uint)_count)
-                ThrowHelper.ThrowArgumentOutOfRangeException();
+                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.startIndex, ExceptionResource.ArgumentOutOfRange_Index);
             Contract.EndContractBlock();
 
             return new ArraySegment<T>(_array, _offset + start, _count - start);
@@ -169,10 +169,34 @@ namespace System
             return new ArraySegment<T>(_array, _offset + start, length);
         }
 
-        public void CopyTo(Span<T> destination)
+        public void CopyTo(T[] destination)
         {
-            if (!((Span<T>)this).TryCopyTo(destination.Slice(0, _count))) 
-                ThrowHelper.ThrowArgumentOutOfRangeException();
+            if (_array == null)
+                ThrowHelper.ThrowInvalidOperationException(ExceptionResource.InvalidOperation_NullArray);
+            Contract.EndContractBlock();
+
+            System.Array.Copy(_array, _offset, destination, 0, _count);
+        }
+
+        public void CopyTo(T[] destination, int destinationIndex)
+        {
+            if (_array == null)
+                ThrowHelper.ThrowInvalidOperationException(ExceptionResource.InvalidOperation_NullArray);
+            Contract.EndContractBlock();
+
+            System.Array.Copy(_array, _offset, destination, destinationIndex, _count);
+        }
+
+        public void CopyTo(ArraySegment<T> destination)
+        {
+            if (_array == null || destination._array == null)
+                ThrowHelper.ThrowInvalidOperationException(ExceptionResource.InvalidOperation_NullArray);
+            if (_count != destination._count)
+                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.destinationArray, ExceptionResource.ArgumentException_OtherNotArrayOfCorrectLength);
+            Contract.EndContractBlock();
+
+            if (_count > 0)
+                System.Array.Copy(_array, _offset, destination._array, destination._offset, _count);
         }
 
         public T[] ToArray()
@@ -180,15 +204,9 @@ namespace System
             if (_array == null)
                 ThrowHelper.ThrowInvalidOperationException(ExceptionResource.InvalidOperation_NullArray);
 
-#if true
-            // Span API
-            return ((Span<T>)this).ToArray();
-#else
-            // Array API
             var destination = new T[_count];
             System.Array.Copy(_array, _offset, destination, 0, _count);
             return destination;
-#endif
         }
 
         public Enumerator GetEnumerator()
@@ -310,15 +328,6 @@ namespace System
                             (index >= _offset && index < _offset + _count));
 
             return index >= 0;
-        }
-
-        void ICollection<T>.CopyTo(T[] array, int arrayIndex)
-        {
-            if (_array == null)
-                ThrowHelper.ThrowInvalidOperationException(ExceptionResource.InvalidOperation_NullArray);
-            Contract.EndContractBlock();
-
-            System.Array.Copy(_array, _offset, array, arrayIndex, _count);
         }
 
         bool ICollection<T>.Remove(T item)
