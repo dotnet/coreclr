@@ -125,9 +125,14 @@ void Lowering::TreeNodeInfoInit(GenTree* tree)
     {
         // Please add new types below "default" case except cases which can be fit into "default" case.
 
-        // TODO-ARM-Cleanup: These cases should be replaced with "default" case after
+        // TODO-ARM-Cleanup: These cases can be fit into "default" case after
         // other remaining types are implmented.
         case GT_IL_OFFSET:
+            info->srcCount = 0;
+            info->dstCount = 0;
+            break;
+        // TODO-ARM-Cleanup: These cases can be fit into "default" case after
+        // other remaining types are implmented.
         case GT_CNS_INT:
             info->dstCount = (tree->TypeGet() == TYP_VOID) ? 0 : 1;
             if (kind & (GTK_CONST | GTK_LEAF))
