@@ -10,6 +10,31 @@
 // The singular heap instance.
 GPTR_DECL(IGCHeap, g_pGCHeap);
 
+#ifndef DACCESS_COMPILE
+extern "C" {
+#endif // !DACCESS_COMPILE
+GPTR_DECL(uint8_t,g_lowest_address);
+GPTR_DECL(uint8_t,g_highest_address);
+GPTR_DECL(uint32_t,g_card_table);
+#ifndef DACCESS_COMPILE
+}
+#endif // !DACCESS_COMPILE
+
+extern "C" uint8_t* g_ephemeral_low;
+extern "C" uint8_t* g_ephemeral_high;
+
+#ifdef FEATURE_USE_SOFTWARE_WRITE_WATCH_FOR_GC_HEAP
+
+// Table containing the dirty state. This table is translated to exclude the lowest address it represents, see
+// TranslateTableToExcludeHeapStartAddress.
+extern "C" uint8_t *g_sw_ww_table;
+
+// Write watch may be disabled when it is not needed (between GCs for instance). This indicates whether it is enabled.
+extern "C" bool g_sw_ww_enabled_for_gc_heap;
+
+#endif // FEATURE_USE_SOFTWARE_WRITE_WATCH_FOR_GC_HEAP
+
+
 // GCHeapUtilities provides a number of static methods
 // that operate on the global heap instance. It can't be
 // instantiated.
@@ -108,22 +133,51 @@ public:
         return IGCHeap::maxGeneration;
     }
 
+#ifdef FEATURE_USE_SOFTWARE_WRITE_WATCH_FOR_GC_HEAP
+
+    // Returns True if software write watch is currently enabled for the GC Heap,
+    // or False if it is not.
+    inline static bool SoftwareWriteWatchIsEnabled()
+    {
+        WRAPPER_NO_CONTRACT;
+
+        return g_sw_ww_enabled_for_gc_heap;
+    }
+
+    // In accordance with the SoftwareWriteWatch scheme, marks a given address as
+    // "dirty" (e.g. has been written to).
+    inline static void SoftwareWriteWatchSetDirty(void* address, size_t write_size)
+    {
+        LIMITED_METHOD_CONTRACT;
+
+        // We presumably have just written something to this address, so it can't be null.
+        assert(address != nullptr);
+
+        // The implementation is limited to writes of a pointer size or less. Writes larger
+        // than pointer size may cross page boundaries and would require us to potentially
+        // set more than one entry in the SWW table, which can't be done atomically under
+        // the current scheme.
+        assert(write_size <= sizeof(void*));
+
+        size_t table_byte_index = reinterpret_cast<size_t>(address) >> SOFTWARE_WRITE_WATCH_AddressToTableByteIndexShift;
+
+        // The table byte index that we calculate for the address should be the same as the one
+        // calculated for a pointer to the end of the written region. If this were not the case,
+        // this write crossed a boundary and would dirty two pages.
+        uint8_t* end_of_write_ptr = reinterpret_cast<uint8_t*>(address) + (write_size - 1);
+        assert(table_byte_index == reinterpret_cast<size_t>(end_of_write_ptr) >> SOFTWARE_WRITE_WATCH_AddressToTableByteIndexShift);
+        uint8_t* table_address = &g_sw_ww_table[table_byte_index];
+        if (*table_address == 0)
+        {
+            *table_address = 0xFF;
+        }
+    }
+#endif // FEATURE_USE_SOFTWARE_WRITE_WATCH_FOR_GC_HEAP
+
+
 private:
     // This class should never be instantiated.
     GCHeapUtilities() = delete;
 };
-
-#ifndef DACCESS_COMPILE
-extern "C" {
-#endif // !DACCESS_COMPILE
-GPTR_DECL(uint8_t,g_lowest_address);
-GPTR_DECL(uint8_t,g_highest_address);
-GPTR_DECL(uint32_t,g_card_table);
-#ifndef DACCESS_COMPILE
-} 
-#endif // !DACCESS_COMPILE
-
-extern "C" uint8_t* g_ephemeral_low;
-extern "C" uint8_t* g_ephemeral_high;
 
 #endif // _GCHEAPUTILITIES_H_

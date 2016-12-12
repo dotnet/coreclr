@@ -1402,9 +1402,6 @@ int mark_time, plan_time, sweep_time, reloc_time, compact_time;
 
 #ifndef MULTIPLE_HEAPS
 
-#define ephemeral_low           g_gc_ephemeral_low
-#define ephemeral_high          g_gc_ephemeral_high
-
 #endif // MULTIPLE_HEAPS
 
 #ifdef TRACE_GC
@@ -2187,26 +2184,32 @@ void stomp_write_barrier_resize(bool is_runtime_suspended, bool requires_upper_b
     args.card_table = g_gc_card_table;
     args.lowest_address = g_gc_lowest_address;
     args.highest_address = g_gc_highest_address;
+#ifdef FEATURE_USE_SOFTWARE_WRITE_WATCH_FOR_GC_HEAP
+    if (SoftwareWriteWatch::IsEnabledForGCHeap())
+    {
+        args.write_watch_table = g_gc_sw_ww_table;
+    }
+#endif // FEATURE_USE_SOFTWARE_WRITE_WATCH_FOR_GC_HEAP
     GCToEEInterface::StompWriteBarrier(&args);
 }
 
-void stomp_write_barrier_ephemeral(bool is_runtime_suspended, uint8_t* ephemeral_lo, uint8_t* ephemeral_hi)
+void stomp_write_barrier_ephemeral(bool is_runtime_suspended, uint8_t* ephemeral_low, uint8_t* ephemeral_high)
 {
     WriteBarrierParameters args = {};
     args.operation = WriteBarrierOp::StompEphemeral;
     args.is_runtime_suspended = is_runtime_suspended;
-    args.ephemeral_lo = g_gc_ephemeral_low;
-    args.ephemeral_hi = g_gc_ephemeral_high;
+    args.ephemeral_low = ephemeral_low;
+    args.ephemeral_high = ephemeral_high;
 #ifdef MULTIPLE_HEAPS
     // It is not correct to update the EE's g_ephemeral_low and g_ephemeral_high
     // to anything other than their default values when using Server GC, since
     // there is no single ephemeral generation across all of the heaps.
     // Server GC write barriers do not reference these two globals, but ErectWriteBarrier does.
     //
-    // When MULTIPLE_HEAPS is defined, g_gc_ephemeral_low and g_gc_ephemeral_high should
+    // When MULTIPLE_HEAPS is defined, the EE's g_ephemeral_low and g_ephemeral_high should
     // always have their default values.
-    assert(args.ephemeral_lo == (uint8_t*)1);
-    assert(args.ephemeral_hi == (uint8_t*)~0);
+    args.ephemeral_low = (uint8_t*)1;
+    args.ephemeral_high = (uint8_t*)~0;
 #endif // MULTIPLE_HEAPS
     GCToEEInterface::StompWriteBarrier(&args);
 }
@@ -2429,6 +2432,10 @@ fgm_history gc_heap::fgm_result;
 BOOL        gc_heap::ro_segments_in_range;
 
 size_t      gc_heap::gen0_big_free_spaces = 0;
+
+uint8_t*    gc_heap::ephemeral_low;
+
+uint8_t*    gc_heap::ephemeral_high;
 
 uint8_t*    gc_heap::lowest_address;
 
@@ -7277,9 +7284,6 @@ int gc_heap::grow_brick_card_tables (uint8_t* start,
             }
 
             g_gc_card_table = translated_ct;
-            g_gc_lowest_address = saved_g_lowest_address;
-            g_gc_highest_address = saved_g_highest_address;
-
             SoftwareWriteWatch::SetResizedUntranslatedTable(
                 mem + sw_ww_table_offset,
                 saved_g_lowest_address,
@@ -7290,6 +7294,8 @@ int gc_heap::grow_brick_card_tables (uint8_t* start,
             // grow version of the write barrier.  This test tells us if the new
             // segment was allocated at a lower address than the old, requiring
             // that we start doing an upper bounds check in the write barrier.
+            g_gc_lowest_address = saved_g_lowest_address;
+            g_gc_highest_address = saved_g_highest_address;
             stomp_write_barrier_resize(true, la != saved_g_lowest_address);
             write_barrier_updated = true;
 
@@ -32778,8 +32784,8 @@ gc_heap::verify_heap (BOOL begin_gc_p)
 #endif //BACKGROUND_GC 
 
 #ifndef MULTIPLE_HEAPS
-    if ((g_gc_ephemeral_low != generation_allocation_start (generation_of (max_generation - 1))) ||
-        (g_gc_ephemeral_high != heap_segment_reserved (ephemeral_heap_segment)))
+    if ((ephemeral_low != generation_allocation_start (generation_of (max_generation - 1))) ||
+        (ephemeral_high != heap_segment_reserved (ephemeral_heap_segment)))
     {
         FATAL_GC_ERROR();
     }
@@ -35739,7 +35745,13 @@ GCHeap::SetCardsAfterBulkCopy( Object **StartPoint, size_t len )
     end = StartPoint + (len/sizeof(Object*));
     while (rover < end)
     {
-        if ( (((uint8_t*)*rover) >= g_gc_ephemeral_low) && (((uint8_t*)*rover) < g_gc_ephemeral_high) )
+        // For Workstation GC, where there is exactly one ephemeral region, we can avoid touching the
+        // card table if the rover is currently pointing into a region outside of the ephemeral generation.
+        //
+        // For Server GC, where there are multiple ephemeral regions, we must always touch the card table.
+#ifndef MULTIPLE_HEAPS
+        if ( (((uint8_t*)*rover) >= gc_heap::ephemeral_low) && (((uint8_t*)*rover) < gc_heap::ephemeral_high) )
+#endif // MULTIPLE_HEAPS
         {
             // Set Bit For Card and advance to next card
             size_t card = gcard_of ((uint8_t*)rover);
@@ -35748,10 +35760,12 @@ GCHeap::SetCardsAfterBulkCopy( Object **StartPoint, size_t len )
             // Skip to next card for the object
             rover = (Object**)align_on_card ((uint8_t*)(rover+1));
         }
+#ifndef MULTIPLE_HEAPS
         else
         {
             rover++;
         }
+#endif // MULTIPLE_HEAPS
     }
 }
 

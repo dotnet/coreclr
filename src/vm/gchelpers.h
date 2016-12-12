@@ -109,6 +109,8 @@ OBJECTREF AllocateObject(MethodTable *pMT
 
 extern void StompWriteBarrierEphemeral(bool isRuntimeSuspended);
 extern void StompWriteBarrierResize(bool isRuntimeSuspended, bool bReqUpperBoundsCheck);
+extern void SwitchToWriteWatchBarrier(bool isRuntimeSuspended);
+extern void SwitchToNonWriteWatchBarrier(bool isRuntimeSuspended);
 
 extern void ThrowOutOfMemoryDimensionsExceeded();
 
