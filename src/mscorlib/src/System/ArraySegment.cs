@@ -179,7 +179,16 @@ namespace System
         {
             if (_array == null)
                 ThrowHelper.ThrowInvalidOperationException(ExceptionResource.InvalidOperation_NullArray);
+
+#if true
+            // Span API
             return ((Span<T>)this).ToArray();
+#else
+            // Array API
+            var destination = new T[_count];
+            System.Array.Copy(_array, _offset, destination, 0, _count);
+            return destination;
+#endif
         }
 
         public Enumerator GetEnumerator()
@@ -241,7 +250,7 @@ namespace System
             return segment.ToArray();
         }
 
-        #region IList<T>
+#region IList<T>
 
         int IList<T>.IndexOf(T item)
         {
@@ -266,9 +275,9 @@ namespace System
         {
             ThrowHelper.ThrowNotSupportedException();
         }
-        #endregion
+#endregion
 
-        #region ICollection<T>
+#region ICollection<T>
         bool ICollection<T>.IsReadOnly
         {
             get
@@ -317,15 +326,15 @@ namespace System
             ThrowHelper.ThrowNotSupportedException();
             return default(bool);
         }
-        #endregion
+#endregion
 
-        #region IEnumerable<T>
+#region IEnumerable<T>
         IEnumerator<T> IEnumerable<T>.GetEnumerator() => GetEnumerator();
-        #endregion
+#endregion
 
-        #region IEnumerable
+#region IEnumerable
         IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
-        #endregion
+#endregion
 
         [Serializable]
         public struct Enumerator : IEnumerator<T>
