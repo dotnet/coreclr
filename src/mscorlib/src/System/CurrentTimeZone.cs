@@ -21,21 +21,18 @@ namespace System {
     using System;
     using System.Diagnostics.Contracts;
     using System.Text;
-    using System.Threading;
     using System.Collections;
     using System.Globalization;
     using System.Runtime.CompilerServices;
     using System.Runtime.Versioning;
 
-#if FEATURE_CORECLR
     [Obsolete("System.CurrentSystemTimeZone has been deprecated.  Please investigate the use of System.TimeZoneInfo.Local instead.")]
-#endif
     [Serializable]
     internal class CurrentSystemTimeZone : TimeZone
     {
         // The per-year information is cached in in this instance value. As a result it can
         // be cleaned up by CultureInfo.ClearCachedData, which will clear the instance of this object
-        private Hashtable m_CachedDaylightChanges = new Hashtable();
+        private readonly Hashtable m_CachedDaylightChanges = new Hashtable();
 
         // Standard offset in ticks to the Universal time if
         // no daylight saving is in used.
@@ -148,21 +145,6 @@ namespace System {
             return new DateTime(tick, DateTimeKind.Local, isAmbiguousLocalDst);
         }
 
-        // Private object for locking instead of locking on a public type for SQL reliability work.
-        private static Object s_InternalSyncObject;
-        private static Object InternalSyncObject
-        {
-            get
-            {
-                if (s_InternalSyncObject == null)
-                {
-                    Object o = new Object();
-                    Interlocked.CompareExchange<Object>(ref s_InternalSyncObject, o, null);
-                }
-                return s_InternalSyncObject;
-            }
-        }
-
         public override DaylightTime GetDaylightChanges(int year)
         {
             if (year < 1 || year > 9999)
@@ -202,7 +184,7 @@ namespace System {
                     currentDaylightChanges = new DaylightTime(DateTime.MinValue, DateTime.MinValue, TimeSpan.Zero); 
                 }
 
-                lock (InternalSyncObject)
+                lock (m_CachedDaylightChanges)
                 {
                     if (!m_CachedDaylightChanges.Contains(objYear))
                     {

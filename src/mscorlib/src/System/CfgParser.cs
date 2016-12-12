@@ -213,7 +213,6 @@ namespace System
                              int textLength,
                              int prefixLength);
 
-        [System.Security.SecurityCritical]  // auto-generated
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         internal extern void RunParser(String fileName);
     }
@@ -245,7 +244,6 @@ namespace System
             return Parse(fileName, configPath, false);
         }
 
-        [System.Security.SecuritySafeCritical]  // auto-generated
         internal ConfigNode Parse(String fileName, String configPath, bool skipSecurityStuff)
         {
             if (fileName == null)
@@ -291,11 +289,7 @@ namespace System
                 // Neither Exception nor ApplicationException are the "right" exceptions here.
                 // Desktop throws ApplicationException for backwards compatibility.
                 // On Silverlight we don't have ApplicationException, so fall back to Exception.
-#if FEATURE_CORECLR
                 throw new Exception(message, inner);
-#else
-                throw new ApplicationException(message, inner);
-#endif
             }
             return rootNode;
         }
@@ -440,11 +434,7 @@ namespace System
                     // Neither Exception nor ApplicationException are the "right" exceptions here.
                     // Desktop throws ApplicationException for backwards compatibility.
                     // On Silverlight we don't have ApplicationException, so fall back to Exception.
-#if FEATURE_CORECLR
                     throw new Exception(message);
-#else
-                    throw new ApplicationException(message);
-#endif
                 }
             }
         }

@@ -31,15 +31,11 @@ namespace System.Resources {
     // stores them in a hash table.  Custom IResourceReaders can be used.
     // 
     [Serializable]
-[System.Runtime.InteropServices.ComVisible(true)]
+    [System.Runtime.InteropServices.ComVisible(true)]
     public class ResourceSet : IDisposable, IEnumerable
     {
         [NonSerialized] protected IResourceReader Reader;
-#if FEATURE_CORECLR
         internal Hashtable Table;
-#else
-        protected Hashtable Table;
-#endif
 
         private Hashtable _caseInsensitiveTable;  // For case-insensitive lookups.
 
@@ -65,9 +61,6 @@ namespace System.Resources {
         // implementation.  Use this constructor to open & read from a file 
         // on disk.
         // 
-        #if FEATURE_CORECLR
-        [System.Security.SecurityCritical] // auto-generated
-        #endif
         public ResourceSet(String fileName)
         {
             Reader = new ResourceReader(fileName);
@@ -89,7 +82,6 @@ namespace System.Resources {
         // implementation.  Use this constructor to read from an open stream 
         // of data.
         // 
-        [System.Security.SecurityCritical]  // auto-generated_required
         public ResourceSet(Stream stream)
         {
             Reader = new ResourceReader(stream);
@@ -98,7 +90,6 @@ namespace System.Resources {
         }
 
 #if LOOSELY_LINKED_RESOURCE_REFERENCE
-        [System.Security.SecurityCritical]  // auto_generated_required
         public ResourceSet(Stream stream, Assembly assembly)
         {
             Reader = new ResourceReader(stream);
@@ -187,11 +178,7 @@ namespace System.Resources {
         // GetDefaultReader and GetDefaultWriter.
         public virtual Type GetDefaultWriter()
         {
-#if FEATURE_CORECLR
             return Type.GetType("System.Resources.ResourceWriter, System.Resources.Writer, Version=4.0.1.0, Culture=neutral, PublicKeyToken=" + AssemblyRef.MicrosoftPublicKeyToken, throwOnError: true);
-#else
-            return typeof(ResourceWriter);
-#endif
         }
 
         [ComVisible(false)]

@@ -95,7 +95,6 @@ public class Object
     
     // Returns a Type object which represent this object instance.
     // 
-    [System.Security.SecuritySafeCritical]  // auto-generated
     [Pure]
     [MethodImplAttribute(MethodImplOptions.InternalCall)]
     public extern Type GetType();
@@ -113,14 +112,12 @@ public class Object
     // so that other object may only call this method on themselves.  It is entended to
     // support the ICloneable interface.
     // 
-    [System.Security.SecuritySafeCritical]  // auto-generated
     [MethodImplAttribute(MethodImplOptions.InternalCall)]
     protected extern Object MemberwiseClone();
     
    
     // Sets the value specified in the variant on the field
     // 
-    [System.Security.SecurityCritical]  // auto-generated
     private void FieldSetter(String typeName, String fieldName, Object val)
     {
         Contract.Requires(typeName != null);
@@ -214,22 +211,16 @@ internal class __Canon
 // This class is used to define the name of the base class library
 internal class CoreLib
 {
-
-#if FEATURE_CORECLR
     public const string Name = "System.Private.CoreLib";
-#else
-    public const string Name = "mscorlib";
-#endif 
 
     public static string FixupCoreLibName(string strToFixup)
     {
-#if FEATURE_CORECLR                        
         if (!String.IsNullOrEmpty(strToFixup))
         {    
             strToFixup = strToFixup.Replace("mscorlib", System.CoreLib.Name);
         }
-#endif   
-        return strToFixup;              
+
+        return strToFixup;
     }
 }
 

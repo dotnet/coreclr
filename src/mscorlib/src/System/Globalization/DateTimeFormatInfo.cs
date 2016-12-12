@@ -208,7 +208,6 @@ namespace System.Globalization {
 
         private String LanguageName
         {
-            [System.Security.SecurityCritical]  // auto-generated
             get
             {
                 if (m_langName == null)
@@ -540,17 +539,13 @@ namespace System.Globalization {
 
         public  String AMDesignator
          {
-#if FEATURE_CORECLR
-            [System.Security.SecuritySafeCritical]  // auto-generated
-#endif
             get
             {
-#if FEATURE_CORECLR
                 if (this.amDesignator == null)
                 {
                     this.amDesignator = this.m_cultureData.SAM1159;
                 }
-#endif
+
                 Contract.Assert(this.amDesignator != null, "DateTimeFormatInfo.AMDesignator, amDesignator != null");
                 return (this.amDesignator);
             }
@@ -825,12 +820,11 @@ namespace System.Globalization {
         {
             get
             {
-#if FEATURE_CORECLR
                 if (this.dateSeparator == null)
                 {
                     this.dateSeparator = this.m_cultureData.DateSeparator(Calendar.ID);
                 }
-#endif
+
                 Contract.Assert(this.dateSeparator != null, "DateTimeFormatInfo.DateSeparator, dateSeparator != null");
                 return (this.dateSeparator);
             }
@@ -855,14 +849,12 @@ namespace System.Globalization {
         {
             get
             {
-#if FEATURE_CORECLR
                 if (this.firstDayOfWeek == -1)
                 {
                     this.firstDayOfWeek = this.m_cultureData.IFIRSTDAYOFWEEK;
                 }
-#endif
+
                 Contract.Assert(this.firstDayOfWeek != -1, "DateTimeFormatInfo.FirstDayOfWeek, firstDayOfWeek != -1");
-                
                 return ((DayOfWeek)this.firstDayOfWeek);
             }
 
@@ -884,12 +876,11 @@ namespace System.Globalization {
         {
             get
             {
-#if FEATURE_CORECLR
                 if (this.calendarWeekRule == -1)
                 {
                     this.calendarWeekRule = this.m_cultureData.IFIRSTWEEKOFYEAR;
                 }
-#endif
+
                 Contract.Assert(this.calendarWeekRule != -1, "DateTimeFormatInfo.CalendarWeekRule, calendarWeekRule != -1");
                 return ((CalendarWeekRule)this.calendarWeekRule);
             }
@@ -1044,17 +1035,13 @@ namespace System.Globalization {
 
         public  String PMDesignator
         {
-#if FEATURE_CORECLR
-            [System.Security.SecuritySafeCritical]  // auto-generated
-#endif
             get
             {
-#if FEATURE_CORECLR
                 if (this.pmDesignator == null)
                 {
                     this.pmDesignator = this.m_cultureData.SPM2359;
                 }
-#endif
+
                 Contract.Assert(this.pmDesignator != null, "DateTimeFormatInfo.PMDesignator, pmDesignator != null");
                 return (this.pmDesignator);
             }
@@ -1271,12 +1258,11 @@ namespace System.Globalization {
         {
             get
             {
-#if FEATURE_CORECLR
                 if (timeSeparator == null)
                 {
                     timeSeparator = this.m_cultureData.TimeSeparator;
                 }
-#endif
+
                 Contract.Assert(this.timeSeparator != null, "DateTimeFormatInfo.TimeSeparator, timeSeparator != null");
                 return (timeSeparator);
             }
@@ -2375,7 +2361,6 @@ namespace System.Globalization {
             formatFlags = DateTimeFormatFlags.NotInitialized;
         }
 
-        [System.Security.SecurityCritical]  // auto-generated
         internal TokenHashValue[] CreateTokenHashTable() {
             TokenHashValue[] temp = m_dtfiTokenHash;
             if (temp == null) {
@@ -2689,7 +2674,6 @@ namespace System.Globalization {
             return (ch >= '\x0590' && ch <= '\x05ff');
         }
 
-        [System.Security.SecurityCritical]  // auto-generated
         internal bool Tokenize(TokenType TokenMask, out TokenType tokenType, out int tokenValue, ref __DTString str) {
             tokenType = TokenType.UnknownToken;
             tokenValue = 0;

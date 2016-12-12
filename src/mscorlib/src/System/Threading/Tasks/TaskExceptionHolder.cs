@@ -62,14 +62,9 @@ namespace System.Threading.Tasks
             EnsureADUnloadCallbackRegistered();
         }
 
-        [SecuritySafeCritical]
         private static bool ShouldFailFastOnUnobservedException()
         {
-            bool shouldFailFast = false;
-            #if !FEATURE_CORECLR
-            shouldFailFast = System.CLRConfig.CheckThrowUnobservedTaskExceptions();
-            #endif
-            return shouldFailFast;
+            return false;
         }
 
         private static void EnsureADUnloadCallbackRegistered()

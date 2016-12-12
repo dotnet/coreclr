@@ -29,10 +29,6 @@ namespace System.Resources {
     using System.Diagnostics.Contracts;
     using Microsoft.Win32;
 
-#if !FEATURE_CORECLR
-    using System.Diagnostics.Tracing;
-#endif
-
     //
     // Note: this type is integral to the construction of exception objects,
     // and sometimes this has to be done in low memory situtations (OOM) or
@@ -55,7 +51,6 @@ namespace System.Resources {
             _mediator = mediator;
         }
 
-        [System.Security.SecuritySafeCritical]
         [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var have to be marked non-inlineable
         public ResourceSet GrovelForResourceSet(CultureInfo culture, Dictionary<String, ResourceSet> localResourceSets, bool tryParents, bool createIfNotExists, ref StackCrawlMark stackMark)
         {
@@ -110,43 +105,15 @@ namespace System.Resources {
                 // want to add it twice.
                 lock (localResourceSets)
                 {
-                    if (localResourceSets.TryGetValue(culture.Name, out rs))
-                    {
-#if !FEATURE_CORECLR
-                        if (FrameworkEventSource.IsInitialized)
-                        {
-                            FrameworkEventSource.Log.ResourceManagerFoundResourceSetInCacheUnexpected(_mediator.BaseName, _mediator.MainAssembly, culture.Name);
-                        }
-#endif
-                    }
+                    localResourceSets.TryGetValue(culture.Name, out rs);
                 }
 
                 stream = GetManifestResourceStream(satellite, fileName, ref stackMark);
             }
 
-#if !FEATURE_CORECLR
-            if (FrameworkEventSource.IsInitialized)
-            {
-                if (stream != null)
-                {
-                    FrameworkEventSource.Log.ResourceManagerStreamFound(_mediator.BaseName, _mediator.MainAssembly, culture.Name, satellite, fileName);
-                }
-                else
-                {
-                    FrameworkEventSource.Log.ResourceManagerStreamNotFound(_mediator.BaseName, _mediator.MainAssembly, culture.Name, satellite, fileName);
-                }
-            }
-#endif
-
             // 4a. Found a stream; create a ResourceSet if possible
             if (createIfNotExists && stream != null && rs == null)
             {
-#if !FEATURE_CORECLR
-                if (FrameworkEventSource.IsInitialized)
-                {
-                    FrameworkEventSource.Log.ResourceManagerCreatingResourceSet(_mediator.BaseName, _mediator.MainAssembly, culture.Name, fileName);
-                }
-#endif
                 rs = CreateResourceSet(stream, satellite);
             }
             else if (stream == null && tryParents)
@@ -159,35 +126,8 @@ namespace System.Resources {
                 }
             }
 
-#if !FEATURE_CORECLR
-            if (!createIfNotExists && stream != null && rs == null) 
-            {
-                if (FrameworkEventSource.IsInitialized)
-                {
-                    FrameworkEventSource.Log.ResourceManagerNotCreatingResourceSet(_mediator.BaseName, _mediator.MainAssembly, culture.Name);
-                }
-            }
-#endif
-
             return rs;
         }
-
-#if !FEATURE_CORECLR
-        // Returns whether or not the main assembly contains a particular resource
-        // file in it's assembly manifest.  Used to verify that the neutral 
-        // Culture's .resources file is present in the main assembly
-        public bool HasNeutralResources(CultureInfo culture, String defaultResName)
-        {
-            String resName = defaultResName;
-            if (_mediator.LocationInfo != null && _mediator.LocationInfo.Namespace != null)
-                resName = _mediator.LocationInfo.Namespace + Type.Delimiter + defaultResName;
-            String[] resourceFiles = _mediator.MainAssembly.GetManifestResourceNames();
-            foreach(String s in resourceFiles)
-                if (s.Equals(resName))
-                    return true;
-            return false;
-        }
-#endif
 
         private CultureInfo UltimateFallbackFixup(CultureInfo lookForCulture)
         {
@@ -199,13 +139,6 @@ namespace System.Resources {
             if (lookForCulture.Name == _mediator.NeutralResourcesCulture.Name &&
                 _mediator.FallbackLoc == UltimateResourceFallbackLocation.MainAssembly)
             {
-#if !FEATURE_CORECLR
-                if (FrameworkEventSource.IsInitialized)
-                {
-                    FrameworkEventSource.Log.ResourceManagerNeutralResourcesSufficient(_mediator.BaseName, _mediator.MainAssembly, lookForCulture.Name);
-                }
-#endif
-
                 returnCulture = CultureInfo.InvariantCulture;
             }
             else if (lookForCulture.HasInvariantCultureName && _mediator.FallbackLoc == UltimateResourceFallbackLocation.Satellite)
@@ -214,10 +147,8 @@ namespace System.Resources {
             }
 
             return returnCulture;
-
         }
 
-        [System.Security.SecurityCritical]
         internal static CultureInfo GetNeutralResourcesLanguage(Assembly a, ref UltimateResourceFallbackLocation fallbackLocation)
         {
             Contract.Assert(a != null, "assembly != null");
@@ -232,11 +163,6 @@ namespace System.Resources {
                 fallbackLocation = (UltimateResourceFallbackLocation)fallback;
             }
             else {
-#if !FEATURE_CORECLR
-                if (FrameworkEventSource.IsInitialized) {
-                    FrameworkEventSource.Log.ResourceManagerNeutralResourceAttributeMissing(a);
-                }
-#endif
                 fallbackLocation = UltimateResourceFallbackLocation.MainAssembly;
                 return CultureInfo.InvariantCulture;
             }
@@ -267,7 +193,6 @@ namespace System.Resources {
         // Use the assembly to resolve assembly manifest resource references.
         // Note that is can be null, but probably shouldn't be.
         // This method could use some refactoring. One thing at a time.
-        [System.Security.SecurityCritical]
         internal ResourceSet CreateResourceSet(Stream store, Assembly assembly)
         {
             Contract.Assert(store != null, "I need a Stream!");
@@ -413,7 +338,6 @@ namespace System.Resources {
             }
         }
 
-        [System.Security.SecurityCritical]
         private Stream GetManifestResourceStream(RuntimeAssembly satellite, String fileName, ref StackCrawlMark stackMark)
         {
             Contract.Requires(satellite != null, "satellite shouldn't be null; check caller");
@@ -437,7 +361,6 @@ namespace System.Resources {
         // case-insensitive lookup rules.  Yes, this is slow.  The metadata
         // dev lead refuses to make all assembly manifest resource lookups case-insensitive,
         // even optionally case-insensitive.        
-        [System.Security.SecurityCritical]
         [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var have to be marked non-inlineable
         private Stream CaseInsensitiveManifestResourceStreamLookup(RuntimeAssembly satellite, String name)
         {
@@ -475,48 +398,19 @@ namespace System.Resources {
                 }
             }
 
-#if !FEATURE_CORECLR
-            if (FrameworkEventSource.IsInitialized)
-            {
-                if (canonicalName != null)
-                {
-                    FrameworkEventSource.Log.ResourceManagerCaseInsensitiveResourceStreamLookupSucceeded(_mediator.BaseName, _mediator.MainAssembly, satellite.GetSimpleName(), givenName);
-                }
-                else
-                {
-                    FrameworkEventSource.Log.ResourceManagerCaseInsensitiveResourceStreamLookupFailed(_mediator.BaseName, _mediator.MainAssembly, satellite.GetSimpleName(), givenName);
-                }
-            }
-#endif
-
             if (canonicalName == null)
             {
                 return null;
             }
+
             // If we're looking in the main assembly AND if the main
             // assembly was the person who created the ResourceManager,
             // skip a security check for private manifest resources.
             bool canSkipSecurityCheck = _mediator.MainAssembly == satellite && _mediator.CallingAssembly == _mediator.MainAssembly;
             StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
-            Stream s = satellite.GetManifestResourceStream(canonicalName, ref stackMark, canSkipSecurityCheck);
-            // GetManifestResourceStream will return null if we don't have 
-            // permission to read this stream from the assembly.  For example,
-            // if the stream is private and we're trying to access it from another
-            // assembly (ie, ResMgr in mscorlib accessing anything else), we 
-            // require Reflection TypeInformation permission to be able to read 
-            // this. 
-#if !FEATURE_CORECLR
-            if (s!=null) {
-                if (FrameworkEventSource.IsInitialized)
-                {
-                    FrameworkEventSource.Log.ResourceManagerManifestResourceAccessDenied(_mediator.BaseName, _mediator.MainAssembly, satellite.GetSimpleName(), canonicalName);
-                }
-            }
-#endif
-            return s;
+            return satellite.GetManifestResourceStream(canonicalName, ref stackMark, canSkipSecurityCheck);
         }
 
-        [System.Security.SecurityCritical]
         [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var have to be marked non-inlineable
         private RuntimeAssembly GetSatelliteAssembly(CultureInfo lookForCulture, ref StackCrawlMark stackMark)
         {
@@ -558,20 +452,6 @@ namespace System.Resources {
                 Contract.Assert(false, "[This assert catches satellite assembly build/deployment problems - report this message to your build lab & loc engineer]" + Environment.NewLine + "GetSatelliteAssembly failed for culture " + lookForCulture.Name + " and version " + (_mediator.SatelliteContractVersion == null ? _mediator.MainAssembly.GetVersion().ToString() : _mediator.SatelliteContractVersion.ToString()) + " of assembly " + _mediator.MainAssembly.GetSimpleName() + Environment.NewLine + "Exception: " + bife);
             }
 
-#if !FEATURE_CORECLR
-            if (FrameworkEventSource.IsInitialized)
-            {
-                if (satellite != null)
-                {
-                    FrameworkEventSource.Log.ResourceManagerGetSatelliteAssemblySucceeded(_mediator.BaseName, _mediator.MainAssembly, lookForCulture.Name, satAssemblyName);
-                }
-                else
-                {
-                    FrameworkEventSource.Log.ResourceManagerGetSatelliteAssemblyFailed(_mediator.BaseName, _mediator.MainAssembly, lookForCulture.Name, satAssemblyName);
-                }
-            }
-#endif
-
             return satellite;
         }
 
@@ -609,7 +489,6 @@ namespace System.Resources {
             return true;
         }
 
-        [System.Security.SecurityCritical]
         private String GetSatelliteAssemblyName()
         {
             String satAssemblyName = _mediator.MainAssembly.GetSimpleName();
@@ -617,7 +496,6 @@ namespace System.Resources {
             return satAssemblyName;
         }
 
-        [System.Security.SecurityCritical]
         private void HandleSatelliteMissing()
         {
             String satAssemName = _mediator.MainAssembly.GetSimpleName() + ".resources.dll";
@@ -646,7 +524,6 @@ namespace System.Resources {
             throw new MissingSatelliteAssemblyException(Environment.GetResourceString("MissingSatelliteAssembly_Culture_Name", _mediator.NeutralResourcesCulture, satAssemName), missingCultureName);
         }
 
-        [System.Security.SecurityCritical]  // auto-generated
         private void HandleResourceStreamMissing(String fileName)
         {
             // Keep people from bothering me about resources problems
@@ -669,7 +546,6 @@ namespace System.Resources {
         }
 
             [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-            [System.Security.SecurityCritical]  // Our security team doesn't yet allow safe-critical P/Invoke methods.
             [System.Security.SuppressUnmanagedCodeSecurity]
             [return: MarshalAs(UnmanagedType.Bool)]
             internal static extern bool GetNeutralResourcesLanguageAttribute(RuntimeAssembly assemblyHandle, StringHandleOnStack cultureName, out short fallbackLocation);

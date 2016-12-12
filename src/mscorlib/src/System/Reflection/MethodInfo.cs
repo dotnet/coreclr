@@ -26,9 +26,6 @@ namespace System.Reflection
     [Serializable]
     [ClassInterface(ClassInterfaceType.None)]
     [ComDefaultInterface(typeof(_MethodInfo))]
-#pragma warning disable 618
-    [PermissionSetAttribute(SecurityAction.InheritanceDemand, Name = "FullTrust")]
-#pragma warning restore 618
     [System.Runtime.InteropServices.ComVisible(true)]
     public abstract class MethodInfo : MethodBase, _MethodInfo
     {
@@ -88,35 +85,6 @@ namespace System.Reflection
         public virtual Delegate CreateDelegate(Type delegateType) { throw new NotSupportedException(Environment.GetResourceString("NotSupported_SubclassOverride")); }
         public virtual Delegate CreateDelegate(Type delegateType, Object target) { throw new NotSupportedException(Environment.GetResourceString("NotSupported_SubclassOverride")); }
         #endregion
-
-#if !FEATURE_CORECLR
-        Type _MethodInfo.GetType()
-        {
-            return base.GetType();
-        }
-
-        void _MethodInfo.GetTypeInfoCount(out uint pcTInfo)
-        {
-            throw new NotImplementedException();
-        }
-
-        void _MethodInfo.GetTypeInfo(uint iTInfo, uint lcid, IntPtr ppTInfo)
-        {
-            throw new NotImplementedException();
-        }
-
-        void _MethodInfo.GetIDsOfNames([In] ref Guid riid, IntPtr rgszNames, uint cNames, uint lcid, IntPtr rgDispId)
-        {
-            throw new NotImplementedException();
-        }
-
-        // If you implement this method, make sure to include _MethodInfo.Invoke in VM\DangerousAPIs.h and 
-        // include _MethodInfo in SystemDomain::IsReflectionInvocationMethod in AppDomain.cpp.
-        void _MethodInfo.Invoke(uint dispIdMember, [In] ref Guid riid, uint lcid, short wFlags, IntPtr pDispParams, IntPtr pVarResult, IntPtr pExcepInfo, IntPtr puArgErr)
-        {
-            throw new NotImplementedException();
-        }
-#endif
     }
 
     [Serializable]
@@ -177,7 +145,6 @@ namespace System.Reflection
 
         internal INVOCATION_FLAGS InvocationFlags
         {
-            [System.Security.SecuritySafeCritical]
             get
             {
                 if ((m_invocationFlags & INVOCATION_FLAGS.INVOCATION_FLAGS_INITIALIZED) == 0)
@@ -240,7 +207,6 @@ namespace System.Reflection
         #endregion
 
         #region Constructor
-        [System.Security.SecurityCritical]  // auto-generated
         internal RuntimeMethodInfo(
             RuntimeMethodHandleInternal handle, RuntimeType declaringType, 
             RuntimeTypeCache reflectedTypeCache, MethodAttributes methodAttributes, BindingFlags bindingFlags, object keepalive)
@@ -262,7 +228,6 @@ namespace System.Reflection
         #region Private Methods
         RuntimeMethodHandleInternal IRuntimeMethodInfo.Value
         {
-            [System.Security.SecuritySafeCritical]
             get
             {
                 return new RuntimeMethodHandleInternal(m_handle);
@@ -277,7 +242,6 @@ namespace System.Reflection
             } 
         }
 
-        [System.Security.SecurityCritical]  // auto-generated
         private ParameterInfo[] FetchNonReturnParameters()
         {
             if (m_parameters == null)
@@ -286,7 +250,6 @@ namespace System.Reflection
             return m_parameters;
         }
 
-        [System.Security.SecurityCritical]  // auto-generated
         private ParameterInfo FetchReturnParameter()
         {
             if (m_returnParameter == null)
@@ -346,7 +309,6 @@ namespace System.Reflection
             return new RuntimeMethodHandle(this);
         }
 
-        [System.Security.SecuritySafeCritical]  // auto-generated
         internal RuntimeMethodInfo GetParentDefinition()
         {
             if (!IsVirtual || m_declaringType.IsInterface)
@@ -391,7 +353,6 @@ namespace System.Reflection
                 return base.GetHashCode();
         }
 
-        [System.Security.SecuritySafeCritical]  // auto-generated
         public override bool Equals(object obj)
         {
             if (!IsGenericMethod)
@@ -436,13 +397,11 @@ namespace System.Reflection
         #endregion
 
         #region ICustomAttributeProvider
-        [System.Security.SecuritySafeCritical]  // auto-generated
         public override Object[] GetCustomAttributes(bool inherit)
         {
             return CustomAttribute.GetCustomAttributes(this, typeof(object) as RuntimeType as RuntimeType, inherit);
         }
 
-        [System.Security.SecuritySafeCritical]  // auto-generated
         public override Object[] GetCustomAttributes(Type attributeType, bool inherit)
         {
             if (attributeType == null)
@@ -480,7 +439,6 @@ namespace System.Reflection
         #region MemberInfo Overrides
         public override String Name 
         {
-            [System.Security.SecuritySafeCritical]  // auto-generated
             get
             {
                 if (m_name == null)
@@ -515,7 +473,6 @@ namespace System.Reflection
         public override MemberTypes MemberType { get { return MemberTypes.Method; } }
         public override int MetadataToken
         {
-            [System.Security.SecuritySafeCritical]  // auto-generated
             get { return RuntimeMethodHandle.GetMethodDef(this); }
         }        
         public override Module Module { get { return GetRuntimeModule(); } }
@@ -525,32 +482,19 @@ namespace System.Reflection
 
         public override bool IsSecurityCritical 
         {
-#if FEATURE_CORECLR
             get { return true; }
-#else
-            get { return RuntimeMethodHandle.IsSecurityCritical(this); }
-#endif
         }
         public override bool IsSecuritySafeCritical
         {
-#if FEATURE_CORECLR
             get { return false; }
-#else
-            get { return RuntimeMethodHandle.IsSecuritySafeCritical(this); }
-#endif
         }
         public override bool IsSecurityTransparent
         {
-#if FEATURE_CORECLR
             get { return false; }
-#else
-            get { return RuntimeMethodHandle.IsSecurityTransparent(this); }
-#endif
         }
 #endregion
 
 #region MethodBase Overrides
-        [System.Security.SecuritySafeCritical]  // auto-generated
         internal override ParameterInfo[] GetParametersNoCopy()
         {
             FetchNonReturnParameters();
@@ -558,7 +502,6 @@ namespace System.Reflection
             return m_parameters;
         }
 
-        [System.Security.SecuritySafeCritical]  // auto-generated
         [System.Diagnostics.Contracts.Pure]
         public override ParameterInfo[] GetParameters()
         {
@@ -608,12 +551,6 @@ namespace System.Reflection
             } 
         }
 
-        [System.Security.SecuritySafeCritical] // overrides SafeCritical member
-#if !FEATURE_CORECLR
-#pragma warning disable 618
-        [ReflectionPermissionAttribute(SecurityAction.Demand, Flags = ReflectionPermissionFlag.MemberAccess)]
-#pragma warning restore 618
-#endif
         public override MethodBody GetMethodBody()
         {
             MethodBody mb = RuntimeMethodHandle.GetMethodBody(this, ReflectedTypeInternal);
@@ -639,7 +576,6 @@ namespace System.Reflection
             }
         }
 
-        [System.Security.SecuritySafeCritical]
         private void ThrowNoInvokeException()
         {
             // method is ReflectionOnly
@@ -677,7 +613,6 @@ namespace System.Reflection
             throw new TargetException();
         }
         
-        [System.Security.SecuritySafeCritical]
         [DebuggerStepThroughAttribute]
         [Diagnostics.DebuggerHidden]
         [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
@@ -697,23 +632,11 @@ namespace System.Reflection
                     throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_APIInvalidForCurrentContext", FullName));
             }
 #endif
-
-#if !FEATURE_CORECLR
-            if ((invocationFlags & (INVOCATION_FLAGS.INVOCATION_FLAGS_RISKY_METHOD | INVOCATION_FLAGS.INVOCATION_FLAGS_NEED_SECURITY)) != 0)
-            {
-                if ((invocationFlags & INVOCATION_FLAGS.INVOCATION_FLAGS_RISKY_METHOD) != 0)
-                    CodeAccessPermission.Demand(PermissionType.ReflectionMemberAccess);
-
-                if ((invocationFlags & INVOCATION_FLAGS.INVOCATION_FLAGS_NEED_SECURITY) != 0)
-                    RuntimeMethodHandle.PerformSecurityCheck(obj, this, m_declaringType, (uint)m_invocationFlags);
-            }
-#endif // !FEATURE_CORECLR
 #endregion
 
             return UnsafeInvokeInternal(obj, parameters, arguments);
         }
 
-        [System.Security.SecurityCritical]
         [DebuggerStepThroughAttribute]
         [Diagnostics.DebuggerHidden]
         internal object UnsafeInvoke(Object obj, BindingFlags invokeAttr, Binder binder, Object[] parameters, CultureInfo culture)
@@ -723,7 +646,6 @@ namespace System.Reflection
             return UnsafeInvokeInternal(obj, parameters, arguments);
         }
 
-        [System.Security.SecurityCritical]
         [DebuggerStepThroughAttribute]
         [Diagnostics.DebuggerHidden]
         private object UnsafeInvokeInternal(Object obj, Object[] parameters, Object[] arguments)
@@ -787,7 +709,6 @@ namespace System.Reflection
 
         public override ParameterInfo ReturnParameter 
         {
-            [System.Security.SecuritySafeCritical]  // auto-generated
             get
             {
                 Contract.Ensures(m_returnParameter != null);
@@ -797,7 +718,6 @@ namespace System.Reflection
             }
         }
 
-        [System.Security.SecuritySafeCritical]  // auto-generated
         public override MethodInfo GetBaseDefinition()
         {
             if (!IsVirtual || IsStatic || m_declaringType == null || m_declaringType.IsInterface)
@@ -823,7 +743,6 @@ namespace System.Reflection
             return(MethodInfo)RuntimeType.GetMethodBase(baseDeclaringType, baseMethodHandle);
         }
 
-        [System.Security.SecuritySafeCritical]
         public override Delegate CreateDelegate(Type delegateType)
         {
             StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
@@ -843,7 +762,6 @@ namespace System.Reflection
                 ref stackMark);
         }
 
-        [System.Security.SecuritySafeCritical]
         public override Delegate CreateDelegate(Type delegateType, Object target)
         {
             StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
@@ -860,7 +778,6 @@ namespace System.Reflection
                 ref stackMark);
         }
 
-        [System.Security.SecurityCritical]
         private Delegate CreateDelegateInternal(Type delegateType, Object firstArgument, DelegateBindingFlags bindingFlags, ref StackCrawlMark stackMark)
         {
             // Validate the parameters.
@@ -887,7 +804,6 @@ namespace System.Reflection
 #endregion
 
 #region Generics
-        [System.Security.SecuritySafeCritical]  // auto-generated
         public override MethodInfo MakeGenericMethod(params Type[] methodInstantiation)
         {
           if (methodInstantiation == null)
@@ -999,7 +915,6 @@ namespace System.Reflection
 #endregion
 
 #region ISerializable Implementation
-        [System.Security.SecurityCritical]  // auto-generated
         public void GetObjectData(SerializationInfo info, StreamingContext context)
         {
             if (info == null)

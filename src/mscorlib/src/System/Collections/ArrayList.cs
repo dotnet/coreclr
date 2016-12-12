@@ -31,9 +31,7 @@ namespace System.Collections {
     // of the ArrayList is automatically increased as required by reallocating the
     // internal array.
     // 
-#if FEATURE_CORECLR
     [FriendAccessAllowed]
-#endif
     [DebuggerTypeProxy(typeof(System.Collections.ArrayList.ArrayListDebugView))]   
     [DebuggerDisplay("Count = {Count}")]
     [Serializable]
@@ -554,9 +552,7 @@ namespace System.Collections {
     
         // Returns a read-only IList wrapper for the given IList.
         //
-#if FEATURE_CORECLR
         [FriendAccessAllowed]
-#endif
         public static IList ReadOnly(IList list) {
             if (list==null)
                 throw new ArgumentNullException(nameof(list));
@@ -764,7 +760,6 @@ namespace System.Collections {
         // downcasting all elements.  This copy may fail and is an O(n) operation.
         // Internally, this implementation calls Array.Copy.
         //
-        [SecuritySafeCritical]
         public virtual Array ToArray(Type type) {
             if (type==null)
                 throw new ArgumentNullException(nameof(type));
@@ -1122,7 +1117,6 @@ namespace System.Collections {
                 return array;
             }
 
-            [SecuritySafeCritical]
             public override Array ToArray(Type type)
             {
                 if (type==null)
@@ -2519,7 +2513,6 @@ namespace System.Collections {
                 return array;
             }
 
-            [SecuritySafeCritical]
             public override Array ToArray(Type type) {
                 if (type==null)
                     throw new ArgumentNullException(nameof(type));

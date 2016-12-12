@@ -58,7 +58,6 @@ namespace System.Reflection.Emit {
             return m_evToken;
         }
 
-        [System.Security.SecurityCritical]  // auto-generated
         private void SetMethodSemantics(MethodBuilder mdBuilder, MethodSemanticsAttributes semantics)
         {
             if (mdBuilder == null)
@@ -75,25 +74,21 @@ namespace System.Reflection.Emit {
                 mdBuilder.GetToken().Token);
         }
 
-        [System.Security.SecuritySafeCritical]  // auto-generated
         public void SetAddOnMethod(MethodBuilder mdBuilder)
         {
             SetMethodSemantics(mdBuilder, MethodSemanticsAttributes.AddOn);
         }
         
-        [System.Security.SecuritySafeCritical]  // auto-generated
         public void SetRemoveOnMethod(MethodBuilder mdBuilder)
         {
             SetMethodSemantics(mdBuilder, MethodSemanticsAttributes.RemoveOn);
         }
         
-        [System.Security.SecuritySafeCritical]  // auto-generated
         public void SetRaiseMethod(MethodBuilder mdBuilder)
         {
             SetMethodSemantics(mdBuilder, MethodSemanticsAttributes.Fire);
         }
        
-        [System.Security.SecuritySafeCritical]  // auto-generated
         public void AddOtherMethod(MethodBuilder mdBuilder)
         {
             SetMethodSemantics(mdBuilder, MethodSemanticsAttributes.Other);
@@ -101,11 +96,6 @@ namespace System.Reflection.Emit {
     
         // Use this function if client decides to form the custom attribute blob themselves
 
-#if FEATURE_CORECLR
-[System.Security.SecurityCritical] // auto-generated
-#else
-[System.Security.SecuritySafeCritical]
-#endif
 [System.Runtime.InteropServices.ComVisible(true)]
         public void SetCustomAttribute(ConstructorInfo con, byte[] binaryAttribute)
         {
@@ -125,7 +115,6 @@ namespace System.Reflection.Emit {
         }
 
         // Use this function if client wishes to build CustomAttribute using CustomAttributeBuilder
-        [System.Security.SecuritySafeCritical]  // auto-generated
         public void SetCustomAttribute(CustomAttributeBuilder customBuilder)
         {
             if (customBuilder == null)
@@ -137,29 +126,6 @@ namespace System.Reflection.Emit {
             customBuilder.CreateCustomAttribute(m_module, m_evToken.Token);
         }
 
-#if !FEATURE_CORECLR
-        void _EventBuilder.GetTypeInfoCount(out uint pcTInfo)
-        {
-            throw new NotImplementedException();
-        }
-
-        void _EventBuilder.GetTypeInfo(uint iTInfo, uint lcid, IntPtr ppTInfo)
-        {
-            throw new NotImplementedException();
-        }
-
-        void _EventBuilder.GetIDsOfNames([In] ref Guid riid, IntPtr rgszNames, uint cNames, uint lcid, IntPtr rgDispId)
-        {
-            throw new NotImplementedException();
-        }
-
-        void _EventBuilder.Invoke(uint dispIdMember, [In] ref Guid riid, uint lcid, short wFlags, IntPtr pDispParams, IntPtr pVarResult, IntPtr pExcepInfo, IntPtr puArgErr)
-        {
-            throw new NotImplementedException();
-        }
-#endif
-
-
         // These are package private so that TypeBuilder can access them.
         private String              m_name;         // The name of the event
         private EventToken          m_evToken;      // The token of this event
@@ -167,8 +133,4 @@ namespace System.Reflection.Emit {
         private EventAttributes     m_attributes;
         private TypeBuilder         m_type;       
     }
-
-
-
-
 }

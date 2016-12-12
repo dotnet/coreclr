@@ -143,11 +143,9 @@ namespace System.IO
             : this(path, append, encoding, DefaultBufferSize) {
         }
 
-        [System.Security.SecuritySafeCritical]
         public StreamWriter(String path, bool append, Encoding encoding, int bufferSize): this(path, append, encoding, bufferSize, true) { 
         }
 
-        [System.Security.SecurityCritical]  
         internal StreamWriter(String path, bool append, Encoding encoding, int bufferSize, bool checkHost)
             : base(null)
         { // Ask for CurrentCulture all the time
@@ -164,7 +162,6 @@ namespace System.IO
             Init(stream, encoding, bufferSize, false);
         }
 
-        [System.Security.SecuritySafeCritical]
         private void Init(Stream streamArg, Encoding encodingArg, int bufferSize, bool shouldLeaveOpen)
         {
             this.stream = streamArg;
@@ -189,7 +186,6 @@ namespace System.IO
 #endif
         }
 
-        [System.Security.SecurityCritical]  
         private static Stream CreateFile(String path, bool append, bool checkHost) {
             FileMode mode = append? FileMode.Append: FileMode.Create;
             FileStream f = new FileStream(path, mode, FileAccess.Write, FileShare.Read,
@@ -210,11 +206,7 @@ namespace System.IO
                 // is generally the right thing to do.
                 if (stream != null) {
                     // Note: flush on the underlying stream can throw (ex., low disk space)
-#if FEATURE_CORECLR
                     if (disposing)
-#else
-                    if (disposing || (LeaveOpen && stream is __ConsoleStream))
-#endif
                     {
                         CheckAsyncTaskInProgress();
 

@@ -168,7 +168,6 @@ namespace System.IO
         private List<Directory.SearchData> searchStack;
         private Directory.SearchData searchData;
         private String searchCriteria;
-        [System.Security.SecurityCritical]
         SafeFindHandle _hnd = null;
         bool needsParentPathDiscoveryDemand;
 
@@ -187,7 +186,6 @@ namespace System.IO
         private int oldMode;
         private bool _checkHost;
 
-        [System.Security.SecuritySafeCritical]
         internal FileSystemEnumerableIterator(String path, String originalUserPath, String searchPattern, SearchOption searchOption, SearchResultHandler<TSource> resultHandler, bool checkHost)
         {
             Contract.Requires(path != null);
@@ -223,7 +221,7 @@ namespace System.IO
                 // Do a demand on the combined path so that we can fail early in case of deny
                 demandPaths[1] = Directory.GetDemandDir(normalizedSearchPath, true);
                 _checkHost = checkHost;
-#if FEATURE_CORECLR
+
                 if (checkHost)
                 {
                     FileSecurityState state1 = new FileSecurityState(FileSecurityStateAccess.PathDiscovery, String.Empty, demandPaths[0]);
@@ -231,9 +229,6 @@ namespace System.IO
                     FileSecurityState state2 = new FileSecurityState(FileSecurityStateAccess.PathDiscovery, String.Empty, demandPaths[1]);
                     state2.EnsureState();
                 }
-#else
-                new FileIOPermission(FileIOPermissionAccess.PathDiscovery, demandPaths, false, false).Demand();
-#endif
 
                 // normalize search criteria
                 searchCriteria = GetNormalizedSearchCriteria(fullSearchString, normalizedSearchPath);
@@ -254,7 +249,6 @@ namespace System.IO
 
         }
 
-        [System.Security.SecurityCritical]
         private void CommonInit()
         {
             Contract.Assert(searchCriteria != null && searchData != null, "searchCriteria and searchData should be initialized");
@@ -307,7 +301,6 @@ namespace System.IO
             }
         }
 
-        [System.Security.SecuritySafeCritical]
         private FileSystemEnumerableIterator(String fullPath, String normalizedSearchPath, String searchCriteria, String userPath, SearchOption searchOption, SearchResultHandler<TSource> resultHandler, bool checkHost)
         {
             this.fullPath = fullPath;
@@ -329,7 +322,7 @@ namespace System.IO
                 // For filters like foo\*.cs we need to verify if the directory foo is not denied access.
                 // Do a demand on the combined path so that we can fail early in case of deny
                 demandPaths[1] = Directory.GetDemandDir(normalizedSearchPath, true);
-#if FEATURE_CORECLR
+
                 if (checkHost) 
                 {
                     FileSecurityState state1 = new FileSecurityState(FileSecurityStateAccess.PathDiscovery, String.Empty, demandPaths[0]);
@@ -337,9 +330,7 @@ namespace System.IO
                     FileSecurityState state2 = new FileSecurityState(FileSecurityStateAccess.PathDiscovery, String.Empty, demandPaths[1]);
                     state2.EnsureState();
                 }
-#else
-                new FileIOPermission(FileIOPermissionAccess.PathDiscovery, demandPaths, false, false).Demand();
-#endif
+
                 searchData = new Directory.SearchData(normalizedSearchPath, userPath, searchOption);
                 CommonInit();
             }
@@ -354,7 +345,6 @@ namespace System.IO
             return new FileSystemEnumerableIterator<TSource>(fullPath, normalizedSearchPath, searchCriteria, userPath, searchOption, _resultHandler, _checkHost);
         }
 
-        [System.Security.SecuritySafeCritical]
         protected override void Dispose(bool disposing)
         {
             try
@@ -371,7 +361,6 @@ namespace System.IO
             }
         }
 
-        [System.Security.SecuritySafeCritical]
         public override bool MoveNext()
         {
             Win32Native.WIN32_FIND_DATA data = new Win32Native.WIN32_FIND_DATA();
@@ -506,7 +495,6 @@ namespace System.IO
             return false;
         }
 
-        [System.Security.SecurityCritical]
         private SearchResult CreateSearchResult(Directory.SearchData localSearchData, Win32Native.WIN32_FIND_DATA findData)
         {
             String userPathFinal = Path.Combine(localSearchData.userPath, findData.cFileName);
@@ -514,14 +502,12 @@ namespace System.IO
             return new SearchResult(fullPathFinal, userPathFinal, findData);
         }
 
-        [System.Security.SecurityCritical]
         private void HandleError(int hr, String path)
         {
             Dispose();
             __Error.WinIOError(hr, path);
         }
 
-        [System.Security.SecurityCritical]  // auto-generated
         private void AddSearchableDirsToStack(Directory.SearchData localSearchData)
         {
             Contract.Requires(localSearchData != null);
@@ -578,20 +564,13 @@ namespace System.IO
             }
         }
 
-        [System.Security.SecurityCritical]
         internal void DoDemand(String fullPathToDemand)
         {
-#if FEATURE_CORECLR
             if(_checkHost) {
                 String demandDir = Directory.GetDemandDir(fullPathToDemand, true);
                 FileSecurityState state = new FileSecurityState(FileSecurityStateAccess.PathDiscovery, String.Empty, demandDir);
                 state.EnsureState();
             }
-#else
-            String demandDir = Directory.GetDemandDir(fullPathToDemand, true);
-            String[] demandPaths = new String[] { demandDir };
-            new FileIOPermission(FileIOPermissionAccess.PathDiscovery, demandPaths, false, false).Demand();
-#endif
         }
 
         private static String NormalizeSearchPattern(String searchPattern)
@@ -653,10 +632,8 @@ namespace System.IO
     internal abstract class SearchResultHandler<TSource>
     {
 
-        [System.Security.SecurityCritical]
         internal abstract bool IsResultIncluded(SearchResult result);
 
-        [System.Security.SecurityCritical]
         internal abstract TSource CreateObject(SearchResult result);
 
     }
@@ -672,7 +649,6 @@ namespace System.IO
             _includeDirs = includeDirs;
         }
 
-        [System.Security.SecurityCritical]
         internal override bool IsResultIncluded(SearchResult result)
         {
             bool includeFile = _includeFiles && FileSystemEnumerableHelpers.IsFile(result.FindData);
@@ -681,7 +657,6 @@ namespace System.IO
             return (includeFile || includeDir);
         }
 
-        [System.Security.SecurityCritical]
         internal override String CreateObject(SearchResult result)
         {
             return result.UserPath;
@@ -690,23 +665,18 @@ namespace System.IO
 
     internal class FileInfoResultHandler : SearchResultHandler<FileInfo>
     {
-        [System.Security.SecurityCritical]
         internal override bool IsResultIncluded(SearchResult result)
         {
             return FileSystemEnumerableHelpers.IsFile(result.FindData);
         }
 
-        [System.Security.SecurityCritical]
         internal override FileInfo CreateObject(SearchResult result)
         {
             String name = result.FullPath;
-#if FEATURE_CORECLR
+
             FileSecurityState state = new FileSecurityState(FileSecurityStateAccess.Read, String.Empty, name);
             state.EnsureState();
-#else
-            String[] names = new String[] { name };
-            new FileIOPermission(FileIOPermissionAccess.Read, names, false, false).Demand();
-#endif
+
             FileInfo fi = new FileInfo(name, false);
             fi.InitializeFrom(result.FindData);
             return fi;
@@ -715,25 +685,19 @@ namespace System.IO
 
     internal class DirectoryInfoResultHandler : SearchResultHandler<DirectoryInfo>
     {
-        [System.Security.SecurityCritical]
         internal override bool IsResultIncluded(SearchResult result)
         {
             return FileSystemEnumerableHelpers.IsDir(result.FindData);
         }
 
-        [System.Security.SecurityCritical]
         internal override DirectoryInfo CreateObject(SearchResult result)
         {
             String name = result.FullPath;
             String permissionName = name + "\\.";
-            
-#if FEATURE_CORECLR
+
             FileSecurityState state = new FileSecurityState(FileSecurityStateAccess.Read, String.Empty, permissionName);
             state.EnsureState();
-#else
-            String[] permissionNames = new String[] { permissionName };
-            new FileIOPermission(FileIOPermissionAccess.Read, permissionNames, false, false).Demand();
-#endif
+
             DirectoryInfo di = new DirectoryInfo(name, false);
             di.InitializeFrom(result.FindData);
             return di;
@@ -743,7 +707,6 @@ namespace System.IO
     internal class FileSystemInfoResultHandler : SearchResultHandler<FileSystemInfo>
     {
 
-        [System.Security.SecurityCritical]
         internal override bool IsResultIncluded(SearchResult result)
         {
             bool includeFile = FileSystemEnumerableHelpers.IsFile(result.FindData);
@@ -753,7 +716,6 @@ namespace System.IO
             return (includeDir || includeFile);
         }
 
-        [System.Security.SecurityCritical]
         internal override FileSystemInfo CreateObject(SearchResult result)
         {
             bool isFile = FileSystemEnumerableHelpers.IsFile(result.FindData);
@@ -764,13 +726,9 @@ namespace System.IO
                 String name = result.FullPath;
                 String permissionName = name + "\\.";
 
-#if FEATURE_CORECLR
                 FileSecurityState state = new FileSecurityState(FileSecurityStateAccess.Read, String.Empty, permissionName);
                 state.EnsureState();
-#else
-                String[] permissionNames = new String[] { permissionName };
-                new FileIOPermission(FileIOPermissionAccess.Read, permissionNames, false, false).Demand();
-#endif
+
                 DirectoryInfo di = new DirectoryInfo(name, false);
                 di.InitializeFrom(result.FindData);
                 return di;
@@ -780,13 +738,9 @@ namespace System.IO
                 Contract.Assert(isFile);
                 String name = result.FullPath;
 
-#if FEATURE_CORECLR
                 FileSecurityState state = new FileSecurityState(FileSecurityStateAccess.Read, String.Empty, name);
                 state.EnsureState();
-#else
-                String[] names = new String[] { name };
-                new FileIOPermission(FileIOPermissionAccess.Read, names, false, false).Demand();
-#endif
+
                 FileInfo fi = new FileInfo(name, false);
                 fi.InitializeFrom(result.FindData);
                 return fi;
@@ -799,10 +753,8 @@ namespace System.IO
     {
         private String fullPath;     // fully-qualifed path
         private String userPath;     // user-specified path
-        [System.Security.SecurityCritical]
         private Win32Native.WIN32_FIND_DATA findData;
 
-        [System.Security.SecurityCritical]
         internal SearchResult(String fullPath, String userPath, Win32Native.WIN32_FIND_DATA findData)
         {
             Contract.Requires(fullPath != null);
@@ -825,7 +777,6 @@ namespace System.IO
 
         internal Win32Native.WIN32_FIND_DATA FindData
         {
-            [System.Security.SecurityCritical]
             get { return findData; }
         }
 
@@ -833,7 +784,6 @@ namespace System.IO
 
     internal static class FileSystemEnumerableHelpers
     {
-        [System.Security.SecurityCritical]  // auto-generated
         internal static bool IsDir(Win32Native.WIN32_FIND_DATA data)
         {
             // Don't add "." nor ".."
@@ -841,7 +791,6 @@ namespace System.IO
                                                 && !data.cFileName.Equals(".") && !data.cFileName.Equals("..");
         }
 
-        [System.Security.SecurityCritical]  // auto-generated
         internal static bool IsFile(Win32Native.WIN32_FIND_DATA data)
         {
             return 0 == (data.dwFileAttributes & Win32Native.FILE_ATTRIBUTE_DIRECTORY);

@@ -32,7 +32,6 @@ namespace System.Collections.Generic
         // Note that logic in this method is replicated in vm\compile.cpp to ensure that NGen
         // saves the right instantiations
         //
-        [System.Security.SecuritySafeCritical]  // auto-generated
         private static EqualityComparer<T> CreateComparer()
         {
             Contract.Ensures(Contract.Result<EqualityComparer<T>>() != null);
@@ -294,7 +293,6 @@ namespace System.Collections.Generic
             GetType().GetHashCode();
     }
 
-#if FEATURE_CORECLR
     // NonRandomizedStringEqualityComparer is the comparer used by default with the Dictionary<string,...> 
     // As the randomized string hashing is turned on by default on coreclr, we need to keep the performance not affected 
     // as much as possible in the main stream scenarios like Dictionary<string,>
@@ -320,7 +318,6 @@ namespace System.Collections.Generic
             return obj.GetLegacyNonRandomizedHashCode();
         }
     }
-#endif // FEATURE_CORECLR
 
     // Performance of IndexOf on byte array is very important for some scenarios.
     // We will call the C runtime function memchr, which is optimized.
@@ -337,7 +334,6 @@ namespace System.Collections.Generic
             return b.GetHashCode();
         }
 
-        [System.Security.SecuritySafeCritical]  // auto-generated
         internal unsafe override int IndexOf(byte[] array, byte value, int startIndex, int count) {
             if (array==null)
                 throw new ArgumentNullException(nameof(array));
@@ -391,7 +387,6 @@ namespace System.Collections.Generic
         // This is used by the serialization engine.
         protected EnumEqualityComparer(SerializationInfo information, StreamingContext context) { }
 
-        [SecurityCritical]
         public void GetObjectData(SerializationInfo info, StreamingContext context) {
             // For back-compat we need to serialize the comparers for enums with underlying types other than int as ObjectEqualityComparer 
             if (Type.GetTypeCode(Enum.GetUnderlyingType(typeof(T))) != TypeCode.Int32) {
@@ -489,7 +484,6 @@ namespace System.Collections.Generic
         // This is used by the serialization engine.
         public LongEnumEqualityComparer(SerializationInfo information, StreamingContext context) { }
 
-        [SecurityCritical]
         public void GetObjectData(SerializationInfo info, StreamingContext context)
         {
             // The LongEnumEqualityComparer does not exist on 4.0 so we need to serialize this comparer as ObjectEqualityComparer
@@ -552,14 +546,12 @@ namespace System.Collections.Generic
         }
 
         [Pure]
-        [SecuritySafeCritical]
         public int GetHashCode(String obj) {
             if(obj == null) return 0;
             return String.InternalMarvin32HashString(obj, obj.Length, _entropy);
         }
 
         [Pure]
-        [SecuritySafeCritical]
         public int GetHashCode(Object obj) {
             if(obj == null) return 0;
 
@@ -611,7 +603,6 @@ namespace System.Collections.Generic
         }
 
         [Pure]
-        [SecuritySafeCritical]
         public int GetHashCode(Object obj) {
             if(obj == null) return 0;
 

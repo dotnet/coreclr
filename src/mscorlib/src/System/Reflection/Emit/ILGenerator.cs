@@ -209,20 +209,17 @@ namespace System.Reflection.Emit
             }
         }
 
-        [System.Security.SecurityCritical]  // auto-generated
         private int GetMethodToken(MethodBase method, Type[] optionalParameterTypes, bool useMethodDef)
         {
             return ((ModuleBuilder)m_methodBuilder.Module).GetMethodTokenInternal(method, optionalParameterTypes, useMethodDef);
         }
 
-        [System.Security.SecurityCritical]  // auto-generated
         internal virtual SignatureHelper GetMemberRefSignature(CallingConventions call, Type returnType, 
             Type[] parameterTypes, Type[] optionalParameterTypes)
         {
             return GetMemberRefSignature(call, returnType, parameterTypes, optionalParameterTypes, 0);
         }
 
-        [System.Security.SecurityCritical]  // auto-generated
         private SignatureHelper GetMemberRefSignature(CallingConventions call, Type returnType, 
             Type[] parameterTypes, Type[] optionalParameterTypes, int cGenericParameters)
         {
@@ -471,7 +468,6 @@ namespace System.Reflection.Emit
             PutInteger4(arg);
         }
 
-        [System.Security.SecuritySafeCritical]  // auto-generated
         public virtual void Emit(OpCode opcode, MethodInfo meth)
         {
             if (meth == null)
@@ -503,7 +499,6 @@ namespace System.Reflection.Emit
         }
 
 
-        [System.Security.SecuritySafeCritical]  // auto-generated
         public virtual void EmitCalli(OpCode opcode, CallingConventions callingConvention, 
             Type returnType, Type[] parameterTypes, Type[] optionalParameterTypes)
         {
@@ -592,7 +587,6 @@ namespace System.Reflection.Emit
             PutInteger4(modBuilder.GetSignatureToken(sig).Token);
         }
 
-        [System.Security.SecuritySafeCritical]  // auto-generated
         public virtual void EmitCall(OpCode opcode, MethodInfo methodInfo, Type[] optionalParameterTypes)
         {
             if (methodInfo == null)
@@ -665,7 +659,6 @@ namespace System.Reflection.Emit
             PutInteger4(tempVal);
         }
 
-        [System.Security.SecuritySafeCritical]  // auto-generated
         [System.Runtime.InteropServices.ComVisible(true)]
         public virtual void Emit(OpCode opcode, ConstructorInfo con)
         {
@@ -709,7 +702,6 @@ namespace System.Reflection.Emit
             PutInteger4(tk);
         }
 
-        [System.Security.SecuritySafeCritical]  // auto-generated
         public virtual void Emit(OpCode opcode, Type cls)
         {
             // Puts opcode onto the stream and then the metadata token represented
@@ -749,7 +741,6 @@ namespace System.Reflection.Emit
             m_ILStream[m_length++] = (byte) (arg>>56);
         }
 
-        [System.Security.SecuritySafeCritical]  // auto-generated
         unsafe public virtual void Emit(OpCode opcode, float arg) {
             EnsureCapacity(7);
             InternalEmit(opcode);
@@ -760,7 +751,6 @@ namespace System.Reflection.Emit
             m_ILStream[m_length++] = (byte) (tempVal>>24);
         }
 
-        [System.Security.SecuritySafeCritical]  // auto-generated
         unsafe public virtual void Emit(OpCode opcode, double arg) {
             EnsureCapacity(11);
             InternalEmit(opcode);
@@ -1361,28 +1351,6 @@ namespace System.Reflection.Emit
         #endregion
 
         #endregion
-
-#if !FEATURE_CORECLR
-        void _ILGenerator.GetTypeInfoCount(out uint pcTInfo)
-        {
-            throw new NotImplementedException();
-        }
-
-        void _ILGenerator.GetTypeInfo(uint iTInfo, uint lcid, IntPtr ppTInfo)
-        {
-            throw new NotImplementedException();
-        }
-
-        void _ILGenerator.GetIDsOfNames([In] ref Guid riid, IntPtr rgszNames, uint cNames, uint lcid, IntPtr rgDispId)
-        {
-            throw new NotImplementedException();
-        }
-
-        void _ILGenerator.Invoke(uint dispIdMember, [In] ref Guid riid, uint lcid, short wFlags, IntPtr pDispParams, IntPtr pVarResult, IntPtr pExcepInfo, IntPtr puArgErr)
-        {
-            throw new NotImplementedException();
-        }
-#endif
     }
 
     internal struct __FixupData
@@ -1761,9 +1729,6 @@ namespace System.Reflection.Emit
             }
         }
 
-        #if FEATURE_CORECLR
-        [System.Security.SecurityCritical] // auto-generated
-        #endif
         internal void EmitScopeTree(ISymbolWriter symWriter)
         {
             int         i;
@@ -1873,9 +1838,6 @@ namespace System.Reflection.Emit
             }
         }
 
-        #if FEATURE_CORECLR
-        [System.Security.SecurityCritical] // auto-generated
-        #endif
         internal void EmitLineNumberInfo(ISymbolWriter symWriter)
         {
             for (int i = 0; i < m_DocumentCount; i++)
@@ -1967,9 +1929,6 @@ namespace System.Reflection.Emit
             }
         }
 
-        #if FEATURE_CORECLR
-        [System.Security.SecurityCritical] // auto-generated
-        #endif
         internal void EmitLineNumberInfo(ISymbolWriter symWriter)
         {
             int[]       iOffsetsTemp;

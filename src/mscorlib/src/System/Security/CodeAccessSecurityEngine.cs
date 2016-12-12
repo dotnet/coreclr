@@ -52,40 +52,22 @@ namespace System.Security {
         internal static SecurityPermission AssertPermission; 
         internal static PermissionToken AssertPermissionToken; 
 
-        [System.Security.SecurityCritical]  // auto-generated
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         internal static extern void SpecialDemand(PermissionType whatPermission, ref StackCrawlMark stackMark);
 
-        [System.Security.SecurityCritical]  // auto-generated
         [System.Diagnostics.Conditional( "_DEBUG" )]
         private static void DEBUG_OUT( String str )
         {
-#if _DEBUG        
+#if _DEBUG
             if (debug)
-            {
-#if !FEATURE_CORECLR
-                if (to_file)
-                {
-                    System.Text.StringBuilder sb = new System.Text.StringBuilder();
-                    sb.Append( str );
-                    sb.Append ((char)13) ;
-                    sb.Append ((char)10) ;
-                    PolicyManager.DebugOut( file, sb.ToString() );
-                }
-                else
-#endif                    
-                    Console.WriteLine( str );
-             }
-#endif             
-        }
-        
-#if _DEBUG 
-        private static bool debug = false;
-#if !FEATURE_CORECLR
-        private static readonly bool to_file = false;
+                Console.WriteLine( str );
 #endif
+        }
+
+#if _DEBUG
+        private static bool debug = false;
         private const String file = "d:\\foo\\debug.txt";
-#endif  
+#endif
 
         // static default constructor. This will be called before any of the static members are accessed.
         static CodeAccessSecurityEngine()
@@ -96,7 +78,6 @@ namespace System.Security {
             AssertPermissionToken = PermissionToken.GetToken(AssertPermission);
         }
 
-        [System.Security.SecurityCritical]  // auto-generated
 #pragma warning disable 618
         private static void ThrowSecurityException(RuntimeAssembly asm, PermissionSet granted, PermissionSet refused, RuntimeMethodHandleInternal rmh, SecurityAction action, Object demand, IPermission permThatFailed)
 #pragma warning restore 618
@@ -113,7 +94,6 @@ namespace System.Security {
             throw SecurityException.MakeSecurityException(asmName, asmEvidence, granted, refused, rmh, action, demand, permThatFailed);
         }
 
-        [System.Security.SecurityCritical]  // auto-generated
 #pragma warning disable 618
         private static void ThrowSecurityException(Object assemblyOrString, PermissionSet granted, PermissionSet refused, RuntimeMethodHandleInternal rmh, SecurityAction action, Object demand, IPermission permThatFailed)
 #pragma warning restore 618
@@ -130,7 +110,6 @@ namespace System.Security {
         }
 
 #if FEATURE_COMPRESSEDSTACK
-        [System.Security.SecurityCritical]  // auto-generated
         internal static void CheckSetHelper(CompressedStack cs,
                                            PermissionSet grants,
                                            PermissionSet refused,
@@ -145,9 +124,6 @@ namespace System.Security {
                 CheckSetHelper(grants, refused, demands, rmh, (Object)asm, action, true);
         }
 #else // FEATURE_COMPRESSEDSTACK
-        #if FEATURE_CORECLR
-        [System.Security.SecurityCritical] // auto-generated
-        #endif
 #pragma warning disable 618
         internal static void CheckSetHelper(Object notUsed,
                                            PermissionSet grants,
@@ -168,7 +144,6 @@ namespace System.Security {
 
 #endif // FEATURE_COMPRESSEDSTACK
 
-        [System.Security.SecurityCritical]  // auto-generated
 #pragma warning disable 618
         internal static bool CheckSetHelper(PermissionSet grants,
                                            PermissionSet refused,
@@ -232,7 +207,6 @@ namespace System.Security {
             return true;
         }
 #if FEATURE_COMPRESSEDSTACK
-        [System.Security.SecurityCritical]  // auto-generated
         internal static void CheckHelper(CompressedStack cs,
                                         PermissionSet grantedSet,
                                         PermissionSet refusedSet,
@@ -248,9 +222,6 @@ namespace System.Security {
                 CheckHelper(grantedSet, refusedSet, demand, permToken, rmh, (Object)asm, action, true);
         }
 #else // FEATURE_COMPRESSEDSTACK
-        #if FEATURE_CORECLR
-        [System.Security.SecurityCritical] // auto-generated
-        #endif
 #pragma warning disable 618
         internal static void CheckHelper(Object notUsed,
                                         PermissionSet grantedSet,
@@ -269,7 +240,6 @@ namespace System.Security {
             CheckHelper(grantedSet, refusedSet, demand, permToken, rmh, (Object)asm, action, true);
         }
 #endif // FEATURE_COMPRESSEDSTACK
-        [System.Security.SecurityCritical]  // auto-generated
 #pragma warning disable 618
         internal static bool CheckHelper(PermissionSet grantedSet,
                                         PermissionSet refusedSet,
@@ -383,42 +353,35 @@ namespace System.Security {
             return true;
         }
 
-        [System.Security.SecurityCritical]  // auto-generated
         internal static void Check(CodeAccessPermission cap, ref StackCrawlMark stackMark)
         {
         }
 
 
-        [System.Security.SecurityCritical]  // auto-generated
         internal static void Check(PermissionSet permSet, ref StackCrawlMark stackMark)
         {
         }
 
-        [System.Security.SecurityCritical]  // auto-generated
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         internal static extern FrameSecurityDescriptor CheckNReturnSO(PermissionToken permToken, 
                                                                     CodeAccessPermission demand, 
                                                                     ref StackCrawlMark stackMark,
                                                                     int create );
 
-        [System.Security.SecurityCritical]  // auto-generated
         internal static void Assert(CodeAccessPermission cap, ref StackCrawlMark stackMark)
         {
         }
 
-        [System.Security.SecurityCritical]  // auto-generated
         internal static void Deny(CodeAccessPermission cap, ref StackCrawlMark stackMark)
         {
         }
         
-        [System.Security.SecurityCritical]  // auto-generated
         internal static void PermitOnly(CodeAccessPermission cap, ref StackCrawlMark stackMark)
         {
         }
 
 #if FEATURE_PLS
         // Update the PLS used for optimization in the AppDomain: called from the VM
-        [System.Security.SecurityCritical]  // auto-generated
         private static PermissionListSet UpdateAppDomainPLS(PermissionListSet adPLS, PermissionSet grantedPerms, PermissionSet refusedPerms) {
             if (adPLS == null) {
                 adPLS = new PermissionListSet();

@@ -175,7 +175,6 @@ namespace System {
             FormatDigits(outputBuffer, value, len, false);
         }
 
-        [System.Security.SecuritySafeCritical]  // auto-generated
         internal unsafe static void FormatDigits(StringBuilder outputBuffer, int value, int len, bool overrideLengthLimit) {
             Contract.Assert(value >= 0, "DateTimeFormat.FormatDigits(): value >= 0");
 
@@ -708,24 +707,13 @@ namespace System {
                     // accurate than the system's current offset because of daylight saving time.
                     offset = TimeZoneInfo.GetLocalUtcOffset(DateTime.Now, TimeZoneInfoOptions.NoThrowOnInvalidTime);
                 } else if (dateTime.Kind == DateTimeKind.Utc) {
-#if FEATURE_CORECLR
                     offset = TimeSpan.Zero;
-#else // FEATURE_CORECLR
-                    // This code path points to a bug in user code. It would make sense to return a 0 offset in this case.
-                    // However, because it was only possible to detect this in Whidbey, there is user code that takes a 
-                    // dependency on being serialize a UTC DateTime using the 'z' format, and it will work almost all the
-                    // time if it is offset by an incorrect conversion to local time when parsed. Therefore, we need to 
-                    // explicitly emit the local time offset, which we can do by removing the UTC flag.
-                    InvalidFormatForUtc(format, dateTime);
-                    dateTime = DateTime.SpecifyKind(dateTime, DateTimeKind.Local);
-                    offset = TimeZoneInfo.GetLocalUtcOffset(dateTime, TimeZoneInfoOptions.NoThrowOnInvalidTime);
-#endif // FEATURE_CORECLR
                 } else {
                     offset = TimeZoneInfo.GetLocalUtcOffset(dateTime, TimeZoneInfoOptions.NoThrowOnInvalidTime);
                 }
             }
             if (offset >= TimeSpan.Zero) {
-                result.Append('+');                
+                result.Append('+');
             }
             else {
                 result.Append('-');
@@ -1138,7 +1126,6 @@ namespace System {
 
         // This is an MDA for cases when the user is using a local format with
         // a Utc DateTime.
-        [System.Security.SecuritySafeCritical]  // auto-generated
         internal static void InvalidFormatForUtc(String format, DateTime dateTime) {
 #if MDA_SUPPORTED
             Mda.DateTimeInvalidLocalFormat();

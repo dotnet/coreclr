@@ -110,7 +110,6 @@ namespace Microsoft.Win32 {
     // Remove the default demands for all P/Invoke methods with this
     // global declaration on the class.
 
-    [System.Security.SecurityCritical]
     [SuppressUnmanagedCodeSecurityAttribute()]
     internal static class Win32Native {
 
@@ -451,7 +450,6 @@ namespace Microsoft.Win32 {
             internal int fileSizeHigh;
             internal int fileSizeLow;
 
-            [System.Security.SecurityCritical]
             internal void PopulateFrom(WIN32_FIND_DATA findData) {
                 // Copy the information to data
                 fileAttributes = findData.dwFileAttributes; 
@@ -513,7 +511,6 @@ namespace Microsoft.Win32 {
             ///     strings created with this version of the constructor will be unsafe to use after the buffer
             ///     has been freed.
             /// </remarks>
-            [System.Security.SecurityCritical]  // auto-generated
             internal UNICODE_INTPTR_STRING (int stringBytes, SafeLocalAllocHandle buffer) {
                 BCLDebug.Assert(buffer == null || (stringBytes >= 0 && (ulong)stringBytes <= buffer.ByteLength),
                                 "buffer == null || (stringBytes >= 0 && stringBytes <= buffer.ByteLength)");
@@ -799,7 +796,6 @@ namespace Microsoft.Win32 {
         [ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]
         private static extern IntPtr GetModuleHandle(String moduleName);
 
-        [System.Security.SecurityCritical]  // auto-generated
         internal static bool DoesWin32MethodExist(String moduleName, String methodName)
         {
             // GetModuleHandle does not increment the module's ref count, so we don't need to call FreeLibrary.
@@ -935,7 +931,6 @@ namespace Microsoft.Win32 {
         [DllImport(KERNEL32, SetLastError=true, EntryPoint="SetFilePointer")]
         private unsafe static extern int SetFilePointerWin32(SafeFileHandle handle, int lo, int * hi, int origin);
         
-        [System.Security.SecurityCritical]  // auto-generated
         internal unsafe static long SetFilePointer(SafeFileHandle handle, long offset, System.IO.SeekOrigin origin, out int hr) {
             hr = 0;
             int lo = (int) offset;
@@ -1742,18 +1737,11 @@ namespace Microsoft.Win32 {
             [In]     uint       dwFlags);
 #endif // FEATURE_LEGACYSURFACE
 
-#if FEATURE_CORECLR 
         [DllImport(NTDLL, CharSet=CharSet.Unicode, SetLastError=true)]
         internal static extern
         int RtlNtStatusToDosError (
             [In]    int         status);
-#else
-        // identical to RtlNtStatusToDosError, but we are in ask mode for desktop CLR
-        [DllImport(ADVAPI32, CharSet = CharSet.Unicode, SetLastError = true)]
-        internal static extern
-        int LsaNtStatusToWinError (
-            [In]    int         status);
-#endif
+
         // Get the current FIPS policy setting on Vista and above
         [DllImport("bcrypt.dll")]
         internal static extern uint BCryptGetFipsAlgorithmMode(
@@ -2300,7 +2288,6 @@ namespace Microsoft.Win32 {
             byte[] dacl,
             byte[] sacl );
 
-#if FEATURE_CORECLR
         [DllImport(KERNEL32, CharSet=CharSet.Unicode)]
         [SuppressUnmanagedCodeSecurityAttribute()]
         internal  unsafe static extern int WideCharToMultiByte(
@@ -2322,13 +2309,11 @@ namespace Microsoft.Win32 {
             int      cchMultiByte,
             char*  lpWideCharStr,
             int      cchWideChar);
-#endif  // FEATURE_CORECLR
 
         [DllImport(KERNEL32, SetLastError = true)]
         [return: MarshalAs(UnmanagedType.Bool)]
         internal extern static bool QueryUnbiasedInterruptTime(out ulong UnbiasedTime);
 
-#if FEATURE_CORECLR
 #if FEATURE_PAL
         [DllImport(KERNEL32, EntryPoint = "PAL_Random")]
         internal extern static bool Random(bool bStrong,
@@ -2354,7 +2339,6 @@ namespace Microsoft.Win32 {
                 }
             }
         }
-#endif
 #endif
     }
 }

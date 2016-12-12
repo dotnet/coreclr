@@ -23,70 +23,31 @@ using Microsoft.Win32;
 using System.Runtime.Versioning;
 using StackCrawlMark = System.Threading.StackCrawlMark;
 
-namespace System.Runtime.InteropServices {
-[System.Runtime.InteropServices.ComVisible(true)]
-#if FEATURE_CORECLR
-    static
-#endif
-    public class RuntimeEnvironment {
+namespace System.Runtime.InteropServices
+{
+    [System.Runtime.InteropServices.ComVisible(true)]
+    static public class RuntimeEnvironment {
 
-#if !FEATURE_CORECLR
-        // This should have been a static class, but wasn't as of v3.5.  Clearly, this is
-        // broken.  We'll keep this in V4 for binary compat, but marked obsolete as error
-        // so migrated source code gets fixed.  On Silverlight, this type exists but is
-        // not public.
-        [Obsolete("Do not create instances of the RuntimeEnvironment class.  Call the static methods directly on this type instead", true)]
-        public RuntimeEnvironment()
-        {
-            // Should not have been instantiable - here for binary compatibility in V4.
-        }
-#endif
-
-        [System.Security.SecurityCritical]  // auto-generated
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         internal static extern String GetModuleFileName();
 
-        [System.Security.SecurityCritical]  // auto-generated
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         internal static extern String GetDeveloperPath();
 
-        [System.Security.SecurityCritical]  // auto-generated
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         internal static extern String GetHostBindingFile();
-
-#if !FEATURE_CORECLR
-        [System.Security.SecurityCritical]  // auto-generated
-        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        [SuppressUnmanagedCodeSecurity]
-        internal static extern void _GetSystemVersion(StringHandleOnStack retVer);
-#endif //!FEATURE_CORECLR
 
         public static bool FromGlobalAccessCache(Assembly a)
         {
             return a.GlobalAssemblyCache;
         }
-        
-#if !FEATURE_CORECLR
-        [System.Security.SecuritySafeCritical] // public member
-#endif
+
         [MethodImpl (MethodImplOptions.NoInlining)]
         public static String GetSystemVersion()
         {
-#if FEATURE_CORECLR
-
             return Assembly.GetExecutingAssembly().ImageRuntimeVersion;
-
-#else // FEATURE_CORECLR
-
-            String ver = null;
-            _GetSystemVersion(JitHelpers.GetStringHandleOnStack(ref ver));
-            return ver;
-
-#endif // FEATURE_CORECLR
-
         }
-        
-        [System.Security.SecuritySafeCritical]  // auto-generated
+
         public static String GetRuntimeDirectory()
         {
             String dir = GetRuntimeDirectoryImpl();
@@ -94,13 +55,11 @@ namespace System.Runtime.InteropServices {
             return dir;
         }
 
-        [System.Security.SecurityCritical]  // auto-generated
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         internal static extern String GetRuntimeDirectoryImpl();
         
         // Returns the system ConfigurationFile
         public static String SystemConfigurationFile {
-            [System.Security.SecuritySafeCritical]  // auto-generated
             get {
                 StringBuilder sb = new StringBuilder(Path.MaxPath);
                 sb.Append(GetRuntimeDirectory());
@@ -115,7 +74,6 @@ namespace System.Runtime.InteropServices {
         }
 
 #if FEATURE_COMINTEROP
-        [System.Security.SecurityCritical]
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         [SuppressUnmanagedCodeSecurity]
         private static extern IntPtr GetRuntimeInterfaceImpl(
@@ -130,7 +88,6 @@ namespace System.Runtime.InteropServices {
         // Returns unmanaged pointer to requested interface on success. Throws
         // COMException with failed HR if there is a QI failure.
         //
-        [System.Security.SecurityCritical]  // do not allow partial trust callers
         [ComVisible(false)]
         public static IntPtr GetRuntimeInterfaceAsIntPtr(Guid clsid, Guid riid)
         {
@@ -145,7 +102,6 @@ namespace System.Runtime.InteropServices {
         // Returns an RCW to requested interface on success. Throws
         // COMException with failed HR if there is a QI failure.
         //
-        [System.Security.SecurityCritical]  // do not allow partial trust callers
         [ComVisible(false)]
         public static object GetRuntimeInterfaceAsObject(Guid clsid, Guid riid)
         {
@@ -159,7 +115,6 @@ namespace System.Runtime.InteropServices {
                 }
             }
         }
-
 #endif // FEATURE_COMINTEROP
     }
 }

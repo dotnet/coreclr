@@ -98,17 +98,11 @@ namespace System.Reflection.Emit
             throw new NotSupportedException(Environment.GetResourceString("NotSupported_DynamicAssembly"));
         }
 
-        #if FEATURE_CORECLR
-        [System.Security.SecurityCritical] // auto-generated
-        #endif
         public override FileStream GetFile(String name)
         {
             throw new NotSupportedException(Environment.GetResourceString("NotSupported_DynamicAssembly"));
         }
 
-        #if FEATURE_CORECLR
-        [System.Security.SecurityCritical] // auto-generated
-        #endif
         public override FileStream[] GetFiles(bool getResourceModules)
         {
             throw new NotSupportedException(Environment.GetResourceString("NotSupported_DynamicAssembly"));
@@ -131,9 +125,6 @@ namespace System.Reflection.Emit
 
         public override String Location
         {
-#if FEATURE_CORECLR
-            [SecurityCritical]
-#endif // FEATURE_CORECLR
             get
             {
                 throw new NotSupportedException(Environment.GetResourceString("NotSupported_DynamicAssembly"));
@@ -142,9 +133,6 @@ namespace System.Reflection.Emit
 
         public override String CodeBase
         {
-#if FEATURE_CORECLR
-            [SecurityCritical]
-#endif // FEATURE_CORECLR
             get
             {
                 throw new NotSupportedException(Environment.GetResourceString("NotSupported_DynamicAssembly"));
@@ -175,35 +163,13 @@ namespace System.Reflection.Emit
     public sealed class AssemblyBuilder : Assembly, _AssemblyBuilder
     {
         #region FCALL
-        [System.Security.SecurityCritical]  // auto-generated
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         private static extern RuntimeModule GetInMemoryAssemblyModule(RuntimeAssembly assembly);
 
-        [System.Security.SecurityCritical]  // auto-generated
         private Module nGetInMemoryAssemblyModule()
         {
             return AssemblyBuilder.GetInMemoryAssemblyModule(GetNativeHandle());
         }
-
-#if !FEATURE_CORECLR
-        [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        private static extern RuntimeModule GetOnDiskAssemblyModule(RuntimeAssembly assembly);
-
-        [System.Security.SecurityCritical]  // auto-generated
-        private ModuleBuilder GetOnDiskAssemblyModuleBuilder()
-        {
-            if (m_onDiskAssemblyModuleBuilder == null)
-            {
-                Module module = AssemblyBuilder.GetOnDiskAssemblyModule(InternalAssembly.GetNativeHandle());
-                ModuleBuilder modBuilder = new ModuleBuilder(this, (InternalModuleBuilder)module);
-                modBuilder.Init("RefEmit_OnDiskManifestModule", null, 0);
-                m_onDiskAssemblyModuleBuilder = modBuilder;
-            }
-
-            return m_onDiskAssemblyModuleBuilder;
-        }
-#endif // FEATURE_CORECLR
 
         #endregion
 
@@ -215,9 +181,6 @@ namespace System.Reflection.Emit
         // Set to true if the manifest module was returned by code:DefineDynamicModule to the user
         private bool m_fManifestModuleUsedAsDefinedModule;
         internal const string MANIFEST_MODULE_NAME = "RefEmit_InMemoryManifestModule";
-#if !FEATURE_CORECLR
-        private ModuleBuilder m_onDiskAssemblyModuleBuilder;
-#endif // !FEATURE_CORECLR
 
 #if FEATURE_APPX
         private bool m_profileAPICheck;
@@ -230,18 +193,6 @@ namespace System.Reflection.Emit
 
             lock(SyncRoot)
             {
-#if !FEATURE_CORECLR
-                foreach (ModuleBuilder modBuilder in m_assemblyData.m_moduleBuilderList)
-                {
-                    if (modBuilder.InternalModule == module)
-                        return modBuilder;
-                }
-
-                // m_onDiskAssemblyModuleBuilder is null before Save
-                if (m_onDiskAssemblyModuleBuilder != null && m_onDiskAssemblyModuleBuilder.InternalModule == module)
-                    return m_onDiskAssemblyModuleBuilder;
-#endif // !FEATURE_CORECLR
-
                 // in CoreCLR there is only one module in each dynamic assembly, the manifest module
                 if (m_manifestModuleBuilder.InternalModule == module)
                     return m_manifestModuleBuilder;
@@ -271,7 +222,6 @@ namespace System.Reflection.Emit
             return InternalAssembly.GetNativeHandle();
         }
 
-        [SecurityCritical]
         internal Version GetVersion()
         {
             return InternalAssembly.GetVersion();
@@ -289,7 +239,6 @@ namespace System.Reflection.Emit
         #endregion
 
         #region Constructor
-        [System.Security.SecurityCritical]  // auto-generated
         internal AssemblyBuilder(AppDomain domain,
                                  AssemblyName name,
                                  AssemblyBuilderAccess access,
@@ -306,10 +255,6 @@ namespace System.Reflection.Emit
                 throw new ArgumentNullException(nameof(name));
 
             if (access != AssemblyBuilderAccess.Run
-#if !FEATURE_CORECLR
-                && access != AssemblyBuilderAccess.Save
-                && access != AssemblyBuilderAccess.RunAndSave
-#endif // !FEATURE_CORECLR
 #if FEATURE_REFLECTION_ONLY_LOAD
                 && access != AssemblyBuilderAccess.ReflectionOnly
 #endif // FEATURE_REFLECTION_ONLY_LOAD
@@ -329,14 +274,6 @@ namespace System.Reflection.Emit
 
             // Clone the name in case the caller modifies it underneath us.
             name = (AssemblyName)name.Clone();
-            
-#if !FEATURE_CORECLR
-            // Set the public key from the key pair if one has been provided.
-            // (Overwite any public key in the Assembly name, since it's no
-            // longer valid to have a disparity).
-            if (name.KeyPair != null)
-                name.SetPublicKey(name.KeyPair.PublicKey);
-#endif
 
             // If the caller is trusted they can supply identity
             // evidence for the new assembly. Otherwise we copy the
@@ -349,13 +286,6 @@ namespace System.Reflection.Emit
 #pragma warning disable 618
                 new SecurityPermission(SecurityPermissionFlag.ControlEvidence).Demand();
 #pragma warning restore 618
-
-#if FEATURE_COLLECTIBLE_TYPES && !FEATURE_CORECLR
-            // Collectible assemblies require FullTrust. This demand may be removed if we deem the
-            // feature robust enough to be used directly by untrusted API consumers.
-            if (access == AssemblyBuilderAccess.RunAndCollect)
-                new PermissionSet(PermissionState.Unrestricted).Demand();
-#endif // FEATURE_COLLECTIBLE_TYPES && !FEATURE_CORECLR
 
             // Scan the assembly level attributes for any attributes which modify how we create the
             // assembly. Currently, we look for any attribute which modifies the security transparency
@@ -427,7 +357,6 @@ namespace System.Reflection.Emit
             }
         }
 
-        [System.Security.SecurityCritical]  // auto-generated
         private void InitManifestModule()
         {
             InternalModuleBuilder modBuilder = (InternalModuleBuilder)nGetInMemoryAssemblyModule();
@@ -456,7 +385,6 @@ namespace System.Reflection.Emit
         * to have a strong name and a hash will be computed when the assembly
         * is saved.
         **********************************************/
-        [System.Security.SecuritySafeCritical]  // auto-generated
         [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
         public static AssemblyBuilder DefineDynamicAssembly(
             AssemblyName name,
@@ -469,7 +397,6 @@ namespace System.Reflection.Emit
                                                  null, null, null, null, ref stackMark, null, SecurityContextSource.CurrentAssembly);
         }
 
-        [System.Security.SecuritySafeCritical]  // auto-generated
         [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
         public static AssemblyBuilder DefineDynamicAssembly(
             AssemblyName name,
@@ -487,7 +414,6 @@ namespace System.Reflection.Emit
         }
 
 
-        [System.Security.SecurityCritical]  // auto-generated
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         private static extern Assembly nCreateDynamicAssembly(AppDomain domain,
                                                               AssemblyName name,
@@ -504,7 +430,6 @@ namespace System.Reflection.Emit
 
         private class AssemblyBuilderLock { }
 
-        [System.Security.SecurityCritical]  // auto-generated
         internal static AssemblyBuilder InternalDefineDynamicAssembly(
             AssemblyName name,
             AssemblyBuilderAccess access,
@@ -543,7 +468,6 @@ namespace System.Reflection.Emit
         * a transient module.
         * 
         **********************************************/
-        [System.Security.SecuritySafeCritical]  // auto-generated
         [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
         public ModuleBuilder DefineDynamicModule(
             String      name)
@@ -554,7 +478,6 @@ namespace System.Reflection.Emit
             return DefineDynamicModuleInternal(name, false, ref stackMark);
         }
 
-        [System.Security.SecuritySafeCritical]  // auto-generated
         [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
         public ModuleBuilder DefineDynamicModule(
             String      name,
@@ -566,7 +489,6 @@ namespace System.Reflection.Emit
             return DefineDynamicModuleInternal( name, emitSymbolInfo, ref stackMark );
         }
 
-        [System.Security.SecurityCritical]  // auto-generated
         private ModuleBuilder DefineDynamicModuleInternal(
             String      name,
             bool        emitSymbolInfo,         // specify if emit symbol info or not
@@ -578,7 +500,6 @@ namespace System.Reflection.Emit
             }
         }
 
-        [System.Security.SecurityCritical]  // auto-generated
         private ModuleBuilder DefineDynamicModuleInternalNoLock(
             String      name,
             bool        emitSymbolInfo,         // specify if emit symbol info or not
@@ -687,163 +608,6 @@ namespace System.Reflection.Emit
             }
         }
 
-#if !FEATURE_CORECLR
-        /**********************************************
-        *
-        * Define stand alone managed resource for Assembly
-        *
-        **********************************************/
-        public IResourceWriter DefineResource(
-            String      name,
-            String      description,
-            String      fileName)
-        {
-            return DefineResource(name, description, fileName, ResourceAttributes.Public);
-        }
-
-        /**********************************************
-        *
-        * Define stand alone managed resource for Assembly
-        *
-        **********************************************/
-        public IResourceWriter DefineResource(
-            String      name,
-            String      description,
-            String      fileName,
-            ResourceAttributes attribute)
-        {
-            lock(SyncRoot)
-            {
-                return DefineResourceNoLock(name, description, fileName, attribute);
-            }
-        }
-
-        private IResourceWriter DefineResourceNoLock(
-            String      name,
-            String      description,
-            String      fileName,
-            ResourceAttributes attribute)
-        {
-            if (name == null)
-                throw new ArgumentNullException(nameof(name));
-            if (name.Length == 0)
-                throw new ArgumentException(Environment.GetResourceString("Argument_EmptyName"), name);
-            if (fileName == null)
-                throw new ArgumentNullException(nameof(fileName));
-            if (fileName.Length == 0)
-                throw new ArgumentException(Environment.GetResourceString("Argument_EmptyFileName"), nameof(fileName));
-            if (!String.Equals(fileName, Path.GetFileName(fileName)))
-                throw new ArgumentException(Environment.GetResourceString("Argument_NotSimpleFileName"), nameof(fileName));
-            Contract.EndContractBlock();
-
-            BCLDebug.Log("DYNIL", "## DYNIL LOGGING: AssemblyBuilder.DefineResource( " + name + ", " + fileName + ")");
-
-            m_assemblyData.CheckResNameConflict(name);
-            m_assemblyData.CheckFileNameConflict(fileName);
-
-            ResourceWriter resWriter;
-            String  fullFileName;
-
-            if (m_assemblyData.m_strDir == null)
-            {
-                // If assembly directory is null, use current directory
-                fullFileName = Path.Combine(Directory.GetCurrentDirectory(), fileName);
-                resWriter = new ResourceWriter(fullFileName);
-            }
-            else
-            {
-                // Form the full path given the directory provided by user
-                fullFileName = Path.Combine(m_assemblyData.m_strDir, fileName);
-                resWriter = new ResourceWriter(fullFileName);
-            }
-            // get the full path
-            fullFileName = Path.GetFullPath(fullFileName);
-            
-            // retrieve just the file name
-            fileName = Path.GetFileName(fullFileName);
-            
-            m_assemblyData.AddResWriter( new ResWriterData( resWriter, null, name, fileName, fullFileName, attribute) );
-            return resWriter;
-        }
-
-        /**********************************************
-        *
-        * Add an existing resource file to the Assembly
-        *
-        **********************************************/
-        public void AddResourceFile(
-            String      name,
-            String      fileName)
-        {
-            AddResourceFile(name, fileName, ResourceAttributes.Public);
-        }
-
-        /**********************************************
-        *
-        * Add an existing resource file to the Assembly
-        *
-        **********************************************/
-        public void AddResourceFile(
-            String      name,
-            String      fileName,
-            ResourceAttributes attribute)
-        {
-            lock(SyncRoot)
-            {
-                AddResourceFileNoLock(name, fileName, attribute);
-            }
-        }
-
-        [System.Security.SecuritySafeCritical]
-        private void AddResourceFileNoLock(
-            String      name,
-            String      fileName,
-            ResourceAttributes attribute)
-        {
-            if (name == null)
-                throw new ArgumentNullException(nameof(name));
-            if (name.Length == 0)
-                throw new ArgumentException(Environment.GetResourceString("Argument_EmptyName"), name);
-            if (fileName == null)
-                throw new ArgumentNullException(nameof(fileName));
-            if (fileName.Length == 0)
-                throw new ArgumentException(Environment.GetResourceString("Argument_EmptyFileName"), fileName);
-            if (!String.Equals(fileName, Path.GetFileName(fileName)))
-                throw new ArgumentException(Environment.GetResourceString("Argument_NotSimpleFileName"), nameof(fileName));
-            Contract.EndContractBlock();
-
-            BCLDebug.Log("DYNIL", "## DYNIL LOGGING: AssemblyBuilder.AddResourceFile( " + name + ", " + fileName + ")");
-
-            m_assemblyData.CheckResNameConflict(name);
-            m_assemblyData.CheckFileNameConflict(fileName);
-
-            String  fullFileName;
-
-            if (m_assemblyData.m_strDir == null)
-            {
-                // If assembly directory is null, use current directory
-                fullFileName = Path.Combine(Directory.GetCurrentDirectory(), fileName);
-            }
-            else
-            {
-                // Form the full path given the directory provided by user
-                fullFileName = Path.Combine(m_assemblyData.m_strDir, fileName);
-            }
-            
-            // get the full path
-            fullFileName = Path.UnsafeGetFullPath(fullFileName);
-            
-            // retrieve just the file name
-            fileName = Path.GetFileName(fullFileName);
-            
-            if (File.UnsafeExists(fullFileName) == false)
-                throw new FileNotFoundException(Environment.GetResourceString(
-                    "IO.FileNotFound_FileName",
-                    fileName), fileName);
-            m_assemblyData.AddResWriter( new ResWriterData( null, null, name, fileName, fullFileName, attribute) );
-        }
-#endif // !FEATURE_CORECLR
-
         #region object overrides
         public override bool Equals(object obj)
         {
@@ -882,17 +646,11 @@ namespace System.Reflection.Emit
             return InternalAssembly.GetManifestResourceNames();
         }
         
-        #if FEATURE_CORECLR
-        [System.Security.SecurityCritical] // auto-generated
-        #endif
         public override FileStream GetFile(String name)
         {
             return InternalAssembly.GetFile(name);
         }
         
-        #if FEATURE_CORECLR
-        [System.Security.SecurityCritical] // auto-generated
-        #endif
         public override FileStream[] GetFiles(bool getResourceModules)
         {
             return InternalAssembly.GetFiles(getResourceModules);
@@ -915,9 +673,6 @@ namespace System.Reflection.Emit
 
         public override String Location
         {
-            #if FEATURE_CORECLR
-            [System.Security.SecurityCritical] // auto-generated
-            #endif
             get
             {
                 return InternalAssembly.Location;
@@ -934,9 +689,6 @@ namespace System.Reflection.Emit
         
         public override String CodeBase
         {
-            #if FEATURE_CORECLR
-            [System.Security.SecurityCritical] // auto-generated
-            #endif
             get
             {
                 return InternalAssembly.CodeBase;
@@ -959,9 +711,6 @@ namespace System.Reflection.Emit
             return InternalAssembly.GetExportedTypes();
         }
 
-        #if FEATURE_CORECLR
-        [System.Security.SecurityCritical] // auto-generated
-        #endif
         public override AssemblyName GetName(bool copiedName)
         {
             return InternalAssembly.GetName(copiedName);
@@ -1056,142 +805,6 @@ namespace System.Reflection.Emit
         #endregion
 
 
-#if !FEATURE_CORECLR
-        /**********************************************
-        *
-        * Add an unmanaged Version resource to the
-        *  assembly
-        *
-        **********************************************/
-        public void DefineVersionInfoResource(
-            String      product, 
-            String      productVersion, 
-            String      company, 
-            String      copyright, 
-            String      trademark)
-        {
-            lock(SyncRoot)
-            {
-                DefineVersionInfoResourceNoLock(
-                    product,
-                    productVersion,
-                    company,
-                    copyright,
-                    trademark);
-            }
-        }
-
-        private void DefineVersionInfoResourceNoLock(
-            String product,
-            String productVersion,
-            String company,
-            String copyright,
-            String trademark)
-        {
-            if (m_assemblyData.m_strResourceFileName != null ||
-                m_assemblyData.m_resourceBytes != null ||
-                m_assemblyData.m_nativeVersion != null)
-                throw new ArgumentException(Environment.GetResourceString("Argument_NativeResourceAlreadyDefined"));
-
-            m_assemblyData.m_nativeVersion = new NativeVersionInfo();
-
-            m_assemblyData.m_nativeVersion.m_strCopyright = copyright;
-            m_assemblyData.m_nativeVersion.m_strTrademark = trademark;
-            m_assemblyData.m_nativeVersion.m_strCompany = company;
-            m_assemblyData.m_nativeVersion.m_strProduct = product;
-            m_assemblyData.m_nativeVersion.m_strProductVersion = productVersion;
-            m_assemblyData.m_hasUnmanagedVersionInfo = true;
-            m_assemblyData.m_OverrideUnmanagedVersionInfo = true;
-
-        }
-        
-        public void DefineVersionInfoResource()
-        {
-            lock(SyncRoot)
-            {
-                DefineVersionInfoResourceNoLock();
-            }
-        }
-
-        private void DefineVersionInfoResourceNoLock()
-        {
-            if (m_assemblyData.m_strResourceFileName != null ||
-                m_assemblyData.m_resourceBytes != null ||
-                m_assemblyData.m_nativeVersion != null)
-                throw new ArgumentException(Environment.GetResourceString("Argument_NativeResourceAlreadyDefined"));
-            
-            m_assemblyData.m_hasUnmanagedVersionInfo = true;
-            m_assemblyData.m_nativeVersion = new NativeVersionInfo();
-        }
-
-        public void DefineUnmanagedResource(Byte[] resource)
-        {
-            if (resource == null)
-                throw new ArgumentNullException(nameof(resource));
-            Contract.EndContractBlock();
-
-            lock(SyncRoot)
-            {
-                DefineUnmanagedResourceNoLock(resource);
-            }
-        }
-
-        private void DefineUnmanagedResourceNoLock(Byte[] resource)
-        {
-            if (m_assemblyData.m_strResourceFileName != null ||
-                m_assemblyData.m_resourceBytes != null ||
-                m_assemblyData.m_nativeVersion != null)
-                throw new ArgumentException(Environment.GetResourceString("Argument_NativeResourceAlreadyDefined"));
-            
-            m_assemblyData.m_resourceBytes = new byte[resource.Length];
-            Buffer.BlockCopy(resource, 0, m_assemblyData.m_resourceBytes, 0, resource.Length);
-        }
-
-        [System.Security.SecuritySafeCritical]  // auto-generated
-        public void DefineUnmanagedResource(String resourceFileName)
-        {
-            if (resourceFileName == null)
-                throw new ArgumentNullException(nameof(resourceFileName));
-            Contract.EndContractBlock();
-
-            lock(SyncRoot)
-            {
-                DefineUnmanagedResourceNoLock(resourceFileName);
-            }
-        }
-
-        [System.Security.SecurityCritical]  // auto-generated
-        private void DefineUnmanagedResourceNoLock(String resourceFileName)
-        {
-            if (m_assemblyData.m_strResourceFileName != null ||
-                m_assemblyData.m_resourceBytes != null ||
-                m_assemblyData.m_nativeVersion != null)
-                throw new ArgumentException(Environment.GetResourceString("Argument_NativeResourceAlreadyDefined"));
-            
-            // Check caller has the right to read the file.
-            string      strFullFileName;
-            if (m_assemblyData.m_strDir == null)
-            {
-                // If assembly directory is null, use current directory
-                strFullFileName = Path.Combine(Directory.GetCurrentDirectory(), resourceFileName);
-            }
-            else
-            {
-                // Form the full path given the directory provided by user
-                strFullFileName = Path.Combine(m_assemblyData.m_strDir, resourceFileName);
-            }
-            strFullFileName = Path.GetFullPath(resourceFileName);
-            new FileIOPermission(FileIOPermissionAccess.Read, strFullFileName).Demand();
-            
-            if (File.Exists(strFullFileName) == false)
-                throw new FileNotFoundException(Environment.GetResourceString(
-                    "IO.FileNotFound_FileName",
-                    resourceFileName), resourceFileName);
-            m_assemblyData.m_strResourceFileName = strFullFileName;
-        }
-#endif // !FEATURE_CORECLR
-
-
         /**********************************************
         *
         * return a dynamic module with the specified name.
@@ -1234,17 +847,11 @@ namespace System.Reflection.Emit
         * an exe.
         *
         **********************************************/
-        #if FEATURE_CORECLR
-        [System.Security.SecurityCritical] // auto-generated
-        #endif
         public void SetEntryPoint(
             MethodInfo  entryMethod) 
         {
             SetEntryPoint(entryMethod, PEFileKinds.ConsoleApplication);
         }
-        #if FEATURE_CORECLR
-        [System.Security.SecurityCritical] // auto-generated
-        #endif
         public void SetEntryPoint(
             MethodInfo  entryMethod,        // entry method for the assembly. We use this to determine the entry module
             PEFileKinds fileKind)           // file kind for the assembly.
@@ -1272,29 +879,12 @@ namespace System.Reflection.Emit
 
             m_assemblyData.m_entryPointMethod = entryMethod;
             m_assemblyData.m_peFileKind = fileKind;
-            
-#if !FEATURE_CORECLR
-            // Setting the entry point
-            ModuleBuilder tmpMB = tmpModule as ModuleBuilder;
-            if (tmpMB != null)
-                m_assemblyData.m_entryPointModule = tmpMB;
-            else
-                m_assemblyData.m_entryPointModule = GetModuleBuilder((InternalModuleBuilder)tmpModule);
-
-            MethodToken entryMethodToken = m_assemblyData.m_entryPointModule.GetMethodToken(entryMethod);
-            m_assemblyData.m_entryPointModule.SetEntryPoint(entryMethodToken);
-#endif //!FEATURE_CORECLR
         }
 
 
         /**********************************************
         * Use this function if client decides to form the custom attribute blob themselves
         **********************************************/
-        #if FEATURE_CORECLR
-        [System.Security.SecurityCritical] // auto-generated
-        #else
-        [System.Security.SecuritySafeCritical]
-        #endif
         [System.Runtime.InteropServices.ComVisible(true)]
         public void SetCustomAttribute(ConstructorInfo con, byte[] binaryAttribute)
         {
@@ -1310,7 +900,6 @@ namespace System.Reflection.Emit
             }
         }
 
-        [System.Security.SecurityCritical]  // auto-generated
         private void SetCustomAttributeNoLock(ConstructorInfo con, byte[] binaryAttribute)
         {
             TypeBuilder.DefineCustomAttribute(
@@ -1332,7 +921,6 @@ namespace System.Reflection.Emit
         /**********************************************
         * Use this function if client wishes to build CustomAttribute using CustomAttributeBuilder
         **********************************************/
-        [System.Security.SecuritySafeCritical]  // auto-generated
         public void SetCustomAttribute(CustomAttributeBuilder customBuilder)
         {
             if (customBuilder == null)
@@ -1347,7 +935,6 @@ namespace System.Reflection.Emit
             }
         }
 
-        [System.Security.SecurityCritical]  // auto-generated
         private void SetCustomAttributeNoLock(CustomAttributeBuilder customBuilder)
         {
             customBuilder.CreateCustomAttribute(
@@ -1377,7 +964,6 @@ namespace System.Reflection.Emit
             Save(assemblyFileName, System.Reflection.PortableExecutableKinds.ILOnly, System.Reflection.ImageFileMachine.I386);
         }
             
-        [System.Security.SecuritySafeCritical]  // auto-generated
         public void Save(String assemblyFileName, 
             PortableExecutableKinds portableExecutableKind, ImageFileMachine imageFileMachine)
         {
@@ -1390,7 +976,7 @@ namespace System.Reflection.Emit
         private void SaveNoLock(String assemblyFileName, 
             PortableExecutableKinds portableExecutableKind, ImageFileMachine imageFileMachine)
         {
-            // AssemblyBuilderAccess.Save can never be set with FEATURE_CORECLR
+            // AssemblyBuilderAccess.Save can never be set in CoreCLR
             throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_CantSaveTransientAssembly"));
         }
 
@@ -1406,7 +992,6 @@ namespace System.Reflection.Emit
         * Internal helper to walk the nested type hierachy
         *
         **********************************************/
-        [System.Security.SecurityCritical]  // auto-generated
         private int DefineNestedComType(Type type, int tkResolutionScope, int tkTypeDef)
         {
             Type        enclosingType = type.DeclaringType;
@@ -1421,7 +1006,6 @@ namespace System.Reflection.Emit
             return AddExportedTypeOnDisk(GetNativeHandle(), type.Name, tkResolutionScope, tkTypeDef, type.Attributes);
         }
 
-        [System.Security.SecurityCritical]  // auto-generated
         internal int DefineExportedTypeInMemory(Type type, int tkResolutionScope, int tkTypeDef)
         {
             Type enclosingType = type.DeclaringType;
@@ -1448,32 +1032,7 @@ namespace System.Reflection.Emit
          **********************************************/
         private AssemblyBuilder() {}
 
-#if !FEATURE_CORECLR
-        void _AssemblyBuilder.GetTypeInfoCount(out uint pcTInfo)
-        {
-            throw new NotImplementedException();
-        }
-
-        void _AssemblyBuilder.GetTypeInfo(uint iTInfo, uint lcid, IntPtr ppTInfo)
-        {
-            throw new NotImplementedException();
-        }
-
-        void _AssemblyBuilder.GetIDsOfNames([In] ref Guid riid, IntPtr rgszNames, uint cNames, uint lcid, IntPtr rgDispId)
-        {
-            throw new NotImplementedException();
-        }
-
-        // If you implement this method, make sure to include _AssemblyBuilder.Invoke in VM\DangerousAPIs.h and 
-        // include _AssemblyBuilder in SystemDomain::IsReflectionInvocationMethod in AppDomain.cpp.
-        void _AssemblyBuilder.Invoke(uint dispIdMember, [In] ref Guid riid, uint lcid, short wFlags, IntPtr pDispParams, IntPtr pVarResult, IntPtr pExcepInfo, IntPtr puArgErr)
-        {
-            throw new NotImplementedException();
-        }
-#endif
-
         // Create a new module in which to emit code. This module will not contain the manifest.
-        [System.Security.SecurityCritical]  // auto-generated
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         [SuppressUnmanagedCodeSecurity]
         static private extern void DefineDynamicModule(RuntimeAssembly containingAssembly,
@@ -1486,7 +1045,6 @@ namespace System.Reflection.Emit
                                                        bool fIsTransient,
                                                        out int tkFile);
 
-        [System.Security.SecurityCritical]  // auto-generated
         private static Module DefineDynamicModule(RuntimeAssembly containingAssembly, 
                                            bool emitSymbolInfo,
                                            String name,
@@ -1512,12 +1070,10 @@ namespace System.Reflection.Emit
         }
 
         // The following functions are native helpers for creating on-disk manifest
-        [System.Security.SecurityCritical]  // auto-generated
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         [SuppressUnmanagedCodeSecurity]
         static private extern void PrepareForSavingManifestToDisk(RuntimeAssembly assembly, RuntimeModule assemblyModule);  // module to contain assembly information if assembly is embedded
 
-        [System.Security.SecurityCritical]  // auto-generated
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         [SuppressUnmanagedCodeSecurity]
         static private extern void SaveManifestToDisk(RuntimeAssembly assembly,
@@ -1527,19 +1083,16 @@ namespace System.Reflection.Emit
                                                 int portableExecutableKind, 
                                                 int ImageFileMachine);
 
-        [System.Security.SecurityCritical]  // auto-generated
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         [SuppressUnmanagedCodeSecurity]
         static private extern int AddFile(RuntimeAssembly assembly, String strFileName);
 
-        [System.Security.SecurityCritical]  // auto-generated
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         [SuppressUnmanagedCodeSecurity]
         static private extern void SetFileHashValue(RuntimeAssembly assembly,
                                                     int tkFile, 
                                                     String strFullFileName);
 
-        [System.Security.SecurityCritical]  // auto-generated
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         [SuppressUnmanagedCodeSecurity]
         static private extern int AddExportedTypeInMemory(RuntimeAssembly assembly,
@@ -1548,7 +1101,6 @@ namespace System.Reflection.Emit
                                                           int tkTypeDef,
                                                           TypeAttributes flags);
 
-        [System.Security.SecurityCritical]  // auto-generated
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         [SuppressUnmanagedCodeSecurity]
         static private extern int AddExportedTypeOnDisk(RuntimeAssembly assembly, 
@@ -1558,7 +1110,6 @@ namespace System.Reflection.Emit
                                                         TypeAttributes flags);
 
         // Add an entry to assembly's manifestResource table for a stand alone resource.
-        [System.Security.SecurityCritical]  // auto-generated
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         [SuppressUnmanagedCodeSecurity]
         static private extern void AddStandAloneResource(RuntimeAssembly assembly,
@@ -1567,7 +1118,6 @@ namespace System.Reflection.Emit
                                                          String strFullFileName,
                                                          int attribute);
 
-        [System.Security.SecurityCritical]  // auto-generated
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         [SuppressUnmanagedCodeSecurity]
 #pragma warning disable 618
@@ -1575,7 +1125,6 @@ namespace System.Reflection.Emit
 #pragma warning restore 618
 
         // Functions for defining unmanaged resources.
-        [System.Security.SecurityCritical]  // auto-generated
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         [SuppressUnmanagedCodeSecurity]
         static private extern void CreateVersionInfoResource(String filename, String title, String iconFilename, String description,

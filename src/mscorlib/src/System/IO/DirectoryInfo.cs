@@ -38,14 +38,11 @@ namespace System.IO
 
         // Migrating InheritanceDemands requires this default ctor, so we can annotate it.
 #if FEATURE_CORESYSTEM
-        [System.Security.SecurityCritical]
 #else
-        [System.Security.SecuritySafeCritical]
 #endif //FEATURE_CORESYSTEM
         private DirectoryInfo(){}
 
 
-        [System.Security.SecurityCritical]
         public static DirectoryInfo UnsafeCreateDirectoryInfo(String path)
         {
             if (path == null)
@@ -57,7 +54,6 @@ namespace System.IO
             return di;
         }
 
-        [System.Security.SecuritySafeCritical]
         public DirectoryInfo(String path)
         {
             if (path==null)
@@ -67,7 +63,6 @@ namespace System.IO
             Init(path, true);
         }
 
-        [System.Security.SecurityCritical]
         private void Init(String path, bool checkHost)
         {
             // Special case "<DriveLetter>:" to point to "<CurrentDirectory>" instead
@@ -96,7 +91,6 @@ namespace System.IO
         }
 
 #if FEATURE_CORESYSTEM
-        [System.Security.SecuritySafeCritical]
 #endif //FEATURE_CORESYSTEM
         internal DirectoryInfo(String fullPath, bool junk)
         {
@@ -109,7 +103,6 @@ namespace System.IO
             demandDir = new String[] {Directory.GetDemandDir(fullPath, true)};
         }
 
-        [System.Security.SecurityCritical]  // auto-generated
         private DirectoryInfo(SerializationInfo info, StreamingContext context) : base(info, context)
         {
             DisplayPath = GetDisplayName(OriginalPath, FullPath);
@@ -125,7 +118,6 @@ namespace System.IO
         }
 
         public DirectoryInfo Parent {
-            [System.Security.SecuritySafeCritical]
             get {
                 String parentName;
                 // FullPath might be either "c:\bar" or "c:\bar\".  Handle 
@@ -137,17 +129,14 @@ namespace System.IO
                 if (parentName==null)
                     return null;
                 DirectoryInfo dir = new DirectoryInfo(parentName,false);
-#if FEATURE_CORECLR
+
                 FileSecurityState state = new FileSecurityState(FileSecurityStateAccess.PathDiscovery | FileSecurityStateAccess.Read, String.Empty, dir.demandDir[0]);
                 state.EnsureState();
-#else
-                new FileIOPermission(FileIOPermissionAccess.PathDiscovery | FileIOPermissionAccess.Read, dir.demandDir, false, false).Demand();
-#endif
+
                 return dir;
             }
         }
 
-        [System.Security.SecuritySafeCritical]
         public DirectoryInfo CreateSubdirectory(String path) {
             if (path == null)
                 throw new ArgumentNullException(nameof(path));
@@ -156,7 +145,6 @@ namespace System.IO
             return CreateSubdirectory(path, null);
         }
 
-        [System.Security.SecurityCritical] // auto-generated
         public DirectoryInfo CreateSubdirectory(String path, Object directorySecurity)
         {
             if (path == null)
@@ -166,7 +154,6 @@ namespace System.IO
             return CreateSubdirectoryHelper(path, directorySecurity);
         }
 
-        [System.Security.SecurityCritical]  // auto-generated
         private DirectoryInfo CreateSubdirectoryHelper(String path, Object directorySecurity)
         {
             Contract.Requires(path != null);
@@ -201,7 +188,6 @@ namespace System.IO
         // contents.
         //
         public override bool Exists {
-            [System.Security.SecuritySafeCritical]  // auto-generated
             get
             {
                 try
@@ -460,7 +446,6 @@ namespace System.IO
         //
 
         public DirectoryInfo Root {
-            [System.Security.SecuritySafeCritical]
             get
             {
                 String demandPath;
@@ -468,30 +453,23 @@ namespace System.IO
                 String rootPath = FullPath.Substring(0, rootLength);
                 demandPath = Directory.GetDemandDir(rootPath, true);
 
-#if FEATURE_CORECLR
                 FileSecurityState sourceState = new FileSecurityState(FileSecurityStateAccess.PathDiscovery, String.Empty, demandPath);
                 sourceState.EnsureState();
-#else
-                new FileIOPermission(FileIOPermissionAccess.PathDiscovery, new String[] { demandPath }, false, false).Demand();
-#endif
+
                 return new DirectoryInfo(rootPath);
             }
         }
 
-        [System.Security.SecuritySafeCritical]
         public void MoveTo(String destDirName) {
             if (destDirName==null)
                 throw new ArgumentNullException(nameof(destDirName));
             if (destDirName.Length==0)
                 throw new ArgumentException(Environment.GetResourceString("Argument_EmptyFileName"), nameof(destDirName));
             Contract.EndContractBlock();
-            
-#if FEATURE_CORECLR
+
             FileSecurityState sourceState = new FileSecurityState(FileSecurityStateAccess.Write | FileSecurityStateAccess.Read, DisplayPath, Directory.GetDemandDir(FullPath, true));
             sourceState.EnsureState();
-#else
-            new FileIOPermission(FileIOPermissionAccess.Write | FileIOPermissionAccess.Read, demandDir, false, false).Demand();
-#endif
+
             String fullDestDirName = Path.GetFullPath(destDirName);
             String demandPath;
             if (!fullDestDirName.EndsWith(Path.DirectorySeparatorChar))
@@ -505,13 +483,9 @@ namespace System.IO
             // had the ability to read the file contents in the old location,
             // but you technically also need read permissions to the new 
             // location as well, and write is not a true superset of read.
-#if FEATURE_CORECLR
             FileSecurityState destState = new FileSecurityState(FileSecurityStateAccess.Write, destDirName, demandPath);
             destState.EnsureState();
-#else
-            new FileIOPermission(FileIOPermissionAccess.Write | FileIOPermissionAccess.Read, demandPath).Demand();
-#endif
-            
+
             String fullSourcePath;
             if (FullPath.EndsWith(Path.DirectorySeparatorChar))
                 fullSourcePath = FullPath;
@@ -550,13 +524,11 @@ namespace System.IO
             _dataInitialised = -1;
         }
 
-        [System.Security.SecuritySafeCritical]
         public override void Delete()
         {
             Directory.Delete(FullPath, OriginalPath, false, true);
         }
 
-        [System.Security.SecuritySafeCritical]
         public void Delete(bool recursive)
         {
             Directory.Delete(FullPath, OriginalPath, recursive, true);
@@ -582,11 +554,7 @@ namespace System.IO
             }
             else 
             {
-#if FEATURE_CORECLR
                 displayName = GetDirName(fullPath);
-#else
-                displayName = originalPath;
-#endif
             }
             return displayName;
         }

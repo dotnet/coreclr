@@ -14,11 +14,7 @@ namespace System.Reflection.Emit {
     using System.Security;
     using System.Diagnostics;
     using CultureInfo = System.Globalization.CultureInfo;
-#if !FEATURE_CORECLR
-    using ResourceWriter = System.Resources.ResourceWriter;
-#else // FEATURE_CORECLR
     using IResourceWriter = System.Resources.IResourceWriter;
-#endif // !FEATURE_CORECLR
     using System.IO;
     using System.Runtime.Versioning;
     using System.Diagnostics.SymbolStore;
@@ -29,7 +25,6 @@ namespace System.Reflection.Emit {
     // this class cannot be accessed from the EE.
     internal class AssemblyBuilderData
     {
-        [SecurityCritical]
         internal AssemblyBuilderData(
             InternalAssemblyBuilder assembly, 
             String                  strAssemblyName, 
@@ -120,7 +115,6 @@ namespace System.Reflection.Emit {
         // If DefineUnmanagedVersionInfo is called, the parameter provided will override
         // the CA's value.
         //                      
-        [System.Security.SecurityCritical]  // auto-generated
         internal void FillUnmanagedVersionInfo()
         {
             // Get the lcid set on the assembly name as default if available
@@ -469,7 +463,7 @@ namespace System.Reflection.Emit {
 
         // hard coding the assembly def token
         internal const int              m_tkAssembly = 0x20000001;
-    
+
         // Security permission requests
         internal PermissionSet          m_RequiredPset;
         internal PermissionSet          m_OptionalPset;
@@ -485,10 +479,6 @@ namespace System.Reflection.Emit {
         internal MethodInfo             m_entryPointMethod;
         internal Assembly               m_ISymWrapperAssembly;
 
-#if !FEATURE_CORECLR
-        internal ModuleBuilder          m_entryPointModule;
-#endif //!FEATURE_CORECLR
-                                  
         // For unmanaged resources
         internal String                 m_strResourceFileName;
         internal byte[]                 m_resourceBytes;
@@ -507,7 +497,6 @@ namespace System.Reflection.Emit {
     **********************************************/
     internal class ResWriterData 
     {
-#if FEATURE_CORECLR
         internal ResWriterData(
             IResourceWriter  resWriter,
             Stream          memoryStream,
@@ -524,29 +513,8 @@ namespace System.Reflection.Emit {
             m_nextResWriter = null;
             m_attribute = attribute;
         }
-#else
-        internal ResWriterData(
-            ResourceWriter  resWriter,
-            Stream          memoryStream,
-            String          strName,
-            String          strFileName,
-            String          strFullFileName,
-            ResourceAttributes attribute)
-        {
-            m_resWriter = resWriter;
-            m_memoryStream = memoryStream;
-            m_strName = strName;
-            m_strFileName = strFileName;
-            m_strFullFileName = strFullFileName;
-            m_nextResWriter = null;
-            m_attribute = attribute;
-        }
-#endif
-#if !FEATURE_CORECLR
-        internal ResourceWriter         m_resWriter;
-#else // FEATURE_CORECLR
-         internal IResourceWriter         m_resWriter;
-#endif // !FEATURE_CORECLR
+
+        internal IResourceWriter        m_resWriter;
         internal String                 m_strName;
         internal String                 m_strFileName;
         internal String                 m_strFullFileName;

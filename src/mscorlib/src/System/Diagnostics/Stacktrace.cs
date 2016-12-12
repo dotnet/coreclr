@@ -61,14 +61,12 @@ namespace System.Diagnostics {
             IntPtr inMemoryPdbAddress, int inMemoryPdbSize, int methodToken, int ilOffset, 
             out string sourceFile, out int sourceLine, out int sourceColumn);
 
-#if FEATURE_CORECLR
         private static Type s_symbolsType = null;
         private static MethodInfo s_symbolsMethodInfo = null;
 
         [ThreadStatic]
         private static int t_reentrancy = 0;
-#endif
-        
+
         public StackFrameHelper(Thread target)
         {
             targetThread = target;
@@ -111,7 +109,6 @@ namespace System.Diagnostics {
         {
             StackTrace.GetStackFramesInternal(this, iSkip, fNeedFileInfo, exception);
 
-#if FEATURE_CORECLR
             if (!fNeedFileInfo)
                 return;
 
@@ -164,12 +161,10 @@ namespace System.Diagnostics {
             {
                 t_reentrancy--;
             }
-#endif
         }
 
         void IDisposable.Dispose()
         {
-#if FEATURE_CORECLR
             if (getSourceLineInfo != null)
             {
                 IDisposable disposable = getSourceLineInfo.Target as IDisposable;
@@ -178,10 +173,8 @@ namespace System.Diagnostics {
                     disposable.Dispose();
                 }
             }
-#endif
         }
 
-        [System.Security.SecuritySafeCritical]
         public virtual MethodBase GetMethodBase(int i) 
         { 
             // There may be a better way to do this.
@@ -219,7 +212,6 @@ namespace System.Diagnostics {
         // serialization implementation
         //
         [OnSerializing]
-        [SecuritySafeCritical]
         void OnSerializing(StreamingContext context)
         {
             // this is called in the process of serializing this object.
@@ -244,7 +236,6 @@ namespace System.Diagnostics {
         }
 
         [OnDeserialized]
-        [SecuritySafeCritical]
         void OnDeserialized(StreamingContext context)
         {
             // after we are done deserializing we need to transform the rgMethodBase in rgMethodHandle
@@ -267,9 +258,6 @@ namespace System.Diagnostics {
     // In order to ensure trusted code can trust the data it gets from a 
     // StackTrace, we use an InheritanceDemand to prevent partially-trusted
     // subclasses.
-#if !FEATURE_CORECLR
-    [SecurityPermission(SecurityAction.InheritanceDemand, UnmanagedCode=true)]
-#endif
     [Serializable]
     [System.Runtime.InteropServices.ComVisible(true)]
     public class StackTrace
@@ -280,9 +268,6 @@ namespace System.Diagnostics {
         private int m_iMethodsToSkip;
 
         // Constructs a stack trace from the current location.
-#if FEATURE_CORECLR
-        [System.Security.SecuritySafeCritical]
-#endif
         public StackTrace()
         {
             m_iNumOfFrames = 0;
@@ -292,9 +277,6 @@ namespace System.Diagnostics {
 
         // Constructs a stack trace from the current location.
         //
-#if FEATURE_CORECLR
-        [System.Security.SecurityCritical] // auto-generated
-#endif
         public StackTrace(bool fNeedFileInfo)
         {
             m_iNumOfFrames = 0;
@@ -305,9 +287,6 @@ namespace System.Diagnostics {
         // Constructs a stack trace from the current location, in a caller's
         // frame
         //
-#if FEATURE_CORECLR
-        [System.Security.SecurityCritical] // auto-generated
-#endif
         public StackTrace(int skipFrames)
         {
     
@@ -325,9 +304,6 @@ namespace System.Diagnostics {
         // Constructs a stack trace from the current location, in a caller's
         // frame
         //
-#if FEATURE_CORECLR
-        [System.Security.SecurityCritical] // auto-generated
-#endif
         public StackTrace(int skipFrames, bool fNeedFileInfo)
         {
     
@@ -357,9 +333,6 @@ namespace System.Diagnostics {
 
         // Constructs a stack trace from the current location.
         //
-#if FEATURE_CORECLR
-        [System.Security.SecurityCritical] // auto-generated
-#endif
         public StackTrace(Exception e, bool fNeedFileInfo)
         {
             if (e == null)
@@ -374,9 +347,6 @@ namespace System.Diagnostics {
         // Constructs a stack trace from the current location, in a caller's
         // frame
         //
-#if FEATURE_CORECLR
-        [System.Security.SecurityCritical] // auto-generated
-#endif
         public StackTrace(Exception e, int skipFrames)
         {
             if (e == null)
@@ -396,9 +366,6 @@ namespace System.Diagnostics {
         // Constructs a stack trace from the current location, in a caller's
         // frame
         //
-#if FEATURE_CORECLR
-        [System.Security.SecurityCritical] // auto-generated
-#endif
         public StackTrace(Exception e, int skipFrames, bool fNeedFileInfo)
         {
             if (e == null)
@@ -430,9 +397,6 @@ namespace System.Diagnostics {
 
         // Constructs a stack trace for the given thread
         //
-#if FEATURE_CORECLR
-        [System.Security.SecurityCritical] // auto-generated
-#endif
         [Obsolete("This constructor has been deprecated.  Please use a constructor that does not require a Thread parameter.  http://go.microsoft.com/fwlink/?linkid=14202")]
         public StackTrace(Thread targetThread, bool needFileInfo)
         {    
@@ -443,7 +407,6 @@ namespace System.Diagnostics {
 
         }
 
-        [System.Security.SecuritySafeCritical]
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         internal static extern void GetStackFramesInternal(StackFrameHelper sfh, int iSkip, bool fNeedFileInfo, Exception e);
     
@@ -576,9 +539,6 @@ namespace System.Diagnostics {
     
         // Builds a readable representation of the stack trace
         //
-#if FEATURE_CORECLR
-        [System.Security.SecuritySafeCritical] 
-#endif
         public override String ToString()
         {
             // Include a trailing newline for backwards compatibility
@@ -596,9 +556,6 @@ namespace System.Diagnostics {
             
         // Builds a readable representation of the stack trace, specifying 
         // the format for backwards compatibility.
-#if FEATURE_CORECLR
-        [System.Security.SecurityCritical] // auto-generated
-#endif
         internal String ToString(TraceFormat traceFormat)
         {
             bool displayFilenames = true;   // we'll try, but demand may fail
@@ -656,26 +613,22 @@ namespace System.Diagnostics {
                             else
                                 fFirstTyParam = false;
 
-                            sb.Append(typars[k].Name);             
+                            sb.Append(typars[k].Name);
                             k++;
                         }   
                         sb.Append(']');    
                     }
 
                     ParameterInfo[] pi = null;
-#if FEATURE_CORECLR
                     try
                     {
-#endif
                         pi = mb.GetParameters();
-#if FEATURE_CORECLR
                     }
                     catch
                     {
                         // The parameter info cannot be loaded, so we don't
                         // append the parameter list.
                     }
-#endif
                     if (pi != null)
                     {
                         // arguments printing
@@ -745,9 +698,6 @@ namespace System.Diagnostics {
 
         // This helper is called from within the EE to construct a string representation
         // of the current stack trace.
-#if FEATURE_CORECLR
-        [System.Security.SecurityCritical] // auto-generated
-#endif
         private static String GetManagedStackTraceStringHelper(bool fNeedFileInfo)
         {
             // Note all the frames in System.Diagnostics will be skipped when capturing 

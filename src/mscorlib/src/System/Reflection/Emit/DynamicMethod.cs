@@ -25,9 +25,6 @@ namespace System.Reflection.Emit
         internal IRuntimeMethodInfo m_methodHandle;
         private RuntimeType m_returnType;
         private DynamicILGenerator m_ilGenerator;
-        #if FEATURE_CORECLR
-        [System.Security.SecurityCritical] // auto-generated
-        #endif
         private DynamicILInfo m_DynamicILInfo;
         private bool m_fInitLocals;
         private RuntimeModule m_module;
@@ -72,7 +69,6 @@ namespace System.Reflection.Emit
 
         private DynamicMethod() { }
 
-        [System.Security.SecuritySafeCritical]  // auto-generated
         [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
         public DynamicMethod(string name,
                              Type returnType,
@@ -92,7 +88,6 @@ namespace System.Reflection.Emit
                 ref stackMark);  // transparentMethod
         }
 
-        [System.Security.SecuritySafeCritical]  // auto-generated
         [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
         public DynamicMethod(string name,
                              Type returnType,
@@ -113,11 +108,6 @@ namespace System.Reflection.Emit
                 ref stackMark);  // transparentMethod
         }
 
-        #if FEATURE_CORECLR
-        [System.Security.SecurityCritical] // auto-generated
-        #else
-        [System.Security.SecuritySafeCritical]
-        #endif
         [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
         public DynamicMethod(string name, 
                              Type returnType, 
@@ -137,11 +127,6 @@ namespace System.Reflection.Emit
                 ref stackMark);  // transparentMethod
         }
 
-        #if FEATURE_CORECLR
-        [System.Security.SecurityCritical] // auto-generated
-        #else
-        [System.Security.SecuritySafeCritical]
-        #endif
         [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
         public DynamicMethod(string name, 
                              Type returnType, 
@@ -162,11 +147,6 @@ namespace System.Reflection.Emit
                 ref stackMark); // transparentMethod
         }
 
-        #if FEATURE_CORECLR
-        [System.Security.SecurityCritical] // auto-generated
-        #else
-        [System.Security.SecuritySafeCritical]
-        #endif
         [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
         public DynamicMethod(string name, 
                              MethodAttributes attributes, 
@@ -189,11 +169,6 @@ namespace System.Reflection.Emit
                 ref stackMark); // transparentMethod
         }
 
-        #if FEATURE_CORECLR
-        [System.Security.SecurityCritical] // auto-generated
-        #else
-        [System.Security.SecuritySafeCritical]
-        #endif
         [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
         public DynamicMethod(string name, 
                              Type returnType, 
@@ -213,11 +188,6 @@ namespace System.Reflection.Emit
                 ref stackMark); // transparentMethod
         }
         
-        #if FEATURE_CORECLR
-        [System.Security.SecurityCritical] // auto-generated
-        #else
-        [System.Security.SecuritySafeCritical]
-        #endif
         [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
         public DynamicMethod(string name, 
                              Type returnType, 
@@ -238,11 +208,6 @@ namespace System.Reflection.Emit
                 ref stackMark); // transparentMethod
         }
         
-        #if FEATURE_CORECLR
-        [System.Security.SecurityCritical] // auto-generated
-        #else
-        [System.Security.SecuritySafeCritical]
-        #endif
         [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
         public DynamicMethod(string name, 
                              MethodAttributes attributes, 
@@ -286,7 +251,6 @@ namespace System.Reflection.Emit
 
         // We create a transparent assembly to host DynamicMethods. Since the assembly does not have any
         // non-public fields (or any fields at all), it is a safe anonymous assembly to host DynamicMethods
-        [System.Security.SecurityCritical]  // auto-generated
         [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
         private static RuntimeModule GetDynamicMethodsModule()
         {
@@ -302,21 +266,6 @@ namespace System.Reflection.Emit
                 CustomAttributeBuilder transparencyAttribute = new CustomAttributeBuilder(transparencyCtor, EmptyArray<Object>.Value);
                 List<CustomAttributeBuilder> assemblyAttributes = new List<CustomAttributeBuilder>();
                 assemblyAttributes.Add(transparencyAttribute);
-#if !FEATURE_CORECLR
-                // On the desktop, we need to use the security rule set level 1 for anonymously hosted
-                // dynamic methods.  In level 2, transparency rules are strictly enforced, which leads to
-                // errors when a fully trusted application causes a dynamic method to be generated that tries
-                // to call a method with a LinkDemand or a SecurityCritical method.  To retain compatibility
-                // with the v2.0 and v3.x frameworks, these calls should be allowed.
-                //
-                // If this rule set was not explicitly called out, then the anonymously hosted dynamic methods
-                // assembly would inherit the rule set from the creating assembly - which would cause it to
-                // be level 2 because mscorlib.dll is using the level 2 rules.
-                ConstructorInfo securityRulesCtor = typeof(SecurityRulesAttribute).GetConstructor(new Type[] { typeof(SecurityRuleSet) });
-                CustomAttributeBuilder securityRulesAttribute =
-                    new CustomAttributeBuilder(securityRulesCtor, new object[] { SecurityRuleSet.Level1 });
-                assemblyAttributes.Add(securityRulesAttribute);
-#endif // !FEATURE_CORECLR
 
                 AssemblyName assemblyName = new AssemblyName("Anonymously Hosted DynamicMethods Assembly");
                 StackCrawlMark stackMark = StackCrawlMark.LookForMe;
@@ -338,7 +287,6 @@ namespace System.Reflection.Emit
             return s_anonymouslyHostedDynamicMethodsModule;
         }
 
-        [System.Security.SecurityCritical]  // auto-generated
         private unsafe void Init(String name, 
                                  MethodAttributes attributes, 
                                  CallingConventions callingConvention, 
@@ -435,101 +383,23 @@ namespace System.Reflection.Emit
             m_dynMethod = new RTDynamicMethod(this, name, attributes, callingConvention);
         }
 
-        [System.Security.SecurityCritical]  // auto-generated
         private void PerformSecurityCheck(Module m, ref StackCrawlMark stackMark, bool skipVisibility)
         {
             if (m == null) 
                 throw new ArgumentNullException(nameof(m));
             Contract.EndContractBlock();
-#if !FEATURE_CORECLR
-
-            RuntimeModule rtModule;
-            ModuleBuilder mb = m as ModuleBuilder;
-            if (mb != null)
-                rtModule = mb.InternalModule;
-            else
-                rtModule = m as RuntimeModule;
-
-            if (rtModule == null)
-            {
-                throw new ArgumentException(Environment.GetResourceString("Argument_MustBeRuntimeModule"), nameof(m));
-            }
-
-            // The user cannot explicitly use this assembly
-            if (rtModule == s_anonymouslyHostedDynamicMethodsModule)
-                throw new ArgumentException(Environment.GetResourceString("Argument_InvalidValue"), nameof(m));
-
-            // ask for member access if skip visibility
-            if (skipVisibility) 
-                new ReflectionPermission(ReflectionPermissionFlag.MemberAccess).Demand();
-
-#if !FEATURE_CORECLR
-            // ask for control evidence if outside of the caller assembly
-            RuntimeType callingType = RuntimeMethodHandle.GetCallerType(ref stackMark);
-            m_creatorAssembly = callingType.GetRuntimeAssembly();
-            if (m.Assembly != m_creatorAssembly)
-            {
-                // Demand the permissions of the assembly where the DynamicMethod will live
-                CodeAccessSecurityEngine.ReflectionTargetDemandHelper(PermissionType.SecurityControlEvidence,
-                                                                      m.Assembly.PermissionSet);
-            }
-#else //FEATURE_CORECLR
-#pragma warning disable 618
-                new SecurityPermission(SecurityPermissionFlag.ControlEvidence).Demand();
-#pragma warning restore 618
-#endif //FEATURE_CORECLR
-#endif //!FEATURE_CORECLR
         }
 
-        [System.Security.SecurityCritical]  // auto-generated
         private void PerformSecurityCheck(Type owner, ref StackCrawlMark stackMark, bool skipVisibility)
         {
             if (owner == null)
                 throw new ArgumentNullException(nameof(owner));
-#if !FEATURE_CORECLR
-
-            RuntimeType rtOwner = owner as RuntimeType;
-            if (rtOwner == null)
-                rtOwner = owner.UnderlyingSystemType as RuntimeType;
-
-            if (rtOwner == null)
-                throw new ArgumentNullException(nameof(owner), Environment.GetResourceString("Argument_MustBeRuntimeType"));
-
-            // get the type the call is coming from
-            RuntimeType callingType = RuntimeMethodHandle.GetCallerType(ref stackMark);
-
-            // ask for member access if skip visibility
-            if (skipVisibility) 
-                new ReflectionPermission(ReflectionPermissionFlag.MemberAccess).Demand();
-            else
-            {
-                // if the call is not coming from the same class ask for member access
-                if (callingType != rtOwner)
-                    new ReflectionPermission(ReflectionPermissionFlag.MemberAccess).Demand();
-            }
-#if !FEATURE_CORECLR
-            m_creatorAssembly = callingType.GetRuntimeAssembly();
-
-            // ask for control evidence if outside of the caller module
-            if (rtOwner.Assembly != m_creatorAssembly)
-            {
-                // Demand the permissions of the assembly where the DynamicMethod will live
-                CodeAccessSecurityEngine.ReflectionTargetDemandHelper(PermissionType.SecurityControlEvidence,
-                                                                      owner.Assembly.PermissionSet);
-            }
-#else //FEATURE_CORECLR
-#pragma warning disable 618
-                new SecurityPermission(SecurityPermissionFlag.ControlEvidence).Demand();
-#pragma warning restore 618
-#endif //FEATURE_CORECLR
-#endif //!FEATURE_CORECLR
         }
 
         //
         // Delegate and method creation
         //
 
-        [System.Security.SecuritySafeCritical]  // auto-generated
         [System.Runtime.InteropServices.ComVisible(true)]
         public sealed override Delegate CreateDelegate(Type delegateType) {
             if (m_restrictedSkipVisibility)
@@ -545,7 +415,6 @@ namespace System.Reflection.Emit
             return d;
         }
 
-        [System.Security.SecuritySafeCritical]  // auto-generated
         [System.Runtime.InteropServices.ComVisible(true)]
         public sealed override Delegate CreateDelegate(Type delegateType, Object target) {
             if (m_restrictedSkipVisibility)
@@ -578,7 +447,6 @@ namespace System.Reflection.Emit
 #endif
 
         // This is guaranteed to return a valid handle
-        [System.Security.SecurityCritical]  // auto-generated
         internal unsafe RuntimeMethodHandle GetMethodDescriptor() {
             if (m_methodHandle == null) {
                 lock (this) {
@@ -636,95 +504,19 @@ namespace System.Reflection.Emit
 
         public override bool IsSecurityCritical
         {
-#if FEATURE_CORECLR
             get { return true; }
-#else
-            [SecuritySafeCritical]
-            get
-            {
-                if (m_methodHandle != null)
-                {
-                    return RuntimeMethodHandle.IsSecurityCritical(m_methodHandle);
-                }
-                else if (m_typeOwner != null)
-                {
-                    RuntimeAssembly assembly = m_typeOwner.Assembly as RuntimeAssembly;
-                    Contract.Assert(assembly != null);
-
-                    return assembly.IsAllSecurityCritical();
-                }
-                else
-                {
-                    RuntimeAssembly assembly = m_module.Assembly as RuntimeAssembly;
-                    Contract.Assert(assembly != null);
-
-                    return assembly.IsAllSecurityCritical();
-                }
-            }
-#endif
         }
 
         public override bool IsSecuritySafeCritical
         {
-#if FEATURE_CORECLR
             get { return false; }
-#else
-            [SecuritySafeCritical]
-            get
-            {
-                if (m_methodHandle != null)
-                {
-                    return RuntimeMethodHandle.IsSecuritySafeCritical(m_methodHandle);
-                }
-                else if (m_typeOwner != null)
-                {
-                    RuntimeAssembly assembly = m_typeOwner.Assembly as RuntimeAssembly;
-                    Contract.Assert(assembly != null);
-
-                    return assembly.IsAllPublicAreaSecuritySafeCritical();
-                }
-                else
-                {
-                    RuntimeAssembly assembly = m_module.Assembly as RuntimeAssembly;
-                    Contract.Assert(assembly != null);
-
-                    return assembly.IsAllSecuritySafeCritical();
-                }
-            }
-#endif
         }
 
         public override bool IsSecurityTransparent
         {
-#if FEATURE_CORECLR
             get { return false; }
-#else
-            [SecuritySafeCritical]
-            get
-            {
-                if (m_methodHandle != null)
-                {
-                    return RuntimeMethodHandle.IsSecurityTransparent(m_methodHandle);
-                }
-                else if (m_typeOwner != null)
-                {
-                    RuntimeAssembly assembly = m_typeOwner.Assembly as RuntimeAssembly;
-                    Contract.Assert(assembly != null);
-
-                    return !assembly.IsAllSecurityCritical();
-                }
-                else
-                {
-                    RuntimeAssembly assembly = m_module.Assembly as RuntimeAssembly;
-                    Contract.Assert(assembly != null);
-
-                    return !assembly.IsAllSecurityCritical();
-                }
-            }
-#endif
         }
 
-        [System.Security.SecuritySafeCritical]  // auto-generated
         public override Object Invoke(Object obj, BindingFlags invokeAttr, Binder binder, Object[] parameters, CultureInfo culture) {
             if ((CallingConvention & CallingConventions.VarArgs) == CallingConventions.VarArgs)
                 throw new NotSupportedException(Environment.GetResourceString("NotSupported_CallToVarArg"));
@@ -801,7 +593,6 @@ namespace System.Reflection.Emit
             return null;
         }
 
-        [System.Security.SecuritySafeCritical]  // auto-generated
         public DynamicILInfo GetDynamicILInfo()
         {
 #pragma warning disable 618
@@ -814,7 +605,6 @@ namespace System.Reflection.Emit
             return GetDynamicILInfo(new DynamicScope());
         }
 
-        [System.Security.SecurityCritical]  // auto-generated
         internal DynamicILInfo GetDynamicILInfo(DynamicScope scope)
         {
             if (m_DynamicILInfo == null)
@@ -831,7 +621,6 @@ namespace System.Reflection.Emit
             return GetILGenerator(64);
         }
 
-       [System.Security.SecuritySafeCritical]  // auto-generated
        public ILGenerator GetILGenerator(int streamSize) 
         {
             if (m_ilGenerator == null)

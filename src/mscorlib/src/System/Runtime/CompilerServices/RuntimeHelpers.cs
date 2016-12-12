@@ -25,16 +25,13 @@ namespace System.Runtime.CompilerServices {
 
     public static class RuntimeHelpers
     {
-#if FEATURE_CORECLR
         // Exposed here as a more appropriate place than on FormatterServices itself,
         // which is a high level reflection heavy type.
         public static Object GetUninitializedObject(Type type)
         {
             return FormatterServices.GetUninitializedObject(type);
         }
-#endif // FEATURE_CORECLR
 
-        [System.Security.SecuritySafeCritical]  // auto-generated
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         public static extern void InitializeArray(Array array,RuntimeFieldHandle fldHandle);
 
@@ -51,7 +48,6 @@ namespace System.Runtime.CompilerServices {
         // cloned when you pass them around, and are always passed by value.  
         // Of course, reference types are not cloned.
         //
-        [System.Security.SecuritySafeCritical]  // auto-generated
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         public static extern Object GetObjectValue(Object obj);
 
@@ -63,7 +59,6 @@ namespace System.Runtime.CompilerServices {
         // This call will generate an exception if the specified class constructor threw an 
         // exception when it ran. 
 
-        [System.Security.SecuritySafeCritical]
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         private static extern void _RunClassConstructor(RuntimeType type);
 
@@ -80,7 +75,6 @@ namespace System.Runtime.CompilerServices {
         // This call will generate an exception if the specified module constructor threw an 
         // exception when it ran. 
 
-        [System.Security.SecuritySafeCritical]
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         private static extern void _RunModuleConstructor(System.Reflection.RuntimeModule module);
 
@@ -90,12 +84,9 @@ namespace System.Runtime.CompilerServices {
         }
 
 
-        [System.Security.SecurityCritical]  // auto-generated
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode), SuppressUnmanagedCodeSecurity]
         internal static extern void _CompileMethod(IRuntimeMethodInfo method);
 
-
-        #if FEATURE_CORECLR
         public static void PrepareMethod(RuntimeMethodHandle method){}
         public static void PrepareMethod(RuntimeMethodHandle method, RuntimeTypeHandle[] instantiation){}
         public static void PrepareContractedDelegate(Delegate d){}
@@ -108,69 +99,9 @@ namespace System.Runtime.CompilerServices {
             }
         }
 
-        #else
-        
-        [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        private static unsafe extern void _PrepareMethod(IRuntimeMethodInfo method, IntPtr* pInstantiation, int cInstantiation);
-
-        // Simple (instantiation not required) method.
-        [System.Security.SecurityCritical]  // auto-generated_required
-        public static void PrepareMethod(RuntimeMethodHandle method) 
-        {
-            unsafe
-            {
-                _PrepareMethod(method.GetMethodInfo(), null, 0);
-            }
-        }
-
-        // Generic method or method with generic class with specific instantiation.
-        [System.Security.SecurityCritical]  // auto-generated_required
-        public static void PrepareMethod(RuntimeMethodHandle method, RuntimeTypeHandle[] instantiation)
-        {
-            unsafe
-            {
-                int length;
-                IntPtr[] instantiationHandles = RuntimeTypeHandle.CopyRuntimeTypeHandles(instantiation, out length);
-                fixed (IntPtr* pInstantiation = instantiationHandles)
-                {
-                    _PrepareMethod(method.GetMethodInfo(), pInstantiation, length);
-                    GC.KeepAlive(instantiation);
-                }
-            }
-        }
-        // This method triggers a given delegate to be prepared.  This involves preparing the
-        // delegate's Invoke method and preparing the target of that Invoke.  In the case of
-        // a multi-cast delegate, we rely on the fact that each individual component was prepared
-        // prior to the Combine.  In other words, this service does not navigate through the
-        // entire multicasting list.
-        // If our own reliable event sinks perform the Combine (for example AppDomain.DomainUnload),
-        // then the result is fully prepared.  But if a client calls Combine himself and then
-        // then adds that combination to e.g. AppDomain.DomainUnload, then the client is responsible
-        // for his own preparation.
-        [System.Security.SecurityCritical]  // auto-generated_required
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public static extern void PrepareDelegate(Delegate d);
-
-        // See comment above for PrepareDelegate
-        //
-        // PrepareContractedDelegate weakens this a bit by only assuring that we prepare 
-        // delegates which also have a ReliabilityContract. This is useful for services that
-        // want to provide opt-in reliability, generally some random event sink providing
-        // always reliable semantics to random event handlers that are likely to have not
-        // been written with relability in mind is a lost cause anyway.
-        //
-        // NOTE: that for the NGen case you can sidestep the required ReliabilityContract
-        // by using the [PrePrepareMethod] attribute.
-        [System.Security.SecurityCritical]  // auto-generated_required
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public static extern void PrepareContractedDelegate(Delegate d);
-        #endif
-        [System.Security.SecuritySafeCritical]  // auto-generated
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         public static extern int GetHashCode(Object o);
 
-        [System.Security.SecuritySafeCritical]  // auto-generated
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         public new static extern bool Equals(Object o1, Object o2);
 
@@ -199,7 +130,6 @@ namespace System.Runtime.CompilerServices {
         // If there is not enough stack, then it throws System.InsufficientExecutionStackException.
         // Note: this method is not part of the CER support, and is not to be confused with ProbeForSufficientStack
         // below.
-        [System.Security.SecuritySafeCritical]
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
         public static extern void EnsureSufficientExecutionStack();
@@ -208,25 +138,16 @@ namespace System.Runtime.CompilerServices {
         // If there is not enough stack, then it return false.
         // Note: this method is not part of the CER support, and is not to be confused with ProbeForSufficientStack
         // below.
-        [System.Security.SecuritySafeCritical]
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
         public static extern bool TryEnsureSufficientExecutionStack();
 
-        #if FEATURE_CORECLR
         public static void ProbeForSufficientStack()
         {
         }
-        #else
-        [System.Security.SecurityCritical]  // auto-generated_required
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]
-        public static extern void ProbeForSufficientStack();
-        #endif
 
         // This method is a marker placed immediately before a try clause to mark the corresponding catch and finally blocks as
         // constrained. There's no code here other than the probe because most of the work is done at JIT time when we spot a call to this routine.
-        [System.Security.SecurityCritical]  // auto-generated_required
         [ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]
         public static void PrepareConstrainedRegions()
         {
@@ -235,29 +156,18 @@ namespace System.Runtime.CompilerServices {
 
         // When we detect a CER with no calls, we can point the JIT to this non-probing version instead
         // as we don't need to probe.
-        [System.Security.SecurityCritical]  // auto-generated_required
         [ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]
         public static void PrepareConstrainedRegionsNoOP()
         {
         }
 
-        #if FEATURE_CORECLR
-        [System.Security.SecurityCritical] // auto-generated
-        #endif
         public delegate void TryCode(Object userData);
 
-        #if FEATURE_CORECLR
-        [System.Security.SecurityCritical] // auto-generated
-        #endif
         public delegate void CleanupCode(Object userData, bool exceptionThrown);
 
-        [System.Security.SecurityCritical]  // auto-generated_required
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         public static extern void ExecuteCodeWithGuaranteedCleanup(TryCode code, CleanupCode backoutCode, Object userData);
 
-#if FEATURE_CORECLR
-        [System.Security.SecurityCritical] // auto-generated
-#endif
         [PrePrepareMethod]
         internal static void ExecuteBackoutCodeHelper(Object backoutCode, Object userData, bool exceptionThrown)
         {

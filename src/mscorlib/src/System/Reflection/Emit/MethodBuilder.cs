@@ -21,7 +21,7 @@ namespace System.Reflection.Emit
     [HostProtection(MayLeakOnAbort = true)]
     [ClassInterface(ClassInterfaceType.None)]
     [ComDefaultInterface(typeof(_MethodBuilder))]
-[System.Runtime.InteropServices.ComVisible(true)]
+    [System.Runtime.InteropServices.ComVisible(true)]
     public sealed class MethodBuilder : MethodInfo, _MethodBuilder
     {
         #region Private Data Members
@@ -196,7 +196,6 @@ namespace System.Reflection.Emit
             m_module.CheckContext(types);
         }
 
-        [System.Security.SecurityCritical]  // auto-generated
         internal void CreateMethodBodyHelper(ILGenerator il)
         {
             // Sets the IL of the method.  An ILGenerator is passed as an argument and the method
@@ -389,7 +388,6 @@ namespace System.Reflection.Emit
             return m_mdMethodFixups;
         }
 
-        [System.Security.SecurityCritical]  // auto-generated
         internal SignatureHelper GetMethodSignature()
         {
             if (m_parameterTypes == null)
@@ -480,7 +478,6 @@ namespace System.Reflection.Emit
         #endregion
 
         #region Object Overrides
-        [System.Security.SecuritySafeCritical]  // auto-generated
         public override bool Equals(Object obj) {
             if (!(obj is MethodBuilder)) {
                 return false;
@@ -505,7 +502,6 @@ namespace System.Reflection.Emit
             return this.m_strName.GetHashCode();
         }
 
-        [System.Security.SecuritySafeCritical]  // auto-generated
         public override String ToString()
         {
             StringBuilder sb = new StringBuilder(1000);
@@ -599,29 +595,17 @@ namespace System.Reflection.Emit
 
         public override bool IsSecurityCritical
         {
-#if FEATURE_CORECLR
             get { return true; }
-#else
-            get { throw new NotSupportedException(Environment.GetResourceString("NotSupported_DynamicModule")); }
-#endif
         }
 
         public override bool IsSecuritySafeCritical
         {
-#if FEATURE_CORECLR
             get { return false; }
-#else
-            get { throw new NotSupportedException(Environment.GetResourceString("NotSupported_DynamicModule")); }
-#endif
         }
 
         public override bool IsSecurityTransparent
         {
-#if FEATURE_CORECLR
             get { return false; }
-#else
-            get { throw new NotSupportedException(Environment.GetResourceString("NotSupported_DynamicModule")); }
-#endif
         }
         #endregion
 
@@ -733,7 +717,6 @@ namespace System.Reflection.Emit
         #endregion
 
         #region Public Members
-        [System.Security.SecuritySafeCritical]  // auto-generated
         public MethodToken GetToken()
         {
             // We used to always "tokenize" a MethodBuilder when it is constructed. After change list 709498
@@ -785,7 +768,6 @@ namespace System.Reflection.Emit
             return currentToken;
         }
 
-        [System.Security.SecurityCritical]  // auto-generated
         private MethodToken GetTokenNoLock()
         {
             Contract.Assert(m_tkMethod.Token == 0, "m_tkMethod should not have been initialized");
@@ -853,7 +835,6 @@ namespace System.Reflection.Emit
         }
 
        
-        [System.Security.SecuritySafeCritical]  // auto-generated
         public ParameterBuilder DefineParameter(int position, ParameterAttributes attributes, String strParamName)
         {
             if (position < 0)
@@ -870,7 +851,6 @@ namespace System.Reflection.Emit
             return new ParameterBuilder(this, position, attributes, strParamName);
         }
 
-        [System.Security.SecuritySafeCritical]  // auto-generated
         [Obsolete("An alternate API is available: Emit the MarshalAs custom attribute instead. http://go.microsoft.com/fwlink/?linkid=14202")]
         public void SetMarshal(UnmanagedMarshal unmanagedMarshal)
         {
@@ -927,9 +907,6 @@ namespace System.Reflection.Emit
             m_symCustomAttrs.Add(new SymCustomAttr(name, data));
         }
 
-        #if FEATURE_CORECLR
-        [System.Security.SecurityCritical] // auto-generated
-        #endif
         public void SetMethodBody(byte[] il, int maxStack, byte[] localSignature, IEnumerable<ExceptionHandler> exceptionHandlers, IEnumerable<int> tokenFixups)
         {
             if (il == null)
@@ -1031,9 +1008,6 @@ namespace System.Reflection.Emit
         /// <summary>
         /// Obsolete.
         /// </summary>
-        #if FEATURE_CORECLR
-        [System.Security.SecurityCritical] // auto-generated
-        #endif
         public void CreateMethodBody(byte[] il, int count)
         {
             ThrowIfGeneric();
@@ -1070,7 +1044,6 @@ namespace System.Reflection.Emit
             m_bIsBaked = true;
         }
 
-        [System.Security.SecuritySafeCritical]  // auto-generated
         public void SetImplementationFlags(MethodImplAttributes attributes) 
         {
             ThrowIfGeneric ();
@@ -1133,7 +1106,6 @@ namespace System.Reflection.Emit
 
         public String Signature 
         { 
-            [System.Security.SecuritySafeCritical]  // auto-generated
             get 
             { 
                 return GetMethodSignature().ToString(); 
@@ -1141,11 +1113,6 @@ namespace System.Reflection.Emit
         }
 
 
-#if FEATURE_CORECLR
-[System.Security.SecurityCritical] // auto-generated
-#else
-[System.Security.SecuritySafeCritical]
-#endif
 [System.Runtime.InteropServices.ComVisible(true)]
         public void SetCustomAttribute(ConstructorInfo con, byte[] binaryAttribute)
         {
@@ -1166,7 +1133,6 @@ namespace System.Reflection.Emit
                 ParseCA(con, binaryAttribute);
         }
 
-        [System.Security.SecuritySafeCritical]  // auto-generated
         public void SetCustomAttribute(CustomAttributeBuilder customBuilder)
         {
             if (customBuilder == null)
@@ -1214,29 +1180,6 @@ namespace System.Reflection.Emit
         internal bool m_isDllImport = false;
 
         #endregion
-
-#if !FEATURE_CORECLR
-        void _MethodBuilder.GetTypeInfoCount(out uint pcTInfo)
-        {
-            throw new NotImplementedException();
-        }
-
-        void _MethodBuilder.GetTypeInfo(uint iTInfo, uint lcid, IntPtr ppTInfo)
-        {
-            throw new NotImplementedException();
-        }
-
-        void _MethodBuilder.GetIDsOfNames([In] ref Guid riid, IntPtr rgszNames, uint cNames, uint lcid, IntPtr rgDispId)
-        {
-            throw new NotImplementedException();
-        }
-
-        void _MethodBuilder.Invoke(uint dispIdMember, [In] ref Guid riid, uint lcid, short wFlags, IntPtr pDispParams, IntPtr pVarResult, IntPtr pExcepInfo, IntPtr puArgErr)
-        {
-            throw new NotImplementedException();
-        }
-#endif
-
     }
 
     internal class LocalSymInfo
@@ -1341,9 +1284,6 @@ namespace System.Reflection.Emit
             checked { m_iNameSpaceCount++; }
         }
 
-        #if FEATURE_CORECLR
-        [System.Security.SecurityCritical] // auto-generated
-        #endif
         internal virtual void EmitLocalSymInfo(ISymbolWriter symWriter)
         {
             int         i;

@@ -34,11 +34,7 @@ namespace System.Security
         AllFlags                        = 0x001F
     }
 
-    [System.Security.SecurityCritical]  // auto-generated_required
     [Serializable]
-#if !FEATURE_CORECLR
-    [SecurityPermissionAttribute(SecurityAction.InheritanceDemand, Flags=SecurityPermissionFlag.Infrastructure)]
-#endif
     [System.Runtime.InteropServices.ComVisible(true)]
     public class HostSecurityManager {
         public HostSecurityManager () {}

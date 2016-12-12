@@ -138,6 +138,37 @@ namespace System.Runtime.CompilerServices
         }
 
         //--------------------------------------------------------------------------------------------
+        // key: key to add or update. May not be null.
+        // value: value to associate with key.
+        //
+        // If the key is already entered into the dictionary, this method will update the value associated with key.
+        //--------------------------------------------------------------------------------------------
+        public void AddOrUpdate(TKey key, TValue value)
+        {
+            if (key == null)
+            {
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.key);
+            }
+
+            lock (_lock)
+            {
+                object otherValue;
+                int entryIndex = _container.FindEntry(key, out otherValue);
+
+                // if we found a key we should just update, if no we should create a new entry.
+                if (entryIndex != -1)
+                {
+                    _container.UpdateValue(entryIndex, value);
+                }
+                else
+                {
+                    CreateEntry(key, value);
+                }
+
+            }
+        }
+
+        //--------------------------------------------------------------------------------------------
         // key: key to remove. May not be null.
         //
         // Returns true if the key is found and removed. Returns false if the key was not in the dictionary.
@@ -281,7 +312,7 @@ namespace System.Runtime.CompilerServices
         {
             lock (_lock)
             {
-                _container.Clear();
+                _container = new Container(this);
             }
         }
 
@@ -442,7 +473,7 @@ namespace System.Runtime.CompilerServices
             {
                 object secondary;
                 int entryIndex = FindEntry(key, out secondary);
-                value = (TValue)secondary;
+                value = JitHelpers.UnsafeCast<TValue>(secondary);
                 return entryIndex != -1;
             }
 
@@ -485,24 +516,33 @@ namespace System.Runtime.CompilerServices
                 int entryIndex = FindEntry(key, out value);
                 if (entryIndex != -1)
                 {
+                    ref Entry entry = ref _entries[entryIndex];
+
                     // We do not free the handle here, as we may be racing with readers who already saw the hash code.
                     // Instead, we simply overwrite the entry's hash code, so subsequent reads will ignore it.
                     // The handle will be free'd in Container's finalizer, after the table is resized or discarded.
-                    Volatile.Write(ref _entries[entryIndex].HashCode, -1);
+                    Volatile.Write(ref entry.HashCode, -1);
+
+                    // Also, clear the key to allow GC to collect objects pointed to by the entry
+                    entry.depHnd.SetPrimary(null);
+
                     return true;
                 }
 
                 return false;
             }
 
-            internal void Clear()
+
+            internal void UpdateValue(int entryIndex, TValue newValue)
             {
-                // Remove all handles (as in Remove, just by setting the hashcode and leaving
-                // actual removal up to the finalizer).
-                for (int i = 0; i < _firstFreeEntry; i++)
-                {
-                    Volatile.Write(ref _entries[i].HashCode, -1);
-                }
+                Debug.Assert(entryIndex != -1);
+
+                VerifyIntegrity();
+                _invalid = true;
+
+                _entries[entryIndex].depHnd.SetSecondary(newValue);
+
+                _invalid = false;
             }
 
             //----------------------------------------------------------------------------------------
@@ -568,9 +608,7 @@ namespace System.Runtime.CompilerServices
                     DependentHandle depHnd = _entries[entriesIndex].depHnd;
                     if (hashCode != -1 && depHnd.IsAllocated)
                     {
-                        object primary, secondary;
-                        depHnd.GetPrimaryAndSecondary(out primary, out secondary);
-                        if (primary != null)
+                        if (depHnd.GetPrimary() != null)
                         {
                             // Entry is used and has not expired. Link it into the appropriate bucket list.
                             newEntries[newEntriesIndex].HashCode = hashCode;
@@ -611,7 +649,7 @@ namespace System.Runtime.CompilerServices
                     {
                         for (int entriesIndex = _buckets[bucket]; entriesIndex != -1; entriesIndex = _entries[entriesIndex].Next)
                         {
-                            TKey thisKey = (TKey)_entries[entriesIndex].depHnd.GetPrimary();
+                            TKey thisKey = JitHelpers.UnsafeCast<TKey>(_entries[entriesIndex].depHnd.GetPrimary());
                             if (thisKey != null)
                             {
                                 list.Add(thisKey);
@@ -642,7 +680,7 @@ namespace System.Runtime.CompilerServices
                             // expired key as a live key with a null value.)
                             if (primary != null)
                             {
-                                list.Add((TValue)secondary);
+                                list.Add(JitHelpers.UnsafeCast<TValue>(secondary));
                             }
                         }
                     }
@@ -668,8 +706,8 @@ namespace System.Runtime.CompilerServices
                         if (Equals(thisKey, key))
                         {
                             GC.KeepAlive(this); // ensure we don't get finalized while accessing DependentHandles.
-                            value = (TValue)thisValue;
-                            return (TKey)thisKey;
+                            value = JitHelpers.UnsafeCast<TValue>(thisValue);
+                            return JitHelpers.UnsafeCast<TKey>(thisKey);
                         }
                     }
                 }
@@ -808,6 +846,16 @@ namespace System.Runtime.CompilerServices
             nGetPrimaryAndSecondary(_handle, out primary, out secondary);
         }
 
+        public void SetPrimary(object primary)
+        {
+            nSetPrimary(_handle, primary);
+        }
+
+        public void SetSecondary(object secondary)
+        {
+            nSetSecondary(_handle, secondary);
+        }
+
         //----------------------------------------------------------------------
         // Forces dependentHandle back to non-allocated state (if not already there)
         // and frees the handle if needed.
@@ -832,6 +880,12 @@ namespace System.Runtime.CompilerServices
 
         [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern void nGetPrimaryAndSecondary(IntPtr dependentHandle, out object primary, out object secondary);
+
+        [MethodImpl(MethodImplOptions.InternalCall)]
+        private static extern void nSetPrimary(IntPtr dependentHandle, object primary);
+
+        [MethodImpl(MethodImplOptions.InternalCall)]
+        private static extern void nSetSecondary(IntPtr dependentHandle, object secondary);
 
         [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern void nFree(IntPtr dependentHandle);

@@ -50,9 +50,6 @@ namespace System.Reflection
     [Serializable]
     [ClassInterface(ClassInterfaceType.None)]
     [ComDefaultInterface(typeof(_MethodBase))]
-#pragma warning disable 618
-    [PermissionSetAttribute(SecurityAction.InheritanceDemand, Name = "FullTrust")]
-#pragma warning restore 618
     [System.Runtime.InteropServices.ComVisible(true)]
     public abstract class MethodBase : MemberInfo, _MethodBase
     {
@@ -131,7 +128,6 @@ namespace System.Reflection
 
         #region Internal Members
         // used by EE
-        [System.Security.SecurityCritical]
         private IntPtr GetMethodDesc() { return MethodHandle.Value; }
 
 #if FEATURE_APPX
@@ -243,7 +239,6 @@ namespace System.Reflection
             }
         }
 
-        [System.Security.SecuritySafeCritical]
 #pragma warning disable 618
         [ReflectionPermissionAttribute(SecurityAction.Demand, Flags=ReflectionPermissionFlag.MemberAccess)]            
 #pragma warning restore 618
@@ -329,7 +324,6 @@ namespace System.Reflection
             return parameterTypes;
         }
 
-        [System.Security.SecuritySafeCritical]
         internal Object[] CheckArguments(Object[] parameters, Binder binder, 
             BindingFlags invokeAttr, CultureInfo culture, Signature sig)
         {
@@ -356,47 +350,5 @@ namespace System.Reflection
             return copyOfParameters;
         }
         #endregion
-
-        #region _MethodBase Implementation
-#if !FEATURE_CORECLR
-        Type _MethodBase.GetType() { return base.GetType(); }
-        bool _MethodBase.IsPublic { get { return IsPublic; } }
-        bool _MethodBase.IsPrivate { get { return IsPrivate; } }
-        bool _MethodBase.IsFamily { get { return IsFamily; } }
-        bool _MethodBase.IsAssembly { get { return IsAssembly; } }
-        bool _MethodBase.IsFamilyAndAssembly { get { return IsFamilyAndAssembly; } }
-        bool _MethodBase.IsFamilyOrAssembly { get { return IsFamilyOrAssembly; } }
-        bool _MethodBase.IsStatic { get { return IsStatic; } }
-        bool _MethodBase.IsFinal { get { return IsFinal; } }
-        bool _MethodBase.IsVirtual { get { return IsVirtual; } }
-        bool _MethodBase.IsHideBySig { get { return IsHideBySig; } }
-        bool _MethodBase.IsAbstract { get { return IsAbstract; } }
-        bool _MethodBase.IsSpecialName { get { return IsSpecialName; } }
-        bool _MethodBase.IsConstructor { get { return IsConstructor; } }
-
-        void _MethodBase.GetTypeInfoCount(out uint pcTInfo)
-        {
-            throw new NotImplementedException();
-        }
-
-        void _MethodBase.GetTypeInfo(uint iTInfo, uint lcid, IntPtr ppTInfo)
-        {
-            throw new NotImplementedException();
-        }
-
-        void _MethodBase.GetIDsOfNames([In] ref Guid riid, IntPtr rgszNames, uint cNames, uint lcid, IntPtr rgDispId)
-        {
-            throw new NotImplementedException();
-        }
-
-        // If you implement this method, make sure to include _MethodBase.Invoke in VM\DangerousAPIs.h and 
-        // include _MethodBase in SystemDomain::IsReflectionInvocationMethod in AppDomain.cpp.
-        void _MethodBase.Invoke(uint dispIdMember, [In] ref Guid riid, uint lcid, short wFlags, IntPtr pDispParams, IntPtr pVarResult, IntPtr pExcepInfo, IntPtr puArgErr)
-        {
-            throw new NotImplementedException();
-        }
-#endif
-        #endregion
     }
-
 }

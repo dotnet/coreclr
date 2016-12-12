@@ -59,6 +59,18 @@ namespace System {
         internal static void ThrowArgumentOutOfRangeException() {
             throw new ArgumentOutOfRangeException();
         }
+
+        internal static void ThrowArgumentException_DestinationTooShort() {
+            throw new ArgumentException(Environment.GetResourceString("Argument_DestinationTooShort"));
+        }
+
+        internal static void ThrowNotSupportedException_CannotCallEqualsOnSpan() {
+            throw new NotSupportedException(Environment.GetResourceString("NotSupported_CannotCallEqualsOnSpan"));
+        }
+
+        internal static void ThrowNotSupportedException_CannotCallGetHashCodeOnSpan() {
+            throw new NotSupportedException(Environment.GetResourceString("NotSupported_CannotCallGetHashCodeOnSpan"));
+        }
 #endif
 
         internal static void ThrowArgumentOutOfRange_IndexException() {
@@ -94,8 +106,6 @@ namespace System {
             throw GetWrongValueTypeArgumentException(value, targetType);
         }
 
-
-#if FEATURE_CORECLR
         private static ArgumentException GetAddingDuplicateWithKeyArgumentException(object key) {
             return new ArgumentException(Environment.GetResourceString("Argument_AddingDuplicateWithKey", key));
         }
@@ -103,7 +113,6 @@ namespace System {
         internal static void ThrowAddingDuplicateWithKeyArgumentException(object key) {
             throw GetAddingDuplicateWithKeyArgumentException(key);
         }
-#endif
 
         internal static void ThrowKeyNotFoundException() {
             throw new System.Collections.Generic.KeyNotFoundException();

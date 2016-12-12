@@ -581,7 +581,6 @@ new DS[] { DS.ERROR, DS.TX_NNN,  DS.TX_NNN,  DS.TX_NNN,  DS.ERROR,   DS.ERROR,  
         // This is the lexer. Check the character at the current index, and put the found token in dtok and
         // some raw date/time information in raw.
         //
-        [System.Security.SecuritySafeCritical]  // auto-generated
         private static Boolean Lex(DS dps, ref __DTString str, ref DateTimeToken dtok, ref DateTimeRawInfo raw, ref DateTimeResult result, ref DateTimeFormatInfo dtfi, DateTimeStyles styles)
         {
 
@@ -2292,7 +2291,6 @@ new DS[] { DS.ERROR, DS.TX_NNN,  DS.TX_NNN,  DS.TX_NNN,  DS.ERROR,   DS.ERROR,  
         //
         // This is the real method to do the parsing work.
         //
-        [System.Security.SecuritySafeCritical]  // auto-generated
         internal static bool TryParse(String s, DateTimeFormatInfo dtfi, DateTimeStyles styles, ref DateTimeResult result) {
             if (s == null) {
                 result.SetFailure(ParseFailureKind.ArgumentNull, "ArgumentNull_String", null, nameof(s));
@@ -2524,17 +2522,15 @@ new DS[] { DS.ERROR, DS.TX_NNN,  DS.TX_NNN,  DS.TX_NNN,  DS.ERROR,   DS.ERROR,  
                 // no adjustment is required in most cases
                 return DateTimeOffsetTimeZonePostProcessing(ref result, styles);
             }
-#if FEATURE_CORECLR // on CoreCLR DateTime is also restricted to +- 14:00, just like DateTimeOffset
             else {
                 Int64 offsetTicks = result.timeZoneOffset.Ticks;
-            
+
                 // the DateTime offset must be within +- 14:00 hours.
                 if (offsetTicks < DateTimeOffset.MinOffset || offsetTicks > DateTimeOffset.MaxOffset) {
                     result.SetFailure(ParseFailureKind.Format, "Format_OffsetOutOfRange", null);
                     return false;
                 }
             }
-#endif // FEATURE_CORECLR
 
             // The flags AssumeUniveral and AssumeLocal only apply when the input does not have a time zone
             if ((result.flags & ParseFlags.TimeZoneUsed) == 0) {
@@ -4360,7 +4356,6 @@ new DS[] { DS.ERROR, DS.TX_NNN,  DS.TX_NNN,  DS.TX_NNN,  DS.ERROR,   DS.ERROR,  
 
 
         // Used by DateTime.Parse() to get the next token.
-        [System.Security.SecurityCritical]  // auto-generated
         internal void GetRegularToken(out TokenType tokenType, out int tokenValue, DateTimeFormatInfo dtfi) {
             tokenValue = 0;
             if (Index >= len) {
@@ -4440,7 +4435,6 @@ Start:
             }
         }
 
-        [System.Security.SecurityCritical]  // auto-generated
         internal TokenType GetSeparatorToken(DateTimeFormatInfo dtfi, out int indexBeforeSeparator, out char charBeforeSeparator) {
             indexBeforeSeparator = Index;
             charBeforeSeparator = m_current;
@@ -4851,7 +4845,6 @@ Start:
     //
     internal
     unsafe struct DateTimeRawInfo {
-        [SecurityCritical]
         private  int* num;
         internal int numCount;
         internal int month;
@@ -4865,7 +4858,6 @@ Start:
 
         internal bool timeZone;
 
-        [System.Security.SecurityCritical]  // auto-generated
         internal void Init(int * numberBuffer) {
             month      = -1;
             year       = -1;
@@ -4875,11 +4867,9 @@ Start:
             fraction = -1;
             num = numberBuffer;
         }
-        [System.Security.SecuritySafeCritical]  // auto-generated
         internal unsafe void AddNumber(int value) {
             num[numCount++] = value;
         }
-        [System.Security.SecuritySafeCritical]  // auto-generated
         internal unsafe int GetNumber(int index) {
             return num[index];
         }

@@ -2,10 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-// 
-
-#if FEATURE_CORECLR
-
 namespace System.Reflection.Emit
 {
     using System;
@@ -13,7 +9,6 @@ namespace System.Reflection.Emit
     using System.Runtime.InteropServices;
     using System.Runtime.CompilerServices;
     using System.Diagnostics.SymbolStore;
-
 
     //-----------------------------------------------------------------------------------
     // On Telesto, we don't ship the ISymWrapper.dll assembly. However, ReflectionEmit
@@ -58,9 +53,6 @@ namespace System.Reflection.Emit
             //------------------------------------------------------------------------------
             // Ctor
             //------------------------------------------------------------------------------
-            #if FEATURE_CORECLR
-            [System.Security.SecurityCritical] // auto-generated
-            #endif
             internal SymDocumentWriter(PunkSafeHandle pDocumentWriterSafeHandle)
             {
                 m_pDocumentWriterSafeHandle = pDocumentWriterSafeHandle;
@@ -72,9 +64,6 @@ namespace System.Reflection.Emit
             //------------------------------------------------------------------------------
             // Returns the underlying ISymUnmanagedDocumentWriter* (as a safehandle.)
             //------------------------------------------------------------------------------
-            #if FEATURE_CORECLR
-            [System.Security.SecurityCritical] // auto-generated
-            #endif
             internal PunkSafeHandle GetUnmanaged()
             {
                 return m_pDocumentWriterSafeHandle;
@@ -97,9 +86,6 @@ namespace System.Reflection.Emit
             //------------------------------------------------------------------------------
             // SetCheckSum() wrapper
             //------------------------------------------------------------------------------
-            #if FEATURE_CORECLR
-            [System.Security.SecuritySafeCritical]
-            #endif
             void ISymbolDocumentWriter.SetCheckSum(Guid algorithmId, byte [] checkSum)
             {
                 int hr = m_vtable.SetCheckSum(m_pDocWriter, algorithmId, (uint)checkSum.Length, checkSum);
@@ -109,7 +95,6 @@ namespace System.Reflection.Emit
                 }
             }
     
-            [System.Security.SecurityCritical]
             private delegate int DSetCheckSum(ISymUnmanagedDocumentWriter * pThis, Guid algorithmId, uint checkSumSize, [In] byte[] checkSum);
 
             //------------------------------------------------------------------------------
@@ -117,7 +102,6 @@ namespace System.Reflection.Emit
             // exactly. If a member is declared as an IntPtr rather than a delegate, it means
             // we don't call that particular member.
             //------------------------------------------------------------------------------
-            [System.Security.SecurityCritical]
             [StructLayout(LayoutKind.Sequential)]
             private struct ISymUnmanagedDocumentWriterVTable
             {
@@ -126,9 +110,6 @@ namespace System.Reflection.Emit
                 internal IntPtr                Release;
 
                 internal IntPtr                SetSource;
-                #if FEATURE_CORECLR
-                [System.Security.SecurityCritical]
-                #endif
                 internal DSetCheckSum          SetCheckSum;
             }
     
@@ -136,7 +117,6 @@ namespace System.Reflection.Emit
             // This layout must match the (start) of the unmanaged ISymUnmanagedDocumentWriter
             // COM object.
             //------------------------------------------------------------------------------
-            [System.Security.SecurityCritical]
             [StructLayout(LayoutKind.Sequential)]
             private struct ISymUnmanagedDocumentWriter
             {
@@ -146,19 +126,14 @@ namespace System.Reflection.Emit
             //------------------------------------------------------------------------------
             // Stores underlying ISymUnmanagedDocumentWriter* pointer (wrapped in a safehandle.)
             //------------------------------------------------------------------------------
-            #if FEATURE_CORECLR
-            [System.Security.SecurityCritical] // auto-generated
-            #endif
             private PunkSafeHandle m_pDocumentWriterSafeHandle;
 
-            [SecurityCritical]
             private ISymUnmanagedDocumentWriter * m_pDocWriter;
 
             //------------------------------------------------------------------------------
             // Stores the "managed vtable" (actually a structure full of delegates that
             // P/Invoke to the corresponding unmanaged COM methods.)
             //------------------------------------------------------------------------------
-            [SecurityCritical]
             private ISymUnmanagedDocumentWriterVTable m_vtable;
 
     
@@ -212,9 +187,6 @@ namespace System.Reflection.Emit
             //------------------------------------------------------------------------------
             // DefineDocument() wrapper
             //------------------------------------------------------------------------------
-            #if FEATURE_CORECLR
-            [System.Security.SecurityCritical] // auto-generated
-            #endif
             ISymbolDocumentWriter ISymbolWriter.DefineDocument(String url,
                                                                Guid language,
                                                                Guid languageVendor,
@@ -237,9 +209,6 @@ namespace System.Reflection.Emit
             //------------------------------------------------------------------------------
             // SetUserEntryPoint() wrapper
             //------------------------------------------------------------------------------
-            #if FEATURE_CORECLR
-            [System.Security.SecurityCritical] // auto-generated
-            #endif
             void ISymbolWriter.SetUserEntryPoint(SymbolToken entryMethod)
             {
                 int hr = m_vtable.SetUserEntryPoint(m_pWriter, entryMethod.GetToken());
@@ -252,9 +221,6 @@ namespace System.Reflection.Emit
             //------------------------------------------------------------------------------
             // OpenMethod() wrapper
             //------------------------------------------------------------------------------
-            #if FEATURE_CORECLR
-            [System.Security.SecurityCritical] // auto-generated
-            #endif
             void ISymbolWriter.OpenMethod(SymbolToken method)
             {
                 int hr = m_vtable.OpenMethod(m_pWriter, method.GetToken());
@@ -267,9 +233,6 @@ namespace System.Reflection.Emit
             //------------------------------------------------------------------------------
             // CloseMethod() wrapper
             //------------------------------------------------------------------------------
-            #if FEATURE_CORECLR
-            [System.Security.SecurityCritical] // auto-generated
-            #endif
             void ISymbolWriter.CloseMethod()
             {
                 int hr = m_vtable.CloseMethod(m_pWriter);
@@ -282,9 +245,6 @@ namespace System.Reflection.Emit
             //------------------------------------------------------------------------------
             // DefineSequencePoints() wrapper
             //------------------------------------------------------------------------------
-            #if FEATURE_CORECLR
-            [System.Security.SecurityCritical] // auto-generated
-            #endif
             void ISymbolWriter.DefineSequencePoints(ISymbolDocumentWriter document,
                                                     int[] offsets,
                                                     int[] lines,
@@ -344,9 +304,6 @@ namespace System.Reflection.Emit
             //------------------------------------------------------------------------------
             // OpenScope() wrapper
             //------------------------------------------------------------------------------
-            #if FEATURE_CORECLR
-            [System.Security.SecurityCritical] // auto-generated
-            #endif
             int ISymbolWriter.OpenScope(int startOffset)
             {
                 int ret;
@@ -361,9 +318,6 @@ namespace System.Reflection.Emit
             //------------------------------------------------------------------------------
             // CloseScope() wrapper
             //------------------------------------------------------------------------------
-            #if FEATURE_CORECLR
-            [System.Security.SecurityCritical] // auto-generated
-            #endif
             void ISymbolWriter.CloseScope(int endOffset)
             {
                 int hr = m_vtable.CloseScope(m_pWriter, endOffset);
@@ -388,9 +342,6 @@ namespace System.Reflection.Emit
             //------------------------------------------------------------------------------
             // DefineLocalVariable() wrapper
             //------------------------------------------------------------------------------
-            #if FEATURE_CORECLR
-            [System.Security.SecurityCritical] // auto-generated
-            #endif
             void ISymbolWriter.DefineLocalVariable(String name,
                                                    FieldAttributes attributes,
                                                    byte[] signature,
@@ -476,9 +427,6 @@ namespace System.Reflection.Emit
             //------------------------------------------------------------------------------
             // SetSymAttribute() wrapper
             //------------------------------------------------------------------------------
-            #if FEATURE_CORECLR
-            [System.Security.SecurityCritical] // auto-generated
-            #endif
             void ISymbolWriter.SetSymAttribute(SymbolToken parent, String name, byte[] data)
             {
                 int hr = m_vtable.SetSymAttribute(m_pWriter, parent.GetToken(), name, data.Length, data);
@@ -515,9 +463,6 @@ namespace System.Reflection.Emit
             //------------------------------------------------------------------------------
             // UsingNamespace() wrapper
             //------------------------------------------------------------------------------
-            #if FEATURE_CORECLR
-            [System.Security.SecurityCritical] // auto-generated
-            #endif
             void ISymbolWriter.UsingNamespace(String name)
             {
                 int hr = m_vtable.UsingNamespace(m_pWriter, name);
@@ -557,9 +502,6 @@ namespace System.Reflection.Emit
             // with the real ISymWrapper.dll, ISymWrapper performs *no* Release (or AddRef) on pointers
             // furnished through SetUnderlyingWriter. Lifetime management is entirely up to the caller.
             //------------------------------------------------------------------------------
-            #if FEATURE_CORECLR
-            [System.Security.SecurityCritical] // auto-generated
-            #endif
             internal void InternalSetUnderlyingWriter(IntPtr ppUnderlyingWriter)
             {
                 m_pWriter = *((ISymUnmanagedWriter**)ppUnderlyingWriter);
@@ -569,7 +511,6 @@ namespace System.Reflection.Emit
             //------------------------------------------------------------------------------
             // Define delegates for the unmanaged COM methods we invoke.
             //------------------------------------------------------------------------------
-            [System.Security.SecurityCritical]
             private delegate int DInitialize(ISymUnmanagedWriter*                     pthis,
                                              IntPtr                                   emitter,  //IUnknown*
                                              [MarshalAs(UnmanagedType.LPWStr)] String filename, //WCHAR*
@@ -577,7 +518,6 @@ namespace System.Reflection.Emit
                                              [MarshalAs(UnmanagedType.Bool)] bool     fFullBuild
                                              );
 
-            [System.Security.SecurityCritical]
             private delegate int DDefineDocument(ISymUnmanagedWriter*                     pthis,
                                                  [MarshalAs(UnmanagedType.LPWStr)] String url,
                                                  [In] ref Guid                            language,
@@ -586,14 +526,10 @@ namespace System.Reflection.Emit
                                                  [Out] out PunkSafeHandle                 ppsymUnmanagedDocumentWriter
                                                 );
                                                                               
-            [System.Security.SecurityCritical]
             private delegate int DSetUserEntryPoint(ISymUnmanagedWriter* pthis, int entryMethod);
-            [System.Security.SecurityCritical]
             private delegate int DOpenMethod(ISymUnmanagedWriter* pthis, int entryMethod);
-            [System.Security.SecurityCritical]
             private delegate int DCloseMethod(ISymUnmanagedWriter* pthis);
 
-            [System.Security.SecurityCritical]
             private delegate int DDefineSequencePoints(ISymUnmanagedWriter* pthis,
                                                        PunkSafeHandle       document,
                                                        int                  spCount,
@@ -603,15 +539,11 @@ namespace System.Reflection.Emit
                                                        [In] int[]           endLines,
                                                        [In] int[]           endColumns);
 
-            [System.Security.SecurityCritical]
             private delegate int DOpenScope(ISymUnmanagedWriter* pthis, int startOffset, [Out] out int pretval);
-            [System.Security.SecurityCritical]
             private delegate int DCloseScope(ISymUnmanagedWriter* pthis, int endOffset);
 
-            [System.Security.SecurityCritical]
             private delegate int DSetScopeRange(ISymUnmanagedWriter* pthis, int scopeID, int startOffset, int endOffset);
 
-            [System.Security.SecurityCritical]
             private delegate int DDefineLocalVariable(ISymUnmanagedWriter*                     pthis,
                                                       [MarshalAs(UnmanagedType.LPWStr)] String name,
                                                       int                                      attributes,
@@ -625,10 +557,8 @@ namespace System.Reflection.Emit
                                                       int                                      endOffset
                                                      );
 
-            [System.Security.SecurityCritical]
             private delegate int DClose(ISymUnmanagedWriter* pthis);
 
-            [System.Security.SecurityCritical]
             private delegate int DSetSymAttribute(ISymUnmanagedWriter*                     pthis,
                                                   int                                      parent,
                                                   [MarshalAs(UnmanagedType.LPWStr)] String name,
@@ -637,11 +567,8 @@ namespace System.Reflection.Emit
                                                  );
 
 
-            [System.Security.SecurityCritical]
             private delegate int DOpenNamespace(ISymUnmanagedWriter* pthis, [MarshalAs(UnmanagedType.LPWStr)] String name);
-            [System.Security.SecurityCritical]
             private delegate int DCloseNamespace(ISymUnmanagedWriter* pthis);
-            [System.Security.SecurityCritical]
             private delegate int DUsingNamespace(ISymUnmanagedWriter* pthis, [MarshalAs(UnmanagedType.LPWStr)] String name);
 
 
@@ -658,77 +585,32 @@ namespace System.Reflection.Emit
                 internal IntPtr                AddRef;
                 internal IntPtr                Release;
 
-                #if FEATURE_CORECLR
-                [System.Security.SecurityCritical] // auto-generated
-                #endif
                 internal DDefineDocument       DefineDocument;
-                #if FEATURE_CORECLR
-                [System.Security.SecurityCritical] // auto-generated
-                #endif
                 internal DSetUserEntryPoint    SetUserEntryPoint;
 
-                #if FEATURE_CORECLR
-                [System.Security.SecurityCritical] // auto-generated
-                #endif
                 internal DOpenMethod           OpenMethod;
-                #if FEATURE_CORECLR
-                [System.Security.SecurityCritical] // auto-generated
-                #endif
                 internal DCloseMethod          CloseMethod;
 
-                #if FEATURE_CORECLR
-                [System.Security.SecurityCritical] // auto-generated
-                #endif
                 internal DOpenScope            OpenScope;
-                #if FEATURE_CORECLR
-                [System.Security.SecurityCritical] // auto-generated
-                #endif
                 internal DCloseScope           CloseScope;
 
-                #if FEATURE_CORECLR
-                [System.Security.SecurityCritical] // auto-generated
-                #endif
                 internal DSetScopeRange        SetScopeRange;
 
-                #if FEATURE_CORECLR
-                [System.Security.SecurityCritical] // auto-generated
-                #endif
                 internal DDefineLocalVariable  DefineLocalVariable;
                 internal IntPtr                DefineParameter;
                 internal IntPtr                DefineField;
                 internal IntPtr                DefineGlobalVariable;
 
-                #if FEATURE_CORECLR
-                [System.Security.SecurityCritical] // auto-generated
-                #endif
                 internal DClose                Close;
-                #if FEATURE_CORECLR
-                [System.Security.SecurityCritical] // auto-generated
-                #endif
                 internal DSetSymAttribute      SetSymAttribute;
 
-                #if FEATURE_CORECLR
-                [System.Security.SecurityCritical] // auto-generated
-                #endif
                 internal DOpenNamespace        OpenNamespace;
-                #if FEATURE_CORECLR
-                [System.Security.SecurityCritical] // auto-generated
-                #endif
                 internal DCloseNamespace       CloseNamespace;
-                #if FEATURE_CORECLR
-                [System.Security.SecurityCritical] // auto-generated
-                #endif
                 internal DUsingNamespace       UsingNamespace;
 
                 internal IntPtr                SetMethodSourceRange;
-                #if FEATURE_CORECLR
-                [System.Security.SecurityCritical] // auto-generated
-                #endif
                 internal DInitialize           Initialize;
                 internal IntPtr                GetDebugInfo;
-                #if FEATURE_CORECLR
-                [System.Security.SecurityCritical] // auto-generated
-                #endif
                 internal DDefineSequencePoints DefineSequencePoints;
         
             }
@@ -749,7 +631,6 @@ namespace System.Reflection.Emit
             // As with the real ISymWrapper.dll, ISymWrapper performs *no* Release (or AddRef) on this pointer.
             // Managing lifetime is up to the caller (coreclr.dll).
             //------------------------------------------------------------------------------
-            [SecurityCritical]
             private ISymUnmanagedWriter      *m_pWriter;
 
             //------------------------------------------------------------------------------
@@ -778,20 +659,13 @@ namespace System.Reflection.Emit
     //
     // Had to make this a non-nested class since FCall's don't like to bind to nested classes.
     //--------------------------------------------------------------------------------------
-    #if FEATURE_CORECLR
-    [System.Security.SecurityCritical] // auto-generated
-    #endif
     sealed class PunkSafeHandle : SafeHandle
     {
-        #if FEATURE_CORECLR
-        [System.Security.SecurityCritical] // auto-generated
-        #endif
         internal PunkSafeHandle()
             : base((IntPtr)0, true)
         {
         }
 
-        [SecurityCritical]
         override protected bool ReleaseHandle()
         {
             m_Release(handle);
@@ -800,7 +674,6 @@ namespace System.Reflection.Emit
 
         public override bool IsInvalid
         {
-            [SecurityCritical]
             get { return handle == ((IntPtr)0); }
         }
 
@@ -810,19 +683,10 @@ namespace System.Reflection.Emit
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         private static extern IntPtr nGetDReleaseTarget();     // FCall gets us the native DRelease target (so we don't need named dllexport from coreclr.dll)
 
-        #if FEATURE_CORECLR
-        [System.Security.SecurityCritical] // auto-generated
-        #endif
         static PunkSafeHandle()
         {
             m_Release = (DRelease)(Marshal.GetDelegateForFunctionPointer(nGetDReleaseTarget(), typeof(DRelease)));
             m_Release((IntPtr)0); // make one call to make sure the delegate is fully prepped before we're in the critical finalizer situation.
         }
-
     } // PunkSafeHandle
-
 } //namespace System.Reflection.Emit
-
-
-#endif //FEATURE_CORECLR
-

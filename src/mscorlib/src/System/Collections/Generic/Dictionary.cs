@@ -91,12 +91,12 @@ namespace System.Collections.Generic {
             if (capacity > 0) Initialize(capacity);
             this.comparer = comparer ?? EqualityComparer<TKey>.Default;
 
-#if FEATURE_RANDOMIZED_STRING_HASHING && FEATURE_CORECLR
+#if FEATURE_RANDOMIZED_STRING_HASHING
             if (HashHelpers.s_UseRandomizedStringHashing && comparer == EqualityComparer<string>.Default)
             {
                 this.comparer = (IEqualityComparer<TKey>) NonRandomizedStringEqualityComparer.Default;
             }
-#endif // FEATURE_RANDOMIZED_STRING_HASHING && FEATURE_CORECLR
+#endif // FEATURE_RANDOMIZED_STRING_HASHING
         }
 
         public Dictionary(IDictionary<TKey,TValue> dictionary): this(dictionary, null) {}
@@ -302,7 +302,6 @@ namespace System.Collections.Generic {
             return new Enumerator(this, Enumerator.KeyValuePair);
         }        
 
-        [System.Security.SecurityCritical]  // auto-generated_required
         public virtual void GetObjectData(SerializationInfo info, StreamingContext context) {
             if (info==null) {
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.info);
@@ -362,11 +361,7 @@ namespace System.Collections.Generic {
             for (int i = buckets[targetBucket]; i >= 0; i = entries[i].next) {
                 if (entries[i].hashCode == hashCode && comparer.Equals(entries[i].key, key)) {
                     if (add) { 
-#if FEATURE_CORECLR
                         ThrowHelper.ThrowAddingDuplicateWithKeyArgumentException(key);
-#else
-                        ThrowHelper.ThrowArgumentException(ExceptionResource.Argument_AddingDuplicate);
-#endif
                     }
                     entries[i].value = value;
                     version++;
@@ -401,8 +396,6 @@ namespace System.Collections.Generic {
             version++;
 
 #if FEATURE_RANDOMIZED_STRING_HASHING
-
-#if FEATURE_CORECLR
             // In case we hit the collision threshold we'll need to switch to the comparer which is using randomized string hashing
             // in this case will be EqualityComparer<string>.Default.
             // Note, randomized string hashing is turned on by default on coreclr so EqualityComparer<string>.Default will 
@@ -413,14 +406,6 @@ namespace System.Collections.Generic {
                 comparer = (IEqualityComparer<TKey>) EqualityComparer<string>.Default;
                 Resize(entries.Length, true);
             }
-#else
-            if(collisionCount > HashHelpers.HashCollisionThreshold && HashHelpers.IsWellKnownEqualityComparer(comparer)) 
-            {
-                comparer = (IEqualityComparer<TKey>) HashHelpers.GetRandomizedEqualityComparer(comparer);
-                Resize(entries.Length, true);
-            }
-#endif // FEATURE_CORECLR
-
 #endif
 
         }

@@ -17,10 +17,8 @@ namespace System {
     using System.Runtime.CompilerServices;
     using System.Runtime.Versioning;
     using System.Diagnostics.Contracts;
+
     [System.Runtime.InteropServices.ComVisible(true)]
-#if !FEATURE_CORECLR
-    [SecurityPermissionAttribute(SecurityAction.InheritanceDemand, Flags=SecurityPermissionFlag.UnmanagedCode)] // Don't call Object::MemberwiseClone.
-#endif
     [Serializable]
     public class WeakReference : ISerializable 
     {
@@ -28,15 +26,12 @@ namespace System {
 
         // This field is not a regular GC handle. It can have a special values that are used to prevent a race condition between setting the target and finalization.
         internal IntPtr m_handle;
-    
-#if FEATURE_CORECLR
+
         // Migrating InheritanceDemands requires this default ctor, so we can mark it SafeCritical
-        [SecuritySafeCritical]
         protected WeakReference() {
             Contract.Assert(false, "WeakReference's protected default ctor should never be used!");
             throw new NotImplementedException();
         }
-#endif
 
         // Creates a new WeakReference that keeps track of target.
         // Assumes a Short Weak Reference (ie TrackResurrection is false.)
@@ -68,7 +63,6 @@ namespace System {
         //
         public extern virtual bool IsAlive {
             [MethodImplAttribute(MethodImplOptions.InternalCall)]
-            [SecuritySafeCritical]
             get;
          }
     
@@ -85,10 +79,8 @@ namespace System {
         //
         public extern virtual Object Target {
             [MethodImplAttribute(MethodImplOptions.InternalCall)]
-            [SecuritySafeCritical]
             get;
             [MethodImplAttribute(MethodImplOptions.InternalCall)]
-            [SecuritySafeCritical]
             set;
         }
     
@@ -99,10 +91,8 @@ namespace System {
         // This is needed for subclasses deriving from WeakReference, however.
         // Additionally, there may be some cases during shutdown when we run this finalizer.
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        [SecuritySafeCritical]
         extern ~WeakReference();
 
-        [SecurityCritical]
         public virtual void GetObjectData(SerializationInfo info, StreamingContext context)
         {
             if (info==null) {
@@ -114,11 +104,9 @@ namespace System {
         }
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        [SecuritySafeCritical]
         private extern void Create(Object target, bool trackResurrection);
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        [SecuritySafeCritical]
         private extern bool IsTrackResurrection();
     }
 

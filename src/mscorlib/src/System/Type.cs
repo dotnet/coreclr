@@ -154,7 +154,6 @@ namespace System
         //   param progID:     the progID of the class to retrieve
         //   returns:          the class object associated to the progID
         ////
-        [System.Security.SecurityCritical]  // auto-generated_required
         public static Type GetTypeFromProgID(String progID)
         {
                 return RuntimeType.GetTypeFromProgIDImpl(progID, null, false);
@@ -169,19 +168,16 @@ namespace System
         //   param progID:     the progID of the class to retrieve
         //   returns:          the class object associated to the progID
         ////
-        [System.Security.SecurityCritical]  // auto-generated_required
         public static Type GetTypeFromProgID(String progID, bool throwOnError)
         {
                 return RuntimeType.GetTypeFromProgIDImpl(progID, null, throwOnError);
         }
 
-        [System.Security.SecurityCritical]  // auto-generated_required
         public static Type GetTypeFromProgID(String progID, String server)
         {
                 return RuntimeType.GetTypeFromProgIDImpl(progID, server, false);
         }
 
-        [System.Security.SecurityCritical]  // auto-generated_required
         public static Type GetTypeFromProgID(String progID, String server, bool throwOnError)
         {
                 return RuntimeType.GetTypeFromProgIDImpl(progID, server, throwOnError);
@@ -194,25 +190,21 @@ namespace System
         //   param CLSID:      the CLSID of the class to retrieve
         //   returns:          the class object associated to the CLSID
         ////
-        [System.Security.SecuritySafeCritical]  // auto-generated
         public static Type GetTypeFromCLSID(Guid clsid)
         {
                 return RuntimeType.GetTypeFromCLSIDImpl(clsid, null, false);
         }
 
-        [System.Security.SecuritySafeCritical]  // auto-generated
         public static Type GetTypeFromCLSID(Guid clsid, bool throwOnError)
         {
                 return RuntimeType.GetTypeFromCLSIDImpl(clsid, null, throwOnError);
         }
 
-        [System.Security.SecuritySafeCritical]  // auto-generated
         public static Type GetTypeFromCLSID(Guid clsid, String server)
         {
                 return RuntimeType.GetTypeFromCLSIDImpl(clsid, server, false);
         }
 
-        [System.Security.SecuritySafeCritical]  // auto-generated
         public static Type GetTypeFromCLSID(Guid clsid, String server, bool throwOnError)
         {
                 return RuntimeType.GetTypeFromCLSIDImpl(clsid, server, throwOnError);
@@ -338,12 +330,10 @@ namespace System
         }
 
         // Given a class handle, this will return the class for that handle.
-        [System.Security.SecurityCritical]
         [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern RuntimeType GetTypeFromHandleUnsafe(IntPtr handle);
 
         [Pure]
-        [System.Security.SecuritySafeCritical]  // auto-generated
         [MethodImpl(MethodImplOptions.InternalCall)]
         public static extern Type GetTypeFromHandle(RuntimeTypeHandle handle);
 
@@ -716,8 +706,7 @@ namespace System
         {
             return GetProperties(Type.DefaultLookup);
         }
-#if	!FEATURE_CORECLR
-#endif	
+
         // GetNestedTypes()
         // This set of method will return any nested types that are found inside
         //  of the type.
@@ -728,9 +717,6 @@ namespace System
 
         abstract public Type[] GetNestedTypes(BindingFlags bindingAttr);
 
-#if	!FEATURE_CORECLR
-        // GetNestedType()
-#endif
         public Type GetNestedType(String name)
         {
             return GetNestedType(name,Type.DefaultLookup);
@@ -1050,7 +1036,6 @@ namespace System
 
         public bool IsInterface {
             [Pure]
-            [System.Security.SecuritySafeCritical]  // auto-generated
             get
             {
                 RuntimeType rt = this as RuntimeType;
@@ -1771,12 +1756,10 @@ namespace System
             return (Object.ReferenceEquals(this.UnderlyingSystemType, o.UnderlyingSystemType));
         }
 
-        [System.Security.SecuritySafeCritical]
         [Pure]
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         public static extern bool operator ==(Type left, Type right);
 
-        [System.Security.SecuritySafeCritical]
         [Pure]
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         public static extern bool operator !=(Type left, Type right);
@@ -1806,30 +1789,6 @@ namespace System
         {
             return base.GetType();
         }
-
-#if !FEATURE_CORECLR
-        void _Type.GetTypeInfoCount(out uint pcTInfo)
-        {
-            throw new NotImplementedException();
-        }
-
-        void _Type.GetTypeInfo(uint iTInfo, uint lcid, IntPtr ppTInfo)
-        {
-            throw new NotImplementedException();
-        }
-
-        void _Type.GetIDsOfNames([In] ref Guid riid, IntPtr rgszNames, uint cNames, uint lcid, IntPtr rgDispId)
-        {
-            throw new NotImplementedException();
-        }
-
-        // If you implement this method, make sure to include _Type.Invoke in VM\DangerousAPIs.h and 
-        // include _Type in SystemDomain::IsReflectionInvocationMethod in AppDomain.cpp.
-        void _Type.Invoke(uint dispIdMember, [In] ref Guid riid, uint lcid, short wFlags, IntPtr pDispParams, IntPtr pVarResult, IntPtr pExcepInfo, IntPtr puArgErr)
-        {
-            throw new NotImplementedException();
-        }
-#endif
 
         // private convenience data
         private const BindingFlags DefaultLookup = BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public;
