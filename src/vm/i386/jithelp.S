@@ -6,43 +6,6 @@
 #include "unixasmmacros.inc"
 #include "asmconstants.h"
 
-.macro JIT_FetchHelper Reg
-LEAF_ENTRY JIT_Fetch\Reg, _TEXT
-      mov \Reg, [esp]
-      ret
-LEAF_END JIT_Thunk, _TEXT
-.endm
-
-JIT_FetchHelper EAX
-JIT_FetchHelper EBX
-JIT_FetchHelper EDX
-
-.macro PREPARE_EXTERNAL_VAR_EAX Name
-.att_syntax
-    call  JIT_FetchEAX
-    addl  $_GLOBAL_OFFSET_TABLE_, %eax
-    movl  C_FUNC(\Name)@GOT(%eax), %eax
-    movl  (%eax), %eax
-.intel_syntax noprefix
-.endm
-
-.macro PREPARE_EXTERNAL_VAR_EBX Name
-.att_syntax
-    call  JIT_FetchEBX
-    addl  $_GLOBAL_OFFSET_TABLE_, %ebx
-    movl  C_FUNC(\Name)@GOT(%ebx), %ebx
-    movl  (%ebx), %ebx
-.intel_syntax noprefix
-.endm
-
-.macro PREPARE_EXTERNAL_VAR_EDX Name
-.att_syntax
-    call  JIT_FetchEDX
-    addl  $_GLOBAL_OFFSET_TABLE_, %edx
-    movl  C_FUNC(\Name)@GOT(%edx), %edx
-    movl  (%edx), %edx
-.intel_syntax noprefix
-.endm
 
 // ***
 // JIT_WriteBarrier* - GC write barrier helper
@@ -74,13 +37,13 @@ JIT_FetchHelper EDX
 NESTED_ENTRY JIT_CheckedWriteBarrier\rg, _TEXT, NoHandler
     // check in the REF being updated is in the GC heap
     push    eax
-    PREPARE_EXTERNAL_VAR_EAX g_lowest_address
-    cmp     edx, eax
+    PREPARE_EXTERNAL_VAR g_lowest_address, eax
+    cmp     edx, [eax]
     pop     eax
     jb      LOCAL_LABEL(WriteBarrier_NotInHeap_\rg)
     push    eax
-    PREPARE_EXTERNAL_VAR_EAX g_highest_address
-    cmp     edx, eax
+    PREPARE_EXTERNAL_VAR g_highest_address, eax
+    cmp     edx, [eax]
     pop     eax
     jae     LOCAL_LABEL(WriteBarrier_NotInHeap_\rg)
 
@@ -128,21 +91,23 @@ PATCH_LABEL JIT_DebugWriteBarrier\rg
 
     // if g_GCShadow is 0, don't perform the check
     push    eax
-    PREPARE_EXTERNAL_VAR_EAX g_GCShadow
-    cmp     eax, 0
+    PREPARE_EXTERNAL_VAR g_GCShadow, eax
+    cmp     DWORD PTR [eax], 0
     pop     eax
     je      LOCAL_LABEL(WriteBarrier_NoShadow_\rg)
 
     mov     ecx, edx
     push    eax
-    PREPARE_EXTERNAL_VAR_EAX g_lowest_address
-    sub     ecx, eax
+    PREPARE_EXTERNAL_VAR g_lowest_address, eax
+    sub     ecx, [eax]
     pop     eax
     jb      LOCAL_LABEL(WriteBarrier_NoShadow_\rg)
     push    edx
-    PREPARE_EXTERNAL_VAR_EDX g_GCShadow
+    PREPARE_EXTERNAL_VAR g_GCShadow, edx
+    mov     [edx], edx
     add     ecx, [edx]
-    PREPARE_EXTERNAL_VAR_EDX g_GCShadowEnd
+    PREPARE_EXTERNAL_VAR g_GCShadowEnd, edx
+    mov     [edx], edx
     cmp     ecx, [edx]
     pop     edx
     ja      LOCAL_LABEL(WriteBarrier_NoShadow_\rg)
@@ -200,24 +165,24 @@ LOCAL_LABEL(WriteBarrier_ShadowCheckEnd_\rg):
     push    eax
     push    ebx
     mov     eax, \rg
-    PREPARE_EXTERNAL_VAR_EBX g_ephemeral_low
-    cmp     eax, ebx
+    PREPARE_EXTERNAL_VAR g_ephemeral_low, ebx
+    cmp     eax, [ebx]
     pop     ebx
     pop     eax
     jb      LOCAL_LABEL(WriteBarrier_NotInEphemeral_\rg)
     push    eax
     push    ebx
     mov     eax, \rg
-    PREPARE_EXTERNAL_VAR_EBX g_ephemeral_high
-    cmp     eax, ebx
+    PREPARE_EXTERNAL_VAR g_ephemeral_high, ebx
+    cmp     eax, [ebx]
     pop     ebx
     pop     eax
     jae     LOCAL_LABEL(WriteBarrier_NotInEphemeral_\rg)
 
     shr     edx, 10
     push    eax
-    PREPARE_EXTERNAL_VAR_EAX g_card_table
-    add     edx, eax
+    PREPARE_EXTERNAL_VAR g_card_table, eax
+    add     edx, [eax]
     pop     eax
     cmp     BYTE PTR [edx], 0FFh
     jne     LOCAL_LABEL(WriteBarrier_UpdateCardTable_\rg)
@@ -271,13 +236,13 @@ LEAF_ENTRY JIT_ByRefWriteBarrier, _TEXT
     // test for dest in range
     mov     ecx, [esi]
     push    eax
-    PREPARE_EXTERNAL_VAR_EAX g_lowest_address
-    cmp     edi, eax
+    PREPARE_EXTERNAL_VAR g_lowest_address, eax
+    cmp     edi, [eax]
     pop     eax
     jb      LOCAL_LABEL(ByRefWriteBarrier_NotInHeap)
     push    eax
-    PREPARE_EXTERNAL_VAR_EAX g_highest_address
-    cmp     edi, eax
+    PREPARE_EXTERNAL_VAR g_highest_address, eax
+    cmp     edi, [eax]
     pop     eax
     jae     LOCAL_LABEL(ByRefWriteBarrier_NotInHeap)
 
@@ -287,119 +252,121 @@ LEAF_ENTRY JIT_ByRefWriteBarrier, _TEXT
 #endif // !WRITE_BARRIER_CHECK
 
 #ifdef WRITE_BARRIER_CHECK
-   // Test dest here so if it is bad AV would happen before we change register/stack
-   // status. This makes job of AdjustContextForWriteBarrier easier.
-   cmp     BYTE PTR [edi], 0
+    // Test dest here so if it is bad AV would happen before we change register/stack
+    // status. This makes job of AdjustContextForWriteBarrier easier.
+    cmp     BYTE PTR [edi], 0
 
-   // ALSO update the shadow GC heap if that is enabled
+    // ALSO update the shadow GC heap if that is enabled
 
-   // use edx for address in GC Shadow,
-   push    edx
+    // use edx for address in GC Shadow,
+    push    edx
 
-   // if g_GCShadow is 0, don't do the update
-   push    ebx
-   PREPARE_EXTERNAL_VAR_EBX g_GCShadow
-   cmp     ebx, 0
-   pop     ebx
-   je      LOCAL_LABEL(ByRefWriteBarrier_NoShadow)
+    // if g_GCShadow is 0, don't do the update
+    push    ebx
+    PREPARE_EXTERNAL_VAR g_GCShadow, ebx
+    cmp     DWORD PTR [ebx], 0
+    pop     ebx
+    je      LOCAL_LABEL(ByRefWriteBarrier_NoShadow)
 
-   mov     edx, edi
-   push    ebx
-   PREPARE_EXTERNAL_VAR_EBX g_lowest_address
-   sub     edx, ebx // U/V
-   pop     ebx
-   jb      LOCAL_LABEL(ByRefWriteBarrier_NoShadow)
-   push    eax
-   PREPARE_EXTERNAL_VAR_EAX g_GCShadow
-   add     edx, [eax]
-   PREPARE_EXTERNAL_VAR_EAX g_GCShadowEnd
-   cmp     edx, [eax]
-   pop     eax
-   ja      LOCAL_LABEL(ByRefWriteBarrier_NoShadow)
+    mov     edx, edi
+    push    ebx
+    PREPARE_EXTERNAL_VAR g_lowest_address, ebx
+    sub     edx, [ebx] // U/V
+    pop     ebx
+    jb      LOCAL_LABEL(ByRefWriteBarrier_NoShadow)
+    push    eax
+    PREPARE_EXTERNAL_VAR g_GCShadow, eax
+    mov     eax, [eax]
+    add     edx, [eax]
+    PREPARE_EXTERNAL_VAR g_GCShadowEnd, eax
+    mov     eax, [eax]
+    cmp     edx, [eax]
+    pop     eax
+    ja      LOCAL_LABEL(ByRefWriteBarrier_NoShadow)
 
-   // TODO: In Orcas timeframe if we move to P4+ only on X86 we should enable
-   // mfence barriers on either side of these two writes to make sure that
-   // they stay as close together as possible
+    // TODO: In Orcas timeframe if we move to P4+ only on X86 we should enable
+    // mfence barriers on either side of these two writes to make sure that
+    // they stay as close together as possible
 
-   // edi contains address in GC
-   // edx contains address in ShadowGC
-   // ecx is the value to assign
+    // edi contains address in GC
+    // edx contains address in ShadowGC
+    // ecx is the value to assign
 
-   // When we're writing to the shadow GC heap we want to be careful to minimize
-   // the risk of a race that can occur here where the GC and ShadowGC don't match
-   mov     DWORD PTR [edi], ecx
-   mov     DWORD PTR [edx], ecx
+    // When we're writing to the shadow GC heap we want to be careful to minimize
+    // the risk of a race that can occur here where the GC and ShadowGC don't match
+    mov     DWORD PTR [edi], ecx
+    mov     DWORD PTR [edx], ecx
 
-   // We need a scratch register to verify the shadow heap.  We also need to
-   // construct a memory barrier so that the write to the shadow heap happens
-   // before the read from the GC heap.  We can do both by using SUB/XCHG
-   // rather than PUSH.
-   //
-   // TODO: Should be changed to a push if the mfence described above is added.
-   //
-   sub     esp, 4
-   xchg    [esp], eax
+    // We need a scratch register to verify the shadow heap.  We also need to
+    // construct a memory barrier so that the write to the shadow heap happens
+    // before the read from the GC heap.  We can do both by using SUB/XCHG
+    // rather than PUSH.
+    //
+    // TODO: Should be changed to a push if the mfence described above is added.
+    //
+    sub     esp, 4
+    xchg    [esp], eax
 
-   // As part of our race avoidance (see above) we will now check whether the values
-   // in the GC and ShadowGC match. There is a possibility that we're wrong here but
-   // being overaggressive means we might mask a case where someone updates GC refs
-   // without going to a write barrier, but by its nature it will be indeterminant
-   // and we will find real bugs whereas the current implementation is indeterminant
-   // but only leads to investigations that find that this code is fundamentally flawed
+    // As part of our race avoidance (see above) we will now check whether the values
+    // in the GC and ShadowGC match. There is a possibility that we're wrong here but
+    // being overaggressive means we might mask a case where someone updates GC refs
+    // without going to a write barrier, but by its nature it will be indeterminant
+    // and we will find real bugs whereas the current implementation is indeterminant
+    // but only leads to investigations that find that this code is fundamentally flawed
 
-   mov     eax, [edi]
-   cmp     [edx], eax
-   je      LOCAL_LABEL(ByRefWriteBarrier_CleanupShadowCheck)
-   mov     DWORD PTR [edx], INVALIDGCVALUE
+    mov     eax, [edi]
+    cmp     [edx], eax
+    je      LOCAL_LABEL(ByRefWriteBarrier_CleanupShadowCheck)
+    mov     DWORD PTR [edx], INVALIDGCVALUE
 LOCAL_LABEL(ByRefWriteBarrier_CleanupShadowCheck):
-   pop     eax
-   jmp     LOCAL_LABEL(ByRefWriteBarrier_ShadowCheckEnd)
+    pop     eax
+    jmp     LOCAL_LABEL(ByRefWriteBarrier_ShadowCheckEnd)
 
 LOCAL_LABEL(ByRefWriteBarrier_NoShadow):
-   // If we come here then we haven't written the value to the GC and need to.
-   mov     DWORD PTR [edi], ecx
+    // If we come here then we haven't written the value to the GC and need to.
+    mov     DWORD PTR [edi], ecx
 
 LOCAL_LABEL(ByRefWriteBarrier_ShadowCheckEnd):
-   pop     edx
+    pop     edx
 #endif // WRITE_BARRIER_CHECK
 
-   // test for *src in ephemeral segement
-   push    eax
-   PREPARE_EXTERNAL_VAR_EAX g_ephemeral_low
-   cmp     ecx, eax
-   pop     eax
-   jb      LOCAL_LABEL(ByRefWriteBarrier_NotInEphemeral)
-   push    eax
-   PREPARE_EXTERNAL_VAR_EAX g_ephemeral_high
-   cmp     ecx, eax
-   pop     eax
-   jae     LOCAL_LABEL(ByRefWriteBarrier_NotInEphemeral)
+    // test for *src in ephemeral segement
+    push    eax
+    PREPARE_EXTERNAL_VAR g_ephemeral_low, eax
+    cmp     ecx, [eax]
+    pop     eax
+    jb      LOCAL_LABEL(ByRefWriteBarrier_NotInEphemeral)
+    push    eax
+    PREPARE_EXTERNAL_VAR g_ephemeral_high, eax
+    cmp     ecx, [eax]
+    pop     eax
+    jae     LOCAL_LABEL(ByRefWriteBarrier_NotInEphemeral)
 
-   mov     ecx, edi
-   add     esi, 4
-   add     edi, 4
+    mov     ecx, edi
+    add     esi, 4
+    add     edi, 4
 
-   shr     ecx, 10
-   push    eax
-   PREPARE_EXTERNAL_VAR_EAX g_card_table
-   add     ecx, eax
-   pop     eax
-   cmp     BYTE PTR [ecx], 0FFh
-   jne     LOCAL_LABEL(ByRefWriteBarrier_UpdateCardTable)
-   ret
+    shr     ecx, 10
+    push    eax
+    PREPARE_EXTERNAL_VAR g_card_table, eax
+    add     ecx, [eax]
+    pop     eax
+    cmp     BYTE PTR [ecx], 0FFh
+    jne     LOCAL_LABEL(ByRefWriteBarrier_UpdateCardTable)
+    ret
 LOCAL_LABEL(ByRefWriteBarrier_UpdateCardTable):
-   mov     BYTE PTR [ecx], 0FFh
-   ret
+    mov     BYTE PTR [ecx], 0FFh
+    ret
 
 LOCAL_LABEL(ByRefWriteBarrier_NotInHeap):
-   // If it wasn't in the heap then we haven't updated the dst in memory yet
-   mov     [edi], ecx
+    // If it wasn't in the heap then we haven't updated the dst in memory yet
+    mov     [edi], ecx
 LOCAL_LABEL(ByRefWriteBarrier_NotInEphemeral):
-   // If it is in the GC Heap but isn't in the ephemeral range we've already
-   // updated the Heap with the Object*.
-   add     esi, 4
-   add     edi, 4
-   ret
+    // If it is in the GC Heap but isn't in the ephemeral range we've already
+    // updated the Heap with the Object*.
+    add     esi, 4
+    add     edi, 4
+    ret
 NESTED_END JIT_ByRefWriteBarrier, _TEXT
 
 .endm
@@ -597,9 +564,9 @@ LEAF_ENTRY JIT_Dbl2LngP4x87, _TEXT
     #undef arg1
 
     // restore stack
-    add esp, 8
+    add     esp, 8
 
-    ret	8
+    ret     8
 LEAF_END JIT_Dbl2LngP4x87, _TEXT
 
 // *********************************************************************/
@@ -623,9 +590,9 @@ LEAF_ENTRY JIT_Dbl2LngSSE3, _TEXT
     mov     edx, DWORD PTR [esp + 4]
 
     // restore stack
-    add esp, 8
+    add     esp, 8
 
-    ret	8
+    ret     8
 LEAF_END JIT_Dbl2LngSSE3, _TEXT
 
 // *********************************************************************/
