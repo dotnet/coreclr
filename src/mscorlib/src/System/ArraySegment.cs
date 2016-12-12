@@ -166,7 +166,7 @@ namespace System
                 ThrowHelper.ThrowArgumentOutOfRangeException();
             Contract.EndContractBlock();
 
-            return new ArraySegment<T>(_array, start, length);
+            return new ArraySegment<T>(_array, _offset + start, length);
         }
 
         public void CopyTo(Span<T> destination)
