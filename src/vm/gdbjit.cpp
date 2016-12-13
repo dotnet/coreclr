@@ -2160,7 +2160,8 @@ bool NotifyGdb::CollectCalledMethods(CalledMethod* pCalledMethods, TADDR nativeC
     SymbolNames = new (nothrow) Elf_Symbol[SymbolCount];
 
     pList = pCalledMethods;
-    for (int i = 1 + method.GetCount(); i < SymbolCount;)
+    int i = 1 + method.GetCount();
+    while (i < SymbolCount)
     {
         TADDR callAddr = (TADDR)pList->GetCallAddr();
         if (!codeAddrs.Contains(callAddr))
@@ -2179,7 +2180,7 @@ bool NotifyGdb::CollectCalledMethods(CalledMethod* pCalledMethods, TADDR nativeC
         pList = pList->GetNext();
         delete ptr;
     }
-
+    SymbolCount = i;
     return true;
 }
 
