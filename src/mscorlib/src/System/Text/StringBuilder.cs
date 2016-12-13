@@ -1113,11 +1113,11 @@ namespace System.Text {
                         }
                     }
                 }
+                m_ChunkLength += length;
                 startIndex += length;
                 count -= length;
             }
         }
-
 
         // Append joined values with a separator between each value.
         public unsafe StringBuilder AppendJoin<T>(char separator, params T[] values)
