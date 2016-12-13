@@ -124,6 +124,16 @@ namespace System
         }
 
         /// <summary>
+        /// Create a new span over a portion of a regular managed object. This can be useful
+        /// if part of a managed object represents a "fixed array." This is dangerous because
+        /// "length" is not checked, nor is the fact that "rawPointer" actually lies within the object.
+        /// </summary>
+        /// <param name="obj">The managed object that contains the data to span over.</param>
+        /// <param name="objectData">A reference to data within that object.</param>
+        /// <param name="length">The number of <typeparamref name="T"/> elements the memory contains.</param>
+        public static Span<T> DangerousCreate(object obj, ref T objectData, int length) => new Span<T>(ref objectData, length);
+
+        /// <summary>
         /// An internal helper for creating spans.
         /// </summary>
         internal Span(ref T ptr, int length)
@@ -221,16 +231,6 @@ namespace System
         /// this does *not* check to see if the *contents* are equal.
         /// </summary>
         public static bool operator !=(Span<T> left, Span<T> right) => !(left == right);
-
-        /// <summary>
-        /// Checks to see if two spans point at the same memory.  Note that
-        /// this does *not* check to see if the *contents* are equal.
-        /// </summary>
-        public bool Equals(Span<T> other)
-        {
-            return (_length == other.Length) &&
-                (_length == 0 || Unsafe.AreSame(ref DangerousGetPinnableReference(), ref other.DangerousGetPinnableReference()));
-        }
 
         /// <summary>
         /// This method is not supported as spans cannot be boxed. To compare two spans, use operator==.

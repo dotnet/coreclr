@@ -32,8 +32,6 @@ namespace System
         {
             if (array == null)
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
-            if (default(T) == null && array.GetType() != typeof(T[]))
-                ThrowHelper.ThrowArrayTypeMismatchException();
 
             _pointer = new ByReference<T>(ref JitHelpers.GetArrayData(array));
             _length = array.Length;
@@ -54,8 +52,6 @@ namespace System
         {
             if (array == null)
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
-            if (default(T) == null && array.GetType() != typeof(T[]))
-                ThrowHelper.ThrowArrayTypeMismatchException();
             if ((uint)start > (uint)array.Length)
                 ThrowHelper.ThrowArgumentOutOfRangeException();
 
@@ -79,8 +75,6 @@ namespace System
         {
             if (array == null)
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
-            if (default(T) == null && array.GetType() != typeof(T[]))
-                ThrowHelper.ThrowArrayTypeMismatchException();
             if ((uint)start > (uint)array.Length || (uint)length > (uint)(array.Length - start))
                 ThrowHelper.ThrowArgumentOutOfRangeException();
 
@@ -159,6 +153,16 @@ namespace System
             // Prevent compiler error CS0161: 'Span<T>.GetHashCode()': not all code paths return a value
             return default(int);
         }
+
+        /// <summary>
+        /// Create a new read-only span over a portion of a regular managed object. This can be useful
+        /// if part of a managed object represents a "fixed array." This is dangerous because
+        /// "length" is not checked, nor is the fact that "rawPointer" actually lies within the object.
+        /// </summary>
+        /// <param name="obj">The managed object that contains the data to span over.</param>
+        /// <param name="objectData">A reference to data within that object.</param>
+        /// <param name="length">The number of <typeparamref name="T"/> elements the memory contains.</param>
+        public static ReadOnlySpan<T> DangerousCreate(object obj, ref T objectData, int length) => new ReadOnlySpan<T>(ref objectData, length);
 
         /// <summary>
         /// Defines an implicit conversion of a <see cref="Span{T}"/> to a <see cref="ReadOnlySpan{T}"/>
@@ -271,16 +275,6 @@ namespace System
                 ThrowHelper.ThrowArgumentOutOfRangeException();
 
             return new ReadOnlySpan<T>(ref Unsafe.Add(ref DangerousGetPinnableReference(), start), length);
-        }
-
-        /// <summary>
-        /// Checks to see if two spans point at the same memory.  Note that
-        /// this does *not* check to see if the *contents* are equal.
-        /// </summary>
-        public bool Equals(ReadOnlySpan<T> other)
-        {
-            return (_length == other.Length) &&
-                (_length == 0 || Unsafe.AreSame(ref DangerousGetPinnableReference(), ref other.DangerousGetPinnableReference()));
         }
 
         /// <summary>
