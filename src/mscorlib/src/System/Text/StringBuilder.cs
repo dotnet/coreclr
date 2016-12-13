@@ -1045,7 +1045,7 @@ namespace System.Text {
             return this;
         }
 
-        public unsafe void AppendCore(StringBuilder value, int startIndex, int count)
+        private unsafe void AppendCore(StringBuilder value, int startIndex, int count)
         {
             Contract.Assert(value != null, "StringBuilder is null");
             Contract.Assert(count > 0, "count should be more zero");
