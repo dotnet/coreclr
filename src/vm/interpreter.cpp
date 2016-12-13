@@ -10332,6 +10332,10 @@ void Interpreter::CallI()
             bool transitionToPreemptive = (pStubContextMD != NULL && !pStubContextMD->IsIL());
             mdcs.CallTargetWorker(args, &retVal, sizeof(retVal), transitionToPreemptive);
 #else
+            // TODO The code above triggers assertion at threads.cpp:6861:
+            //     _ASSERTE(thread->PreemptiveGCDisabled());  // Should have been in managed code
+            // The workaround will likely break more things than what it is fixing:
+            // just do not make transition to preemptive GC for now.
             mdcs.CallTargetWorker(args, &retVal, sizeof(retVal));
 #endif
         }
