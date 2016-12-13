@@ -211,13 +211,16 @@ namespace System
         /// Returns true if left and right point at the same memory and have the same length.  Note that
         /// this does *not* check to see if the *contents* are equal.
         /// </summary>
-        public static bool operator ==(Span<T> left, Span<T> right) => left.Equals(right);
+        public static bool operator ==(Span<T> left, Span<T> right)
+        {
+            return left._length == right._length && Unsafe.AreSame<T>(ref left.DangerousGetPinnableReference(), ref right.DangerousGetPinnableReference());
+        }
 
         /// <summary>
         /// Returns false if left and right point at the same memory and have the same length.  Note that
         /// this does *not* check to see if the *contents* are equal.
         /// </summary>
-        public static bool operator !=(Span<T> left, Span<T> right) => !left.Equals(right);
+        public static bool operator !=(Span<T> left, Span<T> right) => !(left == right);
 
         /// <summary>
         /// Checks to see if two spans point at the same memory.  Note that
