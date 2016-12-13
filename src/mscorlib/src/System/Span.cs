@@ -131,7 +131,22 @@ namespace System
         /// <param name="obj">The managed object that contains the data to span over.</param>
         /// <param name="objectData">A reference to data within that object.</param>
         /// <param name="length">The number of <typeparamref name="T"/> elements the memory contains.</param>
-        public static Span<T> DangerousCreate(object obj, ref T objectData, int length) => new Span<T>(ref objectData, length);
+        /// <exception cref="System.ArgumentNullException">
+        /// Thrown when the specified object is null.
+        /// </exception>
+        /// <exception cref="System.ArgumentOutOfRangeException">
+        /// Thrown when the specified <paramref name="length"/> is negative.
+        /// </exception>
+        public static Span<T> DangerousCreate(object obj, ref T objectData, int length)
+        {
+            if (obj == null)
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.obj);
+            if (length < 0)
+                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.length);
+
+            return new Span<T>(ref objectData, length);
+        }
+        
 
         /// <summary>
         /// An internal helper for creating spans.
