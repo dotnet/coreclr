@@ -1001,13 +1001,9 @@ namespace System.Text {
 
         public StringBuilder Append(StringBuilder value)
         {
-            if (value == null)
-            {
-                throw new ArgumentNullException(nameof(value), Environment.GetResourceString("ArgumentNull_Obj"));
-            }
-            Contract.EndContractBlock();
+            Contract.Ensures(Contract.Result<StringBuilder>() != null);
 
-            if (value.Length > 0)
+            if (value != null && value.Length > 0)
             {
                 AppendCore(value, 0, value.Length);
             }
@@ -1016,27 +1012,29 @@ namespace System.Text {
 
         public StringBuilder Append(StringBuilder value, int startIndex, int count)
         {
-            if (value == null)
-            {
-                throw new ArgumentNullException(nameof(value), Environment.GetResourceString("ArgumentNull_Obj"));
-            }
             if (startIndex < 0)
             {
-                throw new ArgumentOutOfRangeException(nameof(startIndex), Environment.GetResourceString("ArgumentOutOfRange_StartIndex"));
-            }
-            if (startIndex > value.Length)
-            {
-                throw new ArgumentOutOfRangeException(nameof(startIndex), Environment.GetResourceString("ArgumentOutOfRange_StartIndexLargerThanLength"));
+                throw new ArgumentOutOfRangeException(nameof(startIndex), Environment.GetResourceString("ArgumentOutOfRange_GenericPositive"));
             }
             if (count < 0)
             {
-                throw new ArgumentOutOfRangeException(nameof(count), Environment.GetResourceString("ArgumentOutOfRange_MustBeNonNegNum", nameof(count)));
+                throw new ArgumentOutOfRangeException(nameof(count), Environment.GetResourceString("ArgumentOutOfRange_GenericPositive"));
             }
-            if (startIndex > value.Length - count)
-            {
-                throw new ArgumentOutOfRangeException(nameof(count), Environment.GetResourceString("ArgumentOutOfRange_IndexLength"));
-            }
+            Contract.Ensures(Contract.Result<StringBuilder>() != null);
             Contract.EndContractBlock();
+
+            if (value == null)
+            {
+                if (startIndex == 0 && count == 0)
+                {
+                    return this;
+                }
+                throw new ArgumentNullException(nameof(value));
+            }
+            if (count > value.Length - startIndex)
+            {
+                throw new ArgumentOutOfRangeException("count", Environment.GetResourceString("ArgumentOutOfRange_IndexLength"));
+            }
 
             if (count > 0)
             {
