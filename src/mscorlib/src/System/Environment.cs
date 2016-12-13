@@ -1242,7 +1242,7 @@ namespace System {
             }
         }
 
-        private static Hashtable GetRawEnvironmentVariables()
+        private static Dictionary<string, string> GetRawEnvironmentVariables()
         {
             // Format for GetEnvironmentStrings is:
             // (=HiddenVar=value\0 | Variable=value\0)* \0
@@ -1257,7 +1257,7 @@ namespace System {
             // environment block (as =C:=pwd) and the program's exit code is 
             // as well (=ExitCode=00000000).
 
-            var results = new Hashtable();
+            var results = new Dictionary<string, string>();
             char[] block = GetEnvironmentCharArray();
             for (int i = 0; i < block.Length; i++)
             {
@@ -1355,7 +1355,7 @@ namespace System {
             {
                 // Environment variable accessors are not approved modern API.
                 // Behave as if no environment variables are defined in this case.
-                return new Hashtable(0);
+                return new Dictionary<string, string>(0);
             }
 
             return GetRawEnvironmentVariables();
@@ -1368,7 +1368,7 @@ namespace System {
 
 #if !FEATURE_WIN32_REGISTRY
             // Without registry support we have nothing to return
-            return new Hashtable(0);
+            return new Dictionary<string, string>(0);
 #else
             RegistryKey baseKey;
             string keyName;
@@ -1390,7 +1390,7 @@ namespace System {
 
             using (RegistryKey environmentKey = baseKey.OpenSubKey(keyName, writable: false))
             {
-                var table = new Hashtable();
+                var table = new Dictionary<string, string>();
                 if (environmentKey != null)
                 {
                     foreach (string name in environmentKey.GetValueNames())
