@@ -3001,7 +3001,7 @@ PCODE COMDelegate::GetSecureInvoke(MethodDesc* pMD)
     CONTRACT_END;
 
     MethodTable *       pDelegateMT = pMD->GetMethodTable();
-    DelegateEEClass*    delegateEEClass = (DelegateEEClass*) pDelMT->GetClass();
+    DelegateEEClass*    delegateEEClass = (DelegateEEClass*) pDelegateMT->GetClass();
 
 	Stub *pStub = delegateEEClass->m_pSecureDelegateInvokeStub;
 
