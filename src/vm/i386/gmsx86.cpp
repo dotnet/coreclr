@@ -683,9 +683,11 @@ void LazyMachState::unwindLazyState(LazyMachState* baseState,
                 ip += 2;
                 break;
 
+#ifdef FEATURE_PAL
             case 0x34:                            // XOR AL, imm8
                 ip += 2;
                 break;
+#endif // FEATURE_PAL
 
             case 0x31:
             case 0x32:
@@ -883,9 +885,11 @@ void LazyMachState::unwindLazyState(LazyMachState* baseState,
                 datasize = b16bit?2:4;
                 goto decodeRM;
 
+#ifdef FEATURE_PAL
             case 0x24:                           // AND AL, imm8
                 ip += 2;
                 break;
+#endif // FEATURE_PAL
 
             case 0x01:                           // ADD mod/rm
             case 0x03:
