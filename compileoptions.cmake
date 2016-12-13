@@ -15,7 +15,10 @@ if (CLR_CMAKE_PLATFORM_UNIX)
     # We cannot enable "stack-protector-strong" on OS X due to a bug in clang compiler (current version 7.0.2)
     add_compile_options(-fstack-protector)
   else()
-    add_compile_options(-fstack-protector-strong)
+    if(NOT CLR_CMAKE_PLATFORM_ARCH_I386)
+      # x86 unwinder cannot handle stack protection code, yet
+      add_compile_options(-fstack-protector-strong)
+    endif(NOT CLR_CMAKE_PLATFORM_ARCH_I386)
   endif(CLR_CMAKE_PLATFORM_DARWIN)
 
   add_definitions(-DDISABLE_CONTRACTS)
