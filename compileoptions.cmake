@@ -17,6 +17,7 @@ if (CLR_CMAKE_PLATFORM_UNIX)
   else()
     if(NOT CLR_CMAKE_PLATFORM_ARCH_I386)
       # x86 unwinder cannot handle stack protection code, yet
+      # see https://github.com/dotnet/coreclr/issues/8625 for details
       add_compile_options(-fstack-protector-strong)
     endif(NOT CLR_CMAKE_PLATFORM_ARCH_I386)
   endif(CLR_CMAKE_PLATFORM_DARWIN)
