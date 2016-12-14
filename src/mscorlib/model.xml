@@ -345,7 +345,6 @@
         <Member Name="get_Item(System.Int32)" />
         <Member Name="set_Item(System.Int32,T)" />
         <Member Name="get_Empty" />
-        <Member Name="get_IsEmpty" />
         <Member Name="Slice(System.Int32)" />
         <Member Name="Slice(System.Int32,System.Int32)" />
         <Member Name="CopyTo(T[])" />
@@ -363,7 +362,6 @@
         <Member MemberType="Property" Name="Offset" />
         <Member MemberType="Property" Name="Length" />
         <Member MemberType="Property" Name="Item(System.Int32)" />
-        <Member MemberType="Property" Name="IsEmpty" />
     </Type>
     <Type Name="System.ArraySegment&lt;T&gt;+Enumerator">
       <Member Name="Dispose" />

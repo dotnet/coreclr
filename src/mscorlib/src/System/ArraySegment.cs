@@ -145,8 +145,6 @@ namespace System
             get { return default(ArraySegment<T>); }
         }
 
-        public bool IsEmpty => _count == 0;
-
         public ArraySegment<T> Slice(int start)
         {
             if (_array == null)
