@@ -145,16 +145,7 @@ namespace System
             get { return default(ArraySegment<T>); }
         }
 
-        public ArraySegment<T> Slice(int start)
-        {
-            if (_array == null)
-                ThrowHelper.ThrowInvalidOperationException(ExceptionResource.InvalidOperation_NullArray);
-            if ((uint)start > (uint)_count)
-                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.startIndex, ExceptionResource.ArgumentOutOfRange_Index);
-            Contract.EndContractBlock();
-
-            return new ArraySegment<T>(_array, _offset + start, _count - start);
-        }
+        public ArraySegment<T> Slice(int start) => Slice(start, _count - start);
 
         public ArraySegment<T> Slice(int start, int length)
         {
