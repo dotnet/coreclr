@@ -837,6 +837,13 @@ RtlVirtualUnwind_Unsafe(
 
 #ifdef _TARGET_X86_
 #ifndef FEATURE_PAL
+//
+// x86 ABI does not define RUNTIME_FUNCTION. Define our own to allow unification between x86 and other platforms.
+//
+typedef struct _RUNTIME_FUNCTION {
+    DWORD BeginAddress;
+    DWORD UnwindData;
+} RUNTIME_FUNCTION, *PRUNTIME_FUNCTION;
 
 typedef struct _DISPATCHER_CONTEXT {
     _EXCEPTION_REGISTRATION_RECORD* RegistrationPointer;
@@ -845,6 +852,20 @@ typedef struct _DISPATCHER_CONTEXT {
 #endif // !FEATURE_PAL
 
 #define RUNTIME_FUNCTION__BeginAddress(prf)             (prf)->BeginAddress
+
+#ifdef WIN64EXCEPTIONS
+ULONG
+RtlpGetFunctionEndAddress (
+    __in PT_RUNTIME_FUNCTION FunctionEntry,
+    __in ULONG ImageBase
+    )
+{
+    PORTABILITY_ASSERT("RtlpGetFunctionEndAddress");
+    return NULL;
+}
+
+#define RUNTIME_FUNCTION__EndAddress(prf, ImageBase)   RtlpGetFunctionEndAddress(prf, ImageBase)
+#endif // WIN64EXCEPTIONS
 
 #endif // _TARGET_X86_
 
