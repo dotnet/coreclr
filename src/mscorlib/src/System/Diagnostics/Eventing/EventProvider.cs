@@ -471,39 +471,35 @@ namespace System.Diagnostics.Tracing
             // It is unclear if it is worth keeping, but for now we leave it as it does work
             // at least some of the time.  
 
-            // Determine our session from what is in the registry.  
-            string regKey = @"\Microsoft\Windows\CurrentVersion\Winevt\Publishers\{" + m_providerId + "}";
-            if (System.Runtime.InteropServices.Marshal.SizeOf(typeof(IntPtr)) == 8)
-                regKey = @"Software" + @"\Wow6432Node" + regKey;
-            else
-                regKey = @"Software" + regKey;
-
-            var key = Microsoft.Win32.Registry.LocalMachine.OpenSubKey(regKey);
-            if (key != null)
+            // Determine our session from what is in the registry.
+            using (RegistryKey key = OpenRegistryKeyForProviderId())
             {
-                foreach (string valueName in key.GetValueNames())
+                if (key != null)
                 {
-                    if (valueName.StartsWith("ControllerData_Session_", StringComparison.Ordinal))
+                    foreach (string valueName in key.GetValueNames())
                     {
-                        string strId = valueName.Substring(23);      // strip of the ControllerData_Session_
-                        int etwSessionId;
-                        if (int.TryParse(strId, out etwSessionId))
+                        if (valueName.StartsWith("ControllerData_Session_", StringComparison.Ordinal))
                         {
-                            // we need to assert this permission for partial trust scenarios
-                            (new RegistryPermission(RegistryPermissionAccess.Read, regKey)).Assert();
-                            var data = key.GetValue(valueName) as byte[];
-                            if (data != null)
+                            string strId = valueName.Substring(23);      // strip of the ControllerData_Session_
+                            int etwSessionId;
+                            if (int.TryParse(strId, out etwSessionId))
                             {
-                                var dataAsString = System.Text.Encoding.UTF8.GetString(data);
-                                int keywordIdx = dataAsString.IndexOf("EtwSessionKeyword", StringComparison.Ordinal);
-                                if (0 <= keywordIdx)
+                                // we need to assert this permission for partial trust scenarios
+                                (new RegistryPermission(RegistryPermissionAccess.Read, key.Name)).Assert();
+                                var data = key.GetValue(valueName) as byte[];
+                                if (data != null)
                                 {
-                                    int startIdx = keywordIdx + 18;
-                                    int endIdx = dataAsString.IndexOf('\0', startIdx);
-                                    string keywordBitString = dataAsString.Substring(startIdx, endIdx-startIdx);
-                                    int keywordBit;
-                                    if (0 < endIdx && int.TryParse(keywordBitString, out keywordBit))
-                                        action(etwSessionId, 1L << keywordBit);
+                                    var dataAsString = System.Text.Encoding.UTF8.GetString(data);
+                                    int keywordIdx = dataAsString.IndexOf("EtwSessionKeyword", StringComparison.Ordinal);
+                                    if (0 <= keywordIdx)
+                                    {
+                                        int startIdx = keywordIdx + 18;
+                                        int endIdx = dataAsString.IndexOf('\0', startIdx);
+                                        string keywordBitString = dataAsString.Substring(startIdx, endIdx-startIdx);
+                                        int keywordBit;
+                                        if (0 < endIdx && int.TryParse(keywordBitString, out keywordBit))
+                                            action(etwSessionId, 1L << keywordBit);
+                                    }
                                 }
                             }
                         }
@@ -547,22 +543,22 @@ namespace System.Diagnostics.Tracing
             if (filterData == null)
             {
 #if (!ES_BUILD_PCL && !PROJECTN && !FEATURE_PAL)
-                string regKey = @"\Microsoft\Windows\CurrentVersion\Winevt\Publishers\{" + m_providerId + "}";
-                if (System.Runtime.InteropServices.Marshal.SizeOf(typeof(IntPtr)) == 8)
-                    regKey = @"HKEY_LOCAL_MACHINE\Software" + @"\Wow6432Node" + regKey;
-                else
-                    regKey = @"HKEY_LOCAL_MACHINE\Software" + regKey;
-
-                string valueName = "ControllerData_Session_" + etwSessionId.ToString(CultureInfo.InvariantCulture);
-
-                // we need to assert this permission for partial trust scenarios
-                (new RegistryPermission(RegistryPermissionAccess.Read, regKey)).Assert();
-                data = Microsoft.Win32.Registry.GetValue(regKey, valueName, null) as byte[];
-                if (data != null)
+                using (RegistryKey key = OpenRegistryKeyForProviderId())
                 {
-                    // We only used the persisted data from the registry for updates.   
-                    command = ControllerCommand.Update;
-                    return true;
+                    if (key != null)
+                    {
+                        string valueName = "ControllerData_Session_" + etwSessionId.ToString(CultureInfo.InvariantCulture);
+
+                        // we need to assert this permission for partial trust scenarios
+                        (new RegistryPermission(RegistryPermissionAccess.Read, key.Name)).Assert();
+                        data = key.GetValue(valueName) as byte[];
+                        if (data != null)
+                        {
+                            // We only used the persisted data from the registry for updates.
+                            command = ControllerCommand.Update;
+                            return true;
+                        }
+                    }
                 }
 #endif
             }
@@ -1193,6 +1189,18 @@ namespace System.Diagnostics.Tracing
                 idx++;
             return idx;
         }
+
+#if !ES_BUILD_PCL && !FEATURE_PAL
+        [SecurityCritical]
+        private RegistryKey OpenRegistryKeyForProviderId()
+        {
+            string regKey =
+                (IntPtr.Size == 8 ? @"Software\Wow6432Node" : "Software") +
+                @"\Microsoft\Windows\CurrentVersion\Winevt\Publishers\{" + m_providerId.ToString() + "}";
+
+            return Registry.LocalMachine.OpenSubKey(regKey);
+        }
+#endif
     }
 }
 
