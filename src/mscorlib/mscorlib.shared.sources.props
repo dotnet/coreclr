@@ -1123,6 +1123,7 @@
   </ItemGroup>
   <ItemGroup>
     <GenericsSources Include="$(BclSourcesRoot)\System\Nullable.cs" />
+    <GenericsSources Include="$(BclSourcesRoot)\System\Collections\Generic\CollectionExtensions.cs" />
     <GenericsSources Include="$(BclSourcesRoot)\System\Collections\Generic\Comparer.cs" />
     <GenericsSources Include="$(BclSourcesRoot)\System\Collections\Generic\Dictionary.cs" />
     <GenericsSources Include="$(BclSourcesRoot)\System\Collections\Generic\EqualityComparer.cs" />
