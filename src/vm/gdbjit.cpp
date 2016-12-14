@@ -2182,7 +2182,7 @@ bool NotifyGdb::CollectCalledMethods(CalledMethod* pCalledMethods, TADDR nativeC
 
     pList = pCalledMethods;
     int i = 1 + method.GetCount();
-    while (i < SymbolCount)
+    while (i < SymbolCount && pList != NULL)
     {
         TADDR callAddr = (TADDR)pList->GetCallAddr();
         if (!codeAddrs.Contains(callAddr))
