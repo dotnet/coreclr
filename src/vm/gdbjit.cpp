@@ -1043,11 +1043,11 @@ void FunctionMember::MangleName(char *buf, int &buf_offset, const char *name)
         strncpy(buf + buf_offset, tmp, tmp_len);
     buf_offset += tmp_len;
 
-    for (int i = 0; i < name_length; i++)
+    if (buf)
     {
-        char c = name[i];
-        if (buf)
+        for (int i = 0; i < name_length; i++)
         {
+            char c = name[i];
             bool valid = (c >= 'a' && c <= 'z') ||
                          (c >= 'A' && c <= 'Z') ||
                          (c >= '0' && c <= '9');
