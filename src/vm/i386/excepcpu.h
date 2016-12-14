@@ -28,6 +28,11 @@ class Thread;
                               // Actually, the handler getting set is properly registered
 #endif
 
+#ifdef FEATURE_PAL
+#define INSTALL_EXCEPTION_HANDLING_RECORD(record)
+#define UNINSTALL_EXCEPTION_HANDLING_RECORD(record)
+#define DECLARE_CPFH_EH_RECORD(pCurThread)
+#else // FEATURE_PAL
 #define INSTALL_EXCEPTION_HANDLING_RECORD(record)               \
     {                                                           \
         PEXCEPTION_REGISTRATION_RECORD __record = (record);     \
@@ -64,6 +69,7 @@ class Thread;
     ___pExRecord->m_pEntryFrame = (pCurThread)->GetFrame();
 
 #endif
+#endif // FEATURE_PAL
 
 //
 // Retrieves the redirected CONTEXT* from the stack frame of one of the

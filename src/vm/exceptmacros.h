@@ -227,7 +227,7 @@ VOID DECLSPEC_NORETURN RealCOMPlusThrowSO();
     UNINSTALL_EXCEPTION_HANDLING_RECORD(&(___pExRecord->m_ExReg));              \
 }                                                                               
 
-#if !defined(WIN64EXCEPTIONS)
+#if !defined(WIN64EXCEPTIONS) && !defined(FEATURE_PAL)
 
 #define INSTALL_NESTED_EXCEPTION_HANDLER(frame)                                                                       \
    NestedHandlerExRecord *__pNestedHandlerExRecord = (NestedHandlerExRecord*) _alloca(sizeof(NestedHandlerExRecord)); \
