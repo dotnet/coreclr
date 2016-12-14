@@ -158,14 +158,7 @@ namespace System
             return new ArraySegment<T>(_array, _offset + start, length);
         }
 
-        public void CopyTo(T[] destination)
-        {
-            if (_array == null)
-                ThrowHelper.ThrowInvalidOperationException(ExceptionResource.InvalidOperation_NullArray);
-            Contract.EndContractBlock();
-
-            System.Array.Copy(_array, _offset, destination, 0, _count);
-        }
+        public void CopyTo(T[] destination) => CopyTo(destination, 0);
 
         public void CopyTo(T[] destination, int destinationIndex)
         {
