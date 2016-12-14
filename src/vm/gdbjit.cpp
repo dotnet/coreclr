@@ -1894,10 +1894,7 @@ static void fixLineMapping(SymbolsInfo* lines, unsigned nlines)
         {
             if (lines[i].lineNumber == 0)
             {
-                if (prevLine != 0)
-                {
-                    lines[i].lineNumber = prevLine;
-                }
+                lines[i].lineNumber = prevLine;
             }
             else
             {
