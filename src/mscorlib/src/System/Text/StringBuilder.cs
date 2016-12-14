@@ -1033,7 +1033,7 @@ namespace System.Text {
             }
             if (count > value.Length - startIndex)
             {
-                throw new ArgumentOutOfRangeException("count", Environment.GetResourceString("ArgumentOutOfRange_IndexLength"));
+                throw new ArgumentOutOfRangeException(nameof(count), Environment.GetResourceString("ArgumentOutOfRange_IndexLength"));
             }
 
             if (count > 0)
