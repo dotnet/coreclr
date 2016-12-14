@@ -39,15 +39,11 @@ set( GC_SOURCES_DAC
   ${GC_SOURCES_DAC_AND_WKS_COMMON})
 
 if(FEATURE_STANDALONE_GC)
-  if(CLR_CMAKE_PLATFORM_UNIX)
-    set ( GC_SOURCES_WKS
-      ${GC_SOURCES_WKS}
-      gcenv.unix.cpp)
-  else()
+  if(NOT CLR_CMAKE_PLATFORM_UNIX)
     set ( GC_SOURCES_WKS
       ${GC_SOURCES_WKS}
       gcenv.windows.cpp)
-  endif(CLR_CMAKE_PLATFORM_UNIX)
+  endif(NOT CLR_CMAKE_PLATFORM_UNIX)
 endif(FEATURE_STANDALONE_GC)
 
 convert_to_absolute_path(GC_SOURCES_WKS ${GC_SOURCES_WKS})
