@@ -2288,6 +2288,18 @@ bool NotifyGdb::BuildDebugInfo(MemBuf& buf, PTK_TypeInfoMap pTypeMap, SymbolsInf
         method[i]->nlines = nlines;
         method[i]->DumpDebugInfo(nullptr, totalTypeVarSubSize);
     }
+    // Drop pointers to lines when exiting current scope
+    struct DropMethodLines
+    {
+        ~DropMethodLines()
+        {
+            for (int i = 0; i < method.GetCount(); ++i)
+            {
+                method[i]->lines = nullptr;
+                method[i]->nlines = 0;
+            }
+        }
+    } dropMethodLines;
 
     //int locSize = GetArgsAndLocalsLen(argsDebug, argsDebugSize, localsDebug, localsDebugSize);
     buf.MemSize = sizeof(DwarfCompUnit) + sizeof(DebugInfoCU) + totalTypeVarSubSize + 2;
