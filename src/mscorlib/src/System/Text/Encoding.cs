@@ -867,16 +867,7 @@ namespace System.Text
         }
 
         [Pure]
-        public virtual int GetByteCount(String s)
-        {
-            if (s==null)
-                throw new ArgumentNullException(nameof(s));
-            Contract.EndContractBlock();
-
-            char[] chars = s.ToCharArray();
-            return GetByteCount(chars, 0, chars.Length);
-
-        }
+        public virtual int GetByteCount(String s) => GetByteCount(s, 0, s.Length);
 
         // Returns the number of bytes required to encode a range of characters in
         // a character array.
@@ -891,13 +882,18 @@ namespace System.Text
         {
             if (s == null)
                 throw new ArgumentNullException(nameof(s));
+            if (index < 0)
+                throw new ArgumentOutOfRangeException(nameof(index),
+                      Environment.GetResourceString("ArgumentOutOfRange_NeedNonNegNum"));
+            if (count < 0)
+                throw new ArgumentOutOfRangeException(nameof(count),
+                      Environment.GetResourceString("ArgumentOutOfRange_NeedNonNegNum"));
+            if (index > s.Length - count)
+                throw new ArgumentOutOfRangeException(nameof(index),
+                      Environment.GetResourceString("ArgumentOutOfRange_IndexCount"));
             Contract.EndContractBlock();
 
-            // Deligate parameters validation to string.ToCharArray method
-            char[] chars = s.ToCharArray(index, count);
-            Debug.Assert(count == chars.Length);
-
-            return GetByteCount(chars, 0, count);
+            return s.GetByteCountFromEncoding(index, count, this);
         }
 
         // We expect this to be the workhorse for NLS encodings
@@ -980,51 +976,62 @@ namespace System.Text
         // string.
         //
         [Pure]
-        public virtual byte[] GetBytes(String s)
-        {
-            if (s == null)
-                throw new ArgumentNullException(nameof(s),
-                    Environment.GetResourceString("ArgumentNull_String"));
-            Contract.EndContractBlock();
-
-            int byteCount = GetByteCount(s);
-            byte[] bytes = new byte[byteCount];
-            int bytesReceived = GetBytes(s, 0, s.Length, bytes, 0);
-            Debug.Assert(byteCount == bytesReceived);
-            return bytes;
-        }
+        public virtual byte[] GetBytes(String s) => GetBytes(s, 0, s.Length);
 
         // Returns a byte array containing the encoded representation of the given
         // string range.
         //
         [Pure]
-        public virtual byte[] GetBytes(string s, int index, int count)
+        public unsafe virtual byte[] GetBytes(string s, int index, int count)
         {
             if (s == null)
                 throw new ArgumentNullException(nameof(s));
+            if (index < 0)
+                throw new ArgumentOutOfRangeException(nameof(index),
+                      Environment.GetResourceString("ArgumentOutOfRange_NeedNonNegNum"));
+            if (count < 0)
+                throw new ArgumentOutOfRangeException(nameof(count),
+                      Environment.GetResourceString("ArgumentOutOfRange_NeedNonNegNum"));
+            if (index > s.Length - count)
+                throw new ArgumentOutOfRangeException(nameof(index),
+                      Environment.GetResourceString("ArgumentOutOfRange_IndexCount"));
             Contract.EndContractBlock();
 
-            // Deligate parameters validation to string.ToCharArray method
-            char[] chars = s.ToCharArray(index, count);
-            Debug.Assert(count == chars.Length);
-            int byteCount = GetByteCount(chars, 0, chars.Length);
+            int byteCount = s.GetByteCountFromEncoding(index, count, this);
 
             byte[] bytes = new byte[byteCount];
-            int bytesReceived = GetBytes(chars, 0, count, bytes, 0);
-            Debug.Assert(byteCount == bytesReceived);
+            fixed (byte* pBytes = &bytes[0])
+            {
+                int bytesReceived = s.GetBytesFromEncoding(index, count, pBytes, byteCount, this);
+                Debug.Assert(byteCount == bytesReceived);
+            }
+
             return bytes;
         }
 
-        public virtual int GetBytes(String s, int charIndex, int charCount,
+        public unsafe virtual int GetBytes(String s, int charIndex, int charCount,
                                        byte[] bytes, int byteIndex)
         {
-            if (s==null)
+            if (s == null)
                 throw new ArgumentNullException(nameof(s));
+            if (charIndex < 0)
+                throw new ArgumentOutOfRangeException(nameof(charIndex),
+                      Environment.GetResourceString("ArgumentOutOfRange_NeedNonNegNum"));
+            if (charCount < 0)
+                throw new ArgumentOutOfRangeException(nameof(charCount),
+                      Environment.GetResourceString("ArgumentOutOfRange_NeedNonNegNum"));
+            if (charIndex > s.Length - charCount)
+                throw new ArgumentOutOfRangeException(nameof(charIndex),
+                      Environment.GetResourceString("ArgumentOutOfRange_IndexCount"));
             Contract.EndContractBlock();
 
-            char[] chars = s.ToCharArray(charIndex, charCount);
-            Debug.Assert(charCount == chars.Length);
-            return GetBytes(chars, 0, charCount, bytes, byteIndex);
+            int byteCount = bytes.Length - byteIndex;
+            fixed (byte* pBytes = &bytes[0])
+            {
+                int bytesReceived = s.GetBytesFromEncoding(charIndex, charCount, pBytes, byteCount, this);
+                Debug.Assert(byteCount == bytesReceived);
+                return bytesReceived;
+            }
         }
 
         // This is our internal workhorse
