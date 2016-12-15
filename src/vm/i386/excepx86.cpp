@@ -38,6 +38,7 @@
 #include "asmconstants.h"
 #include "virtualcallstub.h"
 
+#ifndef WIN64EXCEPTIONS
 MethodDesc * GetUserMethodForILStub(Thread * pThread, UINT_PTR uStubSP, MethodDesc * pILStubMD, Frame ** ppFrameOut);
 
 #if !defined(DACCESS_COMPILE)
@@ -3776,3 +3777,4 @@ VOID DECLSPEC_NORETURN DispatchManagedException(PAL_SEHException& ex, bool isHar
 }
 #endif
 #endif // !DACCESS_COMPILE
+#endif // !WIN64EXCEPTIONS

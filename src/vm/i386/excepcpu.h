@@ -21,6 +21,7 @@
 
 #define STATUS_CLR_GCCOVER_CODE         STATUS_PRIVILEGED_INSTRUCTION
 
+#ifndef WIN64EXCEPTIONS
 class Thread;
 
 #if defined(_MSC_VER)
@@ -90,14 +91,23 @@ extern VOID ResetSEHRecord(PEXCEPTION_REGISTRATION_RECORD record);
 
 #endif
 
+
+PEXCEPTION_REGISTRATION_RECORD GetCurrentSEHRecord();
+PEXCEPTION_REGISTRATION_RECORD GetFirstCOMPlusSEHRecord(Thread*);
+
+
+#else // WIN64EXCEPTIONS
+#define INSTALL_EXCEPTION_HANDLING_RECORD(record)
+#define UNINSTALL_EXCEPTION_HANDLING_RECORD(record)
+#define DECLARE_CPFH_EH_RECORD(pCurThread)
+
+#endif // WIN64EXCEPTIONS
+
 //
 // Retrieves the redirected CONTEXT* from the stack frame of one of the
 // RedirectedHandledJITCaseForXXX_Stub's.
 //
 PTR_CONTEXT GetCONTEXTFromRedirectedStubStackFrame(CONTEXT * pContext);
-
-PEXCEPTION_REGISTRATION_RECORD GetCurrentSEHRecord();
-PEXCEPTION_REGISTRATION_RECORD GetFirstCOMPlusSEHRecord(Thread*);
 
 // Determine the address of the instruction that made the current call.
 inline
