@@ -1033,7 +1033,7 @@ StackWalkAction Thread::StackWalkFrames(PSTACKWALKFRAMESCALLBACK pCallback,
         FillRegDisplay(&rd, &ctx);
     }
 
-#if defined(STACKWALKER_MAY_POP_FRAMES)
+#ifdef STACKWALKER_MAY_POP_FRAMES
     if (flags & POPFRAMES)
         rd.pContextForUnwind = &ctx;
 #endif

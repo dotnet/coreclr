@@ -40,6 +40,10 @@ struct REGDISPLAY {
 
     T_KNONVOLATILE_CONTEXT_POINTERS ctxPtrsOne;  // used by stackwalk
     T_KNONVOLATILE_CONTEXT_POINTERS ctxPtrsTwo;  // used by stackwalk
+
+#ifdef DEBUG_REGDISPLAY
+    Thread *_pThread;
+#endif // DEBUG_REGDISPLAY
 #endif // !WIN64EXCEPTIONS
 
     DWORD * pEdi;
@@ -387,11 +391,10 @@ inline void FillRegDisplay(const PREGDISPLAY pRD, PT_CONTEXT pctx, PT_CONTEXT pC
 
     SUPPORTS_DAC;
 
+#ifndef WIN64EXCEPTIONS
 #ifdef _TARGET_X86_
     pRD->pContext = pctx;
-#ifndef WIN64EXCEPTIONS
     pRD->pContextForUnwind = NULL;
-#endif
     pRD->pEdi = &(pctx->Edi);
     pRD->pEsi = &(pctx->Esi);
     pRD->pEbx = &(pctx->Ebx);
@@ -402,57 +405,35 @@ inline void FillRegDisplay(const PREGDISPLAY pRD, PT_CONTEXT pctx, PT_CONTEXT pC
     pRD->Esp  = pctx->Esp;
     pRD->ControlPC = (PCODE)(pctx->Eip);
     pRD->PCTAddr = (UINT_PTR)&(pctx->Eip);
-#elif defined(_WIN64)
+#else // _TARGET_X86_
+    PORTABILITY_ASSERT("FillRegDisplay");
+#endif // _TARGET_???_ (ELSE)
+
+#else // !WIN64EXCEPTIONS
     pRD->pContext   = pctx;
-#ifdef _TARGET_AMD64_
+#if defined(_TARGET_AMD64_)
     for (int i = 0; i < 16; i++)
     {
         *(&pRD->ctxPtrsOne.Rax + i) = (&pctx->Rax + i);
     }
-#elif defined(_TARGET_ARM64_)
+#elif defined(_TARGET_ARM64_) // _TARGET_AMD64_
     for (int i = 0; i < 12; i++)
     {
         *(&pRD->ctxPtrsOne.X19 + i) = (&pctx->X19 + i);
     }
-#endif // _TARGET_AMD64_
-
-    pRD->pCurrentContextPointers = &pRD->ctxPtrsOne;
-    pRD->pCallerContextPointers = &pRD->ctxPtrsTwo;
-
-    pRD->pCurrentContext = &(pRD->ctxOne);
-    pRD->pCallerContext  = &(pRD->ctxTwo);
-
-    // copy the active context to initialize our stackwalk
-    *(pRD->pCurrentContext)     = *(pctx);
-
-    // copy the caller context as well if it's specified
-    if (pCallerCtx == NULL)
-    {
-        pRD->IsCallerContextValid = FALSE;
-        pRD->IsCallerSPValid      = FALSE;        // Don't add usage of this field.  This is only temporary.
-    }
-    else
-    {
-        *(pRD->pCallerContext)    = *(pCallerCtx);
-        pRD->IsCallerContextValid = TRUE;
-        pRD->IsCallerSPValid      = TRUE;        // Don't add usage of this field.  This is only temporary.
-    }
-
-#ifdef DEBUG_REGDISPLAY
-    pRD->_pThread = NULL;
-#endif // DEBUG_REGDISPLAY
-
-    SyncRegDisplayToCurrentContext(pRD);
-#elif defined(_TARGET_ARM_)
-    pRD->pContext = pctx;
-
+#elif defined(_TARGET_ARM_) // _TARGET_ARM64_
     // Copy over the nonvolatile integer registers (R4-R11)
     for (int i = 0; i < 8; i++)
     {
         *(&pRD->ctxPtrsOne.R4 + i) = (&pctx->R4 + i);
     }
+#else  // _TARGET_ARM_
+    PORTABILITY_ASSERT("FillRegDisplay");
+#endif // ELSE
 
+#ifdef _TARGET_ARM_
     pRD->ctxPtrsOne.Lr = &pctx->Lr; 
+#endif
 
     // Setup the references
     pRD->pCurrentContextPointers = &pRD->ctxPtrsOne;
@@ -463,7 +444,7 @@ inline void FillRegDisplay(const PREGDISPLAY pRD, PT_CONTEXT pctx, PT_CONTEXT pC
 
     // copy the active context to initialize our stackwalk
     *(pRD->pCurrentContext)     = *(pctx);
-    
+
     // copy the caller context as well if it's specified
     if (pCallerCtx == NULL)
     {
@@ -477,7 +458,9 @@ inline void FillRegDisplay(const PREGDISPLAY pRD, PT_CONTEXT pctx, PT_CONTEXT pC
         pRD->IsCallerSPValid      = TRUE;        // Don't add usage of this field.  This is only temporary.
     }
 
+#ifdef _TARGET_ARM_
     pRD->pPC = &pRD->pCurrentContext->Pc;
+#endif
 
 #ifdef DEBUG_REGDISPLAY
     pRD->_pThread = NULL;
@@ -485,9 +468,7 @@ inline void FillRegDisplay(const PREGDISPLAY pRD, PT_CONTEXT pctx, PT_CONTEXT pC
 
     // This will setup the PC and SP
     SyncRegDisplayToCurrentContext(pRD);
-#else
-    PORTABILITY_ASSERT("@NYI Platform - InitRegDisplay (Threads.cpp)");
-#endif
+#endif // !WIN64EXCEPTIONS
 }
 
 // Initialize a new REGDISPLAY/CONTEXT pair from an existing valid REGDISPLAY.

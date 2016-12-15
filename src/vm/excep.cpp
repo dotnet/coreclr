@@ -7314,8 +7314,8 @@ AdjustContextForWriteBarrier(
 {
     WRAPPER_NO_CONTRACT;
 
-#if defined(_TARGET_X86_) && !defined(WIN64EXCEPTIONS)
-
+#ifndef WIN64EXCEPTIONS
+#ifdef _TARGET_X86_
     void* f_IP = (void *)GetIP(pContext);
 
     if (((f_IP >= (void *) JIT_WriteBarrierStart) && (f_IP <= (void *) JIT_WriteBarrierLast)) ||
@@ -7329,11 +7329,12 @@ AdjustContextForWriteBarrier(
         // put ESP back to what it was before the call.
         SetSP(pContext, PCODE((BYTE*)GetSP(pContext) + sizeof(void*)));
     }
-
     return FALSE;
-
-#elif defined(WIN64EXCEPTIONS)
-
+#else // _TARGET_X86_
+    PORTABILITY_ASSERT("AdjustContextForWriteBarrier");
+    return FALSE;
+#endif // _TARGET_???_ (ELSE)
+#else // !WIN64EXCEPTIONS
     void* f_IP = dac_cast<PTR_VOID>(GetIP(pContext));
 
     CONTEXT             tempContext;
@@ -7377,7 +7378,7 @@ AdjustContextForWriteBarrier(
        // Now we save the address back into the context so that it gets used
        // as the faulting address.
        SetIP(pContext, ControlPCPostAdjustment);
-#endif // _TARGET_ARM_
+#endif // _TARGET_ARM_ || _TARGET_ARM64_
 
         // Unwind the frame chain - On Win64, this is required since we may handle the managed fault and to do so,
         // we will replace the exception context with the managed context and "continue execution" there. Thus, we do not
@@ -7399,13 +7400,7 @@ AdjustContextForWriteBarrier(
     }
 
     return FALSE;
-
-#else // ! _X86_ && !WIN64EXCEPTIONS
-
-    PORTABILITY_WARNING("AdjustContextForWriteBarrier() not implemented on this platform");
-    return FALSE;
-
-#endif
+#endif // !WIN64EXCEPTIONS
 }
 
 struct SavedExceptionInfo
@@ -7556,7 +7551,8 @@ void InitSavedExceptionInfo()
 void FaultingExceptionFrame::Init(CONTEXT *pContext)
 {
     WRAPPER_NO_CONTRACT;
-#if defined(_TARGET_X86_) && !defined(WIN64EXCEPTIONS)
+#ifndef WIN64EXCEPTIONS
+#ifdef _TARGET_X86_
     CalleeSavedRegisters *pRegs = GetCalleeSavedRegisters();
     pRegs->ebp = pContext->Ebp;
     pRegs->ebx = pContext->Ebx;
@@ -7564,12 +7560,13 @@ void FaultingExceptionFrame::Init(CONTEXT *pContext)
     pRegs->edi = pContext->Edi;
     m_ReturnAddress = ::GetIP(pContext);
     m_Esp = (DWORD)GetSP(pContext);
-#elif defined(WIN64EXCEPTIONS)
+#else // _TARGET_X86_
+    PORTABILITY_ASSERT("FaultingExceptionFrame::InitAndLink");
+#endif // _TARGET_???_ (ELSE)
+#else // !WIN64EXCEPTIONS
     m_ReturnAddress = ::GetIP(pContext);
     CopyOSContext(&m_ctx, pContext);
-#else
-    PORTABILITY_ASSERT("FaultingExceptionFrame::InitAndLink");
-#endif
+#endif // !WIN64EXCEPTIONS
 }
 
 //
