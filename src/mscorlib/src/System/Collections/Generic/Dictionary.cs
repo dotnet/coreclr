@@ -524,13 +524,7 @@ namespace System.Collections.Generic {
         }
 
         // Method similar to TryGetValue that returns the value instead of putting it in an out param.
-        public TValue GetValueOrDefault(TKey key) {
-            int i = FindEntry(key);
-            if (i >= 0) {
-                return entries[i].value;
-            }
-            return default(TValue);
-        }
+        public TValue GetValueOrDefault(TKey key) => GetValueOrDefault(key, default(TValue));
 
         // Method similar to TryGetValue that returns the value instead of putting it in an out param. If the entry
         // doesn't exist, returns the defaultValue instead.
