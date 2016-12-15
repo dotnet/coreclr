@@ -1159,7 +1159,7 @@ bool FunctionMember::GetBlockInNativeCode(int blockILOffset, int blockILLen, TAD
     *startOffset = 0;
     *endOffset = 0;
 
-    bool in_block = false;
+    bool inBlock = false;
 
     for (int i = 0; i < nlines; ++i)
     {
@@ -1185,24 +1185,24 @@ bool FunctionMember::GetBlockInNativeCode(int blockILOffset, int blockILLen, TAD
         // Check if current IL is within block
         if (blockILOffset <= lines[i].ilOffset && lines[i].ilOffset < blockILEnd)
         {
-            if (!in_block)
+            if (!inBlock)
             {
                 *startOffset = lines[i].nativeOffset;
-                in_block = true;
+                inBlock = true;
             }
         }
         else
         {
-            if (in_block)
+            if (inBlock)
             {
                 *endOffset = lines[i].nativeOffset;
-                in_block = false;
+                inBlock = false;
                 break;
             }
         }
     }
 
-    if (in_block)
+    if (inBlock)
     {
         *endOffset = m_sub_low_pc + m_sub_high_pc - pCode;
     }
@@ -1212,10 +1212,10 @@ bool FunctionMember::GetBlockInNativeCode(int blockILOffset, int blockILLen, TAD
 
 void FunctionMember::DumpTryCatchBlock(char* ptr, int& offset, int ilOffset, int ilLen, int abbrev)
 {
-    TADDR start_offset;
-    TADDR end_offset;
+    TADDR startOffset;
+    TADDR endOffset;
 
-    if (!GetBlockInNativeCode(ilOffset, ilLen, &start_offset, &end_offset))
+    if (!GetBlockInNativeCode(ilOffset, ilLen, &startOffset, &endOffset))
         return;
 
     if (ptr != nullptr)
@@ -1223,8 +1223,8 @@ void FunctionMember::DumpTryCatchBlock(char* ptr, int& offset, int ilOffset, int
         DebugInfoTryCatchSub subEntry;
 
         subEntry.m_sub_abbrev = abbrev;
-        subEntry.m_sub_low_pc = md->GetNativeCode() + start_offset;
-        subEntry.m_sub_high_pc = end_offset - start_offset;
+        subEntry.m_sub_low_pc = md->GetNativeCode() + startOffset;
+        subEntry.m_sub_high_pc = endOffset - startOffset;
 
         memcpy(ptr + offset, &subEntry, sizeof(DebugInfoTryCatchSub));
     }
@@ -1239,9 +1239,9 @@ void FunctionMember::DumpTryCatchDebugInfo(char* ptr, int& offset)
     COR_ILMETHOD *pHeader = md->GetILHeader();
     COR_ILMETHOD_DECODER header(pHeader);
 
-    unsigned eh_count = header.EHCount();
+    unsigned ehCount = header.EHCount();
 
-    for (unsigned e = 0; e < eh_count; e++)
+    for (unsigned e = 0; e < ehCount; e++)
     {
         IMAGE_COR_ILMETHOD_SECT_EH_CLAUSE_FAT ehBuff;
         const IMAGE_COR_ILMETHOD_SECT_EH_CLAUSE_FAT* ehInfo;
