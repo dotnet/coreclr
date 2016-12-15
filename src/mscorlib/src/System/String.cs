@@ -293,23 +293,6 @@ namespace System {
             }            
         }
 
-        unsafe internal int GetByteCountFromEncoding(int index, int count, Encoding encoding)
-        {
-            fixed (char* pwzChar = &this.m_firstChar)
-            {
-                return encoding.GetByteCount(pwzChar + index, count);
-            }
-        }
-
-        unsafe internal int GetBytesFromEncoding(int index, int count, byte* bytes, int byteCount, Encoding encoding)
-        {
-            fixed (char* pwzChar = &this.m_firstChar)
-            {
-                return encoding.GetBytes(pwzChar + index, count, bytes, byteCount);
-            }
-        }
-
-
         unsafe internal int ConvertToAnsi(byte *pbNativeBuffer, int cbNativeBuffer, bool fBestFit, bool fThrowOnUnmappableChar)
         {
             Debug.Assert(cbNativeBuffer >= (Length + 1) * Marshal.SystemMaxDBCSCharSize, "Insufficient buffer length passed to ConvertToAnsi");
