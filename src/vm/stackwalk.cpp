@@ -555,11 +555,9 @@ UINT_PTR Thread::VirtualUnwindCallFrame(PREGDISPLAY pRD, EECodeInfo* pCodeInfo /
         pRD->pCurrentContext = pRD->pCallerContext;
         pRD->pCallerContext  = temp;
 
-#if defined(_TARGET_AMD64_) || defined(_TARGET_ARM_) || defined(_TARGET_ARM64_)
         PT_KNONVOLATILE_CONTEXT_POINTERS tempPtrs = pRD->pCurrentContextPointers;
         pRD->pCurrentContextPointers            = pRD->pCallerContextPointers;
         pRD->pCallerContextPointers             = tempPtrs;
-#endif // defined(_TARGET_AMD64_) || defined(_TARGET_ARM_) || defined(_TARGET_ARM64_)
     }
     else
     {
@@ -725,7 +723,7 @@ PCODE Thread::VirtualUnwindNonLeafCallFrame(T_CONTEXT* pContext, KNONVOLATILE_CO
 #if defined(_WIN64)
     UINT64              EstablisherFrame;
     PVOID               HandlerData;
-#elif defined(_TARGET_ARM_)
+#elif defined(_TARGET_ARM_) || defined(_TARGET_X86_)
     DWORD               EstablisherFrame;
     PVOID               HandlerData;
 #else
@@ -893,7 +891,7 @@ StackWalkAction Thread::MakeStackwalkerCallback(
 }
 
 
-#if !defined(DACCESS_COMPILE) && defined(_TARGET_X86_)
+#if !defined(DACCESS_COMPILE) && defined(_TARGET_X86_) && !defined(WIN64EXCEPTIONS)
 #define STACKWALKER_MAY_POP_FRAMES
 #endif
 
@@ -1035,7 +1033,7 @@ StackWalkAction Thread::StackWalkFrames(PSTACKWALKFRAMESCALLBACK pCallback,
         FillRegDisplay(&rd, &ctx);
     }
 
-#ifdef STACKWALKER_MAY_POP_FRAMES
+#if defined(STACKWALKER_MAY_POP_FRAMES)
     if (flags & POPFRAMES)
         rd.pContextForUnwind = &ctx;
 #endif
@@ -2677,9 +2675,10 @@ StackWalkAction StackFrameIterator::NextRaw(void)
 
                 // We are transitioning from unmanaged code to managed code... lets do some validation of our
                 // EH mechanism on platforms that we can.
-#if defined(_DEBUG)  && !defined(DACCESS_COMPILE) && (defined(_TARGET_X86_) && !defined(FEATURE_STUBS_AS_IL))
+#if defined(_DEBUG)  && !defined(DACCESS_COMPILE) && (defined(_TARGET_X86_) && !defined(FEATURE_PAL)) && !defined(WIN64EXCEPTIONS)               
+                // TODO: Revise this once we enable WIN64EXCEPTIONS for x86/Linux
                 VerifyValidTransitionFromManagedCode(m_crawl.pThread, &m_crawl);
-#endif // _DEBUG && !DACCESS_COMPILE && _TARGET_X86_
+#endif // _DEBUG && !DACCESS_COMPILE && _TARGET_X86_ && !WIN64EXCEPTIONS
             }
         }
 
