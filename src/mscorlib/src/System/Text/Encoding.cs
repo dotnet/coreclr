@@ -893,7 +893,10 @@ namespace System.Text
                 throw new ArgumentNullException(nameof(s));
             Contract.EndContractBlock();
 
+            // Deligate parameters checkin to string.ToCharArray method
             char[] chars = s.ToCharArray(index, count);
+            Debug.Assert(count == chars.Length);
+
             return GetByteCount(chars, 0, count);
         }
 
@@ -997,9 +1000,19 @@ namespace System.Text
         [Pure]
         public virtual byte[] GetBytes(string s, int index, int count)
         {
-            byte[] result = new byte[GetByteCount(s, index, count)];
-            GetBytes(s, index, count, result, 0);
-            return result;
+            if (s == null)
+                throw new ArgumentNullException(nameof(s));
+            Contract.EndContractBlock();
+
+            // Deligate parameter checkin to string.ToCharArray method
+            char[] chars = s.ToCharArray(index, count);
+            Debug.Assert(count == chars.Length);
+            int byteCount = GetByteCount(chars, 0, chars.Length);
+
+            byte[] bytes = new byte[byteCount];
+            int bytesReceived = GetBytes(s, 0, s.Length, bytes, 0);
+            Debug.Assert(byteCount == bytesReceived);
+            return bytes;
         }
 
         public virtual int GetBytes(String s, int charIndex, int charCount,
