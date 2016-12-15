@@ -893,7 +893,7 @@ namespace System.Text
                 throw new ArgumentNullException(nameof(s));
             Contract.EndContractBlock();
 
-            // Deligate parameters checkin to string.ToCharArray method
+            // Deligate parameters validation to string.ToCharArray method
             char[] chars = s.ToCharArray(index, count);
             Debug.Assert(count == chars.Length);
 
@@ -1004,7 +1004,7 @@ namespace System.Text
                 throw new ArgumentNullException(nameof(s));
             Contract.EndContractBlock();
 
-            // Deligate parameter checkin to string.ToCharArray method
+            // Deligate parameters validation to string.ToCharArray method
             char[] chars = s.ToCharArray(index, count);
             Debug.Assert(count == chars.Length);
             int byteCount = GetByteCount(chars, 0, chars.Length);
