@@ -702,8 +702,8 @@ void CommonTripThread();
 EXTERN_C void ThrowControlForThread(
 #ifdef WIN64EXCEPTIONS
         FaultingExceptionFrame *pfef
-#endif
-);
+#endif // WIN64EXCEPTIONS
+        );
 
 // RWLock state inside TLS
 struct LockEntry
