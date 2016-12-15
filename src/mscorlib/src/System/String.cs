@@ -303,7 +303,6 @@ namespace System {
 
         unsafe internal int GetBytesFromEncoding(int index, int count, byte* bytes, int byteCount, Encoding encoding)
         {
-            // encoding == Encoding.UTF8
             fixed (char* pwzChar = &this.m_firstChar)
             {
                 return encoding.GetBytes(pwzChar + index, count, bytes, byteCount);
