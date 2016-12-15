@@ -644,12 +644,6 @@
       <Member MemberType="Property" Name="Key" />
       <Member MemberType="Property" Name="Value" />
     </Type>
-    <Type Name="System.Collections.Generic.CollectionExtensions">
-      <Member Name="GetValueOrDefault&lt;TKey,TValue&gt;(System.Collections.Generic.IDictionary&lt;TKey,TValue&gt;,TKey)" />
-      <Member Name="GetValueOrDefault&lt;TKey,TValue&gt;(System.Collections.Generic.IDictionary&lt;TKey,TValue&gt;,TKey,TValue)" />
-      <Member Name="GetValueOrDefault&lt;TKey,TValue&gt;(System.Collections.Generic.IReadOnlyDictionary&lt;TKey,TValue&gt;,TKey)" />
-      <Member Name="GetValueOrDefault&lt;TKey,TValue&gt;(System.Collections.Generic.IReadOnlyDictionary&lt;TKey,TValue&gt;,TKey,TValue)" />
-    </Type>
     <Type Name="System.Collections.Generic.Comparer&lt;T&gt;">
       <Member Name="#ctor" />
       <Member Name="Compare(T,T)" />
