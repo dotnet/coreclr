@@ -7314,7 +7314,7 @@ AdjustContextForWriteBarrier(
 {
     WRAPPER_NO_CONTRACT;
 
-#ifdef _TARGET_X86_
+#if defined(_TARGET_X86_) && !defined(WIN64EXCEPTIONS)
 
     void* f_IP = (void *)GetIP(pContext);
 
@@ -7556,7 +7556,7 @@ void InitSavedExceptionInfo()
 void FaultingExceptionFrame::Init(CONTEXT *pContext)
 {
     WRAPPER_NO_CONTRACT;
-#if defined(_TARGET_X86_)
+#if defined(_TARGET_X86_) && !defined(WIN64EXCEPTIONS)
     CalleeSavedRegisters *pRegs = GetCalleeSavedRegisters();
     pRegs->ebp = pContext->Ebp;
     pRegs->ebx = pContext->Ebx;
