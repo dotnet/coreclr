@@ -881,7 +881,8 @@ namespace System.Text
         public virtual int GetByteCount(string s, int index, int count)
         {
             if (s == null)
-                throw new ArgumentNullException(nameof(s));
+                throw new ArgumentNullException(nameof(s), 
+                    Environment.GetResourceString("ArgumentNull_String"));
             if (index < 0)
                 throw new ArgumentOutOfRangeException(nameof(index),
                       Environment.GetResourceString("ArgumentOutOfRange_NeedNonNegNum"));
@@ -985,7 +986,8 @@ namespace System.Text
         public unsafe virtual byte[] GetBytes(string s, int index, int count)
         {
             if (s == null)
-                throw new ArgumentNullException(nameof(s));
+                throw new ArgumentNullException(nameof(s),
+                    Environment.GetResourceString("ArgumentNull_String"));
             if (index < 0)
                 throw new ArgumentOutOfRangeException(nameof(index),
                       Environment.GetResourceString("ArgumentOutOfRange_NeedNonNegNum"));
@@ -1013,7 +1015,8 @@ namespace System.Text
                                        byte[] bytes, int byteIndex)
         {
             if (s == null)
-                throw new ArgumentNullException(nameof(s));
+                throw new ArgumentNullException(nameof(s),
+                    Environment.GetResourceString("ArgumentNull_String"));
             if (charIndex < 0)
                 throw new ArgumentOutOfRangeException(nameof(charIndex),
                       Environment.GetResourceString("ArgumentOutOfRange_NeedNonNegNum"));
