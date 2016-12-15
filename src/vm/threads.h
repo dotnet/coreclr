@@ -697,13 +697,15 @@ EXTERN_C void __stdcall OnHijackFPTripThread();  // hijacked JIT code is returni
 
 void CommonTripThread();
 
+#ifdef WIN64EXCEPTIONS
+#define ONWIN64EXCEPTIONS(decl) decl
+#else
+#define ONWIN64EXCEPTIONS(decl)
+#endif
+
 // When we resume a thread at a new location, to get an exception thrown, we have to
 // pretend the exception originated elsewhere.
-EXTERN_C void ThrowControlForThread(
-#ifdef WIN64EXCEPTIONS
-        FaultingExceptionFrame *pfef
-#endif // WIN64EXCEPTIONS
-        );
+EXTERN_C void ThrowControlForThread(ONWIN64EXCEPTIONS(FaultingExceptionFrame *pfef));
 
 // RWLock state inside TLS
 struct LockEntry
