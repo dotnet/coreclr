@@ -509,21 +509,22 @@ void FaultingExceptionFrame::UpdateRegDisplay(const PREGDISPLAY pRD)
     }
     CONTRACT_END;
 
-    // reset pContext; it's only valid for active (top-most) frame
-    pRD->pContext = NULL;
-
-    pRD->PCTAddr = GetReturnAddressPtr();
-    pRD->ControlPC = *PTR_PCODE(pRD->PCTAddr);
-
 #ifndef WIN64EXCEPTIONS
     CalleeSavedRegisters* regs = GetCalleeSavedRegisters();
+
+    // reset pContext; it's only valid for active (top-most) frame
+    pRD->pContext = NULL;
 
     pRD->pEdi = (DWORD*) &regs->edi;
     pRD->pEsi = (DWORD*) &regs->esi;
     pRD->pEbx = (DWORD*) &regs->ebx;
     pRD->pEbp = (DWORD*) &regs->ebp;
     pRD->Esp = m_Esp;
-#endif // !WIN64EXCEPTIONS
+    pRD->PCTAddr = GetReturnAddressPtr();
+    pRD->ControlPC = *PTR_PCODE(pRD->PCTAddr);
+#else
+    PORTABILITY_ASSERT("FaultingExceptionFrame::UpdateRegDisplay");
+#endif // WIN64EXCEPTIONS
     RETURN;
 }
 
