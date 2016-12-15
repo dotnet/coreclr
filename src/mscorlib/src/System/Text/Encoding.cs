@@ -1032,7 +1032,7 @@ namespace System.Text
             fixed (byte* pBytes = &bytes[0])
             {
                 int bytesReceived = s.GetBytesFromEncoding(charIndex, charCount, pBytes, byteCount, this);
-                Debug.Assert(byteCount == bytesReceived);
+                Debug.Assert(byteCount >= bytesReceived);
                 return bytesReceived;
             }
         }
