@@ -869,7 +869,6 @@ RtlpGetFunctionEndAddress (
         (prf)->UnwindData = (addr);                       \
     } while(0)
 
-#endif // WIN64EXCEPTIONS
 
 typedef struct _UNWIND_INFO {
     // dummy
@@ -889,6 +888,7 @@ RtlVirtualUnwind (
     __out PDWORD EstablisherFrame,
     __inout_opt PT_KNONVOLATILE_CONTEXT_POINTERS ContextPointers
     );
+#endif // WIN64EXCEPTIONS
 
 #endif // _TARGET_X86_
 
