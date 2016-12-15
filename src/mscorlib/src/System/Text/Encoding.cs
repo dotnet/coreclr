@@ -1010,7 +1010,7 @@ namespace System.Text
             int byteCount = GetByteCount(chars, 0, chars.Length);
 
             byte[] bytes = new byte[byteCount];
-            int bytesReceived = GetBytes(s, 0, s.Length, bytes, 0);
+            int bytesReceived = GetBytes(chars, 0, count, bytes, 0);
             Debug.Assert(byteCount == bytesReceived);
             return bytes;
         }
@@ -1021,7 +1021,10 @@ namespace System.Text
             if (s==null)
                 throw new ArgumentNullException(nameof(s));
             Contract.EndContractBlock();
-            return GetBytes(s.ToCharArray(), charIndex, charCount, bytes, byteIndex);
+
+            char[] chars = s.ToCharArray(charIndex, charCount);
+            Debug.Assert(charCount == chars.Length);
+            return GetBytes(chars, 0, charCount, bytes, byteIndex);
         }
 
         // This is our internal workhorse
