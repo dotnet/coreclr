@@ -18,10 +18,29 @@ struct REGDISPLAY {
                           // returned by GetContext or provided
                           // at exception time.
 
+#ifndef WIN64EXCEPTIONS
     // TODO: Unify with pCurrentContext / pCallerContext used on 64-bit
     PCONTEXT pContextForUnwind; // scratch context for unwinding
                                 // used to preserve context saved in the frame that 
                                 // could be otherwise wiped by the unwinding
+#else // !WIN64EXCEPTIONS
+    PT_CONTEXT pCurrentContext;   // [trashed] points to current Context of stackwalk
+    PT_CONTEXT pCallerContext;    // [trashed] points to the Context of the caller during stackwalk -- used for GC crawls
+
+    // [trashed] points to current context pointers of stackwalk
+    T_KNONVOLATILE_CONTEXT_POINTERS *pCurrentContextPointers;
+    // [trashed] points to the context pointers of the caller during stackwalk -- used for GC crawls
+    T_KNONVOLATILE_CONTEXT_POINTERS *pCallerContextPointers;
+
+    BOOL IsCallerContextValid;  // TRUE if pCallerContext really contains the caller's context
+    BOOL IsCallerSPValid;       // Don't add usage of this field.  This is only temporary.
+
+    T_CONTEXT  ctxOne;    // used by stackwalk
+    T_CONTEXT  ctxTwo;    // used by stackwalk
+
+    T_KNONVOLATILE_CONTEXT_POINTERS ctxPtrsOne;  // used by stackwalk
+    T_KNONVOLATILE_CONTEXT_POINTERS ctxPtrsTwo;  // used by stackwalk
+#endif // !WIN64EXCEPTIONS
 
     DWORD * pEdi;
     DWORD * pEsi;
@@ -166,18 +185,6 @@ inline PCODE GetControlPC(REGDISPLAY *display) {
 void CheckRegDisplaySP (REGDISPLAY *pRD);
 #endif // DEBUG_REGDISPLAY
 
-inline void SyncRegDisplayToCurrentContext(REGDISPLAY* pRD)
-{
-    LIMITED_METHOD_CONTRACT;
-
-    pRD->SP         = (INT_PTR)GetSP(pRD->pCurrentContext);
-
-#ifdef DEBUG_REGDISPLAY
-    CheckRegDisplaySP(pRD);
-#endif // DEBUG_REGDISPLAY
-
-    pRD->ControlPC  = INT_PTR(GetIP(pRD->pCurrentContext));
-}
 
 // This function tells us if the given stack pointer is in one of the frames of the functions called by the given frame
 inline BOOL IsInCalleesFrames(REGDISPLAY *display, LPVOID stackPointer)
@@ -204,20 +211,6 @@ inline TADDR GetRegdisplayStackMark(REGDISPLAY *display)
 #endif // _TARGET_AMD64_
 }
 
-// This needs to be implemented for platforms that have funclets.
-inline LPVOID GetRegdisplayReturnValue(REGDISPLAY *display)
-{
-    LIMITED_METHOD_CONTRACT;
-
-#if defined(_TARGET_AMD64_)
-    return (LPVOID)display->pCurrentContext->Rax;
-#elif defined(_TARGET_ARM64_)
-    return (LPVOID)display->pCurrentContext->X0;
-#else
-    PORTABILITY_ASSERT("GetRegdisplayReturnValue NYI for this platform (Regdisp.h)");
-    return NULL;
-#endif
-}
 
 #elif defined(_TARGET_ARM_)
 
@@ -307,20 +300,7 @@ inline TADDR GetRegdisplayStackMark(REGDISPLAY *display) {
     return GetSP(display->pCallerContext);
 }
 
-inline void SyncRegDisplayToCurrentContext(REGDISPLAY* pRD)
-{
-    LIMITED_METHOD_CONTRACT;
-    pRD->SP         = (DWORD)GetSP(pRD->pCurrentContext);
-    pRD->ControlPC  = (DWORD)GetIP(pRD->pCurrentContext);
-}
 
-// This needs to be implemented for platforms that have funclets.
-inline LPVOID GetRegdisplayReturnValue(REGDISPLAY *display)
-{
-    LIMITED_METHOD_CONTRACT;
-
-    return (LPVOID)display->pCurrentContext->R0;
-}
 
 #else // none of the above processors
 
@@ -359,6 +339,45 @@ inline LPVOID GetRegdisplayStackMark(REGDISPLAY *display) {
 
 #endif
 
+#if defined(_WIN64) || defined(_TARGET_ARM_) || (defined(_TARGET_X86_) && defined(WIN64EXCEPTIONS))
+// This needs to be implemented for platforms that have funclets.
+inline LPVOID GetRegdisplayReturnValue(REGDISPLAY *display)
+{
+    LIMITED_METHOD_CONTRACT;
+
+#if defined(_TARGET_AMD64_)
+    return (LPVOID)display->pCurrentContext->Rax;
+#elif defined(_TARGET_ARM64_)
+    return (LPVOID)display->pCurrentContext->X0;
+#elif defined(_TARGET_ARM_)
+    return (LPVOID)display->pCurrentContext->R0;
+#else
+    PORTABILITY_ASSERT("GetRegdisplayReturnValue NYI for this platform (Regdisp.h)");
+    return NULL;
+#endif
+}
+
+inline void SyncRegDisplayToCurrentContext(REGDISPLAY* pRD)
+{
+    LIMITED_METHOD_CONTRACT;
+
+#if defined(_WIN64)
+    pRD->SP         = (INT_PTR)GetSP(pRD->pCurrentContext);
+
+#ifdef DEBUG_REGDISPLAY
+    CheckRegDisplaySP(pRD);
+#endif // DEBUG_REGDISPLAY
+
+    pRD->ControlPC  = INT_PTR(GetIP(pRD->pCurrentContext));
+#elif defined(_TARGET_ARM_) // _WIN64
+    pRD->SP         = (DWORD)GetSP(pRD->pCurrentContext);
+    pRD->ControlPC  = (DWORD)GetIP(pRD->pCurrentContext);
+#else
+    PORTABILITY_ASSERT("SyncRegDisplayToCurrentContext");
+#endif // _TARGET_ARM
+}
+#endif // _WIN64 || _TARGET_ARM_ || (_TARGET_X86_ && WIN64EXCEPTIONS)
+
 typedef REGDISPLAY *PREGDISPLAY;
 
 
@@ -370,7 +389,9 @@ inline void FillRegDisplay(const PREGDISPLAY pRD, PT_CONTEXT pctx, PT_CONTEXT pC
 
 #ifdef _TARGET_X86_
     pRD->pContext = pctx;
+#ifndef WIN64EXCEPTIONS
     pRD->pContextForUnwind = NULL;
+#endif
     pRD->pEdi = &(pctx->Edi);
     pRD->pEsi = &(pctx->Esi);
     pRD->pEbx = &(pctx->Ebx);
