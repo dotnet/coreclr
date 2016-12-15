@@ -444,7 +444,7 @@ inline void FillRegDisplay(const PREGDISPLAY pRD, PT_CONTEXT pctx, PT_CONTEXT pC
 
     // copy the active context to initialize our stackwalk
     *(pRD->pCurrentContext)     = *(pctx);
-
+    
     // copy the caller context as well if it's specified
     if (pCallerCtx == NULL)
     {
