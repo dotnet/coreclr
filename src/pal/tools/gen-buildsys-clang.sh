@@ -41,6 +41,7 @@ code_coverage=OFF
 build_tests=OFF
 generator="Unix Makefiles"
 __UnprocessedCMakeArgs=""
+buildCrossComponent=0
 
 for i in "${@:5}"; do
     upperI="$(echo $i | awk '{print toupper($0)}')"
@@ -59,6 +60,9 @@ for i in "${@:5}"; do
       ;;
       NINJA)
       generator=Ninja
+      ;;
+      CROSSCOMP)
+      buildCrossComponent=1
       ;;
       *)
       __UnprocessedCMakeArgs="${__UnprocessedCMakeArgs}${__UnprocessedCMakeArgs:+ }$i"
@@ -126,16 +130,20 @@ fi
 if [[ -n "$LLDB_INCLUDE_DIR" ]]; then
     cmake_extra_defines="$cmake_extra_defines -DWITH_LLDB_INCLUDES=$LLDB_INCLUDE_DIR"
 fi
-if [[ -n "$CROSSCOMPILE" ]]; then
-    if ! [[ -n "$ROOTFS_DIR" ]]; then
-        echo "ROOTFS_DIR not set for crosscompile"
-        exit 1
+if [ $buildCrossComponent == 1 ]; then
+    cmake_extra_defines="$cmake_extra_defines -DCLR_CROSS_COMPONENTS_BUILD=1"
+else
+    if [[ -n "$CROSSCOMPILE" ]]; then
+        if ! [[ -n "$ROOTFS_DIR" ]]; then
+            echo "ROOTFS_DIR not set for crosscompile"
+            exit 1
+        fi
+        if [[ -z $CONFIG_DIR ]]; then
+          CONFIG_DIR="$1/cross/$build_arch"
+        fi
+        cmake_extra_defines="$cmake_extra_defines -C $CONFIG_DIR/tryrun.cmake"
+        cmake_extra_defines="$cmake_extra_defines -DCMAKE_TOOLCHAIN_FILE=$CONFIG_DIR/toolchain.cmake"
     fi
-    if [[ -z $CONFIG_DIR ]]; then
-      CONFIG_DIR="$1/cross/$build_arch"
-    fi
-    cmake_extra_defines="$cmake_extra_defines -C $CONFIG_DIR/tryrun.cmake"
-    cmake_extra_defines="$cmake_extra_defines -DCMAKE_TOOLCHAIN_FILE=$CONFIG_DIR/toolchain.cmake"
 fi
 if [ "$build_arch" == "arm-softfp" ]; then
     cmake_extra_defines="$cmake_extra_defines -DARM_SOFTFP=1"

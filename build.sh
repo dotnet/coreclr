@@ -241,7 +241,93 @@ build_coreclr()
         exit 1
     fi
 
-	popd
+    popd
+}
+
+build_crossArchComp()
+{
+    if [ $__SkipCoreCLR == 1 ]; then
+        echo "Skipping cross-architecture native component build."
+        return
+    fi
+
+    echo "Commencing build of cross architecture native components for $__BuildOS.$__BuildArch.$__BuildType"
+
+    generator=""
+    buildFile="Makefile"
+    buildTool="make"
+    if [ $__UseNinja == 1 ]; then
+        generator="ninja"
+        buildFile="build.ninja"
+        if which ninja >/dev/null 2>&1; then
+            buildTool="ninja"
+        elif which ninja-build >/dev/null 2>&1; then
+            buildTool="ninja-build"
+        else
+           echo "Unable to locate ninja!" 1>&2
+           exit 1
+        fi
+    fi
+
+    if [ ! -f $__CrossComponentBinDir ]; then
+        mkdir -p "$__CrossComponentBinDir"
+    fi
+    if [ ! -f $__CrossCompIntermediatesDir ]; then
+        mkdir -p "$__CrossCompIntermediatesDir"
+    fi
+
+    if [ $__SkipConfigure == 0 ]; then
+        # Copy version.cpp file
+        __versionSourceFile=$__IntermediatesDir/version.cpp
+        if [ ! -f "$__versionSourceFile" ]; then
+            echo "cannot find version.cpp file"
+            exit 1
+        fi
+        cp "$__versionSourceFile" "$__CrossCompIntermediatesDir/version.cpp"
+
+        pushd "$__CrossCompIntermediatesDir"
+        export __CMakeBinDir="$__CrossComponentBinDir"
+        # Regenerate the CMake solution
+        __ExtraCmakeArgs="-DCLR_CMAKE_TARGET_ARCH=$__BuildArch -DCLR_CMAKE_TARGET_OS=$__BuildOS -DCLR_CMAKE_PACKAGES_DIR=$__PackagesDir -DCLR_CMAKE_PGO_INSTRUMENT=$__PgoInstrument"
+        echo "Invoking \"$__ProjectRoot/src/pal/tools/gen-buildsys-clang.sh\" \"$__ProjectRoot\" $__ClangMajorVersion $__ClangMinorVersion $__CrossArch $__BuildType crosscomp $__CodeCoverage $generator $__ExtraCmakeArgs $__cmakeargs"
+        "$__ProjectRoot/src/pal/tools/gen-buildsys-clang.sh" "$__ProjectRoot" $__ClangMajorVersion $__ClangMinorVersion $__CrossArch $__BuildType "crosscomp" $__CodeCoverage $generator "$__ExtraCmakeArgs" "$__cmakeargs"
+        popd
+    fi
+
+    # Check that the makefiles were created.
+    pushd "$__CrossCompIntermediatesDir"
+
+    if [ ! -f "$__CrossCompIntermediatesDir/$buildFile" ]; then
+        echo "Failed to generate cross-architecture component build project!"
+        exit 1
+    fi
+
+    # Get the number of processors available to the scheduler
+    # Other techniques such as `nproc` only get the number of
+    # processors available to a single process.
+    if [ `uname` = "FreeBSD" ]; then
+        NumProc=`sysctl hw.ncpu | awk '{ print $2+1 }'`
+    elif [ `uname` = "NetBSD" ]; then
+        NumProc=$(($(getconf NPROCESSORS_ONLN)+1))
+    else
+        NumProc=$(($(getconf _NPROCESSORS_ONLN)+1))
+    fi
+
+    # Build cross-arthitecture components
+
+    if [ $__ConfigureOnly == 1 ]; then
+        echo "Skipping cross-architecture components build."
+        return
+    fi
+
+    echo "Executing $buildTool install -j $NumProc"
+
+    $buildTool install -j $NumProc
+    if [ $? != 0 ]; then
+        echo "Failed to build cross-architecture components."
+        exit 1
+    fi
+    popd
 }
 
 isMSBuildOnNETCoreSupported()
@@ -699,6 +785,18 @@ __TestWorkingDir="$__RootBinDir/tests/$__BuildOS.$__BuildArch.$__BuildType"
 export __IntermediatesDir="$__RootBinDir/obj/$__BuildOS.$__BuildArch.$__BuildType"
 __TestIntermediatesDir="$__RootBinDir/tests/obj/$__BuildOS.$__BuildArch.$__BuildType"
 __isMSBuildOnNETCoreSupported=0
+__CrossComponentBinDir="$__BinDir"
+__CrossCompIntermediatesDir="$__IntermediatesDir/crossgen"
+
+__CrossArch="$__HostArch"
+if [[ "$__HostArch" == "x64" && "$__BuildArch" == "arm" ]]; then
+    __CrossArch="x86"
+fi
+if [ $__CrossBuild == 1 ]; then
+    __CrossComponentBinDir="$__CrossComponentBinDir/$__CrossArch"
+fi
+__CrossgenCoreLibLog="$__LogsDir/CrossgenCoreLib_$__BuildOS.$BuildArch.$__BuildType.log"
+__CrossgenExe="$__CrossComponentBinDir/crossgen"
 
 # Init if MSBuild for .NET Core is supported for this platform
 isMSBuildOnNETCoreSupported
@@ -739,6 +837,21 @@ check_prereqs
 # Build the coreclr (native) components.
 
 build_coreclr
+
+# Build cross-architecture components
+if [[ $__CrossBuild == 1 ]]; then
+    __DoCrossArchBuild=0
+    # prepare to build cross-architecture components for x86(x64)-host/arm-target
+    if [[ "$__BuildArch" == "arm" && "$__HostArch" == "x64" ]]; then
+        __DoCrossArchBuild=0
+    elif [[ "$__BuildArch" == "arm" && "$__HostArch" == "x86" ]]; then
+        __DoCrossArchBuild=0
+    fi
+
+    if [ $__DoCrossArchBuild == 1 ]; then
+        build_crossArchComp
+    fi
+fi
 
 # Build System.Private.CoreLib.
 
