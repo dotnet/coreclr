@@ -991,7 +991,7 @@ CONTEXT_GetThreadContextFromThreadState(
                     memcpy(&lpContext->FltSave.FloatRegisters[i], (&pState->__fpu_stmm0)[i].__mmst_reg, 10);
 
                 // AMD64's FLOATING_POINT includes the xmm registers.
-                memcpy(&lpContext->Xmm0, &pState->__fpu_xmm0, 8 * 16);
+                memcpy(&lpContext->Xmm0, &pState->__fpu_xmm0, 16 * 16);
             }
             break;
 #else
@@ -1218,7 +1218,7 @@ CONTEXT_SetThreadContextOnPort(
             for (int i = 0; i < 8; i++)
                 memcpy((&State.__fpu_stmm0)[i].__mmst_reg, &lpContext->FltSave.FloatRegisters[i], 10);
 
-            memcpy(&State.__fpu_xmm0, &lpContext->Xmm0, 8 * 16);
+            memcpy(&State.__fpu_xmm0, &lpContext->Xmm0, 16 * 16);
 #else
 #error Unexpected architecture.
 #endif
