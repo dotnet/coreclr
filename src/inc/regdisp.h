@@ -411,7 +411,7 @@ inline void FillRegDisplay(const PREGDISPLAY pRD, PT_CONTEXT pctx, PT_CONTEXT pC
 
 #else // !WIN64EXCEPTIONS
     pRD->pContext   = pctx;
-#if defined(_TARGET_AMD64_)
+#ifdef _TARGET_AMD64_
     for (int i = 0; i < 16; i++)
     {
         *(&pRD->ctxPtrsOne.Rax + i) = (&pctx->Rax + i);
