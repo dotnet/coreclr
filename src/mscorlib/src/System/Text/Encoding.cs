@@ -884,6 +884,19 @@ namespace System.Text
         [Pure]
         public abstract int GetByteCount(char[] chars, int index, int count);
 
+        // Returns the number of bytes required to encode a string range.
+        //
+        [Pure]
+        public virtual int GetByteCount(string s, int index, int count)
+        {
+            if (s == null)
+                throw new ArgumentNullException(nameof(s));
+            Contract.EndContractBlock();
+
+            char[] chars = s.ToCharArray(index, count);
+            return GetByteCount(chars, 0, count);
+        }
+
         // We expect this to be the workhorse for NLS encodings
         // unfortunately for existing overrides, it has to call the [] version,
         // which is really slow, so this method should be avoided if you're calling
@@ -976,6 +989,17 @@ namespace System.Text
             int bytesReceived = GetBytes(s, 0, s.Length, bytes, 0);
             Debug.Assert(byteCount == bytesReceived);
             return bytes;
+        }
+
+        // Returns a byte array containing the encoded representation of the given
+        // string range.
+        //
+        [Pure]
+        public virtual byte[] GetBytes(string s, int index, int count)
+        {
+            byte[] result = new byte[GetByteCount(s, index, count)];
+            GetBytes(s, index, count, result, 0);
+            return result;
         }
 
         public virtual int GetBytes(String s, int charIndex, int charCount,
