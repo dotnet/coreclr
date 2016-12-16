@@ -41,7 +41,6 @@ code_coverage=OFF
 build_tests=OFF
 generator="Unix Makefiles"
 __UnprocessedCMakeArgs=""
-buildCrossComponent=0
 
 for i in "${@:5}"; do
     upperI="$(echo $i | awk '{print toupper($0)}')"
@@ -60,9 +59,6 @@ for i in "${@:5}"; do
       ;;
       NINJA)
       generator=Ninja
-      ;;
-      CROSSCOMP)
-      buildCrossComponent=1
       ;;
       *)
       __UnprocessedCMakeArgs="${__UnprocessedCMakeArgs}${__UnprocessedCMakeArgs:+ }$i"
@@ -130,7 +126,7 @@ fi
 if [[ -n "$LLDB_INCLUDE_DIR" ]]; then
     cmake_extra_defines="$cmake_extra_defines -DWITH_LLDB_INCLUDES=$LLDB_INCLUDE_DIR"
 fi
-if [ $buildCrossComponent == 1 ]; then
+if [[ -n "$CROSSCOMPONENT" ]]; then
     cmake_extra_defines="$cmake_extra_defines -DCLR_CROSS_COMPONENTS_BUILD=1"
 else
     if [[ -n "$CROSSCOMPILE" ]]; then
