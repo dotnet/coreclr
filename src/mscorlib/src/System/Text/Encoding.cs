@@ -887,7 +887,7 @@ namespace System.Text
         // Returns the number of bytes required to encode a string range.
         //
         [Pure]
-        public unsafe virtual int GetByteCount(string s, int index, int count)
+        public virtual int GetByteCount(string s, int index, int count)
         {
             if (s == null)
                 throw new ArgumentNullException(nameof(s), 
@@ -903,9 +903,12 @@ namespace System.Text
                       Environment.GetResourceString("ArgumentOutOfRange_IndexCount"));
             Contract.EndContractBlock();
 
-            fixed (char* pChar = s)
+            unsafe
             {
-                return GetByteCount(pChar + index, count);
+                fixed (char* pChar = s)
+                {
+                    return GetByteCount(pChar + index, count);
+                }
             }
         }
 
@@ -1007,7 +1010,7 @@ namespace System.Text
         // string range.
         //
         [Pure]
-        public unsafe virtual byte[] GetBytes(string s, int index, int count)
+        public virtual byte[] GetBytes(string s, int index, int count)
         {
             if (s == null)
                 throw new ArgumentNullException(nameof(s),
@@ -1023,17 +1026,22 @@ namespace System.Text
                       Environment.GetResourceString("ArgumentOutOfRange_IndexCount"));
             Contract.EndContractBlock();
 
-            fixed (char* pChar = s)
+            unsafe
             {
-                int byteCount = GetByteCount(pChar + index, count);
-
-                byte[] bytes = new byte[byteCount];
-                fixed (byte* pBytes = &bytes[0])
+                fixed (char* pChar = s)
                 {
-                    int bytesReceived = GetBytes(pChar + index, count, pBytes, byteCount);
-                    Debug.Assert(byteCount == bytesReceived);
+                    int byteCount = GetByteCount(pChar + index, count);
+                    if (byteCount == 0)
+                        return Array.Empty<byte>();
+
+                    byte[] bytes = new byte[byteCount];
+                    fixed (byte* pBytes = &bytes[0])
+                    {
+                        int bytesReceived = GetBytes(pChar + index, count, pBytes, byteCount);
+                        Debug.Assert(byteCount == bytesReceived);
+                    }
+                    return bytes;
                 }
-                return bytes;
             }
         }
 
