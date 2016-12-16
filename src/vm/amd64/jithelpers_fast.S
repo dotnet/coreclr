@@ -119,6 +119,22 @@ LEAF_ENTRY JIT_WriteBarrier, _TEXT
 
     UpdateCardTable:
         mov     byte ptr [rdi + rax], 0FFh
+
+#ifdef FEATURE_MANUALLY_MANAGED_CARD_BUNDLES
+        NOP_2_BYTE // padding for alignment of constant
+        shr     rdi, 0x0A
+
+        movabs  rax, 0xF0F0F0F0F0F0F0F0
+        cmp     byte ptr [rdi + rax], 0FFh
+
+        .byte 0x75, 0x02
+        // jne     UpdateCardBundle_WriteWatch_PostGrow64
+        REPRET
+
+    UpdateCardBundle_WriteWatch_PostGrow64:
+        mov     byte ptr [rdi + rax], 0FFh
+#endif
+
         ret
 
     .balign 16
@@ -140,7 +156,6 @@ LEAF_ENTRY JIT_WriteBarrier, _TEXT
         // By using two registers we can pipeline better.  Should we decide to use
         // a special non-volatile calling convention, this should be changed to
         // just one.
-
         movabs  rax, 0xF0F0F0F0F0F0F0F0
 
         // Check the lower and upper ephemeral region bounds
@@ -163,12 +178,32 @@ LEAF_ENTRY JIT_WriteBarrier, _TEXT
         // Touch the card table entry, if not already dirty.
         shr     rdi, 0Bh
         cmp     byte ptr [rdi + rax], 0FFh
-        // jne     UpdateCardTable
         .byte 0x75, 0x02
+        // jne     UpdateCardTable
         REPRET
 
     UpdateCardTable:
         mov     byte ptr [rdi + rax], 0FFh
+
+#ifdef FEATURE_MANUALLY_MANAGED_CARD_BUNDLES
+        NOP_3_BYTE // padding for alignment of constant
+        NOP_3_BYTE // padding for alignment of constant
+
+        movabs  rax, 0xF0F0F0F0F0F0F0F0
+
+        // Touch the card bundle, if not already dirty.
+        // rdi is already shifted by 0xB, so shift by 0xA more
+        shr     rdi, 0x0A
+        cmp     byte ptr [rdi + rax], 0FFh
+
+        .byte 0x75, 0x02 
+        // jne     UpdateCardBundle
+        REPRET
+
+    UpdateCardBundle:
+        mov     byte ptr [rdi + rax], 0FFh
+#endif
+
         ret
 
     .balign 16
@@ -300,19 +335,45 @@ LEAF_ENTRY JIT_ByRefWriteBarrier, _TEXT
         add     rsi, 8h
         add     rdi, 8h
 
+#ifdef FEATURE_MANUALLY_MANAGED_CARD_BUNDLES
+        // also move the address into rdx because we're going to overwrite rcx
+        // and we may need the address below.
+        mov     rdx, rcx
+#endif
+
         // Check if we need to update the card table
         // Calc pCardByte
         shr     rcx, 0x0B
         PREPARE_EXTERNAL_VAR g_card_table, rax
-        add     rcx, [rax]
+        ///// add     rcx, [rax]
 
         // Check if this card is dirty
-        cmp     byte ptr [rcx], 0FFh
+        ///// cmp     byte ptr [rcx], 0FFh
+        cmp     byte ptr [rcx + rax], 0FFh
+
+
         jne     UpdateCardTable_ByRefWriteBarrier
         REPRET
 
     UpdateCardTable_ByRefWriteBarrier:
-        mov     byte ptr [rcx], 0FFh
+        ///// mov     byte ptr [rcx], 0FFh
+        mov     byte ptr [rcx + rax], 0FFh
+
+#ifdef FEATURE_MANUALLY_MANAGED_CARD_BUNDLES
+        // Shifting an address by 0x15 gives us its corresponding card bundle byte
+        shr     rdx, 0x15
+        PREPARE_EXTERNAL_VAR g_card_bundle_table, rax
+        add     rdx, [rax]
+
+        // Check if this bundle byte is dirty
+        cmp     byte ptr [rdx], 0FFh
+        jne     UpdateCardBundle_ByRefWriteBarrier
+        REPRET
+
+    UpdateCardBundle_ByRefWriteBarrier:
+        mov     byte ptr [rdx], 0FFh
+#endif
+
         ret
 
     .balign 16

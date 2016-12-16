@@ -196,6 +196,7 @@ DEFINE_DACVAR(ULONG, ProfControlBlock, dac__g_profControlBlock, ::g_profControlB
 
 DEFINE_DACVAR_NO_DUMP(ULONG, SIZE_T, dac__generation_table, WKS::generation_table)
 DEFINE_DACVAR(ULONG, PTR_DWORD, dac__g_card_table, ::g_card_table)
+// DEFINE_DACVAR(ULONG, PTR_DWORD, dac__g_card_bundle_table, ::g_card_bundle_table)
 DEFINE_DACVAR(ULONG, PTR_BYTE, dac__g_lowest_address, ::g_lowest_address)
 DEFINE_DACVAR(ULONG, PTR_BYTE, dac__g_highest_address, ::g_highest_address)
 
