@@ -116,7 +116,7 @@ check_prereqs()
 }
 
 
-prepare_logingInfra()
+generate_event_logging_sources()
 {
     if [ $__SkipCoreCLR == 1 ]; then
         return
@@ -767,8 +767,8 @@ setup_dirs
 # Check prereqs.
 check_prereqs
 
-# Event Logging Infrastructure
-prepare_logingInfra
+# Generate event logging infrastructure sources
+generate_event_logging_sources
 
 # Build the coreclr (native) components.
 __ExtraCmakeArgs="-DCLR_CMAKE_TARGET_OS=$__BuildOS -DCLR_CMAKE_PACKAGES_DIR=$__PackagesDir -DCLR_CMAKE_PGO_INSTRUMENT=$__PgoInstrument"
