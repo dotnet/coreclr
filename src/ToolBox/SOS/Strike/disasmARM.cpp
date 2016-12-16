@@ -27,7 +27,6 @@
 #ifndef FEATURE_PAL
 namespace ARMGCDump
 {
-#undef _TARGET_X86_
 #undef LIMITED_METHOD_CONTRACT
 #define LIMITED_METHOD_DAC_CONTRACT
 #define SUPPORTS_DAC
