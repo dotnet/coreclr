@@ -887,7 +887,7 @@ namespace System.Text
         // Returns the number of bytes required to encode a string range.
         //
         [Pure]
-        public virtual int GetByteCount(string s, int index, int count)
+        public int GetByteCount(string s, int index, int count)
         {
             if (s == null)
                 throw new ArgumentNullException(nameof(s), 
@@ -1010,7 +1010,7 @@ namespace System.Text
         // string range.
         //
         [Pure]
-        public virtual byte[] GetBytes(string s, int index, int count)
+        public byte[] GetBytes(string s, int index, int count)
         {
             if (s == null)
                 throw new ArgumentNullException(nameof(s),
