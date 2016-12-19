@@ -128,32 +128,8 @@ void Lowering::TreeNodeInfoInit(GenTree* tree)
         // TODO-ARM-Cleanup: These cases can be fit into "default" case after
         // other remaining types are implmented.
         case GT_IL_OFFSET:
-            info->srcCount = 0;
-            info->dstCount = 0;
-            break;
-        // TODO-ARM-Cleanup: These cases can be fit into "default" case after
-        // other remaining types are implmented.
         case GT_CNS_INT:
-            info->dstCount = (tree->TypeGet() == TYP_VOID) ? 0 : 1;
-            if (kind & (GTK_CONST | GTK_LEAF))
-            {
-                info->srcCount = 0;
-            }
-            else if (kind & (GTK_SMPOP))
-            {
-                if (tree->gtGetOp2() != nullptr)
-                {
-                    info->srcCount = 2;
-                }
-                else
-                {
-                    info->srcCount = 1;
-                }
-            }
-            else
-            {
-                unreached();
-            }
+            TreeNodeInfoInitSimple(tree);
             break;
 
         // TODO-ARM-Cleanup: Remove this "default" case, and replace above cases with
@@ -171,6 +147,44 @@ void Lowering::TreeNodeInfoInit(GenTree* tree)
     // We need to be sure that we've set info->srcCount and info->dstCount appropriately
     assert((info->dstCount < 2) || tree->IsMultiRegCall());
 }
+
+//------------------------------------------------------------------------
+// TreeNodeInfoInitSimple: Sets the srcCount and dstCount for all the trees
+// without special handling based on the tree node type.
+//
+// Arguments:
+//    tree      - The node of interest
+//
+// Return Value:
+//    None.
+//
+
+void Lowering::TreeNodeInfoInitSimple(GenTree* tree)
+{
+    TreeNodeInfo* info = &(tree->gtLsraInfo);
+    unsigned      kind = tree->OperKind();
+    info->dstCount     = (tree->TypeGet() == TYP_VOID) ? 0 : 1;
+    if (kind & (GTK_CONST | GTK_LEAF))
+    {
+        info->srcCount = 0;
+    }
+    else if (kind & (GTK_SMPOP))
+    {
+        if (tree->gtGetOp2() != nullptr)
+        {
+            info->srcCount = 2;
+        }
+        else
+        {
+            info->srcCount = 1;
+        }
+    }
+    else
+    {
+        unreached();
+    }
+}
+
 //------------------------------------------------------------------------
 // TreeNodeInfoInitReturn: Set the NodeInfo for a GT_RETURN.
 //

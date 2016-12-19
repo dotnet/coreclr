@@ -136,9 +136,11 @@ private:
 
     void TreeNodeInfoInitCheckByteable(GenTree* tree);
 
-#if defined(_TARGET_XARCH_)
+#if defined(_TARGET_XARCH_) || defined(_TARGET_ARM_)
     void TreeNodeInfoInitSimple(GenTree* tree);
+#endif
 
+#if defined(_TARGET_XARCH_)
     //----------------------------------------------------------------------
     // SetRegOptional - sets a bit to indicate to LSRA that register
     // for a given tree node is optional for codegen purpose.  If no
