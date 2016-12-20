@@ -1271,10 +1271,6 @@ done:
 #endif
 #else  // !USE_EXTERNAL_UNWINDER
 
-#ifndef FEATURE_PAL
-#error "libunwind-based unwinder is supported only for Linux"
-#endif
-
 void LazyMachState::unwindLazyState(LazyMachState* baseState,
                                     MachState* lazyState,
                                     DWORD threadId,
