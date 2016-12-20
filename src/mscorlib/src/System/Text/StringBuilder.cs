@@ -1005,7 +1005,10 @@ namespace System.Text {
 
             if (value != null && value.Length > 0)
             {
-                AppendCore(value, 0, value.Length);
+                if (value != this)
+                    AppendCore(value, 0, value.Length);
+                else
+                    Append(value.ToString());
             }
             return this;
         }
@@ -1038,12 +1041,15 @@ namespace System.Text {
 
             if (count > 0)
             {
-                AppendCore(value, startIndex, count);
+                if (value != this)
+                    AppendCore(value, startIndex, count);
+                else
+                    Append(value.ToString(startIndex, count));
             }
             return this;
         }
 
-        private unsafe void AppendCore(StringBuilder value, int startIndex, int count)
+        private void AppendCore(StringBuilder value, int startIndex, int count)
         {
             Contract.Assert(value != null, "StringBuilder is null");
             Contract.Assert(count > 0, "count should be more zero");
