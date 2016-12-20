@@ -720,10 +720,10 @@ PCODE Thread::VirtualUnwindNonLeafCallFrame(T_CONTEXT* pContext, KNONVOLATILE_CO
     CONTRACTL_END;
 
     PCODE           uControlPc = GetIP(pContext);
-#if defined(_WIN64)
+#if defined(BIT64)
     UINT64              EstablisherFrame;
     PVOID               HandlerData;
-#elif defined(_TARGET_ARM_) || defined(_TARGET_X86_)
+#elif defined(BIT32)
     DWORD               EstablisherFrame;
     PVOID               HandlerData;
 #else

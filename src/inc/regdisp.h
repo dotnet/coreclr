@@ -427,13 +427,11 @@ inline void FillRegDisplay(const PREGDISPLAY pRD, PT_CONTEXT pctx, PT_CONTEXT pC
     {
         *(&pRD->ctxPtrsOne.R4 + i) = (&pctx->R4 + i);
     }
+
+    pRD->ctxPtrsOne.Lr = &pctx->Lr;
 #else  // _TARGET_ARM_
     PORTABILITY_ASSERT("FillRegDisplay");
 #endif // ELSE
-
-#ifdef _TARGET_ARM_
-    pRD->ctxPtrsOne.Lr = &pctx->Lr; 
-#endif
 
     // Setup the references
     pRD->pCurrentContextPointers = &pRD->ctxPtrsOne;

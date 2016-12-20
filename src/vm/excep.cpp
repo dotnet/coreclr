@@ -7561,7 +7561,7 @@ void FaultingExceptionFrame::Init(CONTEXT *pContext)
     m_ReturnAddress = ::GetIP(pContext);
     m_Esp = (DWORD)GetSP(pContext);
 #else // _TARGET_X86_
-    PORTABILITY_ASSERT("FaultingExceptionFrame::InitAndLink");
+    PORTABILITY_ASSERT("FaultingExceptionFrame::Init");
 #endif // _TARGET_???_ (ELSE)
 #else // !WIN64EXCEPTIONS
     m_ReturnAddress = ::GetIP(pContext);

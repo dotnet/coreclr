@@ -1115,13 +1115,13 @@ class FaultingExceptionFrame : public Frame
     friend class CheckAsmOffsets;
 
 #ifndef WIN64EXCEPTIONS
-    #ifdef _TARGET_X86_
+#ifdef _TARGET_X86_
     DWORD                   m_Esp;
     CalleeSavedRegisters    m_regs;
     TADDR                   m_ReturnAddress;
-    #else  // !_TARGET_X86_
+#else  // _TARGET_X86_
     #error "WIN32EXCEPTIONS is supported only for X86"
-    #endif // _TARGET_X86_
+#endif // _TARGET_X86_
 #else // WIN64EXCEPTIONS
     BOOL                    m_fFilterExecuted;  // Flag for FirstCallToHandler
     TADDR                   m_ReturnAddress;
