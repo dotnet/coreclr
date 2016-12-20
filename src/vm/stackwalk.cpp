@@ -720,15 +720,13 @@ PCODE Thread::VirtualUnwindNonLeafCallFrame(T_CONTEXT* pContext, KNONVOLATILE_CO
     CONTRACTL_END;
 
     PCODE           uControlPc = GetIP(pContext);
-#if defined(BIT64)
+#ifdef BIT64
     UINT64              EstablisherFrame;
     PVOID               HandlerData;
-#elif defined(BIT32)
+#else  // BIT64
     DWORD               EstablisherFrame;
     PVOID               HandlerData;
-#else
-    _ASSERTE(!"nyi platform stackwalking");
-#endif
+#endif // BIT64
 
     if (NULL == pFunctionEntry)
     {
