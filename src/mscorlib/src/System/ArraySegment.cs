@@ -140,10 +140,7 @@ namespace System
         /// <summary>
         /// Returns an empty <see cref="ArraySegment{T}"/>
         /// </summary>
-        public static ArraySegment<T> Empty
-        {
-            get { return default(ArraySegment<T>); }
-        }
+        public static ArraySegment<T> Empty => default(ArraySegment<T>);
 
         public ArraySegment<T> Slice(int start) => Slice(start, _count - start);
 
@@ -166,6 +163,7 @@ namespace System
                 ThrowHelper.ThrowInvalidOperationException(ExceptionResource.InvalidOperation_NullArray);
             Contract.EndContractBlock();
 
+            // Delegate destinationIndex validation to Array.Copy method
             System.Array.Copy(_array, _offset, destination, destinationIndex, _count);
         }
 
