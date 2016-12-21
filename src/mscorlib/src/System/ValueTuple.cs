@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.Diagnostics.Contracts;
 using System.Runtime.InteropServices;
 using System.Runtime.CompilerServices;
+using HashHelpers = System.Numerics.Hashing.HashHelpers;
 
 namespace System
 {
@@ -59,7 +60,7 @@ namespace System
 
             if (!(other is ValueTuple))
             {
-                throw new ArgumentException(Environment.GetResourceString("ArgumentException_ValueTupleIncorrectType", this.GetType().ToString()), nameof(other));
+                throw new ArgumentException(SR.Format(SR.ArgumentException_ValueTupleIncorrectType, this.GetType().ToString()), nameof(other));
             }
 
             return 0;
@@ -84,7 +85,7 @@ namespace System
 
             if (!(other is ValueTuple))
             {
-                throw new ArgumentException(Environment.GetResourceString("ArgumentException_ValueTupleIncorrectType", this.GetType().ToString()), nameof(other));
+                throw new ArgumentException(SR.Format(SR.ArgumentException_ValueTupleIncorrectType, this.GetType().ToString()), nameof(other));
             }
 
             return 0;
@@ -259,40 +260,37 @@ namespace System
 
         internal static int CombineHashCodes(int h1, int h2)
         {
-            // Forward to helper class in Common for this
-            // We keep the actual hashing logic there, so
-            // other classes can use it for hashing
-            return System.Numerics.Hashing.HashHelpers.Combine(h1, h2);
+            return HashHelpers.Combine(HashHelpers.Combine(HashHelpers.RandomSeed, h1), h2);
         }
 
         internal static int CombineHashCodes(int h1, int h2, int h3)
         {
-            return CombineHashCodes(CombineHashCodes(h1, h2), h3);
+            return HashHelpers.Combine(CombineHashCodes(h1, h2), h3);
         }
 
         internal static int CombineHashCodes(int h1, int h2, int h3, int h4)
         {
-            return CombineHashCodes(CombineHashCodes(h1, h2, h3), h4);
+            return HashHelpers.Combine(CombineHashCodes(h1, h2, h3), h4);
         }
 
         internal static int CombineHashCodes(int h1, int h2, int h3, int h4, int h5)
         {
-            return CombineHashCodes(CombineHashCodes(h1, h2, h3, h4), h5);
+            return HashHelpers.Combine(CombineHashCodes(h1, h2, h3, h4), h5);
         }
 
         internal static int CombineHashCodes(int h1, int h2, int h3, int h4, int h5, int h6)
         {
-            return CombineHashCodes(CombineHashCodes(h1, h2, h3, h4, h5), h6);
+            return HashHelpers.Combine(CombineHashCodes(h1, h2, h3, h4, h5), h6);
         }
 
         internal static int CombineHashCodes(int h1, int h2, int h3, int h4, int h5, int h6, int h7)
         {
-            return CombineHashCodes(CombineHashCodes(h1, h2, h3, h4, h5, h6), h7);
+            return HashHelpers.Combine(CombineHashCodes(h1, h2, h3, h4, h5, h6), h7);
         }
 
         internal static int CombineHashCodes(int h1, int h2, int h3, int h4, int h5, int h6, int h7, int h8)
         {
-            return CombineHashCodes(CombineHashCodes(h1, h2, h3, h4, h5, h6, h7), h8);
+            return HashHelpers.Combine(CombineHashCodes(h1, h2, h3, h4, h5, h6, h7), h8);
         }
     }
 
@@ -363,7 +361,7 @@ namespace System
 
             if (!(other is ValueTuple<T1>))
             {
-                throw new ArgumentException(Environment.GetResourceString("ArgumentException_ValueTupleIncorrectType", this.GetType().ToString()), nameof(other));
+                throw new ArgumentException(SR.Format(SR.ArgumentException_ValueTupleIncorrectType, this.GetType().ToString()), nameof(other));
             }
 
             var objTuple = (ValueTuple<T1>)other;
@@ -390,7 +388,7 @@ namespace System
 
             if (!(other is ValueTuple<T1>))
             {
-                throw new ArgumentException(Environment.GetResourceString("ArgumentException_ValueTupleIncorrectType", this.GetType().ToString()), nameof(other));
+                throw new ArgumentException(SR.Format(SR.ArgumentException_ValueTupleIncorrectType, this.GetType().ToString()), nameof(other));
             }
 
             var objTuple = (ValueTuple<T1>)other;
@@ -555,7 +553,7 @@ namespace System
 
             if (!(other is ValueTuple<T1, T2>))
             {
-                throw new ArgumentException(Environment.GetResourceString("ArgumentException_ValueTupleIncorrectType", this.GetType().ToString()), nameof(other));
+                throw new ArgumentException(SR.Format(SR.ArgumentException_ValueTupleIncorrectType, this.GetType().ToString()), nameof(other));
             }
 
             return CompareTo((ValueTuple<T1, T2>)other);
@@ -583,7 +581,7 @@ namespace System
 
             if (!(other is ValueTuple<T1, T2>))
             {
-                throw new ArgumentException(Environment.GetResourceString("ArgumentException_ValueTupleIncorrectType", this.GetType().ToString()), nameof(other));
+                throw new ArgumentException(SR.Format(SR.ArgumentException_ValueTupleIncorrectType, this.GetType().ToString()), nameof(other));
             }
 
             var objTuple = (ValueTuple<T1, T2>)other;
@@ -753,7 +751,7 @@ namespace System
 
             if (!(other is ValueTuple<T1, T2, T3>))
             {
-                throw new ArgumentException(Environment.GetResourceString("ArgumentException_ValueTupleIncorrectType", this.GetType().ToString()), nameof(other));
+                throw new ArgumentException(SR.Format(SR.ArgumentException_ValueTupleIncorrectType, this.GetType().ToString()), nameof(other));
             }
 
             return CompareTo((ValueTuple<T1, T2, T3>)other);
@@ -784,7 +782,7 @@ namespace System
 
             if (!(other is ValueTuple<T1, T2, T3>))
             {
-                throw new ArgumentException(Environment.GetResourceString("ArgumentException_ValueTupleIncorrectType", this.GetType().ToString()), nameof(other));
+                throw new ArgumentException(SR.Format(SR.ArgumentException_ValueTupleIncorrectType, this.GetType().ToString()), nameof(other));
             }
 
             var objTuple = (ValueTuple<T1, T2, T3>)other;
@@ -968,7 +966,7 @@ namespace System
 
             if (!(other is ValueTuple<T1, T2, T3, T4>))
             {
-                throw new ArgumentException(Environment.GetResourceString("ArgumentException_ValueTupleIncorrectType", this.GetType().ToString()), nameof(other));
+                throw new ArgumentException(SR.Format(SR.ArgumentException_ValueTupleIncorrectType, this.GetType().ToString()), nameof(other));
             }
 
             return CompareTo((ValueTuple<T1, T2, T3, T4>)other);
@@ -1002,7 +1000,7 @@ namespace System
 
             if (!(other is ValueTuple<T1, T2, T3, T4>))
             {
-                throw new ArgumentException(Environment.GetResourceString("ArgumentException_ValueTupleIncorrectType", this.GetType().ToString()), nameof(other));
+                throw new ArgumentException(SR.Format(SR.ArgumentException_ValueTupleIncorrectType, this.GetType().ToString()), nameof(other));
             }
 
             var objTuple = (ValueTuple<T1, T2, T3, T4>)other;
@@ -1202,7 +1200,7 @@ namespace System
 
             if (!(other is ValueTuple<T1, T2, T3, T4, T5>))
             {
-                throw new ArgumentException(Environment.GetResourceString("ArgumentException_ValueTupleIncorrectType", this.GetType().ToString()), nameof(other));
+                throw new ArgumentException(SR.Format(SR.ArgumentException_ValueTupleIncorrectType, this.GetType().ToString()), nameof(other));
             }
 
             return CompareTo((ValueTuple<T1, T2, T3, T4, T5>)other);
@@ -1239,7 +1237,7 @@ namespace System
 
             if (!(other is ValueTuple<T1, T2, T3, T4, T5>))
             {
-                throw new ArgumentException(Environment.GetResourceString("ArgumentException_ValueTupleIncorrectType", this.GetType().ToString()), nameof(other));
+                throw new ArgumentException(SR.Format(SR.ArgumentException_ValueTupleIncorrectType, this.GetType().ToString()), nameof(other));
             }
 
             var objTuple = (ValueTuple<T1, T2, T3, T4, T5>)other;
@@ -1455,7 +1453,7 @@ namespace System
 
             if (!(other is ValueTuple<T1, T2, T3, T4, T5, T6>))
             {
-                throw new ArgumentException(Environment.GetResourceString("ArgumentException_ValueTupleIncorrectType", this.GetType().ToString()), nameof(other));
+                throw new ArgumentException(SR.Format(SR.ArgumentException_ValueTupleIncorrectType, this.GetType().ToString()), nameof(other));
             }
 
             return CompareTo((ValueTuple<T1, T2, T3, T4, T5, T6>)other);
@@ -1495,7 +1493,7 @@ namespace System
 
             if (!(other is ValueTuple<T1, T2, T3, T4, T5, T6>))
             {
-                throw new ArgumentException(Environment.GetResourceString("ArgumentException_ValueTupleIncorrectType", this.GetType().ToString()), nameof(other));
+                throw new ArgumentException(SR.Format(SR.ArgumentException_ValueTupleIncorrectType, this.GetType().ToString()), nameof(other));
             }
 
             var objTuple = (ValueTuple<T1, T2, T3, T4, T5, T6>)other;
@@ -1727,7 +1725,7 @@ namespace System
 
             if (!(other is ValueTuple<T1, T2, T3, T4, T5, T6, T7>))
             {
-                throw new ArgumentException(Environment.GetResourceString("ArgumentException_ValueTupleIncorrectType", this.GetType().ToString()), nameof(other));
+                throw new ArgumentException(SR.Format(SR.ArgumentException_ValueTupleIncorrectType, this.GetType().ToString()), nameof(other));
             }
 
             return CompareTo((ValueTuple<T1, T2, T3, T4, T5, T6, T7>)other);
@@ -1770,7 +1768,7 @@ namespace System
 
             if (!(other is ValueTuple<T1, T2, T3, T4, T5, T6, T7>))
             {
-                throw new ArgumentException(Environment.GetResourceString("ArgumentException_ValueTupleIncorrectType", this.GetType().ToString()), nameof(other));
+                throw new ArgumentException(SR.Format(SR.ArgumentException_ValueTupleIncorrectType, this.GetType().ToString()), nameof(other));
             }
 
             var objTuple = (ValueTuple<T1, T2, T3, T4, T5, T6, T7>)other;
@@ -1949,7 +1947,7 @@ namespace System
         {
             if (!(rest is IValueTupleInternal))
             {
-                throw new ArgumentException(Environment.GetResourceString("ArgumentException_ValueTupleLastArgumentNotAValueTuple"));
+                throw new ArgumentException(SR.ArgumentException_ValueTupleLastArgumentNotATuple);
             }
 
             Item1 = item1;
@@ -2024,7 +2022,7 @@ namespace System
 
             if (!(other is ValueTuple<T1, T2, T3, T4, T5, T6, T7, TRest>))
             {
-                throw new ArgumentException(Environment.GetResourceString("ArgumentException_ValueTupleIncorrectType", this.GetType().ToString()), nameof(other));
+                throw new ArgumentException(SR.Format(SR.ArgumentException_ValueTupleIncorrectType, this.GetType().ToString()), nameof(other));
             }
 
             return CompareTo((ValueTuple<T1, T2, T3, T4, T5, T6, T7, TRest>)other);
@@ -2070,7 +2068,7 @@ namespace System
 
             if (!(other is ValueTuple<T1, T2, T3, T4, T5, T6, T7, TRest>))
             {
-                throw new ArgumentException(Environment.GetResourceString("ArgumentException_ValueTupleIncorrectType", this.GetType().ToString()), nameof(other));
+                throw new ArgumentException(SR.Format(SR.ArgumentException_ValueTupleIncorrectType, this.GetType().ToString()), nameof(other));
             }
 
             var objTuple = (ValueTuple<T1, T2, T3, T4, T5, T6, T7, TRest>)other;
