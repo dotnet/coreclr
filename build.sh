@@ -246,6 +246,8 @@ build_native()
         NumProc=$(($(getconf _NPROCESSORS_ONLN)+1))
     fi
 
+    NumProc=1
+
     # Build
     if [ $__ConfigureOnly == 1 ]; then
         echo "Finish configuration & skipping $message build."
@@ -740,9 +742,6 @@ __CrossComponentBinDir="$__BinDir"
 __CrossCompIntermediatesDir="$__IntermediatesDir/crossgen"
 
 __CrossArch="$__HostArch"
-if [[ "$__HostArch" == "x64" && "$__BuildArch" == "arm" ]]; then
-    __CrossArch="x86"
-fi
 if [ $__CrossBuild == 1 ]; then
     __CrossComponentBinDir="$__CrossComponentBinDir/$__CrossArch"
 fi
@@ -795,7 +794,7 @@ if [ $__CrossBuild == 1 ]; then
     __SkipCrossArchBuild=1
     if [ $__DoCrossArchBuild == 1 ]; then
         # build cross-architecture components for x86-host/arm-target
-        if [[ "$__BuildArch" == "arm" && "$__CrossArch" == "x86" ]]; then
+        if [[ "$__BuildArch" == "arm" && "$__CrossArch" == "x64" ]]; then
             __SkipCrossArchBuild=0
         fi
     fi
