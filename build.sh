@@ -246,8 +246,6 @@ build_native()
         NumProc=$(($(getconf _NPROCESSORS_ONLN)+1))
     fi
 
-    NumProc=1
-
     # Build
     if [ $__ConfigureOnly == 1 ]; then
         echo "Finish configuration & skipping $message build."
