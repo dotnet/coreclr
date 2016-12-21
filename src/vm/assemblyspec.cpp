@@ -1812,8 +1812,7 @@ void AssemblySpecBindingCache::Init(CrstBase *pCrst, LoaderHeap *pHeap)
     m_pHeap = pHeap;
 }
 
-#if defined(FEATURE_CORECLR)
-AssemblySpecBindingCache::AssemblyBinding* AssemblySpecBindingCache::GetAssemblyBindingEntryForAssemblySpec(AssemblySpec* pSpec, BOOL fThrow)
+AssemblySpecBindingCache::AssemblyBinding* AssemblySpecBindingCache::LookupInternal(AssemblySpec* pSpec, BOOL fThrow, BOOL remove)
 {
     CONTRACTL
     {
@@ -1834,9 +1833,10 @@ AssemblySpecBindingCache::AssemblyBinding* AssemblySpecBindingCache::GetAssembly
     }
     CONTRACTL_END;
 
-    AssemblyBinding* pEntry = (AssemblyBinding *) INVALIDENTRY;
     UPTR key = (UPTR)pSpec->Hash();
-    
+    UPTR lookupKey = key;
+
+#if defined(FEATURE_CORECLR)
     // On CoreCLR, we will use the BinderID as the key 
     ICLRPrivBinder *pBinderContextForLookup = NULL;
     AppDomain *pSpecDomain = pSpec->GetAppDomain();
@@ -1848,7 +1848,7 @@ AssemblySpecBindingCache::AssemblyBinding* AssemblySpecBindingCache::GetAssembly
     if (pBinderContextForLookup != NULL)
     {
         // We are working with the actual binding context in which the assembly was expected to be loaded.
-        // Thus, we dont need to get it from the parent assembly.
+        // Thus, we don't need to get it from the parent assembly.
         fGetBindingContextFromParent = false;
     }
 
@@ -1863,7 +1863,6 @@ AssemblySpecBindingCache::AssemblyBinding* AssemblySpecBindingCache::GetAssembly
         }
     }
 
-    UPTR lookupKey = key;
     if (pBinderContextForLookup)
     {
         UINT_PTR binderID = 0;
@@ -1871,9 +1870,13 @@ AssemblySpecBindingCache::AssemblyBinding* AssemblySpecBindingCache::GetAssembly
         _ASSERTE(SUCCEEDED(hr));
         lookupKey = key^binderID;
     }
-    
-    pEntry = (AssemblyBinding *) m_map.LookupValue(lookupKey, pSpec);
-    
+#endif
+
+    AssemblyBinding* pEntry = (AssemblyBinding *)(remove ?
+        m_map.DeleteValue(lookupKey, pSpec)
+        : m_map.LookupValue(lookupKey, pSpec));
+
+#if defined(FEATURE_CORECLR)
     // Reset the binding context if one was originally never present in the AssemblySpec and we didnt find any entry
     // in the cache.
     if (fGetBindingContextFromParent)
@@ -1883,22 +1886,15 @@ AssemblySpecBindingCache::AssemblyBinding* AssemblySpecBindingCache::GetAssembly
             pSpec->SetBindingContext(NULL);
         }
     }
+#endif
     
     return pEntry;
 }
-#endif // defined(FEATURE_CORECLR)
 
 BOOL AssemblySpecBindingCache::Contains(AssemblySpec *pSpec)
 {
     WRAPPER_NO_CONTRACT;
-
-#if !defined(FEATURE_CORECLR)
-    DWORD key = pSpec->Hash();
-    AssemblyBinding *entry = (AssemblyBinding *) m_map.LookupValue(key, pSpec);
-    return (entry != (AssemblyBinding *) INVALIDENTRY);
-#else // defined(FEATURE_CORECLR)    
-    return (GetAssemblyBindingEntryForAssemblySpec(pSpec, TRUE) != (AssemblyBinding *) INVALIDENTRY);
-#endif // !defined(FEATURE_CORECLR)    
+    return (LookupInternal(pSpec, TRUE) != (AssemblyBinding *) INVALIDENTRY);
 }
 
 DomainAssembly *AssemblySpecBindingCache::LookupAssembly(AssemblySpec *pSpec,
@@ -1924,12 +1920,7 @@ DomainAssembly *AssemblySpecBindingCache::LookupAssembly(AssemblySpec *pSpec,
 
     AssemblyBinding *entry = (AssemblyBinding *) INVALIDENTRY;
     
-#if !defined(FEATURE_CORECLR)    
-    DWORD key = pSpec->Hash();
-    entry = (AssemblyBinding *) m_map.LookupValue(key, pSpec);
-#else // defined(FEATURE_CORECLR)
-    entry = GetAssemblyBindingEntryForAssemblySpec(pSpec, fThrow);
-#endif // !defined(FEATURE_CORECLR)
+    entry = LookupInternal(pSpec, fThrow);
 
     if (entry == (AssemblyBinding *) INVALIDENTRY)
         RETURN NULL;
@@ -1965,14 +1956,8 @@ PEAssembly *AssemblySpecBindingCache::LookupFile(AssemblySpec *pSpec, BOOL fThro
     }
     CONTRACT_END;
 
-    AssemblyBinding *entry = (AssemblyBinding *) INVALIDENTRY;
-    
-#if !defined(FEATURE_CORECLR)    
-    DWORD key = pSpec->Hash();
-    entry = (AssemblyBinding *) m_map.LookupValue(key, pSpec);
-#else // defined(FEATURE_CORECLR)
-    entry = GetAssemblyBindingEntryForAssemblySpec(pSpec, fThrow);
-#endif // !defined(FEATURE_CORECLR)
+    AssemblyBinding *entry = (AssemblyBinding *) INVALIDENTRY;    
+    entry = LookupInternal(pSpec, fThrow);
     
     if (entry == (AssemblyBinding *) INVALIDENTRY)
         RETURN NULL;
@@ -2257,7 +2242,7 @@ BOOL AssemblySpecBindingCache::StoreException(AssemblySpec *pSpec, Exception* pE
 #if !defined(FEATURE_CORECLR)    
     AssemblyBinding *entry = (AssemblyBinding *) m_map.LookupValue(key, pSpec);
 #else // defined(FEATURE_CORECLR)
-    AssemblyBinding *entry = GetAssemblyBindingEntryForAssemblySpec(pSpec, TRUE);
+    AssemblyBinding *entry = LookupInternal(pSpec, TRUE);
     if (entry == (AssemblyBinding *) INVALIDENTRY)
     {
         // TODO: Merge this with the failure lookup in the binder
