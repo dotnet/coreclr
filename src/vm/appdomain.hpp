@@ -2319,6 +2319,7 @@ private:
 
 public:
     void CheckForMismatchedNativeImages(AssemblySpec * pSpec, const GUID * pGuid);
+    BOOL RemoveNativeImageDependency(AssemblySpec* pSpec);
 
 public:
     class PathIterator
@@ -2449,7 +2450,11 @@ public:
     void CacheStringsForDAC();
 
     BOOL AddFileToCache(AssemblySpec* pSpec, PEAssembly *pFile, BOOL fAllowFailure = FALSE);
+    BOOL RemoveFileFromCache(PEAssembly *pFile);
+
     BOOL AddAssemblyToCache(AssemblySpec* pSpec, DomainAssembly *pAssembly);
+    BOOL RemoveAssemblyFromCache(DomainAssembly* pAssembly);
+
     BOOL AddExceptionToCache(AssemblySpec* pSpec, Exception *ex);
     void AddUnmanagedImageToCache(LPCWSTR libraryName, HMODULE hMod);
     HMODULE FindUnmanagedImageInCache(LPCWSTR libraryName);

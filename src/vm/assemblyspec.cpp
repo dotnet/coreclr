@@ -2300,6 +2300,40 @@ BOOL AssemblySpecBindingCache::StoreException(AssemblySpec *pSpec, Exception* pE
     }
 }
 
+BOOL AssemblySpecBindingCache::RemoveAssembly(DomainAssembly* pAssembly)
+{
+    CONTRACT(BOOL)
+    {
+        INSTANCE_CHECK;
+        NOTHROW;
+        GC_TRIGGERS;
+        MODE_ANY;
+        PRECONDITION(pAssembly != NULL);
+    }
+    CONTRACT_END;
+    BOOL result = FALSE;
+    PtrHashMap::PtrIterator i = m_map.begin();
+    while (!i.end())
+    {
+        AssemblyBinding* entry = (AssemblyBinding*)i.GetValue();
+        if (entry->GetAssembly() == pAssembly)
+        {
+            UPTR key = i.GetKey();
+            m_map.DeleteValue(key, entry);
+
+            if (m_pHeap == NULL)
+                delete entry;
+            else
+                entry->~AssemblyBinding();
+
+            result = TRUE;
+        }
+        ++i;
+    }
+
+    RETURN result;
+}
+
 /* static */
 BOOL AssemblySpecHash::CompareSpecs(UPTR u1, UPTR u2)
 {
