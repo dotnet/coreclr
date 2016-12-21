@@ -402,52 +402,7 @@ void Assembly::Terminate( BOOL signalProfiler )
         m_pClassLoader = NULL;
     }
 
-    if (m_pLoaderAllocator != NULL)
-    {
-        if (IsCollectible())
-        {
-            // This cleanup code starts resembling parts of AppDomain::Terminate too much.
-            // It would be useful to reduce duplication and also establish clear responsibilites
-            // for LoaderAllocator::Destroy, Assembly::Terminate, LoaderAllocator::Terminate
-            // and LoaderAllocator::~LoaderAllocator. We need to establish how these
-            // cleanup paths interact with app-domain unload and process tear-down, too.
-
-            if (!IsAtProcessExit())
-            {
-                // Suspend the EE to do some clean up that can only occur
-                // while no threads are running.
-                GCX_COOP (); // SuspendEE may require current thread to be in Coop mode
-                // SuspendEE cares about the reason flag only when invoked for a GC
-                // Other values are typically ignored. If using SUSPEND_FOR_APPDOMAIN_SHUTDOWN
-                // is inappropriate, we can introduce a new flag or hijack an unused one.
-                ThreadSuspend::SuspendEE(ThreadSuspend::SUSPEND_FOR_APPDOMAIN_SHUTDOWN);
-            }
-
-            ExecutionManager::Unload(m_pLoaderAllocator);
-
-            m_pLoaderAllocator->UninitVirtualCallStubManager();
-            MethodTable::ClearMethodDataCache();
-            _ASSERTE(m_pDomain->IsAppDomain());
-            AppDomain *pAppDomain = m_pDomain->AsAppDomain();
-            ClearJitGenericHandleCache(pAppDomain);
-
-            if (!IsAtProcessExit())
-            {
-                // Resume the EE.
-                ThreadSuspend::RestartEE(FALSE, TRUE);
-            }
-            
-            // Once the manifest file is tenured, the managed LoaderAllocatorScout is responsible for cleanup.
-            if (m_pManifest != NULL && m_pManifest->IsTenured())
-            {
-                pAppDomain->RegisterLoaderAllocatorForDeletion(m_pLoaderAllocator);
-            }
-        }
-        m_pLoaderAllocator = NULL;
-    }
-
     COUNTER_ONLY(GetPerfCounters().m_Loading.cAssemblies--);
-
 
 #ifdef PROFILING_SUPPORTED
     if (CORProfilerTrackAssemblyLoads())
@@ -709,6 +664,7 @@ Assembly *Assembly::CreateDynamic(AppDomain *pDomain, CreateDynamicAssemblyArgs 
         if ((args->access & ASSEMBLY_ACCESS_COLLECT) != 0)
         {
             AssemblyLoaderAllocator *pAssemblyLoaderAllocator = new AssemblyLoaderAllocator();
+            pAssemblyLoaderAllocator->SetCollectible();
             pLoaderAllocator = pAssemblyLoaderAllocator;
 
             // Some of the initialization functions are not virtual. Call through the derived class

@@ -573,7 +573,7 @@ class AssemblySpecBindingCache
     PtrHashMap m_map;
     LoaderHeap *m_pHeap;
 
-    AssemblySpecBindingCache::AssemblyBinding* GetAssemblyBindingEntryForAssemblySpec(AssemblySpec* pSpec, BOOL fThrow);
+    AssemblySpecBindingCache::AssemblyBinding* LookupInternal(AssemblySpec* pSpec, BOOL fThrow = FALSE);
     
   public:
 
@@ -595,11 +595,15 @@ class AssemblySpecBindingCache
     
     BOOL StoreException(AssemblySpec *pSpec, Exception* pEx);
 
+    BOOL RemoveAssembly(DomainAssembly* pAssembly);
+
     DWORD Hash(AssemblySpec *pSpec)
     {
         WRAPPER_NO_CONTRACT;
         return pSpec->Hash();
     }
+
+    void Dump();
     
 #if !defined(DACCESS_COMPILE)
     void GetAllAssemblies(SetSHash<PTR_DomainAssembly>& assemblyList)

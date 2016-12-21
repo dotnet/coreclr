@@ -56,10 +56,16 @@ inline void LoaderAllocatorID::Init()
     m_type = LAT_Assembly;
 };
 
-inline void LoaderAllocatorID::SetDomainAssembly(DomainAssembly* pAssembly)
+inline void LoaderAllocatorID::AddDomainAssembly(DomainAssembly* pAssembly)
 {
     LIMITED_METHOD_CONTRACT;
     _ASSERTE(m_type == LAT_Assembly);
+
+	// Link domain assembly together
+	if (m_pDomainAssembly != NULL)
+	{
+		pAssembly->SetNextDomainAssemblyInSameALC(m_pDomainAssembly);
+	}
     m_pDomainAssembly = pAssembly;
 }
 
@@ -81,11 +87,11 @@ inline LoaderAllocatorType LoaderAllocatorID::GetType()
     return m_type;
 }
 
-inline DomainAssembly* LoaderAllocatorID::GetDomainAssembly()
+inline DomainAssemblyIterator LoaderAllocatorID::GetDomainAssemblyIterator()
 {
 	LIMITED_METHOD_DAC_CONTRACT;
     _ASSERTE(m_type == LAT_Assembly);
-    return m_pDomainAssembly;
+    return DomainAssemblyIterator(m_pDomainAssembly);
 }
 
 inline AppDomain *LoaderAllocatorID::GetAppDomain()
@@ -93,12 +99,6 @@ inline AppDomain *LoaderAllocatorID::GetAppDomain()
 	LIMITED_METHOD_DAC_CONTRACT;
     _ASSERTE(m_type == LAT_AppDomain);
     return m_pAppDomain;
-}
-
-inline BOOL LoaderAllocatorID::IsCollectible()
-{
-    LIMITED_METHOD_DAC_CONTRACT; 
-    return m_type == LAT_Assembly;
 }
 
 inline LoaderAllocatorID* AssemblyLoaderAllocator::Id()

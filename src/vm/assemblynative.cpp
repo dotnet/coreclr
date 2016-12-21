@@ -1184,7 +1184,12 @@ void QCALLTYPE AssemblyNative::GetImageRuntimeVersion(QCall::AssemblyHandle pAss
 }
 
 /*static*/
+
+#ifdef FEATURE_COLLECTIBLE_ALC
+INT_PTR QCALLTYPE AssemblyNative::InitializeAssemblyLoadContext(INT_PTR ptrManagedAssemblyLoadContext, BOOL fRepresentsTPALoadContext, BOOL fIsCollectible)
+#else
 INT_PTR QCALLTYPE AssemblyNative::InitializeAssemblyLoadContext(INT_PTR ptrManagedAssemblyLoadContext, BOOL fRepresentsTPALoadContext)
+#endif
 {
     QCALL_CONTRACT;
 
@@ -1203,7 +1208,44 @@ INT_PTR QCALLTYPE AssemblyNative::InitializeAssemblyLoadContext(INT_PTR ptrManag
     {
         // Initialize a custom Assembly Load Context
         CLRPrivBinderAssemblyLoadContext *pBindContext = NULL;
+
+        // Create a new AssemblyLoaderAllocator for an AssemblyLoadContext
+        AssemblyLoaderAllocator* loaderAllocator = new AssemblyLoaderAllocator();
+#ifdef FEATURE_COLLECTIBLE_ALC
+        if (fIsCollectible)
+        {
+            loaderAllocator->SetCollectible();
+        }
+#endif
+
+        OBJECTHANDLE loaderAllocatorHandle;
+        GCX_COOP();
+        LOADERALLOCATORREF pManagedLoaderAllocator = NULL;
+        GCPROTECT_BEGIN(pManagedLoaderAllocator);
+        {
+            GCX_PREEMP();
+            // Some of the initialization functions are not virtual. Call through the derived class
+            // to prevent calling the base class version.
+            loaderAllocator->Init(pCurDomain);
+            // Setup the managed proxy now, but do not actually transfer ownership to it.
+            // Once everything is setup and nothing can fail anymore, the ownership will be
+            // atomically transfered by call to LoaderAllocator::ActivateManagedTracking().
+            loaderAllocator->SetupManagedTracking(&pManagedLoaderAllocator);
+        }
+
+        // Create a strong handle to the LoaderAllocator
+        // If FEATURE_COLLECTIBLE_ALC is not defined, the LoaderAllocator will get never released
+        loaderAllocatorHandle = pCurDomain->CreateHandle(pManagedLoaderAllocator);
+
+        GCPROTECT_END();
+
+        loaderAllocator->ActivateManagedTracking();
+
+#ifdef FEATURE_COLLECTIBLE_ALC
+        IfFailThrow(CLRPrivBinderAssemblyLoadContext::SetupContext(pCurDomain->GetId().m_dwId, pTPABinderContext, loaderAllocator, loaderAllocatorHandle, ptrManagedAssemblyLoadContext, &pBindContext));
+#else
         IfFailThrow(CLRPrivBinderAssemblyLoadContext::SetupContext(pCurDomain->GetId().m_dwId, pTPABinderContext, ptrManagedAssemblyLoadContext, &pBindContext));
+#endif
         ptrNativeAssemblyLoadContext = reinterpret_cast<INT_PTR>(pBindContext);
     }
     else
@@ -1225,6 +1267,26 @@ INT_PTR QCALLTYPE AssemblyNative::InitializeAssemblyLoadContext(INT_PTR ptrManag
     
     return ptrNativeAssemblyLoadContext;
 }
+
+#ifdef FEATURE_COLLECTIBLE_ALC
+/*static*/
+void QCALLTYPE AssemblyNative::PrepareForAssemblyLoadContextRelease(INT_PTR ptrNativeAssemblyLoadContext, INT_PTR ptrManagedStrongAssemblyLoadContext)
+{
+    QCALL_CONTRACT;
+
+    BOOL fDestroyed = FALSE;
+
+    BEGIN_QCALL;
+
+
+    {
+        GCX_COOP();
+        reinterpret_cast<CLRPrivBinderAssemblyLoadContext *>(ptrNativeAssemblyLoadContext)->PrepareForLoadContextRelease(ptrManagedStrongAssemblyLoadContext);
+    }
+
+    END_QCALL;
+}
+#endif
 
 /*static*/
 BOOL QCALLTYPE AssemblyNative::OverrideDefaultAssemblyLoadContextForCurrentDomain(INT_PTR ptrNativeAssemblyLoadContext)

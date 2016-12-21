@@ -379,7 +379,7 @@ HRESULT BaseAssemblySpec::ParseName()
 #if !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
             if (pDomain->GetFusionContext() != pDomain->GetTPABinderContext())
             {
-                pAppContext = (static_cast<CLRPrivBinderAssemblyLoadContext *>(pIUnknownBinder))->GetAppContext();
+                pAppContext = (reinterpret_cast<CLRPrivBinderAssemblyLoadContext *>(pIUnknownBinder))->GetAppContext();
             }
             else
 #endif // !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
