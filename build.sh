@@ -740,6 +740,9 @@ __CrossComponentBinDir="$__BinDir"
 __CrossCompIntermediatesDir="$__IntermediatesDir/crossgen"
 
 __CrossArch="$__HostArch"
+if [[ "$__HostArch" == "x64" && "$__BuildArch" == "arm" ]]; then
+    __CrossArch="x86"
+fi
 if [ $__CrossBuild == 1 ]; then
     __CrossComponentBinDir="$__CrossComponentBinDir/$__CrossArch"
 fi
@@ -792,7 +795,7 @@ if [ $__CrossBuild == 1 ]; then
     __SkipCrossArchBuild=1
     if [ $__DoCrossArchBuild == 1 ]; then
         # build cross-architecture components for x86-host/arm-target
-        if [[ "$__BuildArch" == "arm" && "$__CrossArch" == "x64" ]]; then
+        if [[ "$__BuildArch" == "arm" && "$__CrossArch" == "x86" ]]; then
             __SkipCrossArchBuild=0
         fi
     fi
