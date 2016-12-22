@@ -5360,6 +5360,7 @@ PTR_VOID EECodeManager::GetExactGenericsToken(SIZE_T          baseStackSlot,
 {
     LIMITED_METHOD_DAC_CONTRACT;
 
+#ifdef USE_GC_INFO_DECODER
     GCInfoToken gcInfoToken = pCodeInfo->GetGCInfoToken();
 
     GcInfoDecoder gcInfoDecoder(
@@ -5409,6 +5410,10 @@ PTR_VOID EECodeManager::GetExactGenericsToken(SIZE_T          baseStackSlot,
         return PTR_VOID(taExactGenericsToken);
     }
     return NULL;
+#else // USE_GC_INFO_DECODER
+    PORTABILITY_ASSERT("EECodeManager::GetExactGenericsToken");
+    return NULL;
+#endif // USE_GC_INFO_DECODER
 }
 
 
