@@ -531,10 +531,6 @@ extern "C" BOOL ExceptionIsOfRightType(TypeHandle clauseType, TypeHandle thrownT
 // The stuff below is what works "behind the scenes" of the public macros.
 //==========================================================================
 
-#ifdef _TARGET_X86_
-LPVOID COMPlusEndCatchWorker(Thread *pCurThread);
-EXTERN_C LPVOID STDCALL COMPlusEndCatch(LPVOID ebp, DWORD ebx, DWORD edi, DWORD esi, LPVOID* pRetAddress);
-#endif
 
 // Specify NULL for uTryCatchResumeAddress when not checking for a InducedThreadRedirectAtEndOfCatch
 EXTERN_C LPVOID COMPlusCheckForAbort(UINT_PTR uTryCatchResumeAddress = NULL);

@@ -721,6 +721,7 @@ LEAF_ENTRY JIT_PatchedCodeEnd, _TEXT
     ret
 LEAF_END JIT_PatchedCodeEnd, _TEXT
 
+#ifndef WIN64EXCEPTIONS
 // Note that the debugger skips this entirely when doing SetIP,
 // since COMPlusCheckForAbort should always return 0.  Excep.cpp:LeaveCatch
 // asserts that to be true.  If this ends up doing more work, then the
@@ -747,3 +748,4 @@ NESTED_ENTRY JIT_EndCatch, _TEXT, NoHandler
     mov     esp, eax    // esp = new esp
     jmp     edx         // eip = new eip
 NESTED_END JIT_EndCatch, _TEXT
+#endif // WIN64EXCEPTIONS
