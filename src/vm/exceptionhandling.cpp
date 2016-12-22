@@ -141,7 +141,7 @@ static inline void UpdatePerformanceMetrics(CrawlFrame *pcfThisFrame, BOOL bIsRe
     ETW::ExceptionLog::ExceptionThrown(pcfThisFrame, bIsRethrownException, bIsNewException);
 }
 
-PALAPI void ShutdownEEAndExitProcess()
+void ShutdownEEAndExitProcess()
 {
     ForceEEShutdown(SCA_ExitProcessWhenShutdownComplete);
 }
