@@ -18,41 +18,6 @@ WARNING:   When setting properties based on their current state (for example:
 -->
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
 
-  <Target
-    Name="GetIlasmRoundTripBashScript"
-    Returns="$(IlasmRoundTripBashScript)">
-    <PropertyGroup>
-      <InputAssemblyName Condition="'$(CLRTestKind)' == 'RunOnly'">$([MSBuild]::MakeRelative($(OutputPath), $(_CLRTestToRunFileFullPath)).Replace("\","/"))</InputAssemblyName>
-      <InputAssemblyName Condition="'$(CLRTestKind)' == 'BuildAndRun'">$(MSBuildProjectName).exe</InputAssemblyName>
-      <DisassemblyName>$(MSBuildProjectName).dasm.il</DisassemblyName>
-      <TargetAssemblyName>$(MSBuildProjectName).asm.exe</TargetAssemblyName>
-
-      <IlasmRoundTrip Condition="'$(ReferenceLocalMscorlib)'!=''">false</IlasmRoundTrip>
-
-      <IlasmRoundTripBashScript Condition="'$(IlasmRoundTrip)'=='true'">
-      <![CDATA[
-echo "$CORE_ROOT/ildasm" -raweh -out=$(DisassemblyName) $(InputAssemblyName)
-"$CORE_ROOT/ildasm" -raweh -out=$(DisassemblyName) $(InputAssemblyName)
-_ERRORLEVEL=$?
-if [  $ERRORLEVEL -ne 0 ]
-then
-  echo EXECUTION OF ILDASM - FAILED $ERRORLEVEL
-  exit 1
-fi
-
-echo "$CORE_ROOT/ilasm" -output=$(TargetAssemblyName) $(_IlasmSwitches) $(DisassemblyName)
-"$CORE_ROOT/ilasm" -output=$(TargetAssemblyName) $(_IlasmSwitches) $(DisassemblyName)
-_ERRORLEVEL=$?
-if [ $ERRORLEVEL -ne 0 ]
-then
-  echo EXECUTION OF ILASM - FAILED $ERRORLEVEL
-  exit 1
-fi
-      ]]>
-      </IlasmRoundTripBashScript>
-    </PropertyGroup>
-  </Target>
-
   <!-- This is here because of this bug: http://blogs.msdn.com/b/msbuild/archive/2006/01/03/508629.aspx-->
   <Target Name="FetchExternalPropertiesForXpalt">
     <!--Call GetExecuteShFullPath to get ToRunProject cmd file Path  -->
@@ -183,13 +148,16 @@ fi
     <PropertyGroup>
       <_CLRTestRunFile Condition="'$(CLRTestIsHosted)'=='true'">"$CORE_ROOT/corerun"</_CLRTestRunFile>
       <BashCLRTestLaunchCmds Condition="'$(IlasmRoundTrip)'=='true'"><![CDATA[
-echo $(_CLRTestRunFile) $(TargetAssemblyName) $CLRTestExecutionArguments 
-$(_CLRTestRunFile) $(TargetAssemblyName) $CLRTestExecutionArguments 
-if [  $? -ne $CLRTestExpectedExitCode ]
+if [ ! -z $RunningIlasmRoundTrip ]
 then
-  echo END EXECUTION OF IL{D}ASM BINARY - FAILED $? vs $CLRTestExpectedExitCode
-  echo FAILED
-  exit 1
+    echo $(_CLRTestRunFile) $(TargetAssemblyName) $CLRTestExecutionArguments 
+    $(_CLRTestRunFile) $(TargetAssemblyName) $CLRTestExecutionArguments 
+    if [  $? -ne $CLRTestExpectedExitCode ]
+    then
+      echo END EXECUTION OF IL{D}ASM BINARY - FAILED $? vs $CLRTestExpectedExitCode
+      echo FAILED
+      exit 1
+    fi
 fi
       ]]></BashCLRTestLaunchCmds>
 
@@ -308,7 +276,6 @@ $(BashCLRTestEnvironmentCompatibilityCheck)
 $(BashCLRTestArgPrep)
 $(BashCLRTestExitCodePrep)
 $(JitDisasmBashScript)
-# IlasmRoundTrip Script
 $(IlasmRoundTripBashScript)
 # PreCommands
 $(BashCLRTestPreCommands)

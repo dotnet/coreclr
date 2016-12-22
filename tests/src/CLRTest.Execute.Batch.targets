@@ -18,38 +18,6 @@ WARNING:   When setting properties based on their current state (for example:
 -->
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
 
-  <Target
-    Name="GetIlasmRoundTripBatchScript"
-    Returns="$(IlasmRoundTripBatchScript)">
-    <PropertyGroup>
-      <InputAssemblyName Condition="'$(CLRTestKind)' == 'RunOnly'">$([MSBuild]::MakeRelative($(OutputPath), $(_CLRTestToRunFileFullPath)))</InputAssemblyName>
-      <InputAssemblyName Condition="'$(CLRTestKind)' == 'BuildAndRun'">$(MSBuildProjectName).exe</InputAssemblyName>
-      <DisassemblyName>$(MSBuildProjectName).dasm.il</DisassemblyName>
-      <TargetAssemblyName>$(MSBuildProjectName).asm.exe</TargetAssemblyName>
-
-      <!-- If a test is built against mscorlib instead of dotnet Core, permission attributes can be embedded, which CoreCLR does not support. -->
-      <IlasmRoundTrip Condition="'$(ReferenceLocalMscorlib)'!=''">false</IlasmRoundTrip>
-
-       <!-- https://github.com/dotnet/coreclr/issues/2481. Delete /raweh to ildasm once it is resolved.-->
-      <IlasmRoundTripBatchScript Condition="'$(IlasmRoundTrip)'=='true'">
-      <![CDATA[
-ECHO %CORE_ROOT%\ildasm.exe /raweh /out=$(DisassemblyName) $(InputAssemblyName)
-%CORE_ROOT%\ildasm.exe /raweh /out=$(DisassemblyName) $(InputAssemblyName)
-IF NOT "!ERRORLEVEL!"=="0" (
-  ECHO EXECUTION OF ILDASM - FAILED !ERRORLEVEL!
-  Exit /b 1
-)
-ECHO %CORE_ROOT%\ilasm.exe /output=$(TargetAssemblyName) $(_IlasmSwitches) $(DisassemblyName)
-%CORE_ROOT%\ilasm.exe /output=$(TargetAssemblyName) $(_IlasmSwitches) $(DisassemblyName)
-IF NOT "!ERRORLEVEL!"=="0" (
-  ECHO EXECUTION OF ILASM - FAILED !ERRORLEVEL!
-  Exit /b 1
-)
-      ]]>
-      </IlasmRoundTripBatchScript>
-    </PropertyGroup>
-  </Target>
-
   <!-- This is here because of this bug: http://blogs.msdn.com/b/msbuild/archive/2006/01/03/508629.aspx-->
   <Target Name="FetchExternalProperties">
     <!--Call GetExecuteCmdFullPath to get ToRunProject cmd file Path  -->
@@ -211,16 +179,16 @@ IF NOT "%CLRCustomTestLauncher%"=="" (
 ) ELSE (
   set LAUNCHER=%_DebuggerFullPath% $(_CLRTestRunFile)
 )
-      ]]></BatchCLRTestLaunchCmds>
-      <BatchCLRTestLaunchCmds Condition=" '$(IlasmRoundTrip)'=='true' "><![CDATA[
-$(BatchCLRTestLaunchCmds)
-ECHO %LAUNCHER% $(TargetAssemblyName) %CLRTestExecutionArguments% %Host_Args%
-%LAUNCHER% $(TargetAssemblyName) %CLRTestExecutionArguments% %Host_Args%
 
-IF NOT "!ERRORLEVEL!"=="%CLRTestExpectedExitCode%" (
-  ECHO END EXECUTION OF IL{D}ASM BINARY - FAILED !ERRORLEVEL! vs %CLRTestExpectedExitCode%
-  ECHO FAILED
-  Exit /b 1
+if defined RunningIlasmRoundTrip (
+  ECHO %LAUNCHER% $(TargetAssemblyName) %CLRTestExecutionArguments% %Host_Args%
+  %LAUNCHER% $(TargetAssemblyName) %CLRTestExecutionArguments% %Host_Args%
+  
+  IF NOT "!ERRORLEVEL!"=="%CLRTestExpectedExitCode%" (
+    ECHO END EXECUTION OF IL{D}ASM BINARY - FAILED !ERRORLEVEL! vs %CLRTestExpectedExitCode%
+    ECHO FAILED
+    Exit /b 1
+  )
 )
       ]]></BatchCLRTestLaunchCmds>
       <BatchCLRTestLaunchCmds Condition="'$(CLRTestKind)' == 'BuildAndRun'"><![CDATA[
@@ -329,7 +297,6 @@ $(BatchCLRTestEnvironmentCompatibilityCheck)
 
 $(JitDisasmBatchScript)
 
-REM IlasmRoundTrip Script
 $(IlasmRoundTripBatchScript)
 
 REM Precommands

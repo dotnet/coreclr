@@ -66,6 +66,79 @@ if defined RunningJitDisasm (
       </JitDisasmBatchScript>
     </PropertyGroup>
   </Target>
+
+  <Target
+      Name="GetIlasmRoundTripBashScript"
+      Returns="$(IlasmRoundTripBashScript)">
+    <PropertyGroup>
+      <InputAssemblyName Condition="'$(CLRTestKind)' == 'RunOnly'">$([MSBuild]::MakeRelative($(OutputPath), $(_CLRTestToRunFileFullPath)).Replace("\","/"))</InputAssemblyName>
+      <InputAssemblyName Condition="'$(CLRTestKind)' == 'BuildAndRun'">$(MSBuildProjectName).exe</InputAssemblyName>
+      <DisassemblyName>$(MSBuildProjectName).dasm.il</DisassemblyName>
+      <TargetAssemblyName>$(MSBuildProjectName).asm.exe</TargetAssemblyName>
+      
+      <IlasmRoundTrip Condition="'$(ReferenceLocalMscorlib)'!=''">false</IlasmRoundTrip>
+      
+      <IlasmRoundTripBashScript>
+        <![CDATA[
+# IlasmRoundTrip Script
+if [ ! -z $RunningIlasmRoundTrip ]
+then
+    echo "$CORE_ROOT/ildasm" -raweh -out=$(DisassemblyName) $(InputAssemblyName)
+    "$CORE_ROOT/ildasm" -raweh -out=$(DisassemblyName) $(InputAssemblyName)
+    _ERRORLEVEL=$?
+    if [  $ERRORLEVEL -ne 0 ]
+    then
+      echo EXECUTION OF ILDASM - FAILED $ERRORLEVEL
+      exit 1
+    fi
+
+    echo "$CORE_ROOT/ilasm" -output=$(TargetAssemblyName) $(_IlasmSwitches) $(DisassemblyName)
+    "$CORE_ROOT/ilasm" -output=$(TargetAssemblyName) $(_IlasmSwitches) $(DisassemblyName)
+    _ERRORLEVEL=$?
+    if [ $ERRORLEVEL -ne 0 ]
+    then
+      echo EXECUTION OF ILASM - FAILED $ERRORLEVEL
+      exit 1
+    fi
+fi
+        ]]>
+      </IlasmRoundTripBashScript>
+    </PropertyGroup>
+  </Target>
+
+  <Target Name="GetIlasmRoundTripBatchScript"
+          Returns="$(IlasmRoundTripBatchScript)">
+    <PropertyGroup>
+      <InputAssemblyName Condition="'$(CLRTestKind)' == 'RunOnly'">$([MSBuild]::MakeRelative($(OutputPath), $(_CLRTestToRunFileFullPath)))</InputAssemblyName>
+      <InputAssemblyName Condition="'$(CLRTestKind)' == 'BuildAndRun'">$(MSBuildProjectName).exe</InputAssemblyName>
+      <DisassemblyName>$(MSBuildProjectName).dasm.il</DisassemblyName>
+      <TargetAssemblyName>$(MSBuildProjectName).asm.exe</TargetAssemblyName>
+      
+      <!-- If a test is built against mscorlib instead of dotnet Core, permission attributes can be embedded, which CoreCLR does not support. -->
+      <IlasmRoundTrip Condition="'$(ReferenceLocalMscorlib)'!=''">false</IlasmRoundTrip>
+        
+      <!-- https://github.com/dotnet/coreclr/issues/2481. Delete /raweh to ildasm once it is resolved.-->
+      <IlasmRoundTripBatchScript>
+        <![CDATA[
+REM IlasmRoundTrip Script
+if defined RunningIlasmRoundTrip (
+  echo %CORE_ROOT%\ildasm.exe /raweh /out=$(DisassemblyName) $(InputAssemblyName)
+  %CORE_ROOT%\ildasm.exe /raweh /out=$(DisassemblyName) $(InputAssemblyName)
+  IF NOT "!ERRORLEVEL!"=="0" (
+    ECHO EXECUTION OF ILDASM - FAILED !ERRORLEVEL!
+    Exit /b 1
+  )
+  ECHO %CORE_ROOT%\ilasm.exe /output=$(TargetAssemblyName) $(_IlasmSwitches) $(DisassemblyName)
+  %CORE_ROOT%\ilasm.exe /output=$(TargetAssemblyName) $(_IlasmSwitches) $(DisassemblyName)
+  IF NOT "!ERRORLEVEL!"=="0" (
+    ECHO EXECUTION OF ILASM - FAILED !ERRORLEVEL!
+    Exit /b 1
+  )
+)
+        ]]>
+      </IlasmRoundTripBatchScript>
+    </PropertyGroup>
+  </Target>
   
   <PropertyGroup Condition="$(RunWithGcStress) != ''" >
     <CLRTestBatchPreCommands>
