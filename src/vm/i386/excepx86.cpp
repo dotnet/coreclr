@@ -3713,6 +3713,8 @@ EXCEPTION_HANDLER_IMPL(COMPlusFrameHandlerRevCom)
 }
 #endif // FEATURE_COMINTEROP
 
+#endif // !DACCESS_COMPILE
+#endif // !WIN64EXCEPTIONS
 
 // Returns TRUE if caller should resume execution.
 BOOL
@@ -3770,6 +3772,8 @@ AdjustContextForVirtualStub(
     return TRUE;
 }
 
+#ifndef DACCESS_COMPILE
+#ifndef WIN64EXCEPTIONS
 #ifdef FEATURE_PAL
 EXTERN_C
 _Unwind_Reason_Code
