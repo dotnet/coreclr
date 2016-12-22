@@ -7123,7 +7123,7 @@ bool IsInterceptableException(Thread *pThread)
 
 // Determines whether we hit an DO_A_GC_HERE marker in JITted code, and returns the 
 // appropriate exception code, or zero if the code is not a GC marker.
-DWORD GetGcMarkerExceptionCode(LPVOID ip)
+PALAPI DWORD GetGcMarkerExceptionCode(LPVOID ip)
 {
 #if defined(HAVE_GCCOVER) && defined(FEATURE_CORECLR)
     WRAPPER_NO_CONTRACT;

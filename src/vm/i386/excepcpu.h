@@ -108,6 +108,15 @@ PEXCEPTION_REGISTRATION_RECORD GetFirstCOMPlusSEHRecord(Thread*);
 // RedirectedHandledJITCaseForXXX_Stub's.
 //
 PTR_CONTEXT GetCONTEXTFromRedirectedStubStackFrame(CONTEXT * pContext);
+#ifdef WIN64EXCEPTIONS
+PTR_CONTEXT GetCONTEXTFromRedirectedStubStackFrame(T_DISPATCHER_CONTEXT * pDispatcherContext);
+#endif // WIN64EXCEPTIONS
+
+#ifdef WIN64EXCEPTIONS
+class FaultingExceptionFrame;
+
+FaultingExceptionFrame *GetFrameFromRedirectedStubStackFrame (DISPATCHER_CONTEXT *pDispatcherContext);
+#endif // WIN64EXCEPTIONS
 
 // Determine the address of the instruction that made the current call.
 inline

@@ -141,7 +141,7 @@ static inline void UpdatePerformanceMetrics(CrawlFrame *pcfThisFrame, BOOL bIsRe
     ETW::ExceptionLog::ExceptionThrown(pcfThisFrame, bIsRethrownException, bIsNewException);
 }
 
-void ShutdownEEAndExitProcess()
+PALAPI void ShutdownEEAndExitProcess()
 {
     ForceEEShutdown(SCA_ExitProcessWhenShutdownComplete);
 }
@@ -1297,7 +1297,7 @@ void ExceptionTracker::InitializeCurrentContextForCrawlFrame(CrawlFrame* pcfThis
         *(pRD->pCallerContext)      = *(pDispatcherContext->ContextRecord);
         pRD->IsCallerContextValid   = TRUE;
 
-        pRD->SP = sfEstablisherFrame.SP;
+        SetRegdisplaySP(pRD, (LPVOID) sfEstablisherFrame.SP);
         pRD->ControlPC = pDispatcherContext->ControlPc;
 
 #if defined(_TARGET_ARM_) || defined(_TARGET_ARM64_)    

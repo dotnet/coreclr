@@ -869,6 +869,9 @@ RtlpGetFunctionEndAddress (
         (prf)->UnwindData = (addr);                       \
     } while(0)
 
+#define UNW_FLAG_NHANDLER               0x0             /* any handler */
+#define UNW_FLAG_EHANDLER               0x1             /* filter handler */
+#define UNW_FLAG_UHANDLER               0x2             /* unwind handler */
 
 typedef struct _UNWIND_INFO {
     // dummy

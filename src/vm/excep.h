@@ -773,7 +773,7 @@ LONG NotifyDebuggerLastChance(Thread *pThread,
 void CPFH_AdjustContextForThreadSuspensionRace(T_CONTEXT *pContext, Thread *pThread);
 #endif // _TARGET_X86_
 
-DWORD GetGcMarkerExceptionCode(LPVOID ip);
+PALAPI DWORD GetGcMarkerExceptionCode(LPVOID ip);
 bool IsGcMarker(DWORD exceptionCode, T_CONTEXT *pContext);
 
 void InitSavedExceptionInfo();
@@ -957,9 +957,9 @@ public:
 
 #ifndef DACCESS_COMPILE
 
-#if defined(_TARGET_X86_)
+#ifndef WIN64EXCEPTIONS
 void ResetThreadAbortState(PTR_Thread pThread, void *pEstablisherFrame);
-#elif defined(WIN64EXCEPTIONS)
+#else
 void ResetThreadAbortState(PTR_Thread pThread, CrawlFrame *pCf, StackFrame sfCurrentStackFrame);
 #endif
 
