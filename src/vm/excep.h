@@ -769,7 +769,7 @@ LONG NotifyDebuggerLastChance(Thread *pThread,
 void CPFH_AdjustContextForThreadSuspensionRace(T_CONTEXT *pContext, Thread *pThread);
 #endif // _TARGET_X86_
 
-PALAPI DWORD GetGcMarkerExceptionCode(LPVOID ip);
+DWORD GetGcMarkerExceptionCode(LPVOID ip);
 bool IsGcMarker(DWORD exceptionCode, T_CONTEXT *pContext);
 
 void InitSavedExceptionInfo();
