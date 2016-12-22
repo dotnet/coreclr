@@ -12,10 +12,15 @@
 
 #define CONTEXT_ARM64   0x00400000L
 
-#define CONTEXT_CONTROL (CONTEXT_ARM64 | 0x1L)
-#define CONTEXT_INTEGER (CONTEXT_ARM64 | 0x2L)
-#define CONTEXT_FLOATING_POINT  (CONTEXT_ARM64 | 0x4L)
-#define CONTEXT_DEBUG_REGISTERS (CONTEXT_ARM64 | 0x8L)
+#define CONTEXT_CONTROL_BIT (0)
+#define CONTEXT_INTEGER_BIT (1)
+#define CONTEXT_FLOATING_POINT_BIT (2)
+#define CONTEXT_DEBUG_REGISTERS_BIT (3)
+
+#define CONTEXT_CONTROL (CONTEXT_ARM64 | (1L << CONTEXT_CONTROL_BIT))
+#define CONTEXT_INTEGER (CONTEXT_ARM64 | (1 << CONTEXT_INTEGER_BIT))
+#define CONTEXT_FLOATING_POINT  (CONTEXT_ARM64 | (1 << CONTEXT_FLOATING_POINT_BIT))
+#define CONTEXT_DEBUG_REGISTERS (CONTEXT_ARM64 | (1 << CONTEXT_DEBUG_REGISTERS_BIT))
 
 #define CONTEXT_FULL (CONTEXT_CONTROL | CONTEXT_INTEGER | CONTEXT_FLOATING_POINT)
 
@@ -152,14 +157,8 @@ LEAF_ENTRY RtlRestoreContext, _TEXT
     // since we potentially clobber x0 below, we'll bank it in x16
     mov x16, x0
 
-    ldr w2, [x16, CONTEXT_ContextFlags]
-    // clangs assembler doesn't seem to support the mov Wx, imm32 yet
-    movz w3, #0x40, lsl #16
-    movk w3, #0x4
-    mov w4, w3
-    and w3, w2, w3
-    cmp w3, w4
-    b.ne LOCAL_LABEL(No_Restore_CONTEXT_FLOATING_POINT)
+    ldr w17, [x16, CONTEXT_ContextFlags]
+    tbz w17, #CONTEXT_FLOATING_POINT_BIT, LOCAL_LABEL(No_Restore_CONTEXT_FLOATING_POINT)
 
     add x16, x16,   CONTEXT_NEON_OFFSET
     ldp q0, q1,   [x16, CONTEXT_V0]
@@ -184,12 +183,7 @@ LEAF_ENTRY RtlRestoreContext, _TEXT
     sub x16, x16,   CONTEXT_NEON_OFFSET
 
 LOCAL_LABEL(No_Restore_CONTEXT_FLOATING_POINT):
-    movz w2, #0x40, lsl #16
-    movk w2, #0x2
-    mov w3, w2
-    and w2, w1, w2
-    cmp w2, w3
-    b.ne LOCAL_LABEL(No_Restore_CONTEXT_INTEGER)
+    tbz w17, #CONTEXT_INTEGER_BIT, LOCAL_LABEL(No_Restore_CONTEXT_INTEGER)
 
     ldp x0, x1,   [x16, CONTEXT_X0]
     ldp x2, x3,   [x16, CONTEXT_X2]
@@ -207,12 +201,7 @@ LOCAL_LABEL(No_Restore_CONTEXT_FLOATING_POINT):
     ldr x28,      [x16, CONTEXT_X28]
 
 LOCAL_LABEL(No_Restore_CONTEXT_INTEGER):
-    movz w2, #0x40, lsl #16
-    movk w2, #0x2
-    mov w3, w2
-    and w2, w1, w2
-    cmp w2, w3
-    b.ne LOCAL_LABEL(No_Restore_CONTEXT_CONTROL)
+    tbz w17, #CONTEXT_CONTROL_BIT, LOCAL_LABEL(No_Restore_CONTEXT_CONTROL)
 
     ldr w17, [x16, CONTEXT_Cpsr]
     msr nzcv, x17
@@ -221,8 +210,8 @@ LOCAL_LABEL(No_Restore_CONTEXT_INTEGER):
     mov sp, x17
     ldr x17, [x16, CONTEXT_Pc]
     br x17
-
+ 
 LOCAL_LABEL(No_Restore_CONTEXT_CONTROL):
-    ret
+   ret
 
 LEAF_END RtlRestoreContext, _TEXT
