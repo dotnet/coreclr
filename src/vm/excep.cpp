@@ -13108,9 +13108,9 @@ StackWalkAction TAResetStateCallback(CrawlFrame* pCf, void* data)
 // there is no more managed code on the stack.
 //
 // Note: This function should be invoked ONLY during unwind.
-#if defined(_TARGET_X86_)
+#ifndef WIN64EXCEPTIONS
 void ResetThreadAbortState(PTR_Thread pThread, void *pEstablisherFrame)
-#elif defined(WIN64EXCEPTIONS)
+#else
 void ResetThreadAbortState(PTR_Thread pThread, CrawlFrame *pCf, StackFrame sfCurrentStackFrame)
 #endif
 {
@@ -13120,9 +13120,9 @@ void ResetThreadAbortState(PTR_Thread pThread, CrawlFrame *pCf, StackFrame sfCur
         GC_NOTRIGGER;
         MODE_ANY;
         PRECONDITION(pThread != NULL);
-#if defined(_TARGET_X86_)
+#ifndef WIN64EXCEPTIONS
         PRECONDITION(pEstablisherFrame != NULL);
-#elif defined(WIN64EXCEPTIONS)
+#else
         PRECONDITION(pCf != NULL);
         PRECONDITION(!sfCurrentStackFrame.IsNull());
 #endif
@@ -13133,14 +13133,14 @@ void ResetThreadAbortState(PTR_Thread pThread, CrawlFrame *pCf, StackFrame sfCur
 
     if (pThread->IsAbortRequested())
     {
-#if defined(_TARGET_X86_)
+#ifndef WIN64EXCEPTIONS
         if (GetNextCOMPlusSEHRecord(static_cast<EXCEPTION_REGISTRATION_RECORD *>(pEstablisherFrame)) == EXCEPTION_CHAIN_END)
         {
             // Topmost handler and abort requested.
             fResetThreadAbortState = TRUE;
             LOG((LF_EH, LL_INFO100, "ResetThreadAbortState: Topmost handler resets abort as no more managed code beyond %p.\n", pEstablisherFrame));
         }
-#elif defined(WIN64EXCEPTIONS)
+#else // !WIN64EXCEPTIONS
         // Get the active exception tracker
         PTR_ExceptionTracker pCurEHTracker = pThread->GetExceptionState()->GetCurrentExceptionTracker();
         _ASSERTE(pCurEHTracker != NULL);
@@ -13195,9 +13195,7 @@ void ResetThreadAbortState(PTR_Thread pThread, CrawlFrame *pCf, StackFrame sfCur
             LOG((LF_EH, LL_INFO100, "ResetThreadAbortState: Resetting thread abort state since there is no more managed code beyond stack frames:\n"));
             LOG((LF_EH, LL_INFO100, "sf.SP = %p   ", dataCallback.sfSeedCrawlFrame.SP));
         }
-#else // WIN64EXCEPTIONS
-#error Unsupported platform
-#endif // WIN64EXCEPTIONS
+#endif // !WIN64EXCEPTIONS
     }
 
     if (fResetThreadAbortState)
