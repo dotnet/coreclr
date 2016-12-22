@@ -285,7 +285,7 @@ if(CMAKE_SYSTEM_NAME STREQUAL Linux)
     find_library(UNWIND_ARCH NAMES unwind-x86_64)
   endif()
 
-  if(PAL_CMAKE_PLATFORM_ALPINE_LINUX)
+  if(CLR_CMAKE_PLATFORM_ALPINE_LINUX)
     find_library(INTL intl)
   endif()
 
