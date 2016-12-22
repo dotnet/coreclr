@@ -118,7 +118,9 @@ if __name__ == "__main__":
     largest_value = 0
 
     # If there was an old list file passed. Parse it for all the old tests.
-
+    testFilename = ""
+    test_name = ""
+    
     if g_old_list_file is not "":
         old_list_file_lines = []
 
@@ -131,26 +133,29 @@ if __name__ == "__main__":
 
             # We only need the test names
             # which come in as [ testname_number ]
-            if len(split_line) == 1:
+            if len(split_line) > 1:
+                # This is a test name, start splitting
+                split_line = split_line[1].split("]")
+                split_line = split_line[0].split("_")
+                splitCount = len(split_line)
+
+                if largest_value < int(splitCount-1):
+                    largest_value = int(splitCount-1)
+
+                # test_name = "_".join(split_line[:-1])
+                
+                # unique_output[test_name] = True
+            else:
+                nonHeaderSplit = line.split("=")
+                if len(nonHeaderSplit) == 1:
+                    continue
+                if nonHeaderSplit[0] == "RelativePath":
+                    test_name = nonHeaderSplit[1].replace("\\","_").strip()
+                    continue
+                if nonHeaderSplit[0] == "Categories":
+                    unique_output[test_name] = nonHeaderSplit[1]
+                    continue
                 continue
-
-            # This is a test name, start splitting
-
-            split_line = split_line[1].split("]")
-            split_line = split_line[0].split("_")
-
-            if largest_value < int(split_line[-1]):
-                largest_value = int(split_line[-1])
-
-            test_name = "_".join(split_line[:-1])
-
-            if len(test_name.split("exe")) == 1:
-                # Error, name is not an exe.
-                print "Error"
-
-                sys.exit(1)
-
-            unique_output[test_name] = True
 
         print str(len(unique_output)) + " tests found in the old lstFile."
 
@@ -165,7 +170,11 @@ if __name__ == "__main__":
         # get the relative path
         prefix = os.path.commonprefix([path, sys.argv[1]])
         rel_path = os.path.relpath(path, prefix)
-
+        cat_rel_path = rel_path.replace("\\","_").strip()
+        
+        #Get the category from the relative path
+        cat = unique_output.get(cat_rel_path, cat)
+        
         cmd_contents = None
         with open(path) as cmd_file_handle:
             cmd_contents = cmd_file_handle.readlines()
@@ -184,9 +193,10 @@ if __name__ == "__main__":
 
         expected = expected_exit_code_line[expected_exit_code_line.find("CLRTestExpectedExitCode") + (len("CLRTestExpectedExitCode") + 1):].strip()
         max_allowed_duration = 600
-        categories = cat
+        categories = cat.strip()
         build_type = "CoreSys"
-        relative_path = rel_path[:rel_path.find("cmd")] + "exe"
+        # relative_path = rel_path[:rel_path.find("cmd")] + "exe"
+        relative_path = rel_path
         working_dir = os.path.dirname(rel_path)
         test_name = os.path.basename(relative_path)
 
@@ -206,7 +216,7 @@ if __name__ == "__main__":
             output.append("Expected=" + expected + "\n")
             output.append("MaxAllowedDurationSeconds=" + str(max_allowed_duration) + "\n")
             output.append("Categories=" + categories + "\n")
-            output.append("HostStyle=Any")
+            output.append("HostStyle=0")
             output.append("\n")
 
     print

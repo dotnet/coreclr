@@ -2237,11 +2237,15 @@ combinedScenarios.each { scenario ->
                                     setTestJobTimeOut(newJob, scenario)
 
                                     if ( lowerConfiguration == "debug" ) {
-                                        // For Debug builds, we will do a P1 test build
+                                        // For Debug builds, we will do a P1 test build to make sure test build is not broken.
                                         buildCommands += "set __TestIntermediateDir=int&&build.cmd ${lowerConfiguration} ${architecture} -priority=1"
                                     }
                                     else {
-                                        buildCommands += "set __TestIntermediateDir=int&&build.cmd ${lowerConfiguration} ${architecture}"
+                                        // For Release builds, we will do a P1 test run.
+                                        buildCommands += "set __TestIntermediateDir=int&&build.cmd skiptests ${lowerConfiguration} ${architecture}"
+
+                                        // Run the arm32 tests using the arm64 infrastructure.
+                                       buildCommands += "python tests\\scripts\\arm64_post_build.py -repo_root %WORKSPACE% -arch ${architecture} -build_type ${lowerConfiguration} -scenario ${scenario} -key_location C:\\tools\\key.txt"
                                     }
                                     // Add archival.
                                     Utilities.addArchival(newJob, "bin/Product/**")
