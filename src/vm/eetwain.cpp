@@ -3048,7 +3048,7 @@ unsigned SKIP_ALLOC_FRAME(int size, PTR_CBYTE base, unsigned offset)
 #endif // !USE_GC_INFO_DECODER
 
 
-#if !defined(_TARGET_X86_) && !defined(CROSSGEN_COMPILE)
+#if defined(WIN64EXCEPTIONS) && !defined(CROSSGEN_COMPILE)
 
 void EECodeManager::EnsureCallerContextIsValid( PREGDISPLAY  pRD, StackwalkCacheEntry* pCacheEntry, EECodeInfo * pCodeInfo /*= NULL*/ )
 {
@@ -3105,7 +3105,7 @@ size_t EECodeManager::GetCallerSp( PREGDISPLAY  pRD )
     return (size_t) (GetSP(pRD->pCallerContext));
 }
 
-#endif // !defined(_TARGET_X86_) && !defined(CROSSGEN_COMPILE)
+#endif // WIN64EXCEPTIONS && !CROSSGEN_COMPILE
 
 /*
   *  Light unwind the current stack frame, using provided cache entry.
