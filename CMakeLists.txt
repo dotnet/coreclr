@@ -130,7 +130,7 @@ if(CMAKE_SYSTEM_NAME STREQUAL Linux)
     if(CLR_CROSS_COMPONENTS_BUILD)
         # CMAKE_HOST_SYSTEM_PROCESSOR returns the value of `uname -p` on host.
         if(CMAKE_HOST_SYSTEM_PROCESSOR STREQUAL x86_64 OR CMAKE_HOST_SYSTEM_PROCESSOR STREQUAL amd64)
-            if(CLR_CMAKE_TARGET_ARCH STREQAL "arm")
+            if(CLR_CMAKE_TARGET_ARCH STREQUAL "arm")
                 set(CLR_CMAKE_PLATFORM_UNIX_X86 1)
             else()
                 set(CLR_CMAKE_PLATFORM_UNIX_AMD64 1)
