@@ -7264,11 +7264,13 @@ IsDebuggerFault(EXCEPTION_RECORD *pExceptionRecord,
 
 #ifdef WIN64EXCEPTIONS
 
+#ifndef _TARGET_X86_
 EXTERN_C void JIT_MemSet_End();
 EXTERN_C void JIT_MemCpy_End();
 
 EXTERN_C void JIT_WriteBarrier_End();
 EXTERN_C void JIT_CheckedWriteBarrier_End();
+#endif // _TARGET_X86_
 
 #if defined(_TARGET_AMD64_) && defined(_DEBUG)
 EXTERN_C void JIT_WriteBarrier_Debug();
@@ -7288,11 +7290,13 @@ bool IsIPInMarkedJitHelper(UINT_PTR uControlPc)
 #define CHECK_RANGE(name) \
     if (GetEEFuncEntryPoint(name) <= uControlPc && uControlPc < GetEEFuncEntryPoint(name##_End)) return true;
 
+#ifndef _TARGET_X86_
     CHECK_RANGE(JIT_MemSet)
     CHECK_RANGE(JIT_MemCpy)
 
     CHECK_RANGE(JIT_WriteBarrier)
     CHECK_RANGE(JIT_CheckedWriteBarrier)
+#endif // _TARGET_X86_
 
 #if defined(_TARGET_AMD64_) && defined(_DEBUG)
     CHECK_RANGE(JIT_WriteBarrier_Debug)
