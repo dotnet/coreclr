@@ -109,9 +109,130 @@ void Lowering::LowerRotate(GenTreePtr tree)
     NYI_ARM("ARM Lowering for ROL and ROR");
 }
 
-void Lowering::TreeNodeInfoInit(GenTree* stmt)
+void Lowering::TreeNodeInfoInit(GenTree* tree)
 {
-    NYI("ARM TreeNodInfoInit");
+    Compiler* compiler = comp;
+
+    unsigned      kind         = tree->OperKind();
+    TreeNodeInfo* info         = &(tree->gtLsraInfo);
+    RegisterType  registerType = TypeGet(tree);
+
+    JITDUMP("TreeNodeInfoInit for: ");
+    DISPNODE(tree);
+    JITDUMP("\n");
+
+    switch (tree->OperGet())
+    {
+        // Please add new types below "default" case except cases which can be fit into "default" case.
+
+        // TODO-ARM-Cleanup: These cases can be fit into "default" case after
+        // other remaining types are implmented.
+        case GT_IL_OFFSET:
+        case GT_CNS_INT:
+            TreeNodeInfoInitSimple(tree);
+            break;
+
+        // TODO-ARM-Cleanup: Remove this "default" case, and replace above cases with
+        // "default" after other operators are implemented.(see comments above)
+        default:
+            NYI("ARM TreeNodeInfoInit(default)");
+            break;
+
+        // Please add new types below
+        case GT_RETURN:
+            TreeNodeInfoInitReturn(tree);
+            break;
+    } // end switch (tree->OperGet())
+
+    // We need to be sure that we've set info->srcCount and info->dstCount appropriately
+    assert((info->dstCount < 2) || tree->IsMultiRegCall());
+}
+
+//------------------------------------------------------------------------
+// TreeNodeInfoInitSimple: Sets the srcCount and dstCount for all the trees
+// without special handling based on the tree node type.
+//
+// Arguments:
+//    tree      - The node of interest
+//
+// Return Value:
+//    None.
+//
+
+void Lowering::TreeNodeInfoInitSimple(GenTree* tree)
+{
+    TreeNodeInfo* info = &(tree->gtLsraInfo);
+    unsigned      kind = tree->OperKind();
+    info->dstCount     = (tree->TypeGet() == TYP_VOID) ? 0 : 1;
+    if (kind & (GTK_CONST | GTK_LEAF))
+    {
+        info->srcCount = 0;
+    }
+    else if (kind & (GTK_SMPOP))
+    {
+        if (tree->gtGetOp2() != nullptr)
+        {
+            info->srcCount = 2;
+        }
+        else
+        {
+            info->srcCount = 1;
+        }
+    }
+    else
+    {
+        unreached();
+    }
+}
+
+//------------------------------------------------------------------------
+// TreeNodeInfoInitReturn: Set the NodeInfo for a GT_RETURN.
+//
+// Arguments:
+//    tree      - The node of interest
+//
+// Return Value:
+//    None.
+//
+void Lowering::TreeNodeInfoInitReturn(GenTree* tree)
+{
+    TreeNodeInfo* info     = &(tree->gtLsraInfo);
+    LinearScan*   l        = m_lsra;
+    Compiler*     compiler = comp;
+
+    GenTree*  op1           = tree->gtGetOp1();
+    regMaskTP useCandidates = RBM_NONE;
+
+    info->srcCount = (tree->TypeGet() == TYP_VOID) ? 0 : 1;
+    info->dstCount = 0;
+
+    if (varTypeIsStruct(tree))
+    {
+        NYI_ARM("ARM TreeNodeInfoInitReturn for struct");
+    }
+    else
+    {
+        // Non-struct type return - determine useCandidates
+        switch (tree->TypeGet())
+        {
+            case TYP_VOID:
+                useCandidates = RBM_NONE;
+                break;
+            case TYP_FLOAT:
+            case TYP_DOUBLE:
+            case TYP_LONG: // We should consider register layout for TYP_LONG
+                NYI_ARM("ARM TreeNodeInfoInitReturn for VOID, FLOAT, DOUBLE, LONG");
+                break;
+            default:
+                useCandidates = RBM_INTRET;
+                break;
+        }
+    }
+
+    if (useCandidates != RBM_NONE)
+    {
+        op1->gtLsraInfo.setSrcCandidates(l, useCandidates);
+    }
 }
 
 // returns true if the tree can use the read-modify-write memory instruction form
