@@ -120,7 +120,7 @@ LEAF_END HelperMethodFrameRestoreState, _TEXT
 // The call in ndirect import precode points to this function.
 NESTED_ENTRY NDirectImportThunk, _TEXT, NoHandler
 
-    PROLOG_SAVE_REG_PAIR_INDEXED fp, lr, #-160
+    PROLOG_SAVE_REG_PAIR_INDEXED fp, lr, -160
     SAVE_ARGUMENT_REGISTERS sp, 16
     SAVE_FLOAT_ARGUMENT_REGISTERS sp, 88
 
@@ -131,7 +131,7 @@ NESTED_ENTRY NDirectImportThunk, _TEXT, NoHandler
     // pop the stack and restore original register state
     RESTORE_FLOAT_ARGUMENT_REGISTERS sp, 88
     RESTORE_ARGUMENT_REGISTERS sp, 16
-    EPILOG_RESTORE_REG_PAIR_INDEXED fp, lr, #160
+    EPILOG_RESTORE_REG_PAIR_INDEXED fp, lr, 160
 
     // If we got back from NDirectImportWorker, the MD has been successfully
     // linked. Proceed to execute the original DLL call.
@@ -264,7 +264,7 @@ WRITE_BARRIER_END JIT_CheckedWriteBarrier
 //
 WRITE_BARRIER_ENTRY JIT_WriteBarrier
     dmb  ST
-    str  x15, [x14]
+    str      x15, [x14]
 
 #ifdef WRITE_BARRIER_CHECK
     // Update GC Shadow Heap
@@ -368,7 +368,7 @@ LEAF_END JIT_PatchedCodeLast, _TEXT
 NESTED_ENTRY VirtualMethodFixupStub, _TEXT, NoHandler
 
     // Save arguments and return address
-    PROLOG_SAVE_REG_PAIR_INDEXED fp, lr, #-160
+    PROLOG_SAVE_REG_PAIR_INDEXED fp, lr, -160
     SAVE_ARGUMENT_REGISTERS sp, 16
     SAVE_FLOAT_ARGUMENT_REGISTERS sp, 88
 
@@ -388,7 +388,7 @@ NESTED_ENTRY VirtualMethodFixupStub, _TEXT, NoHandler
     // pop the stack and restore original register state
     RESTORE_ARGUMENT_REGISTERS sp, 16
     RESTORE_FLOAT_ARGUMENT_REGISTERS sp, 88
-    EPILOG_RESTORE_REG_PAIR_INDEXED fp, lr, #160
+    EPILOG_RESTORE_REG_PAIR_INDEXED fp, lr, 160
 
     PATCH_LABEL VirtualMethodFixupPatchLabel
 
@@ -472,7 +472,7 @@ LEAF_END SinglecastDelegateInvokeStub, _TEXT
     NESTED_ENTRY ComCallPreStub, _TEXT, NoHandler
 
     // Save arguments and return address
-    PROLOG_SAVE_REG_PAIR           fp, lr, #-ComCallPreStub_FirstStackAdjust!
+    PROLOG_SAVE_REG_PAIR           fp, lr, -ComCallPreStub_FirstStackAdjust!
     PROLOG_STACK_ALLOC  ComCallPreStub_StackAlloc
 
     SAVE_ARGUMENT_REGISTERS        sp, (16+ComCallPreStub_StackAlloc)
@@ -493,7 +493,7 @@ LEAF_END SinglecastDelegateInvokeStub, _TEXT
     RESTORE_ARGUMENT_REGISTERS        sp, (16+ComCallPreStub_StackAlloc)
 
     EPILOG_STACK_FREE ComCallPreStub_StackAlloc
-    EPILOG_RESTORE_REG_PAIR           fp, lr, #ComCallPreStub_FirstStackAdjust!
+    EPILOG_RESTORE_REG_PAIR           fp, lr, ComCallPreStub_FirstStackAdjust!
 
     // and tailcall to the actual method
     EPILOG_BRANCH_REG x12
@@ -503,7 +503,7 @@ ComCallPreStub_ErrorExit
 
     // pop the stack
     EPILOG_STACK_FREE ComCallPreStub_StackAlloc
-    EPILOG_RESTORE_REG_PAIR           fp, lr, #ComCallPreStub_FirstStackAdjust!
+    EPILOG_RESTORE_REG_PAIR           fp, lr, ComCallPreStub_FirstStackAdjust!
 
     EPILOG_RETURN
 
@@ -522,7 +522,7 @@ ComCallPreStub_ErrorExit
     NESTED_ENTRY GenericComCallStub, _TEXT, NoHandler
 
     // Save arguments and return address
-    PROLOG_SAVE_REG_PAIR           fp, lr, #-GenericComCallStub_FirstStackAdjust!
+    PROLOG_SAVE_REG_PAIR           fp, lr, -GenericComCallStub_FirstStackAdjust!
     PROLOG_STACK_ALLOC  GenericComCallStub_StackAlloc
 
     SAVE_ARGUMENT_REGISTERS        sp, (16+GenericComCallStub_StackAlloc)
@@ -534,7 +534,7 @@ ComCallPreStub_ErrorExit
 
     // pop the stack
     EPILOG_STACK_FREE GenericComCallStub_StackAlloc
-    EPILOG_RESTORE_REG_PAIR           fp, lr, #GenericComCallStub_FirstStackAdjust!
+    EPILOG_RESTORE_REG_PAIR           fp, lr, GenericComCallStub_FirstStackAdjust!
 
     EPILOG_RETURN
 
@@ -555,7 +555,7 @@ ComCallPreStub_ErrorExit
 //
     NESTED_ENTRY COMToCLRDispatchHelper, _TEXT,CallDescrWorkerUnwindFrameChainHandler
 
-    PROLOG_SAVE_REG_PAIR           fp, lr, #-16!
+    PROLOG_SAVE_REG_PAIR           fp, lr, -16!
 
     cbz x0, COMToCLRDispatchHelper_RegSetup
 
@@ -586,7 +586,7 @@ COMToCLRDispatchHelper_RegSetup
     blr lr
 
     EPILOG_STACK_RESTORE
-    EPILOG_RESTORE_REG_PAIR           fp, lr, #16!
+    EPILOG_RESTORE_REG_PAIR           fp, lr, 16!
     EPILOG_RETURN
 
     NESTED_END COMToCLRDispatchHelper, _TEXT
@@ -598,7 +598,7 @@ COMToCLRDispatchHelper_RegSetup
 NESTED_ENTRY TheUMEntryPrestub, _TEXT, UnhandledExceptionHandlerUnix
 
     // Save arguments and return address
-    PROLOG_SAVE_REG_PAIR_INDEXED fp, lr, #-160
+    PROLOG_SAVE_REG_PAIR_INDEXED fp, lr, -160
     SAVE_ARGUMENT_REGISTERS sp, 16
     SAVE_FLOAT_ARGUMENT_REGISTERS sp, 88
 
@@ -611,7 +611,7 @@ NESTED_ENTRY TheUMEntryPrestub, _TEXT, UnhandledExceptionHandlerUnix
     // pop the stack and restore original register state
     RESTORE_ARGUMENT_REGISTERS sp, 16
     RESTORE_FLOAT_ARGUMENT_REGISTERS sp, 88
-    EPILOG_RESTORE_REG_PAIR_INDEXED fp, lr, #160
+    EPILOG_RESTORE_REG_PAIR_INDEXED fp, lr, 160
 
     // and tailcall to the actual method
     EPILOG_BRANCH_REG x12
@@ -624,9 +624,9 @@ NESTED_END TheUMEntryPrestub, _TEXT
 NESTED_ENTRY UMThunkStub, _TEXT, UnhandledExceptionHandlerUnix
 
     // Save arguments and return address
-    PROLOG_SAVE_REG_PAIR_INDEXED fp, lr, #-112 // 72 for regArgs, 8 for x19 & 8 for x12
+    PROLOG_SAVE_REG_PAIR_INDEXED fp, lr, -112 // 72 for regArgs, 8 for x19 & 8 for x12
     // save callee saved reg x19. x19 is used in the method to store thread*
-    PROLOG_SAVE_REG x19, #96
+    PROLOG_SAVE_REG x19, 96
 
     SAVE_ARGUMENT_REGISTERS sp, 16
 
@@ -709,8 +709,8 @@ LOCAL_LABEL(UMThunkStub_PostCall):
     str w4, [x19, #Thread__m_fPreemptiveGCDisabled]
 
     EPILOG_STACK_RESTORE
-    EPILOG_RESTORE_REG x19, #96
-    EPILOG_RESTORE_REG_PAIR_INDEXED   fp, lr, #112
+    EPILOG_RESTORE_REG x19, 96
+    EPILOG_RESTORE_REG_PAIR_INDEXED   fp, lr, 112
 
     EPILOG_RETURN
 
@@ -768,8 +768,8 @@ NESTED_END UMThunkStub, _TEXT
 
 NESTED_ENTRY UM2MThunk_WrapperHelper, _TEXT, NoHandler
 
-    PROLOG_SAVE_REG_PAIR_INDEXED fp, lr, #-32
-    PROLOG_SAVE_REG  x19, #16
+    PROLOG_SAVE_REG_PAIR_INDEXED fp, lr, -32
+    PROLOG_SAVE_REG  x19, 16
 
 
     // save pThunkArgs in non-volatile reg. It is required after return from call to ILStub
@@ -832,8 +832,8 @@ LOCAL_LABEL(UM2MThunk_WrapperHelper_RegArgumentsSetup):
     SAVE_FLOAT_ARGUMENT_REGISTERS x19, -1 * (SIZEOF__FloatArgumentRegisters + 16)
 
     EPILOG_STACK_RESTORE
-    EPILOG_RESTORE_REG  x19, #16
-    EPILOG_RESTORE_REG_PAIR_INDEXED fp, lr, #32
+    EPILOG_RESTORE_REG  x19, 16
+    EPILOG_RESTORE_REG_PAIR_INDEXED fp, lr, 32
     EPILOG_RETURN
 
 NESTED_END UM2MThunk_WrapperHelper, _TEXT
@@ -842,14 +842,14 @@ NESTED_END UM2MThunk_WrapperHelper, _TEXT
 #ifdef FEATURE_HIJACK
 // ------------------------------------------------------------------
 // Hijack function for functions which return a scalar type or a struct (value type)
-NESTED_ENTRY OnHijackTripThread, _TEXT, NoHandler
-    PROLOG_SAVE_REG_PAIR_INDEXED   fp, lr, #-144
-    // Spill callee saved registers 
-    PROLOG_SAVE_REG_PAIR   x19, x20, #16
-    PROLOG_SAVE_REG_PAIR   x21, x22, #32
-    PROLOG_SAVE_REG_PAIR   x23, x24, #48
-    PROLOG_SAVE_REG_PAIR   x25, x26, #64
-    PROLOG_SAVE_REG_PAIR   x27, x28, #80
+    NESTED_ENTRY OnHijackTripThread, _TEXT, NoHandler
+    PROLOG_SAVE_REG_PAIR_INDEXED   fp, lr, -144
+    // Spill callee saved registers
+    PROLOG_SAVE_REG_PAIR   x19, x20, 16
+    PROLOG_SAVE_REG_PAIR   x21, x22, 32
+    PROLOG_SAVE_REG_PAIR   x23, x24, 48
+    PROLOG_SAVE_REG_PAIR   x25, x26, 64
+    PROLOG_SAVE_REG_PAIR   x27, x28, 80
 
     // save any integral return value(s)
     stp x0, x1, [sp, #96]
@@ -860,7 +860,7 @@ NESTED_ENTRY OnHijackTripThread, _TEXT, NoHandler
 
     mov x0, sp
     bl OnHijackWorker
-	
+
     // restore any integral return value(s)
     ldp x0, x1, [sp, #96]
 
@@ -868,14 +868,14 @@ NESTED_ENTRY OnHijackTripThread, _TEXT, NoHandler
     ldp d0, d1, [sp, #112]
     ldp d2, d3, [sp, #128]
 
-    EPILOG_RESTORE_REG_PAIR   x19, x20, #16
-    EPILOG_RESTORE_REG_PAIR   x21, x22, #32
-    EPILOG_RESTORE_REG_PAIR   x23, x24, #48
-    EPILOG_RESTORE_REG_PAIR   x25, x26, #64
-    EPILOG_RESTORE_REG_PAIR   x27, x28, #80
-    EPILOG_RESTORE_REG_PAIR_INDEXED   fp, lr,   #144
+    EPILOG_RESTORE_REG_PAIR   x19, x20, 16
+    EPILOG_RESTORE_REG_PAIR   x21, x22, 32
+    EPILOG_RESTORE_REG_PAIR   x23, x24, 48
+    EPILOG_RESTORE_REG_PAIR   x25, x26, 64
+    EPILOG_RESTORE_REG_PAIR   x27, x28, 80
+    EPILOG_RESTORE_REG_PAIR_INDEXED   fp, lr,   144
     EPILOG_RETURN
-NESTED_END OnHijackTripThread, _TEXT
+    NESTED_END OnHijackTripThread, _TEXT
 
 #endif // FEATURE_HIJACK
 
@@ -906,9 +906,9 @@ NESTED_ENTRY CallEHFunclet, _TEXT, NoHandler
     // sp in fp. If sp is saved in fp in prolog then it is not expected that fp can change in the body
     // of method. However, this method needs to be able to change fp before calling funclet.
     // This is required to access locals in funclet.
-    PROLOG_SAVE_REG_PAIR_INDEXED x19,x20, #-16
-    PROLOG_SAVE_REG   fp, #0
-    PROLOG_SAVE_REG   lr, #8
+    PROLOG_SAVE_REG_PAIR_INDEXED x19,x20, -16
+    PROLOG_SAVE_REG   fp, 0
+    PROLOG_SAVE_REG   lr, 8
 
     // On entry:
     //
@@ -927,7 +927,7 @@ NESTED_ENTRY CallEHFunclet, _TEXT, NoHandler
     blr x1
     nop
 
-    EPILOG_RESTORE_REG_PAIR_INDEXED   fp, lr, #16
+    EPILOG_RESTORE_REG_PAIR_INDEXED   fp, lr, 16
     EPILOG_RETURN
 
 NESTED_END CallEHFunclet, _TEXT
@@ -936,7 +936,7 @@ NESTED_END CallEHFunclet, _TEXT
 // frame pointer for accessing the locals in the parent method.
 NESTED_ENTRY CallEHFilterFunclet, _TEXT, NoHandler
 
-    PROLOG_SAVE_REG_PAIR_INDEXED   fp, lr, #-16
+    PROLOG_SAVE_REG_PAIR_INDEXED   fp, lr, -16
 
     // On entry:
     //
@@ -950,7 +950,7 @@ NESTED_ENTRY CallEHFilterFunclet, _TEXT, NoHandler
     // Invoke the filter funclet
     blr x2
 
-    EPILOG_RESTORE_REG_PAIR_INDEXED   fp, lr,   #16
+    EPILOG_RESTORE_REG_PAIR_INDEXED   fp, lr,   16
     EPILOG_RETURN
 
 NESTED_END CallEHFilterFunclet, _TEXT
@@ -969,7 +969,7 @@ NESTED_END CallEHFilterFunclet, _TEXT
         // IN: lr: original IP before redirect
         //
 
-        PROLOG_SAVE_REG_PAIR_INDEXED fp, lr, #-16
+        PROLOG_SAVE_REG_PAIR_INDEXED fp, lr, -16
         PROLOG_STACK_ALLOC  FaultingExceptionFrame_StackAlloc
 
         // At this point, the stack maybe misaligned if the thread abort was asynchronously
@@ -1007,7 +1007,7 @@ NESTED_END CallEHFilterFunclet, _TEXT
 //
 
 NESTED_ENTRY NakedThrowHelper2, _TEXT ,FixContextHandler
-    PROLOG_SAVE_REG_PAIR_INDEXED fp,lr, #-16
+    PROLOG_SAVE_REG_PAIR_INDEXED fp,lr, -16
 
     // On entry:
     //

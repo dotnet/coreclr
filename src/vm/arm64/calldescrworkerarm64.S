@@ -12,8 +12,8 @@
 //void CallDescrWorkerInternal(CallDescrData * pCallDescrData);
 
 NESTED_ENTRY CallDescrWorkerInternal, _TEXT, UnhandledExceptionHandlerUnix
-    PROLOG_SAVE_REG_PAIR_INDEXED   fp, lr, #-32
-    PROLOG_SAVE_REG    x19, #16   //the stack slot at sp+24 is empty for 16 byte alligment
+    PROLOG_SAVE_REG_PAIR_INDEXED   fp, lr, -32
+    PROLOG_SAVE_REG    x19, 16   //the stack slot at sp+24 is empty for 16 byte alligment
 
     mov     x19, x0 // save pCallDescrData in x19
 
@@ -122,7 +122,7 @@ LOCAL_LABEL(ReturnDone):
 #endif
 
     EPILOG_STACK_RESTORE
-    EPILOG_RESTORE_REG      x19, #16    //the stack slot at sp+24 is empty for 16 byte alligment
-    EPILOG_RESTORE_REG_PAIR_INDEXED fp, lr, #32
+    EPILOG_RESTORE_REG      x19, 16    //the stack slot at sp+24 is empty for 16 byte alligment
+    EPILOG_RESTORE_REG_PAIR_INDEXED fp, lr, 32
     EPILOG_RETURN
 NESTED_END CallDescrWorkerInternal, _TEXT
