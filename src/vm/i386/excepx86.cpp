@@ -3667,8 +3667,13 @@ EXCEPTION_HANDLER_IMPL(UMThunkPrestubHandler)
     return retval;
 }
 
+#endif // !DACCESS_COMPILE
+#endif // !WIN64EXCEPTIONS
+
+#ifndef DACCESS_COMPILE
 LONG CLRNoCatchHandler(EXCEPTION_POINTERS* pExceptionInfo, PVOID pv)
 {
+#ifndef WIN64EXCEPTIONS
     WRAPPER_NO_CONTRACT;
     STATIC_CONTRACT_ENTRY_POINT;
 
@@ -3687,8 +3692,14 @@ LONG CLRNoCatchHandler(EXCEPTION_POINTERS* pExceptionInfo, PVOID pv)
     //END_ENTRYPOINT_VOIDRET;
 
     return result;
+#else  // !WIN64EXCEPTIONS
+    return EXCEPTION_CONTINUE_SEARCH;
+#endif // !WIN64EXCEPTIONS
 }
+#endif // !DACCESS_COMPILE
 
+#ifndef DACCESS_COMPILE
+#ifndef WIN64EXCEPTIONS
 #ifdef FEATURE_COMINTEROP
 // The reverse COM interop path needs to be sure to pop the ComMethodFrame that is pushed, but we do not want
 // to have an additional FS:0 handler between the COM callsite and the call into managed.  So we push this 
