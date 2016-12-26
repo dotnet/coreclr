@@ -793,10 +793,17 @@ build_native $__SkipCoreCLR "$__BuildArch" "$__IntermediatesDir" "$__ExtraCmakeA
 # Build cross-architecture components
 if [ $__CrossBuild == 1 ]; then
     __SkipCrossArchBuild=1
+    TARGET_ROOTFS=""
+    export CROSSCOMPILE=0
     if [ $__DoCrossArchBuild == 1 ]; then
         # build cross-architecture components for x86-host/arm-target
         if [[ "$__BuildArch" == "arm" && "$__CrossArch" == "x86" ]]; then
             __SkipCrossArchBuild=0
+            if [[ "$__HostArch" == x64 ]]; then
+                TARGET_ROOTFS="$ROOTFS_DIR"
+                export ROOTFS_DIR="$__ProjectRoot/cross/rootfs/$__CrossArch"
+                export CROSSCOMPILE=1
+            fi
         fi
     fi
 
@@ -804,6 +811,11 @@ if [ $__CrossBuild == 1 ]; then
     export CROSSCOMPONENT=1
     __ExtraCmakeArgs="-DCLR_CMAKE_TARGET_ARCH=$__BuildArch -DCLR_CMAKE_TARGET_OS=$__BuildOS -DCLR_CMAKE_PACKAGES_DIR=$__PackagesDir -DCLR_CMAKE_PGO_INSTRUMENT=$__PgoInstrument"
     build_native $__SkipCrossArchBuild "$__CrossArch" "$__CrossCompIntermediatesDir" "$__ExtraCmakeArgs" "cross-architecture component"
+
+    if [ -n "$TARGET_ROOTFS" ]; then
+        export ROOTFS_DIR="$TARGET_ROOTFS"
+    fi
+    export CROSSCOMPILE=1
 fi
 
 # Build System.Private.CoreLib.
