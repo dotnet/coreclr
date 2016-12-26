@@ -2086,7 +2086,12 @@ BOOL AssemblySpecBindingCache::StoreAssembly(AssemblySpec *pSpec, DomainAssembly
 
 #if defined(FEATURE_CORECLR)
     // On CoreCLR, we will use the BinderID as the key 
-    ICLRPrivBinder* pBinderContextForLookup = pAssembly->GetFile()->GetBindingContext();
+    ICLRPrivBinder* pBinderContextForLookup = pSpec->GetBindingContext();
+    if (!pBinderContextForLookup)
+    {
+        pBinderContextForLookup = pAssembly->GetFile()->GetBindingContext();
+    }
+
     _ASSERTE(pBinderContextForLookup || pAssembly->GetFile()->IsSystem());
     if (pBinderContextForLookup)
     {
@@ -2168,7 +2173,11 @@ BOOL AssemblySpecBindingCache::StoreFile(AssemblySpec *pSpec, PEAssembly *pFile)
 
 #if defined(FEATURE_CORECLR)
     // On CoreCLR, we will use the BinderID as the key 
-    ICLRPrivBinder* pBinderContextForLookup = pFile->GetBindingContext();
+    ICLRPrivBinder* pBinderContextForLookup = pSpec->GetBindingContext();
+    if (!pBinderContextForLookup)
+    {
+        pBinderContextForLookup = pFile->GetBindingContext();
+    }
     _ASSERTE(pBinderContextForLookup || pFile->IsSystem());
     if (pBinderContextForLookup)
     {
