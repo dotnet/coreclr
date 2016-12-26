@@ -2438,11 +2438,7 @@ public:
     //****************************************************************************************
     // Returns and Inserts assemblies into a lookup cache based on the binding information
     // in the AssemblySpec. There can be many AssemblySpecs to a single assembly.
-    DomainAssembly* FindCachedAssembly(AssemblySpec* pSpec, BOOL fThrow=TRUE)
-    {
-        WRAPPER_NO_CONTRACT;
-        return m_AssemblyCache.LookupAssembly(pSpec, fThrow);
-    }
+    DomainAssembly* FindCachedAssembly(AssemblySpec* pSpec, BOOL fThrow = TRUE);
 
     PEAssembly* FindCachedFile(AssemblySpec* pSpec, BOOL fThrow = TRUE);
     BOOL IsCached(AssemblySpec *pSpec);
@@ -2458,6 +2454,7 @@ public:
     BOOL AddExceptionToCache(AssemblySpec* pSpec, Exception *ex);
     void AddUnmanagedImageToCache(LPCWSTR libraryName, HMODULE hMod);
     HMODULE FindUnmanagedImageInCache(LPCWSTR libraryName);
+
     //****************************************************************************************
     //
     // Adds an assembly to the domain.

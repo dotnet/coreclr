@@ -8152,23 +8152,63 @@ BOOL AppDomain::RemoveAssemblyFromCache(DomainAssembly* pAssembly)
 
 BOOL AppDomain::IsCached(AssemblySpec *pSpec)
 {
-    WRAPPER_NO_CONTRACT;
+    CONTRACTL
+    {
+        THROWS;
+        GC_TRIGGERS;
+        MODE_ANY;
+        PRECONDITION(CheckPointer(pSpec));
+        INJECT_FAULT(COMPlusThrowOM(););
+    }
+    CONTRACTL_END;
 
     // Check to see if this fits our rather loose idea of a reference to mscorlib.
     // If so, don't use fusion to bind it - do it ourselves.
     if (pSpec->IsMscorlib())
         return TRUE;
-
+    CrstHolder holder(&m_DomainCacheCrst);
     return m_AssemblyCache.Contains(pSpec);
 }
 
 #ifdef FEATURE_CORECLR
 void AppDomain::GetCacheAssemblyList(SetSHash<PTR_DomainAssembly>& assemblyList)
 {
+    CONTRACTL
+    {
+        THROWS;
+        GC_TRIGGERS;
+        MODE_ANY;
+        INJECT_FAULT(COMPlusThrowOM(););
+    }
+    CONTRACTL_END;
+
     CrstHolder holder(&m_DomainCacheCrst);
     m_AssemblyCache.GetAllAssemblies(assemblyList);
 }
 #endif
+
+DomainAssembly* AppDomain::FindCachedAssembly(AssemblySpec* pSpec, BOOL fThrow)
+{
+    CONTRACTL
+    {
+        if (fThrow) {
+            GC_TRIGGERS;
+            THROWS;
+            INJECT_FAULT(COMPlusThrowOM(););
+        }
+        else {
+            GC_NOTRIGGER;
+            NOTHROW;
+            FORBID_FAULT;
+        }
+        MODE_ANY;
+        PRECONDITION(CheckPointer(pSpec));
+    }
+    CONTRACTL_END;
+
+    CrstHolder holder(&m_DomainCacheCrst);
+    return m_AssemblyCache.LookupAssembly(pSpec, fThrow);
+}
 
 PEAssembly* AppDomain::FindCachedFile(AssemblySpec* pSpec, BOOL fThrow /*=TRUE*/)
 {
@@ -8196,6 +8236,7 @@ PEAssembly* AppDomain::FindCachedFile(AssemblySpec* pSpec, BOOL fThrow /*=TRUE*/
         return pFile;
     }
 
+    CrstHolder holder(&m_DomainCacheCrst);
     return m_AssemblyCache.LookupFile(pSpec, fThrow);
 }
 
