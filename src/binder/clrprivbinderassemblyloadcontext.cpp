@@ -203,6 +203,17 @@ HRESULT CLRPrivBinderAssemblyLoadContext::FindAssemblyBySpec(
     return E_FAIL;
 }
 
+#ifdef FEATURE_COLLECTIBLE_ALC
+
+HRESULT CLRPrivBinderAssemblyLoadContext::GetLoaderAllocator(LoaderAllocator **pLoaderAllocator)
+{
+    _ASSERTE(pLoaderAllocator != NULL);
+    *pLoaderAllocator = m_pAssemblyLoaderAllocator;
+    return S_OK;
+}
+
+#endif // FEATURE_COLLECTIBLE_ALC
+
 //=============================================================================
 // Creates an instance of the AssemblyLoadContext Binder
 //
@@ -212,9 +223,13 @@ HRESULT CLRPrivBinderAssemblyLoadContext::FindAssemblyBySpec(
 /* static */
 HRESULT CLRPrivBinderAssemblyLoadContext::SetupContext(DWORD      dwAppDomainId,
                                             CLRPrivBinderCoreCLR *pTPABinder,
-                                            UINT_PTR ptrAssemblyLoadContext,                                            
+                                            LoaderAllocator* pLoaderAllocator,
+                                            void* loaderAllocatorHandle,
+                                            UINT_PTR ptrAssemblyLoadContext,
                                             CLRPrivBinderAssemblyLoadContext **ppBindContext)
 {
+    _ASSERTE(pLoaderAllocator != NULL);
+
     HRESULT hr = E_FAIL;
     EX_TRY
     {
@@ -240,6 +255,11 @@ HRESULT CLRPrivBinderAssemblyLoadContext::SetupContext(DWORD      dwAppDomainId,
                 // AssemblyLoadContext instance
                 pBinder->m_ptrManagedAssemblyLoadContext = ptrAssemblyLoadContext;
 
+                // Link to LoaderAllocator, keep a reference to it
+                VERIFY(pLoaderAllocator->AddReferenceIfAlive());
+                pBinder->m_pAssemblyLoaderAllocator = pLoaderAllocator;
+                pBinder->m_loaderAllocatorHandle = loaderAllocatorHandle;
+
                 // Return reference to the allocated Binder instance
                 *ppBindContext = clr::SafeAddRef(pBinder.Extract());
             }
@@ -251,9 +271,51 @@ Exit:
     return hr;
 }
 
+/* static */
+void CLRPrivBinderAssemblyLoadContext::DestroyContext(CLRPrivBinderAssemblyLoadContext *pBindContext, INT_PTR ptrManagedStrongAssemblyLoadContext)
+{
+    CONTRACTL
+    {
+        GC_NOTRIGGER;
+        THROWS;
+        MODE_PREEMPTIVE;
+        SO_TOLERANT;
+    }
+    CONTRACTL_END;
+
+    GCX_COOP();
+    // Replace the weak handle with a strong handle
+    // in order to be able to callback Unloading safely
+    OBJECTHANDLE handle = reinterpret_cast<OBJECTHANDLE>(pBindContext->m_ptrManagedAssemblyLoadContext);
+    OBJECTHANDLE strongHandle = reinterpret_cast<OBJECTHANDLE>(ptrManagedStrongAssemblyLoadContext);
+    HndDestroyHandle(HndGetHandleTable(handle), HNDTYPE_WEAK_SHORT, handle);
+    pBindContext->m_ptrManagedAssemblyLoadContext = reinterpret_cast<INT_PTR>(strongHandle);
+
+    // We cannot delete the binder here as it is used indirectly when comparing assemblies with the same binder
+    // It will be deleted by the LoaderAllocator once
+#if !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
+    ((AssemblyLoaderAllocator*)pBindContext->m_pAssemblyLoaderAllocator)->SetBinderToRelease(pBindContext);
+#endif
+
+    pBindContext->m_pAssemblyLoaderAllocator->Release();
+    pBindContext->m_pAssemblyLoaderAllocator = NULL;
+
+    // Destroy the strong handle to the LoaderAllocator in order to let it reach its finalizer
+    DestroyHandle(reinterpret_cast<OBJECTHANDLE>(pBindContext->m_loaderAllocatorHandle));
+}
+
 CLRPrivBinderAssemblyLoadContext::CLRPrivBinderAssemblyLoadContext()
 {
     m_pTPABinder = NULL;
 }
+
+void CLRPrivBinderAssemblyLoadContext::ReleaseManagedAssemblyLoadContext()
+{
+    VERIFY(m_ptrManagedAssemblyLoadContext != NULL);
+    OBJECTHANDLE handle = reinterpret_cast<OBJECTHANDLE>(m_ptrManagedAssemblyLoadContext);
+    DestroyHandle(handle);
+    m_ptrManagedAssemblyLoadContext = NULL;
+}
+
 
 #endif // defined(FEATURE_HOST_ASSEMBLY_RESOLVER) && !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)

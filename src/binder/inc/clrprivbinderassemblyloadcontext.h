@@ -17,7 +17,29 @@ namespace BINDER_SPACE
     class AssemblyIdentityUTF8;
 };
 
-class CLRPrivBinderAssemblyLoadContext : public IUnknownCommon<ICLRPrivBinder>
+class AppDomain;
+
+#ifdef FEATURE_COLLECTIBLE_ALC
+
+class Object;
+class Assembly;
+class LoaderAllocator;
+
+class DECLSPEC_UUID("68220E65-3D3F-42E2-BAD6-2D07419DAB5E") ICollectibleAssemblyLoadContext : public IUnknown
+{
+public:
+    STDMETHOD(GetLoaderAllocator)(
+        /* [retval][out] */ LoaderAllocator** pLoaderAllocator) = 0;
+};
+
+#endif // FEATURE_COLLECTIBLE_ALC
+
+class CLRPrivBinderAssemblyLoadContext :
+#ifndef FEATURE_COLLECTIBLE_ALC
+    public IUnknownCommon<ICLRPrivBinder>
+#else // !FEATURE_COLLECTIBLE_ALC
+    public IUnknownCommon<ICLRPrivBinder, ICollectibleAssemblyLoadContext>
+#endif // FEATURE_COLLECTIBLE_ALC
 {
 public:
 
@@ -45,14 +67,30 @@ public:
             /* [out] */ HRESULT *pResult,
             /* [out] */ ICLRPrivAssembly **ppAssembly);
 
+#ifdef FEATURE_COLLECTIBLE_ALC
+
+    //=========================================================================
+    // IAssemblyLoadContext functions
+    //-------------------------------------------------------------------------
+    STDMETHOD(GetLoaderAllocator)(
+        /* [retval][out] */ LoaderAllocator** pLoaderAllocator);
+
+#endif // FEATURE_COLLECTIBLE_ALC
+
 public:
     //=========================================================================
     // Class functions
     //-------------------------------------------------------------------------
 
-    static HRESULT SetupContext(DWORD      dwAppDomainId, CLRPrivBinderCoreCLR *pTPABinder, 
-                                UINT_PTR ptrAssemblyLoadContext, CLRPrivBinderAssemblyLoadContext **ppBindContext);
-                    
+    static HRESULT SetupContext(DWORD      dwAppDomainId,
+                                CLRPrivBinderCoreCLR *pTPABinder,
+                                LoaderAllocator* pLoaderAllocator,
+                                void* loaderAllocatorHandle,
+                                UINT_PTR ptrAssemblyLoadContext,
+                                CLRPrivBinderAssemblyLoadContext **ppBindContext);
+
+    static void DestroyContext(CLRPrivBinderAssemblyLoadContext *pBindContext, INT_PTR ptrManagedStrongAssemblyLoadContext);
+
     CLRPrivBinderAssemblyLoadContext();
     
     inline BINDER_SPACE::ApplicationContext *GetAppContext()
@@ -64,6 +102,8 @@ public:
     {
         return m_ptrManagedAssemblyLoadContext;
     }
+
+    void ReleaseManagedAssemblyLoadContext();
 
     HRESULT BindUsingPEImage( /* in */ PEImage *pPEImage, 
                               /* in */ BOOL fIsNativeImage, 
@@ -80,6 +120,10 @@ private:
     CLRPrivBinderCoreCLR *m_pTPABinder;
     
     INT_PTR m_ptrManagedAssemblyLoadContext;
+
+    LoaderAllocator* m_pAssemblyLoaderAllocator;
+
+    void* m_loaderAllocatorHandle;
 };
 
 #endif // defined(FEATURE_HOST_ASSEMBLY_RESOLVER) && !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)

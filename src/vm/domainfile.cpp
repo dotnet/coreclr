@@ -1708,7 +1708,9 @@ DomainAssembly::DomainAssembly(AppDomain *pDomain, PEFile *pFile, AssemblyLoadSe
     m_fCollectible(pLoaderAllocator->IsCollectible()),
     m_fHostAssemblyPublished(false),
     m_fCalculatedShouldLoadDomainNeutral(false),
-    m_fShouldLoadDomainNeutral(false)
+    m_fShouldLoadDomainNeutral(false),
+    m_pLoaderAllocator(pLoaderAllocator),
+    m_NextDomainAssemblyInSameALC(NULL)
 {
     CONTRACTL
     {
@@ -1723,7 +1725,7 @@ DomainAssembly::DomainAssembly(AppDomain *pDomain, PEFile *pFile, AssemblyLoadSe
 #ifndef CROSSGEN_COMPILE
     if (m_fCollectible)
     {
-        ((AssemblyLoaderAllocator *)pLoaderAllocator)->SetDomainAssembly(this);
+        ((AssemblyLoaderAllocator *)pLoaderAllocator)->AddDomainAssembly(this);
     }
 #endif
 
@@ -2803,7 +2805,7 @@ Retry:
 
                 // Go ahead and create new shared version of the assembly if possible
                 // <TODO> We will need to pass a valid OBJECREF* here in the future when we implement SCU </TODO>
-                assemblyHolder = pAssembly = Assembly::Create(pSharedDomain, GetFile(), GetDebuggerInfoBits(), FALSE, pamTracker, NULL);
+                assemblyHolder = pAssembly = Assembly::Create(pSharedDomain, GetFile(), GetDebuggerInfoBits(), this->IsCollectible(), pamTracker, this->IsCollectible() ? this->GetLoaderAllocator() : NULL);
 
                 if (MissingDependenciesCheckDone())
                     pAssembly->SetMissingDependenciesCheckDone();
@@ -2845,7 +2847,7 @@ Retry:
 
                 // <TODO> We will need to pass a valid OBJECTREF* here in the future when we implement SCU </TODO>
                 SharedDomain * pSharedDomain = SharedDomain::GetDomain();
-                assemblyHolder = pAssembly = Assembly::Create(pSharedDomain, GetFile(), GetDebuggerInfoBits(), FALSE, pamTracker, NULL);
+                assemblyHolder = pAssembly = Assembly::Create(pSharedDomain, GetFile(), GetDebuggerInfoBits(), this->IsCollectible(), pamTracker, this->IsCollectible() ? this->GetLoaderAllocator() : NULL);
                 pAssembly->SetIsTenured();
             }
 #endif  // FEATURE_LOADER_OPTIMIZATION
@@ -2856,7 +2858,7 @@ Retry:
             GetFile()->MakeMDImportPersistent();
             
             // <TODO> We will need to pass a valid OBJECTREF* here in the future when we implement SCU </TODO>
-            assemblyHolder = pAssembly = Assembly::Create(m_pDomain, GetFile(), GetDebuggerInfoBits(), FALSE, pamTracker, NULL);
+            assemblyHolder = pAssembly = Assembly::Create(m_pDomain, GetFile(), GetDebuggerInfoBits(), this->IsCollectible(), pamTracker, this->IsCollectible() ? this->GetLoaderAllocator() : NULL);
             assemblyHolder->SetIsTenured();
         }
 

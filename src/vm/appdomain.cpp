@@ -5982,7 +5982,7 @@ void AppDomain::AddAssembly(DomainAssembly * assem)
     }
 }
 
-void AppDomain::RemoveAssembly_Unlocked(DomainAssembly * pAsm)
+void AppDomain::RemoveAssembly(DomainAssembly * pAsm)
 {
     CONTRACTL
     {
@@ -5991,8 +5991,7 @@ void AppDomain::RemoveAssembly_Unlocked(DomainAssembly * pAsm)
     }
     CONTRACTL_END;
     
-    _ASSERTE(GetAssemblyListLock()->OwnedByCurrentThread());
-    
+    CrstHolder ch(GetAssemblyListLock());
     DWORD asmCount = m_Assemblies.GetCount_Unlocked();
     for (DWORD i = 0; i < asmCount; ++i)
     {
@@ -6789,7 +6788,30 @@ DomainAssembly *AppDomain::LoadDomainAssemblyInternal(AssemblySpec* pIdentity,
         // a rare redundant allocation by moving this closer to FileLoadLock::Create, but it's not worth it.
 
         NewHolder<DomainAssembly> pDomainAssembly;
-        pDomainAssembly = new DomainAssembly(this, pFile, pLoadSecurity, this->GetLoaderAllocator());
+
+#if defined(FEATURE_HOST_ASSEMBLY_RESOLVER) && defined(FEATURE_COLLECTIBLE_ALC) && !defined(CROSSGEN_COMPILE)
+        BOOL fIsCollectible = FALSE;
+        SafeComHolder<ICollectibleAssemblyLoadContext> pAssemblyLoadContext = NULL;
+
+        LoaderAllocator *pLoaderAllocatorOverride = NULL;
+
+        ICLRPrivBinder *pFileBinder = pFile->GetBindingContext();
+        if (pFileBinder != NULL)
+        {
+            ICLRPrivBinder *pBinder = reinterpret_cast<BINDER_SPACE::Assembly *>(pFileBinder)->GetBinder();
+
+            // Assemblies loaded with AssemblyLoadContext need to use a different LoaderAllocator if
+            // marked as collectible
+            if (SUCCEEDED(pBinder->QueryInterface<ICollectibleAssemblyLoadContext>(&pAssemblyLoadContext)))
+            {
+                pAssemblyLoadContext->GetLoaderAllocator(&pLoaderAllocatorOverride);
+            }
+        }
+        LoaderAllocator *pLoaderAllocator = pLoaderAllocatorOverride == NULL ? this->GetLoaderAllocator() : pLoaderAllocatorOverride;
+#else // defined(FEATURE_HOST_ASSEMBLY_RESOLVER) && defined(FEATURE_COLLECTIBLE_ALC) && !defined(CROSSGEN_COMPILE)
+        LoaderAllocator *pLoaderAllocator = this->GetLoaderAllocator();
+#endif
+        pDomainAssembly = new DomainAssembly(this, pFile, pLoadSecurity, pLoaderAllocator);
 
         LoadLockHolder lock(this);
 

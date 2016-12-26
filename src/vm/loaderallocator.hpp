@@ -29,6 +29,42 @@ enum LoaderAllocatorType
     LAT_Assembly
 };
 
+#if defined(FEATURE_COLLECTIBLE_ALC)
+class CLRPrivBinderAssemblyLoadContext;
+#endif
+
+// Iterator over a DomainAssembly in the same ALC
+class DomainAssemblyIterator
+{
+    DomainAssembly* pCurrentAssembly;
+    DomainAssembly* pNextAssembly;
+
+public:
+    DomainAssemblyIterator(DomainAssembly* pFirstAssembly);
+
+    bool end() const
+    {
+        return pCurrentAssembly == NULL;
+    }
+
+    operator DomainAssembly*() const
+    {
+        return pCurrentAssembly;
+    }
+
+    DomainAssembly* operator ->() const
+    {
+        return pCurrentAssembly;
+    }
+
+    void operator++();
+
+    void operator++(int dummy)
+    {
+        this->operator++();
+    }
+};
+
 class LoaderAllocatorID
 {
 
@@ -52,8 +88,8 @@ public:
     VOID Init();
     VOID Init(AppDomain* pAppDomain);
     LoaderAllocatorType GetType();
-    VOID SetDomainAssembly(DomainAssembly* pDomainAssembly);
-    DomainAssembly* GetDomainAssembly();
+    VOID AddDomainAssembly(DomainAssembly* pDomainAssembly);
+    DomainAssemblyIterator GetDomainAssemblyIterator();
     AppDomain* GetAppDomain();
     BOOL Equals(LoaderAllocatorID* pId);
     COUNT_T Hash();
@@ -154,7 +190,7 @@ private:
     Volatile<UINT32>   m_cReferences;
     // This will be set by code:LoaderAllocator::Destroy (from managed scout finalizer) and signalizes that 
     // the assembly was collected
-    DomainAssembly * m_pDomainAssemblyToDelete;
+    DomainAssembly * m_pFirstDomainAssemblyFromSameALCToDelete;
     
     BOOL CheckAddReference_Unlocked(LoaderAllocator *pOtherLA);
     
@@ -269,7 +305,7 @@ public:
     // Checks if managed scout is alive - see code:#AssemblyPhases.
     BOOL IsManagedScoutAlive()
     {
-        return (m_pDomainAssemblyToDelete == NULL);
+        return (m_pFirstDomainAssemblyFromSameALCToDelete == NULL);
     }
     
     // Collect unreferenced assemblies, delete all their remaining resources.
@@ -398,6 +434,8 @@ public:
     BOOL IsDomainNeutral();
     void Init(BaseDomain *pDomain, BYTE *pExecutableHeapMemory = NULL);
     void Terminate();
+    virtual void OnUnloading() {}
+
     SIZE_T EstimateSize();
 
     void SetupManagedTracking(LOADERALLOCATORREF *pLoaderAllocatorKeepAlive);
@@ -489,14 +527,35 @@ protected:
     LoaderAllocatorID m_Id;
 public:    
     virtual LoaderAllocatorID* Id();
-    AssemblyLoaderAllocator() : m_Id(LAT_Assembly) { LIMITED_METHOD_CONTRACT; }
+    AssemblyLoaderAllocator() : 
+        m_Id(LAT_Assembly) 
+#if !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE) && defined(FEATURE_COLLECTIBLE_ALC)
+        , m_binderToRelease(NULL)
+#endif
+    { LIMITED_METHOD_CONTRACT; }
     void Init(AppDomain *pAppDomain);
     virtual BOOL CanUnload();
-    void SetDomainAssembly(DomainAssembly *pDomainAssembly) { WRAPPER_NO_CONTRACT; m_Id.SetDomainAssembly(pDomainAssembly); }
+    void AddDomainAssembly(DomainAssembly *pDomainAssembly) { 
+        WRAPPER_NO_CONTRACT; 
+        m_Id.AddDomainAssembly(pDomainAssembly); 
+    }
 
 #if !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
+    ~AssemblyLoaderAllocator() override;
     virtual void RegisterHandleForCleanup(OBJECTHANDLE objHandle);
     virtual void CleanupHandles();
+    CLRPrivBinderAssemblyLoadContext* GetBinder()
+    {
+#if !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE) && defined(FEATURE_COLLECTIBLE_ALC)
+        return m_binderToRelease;
+#else
+        return NULL;
+#endif
+    }
+    void SetBinderToRelease(CLRPrivBinderAssemblyLoadContext* binderToRelease);
+#if defined(FEATURE_COLLECTIBLE_ALC)
+    virtual void OnUnloading();
+#endif // defined(FEATURE_COLLECTIBLE_ALC)
 #endif // !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
 
 private:
@@ -512,6 +571,9 @@ private:
     };
     
     SList<HandleCleanupListItem> m_handleCleanupList;
+#if !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE) && defined(FEATURE_COLLECTIBLE_ALC)
+    CLRPrivBinderAssemblyLoadContext* m_binderToRelease;
+#endif
 };
 
 typedef VPTR(AssemblyLoaderAllocator) PTR_AssemblyLoaderAllocator;

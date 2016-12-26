@@ -682,6 +682,8 @@ class AssemblySpecBindingCache
         WRAPPER_NO_CONTRACT;
         return pSpec->Hash();
     }
+
+    void Dump();
     
 #if defined(FEATURE_CORECLR) && !defined(DACCESS_COMPILE)    
     void GetAllAssemblies(SetSHash<PTR_DomainAssembly>& assemblyList)

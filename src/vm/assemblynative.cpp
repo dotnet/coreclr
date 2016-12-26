@@ -2503,7 +2503,34 @@ INT_PTR QCALLTYPE AssemblyNative::InitializeAssemblyLoadContext(INT_PTR ptrManag
     {
         // Initialize a custom Assembly Load Context
         CLRPrivBinderAssemblyLoadContext *pBindContext = NULL;
-        IfFailThrow(CLRPrivBinderAssemblyLoadContext::SetupContext(pCurDomain->GetId().m_dwId, pTPABinderContext, ptrManagedAssemblyLoadContext, &pBindContext));
+
+        // Create a new AssemblyLoaderAllocator for an AssemblyLoadContext
+        AssemblyLoaderAllocator* loaderAllocator = new AssemblyLoaderAllocator();
+
+        OBJECTHANDLE loaderAllocatorHandle;
+        GCX_COOP();
+        LOADERALLOCATORREF pManagedLoaderAllocator = NULL;
+        GCPROTECT_BEGIN(pManagedLoaderAllocator);
+        {
+            GCX_PREEMP();
+            // Some of the initialization functions are not virtual. Call through the derived class
+            // to prevent calling the base class version.
+            loaderAllocator->Init(pCurDomain);
+            // Setup the managed proxy now, but do not actually transfer ownership to it.
+            // Once everything is setup and nothing can fail anymore, the ownership will be
+            // atomically transfered by call to LoaderAllocator::ActivateManagedTracking().
+            loaderAllocator->SetupManagedTracking(&pManagedLoaderAllocator);
+        }
+
+        // Create a strong handle to the LoaderAllocator
+        loaderAllocatorHandle = pCurDomain->CreateHandle(pManagedLoaderAllocator);
+
+        GCPROTECT_END();
+
+        loaderAllocator->ActivateManagedTracking();
+
+        IfFailThrow(CLRPrivBinderAssemblyLoadContext::SetupContext(pCurDomain->GetId().m_dwId, pTPABinderContext, loaderAllocator, loaderAllocatorHandle, ptrManagedAssemblyLoadContext, &pBindContext));
+
         ptrNativeAssemblyLoadContext = reinterpret_cast<INT_PTR>(pBindContext);
     }
     else
@@ -2524,6 +2551,20 @@ INT_PTR QCALLTYPE AssemblyNative::InitializeAssemblyLoadContext(INT_PTR ptrManag
     END_QCALL;
     
     return ptrNativeAssemblyLoadContext;
+}
+
+/*static*/
+void QCALLTYPE AssemblyNative::DestroyAssemblyLoadContext(INT_PTR ptrNativeAssemblyLoadContext, INT_PTR ptrManagedStrongAssemblyLoadContext)
+{
+    QCALL_CONTRACT;
+
+    BOOL fDestroyed = FALSE;
+
+    BEGIN_QCALL;
+
+    CLRPrivBinderAssemblyLoadContext::DestroyContext(reinterpret_cast<CLRPrivBinderAssemblyLoadContext *>(ptrNativeAssemblyLoadContext), ptrManagedStrongAssemblyLoadContext);
+
+    END_QCALL;
 }
 
 /*static*/

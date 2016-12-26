@@ -2298,7 +2298,7 @@ private:
         GUID m_guidMVID;
     };
 
-    class NativeImageDependenciesTraits : public NoRemoveSHashTraits<DefaultSHashTraits<NativeImageDependenciesEntry *> >
+    class NativeImageDependenciesTraits : public DeleteElementsOnDestructSHashTraits<DefaultSHashTraits<NativeImageDependenciesEntry *> >
     {
     public:
         typedef BaseAssemblySpec *key_t;
@@ -2457,9 +2457,9 @@ public:
 
     //****************************************************************************************
     //
-    // Adds an assembly to the domain.
+    // Adds or removes an assembly to the domain.
     void AddAssembly(DomainAssembly * assem);
-    void RemoveAssembly_Unlocked(DomainAssembly * pAsm);
+    void RemoveAssembly(DomainAssembly * pAsm);
 
     BOOL ContainsAssembly(Assembly * assem);
 

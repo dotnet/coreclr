@@ -7252,19 +7252,28 @@ VOID ETW::EnumerationLog::IterateCollectibleLoaderAllocator(AssemblyLoaderAlloca
             ETW::MethodLog::SendEventsForJitMethods(NULL, pLoaderAllocator, enumerationOptions);
         }
     
-        Assembly *pAssembly = pLoaderAllocator->Id()->GetDomainAssembly()->GetAssembly();
-        _ASSERTE(!pAssembly->IsDomainNeutral()); // Collectible Assemblies are not domain neutral.
+        // Iterate on all DomainAssembly loaded from the same AssemblyLoaderAllocator
+        DomainAssemblyIterator domainAssemblyIt = pLoaderAllocator->Id()->GetDomainAssemblyIterator();
+        _ASSERTE(!domainAssemblyIt.end());
 
-        DomainModuleIterator domainModuleIterator = pLoaderAllocator->Id()->GetDomainAssembly()->IterateModules(kModIterIncludeLoaded);
-        while (domainModuleIterator.Next()) 
+        while (!domainAssemblyIt.end())
         {
-            Module *pModule = domainModuleIterator.GetModule();
-            ETW::EnumerationLog::IterateModule(pModule, enumerationOptions);
-        }
+            Assembly *pAssembly = domainAssemblyIt->GetAssembly(); // TODO: handle iterator
+            _ASSERTE(!pAssembly->IsDomainNeutral()); // Collectible Assemblies are not domain neutral.
 
-        if (enumerationOptions & ETW::EnumerationLog::EnumerationStructs::DomainAssemblyModuleUnload)
-        {
-            ETW::EnumerationLog::IterateAssembly(pAssembly, enumerationOptions);
+            DomainModuleIterator domainModuleIterator = domainAssemblyIt->IterateModules(kModIterIncludeLoaded);
+            while (domainModuleIterator.Next())
+            {
+                Module *pModule = domainModuleIterator.GetModule();
+                ETW::EnumerationLog::IterateModule(pModule, enumerationOptions);
+            }
+
+            if (enumerationOptions & ETW::EnumerationLog::EnumerationStructs::DomainAssemblyModuleUnload)
+            {
+                ETW::EnumerationLog::IterateAssembly(pAssembly, enumerationOptions);
+            }
+
+            domainAssemblyIt++;
         }
 
         // Load Jit Method events

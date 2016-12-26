@@ -2106,7 +2106,10 @@ BOOL AssemblySpecBindingCache::StoreAssembly(AssemblySpec *pSpec, DomainAssembly
         }
     }
 #endif // defined(FEATURE_CORECLR)
-    
+
+    //printf("Dump before StoreAssembly %s %p\n", pSpec->GetName(), pAssembly);
+    //Dump();
+
     AssemblyBinding *entry = (AssemblyBinding *) m_map.LookupValue(key, pSpec);
 
     if (entry == (AssemblyBinding *) INVALIDENTRY)
@@ -2192,6 +2195,9 @@ BOOL AssemblySpecBindingCache::StoreFile(AssemblySpec *pSpec, PEAssembly *pFile)
         }
     }
 #endif // defined(FEATURE_CORECLR)
+
+    //printf("Dump before StoreFile %s %p\n", pSpec->GetName(), pFile);
+    //Dump();
 
     AssemblyBinding *entry = (AssemblyBinding *) m_map.LookupValue(key, pSpec);
 
@@ -2343,6 +2349,24 @@ BOOL AssemblySpecBindingCache::RemoveAssembly(DomainAssembly* pAssembly)
     RETURN result;
 }
 
+void AssemblySpecBindingCache::Dump()
+{
+    PtrHashMap::PtrIterator i = m_map.begin();
+    while (!i.end())
+    {
+        AssemblyBinding *b = (AssemblyBinding*)i.GetValue();
+        ICLRPrivBinder* context = ((AssemblySpec*)b)->GetBindingContext();
+        UINT_PTR binderID = 0;
+        if (context != NULL) 
+        {
+            context->GetBinderID(&binderID);
+        }
+
+        printf("AssemblySpecBindingCache: %s DomainAssembly: %p PEFile: %p BindingID: %p\n", ((AssemblySpec*)b)->GetName(), b->GetAssembly(), b->GetFile(), binderID);
+        ++i;
+    }
+}
+
 /* static */
 BOOL AssemblySpecHash::CompareSpecs(UPTR u1, UPTR u2)
 {
@@ -2350,9 +2374,6 @@ BOOL AssemblySpecHash::CompareSpecs(UPTR u1, UPTR u2)
     WRAPPER_NO_CONTRACT;
     return AssemblySpecBindingCache::CompareSpecs(u1,u2);  
 }
-
-
-
 
 /* static */
 BOOL AssemblySpecBindingCache::CompareSpecs(UPTR u1, UPTR u2)
@@ -2372,8 +2393,6 @@ BOOL AssemblySpecBindingCache::CompareSpecs(UPTR u1, UPTR u2)
         return FALSE;
     return TRUE;  
 }
-
-
 
 /* static */
 BOOL DomainAssemblyCache::CompareBindingSpec(UPTR spec1, UPTR spec2)
@@ -2397,7 +2416,6 @@ BOOL DomainAssemblyCache::CompareBindingSpec(UPTR spec1, UPTR spec2)
 
     return TRUE;
 }
-
 
 DomainAssemblyCache::AssemblyEntry* DomainAssemblyCache::LookupEntry(AssemblySpec* pSpec)
 {
