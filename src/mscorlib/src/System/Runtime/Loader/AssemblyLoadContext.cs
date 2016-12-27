@@ -25,8 +25,11 @@ namespace System.Runtime.Loader
 
         private readonly bool isDefault;
 
-        private static readonly Dictionary<IntPtr, WeakReference<AssemblyLoadContext>> assemblyLoadContextAliveList = new Dictionary<IntPtr, WeakReference<AssemblyLoadContext>>();
+        private static readonly Dictionary<long, WeakReference<AssemblyLoadContext>> assemblyLoadContextAliveList = new Dictionary<long, WeakReference<AssemblyLoadContext>>();
+        private static long nextId;
         private static bool isProcessExiting;
+
+        private readonly long id;
 
         // Indicates whether the unloading process is 
         private InternalState state;
@@ -96,7 +99,8 @@ namespace System.Runtime.Loader
                 Resolving = null;
                 Unloading = null;
 
-                assemblyLoadContextAliveList.Add(m_pNativeAssemblyLoadContext, new WeakReference<AssemblyLoadContext>(this));
+                id = nextId++;
+                assemblyLoadContextAliveList.Add(id, new WeakReference<AssemblyLoadContext>(this, true));
             }
         }
 
@@ -113,21 +117,21 @@ namespace System.Runtime.Loader
                 {
                     // When in Unloading state, we are not supposed to be called on the finalizer
                     // as the native side is holding a strong reference after calling Unload
-                    Debug.Assert(state != InternalState.Unloading);
-                    if (state == InternalState.Alive)
+                    lock (unloadLock)
                     {
-                        // Remove and restore for unloading event
-                        assemblyLoadContextAliveList.Remove(m_pNativeAssemblyLoadContext);
-                        assemblyLoadContextAliveList.Add(m_pNativeAssemblyLoadContext, new WeakReference<AssemblyLoadContext>(this));
+                        Debug.Assert(state != InternalState.Unloading);
+                        if (state == InternalState.Alive)
+                        {
+                            GC.ReRegisterForFinalize(this);
 
-                        GC.ReRegisterForFinalize(this);
-                        // No need to use lock(unloadLock)
-                        UnloadInternal();
-                        return;
+                            // No need to use lock(unloadLock)
+                            UnloadInternal();
+                            return;
+                        }
                     }
                 }
 
-                assemblyLoadContextAliveList.Remove(m_pNativeAssemblyLoadContext);
+                assemblyLoadContextAliveList.Remove(id);
             }
         }
 
