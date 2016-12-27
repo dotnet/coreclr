@@ -6826,6 +6826,14 @@ DomainAssembly *AppDomain::LoadDomainAssemblyInternal(AssemblySpec* pIdentity,
                 // We are the first one in - create the DomainAssembly
                 fileLock = FileLoadLock::Create(lock, pFile, pDomainAssembly);
                 pDomainAssembly.SuppressRelease();
+#ifndef CROSSGEN_COMPILE
+                if (pDomainAssembly->IsCollectible())
+                {
+                    // We add the assembly to the LoaderAllocator only when we are sure that it can be added
+                    // and won't be deleted in case of a concurrent load from the same ALC
+                    ((AssemblyLoaderAllocator *)pLoaderAllocator)->AddDomainAssembly(pDomainAssembly);
+                }
+#endif
             }
         }
         else

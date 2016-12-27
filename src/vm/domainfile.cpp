@@ -1722,13 +1722,6 @@ DomainAssembly::DomainAssembly(AppDomain *pDomain, PEFile *pFile, AssemblyLoadSe
 
     pFile->ValidateForExecution();
 
-#ifndef CROSSGEN_COMPILE
-    if (m_fCollectible)
-    {
-        ((AssemblyLoaderAllocator *)pLoaderAllocator)->AddDomainAssembly(this);
-    }
-#endif
-
     // !!! backout
 
     m_hExposedAssemblyObject = NULL;
