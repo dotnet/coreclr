@@ -260,6 +260,10 @@ HRESULT CLRPrivBinderAssemblyLoadContext::SetupContext(DWORD      dwAppDomainId,
                 pBinder->m_pAssemblyLoaderAllocator = pLoaderAllocator;
                 pBinder->m_loaderAllocatorHandle = loaderAllocatorHandle;
 
+#if !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
+                ((AssemblyLoaderAllocator*)pLoaderAllocator)->SetBinderToRelease(pBinder);
+#endif
+
                 // Return reference to the allocated Binder instance
                 *ppBindContext = clr::SafeAddRef(pBinder.Extract());
             }
@@ -293,10 +297,6 @@ void CLRPrivBinderAssemblyLoadContext::DestroyContext(CLRPrivBinderAssemblyLoadC
 
     // We cannot delete the binder here as it is used indirectly when comparing assemblies with the same binder
     // It will be deleted by the LoaderAllocator once
-#if !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
-    ((AssemblyLoaderAllocator*)pBindContext->m_pAssemblyLoaderAllocator)->SetBinderToRelease(pBindContext);
-#endif
-
     pBindContext->m_pAssemblyLoaderAllocator->Release();
     pBindContext->m_pAssemblyLoaderAllocator = NULL;
 
