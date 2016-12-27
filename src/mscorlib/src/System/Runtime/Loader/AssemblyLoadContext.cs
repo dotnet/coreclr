@@ -84,6 +84,10 @@ namespace System.Runtime.Loader
 
         internal AssemblyLoadContext(bool fRepresentsTPALoadContext, bool isCollectible)
         {
+            // Initialize the VM side of AssemblyLoadContext if not already done.
+            isDefault = fRepresentsTPALoadContext;
+            IsCollectible = isCollectible;
+
             // Add this instance to the list of alive ALC
             lock (assemblyLoadContextAliveList)
             {
@@ -93,13 +97,13 @@ namespace System.Runtime.Loader
                     throw new InvalidOperationException("Cannot create an AssemblyLoadContext when the process is exiting");
                 }
 
-                // Initialize the VM side of AssemblyLoadContext if not already done.
-                isDefault = fRepresentsTPALoadContext;
-                var thisWeakHandle = GCHandle.Alloc(this, GCHandleType.Weak);
-                var thisWeakHandlePtr = GCHandle.ToIntPtr(thisWeakHandle);
-                m_pNativeAssemblyLoadContext = InitializeAssemblyLoadContext(thisWeakHandlePtr, fRepresentsTPALoadContext, isCollectible);
+                // If this is a collectible ALC, we are creating a weak handle that will be transformed to a strong handle on unloading
+                // otherwise we use a strong handle in order to call any subscriber to the Unload event when AppDomain.ProcessExit
+                // is called
+                var thisHandle = GCHandle.Alloc(this, IsCollectible ? GCHandleType.Weak : GCHandleType.Normal);
+                var thisHandlePtr = GCHandle.ToIntPtr(thisHandle);
+                m_pNativeAssemblyLoadContext = InitializeAssemblyLoadContext(thisHandlePtr, fRepresentsTPALoadContext, isCollectible);
 
-                IsCollectible = isCollectible;
 
                 // Initialize event handlers to be null by default
                 Resolving = null;
@@ -119,7 +123,7 @@ namespace System.Runtime.Loader
                 {
                     OnProcessExit();
                 }
-                else if (!isDefault)
+                else if (!isDefault && IsCollectible)
                 {
                     // When in Unloading state, we are not supposed to be called on the finalizer
                     // as the native side is holding a strong reference after calling Unload
@@ -137,7 +141,10 @@ namespace System.Runtime.Loader
                     }
                 }
 
-                assemblyLoadContextAliveList.Remove(id);
+                if (IsCollectible)
+                {
+                    assemblyLoadContextAliveList.Remove(id);
+                }
             }
         }
 
@@ -263,6 +270,11 @@ namespace System.Runtime.Loader
 
         public void Unload()
         {
+            if (IsCollectible)
+            {
+                throw new InvalidOperationException("Cannot Unload a non collectible AssemblyLoadContext");
+            }
+
             lock (unloadLock)
             {
                 UnloadInternal();
@@ -273,6 +285,7 @@ namespace System.Runtime.Loader
         {
             if (state == InternalState.Alive)
             {
+                // Only if this ALC is collectible
                 var thisStrongHandle = GCHandle.Alloc(this, GCHandleType.Normal);
                 var thisStrongHandlePtr = GCHandle.ToIntPtr(thisStrongHandle);
 
