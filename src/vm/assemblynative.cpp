@@ -2505,7 +2505,11 @@ INT_PTR QCALLTYPE AssemblyNative::InitializeAssemblyLoadContext(INT_PTR ptrManag
         CLRPrivBinderAssemblyLoadContext *pBindContext = NULL;
 
         // Create a new AssemblyLoaderAllocator for an AssemblyLoadContext
-        AssemblyLoaderAllocator* loaderAllocator = new AssemblyLoaderAllocator(fIsCollectible);
+        AssemblyLoaderAllocator* loaderAllocator = new AssemblyLoaderAllocator();
+        if (fIsCollectible)
+        {
+            loaderAllocator->SetCollectible();
+        }
 
         OBJECTHANDLE loaderAllocatorHandle;
         GCX_COOP();

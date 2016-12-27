@@ -23,7 +23,7 @@
 
 UINT64 LoaderAllocator::cLoaderAllocatorsCreated = 1;
 
-LoaderAllocator::LoaderAllocator(BOOL fIsCollectible)  
+LoaderAllocator::LoaderAllocator()  
 {
     LIMITED_METHOD_CONTRACT;
 
@@ -66,8 +66,7 @@ LoaderAllocator::LoaderAllocator(BOOL fIsCollectible)
     m_pLastUsedCodeHeap = NULL;
     m_pLastUsedDynamicCodeHeap = NULL;
     m_pJumpStubCache = NULL;
-
-    m_IsCollectible = fIsCollectible;
+    m_IsCollectible = false;
 
     m_nLoaderAllocator = InterlockedIncrement64((LONGLONG *)&LoaderAllocator::cLoaderAllocatorsCreated);
 }

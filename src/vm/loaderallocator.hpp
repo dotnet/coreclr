@@ -134,6 +134,7 @@ protected:
     bool                m_fTerminated;
     bool                m_fMarked;
     int                 m_nGCCount;
+    bool                m_IsCollectible;
 
     // Pre-allocated blocks of heap for collectible assemblies. Will be set to NULL as soon as it is 
     // used. See code in GetVSDHeapInitialBlock and GetCodeHeapInitialBlock
@@ -190,8 +191,6 @@ private:
     // This will be set by code:LoaderAllocator::Destroy (from managed scout finalizer) and signalizes that 
     // the assembly was collected
     DomainAssembly * m_pFirstDomainAssemblyFromSameALCToDelete;
-
-    BOOL m_IsCollectible;
     
     BOOL CheckAddReference_Unlocked(LoaderAllocator *pOtherLA);
     
@@ -428,7 +427,7 @@ public:
 
     OBJECTREF GetHandleValue(LOADERHANDLE handle);
 
-    LoaderAllocator(BOOL isCollectible = FALSE);
+    LoaderAllocator();
     virtual ~LoaderAllocator();
     BaseDomain *GetDomain() { LIMITED_METHOD_CONTRACT; return m_pDomain; }
     virtual BOOL CanUnload() = 0;
@@ -496,8 +495,8 @@ protected:
 public:
     void Init(BaseDomain *pDomain);
     GlobalLoaderAllocator() : m_Id(LAT_Global, (void*)1) { LIMITED_METHOD_CONTRACT;};
-    virtual LoaderAllocatorID* Id();
-    virtual BOOL CanUnload();
+    LoaderAllocatorID* Id() override;
+    BOOL CanUnload() override;
 };
 
 typedef VPTR(GlobalLoaderAllocator) PTR_GlobalLoaderAllocator;
@@ -513,8 +512,8 @@ protected:
 public:    
     AppDomainLoaderAllocator() : m_Id(LAT_AppDomain) { LIMITED_METHOD_CONTRACT;};
     void Init(AppDomain *pAppDomain);
-    virtual LoaderAllocatorID* Id();
-    virtual BOOL CanUnload();
+    LoaderAllocatorID* Id() override;
+    BOOL CanUnload() override;
 };
 
 typedef VPTR(AppDomainLoaderAllocator) PTR_AppDomainLoaderAllocator;
@@ -527,15 +526,20 @@ class AssemblyLoaderAllocator : public LoaderAllocator
 protected:
     LoaderAllocatorID m_Id;
 public:    
-    virtual LoaderAllocatorID* Id();
-    AssemblyLoaderAllocator(BOOL fIsCollectible) : LoaderAllocator(fIsCollectible),
-        m_Id(LAT_Assembly) 
+    LoaderAllocatorID* Id() override;
+    AssemblyLoaderAllocator() : m_Id(LAT_Assembly)
 #if !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE) && defined(FEATURE_COLLECTIBLE_ALC)
         , m_binderToRelease(NULL)
 #endif
     { LIMITED_METHOD_CONTRACT; }
     void Init(AppDomain *pAppDomain);
-    virtual BOOL CanUnload();
+    BOOL CanUnload() override;
+
+    void SetCollectible()
+    {
+        m_IsCollectible = true;
+    }
+
     void AddDomainAssembly(DomainAssembly *pDomainAssembly) { 
         WRAPPER_NO_CONTRACT; 
         m_Id.AddDomainAssembly(pDomainAssembly); 
@@ -543,11 +547,11 @@ public:
 
 #if !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
     ~AssemblyLoaderAllocator() override;
-    virtual void RegisterHandleForCleanup(OBJECTHANDLE objHandle);
-    virtual void CleanupHandles();
+    void RegisterHandleForCleanup(OBJECTHANDLE objHandle) override;
+    void CleanupHandles() override;
     CLRPrivBinderAssemblyLoadContext* GetBinder()
     {
-#if !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE) && defined(FEATURE_COLLECTIBLE_ALC)
+#if defined(FEATURE_COLLECTIBLE_ALC)
         return m_binderToRelease;
 #else
         return NULL;
@@ -555,7 +559,7 @@ public:
     }
     void RegisterBinder(CLRPrivBinderAssemblyLoadContext* binderToRelease);
 #if defined(FEATURE_COLLECTIBLE_ALC)
-    virtual void OnUnloading();
+    void OnUnloading() override;
 #endif // defined(FEATURE_COLLECTIBLE_ALC)
 #endif // !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
 
