@@ -7254,8 +7254,6 @@ VOID ETW::EnumerationLog::IterateCollectibleLoaderAllocator(AssemblyLoaderAlloca
     
         // Iterate on all DomainAssembly loaded from the same AssemblyLoaderAllocator
         DomainAssemblyIterator domainAssemblyIt = pLoaderAllocator->Id()->GetDomainAssemblyIterator();
-        _ASSERTE(!domainAssemblyIt.end());
-
         while (!domainAssemblyIt.end())
         {
             Assembly *pAssembly = domainAssemblyIt->GetAssembly(); // TODO: handle iterator

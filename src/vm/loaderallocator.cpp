@@ -455,7 +455,6 @@ LoaderAllocator * LoaderAllocator::GCLoaderAllocators_RemoveAssemblies(AppDomain
         _ASSERTE(!pDomainLoaderAllocatorDestroyIterator->IsAlive());
 
         DomainAssemblyIterator domainAssemblyIt(pDomainLoaderAllocatorDestroyIterator->m_pFirstDomainAssemblyFromSameALCToDelete);
-        _ASSERTE(!domainAssemblyIt.end());
 
         // Release all assemblies from the same ALC
         while (!domainAssemblyIt.end())
@@ -524,7 +523,6 @@ void LoaderAllocator::GCLoaderAllocators(AppDomain * pAppDomain)
         pDomainLoaderAllocatorDestroyIterator->SetIsUnloaded();
 
         DomainAssemblyIterator domainAssemblyIt(pDomainLoaderAllocatorDestroyIterator->m_pFirstDomainAssemblyFromSameALCToDelete);
-        _ASSERTE(!domainAssemblyIt.end());
         while (!domainAssemblyIt.end())
         {
             // Notify the debugger
@@ -542,7 +540,6 @@ void LoaderAllocator::GCLoaderAllocators(AppDomain * pAppDomain)
         _ASSERTE(!pDomainLoaderAllocatorDestroyIterator->IsAlive());
 
         DomainAssemblyIterator domainAssemblyIt(pDomainLoaderAllocatorDestroyIterator->m_pFirstDomainAssemblyFromSameALCToDelete);
-        _ASSERTE(!domainAssemblyIt.end());
         while (!domainAssemblyIt.end())
         {
             delete (DomainAssembly*)domainAssemblyIt;
@@ -580,17 +577,19 @@ BOOL QCALLTYPE LoaderAllocator::Destroy(QCall::LoaderAllocatorHandle pLoaderAllo
         _ASSERTE(pID->GetType() == LAT_Assembly);
 
         DomainAssembly* pDomainAssembly = (DomainAssembly*)(pID->GetDomainAssemblyIterator());
-        Assembly *pAssembly = pDomainAssembly->GetCurrentAssembly();
-        
-        //if not fully loaded, it is still domain specific, so just get one from DomainAssembly
-        BaseDomain *pDomain = pAssembly ? pAssembly->Parent() : pDomainAssembly->GetAppDomain();
+        if (pDomainAssembly != NULL)
+        {
+            Assembly *pAssembly = pDomainAssembly->GetCurrentAssembly();
 
-        // This will probably change for shared code unloading
-        _ASSERTE(pDomain->IsAppDomain());
+            //if not fully loaded, it is still domain specific, so just get one from DomainAssembly
+            BaseDomain *pDomain = pAssembly ? pAssembly->Parent() : pDomainAssembly->GetAppDomain();
 
-        AppDomain *pAppDomain = pDomain->AsAppDomain();
+            // This will probably change for shared code unloading
+            _ASSERTE(pDomain->IsAppDomain());
 
-        pLoaderAllocator->m_pFirstDomainAssemblyFromSameALCToDelete = pAssembly->GetDomainAssembly(pAppDomain);
+            AppDomain *pAppDomain = pDomain->AsAppDomain();
+            pLoaderAllocator->m_pFirstDomainAssemblyFromSameALCToDelete = pAssembly->GetDomainAssembly(pAppDomain);
+        }
 
         // Iterate through all references to other loader allocators and decrement their reference
         // count
@@ -611,7 +610,7 @@ BOOL QCALLTYPE LoaderAllocator::Destroy(QCall::LoaderAllocatorHandle pLoaderAllo
         // may hit zero early.
         if (fIsLastReferenceReleased)
         {
-            LoaderAllocator::GCLoaderAllocators(pAppDomain);
+            LoaderAllocator::GCLoaderAllocators((AppDomain*)pLoaderAllocator->GetDomain());
         }
         STRESS_LOG1(LF_CLASSLOADER, LL_INFO100, "End LoaderAllocator::Destroy for loader allocator %p\n", reinterpret_cast<void *>(static_cast<PTR_LoaderAllocator>(pLoaderAllocator)));
 
