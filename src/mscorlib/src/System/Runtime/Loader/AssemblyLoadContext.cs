@@ -44,7 +44,7 @@ namespace System.Runtime.Loader
         
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         [SuppressUnmanagedCodeSecurity]
-        private static extern IntPtr InitializeAssemblyLoadContext(IntPtr ptrAssemblyLoadContext, bool fRepresentsTPALoadContext);
+        private static extern IntPtr InitializeAssemblyLoadContext(IntPtr ptrAssemblyLoadContext, bool fRepresentsTPALoadContext, bool isCollectible);
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         [SuppressUnmanagedCodeSecurity]
@@ -74,11 +74,15 @@ namespace System.Runtime.Loader
             AppDomain.CurrentDomain.ProcessExit += OnProcessExit;
         }
 
-        protected AssemblyLoadContext() : this(false)
+        protected AssemblyLoadContext() : this(false, false)
         {
         }
 
-        internal AssemblyLoadContext(bool fRepresentsTPALoadContext)
+        protected AssemblyLoadContext(bool isCollectible) : this(false, isCollectible)
+        {
+        }
+
+        internal AssemblyLoadContext(bool fRepresentsTPALoadContext, bool isCollectible)
         {
             // Add this instance to the list of alive ALC
             lock (assemblyLoadContextAliveList)
@@ -93,7 +97,9 @@ namespace System.Runtime.Loader
                 isDefault = fRepresentsTPALoadContext;
                 var thisWeakHandle = GCHandle.Alloc(this, GCHandleType.Weak);
                 var thisWeakHandlePtr = GCHandle.ToIntPtr(thisWeakHandle);
-                m_pNativeAssemblyLoadContext = InitializeAssemblyLoadContext(thisWeakHandlePtr, fRepresentsTPALoadContext);
+                m_pNativeAssemblyLoadContext = InitializeAssemblyLoadContext(thisWeakHandlePtr, fRepresentsTPALoadContext, isCollectible);
+
+                IsCollectible = isCollectible;
 
                 // Initialize event handlers to be null by default
                 Resolving = null;
@@ -134,6 +140,8 @@ namespace System.Runtime.Loader
                 assemblyLoadContextAliveList.Remove(id);
             }
         }
+
+        public bool IsCollectible { get; }
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         [SuppressUnmanagedCodeSecurity]
@@ -681,7 +689,7 @@ namespace System.Runtime.Loader
 
     class AppPathAssemblyLoadContext : AssemblyLoadContext
     {
-        internal AppPathAssemblyLoadContext() : base(true)
+        internal AppPathAssemblyLoadContext() : base(true, false)
         {
         }
 
@@ -695,7 +703,7 @@ namespace System.Runtime.Loader
 
     internal class IndividualAssemblyLoadContext : AssemblyLoadContext
     {
-        internal IndividualAssemblyLoadContext() : base(false)
+        internal IndividualAssemblyLoadContext() : base(false, false)
         {
         }
 

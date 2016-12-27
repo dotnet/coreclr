@@ -901,7 +901,7 @@ Assembly *Assembly::CreateDynamic(AppDomain *pDomain, CreateDynamicAssemblyArgs 
         // Create a new LoaderAllocator if appropriate
         if ((args->access & ASSEMBLY_ACCESS_COLLECT) != 0)
         {
-            AssemblyLoaderAllocator *pAssemblyLoaderAllocator = new AssemblyLoaderAllocator();
+            AssemblyLoaderAllocator *pAssemblyLoaderAllocator = new AssemblyLoaderAllocator(true);
             pLoaderAllocator = pAssemblyLoaderAllocator;
 
             // Some of the initialization functions are not virtual. Call through the derived class

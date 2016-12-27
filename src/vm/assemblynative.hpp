@@ -248,7 +248,7 @@ public:
     BOOL QCALLTYPE IsDesignerBindingContext(QCall::AssemblyHandle pAssembly);
 #endif
 
-    static INT_PTR QCALLTYPE InitializeAssemblyLoadContext(INT_PTR ptrManagedAssemblyLoadContext, BOOL fRepresentsTPALoadContext);
+    static INT_PTR QCALLTYPE InitializeAssemblyLoadContext(INT_PTR ptrManagedAssemblyLoadContext, BOOL fRepresentsTPALoadContext, BOOL fIsCollectible);
     static void QCALLTYPE DestroyAssemblyLoadContext(INT_PTR ptrNativeAssemblyLoadContext, INT_PTR ptrManagedStrongAssemblyLoadContext);
     static BOOL QCALLTYPE OverrideDefaultAssemblyLoadContextForCurrentDomain(INT_PTR ptrNativeAssemblyLoadContext);
     static BOOL QCALLTYPE CanUseAppPathAssemblyLoadContextInCurrentDomain();

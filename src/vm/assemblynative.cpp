@@ -2484,7 +2484,7 @@ BOOL QCALLTYPE AssemblyNative::IsDesignerBindingContext(QCall::AssemblyHandle pA
 
 #if defined(FEATURE_HOST_ASSEMBLY_RESOLVER)
 /*static*/
-INT_PTR QCALLTYPE AssemblyNative::InitializeAssemblyLoadContext(INT_PTR ptrManagedAssemblyLoadContext, BOOL fRepresentsTPALoadContext)
+INT_PTR QCALLTYPE AssemblyNative::InitializeAssemblyLoadContext(INT_PTR ptrManagedAssemblyLoadContext, BOOL fRepresentsTPALoadContext, BOOL fIsCollectible)
 {
     QCALL_CONTRACT;
 
@@ -2505,7 +2505,7 @@ INT_PTR QCALLTYPE AssemblyNative::InitializeAssemblyLoadContext(INT_PTR ptrManag
         CLRPrivBinderAssemblyLoadContext *pBindContext = NULL;
 
         // Create a new AssemblyLoaderAllocator for an AssemblyLoadContext
-        AssemblyLoaderAllocator* loaderAllocator = new AssemblyLoaderAllocator();
+        AssemblyLoaderAllocator* loaderAllocator = new AssemblyLoaderAllocator(fIsCollectible);
 
         OBJECTHANDLE loaderAllocatorHandle;
         GCX_COOP();

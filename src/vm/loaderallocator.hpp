@@ -93,7 +93,6 @@ public:
     AppDomain* GetAppDomain();
     BOOL Equals(LoaderAllocatorID* pId);
     COUNT_T Hash();
-    BOOL IsCollectible();
 };
 
 class StringLiteralMap;
@@ -191,6 +190,8 @@ private:
     // This will be set by code:LoaderAllocator::Destroy (from managed scout finalizer) and signalizes that 
     // the assembly was collected
     DomainAssembly * m_pFirstDomainAssemblyFromSameALCToDelete;
+
+    BOOL m_IsCollectible;
     
     BOOL CheckAddReference_Unlocked(LoaderAllocator *pOtherLA);
     
@@ -332,7 +333,7 @@ public:
     DispatchToken TryLookupDispatchToken(UINT32 typeId, UINT32 slotNumber);
 
     virtual LoaderAllocatorID* Id() =0;
-    BOOL IsCollectible() { WRAPPER_NO_CONTRACT; return Id()->IsCollectible(); }
+    BOOL IsCollectible() { WRAPPER_NO_CONTRACT; return m_IsCollectible; }
 
 #ifdef DACCESS_COMPILE
     void EnumMemoryRegions(CLRDataEnumMemoryFlags flags);
@@ -427,7 +428,7 @@ public:
 
     OBJECTREF GetHandleValue(LOADERHANDLE handle);
 
-    LoaderAllocator();
+    LoaderAllocator(BOOL isCollectible = FALSE);
     virtual ~LoaderAllocator();
     BaseDomain *GetDomain() { LIMITED_METHOD_CONTRACT; return m_pDomain; }
     virtual BOOL CanUnload() = 0;
@@ -527,7 +528,7 @@ protected:
     LoaderAllocatorID m_Id;
 public:    
     virtual LoaderAllocatorID* Id();
-    AssemblyLoaderAllocator() : 
+    AssemblyLoaderAllocator(BOOL fIsCollectible) : LoaderAllocator(fIsCollectible),
         m_Id(LAT_Assembly) 
 #if !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE) && defined(FEATURE_COLLECTIBLE_ALC)
         , m_binderToRelease(NULL)

@@ -101,12 +101,6 @@ inline AppDomain *LoaderAllocatorID::GetAppDomain()
     return m_pAppDomain;
 }
 
-inline BOOL LoaderAllocatorID::IsCollectible()
-{
-    LIMITED_METHOD_DAC_CONTRACT; 
-    return m_type == LAT_Assembly;
-}
-
 inline LoaderAllocatorID* AssemblyLoaderAllocator::Id()
 {
     LIMITED_METHOD_DAC_CONTRACT; 
