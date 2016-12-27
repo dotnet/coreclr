@@ -1,4 +1,6 @@
 set(CROSS_ROOTFS $ENV{ROOTFS_DIR})
+set(EXTRA_CROSS_COMPILE_FLAGS $ENV{EXTRA_CROSS_COMPILE_FLAGS})
+separate_arguments(EXTRA_CROSS_COMPILE_FLAGS)
 
 set(CMAKE_SYSTEM_NAME Linux)
 set(CMAKE_SYSTEM_VERSION 1)
@@ -16,6 +18,7 @@ set(TOOLCHAIN_PREFIX ${TOOLCHAIN}-)
 
 add_compile_options(-target ${TOOLCHAIN})
 add_compile_options(--sysroot=${CROSS_ROOTFS})
+add_compile_options(${EXTRA_CROSS_COMPILE_FLAGS})
 
 set(CROSS_LINK_FLAGS "${CROSS_LINK_FLAGS} -target ${TOOLCHAIN}")
 set(CROSS_LINK_FLAGS "${CROSS_LINK_FLAGS} -B ${CROSS_ROOTFS}/usr/lib/gcc/${TOOLCHAIN}")
