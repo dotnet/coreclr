@@ -1519,8 +1519,10 @@ AssemblyLoaderAllocator::~AssemblyLoaderAllocator()
     }
 }
 
-void AssemblyLoaderAllocator::SetBinderToRelease(CLRPrivBinderAssemblyLoadContext* binderToRelease)
+void AssemblyLoaderAllocator::RegisterBinder(CLRPrivBinderAssemblyLoadContext* binderToRelease)
 {
+    // When the binder is registered it will be released by the destructor
+    // of this instance
     _ASSERTE(m_binderToRelease == NULL);
     m_binderToRelease = binderToRelease;
 }

@@ -553,7 +553,7 @@ public:
         return NULL;
 #endif
     }
-    void SetBinderToRelease(CLRPrivBinderAssemblyLoadContext* binderToRelease);
+    void RegisterBinder(CLRPrivBinderAssemblyLoadContext* binderToRelease);
 #if defined(FEATURE_COLLECTIBLE_ALC)
     virtual void OnUnloading();
 #endif // defined(FEATURE_COLLECTIBLE_ALC)

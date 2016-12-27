@@ -261,7 +261,7 @@ HRESULT CLRPrivBinderAssemblyLoadContext::SetupContext(DWORD      dwAppDomainId,
                 pBinder->m_loaderAllocatorHandle = loaderAllocatorHandle;
 
 #if !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
-                ((AssemblyLoaderAllocator*)pLoaderAllocator)->SetBinderToRelease(pBinder);
+                ((AssemblyLoaderAllocator*)pLoaderAllocator)->RegisterBinder(pBinder);
 #endif
 
                 // Return reference to the allocated Binder instance
