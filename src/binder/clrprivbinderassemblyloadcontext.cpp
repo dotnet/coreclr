@@ -290,7 +290,7 @@ void CLRPrivBinderAssemblyLoadContext::DestroyContext(INT_PTR ptrManagedStrongAs
     // in order to be able to callback Unloading safely
     OBJECTHANDLE handle = reinterpret_cast<OBJECTHANDLE>(m_ptrManagedAssemblyLoadContext);
     OBJECTHANDLE strongHandle = reinterpret_cast<OBJECTHANDLE>(ptrManagedStrongAssemblyLoadContext);
-    DestroyWeakHandle(handle);
+    DestroyShortWeakHandle(handle);
     m_ptrManagedAssemblyLoadContext = reinterpret_cast<INT_PTR>(strongHandle);
 
     // We cannot delete the binder here as it is used indirectly when comparing assemblies with the same binder
