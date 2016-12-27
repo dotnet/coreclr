@@ -338,7 +338,42 @@ GetProcAddress(
     // inside the PAL, fall back to a normal search.
     if (ProcAddress == nullptr)
     {
-        ProcAddress = (FARPROC) dlsym(module->dl_handle, lpProcName);
+        // lpProcName can include a version: foo@VERS_1.1
+        int i = 0;
+        while ((lpProcName[i] != '\0') && (lpProcName[i] != '@'))
+        {
+            i++;
+        }
+        if (lpProcName[i] == '@')
+        {
+            if (i == 0)
+            {
+                TRACE("Symbol name missing\n");
+                SetLastError(ERROR_INVALID_PARAMETER);
+                goto done;
+            }
+            if (lpProcName[i + 1] == '\0')
+            {
+                TRACE("Version specifier missing\n");
+                SetLastError(ERROR_INVALID_PARAMETER);
+                goto done;
+            }
+            char* symbol = strdup(lpProcName);
+            if (!symbol)
+            {
+                ERROR("strdup failure!\n");
+                SetLastError(ERROR_NOT_ENOUGH_MEMORY);
+                goto done;
+            }
+            symbol[i] = '\0';
+            char* version = &symbol[i + 1];
+            ProcAddress = (FARPROC) dlvsym(module->dl_handle, symbol, version);
+            free(symbol);
+        }
+        else
+        {
+            ProcAddress = (FARPROC) dlsym(module->dl_handle, lpProcName);
+        }
     }
 
     if (ProcAddress)
