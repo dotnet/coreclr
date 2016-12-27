@@ -8137,7 +8137,7 @@ BOOL AppDomain::RemoveFileFromCache(PEAssembly *pFile)
 {
     CONTRACTL
     {
-        GC_NOTRIGGER;
+        GC_TRIGGERS;
         PRECONDITION(CheckPointer(pFile));
     }
     CONTRACTL_END;
