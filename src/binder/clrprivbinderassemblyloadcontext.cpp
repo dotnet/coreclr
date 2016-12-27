@@ -275,7 +275,7 @@ Exit:
     return hr;
 }
 
-void CLRPrivBinderAssemblyLoadContext::DestroyContext(INT_PTR ptrManagedStrongAssemblyLoadContext)
+void CLRPrivBinderAssemblyLoadContext::PrepareForLoadContextRelease(INT_PTR ptrManagedStrongAssemblyLoadContext)
 {
     CONTRACTL
     {
@@ -287,14 +287,15 @@ void CLRPrivBinderAssemblyLoadContext::DestroyContext(INT_PTR ptrManagedStrongAs
     CONTRACTL_END;
 
     // Replace the weak handle with a strong handle
-    // in order to be able to callback Unloading safely
+    // in order to be able to callback the managed method AssemblyLoadContext.Unloading safely
     OBJECTHANDLE handle = reinterpret_cast<OBJECTHANDLE>(m_ptrManagedAssemblyLoadContext);
     OBJECTHANDLE strongHandle = reinterpret_cast<OBJECTHANDLE>(ptrManagedStrongAssemblyLoadContext);
     DestroyShortWeakHandle(handle);
     m_ptrManagedAssemblyLoadContext = reinterpret_cast<INT_PTR>(strongHandle);
 
     // We cannot delete the binder here as it is used indirectly when comparing assemblies with the same binder
-    // It will be deleted by the LoaderAllocator once
+    // It will be deleted when the LoaderAllocator will be deleted
+    // But we can release the LoaderAllocator as we are no longer using it here
     m_pAssemblyLoaderAllocator->Release();
     m_pAssemblyLoaderAllocator = NULL;
 
@@ -308,9 +309,12 @@ CLRPrivBinderAssemblyLoadContext::CLRPrivBinderAssemblyLoadContext()
     m_pTPABinder = NULL;
 }
 
-void CLRPrivBinderAssemblyLoadContext::ReleaseManagedAssemblyLoadContext()
+void CLRPrivBinderAssemblyLoadContext::ReleaseLoadContext()
 {
     VERIFY(m_ptrManagedAssemblyLoadContext != NULL);
+
+    // This method is called to release the strong handle on the managed AssemblyLoadContext
+    // once the Unloading event has been fired
     OBJECTHANDLE handle = reinterpret_cast<OBJECTHANDLE>(m_ptrManagedAssemblyLoadContext);
     DestroyHandle(handle);
     m_ptrManagedAssemblyLoadContext = NULL;

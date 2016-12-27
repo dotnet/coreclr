@@ -2554,7 +2554,7 @@ INT_PTR QCALLTYPE AssemblyNative::InitializeAssemblyLoadContext(INT_PTR ptrManag
 }
 
 /*static*/
-void QCALLTYPE AssemblyNative::DestroyAssemblyLoadContext(INT_PTR ptrNativeAssemblyLoadContext, INT_PTR ptrManagedStrongAssemblyLoadContext)
+void QCALLTYPE AssemblyNative::PrepareForAssemblyLoadContextRelease(INT_PTR ptrNativeAssemblyLoadContext, INT_PTR ptrManagedStrongAssemblyLoadContext)
 {
     QCALL_CONTRACT;
 
@@ -2565,7 +2565,7 @@ void QCALLTYPE AssemblyNative::DestroyAssemblyLoadContext(INT_PTR ptrNativeAssem
 
     {
         GCX_COOP();
-        reinterpret_cast<CLRPrivBinderAssemblyLoadContext *>(ptrNativeAssemblyLoadContext)->DestroyContext(ptrManagedStrongAssemblyLoadContext);
+        reinterpret_cast<CLRPrivBinderAssemblyLoadContext *>(ptrNativeAssemblyLoadContext)->PrepareForLoadContextRelease(ptrManagedStrongAssemblyLoadContext);
     }
 
     END_QCALL;

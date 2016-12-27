@@ -1749,8 +1749,7 @@ void AssemblyLoaderAllocator::OnUnloading()
     methodOnUnloading.Call(args);
 
     // Release the managed ALC
-
-    m_binderToRelease->ReleaseManagedAssemblyLoadContext();
+    m_binderToRelease->ReleaseLoadContext();
 }
 #endif
 

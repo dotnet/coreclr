@@ -48,7 +48,7 @@ namespace System.Runtime.Loader
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         [SuppressUnmanagedCodeSecurity]
-        private static extern void DestroyAssemblyLoadContext(IntPtr ptrNativeAssemblyLoadContext, IntPtr ptrAssemblyLoadContextStrong);
+        private static extern void PrepareForAssemblyLoadContextRelease(IntPtr ptrNativeAssemblyLoadContext, IntPtr ptrAssemblyLoadContextStrong);
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         [SuppressUnmanagedCodeSecurity]
@@ -278,7 +278,7 @@ namespace System.Runtime.Loader
 
                 // The underlying code will transform the original weak handle 
                 // created by InitializeLoadContext to a strong handle
-                DestroyAssemblyLoadContext(m_pNativeAssemblyLoadContext, thisStrongHandlePtr);
+                PrepareForAssemblyLoadContextRelease(m_pNativeAssemblyLoadContext, thisStrongHandlePtr);
             }
             else
             {

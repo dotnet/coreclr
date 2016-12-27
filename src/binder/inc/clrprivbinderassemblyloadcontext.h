@@ -89,7 +89,7 @@ public:
                                 UINT_PTR ptrAssemblyLoadContext,
                                 CLRPrivBinderAssemblyLoadContext **ppBindContext);
 
-    void DestroyContext(INT_PTR ptrManagedStrongAssemblyLoadContext);
+    void PrepareForLoadContextRelease(INT_PTR ptrManagedStrongAssemblyLoadContext);
 
     CLRPrivBinderAssemblyLoadContext();
     
@@ -103,7 +103,7 @@ public:
         return m_ptrManagedAssemblyLoadContext;
     }
 
-    void ReleaseManagedAssemblyLoadContext();
+    void ReleaseLoadContext();
 
     HRESULT BindUsingPEImage( /* in */ PEImage *pPEImage, 
                               /* in */ BOOL fIsNativeImage, 
