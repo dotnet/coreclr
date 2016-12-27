@@ -275,33 +275,32 @@ Exit:
     return hr;
 }
 
-/* static */
-void CLRPrivBinderAssemblyLoadContext::DestroyContext(CLRPrivBinderAssemblyLoadContext *pBindContext, INT_PTR ptrManagedStrongAssemblyLoadContext)
+void CLRPrivBinderAssemblyLoadContext::DestroyContext(INT_PTR ptrManagedStrongAssemblyLoadContext)
 {
     CONTRACTL
     {
         GC_NOTRIGGER;
         THROWS;
-        MODE_PREEMPTIVE;
+        MODE_COOPERATIVE;
         SO_TOLERANT;
     }
     CONTRACTL_END;
 
-    GCX_COOP();
     // Replace the weak handle with a strong handle
     // in order to be able to callback Unloading safely
-    OBJECTHANDLE handle = reinterpret_cast<OBJECTHANDLE>(pBindContext->m_ptrManagedAssemblyLoadContext);
+    OBJECTHANDLE handle = reinterpret_cast<OBJECTHANDLE>(m_ptrManagedAssemblyLoadContext);
     OBJECTHANDLE strongHandle = reinterpret_cast<OBJECTHANDLE>(ptrManagedStrongAssemblyLoadContext);
     DestroyWeakHandle(handle);
-    pBindContext->m_ptrManagedAssemblyLoadContext = reinterpret_cast<INT_PTR>(strongHandle);
+    m_ptrManagedAssemblyLoadContext = reinterpret_cast<INT_PTR>(strongHandle);
 
     // We cannot delete the binder here as it is used indirectly when comparing assemblies with the same binder
     // It will be deleted by the LoaderAllocator once
-    pBindContext->m_pAssemblyLoaderAllocator->Release();
-    pBindContext->m_pAssemblyLoaderAllocator = NULL;
+    m_pAssemblyLoaderAllocator->Release();
+    m_pAssemblyLoaderAllocator = NULL;
 
     // Destroy the strong handle to the LoaderAllocator in order to let it reach its finalizer
-    DestroyHandle(reinterpret_cast<OBJECTHANDLE>(pBindContext->m_loaderAllocatorHandle));
+    DestroyHandle(reinterpret_cast<OBJECTHANDLE>(m_loaderAllocatorHandle));
+    m_loaderAllocatorHandle = NULL;
 }
 
 CLRPrivBinderAssemblyLoadContext::CLRPrivBinderAssemblyLoadContext()

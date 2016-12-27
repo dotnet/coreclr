@@ -89,7 +89,7 @@ public:
                                 UINT_PTR ptrAssemblyLoadContext,
                                 CLRPrivBinderAssemblyLoadContext **ppBindContext);
 
-    static void DestroyContext(CLRPrivBinderAssemblyLoadContext *pBindContext, INT_PTR ptrManagedStrongAssemblyLoadContext);
+    void DestroyContext(INT_PTR ptrManagedStrongAssemblyLoadContext);
 
     CLRPrivBinderAssemblyLoadContext();
     

@@ -2562,7 +2562,11 @@ void QCALLTYPE AssemblyNative::DestroyAssemblyLoadContext(INT_PTR ptrNativeAssem
 
     BEGIN_QCALL;
 
-    CLRPrivBinderAssemblyLoadContext::DestroyContext(reinterpret_cast<CLRPrivBinderAssemblyLoadContext *>(ptrNativeAssemblyLoadContext), ptrManagedStrongAssemblyLoadContext);
+
+    {
+        GCX_COOP();
+        reinterpret_cast<CLRPrivBinderAssemblyLoadContext *>(ptrNativeAssemblyLoadContext)->DestroyContext(ptrManagedStrongAssemblyLoadContext);
+    }
 
     END_QCALL;
 }
