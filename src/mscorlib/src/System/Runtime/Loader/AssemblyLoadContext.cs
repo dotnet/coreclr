@@ -20,13 +20,14 @@ namespace System.Runtime.Loader
 {
     public abstract class AssemblyLoadContext
     {
-        // sychronization primitive to protect against usage of this instance while unloading
+        // synchronization primitive to protect against usage of this instance while unloading
         private readonly object unloadLock = new object();
 
         private static readonly Dictionary<long, WeakReference<AssemblyLoadContext>> contextsToUnload = new Dictionary<long, WeakReference<AssemblyLoadContext>>();
         private static long nextId;
         private static bool isProcessExiting;
 
+        // Id used by contextsToUnload
         private readonly long id;
 
         // Indicates the state of this ALC (Alive or in Unloading/Unloaded state)
