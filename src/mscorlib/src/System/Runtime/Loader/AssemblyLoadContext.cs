@@ -278,8 +278,7 @@ namespace System.Runtime.Loader
             }
             else
             {
-                // TODO: Should we throw an exception instead?
-                return;
+                throw new InvalidOperationException("This instance is already being unloaded");
             }
             state = InternalState.Unloading;
         }
