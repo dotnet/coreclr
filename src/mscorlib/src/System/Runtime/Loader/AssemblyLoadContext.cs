@@ -23,9 +23,7 @@ namespace System.Runtime.Loader
         // sychronization primitive to protect against usage of this instance while unloading
         private readonly object unloadLock = new object();
 
-        private readonly bool isDefault;
-
-        private static readonly Dictionary<long, WeakReference<AssemblyLoadContext>> assemblyLoadContextAliveList = new Dictionary<long, WeakReference<AssemblyLoadContext>>();
+        private static readonly Dictionary<long, WeakReference<AssemblyLoadContext>> contextsToUnload = new Dictionary<long, WeakReference<AssemblyLoadContext>>();
         private static long nextId;
         private static bool isProcessExiting;
 
@@ -85,11 +83,10 @@ namespace System.Runtime.Loader
         internal AssemblyLoadContext(bool fRepresentsTPALoadContext, bool isCollectible)
         {
             // Initialize the VM side of AssemblyLoadContext if not already done.
-            isDefault = fRepresentsTPALoadContext;
             IsCollectible = isCollectible;
 
             // Add this instance to the list of alive ALC
-            lock (assemblyLoadContextAliveList)
+            lock (contextsToUnload)
             {
                 if (isProcessExiting)
                 {
@@ -109,40 +106,26 @@ namespace System.Runtime.Loader
                 Unloading = null;
 
                 id = nextId++;
-                assemblyLoadContextAliveList.Add(id, new WeakReference<AssemblyLoadContext>(this, true));
+                contextsToUnload.Add(id, new WeakReference<AssemblyLoadContext>(this, true));
             }
         }
 
         ~AssemblyLoadContext()
         {
-            // Remove this instance from the assembly to cleanup on ProcessExit
-            lock (assemblyLoadContextAliveList)
+            // Only valid for a Collectible ALC
+            // We perform an implicit Unload if no explicit Unload has been done
+            if (IsCollectible)
             {
-                if (isProcessExiting)
+                // When in Unloading state, we are not supposed to be called on the finalizer
+                // as the native side is holding a strong reference after calling Unload
+                lock (unloadLock)
                 {
-                    OnAppContextUnloading();
-                }
-                else if (!isDefault && IsCollectible)
-                {
-                    // When in Unloading state, we are not supposed to be called on the finalizer
-                    // as the native side is holding a strong reference after calling Unload
-                    lock (unloadLock)
+                    Debug.Assert(state != InternalState.Unloading);
+                    if (state == InternalState.Alive)
                     {
-                        Debug.Assert(state != InternalState.Unloading);
-                        if (state == InternalState.Alive)
-                        {
-                            GC.ReRegisterForFinalize(this);
-
-                            // No need to use lock(unloadLock)
-                            UnloadCollectible();
-                            return;
-                        }
+                        GC.ReRegisterForFinalize(this);
+                        UnloadCollectible();
                     }
-                }
-
-                if (IsCollectible)
-                {
-                    assemblyLoadContextAliveList.Remove(id);
                 }
             }
         }
@@ -432,13 +415,23 @@ namespace System.Runtime.Loader
                     return;
                 }
             }
-            var unloading = Unloading;
-            // TODO: should we enclose this with a try catch?
-            unloading?.Invoke(this);
+
+            // Don't call the Unload event multiple times in case the AppContext.Unloading 
+            // is already running
+            lock (contextsToUnload)
+            {
+                if (contextsToUnload.Remove(id))
+                {
+                    var unloading = Unloading;
+                    // TODO: should we enclose this with a try catch?
+                    unloading?.Invoke(this);
+                }
+            }
         }
 
         private static void OnUnloadingStatic(IntPtr gchManagedAssemblyLoadContext)
         {
+            // This method is invoked by the VM after an Unload has been requested
             var context = (AssemblyLoadContext) GCHandle.FromIntPtr(gchManagedAssemblyLoadContext).Target;
             context.OnUnloading();
         }
@@ -621,10 +614,10 @@ namespace System.Runtime.Loader
 
         private static void OnAppContextUnloading(object sender, EventArgs e)
         {
-            lock (assemblyLoadContextAliveList)
+            lock (contextsToUnload)
             {
                 isProcessExiting = true;
-                foreach (var alcAlive in assemblyLoadContextAliveList)
+                foreach (var alcAlive in contextsToUnload)
                 {
                     AssemblyLoadContext alc;
                     if (alcAlive.Value.TryGetTarget(out alc))
@@ -633,7 +626,7 @@ namespace System.Runtime.Loader
                         alc.OnAppContextUnloading();
                     }
                 }
-                assemblyLoadContextAliveList.Clear();
+                contextsToUnload.Clear();
             }
         }
 
