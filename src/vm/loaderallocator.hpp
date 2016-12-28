@@ -485,7 +485,7 @@ typedef VPTR(LoaderAllocator) PTR_LoaderAllocator;
 class GlobalLoaderAllocator : public LoaderAllocator
 {
     VPTR_VTABLE_CLASS(GlobalLoaderAllocator, LoaderAllocator)
-    VPTR_UNIQUE(VPTRU_LoaderAllocator+1);
+    VPTR_UNIQUE_OVERRIDE(VPTRU_LoaderAllocator+1)
 
     BYTE                m_ExecutableHeapInstance[sizeof(LoaderHeap)];
 
@@ -505,7 +505,7 @@ typedef VPTR(GlobalLoaderAllocator) PTR_GlobalLoaderAllocator;
 class AppDomainLoaderAllocator : public LoaderAllocator
 {
     VPTR_VTABLE_CLASS(AppDomainLoaderAllocator, LoaderAllocator)
-    VPTR_UNIQUE(VPTRU_LoaderAllocator+2);
+    VPTR_UNIQUE_OVERRIDE(VPTRU_LoaderAllocator+2)
 
 protected:
     LoaderAllocatorID m_Id;
@@ -521,7 +521,7 @@ typedef VPTR(AppDomainLoaderAllocator) PTR_AppDomainLoaderAllocator;
 class AssemblyLoaderAllocator : public LoaderAllocator
 {
     VPTR_VTABLE_CLASS(AssemblyLoaderAllocator, LoaderAllocator)
-    VPTR_UNIQUE(VPTRU_LoaderAllocator+3);
+    VPTR_UNIQUE_OVERRIDE(VPTRU_LoaderAllocator+3)
 
 protected:
     LoaderAllocatorID m_Id;
