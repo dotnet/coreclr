@@ -29,7 +29,7 @@ namespace System.Runtime.Loader
 
         private readonly long id;
 
-        // Indicates whether the unloading process is 
+        // Indicates the state of this ALC (Alive or in Unloading/Unloaded state)
         private InternalState state;
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
@@ -414,18 +414,10 @@ namespace System.Runtime.Loader
                     // called via the finalizer
                     return;
                 }
-            }
 
-            // Don't call the Unload event multiple times in case the AppContext.Unloading 
-            // is already running
-            lock (contextsToUnload)
-            {
-                if (contextsToUnload.Remove(id))
-                {
-                    var unloading = Unloading;
-                    // TODO: should we enclose this with a try catch?
-                    unloading?.Invoke(this);
-                }
+                var unloading = Unloading;
+                // TODO: should we enclose this with a try catch?
+                unloading?.Invoke(this);
             }
         }
 
