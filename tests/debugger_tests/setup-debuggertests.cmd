@@ -51,7 +51,8 @@ REM ===
 REM === download debuggertests package
 REM ===
 REM =========================================================================================
-set DEBUGGERTESTS_URL=https://dotnetbuilddrops.blob.core.windows.net/debugger-container/Windows.DebuggerTests.zip
+REM TODO: change the archive name!!! (this is a test-only)
+set DEBUGGERTESTS_URL=https://dotnetbuilddrops.blob.core.windows.net/debugger-container/Windows.x64.Debug.coreclr.zip
 set LOCAL_ZIP_PATH=%__InstallDir%\debuggertests.zip
 if exist "%LOCAL_ZIP_PATH%" del "%LOCAL_ZIP_PATH%"
 set DEBUGGERTESTS_INSTALL_LOG="%__ThisScriptPath%debuggerinstall.log"
@@ -86,7 +87,7 @@ pushd %__InstallDir%\ScriptGenerator
 %__CliPath%\dotnet build
 popd 
 
-%__CliPath%\dotnet run --project %__InstallDir%\ScriptGenerator %__InstallDir% %__CoreclrBinPath% %__InstallDir%\Dotnet.Tests\dotnet
+%__CliPath%\dotnet run --project %__InstallDir%\ScriptGenerator %__InstallDir% %__InstallDir%\Debugger.Tests\dotnet
 
 REM Deleting runtests.cmd to avoid double test-running.
 del %__InstallDir%\runtests.cmd

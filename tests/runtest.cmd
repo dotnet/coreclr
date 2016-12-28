@@ -72,6 +72,7 @@ if /i "%1" == "jitdisasm"             (set __JitDisasm=1&shift&goto Arg_Loop)
 if /i "%1" == "GenerateLayoutOnly"    (set __GenerateLayoutOnly=1&set __SkipWrapperGeneration=true&shift&goto Arg_Loop)
 if /i "%1" == "PerfTests"             (set __PerfTests=true&set __SkipWrapperGeneration=true&shift&goto Arg_Loop)
 if /i "%1" == "runcrossgentests"      (set RunCrossGen=true&shift&goto Arg_Loop)
+if /i "%1" == "skipdebuggertests"     (set SkipDebuggerTests=true&shift&goto Arg_Loop)
 REM change it to COMPlus_GCStress when we stop using xunit harness
 if /i "%1" == "gcstresslevel"         (set __GCSTRESSLEVEL=%2&set __TestTimeout=1800000&shift&shift&goto Arg_Loop)
 
@@ -237,6 +238,11 @@ if errorlevel 1 (
 )  
 
 :SkipRunPerfTests
+
+
+REM if %SkipDebuggerTests% == "true" goto SkipDebuggerTests
+REM call :msbuild "%__ProjectFilesDir%\runtest.proj" /t:RunDebuggerTests /clp:showcommandline 
+REM :SkipDebuggerTests
 
 REM =========================================================================================
 REM ===
