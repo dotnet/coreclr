@@ -97,13 +97,12 @@ namespace System.Runtime.Loader
                     throw new InvalidOperationException("Cannot create an AssemblyLoadContext when the process is exiting");
                 }
 
-                // If this is a collectible ALC, we are creating a weak handle that will be transformed to a strong handle on unloading
-                // otherwise we use a strong handle in order to call any subscriber to the Unload event when AppDomain.ProcessExit
-                // is called
+                // If this is a collectible ALC, we are creating a weak handle that will be transformed to 
+                // a strong handle on unloading otherwise we use a strong handle in order to call any subscriber 
+                // to the Unload event when AppDomain.ProcessExit is called
                 var thisHandle = GCHandle.Alloc(this, IsCollectible ? GCHandleType.Weak : GCHandleType.Normal);
                 var thisHandlePtr = GCHandle.ToIntPtr(thisHandle);
                 m_pNativeAssemblyLoadContext = InitializeAssemblyLoadContext(thisHandlePtr, fRepresentsTPALoadContext, isCollectible);
-
 
                 // Initialize event handlers to be null by default
                 Resolving = null;
@@ -135,7 +134,7 @@ namespace System.Runtime.Loader
                             GC.ReRegisterForFinalize(this);
 
                             // No need to use lock(unloadLock)
-                            UnloadInternal();
+                            UnloadCollectible();
                             return;
                         }
                     }
@@ -277,11 +276,11 @@ namespace System.Runtime.Loader
 
             lock (unloadLock)
             {
-                UnloadInternal();
+                UnloadCollectible();
             }
         }
 
-        private void UnloadInternal()
+        private void UnloadCollectible()
         {
             Debug.Assert(IsCollectible);
             if (state == InternalState.Alive)

@@ -1071,7 +1071,7 @@
       <Member Name="LoadUnmanagedDll(System.String)" />
       <Member Name="LoadUnmanagedDllFromPath(System.String)" />
       <Member Name="Unload" />
-      <Member Name="UnloadInternal" />
+      <Member Name="UnloadCollectible" />
       <Member Name="GetLoadedAssemblies" />
       <Member Name="get_Default" />
       <Member Name="SetProfileOptimizationRoot(System.String)" />
