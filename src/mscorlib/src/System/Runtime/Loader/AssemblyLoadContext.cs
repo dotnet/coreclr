@@ -70,8 +70,8 @@ namespace System.Runtime.Loader
 
         static AssemblyLoadContext()
         {
-            // We register the cleanup of all AssemblyLoadContext that have not been finalized in the AppDomain.ProcessExit
-            AppDomain.CurrentDomain.ProcessExit += OnProcessExit;
+            // We register the cleanup of all AssemblyLoadContext that have not been finalized in the AppContext.Unloading
+            AppContext.Unloading += OnAppContextUnloading;
         }
 
         protected AssemblyLoadContext() : this(false, false)
@@ -120,7 +120,7 @@ namespace System.Runtime.Loader
             {
                 if (isProcessExiting)
                 {
-                    OnProcessExit();
+                    OnAppContextUnloading();
                 }
                 else if (!isDefault && IsCollectible)
                 {
@@ -607,7 +607,7 @@ namespace System.Runtime.Loader
 #endif // FEATURE_MULTICOREJI
         }
 
-        private void OnProcessExit()
+        private void OnAppContextUnloading()
         {
             lock (unloadLock)
             {
@@ -619,7 +619,7 @@ namespace System.Runtime.Loader
             OnUnloading();
         }
 
-        private static void OnProcessExit(object sender, EventArgs e)
+        private static void OnAppContextUnloading(object sender, EventArgs e)
         {
             lock (assemblyLoadContextAliveList)
             {
@@ -630,7 +630,7 @@ namespace System.Runtime.Loader
                     if (alcAlive.Value.TryGetTarget(out alc))
                     {
                         // Should we use a try/catch?
-                        alc.OnProcessExit();
+                        alc.OnAppContextUnloading();
                     }
                 }
                 assemblyLoadContextAliveList.Clear();
