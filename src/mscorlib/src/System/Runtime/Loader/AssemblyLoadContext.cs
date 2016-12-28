@@ -270,7 +270,7 @@ namespace System.Runtime.Loader
 
         public void Unload()
         {
-            if (IsCollectible)
+            if (!IsCollectible)
             {
                 throw new InvalidOperationException("Cannot Unload a non collectible AssemblyLoadContext");
             }
@@ -283,6 +283,7 @@ namespace System.Runtime.Loader
 
         private void UnloadInternal()
         {
+            Debug.Assert(IsCollectible);
             if (state == InternalState.Alive)
             {
                 // Only if this ALC is collectible
