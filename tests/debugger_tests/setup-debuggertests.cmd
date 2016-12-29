@@ -12,7 +12,6 @@ REM ===
 REM =========================================================================================
 
 set __OutputDir=
-set __Arch= 
 set __CoreclrBinPath=
 set __NugetCacheDir=
 set __CliPath=
@@ -31,6 +30,8 @@ if /i "%1" == "/outputDir"          (set __OutputDir=%2&shift&shift&goto Arg_Loo
 if /i "%1" == "/coreclrBinDir"      (set __CoreclrBinPath=%2&shift&shift&goto Arg_Loop)
 if /i "%1" == "/nugetCacheDir"      (set __NugetCacheDir=%2&shift&shift&goto Arg_Loop)
 if /i "%1" == "/cliPath"            (set __CliPath=%2&shift&shift&goto Arg_Loop)
+if /i "%1" == "/arch"               (set __Arch=%2&shift&shift&goto Arg_Loop)
+if /i "%1" == "/os"                 (set __OS=%2&shift&shift&goto Arg_Loop)
 
 
 echo Invalid command-line argument: %1
@@ -40,6 +41,20 @@ goto Usage
 
 if not defined __OutputDir goto Usage
 if not defined __Arch goto Usage 
+if not defined __OS goto Usage 
+
+
+if %__OS% == Windows_NT ( 
+    if %__Arch% == x64 (
+        goto DebuggerTestsExist
+    )
+)
+        
+
+echo Can't build debugger tests for OS %__OS% and Arch %__Arch%
+exit /b 0
+:DebuggerTestsExist
+
 
 REM Create directories needed
 if exist "%__OutputDir%\debuggertests" rmdir /S /Q "%__OutputDir%\debuggertests"
@@ -52,6 +67,7 @@ REM === download debuggertests package
 REM ===
 REM =========================================================================================
 REM TODO: change the archive name!!! (this is a test-only)
+REM TODO: name should be built from __OS and __Arch parameters.
 set DEBUGGERTESTS_URL=https://dotnetbuilddrops.blob.core.windows.net/debugger-container/Windows.x64.Debug.coreclr.zip
 set LOCAL_ZIP_PATH=%__InstallDir%\debuggertests.zip
 if exist "%LOCAL_ZIP_PATH%" del "%LOCAL_ZIP_PATH%"
@@ -72,7 +88,8 @@ REM ===
 REM =========================================================================================
 echo Generating config file.
 
-call %__ThisScriptPath%\ConfigFilesGenerators\GenerateConfig.cmd rt %__CoreclrBinPath% nc %__NugetCacheDir% cli %__CliPath%\dotnet.exe
+call %__ThisScriptPath%\ConfigFilesGenerators\GenerateConfig.cmd rt %__CoreclrBinPath% nc %__NugetCacheDir% cli %__CliPath%\dotnet.exe os %__OS% arch %__Arch%
+
 move Debugger.Tests.Config.txt %__InstallDir%\\Debugger.Tests\dotnet\Debugger.Tests.Config.txt
 
 REM =========================================================================================
@@ -115,6 +132,6 @@ echo.
 echo install debugger tests
 echo.
 echo Usage:
-echo     %__ThisScriptShort% /coreclrBinDir ^<coreclr bin path^> /outputDir ^<debuggertests install path^> /nugetCacheDir ^<nuget cache dir path^>
+echo     %__ThisScriptShort% /os <operation system> /arch <architecture> /coreclrBinDir ^<coreclr bin path^> /outputDir ^<debuggertests install path^> /nugetCacheDir ^<nuget cache dir path^>
 echo.
 exit /b 1

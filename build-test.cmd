@@ -127,8 +127,8 @@ REM ===
 REM =========================================================================================
 
 REM TODO: add skipping debugger tests
-echo Building debugger tests: /outputDir !__TestBinDir! /coreclrBinDir %__BinDir% /nugetCacheDir %__PackagesDir% /cliPath %__dotNetCli%
-call %__TestDir%\debugger_tests\setup-debuggertests.cmd /outputDir !__TestBinDir! /coreclrBinDir %__BinDir% /nugetCacheDir %__PackagesDir% /cliPath %__dotNetCli%
+echo Building debugger tests: /outputDir !__TestBinDir! /coreclrBinDir %__BinDir% /nugetCacheDir %__PackagesDir% /cliPath %__dotNetCli% /os %__BuildOS% /arch %__BuildArch%
+call %__TestDir%\debugger_tests\setup-debuggertests.cmd /outputDir !__TestBinDir! /coreclrBinDir %__BinDir% /nugetCacheDir %__PackagesDir% /cliPath %__dotNetCli% /os %__BuildOS% /arch %__BuildArch%
 
 REM =========================================================================================
 REM ===
