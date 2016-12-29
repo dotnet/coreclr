@@ -6784,17 +6784,9 @@ DomainAssembly *AppDomain::LoadDomainAssemblyInternal(AssemblySpec* pIdentity,
     
     if (result == NULL)
     {
-        // Allocate the DomainAssembly a bit early to avoid GC mode problems. We could potentially avoid
-        // a rare redundant allocation by moving this closer to FileLoadLock::Create, but it's not worth it.
+        LoaderAllocator *pLoaderAllocator = this->GetLoaderAllocator();
 
-        NewHolder<DomainAssembly> pDomainAssembly;
-
-#if defined(FEATURE_HOST_ASSEMBLY_RESOLVER) && defined(FEATURE_COLLECTIBLE_ALC) && !defined(CROSSGEN_COMPILE)
-        BOOL fIsCollectible = FALSE;
-        SafeComHolder<ICollectibleAssemblyLoadContext> pAssemblyLoadContext = NULL;
-
-        LoaderAllocator *pLoaderAllocatorOverride = NULL;
-
+#if defined(FEATURE_COLLECTIBLE_ALC) && !defined(CROSSGEN_COMPILE)
         ICLRPrivBinder *pFileBinder = pFile->GetBindingContext();
         if (pFileBinder != NULL)
         {
@@ -6802,16 +6794,17 @@ DomainAssembly *AppDomain::LoadDomainAssemblyInternal(AssemblySpec* pIdentity,
 
             // Assemblies loaded with AssemblyLoadContext need to use a different LoaderAllocator if
             // marked as collectible
+            SafeComHolder<ICollectibleAssemblyLoadContext> pAssemblyLoadContext = NULL;
             if (SUCCEEDED(pBinder->QueryInterface<ICollectibleAssemblyLoadContext>(&pAssemblyLoadContext)))
             {
-                pAssemblyLoadContext->GetLoaderAllocator(&pLoaderAllocatorOverride);
+                pAssemblyLoadContext->GetLoaderAllocator(&pLoaderAllocator);
+                VERIFY(pLoaderAllocator != NULL);
             }
         }
-        LoaderAllocator *pLoaderAllocator = pLoaderAllocatorOverride == NULL ? this->GetLoaderAllocator() : pLoaderAllocatorOverride;
-#else // defined(FEATURE_HOST_ASSEMBLY_RESOLVER) && defined(FEATURE_COLLECTIBLE_ALC) && !defined(CROSSGEN_COMPILE)
-        LoaderAllocator *pLoaderAllocator = this->GetLoaderAllocator();
 #endif
-        pDomainAssembly = new DomainAssembly(this, pFile, pLoadSecurity, pLoaderAllocator);
+        // Allocate the DomainAssembly a bit early to avoid GC mode problems. We could potentially avoid
+        // a rare redundant allocation by moving this closer to FileLoadLock::Create, but it's not worth it.
+        NewHolder<DomainAssembly> pDomainAssembly = new DomainAssembly(this, pFile, pLoadSecurity, pLoaderAllocator);
 
         LoadLockHolder lock(this);
 
@@ -6826,7 +6819,7 @@ DomainAssembly *AppDomain::LoadDomainAssemblyInternal(AssemblySpec* pIdentity,
                 // We are the first one in - create the DomainAssembly
                 fileLock = FileLoadLock::Create(lock, pFile, pDomainAssembly);
                 pDomainAssembly.SuppressRelease();
-#ifndef CROSSGEN_COMPILE
+#if defined(FEATURE_COLLECTIBLE_ALC) && !defined(CROSSGEN_COMPILE)
                 if (pDomainAssembly->IsCollectible())
                 {
                     // We add the assembly to the LoaderAllocator only when we are sure that it can be added
