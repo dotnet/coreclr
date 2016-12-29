@@ -72,7 +72,7 @@ REM ===
 REM =========================================================================================
 echo Generating config file.
 
-call %__ThisScriptPath%\ConfigFilesGenerators\GenerateConfig.cmd rt %__CoreclrBinPath% nc %__NugetCacheDir% cli %__CliPath%
+call %__ThisScriptPath%\ConfigFilesGenerators\GenerateConfig.cmd rt %__CoreclrBinPath% nc %__NugetCacheDir% cli %__CliPath%\dotnet.exe
 move Debugger.Tests.Config.txt %__InstallDir%\\Debugger.Tests\dotnet\Debugger.Tests.Config.txt
 
 REM =========================================================================================
