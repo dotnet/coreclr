@@ -504,10 +504,13 @@ void LoaderAllocator::GCLoaderAllocators(LoaderAllocator* pOriginalLoaderAllocat
     LoaderAllocator * pFirstDestroyedLoaderAllocator = NULL;
     
     AppDomain* pAppDomain = (AppDomain*)pOriginalLoaderAllocator->GetDomain();
-    pFirstDestroyedLoaderAllocator = GCLoaderAllocators_RemoveAssemblies(pAppDomain);
 
+    // Collect all LoaderAllocators that don't have anymore DomainAssemblies alive
+    // Note: that it may not collect our pOriginalLoaderAllocator in case this 
+    // LoaderAllocator hasn't loaded any DomainAssembly. We handle this case in the next loop.
     // Note: The removed LoaderAllocators are not reachable outside of this function anymore, because we 
     // removed them from the assembly list
+    pFirstDestroyedLoaderAllocator = GCLoaderAllocators_RemoveAssemblies(pAppDomain);
 
     bool isOriginalLoaderAllocatorFound = false;
 
@@ -537,7 +540,7 @@ void LoaderAllocator::GCLoaderAllocators(LoaderAllocator* pOriginalLoaderAllocat
         pDomainLoaderAllocatorDestroyIterator = pDomainLoaderAllocatorDestroyIterator->m_pLoaderAllocatorDestroyNext;
     }
 
-    // If the original LoaderAllocator was not found, it is most likely a LoaderAllocator without any loaded DomainAssembly
+    // If the original LoaderAllocator was not processed, it is most likely a LoaderAllocator without any loaded DomainAssembly
     // But we still want to collect it so we add it to the list of LoaderAllocator to destroy
     if (!isOriginalLoaderAllocatorFound && !pOriginalLoaderAllocator->IsAlive())
     {
@@ -557,6 +560,9 @@ void LoaderAllocator::GCLoaderAllocators(LoaderAllocator* pOriginalLoaderAllocat
             delete (DomainAssembly*)domainAssemblyIt;
             domainAssemblyIt++;
         }
+        // We really don't have to set it to NULL as the assembly is not reachable anymore, but just in case ...
+        // (Also debugging NULL AVs if someone uses it accidentally is so much easier)
+        pDomainLoaderAllocatorDestroyIterator->m_pFirstDomainAssemblyFromSameALCToDelete = NULL;
 
 #if defined(FEATURE_COLLECTIBLE_ALC)
         // Call the unloading event
@@ -604,9 +610,7 @@ void LoaderAllocator::GCLoaderAllocators(LoaderAllocator* pOriginalLoaderAllocat
         // Register this LoaderAllocator for cleanup
         pAppDomain->RegisterLoaderAllocatorForDeletion(pDomainLoaderAllocatorDestroyIterator);
 
-        // We really don't have to set it to NULL as the assembly is not reachable anymore, but just in case ...
-        // (Also debugging NULL AVs if someone uses it accidentally is so much easier)
-        pDomainLoaderAllocatorDestroyIterator->m_pFirstDomainAssemblyFromSameALCToDelete = NULL;
+        // Go to next
         pDomainLoaderAllocatorDestroyIterator = pLoaderAllocatorDestroyNext;
     }
     
