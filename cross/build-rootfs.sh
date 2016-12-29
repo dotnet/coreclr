@@ -79,6 +79,10 @@ for i in "$@"
     esac
 done
 
+if [ "$__BuildArch" == "arm-softfp" ]; then
+     __LLDB_Package="lldb-3.5-dev"
+fi
+
 __RootfsDir="$__CrossDir/rootfs/$__BuildArch"
 __UbuntuPackages="$__UbuntuPackagesBase $__LLDB_Package"
 
