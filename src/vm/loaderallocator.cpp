@@ -439,10 +439,29 @@ LoaderAllocator * LoaderAllocator::GCLoaderAllocators_RemoveAssemblies(AppDomain
                     }
                     else if (!pLoaderAllocator->IsAlive())
                     {
-                        pLoaderAllocator->m_pLoaderAllocatorDestroyNext = pFirstDestroyedLoaderAllocator;
-                        // We will store a reference to this assembly, and use it later in this function
-                        pFirstDestroyedLoaderAllocator = pLoaderAllocator;
-                        _ASSERTE(pLoaderAllocator->m_pFirstDomainAssemblyFromSameALCToDelete != NULL);
+                        // Check that we don't have already this LoaderAllocator in the list to destroy
+                        // (in case multiple assemblies are loaded in the same LoaderAllocator)
+                        bool addAllocator = true;
+                        LoaderAllocator * pCheckAllocatorToDestroy = pFirstDestroyedLoaderAllocator;
+                        while (pCheckAllocatorToDestroy != NULL)
+                        {
+                            if (pCheckAllocatorToDestroy == pLoaderAllocator)
+                            {
+                                addAllocator = false;
+                                break;
+                            }
+
+                            pCheckAllocatorToDestroy = pCheckAllocatorToDestroy->m_pLoaderAllocatorDestroyNext;
+                        }
+
+                        // Otherwise, we have a LoaderAllocator that we add to the list
+                        if (addAllocator)
+                        {
+                            pLoaderAllocator->m_pLoaderAllocatorDestroyNext = pFirstDestroyedLoaderAllocator;
+                            // We will store a reference to this assembly, and use it later in this function
+                            pFirstDestroyedLoaderAllocator = pLoaderAllocator;
+                            _ASSERTE(pLoaderAllocator->m_pFirstDomainAssemblyFromSameALCToDelete != NULL);
+                        }
                     }
                 }
             }
