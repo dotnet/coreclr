@@ -6,6 +6,7 @@
 #include "common.h"
 #include "stringliteralmap.h"
 #include "virtualcallstub.h"
+#include "threadsuspend.h"
 
 //*****************************************************************************
 // Used by LoaderAllocator::Init for easier readability.
@@ -477,11 +478,6 @@ LoaderAllocator * LoaderAllocator::GCLoaderAllocators_RemoveAssemblies(AppDomain
             domainAssemblyIt++;
         }
 
-#if defined(FEATURE_COLLECTIBLE_ALC)
-        // Call the unloading event
-        pDomainLoaderAllocatorDestroyIterator->OnUnloading();
-#endif
-
         pDomainLoaderAllocatorDestroyIterator = pDomainLoaderAllocatorDestroyIterator->m_pLoaderAllocatorDestroyNext;
     }
     
@@ -493,7 +489,7 @@ LoaderAllocator * LoaderAllocator::GCLoaderAllocators_RemoveAssemblies(AppDomain
 // Collect unreferenced assemblies, delete all their remaining resources.
 // 
 //static
-void LoaderAllocator::GCLoaderAllocators(AppDomain * pAppDomain)
+void LoaderAllocator::GCLoaderAllocators(LoaderAllocator* pOriginalLoaderAllocator)
 {
     CONTRACTL
     {
@@ -507,10 +503,13 @@ void LoaderAllocator::GCLoaderAllocators(AppDomain * pAppDomain)
     // List of LoaderAllocators being deleted
     LoaderAllocator * pFirstDestroyedLoaderAllocator = NULL;
     
+    AppDomain* pAppDomain = (AppDomain*)pOriginalLoaderAllocator->GetDomain();
     pFirstDestroyedLoaderAllocator = GCLoaderAllocators_RemoveAssemblies(pAppDomain);
 
     // Note: The removed LoaderAllocators are not reachable outside of this function anymore, because we 
     // removed them from the assembly list
+
+    bool isOriginalLoaderAllocatorFound = false;
 
     // Iterate through free list, firing ETW events and notifying the debugger
     LoaderAllocator * pDomainLoaderAllocatorDestroyIterator = pFirstDestroyedLoaderAllocator;
@@ -530,8 +529,20 @@ void LoaderAllocator::GCLoaderAllocators(AppDomain * pAppDomain)
             domainAssemblyIt->NotifyDebuggerUnload();
             domainAssemblyIt++;
         }
-        
+
+        if (pDomainLoaderAllocatorDestroyIterator == pOriginalLoaderAllocator)
+        {
+            isOriginalLoaderAllocatorFound = true;
+        }
         pDomainLoaderAllocatorDestroyIterator = pDomainLoaderAllocatorDestroyIterator->m_pLoaderAllocatorDestroyNext;
+    }
+
+    // If the original LoaderAllocator was not found, it is most likely a LoaderAllocator without any loaded DomainAssembly
+    // But we still want to collect it so we add it to the list of LoaderAllocator to destroy
+    if (!isOriginalLoaderAllocatorFound && !pOriginalLoaderAllocator->IsAlive())
+    {
+        pOriginalLoaderAllocator->m_pLoaderAllocatorDestroyNext = pFirstDestroyedLoaderAllocator;
+        pFirstDestroyedLoaderAllocator = pOriginalLoaderAllocator;
     }
     
     // Iterate through free list, deleting DomainAssemblies
@@ -547,10 +558,56 @@ void LoaderAllocator::GCLoaderAllocators(AppDomain * pAppDomain)
             domainAssemblyIt++;
         }
 
+#if defined(FEATURE_COLLECTIBLE_ALC)
+        // Call the unloading event
+        pDomainLoaderAllocatorDestroyIterator->OnUnloading();
+#endif
+
+        // The following code was previously happening on delete ~DomainAssembly->Terminate
+        // We are moving this part here in order to make sure that we can unload a LoaderAllocator
+        // that didn't have a DomainAssembly
+        // (we have now a LoaderAllocator with 0-n DomainAssembly)
+
+        // This cleanup code starts resembling parts of AppDomain::Terminate too much.
+        // It would be useful to reduce duplication and also establish clear responsibilites
+        // for LoaderAllocator::Destroy, Assembly::Terminate, LoaderAllocator::Terminate
+        // and LoaderAllocator::~LoaderAllocator. We need to establish how these
+        // cleanup paths interact with app-domain unload and process tear-down, too.
+
+        if (!IsAtProcessExit())
+        {
+            // Suspend the EE to do some clean up that can only occur
+            // while no threads are running.
+            GCX_COOP(); // SuspendEE may require current thread to be in Coop mode
+                        // SuspendEE cares about the reason flag only when invoked for a GC
+                        // Other values are typically ignored. If using SUSPEND_FOR_APPDOMAIN_SHUTDOWN
+                        // is inappropriate, we can introduce a new flag or hijack an unused one.
+            ThreadSuspend::SuspendEE(ThreadSuspend::SUSPEND_FOR_APPDOMAIN_SHUTDOWN);
+        }
+
+        ExecutionManager::Unload(pDomainLoaderAllocatorDestroyIterator);
+        pDomainLoaderAllocatorDestroyIterator->UninitVirtualCallStubManager();
+
+        // TODO: Do we really want to perform this on each LoaderAllocator?
+        MethodTable::ClearMethodDataCache();
+        ClearJitGenericHandleCache(pAppDomain);
+
+        if (!IsAtProcessExit())
+        {
+            // Resume the EE.
+            ThreadSuspend::RestartEE(FALSE, TRUE);
+        }
+
+        // Because RegisterLoaderAllocatorForDeletion is modifying m_pLoaderAllocatorDestroyNext, we are saving it here
+        LoaderAllocator* pLoaderAllocatorDestroyNext = pDomainLoaderAllocatorDestroyIterator->m_pLoaderAllocatorDestroyNext;
+
+        // Register this LoaderAllocator for cleanup
+        pAppDomain->RegisterLoaderAllocatorForDeletion(pDomainLoaderAllocatorDestroyIterator);
+
         // We really don't have to set it to NULL as the assembly is not reachable anymore, but just in case ...
         // (Also debugging NULL AVs if someone uses it accidentally is so much easier)
         pDomainLoaderAllocatorDestroyIterator->m_pFirstDomainAssemblyFromSameALCToDelete = NULL;
-        pDomainLoaderAllocatorDestroyIterator = pDomainLoaderAllocatorDestroyIterator->m_pLoaderAllocatorDestroyNext;
+        pDomainLoaderAllocatorDestroyIterator = pLoaderAllocatorDestroyNext;
     }
     
     // Deleting the DomainAssemblies will have created a list of LoaderAllocator's on the AppDomain
@@ -611,7 +668,7 @@ BOOL QCALLTYPE LoaderAllocator::Destroy(QCall::LoaderAllocatorHandle pLoaderAllo
         // may hit zero early.
         if (fIsLastReferenceReleased)
         {
-            LoaderAllocator::GCLoaderAllocators((AppDomain*)pLoaderAllocator->GetDomain());
+            LoaderAllocator::GCLoaderAllocators(pLoaderAllocator);
         }
         STRESS_LOG1(LF_CLASSLOADER, LL_INFO100, "End LoaderAllocator::Destroy for loader allocator %p\n", reinterpret_cast<void *>(static_cast<PTR_LoaderAllocator>(pLoaderAllocator)));
 

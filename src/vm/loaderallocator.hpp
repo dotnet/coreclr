@@ -309,7 +309,7 @@ public:
     }
     
     // Collect unreferenced assemblies, delete all their remaining resources.
-    static void GCLoaderAllocators(AppDomain *pAppDomain);
+    static void GCLoaderAllocators(LoaderAllocator* firstLoaderAllocator);
     
     UINT64 GetCreationNumber() { LIMITED_METHOD_DAC_CONTRACT; return m_nLoaderAllocator; }
 
