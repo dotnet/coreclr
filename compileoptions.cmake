@@ -37,6 +37,7 @@ if (CLR_CMAKE_PLATFORM_UNIX)
   # and so the compiler thinks that there is a mistake.
   add_compile_options(-Wno-constant-logical-operand)
   add_compile_options(-Wno-null-dereference)
+  add_compile_options(-Wno-deprecated-declarations)
   add_compile_options(-Wno-unknown-warning-option)
 
   #These seem to indicate real issues
