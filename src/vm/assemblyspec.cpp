@@ -1812,7 +1812,7 @@ void AssemblySpecBindingCache::Init(CrstBase *pCrst, LoaderHeap *pHeap)
     m_pHeap = pHeap;
 }
 
-AssemblySpecBindingCache::AssemblyBinding* AssemblySpecBindingCache::LookupInternal(AssemblySpec* pSpec, BOOL fThrow, BOOL remove)
+AssemblySpecBindingCache::AssemblyBinding* AssemblySpecBindingCache::LookupInternal(AssemblySpec* pSpec, BOOL fThrow)
 {
     CONTRACTL
     {
@@ -1872,9 +1872,7 @@ AssemblySpecBindingCache::AssemblyBinding* AssemblySpecBindingCache::LookupInter
     }
 #endif
 
-    AssemblyBinding* pEntry = (AssemblyBinding *)(remove ?
-        m_map.DeleteValue(lookupKey, pSpec)
-        : m_map.LookupValue(lookupKey, pSpec));
+    AssemblyBinding* pEntry = (AssemblyBinding *)m_map.LookupValue(lookupKey, pSpec);
 
 #if defined(FEATURE_CORECLR)
     // Reset the binding context if one was originally never present in the AssemblySpec and we didnt find any entry

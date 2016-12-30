@@ -84,12 +84,17 @@ public:
 
     static HRESULT SetupContext(DWORD      dwAppDomainId,
                                 CLRPrivBinderCoreCLR *pTPABinder,
+#ifdef FEATURE_COLLECTIBLE_ALC
                                 LoaderAllocator* pLoaderAllocator,
                                 void* loaderAllocatorHandle,
+#endif
                                 UINT_PTR ptrAssemblyLoadContext,
                                 CLRPrivBinderAssemblyLoadContext **ppBindContext);
 
+#ifdef FEATURE_COLLECTIBLE_ALC
     void PrepareForLoadContextRelease(INT_PTR ptrManagedStrongAssemblyLoadContext);
+    void ReleaseLoadContext();
+#endif
 
     CLRPrivBinderAssemblyLoadContext();
     
@@ -102,8 +107,6 @@ public:
     {
         return m_ptrManagedAssemblyLoadContext;
     }
-
-    void ReleaseLoadContext();
 
     HRESULT BindUsingPEImage( /* in */ PEImage *pPEImage, 
                               /* in */ BOOL fIsNativeImage, 
@@ -121,9 +124,10 @@ private:
     
     INT_PTR m_ptrManagedAssemblyLoadContext;
 
+#ifdef FEATURE_COLLECTIBLE_ALC
     LoaderAllocator* m_pAssemblyLoaderAllocator;
-
     void* m_loaderAllocatorHandle;
+#endif
 };
 
 #endif // defined(FEATURE_HOST_ASSEMBLY_RESOLVER) && !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)

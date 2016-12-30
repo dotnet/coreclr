@@ -223,12 +223,16 @@ HRESULT CLRPrivBinderAssemblyLoadContext::GetLoaderAllocator(LoaderAllocator **p
 /* static */
 HRESULT CLRPrivBinderAssemblyLoadContext::SetupContext(DWORD      dwAppDomainId,
                                             CLRPrivBinderCoreCLR *pTPABinder,
+#ifdef FEATURE_COLLECTIBLE_ALC
                                             LoaderAllocator* pLoaderAllocator,
                                             void* loaderAllocatorHandle,
+#endif
                                             UINT_PTR ptrAssemblyLoadContext,
                                             CLRPrivBinderAssemblyLoadContext **ppBindContext)
 {
+#ifdef FEATURE_COLLECTIBLE_ALC
     _ASSERTE(pLoaderAllocator != NULL);
+#endif
 
     HRESULT hr = E_FAIL;
     EX_TRY
@@ -255,6 +259,7 @@ HRESULT CLRPrivBinderAssemblyLoadContext::SetupContext(DWORD      dwAppDomainId,
                 // AssemblyLoadContext instance
                 pBinder->m_ptrManagedAssemblyLoadContext = ptrAssemblyLoadContext;
 
+#ifdef FEATURE_COLLECTIBLE_ALC
                 // Link to LoaderAllocator, keep a reference to it
                 VERIFY(pLoaderAllocator->AddReferenceIfAlive());
                 pBinder->m_pAssemblyLoaderAllocator = pLoaderAllocator;
@@ -263,7 +268,7 @@ HRESULT CLRPrivBinderAssemblyLoadContext::SetupContext(DWORD      dwAppDomainId,
 #if !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
                 ((AssemblyLoaderAllocator*)pLoaderAllocator)->RegisterBinder(pBinder);
 #endif
-
+#endif // FEATURE_COLLECTIBLE_ALC
                 // Return reference to the allocated Binder instance
                 *ppBindContext = clr::SafeAddRef(pBinder.Extract());
             }
@@ -275,6 +280,7 @@ Exit:
     return hr;
 }
 
+#ifdef FEATURE_COLLECTIBLE_ALC
 void CLRPrivBinderAssemblyLoadContext::PrepareForLoadContextRelease(INT_PTR ptrManagedStrongAssemblyLoadContext)
 {
     CONTRACTL
@@ -303,12 +309,14 @@ void CLRPrivBinderAssemblyLoadContext::PrepareForLoadContextRelease(INT_PTR ptrM
     DestroyHandle(reinterpret_cast<OBJECTHANDLE>(m_loaderAllocatorHandle));
     m_loaderAllocatorHandle = NULL;
 }
+#endif // FEATURE_COLLECTIBLE_ALC
 
 CLRPrivBinderAssemblyLoadContext::CLRPrivBinderAssemblyLoadContext()
 {
     m_pTPABinder = NULL;
 }
 
+#ifdef FEATURE_COLLECTIBLE_ALC
 void CLRPrivBinderAssemblyLoadContext::ReleaseLoadContext()
 {
     VERIFY(m_ptrManagedAssemblyLoadContext != NULL);
@@ -319,6 +327,6 @@ void CLRPrivBinderAssemblyLoadContext::ReleaseLoadContext()
     DestroyHandle(handle);
     m_ptrManagedAssemblyLoadContext = NULL;
 }
-
+#endif // FEATURE_COLLECTIBLE_ALC
 
 #endif // defined(FEATURE_HOST_ASSEMBLY_RESOLVER) && !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)

@@ -1051,9 +1051,9 @@
     </Type>
     <Type Name="System.Runtime.Loader.AssemblyLoadContext" condition="FEATURE_HOST_ASSEMBLY_RESOLVER">
       <Member Name="#ctor" />
-      <Member Name="#ctor(System.Boolean)" />
-      <Member Name="Finalize" />
-      <Member MemberType="Property" Name="IsCollectible" />
+      <Member Name="#ctor(System.Boolean)" condition="FEATURE_COLLECTIBLE_ALC"/>
+      <Member Name="Finalize" condition="FEATURE_COLLECTIBLE_ALC"/>
+      <Member MemberType="Property" Name="IsCollectible" condition="FEATURE_COLLECTIBLE_ALC"/>
       <Member MemberType="Property" Name="Default" />
       <Member Name="GetAssemblyName(System.String)" />
       <Member Name="GetLoadContext(System.Reflection.Assembly)" />
@@ -1070,8 +1070,8 @@
       <Member Name="OnUnloading" />
       <Member Name="LoadUnmanagedDll(System.String)" />
       <Member Name="LoadUnmanagedDllFromPath(System.String)" />
-      <Member Name="Unload" />
-      <Member Name="UnloadCollectible" />
+      <Member Name="Unload" condition="FEATURE_COLLECTIBLE_ALC"/>
+      <Member Name="UnloadCollectible" condition="FEATURE_COLLECTIBLE_ALC"/>
       <Member Name="GetLoadedAssemblies" />
       <Member Name="get_Default" />
       <Member Name="SetProfileOptimizationRoot(System.String)" />

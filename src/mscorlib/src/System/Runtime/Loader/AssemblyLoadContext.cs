@@ -43,11 +43,15 @@ namespace System.Runtime.Loader
         
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         [SuppressUnmanagedCodeSecurity]
+#if FEATURE_COLLECTIBLE_ALC
         private static extern IntPtr InitializeAssemblyLoadContext(IntPtr ptrAssemblyLoadContext, bool fRepresentsTPALoadContext, bool isCollectible);
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         [SuppressUnmanagedCodeSecurity]
         private static extern void PrepareForAssemblyLoadContextRelease(IntPtr ptrNativeAssemblyLoadContext, IntPtr ptrAssemblyLoadContextStrong);
+#else
+        private static extern IntPtr InitializeAssemblyLoadContext(IntPtr ptrAssemblyLoadContext, bool fRepresentsTPALoadContext);
+#endif
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         [SuppressUnmanagedCodeSecurity]
@@ -73,6 +77,7 @@ namespace System.Runtime.Loader
             AppContext.Unloading += OnAppContextUnloading;
         }
 
+#if FEATURE_COLLECTIBLE_ALC
         protected AssemblyLoadContext() : this(false, false)
         {
         }
@@ -82,10 +87,18 @@ namespace System.Runtime.Loader
         }
 
         internal AssemblyLoadContext(bool fRepresentsTPALoadContext, bool isCollectible)
+#else
+        protected AssemblyLoadContext() : this(false)
         {
+        }
+
+        internal AssemblyLoadContext(bool fRepresentsTPALoadContext)
+#endif
+        {
+#if FEATURE_COLLECTIBLE_ALC
             // Initialize the VM side of AssemblyLoadContext if not already done.
             IsCollectible = isCollectible;
-
+#endif
             // Add this instance to the list of alive ALC
             lock (contextsToUnload)
             {
@@ -98,9 +111,15 @@ namespace System.Runtime.Loader
                 // If this is a collectible ALC, we are creating a weak handle that will be transformed to 
                 // a strong handle on unloading otherwise we use a strong handle in order to call any subscriber 
                 // to the Unload event when AppDomain.ProcessExit is called
+#if FEATURE_COLLECTIBLE_ALC
                 var thisHandle = GCHandle.Alloc(this, IsCollectible ? GCHandleType.Weak : GCHandleType.Normal);
                 var thisHandlePtr = GCHandle.ToIntPtr(thisHandle);
                 m_pNativeAssemblyLoadContext = InitializeAssemblyLoadContext(thisHandlePtr, fRepresentsTPALoadContext, isCollectible);
+#else
+                var thisHandle = GCHandle.Alloc(this, GCHandleType.Normal);
+                var thisHandlePtr = GCHandle.ToIntPtr(thisHandle);
+                m_pNativeAssemblyLoadContext = InitializeAssemblyLoadContext(thisHandlePtr, fRepresentsTPALoadContext);
+#endif
 
                 // Initialize event handlers to be null by default
                 Resolving = null;
@@ -111,6 +130,7 @@ namespace System.Runtime.Loader
             }
         }
 
+#if FEATURE_COLLECTIBLE_ALC
         ~AssemblyLoadContext()
         {
             // Only valid for a Collectible ALC
@@ -132,6 +152,7 @@ namespace System.Runtime.Loader
         }
 
         public bool IsCollectible { get; }
+#endif
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         [SuppressUnmanagedCodeSecurity]
@@ -251,6 +272,7 @@ namespace System.Runtime.Loader
             }
         }
 
+#if FEATURE_COLLECTIBLE_ALC
         public void Unload()
         {
             if (!IsCollectible)
@@ -283,6 +305,7 @@ namespace System.Runtime.Loader
             }
             state = InternalState.Unloading;
         }
+#endif
 
         private void VerifyIsAlive()
         {
@@ -421,12 +444,14 @@ namespace System.Runtime.Loader
             }
         }
 
+#if FEATURE_COLLECTIBLE_ALC
         private static void OnUnloadingStatic(IntPtr gchManagedAssemblyLoadContext)
         {
             // This method is invoked by the VM after an Unload has been requested
             var context = (AssemblyLoadContext) GCHandle.FromIntPtr(gchManagedAssemblyLoadContext).Target;
             context.OnUnloading();
         }
+#endif
 
         public Assembly LoadFromAssemblyName(AssemblyName assemblyName)
         {

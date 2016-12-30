@@ -1589,6 +1589,7 @@ void DomainAssemblyIterator::operator++()
 
 #ifndef CROSSGEN_COMPILE
 
+#ifdef FEATURE_COLLECTIBLE_ALC
 AssemblyLoaderAllocator::~AssemblyLoaderAllocator()
 {
     if (m_binderToRelease != NULL)
@@ -1605,6 +1606,7 @@ void AssemblyLoaderAllocator::RegisterBinder(CLRPrivBinderAssemblyLoadContext* b
     _ASSERTE(m_binderToRelease == NULL);
     m_binderToRelease = binderToRelease;
 }
+#endif
 
 STRINGREF *LoaderAllocator::GetStringObjRefPtrFromUnicodeString(EEStringData *pStringData)
 {
@@ -1802,7 +1804,7 @@ void LoaderAllocator::CleanupFailedTypeInit()
     }
 }
 
-#if defined(FEATURE_COLLECTIBLE_ALC)
+#ifdef FEATURE_COLLECTIBLE_ALC
 void AssemblyLoaderAllocator::OnUnloading()
 {
     CONTRACTL
@@ -1832,7 +1834,7 @@ void AssemblyLoaderAllocator::OnUnloading()
     // Release the managed ALC
     m_binderToRelease->ReleaseLoadContext();
 }
-#endif
+#endif // FEATURE_COLLECTIBLE_ALC
 
 #endif // !CROSSGEN_COMPILE
 

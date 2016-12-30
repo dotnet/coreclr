@@ -557,8 +557,8 @@ public:
         return NULL;
 #endif
     }
-    void RegisterBinder(CLRPrivBinderAssemblyLoadContext* binderToRelease);
 #if defined(FEATURE_COLLECTIBLE_ALC)
+    void RegisterBinder(CLRPrivBinderAssemblyLoadContext* binderToRelease);
     void OnUnloading() override;
 #endif // defined(FEATURE_COLLECTIBLE_ALC)
 #endif // !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)

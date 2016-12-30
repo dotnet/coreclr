@@ -7571,11 +7571,28 @@ void AppDomain::CheckForMismatchedNativeImages(AssemblySpec * pSpec, const GUID 
         //
         // No entry yet - create one
         //
+#ifndef FEATURE_COLLECTIBLE_ALC
+        AllocMemTracker amTracker;
+        AllocMemTracker *pamTracker = &amTracker;
+
+        NativeImageDependenciesEntry * pNewEntry =
+            new (pamTracker->Track(GetLowFrequencyHeap()->AllocMem(S_SIZE_T(sizeof(NativeImageDependenciesEntry)))))
+            NativeImageDependenciesEntry();
+
+        pNewEntry->m_AssemblySpec.CopyFrom(pSpec);
+        pNewEntry->m_AssemblySpec.CloneFieldsToLoaderHeap(AssemblySpec::ALL_OWNED, GetLowFrequencyHeap(), pamTracker);
+
+        pNewEntry->m_guidMVID = *pGuid;
+
+        m_NativeImageDependencies.Add(pNewEntry);
+        amTracker.SuppressRelease();
+#else
         NativeImageDependenciesEntry * pNewEntry = new NativeImageDependenciesEntry();
         pNewEntry->m_AssemblySpec.CopyFrom(pSpec);
         pNewEntry->m_AssemblySpec.CloneFields(AssemblySpec::ALL_OWNED);
         pNewEntry->m_guidMVID = *pGuid;
         m_NativeImageDependencies.Add(pNewEntry);
+#endif
     }
 }
 
