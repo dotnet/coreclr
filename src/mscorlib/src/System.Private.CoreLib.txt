@@ -2011,6 +2011,12 @@ AppDomain_AppBaseNotSet = The ApplicationBase must be set before retrieving this
 #if FEATURE_HOST_ASSEMBLY_RESOLVER
 AppDomain_BindingModelIsLocked = Binding model is already locked for the AppDomain and cannot be reset.
 Argument_CustomAssemblyLoadContextRequestedNameMismatch = Resolved assembly's simple name should be the same as of the requested assembly.
+AssemblyLoadContext_Constructor_CannotInstantiateWhileUnloading = Cannot instantiate an AssemblyLoadContext while the AppContext is unloading
+#if FEATURE_COLLECTIBLE_ALC
+AssemblyLoadContext_Unload_CannotUnloadIfNotCollectible = Cannot Unload a non collectible AssemblyLoadContext
+AssemblyLoadContext_Unload_AlreadyUnloaded = This instance is already being unloaded
+AssemblyLoadContext_Verify_NotUnloading = This instance is being unloaded and LoadFromXXX methods can no longer be used
+#endif
 #endif // FEATURE_HOST_ASSEMBLY_RESOLVER
 ;
 ; XMLSyntaxExceptions

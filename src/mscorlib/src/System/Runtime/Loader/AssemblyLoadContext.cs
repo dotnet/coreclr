@@ -106,8 +106,7 @@ namespace System.Runtime.Loader
             {
                 if (_isProcessExiting)
                 {
-                    // TODO: Add localized version
-                    throw new InvalidOperationException("Cannot create an AssemblyLoadContext when the process is exiting");
+                    throw new InvalidOperationException(Environment.GetResourceString("AssemblyLoadContext_Constructor_CannotInstantiateWhileUnloading"));
                 }
 
                 // If this is a collectible ALC, we are creating a weak handle that will be transformed to 
@@ -288,7 +287,7 @@ namespace System.Runtime.Loader
         {
             if (!IsCollectible)
             {
-                throw new InvalidOperationException("Cannot Unload a non collectible AssemblyLoadContext");
+                throw new InvalidOperationException(Environment.GetResourceString("AssemblyLoadContext_Unload_CannotUnloadIfNotCollectible"));
             }
 
             lock (unloadLock)
@@ -312,7 +311,7 @@ namespace System.Runtime.Loader
             }
             else
             {
-                throw new InvalidOperationException("This instance is already being unloaded");
+                throw new InvalidOperationException(Environment.GetResourceString("AssemblyLoadContext_Unload_AlreadyUnloaded"));
             }
             state = InternalState.Unloading;
         }
@@ -321,8 +320,7 @@ namespace System.Runtime.Loader
         {
             if (state != InternalState.Alive)
             {
-                // TODO: use resources
-                throw new InvalidOperationException("This instance is being unloaded and LoadFromXXX methods can no longer be used");
+                throw new InvalidOperationException(Environment.GetResourceString("AssemblyLoadContext_Verify_NotUnloading"));
             }
         }
 #endif
