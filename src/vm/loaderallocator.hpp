@@ -546,7 +546,6 @@ public:
     }
 
 #if !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
-    ~AssemblyLoaderAllocator() override;
     void RegisterHandleForCleanup(OBJECTHANDLE objHandle) override;
     void CleanupHandles() override;
     CLRPrivBinderAssemblyLoadContext* GetBinder()
@@ -558,6 +557,7 @@ public:
 #endif
     }
 #if defined(FEATURE_COLLECTIBLE_ALC)
+    ~AssemblyLoaderAllocator() override;
     void RegisterBinder(CLRPrivBinderAssemblyLoadContext* binderToRelease);
     void OnUnloading() override;
 #endif // defined(FEATURE_COLLECTIBLE_ALC)
