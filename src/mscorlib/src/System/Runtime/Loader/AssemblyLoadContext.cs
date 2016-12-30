@@ -20,18 +20,20 @@ namespace System.Runtime.Loader
 {
     public abstract class AssemblyLoadContext
     {
-        // synchronization primitive to protect against usage of this instance while unloading
-        private readonly object unloadLock = new object();
-
-        private static readonly Dictionary<long, WeakReference<AssemblyLoadContext>> contextsToUnload = new Dictionary<long, WeakReference<AssemblyLoadContext>>();
-        private static long nextId;
-        private static bool isProcessExiting;
+        private static readonly Dictionary<long, WeakReference<AssemblyLoadContext>> ContextsToUnload = new Dictionary<long, WeakReference<AssemblyLoadContext>>();
+        private static long _nextId;
+        private static bool _isProcessExiting;
 
         // Id used by contextsToUnload
         private readonly long id;
 
+#if FEATURE_COLLECTIBLE_ALC
+        // synchronization primitive to protect against usage of this instance while unloading
+        private readonly object unloadLock = new object();
+
         // Indicates the state of this ALC (Alive or in Unloading/Unloaded state)
         private InternalState state;
+#endif
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         [SuppressUnmanagedCodeSecurity]
@@ -100,9 +102,9 @@ namespace System.Runtime.Loader
             IsCollectible = isCollectible;
 #endif
             // Add this instance to the list of alive ALC
-            lock (contextsToUnload)
+            lock (ContextsToUnload)
             {
-                if (isProcessExiting)
+                if (_isProcessExiting)
                 {
                     // TODO: Add localized version
                     throw new InvalidOperationException("Cannot create an AssemblyLoadContext when the process is exiting");
@@ -125,8 +127,8 @@ namespace System.Runtime.Loader
                 Resolving = null;
                 Unloading = null;
 
-                id = nextId++;
-                contextsToUnload.Add(id, new WeakReference<AssemblyLoadContext>(this, true));
+                id = _nextId++;
+                ContextsToUnload.Add(id, new WeakReference<AssemblyLoadContext>(this, true));
             }
         }
 
@@ -178,9 +180,11 @@ namespace System.Runtime.Loader
                 throw new ArgumentNullException(nameof(assemblyPath));
             }
 
+#if FEATURE_COLLECTIBLE_ALC
             lock (unloadLock)
             {
                 VerifyIsAlive();
+#endif
                 if (PathInternal.IsPartiallyQualified(assemblyPath))
                 {
                     throw new ArgumentException(Environment.GetResourceString("Argument_AbsolutePathRequired"),
@@ -190,7 +194,9 @@ namespace System.Runtime.Loader
                 RuntimeAssembly loadedAssembly = null;
                 LoadFromPath(m_pNativeAssemblyLoadContext, assemblyPath, null, JitHelpers.GetObjectHandleOnStack(ref loadedAssembly));
                 return loadedAssembly;
+#if FEATURE_COLLECTIBLE_ALC
             }
+#endif
         }
         
         public Assembly LoadFromNativeImagePath(string nativeImagePath, string assemblyPath)
@@ -200,10 +206,11 @@ namespace System.Runtime.Loader
                 throw new ArgumentNullException(nameof(nativeImagePath));
             }
 
+#if FEATURE_COLLECTIBLE_ALC
             lock (unloadLock)
             {
                 VerifyIsAlive();
-
+#endif
                 if (PathInternal.IsPartiallyQualified(nativeImagePath))
                 {
                     throw new ArgumentException(Environment.GetResourceString("Argument_AbsolutePathRequired"),
@@ -221,7 +228,9 @@ namespace System.Runtime.Loader
                 RuntimeAssembly loadedAssembly = null;
                 LoadFromPath(m_pNativeAssemblyLoadContext, assemblyPath, nativeImagePath, JitHelpers.GetObjectHandleOnStack(ref loadedAssembly));
                 return loadedAssembly;
+#if FEATURE_COLLECTIBLE_ALC
             }
+#endif
         }
         
         public Assembly LoadFromStream(Stream assembly)
@@ -235,11 +244,11 @@ namespace System.Runtime.Loader
             {
                 throw new ArgumentNullException(nameof(assembly));
             }
-
+#if FEATURE_COLLECTIBLE_ALC
             lock (unloadLock)
             {
                 VerifyIsAlive();
-
+#endif
                 int iAssemblyStreamLength = (int) assembly.Length;
                 int iSymbolLength = 0;
 
@@ -269,7 +278,9 @@ namespace System.Runtime.Loader
                     }
                 }
                 return loadedAssembly;
+#if FEATURE_COLLECTIBLE_ALC
             }
+#endif
         }
 
 #if FEATURE_COLLECTIBLE_ALC
@@ -305,7 +316,6 @@ namespace System.Runtime.Loader
             }
             state = InternalState.Unloading;
         }
-#endif
 
         private void VerifyIsAlive()
         {
@@ -315,6 +325,7 @@ namespace System.Runtime.Loader
                 throw new InvalidOperationException("This instance is being unloaded and LoadFromXXX methods can no longer be used");
             }
         }
+#endif
 
         // Custom AssemblyLoadContext implementations can override this
         // method to perform custom processing and use one of the protected
@@ -425,6 +436,7 @@ namespace System.Runtime.Loader
         /// </summary>
         private void OnUnloading()
         {
+#if FEATURE_COLLECTIBLE_ALC
             lock (unloadLock)
             {
                 if (state == InternalState.Unloading)
@@ -437,11 +449,14 @@ namespace System.Runtime.Loader
                     // called via the finalizer
                     return;
                 }
+#endif
 
                 var unloading = Unloading;
                 // TODO: should we enclose this with a try catch?
                 unloading?.Invoke(this);
+#if FEATURE_COLLECTIBLE_ALC
             }
+#endif
         }
 
 #if FEATURE_COLLECTIBLE_ALC
@@ -619,6 +634,7 @@ namespace System.Runtime.Loader
 
         private void OnAppContextUnloading()
         {
+#if FEATURE_COLLECTIBLE_ALC
             lock (unloadLock)
             {
                 if (state == InternalState.Alive)
@@ -626,15 +642,16 @@ namespace System.Runtime.Loader
                     state = InternalState.Unloading;
                 }
             }
+#endif
             OnUnloading();
         }
 
         private static void OnAppContextUnloading(object sender, EventArgs e)
         {
-            lock (contextsToUnload)
+            lock (ContextsToUnload)
             {
-                isProcessExiting = true;
-                foreach (var alcAlive in contextsToUnload)
+                _isProcessExiting = true;
+                foreach (var alcAlive in ContextsToUnload)
                 {
                     AssemblyLoadContext alc;
                     if (alcAlive.Value.TryGetTarget(out alc))
@@ -643,7 +660,7 @@ namespace System.Runtime.Loader
                         alc.OnAppContextUnloading();
                     }
                 }
-                contextsToUnload.Clear();
+                ContextsToUnload.Clear();
             }
         }
 
@@ -689,7 +706,7 @@ namespace System.Runtime.Loader
             add { AppDomain.CurrentDomain.AssemblyResolve += value; } 
             remove { AppDomain.CurrentDomain.AssemblyResolve -= value; } 
         }
-
+#if FEATURE_COLLECTIBLE_ALC
         private enum InternalState
         {
             /// <summary>
@@ -708,11 +725,16 @@ namespace System.Runtime.Loader
             /// </summary>
             Unloaded
         }
+#endif
     }
 
     class AppPathAssemblyLoadContext : AssemblyLoadContext
     {
+#if FEATURE_COLLECTIBLE_ALC
         internal AppPathAssemblyLoadContext() : base(true, false)
+#else
+        internal AppPathAssemblyLoadContext() : base(true)
+#endif
         {
         }
 
@@ -726,7 +748,11 @@ namespace System.Runtime.Loader
 
     internal class IndividualAssemblyLoadContext : AssemblyLoadContext
     {
+#if FEATURE_COLLECTIBLE_ALC
         internal IndividualAssemblyLoadContext() : base(false, false)
+#else
+        internal IndividualAssemblyLoadContext() : base(false)
+#endif
         {
         }
 
