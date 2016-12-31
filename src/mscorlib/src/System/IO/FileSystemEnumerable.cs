@@ -134,11 +134,11 @@ namespace System.IO
         private String searchCriteria;
         SafeFindHandle _hnd = null;
 
-        // empty means we know in advance that we won�t find any search results, which can happen if:
-        // 1. we don�t have a search pattern
-        // 2. we�re enumerating only the top directory and found no matches during the first call
-        // This flag allows us to return early for these cases. We can�t know this in advance for
-        // SearchOption.AllDirectories because we do a �*� search for subdirs and then use the
+        // empty means we know in advance that we won't find any search results, which can happen if:
+        // 1. we don't have a search pattern
+        // 2. we're enumerating only the top directory and found no matches during the first call
+        // This flag allows us to return early for these cases. We can't know this in advance for
+        // SearchOption.AllDirectories because we do a "*" search for subdirs and then use the
         // searchPattern at each directory level.
         bool empty;
 
