@@ -541,7 +541,7 @@ namespace System.IO {
         [ComVisible(false)]
         public Task WriteLineAsync(char[] buffer)
         {
-            if (buffer == null)  return Task.CompletedTask;
+            if (buffer == null)  return WriteLineAsync();
             return WriteLineAsync(buffer, 0, buffer.Length);
         }
 
