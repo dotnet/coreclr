@@ -213,10 +213,6 @@ function cross_build_coreclr {
     (set +x; echo 'Exporting LINUX_ARM_* environment variable')
     source "$__ARMEmulRootfs"/dotnet/setenv/setenv_incpath.sh "$__ARMEmulRootfs"
 
-    #Apply the changes needed to build for the emulator rootfs
-    (set +x; echo 'Applying cross build patch to suit Linux ARM emulator rootfs')
-    git am < "$__ARMEmulRootfs"/dotnet/setenv/coreclr_cross.patch
-
     #Apply release optimization patch if needed
     if [[ "$__buildConfig" == "Release" ]]; then
         (set +x; echo 'Applying release optimization patch to build in Release mode')
@@ -228,7 +224,6 @@ function cross_build_coreclr {
 
     #Reset the code to the upstream version
     (set +x; echo 'Rewinding HEAD to master code')
-    git reset --hard HEAD^
     if [[ "$__buildConfig" == "Release" ]]; then
         git reset --hard HEAD^
     fi
