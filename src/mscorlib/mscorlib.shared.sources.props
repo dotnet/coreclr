@@ -923,7 +923,6 @@
     <DiagnosticsSources Include="$(BclSourcesRoot)\System\Diagnostics\Eventing\TraceLogging\EventFieldFormat.cs" />
     <DiagnosticsSources Include="$(BclSourcesRoot)\System\Diagnostics\Eventing\TraceLogging\EventIgnoreAttribute.cs" />
     <DiagnosticsSources Include="$(BclSourcesRoot)\System\Diagnostics\Eventing\TraceLogging\EventPayload.cs" />
-    <DiagnosticsSources Include="$(BclSourcesRoot)\System\Diagnostics\Eventing\TraceLogging\EventSourceActivity.cs" />
     <DiagnosticsSources Include="$(BclSourcesRoot)\System\Diagnostics\Eventing\TraceLogging\EventSourceOptions.cs" />
     <DiagnosticsSources Include="$(BclSourcesRoot)\System\Diagnostics\Eventing\TraceLogging\FieldMetadata.cs" />
     <DiagnosticsSources Include="$(BclSourcesRoot)\System\Diagnostics\Eventing\TraceLogging\InvokeTypeInfo.cs" />
@@ -948,19 +947,9 @@
     <DiagnosticsCodeanalysisSources Include="$(BclSourcesRoot)\System\Diagnostics\Contracts\ContractsBCL.cs" />
   </ItemGroup>
   <ItemGroup>
-    <DiagnosticsSymbolstoreSources Include="$(BclSourcesRoot)\System\Diagnostics\SymbolStore\ISymBinder.cs" />
-    <DiagnosticsSymbolstoreSources Include="$(BclSourcesRoot)\System\Diagnostics\SymbolStore\ISymDocument.cs" />
     <DiagnosticsSymbolstoreSources Include="$(BclSourcesRoot)\System\Diagnostics\SymbolStore\ISymDocumentWriter.cs" />
-    <DiagnosticsSymbolstoreSources Include="$(BclSourcesRoot)\System\Diagnostics\SymbolStore\ISymMethod.cs" />
-    <DiagnosticsSymbolstoreSources Include="$(BclSourcesRoot)\System\Diagnostics\SymbolStore\ISymNamespace.cs" />
-    <DiagnosticsSymbolstoreSources Include="$(BclSourcesRoot)\System\Diagnostics\SymbolStore\ISymReader.cs" />
-    <DiagnosticsSymbolstoreSources Include="$(BclSourcesRoot)\System\Diagnostics\SymbolStore\ISymScope.cs" />
-    <DiagnosticsSymbolstoreSources Include="$(BclSourcesRoot)\System\Diagnostics\SymbolStore\ISymVariable.cs" />
     <DiagnosticsSymbolstoreSources Include="$(BclSourcesRoot)\System\Diagnostics\SymbolStore\ISymWriter.cs" />
     <DiagnosticsSymbolstoreSources Include="$(BclSourcesRoot)\System\Diagnostics\SymbolStore\SymAddressKind.cs" />
-    <DiagnosticsSymbolstoreSources Include="$(BclSourcesRoot)\System\Diagnostics\SymbolStore\SymDocumentType.cs" />
-    <DiagnosticsSymbolstoreSources Include="$(BclSourcesRoot)\System\Diagnostics\SymbolStore\SymLanguageType.cs" />
-    <DiagnosticsSymbolstoreSources Include="$(BclSourcesRoot)\System\Diagnostics\SymbolStore\SymLanguageVendor.cs" />
     <DiagnosticsSymbolstoreSources Include="$(BclSourcesRoot)\System\Diagnostics\SymbolStore\Token.cs" />
   </ItemGroup>
   <ItemGroup>
