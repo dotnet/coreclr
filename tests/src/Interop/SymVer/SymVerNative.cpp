@@ -1,23 +1,17 @@
-#include "platformdefines.h"
-
-#include <stdio.h>
-#include <stdlib.h>
-#include <xplatform.h>
-
 extern "C"
-DLL_EXPORT int foo_10() 
+int foo_10() 
 {
   return 10;
 }
 
 extern "C"
-DLL_EXPORT int foo_11() 
+int foo_11() 
 {
   return 11;
 }
 
 extern "C"
-DLL_EXPORT int foo_12() 
+int foo_12() 
 {
   return 12;
 }
