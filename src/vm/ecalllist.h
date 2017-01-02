@@ -935,7 +935,9 @@ FCFuncStart(gAppDomainFuncs)
     FCFuncElement("GetFusionContext", AppDomainNative::GetFusionContext)
 #endif // FEATURE_FUSION
     FCFuncElement("IsStringInterned", AppDomainNative::IsStringInterned)
+#ifndef FEATURE_CORECLR
     FCFuncElement("IsUnloadingForcedFinalize", AppDomainNative::IsUnloadingForcedFinalize)
+#endif // FEATURE_CORECLR
 #ifdef FEATURE_REMOTING    
     FCFuncElement("nCreateDomain", AppDomainNative::CreateDomain)
     FCFuncElement("nCreateInstance", AppDomainNative::CreateInstance)
