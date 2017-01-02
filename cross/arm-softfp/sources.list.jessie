@@ -1,6 +1,3 @@
-# Debian (sid)   # UNSTABLE
-deb http://ftp.debian.org/debian/ sid main contrib non-free
-deb-src http://ftp.debian.org/debian/ sid main contrib non-free
-
-deb http://ftp.debian.org/debian/ stable main contrib non-free
-deb-src http://ftp.debian.org/debian/ stable main contrib non-free
+# Debian (jessie)   # Stable
+deb http://ftp.debian.org/debian/ jessie main contrib non-free
+deb-src http://ftp.debian.org/debian/ jessie main contrib non-free
