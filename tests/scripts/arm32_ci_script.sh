@@ -17,8 +17,8 @@ function usage {
     echo '    --mountPath=/opt/linux-arm-emulator-root'
     echo '    --buildConfig=Release'
     echo '    --testRootDir=~/Downloads/Windows_NT.x64.Release'
-    echo '    --mscorlibDir=~/clr/bin/Product/Linux.arm-softfp.Release'
-    echo '    --coreFxNativeBinDir=~/cfx/bin/Linux.arm-softfp.Release'
+    echo '    --mscorlibDir=~/clr/bin/Product/Linux.armel.Release'
+    echo '    --coreFxNativeBinDir=~/cfx/bin/Linux.armel.Release'
     echo '    --coreFxBinDir="~/cfx/bin/Linux.AnyCPU.Release;~/cfx/bin/Unix.AnyCPU.Release;~/cfx/bin/AnyOS.AnyCPU.Release"'
     echo '    --testDirFile=~/clr/tests/testsRunningInsideARM.txt'
     echo ''
@@ -316,7 +316,7 @@ __coreFxBinDir=
 __testDirFile=
 __verboseFlag=
 __buildOS="Linux"
-__buildArch="arm-softfp"
+__buildArch="armel"
 __buildDirName=
 __initialGitHead=`git rev-parse --verify HEAD`
 
