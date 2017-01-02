@@ -1,0 +1,7 @@
+VERS_1.1 {
+    local:
+        foo_*;
+};
+
+VERS_1.2 {
+} VERS_1.1;
