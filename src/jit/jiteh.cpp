@@ -2428,7 +2428,7 @@ bool Compiler::fgNormalizeEHCase2()
 
                                 // Need to adjust ref counts here since we're retargeting edges.
                                 newTryStart->bbRefs++;
-                                noway_assert(insertBeforeBlk->countOfInEdges() > 0);
+                                assert(insertBeforeBlk->countOfInEdges() > 0);
                                 insertBeforeBlk->bbRefs--;
 
 #ifdef DEBUG
