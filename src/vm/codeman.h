@@ -228,40 +228,6 @@ public:
     }
 #endif // !USE_INDIRECT_CODEHEADER
 
-#if defined(WIN64EXCEPTIONS)
-#ifdef USE_INDIRECT_CODEHEADER
-    typedef struct _hpRealCodeHdr ImplType;
-    typedef PTR_RealCodeHeader    SelfType;
-#else
-    typedef struct _hpCodeHdr     ImplType;
-    typedef PTR_CodeHeader        SelfType;
-#endif
-
-    SelfType Self(void)
-    {
-        SUPPORTS_DAC;
-        return dac_cast<SelfType>(this);
-    }
-
-    UINT GetNumberOfUnwindInfos()
-    {
-        SUPPORTS_DAC;
-        return this->nUnwindInfos;
-    }
-    void SetNumberOfUnwindInfos(UINT nUnwindInfos)
-    {
-        LIMITED_METHOD_CONTRACT;
-        this->nUnwindInfos = nUnwindInfos;
-    }
-    PTR_RUNTIME_FUNCTION GetUnwindInfo(UINT iUnwindInfo)
-    {
-        SUPPORTS_DAC;
-        _ASSERTE(iUnwindInfo < GetNumberOfUnwindInfos());
-        return dac_cast<PTR_RUNTIME_FUNCTION>(
-            PTR_TO_MEMBER_TADDR(ImplType, Self(), unwindInfos) + iUnwindInfo * sizeof(T_RUNTIME_FUNCTION));
-    }
-#endif // WIN64EXCEPTIONS
-
 // if we're using the indirect codeheaders then all enumeration is done by the code header
 #ifndef USE_INDIRECT_CODEHEADER
 #ifdef DACCESS_COMPILE
@@ -358,15 +324,20 @@ public:
 #if defined(WIN64EXCEPTIONS)
     UINT                    GetNumberOfUnwindInfos()
     {
-        return pRealCodeHeader->GetNumberOfUnwindInfos();
+        SUPPORTS_DAC;
+        return pRealCodeHeader->nUnwindInfos;
     }
     void                    SetNumberOfUnwindInfos(UINT nUnwindInfos)
     {
-        pRealCodeHeader->SetNumberOfUnwindInfos(nUnwindInfos);
+        LIMITED_METHOD_CONTRACT;
+        pRealCodeHeader->nUnwindInfos = nUnwindInfos;
     }
     PTR_RUNTIME_FUNCTION    GetUnwindInfo(UINT iUnwindInfo)
     {
-        return pRealCodeHeader->GetUnwindInfo(iUnwindInfo);
+        SUPPORTS_DAC;
+        _ASSERTE(iUnwindInfo < GetNumberOfUnwindInfos());
+        return dac_cast<PTR_RUNTIME_FUNCTION>(
+            PTR_TO_MEMBER_TADDR(RealCodeHeader, pRealCodeHeader, unwindInfos) + iUnwindInfo * sizeof(T_RUNTIME_FUNCTION));
     }
 #endif // WIN64EXCEPTIONS
 
