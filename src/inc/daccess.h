@@ -1882,7 +1882,6 @@ public: name(TADDR addr, TADDR vtAddr);
 
 // helper macro to make the vtables unique for DAC
 #define VPTR_UNIQUE(unique)
-#define VPTR_UNIQUE_OVERRIDE(unique)
 
 // Safe access for retrieving the target address of a PTR.
 #define PTR_TO_TADDR(ptr) ((ptr).GetAddr())
@@ -2164,7 +2163,6 @@ public: name(int dummy) : base(dummy) {}
 
 // helper macro to make the vtables unique for DAC
 #define VPTR_UNIQUE(unique) virtual int MakeVTableUniqueForDAC() {    STATIC_CONTRACT_SO_TOLERANT; return unique; }
-#define VPTR_UNIQUE_OVERRIDE(unique) int MakeVTableUniqueForDAC() override {    STATIC_CONTRACT_SO_TOLERANT; return unique; }
 #define VPTR_UNIQUE_BaseDomain                          (100000)
 #define VPTR_UNIQUE_SystemDomain                        (VPTR_UNIQUE_BaseDomain + 1)
 #define VPTR_UNIQUE_ComMethodFrame                      (VPTR_UNIQUE_SystemDomain + 1)
