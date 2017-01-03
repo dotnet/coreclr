@@ -792,6 +792,25 @@ namespace System
             return false;
         }
 
+        [Pure]
+        public Boolean EndsWith(Char value)
+        {
+            return EndsWith(new string(value, 1), StringComparison.CurrentCulture);
+        }
+
+        [Pure]
+        [ComVisible(false)]
+        public Boolean EndsWith(Char value, StringComparison comparisonType)
+        {
+            return EndsWith(new string(value, 1), comparisonType);
+        }
+
+        [Pure]
+        public Boolean EndsWith(Char value, Boolean ignoreCase, CultureInfo culture)
+        {
+            return EndsWith(new string(value, 1), ignoreCase, culture);
+        }
+
         // Determines whether two strings match.
         [ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]
         public override bool Equals(Object obj)
