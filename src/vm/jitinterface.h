@@ -391,9 +391,9 @@ void ValidateWriteBarrierHelpers();
 
 extern "C"
 {
-#ifndef WIN64EXCEPTIONS
+#ifdef _TARGET_X86_
     void STDCALL JIT_EndCatch();               // JIThelp.asm/JIThelp.s
-#endif // !WIN64EXCEPTIONS
+#endif // _TARGET_X86_
 
     void STDCALL JIT_ByRefWriteBarrier();      // JIThelp.asm/JIThelp.s
 
