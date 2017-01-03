@@ -720,7 +720,7 @@ namespace System.Security.Util {
                 string newPath = Path.GetFullPath(path);
                 if (path.EndsWith(m_directorySeparator + ".", StringComparison.Ordinal))
                 {
-                    if (newPath.EndsWith(m_directorySeparator))
+                    if (newPath.EndsWithOrdinal(m_directorySeparator))
                     {
                         newPath += ".";
                     }
