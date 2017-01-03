@@ -1163,5 +1163,24 @@ namespace System
 
             return referenceCulture.CompareInfo.IsPrefix(this, value, ignoreCase ? CompareOptions.IgnoreCase : CompareOptions.None);
         }
+
+        [Pure]
+        public Boolean StartsWith(Char value)
+        {
+            return StartsWith(new string(value, 1));
+        }
+
+        [Pure]
+        [ComVisible(false)]
+        public Boolean StartsWith(Char value, StringComparison comparisonType)
+        {
+            return StartsWith(new string(value, 1), comparisonType);
+        }
+
+        [Pure]
+        public Boolean StartsWith(Char value, Boolean ignoreCase, CultureInfo culture)
+        {
+            return StartsWith(new string(value, 1), ignoreCase, culture);
+        }
     }
 }
