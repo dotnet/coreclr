@@ -376,9 +376,12 @@ inline void SyncRegDisplayToCurrentContext(REGDISPLAY* pRD)
 #elif defined(_TARGET_ARM_) // _WIN64
     pRD->SP         = (DWORD)GetSP(pRD->pCurrentContext);
     pRD->ControlPC  = (DWORD)GetIP(pRD->pCurrentContext);
-#else
+#elif defined(_TARGET_X86_) // _TARGET_ARM_
+    pRD->Esp        = (DWORD)GetSP(pRD->pCurrentContext);
+    pRD->ControlPC  = (DWORD)GetIP(pRD->pCurrentContext);
+#else // _TARGET_X86_
     PORTABILITY_ASSERT("SyncRegDisplayToCurrentContext");
-#endif // _TARGET_ARM
+#endif // _TARGET_ARM_ || _TARGET_X86_
 }
 #endif // _WIN64 || _TARGET_ARM_ || (_TARGET_X86_ && WIN64EXCEPTIONS)
 
@@ -429,7 +432,12 @@ inline void FillRegDisplay(const PREGDISPLAY pRD, PT_CONTEXT pctx, PT_CONTEXT pC
     }
 
     pRD->ctxPtrsOne.Lr = &pctx->Lr;
-#else  // _TARGET_ARM_
+#elif defined(_TARGET_X86_) // _TARGET_X86_
+    for (int i = 0; i < 4; ++i)
+    {
+        *(&pRD->ctxPtrsOne.Ebx + i) = (&pctx->Ebx + i);
+    }
+#else
     PORTABILITY_ASSERT("FillRegDisplay");
 #endif // ELSE
 
