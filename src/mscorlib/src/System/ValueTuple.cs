@@ -1897,7 +1897,7 @@ namespace System
     [StructLayout(LayoutKind.Auto)]
     public struct ValueTuple<T1, T2, T3, T4, T5, T6, T7, TRest>
     : IEquatable<ValueTuple<T1, T2, T3, T4, T5, T6, T7, TRest>>, IStructuralEquatable, IStructuralComparable, IComparable, IComparable<ValueTuple<T1, T2, T3, T4, T5, T6, T7, TRest>>, IValueTupleInternal, ITuple
-    where TRest : struct, ITuple
+    where TRest : struct
     {
         /// <summary>
         /// The current <see cref="ValueTuple{T1, T2, T3, T4, T5, T6, T7, TRest}"/> instance's first component.
@@ -2269,7 +2269,7 @@ namespace System
         {
             get
             {
-                return 7 + Rest.Length;
+                return 7 + ((IValueTupleInternal)Rest).Length;
             }
         }
 
@@ -2298,7 +2298,7 @@ namespace System
                         return Item7;
                 }
 
-                return Rest[index - 7];
+                return ((IValueTupleInternal)Rest)[index - 7];
             }
         }
     }
