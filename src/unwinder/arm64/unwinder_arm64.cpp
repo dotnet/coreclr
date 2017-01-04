@@ -215,7 +215,7 @@ Return Value:
         for (RegIndex = 0; RegIndex < 18; RegIndex++) {
             UPDATE_CONTEXT_POINTERS(UnwindParams, RegIndex, SourceAddress);
 #ifdef __clang__
-            *(&ContextRecord->X0 + (RegIndex * sizeof(void*))) = MEMORY_READ_QWORD(UnwindParams, SourceAddress);
+            *(&ContextRecord->X0 + RegIndex) = MEMORY_READ_QWORD(UnwindParams, SourceAddress);
 #else
             ContextRecord->X[RegIndex] = MEMORY_READ_QWORD(UnwindParams, SourceAddress);
 #endif
@@ -295,7 +295,7 @@ Return Value:
         for (RegIndex = 0; RegIndex < 29; RegIndex++) {
             UPDATE_CONTEXT_POINTERS(UnwindParams, RegIndex, SourceAddress);
 #ifdef __clang__
-            *(&ContextRecord->X0 + (RegIndex * sizeof(void*))) = MEMORY_READ_QWORD(UnwindParams, SourceAddress);
+            *(&ContextRecord->X0 + RegIndex) = MEMORY_READ_QWORD(UnwindParams, SourceAddress);
 #else
             ContextRecord->X[RegIndex] = MEMORY_READ_QWORD(UnwindParams, SourceAddress);
 #endif
@@ -481,7 +481,7 @@ Return Value:
     for (RegIndex = 0; RegIndex < RegisterCount; RegIndex++) {
         UPDATE_CONTEXT_POINTERS(UnwindParams, RegIndex, CurAddress);
 #ifdef __clang__
-        *(&ContextRecord->X0 + (RegIndex * sizeof(void*))) = MEMORY_READ_QWORD(UnwindParams, CurAddress);
+        *(&ContextRecord->X0 + FirstRegister + RegIndex) = MEMORY_READ_QWORD(UnwindParams, CurAddress);
 #else
         ContextRecord->X[FirstRegister + RegIndex] = MEMORY_READ_QWORD(UnwindParams, CurAddress);
 #endif
