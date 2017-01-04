@@ -9,7 +9,7 @@
   </PropertyGroup>
   <ItemGroup>
     <NativeSplittableBinary Include="$(BinDir)libSystem.Globalization.Native.a" />
-    <NativeSplittableBinary Include="$(BinDir)System.Globalization.Native.so" />
+    <NativeSplittableBinary Include="$(BinDir)System.Globalization.Native.dylib" />
     <ArchitectureSpecificNativeFile Include="@(NativeSplittableBinary)" />
     <File Include="@(ArchitectureSpecificNativeFile)">
       <TargetPath>runtimes/$(PackageTargetRuntime)/native</TargetPath>
