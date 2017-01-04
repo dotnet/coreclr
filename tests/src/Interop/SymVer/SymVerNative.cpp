@@ -16,7 +16,7 @@ int foo_12()
   return 12;
 }
 
-#ifndef _WIN32
+#ifdef __linux__
 __asm__(".symver foo_10,foo@");
 __asm__(".symver foo_11,foo@VERS_1.1");
 __asm__(".symver foo_12,foo@@VERS_1.2");

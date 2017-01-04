@@ -1,4 +1,6 @@
 using System;
+using System.Diagnostics;
+using System.IO;
 using System.Runtime.InteropServices;
 
 namespace PInvokeTests
@@ -20,7 +22,7 @@ namespace PInvokeTests
 
         #region test methods
 
-        public static void FooTest()
+        public static void TestSupported()
         {
             try
             {
@@ -32,6 +34,21 @@ namespace PInvokeTests
             {
                 Assert(false, e.ToString());
             }
+        }
+
+        public static void TestUnsupported()
+        {
+            bool exceptionThrown = false;
+            try
+            {
+                foo_11();
+            }
+            catch (Exception)
+            {
+                exceptionThrown = true;
+            }
+            Assert(exceptionThrown, "Call to foo_11 should throw an exception");
+            // TODO: check for more specific exception
         }
 
         #endregion
@@ -49,7 +66,14 @@ namespace PInvokeTests
 
         public static int Main(string[] argv)
         {
-            FooTest();
+            if (IsLinux)
+            {
+                TestSupported();
+            }
+            else
+            {
+                TestUnsupported();
+            }
 
             if (!passed)
                 Console.WriteLine("FAIL");
@@ -58,6 +82,57 @@ namespace PInvokeTests
             return (passed ? 100 : 101);
         }
 
-        
+        public static bool IsWindows
+        {
+            get
+            {
+                return Path.DirectorySeparatorChar == '\\';
+            }
+        }
+
+        public static bool IsLinux
+        {
+            get
+            {
+                return GetUname() == "Linux";
+            }
+        }
+
+        private static string _uname;
+        private static string GetUname()
+        {
+            if (_uname != null)
+            {
+                return _uname;
+            }
+            if (IsWindows)
+            {
+                _uname = "Windows";
+            }
+            else
+            {
+                ProcessStartInfo startInfo = new ProcessStartInfo
+                {
+                    CreateNoWindow = true,
+                    RedirectStandardOutput = true,
+                    RedirectStandardInput = true,
+                    UseShellExecute = false,
+                    FileName = "uname",
+                    Arguments = "-s"
+                };
+
+                using (Process process = new Process())
+                {
+                    process.StartInfo = startInfo;
+
+                    process.Start();
+                    _uname = process.StandardOutput.ReadLine();
+
+                    process.WaitForExit();
+                }
+            }
+            return _uname;
+        }
+
     }
 }
