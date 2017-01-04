@@ -346,6 +346,7 @@ GetProcAddress(
         }
         if (lpProcName[i] == '@')
         {
+#ifdef HAVE_DLVSYM
             if (i == 0)
             {
                 TRACE("Symbol name missing\n");
@@ -369,6 +370,11 @@ GetProcAddress(
             char* version = &symbol[i + 1];
             ProcAddress = (FARPROC) dlvsym(module->dl_handle, symbol, version);
             free(symbol);
+#else
+            TRACE("dlvsym not supported\n");
+            SetLastError(ERROR_NOT_SUPPORTED);
+            goto done;
+#endif
         }
         else
         {
