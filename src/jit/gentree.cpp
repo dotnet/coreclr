@@ -14397,7 +14397,7 @@ bool Compiler::gtTreeHasSideEffects(GenTreePtr tree, unsigned flags /* = GTF_SID
     return true;
 }
 
-GenTreePtr Compiler::gtBuildCommaList(GenTreePtr list, GenTreePtr expr)
+GenTreePtr Compiler::gtBuildCommaList(GenTreePtr list, GenTreePtr expr DEBUGARG(bool remorphing))
 {
     // 'list' starts off as null,
     //        and when it is null we haven't started the list yet.
@@ -14411,12 +14411,14 @@ GenTreePtr Compiler::gtBuildCommaList(GenTreePtr list, GenTreePtr expr)
         result->gtFlags |= (list->gtFlags & GTF_ALL_EFFECT);
         result->gtFlags |= (expr->gtFlags & GTF_ALL_EFFECT);
 
-        // 'list' and 'expr' should have valuenumbers defined for both or for neither one
-        noway_assert(list->gtVNPair.BothDefined() == expr->gtVNPair.BothDefined());
+        // 'list' and 'expr' should have valuenumbers defined for both or for neither one (unless we are remorphing,
+        // in which case a prior transform involving either node may have discarded or otherwise invalidated the value
+        // numbers).
+        assert((list->gtVNPair.BothDefined() == expr->gtVNPair.BothDefined()) || remorphing);
 
         // Set the ValueNumber 'gtVNPair' for the new GT_COMMA node
         //
-        if (expr->gtVNPair.BothDefined())
+        if (list->gtVNPair.BothDefined() && expr->gtVNPair.BothDefined())
         {
             // The result of a GT_COMMA node is op2, the normal value number is op2vnp
             // But we also need to include the union of side effects from op1 and op2.
@@ -14457,7 +14459,8 @@ GenTreePtr Compiler::gtBuildCommaList(GenTreePtr list, GenTreePtr expr)
 void Compiler::gtExtractSideEffList(GenTreePtr  expr,
                                     GenTreePtr* pList,
                                     unsigned    flags /* = GTF_SIDE_EFFECT*/,
-                                    bool        ignoreRoot /* = false */)
+                                    bool        ignoreRoot /* = false */
+                                    DEBUGARG(bool remorphing /* = false */))
 {
     assert(expr);
     assert(expr->gtOper != GT_STMT);
@@ -14478,7 +14481,7 @@ void Compiler::gtExtractSideEffList(GenTreePtr  expr,
     {
         // Add the side effect to the list and return
         //
-        *pList = gtBuildCommaList(*pList, expr);
+        *pList = gtBuildCommaList(*pList, expr DEBUGARG(remorphing));
         return;
     }
 
@@ -14498,7 +14501,7 @@ void Compiler::gtExtractSideEffList(GenTreePtr  expr,
         }
 
         // These operations are kind of important to keep
-        *pList = gtBuildCommaList(*pList, expr);
+        *pList = gtBuildCommaList(*pList, expr DEBUGARG(remorphing));
         return;
     }
 
@@ -14514,7 +14517,7 @@ void Compiler::gtExtractSideEffList(GenTreePtr  expr,
 
             if (oper == GT_ADDR && op1->OperIsIndir() && op1->gtType == TYP_STRUCT)
             {
-                *pList = gtBuildCommaList(*pList, expr);
+                *pList = gtBuildCommaList(*pList, expr DEBUGARG(remorphing));
 
 #ifdef DEBUG
                 if (verbose)
@@ -14539,22 +14542,22 @@ void Compiler::gtExtractSideEffList(GenTreePtr  expr,
             assert(oper != GT_COMMA);
             if (op1)
             {
-                gtExtractSideEffList(op1, pList, flags);
+                gtExtractSideEffList(op1, pList, flags, false DEBUGARG(remorphing));
             }
             if (op2)
             {
-                gtExtractSideEffList(op2, pList, flags);
+                gtExtractSideEffList(op2, pList, flags, false DEBUGARG(remorphing));
             }
         }
         else
         {
             if (op2)
             {
-                gtExtractSideEffList(op2, pList, flags);
+                gtExtractSideEffList(op2, pList, flags, false DEBUGARG(remorphing));
             }
             if (op1)
             {
-                gtExtractSideEffList(op1, pList, flags);
+                gtExtractSideEffList(op1, pList, flags, false DEBUGARG(remorphing));
             }
         }
     }
@@ -14574,12 +14577,12 @@ void Compiler::gtExtractSideEffList(GenTreePtr  expr,
         for (args = expr->gtCall.gtCallArgs; args; args = args->gtOp.gtOp2)
         {
             assert(args->OperIsList());
-            gtExtractSideEffList(args->Current(), pList, flags);
+            gtExtractSideEffList(args->Current(), pList, flags, false DEBUGARG(remorphing));
         }
         for (args = expr->gtCall.gtCallLateArgs; args; args = args->gtOp.gtOp2)
         {
             assert(args->OperIsList());
-            gtExtractSideEffList(args->Current(), pList, flags);
+            gtExtractSideEffList(args->Current(), pList, flags, false DEBUGARG(remorphing));
         }
     }
 
@@ -14589,18 +14592,18 @@ void Compiler::gtExtractSideEffList(GenTreePtr  expr,
 #endif // FEATURE_SIMD
         )
     {
-        gtExtractSideEffList(expr->AsBoundsChk()->gtArrLen, pList, flags);
-        gtExtractSideEffList(expr->AsBoundsChk()->gtIndex, pList, flags);
+        gtExtractSideEffList(expr->AsBoundsChk()->gtArrLen, pList, flags, false DEBUGARG(remorphing));
+        gtExtractSideEffList(expr->AsBoundsChk()->gtIndex, pList, flags, false DEBUGARG(remorphing));
     }
 
     if (expr->OperGet() == GT_DYN_BLK || expr->OperGet() == GT_STORE_DYN_BLK)
     {
         if (expr->AsDynBlk()->Data() != nullptr)
         {
-            gtExtractSideEffList(expr->AsDynBlk()->Data(), pList, flags);
+            gtExtractSideEffList(expr->AsDynBlk()->Data(), pList, flags, false DEBUGARG(remorphing));
         }
-        gtExtractSideEffList(expr->AsDynBlk()->Addr(), pList, flags);
-        gtExtractSideEffList(expr->AsDynBlk()->gtDynamicSize, pList, flags);
+        gtExtractSideEffList(expr->AsDynBlk()->Addr(), pList, flags, false DEBUGARG(remorphing));
+        gtExtractSideEffList(expr->AsDynBlk()->gtDynamicSize, pList, flags, false DEBUGARG(remorphing));
     }
 }
 
