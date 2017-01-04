@@ -19,5 +19,5 @@ int foo_12()
 #ifndef _WIN32
 __asm__(".symver foo_10,foo@");
 __asm__(".symver foo_11,foo@VERS_1.1");
-__asm__(".symver foo_12,foo@VERS_1.2");
+__asm__(".symver foo_12,foo@@VERS_1.2");
 #endif
