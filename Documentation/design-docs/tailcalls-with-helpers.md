@@ -6,16 +6,15 @@ These are tail calls that are handled directly by the jitter and no runtime coop
 
 ## Tail calls using a helper
 Tail calls in cases where we cannot perform the call in a simple way are implemented using a tail call helper. Here is a rough description of how it works:
-* For each tail call target, the jitter asks runtime to generate an assembler argument copying routine. This routine reads vararg list of arguments and places the arguments in their proper slots in the CONTEXT or on the stack.
+* For each tail call target, the jitter asks runtime to generate an assembler argument copying routine. This routine reads vararg list of arguments and places the arguments in their proper slots in the CONTEXT or on the stack. Together with the argument copying routine, the runtime also builds a list of offsets of references and byrefs for return value of reference type or structs returned in a hidden return buffer and for structs passed by ref. The gc layout data block is stored at the end of the argument copying thunk. 
 * At the time of the tail call, the caller generates a vararg list of all arguments of the tail called function and then calls JIT_TailCall runtime function. It passes it the copying routine address, the target address and the vararg list of the arguments.
 * The JIT_TailCall then performs the following:
   * It calls RtlVirtualUnwind twice to get the context of the caller of the caller of the tail call to simulate the effect of running epilog of the caller of the tail call and also its return.
-  * It prepares stack space for the callee stack arguments, a helper explicit TailCallFrame and also a CONTEXT structure where the argument registers of the callee, stack pointer and the target function address are set. In case the tail call caller has enough space for the callee arguments and the TailCallFrame in its stack frame, that space is used directly to for the callee arguments. Otherwise the stack arguments area is allocated at the top of the stack.
-This slightly differs in the case the tail call was called from another tail called function - the TailCallFrame already exists and so it is not recreated.
+  * It prepares stack space for the callee stack arguments, a helper explicit TailCallFrame and also a CONTEXT structure where the argument registers of the callee, stack pointer and the target function address are set. In case the tail call caller has enough space for the callee arguments and the TailCallFrame in its stack frame, that space is used directly for the callee arguments. Otherwise the stack arguments area is allocated at the top of the stack. This slightly differs in the case the tail call was called from another tail called function - the TailCallFrame already exists and so it is not recreated. The TailCallFrame also keeps a pointer to the list of gc reference offsets of the arguments and structure return buffer members. The stack walker during GC then uses that to ensure proper GC liveness of those references.
   * It calls the copying routine to translate the arguments from the vararg list to the just reserved stack area and the context.
   * If the stack arguments and TailCaillFrame didn't fit into the caller's stack frame, these data are now moved to the final location
   * RtlRestoreContext is used to start executing the callee.
- 
+
 There are several issues with this approach:
 * It is expensive to port to new platforms
   * Parsing the vararg list is not possible to do in a portable way on Unix. Unlike on Windows, the list is not stored a linear sequence of the parameter data bytes in memory. va_list on Unix is an opaque data type, some of the parameters can be in registers and some in the memory.
@@ -32,6 +31,7 @@ The new way of handling tail calls using helpers was designed with the following
 * It needs to work in both jitted and AOT compiled scenarios
 * It should support platforms where runtime code generation is not possible
 * The tail calls should be reasonably fast compared to regular calls with the same arguments
+* The tail calls should not be slower than existing mechanism on Windows
 * No runtime assistance should be necessary for unwinding stack with tail call frames on it
 * The stack should be unwindable at any spot during the tail calls to properly support sampling profilers and similar tools.
 * Stack walk during GC must be able to always correctly report GC references. 
@@ -44,9 +44,15 @@ The new way of handling tail calls using helpers was designed with the following
 This section describes the helper functions and data structures that the tail calls use and also describes the tail call sequence step by step. 
 ### Helper functions
 The tail calls use the following thunks and helpers:
-* StoreArguments - this thunk has the same signature as the target function, except of the return type, which is void. It stores the arguments into a thread local storage together with the address of the corresponding CallTarget thunk and a descriptor of locations and types of managed references in the stored arguments data. This thunk is generated as IL and compiled by the jitter or AOT compiler. There is one such thunk per tail call target.
-* CallTarget - this thunk gets the arguments buffer that was filled by the StoreArguments thunk, loads the arguments from the buffer, releases the buffer and calls the target function. It is also generated as IL and compiled by the jitter or AOT compiler. There is one such thunk per tail call target.
-* TailCallHelper - this is an assembler helper that is responsible for restoring stack pointer to the location where it was when the first function in a tail call chain was entered and then jumping to the CallTarget thunk. This helper is common for all tail call targets.
+* StoreArguments - this thunk stores the arguments into a thread local storage together with the address of the corresponding CallTarget thunk and a descriptor of locations and types of managed references in the stored arguments data. This thunk is generated as IL and compiled by the jitter or AOT compiler. There is one such thunk per tail call target.
+It has a signature that is compatible with the tailcall target function, but it is not the same. It gets the same arguments as the tail call target function, but it would also get "this" pointer and the generic context as explicit arguments if the tail call target requires them. It has the same return type as the tail call target function. Arguments and return values of generic reference types are passed as "object" so that the StoreArguments doesn't have to be generic. This is just to make it easier for the JIT, we can also make the return type "void".
+* CallTarget - this thunk gets the arguments buffer that was filled by the StoreArguments thunk, loads the arguments from the buffer, releases the buffer and calls the target function using calli. The signature used for the calli would ensure that all arguments including the optional hidden return buffer and the generic context are passed in the right registers / stack slots. Generic reference arguments will be specified as "object" in the signature so that the CallTarget doesn't have to be generic. 
+The CallTarget is also generated as IL and compiled by the jitter or AOT compiler. There is one such thunk per tail call target. This thunk has the same return type as the tailcall target or return "object" if the return type of the tail call target is a generic reference type.
+* TailCallHelper - this is an assembler helper that is responsible for restoring stack pointer to the location where it was when the first function in a tail call chain was entered and then jumping to the CallTarget thunk. This helper is common for all tail call targets. 
+In a context of each tailcall invocation, the TailCallHelper will be handled by the jitter as if it had the same return type as the tail call target. That means that if the tail call target needs a hidden return buffer for returning structs, the pointer to this buffer will be passed to the TailCallHelper the same way as it would be passed to the tail call target. The TailCallHelper would then pass this hidden argument to the CallTarget helper.
+There will be two flavors of this helper, based on whether the tail call target needs a hidden return buffer or not:
+  * TailCallHelper
+  * TailCallHelper_RetBuf
 
 ### Helper data structures
 The tail calls use the following data structures:
@@ -263,4 +269,107 @@ We are back in A and we have the return value of the call chain.
 ```
 * Return address of A
 * Callee saved registers and locals of A
+```
+
+## Example of thunks generated for a simple generic method
+
+```C#
+struct Point
+{
+    public int x;
+    public int y;
+    public int z;
+}
+
+class Foo
+{
+    public Point Test<T>(int x, T t) where T : class
+    {
+        Console.WriteLine("T: {0}", typeof(t));
+        return new Point(x, x, x);
+    }
+}
+```
+
+For tail calling the Test function, the IL helpers could look e.g. as follows:
+
+```IL
+.method public static Point StoreArgumentsTest(object thisObj, object genericContext, int x, object t) cil managed
+{
+	.maxstack 4
+	.locals init (
+		[0] valuetype Point,
+	)
+
+    call native int FetchArgumentBuffer()
+
+	dup
+	ldarg.0 // "thisObj"
+	stobj object
+	sizeof object
+	add
+	dup
+
+    ldarg.1 // "genericContext"
+	stobj object
+	sizeof object
+	add
+	dup
+
+	ldarg.2 // "x"
+	stind.i
+	sizeof int32
+	add
+	dup
+
+    ldarg.3 // "t"
+	stobj object
+
+	ldloca.s 0 // return default(Point)
+	initobj Point
+	ldloc.0
+
+	ret
+}
+
+```
+
+```IL
+.method public static Point CallTargetTest() cil managed
+{
+    .maxstack 4
+    .locals init (
+       [0] native int buffer
+    )
+    call native int FetchArgumentBuffer()
+    stloc.0
+
+    ldloc.0
+    ldobj object // this
+    ldloc.0
+    sizeof object
+    add
+    stloc.0
+
+    ldloc.0
+    ldobj object // generic context
+    ldloc.0
+    sizeof object
+    add
+    stloc.0
+
+    ldloc.0
+    ldind.i // int x
+    ldloc.0
+    sizeof int32
+    add
+    stloc.0
+
+    ldloc.0
+    ldobj object // T t
+
+    calli Point (object, object, int32, object)
+
+    ret
+}
 ```
