@@ -346,7 +346,7 @@ GetProcAddress(
         }
         if (lpProcName[i] == '@')
         {
-#ifdef HAVE_DLVSYM
+#if HAVE_DLVSYM
             if (i == 0)
             {
                 TRACE("Symbol name missing\n");
