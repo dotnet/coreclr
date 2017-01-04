@@ -266,6 +266,46 @@ build_native()
     popd
 }
 
+build_cross_arch_component()
+{
+    __SkipCrossArchBuild=1
+    TARGET_ROOTFS=""
+    # check supported cross-architecture components host(__HostArch)/target(__BuildArch) pair
+    if [[ "$__BuildArch" == "arm" && "$__CrossArch" == "x86" ]]; then
+        export CROSSCOMPILE=0
+        __SkipCrossArchBuild=0
+
+        # building x64-host/arm-target cross-architecture component need to use cross toolchain of x86
+        if [ "$__HostArch" == "x64" ]; then
+            export CROSSCOMPILE=1
+        fi
+    else
+        # not supported
+        return
+    fi    
+    
+    export __CMakeBinDir="$__CrossComponentBinDir"
+    export CROSSCOMPONENT=1
+    if [ $CROSSCOMPILE == 1 ]; then
+        TARGET_ROOTFS="$ROOTFS_DIR"
+        if [ -n "$CAC_ROOTFS_DIR" ]; then
+            export ROOTFS_DIR="$CAC_ROOTFS_DIR"
+        else
+            export ROOTFS_DIR="$__ProjectRoot/cross/rootfs/$__CrossArch"
+        fi
+    fi
+
+    __ExtraCmakeArgs="-DCLR_CMAKE_TARGET_ARCH=$__BuildArch -DCLR_CMAKE_TARGET_OS=$__BuildOS -DCLR_CMAKE_PACKAGES_DIR=$__PackagesDir -DCLR_CMAKE_PGO_INSTRUMENT=$__PgoInstrument"
+    build_native $__SkipCrossArchBuild "$__CrossArch" "$__CrossCompIntermediatesDir" "$__ExtraCmakeArgs" "cross-architecture component"
+   
+    # restore ROOTFS_DIR, CROSSCOMPONENT, and CROSSCOMPILE 
+    if [ -n "$TARGET_ROOTFS" ]; then
+        export ROOTFS_DIR="$TARGET_ROOTFS"
+    fi
+    export CROSSCOMPONENT=
+    export CROSSCOMPILE=1
+}
+
 isMSBuildOnNETCoreSupported()
 {
     # This needs to be updated alongwith corresponding changes to netci.groovy.
@@ -791,31 +831,8 @@ __ExtraCmakeArgs="-DCLR_CMAKE_TARGET_OS=$__BuildOS -DCLR_CMAKE_PACKAGES_DIR=$__P
 build_native $__SkipCoreCLR "$__BuildArch" "$__IntermediatesDir" "$__ExtraCmakeArgs" "CoreCLR component"
 
 # Build cross-architecture components
-if [ $__CrossBuild == 1 ]; then
-    __SkipCrossArchBuild=1
-    TARGET_ROOTFS=""
-    export CROSSCOMPILE=0
-    if [ $__DoCrossArchBuild == 1 ]; then
-        # build cross-architecture components for x86-host/arm-target
-        if [[ "$__BuildArch" == "arm" && "$__CrossArch" == "x86" ]]; then
-            __SkipCrossArchBuild=0
-            if [[ "$__HostArch" == x64 ]]; then
-                TARGET_ROOTFS="$ROOTFS_DIR"
-                export ROOTFS_DIR="$__ProjectRoot/cross/rootfs/$__CrossArch"
-                export CROSSCOMPILE=1
-            fi
-        fi
-    fi
-
-    export __CMakeBinDir="$__CrossComponentBinDir"
-    export CROSSCOMPONENT=1
-    __ExtraCmakeArgs="-DCLR_CMAKE_TARGET_ARCH=$__BuildArch -DCLR_CMAKE_TARGET_OS=$__BuildOS -DCLR_CMAKE_PACKAGES_DIR=$__PackagesDir -DCLR_CMAKE_PGO_INSTRUMENT=$__PgoInstrument"
-    build_native $__SkipCrossArchBuild "$__CrossArch" "$__CrossCompIntermediatesDir" "$__ExtraCmakeArgs" "cross-architecture component"
-
-    if [ -n "$TARGET_ROOTFS" ]; then
-        export ROOTFS_DIR="$TARGET_ROOTFS"
-    fi
-    export CROSSCOMPILE=1
+if [[ $__CrossBuild == 1 && $__DoCrossArchBuild == 1 ]]; then
+    build_cross_arch_component
 fi
 
 # Build System.Private.CoreLib.
