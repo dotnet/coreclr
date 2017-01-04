@@ -11,6 +11,10 @@
   <ItemGroup>
     <Project Include="Microsoft.NETCore.Native.pkgproj">
     </Project>
+    <Project Condition="'$(TargetsLinux)' == 'true' and '$(DistroRid)' == 'linux-x64'" Include="linux/Microsoft.NETCore.Native.pkgproj">
+      <OSGroup>Linux</OSGroup>
+      <Platform>amd64</Platform>
+    </Project>
     <Project Condition="'$(TargetsLinux)' == 'true' and '$(DistroRid)' == 'debian.8-x64'" Include="debian/Microsoft.NETCore.Native.pkgproj">
       <OSGroup>Linux</OSGroup>
       <Platform>amd64</Platform>
