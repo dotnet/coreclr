@@ -2099,13 +2099,12 @@ public:
     // Appends 'expr' in front of 'list'
     //    'list' will typically start off as 'nullptr'
     //    when 'list' is non-null a GT_COMMA node is used to insert 'expr'
-    GenTreePtr gtBuildCommaList(GenTreePtr list, GenTreePtr expr DEBUGARG(bool remorphing = false));
+    GenTreePtr gtBuildCommaList(GenTreePtr list, GenTreePtr expr);
 
     void gtExtractSideEffList(GenTreePtr  expr,
                               GenTreePtr* pList,
                               unsigned    flags      = GTF_SIDE_EFFECT,
-                              bool        ignoreRoot = false
-                              DEBUGARG(bool remorphing = false));
+                              bool        ignoreRoot = false);
 
     GenTreePtr gtGetThisArg(GenTreePtr call);
 

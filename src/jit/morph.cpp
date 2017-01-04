@@ -13171,7 +13171,7 @@ GenTreePtr Compiler::fgMorphSmpOp(GenTreePtr tree, MorphAddrContext* mac)
                     GenTreePtr op1SideEffects = nullptr;
                     // The addition of "GTF_MAKE_CSE" below prevents us from throwing away (for example)
                     // hoisted expressions in loops.
-                    gtExtractSideEffList(op1, &op1SideEffects, (GTF_SIDE_EFFECT | GTF_MAKE_CSE), false DEBUGARG(!fgGlobalMorph));
+                    gtExtractSideEffList(op1, &op1SideEffects, (GTF_SIDE_EFFECT | GTF_MAKE_CSE));
                     if (op1SideEffects)
                     {
                         // Replace the left hand side with the side effect list.
