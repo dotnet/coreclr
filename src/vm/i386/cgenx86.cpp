@@ -523,7 +523,19 @@ void FaultingExceptionFrame::UpdateRegDisplay(const PREGDISPLAY pRD)
     pRD->PCTAddr = GetReturnAddressPtr();
     pRD->ControlPC = *PTR_PCODE(pRD->PCTAddr);
 #else
-    PORTABILITY_ASSERT("FaultingExceptionFrame::UpdateRegDisplay");
+    memcpy(pRD->pCurrentContext, &m_ctx, sizeof(CONTEXT));
+
+    pRD->ControlPC = m_ctx.Eip;
+
+    pRD->Esp = m_ctx.Esp;
+
+    pRD->pCurrentContextPointers->Ebx = &m_ctx.Ebx;
+    pRD->pCurrentContextPointers->Edi = &m_ctx.Edi;
+    pRD->pCurrentContextPointers->Esi = &m_ctx.Esi;
+    pRD->pCurrentContextPointers->Ebp = &m_ctx.Ebp;
+
+    pRD->IsCallerContextValid = FALSE;
+    pRD->IsCallerSPValid      = FALSE;        // Don't add usage of this field.  This is only temporary.
 #endif // WIN64EXCEPTIONS
     RETURN;
 }
