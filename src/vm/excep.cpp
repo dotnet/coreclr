@@ -7318,8 +7318,7 @@ AdjustContextForWriteBarrier(
 {
     WRAPPER_NO_CONTRACT;
 
-#ifndef WIN64EXCEPTIONS
-#ifdef _TARGET_X86_
+#if defined(_TARGET_X86_) && !defined(PLATFORM_UNIX)
     void* f_IP = (void *)GetIP(pContext);
 
     if (((f_IP >= (void *) JIT_WriteBarrierStart) && (f_IP <= (void *) JIT_WriteBarrierLast)) ||
@@ -7334,11 +7333,7 @@ AdjustContextForWriteBarrier(
         SetSP(pContext, PCODE((BYTE*)GetSP(pContext) + sizeof(void*)));
     }
     return FALSE;
-#else // _TARGET_X86_
-    PORTABILITY_ASSERT("AdjustContextForWriteBarrier");
-    return FALSE;
-#endif // _TARGET_???_ (ELSE)
-#else // !WIN64EXCEPTIONS
+#elif defined(WIN64EXCEPTIONS) // _TARGET_X86_ && !PLATFORM_UNIX
     void* f_IP = dac_cast<PTR_VOID>(GetIP(pContext));
 
     CONTEXT             tempContext;
@@ -7404,7 +7399,10 @@ AdjustContextForWriteBarrier(
     }
 
     return FALSE;
-#endif // !WIN64EXCEPTIONS
+#else // WIN64EXCEPTIONS
+    PORTABILITY_ASSERT("AdjustContextForWriteBarrier");
+    return FALSE;
+#endif // ELSE
 }
 
 struct SavedExceptionInfo
