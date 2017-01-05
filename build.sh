@@ -35,6 +35,8 @@ usage()
     echo "clangx.y - optional argument to build using clang version x.y."
     echo "cross - optional argument to signify cross compilation,"
     echo "      - will use ROOTFS_DIR environment variable if set."
+    echo "crosscomponent - optional argument to build cross-architecture component,"
+    echo "               - will use CAC_ROOTFS_DIR environment variable if set."
     echo "pgoinstrument - generate instrumented code for profile guided optimization enabled binaries."
     echo "configureonly - do not perform any builds; just configure the build."
     echo "skipconfigure - skip build configuration."
