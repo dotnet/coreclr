@@ -864,10 +864,7 @@ RtlpGetFunctionEndAddress (
 #define RUNTIME_FUNCTION__EndAddress(prf, ImageBase)   RtlpGetFunctionEndAddress(prf, ImageBase)
 
 #define RUNTIME_FUNCTION__GetUnwindInfoAddress(prf)    (prf)->UnwindData
-#define RUNTIME_FUNCTION__SetUnwindInfoAddress(prf, addr) \
-    do {                                                  \
-        (prf)->UnwindData = (addr);                       \
-    } while(0)
+#define RUNTIME_FUNCTION__SetUnwindInfoAddress(prf, addr) do { (prf)->UnwindData = (addr); } while(0)
 
 #define UNW_FLAG_NHANDLER               0x0             /* any handler */
 #define UNW_FLAG_EHANDLER               0x1             /* filter handler */
