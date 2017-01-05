@@ -1936,6 +1936,11 @@ public:
 
     GenTreePtr gtNewOneConNode(var_types type);
 
+#ifdef FEATURE_SIMD
+    GenTreePtr gtNewSIMDVectorZero(var_types simdType, var_types baseType, unsigned size);
+    GenTreePtr gtNewSIMDVectorOne(var_types simdType, var_types baseType, unsigned size);
+#endif
+
     GenTreeBlk* gtNewBlkOpNode(
         genTreeOps oper, GenTreePtr dst, GenTreePtr srcOrFillVal, GenTreePtr sizeOrClsTok, bool isVolatile);
 
@@ -3780,13 +3785,8 @@ public:
 
     // Utility functions for fgValueNumber.
 
-    // Perform value-numbering for the trees in "blk".  When giving VN's to the SSA
-    // names defined by phi definitions at the start of "blk", "newVNsForPhis" indicates
-    // that these should be given new VN's, irrespective of the values of the LHS.
-    // If "false", then we may assume that all inputs to phi RHS's of such definitions
-    // have already been assigned value numbers; if they are all assigned the *same* value
-    // number, then the LHS SSA name gets the same VN.
-    void fgValueNumberBlock(BasicBlock* blk, bool newVNsForPhis);
+    // Perform value-numbering for the trees in "blk".
+    void fgValueNumberBlock(BasicBlock* blk);
 
     // Requires that "entryBlock" is the entry block of loop "loopNum", and that "loopNum" is the
     // innermost loop of which "entryBlock" is the entry.  Returns the value number that should be
@@ -7120,6 +7120,9 @@ private:
                                  var_types*           baseType,
                                  GenTree**            op1,
                                  GenTree**            op2);
+
+    // Creates a GT_SIMD tree for Abs intrinsic.
+    GenTreePtr impSIMDAbs(CORINFO_CLASS_HANDLE typeHnd, var_types baseType, unsigned simdVectorSize, GenTree* op1);
 
 #if defined(_TARGET_XARCH_) && !defined(LEGACY_BACKEND)
     // Transforms operands and returns the SIMD intrinsic to be applied on

@@ -127,10 +127,7 @@
     <InteropSources Condition="'$(FeatureCominterop)' == 'true'" Include="$(BclSourcesRoot)\System\Runtime\InteropServices\ObjectCreationDelegate.cs" />
   </ItemGroup>
   <ItemGroup>
-    <InteropSources Include="$(CoreFxSourcesRoot)\System\Runtime\InteropServices\NativeBuffer.cs" />
     <InteropSources Include="$(CoreFxSourcesRoot)\System\Runtime\InteropServices\StringBuffer.cs" />
-    <InteropSources Include="$(CoreFxSourcesRoot)\System\Runtime\InteropServices\SafeHeapHandle.cs" />
-    <InteropSources Include="$(CoreFxSourcesRoot)\System\Runtime\InteropServices\SafeHeapHandleCache.cs" />
   </ItemGroup>
   <ItemGroup Condition="'$(FeatureClassicCominterop)' == 'true'">
     <InteropSources Include="$(BclSourcesRoot)\System\Runtime\InteropServices\IRegistrationServices.cs" />
@@ -413,7 +410,10 @@
     <SystemSources Include="$(BclSourcesRoot)\System\ThreadAttributes.cs" />
     <SystemSources Include="$(BclSourcesRoot)\System\TimeoutException.cs" />
     <SystemSources Include="$(BclSourcesRoot)\System\TimeSpan.cs" />
+    <SystemSources Include="$(BclSourcesRoot)\System\TimeZoneInfo.AdjustmentRule.cs" />
     <SystemSources Include="$(BclSourcesRoot)\System\TimeZoneInfo.cs" />
+    <SystemSources Include="$(BclSourcesRoot)\System\TimeZoneInfo.StringSerializer.cs" />
+    <SystemSources Include="$(BclSourcesRoot)\System\TimeZoneInfo.TransitionTime.cs" />
     <SystemSources Include="$(BclSourcesRoot)\System\TimeZoneNotFoundException.cs" />
     <SystemSources Include="$(BclSourcesRoot)\System\Type.cs" />
     <SystemSources Include="$(BclSourcesRoot)\System\TypeAccessException.cs" />
@@ -443,6 +443,12 @@
     <SystemSources Condition="'$(FeatureSpanOfT)' == 'true'" Include="$(BclSourcesRoot)\System\ByReference.cs" />
     <SystemSources Condition="'$(FeatureSpanOfT)' == 'true'" Include="$(BclSourcesRoot)\System\Span.cs" />
     <SystemSources Condition="'$(FeatureSpanOfT)' == 'true'" Include="$(BclSourcesRoot)\System\ReadOnlySpan.cs" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(TargetsUnix)' == 'true'">
+    <SystemSources Include="$(BclSourcesRoot)\System\TimeZoneInfo.Unix.cs" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(TargetsUnix)' != 'true'">
+    <SystemSources Include="$(BclSourcesRoot)\System\TimeZoneInfo.Win32.cs" />
   </ItemGroup>
   <ItemGroup>
     <InternalSources Condition="'$(FeatureCoreclr)' == 'true'" Include="$(BclSourcesRoot)\Internal\Runtime\Augments\EnvironmentAugments.cs" />
@@ -743,9 +749,6 @@
     <ThreadingSources Include="$(BclSourcesRoot)\System\Threading\CancellationToken.cs" />
     <ThreadingSources Include="$(BclSourcesRoot)\System\Threading\Tasks\future.cs" />
     <ThreadingSources Include="$(BclSourcesRoot)\System\Threading\Tasks\FutureFactory.cs" />
-    <ThreadingSources Include="$(BclSourcesRoot)\System\Threading\Tasks\Parallel.cs" />
-    <ThreadingSources Include="$(BclSourcesRoot)\System\Threading\Tasks\ParallelRangeManager.cs" />
-    <ThreadingSources Include="$(BclSourcesRoot)\System\Threading\Tasks\ParallelLoopState.cs" />
     <ThreadingSources Include="$(BclSourcesRoot)\System\Threading\Tasks\Task.cs" />
     <ThreadingSources Include="$(BclSourcesRoot)\System\Threading\Tasks\TaskContinuation.cs" />
     <ThreadingSources Include="$(BclSourcesRoot)\System\Threading\Tasks\TaskCanceledException.cs" />
@@ -759,7 +762,6 @@
     <ThreadingSources Include="$(BclSourcesRoot)\System\Threading\Tasks\ConcurrentExclusiveSchedulerPair.cs" />
     <ThreadingSources Include="$(BclSourcesRoot)\System\Threading\Tasks\ProducerConsumerQueues.cs" />
     <ThreadingSources Include="$(BclSourcesRoot)\System\Threading\Tasks\TPLETWProvider.cs" />
-    <ThreadingSources Include="$(BclSourcesRoot)\System\Threading\Tasks\BeginEndAwaitableAdapter.cs" />
     <ThreadingSources Include="$(BclSourcesRoot)\System\Threading\Tasks\TaskToApm.cs" />
     <ThreadingSources Condition="'$(FeatureCominterop)' == 'true'" Include="$(BclSourcesRoot)\System\Threading\Tasks\IAsyncCausalityTracerStatics.cs" />
   </ItemGroup>
@@ -781,7 +783,6 @@
   <ItemGroup>
     <IoSources Include="$(CoreFxSourcesRoot)\System\IO\Path.cs" />
     <IoSources Include="$(CoreFxSourcesRoot)\System\IO\PathInternal.cs" />
-    <IoSources Include="$(CoreFxSourcesRoot)\System\IO\PathInternal.CaseSensitivity.cs" />
   </ItemGroup>
   <ItemGroup Condition="'$(TargetsUnix)' == 'true'">
     <IoSources Include="$(CoreFxSourcesRoot)\System\IO\Path.Unix.cs" />
@@ -806,7 +807,6 @@
     <IoSources Include="$(BclSourcesRoot)\System\IO\BinaryReader.cs" />
     <IoSources Include="$(BclSourcesRoot)\System\IO\BinaryWriter.cs" />
     <IoSources Include="$(BclSourcesRoot)\System\IO\Directory.cs" />
-    <IoSources Include="$(BclSourcesRoot)\System\IO\DirectoryInfo.cs" />
     <IoSources Include="$(BclSourcesRoot)\System\IO\SearchOption.cs" />
     <IoSources Include="$(BclSourcesRoot)\System\IO\DirectoryNotFoundException.cs" />
     <IoSources Include="$(BclSourcesRoot)\System\IO\DriveNotFoundException.cs" />
@@ -814,27 +814,21 @@
     <IoSources Include="$(BclSourcesRoot)\System\IO\EndOfStreamException.cs" />
     <IoSources Include="$(BclSourcesRoot)\System\IO\File.cs" />
     <IoSources Include="$(BclSourcesRoot)\System\IO\FileAccess.cs" />
-    <IoSources Include="$(BclSourcesRoot)\System\IO\FileInfo.cs" />
     <IoSources Include="$(BclSourcesRoot)\System\IO\FileLoadException.cs" />
     <IoSources Include="$(BclSourcesRoot)\System\IO\FileMode.cs" />
     <IoSources Include="$(BclSourcesRoot)\System\IO\FileNotFoundException.cs" />
     <IoSources Include="$(BclSourcesRoot)\System\IO\FileOptions.cs" />
     <IoSources Include="$(BclSourcesRoot)\System\IO\FileShare.cs" />
     <IoSources Include="$(BclSourcesRoot)\System\IO\FileSystemEnumerable.cs" />
-    <IoSources Include="$(BclSourcesRoot)\System\IO\FileSystemInfo.cs" />
-    <IoSources Include="$(BclSourcesRoot)\System\IO\FileAttributes.cs" />
     <IoSources Include="$(BclSourcesRoot)\System\IO\IOException.cs" />
     <IoSources Include="$(BclSourcesRoot)\System\IO\MemoryStream.cs" />
     <IoSources Include="$(BclSourcesRoot)\System\IO\PathTooLongException.cs" />
     <IoSources Include="$(BclSourcesRoot)\System\IO\PinnedBufferMemoryStream.cs" />
-    <IoSources Include="$(BclSourcesRoot)\System\IO\ReadLinesIterator.cs" />
     <IoSources Include="$(BclSourcesRoot)\System\IO\SeekOrigin.cs" />
     <IoSources Include="$(BclSourcesRoot)\System\IO\Stream.cs" />
     <IoSources Include="$(BclSourcesRoot)\System\IO\StreamHelpers.CopyValidation.cs" />
     <IoSources Include="$(BclSourcesRoot)\System\IO\StreamReader.cs" />
-    <IoSources Include="$(BclSourcesRoot)\System\IO\StreamWriter.cs" />
     <IoSources Include="$(BclSourcesRoot)\System\IO\TextReader.cs" />
-    <IoSources Include="$(BclSourcesRoot)\System\IO\TextWriter.cs" />
     <IoSources Include="$(BclSourcesRoot)\System\IO\UnmanagedMemoryAccessor.cs" />
     <IoSources Include="$(BclSourcesRoot)\System\IO\UnmanagedMemoryStream.cs" />
     <IoSources Include="$(BclSourcesRoot)\System\IO\UnmanagedMemoryStreamWrapper.cs" />
@@ -914,7 +908,6 @@
     <DiagnosticsSources Include="$(BclSourcesRoot)\System\Diagnostics\Eventing\TraceLogging\EventFieldFormat.cs" />
     <DiagnosticsSources Include="$(BclSourcesRoot)\System\Diagnostics\Eventing\TraceLogging\EventIgnoreAttribute.cs" />
     <DiagnosticsSources Include="$(BclSourcesRoot)\System\Diagnostics\Eventing\TraceLogging\EventPayload.cs" />
-    <DiagnosticsSources Include="$(BclSourcesRoot)\System\Diagnostics\Eventing\TraceLogging\EventSourceActivity.cs" />
     <DiagnosticsSources Include="$(BclSourcesRoot)\System\Diagnostics\Eventing\TraceLogging\EventSourceOptions.cs" />
     <DiagnosticsSources Include="$(BclSourcesRoot)\System\Diagnostics\Eventing\TraceLogging\FieldMetadata.cs" />
     <DiagnosticsSources Include="$(BclSourcesRoot)\System\Diagnostics\Eventing\TraceLogging\InvokeTypeInfo.cs" />
@@ -939,19 +932,9 @@
     <DiagnosticsCodeanalysisSources Include="$(BclSourcesRoot)\System\Diagnostics\Contracts\ContractsBCL.cs" />
   </ItemGroup>
   <ItemGroup>
-    <DiagnosticsSymbolstoreSources Include="$(BclSourcesRoot)\System\Diagnostics\SymbolStore\ISymBinder.cs" />
-    <DiagnosticsSymbolstoreSources Include="$(BclSourcesRoot)\System\Diagnostics\SymbolStore\ISymDocument.cs" />
     <DiagnosticsSymbolstoreSources Include="$(BclSourcesRoot)\System\Diagnostics\SymbolStore\ISymDocumentWriter.cs" />
-    <DiagnosticsSymbolstoreSources Include="$(BclSourcesRoot)\System\Diagnostics\SymbolStore\ISymMethod.cs" />
-    <DiagnosticsSymbolstoreSources Include="$(BclSourcesRoot)\System\Diagnostics\SymbolStore\ISymNamespace.cs" />
-    <DiagnosticsSymbolstoreSources Include="$(BclSourcesRoot)\System\Diagnostics\SymbolStore\ISymReader.cs" />
-    <DiagnosticsSymbolstoreSources Include="$(BclSourcesRoot)\System\Diagnostics\SymbolStore\ISymScope.cs" />
-    <DiagnosticsSymbolstoreSources Include="$(BclSourcesRoot)\System\Diagnostics\SymbolStore\ISymVariable.cs" />
     <DiagnosticsSymbolstoreSources Include="$(BclSourcesRoot)\System\Diagnostics\SymbolStore\ISymWriter.cs" />
     <DiagnosticsSymbolstoreSources Include="$(BclSourcesRoot)\System\Diagnostics\SymbolStore\SymAddressKind.cs" />
-    <DiagnosticsSymbolstoreSources Include="$(BclSourcesRoot)\System\Diagnostics\SymbolStore\SymDocumentType.cs" />
-    <DiagnosticsSymbolstoreSources Include="$(BclSourcesRoot)\System\Diagnostics\SymbolStore\SymLanguageType.cs" />
-    <DiagnosticsSymbolstoreSources Include="$(BclSourcesRoot)\System\Diagnostics\SymbolStore\SymLanguageVendor.cs" />
     <DiagnosticsSymbolstoreSources Include="$(BclSourcesRoot)\System\Diagnostics\SymbolStore\Token.cs" />
   </ItemGroup>
   <ItemGroup>
