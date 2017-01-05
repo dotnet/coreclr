@@ -1,6 +1,8 @@
 cmake_minimum_required (VERSION 2.6)
 project (SymVerNative)
-set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,--version-script,${CMAKE_CURRENT_SOURCE_DIR}/versionscript")
+if(CMAKE_SYSTEM_NAME STREQUAL Linux)
+  set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,--version-script,${CMAKE_CURRENT_SOURCE_DIR}/versionscript")
+endif()
 include_directories(${INC_PLATFORM_DIR})
 set(SOURCES SymVerNative.cpp )
 
