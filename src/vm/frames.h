@@ -1120,7 +1120,7 @@ class FaultingExceptionFrame : public Frame
     CalleeSavedRegisters    m_regs;
     TADDR                   m_ReturnAddress;
 #else  // _TARGET_X86_
-    #error "WIN32EXCEPTIONS is supported only for X86"
+    #error "Unsupported architecture"
 #endif // _TARGET_X86_
 #else // WIN64EXCEPTIONS
     BOOL                    m_fFilterExecuted;  // Flag for FirstCallToHandler

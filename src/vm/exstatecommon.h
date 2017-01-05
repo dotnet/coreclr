@@ -52,7 +52,7 @@ public:
         m_pDebuggerInterceptNativeOffset = 0;
 
   #ifndef WIN64EXCEPTIONS
-        // WIN32EXCEPTIONS-specific fields
+        // x86-specific fields
         m_pDebuggerInterceptFrame = EXCEPTION_CHAIN_END;
   #endif // !WIN64EXCEPTIONS
         m_dDebuggerInterceptHandlerDepth  = 0;
