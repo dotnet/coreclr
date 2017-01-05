@@ -933,7 +933,7 @@ namespace System.Globalization
                             // Our existing names mostly look like:
                             // "English" + "United States" -> "English (United States)"
                             // "Azeri (Latin)" + "Azerbaijan" -> "Azeri (Latin, Azerbaijan)"
-                            if (this.SENGLISHLANGUAGE.EndsWith(')'))
+                            if (this.SENGLISHLANGUAGE.EndsWithOrdinal(')'))
                             {
                                 // "Azeri (Latin)" + "Azerbaijan" -> "Azeri (Latin, Azerbaijan)"
                                 this.sEnglishDisplayName =
