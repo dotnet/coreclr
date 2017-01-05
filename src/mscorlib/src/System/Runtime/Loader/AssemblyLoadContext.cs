@@ -79,7 +79,6 @@ namespace System.Runtime.Loader
             AppContext.Unloading += OnAppContextUnloading;
         }
 
-#if FEATURE_COLLECTIBLE_ALC
         protected AssemblyLoadContext() : this(false, false)
         {
         }
@@ -89,18 +88,16 @@ namespace System.Runtime.Loader
         }
 
         internal AssemblyLoadContext(bool fRepresentsTPALoadContext, bool isCollectible)
-#else
-        protected AssemblyLoadContext() : this(false)
         {
-        }
-
-        internal AssemblyLoadContext(bool fRepresentsTPALoadContext)
+#if !FEATURE_COLLECTIBLE_ALC
+            if (isCollectible)
+            {
+                throw new NotSupportedException(Environment.GetResourceString("AssemblyLoadContext_Constructor_CollectibleNotSupported"));
+            }
 #endif
-        {
-#if FEATURE_COLLECTIBLE_ALC
             // Initialize the VM side of AssemblyLoadContext if not already done.
             IsCollectible = isCollectible;
-#endif
+
             // Add this instance to the list of alive ALC
             lock (ContextsToUnload)
             {
@@ -151,9 +148,9 @@ namespace System.Runtime.Loader
                 }
             }
         }
+#endif
 
         public bool IsCollectible { get; }
-#endif
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         [SuppressUnmanagedCodeSecurity]
@@ -282,7 +279,6 @@ namespace System.Runtime.Loader
 #endif
         }
 
-#if FEATURE_COLLECTIBLE_ALC
         public void Unload()
         {
             if (!IsCollectible)
@@ -290,12 +286,15 @@ namespace System.Runtime.Loader
                 throw new InvalidOperationException(Environment.GetResourceString("AssemblyLoadContext_Unload_CannotUnloadIfNotCollectible"));
             }
 
+#if FEATURE_COLLECTIBLE_ALC
             lock (unloadLock)
             {
                 UnloadCollectible();
             }
+#endif
         }
 
+#if FEATURE_COLLECTIBLE_ALC
         private void UnloadCollectible()
         {
             Debug.Assert(IsCollectible);

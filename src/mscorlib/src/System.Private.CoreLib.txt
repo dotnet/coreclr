@@ -2016,7 +2016,10 @@ AssemblyLoadContext_Constructor_CannotInstantiateWhileUnloading = Cannot instant
 AssemblyLoadContext_Unload_CannotUnloadIfNotCollectible = Cannot Unload a non collectible AssemblyLoadContext
 AssemblyLoadContext_Unload_AlreadyUnloaded = This instance is already being unloaded
 AssemblyLoadContext_Verify_NotUnloading = This instance is being unloaded and LoadFromXXX methods can no longer be used
-#endif
+#else
+AssemblyLoadContext_Constructor_CollectibleNotSupported = Collectible AssemblyLoadContext are not supported 
+#endif // FEATURE_COLLECTIBLE_ALC
+
 #endif // FEATURE_HOST_ASSEMBLY_RESOLVER
 ;
 ; XMLSyntaxExceptions
