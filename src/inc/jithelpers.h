@@ -135,6 +135,7 @@
     JITHELPER(CORINFO_HELP_FIELD_ACCESS_EXCEPTION,JIT_ThrowFieldAccessException, CORINFO_HELP_SIG_REG_ONLY)
     JITHELPER(CORINFO_HELP_CLASS_ACCESS_EXCEPTION,JIT_ThrowClassAccessException, CORINFO_HELP_SIG_REG_ONLY)
 
+// UNIXTODO: Disable JIT_EndCatch after revising the jitter not to use this (for x86/Linux)
 #ifndef _TARGET_X86_
     JITHELPER(CORINFO_HELP_ENDCATCH,            NULL,               CORINFO_HELP_SIG_CANNOT_USE_ALIGN_STUB)
 #else
