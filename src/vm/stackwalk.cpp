@@ -722,11 +722,10 @@ PCODE Thread::VirtualUnwindNonLeafCallFrame(T_CONTEXT* pContext, KNONVOLATILE_CO
     PCODE           uControlPc = GetIP(pContext);
 #ifdef BIT64
     UINT64              EstablisherFrame;
-    PVOID               HandlerData;
 #else  // BIT64
     DWORD               EstablisherFrame;
-    PVOID               HandlerData;
 #endif // BIT64
+    PVOID               HandlerData;
 
     if (NULL == pFunctionEntry)
     {
