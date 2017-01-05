@@ -355,6 +355,8 @@ inline LPVOID GetRegdisplayReturnValue(REGDISPLAY *display)
     return (LPVOID)display->pCurrentContext->X0;
 #elif defined(_TARGET_ARM_)
     return (LPVOID)display->pCurrentContext->R0;
+#elif defined(_TARGET_X86_)
+    return (LPVOID)display->pCurrentContext->Eax;
 #else
     PORTABILITY_ASSERT("GetRegdisplayReturnValue NYI for this platform (Regdisp.h)");
     return NULL;
