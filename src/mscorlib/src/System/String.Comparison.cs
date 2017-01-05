@@ -783,7 +783,7 @@ namespace System
         }
 
         [Pure]
-        internal bool EndsWithOrdinal(char value) {
+        internal bool EndsWith(char value) {
             int thisLen = this.Length;
             if (thisLen != 0) {
                 if (this[thisLen - 1] == value)
