@@ -29,19 +29,6 @@ class Thread;
                               // Actually, the handler getting set is properly registered
 #endif
 
-#ifdef FEATURE_PAL
-
-extern VOID SetSEHRecord(PEXCEPTION_REGISTRATION_RECORD record);
-extern VOID ResetSEHRecord(PEXCEPTION_REGISTRATION_RECORD record);
-
-#define INSTALL_SEH_RECORD(record)                                        \
-    SetSEHRecord(record);                                                 \
-
-#define UNINSTALL_SEH_RECORD(record)                                      \
-    ResetSEHRecord(record);
-
-#else  // FEATURE_PAL
-
 #define INSTALL_SEH_RECORD(record)                                        \
     {                                                                     \
        (record)->Next = (PEXCEPTION_REGISTRATION_RECORD)__readfsdword(0); \
@@ -52,8 +39,6 @@ extern VOID ResetSEHRecord(PEXCEPTION_REGISTRATION_RECORD record);
     {                                                                     \
         __writefsdword(0, (DWORD) ((record)->Next));                      \
     }
-
-#endif // FEATURE_PAL
 
 #define INSTALL_EXCEPTION_HANDLING_RECORD(record)               \
     {                                                           \

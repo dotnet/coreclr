@@ -2019,20 +2019,6 @@ PEXCEPTION_REGISTRATION_RECORD GetCurrentSEHRecord()
     return (EXCEPTION_REGISTRATION_RECORD*) fs0;
 }
 
-#ifdef FEATURE_PAL
-VOID SetSEHRecord(PEXCEPTION_REGISTRATION_RECORD record)
-{
-    WRAPPER_NO_CONTRACT;
-    record->Next = CurrentSEHRecord;
-    CurrentSEHRecord = record;
-}
-
-VOID ResetSEHRecord(PEXCEPTION_REGISTRATION_RECORD record)
-{
-    CurrentSEHRecord = record->Next;
-}
-#endif // FEATURE_PAL
-
 PEXCEPTION_REGISTRATION_RECORD GetFirstCOMPlusSEHRecord(Thread *pThread) {
     WRAPPER_NO_CONTRACT;
 #ifndef FEATURE_PAL
@@ -3690,27 +3676,6 @@ EXCEPTION_HANDLER_IMPL(COMPlusFrameHandlerRevCom)
     return result;
 }
 #endif // FEATURE_COMINTEROP
-
-#ifdef FEATURE_PAL
-EXTERN_C
-_Unwind_Reason_Code
-UnhandledExceptionHandlerUnix(
-    IN int version,
-    IN _Unwind_Action action,
-    IN uint64_t exceptionClass,
-    IN struct _Unwind_Exception *exception,
-    IN struct _Unwind_Context *context
-    )
-{
-  PORTABILITY_ASSERT("UnhandledExceptionHandlerUnix");
-  return _URC_FATAL_PHASE1_ERROR;
-}
-
-VOID DECLSPEC_NORETURN DispatchManagedException(PAL_SEHException& ex, bool isHardwareException)
-{
-    UNREACHABLE();
-}
-#endif
 #endif // !DACCESS_COMPILE
 #endif // !WIN64EXCEPTIONS
 
