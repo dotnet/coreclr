@@ -6,11 +6,7 @@
 
 extern "C"
 {
-    void ThrowControlForThread(
-#ifdef WIN64EXCEPTIONS        
-        FaultingExceptionFrame *pfef
-#endif // WIN64EXCEPTIONS
-        )
+    void ThrowControlForThread(FaultingExceptionFrame *pfef)
     {
         PORTABILITY_ASSERT("Implement for PAL");
     }
