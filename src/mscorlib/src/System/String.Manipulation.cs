@@ -1553,14 +1553,23 @@ namespace System
             }
             return TrimHelper(trimChars,TrimHead);
         }
-    
-    
+
+        // Removes a set of characters from the beginning of this string.
+        public String TrimStart() {
+            return TrimHelper(TrimHead);
+        }
+
         // Removes a set of characters from the end of this string.
         public String TrimEnd(params char[] trimChars) {
             if (null==trimChars || trimChars.Length == 0) {
                 return TrimHelper(TrimTail);
             }
             return TrimHelper(trimChars,TrimTail);
+        }
+        
+        // Removes a set of characters from the end of this string.
+        public String TrimEnd() {
+             TrimHelper(TrimTail);
         }
 
         // Trims the whitespace from both ends of the string.  Whitespace is defined by
