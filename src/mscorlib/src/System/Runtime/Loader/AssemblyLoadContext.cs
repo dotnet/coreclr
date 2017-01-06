@@ -92,7 +92,7 @@ namespace System.Runtime.Loader
 #if !FEATURE_COLLECTIBLE_ALC
             if (isCollectible)
             {
-                throw new NotSupportedException(Environment.GetResourceString("AssemblyLoadContext_Constructor_CollectibleNotSupported"));
+                throw new InvalidOperationException(Environment.GetResourceString("AssemblyLoadContext_Constructor_CollectibleNotSupported"));
             }
             // Suppress the finalizer as it is not used when FEATURE_COLLECTIBLE_ALC is not defined, but we still need it declared
             GC.SuppressFinalize(this);
