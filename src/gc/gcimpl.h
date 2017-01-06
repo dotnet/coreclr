@@ -286,6 +286,13 @@ protected:
 
     virtual void DiagWalkHeap(walk_fn fn, void* context, int gen_number, BOOL walk_large_object_heap_p);
 
+    virtual void SetDirty(void* address, size_t size);
+
+    virtual void* GetTable();
+
+    virtual bool GetGcRuntimeStructuresValid();
+
+
 public:
     Object * NextObj (Object * object);
 #if defined (FEATURE_BASICFREEZE) && defined (VERIFY_HEAP)

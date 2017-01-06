@@ -21,7 +21,7 @@
 #include "comdatetime.h"
 #include "gcheaputilities.h"
 #include "interoputil.h"
-#include "gcscan.h"
+#include "gcheaputilities.h"
 #ifdef FEATURE_REMOTING
 #include "remoting.h"
 #endif
@@ -61,7 +61,7 @@ void StubHelpers::ValidateObjectInternal(Object *pObjUNSAFE, BOOL fValidateNextO
 }
 	CONTRACTL_END;
 
-	_ASSERTE(GCScan::GetGcRuntimeStructuresValid());
+	_ASSERTE(GCHeapUtilities::GetGCHeap()->GetGcRuntimeStructuresValid());
 
 	// validate the object - there's no need to validate next object's
 	// header since we validate the next object explicitly below

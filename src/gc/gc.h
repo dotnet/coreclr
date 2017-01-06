@@ -26,6 +26,7 @@ Module Name:
 #endif // Sleep
 
 #include "gcinterface.h"
+#include "softwarewritewatch.h"
 #include "env/gcenv.os.h"
 #include "env/gcenv.ee.h"
 

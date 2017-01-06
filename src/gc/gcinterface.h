@@ -548,6 +548,30 @@ public:
     // Unregisters a frozen segment.
     virtual void UnregisterFrozenSegment(segment_handle seg) = 0;
 
+    /*
+    ===========================================================================
+    Routines used by the write barrier to coordinate a non-OS WriteWatch
+    implementation with the GC.
+    ===========================================================================
+    */
+    
+    // Marks the given address (representing an object with the given size) as
+    // dirty.
+    virtual void SetDirty(void* address, size_t size) = 0;
+
+    // Gets a pointer to the implementation-defined WriteWatch table.
+    virtual void* GetTable() = 0;
+
+    /*
+    ===========================================================================
+    Routines useful when traversing the managed heap.
+    ===========================================================================
+    */
+
+    // Returns true if the GC structures are in a valid state.
+    virtual bool GetGcRuntimeStructuresValid() = 0;
+
+
     IGCHeap() {}
     virtual ~IGCHeap() {}
 
