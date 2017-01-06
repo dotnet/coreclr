@@ -1569,7 +1569,7 @@ namespace System
         
         // Removes a set of characters from the end of this string.
         public String TrimEnd() {
-             TrimHelper(TrimTail);
+           return TrimHelper(TrimTail);
         }
 
         // Trims the whitespace from both ends of the string.  Whitespace is defined by
