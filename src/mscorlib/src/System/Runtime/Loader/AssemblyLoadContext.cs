@@ -94,6 +94,8 @@ namespace System.Runtime.Loader
             {
                 throw new NotSupportedException(Environment.GetResourceString("AssemblyLoadContext_Constructor_CollectibleNotSupported"));
             }
+            // Suppress the finalizer as it is not used when FEATURE_COLLECTIBLE_ALC is not defined, but we still need it declared
+            GC.SuppressFinalize(this);
 #endif
             // Initialize the VM side of AssemblyLoadContext if not already done.
             IsCollectible = isCollectible;
@@ -128,9 +130,9 @@ namespace System.Runtime.Loader
             }
         }
 
-#if FEATURE_COLLECTIBLE_ALC
         ~AssemblyLoadContext()
         {
+#if FEATURE_COLLECTIBLE_ALC
             // Only valid for a Collectible ALC
             // We perform an implicit Unload if no explicit Unload has been done
             if (IsCollectible)
@@ -147,8 +149,8 @@ namespace System.Runtime.Loader
                     }
                 }
             }
-        }
 #endif
+        }
 
         public bool IsCollectible { get; }
 
