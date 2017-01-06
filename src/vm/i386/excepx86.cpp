@@ -3667,6 +3667,50 @@ EXCEPTION_HANDLER_IMPL(UMThunkPrestubHandler)
     return retval;
 }
 
+#ifdef FEATURE_COMINTEROP
+// The reverse COM interop path needs to be sure to pop the ComMethodFrame that is pushed, but we do not want
+// to have an additional FS:0 handler between the COM callsite and the call into managed.  So we push this
+// FS:0 handler, which will defer to the usual COMPlusFrameHandler and then perform the cleanup of the
+// ComMethodFrame, if needed.
+EXCEPTION_HANDLER_IMPL(COMPlusFrameHandlerRevCom)
+{
+    STATIC_CONTRACT_THROWS;
+    STATIC_CONTRACT_GC_TRIGGERS;
+    STATIC_CONTRACT_MODE_ANY;
+
+    // Defer to COMPlusFrameHandler
+    EXCEPTION_DISPOSITION result = EXCEPTION_HANDLER_FWD(COMPlusFrameHandler);
+
+    if (pExceptionRecord->ExceptionFlags & (EXCEPTION_UNWINDING | EXCEPTION_EXIT_UNWIND))
+    {
+        // Do cleanup as needed
+        ComMethodFrame::DoSecondPassHandlerCleanup(GetCurrFrame(pEstablisherFrame));
+    }
+
+    return result;
+}
+#endif // FEATURE_COMINTEROP
+
+#ifdef FEATURE_PAL
+EXTERN_C
+_Unwind_Reason_Code
+UnhandledExceptionHandlerUnix(
+    IN int version,
+    IN _Unwind_Action action,
+    IN uint64_t exceptionClass,
+    IN struct _Unwind_Exception *exception,
+    IN struct _Unwind_Context *context
+    )
+{
+  PORTABILITY_ASSERT("UnhandledExceptionHandlerUnix");
+  return _URC_FATAL_PHASE1_ERROR;
+}
+
+VOID DECLSPEC_NORETURN DispatchManagedException(PAL_SEHException& ex, bool isHardwareException)
+{
+    UNREACHABLE();
+}
+#endif
 #endif // !DACCESS_COMPILE
 #endif // !WIN64EXCEPTIONS
 
@@ -3697,35 +3741,6 @@ LONG CLRNoCatchHandler(EXCEPTION_POINTERS* pExceptionInfo, PVOID pv)
 #endif // !WIN64EXCEPTIONS
 }
 #endif // !DACCESS_COMPILE
-
-#ifndef DACCESS_COMPILE
-#ifndef WIN64EXCEPTIONS
-#ifdef FEATURE_COMINTEROP
-// The reverse COM interop path needs to be sure to pop the ComMethodFrame that is pushed, but we do not want
-// to have an additional FS:0 handler between the COM callsite and the call into managed.  So we push this 
-// FS:0 handler, which will defer to the usual COMPlusFrameHandler and then perform the cleanup of the 
-// ComMethodFrame, if needed. 
-EXCEPTION_HANDLER_IMPL(COMPlusFrameHandlerRevCom)
-{
-    STATIC_CONTRACT_THROWS;
-    STATIC_CONTRACT_GC_TRIGGERS;
-    STATIC_CONTRACT_MODE_ANY;
-
-    // Defer to COMPlusFrameHandler
-    EXCEPTION_DISPOSITION result = EXCEPTION_HANDLER_FWD(COMPlusFrameHandler);
-
-    if (pExceptionRecord->ExceptionFlags & (EXCEPTION_UNWINDING | EXCEPTION_EXIT_UNWIND))
-    {
-        // Do cleanup as needed
-        ComMethodFrame::DoSecondPassHandlerCleanup(GetCurrFrame(pEstablisherFrame));
-    }
-
-    return result;
-}
-#endif // FEATURE_COMINTEROP
-
-#endif // !DACCESS_COMPILE
-#endif // !WIN64EXCEPTIONS
 
 // Returns TRUE if caller should resume execution.
 BOOL
@@ -3782,28 +3797,3 @@ AdjustContextForVirtualStub(
 
     return TRUE;
 }
-
-#ifndef DACCESS_COMPILE
-#ifndef WIN64EXCEPTIONS
-#ifdef FEATURE_PAL
-EXTERN_C
-_Unwind_Reason_Code
-UnhandledExceptionHandlerUnix(
-    IN int version,
-    IN _Unwind_Action action,
-    IN uint64_t exceptionClass,
-    IN struct _Unwind_Exception *exception,
-    IN struct _Unwind_Context *context
-    )
-{
-  PORTABILITY_ASSERT("UnhandledExceptionHandlerUnix");
-  return _URC_FATAL_PHASE1_ERROR;
-}
-
-VOID DECLSPEC_NORETURN DispatchManagedException(PAL_SEHException& ex, bool isHardwareException)
-{
-    UNREACHABLE();
-}
-#endif
-#endif // !DACCESS_COMPILE
-#endif // !WIN64EXCEPTIONS
