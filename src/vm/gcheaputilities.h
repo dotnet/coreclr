@@ -172,6 +172,29 @@ public:
             *table_address = 0xFF;
         }
     }
+
+    // In accordance with the SoftwareWriteWatch scheme, marks a range of addresses
+    // as dirty, starting at the given address and with the given length.
+    inline static void SoftwareWriteWatchSetDirtyRegion(void* address, size_t length)
+    {
+        LIMITED_METHOD_CONTRACT;
+
+        // We presumably have just memcopied something to this address, so it can't be null.
+        assert(address != nullptr);
+
+        // The "base index" is the first index in the SWW table that covers the target
+        // region of memory.
+        size_t base_index = reinterpret_cast<size_t>(address) >> SOFTWARE_WRITE_WATCH_AddressToTableByteIndexShift;
+
+        // The "end_index" is the last index in the SWW table that covers the target
+        // region of memory.
+        uint8_t* end_pointer = reinterpret_cast<uint8_t*>(address) + length - 1;
+        size_t end_index = reinterpret_cast<size_t>(end_pointer) >> SOFTWARE_WRITE_WATCH_AddressToTableByteIndexShift;
+
+        // We'll mark the entire region of memory as dirty by memseting all entries in
+        // the SWW table between the start and end indexes.
+        memset(&g_sw_ww_table[base_index], ~0, end_index - base_index + 1);
+    }
 #endif // FEATURE_USE_SOFTWARE_WRITE_WATCH_FOR_GC_HEAP
 
 

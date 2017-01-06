@@ -1263,6 +1263,8 @@ void GCToEEInterface::StompWriteBarrier(WriteBarrierParameters* args)
         assert(args->card_table != nullptr);
         assert(args->lowest_address != nullptr);
         assert(args->highest_address != nullptr);
+        assert(args->ephemeral_low != nullptr);
+        assert(args->ephemeral_high != nullptr);
         assert(args->is_runtime_suspended && "the runtime must be suspended here!");
         assert(!args->requires_upper_bounds_check && "the ephemeral generation must be at the top of the heap!");
 
@@ -1271,6 +1273,11 @@ void GCToEEInterface::StompWriteBarrier(WriteBarrierParameters* args)
         g_lowest_address = args->lowest_address;
         VolatileStore(&g_highest_address, args->highest_address);
         ::StompWriteBarrierResize(true, false);
+
+        // g_ephemeral_low/high aren't needed for the write barrier stomp, but they
+        // are needed in other places.
+        g_ephemeral_low = args->ephemeral_low;
+        g_ephemeral_high = args->ephemeral_high;
         return;
     case WriteBarrierOp::SwitchToWriteWatch:
 #ifdef FEATURE_USE_SOFTWARE_WRITE_WATCH_FOR_GC_HEAP

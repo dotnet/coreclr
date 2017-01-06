@@ -408,9 +408,6 @@ public:
     // sanity checks asserting that a GC has not occured.
     virtual unsigned GetGcCount() = 0;
 
-    // Sets cards after an object has been memmoved. 
-    virtual void SetCardsAfterBulkCopy(Object** obj, size_t length) = 0;
-
     // Gets whether or not the home heap of this alloc context matches the heap
     // associated with this thread.
     virtual bool IsThreadUsingAllocationContextHeap(gc_alloc_context* acontext, int thread_number) = 0;
