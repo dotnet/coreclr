@@ -11,7 +11,7 @@
 //-----------------------------------------------------------------------------
 //void CallDescrWorkerInternal(CallDescrData * pCallDescrData);
 
-NESTED_ENTRY CallDescrWorkerInternal, _TEXT, UnhandledExceptionHandlerUnix
+NESTED_ENTRY CallDescrWorkerInternal, _TEXT, NoHandler
     PROLOG_SAVE_REG_PAIR_INDEXED   fp, lr, -32
     PROLOG_SAVE_REG    x19, 16   //the stack slot at sp+24 is empty for 16 byte alligment
 
