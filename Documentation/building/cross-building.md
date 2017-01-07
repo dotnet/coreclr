@@ -8,7 +8,7 @@ Requirements
 
 You need a Debian based host and the following packages needs to be installed:
 
-    ben@ubuntu ~/git/coreclr/ $ sudo apt-get install qemu qemu-user-static binfmt-support debootstrap
+    ben@ubuntu ~/git/coreclr/ $ sudo apt-get install qemu qemu-user-static binfmt-support debootstrap libunwind8-dev
 
 In addition, to cross compile CoreCLR the binutils for the target are required. So for arm you need:
 
