@@ -1617,21 +1617,8 @@ namespace System.Threading.Tasks
         /// </remarks>
         public static TaskFactory Factory { get { return s_factory; } }
 
-        /// <summary>A task that's already been completed successfully.</summary>
-        private static Task s_completedTask;
-
         /// <summary>Gets a task that's already been completed successfully.</summary>
-        /// <remarks>May not always return the same instance.</remarks>        
-        public static Task CompletedTask
-        {
-            get
-            {
-                var completedTask = s_completedTask;
-                if (completedTask == null)
-                    s_completedTask = completedTask = new Task(false, (TaskCreationOptions)InternalTaskOptions.DoNotDispose, default(CancellationToken)); // benign initialization race condition
-                return completedTask;
-            }
-        }
+        public static Task CompletedTask { get; } = new Task(false, (TaskCreationOptions)InternalTaskOptions.DoNotDispose, default(CancellationToken));
 
         /// <summary>
         /// Provides an event that can be used to wait for completion.
