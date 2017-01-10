@@ -309,3 +309,6 @@ src/jit32
 
 # performance testing sandbox
 sandbox
+
+#nuget
+*/.nuget/*
