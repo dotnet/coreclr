@@ -8,10 +8,10 @@
     <PackagePlatforms>x64;</PackagePlatforms>
   </PropertyGroup>
   <ItemGroup>
-    <NativeSplittableBinary Include="$(BinDir)libSystem.Globalization.Native.a" />
+    <NativeBinary Include="$(BinDir)libSystem.Globalization.Native.a" />
     <NativeSplittableBinary Include="$(BinDir)System.Globalization.Native.dylib" />
     <ArchitectureSpecificNativeFile Include="@(NativeSplittableBinary)" />
-    <File Include="@(ArchitectureSpecificNativeFile)">
+    <File Include="@(ArchitectureSpecificNativeFile);@(NativeBinary)">
       <TargetPath>runtimes/$(PackageTargetRuntime)/native</TargetPath>
     </File>
   </ItemGroup>

@@ -115,5 +115,5 @@ verify_dependencies(
 
 # add the install targets
 install_clr(System.Globalization.Native)
-install_clr(System.Globalization.Native_Static)
+install(TARGETS System.Globalization.Native_Static DESTINATION .)
 
