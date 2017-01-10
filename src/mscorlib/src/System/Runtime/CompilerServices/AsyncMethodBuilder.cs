@@ -958,16 +958,22 @@ namespace System.Runtime.CompilerServices
 
         private Action OutputAsyncCausalityEvents(Task innerTask, Action continuation)
         {
-            return CreateContinuationWrapper(continuation, () =>
-            {
-                AsyncCausalityTracer.TraceSynchronousWorkStart(CausalityTraceLevel.Required, innerTask.Id, CausalitySynchronousWork.Execution);
-
-                // Invoke the original continuation
-                continuation.Invoke();
-
-                AsyncCausalityTracer.TraceSynchronousWorkCompletion(CausalityTraceLevel.Required, CausalitySynchronousWork.Execution);
-            }, innerTask);
+            return CreateContinuationWrapper(
+                continuation,
+                (next, task) => RunContinuationWrapper(next, task),
+                innerTask);
         }
+
+        private static void RunContinuationWrapper(Action continuation, Task innerTask)
+        {
+            AsyncCausalityTracer.TraceSynchronousWorkStart(CausalityTraceLevel.Required, innerTask.Id, CausalitySynchronousWork.Execution);
+
+            // Invoke the original continuation
+            continuation();
+
+            AsyncCausalityTracer.TraceSynchronousWorkCompletion(CausalityTraceLevel.Required, CausalitySynchronousWork.Execution);
+        }
+
 
         internal void PostBoxInitialization(IAsyncStateMachine stateMachine, MoveNextRunner runner, Task builtTask)
         {
@@ -1106,11 +1112,11 @@ namespace System.Runtime.CompilerServices
         /// </summary>
         private class ContinuationWrapper
         {
-            internal readonly Action m_continuation;        // This is continuation which will happen after m_invokeAction  (and is probably a ContinuationWrapper)
-            private readonly Action m_invokeAction;         // This wrapper is an action that wraps another action, this is that Action.  
-            internal readonly Task m_innerTask;             // If the continuation is logically going to invoke a task, this is that task (may be null)
+            internal readonly Action m_continuation;                // This is continuation which will happen after m_invokeAction  (and is probably a ContinuationWrapper)
+            private readonly Action<Action, Task> m_invokeAction;   // This wrapper is an action that wraps another action, this is that Action.  
+            internal readonly Task m_innerTask;                     // If the continuation is logically going to invoke a task, this is that task (may be null)
 
-            internal ContinuationWrapper(Action continuation, Action invokeAction, Task innerTask)
+            internal ContinuationWrapper(Action continuation, Action<Action, Task> invokeAction, Task innerTask)
             {
                 Contract.Requires(continuation != null, "Expected non-null continuation");
 
@@ -1125,11 +1131,11 @@ namespace System.Runtime.CompilerServices
 
             internal void Invoke()
             {
-                m_invokeAction();
+                m_invokeAction(m_continuation, m_innerTask);
             }
         }
 
-        internal static Action CreateContinuationWrapper(Action continuation, Action invokeAction, Task innerTask = null)
+        internal static Action CreateContinuationWrapper(Action continuation, Action<Action, Task> invokeAction, Task innerTask)
         {
             return new ContinuationWrapper(continuation, invokeAction, innerTask).Invoke;
         }
