@@ -107,6 +107,7 @@ LEAF_ENTRY HelperMethodFrameRestoreState, _TEXT
     RestoreRegMS 26, X26
     RestoreRegMS 27, X27
     RestoreRegMS 28, X28
+    RestoreRegMS 29, X29
 LOCAL_LABEL(Done):
     // Its imperative that the return value of HelperMethodFrameRestoreState is zero
     // as it is used in the state machine to loop until it becomes zero.
