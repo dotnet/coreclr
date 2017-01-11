@@ -1555,9 +1555,8 @@ namespace System
         }
 
         // Removes a set of characters from the beginning of this string.
-        public String TrimStart() {
-            return TrimHelper(TrimHead);
-        }
+        public String TrimStart() => TrimHelper(TrimHead);
+        
 
         // Removes a set of characters from the end of this string.
         public String TrimEnd(params char[] trimChars) {
@@ -1568,9 +1567,8 @@ namespace System
         }
         
         // Removes a set of characters from the end of this string.
-        public String TrimEnd() {
-           return TrimHelper(TrimTail);
-        }
+        public String TrimEnd()=> TrimHelper(TrimTail);
+        
 
         // Trims the whitespace from both ends of the string.  Whitespace is defined by
         // Char.IsWhiteSpace.
