@@ -409,7 +409,11 @@ typedef unsigned short regPairNoSmall; // arm: need 12 bits
                                            // target
   #define FEATURE_EH               1       // To aid platform bring-up, eliminate exceptional EH clauses (catch, filter,
                                            // filter-handler, fault) and directly execute 'finally' clauses.
+#ifdef FEATURE_PAL
+  #define FEATURE_EH_FUNCLETS      1
+#else  // FEATURE_PAL
   #define FEATURE_EH_FUNCLETS      0
+#endif // FEATURE_PAL
   #define FEATURE_EH_CALLFINALLY_THUNKS 0  // Generate call-to-finally code in "thunks" in the enclosing EH region,
                                            // protected by "cloned finally" clauses.
 #ifndef LEGACY_BACKEND

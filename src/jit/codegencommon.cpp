@@ -8760,9 +8760,9 @@ void CodeGen::genFnProlog()
     genZeroInitFrame(untrLclHi, untrLclLo, initReg, &initRegZeroed);
 
 #if FEATURE_EH_FUNCLETS
-
+#ifndef _TARGET_X86_
     genSetPSPSym(initReg, &initRegZeroed);
-
+#endif  // _TARGET_X86_
 #else // !FEATURE_EH_FUNCLETS
 
     // when compInitMem is true the genZeroInitFrame will zero out the shadow SP slots
@@ -10240,6 +10240,62 @@ void CodeGen::genCaptureFuncletPrologEpilogInfo()
 #elif defined(_TARGET_ARM64_)
 
 // Look in CodeGenArm64.cpp
+
+#elif defined(_TARGET_X86_)
+
+/*****************************************************************************
+ *
+ *  Generates code for an EH funclet prolog.
+ */
+
+void CodeGen::genFuncletProlog(BasicBlock* block)
+{
+#ifdef DEBUG
+    if (verbose)
+    {
+        printf("*************** In genFuncletProlog()\n");
+    }
+#endif
+
+    ScopedSetVariable<bool> _setGeneratingProlog(&compiler->compGeneratingProlog, true);
+
+    compiler->unwindBegProlog();
+
+    // This is the end of the OS-reported prolog for purposes of unwinding
+    compiler->unwindEndProlog();
+}
+
+/*****************************************************************************
+ *
+ *  Generates code for an EH funclet epilog.
+ */
+
+void CodeGen::genFuncletEpilog()
+{
+#ifdef DEBUG
+    if (verbose)
+    {
+        printf("*************** In genFuncletEpilog()\n");
+    }
+#endif
+
+    ScopedSetVariable<bool> _setGeneratingEpilog(&compiler->compGeneratingEpilog, true);
+
+    instGen_Return(0);
+}
+
+/*****************************************************************************
+ *
+ *  Capture the information used to generate the funclet prologs and epilogs.
+ */
+
+void CodeGen::genCaptureFuncletPrologEpilogInfo()
+{
+    if (!compiler->ehAnyFunclets())
+    {
+        return;
+    }
+}
 
 #else // _TARGET_*
 

@@ -84,6 +84,7 @@ if(CLR_CMAKE_TARGET_ARCH_AMD64)
     simd.cpp
     simdcodegenxarch.cpp
     targetamd64.cpp
+    unwindxarch.cpp
     unwindamd64.cpp
   )
 elseif(CLR_CMAKE_TARGET_ARCH_ARM)
@@ -104,6 +105,8 @@ elseif(CLR_CMAKE_TARGET_ARCH_I386)
     simd.cpp
     simdcodegenxarch.cpp
     targetx86.cpp
+    unwindxarch.cpp
+    unwindx86.cpp
   )
 elseif(CLR_CMAKE_TARGET_ARCH_ARM64)
   set( ARCH_SOURCES

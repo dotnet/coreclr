@@ -10959,6 +10959,31 @@ void CEEJitInfo::CompressDebugInfo()
     EE_TO_JIT_TRANSITION();
 }
 
+void increaseUnwindInfoSize(ULONG &unwindSize)
+{
+#if defined(_TARGET_AMD64_) || defined(_TARGET_X86_)
+    // Add space for personality routine, it must be 4-byte aligned.
+    // Everything in the UNWIND_INFO up to the variable-sized UnwindCodes
+    // array has already had its size included in unwindSize by the caller.
+    unwindSize += sizeof(ULONG);
+
+    // Note that the count of unwind codes (2 bytes each) is stored as a UBYTE
+    // So the largest size could be 510 bytes, plus the header and language
+    // specific stuff.  This can't overflow.
+
+    _ASSERTE(FitsInU4(unwindSize + sizeof(ULONG)));
+    unwindSize = (ULONG)(ALIGN_UP(unwindSize, sizeof(ULONG)));
+#elif defined(_TARGET_ARM_) || defined(_TARGET_ARM64_)
+    // The JIT passes in a 4-byte aligned block of unwind data.
+    _ASSERTE(IS_ALIGNED(unwindSize, sizeof(ULONG)));
+
+    // Add space for personality routine, it must be 4-byte aligned.
+    unwindSize += sizeof(ULONG);
+#else
+    PORTABILITY_ASSERT("increaseUnwindInfoSize");
+#endif // !defined(_TARGET_AMD64_)
+
+}
 // Reserve memory for the method/funclet's unwind information.
 // Note that this must be called before allocMem. It should be
 // called once for the main method, once for every funclet, and
@@ -10991,27 +11016,7 @@ void CEEJitInfo::reserveUnwindInfo(BOOL isFunclet, BOOL isColdCode, ULONG unwind
 
     ULONG currentSize  = unwindSize;
 
-#if defined(_TARGET_AMD64_)
-    // Add space for personality routine, it must be 4-byte aligned.
-    // Everything in the UNWIND_INFO up to the variable-sized UnwindCodes
-    // array has already had its size included in unwindSize by the caller.
-    currentSize += sizeof(ULONG);
-
-    // Note that the count of unwind codes (2 bytes each) is stored as a UBYTE
-    // So the largest size could be 510 bytes, plus the header and language
-    // specific stuff.  This can't overflow.
-
-    _ASSERTE(FitsInU4(currentSize + sizeof(ULONG)));
-    currentSize = (ULONG)(ALIGN_UP(currentSize, sizeof(ULONG)));
-#elif defined(_TARGET_ARM_) || defined(_TARGET_ARM64_)
-    // The JIT passes in a 4-byte aligned block of unwind data.
-    _ASSERTE(IS_ALIGNED(currentSize, sizeof(ULONG)));
-
-    // Add space for personality routine, it must be 4-byte aligned.
-    currentSize += sizeof(ULONG);
-#else
-    PORTABILITY_ASSERT("CEEJitInfo::reserveUnwindInfo");
-#endif // !defined(_TARGET_AMD64_)
+    increaseUnwindInfoSize(currentSize);
 
     m_totalUnwindSize += currentSize;
 
@@ -11096,27 +11101,7 @@ void CEEJitInfo::allocUnwindInfo (
     UNWIND_INFO * pUnwindInfo = (UNWIND_INFO *) &(m_theUnwindBlock[m_usedUnwindSize]);
     m_usedUnwindSize += unwindSize;
 
-#if defined(_TARGET_AMD64_)
-    // Add space for personality routine, it must be 4-byte aligned.
-    // Everything in the UNWIND_INFO up to the variable-sized UnwindCodes
-    // array has already had its size included in unwindSize by the caller.
-    m_usedUnwindSize += sizeof(ULONG);
-
-    // Note that the count of unwind codes (2 bytes each) is stored as a UBYTE
-    // So the largest size could be 510 bytes, plus the header and language
-    // specific stuff.  This can't overflow.
-
-    _ASSERTE(FitsInU4(m_usedUnwindSize + sizeof(ULONG)));
-    m_usedUnwindSize = (ULONG)(ALIGN_UP(m_usedUnwindSize,sizeof(ULONG)));
-#elif defined(_TARGET_ARM_) || defined(_TARGET_ARM64_)
-    // The JIT passes in a 4-byte aligned block of unwind data.
-    _ASSERTE(IS_ALIGNED(m_usedUnwindSize, sizeof(ULONG)));
-
-    // Add space for personality routine, it must be 4-byte aligned.
-    m_usedUnwindSize += sizeof(ULONG);
-#else
-    PORTABILITY_ASSERT("CEEJitInfo::reserveUnwindInfo");
-#endif
+    increaseUnwindInfoSize(m_usedUnwindSize);
 
     _ASSERTE(m_usedUnwindSize <= m_totalUnwindSize);
 
@@ -11159,7 +11144,7 @@ void CEEJitInfo::allocUnwindInfo (
 
     RUNTIME_FUNCTION__SetBeginAddress(pRuntimeFunction, currentCodeOffset + startOffset);
 
-#if defined(_TARGET_AMD64_)
+#if !COMPACT_RUNTIME_FUNCTION
     pRuntimeFunction->EndAddress        = currentCodeOffset + endOffset;
 #endif
 

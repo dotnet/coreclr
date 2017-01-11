@@ -1133,7 +1133,7 @@ struct FuncInfoDsc
                                // funclet. It is only valid if funKind field indicates this is a
                                // EH-related funclet: FUNC_HANDLER or FUNC_FILTER
 
-#if defined(_TARGET_AMD64_)
+#if defined(_TARGET_XARCH_)
 
     // TODO-AMD64-Throughput: make the AMD64 info more like the ARM info to avoid having this large static array.
     emitLocation* startLoc;
@@ -1771,7 +1771,11 @@ public:
     // a PSPSym for functions with any EH.
     bool ehNeedsPSPSym() const
     {
+#ifdef _TARGET_X86_
+        return false;
+#else  // _TARGET_X86_
         return compHndBBtabCount > 0;
+#endif // _TARGET_X86_
     }
 
     bool     ehAnyFunclets();  // Are there any funclets in this function?
@@ -6850,13 +6854,19 @@ private:
     void unwindReserveFunc(FuncInfoDsc* func);
     void unwindEmitFunc(FuncInfoDsc* func, void* pHotCode, void* pColdCode);
 
-#if defined(_TARGET_AMD64_)
+#ifdef _TARGET_XARCH_
+#ifdef UNIX_AMD64_ABI
+    void unwindBegPrologCFI();
+#endif // UNIX_AMD64_ABI
+    void unwindBegPrologWindows();
 
     void unwindReserveFuncHelper(FuncInfoDsc* func, bool isHotCode);
     void unwindEmitFuncHelper(FuncInfoDsc* func, void* pHotCode, void* pColdCode, bool isHotCode);
+#endif // _TARGET_XARCH_
+
+#if defined(_TARGET_AMD64_)
     UNATIVE_OFFSET unwindGetCurrentOffset(FuncInfoDsc* func);
 
-    void unwindBegPrologWindows();
     void unwindPushWindows(regNumber reg);
     void unwindAllocStackWindows(unsigned size);
     void unwindSetFrameRegWindows(regNumber reg, unsigned offset);

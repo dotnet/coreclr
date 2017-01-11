@@ -789,6 +789,8 @@ typedef struct _DYNAMIC_FUNCTION_TABLE {
 //
 #ifdef _TARGET_AMD64_
 
+#define COMPACT_RUNTIME_FUNCTION        0
+
 #define RUNTIME_FUNCTION__BeginAddress(prf)             (prf)->BeginAddress
 #define RUNTIME_FUNCTION__SetBeginAddress(prf,address)  ((prf)->BeginAddress = (address))
 
@@ -855,24 +857,14 @@ typedef struct _DISPATCHER_CONTEXT {
 #define RUNTIME_FUNCTION__SetBeginAddress(prf,addr)     ((prf)->BeginAddress = (addr))
 
 #ifdef WIN64EXCEPTIONS
-EXTERN_C ULONG
-RtlpGetFunctionEndAddress (
-    __in PT_RUNTIME_FUNCTION FunctionEntry,
-    __in ULONG ImageBase
-    );
-
-#define RUNTIME_FUNCTION__EndAddress(prf, ImageBase)   RtlpGetFunctionEndAddress(prf, ImageBase)
+#define RUNTIME_FUNCTION__EndAddress(prf, ImageBase)    ((prf)->EndAddress)
 
 #define RUNTIME_FUNCTION__GetUnwindInfoAddress(prf)    (prf)->UnwindData
 #define RUNTIME_FUNCTION__SetUnwindInfoAddress(prf, addr) do { (prf)->UnwindData = (addr); } while(0)
 
-#define UNW_FLAG_NHANDLER               0x0             /* any handler */
-#define UNW_FLAG_EHANDLER               0x1             /* filter handler */
-#define UNW_FLAG_UHANDLER               0x2             /* unwind handler */
+#include "win64unwind.h"
 
-typedef struct _UNWIND_INFO {
-    // dummy
-} UNWIND_INFO, *PUNWIND_INFO;
+#define COMPACT_RUNTIME_FUNCTION        0
 
 EXTERN_C
 NTSYSAPI
@@ -888,6 +880,8 @@ RtlVirtualUnwind (
     __out PDWORD EstablisherFrame,
     __inout_opt PT_KNONVOLATILE_CONTEXT_POINTERS ContextPointers
     );
+#else  // WIN64EXCEPTIONS
+#define COMPACT_RUNTIME_FUNCTION        1
 #endif // WIN64EXCEPTIONS
 
 #endif // _TARGET_X86_
@@ -903,6 +897,8 @@ RtlVirtualUnwind (
 #define UNW_FLAG_EHANDLER               0x1             /* filter handler */
 #define UNW_FLAG_UHANDLER               0x2             /* unwind handler */
                                                             
+#define COMPACT_RUNTIME_FUNCTION        1
+
 // This function returns the length of a function using the new unwind info on arm.
 // Taken from minkernel\ntos\rtl\arm\ntrtlarm.h.
 FORCEINLINE
@@ -974,6 +970,8 @@ RtlVirtualUnwind (
 #define UNW_FLAG_EHANDLER               0x1             /* filter handler */
 #define UNW_FLAG_UHANDLER               0x2             /* unwind handler */
 
+#define COMPACT_RUNTIME_FUNCTION        1
+
 // This function returns the RVA of the end of the function (exclusive, so one byte after the actual end)
 // using the unwind info on ARM64. (see ExternalAPIs\Win9CoreSystem\inc\winnt.h)
 FORCEINLINE
@@ -1039,4 +1037,7 @@ RtlVirtualUnwind(
 
 #endif
 
+#ifndef COMPACT_RUNTIME_FUNCTION
+#error "COMPACT_RUNTIME_FUNCTION should be defined"
+#endif
 #endif  // CLRNT_H_
