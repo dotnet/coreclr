@@ -6873,7 +6873,6 @@ private:
     void unwindSaveRegWindows(regNumber reg, unsigned offset);
 
 #ifdef UNIX_AMD64_ABI
-    void unwindBegPrologCFI();
     void unwindPushCFI(regNumber reg);
     void unwindAllocStackCFI(unsigned size);
     void unwindSetFrameRegCFI(regNumber reg, unsigned offset);
