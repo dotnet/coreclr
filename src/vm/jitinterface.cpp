@@ -10961,7 +10961,9 @@ void CEEJitInfo::CompressDebugInfo()
 
 void increaseUnwindInfoSize(ULONG &unwindSize)
 {
-#if defined(_TARGET_AMD64_) || defined(_TARGET_X86_)
+#if defined(_TARGET_X86_)
+    // Do nothing
+#elif defined(_TARGET_AMD64_)
     // Add space for personality routine, it must be 4-byte aligned.
     // Everything in the UNWIND_INFO up to the variable-sized UnwindCodes
     // array has already had its size included in unwindSize by the caller.
