@@ -252,6 +252,7 @@ void Compiler::unwindBegProlog()
 #endif // FEATURE_EH_FUNCLETS
 }
 
+#if FEATURE_EH_FUNCLETS
 void Compiler::unwindBegPrologWindows()
 {
     assert(compGeneratingProlog);
@@ -305,6 +306,7 @@ void Compiler::unwindBegPrologCFI()
     func->cfiCodes = new (allocate_any<CFICodeVector>(allocator), jitstd::placement_t()) CFICodeVector(allocator);
 }
 #endif // UNIX_AMD64_ABI
+#endif // FEATURE_EH_FUNCLETS
 
 //------------------------------------------------------------------------
 // Compiler::unwindEndProlog: Called at the end of main function or funclet
@@ -360,6 +362,7 @@ void Compiler::unwindEmit(void* pHotCode, void* pColdCode)
 #endif
 }
 
+#if FEATURE_EH_FUNCLETS
 //------------------------------------------------------------------------
 // Compiler::unwindEmitFunc: Report the unwind information to the VM for a
 // given main function or funclet. Reports the hot section, then the cold
@@ -510,6 +513,7 @@ void Compiler::unwindEmitFuncHelper(FuncInfoDsc* func, void* pHotCode, void* pCo
     eeAllocUnwindInfo((BYTE*)pHotCode, (BYTE*)pColdCode, startOffset, endOffset, unwindCodeBytes, pUnwindBlock,
                       (CorJitFuncKind)func->funKind);
 }
+#endif // FEATURE_EH_FUNCLETS
 
 //------------------------------------------------------------------------
 // Compiler::unwindReserve: Ask the VM to reserve space for the unwind information
@@ -531,6 +535,7 @@ void Compiler::unwindReserve()
 #endif
 }
 
+#if FEATURE_EH_FUNCLETS
 //------------------------------------------------------------------------
 // Compiler::unwindReserveFunc: Reserve the unwind information from the VM for a
 // given main function or funclet.
@@ -601,3 +606,4 @@ void Compiler::unwindReserveFuncHelper(FuncInfoDsc* func, bool isHotCode)
 
     eeReserveUnwindInfo(isFunclet, isColdCode, unwindCodeBytes);
 }
+#endif // FEATURE_EH_FUNCLETS
