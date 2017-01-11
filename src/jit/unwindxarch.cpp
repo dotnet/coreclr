@@ -339,7 +339,6 @@ void Compiler::unwindEndEpilog()
 #endif // FEATURE_EH_FUNCLETS
 }
 
-
 //------------------------------------------------------------------------
 // Compiler::unwindEmit: Report all the unwind information to the VM.
 //

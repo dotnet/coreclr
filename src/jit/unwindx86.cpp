@@ -35,4 +35,3 @@ void Compiler::unwindSetFrameReg(regNumber reg, unsigned offset)
 void Compiler::unwindSaveReg(regNumber reg, unsigned offset)
 {
 }
-
