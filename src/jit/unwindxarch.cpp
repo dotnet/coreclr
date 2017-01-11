@@ -16,7 +16,7 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 #pragma hdrstop
 #endif
 
-#ifdef DEBUG
+#if defined(DEBUG) && FEATURE_EH_FUNCLETS
 
 //------------------------------------------------------------------------
 // DumpUnwindInfo: Dump the unwind data.
@@ -230,7 +230,7 @@ void DumpCfiInfo(bool                  isHotCode,
     }
 }
 #endif // UNIX_AMD64_ABI
-#endif // DEBUG
+#endif // DEBUG && FEATURE_EH_FUNCLETS
 
 //------------------------------------------------------------------------
 // Compiler::unwindBegProlog: Initialize the unwind info data structures.
