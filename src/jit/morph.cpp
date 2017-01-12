@@ -16963,6 +16963,10 @@ void Compiler::fgMorph()
 
     EndPhase(PHASE_EMPTY_FINALLY);
 
+    fgMergeFinallyChains();
+
+    EndPhase(PHASE_MERGE_FINALLY_CHAINS);
+
     fgCloneFinally();
 
     EndPhase(PHASE_CLONE_FINALLY);
