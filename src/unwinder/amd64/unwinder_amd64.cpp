@@ -55,138 +55,6 @@ static M128A MemoryRead128(PM128A addr)
 
 #ifdef DACCESS_COMPILE
 
-// Report failure in the unwinder if the condition is FALSE
-#define UNWINDER_ASSERT(Condition) if (!(Condition)) DacError(CORDBG_E_TARGET_INCONSISTENT)
-
-//---------------------------------------------------------------------------------------
-//
-// The InstructionBuffer class abstracts accessing assembler instructions in the function
-// being unwound. It behaves as a memory byte pointer, but it reads the instruction codes
-// from the target process being debugged and removes all changes that the debugger
-// may have made to the code, e.g. breakpoint instructions.
-//
-class InstructionBuffer
-{
-    UINT m_offset;
-    SIZE_T m_address;
-    UCHAR m_buffer[32];
-
-    // Load the instructions from the target process being debugged
-    HRESULT Load()
-    {
-        HRESULT hr = DacReadAll(TO_TADDR(m_address), m_buffer, sizeof(m_buffer), false);
-        if (SUCCEEDED(hr))
-        {
-            // On X64, we need to replace any patches which are within the requested memory range.
-            // This is because the X64 unwinder needs to disassemble the native instructions in order to determine
-            // whether the IP is in an epilog.
-            MemoryRange range(dac_cast<PTR_VOID>((TADDR)m_address), sizeof(m_buffer));
-            hr = DacReplacePatchesInHostMemory(range, m_buffer);
-        }
-
-        return hr;
-    }
-
-public:
-
-    // Construct the InstructionBuffer for the given address in the target process
-    InstructionBuffer(SIZE_T address)
-      : m_offset(0),
-        m_address(address)
-    {
-        HRESULT hr = Load();
-        if (FAILED(hr))
-        {
-            // If we have failed to read from the target process, just pretend
-            // we've read zeros. 
-            // The InstructionBuffer is used in code driven epilogue unwinding 
-            // when we read processor instructions and simulate them.
-            // It's very rare to be stopped in an epilogue when
-            // getting a stack trace, so if we can't read the
-            // code just assume we aren't in an epilogue instead of failing
-            // the unwind.
-            memset(m_buffer, 0, sizeof(m_buffer));
-        }
-    }
-
-    // Move to the next byte in the buffer
-    InstructionBuffer& operator++()
-    {
-        m_offset++;
-        return *this;
-    }
-
-    // Skip delta bytes in the buffer
-    InstructionBuffer& operator+=(INT delta)
-    {
-        m_offset += delta;
-        return *this;
-    }
-
-    // Return address of the current byte in the buffer
-    explicit operator ULONG64()
-    {
-        return m_address + m_offset;
-    }
-
-    // Get the byte at the given index from the current position
-    // Invoke DacError if the index is out of the buffer
-    UCHAR operator[](int index)
-    {
-        int realIndex = m_offset + index;
-        UNWINDER_ASSERT(realIndex < sizeof(m_buffer));
-        return m_buffer[realIndex];
-    }
-};
-
-//---------------------------------------------------------------------------------------
-//
-// Given the target address of an UNWIND_INFO structure, this function retrieves all the memory used for
-// the UNWIND_INFO, including the variable size array of UNWIND_CODE.  The function returns a host copy
-// of the UNWIND_INFO.
-//
-// Arguments:
-//    taUnwindInfo - the target address of an UNWIND_INFO
-//
-// Return Value:
-//    Return a host copy of the UNWIND_INFO, including the array of UNWIND_CODE.
-//
-// Notes:
-//    The host copy of UNWIND_INFO is created from DAC memory, which will be flushed when the DAC cache
-//    is flushed (i.e. when the debugee is continued).  Thus, the caller doesn't need to worry about freeing
-//    this memory.
-//
-UNWIND_INFO * DacGetUnwindInfo(TADDR taUnwindInfo)
-{
-    PTR_UNWIND_INFO pUnwindInfo = PTR_UNWIND_INFO(taUnwindInfo);
-    DWORD cbUnwindInfo = offsetof(UNWIND_INFO, UnwindCode) +
-        pUnwindInfo->CountOfUnwindCodes * sizeof(UNWIND_CODE);
-
-    // Check if there is a chained unwind info.  If so, it has an extra RUNTIME_FUNCTION tagged to the end.
-    if ((pUnwindInfo->Flags & UNW_FLAG_CHAININFO) != 0)
-    {
-        // If there is an odd number of UNWIND_CODE, we need to adjust for alignment.
-        if ((pUnwindInfo->CountOfUnwindCodes & 1) != 0)
-        {
-            cbUnwindInfo += sizeof(UNWIND_CODE);
-        }
-        cbUnwindInfo += sizeof(T_RUNTIME_FUNCTION);
-    }
-    return reinterpret_cast<UNWIND_INFO *>(DacInstantiateTypeByAddress(taUnwindInfo, cbUnwindInfo, true));
-}
-
-//---------------------------------------------------------------------------------------
-//
-// This function just wraps the DacGetUnwindInfo. 
-// The DacGetUnwindInfo is called from other places outside of the unwinder, so it
-// cannot be merged into the body of this method.
-//
-UNWIND_INFO * OOPStackUnwinderAMD64::GetUnwindInfo(TADDR taUnwindInfo)
-{
-    return DacGetUnwindInfo(taUnwindInfo);
-}
-
-
 //---------------------------------------------------------------------------------------
 //
 // This function is just a wrapper over OOPStackUnwinder.  The runtime can call this function to 
@@ -259,22 +127,6 @@ BOOL OOPStackUnwinderAMD64::Unwind(CONTEXT * pContext)
 }
 
 #else // DACCESS_COMPILE
-
-// Report failure in the unwinder if the condition is FALSE
-#define UNWINDER_ASSERT _ASSERTE
-
-// For unwinding of the jitted code on non-Windows platforms, the Instruction buffer is 
-// just a plain pointer to the instruction data.
-typedef UCHAR * InstructionBuffer;
-
-//---------------------------------------------------------------------------------------
-//
-// Return UNWIND_INFO pointer for the given address. 
-//
-UNWIND_INFO * OOPStackUnwinderAMD64::GetUnwindInfo(TADDR taUnwindInfo)
-{
-    return (UNWIND_INFO *)taUnwindInfo;
-}
 
 //---------------------------------------------------------------------------------------
 //
@@ -391,8 +243,6 @@ PEXCEPTION_ROUTINE RtlVirtualUnwind_Unsafe(
 #define RET_OP_2 0xc2
 
 #define IS_REX_PREFIX(x) (((x) & 0xf0) == 0x40)
-
-#define UNWIND_CHAIN_LIMIT 32
 
 HRESULT
 OOPStackUnwinderAMD64::UnwindEpilogue(
@@ -1816,43 +1666,4 @@ Return Value:
     }
 }
 
-ULONG OOPStackUnwinderAMD64::UnwindOpSlots(__in UNWIND_CODE UnwindCode)
-/*++
-
-Routine Description:
-
-    This routine determines the number of unwind code slots ultimately
-    consumed by an unwind code sequence.
-
-Arguments:
-
-    UnwindCode - Supplies the first unwind code in the sequence.
-
-Return Value:
-
-    Returns the total count of the number of slots consumed by the unwind
-    code sequence.
-
---*/
-{
-
-    ULONG Slots;
-    ULONG UnwindOp;
-
-    //
-    // UWOP_SPARE_CODE may be found in very old x64 images.
-    //
-
-    UnwindOp = UnwindCode.UnwindOp;
-
-    UNWINDER_ASSERT(UnwindOp != UWOP_SPARE_CODE);
-    UNWINDER_ASSERT(UnwindOp < sizeof(UnwindOpExtraSlotTable));
-
-    Slots = UnwindOpExtraSlotTable[UnwindOp] + 1;
-    if ((UnwindOp == UWOP_ALLOC_LARGE) && (UnwindCode.OpInfo != 0)) {
-        Slots += 1;
-    }
-
-    return Slots;
-}
 

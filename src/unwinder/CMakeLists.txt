@@ -12,12 +12,16 @@ set(UNWINDER_SOURCES
 )
 
 # Include platform specific unwinder for applicable (native and cross-target) builds.
-if(NOT DEFINED CLR_CMAKE_TARGET_ARCH_I386)    
-    include_directories(${ARCH_SOURCES_DIR})
-    list(APPEND UNWINDER_SOURCES
-        ${ARCH_SOURCES_DIR}/unwinder_${ARCH_SOURCES_DIR}.cpp
-    )
-endif()
+include_directories(${ARCH_SOURCES_DIR})
+list(APPEND UNWINDER_SOURCES
+    ${ARCH_SOURCES_DIR}/unwinder_${ARCH_SOURCES_DIR}.cpp
+)
+
+if(CLR_CMAKE_PLATFORM_ARCH_I386 OR CLR_CMAKE_PLATFORM_ARCH_AMD64)
+list(APPEND UNWINDER_SOURCES
+    unwinder_xarch.cpp
+)
+endif(CLR_CMAKE_PLATFORM_ARCH_I386 OR CLR_CMAKE_PLATFORM_ARCH_AMD64)
 
 convert_to_absolute_path(UNWINDER_SOURCES ${UNWINDER_SOURCES})
 
