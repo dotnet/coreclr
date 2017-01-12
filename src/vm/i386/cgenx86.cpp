@@ -320,6 +320,7 @@ void HelperMethodFrame::UpdateRegDisplay(const PREGDISPLAY pRD)
     }
     CONTRACT_END;
 
+#ifndef WIN64EXCEPTIONS
     ENABLE_FORBID_GC_LOADER_USE_IN_THIS_SCOPE();
 
     // reset pContext; it's only valid for active (top-most) frame
@@ -378,7 +379,38 @@ void HelperMethodFrame::UpdateRegDisplay(const PREGDISPLAY pRD)
     pRD->PCTAddr = dac_cast<TADDR>(m_MachState.pRetAddr());
     pRD->ControlPC = m_MachState.GetRetAddr();
     pRD->Esp  = (DWORD) m_MachState.esp();
+#else // WIN64EXCEPTIONS
+    pRD->IsCallerContextValid = FALSE;
+    pRD->IsCallerSPValid      = FALSE;        // Don't add usage of this field.  This is only temporary.
 
+    //
+    // Copy the saved state from the frame to the current context.
+    //
+
+    LOG((LF_GCROOTS, LL_INFO100000, "STACKWALK    HelperMethodFrame::UpdateRegDisplay cached ip:%p, sp:%p\n", m_MachState.GetRetAddr(), m_MachState.esp()));
+
+#if defined(DACCESS_COMPILE)
+    // For DAC, we may get here when the HMF is still uninitialized.
+    // So we may need to unwind here.
+    if (!m_MachState.isValid())
+    {
+        PORTABILITY_ASSERT("HelperMethodFrame::UpdateRegDisplay");
+        return;
+    }
+#endif // DACCESS_COMPILE
+
+    pRD->pCurrentContext->Eip = pRD->ControlPC = m_MachState.GetRetAddr();
+    pRD->pCurrentContext->Esp = pRD->Esp = m_MachState.esp();
+
+#define CALLEE_SAVED_REGISTER(regname) pRD->pCurrentContext->regname = *m_MachState._p##regname;
+    ENUM_CALLEE_SAVED_REGISTERS();
+#undef CALLEE_SAVED_REGISTER
+
+#define CALLEE_SAVED_REGISTER(regname) pRD->pCurrentContextPointers->regname = m_MachState._p##regname;
+    ENUM_CALLEE_SAVED_REGISTERS();
+#undef CALLEE_SAVED_REGISTER
+
+#endif // WIN64EXCEPTIONS
     RETURN;
 }
 
