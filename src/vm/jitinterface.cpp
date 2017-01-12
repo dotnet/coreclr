@@ -11146,7 +11146,7 @@ void CEEJitInfo::allocUnwindInfo (
 
     RUNTIME_FUNCTION__SetBeginAddress(pRuntimeFunction, currentCodeOffset + startOffset);
 
-#if !COMPACT_RUNTIME_FUNCTION
+#if RUNTIME_FUNCTION_HAS_ENDADDRESS
     pRuntimeFunction->EndAddress        = currentCodeOffset + endOffset;
 #endif
 

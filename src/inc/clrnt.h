@@ -789,7 +789,7 @@ typedef struct _DYNAMIC_FUNCTION_TABLE {
 //
 #ifdef _TARGET_AMD64_
 
-#define COMPACT_RUNTIME_FUNCTION        0
+#define RUNTIME_FUNCTION_HAS_ENDADDRESS        1
 
 #define RUNTIME_FUNCTION__BeginAddress(prf)             (prf)->BeginAddress
 #define RUNTIME_FUNCTION__SetBeginAddress(prf,address)  ((prf)->BeginAddress = (address))
@@ -864,7 +864,7 @@ typedef struct _DISPATCHER_CONTEXT {
 
 #include "win64unwind.h"
 
-#define COMPACT_RUNTIME_FUNCTION        0
+#define RUNTIME_FUNCTION_HAS_ENDADDRESS        1
 
 EXTERN_C
 NTSYSAPI
@@ -881,7 +881,7 @@ RtlVirtualUnwind (
     __inout_opt PT_KNONVOLATILE_CONTEXT_POINTERS ContextPointers
     );
 #else  // WIN64EXCEPTIONS
-#define COMPACT_RUNTIME_FUNCTION        1
+#define RUNTIME_FUNCTION_HAS_ENDADDRESS        0
 #endif // WIN64EXCEPTIONS
 
 #endif // _TARGET_X86_
@@ -897,7 +897,7 @@ RtlVirtualUnwind (
 #define UNW_FLAG_EHANDLER               0x1             /* filter handler */
 #define UNW_FLAG_UHANDLER               0x2             /* unwind handler */
                                                             
-#define COMPACT_RUNTIME_FUNCTION        1
+#define RUNTIME_FUNCTION_HAS_ENDADDRESS        0
 
 // This function returns the length of a function using the new unwind info on arm.
 // Taken from minkernel\ntos\rtl\arm\ntrtlarm.h.
@@ -970,7 +970,7 @@ RtlVirtualUnwind (
 #define UNW_FLAG_EHANDLER               0x1             /* filter handler */
 #define UNW_FLAG_UHANDLER               0x2             /* unwind handler */
 
-#define COMPACT_RUNTIME_FUNCTION        1
+#define RUNTIME_FUNCTION_HAS_ENDADDRESS        0
 
 // This function returns the RVA of the end of the function (exclusive, so one byte after the actual end)
 // using the unwind info on ARM64. (see ExternalAPIs\Win9CoreSystem\inc\winnt.h)
@@ -1037,7 +1037,7 @@ RtlVirtualUnwind(
 
 #endif
 
-#ifndef COMPACT_RUNTIME_FUNCTION
-#error "COMPACT_RUNTIME_FUNCTION should be defined"
+#ifndef RUNTIME_FUNCTION_HAS_ENDADDRESS
+#error "RUNTIME_FUNCTION_HAS_ENDADDRESS should be defined"
 #endif
 #endif  // CLRNT_H_
