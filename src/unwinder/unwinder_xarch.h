@@ -9,10 +9,11 @@
 
 #include "unwinder.h"
 
-#ifdef WIN64EXCEPTIONS
+#if (defined(_TARGET_X86_) || defined(_TARGET_AMD64_)) && defined(WIN64EXCEPTIONS)
 #define UNWIND_CHAIN_LIMIT 32
 
 // Report failure in the unwinder if the condition is FALSE
+//
 #ifdef DACCESS_COMPILE
 #define UNWINDER_ASSERT(Condition) if (!(Condition)) DacError(CORDBG_E_TARGET_INCONSISTENT)
 
@@ -114,5 +115,5 @@ protected:
 
     static UNWIND_INFO * GetUnwindInfo(TADDR taUnwindInfo);
 };
-#endif // WIN64EXCEPTIONS
+#endif // (_TARGET_X86_ || _TARGET_AMD64_) && WIN64EXCEPTIONS
 #endif // __unwinder_xarch_h__

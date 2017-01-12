@@ -7,7 +7,7 @@
 #include "stdafx.h"
 #include "unwinder_xarch.h"
 
-#ifdef WIN64EXCEPTIONS
+#if (defined(_TARGET_X86_) || defined(_TARGET_AMD64_)) && defined(WIN64EXCEPTIONS)
 ULONG OOPStackUnwinderXARCH::UnwindOpSlots(__in UNWIND_CODE UnwindCode)
 /*++
 
@@ -109,4 +109,4 @@ UNWIND_INFO * OOPStackUnwinderXARCH::GetUnwindInfo(TADDR taUnwindInfo)
 }
 
 #endif // DACCESS_COMPILE
-#endif // WIN64EXCEPTIONS
+#endif // (_TARGET_X86_ || _TARGET_AMD64_) && WIN64EXCEPTIONS
