@@ -118,25 +118,17 @@ LOCAL_LABEL(Done_Restore_CONTEXT_EXTENDED_REGISTERS):
 
     // Create a minimal frame
     push  DWORD PTR [eax + CONTEXT_Eip]
-    push  DWORD PTR [eax + CONTEXT_Ebp]
 
-    // Restore INTEGER register(s)
-    push  DWORD PTR [eax + CONTEXT_Edi]
-    push  DWORD PTR [eax + CONTEXT_Esi]
-    push  DWORD PTR [eax + CONTEXT_Edx]
-    push  DWORD PTR [eax + CONTEXT_Ecx]
-    push  DWORD PTR [eax + CONTEXT_Ebx]
-    push  DWORD PTR [eax + CONTEXT_Eax]
-
-    pop   eax
-    pop   ebx
-    pop   ecx
-    pop   edx
-    pop   esi
-    pop   edi
+    // Restore register(s)
+    mov   ebp, [eax + CONTEXT_Ebp]
+    mov   edi, [eax + CONTEXT_Edi]
+    mov   esi, [eax + CONTEXT_Esi]
+    mov   edx, [eax + CONTEXT_Edx]
+    mov   ecx, [eax + CONTEXT_Ecx]
+    mov   ebx, [eax + CONTEXT_Ebx]
+    mov   eax, [eax + CONTEXT_Eax]
 
     // Resume
-    pop   ebp
     ret
 LEAF_END RtlRestoreContext, _TEXT
 
