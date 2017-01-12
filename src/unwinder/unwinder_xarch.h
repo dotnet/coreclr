@@ -9,6 +9,7 @@
 
 #include "unwinder.h"
 
+#ifdef WIN64EXCEPTIONS
 #define UNWIND_CHAIN_LIMIT 32
 
 // Report failure in the unwinder if the condition is FALSE
@@ -113,5 +114,5 @@ protected:
 
     static UNWIND_INFO * GetUnwindInfo(TADDR taUnwindInfo);
 };
-
+#endif // WIN64EXCEPTIONS
 #endif // __unwinder_xarch_h__
