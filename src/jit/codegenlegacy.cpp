@@ -13016,7 +13016,7 @@ void CodeGen::genCodeForBBlist()
 
             case BBJ_CALLFINALLY:
 
-#if defined(_TARGET_X86_) && !FEATURE_EH_FUNCLETS
+#if defined(_TARGET_X86_)
 
                 /* If we are about to invoke a finally locally from a try block,
                    we have to set the hidden slot corresponding to the finally's
