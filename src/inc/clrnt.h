@@ -789,8 +789,6 @@ typedef struct _DYNAMIC_FUNCTION_TABLE {
 //
 #ifdef _TARGET_AMD64_
 
-#define RUNTIME_FUNCTION_HAS_ENDADDRESS        1
-
 #define RUNTIME_FUNCTION__BeginAddress(prf)             (prf)->BeginAddress
 #define RUNTIME_FUNCTION__SetBeginAddress(prf,address)  ((prf)->BeginAddress = (address))
 
@@ -838,8 +836,6 @@ RtlVirtualUnwind_Unsafe(
 //
 
 #ifdef _TARGET_X86_
-
-#define RUNTIME_FUNCTION_HAS_ENDADDRESS        0
 
 #ifndef FEATURE_PAL
 //
@@ -908,8 +904,6 @@ RtlVirtualUnwind (
 #define UNW_FLAG_EHANDLER               0x1             /* filter handler */
 #define UNW_FLAG_UHANDLER               0x2             /* unwind handler */
                                                             
-#define RUNTIME_FUNCTION_HAS_ENDADDRESS        0
-
 // This function returns the length of a function using the new unwind info on arm.
 // Taken from minkernel\ntos\rtl\arm\ntrtlarm.h.
 FORCEINLINE
@@ -980,8 +974,6 @@ RtlVirtualUnwind (
 #define UNW_FLAG_NHANDLER               0x0             /* any handler */
 #define UNW_FLAG_EHANDLER               0x1             /* filter handler */
 #define UNW_FLAG_UHANDLER               0x2             /* unwind handler */
-
-#define RUNTIME_FUNCTION_HAS_ENDADDRESS        0
 
 // This function returns the RVA of the end of the function (exclusive, so one byte after the actual end)
 // using the unwind info on ARM64. (see ExternalAPIs\Win9CoreSystem\inc\winnt.h)
