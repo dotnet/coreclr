@@ -3905,7 +3905,7 @@ enum {
 //
 typedef struct _RUNTIME_FUNCTION {
     DWORD BeginAddress;
-#if !COMPACT_RUNTIME_FUNCTION
+#if RUNTIME_FUNCTION_HAS_ENDADDRESS
     DWORD EndAddress;
 #endif
     DWORD UnwindData;
