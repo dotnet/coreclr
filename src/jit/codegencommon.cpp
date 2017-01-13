@@ -10261,6 +10261,8 @@ void CodeGen::genFuncletProlog(BasicBlock* block)
 
     compiler->unwindBegProlog();
 
+    // TODO Save callee-saved registers
+
     // This is the end of the OS-reported prolog for purposes of unwinding
     compiler->unwindEndProlog();
 }
@@ -10280,6 +10282,8 @@ void CodeGen::genFuncletEpilog()
 #endif
 
     ScopedSetVariable<bool> _setGeneratingEpilog(&compiler->compGeneratingEpilog, true);
+
+    // TODO Restore callee-saved registers
 
     instGen_Return(0);
 }
