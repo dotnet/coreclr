@@ -170,8 +170,8 @@ void Compiler::unwindEmitFuncHelper(FuncInfoDsc* func, void* pHotCode, void* pCo
 
     if (isHotCode)
     {
-        emitLocation *startLoc;
-        emitLocation *endLoc;
+        emitLocation* startLoc;
+        emitLocation* endLoc;
 
         unwindGetFuncLocations(func, true, &startLoc, &endLoc);
 
@@ -243,8 +243,7 @@ void Compiler::unwindEmitFuncHelper(FuncInfoDsc* func, void* pHotCode, void* pCo
 
     unwindInfo.FunctionLength = (ULONG)(endOffset - startOffset);
 
-    eeAllocUnwindInfo((BYTE*)pHotCode, (BYTE*)pColdCode, startOffset, endOffset,
-                      sizeof(UNWIND_INFO), (BYTE *)&unwindInfo,
-                      (CorJitFuncKind)func->funKind);
+    eeAllocUnwindInfo((BYTE*)pHotCode, (BYTE*)pColdCode, startOffset, endOffset, sizeof(UNWIND_INFO),
+                      (BYTE*)&unwindInfo, (CorJitFuncKind)func->funKind);
 }
 #endif // FEATURE_EH_FUNCLETS
