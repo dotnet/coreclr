@@ -1141,6 +1141,11 @@ struct FuncInfoDsc
     emitLocation* endLoc;
     emitLocation* coldStartLoc; // locations for the cold section, if there is one.
     emitLocation* coldEndLoc;
+
+#endif // _TARGET_XARCH_
+
+#if defined(_TARGET_AMD64_)
+
     UNWIND_INFO   unwindHeader;
     // Maximum of 255 UNWIND_CODE 'nodes' and then the unwind header. If there are an odd
     // number of codes, the VM or Zapper will 4-byte align the whole thing.
@@ -6857,24 +6862,24 @@ private:
     void unwindEmitFunc(FuncInfoDsc* func, void* pHotCode, void* pColdCode);
 
 #ifdef _TARGET_XARCH_
-#ifdef UNIX_AMD64_ABI
-    void unwindBegPrologCFI();
-#endif // UNIX_AMD64_ABI
-    void unwindBegPrologWindows();
 
     void unwindReserveFuncHelper(FuncInfoDsc* func, bool isHotCode);
     void unwindEmitFuncHelper(FuncInfoDsc* func, void* pHotCode, void* pColdCode, bool isHotCode);
+
 #endif // _TARGET_XARCH_
 
 #if defined(_TARGET_AMD64_)
+
     UNATIVE_OFFSET unwindGetCurrentOffset(FuncInfoDsc* func);
 
+    void unwindBegPrologWindows();
     void unwindPushWindows(regNumber reg);
     void unwindAllocStackWindows(unsigned size);
     void unwindSetFrameRegWindows(regNumber reg, unsigned offset);
     void unwindSaveRegWindows(regNumber reg, unsigned offset);
 
 #ifdef UNIX_AMD64_ABI
+    void unwindBegPrologCFI();
     void unwindPushCFI(regNumber reg);
     void unwindAllocStackCFI(unsigned size);
     void unwindSetFrameRegCFI(regNumber reg, unsigned offset);
