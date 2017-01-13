@@ -10959,7 +10959,7 @@ void CEEJitInfo::CompressDebugInfo()
     EE_TO_JIT_TRANSITION();
 }
 
-void increaseUnwindInfoSize(ULONG &unwindSize)
+void reservePersonalityRoutineSpace(ULONG &unwindSize)
 {
 #if defined(_TARGET_X86_)
     // Do nothing
@@ -10982,7 +10982,7 @@ void increaseUnwindInfoSize(ULONG &unwindSize)
     // Add space for personality routine, it must be 4-byte aligned.
     unwindSize += sizeof(ULONG);
 #else
-    PORTABILITY_ASSERT("increaseUnwindInfoSize");
+    PORTABILITY_ASSERT("reservePersonalityRoutineSpace");
 #endif // !defined(_TARGET_AMD64_)
 
 }
@@ -11018,7 +11018,7 @@ void CEEJitInfo::reserveUnwindInfo(BOOL isFunclet, BOOL isColdCode, ULONG unwind
 
     ULONG currentSize  = unwindSize;
 
-    increaseUnwindInfoSize(currentSize);
+    reservePersonalityRoutineSpace(currentSize);
 
     m_totalUnwindSize += currentSize;
 
@@ -11103,7 +11103,7 @@ void CEEJitInfo::allocUnwindInfo (
     UNWIND_INFO * pUnwindInfo = (UNWIND_INFO *) &(m_theUnwindBlock[m_usedUnwindSize]);
     m_usedUnwindSize += unwindSize;
 
-    increaseUnwindInfoSize(m_usedUnwindSize);
+    reservePersonalityRoutineSpace(m_usedUnwindSize);
 
     _ASSERTE(m_usedUnwindSize <= m_totalUnwindSize);
 
