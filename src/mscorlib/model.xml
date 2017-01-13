@@ -12702,11 +12702,29 @@
       <Member Name="AsBytes&lt;T&gt;(System.ReadOnlySpan&lt;T&gt;)" />
       <Member Name="NonPortableCast&lt;TFrom,TTo&gt;(System.Span&lt;TFrom&gt;)" />
       <Member Name="NonPortableCast&lt;TFrom,TTo&gt;(System.ReadOnlySpan&lt;TFrom&gt;)" />
+      <Member Name="IndexOf&lt;T&gt;(System.Span&lt;T&gt;,T)" />
+      <Member Name="IndexOf(System.Span&lt;System.Byte&gt;,System.Byte)" />
+      <Member Name="IndexOf(System.Span&lt;System.Char&gt;,System.Char)" />
+      <Member Name="IndexOf&lt;T&gt;(System.Span&lt;T&gt;,System.ReadOnlySpan&lt;T&gt;)" />
+      <Member Name="IndexOf(System.Span&lt;System.Byte&gt;,System.ReadOnlySpan&lt;System.Byte&gt;)" />
+      <Member Name="IndexOf(System.Span&lt;System.Char&gt;,System.ReadOnlySpan&lt;System.Char&gt;)" />
+      <Member Name="SequenceEqual&lt;T&gt;(System.Span&lt;T&gt;,System.ReadOnlySpan&lt;T&gt;)" />
+      <Member Name="SequenceEqual(System.Span&lt;System.Byte&gt;,System.ReadOnlySpan&lt;System.Byte&gt;)" />
+      <Member Name="SequenceEqual(System.Span&lt;System.Char&gt;,System.ReadOnlySpan&lt;System.Char&gt;)" />
     </Type>
     <Type Name="System.ReadOnlySpanExtensions" Condition="FEATURE_SPAN_OF_T">
       <Member Name="Slice(System.String)" />
       <Member Name="Slice(System.String,System.Int32)" />
       <Member Name="Slice(System.String,System.Int32,System.Int32)" />
+      <Member Name="IndexOf&lt;T&gt;(System.ReadOnlySpan&lt;T&gt;,T)" />
+      <Member Name="IndexOf(System.ReadOnlySpan&lt;System.Byte&gt;,System.Byte)" />
+      <Member Name="IndexOf(System.ReadOnlySpan&lt;System.Char&gt;,System.Char)" />
+      <Member Name="IndexOf&lt;T&gt;(System.ReadOnlySpan&lt;T&gt;,System.ReadOnlySpan&lt;T&gt;)" />
+      <Member Name="IndexOf(System.ReadOnlySpan&lt;System.Byte&gt;,System.ReadOnlySpan&lt;System.Byte&gt;)" />
+      <Member Name="IndexOf(System.ReadOnlySpan&lt;System.Char&gt;,System.ReadOnlySpan&lt;System.Char&gt;)" />
+      <Member Name="SequenceEqual&lt;T&gt;(System.ReadOnlySpan&lt;T&gt;,System.ReadOnlySpan&lt;T&gt;)" />
+      <Member Name="SequenceEqual(System.ReadOnlySpan&lt;System.Byte&gt;,System.ReadOnlySpan&lt;System.Byte&gt;)" />
+      <Member Name="SequenceEqual(System.ReadOnlySpan&lt;System.Char&gt;,System.ReadOnlySpan&lt;System.Char&gt;)" />
     </Type>
     <Type Name="System.ComponentModel.EditorBrowsableAttribute">
       <Member Name="#ctor" />
