@@ -1146,7 +1146,7 @@ struct FuncInfoDsc
 
 #if defined(_TARGET_AMD64_)
 
-    UNWIND_INFO   unwindHeader;
+    UNWIND_INFO unwindHeader;
     // Maximum of 255 UNWIND_CODE 'nodes' and then the unwind header. If there are an odd
     // number of codes, the VM or Zapper will 4-byte align the whole thing.
     BYTE     unwindCodes[offsetof(UNWIND_INFO, UnwindCode) + (0xFF * sizeof(UNWIND_CODE))];
