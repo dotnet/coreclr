@@ -96,6 +96,7 @@ void Compiler::unwindReserve()
 //
 void Compiler::unwindEmit(void* pHotCode, void* pColdCode)
 {
+#if FEATURE_EH_FUNCLETS
     assert(!compGeneratingProlog);
     assert(!compGeneratingEpilog);
 
@@ -104,31 +105,7 @@ void Compiler::unwindEmit(void* pHotCode, void* pColdCode)
     {
         unwindEmitFunc(funGetFunc(funcIdx), pHotCode, pColdCode);
     }
-}
-
-//------------------------------------------------------------------------
-// Compiler::unwindEmitFunc: Report the unwind information to the VM for a
-// given main function or funclet. Reports the hot section, then the cold
-// section if necessary.
-//
-// Arguments:
-//    func      - The main function or funclet to reserve unwind info for.
-//    pHotCode  - Pointer to the beginning of the memory with the function and funclet hot  code.
-//    pColdCode - Pointer to the beginning of the memory with the function and funclet cold code.
-//
-void Compiler::unwindEmitFunc(FuncInfoDsc* func, void* pHotCode, void* pColdCode)
-{
-    // Verify that the JIT enum is in sync with the JIT-EE interface enum
-    static_assert_no_msg(FUNC_ROOT == (FuncKind)CORJIT_FUNC_ROOT);
-    static_assert_no_msg(FUNC_HANDLER == (FuncKind)CORJIT_FUNC_HANDLER);
-    static_assert_no_msg(FUNC_FILTER == (FuncKind)CORJIT_FUNC_FILTER);
-
-    unwindEmitFuncHelper(func, pHotCode, pColdCode, true);
-
-    if (pColdCode != nullptr)
-    {
-        unwindEmitFuncHelper(func, pHotCode, pColdCode, false);
-    }
+#endif // FEATURE_EH_FUNCLETS
 }
 
 #if FEATURE_EH_FUNCLETS
@@ -163,6 +140,31 @@ void Compiler::unwindReserveFuncHelper(FuncInfoDsc* func, bool isHotCode)
     BOOL isColdCode = isHotCode ? FALSE : TRUE;
 
     eeReserveUnwindInfo(isFunclet, isColdCode, 0);
+}
+
+//------------------------------------------------------------------------
+// Compiler::unwindEmitFunc: Report the unwind information to the VM for a
+// given main function or funclet. Reports the hot section, then the cold
+// section if necessary.
+//
+// Arguments:
+//    func      - The main function or funclet to reserve unwind info for.
+//    pHotCode  - Pointer to the beginning of the memory with the function and funclet hot  code.
+//    pColdCode - Pointer to the beginning of the memory with the function and funclet cold code.
+//
+void Compiler::unwindEmitFunc(FuncInfoDsc* func, void* pHotCode, void* pColdCode)
+{
+    // Verify that the JIT enum is in sync with the JIT-EE interface enum
+    static_assert_no_msg(FUNC_ROOT == (FuncKind)CORJIT_FUNC_ROOT);
+    static_assert_no_msg(FUNC_HANDLER == (FuncKind)CORJIT_FUNC_HANDLER);
+    static_assert_no_msg(FUNC_FILTER == (FuncKind)CORJIT_FUNC_FILTER);
+
+    unwindEmitFuncHelper(func, pHotCode, pColdCode, true);
+
+    if (pColdCode != nullptr)
+    {
+        unwindEmitFuncHelper(func, pHotCode, pColdCode, false);
+    }
 }
 
 //------------------------------------------------------------------------
