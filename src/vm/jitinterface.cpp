@@ -11166,10 +11166,14 @@ void CEEJitInfo::allocUnwindInfo (
     }
 #endif // _DEBUG
 
-#if defined(_TARGET_AMD64_)
-
     /* Copy the UnwindBlock */
     memcpy(pUnwindInfo, pUnwindBlock, unwindSize);
+
+#if defined(_TARGET_X86_)
+
+    // Do NOTHING
+
+#elif defined(_TARGET_AMD64_)
 
     pUnwindInfo->Flags = UNW_FLAG_EHANDLER | UNW_FLAG_UHANDLER;
 
@@ -11178,9 +11182,6 @@ void CEEJitInfo::allocUnwindInfo (
 
 #elif defined(_TARGET_ARM64_)
 
-    /* Copy the UnwindBlock */
-    memcpy(pUnwindInfo, pUnwindBlock, unwindSize);
-
     *(LONG *)pUnwindInfo |= (1 << 20); // X bit
 
     ULONG * pPersonalityRoutine = (ULONG*)((BYTE *)pUnwindInfo + ALIGN_UP(unwindSize, sizeof(ULONG)));
@@ -11188,13 +11189,11 @@ void CEEJitInfo::allocUnwindInfo (
 
 #elif defined(_TARGET_ARM_)
 
-    /* Copy the UnwindBlock */
-    memcpy(pUnwindInfo, pUnwindBlock, unwindSize);
-
     *(LONG *)pUnwindInfo |= (1 << 20); // X bit
 
     ULONG * pPersonalityRoutine = (ULONG*)((BYTE *)pUnwindInfo + ALIGN_UP(unwindSize, sizeof(ULONG)));
     *pPersonalityRoutine = (TADDR)ProcessCLRException - baseAddress;
+
 #endif
 
 #if defined(_TARGET_AMD64_)

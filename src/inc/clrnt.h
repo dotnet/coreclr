@@ -838,6 +838,9 @@ RtlVirtualUnwind_Unsafe(
 //
 
 #ifdef _TARGET_X86_
+
+#define RUNTIME_FUNCTION_HAS_ENDADDRESS        0
+
 #ifndef FEATURE_PAL
 //
 // x86 ABI does not define RUNTIME_FUNCTION. Define our own to allow unification between x86 and other platforms.
@@ -857,14 +860,24 @@ typedef struct _DISPATCHER_CONTEXT {
 #define RUNTIME_FUNCTION__SetBeginAddress(prf,addr)     ((prf)->BeginAddress = (addr))
 
 #ifdef WIN64EXCEPTIONS
-#define RUNTIME_FUNCTION__EndAddress(prf, ImageBase)    ((prf)->EndAddress)
+#include "win64unwind.h"
+
+FORCEINLINE
+DWORD
+RtlpGetFunctionEndAddress (
+    __in PT_RUNTIME_FUNCTION FunctionEntry,
+    __in TADDR ImageBase
+    )
+{
+    PUNWIND_INFO pUnwindInfo = (PUNWIND_INFO)(ImageBase + FunctionEntry->UnwindData);
+
+    return FunctionEntry->BeginAddress + pUnwindInfo->FunctionLength;
+}
+
+#define RUNTIME_FUNCTION__EndAddress(prf, ImageBase)   RtlpGetFunctionEndAddress(prf, ImageBase)
 
 #define RUNTIME_FUNCTION__GetUnwindInfoAddress(prf)    (prf)->UnwindData
 #define RUNTIME_FUNCTION__SetUnwindInfoAddress(prf, addr) do { (prf)->UnwindData = (addr); } while(0)
-
-#include "win64unwind.h"
-
-#define RUNTIME_FUNCTION_HAS_ENDADDRESS        1
 
 EXTERN_C
 NTSYSAPI
@@ -880,8 +893,6 @@ RtlVirtualUnwind (
     __out PDWORD EstablisherFrame,
     __inout_opt PT_KNONVOLATILE_CONTEXT_POINTERS ContextPointers
     );
-#else  // WIN64EXCEPTIONS
-#define RUNTIME_FUNCTION_HAS_ENDADDRESS        0
 #endif // WIN64EXCEPTIONS
 
 #endif // _TARGET_X86_

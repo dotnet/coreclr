@@ -22,21 +22,6 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 
 void Compiler::unwindBegProlog()
 {
-#if FEATURE_EH_FUNCLETS
-    assert(compGeneratingProlog);
-
-    FuncInfoDsc* func = funCurrentFunc();
-
-    // There is only one prolog for a function/funclet, and it comes first. So now is
-    // a good time to initialize all the unwind data structures.
-
-    unwindGetFuncLocations(func, true, &func->startLoc, &func->endLoc);
-
-    if (fgFirstColdBlock != nullptr)
-    {
-        unwindGetFuncLocations(func, false, &func->coldStartLoc, &func->coldEndLoc);
-    }
-#endif // FEATURE_EH_FUNCLETS
 }
 
 void Compiler::unwindEndProlog()
@@ -139,7 +124,7 @@ void Compiler::unwindReserveFuncHelper(FuncInfoDsc* func, bool isHotCode)
     BOOL isFunclet  = (func->funKind != FUNC_ROOT);
     BOOL isColdCode = isHotCode ? FALSE : TRUE;
 
-    eeReserveUnwindInfo(isFunclet, isColdCode, 0);
+    eeReserveUnwindInfo(isFunclet, isColdCode, sizeof(UNWIND_INFO));
 }
 
 //------------------------------------------------------------------------
@@ -185,45 +170,55 @@ void Compiler::unwindEmitFuncHelper(FuncInfoDsc* func, void* pHotCode, void* pCo
 
     if (isHotCode)
     {
-        if (func->startLoc == nullptr)
+        emitLocation *startLoc;
+        emitLocation *endLoc;
+
+        unwindGetFuncLocations(func, true, &startLoc, &endLoc);
+
+        if (startLoc == nullptr)
         {
             startOffset = 0;
         }
         else
         {
-            startOffset = func->startLoc->CodeOffset(genEmitter);
+            startOffset = startLoc->CodeOffset(genEmitter);
         }
 
-        if (func->endLoc == nullptr)
+        if (endLoc == nullptr)
         {
             endOffset = info.compNativeCodeSize;
         }
         else
         {
-            endOffset = func->endLoc->CodeOffset(genEmitter);
+            endOffset = endLoc->CodeOffset(genEmitter);
         }
     }
     else
     {
+        emitLocation* coldStartLoc;
+        emitLocation* coldEndLoc;
+
         assert(fgFirstColdBlock != nullptr);
         assert(func->funKind == FUNC_ROOT); // No splitting of funclets.
 
-        if (func->coldStartLoc == nullptr)
+        unwindGetFuncLocations(func, false, &coldStartLoc, &coldEndLoc);
+
+        if (coldStartLoc == nullptr)
         {
             startOffset = 0;
         }
         else
         {
-            startOffset = func->coldStartLoc->CodeOffset(genEmitter);
+            startOffset = coldStartLoc->CodeOffset(genEmitter);
         }
 
-        if (func->coldEndLoc == nullptr)
+        if (coldEndLoc == nullptr)
         {
             endOffset = info.compNativeCodeSize;
         }
         else
         {
-            endOffset = func->coldEndLoc->CodeOffset(genEmitter);
+            endOffset = coldEndLoc->CodeOffset(genEmitter);
         }
     }
 
@@ -244,7 +239,12 @@ void Compiler::unwindEmitFuncHelper(FuncInfoDsc* func, void* pHotCode, void* pCo
         endOffset -= info.compTotalHotCodeSize;
     }
 
-    eeAllocUnwindInfo((BYTE*)pHotCode, (BYTE*)pColdCode, startOffset, endOffset, 0, NULL,
+    UNWIND_INFO unwindInfo;
+
+    unwindInfo.FunctionLength = (ULONG)(endOffset - startOffset);
+
+    eeAllocUnwindInfo((BYTE*)pHotCode, (BYTE*)pColdCode, startOffset, endOffset,
+                      sizeof(UNWIND_INFO), (BYTE *)&unwindInfo,
                       (CorJitFuncKind)func->funKind);
 }
 #endif // FEATURE_EH_FUNCLETS

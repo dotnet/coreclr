@@ -1134,17 +1134,13 @@ struct FuncInfoDsc
                                // EH-related funclet: FUNC_HANDLER or FUNC_FILTER
 
 #if FEATURE_EH_FUNCLETS
-#if defined(_TARGET_XARCH_)
+#if defined(_TARGET_AMD64_)
 
     // TODO-AMD64-Throughput: make the AMD64 info more like the ARM info to avoid having this large static array.
     emitLocation* startLoc;
     emitLocation* endLoc;
     emitLocation* coldStartLoc; // locations for the cold section, if there is one.
     emitLocation* coldEndLoc;
-
-#endif // _TARGET_XARCH_
-
-#if defined(_TARGET_AMD64_)
 
     UNWIND_INFO unwindHeader;
     // Maximum of 255 UNWIND_CODE 'nodes' and then the unwind header. If there are an odd
