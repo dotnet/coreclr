@@ -356,7 +356,7 @@ namespace System.Globalization
 
             if ((options & ValidSortkeyCtorMaskOffFlags) != 0)
             {
-                throw new ArgumentException(SR.Argument_InvalidFlag, nameof(options));
+                throw new ArgumentException(SR.Argument_InvalidFlag);
             }
 
             throw new NotImplementedException();

@@ -285,7 +285,7 @@ namespace System.Globalization
 
             if ((options & ValidCompareMaskOffFlags) != 0)
             {
-                throw new ArgumentException(SR.Argument_InvalidFlag, nameof(options));
+                throw new ArgumentException(SR.Argument_InvalidFlag);
             }
 
             //Our paradigm is that null sorts less than any other string and
@@ -376,7 +376,7 @@ namespace System.Globalization
             }
             else if ((options & ValidCompareMaskOffFlags) != 0)
             {
-                throw new ArgumentException(SR.Argument_InvalidFlag, nameof(options));
+                throw new ArgumentException(SR.Argument_InvalidFlag);
             }
 
             //
@@ -507,7 +507,7 @@ namespace System.Globalization
 
             if ((options & ValidIndexMaskOffFlags) != 0)
             {
-                throw new ArgumentException(SR.Argument_InvalidFlag, nameof(options));
+                throw new ArgumentException(SR.Argument_InvalidFlag);
             }
 
             return StartsWith(source, prefix, options);
@@ -557,7 +557,7 @@ namespace System.Globalization
 
             if ((options & ValidIndexMaskOffFlags) != 0)
             {
-                throw new ArgumentException(SR.Argument_InvalidFlag, nameof(options));
+                throw new ArgumentException(SR.Argument_InvalidFlag);
             }
 
             return EndsWith(source, suffix, options);
@@ -692,7 +692,7 @@ namespace System.Globalization
             // Validate CompareOptions
             // Ordinal can't be selected with other flags
             if ((options & ValidIndexMaskOffFlags) != 0 && (options != CompareOptions.Ordinal))
-                throw new ArgumentException(SR.Argument_InvalidFlag, nameof(options));
+                throw new ArgumentException(SR.Argument_InvalidFlag);
 
             return IndexOfCore(source, new string(value, 1), startIndex, count, options);
         }
@@ -739,7 +739,7 @@ namespace System.Globalization
             // Validate CompareOptions
             // Ordinal can't be selected with other flags
             if ((options & ValidIndexMaskOffFlags) != 0 && (options != CompareOptions.Ordinal))
-                throw new ArgumentException(SR.Argument_InvalidFlag, nameof(options));
+                throw new ArgumentException(SR.Argument_InvalidFlag);
 
             return IndexOfCore(source, value, startIndex, count, options);
         }
@@ -851,7 +851,7 @@ namespace System.Globalization
             if ((options & ValidIndexMaskOffFlags) != 0 &&
                 (options != CompareOptions.Ordinal) &&
                 (options != CompareOptions.OrdinalIgnoreCase))
-                throw new ArgumentException(SR.Argument_InvalidFlag, nameof(options));
+                throw new ArgumentException(SR.Argument_InvalidFlag);
 
             // Special case for 0 length input strings
             if (source.Length == 0 && (startIndex == -1 || startIndex == 0))
@@ -896,7 +896,7 @@ namespace System.Globalization
             if ((options & ValidIndexMaskOffFlags) != 0 &&
                 (options != CompareOptions.Ordinal) &&
                 (options != CompareOptions.OrdinalIgnoreCase))
-                throw new ArgumentException(SR.Argument_InvalidFlag, nameof(options));
+                throw new ArgumentException(SR.Argument_InvalidFlag);
 
             // Special case for 0 length input strings
             if (source.Length == 0 && (startIndex == -1 || startIndex == 0))
@@ -1025,7 +1025,7 @@ namespace System.Globalization
 
             if ((options & ValidHashCodeOfStringMaskOffFlags) != 0)
             {
-                throw new ArgumentException(SR.Argument_InvalidFlag, nameof(options));
+                throw new ArgumentException(SR.Argument_InvalidFlag);
             }
             Contract.EndContractBlock();
 

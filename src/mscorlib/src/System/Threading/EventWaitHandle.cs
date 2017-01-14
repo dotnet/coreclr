@@ -68,7 +68,7 @@ namespace System.Threading
                     break;
 
                 default:
-                    throw new ArgumentException(Environment.GetResourceString("Argument_InvalidFlag",name));
+                    throw new ArgumentException(Environment.GetResourceString("Argument_InvalidFlag"));
             };
                 
             if (_handle.IsInvalid)
@@ -117,7 +117,7 @@ namespace System.Threading
                     break;
 
                 default:
-                    throw new ArgumentException(Environment.GetResourceString("Argument_InvalidFlag",name));
+                    throw new ArgumentException(Environment.GetResourceString("Argument_InvalidFlag"));
             };
 
             _handle = Win32Native.CreateEvent(secAttrs, isManualReset, initialState, name);

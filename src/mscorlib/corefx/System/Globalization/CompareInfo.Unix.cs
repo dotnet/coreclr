@@ -256,7 +256,7 @@ namespace System.Globalization
 
             if ((options & ValidSortkeyCtorMaskOffFlags) != 0)
             {
-                throw new ArgumentException(Environment.GetResourceString("Argument_InvalidFlag"), nameof(options));
+                throw new ArgumentException(Environment.GetResourceString("Argument_InvalidFlag"));
             }
             
             byte [] keyData;
