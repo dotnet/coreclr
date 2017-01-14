@@ -1925,6 +1925,7 @@ namespace System.Reflection
             return InternalGetSatelliteAssembly(name, culture, version, true, ref stackMark);
         }
 
+        [FriendAccessAllowed] // Used by ResourceManager
         [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable  
         internal RuntimeAssembly InternalGetSatelliteAssembly(String name,
                                                               CultureInfo culture,

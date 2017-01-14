@@ -16,6 +16,9 @@ using System.Runtime.CompilerServices;
 // Depends on WindowsRuntimeImportAttribute
 [assembly: InternalsVisibleTo("System.Runtime.WindowsRuntime.UI.Xaml, PublicKey=" + _InternalsVisibleToKeys.EcmaPublicKeyFull, AllInternalsVisible=false)]
 
+// Depends on internals of Assembly and IResourceManager
+[assembly: InternalsVisibleTo("System.Resources.ResourceManager, PublicKey=" + _InternalsVisibleToKeys.EcmaPublicKeyFull, AllInternalsVisible = false)]
+
 internal class _InternalsVisibleToKeys
 {
   // Token = b77a5c561934e089

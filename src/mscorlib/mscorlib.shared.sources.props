@@ -1031,6 +1031,7 @@
     <ResourcesSources Include="$(BclSourcesRoot)\System\Resources\__HResults.cs" />
     <ResourcesSources Include="$(BclSourcesRoot)\System\Resources\FileBasedResourceGroveler.cs" />
     <ResourcesSources Include="$(BclSourcesRoot)\System\Resources\IResourceGroveler.cs" />
+    <ResourcesSources Include="$(BclSourcesRoot)\System\Resources\IResourceManager.cs" />
     <ResourcesSources Include="$(BclSourcesRoot)\System\Resources\IResourceReader.cs" />
     <ResourcesSources Include="$(BclSourcesRoot)\System\Resources\IResourceWriter.cs" />
     <ResourcesSources Include="$(BclSourcesRoot)\System\Resources\LooselyLinkedResourceReference.cs" />
@@ -1046,6 +1047,7 @@
     <ResourcesSources Include="$(BclSourcesRoot)\System\Resources\RuntimeResourceSet.cs" />
     <ResourcesSources Include="$(BclSourcesRoot)\System\Resources\SatelliteContractVersionAttribute.cs" />
     <ResourcesSources Include="$(BclSourcesRoot)\System\Resources\UltimateResourceFallbackLocation.cs" />
+    <ResourcesSources Include="$(BclSourcesRoot)\System\Resources\WindowsRuntimeResourceManagerBase.cs" />
   </ItemGroup>
   <ItemGroup>
     <PermissionsSources Include="$(BclSourcesRoot)\System\Security\Permissions\EnvironmentPermission.cs" />

@@ -46,7 +46,7 @@ namespace System.Diagnostics.Tracing.Internal
             return GetResourceString(key, args);
         }
 
-        private static System.Resources.ResourceManager rm = new System.Resources.ResourceManager("Microsoft.Diagnostics.Tracing.Messages", typeof(Environment).Assembly());
+        private static System.Resources.IResourceManager rm = new System.Resources.ResourceManager("Microsoft.Diagnostics.Tracing.Messages", typeof(Environment).Assembly());
     }
 }
 
