@@ -7,7 +7,7 @@
 #ifndef __unwinder_i386_h__
 #define __unwinder_i386_h__
 
-#include "unwinder_xarch.h"
+#include "unwinder.h"
 
 #ifdef WIN64EXCEPTIONS
 //---------------------------------------------------------------------------------------
@@ -15,7 +15,7 @@
 // See the comment for the base class code:OOPStackUnwinder.
 //
 
-class OOPStackUnwinderX86 : public OOPStackUnwinderXARCH
+class OOPStackUnwinderX86 : public OOPStackUnwinder
 {
 public:
     static HRESULT VirtualUnwind(__in DWORD HandlerType,
@@ -38,10 +38,7 @@ private:
         __inout_opt PKNONVOLATILE_CONTEXT_POINTERS ContextPointers,
         __deref_out _PIMAGE_RUNTIME_FUNCTION_ENTRY *FinalFunctionEntry);
 
-    static DWORD GetEstabliserFrame(
-        __in PCONTEXT ContextRecord,
-        __in PUNWIND_INFO UnwindInfo,
-        __in ULONG PrologOffset);
+    static DWORD GetEstabliserFrame( __in PCONTEXT ContextRecord );
 
 };
 #endif // WIN64EXCEPTIONS

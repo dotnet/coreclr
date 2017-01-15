@@ -7,7 +7,7 @@
 #ifndef __unwinder_amd64_h__
 #define __unwinder_amd64_h__
 
-#include "unwinder_xarch.h"
+#include "unwinder.h"
 
 
 //---------------------------------------------------------------------------------------
@@ -15,7 +15,7 @@
 // See the comment for the base class code:OOPStackUnwinder.
 //
 
-class OOPStackUnwinderAMD64 : public OOPStackUnwinderXARCH
+class OOPStackUnwinderAMD64 : public OOPStackUnwinder
 {
 public:
     // Unwind the given CONTEXT to the caller CONTEXT.  The CONTEXT will be overwritten.  
@@ -36,6 +36,8 @@ public:
         __deref_opt_out_opt PEXCEPTION_ROUTINE *HandlerRoutine);
 
 protected:
+
+    static ULONG UnwindOpSlots(__in UNWIND_CODE UnwindCode);
 
     static HRESULT UnwindEpilogue(__in ULONG64 ImageBase,
                                   __in ULONG64 ControlPc,
@@ -60,6 +62,8 @@ protected:
         (__in _PIMAGE_RUNTIME_FUNCTION_ENTRY FunctionEntry,
          __in DWORD64 ImageBase,
          __in DWORD64 ControlPc);
+
+    static UNWIND_INFO * GetUnwindInfo(TADDR taUnwindInfo);
 };
 
 #endif // __unwinder_amd64_h__
