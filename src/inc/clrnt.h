@@ -1039,8 +1039,4 @@ RtlVirtualUnwind(
 #endif
 
 #endif
-
-#ifndef RUNTIME_FUNCTION_HAS_ENDADDRESS
-#error "RUNTIME_FUNCTION_HAS_ENDADDRESS should be defined"
-#endif
 #endif  // CLRNT_H_
