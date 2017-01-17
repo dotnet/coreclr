@@ -104,7 +104,7 @@ OOPStackUnwinderX86::VirtualUnwind(
       return HRESULT_FROM_WIN32(ERROR_READ_FAULT);
     }
 
-#define CALLEE_SAVED_REGISTER(reg) if (rd.p##reg != NULL) ContextRecord->reg = *rd.p##reg;
+#define CALLEE_SAVED_REGISTER(reg) if (rd.p##reg != NULL && rd.p##reg != &(ContextRecord->reg)) ContextRecord->reg = *rd.p##reg;
     ENUM_CALLEE_SAVED_REGISTERS();
 #undef CALLEE_SAVED_REGISTER
     
