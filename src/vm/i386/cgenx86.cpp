@@ -275,6 +275,8 @@ void TransitionFrame::UpdateRegDisplay(const PREGDISPLAY pRD)
     _ASSERTE(pFunc != NULL);
     UpdateRegDisplayHelper(pRD, pFunc->CbStackPop());
 
+    LOG((LF_GCROOTS, LL_INFO100000, "STACKWALK    TransitionFrame::UpdateRegDisplay(ip:%p, sp:%p)\n", pRD->ControlPC, pRD->Esp));
+
     RETURN;
 }
 
@@ -302,6 +304,26 @@ void TransitionFrame::UpdateRegDisplayHelper(const PREGDISPLAY pRD, UINT cbStack
     pRD->PCTAddr = GetReturnAddressPtr();
     pRD->ControlPC = *PTR_PCODE(pRD->PCTAddr);
     pRD->Esp  = (DWORD)(pRD->PCTAddr + sizeof(TADDR) + cbStackPop);
+
+#ifdef WIN64EXCEPTIONS
+    pRD->IsCallerContextValid = FALSE;
+    pRD->IsCallerSPValid      = FALSE;
+
+    pRD->pCurrentContext->Eip = pRD->ControlPC;
+    pRD->pCurrentContext->Esp = GetSP();
+
+    T_CONTEXT * pContext = pRD->pCurrentContext;
+#define CALLEE_SAVED_REGISTER(regname) pContext->regname = regs->regname;
+    ENUM_CALLEE_SAVED_REGISTERS();
+#undef CALLEE_SAVED_REGISTER
+
+    KNONVOLATILE_CONTEXT_POINTERS * pContextPointers = pRD->pCurrentContextPointers;
+#define CALLEE_SAVED_REGISTER(regname) pContextPointers->regname = (DWORD*)&regs->regname;
+    ENUM_CALLEE_SAVED_REGISTERS();
+#undef CALLEE_SAVED_REGISTER
+
+    SyncRegDisplayToCurrentContext(pRD);
+#endif // WIN64EXCEPTIONS
 
     RETURN;
 }
