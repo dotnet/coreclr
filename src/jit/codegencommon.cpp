@@ -8763,7 +8763,7 @@ void CodeGen::genFnProlog()
 
     genSetPSPSym(initReg, &initRegZeroed);
 
-#else  // !FEATURE_EH_FUNCLETS
+#else // !FEATURE_EH_FUNCLETS
 
     // when compInitMem is true the genZeroInitFrame will zero out the shadow SP slots
     if (compiler->ehNeedsShadowSPslots() && !compiler->info.compInitMem)
