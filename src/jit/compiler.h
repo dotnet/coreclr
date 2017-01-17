@@ -1133,7 +1133,6 @@ struct FuncInfoDsc
                                // funclet. It is only valid if funKind field indicates this is a
                                // EH-related funclet: FUNC_HANDLER or FUNC_FILTER
 
-#if FEATURE_EH_FUNCLETS
 #if defined(_TARGET_AMD64_)
 
     // TODO-AMD64-Throughput: make the AMD64 info more like the ARM info to avoid having this large static array.
@@ -1162,7 +1161,6 @@ struct FuncInfoDsc
                          //   with EH, so uwiCold will be NULL for all funclets.
 
 #endif // _TARGET_ARMARCH_
-#endif // FEATURE_EH_FUNCLETS
 
     // Eventually we may want to move rsModifiedRegsMask, lvaOutgoingArgSize, and anything else
     // that isn't shared between the main function body and funclets.
