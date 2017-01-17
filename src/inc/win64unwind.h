@@ -123,6 +123,4 @@ typedef struct _UNWIND_INFO {
 } UNWIND_INFO, *PUNWIND_INFO;
 
 #endif // _TARGET_X86_
-
-
 #endif // _WIN64UNWIND_H_

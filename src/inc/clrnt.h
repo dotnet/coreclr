@@ -836,7 +836,6 @@ RtlVirtualUnwind_Unsafe(
 //
 
 #ifdef _TARGET_X86_
-
 #ifndef FEATURE_PAL
 //
 // x86 ABI does not define RUNTIME_FUNCTION. Define our own to allow unification between x86 and other platforms.
@@ -1039,4 +1038,5 @@ RtlVirtualUnwind(
 #endif
 
 #endif
+
 #endif  // CLRNT_H_
