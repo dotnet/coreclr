@@ -70,45 +70,46 @@ OOPStackUnwinderX86::VirtualUnwind(
     *EstablisherFrame   = ContextRecord->Esp;
     *HandlerRoutine     = NULL;
 
-    BOOL res = FALSE;
+    REGDISPLAY      rd;
 
-    if (ExecutionManager::IsManagedCode(ControlPc))
+#define CALLEE_SAVED_REGISTER(reg) rd.p##reg = (ContextPointers != NULL) ? ContextPointers->reg : NULL;
+    ENUM_CALLEE_SAVED_REGISTERS();
+#undef CALLEE_SAVED_REGISTER
+
+    if ( rd.pEbp == NULL )
     {
-        REGDISPLAY      rd;
-
-        rd.pEax = &(ContextRecord->Eax);
-        rd.pEbx = &(ContextRecord->Ebx);
-        rd.pEcx = &(ContextRecord->Ecx);
-        rd.pEdx = &(ContextRecord->Edx);
-        rd.pEdi = &(ContextRecord->Edi);
-        rd.pEsi = &(ContextRecord->Esi);
         rd.pEbp = &(ContextRecord->Ebp);
-
-        rd.Esp  = ContextRecord->Esp;
-        rd.ControlPC = (PCODE)(ContextRecord->Eip);
-        rd.PCTAddr   = (UINT_PTR)&(ContextRecord->Eip);
-
-        CodeManState    codeManState;
-        codeManState.dwIsSet = 0;
-
-        EECodeInfo      codeInfo;
-        codeInfo.Init((PCODE) ControlPc);
-
-        res = UnwindStackFrame(&rd, &codeInfo, UpdateAllRegs, &codeManState, NULL);
-
-        ContextRecord->Esp = rd.Esp;
-        ContextRecord->Eip = rd.ControlPC;
-        ContextRecord->Ebp = *rd.pEbp;
     }
-    else
-    {
-        res = PAL_VirtualUnwind(ContextRecord, ContextPointers);
-    }
+    rd.Esp  = ContextRecord->Esp;
+    rd.ControlPC = (PCODE)(ContextRecord->Eip);
+    rd.PCTAddr   = (UINT_PTR)&(ContextRecord->Eip);
 
-    if (!res)
+    CodeManState    codeManState;
+    codeManState.dwIsSet = 0;
+
+    EECodeInfo      codeInfo;
+    codeInfo.Init((PCODE) ControlPc);
+
+    if ( !UnwindStackFrame(&rd, &codeInfo, UpdateAllRegs, &codeManState, NULL) )
     {
       return HRESULT_FROM_WIN32(ERROR_READ_FAULT);
     }
+
+#define CALLEE_SAVED_REGISTER(reg) if (rd.p##reg != NULL) ContextRecord->reg = *rd.p##reg;
+    ENUM_CALLEE_SAVED_REGISTERS();
+#undef CALLEE_SAVED_REGISTER
+    
+    if (ContextPointers != NULL) 
+    {
+#define CALLEE_SAVED_REGISTER(reg) { ContextPointers->reg = rd.p##reg; }
+        ENUM_CALLEE_SAVED_REGISTERS();
+#undef CALLEE_SAVED_REGISTER
+    }
+
+    ContextRecord->Esp = rd.Esp;
+    ContextRecord->Eip = rd.ControlPC;
+    ContextRecord->Ebp = *rd.pEbp;
+
 
     return S_OK;
 }
