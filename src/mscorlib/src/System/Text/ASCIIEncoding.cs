@@ -78,11 +78,17 @@ namespace System.Text
             return EncodingForwarder.GetByteCount(this, chars, count);
         }
 
-        public override int GetBytes(String chars, int charIndex, int charCount,
-                                              byte[] bytes, int byteIndex)
-        {
-            return EncodingForwarder.GetBytes(this, chars, charIndex, charCount, bytes, byteIndex);
-        }
+        public override byte[] GetBytes(String s)
+            => EncodingForwarder.GetBytesAsciiFastPath(this, s);
+
+        public override int GetBytes(String s, int charIndex, int charCount, byte[] bytes, int byteIndex)
+            => EncodingForwarder.GetBytesAsciiFastPath(this, s, charIndex, charCount, bytes, byteIndex);
+
+        public override byte[] GetBytes(char[] chars)
+            => EncodingForwarder.GetBytesAsciiFastPath(this, chars, 0, chars.Length);
+
+        public override byte[] GetBytes(char[] chars, int index, int count)
+            => EncodingForwarder.GetBytesAsciiFastPath(this, chars, index, count);
 
         // Encodes a range of characters in a character array into a range of bytes
         // in a byte array. An exception occurs if the byte array is not large
@@ -92,19 +98,16 @@ namespace System.Text
         // Alternatively, the GetMaxByteCount method can be used to
         // determine the maximum number of bytes that will be produced for a given
         // number of characters, regardless of the actual character values.
-
-        public override int GetBytes(char[] chars, int charIndex, int charCount,
-                                               byte[] bytes, int byteIndex)
-        {
-            return EncodingForwarder.GetBytes(this, chars, charIndex, charCount, bytes, byteIndex);
-        }
+        public override int GetBytes(char[] chars, int charIndex, int charCount, byte[] bytes, int byteIndex)
+            => EncodingForwarder.GetBytesAsciiFastPath(this, chars, charIndex, charCount, bytes, byteIndex);
 
         [CLSCompliant(false)]
         [System.Runtime.InteropServices.ComVisible(false)]
         public override unsafe int GetBytes(char* chars, int charCount, byte* bytes, int byteCount)
-        {
-            return EncodingForwarder.GetBytes(this, chars, charCount, bytes, byteCount);
-        }
+            => EncodingForwarder.GetBytesAsciiFastPath(this, chars, charCount, bytes, byteCount);
+
+        internal override unsafe int GetBytes(char* chars, int charCount, byte* bytes, int byteCount, EncoderNLS encoder)
+            => EncodingForwarder.GetBytesAsciiFastPath(this, chars, charCount, bytes, byteCount, encoder);
 
         // Returns the number of characters produced by decoding a range of bytes
         // in a byte array.
@@ -281,7 +284,7 @@ namespace System.Text
             return byteCount;
         }
 
-        internal override unsafe int GetBytes(char* chars, int charCount,
+        internal override unsafe int GetBytesFallback(char* chars, int charCount,
                                                 byte* bytes, int byteCount, EncoderNLS encoder)
         {
             // Just need to ASSERT, this is called by something else internal that checked parameters already

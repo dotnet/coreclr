@@ -79,6 +79,11 @@ namespace System {
                                                     ExceptionResource.ArgumentOutOfRange_Index);
         }
 
+        internal static void ThrowCountArgumentOutOfRange_NeedNonNegNumException() {
+            throw GetArgumentOutOfRangeException(ExceptionArgument.count,
+                                                    ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
+        }
+
         internal static void ThrowIndexArgumentOutOfRange_NeedNonNegNumException() {
             throw GetArgumentOutOfRangeException(ExceptionArgument.index, 
                                                     ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
@@ -205,6 +210,14 @@ namespace System {
 
         internal static void ThrowInvalidOperationException_InvalidOperation_EnumFailedVersion() {
             throw GetInvalidOperationException(ExceptionResource.InvalidOperation_EnumFailedVersion);
+        }
+
+        private static ArgumentNullException GetArgumentNullException(ExceptionArgument argument, ExceptionResource resource) {
+            throw new ArgumentNullException(GetArgumentName(argument), GetResourceString(resource));
+        }
+
+        internal static void ThrowArgumentNullException(ExceptionArgument argument, ExceptionResource resource) {
+            throw GetArgumentNullException(argument, resource);
         }
 
         internal static void ThrowInvalidOperationException_InvalidOperation_EnumOpCantHappen() {
@@ -363,6 +376,13 @@ namespace System {
         updateValueFactory,
         concurrencyLevel,
         text,
+        s,
+        chars,
+        bytes,
+        byteIndex,
+        charIndex,
+        byteCount,
+        charCount,
 
     }
 
@@ -468,6 +488,9 @@ namespace System {
         ConcurrentDictionary_ArrayNotLargeEnough,
         ConcurrentDictionary_ArrayIncorrectType,
         ConcurrentCollection_SyncRoot_NotSupported,
+        ArgumentNull_Array,
+        ArgumentOutOfRange_IndexCountBuffer,
+        ArgumentNull_String,
 
     }
 }
