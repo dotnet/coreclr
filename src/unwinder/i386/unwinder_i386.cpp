@@ -85,7 +85,7 @@ OOPStackUnwinderX86::VirtualUnwind(
 #undef CALLEE_SAVED_REGISTER
     }
 
-    if ( rd.pEbp == NULL )
+    if (rd.pEbp == NULL)
     {
         rd.pEbp = &(ContextRecord->Ebp);
     }
@@ -99,9 +99,9 @@ OOPStackUnwinderX86::VirtualUnwind(
     EECodeInfo      codeInfo;
     codeInfo.Init((PCODE) ControlPc);
 
-    if ( !UnwindStackFrame(&rd, &codeInfo, UpdateAllRegs, &codeManState, NULL) )
+    if (!UnwindStackFrame(&rd, &codeInfo, UpdateAllRegs, &codeManState, NULL))
     {
-      return HRESULT_FROM_WIN32(ERROR_READ_FAULT);
+        return HRESULT_FROM_WIN32(ERROR_READ_FAULT);
     }
 
 #define CALLEE_SAVED_REGISTER(reg) if (rd.p##reg != NULL) { ContextRecord->reg = *rd.p##reg; }
