@@ -3884,11 +3884,11 @@ bool UnwindEbpDoubleAlignFrame(
     return true;
 }
 
-bool UnwindStackFrame(PREGDISPLAY     pContext,
-                      EECodeInfo     *pCodeInfo,
-                      unsigned        flags,
-                      CodeManState   *pState,
-                      StackwalkCacheUnwindInfo  *pUnwindInfo /* out-only, perf improvement */)
+bool UnwindStackFrameEx(PREGDISPLAY     pContext,
+                        EECodeInfo     *pCodeInfo,
+                        unsigned        flags,
+                        CodeManState   *pState,
+                        StackwalkCacheUnwindInfo  *pUnwindInfo /* out-only, perf improvement */)
 {
     CONTRACTL {
         NOTHROW;
@@ -4001,7 +4001,7 @@ bool EECodeManager::UnwindStackFrame(PREGDISPLAY     pContext,
                                      CodeManState   *pState,
                                      StackwalkCacheUnwindInfo  *pUnwindInfo /* out-only, perf improvement */)
 {
-    return UnwindStackFrame(pContext, pCodeInfo, flags, pState, pUnwindInfo);
+    return UnwindStackFrameEx(pContext, pCodeInfo, flags, pState, pUnwindInfo);
 }
 
 /*****************************************************************************/
