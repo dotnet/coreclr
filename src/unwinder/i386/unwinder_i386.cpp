@@ -67,13 +67,13 @@ OOPStackUnwinderX86::VirtualUnwind(
     __deref_opt_out_opt PEXCEPTION_ROUTINE *HandlerRoutine
     )
 {
-    *EstablisherFrame   = ContextRecord->Esp;
+    *EstablisherFrame = ContextRecord->Esp;
     if (HandlerRoutine != NULL)
     {
-        *HandlerRoutine     = NULL;
+        *HandlerRoutine = NULL;
     }
 
-    REGDISPLAY      rd;
+    REGDISPLAY rd;
 
     if (ContextPointers != NULL)
     {
@@ -92,14 +92,14 @@ OOPStackUnwinderX86::VirtualUnwind(
     {
         rd.pEbp = &(ContextRecord->Ebp);
     }
-    rd.Esp  = ContextRecord->Esp;
+    rd.Esp = ContextRecord->Esp;
     rd.ControlPC = (PCODE)(ContextRecord->Eip);
-    rd.PCTAddr   = (UINT_PTR)&(ContextRecord->Eip);
+    rd.PCTAddr = (UINT_PTR)&(ContextRecord->Eip);
 
-    CodeManState    codeManState;
+    CodeManState codeManState;
     codeManState.dwIsSet = 0;
 
-    EECodeInfo      codeInfo;
+    EECodeInfo codeInfo;
     codeInfo.Init((PCODE) ControlPc);
 
     if (!UnwindStackFrame(&rd, &codeInfo, UpdateAllRegs, &codeManState, NULL))
@@ -121,7 +121,6 @@ OOPStackUnwinderX86::VirtualUnwind(
     ContextRecord->Esp = rd.Esp;
     ContextRecord->Eip = rd.ControlPC;
     ContextRecord->Ebp = *rd.pEbp;
-
 
     return S_OK;
 }
