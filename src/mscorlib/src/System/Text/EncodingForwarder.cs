@@ -12,9 +12,10 @@ namespace System.Text
 
     internal static class EncodingForwarder
     {
+#if !BIGENDIAN
         const int Shift16Shift24 = 256 * 256 * 256 + 256 * 256;
         const int Shift8Identity = 256 + 1;
-
+#endif
         // We normally have to duplicate a lot of code between UTF8Encoding,
         // UTF7Encoding, EncodingNLS, etc. because we want to override many
         // of the methods in all of those classes to just forward to the unsafe
@@ -195,6 +196,7 @@ namespace System.Text
             return encoding.GetBytes(chars, charCount, bytes, byteCount, encoder: null);
         }
 
+#if !BIGENDIAN
         // Ascii fast-paths
         public unsafe static byte[] GetBytesAsciiFastPath(Encoding encoding, String s)
         {
@@ -518,6 +520,7 @@ namespace System.Text
         exit:
             return i;
         }
+#endif // !BIGENDIAN
 
         public unsafe static int GetCharCount(Encoding encoding, byte[] bytes, int index, int count)
         {
