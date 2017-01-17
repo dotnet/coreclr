@@ -27,19 +27,6 @@ public:
         __out PDWORD EstablisherFrame,
         __inout_opt PKNONVOLATILE_CONTEXT_POINTERS ContextPointers,
         __deref_opt_out_opt PEXCEPTION_ROUTINE *HandlerRoutine);
-
-private:
-    static HRESULT UnwindPrologue(
-        __in DWORD ImageBase,
-        __in DWORD ControlPc,
-        __in DWORD FrameBase,
-        __in _PIMAGE_RUNTIME_FUNCTION_ENTRY FunctionEntry,
-        __inout PCONTEXT ContextRecord,
-        __inout_opt PKNONVOLATILE_CONTEXT_POINTERS ContextPointers,
-        __deref_out _PIMAGE_RUNTIME_FUNCTION_ENTRY *FinalFunctionEntry);
-
-    static DWORD GetEstabliserFrame( __in PCONTEXT ContextRecord );
-
 };
 #endif // WIN64EXCEPTIONS
 
