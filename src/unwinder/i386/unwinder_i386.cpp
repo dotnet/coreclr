@@ -68,7 +68,10 @@ OOPStackUnwinderX86::VirtualUnwind(
     )
 {
     *EstablisherFrame   = ContextRecord->Esp;
-    *HandlerRoutine     = NULL;
+    if (HandlerRoutine != NULL)
+    {
+        *HandlerRoutine     = NULL;
+    }
 
     REGDISPLAY      rd;
 
