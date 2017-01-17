@@ -72,9 +72,18 @@ OOPStackUnwinderX86::VirtualUnwind(
 
     REGDISPLAY      rd;
 
-#define CALLEE_SAVED_REGISTER(reg) rd.p##reg = (ContextPointers != NULL) ? ContextPointers->reg : NULL;
-    ENUM_CALLEE_SAVED_REGISTERS();
+    if (ContextPointers != NULL)
+    {
+#define CALLEE_SAVED_REGISTER(reg) rd.p##reg = ContextPointers->reg;
+        ENUM_CALLEE_SAVED_REGISTERS();
 #undef CALLEE_SAVED_REGISTER
+    }
+    else
+    {
+#define CALLEE_SAVED_REGISTER(reg) rd.p##reg = NULL;
+        ENUM_CALLEE_SAVED_REGISTERS();
+#undef CALLEE_SAVED_REGISTER
+    }
 
     if ( rd.pEbp == NULL )
     {
