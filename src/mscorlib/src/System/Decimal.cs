@@ -378,7 +378,7 @@ namespace System {
             if (value == null)
                 return 1;
             if (!(value is Decimal))
-                throw new ArgumentException(Environment.GetResourceString("Arg_MustBeDecimal"));
+                throw new ArgumentException(Environment.GetResourceString("Arg_MustBeDecimal"), nameof(value));
     
             Decimal other = (Decimal)value;    
             return FCallCompare(ref this, ref other);
