@@ -66,27 +66,49 @@ OOPStackUnwinderX86::VirtualUnwind(
     __inout_opt PKNONVOLATILE_CONTEXT_POINTERS ContextPointers,
     __deref_opt_out_opt PEXCEPTION_ROUTINE *HandlerRoutine
     )
-{   
-    REGDISPLAY      rd;
-    FillRegDisplay(&rd, ContextRecord);
-
-    CodeManState    codeManState;
-    codeManState.dwIsSet = 0;
-
-    EECodeInfo      codeInfo((PCODE) ControlPc);
-
-    bool res = 
-        codeInfo.GetCodeManager()->UnwindStackFrame(&rd, &codeInfo, UpdateAllRegs, &codeManState, NULL);
-
-    if (!res) 
-    {
-        return HRESULT_FROM_WIN32(ERROR_READ_FAULT);
-    }
-
+{
     *EstablisherFrame   = ContextRecord->Esp;
     *HandlerRoutine     = NULL;
 
-    UpdateContextFromRegDisp(&rd, ContextRecord);
+    BOOL res = FALSE;
+
+    if (ExecutionManager::IsManagedCode(ControlPc))
+    {
+        REGDISPLAY      rd;
+
+        rd.pEax = &(ContextRecord->Eax);
+        rd.pEbx = &(ContextRecord->Ebx);
+        rd.pEcx = &(ContextRecord->Ecx);
+        rd.pEdx = &(ContextRecord->Edx);
+        rd.pEdi = &(ContextRecord->Edi);
+        rd.pEsi = &(ContextRecord->Esi);
+        rd.pEbp = &(ContextRecord->Ebp);
+
+        rd.Esp  = ContextRecord->Esp;
+        rd.ControlPC = (PCODE)(ContextRecord->Eip);
+        rd.PCTAddr   = (UINT_PTR)&(ContextRecord->Eip);
+
+        CodeManState    codeManState;
+        codeManState.dwIsSet = 0;
+
+        EECodeInfo      codeInfo;
+        codeInfo.Init((PCODE) ControlPc);
+
+        res = UnwindStackFrame(&rd, &codeInfo, UpdateAllRegs, &codeManState, NULL);
+
+        ContextRecord->Esp = rd.Esp;
+        ContextRecord->Eip = rd.ControlPC;
+        ContextRecord->Ebp = *rd.pEbp;
+    }
+    else
+    {
+        res = PAL_VirtualUnwind(ContextRecord, ContextPointers);
+    }
+
+    if (!res)
+    {
+      return HRESULT_FROM_WIN32(ERROR_READ_FAULT);
+    }
 
     return S_OK;
 }
