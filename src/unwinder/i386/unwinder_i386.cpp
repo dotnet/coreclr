@@ -102,7 +102,7 @@ OOPStackUnwinderX86::VirtualUnwind(
     EECodeInfo      codeInfo;
     codeInfo.Init((PCODE) ControlPc);
 
-    if (!UnwindStackFrameEx(&rd, &codeInfo, UpdateAllRegs, &codeManState, NULL))
+    if (!UnwindStackFrame(&rd, &codeInfo, UpdateAllRegs, &codeManState, NULL))
     {
         return HRESULT_FROM_WIN32(ERROR_READ_FAULT);
     }

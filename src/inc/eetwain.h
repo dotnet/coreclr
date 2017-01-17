@@ -614,11 +614,11 @@ HRESULT FixContextForEnC(PCONTEXT        pCtx,
 };
 
 #ifdef _TARGET_X86_
-bool UnwindStackFrameEx(PREGDISPLAY     pContext,
-                        EECodeInfo     *pCodeInfo,
-                        unsigned        flags,
-                        CodeManState   *pState,
-                        StackwalkCacheUnwindInfo  *pUnwindInfo);
+bool UnwindStackFrame(PREGDISPLAY     pContext,
+                      EECodeInfo     *pCodeInfo,
+                      unsigned        flags,
+                      CodeManState   *pState,
+                      StackwalkCacheUnwindInfo  *pUnwindInfo);
 #endif
 
 /*****************************************************************************
