@@ -27,14 +27,6 @@ using System.Runtime.ExceptionServices;
 
 namespace System
 {
-    // Lazy<T> is generic, but not all of its state needs to be generic.  Avoid creating duplicate
-    // objects per instantiation by putting them here.
-    internal static class LazyHelpers
-    {
-        // Dummy object used as the value of m_threadSafeObj if in PublicationOnly mode.
-        internal static readonly object PUBLICATION_ONLY_SENTINEL = new object();
-    }
-
     /// <summary>
     /// Provides support for lazy initialization.
     /// </summary>
@@ -50,63 +42,22 @@ namespace System
     [ComVisible(false)]
     [DebuggerTypeProxy(typeof(System_LazyDebugView<>))]
     [DebuggerDisplay("ThreadSafetyMode={Mode}, IsValueCreated={IsValueCreated}, IsValueFaulted={IsValueFaulted}, Value={ValueForDebugDisplay}")]
-    public class Lazy<T>
+    public class Lazy<T> :
+        ISerializable
     {
-
-#region Inner classes
-        /// <summary>
-        /// wrapper class to box the initialized value, this is mainly created to avoid boxing/unboxing the value each time the value is called in case T is 
-        /// a value type
-        /// </summary>
-        [Serializable]
-        class Boxed
+        private interface ILazyItem
         {
-            internal Boxed(T value)
-            {
-                m_value = value;
-            }
-            internal T m_value;
+            T Value { get; }
+            bool IsValueCreated { get; }
+            bool IsValueFaulted { get; }
+            LazyThreadSafetyMode Mode { get; }
         }
 
+        // m_implementation, a volatile reference, is set to null after m_value has been set
+        private volatile ILazyItem m_implementation;
 
-        /// <summary>
-        /// Wrapper class to wrap the excpetion thrown by the value factory
-        /// </summary>
-        class LazyInternalExceptionHolder
-        {
-            internal ExceptionDispatchInfo m_edi;
-            internal LazyInternalExceptionHolder(Exception ex)
-            {
-                m_edi = ExceptionDispatchInfo.Capture(ex);
-            }
-        }
-#endregion
-
-        // A dummy delegate used as a  :
-        // 1- Flag to avoid recursive call to Value in None and ExecutionAndPublication modes in m_valueFactory
-        // 2- Flag to m_threadSafeObj if ExecutionAndPublication mode and the value is known to be initialized
-        static readonly Func<T> ALREADY_INVOKED_SENTINEL = delegate 
-        {
-            Debug.Assert(false, "ALREADY_INVOKED_SENTINEL should never be invoked.");
-            return default(T);
-        };
-
-        //null --> value is not created
-        //m_value is Boxed --> the value is created, and m_value holds the value
-        //m_value is LazyExceptionHolder --> it holds an exception
-        private object m_boxed;
-
-        // The factory delegate that returns the value.
-        // In None and ExecutionAndPublication modes, this will be set to ALREADY_INVOKED_SENTINEL as a flag to avoid recursive calls
-        [NonSerialized]
-        private Func<T> m_valueFactory;
-
-        // null if it is not thread safe mode
-        // LazyHelpers.PUBLICATION_ONLY_SENTINEL if PublicationOnly mode
-        // object if ExecutionAndPublication mode (may be ALREADY_INVOKED_SENTINEL if the value is already initialized)
-        [NonSerialized]
-        private object m_threadSafeObj;
-
+        // m_value eventually stores the lazily created value. It is ready when m_implementation = null.
+        private T m_value; 
 
         /// <summary>
         /// Initializes a new instance of the <see cref="T:System.Threading.Lazy{T}"/> class that 
@@ -116,7 +67,7 @@ namespace System
         /// An instance created with this constructor may be used concurrently from multiple threads.
         /// </remarks>
         public Lazy()
-            : this(LazyThreadSafetyMode.ExecutionAndPublication)
+            : this(CreateInstance.Factory, LazyThreadSafetyMode.ExecutionAndPublication)
         {
         }
 
@@ -130,7 +81,8 @@ namespace System
         /// </remarks>
         public Lazy(T value)
         {
-            m_boxed = new Boxed(value);
+            m_value = value;
+            m_implementation = null;
         }
 
         /// <summary>
@@ -157,8 +109,8 @@ namespace System
         /// </summary>
         /// <param name="isThreadSafe">true if this instance should be usable by multiple threads concurrently; false if the instance will only be used by one thread at a time.
         /// </param>
-        public Lazy(bool isThreadSafe) : 
-            this(isThreadSafe? LazyThreadSafetyMode.ExecutionAndPublication : LazyThreadSafetyMode.None)
+        public Lazy(bool isThreadSafe) :
+            this(CreateInstance.Factory, GetMode(isThreadSafe))
         {
         }
 
@@ -168,11 +120,10 @@ namespace System
         /// </summary>
         /// <param name="mode">The lazy thread-safety mode mode</param>
         /// <exception cref="System.ArgumentOutOfRangeException"><paramref name="mode"/> mode contains an invalid valuee</exception>
-        public Lazy(LazyThreadSafetyMode mode)
+        public Lazy(LazyThreadSafetyMode mode) :
+            this(CreateInstance.Factory, mode)
         {
-            m_threadSafeObj = GetObjectFromMode(mode);
         }
-
 
         /// <summary>
         /// Initializes a new instance of the <see cref="T:System.Threading.Lazy{T}"/> class
@@ -185,8 +136,8 @@ namespace System
         /// </param>
         /// <exception cref="System.ArgumentNullException"><paramref name="valueFactory"/> is
         /// a null reference (Nothing in Visual Basic).</exception>
-        public Lazy(Func<T> valueFactory, bool isThreadSafe)
-            : this(valueFactory, isThreadSafe ? LazyThreadSafetyMode.ExecutionAndPublication : LazyThreadSafetyMode.None)
+        public Lazy(Func<T> valueFactory, bool isThreadSafe) :
+            this(valueFactory, GetMode(isThreadSafe))
         {
         }
 
@@ -206,24 +157,139 @@ namespace System
             if (valueFactory == null)
                 throw new ArgumentNullException(nameof(valueFactory));
 
-            m_threadSafeObj = GetObjectFromMode(mode);
-            m_valueFactory = valueFactory;
+            m_implementation = CreateInitializerFromMode(mode, this, valueFactory);
+        }
+
+#region constructor helpers
+
+        private static class CreateInstance
+        {
+            private static T construct()
+            {
+                try
+                {
+                    return (T)(Activator.CreateInstance(typeof(T)));
+                }
+                catch (MissingMethodException)
+                {
+                    throw new MissingMemberException(Environment.GetResourceString("Lazy_CreateValue_NoParameterlessCtorForT"));
+                }
+            }
+
+            public readonly static Func<T> Factory = construct;
+        }
+
+        private static LazyThreadSafetyMode GetMode(bool isThreadSafe)
+        {
+            return isThreadSafe ? LazyThreadSafetyMode.ExecutionAndPublication : LazyThreadSafetyMode.None;
+        }
+
+        private static ILazyItem CreateInitializerFromMode(LazyThreadSafetyMode mode, Lazy<T> owner, Func<T> valueFactory)
+        {
+            switch (mode)
+            {
+                case LazyThreadSafetyMode.None:                    return new None(owner, valueFactory);
+                case LazyThreadSafetyMode.PublicationOnly:         return new PublicationOnly(owner, valueFactory);
+                case LazyThreadSafetyMode.ExecutionAndPublication: return new ExecutionAndPublication(owner, valueFactory);
+
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(mode), Environment.GetResourceString("Lazy_ctor_ModeInvalid"));
+            }
+        }
+
+#endregion
+
+        /// <summary>
+        /// Creates the underlying value using the factory object, placing the result inside this
+        /// object, and then used the Lazy objects ILazyItem implemenation.to refer to it.
+        /// </summary>
+        /// <param name="factory">The object factory used to create the underlying object</param>
+        /// <param name="forceMemoryBarrier">true when called with ExecutionAndPublication, false
+        /// when called with None</param>
+        /// <returns>The underlying object</returns>
+        private T CreateValue(Func<T> factory, LazyThreadSafetyMode mode)
+        {
+            try
+            {
+                m_value = factory();
+                m_implementation = null;
+                return m_value;
+            }
+            catch (Exception exception) when (!ReferenceEquals(CreateInstance.Factory, factory))
+            {
+                m_implementation = new LazyException(exception, mode);
+                throw;
+            }
         }
 
         /// <summary>
-        /// Static helper function that returns an object based on the given mode. it also throws an exception if the mode is invalid
+        /// Creates the underlying value using the factory object into a helper object and, for the
+        /// first object to complete its factory, uses that objects ILazyItem implementation
         /// </summary>
-        private static object GetObjectFromMode(LazyThreadSafetyMode mode)
+        /// <param name="factory">The object factory used to create the underlying object</param>
+        /// <param name="comparand">The publication object, used for synchronisation and comparison</param>
+        /// <returns>The underlying object</returns>
+        private T CreateValuePublicationOnly(Func<T> factory, PublicationOnly comparand)
         {
-            if (mode == LazyThreadSafetyMode.ExecutionAndPublication)
-                return new object();
-            else if (mode == LazyThreadSafetyMode.PublicationOnly)
-                return LazyHelpers.PUBLICATION_ONLY_SENTINEL;
-            else if (mode != LazyThreadSafetyMode.None)
-                throw new ArgumentOutOfRangeException(nameof(mode), Environment.GetResourceString("Lazy_ctor_ModeInvalid"));
-            
-            return null; // None mode
+            var possibleValue = factory();
+            lock (comparand)
+            {
+                if (ReferenceEquals(m_implementation, comparand))
+                {
+                    m_value = possibleValue;
+                    m_implementation = null;
+                }
+            }
+            return m_value;
         }
+
+        /// <summary>
+        /// Entry point to underlying object creation used by the ExecutionAndPublication method.
+        /// This should only be called from that location, and should be under a lock.
+        /// </summary>
+        /// <param name="factory">The object factory used to create the underlying object</param>
+        /// <param name="comparand">Used to determine if we still need to create the underlying object</param>
+        /// <returns></returns>
+        private T CreateValueExecutionAndPublication(Func<T> factory, ExecutionAndPublication comparand)
+        {
+            // it's possible for multiple calls to have piled up behind the lock, so we need to check
+            // to see if the ExecutionAndPublication object is still the current implementation.
+            return ReferenceEquals(m_implementation, comparand) ? CreateValue(factory, LazyThreadSafetyMode.ExecutionAndPublication) : Value;
+        }
+
+#region Serialization
+        // to remain compatible with previous version, custom serialization has been added
+        // which should be binary compatible. Only valid values were ever serialized. Exceptions
+        // were thrown from the serializer, which halted it, if the Lazy object through an exception.
+
+        /// <summary>
+        /// wrapper class to box the initialized value, this is mainly created to avoid boxing/unboxing the value each time the value is called in case T is 
+        /// a value type
+        /// </summary>
+        [Serializable]
+        class Boxed
+        {
+            internal Boxed(T value)
+            {
+                m_value = value;
+            }
+            internal T m_value;
+        }
+
+        public Lazy(SerializationInfo information, StreamingContext context)
+        {
+            var boxed = (Boxed)information.GetValue("m_boxed", typeof(Boxed));
+            m_value = boxed.m_value;
+            m_implementation = null;
+        }
+
+        void ISerializable.GetObjectData(SerializationInfo info, StreamingContext context)
+        {
+            var boxed = new Boxed(Value);
+            info.AddValue("m_boxed", boxed);
+        }
+
+        #endregion
 
         /// <summary>Forces initialization during serialization.</summary>
         /// <param name="context">The StreamingContext for the serialization operation.</param>
@@ -254,7 +320,7 @@ namespace System
                 {
                     return default(T);
                 }
-                return ((Boxed)m_boxed).m_value;
+                return Value;
             }
         }
 
@@ -265,9 +331,10 @@ namespace System
         {
             get
             {
-                if (m_threadSafeObj == null) return LazyThreadSafetyMode.None;
-                if (m_threadSafeObj == (object)LazyHelpers.PUBLICATION_ONLY_SENTINEL) return LazyThreadSafetyMode.PublicationOnly;
-                return LazyThreadSafetyMode.ExecutionAndPublication;
+                var implementation = m_implementation;
+                if (implementation == null)
+                    return LazyThreadSafetyMode.None; // we don't know the mode anymore
+                return implementation.Mode;
             }
         }
 
@@ -276,7 +343,13 @@ namespace System
         /// </summary>
         internal bool IsValueFaulted
         {
-            get { return m_boxed is LazyInternalExceptionHolder; }
+            get
+            {
+                var implementation = m_implementation;
+                if (implementation == null)
+                    return false;
+                return implementation.IsValueFaulted;
+            }
         }
 
         /// <summary>Gets a value indicating whether the <see cref="T:System.Lazy{T}"/> has been initialized.
@@ -292,7 +365,10 @@ namespace System
         {
             get
             {
-                return m_boxed != null && m_boxed is Boxed;
+                var implementation = m_implementation;
+                if (implementation == null)
+                    return true;
+                return implementation.IsValueCreated;
             }
         }
 
@@ -322,147 +398,116 @@ namespace System
         {
             get
             {
-                Boxed boxed = null;
-                if (m_boxed != null )
-                {
-                    // Do a quick check up front for the fast path.
-                    boxed = m_boxed as Boxed;
-                    if (boxed != null)
-                    {
-                        return boxed.m_value;
-                    }
-
-                    LazyInternalExceptionHolder exc = m_boxed as LazyInternalExceptionHolder;
-                    Debug.Assert(exc != null);
-                    exc.m_edi.Throw();
-                }
-
-                // Fall through to the slow path.
-                return LazyInitValue();
+                var implementation = m_implementation;
+                if (implementation == null)
+                    return m_value;
+                return implementation.Value;
             }
         }
 
-        /// <summary>
-        /// local helper method to initialize the value 
-        /// </summary>
-        /// <returns>The inititialized T value</returns>
-        private T LazyInitValue()
-        {
-            Boxed boxed = null;
-            LazyThreadSafetyMode mode = Mode;
-            if (mode == LazyThreadSafetyMode.None)
-            {
-                boxed = CreateValue();
-                m_boxed = boxed;
-            }
-            else if (mode == LazyThreadSafetyMode.PublicationOnly)
-            {
-                boxed = CreateValue();
-                if (boxed == null ||
-                    Interlocked.CompareExchange(ref m_boxed, boxed, null) != null)
-                {
-                    // If CreateValue returns null, it means another thread successfully invoked the value factory
-                    // and stored the result, so we should just take what was stored.  If CreateValue returns non-null
-                    // but another thread set the value we should just take what was stored.
-                    boxed = (Boxed)m_boxed;
-                }
-                else
-                {
-                    // We successfully created and stored the value.  At this point, the value factory delegate is
-                    // no longer needed, and we don't want to hold onto its resources.
-                    m_valueFactory = ALREADY_INVOKED_SENTINEL;
-                }
-            }
-            else
-            {
-                object threadSafeObj = Volatile.Read(ref m_threadSafeObj);
-                bool lockTaken = false;
-                try
-                {
-                    if (threadSafeObj != (object)ALREADY_INVOKED_SENTINEL)
-                        Monitor.Enter(threadSafeObj, ref lockTaken);
-                    else
-                        Debug.Assert(m_boxed != null);
+        #region ILazyItem implementations
 
-                    if (m_boxed == null)
-                    {
-                        boxed = CreateValue();
-                        m_boxed = boxed;
-                        Volatile.Write(ref m_threadSafeObj, ALREADY_INVOKED_SENTINEL);
-                    }
-                    else // got the lock but the value is not null anymore, check if it is created by another thread or faulted and throw if so
-                    {
-                        boxed = m_boxed as Boxed;
-                        if (boxed == null) // it is not Boxed, so it is a LazyInternalExceptionHolder
-                        {
-                            LazyInternalExceptionHolder exHolder = m_boxed as LazyInternalExceptionHolder;
-                            Debug.Assert(exHolder != null);
-                            exHolder.m_edi.Throw();
-                        }
-                    }
-                }
-                finally
-                {
-                    if (lockTaken)
-                        Monitor.Exit(threadSafeObj);
-                }
+        private sealed class LazyException : ILazyItem
+        {
+            private readonly System.Runtime.ExceptionServices.ExceptionDispatchInfo m_exceptionInfo;
+            private readonly LazyThreadSafetyMode m_mode;
+
+            internal LazyException(Exception exception, LazyThreadSafetyMode mode)
+            {
+                m_exceptionInfo = System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(exception);
+                m_mode = mode;
             }
-            Debug.Assert(boxed != null);
-            return boxed.m_value;
+
+            public bool IsValueCreated => false;
+            public bool IsValueFaulted => true;
+            public LazyThreadSafetyMode Mode => m_mode;
+
+            public T Value
+            {
+                get { m_exceptionInfo.Throw(); return default(T); }
+            }
         }
 
-        /// <summary>Creates an instance of T using m_valueFactory in case its not null or use reflection to create a new T()</summary>
-        /// <returns>An instance of Boxed.</returns>
-        private Boxed CreateValue()
+        abstract private class LazyInitializer : ILazyItem
         {
-            Boxed boxed = null;
-            LazyThreadSafetyMode mode = Mode;
-            if (m_valueFactory != null)
+            protected Lazy<T> Owner { get; }
+            protected Func<T> Factory { get; private set; }
+
+            protected Func<T> TakeFactory()
             {
-                try
+                var factory = Factory;
+                if (!ReferenceEquals(CreateInstance.Factory, factory))
                 {
-                    // check for recursion
-                    if (mode != LazyThreadSafetyMode.PublicationOnly && m_valueFactory == ALREADY_INVOKED_SENTINEL)
+                    if (factory == null)
                         throw new InvalidOperationException(Environment.GetResourceString("Lazy_Value_RecursiveCallsToValue"));
-
-                    Func<T> factory = m_valueFactory;
-                    if (mode != LazyThreadSafetyMode.PublicationOnly) // only detect recursion on None and ExecutionAndPublication modes
-                    {
-                        m_valueFactory = ALREADY_INVOKED_SENTINEL;
-                    }
-                    else if (factory == ALREADY_INVOKED_SENTINEL)
-                    {
-                        // Another thread raced to successfully invoke the factory.
-                        return null;
-                    }
-                    boxed = new Boxed(factory());
+                    Factory = null;
                 }
-                catch (Exception ex)
-                {
-                    if (mode != LazyThreadSafetyMode.PublicationOnly) // don't cache the exception for PublicationOnly mode
-                        m_boxed = new LazyInternalExceptionHolder(ex);
-                    throw;
-                }
+                return factory;
             }
-            else
+
+            internal LazyInitializer(Lazy<T> owner, Func<T> factory)
             {
-                try
-                {
-                    boxed = new Boxed((T)Activator.CreateInstance(typeof(T)));
-
-                }
-                catch (System.MissingMethodException)
-                {
-                    Exception ex = new System.MissingMemberException(Environment.GetResourceString("Lazy_CreateValue_NoParameterlessCtorForT"));
-                    if (mode != LazyThreadSafetyMode.PublicationOnly) // don't cache the exception for PublicationOnly mode
-                        m_boxed = new LazyInternalExceptionHolder(ex);
-                    throw ex;
-                }
+                Owner = owner;
+                Factory = factory;
             }
 
-            return boxed;
+            public bool IsValueCreated => false;
+            public bool IsValueFaulted => false;
+            abstract public T Value { get; }
+            abstract public LazyThreadSafetyMode Mode { get; }
         }
 
+        private sealed class None : LazyInitializer
+        {
+            internal None(Lazy<T> owner, Func<T> factory) : base(owner, factory) { }
+
+            public override T Value
+            {
+                get { return Owner.CreateValue(TakeFactory(), LazyThreadSafetyMode.None); }
+            }
+
+            public override LazyThreadSafetyMode Mode
+            {
+                get { return LazyThreadSafetyMode.None; }
+            }
+        }
+
+        private sealed class ExecutionAndPublication : LazyInitializer
+        {
+            internal ExecutionAndPublication(Lazy<T> owner, Func<T> factory) : base(owner, factory) { }
+
+            public override T Value
+            {
+                get
+                {
+                    lock (this) // we're safe to lock on "this" as object is an private object used by Lazy
+                    {
+                        return Owner.CreateValueExecutionAndPublication(TakeFactory(), this);
+                    }
+                }
+            }
+
+            public override LazyThreadSafetyMode Mode
+            {
+                get { return LazyThreadSafetyMode.ExecutionAndPublication; }
+            }
+        }
+
+        private sealed class PublicationOnly : LazyInitializer
+        {
+            internal PublicationOnly(Lazy<T> owner, Func<T> factory) : base(owner, factory) { }
+
+            public override T Value
+            {
+                get { return Owner.CreateValuePublicationOnly(Factory, this); }
+            }
+
+            public override LazyThreadSafetyMode Mode
+            {
+                get { return LazyThreadSafetyMode.PublicationOnly; }
+            }
+        }
+        #endregion
     }
 
     /// <summary>A debugger view of the Lazy&lt;T&gt; to surface additional debugging properties and 
