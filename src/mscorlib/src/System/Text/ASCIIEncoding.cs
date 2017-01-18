@@ -85,8 +85,11 @@ namespace System.Text
         public override int GetBytes(String s, int charIndex, int charCount, byte[] bytes, int byteIndex)
             => EncodingForwarder.GetBytesAsciiFastPath(this, s, charIndex, charCount, bytes, byteIndex);
 
-        public override byte[] GetBytes(char[] chars)
-            => EncodingForwarder.GetBytesAsciiFastPath(this, chars, 0, chars.Length);
+        public override byte[] GetBytes(char[] chars) {
+            if (chars == null)
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.chars, ExceptionResource.ArgumentNull_Array);
+            return EncodingForwarder.GetBytesAsciiFastPath(this, chars, 0, chars.Length);
+        }
 
         public override byte[] GetBytes(char[] chars, int index, int count)
             => EncodingForwarder.GetBytesAsciiFastPath(this, chars, index, count);
