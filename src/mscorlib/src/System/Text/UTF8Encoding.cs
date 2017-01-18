@@ -145,7 +145,7 @@ namespace System.Text
             => EncodingForwarder.GetBytesAsciiFastPath(this, s, charIndex, charCount, bytes, byteIndex);
 
         public override byte[] GetBytes(char[] chars)
-            => EncodingForwarder.GetBytesAsciiFastPath(this, chars, 0, chars.Length);
+            => EncodingForwarder.GetBytesAsciiFastPath(this, chars, 0, chars?.Length ?? 0);
 
         public override byte[] GetBytes(char[] chars, int index, int count)
             => EncodingForwarder.GetBytesAsciiFastPath(this, chars, index, count);

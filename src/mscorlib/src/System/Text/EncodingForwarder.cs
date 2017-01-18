@@ -264,11 +264,16 @@ namespace System.Text
 
             // Note that byteCount is the # of bytes to decode, not the size of the array
             int byteCount = bytes.Length - byteIndex;
+            if (charCount > 0 && byteCount == 0)
+                ThrowBytesOverflow(encoding);
+
             int lengthEncoded;
             if (charCount > 0 && byteCount > 0) {
-                fixed (char* input = chars)
-                fixed (byte* output = &bytes[0]) {
-                    lengthEncoded = GetBytesAsciiFastPath(input + charIndex, output + byteIndex, Math.Min(charCount, byteCount));
+                fixed (char* pInput = chars)
+                fixed (byte* pOutput = &bytes[0]) {
+                    char* input = pInput + charIndex;
+                    byte* output = pOutput + byteIndex;
+                    lengthEncoded = GetBytesAsciiFastPath(input, output, Math.Min(charCount, byteCount));
                     if (lengthEncoded < byteCount) {
                         // Not all ASCII, use encoding's GetBytes for remaining conversion
                         lengthEncoded += encoding.GetBytesFallback(input + lengthEncoded, charCount - lengthEncoded, output + lengthEncoded, byteCount - lengthEncoded, null);
@@ -295,6 +300,9 @@ namespace System.Text
             if (byteCount < 0)
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.byteCount, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
             Contract.EndContractBlock();
+
+            if (charCount > 0 && byteCount == 0)
+                ThrowBytesOverflow(encoding);
 
             int lengthEncoded;
             if (charCount > 0 && byteCount > 0) {
@@ -361,11 +369,16 @@ namespace System.Text
 
             // Note that byteCount is the # of bytes to decode, not the size of the array
             int byteCount = bytes.Length - byteIndex;
+            if (charCount > 0 && byteCount == 0)
+                ThrowBytesOverflow(encoding);
+
             int lengthEncoded;
             if (charCount > 0 && byteCount > 0) {
-                fixed (char* input = s)
-                fixed (byte* output = &bytes[0]) {
-                    lengthEncoded = GetBytesAsciiFastPath(input + charIndex, output + byteIndex, Math.Min(charCount, byteCount));
+                fixed (char* pInput = s)
+                fixed (byte* pOutput = &bytes[0]) {
+                    char* input = pInput + charIndex;
+                    byte* output = pOutput + byteIndex;
+                    lengthEncoded = GetBytesAsciiFastPath(input, output, Math.Min(charCount, byteCount));
                     if (lengthEncoded < byteCount) {
                         // Not all ASCII, use encoding's GetBytes for remaining conversion
                         lengthEncoded += encoding.GetBytesFallback(input + lengthEncoded, charCount - lengthEncoded, output + lengthEncoded, byteCount - lengthEncoded, null);
@@ -441,7 +454,7 @@ namespace System.Text
             for (; i < ulongDoubleCount; i += 8) {
                 ulong inputUlong0 = *(ulong*)(input + i);
                 ulong inputUlong1 = *(ulong*)(input + i + 4);
-                if (((inputUlong0 | inputUlong1) & 0x8080808080808080) != 0) {
+                if (((inputUlong0 | inputUlong1) & 0xFF80FF80FF80FF80) != 0) {
                     goto exit; // Found non-ASCII, bail
                 }
                 // Pack 16 ASCII chars into 16 bytes
@@ -454,7 +467,7 @@ namespace System.Text
             }
             if (byteCount - 4 > i) {
                 ulong inputUlong = *(ulong*)(input + i);
-                if ((inputUlong & 0x8080808080808080) != 0) {
+                if ((inputUlong & 0xFF80FF80FF80FF80) != 0) {
                     goto exit; // Found non-ASCII, bail
                 }
                 // Pack 8 ASCII chars into 8 bytes
@@ -490,7 +503,7 @@ namespace System.Text
             for (; i < uintCount; i += 4) {
                 uint inputUint0 = *(uint*)(input + i);
                 uint inputUint1 = *(uint*)(input + i + 2);
-                if (((inputUint0 | inputUint1) & 0x80808080) != 0) {
+                if (((inputUint0 | inputUint1) & 0xFF80FF80) != 0) {
                     goto exit; // Found non-ASCII, bail
                 }
                 // Pack 4 ASCII chars into 4 bytes
@@ -499,7 +512,7 @@ namespace System.Text
             }
             if (byteCount - 1 > i) {
                 uint inputUint = *(uint*)(input + i);
-                if ((inputUint & 0x80808080) != 0) {
+                if ((inputUint & 0xFF80FF80) != 0) {
                     goto exit; // Found non-ASCII, bail
                 }
                 // Pack 2 ASCII chars into 2 bytes
@@ -519,6 +532,16 @@ namespace System.Text
 #endif // BIT64
         exit:
             return i;
+        }
+
+        private static ArgumentException GetArgumentException_ThrowBytesOverflow(Encoding encoding) {
+            throw new ArgumentException(
+                Environment.GetResourceString("Argument_EncodingConversionOverflowBytes",
+                encoding.EncodingName, encoding.EncoderFallback.GetType()), "bytes");
+        }
+
+        private static void ThrowBytesOverflow(Encoding encoding) {
+            throw GetArgumentException_ThrowBytesOverflow(encoding);
         }
 #endif // !BIGENDIAN
 
