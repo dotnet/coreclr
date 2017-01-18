@@ -572,13 +572,6 @@ if(WIN32)
   add_compile_options(/Zl) # omit default library name in .OBJ
 endif(WIN32)
 
-#--------------------------------
-# Definition directives
-#  - all clr specific compile definitions should be included in this file
-#  - all clr specific feature variable should also be added in this file
-#----------------------------------
-include(clrdefinitions.cmake)
-
 #-------------------------------------
 # Include directory directives
 #-------------------------------------
@@ -586,15 +579,26 @@ include(clrdefinitions.cmake)
 include_directories("src/pal/prebuilt/inc")
 include_directories("bin/obj")
 
-if(FEATURE_STANDALONE_GC AND CLR_CMAKE_PLATFORM_UNIX)
-  add_subdirectory(src/gc/pal)
-endif(FEATURE_STANDALONE_GC AND CLR_CMAKE_PLATFORM_UNIX)
+if(FEATURE_STANDALONE_GC)
+  add_definitions(-DFEATURE_STANDALONE_GC)
+
+  if(CLR_CMAKE_PLATFORM_UNIX)
+    add_subdirectory(src/gc/pal)
+  endif(CLR_CMAKE_PLATFORM_UNIX)
+endif(FEATURE_STANDALONE_GC)
 
 if (CLR_CMAKE_PLATFORM_UNIX)
   include_directories("src/pal/inc")
   include_directories("src/pal/inc/rt")
   include_directories("src/pal/src/safecrt")
 endif (CLR_CMAKE_PLATFORM_UNIX)
+
+#--------------------------------
+# Definition directives
+#  - all clr specific compile definitions should be included in this file
+#  - all clr specific feature variable should also be added in this file
+#----------------------------------
+include(clrdefinitions.cmake)
 
 # Microsoft.Dotnet.BuildTools.Coreclr version
 set(BuildToolsVersion "1.0.4-prerelease")
