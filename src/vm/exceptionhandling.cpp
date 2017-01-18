@@ -4488,9 +4488,12 @@ VOID DECLSPEC_NORETURN UnwindManagedExceptionPass1(PAL_SEHException& ex, CONTEXT
 
     do
     {
+        CONTEXT currentContext = *frameContext;
+
         codeInfo.Init(controlPc);
         dispatcherContext.FunctionEntry = codeInfo.GetFunctionEntry();
         dispatcherContext.ControlPc = controlPc;
+        dispatcherContext.ContextRecord = &currentContext;
         dispatcherContext.ImageBase = codeInfo.GetModuleBase();
 #if defined(_TARGET_ARM_) 
         dispatcherContext.ControlPcIsUnwound = !!(frameContext->ContextFlags & CONTEXT_UNWOUND_TO_CALL);
@@ -4519,7 +4522,6 @@ VOID DECLSPEC_NORETURN UnwindManagedExceptionPass1(PAL_SEHException& ex, CONTEXT
             }
 
             dispatcherContext.EstablisherFrame = establisherFrame;
-            dispatcherContext.ContextRecord = frameContext;
 
             // Find exception handler in the current frame
             disposition = ProcessCLRException(ex.GetExceptionRecord(),
