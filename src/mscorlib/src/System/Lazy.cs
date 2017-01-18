@@ -164,7 +164,7 @@ namespace System
 
         private static class CreateInstance
         {
-            private static T construct()
+            private static T Construct()
             {
                 try
                 {
@@ -176,7 +176,7 @@ namespace System
                 }
             }
 
-            public readonly static Func<T> Factory = construct;
+            public readonly static Func<T> Factory = Construct;
         }
 
         private static LazyThreadSafetyMode GetMode(bool isThreadSafe)
@@ -204,8 +204,7 @@ namespace System
         /// object, and then used the Lazy objects ILazyItem implemenation.to refer to it.
         /// </summary>
         /// <param name="factory">The object factory used to create the underlying object</param>
-        /// <param name="forceMemoryBarrier">true when called with ExecutionAndPublication, false
-        /// when called with None</param>
+        /// <param name="mode">The mode of the Lazy object</param>
         /// <returns>The underlying object</returns>
         private T CreateValue(Func<T> factory, LazyThreadSafetyMode mode)
         {
