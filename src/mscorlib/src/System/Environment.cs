@@ -73,6 +73,8 @@ namespace System {
             // Is this thread currently doing infinite resource lookups?
             private int infinitelyRecursingCount;
 
+            private Type resourceManagerType = null;
+
             // Data representing one individual resource lookup on a thread.
             internal class GetResourceStringUserData
             {
@@ -152,12 +154,6 @@ namespace System {
                 if (rh.currentlyLoading == null)
                     rh.currentlyLoading = new List<string>();
 
-                Assembly resourceManagerAssembly = Assembly.Load("System.Resources.ResourceManager, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a");
-                Type resourceManagerType = resourceManagerAssembly.GetType("System.Resources.ResourceManager");
-                Debug.Assert(resourceManagerType != null);
-                Type resourceReaderType = resourceManagerAssembly.GetType("System.Resources.ResourceReader");
-                Debug.Assert(resourceReaderType != null);
-
                 // Call class constructors preemptively, so that we cannot get into an infinite
                 // loop constructing a TypeInitializationException.  If this were omitted,
                 // we could get the Infinite recursion assert above by failing type initialization
@@ -165,6 +161,12 @@ namespace System {
 
                 if (!rh.resourceManagerInited)
                 {
+                    Assembly resourceManagerAssembly = Assembly.Load("System.Resources.ResourceManager, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a");
+                    resourceManagerType = resourceManagerAssembly.GetType("System.Resources.ResourceManager");
+                    Debug.Assert(resourceManagerType != null);
+                    Type resourceReaderType = resourceManagerAssembly.GetType("System.Resources.ResourceReader");
+                    Debug.Assert(resourceReaderType != null);
+
                     // process-critical code here.  No ThreadAbortExceptions
                     // can be thrown here.  Other exceptions percolate as normal.
                     RuntimeHelpers.PrepareConstrainedRegions();

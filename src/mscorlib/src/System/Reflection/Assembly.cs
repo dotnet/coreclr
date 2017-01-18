@@ -894,6 +894,7 @@ namespace System.Reflection
        HOSTED,
     }
 
+    [FriendAccessAllowed] // Used by ResourceManager
     [Serializable]
     internal class RuntimeAssembly : Assembly
     {
@@ -1926,6 +1927,15 @@ namespace System.Reflection
         }
 
         [FriendAccessAllowed] // Used by ResourceManager
+        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable  
+        public RuntimeAssembly InternalGetSatelliteAssembly(String name,
+                                                              CultureInfo culture,
+                                                              Version version)
+        {
+            StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
+            return InternalGetSatelliteAssembly(name, culture, version, false, ref stackMark);
+        }
+
         [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable  
         internal RuntimeAssembly InternalGetSatelliteAssembly(String name,
                                                               CultureInfo culture,
