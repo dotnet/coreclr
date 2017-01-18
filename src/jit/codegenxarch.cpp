@@ -263,7 +263,8 @@ BasicBlock* CodeGen::genCallFinally(BasicBlock* block, BasicBlock* lblk)
     }
     else
     {
-        // TODO-Linux-x86: Do we need to handle the GC information for this NOP or JMP specially, as is done for other architectures?
+// TODO-Linux-x86: Do we need to handle the GC information for this NOP or JMP specially, as is done for other
+// architectures?
 #ifndef JIT32_GCENCODER
         // Because of the way the flowgraph is connected, the liveness info for this one instruction
         // after the call is not (can not be) correct in cases where a variable has a last use in the
