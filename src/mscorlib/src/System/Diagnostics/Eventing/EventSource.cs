@@ -3303,7 +3303,7 @@ namespace System.Diagnostics.Tracing
                 IResourceManager resources = null;
                 EventSourceAttribute eventSourceAttrib = (EventSourceAttribute)GetCustomAttributeHelper(eventSourceType, typeof(EventSourceAttribute), flags);
                 if (eventSourceAttrib != null && eventSourceAttrib.LocalizationResources != null)
-                    resources = new ResourceManager(eventSourceAttrib.LocalizationResources, eventSourceType.Assembly());
+                    resources = (IResourceManager)Activator.CreateInstance(System.Diagnostics.Tracing.Internal.Environment.ResourceManagerType, eventSourceAttrib.LocalizationResources, eventSourceType.Assembly());
 
                 manifest = new ManifestBuilder(GetName(eventSourceType, flags), GetGuid(eventSourceType), eventSourceDllName,
                                                resources, flags);
