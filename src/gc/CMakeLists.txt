@@ -42,7 +42,7 @@ if(FEATURE_STANDALONE_GC)
   if(NOT CLR_CMAKE_PLATFORM_UNIX)
     set ( GC_SOURCES_WKS
       ${GC_SOURCES_WKS}
-      gcenv.windows.cpp)
+      windows/gcenv.windows.cpp)
   endif(NOT CLR_CMAKE_PLATFORM_UNIX)
 endif(FEATURE_STANDALONE_GC)
 
