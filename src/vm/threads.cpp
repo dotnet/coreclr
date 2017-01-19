@@ -8192,6 +8192,7 @@ bool Thread::InitRegDisplay(const PREGDISPLAY pRD, PT_CONTEXT pctx, bool validCo
             {
                 SetIP(pctx, 0);
 #ifdef _TARGET_X86_
+                pRD->pEbp = &(pctx->Ebp);
                 pRD->ControlPC = pctx->Eip;
                 pRD->PCTAddr = (TADDR)&(pctx->Eip);
 #elif defined(_TARGET_AMD64_)
@@ -8209,6 +8210,9 @@ bool Thread::InitRegDisplay(const PREGDISPLAY pRD, PT_CONTEXT pctx, bool validCo
     }
 
     FillRegDisplay( pRD, pctx );
+#ifdef _TARGET_X86_
+    pRD->pEbp = &(pctx->Ebp);
+#endif
 
     return true;
 }
