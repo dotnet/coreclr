@@ -204,11 +204,10 @@ public:
     int m_typedef_name_offset;
 };
 
-class ByteTypeInfo: public PrimitiveTypeInfo
+class ByteTypeInfo : public PrimitiveTypeInfo
 {
 public:
-    ByteTypeInfo(TypeHandle typeHandle, int encoding)
-        : PrimitiveTypeInfo(typeHandle, encoding)
+    ByteTypeInfo(TypeHandle typeHandle, int encoding) : PrimitiveTypeInfo(typeHandle, encoding)
     {
         m_typedef_info = new (nothrow) TypeDefInfo(nullptr, 0);
     }
@@ -219,7 +218,7 @@ public:
     void DumpDebugInfo(char* ptr, int& offset) override;
     void DumpStrings(char* ptr, int& offset) override;
 
-    TypeDefInfo *m_typedef_info;
+    TypeDefInfo* m_typedef_info;
 };
 
 class RefTypeInfo: public TypeInfoBase

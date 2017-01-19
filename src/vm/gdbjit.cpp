@@ -1003,7 +1003,6 @@ void TypeDefInfo::DumpDebugInfo(char *ptr, int &offset)
     offset += sizeof(DebugInfoTypeDef);
 }
 
-
 void ByteTypeInfo::DumpStrings(char* ptr, int& offset)
 {
     PrimitiveTypeInfo::DumpStrings(ptr, offset);
@@ -1022,22 +1021,8 @@ void ByteTypeInfo::DumpStrings(char* ptr, int& offset)
 void ByteTypeInfo::DumpDebugInfo(char *ptr, int &offset)
 {
     m_typedef_info->DumpDebugInfo(ptr, offset);
-    //PrimitiveTypeInfo::DumpDebugInfo(ptr, offset);
-    if (ptr != nullptr)
-    {
-        DebugInfoType bufType;
-        bufType.m_type_abbrev = 2;
-        bufType.m_type_name = m_type_name_offset;
-        bufType.m_encoding = m_type_encoding;
-        bufType.m_byte_size = m_type_size;
-
-        memcpy(ptr + offset,
-               &bufType,
-               sizeof(DebugInfoType));
-        m_type_offset = m_typedef_info->m_typedef_type_offset;
-    }
-
-    offset += sizeof(DebugInfoType);
+    m_type_offset = m_typedef_info->m_typedef_type_offset;
+    PrimitiveTypeInfo::DumpDebugInfo(ptr, offset);
 }
 
 void PrimitiveTypeInfo::DumpDebugInfo(char* ptr, int& offset)
@@ -1953,9 +1938,9 @@ void NotifyGdb::MethodCompiled(MethodDesc* MethodDescPtr)
 
     elfFile.MemPtr.SuppressRelease();
 
-    //#ifdef GDBJIT_DUMPELF
+#ifdef GDBJIT_DUMPELF
     DumpElf(methodName, elfFile);
-    //#endif
+#endif
 
     /* Create GDB JIT structures */
     NewHolder<jit_code_entry> jit_symbols = new (nothrow) jit_code_entry;
