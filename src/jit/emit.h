@@ -270,9 +270,7 @@ struct insGroup
 #define IGF_FINALLY_TARGET 0x0004 // this group is the start of a basic block that is returned to after a finally.
 #endif                            // FEATURE_EH_FUNCLETS && defined(_TARGET_ARM_)
 #define IGF_FUNCLET_PROLOG 0x0008 // this group belongs to a funclet prolog
-#ifdef DEBUG
-#define IGF_FUNCLET_EPILOG 0x0010 // this group belongs to a funclet epilog. Currently, this is only needed for DEBUG.
-#endif
+#define IGF_FUNCLET_EPILOG 0x0010 // this group belongs to a funclet epilog.
 #define IGF_EPILOG 0x0020        // this group belongs to a main function epilog
 #define IGF_NOGCINTERRUPT 0x0040 // this IG is is a no-interrupt region (prolog, epilog, etc.)
 #define IGF_UPD_ISZ 0x0080       // some instruction sizes updated
@@ -491,12 +489,11 @@ protected:
         return (ig != nullptr) && ((ig->igFlags & IGF_FUNCLET_PROLOG) != 0);
     }
 
-#ifdef DEBUG
     bool emitIGisInFuncletEpilog(const insGroup* ig)
     {
         return (ig != nullptr) && ((ig->igFlags & IGF_FUNCLET_EPILOG) != 0);
     }
-#endif // DEBUG
+
 #endif // FEATURE_EH_FUNCLETS
 
     // If "ig" corresponds to the start of a basic block that is the
