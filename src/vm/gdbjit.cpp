@@ -32,6 +32,7 @@ GetTypeInfoFromTypeHandle(TypeHandle typeHandle, NotifyGdb::PTK_TypeInfoMap pTyp
     {
         case ELEMENT_TYPE_I1:
         case ELEMENT_TYPE_U1:
+        case ELEMENT_TYPE_CHAR:
             typeInfo = new (nothrow) ByteTypeInfo(typeHandle, CorElementTypeToDWEncoding[corType]);
             if (typeInfo == nullptr)
                 return nullptr;
@@ -39,7 +40,6 @@ GetTypeInfoFromTypeHandle(TypeHandle typeHandle, NotifyGdb::PTK_TypeInfoMap pTyp
             break;
         case ELEMENT_TYPE_VOID:
         case ELEMENT_TYPE_BOOLEAN:
-        case ELEMENT_TYPE_CHAR:
         case ELEMENT_TYPE_I2:
         case ELEMENT_TYPE_U2:
         case ELEMENT_TYPE_I4:
@@ -1012,6 +1012,8 @@ void ByteTypeInfo::DumpStrings(char* ptr, int& offset)
         strcpy(m_typedef_info->m_typedef_name, "byte");
     else if (strcmp(m_type_name, "System.SByte") == 0)
         strcpy(m_typedef_info->m_typedef_name, "sbyte");
+    else if (strcmp(m_type_name, "char16_t") == 0)
+        strcpy(m_typedef_info->m_typedef_name, "char");
     else
         strcpy(m_typedef_info->m_typedef_name, m_type_name);
     m_typedef_info->DumpStrings(ptr, offset);
