@@ -313,30 +313,6 @@ xcopy /s /y "%__BinDir%" "%CORE_ROOT%"
      exit /b 1
  )
 
- xcopy /s /y "%__BinDir%" "%CORE_ROOT%"
- 
- echo %__MsgPrefix%Creating test wrappers...
- 
- set RuntimeIdArg=
- 
- if defined __RuntimeId (
-     set RuntimeIdArg=-RuntimeID="%__RuntimeId%"
- )
- 
- set __BuildLogRootName=Tests_XunitWrapper
- set __BuildLog=%__LogsDir%\%__BuildLogRootName%_%__BuildOS%__%__BuildArch%__%__BuildType%.log
- set __BuildWrn=%__LogsDir%\%__BuildLogRootName%_%__BuildOS%__%__BuildArch%__%__BuildType%.wrn
- set __BuildErr=%__LogsDir%\%__BuildLogRootName%_%__BuildOS%__%__BuildArch%__%__BuildType%.err
- set __msbuildLog=/flp:Verbosity=diag;LogFile="%__BuildLog%"
- set __msbuildWrn=/flp1:WarningsOnly;LogFile="%__BuildWrn%"
- set __msbuildErr=/flp2:ErrorsOnly;LogFile="%__BuildErr%"
- 
- call %__ProjectDir%\run.cmd build -Project=%__ProjectDir%\tests\runtest.proj -BuildWrappers -MsBuildEventLogging=" " -MsBuildLog=!__msbuildLog! -MsBuildWrn=!__msbuildWrn! -MsBuildErr=!__msbuildErr! %__RunArgs% %__BuildAgainstPackagesArg% %__unprocessedBuildArgs% %RuntimeIdArg%
- if errorlevel 1 (
-     echo Xunit Wrapper build failed
-     exit /b 1
- )
-
 REM =========================================================================================
 REM ===
 REM === All builds complete!
