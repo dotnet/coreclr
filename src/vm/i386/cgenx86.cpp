@@ -302,14 +302,13 @@ void TransitionFrame::UpdateRegDisplayHelper(const PREGDISPLAY pRD, UINT cbStack
     ENUM_CALLEE_SAVED_REGISTERS();
 #undef CALLEE_SAVED_REGISTER
     pRD->PCTAddr = GetReturnAddressPtr();
-    pRD->ControlPC = *PTR_PCODE(pRD->PCTAddr);
-    pRD->Esp  = (DWORD)(pRD->PCTAddr + sizeof(TADDR) + cbStackPop);
 
 #ifdef WIN64EXCEPTIONS
+
     pRD->IsCallerContextValid = FALSE;
     pRD->IsCallerSPValid      = FALSE;
 
-    pRD->pCurrentContext->Eip = pRD->ControlPC;
+    pRD->pCurrentContext->Eip = *PTR_PCODE(pRD->PCTAddr);;
     pRD->pCurrentContext->Esp = GetSP();
 
     T_CONTEXT * pContext = pRD->pCurrentContext;
@@ -323,6 +322,12 @@ void TransitionFrame::UpdateRegDisplayHelper(const PREGDISPLAY pRD, UINT cbStack
 #undef CALLEE_SAVED_REGISTER
 
     SyncRegDisplayToCurrentContext(pRD);
+
+#else // WIN64EXCEPTIONS
+
+    pRD->ControlPC = *PTR_PCODE(pRD->PCTAddr);
+    pRD->Esp  = (DWORD)(pRD->PCTAddr + sizeof(TADDR) + cbStackPop);
+
 #endif // WIN64EXCEPTIONS
 
     RETURN;
