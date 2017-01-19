@@ -10745,7 +10745,8 @@ void Compiler::gtDispConst(GenTree* tree)
         case GT_CNS_INT:
             if (tree->IsIconHandle(GTF_ICON_STR_HDL))
             {
-                printf(" 0x%X \"%S\"", dspPtr(tree->gtIntCon.gtIconVal), eeGetCPString(tree->gtIntCon.gtIconVal));
+                const wchar_t* value = eeGetCPString(tree->gtIntCon.gtIconVal);
+                printf(" 0x%X \"%S\"", dspPtr(tree->gtIntCon.gtIconVal), value ? value : W("(null)"));
             }
             else
             {
