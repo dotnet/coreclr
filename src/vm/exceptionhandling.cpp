@@ -1814,7 +1814,25 @@ CLRUnwindStatus ExceptionTracker::ProcessOSExceptionNotification(
 
         if (fIsFrameLess)
         {
-            pGSCookie = (GSCookie*)cfThisFrame.GetCodeManager()->GetGSCookieAddr(cfThisFrame.pRD,
+            PREGDISPLAY pRD = NULL;
+
+#ifdef USE_GC_INFO_DECODER
+
+            pRD = cfThisFrame.pRD;
+
+#else // USE_GC_INFO_DECODER
+
+#ifdef _TARGET_X86_
+            REGDISPLAY rd = *cfThisFrame.pRD;
+            rd.pEbp = &pContextRecord->Ebp;
+            pRD = &rd;
+#else  // _TARGET_X86_
+            PORTABILITY_ASSERT("ExceptionTracker::ProcessOSExceptionNotification");
+#endif // _TARGET_???_
+
+#endif // USE_GC_INFO_DECODER
+
+            pGSCookie = (GSCookie*)cfThisFrame.GetCodeManager()->GetGSCookieAddr(pRD,
                                                                                           &cfThisFrame.codeInfo,
                                                                                           &cfThisFrame.codeManState);
             if (pGSCookie)
