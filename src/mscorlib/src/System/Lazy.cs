@@ -300,20 +300,6 @@ namespace System
             }
         }
 
-        /// <summary>
-        /// Entry point to underlying object creation used by the ExecutionAndPublication method.
-        /// This should only be called from that location, and should be under a lock.
-        /// </summary>
-        /// <param name="factory">The object factory used to create the underlying object</param>
-        /// <param name="comparand">Used to determine if we still need to create the underlying object</param>
-        /// <returns></returns>
-        private T CreateValueExecutionAndPublication(Func<T> factory, ExecutionAndPublication comparand)
-        {
-            // it's possible for multiple calls to have piled up behind the lock, so we need to check
-            // to see if the ExecutionAndPublication object is still the current implementation.
-            return ReferenceEquals(m_implementation, comparand) ? CreateValue(factory, LazyThreadSafetyMode.ExecutionAndPublication) : Value;
-        }
-
 #region Serialization
         // to remain compatible with previous version, custom serialization has been added
         // which should be binary compatible. Only valid values were ever serialized. Exceptions
@@ -541,7 +527,9 @@ namespace System
                 {
                     lock (this) // we're safe to lock on "this" as object is an private object used by Lazy
                     {
-                        return Owner.CreateValueExecutionAndPublication(TakeFactory(), this);
+                        // it's possible for multiple calls to have piled up behind the lock, so we need to check
+                        // to see if the ExecutionAndPublication object is still the current implementation.
+                        return ReferenceEquals(Owner.m_implementation, this) ? Owner.CreateValue(TakeFactory(), LazyThreadSafetyMode.ExecutionAndPublication) : Owner.Value;
                     }
                 }
             }
