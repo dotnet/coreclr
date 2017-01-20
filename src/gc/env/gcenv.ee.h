@@ -66,6 +66,10 @@ public:
     static void DiagWalkLOHSurvivors(void* gcContext);
     static void DiagWalkBGCSurvivors(void* gcContext);
     static void StompWriteBarrier(WriteBarrierParameters* args);
+
+    static void EnableFinalization();
+    static bool HaveExtraWorkForFinalizer();
+    static bool FinalizerRunOnShutdown();
 };
 
 #endif // __GCENV_EE_H__

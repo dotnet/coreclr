@@ -35142,9 +35142,9 @@ GCHeap::GarbageCollectGeneration (unsigned int gen, gc_reason reason)
 
 #ifdef FEATURE_PREMORTEM_FINALIZATION
     if ((!pGenGCHeap->settings.concurrent && pGenGCHeap->settings.found_finalizers) || 
-        FinalizerThread::HaveExtraWorkForFinalizer())
+        GCToEEInterface::HaveExtraWorkForFinalizer())
     {
-        FinalizerThread::EnableFinalization();
+        GCToEEInterface::EnableFinalization();
     }
 #endif // FEATURE_PREMORTEM_FINALIZATION
 
@@ -35793,7 +35793,7 @@ CFinalize::RegisterForFinalization (int gen, Object* obj, size_t size)
     // Adjust gen
     unsigned int dest = 0;
 
-    if (g_fFinalizerRunOnShutDown)
+    if (GCToEEInterface::FinalizerRunOnShutdown())
     {
         //no method table available yet,
         //put it in the finalizer queue and sort out when
@@ -35862,7 +35862,7 @@ CFinalize::GetNextFinalizableObject (BOOL only_non_critical)
 retry:
     if (!IsSegEmpty(FinalizerListSeg))
     {
-        if (g_fFinalizerRunOnShutDown)
+        if (GCToEEInterface::FinalizerRunOnShutdown())
         {
             obj = *(SegQueueLimit (FinalizerListSeg)-1);
             if (method_table(obj)->HasCriticalFinalizer())
@@ -35938,7 +35938,7 @@ size_t
 CFinalize::GetNumberFinalizableObjects()
 {
     return SegQueueLimit (FinalizerListSeg) -
-        (g_fFinalizerRunOnShutDown ? m_Array : SegQueue(FinalizerListSeg));
+        (GCToEEInterface::FinalizerRunOnShutdown() ? m_Array : SegQueue(FinalizerListSeg));
 }
 
 BOOL
@@ -36226,7 +36226,7 @@ CFinalize::ScanForFinalization (promote_func* pfn, int gen, BOOL mark_only_p,
         if (hp->settings.concurrent && hp->settings.found_finalizers)
         {
             if (!mark_only_p)
-                FinalizerThread::EnableFinalization();
+                GCToEEInterface::EnableFinalization();
         }
     }
 
