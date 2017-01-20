@@ -18,9 +18,26 @@ namespace PInvokeTests
         [DllImport("SymVerNative", EntryPoint="foo@VERS_1.2")]
         private static extern int foo_12();
 
+        [DllImport("SymVerNative", EntryPoint="foo@VERS_1.2", ExactSpelling=true)]
+        private static extern int foo_12_exact();
+
         #endregion
 
         #region test methods
+
+        public static void TestExactSpelling()
+        {
+            bool exceptionThrown = false;
+            try
+            {
+                foo_12_exact();
+            }
+            catch (Exception)
+            {
+                exceptionThrown = true;
+            }
+            Assert(exceptionThrown, "Call to foo_12_exact should throw an exception");
+        }
 
         public static void TestSupported()
         {
@@ -48,7 +65,6 @@ namespace PInvokeTests
                 exceptionThrown = true;
             }
             Assert(exceptionThrown, "Call to foo_11 should throw an exception");
-            // TODO: check for more specific exception
         }
 
         #endregion
@@ -69,6 +85,7 @@ namespace PInvokeTests
             if (IsLinux)
             {
                 TestSupported();
+                TestExactSpelling();
             }
             else
             {
