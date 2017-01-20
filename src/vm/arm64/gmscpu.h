@@ -29,6 +29,13 @@ struct MachState {
     
     BOOL   isValid()    { LIMITED_METHOD_DAC_CONTRACT; return _isValid; }
     TADDR  GetRetAddr() { LIMITED_METHOD_DAC_CONTRACT; return _pc; }
+
+#ifdef FEATURE_PAL
+    // On PAL, we don't always have the context pointers available due to
+    // a limitation of an unwinding library. In such case, preserve
+    // the unwound values.
+    CalleeSavedRegisters m_Unwound;
+#endif
 };
 
 struct LazyMachState : public MachState{
@@ -56,24 +63,37 @@ inline void LazyMachState::setLazyStateFromUnwind(MachState* copy)
     _sp = copy->_sp;
     _pc = copy->_pc;
 
-    // Now copy the preserved register pointers. Note that some of the pointers could be
-    // pointing to copy->captureX19_X29[]. If that is case then while copying to destination
-    // ensure that they point to corresponding element in captureX19_X29[] of destination.
-    ULONG64* srcLowerBound = &copy->captureX19_X29[0];
-    ULONG64* srcUpperBound = (ULONG64*)((BYTE*)copy + offsetof(MachState, ptrX19_X29));
+#ifdef FEATURE_PAL
+    this->m_Unwound = copy->m_Unwound;
+#endif
 
+    // Capture* has already been set, so there is no need to touch it
 
-    for (int i = 0; i<NUM_NONVOLATILE_CONTEXT_POINTERS; i++)
+    // loop over the nonvolatile context pointers and make
+    // sure to properly copy interior pointers into the
+    // new struct
+
+    PULONG64* pSrc = (PULONG64 *)&copy->ptrX19_X29;
+    PULONG64* pDst = (PULONG64 *)&this->ptrX19_X29;
+
+    const PULONG64 LowerBoundDst = (PULONG64) this;
+    const PULONG64 LowerBoundSrc = (PULONG64) copy;
+
+    const PULONG64 UpperBoundSrc = (PULONG64) ((BYTE*)LowerBoundSrc + sizeof(*copy));
+
+    for (int i = 0; i < NUM_NONVOLATILE_CONTEXT_POINTERS; i++)
     {
-        if (copy->ptrX19_X29[i] >= srcLowerBound && copy->ptrX19_X29[i] < srcUpperBound)
+        PULONG64 valueSrc = *pSrc++;
+
+        if ((LowerBoundSrc <= valueSrc) && (valueSrc < UpperBoundSrc))
         {
-            ptrX19_X29[i] = (PTR_ULONG64)((BYTE*)copy->ptrX19_X29[i] - (BYTE*)srcLowerBound + (BYTE*)captureX19_X29);
+            // make any pointer interior to 'src' interior to 'dst'
+            valueSrc = (PULONG64)((BYTE*)valueSrc - (BYTE*)LowerBoundSrc + (BYTE*)LowerBoundDst);
         }
-        else
-        {
-            ptrX19_X29[i] = copy->ptrX19_X29[i];
-        }
+
+        *pDst++ = valueSrc;
     }
+
 
     // this has to be last because we depend on write ordering to 
     // synchronize the race implicit in updating this struct
