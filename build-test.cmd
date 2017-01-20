@@ -23,9 +23,6 @@ set "__PackagesDir=%__ProjectDir%\packages"
 set "__RootBinDir=%__ProjectDir%\bin"
 set "__LogsDir=%__RootBinDir%\Logs"
 
-:: Default __Exclude to issues.targets
-set __Exclude=%__TestDir%\issues.targets
-
 REM __unprocessedBuildArgs are args that we pass to msbuild (e.g. /p:__BuildArch=x64)
 set "__args= %*"
 set processedArgs=
