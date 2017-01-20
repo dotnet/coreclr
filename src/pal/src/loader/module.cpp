@@ -268,6 +268,22 @@ GetProcAddress(
     IN HMODULE hModule,
     IN LPCSTR lpProcName)
 {
+    return GetVersionedProcAddress(hModule, lpProcName, nullptr);
+}
+
+/*++
+Function:
+  GetVersionedProcAddress
+
+Does the same as GetProcAddress but takes a version string as an additional argument.
+--*/
+FARPROC
+PALAPI
+GetVersionedProcAddress(
+    IN HMODULE hModule,
+    IN LPCSTR lpProcName,
+    IN LPCSTR lpProcVersion)
+{
     MODSTRUCT *module;
     FARPROC ProcAddress = nullptr;
     LPCSTR symbolName = lpProcName;
@@ -311,7 +327,7 @@ GetProcAddress(
     // If we're looking for a symbol inside the PAL, we try the PAL_ variant
     // first because otherwise we run the risk of having the non-PAL_
     // variant preferred over the PAL's implementation.
-    if (pal_module && module->dl_handle == pal_module->dl_handle)
+    if (pal_module && module->dl_handle == pal_module->dl_handle && lpProcVersion == nullptr)
     {
         int iLen = 4 + strlen(lpProcName) + 1;
         LPSTR lpPALProcName = (LPSTR) alloca(iLen);
@@ -338,47 +354,19 @@ GetProcAddress(
     // inside the PAL, fall back to a normal search.
     if (ProcAddress == nullptr)
     {
-        // lpProcName can include a version: foo@VERS_1.1
-        int i = 0;
-        while ((lpProcName[i] != '\0') && (lpProcName[i] != '@'))
+        if (lpProcVersion == nullptr)
         {
-            i++;
+            ProcAddress = (FARPROC) dlsym(module->dl_handle, lpProcName);
         }
-        if (lpProcName[i] == '@')
+        else
         {
 #if HAVE_DLVSYM
-            if (i == 0)
-            {
-                TRACE("Symbol name missing\n");
-                SetLastError(ERROR_INVALID_PARAMETER);
-                goto done;
-            }
-            if (lpProcName[i + 1] == '\0')
-            {
-                TRACE("Version specifier missing\n");
-                SetLastError(ERROR_INVALID_PARAMETER);
-                goto done;
-            }
-            char* symbol = strdup(lpProcName);
-            if (!symbol)
-            {
-                ERROR("strdup failure!\n");
-                SetLastError(ERROR_NOT_ENOUGH_MEMORY);
-                goto done;
-            }
-            symbol[i] = '\0';
-            char* version = &symbol[i + 1];
-            ProcAddress = (FARPROC) dlvsym(module->dl_handle, symbol, version);
-            free(symbol);
+            ProcAddress = (FARPROC) dlvsym(module->dl_handle, lpProcName, lpProcVersion);
 #else
             TRACE("dlvsym not supported\n");
             SetLastError(ERROR_NOT_SUPPORTED);
             goto done;
 #endif
-        }
-        else
-        {
-            ProcAddress = (FARPROC) dlsym(module->dl_handle, lpProcName);
         }
     }
 
