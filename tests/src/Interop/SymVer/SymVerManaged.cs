@@ -10,7 +10,10 @@ namespace PInvokeTests
         #region PInvoke declarations
 
         [DllImport("SymVerNative", EntryPoint="foo")]
-        private static extern int foo_10();
+        private static extern int foo();
+
+        [DllImport("SymVerNative", EntryPoint="foo@")]
+        private static extern int foo_base();
 
         [DllImport("SymVerNative", EntryPoint="foo@VERS_1.1")]
         private static extern int foo_11();
@@ -43,9 +46,10 @@ namespace PInvokeTests
         {
             try
             {
-                Assert(foo_10() == 10, "Call to foo_10 should return 10");
+                Assert(foo() == 10, "Call to foo should return 10");
                 Assert(foo_11() == 11, "Call to foo_11 should return 11");
                 Assert(foo_12() == 12, "Call to foo_12 should return 12");
+                Assert(foo_base() == 10, "Call to foo_base should return 10");
             }
             catch (Exception e)
             {

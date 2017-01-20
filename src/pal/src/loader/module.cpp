@@ -354,6 +354,13 @@ GetVersionedProcAddress(
     // inside the PAL, fall back to a normal search.
     if (ProcAddress == nullptr)
     {
+#ifdef HAVE_DLVSYM
+        // When version is empty, call dlsym to find the base version
+        if ((lpProcVersion != nullptr) && (*lpProcVersion == '\0'))
+        {
+            lpProcVersion = nullptr;
+        }
+#endif
         if (lpProcVersion == nullptr)
         {
             ProcAddress = (FARPROC) dlsym(module->dl_handle, lpProcName);
