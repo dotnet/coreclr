@@ -137,6 +137,11 @@ GetTypeInfoFromTypeHandle(TypeHandle typeHandle, NotifyGdb::PTK_TypeInfoMap pTyp
                     info->members[1].m_member_type = arrayTypeInfo;
                 }
             }
+            if (pMT->GetParentMethodTable()) {
+                static_cast<ClassTypeInfo*>(typeInfo)->m_parent =
+                    static_cast<ClassTypeInfo*>(GetTypeInfoFromTypeHandle(typeHandle.GetParent(), pTypeMap));
+            }
+
             if (refTypeInfo)
                 return refTypeInfo;
             else
@@ -767,6 +772,9 @@ const unsigned char AbbrevTable[] = {
 #endif
         0, 0,
 
+    18, DW_TAG_inheritance, DW_CHILDREN_no, DW_AT_type, DW_FORM_ref4, DW_AT_data_member_location, DW_FORM_data1,
+        DW_AT_accessibility, DW_FORM_data1, 0, 0,
+
     0
 };
 
@@ -911,6 +919,14 @@ struct __attribute__((packed)) DebugInfoClassType
     uint8_t m_byte_size;
 };
 
+struct __attribute__((packed)) DebugInfoInheritance
+{
+    uint8_t m_abbrev;
+    uint32_t m_type;
+    uint8_t m_data_member_location;
+    uint8_t m_accessibility;
+};
+
 struct __attribute__((packed)) DebugInfoClassMember
 {
     uint8_t m_member_abbrev;
@@ -1052,7 +1068,8 @@ void PrimitiveTypeInfo::DumpDebugInfo(char* ptr, int& offset)
 ClassTypeInfo::ClassTypeInfo(TypeHandle typeHandle, int num_members)
         : TypeInfoBase(typeHandle),
           m_num_members(num_members),
-          members(new TypeMember[num_members])
+          members(new TypeMember[num_members]),
+          m_parent(nullptr)
 {
 }
 
@@ -1392,6 +1409,11 @@ void ClassTypeInfo::DumpStrings(char* ptr, int& offset)
     {
         members[i].DumpStrings(ptr, offset);
     }
+
+    if (m_parent != nullptr)
+    {
+        m_parent->DumpStrings(ptr, offset);
+    }
 }
 
 void RefTypeInfo::DumpStrings(char* ptr, int& offset)
@@ -1462,6 +1484,21 @@ void ClassTypeInfo::DumpDebugInfo(char* ptr, int& offset)
             method[i]->DumpDebugInfo(ptr, offset);
         }
     }
+    // Ignore System.Object inheritance
+    if (m_parent != nullptr && m_parent->m_parent != nullptr)
+    {
+        if (ptr != nullptr)
+        {
+
+            DebugInfoInheritance buf;
+            buf.m_abbrev = 18;
+            buf.m_type = offset + sizeof(DebugInfoInheritance) + sizeof(DebugInfoRefType) + 1;
+            buf.m_data_member_location = 0;
+            buf.m_accessibility = 1;
+            memcpy(ptr + offset, &buf, sizeof(DebugInfoInheritance));
+        }
+        offset += sizeof(DebugInfoInheritance);
+    }
 
     // members terminator
     if (ptr != nullptr)
@@ -1470,12 +1507,16 @@ void ClassTypeInfo::DumpDebugInfo(char* ptr, int& offset)
     }
     offset++;
 
+    if (m_parent != nullptr)
+    {
+        m_parent->DumpDebugInfo(ptr, offset);
+    }
+
     for (int i = 0; i < m_num_members; ++i)
     {
         if (members[i].m_static_member_address != 0)
             members[i].DumpStaticDebugInfo(ptr, offset);
     }
-
 }
 
 void ArrayTypeInfo::DumpDebugInfo(char* ptr, int& offset)
@@ -1938,9 +1979,9 @@ void NotifyGdb::MethodCompiled(MethodDesc* MethodDescPtr)
 
     elfFile.MemPtr.SuppressRelease();
 
-#ifdef GDBJIT_DUMPELF
+    //#ifdef GDBJIT_DUMPELF
     DumpElf(methodName, elfFile);
-#endif
+    //#endif
 
     /* Create GDB JIT structures */
     NewHolder<jit_code_entry> jit_symbols = new (nothrow) jit_code_entry;
