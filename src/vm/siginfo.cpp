@@ -4953,11 +4953,54 @@ void PromoteCarefully(promote_func   fn,
     (*fn) (ppObj, sc, flags);
 }
 
+void ReportByRefPointersFromByRefLikeObject(promote_func *fn, ScanContext *sc, PTR_MethodTable pMT, PTR_VOID pSrc)
+{
+    WRAPPER_NO_CONTRACT;
+
+    _ASSERTE(pMT->IsByRefLike());
+
+    if (pMT == g_TypedReferenceMT)
+    {
+        return;
+    }
+
+    if (pMT->HasSameTypeDefAs(g_pByReferenceClass))
+    {
+        (*fn)(dac_cast<PTR_PTR_Object>(pSrc), sc, GC_CALL_INTERIOR);
+        return;
+    }
+
+    ApproxFieldDescIterator fieldIterator(pMT, ApproxFieldDescIterator::INSTANCE_FIELDS);
+    for (FieldDesc *pFD = fieldIterator.Next(); pFD != NULL; pFD = fieldIterator.Next())
+    {
+        if (pFD->GetFieldType() != ELEMENT_TYPE_VALUETYPE)
+        {
+            continue;
+        }
+
+        // TODO: GetApproxFieldTypeHandleThrowing may throw. This is a potential stress problem for fragile NGen of non-CoreLib
+        // assemblies. It won’t ever throw for CoreCLR with R2R. Figure out if anything needs to be done to deal with the
+        // exception.
+        PTR_MethodTable pFieldMT = pFD->GetApproxFieldTypeHandleThrowing().AsMethodTable();
+        if (!pFieldMT->IsByRefLike())
+        {
+            continue;
+        }
+
+        int fieldStartIndex = pFD->GetOffset() / sizeof(void *);
+        PTR_PTR_Object fieldRef = dac_cast<PTR_PTR_Object>(PTR_BYTE(pSrc) + fieldStartIndex);
+        ReportByRefPointersFromByRefLikeObject(fn, sc, pFieldMT, fieldRef);
+    }
+}
+
 void ReportPointersFromValueType(promote_func *fn, ScanContext *sc, PTR_MethodTable pMT, PTR_VOID pSrc)
 {
     WRAPPER_NO_CONTRACT;
 
-    // SPAN-TODO: GC reporting - https://github.com/dotnet/coreclr/issues/8517
+    if (pMT->IsByRefLike())
+    {
+        ReportByRefPointersFromByRefLikeObject(fn, sc, pMT, pSrc);
+    }
 
     if (!pMT->ContainsPointers())
         return;
@@ -4987,16 +5030,21 @@ void ReportPointersFromValueType(promote_func *fn, ScanContext *sc, PTR_MethodTa
 void ReportPointersFromValueTypeArg(promote_func *fn, ScanContext *sc, PTR_MethodTable pMT, ArgDestination *pSrc)
 {
     WRAPPER_NO_CONTRACT;
-    
-    if (!pMT->ContainsPointers())
-        return;
-#if defined(UNIX_AMD64_ABI) && defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)    
-    if (pSrc->IsStructPassedInRegs())
+
+    if(pMT->ContainsPointers())
     {
-        pSrc->ReportPointersFromStructInRegisters(fn, sc, pMT->GetNumInstanceFieldBytes());
+#if defined(UNIX_AMD64_ABI) && defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)    
+        if (pSrc->IsStructPassedInRegs())
+        {
+            pSrc->ReportPointersFromStructInRegisters(fn, sc, pMT->GetNumInstanceFieldBytes());
+            return;
+        }
+#endif // UNIX_AMD64_ABI && FEATURE_UNIX_AMD64_STRUCT_PASSING
+    }
+    else if (!pMT->IsByRefLike())
+    {
         return;
     }
-#endif // UNIX_AMD64_ABI && FEATURE_UNIX_AMD64_STRUCT_PASSING
 
     ReportPointersFromValueType(fn, sc, pMT, pSrc->GetDestinationAddress());
 }
