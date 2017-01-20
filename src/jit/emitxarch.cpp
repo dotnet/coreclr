@@ -11196,21 +11196,14 @@ size_t emitter::emitOutputInstr(insGroup* ig, instrDesc* id, BYTE** dp)
     assert(sz == emitSizeOfInsDsc(id));
 
 #if !FEATURE_FIXED_OUT_ARGS
-    bool bUpdateStackLv = true;
+    bool updateStackLevel = !emitIGisInProlog(ig) && !emitIGisInEpilog(ig);
 
-    if (emitIGisInProlog(ig))
-        bUpdateStackLv = false;
-    if (emitIGisInEpilog(ig))
-        bUpdateStackLv = false;
 #if FEATURE_EH_FUNCLETS
-    if (emitIGisInFuncletProlog(ig))
-        bUpdateStackLv = false;
-    if (emitIGisInFuncletEpilog(ig))
-        bUpdateStackLv = false;
+    updateStackLevel = updateStackLevel && !emitIGisInFuncletProlog(ig) && !emitIGisInFuncletEpilog(ig);
 #endif // FEATURE_EH_FUNCLETS
 
     // Make sure we keep the current stack level up to date
-    if (bUpdateStackLv)
+    if (updateStackLevel)
     {
         switch (ins)
         {
