@@ -23,6 +23,9 @@ set "__PackagesDir=%__ProjectDir%\packages"
 set "__RootBinDir=%__ProjectDir%\bin"
 set "__LogsDir=%__RootBinDir%\Logs"
 
+:: Default __Exclude to issues.targets
+set __Exclude=%__TestDir%\issues.targets
+
 REM __unprocessedBuildArgs are args that we pass to msbuild (e.g. /p:__BuildArch=x64)
 set "__args= %*"
 set processedArgs=
@@ -276,6 +279,8 @@ set __BuildErr=%__LogsDir%\%__BuildLogRootName%_%__BuildOS%__%__BuildArch%__%__B
 set __msbuildLog=/flp:Verbosity=normal;LogFile="%__BuildLog%"
 set __msbuildWrn=/flp1:WarningsOnly;LogFile="%__BuildWrn%"
 set __msbuildErr=/flp2:ErrorsOnly;LogFile="%__BuildErr%"
+
+xcopy /s /y "%__BinDir%" "%CORE_ROOT%"
 
 call "%__ProjectDir%\run.cmd" build -Project=%__ProjectDir%\tests\runtest.proj -testOverlay -MsBuildLog=!__msbuildLog! -MsBuildWrn=!__msbuildWrn! -MsBuildErr=!__msbuildErr! %__RunArgs% %__unprocessedBuildArgs%
 if errorlevel 1 (
