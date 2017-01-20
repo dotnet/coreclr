@@ -23,6 +23,9 @@ set "__PackagesDir=%__ProjectDir%\packages"
 set "__RootBinDir=%__ProjectDir%\bin"
 set "__LogsDir=%__RootBinDir%\Logs"
 
+:: Default __Exclude to issues.targets
+set __Exclude=%__TestDir%\issues.targets
+
 REM __unprocessedBuildArgs are args that we pass to msbuild (e.g. /p:__BuildArch=x64)
 set "__args= %*"
 set processedArgs=
@@ -267,6 +270,28 @@ if errorlevel 1 (
 
 set CORE_ROOT=%__TestBinDir%\Tests\Core_Root
 
+echo %__MsgPrefix%Creating test wrappers...
+ 
+ set RuntimeIdArg=
+ 
+ if defined __RuntimeId (
+     set RuntimeIdArg=-RuntimeID="%__RuntimeId%"
+ )
+ 
+ set __BuildLogRootName=Tests_XunitWrapper
+ set __BuildLog=%__LogsDir%\%__BuildLogRootName%_%__BuildOS%__%__BuildArch%__%__BuildType%.log
+ set __BuildWrn=%__LogsDir%\%__BuildLogRootName%_%__BuildOS%__%__BuildArch%__%__BuildType%.wrn
+ set __BuildErr=%__LogsDir%\%__BuildLogRootName%_%__BuildOS%__%__BuildArch%__%__BuildType%.err
+ set __msbuildLog=/flp:Verbosity=diag;LogFile="%__BuildLog%"
+ set __msbuildWrn=/flp1:WarningsOnly;LogFile="%__BuildWrn%"
+ set __msbuildErr=/flp2:ErrorsOnly;LogFile="%__BuildErr%"
+ 
+ call %__ProjectDir%\run.cmd build -Project=%__ProjectDir%\tests\runtest.proj -BuildWrappers -MsBuildEventLogging=" " -MsBuildLog=!__msbuildLog! -MsBuildWrn=!__msbuildWrn! -MsBuildErr=!__msbuildErr! %__RunArgs% %__BuildAgainstPackagesArg% %__unprocessedBuildArgs% %RuntimeIdArg%
+ if errorlevel 1 (
+     echo Xunit Wrapper build failed
+     exit /b 1
+ )
+
 echo %__MsgPrefix%Creating test overlay...
 
 set __BuildLogRootName=Tests_Overlay_Managed
@@ -277,7 +302,7 @@ set __msbuildLog=/flp:Verbosity=normal;LogFile="%__BuildLog%"
 set __msbuildWrn=/flp1:WarningsOnly;LogFile="%__BuildWrn%"
 set __msbuildErr=/flp2:ErrorsOnly;LogFile="%__BuildErr%"
 
-call "%__ProjectDir%\run.cmd" build -Project=%__ProjectDir%\tests\runtest.proj -testOverlay -MsBuildLog=!__msbuildLog! -MsBuildWrn=!__msbuildWrn! -MsBuildErr=!__msbuildErr! %__RunArgs% %__unprocessedBuildArgs%
+call %__ProjectDir%\run.cmd build -Project=%__ProjectDir%\tests\runtest.proj -testOverlay -MsBuildLog=!__msbuildLog! -MsBuildWrn=!__msbuildWrn! -MsBuildErr=!__msbuildErr! %__RunArgs% %__unprocessedBuildArgs%
 if errorlevel 1 (
     echo %__MsgPrefix%Error: build failed. Refer to the build log files for details:
     echo     %__BuildLog%
