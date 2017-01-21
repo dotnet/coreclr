@@ -67,9 +67,7 @@ public:
     static void DiagWalkBGCSurvivors(void* gcContext);
     static void StompWriteBarrier(WriteBarrierParameters* args);
 
-    static void EnableFinalization();
-    static bool HaveExtraWorkForFinalizer();
-    static bool FinalizerRunOnShutdown();
+    static void EnableFinalization(bool foundFinalizers);
 };
 
 #endif // __GCENV_EE_H__

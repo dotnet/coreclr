@@ -1309,17 +1309,10 @@ void GCToEEInterface::StompWriteBarrier(WriteBarrierParameters* args)
     }
 }
 
-void GCToEEInterface::EnableFinalization()
+void GCToEEInterface::EnableFinalization(bool foundFinalizers)
 {
-    FinalizerThread::EnableFinalization();
-}
-
-bool GCToEEInterface::HaveExtraWorkForFinalizer()
-{
-    return !!FinalizerThread::HaveExtraWorkForFinalizer();
-}
-
-bool GCToEEInterface::FinalizerRunOnShutdown()
-{
-    return g_fFinalizerRunOnShutDown;
+    if (foundFinalizers || FinalizerThread::HaveExtraWorkForFinalizer())
+    {
+        FinalizerThread::EnableFinalization();
+    }
 }

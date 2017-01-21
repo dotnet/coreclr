@@ -43,9 +43,7 @@ public:
     void DiagWalkBGCSurvivors(void* gcContext);
     void StompWriteBarrier(WriteBarrierParameters* args);
 
-    void EnableFinalization();
-    bool HaveExtraWorkForFinalizer();
-    bool FinalizerRunOnShutdown();
+    void EnableFinalization(bool foundFinalizers);
 };
 
 #endif // FEATURE_STANDALONE_GC

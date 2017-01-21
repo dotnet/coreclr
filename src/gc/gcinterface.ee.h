@@ -133,14 +133,6 @@ public:
     // be finalized.
     virtual
     void EnableFinalization() = 0;
-
-    // Returns true if there is additional work that the finalizer thread needs
-    // to do, outside of its duties of finalization.
-    virtual
-    bool HaveExtraWorkForFinalizer() = 0;
-
-    virtual
-    bool FinalizerRunOnShutdown() = 0;
 };
 
 #endif // _GCINTERFACE_EE_H_
