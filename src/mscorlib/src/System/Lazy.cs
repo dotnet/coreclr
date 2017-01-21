@@ -28,18 +28,6 @@ using System.Runtime.ExceptionServices;
 namespace System
 {
     /// <summary>
-    /// ILazyItem&lt;T&gt; is used to determine the initialization logic that the Lazy object uses.
-    /// </summary>
-    /// <typeparam name="T"></typeparam>
-    internal interface ILazyItem<T>
-    {
-        T Value { get; }
-        bool IsValueCreated { get; }
-        bool IsValueFaulted { get; }
-        LazyThreadSafetyMode Mode { get; }
-    }
-
-    /// <summary>
     /// Provides support for lazy initialization.
     /// </summary>
     /// <typeparam name="T">Specifies the type of element being lazily initialized.</typeparam>
@@ -56,13 +44,28 @@ namespace System
     [DebuggerDisplay("ThreadSafetyMode={Mode}, IsValueCreated={IsValueCreated}, IsValueFaulted={IsValueFaulted}, Value={ValueForDebugDisplay}")]
     public class Lazy<T>
         : ISerializable
-        , ILazyItem<T>
     {
+        /// <summary>
+        /// ILazyItem&lt;T&gt; is used to determine the initialization logic that the Lazy object uses.
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        internal interface ILazyItem
+        {
+            T GetValue(Lazy<T> owner);
+            bool GetIsValueCreated(Lazy<T> owner);
+            bool GetIsValueFaulted(Lazy<T> owner);
+            LazyThreadSafetyMode GetMode(Lazy<T> owner);
+        }
+
         // m_implementation, a volatile reference, is set to null after m_value has been set
-        private volatile ILazyItem<T> m_implementation;
+        private volatile ILazyItem m_implementation;
+
+        // we ensure that m_factory is allow garbage collector to clean up any 
+        private Func<T> m_factory;
 
         // m_value eventually stores the lazily created value. It is ready when m_implementation = null.
-        private T m_value; 
+        private T m_value;
+
 
         /// <summary>
         /// Initializes a new instance of the <see cref="T:System.Threading.Lazy{T}"/> class that 
@@ -87,6 +90,7 @@ namespace System
         public Lazy(T value)
         {
             m_value = value;
+            m_factory = null;
             m_implementation = null;
         }
 
@@ -162,7 +166,25 @@ namespace System
             if (valueFactory == null)
                 throw new ArgumentNullException(nameof(valueFactory));
 
-            m_implementation = CreateInitializerFromMode(mode, this, valueFactory);
+            m_factory = valueFactory;
+
+            switch (mode)
+            {
+                case LazyThreadSafetyMode.None:
+                    m_implementation = None.Instance;
+                    break;
+
+                case LazyThreadSafetyMode.PublicationOnly:
+                    m_implementation = PublicationOnly.Instance;
+                    break;
+
+                case LazyThreadSafetyMode.ExecutionAndPublication:
+                    m_implementation = new ExecutionAndPublication();
+                    break;
+
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(mode), Environment.GetResourceString("Lazy_ctor_ModeInvalid"));
+            }
         }
 
 #region constructor helpers
@@ -181,7 +203,7 @@ namespace System
                 }
             }
 
-            public readonly static Func<T> Factory = Construct;
+            internal readonly static Func<T> Factory = Construct;
         }
 
         private static LazyThreadSafetyMode GetMode(bool isThreadSafe)
@@ -189,20 +211,29 @@ namespace System
             return isThreadSafe ? LazyThreadSafetyMode.ExecutionAndPublication : LazyThreadSafetyMode.None;
         }
 
-        private static ILazyItem<T> CreateInitializerFromMode(LazyThreadSafetyMode mode, Lazy<T> owner, Func<T> valueFactory)
-        {
-            switch (mode)
-            {
-                case LazyThreadSafetyMode.None:                    return new None(owner, valueFactory);
-                case LazyThreadSafetyMode.PublicationOnly:         return new PublicationOnly(owner, valueFactory);
-                case LazyThreadSafetyMode.ExecutionAndPublication: return new ExecutionAndPublication(owner, valueFactory);
+#endregion
 
-                default:
-                    throw new ArgumentOutOfRangeException(nameof(mode), Environment.GetResourceString("Lazy_ctor_ModeInvalid"));
+        private sealed class LazyException : ILazyItem
+        {
+            private readonly System.Runtime.ExceptionServices.ExceptionDispatchInfo m_exceptionInfo;
+            private readonly LazyThreadSafetyMode m_mode;
+
+            internal LazyException(Exception exception, LazyThreadSafetyMode mode)
+            {
+                m_exceptionInfo = System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(exception);
+                m_mode = mode;
+            }
+
+            bool ILazyItem.GetIsValueCreated(Lazy<T> owner) { return false; }
+            bool ILazyItem.GetIsValueFaulted(Lazy<T> owner) { return true; }
+            LazyThreadSafetyMode ILazyItem.GetMode(Lazy<T> owner) { return m_mode; }
+
+            T ILazyItem.GetValue(Lazy<T> owner)
+            {
+                m_exceptionInfo.Throw();
+                return default(T);
             }
         }
-
-#endregion
 
         /// <summary>
         /// Creates the underlying value using the factory object, placing the result inside this
@@ -211,8 +242,17 @@ namespace System
         /// <param name="factory">The object factory used to create the underlying object</param>
         /// <param name="mode">The mode of the Lazy object</param>
         /// <returns>The underlying object</returns>
-        private T CreateValue(Func<T> factory, LazyThreadSafetyMode mode)
+        private T CreateValue(LazyThreadSafetyMode mode)
         {
+            var factory = m_factory;
+
+            if (!ReferenceEquals(CreateInstance.Factory, factory))
+            {
+                if (factory == null)
+                    throw new InvalidOperationException(Environment.GetResourceString("Lazy_Value_RecursiveCallsToValue"));
+                m_factory = null;
+            }
+
             try
             {
                 m_value = factory();
@@ -226,6 +266,52 @@ namespace System
             }
         }
 
+        private sealed class None : ILazyItem
+        {
+            private None() { }
+
+            internal static ILazyItem Instance = new None();
+
+            T ILazyItem.GetValue(Lazy<T> owner)
+            {
+                return owner.CreateValue(LazyThreadSafetyMode.None);
+            }
+
+            LazyThreadSafetyMode ILazyItem.GetMode(Lazy<T> owner)
+            {
+                return LazyThreadSafetyMode.None;
+            }
+
+            bool ILazyItem.GetIsValueCreated(Lazy<T> owner) { return false; }
+            bool ILazyItem.GetIsValueFaulted(Lazy<T> owner) { return false; }
+        }
+
+        private T CreateValueExecutionAndPublication(ExecutionAndPublication sync)
+        {
+            lock (sync) // we're safe to lock on "this" as object is an private object used by Lazy
+            {
+                // it's possible for multiple calls to have piled up behind the lock, so we need to check
+                // to see if the ExecutionAndPublication object is still the current implementation.
+                return ReferenceEquals(m_implementation, sync) ? CreateValue(LazyThreadSafetyMode.ExecutionAndPublication) : Value;
+            }
+        }
+
+        private sealed class ExecutionAndPublication : ILazyItem
+        {
+            T ILazyItem.GetValue(Lazy<T> owner)
+            {
+                return owner.CreateValueExecutionAndPublication(this);
+            }
+
+            LazyThreadSafetyMode ILazyItem.GetMode(Lazy<T> owner)
+            {
+                return LazyThreadSafetyMode.ExecutionAndPublication;
+            }
+
+            bool ILazyItem.GetIsValueCreated(Lazy<T> owner) { return false; }
+            bool ILazyItem.GetIsValueFaulted(Lazy<T> owner) { return false; }
+        }
+
         /// <summary>
         /// Creates the underlying value using the factory object into a helper object and, for the
         /// first object to complete its factory, uses that objects ILazyItem&lt;T&gt; implementation
@@ -233,8 +319,12 @@ namespace System
         /// <param name="factory">The object factory used to create the underlying object</param>
         /// <param name="comparand">The publication object, used for synchronisation and comparison</param>
         /// <returns>The underlying object</returns>
-        private T CreateValuePublicationOnly(Func<T> factory, PublicationOnly comparand)
+        private T CreateValuePublicationOnly()
         {
+            var factory = m_factory;
+            if (factory == null)
+                return PublicationOnlyWaiter.Instance.GetValue(this);
+
             var possibleValue = factory();
 
             try {}
@@ -242,15 +332,36 @@ namespace System
             {
                 // we run this in a finally block to ensure that we don't get a partial completion due
                 // to a Thread.Abort, which could mean that other threads might be left in infinite loops
-                var previous = Interlocked.CompareExchange(ref m_implementation, this, comparand);
-                if (previous == comparand)
+                var previous = Interlocked.CompareExchange(ref m_implementation, PublicationOnlyWaiter.Instance, PublicationOnly.Instance);
+                if (previous == PublicationOnly.Instance)
                 {
                     m_value = possibleValue;
+                    m_factory = null;
                     m_implementation = null;
                 }
             }
 
             return Value;
+        }
+
+        private sealed class PublicationOnly : ILazyItem
+        {
+            private PublicationOnly() { }
+
+            internal static ILazyItem Instance = new PublicationOnly();
+
+            T ILazyItem.GetValue(Lazy<T> owner)
+            {
+                return owner.CreateValuePublicationOnly();
+            }
+
+            LazyThreadSafetyMode ILazyItem.GetMode(Lazy<T> owner)
+            {
+                return LazyThreadSafetyMode.PublicationOnly;
+            }
+
+            bool ILazyItem.GetIsValueCreated(Lazy<T> owner) { return false; }
+            bool ILazyItem.GetIsValueFaulted(Lazy<T> owner) { return false; }
         }
 
         private void WaitForPublicationOnly()
@@ -264,39 +375,35 @@ namespace System
             }
         }
 
-        T ILazyItem<T>.Value
+        class PublicationOnlyWaiter
+            : ILazyItem
         {
-            get
-            {
-                WaitForPublicationOnly();
-                return Value;
-            }
-        }
+            private PublicationOnlyWaiter() { }
 
-        bool ILazyItem<T>.IsValueCreated
-        {
-            get
-            {
-                WaitForPublicationOnly();
-                return IsValueCreated;
-            }
-        }
+            internal static ILazyItem Instance = new PublicationOnlyWaiter();
 
-        bool ILazyItem<T>.IsValueFaulted
-        {
-            get
+            T ILazyItem.GetValue(Lazy<T> owner)
             {
-                WaitForPublicationOnly();
-                return IsValueFaulted;
+                owner.WaitForPublicationOnly();
+                return owner.Value;
             }
-        }
 
-        LazyThreadSafetyMode ILazyItem<T>.Mode
-        {
-            get
+            bool ILazyItem.GetIsValueCreated(Lazy<T> owner)
             {
-                WaitForPublicationOnly();
-                return Mode;
+                owner.WaitForPublicationOnly();
+                return owner.IsValueCreated;
+            }
+
+            bool ILazyItem.GetIsValueFaulted(Lazy<T> owner)
+            {
+                owner.WaitForPublicationOnly();
+                return owner.IsValueFaulted;
+            }
+
+            LazyThreadSafetyMode ILazyItem.GetMode(Lazy<T> owner)
+            {
+                owner.WaitForPublicationOnly();
+                return owner.Mode;
             }
         }
 
@@ -377,7 +484,7 @@ namespace System
                 var implementation = m_implementation;
                 if (implementation == null)
                     return LazyThreadSafetyMode.None; // we don't know the mode anymore
-                return implementation.Mode;
+                return implementation.GetMode(this);
             }
         }
 
@@ -391,7 +498,7 @@ namespace System
                 var implementation = m_implementation;
                 if (implementation == null)
                     return false;
-                return implementation.IsValueFaulted;
+                return implementation.GetIsValueFaulted(this);
             }
         }
 
@@ -411,7 +518,7 @@ namespace System
                 var implementation = m_implementation;
                 if (implementation == null)
                     return true;
-                return implementation.IsValueCreated;
+                return implementation.GetIsValueCreated(this);
             }
         }
 
@@ -444,117 +551,9 @@ namespace System
                 var implementation = m_implementation;
                 if (implementation == null)
                     return m_value;
-                return implementation.Value;
+                return implementation.GetValue(this);
             }
         }
-
-#region ILazyItem<T> implementations
-
-        private sealed class LazyException : ILazyItem<T>
-        {
-            private readonly System.Runtime.ExceptionServices.ExceptionDispatchInfo m_exceptionInfo;
-            private readonly LazyThreadSafetyMode m_mode;
-
-            internal LazyException(Exception exception, LazyThreadSafetyMode mode)
-            {
-                m_exceptionInfo = System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(exception);
-                m_mode = mode;
-            }
-
-            public bool IsValueCreated => false;
-            public bool IsValueFaulted => true;
-            public LazyThreadSafetyMode Mode => m_mode;
-
-            public T Value
-            {
-                get { m_exceptionInfo.Throw(); return default(T); }
-            }
-        }
-
-        abstract private class LazyInitializer : ILazyItem<T>
-        {
-            protected Lazy<T> Owner { get; }
-            protected Func<T> Factory { get; private set; }
-
-            protected Func<T> TakeFactory()
-            {
-                // None and ExecutionAndPublication use TakeFactory to protect against re-enterency,
-                // signalling recursion.
-                var factory = Factory;
-                if (!ReferenceEquals(CreateInstance.Factory, factory))
-                {
-                    if (factory == null)
-                        throw new InvalidOperationException(Environment.GetResourceString("Lazy_Value_RecursiveCallsToValue"));
-                    Factory = null;
-                }
-                return factory;
-            }
-
-            internal LazyInitializer(Lazy<T> owner, Func<T> factory)
-            {
-                Owner = owner;
-                Factory = factory;
-            }
-
-            public bool IsValueCreated => false;
-            public bool IsValueFaulted => false;
-            abstract public T Value { get; }
-            abstract public LazyThreadSafetyMode Mode { get; }
-        }
-
-        private sealed class None : LazyInitializer
-        {
-            internal None(Lazy<T> owner, Func<T> factory) : base(owner, factory) { }
-
-            public override T Value
-            {
-                get { return Owner.CreateValue(TakeFactory(), LazyThreadSafetyMode.None); }
-            }
-
-            public override LazyThreadSafetyMode Mode
-            {
-                get { return LazyThreadSafetyMode.None; }
-            }
-        }
-
-        private sealed class ExecutionAndPublication : LazyInitializer
-        {
-            internal ExecutionAndPublication(Lazy<T> owner, Func<T> factory) : base(owner, factory) { }
-
-            public override T Value
-            {
-                get
-                {
-                    lock (this) // we're safe to lock on "this" as object is an private object used by Lazy
-                    {
-                        // it's possible for multiple calls to have piled up behind the lock, so we need to check
-                        // to see if the ExecutionAndPublication object is still the current implementation.
-                        return ReferenceEquals(Owner.m_implementation, this) ? Owner.CreateValue(TakeFactory(), LazyThreadSafetyMode.ExecutionAndPublication) : Owner.Value;
-                    }
-                }
-            }
-
-            public override LazyThreadSafetyMode Mode
-            {
-                get { return LazyThreadSafetyMode.ExecutionAndPublication; }
-            }
-        }
-
-        private sealed class PublicationOnly : LazyInitializer
-        {
-            internal PublicationOnly(Lazy<T> owner, Func<T> factory) : base(owner, factory) { }
-
-            public override T Value
-            {
-                get { return Owner.CreateValuePublicationOnly(Factory, this); }
-            }
-
-            public override LazyThreadSafetyMode Mode
-            {
-                get { return LazyThreadSafetyMode.PublicationOnly; }
-            }
-        }
-#endregion
     }
 
     /// <summary>A debugger view of the Lazy&lt;T&gt; to surface additional debugging properties and 
