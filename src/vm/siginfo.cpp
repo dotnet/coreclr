@@ -4959,7 +4959,7 @@ void ReportByRefPointersFromByRefLikeObject(promote_func *fn, ScanContext *sc, P
 
     _ASSERTE(pMT->IsByRefLike());
 
-    // TODO: TypedReference should ideally be implemneted as a by-ref-like struct containing a ByReference<T> field,
+    // TODO: TypedReference should ideally be implemented as a by-ref-like struct containing a ByReference<T> field,
     // in which case the check for g_TypedReferenceMT below would not be necessary
     if (pMT == g_TypedReferenceMT || pMT->HasSameTypeDefAs(g_pByReferenceClass))
     {
