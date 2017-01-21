@@ -59,7 +59,7 @@ namespace System {
             }
 
             private String m_name;
-            private ResourceManager SystemResMgr;
+            private IResourceManager SystemResMgr;
 
             // To avoid infinite loops when calling GetResourceString.  See comments
             // in GetResourceString for this field.
@@ -72,6 +72,8 @@ namespace System {
 
             // Is this thread currently doing infinite resource lookups?
             private int infinitelyRecursingCount;
+
+            private Type resourceManagerType = null;
 
             // Data representing one individual resource lookup on a thread.
             internal class GetResourceStringUserData
@@ -156,19 +158,23 @@ namespace System {
                 // loop constructing a TypeInitializationException.  If this were omitted,
                 // we could get the Infinite recursion assert above by failing type initialization
                 // between the Push and Pop calls below.
-        
+
                 if (!rh.resourceManagerInited)
                 {
+                    Assembly resourceManagerAssembly = Assembly.Load("System.Resources.ResourceManager, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a");
+                    resourceManagerType = resourceManagerAssembly.GetType("System.Resources.ResourceManager");
+                    Debug.Assert(resourceManagerType != null);
+                    Type resourceReaderType = resourceManagerAssembly.GetType("System.Resources.ResourceReader");
+                    Debug.Assert(resourceReaderType != null);
+
                     // process-critical code here.  No ThreadAbortExceptions
                     // can be thrown here.  Other exceptions percolate as normal.
                     RuntimeHelpers.PrepareConstrainedRegions();
                     try {
                     }
                     finally {
-                        RuntimeHelpers.RunClassConstructor(typeof(ResourceManager).TypeHandle);
-                        RuntimeHelpers.RunClassConstructor(typeof(ResourceReader).TypeHandle);
-                        RuntimeHelpers.RunClassConstructor(typeof(RuntimeResourceSet).TypeHandle);
-                        RuntimeHelpers.RunClassConstructor(typeof(BinaryReader).TypeHandle);
+                        RuntimeHelpers.RunClassConstructor(resourceManagerType.TypeHandle);
+                        RuntimeHelpers.RunClassConstructor(resourceReaderType.TypeHandle);
                         rh.resourceManagerInited = true; 
                     }
             
@@ -177,7 +183,7 @@ namespace System {
                 rh.currentlyLoading.Add(key); // Push
 
                 if (rh.SystemResMgr == null) {
-                    rh.SystemResMgr = new ResourceManager(m_name, typeof(Object).Assembly);
+                    rh.SystemResMgr = (IResourceManager)Activator.CreateInstance(resourceManagerType, m_name, typeof(Object).Assembly);
                 }
                 String s = rh.SystemResMgr.GetString(key, null);
                 rh.currentlyLoading.RemoveAt(rh.currentlyLoading.Count - 1); // Pop

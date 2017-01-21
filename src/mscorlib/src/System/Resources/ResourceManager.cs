@@ -33,37 +33,6 @@ namespace System.Resources {
     using System.Diagnostics;
     using System.Diagnostics.Contracts;
 
-#if FEATURE_APPX
-    //
-    // This is implemented in System.Runtime.WindowsRuntime as function System.Resources.WindowsRuntimeResourceManager,
-    // allowing us to ask for a WinRT-specific ResourceManager.
-    // It is important to have WindowsRuntimeResourceManagerBase as regular class with virtual methods and default implementations. 
-    // Defining WindowsRuntimeResourceManagerBase as abstract class or interface will cause issues when adding more methods to it 
-    // because it’ll create dependency between mscorlib and System.Runtime.WindowsRuntime which will require always shipping both DLLs together. 
-    // Also using interface or abstract class will not play nice with FriendAccessAllowed.
-    //
-    [FriendAccessAllowed]
-    internal class WindowsRuntimeResourceManagerBase
-    {
-        public virtual bool Initialize(string libpath, string reswFilename, out PRIExceptionInfo exceptionInfo){exceptionInfo = null; return false;}
-
-        public virtual String GetString(String stringName, String startingCulture, String neutralResourcesCulture){return null;}
-
-        public virtual CultureInfo GlobalResourceContextBestFitCultureInfo { 
-            get { return null; } 
-        }
-        
-        public virtual bool SetGlobalResourceContextDefaultCulture(CultureInfo ci) { return false; }
-    }
-
-    [FriendAccessAllowed]
-    internal class PRIExceptionInfo
-    {
-        public string _PackageSimpleName;
-        public string _ResWFile;
-    }
-#endif // FEATURE_APPX
-
     // Resource Manager exposes an assembly's resources to an application for
     // the correct CultureInfo.  An example would be localizing text for a 
     // user-visible message.  Create a set of resource files listing a name 
@@ -150,7 +119,7 @@ namespace System.Resources {
 
     [Serializable]
     [System.Runtime.InteropServices.ComVisible(true)]
-    public class ResourceManager
+    public class ResourceManager : IResourceManager
     {
 
         internal class CultureNameResourceSetPair {

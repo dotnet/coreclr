@@ -3300,10 +3300,10 @@ namespace System.Diagnostics.Tracing
                 }
 
                 // See if we have localization information.  
-                ResourceManager resources = null;
+                IResourceManager resources = null;
                 EventSourceAttribute eventSourceAttrib = (EventSourceAttribute)GetCustomAttributeHelper(eventSourceType, typeof(EventSourceAttribute), flags);
                 if (eventSourceAttrib != null && eventSourceAttrib.LocalizationResources != null)
-                    resources = new ResourceManager(eventSourceAttrib.LocalizationResources, eventSourceType.Assembly());
+                    resources = (IResourceManager)Activator.CreateInstance(System.Diagnostics.Tracing.Internal.Environment.ResourceManagerType, eventSourceAttrib.LocalizationResources, eventSourceType.Assembly());
 
                 manifest = new ManifestBuilder(GetName(eventSourceType, flags), GetGuid(eventSourceType), eventSourceDllName,
                                                resources, flags);
@@ -5992,7 +5992,7 @@ namespace System.Diagnostics.Tracing
         /// Build a manifest for 'providerName' with the given GUID, which will be packaged into 'dllName'.
         /// 'resources, is a resource manager.  If specified all messages are localized using that manager.  
         /// </summary>
-        public ManifestBuilder(string providerName, Guid providerGuid, string dllName, ResourceManager resources,
+        public ManifestBuilder(string providerName, Guid providerGuid, string dllName, IResourceManager resources,
                                EventManifestOptions flags)
         {
 #if FEATURE_MANAGED_ETW_CHANNELS
@@ -6488,7 +6488,7 @@ namespace System.Diagnostics.Tracing
             List<CultureInfo> cultures = null;
             if (resources != null && (flags & EventManifestOptions.AllCultures) != 0)
             {
-                cultures = GetSupportedCultures(resources);
+                cultures = GetSupportedCultures();
             }
             else
             {
@@ -6585,7 +6585,7 @@ namespace System.Diagnostics.Tracing
         /// </summary>
         /// <param name="resources"></param>
         /// <returns></returns>
-        private static List<CultureInfo> GetSupportedCultures(ResourceManager resources)
+        private static List<CultureInfo> GetSupportedCultures()
         {
             var cultures = new List<CultureInfo>();
 
@@ -6866,7 +6866,7 @@ namespace System.Diagnostics.Tracing
 #if FEATURE_MANAGED_ETW_CHANNELS
         string providerName;
 #endif
-        ResourceManager resources;      // Look up localized strings here.  
+        IResourceManager resources;      // Look up localized strings here.  
         EventManifestOptions flags;
         IList<string> errors;           // list of currently encountered errors
         Dictionary<string, List<int>> perEventByteArrayArgIndices;  // "event_name" -> List_of_Indices_of_Byte[]_Arg

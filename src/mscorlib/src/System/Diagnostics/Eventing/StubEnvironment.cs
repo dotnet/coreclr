@@ -46,7 +46,22 @@ namespace System.Diagnostics.Tracing.Internal
             return GetResourceString(key, args);
         }
 
-        private static System.Resources.ResourceManager rm = new System.Resources.ResourceManager("Microsoft.Diagnostics.Tracing.Messages", typeof(Environment).Assembly());
+        private static volatile Type s_resourceManagerType = null;
+        internal static Type ResourceManagerType
+        {
+            get
+            {
+                if (s_resourceManagerType == null)
+                {
+                    Assembly resourceManagerAssembly = Assembly.Load("System.Resources.ResourceManager, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a");
+                    s_resourceManagerType = resourceManagerAssembly.GetType("System.Resources.ResourceManager", true);
+                }
+
+                return s_resourceManagerType;
+            }
+        }
+
+        private static System.Resources.IResourceManager rm = new System.Resources.ResourceManager("Microsoft.Diagnostics.Tracing.Messages", typeof(Environment).Assembly());
     }
 }
 
