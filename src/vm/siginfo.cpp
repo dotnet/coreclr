@@ -4959,12 +4959,9 @@ void ReportByRefPointersFromByRefLikeObject(promote_func *fn, ScanContext *sc, P
 
     _ASSERTE(pMT->IsByRefLike());
 
-    if (pMT == g_TypedReferenceMT)
-    {
-        return;
-    }
-
-    if (pMT->HasSameTypeDefAs(g_pByReferenceClass))
+    // TODO: TypedReference should ideally be implemneted as a by-ref-like struct containing a ByReference<T> field,
+    // in which case the check for g_TypedReferenceMT below would not be necessary
+    if (pMT == g_TypedReferenceMT || pMT->HasSameTypeDefAs(g_pByReferenceClass))
     {
         (*fn)(dac_cast<PTR_PTR_Object>(pSrc), sc, GC_CALL_INTERIOR);
         return;
