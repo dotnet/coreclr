@@ -35789,7 +35789,7 @@ CFinalize::RegisterForFinalization (int gen, Object* obj, size_t size)
     // Adjust gen
     unsigned int dest = 0;
 
-    if (g_fFinalizeRunOnShutDown)
+    if (g_fFinalizerRunOnShutDown)
     {
         //no method table available yet,
         //put it in the finalizer queue and sort out when
@@ -35858,7 +35858,7 @@ CFinalize::GetNextFinalizableObject (BOOL only_non_critical)
 retry:
     if (!IsSegEmpty(FinalizerListSeg))
     {
-        if (g_fFinalizeRunOnShutDown)
+        if (g_fFinalizerRunOnShutDown)
         {
             obj = *(SegQueueLimit (FinalizerListSeg)-1);
             if (method_table(obj)->HasCriticalFinalizer())
@@ -35934,7 +35934,7 @@ size_t
 CFinalize::GetNumberFinalizableObjects()
 {
     return SegQueueLimit (FinalizerListSeg) -
-        (g_fFinalizeRunOnShutDown ? m_Array : SegQueue(FinalizerListSeg));
+        (g_fFinalizerRunOnShutDown ? m_Array : SegQueue(FinalizerListSeg));
 }
 
 BOOL
