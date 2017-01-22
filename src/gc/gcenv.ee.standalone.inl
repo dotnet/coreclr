@@ -173,22 +173,10 @@ inline void GCToEEInterface::StompWriteBarrier(WriteBarrierParameters* args)
     g_theGCToCLR->StompWriteBarrier(args);
 }
 
-inline void GCToEEInterface::EnableFinalization()
+inline void GCToEEInterface::EnableFinalization(bool foundFinalizers)
 {
     assert(g_theGCToCLR != nullptr);
-    g_theGCToCLR->EnableFinalization();
-}
-
-inline bool GCToEEInterface::HaveExtraWorkForFinalizer()
-{
-    assert(g_theGCToCLR != nullptr);
-    return g_theGCToCLR->HaveExtraWorkForFinalizer();
-}
-
-inline bool GCToEEInterface::FinalizerRunOnShutdown()
-{
-    assert(g_theGCToCLR != nullptr);
-    return g_theGCToCLR->FinalizerRunOnShutdown();
+    g_theGCToCLR->EnableFinalization(foundFinalizers);
 }
 
 #endif // __GCTOENV_EE_STANDALONE_INL__
