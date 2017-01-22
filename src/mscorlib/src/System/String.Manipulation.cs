@@ -14,10 +14,6 @@ namespace System
 {
     public partial class String
     {
-        private const int TrimHead = 0;
-        private const int TrimTail = 1;
-        private const int TrimBoth = 2;
-
         unsafe private static void FillStringChecked(String dest, int destPos, String src)
         {
             Contract.Requires(dest != null);
@@ -1546,65 +1542,65 @@ namespace System
             Contract.Ensures(Contract.Result<string>() != null);
             Contract.EndContractBlock();
 
-            return TrimHelper(TrimBoth);
+            return TrimWhiteSpaceHelper(TrimType.Both);
         }
 
         // Removes a set of characters from the beginning and end of this string.
-        public unsafe string Trim(char trimChar) => TrimHelper(&trimChar, 1, TrimBoth);
+        public unsafe string Trim(char trimChar) => TrimHelper(&trimChar, 1, TrimType.Both);
 
         // Removes a set of characters from the beginning and end of this string.
         [Pure]
         public unsafe string Trim(params char[] trimChars)
         {
-            if (null == trimChars || trimChars.Length == 0)
+            if (trimChars == null || trimChars.Length == 0)
             {
-                return TrimHelper(TrimBoth);
+                return TrimWhiteSpaceHelper(TrimType.Both);
             }
             fixed (char* pTrimChars = trimChars)
             {
-                return TrimHelper(pTrimChars, trimChars.Length, TrimBoth);
+                return TrimHelper(pTrimChars, trimChars.Length, TrimType.Both);
             }
         }
 
         // Removes a set of characters from the beginning of this string.
-        public string TrimStart() => TrimHelper(TrimHead);
+        public string TrimStart() => TrimWhiteSpaceHelper(TrimType.Head);
 
         // Removes a set of characters from the beginning of this string.
-        public unsafe string TrimStart(char trimChar) => TrimHelper(&trimChar, 1, TrimHead);
+        public unsafe string TrimStart(char trimChar) => TrimHelper(&trimChar, 1, TrimType.Head);
 
         // Removes a set of characters from the beginning of this string.
         public unsafe string TrimStart(params char[] trimChars)
         {
-            if (null == trimChars || trimChars.Length == 0)
+            if (trimChars == null || trimChars.Length == 0)
             {
-                return TrimHelper(TrimHead);
+                return TrimWhiteSpaceHelper(TrimType.Head);
             }
             fixed (char* pTrimChars = trimChars)
             {
-                return TrimHelper(pTrimChars, trimChars.Length, TrimHead);
+                return TrimHelper(pTrimChars, trimChars.Length, TrimType.Head);
             }
         }
 
         // Removes a set of characters from the end of this string.
-        public string TrimEnd() => TrimHelper(TrimTail);
+        public string TrimEnd() => TrimWhiteSpaceHelper(TrimType.Tail);
 
         // Removes a set of characters from the end of this string.
-        public unsafe string TrimEnd(char trimChar) => TrimHelper(&trimChar, 1, TrimTail);
+        public unsafe string TrimEnd(char trimChar) => TrimHelper(&trimChar, 1, TrimType.Tail);
 
         // Removes a set of characters from the end of this string.
         public unsafe string TrimEnd(params char[] trimChars)
         {
-            if (null == trimChars || trimChars.Length == 0)
+            if (trimChars == null || trimChars.Length == 0)
             {
-                return TrimHelper(TrimTail);
+                return TrimWhiteSpaceHelper(TrimType.Tail);
             }
             fixed (char* pTrimChars = trimChars)
             {
-                return TrimHelper(pTrimChars, trimChars.Length, TrimTail);
+                return TrimHelper(pTrimChars, trimChars.Length, TrimType.Tail);
             }
         }
 
-        private string TrimHelper(int trimType)
+        private string TrimWhiteSpaceHelper(TrimType trimType)
         {
             // end will point to the first non-trimmed character on the right.
             // start will point to the first non-trimmed character on the left.
@@ -1612,26 +1608,32 @@ namespace System
             int start = 0;
 
             // Trim specified characters.
-            if (trimType != TrimTail)
+            if (trimType != TrimType.Tail)
             {
                 for (start = 0; start < Length; start++)
                 {
-                    if (!char.IsWhiteSpace(this[start])) break;
+                    if (!char.IsWhiteSpace(this[start]))
+                    {
+                        break;
+                    }
                 }
             }
 
-            if (trimType != TrimHead)
+            if (trimType != TrimType.Head)
             {
                 for (end = Length - 1; end >= start; end--)
                 {
-                    if (!char.IsWhiteSpace(this[end])) break;
+                    if (!char.IsWhiteSpace(this[end]))
+                    {
+                        break;
+                    }
                 }
             }
 
             return CreateTrimmedString(start, end);
         }
 
-        private unsafe string TrimHelper(char* trimChars, int trimCharsLength, int trimType)
+        private unsafe string TrimHelper(char* trimChars, int trimCharsLength, TrimType trimType)
         {
             Debug.Assert(trimChars != null);
             Debug.Assert(trimCharsLength > 0);
@@ -1642,7 +1644,7 @@ namespace System
             int start = 0;
 
             // Trim specified characters.
-            if (trimType != TrimTail)
+            if (trimType != TrimType.Tail)
             {
                 for (start = 0; start < Length; start++)
                 {
@@ -1650,17 +1652,20 @@ namespace System
                     char ch = this[start];
                     for (i = 0; i < trimCharsLength; i++)
                     {
-                        if (trimChars[i] == ch) break;
+                        if (trimChars[i] == ch)
+                        {
+                            break;
+                        }
                     }
                     if (i == trimCharsLength)
                     {
-                        // the character is not white space
+                        // The character is not in trimChars, so stop trimming.
                         break;
                     }
                 }
             }
 
-            if (trimType != TrimHead)
+            if (trimType != TrimType.Head)
             {
                 for (end = Length - 1; end >= start; end--)
                 {
@@ -1668,11 +1673,14 @@ namespace System
                     char ch = this[end];
                     for (i = 0; i < trimCharsLength; i++)
                     {
-                        if (trimChars[i] == ch) break;
+                        if (trimChars[i] == ch)
+                        {
+                            break;
+                        }
                     }
                     if (i == trimCharsLength)
                     {
-                        // the character is not white space
+                        // The character is not in trimChars, so stop trimming.
                         break;
                     }
                 }
@@ -1688,6 +1696,13 @@ namespace System
                 len == Length ? this :
                 len == 0 ? string.Empty :
                 InternalSubString(start, len);
+        }
+
+        private enum TrimType
+        {
+            Head = 0,
+            Tail = 1,
+            Both = 2
         }
     }
 }
