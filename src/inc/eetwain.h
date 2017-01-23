@@ -368,7 +368,7 @@ public:
 
 
 #ifndef DACCESS_COMPILE
-
+#ifdef _TARGET_X86_
 /*
     Last chance for the runtime support to do fixups in the context
     before execution continues inside a filter, catch handler, or finally
@@ -383,7 +383,7 @@ void FixContext(ContextType     ctxType,
                 CodeManState   *pState,
                 size_t       ** ppShadowSP,             // OUT
                 size_t       ** ppEndRegion);           // OUT
-
+#endif // _TARGET_X86_
 #endif // #ifndef DACCESS_COMPILE
 
 /*
