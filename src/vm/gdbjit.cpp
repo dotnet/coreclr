@@ -773,7 +773,7 @@ const unsigned char AbbrevTable[] = {
         0, 0,
 
     18, DW_TAG_inheritance, DW_CHILDREN_no, DW_AT_type, DW_FORM_ref4, DW_AT_data_member_location, DW_FORM_data1,
-        DW_AT_accessibility, DW_FORM_data1, 0, 0,
+        0, 0,
 
     0
 };
@@ -924,7 +924,6 @@ struct __attribute__((packed)) DebugInfoInheritance
     uint8_t m_abbrev;
     uint32_t m_type;
     uint8_t m_data_member_location;
-    uint8_t m_accessibility;
 };
 
 struct __attribute__((packed)) DebugInfoClassMember
@@ -1489,12 +1488,15 @@ void ClassTypeInfo::DumpDebugInfo(char* ptr, int& offset)
     {
         if (ptr != nullptr)
         {
-
             DebugInfoInheritance buf;
             buf.m_abbrev = 18;
-            buf.m_type = offset + sizeof(DebugInfoInheritance) + sizeof(DebugInfoRefType) + 1;
+            if (m_parent->m_type_offset != 0)
+               buf.m_type = m_parent->m_type_offset;
+            else
+               buf.m_type = offset + sizeof(DebugInfoInheritance) + 1;
+            // All classes passed by referenence, so we have to skip DW_TAG_pointer_type node (otherwise lldb crashed).
+            buf.m_type += sizeof(DebugInfoRefType);
             buf.m_data_member_location = 0;
-            buf.m_accessibility = 1;
             memcpy(ptr + offset, &buf, sizeof(DebugInfoInheritance));
         }
         offset += sizeof(DebugInfoInheritance);
