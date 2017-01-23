@@ -132,7 +132,7 @@ public:
     // Signals to the finalizer thread that there are objects ready to
     // be finalized.
     virtual
-    void EnableFinalization() = 0;
+    void EnableFinalization(bool foundFinalizers) = 0;
 };
 
 #endif // _GCINTERFACE_EE_H_
