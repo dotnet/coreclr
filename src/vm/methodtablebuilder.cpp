@@ -1864,6 +1864,11 @@ MethodTableBuilder::BuildMethodTableThrowing(
 
     if (bmtFP->fIsByRefLikeType)
     {
+        if (!IsValueClass())
+        {
+            // Non-value-classes cannot contain by-ref-like instance fields
+            COMPlusThrowHR(COR_E_TYPELOAD);
+        }
         pMT->SetIsByRefLike();
     }
 
@@ -4222,6 +4227,11 @@ VOID    MethodTableBuilder::InitializeFieldDescs(FieldDesc *pFieldDescList,
                 // Inherit IsByRefLike characteristic from fields
                 if (!IsSelfRef(pByValueClass) && pByValueClass->IsByRefLike())
                 {
+                    if (fIsStatic)
+                    {
+                        // By-ref-like types cannot be used for static fields
+                        COMPlusThrowHR(COR_E_TYPELOAD);
+                    }
                     bmtFP->fIsByRefLikeType = true;
                 }
 
