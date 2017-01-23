@@ -326,7 +326,7 @@ void TransitionFrame::UpdateRegDisplayHelper(const PREGDISPLAY pRD, UINT cbStack
 #else // WIN64EXCEPTIONS
 
     pRD->ControlPC = *PTR_PCODE(pRD->PCTAddr);
-    pRD->Esp  = (DWORD)(pRD->PCTAddr + sizeof(TADDR) + cbStackPop);
+    pRD->SP  = (DWORD)(pRD->PCTAddr + sizeof(TADDR) + cbStackPop);
 
 #endif // WIN64EXCEPTIONS
 
@@ -569,7 +569,7 @@ void FaultingExceptionFrame::UpdateRegDisplay(const PREGDISPLAY pRD)
 #define CALLEE_SAVED_REGISTER(regname) pRD->p##regname = (DWORD*) &regs->regname;
     ENUM_CALLEE_SAVED_REGISTERS();
 #undef CALLEE_SAVED_REGISTER
-    pRD->Esp = m_Esp;
+    pRD->SP = m_Esp;
     pRD->PCTAddr = GetReturnAddressPtr();
     pRD->ControlPC = *PTR_PCODE(pRD->PCTAddr);
 
