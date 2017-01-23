@@ -156,7 +156,42 @@ void CodeGen::genSetRegToConst(regNumber targetReg, var_types targetType, GenTre
 
         case GT_CNS_DBL:
         {
-            NYI("GT_CNS_DBL");
+            GenTreeDblCon* dblConst   = tree->AsDblCon();
+            double         constValue = dblConst->gtDblCon.gtDconVal;
+            // TODO-ARM-CQ: Do we have a faster/smaller way to generate 0.0 in thumb2 ISA ?
+            if (targetType == TYP_FLOAT)
+            {
+                // Get a temp integer register
+                regMaskTP tmpRegMask = tree->gtRsvdRegs;
+                regNumber tmpReg     = genRegNumFromMask(tmpRegMask);
+                noway_assert(tmpReg != REG_NA);
+
+                float f = forceCastToFloat(constValue);
+                genSetRegToIcon(tmpReg, *((int*)(&f)));
+                getEmitter()->emitIns_R_R(INS_vmov_i2f, EA_4BYTE, targetReg, tmpReg);
+            }
+            else
+            {
+                assert(targetType == TYP_DOUBLE);
+
+                size_t* cv = (size_t*)&constValue;
+
+                // Get two temp integer registers
+                regMaskTP tmpRegsMask = tree->gtRsvdRegs;
+                regMaskTP tmpRegMask  = genFindHighestBit(tmpRegsMask); // set tmpRegMsk to a one-bit mask
+                regNumber tmpReg1     = genRegNumFromMask(tmpRegMask);
+                noway_assert(tmpReg1 != REG_NA);
+
+                tmpRegsMask &= ~genRegMask(tmpReg1);                // remove the bit for 'tmpReg1'
+                tmpRegMask        = genFindHighestBit(tmpRegsMask); // set tmpRegMsk to a one-bit mask
+                regNumber tmpReg2 = genRegNumFromMask(tmpRegMask);
+                noway_assert(tmpReg2 != REG_NA);
+
+                genSetRegToIcon(tmpReg1, cv[0]);
+                genSetRegToIcon(tmpReg2, cv[1]);
+
+                getEmitter()->emitIns_R_R_R(INS_vmov_i2d, EA_8BYTE, targetReg, tmpReg1, tmpReg2);
+            }
         }
         break;
 
