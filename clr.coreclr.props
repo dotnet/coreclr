@@ -60,6 +60,7 @@
     <FeatureCominteropUnmanagedActivation>true</FeatureCominteropUnmanagedActivation>
     <FeatureCominteropWinRTManagedActivation>true</FeatureCominteropWinRTManagedActivation>
     <FeatureHostAssemblyResolver>true</FeatureHostAssemblyResolver>
+    <FeatureCollectibleALC>true</FeatureCollectibleALC>
     <FeatureLazyCOWPages Condition="('$(TargetArch)' == 'i386') or ('$(TargetArch)' == 'arm')">true</FeatureLazyCOWPages>
     <FeatureLegacyNetCFDbgHostControl>true</FeatureLegacyNetCFDbgHostControl>
     <FeatureRandomizedStringHashing>true</FeatureRandomizedStringHashing>

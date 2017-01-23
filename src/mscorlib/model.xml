@@ -1013,6 +1013,9 @@
     </Type>
     <Type Name="System.Runtime.Loader.AssemblyLoadContext" condition="FEATURE_HOST_ASSEMBLY_RESOLVER">
       <Member Name="#ctor" />
+      <Member Name="#ctor(System.Boolean)" />
+      <Member Name="Finalize" />        
+      <Member MemberType="Property" Name="IsCollectible"/>
       <Member MemberType="Property" Name="Default" />
       <Member Name="GetAssemblyName(System.String)" />
       <Member Name="GetLoadContext(System.Reflection.Assembly)" />
@@ -1025,8 +1028,10 @@
       <Member Name="Resolve(System.IntPtr,System.Reflection.AssemblyName)" />
       <Member Name="ResolveUsingResolvingEvent(System.IntPtr,System.Reflection.AssemblyName)" />
       <Member Name="ResolveUnmanagedDll(System.String,System.IntPtr)" />
+      <Member Name="OnUnloadingStatic(System.IntPtr)" Condition="FEATURE_COLLECTIBLE_ALC"/>
       <Member Name="LoadUnmanagedDll(System.String)" />
       <Member Name="LoadUnmanagedDllFromPath(System.String)" />
+      <Member Name="Unload"/>
       <Member Name="GetLoadedAssemblies" />
       <Member Name="get_Default" />
       <Member Name="SetProfileOptimizationRoot(System.String)" />

@@ -139,6 +139,11 @@ namespace BINDER_SPACE
         static PEKIND GetSystemArchitecture();
         static BOOL IsValidArchitecture(PEKIND kArchitecture);
 
+		inline ICLRPrivBinder* GetBinder()
+		{
+			return m_pBinder;
+		}
+
 #ifndef CROSSGEN_COMPILE
     protected:
 #endif
@@ -196,11 +201,6 @@ public:
         {
             _ASSERTE(m_pBinder == NULL || m_pBinder == pBinder);
             m_pBinder = pBinder;
-        }
-
-        inline ICLRPrivBinder* GetBinder()
-        {
-            return m_pBinder;
         }
         
 #if !defined(FEATURE_FUSION)
