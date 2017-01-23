@@ -318,6 +318,7 @@ virtual BOOL            IsInFilter(GCInfoToken gcInfoToken,
                                    PCONTEXT pCtx,
                                    DWORD curNestLevel) = 0;
 
+#ifndef WIN64EXCEPTIONS
 virtual BOOL            LeaveFinally(GCInfoToken gcInfoToken,
                                      unsigned offset,
                                      PCONTEXT pCtx) = 0;
@@ -325,6 +326,7 @@ virtual BOOL            LeaveFinally(GCInfoToken gcInfoToken,
 virtual void            LeaveCatch(GCInfoToken gcInfoToken,
                                    unsigned offset,
                                    PCONTEXT pCtx)=0;
+#endif // WIN64EXCEPTIONS
 
 #ifdef EnC_SUPPORTED
 
@@ -574,16 +576,18 @@ unsigned int GetFrameSize(GCInfoToken gcInfoToken);
 #ifndef DACCESS_COMPILE
 
 virtual const BYTE* GetFinallyReturnAddr(PREGDISPLAY pReg);
-virtual BOOL LeaveFinally(GCInfoToken gcInfoToken,
-                          unsigned offset,
-                          PCONTEXT pCtx);
 virtual BOOL IsInFilter(GCInfoToken gcInfoToken,
                         unsigned offset,
                         PCONTEXT pCtx,
                           DWORD curNestLevel);
+#ifndef WIN64EXCEPTIONS
+virtual BOOL LeaveFinally(GCInfoToken gcInfoToken,
+                          unsigned offset,
+                          PCONTEXT pCtx);
 virtual void LeaveCatch(GCInfoToken gcInfoToken,
                          unsigned offset,
                          PCONTEXT pCtx);
+#endif // WIN64EXCEPTIONS
 
 #ifdef EnC_SUPPORTED
 /*
