@@ -356,8 +356,8 @@ function create_core_overlay {
     if [ -z "$coreFxNativeBinDir" ]; then
         exit_with_error "$errorSource" "One of --coreOverlayDir or --coreFxBinDir must be specified." "$printUsage"
     fi
-    if [ ! -d "$coreFxNativeBinDir/Native" ]; then
-        exit_with_error "$errorSource" "Directory specified by --coreNativeFxBinDir does not exist: $coreFxNativeBinDir/Native"
+    if [ ! -d "$coreFxNativeBinDir/native" ]; then
+        exit_with_error "$errorSource" "Directory specified by --coreNativeFxBinDir does not exist: $coreFxNativeBinDir/native"
     fi
 
     # Create the overlay
@@ -374,14 +374,15 @@ function create_core_overlay {
                 exit_with_error "$errorSource" "Directory specified in --coreFxBinDir does not exist: $currDir"
             fi
             pushd $currDir > /dev/null
-            for dirName in $(find . -iname '*.dll' \! -iwholename '*test*' \! -iwholename '*/ToolRuntime/*' \! -iwholename '*/RemoteExecutorConsoleApp/*' \! -iwholename '*/net*' \! -iwholename '*aot*' -exec dirname {} \; | uniq | sed 's/\.\/\(.*\)/\1/g'); do
-                cp -n -v "$currDir/$dirName/$dirName.dll" "$coreOverlayDir/"
+            for dirName in $(find . -iname '*.dll' \! -iwholename '*test*' \! -iwholename '*/ToolRuntime/*' \! -iwholename '*/RemoteExecutorConsoleApp/*' -iwholename '*/net*' \! -iwholename '*aot*' -exec dirname {} \; | uniq | sed 's/\.\/\(.*\)/\1/g'); do
+                local dllname=$(dirname "$dirName")
+                cp -n -v "$currDir/$dirName/$dllname.dll" "$coreOverlayDir/"
             done
             popd $currDur > /dev/null
         done
     done <<< $coreFxBinDir
 
-    cp -f -v "$coreFxNativeBinDir/Native/"*."$libExtension" "$coreOverlayDir/" 2>/dev/null
+    cp -f -v "$coreFxNativeBinDir/native/"*."$libExtension" "$coreOverlayDir/" 2>/dev/null
 
     cp -f -v "$coreClrBinDir/"* "$coreOverlayDir/" 2>/dev/null
     cp -f -v "$mscorlibDir/mscorlib.dll" "$coreOverlayDir/" 2>/dev/null
