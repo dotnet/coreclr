@@ -161,7 +161,7 @@ enum
 };
 
 #ifndef DACCESS_COMPILE
-
+#ifdef _TARGET_X86_
 virtual void FixContext(ContextType     ctxType,
                         EHContext      *ctx,
                         EECodeInfo     *pCodeInfo,
@@ -171,7 +171,7 @@ virtual void FixContext(ContextType     ctxType,
                         CodeManState   *pState,
                         size_t       ** ppShadowSP,             // OUT
                         size_t       ** ppEndRegion) = 0;       // OUT
-
+#endif // _TARGET_X86_
 #endif // #ifndef DACCESS_COMPILE
 
 /*
