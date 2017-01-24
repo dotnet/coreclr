@@ -1019,11 +1019,15 @@ namespace System.Text
             Contract.EndContractBlock();
 
             byte[] bytes;
-            fixed (char* pChar = s) {
+            fixed (char* pChar = s)
+            {
                 int byteCount = GetByteCount(pChar + index, count);
-                if (byteCount == 0) {
+                if (byteCount == 0)
+                {
                     bytes = Array.Empty<byte>();
-                } else {
+                }
+                else
+                {
                     bytes = new byte[byteCount];
                     fixed (byte* pBytes = &bytes[0])
                     {

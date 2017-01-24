@@ -82,8 +82,8 @@ namespace System.Text
         public override byte[] GetBytes(String s)
             => EncodingForwarder.GetBytesAsciiFastPath(this, s);
 
-        public override int GetBytes(String s, int charIndex, int charCount, byte[] bytes, int byteIndex)
-            => EncodingForwarder.GetBytesAsciiFastPath(this, s, charIndex, charCount, bytes, byteIndex);
+        public override int GetBytes(String chars, int charIndex, int charCount, byte[] bytes, int byteIndex)
+            => EncodingForwarder.GetBytesAsciiFastPath(this, chars, charIndex, charCount, bytes, byteIndex);
 
         public override byte[] GetBytes(char[] chars) {
             if (chars == null)
@@ -302,8 +302,13 @@ namespace System.Text
             return byteCount;
         }
 
+#if !BIGENDIAN
         internal override unsafe int GetBytesFallback(char* chars, int charCount,
                                                 byte* bytes, int byteCount, EncoderNLS encoder)
+#else
+        internal override unsafe int GetBytes(char* chars, int charCount,
+                                                byte* bytes, int byteCount, EncoderNLS encoder)
+#endif
         {
             // Just need to ASSERT, this is called by something else internal that checked parameters already
             Debug.Assert(bytes != null, "[ASCIIEncoding.GetBytes]bytes is null");

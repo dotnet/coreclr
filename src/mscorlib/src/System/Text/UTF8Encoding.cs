@@ -601,8 +601,13 @@ namespace System.Text
 
         // Our workhorse
         // Note:  We ignore mismatched surrogates, unless the exception flag is set in which case we throw
+#if !BIGENDIAN
         internal override unsafe int GetBytesFallback(char* chars, int charCount,
                                                 byte* bytes, int byteCount, EncoderNLS baseEncoder)
+#else
+        internal override unsafe int GetBytes(char* chars, int charCount,
+                                                byte* bytes, int byteCount, EncoderNLS baseEncoder)
+#endif
         {
             Debug.Assert(chars!=null, "[UTF8Encoding.GetBytes]chars!=null");
             Debug.Assert(byteCount >=0, "[UTF8Encoding.GetBytes]byteCount >=0");

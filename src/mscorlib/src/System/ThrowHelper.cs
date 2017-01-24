@@ -212,7 +212,7 @@ namespace System {
             throw GetInvalidOperationException(ExceptionResource.InvalidOperation_EnumFailedVersion);
         }
 
-        private static ArgumentNullException GetArgumentNullException(ExceptionArgument argument, ExceptionResource resource) {
+        internal static ArgumentNullException GetArgumentNullException(ExceptionArgument argument, ExceptionResource resource) {
             throw new ArgumentNullException(GetArgumentName(argument), GetResourceString(resource));
         }
 
@@ -240,7 +240,7 @@ namespace System {
             return new ArgumentException(Environment.GetResourceString("Arg_WrongType", value, targetType), nameof(value));
         }
 
-        private static ArgumentOutOfRangeException GetArgumentOutOfRangeException(ExceptionArgument argument, ExceptionResource resource) {
+        internal static ArgumentOutOfRangeException GetArgumentOutOfRangeException(ExceptionArgument argument, ExceptionResource resource) {
             return new ArgumentOutOfRangeException(GetArgumentName(argument), GetResourceString(resource));
         }
 
