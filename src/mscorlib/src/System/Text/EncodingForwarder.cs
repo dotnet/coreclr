@@ -751,7 +751,7 @@ namespace System.Text
                 return ThrowHelper.GetArgumentOutOfRangeException(ExceptionArgument.charIndex, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
             if (count < 0)
                 return ThrowHelper.GetArgumentOutOfRangeException(ExceptionArgument.charCount, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
-            // (chars.Length - index < count)
+            Debug.Assert(chars.Length - index < count);
             return ThrowHelper.GetArgumentOutOfRangeException(ExceptionArgument.chars, ExceptionResource.ArgumentOutOfRange_IndexCountBuffer);
         }
 
@@ -779,7 +779,7 @@ namespace System.Text
                 return ThrowHelper.GetArgumentOutOfRangeException(ExceptionArgument.index, ExceptionResource.ArgumentOutOfRange_Index);
             if (count < 0)
                 return ThrowHelper.GetArgumentOutOfRangeException(ExceptionArgument.count, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
-            // (index > s.Length - count)
+            Debug.Assert(index > s.Length - count);
             return ThrowHelper.GetArgumentOutOfRangeException(ExceptionArgument.index, ExceptionResource.ArgumentOutOfRange_IndexCountBuffer);
         }
         
