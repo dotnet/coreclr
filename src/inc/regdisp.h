@@ -152,6 +152,12 @@ struct REGDISPLAY : public REGDISPLAY_BASE {
 #ifdef _TARGET_ARM64_
     Arm64VolatileContextPointer     volatileCurrContextPointers;
 #endif
+
+    REGDISPLAY()
+    {
+        // Initialize
+        memset(this, 0, sizeof(REGDISPLAY));
+    }
 };
 
 inline TADDR GetRegdisplaySP(REGDISPLAY *display) {
