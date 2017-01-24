@@ -693,7 +693,7 @@ inline size_t GetSizeOfFrameHeaderForEnC(hdrInfo * info)
 #endif // !USE_GC_INFO_DECODER
 
 #ifndef DACCESS_COMPILE
-#ifdef _TARGET_X86_
+#ifndef WIN64EXCEPTIONS
 
 /*****************************************************************************
  *
@@ -774,7 +774,7 @@ void EECodeManager::FixContext( ContextType     ctxType,
     *((OBJECTREF*)&(ctx->Eax)) = thrownObject;
 }
 
-#endif // _TARGET_X86_
+#endif // !WIN64EXCEPTIONS
 
 
 
