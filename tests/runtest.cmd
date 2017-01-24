@@ -24,9 +24,6 @@ set "__ProjectFilesDir=%__ProjectDir%"
 set "__RootBinDir=%__ProjectDir%\..\bin"
 set "__LogsDir=%__RootBinDir%\Logs"
 
-:: Default __Exclude to issues.targets
-set __Exclude0=%~dp0\issues.targets
-
 set __Sequential=
 set __msbuildExtraArgs=
 set __LongGCTests=
@@ -169,8 +166,6 @@ xcopy /s "%__BinDir%" "%CORE_ROOT%"
 
 :SkipCoreRootSetup
 
-
-if defined __Exclude (if not exist %__Exclude% echo %__MsgPrefix%Error: Exclusion file %__Exclude% not found && exit /b 1)
 if defined __TestEnv (if not exist %__TestEnv% echo %__MsgPrefix%Error: Test Environment script %__TestEnv% not found && exit /b 1)
 
 REM These log files are created automatically by the test run process. Q: what do they depend on being set?
@@ -179,13 +174,6 @@ set __TestRunXmlLog=%__LogsDir%\TestRun_%__BuildOS%__%__BuildArch%__%__BuildType
 
 
 if "%__PerfTests%"=="true" goto RunPerfTests
-if "%__SkipWrapperGeneration%"=="true" goto SkipWrapperGeneration
-
-set __BuildLogRootName=Tests_XunitWrapper
-call :msbuild "%__ProjectFilesDir%\runtest.proj" /p:BuildWrappers=true
-if errorlevel 1 exit /b 1
-
-:SkipWrapperGeneration
 
 call :ResolveDependecies
 
