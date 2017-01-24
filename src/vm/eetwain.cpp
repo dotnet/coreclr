@@ -5729,7 +5729,7 @@ BOOL EECodeManager::IsInFilter(GCInfoToken gcInfoToken,
 }
 
 
-#if defined(_TARGET_X86_) && !defined(WIN64EXCEPTIONS)
+#ifndef WIN64EXCEPTIONS
 BOOL EECodeManager::LeaveFinally(GCInfoToken gcInfoToken,
                                 unsigned offset,
                                 PCONTEXT pCtx)
@@ -5788,7 +5788,7 @@ void EECodeManager::LeaveCatch(GCInfoToken gcInfoToken,
 
     return;
 }
-#endif // _TARGET_X86_ && !WIN64EXCEPTIONS
+#endif // !WIN64EXCEPTIONS
 #endif // #ifndef DACCESS_COMPILE
 
 #ifdef DACCESS_COMPILE
