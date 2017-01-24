@@ -275,6 +275,8 @@ void TransitionFrame::UpdateRegDisplay(const PREGDISPLAY pRD)
     _ASSERTE(pFunc != NULL);
     UpdateRegDisplayHelper(pRD, pFunc->CbStackPop());
 
+    LOG((LF_GCROOTS, LL_INFO100000, "STACKWALK    TransitionFrame::UpdateRegDisplay(ip:%p, sp:%p)\n", pRD->ControlPC, pRD->Esp));
+
     RETURN;
 }
 
@@ -300,8 +302,33 @@ void TransitionFrame::UpdateRegDisplayHelper(const PREGDISPLAY pRD, UINT cbStack
     ENUM_CALLEE_SAVED_REGISTERS();
 #undef CALLEE_SAVED_REGISTER
     pRD->PCTAddr = GetReturnAddressPtr();
+
+#ifdef WIN64EXCEPTIONS
+
+    pRD->IsCallerContextValid = FALSE;
+    pRD->IsCallerSPValid      = FALSE;
+
+    pRD->pCurrentContext->Eip = *PTR_PCODE(pRD->PCTAddr);;
+    pRD->pCurrentContext->Esp = GetSP();
+
+    T_CONTEXT * pContext = pRD->pCurrentContext;
+#define CALLEE_SAVED_REGISTER(regname) pContext->regname = regs->regname;
+    ENUM_CALLEE_SAVED_REGISTERS();
+#undef CALLEE_SAVED_REGISTER
+
+    KNONVOLATILE_CONTEXT_POINTERS * pContextPointers = pRD->pCurrentContextPointers;
+#define CALLEE_SAVED_REGISTER(regname) pContextPointers->regname = (DWORD*)&regs->regname;
+    ENUM_CALLEE_SAVED_REGISTERS();
+#undef CALLEE_SAVED_REGISTER
+
+    SyncRegDisplayToCurrentContext(pRD);
+
+#else // WIN64EXCEPTIONS
+
     pRD->ControlPC = *PTR_PCODE(pRD->PCTAddr);
     pRD->Esp  = (DWORD)(pRD->PCTAddr + sizeof(TADDR) + cbStackPop);
+
+#endif // WIN64EXCEPTIONS
 
     RETURN;
 }
@@ -320,6 +347,8 @@ void HelperMethodFrame::UpdateRegDisplay(const PREGDISPLAY pRD)
     CONTRACT_END;
 
     ENABLE_FORBID_GC_LOADER_USE_IN_THIS_SCOPE();
+
+    LOG((LF_GCROOTS, LL_INFO100000, "STACKWALK    HelperMethodFrame::UpdateRegDisplay cached ip:%p, sp:%p\n", m_MachState.GetRetAddr(), m_MachState.esp()));
 
     // reset pContext; it's only valid for active (top-most) frame
     pRD->pContext = NULL;
@@ -362,6 +391,10 @@ void HelperMethodFrame::UpdateRegDisplay(const PREGDISPLAY pRD)
         // in the real code.  I'm not sure exactly
         // what should happen in the on-the-fly case,
         // but go with what would happen from an InsureInit.
+#ifdef WIN64EXCEPTIONS
+        PORTABILITY_ASSERT("HelperMethodFrame::UpdateRegDisplay");
+#endif
+
         RETURN;
     }
 
@@ -377,6 +410,25 @@ void HelperMethodFrame::UpdateRegDisplay(const PREGDISPLAY pRD)
     pRD->PCTAddr = dac_cast<TADDR>(m_MachState.pRetAddr());
     pRD->ControlPC = m_MachState.GetRetAddr();
     pRD->Esp  = (DWORD) m_MachState.esp();
+
+#ifdef WIN64EXCEPTIONS
+    pRD->IsCallerContextValid = FALSE;
+    pRD->IsCallerSPValid      = FALSE;        // Don't add usage of this field.  This is only temporary.
+
+    //
+    // Copy the saved state from the frame to the current context.
+    //
+    pRD->pCurrentContext->Eip = pRD->ControlPC;
+    pRD->pCurrentContext->Esp = pRD->Esp;
+
+#define CALLEE_SAVED_REGISTER(regname) pRD->pCurrentContext->regname = *pRD->p##regname;
+    ENUM_CALLEE_SAVED_REGISTERS();
+#undef CALLEE_SAVED_REGISTER
+
+#define CALLEE_SAVED_REGISTER(regname) pRD->pCurrentContextPointers->regname = pRD->p##regname;
+    ENUM_CALLEE_SAVED_REGISTERS();
+#undef CALLEE_SAVED_REGISTER
+#endif // WIN64EXCEPTIONS
 
     RETURN;
 }
@@ -508,11 +560,11 @@ void FaultingExceptionFrame::UpdateRegDisplay(const PREGDISPLAY pRD)
     }
     CONTRACT_END;
 
-#ifndef WIN64EXCEPTIONS
-    CalleeSavedRegisters* regs = GetCalleeSavedRegisters();
-
     // reset pContext; it's only valid for active (top-most) frame
     pRD->pContext = NULL;
+
+#ifndef WIN64EXCEPTIONS
+    CalleeSavedRegisters* regs = GetCalleeSavedRegisters();
 
 #define CALLEE_SAVED_REGISTER(regname) pRD->p##regname = (DWORD*) &regs->regname;
     ENUM_CALLEE_SAVED_REGISTERS();
@@ -520,21 +572,30 @@ void FaultingExceptionFrame::UpdateRegDisplay(const PREGDISPLAY pRD)
     pRD->Esp = m_Esp;
     pRD->PCTAddr = GetReturnAddressPtr();
     pRD->ControlPC = *PTR_PCODE(pRD->PCTAddr);
-#else
-    memcpy(pRD->pCurrentContext, &m_ctx, sizeof(CONTEXT));
 
-    pRD->ControlPC = m_ctx.Eip;
-
-    pRD->Esp = m_ctx.Esp;
-
-    pRD->pCurrentContextPointers->Ebx = &m_ctx.Ebx;
-    pRD->pCurrentContextPointers->Edi = &m_ctx.Edi;
-    pRD->pCurrentContextPointers->Esi = &m_ctx.Esi;
-    pRD->pCurrentContextPointers->Ebp = &m_ctx.Ebp;
+#else // WIN64EXCEPTIONS
 
     pRD->IsCallerContextValid = FALSE;
-    pRD->IsCallerSPValid      = FALSE;        // Don't add usage of this field.  This is only temporary.
+    pRD->IsCallerSPValid = FALSE;        // Don't add usage of this field.  This is only temporary.
+
+    memcpy(pRD->pCurrentContext, &m_ctx, sizeof(CONTEXT));
+
+#define CALLEE_SAVED_REGISTER(regname) pRD->pCurrentContextPointers->regname = &m_ctx.regname;
+    ENUM_CALLEE_SAVED_REGISTERS();
+#undef CALLEE_SAVED_REGISTER
+
+#define CALLEE_SAVED_REGISTER(regname) pRD->p##regname = &m_ctx.regname;
+    ENUM_CALLEE_SAVED_REGISTERS();
+#undef CALLEE_SAVED_REGISTER
+
+    pRD->Esp = m_ctx.Esp;
+    pRD->PCTAddr = GetReturnAddressPtr();
+    pRD->ControlPC = m_ctx.Eip;
+
 #endif // WIN64EXCEPTIONS
+
+    LOG((LF_GCROOTS, LL_INFO100000, "STACKWALK    FaultingExceptionFrame::UpdateRegDisplay(ip:%p, sp:%p)\n", pRD->ControlPC, pRD->Esp));
+
     RETURN;
 }
 
@@ -590,6 +651,26 @@ void InlinedCallFrame::UpdateRegDisplay(const PREGDISPLAY pRD)
 
     /* Now we need to pop off the outgoing arguments */
     pRD->Esp  = (DWORD) dac_cast<TADDR>(m_pCallSiteSP) + stackArgSize;
+
+#ifdef WIN64EXCEPTIONS
+    pRD->IsCallerContextValid = FALSE;
+    pRD->IsCallerSPValid      = FALSE;        // Don't add usage of this field.  This is only temporary.
+
+    pRD->pCurrentContext->Eip = pRD->ControlPC;
+    pRD->pCurrentContext->Esp = pRD->Esp;
+    pRD->pCurrentContext->Ebp = *pRD->pEbp;
+
+#define CALLEE_SAVED_REGISTER(regname) pRD->pCurrentContextPointers->regname = NULL;
+    ENUM_CALLEE_SAVED_REGISTERS();
+#undef CALLEE_SAVED_REGISTER
+
+    pRD->pCurrentContextPointers->Ebp = pRD->pEbp;
+
+    SyncRegDisplayToCurrentContext(pRD);
+#endif
+
+    LOG((LF_GCROOTS, LL_INFO100000, "STACKWALK    InlinedCallFrame::UpdateRegDisplay(ip:%p, sp:%p)\n", pRD->ControlPC, pRD->Esp));
+
     RETURN;
 }
 

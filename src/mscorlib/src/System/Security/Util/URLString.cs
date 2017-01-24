@@ -22,9 +22,6 @@ namespace System.Security.Util {
     using System.IO;
     using System.Diagnostics.Contracts;
 
-#if FEATURE_SERIALIZATION
-    [Serializable]
-#endif
     internal sealed class URLString : SiteString
     {
         private String m_protocol;
@@ -1196,8 +1193,6 @@ namespace System.Security.Util {
     {
         private bool m_checkForIllegalChars;
 
-        private new static char[] m_separators = { '/' };
-
         // From KB #Q177506, file/folder illegal characters are \ / : * ? " < > | 
         protected static char[] m_illegalDirectoryCharacters = { '\\', ':', '*', '?', '"', '<', '>', '|' };
         
@@ -1223,7 +1218,7 @@ namespace System.Security.Util {
             Contract.EndContractBlock();
 
             ArrayList list = new ArrayList();
-            String[] separatedArray = directory.Split(m_separators);
+            String[] separatedArray = directory.Split('/');
             
             for (int index = 0; index < separatedArray.Length; ++index)
             {
@@ -1282,8 +1277,6 @@ namespace System.Security.Util {
     [Serializable]
     internal class LocalSiteString : SiteString
     {
-        private new static char[] m_separators = { '/' };
-
         public LocalSiteString( String site )
         {
             m_site = site.Replace( '|', ':');
@@ -1303,7 +1296,7 @@ namespace System.Security.Util {
             Contract.EndContractBlock();
 
             ArrayList list = new ArrayList();
-            String[] separatedArray = directory.Split(m_separators);
+            String[] separatedArray = directory.Split('/');
             
             for (int index = 0; index < separatedArray.Length; ++index)
             {

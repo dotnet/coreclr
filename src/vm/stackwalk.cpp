@@ -561,9 +561,7 @@ UINT_PTR Thread::VirtualUnwindCallFrame(PREGDISPLAY pRD, EECodeInfo* pCodeInfo /
     }
     else
     {
-        PT_KNONVOLATILE_CONTEXT_POINTERS pCurrentContextPointers = NULL;
-        NOT_X86(pCurrentContextPointers = pRD->pCurrentContextPointers);
-        VirtualUnwindCallFrame(pRD->pCurrentContext, pCurrentContextPointers, pCodeInfo);
+        VirtualUnwindCallFrame(pRD->pCurrentContext, pRD->pCurrentContextPointers, pCodeInfo);
     }
 
     SyncRegDisplayToCurrentContext(pRD);
@@ -1186,10 +1184,10 @@ BOOL StackFrameIterator::Init(Thread *    pThread,
     _ASSERTE(CanThisThreadCallIntoHost() || (flags & LIGHTUNWIND) == 0);
 #endif // DACCESS_COMPILE
 
-#if !defined(_TARGET_X86_)
+#ifdef WIN64EXCEPTIONS
     _ASSERTE(!(flags & POPFRAMES));
     _ASSERTE(pRegDisp->pCurrentContext);
-#endif // !_TARGET_X86_
+#endif // WIN64EXCEPTIONS
 
     BEGIN_FORBID_TYPELOAD();
 

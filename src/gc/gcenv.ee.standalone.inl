@@ -201,6 +201,12 @@ ALWAYS_INLINE void GCToEEInterface::StompWriteBarrier(WriteBarrierParameters* ar
     g_theGCToCLR->StompWriteBarrier(args);
 }
 
+ALWAYS_INLINE void GCToEEInterface::EnableFinalization(bool foundFinalizers)
+{
+    assert(g_theGCToCLR != nullptr);
+    g_theGCToCLR->EnableFinalization(foundFinalizers);
+}
+
 #undef ALWAYS_INLINE
 
 #endif // __GCTOENV_EE_STANDALONE_INL__

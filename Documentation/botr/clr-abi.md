@@ -50,7 +50,7 @@ Managed varargs are not supported in .NET Core.
 
 ## Generics
 
-*Shared generics*. In cases where the code address does not uniquely identify a generic instantiation of a method, then a 'generic instantiation parameter' is required. Often the "this" pointer can serve dual-purpose as the instantiation parameter. When the "this" pointer is not the generic parameter, the generic parameter is passed as the next argument (after the optional return buffer and the optional "this" pointer, but before any user arguments). For generic methods (where there is a type parameter directly on the method, as compared to the type), the generic parameter currently is a MethodDesc pointer (I believe an InstantiatedMethodDesc). For static methods (where there is no "this" pointer) the generic parameter is a MethodTable pointer/TypeHandle.
+*Shared generics*. In cases where the code address does not uniquely identify a generic instantiation of a method, then a 'generic instantiation parameter' is required. Often the "this" pointer can serve dual-purpose as the instantiation parameter. When the "this" pointer is not the generic parameter, the generic parameter is passed as an additional argument. On ARM, ARM64 and AMD64, it is passed after the optional return buffer and the optional "this" pointer, but before any user arguments. On x86, if all arguments of the function including "this" pointer fit into argument registers (ECX and EDX) and we still have argument registers available, we store the hidden argument in the next available argument register. Otherwise it is passed as the last stack argument. For generic methods (where there is a type parameter directly on the method, as compared to the type), the generic parameter currently is a MethodDesc pointer (I believe an InstantiatedMethodDesc). For static methods (where there is no "this" pointer) the generic parameter is a MethodTable pointer/TypeHandle.
 
 Sometimes the VM asks the JIT to report and keep alive the generics parameter. In this case, it must be saved on the stack someplace and kept alive via normal GC reporting (if it was the "this" pointer, as compared to a MethodDesc or MethodTable) for the entire method except the prolog and epilog. Also note that the code to home it, must be in the range of code reported as the prolog in the GC info (which probably isn't the same as the range of code reported as the prolog in the unwind info).
 
@@ -139,11 +139,11 @@ This section describes the conventions the JIT needs to follow when generating c
 
 ## Funclets
 
-For non-x86 platforms, all managed EH handlers (finally, fault, filter, filter-handler, and catch) are extracted into their own 'funclets'. To the OS they are treated just like first class functions (separate PDATA and XDATA (`RUNTIME_FUNCTION` entry), etc.). The CLR currently treats them just like part of the parent function in many ways. The main function and all funclets must be allocated in a single code allocation (see hot cold splitting). They 'share' GC info. Only the main function prolog can be hot patched.
+For all platforms except Windows/x86, all managed EH handlers (finally, fault, filter, filter-handler, and catch) are extracted into their own 'funclets'. To the OS they are treated just like first class functions (separate PDATA and XDATA (`RUNTIME_FUNCTION` entry), etc.). The CLR currently treats them just like part of the parent function in many ways. The main function and all funclets must be allocated in a single code allocation (see hot cold splitting). They 'share' GC info. Only the main function prolog can be hot patched.
 
 The only way to enter a handler funclet is via a call. In the case of an exception, the call is from the VM's EH subsystem as part of exception dispatch/unwind. In the non-exceptional case, this is called local unwind or a non-local exit. In C# this is accomplished by simply falling-through/out of a try body or an explicit goto. In IL this is always accomplished via a LEAVE opcode, within a try body, targeting an IL offset outside the try body. In such cases the call is from the JITed code of the parent function.
 
-For x86, all handlers are generated within the method body, typically in lexical order. A nested try/catch is generated completely within the EH region in which it is nested. These handlers are essentially "in-line funclets", but they do not look like normal functions: they do not have a normal prolog or epilog, although they do have special entry/exit and register conventions. Also, nested handlers are not un-nested as for funclets: the code for a nested handler is generated within the handler in which it is nested. 
+For Windows/x86, all handlers are generated within the method body, typically in lexical order. A nested try/catch is generated completely within the EH region in which it is nested. These handlers are essentially "in-line funclets", but they do not look like normal functions: they do not have a normal prolog or epilog, although they do have special entry/exit and register conventions. Also, nested handlers are not un-nested as for funclets: the code for a nested handler is generated within the handler in which it is nested. 
 
 ## Cloned finallys
 
@@ -333,9 +333,9 @@ When a funclet finishes execution, and the VM returns execution to the function 
 
 Any register value changes made in the funclet are lost. If a funclet wants to make a variable change known to the main function (or the funclet that contains the "try" region), that variable change needs to be made to the shared main function stack frame.
 
-## x86 EH considerations
+## Windows/x86 EH considerations
 
-The x86 model is somewhat different than the non-x86 model. X86-specific concerns are mentioned here.
+The Windows/x86 model is somewhat different than non-Windows/x86 model. Windows/X86-specific concerns are mentioned here.
 
 ### catch / filter-handler regions
 

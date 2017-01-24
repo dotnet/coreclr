@@ -11658,6 +11658,7 @@ DONE:
 
 void Compiler::fgClearFinallyTargetBit(BasicBlock* block)
 {
+    assert(fgComputePredsDone);
     assert((block->bbFlags & BBF_FINALLY_TARGET) != 0);
 
     for (flowList* pred = block->bbPreds; pred; pred = pred->flNext)
@@ -21980,6 +21981,13 @@ _Done:
     compNeedsGSSecurityCookie |= InlineeCompiler->compNeedsGSSecurityCookie;
     compGSReorderStackLayout |= InlineeCompiler->compGSReorderStackLayout;
 
+#ifdef FEATURE_SIMD
+    if (InlineeCompiler->usesSIMDTypes())
+    {
+        setUsesSIMDTypes(true);
+    }
+#endif // FEATURE_SIMD
+
     // Update unmanaged call count
     info.compCallUnmanaged += InlineeCompiler->info.compCallUnmanaged;
 
@@ -22639,11 +22647,20 @@ void Compiler::fgRemoveEmptyFinally()
 
 #if !FEATURE_EH_FUNCLETS
                 // Remove the GT_END_LFIN from the post-try-finally block.
-                // remove it since there is no finally anymore.
-                GenTreeStmt* endFinallyStmt = postTryFinallyBlock->lastStmt();
-                GenTreePtr   endFinallyExpr = endFinallyStmt->gtStmtExpr;
-                assert(endFinallyExpr->gtOper == GT_END_LFIN);
-                fgRemoveStmt(postTryFinallyBlock, endFinallyStmt);
+                // remove it since there is no finally anymore. Note we only
+                // expect to see one statement.
+                bool foundEndLFin = false;
+                for (GenTreeStmt* stmt = postTryFinallyBlock->firstStmt(); stmt != nullptr; stmt = stmt->gtNextStmt)
+                {
+                    GenTreePtr expr = stmt->gtStmtExpr;
+                    if (expr->gtOper == GT_END_LFIN)
+                    {
+                        assert(!foundEndLFin);
+                        fgRemoveStmt(postTryFinallyBlock, stmt);
+                        foundEndLFin = true;
+                    }
+                }
+                assert(foundEndLFin);
 #endif // !FEATURE_EH_FUNCLETS
 
                 // Make sure iteration isn't going off the deep end.
@@ -23275,12 +23292,21 @@ void Compiler::fgCloneFinally()
 #endif // FEATURE_EH_FUNCLETS && defined(_TARGET_ARM_)
 
 #if !FEATURE_EH_FUNCLETS
-        // Remove the GT_END_LFIN from the normalCallFinallyReturn
-        // since no callfinally returns there anymore.
-        GenTreeStmt* endFinallyStmt = normalCallFinallyReturn->lastStmt();
-        GenTreePtr   endFinallyExpr = endFinallyStmt->gtStmtExpr;
-        assert(endFinallyExpr->gtOper == GT_END_LFIN);
-        fgRemoveStmt(normalCallFinallyReturn, endFinallyStmt);
+        // Remove the GT_END_LFIN from the post-try-finally block.
+        // remove it since there is no finally anymore. Note we only
+        // expect to see one statement.
+        bool foundEndLFin = false;
+        for (GenTreeStmt* stmt = normalCallFinallyReturn->firstStmt(); stmt != nullptr; stmt = stmt->gtNextStmt)
+        {
+            GenTreePtr expr = stmt->gtStmtExpr;
+            if (expr->gtOper == GT_END_LFIN)
+            {
+                assert(!foundEndLFin);
+                fgRemoveStmt(normalCallFinallyReturn, stmt);
+                foundEndLFin = true;
+            }
+        }
+        assert(foundEndLFin);
 #endif
 
         // Todo -- mark cloned blocks as a cloned finally....

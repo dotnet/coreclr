@@ -104,6 +104,7 @@ elseif(CLR_CMAKE_TARGET_ARCH_I386)
     simd.cpp
     simdcodegenxarch.cpp
     targetx86.cpp
+    unwindx86.cpp
   )
 elseif(CLR_CMAKE_TARGET_ARCH_ARM64)
   set( ARCH_SOURCES
@@ -203,9 +204,9 @@ if (CLR_CMAKE_PLATFORM_ARCH_ARM)
     add_subdirectory(protojit)
 endif (CLR_CMAKE_PLATFORM_ARCH_ARM)
 
-if (CLR_CMAKE_PLATFORM_ARCH_I386)
+if (CLR_CMAKE_PLATFORM_ARCH_I386 AND WIN32)
     add_subdirectory(legacyjit)
     if (NOT CLR_BUILD_JIT32)
         add_subdirectory(compatjit)
     endif ()
-endif (CLR_CMAKE_PLATFORM_ARCH_I386)
+endif (CLR_CMAKE_PLATFORM_ARCH_I386 AND WIN32)

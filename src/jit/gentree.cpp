@@ -10745,7 +10745,17 @@ void Compiler::gtDispConst(GenTree* tree)
         case GT_CNS_INT:
             if (tree->IsIconHandle(GTF_ICON_STR_HDL))
             {
-                printf(" 0x%X \"%S\"", dspPtr(tree->gtIntCon.gtIconVal), eeGetCPString(tree->gtIntCon.gtIconVal));
+                const wchar_t* str = eeGetCPString(tree->gtIntCon.gtIconVal);
+                if (str != nullptr)
+                {
+                    printf(" 0x%X \"%S\"", dspPtr(tree->gtIntCon.gtIconVal), str);
+                }
+                else
+                {
+                    // Note that eGetCPString isn't currently implemented on Linux/ARM
+                    // and instead always returns nullptr
+                    printf(" 0x%X [ICON_STR_HDL]", dspPtr(tree->gtIntCon.gtIconVal));
+                }
             }
             else
             {
@@ -12006,6 +12016,10 @@ void Compiler::gtDispLIRNode(GenTree* node)
 
         // 49 spaces for alignment
         printf("%-49s", "");
+#ifdef FEATURE_SET_FLAGS
+        // additional flag enlarges the flag field by one character
+        printf(" ");
+#endif
 
         indentStack.Push(operandArc);
         indentStack.print();
@@ -15768,18 +15782,21 @@ unsigned GenTree::IsLclVarUpdateTree(GenTree** pOtherTree, genTreeOps* pOper)
     return lclNum;
 }
 
-// return true if this tree node is a subcomponent of parent for codegen purposes
-// (essentially, will be rolled into the same instruction)
-// Note that this method relies upon the value of gtRegNum field to determine
-// if the treenode is contained or not.  Therefore you can not call this method
-// until after the LSRA phase has allocated physical registers to the treenodes.
+//------------------------------------------------------------------------
+// isContained: check whether this tree node is a subcomponent of its parent for codegen purposes
+//
+// Return Value:
+//    Returns true if there is no code generated explicitly for this node.
+//    Essentially, it will be rolled into the code generation for the parent.
+//
+// Assumptions:
+//    This method relies upon the value of gtRegNum field to determine whether the tree node
+//    is contained.
+//    Therefore you can not call this method until after the LSRA phase has allocated physical
+//    registers to the treenodes.
+//
 bool GenTree::isContained() const
 {
-    if (isContainedSpillTemp())
-    {
-        return true;
-    }
-
     if (gtHasReg())
     {
         return false;
@@ -15798,7 +15815,6 @@ bool GenTree::isContained() const
         return false;
     }
 
-    // TODO-Cleanup : this is not clean, would be nice to have some way of marking this.
     switch (OperGet())
     {
         case GT_STOREIND:
