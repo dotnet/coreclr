@@ -355,7 +355,9 @@ GetVersionedProcAddress(
     if (ProcAddress == nullptr)
     {
 #ifdef HAVE_DLVSYM
-        // When version is empty, call dlsym to find the base version
+        // When version is empty, call dlsym to find the base version.
+        // Only do the lookup when the system supports dlvsym. When dlvsym
+        // isn't supported, calling dlsym would return the latest version.
         if ((lpProcVersion != nullptr) && (*lpProcVersion == '\0'))
         {
             lpProcVersion = nullptr;
