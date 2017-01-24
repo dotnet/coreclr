@@ -42,11 +42,11 @@ struct REGDISPLAY {
 
     T_KNONVOLATILE_CONTEXT_POINTERS ctxPtrsOne;  // used by stackwalk
     T_KNONVOLATILE_CONTEXT_POINTERS ctxPtrsTwo;  // used by stackwalk
+#endif // !WIN64EXCEPTIONS
 
 #ifdef DEBUG_REGDISPLAY
     Thread *_pThread;
 #endif // DEBUG_REGDISPLAY
-#endif // !WIN64EXCEPTIONS
 
     DWORD * pEdi;
     DWORD * pEsi;
