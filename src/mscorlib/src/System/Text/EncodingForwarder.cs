@@ -721,6 +721,11 @@ namespace System.Text
             throw GetValidationFailedException(chars, charIndex, charCount, bytes);
         }
 
+        internal static void ThrowValidationFailed(string s, int index, int count)
+        {
+            throw GetValidationFailedException(s, index, count);
+        }
+        
         private static void ThrowValidationFailed(string s, int charIndex, int charCount, byte[] bytes)
         {
             throw GetValidationFailedException(s, charIndex, charCount, bytes);
@@ -766,6 +771,18 @@ namespace System.Text
             return ThrowHelper.GetArgumentOutOfRangeException(ExceptionArgument.byteIndex, ExceptionResource.ArgumentOutOfRange_Index);
         }
 
+        private static Exception GetValidationFailedException(string s, int index, int count)
+        {
+            if (s == null)
+                return ThrowHelper.GetArgumentNullException(ExceptionArgument.s, ExceptionResource.ArgumentNull_String);
+            if (index < 0)
+                return ThrowHelper.GetArgumentOutOfRangeException(ExceptionArgument.index, ExceptionResource.ArgumentOutOfRange_Index);
+            if (count < 0)
+                return ThrowHelper.GetArgumentOutOfRangeException(ExceptionArgument.count, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
+            // (index > s.Length - count)
+            return ThrowHelper.GetArgumentOutOfRangeException(ExceptionArgument.index, ExceptionResource.ArgumentOutOfRange_IndexCountBuffer);
+        }
+        
         private static unsafe Exception GetValidationFailedException(char* chars, int charCount, byte* bytes)
         {
             if (bytes == null)

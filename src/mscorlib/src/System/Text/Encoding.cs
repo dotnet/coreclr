@@ -889,16 +889,14 @@ namespace System.Text
         [Pure]
         public int GetByteCount(string s, int index, int count)
         {
-            if (s == null)
-                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.s, ExceptionResource.ArgumentNull_String);
-            if (index < 0)
-                ThrowHelper.ThrowArgumentOutOfRange_IndexException();
-            if (count < 0)
-                ThrowHelper.ThrowCountArgumentOutOfRange_NeedNonNegNumException();
-            if (index > s.Length - count)
-                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.index, ExceptionResource.ArgumentOutOfRange_IndexCountBuffer);
+            if ((s == null) ||
+                (index < 0) ||
+                (count < 0) ||
+                (index > s.Length - count))
+            {
+                EncodingForwarder.ThrowValidationFailed(s, index, count);
+            }
             Contract.EndContractBlock();
-
             unsafe
             {
                 fixed (char* pChar = s)
@@ -1008,14 +1006,13 @@ namespace System.Text
         [Pure]
         public unsafe byte[] GetBytes(string s, int index, int count)
         {
-            if (s == null)
-                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.s, ExceptionResource.ArgumentNull_String);
-            if (index < 0)
-                ThrowHelper.ThrowArgumentOutOfRange_IndexException();
-            if (count < 0)
-                ThrowHelper.ThrowCountArgumentOutOfRange_NeedNonNegNumException();
-            if (index > s.Length - count)
-                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.index, ExceptionResource.ArgumentOutOfRange_IndexCountBuffer);
+            if ((s == null) ||
+                (index < 0) ||
+                (count < 0) ||
+                (index > s.Length - count))
+            {
+                EncodingForwarder.ThrowValidationFailed(s, index, count);
+            }
             Contract.EndContractBlock();
 
             byte[] bytes;
