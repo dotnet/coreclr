@@ -137,8 +137,10 @@ GetTypeInfoFromTypeHandle(TypeHandle typeHandle, NotifyGdb::PTK_TypeInfoMap pTyp
                     info->members[1].m_member_type = arrayTypeInfo;
                 }
             }
-            // Ignore inheritance from System.Object class.
-            if (pMT->GetParentMethodTable() && pMT->GetParentMethodTable()->GetParentMethodTable()) {
+            // Ignore inheritance from System.Object and System.ValueType classes.
+            if (!typeHandle.IsValueType() &&
+                pMT->GetParentMethodTable() && pMT->GetParentMethodTable()->GetParentMethodTable())
+            {
                 static_cast<ClassTypeInfo*>(typeInfo)->m_parent =
                     GetTypeInfoFromTypeHandle(typeHandle.GetParent(), pTypeMap);
             }
