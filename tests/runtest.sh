@@ -325,6 +325,16 @@ function handle_ctrl_c {
 # Register the Ctrl-C handler
 trap handle_ctrl_c INT
 
+# Handle USR1. We will print the results that we gathered so far and continue.
+function handle_usr1 {
+    echo ""
+    print_results
+    echo ""
+}
+
+# Register the USR1 handler
+trap handle_usr1 USR1
+
 function create_core_overlay {
     local errorSource='create_core_overlay'
     local printUsage=1
