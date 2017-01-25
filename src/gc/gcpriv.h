@@ -167,8 +167,6 @@ void GCLogConfig (const char *fmt, ... );
 #define TRACE_GC
 #endif
 
-#define NUMBERGENERATIONS   4               //Max number of generations
-
 // For the bestfit algorithm when we relocate ephemeral generations into an 
 // existing gen2 segment.
 // We recorded sizes from 2^6, 2^7, 2^8...up to 2^30 (1GB). So that's 25 sizes total.
@@ -781,6 +779,9 @@ public:
     int             gen_num;
 
 #ifdef FREE_USAGE_STATS
+    #pragma message ("FREE_USAGE_STATS changes the layout of the 'generation' class, which is known to the DAC. " \
+                    "Changing the layout of this class will result in a degraded debugging experience.")
+
     size_t          gen_free_spaces[NUM_GEN_POWER2];
     // these are non pinned plugs only
     size_t          gen_plugs[NUM_GEN_POWER2];
@@ -791,6 +792,12 @@ public:
     size_t          allocated_since_last_pin;
 #endif //FREE_USAGE_STATS
 };
+
+static_assert(sizeof(dac_generation) == sizeof(generation), "DAC generation size mismatch");
+static_assert(offsetof(dac_generation, allocation_context) == offsetof(generation, allocation_context), "DAC generation offset mismatch");
+static_assert(offsetof(dac_generation, start_segment) == offsetof(generation, start_segment), "DAC generation offset mismatch");
+static_assert(offsetof(dac_generation, allocation_start) == offsetof(generation, allocation_start), "DAC generation offset mismatch");
+
 
 // The dynamic data fields are grouped into 3 categories:
 //
@@ -1103,6 +1110,8 @@ class gc_heap
     friend void checkGCWriteBarrier();
     friend void initGCShadow();
 #endif //defined (WRITE_BARRIER_CHECK) && !defined (SERVER_GC)
+
+    friend void PopulateDacVars(GcDacVars *gcDacVars);
 
 #ifdef MULTIPLE_HEAPS
     typedef void (gc_heap::* card_fn) (uint8_t**, int);
@@ -1549,13 +1558,6 @@ protected:
                          size_t size, 
                          alloc_context* acontext,
                          int align_const);
-
-    enum c_gc_state
-    {
-        c_gc_state_marking,
-        c_gc_state_planning,
-        c_gc_state_free
-    };
 
 #ifdef RECORD_LOH_STATE
     #define max_saved_loh_states 12
@@ -3712,6 +3714,9 @@ class CFinalize
 #ifdef DACCESS_COMPILE
     friend class ::ClrDataAccess;
 #endif // DACCESS_COMPILE
+
+    friend class CFinalizeStaticAsserts;
+
 private:
 
     //adjust the count and add a constant to add a segment
@@ -3779,7 +3784,16 @@ public:
     BOOL FinalizeAppDomain (AppDomain *pDomain, BOOL fRunFinalizers);
 
     void CheckFinalizerObjects();
+
 };
+
+class CFinalizeStaticAsserts {
+    static_assert(dac_finalize_queue::ExtraSegCount == CFinalize::ExtraSegCount, "ExtraSegCount mismatch");
+    static_assert(offsetof(dac_finalize_queue, m_FillPointers) == offsetof(CFinalize, m_FillPointers), "CFinalize layout mismatch");
+    static_assert(sizeof(dac_finalize_queue) == sizeof(CFinalize), "CFinalize size mismatch");
+};
+
+
 #endif // FEATURE_PREMORTEM_FINALIZATION
 
 inline
@@ -4190,6 +4204,19 @@ public:
 #pragma warning(default:4324)  // structure was padded due to __declspec(align())
 #endif
 };
+
+#ifndef MULTIPLE_HEAPS
+static_assert(sizeof(dac_heap_segment) == sizeof(heap_segment), "DAC heap segment size mismatch");
+#endif
+
+static_assert(offsetof(dac_heap_segment, allocated) == offsetof(heap_segment, allocated), "DAC heap segment layout mismatch");
+static_assert(offsetof(dac_heap_segment, committed) == offsetof(heap_segment, committed), "DAC heap segment layout mismatch");
+static_assert(offsetof(dac_heap_segment, reserved) == offsetof(heap_segment, reserved), "DAC heap segment layout mismatch");
+static_assert(offsetof(dac_heap_segment, used) == offsetof(heap_segment, used), "DAC heap segment layout mismatch");
+static_assert(offsetof(dac_heap_segment, mem) == offsetof(heap_segment, mem), "DAC heap segment layout mismatch");
+static_assert(offsetof(dac_heap_segment, flags) == offsetof(heap_segment, flags), "DAC heap segment layout mismatch");
+static_assert(offsetof(dac_heap_segment, next) == offsetof(heap_segment, next), "DAC heap segment layout mismatch");
+static_assert(offsetof(dac_heap_segment, background_allocated) == offsetof(heap_segment, background_allocated), "DAC heap segment layout mismatch");
 
 inline
 uint8_t*& heap_segment_reserved (heap_segment* inst)

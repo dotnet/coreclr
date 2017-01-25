@@ -2924,10 +2924,15 @@ void InitializeGarbageCollector()
     IGCToCLR* gcToClr = nullptr;
 #endif
 
-    IGCHeap *pGCHeap = InitializeGarbageCollector(gcToClr);
-    g_pGCHeap = pGCHeap;
-    if (!pGCHeap)
+
+    IGCHeap *pGCHeap;
+    if (!InitializeGarbageCollector(gcToClr, &pGCHeap, &g_gc_dac_vars)) 
+    {
         ThrowOutOfMemory();
+    }
+
+    assert(pGCHeap != nullptr);
+    g_pGCHeap = pGCHeap;
 
     hr = pGCHeap->Initialize();
     IfFailThrow(hr);

@@ -2385,9 +2385,9 @@ size_t      gc_heap::ephemeral_fgc_counts[max_generation];
 BOOL        gc_heap::alloc_wait_event_p = FALSE;
 
 #if defined (DACCESS_COMPILE) && !defined (MULTIPLE_HEAPS)
-SVAL_IMPL_NS_INIT(gc_heap::c_gc_state, WKS, gc_heap, current_c_gc_state, c_gc_state_free);
+SVAL_IMPL_NS_INIT(c_gc_state, WKS, gc_heap, current_c_gc_state, c_gc_state_free);
 #else
-VOLATILE(gc_heap::c_gc_state) gc_heap::current_c_gc_state = c_gc_state_free;
+VOLATILE(c_gc_state) gc_heap::current_c_gc_state = c_gc_state_free;
 #endif //DACCESS_COMPILE && !MULTIPLE_HEAPS
 
 #endif //BACKGROUND_GC
@@ -36793,4 +36793,46 @@ BOOL GCHeap::IsConcurrentGCEnabled()
 #else
     return FALSE;
 #endif //BACKGROUND_GC
+}
+
+void PopulateDacVars(GcDacVars *gcDacVars)
+{
+#ifndef DACCESS_COMPILE
+    assert(gcDacVars != nullptr);
+    *gcDacVars = {};
+    gcDacVars->major_version_number = &g_gc_dac_major_version;
+    gcDacVars->minor_version_number = &g_gc_dac_minor_version;
+    gcDacVars->built_with_svr = &g_built_with_svr_gc;
+    gcDacVars->build_variant = &g_build_variant;
+    gcDacVars->gc_structures_invalid_cnt = const_cast<int32_t*>(&GCScan::m_GcStructuresInvalidCnt);
+#ifdef GC_CONFIG_DRIVEN
+    gcDacVars->gc_global_mechanisms = reinterpret_cast<size_t**>(&gc_global_mechanisms);
+#endif // GC_CONFIG_DRIVEN
+#ifdef FEATURE_SVR_GC
+    gcDacVars->gc_heap_type = &IGCHeap::gcHeapType;
+#endif // FEATURE_SVR_GC
+    gcDacVars->max_gen = &IGCHeap::maxGeneration;
+#ifndef MULTIPLE_HEAPS
+    gcDacVars->mark_array = &gc_heap::mark_array;
+    gcDacVars->ephemeral_heap_segment = reinterpret_cast<dac_heap_segment**>(&gc_heap::ephemeral_heap_segment);
+    gcDacVars->current_c_gc_state = const_cast<c_gc_state*>(&gc_heap::current_c_gc_state);
+    gcDacVars->saved_sweep_ephemeral_seg = reinterpret_cast<dac_heap_segment**>(&gc_heap::saved_sweep_ephemeral_seg);
+    gcDacVars->saved_sweep_ephemeral_start = &gc_heap::saved_sweep_ephemeral_start;
+    gcDacVars->background_saved_lowest_address = &gc_heap::background_saved_lowest_address;
+    gcDacVars->background_saved_highest_address = &gc_heap::background_saved_highest_address;
+    gcDacVars->alloc_allocated = &gc_heap::alloc_allocated;
+    gcDacVars->next_sweep_obj = &gc_heap::next_sweep_obj;
+    gcDacVars->oom_info = &gc_heap::oom_info;
+    gcDacVars->finalize_queue = reinterpret_cast<dac_finalize_queue**>(&gc_heap::finalize_queue);
+    gcDacVars->generation_table = reinterpret_cast<dac_generation**>(&generation_table[0]);
+#ifdef HEAP_ANALYZE
+    gcDacVars->internal_root_array = &gc_heap::internal_root_array;
+    gcDacVars->internal_root_array_index = &gc_heap::internal_root_array_index;
+    gcDacVars->heap_analyze_success = &gc_heap::heap_analyze_success;
+#endif // HEAP_ANALYZE
+#else
+    gcDacVars->n_heaps = &gc_heap::n_heaps;
+    gcDacVars->g_heaps = &gc_heap::g_heaps;
+#endif // MULTIPLE_HEAPS
+#endif // DACCESS_COMPILE
 }

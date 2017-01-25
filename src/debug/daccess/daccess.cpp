@@ -7976,7 +7976,7 @@ HRESULT DacHandleWalker::Init(ClrDataAccess *dac, UINT types[], UINT typeCount, 
 {
     SUPPORTS_DAC;
     
-    if (gen < 0 || gen > (int)GCHeapUtilities::GetMaxGeneration())
+    if (gen < 0 || gen > (int)*g_gcDacGlobals->max_gen)
         return E_INVALIDARG;
         
     mGenerationFilter = gen;
@@ -8091,7 +8091,7 @@ bool DacHandleWalker::FetchMoreHandles(HANDLESCANPROC callback)
                                 HndScanHandlesForGC(hTable, callback, 
                                                     (LPARAM)&param, 0, 
                                                      &handleType, 1, 
-                                                     mGenerationFilter, GCHeapUtilities::GetMaxGeneration(), 0);
+                                                     mGenerationFilter, *g_gcDacGlobals->max_gen, 0);
                             else
                                 HndEnumHandles(hTable, &handleType, 1, callback, (LPARAM)&param, 0, FALSE);
                         }

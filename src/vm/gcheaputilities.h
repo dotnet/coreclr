@@ -34,6 +34,7 @@ extern "C" bool g_sw_ww_enabled_for_gc_heap;
 
 #endif // FEATURE_USE_SOFTWARE_WRITE_WATCH_FOR_GC_HEAP
 
+GVAL_DECL(GcDacVars, g_gc_dac_vars);
 
 // GCHeapUtilities provides a number of static methods
 // that operate on the global heap instance. It can't be
@@ -110,27 +111,6 @@ public:
 #else // FEATURE_SVR_GC
         return false;
 #endif // FEATURE_SVR_GC
-    }
-
-    // Gets the maximum generation number by reading the static field
-    // on IGCHeap. This should only be done by the DAC code paths - all other code
-    // should go through IGCHeap::GetMaxGeneration.
-    //
-    // The reason for this is that, while we are in the early stages of
-    // decoupling the GC, the GC and the DAC still remain tightly coupled
-    // and, in particular, the DAC needs to know how many generations the GC
-    // has. However, it is not permitted to invoke virtual methods on g_pGCHeap
-    // while on a DAC code path. Therefore, we need to determine the max generation
-    // non-virtually, while still in a manner consistent with the interface - 
-    // therefore, a static field is used.
-    //
-    // This is not without precedent - IGCHeap::gcHeapType is a static field used
-    // for a similar reason (the DAC needs to know what kind of heap it's looking at).
-    inline static unsigned GetMaxGeneration()
-    {
-        WRAPPER_NO_CONTRACT;
-
-        return IGCHeap::maxGeneration;
     }
 
 #ifdef FEATURE_USE_SOFTWARE_WRITE_WATCH_FOR_GC_HEAP

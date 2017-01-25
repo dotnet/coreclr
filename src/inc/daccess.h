@@ -640,6 +640,7 @@ typedef struct _DacGlobals
 
 extern DacTableInfo g_dacTableInfo;
 extern DacGlobals g_dacGlobals;
+extern struct GcDacVars *g_gcDacGlobals;
 
 #ifdef __cplusplus
 extern "C" {
