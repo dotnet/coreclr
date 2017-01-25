@@ -687,7 +687,7 @@ function run_test {
         set_up_core_dump_generation
     fi
 
-    "./$scriptFileName" >"$outputFileName" 2>&1
+    nice "./$scriptFileName" >"$outputFileName" 2>&1
     local testScriptExitCode=$?
 
     # We will try to print some information from generated core dumps if a debugger
