@@ -487,30 +487,15 @@ function load_playlist_tests {
 }
 
 function is_unsupported_test {
-    for unsupportedTest in "${unsupportedTests[@]}"; do
-        if [ "$1" == "$unsupportedTest" ]; then
-            return 0
-        fi
-    done
-    return 1
+    return test -v unsupportedTests[$1]
 }
 
 function is_failing_test {
-    for failingTest in "${failingTests[@]}"; do
-        if [ "$1" == "$failingTest" ]; then
-            return 0
-        fi
-    done
-    return 1
+    return test -v failingTests[$1]
 }
 
 function is_playlist_test {
-    for playlistTest in "${playlistTests[@]}"; do
-        if [ "$1" == "$playlistTest" ]; then
-            return 0
-        fi
-    done
-    return 1
+    return test -v playlistTests[$1]
 }
 
 function skip_unsupported_test {
