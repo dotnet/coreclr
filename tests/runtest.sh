@@ -56,7 +56,7 @@ function print_usage {
     echo '  --long-gc                        : Runs the long GC tests'
     echo '  --gcsimulator                    : Runs the GCSimulator tests'
     echo '  --show-time                      : Print execution sequence and running time for each test'
-    echo '  --no-lf-conversion               : Do not execute LF conversion before running test script'
+    echo '  --lf-conversion                  : Execute LF conversion before running test script'
     echo '  --build-overlay-only             : Exit after overlay directory is populated'
     echo '  --limitedDumpGeneration          : Enables the generation of a limited number of core dumps if test(s) crash, even if ulimit'
     echo '                                     is zero when launching this script. This option is intended for use in CI.'
@@ -803,7 +803,7 @@ function prep_test {
 
     test "$verbose" == 1 && echo "Preparing $scriptFilePath"
 
-    if [ ! "$noLFConversion" == "ON" ]; then
+    if [ "$LFConversion" == "ON" ]; then
         # Convert DOS line endings to Unix if needed
         perl -pi -e 's/\r\n|\n|\r/\n/g' "$scriptFilePath"
     fi
@@ -965,7 +965,7 @@ coverageOutputDir=
 testEnv=
 playlistFile=
 showTime=
-noLFConversion=
+LFConversion=
 buildOverlayOnly=
 gcsimulator=
 longgc=
@@ -1076,8 +1076,8 @@ do
         --show-time)
             showTime=ON
             ;;
-        --no-lf-conversion)
-            noLFConversion=ON
+        --lf-conversion)
+            LFConversion=ON
             ;;
         --build-overlay-only)
             buildOverlayOnly=ON
