@@ -292,28 +292,28 @@ DWORD NativeWalker::GetRegisterValue(int registerNumber)
     switch (registerNumber)
     {
     case 0:
-        return *m_registers->pEax;
+        return m_registers->ReadEax();
         break;
     case 1:
-        return *m_registers->pEcx;
+        return m_registers->ReadEcx();
         break;
     case 2:
-        return *m_registers->pEdx;
+        return m_registers->ReadEdx();
         break;
     case 3:
-        return *m_registers->pEbx;
+        return m_registers->ReadEbx();
         break;
     case 4:
         return m_registers->SP;
         break;
     case 5:
-        return *m_registers->pEbp;
+        return m_registers->ReadEbp();
         break;
     case 6:
-        return *m_registers->pEsi;
+        return m_registers->ReadEsi();
         break;
     case 7:
-        return *m_registers->pEdi;
+        return m_registers->ReadEdi();
         break;
     default:
         _ASSERTE(!"Invalid register number!");

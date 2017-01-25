@@ -75,23 +75,9 @@ OOPStackUnwinderX86::VirtualUnwind(
 
     REGDISPLAY rd;
 
-    if (ContextPointers != NULL)
-    {
-#define CALLEE_SAVED_REGISTER(reg) rd.p##reg = ContextPointers->reg;
-        ENUM_CALLEE_SAVED_REGISTERS();
-#undef CALLEE_SAVED_REGISTER
-    }
-    else
-    {
-#define CALLEE_SAVED_REGISTER(reg) rd.p##reg = NULL;
-        ENUM_CALLEE_SAVED_REGISTERS();
-#undef CALLEE_SAVED_REGISTER
-    }
+    rd.pCurrentContext = ContextRecord;
+    rd.pCurrentContextPointers = ContextPointers;
 
-    if (rd.pEbp == NULL)
-    {
-        rd.pEbp = &(ContextRecord->Ebp);
-    }
     rd.SP = ContextRecord->Esp;
     rd.ControlPC = (PCODE)(ContextRecord->Eip);
     rd.PCTAddr = (UINT_PTR)&(ContextRecord->Eip);
@@ -107,22 +93,10 @@ OOPStackUnwinderX86::VirtualUnwind(
         return HRESULT_FROM_WIN32(ERROR_READ_FAULT);
     }
 
-#define CALLEE_SAVED_REGISTER(reg) if (rd.p##reg != NULL) { ContextRecord->reg = *rd.p##reg; }
-    ENUM_CALLEE_SAVED_REGISTERS();
-#undef CALLEE_SAVED_REGISTER
-    
-    if (ContextPointers != NULL) 
-    {
-#define CALLEE_SAVED_REGISTER(reg) if (rd.p##reg != &(ContextRecord->reg)) { ContextPointers->reg = rd.p##reg; }
-        ENUM_CALLEE_SAVED_REGISTERS();
-#undef CALLEE_SAVED_REGISTER
-    }
-
     ContextRecord->ContextFlags |= CONTEXT_UNWOUND_TO_CALL;
 
     ContextRecord->Esp = rd.SP;
     ContextRecord->Eip = rd.ControlPC;
-    ContextRecord->Ebp = *rd.pEbp;
 
     return S_OK;
 }

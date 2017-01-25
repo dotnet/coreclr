@@ -88,12 +88,12 @@ void SetDebuggerREGDISPLAYFromREGDISPLAY(DebuggerREGDISPLAY* pDRD, REGDISPLAY* p
     // Frame pointer        
     LPVOID FPAddress = GetRegdisplayFPAddress(pRD);
     pDRD->FP  = (FPAddress == NULL ? 0 : *((SIZE_T *)FPAddress));
-    pDRD->Edi  = (pRD->pEdi == NULL ? 0 : *(pRD->pEdi));
-    pDRD->Esi  = (pRD->pEsi == NULL ? 0 : *(pRD->pEsi));
-    pDRD->Ebx  = (pRD->pEbx == NULL ? 0 : *(pRD->pEbx));
-    pDRD->Edx  = (pRD->pEdx == NULL ? 0 : *(pRD->pEdx));
-    pDRD->Ecx  = (pRD->pEcx == NULL ? 0 : *(pRD->pEcx));
-    pDRD->Eax  = (pRD->pEax == NULL ? 0 : *(pRD->pEax));
+    pDRD->Edi  = (pRD->LocateEdi() == NULL ? 0 : pRD->ReadEdi());
+    pDRD->Esi  = (pRD->LocateEsi() == NULL ? 0 : pRD->ReadEsi());
+    pDRD->Ebx  = (pRD->LocateEbx() == NULL ? 0 : pRD->ReadEbx());
+    pDRD->Edx  = (pRD->LocateEdx() == NULL ? 0 : pRD->ReadEdx());
+    pDRD->Ecx  = (pRD->LocateEcx() == NULL ? 0 : pRD->ReadEcx());
+    pDRD->Eax  = (pRD->LocateEax() == NULL ? 0 : pRD->ReadEax());
 
 #if defined(USE_REMOTE_REGISTER_ADDRESS)
     pDRD->pFP = PushedRegAddr(pRD, FPAddress);

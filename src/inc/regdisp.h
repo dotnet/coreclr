@@ -62,17 +62,82 @@ struct REGDISPLAY : public REGDISPLAY_BASE {
     PCONTEXT pContextForUnwind; // scratch context for unwinding
                                 // used to preserve context saved in the frame that
                                 // could be otherwise wiped by the unwinding
-#endif // !WIN64EXCEPTIONS
 
-    DWORD * pEdi;
-    DWORD * pEsi;
-    DWORD * pEbx;
-    DWORD * pEdx;
-    DWORD * pEcx;
     DWORD * pEax;
+    DWORD * pEcx;
+    DWORD * pEdx;
 
+    DWORD * pEbx;
+    DWORD * pEsi;
+    DWORD * pEdi;
     DWORD * pEbp;
+
+#define VOLATILE_REG_METHODS(reg) \
+    inline DWORD  Read##reg(void)   { return *pReg; } \
+    inline PDWORD Locate##reg(void) { return pReg;  } \
+    inline void   Restore##reg(PDWORD p##reg) { this->p##reg = p##reg; } \
+    inline void   Trash##reg(PDWORD p##reg)   { this->p##reg = p##reg; }
+
+#define NONVOLATILE_REG_METHODS(reg) VOLATILE_REG_METHOD(reg)
+
+#else // !WIN64EXCEPTIONS
+
+#define VOLATILE_REG_METHODS(reg) \
+    inline DWORD  Read##reg(void)   { return pCurrentContext->reg; } \
+    inline PDWORD Locate##reg(void) { return NULL; } \
+    inline void   Restore##reg(PDWORD p##reg) { pCurrentContext->reg = *p##reg; } \
+    inline void   Trash##reg(PDWORD p##reg)   { pCurrentContext->reg = *p##reg; }
+
+#define NONVOLATILE_REG_METHODS(reg) \
+    inline DWORD  Read##reg(void)   { return pCurrentContext->reg; } \
+    inline PDWORD Locate##reg(void) { return (pCurrentContextPointers) ? pCurrentContextPointers->reg : NULL; } \
+    inline void   Restore##reg(PDWORD p##reg) { if (pCurrentContextPointers) { pCurrentContextPointers->reg = p##reg; } pCurrentContext->reg = *p##reg; } \
+    inline void   Trash##reg(PDWORD p##reg)   { if (pCurrentContextPointers) { pCurrentContextPointers->reg = NULL; } pCurrentContext->reg = *p##reg; }
+#endif // WIN64EXCEPTIONS
+
+    VOLATILE_REG_METHODS(Eax)
+    VOLATILE_REG_METHODS(Ecx)
+    VOLATILE_REG_METHODS(Edx)
+
+    NONVOLATILE_REG_METHODS(Ebx)
+    NONVOLATILE_REG_METHODS(Esi)
+    NONVOLATILE_REG_METHODS(Edi)
+    NONVOLATILE_REG_METHODS(Ebp)
+
+#undef VOLATILE_REG_METHODS
+#undef NONVOLATILE_REG_METHODS
+
     TADDR   PCTAddr;
+
+    enum TAG
+    {
+      TAG_EBX,
+      TAG_ESI,
+      TAG_EDI,
+      TAG_EBP
+    };
+
+    inline void Restore(TAG tag, PDWORD pReg)
+    {
+        switch (tag)
+        {
+        case TAG_EBX:
+            RestoreEbx(pReg);
+            break;
+        case TAG_ESI:
+            RestoreEsi(pReg);
+            break;
+        case TAG_EDI:
+            RestoreEdi(pReg);
+            break;
+        case TAG_EBP:
+            RestoreEbp(pReg);
+            break;
+        default:
+            _ASSERTE(!"Invalid register");
+            break;
+        }
+    }
 };
 
 inline TADDR GetRegdisplaySP(REGDISPLAY *display) {
@@ -90,13 +155,13 @@ inline void SetRegdisplaySP(REGDISPLAY *display, LPVOID sp ) {
 inline TADDR GetRegdisplayFP(REGDISPLAY *display) {
     LIMITED_METHOD_DAC_CONTRACT;
 
-    return (TADDR)*(display->pEbp);
+    return (TADDR)display->ReadEbp();
 }
 
 inline LPVOID GetRegdisplayFPAddress(REGDISPLAY *display) {
     LIMITED_METHOD_CONTRACT;
     
-    return (LPVOID)display->pEbp;
+    return (LPVOID)display->LocateEbp();
 }
 
 inline PCODE GetControlPC(REGDISPLAY *display) {
