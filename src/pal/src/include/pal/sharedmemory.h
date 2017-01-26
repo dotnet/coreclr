@@ -6,7 +6,6 @@
 #define _PAL_SHARED_MEMORY_H_
 
 #include "corunix.hpp"
-#include "file.h"
 
 #ifndef static_assert_no_msg
 #define static_assert_no_msg( cond ) static_assert( cond, #cond )
@@ -16,14 +15,17 @@
 #define _countof(a) (sizeof(a) / sizeof(a[0]))
 #endif // !_countof
 
+// The temporary folder is used for storing shared memory files and their lock files.
+// The location of the temporary folder varies (e.g. /data/local/tmp on Android)
+// and is set in TEMP_DIRECTORY_PATH
 // - Global shared memory files go in:
-//     /tmp/.dotnet/shm/global/<fileName>
+//     {tmp}/.dotnet/shm/global/<fileName>
 // - Session-scoped shared memory files go in:
-//     /tmp/.dotnet/shm/session<sessionId>/<fileName>
+//     {tmp}/.dotnet/shm/session<sessionId>/<fileName>
 // - Lock files associated with global shared memory files go in:
-//     /tmp/.dotnet/lockfiles/global/<fileName>
+//     {tmp}/.dotnet/lockfiles/global/<fileName>
 // - Lock files associated with session-scoped shared memory files go in:
-//     /tmp/.dotnet/lockfiles/session<sessionId>/<fileName>
+//     {tmp}/.dotnet/lockfiles/session<sessionId>/<fileName>
 
 #define SHARED_MEMORY_MAX_FILE_NAME_CHAR_COUNT (_MAX_FNAME - 1)
 #define SHARED_MEMORY_MAX_NAME_CHAR_COUNT (_countof("Global\\") - 1 + SHARED_MEMORY_MAX_FILE_NAME_CHAR_COUNT)

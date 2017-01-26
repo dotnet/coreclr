@@ -21,7 +21,6 @@ Abstract:
 #include "pal/procobj.hpp"
 #include "pal/thread.hpp"
 #include "pal/file.hpp"
-#include "pal/file.h"
 #include "pal/handlemgr.hpp"
 #include "pal/module.h"
 #include "procprivate.hpp"
