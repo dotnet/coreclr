@@ -3826,7 +3826,6 @@ bool UnwindEbpDoubleAlignFrame(
                 pContext->TrashEbx(&s_badData);
                 pContext->TrashEsi(&s_badData);
                 pContext->TrashEdi(&s_badData);
-                pContext->TrashEbp(&s_badData);
             }
 #endif
 
