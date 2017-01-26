@@ -845,7 +845,7 @@ void Lowering::TreeNodeInfoInit(GenTree* tree)
     DISPNODE(tree);
 
     NYI_IF(tree->TypeGet() == TYP_STRUCT, "lowering struct");
-    NYI_IF(tree->TypeGet() == TYP_LONG,   "lowering long");
+    NYI_IF(tree->TypeGet() == TYP_LONG, "lowering long");
     NYI_IF(tree->TypeGet() == TYP_DOUBLE, "lowering double");
 
     switch (tree->OperGet())
