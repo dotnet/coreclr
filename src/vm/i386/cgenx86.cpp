@@ -251,10 +251,10 @@ void EHContext::UpdateFrame(PREGDISPLAY regs)
     LOG((LF_EH, LL_INFO1000, "Updating saved EDI: *%p= %p\n", regs->LocateEdi(), this->Edi));
     LOG((LF_EH, LL_INFO1000, "Updating saved EBP: *%p= %p\n", regs->LocateEbp(), this->Ebp));
     
-    regs->RestoreEbx(PDWORD(&this->Ebx));
-    regs->RestoreEsi(PDWORD(&this->Esi));
-    regs->RestoreEdi(PDWORD(&this->Edi));
-    regs->RestoreEbp(PDWORD(&this->Ebp));
+    *regs->LocateEbx() = this->Ebx;
+    *regs->LocateEsi() = this->Esi;
+    *regs->LocateEdi() = this->Edi;
+    *regs->LocateEbp() = this->Ebp;
 }
 
 void TransitionFrame::UpdateRegDisplay(const PREGDISPLAY pRD)
