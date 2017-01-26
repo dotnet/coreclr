@@ -78,7 +78,7 @@ struct REGDISPLAY : public REGDISPLAY_BASE {
     inline void   Restore##reg(PDWORD p##reg) { this->p##reg = p##reg; } \
     inline void   Trash##reg(PDWORD p##reg)   { this->p##reg = p##reg; }
 
-#define NONVOLATILE_REG_METHODS(reg) VOLATILE_REG_METHOD(reg)
+#define NONVOLATILE_REG_METHODS(reg) VOLATILE_REG_METHODS(reg)
 
 #else // !WIN64EXCEPTIONS
 
