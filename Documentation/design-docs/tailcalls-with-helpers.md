@@ -45,7 +45,7 @@ This section describes the helper functions and data structures that the tail ca
 ### Helper functions
 The tail calls use the following thunks and helpers:
 * StoreArguments - this thunk stores the arguments into a thread local storage together with the address of the corresponding CallTarget thunk and a descriptor of locations and types of managed references in the stored arguments data. This thunk is generated as IL and compiled by the jitter or AOT compiler. There is one such thunk per tail call target.
-It has a signature that is compatible with the tailcall target function, but it is not the same. It gets the same arguments as the tail call target function, but it would also get "this" pointer and the generic context as explicit arguments if the tail call target requires them. It has the same return type as the tail call target function. Arguments and return values of generic reference types are passed as "object" so that the StoreArguments doesn't have to be generic. This is just to make it easier for the JIT, we can also make the return type "void".
+It has a signature that is compatible with the tailcall target function except for the return type which is void. But it is not the same. It gets the same arguments as the tail call target function, but it would also get "this" pointer and the generic context as explicit arguments if the tail call target requires them. Arguments of generic reference types are passed as "object" so that the StoreArguments doesn't have to be generic.
 * CallTarget - this thunk gets the arguments buffer that was filled by the StoreArguments thunk, loads the arguments from the buffer, releases the buffer and calls the target function using calli. The signature used for the calli would ensure that all arguments including the optional hidden return buffer and the generic context are passed in the right registers / stack slots. Generic reference arguments will be specified as "object" in the signature so that the CallTarget doesn't have to be generic. 
 The CallTarget is also generated as IL and compiled by the jitter or AOT compiler. There is one such thunk per tail call target. This thunk has the same return type as the tailcall target or return "object" if the return type of the tail call target is a generic reference type.
 * TailCallHelper - this is an assembler helper that is responsible for restoring stack pointer to the location where it was when the first function in a tail call chain was entered and then jumping to the CallTarget thunk. This helper is common for all tail call targets. 
@@ -64,7 +64,7 @@ The tail calls use the following data structures:
   * Pointer to the next entry on the stack.
 
 ### Tail call sequence
-* The caller calls the StoreArguments thunk corresponding to the callee to store the arguments, their GC descriptors and the corresponding CallTarget thunk address in a thread local storage.
+* The caller calls the StoreArguments thunk corresponding to the callee to store the pointer to the tail call target function, its arguments, their GC descriptors, optional "this" and generic context arguments and the corresponding CallTarget thunk address in a thread local storage.
 * The caller executes its epilog, restoring stack pointer and callee saved registers to their values when the caller was entered.
 * The caller jumps to the TailCallHelper. This function performs the following operations:
   * Get the topmost TailCallHelperStack entry for the current thread.
@@ -74,7 +74,7 @@ The tail calls use the following data structures:
 * The CallTarget thunk function then does the following operation:
   * Create local instance of TailCallHelperStack entry and store the current stack pointer value in it.
   * Push the entry to the TailCallHelperStack of the current thread.
-  * Get the arguments buffer from the thread local storage, extract the arguments, release the buffer and call the target function. The frame of the CallTarget thunk ensures that the arguments of the target are GC protected until the target function returns or tail calls to another function.
+  * Get the arguments buffer from the thread local storage, extract the regular arguments and the optional "this" and generic context arguments and the target function pointer. Release the buffer and call the target function. The frame of the CallTarget thunk ensures that the arguments of the target are GC protected until the target function returns or tail calls to another function.
   * Pop the TailCallHelperStack entry from the TailCallHelperStack of the current thread.
   * Check the ChainCall flag in the TailCallHelperStack entry. If it is set, run epilog and jump to the TailCallHelper.
   * If the ChainCall flag is clear, it means that the last function in the tail call chain has returned. So return the return value of the target function.
@@ -101,6 +101,8 @@ ret
   * Add functions to create, release and get the buffer for a thread
   * Add support for GC scanning the arguments buffers.
 * Implement the TailCallHelper asm helper for all architectures
+### Debugging in both scenarios
+Ensure that the stepping in a debugger works correctly. In CoreCLR, the TailCallStubManager needs to be updated accordingly.
 
 ## Example code
 
@@ -294,42 +296,69 @@ class Foo
 For tail calling the Test function, the IL helpers could look e.g. as follows:
 
 ```IL
-.method public static Point StoreArgumentsTest(object thisObj, object genericContext, int x, object t) cil managed
+.method public static void StoreArgumentsTest(native int target, object thisObj, native int genericContext, int x, object t) cil managed
 {
-	.maxstack 4
-	.locals init (
-		[0] valuetype Point,
-	)
+    .maxstack 4
+    .locals init (
+       [0] native int buffer,
+    )
 
-    call native int FetchArgumentBuffer()
+    call native int AllocateArgumentBuffer(56)
+    stloc.0
 
-	dup
-	ldarg.0 // "thisObj"
-	stobj object
-	sizeof object
-	add
-	dup
+    ldloc.0
+    ldc.i8 0x12345678 // pointer to the GC descriptor of the arguments buffer
+    stind.i
+    ldloc.0
+    sizeof native int
+    add
+    stloc.0
 
-    ldarg.1 // "genericContext"
-	stobj object
-	sizeof object
-	add
-	dup
+    ldloc.0
+    ldftn Point CallTargetTest()
+    stind.i
+    ldloc.0
+    sizeof native int
+    add
+    stloc.0
 
-	ldarg.2 // "x"
-	stind.i
-	sizeof int32
-	add
-	dup
+    ldloc.0
+    ldarg.1 // "thisObj"
+    stobj object
+    ldloc.0
+    sizeof object
+    add
+    stloc.0
 
-    ldarg.3 // "t"
-	stobj object
+    ldloc.0
+    ldarg.2 // "genericContext"
+    stind.i
+    ldloc.0
+    sizeof native int
+    add
+    stloc.0
 
-	ldloca.s 0 // return default(Point)
-	initobj Point
-	ldloc.0
+    ldloc.0
+    ldarg.3 // "x"
+    stind.i4
+    ldloc.0
+    sizeof native int
+    add
+    stloc.0
 
-	ret
+    ldloc.0
+    ldarg.4 // "t"
+    stobj object
+    ldloc.0
+    sizeof object
+    add
+    stloc.0
+
+    ldloc.0
+    ldarg.0 // "target"
+    stind.i
+
+    ret
 }
 
 ```
@@ -339,9 +368,32 @@ For tail calling the Test function, the IL helpers could look e.g. as follows:
 {
     .maxstack 4
     .locals init (
-       [0] native int buffer
+       [0] native int buffer,
+       [1] valuetype TailCallHelperStackEntry entry,
+       [2] Point result
     )
+
+    // Initialize the TailCallHelperStackEntry
+    // chainCall = false
+    // sp = current sp
+
+    ldloca.s 1
+    ldc.i4.0
+    stfld bool TailCallHelperStackEntry::chainCall
+    ldloca.s 1
+    call native int GetCurrentSp()
+    stfld native int TailCallHelperStackEntry::sp
+
+    ldloca.s 1 // TailCallHelperStackEntry
+    call void PushHelperStackEntry(native int)
+
+    // Prepare arguments for the tail call target
+
     call native int FetchArgumentBuffer()
+    sizeof native int
+    add // skip the pointer to the GC descriptor of the arguments buffer
+    sizeof native int
+    add // skip the address of the CallTargetTest in the buffer, it is used by the TailCallHelper only
     stloc.0
 
     ldloc.0
@@ -352,24 +404,57 @@ For tail calling the Test function, the IL helpers could look e.g. as follows:
     stloc.0
 
     ldloc.0
-    ldobj object // generic context
+    ldind.i // generic context
     ldloc.0
-    sizeof object
+    sizeof native int
     add
     stloc.0
 
     ldloc.0
-    ldind.i // int x
+    ldind.i4 // int x
     ldloc.0
-    sizeof int32
+    sizeof native int
     add
     stloc.0
 
     ldloc.0
     ldobj object // T t
+    ldloc.0
+    sizeof object
+    add
 
-    calli Point (object, object, int32, object)
+    ldobj native int // tailcall target
 
+    // The arguments buffer is not needed anymore
+    call void ReleaseArgumentBuffer()
+
+    .try
+    {
+        calli Point (object, native int, int32, object) // this, generic context, x, t
+        stloc.2
+        leave.s Done
+    }
+    finally
+    {
+        ldloca.s 1 // TailCallHelperStackEntry
+        call void PopHelperStackEntry(native int)
+        endfinally
+    }
+
+Done:
+    ldloc.1 // TailCallHelperStackEntry
+    ldfld bool TailCallHelperStackEntry::chainCall
+    brfalse.s NotChained
+
+    // Jump to the TailCallHelper that will call to the next tail call in the chain.
+    // The stack frame of the current CallTargetTest is reclaimed and epilog executed
+    // before the TailCallHelper is entered.
+    tail.call int32 TailCallHelper()
+    ret
+
+NotChained:
+    // Now we are returning from a chain of tail calls to the caller of this chain
+    ldloc.2
     ret
 }
 ```
