@@ -59,15 +59,15 @@ elseif (HAVE_PTHREAD_IN_LIBC)
   set(PTHREAD_LIBRARY c)
 endif()
 
-check_library_exists(PTHREAD_LIBRARY pthread_suspend "" HAVE_PTHREAD_SUSPEND)
-check_library_exists(PTHREAD_LIBRARY pthread_suspend_np "" HAVE_PTHREAD_SUSPEND_NP)
-check_library_exists(PTHREAD_LIBRARY pthread_continue "" HAVE_PTHREAD_CONTINUE)
-check_library_exists(PTHREAD_LIBRARY pthread_continue_np "" HAVE_PTHREAD_CONTINUE_NP)
-check_library_exists(PTHREAD_LIBRARY pthread_resume_np "" HAVE_PTHREAD_RESUME_NP)
-check_library_exists(PTHREAD_LIBRARY pthread_attr_get_np "" HAVE_PTHREAD_ATTR_GET_NP)
-check_library_exists(PTHREAD_LIBRARY pthread_getattr_np "" HAVE_PTHREAD_GETATTR_NP)
-check_library_exists(PTHREAD_LIBRARY pthread_getcpuclockid "" HAVE_PTHREAD_GETCPUCLOCKID)
-check_library_exists(PTHREAD_LIBRARY pthread_sigqueue "" HAVE_PTHREAD_SIGQUEUE)
+check_library_exists(${PTHREAD_LIBRARY} pthread_suspend "" HAVE_PTHREAD_SUSPEND)
+check_library_exists(${PTHREAD_LIBRARY} pthread_suspend_np "" HAVE_PTHREAD_SUSPEND_NP)
+check_library_exists(${PTHREAD_LIBRARY} pthread_continue "" HAVE_PTHREAD_CONTINUE)
+check_library_exists(${PTHREAD_LIBRARY} pthread_continue_np "" HAVE_PTHREAD_CONTINUE_NP)
+check_library_exists(${PTHREAD_LIBRARY} pthread_resume_np "" HAVE_PTHREAD_RESUME_NP)
+check_library_exists(${PTHREAD_LIBRARY} pthread_attr_get_np "" HAVE_PTHREAD_ATTR_GET_NP)
+check_library_exists(${PTHREAD_LIBRARY} pthread_getattr_np "" HAVE_PTHREAD_GETATTR_NP)
+check_library_exists(${PTHREAD_LIBRARY} pthread_getcpuclockid "" HAVE_PTHREAD_GETCPUCLOCKID)
+check_library_exists(${PTHREAD_LIBRARY} pthread_sigqueue "" HAVE_PTHREAD_SIGQUEUE)
 
 check_function_exists(sigreturn HAVE_SIGRETURN)
 check_function_exists(_thread_sys_sigreturn HAVE__THREAD_SYS_SIGRETURN)
@@ -887,7 +887,7 @@ int main(void)
   exit(ret);
 }" UNGETC_NOT_RETURN_EOF)
 
-set(CMAKE_REQUIRED_LIBRARIES PTHREAD_LIBRARY)
+set(CMAKE_REQUIRED_LIBRARIES ${PTHREAD_LIBRARY})
 check_cxx_source_runs("
 #include <stdlib.h>
 #include <errno.h>
