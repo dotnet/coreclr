@@ -73,8 +73,8 @@ struct REGDISPLAY : public REGDISPLAY_BASE {
     DWORD * pEbp;
 
 #define VOLATILE_REG_METHODS(reg) \
-    inline DWORD  Read##reg(void)   { return *pReg; } \
-    inline PDWORD Locate##reg(void) { return pReg;  } \
+    inline DWORD  Read##reg(void)   { return *p##Reg; } \
+    inline PDWORD Locate##reg(void) { return p##Reg;  } \
     inline void   Restore##reg(PDWORD p##reg) { this->p##reg = p##reg; } \
     inline void   Trash##reg(PDWORD p##reg)   { this->p##reg = p##reg; }
 
