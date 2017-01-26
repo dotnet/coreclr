@@ -1,0 +1,11 @@
+{
+    "dependencies": {
+        "optimization.PGO.CoreCLR": "1.1.0-release-20161025"
+    },
+    "frameworks": {
+        "netstandard": {}
+    },
+    "runtimes": {
+        "win7-x64": {}
+    }
+}
