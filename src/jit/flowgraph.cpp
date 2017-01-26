@@ -22727,7 +22727,7 @@ void Compiler::fgRemoveEmptyFinally()
 //    In runtimes where thread abort is not possible, `try {} finally {S}`
 //    can be optimized to simply `S`. This method looks for such
 //    cases and removes the try-finally from the EH table, making
-//    suitable flow, block flag, statement, and reigon updates.
+//    suitable flow, block flag, statement, and region updates.
 //
 //    This optimization is not legal in runtimes that support thread
 //    abort because those runtimes ensure that a finally is completely
@@ -22740,7 +22740,7 @@ void Compiler::fgRemoveEmptyTry()
 {
     JITDUMP("\n*************** In fgRemoveEmptyTry()\n");
 
-#if FEATURE_CORECLR
+#ifdef FEATURE_CORECLR
     bool enableRemoveEmptyTry = true;
 #else
     // Code in a finally gets special treatment in the presence of
@@ -23058,7 +23058,7 @@ void Compiler::fgCloneFinally()
 {
     JITDUMP("\n*************** In fgCloneFinally()\n");
 
-#if FEATURE_CORECLR
+#ifdef FEATURE_CORECLR
     bool enableCloning = true;
 #else
     // Finally cloning currently doesn't provide sufficient protection
