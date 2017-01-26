@@ -7047,6 +7047,15 @@ void LinearScan::allocateRegisters()
             if (regRecord->assignedInterval != nullptr && !regRecord->assignedInterval->isActive &&
                 regRecord->assignedInterval->isConstant)
             {
+#ifdef _TARGET_ARM_
+                if ((regRecord->assignedInterval->registerType == TYP_DOUBLE) &&
+                    isFloatRegType(regRecord->registerType))
+                {
+                    regNumber  nextRegNum        = REG_NEXT(regRecord->regNum);
+                    RegRecord* nextRegRec        = getRegisterRecord(nextRegNum);
+                    nextRegRec->assignedInterval = nullptr;
+                }
+#endif // _TARGET_ARM_
                 regRecord->assignedInterval = nullptr;
             }
             INDEBUG(dumpLsraAllocationEvent(LSRA_EVENT_FIXED_REG, nullptr, currentRefPosition->assignedReg()));
