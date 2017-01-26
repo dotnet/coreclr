@@ -1453,9 +1453,17 @@ void ClassTypeInfo::DumpDebugInfo(char* ptr, int& offset)
         return;
     }
 
-    if (m_parent != nullptr && m_parent->m_type_offset == 0)
+    if (m_parent != nullptr)
     {
-        m_parent->DumpDebugInfo(ptr, offset);
+        if (m_parent->m_type_offset == 0)
+        {
+            m_parent->DumpDebugInfo(ptr, offset);
+        }
+        else if (RefTypeInfo* m_p = dynamic_cast<RefTypeInfo*>(m_parent))
+        {
+            if (m_p->m_value_type->m_type_offset == 0)
+                m_p->m_value_type->DumpDebugInfo(ptr, offset);
+        }
     }
 
     // make sure that types of all members are dumped
