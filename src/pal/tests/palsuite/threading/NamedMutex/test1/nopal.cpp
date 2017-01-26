@@ -16,7 +16,9 @@
 
 #define _countof(a) (sizeof(a) / sizeof(a[0]))
 
+#ifndef __ANDROID__
 #define PAGE_SIZE (4096)
+#endif
 
 auto test_strcpy = strcpy;
 auto test_strcmp = strcmp;
