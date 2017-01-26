@@ -42,6 +42,14 @@ typedef struct _find_handle
     char   **next;
 } find_obj;
 
+#ifndef __ANDROID__
+#define TEMP_DIRECTORY_PATH "/tmp"
+#else
+// On Android, "/tmp" doesn't exist; temporary files should go to
+// /data/local/tmp
+#define TEMP_DIRECTORY_PATH "/data/local/tmp"
+#endif
+
 /*++
 FILECanonicalizePath
     Removes all instances of '/./', '/../' and '//' from an absolute path. 
