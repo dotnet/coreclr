@@ -1,6 +1,6 @@
 {
     "dependencies": {
-        "optimization.PGO.CoreCLR": "1.1.0-release-20161025"
+        "optimization.PGO.CoreCLR": "99.99.99-master-20170125"
     },
     "frameworks": {
         "netstandard": {}
