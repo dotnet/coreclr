@@ -607,11 +607,11 @@ function_name() to call the system's implementation
 #define assert (Use__ASSERTE_instead_of_assert) assert
 
 #ifndef __ANDROID__
-#define TEMP_DIRECTORY_PATH "/tmp"
+#define TEMP_DIRECTORY_PATH "/tmp/"
 #else
-// On Android, "/tmp" doesn't exist; temporary files should go to
-// /data/local/tmp
-#define TEMP_DIRECTORY_PATH "/data/local/tmp"
+// On Android, "/tmp/" doesn't exist; temporary files should go to
+// /data/local/tmp/
+#define TEMP_DIRECTORY_PATH "/data/local/tmp/"
 #endif
 
 #define PROCESS_PIPE_NAME_PREFIX ".dotnet-pal-processpipe"
