@@ -215,6 +215,9 @@ build_native()
             fi
         fi
 
+        echo "Restoring the OptimizationData package"
+        "$__ProjectRoot/run.sh" sync -optdata
+
         pushd "$intermediatesForBuild"
         # Regenerate the CMake solution
         echo "Invoking \"$__ProjectRoot/src/pal/tools/gen-buildsys-clang.sh\" \"$__ProjectRoot\" $__ClangMajorVersion $__ClangMinorVersion $platformArch $__BuildType $__CodeCoverage $__IncludeTests $generator $extraCmakeArguments $__cmakeargs"
