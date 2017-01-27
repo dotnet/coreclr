@@ -3060,7 +3060,12 @@ BOOL Thread::CreateNewOSThread(SIZE_T sizeToCommitOrReserve, LPTHREAD_START_ROUT
     DWORD dwCreationFlags = CREATE_SUSPENDED;
 
 #ifdef FEATURE_CORECLR
-    dwCreationFlags |=  STACK_SIZE_PARAM_IS_A_RESERVATION;
+    dwCreationFlags |= STACK_SIZE_PARAM_IS_A_RESERVATION;
+
+    if (sizeToCommitOrReserve != 0 && sizeToCommitOrReserve < THREAD_MIN_STACK_SIZE)
+    {
+        sizeToCommitOrReserve = THREAD_MIN_STACK_SIZE;
+    }
 #else
     if(sizeToCommitOrReserve != 0)
     {

@@ -102,6 +102,10 @@
 #define OS_PAGE_SIZE PAGE_SIZE
 #endif
 
+#ifndef THREAD_MIN_STACK_SIZE
+#define THREAD_MIN_STACK_SIZE (64 * 1024) // 64 KB is a reasonably portable minimum between Windows and Unix
+#endif
+
 #if defined(_WIN64)
 #define JIT_IS_ALIGNED
 #endif

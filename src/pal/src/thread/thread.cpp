@@ -21,6 +21,9 @@ Abstract:
 #include "pal/dbgmsg.h"
 SET_DEFAULT_DEBUG_CHANNEL(THREAD); // some headers have code with asserts, so do this first
 
+#include "stdmacros.h"
+#include "switches.h"
+
 #include "pal/corunix.hpp"
 #include "pal/context.h"
 #include "pal/thread.hpp"
@@ -573,7 +576,22 @@ CorUnix::InternalCreateThread(
         palError = ERROR_INVALID_PARAMETER;
         goto EXIT;
     }
-    
+
+    if (dwStackSize != 0)
+    {
+        // Some systems require the stack size to be aligned to the page size
+        DWORD alignedStackSize = static_cast<DWORD>(ALIGN_UP(dwStackSize, OS_PAGE_SIZE));
+        if (alignedStackSize < dwStackSize)
+        {
+            // When coming here from the public API surface, the incoming value is originally a nonnegative signed int32, so
+            // this shouldn't happen
+            ASSERT("Couldn't align the requested stack size (%u) to the page size\n", dwStackSize);
+            palError = ERROR_INVALID_PARAMETER;
+            goto EXIT;
+        }
+        dwStackSize = alignedStackSize;
+    }
+
     // Ignore the STACK_SIZE_PARAM_IS_A_RESERVATION flag
     dwCreationFlags &= ~STACK_SIZE_PARAM_IS_A_RESERVATION;
     
@@ -626,11 +644,6 @@ CorUnix::InternalCreateThread(
     TRACE("default pthread stack size is %d, caller requested %d (default is %d)\n",
           pthreadStackSize, dwStackSize, CPalThread::s_dwDefaultThreadStackSize);
 
-    if (0 == dwStackSize)
-    {
-        dwStackSize = CPalThread::s_dwDefaultThreadStackSize;
-    }
-
 #ifdef PTHREAD_STACK_MIN
     if (PTHREAD_STACK_MIN > pthreadStackSize)
     {
@@ -638,8 +651,21 @@ CorUnix::InternalCreateThread(
              "%d\n", pthreadStackSize, PTHREAD_STACK_MIN);
     }
 #endif
-    
-    if (pthreadStackSize < dwStackSize)
+
+    if (dwStackSize == 0)
+    {
+        dwStackSize = CPalThread::s_dwDefaultThreadStackSize;
+        if (dwStackSize < pthreadStackSize)
+        {
+            dwStackSize = pthreadStackSize;
+        }
+    }
+    else if (dwStackSize < THREAD_MIN_STACK_SIZE)
+    {
+        dwStackSize = THREAD_MIN_STACK_SIZE;
+    }
+
+    if (dwStackSize != pthreadStackSize)
     {
         TRACE("setting thread stack size to %d\n", dwStackSize);
         if (0 != pthread_attr_setstacksize(&pthreadAttr, dwStackSize))
