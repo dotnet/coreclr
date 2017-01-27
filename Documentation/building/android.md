@@ -14,7 +14,7 @@ Generating the rootfs
 To generate the rootfs, run the following command in the `coreclr` folder:
 
 ```
-./init-android.sh
+cross/init-android-rootfs.sh
 ```
 
 This will download the NDK and any packages required to compile Android on your system. It's over 1 GB of data, so it may take a while.
@@ -29,7 +29,7 @@ When cross compiling, you need to set both the `CONFIG_DIR` and `ROOTFS_DIR` var
 To compile for arm64, run:
 
 ```
-CONFIG_DIR=`realpath cross/android/arm64` ROOTFS_DIR=`realpath cross/android/toolchain/arm64/sysroot` ./build.sh cross arm64 skipgenerateversion skipmscorlib cmakeargs -DENABLE_LLDBPLUGIN=0
+CONFIG_DIR=`realpath cross/android/arm64` ROOTFS_DIR=`realpath cross/android-rootfs/toolchain/arm64/sysroot` ./build.sh cross arm64 skipgenerateversion skipmscorlib cmakeargs -DENABLE_LLDBPLUGIN=0
 ```
 
 The resulting binaries will be found in `bin/Product/Linux.BuildArch.BuildType/`
