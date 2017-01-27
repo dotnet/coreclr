@@ -16,7 +16,18 @@
 namespace System.Collections.Generic {
     
     using System;
+    using System.ComponentModel;
     using System.Text;
+
+    // Provides the Create factory method for KeyValuePair<TKey, TValue>.
+    public static class KeyValuePair
+    {
+        // Creates a new KeyValuePair<TKey, TValue> from the given values.
+        public static KeyValuePair<TKey, TValue> Create<TKey, TValue>(TKey key, TValue value)
+        {
+            return new KeyValuePair<TKey, TValue>(key, value);
+        }
+    }
 
     // A KeyValuePair holds a key and a value from a dictionary.
     // It is used by the IEnumerable<T> implementation for both IDictionary<TKey, TValue>
@@ -51,6 +62,13 @@ namespace System.Collections.Generic {
             }
             s.Append(']');
             return StringBuilderCache.GetStringAndRelease(s);
+        }
+
+        [EditorBrowsable(EditorBrowsableState.Never)]
+        public void Deconstruct(out TKey key, out TValue value)
+        {
+            key = Key;
+            value = Value;
         }
     }
 }

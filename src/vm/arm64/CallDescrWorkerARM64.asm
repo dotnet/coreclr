@@ -72,7 +72,6 @@ LNoFloatingPoint
         ldp     x6, x7, [x9, #48]
         ldr     x8, [x9, #64]
 
-        ;; ARM64TODO: => see if anything special needs to be done for remoting
         ;; call pTarget
         ldr     x9, [x19,#CallDescrData__pTarget]
         blr     x9
@@ -118,8 +117,8 @@ LNoDoubleHFAReturn
         EMIT_BREAKPOINT ; Unreachable
 
 LIntReturn
-        ;; Save return value into retbuf for int
-        str     x0, [x19, #(CallDescrData__returnValue + 0)]
+        ;; Save return value(s) into retbuf for int
+        stp     x0,x1, [x19, #(CallDescrData__returnValue + 0)]
 
 LReturnDone
 

@@ -9,6 +9,7 @@ using System.Runtime;
 using System.Security;
 using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Diagnostics.Contracts;
 using System.Runtime.InteropServices;
 using System.Runtime.CompilerServices;
@@ -27,33 +28,30 @@ namespace System.Runtime.InteropServices.WindowsRuntime
     {
         private BindableVectorToListAdapter()
         {
-            Contract.Assert(false, "This class is never instantiated");
+            Debug.Assert(false, "This class is never instantiated");
         }
 
         // object this[int index] { get }
-        [SecurityCritical]
         internal object Indexer_Get(int index)
         {
             if (index < 0)
-                throw new ArgumentOutOfRangeException("index");
+                throw new ArgumentOutOfRangeException(nameof(index));
 
             IBindableVector _this = JitHelpers.UnsafeCast<IBindableVector>(this);
             return GetAt(_this, (uint)index);
         }
 
         // object this[int index] { set }
-        [SecurityCritical]
         internal void Indexer_Set(int index, object value)
         {
             if (index < 0)
-                throw new ArgumentOutOfRangeException("index");
+                throw new ArgumentOutOfRangeException(nameof(index));
 
             IBindableVector _this = JitHelpers.UnsafeCast<IBindableVector>(this);
             SetAt(_this, (uint)index, value);
         }
 
         // int Add(object value)
-        [SecurityCritical]
         internal int Add(object value)
         {
             IBindableVector _this = JitHelpers.UnsafeCast<IBindableVector>(this);
@@ -69,7 +67,6 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         }
 
         // bool Contains(object item)
-        [SecurityCritical]
         internal bool Contains(object item)
         {
             IBindableVector _this = JitHelpers.UnsafeCast<IBindableVector>(this);
@@ -79,7 +76,6 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         }
 
         // void Clear()
-        [SecurityCritical]
         internal void Clear()
         {
             IBindableVector _this = JitHelpers.UnsafeCast<IBindableVector>(this);
@@ -88,7 +84,6 @@ namespace System.Runtime.InteropServices.WindowsRuntime
 
         // bool IsFixedSize { get }
         [Pure]
-        [SecurityCritical]
         internal bool IsFixedSize()
         {
             return false;
@@ -96,14 +91,12 @@ namespace System.Runtime.InteropServices.WindowsRuntime
 
         // bool IsReadOnly { get }
         [Pure]
-        [SecurityCritical]
         internal bool IsReadOnly()
         {
             return false;
         }
 
         // int IndexOf(object item)
-        [SecurityCritical]
         internal int IndexOf(object item)
         {
             IBindableVector _this = JitHelpers.UnsafeCast<IBindableVector>(this);
@@ -123,18 +116,16 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         }
 
         // void Insert(int index, object item)
-        [SecurityCritical]
         internal void Insert(int index, object item)
         {
             if (index < 0)
-                throw new ArgumentOutOfRangeException("index");
+                throw new ArgumentOutOfRangeException(nameof(index));
 
             IBindableVector _this = JitHelpers.UnsafeCast<IBindableVector>(this);
             InsertAtHelper(_this, (uint)index, item);
         }
 
         // bool Remove(object item)
-        [SecurityCritical]
         internal void Remove(object item)
         {
             IBindableVector _this = JitHelpers.UnsafeCast<IBindableVector>(this);
@@ -154,11 +145,10 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         }
 
         // void RemoveAt(int index)
-        [SecurityCritical]
         internal void RemoveAt(int index)
         {
             if (index < 0)
-                throw new ArgumentOutOfRangeException("index");
+                throw new ArgumentOutOfRangeException(nameof(index));
 
             IBindableVector _this = JitHelpers.UnsafeCast<IBindableVector>(this);
             RemoveAtHelper(_this, (uint)index);
@@ -178,7 +168,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             catch (Exception ex)
             {
                 if (__HResults.E_BOUNDS == ex._HResult)
-                    throw new ArgumentOutOfRangeException("index");
+                    throw new ArgumentOutOfRangeException(nameof(index));
 
                 throw;
             }
@@ -196,7 +186,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             catch (Exception ex)
             {
                 if (__HResults.E_BOUNDS == ex._HResult)
-                    throw new ArgumentOutOfRangeException("index");
+                    throw new ArgumentOutOfRangeException(nameof(index));
 
                 throw;
             }
@@ -214,7 +204,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             catch (Exception ex)
             {
                 if (__HResults.E_BOUNDS == ex._HResult)
-                    throw new ArgumentOutOfRangeException("index");
+                    throw new ArgumentOutOfRangeException(nameof(index));
 
                 throw;
             }
@@ -232,7 +222,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             catch (Exception ex)
             {
                 if (__HResults.E_BOUNDS == ex._HResult)
-                    throw new ArgumentOutOfRangeException("index");
+                    throw new ArgumentOutOfRangeException(nameof(index));
 
                 throw;
             }

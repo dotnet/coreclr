@@ -19,9 +19,7 @@ using System.Globalization;
 using System.Security.Permissions;
 
 namespace System {
-#if FEATURE_SERIALIZATION
     [Serializable]
-#endif
     [System.Runtime.InteropServices.ComVisible(true)]
     public sealed class TypeInitializationException : SystemException {
         private String _typeName;
@@ -58,7 +56,6 @@ namespace System {
             }
         }
 
-        [System.Security.SecurityCritical]  // auto-generated_required
         public override void GetObjectData(SerializationInfo info, StreamingContext context) {
             base.GetObjectData(info, context);
             info.AddValue("TypeName",TypeName,typeof(String));

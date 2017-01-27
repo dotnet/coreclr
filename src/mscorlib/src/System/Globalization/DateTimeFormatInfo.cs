@@ -14,6 +14,7 @@ namespace System.Globalization {
     using System.Runtime.InteropServices;
     using System.Runtime.Versioning;
     using System.Text;
+    using System.Diagnostics;
     using System.Diagnostics.Contracts;
 
     //
@@ -54,9 +55,7 @@ namespace System.Globalization {
     }
 
 
-#if FEATURE_SERIALIZATION
     [Serializable]
-#endif
     [System.Runtime.InteropServices.ComVisible(true)]
     public sealed class DateTimeFormatInfo : ICloneable, IFormatProvider
     {
@@ -183,18 +182,6 @@ namespace System.Globalization {
         // genitive form or leap year month names.
         [OptionalField(VersionAdded = 2)]
         internal DateTimeFormatFlags formatFlags = DateTimeFormatFlags.NotInitialized;
-        internal static bool preferExistingTokens = InitPreferExistingTokens();
-
-
-        [System.Security.SecuritySafeCritical]
-        static bool InitPreferExistingTokens()
-        {
-            bool ret = false;
-#if !FEATURE_CORECLR
-            ret = DateTime.LegacyParseMode();
-#endif
-            return ret;
-        }
 
         private String CultureName
         {
@@ -222,7 +209,6 @@ namespace System.Globalization {
 
         private String LanguageName
         {
-            [System.Security.SecurityCritical]  // auto-generated
             get
             {
                 if (m_langName == null)
@@ -245,7 +231,7 @@ namespace System.Globalization {
             {
                 // Get the abbreviated day names for our current calendar
                 this.abbreviatedDayNames = this.m_cultureData.AbbreviatedDayNames(Calendar.ID);
-                Contract.Assert(this.abbreviatedDayNames.Length == 7, "[DateTimeFormatInfo.GetAbbreviatedDayOfWeekNames] Expected 7 day names in a week");
+                Debug.Assert(this.abbreviatedDayNames.Length == 7, "[DateTimeFormatInfo.GetAbbreviatedDayOfWeekNames] Expected 7 day names in a week");
             }
             return (this.abbreviatedDayNames);
         }
@@ -268,7 +254,7 @@ namespace System.Globalization {
             {
                 // Get the super short day names for our current calendar
                 this.m_superShortDayNames = this.m_cultureData.SuperShortDayNames(Calendar.ID);
-                Contract.Assert(this.m_superShortDayNames.Length == 7, "[DateTimeFormatInfo.internalGetSuperShortDayNames] Expected 7 day names in a week");
+                Debug.Assert(this.m_superShortDayNames.Length == 7, "[DateTimeFormatInfo.internalGetSuperShortDayNames] Expected 7 day names in a week");
             }
             return (this.m_superShortDayNames);
         }
@@ -285,7 +271,7 @@ namespace System.Globalization {
             {
                 // Get the day names for our current calendar
                 this.dayNames = this.m_cultureData.DayNames(Calendar.ID);
-                Contract.Assert(this.dayNames.Length == 7, "[DateTimeFormatInfo.GetDayOfWeekNames] Expected 7 day names in a week");
+                Debug.Assert(this.dayNames.Length == 7, "[DateTimeFormatInfo.GetDayOfWeekNames] Expected 7 day names in a week");
             }
             return (this.dayNames);
         }
@@ -302,7 +288,7 @@ namespace System.Globalization {
             {
                 // Get the month names for our current calendar
                 this.abbreviatedMonthNames = this.m_cultureData.AbbreviatedMonthNames(Calendar.ID);
-                Contract.Assert(this.abbreviatedMonthNames.Length == 12 || this.abbreviatedMonthNames.Length == 13,
+                Debug.Assert(this.abbreviatedMonthNames.Length == 12 || this.abbreviatedMonthNames.Length == 13,
                     "[DateTimeFormatInfo.GetAbbreviatedMonthNames] Expected 12 or 13 month names in a year");
             }
             return (this.abbreviatedMonthNames);
@@ -321,7 +307,7 @@ namespace System.Globalization {
             {
                 // Get the month names for our current calendar
                 this.monthNames = this.m_cultureData.MonthNames(Calendar.ID);
-                Contract.Assert(this.monthNames.Length == 12 || this.monthNames.Length == 13,
+                Debug.Assert(this.monthNames.Length == 12 || this.monthNames.Length == 13,
                     "[DateTimeFormatInfo.GetMonthNames] Expected 12 or 13 month names in a year");
             }
 
@@ -349,17 +335,12 @@ namespace System.Globalization {
             // m_isDefaultCalendar is set in the setter of Calendar below.
             this.Calendar = cal;
         }
-
-#if !FEATURE_CORECLR
-        [System.Security.SecuritySafeCritical]
-#endif
         private void InitializeOverridableProperties(CultureData cultureData, int calendarID)
         {
-#if !FEATURE_CORECLR
             // Silverlight 2.0 never took a snapshot of the user's overridable properties
             // This has a substantial performance impact so skip when CoreCLR
             Contract.Requires(cultureData != null);
-            Contract.Assert(calendarID > 0, "[DateTimeFormatInfo.Populate] Expected Calendar.ID > 0");
+            Debug.Assert(calendarID > 0, "[DateTimeFormatInfo.Populate] Expected Calendar.ID > 0");
 
             if (this.firstDayOfWeek == -1) { this.firstDayOfWeek = cultureData.IFIRSTDAYOFWEEK; }
             if (this.calendarWeekRule == -1) { this.calendarWeekRule = cultureData.IFIRSTWEEKOFYEAR; }
@@ -370,20 +351,19 @@ namespace System.Globalization {
             if (this.dateSeparator == null) { this.dateSeparator = cultureData.DateSeparator(calendarID); }
 
             this.allLongTimePatterns = this.m_cultureData.LongTimes;
-            Contract.Assert(this.allLongTimePatterns.Length > 0, "[DateTimeFormatInfo.Populate] Expected some long time patterns");
+            Debug.Assert(this.allLongTimePatterns.Length > 0, "[DateTimeFormatInfo.Populate] Expected some long time patterns");
 
             this.allShortTimePatterns = this.m_cultureData.ShortTimes;
-            Contract.Assert(this.allShortTimePatterns.Length > 0, "[DateTimeFormatInfo.Populate] Expected some short time patterns");
+            Debug.Assert(this.allShortTimePatterns.Length > 0, "[DateTimeFormatInfo.Populate] Expected some short time patterns");
 
             this.allLongDatePatterns = cultureData.LongDates(calendarID);
-            Contract.Assert(this.allLongDatePatterns.Length > 0, "[DateTimeFormatInfo.Populate] Expected some long date patterns");
+            Debug.Assert(this.allLongDatePatterns.Length > 0, "[DateTimeFormatInfo.Populate] Expected some long date patterns");
 
             this.allShortDatePatterns = cultureData.ShortDates(calendarID);
-            Contract.Assert(this.allShortDatePatterns.Length > 0, "[DateTimeFormatInfo.Populate] Expected some short date patterns");
+            Debug.Assert(this.allShortDatePatterns.Length > 0, "[DateTimeFormatInfo.Populate] Expected some short date patterns");
 
             this.allYearMonthPatterns = cultureData.YearMonths(calendarID);
-            Contract.Assert(this.allYearMonthPatterns.Length > 0, "[DateTimeFormatInfo.Populate] Expected some year month patterns");
-#endif
+            Debug.Assert(this.allYearMonthPatterns.Length > 0, "[DateTimeFormatInfo.Populate] Expected some year month patterns");
         }
 
 #region Serialization
@@ -392,7 +372,6 @@ namespace System.Globalization {
         private int    CultureID;
         [OptionalField(VersionAdded = 1)]
         private bool   m_useUserOverride;
-#if !FEATURE_CORECLR
         [OptionalField(VersionAdded = 1)]
         private bool bUseCalendarInfo;
         [OptionalField(VersionAdded = 1)]
@@ -401,7 +380,6 @@ namespace System.Globalization {
         internal bool m_isDefaultCalendar;                // NEVER USED, DO NOT USE THIS! (Serialized in Whidbey)
         [OptionalField(VersionAdded = 2)]
         private static volatile Hashtable s_calendarNativeNames;   // NEVER USED, DO NOT USE THIS! (Serialized in Whidbey)
-#endif // !FEATURE_CORECLR
 
         // This was synthesized by Whidbey so we knew what words might appear in the middle of a date string
         // Now we always synthesize so its not helpful
@@ -417,7 +395,7 @@ namespace System.Globalization {
 
                 if (this.m_cultureData == null)
                     throw new CultureNotFoundException(
-                        "m_name", m_name, Environment.GetResourceString("Argument_CultureNotSupported"));
+                        nameof(m_name), m_name, Environment.GetResourceString("Argument_CultureNotSupported"));
             }
             // Note: This is for Everett compatibility
 
@@ -463,11 +441,6 @@ namespace System.Globalization {
 
             // make sure the m_name is initialized.
             m_name = this.CultureName;
-
-#if !FEATURE_CORECLR
-            if (s_calendarNativeNames == null)
-                s_calendarNativeNames = new Hashtable();
-#endif // FEATURE_CORECLR
 
             // Important to initialize these fields otherwise we may run into exception when deserializing on Whidbey
             // because Whidbey try to initialize some of these fields using calendar data which could be null values 
@@ -567,18 +540,14 @@ namespace System.Globalization {
 
         public  String AMDesignator
          {
-#if FEATURE_CORECLR
-            [System.Security.SecuritySafeCritical]  // auto-generated
-#endif
             get
             {
-#if FEATURE_CORECLR
                 if (this.amDesignator == null)
                 {
                     this.amDesignator = this.m_cultureData.SAM1159;
                 }
-#endif
-                Contract.Assert(this.amDesignator != null, "DateTimeFormatInfo.AMDesignator, amDesignator != null");
+
+                Debug.Assert(this.amDesignator != null, "DateTimeFormatInfo.AMDesignator, amDesignator != null");
                 return (this.amDesignator);
             }
 
@@ -588,7 +557,7 @@ namespace System.Globalization {
                     throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_ReadOnly"));
                 if (value == null)
                 {
-                    throw new ArgumentNullException("value",
+                    throw new ArgumentNullException(nameof(value),
                         Environment.GetResourceString("ArgumentNull_String"));
                 }
                 Contract.EndContractBlock();
@@ -602,7 +571,7 @@ namespace System.Globalization {
             get {
                 Contract.Ensures(Contract.Result<Calendar>() != null);
                 
-                Contract.Assert(this.calendar != null, "DateTimeFormatInfo.Calendar: calendar != null");
+                Debug.Assert(this.calendar != null, "DateTimeFormatInfo.Calendar: calendar != null");
                 return (this.calendar);
             }
 
@@ -610,7 +579,7 @@ namespace System.Globalization {
                 if (IsReadOnly)
                     throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_ReadOnly"));
                 if (value == null) {
-                    throw new ArgumentNullException("value",
+                    throw new ArgumentNullException(nameof(value),
                         Environment.GetResourceString("ArgumentNull_Obj"));
                 }
                 Contract.EndContractBlock();
@@ -700,7 +669,7 @@ namespace System.Globalization {
                 }
                 
                 // The assigned calendar is not a valid calendar for this culture, throw
-                throw new ArgumentOutOfRangeException("value", Environment.GetResourceString("Argument_InvalidCalendar"));
+                throw new ArgumentOutOfRangeException(nameof(value), Environment.GetResourceString("Argument_InvalidCalendar"));
             }
         }
 
@@ -724,7 +693,7 @@ namespace System.Globalization {
 
         public  int GetEra(String eraName) {
             if (eraName == null) {
-                throw new ArgumentNullException("eraName",
+                throw new ArgumentNullException(nameof(eraName),
                     Environment.GetResourceString("ArgumentNull_String"));
             }
             Contract.EndContractBlock();
@@ -801,7 +770,7 @@ namespace System.Globalization {
             if ((--era) < EraNames.Length && (era >= 0)) {
                 return (m_eraNames[era]);
             }
-            throw new ArgumentOutOfRangeException("era", Environment.GetResourceString("ArgumentOutOfRange_InvalidEraValue"));
+            throw new ArgumentOutOfRangeException(nameof(era), Environment.GetResourceString("ArgumentOutOfRange_InvalidEraValue"));
         }
 
         internal String[] AbbreviatedEraNames
@@ -829,7 +798,7 @@ namespace System.Globalization {
             if ((--era) < m_abbrevEraNames.Length && (era >= 0)) {
                 return (m_abbrevEraNames[era]);
             }
-            throw new ArgumentOutOfRangeException("era", Environment.GetResourceString("ArgumentOutOfRange_InvalidEraValue"));
+            throw new ArgumentOutOfRangeException(nameof(era), Environment.GetResourceString("ArgumentOutOfRange_InvalidEraValue"));
         }
 
         internal String[] AbbreviatedEnglishEraNames
@@ -838,7 +807,7 @@ namespace System.Globalization {
             {
                 if (this.m_abbrevEnglishEraNames == null)
                 {
-                    Contract.Assert(Calendar.ID > 0, "[DateTimeFormatInfo.AbbreviatedEnglishEraNames] Expected Calendar.ID > 0");
+                    Debug.Assert(Calendar.ID > 0, "[DateTimeFormatInfo.AbbreviatedEnglishEraNames] Expected Calendar.ID > 0");
                     this.m_abbrevEnglishEraNames = this.m_cultureData.AbbreviatedEnglishEraNames(Calendar.ID);
                 }
                 return (this.m_abbrevEnglishEraNames);
@@ -852,29 +821,28 @@ namespace System.Globalization {
         {
             get
             {
-#if FEATURE_CORECLR
                 if (this.dateSeparator == null)
                 {
                     this.dateSeparator = this.m_cultureData.DateSeparator(Calendar.ID);
                 }
-#endif
-                Contract.Assert(this.dateSeparator != null, "DateTimeFormatInfo.DateSeparator, dateSeparator != null");
+
+                Debug.Assert(this.dateSeparator != null, "DateTimeFormatInfo.DateSeparator, dateSeparator != null");
                 return (this.dateSeparator);
             }
 
-#if !FEATURE_CORECLR
-            set {
+            set 
+            {
                 if (IsReadOnly)
                     throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_ReadOnly"));
-                if (value == null) {
-                    throw new ArgumentNullException("value",
+                if (value == null) 
+                {
+                    throw new ArgumentNullException(nameof(value),
                         Environment.GetResourceString("ArgumentNull_String"));
                 }
                 Contract.EndContractBlock();
                 ClearTokenHashTable();
                 this.dateSeparator = value;
             }
-#endif
         }
 
 
@@ -882,14 +850,12 @@ namespace System.Globalization {
         {
             get
             {
-#if FEATURE_CORECLR
                 if (this.firstDayOfWeek == -1)
                 {
                     this.firstDayOfWeek = this.m_cultureData.IFIRSTDAYOFWEEK;
                 }
-#endif
-                Contract.Assert(this.firstDayOfWeek != -1, "DateTimeFormatInfo.FirstDayOfWeek, firstDayOfWeek != -1");
-                
+
+                Debug.Assert(this.firstDayOfWeek != -1, "DateTimeFormatInfo.FirstDayOfWeek, firstDayOfWeek != -1");
                 return ((DayOfWeek)this.firstDayOfWeek);
             }
 
@@ -900,7 +866,7 @@ namespace System.Globalization {
                 firstDayOfWeek = (int)value;
                 } else {
                     throw new ArgumentOutOfRangeException(
-                        "value", Environment.GetResourceString("ArgumentOutOfRange_Range",
+                        nameof(value), Environment.GetResourceString("ArgumentOutOfRange_Range",
                         DayOfWeek.Sunday, DayOfWeek.Saturday));
                 }
             }
@@ -911,13 +877,12 @@ namespace System.Globalization {
         {
             get
             {
-#if FEATURE_CORECLR
                 if (this.calendarWeekRule == -1)
                 {
                     this.calendarWeekRule = this.m_cultureData.IFIRSTWEEKOFYEAR;
                 }
-#endif
-                Contract.Assert(this.calendarWeekRule != -1, "DateTimeFormatInfo.CalendarWeekRule, calendarWeekRule != -1");
+
+                Debug.Assert(this.calendarWeekRule != -1, "DateTimeFormatInfo.CalendarWeekRule, calendarWeekRule != -1");
                 return ((CalendarWeekRule)this.calendarWeekRule);
             }
 
@@ -928,7 +893,7 @@ namespace System.Globalization {
                     calendarWeekRule = (int)value;
                 } else {
                     throw new ArgumentOutOfRangeException(
-                        "value", Environment.GetResourceString("ArgumentOutOfRange_Range",
+                        nameof(value), Environment.GetResourceString("ArgumentOutOfRange_Range",
                         CalendarWeekRule.FirstDay, CalendarWeekRule.FirstFourDayWeek));
                 }
             }
@@ -951,7 +916,7 @@ namespace System.Globalization {
                 if (IsReadOnly)
                     throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_ReadOnly"));
                 if (value == null) {
-                    throw new ArgumentNullException("value",
+                    throw new ArgumentNullException(nameof(value),
                         Environment.GetResourceString("ArgumentNull_String"));
                 }
                 Contract.EndContractBlock();
@@ -983,7 +948,7 @@ namespace System.Globalization {
                 if (IsReadOnly)
                     throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_ReadOnly"));
                 if (value == null) {
-                    throw new ArgumentNullException("value",
+                    throw new ArgumentNullException(nameof(value),
                         Environment.GetResourceString("ArgumentNull_String"));
                 }
                 Contract.EndContractBlock();
@@ -1022,7 +987,7 @@ namespace System.Globalization {
                 if (IsReadOnly)
                     throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_ReadOnly"));
                 if (value == null) {
-                    throw new ArgumentNullException("value",
+                    throw new ArgumentNullException(nameof(value),
                         Environment.GetResourceString("ArgumentNull_String"));
                 }
                 Contract.EndContractBlock();
@@ -1048,10 +1013,10 @@ namespace System.Globalization {
             {
                 if (this.monthDayPattern == null) 
                 {
-                    Contract.Assert(Calendar.ID > 0, "[DateTimeFormatInfo.MonthDayPattern] Expected calID > 0");
+                    Debug.Assert(Calendar.ID > 0, "[DateTimeFormatInfo.MonthDayPattern] Expected calID > 0");
                     this.monthDayPattern = this.m_cultureData.MonthDay(Calendar.ID);
                 }
-                Contract.Assert(this.monthDayPattern != null, "DateTimeFormatInfo.MonthDayPattern, monthDayPattern != null");
+                Debug.Assert(this.monthDayPattern != null, "DateTimeFormatInfo.MonthDayPattern, monthDayPattern != null");
                 return (this.monthDayPattern);
             }
 
@@ -1059,7 +1024,7 @@ namespace System.Globalization {
                 if (IsReadOnly)
                     throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_ReadOnly"));
                 if (value == null) {
-                    throw new ArgumentNullException("value",
+                    throw new ArgumentNullException(nameof(value),
                         Environment.GetResourceString("ArgumentNull_String"));
                 }
                 Contract.EndContractBlock();
@@ -1071,18 +1036,14 @@ namespace System.Globalization {
 
         public  String PMDesignator
         {
-#if FEATURE_CORECLR
-            [System.Security.SecuritySafeCritical]  // auto-generated
-#endif
             get
             {
-#if FEATURE_CORECLR
                 if (this.pmDesignator == null)
                 {
                     this.pmDesignator = this.m_cultureData.SPM2359;
                 }
-#endif
-                Contract.Assert(this.pmDesignator != null, "DateTimeFormatInfo.PMDesignator, pmDesignator != null");
+
+                Debug.Assert(this.pmDesignator != null, "DateTimeFormatInfo.PMDesignator, pmDesignator != null");
                 return (this.pmDesignator);
             }
 
@@ -1090,7 +1051,7 @@ namespace System.Globalization {
                 if (IsReadOnly)
                     throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_ReadOnly"));
                 if (value == null) {
-                    throw new ArgumentNullException("value",
+                    throw new ArgumentNullException(nameof(value),
                         Environment.GetResourceString("ArgumentNull_String"));
                 }
                 Contract.EndContractBlock();
@@ -1134,7 +1095,7 @@ namespace System.Globalization {
                 if (IsReadOnly)
                     throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_ReadOnly"));
                 if (value == null)
-                    throw new ArgumentNullException("value",
+                    throw new ArgumentNullException(nameof(value),
                         Environment.GetResourceString("ArgumentNull_String"));
                 Contract.EndContractBlock();
 
@@ -1174,7 +1135,7 @@ namespace System.Globalization {
                 if (IsReadOnly)
                     throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_ReadOnly"));
                 if (value == null) {
-                    throw new ArgumentNullException("value",
+                    throw new ArgumentNullException(nameof(value),
                         Environment.GetResourceString("ArgumentNull_String"));
                 }
                 Contract.EndContractBlock();
@@ -1298,22 +1259,22 @@ namespace System.Globalization {
         {
             get
             {
-#if FEATURE_CORECLR
                 if (timeSeparator == null)
                 {
                     timeSeparator = this.m_cultureData.TimeSeparator;
                 }
-#endif
-                Contract.Assert(this.timeSeparator != null, "DateTimeFormatInfo.TimeSeparator, timeSeparator != null");
+
+                Debug.Assert(this.timeSeparator != null, "DateTimeFormatInfo.TimeSeparator, timeSeparator != null");
                 return (timeSeparator);
             }
 
-#if !FEATURE_CORECLR
-            set {
+            set 
+            {
                 if (IsReadOnly)
                     throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_ReadOnly"));
-                if (value == null) {
-                    throw new ArgumentNullException("value",
+                if (value == null) 
+                {
+                    throw new ArgumentNullException(nameof(value),
                         Environment.GetResourceString("ArgumentNull_String"));
                 }
                 Contract.EndContractBlock();
@@ -1321,7 +1282,6 @@ namespace System.Globalization {
 
                 timeSeparator = value;
             }
-#endif
         }
 
 
@@ -1355,7 +1315,7 @@ namespace System.Globalization {
                 if (IsReadOnly)
                     throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_ReadOnly"));
                 if (value == null) {
-                    throw new ArgumentNullException("value",
+                    throw new ArgumentNullException(nameof(value),
                         Environment.GetResourceString("ArgumentNull_String"));
                 }
                 Contract.EndContractBlock();
@@ -1394,11 +1354,11 @@ namespace System.Globalization {
                 if (IsReadOnly)
                     throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_ReadOnly"));
                 if (value == null) {
-                    throw new ArgumentNullException("value",
+                    throw new ArgumentNullException(nameof(value),
                         Environment.GetResourceString("ArgumentNull_Array"));
                 }
                 if (value.Length != 7) {
-                    throw new ArgumentException(Environment.GetResourceString("Argument_InvalidArrayLength", 7), "value");
+                    throw new ArgumentException(Environment.GetResourceString("Argument_InvalidArrayLength", 7), nameof(value));
                 }
                 Contract.EndContractBlock();
                 CheckNullValue(value, value.Length);
@@ -1422,12 +1382,12 @@ namespace System.Globalization {
                 if (IsReadOnly)
                     throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_ReadOnly"));
                 if (value == null) {
-                    throw new ArgumentNullException("value",
+                    throw new ArgumentNullException(nameof(value),
                         Environment.GetResourceString("ArgumentNull_Array"));
                 }
                 if (value.Length != 7)
                 {
-                    throw new ArgumentException(Environment.GetResourceString("Argument_InvalidArrayLength", 7), "value");
+                    throw new ArgumentException(Environment.GetResourceString("Argument_InvalidArrayLength", 7), nameof(value));
                 }
                 Contract.EndContractBlock();
                 CheckNullValue(value, value.Length);
@@ -1447,12 +1407,12 @@ namespace System.Globalization {
                 if (IsReadOnly)
                     throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_ReadOnly"));
                 if (value == null) {
-                    throw new ArgumentNullException("value",
+                    throw new ArgumentNullException(nameof(value),
                         Environment.GetResourceString("ArgumentNull_Array"));
                 }
                 if (value.Length != 7)
                 {
-                    throw new ArgumentException(Environment.GetResourceString("Argument_InvalidArrayLength", 7), "value");
+                    throw new ArgumentException(Environment.GetResourceString("Argument_InvalidArrayLength", 7), nameof(value));
                 }
                 Contract.EndContractBlock();
                 CheckNullValue(value, value.Length);
@@ -1472,12 +1432,12 @@ namespace System.Globalization {
                 if (IsReadOnly)
                     throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_ReadOnly"));
                 if (value == null) {
-                    throw new ArgumentNullException("value",
+                    throw new ArgumentNullException(nameof(value),
                         Environment.GetResourceString("ArgumentNull_Array"));
                 }
                 if (value.Length != 13)
                 {
-                    throw new ArgumentException(Environment.GetResourceString("Argument_InvalidArrayLength", 13), "value");
+                    throw new ArgumentException(Environment.GetResourceString("Argument_InvalidArrayLength", 13), nameof(value));
                 }
                 Contract.EndContractBlock();
                 CheckNullValue(value, value.Length - 1);
@@ -1498,12 +1458,12 @@ namespace System.Globalization {
                 if (IsReadOnly)
                     throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_ReadOnly"));
                 if (value == null) {
-                    throw new ArgumentNullException("value",
+                    throw new ArgumentNullException(nameof(value),
                         Environment.GetResourceString("ArgumentNull_Array"));
                 }
                 if (value.Length != 13)
                 {
-                    throw new ArgumentException(Environment.GetResourceString("Argument_InvalidArrayLength", 13), "value");
+                    throw new ArgumentException(Environment.GetResourceString("Argument_InvalidArrayLength", 13), nameof(value));
                 }
                 Contract.EndContractBlock();
                 CheckNullValue(value, value.Length - 1);
@@ -1562,7 +1522,7 @@ namespace System.Globalization {
             // (actually is 13 right now for all cases)
             if ((month < 1) || (month > monthNamesArray.Length)) {
                 throw new ArgumentOutOfRangeException(
-                    "month", Environment.GetResourceString("ArgumentOutOfRange_Range",
+                    nameof(month), Environment.GetResourceString("ArgumentOutOfRange_Range",
                     1, monthNamesArray.Length));
             }
             return (monthNamesArray[month-1]);
@@ -1581,7 +1541,7 @@ namespace System.Globalization {
                 if (this.m_genitiveAbbreviatedMonthNames == null)
                 {
                     this.m_genitiveAbbreviatedMonthNames = this.m_cultureData.AbbreviatedGenitiveMonthNames(this.Calendar.ID);
-                    Contract.Assert(this.m_genitiveAbbreviatedMonthNames.Length == 13,
+                    Debug.Assert(this.m_genitiveAbbreviatedMonthNames.Length == 13,
                         "[DateTimeFormatInfo.GetGenitiveMonthNames] Expected 13 abbreviated genitive month names in a year");
                 }
                 return (this.m_genitiveAbbreviatedMonthNames);
@@ -1590,7 +1550,7 @@ namespace System.Globalization {
             if (this.genitiveMonthNames == null)
             {
                 this.genitiveMonthNames = this.m_cultureData.GenitiveMonthNames(this.Calendar.ID);
-                Contract.Assert(this.genitiveMonthNames.Length == 13,
+                Debug.Assert(this.genitiveMonthNames.Length == 13,
                     "[DateTimeFormatInfo.GetGenitiveMonthNames] Expected 13 genitive month names in a year");
             }
             return (this.genitiveMonthNames);
@@ -1606,9 +1566,9 @@ namespace System.Globalization {
         internal String[] internalGetLeapYearMonthNames(/*bool abbreviated*/) {
             if (this.leapYearMonthNames == null)
             {
-                Contract.Assert(Calendar.ID > 0, "[DateTimeFormatInfo.internalGetLeapYearMonthNames] Expected Calendar.ID > 0");
+                Debug.Assert(Calendar.ID > 0, "[DateTimeFormatInfo.internalGetLeapYearMonthNames] Expected Calendar.ID > 0");
                 this.leapYearMonthNames = this.m_cultureData.LeapYearMonthNames(Calendar.ID);
-                Contract.Assert(this.leapYearMonthNames.Length == 13,
+                Debug.Assert(this.leapYearMonthNames.Length == 13,
                     "[DateTimeFormatInfo.internalGetLeapYearMonthNames] Expepcted 13 leap year month names");
             }
             return (leapYearMonthNames);
@@ -1620,7 +1580,7 @@ namespace System.Globalization {
 
             if ((int)dayofweek < 0 || (int)dayofweek > 6) {
                 throw new ArgumentOutOfRangeException(
-                    "dayofweek", Environment.GetResourceString("ArgumentOutOfRange_Range",
+                    nameof(dayofweek), Environment.GetResourceString("ArgumentOutOfRange_Range",
                     DayOfWeek.Sunday, DayOfWeek.Saturday));
             }
             Contract.EndContractBlock();
@@ -1639,7 +1599,7 @@ namespace System.Globalization {
 
             if ((int)dayOfWeek < 0 || (int)dayOfWeek > 6) {
                 throw new ArgumentOutOfRangeException(
-                    "dayOfWeek", Environment.GetResourceString("ArgumentOutOfRange_Range",
+                    nameof(dayOfWeek), Environment.GetResourceString("ArgumentOutOfRange_Range",
                     DayOfWeek.Sunday, DayOfWeek.Saturday));
             }
             Contract.EndContractBlock();
@@ -1746,7 +1706,7 @@ namespace System.Globalization {
                     result = this.AllYearMonthPatterns;
                     break;
                 default:
-                    throw new ArgumentException(Environment.GetResourceString("Format_BadFormatSpecifier"), "format");
+                    throw new ArgumentException(Environment.GetResourceString("Format_BadFormatSpecifier"), nameof(format));
             }
             return (result);
         }
@@ -1756,7 +1716,7 @@ namespace System.Globalization {
         {
             if ((int)dayofweek < 0 || (int)dayofweek > 6) {
                 throw new ArgumentOutOfRangeException(
-                    "dayofweek", Environment.GetResourceString("ArgumentOutOfRange_Range",
+                    nameof(dayofweek), Environment.GetResourceString("ArgumentOutOfRange_Range",
                     DayOfWeek.Sunday, DayOfWeek.Saturday));
             }
             Contract.EndContractBlock();
@@ -1771,7 +1731,7 @@ namespace System.Globalization {
         {
             if (month < 1 || month > 13) {
                 throw new ArgumentOutOfRangeException(
-                    "month", Environment.GetResourceString("ArgumentOutOfRange_Range",
+                    nameof(month), Environment.GetResourceString("ArgumentOutOfRange_Range",
                     1, 13));
             }
             Contract.EndContractBlock();
@@ -1784,7 +1744,7 @@ namespace System.Globalization {
         {
             if (month < 1 || month > 13) {
                 throw new ArgumentOutOfRangeException(
-                    "month", Environment.GetResourceString("ArgumentOutOfRange_Range",
+                    nameof(month), Environment.GetResourceString("ArgumentOutOfRange_Range",
                     1, 13));
             }
             Contract.EndContractBlock();
@@ -1801,9 +1761,9 @@ namespace System.Globalization {
         // The resulting [] can get returned to the calling app, so clone it.
         private static string[] GetMergedPatterns(string [] patterns, string defaultPattern)
         {
-            Contract.Assert(patterns != null && patterns.Length > 0,
+            Debug.Assert(patterns != null && patterns.Length > 0,
                             "[DateTimeFormatInfo.GetMergedPatterns]Expected array of at least one pattern");
-            Contract.Assert(defaultPattern != null, 
+            Debug.Assert(defaultPattern != null, 
                             "[DateTimeFormatInfo.GetMergedPatterns]Expected non null default string");
 
             // If the default happens to be the first in the list just return (a cloned) copy
@@ -1900,9 +1860,9 @@ namespace System.Globalization {
             {
                 if (this.allYearMonthPatterns == null)
                 {
-                    Contract.Assert(Calendar.ID > 0, "[DateTimeFormatInfo.UnclonedYearMonthPatterns] Expected Calendar.ID > 0");                    
+                    Debug.Assert(Calendar.ID > 0, "[DateTimeFormatInfo.UnclonedYearMonthPatterns] Expected Calendar.ID > 0");                    
                     this.allYearMonthPatterns = this.m_cultureData.YearMonths(this.Calendar.ID);
-                    Contract.Assert(this.allYearMonthPatterns.Length > 0,
+                    Debug.Assert(this.allYearMonthPatterns.Length > 0,
                         "[DateTimeFormatInfo.UnclonedYearMonthPatterns] Expected some year month patterns");
                 }
 
@@ -1919,9 +1879,9 @@ namespace System.Globalization {
             {
                 if (allShortDatePatterns == null)
                 {
-                    Contract.Assert(Calendar.ID > 0, "[DateTimeFormatInfo.UnclonedShortDatePatterns] Expected Calendar.ID > 0");
+                    Debug.Assert(Calendar.ID > 0, "[DateTimeFormatInfo.UnclonedShortDatePatterns] Expected Calendar.ID > 0");
                     this.allShortDatePatterns = this.m_cultureData.ShortDates(this.Calendar.ID);
-                    Contract.Assert(this.allShortDatePatterns.Length > 0,
+                    Debug.Assert(this.allShortDatePatterns.Length > 0,
                         "[DateTimeFormatInfo.UnclonedShortDatePatterns] Expected some short date patterns");
                 }
 
@@ -1937,9 +1897,9 @@ namespace System.Globalization {
             {
                 if (allLongDatePatterns == null)
                 {
-                    Contract.Assert(Calendar.ID > 0, "[DateTimeFormatInfo.UnclonedLongDatePatterns] Expected Calendar.ID > 0");
+                    Debug.Assert(Calendar.ID > 0, "[DateTimeFormatInfo.UnclonedLongDatePatterns] Expected Calendar.ID > 0");
                     this.allLongDatePatterns = this.m_cultureData.LongDates(this.Calendar.ID);
-                    Contract.Assert(this.allLongDatePatterns.Length > 0,
+                    Debug.Assert(this.allLongDatePatterns.Length > 0,
                         "[DateTimeFormatInfo.UnclonedLongDatePatterns] Expected some long date patterns");
                 }
 
@@ -1956,7 +1916,7 @@ namespace System.Globalization {
                 if (this.allShortTimePatterns == null)
                 {
                     this.allShortTimePatterns = this.m_cultureData.ShortTimes;
-                    Contract.Assert(this.allShortTimePatterns.Length > 0,
+                    Debug.Assert(this.allShortTimePatterns.Length > 0,
                         "[DateTimeFormatInfo.UnclonedShortTimePatterns] Expected some short time patterns");
                 }
                 
@@ -1973,7 +1933,7 @@ namespace System.Globalization {
                 if (this.allLongTimePatterns == null)
                 {
                     this.allLongTimePatterns = this.m_cultureData.LongTimes;
-                    Contract.Assert(this.allLongTimePatterns.Length > 0,
+                    Debug.Assert(this.allLongTimePatterns.Length > 0,
                         "[DateTimeFormatInfo.UnclonedLongTimePatterns] Expected some long time patterns");
                 }
                 
@@ -1983,7 +1943,7 @@ namespace System.Globalization {
 
         public static DateTimeFormatInfo ReadOnly(DateTimeFormatInfo dtfi) {
             if (dtfi == null) {
-                throw new ArgumentNullException("dtfi",
+                throw new ArgumentNullException(nameof(dtfi),
                     Environment.GetResourceString("ArgumentNull_Obj"));
             }
             Contract.EndContractBlock();
@@ -2044,13 +2004,13 @@ namespace System.Globalization {
             if (IsReadOnly)
                 throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_ReadOnly"));
             if (patterns == null) {
-                throw new ArgumentNullException("patterns",
+                throw new ArgumentNullException(nameof(patterns),
                     Environment.GetResourceString("ArgumentNull_Array"));
             }
 
             if (patterns.Length == 0)
             {
-                throw new ArgumentException(Environment.GetResourceString("Arg_ArrayZeroError"), "patterns");
+                throw new ArgumentException(Environment.GetResourceString("Arg_ArrayZeroError"), nameof(patterns));
             }
             Contract.EndContractBlock();
 
@@ -2092,7 +2052,7 @@ namespace System.Globalization {
                     break;
                     
                 default:
-                    throw new ArgumentException(Environment.GetResourceString("Format_BadFormatSpecifier"), "format");
+                    throw new ArgumentException(Environment.GetResourceString("Format_BadFormatSpecifier"), nameof(format));
             }
 
             // Clear the token hash table, note that even short dates could require this
@@ -2115,12 +2075,12 @@ namespace System.Globalization {
                     throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_ReadOnly"));
                 if (value == null)
                 {
-                    throw new ArgumentNullException("value",
+                    throw new ArgumentNullException(nameof(value),
                         Environment.GetResourceString("ArgumentNull_Array"));
                 }
                 if (value.Length != 13)
                 {
-                    throw new ArgumentException(Environment.GetResourceString("Argument_InvalidArrayLength", 13), "value");
+                    throw new ArgumentException(Environment.GetResourceString("Argument_InvalidArrayLength", 13), nameof(value));
                 }
                 Contract.EndContractBlock();
                 CheckNullValue(value, value.Length - 1);
@@ -2143,12 +2103,12 @@ namespace System.Globalization {
                     throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_ReadOnly"));
                 if (value == null)
                 {
-                    throw new ArgumentNullException("value",
+                    throw new ArgumentNullException(nameof(value),
                         Environment.GetResourceString("ArgumentNull_Array"));
                 }
                 if (value.Length != 13)
                 {
-                    throw new ArgumentException(Environment.GetResourceString("Argument_InvalidArrayLength", 13), "value");
+                    throw new ArgumentException(Environment.GetResourceString("Argument_InvalidArrayLength", 13), nameof(value));
                 }
                 Contract.EndContractBlock();
                 CheckNullValue(value, value.Length - 1);
@@ -2402,7 +2362,6 @@ namespace System.Globalization {
             formatFlags = DateTimeFormatFlags.NotInitialized;
         }
 
-        [System.Security.SecurityCritical]  // auto-generated
         internal TokenHashValue[] CreateTokenHashTable() {
             TokenHashValue[] temp = m_dtfiTokenHash;
             if (temp == null) {
@@ -2496,7 +2455,7 @@ namespace System.Globalization {
                             case DateTimeFormatInfoScanner.IgnorableSymbolChar:
                                 String symbol = dateWords[i].Substring(1);
                                 InsertHash(temp, symbol, TokenType.IgnorableSymbol, 0);
-                                if (this.DateSeparator.Trim(null).Equals(symbol))
+                                if (this.DateSeparator.Trim().Equals(symbol))
                                 {
                                     // The date separator is the same as the ingorable symbol.
                                     useDateSepAsIgnorableSymbol = true;
@@ -2695,7 +2654,7 @@ namespace System.Globalization {
             } while (i < str.Value.Length && (state != HebrewNumberParsingState.FoundEndOfHebrewNumber));
 
             // When we are here, we are either at the end of the string, or we find a valid Hebrew number.
-            Contract.Assert(state == HebrewNumberParsingState.ContinueParsing || state == HebrewNumberParsingState.FoundEndOfHebrewNumber,
+            Debug.Assert(state == HebrewNumberParsingState.ContinueParsing || state == HebrewNumberParsingState.FoundEndOfHebrewNumber,
                 "Invalid returned state from HebrewNumber.ParseByChar()");
 
             if (state != HebrewNumberParsingState.FoundEndOfHebrewNumber) {
@@ -2716,13 +2675,12 @@ namespace System.Globalization {
             return (ch >= '\x0590' && ch <= '\x05ff');
         }
 
-        [System.Security.SecurityCritical]  // auto-generated
         internal bool Tokenize(TokenType TokenMask, out TokenType tokenType, out int tokenValue, ref __DTString str) {
             tokenType = TokenType.UnknownToken;
             tokenValue = 0;
 
             TokenHashValue value;
-            Contract.Assert(str.Index < str.Value.Length, "DateTimeFormatInfo.Tokenize(): start < value.Length");
+            Debug.Assert(str.Index < str.Value.Length, "DateTimeFormatInfo.Tokenize(): start < value.Length");
 
             char ch = str.m_current;
             bool isLetter = Char.IsLetter(ch);
@@ -2831,7 +2789,7 @@ namespace System.Globalization {
                 }
                 previousNode = temp;
             } ;
-            Contract.Assert(false, "The hashtable is full.  This should not happen.");
+            Debug.Assert(false, "The hashtable is full.  This should not happen.");
         }
 
         void InsertHash(TokenHashValue[] hashTable, String str, TokenType tokenType, int tokenValue) {
@@ -2844,7 +2802,7 @@ namespace System.Globalization {
             // If there is whitespace characters in the beginning and end of the string, trim them since whitespaces are skipped by
             // DateTime.Parse().
             if (Char.IsWhiteSpace(str[0]) || Char.IsWhiteSpace(str[str.Length - 1])) {
-                str = str.Trim(null);   // Trim white space characters.
+                str = str.Trim();   // Trim white space characters.
                 // Could have space for separators
                 if (str.Length == 0)
                     return;
@@ -2883,35 +2841,13 @@ namespace System.Globalization {
                                 int nTokenType = (int)tokenType;
                                 int nCurrentTokenTypeInHash = (int)value.tokenType;
 
-                                // The idea behind this check is:
-                                // - if the app is targetting 4.5.1 or above OR the compat flag is set, use the correct behavior by default.
-                                // - if the app is targetting 4.5 or below AND the compat switch is set, use the correct behavior
-                                // - if the app is targetting 4.5 or below AND the compat switch is NOT set, use the incorrect behavior
-                                if (preferExistingTokens || BinaryCompatibility.TargetsAtLeast_Desktop_V4_5_1)
+                                if (((nCurrentTokenTypeInHash & (int)TokenType.RegularTokenMask) == 0) && ((nTokenType & (int)TokenType.RegularTokenMask) != 0) ||
+                                   ((nCurrentTokenTypeInHash & (int)TokenType.SeparatorTokenMask) == 0) && ((nTokenType & (int)TokenType.SeparatorTokenMask) != 0))
                                 {
-                                    if (((nCurrentTokenTypeInHash & (int)TokenType.RegularTokenMask) == 0) && ((nTokenType & (int)TokenType.RegularTokenMask) != 0) ||
-                                       ((nCurrentTokenTypeInHash & (int)TokenType.SeparatorTokenMask) == 0) && ((nTokenType & (int)TokenType.SeparatorTokenMask) != 0))
+                                    value.tokenType |= tokenType;
+                                    if (tokenValue != 0)
                                     {
-                                        value.tokenType |= tokenType;
-                                        if (tokenValue != 0)
-                                        {
-                                            value.tokenValue = tokenValue;
-                                        }
-                                    }
-                                }
-                                else
-                                {
-                                    // The following logic is incorrect and causes updates to happen depending on the bitwise relationship between the existing token type and the
-                                    // the stored token type.  It was this way in .NET 4 RTM.  The behavior above is correct and will be adopted going forward.
-
-                                    if ((((nTokenType | nCurrentTokenTypeInHash) & (int)TokenType.RegularTokenMask) == nTokenType) ||
-                                       (((nTokenType | nCurrentTokenTypeInHash) & (int)TokenType.SeparatorTokenMask) == nTokenType))
-                                    {
-                                        value.tokenType |= tokenType;
-                                        if (tokenValue != 0)
-                                        {
-                                            value.tokenValue = tokenValue;
-                                        }
+                                        value.tokenValue = tokenValue;
                                     }
                                 }
                                 // The token to be inserted is already in the table.  Skip it.
@@ -2924,7 +2860,7 @@ namespace System.Globalization {
                 hashcode += hashProbe;
                 if (hashcode >= TOKEN_HASH_SIZE) hashcode -= TOKEN_HASH_SIZE;
             } while (i < TOKEN_HASH_SIZE);
-            Contract.Assert(false, "The hashtable is full.  This should not happen.");
+            Debug.Assert(false, "The hashtable is full.  This should not happen.");
         }
     }   // class DateTimeFormatInfo
 

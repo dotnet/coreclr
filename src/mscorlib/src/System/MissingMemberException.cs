@@ -23,9 +23,7 @@ namespace System {
     using System.Diagnostics.Contracts;
     
     [System.Runtime.InteropServices.ComVisible(true)]
-#if FEATURE_SERIALIZATION
     [Serializable]
-#endif
     public class MissingMemberException : MemberAccessException, ISerializable {
         public MissingMemberException() 
             : base(Environment.GetResourceString("Arg_MissingMemberException")) {
@@ -50,7 +48,6 @@ namespace System {
     
         public override String Message
         {
-            [System.Security.SecuritySafeCritical]  // auto-generated
             get {
                 if (ClassName == null) {
                     return base.Message;
@@ -64,7 +61,6 @@ namespace System {
         }
     
         // Called to format signature
-        [System.Security.SecurityCritical]  // auto-generated
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         internal static extern String FormatSignature(byte [] signature);
     
@@ -84,10 +80,9 @@ namespace System {
             MemberName  = memberName;
         }
     
-        [System.Security.SecurityCritical]  // auto-generated_required
         public override void GetObjectData(SerializationInfo info, StreamingContext context) {
             if (info==null) {
-                throw new ArgumentNullException("info");
+                throw new ArgumentNullException(nameof(info));
             }
             Contract.EndContractBlock();
             base.GetObjectData(info, context);

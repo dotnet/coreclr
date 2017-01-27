@@ -27,6 +27,13 @@ if(CLR_CMAKE_PLATFORM_UNIX)
     add_compile_options(-fPIC)
 endif(CLR_CMAKE_PLATFORM_UNIX)
 
+if(FEATURE_GDBJIT)
+    set(VM_SOURCES_GDBJIT
+        gdbjit.cpp
+    )
+    add_definitions(-DFEATURE_GDBJIT)
+endif(FEATURE_GDBJIT)
+
 set(VM_SOURCES_DAC_AND_WKS_COMMON
     appdomain.cpp
     array.cpp
@@ -63,6 +70,7 @@ set(VM_SOURCES_DAC_AND_WKS_COMMON
     formattype.cpp
     fptrstubs.cpp
     frames.cpp
+    gcheaputilities.cpp
     genericdict.cpp
     generics.cpp
     hash.cpp
@@ -147,7 +155,6 @@ set(VM_SOURCES_WKS
     comthreadpool.cpp
     comutilnative.cpp
     comwaithandle.cpp
-    constrainedexecutionregion.cpp
     coverage.cpp
     customattribute.cpp
     custommarshalerinfo.cpp
@@ -164,7 +171,6 @@ set(VM_SOURCES_WKS
     frameworkexceptionloader.cpp
     gccover.cpp
     gcenv.ee.cpp
-    gcenv.os.cpp
     gchelpers.cpp
     genmeth.cpp
     hosting.cpp
@@ -232,13 +238,26 @@ set(VM_SOURCES_WKS
     typeparse.cpp
     verifier.cpp
     weakreferencenative.cpp
+    ${VM_SOURCES_GDBJIT}
 )
+
+if(FEATURE_CER)
+    list(APPEND VM_SOURCES_WKS
+        constrainedexecutionregion.cpp
+        )
+endif(FEATURE_CER)
 
 if(FEATURE_EVENT_TRACE)
     list(APPEND VM_SOURCES_WKS
         eventtrace.cpp
         )
 endif(FEATURE_EVENT_TRACE)
+
+if(NOT FEATURE_STANDALONE_GC)
+    list(APPEND VM_SOURCES_WKS
+        gcenv.os.cpp
+        )
+endif(NOT FEATURE_STANDALONE_GC)
 
 if(WIN32)
 
@@ -320,6 +339,15 @@ elseif(CLR_CMAKE_TARGET_ARCH_I386)
         ${ARCH_SOURCES_DIR}/gmsasm.asm
         ${ARCH_SOURCES_DIR}/jithelp.asm
     )
+elseif(CLR_CMAKE_TARGET_ARCH_ARM)
+    set(VM_SOURCES_WKS_ARCH_ASM
+        ${ARCH_SOURCES_DIR}/asmhelpers.asm
+        ${ARCH_SOURCES_DIR}/CrtHelpers.asm
+        ${ARCH_SOURCES_DIR}/ehhelpers.asm
+        ${ARCH_SOURCES_DIR}/memcpy.asm
+        ${ARCH_SOURCES_DIR}/patchedcode.asm
+        ${ARCH_SOURCES_DIR}/PInvokeStubs.asm
+    )
 elseif(CLR_CMAKE_TARGET_ARCH_ARM64)
     set(VM_SOURCES_WKS_ARCH_ASM
         ${ARCH_SOURCES_DIR}/AsmHelpers.asm
@@ -346,6 +374,13 @@ else(WIN32)
             ${ARCH_SOURCES_DIR}/unixasmhelpers.S
             ${ARCH_SOURCES_DIR}/umthunkstub.S
             ${ARCH_SOURCES_DIR}/virtualcallstubamd64.S
+        )
+    elseif(CLR_CMAKE_TARGET_ARCH_I386)
+        set(VM_SOURCES_WKS_ARCH_ASM
+            ${ARCH_SOURCES_DIR}/asmhelpers.S
+            ${ARCH_SOURCES_DIR}/jithelp.S
+            ${ARCH_SOURCES_DIR}/gmsasm.S
+            ${ARCH_SOURCES_DIR}/umthunkstub.S
         )
     elseif(CLR_CMAKE_TARGET_ARCH_ARM)
         set(VM_SOURCES_WKS_ARCH_ASM
@@ -395,9 +430,10 @@ elseif(CLR_CMAKE_TARGET_ARCH_I386)
     )
     
     set(VM_SOURCES_WKS_ARCH
-        ${ARCH_SOURCES_DIR}/jithelp.asm
         ${ARCH_SOURCES_DIR}/jitinterfacex86.cpp
         ${ARCH_SOURCES_DIR}/profiler.cpp
+        exceptionhandling.cpp
+        gcinfodecoder.cpp
     )
 elseif(CLR_CMAKE_TARGET_ARCH_ARM)
     set(VM_SOURCES_DAC_AND_WKS_ARCH

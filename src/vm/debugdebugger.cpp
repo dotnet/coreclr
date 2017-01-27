@@ -22,7 +22,7 @@
 #include "frames.h"
 #include "vars.hpp"
 #include "field.h"
-#include "gc.h"
+#include "gcheaputilities.h"
 #include "jitinterface.h"
 #include "debugdebugger.h"
 #include "dbginterface.h"
@@ -1403,7 +1403,7 @@ FCIMPL4(INT32, DebuggerAssert::ShowDefaultAssertDialog,
     }
     msgText.Append(W("Description: "));
     msgText.Append(message);
-    
+
     StackSString stackTraceText;
     if (gc.strStackTrace != NULL) {
         stackTraceText.Append(W("Stack Trace:\n"));
@@ -1414,25 +1414,33 @@ FCIMPL4(INT32, DebuggerAssert::ShowDefaultAssertDialog,
         windowTitle.Set(W("Assert Failure"));
     }
 
-    // We're taking a string from managed code, and we can't be sure it doesn't have stuff like %s or \n in it.
-    // So, pass a format string of %s and pass the text as a vararg to our message box method.
-    // Also, varargs and StackSString don't mix.  Convert to string first.
-    const WCHAR* msgTextAsUnicode = msgText.GetUnicode();
-    result = EEMessageBoxNonLocalizedNonFatal(W("%s"), windowTitle, stackTraceText, MB_ABORTRETRYIGNORE | MB_ICONEXCLAMATION, msgTextAsUnicode);
-    
-    // map the user's choice to the values recognized by 
-    // the System.Diagnostics.Assert package
-    if (result == IDRETRY)
+    if (NoGuiOnAssert())
     {
-        result = FailDebug;
-    }
-    else if (result == IDIGNORE)
-    {
-        result = FailIgnore;
+        fwprintf(stderr, W("%s\n%s\n%s\n"), windowTitle.GetUnicode(), msgText.GetUnicode(), stackTraceText.GetUnicode()); 
+        result = FailTerminate;
     }
     else
     {
-        result = FailTerminate;
+        // We're taking a string from managed code, and we can't be sure it doesn't have stuff like %s or \n in it.
+        // So, pass a format string of %s and pass the text as a vararg to our message box method.
+        // Also, varargs and StackSString don't mix.  Convert to string first.
+        const WCHAR* msgTextAsUnicode = msgText.GetUnicode();
+        result = EEMessageBoxNonLocalizedNonFatal(W("%s"), windowTitle, stackTraceText, MB_ABORTRETRYIGNORE | MB_ICONEXCLAMATION, msgTextAsUnicode);
+
+        // map the user's choice to the values recognized by 
+        // the System.Diagnostics.Assert package
+        if (result == IDRETRY)
+        {
+            result = FailDebug;
+        }
+        else if (result == IDIGNORE)
+        {
+            result = FailIgnore;
+        }
+        else
+        {
+            result = FailTerminate;
+        }
     }
 
     HELPER_METHOD_FRAME_END();

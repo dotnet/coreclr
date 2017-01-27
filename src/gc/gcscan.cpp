@@ -129,7 +129,7 @@ static void CALLBACK CheckPromoted(_UNCHECKED_OBJECTREF *pObjRef, uintptr_t * /*
     LOG((LF_GC, LL_INFO100000, LOG_HANDLE_OBJECT_CLASS("Checking referent of Weak-", pObjRef, "to ", *pObjRef)));
 
     Object **pRef = (Object **)pObjRef;
-    if (!GCHeap::GetGCHeap()->IsPromoted(*pRef))
+    if (!g_theGCHeap->IsPromoted(*pRef))
     {
         LOG((LF_GC, LL_INFO100, LOG_HANDLE_OBJECT_CLASS("Severing Weak-", pObjRef, "to unreachable ", *pObjRef)));
 
@@ -192,33 +192,32 @@ void GCScan::GcScanHandles (promote_func* fn,  int condemned, int max_gen,
     }
 }
 
-
-#if defined(GC_PROFILING) || defined(FEATURE_EVENT_TRACE)
-
 /*
  * Scan all handle roots in this 'namespace' for profiling
  */
 
-void GCScan::GcScanHandlesForProfilerAndETW (int max_gen, ScanContext* sc)
+void GCScan::GcScanHandlesForProfilerAndETW (int max_gen, ScanContext* sc, handle_scan_fn fn)
 {
     LIMITED_METHOD_CONTRACT;
 
+#if defined(GC_PROFILING) || defined(FEATURE_EVENT_TRACE)
     LOG((LF_GC|LF_GCROOTS, LL_INFO10, "Profiler Root Scan Phase, Handles\n"));
-    Ref_ScanPointersForProfilerAndETW(max_gen, (uintptr_t)sc);
+    Ref_ScanHandlesForProfilerAndETW(max_gen, (uintptr_t)sc, fn);
+#endif // defined(GC_PROFILING) || defined(FEATURE_EVENT_TRACE)
 }
 
 /*
  * Scan dependent handles in this 'namespace' for profiling
  */
-void GCScan::GcScanDependentHandlesForProfilerAndETW (int max_gen, ProfilingScanContext* sc)
+void GCScan::GcScanDependentHandlesForProfilerAndETW (int max_gen, ScanContext* sc, handle_scan_fn fn)
 {
     LIMITED_METHOD_CONTRACT;
 
+#if defined(GC_PROFILING) || defined(FEATURE_EVENT_TRACE)
     LOG((LF_GC|LF_GCROOTS, LL_INFO10, "Profiler Root Scan Phase, DependentHandles\n"));
-    Ref_ScanDependentHandlesForProfilerAndETW(max_gen, sc);
-}
-
+    Ref_ScanDependentHandlesForProfilerAndETW(max_gen, sc, fn);
 #endif // defined(GC_PROFILING) || defined(FEATURE_EVENT_TRACE)
+}
 
 void GCScan::GcRuntimeStructuresValid (BOOL bValid)
 {
@@ -240,14 +239,14 @@ void GCScan::GcRuntimeStructuresValid (BOOL bValid)
 void GCScan::GcDemote (int condemned, int max_gen, ScanContext* sc)
 {
     Ref_RejuvenateHandles (condemned, max_gen, (uintptr_t)sc);
-    if (!GCHeap::IsServerHeap() || sc->thread_number == 0)
+    if (!IsServerHeap() || sc->thread_number == 0)
         GCToEEInterface::SyncBlockCacheDemote(max_gen);
 }
 
 void GCScan::GcPromotionsGranted (int condemned, int max_gen, ScanContext* sc)
 {
     Ref_AgeHandles(condemned, max_gen, (uintptr_t)sc);
-    if (!GCHeap::IsServerHeap() || sc->thread_number == 0)
+    if (!IsServerHeap() || sc->thread_number == 0)
         GCToEEInterface::SyncBlockCachePromotionsGranted(max_gen);
 }
 

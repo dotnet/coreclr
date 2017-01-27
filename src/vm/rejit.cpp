@@ -178,22 +178,22 @@ CrstStatic ReJitManager::s_csGlobalRequest;
 //---------------------------------------------------------------------------------------
 // Helpers
 
-inline DWORD JitFlagsFromProfCodegenFlags(DWORD dwCodegenFlags)
+inline CORJIT_FLAGS JitFlagsFromProfCodegenFlags(DWORD dwCodegenFlags)
 {
     LIMITED_METHOD_DAC_CONTRACT;
 
-    DWORD jitFlags = 0;
+    CORJIT_FLAGS jitFlags;
 
     // Note: COR_PRF_CODEGEN_DISABLE_INLINING is checked in
     // code:CEEInfo::canInline#rejit (it has no equivalent CORJIT flag).
 
     if ((dwCodegenFlags & COR_PRF_CODEGEN_DISABLE_ALL_OPTIMIZATIONS) != 0)
     {
-        jitFlags |= CORJIT_FLG_DEBUG_CODE;
+        jitFlags.Set(CORJIT_FLAGS::CORJIT_FLAG_DEBUG_CODE);
     }
 
     // In the future more flags may be added that need to be converted here (e.g.,
-    // COR_PRF_CODEGEN_ENTERLEAVE / CORJIT_FLG_PROF_ENTERLEAVE)
+    // COR_PRF_CODEGEN_ENTERLEAVE / CORJIT_FLAG_PROF_ENTERLEAVE)
 
     return jitFlags;
 }
@@ -1769,6 +1769,10 @@ DWORD ReJitManager::GetCurrentReJitFlags(PTR_MethodDesc pMD)
 //      E_OUTOFMEMORY
 //
 
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable:4702) // Disable bogus unreachable code warning
+#endif // _MSC_VER
 HRESULT ReJitManager::RequestRevertByToken(PTR_Module pModule, mdMethodDef methodDef)
 {
     CONTRACTL
@@ -1825,7 +1829,9 @@ HRESULT ReJitManager::RequestRevertByToken(PTR_Module pModule, mdMethodDef metho
     }
     return S_OK;
 }
-
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif // _MSC_VER
 
 
 
@@ -2164,8 +2170,7 @@ PCODE ReJitManager::DoReJit(ReJitInfo * pInfo)
     pCodeOfRejittedCode = UnsafeJitFunction(
         pInfo->GetMethodDesc(),
         &ILHeader,
-        JitFlagsFromProfCodegenFlags(pInfo->m_pShared->m_dwCodegenFlags),
-        0);
+        JitFlagsFromProfCodegenFlags(pInfo->m_pShared->m_dwCodegenFlags));
 
     _ASSERTE(pCodeOfRejittedCode != NULL);
 

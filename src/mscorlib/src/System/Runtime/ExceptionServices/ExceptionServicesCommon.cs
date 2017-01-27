@@ -15,7 +15,6 @@
 ** 
 =============================================================================*/
 
-#if FEATURE_EXCEPTIONDISPATCHINFO
 namespace System.Runtime.ExceptionServices {
     using System;
     
@@ -101,7 +100,7 @@ namespace System.Runtime.ExceptionServices {
         {
             if (source == null)
             {
-                throw new ArgumentNullException("source", Environment.GetResourceString("ArgumentNull_Obj"));
+                throw new ArgumentNullException(nameof(source), Environment.GetResourceString("ArgumentNull_Obj"));
             }
             
             return new ExceptionDispatchInfo(source);
@@ -132,4 +131,3 @@ namespace System.Runtime.ExceptionServices {
         }
     }
 }
-#endif // FEATURE_EXCEPTIONDISPATCHINFO

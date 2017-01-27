@@ -48,7 +48,7 @@ namespace System
             // sync ctx reference identity issues where the sync ctx for one thread could be Current on another.
             // If there is no current context, we use a default instance targeting the ThreadPool.
             m_synchronizationContext = SynchronizationContext.CurrentNoFlow ?? ProgressStatics.DefaultContext;
-            Contract.Assert(m_synchronizationContext != null);
+            Debug.Assert(m_synchronizationContext != null);
             m_invokeHandlers = new SendOrPostCallback(InvokeHandlers);
         }
 
@@ -63,7 +63,7 @@ namespace System
         /// <exception cref="System.ArgumentNullException">The <paramref name="handler"/> is null (Nothing in Visual Basic).</exception>
         public Progress(Action<T> handler) : this()
         {
-            if (handler == null) throw new ArgumentNullException("handler");
+            if (handler == null) throw new ArgumentNullException(nameof(handler));
             m_handler = handler;
         }
 

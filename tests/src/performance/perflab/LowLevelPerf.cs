@@ -7,760 +7,799 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Runtime.CompilerServices;
 
-public class LowLevelPerf
+namespace PerfLabTests
 {
-    [Benchmark]
-    public static void EmptyStaticFunction()
+    public class LowLevelPerf
     {
-        foreach (var iteration in Benchmark.Iterations)
+        [Benchmark(InnerIterationCount = 100000)]
+        public static void EmptyStaticFunction()
         {
-            using (iteration.StartMeasurement())
+            foreach (var iteration in Benchmark.Iterations)
             {
-                Class.EmptyStaticFunction();
-                Class.EmptyStaticFunction();
-                Class.EmptyStaticFunction();
-                Class.EmptyStaticFunction();
-                Class.EmptyStaticFunction();
-                Class.EmptyStaticFunction();
-                Class.EmptyStaticFunction();
-                Class.EmptyStaticFunction();
-                Class.EmptyStaticFunction();
-                Class.EmptyStaticFunction();
+                using (iteration.StartMeasurement())
+                {
+                    for (int i = 0; i < Benchmark.InnerIterationCount; i++)
+                    {
+                        Class.EmptyStaticFunction();
+                        Class.EmptyStaticFunction();
+                        Class.EmptyStaticFunction();
+                        Class.EmptyStaticFunction();
+                        Class.EmptyStaticFunction();
+                        Class.EmptyStaticFunction();
+                        Class.EmptyStaticFunction();
+                        Class.EmptyStaticFunction();
+                        Class.EmptyStaticFunction();
+                        Class.EmptyStaticFunction();
+                    }
+                }
             }
+        }
+
+        [Benchmark(InnerIterationCount = 100000)]
+        public static void EmptyStaticFunction5Arg()
+        {
+            foreach (var iteration in Benchmark.Iterations)
+            {
+                using (iteration.StartMeasurement())
+                {
+                    for (int i = 0; i < Benchmark.InnerIterationCount; i++)
+                    {
+                        Class.EmptyStaticFunction5Arg(1, 2, 3, 4, 5);
+                        Class.EmptyStaticFunction5Arg(1, 2, 3, 4, 5);
+                        Class.EmptyStaticFunction5Arg(1, 2, 3, 4, 5);
+                        Class.EmptyStaticFunction5Arg(1, 2, 3, 4, 5);
+                        Class.EmptyStaticFunction5Arg(1, 2, 3, 4, 5);
+                        Class.EmptyStaticFunction5Arg(1, 2, 3, 4, 5);
+                        Class.EmptyStaticFunction5Arg(1, 2, 3, 4, 5);
+                        Class.EmptyStaticFunction5Arg(1, 2, 3, 4, 5);
+                        Class.EmptyStaticFunction5Arg(1, 2, 3, 4, 5);
+                        Class.EmptyStaticFunction5Arg(1, 2, 3, 4, 5);
+                    }
+                }
+            }
+        }
+
+        [Benchmark(InnerIterationCount = 100000)]
+        public static void EmptyInstanceFunction()
+        {
+            Class aClass = new Class();
+
+            foreach (var iteration in Benchmark.Iterations)
+            {
+                using (iteration.StartMeasurement())
+                {
+                    for (int i = 0; i < Benchmark.InnerIterationCount; i++)
+                    {
+                        aClass.EmptyInstanceFunction();
+                        aClass.EmptyInstanceFunction();
+                        aClass.EmptyInstanceFunction();
+                        aClass.EmptyInstanceFunction();
+                        aClass.EmptyInstanceFunction();
+                        aClass.EmptyInstanceFunction();
+                        aClass.EmptyInstanceFunction();
+                        aClass.EmptyInstanceFunction();
+                        aClass.EmptyInstanceFunction();
+                        aClass.EmptyInstanceFunction();
+                    }
+                }
+            }
+        }
+
+        [Benchmark(InnerIterationCount = 100000)]
+        public static void InterfaceInterfaceMethod()
+        {
+            AnInterface aInterface = new Class();
+
+            foreach (var iteration in Benchmark.Iterations)
+            {
+                using (iteration.StartMeasurement())
+                {
+                    for (int i = 0; i < Benchmark.InnerIterationCount; i++)
+                    {
+                        CallInterfaceMethod(aInterface);
+                        CallInterfaceMethod(aInterface);
+                        CallInterfaceMethod(aInterface);
+                        CallInterfaceMethod(aInterface);
+                        CallInterfaceMethod(aInterface);
+                        CallInterfaceMethod(aInterface);
+                        CallInterfaceMethod(aInterface);
+                        CallInterfaceMethod(aInterface);
+                        CallInterfaceMethod(aInterface);
+                        CallInterfaceMethod(aInterface);
+                    }
+                }
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private static void CallInterfaceMethod(AnInterface aInterface)
+        {
+            aInterface.InterfaceMethod();
+        }
+
+        [Benchmark(InnerIterationCount = 100000)]
+        public static void InterfaceInterfaceMethodLongHierarchy()
+        {
+            AnInterface aInterface = new LongHierarchyChildClass();
+
+            //generate all the not-used call site first
+            CallInterfaceMethod(new LongHierarchyClass1());
+            CallInterfaceMethod(new LongHierarchyClass2());
+            CallInterfaceMethod(new LongHierarchyClass3());
+            CallInterfaceMethod(new LongHierarchyClass4());
+            CallInterfaceMethod(new LongHierarchyClass5());
+            CallInterfaceMethod(new LongHierarchyClass6());
+            CallInterfaceMethod(new LongHierarchyClass7());
+            CallInterfaceMethod(new LongHierarchyClass8());
+            CallInterfaceMethod(new LongHierarchyClass9());
+            CallInterfaceMethod(new LongHierarchyClass11());
+            CallInterfaceMethod(new LongHierarchyClass12());
+
+            foreach (var iteration in Benchmark.Iterations)
+                using (iteration.StartMeasurement())
+                    for (int i = 0; i < Benchmark.InnerIterationCount; i++)
+                        CallInterfaceMethod(aInterface);
+        }
+
+        [Benchmark(InnerIterationCount = 100000)]
+        public static void InterfaceInterfaceMethodSwitchCallType()
+        {
+            AnInterface aInterface = new LongHierarchyChildClass();
+            AnInterface aInterface1 = new LongHierarchyClass1();
+
+            foreach (var iteration in Benchmark.Iterations)
+            {
+                using (iteration.StartMeasurement())
+                {
+                    for (int i = 0; i < Benchmark.InnerIterationCount; i++)
+                    {
+                        CallInterfaceMethod(aInterface);
+                        CallInterfaceMethod(aInterface1);
+                    }
+                }
+            }
+        }
+
+        [Benchmark(InnerIterationCount = 100000)]
+        public static int ClassVirtualMethod()
+        {
+            SuperClass aClass = new Class();
+
+            int x = 0;
+            foreach (var iteration in Benchmark.Iterations)
+                using (iteration.StartMeasurement())
+                    for (int i = 0; i < Benchmark.InnerIterationCount; i++)
+                        x = aClass.VirtualMethod();
+
+            return x;
+        }
+
+        [Benchmark(InnerIterationCount = 100000)]
+        public static void SealedClassInterfaceMethod()
+        {
+            SealedClass aSealedClass = new SealedClass();
+
+            foreach (var iteration in Benchmark.Iterations)
+                using (iteration.StartMeasurement())
+                    for (int i = 0; i < Benchmark.InnerIterationCount; i++)
+                        aSealedClass.InterfaceMethod();
+        }
+
+        [Benchmark(InnerIterationCount = 100000)]
+        public static void StructWithInterfaceInterfaceMethod()
+        {
+            StructWithInterface aStructWithInterface = new StructWithInterface();
+
+            foreach (var iteration in Benchmark.Iterations)
+                using (iteration.StartMeasurement())
+                    for (int i = 0; i < Benchmark.InnerIterationCount; i++)
+                        aStructWithInterface.InterfaceMethod();
+        }
+
+        [Benchmark(InnerIterationCount = 100000)]
+        public static void StaticIntPlus()
+        {
+            Class aClass = new Class();
+
+            foreach (var iteration in Benchmark.Iterations)
+                using (iteration.StartMeasurement())
+                    for (int i = 0; i < Benchmark.InnerIterationCount; i++)
+                        Class.aStaticInt += 1;
+        }
+
+        [Benchmark(InnerIterationCount = 100000)]
+        public static bool ObjectStringIsString()
+        {
+            object aObjectString = "aString1";
+            bool b = false;
+
+            foreach (var iteration in Benchmark.Iterations)
+                using (iteration.StartMeasurement())
+                    for (int i = 0; i < Benchmark.InnerIterationCount; i++)
+                        b = aObjectString is String;
+
+            return b;
+        }
+
+        [Benchmark(InnerIterationCount = 100000)]
+        public static void NewDelegateClassEmptyInstanceFn()
+        {
+            Class aClass = new Class();
+            MyDelegate aMyDelegate;
+
+            foreach (var iteration in Benchmark.Iterations)
+                using (iteration.StartMeasurement())
+                    for (int i = 0; i < Benchmark.InnerIterationCount; i++)
+                        aMyDelegate = new MyDelegate(aClass.EmptyInstanceFunction);
+        }
+
+        [Benchmark(InnerIterationCount = 100000)]
+        public static void NewDelegateClassEmptyStaticFn()
+        {
+            Class aClass = new Class();
+            MyDelegate aMyDelegate;
+
+            foreach (var iteration in Benchmark.Iterations)
+                using (iteration.StartMeasurement())
+                    for (int i = 0; i < Benchmark.InnerIterationCount; i++)
+                        aMyDelegate = new MyDelegate(Class.EmptyStaticFunction);
+        }
+
+        [Benchmark(InnerIterationCount = 100000)]
+        public static void InstanceDelegate()
+        {
+            Class aClass = new Class();
+            MyDelegate aInstanceDelegate = new MyDelegate(aClass.EmptyInstanceFunction);
+
+            foreach (var iteration in Benchmark.Iterations)
+                using (iteration.StartMeasurement())
+                    for (int i = 0; i < Benchmark.InnerIterationCount; i++)
+                        aInstanceDelegate();
+        }
+
+        [Benchmark(InnerIterationCount = 100000)]
+        public static void StaticDelegate()
+        {
+            Class aClass = new Class();
+            MyDelegate aStaticDelegate = new MyDelegate(Class.EmptyStaticFunction);
+
+            foreach (var iteration in Benchmark.Iterations)
+                using (iteration.StartMeasurement())
+                    for (int i = 0; i < Benchmark.InnerIterationCount; i++)
+                        aStaticDelegate();
+        }
+
+        [Benchmark(InnerIterationCount = 100000)]
+        public static void MeasureEvents()
+        {
+            Class aClass = new Class();
+            aClass.AnEvent += new MyDelegate(aClass.EmptyInstanceFunction);
+
+            foreach (var iteration in Benchmark.Iterations)
+                using (iteration.StartMeasurement())
+                    for (int i = 0; i < Benchmark.InnerIterationCount; i++)
+                        aClass.MeasureFire100();
+        }
+
+        [Benchmark(InnerIterationCount = 100000)]
+        public static void GenericClassWithIntGenericInstanceField()
+        {
+            GenericClass<int> aGenericClassWithInt = new GenericClass<int>();
+
+            foreach (var iteration in Benchmark.Iterations)
+                using (iteration.StartMeasurement())
+                    for (int i = 0; i < Benchmark.InnerIterationCount; i++)
+                        aGenericClassWithInt.aGenericInstanceFieldT = 1;
+        }
+
+        [Benchmark(InnerIterationCount = 100000)]
+        public static void GenericClassGenericStaticField()
+        {
+            foreach (var iteration in Benchmark.Iterations)
+                using (iteration.StartMeasurement())
+                    for (int i = 0; i < Benchmark.InnerIterationCount; i++)
+                        GenericClass<int>.aGenericStaticFieldT = 1;
+        }
+
+        [Benchmark(InnerIterationCount = 100000)]
+        public static int GenericClassGenericInstanceMethod()
+        {
+            GenericClass<int> aGenericClassWithInt = new GenericClass<int>();
+
+            int x = 0;
+            foreach (var iteration in Benchmark.Iterations)
+                using (iteration.StartMeasurement())
+                    for (int i = 0; i < Benchmark.InnerIterationCount; i++)
+                        x = aGenericClassWithInt.ClassGenericInstanceMethod();
+
+            return x;
+        }
+
+        [Benchmark(InnerIterationCount = 100000)]
+        public static int GenericClassGenericStaticMethod()
+        {
+            int x = 0;
+            foreach (var iteration in Benchmark.Iterations)
+                using (iteration.StartMeasurement())
+                    for (int i = 0; i < Benchmark.InnerIterationCount; i++)
+                        x = GenericClass<int>.ClassGenericStaticMethod();
+
+            return x;
+        }
+
+        [Benchmark(InnerIterationCount = 100000)]
+        public static int GenericGenericMethod()
+        {
+            // Warmup
+            int x = 0;
+            foreach (var iteration in Benchmark.Iterations)
+                using (iteration.StartMeasurement())
+                    for (int i = 0; i < Benchmark.InnerIterationCount; i++)
+                        x = Class.GenericMethod<int>();
+
+            return x;
+        }
+
+        [Benchmark(InnerIterationCount = 100000)]
+        public static void GenericClassWithSTringGenericInstanceMethod()
+        {
+            GenericClass<string> aGenericClassWithString = new GenericClass<string>();
+            string aString = "foo";
+
+            foreach (var iteration in Benchmark.Iterations)
+                using (iteration.StartMeasurement())
+                    for (int i = 0; i < Benchmark.InnerIterationCount; i++)
+                        aGenericClassWithString.aGenericInstanceFieldT = aString;
+        }
+
+        [Benchmark(InnerIterationCount = 100000)]
+        public static int ForeachOverList100Elements()
+        {
+            List<int> iList = new List<int>();
+            for (int i = 0; i < 100; i++)
+                iList.Add(i);
+
+            int iResult = 0;
+            foreach (var iteration in Benchmark.Iterations)
+                using (iteration.StartMeasurement())
+                    for (int i = 0; i < Benchmark.InnerIterationCount; i++)
+                        foreach (int j in iList)
+                            iResult = j;
+
+            return iResult;
+        }
+
+        [Benchmark(InnerIterationCount = 100000)]
+        public static Type TypeReflectionObjectGetType()
+        {
+            Type type = null;
+            object anObject = "aString";
+
+            foreach (var iteration in Benchmark.Iterations)
+                using (iteration.StartMeasurement())
+                    for (int i = 0; i < Benchmark.InnerIterationCount; i++)
+                        type = anObject.GetType();
+
+            return type;
+        }
+
+        [Benchmark(InnerIterationCount = 100000)]
+        public static Type TypeReflectionArrayGetType()
+        {
+            Type type = null;
+            object anArray = new string[0];
+
+            foreach (var iteration in Benchmark.Iterations)
+                using (iteration.StartMeasurement())
+                    for (int i = 0; i < Benchmark.InnerIterationCount; i++)
+                        type = anArray.GetType();
+
+            return type;
+        }
+
+        [Benchmark(InnerIterationCount = 100000)]
+        public static string IntegerFormatting()
+        {
+            int number = Int32.MaxValue;
+
+            string result = null;
+            foreach (var iteration in Benchmark.Iterations)
+                using (iteration.StartMeasurement())
+                    for (int i = 0; i < Benchmark.InnerIterationCount; i++)
+                        result = number.ToString();
+
+            return result;
         }
     }
 
-    [Benchmark]
-    public static void EmptyStaticFunction5Arg()
+    #region Support Classes
+    // classes and method needed to perform the experiments. 
+
+    public interface AnInterface
     {
-        foreach (var iteration in Benchmark.Iterations)
+        int InterfaceMethod();
+    }
+
+    public class SuperClass : AnInterface
+    {
+        [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
+        public virtual int InterfaceMethod() { return 2; }
+
+        [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
+        public virtual int VirtualMethod()
         {
-            using (iteration.StartMeasurement())
-            {
-                Class.EmptyStaticFunction5Arg(1, 2, 3, 4, 5);
-                Class.EmptyStaticFunction5Arg(1, 2, 3, 4, 5);
-                Class.EmptyStaticFunction5Arg(1, 2, 3, 4, 5);
-                Class.EmptyStaticFunction5Arg(1, 2, 3, 4, 5);
-                Class.EmptyStaticFunction5Arg(1, 2, 3, 4, 5);
-                Class.EmptyStaticFunction5Arg(1, 2, 3, 4, 5);
-                Class.EmptyStaticFunction5Arg(1, 2, 3, 4, 5);
-                Class.EmptyStaticFunction5Arg(1, 2, 3, 4, 5);
-                Class.EmptyStaticFunction5Arg(1, 2, 3, 4, 5);
-                Class.EmptyStaticFunction5Arg(1, 2, 3, 4, 5);
-            }
+            return 1;
         }
     }
 
-    [Benchmark]
-    public static void EmptyInstanceFunction()
+    public struct ValueType
     {
-        Class aClass = new Class();
+        public int x;
+        public int y;
+        public int z;
+    }
 
-        foreach (var iteration in Benchmark.Iterations)
+    public delegate int MyDelegate();
+
+    public struct StructWithInterface : AnInterface
+    {
+        public int x;
+        [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
+        public int InterfaceMethod()
         {
-            using (iteration.StartMeasurement())
-            {
-                aClass.EmptyInstanceFunction();
-                aClass.EmptyInstanceFunction();
-                aClass.EmptyInstanceFunction();
-                aClass.EmptyInstanceFunction();
-                aClass.EmptyInstanceFunction();
-                aClass.EmptyInstanceFunction();
-                aClass.EmptyInstanceFunction();
-                aClass.EmptyInstanceFunction();
-                aClass.EmptyInstanceFunction();
-                aClass.EmptyInstanceFunction();
-            }
+            return x++;
         }
     }
 
-    [Benchmark]
-    public static void InterfaceInterfaceMethod()
+    public sealed class SealedClass : SuperClass
     {
-        AnInterface aInterface = new Class();
-
-        foreach (var iteration in Benchmark.Iterations)
+        public int aInstanceInt;
+        [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
+        public override int VirtualMethod()
         {
-            using (iteration.StartMeasurement())
-            {
-                CallInterfaceMethod(aInterface);
-                CallInterfaceMethod(aInterface);
-                CallInterfaceMethod(aInterface);
-                CallInterfaceMethod(aInterface);
-                CallInterfaceMethod(aInterface);
-                CallInterfaceMethod(aInterface);
-                CallInterfaceMethod(aInterface);
-                CallInterfaceMethod(aInterface);
-                CallInterfaceMethod(aInterface);
-                CallInterfaceMethod(aInterface);
-            }
+            return aInstanceInt++;
+        }
+        [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
+        public override int InterfaceMethod()
+        {
+            return aInstanceInt++;
         }
     }
 
-    [MethodImpl(MethodImplOptions.NoInlining)]
-    private static void CallInterfaceMethod(AnInterface aInterface)
+    /// <summary>
+    /// A example class.  It inherits, overrides, has intefaces etc.  
+    /// It excercises most of the common runtime features 
+    /// </summary>
+    public class Class : SuperClass
     {
-        aInterface.InterfaceMethod();
-    }
+        public event MyDelegate AnEvent;
 
-    [Benchmark]
-    public static void InterfaceInterfaceMethodLongHierarchy()
-    {
-        AnInterface aInterface = new LongHierarchyChildClass();
+        [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
+        public override int VirtualMethod() { return aInstanceInt++; }
 
-        //generate all the not-used call site first
-        CallInterfaceMethod(new LongHierarchyClass1());
-        CallInterfaceMethod(new LongHierarchyClass2());
-        CallInterfaceMethod(new LongHierarchyClass3());
-        CallInterfaceMethod(new LongHierarchyClass4());
-        CallInterfaceMethod(new LongHierarchyClass5());
-        CallInterfaceMethod(new LongHierarchyClass6());
-        CallInterfaceMethod(new LongHierarchyClass7());
-        CallInterfaceMethod(new LongHierarchyClass8());
-        CallInterfaceMethod(new LongHierarchyClass9());
-        CallInterfaceMethod(new LongHierarchyClass11());
-        CallInterfaceMethod(new LongHierarchyClass12());
+        [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
+        public override int InterfaceMethod() { return aInstanceInt++; }
 
-        foreach (var iteration in Benchmark.Iterations)
-            using (iteration.StartMeasurement())
-                CallInterfaceMethod(aInterface);
-    }
+        public int aInstanceInt;
+        public string aInstanceString;
 
-    [Benchmark]
-    public static void InterfaceInterfaceMethodSwitchCallType()
-    {
-        AnInterface aInterface = new LongHierarchyChildClass();
-        AnInterface aInterface1 = new LongHierarchyClass1();
+        public static int aStaticInt;
+        public static string aStaticString = "Hello";
+        public static ValueType aStaticValueType;
 
-        foreach (var iteration in Benchmark.Iterations)
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        public static int EmptyStaticFunction()
         {
-            using (iteration.StartMeasurement())
-            {
-                CallInterfaceMethod(aInterface);
-                CallInterfaceMethod(aInterface1);
-            }
+            return aStaticInt++;
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        public static int EmptyStaticFunction5Arg(int arg1, int arg2, int arg3, int arg4, int arg5)
+        {
+            return aStaticInt++;
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        public int EmptyInstanceFunction()
+        {
+            return aInstanceInt++;
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        public static int GenericMethod<T>()
+        {
+            return aStaticInt++;
+        }
+
+        public void MeasureFire100()
+        {
+            #region callAnEvent
+            AnEvent();
+            AnEvent();
+            AnEvent();
+            AnEvent();
+            AnEvent();
+            AnEvent();
+            AnEvent();
+            AnEvent();
+            AnEvent();
+            AnEvent();
+            AnEvent();
+            AnEvent();
+            AnEvent();
+            AnEvent();
+            AnEvent();
+            AnEvent();
+            AnEvent();
+            AnEvent();
+            AnEvent();
+            AnEvent();
+            AnEvent();
+            AnEvent();
+            AnEvent();
+            AnEvent();
+            AnEvent();
+            AnEvent();
+            AnEvent();
+            AnEvent();
+            AnEvent();
+            AnEvent();
+            AnEvent();
+            AnEvent();
+            AnEvent();
+            AnEvent();
+            AnEvent();
+            AnEvent();
+            AnEvent();
+            AnEvent();
+            AnEvent();
+            AnEvent();
+            AnEvent();
+            AnEvent();
+            AnEvent();
+            AnEvent();
+            AnEvent();
+            AnEvent();
+            AnEvent();
+            AnEvent();
+            AnEvent();
+            AnEvent();
+            AnEvent();
+            AnEvent();
+            AnEvent();
+            AnEvent();
+            AnEvent();
+            AnEvent();
+            AnEvent();
+            AnEvent();
+            AnEvent();
+            AnEvent();
+            AnEvent();
+            AnEvent();
+            AnEvent();
+            AnEvent();
+            AnEvent();
+            AnEvent();
+            AnEvent();
+            AnEvent();
+            AnEvent();
+            AnEvent();
+            AnEvent();
+            AnEvent();
+            AnEvent();
+            AnEvent();
+            AnEvent();
+            AnEvent();
+            AnEvent();
+            AnEvent();
+            AnEvent();
+            AnEvent();
+            AnEvent();
+            AnEvent();
+            AnEvent();
+            AnEvent();
+            AnEvent();
+            AnEvent();
+            AnEvent();
+            AnEvent();
+            AnEvent();
+            AnEvent();
+            AnEvent();
+            AnEvent();
+            AnEvent();
+            AnEvent();
+            AnEvent();
+            AnEvent();
+            AnEvent();
+            AnEvent();
+            AnEvent();
+            AnEvent();
+            //});
+            #endregion
         }
     }
 
-    [Benchmark]
-    public static int ClassVirtualMethod()
+    public class GenericClass<T>
     {
-        SuperClass aClass = new Class();
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        public T ClassGenericInstanceMethod()
+        {
+            tmp++; // need this to not be optimized away
+            return aGenericInstanceFieldT;
+        }
 
-        int x = 0;
-        foreach (var iteration in Benchmark.Iterations)
-            using (iteration.StartMeasurement())
-                x = aClass.VirtualMethod();
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        public static T ClassGenericStaticMethod()
+        {
+            sTmp++; // need this to not be optimized away
+            return aGenericStaticFieldT;
+        }
 
-        return x;
+        public static int sTmp;
+        public int tmp;
+        public T aGenericInstanceFieldT;
+        public static T aGenericStaticFieldT;
     }
 
-    [Benchmark]
-    public static void SealedClassInterfaceMethod()
+    #region LongHierarchyClass
+    public class LongHierarchyClass1 : AnInterface
     {
-        SealedClass aSealedClass = new SealedClass();
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        public virtual int InterfaceMethod() { return 2; }
 
-        foreach (var iteration in Benchmark.Iterations)
-            using (iteration.StartMeasurement())
-                aSealedClass.InterfaceMethod();
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        public virtual int VirtualMethod()
+        {
+            return 1;
+        }
     }
 
-    [Benchmark]
-    public static void StructWithInterfaceInterfaceMethod()
+    public class LongHierarchyClass2 : LongHierarchyClass1
     {
-        StructWithInterface aStructWithInterface = new StructWithInterface();
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        public override int InterfaceMethod() { return 2; }
 
-        foreach (var iteration in Benchmark.Iterations)
-            using (iteration.StartMeasurement())
-                aStructWithInterface.InterfaceMethod();
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        public override int VirtualMethod()
+        {
+            return 1;
+        }
     }
 
-    [Benchmark]
-    public static void StaticIntPlus()
+    public class LongHierarchyClass3 : LongHierarchyClass2
     {
-        Class aClass = new Class();
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        public override int InterfaceMethod() { return 2; }
 
-        foreach (var iteration in Benchmark.Iterations)
-            using (iteration.StartMeasurement())
-                Class.aStaticInt += 1;
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        public override int VirtualMethod()
+        {
+            return 1;
+        }
     }
 
-    [Benchmark]
-    public static bool ObjectStringIsString()
+    public class LongHierarchyClass4 : LongHierarchyClass3
     {
-        object aObjectString = "aString1";
-        bool b = false;
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        public override int InterfaceMethod() { return 2; }
 
-        foreach (var iteration in Benchmark.Iterations)
-            using (iteration.StartMeasurement())
-                b = aObjectString is String;
-
-        return b;
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        public override int VirtualMethod()
+        {
+            return 1;
+        }
     }
 
-    [Benchmark]
-    public static void NewDelegateClassEmptyInstanceFn()
+    public class LongHierarchyClass5 : LongHierarchyClass4
     {
-        Class aClass = new Class();
-        MyDelegate aMyDelegate;
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        public override int InterfaceMethod() { return 2; }
 
-        foreach (var iteration in Benchmark.Iterations)
-            using (iteration.StartMeasurement())
-                aMyDelegate = new MyDelegate(aClass.EmptyInstanceFunction);
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        public override int VirtualMethod()
+        {
+            return 1;
+        }
     }
 
-    [Benchmark]
-    public static void NewDelegateClassEmptyStaticFn()
+    public class LongHierarchyClass6 : LongHierarchyClass5
     {
-        Class aClass = new Class();
-        MyDelegate aMyDelegate;
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        public override int InterfaceMethod() { return 2; }
 
-        foreach (var iteration in Benchmark.Iterations)
-            using (iteration.StartMeasurement())
-                aMyDelegate = new MyDelegate(Class.EmptyStaticFunction);
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        public override int VirtualMethod()
+        {
+            return 1;
+        }
     }
 
-    [Benchmark]
-    public static void InstanceDelegate()
+    public class LongHierarchyClass7 : LongHierarchyClass6
     {
-        Class aClass = new Class();
-        MyDelegate aInstanceDelegate = new MyDelegate(aClass.EmptyInstanceFunction);
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        public override int InterfaceMethod() { return 2; }
 
-        foreach (var iteration in Benchmark.Iterations)
-            using (iteration.StartMeasurement())
-                aInstanceDelegate();
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        public override int VirtualMethod()
+        {
+            return 1;
+        }
     }
 
-    [Benchmark]
-    public static void StaticDelegate()
+    public class LongHierarchyClass8 : LongHierarchyClass7
     {
-        Class aClass = new Class();
-        MyDelegate aStaticDelegate = new MyDelegate(Class.EmptyStaticFunction);
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        public override int InterfaceMethod() { return 2; }
 
-        foreach (var iteration in Benchmark.Iterations)
-            using (iteration.StartMeasurement())
-                aStaticDelegate();
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        public override int VirtualMethod()
+        {
+            return 1;
+        }
     }
 
-    [Benchmark]
-    public static void MeasureEvents()
+    public class LongHierarchyClass9 : LongHierarchyClass8
     {
-        Class aClass = new Class();
-        aClass.AnEvent += new MyDelegate(aClass.EmptyInstanceFunction);
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        public override int InterfaceMethod() { return 2; }
 
-        foreach (var iteration in Benchmark.Iterations)
-            using (iteration.StartMeasurement())
-                aClass.MeasureFire100();
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        public override int VirtualMethod()
+        {
+            return 1;
+        }
     }
 
-    [Benchmark]
-    public static void GenericClassWithIntGenericInstanceField()
+    public class LongHierarchyClass10 : LongHierarchyClass9
     {
-        GenericClass<int> aGenericClassWithInt = new GenericClass<int>();
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        public override int InterfaceMethod() { return 2; }
 
-        foreach (var iteration in Benchmark.Iterations)
-            using (iteration.StartMeasurement())
-                aGenericClassWithInt.aGenericInstanceFieldT = 1;
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        public override int VirtualMethod()
+        {
+            return 1;
+        }
     }
 
-    [Benchmark]
-    public static void GenericClassGenericStaticField()
+    public class LongHierarchyClass11 : LongHierarchyClass10
     {
-        foreach (var iteration in Benchmark.Iterations)
-            using (iteration.StartMeasurement())
-                GenericClass<int>.aGenericStaticFieldT = 1;
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        public override int InterfaceMethod() { return 2; }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        public override int VirtualMethod()
+        {
+            return 1;
+        }
     }
 
-    [Benchmark]
-    public static int GenericClassGenericInstanceMethod()
+    public class LongHierarchyClass12 : LongHierarchyClass11
     {
-        GenericClass<int> aGenericClassWithInt = new GenericClass<int>();
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        public override int InterfaceMethod() { return 2; }
 
-        int x = 0;
-        foreach (var iteration in Benchmark.Iterations)
-            using (iteration.StartMeasurement())
-                x = aGenericClassWithInt.ClassGenericInstanceMethod();
-
-        return x;
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        public override int VirtualMethod()
+        {
+            return 1;
+        }
     }
 
-    [Benchmark]
-    public static int GenericClassGenericStaticMethod()
+    public class LongHierarchyChildClass : LongHierarchyClass12
     {
-        int x = 0;
-        foreach (var iteration in Benchmark.Iterations)
-            using (iteration.StartMeasurement())
-                x = GenericClass<int>.ClassGenericStaticMethod();
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        public override int InterfaceMethod() { return 2; }
 
-        return x;
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        public override int VirtualMethod()
+        {
+            return 1;
+        }
     }
 
-    [Benchmark]
-    public static int GenericGenericMethod()
-    {
-        // Warmup
-        int x = 0;
-        foreach (var iteration in Benchmark.Iterations)
-            using (iteration.StartMeasurement())
-                x = Class.GenericMethod<int>();
+    #endregion
 
-        return x;
-    }
+    #endregion
 
-    [Benchmark]
-    public static void GenericClassWithSTringGenericInstanceMethod()
-    {
-        GenericClass<string> aGenericClassWithString = new GenericClass<string>();
-        string aString = "foo";
-
-        foreach (var iteration in Benchmark.Iterations)
-            using (iteration.StartMeasurement())
-                aGenericClassWithString.aGenericInstanceFieldT = aString;
-    }
-
-    [Benchmark]
-    public static int ForeachOverList100Elements()
-    {
-        List<int> iList = new List<int>();
-        for (int i = 0; i < 100; i++)
-            iList.Add(i);
-
-        int iResult = 0;
-        foreach (var iteration in Benchmark.Iterations)
-            using (iteration.StartMeasurement())
-                foreach (int i in iList)
-                    iResult = i;
-
-        return iResult;
-    }
-
-    [Benchmark]
-    public static Type TypeReflectionObjectGetType()
-    {
-        Type type = null;
-        object anObject = "aString";
-
-        foreach (var iteration in Benchmark.Iterations)
-            using (iteration.StartMeasurement())
-                type = anObject.GetType();
-
-        return type;
-    }
-
-    [Benchmark]
-    public static Type TypeReflectionArrayGetType()
-    {
-        Type type = null;
-        object anArray = new string[0];
-
-        foreach (var iteration in Benchmark.Iterations)
-            using (iteration.StartMeasurement())
-                type = anArray.GetType();
-
-        return type;
-    }
-
-    [Benchmark]
-    public static string IntegerFormatting()
-    {
-        int number = Int32.MaxValue;
-
-        string result = null;
-        foreach (var iteration in Benchmark.Iterations)
-            using (iteration.StartMeasurement())
-                result = number.ToString();
-
-        return result;
-    }
 }
-
-#region Support Classes
-// classes and method needed to perform the experiments. 
-
-public interface AnInterface
-{
-    int InterfaceMethod();
-}
-
-public class SuperClass : AnInterface
-{
-    [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
-    public virtual int InterfaceMethod() { return 2; }
-
-    [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
-    public virtual int VirtualMethod()
-    {
-        return 1;
-    }
-}
-
-public struct ValueType
-{
-    public int x;
-    public int y;
-    public int z;
-}
-
-public delegate int MyDelegate();
-
-public struct StructWithInterface : AnInterface
-{
-    public int x;
-    [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
-    public int InterfaceMethod()
-    {
-        return x++;
-    }
-}
-
-public sealed class SealedClass : SuperClass
-{
-    public int aInstanceInt;
-    [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
-    public override int VirtualMethod()
-    {
-        return aInstanceInt++;
-    }
-    [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
-    public override int InterfaceMethod()
-    {
-        return aInstanceInt++;
-    }
-}
-
-/// <summary>
-/// A example class.  It inherits, overrides, has intefaces etc.  
-/// It excercises most of the common runtime features 
-/// </summary>
-public class Class : SuperClass
-{
-    public event MyDelegate AnEvent;
-
-    [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
-    public override int VirtualMethod() { return aInstanceInt++; }
-
-    [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
-    public override int InterfaceMethod() { return aInstanceInt++; }
-
-    public int aInstanceInt;
-    public string aInstanceString;
-
-    public static int aStaticInt;
-    public static string aStaticString = "Hello";
-    public static ValueType aStaticValueType;
-
-    [MethodImpl(MethodImplOptions.NoInlining)]
-    public static int EmptyStaticFunction()
-    {
-        return aStaticInt++;
-    }
-
-    [MethodImpl(MethodImplOptions.NoInlining)]
-    public static int EmptyStaticFunction5Arg(int arg1, int arg2, int arg3, int arg4, int arg5)
-    {
-        return aStaticInt++;
-    }
-
-    [MethodImpl(MethodImplOptions.NoInlining)]
-    public int EmptyInstanceFunction()
-    {
-        return aInstanceInt++;
-    }
-
-    [MethodImpl(MethodImplOptions.NoInlining)]
-    public static int GenericMethod<T>()
-    {
-        return aStaticInt++;
-    }
-
-    public void MeasureFire100()
-    {
-        #region callAnEvent
-        AnEvent();
-        AnEvent();
-        AnEvent();
-        AnEvent();
-        AnEvent();
-        AnEvent();
-        AnEvent();
-        AnEvent();
-        AnEvent();
-        AnEvent();
-        AnEvent();
-        AnEvent();
-        AnEvent();
-        AnEvent();
-        AnEvent();
-        AnEvent();
-        AnEvent();
-        AnEvent();
-        AnEvent();
-        AnEvent();
-        AnEvent();
-        AnEvent();
-        AnEvent();
-        AnEvent();
-        AnEvent();
-        AnEvent();
-        AnEvent();
-        AnEvent();
-        AnEvent();
-        AnEvent();
-        AnEvent();
-        AnEvent();
-        AnEvent();
-        AnEvent();
-        AnEvent();
-        AnEvent();
-        AnEvent();
-        AnEvent();
-        AnEvent();
-        AnEvent();
-        AnEvent();
-        AnEvent();
-        AnEvent();
-        AnEvent();
-        AnEvent();
-        AnEvent();
-        AnEvent();
-        AnEvent();
-        AnEvent();
-        AnEvent();
-        AnEvent();
-        AnEvent();
-        AnEvent();
-        AnEvent();
-        AnEvent();
-        AnEvent();
-        AnEvent();
-        AnEvent();
-        AnEvent();
-        AnEvent();
-        AnEvent();
-        AnEvent();
-        AnEvent();
-        AnEvent();
-        AnEvent();
-        AnEvent();
-        AnEvent();
-        AnEvent();
-        AnEvent();
-        AnEvent();
-        AnEvent();
-        AnEvent();
-        AnEvent();
-        AnEvent();
-        AnEvent();
-        AnEvent();
-        AnEvent();
-        AnEvent();
-        AnEvent();
-        AnEvent();
-        AnEvent();
-        AnEvent();
-        AnEvent();
-        AnEvent();
-        AnEvent();
-        AnEvent();
-        AnEvent();
-        AnEvent();
-        AnEvent();
-        AnEvent();
-        AnEvent();
-        AnEvent();
-        AnEvent();
-        AnEvent();
-        AnEvent();
-        AnEvent();
-        AnEvent();
-        AnEvent();
-        AnEvent();
-        AnEvent();
-        //});
-        #endregion
-    }
-}
-
-public class GenericClass<T>
-{
-    [MethodImpl(MethodImplOptions.NoInlining)]
-    public T ClassGenericInstanceMethod()
-    {
-        tmp++; // need this to not be optimized away
-        return aGenericInstanceFieldT;
-    }
-
-    [MethodImpl(MethodImplOptions.NoInlining)]
-    public static T ClassGenericStaticMethod()
-    {
-        sTmp++; // need this to not be optimized away
-        return aGenericStaticFieldT;
-    }
-
-    public static int sTmp;
-    public int tmp;
-    public T aGenericInstanceFieldT;
-    public static T aGenericStaticFieldT;
-}
-
-#region LongHierarchyClass
-public class LongHierarchyClass1 : AnInterface
-{
-    [MethodImpl(MethodImplOptions.NoInlining)]
-    public virtual int InterfaceMethod() { return 2; }
-
-    [MethodImpl(MethodImplOptions.NoInlining)]
-    public virtual int VirtualMethod()
-    {
-        return 1;
-    }
-}
-
-public class LongHierarchyClass2 : LongHierarchyClass1
-{
-    [MethodImpl(MethodImplOptions.NoInlining)]
-    public override int InterfaceMethod() { return 2; }
-
-    [MethodImpl(MethodImplOptions.NoInlining)]
-    public override int VirtualMethod()
-    {
-        return 1;
-    }
-}
-
-public class LongHierarchyClass3 : LongHierarchyClass2
-{
-    [MethodImpl(MethodImplOptions.NoInlining)]
-    public override int InterfaceMethod() { return 2; }
-
-    [MethodImpl(MethodImplOptions.NoInlining)]
-    public override int VirtualMethod()
-    {
-        return 1;
-    }
-}
-
-public class LongHierarchyClass4 : LongHierarchyClass3
-{
-    [MethodImpl(MethodImplOptions.NoInlining)]
-    public override int InterfaceMethod() { return 2; }
-
-    [MethodImpl(MethodImplOptions.NoInlining)]
-    public override int VirtualMethod()
-    {
-        return 1;
-    }
-}
-
-public class LongHierarchyClass5 : LongHierarchyClass4
-{
-    [MethodImpl(MethodImplOptions.NoInlining)]
-    public override int InterfaceMethod() { return 2; }
-
-    [MethodImpl(MethodImplOptions.NoInlining)]
-    public override int VirtualMethod()
-    {
-        return 1;
-    }
-}
-
-public class LongHierarchyClass6 : LongHierarchyClass5
-{
-    [MethodImpl(MethodImplOptions.NoInlining)]
-    public override int InterfaceMethod() { return 2; }
-
-    [MethodImpl(MethodImplOptions.NoInlining)]
-    public override int VirtualMethod()
-    {
-        return 1;
-    }
-}
-
-public class LongHierarchyClass7 : LongHierarchyClass6
-{
-    [MethodImpl(MethodImplOptions.NoInlining)]
-    public override int InterfaceMethod() { return 2; }
-
-    [MethodImpl(MethodImplOptions.NoInlining)]
-    public override int VirtualMethod()
-    {
-        return 1;
-    }
-}
-
-public class LongHierarchyClass8 : LongHierarchyClass7
-{
-    [MethodImpl(MethodImplOptions.NoInlining)]
-    public override int InterfaceMethod() { return 2; }
-
-    [MethodImpl(MethodImplOptions.NoInlining)]
-    public override int VirtualMethod()
-    {
-        return 1;
-    }
-}
-
-public class LongHierarchyClass9 : LongHierarchyClass8
-{
-    [MethodImpl(MethodImplOptions.NoInlining)]
-    public override int InterfaceMethod() { return 2; }
-
-    [MethodImpl(MethodImplOptions.NoInlining)]
-    public override int VirtualMethod()
-    {
-        return 1;
-    }
-}
-
-public class LongHierarchyClass10 : LongHierarchyClass9
-{
-    [MethodImpl(MethodImplOptions.NoInlining)]
-    public override int InterfaceMethod() { return 2; }
-
-    [MethodImpl(MethodImplOptions.NoInlining)]
-    public override int VirtualMethod()
-    {
-        return 1;
-    }
-}
-
-public class LongHierarchyClass11 : LongHierarchyClass10
-{
-    [MethodImpl(MethodImplOptions.NoInlining)]
-    public override int InterfaceMethod() { return 2; }
-
-    [MethodImpl(MethodImplOptions.NoInlining)]
-    public override int VirtualMethod()
-    {
-        return 1;
-    }
-}
-
-public class LongHierarchyClass12 : LongHierarchyClass11
-{
-    [MethodImpl(MethodImplOptions.NoInlining)]
-    public override int InterfaceMethod() { return 2; }
-
-    [MethodImpl(MethodImplOptions.NoInlining)]
-    public override int VirtualMethod()
-    {
-        return 1;
-    }
-}
-
-public class LongHierarchyChildClass : LongHierarchyClass12
-{
-    [MethodImpl(MethodImplOptions.NoInlining)]
-    public override int InterfaceMethod() { return 2; }
-
-    [MethodImpl(MethodImplOptions.NoInlining)]
-    public override int VirtualMethod()
-    {
-        return 1;
-    }
-}
-
-#endregion
-
-#endregion
-

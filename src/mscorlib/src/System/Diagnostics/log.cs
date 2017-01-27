@@ -21,10 +21,7 @@ namespace System.Diagnostics {
    // There is also a "built-in" console device which can be enabled
    // programatically, by registry (specifics....) or environment
    // variables.
-#if FEATURE_SERIALIZATION
     [Serializable]
-#endif
-    [HostProtection(Synchronization=true, ExternalThreading=true)]
     internal delegate void LogMessageEventHandler(LoggingLevels level, LogSwitch category, 
                                                     String message, 
                                                     StackTrace location);
@@ -34,9 +31,7 @@ namespace System.Diagnostics {
    // NOTE: These are NOT triggered when the log switch setting is changed from the 
    // attached debugger.
    // 
-#if FEATURE_SERIALIZATION
     [Serializable]
-#endif
     internal delegate void LogSwitchLevelHandler(LogSwitch ls, LoggingLevels newLevel);
     
     
@@ -144,7 +139,7 @@ namespace System.Diagnostics {
                 throw new ArgumentNullException ("LogSwitch");
     
             if (level < 0)
-                throw new ArgumentOutOfRangeException("level", Environment.GetResourceString("ArgumentOutOfRange_NeedNonNegNum"));
+                throw new ArgumentOutOfRangeException(nameof(level), Environment.GetResourceString("ArgumentOutOfRange_NeedNonNegNum"));
             Contract.EndContractBlock();
     
             // Is logging for this level for this switch enabled?
@@ -244,10 +239,8 @@ namespace System.Diagnostics {
         
     
         // Native method to inform the EE about the creation of a new LogSwitch
-        [System.Security.SecurityCritical]  // auto-generated
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         internal static extern void AddLogSwitch(LogSwitch logSwitch);
-        [System.Security.SecurityCritical]  // auto-generated
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         internal static extern void ModifyLogSwitch (int iNewLevel, String strSwitchName, String strParentName);
     }

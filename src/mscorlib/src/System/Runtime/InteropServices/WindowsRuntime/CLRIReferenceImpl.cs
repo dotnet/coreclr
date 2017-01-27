@@ -6,6 +6,7 @@
 
 using System;
 using System.Collections;
+using System.Diagnostics;
 using System.Diagnostics.Contracts;
 using System.Reflection;
 using System.Security;
@@ -55,7 +56,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         {
             Contract.Requires(wrapper != null);
             IReference<T> reference = (IReference<T>) wrapper;
-            Contract.Assert(reference != null, "CLRIReferenceImpl::UnboxHelper - QI'ed for IReference<"+typeof(T)+">, but that failed.");
+            Debug.Assert(reference != null, "CLRIReferenceImpl::UnboxHelper - QI'ed for IReference<"+typeof(T)+">, but that failed.");
             return reference.Value;
         }
     }
@@ -216,7 +217,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         {
             Contract.Requires(wrapper != null);
             IReferenceArray<T> reference = (IReferenceArray<T>)wrapper;
-            Contract.Assert(reference != null, "CLRIReferenceArrayImpl::UnboxHelper - QI'ed for IReferenceArray<" + typeof(T) + ">, but that failed.");
+            Debug.Assert(reference != null, "CLRIReferenceArrayImpl::UnboxHelper - QI'ed for IReferenceArray<" + typeof(T) + ">, but that failed.");
             T[] marshaled = reference.Value;
             return marshaled;
         }
@@ -229,7 +230,6 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         internal static readonly Type s_rectType = Type.GetType("Windows.Foundation.Rect, " + AssemblyRef.SystemRuntimeWindowsRuntime);
         internal static readonly Type s_sizeType = Type.GetType("Windows.Foundation.Size, " + AssemblyRef.SystemRuntimeWindowsRuntime);
 
-        [SecuritySafeCritical]
         internal static Object CreateIReference(Object obj)
         {
             Contract.Requires(obj != null, "Null should not be boxed.");
@@ -302,11 +302,10 @@ namespace System.Runtime.InteropServices.WindowsRuntime
                 return Activator.CreateInstance(specificType, new Object[] { propType.Value, obj });
             }
 
-            Contract.Assert(false, "We should not see non-WinRT type here");
+            Debug.Assert(false, "We should not see non-WinRT type here");
             return null;
         }
 
-        [SecuritySafeCritical]
         internal static Object CreateIReferenceArray(Array obj)
         {
             Contract.Requires(obj != null);
@@ -315,7 +314,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
 
             Type type = obj.GetType().GetElementType();
             
-            Contract.Assert(obj.Rank == 1 && obj.GetLowerBound(0) == 0 && !type.IsArray);
+            Debug.Assert(obj.Rank == 1 && obj.GetLowerBound(0) == 0 && !type.IsArray);
 
             if (type == typeof(int))
                 return new CLRIReferenceArrayImpl<int>(PropertyType.Int32Array, (int[])obj);

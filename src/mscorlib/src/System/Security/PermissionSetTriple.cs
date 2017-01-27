@@ -19,6 +19,7 @@ namespace System.Security
     using System.Security;
     using System.Security.Permissions;
     using System.Runtime.InteropServices;
+    using System.Diagnostics;
     using System.Diagnostics.Contracts;
 
 
@@ -53,7 +54,6 @@ namespace System.Security
 
         private PermissionToken ZoneToken
         {
-            [System.Security.SecurityCritical]  // auto-generated
             get
             {
                 if (s_zoneToken == null)
@@ -63,7 +63,6 @@ namespace System.Security
         }            
         private PermissionToken UrlToken
         {
-            [System.Security.SecurityCritical]  // auto-generated
             get
             {
                 if (s_urlToken == null)
@@ -71,7 +70,6 @@ namespace System.Security
                 return s_urlToken;
             }
         }            
-        [System.Security.SecurityCritical]  // auto-generated
         internal bool Update(PermissionSetTriple psTriple, out PermissionSetTriple retTriple)
         {
             retTriple = null;
@@ -86,13 +84,12 @@ namespace System.Security
             return false;
         }
 
-        [System.Security.SecurityCritical]  // auto-generated
         internal PermissionSetTriple UpdateAssert(PermissionSet in_a)
         {
             PermissionSetTriple retTriple = null;
             if (in_a != null)
             {
-                Contract.Assert((!in_a.IsUnrestricted() || RefusedSet == null), "Cannot be unrestricted or refused must be null");
+                Debug.Assert((!in_a.IsUnrestricted() || RefusedSet == null), "Cannot be unrestricted or refused must be null");
                 // if we're already asserting in_a, nothing to do
                 if (in_a.IsSubsetOf(AssertSet))
                     return null;
@@ -128,7 +125,6 @@ namespace System.Security
             }
             return retTriple;
         }
-        [System.Security.SecurityCritical]  // auto-generated
         internal void UpdateGrant(PermissionSet in_g, out ZoneIdentityPermission z,out UrlIdentityPermission u)
         {
             z = null;
@@ -145,7 +141,6 @@ namespace System.Security
             }
         }
 
-        [System.Security.SecurityCritical]  // auto-generated
         internal void UpdateGrant(PermissionSet in_g)
         {
             if (in_g != null)
@@ -168,7 +163,6 @@ namespace System.Security
         } 
 
         
-        [System.Security.SecurityCritical]  // auto-generated
         static bool CheckAssert(PermissionSet pSet, CodeAccessPermission demand, PermissionToken permToken)
         {
             if (pSet != null)
@@ -193,7 +187,6 @@ namespace System.Security
             return SecurityRuntime.StackContinue;
         }
 
-        [System.Security.SecurityCritical]  // auto-generated
         static bool CheckAssert(PermissionSet assertPset, PermissionSet demandSet, out PermissionSet newDemandSet)
         {
             newDemandSet = null;
@@ -210,7 +203,6 @@ namespace System.Security
         }
 
         
-        [System.Security.SecurityCritical]  // auto-generated
         internal bool CheckDemand(CodeAccessPermission demand, PermissionToken permToken, RuntimeMethodHandleInternal rmh)
         {
             if (CheckAssert(AssertSet, demand, permToken) == SecurityRuntime.StackHalt)
@@ -222,7 +214,6 @@ namespace System.Security
 
             return SecurityRuntime.StackContinue;
         }
-        [System.Security.SecurityCritical]  // auto-generated
         internal bool CheckSetDemand(PermissionSet demandSet , out PermissionSet alteredDemandset, RuntimeMethodHandleInternal rmh)
         {
             alteredDemandset = null;
@@ -239,18 +230,16 @@ namespace System.Security
 
         }
         
-        [System.Security.SecurityCritical]  // auto-generated
         internal bool CheckDemandNoThrow(CodeAccessPermission demand, PermissionToken permToken)
         {
-            Contract.Assert(AssertSet == null, "AssertSet not null");
+            Debug.Assert(AssertSet == null, "AssertSet not null");
 #pragma warning disable 618
             return CodeAccessSecurityEngine.CheckHelper(GrantSet, RefusedSet, demand, permToken, RuntimeMethodHandleInternal.EmptyHandle, null, SecurityAction.Demand, false);
 #pragma warning restore 618
         }
-        [System.Security.SecurityCritical]  // auto-generated
         internal bool CheckSetDemandNoThrow(PermissionSet demandSet)
         {
-            Contract.Assert(AssertSet == null, "AssertSet not null");
+            Debug.Assert(AssertSet == null, "AssertSet not null");
 
 #pragma warning disable 618
             return CodeAccessSecurityEngine.CheckSetHelper(GrantSet, RefusedSet, demandSet, RuntimeMethodHandleInternal.EmptyHandle, null, SecurityAction.Demand, false);
@@ -263,7 +252,6 @@ namespace System.Security
         ///     If the triple asserts for one of the bits in the flags, it is zeroed out.
         /// </remarks>
         /// <param name="flags">set of flags to check (See PermissionType)</param>
-        [System.Security.SecurityCritical]  // auto-generated
         internal bool CheckFlags(ref int flags)
         {
             if (AssertSet != null)

@@ -1249,7 +1249,7 @@ PCODE COMDelegate::ConvertToCallback(MethodDesc* pMD)
     // Get UMEntryThunk from appdomain thunkcache cache.
     UMEntryThunk *pUMEntryThunk = GetAppDomain()->GetUMEntryThunkCache()->GetUMEntryThunk(pMD);
 
-#ifdef _TARGET_X86_
+#if defined(_TARGET_X86_) && !defined(FEATURE_STUBS_AS_IL)
 
     // System.Runtime.InteropServices.NativeCallableAttribute
     BYTE* pData = NULL;
@@ -1281,7 +1281,7 @@ PCODE COMDelegate::ConvertToCallback(MethodDesc* pMD)
             pUMThunkMarshalInfo->SetCallingConvention(callConv);
         }
 }
-#endif  //_TARGET_X86_
+#endif  //_TARGET_X86_ && !FEATURE_STUBS_AS_IL
 
     pCode = (PCODE)pUMEntryThunk->GetCode();
     _ASSERTE(pCode != NULL);
@@ -2395,7 +2395,7 @@ PCODE COMDelegate::TheDelegateInvokeStub()
     }
     CONTRACT_END;
 
-#ifdef _TARGET_X86_
+#if defined(_TARGET_X86_) && !defined(FEATURE_STUBS_AS_IL)
     static PCODE s_pInvokeStub;
 
     if (s_pInvokeStub == NULL)
@@ -2415,7 +2415,7 @@ PCODE COMDelegate::TheDelegateInvokeStub()
     RETURN s_pInvokeStub;
 #else
     RETURN GetEEFuncEntryPoint(SinglecastDelegateInvokeStub);
-#endif // _TARGET_X86_
+#endif // _TARGET_X86_ && !FEATURE_STUBS_AS_IL
 }
 
 // Get the cpu stub for a delegate invoke.
@@ -2596,7 +2596,7 @@ BOOL COMDelegate::NeedsWrapperDelegate(MethodDesc* pTargetMD)
 #ifdef _TARGET_ARM_
     // For arm VSD expects r4 to contain the indirection cell. However r4 is a non-volatile register
     // and its value must be preserved. So we need to erect a frame and store indirection cell in r4 before calling
-    // virtual stub dispatch. Erecting frame is already done by secure delegates so the secureDelegate infrastructure 
+    // virtual stub dispatch. Erecting frame is already done by secure delegates so the secureDelegate infrastructure
     //  can easliy be used for our purpose.
     // set needsSecureDelegate flag in order to erect a frame. (Secure Delegate stub also loads the right value in r4)
     if (!pTargetMD->IsStatic() && pTargetMD->IsVirtual() && !pTargetMD->GetMethodTable()->IsValueType())
@@ -2931,7 +2931,61 @@ PCODE COMDelegate::GetSecureInvoke(MethodDesc* pMD)
 #ifdef FEATURE_CAS_POLICY
 #error GetSecureInvoke not implemented
 #else
-    UNREACHABLE();
+    MethodTable *       pDelegateMT = pMD->GetMethodTable();
+    DelegateEEClass*    delegateEEClass = (DelegateEEClass*) pDelegateMT->GetClass();
+    Stub *pStub = delegateEEClass->m_pSecureDelegateInvokeStub;
+
+    if (pStub == NULL)
+    {
+
+        GCX_PREEMP();
+
+        MetaSig sig(pMD);
+
+        BOOL fReturnVal = !sig.IsReturnTypeVoid();
+
+        SigTypeContext emptyContext;
+        ILStubLinker sl(pMD->GetModule(), pMD->GetSignature(), &emptyContext, pMD, TRUE, TRUE, FALSE);
+
+        ILCodeStream *pCode = sl.NewCodeStream(ILStubLinker::kDispatch);
+
+        // Load the "real" delegate
+        pCode->EmitLoadThis();
+        pCode->EmitLDFLD(pCode->GetToken(MscorlibBinder::GetField(FIELD__MULTICAST_DELEGATE__INVOCATION_LIST)));
+
+        // Load the arguments
+        UINT paramCount = 0;
+        while(paramCount < sig.NumFixedArgs())
+            pCode->EmitLDARG(paramCount++);
+
+        // Call the delegate
+        pCode->EmitCALL(pCode->GetToken(pMD), sig.NumFixedArgs(), fReturnVal);
+
+        // Return
+        pCode->EmitRET();
+
+        PCCOR_SIGNATURE pSig;
+        DWORD cbSig;
+
+        pMD->GetSig(&pSig,&cbSig);
+
+        MethodDesc* pStubMD =
+            ILStubCache::CreateAndLinkNewILStubMethodDesc(pMD->GetLoaderAllocator(),
+                                                          pMD->GetMethodTable(),
+                                                          ILSTUB_SECUREDELEGATE_INVOKE,
+                                                          pMD->GetModule(),
+                                                          pSig, cbSig,
+                                                          NULL,
+                                                          &sl);
+
+        pStub = Stub::NewStub(JitILStub(pStubMD));
+
+        g_IBCLogger.LogEEClassCOWTableAccess(pDelegateMT);
+
+        InterlockedCompareExchangeT<PTR_Stub>(EnsureWritablePages(&delegateEEClass->m_pSecureDelegateInvokeStub), pStub, NULL);
+
+    }
+    return pStub->GetEntryPoint();
 #endif
 }
 #else // FEATURE_STUBS_AS_IL
@@ -2946,32 +3000,44 @@ PCODE COMDelegate::GetSecureInvoke(MethodDesc* pMD)
     }
     CONTRACT_END;
 
-    GCX_PREEMP();
-    
-    MetaSig sig(pMD);
+    MethodTable *       pDelegateMT = pMD->GetMethodTable();
+    DelegateEEClass*    delegateEEClass = (DelegateEEClass*) pDelegateMT->GetClass();
 
-    UINT_PTR hash = CPUSTUBLINKER::HashMulticastInvoke(&sig);
+    Stub *pStub = delegateEEClass->m_pSecureDelegateInvokeStub;
 
-    Stub *pStub = m_pSecureDelegateStubCache->GetStub(hash);
-    if (!pStub)
+    if (pStub == NULL)
     {
-        CPUSTUBLINKER sl;
+        GCX_PREEMP();
 
-        LOG((LF_CORDB,LL_INFO10000, "COMD::GIMS making a multicast delegate\n"));
-        sl.EmitSecureDelegateInvoke(hash);
+        MetaSig sig(pMD);
 
-        // The cache is process-wide, based on signature.  It never unloads
-        Stub *pCandidate = sl.Link(SystemDomain::GetGlobalLoaderAllocator()->GetStubHeap(), NEWSTUB_FL_MULTICAST);
+        UINT_PTR hash = CPUSTUBLINKER::HashMulticastInvoke(&sig);
 
-        Stub *pWinner = m_pSecureDelegateStubCache->AttemptToSetStub(hash, pCandidate);
-        pCandidate->DecRef();
-        if (!pWinner)
-            COMPlusThrowOM();
+        pStub = m_pSecureDelegateStubCache->GetStub(hash);
+        if (!pStub)
+        {
+            CPUSTUBLINKER sl;
 
-        LOG((LF_CORDB,LL_INFO10000, "Putting a MC stub at 0x%x (code:0x%x)\n",
-            pWinner, (BYTE*)pWinner+sizeof(Stub)));
+            LOG((LF_CORDB,LL_INFO10000, "COMD::GIMS making a multicast delegate\n"));
+            sl.EmitSecureDelegateInvoke(hash);
 
-        pStub = pWinner;
+            // The cache is process-wide, based on signature.  It never unloads
+            Stub *pCandidate = sl.Link(SystemDomain::GetGlobalLoaderAllocator()->GetStubHeap(), NEWSTUB_FL_MULTICAST);
+
+            Stub *pWinner = m_pSecureDelegateStubCache->AttemptToSetStub(hash, pCandidate);
+            pCandidate->DecRef();
+            if (!pWinner)
+                COMPlusThrowOM();
+
+            LOG((LF_CORDB,LL_INFO10000, "Putting a MC stub at 0x%x (code:0x%x)\n",
+                pWinner, (BYTE*)pWinner+sizeof(Stub)));
+
+            pStub = pWinner;
+        }
+
+        g_IBCLogger.LogEEClassCOWTableAccess(pDelegateMT);
+        EnsureWritablePages(&delegateEEClass->m_pSecureDelegateInvokeStub);
+        delegateEEClass->m_pSecureDelegateInvokeStub = pStub;
     }
     RETURN (pStub->GetEntryPoint());
 }

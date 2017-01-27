@@ -19,7 +19,7 @@ namespace System.Globalization
     **      Gregorian              1901/02/19          2101/01/28
     **      ChineseLunisolar   1901/01/01          2100/12/29
     */
-
+    [Serializable]
     public class ChineseLunisolarCalendar : EastAsianLunisolarCalendar
     {
         //
@@ -27,7 +27,6 @@ namespace System.Globalization
         //
 
         public const int ChineseEra = 1;
-        //internal static Calendar m_defaultInstance;
 
         internal const int MIN_LUNISOLAR_YEAR = 1901;
         internal const int MAX_LUNISOLAR_YEAR = 2100;
@@ -72,7 +71,7 @@ namespace System.Globalization
         }
 
 
-        static readonly int[,] yinfo =
+        private static readonly int[,] s_yinfo =
         {
             /*Y            LM        Lmon    Lday        DaysPerMonth    D1    D2    D3    D4    D5    D6    D7    D8    D9    D10    D11    D12    D13    #Days
            1901    */
@@ -331,7 +330,7 @@ namespace System.Globalization
             }
             Contract.EndContractBlock();
 
-            return yinfo[LunarYear - MIN_LUNISOLAR_YEAR, Index];
+            return s_yinfo[LunarYear - MIN_LUNISOLAR_YEAR, Index];
         }
 
         internal override int GetYear(int year, DateTime time)
@@ -343,13 +342,13 @@ namespace System.Globalization
         {
             if (era != CurrentEra && era != ChineseEra)
             {
-                throw new ArgumentOutOfRangeException("era", SR.ArgumentOutOfRange_InvalidEraValue);
+                throw new ArgumentOutOfRangeException(nameof(era), SR.ArgumentOutOfRange_InvalidEraValue);
             }
 
             if (year < MIN_LUNISOLAR_YEAR || year > MAX_LUNISOLAR_YEAR)
             {
                 throw new ArgumentOutOfRangeException(
-                            "year",
+                            nameof(year),
                             String.Format(
                                 CultureInfo.CurrentCulture,
                                 SR.ArgumentOutOfRange_Range, MIN_LUNISOLAR_YEAR, MAX_LUNISOLAR_YEAR));
@@ -359,31 +358,9 @@ namespace System.Globalization
             return year;
         }
 
-
-        /*=================================GetDefaultInstance==========================
-        **Action: Internal method to provide a default intance of ChineseLunisolarCalendar.  Used by NLS+ implementation
-        **       and other calendars.
-        **Returns:
-        **Arguments:
-        **Exceptions:
-        ============================================================================*/
-
-        /*
-        internal static Calendar GetDefaultInstance()
-        {
-            if (m_defaultInstance == null) {
-                m_defaultInstance = new ChineseLunisolarCalendar();
-            }
-            return (m_defaultInstance);
-        }
-        */
-
-        // Construct an instance of ChineseLunisolar calendar.
-
         public ChineseLunisolarCalendar()
         {
         }
-
 
         [System.Runtime.InteropServices.ComVisible(false)]
         public override int GetEra(DateTime time)

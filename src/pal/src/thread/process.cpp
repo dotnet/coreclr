@@ -394,9 +394,9 @@ CreateProcessA(
         lpProcessInformation
         );
 done:
-    InternalFree(ApplicationNameW);
-    InternalFree(CommandLineW);
-    InternalFree(CurrentDirectoryW);
+    free(ApplicationNameW);
+    free(CommandLineW);
+    free(CurrentDirectoryW);
 
     if (NO_ERROR != palError)
     {
@@ -1091,7 +1091,7 @@ InternalCreateProcessExit:
 
     if (EnvironmentArray)
     {
-        InternalFree(EnvironmentArray);
+        free(EnvironmentArray);
     }
 
     /* if we still have the file structures at this point, it means we 
@@ -1131,8 +1131,8 @@ InternalCreateProcessExit:
     /* free allocated memory */
     if (lppArgv)
     {
-        InternalFree(*lppArgv);
-        InternalFree(lppArgv);
+        free(*lppArgv);
+        free(lppArgv);
     }
 
     return palError;
@@ -1879,7 +1879,7 @@ Parameters:
     None
 
 Return value:
-    TRUE - succeeded, FALSE - failed
+    TRUE - successfully launched by debugger, FALSE - not launched or some failure in the handshake
 --*/
 BOOL
 PALAPI
@@ -1889,7 +1889,7 @@ PAL_NotifyRuntimeStarted()
     char continueSemName[CLR_SEM_MAX_NAMELEN];
     sem_t *startupSem = SEM_FAILED;
     sem_t *continueSem = SEM_FAILED;
-    BOOL result = TRUE;
+    BOOL launched = FALSE;
 
     UINT64 processIdDisambiguationKey = 0;
     GetProcessIdDisambiguationKey(gPID, &processIdDisambiguationKey);
@@ -1899,9 +1899,7 @@ PAL_NotifyRuntimeStarted()
 
     TRACE("PAL_NotifyRuntimeStarted opening continue '%s' startup '%s'\n", continueSemName, startupSemName);
 
-
-    // Open the debugger startup semaphore. If it doesn't exists, then we do nothing and
-    // the function is successful.
+    // Open the debugger startup semaphore. If it doesn't exists, then we do nothing and return
     startupSem = sem_open(startupSemName, 0);
     if (startupSem == SEM_FAILED)
     {
@@ -1913,7 +1911,6 @@ PAL_NotifyRuntimeStarted()
     if (continueSem == SEM_FAILED)
     {
         ASSERT("sem_open(%s) failed: %d (%s)\n", continueSemName, errno, strerror(errno));
-        result = FALSE;
         goto exit;
     }
 
@@ -1921,7 +1918,6 @@ PAL_NotifyRuntimeStarted()
     if (sem_post(startupSem) != 0)
     {
         ASSERT("sem_post(startupSem) failed: errno is %d (%s)\n", errno, strerror(errno));
-        result = FALSE;
         goto exit;
     }
 
@@ -1929,9 +1925,11 @@ PAL_NotifyRuntimeStarted()
     if (sem_wait(continueSem) != 0)
     {
         ASSERT("sem_wait(continueSem) failed: errno is %d (%s)\n", errno, strerror(errno));
-        result = FALSE;
         goto exit;
     }
+
+    // Returns that the runtime was successfully launched for debugging
+    launched = TRUE;
 
 exit:
     if (startupSem != SEM_FAILED)
@@ -1942,7 +1940,7 @@ exit:
     {
         sem_close(continueSem);
     }
-    return result;
+    return launched;
 }
 
 /*++
@@ -2049,18 +2047,18 @@ GetProcessIdDisambiguationKey(DWORD processId, UINT64 *disambiguationKey)
 
     // According to `man proc`, the second field in the stat file is the filename of the executable,
     // in parentheses. Tokenizing the stat file using spaces as separators breaks when that name
-    // has spaces in it, so we start using sscanf after skipping everything up to and including the
+    // has spaces in it, so we start using sscanf_s after skipping everything up to and including the
     // last closing paren and the space after it.
     char *scanStartPosition = strrchr(line, ')') + 2;
 
     // All the format specifiers for the fields in the stat file are provided by 'man proc'.
-    int sscanfRet = sscanf(scanStartPosition, 
+    int sscanfRet = sscanf_s(scanStartPosition, 
         "%*c %*d %*d %*d %*d %*d %*u %*lu %*lu %*lu %*lu %*lu %*lu %*ld %*ld %*ld %*ld %*ld %*ld %llu \n",
          &starttime);
 
     if (sscanfRet != 1)
     {
-        _ASSERTE(!"Failed to parse stat file contents with sscanf.");
+        _ASSERTE(!"Failed to parse stat file contents with sscanf_s.");
         return FALSE;
     }
 
@@ -2095,7 +2093,7 @@ PAL_GetTransportPipeName(char *name, DWORD id, const char *suffix)
     // also try to use 0 as the value.
     _ASSERTE(ret == TRUE || disambiguationKey == 0);
 
-    int chars = _snprintf(name, MAX_DEBUGGER_TRANSPORT_PIPE_NAME_LENGTH, PipeNameFormat, id, disambiguationKey, suffix);
+    int chars = snprintf(name, MAX_DEBUGGER_TRANSPORT_PIPE_NAME_LENGTH, PipeNameFormat, id, disambiguationKey, suffix);
     _ASSERTE(chars > 0 && chars < MAX_DEBUGGER_TRANSPORT_PIPE_NAME_LENGTH);
 }
 
@@ -2690,7 +2688,7 @@ CreateProcessModules(
         char moduleName[PATH_MAX];
         int size;
 
-        if (sscanf(line, "__TEXT %p-%p [ %dK] %*[-/rwxsp] SM=%*[A-Z] %s\n", &startAddress, &endAddress, &size, moduleName) == 4)
+        if (sscanf_s(line, "__TEXT %p-%p [ %dK] %*[-/rwxsp] SM=%*[A-Z] %s\n", &startAddress, &endAddress, &size, moduleName, _countof(moduleName)) == 4)
         {
             bool dup = false;
             for (ProcessModules *entry = listHead; entry != NULL; entry = entry->Next)
@@ -2768,7 +2766,7 @@ exit:
         int devHi, devLo, inode;
         char moduleName[PATH_MAX];
 
-        if (sscanf(line, "%p-%p %*[-rwxsp] %p %x:%x %d %s\n", &startAddress, &endAddress, &offset, &devHi, &devLo, &inode, moduleName) == 7)
+        if (sscanf_s(line, "%p-%p %*[-rwxsp] %p %x:%x %d %s\n", &startAddress, &endAddress, &offset, &devHi, &devLo, &inode, moduleName, _countof(moduleName)) == 7)
         {
             if (inode != 0)
             {
@@ -2832,7 +2830,7 @@ DestroyProcessModules(IN ProcessModules *listHead)
     for (ProcessModules *entry = listHead; entry != NULL; )
     {
         ProcessModules *next = entry->Next;
-        InternalFree(entry);
+        free(entry);
         entry = next;
     }
 }
@@ -3086,18 +3084,18 @@ CorUnix::InitializeProcessCommandLine(
         if (wcscpy_s(initial_dir, iLen, lpwstrFullPath) != SAFECRT_SUCCESS)
         {
             ERROR("wcscpy_s failed!\n");
-            InternalFree(initial_dir);
+            free(initial_dir);
             palError = ERROR_INTERNAL_ERROR;
             goto exit;
         }
 
         lpwstr[0] = '/';
 
-        InternalFree(g_lpwstrAppDir);
+        free(g_lpwstrAppDir);
         g_lpwstrAppDir = initial_dir;
     }
 
-    InternalFree(g_lpwstrCmdLine);
+    free(g_lpwstrCmdLine);
     g_lpwstrCmdLine = lpwstrCmdLine;
 
 exit:
@@ -3243,12 +3241,12 @@ PROCCleanupInitialProcess(VOID)
     CPalThread *pThread = InternalGetCurrentThread();
 
     InternalEnterCriticalSection(pThread, &g_csProcess);
-    
+
     /* Free the application directory */
-    InternalFree(g_lpwstrAppDir);
-    
+    free(g_lpwstrAppDir);
+
     /* Free the stored command line */
-    InternalFree(g_lpwstrCmdLine);
+    free(g_lpwstrCmdLine);
 
     InternalLeaveCriticalSection(pThread, &g_csProcess);
 
@@ -4290,7 +4288,7 @@ buildArgv(
                                  pChar, iWlen+1, NULL, NULL))
         {
             ASSERT("Unable to convert to a multibyte string\n");
-            InternalFree(lpAsciiCmdLine);
+            free(lpAsciiCmdLine);
             return NULL;
         }
     }
@@ -4378,7 +4376,7 @@ buildArgv(
 
     if (lppArgv == NULL)
     {
-        InternalFree(lpAsciiCmdLine);
+        free(lpAsciiCmdLine);
         return NULL;
     }
 
@@ -4569,7 +4567,7 @@ getPath(
 
         if (!lpPathFileName.Reserve(nextLen + lpFileNameString.GetCount() + 1))
         {
-            InternalFree(lpPath);
+            free(lpPath);
             ERROR("StackString ran out of memory for full path\n");
             return FALSE;
         }
@@ -4587,14 +4585,14 @@ getPath(
         if ( access (lpPathFileName, F_OK) == 0)
         {
             TRACE("Found %s in $PATH element %s\n", lpFileName, lpNext);
-            InternalFree(lpPath);
+            free(lpPath);
             return TRUE;
         }
 
         lpNext = lpCurrent;  /* search in the next directory */
     }
 
-    InternalFree(lpPath);
+    free(lpPath);
     TRACE("File %s not found in $PATH\n", lpFileName);
     return FALSE;
 }

@@ -36,10 +36,12 @@ Stub * GenerateInitPInvokeFrameHelper();
 
 EXTERN_C void checkStack(void);
 
+#define THUMB_CODE      1
+
 #ifdef CROSSGEN_COMPILE
 #define GetEEFuncEntryPoint(pfn) 0x1001
 #else
-#define GetEEFuncEntryPoint(pfn) GFN_TADDR(pfn)
+#define GetEEFuncEntryPoint(pfn) (GFN_TADDR(pfn) | THUMB_CODE)
 #endif
 
 //**********************************************************************
@@ -305,8 +307,6 @@ inline PCODE decodeBackToBackJump(PCODE pBuffer)
 //----------------------------------------------------------------------
 #include "stublink.h"
 struct ArrayOpScript;
-
-#define THUMB_CODE      1
 
 inline BOOL IsThumbCode(PCODE pCode)
 {
@@ -959,9 +959,9 @@ struct HijackArgs
     union
     {
         DWORD R0;
-        size_t ReturnValue; // this may not be the return value when return is >32bits or return value is in VFP reg
-                            // but it works for us as this is only used by functions OnHijackObjectWorker()
-                            // and OnHijackInteriorPointerWorker() (where return is an address)
+        size_t ReturnValue[1]; // this may not be the return value when return is >32bits 
+                               // or return value is in VFP reg but it works for us as 
+                               // this is only used by functions OnHijackWorker()
     };
 
     //

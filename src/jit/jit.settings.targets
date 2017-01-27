@@ -55,6 +55,7 @@
         <CppCompile Include="..\Instr.cpp" />
         <CppCompile Include="..\JitTelemetry.cpp" />
         <CppCompile Include="..\LclVars.cpp" />
+        <CppCompile Include="..\LIR.cpp" />
         <CppCompile Include="..\Liveness.cpp" />
         <CppCompile Include="..\Morph.cpp" />
         <CppCompile Include="..\Optimizer.cpp" />
@@ -84,13 +85,17 @@
         <CppCompile Include="..\inlinepolicy.cpp" />
         <CppCompile Include="..\jitconfig.cpp" />
         <CppCompile Include="..\hostallocator.cpp" />
+        <CppCompile Include="..\objectalloc.cpp" />
+        <CppCompile Include="..\sideeffects.cpp" />
         <CppCompile Condition="'$(ClDefines.Contains(`LEGACY_BACKEND`))'=='True'" Include="..\CodeGenLegacy.cpp" />
         <CppCompile Condition="'$(ClDefines.Contains(`LEGACY_BACKEND`))'=='False'"  Include="..\Lower.cpp" />
         <CppCompile Condition="'$(ClDefines.Contains(`LEGACY_BACKEND`))'=='False'"  Include="..\LSRA.cpp" />
+        <CppCompile Condition="'$(ClDefines.Contains(`LEGACY_BACKEND`))'=='False'"  Include="..\codegenlinear.cpp" />
     </ItemGroup>
     <ItemGroup Condition="'$(TargetArch)'=='i386'">
         <CppCompile Include="..\emitXArch.cpp" />
         <CppCompile Include="..\TargetX86.cpp" />
+        <CppCompile Include="..\unwindx86.cpp" />
         <CppCompile Condition="'$(ClDefines.Contains(`LEGACY_BACKEND`))'=='True'" Include="..\stackfp.cpp" />
         <CppCompile Condition="'$(ClDefines.Contains(`LEGACY_BACKEND`))'=='False'"  Include="..\DecomposeLongs.cpp" />
         <CppCompile Condition="'$(ClDefines.Contains(`LEGACY_BACKEND`))'=='False'"  Include="..\LowerXArch.cpp" />

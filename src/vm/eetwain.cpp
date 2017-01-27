@@ -142,13 +142,15 @@ __forceinline int decodeSigned(PTR_CBYTE& src)
 
 /*****************************************************************************
  *
- *  Decodes the methodInfoPtr and returns the decoded information
- *  in the hdrInfo struct.  The EIP parameter is the PC location
- *  within the active method.
+ *  Decodes the X86 GcInfo header and returns the decoded information
+ *  in the hdrInfo struct. 
+ *  curOffset is the code offset within the active method used in the 
+ *  computation of PrologOffs/EpilogOffs.
+ *  Returns the size of the header (number of bytes decoded).
  */
-static size_t   crackMethodInfoHdr(PTR_VOID    methodInfoPtr,
-                                   unsigned    curOffset,
-                                   hdrInfo   * infoPtr)
+static size_t   DecodeGCHdrInfo(GCInfoToken gcInfoToken,
+                                unsigned    curOffset,
+                                hdrInfo   * infoPtr)
 {
     CONTRACTL {
         NOTHROW;
@@ -157,7 +159,7 @@ static size_t   crackMethodInfoHdr(PTR_VOID    methodInfoPtr,
         SUPPORTS_DAC;
     } CONTRACTL_END;
 
-    PTR_CBYTE table = PTR_CBYTE(methodInfoPtr);
+    PTR_CBYTE table = (PTR_CBYTE) gcInfoToken.Info;
 #if VERIFY_GC_TABLES
     _ASSERTE(*castto(table, unsigned short *)++ == 0xFEEF);
 #endif
@@ -170,7 +172,7 @@ static size_t   crackMethodInfoHdr(PTR_VOID    methodInfoPtr,
     /* Decode the InfoHdr */
 
     InfoHdr header;
-    table = decodeHeader(table, &header);
+    table = decodeHeader(table, gcInfoToken.Version, &header);
 
     BOOL hasArgTabOffset = FALSE;
     if (header.untrackedCnt == HAS_UNTRACKED)
@@ -199,6 +201,10 @@ static size_t   crackMethodInfoHdr(PTR_VOID    methodInfoPtr,
         _ASSERTE(header.syncStartOffset < header.syncEndOffset);
     }
 
+    if (header.revPInvokeOffset == HAS_REV_PINVOKE_FRAME_OFFSET)
+    {
+        header.revPInvokeOffset = fastDecodeUnsigned(table);
+    }
 
     /* Some sanity checks on header */
 
@@ -220,6 +226,7 @@ static size_t   crackMethodInfoHdr(PTR_VOID    methodInfoPtr,
     infoPtr->argSize         = header.argCount * 4;
     infoPtr->ebpFrame        = header.ebpFrame;
     infoPtr->interruptible   = header.interruptible;
+    infoPtr->returnKind      = (ReturnKind) header.returnKind;
 
     infoPtr->prologSize      = header.prologSize;
     infoPtr->epilogSize      = header.epilogSize;
@@ -232,6 +239,7 @@ static size_t   crackMethodInfoHdr(PTR_VOID    methodInfoPtr,
 
     infoPtr->syncStartOffset = header.syncStartOffset;
     infoPtr->syncEndOffset   = header.syncEndOffset;
+    infoPtr->revPInvokeOffset = header.revPInvokeOffset;
 
     infoPtr->doubleAlign     = header.doubleAlign;
     infoPtr->securityCheck   = header.security;
@@ -352,7 +360,7 @@ static size_t   crackMethodInfoHdr(PTR_VOID    methodInfoPtr,
              (infoPtr->gsCookieOffset < infoPtr->stackSize) &&
              ((header.gsCookieOffset % sizeof(void*)) == 0));
     
-    return  table - PTR_CBYTE(methodInfoPtr);
+    return  table - PTR_CBYTE(gcInfoToken.Info);
 }
 
 /*****************************************************************************/
@@ -364,7 +372,7 @@ const size_t END_FIN_POP_STACK = sizeof(TADDR);
 // The offset (in bytes) from EBP for the secutiy object on the stack
 inline size_t GetSecurityObjectOffset(hdrInfo * info)
 {
-    SUPPORTS_DAC;
+    LIMITED_METHOD_DAC_CONTRACT;
 
     _ASSERTE(info->securityCheck && info->ebpFrame);
 
@@ -376,8 +384,7 @@ inline size_t GetSecurityObjectOffset(hdrInfo * info)
 inline
 size_t GetLocallocSPOffset(hdrInfo * info)
 {
-    LIMITED_METHOD_CONTRACT;
-    SUPPORTS_DAC; 
+    LIMITED_METHOD_DAC_CONTRACT;
 
     _ASSERTE(info->localloc && info->ebpFrame);
     
@@ -390,7 +397,7 @@ size_t GetLocallocSPOffset(hdrInfo * info)
 inline
 size_t GetParamTypeArgOffset(hdrInfo * info)
 {
-    SUPPORTS_DAC;
+    LIMITED_METHOD_DAC_CONTRACT;
 
     _ASSERTE((info->genericsContext || info->handlers) && info->ebpFrame);
     
@@ -403,8 +410,7 @@ size_t GetParamTypeArgOffset(hdrInfo * info)
 
 inline size_t GetStartShadowSPSlotsOffset(hdrInfo * info)
 {
-    WRAPPER_NO_CONTRACT;
-    SUPPORTS_DAC; 
+    LIMITED_METHOD_DAC_CONTRACT;
  
     _ASSERTE(info->handlers && info->ebpFrame);
 
@@ -433,7 +439,7 @@ PTR_TADDR GetFirstBaseSPslotPtr(TADDR ebp, hdrInfo * info)
 
 inline size_t GetEndShadowSPSlotsOffset(hdrInfo * info, unsigned maxHandlerNestingLevel)
 {
-    WRAPPER_NO_CONTRACT;
+    LIMITED_METHOD_DAC_CONTRACT;
 
     _ASSERTE(info->handlers && info->ebpFrame);
 
@@ -556,7 +562,8 @@ FrameType   GetHandlerFrameInfo(hdrInfo   * info,
     // The slots grow towards lower address on the stack and is terminted by a NULL entry.  
     // Since each subsequent slot contains the SP of a more nested EH clause, the contents of the slots are
     // expected to be in decreasing order.
-    size_t lvl;
+    size_t lvl = 0;
+#ifndef WIN64EXCEPTIONS
     PTR_TADDR pSlot;
     for(lvl = 0, pSlot = pFirstBaseSPslot;
         *pSlot && lvl < unwindLevel;
@@ -619,6 +626,7 @@ FrameType   GetHandlerFrameInfo(hdrInfo   * info,
             baseSP = curSlotVal;
         }
     }
+#endif // WIN64EXCEPTIONS
 
     if (unwindESP != (TADDR) IGNORE_VAL)
     {
@@ -685,6 +693,7 @@ inline size_t GetSizeOfFrameHeaderForEnC(hdrInfo * info)
 #endif // !USE_GC_INFO_DECODER
 
 #ifndef DACCESS_COMPILE
+#ifndef WIN64EXCEPTIONS
 
 /*****************************************************************************
  *
@@ -710,14 +719,12 @@ void EECodeManager::FixContext( ContextType     ctxType,
 
     _ASSERTE((ctxType == FINALLY_CONTEXT) == (thrownObject == NULL));
 
-#ifdef _TARGET_X86_
-
     _ASSERTE(sizeof(CodeManStateBuf) <= sizeof(pState->stateBuf));
     CodeManStateBuf * stateBuf = (CodeManStateBuf*)pState->stateBuf;
 
     /* Extract the necessary information from the info block header */
 
-    stateBuf->hdrInfoSize = (DWORD)crackMethodInfoHdr(pCodeInfo->GetGCInfo(),
+    stateBuf->hdrInfoSize = (DWORD)DecodeGCHdrInfo(pCodeInfo->GetGCInfoToken(),
                                        dwRelOffset,
                                        &stateBuf->hdrInfoBody);
     pState->dwIsSet = 1;
@@ -765,11 +772,9 @@ void EECodeManager::FixContext( ContextType     ctxType,
      */
 
     *((OBJECTREF*)&(ctx->Eax)) = thrownObject;
-
-#else // !_TARGET_X86_
-    _ASSERTE(!"@NYI - EECodeManager::FixContext (EETwain.cpp)");
-#endif // _TARGET_X86_
 }
+
+#endif // !WIN64EXCEPTIONS
 
 
 
@@ -838,11 +843,11 @@ HRESULT EECodeManager::FixContextForEnC(PCONTEXT         pCtx,
 
     hdrInfo  oldInfo, newInfo;
 
-    crackMethodInfoHdr(pOldCodeInfo->GetGCInfo(),
+    DecodeGCHdrInfo(pOldCodeInfo->GetGCInfoToken(),
                        pOldCodeInfo->GetRelOffset(),
                        &oldInfo);
 
-    crackMethodInfoHdr(pNewCodeInfo->GetGCInfo(),
+    DecodeGCHdrInfo(pNewCodeInfo->GetGCInfoToken(),
                        pNewCodeInfo->GetRelOffset(),
                        &newInfo);
 
@@ -1507,8 +1512,8 @@ unsigned EECodeManager::FindEndOfLastInterruptibleRegion(unsigned curOffset,
 #ifndef DACCESS_COMPILE
     GcInfoDecoder gcInfoDecoder(
             gcInfoToken,
-            DECODE_FOR_RANGES_CALLBACK,
-            0);
+            DECODE_FOR_RANGES_CALLBACK
+            );
 
     FindEndOfLastInterruptibleRegionState state;
     state.curOffset = curOffset;
@@ -1547,7 +1552,7 @@ bool EECodeManager::IsGcSafe( EECodeInfo     *pCodeInfo,
 
     /* Extract the necessary information from the info block header */
 
-    table = (BYTE *)crackMethodInfoHdr(pCodeInfo->GetGCInfo(),
+    table = (BYTE *)DecodeGCHdrInfo(pCodeInfo->GetGCInfoToken(),
                                        dwRelOffset,
                                        &info);
 
@@ -3042,7 +3047,7 @@ unsigned SKIP_ALLOC_FRAME(int size, PTR_CBYTE base, unsigned offset)
 #endif // !USE_GC_INFO_DECODER
 
 
-#if !defined(_TARGET_X86_) && !defined(CROSSGEN_COMPILE)
+#if defined(WIN64EXCEPTIONS) && !defined(CROSSGEN_COMPILE)
 
 void EECodeManager::EnsureCallerContextIsValid( PREGDISPLAY  pRD, StackwalkCacheEntry* pCacheEntry, EECodeInfo * pCodeInfo /*= NULL*/ )
 {
@@ -3099,7 +3104,7 @@ size_t EECodeManager::GetCallerSp( PREGDISPLAY  pRD )
     return (size_t) (GetSP(pRD->pCallerContext));
 }
 
-#endif // !defined(_TARGET_X86_) && !defined(CROSSGEN_COMPILE)
+#endif // WIN64EXCEPTIONS && !CROSSGEN_COMPILE
 
 /*
   *  Light unwind the current stack frame, using provided cache entry.
@@ -3127,17 +3132,17 @@ void EECodeManager::QuickUnwindStackFrame(PREGDISPLAY pRD, StackwalkCacheEntry *
         _ASSERTE(pCacheEntry->fUseEbp);
         // EBP frame, update ESP through EBP, since ESPOffset may vary
         pRD->pEbp = PTR_DWORD((TADDR)*pRD->pEbp);
-        pRD->Esp  = (TADDR)pRD->pEbp + sizeof(void*);
+        pRD->SP = (TADDR)pRD->pEbp + sizeof(void*);
     }
     else
     {
         _ASSERTE(!pCacheEntry->fUseEbp);
         // ESP frame, update up to retAddr using ESPOffset
-        pRD->Esp += pCacheEntry->ESPOffset;
+        pRD->SP += pCacheEntry->ESPOffset;
     }
-    pRD->PCTAddr  = (TADDR)pRD->Esp;
+    pRD->PCTAddr  = (TADDR)pRD->SP;
     pRD->ControlPC = *PTR_PCODE(pRD->PCTAddr);
-    pRD->Esp     += sizeof(void*) + pCacheEntry->argSize;
+    pRD->SP     += sizeof(void*) + pCacheEntry->argSize;
 
 #elif defined(_TARGET_AMD64_)
     if (pRD->IsCallerContextValid)
@@ -3226,7 +3231,7 @@ void UnwindEspFrameEpilog(
     _ASSERTE(info->epilogOffs > 0);
     
     int offset = 0;
-    unsigned ESP = pContext->Esp;
+    unsigned ESP = pContext->SP;
 
     if (info->rawStkSize)
     {
@@ -3294,7 +3299,7 @@ void UnwindEspFrameEpilog(
     pContext->PCTAddr = (TADDR)ESP;
     pContext->ControlPC = *PTR_PCODE(pContext->PCTAddr);
 
-    pContext->Esp = ESP;
+    pContext->SP = ESP;
 }
 
 /*****************************************************************************/
@@ -3318,7 +3323,7 @@ void UnwindEbpDoubleAlignFrameEpilog(
       have already been popped */
     int offset = 0;
    
-    unsigned ESP = pContext->Esp;
+    unsigned ESP = pContext->SP;
 
     bool needMovEspEbp = false;
 
@@ -3426,7 +3431,13 @@ void UnwindEbpDoubleAlignFrameEpilog(
     pContext->PCTAddr = (TADDR)ESP;
     pContext->ControlPC = *PTR_PCODE(pContext->PCTAddr);
 
-    pContext->Esp = ESP;
+    pContext->SP = ESP;
+}
+
+inline SIZE_T GetStackParameterSize(hdrInfo * info)
+{
+    SUPPORTS_DAC;
+    return (info->varargs ? 0 : info->argSize); // Note varargs is caller-popped
 }
 
 //****************************************************************************
@@ -3436,8 +3447,7 @@ inline SIZE_T ESPIncrOnReturn(hdrInfo * info)
 {
     SUPPORTS_DAC;
     return sizeof(void *) + // pop off the return address
-           // Note varargs is caller-popped
-           (info->varargs ? 0 : info->argSize);
+           GetStackParameterSize(info);
 }
 
 /*****************************************************************************/
@@ -3470,7 +3480,7 @@ void UnwindEpilog(
 
     /* Now adjust stack pointer */
 
-    pContext->Esp += ESPIncrOnReturn(info);
+    pContext->SP += ESPIncrOnReturn(info);
 }
 
 /*****************************************************************************/
@@ -3500,7 +3510,7 @@ void UnwindEspFrameProlog(
 #endif
 
     const DWORD curOffs = info->prologOffs;
-    unsigned ESP = pContext->Esp;
+    unsigned ESP = pContext->SP;
     
     // Find out how many callee-saved regs have already been pushed
 
@@ -3572,7 +3582,7 @@ void UnwindEspFrameProlog(
     _ASSERTE(offset == info->prologOffs);
 #endif
 
-    pContext->Esp = ESP;
+    pContext->SP = ESP;
 }
 
 /*****************************************************************************/
@@ -3591,7 +3601,7 @@ void UnwindEspFrame(
     _ASSERTE(!info->ebpFrame && !info->doubleAlign);
     _ASSERTE(info->epilogOffs == hdrInfo::NOT_IN_EPILOG);
 
-    unsigned ESP = pContext->Esp;
+    unsigned ESP = pContext->SP;
 
     
     if (info->prologOffs != hdrInfo::NOT_IN_PROLOG)
@@ -3599,7 +3609,7 @@ void UnwindEspFrame(
         if (info->prologOffs != 0) // Do nothing for the very start of the method
         {
             UnwindEspFrameProlog(pContext, info, methodStart, flags);
-            ESP = pContext->Esp;
+            ESP = pContext->SP;
         }
     }
     else
@@ -3635,7 +3645,7 @@ void UnwindEspFrame(
 
     /* Now adjust stack pointer */
 
-    pContext->Esp = ESP + ESPIncrOnReturn(info);
+    pContext->SP = ESP + ESPIncrOnReturn(info);
 }
 
 
@@ -3679,11 +3689,11 @@ void UnwindEbpDoubleAlignFrameProlog(
         /* If we're past the "push ebp", adjust ESP to pop EBP off */
 
         if  (curOffs == (offset + 1))
-            pContext->Esp += sizeof(TADDR);
+            pContext->SP += sizeof(TADDR);
 
         /* Stack pointer points to return address */
 
-        pContext->PCTAddr = (TADDR)pContext->Esp;
+        pContext->PCTAddr = (TADDR)pContext->SP;
         pContext->ControlPC = *PTR_PCODE(pContext->PCTAddr);
 
         /* EBP and callee-saved registers still have the correct value */
@@ -3747,11 +3757,11 @@ void UnwindEbpDoubleAlignFrameProlog(
     /* The caller's saved EBP is pointed to by our EBP */
 
     pContext->pEbp = PTR_DWORD((TADDR)curEBP);
-    pContext->Esp = DWORD((TADDR)(curEBP + sizeof(void *)));
+    pContext->SP = DWORD((TADDR)(curEBP + sizeof(void *)));
     
     /* Stack pointer points to return address */
 
-    pContext->PCTAddr = (TADDR)pContext->Esp;
+    pContext->PCTAddr = (TADDR)pContext->SP;
     pContext->ControlPC = *PTR_PCODE(pContext->PCTAddr);
 }
 
@@ -3769,7 +3779,7 @@ bool UnwindEbpDoubleAlignFrame(
 
     _ASSERTE(info->ebpFrame || info->doubleAlign);
 
-    const unsigned curESP =  pContext->Esp;
+    const unsigned curESP =  pContext->SP;
     const unsigned curEBP = *pContext->pEbp;
 
     /* First check if we are in a filter (which is obviously after the prolog) */
@@ -3800,7 +3810,7 @@ bool UnwindEbpDoubleAlignFrame(
             pContext->PCTAddr = baseSP;
             pContext->ControlPC = *PTR_PCODE(pContext->PCTAddr);
 
-            pContext->Esp = (DWORD)(baseSP + sizeof(TADDR));
+            pContext->SP = (DWORD)(baseSP + sizeof(TADDR));
 
          // pContext->pEbp = same as before;
 
@@ -3839,7 +3849,7 @@ bool UnwindEbpDoubleAlignFrame(
         
         /* Now adjust stack pointer. */
 
-        pContext->Esp += ESPIncrOnReturn(info);
+        pContext->SP += ESPIncrOnReturn(info);
         return true;
     }
 
@@ -3864,7 +3874,7 @@ bool UnwindEbpDoubleAlignFrame(
 
     /* The caller's ESP will be equal to EBP + retAddrSize + argSize. */
 
-    pContext->Esp = (DWORD)(curEBP + sizeof(curEBP) + ESPIncrOnReturn(info));
+    pContext->SP = (DWORD)(curEBP + sizeof(curEBP) + ESPIncrOnReturn(info));
 
     /* The caller's saved EIP is right after our EBP */
 
@@ -3878,21 +3888,11 @@ bool UnwindEbpDoubleAlignFrame(
     return true;
 }
 
-/*****************************************************************************
- *
- *  Unwind the current stack frame, i.e. update the virtual register
- *  set in pContext. This will be similar to the state after the function
- *  returns back to caller (IP points to after the call, Frame and Stack
- *  pointer has been reset, callee-saved registers restored (if UpdateAllRegs),
- *  callee-unsaved registers are trashed.
- *  Returns success of operation.
- */
-
-bool EECodeManager::UnwindStackFrame(PREGDISPLAY     pContext,
-                                     EECodeInfo     *pCodeInfo,
-                                     unsigned        flags,
-                                     CodeManState   *pState,
-                                     StackwalkCacheUnwindInfo  *pUnwindInfo /* out-only, perf improvement */)
+bool UnwindStackFrame(PREGDISPLAY     pContext,
+                      EECodeInfo     *pCodeInfo,
+                      unsigned        flags,
+                      CodeManState   *pState,
+                      StackwalkCacheUnwindInfo  *pUnwindInfo /* out-only, perf improvement */)
 {
     CONTRACTL {
         NOTHROW;
@@ -3907,8 +3907,9 @@ bool EECodeManager::UnwindStackFrame(PREGDISPLAY     pContext,
 
     PTR_CBYTE methodStart = PTR_CBYTE(pCodeInfo->GetSavedMethodCode());
 
-    PTR_VOID       methodInfoPtr = pCodeInfo->GetGCInfo();
-    DWORD          curOffs = pCodeInfo->GetRelOffset();
+    GCInfoToken gcInfoToken = pCodeInfo->GetGCInfoToken();
+    PTR_VOID    methodInfoPtr = gcInfoToken.Info;
+    DWORD       curOffs = pCodeInfo->GetRelOffset();
 
     _ASSERTE(sizeof(CodeManStateBuf) <= sizeof(pState->stateBuf));
     CodeManStateBuf * stateBuf = (CodeManStateBuf*)pState->stateBuf;
@@ -3917,7 +3918,7 @@ bool EECodeManager::UnwindStackFrame(PREGDISPLAY     pContext,
     {
         /* Extract the necessary information from the info block header */
 
-        stateBuf->hdrInfoSize = (DWORD)crackMethodInfoHdr(methodInfoPtr,
+        stateBuf->hdrInfoSize = (DWORD)DecodeGCHdrInfo(gcInfoToken,
                                                           curOffs,
                                                           &stateBuf->hdrInfoBody);
     }
@@ -3984,8 +3985,37 @@ bool EECodeManager::UnwindStackFrame(PREGDISPLAY     pContext,
     return true;
 }
 
+#endif // _TARGET_X86_
+
+#ifndef CROSSGEN_COMPILE
+#ifndef WIN64EXCEPTIONS
+
+/*****************************************************************************
+ *
+ *  Unwind the current stack frame, i.e. update the virtual register
+ *  set in pContext. This will be similar to the state after the function
+ *  returns back to caller (IP points to after the call, Frame and Stack
+ *  pointer has been reset, callee-saved registers restored (if UpdateAllRegs),
+ *  callee-unsaved registers are trashed.
+ *  Returns success of operation.
+ */
+
+bool EECodeManager::UnwindStackFrame(PREGDISPLAY     pContext,
+                                     EECodeInfo     *pCodeInfo,
+                                     unsigned        flags,
+                                     CodeManState   *pState,
+                                     StackwalkCacheUnwindInfo  *pUnwindInfo /* out-only, perf improvement */)
+{
+#ifdef _TARGET_X86_
+    return ::UnwindStackFrame(pContext, pCodeInfo, flags, pState, pUnwindInfo);
+#else // _TARGET_X86_
+    PORTABILITY_ASSERT("EECodeManager::UnwindStackFrame");
+    return false;
+#endif // _TARGET_???_
+}
+
 /*****************************************************************************/
-#elif !defined(CROSSGEN_COMPILE) // _TARGET_X86_ - UnwindStackFrame
+#else // !WIN64EXCEPTIONS
 /*****************************************************************************/
 
 bool EECodeManager::UnwindStackFrame(PREGDISPLAY     pContext,
@@ -4015,19 +4045,9 @@ bool EECodeManager::UnwindStackFrame(PREGDISPLAY     pContext,
 }
 
 /*****************************************************************************/
-#else // _TARGET_X86_ - UnwindStackFrame
+#endif // WIN64EXCEPTIONS
+#endif // !CROSSGEN_COMPILE
 
-bool EECodeManager::UnwindStackFrame(PREGDISPLAY     pContext,
-                                     EECodeInfo     *pCodeInfo,
-                                     unsigned        flags,
-                                     CodeManState   *pState,
-                                     StackwalkCacheUnwindInfo  *pUnwindInfo /* out-only, perf improvement */)
-{
-    _ASSERTE(!"EECodeManager::UnwindStackFrame not supported in this build configuration");
-    return true;
-}
-
-#endif // _TARGET_X86_ - UnwindStackFrame
 /*****************************************************************************/
 
 /* report args in 'msig' to the GC.
@@ -4099,18 +4119,18 @@ bool EECodeManager::EnumGcRefs( PREGDISPLAY     pContext,
         GC_NOTRIGGER;
     } CONTRACTL_END;
 
-    PTR_VOID  methodInfoPtr = pCodeInfo->GetGCInfo();
+    GCInfoToken gcInfoToken = pCodeInfo->GetGCInfoToken();
     unsigned  curOffs = pCodeInfo->GetRelOffset();
 
     unsigned  EBP     = *pContext->pEbp;
-    unsigned  ESP     =  pContext->Esp;
+    unsigned  ESP     =  pContext->SP;
 
     unsigned  ptrOffs;
 
     unsigned  count;
 
     hdrInfo   info;
-    PTR_CBYTE table = PTR_CBYTE(methodInfoPtr);
+    PTR_CBYTE table = PTR_CBYTE(gcInfoToken.Info);
 #if 0
     printf("EECodeManager::EnumGcRefs - EIP = %08x ESP = %08x  offset = %x  GC Info is at %08x\n", *pContext->pPC, ESP, curOffs, table);
 #endif
@@ -4118,14 +4138,14 @@ bool EECodeManager::EnumGcRefs( PREGDISPLAY     pContext,
 
     /* Extract the necessary information from the info block header */
 
-    table += crackMethodInfoHdr(methodInfoPtr,
-                                curOffs,
-                                &info);
+    table += DecodeGCHdrInfo(gcInfoToken,
+                             curOffs,
+                             &info);
 
     _ASSERTE( curOffs <= info.methodSize);
 
 #ifdef  _DEBUG
-//    if ((methodInfoPtr == (void*)0x37760d0) && (curOffs == 0x264))
+//    if ((gcInfoToken.Info == (void*)0x37760d0) && (curOffs == 0x264))
 //        __asm int 3;
 
     if (trEnumGCRefs) {
@@ -4222,11 +4242,11 @@ bool EECodeManager::EnumGcRefs( PREGDISPLAY     pContext,
 
             /* Extract the necessary information from the info block header */
 
-            table = PTR_CBYTE(methodInfoPtr);
+            table = PTR_CBYTE(gcInfoToken.Info);
 
-            table += crackMethodInfoHdr(methodInfoPtr,
-                                        curOffs,
-                                        &info);
+            table += DecodeGCHdrInfo(gcInfoToken,
+                                     curOffs,
+                                     &info);
         }
     }
 
@@ -4838,9 +4858,8 @@ bool EECodeManager::EnumGcRefs( PREGDISPLAY     pRD,
 #ifdef _DEBUG
         GcInfoDecoder _gcInfoDecoder(
                             gcInfoToken,
-                            DECODE_CODE_LENGTH,
-                            0
-                            );
+                            DECODE_CODE_LENGTH
+                      );
 
         // We only use override offset for wantsReportOnlyLeaf
         _ASSERTE(_gcInfoDecoder.WantsReportOnlyLeaf());
@@ -5033,9 +5052,9 @@ OBJECTREF* EECodeManager::GetAddrOfSecurityObject(CrawlFrame *pCF)
     CodeManStateBuf * stateBuf = (CodeManStateBuf*)pState->stateBuf;
 
     /* Extract the necessary information from the info block header */
-    stateBuf->hdrInfoSize = (DWORD)crackMethodInfoHdr(gcInfoToken.Info, // <TODO>truncation</TODO>
-                                                      relOffset,
-                                                      &stateBuf->hdrInfoBody);
+    stateBuf->hdrInfoSize = (DWORD)DecodeGCHdrInfo(gcInfoToken, // <TODO>truncation</TODO>
+                                                   relOffset,
+                                                   &stateBuf->hdrInfoBody);
 
     pState->dwIsSet = 1;
     if  (stateBuf->hdrInfoBody.securityCheck)
@@ -5051,8 +5070,7 @@ OBJECTREF* EECodeManager::GetAddrOfSecurityObject(CrawlFrame *pCF)
 
     GcInfoDecoder gcInfoDecoder(
             gcInfoToken,
-            DECODE_SECURITY_OBJECT,
-            0
+            DECODE_SECURITY_OBJECT
             );
 
     INT32 spOffset = gcInfoDecoder.GetSecurityObjectStackSlot();
@@ -5113,10 +5131,10 @@ OBJECTREF EECodeManager::GetInstance( PREGDISPLAY    pContext,
     } CONTRACTL_END;
 
 #ifdef _TARGET_X86_
-    PTR_VOID       methodInfoPtr = pCodeInfo->GetGCInfo();
-    unsigned       relOffset = pCodeInfo->GetRelOffset();
+    GCInfoToken gcInfoToken = pCodeInfo->GetGCInfoToken();
+    unsigned    relOffset = pCodeInfo->GetRelOffset();
 
-    PTR_CBYTE    table = PTR_CBYTE(methodInfoPtr);
+    PTR_CBYTE   table = PTR_CBYTE(gcInfoToken.Info);
     hdrInfo     info;
     unsigned    stackDepth;
     TADDR       taArgBase;
@@ -5124,9 +5142,9 @@ OBJECTREF EECodeManager::GetInstance( PREGDISPLAY    pContext,
 
     /* Extract the necessary information from the info block header */
 
-    table += crackMethodInfoHdr(methodInfoPtr,
-                                relOffset,
-                                &info);
+    table += DecodeGCHdrInfo(gcInfoToken,
+                             relOffset,
+                             &info);
 
     // We do not have accurate information in the prolog or the epilog
     if (info.prologOffs != hdrInfo::NOT_IN_PROLOG ||
@@ -5151,7 +5169,7 @@ OBJECTREF EECodeManager::GetInstance( PREGDISPLAY    pContext,
     }
     else
     {
-        taArgBase =  pContext->Esp + stackDepth;
+        taArgBase =  pContext->SP + stackDepth;
     }
 
     // Only synchronized methods and generic code that accesses
@@ -5236,19 +5254,19 @@ OBJECTREF EECodeManager::GetInstance( PREGDISPLAY    pContext,
 GenericParamContextType EECodeManager::GetParamContextType(PREGDISPLAY     pContext,
                                                            EECodeInfo *    pCodeInfo)
 {
-    WRAPPER_NO_CONTRACT;
-    SUPPORTS_DAC;
+    LIMITED_METHOD_DAC_CONTRACT;
 
 #ifdef _TARGET_X86_
     /* Extract the necessary information from the info block header */
-    PTR_VOID       methodInfoPtr = pCodeInfo->GetGCInfo();
-    unsigned       relOffset = pCodeInfo->GetRelOffset();
+    GCInfoToken gcInfoToken = pCodeInfo->GetGCInfoToken();
+    PTR_VOID    methodInfoPtr = pCodeInfo->GetGCInfo();
+    unsigned    relOffset = pCodeInfo->GetRelOffset();
 
     hdrInfo     info;
-    PTR_CBYTE    table = PTR_CBYTE(methodInfoPtr);
-    table += crackMethodInfoHdr(methodInfoPtr,
-                                relOffset,
-                                &info);
+    PTR_CBYTE   table = PTR_CBYTE(gcInfoToken.Info);
+    table += DecodeGCHdrInfo(gcInfoToken,
+                             relOffset,
+                             &info);
 
     if (!info.genericsContext || 
         info.prologOffs != hdrInfo::NOT_IN_PROLOG || 
@@ -5270,8 +5288,7 @@ GenericParamContextType EECodeManager::GetParamContextType(PREGDISPLAY     pCont
 
     GcInfoDecoder gcInfoDecoder(
             gcInfoToken,
-            GcInfoDecoderFlags (DECODE_GENERICS_INST_CONTEXT),
-            0
+            GcInfoDecoderFlags (DECODE_GENERICS_INST_CONTEXT)
             );
 
     INT32 spOffsetGenericsContext = gcInfoDecoder.GetGenericsInstContextStackSlot();
@@ -5303,19 +5320,19 @@ PTR_VOID EECodeManager::GetParamTypeArg(PREGDISPLAY     pContext,
                                         EECodeInfo *    pCodeInfo)
 
 {
-    WRAPPER_NO_CONTRACT;
-    SUPPORTS_DAC;
+    LIMITED_METHOD_DAC_CONTRACT;
 
 #ifdef _TARGET_X86_
-    PTR_VOID       methodInfoPtr = pCodeInfo->GetGCInfo();
-    unsigned       relOffset = pCodeInfo->GetRelOffset();
+    GCInfoToken gcInfoToken = pCodeInfo->GetGCInfoToken();
+    PTR_VOID    methodInfoPtr = pCodeInfo->GetGCInfo();
+    unsigned    relOffset = pCodeInfo->GetRelOffset();
 
     /* Extract the necessary information from the info block header */
     hdrInfo     info;
-    PTR_CBYTE    table = PTR_CBYTE(methodInfoPtr);
-    table += crackMethodInfoHdr(methodInfoPtr,
-                                relOffset,
-                                &info);
+    PTR_CBYTE   table = PTR_CBYTE(gcInfoToken.Info);
+    table += DecodeGCHdrInfo(gcInfoToken,
+                             relOffset,
+                             &info);
 
     if (!info.genericsContext || 
         info.prologOffs != hdrInfo::NOT_IN_PROLOG || 
@@ -5345,8 +5362,7 @@ PTR_VOID EECodeManager::GetParamTypeArg(PREGDISPLAY     pContext,
 PTR_VOID EECodeManager::GetExactGenericsToken(PREGDISPLAY     pContext,
                                               EECodeInfo *    pCodeInfo)
 {
-    WRAPPER_NO_CONTRACT;
-    SUPPORTS_DAC;
+    LIMITED_METHOD_DAC_CONTRACT;
 
     return EECodeManager::GetExactGenericsToken(GetCallerSp(pContext), pCodeInfo);
 }
@@ -5355,15 +5371,14 @@ PTR_VOID EECodeManager::GetExactGenericsToken(PREGDISPLAY     pContext,
 PTR_VOID EECodeManager::GetExactGenericsToken(SIZE_T          baseStackSlot,
                                               EECodeInfo *    pCodeInfo)
 {
-    WRAPPER_NO_CONTRACT;
-    SUPPORTS_DAC;
+    LIMITED_METHOD_DAC_CONTRACT;
 
+#ifdef USE_GC_INFO_DECODER
     GCInfoToken gcInfoToken = pCodeInfo->GetGCInfoToken();
 
     GcInfoDecoder gcInfoDecoder(
             gcInfoToken,
-            GcInfoDecoderFlags (DECODE_PSP_SYM | DECODE_GENERICS_INST_CONTEXT),
-            0
+            GcInfoDecoderFlags (DECODE_PSP_SYM | DECODE_GENERICS_INST_CONTEXT)
             );
 
     INT32 spOffsetGenericsContext = gcInfoDecoder.GetGenericsInstContextStackSlot();
@@ -5408,6 +5423,10 @@ PTR_VOID EECodeManager::GetExactGenericsToken(SIZE_T          baseStackSlot,
         return PTR_VOID(taExactGenericsToken);
     }
     return NULL;
+#else // USE_GC_INFO_DECODER
+    PORTABILITY_ASSERT("EECodeManager::GetExactGenericsToken");
+    return NULL;
+#endif // USE_GC_INFO_DECODER
 }
 
 
@@ -5434,9 +5453,9 @@ void * EECodeManager::GetGSCookieAddr(PREGDISPLAY     pContext,
     
     /* Extract the necessary information from the info block header */
     hdrInfo * info = &stateBuf->hdrInfoBody;
-    stateBuf->hdrInfoSize = (DWORD)crackMethodInfoHdr(gcInfoToken.Info, // <TODO>truncation</TODO>
-                                                      relOffset,
-                                                      info);
+    stateBuf->hdrInfoSize = (DWORD)DecodeGCHdrInfo(gcInfoToken, // <TODO>truncation</TODO>
+                                                   relOffset,
+                                                   info);
 
     pState->dwIsSet = 1;
     
@@ -5456,7 +5475,7 @@ void * EECodeManager::GetGSCookieAddr(PREGDISPLAY     pContext,
         PTR_CBYTE table = PTR_CBYTE(gcInfoToken.Info) + stateBuf->hdrInfoSize;       
         unsigned argSize = GetPushedArgSize(info, table, relOffset);
         
-        return PVOID(SIZE_T(pContext->Esp + argSize + info->gsCookieOffset));
+        return PVOID(SIZE_T(pContext->SP + argSize + info->gsCookieOffset));
     }
 
 #elif defined(USE_GC_INFO_DECODER) && !defined(CROSSGEN_COMPILE)
@@ -5467,8 +5486,7 @@ void * EECodeManager::GetGSCookieAddr(PREGDISPLAY     pContext,
 
     GcInfoDecoder gcInfoDecoder(
             gcInfoToken,
-            DECODE_GS_COOKIE,
-            0
+            DECODE_GS_COOKIE
             );
 
     INT32 spOffsetGSCookie = gcInfoDecoder.GetGSCookieStackSlot();
@@ -5493,9 +5511,9 @@ void * EECodeManager::GetGSCookieAddr(PREGDISPLAY     pContext,
  *
  *  Returns true if the given IP is in the given method's prolog or epilog.
  */
-bool EECodeManager::IsInPrologOrEpilog(DWORD        relPCoffset,
-                                       PTR_VOID     methodInfoPtr,
-                                       size_t*      prologSize)
+bool EECodeManager::IsInPrologOrEpilog(DWORD       relPCoffset,
+                                       GCInfoToken gcInfoToken,
+                                       size_t*     prologSize)
 {
     CONTRACTL {
         NOTHROW;
@@ -5505,7 +5523,7 @@ bool EECodeManager::IsInPrologOrEpilog(DWORD        relPCoffset,
 #ifndef USE_GC_INFO_DECODER
     hdrInfo info;
 
-    crackMethodInfoHdr(methodInfoPtr, relPCoffset, &info);
+    DecodeGCHdrInfo(gcInfoToken, relPCoffset, &info);
 
     if (prologSize)
         *prologSize = info.prologSize;
@@ -5522,10 +5540,9 @@ bool EECodeManager::IsInPrologOrEpilog(DWORD        relPCoffset,
  *
  *  Returns true if the given IP is in the synchronized region of the method (valid for synchronized functions only)
 */
-bool  EECodeManager::IsInSynchronizedRegion(
-                DWORD           relOffset,
-                PTR_VOID        methodInfoPtr,
-                unsigned        flags)
+bool  EECodeManager::IsInSynchronizedRegion(DWORD       relOffset,
+                                            GCInfoToken gcInfoToken,
+                                            unsigned    flags)
 {
     CONTRACTL {
         NOTHROW;
@@ -5535,7 +5552,7 @@ bool  EECodeManager::IsInSynchronizedRegion(
 #ifndef USE_GC_INFO_DECODER
     hdrInfo info;
 
-    crackMethodInfoHdr(methodInfoPtr, relOffset, &info);
+    DecodeGCHdrInfo(gcInfoToken, relOffset, &info);
 
     // We should be called only for synchronized methods
     _ASSERTE(info.syncStartOffset != INVALID_SYNC_OFFSET && info.syncEndOffset != INVALID_SYNC_OFFSET);
@@ -5569,17 +5586,15 @@ size_t EECodeManager::GetFunctionSize(GCInfoToken gcInfoToken)
 
 #if defined(_TARGET_X86_)
     hdrInfo info;
-    PTR_VOID  methodInfoPtr = gcInfoToken.Info;
 
-    crackMethodInfoHdr(methodInfoPtr, 0, &info);
+    DecodeGCHdrInfo(gcInfoToken, 0, &info);
 
     return info.methodSize;
 #elif defined(USE_GC_INFO_DECODER)
 
     GcInfoDecoder gcInfoDecoder(
             gcInfoToken,
-            DECODE_CODE_LENGTH,
-            0
+            DECODE_CODE_LENGTH
             );
 
     UINT32 codeLength = gcInfoDecoder.GetCodeLength();
@@ -5590,15 +5605,47 @@ size_t EECodeManager::GetFunctionSize(GCInfoToken gcInfoToken)
     PORTABILITY_ASSERT("EECodeManager::GetFunctionSize is not implemented on this platform.");
     return 0;
 #endif
+}
 
+/*****************************************************************************
+*
+*  Returns the size of a given function.
+*/
+ReturnKind EECodeManager::GetReturnKind(GCInfoToken gcInfoToken)
+{
+    CONTRACTL{
+        NOTHROW;
+    GC_NOTRIGGER;
+    SUPPORTS_DAC;
+    } CONTRACTL_END;
 
+    if (!gcInfoToken.IsReturnKindAvailable())
+    {
+        return RT_Illegal;
+    }
+
+#if defined(_TARGET_X86_)
+    hdrInfo info;
+
+    DecodeGCHdrInfo(gcInfoToken, 0, &info);
+
+    return info.returnKind;
+#elif defined(USE_GC_INFO_DECODER)
+
+    GcInfoDecoder gcInfoDecoder(gcInfoToken, DECODE_RETURN_KIND);
+    return gcInfoDecoder.GetReturnKind();
+
+#else // !_TARGET_X86_ && !USE_GC_INFO_DECODER
+    PORTABILITY_ASSERT("EECodeManager::GetReturnKind is not implemented on this platform.");
+    return 0;
+#endif
 }
 
 /*****************************************************************************
  *
  *  Returns the size of the frame of the given function.
  */
-unsigned int EECodeManager::GetFrameSize(PTR_VOID methodInfoPtr)
+unsigned int EECodeManager::GetFrameSize(GCInfoToken gcInfoToken)
 {
     CONTRACTL {
         NOTHROW;
@@ -5608,7 +5655,7 @@ unsigned int EECodeManager::GetFrameSize(PTR_VOID methodInfoPtr)
 #ifndef USE_GC_INFO_DECODER
     hdrInfo info;
 
-    crackMethodInfoHdr(methodInfoPtr, 0, &info);
+    DecodeGCHdrInfo(gcInfoToken, 0, &info);
 
     // currently only used by E&C callers need to know about doubleAlign
     // in all likelyhood
@@ -5636,10 +5683,10 @@ const BYTE* EECodeManager::GetFinallyReturnAddr(PREGDISPLAY pReg)
 #endif
 }
 
-BOOL EECodeManager::IsInFilter(void *methodInfoPtr,
-                              unsigned offset,
-                              PCONTEXT pCtx,
-                              DWORD curNestLevel)
+BOOL EECodeManager::IsInFilter(GCInfoToken gcInfoToken,
+                               unsigned offset,
+                               PCONTEXT pCtx,
+                               DWORD curNestLevel)
 {
     CONTRACTL {
         NOTHROW;
@@ -5652,9 +5699,9 @@ BOOL EECodeManager::IsInFilter(void *methodInfoPtr,
 
     hdrInfo     info;
 
-    crackMethodInfoHdr(methodInfoPtr,
-                       offset,
-                       &info);
+    DecodeGCHdrInfo(gcInfoToken,
+                    offset,
+                    &info);
 
     /* make sure that we have an ebp stack frame */
 
@@ -5680,7 +5727,8 @@ BOOL EECodeManager::IsInFilter(void *methodInfoPtr,
 }
 
 
-BOOL EECodeManager::LeaveFinally(void *methodInfoPtr,
+#ifndef WIN64EXCEPTIONS
+BOOL EECodeManager::LeaveFinally(GCInfoToken gcInfoToken,
                                 unsigned offset,
                                 PCONTEXT pCtx)
 {
@@ -5689,13 +5737,12 @@ BOOL EECodeManager::LeaveFinally(void *methodInfoPtr,
         GC_NOTRIGGER;
     } CONTRACTL_END;
 
-#ifdef _TARGET_X86_
 
     hdrInfo info;
 
-    crackMethodInfoHdr(methodInfoPtr,
-                       offset,
-                       &info);
+    DecodeGCHdrInfo(gcInfoToken,
+                    offset,
+                    &info);
 
     DWORD       nestingLevel;
     GetHandlerFrameInfo(&info, pCtx->Ebp, pCtx->Esp, (DWORD) IGNORE_VAL, NULL, &nestingLevel);
@@ -5713,13 +5760,9 @@ BOOL EECodeManager::LeaveFinally(void *methodInfoPtr,
 
     pCtx->Esp += sizeof(TADDR); // Pop the return value off the stack
     return TRUE;
-#else
-    PORTABILITY_ASSERT("EEJitManager::LeaveFinally is not implemented on this platform.");
-    return FALSE;
-#endif
 }
 
-void EECodeManager::LeaveCatch(void *methodInfoPtr,
+void EECodeManager::LeaveCatch(GCInfoToken gcInfoToken,
                                 unsigned offset,
                                 PCONTEXT pCtx)
 {
@@ -5728,15 +5771,13 @@ void EECodeManager::LeaveCatch(void *methodInfoPtr,
         GC_NOTRIGGER;
     } CONTRACTL_END;
 
-#ifdef _TARGET_X86_
-
 #ifdef _DEBUG
     TADDR       baseSP;
     DWORD       nestingLevel;
     bool        hasInnerFilter;
     hdrInfo     info;
 
-    crackMethodInfoHdr(methodInfoPtr, offset, &info);
+    DecodeGCHdrInfo(gcInfoToken, offset, &info);
     GetHandlerFrameInfo(&info, pCtx->Ebp, pCtx->Esp, (DWORD) IGNORE_VAL,
                         &baseSP, &nestingLevel, &hasInnerFilter);
 //    _ASSERTE(frameType == FR_HANDLER);
@@ -5744,13 +5785,8 @@ void EECodeManager::LeaveCatch(void *methodInfoPtr,
 #endif
 
     return;
-
-#else // !_TARGET_X86_
-    PORTABILITY_ASSERT("EECodeManager::LeaveCatch is not implemented on this platform.");
-    return;
-#endif // _TARGET_X86_
 }
-
+#endif // !WIN64EXCEPTIONS
 #endif // #ifndef DACCESS_COMPILE
 
 #ifdef DACCESS_COMPILE
@@ -5763,6 +5799,7 @@ void EECodeManager::EnumMemoryRegions(CLRDataEnumMemoryFlags flags)
 #endif // #ifdef DACCESS_COMPILE
 
 
+#ifdef _TARGET_X86_
 /*
  *  GetAmbientSP
  *
@@ -5785,18 +5822,17 @@ TADDR EECodeManager::GetAmbientSP(PREGDISPLAY     pContext,
         SUPPORTS_DAC;
     } CONTRACTL_END;
 
-#ifdef _TARGET_X86_
-    PTR_VOID  methodInfoPtr = pCodeInfo->GetGCInfo();
+    GCInfoToken gcInfoToken = pCodeInfo->GetGCInfoToken();
 
     _ASSERTE(sizeof(CodeManStateBuf) <= sizeof(pState->stateBuf));
     CodeManStateBuf * stateBuf = (CodeManStateBuf*)pState->stateBuf;
-    PTR_CBYTE table = PTR_CBYTE(methodInfoPtr);
+    PTR_CBYTE table = PTR_CBYTE(gcInfoToken.Info);
 
     /* Extract the necessary information from the info block header */
 
-    stateBuf->hdrInfoSize = (DWORD)crackMethodInfoHdr(methodInfoPtr,
-                                       dwRelOffset,
-                                       &stateBuf->hdrInfoBody);
+    stateBuf->hdrInfoSize = (DWORD)DecodeGCHdrInfo(gcInfoToken,
+                                                   dwRelOffset,
+                                                   &stateBuf->hdrInfoBody);
     table += stateBuf->hdrInfoSize;
 
     pState->dwIsSet = 1;
@@ -5858,12 +5894,8 @@ TADDR EECodeManager::GetAmbientSP(PREGDISPLAY     pContext,
     }
 
     return baseSP;
-
-#else // !_TARGET_X86_
-    PORTABILITY_ASSERT("EECodeManager::GetAmbientSP is not implemented on this platform.");
-    return 0;
-#endif // _TARGET_X86_
 }
+#endif // _TARGET_X86_
 
 /*
     Get the number of bytes used for stack parameters.
@@ -5880,8 +5912,8 @@ ULONG32 EECodeManager::GetStackParameterSize(EECodeInfo * pCodeInfo)
     } CONTRACTL_END;
 
 #if defined(_TARGET_X86_)
-    PTR_VOID       methodInfoPtr = pCodeInfo->GetGCInfo();
-    unsigned       dwOffset = pCodeInfo->GetRelOffset();
+    GCInfoToken gcInfoToken = pCodeInfo->GetGCInfoToken();
+    unsigned    dwOffset = pCodeInfo->GetRelOffset();
 
     CodeManState state;
     state.dwIsSet = 0;
@@ -5890,11 +5922,11 @@ ULONG32 EECodeManager::GetStackParameterSize(EECodeInfo * pCodeInfo)
     CodeManStateBuf * pStateBuf = reinterpret_cast<CodeManStateBuf *>(state.stateBuf);
 
     hdrInfo * pHdrInfo = &(pStateBuf->hdrInfoBody);
-    pStateBuf->hdrInfoSize = (DWORD)crackMethodInfoHdr(methodInfoPtr, dwOffset, pHdrInfo);
+    pStateBuf->hdrInfoSize = (DWORD)DecodeGCHdrInfo(gcInfoToken, dwOffset, pHdrInfo);
 
     // We need to subtract 4 here because ESPIncrOnReturn() includes the stack slot containing the return
     // address.
-    return (ULONG32)(ESPIncrOnReturn(pHdrInfo) - 4);
+    return (ULONG32)::GetStackParameterSize(pHdrInfo);
 
 #else
     return 0;

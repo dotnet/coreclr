@@ -15,8 +15,8 @@
 
 #define READYTORUN_SIGNATURE 0x00525452 // 'RTR'
 
-#define READYTORUN_MAJOR_VERSION 0x0001
-#define READYTORUN_MINOR_VERSION 0x0002
+#define READYTORUN_MAJOR_VERSION 0x0002
+#define READYTORUN_MINOR_VERSION 0x0000
 
 struct READYTORUN_HEADER
 {
@@ -166,6 +166,7 @@ enum ReadyToRunFixupKind
     READYTORUN_FIXUP_Check_FieldOffset          = 0x2B,
 
     READYTORUN_FIXUP_DelegateCtor               = 0x2C, /* optimized delegate ctor */
+    READYTORUN_FIXUP_DeclaringTypeHandle        = 0x2D,
 };
 
 //
@@ -278,7 +279,7 @@ enum ReadyToRunHelper
     READYTORUN_HELPER_DblRound                  = 0xE2,
     READYTORUN_HELPER_FltRound                  = 0xE3,
 
-#ifndef _TARGET_X86_
+#ifdef WIN64EXCEPTIONS
     // Personality rountines
     READYTORUN_HELPER_PersonalityRoutine        = 0xF0,
     READYTORUN_HELPER_PersonalityRoutineFilterFunclet = 0xF1,

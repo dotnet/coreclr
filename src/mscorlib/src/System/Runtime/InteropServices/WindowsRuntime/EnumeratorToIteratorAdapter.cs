@@ -7,6 +7,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Diagnostics.Contracts;
 using System.Runtime.InteropServices;
 using System.Runtime.CompilerServices;
@@ -25,11 +26,10 @@ namespace System.Runtime.InteropServices.WindowsRuntime
     {
         private EnumerableToIterableAdapter()
         {
-            Contract.Assert(false, "This class is never instantiated");
+            Debug.Assert(false, "This class is never instantiated");
         }
 
         // This method is invoked when First is called on a managed implementation of IIterable<T>.
-        [System.Security.SecurityCritical]
         internal IIterator<T> First_Stub<T>()
         {
             IEnumerable<T> _this = JitHelpers.UnsafeCast<IEnumerable<T>>(this);
@@ -41,7 +41,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
     {
         private EnumerableToBindableIterableAdapter()
         {
-            Contract.Assert(false, "This class is never instantiated");
+            Debug.Assert(false, "This class is never instantiated");
         }
 
         internal sealed class NonGenericToGenericEnumerator : IEnumerator<object>
@@ -58,7 +58,6 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         }
 
         // This method is invoked when First is called on a managed implementation of IBindableIterable.
-        [System.Security.SecurityCritical]
         internal IBindableIterator First_Stub()
         {
             IEnumerable _this = JitHelpers.UnsafeCast<IEnumerable>(this);

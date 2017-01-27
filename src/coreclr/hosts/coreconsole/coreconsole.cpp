@@ -44,7 +44,7 @@ public:
             m_capacity = m_defaultSize;
         }
         if (m_length + strLen + 1 > m_capacity) {
-            size_t newCapacity = m_capacity * 2;
+            size_t newCapacity = (m_length + strLen + 1) * 2;
             wchar_t* newBuffer = new wchar_t[newCapacity];
             wcsncpy_s(newBuffer, newCapacity, m_buffer, m_length);
             delete[] m_buffer;
@@ -185,7 +185,7 @@ public:
         }
     }
 
-    bool TPAListContainsFile(_In_z_ wchar_t* fileNameWithoutExtension, _In_reads_(countExtensions) wchar_t** rgTPAExtensions, int countExtensions)
+    bool TPAListContainsFile(_In_z_ wchar_t* fileNameWithoutExtension, _In_reads_(countExtensions) const wchar_t** rgTPAExtensions, int countExtensions)
     {
         if (!m_tpaList.CStr()) return false;
 
@@ -225,7 +225,7 @@ public:
         }
     }
 
-    void AddFilesFromDirectoryToTPAList(_In_z_ wchar_t* targetPath, _In_reads_(countExtensions) wchar_t** rgTPAExtensions, int countExtensions)
+    void AddFilesFromDirectoryToTPAList(_In_z_ wchar_t* targetPath, _In_reads_(countExtensions) const wchar_t** rgTPAExtensions, int countExtensions)
     {
         *m_log << W("Adding assemblies from ") << targetPath << W(" to the TPA list") << Logger::endl;
         wchar_t assemblyPath[MAX_LONGPATH];
@@ -288,7 +288,7 @@ public:
     // On first call, scans the coreclr directory for dlls and adds them all to the list.
     const wchar_t * GetTpaList() {
         if (!m_tpaList.CStr()) {
-            wchar_t *rgTPAExtensions[] = {
+            const wchar_t *rgTPAExtensions[] = {
                         W("*.ni.dll"),		// Probe for .ni.dll first so that it's preferred if ni and il coexist in the same dir
                         W("*.dll"),
                         W("*.ni.exe"),
@@ -457,7 +457,6 @@ bool TryRun(const int argc, const wchar_t* argv[], Logger &log, const bool verbo
         W("APP_PATHS"),
         W("APP_NI_PATHS"),
         W("NATIVE_DLL_SEARCH_DIRECTORIES"),
-        W("AppDomainCompatSwitch")
     };
     const wchar_t *property_values[] = { 
         // TRUSTED_PLATFORM_ASSEMBLIES
@@ -468,8 +467,6 @@ bool TryRun(const int argc, const wchar_t* argv[], Logger &log, const bool verbo
         appNiPath,
         // NATIVE_DLL_SEARCH_DIRECTORIES
         nativeDllSearchDirs,
-        // AppDomainCompatSwitch
-        W("UseLatestBehaviorWhenTFMNotSpecified")
     };
 
 

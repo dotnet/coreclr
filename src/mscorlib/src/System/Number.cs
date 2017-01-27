@@ -11,6 +11,7 @@ namespace System {
     using System.Runtime.Versioning;
     using System.Security;
     using System.Text;
+    using System.Diagnostics;
     using System.Diagnostics.Contracts;
 
     // The Number class implements methods for formatting and parsing
@@ -289,38 +290,28 @@ namespace System {
         private Number() {
         }
     
-        [System.Security.SecurityCritical]  // auto-generated
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         public static extern String FormatDecimal(Decimal value, String format, NumberFormatInfo info);
-        [System.Security.SecurityCritical]  // auto-generated
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         public static extern String FormatDouble(double value, String format, NumberFormatInfo info);
-        [System.Security.SecurityCritical]  // auto-generated
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         public static extern String FormatInt32(int value, String format, NumberFormatInfo info);
-        [System.Security.SecurityCritical]  // auto-generated
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         public static extern String FormatUInt32(uint value, String format, NumberFormatInfo info);
-        [System.Security.SecurityCritical]  // auto-generated
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         public static extern String FormatInt64(long value, String format, NumberFormatInfo info);
-        [System.Security.SecurityCritical]  // auto-generated
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         public static extern String FormatUInt64(ulong value, String format, NumberFormatInfo info);
-        [System.Security.SecurityCritical]  // auto-generated
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         public static extern String FormatSingle(float value, String format, NumberFormatInfo info);
     
-        [System.Security.SecurityCritical]  // auto-generated
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         public unsafe static extern Boolean NumberBufferToDecimal(byte* number, ref Decimal value);
-        [System.Security.SecurityCritical]  // auto-generated
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         internal unsafe static extern Boolean NumberBufferToDouble(byte* number, ref Double value);
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         [System.Runtime.CompilerServices.FriendAccessAllowed]
-        [System.Security.SecurityCritical]  // auto-generated
         internal static extern unsafe string FormatNumberBuffer(byte* number, string format, NumberFormatInfo info, char* allDigits);
 
         // Constants used by number parsing
@@ -350,15 +341,12 @@ namespace System {
             // Enough space for NumberMaxDigit characters plus null and 3 32 bit integers and a pointer
             public static readonly Int32 NumberBufferBytes = 12 + ((NumberMaxDigits + 1) * 2) + IntPtr.Size;
 
-            [SecurityCritical]
             private Byte * baseAddress;
-            [SecurityCritical]
             public Char * digits;
             public Int32 precision;
             public Int32 scale;
             public Boolean sign;
 
-            [System.Security.SecurityCritical]  // auto-generated
             public NumberBuffer(Byte* stackBuffer) {
                 this.baseAddress = stackBuffer;
                 this.digits = (((Char*) stackBuffer) + 6);
@@ -367,7 +355,6 @@ namespace System {
                 this.sign = false;
             }
 
-            [System.Security.SecurityCritical]  // auto-generated
             public Byte* PackForNative() {
                 Int32* baseInteger = (Int32*) baseAddress;
                 baseInteger[0] = precision;
@@ -391,7 +378,6 @@ namespace System {
             return returnValue;
         }
 
-        [System.Security.SecuritySafeCritical]  // auto-generated
         private unsafe static Boolean HexNumberToUInt32(ref NumberBuffer number, ref UInt32 value) {
 
             Int32 i = number.scale;
@@ -399,7 +385,7 @@ namespace System {
                 return false;
             }
             Char* p = number.digits;
-            Contract.Assert(p != null, "");
+            Debug.Assert(p != null, "");
 
             UInt32 n = 0;
             while (--i >= 0) {
@@ -418,7 +404,7 @@ namespace System {
                                 newN += (UInt32)((*p - 'A') + 10);
                             }
                             else {
-                                Contract.Assert(*p >= 'a' && *p <= 'f', "");
+                                Debug.Assert(*p >= 'a' && *p <= 'f', "");
                                 newN += (UInt32)((*p - 'a') + 10);
                             }
                         }
@@ -436,7 +422,6 @@ namespace System {
             return true;
         }
 
-        [System.Security.SecuritySafeCritical]  // auto-generated
         private unsafe static Boolean HexNumberToUInt64(ref NumberBuffer number, ref UInt64 value) {
 
             Int32 i = number.scale;
@@ -444,7 +429,7 @@ namespace System {
                 return false;
             }
             Char* p = number.digits;
-            Contract.Assert(p != null, "");
+            Debug.Assert(p != null, "");
             
             UInt64 n = 0;
             while (--i >= 0) {
@@ -463,7 +448,7 @@ namespace System {
                                 newN += (UInt64)((*p - 'A') + 10);
                             }
                             else {
-                                Contract.Assert(*p >= 'a' && *p <= 'f', "");
+                                Debug.Assert(*p >= 'a' && *p <= 'f', "");
                                 newN += (UInt64)((*p - 'a') + 10);
                             }
                         }
@@ -485,7 +470,6 @@ namespace System {
             return (((ch) == 0x20) || ((ch) >= 0x09 && (ch) <= 0x0D));
         }
 
-        [System.Security.SecuritySafeCritical]  // auto-generated
         private unsafe static Boolean NumberToInt32(ref NumberBuffer number, ref Int32 value) {
 
             Int32 i = number.scale;
@@ -493,7 +477,7 @@ namespace System {
                 return false;
             }
             char * p = number.digits;
-            Contract.Assert(p != null, "");
+            Debug.Assert(p != null, "");
             Int32 n = 0;
             while (--i >= 0) {
                 if ((UInt32)n > (0x7FFFFFFF / 10)) {
@@ -519,7 +503,6 @@ namespace System {
             return true;
         }
 
-        [System.Security.SecuritySafeCritical]  // auto-generated
         private unsafe static Boolean NumberToInt64(ref NumberBuffer number, ref Int64 value) {
 
             Int32 i = number.scale;
@@ -527,7 +510,7 @@ namespace System {
                 return false;
             }
             char* p = number.digits;
-            Contract.Assert(p != null, "");
+            Debug.Assert(p != null, "");
             Int64 n = 0;
             while (--i >= 0) {
                 if ((UInt64)n > (0x7FFFFFFFFFFFFFFF / 10)) {
@@ -553,7 +536,6 @@ namespace System {
             return true;
         }
 
-        [System.Security.SecuritySafeCritical]  // auto-generated
         private unsafe static Boolean NumberToUInt32(ref NumberBuffer number, ref UInt32 value) {
 
             Int32 i = number.scale;
@@ -561,7 +543,7 @@ namespace System {
                 return false;
             }
             char* p = number.digits;
-            Contract.Assert(p != null, "");
+            Debug.Assert(p != null, "");
             UInt32 n = 0;
             while (--i >= 0) {
                 if (n > (0xFFFFFFFF / 10)) {
@@ -581,7 +563,6 @@ namespace System {
             return true;
         }
 
-        [System.Security.SecuritySafeCritical]  // auto-generated
         private unsafe static Boolean NumberToUInt64(ref NumberBuffer number, ref UInt64 value) {
 
             Int32 i = number.scale;
@@ -589,7 +570,7 @@ namespace System {
                 return false;
             }
             char * p = number.digits;
-            Contract.Assert(p != null, "");
+            Debug.Assert(p != null, "");
             UInt64 n = 0;
             while (--i >= 0) {
                 if (n > (0xFFFFFFFFFFFFFFFF / 10)) {
@@ -609,32 +590,29 @@ namespace System {
             return true;
         }
 
-        [System.Security.SecurityCritical]  // auto-generated
         private unsafe static char * MatchChars(char* p, string str) {
             fixed (char* stringPointer = str) {
                 return MatchChars(p, stringPointer);
             }
         }
-        [System.Security.SecurityCritical]  // auto-generated
         private unsafe static char * MatchChars(char* p, char* str) {
-            Contract.Assert(p != null && str != null, "");
+            Debug.Assert(p != null && str != null, "");
 
             if (*str == '\0') {
                 return null;
             }
-            for (; (*str != '\0'); p++, str++) {
-                if (*p != *str) { //We only hurt the failure case
-                    if ((*str == '\u00A0') && (*p == '\u0020')) {// This fix is for French or Kazakh cultures. Since a user cannot type 0xA0 as a 
-                        // space character we use 0x20 space character instead to mean the same.
-                        continue;
-                    }
-                    return null;
-                }
+			// We only hurt the failure case
+			// This fix is for French or Kazakh cultures. Since a user cannot type 0xA0 as a
+			// space character we use 0x20 space character instead to mean the same.
+            while (*p == *str || (*str == '\u00a0' && *p == '\u0020'))
+            {
+                p++;
+                str++;
+                if (*str == '\0') return p;
             }
-            return p;
+            return null;
         }
 
-        [System.Security.SecuritySafeCritical]  // auto-generated
         internal unsafe static Decimal ParseDecimal(String value, NumberStyles options, NumberFormatInfo numfmt) {
 
             Byte * numberBufferBytes = stackalloc Byte[NumberBuffer.NumberBufferBytes];
@@ -649,10 +627,9 @@ namespace System {
             return result;
         }
 
-        [System.Security.SecuritySafeCritical]  // auto-generated
         internal unsafe static Double ParseDouble(String value, NumberStyles options, NumberFormatInfo numfmt) {
             if (value == null) {
-                throw new ArgumentNullException("value");
+                throw new ArgumentNullException(nameof(value));
             }
 
             Byte * numberBufferBytes = stackalloc Byte[NumberBuffer.NumberBufferBytes];
@@ -683,7 +660,6 @@ namespace System {
             return d;
         }
 
-        [System.Security.SecuritySafeCritical]  // auto-generated
         internal unsafe static Int32 ParseInt32(String s, NumberStyles style, NumberFormatInfo info) {
 
             Byte * numberBufferBytes = stackalloc Byte[NumberBuffer.NumberBufferBytes];
@@ -705,7 +681,6 @@ namespace System {
             return i;           
         }
 
-        [System.Security.SecuritySafeCritical]  // auto-generated
         internal unsafe static Int64 ParseInt64(String value, NumberStyles options, NumberFormatInfo numfmt) {
             Byte * numberBufferBytes = stackalloc Byte[NumberBuffer.NumberBufferBytes];
             NumberBuffer number = new NumberBuffer(numberBufferBytes);
@@ -726,7 +701,6 @@ namespace System {
             return i;
         }
 
-        [System.Security.SecurityCritical]  // auto-generated
         private unsafe static Boolean ParseNumber(ref char * str, NumberStyles options, ref NumberBuffer number, StringBuilder sb, NumberFormatInfo numfmt, Boolean parseDecimal) {
 
             const Int32 StateSign = 0x0001;
@@ -742,26 +716,12 @@ namespace System {
             string groupSep;                // group separator from NumberFormatInfo.
             string currSymbol = null;       // currency symbol from NumberFormatInfo.
 
-            // The alternative currency symbol used in ANSI codepage, that can not roundtrip between ANSI and Unicode.
-            // Currently, only ja-JP and ko-KR has non-null values (which is U+005c, backslash)
-            string ansicurrSymbol = null;   // currency symbol from NumberFormatInfo.
-            string altdecSep = null;        // decimal separator from NumberFormatInfo as a decimal
-            string altgroupSep = null;      // group separator from NumberFormatInfo as a decimal
-
             Boolean parsingCurrency = false; 
             if ((options & NumberStyles.AllowCurrencySymbol) != 0) {
                 currSymbol = numfmt.CurrencySymbol;
 
-#if !FEATURE_COREFX_GLOBALIZATION
-                if (numfmt.ansiCurrencySymbol != null) {
-                    ansicurrSymbol = numfmt.ansiCurrencySymbol;
-                }
-#endif
-
                 // The idea here is to match the currency separators and on failure match the number separators to keep the perf of VB's IsNumeric fast.
                 // The values of decSep are setup to use the correct relevant separator (currency in the if part and decimal in the else part).
-                altdecSep = numfmt.NumberDecimalSeparator;
-                altgroupSep = numfmt.NumberGroupSeparator;
                 decSep = numfmt.CurrencyDecimalSeparator;
                 groupSep = numfmt.CurrencyGroupSeparator;
                 parsingCurrency = true;
@@ -772,9 +732,7 @@ namespace System {
             }
 
             Int32 state = 0;
-            Boolean signflag = false; // Cache the results of "options & PARSE_LEADINGSIGN && !(state & STATE_SIGN)" to avoid doing this twice
             Boolean bigNumber = (sb != null); // When a StringBuilder is provided then we use it in place of the number.digits char[50]
-            Boolean bigNumberHex = (bigNumber && ((options & NumberStyles.AllowHexSpecifier) != 0));
             Int32 maxParseDigits = bigNumber ? Int32.MaxValue : NumberMaxDigits;
               
             char* p = str;
@@ -784,32 +742,26 @@ namespace System {
             while (true) {
                 // Eat whitespace unless we've found a sign which isn't followed by a currency symbol.
                 // "-Kr 1231.47" is legal but "- 1231.47" is not.
-                if (IsWhite(ch) && ((options & NumberStyles.AllowLeadingWhite) != 0) && (((state & StateSign) == 0) || (((state & StateSign) != 0) && (((state & StateCurrency) != 0) || numfmt.numberNegativePattern == 2)))) {
-                    // Do nothing here. We will increase p at the end of the loop.
-                }
-                else if ((signflag = (((options & NumberStyles.AllowLeadingSign) != 0) && ((state & StateSign) == 0))) && ((next = MatchChars(p, numfmt.positiveSign)) != null)) {
-                    state |= StateSign;
-                    p = next - 1;
-                } else if (signflag && (next = MatchChars(p, numfmt.negativeSign)) != null) {
-                    state |= StateSign;
-                    number.sign = true;
-                    p = next - 1;
-                }
-                else if (ch == '(' && ((options & NumberStyles.AllowParentheses) != 0) && ((state & StateSign) == 0)) {
-                    state |= StateSign | StateParens;
-                    number.sign = true;
-                }
-                else if ((currSymbol != null && (next = MatchChars(p, currSymbol)) != null) || (ansicurrSymbol != null && (next = MatchChars(p, ansicurrSymbol)) != null)) {
-                    state |= StateCurrency;
-                    currSymbol = null;  
-                    ansicurrSymbol = null;  
-                    // We already found the currency symbol. There should not be more currency symbols. Set
-                    // currSymbol to NULL so that we won't search it again in the later code path.
-                    p = next - 1;
-                }
-                else {
-                    break;
-                }
+                if (!IsWhite(ch) || (options & NumberStyles.AllowLeadingWhite) == 0 || ((state & StateSign) != 0 && ((state & StateCurrency) == 0 && numfmt.NumberNegativePattern != 2))){
+					if ((((options & NumberStyles.AllowLeadingSign) != 0) && (state & StateSign) == 0) && ((next = MatchChars(p, numfmt.PositiveSign)) != null || ((next = MatchChars(p, numfmt.NegativeSign)) != null && (number.sign = true)))){
+						state |= StateSign;
+						p = next - 1;
+					}
+					else if (ch == '(' && ((options & NumberStyles.AllowParentheses) != 0) && ((state & StateSign) == 0)) {
+						state |= StateSign | StateParens;
+						number.sign = true;
+					}
+					else if (currSymbol != null && (next = MatchChars(p, currSymbol)) != null) {
+						state |= StateCurrency;
+						currSymbol = null;  
+						// We already found the currency symbol. There should not be more currency symbols. Set
+						// currSymbol to NULL so that we won't search it again in the later code path.
+						p = next - 1;
+					}
+					else {
+						break;
+					}
+				}
                 ch = *++p;
             }
             Int32 digCount = 0;
@@ -818,7 +770,7 @@ namespace System {
                 if ((ch >= '0' && ch <= '9') || (((options & NumberStyles.AllowHexSpecifier) != 0) && ((ch >= 'a' && ch <= 'f') || (ch >= 'A' && ch <= 'F')))) {
                     state |= StateDigits;
 
-                    if (ch != '0' || (state & StateNonZero) != 0 || bigNumberHex) {
+                    if (ch != '0' || (state & StateNonZero) != 0 || (bigNumber && ((options & NumberStyles.AllowHexSpecifier) != 0))) {
                         if (digCount < maxParseDigits) {
                             if (bigNumber)
                                 sb.Append(ch);
@@ -837,11 +789,11 @@ namespace System {
                         number.scale--;
                     }
                 }
-                else if (((options & NumberStyles.AllowDecimalPoint) != 0) && ((state & StateDecimal) == 0) && ((next = MatchChars(p, decSep)) != null || ((parsingCurrency) && (state & StateCurrency) == 0) && (next = MatchChars(p, altdecSep)) != null)) {
+                else if (((options & NumberStyles.AllowDecimalPoint) != 0) && ((state & StateDecimal) == 0) && ((next = MatchChars(p, decSep)) != null || ((parsingCurrency) && (state & StateCurrency) == 0) && (next = MatchChars(p, numfmt.NumberDecimalSeparator)) != null)) {
                     state |= StateDecimal;
                     p = next - 1;
                 }
-                else if (((options & NumberStyles.AllowThousands) != 0) && ((state & StateDigits) != 0) && ((state & StateDecimal) == 0) && ((next = MatchChars(p, groupSep)) != null || ((parsingCurrency) && (state & StateCurrency) == 0) && (next = MatchChars(p, altgroupSep)) != null)) {
+                else if (((options & NumberStyles.AllowThousands) != 0) && ((state & StateDigits) != 0) && ((state & StateDecimal) == 0) && ((next = MatchChars(p, groupSep)) != null || ((parsingCurrency) && (state & StateCurrency) == 0) && (next = MatchChars(p, numfmt.NumberGroupSeparator)) != null)) {
                     p = next - 1;
                 }
                 else {
@@ -890,27 +842,22 @@ namespace System {
                     }
                 }
                 while (true) {
-                    if (IsWhite(ch) && ((options & NumberStyles.AllowTrailingWhite) != 0)) {
-                    }
-                    else if ((signflag = (((options & NumberStyles.AllowTrailingSign) != 0) && ((state & StateSign) == 0))) && (next = MatchChars(p, numfmt.positiveSign)) != null) {
-                        state |= StateSign;
-                        p = next - 1;
-                    } else if (signflag && (next = MatchChars(p, numfmt.negativeSign)) != null) {
-                        state |= StateSign;
-                        number.sign = true;
-                        p = next - 1;
-                    }
-                    else if (ch == ')' && ((state & StateParens) != 0)) {
-                        state &= ~StateParens;
-                    }
-                    else if ((currSymbol != null && (next = MatchChars(p, currSymbol)) != null) || (ansicurrSymbol != null && (next = MatchChars(p, ansicurrSymbol)) != null)) {
-                        currSymbol = null;
-                        ansicurrSymbol = null;
-                        p = next - 1;
-                    }
-                    else {
-                        break;
-                    }
+					if (!IsWhite(ch) || (options & NumberStyles.AllowTrailingWhite) == 0){
+					    if (((options & NumberStyles.AllowTrailingSign) != 0 && ((state & StateSign) == 0)) && ((next = MatchChars(p, numfmt.PositiveSign)) != null || (((next = MatchChars(p, numfmt.NegativeSign)) != null) && (number.sign = true)))) {
+							state |= StateSign;
+							p = next - 1;
+						}
+						else if (ch == ')' && ((state & StateParens) != 0)) {
+							state &= ~StateParens;
+						}
+						else if (currSymbol != null && (next = MatchChars(p, currSymbol)) != null) {
+							currSymbol = null;
+							p = next - 1;
+						}
+						else {
+							break;
+						}	
+					}
                     ch = *++p;
                 }
                 if ((state & StateParens) == 0) {
@@ -930,10 +877,9 @@ namespace System {
             return false;
         }
 
-        [System.Security.SecuritySafeCritical]  // auto-generated
         internal unsafe static Single ParseSingle(String value, NumberStyles options, NumberFormatInfo numfmt) {
             if (value == null) {
-                throw new ArgumentNullException("value");
+                throw new ArgumentNullException(nameof(value));
             }
 
             Byte * numberBufferBytes = stackalloc Byte[NumberBuffer.NumberBufferBytes];
@@ -967,7 +913,6 @@ namespace System {
             return castSingle;
         }
 
-        [System.Security.SecuritySafeCritical]  // auto-generated
         internal unsafe static UInt32 ParseUInt32(String value, NumberStyles options, NumberFormatInfo numfmt) {
 
             Byte * numberBufferBytes = stackalloc Byte[NumberBuffer.NumberBufferBytes];
@@ -990,7 +935,6 @@ namespace System {
             return i;
         }
 
-        [System.Security.SecuritySafeCritical]  // auto-generated
         internal unsafe static UInt64 ParseUInt64(String value, NumberStyles options, NumberFormatInfo numfmt) {
             Byte * numberBufferBytes = stackalloc Byte[NumberBuffer.NumberBufferBytes];
             NumberBuffer number = new NumberBuffer(numberBufferBytes);
@@ -1010,14 +954,13 @@ namespace System {
             return i;
         }
 
-        [System.Security.SecuritySafeCritical]  // auto-generated
         private unsafe static void StringToNumber(String str, NumberStyles options, ref NumberBuffer number, NumberFormatInfo info, Boolean parseDecimal) {
     
             if (str == null) {
-                throw new ArgumentNullException("String");
+                throw new ArgumentNullException(nameof(String));
             }
             Contract.EndContractBlock();
-            Contract.Assert(info != null, "");
+            Debug.Assert(info != null, "");
             fixed (char* stringPointer = str) {
                 char * p = stringPointer;
                 if (!ParseNumber(ref p, options, ref number, null, info , parseDecimal) 
@@ -1037,7 +980,6 @@ namespace System {
             return true;
         }
 
-        [System.Security.SecuritySafeCritical]  // auto-generated
         internal unsafe static Boolean TryParseDecimal(String value, NumberStyles options, NumberFormatInfo numfmt, out Decimal result) {
 
             Byte * numberBufferBytes = stackalloc Byte[NumberBuffer.NumberBufferBytes];
@@ -1054,7 +996,6 @@ namespace System {
             return true;
         }
 
-        [System.Security.SecuritySafeCritical]  // auto-generated
         internal unsafe static Boolean TryParseDouble(String value, NumberStyles options, NumberFormatInfo numfmt, out Double result) {
             Byte * numberBufferBytes = stackalloc Byte[NumberBuffer.NumberBufferBytes];
             NumberBuffer number = new NumberBuffer(numberBufferBytes);
@@ -1070,7 +1011,6 @@ namespace System {
             return true;
         }
 
-        [System.Security.SecuritySafeCritical]  // auto-generated
         internal unsafe static Boolean TryParseInt32(String s, NumberStyles style, NumberFormatInfo info, out Int32 result) {
 
             Byte * numberBufferBytes = stackalloc Byte[NumberBuffer.NumberBufferBytes];
@@ -1094,7 +1034,6 @@ namespace System {
             return true;           
         }
 
-        [System.Security.SecuritySafeCritical]  // auto-generated
         internal unsafe static Boolean TryParseInt64(String s, NumberStyles style, NumberFormatInfo info, out Int64 result) {
 
             Byte * numberBufferBytes = stackalloc Byte[NumberBuffer.NumberBufferBytes];
@@ -1118,7 +1057,6 @@ namespace System {
             return true;           
         }
 
-        [System.Security.SecuritySafeCritical]  // auto-generated
         internal unsafe static Boolean TryParseSingle(String value, NumberStyles options, NumberFormatInfo numfmt, out Single result) {
             Byte * numberBufferBytes = stackalloc Byte[NumberBuffer.NumberBufferBytes];
             NumberBuffer number = new NumberBuffer(numberBufferBytes);
@@ -1140,7 +1078,6 @@ namespace System {
             return true;
         }
 
-        [System.Security.SecuritySafeCritical]  // auto-generated
         internal unsafe static Boolean TryParseUInt32(String s, NumberStyles style, NumberFormatInfo info, out UInt32 result) {
 
             Byte * numberBufferBytes = stackalloc Byte[NumberBuffer.NumberBufferBytes];
@@ -1164,7 +1101,6 @@ namespace System {
             return true;           
         }
 
-        [System.Security.SecuritySafeCritical]  // auto-generated
         internal unsafe static Boolean TryParseUInt64(String s, NumberStyles style, NumberFormatInfo info, out UInt64 result) {
 
             Byte * numberBufferBytes = stackalloc Byte[NumberBuffer.NumberBufferBytes];
@@ -1192,14 +1128,13 @@ namespace System {
             return TryStringToNumber(str, options, ref number, null, numfmt, parseDecimal);
         }
 
-        [System.Security.SecuritySafeCritical]  // auto-generated
         [System.Runtime.CompilerServices.FriendAccessAllowed]
         internal unsafe static Boolean TryStringToNumber(String str, NumberStyles options, ref NumberBuffer number, StringBuilder sb, NumberFormatInfo numfmt, Boolean parseDecimal) {   
 
             if (str == null) {
                 return false;
             }
-            Contract.Assert(numfmt != null, "");
+            Debug.Assert(numfmt != null, "");
 
             fixed (char* stringPointer = str) {
                 char * p = stringPointer;

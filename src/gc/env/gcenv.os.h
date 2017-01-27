@@ -73,13 +73,12 @@ public:
 
     // Reserve virtual memory range.
     // Parameters:
-    //  address   - starting virtual address, it can be NULL to let the function choose the starting address
     //  size      - size of the virtual memory range
     //  alignment - requested memory alignment
     //  flags     - flags to control special settings like write watching
     // Return:
     //  Starting virtual address of the reserved range
-    static void* VirtualReserve(void *address, size_t size, size_t alignment, uint32_t flags);
+    static void* VirtualReserve(size_t size, size_t alignment, uint32_t flags);
 
     // Release virtual memory range previously reserved using VirtualReserve
     // Parameters:
@@ -240,9 +239,9 @@ public:
     //  specified, it returns amount of actual physical memory.
     static uint64_t GetPhysicalMemoryLimit();
 
-    // Get global memory status
+    // Get memory status
     // Parameters:
-    //  memory_load - A number between 0 and 100 that specifies the approximate percentage of physical memory 
+    //  memory_load - A number between 0 and 100 that specifies the approximate percentage of physical memory
     //      that is in use (0 indicates no memory use and 100 indicates full memory use).
     //  available_physical - The amount of physical memory currently available, in bytes.
     //  available_page_file - The maximum amount of memory the current process can commit, in bytes.

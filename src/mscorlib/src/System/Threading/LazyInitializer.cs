@@ -12,6 +12,7 @@
 
 
 using System.Security.Permissions;
+using System.Diagnostics;
 using System.Diagnostics.Contracts;
 namespace System.Threading
 {
@@ -54,7 +55,6 @@ namespace System.Threading
     /// These routines avoid needing to allocate a dedicated, lazy-initialization instance, instead using
     /// references to ensure targets have been initialized as they are accessed.
     /// </remarks>
-    [HostProtection(Synchronization = true, ExternalThreading = true)]
     public static class LazyInitializer
     {
         /// <summary>
@@ -149,7 +149,7 @@ namespace System.Threading
             }
 
             Interlocked.CompareExchange(ref target, value, null);
-            Contract.Assert(target != null);
+            Debug.Assert(target != null);
             return target;
         }
 

@@ -72,7 +72,7 @@ namespace System.Diagnostics.Tracing
             }
 
 
-            Contract.Assert((options & EventActivityOptions.Disable) == 0);
+            Debug.Assert((options & EventActivityOptions.Disable) == 0);
 
             var currentActivity = m_current.Value;
             var fullActivityName = NormalizeActivityName(providerName, activityName, task);
@@ -191,7 +191,7 @@ namespace System.Diagnostics.Tracing
                     else
                     {
                         orphan.m_stopped = 1;
-                        Contract.Assert(orphan.m_stopped != 0);
+                        Debug.Assert(orphan.m_stopped != 0);
                     }
                     orphan = orphan.m_creator;
                 }
@@ -221,7 +221,6 @@ namespace System.Diagnostics.Tracing
         /// <summary>
         /// Turns on activity tracking.    It is sticky, once on it stays on (race issues otherwise)
         /// </summary>
-        [System.Security.SecuritySafeCritical]
         public void Enable()
         {
             if (m_current == null)
@@ -274,9 +273,9 @@ namespace System.Diagnostics.Tracing
         /// </summary>
         private string NormalizeActivityName(string providerName, string activityName, int task)
         {
-            if (activityName.EndsWith(EventSource.s_ActivityStartSuffix))
+            if (activityName.EndsWith(EventSource.s_ActivityStartSuffix, StringComparison.Ordinal))
                 activityName = activityName.Substring(0, activityName.Length - EventSource.s_ActivityStartSuffix.Length);
-            else if (activityName.EndsWith(EventSource.s_ActivityStopSuffix))
+            else if (activityName.EndsWith(EventSource.s_ActivityStopSuffix, StringComparison.Ordinal))
                 activityName = activityName.Substring(0, activityName.Length - EventSource.s_ActivityStopSuffix.Length);
             else if (task != 0)
                 activityName = "task" + task.ToString();
@@ -328,10 +327,7 @@ namespace System.Diagnostics.Tracing
 
             public override string ToString()
             {
-                string dead = "";
-                if (m_stopped != 0)
-                    dead = ",DEAD";
-                return m_name + "(" + Path(this) + dead + ")";
+                return m_name + "(" + Path(this) + (m_stopped != 0 ? ",DEAD)" : ")");
             }
 
             public static string LiveActivities(ActivityInfo list)
@@ -369,7 +365,6 @@ namespace System.Diagnostics.Tracing
             /// byte (since the top nibble can't be zero you can determine if this is true by seeing if 
             /// this byte is nonZero.   This offset is needed to efficiently create the ID for child activities. 
             /// </summary>
-            [System.Security.SecuritySafeCritical]
             private unsafe void CreateActivityPathGuid(out Guid idRet, out int activityPathGuidOffset)
             {
                 fixed (Guid* outPtr = &idRet)
@@ -406,7 +401,6 @@ namespace System.Diagnostics.Tracing
             /// sufficient space for this ID.   By doing this, we preserve the fact that this activity
             /// is a child (of unknown depth) from that ancestor.
             /// </summary>
-            [System.Security.SecurityCritical]
             private unsafe void CreateOverflowGuid(Guid* outPtr)
             {
                 // Search backwards for an ancestor that has sufficient space to put the ID.  
@@ -455,7 +449,6 @@ namespace System.Diagnostics.Tracing
             /// is the maximum number of bytes that fit in a GUID) if the path did not fit.  
             /// If 'overflow' is true, then the number is encoded as an 'overflow number (which has a
             /// special (longer prefix) that indicates that this ID is allocated differently 
-            [System.Security.SecurityCritical]
             private static unsafe int AddIdToGuid(Guid* outPtr, int whereToAddId, uint id, bool overflow = false)
             {
                 byte* ptr = (byte*)outPtr;
@@ -529,11 +522,10 @@ namespace System.Diagnostics.Tracing
             /// Thus if it is non-zero it adds to the current byte, otherwise it advances and writes
             /// the new byte (in the high bits) of the next byte.  
             /// </summary>
-            [System.Security.SecurityCritical]
             private static unsafe void WriteNibble(ref byte* ptr, byte* endPtr, uint value)
             {
-                Contract.Assert(0 <= value && value < 16);
-                Contract.Assert(ptr < endPtr);
+                Debug.Assert(0 <= value && value < 16);
+                Debug.Assert(ptr < endPtr);
 
                 if (*ptr != 0)
                     *ptr++ |= (byte)value;

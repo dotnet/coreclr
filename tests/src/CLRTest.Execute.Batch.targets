@@ -95,7 +95,7 @@ IF NOT "!ERRORLEVEL!"=="0" (
   <Target Name="GenerateBatchExecutionScript"
     Inputs="$(MSBuildProjectFullPath)"
     Outputs="$(OutputPath)\$(MSBuildProjectName).cmd"
-    DependsOnTargets="FetchExternalProperties;$(BatchScriptSnippetGen);GetIlasmRoundTripBatchScript">
+    DependsOnTargets="FetchExternalProperties;$(BatchScriptSnippetGen);GetJitDisasmBatchScript;GetIlasmRoundTripBatchScript">
 
     <Message Text="Project depends on $(_CLRTestToRunFileFullPath)." Condition="'$(_CLRTestNeedsProjectToRun)' == 'True'" />
 
@@ -113,6 +113,13 @@ IF "%COMPlus_JitStress%"=="" IF "%COMPlus_JitStressRegs%"=="" IF "%COMPlus_JITMi
   ECHO SKIPPING EXECUTION BECAUSE ONE OR MORE OF (COMPlus_JitStress, COMPlus_JitStressRegs, COMPlus_JITMinOpts) IS SET
   Exit /b 0
 :Compatible1
+      ]]></BatchCLRTestEnvironmentCompatibilityCheck>
+      <BatchCLRTestEnvironmentCompatibilityCheck Condition="'$(HeapVerifyIncompatible)' == 'true'"><![CDATA[
+$(BatchCLRTestEnvironmentCompatibilityCheck)
+IF NOT "%COMPlus_HeapVerify%"=="" (
+  ECHO SKIPPING EXECUTION BECAUSE COMPlus_HeapVerify IS SET
+  Exit /b 0
+)
       ]]></BatchCLRTestEnvironmentCompatibilityCheck>
       
       <BatchCLRTestExitCodePrep Condition="$(_CLRTestNeedsToRun)">
@@ -319,6 +326,8 @@ REM Environment Variables
 $(BatchEnvironmentVariables)
 
 $(BatchCLRTestEnvironmentCompatibilityCheck)
+
+$(JitDisasmBatchScript)
 
 REM IlasmRoundTrip Script
 $(IlasmRoundTripBatchScript)

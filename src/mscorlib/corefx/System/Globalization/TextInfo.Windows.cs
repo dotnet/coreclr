@@ -1,7 +1,8 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
-using System.Diagnostics.Contracts;
+
+using System.Diagnostics;
 
 namespace System.Globalization
 {
@@ -16,22 +17,25 @@ namespace System.Globalization
         //////////////////////////////////////////////////////////////////////////
         internal unsafe TextInfo(CultureData cultureData)
         {
+            // This is our primary data source, we don't need most of the rest of this
+            _cultureData = cultureData;
+            _cultureName = _cultureData.CultureName;
+            _textInfoName = _cultureData.STEXTINFO;
+            FinishInitialization(_textInfoName);
+        }
+
+        private void FinishInitialization(string textInfoName)
+        {
             const uint LCMAP_SORTHANDLE = 0x20000000;
 
-            // This is our primary data source, we don't need most of the rest of this
-            this.m_cultureData = cultureData;
-            this.m_cultureName = this.m_cultureData.CultureName;
-            this.m_textInfoName = this.m_cultureData.STEXTINFO;
-
             long handle;
-            int ret = Interop.mincore.LCMapStringEx(m_textInfoName, LCMAP_SORTHANDLE, null, 0, (IntPtr)(&handle), IntPtr.Size, IntPtr.Zero, IntPtr.Zero, IntPtr.Zero);
-
+            int ret = Interop.mincore.LCMapStringEx(_textInfoName, LCMAP_SORTHANDLE, null, 0, &handle, IntPtr.Size, null, null, IntPtr.Zero);
             _sortHandle = ret > 0 ? (IntPtr)handle : IntPtr.Zero;
         }
 
         private unsafe string ChangeCase(string s, bool toUpper)
         {
-            Contract.Assert(s != null);   
+            Debug.Assert(s != null);
 
             //
             //  Get the length of the string.
@@ -47,35 +51,37 @@ namespace System.Globalization
             }
             else
             {
-                int result;
+                int ret;
 
                 // Check for Invariant to avoid A/V in LCMapStringEx
-                uint linguisticCasing = IsInvariantLocale(m_textInfoName) ? 0 : LCMAP_LINGUISTIC_CASING;
+                uint linguisticCasing = IsInvariantLocale(_textInfoName) ? 0 : LCMAP_LINGUISTIC_CASING;
 
                 //
                 //  Create the result string.
                 //
-                char[] buffer = new char[nLengthInput];
-                fixed (char* pBuffer = buffer)
+                string result = string.FastAllocateString(nLengthInput);
+
+                fixed (char* pSource = s)
+                fixed (char* pResult = result)
                 {
-                    result = Interop.mincore.LCMapStringEx(_sortHandle != IntPtr.Zero ? null : m_textInfoName,
-                                                           toUpper ? LCMAP_UPPERCASE | linguisticCasing : LCMAP_LOWERCASE | linguisticCasing,
-                                                           s,
-                                                           nLengthInput,
-                                                           (IntPtr)pBuffer,
-                                                           nLengthInput,
-                                                           IntPtr.Zero,
-                                                           IntPtr.Zero,
-                                                           _sortHandle);
+                    ret = Interop.mincore.LCMapStringEx(_sortHandle != IntPtr.Zero ? null : _textInfoName,
+                                                        toUpper ? LCMAP_UPPERCASE | linguisticCasing : LCMAP_LOWERCASE | linguisticCasing,
+                                                        pSource,
+                                                        nLengthInput,
+                                                        pResult,
+                                                        nLengthInput,
+                                                        null,
+                                                        null,
+                                                        _sortHandle);
                 }
 
-                if (0 == result)
+                if (0 == ret)
                 {
                     throw new InvalidOperationException(SR.InvalidOperation_ReadOnly);
                 }
 
-                Contract.Assert(result == nLengthInput, "Expected getting the same length of the original string");
-                return new string(buffer, 0, result);
+                Debug.Assert(ret == nLengthInput, "Expected getting the same length of the original string");
+                return result;
             }
         }
 
@@ -84,16 +90,16 @@ namespace System.Globalization
             char retVal = '\0';
 
             // Check for Invariant to avoid A/V in LCMapStringEx
-            uint linguisticCasing = IsInvariantLocale(m_textInfoName) ? 0 : LCMAP_LINGUISTIC_CASING;
+            uint linguisticCasing = IsInvariantLocale(_textInfoName) ? 0 : LCMAP_LINGUISTIC_CASING;
 
-            Interop.mincore.LCMapStringEx(_sortHandle != IntPtr.Zero ? null : m_textInfoName,
+            Interop.mincore.LCMapStringEx(_sortHandle != IntPtr.Zero ? null : _textInfoName,
                                           toUpper ? LCMAP_UPPERCASE | linguisticCasing : LCMAP_LOWERCASE | linguisticCasing,
-                                          new string(c, 1),
+                                          &c,
                                           1,
-                                          (IntPtr)(&retVal),
+                                          &retVal,
                                           1,
-                                          IntPtr.Zero,
-                                          IntPtr.Zero,
+                                          null,
+                                          null,
                                           _sortHandle);
 
             return retVal;

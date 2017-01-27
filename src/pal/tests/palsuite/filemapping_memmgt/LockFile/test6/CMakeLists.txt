@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 2.8.12.2)
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
 set(TESTSOURCES
-  test6.c
+  test6.cpp
 )
 
 add_executable(paltest_lockfile_test6
@@ -13,14 +13,12 @@ add_executable(paltest_lockfile_test6
 add_dependencies(paltest_lockfile_test6 coreclrpal)
 
 target_link_libraries(paltest_lockfile_test6
-  pthread
-  m
-  coreclrpal
+  ${COMMON_TEST_LIBRARIES}
 )
 
 
 set(HELPERSOURCES
-  helper.c
+  helper.cpp
 )
 
 add_executable(paltest_lockfile_test6_helper
@@ -30,7 +28,5 @@ add_executable(paltest_lockfile_test6_helper
 add_dependencies(paltest_lockfile_test6_helper coreclrpal)
 
 target_link_libraries(paltest_lockfile_test6_helper
-  pthread
-  m
-  coreclrpal
+  ${COMMON_TEST_LIBRARIES}
 )

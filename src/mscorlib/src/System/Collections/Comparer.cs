@@ -20,9 +20,7 @@ namespace System.Collections {
     using System.Security.Permissions;
     using System.Diagnostics.Contracts;
 
-#if FEATURE_SERIALIZATION
     [Serializable]
-#endif
     [System.Runtime.InteropServices.ComVisible(true)]
     public sealed class Comparer : IComparer , ISerializable
     {
@@ -38,7 +36,7 @@ namespace System.Collections {
 
         public Comparer(CultureInfo culture) {
             if (culture==null) {
-                throw new ArgumentNullException("culture");
+                throw new ArgumentNullException(nameof(culture));
             }
             Contract.EndContractBlock();
             m_compareInfo = culture.CompareInfo;
@@ -85,10 +83,9 @@ namespace System.Collections {
             throw new ArgumentException(Environment.GetResourceString("Argument_ImplementIComparable"));
         }
 
-        [System.Security.SecurityCritical]  // auto-generated_required
         public void GetObjectData(SerializationInfo info, StreamingContext context) {
             if (info==null) {
-                throw new ArgumentNullException("info");
+                throw new ArgumentNullException(nameof(info));
             }
             Contract.EndContractBlock();
 

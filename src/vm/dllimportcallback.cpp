@@ -164,7 +164,7 @@ EXTERN_C void STDCALL UM2MDoADCallBack(UMEntryThunk *pEntryThunk,
     UNINSTALL_MANAGED_EXCEPTION_DISPATCHER;
 }
 
-#ifdef _TARGET_X86_
+#if defined(_TARGET_X86_) && !defined(FEATURE_STUBS_AS_IL)
 
 EXTERN_C VOID __cdecl UMThunkStubRareDisable();
 EXTERN_C Thread* __stdcall CreateThreadBlockThrow();
@@ -1010,7 +1010,7 @@ Stub *UMThunkMarshInfo::CompileNExportThunk(LoaderHeap *pLoaderHeap, PInvokeStat
     return pcpusl->Link(pLoaderHeap);
 }
 
-#else // _TARGET_X86_
+#else // _TARGET_X86_ && !FEATURE_STUBS_AS_IL
 
 PCODE UMThunkMarshInfo::GetExecStubEntryPoint()
 {
@@ -1019,7 +1019,7 @@ PCODE UMThunkMarshInfo::GetExecStubEntryPoint()
     return GetEEFuncEntryPoint(UMThunkStub);
 }
 
-#endif // _TARGET_X86_
+#endif // _TARGET_X86_ && !FEATURE_STUBS_AS_IL
 
 UMEntryThunkCache::UMEntryThunkCache(AppDomain *pDomain) :
     m_crst(CrstUMEntryThunkCache),
@@ -1302,7 +1302,7 @@ UMThunkMarshInfo::~UMThunkMarshInfo()
     }
     CONTRACTL_END;
 
-#ifdef _TARGET_X86_
+#if defined(_TARGET_X86_) && !defined(FEATURE_STUBS_AS_IL)
     if (m_pExecStub)
         m_pExecStub->DecRef();
 #endif
@@ -1320,7 +1320,9 @@ MethodDesc* UMThunkMarshInfo::GetILStubMethodDesc(MethodDesc* pInvokeMD, PInvoke
     dwStubFlags |= NDIRECTSTUB_FL_REVERSE_INTEROP;  // could be either delegate interop or not--that info is passed in from the caller
 
 #if defined(DEBUGGING_SUPPORTED)
-    if (GetDebuggerCompileFlags(pSigInfo->GetModule(), 0) & CORJIT_FLG_DEBUG_CODE)
+    // Combining the next two lines, and eliminating jitDebuggerFlags, leads to bad codegen in x86 Release builds using Visual C++ 19.00.24215.1.
+    CORJIT_FLAGS jitDebuggerFlags = GetDebuggerCompileFlags(pSigInfo->GetModule(), CORJIT_FLAGS());
+    if (jitDebuggerFlags.IsSet(CORJIT_FLAGS::CORJIT_FLAG_DEBUG_CODE))
     {
         dwStubFlags |= NDIRECTSTUB_FL_GENERATEDEBUGGABLEIL;
     }
@@ -1362,7 +1364,7 @@ VOID UMThunkMarshInfo::LoadTimeInit(Signature sig, Module * pModule, MethodDesc 
     m_pModule = pModule;
     m_sig = sig;
 
-#ifdef _TARGET_X86_
+#if defined(_TARGET_X86_) && !defined(FEATURE_STUBS_AS_IL)
     INDEBUG(m_cbRetPop = 0xcccc;)
 #endif
 }
@@ -1370,7 +1372,7 @@ VOID UMThunkMarshInfo::LoadTimeInit(Signature sig, Module * pModule, MethodDesc 
 #ifndef CROSSGEN_COMPILE
 //----------------------------------------------------------
 // This initializer finishes the init started by LoadTimeInit.
-// It does stub creation and can throw a exception.
+// It does stub creation and can throw an exception.
 //
 // It can safely be called multiple times and by concurrent
 // threads.
@@ -1394,7 +1396,9 @@ VOID UMThunkMarshInfo::RunTimeInit()
         DWORD dwStubFlags = NDIRECTSTUB_FL_NGENEDSTUB | NDIRECTSTUB_FL_REVERSE_INTEROP | NDIRECTSTUB_FL_DELEGATE;
 
 #if defined(DEBUGGING_SUPPORTED)
-        if (GetDebuggerCompileFlags(GetModule(), 0) & CORJIT_FLG_DEBUG_CODE)
+        // Combining the next two lines, and eliminating jitDebuggerFlags, leads to bad codegen in x86 Release builds using Visual C++ 19.00.24215.1.
+        CORJIT_FLAGS jitDebuggerFlags = GetDebuggerCompileFlags(GetModule(), CORJIT_FLAGS());
+        if (jitDebuggerFlags.IsSet(CORJIT_FLAGS::CORJIT_FLAG_DEBUG_CODE))
         {
             dwStubFlags |= NDIRECTSTUB_FL_GENERATEDEBUGGABLEIL;
         }
@@ -1403,7 +1407,7 @@ VOID UMThunkMarshInfo::RunTimeInit()
         pFinalILStub = GetStubForInteropMethod(pMD, dwStubFlags, &pStubMD);
     }
 
-#ifdef _TARGET_X86_
+#if defined(_TARGET_X86_) && !defined(FEATURE_STUBS_AS_IL)
     PInvokeStaticSigInfo sigInfo;
 
     if (pMD != NULL)
@@ -1454,7 +1458,7 @@ VOID UMThunkMarshInfo::RunTimeInit()
             pFinalExecStub->DecRef();
     }
 
-#else // _TARGET_X86_
+#else // _TARGET_X86_ && !FEATURE_STUBS_AS_IL
 
     if (pFinalILStub == NULL)
     {
@@ -1495,7 +1499,7 @@ VOID UMThunkMarshInfo::RunTimeInit()
     //
     m_cbActualArgSize = (pStubMD != NULL) ? pStubMD->AsDynamicMethodDesc()->GetNativeStackArgSize() : pMD->SizeOfArgStack();
 
-#endif // _TARGET_X86_
+#endif // _TARGET_X86_ && !FEATURE_STUBS_AS_IL
 
     // Must be the last thing we set!
     InterlockedCompareExchangeT<PCODE>(&m_pILStub, pFinalILStub, (PCODE)1);

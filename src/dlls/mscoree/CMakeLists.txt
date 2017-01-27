@@ -1,5 +1,9 @@
 include_directories("../../inc")
 
+if(FEATURE_GDBJIT)
+   add_definitions(-DFEATURE_GDBJIT)
+endif(FEATURE_GDBJIT)
+
 set(CLR_SOURCES
     mscoree.cpp
     unixinterface.cpp
@@ -8,7 +12,6 @@ set(CLR_SOURCES
 if(WIN32)
 list(APPEND CLR_SOURCES
     comcallunmarshal.cpp
-    delayload.cpp
     Native.rc
 )
 

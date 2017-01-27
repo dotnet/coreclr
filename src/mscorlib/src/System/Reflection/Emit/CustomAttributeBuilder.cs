@@ -22,9 +22,9 @@ namespace System.Reflection.Emit {
     using System.Security.Permissions;
     using System.Runtime.InteropServices;
     using System.Globalization;
+    using System.Diagnostics;
     using System.Diagnostics.Contracts;
     
-    [HostProtection(MayLeakOnAbort = true)]
     [ClassInterface(ClassInterfaceType.None)]
     [ComDefaultInterface(typeof(_CustomAttributeBuilder))]
     [System.Runtime.InteropServices.ComVisible(true)]
@@ -70,8 +70,14 @@ namespace System.Reflection.Emit {
         // Check that a type is suitable for use in a custom attribute.
         private bool ValidateType(Type t)
         {
-            if (t.IsPrimitive || t == typeof(String) || t == typeof(Type))
+            if (t.IsPrimitive)
+            {
+                return t != typeof(IntPtr) && t != typeof(UIntPtr);
+            }
+            if (t == typeof(String) || t == typeof(Type))
+            {
                 return true;
+            }
             if (t.IsEnum)
             {
                 switch (Type.GetTypeCode(Enum.GetUnderlyingType(t)))
@@ -103,17 +109,17 @@ namespace System.Reflection.Emit {
                                                  FieldInfo[] namedFields, Object[] fieldValues)
         {
             if (con == null)
-                throw new ArgumentNullException("con");
+                throw new ArgumentNullException(nameof(con));
             if (constructorArgs == null)
-                throw new ArgumentNullException("constructorArgs");
+                throw new ArgumentNullException(nameof(constructorArgs));
             if (namedProperties == null)
-                throw new ArgumentNullException("namedProperties");
+                throw new ArgumentNullException(nameof(namedProperties));
             if (propertyValues == null)
-                throw new ArgumentNullException("propertyValues");
+                throw new ArgumentNullException(nameof(propertyValues));
             if (namedFields == null)
-                throw new ArgumentNullException("namedFields");
+                throw new ArgumentNullException(nameof(namedFields));
             if (fieldValues == null)
-                throw new ArgumentNullException("fieldValues");
+                throw new ArgumentNullException(nameof(fieldValues));
             if (namedProperties.Length != propertyValues.Length)
                 throw new ArgumentException(Environment.GetResourceString("Arg_ArrayLengthsDiffer"), "namedProperties, propertyValues");
             if (namedFields.Length != fieldValues.Length)
@@ -123,7 +129,7 @@ namespace System.Reflection.Emit {
             if ((con.Attributes & MethodAttributes.Static) == MethodAttributes.Static ||
                 (con.Attributes & MethodAttributes.MemberAccessMask) == MethodAttributes.Private)
                 throw new ArgumentException(Environment.GetResourceString("Argument_BadConstructor"));
-                                               
+
             if ((con.CallingConvention & CallingConventions.Standard) != CallingConventions.Standard)
                 throw new ArgumentException(Environment.GetResourceString("Argument_BadConstructorCallConv"));
 
@@ -150,12 +156,16 @@ namespace System.Reflection.Emit {
             // Now verify that the types of the actual parameters are compatible with the types of the formal parameters.
             for (i = 0; i < paramTypes.Length; i++)
             {
-                if (constructorArgs[i] == null)
+                object constructorArg = constructorArgs[i];
+                if (constructorArg == null)
+                {
+                    if (paramTypes[i].IsValueType)
+                    {
+                        throw new ArgumentNullException($"{nameof(constructorArgs)}[{i}]");
+                    }
                     continue;
-                TypeCode paramTC = Type.GetTypeCode(paramTypes[i]);
-                if (paramTC != Type.GetTypeCode(constructorArgs[i].GetType()))
-                    if (paramTC != TypeCode.Object || !ValidateType(constructorArgs[i].GetType())) 
-                        throw new ArgumentException(Environment.GetResourceString("Argument_BadParameterTypeForConstructor", i));
+                }
+                VerifyTypeAndPassedObjectType(paramTypes[i], constructorArg.GetType(), $"{nameof(constructorArgs)}[{i}]");
             }
 
             // Allocate a memory stream to represent the CA blob in the metadata and a binary writer to help format it.
@@ -176,12 +186,14 @@ namespace System.Reflection.Emit {
             for (i = 0; i < namedProperties.Length; i++)
             {
                 // Validate the property.
-                if (namedProperties[i] == null)
+                PropertyInfo property = namedProperties[i];
+                if (property == null)
                     throw new ArgumentNullException("namedProperties[" + i + "]");
 
                 // Allow null for non-primitive types only.
-                Type propType = namedProperties[i].PropertyType;
-                if (propertyValues[i] == null && propType.IsPrimitive)
+                Type propType = property.PropertyType;
+                object propertyValue = propertyValues[i];
+                if (propertyValue == null && propType.IsValueType)
                     throw new ArgumentNullException("propertyValues[" + i + "]");
 
                 // Validate property type.
@@ -189,55 +201,57 @@ namespace System.Reflection.Emit {
                     throw new ArgumentException(Environment.GetResourceString("Argument_BadTypeInCustomAttribute"));
 
                 // Property has to be writable.
-                if (!namedProperties[i].CanWrite)                
+                if (!property.CanWrite)
                     throw new ArgumentException(Environment.GetResourceString("Argument_NotAWritableProperty"));
-                    
+
                 // Property has to be from the same class or base class as ConstructorInfo.
-                if (namedProperties[i].DeclaringType != con.DeclaringType
+                if (property.DeclaringType != con.DeclaringType
                     && (!(con.DeclaringType is TypeBuilderInstantiation))
-                    && !con.DeclaringType.IsSubclassOf(namedProperties[i].DeclaringType))
+                    && !con.DeclaringType.IsSubclassOf(property.DeclaringType))
                 {
                     // Might have failed check because one type is a XXXBuilder
                     // and the other is not. Deal with these special cases
                     // separately.
-                    if (!TypeBuilder.IsTypeEqual(namedProperties[i].DeclaringType, con.DeclaringType))
+                    if (!TypeBuilder.IsTypeEqual(property.DeclaringType, con.DeclaringType))
                     {
                         // IsSubclassOf is overloaded to do the right thing if
                         // the constructor is a TypeBuilder, but we still need
                         // to deal with the case where the property's declaring
                         // type is one.
-                        if (!(namedProperties[i].DeclaringType is TypeBuilder) ||
-                            !con.DeclaringType.IsSubclassOf(((TypeBuilder)namedProperties[i].DeclaringType).BakedRuntimeType))
+                        if (!(property.DeclaringType is TypeBuilder) ||
+                            !con.DeclaringType.IsSubclassOf(((TypeBuilder)property.DeclaringType).BakedRuntimeType))
                             throw new ArgumentException(Environment.GetResourceString("Argument_BadPropertyForConstructorBuilder"));
                     }
                 }
 
                 // Make sure the property's type can take the given value.
                 // Note that there will be no coersion.
-                if (propertyValues[i] != null &&
-                    propType != typeof(Object) &&
-                    Type.GetTypeCode(propertyValues[i].GetType()) != Type.GetTypeCode(propType))
-                    throw new ArgumentException(Environment.GetResourceString("Argument_ConstantDoesntMatch"));
-                
+                if (propertyValue != null)
+                {
+                    VerifyTypeAndPassedObjectType(propType, propertyValue.GetType(), $"{nameof(propertyValues)}[{i}]");
+                }
+
                 // First a byte indicating that this is a property.
                 writer.Write((byte)CustomAttributeEncoding.Property);
 
                 // Emit the property type, name and value.
                 EmitType(writer, propType);
                 EmitString(writer, namedProperties[i].Name);
-                EmitValue(writer, propType, propertyValues[i]);
+                EmitValue(writer, propType, propertyValue);
             }
 
             // Emit all the field sets.
             for (i = 0; i < namedFields.Length; i++)
             {
                 // Validate the field.
-                if (namedFields[i] == null)
+                FieldInfo namedField = namedFields[i];
+                if (namedField == null)
                     throw new ArgumentNullException("namedFields[" + i + "]");
 
                 // Allow null for non-primitive types only.
-                Type fldType = namedFields[i].FieldType;
-                if (fieldValues[i] == null && fldType.IsPrimitive)
+                Type fldType = namedField.FieldType;
+                object fieldValue = fieldValues[i];
+                if (fieldValue == null && fldType.IsValueType)
                     throw new ArgumentNullException("fieldValues[" + i + "]");
 
                 // Validate field type.
@@ -245,20 +259,20 @@ namespace System.Reflection.Emit {
                     throw new ArgumentException(Environment.GetResourceString("Argument_BadTypeInCustomAttribute"));
 
                 // Field has to be from the same class or base class as ConstructorInfo.
-                if (namedFields[i].DeclaringType != con.DeclaringType
+                if (namedField.DeclaringType != con.DeclaringType
                     && (!(con.DeclaringType is TypeBuilderInstantiation))
-                    && !con.DeclaringType.IsSubclassOf(namedFields[i].DeclaringType))
+                    && !con.DeclaringType.IsSubclassOf(namedField.DeclaringType))
                 {
                     // Might have failed check because one type is a XXXBuilder
                     // and the other is not. Deal with these special cases
                     // separately.
-                    if (!TypeBuilder.IsTypeEqual(namedFields[i].DeclaringType, con.DeclaringType))
+                    if (!TypeBuilder.IsTypeEqual(namedField.DeclaringType, con.DeclaringType))
                     {
                         // IsSubclassOf is overloaded to do the right thing if
                         // the constructor is a TypeBuilder, but we still need
                         // to deal with the case where the field's declaring
                         // type is one.
-                        if (!(namedFields[i].DeclaringType is TypeBuilder) ||
+                        if (!(namedField.DeclaringType is TypeBuilder) ||
                             !con.DeclaringType.IsSubclassOf(((TypeBuilder)namedFields[i].DeclaringType).BakedRuntimeType))
                             throw new ArgumentException(Environment.GetResourceString("Argument_BadFieldForConstructorBuilder"));
                     }
@@ -266,22 +280,34 @@ namespace System.Reflection.Emit {
 
                 // Make sure the field's type can take the given value.
                 // Note that there will be no coersion.
-                if (fieldValues[i] != null &&
-                    fldType != typeof(Object) &&
-                    Type.GetTypeCode(fieldValues[i].GetType()) != Type.GetTypeCode(fldType))
-                    throw new ArgumentException(Environment.GetResourceString("Argument_ConstantDoesntMatch"));
+                if (fieldValue != null)
+                {
+                    VerifyTypeAndPassedObjectType(fldType, fieldValue.GetType(), $"{nameof(fieldValues)}[{i}]");
+                }
                 
                 // First a byte indicating that this is a field.
                 writer.Write((byte)CustomAttributeEncoding.Field);
 
                 // Emit the field type, name and value.
                 EmitType(writer, fldType);
-                EmitString(writer, namedFields[i].Name);
-                EmitValue(writer, fldType, fieldValues[i]);
+                EmitString(writer, namedField.Name);
+                EmitValue(writer, fldType, fieldValue);
             }
 
             // Create the blob array.
             m_blob = ((MemoryStream)writer.BaseStream).ToArray();
+        }
+
+        private static void VerifyTypeAndPassedObjectType(Type type, Type passedType, string paramName)
+        {
+            if (type != typeof(object) && Type.GetTypeCode(passedType) != Type.GetTypeCode(type))
+            {
+                throw new ArgumentException(Environment.GetResourceString("Argument_ConstantDoesntMatch"));
+            }
+            if (passedType == typeof(IntPtr) || passedType == typeof(UIntPtr))
+            {
+                throw new ArgumentException(Environment.GetResourceString("Argument_BadParameterTypeForCAB"), paramName);
+            }
         }
 
         private void EmitType(BinaryWriter writer, Type type)
@@ -327,7 +353,7 @@ namespace System.Reflection.Emit {
                         writer.Write((byte)CustomAttributeEncoding.Double);
                         break;
                     default:
-                        Contract.Assert(false, "Invalid primitive type");
+                        Debug.Assert(false, "Invalid primitive type");
                         break;
                 }
             }
@@ -411,7 +437,7 @@ namespace System.Reflection.Emit {
                         writer.Write((ulong)value);
                         break;
                     default:
-                        Contract.Assert(false, "Invalid enum base type");
+                        Debug.Assert(false, "Invalid enum base type");
                         break;
                 }
             }
@@ -489,7 +515,7 @@ namespace System.Reflection.Emit {
                         writer.Write((double)value);
                         break;
                     default:
-                        Contract.Assert(false, "Invalid primitive type");
+                        Debug.Assert(false, "Invalid primitive type");
                         break;
                 }
             }
@@ -524,7 +550,6 @@ namespace System.Reflection.Emit {
          
 
         // return the byte interpretation of the custom attribute
-        [System.Security.SecurityCritical]  // auto-generated
         internal void CreateCustomAttribute(ModuleBuilder mod, int tkOwner)
         {
             CreateCustomAttribute(mod, tkOwner, mod.GetConstructorToken(m_con).Token, false);
@@ -537,7 +562,6 @@ namespace System.Reflection.Emit {
         // This function has to be called before we snap the in-memory module for on disk (i.e. Presave on
         // ModuleBuilder.
         //*************************************************
-        [System.Security.SecurityCritical]  // auto-generated
         internal int PrepareCreateCustomAttributeToDisk(ModuleBuilder mod)
         {
             return mod.InternalGetConstructorToken(m_con, true).Token;
@@ -546,34 +570,11 @@ namespace System.Reflection.Emit {
         //*************************************************
         // Call this function with toDisk=1, after on disk module has been snapped.
         //*************************************************
-        [System.Security.SecurityCritical]  // auto-generated
         internal void CreateCustomAttribute(ModuleBuilder mod, int tkOwner, int tkAttrib, bool toDisk)
         {
             TypeBuilder.DefineCustomAttribute(mod, tkOwner, tkAttrib, m_blob, toDisk, 
                                                       typeof(System.Diagnostics.DebuggableAttribute) == m_con.DeclaringType);
         }
-
-#if !FEATURE_CORECLR
-        void _CustomAttributeBuilder.GetTypeInfoCount(out uint pcTInfo)
-        {
-            throw new NotImplementedException();
-        }
-
-        void _CustomAttributeBuilder.GetTypeInfo(uint iTInfo, uint lcid, IntPtr ppTInfo)
-        {
-            throw new NotImplementedException();
-        }
-
-        void _CustomAttributeBuilder.GetIDsOfNames([In] ref Guid riid, IntPtr rgszNames, uint cNames, uint lcid, IntPtr rgDispId)
-        {
-            throw new NotImplementedException();
-        }
-
-        void _CustomAttributeBuilder.Invoke(uint dispIdMember, [In] ref Guid riid, uint lcid, short wFlags, IntPtr pDispParams, IntPtr pVarResult, IntPtr pExcepInfo, IntPtr puArgErr)
-        {
-            throw new NotImplementedException();
-        }
-#endif
 
         internal ConstructorInfo    m_con;
         internal Object[]           m_constructorArgs;

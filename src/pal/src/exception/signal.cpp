@@ -18,6 +18,9 @@ Abstract:
 
 --*/
 
+#include "pal/dbgmsg.h"
+SET_DEFAULT_DEBUG_CHANNEL(EXCEPT); // some headers have code with asserts, so do this first
+
 #include "pal/corunix.hpp"
 #include "pal/handleapi.hpp"
 #include "pal/thread.hpp"
@@ -27,7 +30,6 @@ Abstract:
 
 #include "pal/palinternal.h"
 #if !HAVE_MACH_EXCEPTIONS
-#include "pal/dbgmsg.h"
 #include "pal/init.h"
 #include "pal/process.h"
 #include "pal/debug.h"
@@ -42,8 +44,6 @@ Abstract:
 #include "pal/context.h"
 
 using namespace CorUnix;
-
-SET_DEFAULT_DEBUG_CHANNEL(EXCEPT);
 
 #ifdef SIGRTMIN
 #define INJECT_ACTIVATION_SIGNAL SIGRTMIN
@@ -99,6 +99,10 @@ static bool registered_sigterm_handler = false;
 #ifdef INJECT_ACTIVATION_SIGNAL
 struct sigaction g_previous_activation;
 #endif
+
+// Offset of the local variable containing native context in the common_signal_handler function.
+// This offset is relative to the frame pointer.
+int g_common_signal_handler_context_locvar_offset = 0;
 
 /* public function definitions ************************************************/
 
@@ -582,6 +586,7 @@ Note:
     the "pointers" parameter should contain a valid exception record pointer,
     but the ContextRecord pointer will be overwritten.
 --*/
+__attribute__((noinline))
 static bool common_signal_handler(int code, siginfo_t *siginfo, void *sigcontext, int numParams, ...)
 {
     sigset_t signal_set;
@@ -590,6 +595,7 @@ static bool common_signal_handler(int code, siginfo_t *siginfo, void *sigcontext
     native_context_t *ucontext;
 
     ucontext = (native_context_t *)sigcontext;
+    g_common_signal_handler_context_locvar_offset = (int)((char*)&ucontext - (char*)__builtin_frame_address(0));
 
     AllocateExceptionRecords(&exceptionRecord, &contextRecord);
 
@@ -611,10 +617,16 @@ static bool common_signal_handler(int code, siginfo_t *siginfo, void *sigcontext
     // which is required for restoring context
     RtlCaptureContext(contextRecord);
 
+    ULONG contextFlags = CONTEXT_CONTROL | CONTEXT_INTEGER | CONTEXT_FLOATING_POINT;
+
+#if defined(_AMD64_)
+    contextFlags |= CONTEXT_XSTATE;
+#endif
+
     // Fill context record with required information. from pal.h:
     // On non-Win32 platforms, the CONTEXT pointer in the
     // PEXCEPTION_POINTERS will contain at least the CONTEXT_CONTROL registers.
-    CONTEXTFromNativeContext(ucontext, contextRecord, CONTEXT_CONTROL | CONTEXT_INTEGER | CONTEXT_FLOATING_POINT);
+    CONTEXTFromNativeContext(ucontext, contextRecord, contextFlags);
 
     /* Unmask signal so we can receive it again */
     sigemptyset(&signal_set);

@@ -2,7 +2,6 @@
 <Project ToolsVersion="12.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.props))\dir.props" />
   <PropertyGroup>
-    <Version>1.0.3</Version>
     <SkipPackageFileCheck>true</SkipPackageFileCheck>
     <PackageTargetRuntime>fedora.23-$(PackagePlatform)</PackageTargetRuntime>
     <!-- only build for x64 -->
@@ -20,7 +19,7 @@
     <AdditionalLibPackageExcludes Include="%2A%2A\%2A.dbg" />
     <AdditionalSymbolPackageExcludes Include="%2A%2A\%2A.so" />
     <AdditionalSymbolPackageExcludes Include="%2A%2A\%2A.dll" />
-    <ArchitectureSpecificNativeSymbol Include="..\..\_.pdb" />
+    <ArchitectureSpecificNativeSymbol Include="..\..\..\_.pdb" />
     <File Include="@(ArchitectureSpecificNativeSymbol)">
       <TargetPath>runtimes/$(PackageTargetRuntime)/native</TargetPath>
       <IsSymbolFile>true</IsSymbolFile>

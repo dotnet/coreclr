@@ -69,6 +69,10 @@ Abstract:
 #include "pedecoder.h"
 #include "gcinfo.h"
 
+#if defined(WIN64EXCEPTIONS) && !defined(USE_INDIRECT_CODEHEADER)
+#error "WIN64EXCEPTIONS requires USE_INDIRECT_CODEHEADER"
+#endif // WIN64EXCEPTIONS && !USE_INDIRECT_CODEHEADER
+
 class MethodDesc;
 class ICorJitCompiler;
 class IJitManager;
@@ -140,6 +144,10 @@ public:
     PTR_EE_ILEXCEPTION  phdrJitEHInfo;
     PTR_BYTE            phdrJitGCInfo;
 
+#if defined(FEATURE_GDBJIT)
+    VOID*            pCalledMethods;
+#endif
+
     PTR_MethodDesc      phdrMDesc;
 
 #ifdef WIN64EXCEPTIONS
@@ -172,6 +180,13 @@ public:
         SUPPORTS_DAC;
         return phdrMDesc;
     }
+#if defined(FEATURE_GDBJIT)
+    PTR_BYTE                GetCalledMethods()
+    {
+        SUPPORTS_DAC;
+        return pCalledMethods;
+    }
+#endif
     TADDR                   GetCodeStartAddress()
     {
         SUPPORTS_DAC;
@@ -205,6 +220,12 @@ public:
     {
         phdrMDesc = pMD;
     }
+#if defined(FEATURE_GDBJIT)
+    void SetCalledMethods(VOID* pCM)
+    {
+        pCalledMethods = pCM;
+    }
+#endif
     void SetStubCodeBlockKind(StubCodeBlockKind kind)
     {
         phdrMDesc = (PTR_MethodDesc)kind;
@@ -248,6 +269,13 @@ public:
         SUPPORTS_DAC;
         return pRealCodeHeader->phdrMDesc;
     }
+#if defined(FEATURE_GDBJIT)
+    VOID*                GetCalledMethods()
+    {
+        SUPPORTS_DAC;
+        return pRealCodeHeader->pCalledMethods;
+    }
+#endif
     TADDR                   GetCodeStartAddress()
     {        
         SUPPORTS_DAC;
@@ -286,6 +314,12 @@ public:
     {
         pRealCodeHeader->phdrMDesc = pMD;
     }
+#if defined(FEATURE_GDBJIT)
+    void SetCalledMethods(VOID* pCM)
+    {
+        pRealCodeHeader->pCalledMethods = pCM;
+    }
+#endif
     void SetStubCodeBlockKind(StubCodeBlockKind kind)
     {
         pRealCodeHeader = (PTR_RealCodeHeader)kind;
@@ -1116,17 +1150,17 @@ public:
 #endif // !DACCESS_COMPILE
 
 private:
-    DWORD               m_dwCPUCompileFlags;
+    CORJIT_FLAGS m_CPUCompileFlags;
 
 #if !defined CROSSGEN_COMPILE && !defined DACCESS_COMPILE
     void SetCpuInfo();
 #endif
 
 public:
-    inline DWORD GetCPUCompileFlags()
+    inline CORJIT_FLAGS GetCPUCompileFlags()
     {
         LIMITED_METHOD_CONTRACT;
-        return m_dwCPUCompileFlags;
+        return m_CPUCompileFlags;
     }
 
 private :
@@ -1163,9 +1197,15 @@ public:
 public:
     ICorJitCompiler *   m_jit;
     HINSTANCE           m_JITCompiler;
-#ifdef _TARGET_AMD64_
+#if defined(_TARGET_X86_) || defined(_TARGET_AMD64_)
     HINSTANCE           m_JITCompilerOther; // Stores the handle of the legacy JIT, if one is loaded.
 #endif
+
+    // TRUE if the legacy/compat JIT was loaded successfully and will be used.
+    // This is available in all builds so if COMPlus_RequireLegacyJit=1 is set in a test,
+    // the test will fail in any build where the legacy JIT is not loaded, even if legacy
+    // fallback is not available in that build. This prevents unexpected silent successes.
+    BOOL                m_fLegacyJitUsed;
 
 #ifdef ALLOW_SXS_JIT
     //put these at the end so that we don't mess up the offsets in the DAC.
@@ -1439,6 +1479,16 @@ private:
         static bool IsDeleted(const element_t &e) { LIMITED_METHOD_CONTRACT; return e.m_target == (PCODE)-1; }
     };
     typedef SHash<JumpStubTraits> JumpStubTable;
+
+    static unsigned m_normal_JumpStubLookup;
+    static unsigned m_normal_JumpStubUnique;
+    static unsigned m_normal_JumpStubBlockAllocCount;
+    static unsigned m_normal_JumpStubBlockFullCount;
+
+    static unsigned m_LCG_JumpStubLookup;
+    static unsigned m_LCG_JumpStubUnique;
+    static unsigned m_LCG_JumpStubBlockAllocCount;
+    static unsigned m_LCG_JumpStubBlockFullCount;
 
     struct JumpStubCache
     {
@@ -1771,6 +1821,7 @@ public:
 
     PTR_VOID GetGCInfo()
     {
+        WRAPPER_NO_CONTRACT;
         return GetGCInfoToken().Info;
     }
 
@@ -1800,7 +1851,7 @@ public:
     ULONG       GetFixedStackSize()
     {
         WRAPPER_NO_CONTRACT;
-        return GetCodeManager()->GetFrameSize(GetGCInfo());
+        return GetCodeManager()->GetFrameSize(GetGCInfoToken());
     }
 #endif // WIN64EXCEPTIONS
 

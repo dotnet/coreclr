@@ -47,6 +47,10 @@ ellismg@linux:~$ sudo apt-get install cmake llvm-3.5 clang-3.5 lldb-3.6 lldb-3.6
 
 You now have all the required components.
 
+If you are using Fedora 23 or 24, then you will need to install the following packages:
+
+`$ sudo dnf install llvm cmake clang lldb-devel libunwind-devel lttng-ust-devel libuuid-devel libicu-devel`
+
 Git Setup
 ---------
 
@@ -56,6 +60,10 @@ Set the maximum number of file-handles
 --------------------------------------
 
 To ensure that your system can allocate enough file-handles for the corefx build run `sysctl fs.file-max`. If it is less than 100000, add `fs.file-max = 100000` to `/etc/sysctl.conf`, and then run `sudo sysctl -p`.
+
+On Fedora 23 or 24:
+
+`$ sudo dnf install mono-devel`
 
 Build the Runtime and Microsoft Core Library
 =============================================
@@ -156,5 +164,65 @@ lgs@ubuntu sudo apt-get install clang-3.6 llvm-3.6 lldb-3.6
 Finally, let's build coreclr with updated clang/llvm. If you meet a lldb related error message at build-time, try to build coreclr with "skipgenerateversion" option. 
 ```
 lgs@ubuntu time ROOTFS_DIR=/work/dotnet/rootfs-coreclr/arm ./build.sh arm release clean cross 
+```
+
+Additional optimization levels for ARM/Linux: -Oz and -Ofast
+============================================================
+
+This instruction is to enable additional optimization levels such as -Oz and -Ofast on ARM/Linux. The below table shows what we have to enable for the code optimization of the CoreCLR run-time either the size or speed on embedded devices. 
+
+| **Content** | **Build Mode** | **Clang/LLVM (Linux)** |
+| --- | --- | --- |
+| -O0 | Debug | Disable optimization to generate the most debuggable code |
+| -O1 | - | Optimize for code size and execution time |
+| -O2 | Checked | Optimize more for code size and execution time |
+| -O3 | Release | Optimize more for code size and execution time to make program run faster |
+| -Oz | - | Optimize more to reduce code size further |
+| -Ofast | - | Enable all the optimizations from O3 along with other aggressive optimizations |
+
+If you want to focus on the size reduction for low-end devices, you have to modify clang-compile-override.txt to enable -Oz flag in the release build as following: 
+
+```
+--- a/src/pal/tools/clang-compiler-override.txt
++++ b/src/pal/tools/clang-compiler-override.txt
+@@ -3,13 +3,13 @@ SET (CMAKE_C_FLAGS_DEBUG_INIT          "-g -O0")
+ SET (CLR_C_FLAGS_CHECKED_INIT          "-g -O2")
+ # Refer to the below instruction to support __thread with -O2/-O3 on Linux/ARM
+ # https://github.com/dotnet/coreclr/blob/master/Documentation/building/linux-instructions.md
+-SET (CMAKE_C_FLAGS_RELEASE_INIT        "-g -O3")
++SET (CMAKE_C_FLAGS_RELEASE_INIT        "-g -Oz")
+ SET (CMAKE_C_FLAGS_RELWITHDEBINFO_INIT "-g -O2")
+
+ SET (CMAKE_CXX_FLAGS_INIT                "-Wall -Wno-null-conversion -std=c++11")
+ SET (CMAKE_CXX_FLAGS_DEBUG_INIT          "-g -O0")
+ SET (CLR_CXX_FLAGS_CHECKED_INIT          "-g -O2")
+-SET (CMAKE_CXX_FLAGS_RELEASE_INIT        "-g -O3")
++SET (CMAKE_CXX_FLAGS_RELEASE_INIT        "-g -Oz")
+ SET (CMAKE_CXX_FLAGS_RELWITHDEBINFO_INIT "-g -O2")
+
+ SET (CLR_DEFINES_DEBUG_INIT              DEBUG _DEBUG _DBG URTBLDENV_FRIENDLY=Checked BUILDENV_
+```
+
+
+If you want to focus on the speed optimization for high-end devices, you have to modify clang-compile-override.txt to enable -Ofast flag in the release build as following: 
+```
+--- a/src/pal/tools/clang-compiler-override.txt
++++ b/src/pal/tools/clang-compiler-override.txt
+@@ -3,13 +3,13 @@ SET (CMAKE_C_FLAGS_DEBUG_INIT          "-g -O0")
+ SET (CLR_C_FLAGS_CHECKED_INIT          "-g -O2")
+ # Refer to the below instruction to support __thread with -O2/-O3 on Linux/ARM
+ # https://github.com/dotnet/coreclr/blob/master/Documentation/building/linux-instructions.md
+-SET (CMAKE_C_FLAGS_RELEASE_INIT        "-g -O3")
++SET (CMAKE_C_FLAGS_RELEASE_INIT        "-g -Ofast")
+ SET (CMAKE_C_FLAGS_RELWITHDEBINFO_INIT "-g -O2")
+
+ SET (CMAKE_CXX_FLAGS_INIT                "-Wall -Wno-null-conversion -std=c++11")
+ SET (CMAKE_CXX_FLAGS_DEBUG_INIT          "-g -O0")
+ SET (CLR_CXX_FLAGS_CHECKED_INIT          "-g -O2")
+-SET (CMAKE_CXX_FLAGS_RELEASE_INIT        "-g -O3")
++SET (CMAKE_CXX_FLAGS_RELEASE_INIT        "-g -Ofast")
+ SET (CMAKE_CXX_FLAGS_RELWITHDEBINFO_INIT "-g -O2")
+
+ SET (CLR_DEFINES_DEBUG_INIT              DEBUG _DEBUG _DBG URTBLDENV_FRIENDLY=Checked BUILDENV_
 ```
 

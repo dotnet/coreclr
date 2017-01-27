@@ -6,7 +6,6 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Security;
-using System.Runtime.Serialization;
 
 namespace System.Collections.Generic
 {
@@ -32,7 +31,6 @@ namespace System.Collections.Generic
         // Note that logic in this method is replicated in vm\compile.cpp to ensure that NGen
         // saves the right instantiations
         //
-        [System.Security.SecuritySafeCritical]  // auto-generated
         private static EqualityComparer<T> CreateComparer()
         {
             Contract.Ensures(Contract.Result<EqualityComparer<T>>() != null);
@@ -144,10 +142,7 @@ namespace System.Collections.Generic
         }
 
         [Pure]
-        public override int GetHashCode(T obj) {
-            if (obj == null) return 0;
-            return obj.GetHashCode();
-        }
+        public override int GetHashCode(T obj) => obj?.GetHashCode() ?? 0;
 
         internal override int IndexOf(T[] array, T value, int startIndex, int count) {
             int endIndex = startIndex + count;
@@ -179,22 +174,21 @@ namespace System.Collections.Generic
             return -1;
         }
 
-        // Equals method for the comparer itself. 
-        public override bool Equals(Object obj){
-            GenericEqualityComparer<T> comparer = obj as GenericEqualityComparer<T>;
-            return comparer != null;
-        }
+        // Equals method for the comparer itself.
+        // If in the future this type is made sealed, change the is check to obj != null && GetType() == obj.GetType().
+        public override bool Equals(Object obj) =>
+            obj is GenericEqualityComparer<T>;
 
-        public override int GetHashCode() {
-            return this.GetType().Name.GetHashCode();
-        }
+        // If in the future this type is made sealed, change typeof(...) to GetType().
+        public override int GetHashCode() =>
+            typeof(GenericEqualityComparer<T>).GetHashCode();
     }
 
     [Serializable]
-    internal class NullableEqualityComparer<T> : EqualityComparer<Nullable<T>> where T : struct, IEquatable<T>
+    internal sealed class NullableEqualityComparer<T> : EqualityComparer<T?> where T : struct, IEquatable<T>
     {
         [Pure]
-        public override bool Equals(Nullable<T> x, Nullable<T> y) {
+        public override bool Equals(T? x, T? y) {
             if (x.HasValue) {
                 if (y.HasValue) return x.value.Equals(y.value);
                 return false;
@@ -204,11 +198,9 @@ namespace System.Collections.Generic
         }
 
         [Pure]
-        public override int GetHashCode(Nullable<T> obj) {
-            return obj.GetHashCode();
-        }
+        public override int GetHashCode(T? obj) => obj.GetHashCode();
 
-        internal override int IndexOf(Nullable<T>[] array, Nullable<T> value, int startIndex, int count) {
+        internal override int IndexOf(T?[] array, T? value, int startIndex, int count) {
             int endIndex = startIndex + count;
             if (!value.HasValue) {
                 for (int i = startIndex; i < endIndex; i++) {
@@ -223,7 +215,7 @@ namespace System.Collections.Generic
             return -1;
         }
 
-        internal override int LastIndexOf(Nullable<T>[] array, Nullable<T> value, int startIndex, int count) {
+        internal override int LastIndexOf(T?[] array, T? value, int startIndex, int count) {
             int endIndex = startIndex - count + 1;
             if (!value.HasValue) {
                 for (int i = startIndex; i >= endIndex; i--) {
@@ -238,19 +230,16 @@ namespace System.Collections.Generic
             return -1;
         }
 
-        // Equals method for the comparer itself. 
-        public override bool Equals(Object obj){
-            NullableEqualityComparer<T> comparer = obj as NullableEqualityComparer<T>;
-            return comparer != null;
-        }        
+        // Equals method for the comparer itself.
+        public override bool Equals(Object obj) =>
+            obj != null && GetType() == obj.GetType();
 
-        public override int GetHashCode() {
-            return this.GetType().Name.GetHashCode();
-        }                                
+        public override int GetHashCode() =>
+            GetType().GetHashCode();
     }
 
     [Serializable]
-    internal class ObjectEqualityComparer<T>: EqualityComparer<T>
+    internal sealed class ObjectEqualityComparer<T>: EqualityComparer<T>
     {
         [Pure]
         public override bool Equals(T x, T y) {
@@ -263,10 +252,7 @@ namespace System.Collections.Generic
         }
 
         [Pure]
-        public override int GetHashCode(T obj) {
-            if (obj == null) return 0;
-            return obj.GetHashCode();
-        }
+        public override int GetHashCode(T obj) => obj?.GetHashCode() ?? 0;
 
         internal override int IndexOf(T[] array, T value, int startIndex, int count) {
             int endIndex = startIndex + count;
@@ -298,25 +284,21 @@ namespace System.Collections.Generic
             return -1;
         }
 
-        // Equals method for the comparer itself. 
-        public override bool Equals(Object obj){
-            ObjectEqualityComparer<T> comparer = obj as ObjectEqualityComparer<T>;
-            return comparer != null;
-        }        
+        // Equals method for the comparer itself.
+        public override bool Equals(Object obj) =>
+            obj != null && GetType() == obj.GetType();
 
-        public override int GetHashCode() {
-            return this.GetType().Name.GetHashCode();
-        }                                
+        public override int GetHashCode() =>
+            GetType().GetHashCode();
     }
 
-#if FEATURE_CORECLR
     // NonRandomizedStringEqualityComparer is the comparer used by default with the Dictionary<string,...> 
     // As the randomized string hashing is turned on by default on coreclr, we need to keep the performance not affected 
     // as much as possible in the main stream scenarios like Dictionary<string,>
     // We use NonRandomizedStringEqualityComparer as default comparer as it doesnt use the randomized string hashing which 
     // keep the perofrmance not affected till we hit collision threshold and then we switch to the comparer which is using 
     // randomized string hashing GenericEqualityComparer<string>
-
+    [Serializable]
     internal class NonRandomizedStringEqualityComparer : GenericEqualityComparer<string> {
         static IEqualityComparer<string> s_nonRandomizedComparer;
         
@@ -335,12 +317,11 @@ namespace System.Collections.Generic
             return obj.GetLegacyNonRandomizedHashCode();
         }
     }
-#endif // FEATURE_CORECLR
 
     // Performance of IndexOf on byte array is very important for some scenarios.
     // We will call the C runtime function memchr, which is optimized.
     [Serializable]
-    internal class ByteEqualityComparer: EqualityComparer<byte>
+    internal sealed class ByteEqualityComparer: EqualityComparer<byte>
     {
         [Pure]
         public override bool Equals(byte x, byte y) {
@@ -352,14 +333,13 @@ namespace System.Collections.Generic
             return b.GetHashCode();
         }
 
-        [System.Security.SecuritySafeCritical]  // auto-generated
         internal unsafe override int IndexOf(byte[] array, byte value, int startIndex, int count) {
             if (array==null)
-                throw new ArgumentNullException("array");
+                throw new ArgumentNullException(nameof(array));
             if (startIndex < 0)
-                throw new ArgumentOutOfRangeException("startIndex", Environment.GetResourceString("ArgumentOutOfRange_Index"));
+                throw new ArgumentOutOfRangeException(nameof(startIndex), Environment.GetResourceString("ArgumentOutOfRange_Index"));
             if (count < 0)
-                throw new ArgumentOutOfRangeException("count", Environment.GetResourceString("ArgumentOutOfRange_Count"));
+                throw new ArgumentOutOfRangeException(nameof(count), Environment.GetResourceString("ArgumentOutOfRange_Count"));
             if (count > array.Length - startIndex)
                 throw new ArgumentException(Environment.GetResourceString("Argument_InvalidOffLen"));
             Contract.EndContractBlock();
@@ -377,21 +357,16 @@ namespace System.Collections.Generic
             return -1;
         }
 
-        // Equals method for the comparer itself. 
-        public override bool Equals(Object obj){
-            ByteEqualityComparer comparer = obj as ByteEqualityComparer;
-            return comparer != null;
-        }        
+        // Equals method for the comparer itself.
+        public override bool Equals(Object obj) =>
+            obj != null && GetType() == obj.GetType();
 
-        public override int GetHashCode() {
-            return this.GetType().Name.GetHashCode();
-        }                                
+        public override int GetHashCode() =>
+            GetType().GetHashCode();      
     }
 
-#if FEATURE_SERIALIZATION
     [Serializable]
-#endif
-    internal class EnumEqualityComparer<T> : EqualityComparer<T>, ISerializable where T : struct
+    internal class EnumEqualityComparer<T> : EqualityComparer<T> where T : struct
     {
         [Pure]
         public override bool Equals(T x, T y) {
@@ -408,37 +383,42 @@ namespace System.Collections.Generic
 
         public EnumEqualityComparer() { }
 
-        // This is used by the serialization engine.
-        protected EnumEqualityComparer(SerializationInfo information, StreamingContext context) { }
+        // Equals method for the comparer itself.
+        public override bool Equals(Object obj) =>
+            obj != null && GetType() == obj.GetType();
 
-        [SecurityCritical]
-        public void GetObjectData(SerializationInfo info, StreamingContext context) {
-            // For back-compat we need to serialize the comparers for enums with underlying types other than int as ObjectEqualityComparer 
-            if (Type.GetTypeCode(Enum.GetUnderlyingType(typeof(T))) != TypeCode.Int32) {
-                info.SetType(typeof(ObjectEqualityComparer<T>));
+        public override int GetHashCode() =>
+            GetType().GetHashCode();
+
+        internal override int IndexOf(T[] array, T value, int startIndex, int count)
+        {
+            int toFind = JitHelpers.UnsafeEnumCast(value);
+            int endIndex = startIndex + count;
+            for (int i = startIndex; i < endIndex; i++)
+            {
+                int current = JitHelpers.UnsafeEnumCast(array[i]);
+                if (toFind == current) return i;
             }
+            return -1;
         }
 
-        // Equals method for the comparer itself. 
-        public override bool Equals(Object obj){
-            EnumEqualityComparer<T> comparer = obj as EnumEqualityComparer<T>;
-            return comparer != null;
-        }
-
-        public override int GetHashCode() {
-            return this.GetType().Name.GetHashCode();
+        internal override int LastIndexOf(T[] array, T value, int startIndex, int count)
+        {
+            int toFind = JitHelpers.UnsafeEnumCast(value);
+            int endIndex = startIndex - count + 1;
+            for (int i = startIndex; i >= endIndex; i--)
+            {
+                int current = JitHelpers.UnsafeEnumCast(array[i]);
+                if (toFind == current) return i;
+            }
+            return -1;
         }
     }
 
-#if FEATURE_SERIALIZATION
     [Serializable]
-#endif
-    internal sealed class SByteEnumEqualityComparer<T> : EnumEqualityComparer<T>, ISerializable where T : struct
+    internal sealed class SByteEnumEqualityComparer<T> : EnumEqualityComparer<T> where T : struct
     {
         public SByteEnumEqualityComparer() { }
-
-        // This is used by the serialization engine.
-        public SByteEnumEqualityComparer(SerializationInfo information, StreamingContext context) { }
 
         [Pure]
         public override int GetHashCode(T obj) {
@@ -447,15 +427,10 @@ namespace System.Collections.Generic
         }
     }
 
-#if FEATURE_SERIALIZATION
     [Serializable]
-#endif
-    internal sealed class ShortEnumEqualityComparer<T> : EnumEqualityComparer<T>, ISerializable where T : struct
+    internal sealed class ShortEnumEqualityComparer<T> : EnumEqualityComparer<T> where T : struct
     {
         public ShortEnumEqualityComparer() { }
-
-        // This is used by the serialization engine.
-        public ShortEnumEqualityComparer(SerializationInfo information, StreamingContext context) { }
 
         [Pure]
         public override int GetHashCode(T obj) {
@@ -464,10 +439,8 @@ namespace System.Collections.Generic
         }
     }
 
-#if FEATURE_SERIALIZATION
     [Serializable]
-#endif
-    internal sealed class LongEnumEqualityComparer<T> : EqualityComparer<T>, ISerializable where T : struct
+    internal sealed class LongEnumEqualityComparer<T> : EqualityComparer<T> where T : struct
     {
         [Pure]
         public override bool Equals(T x, T y) {
@@ -482,27 +455,37 @@ namespace System.Collections.Generic
             return x_final.GetHashCode();
         }
 
-        // Equals method for the comparer itself. 
-        public override bool Equals(Object obj){
-            LongEnumEqualityComparer<T> comparer = obj as LongEnumEqualityComparer<T>;
-            return comparer != null;
-        }
+        // Equals method for the comparer itself.
+        public override bool Equals(Object obj) =>
+            obj != null && GetType() == obj.GetType();
 
-        public override int GetHashCode() {
-            return this.GetType().Name.GetHashCode();
-        }
+        public override int GetHashCode() =>
+            GetType().GetHashCode();
 
         public LongEnumEqualityComparer() { }
 
-        // This is used by the serialization engine.
-        public LongEnumEqualityComparer(SerializationInfo information, StreamingContext context) { }
-
-        [SecurityCritical]
-        public void GetObjectData(SerializationInfo info, StreamingContext context)
+        internal override int IndexOf(T[] array, T value, int startIndex, int count)
         {
-            // The LongEnumEqualityComparer does not exist on 4.0 so we need to serialize this comparer as ObjectEqualityComparer
-            // to allow for roundtrip between 4.0 and 4.5.
-            info.SetType(typeof(ObjectEqualityComparer<T>));
+            long toFind = JitHelpers.UnsafeEnumCastLong(value);
+            int endIndex = startIndex + count;
+            for (int i = startIndex; i < endIndex; i++)
+            {
+                long current = JitHelpers.UnsafeEnumCastLong(array[i]);
+                if (toFind == current) return i;
+            }
+            return -1;
+        }
+
+        internal override int LastIndexOf(T[] array, T value, int startIndex, int count)
+        {
+            long toFind = JitHelpers.UnsafeEnumCastLong(value);
+            int endIndex = startIndex - count + 1;
+            for (int i = startIndex; i >= endIndex; i--)
+            {
+                long current = JitHelpers.UnsafeEnumCastLong(array[i]);
+                if (toFind == current) return i;
+            }
+            return -1;
         }
     }
 
@@ -536,14 +519,12 @@ namespace System.Collections.Generic
         }
 
         [Pure]
-        [SecuritySafeCritical]
         public int GetHashCode(String obj) {
             if(obj == null) return 0;
             return String.InternalMarvin32HashString(obj, obj.Length, _entropy);
         }
 
         [Pure]
-        [SecuritySafeCritical]
         public int GetHashCode(Object obj) {
             if(obj == null) return 0;
 
@@ -560,7 +541,7 @@ namespace System.Collections.Generic
         }
 
         public override int GetHashCode() {
-            return (this.GetType().Name.GetHashCode() ^ ((int) (_entropy & 0x7FFFFFFF))); 
+            return (this.GetType().GetHashCode() ^ ((int) (_entropy & 0x7FFFFFFF))); 
         }
 
 
@@ -595,7 +576,6 @@ namespace System.Collections.Generic
         }
 
         [Pure]
-        [SecuritySafeCritical]
         public int GetHashCode(Object obj) {
             if(obj == null) return 0;
 
@@ -612,7 +592,7 @@ namespace System.Collections.Generic
         }
 
         public override int GetHashCode() {
-            return (this.GetType().Name.GetHashCode() ^ ((int) (_entropy & 0x7FFFFFFF))); 
+            return (this.GetType().GetHashCode() ^ ((int) (_entropy & 0x7FFFFFFF))); 
         }
 
         IEqualityComparer IWellKnownStringEqualityComparer.GetRandomizedEqualityComparer() {

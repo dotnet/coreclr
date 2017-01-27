@@ -21,9 +21,7 @@ namespace System.Runtime.InteropServices {
     // exceptions.
     // 
     [System.Runtime.InteropServices.ComVisible(true)]
-#if FEATURE_SERIALIZATION
     [Serializable]
-#endif
     public class ExternalException : SystemException {
         public ExternalException() 
             : base(Environment.GetResourceString("Arg_ExternalException")) {
@@ -54,7 +52,6 @@ namespace System.Runtime.InteropServices {
             }
         }
 
-#if !FEATURE_CORECLR // Breaks the subset-of-Orcas property
         public override String ToString() {
             String message = Message;
             String s;
@@ -77,6 +74,5 @@ namespace System.Runtime.InteropServices {
 
             return s;
         }
-#endif // !FEATURE_CORECLR
     }
 }

@@ -1,4 +1,5 @@
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 include_directories("./jitstd")
 include_directories("../inc")
@@ -6,9 +7,9 @@ include_directories("../inc")
 # Enable the following for UNIX altjit on Windows
 # add_definitions(-DALT_JIT)
 
-if (CLR_CMAKE_TARGET_ARCH_AMD64)
-  add_definitions(-DFEATURE_SIMD) 
-  add_definitions(-DFEATURE_AVX_SUPPORT) 
+if (CLR_CMAKE_TARGET_ARCH_AMD64 OR (CLR_CMAKE_TARGET_ARCH_I386 AND NOT CLR_CMAKE_PLATFORM_UNIX))
+  add_definitions(-DFEATURE_SIMD)
+  add_definitions(-DFEATURE_AVX_SUPPORT)
 endif ()
 
 
@@ -22,6 +23,7 @@ set( JIT_SOURCES
   bitset.cpp
   block.cpp
   codegencommon.cpp
+  codegenlinear.cpp
   compiler.cpp
   copyprop.cpp
   disasm.cpp
@@ -46,11 +48,13 @@ set( JIT_SOURCES
   jiteh.cpp
   jittelemetry.cpp
   lclvars.cpp
+  lir.cpp
   liveness.cpp
   loopcloning.cpp
   lower.cpp
   lsra.cpp
   morph.cpp
+  objectalloc.cpp
   optcse.cpp
   optimizer.cpp
   rangecheck.cpp
@@ -60,6 +64,7 @@ set( JIT_SOURCES
   regset.cpp
   scopeinfo.cpp
   sharedfloat.cpp
+  sideeffects.cpp
   sm.cpp
   smdata.cpp
   smweights.cpp
@@ -99,6 +104,7 @@ elseif(CLR_CMAKE_TARGET_ARCH_I386)
     simd.cpp
     simdcodegenxarch.cpp
     targetx86.cpp
+    unwindx86.cpp
   )
 elseif(CLR_CMAKE_TARGET_ARCH_ARM64)
   set( ARCH_SOURCES
@@ -190,19 +196,17 @@ endif()
 
 add_custom_target(jit_exports DEPENDS ${JIT_EXPORTS_FILE})
 
-set(JIT_BASE_NAME clrjit)
-if (CLR_BUILD_JIT32)
-  set(JIT_BASE_NAME ryujit)
-endif()
-
-if(WIN32)
-  add_definitions(-DFX_VER_INTERNALNAME_STR=${JIT_BASE_NAME}.dll)
-endif(WIN32)
-
 add_subdirectory(dll)
 add_subdirectory(crossgen)
 add_subdirectory(standalone)
 
-if (CLR_CMAKE_PLATFORM_ARCH_I386 OR CLR_CMAKE_PLATFORM_ARCH_ARM)
+if (CLR_CMAKE_PLATFORM_ARCH_ARM)
     add_subdirectory(protojit)
-endif (CLR_CMAKE_PLATFORM_ARCH_I386 OR CLR_CMAKE_PLATFORM_ARCH_ARM)
+endif (CLR_CMAKE_PLATFORM_ARCH_ARM)
+
+if (CLR_CMAKE_PLATFORM_ARCH_I386 AND WIN32)
+    add_subdirectory(legacyjit)
+    if (NOT CLR_BUILD_JIT32)
+        add_subdirectory(compatjit)
+    endif ()
+endif (CLR_CMAKE_PLATFORM_ARCH_I386 AND WIN32)

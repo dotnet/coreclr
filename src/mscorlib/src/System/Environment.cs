@@ -32,17 +32,16 @@ namespace System {
     using System.Diagnostics.Contracts;
 
     [ComVisible(true)]
-    public enum EnvironmentVariableTarget {
+    public enum EnvironmentVariableTarget
+    {
         Process = 0,
-#if FEATURE_WIN32_REGISTRY            
         User = 1,
         Machine = 2,
-#endif        
     }
 
     [ComVisible(true)]
-    public static class Environment {
-
+    public static partial class Environment
+    {
         // Assume the following constants include the terminating '\0' - use <, not <=
         const int MaxEnvVariableValueLength = 32767;  // maximum length for environment variable name and value
         // System environment variables are stored in the registry, and have 
@@ -89,11 +88,10 @@ namespace System {
                 }
             }
             
-            [System.Security.SecuritySafeCritical]  // auto-generated
             [ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]
             internal String GetResourceString(String key)  {
                 if (key == null || key.Length == 0) {
-                    Contract.Assert(false, "Environment::GetResourceString with null or empty key.  Bug in caller, or weird recursive loading problem?");
+                    Debug.Assert(false, "Environment::GetResourceString with null or empty key.  Bug in caller, or weird recursive loading problem?");
                     return "[Resource lookup failed - null or empty resource name]";
                 }
 
@@ -125,11 +123,6 @@ namespace System {
                 return userData.m_retVal;
             }
 
-            #if FEATURE_CORECLR
-            [System.Security.SecurityCritical] // auto-generated
-            #else
-            [System.Security.SecuritySafeCritical]
-            #endif
             private void GetResourceStringCode(Object userDataIn)
             {
                 GetResourceStringUserData userData = (GetResourceStringUserData) userDataIn;
@@ -189,14 +182,11 @@ namespace System {
                 String s = rh.SystemResMgr.GetString(key, null);
                 rh.currentlyLoading.RemoveAt(rh.currentlyLoading.Count - 1); // Pop
 
-                Contract.Assert(s!=null, "Managed resource string lookup failed.  Was your resource name misspelled?  Did you rebuild mscorlib after adding a resource to resources.txt?  Debug this w/ cordbg and bug whoever owns the code that called Environment.GetResourceString.  Resource name was: \""+key+"\"");
+                Debug.Assert(s!=null, "Managed resource string lookup failed.  Was your resource name misspelled?  Did you rebuild mscorlib after adding a resource to resources.txt?  Debug this w/ cordbg and bug whoever owns the code that called Environment.GetResourceString.  Resource name was: \""+key+"\"");
 
                 userData.m_retVal = s;
             }
 
-            #if FEATURE_CORECLR
-            [System.Security.SecurityCritical] // auto-generated
-            #endif
             [PrePrepareMethod]
             private void GetResourceStringBackoutCode(Object userDataIn, bool exceptionThrown)
             {
@@ -248,32 +238,24 @@ namespace System {
         **Exceptions: None
         ==============================================================================*/
         public static extern int TickCount {
-            [System.Security.SecuritySafeCritical]  // auto-generated
             [MethodImplAttribute(MethodImplOptions.InternalCall)]
             get;
         }
         
         // Terminates this process with the given exit code.
-        [System.Security.SecurityCritical]  // auto-generated
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         [SuppressUnmanagedCodeSecurity]
         internal static extern void _Exit(int exitCode);
 
-        [System.Security.SecuritySafeCritical]  // auto-generated
-#pragma warning disable 618
-        [SecurityPermissionAttribute(SecurityAction.Demand, Flags=SecurityPermissionFlag.UnmanagedCode)]
-#pragma warning restore 618
         public static void Exit(int exitCode) {
             _Exit(exitCode);
         }
 
 
         public static extern int ExitCode {
-            [System.Security.SecuritySafeCritical]  // auto-generated
             [MethodImplAttribute(MethodImplOptions.InternalCall)]
             get;
     
-            [System.Security.SecuritySafeCritical]  // auto-generated
             [MethodImplAttribute(MethodImplOptions.InternalCall)]
             set;
         }
@@ -281,11 +263,9 @@ namespace System {
         // Note: The CLR's Watson bucketization code looks at the caller of the FCALL method
         // to assign blame for crashes.  Don't mess with this, such as by making it call 
         // another managed helper method, unless you consult with some CLR Watson experts.
-        [System.Security.SecurityCritical]
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         public static extern void FailFast(String message);
 
-        [System.Security.SecurityCritical]
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         internal static extern void FailFast(String message, uint exitCode);
 
@@ -302,43 +282,8 @@ namespace System {
         //    if the exception object is preallocated, the runtime will use the callsite's
         //    IP for bucketing. If the exception object is not preallocated, it will use the bucket
         //    details contained in the object (if any).
-        [System.Security.SecurityCritical]
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         public static extern void FailFast(String message, Exception exception);
-
-#if !FEATURE_CORECLR
-        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        [SecurityCritical]  // Our security team doesn't yet allow safe-critical P/Invoke methods.
-        [SuppressUnmanagedCodeSecurity]
-        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]
-        internal static extern void TriggerCodeContractFailure(ContractFailureKind failureKind, String message, String condition, String exceptionAsString);
-
-        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        [SecurityCritical]  // Our security team doesn't yet allow safe-critical P/Invoke methods.
-        [SuppressUnmanagedCodeSecurity]
-        [return: MarshalAs(UnmanagedType.Bool)]
-        private static extern bool GetIsCLRHosted();
-
-        internal static bool IsCLRHosted {
-            [SecuritySafeCritical]
-            get { return GetIsCLRHosted(); }
-        }
-
-        public static String CommandLine {
-            [System.Security.SecuritySafeCritical]  // auto-generated
-            get {
-                new EnvironmentPermission(EnvironmentPermissionAccess.Read, "Path").Demand();
-
-                String commandLine = null;
-                GetCommandLine(JitHelpers.GetStringHandleOnStack(ref commandLine));
-                return commandLine;
-            }
-        }
-
-        [System.Security.SecurityCritical]  // auto-generated
-        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode), SuppressUnmanagedCodeSecurity]
-        private static extern void GetCommandLine(StringHandleOnStack retString);
-#endif // !FEATURE_CORECLR
 
         /*===============================CurrentDirectory===============================
         **Action:  Provides a getter and setter for the current directory.  The original
@@ -353,9 +298,6 @@ namespace System {
                 return Directory.GetCurrentDirectory();
             }
 
-            #if FEATURE_CORECLR
-            [System.Security.SecurityCritical] // auto-generated
-            #endif
             set { 
                 Directory.SetCurrentDirectory(value);
             }
@@ -363,22 +305,12 @@ namespace System {
 
         // Returns the system directory (ie, C:\WinNT\System32).
         public static String SystemDirectory {
-#if FEATURE_CORECLR
-            [System.Security.SecurityCritical]
-#else
-            [System.Security.SecuritySafeCritical]  // auto-generated
-#endif
             get {
                 StringBuilder sb = new StringBuilder(Path.MaxPath);
                 int r = Win32Native.GetSystemDirectory(sb, Path.MaxPath);
-                Contract.Assert(r < Path.MaxPath, "r < Path.MaxPath");
+                Debug.Assert(r < Path.MaxPath, "r < Path.MaxPath");
                 if (r==0) __Error.WinIOError();
                 String path = sb.ToString();
-                
-#if !FEATURE_CORECLR
-                // Do security check
-                new FileIOPermission(FileIOPermissionAccess.PathDiscovery, path).Demand();
-#endif
 
                 return path;
             }
@@ -387,11 +319,10 @@ namespace System {
         // Returns the windows directory (ie, C:\WinNT).
         // Used by NLS+ custom culures only at the moment.
         internal static String InternalWindowsDirectory {
-            [System.Security.SecurityCritical]  // auto-generated
             get {
                 StringBuilder sb = new StringBuilder(Path.MaxPath);
                 int r = Win32Native.GetWindowsDirectory(sb, Path.MaxPath);
-                Contract.Assert(r < Path.MaxPath, "r < Path.MaxPath");
+                Debug.Assert(r < Path.MaxPath, "r < Path.MaxPath");
                 if (r==0) __Error.WinIOError();
                 String path = sb.ToString();
                 
@@ -399,11 +330,10 @@ namespace System {
             }
         }
 
-        [System.Security.SecuritySafeCritical]  // auto-generated
         public static String ExpandEnvironmentVariables(String name)
         {
             if (name == null)
-                throw new ArgumentNullException("name");
+                throw new ArgumentNullException(nameof(name));
             Contract.EndContractBlock();
 
             if (name.Length == 0) {
@@ -442,63 +372,6 @@ namespace System {
 
             int size;
 
-#if !FEATURE_CORECLR
-            bool isFullTrust = CodeAccessSecurityEngine.QuickCheckForAllDemands();
-
-            // Do a security check to guarantee we can read each of the 
-            // individual environment variables requested here.
-            String[] varArray = name.Split(new char[] {'%'});
-            StringBuilder vars = isFullTrust ? null : new StringBuilder();
-
-            bool fJustExpanded = false; // to accommodate expansion alg.
-
-            for(int i=1; i<varArray.Length-1; i++) { // Skip first and last tokens
-                // ExpandEnvironmentStrings' greedy algorithm expands every
-                // non-boundary %-delimited substring, provided the previous
-                // has not been expanded.
-                // if "foo" is not expandable, and "PATH" is, then both
-                // %foo%PATH% and %foo%foo%PATH% will expand PATH, but
-                // %PATH%PATH% will expand only once.
-                // Therefore, if we've just expanded, skip this substring.
-                if (varArray[i].Length == 0 || fJustExpanded == true)
-                {
-                    fJustExpanded = false;
-                    continue; // Nothing to expand
-                }
-                // Guess a somewhat reasonable initial size, call the method, then if
-                // it fails (ie, the return value is larger than our buffer size),
-                // make a new buffer & try again.
-                blob.Length = 0;
-                String envVar = "%" + varArray[i] + "%";
-                size = Win32Native.ExpandEnvironmentStrings(envVar, blob, currentSize);
-                if (size == 0)
-                    Marshal.ThrowExceptionForHR(Marshal.GetHRForLastWin32Error());
-
-                // some environment variable might be changed while this function is called
-                while (size > currentSize) {
-                    currentSize = size;
-                    blob.Capacity = currentSize;
-                    blob.Length = 0;
-                    size = Win32Native.ExpandEnvironmentStrings(envVar, blob, currentSize);
-                    if (size == 0)
-                        Marshal.ThrowExceptionForHR(Marshal.GetHRForLastWin32Error());
-                }
-
-                if (!isFullTrust) {
-                    String temp = blob.ToString();
-                    fJustExpanded = (temp != envVar);
-                    if (fJustExpanded) { // We expanded successfully, we need to do String comparison here
-                        // since %FOO% can become %FOOD
-                        vars.Append(varArray[i]);
-                        vars.Append(';');
-                    }
-                }
-            }
-     
-            if (!isFullTrust)
-                new EnvironmentPermission(EnvironmentPermissionAccess.Read, vars.ToString()).Demand();
-#endif // !FEATURE_CORECLR
-
             blob.Length = 0;
             size = Win32Native.ExpandEnvironmentStrings(name, blob, currentSize);
             if (size == 0)
@@ -519,7 +392,6 @@ namespace System {
         }
 
         public static String MachineName {
-            [System.Security.SecuritySafeCritical]  // auto-generated
             get {
 
                 // UWP Debug scenarios
@@ -531,9 +403,6 @@ namespace System {
 
                 // In future release of operating systems, you might be able to rename a machine without
                 // rebooting.  Therefore, don't cache this machine name.
-#if !FEATURE_CORECLR
-                new EnvironmentPermission(EnvironmentPermissionAccess.Read, "COMPUTERNAME").Demand();
-#endif
                 StringBuilder buf = new StringBuilder(MaxMachineNameLength);
                 int len = MaxMachineNameLength;
                 if (Win32Native.GetComputerName(buf, ref len) == 0)
@@ -542,20 +411,17 @@ namespace System {
             }
         }
 
-        [SecurityCritical]
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         [SuppressUnmanagedCodeSecurity]
         private static extern Int32 GetProcessorCount();
 
         public static int ProcessorCount {
-            [System.Security.SecuritySafeCritical]  // auto-generated
             get {
                 return GetProcessorCount();
             }
         }
 
         public static int SystemPageSize {
-            [System.Security.SecuritySafeCritical]  // auto-generated
             get {
                 (new EnvironmentPermission(PermissionState.Unrestricted)).Demand();
                 Win32Native.SYSTEM_INFO info = new Win32Native.SYSTEM_INFO();
@@ -571,11 +437,9 @@ namespace System {
         **Arguments: None
         **Exceptions: None.
         ==============================================================================*/
-        [System.Security.SecuritySafeCritical]  // auto-generated
         public static String[] GetCommandLineArgs()
         {
             new EnvironmentPermission(EnvironmentPermissionAccess.Read, "Path").Demand();
-#if FEATURE_CORECLR
             /*
              * There are multiple entry points to a hosted app.
              * The host could use ::ExecuteAssembly() or ::CreateDelegate option
@@ -591,145 +455,37 @@ namespace System {
              */
             if(s_CommandLineArgs != null)
                 return (string[])s_CommandLineArgs.Clone();
-#endif
+
             return GetCommandLineArgsNative();
         }
 
-        [System.Security.SecurityCritical]  // auto-generated
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         private static extern String[] GetCommandLineArgsNative();
 
-#if !FEATURE_CORECLR
-        // We need to keep this Fcall since it is used in AppDomain.cs.
-        // If we call GetEnvironmentVariable from AppDomain.cs, we will use StringBuilder class.
-        // That has side effect to change the ApartmentState of the calling Thread to MTA.
-        // So runtime can't change the ApartmentState of calling thread any more.
-        [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        internal static extern String nativeGetEnvironmentVariable(String variable);
-#endif //!FEATURE_CORECLR
-
-#if FEATURE_CORECLR
         private static string[] s_CommandLineArgs = null;
         private static void SetCommandLineArgs(string[] cmdLineArgs)
         {
             s_CommandLineArgs = cmdLineArgs;
         }
-#endif
 
-        /*============================GetEnvironmentVariable============================
-        **Action:
-        **Returns:
-        **Arguments:
-        **Exceptions:
-        ==============================================================================*/
-        [System.Security.SecuritySafeCritical]  // auto-generated
-        public static String GetEnvironmentVariable(String variable)
-        {
-            if (variable == null)
-                throw new ArgumentNullException("variable");
-            Contract.EndContractBlock();
-
-            if (AppDomain.IsAppXModel() && !AppDomain.IsAppXDesignMode()) {
-                // Environment variable accessors are not approved modern API.
-                // Behave as if the variable was not found in this case.
-                return null; 
-            }
-
-#if !FEATURE_CORECLR
-            (new EnvironmentPermission(EnvironmentPermissionAccess.Read, variable)).Demand();
-#endif //!FEATURE_CORECLR
-            
-            StringBuilder blob = StringBuilderCache.Acquire(128); // A somewhat reasonable default size
-            int requiredSize = Win32Native.GetEnvironmentVariable(variable, blob, blob.Capacity);
-
-            if (requiredSize == 0) {  //  GetEnvironmentVariable failed
-                if (Marshal.GetLastWin32Error() == Win32Native.ERROR_ENVVAR_NOT_FOUND) {
-                    StringBuilderCache.Release(blob);
-                    return null;
-                }
-            }
-
-            while (requiredSize > blob.Capacity) { // need to retry since the environment variable might be changed 
-                blob.Capacity = requiredSize;
-                blob.Length = 0;
-                requiredSize = Win32Native.GetEnvironmentVariable(variable, blob, blob.Capacity);
-            }
-            return StringBuilderCache.GetStringAndRelease(blob);
-        }
-
-        [System.Security.SecuritySafeCritical]  // auto-generated
-        public static string GetEnvironmentVariable( string variable, EnvironmentVariableTarget target)                
-        {
-            if (variable == null)
-            {
-                throw new ArgumentNullException("variable");
-            }
-            Contract.EndContractBlock();
-
-            if (target == EnvironmentVariableTarget.Process)
-            {
-                return GetEnvironmentVariable(variable);
-            }
-
-#if FEATURE_WIN32_REGISTRY
-            (new EnvironmentPermission(PermissionState.Unrestricted)).Demand();
-
-            if( target == EnvironmentVariableTarget.Machine) {
-                using (RegistryKey environmentKey = 
-                       Registry.LocalMachine.OpenSubKey(@"System\CurrentControlSet\Control\Session Manager\Environment", false)) {
-
-                   Contract.Assert(environmentKey != null, @"HKLM\System\CurrentControlSet\Control\Session Manager\Environment is missing!");
-                   if (environmentKey == null) {
-                       return null; 
-                   }
-
-                   string value = environmentKey.GetValue(variable) as string;
-                   return value;
-                }
-            }
-            else if( target == EnvironmentVariableTarget.User) {
-                using (RegistryKey environmentKey = 
-                       Registry.CurrentUser.OpenSubKey("Environment", false)) {
-
-                   Contract.Assert(environmentKey != null, @"HKCU\Environment is missing!");
-                   if (environmentKey == null) {
-                       return null; 
-                   }
-
-                   string value = environmentKey.GetValue(variable) as string;
-                   return value;
-                }
-            }
-            else 
-#endif // FEATURE_WIN32_REGISTRY                
-                {
-                throw new ArgumentException(Environment.GetResourceString("Arg_EnumIllegalVal", (int)target));
-            }
-        }
-
-        /*===========================GetEnvironmentVariables============================
-        **Action: Returns an IDictionary containing all enviroment variables and their values.
-        **Returns: An IDictionary containing all environment variables and their values.
-        **Arguments: None.
-        **Exceptions: None.
-        ==============================================================================*/
-        [System.Security.SecurityCritical]  // auto-generated
         private unsafe static char[] GetEnvironmentCharArray()
         {
             char[] block = null;
 
             // Make sure pStrings is not leaked with async exceptions
             RuntimeHelpers.PrepareConstrainedRegions();
-            try {
+            try
+            {
             }
-            finally {
-                char * pStrings = null;
+            finally
+            {
+                char* pStrings = null;
 
                 try
                 {
                     pStrings = Win32Native.GetEnvironmentStrings();
-                    if (pStrings == null) {
+                    if (pStrings == null)
+                    {
                         throw new OutOfMemoryException();
                     }
 
@@ -739,7 +495,7 @@ namespace System {
                     // CreateProcess page (null-terminated array of null-terminated strings).
 
                     // Search for terminating \0\0 (two unicode \0's).
-                    char * p = pStrings;
+                    char* p = pStrings;
                     while (!(*p == '\0' && *(p + 1) == '\0'))
                         p++;
 
@@ -747,7 +503,7 @@ namespace System {
                     block = new char[len];
 
                     fixed (char* pBlock = block)
-                        String.wstrcpy(pBlock, pStrings, len);
+                        string.wstrcpy(pBlock, pStrings, len);
                 }
                 finally
                 {
@@ -759,275 +515,12 @@ namespace System {
             return block;
         }
 
-        [System.Security.SecuritySafeCritical]  // auto-generated
-        public static IDictionary GetEnvironmentVariables()
-        {
-            if (AppDomain.IsAppXModel() && !AppDomain.IsAppXDesignMode()) {
-                // Environment variable accessors are not approved modern API.
-                // Behave as if no environment variables are defined in this case.
-                return new Hashtable(0);
-            }
-
-#if !FEATURE_CORECLR
-            bool isFullTrust = CodeAccessSecurityEngine.QuickCheckForAllDemands();
-            StringBuilder vars = isFullTrust ? null : new StringBuilder();  
-            bool first = true;
-#endif
-
-            char[] block = GetEnvironmentCharArray();
-
-            Hashtable table = new Hashtable(20);
-
-            // Copy strings out, parsing into pairs and inserting into the table.
-            // The first few environment variable entries start with an '='!
-            // The current working directory of every drive (except for those drives
-            // you haven't cd'ed into in your DOS window) are stored in the 
-            // environment block (as =C:=pwd) and the program's exit code is 
-            // as well (=ExitCode=00000000)  Skip all that start with =.
-            // Read docs about Environment Blocks on MSDN's CreateProcess page.
-            
-            // Format for GetEnvironmentStrings is:
-            // (=HiddenVar=value\0 | Variable=value\0)* \0
-            // See the description of Environment Blocks in MSDN's
-            // CreateProcess page (null-terminated array of null-terminated strings).
-            // Note the =HiddenVar's aren't always at the beginning.
-            
-            for(int i=0; i<block.Length; i++) {
-                int startKey = i;
-                // Skip to key
-                // On some old OS, the environment block can be corrupted. 
-                // Someline will not have '=', so we need to check for '\0'. 
-                while(block[i]!='=' && block[i] != '\0') {
-                    i++;
-                }
-
-                if(block[i] == '\0') {
-                    continue;
-                }
-
-                // Skip over environment variables starting with '='
-                if (i-startKey==0) {
-                    while(block[i]!=0) {
-                        i++;
-                    }
-                    continue;
-                }
-                String key = new String(block, startKey, i-startKey);
-                i++;  // skip over '='
-                int startValue = i;
-                while(block[i]!=0) {
-                    // Read to end of this entry 
-                    i++;
-                }
-
-                String value = new String(block, startValue, i-startValue);
-                // skip over 0 handled by for loop's i++
-                table[key]=value;
-
-#if !FEATURE_CORECLR
-                if (!isFullTrust) {
-                    if( first) {      
-                        first = false;
-                    }
-                    else {
-                        vars.Append(';');
-                    }
-                    vars.Append(key);
-                }
-#endif
-            }
-
-#if !FEATURE_CORECLR
-            if (!isFullTrust)
-                new EnvironmentPermission(EnvironmentPermissionAccess.Read, vars.ToString()).Demand();
-#endif
-            return table;
-        }
-
-#if FEATURE_WIN32_REGISTRY
-        internal static IDictionary GetRegistryKeyNameValuePairs(RegistryKey registryKey) {
-            Hashtable table = new Hashtable(20);
-
-            if (registryKey != null) {
-                string[] names = registryKey.GetValueNames();
-                foreach( string name in names) {
-                    string value = registryKey.GetValue(name, "").ToString();
-                    table.Add(name, value);                
-                }            
-            }
-            return table;
-        }
-#endif
-
-        [System.Security.SecuritySafeCritical]  // auto-generated
-        public static IDictionary GetEnvironmentVariables( EnvironmentVariableTarget target) {
-            if( target == EnvironmentVariableTarget.Process) {
-                return GetEnvironmentVariables();
-            }
-
-#if FEATURE_WIN32_REGISTRY
-            (new EnvironmentPermission(PermissionState.Unrestricted)).Demand();
-
-            if( target == EnvironmentVariableTarget.Machine) {
-                using (RegistryKey environmentKey = 
-                       Registry.LocalMachine.OpenSubKey(@"System\CurrentControlSet\Control\Session Manager\Environment", false)) {
-
-                   return GetRegistryKeyNameValuePairs(environmentKey);
-                }
-            }
-            else if( target == EnvironmentVariableTarget.User) {
-                using (RegistryKey environmentKey = 
-                       Registry.CurrentUser.OpenSubKey("Environment", false)) {
-                   return GetRegistryKeyNameValuePairs(environmentKey);
-                }
-            }
-            else 
-#endif // FEATURE_WIN32_REGISTRY                
-                {
-                throw new ArgumentException(Environment.GetResourceString("Arg_EnumIllegalVal", (int)target));
-            }
-        }
-
-        [System.Security.SecuritySafeCritical]  // auto-generated
-        public static void SetEnvironmentVariable(string variable, string value) {
-            CheckEnvironmentVariableName(variable);
-
-#if !FEATURE_CORECLR
-            new EnvironmentPermission(PermissionState.Unrestricted).Demand();
-#endif
-            // explicitly null out value if is the empty string. 
-            if (String.IsNullOrEmpty(value) || value[0] == '\0') {
-                value = null;
-            }
-            else {
-                if( value.Length >= MaxEnvVariableValueLength) {
-                    throw new ArgumentException(Environment.GetResourceString("Argument_LongEnvVarValue"));                                    
-                }
-            }
-
-            if (AppDomain.IsAppXModel() && !AppDomain.IsAppXDesignMode()) {
-                // Environment variable accessors are not approved modern API.
-                // so we throw PlatformNotSupportedException.
-                throw new PlatformNotSupportedException();
-            }
-
-            if(!Win32Native.SetEnvironmentVariable(variable, value)) {
-                int errorCode = Marshal.GetLastWin32Error();
-                
-                // Allow user to try to clear a environment variable                
-                if( errorCode == Win32Native.ERROR_ENVVAR_NOT_FOUND) {
-                    return;
-                }
-                
-                // The error message from Win32 is "The filename or extension is too long",
-                // which is not accurate.
-                if( errorCode == Win32Native.ERROR_FILENAME_EXCED_RANGE) {
-                    throw new ArgumentException(Environment.GetResourceString("Argument_LongEnvVarValue"));
-                }
-                
-                throw new ArgumentException(Win32Native.GetMessage(errorCode));
-            }
-        }
-
-        private static void CheckEnvironmentVariableName(string variable) {
-            if (variable == null) {
-                throw new ArgumentNullException("variable");
-            }
-
-            if( variable.Length == 0) {
-                throw new ArgumentException(Environment.GetResourceString("Argument_StringZeroLength"), "variable");
-            }
-
-            if( variable[0] == '\0') {
-                throw new ArgumentException(Environment.GetResourceString("Argument_StringFirstCharIsZero"), "variable");
-            }
-
-            // Make sure the environment variable name isn't longer than the 
-            // max limit on environment variable values.  (MSDN is ambiguous 
-            // on whether this check is necessary.)
-            if( variable.Length >= MaxEnvVariableValueLength ) {
-                throw new ArgumentException(Environment.GetResourceString("Argument_LongEnvVarValue"));                
-            }
-            
-            if( variable.IndexOf('=') != -1) {
-                throw new ArgumentException(Environment.GetResourceString("Argument_IllegalEnvVarName"));
-            }
-            Contract.EndContractBlock();
-        }
-
-        [System.Security.SecuritySafeCritical]  // auto-generated
-        public static void SetEnvironmentVariable(string variable, string value, EnvironmentVariableTarget target) { 
-            if( target == EnvironmentVariableTarget.Process) {
-                SetEnvironmentVariable(variable, value);
-                return;
-            }
-        
-            CheckEnvironmentVariableName(variable);
-
-            // System-wide environment variables stored in the registry are
-            // limited to 1024 chars for the environment variable name.
-            if (variable.Length >= MaxSystemEnvVariableLength) {
-                throw new ArgumentException(Environment.GetResourceString("Argument_LongEnvVarName"));
-            }
-
-            new EnvironmentPermission(PermissionState.Unrestricted).Demand();
-            // explicitly null out value if is the empty string. 
-            if (String.IsNullOrEmpty(value) || value[0] == '\0') {
-                value = null;
-            }
-#if FEATURE_WIN32_REGISTRY
-            if( target == EnvironmentVariableTarget.Machine) {
-                using (RegistryKey environmentKey = 
-                       Registry.LocalMachine.OpenSubKey(@"System\CurrentControlSet\Control\Session Manager\Environment", true)) {
-
-                   Contract.Assert(environmentKey != null, @"HKLM\System\CurrentControlSet\Control\Session Manager\Environment is missing!");
-                   if (environmentKey != null) {
-                       if (value == null)
-                           environmentKey.DeleteValue(variable, false);
-                       else
-                           environmentKey.SetValue(variable, value);
-                   }
-                }
-            }
-            else if( target == EnvironmentVariableTarget.User) {
-                // User-wide environment variables stored in the registry are
-                // limited to 255 chars for the environment variable name.
-                if (variable.Length >= MaxUserEnvVariableLength) {
-                    throw new ArgumentException(Environment.GetResourceString("Argument_LongEnvVarValue"));
-                }
-                using (RegistryKey environmentKey = 
-                       Registry.CurrentUser.OpenSubKey("Environment", true)) {
-                   Contract.Assert(environmentKey != null, @"HKCU\Environment is missing!");
-                   if (environmentKey != null) {
-                      if (value == null)
-                          environmentKey.DeleteValue(variable, false);
-                      else
-                          environmentKey.SetValue(variable, value);
-                   }
-                }
-            }
-            else
-            {
-                throw new ArgumentException(Environment.GetResourceString("Arg_EnumIllegalVal", (int)target));
-            }
-            // send a WM_SETTINGCHANGE message to all windows
-            IntPtr r = Win32Native.SendMessageTimeout(new IntPtr(Win32Native.HWND_BROADCAST), Win32Native.WM_SETTINGCHANGE, IntPtr.Zero, "Environment", 0, 1000, IntPtr.Zero);
-
-            if (r == IntPtr.Zero) BCLDebug.Assert(false, "SetEnvironmentVariable failed: " + Marshal.GetLastWin32Error());
-
-#else // FEATURE_WIN32_REGISTRY
-            throw new ArgumentException(Environment.GetResourceString("Arg_EnumIllegalVal", (int)target));
-#endif
-        }
-
-        
         /*===============================GetLogicalDrives===============================
         **Action: Retrieves the names of the logical drives on this machine in the  form "C:\". 
         **Arguments:   None.
         **Exceptions:  IOException.
         **Permissions: SystemInfo Permission.
         ==============================================================================*/
-        [System.Security.SecuritySafeCritical]  // auto-generated
         public static String[] GetLogicalDrives() {
             new EnvironmentPermission(PermissionState.Unrestricted).Demand();
                                  
@@ -1097,12 +590,10 @@ namespace System {
         **Arguments:
         **Exceptions:
         ==============================================================================*/
-        [System.Security.SecurityCritical]  // auto-generated
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode), SuppressUnmanagedCodeSecurity]
         private static extern long GetWorkingSet();
 
         public static long WorkingSet {
-            [System.Security.SecuritySafeCritical]  // auto-generated
             get {
                 new EnvironmentPermission(PermissionState.Unrestricted).Demand();
                 return GetWorkingSet();
@@ -1117,7 +608,6 @@ namespace System {
         **Exceptions:
         ==============================================================================*/
         public static OperatingSystem OSVersion {
-            [System.Security.SecuritySafeCritical]  // auto-generated
             get {
                 Contract.Ensures(Contract.Result<OperatingSystem>() != null);
 
@@ -1141,12 +631,11 @@ namespace System {
                     Version v =  new Version(osvi.MajorVersion, osvi.MinorVersion, osvi.BuildNumber, (osviEx.ServicePackMajor << 16) |osviEx.ServicePackMinor);
                     m_os = new OperatingSystem(id, v, osvi.CSDVersion);
                 }
-                Contract.Assert(m_os != null, "m_os != null");
+                Debug.Assert(m_os != null, "m_os != null");
                 return m_os;
             }
         }
 
-#if FEATURE_CORESYSTEM
 
         internal static bool IsWindows8OrAbove {
             get {
@@ -1162,55 +651,10 @@ namespace System {
         }
 #endif // FEATURE_COMINTEROP
 
-#else // FEATURE_CORESYSTEM
 
-        private static volatile bool s_IsWindows8OrAbove;
-        private static volatile bool s_CheckedOSWin8OrAbove;
-
-        // Windows 8 version is 6.2
-        internal static bool IsWindows8OrAbove {
-            get {
-                if (!s_CheckedOSWin8OrAbove) {
-                    OperatingSystem OS = Environment.OSVersion;
-                    s_IsWindows8OrAbove = (OS.Platform == PlatformID.Win32NT && 
-                                   ((OS.Version.Major == 6 && OS.Version.Minor >= 2) || (OS.Version.Major > 6)));
-                    s_CheckedOSWin8OrAbove = true;
-                }
-                return s_IsWindows8OrAbove;
-            }
-        }
-
-#if FEATURE_COMINTEROP
-        private static volatile bool s_WinRTSupported;
-        private static volatile bool s_CheckedWinRT;
-
-        // Does the current version of Windows have Windows Runtime suppport?
-        internal static bool IsWinRTSupported {
-            [SecuritySafeCritical]
-            get {
-                if (!s_CheckedWinRT) {
-                    s_WinRTSupported = WinRTSupported();
-                    s_CheckedWinRT = true;
-                }
-
-                return s_WinRTSupported;
-            }
-        }
-
-        [SecurityCritical]
-        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        [SuppressUnmanagedCodeSecurity]
-        [return: MarshalAs(UnmanagedType.Bool)]
-        private static extern bool WinRTSupported();
-#endif // FEATURE_COMINTEROP
-
-#endif // FEATURE_CORESYSTEM
-
-        [System.Security.SecurityCritical]  // auto-generated
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         internal static extern bool GetVersion(Microsoft.Win32.Win32Native.OSVERSIONINFO  osVer);
 
-        [System.Security.SecurityCritical]  // auto-generated
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         internal static extern bool GetVersionEx(Microsoft.Win32.Win32Native.OSVERSIONINFOEX  osVer);
 
@@ -1222,7 +666,6 @@ namespace System {
         **Exceptions:
         ==============================================================================*/
         public static String StackTrace {
-            [System.Security.SecuritySafeCritical]  // auto-generated
             get {
                 Contract.Ensures(Contract.Result<String>() != null);
 
@@ -1231,9 +674,6 @@ namespace System {
             }
         }
 
-#if FEATURE_CORECLR
-        [System.Security.SecurityCritical] // auto-generated
-#endif
         internal static String GetStackTrace(Exception e, bool needFileInfo)
         {
             // Note: Setting needFileInfo to true will start up COM and set our
@@ -1250,7 +690,6 @@ namespace System {
             return st.ToString( System.Diagnostics.StackTrace.TraceFormat.Normal );
         }
 
-        [System.Security.SecuritySafeCritical]  // auto-generated
         private static void InitResourceHelper() {
             // Only the default AppDomain should have a ResourceHelper.  All calls to 
             // GetResourceString from any AppDomain delegate to GetResourceStringLocal 
@@ -1275,20 +714,13 @@ namespace System {
             }
         }
 
-#if !FEATURE_CORECLR
-        [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        internal extern static String GetResourceFromDefault(String key);           
-#endif
-
         // Looks up the resource string value for key.
         // 
         // if you change this method's signature then you must change the code that calls it
         // in excep.cpp and probably you will have to visit mscorlib.h to add the new signature
         // as well as metasig.h to create the new signature type
-#if FEATURE_CORECLR
-        [System.Security.SecurityCritical] // auto-generated
-#endif
+        // NoInlining causes the caller and callee to not be inlined in mscorlib as it is an assumption of StackCrawlMark use
+        [MethodImpl(MethodImplOptions.NoInlining)]
         internal static String GetResourceStringLocal(String key) {
             if (m_resHelper == null)
                 InitResourceHelper();
@@ -1296,30 +728,74 @@ namespace System {
             return m_resHelper.GetResourceString(key);
         }
 
-        [System.Security.SecuritySafeCritical]  // auto-generated
         internal static String GetResourceString(String key) {
-#if FEATURE_CORECLR
             return GetResourceStringLocal(key);
-#else
-            return GetResourceFromDefault(key);
-#endif //FEATURE_CORECLR
         }
 
-        [System.Security.SecuritySafeCritical]  // auto-generated
-        internal static String GetResourceString(String key, params Object[] values) {
-            String s = GetResourceString(key);
-            return String.Format(CultureInfo.CurrentCulture, s, values);
+        // The reason the following overloads exist are to reduce code bloat.
+        // Since GetResourceString is basically only called when exceptions are
+        // thrown, we want the code size to be as small as possible.
+        // Using the params object[] overload works against this since the
+        // initialization of the array is done inline in the caller at the IL
+        // level. So we have overloads that simply wrap the params one, and
+        // the methods they call through to are tagged as NoInlining. 
+        // In mscorlib NoInlining causes the caller and callee to not be inlined
+        // as it is an assumption of StackCrawlMark use so it is not added 
+        // directly to these methods, but to the ones they call.
+        // That way they do not bloat either the IL or the generated asm.
+
+        internal static string GetResourceString(string key, object val0)
+        {
+            return GetResourceStringFormatted(key, new object[] { val0 });
         }
 
-        //The following two internal methods are not used anywhere within the framework,
+        internal static string GetResourceString(string key, object val0, object val1)
+        {
+            return GetResourceStringFormatted(key, new object[] { val0, val1 });
+        }
+
+        internal static string GetResourceString(string key, object val0, object val1, object val2)
+        {
+            return GetResourceStringFormatted(key, new object[] { val0, val1, val2 });
+        }
+
+        internal static string GetResourceString(string key, object val0, object val1, object val2, object val3)
+        {
+            return GetResourceStringFormatted(key, new object[] { val0, val1, val2, val3 });
+        }
+
+        internal static string GetResourceString(string key, object val0, object val1, object val2, object val3, object val4)
+        {
+            return GetResourceStringFormatted(key, new object[] { val0, val1, val2, val3, val4 });
+        }
+
+        internal static string GetResourceString(string key, object val0, object val1, object val2, object val3, object val4, object val5)
+        {
+            return GetResourceStringFormatted(key, new object[] { val0, val1, val2, val3, val4, val5 });
+        }
+
+        internal static String GetResourceString(string key, params object[] values)
+        {
+            return GetResourceStringFormatted(key, values);
+        }
+
+        // NoInlining causes the caller and callee to not be inlined in mscorlib as it is an assumption of StackCrawlMark use
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private static String GetResourceStringFormatted(string key, params object[] values)
+        {
+            string rs = GetResourceString(key);
+            return String.Format(CultureInfo.CurrentCulture, rs, values);
+        }
+
+        // The following two internal methods are not used anywhere within the framework,
         // but are being kept around as external platforms built on top of us have taken 
         // dependency by using private reflection on them for getting system resource strings 
-        internal static String GetRuntimeResourceString(String key) {
+        private static String GetRuntimeResourceString(String key) {
             return GetResourceString(key);
         }
 
-        internal static String GetRuntimeResourceString(String key, params Object[] values) {
-            return GetResourceString(key,values);
+        private static String GetRuntimeResourceString(String key, params Object[] values) {
+            return GetResourceStringFormatted(key,values);
         }
 
         public static bool Is64BitProcess {
@@ -1333,7 +809,6 @@ namespace System {
         }
 
         public static bool Is64BitOperatingSystem {
-            [System.Security.SecuritySafeCritical]
             get {
 #if BIT64
                     // 64-bit programs run only on 64-bit
@@ -1348,20 +823,11 @@ namespace System {
         }
 
         public static extern bool HasShutdownStarted {
-        [System.Security.SecuritySafeCritical]  // auto-generated
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
             get;
         }
 
-#if !FEATURE_CORECLR
-        // This is the temporary Whidbey stub for compatibility flags
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        [System.Security.SecurityCritical]
-        internal static extern bool GetCompatibilityFlag(CompatibilityFlag flag);
-#endif //!FEATURE_CORECLR
-
         public static string UserName {
-            [System.Security.SecuritySafeCritical]  // auto-generated
             get {
                 new EnvironmentPermission(EnvironmentPermissionAccess.Read,"UserName").Demand();
 
@@ -1375,40 +841,13 @@ namespace System {
             }
         }
 
-        // Note that this is a handle to a process window station, but it does
-        // not need to be closed.  CloseWindowStation would ignore this handle.
-        // We also do handle equality checking as well.  This isn't a great fit
-        // for SafeHandle.  We don't gain anything by using SafeHandle here.
-#if !FEATURE_CORECLR
-        private static volatile IntPtr processWinStation;        // Doesn't need to be initialized as they're zero-init.
-        private static volatile bool isUserNonInteractive;   
-#endif
-
-        public static bool UserInteractive {
-            [System.Security.SecuritySafeCritical]  // auto-generated
+        public static bool UserInteractive
+        {
             get {
-#if !FEATURE_CORECLR
-                IntPtr hwinsta = Win32Native.GetProcessWindowStation();
-                if (hwinsta != IntPtr.Zero && processWinStation != hwinsta) {
-                    int lengthNeeded = 0;
-                    Win32Native.USEROBJECTFLAGS flags = new Win32Native.USEROBJECTFLAGS();
-                    if (Win32Native.GetUserObjectInformation(hwinsta, Win32Native.UOI_FLAGS, flags, Marshal.SizeOf(flags),ref lengthNeeded)) {
-                        if ((flags.dwFlags & Win32Native.WSF_VISIBLE) == 0) {
-                            isUserNonInteractive = true;
-                        }
-                    }
-                    processWinStation = hwinsta;
-                }
-
-                // The logic is reversed to avoid static initialization to true
-                return !isUserNonInteractive;
-#else
                 return true;
-#endif
             }
         }
         
-        [System.Security.SecuritySafeCritical]  // auto-generated
         public static string GetFolderPath(SpecialFolder folder) {
             if (!Enum.IsDefined(typeof(SpecialFolder), folder))
                 throw new ArgumentException(Environment.GetResourceString("Arg_EnumIllegalVal", (int)folder));
@@ -1417,7 +856,6 @@ namespace System {
             return InternalGetFolderPath(folder, SpecialFolderOption.None);
         }
 
-        [System.Security.SecuritySafeCritical]  // auto-generated
         public static string GetFolderPath(SpecialFolder folder, SpecialFolderOption option) {
             if (!Enum.IsDefined(typeof(SpecialFolder),folder))
                 throw new ArgumentException(Environment.GetResourceString("Arg_EnumIllegalVal", (int)folder));
@@ -1428,16 +866,13 @@ namespace System {
             return InternalGetFolderPath(folder, option);
         }
 
-        [System.Security.SecurityCritical]
         internal static string UnsafeGetFolderPath(SpecialFolder folder)
         {
             return InternalGetFolderPath(folder, SpecialFolderOption.None, suppressSecurityChecks: true);
         }
 
-        [System.Security.SecurityCritical]
         private static string InternalGetFolderPath(SpecialFolder folder, SpecialFolderOption option, bool suppressSecurityChecks = false)
         {
-#if FEATURE_CORESYSTEM
             // This is currently customized for Windows Phone since CoreSystem doesn't support
             // SHGetFolderPath. The allowed folder values are based on the version of .NET CF WP7 was using.
             switch (folder)
@@ -1454,70 +889,10 @@ namespace System {
                 default:
                     throw new PlatformNotSupportedException();
             }
-#else // FEATURE_CORESYSTEM
-#if !FEATURE_CORECLR
-            if (option == SpecialFolderOption.Create && !suppressSecurityChecks) {
-                FileIOPermission createPermission = new FileIOPermission(PermissionState.None);
-                createPermission.AllFiles = FileIOPermissionAccess.Write;
-                createPermission.Demand();
-            }
-#endif
-
-            StringBuilder sb = new StringBuilder(Path.MaxPath);
-            int hresult = Win32Native.SHGetFolderPath(IntPtr.Zero,                    /* hwndOwner: [in] Reserved */
-                                                      ((int)folder | (int)option),    /* nFolder:   [in] CSIDL    */
-                                                      IntPtr.Zero,                    /* hToken:    [in] access token */
-                                                      Win32Native.SHGFP_TYPE_CURRENT, /* dwFlags:   [in] retrieve current path */
-                                                      sb);                            /* pszPath:   [out]resultant path */
-            String s;
-            if (hresult < 0)
-            {
-                switch (hresult)
-                {
-                default:
-                    // The previous incarnation threw away all errors. In order to limit
-                    // breaking changes, we will be permissive about these errors
-                    // instead of calling ThowExceptionForHR.
-                    //Runtime.InteropServices.Marshal.ThrowExceptionForHR(hresult);
-                    break;
-                case __HResults.COR_E_PLATFORMNOTSUPPORTED:
-                    // This one error is the one we do want to throw.
-
-                    throw new PlatformNotSupportedException();
-                }
-
-                // SHGetFolderPath does not initialize the output buffer on error
-                s = String.Empty;
-            }
-            else
-            {
-                s = sb.ToString();
-            }
-
-            if (!suppressSecurityChecks)
-            {
-                // On CoreCLR we can check with the host if we're not trying to use any special options.
-                // Otherwise, we need to do a full demand since hosts aren't expecting to handle requests to
-                // create special folders.
-#if FEATURE_CORECLR
-                if (option == SpecialFolderOption.None)
-                {
-                    FileSecurityState state = new FileSecurityState(FileSecurityStateAccess.PathDiscovery, String.Empty, s);
-                    state.EnsureState();
-                }
-                else
-#endif // FEATURE_CORECLR
-                {
-                    new FileIOPermission(FileIOPermissionAccess.PathDiscovery, s).Demand();
-                }
-            }
-            return s;
-#endif // FEATURE_CORESYSTEM
         }
 
         public static string UserDomainName
         {
-            [System.Security.SecuritySafeCritical]  // auto-generated
             get {
                 new EnvironmentPermission(EnvironmentPermissionAccess.Read,"UserDomain").Demand();
 
@@ -1650,7 +1025,7 @@ namespace System {
             //          
             // "MyDocuments" is a better name than "Personal"
             //
-            MyDocuments = Win32Native.CSIDL_PERSONAL,                         
+            MyDocuments = Win32Native.CSIDL_PERSONAL,
             //  
             //     Represents the program files folder. 
             //  
@@ -1658,101 +1033,7 @@ namespace System {
             //  
             //     Represents the folder for components that are shared across applications. 
             //  
-            CommonProgramFiles =  Win32Native.CSIDL_PROGRAM_FILES_COMMON,            
-#if !FEATURE_CORECLR
-            //
-            //      <user name>\Start Menu\Programs\Administrative Tools
-            //
-            AdminTools             = Win32Native.CSIDL_ADMINTOOLS,
-            //
-            //      USERPROFILE\Local Settings\Application Data\Microsoft\CD Burning
-            //
-            CDBurning              = Win32Native.CSIDL_CDBURN_AREA,
-            //
-            //      All Users\Start Menu\Programs\Administrative Tools
-            //
-            CommonAdminTools       = Win32Native.CSIDL_COMMON_ADMINTOOLS,
-            //
-            //      All Users\Documents
-            //
-            CommonDocuments        = Win32Native.CSIDL_COMMON_DOCUMENTS,
-            //
-            //      All Users\My Music
-            //
-            CommonMusic            = Win32Native.CSIDL_COMMON_MUSIC,
-            //
-            //      Links to All Users OEM specific apps
-            //
-            CommonOemLinks         = Win32Native.CSIDL_COMMON_OEM_LINKS,
-            //
-            //      All Users\My Pictures
-            //
-            CommonPictures         = Win32Native.CSIDL_COMMON_PICTURES,
-            //
-            //      All Users\Start Menu
-            //
-            CommonStartMenu        = Win32Native.CSIDL_COMMON_STARTMENU,
-            //
-            //      All Users\Start Menu\Programs
-            //
-            CommonPrograms         = Win32Native.CSIDL_COMMON_PROGRAMS,
-            //
-            //     All Users\Startup
-            //
-            CommonStartup          = Win32Native.CSIDL_COMMON_STARTUP,
-            //
-            //      All Users\Desktop
-            //
-            CommonDesktopDirectory = Win32Native.CSIDL_COMMON_DESKTOPDIRECTORY,
-            //
-            //      All Users\Templates
-            //
-            CommonTemplates        = Win32Native.CSIDL_COMMON_TEMPLATES,
-            //
-            //      All Users\My Video
-            //
-            CommonVideos           = Win32Native.CSIDL_COMMON_VIDEO,
-            //
-            //      windows\fonts
-            //
-            Fonts                  = Win32Native.CSIDL_FONTS,
-            //
-            //      %APPDATA%\Microsoft\Windows\Network Shortcuts
-            //
-            NetworkShortcuts       = Win32Native.CSIDL_NETHOOD,
-            //
-            //      %APPDATA%\Microsoft\Windows\Printer Shortcuts
-            //
-            PrinterShortcuts       = Win32Native.CSIDL_PRINTHOOD,
-            //
-            //      USERPROFILE
-            //
-            UserProfile            = Win32Native.CSIDL_PROFILE,
-            //
-            //      x86 Program Files\Common on RISC
-            //
-            CommonProgramFilesX86  = Win32Native.CSIDL_PROGRAM_FILES_COMMONX86,
-            //
-            //      x86 C:\Program Files on RISC
-            //
-            ProgramFilesX86        = Win32Native.CSIDL_PROGRAM_FILESX86,
-            //
-            //      Resource Directory
-            //
-            Resources              = Win32Native.CSIDL_RESOURCES,
-            //
-            //      Localized Resource Directory
-            //
-            LocalizedResources     = Win32Native.CSIDL_RESOURCES_LOCALIZED,
-            //
-            //      %windir%\System32 or %windir%\syswow64
-            //
-            SystemX86               = Win32Native.CSIDL_SYSTEMX86,
-            //
-            //      GetWindowsDirectory()
-            //
-            Windows                = Win32Native.CSIDL_WINDOWS,
-#endif // !FEATURE_CORECLR
+            CommonProgramFiles =  Win32Native.CSIDL_PROGRAM_FILES_COMMON,
         }
 
         public static int CurrentManagedThreadId
@@ -1764,5 +1045,410 @@ namespace System {
             }
         }
 
+        internal static extern int CurrentProcessorNumber
+        {
+            [MethodImplAttribute(MethodImplOptions.InternalCall)]
+            get;
+        }
+
+        // The upper bits of t_executionIdCache are the executionId. The lower bits of
+        // the t_executionIdCache are counting down to get it periodically refreshed.
+        // TODO: Consider flushing the executionIdCache on Wait operations or similar 
+        // actions that are likely to result in changing the executing core
+        [ThreadStatic]
+        static int t_executionIdCache;
+
+        const int ExecutionIdCacheShift = 16;
+        const int ExecutionIdCacheCountDownMask = (1 << ExecutionIdCacheShift) - 1;
+        const int ExecutionIdRefreshRate = 5000;
+
+        private static int RefreshExecutionId()
+        {
+            int executionId = CurrentProcessorNumber;
+
+            // On Unix, CurrentProcessorNumber is implemented in terms of sched_getcpu, which
+            // doesn't exist on all platforms.  On those it doesn't exist on, GetCurrentProcessorNumber
+            // returns -1.  As a fallback in that case and to spread the threads across the buckets
+            // by default, we use the current managed thread ID as a proxy.
+            if (executionId < 0) executionId = Environment.CurrentManagedThreadId;
+
+            Debug.Assert(ExecutionIdRefreshRate <= ExecutionIdCacheCountDownMask);
+
+            // Mask with Int32.MaxValue to ensure the execution Id is not negative
+            t_executionIdCache = ((executionId << ExecutionIdCacheShift) & Int32.MaxValue) | ExecutionIdRefreshRate;
+
+            return executionId;
+        }
+
+        // Cached processor number used as a hint for which per-core stack to access. It is periodically
+        // refreshed to trail the actual thread core affinity.
+        internal static int CurrentExecutionId
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get
+            {
+                int executionIdCache = t_executionIdCache--;
+                if ((executionIdCache & ExecutionIdCacheCountDownMask) == 0)
+                    return RefreshExecutionId();
+                return (executionIdCache >> ExecutionIdCacheShift);
+            }
+        }
+
+        public static string GetEnvironmentVariable(string variable)
+        {
+            if (variable == null)
+            {
+                throw new ArgumentNullException(nameof(variable));
+            }
+
+            // separated from the EnvironmentVariableTarget overload to help with tree shaking in common case
+            return GetEnvironmentVariableCore(variable);
+        }
+
+        public static string GetEnvironmentVariable(string variable, EnvironmentVariableTarget target)
+        {
+            if (variable == null)
+            {
+                throw new ArgumentNullException(nameof(variable));
+            }
+
+            ValidateTarget(target);
+
+            return GetEnvironmentVariableCore(variable, target);
+        }
+
+        public static IDictionary GetEnvironmentVariables()
+        {
+            // separated from the EnvironmentVariableTarget overload to help with tree shaking in common case
+            return GetEnvironmentVariablesCore();
+        }
+
+        public static IDictionary GetEnvironmentVariables(EnvironmentVariableTarget target)
+        {
+            ValidateTarget(target);
+
+            return GetEnvironmentVariablesCore(target);
+        }
+
+        public static void SetEnvironmentVariable(string variable, string value)
+        {
+            ValidateVariableAndValue(variable, ref value);
+
+            // separated from the EnvironmentVariableTarget overload to help with tree shaking in common case
+            SetEnvironmentVariableCore(variable, value);
+        }
+
+        public static void SetEnvironmentVariable(string variable, string value, EnvironmentVariableTarget target)
+        {
+            ValidateVariableAndValue(variable, ref value);
+            ValidateTarget(target);
+
+            SetEnvironmentVariableCore(variable, value, target);
+        }
+
+        private static void ValidateVariableAndValue(string variable, ref string value)
+        {
+            const int MaxEnvVariableValueLength = 32767;
+
+            if (variable == null)
+            {
+                throw new ArgumentNullException(nameof(variable));
+            }
+            if (variable.Length == 0)
+            {
+                throw new ArgumentException(GetResourceString("Argument_StringZeroLength"), nameof(variable));
+            }
+            if (variable[0] == '\0')
+            {
+                throw new ArgumentException(GetResourceString("Argument_StringFirstCharIsZero"), nameof(variable));
+            }
+            if (variable.Length >= MaxEnvVariableValueLength)
+            {
+                throw new ArgumentException(GetResourceString("Argument_LongEnvVarValue"), nameof(variable));
+            }
+            if (variable.IndexOf('=') != -1)
+            {
+                throw new ArgumentException(GetResourceString("Argument_IllegalEnvVarName"), nameof(variable));
+            }
+
+            if (string.IsNullOrEmpty(value) || value[0] == '\0')
+            {
+                // Explicitly null out value if it's empty
+                value = null;
+            }
+            else if (value.Length >= MaxEnvVariableValueLength)
+            {
+                throw new ArgumentException(GetResourceString("Argument_LongEnvVarValue"), nameof(value));
+            }
+        }
+
+        private static void ValidateTarget(EnvironmentVariableTarget target)
+        {
+            if (target != EnvironmentVariableTarget.Process &&
+                target != EnvironmentVariableTarget.Machine &&
+                target != EnvironmentVariableTarget.User)
+            {
+                throw new ArgumentOutOfRangeException(nameof(target), target, SR.Format(GetResourceString("Arg_EnumIllegalVal"), target));
+            }
+        }
+
+        private static Dictionary<string, string> GetRawEnvironmentVariables()
+        {
+            // Format for GetEnvironmentStrings is:
+            // (=HiddenVar=value\0 | Variable=value\0)* \0
+            // See the description of Environment Blocks in MSDN's
+            // CreateProcess page (null-terminated array of null-terminated strings).
+            // Note the =HiddenVar's aren't always at the beginning.
+
+            // Copy strings out, parsing into pairs and inserting into the table.
+            // The first few environment variable entries start with an '='.
+            // The current working directory of every drive (except for those drives
+            // you haven't cd'ed into in your DOS window) are stored in the 
+            // environment block (as =C:=pwd) and the program's exit code is 
+            // as well (=ExitCode=00000000).
+
+            var results = new Dictionary<string, string>();
+            char[] block = GetEnvironmentCharArray();
+            for (int i = 0; i < block.Length; i++)
+            {
+                int startKey = i;
+
+                // Skip to key. On some old OS, the environment block can be corrupted.
+                // Some will not have '=', so we need to check for '\0'. 
+                while (block[i] != '=' && block[i] != '\0') i++;
+                if (block[i] == '\0') continue;
+
+                // Skip over environment variables starting with '='
+                if (i - startKey == 0)
+                {
+                    while (block[i] != 0) i++;
+                    continue;
+                }
+
+                string key = new string(block, startKey, i - startKey);
+                i++;  // skip over '='
+
+                int startValue = i;
+                while (block[i] != 0) i++; // Read to end of this entry 
+                string value = new string(block, startValue, i - startValue); // skip over 0 handled by for loop's i++
+
+                results[key] = value;
+            }
+            return results;
+        }
+
+        private static string GetEnvironmentVariableCore(string variable)
+        {
+            if (AppDomain.IsAppXModel() && !AppDomain.IsAppXDesignMode())
+            {
+                // Environment variable accessors are not approved modern API.
+                // Behave as if the variable was not found in this case.
+                return null;
+            }
+
+            StringBuilder sb = StringBuilderCache.Acquire(128); // A somewhat reasonable default size
+            int requiredSize = Win32Native.GetEnvironmentVariable(variable, sb, sb.Capacity);
+
+            if (requiredSize == 0 && Marshal.GetLastWin32Error() == Win32Native.ERROR_ENVVAR_NOT_FOUND)
+            {
+                StringBuilderCache.Release(sb);
+                return null;
+            }
+
+            while (requiredSize > sb.Capacity)
+            {
+                sb.Capacity = requiredSize;
+                sb.Length = 0;
+                requiredSize = Win32Native.GetEnvironmentVariable(variable, sb, sb.Capacity);
+            }
+
+            return StringBuilderCache.GetStringAndRelease(sb);
+        }
+
+        private static string GetEnvironmentVariableCore(string variable, EnvironmentVariableTarget target)
+        {
+            if (target == EnvironmentVariableTarget.Process)
+                return GetEnvironmentVariableCore(variable);
+
+#if !FEATURE_WIN32_REGISTRY
+            return null;
+#else
+            RegistryKey baseKey;
+            string keyName;
+
+            if (target == EnvironmentVariableTarget.Machine)
+            {
+                baseKey = Registry.LocalMachine;
+                keyName = @"System\CurrentControlSet\Control\Session Manager\Environment";
+            }
+            else if (target == EnvironmentVariableTarget.User)
+            {
+                Debug.Assert(target == EnvironmentVariableTarget.User);
+                baseKey = Registry.CurrentUser;
+                keyName = "Environment";
+            }
+            else
+            {
+                throw new ArgumentException(GetResourceString("Arg_EnumIllegalVal", (int)target));
+            }
+
+            using (RegistryKey environmentKey = baseKey.OpenSubKey(keyName, writable: false))
+            {
+                return environmentKey?.GetValue(variable) as string;
+            }
+#endif
+        }
+
+        private static IDictionary GetEnvironmentVariablesCore()
+        {
+            if (AppDomain.IsAppXModel() && !AppDomain.IsAppXDesignMode())
+            {
+                // Environment variable accessors are not approved modern API.
+                // Behave as if no environment variables are defined in this case.
+                return new Dictionary<string, string>(0);
+            }
+
+            return GetRawEnvironmentVariables();
+        }
+
+        private static IDictionary GetEnvironmentVariablesCore(EnvironmentVariableTarget target)
+        {
+            if (target == EnvironmentVariableTarget.Process)
+                return GetEnvironmentVariablesCore();
+
+#if !FEATURE_WIN32_REGISTRY
+            // Without registry support we have nothing to return
+            return new Dictionary<string, string>(0);
+#else
+            RegistryKey baseKey;
+            string keyName;
+            if (target == EnvironmentVariableTarget.Machine)
+            {
+                baseKey = Registry.LocalMachine;
+                keyName = @"System\CurrentControlSet\Control\Session Manager\Environment";
+            }
+            else if (target == EnvironmentVariableTarget.User)
+            {
+                Debug.Assert(target == EnvironmentVariableTarget.User);
+                baseKey = Registry.CurrentUser;
+                keyName = @"Environment";
+            }
+            else
+            {
+                throw new ArgumentException(GetResourceString("Arg_EnumIllegalVal", (int)target));
+            }
+
+            using (RegistryKey environmentKey = baseKey.OpenSubKey(keyName, writable: false))
+            {
+                var table = new Dictionary<string, string>();
+                if (environmentKey != null)
+                {
+                    foreach (string name in environmentKey.GetValueNames())
+                    {
+                        table.Add(name, environmentKey.GetValue(name, "").ToString());
+                    }
+                }
+                return table;
+            }
+#endif // FEATURE_WIN32_REGISTRY
+        }
+
+        private static void SetEnvironmentVariableCore(string variable, string value)
+        {
+            // explicitly null out value if is the empty string.
+            if (string.IsNullOrEmpty(value) || value[0] == '\0')
+                value = null;
+
+            if (AppDomain.IsAppXModel() && !AppDomain.IsAppXDesignMode())
+            {
+                // Environment variable accessors are not approved modern API.
+                // so we throw PlatformNotSupportedException.
+                throw new PlatformNotSupportedException();
+            }
+
+            if (!Win32Native.SetEnvironmentVariable(variable, value))
+            {
+                int errorCode = Marshal.GetLastWin32Error();
+
+                switch (errorCode)
+                {
+                    case Win32Native.ERROR_ENVVAR_NOT_FOUND:
+                        // Allow user to try to clear a environment variable
+                        return;
+                    case Win32Native.ERROR_FILENAME_EXCED_RANGE:
+                        // The error message from Win32 is "The filename or extension is too long",
+                        // which is not accurate.
+                        throw new ArgumentException(GetResourceString("Argument_LongEnvVarValue"));
+                    default:
+                        throw new ArgumentException(Win32Native.GetMessage(errorCode));
+                }
+            }
+        }
+
+        private static void SetEnvironmentVariableCore(string variable, string value, EnvironmentVariableTarget target)
+        {
+            if (target == EnvironmentVariableTarget.Process)
+            {
+                SetEnvironmentVariableCore(variable, value);
+                return;
+            }
+
+#if !FEATURE_WIN32_REGISTRY
+            // other targets ignored
+            return;
+#else
+            // explicitly null out value if is the empty string.
+            if (string.IsNullOrEmpty(value) || value[0] == '\0')
+                value = null;
+
+            RegistryKey baseKey;
+            string keyName;
+
+            if (target == EnvironmentVariableTarget.Machine)
+            {
+                baseKey = Registry.LocalMachine;
+                keyName = @"System\CurrentControlSet\Control\Session Manager\Environment";
+            }
+            else if (target == EnvironmentVariableTarget.User)
+            {
+                Debug.Assert(target == EnvironmentVariableTarget.User);
+
+                // User-wide environment variables stored in the registry are limited to 255 chars for the environment variable name.
+                const int MaxUserEnvVariableLength = 255;
+                if (variable.Length >= MaxUserEnvVariableLength)
+                {
+                    throw new ArgumentException(GetResourceString("Argument_LongEnvVarValue"), nameof(variable));
+                }
+
+                baseKey = Registry.CurrentUser;
+                keyName = "Environment";
+            }
+            else
+            {
+                throw new ArgumentException(GetResourceString("Arg_EnumIllegalVal", (int)target));
+            }
+
+            using (RegistryKey environmentKey = baseKey.OpenSubKey(keyName, writable: true))
+            {
+                if (environmentKey != null)
+                {
+                    if (value == null)
+                    {
+                        environmentKey.DeleteValue(variable, throwOnMissingValue: false);
+                    }
+                    else
+                    {
+                        environmentKey.SetValue(variable, value);
+                    }
+                }
+            }
+
+            // send a WM_SETTINGCHANGE message to all windows
+            IntPtr r = Win32Native.SendMessageTimeout(new IntPtr(Win32Native.HWND_BROADCAST),
+                Win32Native.WM_SETTINGCHANGE, IntPtr.Zero, "Environment", 0, 1000, IntPtr.Zero);
+
+            if (r == IntPtr.Zero) Debug.Assert(false, "SetEnvironmentVariable failed: " + Marshal.GetLastWin32Error());
+#endif // FEATURE_WIN32_REGISTRY
+        }
     }
 }

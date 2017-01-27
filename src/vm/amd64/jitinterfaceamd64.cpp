@@ -16,7 +16,6 @@
 #include "eeconfig.h"
 #include "excep.h"
 #include "threadsuspend.h"
-#include "../../gc/softwarewritewatch.h"
 
 extern uint8_t* g_ephemeral_low;
 extern uint8_t* g_ephemeral_high;
@@ -390,7 +389,7 @@ bool WriteBarrierManager::NeedDifferentWriteBarrier(bool bReqUpperBoundsCheck, W
             }
 #endif
 
-            writeBarrierType = GCHeap::IsServerHeap() ? WRITE_BARRIER_SVR64 : WRITE_BARRIER_PREGROW64;
+            writeBarrierType = GCHeapUtilities::IsServerHeap() ? WRITE_BARRIER_SVR64 : WRITE_BARRIER_PREGROW64;
             continue;
 
         case WRITE_BARRIER_PREGROW64:
@@ -532,9 +531,9 @@ void WriteBarrierManager::UpdateWriteWatchAndCardTableLocations(bool isRuntimeSu
 #ifdef FEATURE_SVR_GC
         case WRITE_BARRIER_WRITE_WATCH_SVR64:
 #endif // FEATURE_SVR_GC
-            if (*(UINT64*)m_pWriteWatchTableImmediate != (size_t)SoftwareWriteWatch::GetTable())
+            if (*(UINT64*)m_pWriteWatchTableImmediate != (size_t)g_sw_ww_table)
             {
-                *(UINT64*)m_pWriteWatchTableImmediate = (size_t)SoftwareWriteWatch::GetTable();
+                *(UINT64*)m_pWriteWatchTableImmediate = (size_t)g_sw_ww_table;
                 fFlushCache = true;
             }
             break;

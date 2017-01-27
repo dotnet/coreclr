@@ -19,11 +19,18 @@ namespace System
         }
         private static readonly Dictionary<string, SwitchValueState> s_switchMap = new Dictionary<string, SwitchValueState>();
 
+        static AppContext()
+        {
+            // Unloading event must happen before ProcessExit event
+            AppDomain.CurrentDomain.ProcessExit += OnUnloading;
+            AppDomain.CurrentDomain.ProcessExit += OnProcessExit;
+
+            // populate the AppContext with the default set of values
+            AppContextDefaultValues.PopulateDefaultValues();
+        }
+
         public static string BaseDirectory
         {
-#if FEATURE_CORECLR
-            [System.Security.SecuritySafeCritical]
-#endif
             get
             {
                 // The value of APP_CONTEXT_BASE_DIRECTORY key has to be a string and it is not allowed to be any other type. 
@@ -41,21 +48,63 @@ namespace System
             }
         }
 
-#if FEATURE_CORECLR
-        [System.Security.SecuritySafeCritical]
-#endif
         public static object GetData(string name)
         {
             return AppDomain.CurrentDomain.GetData(name);
         }
 
-        #region Switch APIs
-        static AppContext()
+        public static void SetData(string name, object data)
         {
-            // populate the AppContext with the default set of values
-            AppContextDefaultValues.PopulateDefaultValues();
+            AppDomain.CurrentDomain.SetData(name, data);
         }
 
+        public static event UnhandledExceptionEventHandler UnhandledException
+        {
+            add
+            {
+                AppDomain.CurrentDomain.UnhandledException += value;
+            }
+
+            remove
+            {
+                AppDomain.CurrentDomain.UnhandledException -= value;
+            }
+        }
+
+        public static event System.EventHandler<System.Runtime.ExceptionServices.FirstChanceExceptionEventArgs> FirstChanceException
+        {  
+            add  
+            {  
+                AppDomain.CurrentDomain.FirstChanceException += value;  
+            }  
+            remove  
+            {  
+                AppDomain.CurrentDomain.FirstChanceException -= value;  
+            }  
+        }  
+
+        public static event System.EventHandler ProcessExit;
+        public static event System.EventHandler Unloading;
+
+        private static void OnProcessExit(object sender, EventArgs e)
+        {
+            var processExit = ProcessExit;
+            if (processExit != null)
+            {
+                processExit(null, EventArgs.Empty);
+            }
+        }
+
+        private static void OnUnloading(object sender, EventArgs e)
+        {
+            var unloading = Unloading;
+            if (unloading != null)
+            {
+                unloading(null, EventArgs.Empty);
+            }
+        }
+
+        #region Switch APIs
         /// <summary>
         /// Try to get the value of the switch.
         /// </summary>
@@ -65,9 +114,9 @@ namespace System
         public static bool TryGetSwitch(string switchName, out bool isEnabled)
         {
             if (switchName == null)
-                throw new ArgumentNullException("switchName");
+                throw new ArgumentNullException(nameof(switchName));
             if (switchName.Length == 0)
-                throw new ArgumentException(Environment.GetResourceString("Argument_EmptyName"), "switchName");
+                throw new ArgumentException(Environment.GetResourceString("Argument_EmptyName"), nameof(switchName));
 
             // By default, the switch is not enabled.
             isEnabled = false;
@@ -161,9 +210,9 @@ namespace System
         public static void SetSwitch(string switchName, bool isEnabled)
         {
             if (switchName == null)
-                throw new ArgumentNullException("switchName");
+                throw new ArgumentNullException(nameof(switchName));
             if (switchName.Length == 0)
-                throw new ArgumentException(Environment.GetResourceString("Argument_EmptyName"), "switchName");
+                throw new ArgumentException(Environment.GetResourceString("Argument_EmptyName"), nameof(switchName));
 
             SwitchValueState switchValue = (isEnabled ? SwitchValueState.HasTrueValue : SwitchValueState.HasFalseValue)
                                             | SwitchValueState.HasLookedForOverride;

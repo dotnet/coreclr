@@ -30,10 +30,8 @@ namespace System.Resources {
     using Microsoft.Win32;
     using System.Collections.Generic;
     using System.Runtime.Versioning;
+    using System.Diagnostics;
     using System.Diagnostics.Contracts;
-#if !FEATURE_CORECLR
-    using System.Diagnostics.Tracing;
-#endif
 
 #if FEATURE_APPX
     //
@@ -45,21 +43,16 @@ namespace System.Resources {
     // Also using interface or abstract class will not play nice with FriendAccessAllowed.
     //
     [FriendAccessAllowed]
-    [SecurityCritical]
     internal class WindowsRuntimeResourceManagerBase
     {
-        [SecurityCritical]
         public virtual bool Initialize(string libpath, string reswFilename, out PRIExceptionInfo exceptionInfo){exceptionInfo = null; return false;}
 
-        [SecurityCritical]
         public virtual String GetString(String stringName, String startingCulture, String neutralResourcesCulture){return null;}
 
         public virtual CultureInfo GlobalResourceContextBestFitCultureInfo { 
-            [SecurityCritical]
             get { return null; } 
         }
         
-        [SecurityCritical]
         public virtual bool SetGlobalResourceContextDefaultCulture(CultureInfo ci) { return false; }
     }
 
@@ -155,9 +148,7 @@ namespace System.Resources {
     // is one such example.
     //
 
-#if FEATURE_SERIALIZATION
     [Serializable]
-#endif
     [System.Runtime.InteropServices.ComVisible(true)]
     public class ResourceManager
     {
@@ -268,13 +259,6 @@ namespace System.Resources {
 
         protected ResourceManager() 
         {
-#if !FEATURE_CORECLR
-            // This constructor is not designed to be used under AppX and is not in the Win8 profile.
-            // However designers may use them even if they are running under AppX since they are
-            // not subject to the restrictions of the Win8 profile.
-            Contract.Assert(!AppDomain.IsAppXModel() || AppDomain.IsAppXDesignMode());
-#endif
-
             Init();
 
             _lastUsedResourceCache = new CultureNameResourceSetPair();
@@ -294,17 +278,10 @@ namespace System.Resources {
         // 
         private ResourceManager(String baseName, String resourceDir, Type usingResourceSet) {
             if (null==baseName)
-                throw new ArgumentNullException("baseName");
+                throw new ArgumentNullException(nameof(baseName));
             if (null==resourceDir)
-                throw new ArgumentNullException("resourceDir");
+                throw new ArgumentNullException(nameof(resourceDir));
             Contract.EndContractBlock();
-
-#if !FEATURE_CORECLR
-            // This constructor is not designed to be used under AppX and is not in the Win8 profile.
-            // However designers may use them even if they are running under AppX since they are
-            // not subject to the restrictions of the Win8 profile.
-            Contract.Assert(!AppDomain.IsAppXModel() || AppDomain.IsAppXDesignMode());
-#endif
 
             BaseNameField = baseName;
 
@@ -319,30 +296,16 @@ namespace System.Resources {
 
             ResourceManagerMediator mediator = new ResourceManagerMediator(this);
             resourceGroveler = new FileBasedResourceGroveler(mediator);
-
-#if !FEATURE_CORECLR   // PAL doesn't support eventing, and we don't compile event providers for coreclr
-            if (FrameworkEventSource.IsInitialized && FrameworkEventSource.Log.IsEnabled()) {
-                CultureInfo culture = CultureInfo.InvariantCulture;
-                String defaultResName = GetResourceFileName(culture);
-
-                if (resourceGroveler.HasNeutralResources(culture, defaultResName)) {
-                    FrameworkEventSource.Log.ResourceManagerNeutralResourcesFound(BaseNameField, MainAssembly, defaultResName);
-                }
-                else {
-                    FrameworkEventSource.Log.ResourceManagerNeutralResourcesNotFound(BaseNameField, MainAssembly, defaultResName);
-                }
-            }           
-#endif
         }
-    
+
         [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var have to be marked non-inlineable
         public ResourceManager(String baseName, Assembly assembly)
         {
             if (null==baseName)
-                throw new ArgumentNullException("baseName");
+                throw new ArgumentNullException(nameof(baseName));
 
             if (null==assembly)
-                throw new ArgumentNullException("assembly");
+                throw new ArgumentNullException(nameof(assembly));
             Contract.EndContractBlock();
 
             if (!(assembly is RuntimeAssembly))
@@ -370,17 +333,10 @@ namespace System.Resources {
         public ResourceManager(String baseName, Assembly assembly, Type usingResourceSet)
         {
             if (null==baseName)
-                throw new ArgumentNullException("baseName");
+                throw new ArgumentNullException(nameof(baseName));
             if (null==assembly)
-                throw new ArgumentNullException("assembly");
+                throw new ArgumentNullException(nameof(assembly));
             Contract.EndContractBlock();
-
-#if !FEATURE_CORECLR
-            // This constructor is not designed to be used under AppX and is not in the Win8 profile.
-            // However designers may use them even if they are running under AppX since they are
-            // not subject to the restrictions of the Win8 profile.
-            Contract.Assert(!AppDomain.IsAppXModel() || AppDomain.IsAppXDesignMode());
-#endif
 
             if (!(assembly is RuntimeAssembly))
                 throw new ArgumentException(Environment.GetResourceString("Argument_MustBeRuntimeAssembly"));
@@ -389,7 +345,7 @@ namespace System.Resources {
             BaseNameField = baseName;
     
             if (usingResourceSet != null && (usingResourceSet != _minResourceSet) && !(usingResourceSet.IsSubclassOf(_minResourceSet)))
-                throw new ArgumentException(Environment.GetResourceString("Arg_ResMgrNotResSet"), "usingResourceSet");
+                throw new ArgumentException(Environment.GetResourceString("Arg_ResMgrNotResSet"), nameof(usingResourceSet));
             _userResourceSet = usingResourceSet;
 
             CommonAssemblyInit();
@@ -406,7 +362,7 @@ namespace System.Resources {
         public ResourceManager(Type resourceSource)
         {
             if (null==resourceSource)
-                throw new ArgumentNullException("resourceSource");
+                throw new ArgumentNullException(nameof(resourceSource));
             Contract.EndContractBlock();
 
             if (!(resourceSource is RuntimeType))
@@ -436,7 +392,6 @@ namespace System.Resources {
             this._lastUsedResourceCache = null;
         }
 
-        [System.Security.SecuritySafeCritical]
         [OnDeserialized]
         private void OnDeserialized(StreamingContext ctx)
         {
@@ -481,7 +436,6 @@ namespace System.Resources {
 
         // Trying to unify code as much as possible, even though having to do a
         // security check in each constructor prevents it.
-        [System.Security.SecuritySafeCritical]
         private void CommonAssemblyInit()
         {
             if (_bUsingModernResourceManagement == false)
@@ -498,30 +452,6 @@ namespace System.Resources {
             }
 
             _neutralResourcesCulture = ManifestBasedResourceGroveler.GetNeutralResourcesLanguage(MainAssembly, ref _fallbackLoc);
-
-#if !FEATURE_CORECLR   // PAL doesn't support eventing, and we don't compile event providers for coreclr
-            if (_bUsingModernResourceManagement == false)
-            {
-                if (FrameworkEventSource.IsInitialized && FrameworkEventSource.Log.IsEnabled()) {
-                    CultureInfo culture = CultureInfo.InvariantCulture;
-                    String defaultResName = GetResourceFileName(culture);
-
-                    if (resourceGroveler.HasNeutralResources(culture, defaultResName)) {
-                        FrameworkEventSource.Log.ResourceManagerNeutralResourcesFound(BaseNameField, MainAssembly, defaultResName);
-                    }
-                    else {
-                        String outputResName = defaultResName;
-                        if (_locationInfo != null && _locationInfo.Namespace != null)
-                            outputResName = _locationInfo.Namespace + Type.Delimiter + defaultResName;
-                        FrameworkEventSource.Log.ResourceManagerNeutralResourcesNotFound(BaseNameField, MainAssembly, outputResName);
-                    }
-                }
-
-#pragma warning disable 618
-                ResourceSets = new Hashtable(); // for backward compatibility
-#pragma warning restore 618
-            }
-#endif
         }
 
         // Gets the base name for the ResourceManager.
@@ -559,12 +489,6 @@ namespace System.Resources {
         // creating a new ResourceManager isn't quite the correct behavior.
         public virtual void ReleaseAllResources()
         {
-#if !FEATURE_CORECLR
-            if (FrameworkEventSource.IsInitialized)
-            {
-                FrameworkEventSource.Log.ResourceManagerReleasingResources(BaseNameField, MainAssembly);
-            }
-#endif
             Dictionary<String, ResourceSet> localResourceSets = _resourceSets;
 
             // If any calls to Close throw, at least leave ourselves in a
@@ -575,27 +499,9 @@ namespace System.Resources {
             lock(localResourceSets) {
                 IDictionaryEnumerator setEnum = localResourceSets.GetEnumerator();
 
-#if !FEATURE_CORECLR
-                IDictionaryEnumerator setEnum2 = null;
-#pragma warning disable 618
-                if (ResourceSets != null) {
-                    setEnum2 = ResourceSets.GetEnumerator();
-                }
-                ResourceSets = new Hashtable(); // for backwards compat
-#pragma warning restore 618
-#endif
-
                 while (setEnum.MoveNext()) {
                     ((ResourceSet)setEnum.Value).Close();
                 }
-
-#if !FEATURE_CORECLR
-                if (setEnum2 != null) {
-                    while (setEnum2.MoveNext()) {
-                        ((ResourceSet)setEnum2.Value).Close();
-                    }
-                }
-#endif
             }
         }
 
@@ -679,11 +585,10 @@ namespace System.Resources {
         // if it hasn't yet been loaded and if parent CultureInfos should be 
         // loaded as well for resource inheritance.
         //         
-        [System.Security.SecuritySafeCritical]  // auto-generated
         [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var have to be marked non-inlineable
         public virtual ResourceSet GetResourceSet(CultureInfo culture, bool createIfNotExists, bool tryParents) {
             if (null==culture)
-                throw new ArgumentNullException("culture");
+                throw new ArgumentNullException(nameof(culture));
             Contract.EndContractBlock();
 
             Dictionary<String,ResourceSet> localResourceSets = _resourceSets;
@@ -723,11 +628,10 @@ namespace System.Resources {
         // for getting a resource set lives.  Access to it is controlled by
         // threadsafe methods such as GetResourceSet, GetString, & GetObject.  
         // This will take a minimal number of locks.
-        [System.Security.SecuritySafeCritical]  // auto-generated
         [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
         protected virtual ResourceSet InternalGetResourceSet(CultureInfo culture, bool createIfNotExists, bool tryParents) 
         {
-            Contract.Assert(culture != null, "culture != null");
+            Debug.Assert(culture != null, "culture != null");
 
             StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
             return InternalGetResourceSet(culture,createIfNotExists,tryParents, ref stackMark);
@@ -737,7 +641,6 @@ namespace System.Resources {
         // for getting a resource set lives.  Access to it is controlled by
         // threadsafe methods such as GetResourceSet, GetString, & GetObject.  
         // This will take a minimal number of locks.
-        [System.Security.SecurityCritical]
         private ResourceSet InternalGetResourceSet(CultureInfo requestedCulture, bool createIfNotExists, bool tryParents, ref StackCrawlMark stackMark)
         {
             Dictionary<String, ResourceSet> localResourceSets = _resourceSets;
@@ -745,11 +648,6 @@ namespace System.Resources {
             CultureInfo foundCulture = null;
             lock (localResourceSets) {
                 if (localResourceSets.TryGetValue(requestedCulture.Name, out rs)) {
-#if !FEATURE_CORECLR
-                    if (FrameworkEventSource.IsInitialized) {
-                        FrameworkEventSource.Log.ResourceManagerFoundResourceSetInCache(BaseNameField, MainAssembly, requestedCulture.Name);
-                    }
-#endif
                     return rs;
                 }
             }
@@ -758,20 +656,8 @@ namespace System.Resources {
 
             foreach (CultureInfo currentCultureInfo in mgr)
             {
-#if !FEATURE_CORECLR
-                if (FrameworkEventSource.IsInitialized)
-                {
-                    FrameworkEventSource.Log.ResourceManagerLookingForResourceSet(BaseNameField, MainAssembly, currentCultureInfo.Name);
-                }
-#endif
                 lock(localResourceSets) {
                     if (localResourceSets.TryGetValue(currentCultureInfo.Name, out rs)) {
-#if !FEATURE_CORECLR
-                        if (FrameworkEventSource.IsInitialized)
-                        {
-                            FrameworkEventSource.Log.ResourceManagerFoundResourceSetInCache(BaseNameField, MainAssembly, currentCultureInfo.Name);
-                        }
-#endif
                         // we need to update the cache if we fellback
                         if(requestedCulture != currentCultureInfo) foundCulture = currentCultureInfo;
                         break;
@@ -848,55 +734,15 @@ namespace System.Resources {
         {
             // Ensure that the assembly reference is not null
             if (a == null) {
-                throw new ArgumentNullException("a", Environment.GetResourceString("ArgumentNull_Assembly"));
+                throw new ArgumentNullException(nameof(a), Environment.GetResourceString("ArgumentNull_Assembly"));
             }
             Contract.EndContractBlock();
 
-#if !FEATURE_WINDOWSPHONE
-            String v = null;
-            if (a.ReflectionOnly) {
-                foreach (CustomAttributeData data in CustomAttributeData.GetCustomAttributes(a)) {
-                    if (data.Constructor.DeclaringType == typeof(SatelliteContractVersionAttribute)) {
-                        v = (String)data.ConstructorArguments[0].Value;
-                        break;
-                    }
-                }
-
-                if (v == null)
-                    return null;
-            }
-            else {
-                Object[] attrs = a.GetCustomAttributes(typeof(SatelliteContractVersionAttribute), false);
-                if (attrs.Length == 0)
-                    return null;
-                Contract.Assert(attrs.Length == 1, "Cannot have multiple instances of SatelliteContractVersionAttribute on an assembly!");
-                v = ((SatelliteContractVersionAttribute)attrs[0]).Version;
-            }
-            Version ver;
-            try {
-                ver = new Version(v);
-            }
-            catch(ArgumentOutOfRangeException e) {
-                // Note we are prone to hitting infinite loops if mscorlib's
-                // SatelliteContractVersionAttribute contains bogus values.
-                // If this assert fires, please fix the build process for the
-                // BCL directory.
-                if (a == typeof(Object).Assembly) {
-                    Contract.Assert(false, System.CoreLib.Name+"'s SatelliteContractVersionAttribute is a malformed version string!");
-                    return null;
-                }
-
-                throw new ArgumentException(Environment.GetResourceString("Arg_InvalidSatelliteContract_Asm_Ver", a.ToString(), v), e);
-            }
-            return ver;
-#else
-            // On the phone return null. The calling code will use the assembly version instead to avoid potential type
+            // Return null. The calling code will use the assembly version instead to avoid potential type
             // and library loads caused by CA lookup. NetCF uses the assembly version always.
             return null;
-#endif
         }
 
-        [System.Security.SecuritySafeCritical]  // auto-generated
         protected static CultureInfo GetNeutralResourcesLanguage(Assembly a)
         {
             // This method should be obsolete - replace it with the one below.
@@ -911,7 +757,7 @@ namespace System.Resources {
                                           String typeName2, 
                                           AssemblyName asmName2)
         {
-            Contract.Assert(asmTypeName1 != null, "asmTypeName1 was unexpectedly null");
+            Debug.Assert(asmTypeName1 != null, "asmTypeName1 was unexpectedly null");
 
             // First, compare type names
             int comma = asmTypeName1.IndexOf(',');
@@ -963,13 +809,11 @@ namespace System.Resources {
         }
 
 #if FEATURE_APPX
-        [SecuritySafeCritical]
-        // Throws WinRT hresults
         private string GetStringFromPRI(String stringName, String startingCulture, String neutralResourcesCulture) {
-            Contract.Assert(_bUsingModernResourceManagement);
-            Contract.Assert(_WinRTResourceManager != null);
-            Contract.Assert(_PRIonAppXInitialized);
-            Contract.Assert(AppDomain.IsAppXModel());
+            Debug.Assert(_bUsingModernResourceManagement);
+            Debug.Assert(_WinRTResourceManager != null);
+            Debug.Assert(_PRIonAppXInitialized);
+            Debug.Assert(AppDomain.IsAppXModel());
         
             if (stringName.Length == 0)
                 return null;
@@ -989,7 +833,6 @@ namespace System.Resources {
         // Since we can't directly reference System.Runtime.WindowsRuntime from mscorlib, we have to get the type via reflection.
         // It would be better if we could just implement WindowsRuntimeResourceManager in mscorlib, but we can't, because
         // we can do very little with WinRT in mscorlib.
-        [SecurityCritical]
         internal static WindowsRuntimeResourceManagerBase GetWinRTResourceManager()
         {
             Type WinRTResourceManagerType = Type.GetType("System.Resources.WindowsRuntimeResourceManager, " + AssemblyRef.SystemRuntimeWindowsRuntime, true);
@@ -1002,7 +845,6 @@ namespace System.Resources {
 
 #if FEATURE_APPX
         [NonSerialized]
-        [SecurityCritical]
         private WindowsRuntimeResourceManagerBase _WinRTResourceManager; // Written only by SetAppXConfiguration
 
         [NonSerialized]
@@ -1031,12 +873,10 @@ namespace System.Resources {
         //   
         //    b) For any other non-FX assembly, we will use the modern resource manager with the premise that app package
         //       contains the PRI resources.
-        [SecuritySafeCritical]
         private bool ShouldUseSatelliteAssemblyResourceLookupUnderAppX(RuntimeAssembly resourcesAssembly)
         {
             bool fUseSatelliteAssemblyResourceLookupUnderAppX = resourcesAssembly.IsFrameworkAssembly();
-            
-#if FEATURE_CORECLR     
+
             if (!fUseSatelliteAssemblyResourceLookupUnderAppX)
             {
                 // Check to see if the assembly is under PLATFORM_RESOURCE_ROOTS. If it is, then we should use satellite assembly lookup for it.
@@ -1057,23 +897,21 @@ namespace System.Resources {
                     }
                 }
             }
-#endif // FEATURE_CORECLR
+
             return fUseSatelliteAssemblyResourceLookupUnderAppX;
-            
         }
-        
-        [SecuritySafeCritical]
+
 #endif // FEATURE_APPX
         // Only call SetAppXConfiguration from ResourceManager constructors, and nowhere else.
         // Throws MissingManifestResourceException and WinRT HResults
 
         private void SetAppXConfiguration()
         {
-            Contract.Assert(_bUsingModernResourceManagement == false); // Only this function writes to this member
+            Debug.Assert(_bUsingModernResourceManagement == false); // Only this function writes to this member
 #if FEATURE_APPX
-            Contract.Assert(_WinRTResourceManager == null); // Only this function writes to this member
-            Contract.Assert(_PRIonAppXInitialized == false); // Only this function writes to this member
-            Contract.Assert(_PRIExceptionInfo == null); // Only this function writes to this member
+            Debug.Assert(_WinRTResourceManager == null); // Only this function writes to this member
+            Debug.Assert(_PRIonAppXInitialized == false); // Only this function writes to this member
+            Debug.Assert(_PRIExceptionInfo == null); // Only this function writes to this member
 
             bool bUsingSatelliteAssembliesUnderAppX = false;
 
@@ -1227,7 +1065,7 @@ namespace System.Resources {
         // 
         public virtual String GetString(String name, CultureInfo culture) {
             if (null==name)
-                throw new ArgumentNullException("name");
+                throw new ArgumentNullException(nameof(name));
             Contract.EndContractBlock();
 
 #if FEATURE_APPX
@@ -1269,13 +1107,7 @@ namespace System.Resources {
                     // This line behaves the same way as CultureInfo.CurrentUICulture would have in .NET 4
                     culture = Thread.CurrentThread.GetCurrentUICultureNoAppX();
                 }
-    
-#if !FEATURE_CORECLR
-                if (FrameworkEventSource.IsInitialized)
-                {
-                    FrameworkEventSource.Log.ResourceManagerLookupStarted(BaseNameField, MainAssembly, culture.Name);
-                }
-#endif
+
                 ResourceSet last = GetFirstResourceSet(culture);
 
                 if (last != null)
@@ -1313,13 +1145,6 @@ namespace System.Resources {
                         last = rs;
                     }
                 }
-
-#if !FEATURE_CORECLR
-                if (FrameworkEventSource.IsInitialized)
-                {
-                    FrameworkEventSource.Log.ResourceManagerLookupFailed(BaseNameField, MainAssembly, culture.Name);
-                }
-#endif
             }
 
             return null;
@@ -1344,7 +1169,7 @@ namespace System.Resources {
         private Object GetObject(String name, CultureInfo culture, bool wrapUnmanagedMemStream)
         {
             if (null==name)
-                throw new ArgumentNullException("name");
+                throw new ArgumentNullException(nameof(name));
             Contract.EndContractBlock();
 
 #if FEATURE_APPX
@@ -1366,12 +1191,6 @@ namespace System.Resources {
                 culture = Thread.CurrentThread.GetCurrentUICultureNoAppX();
             }
 
-#if !FEATURE_CORECLR
-            if (FrameworkEventSource.IsInitialized)
-            {
-                FrameworkEventSource.Log.ResourceManagerLookupStarted(BaseNameField, MainAssembly, culture.Name);
-            }
-#endif
             ResourceSet last = GetFirstResourceSet(culture);
             if (last != null)
             {
@@ -1424,12 +1243,6 @@ namespace System.Resources {
                 }
             }
 
-#if !FEATURE_CORECLR
-            if (FrameworkEventSource.IsInitialized)
-            {
-                FrameworkEventSource.Log.ResourceManagerLookupFailed(BaseNameField, MainAssembly, culture.Name);
-            }
-#endif
             return null;
         }
 
@@ -1450,7 +1263,6 @@ namespace System.Resources {
 #if RESOURCE_SATELLITE_CONFIG
         // Internal helper method - gives an end user the ability to prevent
         // satellite assembly probes for certain cultures via a config file.
-        [System.Security.SecurityCritical]  // auto-generated
         private bool TryLookingForSatellite(CultureInfo lookForCulture)
         {
             if (!_checkedConfigFile) {
@@ -1473,110 +1285,14 @@ namespace System.Resources {
             // The config file told us what satellites might be installed.
             int pos = Array.IndexOf(installedSatellites, lookForCulture.Name);
 
-#if !FEATURE_CORECLR
-            if (FrameworkEventSource.IsInitialized && FrameworkEventSource.Log.IsEnabled()) {
-                if (pos < 0) {
-                    FrameworkEventSource.Log.ResourceManagerCultureNotFoundInConfigFile(BaseNameField, MainAssembly, lookForCulture.Name);
-                }
-                else {
-                    FrameworkEventSource.Log.ResourceManagerCultureFoundInConfigFile(BaseNameField, MainAssembly, lookForCulture.Name);
-                }
-            }
-#endif
             return pos >= 0;
         }
 
         // Note: There is one config file per appdomain.  This is not 
         // per-process nor per-assembly.
-        [System.Security.SecurityCritical]  // auto-generated
         private Hashtable GetSatelliteAssembliesFromConfig()
         {
-#if FEATURE_FUSION
-
-            String fileName = AppDomain.CurrentDomain.FusionStore.ConfigurationFileInternal;
-            if (fileName == null) {
-                return null;
-            }
-
-            // Don't do a security assert.  We need to support semi-trusted 
-            // scenarios, but asserting here causes infinite resource lookups
-            // while initializing security & looking up mscorlib's config file.
-            // Use internal methods to bypass security checks.
-
-            // If we're dealing with a local file name or a UNC path instead 
-            // of a URL, check to see if the file exists here for perf (avoids
-            // throwing a FileNotFoundException).
-            if (fileName.Length >= 2 && 
-                ((fileName[1] == Path.VolumeSeparatorChar) || (fileName[0] == Path.DirectorySeparatorChar && fileName[1] == Path.DirectorySeparatorChar)) &&
-                !File.InternalExists(fileName))
-                return null;
-
-            ConfigTreeParser parser = new ConfigTreeParser();
-            String queryPath = "/configuration/satelliteassemblies";
-            ConfigNode node = null;
-            // Catch exceptions in case a web app doesn't have a config file.
-            try {
-                node = parser.Parse(fileName, queryPath, true);
-            }
-            catch(Exception) {}
-
-            if (node == null) {
-                return null;
-            }
-
-            // The application config file will contain sections like this:
-            // <?xml version="1.0"?>
-            // <configuration>
-            //     <satelliteassemblies>
-            //         <assembly name="mscorlib, Version=..., PublicKeyToken=...">
-            //             <culture>fr</culture>
-            //         </assembly>
-            //         <assembly name="UserAssembly, ...">
-            //             <culture>fr-FR</culture>
-            //             <culture>de-CH</culture>
-            //         </assembly>
-            //         <assembly name="UserAssembly2, ...">
-            //         </assembly>
-            //    </satelliteassemblies>
-            // </configuration>
-            Hashtable satelliteInfo = new Hashtable(StringComparer.OrdinalIgnoreCase);
-            foreach(ConfigNode assemblyNode in node.Children) {
-                if (!String.Equals(assemblyNode.Name, "assembly"))
-                    throw new ApplicationException(Environment.GetResourceString("XMLSyntax_InvalidSyntaxSatAssemTag", Path.GetFileName(fileName), assemblyNode.Name));
-
-                if (assemblyNode.Attributes.Count == 0)
-                    throw new ApplicationException(Environment.GetResourceString("XMLSyntax_InvalidSyntaxSatAssemTagNoAttr", Path.GetFileName(fileName)));
-
-                DictionaryEntry de = (DictionaryEntry) assemblyNode.Attributes[0];
-                String assemblyName = (String) de.Value;
-                if (!String.Equals(de.Key, "name") || String.IsNullOrEmpty(assemblyName) || assemblyNode.Attributes.Count > 1) 
-                    throw new ApplicationException(Environment.GetResourceString("XMLSyntax_InvalidSyntaxSatAssemTagBadAttr", Path.GetFileName(fileName), de.Key, de.Value));
-
-                ArrayList list = new ArrayList(5);
-                foreach(ConfigNode child in assemblyNode.Children)
-                    if (child.Value != null)
-                        list.Add(child.Value);
-
-                String[] satellites = new String[list.Count];
-                for(int i=0; i<satellites.Length; i++) {
-                    String cultureName = (String)list[i];
-                    satellites[i] = cultureName;
-#if !FEATURE_CORECLR
-                    if (FrameworkEventSource.IsInitialized)
-                    {
-                        FrameworkEventSource.Log.ResourceManagerAddingCultureFromConfigFile(BaseNameField, MainAssembly, cultureName);
-                    }
-#endif
-                }
-
-                satelliteInfo.Add(assemblyName, satellites);
-            }
-
-            return satelliteInfo;
-#else
             return null;
-#endif //FEATURE_FUSION
-
         }
 #endif  // RESOURCE_SATELLITE_CONFIG
 
@@ -1588,7 +1304,7 @@ namespace System.Resources {
             {
                 if (rm == null)
                 {
-                    throw new ArgumentNullException("rm");
+                    throw new ArgumentNullException(nameof(rm));
                 }
                 _rm = rm;
             }
@@ -1669,7 +1385,6 @@ namespace System.Resources {
 
 
 #if RESOURCE_SATELLITE_CONFIG
-            [System.Security.SecurityCritical]  // auto-generated
             internal bool TryLookingForSatellite(CultureInfo lookForCulture)
             {
                 return _rm.TryLookingForSatellite(lookForCulture);

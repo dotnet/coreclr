@@ -88,6 +88,10 @@ PHARDWARE_EXCEPTION_SAFETY_CHECK_FUNCTION g_safeExceptionCheckFunction = NULL;
 
 PGET_GCMARKER_EXCEPTION_CODE g_getGcMarkerExceptionCode = NULL;
 
+// Return address of the SEHProcessException, which is used to enable walking over 
+// the signal handler trampoline on some Unixes where the libunwind cannot do that.
+void* g_SEHProcessExceptionReturnAddress = NULL;
+
 /* Internal function definitions **********************************************/
 
 /*++
@@ -245,6 +249,8 @@ Return value:
 BOOL
 SEHProcessException(PAL_SEHException* exception)
 {
+    g_SEHProcessExceptionReturnAddress = __builtin_return_address(0);
+
     CONTEXT* contextRecord = exception->GetContextRecord();
     EXCEPTION_RECORD* exceptionRecord = exception->GetExceptionRecord();
 
@@ -268,7 +274,7 @@ SEHProcessException(PAL_SEHException* exception)
                     {
                         // The exception happened in the page right below the stack limit,
                         // so it is a stack overflow
-                        write(STDERR_FILENO, StackOverflowMessage, sizeof(StackOverflowMessage) - 1);
+                        (void)write(STDERR_FILENO, StackOverflowMessage, sizeof(StackOverflowMessage) - 1);
                         PROCAbort();
                     }
                 }
@@ -417,7 +423,7 @@ NativeExceptionHolderBase::FindNextHolder(NativeExceptionHolderBase *currentHold
 
     while (holder != nullptr)
     {
-        if (((void *)holder > stackLowAddress) && ((void *)holder < stackHighAddress))
+        if (((void *)holder >= stackLowAddress) && ((void *)holder < stackHighAddress))
         { 
             return holder;
         }

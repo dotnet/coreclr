@@ -9,6 +9,7 @@
 namespace System.Reflection.Emit
 {
     using System;
+    using System.Diagnostics;
     using System.Diagnostics.Contracts;
     using System.Globalization;
     using System.IO;
@@ -21,7 +22,6 @@ namespace System.Reflection.Emit
     [Serializable]
     internal class ModuleBuilderData
     {
-        [System.Security.SecurityCritical]  // auto-generated
         internal ModuleBuilderData(ModuleBuilder module, String strModuleName, String strFileName, int tkFile)
         {
             m_globalTypeBuilder = new TypeBuilder(module);
@@ -32,7 +32,6 @@ namespace System.Reflection.Emit
         }
 
         // Initialize module and file names.
-        [System.Security.SecurityCritical]  // auto-generated
         private void InitNames(String strModuleName, String strFileName)
         {
             m_strModuleName = strModuleName;
@@ -55,10 +54,9 @@ namespace System.Reflection.Emit
 
         // This is a method for changing module and file name of the manifest module (created by default for 
         // each assembly).
-        [System.Security.SecurityCritical]  // auto-generated
         internal virtual void ModifyModuleName(String strModuleName)
         {
-            Contract.Assert(m_strModuleName == AssemblyBuilder.MANIFEST_MODULE_NAME, "Changing names for non-manifest module");
+            Debug.Assert(m_strModuleName == AssemblyBuilder.MANIFEST_MODULE_NAME, "Changing names for non-manifest module");
             InitNames(strModuleName, null /*strFileName*/);
         }
 

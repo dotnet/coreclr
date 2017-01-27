@@ -16,8 +16,7 @@ namespace System.Runtime.InteropServices {
     using System.Diagnostics;
 
     // see code:ComEventsHelper#ComEventsArchitecture
-    [System.Security.SecurityCritical]
-    internal class ComEventsSink : NativeMethods.IDispatch, ICustomQueryInterface
+    internal class ComEventsSink : ICustomQueryInterface
     {
 #region private fields
 
@@ -57,7 +56,6 @@ namespace System.Runtime.InteropServices {
             return sink;
         }
 
-        [System.Security.SecurityCritical]
         internal static ComEventsSink RemoveAll(ComEventsSink sinks) {
             while (sinks != null) {
                 sinks.Unadvise();
@@ -67,7 +65,6 @@ namespace System.Runtime.InteropServices {
             return null;
         }
 
-        [System.Security.SecurityCritical]
         internal static ComEventsSink Remove(ComEventsSink sinks, ComEventsSink sink) {
             BCLDebug.Assert(sinks != null, "removing event sink from empty sinks collection");
             BCLDebug.Assert(sink != null, "specify event sink is null");
@@ -111,129 +108,8 @@ namespace System.Runtime.InteropServices {
 
 #endregion
 
-
-#region IDispatch Members
-
-        [System.Security.SecurityCritical]
-        void NativeMethods.IDispatch.GetTypeInfoCount(out uint pctinfo) {
-            pctinfo = 0;
-        }
-
-        [System.Security.SecurityCritical]
-        void NativeMethods.IDispatch.GetTypeInfo(uint iTInfo, int lcid, out IntPtr info) {
-            throw new NotImplementedException();
-        }
-
-        [System.Security.SecurityCritical]
-        void NativeMethods.IDispatch.GetIDsOfNames(ref Guid iid, string[] names, uint cNames, int lcid, int[] rgDispId) {
-            throw new NotImplementedException();
-        }
-
-        private const VarEnum VT_BYREF_VARIANT = VarEnum.VT_BYREF | VarEnum.VT_VARIANT;
-        private const VarEnum VT_TYPEMASK = (VarEnum) 0x0fff;
-        private const VarEnum VT_BYREF_TYPEMASK = VT_TYPEMASK | VarEnum.VT_BYREF;
-        
-        private static unsafe Variant *GetVariant(Variant *pSrc)
-        {
-            if (pSrc->VariantType == VT_BYREF_VARIANT)
-            {
-                // For VB6 compatibility reasons, if the VARIANT is a VT_BYREF | VT_VARIANT that 
-                // contains another VARIANT with VT_BYREF | VT_VARIANT, then we need to extract the 
-                // inner VARIANT and use it instead of the outer one. Note that if the inner VARIANT
-                // is VT_BYREF | VT_VARIANT | VT_ARRAY, it will pass the below test too.
-                Variant *pByRefVariant = (Variant *)pSrc->AsByRefVariant;
-                if ((pByRefVariant->VariantType & VT_BYREF_TYPEMASK) == VT_BYREF_VARIANT)
-                    return (Variant *)pByRefVariant;
-            }
-
-            return pSrc;
-        }
-
-        [System.Security.SecurityCritical]
-        unsafe void NativeMethods.IDispatch.Invoke(
-            int dispid, 
-            ref Guid riid, 
-            int lcid, 
-            ComTypes.INVOKEKIND wFlags, 
-            ref ComTypes.DISPPARAMS pDispParams, 
-            IntPtr pvarResult, 
-            IntPtr pExcepInfo, 
-            IntPtr puArgErr) {
-
-            ComEventsMethod method = FindMethod(dispid);
-            if (method == null)
-                return;
-
-            // notice the unsafe pointers we are using. This is to avoid unnecessary
-            // arguments marshalling. see code:ComEventsHelper#ComEventsArgsMarshalling
-
-            object [] args = new object[pDispParams.cArgs];
-            int [] byrefsMap = new int[pDispParams.cArgs];
-            bool [] usedArgs = new bool[pDispParams.cArgs];
-
-            Variant* pvars = (Variant*)pDispParams.rgvarg;
-            int* pNamedArgs = (int*)pDispParams.rgdispidNamedArgs;
-
-            // copy the named args (positional) as specified
-            int i;
-            int pos;
-            for (i = 0; i < pDispParams.cNamedArgs; i++) {
-                pos = pNamedArgs[i];
-                
-                Variant* pvar = GetVariant(&pvars[i]);
-                args[pos] = pvar->ToObject();
-                usedArgs[pos] = true;
-
-                if (pvar->IsByRef) {
-                    byrefsMap[pos] = i;
-                } else {
-                    byrefsMap[pos] = -1;
-                }
-            }
-
-            // copy the rest of the arguments in the reverse order
-            pos = 0;
-            for (; i < pDispParams.cArgs; i++) {
-                // find the next unassigned argument
-                while (usedArgs[pos]) {
-                    ++pos;
-                }
-
-                Variant* pvar = GetVariant(&pvars[pDispParams.cArgs - 1 - i]);
-                args[pos] = pvar->ToObject();
-
-                if (pvar->IsByRef)
-                    byrefsMap[pos] = pDispParams.cArgs - 1 - i;
-                else
-                    byrefsMap[pos] = -1;
-
-                pos++;
-            }
-
-            // Do the actual delegate invocation
-            object result;
-            result = method.Invoke(args);
-
-            // convert result to VARIANT
-            if (pvarResult != IntPtr.Zero) {
-                Marshal.GetNativeVariantForObject(result, pvarResult);
-            }
-
-            // Now we need to marshal all the byrefs back
-            for (i = 0; i < pDispParams.cArgs; i++) {
-                int idxToPos = byrefsMap[i];
-                if (idxToPos == -1)
-                    continue;
-
-                GetVariant(&pvars[idxToPos])->CopyFromIndirect(args[i]);
-            }
-        }
-
-#endregion
-
         static Guid IID_IManagedObject = new Guid("{C3FCC19E-A970-11D2-8B5A-00A0C9B7C9C4}");
 
-        [System.Security.SecurityCritical]
         CustomQueryInterfaceResult ICustomQueryInterface.GetInterface(ref Guid iid, out IntPtr ppv) {
             ppv = IntPtr.Zero;
             if (iid == this._iidSourceItf || iid == typeof(NativeMethods.IDispatch).GUID) {
@@ -265,7 +141,6 @@ namespace System.Runtime.InteropServices {
             _connectionPoint = cp;
         }
 
-        [System.Security.SecurityCritical]
         private void Unadvise() {
             BCLDebug.Assert(_connectionPoint != null, "can not unadvise from empty connection point");
 

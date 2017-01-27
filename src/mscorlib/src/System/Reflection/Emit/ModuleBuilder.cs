@@ -12,7 +12,6 @@ namespace System.Reflection.Emit
     using System.Diagnostics.SymbolStore;
     using System.Globalization;
     using System.Reflection;
-    using System.Diagnostics;
     using System.IO;
     using System.Resources;
     using System.Security;
@@ -22,6 +21,7 @@ namespace System.Reflection.Emit
     using System.Threading;
     using System.Runtime.Versioning;
     using System.Runtime.CompilerServices;
+    using System.Diagnostics;
     using System.Diagnostics.Contracts;
 
     internal sealed class InternalModuleBuilder : RuntimeModule
@@ -50,7 +50,6 @@ namespace System.Reflection.Emit
     }
 
     // deliberately not [serializable]
-    [HostProtection(MayLeakOnAbort = true)]
     [ClassInterface(ClassInterfaceType.None)]
     [ComDefaultInterface(typeof(_ModuleBuilder))]
     [System.Runtime.InteropServices.ComVisible(true)]
@@ -97,9 +96,6 @@ namespace System.Reflection.Emit
         private Dictionary<string, Type> m_TypeBuilderDict;
         private ISymbolWriter m_iSymWriter;
         internal ModuleBuilderData m_moduleData;
-#if !FEATURE_CORECLR
-        private MethodToken m_EntryPoint;
-#endif //!FEATURE_CORECLR
         internal InternalModuleBuilder m_internalModuleBuilder;
         // This is the "external" AssemblyBuilder
         // only the "external" ModuleBuilder has this set
@@ -157,42 +153,35 @@ namespace System.Reflection.Emit
         }
 
 
-        [System.Security.SecurityCritical]  // auto-generated
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         [SuppressUnmanagedCodeSecurity]
         private extern static int GetTypeRef(RuntimeModule module, String strFullName, RuntimeModule refedModule, String strRefedModuleFileName, int tkResolution);
 
-        [System.Security.SecurityCritical]  // auto-generated
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         [SuppressUnmanagedCodeSecurity]
         private extern static int GetMemberRef(RuntimeModule module, RuntimeModule refedModule, int tr, int defToken);
 
-        [System.Security.SecurityCritical]  // auto-generated
         private int GetMemberRef(Module refedModule, int tr, int defToken)
         {
             return GetMemberRef(GetNativeHandle(), GetRuntimeModuleFromModule(refedModule).GetNativeHandle(), tr, defToken);
         }
 
-        [System.Security.SecurityCritical]  // auto-generated
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         [SuppressUnmanagedCodeSecurity]
         private extern static int GetMemberRefFromSignature(RuntimeModule module, int tr, String methodName, byte[] signature, int length);
 
-        [System.Security.SecurityCritical]  // auto-generated
         private int GetMemberRefFromSignature(int tr, String methodName, byte[] signature, int length)
         {
             return GetMemberRefFromSignature(GetNativeHandle(), tr, methodName, signature, length);
         }
 
-        [System.Security.SecurityCritical]  // auto-generated
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         [SuppressUnmanagedCodeSecurity]
         private extern static int GetMemberRefOfMethodInfo(RuntimeModule module, int tr, IRuntimeMethodInfo method);
 
-        [System.Security.SecurityCritical]  // auto-generated
         private int GetMemberRefOfMethodInfo(int tr, RuntimeMethodInfo method)
         {
-            Contract.Assert(method != null);
+            Debug.Assert(method != null);
 
 #if FEATURE_APPX
             if (ContainingAssemblyBuilder.ProfileAPICheck)
@@ -205,10 +194,9 @@ namespace System.Reflection.Emit
             return GetMemberRefOfMethodInfo(GetNativeHandle(), tr, method);
         }
 
-        [System.Security.SecurityCritical]  // auto-generated
         private int GetMemberRefOfMethodInfo(int tr, RuntimeConstructorInfo method)
         {
-            Contract.Assert(method != null);
+            Debug.Assert(method != null);
 
 #if FEATURE_APPX
             if (ContainingAssemblyBuilder.ProfileAPICheck)
@@ -221,15 +209,13 @@ namespace System.Reflection.Emit
             return GetMemberRefOfMethodInfo(GetNativeHandle(), tr, method);
         }
 
-        [System.Security.SecurityCritical]  // auto-generated
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         [SuppressUnmanagedCodeSecurity]
         private extern static int GetMemberRefOfFieldInfo(RuntimeModule module, int tkType, RuntimeTypeHandle declaringType, int tkField);
 
-        [System.Security.SecurityCritical]  // auto-generated
         private int GetMemberRefOfFieldInfo(int tkType, RuntimeTypeHandle declaringType, RuntimeFieldInfo runtimeField)
         {
-            Contract.Assert(runtimeField != null);
+            Debug.Assert(runtimeField != null);
 
 #if FEATURE_APPX
             if (ContainingAssemblyBuilder.ProfileAPICheck)
@@ -243,38 +229,31 @@ namespace System.Reflection.Emit
             return GetMemberRefOfFieldInfo(GetNativeHandle(), tkType, declaringType, runtimeField.MetadataToken);
         }
 
-        [System.Security.SecurityCritical]  // auto-generated
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         [SuppressUnmanagedCodeSecurity]
         private extern static int GetTokenFromTypeSpec(RuntimeModule pModule, byte[] signature, int length);
 
-        [System.Security.SecurityCritical]  // auto-generated
         private int GetTokenFromTypeSpec(byte[] signature, int length)
         {
             return GetTokenFromTypeSpec(GetNativeHandle(), signature, length);
         }
 
-        [System.Security.SecurityCritical]  // auto-generated
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         [SuppressUnmanagedCodeSecurity]
         private extern static int GetArrayMethodToken(RuntimeModule module, int tkTypeSpec, String methodName, byte[] signature, int sigLength);
 
-        [System.Security.SecurityCritical]  // auto-generated
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         [SuppressUnmanagedCodeSecurity]
         private extern static int GetStringConstant(RuntimeModule module, String str, int length);
 
-        [System.Security.SecurityCritical]  // auto-generated
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         [SuppressUnmanagedCodeSecurity]
         private extern static void PreSavePEFile(RuntimeModule module, int portableExecutableKind, int imageFileMachine);
 
-        [System.Security.SecurityCritical]  // auto-generated
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         [SuppressUnmanagedCodeSecurity]
         private extern static void SavePEFile(RuntimeModule module, String fileName, int entryPoint, int isExe, bool isManifestFile);
 
-        [System.Security.SecurityCritical]  // auto-generated
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         [SuppressUnmanagedCodeSecurity]
         private extern static void AddResource(
@@ -282,17 +261,14 @@ namespace System.Reflection.Emit
             byte[] resBytes, int resByteCount, int tkFile, int attribute,
             int portableExecutableKind, int imageFileMachine);
 
-        [System.Security.SecurityCritical]  // auto-generated
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         [SuppressUnmanagedCodeSecurity]
         private extern static void SetModuleName(RuntimeModule module, String strModuleName);
 
-        [System.Security.SecurityCritical]  // auto-generated
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         [SuppressUnmanagedCodeSecurity]
         internal extern static void SetFieldRVAContent(RuntimeModule module, int fdToken, byte[] data, int length);
 
-        [System.Security.SecurityCritical]  // auto-generated
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         [SuppressUnmanagedCodeSecurity]
         private extern static void DefineNativeResourceFile(RuntimeModule module, 
@@ -300,7 +276,6 @@ namespace System.Reflection.Emit
                                                             int portableExecutableKind, 
                                                             int ImageFileMachine);
 
-        [System.Security.SecurityCritical]  // auto-generated
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         [SuppressUnmanagedCodeSecurity]
         private extern static void DefineNativeResourceBytes(RuntimeModule module,
@@ -308,7 +283,6 @@ namespace System.Reflection.Emit
                                                              int portableExecutableKind, 
                                                              int imageFileMachine);
 
-        [System.Security.SecurityCritical]  // auto-generated
         internal void DefineNativeResource(PortableExecutableKinds portableExecutableKind, ImageFileMachine imageFileMachine)
         {
             string strResourceFileName = m_moduleData.m_strResourceFileName;
@@ -351,105 +325,7 @@ namespace System.Reflection.Emit
 
             return null;
         }
-        
-#if !FEATURE_CORECLR
-        internal void SetEntryPoint(MethodToken entryPoint)
-        {           
-            // Sets the entry point of the module to be a given method.  If no entry point
-            // is specified, calling EmitPEFile will generate a dll.
-            // AssemblyBuilder.SetEntryPoint has already demanded required permission
-            m_EntryPoint = entryPoint;
-        }
-#endif //!FEATURE_CORECLR
 
-
-#if !FEATURE_CORECLR
-        // This is a helper called by AssemblyBuilder save to presave information for the persistable modules.
-        // no need to lock here because we have already taken the lock in AssemblyBuilder.Save
-        [System.Security.SecurityCritical]  // auto-generated
-        internal void PreSave(String fileName,
-            PortableExecutableKinds portableExecutableKind, ImageFileMachine imageFileMachine)
-        {
-            if (m_moduleData.m_isSaved == true)
-            {
-                // can only save once
-                throw new InvalidOperationException(String.Format(CultureInfo.InvariantCulture,
-                    Environment.GetResourceString("InvalidOperation_ModuleHasBeenSaved"),
-                    m_moduleData.m_strModuleName));
-            }
-        
-            if (m_moduleData.m_fGlobalBeenCreated == false && m_moduleData.m_fHasGlobal == true)
-                throw new NotSupportedException(Environment.GetResourceString("NotSupported_GlobalFunctionNotBaked")); 
-
-            TypeBuilder typeBuilder;
-            foreach (Type item in m_TypeBuilderDict.Values)
-            {
-                if (item is TypeBuilder)
-                {
-                    typeBuilder = (TypeBuilder)item;
-                }
-                else
-                {
-                    EnumBuilder enumBuilder = (EnumBuilder)item;
-                    typeBuilder = enumBuilder.m_typeBuilder;
-                }
-
-                if (!typeBuilder.IsCreated())
-                {
-                    // cannot save to PE file without creating all of the types first 
-                    throw new NotSupportedException(String.Format(CultureInfo.InvariantCulture,
-                        Environment.GetResourceString("NotSupported_NotAllTypesAreBaked"), 
-                        typeBuilder.FullName)); 
-                }
-            }
-
-            PreSavePEFile(GetNativeHandle(), (int)portableExecutableKind, (int)imageFileMachine);
-        }
-
-        // no need to lock here because we have already taken the lock in AssemblyBuilder.Save
-        [System.Security.SecurityCritical]  // auto-generated
-        internal void Save(String fileName, bool isAssemblyFile, PortableExecutableKinds portableExecutableKind, 
-            ImageFileMachine imageFileMachine)
-        {
-            // This is a helper called by AssemblyBuilder save to save information for the persistable modules.
-            if (m_moduleData.m_embeddedRes != null)
-            {
-                // There are embedded resources for this module
-                ResWriterData   resWriter;
-
-                // Add each resource content into the to be saved PE file
-                for (resWriter = m_moduleData.m_embeddedRes; resWriter != null; resWriter = resWriter.m_nextResWriter)
-                {
-                    if (resWriter.m_resWriter != null)
-                        resWriter.m_resWriter.Generate();                    
-                    
-                    byte[] resBytes = new byte[resWriter.m_memoryStream.Length];
-                    resWriter.m_memoryStream.Flush();
-                    resWriter.m_memoryStream.Position = 0;
-                    resWriter.m_memoryStream.Read(resBytes, 0, resBytes.Length);
-
-                    AddResource(GetNativeHandle(),
-                                resWriter.m_strName, 
-                                resBytes,
-                                resBytes.Length,
-                                m_moduleData.FileToken,
-                                (int)resWriter.m_attribute, 
-                                (int)portableExecutableKind,
-                                (int)imageFileMachine);
-                }
-            }
-
-            DefineNativeResource(portableExecutableKind, imageFileMachine);
-
-            PEFileKinds pekind = isAssemblyFile ? ContainingAssemblyBuilder.m_assemblyData.m_peFileKind : PEFileKinds.Dll;
-
-            SavePEFile(GetNativeHandle(), fileName, m_EntryPoint.Token, (int)pekind, isAssemblyFile); 
-
-            m_moduleData.m_isSaved = true;
-        }
-#endif // !FEATURE_CORECLR
-
-        [System.Security.SecurityCritical]  // auto-generated
         private int GetTypeRefNested(Type type, Module refedModule, String strRefedModuleFileName)
         {
             // This function will generate correct TypeRef token for top level type and nested type.
@@ -464,8 +340,8 @@ namespace System.Reflection.Emit
                 typeName = UnmangleTypeName(typeName);
             }
 
-            Contract.Assert(!type.IsByRef, "Must not be ByRef.");
-            Contract.Assert(!type.IsGenericType || type.IsGenericTypeDefinition, "Must not have generic arguments.");
+            Debug.Assert(!type.IsByRef, "Must not be ByRef.");
+            Debug.Assert(!type.IsGenericType || type.IsGenericTypeDefinition, "Must not have generic arguments.");
 
 #if FEATURE_APPX
             if (ContainingAssemblyBuilder.ProfileAPICheck)
@@ -481,13 +357,12 @@ namespace System.Reflection.Emit
             return GetTypeRef(GetNativeHandle(), typeName, GetRuntimeModuleFromModule(refedModule).GetNativeHandle(), strRefedModuleFileName, tkResolution);
         }
 
-        [System.Security.SecurityCritical]  // auto-generated
         internal MethodToken InternalGetConstructorToken(ConstructorInfo con, bool usingRef)
         {
             // Helper to get constructor token. If usingRef is true, we will never use the def token
 
             if (con == null)
-                throw new ArgumentNullException("con");
+                throw new ArgumentNullException(nameof(con));
             Contract.EndContractBlock();
 
             int tr;
@@ -529,12 +404,11 @@ namespace System.Reflection.Emit
                 if (parameters == null)
                     throw new ArgumentException(Environment.GetResourceString("Argument_InvalidConstructorInfo"));
 
-                int count = parameters.Length;
-                Type[] parameterTypes = new Type[count];
-                Type[][] requiredCustomModifiers = new Type[count][];
-                Type[][] optionalCustomModifiers = new Type[count][];
+                Type[] parameterTypes = new Type[parameters.Length];
+                Type[][] requiredCustomModifiers = new Type[parameters.Length][];
+                Type[][] optionalCustomModifiers = new Type[parameters.Length][];
 
-                for (int i = 0; i < count; i++)
+                for (int i = 0; i < parameters.Length; i++)
                 {
                     if (parameters[i] == null)
                         throw new ArgumentException(Environment.GetResourceString("Argument_InvalidConstructorInfo"));
@@ -556,7 +430,6 @@ namespace System.Reflection.Emit
             return new MethodToken( mr );
         }
 
-        [System.Security.SecurityCritical]  // auto-generated
         internal void Init(String strModuleName, String strFileName, int tkFile)
         {
             m_moduleData = new ModuleBuilderData(this, strModuleName, strFileName, tkFile);
@@ -565,7 +438,6 @@ namespace System.Reflection.Emit
 
         // This is a method for changing module and file name of the manifest module (created by default for 
         // each assembly).
-        [System.Security.SecurityCritical]  // auto-generated
         internal void ModifyModuleName(string name)
         {
             // Reset the names in the managed ModuleBuilderData
@@ -589,7 +461,7 @@ namespace System.Reflection.Emit
         }
 
         #endregion
-            
+
         #region Module Overrides
             
         // m_internalModuleBuilder is null iff this is a "internal" ModuleBuilder
@@ -622,7 +494,6 @@ namespace System.Reflection.Emit
             return m as RuntimeModule;
         }
 
-        [System.Security.SecurityCritical]  // auto-generated
         private int GetMemberRefToken(MethodBase method, IEnumerable<Type> optionalParameterTypes)
         {
             Type[] parameterTypes;
@@ -671,11 +542,11 @@ namespace System.Reflection.Emit
                 }
                 else
                 {
-                    Contract.Assert(method is RuntimeMethodInfo || method is RuntimeConstructorInfo);
+                    Debug.Assert(method is RuntimeMethodInfo || method is RuntimeConstructorInfo);
 
                     if (method.IsGenericMethod)
                     {
-                        Contract.Assert(masmi != null);
+                        Debug.Assert(masmi != null);
 
                         methDef = masmi.GetGenericMethodDefinition();
                         methDef = methDef.Module.ResolveMethod(
@@ -728,16 +599,17 @@ namespace System.Reflection.Emit
             return GetMemberRefFromSignature(tkParent, method.Name, sigBytes, sigLength);
         }
 
-        [System.Security.SecurityCritical]  // auto-generated
         internal SignatureHelper GetMemberRefSignature(CallingConventions call, Type returnType,
             Type[] parameterTypes, IEnumerable<Type> optionalParameterTypes, int cGenericParameters) 
         {
-            int cParams = (parameterTypes == null) ? 0 : parameterTypes.Length;
             SignatureHelper sig = SignatureHelper.GetMethodSigHelper(this, call, returnType, cGenericParameters);
 
-            for (int i = 0; i < cParams; i++)
+            if (parameterTypes != null)
             {
-                sig.AddArgument(parameterTypes[i]);
+                foreach (Type t in parameterTypes)
+                {
+                    sig.AddArgument(t);
+                }
             }
 
             if (optionalParameterTypes != null) {
@@ -949,11 +821,6 @@ namespace System.Reflection.Emit
 
         public override String FullyQualifiedName
         {
-#if FEATURE_CORECLR
-            [System.Security.SecurityCritical] // auto-generated
-#else
-            [System.Security.SecuritySafeCritical]
-#endif
             get
             {
                 String fullyQualifiedName = m_moduleData.m_strFileName;
@@ -962,7 +829,7 @@ namespace System.Reflection.Emit
                 if (ContainingAssemblyBuilder.m_assemblyData.m_strDir != null)
                 {
                     fullyQualifiedName = Path.Combine(ContainingAssemblyBuilder.m_assemblyData.m_strDir, fullyQualifiedName);
-                    fullyQualifiedName = Path.UnsafeGetFullPath(fullyQualifiedName);
+                    fullyQualifiedName = Path.GetFullPath(fullyQualifiedName);
                 }
                 
                 if (ContainingAssemblyBuilder.m_assemblyData.m_strDir != null && fullyQualifiedName != null) 
@@ -1085,18 +952,11 @@ namespace System.Reflection.Emit
             }
         }
 
-#if FEATURE_X509 && FEATURE_CAS_POLICY
-        public override System.Security.Cryptography.X509Certificates.X509Certificate GetSignerCertificate()
-        {
-            return InternalModule.GetSignerCertificate();
-        }
-#endif // FEATURE_X509 && FEATURE_CAS_POLICY
         #endregion
 
         #region Public Members
 
         #region Define Type
-        [System.Security.SecuritySafeCritical]  // auto-generated
         public TypeBuilder DefineType(String name)
         {
             Contract.Ensures(Contract.Result<TypeBuilder>() != null);
@@ -1107,7 +967,6 @@ namespace System.Reflection.Emit
             }
         }
 
-        [System.Security.SecuritySafeCritical]  // auto-generated
         public TypeBuilder DefineType(String name, TypeAttributes attr)
         {
             Contract.Ensures(Contract.Result<TypeBuilder>() != null);
@@ -1118,7 +977,6 @@ namespace System.Reflection.Emit
             }
         }
 
-        [System.Security.SecuritySafeCritical]  // auto-generated
         public TypeBuilder DefineType(String name, TypeAttributes attr, Type parent)
         {
             Contract.Ensures(Contract.Result<TypeBuilder>() != null);
@@ -1132,11 +990,6 @@ namespace System.Reflection.Emit
             }
         }
 
-#if FEATURE_CORECLR
-        [System.Security.SecurityCritical] // auto-generated
-#else
-        [System.Security.SecuritySafeCritical]
-#endif
         public TypeBuilder DefineType(String name, TypeAttributes attr, Type parent, int typesize)
         {
             Contract.Ensures(Contract.Result<TypeBuilder>() != null);
@@ -1147,11 +1000,6 @@ namespace System.Reflection.Emit
             }
         }
 
-#if FEATURE_CORECLR
-        [System.Security.SecurityCritical] // auto-generated
-#else
-        [System.Security.SecuritySafeCritical]
-#endif
         public TypeBuilder DefineType(String name, TypeAttributes attr, Type parent, PackingSize packingSize, int typesize)
         {
             Contract.Ensures(Contract.Result<TypeBuilder>() != null);
@@ -1162,7 +1010,6 @@ namespace System.Reflection.Emit
             }
         }
 
-        [System.Security.SecuritySafeCritical]  // auto-generated
         [System.Runtime.InteropServices.ComVisible(true)]
         public TypeBuilder DefineType(String name, TypeAttributes attr, Type parent, Type[] interfaces)
         {
@@ -1174,7 +1021,6 @@ namespace System.Reflection.Emit
             }
         }
 
-        [System.Security.SecurityCritical]  // auto-generated
         private TypeBuilder DefineTypeNoLock(String name, TypeAttributes attr, Type parent, Type[] interfaces, PackingSize packingSize, int typesize)
         {
             Contract.Ensures(Contract.Result<TypeBuilder>() != null);
@@ -1182,11 +1028,6 @@ namespace System.Reflection.Emit
             return new TypeBuilder(name, attr, parent, interfaces, this, packingSize, typesize, null); ;
         }
 
-#if FEATURE_CORECLR
-        [System.Security.SecurityCritical] // auto-generated
-#else
-        [System.Security.SecuritySafeCritical]
-#endif
         public TypeBuilder DefineType(String name, TypeAttributes attr, Type parent, PackingSize packsize)
         {
             Contract.Ensures(Contract.Result<TypeBuilder>() != null);
@@ -1197,7 +1038,6 @@ namespace System.Reflection.Emit
             }
         }
 
-        [System.Security.SecurityCritical]  // auto-generated
         private TypeBuilder DefineTypeNoLock(String name, TypeAttributes attr, Type parent, PackingSize packsize)
         {
             Contract.Ensures(Contract.Result<TypeBuilder>() != null);
@@ -1211,7 +1051,6 @@ namespace System.Reflection.Emit
 
         // This API can only be used to construct a top-level (not nested) enum type.
         // Nested enum types can be defined manually using ModuleBuilder.DefineType.
-        [System.Security.SecuritySafeCritical]  // auto-generated
         public EnumBuilder DefineEnum(String name, TypeAttributes visibility, Type underlyingType)
         {
             Contract.Ensures(Contract.Result<EnumBuilder>() != null);
@@ -1222,17 +1061,22 @@ namespace System.Reflection.Emit
                 EnumBuilder enumBuilder = DefineEnumNoLock(name, visibility, underlyingType);
 
                 // This enum is not generic, nested, and cannot have any element type.
-                Contract.Assert(name == enumBuilder.FullName);
+
+                // We ought to be able to make the following assertions:
+                //
+                //  Debug.Assert(name == enumBuilder.FullName);
+                //  Debug.Assert(enumBuilder.m_typeBuilder == m_TypeBuilderDict[name]);
+                //
+                // but we can't because an embedded null ('\0') in the name will cause it to be truncated
+                // incorrectly.  Fixing that would be a breaking change.
 
                 // Replace the TypeBuilder object in m_TypeBuilderDict with this EnumBuilder object.
-                Contract.Assert(enumBuilder.m_typeBuilder == m_TypeBuilderDict[name]);
                 m_TypeBuilderDict[name] = enumBuilder;
 
                 return enumBuilder;
             }
         }
 
-        [System.Security.SecurityCritical]  // auto-generated
         private EnumBuilder DefineEnumNoLock(String name, TypeAttributes visibility, Type underlyingType)
         {
             Contract.Ensures(Contract.Result<EnumBuilder>() != null);
@@ -1243,178 +1087,7 @@ namespace System.Reflection.Emit
         #endregion
 
         #region Define Resource
-#if !FEATURE_CORECLR
-        public IResourceWriter DefineResource(String name, String description)
-        {
-            // Define embedded managed resource to be stored in this module
-            Contract.Ensures(Contract.Result<IResourceWriter>() != null);
-             
-            return DefineResource(name, description, ResourceAttributes.Public);
-        }
 
-        public IResourceWriter DefineResource(String name, String description, ResourceAttributes attribute)
-        {
-            // Define embedded managed resource to be stored in this module
-            Contract.Ensures(Contract.Result<IResourceWriter>() != null);
-
-            lock(SyncRoot)
-            {
-                return DefineResourceNoLock(name, description, attribute);
-            }
-        }
-
-        private IResourceWriter DefineResourceNoLock(String name, String description, ResourceAttributes attribute)
-        {
-            // Define embedded managed resource to be stored in this module
-
-            if (IsTransient())
-                throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_BadResourceContainer"));
-
-            if (name == null)
-                throw new ArgumentNullException("name");
-            if (name.Length == 0)
-                throw new ArgumentException(Environment.GetResourceString("Argument_EmptyName"), "name");
-            Contract.Ensures(Contract.Result<IResourceWriter>() != null);
-            Contract.EndContractBlock();
-
-            if (m_assemblyBuilder.IsPersistable())
-            {
-                m_assemblyBuilder.m_assemblyData.CheckResNameConflict(name);
-
-                    MemoryStream stream = new MemoryStream();
-                    ResourceWriter resWriter = new ResourceWriter(stream);
-                    ResWriterData resWriterData = new ResWriterData( resWriter, stream, name, String.Empty, String.Empty, attribute);
-
-                // chain it to the embedded resource list
-                resWriterData.m_nextResWriter = m_moduleData.m_embeddedRes;
-                m_moduleData.m_embeddedRes = resWriterData;
-                return resWriter;
-            }
-            else
-            {
-                throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_BadResourceContainer"));
-            }
-        }
-#endif // !FEATURE_CORECLR
-
-#if FEATURE_CORECLR
-        [System.Security.SecurityCritical] // auto-generated
-#endif
-        public void DefineManifestResource(String name, Stream stream, ResourceAttributes attribute)
-        {
-            if (name == null)
-                throw new ArgumentNullException("name");
-            
-            if (stream == null)
-                throw new ArgumentNullException("stream");
-            Contract.EndContractBlock();
-
-            // Define embedded managed resource to be stored in this module
-
-            lock(SyncRoot)
-            {
-                DefineManifestResourceNoLock(name, stream, attribute);
-            }
-        }
-
-        private void DefineManifestResourceNoLock(String name, Stream stream, ResourceAttributes attribute)
-        {
-            // Define embedded managed resource to be stored in this module
-           if (IsTransient())
-                throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_BadResourceContainer"));
-           Contract.EndContractBlock();
-
-#if !FEATURE_CORECLR
-            if (name == null)
-                throw new ArgumentNullException("name");
-            if (name.Length == 0)
-                throw new ArgumentException(Environment.GetResourceString("Argument_EmptyName"), "name");
-        
-            if (m_assemblyBuilder.IsPersistable())
-            {
-                m_assemblyBuilder.m_assemblyData.CheckResNameConflict(name);
-
-                ResWriterData resWriterData = new ResWriterData( null, stream, name, String.Empty, String.Empty, attribute);
-    
-                // chain it to the embedded resource list
-                resWriterData.m_nextResWriter = m_moduleData.m_embeddedRes;
-                m_moduleData.m_embeddedRes = resWriterData;
-            }
-            else
-            { 
-                throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_BadResourceContainer"));
-            }
-#endif // !FEATURE_CORECLR
-        }
-
-
-#if FEATURE_CORECLR
-        [System.Security.SecurityCritical] // auto-generated
-#endif
-        public void DefineUnmanagedResource(Byte[] resource)
-        {
-            lock(SyncRoot)
-            {
-                DefineUnmanagedResourceInternalNoLock(resource);
-            }
-        }
-
-        internal void DefineUnmanagedResourceInternalNoLock(Byte[] resource)
-        {
-            if (resource == null)
-                throw new ArgumentNullException("resource");
-            Contract.EndContractBlock();
-
-            if (m_moduleData.m_strResourceFileName != null || m_moduleData.m_resourceBytes != null)
-                throw new ArgumentException(Environment.GetResourceString("Argument_NativeResourceAlreadyDefined"));
-                        
-            m_moduleData.m_resourceBytes = new byte[resource.Length];
-            Buffer.BlockCopy(resource, 0, m_moduleData.m_resourceBytes, 0, resource.Length);
-        }
-
-#if FEATURE_CORECLR
-        [System.Security.SecurityCritical] // auto-generated
-#else
-        [System.Security.SecuritySafeCritical]
-#endif
-        public void DefineUnmanagedResource(String resourceFileName)
-        {
-            lock(SyncRoot)
-            {
-                DefineUnmanagedResourceFileInternalNoLock(resourceFileName);
-            }
-        }
-
-        [System.Security.SecurityCritical]  // auto-generated
-        internal void DefineUnmanagedResourceFileInternalNoLock(String resourceFileName)
-        {
-            if (resourceFileName == null)
-                throw new ArgumentNullException("resourceFileName");
-            Contract.EndContractBlock();
-
-            if (m_moduleData.m_resourceBytes != null || m_moduleData.m_strResourceFileName != null)
-                throw new ArgumentException(Environment.GetResourceString("Argument_NativeResourceAlreadyDefined"));
-
-            // Check caller has the right to read the file.
-            string strFullFileName;
-            strFullFileName = Path.UnsafeGetFullPath(resourceFileName);
-            new FileIOPermission(FileIOPermissionAccess.Read, strFullFileName).Demand();
-
-            new EnvironmentPermission(PermissionState.Unrestricted).Assert();
-            try
-            {
-                if (File.UnsafeExists(resourceFileName) == false)
-                    throw new FileNotFoundException(Environment.GetResourceString(
-                        "IO.FileNotFound_FileName",
-                        resourceFileName), resourceFileName);
-            }
-            finally
-            {
-                CodeAccessPermission.RevertAssert();
-            }
-
-            m_moduleData.m_strResourceFileName = strFullFileName;
-        }
         #endregion
 
         #region Define Global Method
@@ -1453,10 +1126,10 @@ namespace System.Reflection.Emit
                 throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_GlobalsHaveBeenCreated"));
         
             if (name == null)
-                throw new ArgumentNullException("name");
+                throw new ArgumentNullException(nameof(name));
 
             if (name.Length == 0)
-                throw new ArgumentException(Environment.GetResourceString("Argument_EmptyName"), "name");
+                throw new ArgumentException(Environment.GetResourceString("Argument_EmptyName"), nameof(name));
         
             if ((attributes & MethodAttributes.Static) == 0)
                 throw new ArgumentException(Environment.GetResourceString("Argument_GlobalFunctionHasToBeStatic"));
@@ -1473,56 +1146,6 @@ namespace System.Reflection.Emit
             return m_moduleData.m_globalTypeBuilder.DefineMethod(name, attributes, callingConvention, 
                 returnType, requiredReturnTypeCustomModifiers, optionalReturnTypeCustomModifiers, 
                 parameterTypes, requiredParameterTypeCustomModifiers, optionalParameterTypeCustomModifiers);
-        }
-        
-#if FEATURE_CORECLR
-        [System.Security.SecurityCritical] // auto-generated
-#endif
-        public MethodBuilder DefinePInvokeMethod(String name, String dllName, MethodAttributes attributes, 
-            CallingConventions callingConvention, Type returnType, Type[] parameterTypes, 
-            CallingConvention nativeCallConv, CharSet nativeCharSet)
-        {
-            Contract.Ensures(Contract.Result<MethodBuilder>() != null);
-
-            return DefinePInvokeMethod(name, dllName, name, attributes, callingConvention, returnType, parameterTypes, nativeCallConv, nativeCharSet);
-        }
-
-#if FEATURE_CORECLR
-        [System.Security.SecurityCritical] // auto-generated
-#endif
-        public MethodBuilder DefinePInvokeMethod(String name, String dllName, String entryName, MethodAttributes attributes, 
-            CallingConventions callingConvention, Type returnType, Type[] parameterTypes, CallingConvention nativeCallConv, 
-            CharSet nativeCharSet)
-        {
-            Contract.Ensures(Contract.Result<MethodBuilder>() != null);
-
-            lock(SyncRoot)
-            {
-                return DefinePInvokeMethodNoLock(name, dllName, entryName, attributes, callingConvention, 
-                                                 returnType, parameterTypes, nativeCallConv, nativeCharSet);
-            }
-        }
-
-#if FEATURE_CORECLR
-        [System.Security.SecurityCritical] // auto-generated
-#endif
-        private MethodBuilder DefinePInvokeMethodNoLock(String name, String dllName, String entryName, MethodAttributes attributes, 
-            CallingConventions callingConvention, Type returnType, Type[] parameterTypes, CallingConvention nativeCallConv, 
-            CharSet nativeCharSet)
-        {
-            //Global methods must be static.        
-            if ((attributes & MethodAttributes.Static) == 0)
-            {
-                throw new ArgumentException(Environment.GetResourceString("Argument_GlobalFunctionHasToBeStatic"));
-            }
-            Contract.Ensures(Contract.Result<MethodBuilder>() != null);
-            Contract.EndContractBlock();
-
-            CheckContext(returnType);
-            CheckContext(parameterTypes);
-
-            m_moduleData.m_fHasGlobal = true;
-            return m_moduleData.m_globalTypeBuilder.DefinePInvokeMethod(name, dllName, entryName, attributes, callingConvention, returnType, parameterTypes, nativeCallConv, nativeCharSet);
         }
         
         public void CreateGlobalFunctions()
@@ -1548,9 +1171,6 @@ namespace System.Reflection.Emit
 
         #region Define Data
 
-#if FEATURE_CORECLR
-        [System.Security.SecurityCritical] // auto-generated
-#endif
         public FieldBuilder DefineInitializedData(String name, byte[] data, FieldAttributes attributes)
         {
             // This method will define an initialized Data in .sdata. 
@@ -1564,9 +1184,6 @@ namespace System.Reflection.Emit
             }
         }
 
-#if FEATURE_CORECLR
-        [System.Security.SecurityCritical] // auto-generated
-#endif
         private FieldBuilder DefineInitializedDataNoLock(String name, byte[] data, FieldAttributes attributes)
         {
             // This method will define an initialized Data in .sdata. 
@@ -1583,9 +1200,6 @@ namespace System.Reflection.Emit
             return m_moduleData.m_globalTypeBuilder.DefineInitializedData(name, data, attributes);
         }
         
-#if FEATURE_CORECLR
-        [System.Security.SecurityCritical] // auto-generated
-#endif
         public FieldBuilder DefineUninitializedData(String name, int size, FieldAttributes attributes)
         {
             Contract.Ensures(Contract.Result<FieldBuilder>() != null);
@@ -1596,9 +1210,6 @@ namespace System.Reflection.Emit
             }
         }
 
-#if FEATURE_CORECLR
-        [System.Security.SecurityCritical] // auto-generated
-#endif
         private FieldBuilder DefineUninitializedDataNoLock(String name, int size, FieldAttributes attributes)
         {
             // This method will define an uninitialized Data in .sdata. 
@@ -1623,13 +1234,11 @@ namespace System.Reflection.Emit
         //   1. GetTypeToken
         //   2. ldtoken (see ILGenerator)
         // For all other occasions we should return the generic type instantiated on its formal parameters.
-        [System.Security.SecurityCritical]  // auto-generated
         internal TypeToken GetTypeTokenInternal(Type type)
         {
             return GetTypeTokenInternal(type, false);
         }
 
-        [System.Security.SecurityCritical]  // auto-generated
         private TypeToken GetTypeTokenInternal(Type type, bool getGenericDefinition)
         {
             lock(SyncRoot)
@@ -1638,17 +1247,15 @@ namespace System.Reflection.Emit
             }
         }
 
-        [System.Security.SecuritySafeCritical]  // auto-generated
         public TypeToken GetTypeToken(Type type)
         {        
             return GetTypeTokenInternal(type, true);
         }
 
-        [System.Security.SecurityCritical]  // auto-generated
         private TypeToken GetTypeTokenWorkerNoLock(Type type, bool getGenericDefinition)
         {
             if (type == null)
-                throw new ArgumentNullException("type");
+                throw new ArgumentNullException(nameof(type));
             Contract.EndContractBlock();
 
             CheckContext(type);
@@ -1710,19 +1317,6 @@ namespace System.Reflection.Emit
             //
             ModuleBuilder refedModuleBuilder = refedModule as ModuleBuilder;
 
-#if !FEATURE_CORECLR
-            Contract.Assert(refedModuleBuilder != null || refedModule is RuntimeModule);
-            bool isRefedModuleTransient = refedModuleBuilder != null ?
-                                          refedModuleBuilder.IsTransient() :
-                                          ((RuntimeModule)refedModule).IsTransientInternal();
-
-            // We cannot have a non-transient module referencing to a transient module.
-            if (IsTransient() == false && isRefedModuleTransient)
-            {
-                throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_BadTransientModuleReference"));
-            }
-#endif // !FEATURE_CORECLR
-
             String strRefedModuleFileName = String.Empty;
             if (refedModule.Assembly.Equals(this.Assembly))
             {
@@ -1753,7 +1347,6 @@ namespace System.Reflection.Emit
             return GetTypeToken(InternalModule.GetType(name, false, true));
         }
 
-        [System.Security.SecuritySafeCritical]  // auto-generated
         public MethodToken GetMethodToken(MethodInfo method)
         {
             lock(SyncRoot)
@@ -1762,7 +1355,6 @@ namespace System.Reflection.Emit
             }
         }
 
-        [System.Security.SecurityCritical]  // auto-generated
         internal MethodToken GetMethodTokenInternal(MethodInfo method)
         {
             lock(SyncRoot)
@@ -1775,13 +1367,12 @@ namespace System.Reflection.Emit
         //   1. GetMethodToken
         //   2. ldtoken (see ILGenerator)
         // For all other occasions we should return the method on the generic type instantiated on the formal parameters.
-        [System.Security.SecurityCritical]  // auto-generated
         private MethodToken GetMethodTokenNoLock(MethodInfo method, bool getGenericTypeDefinition)
         {
             // Return a MemberRef token if MethodInfo is not defined in this module. Or 
             // return the MethodDef token. 
             if (method == null)
-                throw new ArgumentNullException("method");
+                throw new ArgumentNullException(nameof(method));
             Contract.EndContractBlock();
 
             int tr;
@@ -1885,12 +1476,11 @@ namespace System.Reflection.Emit
             return new MethodToken(mr);
         }
 
-        [System.Security.SecuritySafeCritical]  // auto-generated
         public MethodToken GetConstructorToken(ConstructorInfo constructor, IEnumerable<Type> optionalParameterTypes)
         {
             if (constructor == null)
             {
-                throw new ArgumentNullException("constructor");
+                throw new ArgumentNullException(nameof(constructor));
             }
 
             lock (SyncRoot)
@@ -1900,12 +1490,11 @@ namespace System.Reflection.Emit
             }
         }
 
-        [System.Security.SecuritySafeCritical]  // auto-generated
         public MethodToken GetMethodToken(MethodInfo method, IEnumerable<Type> optionalParameterTypes)
         {
             if (method == null)
             {
-                throw new ArgumentNullException("method");
+                throw new ArgumentNullException(nameof(method));
             }
 
             // useMethodDef flag only affects the result if we pass in a generic method definition. 
@@ -1922,7 +1511,6 @@ namespace System.Reflection.Emit
             }
         }
 
-        [System.Security.SecurityCritical]  // auto-generated
         internal int GetMethodTokenInternal(MethodBase method, IEnumerable<Type> optionalParameterTypes, bool useMethodDef)
         {
             int tk = 0;
@@ -1931,7 +1519,7 @@ namespace System.Reflection.Emit
             if (method.IsGenericMethod)
             {
                 // Constructors cannot be generic.
-                Contract.Assert(methodInfo != null);
+                Debug.Assert(methodInfo != null);
 
                 // Given M<Bar> unbind to M<S>
                 MethodInfo methodInfoUnbound = methodInfo;
@@ -1989,7 +1577,6 @@ namespace System.Reflection.Emit
             return tk;
         }
     
-        [System.Security.SecuritySafeCritical]  // auto-generated
         public MethodToken GetArrayMethodToken(Type arrayClass, String methodName, CallingConventions callingConvention, 
             Type returnType, Type[] parameterTypes)
         {
@@ -1999,18 +1586,17 @@ namespace System.Reflection.Emit
             }
         }
 
-        [System.Security.SecurityCritical]  // auto-generated
         private MethodToken GetArrayMethodTokenNoLock(Type arrayClass, String methodName, CallingConventions callingConvention, 
             Type returnType, Type[] parameterTypes)
         {
             if (arrayClass == null)
-                throw new ArgumentNullException("arrayClass");
+                throw new ArgumentNullException(nameof(arrayClass));
 
             if (methodName == null)
-                throw new ArgumentNullException("methodName");
+                throw new ArgumentNullException(nameof(methodName));
 
             if (methodName.Length == 0)
-                throw new ArgumentException(Environment.GetResourceString("Argument_EmptyName"), "methodName");
+                throw new ArgumentException(Environment.GetResourceString("Argument_EmptyName"), nameof(methodName));
 
             if (arrayClass.IsArray == false)
                 throw new ArgumentException(Environment.GetResourceString("Argument_HasToBeArrayClass")); 
@@ -2035,7 +1621,6 @@ namespace System.Reflection.Emit
                 typeSpec.Token, methodName, sigBytes, length));
         }
 
-        [System.Security.SecuritySafeCritical]  // auto-generated
         public MethodInfo GetArrayMethod(Type arrayClass, String methodName, CallingConventions callingConvention, 
             Type returnType, Type[] parameterTypes)
         {
@@ -2052,7 +1637,6 @@ namespace System.Reflection.Emit
             return new SymbolMethod(this, token, arrayClass, methodName, callingConvention, returnType, parameterTypes);
         }
 
-        [System.Security.SecuritySafeCritical]  // auto-generated
         [System.Runtime.InteropServices.ComVisible(true)]
         public MethodToken GetConstructorToken(ConstructorInfo con)
         {
@@ -2060,7 +1644,6 @@ namespace System.Reflection.Emit
             return InternalGetConstructorToken(con, false);
         }
 
-        [System.Security.SecuritySafeCritical]  // auto-generated
         public FieldToken GetFieldToken(FieldInfo field) 
         {
             lock(SyncRoot)
@@ -2069,11 +1652,10 @@ namespace System.Reflection.Emit
             }
         }
 
-        [System.Security.SecurityCritical]  // auto-generated
         private FieldToken GetFieldTokenNoLock(FieldInfo field) 
         {
             if (field == null) {
-                throw new ArgumentNullException("con");
+                throw new ArgumentNullException(nameof(field));
             }
             Contract.EndContractBlock();
 
@@ -2158,12 +1740,11 @@ namespace System.Reflection.Emit
             return new FieldToken(mr, field.GetType());
         }
         
-        [System.Security.SecuritySafeCritical]  // auto-generated
         public StringToken GetStringConstant(String str) 
         {
             if (str == null)
             {
-                throw new ArgumentNullException("str");
+                throw new ArgumentNullException(nameof(str));
             }
             Contract.EndContractBlock();
 
@@ -2172,7 +1753,6 @@ namespace System.Reflection.Emit
             return new StringToken(GetStringConstant(GetNativeHandle(), str, str.Length));
         }
     
-        [System.Security.SecuritySafeCritical]  // auto-generated
         public SignatureToken GetSignatureToken(SignatureHelper sigHelper)
         {
             // Define signature token given a signature helper. This will define a metadata
@@ -2180,7 +1760,7 @@ namespace System.Reflection.Emit
 
             if (sigHelper == null)
             {
-                throw new ArgumentNullException("sigHelper");
+                throw new ArgumentNullException(nameof(sigHelper));
             }
             Contract.EndContractBlock();
 
@@ -2191,11 +1771,10 @@ namespace System.Reflection.Emit
             sigBytes = sigHelper.InternalGetSignature(out sigLength);
             return new SignatureToken(TypeBuilder.GetTokenFromSig(GetNativeHandle(), sigBytes, sigLength), this);
         }           
-        [System.Security.SecuritySafeCritical]  // auto-generated
         public SignatureToken GetSignatureToken(byte[] sigBytes, int sigLength)
         {
             if (sigBytes == null)
-                throw new ArgumentNullException("sigBytes");
+                throw new ArgumentNullException(nameof(sigBytes));
             Contract.EndContractBlock();
 
             byte[] localSigBytes = new byte[sigBytes.Length];
@@ -2208,18 +1787,13 @@ namespace System.Reflection.Emit
 
         #region Other
 
-#if FEATURE_CORECLR
-        [System.Security.SecurityCritical] // auto-generated
-#else
-        [System.Security.SecuritySafeCritical]
-#endif
         [System.Runtime.InteropServices.ComVisible(true)]
         public void SetCustomAttribute(ConstructorInfo con, byte[] binaryAttribute)
         {
             if (con == null)
-                throw new ArgumentNullException("con");
+                throw new ArgumentNullException(nameof(con));
             if (binaryAttribute == null)
-                throw new ArgumentNullException("binaryAttribute");
+                throw new ArgumentNullException(nameof(binaryAttribute));
             Contract.EndContractBlock();
             
             TypeBuilder.DefineCustomAttribute(
@@ -2230,12 +1804,11 @@ namespace System.Reflection.Emit
                 false, false);
         }
 
-        [System.Security.SecuritySafeCritical]  // auto-generated
         public void SetCustomAttribute(CustomAttributeBuilder customBuilder)
         {
             if (customBuilder == null)
             {
-                throw new ArgumentNullException("customBuilder");
+                throw new ArgumentNullException(nameof(customBuilder));
             }
             Contract.EndContractBlock();
 
@@ -2276,14 +1849,11 @@ namespace System.Reflection.Emit
             return m_iSymWriter;
         }
 
-#if FEATURE_CORECLR
-        [System.Security.SecuritySafeCritical] 
-#endif
         public ISymbolDocumentWriter DefineDocument(String url, Guid language, Guid languageVendor, Guid documentType)
         {
             // url cannot be null but can be an empty string 
             if (url == null)
-                throw new ArgumentNullException("url");
+                throw new ArgumentNullException(nameof(url));
             Contract.EndContractBlock();
 
             lock(SyncRoot)
@@ -2292,9 +1862,6 @@ namespace System.Reflection.Emit
             }
         }
 
-#if FEATURE_CORECLR
-        [System.Security.SecurityCritical] // auto-generated
-#endif
         private ISymbolDocumentWriter DefineDocumentNoLock(String url, Guid language, Guid languageVendor, Guid documentType)
         {
             if (m_iSymWriter == null)
@@ -2306,11 +1873,6 @@ namespace System.Reflection.Emit
             return m_iSymWriter.DefineDocument(url, language, languageVendor, documentType);
         }
     
-#if FEATURE_CORECLR
-        [System.Security.SecurityCritical] // auto-generated
-#else
-        [System.Security.SecuritySafeCritical]
-#endif
         public void SetUserEntryPoint(MethodInfo entryPoint)
         {
             lock(SyncRoot)
@@ -2319,7 +1881,6 @@ namespace System.Reflection.Emit
             }
         }
 
-        [System.Security.SecurityCritical]  // auto-generated
         private void SetUserEntryPointNoLock(MethodInfo entryPoint)
         {
             // Set the user entry point. Compiler may generate startup stub before calling user main.
@@ -2328,7 +1889,7 @@ namespace System.Reflection.Emit
 
             if (entryPoint == null)
             {
-                throw new ArgumentNullException("entryPoint");
+                throw new ArgumentNullException(nameof(entryPoint));
             }
             Contract.EndContractBlock();
         
@@ -2396,27 +1957,5 @@ namespace System.Reflection.Emit
         #endregion
 
         #endregion    
-
-#if !FEATURE_CORECLR
-        void _ModuleBuilder.GetTypeInfoCount(out uint pcTInfo)
-        {
-            throw new NotImplementedException();
-        }
-
-        void _ModuleBuilder.GetTypeInfo(uint iTInfo, uint lcid, IntPtr ppTInfo)
-        {
-            throw new NotImplementedException();
-        }
-
-        void _ModuleBuilder.GetIDsOfNames([In] ref Guid riid, IntPtr rgszNames, uint cNames, uint lcid, IntPtr rgDispId)
-        {
-            throw new NotImplementedException();
-        }
-
-        void _ModuleBuilder.Invoke(uint dispIdMember, [In] ref Guid riid, uint lcid, short wFlags, IntPtr pDispParams, IntPtr pVarResult, IntPtr pExcepInfo, IntPtr puArgErr)
-        {
-            throw new NotImplementedException();
-        }
-#endif
     }
 }

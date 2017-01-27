@@ -159,7 +159,6 @@ namespace System.Globalization {
         // . is a delimiter, but the value of . doesn't matter.
         // '_' marks the space between the japanese era name, japanese abbreviated era name
         //     english name, and abbreviated english names.
-        [System.Security.SecuritySafeCritical]  // auto-generated
         private static EraInfo[] GetErasFromRegistry()
         {
             // Look in the registry key and see if we can find any ranges
@@ -312,7 +311,7 @@ namespace System.Globalization {
             // Get Strings
             //
             // Needs to be a certain length e_a_E_A at least (7 chars, exactly 4 groups)
-            String[] names = data.Split(new char[] {'_'});
+            String[] names = data.Split('_');
 
             // Should have exactly 4 parts
             // 0 - Era Name
@@ -491,14 +490,14 @@ namespace System.Globalization {
 
         public override int ToFourDigitYear(int year) {
             if (year <= 0) {
-                throw new ArgumentOutOfRangeException("year",
+                throw new ArgumentOutOfRangeException(nameof(year),
                     Environment.GetResourceString("ArgumentOutOfRange_NeedPosNum"));
             }
             Contract.EndContractBlock();
 
             if (year > helper.MaxYear) {
                 throw new ArgumentOutOfRangeException(
-                            "year",
+                            nameof(year),
                             String.Format(
                                 CultureInfo.CurrentCulture,
                                 Environment.GetResourceString("ArgumentOutOfRange_Range"),

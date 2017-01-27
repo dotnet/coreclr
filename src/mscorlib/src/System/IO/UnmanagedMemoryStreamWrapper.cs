@@ -106,7 +106,6 @@ namespace System.IO {
             return _unmanagedStream.Seek(offset, loc);
         }
 
-        [System.Security.SecuritySafeCritical]  // auto-generated
         public unsafe override byte[] ToArray() {
             if (!_unmanagedStream._isOpen) __Error.StreamIsClosed();
             if (!_unmanagedStream.CanRead) __Error.ReadNotSupported();
@@ -127,7 +126,7 @@ namespace System.IO {
         // Writes this MemoryStream to another stream.
         public unsafe override void WriteTo(Stream stream) {
             if (stream==null)
-                throw new ArgumentNullException("stream", Environment.GetResourceString("ArgumentNull_Stream"));
+                throw new ArgumentNullException(nameof(stream), Environment.GetResourceString("ArgumentNull_Stream"));
             Contract.EndContractBlock();
 
             if (!_unmanagedStream._isOpen) __Error.StreamIsClosed();
@@ -151,16 +150,16 @@ namespace System.IO {
 
             // The parameter checks must be in sync with the base version:
             if (destination == null)
-                throw new ArgumentNullException("destination");
+                throw new ArgumentNullException(nameof(destination));
             
             if (bufferSize <= 0)
-                throw new ArgumentOutOfRangeException("bufferSize", Environment.GetResourceString("ArgumentOutOfRange_NeedPosNum"));
+                throw new ArgumentOutOfRangeException(nameof(bufferSize), Environment.GetResourceString("ArgumentOutOfRange_NeedPosNum"));
 
             if (!CanRead && !CanWrite)
                 throw new ObjectDisposedException(null, Environment.GetResourceString("ObjectDisposed_StreamClosed"));
 
             if (!destination.CanRead && !destination.CanWrite)
-                throw new ObjectDisposedException("destination", Environment.GetResourceString("ObjectDisposed_StreamClosed"));
+                throw new ObjectDisposedException(nameof(destination), Environment.GetResourceString("ObjectDisposed_StreamClosed"));
 
             if (!CanRead)
                 throw new NotSupportedException(Environment.GetResourceString("NotSupported_UnreadableStream"));

@@ -22,11 +22,11 @@
 #error FEATURE_PREJIT is required for this file
 #endif // FEATURE_PREJIT
 
-#if !defined(_TARGET_X86_)
+#if !defined(_TARGET_X86_) || defined(FEATURE_PAL)
 #ifndef WIN64EXCEPTIONS
 #define WIN64EXCEPTIONS
 #endif
-#endif  // !_TARGET_X86_
+#endif  // !_TARGET_X86_ || FEATURE_PAL
 
 #include <cor.h>
 #include <corhdr.h>
@@ -72,22 +72,14 @@ typedef DPTR(struct CORCOMPILE_IMPORT_SECTION)
     PTR_CORCOMPILE_IMPORT_SECTION;
 
 #ifdef _TARGET_X86_
-//
-// x86 ABI does not define RUNTIME_FUNCTION. Define our own to allow unification between x86 and other platforms.
-//
-typedef struct _RUNTIME_FUNCTION {
-    DWORD BeginAddress;
-    DWORD UnwindData;
-} RUNTIME_FUNCTION, *PRUNTIME_FUNCTION;
 
 typedef DPTR(RUNTIME_FUNCTION) PTR_RUNTIME_FUNCTION;
 
-#define RUNTIME_FUNCTION__BeginAddress(prf)             (prf)->BeginAddress
 
 // Chained unwind info. Used for cold methods.
 #define RUNTIME_FUNCTION_INDIRECT 0x80000000
 
-#endif
+#endif // _TARGET_X86_
 
 // The stride is choosen as maximum value that still gives good page locality of RUNTIME_FUNCTION table touches (only one page of 
 // RUNTIME_FUNCTION table is going to be touched during most IP2MD lookups).
@@ -732,6 +724,7 @@ enum CORCOMPILE_FIXUP_BLOB_KIND
 
     ENCODE_DELEGATE_CTOR,
 
+    ENCODE_DECLARINGTYPE_HANDLE,
 
     ENCODE_MODULE_HANDLE                = 0x50,     /* Module token */
     ENCODE_STATIC_FIELD_ADDRESS,                    /* For accessing a static field */
@@ -1163,7 +1156,7 @@ enum CorCompileILRegion
 class ICorCompilePreloader
 {
  public:
-    typedef void (__stdcall *CORCOMPILE_CompileStubCallback)(LPVOID pContext, CORINFO_METHOD_HANDLE hStub, DWORD dwJitFlags);
+    typedef void (__stdcall *CORCOMPILE_CompileStubCallback)(LPVOID pContext, CORINFO_METHOD_HANDLE hStub, CORJIT_FLAGS jitFlags);
 
     //
     // Map methods are available after Serialize() is called
@@ -1784,7 +1777,8 @@ class ICorCompileInfo
             SigBuilder * pSigBuilder,
             LPVOID encodeContext,
             ENCODEMODULE_CALLBACK pfnEncodeModule,
-            CORINFO_RESOLVED_TOKEN * pResolvedToken = NULL) = 0;
+            CORINFO_RESOLVED_TOKEN * pResolvedToken = NULL,
+            BOOL fEncodeUsingResolvedTokenSpecStreams = FALSE) = 0;
 
 
     // Encode generic dictionary signature
@@ -1847,7 +1841,7 @@ class ICorCompileInfo
     // Get the compilation flags that are shared between JIT and NGen
     virtual HRESULT GetBaseJitFlags(
             IN  CORINFO_METHOD_HANDLE   hMethod,
-            OUT DWORD                  *pFlags) = 0;
+            OUT CORJIT_FLAGS           *pFlags) = 0;
 
     // needed for stubs to obtain the number of bytes to copy into the native image
     // return the beginning of the stub and the size to copy (in bytes)
@@ -1885,16 +1879,16 @@ class ICorCompileInfo
 /*****************************************************************************/
 // This function determines the compile flags to use for a generic intatiation
 // since only the open instantiation can be verified.
-// See the comment associated with CORJIT_FLG_SKIP_VERIFICATION for details.
+// See the comment associated with CORJIT_FLAG_SKIP_VERIFICATION for details.
 //
 // On return:
 // if *raiseVerificationException=TRUE, the caller should raise a VerificationException.
 // if *unverifiableGenericCode=TRUE, the method is a generic instantiation with
 // unverifiable code
 
-CorJitFlag GetCompileFlagsIfGenericInstantiation(
+CORJIT_FLAGS GetCompileFlagsIfGenericInstantiation(
         CORINFO_METHOD_HANDLE method,
-        CorJitFlag compileFlags,
+        CORJIT_FLAGS compileFlags,
         ICorJitInfo * pCorJitInfo,
         BOOL * raiseVerificationException,
         BOOL * unverifiableGenericCode);
@@ -1913,7 +1907,7 @@ extern "C" ICorCompileInfo * __stdcall GetCompileInfo();
 extern "C" unsigned __stdcall PartialNGenStressPercentage();
 
 // create a PDB dumping all functions in hAssembly into pdbPath
-extern "C" HRESULT __stdcall CreatePdb(CORINFO_ASSEMBLY_HANDLE hAssembly, BSTR pNativeImagePath, BSTR pPdbPath, BOOL pdbLines, BSTR pManagedPdbSearchPath);
+extern "C" HRESULT __stdcall CreatePdb(CORINFO_ASSEMBLY_HANDLE hAssembly, BSTR pNativeImagePath, BSTR pPdbPath, BOOL pdbLines, BSTR pManagedPdbSearchPath, LPCWSTR pDiasymreaderPath);
 
 #if defined(FEATURE_CORECLR) || defined(CROSSGEN_COMPILE)
 extern bool g_fNGenMissingDependenciesOk;

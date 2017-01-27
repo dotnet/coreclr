@@ -23,9 +23,7 @@ namespace System {
     // The ArgumentOutOfRangeException is thrown when an argument 
     // is outside the legal range for that argument.  
     [System.Runtime.InteropServices.ComVisible(true)]
-#if FEATURE_SERIALIZATION
     [Serializable]
-#endif
     public class ArgumentOutOfRangeException : ArgumentException, ISerializable {
      
         private static volatile String _rangeMessage;
@@ -91,10 +89,9 @@ namespace System {
             get { return m_actualValue; }
         }
     
-        [System.Security.SecurityCritical]  // auto-generated_required
         public override void GetObjectData(SerializationInfo info, StreamingContext context) {
             if (info==null) {
-                throw new ArgumentNullException("info");
+                throw new ArgumentNullException(nameof(info));
             }
             Contract.EndContractBlock();
             base.GetObjectData(info, context);

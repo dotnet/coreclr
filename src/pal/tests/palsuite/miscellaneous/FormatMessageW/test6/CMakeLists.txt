@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 2.8.12.2)
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
 set(SOURCES
-  test.c
+  test.cpp
 )
 
 add_executable(paltest_formatmessagew_test6
@@ -13,7 +13,5 @@ add_executable(paltest_formatmessagew_test6
 add_dependencies(paltest_formatmessagew_test6 coreclrpal)
 
 target_link_libraries(paltest_formatmessagew_test6
-  pthread
-  m
-  coreclrpal
+  ${COMMON_TEST_LIBRARIES}
 )

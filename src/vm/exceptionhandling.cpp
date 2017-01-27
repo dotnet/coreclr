@@ -7,10 +7,6 @@
 
 #include "common.h"
 
-#ifndef FEATURE_PAL 
-#include "securityprincipal.h"
-#endif // !FEATURE_PAL 
-
 #ifdef WIN64EXCEPTIONS
 #include "exceptionhandling.h"
 #include "dbginterface.h"
@@ -94,8 +90,8 @@ bool FixNonvolatileRegisters(UINT_PTR  uOriginalSP,
 MethodDesc * GetUserMethodForILStub(Thread * pThread, UINT_PTR uStubSP, MethodDesc * pILStubMD, Frame ** ppFrameOut);
 
 #ifdef FEATURE_PAL
-BOOL PALAPI HandleHardwareException(PAL_SEHException* ex);
-BOOL PALAPI IsSafeToHandleHardwareException(PCONTEXT contextRecord, PEXCEPTION_RECORD exceptionRecord);
+BOOL HandleHardwareException(PAL_SEHException* ex);
+BOOL IsSafeToHandleHardwareException(PCONTEXT contextRecord, PEXCEPTION_RECORD exceptionRecord);
 #endif // FEATURE_PAL
 
 static ExceptionTracker* GetTrackerMemory()
@@ -393,7 +389,7 @@ void ExceptionTracker::UpdateNonvolatileRegisters(CONTEXT *pContextRecord, REGDI
     do {                                                                                    \
         if (pRegDisplay->pCurrentContextPointers->reg != NULL)                              \
         {                                                                                   \
-            STRESS_LOG3(LF_GCROOTS, LL_INFO100, "Updating reg %p to %p from %p\n",          \
+            STRESS_LOG3(LF_GCROOTS, LL_INFO100, "Updating " #reg " %p to %p from %p\n",     \
                     pContextRecord->reg,                                                    \
                     *pRegDisplay->pCurrentContextPointers->reg,                             \
                     pRegDisplay->pCurrentContextPointers->reg);                             \
@@ -409,7 +405,14 @@ void ExceptionTracker::UpdateNonvolatileRegisters(CONTEXT *pContextRecord, REGDI
         }                                                                                   \
     } while (0)
 
-#if defined(_TARGET_AMD64_)
+#if defined(_TARGET_X86_)
+
+    UPDATEREG(Ebx);
+    UPDATEREG(Esi);
+    UPDATEREG(Edi);
+    UPDATEREG(Ebp);
+
+#elif defined(_TARGET_AMD64_)
 
     UPDATEREG(Rbx);
     UPDATEREG(Rbp);
@@ -1205,12 +1208,9 @@ bool FixNonvolatileRegisters(UINT_PTR  uOriginalSP,
     CONTRACTL_END;
 
     CONTEXT _ctx = {0};
-#if defined(_TARGET_AMD64_)
-    REGDISPLAY regdisp = {0};
-#else
+
     // Ctor will initialize it to NULL
     REGDISPLAY regdisp;
-#endif // _TARGET_AMD64_
 
     pThread->FillRegDisplay(&regdisp, &_ctx);
 
@@ -1373,6 +1373,8 @@ void ExceptionTracker::InitializeCrawlFrame(CrawlFrame* pcfThisFrame, Thread* pT
     // </ARM and ARM64>
     pThread->InitRegDisplay(pcfThisFrame->pRD, pDispatcherContext->ContextRecord, true);
 
+    bool fAdjustRegdisplayControlPC = false;
+
     // The "if" check below is trying to determine when we have a valid current context in DC->ContextRecord and whether, or not,
     // RegDisplay needs to be fixed up to set SP and ControlPC to have the values for the current frame for which personality routine
     // is invoked.
@@ -1418,7 +1420,6 @@ void ExceptionTracker::InitializeCrawlFrame(CrawlFrame* pcfThisFrame, Thread* pT
     // However, we do this *only* when "ControlPCForEHSearch" is the same as "DispatcherContext->ControlPC",
     // indicating we are not using the thread-abort reraise loop prevention logic.
     //
-    bool fAdjustRegdisplayControlPC = false;
     if (pDispatcherContext->ControlPc == ControlPCForEHSearch)
     {
         // Since DispatcherContext->ControlPc is used to initialize the
@@ -1434,7 +1435,9 @@ void ExceptionTracker::InitializeCrawlFrame(CrawlFrame* pcfThisFrame, Thread* pT
     // Remove the Thumb bit
     ControlPCForEHSearch = ThumbCodeToDataPointer<DWORD_PTR, DWORD_PTR>(ControlPCForEHSearch);
 #endif
+#endif // _TARGET_ARM_ || _TARGET_ARM64_
 
+#if defined(_TARGET_ARM_) || defined(_TARGET_ARM64_) || defined(_TARGET_X86_)
     // If the OS indicated that the IP is a callsite, then adjust the ControlPC by decrementing it
     // by two. This is done because unwinding at callsite will make ControlPC point to the
     // instruction post the callsite. If a protected region ends "at" the callsite, then
@@ -1457,7 +1460,7 @@ void ExceptionTracker::InitializeCrawlFrame(CrawlFrame* pcfThisFrame, Thread* pT
             pcfThisFrame->isIPadjusted = true;
         }
     }
-#endif // _TARGET_ARM_ || _TARGET_ARM64_
+#endif // _TARGET_ARM_ || _TARGET_ARM64_ || _TARGET_X86_
 
     pcfThisFrame->codeInfo.Init(ControlPCForEHSearch);
     
@@ -1614,7 +1617,7 @@ CLRUnwindStatus ExceptionTracker::ProcessOSExceptionNotification(
 
     ExceptionTracker::InitializeCrawlFrame(&cfThisFrame, pThread, sf, &regdisp, pDispatcherContext, ControlPc, &uMethodStartPC, this);
 
-#ifdef _TARGET_AMD64_
+#if defined(_TARGET_X86_) || defined(_TARGET_AMD64_)
     uCallerSP = EECodeManager::GetCallerSp(cfThisFrame.pRD);
 #elif defined(_TARGET_ARM_) || defined(_TARGET_ARM64_)
     // On ARM & ARM64, the EstablisherFrame is the value of SP at the time a function was called and before it's prolog
@@ -2457,7 +2460,7 @@ CLRUnwindStatus ExceptionTracker::ProcessManagedCallFrame(
     PTR_EXCEPTION_CLAUSE_TOKEN pLimitClauseToken     = NULL;
     if (!fIgnoreThisFrame && !fIsFirstPass && !m_sfResumeStackFrame.IsNull() && (sf >= m_sfResumeStackFrame))
     {
-        CONSISTENCY_CHECK_MSG(sf == m_sfResumeStackFrame, "Passed initial resume frame and fIgnoreThisFrame wasn't set!");
+        EH_LOG((LL_INFO100, "  RESUMEFRAME:  sf is  %p and  m_sfResumeStackFrame: %p\n", sf.SP, m_sfResumeStackFrame.SP));
         EH_LOG((LL_INFO100, "  RESUMEFRAME:  %s initial resume frame: %p\n", (sf == m_sfResumeStackFrame) ? "REACHED" : "PASSED" , m_sfResumeStackFrame.SP));
 
         // process this frame to call handlers
@@ -2469,6 +2472,7 @@ CLRUnwindStatus ExceptionTracker::ProcessManagedCallFrame(
         // as the last clause we process in the "inital resume frame".  Anything further
         // down the list of clauses is skipped along with all call frames up to the actual
         // resume frame.
+        CONSISTENCY_CHECK_MSG(sf == m_sfResumeStackFrame, "Passed initial resume frame and fIgnoreThisFrame wasn't set!");
     }
     //
     // END resume frame code
@@ -2870,28 +2874,6 @@ CLRUnwindStatus ExceptionTracker::ProcessManagedCallFrame(
                         // we probably don't want to be so strict in not calling handlers. 
                         if (! IsStackOverflowException())
                         {
-#ifndef FEATURE_PAL 
-                            // Check for any impersonation on the frame and save that for use during EH filter callbacks
-                            OBJECTREF* pRefSecDesc = pcfThisFrame->GetAddrOfSecurityObject();
-                            if (pRefSecDesc != NULL && *pRefSecDesc != NULL)
-                            {
-                                GCX_COOP();
-                                FRAMESECDESCREF fsdRef = (FRAMESECDESCREF)*pRefSecDesc;
-                                if (fsdRef->GetCallerToken() != NULL)
-                                {
-                                    m_hCallerToken = fsdRef->GetCallerToken();
-                                    STRESS_LOG1(LF_EH, LL_INFO100, "In COMPlusThrowCallback. Found non-NULL callertoken on FSD:%d\n",m_hCallerToken);
-                                    if (!m_ExceptionFlags.ImpersonationTokenSet())
-                                    {
-                                        m_hImpersonationToken = fsdRef->GetImpersonationToken();
-                                        STRESS_LOG1(LF_EH, LL_INFO100, "In COMPlusThrowCallback. Found non-NULL impersonationtoken on FSD:%d\n",m_hImpersonationToken);
-                                        m_ExceptionFlags.SetImpersonationTokenSet();
-                                    }
-                                }
-                            }
-                            BOOL impersonating = FALSE;
-#endif // !FEATURE_PAL 
-
                             // Save the current EHClause Index and Establisher of the clause post which
                             // ThreadAbort was raised. This is done an exception handled inside a filter 
                             // reset the state that was setup before the filter was invoked.
@@ -2904,16 +2886,6 @@ CLRUnwindStatus ExceptionTracker::ProcessManagedCallFrame(
                             
                             EX_TRY
                             {
-#ifndef FEATURE_PAL 
-                                if (m_hCallerToken != NULL)
-                                {
-                                    STRESS_LOG1(LF_EH, LL_INFO100, "About to call filter with hCallerToken = %d\n",m_hCallerToken);
-                                    // CLR_ImpersonateLoggedOnUser fails fast on error
-                                    COMPrincipal::CLR_ImpersonateLoggedOnUser(m_hCallerToken);
-                                    impersonating = TRUE;
-                                }
-#endif // !FEATURE_PAL 
-
                                 // We want to call filters even if the thread is aborting, so suppress abort
                                 // checks while the filter runs.
                                 ThreadPreventAsyncHolder preventAbort(TRUE);
@@ -2943,29 +2915,10 @@ CLRUnwindStatus ExceptionTracker::ProcessManagedCallFrame(
                                     GCX_COOP();
                                     dwResult = CallHandler(dwFilterStartPC, sf, &EHClause, pMD, Filter ARM_ARG(pCurRegDisplay->pCallerContext) ARM64_ARG(pCurRegDisplay->pCallerContext));
                                 }
-                                
-#ifndef FEATURE_PAL 
-                                if (impersonating)
-                                {
-                                    STRESS_LOG1(LF_EH, LL_INFO100, "After calling filter, resetting to  hImpersonationToken = %d\n",m_hImpersonationToken);
-                                    // CLR_ImpersonateLoggedOnUser fails fast on error
-                                    COMPrincipal::CLR_ImpersonateLoggedOnUser(m_hImpersonationToken);
-                                    impersonating = FALSE;
-                                }
-#endif // !FEATURE_PAL 
                             }
                             EX_CATCH
                             {
                                 // We had an exception in filter invocation that remained unhandled.
-#ifndef FEATURE_PAL 
-                                if (impersonating)
-                                {
-                                    STRESS_LOG1(LF_EH, LL_INFO100, "Filter threw exception. In Catch. Resetting to  hImpersonationToken = %d\n",m_hImpersonationToken);
-                                    // CLR_ImpersonateLoggedOnUser fails fast on error
-                                    COMPrincipal::CLR_ImpersonateLoggedOnUser(m_hImpersonationToken);
-                                    impersonating = FALSE;
-                                }
-#endif // !FEATURE_PAL 
 
                                 // Sync managed exception state, for the managed thread, based upon the active exception tracker.
                                 pThread->SyncManagedExceptionState(false);
@@ -4384,7 +4337,7 @@ VOID UnwindManagedExceptionPass2(PAL_SEHException& ex, CONTEXT* unwindStartConte
         dispatcherContext.FunctionEntry = codeInfo.GetFunctionEntry();
         dispatcherContext.ControlPc = controlPc;
         dispatcherContext.ImageBase = codeInfo.GetModuleBase();
-#if defined(_TARGET_ARM_)
+#if defined(_TARGET_ARM_) || defined(_TARGET_X86_)
         dispatcherContext.ControlPcIsUnwound = !!(currentFrameContext->ContextFlags & CONTEXT_UNWOUND_TO_CALL);
 #endif
         // Check whether we have a function table entry for the current controlPC.
@@ -4535,7 +4488,7 @@ VOID DECLSPEC_NORETURN UnwindManagedExceptionPass1(PAL_SEHException& ex, CONTEXT
         dispatcherContext.FunctionEntry = codeInfo.GetFunctionEntry();
         dispatcherContext.ControlPc = controlPc;
         dispatcherContext.ImageBase = codeInfo.GetModuleBase();
-#if defined(_TARGET_ARM_) 
+#if defined(_TARGET_ARM_) || defined(_TARGET_X86_)
         dispatcherContext.ControlPcIsUnwound = !!(frameContext->ContextFlags & CONTEXT_UNWOUND_TO_CALL);
 #endif
 
@@ -4716,6 +4669,7 @@ VOID DECLSPEC_NORETURN DispatchManagedException(PAL_SEHException& ex, bool isHar
         ThreadExceptionState * pCurTES = pCurThread->GetExceptionState();
         _ASSERTE(pCurTES != NULL);
 
+#ifdef FEATURE_CORRUPTING_EXCEPTIONS
         ExceptionTracker* pEHTracker = pCurTES->GetCurrentExceptionTracker();
         if (pEHTracker == NULL)
         {
@@ -4727,9 +4681,10 @@ VOID DECLSPEC_NORETURN DispatchManagedException(PAL_SEHException& ex, bool isHar
 
             pCurTES->SetLastActiveExceptionCorruptionSeverity(severity);
         }
+#endif // FEATURE_CORRUPTING_EXCEPTIONS
     }
 
-    throw ex;
+    throw std::move(ex);
 }
 
 #ifdef _AMD64_
@@ -5072,7 +5027,7 @@ BOOL IsSafeToCallExecutionManager()
            GCStress<cfg_instr_ngen>::IsEnabled();
 }
 
-BOOL PALAPI IsSafeToHandleHardwareException(PCONTEXT contextRecord, PEXCEPTION_RECORD exceptionRecord)
+BOOL IsSafeToHandleHardwareException(PCONTEXT contextRecord, PEXCEPTION_RECORD exceptionRecord)
 {
     PCODE controlPc = GetIP(contextRecord);
     return g_fEEStarted && (
@@ -5085,7 +5040,7 @@ BOOL PALAPI IsSafeToHandleHardwareException(PCONTEXT contextRecord, PEXCEPTION_R
         IsIPInMarkedJitHelper(controlPc));
 }
 
-BOOL PALAPI HandleHardwareException(PAL_SEHException* ex)
+BOOL HandleHardwareException(PAL_SEHException* ex)
 {
     _ASSERTE(IsSafeToHandleHardwareException(ex->GetContextRecord(), ex->GetExceptionRecord()));
 
@@ -7073,8 +7028,10 @@ void ExceptionTracker::ResetThreadAbortStatus(PTR_Thread pThread, CrawlFrame *pC
         GC_NOTRIGGER;
         MODE_ANY;
         PRECONDITION(pThread != NULL);
-        WIN64_ONLY(PRECONDITION(pCf != NULL);)
-        WIN64_ONLY(PRECONDITION(!sfCurrentStackFrame.IsNull());)
+#ifdef WIN64EXCEPTIONS
+        PRECONDITION(pCf != NULL);
+        PRECONDITION(!sfCurrentStackFrame.IsNull());
+#endif // WIN64EXCEPTIONS
     }
     CONTRACTL_END;
 

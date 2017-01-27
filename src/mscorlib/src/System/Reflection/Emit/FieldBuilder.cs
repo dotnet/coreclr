@@ -13,7 +13,6 @@ namespace System.Reflection.Emit
     using System.Security.Permissions;
     using System.Diagnostics.Contracts;
     
-    [HostProtection(MayLeakOnAbort = true)]
     [ClassInterface(ClassInterfaceType.None)]
     [ComDefaultInterface(typeof(_FieldBuilder))]
 [System.Runtime.InteropServices.ComVisible(true)]
@@ -29,21 +28,20 @@ namespace System.Reflection.Emit
         #endregion
 
         #region Constructor
-        [System.Security.SecurityCritical]  // auto-generated
         internal FieldBuilder(TypeBuilder typeBuilder, String fieldName, Type type, 
             Type[] requiredCustomModifiers, Type[] optionalCustomModifiers, FieldAttributes attributes)
         {
             if (fieldName == null)
-                throw new ArgumentNullException("fieldName");
+                throw new ArgumentNullException(nameof(fieldName));
 
             if (fieldName.Length == 0)
-                throw new ArgumentException(Environment.GetResourceString("Argument_EmptyName"), "fieldName");
+                throw new ArgumentException(Environment.GetResourceString("Argument_EmptyName"), nameof(fieldName));
 
             if (fieldName[0] == '\0')
-                throw new ArgumentException(Environment.GetResourceString("Argument_IllegalName"), "fieldName");
+                throw new ArgumentException(Environment.GetResourceString("Argument_IllegalName"), nameof(fieldName));
 
             if (type == null)
-                throw new ArgumentNullException("type");
+                throw new ArgumentNullException(nameof(type));
 
             if (type == typeof(void))
                 throw new ArgumentException(Environment.GetResourceString("Argument_BadFieldType"));
@@ -69,7 +67,6 @@ namespace System.Reflection.Emit
         #endregion
 
         #region Internal Members
-        [System.Security.SecurityCritical]  // auto-generated
         internal void SetData(byte[] data, int size)
         {
             ModuleBuilder.SetFieldRVAContent(m_typeBuilder.GetModuleBuilder().GetNativeHandle(), m_tkField.Token, data, size);
@@ -181,11 +178,6 @@ namespace System.Reflection.Emit
             return m_tkField;
         }
 
-        #if FEATURE_CORECLR
-        [System.Security.SecurityCritical] // auto-generated
-        #else
-        [System.Security.SecuritySafeCritical]
-        #endif
         public void SetOffset(int iOffset) 
         {
             m_typeBuilder.ThrowIfCreated();     
@@ -193,12 +185,11 @@ namespace System.Reflection.Emit
             TypeBuilder.SetFieldLayoutOffset(m_typeBuilder.GetModuleBuilder().GetNativeHandle(), GetToken().Token, iOffset);
         }
 
-        [System.Security.SecuritySafeCritical]  // auto-generated
         [Obsolete("An alternate API is available: Emit the MarshalAs custom attribute instead. http://go.microsoft.com/fwlink/?linkid=14202")]
         public void SetMarshal(UnmanagedMarshal unmanagedMarshal)
         {
             if (unmanagedMarshal == null)
-                throw new ArgumentNullException("unmanagedMarshal");
+                throw new ArgumentNullException(nameof(unmanagedMarshal));
             Contract.EndContractBlock();
 
             m_typeBuilder.ThrowIfCreated();
@@ -208,7 +199,6 @@ namespace System.Reflection.Emit
             TypeBuilder.SetFieldMarshal(m_typeBuilder.GetModuleBuilder().GetNativeHandle(), GetToken().Token, ubMarshal, ubMarshal.Length);
         }
 
-        [System.Security.SecuritySafeCritical]  // auto-generated
         public void SetConstant(Object defaultValue) 
         {
             m_typeBuilder.ThrowIfCreated();  
@@ -217,19 +207,14 @@ namespace System.Reflection.Emit
         }
         
 
-#if FEATURE_CORECLR
-[System.Security.SecurityCritical] // auto-generated
-#else
-[System.Security.SecuritySafeCritical]
-#endif
 [System.Runtime.InteropServices.ComVisible(true)]
         public void SetCustomAttribute(ConstructorInfo con, byte[] binaryAttribute)
         {
             if (con == null)
-                throw new ArgumentNullException("con");
+                throw new ArgumentNullException(nameof(con));
 
             if (binaryAttribute == null)
-                throw new ArgumentNullException("binaryAttribute");
+                throw new ArgumentNullException(nameof(binaryAttribute));
             Contract.EndContractBlock();
 
             ModuleBuilder module = m_typeBuilder.Module as ModuleBuilder;
@@ -240,11 +225,10 @@ namespace System.Reflection.Emit
                 m_tkField.Token, module.GetConstructorToken(con).Token, binaryAttribute, false, false);
         }
 
-        [System.Security.SecuritySafeCritical]  // auto-generated
         public void SetCustomAttribute(CustomAttributeBuilder customBuilder)
         {
             if (customBuilder == null)
-                throw new ArgumentNullException("customBuilder");
+                throw new ArgumentNullException(nameof(customBuilder));
             Contract.EndContractBlock();
 
             m_typeBuilder.ThrowIfCreated();
@@ -255,27 +239,5 @@ namespace System.Reflection.Emit
         }
 
         #endregion
-
-#if !FEATURE_CORECLR
-        void _FieldBuilder.GetTypeInfoCount(out uint pcTInfo)
-        {
-            throw new NotImplementedException();
-        }
-
-        void _FieldBuilder.GetTypeInfo(uint iTInfo, uint lcid, IntPtr ppTInfo)
-        {
-            throw new NotImplementedException();
-        }
-
-        void _FieldBuilder.GetIDsOfNames([In] ref Guid riid, IntPtr rgszNames, uint cNames, uint lcid, IntPtr rgDispId)
-        {
-            throw new NotImplementedException();
-        }
-
-        void _FieldBuilder.Invoke(uint dispIdMember, [In] ref Guid riid, uint lcid, short wFlags, IntPtr pDispParams, IntPtr pVarResult, IntPtr pExcepInfo, IntPtr puArgErr)
-        {
-            throw new NotImplementedException();
-        }
-#endif
     }
 }

@@ -17,8 +17,8 @@ function usage {
     echo '    --mountPath=/opt/linux-arm-emulator-root'
     echo '    --buildConfig=Release'
     echo '    --testRootDir=~/Downloads/Windows_NT.x64.Release'
-    echo '    --mscorlibDir=~/clr/bin/Product/Linux.arm-softfp.Release'
-    echo '    --coreFxNativeBinDir=~/cfx/bin/Linux.arm-softfp.Release'
+    echo '    --mscorlibDir=~/clr/bin/Product/Linux.armel.Release'
+    echo '    --coreFxNativeBinDir=~/cfx/bin/Linux.armel.Release'
     echo '    --coreFxBinDir="~/cfx/bin/Linux.AnyCPU.Release;~/cfx/bin/Unix.AnyCPU.Release;~/cfx/bin/AnyOS.AnyCPU.Release"'
     echo '    --testDirFile=~/clr/tests/testsRunningInsideARM.txt'
     echo ''
@@ -128,6 +128,8 @@ function clean_env {
 
     #Check for revert of git changes
     check_git_head
+
+    sudo rm -rf "/mnt/arm32_ci_temp"
 }
 
 #Trap Ctrl-C and handle it
@@ -173,37 +175,55 @@ function mount_emulator {
         sudo mkdir "$__ARMRootfsMountPath"
     fi
 
-    set +x
-    mount_with_checking "" "$__ARMEmulPath/platform/rootfs-t30.ext4" "$__ARMRootfsMountPath"
-    mount_with_checking "-t proc" "/proc"    "$__ARMRootfsMountPath/proc"
-    mount_with_checking "-o bind" "/dev/"    "$__ARMRootfsMountPath/dev"
-    mount_with_checking "-o bind" "/dev/pts" "$__ARMRootfsMountPath/dev/pts"
-    mount_with_checking "-t tmpfs" "shm"     "$__ARMRootfsMountPath/run/shm"
-    mount_with_checking "-o bind" "/sys"     "$__ARMRootfsMountPath/sys"
+    if [ ! -d "$__ARMEmulRootfs" ]; then
+		sudo mkdir "$__ARMEmulRootfs"
+	fi
+
+	if [ ! -f "$__ARMEmulRootfs/arm-emulator-rootfs.tar" ]; then
+	    if mountpoint -q -- "$__ARMRootfsMountPath"; then
+	        sudo umount -l $__ARMRootfsMountPath
+        fi
+		mount_with_checking "" "$__ARMEmulPath/platform/rootfs-t30.ext4" "$__ARMRootfsMountPath"
+		
+		cd $__ARMRootfsMountPath
+		sudo tar -cf "$__ARMEmulRootfs/arm-emulator-rootfs.tar" *
+		cd -
+	fi
+
+	sudo tar -xf "$__ARMEmulRootfs/arm-emulator-rootfs.tar" -C "$__ARMEmulRootfs"
+
+    mount_with_checking "-t proc" "/proc"    "$__ARMEmulRootfs/proc"
+    mount_with_checking "-o bind" "/dev/"    "$__ARMEmulRootfs/dev"
+    mount_with_checking "-o bind" "/dev/pts" "$__ARMEmulRootfs/dev/pts"
+    mount_with_checking "-t tmpfs" "shm"     "$__ARMEmulRootfs/run/shm"
+    mount_with_checking "-o bind" "/sys"     "$__ARMEmulRootfs/sys"
+    if [ ! -d "$__ARMEmulRootfs/bindings/tmp" ]; then
+        sudo mkdir -p "$__ARMEmulRootfs/bindings/tmp"
+    fi
+    mount_with_checking "-o bind" "/mnt"     "$__ARMEmulRootfs/bindings/tmp"
+
+	if [ ! -d "$__ARMEmulRootfs/$__TempFolder" ]; then
+        sudo mkdir "$__ARMEmulRootfs/$__TempFolder"
+	fi
 }
 
 #Cross builds coreclr
 function cross_build_coreclr {
 #Export the needed environment variables
     (set +x; echo 'Exporting LINUX_ARM_* environment variable')
-    source "$__ARMRootfsMountPath"/dotnet/setenv/setenv_incpath.sh "$__ARMRootfsMountPath"
-
-    #Apply the changes needed to build for the emulator rootfs
-    (set +x; echo 'Applying cross build patch to suit Linux ARM emulator rootfs')
-    git am < "$__ARMRootfsMountPath"/dotnet/setenv/coreclr_cross.patch
+    source "$__ARMEmulRootfs"/dotnet/setenv/setenv_incpath.sh "$__ARMEmulRootfs"
 
     #Apply release optimization patch if needed
     if [[ "$__buildConfig" == "Release" ]]; then
         (set +x; echo 'Applying release optimization patch to build in Release mode')
-        git am < "$__ARMRootfsMountPath"/dotnet/setenv/coreclr_release.patch
+        git am < "$__ARMEmulRootfs"/dotnet/setenv/coreclr_release.patch
     fi
 
     #Cross building for emulator rootfs
-    ROOTFS_DIR="$__ARMRootfsMountPath" CPLUS_INCLUDE_PATH=$LINUX_ARM_INCPATH CXXFLAGS=$LINUX_ARM_CXXFLAGS ./build.sh $__buildArch clean cross $__verboseFlag $__skipMscorlib clang3.5 $__buildConfig
+    ROOTFS_DIR="$__ARMEmulRootfs" CPLUS_INCLUDE_PATH=$LINUX_ARM_INCPATH CXXFLAGS=$LINUX_ARM_CXXFLAGS ./build.sh $__buildArch cross $__verboseFlag $__skipMscorlib clang3.5 $__buildConfig -rebuild
 
     #Reset the code to the upstream version
     (set +x; echo 'Rewinding HEAD to master code')
-    git reset --hard HEAD^
     if [[ "$__buildConfig" == "Release" ]]; then
         git reset --hard HEAD^
     fi
@@ -264,9 +284,10 @@ function copy_to_emulator {
 
 #Runs tests in an emulated mode
 function run_tests {
-    sudo chroot $__ARMRootfsMountPath /bin/bash -x <<EOF
-        cd /home/coreclr
-        ./tests/runtest.sh --testRootDir=$__testRootDirBase \
+    sudo chroot $__ARMEmulRootfs /bin/bash -x <<EOF
+        cd "$__ARMEmulCoreclr"
+        ./tests/runtest.sh --sequential\
+		           --testRootDir=$__testRootDirBase \
                            --mscorlibDir=$__mscorlibDirBase \
                            --coreFxNativeBinDir=$__coreFxNativeBinDirBase \
                            --coreFxBinDir="$__coreFxBinDirBase" \
@@ -277,6 +298,7 @@ EOF
 }
 
 #Define script variables
+__ARMEmulRootfs=/mnt/arm-emulator-rootfs
 __ARMEmulPath=
 __ARMRootfsMountPath=
 __buildConfig=
@@ -289,7 +311,7 @@ __coreFxBinDir=
 __testDirFile=
 __verboseFlag=
 __buildOS="Linux"
-__buildArch="arm-softfp"
+__buildArch="armel"
 __buildDirName=
 __initialGitHead=`git rev-parse --verify HEAD`
 
@@ -392,10 +414,11 @@ fi
 __buildDirName="$__buildOS.$__buildArch.$__buildConfig"
 
 #Define emulator paths
-__ARMRootfsCoreclrPath="$__ARMRootfsMountPath/home/coreclr"
-__ARMRootfsCorefxPath="$__ARMRootfsMountPath/home/corefx"
-__ARMEmulCoreclr="/home/coreclr"
-__ARMEmulCorefx="/home/corefx"
+__TempFolder="bindings/tmp/arm32_ci_temp"
+__ARMRootfsCoreclrPath="$__ARMEmulRootfs/$__TempFolder/coreclr"
+__ARMRootfsCorefxPath="$__ARMEmulRootfs/$__TempFolder/corefx"
+__ARMEmulCoreclr="/$__TempFolder/coreclr"
+__ARMEmulCorefx="/$__TempFolder/corefx"
 __testRootDirBase=
 __mscorlibDirBase=
 __coreFxNativeBinDirBase=
@@ -437,8 +460,10 @@ copy_to_emulator
 (set +x; echo 'Running tests...')
 run_tests
 
+
 #Clean the environment
 (set +x; echo 'Cleaning environment...')
 clean_env
+
 
 (set +x; echo 'Build and test complete')

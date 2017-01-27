@@ -11,7 +11,6 @@
 #include "debugmacros.h"
 #include "corpriv.h"
 #include "dasmenum.hpp"
-#include "dasmgui.h"
 #include "formattype.h"
 #include "dis.h"
 #include "resource.h"
@@ -281,11 +280,11 @@ DWORD   DumpResourceToFile(__in __nullterminated WCHAR*   wzFileName)
                 void* GUICookie = (void*)wzFileName;
                 BYTE* pbData;
                 printLine(GUICookie,"");
-                sprintf(szString,"// ========== Win32 Resource Entries (%d) ========",ulNumResNodes);
+                sprintf_s(szString, _countof(szString), "// ========== Win32 Resource Entries (%d) ========",ulNumResNodes);
                 for(i=0; i < ulNumResNodes; i++)
                 {
                     printLine(GUICookie,"");
-                    sprintf(szString,"// Res.# %d Type=0x%X Name=0x%X Lang=0x%X DataOffset=0x%X DataLength=%d",
+                    sprintf_s(szString, _countof(szString), "// Res.# %d Type=0x%X Name=0x%X Lang=0x%X DataOffset=0x%X DataLength=%d",
                         i+1,
                         g_prResNodePtr[i]->ResHdr.dwTypeID,
                         g_prResNodePtr[i]->ResHdr.dwNameID,

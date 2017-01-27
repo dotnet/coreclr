@@ -240,7 +240,7 @@ STDAPI NGenWorker(LPCWSTR pwzFilename, DWORD dwFlags, LPCWSTR pwzPlatformAssembl
     return hr;
 }
 
-STDAPI CreatePDBWorker(LPCWSTR pwzAssemblyPath, LPCWSTR pwzPlatformAssembliesPaths, LPCWSTR pwzTrustedPlatformAssemblies, LPCWSTR pwzPlatformResourceRoots, LPCWSTR pwzAppPaths, LPCWSTR pwzAppNiPaths, LPCWSTR pwzPdbPath, BOOL fGeneratePDBLinesInfo, LPCWSTR pwzManagedPdbSearchPath, LPCWSTR pwzPlatformWinmdPaths)
+STDAPI CreatePDBWorker(LPCWSTR pwzAssemblyPath, LPCWSTR pwzPlatformAssembliesPaths, LPCWSTR pwzTrustedPlatformAssemblies, LPCWSTR pwzPlatformResourceRoots, LPCWSTR pwzAppPaths, LPCWSTR pwzAppNiPaths, LPCWSTR pwzPdbPath, BOOL fGeneratePDBLinesInfo, LPCWSTR pwzManagedPdbSearchPath, LPCWSTR pwzPlatformWinmdPaths, LPCWSTR pwzDiasymreaderPath)
 {    
     HRESULT hr = S_OK;
 
@@ -254,6 +254,10 @@ STDAPI CreatePDBWorker(LPCWSTR pwzAssemblyPath, LPCWSTR pwzPlatformAssembliesPat
         ngo.dwSize = sizeof(NGenOptions);
 
         zap = Zapper::NewZapper(&ngo);
+
+#if defined(FEATURE_CORECLR) && !defined(FEATURE_MERGE_JIT_AND_ENGINE)
+        zap->SetDontLoadJit();
+#endif // defined(FEATURE_CORECLR) && !defined(FEATURE_MERGE_JIT_AND_ENGINE)
 
         if (pwzPlatformAssembliesPaths != nullptr)
             zap->SetPlatformAssembliesPaths(pwzPlatformAssembliesPaths);
@@ -272,6 +276,11 @@ STDAPI CreatePDBWorker(LPCWSTR pwzAssemblyPath, LPCWSTR pwzPlatformAssembliesPat
 
         if (pwzPlatformWinmdPaths != nullptr)
             zap->SetPlatformWinmdPaths(pwzPlatformWinmdPaths);
+
+#if defined(FEATURE_CORECLR) && !defined(NO_NGENPDB)
+        if (pwzDiasymreaderPath != nullptr)
+            zap->SetDiasymreaderPath(pwzDiasymreaderPath);
+#endif // defined(FEATURE_CORECLR) && !defined(NO_NGENPDB)
 
         // Avoid unnecessary security failures, since permissions are irrelevant when
         // generating NGEN PDBs
@@ -416,12 +425,15 @@ ZapperOptions::ZapperOptions() :
   m_fPartialNGen(false),
   m_fPartialNGenSet(false),
   m_fNGenLastRetry(false),
-  m_compilerFlags(CORJIT_FLG_RELOC | CORJIT_FLG_PREJIT),
+  m_compilerFlags(),
   m_legacyMode(false)
 #ifdef FEATURE_CORECLR
   ,m_fNoMetaData(s_fNGenNoMetaData)
 #endif
 {
+    m_compilerFlags.Set(CORJIT_FLAGS::CORJIT_FLAG_RELOC);
+    m_compilerFlags.Set(CORJIT_FLAGS::CORJIT_FLAG_PREJIT);
+
     m_zapSet = CLRConfig::GetConfigValue(CLRConfig::EXTERNAL_ZapSet);
     if (m_zapSet != NULL && wcslen(m_zapSet) > 3)
     {
@@ -510,18 +522,21 @@ Zapper::Zapper(NGenOptions *pOptions, bool fromDllHost)
 
     pOptions = &currentVersionOptions;
 
-    zo->m_compilerFlags = CORJIT_FLG_RELOC | CORJIT_FLG_PREJIT;
+    zo->m_compilerFlags.Reset();
+    zo->m_compilerFlags.Set(CORJIT_FLAGS::CORJIT_FLAG_RELOC);
+    zo->m_compilerFlags.Set(CORJIT_FLAGS::CORJIT_FLAG_PREJIT);
     zo->m_autodebug = true;
 
     if (pOptions->fDebug)
     {
-        zo->m_compilerFlags |= CORJIT_FLG_DEBUG_INFO|CORJIT_FLG_DEBUG_CODE;
+        zo->m_compilerFlags.Set(CORJIT_FLAGS::CORJIT_FLAG_DEBUG_INFO);
+        zo->m_compilerFlags.Set(CORJIT_FLAGS::CORJIT_FLAG_DEBUG_CODE);
         zo->m_autodebug = false;
     }
 
     if (pOptions->fProf)
     {
-        zo->m_compilerFlags |= CORJIT_FLG_PROF_ENTERLEAVE;
+        zo->m_compilerFlags.Set(CORJIT_FLAGS::CORJIT_FLAG_PROF_ENTERLEAVE);
     }
 
 #ifdef FEATURE_FUSION
@@ -567,7 +582,7 @@ Zapper::Zapper(NGenOptions *pOptions, bool fromDllHost)
 #endif //FEATURE_FUSION
 
     if (pOptions->fInstrument)
-        zo->m_compilerFlags |= CORJIT_FLG_BBINSTR;
+        zo->m_compilerFlags.Set(CORJIT_FLAGS::CORJIT_FLAG_BBINSTR);
 
     zo->m_verbose = pOptions->fVerbose;
     zo->m_statOptions = pOptions->uStats;
@@ -676,6 +691,10 @@ void Zapper::Init(ZapperOptions *pOptions, bool fFreeZapperOptions)
     _ASSERTE(SUCCEEDED(hr));
 #endif
 
+#if defined(FEATURE_CORECLR) && !defined(FEATURE_MERGE_JIT_AND_ENGINE)
+    m_fDontLoadJit = false;
+#endif // defined(FEATURE_CORECLR) && !defined(FEATURE_MERGE_JIT_AND_ENGINE)
+
     m_fForceFullTrust = false;
 }
 
@@ -707,6 +726,11 @@ void Zapper::LoadAndInitializeJITForNgen(LPCWSTR pwzJitName, OUT HINSTANCE* phJi
     extern HINSTANCE g_hThisInst;
 
 #if defined(FEATURE_CORECLR) && !defined(FEATURE_MERGE_JIT_AND_ENGINE)
+    if (m_fDontLoadJit)
+    {
+        return;
+    }
+
     if (m_CLRJITPath.GetCount() > 0)
     {
         // If we have been asked to load a specific JIT binary, load it.
@@ -997,6 +1021,15 @@ Zapper::~Zapper()
 void Zapper::DestroyDomain()
 {
     CleanupAssembly();
+
+    //
+    // Shut down JIT compiler.
+    //
+
+    if (m_pJitCompiler != NULL)
+    {
+        m_pJitCompiler->ProcessShutdownWork(NULL);
+    }
 
     //
     // Get rid of domain.
@@ -2014,10 +2047,10 @@ void Zapper::CreateCompilationDomain()
 
     BOOL fForceDebug = FALSE;
     if (!m_pOpt->m_autodebug)
-        fForceDebug = (m_pOpt->m_compilerFlags & CORJIT_FLG_DEBUG_INFO) != 0;
+        fForceDebug = m_pOpt->m_compilerFlags.IsSet(CORJIT_FLAGS::CORJIT_FLAG_DEBUG_INFO);
 
-    BOOL fForceProfile = (m_pOpt->m_compilerFlags & CORJIT_FLG_PROF_ENTERLEAVE) != 0;
-    BOOL fForceInstrument = (m_pOpt->m_compilerFlags & CORJIT_FLG_BBINSTR) != 0;
+    BOOL fForceProfile = m_pOpt->m_compilerFlags.IsSet(CORJIT_FLAGS::CORJIT_FLAG_PROF_ENTERLEAVE);
+    BOOL fForceInstrument = m_pOpt->m_compilerFlags.IsSet(CORJIT_FLAGS::CORJIT_FLAG_BBINSTR);
 
     InitEE(fForceDebug, fForceProfile, fForceInstrument);
 
@@ -2215,7 +2248,15 @@ void Zapper::CreatePdbInCurrentDomain(BSTR pAssemblyPathOrName, BSTR pNativeImag
                 tkFile, &hModule));
         }
 
-        IfFailThrow(::CreatePdb(hAssembly, pNativeImagePath, pPdbPath, pdbLines, pManagedPdbSearchPath));
+        LPCWSTR pDiasymreaderPath = nullptr;
+#if defined(FEATURE_CORECLR) && !defined(NO_NGENPDB)
+        if (m_DiasymreaderPath.GetCount() > 0)
+        {
+            pDiasymreaderPath = m_DiasymreaderPath.GetUnicode();
+        }
+#endif // defined(FEATURE_CORECLR) && !defined(NO_NGENPDB)
+
+        IfFailThrow(::CreatePdb(hAssembly, pNativeImagePath, pPdbPath, pdbLines, pManagedPdbSearchPath, pDiasymreaderPath));
     }
     EX_CATCH
     {
@@ -3297,28 +3338,29 @@ IMetaDataAssemblyEmit * Zapper::CreateAssemblyEmitter()
 
 void Zapper::InitializeCompilerFlags(CORCOMPILE_VERSION_INFO * pVersionInfo)
 {
-    m_pOpt->m_compilerFlags &= ~(CORJIT_FLG_DEBUG_INFO
-                                 | CORJIT_FLG_DEBUG_CODE
-                                 | CORJIT_FLG_PROF_ENTERLEAVE
-                                 | CORJIT_FLG_PROF_NO_PINVOKE_INLINE);
+    m_pOpt->m_compilerFlags.Clear(CORJIT_FLAGS::CORJIT_FLAG_DEBUG_INFO);
+    m_pOpt->m_compilerFlags.Clear(CORJIT_FLAGS::CORJIT_FLAG_DEBUG_CODE);
+    m_pOpt->m_compilerFlags.Clear(CORJIT_FLAGS::CORJIT_FLAG_PROF_ENTERLEAVE);
+    m_pOpt->m_compilerFlags.Clear(CORJIT_FLAGS::CORJIT_FLAG_PROF_NO_PINVOKE_INLINE);
 
     // We track debug info all the time in the ngen image
-    m_pOpt->m_compilerFlags |= CORJIT_FLG_DEBUG_INFO;
+    m_pOpt->m_compilerFlags.Set(CORJIT_FLAGS::CORJIT_FLAG_DEBUG_INFO);
 
     if (pVersionInfo->wCodegenFlags & CORCOMPILE_CODEGEN_DEBUGGING)
     {
-        m_pOpt->m_compilerFlags |= (CORJIT_FLG_DEBUG_INFO|
-                                    CORJIT_FLG_DEBUG_CODE);
+        m_pOpt->m_compilerFlags.Set(CORJIT_FLAGS::CORJIT_FLAG_DEBUG_INFO);
+        m_pOpt->m_compilerFlags.Set(CORJIT_FLAGS::CORJIT_FLAG_DEBUG_CODE);
     }
 
     if (pVersionInfo->wCodegenFlags & CORCOMPILE_CODEGEN_PROFILING)
     {
-        m_pOpt->m_compilerFlags |= CORJIT_FLG_PROF_ENTERLEAVE | CORJIT_FLG_PROF_NO_PINVOKE_INLINE;
+        m_pOpt->m_compilerFlags.Set(CORJIT_FLAGS::CORJIT_FLAG_PROF_ENTERLEAVE);
+        m_pOpt->m_compilerFlags.Set(CORJIT_FLAGS::CORJIT_FLAG_PROF_NO_PINVOKE_INLINE);
         m_pOpt->m_ngenProfileImage = true;
     }
 
     if (pVersionInfo->wCodegenFlags & CORCOMPILE_CODEGEN_PROF_INSTRUMENTING)
-        m_pOpt->m_compilerFlags |= CORJIT_FLG_BBINSTR;
+        m_pOpt->m_compilerFlags.Set(CORJIT_FLAGS::CORJIT_FLAG_BBINSTR);
 
 #if defined(_TARGET_X86_)
 
@@ -3327,7 +3369,7 @@ void Zapper::InitializeCompilerFlags(CORCOMPILE_VERSION_INFO * pVersionInfo)
     switch (CPU_X86_FAMILY(pVersionInfo->cpuInfo.dwCPUType))
     {
     case CPU_X86_PENTIUM_4:
-        m_pOpt->m_compilerFlags |= CORJIT_FLG_TARGET_P4;
+        m_pOpt->m_compilerFlags.Set(CORJIT_FLAGS::CORJIT_FLAG_TARGET_P4);
         break;
 
     default:
@@ -3336,20 +3378,25 @@ void Zapper::InitializeCompilerFlags(CORCOMPILE_VERSION_INFO * pVersionInfo)
 
     if (CPU_X86_USE_CMOV(pVersionInfo->cpuInfo.dwFeatures))
     {
-        m_pOpt->m_compilerFlags |= CORJIT_FLG_USE_CMOV |
-                                   CORJIT_FLG_USE_FCOMI;
+        m_pOpt->m_compilerFlags.Set(CORJIT_FLAGS::CORJIT_FLAG_USE_CMOV);
+        m_pOpt->m_compilerFlags.Set(CORJIT_FLAGS::CORJIT_FLAG_USE_FCOMI);
     }
 
+#if !defined(FEATURE_CORECLR)
     if (CPU_X86_USE_SSE2(pVersionInfo->cpuInfo.dwFeatures))
     {
-        m_pOpt->m_compilerFlags |= CORJIT_FLG_USE_SSE2;
+        m_pOpt->m_compilerFlags.Set(CORJIT_FLAGS::CORJIT_FLAG_USE_SSE2);
     }
+#else
+    // .NET Core requires SSE2.
+    m_pOpt->m_compilerFlags.Set(CORJIT_FLAGS::CORJIT_FLAG_USE_SSE2);
+#endif // !defined(FEATURE_CORECLR)
 
 #endif // _TARGET_X86_
 
-    if (   (m_pOpt->m_compilerFlags & CORJIT_FLG_DEBUG_INFO)
-        && (m_pOpt->m_compilerFlags & CORJIT_FLG_DEBUG_CODE)
-        && (m_pOpt->m_compilerFlags & CORJIT_FLG_PROF_ENTERLEAVE))
+    if (   m_pOpt->m_compilerFlags.IsSet(CORJIT_FLAGS::CORJIT_FLAG_DEBUG_INFO)
+        && m_pOpt->m_compilerFlags.IsSet(CORJIT_FLAGS::CORJIT_FLAG_DEBUG_CODE)
+        && m_pOpt->m_compilerFlags.IsSet(CORJIT_FLAGS::CORJIT_FLAG_PROF_ENTERLEAVE))
     {
         //
         // We've decided not to support debugging + optimizations disabled + profiling to
@@ -4037,7 +4084,19 @@ void Zapper::SetCLRJITPath(LPCWSTR pwszCLRJITPath)
 {
     m_CLRJITPath.Set(pwszCLRJITPath);
 }
+
+void Zapper::SetDontLoadJit()
+{
+    m_fDontLoadJit = true;
+}
 #endif // defined(FEATURE_CORECLR) && !defined(FEATURE_MERGE_JIT_AND_ENGINE)
+
+#if defined(FEATURE_CORECLR) && !defined(NO_NGENPDB)
+void Zapper::SetDiasymreaderPath(LPCWSTR pwzDiasymreaderPath)
+{
+    m_DiasymreaderPath.Set(pwzDiasymreaderPath);
+}
+#endif // defined(FEATURE_CORECLR) && !defined(NO_NGENPDB)
 
 #if defined(FEATURE_CORECLR) || defined(CROSSGEN_COMPILE)
 

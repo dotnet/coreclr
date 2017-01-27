@@ -6,10 +6,11 @@
 
 //
 
-using System.Threading;
 using System;
 using System.Globalization;
 using System.Diagnostics.Contracts;
+using System.Runtime.Serialization;
+using System.Threading;
 
 namespace System.Globalization
 {
@@ -17,6 +18,7 @@ namespace System.Globalization
     // 0 CurrentEra (AD)
     // 1 BeforeCurrentEra (BC)
 
+    [Serializable]
     [System.Runtime.InteropServices.ComVisible(true)]
 
     public class GregorianCalendar : Calendar
@@ -53,6 +55,16 @@ namespace System.Globalization
 
         private static volatile Calendar s_defaultInstance;
 
+        [OnDeserialized]
+        private void OnDeserialized(StreamingContext ctx)
+        {
+            if (m_type < GregorianCalendarTypes.Localized ||
+                m_type > GregorianCalendarTypes.TransliteratedFrench)
+            {
+                throw new SerializationException(
+                    String.Format(CultureInfo.CurrentCulture, SR.Serialization_MemberOutOfRange, "type", "GregorianCalendar"));
+            }
+        }
 
         [System.Runtime.InteropServices.ComVisible(false)]
         public override DateTime MinSupportedDateTime
@@ -69,6 +81,15 @@ namespace System.Globalization
             get
             {
                 return (DateTime.MaxValue);
+            }
+        }
+
+        [System.Runtime.InteropServices.ComVisible(false)]
+        public override CalendarAlgorithmType AlgorithmType
+        {
+            get
+            {
+                return CalendarAlgorithmType.SolarCalendar;
             }
         }
 
@@ -102,7 +123,7 @@ namespace System.Globalization
             if ((int)type < (int)GregorianCalendarTypes.Localized || (int)type > (int)GregorianCalendarTypes.TransliteratedFrench)
             {
                 throw new ArgumentOutOfRangeException(
-                            "type",
+                            nameof(type),
                             SR.Format(SR.ArgumentOutOfRange_Range,
                     GregorianCalendarTypes.Localized, GregorianCalendarTypes.TransliteratedFrench));
             }
@@ -193,7 +214,7 @@ namespace System.Globalization
             int[] days = leapYear ? DaysToMonth366 : DaysToMonth365;
             // All months have less than 32 days, so n >> 5 is a good conservative
             // estimate for the month
-            int m = n >> 5 + 1;
+            int m = (n >> 5) + 1;
             // m = 1-based month number
             while (n >= days[m]) m++;
             // If month was requested, return it
@@ -265,7 +286,7 @@ namespace System.Globalization
             if (months < -120000 || months > 120000)
             {
                 throw new ArgumentOutOfRangeException(
-                            "months",
+                            nameof(months),
                             String.Format(
                                 CultureInfo.CurrentCulture,
                                 SR.ArgumentOutOfRange_Range,
@@ -354,17 +375,17 @@ namespace System.Globalization
             {
                 if (year < 1 || year > MaxYear)
                 {
-                    throw new ArgumentOutOfRangeException("year", SR.Format(SR.ArgumentOutOfRange_Range,
+                    throw new ArgumentOutOfRangeException(nameof(year), SR.Format(SR.ArgumentOutOfRange_Range,
                         1, MaxYear));
                 }
                 if (month < 1 || month > 12)
                 {
-                    throw new ArgumentOutOfRangeException("month", SR.ArgumentOutOfRange_Month);
+                    throw new ArgumentOutOfRangeException(nameof(month), SR.ArgumentOutOfRange_Month);
                 }
                 int[] days = ((year % 4 == 0 && (year % 100 != 0 || year % 400 == 0)) ? DaysToMonth366 : DaysToMonth365);
                 return (days[month] - days[month - 1]);
             }
-            throw new ArgumentOutOfRangeException("era", SR.ArgumentOutOfRange_InvalidEraValue);
+            throw new ArgumentOutOfRangeException(nameof(era), SR.ArgumentOutOfRange_InvalidEraValue);
         }
 
         // Returns the number of days in the year given by the year argument for the current era.
@@ -379,14 +400,14 @@ namespace System.Globalization
                     return ((year % 4 == 0 && (year % 100 != 0 || year % 400 == 0)) ? 366 : 365);
                 }
                 throw new ArgumentOutOfRangeException(
-                            "year",
+                            nameof(year),
                             String.Format(
                                 CultureInfo.CurrentCulture,
                                 SR.ArgumentOutOfRange_Range,
                                 1,
                                 MaxYear));
             }
-            throw new ArgumentOutOfRangeException("era", SR.ArgumentOutOfRange_InvalidEraValue);
+            throw new ArgumentOutOfRangeException(nameof(era), SR.ArgumentOutOfRange_InvalidEraValue);
         }
 
         // Returns the era for the specified DateTime value.
@@ -426,14 +447,14 @@ namespace System.Globalization
                     return (12);
                 }
                 throw new ArgumentOutOfRangeException(
-                            "year",
+                            nameof(year),
                             String.Format(
                                 CultureInfo.CurrentCulture,
                                 SR.ArgumentOutOfRange_Range,
                                 1,
                                 MaxYear));
             }
-            throw new ArgumentOutOfRangeException("era", SR.ArgumentOutOfRange_InvalidEraValue);
+            throw new ArgumentOutOfRangeException(nameof(era), SR.ArgumentOutOfRange_InvalidEraValue);
         }
 
         // Returns the year part of the specified DateTime. The returned value is an
@@ -453,25 +474,25 @@ namespace System.Globalization
         {
             if (month < 1 || month > 12)
             {
-                throw new ArgumentOutOfRangeException("month", SR.Format(SR.ArgumentOutOfRange_Range,
+                throw new ArgumentOutOfRangeException(nameof(month), SR.Format(SR.ArgumentOutOfRange_Range,
                     1, 12));
             }
             Contract.EndContractBlock();
 
             if (era != CurrentEra && era != ADEra)
             {
-                throw new ArgumentOutOfRangeException("era", SR.ArgumentOutOfRange_InvalidEraValue);
+                throw new ArgumentOutOfRangeException(nameof(era), SR.ArgumentOutOfRange_InvalidEraValue);
             }
             if (year < 1 || year > MaxYear)
             {
                 throw new ArgumentOutOfRangeException(
-                                "year",
+                                nameof(year),
                                 SR.Format(SR.ArgumentOutOfRange_Range, 1, MaxYear));
             }
 
             if (day < 1 || day > GetDaysInMonth(year, month))
             {
-                throw new ArgumentOutOfRangeException("day", SR.Format(SR.ArgumentOutOfRange_Range,
+                throw new ArgumentOutOfRangeException(nameof(day), SR.Format(SR.ArgumentOutOfRange_Range,
                     1, GetDaysInMonth(year, month)));
             }
             if (!IsLeapYear(year))
@@ -494,12 +515,12 @@ namespace System.Globalization
         {
             if (era != CurrentEra && era != ADEra)
             {
-                throw new ArgumentOutOfRangeException("era", SR.ArgumentOutOfRange_InvalidEraValue);
+                throw new ArgumentOutOfRangeException(nameof(era), SR.ArgumentOutOfRange_InvalidEraValue);
             }
             if (year < 1 || year > MaxYear)
             {
                 throw new ArgumentOutOfRangeException(
-                            "year",
+                            nameof(year),
                             String.Format(
                                 CultureInfo.CurrentCulture,
                                 SR.ArgumentOutOfRange_Range, 1, MaxYear));
@@ -516,13 +537,13 @@ namespace System.Globalization
         {
             if (era != CurrentEra && era != ADEra)
             {
-                throw new ArgumentOutOfRangeException("era", SR.ArgumentOutOfRange_InvalidEraValue);
+                throw new ArgumentOutOfRangeException(nameof(era), SR.ArgumentOutOfRange_InvalidEraValue);
             }
 
             if (year < 1 || year > MaxYear)
             {
                 throw new ArgumentOutOfRangeException(
-                            "year",
+                            nameof(year),
                             String.Format(
                                 CultureInfo.CurrentCulture,
                                 SR.ArgumentOutOfRange_Range, 1, MaxYear));
@@ -530,7 +551,7 @@ namespace System.Globalization
 
             if (month < 1 || month > 12)
             {
-                throw new ArgumentOutOfRangeException("month", SR.Format(SR.ArgumentOutOfRange_Range,
+                throw new ArgumentOutOfRangeException(nameof(month), SR.Format(SR.ArgumentOutOfRange_Range,
                     1, 12));
             }
             Contract.EndContractBlock();
@@ -551,12 +572,12 @@ namespace System.Globalization
                 }
 
                 throw new ArgumentOutOfRangeException(
-                            "year",
+                            nameof(year),
                             String.Format(
                                 CultureInfo.CurrentCulture,
                                 SR.ArgumentOutOfRange_Range, 1, MaxYear));
             }
-            throw new ArgumentOutOfRangeException("era", SR.ArgumentOutOfRange_InvalidEraValue);
+            throw new ArgumentOutOfRangeException(nameof(era), SR.ArgumentOutOfRange_InvalidEraValue);
         }
 
         // Returns the date and time converted to a DateTime value.  Throws an exception if the n-tuple is invalid.
@@ -568,7 +589,7 @@ namespace System.Globalization
             {
                 return new DateTime(year, month, day, hour, minute, second, millisecond);
             }
-            throw new ArgumentOutOfRangeException("era", SR.ArgumentOutOfRange_InvalidEraValue);
+            throw new ArgumentOutOfRangeException(nameof(era), SR.ArgumentOutOfRange_InvalidEraValue);
         }
 
         internal override Boolean TryToDateTime(int year, int month, int day, int hour, int minute, int second, int millisecond, int era, out DateTime result)
@@ -631,7 +652,7 @@ namespace System.Globalization
         {
             if (year < 0)
             {
-                throw new ArgumentOutOfRangeException("year",
+                throw new ArgumentOutOfRangeException(nameof(year),
                     SR.ArgumentOutOfRange_NeedNonNegNum);
             }
             Contract.EndContractBlock();
@@ -639,7 +660,7 @@ namespace System.Globalization
             if (year > MaxYear)
             {
                 throw new ArgumentOutOfRangeException(
-                            "year",
+                            nameof(year),
                             String.Format(
                                 CultureInfo.CurrentCulture,
                                 SR.ArgumentOutOfRange_Range, 1, MaxYear));

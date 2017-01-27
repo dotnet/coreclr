@@ -12,6 +12,7 @@
 ===========================================================*/
 namespace System {
 
+    using System.Diagnostics;
     using System.Diagnostics.Contracts;
     using System.Text;
     using CultureInfo = System.Globalization.CultureInfo;
@@ -29,24 +30,23 @@ namespace System {
         , IComparable<Version>, IEquatable<Version>
     {
         // AssemblyName depends on the order staying the same
-        private int _Major;
-        private int _Minor;
-        private int _Build = -1;
-        private int _Revision = -1;
-        private static readonly char[] SeparatorsArray = new char[] { '.' };
+        private readonly int _Major;
+        private readonly int _Minor;
+        private readonly int _Build = -1;
+        private readonly int _Revision = -1;
     
         public Version(int major, int minor, int build, int revision) {
             if (major < 0) 
-              throw new ArgumentOutOfRangeException("major",Environment.GetResourceString("ArgumentOutOfRange_Version"));
+              throw new ArgumentOutOfRangeException(nameof(major),Environment.GetResourceString("ArgumentOutOfRange_Version"));
 
             if (minor < 0) 
-              throw new ArgumentOutOfRangeException("minor",Environment.GetResourceString("ArgumentOutOfRange_Version"));
+              throw new ArgumentOutOfRangeException(nameof(minor),Environment.GetResourceString("ArgumentOutOfRange_Version"));
 
             if (build < 0)
-              throw new ArgumentOutOfRangeException("build",Environment.GetResourceString("ArgumentOutOfRange_Version"));
+              throw new ArgumentOutOfRangeException(nameof(build),Environment.GetResourceString("ArgumentOutOfRange_Version"));
             
             if (revision < 0) 
-              throw new ArgumentOutOfRangeException("revision",Environment.GetResourceString("ArgumentOutOfRange_Version"));
+              throw new ArgumentOutOfRangeException(nameof(revision),Environment.GetResourceString("ArgumentOutOfRange_Version"));
             Contract.EndContractBlock();
             
             _Major = major;
@@ -57,13 +57,13 @@ namespace System {
 
         public Version(int major, int minor, int build) {
             if (major < 0) 
-                throw new ArgumentOutOfRangeException("major",Environment.GetResourceString("ArgumentOutOfRange_Version"));
+                throw new ArgumentOutOfRangeException(nameof(major),Environment.GetResourceString("ArgumentOutOfRange_Version"));
 
             if (minor < 0) 
-              throw new ArgumentOutOfRangeException("minor",Environment.GetResourceString("ArgumentOutOfRange_Version"));
+              throw new ArgumentOutOfRangeException(nameof(minor),Environment.GetResourceString("ArgumentOutOfRange_Version"));
 
             if (build < 0) 
-              throw new ArgumentOutOfRangeException("build",Environment.GetResourceString("ArgumentOutOfRange_Version"));
+              throw new ArgumentOutOfRangeException(nameof(build),Environment.GetResourceString("ArgumentOutOfRange_Version"));
 
             Contract.EndContractBlock();
             
@@ -74,10 +74,10 @@ namespace System {
     
         public Version(int major, int minor) {
             if (major < 0) 
-                throw new ArgumentOutOfRangeException("major",Environment.GetResourceString("ArgumentOutOfRange_Version"));
+                throw new ArgumentOutOfRangeException(nameof(major),Environment.GetResourceString("ArgumentOutOfRange_Version"));
 
             if (minor < 0) 
-                throw new ArgumentOutOfRangeException("minor",Environment.GetResourceString("ArgumentOutOfRange_Version"));
+                throw new ArgumentOutOfRangeException(nameof(minor),Environment.GetResourceString("ArgumentOutOfRange_Version"));
             Contract.EndContractBlock();
             
             _Major = major;
@@ -96,6 +96,16 @@ namespace System {
         {
             _Major = 0;
             _Minor = 0;
+        }
+
+        private Version(Version version)
+        {
+            Debug.Assert(version != null);
+
+            _Major = version._Major;
+            _Minor = version._Minor;
+            _Build = version._Build;
+            _Revision = version._Revision;
         }
 
         // Properties for setting and getting version numbers
@@ -124,12 +134,7 @@ namespace System {
         }
      
         public Object Clone() {
-            Version v = new Version();
-            v._Major = _Major;
-            v._Minor = _Minor;
-            v._Build = _Build;
-            v._Revision = _Revision;
-            return(v);
+            return new Version(this);
         }
 
         public int CompareTo(Object version)
@@ -145,93 +150,33 @@ namespace System {
                 throw new ArgumentException(Environment.GetResourceString("Arg_MustBeVersion"));
             }
 
-            if (this._Major != v._Major)
-                if (this._Major > v._Major)
-                    return 1;
-                else
-                    return -1;
-
-            if (this._Minor != v._Minor)
-                if (this._Minor > v._Minor)
-                    return 1;
-                else
-                    return -1;
-
-            if (this._Build != v._Build)
-                if (this._Build > v._Build)
-                    return 1;
-                else
-                    return -1;
-
-            if (this._Revision != v._Revision)
-                if (this._Revision > v._Revision)
-                    return 1;
-                else
-                    return -1;
-
-            return 0;
+            return CompareTo(v);
         }
 
         public int CompareTo(Version value)
         {
-            if (value == null)
-                return 1;
-
-            if (this._Major != value._Major)
-                if (this._Major > value._Major)
-                    return 1;
-                else
-                    return -1;
-
-            if (this._Minor != value._Minor)
-                if (this._Minor > value._Minor)
-                    return 1;
-                else
-                    return -1;
-
-            if (this._Build != value._Build)
-                if (this._Build > value._Build)
-                    return 1;
-                else
-                    return -1;
-
-            if (this._Revision != value._Revision)
-                if (this._Revision > value._Revision)
-                    return 1;
-                else
-                    return -1;
-
-            return 0;
+            return
+                object.ReferenceEquals(value, this) ? 0 :
+                object.ReferenceEquals(value, null) ? 1 :
+                _Major != value._Major ? (_Major > value._Major ? 1 : -1) :
+                _Minor != value._Minor ? (_Minor > value._Minor ? 1 : -1) :
+                _Build != value._Build ? (_Build > value._Build ? 1 : -1) :
+                _Revision != value._Revision ? (_Revision > value._Revision ? 1 : -1) :
+                0;
         }
 
         public override bool Equals(Object obj) {
-            Version v = obj as Version;
-            if (v == null)
-                return false;
-
-            // check that major, minor, build & revision numbers match
-            if ((this._Major != v._Major) || 
-                (this._Minor != v._Minor) || 
-                (this._Build != v._Build) ||
-                (this._Revision != v._Revision))
-                return false;
-
-            return true;
+            return Equals(obj as Version);
         }
 
         public bool Equals(Version obj)
         {
-            if (obj == null)
-                return false;
-
-            // check that major, minor, build & revision numbers match
-            if ((this._Major != obj._Major) || 
-                (this._Minor != obj._Minor) || 
-                (this._Build != obj._Build) ||
-                (this._Revision != obj._Revision))
-                return false;
-
-            return true;
+            return object.ReferenceEquals(obj, this) ||
+                (!object.ReferenceEquals(obj, null) &&
+                _Major == obj._Major &&
+                _Minor == obj._Minor &&
+                _Build == obj._Build &&
+                _Revision == obj._Revision);
         }
 
         public override int GetHashCode()
@@ -270,7 +215,7 @@ namespace System {
                 return StringBuilderCache.GetStringAndRelease(sb);
             default:
                 if (_Build == -1)
-                    throw new ArgumentException(Environment.GetResourceString("ArgumentOutOfRange_Bounds_Lower_Upper", "0", "2"), "fieldCount");
+                    throw new ArgumentException(Environment.GetResourceString("ArgumentOutOfRange_Bounds_Lower_Upper", "0", "2"), nameof(fieldCount));
 
                 if (fieldCount == 3)
                 {
@@ -284,7 +229,7 @@ namespace System {
                 }
 
                 if (_Revision == -1)
-                    throw new ArgumentException(Environment.GetResourceString("ArgumentOutOfRange_Bounds_Lower_Upper", "0", "3"), "fieldCount");
+                    throw new ArgumentException(Environment.GetResourceString("ArgumentOutOfRange_Bounds_Lower_Upper", "0", "3"), nameof(fieldCount));
 
                 if (fieldCount == 4)
                 {
@@ -299,7 +244,7 @@ namespace System {
                     return StringBuilderCache.GetStringAndRelease(sb);
                 }
 
-                throw new ArgumentException(Environment.GetResourceString("ArgumentOutOfRange_Bounds_Lower_Upper", "0", "4"), "fieldCount");
+                throw new ArgumentException(Environment.GetResourceString("ArgumentOutOfRange_Bounds_Lower_Upper", "0", "4"), nameof(fieldCount));
             }
         }
 
@@ -307,12 +252,12 @@ namespace System {
         // AppendPositiveNumber is an optimization to append a number to a StringBuilder object without
         // doing any boxing and not even creating intermediate string.
         // Note: as we always have positive numbers then it is safe to convert the number to string 
-        // regardless of the current culture as we’ll not have any punctuation marks in the number
+        // regardless of the current culture as we'll not have any punctuation marks in the number
         //
         private const int ZERO_CHAR_VALUE = (int) '0';
         private static void AppendPositiveNumber(int num, StringBuilder sb)
         {
-            Contract.Assert(num >= 0, "AppendPositiveNumber expect positive numbers");
+            Debug.Assert(num >= 0, "AppendPositiveNumber expect positive numbers");
 
             int index = sb.Length;
             int reminder;
@@ -327,12 +272,12 @@ namespace System {
 
         public static Version Parse(string input) {
             if (input == null) {
-                throw new ArgumentNullException("input");
+                throw new ArgumentNullException(nameof(input));
             }
             Contract.EndContractBlock();
 
             VersionResult r = new VersionResult();
-            r.Init("input", true);
+            r.Init(nameof(input), true);
             if (!TryParseVersion(input, ref r)) {
                 throw r.GetVersionParseException();
             }
@@ -341,7 +286,7 @@ namespace System {
 
         public static bool TryParse(string input, out Version result) {
             VersionResult r = new VersionResult();
-            r.Init("input", false);
+            r.Init(nameof(input), false);
             bool b = TryParseVersion(input, ref r);
             result = r.m_parsedVersion;
             return b;
@@ -355,18 +300,18 @@ namespace System {
                 return false;
             }
 
-            String[] parsedComponents = version.Split(SeparatorsArray);
+            String[] parsedComponents = version.Split('.');
             int parsedComponentsLength = parsedComponents.Length;
             if ((parsedComponentsLength < 2) || (parsedComponentsLength > 4)) {
                 result.SetFailure(ParseFailureKind.ArgumentException);
                 return false;
             }
 
-            if (!TryParseComponent(parsedComponents[0], "version", ref result, out major)) {
+            if (!TryParseComponent(parsedComponents[0], nameof(version), ref result, out major)) {
                 return false;
             }
 
-            if (!TryParseComponent(parsedComponents[1], "version", ref result, out minor)) {
+            if (!TryParseComponent(parsedComponents[1], nameof(version), ref result, out minor)) {
                 return false;
             }
 
@@ -423,14 +368,14 @@ namespace System {
 
         public static bool operator <(Version v1, Version v2) {
             if ((Object) v1 == null)
-                throw new ArgumentNullException("v1");
+                throw new ArgumentNullException(nameof(v1));
             Contract.EndContractBlock();
             return (v1.CompareTo(v2) < 0);
         }
         
         public static bool operator <=(Version v1, Version v2) {
             if ((Object) v1 == null)
-                throw new ArgumentNullException("v1");
+                throw new ArgumentNullException(nameof(v1));
             Contract.EndContractBlock();
             return (v1.CompareTo(v2) <= 0);
         }
@@ -491,10 +436,10 @@ namespace System {
                         } catch (OverflowException e) {
                             return e;
                         }
-                        Contract.Assert(false, "Int32.Parse() did not throw exception but TryParse failed: " + m_exceptionArgument);
+                        Debug.Assert(false, "Int32.Parse() did not throw exception but TryParse failed: " + m_exceptionArgument);
                         return new FormatException(Environment.GetResourceString("Format_InvalidString"));
                     default:
-                        Contract.Assert(false, "Unmatched case in Version.GetVersionParseException() for value: " + m_failure);
+                        Debug.Assert(false, "Unmatched case in Version.GetVersionParseException() for value: " + m_failure);
                         return new ArgumentException(Environment.GetResourceString("Arg_VersionString"));
                 }
             }

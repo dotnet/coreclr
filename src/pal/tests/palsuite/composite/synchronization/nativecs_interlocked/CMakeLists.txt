@@ -5,7 +5,7 @@ set(CMAKE_INCLUDE_CURRENT_DIR ON)
 set(SOURCES
   interlocked.cpp
   mtx_critsect.cpp
-  pal_composite_native_cs.c
+  pal_composite_native_cs.cpp
   resultbuffer.cpp
 )
 
@@ -16,7 +16,5 @@ add_executable(paltest_synchronization_nativecs_interlocked
 add_dependencies(paltest_synchronization_nativecs_interlocked coreclrpal)
 
 target_link_libraries(paltest_synchronization_nativecs_interlocked
-  pthread
-  m
-  coreclrpal
+  ${COMMON_TEST_LIBRARIES}
 )

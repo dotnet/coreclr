@@ -12,8 +12,8 @@
 **
 ** 
 ===========================================================*/
-namespace System {
-    
+namespace System
+{
     using System;
     using System.Collections;
     using System.Threading;
@@ -59,7 +59,6 @@ namespace System {
             return base.ToString();
         }
         
-        [System.Security.SecurityCritical]  // auto-generated
         internal IntPtr GetIUnknown(out bool fIsURTAggregated)
         {
             fIsURTAggregated = !GetType().IsDefined(typeof(ComImportAttribute), false);
@@ -118,7 +117,6 @@ namespace System {
         // This method is called from within the EE and releases all the 
         // cached data for the __ComObject.
         //====================================================================
-        [System.Security.SecurityCritical]  // auto-generated
         internal void ReleaseAllData()
         {
             // Synchronize access to the map.
@@ -154,7 +152,6 @@ namespace System {
         // This method is called from within the EE and is used to handle
         // calls on methods of event interfaces.
         //====================================================================
-        [System.Security.SecurityCritical]  // auto-generated
         internal Object GetEventProvider(RuntimeType t)
         {
             // Check to see if we already have a cached event provider for this type.
@@ -167,22 +164,16 @@ namespace System {
             return EvProvider;
         }
 
-        [System.Security.SecurityCritical]  // auto-generated
         internal int ReleaseSelf()
         {
             return Marshal.InternalReleaseComObject(this);
         }
 
-        [System.Security.SecurityCritical]  // auto-generated
         internal void FinalReleaseSelf()
         {
             Marshal.InternalFinalReleaseComObject(this);
         }
 
-        [System.Security.SecurityCritical]  // auto-generated
-#if !FEATURE_CORECLR
-        [ReflectionPermissionAttribute(SecurityAction.Assert, MemberAccess=true)]
-#endif
         private Object CreateEventProvider(RuntimeType t)
         {
             // Create the event provider for the specified type.

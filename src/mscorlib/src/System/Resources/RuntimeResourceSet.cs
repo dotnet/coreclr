@@ -20,6 +20,7 @@ namespace System.Resources {
     using System.Globalization;
     using System.Reflection;
     using System.Runtime.Versioning;
+    using System.Diagnostics;
     using System.Diagnostics.Contracts;
 
     // A RuntimeResourceSet stores all the resources defined in one 
@@ -184,7 +185,6 @@ namespace System.Resources {
         // the resources once, adding them into the table.
         private bool _haveReadFromReader;
 
-        [System.Security.SecurityCritical]  // auto-generated
         internal RuntimeResourceSet(String fileName) : base(false)
         {
             BCLDebug.Log("RESMGRFILEFORMAT", "RuntimeResourceSet .ctor(String)");
@@ -204,7 +204,6 @@ namespace System.Resources {
             Assembly = assembly;
         }
 #else
-        [System.Security.SecurityCritical]  // auto-generated
         internal RuntimeResourceSet(Stream stream) : base(false)
         {
             BCLDebug.Log("RESMGRFILEFORMAT", "RuntimeResourceSet .ctor(Stream)");
@@ -285,7 +284,7 @@ namespace System.Resources {
         private Object GetObject(String key, bool ignoreCase, bool isString)
         {
             if (key==null)
-                throw new ArgumentNullException("key");
+                throw new ArgumentNullException(nameof(key));
             if (Reader == null || _resCache == null)
                 throw new ObjectDisposedException(null, Environment.GetResourceString("ObjectDisposed_ResourceSet"));
             Contract.EndContractBlock();
@@ -312,7 +311,7 @@ namespace System.Resources {
                     }
 
                     if (dataPos != -1 && value == null) {
-                        Contract.Assert(dataPos >= 0, "data section offset cannot be negative!");
+                        Debug.Assert(dataPos >= 0, "data section offset cannot be negative!");
                         // Normally calling LoadString or LoadObject requires
                         // taking a lock.  Note that in this case, we took a
                         // lock on the entire RuntimeResourceSet, which is 
@@ -373,7 +372,7 @@ namespace System.Resources {
                             Reader.Close();
                     }
                     else {
-                        Contract.Assert(ignoreCase, "This should only happen for case-insensitive lookups");
+                        Debug.Assert(ignoreCase, "This should only happen for case-insensitive lookups");
                         ResourceReader.ResourceEnumerator en = _defaultReader.GetEnumeratorInternal();
                         while (en.MoveNext()) {
                             // Note: Always ask for the resource key before the data position.

@@ -33,7 +33,7 @@ enum ReturnValues
 
 #define NumItems(s) (sizeof(s) / sizeof(s[0]))
 
-STDAPI CreatePDBWorker(LPCWSTR pwzAssemblyPath, LPCWSTR pwzPlatformAssembliesPaths, LPCWSTR pwzTrustedPlatformAssemblies, LPCWSTR pwzPlatformResourceRoots, LPCWSTR pwzAppPaths, LPCWSTR pwzAppNiPaths, LPCWSTR pwzPdbPath, BOOL fGeneratePDBLinesInfo, LPCWSTR pwzManagedPdbSearchPath, LPCWSTR pwzPlatformWinmdPaths);
+STDAPI CreatePDBWorker(LPCWSTR pwzAssemblyPath, LPCWSTR pwzPlatformAssembliesPaths, LPCWSTR pwzTrustedPlatformAssemblies, LPCWSTR pwzPlatformResourceRoots, LPCWSTR pwzAppPaths, LPCWSTR pwzAppNiPaths, LPCWSTR pwzPdbPath, BOOL fGeneratePDBLinesInfo, LPCWSTR pwzManagedPdbSearchPath, LPCWSTR pwzPlatformWinmdPaths, LPCWSTR pwzDiasymreaderPath);
 STDAPI NGenWorker(LPCWSTR pwzFilename, DWORD dwFlags, LPCWSTR pwzPlatformAssembliesPaths, LPCWSTR pwzTrustedPlatformAssemblies, LPCWSTR pwzPlatformResourceRoots, LPCWSTR pwzAppPaths, LPCWSTR pwzOutputFilename=NULL, LPCWSTR pwzPlatformWinmdPaths=NULL, ICorSvcLogger *pLogger = NULL, LPCWSTR pwszCLRJITPath = nullptr);
 void SetSvcLogger(ICorSvcLogger *pCorSvcLogger);
 #ifdef FEATURE_CORECLR
@@ -122,20 +122,21 @@ void PrintUsageHelper()
        W("    /in <file>           - Specifies input filename (optional)\n")
        W("    /out <file>          - Specifies output filename (optional)\n")
 #ifdef FEATURE_CORECLR
-       W("    /Trusted_Platform_Assemblies <path[;path]>\n")
+       W("    /Trusted_Platform_Assemblies <path[") PATH_SEPARATOR_STR_W W("path]>\n")
        W("                         - List of assemblies treated as trusted platform\n")
        W("                         - Cannot be used with Platform_Assemblies_Paths\n")
-       W("    /Platform_Resource_Roots <path[;path]>\n")
+       W("    /Platform_Resource_Roots <path[") PATH_SEPARATOR_STR_W W("path]>\n")
        W("                         - List of paths containing localized assembly directories\n")
-       W("    /App_Paths <path>    - List of paths containing user-application assemblies and resources\n")
+       W("    /App_Paths <path[") PATH_SEPARATOR_STR_W W("path]>\n")
+       W("                         - List of paths containing user-application assemblies and resources\n")
 #ifndef NO_NGENPDB
-       W("    /App_Ni_Paths <path[;path]>\n")
+       W("    /App_Ni_Paths <path[") PATH_SEPARATOR_STR_W W("path]>\n")
        W("                         - List of paths containing user-application native images\n")
        W("                         - Must be used with /CreatePDB switch\n")
 #endif // NO_NGENPDB
 #endif // FEATURE_CORECLR
 
-       W("    /Platform_Assemblies_Paths\n")
+       W("    /Platform_Assemblies_Paths <path[") PATH_SEPARATOR_STR_W W("path]>\n")
        W("                         - List of paths containing target platform assemblies\n")
 #ifdef FEATURE_CORECLR
        // If Platform_Assemblies_Paths, we will use it to build the TPA list and thus,
@@ -144,7 +145,7 @@ void PrintUsageHelper()
 #endif // FEATURE_CORECLR
        
 #ifdef FEATURE_COMINTEROP
-       W("    /Platform_Winmd_Paths\n")
+       W("    /Platform_Winmd_Paths <path[") PATH_SEPARATOR_STR_W W("path]>\n")
        W("                         - List of paths containing target platform WinMDs used\n")
        W("                           for emulating RoResolveNamespace\n")
 #endif
@@ -156,7 +157,7 @@ void PrintUsageHelper()
        W("                           scenario traces, which can be used with ibcmerge.exe\n")
 #endif
 #if defined(FEATURE_CORECLR) && !defined(FEATURE_MERGE_JIT_AND_ENGINE)
-       W("    /JITPath\n")
+       W("    /JITPath <path>\n")
        W("                         - Specifies the absolute file path to JIT compiler to be used.\n")
 #endif // defined(FEATURE_CORECLR) && !defined(FEATURE_MERGE_JIT_AND_ENGINE)
 #ifdef FEATURE_READYTORUN_COMPILER
@@ -175,7 +176,11 @@ void PrintUsageHelper()
        W(" Debugging Parameters\n")
        W("    /CreatePDB <Dir to store PDB> [/lines [<search path for managed PDB>] ]\n")
        W("        When specifying /CreatePDB, the native image should be created\n")
-       W("        first, and <assembly name> should be the path to the NI.")
+       W("        first, and <assembly name> should be the path to the NI.\n")
+#ifdef FEATURE_CORECLR
+       W("    /DiasymreaderPath <Path to diasymreader.dll>\n")
+       W("        - Specifies the absolute file path to diasymreader.dll to be used.\n")
+#endif // FEATURE_CORECLR
 #elif defined(FEATURE_PERFMAP)
        W(" Debugging Parameters\n")
        W("    /CreatePerfMap <Dir to store perf map>\n")
@@ -458,6 +463,8 @@ int _cdecl wmain(int argc, __in_ecount(argc) WCHAR **argv)
     LPCWSTR pwszCLRJITPath = nullptr;
 #endif // defined(FEATURE_CORECLR) && !defined(FEATURE_MERGE_JIT_AND_ENGINE)
 
+    LPCWSTR pwzDiasymreaderPath = nullptr;
+
     HRESULT hr;
 
 #ifndef PLATFORM_UNIX
@@ -701,6 +708,16 @@ int _cdecl wmain(int argc, __in_ecount(argc) WCHAR **argv)
             argv--;
             argc++;
         }
+#ifdef FEATURE_CORECLR
+        else if (MatchParameter(*argv, W("DiasymreaderPath")) && (argc > 1))
+        {
+            pwzDiasymreaderPath = argv[1];
+
+            // skip diasymreader Path
+            argv++;
+            argc--;
+        }
+#endif // FEATURE_CORECLR
 #endif // NO_NGENPDB
 #ifdef FEATURE_PERFMAP
         else if (MatchParameter(*argv, W("CreatePerfMap")) && (argc > 1))
@@ -798,6 +815,22 @@ int _cdecl wmain(int argc, __in_ecount(argc) WCHAR **argv)
         Output(W("The /App_Ni_Paths switch can only be used with the /CreatePDB switch.\n"));
         exit(FAILURE_RESULT);
     }
+
+#if defined(FEATURE_CORECLR) && !defined(FEATURE_MERGE_JIT_AND_ENGINE)
+    if (pwszCLRJITPath != nullptr && fCreatePDB)
+    {
+        Output(W("The /JITPath switch can not be used with the /CreatePDB switch.\n"));
+        exit(FAILURE_RESULT);
+    }
+#endif // defined(FEATURE_CORECLR) && !defined(FEATURE_MERGE_JIT_AND_ENGINE)
+
+#if defined(FEATURE_CORECLR) && !defined(NO_NGENPDB)
+    if (pwzDiasymreaderPath != nullptr && !fCreatePDB)
+    {
+        Output(W("The /DiasymreaderPath switch can only be used with the /CreatePDB switch.\n"));
+        exit(FAILURE_RESULT);
+    }
+#endif // defined(FEATURE_CORECLR) && !defined(NO_NGENPDB)
 
 #if defined(FEATURE_CORECLR)
     if ((pwzTrustedPlatformAssemblies != nullptr) && (pwzPlatformAssembliesPaths != nullptr))
@@ -931,7 +964,8 @@ int _cdecl wmain(int argc, __in_ecount(argc) WCHAR **argv)
             wzDirectoryToStorePDB, 
             fGeneratePDBLinesInfo, 
             pwzSearchPathForManagedPDB,
-            pwzPlatformWinmdPaths);
+            pwzPlatformWinmdPaths,
+            pwzDiasymreaderPath);
         
     }
     else

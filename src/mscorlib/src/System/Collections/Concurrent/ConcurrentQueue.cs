@@ -38,10 +38,7 @@ namespace System.Collections.Concurrent
     [ComVisible(false)]
     [DebuggerDisplay("Count = {Count}")]
     [DebuggerTypeProxy(typeof(SystemCollectionsConcurrent_ProducerConsumerCollectionDebugView<>))]
-    [HostProtection(Synchronization = true, ExternalThreading = true)]
-#if FEATURE_SERIALIZATION
     [Serializable]
-#endif
     public class ConcurrentQueue<T> : IProducerConsumerCollection<T>, IReadOnlyCollection<T>
     {
         //fields of ConcurrentQueue
@@ -79,7 +76,7 @@ namespace System.Collections.Concurrent
             int index = 0;
             foreach (T element in collection)
             {
-                Contract.Assert(index >= 0 && index < SEGMENT_SIZE);
+                Debug.Assert(index >= 0 && index < SEGMENT_SIZE);
                 localTail.UnsafeAdd(element);
                 index++;
 
@@ -105,7 +102,7 @@ namespace System.Collections.Concurrent
         {
             if (collection == null)
             {
-                throw new ArgumentNullException("collection");
+                throw new ArgumentNullException(nameof(collection));
             }
 
             InitializeFromCollection(collection);
@@ -127,7 +124,7 @@ namespace System.Collections.Concurrent
         [OnDeserialized]
         private void OnDeserialized(StreamingContext context)
         {
-            Contract.Assert(m_serializationArray != null);
+            Debug.Assert(m_serializationArray != null);
             InitializeFromCollection(m_serializationArray);
             m_serializationArray = null;
         }
@@ -162,7 +159,7 @@ namespace System.Collections.Concurrent
             // Validate arguments.
             if (array == null)
             {
-                throw new ArgumentNullException("array");
+                throw new ArgumentNullException(nameof(array));
             }
 
             // We must be careful not to corrupt the array, so we will first accumulate an
@@ -443,7 +440,7 @@ namespace System.Collections.Concurrent
         {
             if (array == null)
             {
-                throw new ArgumentNullException("array");
+                throw new ArgumentNullException(nameof(array));
             }
 
             // We must be careful not to corrupt the array, so we will first accumulate an
@@ -691,7 +688,7 @@ namespace System.Collections.Concurrent
                 m_array = new T[SEGMENT_SIZE];
                 m_state = new VolatileBool[SEGMENT_SIZE]; //all initialized to false
                 m_high = -1;
-                Contract.Assert(index >= 0);
+                Debug.Assert(index >= 0);
                 m_index = index;
                 m_source = source;
             }
@@ -723,7 +720,7 @@ namespace System.Collections.Concurrent
             /// <param name="value"></param>
             internal void UnsafeAdd(T value)
             {
-                Contract.Assert(m_high < SEGMENT_SIZE - 1);
+                Debug.Assert(m_high < SEGMENT_SIZE - 1);
                 m_high++;
                 m_array[m_high] = value;
                 m_state[m_high].m_value = true;
@@ -739,7 +736,7 @@ namespace System.Collections.Concurrent
             /// <returns>the reference to the new Segment</returns>
             internal Segment UnsafeGrow()
             {
-                Contract.Assert(m_high >= SEGMENT_SIZE - 1);
+                Debug.Assert(m_high >= SEGMENT_SIZE - 1);
                 Segment newSegment = new Segment(m_index + 1, m_source); //m_index is Int64, we don't need to worry about overflow
                 m_next = newSegment;
                 return newSegment;
@@ -755,7 +752,7 @@ namespace System.Collections.Concurrent
                 //no CAS is needed, since there is no contention (other threads are blocked, busy waiting)
                 Segment newSegment = new Segment(m_index + 1, m_source);  //m_index is Int64, we don't need to worry about overflow
                 m_next = newSegment;
-                Contract.Assert(m_source.m_tail == this);
+                Debug.Assert(m_source.m_tail == this);
                 m_source.m_tail = m_next;
             }
 
@@ -862,7 +859,7 @@ namespace System.Collections.Concurrent
                             {
                                 spinLocal.SpinOnce();
                             }
-                            Contract.Assert(m_source.m_head == this);
+                            Debug.Assert(m_source.m_head == this);
                             m_source.m_head = m_next;
                         }
                         return true;

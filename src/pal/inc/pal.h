@@ -50,7 +50,6 @@ Abstract:
 extern "C" {
 #endif
 
-#if defined (PLATFORM_UNIX)
 // This macro is used to standardize the wide character string literals between UNIX and Windows.
 // Unix L"" is UTF32, and on windows it's UTF16.  Because of built-in assumptions on the size
 // of string literals, it's important to match behaviour between Unix and Windows.  Unix will be defined
@@ -64,8 +63,6 @@ extern "C" {
 #define QUOTE_MACRO_L(x) QUOTE_MACRO_u(x)
 #define QUOTE_MACRO_u_HELPER(x)     u###x
 #define QUOTE_MACRO_u(x)            QUOTE_MACRO_u_HELPER(x)
-
-#endif
 
 #include <pal_char16.h>
 #include <pal_error.h>
@@ -83,16 +80,6 @@ extern "C" {
 #define _M_IX86 400
 #elif defined(__i386__) && !defined(_M_IX86)
 #define _M_IX86 300
-#elif defined(__ppc__) && !defined(_M_PPC)
-#define _M_PPC 100
-#elif defined(_AIX) && defined(_POWER) && !defined(_M_PPC)
-#define _M_PPC 100
-#elif defined(__sparc__) && !defined(_M_SPARC)
-#define _M_SPARC 100
-#elif defined(__hppa__) && !defined(_M_PARISC)
-#define _M_PARISC 100
-#elif defined(__ia64__) && !defined(_M_IA64)
-#define _M_IA64 64100
 #elif defined(__x86_64__) && !defined(_M_AMD64)
 #define _M_AMD64 100
 #elif defined(__arm__) && !defined(_M_ARM)
@@ -103,20 +90,6 @@ extern "C" {
 
 #if defined(_M_IX86) && !defined(_X86_)
 #define _X86_
-#elif defined(_M_ALPHA) && !defined(_ALPHA_)
-#define _ALPHA_
-#elif defined(_M_PPC) && !defined(_PPC_)
-#define _PPC_
-#elif defined(_M_SPARC) && !defined(_SPARC_)
-#define _SPARC_
-#elif defined(_M_PARISC) && !defined(_PARISC_)
-#define _PARISC_
-#elif defined(_M_MRX000) && !defined(_MIPS_)
-#define _MIPS_
-#elif defined(_M_M68K) && !defined(_68K_)
-#define _68K_
-#elif defined(_M_IA64) && !defined(_IA64_)
-#define _IA64_
 #elif defined(_M_AMD64) && !defined(_AMD64_)
 #define _AMD64_
 #elif defined(_M_ARM) && !defined(_ARM_)
@@ -128,10 +101,6 @@ extern "C" {
 #endif // !_MSC_VER
 
 /******************* ABI-specific glue *******************************/
-
-#if defined(_PPC_) || defined(_PPC64_) || defined(_SPARC_) || defined(_PARISC_) || defined(_IA64_)
-#define BIGENDIAN 1
-#endif
 
 #ifdef __APPLE__
 // Both PowerPC, i386 and x86_64 on Mac OS X use 16-byte alignment.
@@ -186,24 +155,12 @@ extern "C" {
 
 #define DECLSPEC_NORETURN   PAL_NORETURN
 
-#ifndef _MSC_VER
+#if !defined(_MSC_VER) || defined(SOURCE_FORMATTING)
 #define __assume(x) (void)0
 #define __annotation(x)
 #endif //!MSC_VER
 
-#ifdef _MSC_VER
-
-#if defined(_M_MRX000) || defined(_M_ALPHA) || defined(_M_PPC) || defined(_M_IA64)
-#define UNALIGNED __unaligned
-#else
 #define UNALIGNED
-#endif
-
-#else // _MSC_VER
-
-#define UNALIGNED
-
-#endif // _MSC_VER
 
 #ifndef FORCEINLINE
 #if _MSC_VER < 1200
@@ -215,74 +172,18 @@ extern "C" {
 
 #ifndef PAL_STDCPP_COMPAT
 
-#ifdef _M_ALPHA
+#if __GNUC__
 
-typedef struct {
-    char *a0;       /* pointer to first homed integer argument */
-    int offset;     /* byte offset of next parameter */
-} va_list;
-
-#define va_start(list, v) __builtin_va_start(list, v, 1)
-#define va_end(list)
-
-#elif __GNUC__
-
-#if defined(_AIX)
-
-typedef __builtin_va_list __gnuc_va_list;
 typedef __builtin_va_list va_list;
-#define va_start(v,l)   __builtin_va_start(v,l)
-#define va_end          __builtin_va_end
-#define va_arg          __builtin_va_arg
-
-#else // _AIX
-
-#if __GNUC__ == 2
-typedef void * va_list;
-#else
-typedef __builtin_va_list va_list;
-#endif  // __GNUC__
 
 /* We should consider if the va_arg definition here is actually necessary.
    Could we use the standard va_arg definition? */
 
-#if __GNUC__ == 2
-#if defined(_SPARC_) || defined(_PARISC_) // ToDo: is this the right thing for PARISC?
-#define va_start(list, v) (__builtin_next_arg(v), list = (char *) __builtin_saveregs())
-#define __va_rounded_size(TYPE)  \
-  (((sizeof (TYPE) + sizeof (int) - 1) / sizeof (int)) * sizeof (int))
-#define __record_type_class 12
-#define __real_type_class 8
-#define va_arg(pvar,TYPE)                                       \
-__extension__                                                   \
-(*({((__builtin_classify_type (*(TYPE*) 0) >= __record_type_class \
-      || (__builtin_classify_type (*(TYPE*) 0) == __real_type_class \
-          && sizeof (TYPE) == 16))                              \
-    ? ((pvar) = (char *)(pvar) + __va_rounded_size (TYPE *),    \
-       *(TYPE **) (void *) ((char *)(pvar) - __va_rounded_size (TYPE *))) \
-    : __va_rounded_size (TYPE) == 8                             \
-    ? ({ union {char __d[sizeof (TYPE)]; int __i[2];} __u;      \
-         __u.__i[0] = ((int *) (void *) (pvar))[0];             \
-         __u.__i[1] = ((int *) (void *) (pvar))[1];             \
-         (pvar) = (char *)(pvar) + 8;                           \
-         (TYPE *) (void *) __u.__d; })                          \
-    : ((pvar) = (char *)(pvar) + __va_rounded_size (TYPE),      \
-       ((TYPE *) (void *) ((char *)(pvar) - __va_rounded_size (TYPE)))));}))
-#else   // _SPARC_ or _PARISC_
-// GCC 2.95.3 on non-SPARC
-#define __va_size(type) (((sizeof(type) + sizeof(int) - 1) / sizeof(int)) * sizeof(int))
-#define va_start(list, v) ((list) = (va_list) __builtin_next_arg(v))
-#define va_arg(ap, type) (*(type *)((ap) += __va_size(type), (ap) - __va_size(type)))
-#endif  // _SPARC_ or _PARISC_
-#else // __GNUC__ == 2
 #define va_start    __builtin_va_start
 #define va_arg      __builtin_va_arg
-#endif // __GNUC__ == 2
 
 #define va_copy     __builtin_va_copy
 #define va_end      __builtin_va_end
-
-#endif // _AIX
 
 #define VOID void
 
@@ -331,7 +232,7 @@ typedef char * va_list;
 PALIMPORT
 BOOL
 PALAPI
-PAL_IsDebuggerPresent();
+PAL_IsDebuggerPresent(VOID);
  
 #define MAXIMUM_SUSPEND_COUNT  MAXCHAR
 
@@ -507,7 +408,7 @@ PAL_Initialize(
 PALIMPORT
 int
 PALAPI
-PAL_InitializeDLL();
+PAL_InitializeDLL(VOID);
 
 PALIMPORT
 DWORD
@@ -581,7 +482,7 @@ PAL_UnregisterForRuntimeStartup(
 PALIMPORT
 BOOL
 PALAPI
-PAL_NotifyRuntimeStarted();
+PAL_NotifyRuntimeStarted(VOID);
 
 static const int MAX_DEBUGGER_TRANSPORT_PIPE_NAME_LENGTH = 64;
 
@@ -628,26 +529,13 @@ PAL_Random(
     IN OUT LPVOID lpBuffer,
     IN DWORD dwLength);
 
-#ifdef PLATFORM_UNIX
-
 PALIMPORT
-DWORD
+BOOL
 PALAPI
-PAL_CreateExecWatchpoint(
-    HANDLE hThread,
-    PVOID pvInstruction
-    );
-
-PALIMPORT
-DWORD
-PALAPI
-PAL_DeleteExecWatchpoint(
-    HANDLE hThread,
-    PVOID pvInstruction
-    );
-
-#endif
-
+PAL_ProbeMemory(
+    PVOID pBuffer,
+    DWORD cbBuffer,
+    BOOL fWriteAccess);
 
 /******************* winuser.h Entrypoints *******************************/
 
@@ -670,28 +558,6 @@ CharNextExA(
 #define CharNextEx CharNextExA
 #endif
 
-
-PALIMPORT
-int
-PALAPIV
-wsprintfA(
-      OUT LPSTR,
-      IN LPCSTR,
-      ...);
-
-PALIMPORT
-int
-PALAPIV
-wsprintfW(
-      OUT LPWSTR,
-      IN LPCWSTR,
-      ...);
-
-#ifdef UNICODE
-#define wsprintf wsprintfW
-#else
-#define wsprintf wsprintfA
-#endif
 
 #define MB_OK                   0x00000000L
 #define MB_OKCANCEL             0x00000001L
@@ -1853,6 +1719,22 @@ QueueUserAPC(
 
 #define MAXIMUM_SUPPORTED_EXTENSION     512
 
+#define CONTEXT_XSTATE (CONTEXT_i386 | 0x40L)
+
+#define CONTEXT_EXCEPTION_ACTIVE 0x8000000L
+#define CONTEXT_SERVICE_ACTIVE 0x10000000L
+#define CONTEXT_EXCEPTION_REQUEST 0x40000000L
+#define CONTEXT_EXCEPTION_REPORTING 0x80000000L
+
+//
+// This flag is set by the unwinder if it has unwound to a call
+// site, and cleared whenever it unwinds through a trap frame.
+// It is used by language-specific exception handlers to help
+// differentiate exception scopes during dispatching.
+//
+
+#define CONTEXT_UNWOUND_TO_CALL 0x20000000
+
 typedef struct _FLOATING_SAVE_AREA {
     DWORD   ControlWord;
     DWORD   StatusWord;
@@ -1911,650 +1793,16 @@ typedef struct _CONTEXT {
 // support any other values in the ExtendedRegisters) but we might as well be as accurate as we can.
 #define CONTEXT_EXREG_XMM_OFFSET 160
 
-#elif defined(_PPC_)
+typedef struct _KNONVOLATILE_CONTEXT_POINTERS {
 
-//
-// ***********************************************************************************
-//
-// NOTE: These context definitions are replicated in ndp/clr/src/debug/inc/DbgTargetContext.h (for the
-// purposes manipulating contexts from different platforms during remote debugging). Be sure to keep those
-// definitions in sync if you make any changes here.
-//
-// ***********************************************************************************
-//
+    // TODO WIP x86/Linux, need to fix this.
+    PDWORD Ebx;
+    PDWORD Esi;
+    PDWORD Edi;
+    PDWORD Ebp;
 
-#define CONTEXT_CONTROL         0x00000001L
-#define CONTEXT_FLOATING_POINT  0x00000002L
-#define CONTEXT_INTEGER         0x00000004L
+} KNONVOLATILE_CONTEXT_POINTERS, *PKNONVOLATILE_CONTEXT_POINTERS;
 
-#define CONTEXT_FULL (CONTEXT_CONTROL | CONTEXT_FLOATING_POINT | CONTEXT_INTEGER)
-#define CONTEXT_ALL CONTEXT_FULL
-
-typedef struct _CONTEXT {
-
-    //
-    // This section is specified/returned if the ContextFlags word contains
-    // the flag CONTEXT_FLOATING_POINT.
-    //
-
-    double Fpr0;                        // Floating registers 0..31
-    double Fpr1;
-    double Fpr2;
-    double Fpr3;
-    double Fpr4;
-    double Fpr5;
-    double Fpr6;
-    double Fpr7;
-    double Fpr8;
-    double Fpr9;
-    double Fpr10;
-    double Fpr11;
-    double Fpr12;
-    double Fpr13;
-    double Fpr14;
-    double Fpr15;
-    double Fpr16;
-    double Fpr17;
-    double Fpr18;
-    double Fpr19;
-    double Fpr20;
-    double Fpr21;
-    double Fpr22;
-    double Fpr23;
-    double Fpr24;
-    double Fpr25;
-    double Fpr26;
-    double Fpr27;
-    double Fpr28;
-    double Fpr29;
-    double Fpr30;
-    double Fpr31;
-    double Fpscr;                       // Floating point status/control reg
-
-    //
-    // This section is specified/returned if the ContextFlags word contains
-    // the flag CONTEXT_INTEGER.
-    //
-
-    ULONG Gpr0;                         // General registers 0..31
-    ULONG Gpr1;                         // StackPointer
-    ULONG Gpr2;
-    ULONG Gpr3;
-    ULONG Gpr4;
-    ULONG Gpr5;
-    ULONG Gpr6;
-    ULONG Gpr7;
-    ULONG Gpr8;
-    ULONG Gpr9;
-    ULONG Gpr10;
-    ULONG Gpr11;
-    ULONG Gpr12;
-    ULONG Gpr13;
-    ULONG Gpr14;
-    ULONG Gpr15;
-    ULONG Gpr16;
-    ULONG Gpr17;
-    ULONG Gpr18;
-    ULONG Gpr19;
-    ULONG Gpr20;
-    ULONG Gpr21;
-    ULONG Gpr22;
-    ULONG Gpr23;
-    ULONG Gpr24;
-    ULONG Gpr25;
-    ULONG Gpr26;
-    ULONG Gpr27;
-    ULONG Gpr28;
-    ULONG Gpr29;
-    ULONG Gpr30;
-    ULONG Gpr31;
-
-    ULONG Cr;                           // Condition register
-    ULONG Xer;                          // Fixed point exception register
-
-    //
-    // This section is specified/returned if the ContextFlags word contains
-    // the flag CONTEXT_CONTROL.
-    //
-
-    ULONG Msr;                          // Machine status register
-    ULONG Iar;                          // Instruction address register
-    ULONG Lr;                           // Link register
-    ULONG Ctr;                          // Count register
-
-    //
-    // The flags values within this flag control the contents of
-    // a CONTEXT record.
-    //
-    // If the context record is used as an input parameter, then
-    // for each portion of the context record controlled by a flag
-    // whose value is set, it is assumed that that portion of the
-    // context record contains valid context. If the context record
-    // is being used to modify a thread's context, then only that
-    // portion of the threads context will be modified.
-    //
-    // If the context record is used as an IN OUT parameter to capture
-    // the context of a thread, then only those portions of the thread's
-    // context corresponding to set flags will be returned.
-    //
-    // The context record is never used as an OUT only parameter.
-    //
-
-    ULONG ContextFlags;
-
-    ULONG Fill[3];                      // Pad out to multiple of 16 bytes
-
-    //
-    // This section is specified/returned if CONTEXT_DEBUG_REGISTERS is
-    // set in ContextFlags.  Note that CONTEXT_DEBUG_REGISTERS is NOT
-    // included in CONTEXT_FULL.
-    //
-    ULONG Dr0;                          // Breakpoint Register 1
-    ULONG Dr1;                          // Breakpoint Register 2
-    ULONG Dr2;                          // Breakpoint Register 3
-    ULONG Dr3;                          // Breakpoint Register 4
-    ULONG Dr4;                          // Breakpoint Register 5
-    ULONG Dr5;                          // Breakpoint Register 6
-    ULONG Dr6;                          // Debug Status Register
-    ULONG Dr7;                          // Debug Control Register
-
-} CONTEXT, *PCONTEXT, *LPCONTEXT;
-
-#elif defined(_SPARC_)
-
-#define CONTEXT_CONTROL         0x00000001L
-#define CONTEXT_FLOATING_POINT  0x00000002L
-#define CONTEXT_INTEGER         0x00000004L
-
-#define COUNT_FLOATING_REGISTER 32
-#define COUNT_DOUBLE_REGISTER 16
-#define CONTEXT_FULL (CONTEXT_CONTROL | CONTEXT_FLOATING_POINT | CONTEXT_INTEGER)
-#define CONTEXT_ALL CONTEXT_FULL
-
-typedef struct _CONTEXT {
-    //
-    // This section is specified/returned if the ContextFlags word contains
-    // the flag CONTEXT_INTEGER.
-    //
-    ULONG g0;
-    ULONG g1;
-    ULONG g2;
-    ULONG g3;
-    ULONG g4;
-    ULONG g5;
-    ULONG g6;
-    ULONG g7;
-    ULONG o0;
-    ULONG o1;
-    ULONG o2;
-    ULONG o3;
-    ULONG o4;
-    ULONG o5;
-    ULONG sp;
-    ULONG o7;
-    ULONG l0;
-    ULONG l1;
-    ULONG l2;
-    ULONG l3;
-    ULONG l4;
-    ULONG l5;
-    ULONG l6;
-    ULONG l7;
-    ULONG i0;
-    ULONG i1;
-    ULONG i2;
-    ULONG i3;
-    ULONG i4;
-    ULONG i5;
-    ULONG fp;
-    ULONG i7;
-
-    ULONG y;
-
-    //
-    // This section is specified/returned if the ContextFlags word contains
-    // the flag CONTEXT_CONTROL.
-    //
-#if defined(__sparcv9)
-    ULONG ccr;
-#else
-    ULONG psr;
-#endif
-    ULONG pc;     // program counter
-    ULONG npc;    // next address to be executed
-
-    ULONG ContextFlags;
-
-    //
-    // This section is specified/returned if the ContextFlags word contains
-    // the flag CONTEXT_FLOATING_POINT.
-    //
-    ULONGLONG fsr;
-    union {
-        float f[COUNT_FLOATING_REGISTER];
-        double d[COUNT_DOUBLE_REGISTER];
-        } fprs;
-
-} CONTEXT, *PCONTEXT, *LPCONTEXT;
-
-#elif defined(_PARISC_)
-
-// ToDo: Get this correct for PARISC architecture
-#define CONTEXT_CONTROL         0x00000001L
-#define CONTEXT_FLOATING_POINT  0x00000002L
-#define CONTEXT_INTEGER         0x00000004L
-
-#define COUNT_FLOATING_REGISTER 32
-#define COUNT_DOUBLE_REGISTER 16
-#define CONTEXT_FULL (CONTEXT_CONTROL | CONTEXT_FLOATING_POINT | CONTEXT_INTEGER)
-#define CONTEXT_ALL CONTEXT_FULL
-
-typedef struct _CONTEXT {
-    //
-    // This section is specified/returned if the ContextFlags word contains
-    // the flag CONTEXT_INTEGER.
-    //
-    ULONG g0;
-    ULONG g1;
-    ULONG g2;
-    ULONG g3;
-    ULONG g4;
-    ULONG g5;
-    ULONG g6;
-    ULONG g7;
-    ULONG o0;
-    ULONG o1;
-    ULONG o2;
-    ULONG o3;
-    ULONG o4;
-    ULONG o5;
-    ULONG sp;
-    ULONG o7;
-    ULONG l0;
-    ULONG l1;
-    ULONG l2;
-    ULONG l3;
-    ULONG l4;
-    ULONG l5;
-    ULONG l6;
-    ULONG l7;
-    ULONG i0;
-    ULONG i1;
-    ULONG i2;
-    ULONG i3;
-    ULONG i4;
-    ULONG i5;
-    ULONG fp;
-    ULONG i7;
-
-    ULONG y;
-
-    //
-    // This section is specified/returned if the ContextFlags word contains
-    // the flag CONTEXT_CONTROL.
-    //
-    ULONG psr;
-    ULONG pc;     // program counter
-    ULONG npc;    // next address to be executed
-
-    ULONG ContextFlags;
-
-    //
-    // This section is specified/returned if the ContextFlags word contains
-    // the flag CONTEXT_FLOATING_POINT.
-    //
-    ULONGLONG fsr;
-    union {
-        float f[COUNT_FLOATING_REGISTER];
-        double d[COUNT_DOUBLE_REGISTER];
-        } fprs;
-
-} CONTEXT, *PCONTEXT, *LPCONTEXT;
-
-#elif defined(_IA64_)
-
-// copied from winnt.h
-typedef struct _FLOAT128 {
-    __int64 LowPart;
-    __int64 HighPart;
-} FLOAT128;
-
-typedef FLOAT128 *PFLOAT128;
-
-// begin_ntddk begin_nthal
-
-//
-// The following flags control the contents of the CONTEXT structure.
-//
-
-#if !defined(RC_INVOKED)
-
-#define CONTEXT_IA64                    0x00080000
-
-#define CONTEXT_CONTROL                 (CONTEXT_IA64 | 0x00000001L)
-#define CONTEXT_LOWER_FLOATING_POINT    (CONTEXT_IA64 | 0x00000002L)
-#define CONTEXT_HIGHER_FLOATING_POINT   (CONTEXT_IA64 | 0x00000004L)
-#define CONTEXT_INTEGER                 (CONTEXT_IA64 | 0x00000008L)
-#define CONTEXT_DEBUG                   (CONTEXT_IA64 | 0x00000010L)
-#define CONTEXT_IA32_CONTROL            (CONTEXT_IA64 | 0x00000020L)  // Includes StIPSR
-
-
-#define CONTEXT_FLOATING_POINT          (CONTEXT_LOWER_FLOATING_POINT | CONTEXT_HIGHER_FLOATING_POINT)
-#define CONTEXT_FULL                    (CONTEXT_CONTROL | CONTEXT_FLOATING_POINT | CONTEXT_INTEGER | CONTEXT_IA32_CONTROL)
-#define CONTEXT_ALL                     (CONTEXT_CONTROL | CONTEXT_FLOATING_POINT | CONTEXT_INTEGER | CONTEXT_DEBUG | CONTEXT_IA32_CONTROL)
-
-#define CONTEXT_EXCEPTION_ACTIVE        0x8000000
-#define CONTEXT_SERVICE_ACTIVE          0x10000000
-#define CONTEXT_EXCEPTION_REQUEST       0x40000000
-#define CONTEXT_EXCEPTION_REPORTING     0x80000000
-
-#endif // !defined(RC_INVOKED)
-
-//
-// Context Frame
-//
-//  This frame has a several purposes: 1) it is used as an argument to
-//  NtContinue, 2) it is used to construct a call frame for APC delivery,
-//  3) it is used to construct a call frame for exception dispatching
-//  in user mode, 4) it is used in the user level thread creation
-//  routines, and 5) it is used to to pass thread state to debuggers.
-//
-//  N.B. Because this record is used as a call frame, it must be EXACTLY
-//  a multiple of 16 bytes in length and aligned on a 16-byte boundary.
-//
-
-typedef struct _CONTEXT {
-
-    //
-    // The flags values within this flag control the contents of
-    // a CONTEXT record.
-    //
-    // If the context record is used as an input parameter, then
-    // for each portion of the context record controlled by a flag
-    // whose value is set, it is assumed that that portion of the
-    // context record contains valid context. If the context record
-    // is being used to modify a thread's context, then only that
-    // portion of the threads context will be modified.
-    //
-    // If the context record is used as an IN OUT parameter to capture
-    // the context of a thread, then only those portions of the thread's
-    // context corresponding to set flags will be returned.
-    //
-    // The context record is never used as an OUT only parameter.
-    //
-
-    DWORD ContextFlags;
-    DWORD Fill1[3];         // for alignment of following on 16-byte boundary
-
-    //
-    // This section is specified/returned if the ContextFlags word contains
-    // the flag CONTEXT_DEBUG.
-    //
-    // N.B. CONTEXT_DEBUG is *not* part of CONTEXT_FULL.
-    //
-
-    ULONGLONG DbI0;
-    ULONGLONG DbI1;
-    ULONGLONG DbI2;
-    ULONGLONG DbI3;
-    ULONGLONG DbI4;
-    ULONGLONG DbI5;
-    ULONGLONG DbI6;
-    ULONGLONG DbI7;
-
-    ULONGLONG DbD0;
-    ULONGLONG DbD1;
-    ULONGLONG DbD2;
-    ULONGLONG DbD3;
-    ULONGLONG DbD4;
-    ULONGLONG DbD5;
-    ULONGLONG DbD6;
-    ULONGLONG DbD7;
-
-    //
-    // This section is specified/returned if the ContextFlags word contains
-    // the flag CONTEXT_LOWER_FLOATING_POINT.
-    //
-
-    FLOAT128 FltS0;
-    FLOAT128 FltS1;
-    FLOAT128 FltS2;
-    FLOAT128 FltS3;
-    FLOAT128 FltT0;
-    FLOAT128 FltT1;
-    FLOAT128 FltT2;
-    FLOAT128 FltT3;
-    FLOAT128 FltT4;
-    FLOAT128 FltT5;
-    FLOAT128 FltT6;
-    FLOAT128 FltT7;
-    FLOAT128 FltT8;
-    FLOAT128 FltT9;
-
-    //
-    // This section is specified/returned if the ContextFlags word contains
-    // the flag CONTEXT_HIGHER_FLOATING_POINT.
-    //
-
-    FLOAT128 FltS4;
-    FLOAT128 FltS5;
-    FLOAT128 FltS6;
-    FLOAT128 FltS7;
-    FLOAT128 FltS8;
-    FLOAT128 FltS9;
-    FLOAT128 FltS10;
-    FLOAT128 FltS11;
-    FLOAT128 FltS12;
-    FLOAT128 FltS13;
-    FLOAT128 FltS14;
-    FLOAT128 FltS15;
-    FLOAT128 FltS16;
-    FLOAT128 FltS17;
-    FLOAT128 FltS18;
-    FLOAT128 FltS19;
-
-    FLOAT128 FltF32;
-    FLOAT128 FltF33;
-    FLOAT128 FltF34;
-    FLOAT128 FltF35;
-    FLOAT128 FltF36;
-    FLOAT128 FltF37;
-    FLOAT128 FltF38;
-    FLOAT128 FltF39;
-
-    FLOAT128 FltF40;
-    FLOAT128 FltF41;
-    FLOAT128 FltF42;
-    FLOAT128 FltF43;
-    FLOAT128 FltF44;
-    FLOAT128 FltF45;
-    FLOAT128 FltF46;
-    FLOAT128 FltF47;
-    FLOAT128 FltF48;
-    FLOAT128 FltF49;
-
-    FLOAT128 FltF50;
-    FLOAT128 FltF51;
-    FLOAT128 FltF52;
-    FLOAT128 FltF53;
-    FLOAT128 FltF54;
-    FLOAT128 FltF55;
-    FLOAT128 FltF56;
-    FLOAT128 FltF57;
-    FLOAT128 FltF58;
-    FLOAT128 FltF59;
-
-    FLOAT128 FltF60;
-    FLOAT128 FltF61;
-    FLOAT128 FltF62;
-    FLOAT128 FltF63;
-    FLOAT128 FltF64;
-    FLOAT128 FltF65;
-    FLOAT128 FltF66;
-    FLOAT128 FltF67;
-    FLOAT128 FltF68;
-    FLOAT128 FltF69;
-
-    FLOAT128 FltF70;
-    FLOAT128 FltF71;
-    FLOAT128 FltF72;
-    FLOAT128 FltF73;
-    FLOAT128 FltF74;
-    FLOAT128 FltF75;
-    FLOAT128 FltF76;
-    FLOAT128 FltF77;
-    FLOAT128 FltF78;
-    FLOAT128 FltF79;
-
-    FLOAT128 FltF80;
-    FLOAT128 FltF81;
-    FLOAT128 FltF82;
-    FLOAT128 FltF83;
-    FLOAT128 FltF84;
-    FLOAT128 FltF85;
-    FLOAT128 FltF86;
-    FLOAT128 FltF87;
-    FLOAT128 FltF88;
-    FLOAT128 FltF89;
-
-    FLOAT128 FltF90;
-    FLOAT128 FltF91;
-    FLOAT128 FltF92;
-    FLOAT128 FltF93;
-    FLOAT128 FltF94;
-    FLOAT128 FltF95;
-    FLOAT128 FltF96;
-    FLOAT128 FltF97;
-    FLOAT128 FltF98;
-    FLOAT128 FltF99;
-
-    FLOAT128 FltF100;
-    FLOAT128 FltF101;
-    FLOAT128 FltF102;
-    FLOAT128 FltF103;
-    FLOAT128 FltF104;
-    FLOAT128 FltF105;
-    FLOAT128 FltF106;
-    FLOAT128 FltF107;
-    FLOAT128 FltF108;
-    FLOAT128 FltF109;
-
-    FLOAT128 FltF110;
-    FLOAT128 FltF111;
-    FLOAT128 FltF112;
-    FLOAT128 FltF113;
-    FLOAT128 FltF114;
-    FLOAT128 FltF115;
-    FLOAT128 FltF116;
-    FLOAT128 FltF117;
-    FLOAT128 FltF118;
-    FLOAT128 FltF119;
-
-    FLOAT128 FltF120;
-    FLOAT128 FltF121;
-    FLOAT128 FltF122;
-    FLOAT128 FltF123;
-    FLOAT128 FltF124;
-    FLOAT128 FltF125;
-    FLOAT128 FltF126;
-    FLOAT128 FltF127;
-
-    //
-    // This section is specified/returned if the ContextFlags word contains
-    // the flag CONTEXT_LOWER_FLOATING_POINT | CONTEXT_HIGHER_FLOATING_POINT | CONTEXT_CONTROL.
-    //
-
-    ULONGLONG StFPSR;       //  FP status
-
-    //
-    // This section is specified/returned if the ContextFlags word contains
-    // the flag CONTEXT_INTEGER.
-    //
-    // N.B. The registers gp, sp, rp are part of the control context
-    //
-
-    ULONGLONG IntGp;        //  r1, volatile
-    ULONGLONG IntT0;        //  r2-r3, volatile
-    ULONGLONG IntT1;        //
-    ULONGLONG IntS0;        //  r4-r7, preserved
-    ULONGLONG IntS1;
-    ULONGLONG IntS2;
-    ULONGLONG IntS3;
-    ULONGLONG IntV0;        //  r8, volatile
-    ULONGLONG IntT2;        //  r9-r11, volatile
-    ULONGLONG IntT3;
-    ULONGLONG IntT4;
-    ULONGLONG IntSp;        //  stack pointer (r12), special
-    ULONGLONG IntTeb;       //  teb (r13), special
-    ULONGLONG IntT5;        //  r14-r31, volatile
-    ULONGLONG IntT6;
-    ULONGLONG IntT7;
-    ULONGLONG IntT8;
-    ULONGLONG IntT9;
-    ULONGLONG IntT10;
-    ULONGLONG IntT11;
-    ULONGLONG IntT12;
-    ULONGLONG IntT13;
-    ULONGLONG IntT14;
-    ULONGLONG IntT15;
-    ULONGLONG IntT16;
-    ULONGLONG IntT17;
-    ULONGLONG IntT18;
-    ULONGLONG IntT19;
-    ULONGLONG IntT20;
-    ULONGLONG IntT21;
-    ULONGLONG IntT22;
-
-    ULONGLONG IntNats;      //  Nat bits for r1-r31
-                            //  r1-r31 in bits 1 thru 31.
-    ULONGLONG Preds;        //  predicates, preserved
-
-    ULONGLONG BrRp;         //  return pointer, b0, preserved
-    ULONGLONG BrS0;         //  b1-b5, preserved
-    ULONGLONG BrS1;
-    ULONGLONG BrS2;
-    ULONGLONG BrS3;
-    ULONGLONG BrS4;
-    ULONGLONG BrT0;         //  b6-b7, volatile
-    ULONGLONG BrT1;
-
-    //
-    // This section is specified/returned if the ContextFlags word contains
-    // the flag CONTEXT_CONTROL.
-    //
-
-    // Other application registers
-    ULONGLONG ApUNAT;       //  User Nat collection register, preserved
-    ULONGLONG ApLC;         //  Loop counter register, preserved
-    ULONGLONG ApEC;         //  Epilog counter register, preserved
-    ULONGLONG ApCCV;        //  CMPXCHG value register, volatile
-    ULONGLONG ApDCR;        //  Default control register (TBD)
-
-    // Register stack info
-    ULONGLONG RsPFS;        //  Previous function state, preserved
-    ULONGLONG RsBSP;        //  Backing store pointer, preserved
-    ULONGLONG RsBSPSTORE;
-    ULONGLONG RsRSC;        //  RSE configuration, volatile
-    ULONGLONG RsRNAT;       //  RSE Nat collection register, preserved
-
-    // Trap Status Information
-    ULONGLONG StIPSR;       //  Interruption Processor Status
-    ULONGLONG StIIP;        //  Interruption IP
-    ULONGLONG StIFS;        //  Interruption Function State
-
-    // iA32 related control registers
-    ULONGLONG StFCR;        //  copy of Ar21
-    ULONGLONG Eflag;        //  Eflag copy of Ar24
-    ULONGLONG SegCSD;       //  iA32 CSDescriptor (Ar25)
-    ULONGLONG SegSSD;       //  iA32 SSDescriptor (Ar26)
-    ULONGLONG Cflag;        //  Cr0+Cr4 copy of Ar27
-    ULONGLONG StFSR;        //  x86 FP status (copy of AR28)
-    ULONGLONG StFIR;        //  x86 FP status (copy of AR29)
-    ULONGLONG StFDR;        //  x86 FP status (copy of AR30)
-
-      ULONGLONG UNUSEDPACK;   //  added to pack StFDR to 16-bytes
-
-} CONTEXT, *PCONTEXT, *LPCONTEXT;
 #elif defined(_AMD64_)
 // copied from winnt.h
 
@@ -2569,6 +1817,8 @@ typedef struct _CONTEXT {
 #define CONTEXT_FULL (CONTEXT_CONTROL | CONTEXT_INTEGER | CONTEXT_FLOATING_POINT)
 
 #define CONTEXT_ALL (CONTEXT_CONTROL | CONTEXT_INTEGER | CONTEXT_SEGMENTS | CONTEXT_FLOATING_POINT | CONTEXT_DEBUG_REGISTERS)
+
+#define CONTEXT_XSTATE (CONTEXT_AMD64 | 0x40L)
 
 #define CONTEXT_EXCEPTION_ACTIVE 0x8000000
 #define CONTEXT_SERVICE_ACTIVE 0x10000000
@@ -3254,22 +2504,22 @@ TlsFree(
 PALIMPORT
 void *
 PALAPI
-PAL_GetStackBase();
+PAL_GetStackBase(VOID);
 
 PALIMPORT
 void *
 PALAPI
-PAL_GetStackLimit();
+PAL_GetStackLimit(VOID);
 
 PALIMPORT
 DWORD
 PALAPI
-PAL_GetLogicalCpuCountFromOS();
+PAL_GetLogicalCpuCountFromOS(VOID);
 
 PALIMPORT
 size_t
 PALAPI
-PAL_GetLogicalProcessorCacheSizeFromOS();
+PAL_GetLogicalProcessorCacheSizeFromOS(VOID);
 
 typedef BOOL (*ReadMemoryWordCallback)(SIZE_T address, SIZE_T *value);
 
@@ -3282,13 +2532,9 @@ PALIMPORT BOOL PALAPI PAL_VirtualUnwindOutOfProc(CONTEXT *context,
 
 #define GetLogicalProcessorCacheSizeFromOS PAL_GetLogicalProcessorCacheSizeFromOS
 
-#ifdef PLATFORM_UNIX
-
 /* PAL_CS_NATIVE_DATA_SIZE is defined as sizeof(PAL_CRITICAL_SECTION_NATIVE_DATA) */
 
-#if defined(_AIX)
-#define PAL_CS_NATIVE_DATA_SIZE 100
-#elif defined(__APPLE__) && defined(__i386__)
+#if defined(__APPLE__) && defined(__i386__)
 #define PAL_CS_NATIVE_DATA_SIZE 76
 #elif defined(__APPLE__) && defined(__x86_64__)
 #define PAL_CS_NATIVE_DATA_SIZE 120
@@ -3296,37 +2542,25 @@ PALIMPORT BOOL PALAPI PAL_VirtualUnwindOutOfProc(CONTEXT *context,
 #define PAL_CS_NATIVE_DATA_SIZE 12
 #elif defined(__FreeBSD__) && defined(__x86_64__)
 #define PAL_CS_NATIVE_DATA_SIZE 24
-#elif defined(__hpux__) && (defined(__hppa__) || defined (__ia64__))
-#define PAL_CS_NATIVE_DATA_SIZE 148
 #elif defined(__linux__) && defined(_ARM_)
 #define PAL_CS_NATIVE_DATA_SIZE 80
 #elif defined(__linux__) && defined(_ARM64_)
 #define PAL_CS_NATIVE_DATA_SIZE 116
+#elif defined(__linux__) && defined(__i386__)
+#define PAL_CS_NATIVE_DATA_SIZE 76
 #elif defined(__linux__) && defined(__x86_64__)
 #define PAL_CS_NATIVE_DATA_SIZE 96
 #elif defined(__NetBSD__) && defined(__amd64__)
 #define PAL_CS_NATIVE_DATA_SIZE 96
 #elif defined(__NetBSD__) && defined(__earm__)
 #define PAL_CS_NATIVE_DATA_SIZE 56
-#elif defined(__NetBSD__) && defined(__hppa__)
-#define PAL_CS_NATIVE_DATA_SIZE 92
 #elif defined(__NetBSD__) && defined(__i386__)
 #define PAL_CS_NATIVE_DATA_SIZE 56
-#elif defined(__NetBSD__) && defined(__mips__)
-#define PAL_CS_NATIVE_DATA_SIZE 56
-#elif defined(__NetBSD__) && (defined(__sparc__) && !defined(__sparc64__))
-#define PAL_CS_NATIVE_DATA_SIZE 56
-#elif defined(__NetBSD__) && defined(__sparc64__)
-#define PAL_CS_NATIVE_DATA_SIZE 92
-#elif defined(__sun__)
-#define PAL_CS_NATIVE_DATA_SIZE 48
 #else 
 #warning 
 #error  PAL_CS_NATIVE_DATA_SIZE is not defined for this architecture
 #endif
     
-#endif // PLATFORM_UNIX
-
 // 
 typedef struct _CRITICAL_SECTION {
     PVOID DebugInfo;
@@ -3336,7 +2570,6 @@ typedef struct _CRITICAL_SECTION {
     HANDLE LockSemaphore;
     ULONG_PTR SpinCount;
 
-#ifdef PLATFORM_UNIX
     BOOL bInternal;
     volatile DWORD dwInitState;
     union CSNativeDataStorage
@@ -3344,7 +2577,6 @@ typedef struct _CRITICAL_SECTION {
         BYTE rgNativeDataStorage[PAL_CS_NATIVE_DATA_SIZE]; 
         VOID * pvAlign; // make sure the storage is machine-pointer-size aligned
     } csnds;    
-#endif // PLATFORM_UNIX    
 } CRITICAL_SECTION, *PCRITICAL_SECTION, *LPCRITICAL_SECTION;
 
 PALIMPORT VOID PALAPI EnterCriticalSection(IN OUT LPCRITICAL_SECTION lpCriticalSection);
@@ -3652,16 +2884,6 @@ VirtualQuery(
          IN LPCVOID lpAddress,
          OUT PMEMORY_BASIC_INFORMATION lpBuffer,
          IN SIZE_T dwLength);
-
-PALIMPORT
-BOOL
-PALAPI
-ReadProcessMemory(
-          IN HANDLE hProcess,
-          IN LPCVOID lpBaseAddress,
-          OUT LPVOID lpBuffer,
-          IN SIZE_T nSize,
-          OUT SIZE_T * lpNumberOfBytesRead);
 
 PALIMPORT
 VOID
@@ -4558,33 +3780,6 @@ PAL_GetCalendar(
 
 #define GEOID_NOT_AVAILABLE -1
 
-// "a number", might represent different types
-typedef struct PALNUMBER__* PALNUMBER;
-
-// return NULL on OOM
-PALIMPORT PALNUMBER PALAPI PAL_DoubleToNumber(double);
-PALIMPORT PALNUMBER PALAPI PAL_Int64ToNumber(INT64);
-PALIMPORT PALNUMBER PALAPI PAL_UInt64ToNumber(UINT64);
-PALIMPORT PALNUMBER PALAPI PAL_IntToNumber(int);
-PALIMPORT PALNUMBER PALAPI PAL_UIntToNumber(unsigned int);
-
-PALIMPORT void PALAPI PAL_ReleaseNumber(PALNUMBER);
-
-
-// return string length if Buffer is NULL or the result fits in cchBuffer, otherwise -1
-PALIMPORT int PALAPI PAL_FormatScientific(LPCWSTR sLocale, LPWSTR pBuffer, SIZE_T cchBuffer, PALNUMBER number, int nMinDigits, int nMaxDigits,
-                                                                      LPCWSTR sExponent, LPCWSTR sNumberDecimal, LPCWSTR sPositive, LPCWSTR sNegative, LPCWSTR sZero);
-
-PALIMPORT int PALAPI  PAL_FormatCurrency(LPCWSTR sLocale, LPWSTR pBuffer, SIZE_T cchBuffer, PALNUMBER number, int nMinDigits, int nMaxDigits, int iNegativeFormat, int iPositiveFormat,
-                      int iPrimaryGroup, int iSecondaryGroup, LPCWSTR sCurrencyDecimal, LPCWSTR sCurrencyGroup, LPCWSTR sNegative, LPCWSTR sCurrency, LPCWSTR sZero);
-
-PALIMPORT int PALAPI  PAL_FormatPercent(LPCWSTR sLocale, LPWSTR pBuffer, SIZE_T cchBuffer, PALNUMBER number,  int nMinDigits, int nMaxDigits,int iNegativeFormat, int iPositiveFormat, 
-                      int iPrimaryGroup, int iSecondaryGroup, LPCWSTR sPercentDecimal, LPCWSTR sPercentGroup, LPCWSTR sNegative, LPCWSTR sPercent, LPCWSTR sZero);
-
-PALIMPORT int PALAPI  PAL_FormatDecimal(LPCWSTR sLocale, LPWSTR pBuffer, SIZE_T cchBuffer, PALNUMBER number, int nMinDigits, int nMaxDigits, int iNegativeFormat,
-                                    int iPrimaryGroup, int iSecondaryGroup,  LPCWSTR sDecimal, LPCWSTR sGroup, LPCWSTR sNegative, LPCWSTR sZero);
-
-
 #define DATE_USE_ALT_CALENDAR 0x00000004
 
 #if ENABLE_DOWNLEVEL_FOR_NLS
@@ -4710,18 +3905,11 @@ enum {
 //
 typedef struct _RUNTIME_FUNCTION {
     DWORD BeginAddress;
+#ifdef _TARGET_AMD64_
     DWORD EndAddress;
+#endif
     DWORD UnwindData;
 } RUNTIME_FUNCTION, *PRUNTIME_FUNCTION;
-
-PALIMPORT
-BOOL
-PALAPI
-WriteProcessMemory(IN HANDLE hProcess,
-                   IN LPVOID lpBaseAddress,
-                   IN LPCVOID lpBuffer,
-                   IN SIZE_T nSize,
-                   OUT SIZE_T * lpNumberOfBytesWritten);
 
 #define STANDARD_RIGHTS_REQUIRED  (0x000F0000L)
 #define SYNCHRONIZE               (0x00100000L)
@@ -4799,28 +3987,6 @@ DebugBreak(
        VOID);
 
 PALIMPORT
-LPWSTR
-PALAPI
-lstrcatW(
-     IN OUT LPWSTR lpString1,
-     IN LPCWSTR lpString2);
-
-#ifdef UNICODE
-#define lstrcat lstrcatW
-#endif
-
-PALIMPORT
-LPWSTR
-PALAPI
-lstrcpyW(
-     OUT LPWSTR lpString1,
-     IN LPCWSTR lpString2);
-
-#ifdef UNICODE
-#define lstrcpy lstrcpyW
-#endif
-
-PALIMPORT
 int
 PALAPI
 lstrlenA(
@@ -4837,19 +4003,6 @@ lstrlenW(
 #else
 #define lstrlen lstrlenA
 #endif
-
-PALIMPORT
-LPWSTR
-PALAPI
-lstrcpynW(
-      OUT LPWSTR lpString1,
-      IN LPCWSTR lpString2,
-      IN int iMaxLength);
-
-#ifdef UNICODE
-#define lstrcpyn lstrcpynW
-#endif
-
 
 PALIMPORT
 DWORD
@@ -4935,7 +4088,7 @@ GetTickCount(
 PALIMPORT
 ULONGLONG
 PALAPI
-GetTickCount64();
+GetTickCount64(VOID);
 
 PALIMPORT
 BOOL
@@ -5375,7 +4528,7 @@ YieldProcessor(
 PALIMPORT
 DWORD
 PALAPI
-GetCurrentProcessorNumber();
+GetCurrentProcessorNumber(VOID);
 
 /*++
 Function:
@@ -5387,7 +4540,7 @@ Checks if GetCurrentProcessorNumber is available in the current environment
 PALIMPORT
 BOOL
 PALAPI
-PAL_HasGetCurrentProcessorNumber();
+PAL_HasGetCurrentProcessorNumber(VOID);
     
 #define FORMAT_MESSAGE_ALLOCATE_BUFFER 0x00000100
 #define FORMAT_MESSAGE_IGNORE_INSERTS  0x00000200
@@ -5473,7 +4626,7 @@ ResetWriteWatch(
 PALIMPORT
 VOID 
 PALAPI 
-FlushProcessWriteBuffers();
+FlushProcessWriteBuffers(VOID);
 
 typedef void (*PAL_ActivationFunction)(CONTEXT *context);
 typedef BOOL (*PAL_SafeActivationCheckFunction)(SIZE_T ip, BOOL checkingCurrentThread);
@@ -5706,16 +4859,12 @@ CoCreateGuid(OUT GUID * pguid);
 /* Some C runtime functions needs to be reimplemented by the PAL.
    To avoid name collisions, those functions have been renamed using
    defines */
-#ifdef PLATFORM_UNIX
 #ifndef PAL_STDCPP_COMPAT
 #define exit          PAL_exit
 #define atexit        PAL_atexit
 #define printf        PAL_printf
 #define vprintf       PAL_vprintf
 #define wprintf       PAL_wprintf
-#define sprintf       PAL_sprintf
-#define swprintf      PAL_swprintf
-#define sscanf        PAL_sscanf
 #define wcsspn        PAL_wcsspn
 #define wcstod        PAL_wcstod
 #define wcstol        PAL_wcstol
@@ -5742,8 +4891,6 @@ CoCreateGuid(OUT GUID * pguid);
 #define iswxdigit     PAL_iswxdigit
 #define towlower      PAL_towlower
 #define towupper      PAL_towupper
-#define vsprintf      PAL_vsprintf
-#define vswprintf     PAL_vswprintf
 #define realloc       PAL_realloc
 #define fopen         PAL_fopen
 #define strtok        PAL_strtok
@@ -5789,6 +4936,13 @@ CoCreateGuid(OUT GUID * pguid);
 #define log           PAL_log
 #define log10         PAL_log10
 #define pow           PAL_pow
+#define acosf         PAL_acosf
+#define asinf         PAL_asinf
+#define atan2f        PAL_atan2f
+#define expf          PAL_expf
+#define logf          PAL_logf
+#define log10f        PAL_log10f
+#define powf          PAL_powf
 #define malloc        PAL_malloc
 #define free          PAL_free
 #define mkstemp       PAL_mkstemp
@@ -5799,7 +4953,8 @@ CoCreateGuid(OUT GUID * pguid);
 #define _close        PAL__close
 #define _wcstoui64    PAL__wcstoui64
 #define _flushall     PAL__flushall
-#define _vsnprintf    PAL__vsnprintf
+#define strnlen       PAL_strnlen
+#define wcsnlen       PAL_wcsnlen
 
 #ifdef _AMD64_ 
 #define _mm_getcsr    PAL__mm_getcsr
@@ -5807,7 +4962,6 @@ CoCreateGuid(OUT GUID * pguid);
 #endif // _AMD64_
 
 #endif // !PAL_STDCPP_COMPAT
-#endif // PLATFORM_UNIX
 
 #ifndef _CONST_RETURN
 #ifdef  __cplusplus
@@ -5876,9 +5030,6 @@ PALIMPORT char * __cdecl strstr(const char *, const char *);
 PALIMPORT char * __cdecl strtok(char *, const char *);
 PALIMPORT size_t __cdecl strspn(const char *, const char *);
 PALIMPORT size_t  __cdecl strcspn(const char *, const char *);
-PALIMPORT int __cdecl sprintf(char *, const char *, ...);
-PALIMPORT int __cdecl vsprintf(char *, const char *, va_list);
-PALIMPORT int __cdecl sscanf(const char *, const char *, ...);
 PALIMPORT int __cdecl atoi(const char *);
 PALIMPORT LONG __cdecl atol(const char *);
 PALIMPORT ULONG __cdecl strtoul(const char *, char **, int);
@@ -5897,23 +5048,35 @@ PALIMPORT int __cdecl toupper(int);
 
 #endif // PAL_STDCPP_COMPAT
 
+/* _TRUNCATE */
+#if !defined(_TRUNCATE)
+#define _TRUNCATE ((size_t)-1)
+#endif
+
 PALIMPORT errno_t __cdecl memcpy_s(void *, size_t, const void *, size_t);
 PALIMPORT errno_t __cdecl memmove_s(void *, size_t, const void *, size_t);
 PALIMPORT char * __cdecl _strlwr(char *);
 PALIMPORT int __cdecl _stricmp(const char *, const char *);
-PALIMPORT int __cdecl _snprintf(char *, size_t, const char *, ...);
+PALIMPORT int __cdecl vsprintf_s(char *, size_t, const char *, va_list);
 PALIMPORT char * __cdecl _gcvt_s(char *, int, double, int);
 PALIMPORT char * __cdecl _ecvt(double, int, int *, int *);
 PALIMPORT int __cdecl __iscsym(int);
-PALIMPORT size_t __cdecl _mbslen(const unsigned char *);
 PALIMPORT unsigned char * __cdecl _mbsinc(const unsigned char *);
 PALIMPORT unsigned char * __cdecl _mbsninc(const unsigned char *, size_t);
 PALIMPORT unsigned char * __cdecl _mbsdec(const unsigned char *, const unsigned char *);
 PALIMPORT int __cdecl _wcsicmp(const WCHAR *, const WCHAR*);
 PALIMPORT int __cdecl _wcsnicmp(const WCHAR *, const WCHAR *, size_t);
 PALIMPORT int __cdecl _vsnprintf(char *, size_t, const char *, va_list);
-PALIMPORT int __cdecl _vsnwprintf(WCHAR *, size_t, const WCHAR *, va_list);
-PALIMPORT WCHAR * __cdecl _itow(int, WCHAR *, int);
+PALIMPORT int __cdecl _vsnprintf_s(char *, size_t, size_t, const char *, va_list);
+PALIMPORT int __cdecl _vsnwprintf_s(WCHAR *, size_t, size_t, const WCHAR *, va_list);
+PALIMPORT int __cdecl _snwprintf_s(WCHAR *, size_t, size_t, const WCHAR *, ...);
+PALIMPORT int __cdecl _snprintf_s(char *, size_t, size_t, const char *, ...);
+PALIMPORT int __cdecl sprintf_s(char *, size_t, const char *, ... );
+PALIMPORT int __cdecl swprintf_s(WCHAR *, size_t, const WCHAR *, ... );
+PALIMPORT int __cdecl _snwprintf_s(WCHAR *, size_t, size_t, const WCHAR *, ...);
+PALIMPORT int __cdecl vswprintf_s( WCHAR *, size_t, const WCHAR *, va_list);
+PALIMPORT int __cdecl sscanf_s(const char *, const char *, ...);
+PALIMPORT errno_t __cdecl _itow_s(int, WCHAR *, size_t, int);
 
 PALIMPORT size_t __cdecl PAL_wcslen(const WCHAR *);
 PALIMPORT int __cdecl PAL_wcscmp(const WCHAR*, const WCHAR*);
@@ -5930,8 +5093,6 @@ PALIMPORT WCHAR * __cdecl PAL_wcstok(WCHAR *, const WCHAR *);
 PALIMPORT size_t __cdecl PAL_wcscspn(const WCHAR *, const WCHAR *);
 PALIMPORT int __cdecl PAL_swprintf(WCHAR *, const WCHAR *, ...);
 PALIMPORT int __cdecl PAL_vswprintf(WCHAR *, const WCHAR *, va_list);
-PALIMPORT int __cdecl PAL__vsnprintf(LPSTR Buffer, size_t Count, LPCSTR Format, va_list ap);
-PALIMPORT int __cdecl _snwprintf(WCHAR *, size_t, const WCHAR *, ...);
 PALIMPORT int __cdecl PAL_swscanf(const WCHAR *, const WCHAR *, ...);
 PALIMPORT LONG __cdecl PAL_wcstol(const WCHAR *, WCHAR **, int);
 PALIMPORT ULONG __cdecl PAL_wcstoul(const WCHAR *, WCHAR **, int);
@@ -5948,8 +5109,7 @@ PALIMPORT WCHAR __cdecl PAL_towupper(WCHAR);
 
 PALIMPORT WCHAR * __cdecl _wcslwr(WCHAR *);
 PALIMPORT ULONGLONG _wcstoui64(const WCHAR *, WCHAR **, int);
-PALIMPORT WCHAR * __cdecl _i64tow(__int64, WCHAR *, int);
-PALIMPORT WCHAR * __cdecl _ui64tow(unsigned __int64, WCHAR *, int);
+PALIMPORT errno_t __cdecl _i64tow_s(long long, WCHAR *, size_t, int);
 PALIMPORT int __cdecl _wtoi(const WCHAR *);
 
 #ifdef __cplusplus
@@ -6037,9 +5197,29 @@ PALIMPORT double __cdecl sqrt(double);
 PALIMPORT double __cdecl tan(double);
 PALIMPORT double __cdecl tanh(double);
 
+PALIMPORT int __cdecl _finitef(float);
+PALIMPORT int __cdecl _isnanf(float);
+PALIMPORT float __cdecl _copysignf(float, float);
+PALIMPORT float __cdecl acosf(float);
+PALIMPORT float __cdecl asinf(float);
+PALIMPORT float __cdecl atanf(float);
+PALIMPORT float __cdecl atan2f(float, float);
+PALIMPORT float __cdecl ceilf(float);
+PALIMPORT float __cdecl cosf(float);
+PALIMPORT float __cdecl coshf(float);
+PALIMPORT float __cdecl expf(float);
 PALIMPORT float __cdecl fabsf(float);
+PALIMPORT float __cdecl floorf(float);
 PALIMPORT float __cdecl fmodf(float, float); 
+PALIMPORT float __cdecl logf(float);
+PALIMPORT float __cdecl log10f(float);
 PALIMPORT float __cdecl modff(float, float*);
+PALIMPORT float __cdecl powf(float, float);
+PALIMPORT float __cdecl sinf(float);
+PALIMPORT float __cdecl sinhf(float);
+PALIMPORT float __cdecl sqrtf(float);
+PALIMPORT float __cdecl tanf(float);
+PALIMPORT float __cdecl tanhf(float);
 
 #ifndef PAL_STDCPP_COMPAT
 
@@ -6060,17 +5240,11 @@ PALIMPORT char * __cdecl _strdup(const char *);
 
 #if defined(_MSC_VER)
 #define alloca _alloca
-#elif defined(PLATFORM_UNIX)
-#define _alloca alloca
 #else
-// MingW
-#define _alloca __builtin_alloca
-#define alloca __builtin_alloca
+#define _alloca alloca
 #endif //_MSC_VER
 
-#if defined(__GNUC__) && defined(PLATFORM_UNIX)
 #define alloca  __builtin_alloca
-#endif // __GNUC__
 
 #define max(a, b) (((a) > (b)) ? (a) : (b))
 #define min(a, b) (((a) < (b)) ? (a) : (b))
@@ -6084,13 +5258,7 @@ PALIMPORT void __cdecl qsort(void *, size_t, size_t, int (__cdecl *)(const void 
 PALIMPORT void * __cdecl bsearch(const void *, const void *, size_t, size_t,
 int (__cdecl *)(const void *, const void *));
 
-PALIMPORT void __cdecl _splitpath(const char *, char *, char *, char *, char *);
-PALIMPORT void __cdecl _wsplitpath(const WCHAR *, WCHAR *, WCHAR *, WCHAR *, WCHAR *);
-PALIMPORT void __cdecl _makepath(char *, const char *, const char *, const char *, const char *);
-PALIMPORT void __cdecl _wmakepath(WCHAR *, const WCHAR *, const WCHAR *, const WCHAR *, const WCHAR *);
 PALIMPORT char * __cdecl _fullpath(char *, const char *, size_t);
-
-PALIMPORT void __cdecl _swab(char *, char *, int);
 
 #ifndef PAL_STDCPP_COMPAT
 PALIMPORT time_t __cdecl time(time_t *);
@@ -6305,14 +5473,14 @@ PAL_Enter(PAL_Boundary boundary);
 PALIMPORT
 BOOL
 PALAPI
-PAL_HasEntered();
+PAL_HasEntered(VOID);
 
 // Equivalent to PAL_Enter(PAL_BoundaryTop) and is for stub
 // code generation use.
 PALIMPORT
 DWORD
 PALAPI
-PAL_EnterTop();
+PAL_EnterTop(VOID);
 
 // This function needs to be called on a thread when it enters
 // a region of code that depends on this instance of the PAL
@@ -6347,14 +5515,14 @@ PAL_Leave(PAL_Boundary boundary);
 PALIMPORT
 VOID
 PALAPI
-PAL_LeaveBottom();
+PAL_LeaveBottom(VOID);
 
 // This function is equivalent to PAL_Leave(PAL_BoundaryTop)
 // and is available to limit the creation of stub code.
 PALIMPORT
 VOID
 PALAPI
-PAL_LeaveTop();
+PAL_LeaveTop(VOID);
 
 #ifdef  __cplusplus
 //
@@ -6545,10 +5713,10 @@ public:
     }
 };
 
-typedef BOOL (PALAPI *PHARDWARE_EXCEPTION_HANDLER)(PAL_SEHException* ex);
-typedef BOOL (PALAPI *PHARDWARE_EXCEPTION_SAFETY_CHECK_FUNCTION)(PCONTEXT contextRecord, PEXCEPTION_RECORD exceptionRecord);
-typedef VOID (PALAPI *PTERMINATION_REQUEST_HANDLER)();
-typedef DWORD (PALAPI *PGET_GCMARKER_EXCEPTION_CODE)(LPVOID ip);
+typedef BOOL (*PHARDWARE_EXCEPTION_HANDLER)(PAL_SEHException* ex);
+typedef BOOL (*PHARDWARE_EXCEPTION_SAFETY_CHECK_FUNCTION)(PCONTEXT contextRecord, PEXCEPTION_RECORD exceptionRecord);
+typedef VOID (*PTERMINATION_REQUEST_HANDLER)();
+typedef DWORD (*PGET_GCMARKER_EXCEPTION_CODE)(LPVOID ip);
 
 PALIMPORT
 VOID
@@ -6837,23 +6005,12 @@ public:
 
 // Platform-specific library naming
 // 
-#ifdef PLATFORM_UNIX
 #ifdef __APPLE__
 #define MAKEDLLNAME_W(name) u"lib" name u".dylib"
 #define MAKEDLLNAME_A(name)  "lib" name  ".dylib"
-#elif defined(_AIX)
-#define MAKEDLLNAME_W(name) L"lib" name L".a"
-#define MAKEDLLNAME_A(name)  "lib" name  ".a"
-#elif defined(__hppa__) || defined(_IA64_)
-#define MAKEDLLNAME_W(name) L"lib" name L".sl"
-#define MAKEDLLNAME_A(name)  "lib" name  ".sl"
 #else
 #define MAKEDLLNAME_W(name) u"lib" name u".so"
 #define MAKEDLLNAME_A(name)  "lib" name  ".so"
-#endif
-#else
-#define MAKEDLLNAME_W(name) name L".dll"
-#define MAKEDLLNAME_A(name) name  ".dll"
 #endif
 
 #ifdef UNICODE
@@ -6866,10 +6023,6 @@ public:
 
 #if __APPLE__
 #define PAL_SHLIB_SUFFIX ".dylib"
-#elif _AIX
-#define PAL_SHLIB_SUFFIX ".a"
-#elif _HPUX_
-#define PAL_SHLIB_SUFFIX ".sl"
 #else
 #define PAL_SHLIB_SUFFIX ".so"
 #endif

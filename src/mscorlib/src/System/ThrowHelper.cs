@@ -10,7 +10,7 @@ namespace System {
     // The old way to throw an exception generates quite a lot IL code and assembly code.
     // Following is an example:
     //     C# source
-    //          throw new ArgumentNullException("key", Environment.GetResourceString("ArgumentNull_Key"));
+    //          throw new ArgumentNullException(nameof(key), Environment.GetResourceString("ArgumentNull_Key"));
     //     IL code:
     //          IL_0003:  ldstr      "key"
     //          IL_0008:  ldstr      "ArgumentNull_Key"
@@ -36,44 +36,101 @@ namespace System {
     // multiple times for different instantiation. 
     // 
 
-    using System.Runtime.CompilerServices;        
+    using Collections.Generic;
+    using System.Runtime.CompilerServices;
     using System.Runtime.Serialization;
+    using System.Diagnostics;
     using System.Diagnostics.Contracts;
 
     [Pure]
     internal static class ThrowHelper {    
-        internal static void ThrowArgumentOutOfRangeException() {        
-            ThrowArgumentOutOfRangeException(ExceptionArgument.index, ExceptionResource.ArgumentOutOfRange_Index);            
+        internal static void ThrowArrayTypeMismatchException() {
+            throw new ArrayTypeMismatchException();
+        }
+
+        internal static void ThrowInvalidTypeWithPointersNotSupported(Type targetType) {
+            throw new ArgumentException(Environment.GetResourceString("Argument_InvalidTypeWithPointersNotSupported", targetType));
+        }
+
+        internal static void ThrowIndexOutOfRangeException() {
+            throw new IndexOutOfRangeException();
+        }
+
+        internal static void ThrowArgumentOutOfRangeException() {
+            throw new ArgumentOutOfRangeException();
+        }
+
+        internal static void ThrowArgumentException_DestinationTooShort() {
+            throw new ArgumentException(Environment.GetResourceString("Argument_DestinationTooShort"));
+        }
+
+        internal static void ThrowNotSupportedException_CannotCallEqualsOnSpan() {
+            throw new NotSupportedException(Environment.GetResourceString("NotSupported_CannotCallEqualsOnSpan"));
+        }
+
+        internal static void ThrowNotSupportedException_CannotCallGetHashCodeOnSpan() {
+            throw new NotSupportedException(Environment.GetResourceString("NotSupported_CannotCallGetHashCodeOnSpan"));
+        }
+
+        internal static void ThrowArgumentOutOfRange_IndexException() {
+            throw GetArgumentOutOfRangeException(ExceptionArgument.index, 
+                                                    ExceptionResource.ArgumentOutOfRange_Index);
+        }
+
+        internal static void ThrowIndexArgumentOutOfRange_NeedNonNegNumException() {
+            throw GetArgumentOutOfRangeException(ExceptionArgument.index, 
+                                                    ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
+        }
+
+        internal static void ThrowLengthArgumentOutOfRange_ArgumentOutOfRange_NeedNonNegNum() {
+            throw GetArgumentOutOfRangeException(ExceptionArgument.length,
+                                                    ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
+        }
+
+        internal static void ThrowStartIndexArgumentOutOfRange_ArgumentOutOfRange_Index() {
+            throw GetArgumentOutOfRangeException(ExceptionArgument.startIndex,
+                                                    ExceptionResource.ArgumentOutOfRange_Index);
+        }
+
+        internal static void ThrowCountArgumentOutOfRange_ArgumentOutOfRange_Count() {
+            throw GetArgumentOutOfRangeException(ExceptionArgument.count,
+                                                    ExceptionResource.ArgumentOutOfRange_Count);
         }
 
         internal static void ThrowWrongKeyTypeArgumentException(object key, Type targetType) {
-            throw new ArgumentException(Environment.GetResourceString("Arg_WrongType", key, targetType), "key");
+            throw GetWrongKeyTypeArgumentException(key, targetType);
         }
 
         internal static void ThrowWrongValueTypeArgumentException(object value, Type targetType) {
-            throw new ArgumentException(Environment.GetResourceString("Arg_WrongType", value, targetType), "value");
+            throw GetWrongValueTypeArgumentException(value, targetType);
         }
 
-#if FEATURE_CORECLR
-        internal static void ThrowAddingDuplicateWithKeyArgumentException(object key) {
-            throw new ArgumentException(Environment.GetResourceString("Argument_AddingDuplicateWithKey", key));
+        private static ArgumentException GetAddingDuplicateWithKeyArgumentException(object key) {
+            return new ArgumentException(Environment.GetResourceString("Argument_AddingDuplicateWithKey", key));
         }
-#endif
+
+        internal static void ThrowAddingDuplicateWithKeyArgumentException(object key) {
+            throw GetAddingDuplicateWithKeyArgumentException(key);
+        }
 
         internal static void ThrowKeyNotFoundException() {
             throw new System.Collections.Generic.KeyNotFoundException();
         }
         
         internal static void ThrowArgumentException(ExceptionResource resource) {
-            throw new ArgumentException(Environment.GetResourceString(GetResourceName(resource)));
+            throw GetArgumentException(resource);
         }
 
         internal static void ThrowArgumentException(ExceptionResource resource, ExceptionArgument argument) {
-            throw new ArgumentException(Environment.GetResourceString(GetResourceName(resource)), GetArgumentName(argument));
+            throw GetArgumentException(resource, argument);
         }
 
         internal static void ThrowArgumentNullException(ExceptionArgument argument) {
             throw new ArgumentNullException(GetArgumentName(argument));
+        }
+
+        internal static void ThrowArgumentNullException(ExceptionResource resource) {
+            throw new ArgumentNullException(GetResourceString(resource));
         }
 
         internal static void ThrowArgumentOutOfRangeException(ExceptionArgument argument) {
@@ -81,361 +138,152 @@ namespace System {
         }
 
         internal static void ThrowArgumentOutOfRangeException(ExceptionArgument argument, ExceptionResource resource) {
-            throw new ArgumentOutOfRangeException(GetArgumentName(argument),
-                                                    Environment.GetResourceString(GetResourceName(resource)));
+            throw GetArgumentOutOfRangeException(argument, resource);
+        }
+
+        internal static void ThrowArgumentOutOfRangeException(ExceptionArgument argument, int paramNumber, ExceptionResource resource) {
+            throw GetArgumentOutOfRangeException(argument, paramNumber, resource);
         }
 
         internal static void ThrowInvalidOperationException(ExceptionResource resource) {
-            throw new InvalidOperationException(Environment.GetResourceString(GetResourceName(resource)));
+            throw GetInvalidOperationException(resource);
+        }
+
+        internal static void ThrowInvalidOperationException(ExceptionResource resource, Exception e) {
+            throw new InvalidOperationException(GetResourceString(resource), e);
         }
 
         internal static void ThrowSerializationException(ExceptionResource resource) {
-            throw new SerializationException(Environment.GetResourceString(GetResourceName(resource)));
+            throw new SerializationException(GetResourceString(resource));
         }
 
         internal static void  ThrowSecurityException(ExceptionResource resource) {
-            throw new System.Security.SecurityException(Environment.GetResourceString(GetResourceName(resource)));
+            throw new System.Security.SecurityException(GetResourceString(resource));
+        }
+
+        internal static void ThrowRankException(ExceptionResource resource) {
+            throw new RankException(GetResourceString(resource));
         }
 
         internal static void ThrowNotSupportedException(ExceptionResource resource) {
-            throw new NotSupportedException(Environment.GetResourceString(GetResourceName(resource)));
+            throw new NotSupportedException(GetResourceString(resource));
         }
 
         internal static void ThrowUnauthorizedAccessException(ExceptionResource resource) {
-            throw new UnauthorizedAccessException(Environment.GetResourceString(GetResourceName(resource)));
+            throw new UnauthorizedAccessException(GetResourceString(resource));
         }
 
         internal static void ThrowObjectDisposedException(string objectName, ExceptionResource resource) {
-            throw new ObjectDisposedException(objectName, Environment.GetResourceString(GetResourceName(resource)));
+            throw new ObjectDisposedException(objectName, GetResourceString(resource));
+        }
+
+        internal static void ThrowObjectDisposedException(ExceptionResource resource) {
+            throw new ObjectDisposedException(null, GetResourceString(resource));
+        }
+
+        internal static void ThrowNotSupportedException() {
+            throw new NotSupportedException();
+        }
+
+        internal static void ThrowAggregateException(List<Exception> exceptions) {
+            throw new AggregateException(exceptions);
+        }
+
+        internal static void ThrowArgumentException_Argument_InvalidArrayType() {
+            throw GetArgumentException(ExceptionResource.Argument_InvalidArrayType);
+        }
+
+        internal static void ThrowInvalidOperationException_InvalidOperation_EnumNotStarted() {
+            throw GetInvalidOperationException(ExceptionResource.InvalidOperation_EnumNotStarted);
+        }
+
+        internal static void ThrowInvalidOperationException_InvalidOperation_EnumEnded() {
+            throw GetInvalidOperationException(ExceptionResource.InvalidOperation_EnumEnded);
+        }
+
+        internal static void ThrowInvalidOperationException_InvalidOperation_EnumFailedVersion() {
+            throw GetInvalidOperationException(ExceptionResource.InvalidOperation_EnumFailedVersion);
+        }
+
+        internal static void ThrowInvalidOperationException_InvalidOperation_EnumOpCantHappen() {
+            throw GetInvalidOperationException(ExceptionResource.InvalidOperation_EnumOpCantHappen);
+        }
+
+        private static ArgumentException GetArgumentException(ExceptionResource resource) {
+            return new ArgumentException(GetResourceString(resource));
+        }
+
+        private static InvalidOperationException GetInvalidOperationException(ExceptionResource resource) {
+            return new InvalidOperationException(GetResourceString(resource));
+        }
+
+        private static ArgumentException GetWrongKeyTypeArgumentException(object key, Type targetType) {
+            return new ArgumentException(Environment.GetResourceString("Arg_WrongType", key, targetType), nameof(key));
+        }
+
+        private static ArgumentException GetWrongValueTypeArgumentException(object value, Type targetType) {
+            return new ArgumentException(Environment.GetResourceString("Arg_WrongType", value, targetType), nameof(value));
+        }
+
+        private static ArgumentOutOfRangeException GetArgumentOutOfRangeException(ExceptionArgument argument, ExceptionResource resource) {
+            return new ArgumentOutOfRangeException(GetArgumentName(argument), GetResourceString(resource));
+        }
+
+        private static ArgumentException GetArgumentException(ExceptionResource resource, ExceptionArgument argument) {
+            return new ArgumentException(GetResourceString(resource), GetArgumentName(argument));
+        }
+
+        private static ArgumentOutOfRangeException GetArgumentOutOfRangeException(ExceptionArgument argument, int paramNumber, ExceptionResource resource) {
+            return new ArgumentOutOfRangeException(GetArgumentName(argument) + "[" + paramNumber.ToString() + "]", GetResourceString(resource));
         }
 
         // Allow nulls for reference types and Nullable<U>, but not for value types.
+        // Aggressively inline so the jit evaluates the if in place and either drops the call altogether
+        // Or just leaves null test and call to the Non-returning ThrowHelper.ThrowArgumentNullException
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal static void IfNullAndNullsAreIllegalThenThrow<T>(object value, ExceptionArgument argName) {
             // Note that default(T) is not equal to null for value types except when T is Nullable<U>. 
-            if (value == null && !(default(T) == null))
+            if (!(default(T) == null) && value == null)
                 ThrowHelper.ThrowArgumentNullException(argName);
         }
 
-        //
         // This function will convert an ExceptionArgument enum value to the argument name string.
-        //
-        internal static string GetArgumentName(ExceptionArgument argument) {
-            string argumentName = null;
-
-            switch (argument) {
-                case ExceptionArgument.action:
-                    argumentName = "action";
-                    break;
-
-                case ExceptionArgument.array:
-                    argumentName = "array";
-                    break;
-
-                case ExceptionArgument.arrayIndex:
-                    argumentName = "arrayIndex";
-                    break;
-
-                case ExceptionArgument.capacity:
-                    argumentName = "capacity";
-                    break;
-
-                case ExceptionArgument.collection:
-                    argumentName = "collection";
-                    break;
-
-                case ExceptionArgument.comparison:
-                    argumentName = "comparison";
-                    break;
-
-                case ExceptionArgument.list:
-                    argumentName = "list";
-                    break;
-
-                case ExceptionArgument.converter:
-                    argumentName = "converter";
-                    break;
-
-                case ExceptionArgument.count:
-                    argumentName = "count";
-                    break;
-
-                case ExceptionArgument.dictionary:
-                    argumentName = "dictionary";
-                    break;
-
-                case ExceptionArgument.dictionaryCreationThreshold:
-                    argumentName = "dictionaryCreationThreshold";
-                    break;
-
-                case ExceptionArgument.index:
-                    argumentName = "index";
-                    break;
-
-                case ExceptionArgument.info:
-                    argumentName = "info";
-                    break;
-
-                case ExceptionArgument.key:
-                    argumentName = "key";
-                    break;
-
-                case ExceptionArgument.match:
-                    argumentName = "match";
-                    break;
-
-                case ExceptionArgument.obj:
-                    argumentName = "obj";
-                    break;
-
-                case ExceptionArgument.queue:
-                    argumentName = "queue";
-                    break;
-
-                case ExceptionArgument.stack:
-                    argumentName = "stack";
-                    break;
-
-                case ExceptionArgument.startIndex:
-                    argumentName = "startIndex";
-                    break;
-
-                case ExceptionArgument.value:
-                    argumentName = "value";
-                    break;
-
-                case ExceptionArgument.name:
-                    argumentName = "name";
-                    break;
-
-                case ExceptionArgument.mode:
-                    argumentName = "mode";
-                    break;
-
-                case ExceptionArgument.item:
-                    argumentName = "item";
-                    break;
-
-                case ExceptionArgument.options:
-                    argumentName = "options";
-                    break;
-
-                case ExceptionArgument.view:
-                    argumentName = "view";
-                    break;
-
-               case ExceptionArgument.sourceBytesToCopy:
-                    argumentName = "sourceBytesToCopy";
-                    break;
-
-                default:
-                    Contract.Assert(false, "The enum value is not defined, please checked ExceptionArgumentName Enum.");
-                    return string.Empty;
-            }
-
-            return argumentName;
+        private static string GetArgumentName(ExceptionArgument argument) {
+            // This is indirected through a second NoInlining function it has a special meaning
+            // in System.Private.CoreLib of indicatating it takes a StackMark which cause 
+            // the caller to also be not inlined; so we can't mark it directly.
+            // So is the effect of marking this function as non-inlining in a regular situation.
+            return GetArgumentNameInner(argument);
         }
 
-        //
+        // This function will convert an ExceptionArgument enum value to the argument name string.
+        // Second function in chain so as to not propergate the non-inlining to outside caller
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private static string GetArgumentNameInner(ExceptionArgument argument) {
+            Debug.Assert(Enum.IsDefined(typeof(ExceptionArgument), argument),
+                "The enum value is not defined, please check the ExceptionArgument Enum.");
+
+            return argument.ToString();
+        }
+
         // This function will convert an ExceptionResource enum value to the resource string.
-        //
-        internal static string GetResourceName(ExceptionResource resource) {
-            string resourceName = null;
-
-            switch (resource) {
-                case ExceptionResource.Argument_ImplementIComparable:
-                    resourceName = "Argument_ImplementIComparable";
-                    break;
-
-                case ExceptionResource.Argument_AddingDuplicate:
-                    resourceName = "Argument_AddingDuplicate";
-                    break;
-
-                case ExceptionResource.ArgumentOutOfRange_BiggerThanCollection:
-                    resourceName = "ArgumentOutOfRange_BiggerThanCollection";
-                    break;
-
-                case ExceptionResource.ArgumentOutOfRange_Count:
-                    resourceName = "ArgumentOutOfRange_Count";
-                    break;
-
-                case ExceptionResource.ArgumentOutOfRange_Index:
-                    resourceName = "ArgumentOutOfRange_Index";
-                    break;
-
-                case ExceptionResource.ArgumentOutOfRange_InvalidThreshold:
-                    resourceName = "ArgumentOutOfRange_InvalidThreshold";
-                    break;
-
-                case ExceptionResource.ArgumentOutOfRange_ListInsert:
-                    resourceName = "ArgumentOutOfRange_ListInsert";
-                    break;
-
-                case ExceptionResource.ArgumentOutOfRange_NeedNonNegNum:
-                    resourceName = "ArgumentOutOfRange_NeedNonNegNum";
-                    break;
-
-                case ExceptionResource.ArgumentOutOfRange_SmallCapacity:
-                    resourceName = "ArgumentOutOfRange_SmallCapacity";
-                    break;
-
-                case ExceptionResource.Arg_ArrayPlusOffTooSmall:
-                    resourceName = "Arg_ArrayPlusOffTooSmall";
-                    break;
-
-                case ExceptionResource.Arg_RankMultiDimNotSupported:
-                    resourceName = "Arg_RankMultiDimNotSupported";
-                    break;
-
-                case ExceptionResource.Arg_NonZeroLowerBound:
-                    resourceName = "Arg_NonZeroLowerBound";
-                    break;
-
-                case ExceptionResource.Argument_InvalidArrayType:
-                    resourceName = "Argument_InvalidArrayType";
-                    break;
-
-                case ExceptionResource.Argument_InvalidOffLen:
-                    resourceName = "Argument_InvalidOffLen";
-                    break;
-
-                case ExceptionResource.Argument_ItemNotExist:
-                    resourceName = "Argument_ItemNotExist";
-                    break;                    
-
-                case ExceptionResource.InvalidOperation_CannotRemoveFromStackOrQueue:
-                    resourceName = "InvalidOperation_CannotRemoveFromStackOrQueue";
-                    break;
-
-                case ExceptionResource.InvalidOperation_EmptyQueue:
-                    resourceName = "InvalidOperation_EmptyQueue";
-                    break;
-
-                case ExceptionResource.InvalidOperation_EnumOpCantHappen:
-                    resourceName = "InvalidOperation_EnumOpCantHappen";
-                    break;
-
-                case ExceptionResource.InvalidOperation_EnumFailedVersion:
-                    resourceName = "InvalidOperation_EnumFailedVersion";
-                    break;
-
-                case ExceptionResource.InvalidOperation_EmptyStack:
-                    resourceName = "InvalidOperation_EmptyStack";
-                    break;
-
-                case ExceptionResource.InvalidOperation_EnumNotStarted:
-                    resourceName = "InvalidOperation_EnumNotStarted";
-                    break;
-
-                case ExceptionResource.InvalidOperation_EnumEnded:
-                    resourceName = "InvalidOperation_EnumEnded";
-                    break;
-
-                case ExceptionResource.NotSupported_KeyCollectionSet:
-                    resourceName = "NotSupported_KeyCollectionSet";
-                    break;
-
-                case ExceptionResource.NotSupported_ReadOnlyCollection:
-                    resourceName = "NotSupported_ReadOnlyCollection";
-                    break;
-
-                case ExceptionResource.NotSupported_ValueCollectionSet:
-                    resourceName = "NotSupported_ValueCollectionSet";
-                    break;
-
-
-                case ExceptionResource.NotSupported_SortedListNestedWrite:
-                    resourceName = "NotSupported_SortedListNestedWrite";
-                    break;
-
-
-                case ExceptionResource.Serialization_InvalidOnDeser:
-                    resourceName = "Serialization_InvalidOnDeser";
-                    break;
-
-                case ExceptionResource.Serialization_MissingKeys:
-                    resourceName = "Serialization_MissingKeys";
-                    break;
-
-                case ExceptionResource.Serialization_NullKey:
-                    resourceName = "Serialization_NullKey";
-                    break;
-
-                case ExceptionResource.Argument_InvalidType:
-                    resourceName = "Argument_InvalidType";
-                    break;
-
-                case ExceptionResource.Argument_InvalidArgumentForComparison:
-                    resourceName = "Argument_InvalidArgumentForComparison";                    
-                    break;
-
-                case ExceptionResource.InvalidOperation_NoValue:
-                    resourceName = "InvalidOperation_NoValue";                    
-                    break;
-
-                case ExceptionResource.InvalidOperation_RegRemoveSubKey:
-                    resourceName = "InvalidOperation_RegRemoveSubKey";                    
-                    break;
-
-                case ExceptionResource.Arg_RegSubKeyAbsent:
-                    resourceName = "Arg_RegSubKeyAbsent";                    
-                    break;
-
-                case ExceptionResource.Arg_RegSubKeyValueAbsent:
-                    resourceName = "Arg_RegSubKeyValueAbsent";                    
-                    break;
-                    
-                case ExceptionResource.Arg_RegKeyDelHive:
-                    resourceName = "Arg_RegKeyDelHive";                    
-                    break;
-
-                case ExceptionResource.Security_RegistryPermission:
-                    resourceName = "Security_RegistryPermission";                    
-                    break;
-
-                case ExceptionResource.Arg_RegSetStrArrNull:
-                    resourceName = "Arg_RegSetStrArrNull";                    
-                    break;
-
-                case ExceptionResource.Arg_RegSetMismatchedKind:
-                    resourceName = "Arg_RegSetMismatchedKind";                    
-                    break;
-
-                case ExceptionResource.UnauthorizedAccess_RegistryNoWrite:
-                    resourceName = "UnauthorizedAccess_RegistryNoWrite";
-                    break;
-
-                case ExceptionResource.ObjectDisposed_RegKeyClosed:
-                    resourceName = "ObjectDisposed_RegKeyClosed";
-                    break;
-
-                case ExceptionResource.Arg_RegKeyStrLenBug:
-                    resourceName = "Arg_RegKeyStrLenBug";
-                    break;
-
-                case ExceptionResource.Argument_InvalidRegistryKeyPermissionCheck:
-                    resourceName = "Argument_InvalidRegistryKeyPermissionCheck";
-                    break;
-
-                case ExceptionResource.NotSupported_InComparableType:
-                    resourceName = "NotSupported_InComparableType";
-                    break;
-
-                case ExceptionResource.Argument_InvalidRegistryOptionsCheck:
-                    resourceName = "Argument_InvalidRegistryOptionsCheck";
-                    break;
-
-                case ExceptionResource.Argument_InvalidRegistryViewCheck:
-                    resourceName = "Argument_InvalidRegistryViewCheck";
-                    break;
-
-                default:
-                    Contract.Assert( false, "The enum value is not defined, please checked ExceptionArgumentName Enum.");
-                    return string.Empty;
-            }
-
-            return resourceName;
+        private static string GetResourceString(ExceptionResource resource) {
+            // This is indirected through a second NoInlining function it has a special meaning
+            // in System.Private.CoreLib of indicatating it takes a StackMark which cause 
+            // the caller to also be not inlined; so we can't mark it directly.
+            // So is the effect of marking this function as non-inlining in a regular situation.
+            return GetResourceStringInner(resource);
         }
 
+        // This function will convert an ExceptionResource enum value to the resource string.
+        // Second function in chain so as to not propergate the non-inlining to outside caller
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private static string GetResourceStringInner(ExceptionResource resource) {
+            Debug.Assert(Enum.IsDefined(typeof(ExceptionResource), resource),
+                "The enum value is not defined, please check the ExceptionResource Enum.");
+
+            return Environment.GetResourceString(resource.ToString());
+        }
     }
 
     //
@@ -467,7 +315,53 @@ namespace System {
         view,
         sourceBytesToCopy,
         action,
-        comparison
+        comparison,
+        offset,
+        newSize,
+        elementType,
+        length,
+        length1,
+        length2,
+        length3,
+        lengths,
+        len,
+        lowerBounds,
+        sourceArray,
+        destinationArray,
+        sourceIndex,
+        destinationIndex,
+        indices,
+        index1,
+        index2,
+        index3,
+        other,
+        comparer,
+        endIndex,
+        keys,
+        creationOptions,
+        timeout,
+        tasks,
+        scheduler,
+        continuationFunction,
+        millisecondsTimeout,
+        millisecondsDelay,
+        function,
+        exceptions,
+        exception,
+        cancellationToken,
+        delay,
+        asyncResult,
+        endMethod,
+        endFunction,
+        beginMethod,
+        continuationOptions,
+        continuationAction,
+        valueFactory,
+        addValueFactory,
+        updateValueFactory,
+        concurrencyLevel,
+        text,
+
     }
 
     //
@@ -521,7 +415,58 @@ namespace System {
         ObjectDisposed_RegKeyClosed,
         NotSupported_InComparableType,
         Argument_InvalidRegistryOptionsCheck,
-        Argument_InvalidRegistryViewCheck
+        Argument_InvalidRegistryViewCheck,
+        InvalidOperation_NullArray,
+        Arg_MustBeType,
+        Arg_NeedAtLeast1Rank,
+        ArgumentOutOfRange_HugeArrayNotSupported,
+        Arg_RanksAndBounds,
+        Arg_RankIndices,
+        Arg_Need1DArray,
+        Arg_Need2DArray,
+        Arg_Need3DArray,
+        NotSupported_FixedSizeCollection,
+        ArgumentException_OtherNotArrayOfCorrectLength,
+        Rank_MultiDimNotSupported,
+        InvalidOperation_IComparerFailed,
+        ArgumentOutOfRange_EndIndexStartIndex,
+        Arg_LowerBoundsMustMatch,
+        Arg_BogusIComparer,
+        Task_WaitMulti_NullTask,
+        Task_ThrowIfDisposed,
+        Task_Start_TaskCompleted,
+        Task_Start_Promise,
+        Task_Start_ContinuationTask,
+        Task_Start_AlreadyStarted,
+        Task_RunSynchronously_TaskCompleted,
+        Task_RunSynchronously_Continuation,
+        Task_RunSynchronously_Promise,
+        Task_RunSynchronously_AlreadyStarted,
+        Task_MultiTaskContinuation_NullTask,
+        Task_MultiTaskContinuation_EmptyTaskList,
+        Task_Dispose_NotCompleted,
+        Task_Delay_InvalidMillisecondsDelay,
+        Task_Delay_InvalidDelay,
+        Task_ctor_LRandSR,
+        Task_ContinueWith_NotOnAnything,
+        Task_ContinueWith_ESandLR,
+        TaskT_TransitionToFinal_AlreadyCompleted,
+        TaskT_ctor_SelfReplicating,
+        TaskCompletionSourceT_TrySetException_NullException,
+        TaskCompletionSourceT_TrySetException_NoExceptions,
+        InvalidOperation_WrongAsyncResultOrEndCalledMultiple,
+        ConcurrentDictionary_ConcurrencyLevelMustBePositive,
+        ConcurrentDictionary_CapacityMustNotBeNegative,
+        ConcurrentDictionary_TypeOfValueIncorrect,
+        ConcurrentDictionary_TypeOfKeyIncorrect,
+        ConcurrentDictionary_SourceContainsDuplicateKeys,
+        ConcurrentDictionary_KeyAlreadyExisted,
+        ConcurrentDictionary_ItemKeyIsNull,
+        ConcurrentDictionary_IndexIsNegative,
+        ConcurrentDictionary_ArrayNotLargeEnough,
+        ConcurrentDictionary_ArrayIncorrectType,
+        ConcurrentCollection_SyncRoot_NotSupported,
+
     }
 }
 

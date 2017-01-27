@@ -115,7 +115,6 @@ namespace System.Runtime.InteropServices {
         /// <param name="iid">identifier of the source interface used by COM object to fire events</param>
         /// <param name="dispid">dispatch identifier of the method on the source interface</param>
         /// <param name="d">delegate to invoke when specifed COM event is fired</param>
-        [System.Security.SecurityCritical]
         public static void Combine(object rcw, Guid iid, int dispid, System.Delegate d) {
 
             rcw = UnwrapIfTransparentProxy(rcw);
@@ -146,7 +145,6 @@ namespace System.Runtime.InteropServices {
         /// <param name="dispid">dispatch identifier of the method on the source interface</param>
         /// <param name="d">delegate to remove from the invocation list</param>
         /// <returns></returns>
-        [System.Security.SecurityCritical]
         public static Delegate Remove(object rcw, Guid iid, int dispid, System.Delegate d) {
 
             rcw = UnwrapIfTransparentProxy(rcw);
@@ -183,18 +181,8 @@ namespace System.Runtime.InteropServices {
             }
         }
 
-        [System.Security.SecurityCritical]
-        internal static object UnwrapIfTransparentProxy(object rcw) {
-#if FEATURE_REMOTING
-            if (RemotingServices.IsTransparentProxy(rcw)) {
-                IntPtr punk = Marshal.GetIUnknownForObject(rcw);
-                try {
-                    rcw = Marshal.GetObjectForIUnknown(punk);
-                } finally {
-                    Marshal.Release(punk);
-                }
-            }
-#endif
+        internal static object UnwrapIfTransparentProxy(object rcw)
+        {
             return rcw;
         }
     }

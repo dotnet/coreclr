@@ -161,7 +161,7 @@ enum
 };
 
 #ifndef DACCESS_COMPILE
-
+#ifndef WIN64EXCEPTIONS
 virtual void FixContext(ContextType     ctxType,
                         EHContext      *ctx,
                         EECodeInfo     *pCodeInfo,
@@ -171,9 +171,10 @@ virtual void FixContext(ContextType     ctxType,
                         CodeManState   *pState,
                         size_t       ** ppShadowSP,             // OUT
                         size_t       ** ppEndRegion) = 0;       // OUT
-
+#endif // !WIN64EXCEPTIONS
 #endif // #ifndef DACCESS_COMPILE
 
+#ifdef _TARGET_X86_
 /*
     Gets the ambient stack pointer value at the given nesting level within
     the method.
@@ -183,6 +184,7 @@ virtual TADDR GetAmbientSP(PREGDISPLAY     pContext,
                            DWORD           dwRelOffset,
                            DWORD           nestingLevel,
                            CodeManState   *pState) = 0;
+#endif // _TARGET_X86_
 
 /*
     Get the number of bytes used for stack parameters.
@@ -190,6 +192,7 @@ virtual TADDR GetAmbientSP(PREGDISPLAY     pContext,
 */
 virtual ULONG32 GetStackParameterSize(EECodeInfo* pCodeInfo) = 0;
 
+#ifndef CROSSGEN_COMPILE
 /*
     Unwind the current stack frame, i.e. update the virtual register
     set in pContext. This will be similar to the state after the function
@@ -203,6 +206,7 @@ virtual bool UnwindStackFrame(PREGDISPLAY     pContext,
                               unsigned        flags,
                               CodeManState   *pState,
                               StackwalkCacheUnwindInfo  *pUnwindInfo) = 0;
+#endif // CROSSGEN_COMPILE
 
 /*
     Is the function currently at a "GC safe point" ?
@@ -278,16 +282,16 @@ virtual void * GetGSCookieAddr(PREGDISPLAY     pContext,
   Returns true if the given IP is in the given method's prolog or an epilog.
 */
 virtual bool IsInPrologOrEpilog(DWORD  relPCOffset,
-                                PTR_VOID methodInfoPtr,
+                                GCInfoToken gcInfoToken,
                                 size_t* prologSize) = 0;
 
 /*
   Returns true if the given IP is in the synchronized region of the method (valid for synchronized methods only)
 */
 virtual bool IsInSynchronizedRegion(
-                DWORD           relOffset,
-                PTR_VOID        methodInfoPtr,
-                unsigned        flags) = 0;
+                DWORD       relOffset,
+                GCInfoToken gcInfoToken,
+                unsigned    flags) = 0;
 
 /*
   Returns the size of a given function as reported in the GC info (does
@@ -297,9 +301,15 @@ virtual bool IsInSynchronizedRegion(
 virtual size_t GetFunctionSize(GCInfoToken gcInfoToken) = 0;
 
 /*
+Returns the ReturnKind of a given function as reported in the GC info.
+*/
+
+virtual ReturnKind GetReturnKind(GCInfoToken gcInfotoken) = 0;
+
+/*
   Returns the size of the frame (barring localloc)
 */
-virtual unsigned int GetFrameSize(PTR_VOID methodInfoPtr) = 0;
+virtual unsigned int GetFrameSize(GCInfoToken gcInfoToken) = 0;
 
 #ifndef DACCESS_COMPILE
 
@@ -307,18 +317,20 @@ virtual unsigned int GetFrameSize(PTR_VOID methodInfoPtr) = 0;
 
 virtual const BYTE*     GetFinallyReturnAddr(PREGDISPLAY pReg)=0;
 
-virtual BOOL            IsInFilter(void *methodInfoPtr,
+virtual BOOL            IsInFilter(GCInfoToken gcInfoToken,
                                    unsigned offset,
                                    PCONTEXT pCtx,
                                    DWORD curNestLevel) = 0;
 
-virtual BOOL            LeaveFinally(void *methodInfoPtr,
+#ifndef WIN64EXCEPTIONS
+virtual BOOL            LeaveFinally(GCInfoToken gcInfoToken,
                                      unsigned offset,
                                      PCONTEXT pCtx) = 0;
 
-virtual void            LeaveCatch(void *methodInfoPtr,
+virtual void            LeaveCatch(GCInfoToken gcInfoToken,
                                    unsigned offset,
                                    PCONTEXT pCtx)=0;
+#endif // WIN64EXCEPTIONS
 
 #ifdef EnC_SUPPORTED
 
@@ -362,7 +374,7 @@ public:
 
 
 #ifndef DACCESS_COMPILE
-
+#ifndef WIN64EXCEPTIONS
 /*
     Last chance for the runtime support to do fixups in the context
     before execution continues inside a filter, catch handler, or finally
@@ -377,9 +389,10 @@ void FixContext(ContextType     ctxType,
                 CodeManState   *pState,
                 size_t       ** ppShadowSP,             // OUT
                 size_t       ** ppEndRegion);           // OUT
-
+#endif // !WIN64EXCEPTIONS
 #endif // #ifndef DACCESS_COMPILE
 
+#ifdef _TARGET_X86_
 /*
     Gets the ambient stack pointer value at the given nesting level within
     the method.
@@ -390,6 +403,7 @@ TADDR GetAmbientSP(PREGDISPLAY     pContext,
                    DWORD           dwRelOffset,
                    DWORD           nestingLevel,
                    CodeManState   *pState);
+#endif // _TARGET_X86_
 
 /*
     Get the number of bytes used for stack parameters.
@@ -398,6 +412,7 @@ TADDR GetAmbientSP(PREGDISPLAY     pContext,
 virtual 
 ULONG32 GetStackParameterSize(EECodeInfo* pCodeInfo);
 
+#ifndef CROSSGEN_COMPILE
 /*
     Unwind the current stack frame, i.e. update the virtual register
     set in pContext. This will be similar to the state after the function
@@ -413,6 +428,7 @@ bool UnwindStackFrame(
                 unsigned        flags,
                 CodeManState   *pState,
                 StackwalkCacheUnwindInfo  *pUnwindInfo);
+#endif // CROSSGEN_COMPILE
 
 enum QuickUnwindFlag
 {
@@ -535,18 +551,18 @@ void * GetGSCookieAddr(PREGDISPLAY     pContext,
 */
 virtual
 bool IsInPrologOrEpilog(
-                DWORD           relOffset,
-                PTR_VOID        methodInfoPtr,
-                size_t*         prologSize);
+                DWORD       relOffset,
+                GCInfoToken gcInfoToken,
+                size_t*     prologSize);
 
 /*
   Returns true if the given IP is in the synchronized region of the method (valid for synchronized functions only)
 */
 virtual
 bool IsInSynchronizedRegion(
-                DWORD           relOffset,
-                PTR_VOID        methodInfoPtr,
-                unsigned        flags);
+                DWORD       relOffset,
+                GCInfoToken gcInfoToken,
+                unsigned    flags);
 
 /*
   Returns the size of a given function.
@@ -555,25 +571,31 @@ virtual
 size_t GetFunctionSize(GCInfoToken gcInfoToken);
 
 /*
+Returns the ReturnKind of a given function.
+*/
+virtual ReturnKind GetReturnKind(GCInfoToken gcInfotoken);
+
+/*
   Returns the size of the frame (barring localloc)
 */
 virtual
-unsigned int GetFrameSize(
-                PTR_VOID        methodInfoPtr);
+unsigned int GetFrameSize(GCInfoToken gcInfoToken);
 
 #ifndef DACCESS_COMPILE
 
 virtual const BYTE* GetFinallyReturnAddr(PREGDISPLAY pReg);
-virtual BOOL LeaveFinally(void *methodInfoPtr,
-                          unsigned offset,
-                          PCONTEXT pCtx);
-virtual BOOL IsInFilter(void *methodInfoPtr,
+virtual BOOL IsInFilter(GCInfoToken gcInfoToken,
                         unsigned offset,
                         PCONTEXT pCtx,
                           DWORD curNestLevel);
-virtual void LeaveCatch(void *methodInfoPtr,
+#ifndef WIN64EXCEPTIONS
+virtual BOOL LeaveFinally(GCInfoToken gcInfoToken,
+                          unsigned offset,
+                          PCONTEXT pCtx);
+virtual void LeaveCatch(GCInfoToken gcInfoToken,
                          unsigned offset,
                          PCONTEXT pCtx);
+#endif // WIN64EXCEPTIONS
 
 #ifdef EnC_SUPPORTED
 /*
@@ -592,7 +614,7 @@ HRESULT FixContextForEnC(PCONTEXT        pCtx,
 
 #endif // #ifndef DACCESS_COMPILE
 
-#ifndef _TARGET_X86_
+#ifdef WIN64EXCEPTIONS
     static void EnsureCallerContextIsValid( PREGDISPLAY pRD, StackwalkCacheEntry* pCacheEntry, EECodeInfo * pCodeInfo = NULL );
     static size_t GetCallerSp( PREGDISPLAY  pRD );
 #endif
@@ -603,6 +625,13 @@ HRESULT FixContextForEnC(PCONTEXT        pCtx,
 
 };
 
+#ifdef _TARGET_X86_
+bool UnwindStackFrame(PREGDISPLAY     pContext,
+                      EECodeInfo     *pCodeInfo,
+                      unsigned        flags,
+                      CodeManState   *pState,
+                      StackwalkCacheUnwindInfo  *pUnwindInfo);
+#endif
 
 /*****************************************************************************
  <TODO>ToDo: Do we want to include JIT/IL/target.h? </TODO>
@@ -646,8 +675,9 @@ struct hdrInfo
 {
     unsigned int        methodSize;     // native code bytes
     unsigned int        argSize;        // in bytes
-    unsigned int        stackSize;      /* including callee saved registers */
-    unsigned int        rawStkSize;     /* excluding callee saved registers */
+    unsigned int        stackSize;      // including callee saved registers
+    unsigned int        rawStkSize;     // excluding callee saved registers
+    ReturnKind          returnKind;     // The ReturnKind for this method.
 
     unsigned int        prologSize;
 
@@ -689,6 +719,7 @@ struct hdrInfo
     unsigned int        syncStartOffset; // start/end code offset of the protected region in synchronized methods.
     unsigned int        syncEndOffset;   // INVALID_SYNC_OFFSET if there not synchronized method
     unsigned int        syncEpilogStart; // The start of the epilog. Synchronized methods are guaranteed to have no more than one epilog.
+    unsigned int        revPInvokeOffset; // INVALID_REV_PINVOKE_OFFSET if there is no Reverse PInvoke frame
 
     enum { NOT_IN_PROLOG = -1, NOT_IN_EPILOG = -1 };
     

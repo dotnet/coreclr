@@ -28,6 +28,9 @@ class FieldDesc;
 enum RuntimeExceptionKind;
 class AwareLock;
 class PtrArray;
+#if defined(FEATURE_GDBJIT)
+class CalledMethod;
+#endif
 
 #include "genericdict.h"
 
@@ -51,7 +54,7 @@ void InitJITHelpers1();
 void InitJITHelpers2();
 
 PCODE UnsafeJitFunction(MethodDesc* ftn, COR_ILMETHOD_DECODER* header,
-                        DWORD flags, DWORD flags2, ULONG* sizeOfCode = NULL);
+                        CORJIT_FLAGS flags, ULONG* sizeOfCode = NULL);
 
 void getMethodInfoHelper(MethodDesc * ftn,
                          CORINFO_METHOD_HANDLE ftnHnd,
@@ -388,7 +391,10 @@ void ValidateWriteBarrierHelpers();
 
 extern "C"
 {
+#ifdef _TARGET_X86_
+    // UNIXTODO: Disable JIT_EndCatch after revising the jitter not to use this (for x86/Linux)
     void STDCALL JIT_EndCatch();               // JIThelp.asm/JIThelp.s
+#endif // _TARGET_X86_
 
     void STDCALL JIT_ByRefWriteBarrier();      // JIThelp.asm/JIThelp.s
 
@@ -644,7 +650,7 @@ public:
             );
 
     // Returns that compilation flags that are shared between JIT and NGen
-    static DWORD GetBaseCompileFlags(MethodDesc * ftn);
+    static CORJIT_FLAGS GetBaseCompileFlags(MethodDesc * ftn);
 
     // Resolve metadata token into runtime method handles.
     void resolveToken(/* IN, OUT */ CORINFO_RESOLVED_TOKEN * pResolvedToken);
@@ -1090,6 +1096,9 @@ public:
         m_pThread(GetThread()),
         m_hMethodForSecurity_Key(NULL),
         m_pMethodForSecurity_Value(NULL)
+#if defined(FEATURE_GDBJIT)
+        , m_pCalledMethods(NULL)
+#endif
     {
         LIMITED_METHOD_CONTRACT;
     }
@@ -1151,6 +1160,10 @@ public:
                                                    MethodDesc * pTemplateMD /* for method-based slots */,
                                                    CORINFO_LOOKUP *pResultLookup);
 
+#if defined(FEATURE_GDBJIT)
+    CalledMethod * GetCalledMethods() { return m_pCalledMethods; }
+#endif
+
 protected:
     // NGen provides its own modifications to EE-JIT interface. From technical reason it cannot simply inherit 
     // from code:CEEInfo class (because it has dependencies on VM that NGen does not want).
@@ -1173,6 +1186,10 @@ protected:
     // Cache of last GetMethodForSecurity() lookup
     CORINFO_METHOD_HANDLE   m_hMethodForSecurity_Key;
     MethodDesc *            m_pMethodForSecurity_Value;
+
+#if defined(FEATURE_GDBJIT)
+    CalledMethod *          m_pCalledMethods;
+#endif
 
     // Tracking of module activation dependencies. We have two flavors: 
     // - Fast one that gathers generic arguments from EE handles, but does not work inside generic context.
@@ -1641,7 +1658,7 @@ struct VirtualFunctionPointerArgs
 
 FCDECL2(CORINFO_MethodPtr, JIT_VirtualFunctionPointer_Dynamic, Object * objectUNSAFE, VirtualFunctionPointerArgs * pArgs);
 
-typedef TADDR (F_CALL_CONV * FnStaticBaseHelper)(TADDR arg0, TADDR arg1);
+typedef HCCALL2_PTR(TADDR, FnStaticBaseHelper, TADDR arg0, TADDR arg1);
 
 struct StaticFieldAddressArgs
 {
@@ -1677,8 +1694,8 @@ public:
     static FCDECL3(void, UnsafeSetArrayElement, PtrArray* pPtrArray, INT32 index, Object* object);
 };
 
-DWORD GetDebuggerCompileFlags(Module* pModule, DWORD flags);
+CORJIT_FLAGS GetDebuggerCompileFlags(Module* pModule, CORJIT_FLAGS flags);
 
-bool TrackAllocationsEnabled();
+bool __stdcall TrackAllocationsEnabled();
 
 #endif // JITINTERFACE_H

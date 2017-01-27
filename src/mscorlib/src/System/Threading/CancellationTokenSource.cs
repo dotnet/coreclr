@@ -11,6 +11,7 @@ using System.Security;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Security.Permissions;
+using System.Diagnostics;
 using System.Diagnostics.Contracts;
 using System.Runtime;
 
@@ -35,7 +36,6 @@ namespace System.Threading
     /// </para>
     /// </remarks>
     [ComVisible(false)]
-    [HostProtection(Synchronization = true, ExternalThreading = true)]
 
     public class CancellationTokenSource : IDisposable
     {
@@ -275,7 +275,7 @@ namespace System.Threading
             long totalMilliseconds = (long)delay.TotalMilliseconds;
             if (totalMilliseconds < -1 || totalMilliseconds > Int32.MaxValue)
             {
-                throw new ArgumentOutOfRangeException("delay");
+                throw new ArgumentOutOfRangeException(nameof(delay));
             }
 
             InitializeWithTimer((int)totalMilliseconds);
@@ -304,7 +304,7 @@ namespace System.Threading
         {
             if (millisecondsDelay < -1)
             {
-                throw new ArgumentOutOfRangeException("millisecondsDelay");
+                throw new ArgumentOutOfRangeException(nameof(millisecondsDelay));
             }
 
             InitializeWithTimer(millisecondsDelay);
@@ -414,7 +414,7 @@ namespace System.Threading
             long totalMilliseconds = (long)delay.TotalMilliseconds;
             if (totalMilliseconds < -1 || totalMilliseconds > Int32.MaxValue)
             {
-                throw new ArgumentOutOfRangeException("delay");
+                throw new ArgumentOutOfRangeException(nameof(delay));
             }
 
             CancelAfter((int)totalMilliseconds);
@@ -450,7 +450,7 @@ namespace System.Threading
 
             if (millisecondsDelay < -1)
             {
-                throw new ArgumentOutOfRangeException("millisecondsDelay");
+                throw new ArgumentOutOfRangeException(nameof(millisecondsDelay));
             }
 
             if (IsCancellationRequested) return;
@@ -629,7 +629,7 @@ namespace System.Threading
             }
 
             // the CancellationToken has already checked that the token is cancelable before calling this method.
-            Contract.Assert(CanBeCanceled, "Cannot register for uncancelable token src");
+            Debug.Assert(CanBeCanceled, "Cannot register for uncancelable token src");
 
             // if not canceled, register the event handlers
             // if canceled already, run the callback synchronously
@@ -730,7 +730,7 @@ namespace System.Threading
                 // - After transition, no more delegates will be added to the 
                 // - list of handlers, and hence it can be consumed and cleared at leisure by ExecuteCallbackHandlers.
                 ExecuteCallbackHandlers(throwOnFirstException);
-                Contract.Assert(IsCancellationCompleted, "Expected cancellation to have finished");
+                Debug.Assert(IsCancellationCompleted, "Expected cancellation to have finished");
             }
         }
 
@@ -742,8 +742,8 @@ namespace System.Threading
         /// </remarks>
         private void ExecuteCallbackHandlers(bool throwOnFirstException)
         {
-            Contract.Assert(IsCancellationRequested, "ExecuteCallbackHandlers should only be called after setting IsCancellationRequested->true");
-            Contract.Assert(ThreadIDExecutingCallbacks != -1, "ThreadIDExecutingCallbacks should have been set.");
+            Debug.Assert(IsCancellationRequested, "ExecuteCallbackHandlers should only be called after setting IsCancellationRequested->true");
+            Debug.Assert(ThreadIDExecutingCallbacks != -1, "ThreadIDExecutingCallbacks should have been set.");
 
             // Design decision: call the delegates in LIFO order so that callbacks fire 'deepest first'.
             // This is intended to help with nesting scenarios so that child enlisters cancel before their parents.
@@ -791,7 +791,7 @@ namespace System.Threading
                                         var wsc = m_executingCallback as CancellationCallbackInfo.WithSyncContext;
                                         if (wsc != null)
                                         {
-                                            Contract.Assert(wsc.TargetSyncContext != null, "Should only have derived CCI if non-null SyncCtx");
+                                            Debug.Assert(wsc.TargetSyncContext != null, "Should only have derived CCI if non-null SyncCtx");
                                             wsc.TargetSyncContext.Send(CancellationCallbackCoreWork_OnSyncContext, args);
                                             // CancellationCallbackCoreWork_OnSyncContext may have altered ThreadIDExecutingCallbacks, so reset it. 
                                             ThreadIDExecutingCallbacks = Thread.CurrentThread.ManagedThreadId;
@@ -828,7 +828,7 @@ namespace System.Threading
 
             if (exceptionList != null)
             {
-                Contract.Assert(exceptionList.Count > 0, "Expected exception count > 0");
+                Debug.Assert(exceptionList.Count > 0, "Expected exception count > 0");
                 throw new AggregateException(exceptionList);
             }
         }
@@ -864,12 +864,19 @@ namespace System.Threading
         /// <param name="token2">The second <see cref="T:System.Threading.CancellationToken">CancellationToken</see> to observe.</param>
         /// <returns>A <see cref="T:System.Threading.CancellationTokenSource">CancellationTokenSource</see> that is linked 
         /// to the source tokens.</returns>
-        public static CancellationTokenSource CreateLinkedTokenSource(CancellationToken token1, CancellationToken token2)
-        {
-            return token1.CanBeCanceled || token2.CanBeCanceled ?
-                new LinkedCancellationTokenSource(token1, token2) :
-                new CancellationTokenSource();
-        }
+        public static CancellationTokenSource CreateLinkedTokenSource(CancellationToken token1, CancellationToken token2) =>
+            !token1.CanBeCanceled ? CreateLinkedTokenSource(token2) :
+            token2.CanBeCanceled ? new Linked2CancellationTokenSource(token1, token2) :
+            (CancellationTokenSource)new Linked1CancellationTokenSource(token1);
+
+        /// <summary>
+        /// Creates a <see cref="CancellationTokenSource"/> that will be in the canceled state
+        /// when any of the source tokens are in the canceled state.
+        /// </summary>
+        /// <param name="token">The first <see cref="T:System.Threading.CancellationToken">CancellationToken</see> to observe.</param>
+        /// <returns>A <see cref="CancellationTokenSource"/> that is linked to the source tokens.</returns>
+        internal static CancellationTokenSource CreateLinkedTokenSource(CancellationToken token) =>
+            token.CanBeCanceled ? new Linked1CancellationTokenSource(token) : new CancellationTokenSource();
 
         /// <summary>
         /// Creates a <see cref="T:System.Threading.CancellationTokenSource">CancellationTokenSource</see> that will be in the canceled state
@@ -882,16 +889,21 @@ namespace System.Threading
         public static CancellationTokenSource CreateLinkedTokenSource(params CancellationToken[] tokens)
         {
             if (tokens == null)
-                throw new ArgumentNullException("tokens");
+                throw new ArgumentNullException(nameof(tokens));
 
-            if (tokens.Length == 0)
-                throw new ArgumentException(Environment.GetResourceString("CancellationToken_CreateLinkedToken_TokensIsEmpty"));
-
-            // a defensive copy is not required as the array has value-items that have only a single IntPtr field,
-            // hence each item cannot be null itself, and reads of the payloads cannot be torn.
-            Contract.EndContractBlock();
-
-            return new LinkedCancellationTokenSource(tokens);
+            switch (tokens.Length)
+            {
+                case 0:
+                    throw new ArgumentException(Environment.GetResourceString("CancellationToken_CreateLinkedToken_TokensIsEmpty"));
+                case 1:
+                    return CreateLinkedTokenSource(tokens[0]);
+                case 2:
+                    return CreateLinkedTokenSource(tokens[0], tokens[1]);
+                default:
+                    // a defensive copy is not required as the array has value-items that have only a single reference field,
+                    // hence each item cannot be null itself, and reads of the payloads cannot be torn.
+                    return new LinkedNCancellationTokenSource(tokens);
+            }
         }
 
 
@@ -907,35 +919,50 @@ namespace System.Threading
             }
         }
 
-        private sealed class LinkedCancellationTokenSource : CancellationTokenSource
+        private sealed class Linked1CancellationTokenSource : CancellationTokenSource
         {
-            private static readonly Action<object> s_linkedTokenCancelDelegate = 
+            private readonly CancellationTokenRegistration _reg1;
+
+            internal Linked1CancellationTokenSource(CancellationToken token1)
+            {
+                _reg1 = token1.InternalRegisterWithoutEC(LinkedNCancellationTokenSource.s_linkedTokenCancelDelegate, this);
+            }
+
+            protected override void Dispose(bool disposing)
+            {
+                if (!disposing || m_disposed) return;
+                _reg1.Dispose();
+                base.Dispose(disposing);
+            }
+        }
+
+        private sealed class Linked2CancellationTokenSource : CancellationTokenSource
+        {
+            private readonly CancellationTokenRegistration _reg1;
+            private readonly CancellationTokenRegistration _reg2;
+
+            internal Linked2CancellationTokenSource(CancellationToken token1, CancellationToken token2)
+            {
+                _reg1 = token1.InternalRegisterWithoutEC(LinkedNCancellationTokenSource.s_linkedTokenCancelDelegate, this);
+                _reg2 = token2.InternalRegisterWithoutEC(LinkedNCancellationTokenSource.s_linkedTokenCancelDelegate, this);
+            }
+
+            protected override void Dispose(bool disposing)
+            {
+                if (!disposing || m_disposed) return;
+                _reg1.Dispose();
+                _reg2.Dispose();
+                base.Dispose(disposing);
+            }
+        }
+
+        private sealed class LinkedNCancellationTokenSource : CancellationTokenSource
+        {
+            internal static readonly Action<object> s_linkedTokenCancelDelegate =
                 s => ((CancellationTokenSource)s).NotifyCancellation(throwOnFirstException: false); // skip ThrowIfDisposed() check in Cancel()
             private CancellationTokenRegistration[] m_linkingRegistrations;
 
-            internal LinkedCancellationTokenSource(CancellationToken token1, CancellationToken token2)
-            {
-                bool token2CanBeCanceled = token2.CanBeCanceled;
-
-                if (token1.CanBeCanceled)
-                {
-                    m_linkingRegistrations = new CancellationTokenRegistration[token2CanBeCanceled ? 2 : 1]; // there will be at least 1 and at most 2 linkings
-                    m_linkingRegistrations[0] = token1.InternalRegisterWithoutEC(s_linkedTokenCancelDelegate, this);
-                }
-
-                if (token2CanBeCanceled)
-                {
-                    int index = 1;
-                    if (m_linkingRegistrations == null)
-                    {
-                        m_linkingRegistrations = new CancellationTokenRegistration[1]; // this will be the only linking
-                        index = 0;
-                    }
-                    m_linkingRegistrations[index] = token2.InternalRegisterWithoutEC(s_linkedTokenCancelDelegate, this);
-                }
-            }
-
-            internal LinkedCancellationTokenSource(params CancellationToken[] tokens)
+            internal LinkedNCancellationTokenSource(params CancellationToken[] tokens)
             {
                 m_linkingRegistrations = new CancellationTokenRegistration[tokens.Length];
 
@@ -968,7 +995,6 @@ namespace System.Threading
 
                 base.Dispose(disposing);
             }
-
         }
     }
 
@@ -1029,14 +1055,12 @@ namespace System.Threading
         }
 
         // Cached callback delegate that's lazily initialized due to ContextCallback being SecurityCritical
-        [SecurityCritical]
         private static ContextCallback s_executionContextCallback;
 
         /// <summary>
         /// InternalExecuteCallbackSynchronously_GeneralPath
         /// This will be called on the target synchronization context, however, we still need to restore the required execution context
         /// </summary>
-        [SecuritySafeCritical]
         internal void ExecuteCallback()
         {
             if (TargetExecutionContext != null)
@@ -1059,11 +1083,10 @@ namespace System.Threading
 
         // the worker method to actually run the callback
         // The signature is such that it can be used as a 'ContextCallback'
-        [SecurityCritical]
         private static void ExecutionContextCallback(object obj)
         {
             CancellationCallbackInfo callbackInfo = obj as CancellationCallbackInfo;
-            Contract.Assert(callbackInfo != null);
+            Debug.Assert(callbackInfo != null);
             callbackInfo.Callback(callbackInfo.StateForCallback);
         }
     }
@@ -1147,14 +1170,14 @@ namespace System.Threading
                             start = 0;
                             curr.m_freeCount--; // Too many free elements; fix up.
                         }
-                        Contract.Assert(start >= 0 && start < c, "start is outside of bounds");
+                        Debug.Assert(start >= 0 && start < c, "start is outside of bounds");
 
                         // Now walk the array until we find a free slot (or reach the end).
                         for (int i = 0; i < c; i++)
                         {
                             // If the slot is null, try to CAS our element into it.
                             int tryIndex = (start + i) % c;
-                            Contract.Assert(tryIndex >= 0 && tryIndex < curr.m_elements.Length, "tryIndex is outside of bounds");
+                            Debug.Assert(tryIndex >= 0 && tryIndex < curr.m_elements.Length, "tryIndex is outside of bounds");
                             
                             if (curr.m_elements[tryIndex] == null && Interlocked.CompareExchange(ref curr.m_elements[tryIndex], element, null) == null)
                             {
@@ -1193,8 +1216,8 @@ namespace System.Threading
 
         internal SparselyPopulatedArrayAddInfo(SparselyPopulatedArrayFragment<T> source, int index)
         {
-            Contract.Assert(source != null);
-            Contract.Assert(index >= 0 && index < source.Length);
+            Debug.Assert(source != null);
+            Debug.Assert(index >= 0 && index < source.Length);
             m_source = source;
             m_index = index;
         }

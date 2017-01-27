@@ -126,7 +126,11 @@ class Zapper
 
 #if defined(FEATURE_CORECLR) && !defined(FEATURE_MERGE_JIT_AND_ENGINE)
     SString                 m_CLRJITPath;
+    bool                    m_fDontLoadJit;
 #endif // defined(FEATURE_CORECLR) && !defined(FEATURE_MERGE_JIT_AND_ENGINE)
+#if defined(FEATURE_CORECLR) && !defined(NO_NGENPDB)
+    SString                 m_DiasymreaderPath;
+#endif // defined(FEATURE_CORECLR) && !defined(NO_NGENPDB)
     bool                    m_fForceFullTrust;
 
     SString                 m_outputFilename;
@@ -450,7 +454,12 @@ class Zapper
 
 #if defined(FEATURE_CORECLR) && !defined(FEATURE_MERGE_JIT_AND_ENGINE)
     void SetCLRJITPath(LPCWSTR pwszCLRJITPath);
+    void SetDontLoadJit();
 #endif // defined(FEATURE_CORECLR) && !defined(FEATURE_MERGE_JIT_AND_ENGINE)
+
+#if defined(FEATURE_CORECLR) && !defined(NO_NGENPDB)
+    void SetDiasymreaderPath(LPCWSTR pwzDiasymreaderPath);
+#endif // defined(FEATURE_CORECLR) && !defined(NO_NGENPDB)
 
     void SetOutputFilename(LPCWSTR pwszOutputFilename);
     SString GetOutputFileName();
@@ -531,7 +540,7 @@ class ZapperOptions
 
     bool        m_fNGenLastRetry;       // This is retry of the compilation
 
-    unsigned    m_compilerFlags;
+    CORJIT_FLAGS m_compilerFlags;
 
     bool       m_legacyMode;          // true if the zapper was invoked using legacy mode
 

@@ -193,6 +193,12 @@ void HelperMethodFrame::UpdateRegDisplay(const PREGDISPLAY pRD)
         ENUM_CALLEE_SAVED_REGISTERS();
 #undef CALLEE_SAVED_REGISTER
 
+#define CALLEE_SAVED_REGISTER(regname) pRD->pCurrentContextPointers->regname = pUnwoundState->m_Ptrs.p##regname;
+        ENUM_CALLEE_SAVED_REGISTERS();
+#undef CALLEE_SAVED_REGISTER
+
+        ClearRegDisplayArgumentAndScratchRegisters(pRD);
+
         return;
     }
 #endif // DACCESS_COMPILE
@@ -304,8 +310,7 @@ void ResumableFrame::UpdateRegDisplay(const PREGDISPLAY pRD)
     RETURN;
 }
 
-// The HijackFrame has to know the registers that are pushed by OnHijackObjectTripThread
-// and OnHijackScalarTripThread, so all three are implemented together.
+// The HijackFrame has to know the registers that are pushed by OnHijackTripThread
 void HijackFrame::UpdateRegDisplay(const PREGDISPLAY pRD)
 {
     CONTRACTL {

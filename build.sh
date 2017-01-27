@@ -2,16 +2,8 @@
 
 # resolve python-version to use
 if [ "$PYTHON" == "" ] ; then
-    if which python >/dev/null 2>&1
+    if ! PYTHON=$(command -v python || command -v python2 || command -v python 2.7)
     then
-       PYTHON=python
-    elif which python2 >/dev/null 2>&1
-    then
-       PYTHON=python2
-    elif which python2.7 >/dev/null 2>&1
-    then
-       PYTHON=python2.7
-    else
        echo "Unable to locate build-dependency python2.x!" 1>&2
        exit 1
     fi
@@ -19,7 +11,7 @@ fi
 
 # validate python-dependency
 # useful in case of explicitly set option.
-if ! which $PYTHON > /dev/null 2>&1
+if ! command -v $PYTHON > /dev/null
 then
    echo "Unable to locate build-dependency python2.x ($PYTHON)!" 1>&2
    exit 1
@@ -27,41 +19,71 @@ fi
 
 usage()
 {
-    echo "Usage: $0 [BuildArch] [BuildType] [clean] [verbose] [coverage] [cross] [clangx.y] [ninja] [configureonly] [skipconfigure] [skipnative] [skipmscorlib] [skiptests] [cmakeargs] [bindir]"
-    echo "BuildArch can be: x64, x86, arm, arm-softfp, arm64"
+    echo "Usage: $0 [BuildArch] [BuildType] [verbose] [coverage] [cross] [clangx.y] [ninja] [configureonly] [skipconfigure] [skipnative] [skipmscorlib] [skiptests] [cmakeargs] [bindir]"
+    echo "BuildArch can be: x64, x86, arm, armel, arm64"
     echo "BuildType can be: debug, checked, release"
-    echo "clean - optional argument to force a clean build."
-    echo "verbose - optional argument to enable verbose build output."
     echo "coverage - optional argument to enable code coverage build (currently supported only for Linux and OSX)."
     echo "ninja - target ninja instead of GNU make"
     echo "clangx.y - optional argument to build using clang version x.y."
     echo "cross - optional argument to signify cross compilation,"
     echo "      - will use ROOTFS_DIR environment variable if set."
+    echo "crosscomponent - optional argument to build cross-architecture component,"
+    echo "               - will use CAC_ROOTFS_DIR environment variable if set."
+    echo "pgoinstrument - generate instrumented code for profile guided optimization enabled binaries."
     echo "configureonly - do not perform any builds; just configure the build."
     echo "skipconfigure - skip build configuration."
     echo "skipnative - do not build native components."
     echo "skipmscorlib - do not build mscorlib.dll."
     echo "skiptests - skip the tests in the 'tests' subdirectory."
-    echo "skiprestore - skip restoring nuget packages."
     echo "skipnuget - skip building nuget packages."
-    echo "disableoss - Disable Open Source Signing for mscorlib."
+    echo "portableLinux - build for Portable Linux Distribution"
+    echo "verbose - optional argument to enable verbose build output."
+    echo "-skiprestore: skip restoring packages ^(default: packages are restored during build^)."
+	echo "-disableoss: Disable Open Source Signing for System.Private.CoreLib."
+	echo "-sequential: force a non-parallel build ^(default is to build in parallel"
+	echo "   using all processors^)."
+	echo "-officialbuildid=^<ID^>: specify the official build ID to be used by this build."
+	echo "-Rebuild: passes /t:rebuild to the build projects."
     echo "skipgenerateversion - disable version generation even if MSBuild is supported."
     echo "cmakeargs - user-settable additional arguments passed to CMake."
     echo "bindir - output directory (defaults to $__ProjectRoot/bin)"
+    echo "buildstandalonegc - builds the GC in a standalone mode. Can't be used with \"cmakeargs\"."
 
     exit 1
 }
 
-initDistroRid()
+initHostDistroRid()
 {
-    if [ "$__BuildOS" == "Linux" ]; then
+    if [ "$__HostOS" == "Linux" ]; then
         if [ ! -e /etc/os-release ]; then
             echo "WARNING: Can not determine runtime id for current distro."
-            export __DistroRid=""
+            __HostDistroRid=""
         else
             source /etc/os-release
-            export __DistroRid="$ID.$VERSION_ID-$__HostArch"
+            __HostDistroRid="$ID.$VERSION_ID-$__HostArch"
         fi
+    fi
+}
+
+initTargetDistroRid()
+{
+    if [ $__CrossBuild == 1 ]; then
+        if [ "$__BuildOS" == "Linux" ]; then
+            if [ ! -e $ROOTFS_DIR/etc/os-release ]; then
+                echo "WARNING: Can not determine runtime id for current distro."
+                export __DistroRid=""
+            else
+                source $ROOTFS_DIR/etc/os-release
+                export __DistroRid="$ID.$VERSION_ID-$__BuildArch"
+            fi
+        fi
+    else
+        export __DistroRid="$__HostDistroRid"
+    fi
+
+    # Portable builds target the base RID only for Linux based platforms
+    if [ $__PortableLinux == 1 ]; then
+        export __DistroRid="linux-$__BuildArch"
     fi
 }
 
@@ -73,21 +95,11 @@ setup_dirs()
     mkdir -p "$__BinDir"
     mkdir -p "$__LogsDir"
     mkdir -p "$__IntermediatesDir"
-}
 
-# Performs "clean build" type actions (deleting and remaking directories)
-
-clean()
-{
-    echo Cleaning previous output for the selected configuration
-    rm -rf "$__BinDir"
-    rm -rf "$__IntermediatesDir"
-
-    rm -rf "$__TestWorkingDir"
-    rm -rf "$__TestIntermediatesDir"
-
-    rm -rf "$__LogsDir/*_$__BuildOS__$__BuildArch__$__BuildType.*"
-    rm -rf "$__ProjectRoot/Tools"
+    if [ $__CrossBuild == 1 ]; then
+        mkdir -p "$__CrossComponentBinDir"
+        mkdir -p "$__CrossCompIntermediatesDir"
+    fi
 }
 
 # Check the system to ensure the right prereqs are in place
@@ -104,11 +116,10 @@ check_prereqs()
 
 }
 
-build_coreclr()
-{
 
+generate_event_logging_sources()
+{
     if [ $__SkipCoreCLR == 1 ]; then
-        echo "Skipping CoreCLR build."
         return
     fi
 
@@ -154,12 +165,23 @@ build_coreclr()
     fi
 
     rm -rf "$__GeneratedIntermediateEventProvider"
+}
+
+build_native()
+{
+    skipCondition=$1
+    platformArch="$2"
+    intermediatesForBuild="$3"
+    extraCmakeArguments="$4"
+    message="$5"
+
+    if [ $skipCondition == 1 ]; then
+        echo "Skipping $message build."
+        return
+    fi
 
     # All set to commence the build
-
-    echo "Commencing build of native components for $__BuildOS.$__BuildArch.$__BuildType in $__IntermediatesDir"
-
-    cd "$__IntermediatesDir"
+    echo "Commencing build of $message for $__BuildOS.$__BuildArch.$__BuildType in $intermediatesForBuild"
 
     generator=""
     buildFile="Makefile"
@@ -167,34 +189,43 @@ build_coreclr()
     if [ $__UseNinja == 1 ]; then
         generator="ninja"
         buildFile="build.ninja"
-        buildTool="ninja"
+        if ! buildTool=$(command -v ninja || command -v ninja-build); then
+           echo "Unable to locate ninja!" 1>&2
+           exit 1
+        fi
     fi
 
     if [ $__SkipConfigure == 0 ]; then
         # if msbuild is not supported, then set __SkipGenerateVersion to 1
         if [ $__isMSBuildOnNETCoreSupported == 0 ]; then __SkipGenerateVersion=1; fi
-        # Drop version.c file
-        __versionSourceFile=$__IntermediatesDir/version.cpp
+        # Drop version.cpp file
+        __versionSourceFile="$intermediatesForBuild/version.cpp"
         if [ $__SkipGenerateVersion == 0 ]; then
-            "$__ProjectRoot/init-tools.sh" > "$__ProjectRoot/init-tools.log"
-            echo "Running: \"$__ProjectRoot/Tools/dotnetcli/dotnet\" \"$__ProjectRoot/Tools/MSBuild.exe\" \"$__ProjectRoot/build.proj\" /v:minimal /t:GenerateVersionSourceFile /p:NativeVersionSourceFile=$__versionSourceFile /p:GenerateVersionSourceFile=true /v:minimal $__OfficialBuildIdArg"
-            "$__ProjectRoot/Tools/dotnetcli/dotnet" "$__ProjectRoot/Tools/MSBuild.exe" "$__ProjectRoot/build.proj" /v:minimal /t:GenerateVersionSourceFile /p:NativeVersionSourceFile=$__versionSourceFile /p:GenerateVersionSourceFile=true /v:minimal $__OfficialBuildIdArg
+            pwd
+            "$__ProjectRoot/run.sh" build -Project=$__ProjectDir/build.proj -generateHeaderUnix -NativeVersionSourceFile=$__versionSourceFile $__RunArgs $__UnprocessedBuildArgs
         else
+            # Generate the dummy version.cpp, but only if it didn't exist to make sure we don't trigger unnecessary rebuild
             __versionSourceLine="static char sccsid[] __attribute__((used)) = \"@(#)No version information produced\";"
-            echo $__versionSourceLine > $__versionSourceFile
+            if [ -e $__versionSourceFile ]; then
+                read existingVersionSourceLine < $__versionSourceFile
+            fi
+            if [ "$__versionSourceLine" != "$existingVersionSourceLine" ]; then
+                echo $__versionSourceLine > $__versionSourceFile
+            fi
         fi
+
+        pushd "$intermediatesForBuild"
         # Regenerate the CMake solution
-        echo "Invoking \"$__ProjectRoot/src/pal/tools/gen-buildsys-clang.sh\" \"$__ProjectRoot\" $__ClangMajorVersion $__ClangMinorVersion $__BuildArch $__BuildType $__CodeCoverage $__IncludeTests $generator $__cmakeargs"
-        "$__ProjectRoot/src/pal/tools/gen-buildsys-clang.sh" "$__ProjectRoot" $__ClangMajorVersion $__ClangMinorVersion $__BuildArch $__BuildType $__CodeCoverage $__IncludeTests $generator "$__cmakeargs"
+        echo "Invoking \"$__ProjectRoot/src/pal/tools/gen-buildsys-clang.sh\" \"$__ProjectRoot\" $__ClangMajorVersion $__ClangMinorVersion $platformArch $__BuildType $__CodeCoverage $__IncludeTests $generator $extraCmakeArguments $__cmakeargs"
+        "$__ProjectRoot/src/pal/tools/gen-buildsys-clang.sh" "$__ProjectRoot" $__ClangMajorVersion $__ClangMinorVersion $platformArch $__BuildType $__CodeCoverage $__IncludeTests $generator "$extraCmakeArguments" "$__cmakeargs"
+        popd
     fi
 
-    # Check that the makefiles were created.
-
-    if [ ! -f "$__IntermediatesDir/$buildFile" ]; then
-        echo "Failed to generate native component build project!"
+    if [ ! -f "$intermediatesForBuild/$buildFile" ]; then
+        echo "Failed to generate $message build project!"
         exit 1
     fi
-
+    
     # Get the number of processors available to the scheduler
     # Other techniques such as `nproc` only get the number of
     # processors available to a single process.
@@ -206,25 +237,64 @@ build_coreclr()
         NumProc=$(($(getconf _NPROCESSORS_ONLN)+1))
     fi
 
-    # Build CoreCLR
+    # Build
+    if [ $__ConfigureOnly == 1 ]; then
+        echo "Finish configuration & skipping $message build."
+        return
+    fi
 
-    echo "Executing $buildTool install -j $NumProc $__UnprocessedBuildArgs"
+    # Check that the makefiles were created.
+    pushd "$intermediatesForBuild"
 
-    $buildTool install -j $NumProc $__UnprocessedBuildArgs
+    echo "Executing $buildTool install -j $NumProc"
+
+    $buildTool install -j $NumProc
     if [ $? != 0 ]; then
-        echo "Failed to build coreclr components."
+        echo "Failed to build $message."
         exit 1
     fi
+
+    popd
 }
 
-restoreBuildTools()
+build_cross_arch_component()
 {
-    echo "Restoring BuildTools..."
-    $__ProjectRoot/init-tools.sh
-    if [ $? -ne 0 ]; then
-        echo "Failed to restore BuildTools."
-        exit 1
+    __SkipCrossArchBuild=1
+    TARGET_ROOTFS=""
+    # check supported cross-architecture components host(__HostArch)/target(__BuildArch) pair
+    if [[ "$__BuildArch" == "arm" && "$__CrossArch" == "x86" ]]; then
+        export CROSSCOMPILE=0
+        __SkipCrossArchBuild=0
+
+        # building x64-host/arm-target cross-architecture component need to use cross toolchain of x86
+        if [ "$__HostArch" == "x64" ]; then
+            export CROSSCOMPILE=1
+        fi
+    else
+        # not supported
+        return
+    fi    
+    
+    export __CMakeBinDir="$__CrossComponentBinDir"
+    export CROSSCOMPONENT=1
+    if [ $CROSSCOMPILE == 1 ]; then
+        TARGET_ROOTFS="$ROOTFS_DIR"
+        if [ -n "$CAC_ROOTFS_DIR" ]; then
+            export ROOTFS_DIR="$CAC_ROOTFS_DIR"
+        else
+            export ROOTFS_DIR="$__ProjectRoot/cross/rootfs/$__CrossArch"
+        fi
     fi
+
+    __ExtraCmakeArgs="-DCLR_CMAKE_TARGET_ARCH=$__BuildArch -DCLR_CMAKE_TARGET_OS=$__BuildOS -DCLR_CMAKE_PACKAGES_DIR=$__PackagesDir -DCLR_CMAKE_PGO_INSTRUMENT=$__PgoInstrument"
+    build_native $__SkipCrossArchBuild "$__CrossArch" "$__CrossCompIntermediatesDir" "$__ExtraCmakeArgs" "cross-architecture component"
+   
+    # restore ROOTFS_DIR, CROSSCOMPONENT, and CROSSCOMPILE 
+    if [ -n "$TARGET_ROOTFS" ]; then
+        export ROOTFS_DIR="$TARGET_ROOTFS"
+    fi
+    export CROSSCOMPONENT=
+    export CROSSCOMPILE=1
 }
 
 isMSBuildOnNETCoreSupported()
@@ -234,7 +304,7 @@ isMSBuildOnNETCoreSupported()
 
     if [ "$__HostArch" == "x64" ]; then
         if [ "$__HostOS" == "Linux" ]; then
-            case "$__DistroRid" in
+            case "$__HostDistroRid" in
                 "centos.7-x64")
                     __isMSBuildOnNETCoreSupported=1
                     ;;
@@ -244,16 +314,28 @@ isMSBuildOnNETCoreSupported()
                 "fedora.23-x64")
                     __isMSBuildOnNETCoreSupported=1
                     ;;
+                "fedora.24-x64")
+                    __isMSBuildOnNETCoreSupported=1
+                    ;;
                 "opensuse.13.2-x64")
                     __isMSBuildOnNETCoreSupported=1
                     ;;
-                "rhel.7.2-x64")
+                "opensuse.42.1-x64")
+                    __isMSBuildOnNETCoreSupported=1
+                    ;;
+                "rhel.7"*"-x64")
                     __isMSBuildOnNETCoreSupported=1
                     ;;
                 "ubuntu.14.04-x64")
                     __isMSBuildOnNETCoreSupported=1
                     ;;
                 "ubuntu.16.04-x64")
+                    __isMSBuildOnNETCoreSupported=1
+                    ;;
+                "ubuntu.16.10-x64")
+                    __isMSBuildOnNETCoreSupported=1
+                    ;;
+                "alpine.3.4.3-x64")
                     __isMSBuildOnNETCoreSupported=1
                     ;;
                 *)
@@ -305,14 +387,10 @@ build_CoreLib()
        return
     fi
 
-    # Restore buildTools
-
-    restoreBuildTools
-
     echo "Commencing build of managed components for $__BuildOS.$__BuildArch.$__BuildType"
 
     # Invoke MSBuild
-    $__ProjectRoot/Tools/dotnetcli/dotnet "$__MSBuildPath" /nologo "$__ProjectRoot/build.proj" /verbosity:minimal "/fileloggerparameters:Verbosity=normal;LogFile=$__LogsDir/System.Private.CoreLib_$__BuildOS__$__BuildArch__$__BuildType.log" /t:Build /p:__BuildOS=$__BuildOS /p:__BuildArch=$__BuildArch /p:__BuildType=$__BuildType /p:__IntermediatesDir=$__IntermediatesDir /p:__RootBinDir=$__RootBinDir /p:BuildNugetPackage=false /p:UseSharedCompilation=false ${__SignTypeReal}
+    $__ProjectRoot/run.sh build -Project=$__ProjectDir/build.proj -MsBuildLog="/flp:Verbosity=normal;LogFile=$__LogsDir/System.Private.CoreLib_$__BuildOS__$__BuildArch__$__BuildType.log" -BuildTarget -__IntermediatesDir=$__IntermediatesDir -__RootBinDir=$__RootBinDir -BuildNugetPackage=false -UseSharedCompilation=false $__RunArgs $__UnprocessedBuildArgs
 
     if [ $? -ne 0 ]; then
         echo "Failed to build managed components."
@@ -348,17 +426,10 @@ generate_NugetPackages()
         return
     fi
 
-    if [ $__SkipMSCorLib == 1 ]; then
-        # Restore buildTools, since we skipped doing so with the mscorlib build.
-        restoreBuildTools
-
-       echo "Unable to generate Microsoft.NETCore.Runtime.CoreCLR nuget package since mscorlib was not built."
-    fi
-
     echo "Generating nuget packages for "$__BuildOS
 
     # Build the packages
-    $__ProjectRoot/Tools/dotnetcli/dotnet "$__MSBuildPath" /nologo "$__ProjectRoot/src/.nuget/packages.builds" /verbosity:minimal "/fileloggerparameters:Verbosity=normal;LogFile=$__LogsDir/Nuget_$__BuildOS__$__BuildArch__$__BuildType.log" /t:Build /p:__BuildOS=$__BuildOS /p:__BuildArch=$__BuildArch /p:__BuildType=$__BuildType /p:__IntermediatesDir=$__IntermediatesDir /p:__RootBinDir=$__RootBinDir /p:BuildNugetPackage=false /p:UseSharedCompilation=false
+    $__ProjectRoot/run.sh build -Project=$__SourceDir/.nuget/packages.builds -MsBuildLog="/flp:Verbosity=normal;LogFile=$__LogsDir/Nuget_$__BuildOS__$__BuildArch__$__BuildType.log" -BuildTarget -__IntermediatesDir=$__IntermediatesDir -__RootBinDir=$__RootBinDir -BuildNugetPackage=false -UseSharedCompilation=false $__RunArgs $__UnprocessedBuildArgs
 
     if [ $? -ne 0 ]; then
         echo "Failed to generate Nuget packages."
@@ -466,26 +537,27 @@ __SourceDir="$__ProjectDir/src"
 __PackagesDir="$__ProjectDir/packages"
 __RootBinDir="$__ProjectDir/bin"
 __UnprocessedBuildArgs=
+__RunArgs=
 __MSBCleanBuildArgs=
 __UseNinja=0
+__VerboseBuild=0
+__PgoInstrument=0
 __ConfigureOnly=0
 __SkipConfigure=0
 __SkipRestore=""
 __SkipNuget=0
 __SkipCoreCLR=0
 __SkipMSCorLib=0
-__CleanBuild=0
-__VerboseBuild=0
-__SignTypeReal=""
 __CrossBuild=0
 __ClangMajorVersion=0
 __ClangMinorVersion=0
-__MSBuildPath=$__ProjectRoot/Tools/MSBuild.exe
 __NuGetPath="$__PackagesDir/NuGet.exe"
+__HostDistroRid=""
 __DistroRid=""
 __cmakeargs=""
-__OfficialBuildIdArg=
 __SkipGenerateVersion=0
+__DoCrossArchBuild=0
+__PortableLinux=0
 
 while :; do
     if [ $# -le 0 ]; then
@@ -511,8 +583,8 @@ while :; do
             __BuildArch=arm
             ;;
 
-        arm-softfp)
-            __BuildArch=arm-softfp
+        armel)
+            __BuildArch=armel
             ;;
 
         arm64)
@@ -535,17 +607,22 @@ while :; do
             __CodeCoverage=Coverage
             ;;
 
-        clean)
-            __CleanBuild=1
-            ;;
-
-        verbose)
-            __VerboseBuild=1
-            ;;
-
         cross)
             __CrossBuild=1
             ;;
+            
+		portablelinux)
+            if [ "$__BuildOS" == "Linux" ]; then
+                __PortableLinux=1
+            else
+                echo "ERROR: portableLinux not supported for non-Linux platforms."
+                exit 1
+            fi
+            ;;
+            
+        verbose)
+        __VerboseBuild=1
+        ;;
 
         clang3.5)
             __ClangMajorVersion=3
@@ -567,15 +644,23 @@ while :; do
             __ClangMinorVersion=8
             ;;
 
+        clang3.9)
+            __ClangMajorVersion=3
+            __ClangMinorVersion=9
+            ;;
+
         ninja)
             __UseNinja=1
             ;;
 
+        pgoinstrument)
+            __PgoInstrument=1
+            ;;
+
         configureonly)
             __ConfigureOnly=1
-            __SkipCoreCLR=1
             __SkipMSCorLib=1
-            __IncludeTests=
+            __SkipNuget=1
             ;;
 
         skipconfigure)
@@ -590,6 +675,10 @@ while :; do
         skipcoreclr)
             # Accept "skipcoreclr" for backwards-compatibility.
             __SkipCoreCLR=1
+            ;;
+
+        crosscomponent)
+            __DoCrossArchBuild=1
             ;;
 
         skipmscorlib)
@@ -607,16 +696,8 @@ while :; do
             __IncludeTests=
             ;;
 
-        skiprestore)
-            __SkipRestore="/p:RestoreDuringBuild=true"
-            ;;
-
         skipnuget)
             __SkipNuget=1
-            ;;
-
-        disableoss)
-            __SignTypeReal="/p:SignType=real"
             ;;
 
         cmakeargs)
@@ -644,18 +725,24 @@ while :; do
                 exit 1
             fi
             ;;
-
+        buildstandalonegc)
+            __cmakeargs="-DFEATURE_STANDALONE_GC=1"
+            ;;
         *)
-            if [[ $1 == "/p:OfficialBuildId="* ]]; then
-                __OfficialBuildIdArg=$1
-            else
-                __UnprocessedBuildArgs="$__UnprocessedBuildArgs $1"
-            fi
+            __UnprocessedBuildArgs="$__UnprocessedBuildArgs $1"
             ;;
     esac
 
     shift
 done
+
+__RunArgs="-BuildArch=$__BuildArch -BuildType=$__BuildType -BuildOS=$__BuildOS"
+
+# Configure environment if we are doing a verbose build
+if [ $__VerboseBuild == 1 ]; then
+    export VERBOSE=1
+	__RunArgs="$__RunArgs -verbose"
+fi
 
 # Set default clang version
 if [[ $__ClangMajorVersion == 0 && $__ClangMinorVersion == 0 ]]; then
@@ -671,13 +758,8 @@ fi
 # Set dependent variables
 __LogsDir="$__RootBinDir/Logs"
 
-if [[ $__ConfigureOnly == 1 && $__SkipConfigure == 1 ]]; then
-    echo "configureonly and skipconfigure are mutually exclusive!"
-    exit 1
-fi
-
-# init the distro name
-initDistroRid
+# init the host distro name
+initHostDistroRid
 
 # Set the remaining variables based upon the determined build configuration
 __BinDir="$__RootBinDir/Product/$__BuildOS.$__BuildArch.$__BuildType"
@@ -687,6 +769,18 @@ __TestWorkingDir="$__RootBinDir/tests/$__BuildOS.$__BuildArch.$__BuildType"
 export __IntermediatesDir="$__RootBinDir/obj/$__BuildOS.$__BuildArch.$__BuildType"
 __TestIntermediatesDir="$__RootBinDir/tests/obj/$__BuildOS.$__BuildArch.$__BuildType"
 __isMSBuildOnNETCoreSupported=0
+__CrossComponentBinDir="$__BinDir"
+__CrossCompIntermediatesDir="$__IntermediatesDir/crossgen"
+
+__CrossArch="$__HostArch"
+if [[ "$__HostArch" == "x64" && "$__BuildArch" == "arm" ]]; then
+    __CrossArch="x86"
+fi
+if [ $__CrossBuild == 1 ]; then
+    __CrossComponentBinDir="$__CrossComponentBinDir/$__CrossArch"
+fi
+__CrossgenCoreLibLog="$__LogsDir/CrossgenCoreLib_$__BuildOS.$BuildArch.$__BuildType.log"
+__CrossgenExe="$__CrossComponentBinDir/crossgen"
 
 # Init if MSBuild for .NET Core is supported for this platform
 isMSBuildOnNETCoreSupported
@@ -705,16 +799,6 @@ fi
 # This is where all built CoreClr libraries will copied to.
 export __CMakeBinDir="$__BinDir"
 
-# Configure environment if we are doing a clean build.
-if [ $__CleanBuild == 1 ]; then
-    clean
-fi
-
-# Configure environment if we are doing a verbose build
-if [ $__VerboseBuild == 1 ]; then
-    export VERBOSE=1
-fi
-
 # Configure environment if we are doing a cross compile.
 if [ $__CrossBuild == 1 ]; then
     export CROSSCOMPILE=1
@@ -723,17 +807,26 @@ if [ $__CrossBuild == 1 ]; then
     fi
 fi
 
-# Make the directories necessary for build if they don't exist
+# init the target distro name
+initTargetDistroRid
 
+# Make the directories necessary for build if they don't exist
 setup_dirs
 
 # Check prereqs.
-
 check_prereqs
 
-# Build the coreclr (native) components.
+# Generate event logging infrastructure sources
+generate_event_logging_sources
 
-build_coreclr
+# Build the coreclr (native) components.
+__ExtraCmakeArgs="-DCLR_CMAKE_TARGET_OS=$__BuildOS -DCLR_CMAKE_PACKAGES_DIR=$__PackagesDir -DCLR_CMAKE_PGO_INSTRUMENT=$__PgoInstrument"
+build_native $__SkipCoreCLR "$__BuildArch" "$__IntermediatesDir" "$__ExtraCmakeArgs" "CoreCLR component"
+
+# Build cross-architecture components
+if [[ $__CrossBuild == 1 && $__DoCrossArchBuild == 1 ]]; then
+    build_cross_arch_component
+fi
 
 # Build System.Private.CoreLib.
 

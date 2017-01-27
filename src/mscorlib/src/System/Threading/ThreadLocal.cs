@@ -15,9 +15,9 @@
 //
 // =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
-using System.Diagnostics;
 using System.Collections.Generic;
 using System.Security.Permissions;
+using System.Diagnostics;
 using System.Diagnostics.Contracts;
 
 namespace System.Threading
@@ -35,7 +35,6 @@ namespace System.Threading
     /// </remarks>
     [DebuggerTypeProxy(typeof(SystemThreading_ThreadLocalDebugView<>))]
     [DebuggerDisplay("IsValueCreated={IsValueCreated}, Value={ValueForDebugDisplay}, Count={ValuesCountForDebugDisplay}")]
-    [HostProtection(Synchronization = true, ExternalThreading = true)]
     public class ThreadLocal<T> : IDisposable
     {
 
@@ -107,7 +106,7 @@ namespace System.Threading
         public ThreadLocal(Func<T> valueFactory)
         {
             if (valueFactory == null)
-                throw new ArgumentNullException("valueFactory");
+                throw new ArgumentNullException(nameof(valueFactory));
 
             Initialize(valueFactory, false);
         }
@@ -127,7 +126,7 @@ namespace System.Threading
         public ThreadLocal(Func<T> valueFactory, bool trackAllValues)
         {
             if (valueFactory == null)
-                throw new ArgumentNullException("valueFactory");
+                throw new ArgumentNullException(nameof(valueFactory));
 
             Initialize(valueFactory, trackAllValues);
         }
@@ -193,7 +192,7 @@ namespace System.Threading
 
                 if (id < 0 || !m_initialized)
                 {
-                    Contract.Assert(id >= 0 || !m_initialized, "expected id >= 0 if initialized");
+                    Debug.Assert(id >= 0 || !m_initialized, "expected id >= 0 if initialized");
 
                     // Handle double Dispose calls or disposal of an instance whose constructor threw an exception.
                     return;
@@ -550,7 +549,7 @@ namespace System.Threading
         /// </summary>
         private void GrowTable(ref LinkedSlotVolatile[] table, int minLength)
         {
-            Contract.Assert(table.Length < minLength);
+            Debug.Assert(table.Length < minLength);
 
             // Determine the size of the new table and allocate it.
             int newLen = GetNewTableSize(minLength);
@@ -588,7 +587,7 @@ namespace System.Threading
                 // Intentionally return a value that will result in an OutOfMemoryException
                 return int.MaxValue;
             }
-            Contract.Assert(minSize > 0);
+            Debug.Assert(minSize > 0);
 
             //
             // Round up the size to the next power of 2
@@ -737,7 +736,7 @@ namespace System.Threading
             ~FinalizationHelper()
             {
                 LinkedSlotVolatile[] slotArray = SlotArray;
-                Contract.Assert(slotArray != null);
+                Debug.Assert(slotArray != null);
 
                 for (int i = 0; i < slotArray.Length; i++)
                 {
@@ -765,7 +764,7 @@ namespace System.Threading
                             }
 
                             // Since the list uses a dummy head node, the Previous reference should never be null.
-                            Contract.Assert(linkedSlot.Previous != null);
+                            Debug.Assert(linkedSlot.Previous != null);
                             linkedSlot.Previous.Next = linkedSlot.Next;
                         }
                     }

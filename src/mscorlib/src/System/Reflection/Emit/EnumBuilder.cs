@@ -23,7 +23,6 @@ namespace System.Reflection.Emit {
     using System.Security.Permissions;
 
     
-    [HostProtection(MayLeakOnAbort = true)]
     [ClassInterface(ClassInterfaceType.None)]
     [ComDefaultInterface(typeof(_EnumBuilder))]
 [System.Runtime.InteropServices.ComVisible(true)]
@@ -313,9 +312,6 @@ namespace System.Reflection.Emit {
 
        // Use this function if client decides to form the custom attribute blob themselves
 
-#if FEATURE_CORECLR
-[System.Security.SecurityCritical] // auto-generated
-#endif
 [System.Runtime.InteropServices.ComVisible(true)]
         public void SetCustomAttribute(ConstructorInfo con, byte[] binaryAttribute)
         {
@@ -398,7 +394,6 @@ namespace System.Reflection.Emit {
             
         // Constructs a EnumBuilder.
         // EnumBuilder can only be a top-level (not nested) enum type.
-        [System.Security.SecurityCritical]  // auto-generated
         internal EnumBuilder(
             String      name,                       // name of type
             Type        underlyingType,             // underlying type for an Enum
@@ -407,35 +402,12 @@ namespace System.Reflection.Emit {
         {
             // Client should not set any bits other than the visibility bits.
             if ((visibility & ~TypeAttributes.VisibilityMask) != 0)
-                throw new ArgumentException(Environment.GetResourceString("Argument_ShouldOnlySetVisibilityFlags"), "name");
+                throw new ArgumentException(Environment.GetResourceString("Argument_ShouldOnlySetVisibilityFlags"), nameof(name));
             m_typeBuilder = new TypeBuilder(name, visibility | TypeAttributes.Sealed, typeof(System.Enum), null, module, PackingSize.Unspecified, TypeBuilder.UnspecifiedTypeSize, null);
 
             // Define the underlying field for the enum. It will be a non-static, private field with special name bit set. 
             m_underlyingField = m_typeBuilder.DefineField("value__", underlyingType, FieldAttributes.Public | FieldAttributes.SpecialName | FieldAttributes.RTSpecialName);
         }
-
-#if !FEATURE_CORECLR
-        void _EnumBuilder.GetTypeInfoCount(out uint pcTInfo)
-        {
-            throw new NotImplementedException();
-        }
-
-        void _EnumBuilder.GetTypeInfo(uint iTInfo, uint lcid, IntPtr ppTInfo)
-        {
-            throw new NotImplementedException();
-        }
-
-        void _EnumBuilder.GetIDsOfNames([In] ref Guid riid, IntPtr rgszNames, uint cNames, uint lcid, IntPtr rgDispId)
-        {
-            throw new NotImplementedException();
-        }
-
-        void _EnumBuilder.Invoke(uint dispIdMember, [In] ref Guid riid, uint lcid, short wFlags, IntPtr pDispParams, IntPtr pVarResult, IntPtr pExcepInfo, IntPtr puArgErr)
-        {
-            throw new NotImplementedException();
-        }
-#endif
-
 
         /*****************************************************
          * 

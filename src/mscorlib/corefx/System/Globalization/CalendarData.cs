@@ -2,15 +2,10 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-using System;
-using System.Runtime.InteropServices;
-using System.Runtime.CompilerServices;
-using System.Diagnostics.Contracts;
-using System.Collections.Generic;
+using System.Diagnostics;
 
 namespace System.Globalization
 {
-    //
     // List of calendar data
     // Note the we cache overrides.
     // Note that localized names (resource names) aren't available from here.
@@ -109,7 +104,7 @@ namespace System.Globalization
 
             if (!LoadCalendarDataFromSystem(localeName, calendarId))
             {
-                Contract.Assert(false, "[CalendarData] LoadCalendarDataFromSystem call isn't expected to fail for calendar " + calendarId + " locale " + localeName);
+                Debug.Assert(false, "[CalendarData] LoadCalendarDataFromSystem call isn't expected to fail for calendar " + calendarId + " locale " + localeName);
 
                 // Something failed, try invariant for missing parts
                 // This is really not good, but we don't want the callers to crash.
@@ -243,6 +238,13 @@ namespace System.Globalization
                     this.saEraNames = JapaneseCalendar.EraNames();
                     break;
 
+                case CalendarId.PERSIAN:
+                    if (this.saEraNames == null || this.saEraNames.Length == 0 || String.IsNullOrEmpty(this.saEraNames[0]))
+                    {
+                        this.saEraNames = new String[] { "\x0647\x002e\x0634" };
+                    }
+                    break;
+
                 default:
                     // Most calendars are just "A.D."
                     this.saEraNames = Invariant.saEraNames;
@@ -297,6 +299,14 @@ namespace System.Globalization
                         this.saAbbrevEraNames[0] = this.saEraNames[0];
                     }
                     break;
+
+                case CalendarId.PERSIAN:
+                    if (this.saAbbrevEraNames == null || this.saAbbrevEraNames.Length == 0 || String.IsNullOrEmpty(this.saAbbrevEraNames[0]))
+                    {
+                        this.saAbbrevEraNames = this.saEraNames;
+                    }
+                    break;
+
                 default:
                     // Most calendars just use the full name
                     this.saAbbrevEraNames = this.saEraNames;
@@ -314,7 +324,7 @@ namespace System.Globalization
             //
 
             // Get a culture name
-            // TODO: NLS Arrowhead Arrowhead - note that this doesn't handle the new calendars (lunisolar, etc)
+            // TODO: Note that this doesn't handle the new calendars (lunisolar, etc)
             String culture = CalendarIdToCultureName(calendarId);
 
             // Return our calendar

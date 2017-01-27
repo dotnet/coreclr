@@ -99,6 +99,11 @@ class Program
         {
              ((Object)s).ToString();
         }
+
+        // Enum.GetHashCode optimization requires special treatment
+        // in native signature encoding
+        MyEnum e = MyEnum.Apple;
+        e.GetHashCode();
     }
 
     static void TestConstrainedMethodCalls_Unsupported()
@@ -345,17 +350,9 @@ class Program
     static void TestMultipleLoads()
     {
         if (!LLILCJitEnabled) {
-            try
-            {
-                new MyLoadContext().TestMultipleLoads();
-            }
-            catch (FileLoadException e)
-            {
-                Assert.AreEqual(e.ToString().Contains("Native image cannot be loaded multiple times"), true);
-                return;
-            }
-
-            Assert.AreEqual("FileLoadException", "thrown");
+            // Runtime should be able to load the same R2R image in another load context,
+            // even though it will be treated as an IL-only image.
+            new MyLoadContext().TestMultipleLoads();
         }
     }
 #endif
@@ -378,6 +375,44 @@ class Program
 
         Func<string, object> idClosed = "World".OpenClosedDelegateTarget;
         Assert.AreEqual(idClosed("hey"), "World, hey");
+    }
+    
+    static void GenericLdtokenFieldsTest()
+    {
+        Func<FieldInfo, string> FieldFullName = (fi) => fi.FieldType + " " + fi.DeclaringType.ToString() + "::" + fi.Name;
+        
+        IFieldGetter getter1 = new FieldGetter<string>();
+        IFieldGetter getter2 = new FieldGetter<object>();
+        IFieldGetter getter3 = new FieldGetter<int>();
+
+        foreach (var instArg in new Type[]{typeof(String), typeof(object), typeof(int)})
+        {
+            IFieldGetter getter = (IFieldGetter)Activator.CreateInstance(typeof(FieldGetter<>).MakeGenericType(instArg));
+
+            string expectedField1 = "System.Int32 Gen`1[???]::m_Field1".Replace("???", instArg.ToString());
+            string expectedField2 = "System.String Gen`1[???]::m_Field2".Replace("???", instArg.ToString());
+            string expectedField3 = "??? Gen`1[???]::m_Field3".Replace("???", instArg.ToString());
+            string expectedField4 = "System.Collections.Generic.List`1[???] Gen`1[???]::m_Field4".Replace("???", instArg.ToString());
+            string expectedField5 = "System.Collections.Generic.KeyValuePair`2[???,System.Int32] Gen`1[???]::m_Field5".Replace("???", instArg.ToString());
+
+            string expectedDllField1 = "System.String MyGeneric`2[???,???]::m_Field1".Replace("???", instArg.ToString());
+            string expectedDllField2 = "??? MyGeneric`2[???,???]::m_Field2".Replace("???", instArg.ToString());
+            string expectedDllField3 = "System.Collections.Generic.List`1[???] MyGeneric`2[???,???]::m_Field3".Replace("???", instArg.ToString());
+            string expectedDllField4 = "System.Collections.Generic.KeyValuePair`2[???,System.Int32] MyGeneric`2[???,???]::m_Field4".Replace("???", instArg.ToString());
+            string expectedDllField5 = "System.Int32 MyGeneric`2[???,???]::m_Field5".Replace("???", instArg.ToString());
+            
+            Assert.AreEqual(expectedField1, FieldFullName(getter.GetGenT_Field1()));
+            Assert.AreEqual(expectedField2, FieldFullName(getter.GetGenT_Field2()));
+            Assert.AreEqual(expectedField3, FieldFullName(getter.GetGenT_Field3()));
+            Assert.AreEqual(expectedField4, FieldFullName(getter.GetGenT_Field4()));
+            Assert.AreEqual(expectedField5, FieldFullName(getter.GetGenT_Field5()));
+
+            Assert.AreEqual(expectedDllField1, FieldFullName(getter.GetGenDllT_Field1()));
+            Assert.AreEqual(expectedDllField2, FieldFullName(getter.GetGenDllT_Field2()));
+            Assert.AreEqual(expectedDllField3, FieldFullName(getter.GetGenDllT_Field3()));
+            Assert.AreEqual(expectedDllField4, FieldFullName(getter.GetGenDllT_Field4()));
+            Assert.AreEqual(expectedDllField5, FieldFullName(getter.GetGenDllT_Field5()));
+        }
     }
 
     static void RunAllTests()
@@ -430,6 +465,8 @@ class Program
         TestRangeCheckElimination();
 
         TestOpenClosedDelegate();
+        
+        GenericLdtokenFieldsTest();
     }
 
     static int Main()

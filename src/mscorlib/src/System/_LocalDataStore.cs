@@ -17,6 +17,7 @@ namespace System {
     using System;
     using System.Threading;
     using System.Runtime.CompilerServices;
+    using System.Diagnostics;
     using System.Diagnostics.Contracts;
 
     // Helper class to aid removal of LocalDataStore from the LocalDataStoreMgr
@@ -197,7 +198,6 @@ namespace System {
         /*=========================================================================
         ** Method used to expand the capacity of the local data store.
         =========================================================================*/
-        [System.Security.SecuritySafeCritical]  // auto-generated
         private LocalDataStoreElement PopulateElement(LocalDataStoreSlot slot)
         {
             bool tookLock = false;
@@ -215,7 +215,7 @@ namespace System {
                     int capacity = m_Manager.GetSlotTableLength();
 
                     // Validate that the specified capacity is larger than the current one.
-                    Contract.Assert(capacity >= m_DataTable.Length, "LocalDataStore corrupted: capacity >= m_DataTable.Length");
+                    Debug.Assert(capacity >= m_DataTable.Length, "LocalDataStore corrupted: capacity >= m_DataTable.Length");
 
                     // Allocate the new data table.
                     LocalDataStoreElement[] NewDataTable = new LocalDataStoreElement[capacity];
@@ -228,7 +228,7 @@ namespace System {
                 }
 
                 // Validate that there is enough space in the local data store now
-                Contract.Assert(slotIdx < m_DataTable.Length, "LocalDataStore corrupted: slotIdx < m_DataTable.Length");
+                Debug.Assert(slotIdx < m_DataTable.Length, "LocalDataStore corrupted: slotIdx < m_DataTable.Length");
 
                 if (m_DataTable[slotIdx] == null)
                     m_DataTable[slotIdx] = new LocalDataStoreElement(slot.Cookie);

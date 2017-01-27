@@ -136,7 +136,7 @@ public:
                     _ASSERTE(eightByteSize == 4);
                     *(UINT32*)floatRegDest = *(UINT32*)src;
                 }
-                floatRegDest += 8;
+                floatRegDest += 16;
             }
             else
             {
@@ -176,8 +176,10 @@ public:
     {
         LIMITED_METHOD_CONTRACT;
 
+        // SPAN-TODO: GC reporting - https://github.com/dotnet/coreclr/issues/8517
+
        _ASSERTE(IsStructPassedInRegs());
-     
+
         TADDR genRegDest = dac_cast<TADDR>(GetStructGenRegDestinationAddress());
         INDEBUG(int remainingBytes = fieldBytes;)
 

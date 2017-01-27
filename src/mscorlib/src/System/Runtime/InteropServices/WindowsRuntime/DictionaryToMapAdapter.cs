@@ -10,6 +10,7 @@ using System.Reflection;
 using System.Collections;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.Diagnostics.Contracts;
 using System.Runtime.InteropServices;
 using System.Runtime.CompilerServices;
@@ -28,11 +29,10 @@ namespace System.Runtime.InteropServices.WindowsRuntime
     {
         private DictionaryToMapAdapter()
         {
-            Contract.Assert(false, "This class is never instantiated");
+            Debug.Assert(false, "This class is never instantiated");
         }
 
         // V Lookup(K key)
-        [SecurityCritical]
         internal V Lookup<K, V>(K key)
         {
             IDictionary<K, V> _this = JitHelpers.UnsafeCast<IDictionary<K, V>>(this);
@@ -50,7 +50,6 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         }
 
         // uint Size { get }
-        [SecurityCritical]
         internal uint Size<K, V>()
         {
             IDictionary<K, V> _this = JitHelpers.UnsafeCast<IDictionary<K, V>>(this);
@@ -58,7 +57,6 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         }
         
         // bool HasKey(K key)
-        [SecurityCritical]
         internal bool HasKey<K, V>(K key)
         {
             IDictionary<K, V> _this = JitHelpers.UnsafeCast<IDictionary<K, V>>(this);
@@ -66,11 +64,10 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         }
 
         // IMapView<K, V> GetView()
-        [SecurityCritical]
         internal IReadOnlyDictionary<K, V> GetView<K, V>()
         {
             IDictionary<K, V> _this = JitHelpers.UnsafeCast<IDictionary<K, V>>(this);
-            Contract.Assert(_this != null);
+            Debug.Assert(_this != null);
 
             // Note: This dictionary is not really read-only - you could QI for a modifiable
             // dictionary.  We gain some perf by doing this.  We believe this is acceptable.
@@ -83,7 +80,6 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         }
 
         // bool Insert(K key, V value)
-        [SecurityCritical]
         internal bool Insert<K, V>(K key, V value)
         {
             IDictionary<K, V> _this = JitHelpers.UnsafeCast<IDictionary<K, V>>(this);
@@ -93,7 +89,6 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         }
 
         // void Remove(K key)
-        [SecurityCritical]
         internal void Remove<K, V>(K key)
         {
             IDictionary<K, V> _this = JitHelpers.UnsafeCast<IDictionary<K, V>>(this);
@@ -108,7 +103,6 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         }
 
         // void Clear()
-        [SecurityCritical]
         internal void Clear<K, V>()
         {
             IDictionary<K, V> _this = JitHelpers.UnsafeCast<IDictionary<K, V>>(this);

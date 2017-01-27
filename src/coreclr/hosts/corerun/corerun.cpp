@@ -161,7 +161,7 @@ public:
         }
     }
 
-    bool TPAListContainsFile(_In_z_ wchar_t* fileNameWithoutExtension, _In_reads_(countExtensions) wchar_t** rgTPAExtensions, int countExtensions)
+    bool TPAListContainsFile(_In_z_ wchar_t* fileNameWithoutExtension, _In_reads_(countExtensions) const wchar_t** rgTPAExtensions, int countExtensions)
     {
         if (m_tpaList.IsEmpty()) return false;
 
@@ -201,7 +201,7 @@ public:
         }
     }
 
-    void AddFilesFromDirectoryToTPAList(_In_z_ const wchar_t* targetPath, _In_reads_(countExtensions) wchar_t** rgTPAExtensions, int countExtensions)
+    void AddFilesFromDirectoryToTPAList(_In_z_ const wchar_t* targetPath, _In_reads_(countExtensions) const wchar_t** rgTPAExtensions, int countExtensions)
     {
         *m_log << W("Adding assemblies from ") << targetPath << W(" to the TPA list") << Logger::endl;
         StackSString assemblyPath;
@@ -259,7 +259,7 @@ public:
     // On first call, scans the coreclr directory for dlls and adds them all to the list.
     const wchar_t * GetTpaList() {
         if (m_tpaList.IsEmpty()) {
-            wchar_t *rgTPAExtensions[] = {
+            const wchar_t *rgTPAExtensions[] = {
                         W("*.ni.dll"),		// Probe for .ni.dll first so that it's preferred if ni and il coexist in the same dir
                         W("*.dll"),
                         W("*.ni.exe"),
@@ -495,7 +495,6 @@ bool TryRun(const int argc, const wchar_t* argv[], Logger &log, const bool verbo
         W("APP_PATHS"),
         W("APP_NI_PATHS"),
         W("NATIVE_DLL_SEARCH_DIRECTORIES"),
-        W("AppDomainCompatSwitch"),
         W("APP_LOCAL_WINMETADATA")
     };
     const wchar_t *property_values[] = { 
@@ -507,8 +506,6 @@ bool TryRun(const int argc, const wchar_t* argv[], Logger &log, const bool verbo
         appNiPath,
         // NATIVE_DLL_SEARCH_DIRECTORIES
         nativeDllSearchDirs,
-        // AppDomainCompatSwitch
-        W("UseLatestBehaviorWhenTFMNotSpecified"),
         // APP_LOCAL_WINMETADATA
         appLocalWinmetadata
     };

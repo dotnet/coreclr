@@ -2142,6 +2142,12 @@ HRESULT CordbProcess::QueryInterface(REFIID id, void **pInterface)
     {
         *pInterface = static_cast<ICorDebugProcess8*>(this);
     }
+#ifdef FEATURE_LEGACYNETCF_DBG_HOST_CONTROL
+    else if (id == IID_ICorDebugLegacyNetCFHostCallbackInvoker_PrivateWindowsPhoneOnly)
+    {
+        *pInterface = static_cast<ICorDebugLegacyNetCFHostCallbackInvoker_PrivateWindowsPhoneOnly*>(this);
+    }
+#endif
     else if (id == IID_IUnknown)
     {
         *pInterface = static_cast<IUnknown*>(static_cast<ICorDebugProcess*>(this));
@@ -2494,6 +2500,20 @@ COM_METHOD CordbProcess::EnableExceptionCallbacksOutsideOfMyCode(BOOL enableExce
     PUBLIC_API_END(hr);
     return hr;
 }
+
+#ifdef FEATURE_LEGACYNETCF_DBG_HOST_CONTROL
+
+COM_METHOD CordbProcess::InvokePauseCallback()
+{
+    return S_OK;
+}
+
+COM_METHOD CordbProcess::InvokeResumeCallback()
+{
+    return S_OK;
+}
+
+#endif
 
 HRESULT CordbProcess::GetTypeForObject(CORDB_ADDRESS addr, CordbType **ppType, CordbAppDomain **pAppDomain)
 {
@@ -7314,6 +7334,7 @@ CordbUnmanagedThread *CordbProcess::HandleUnmanagedCreateThread(DWORD dwThreadId
         if (!SUCCEEDED(hr))
         {
             delete ut;
+            ut = NULL;
 
             LOG((LF_CORDB, LL_INFO10000, "Failed adding unmanaged thread to process!\n"));
             CORDBSetUnrecoverableError(this, hr, 0);
@@ -8099,7 +8120,9 @@ void CordbProcess::DispatchUnmanagedInBandEvent()
             break;
 
         // Get the thread for this event
+        _ASSERTE(pUnmanagedThread == NULL);
         pUnmanagedThread = pUnmanagedEvent->m_owner;
+        _ASSERTE(pUnmanagedThread != NULL);
 
         // We better not have dispatched it yet!
         _ASSERTE(!pUnmanagedEvent->IsDispatched());
@@ -8157,13 +8180,10 @@ void CordbProcess::DispatchUnmanagedInBandEvent()
         m_pShim->GetWin32EventThread()->DoDbgContinue(this, pUnmanagedEvent);
 
         // Release our reference to the unmanaged thread that we dispatched
-        if (pUnmanagedThread)
-        {
-            // This event should have been continued long ago...
-            _ASSERTE(!pUnmanagedThread->IBEvent()->IsEventWaitingForContinue());
-            pUnmanagedThread->InternalRelease();
-            pUnmanagedThread = NULL;
-        }
+        // This event should have been continued long ago...
+        _ASSERTE(!pUnmanagedThread->IBEvent()->IsEventWaitingForContinue());
+        pUnmanagedThread->InternalRelease();
+        pUnmanagedThread = NULL;
     }
 
     m_dispatchingUnmanagedEvent = false;

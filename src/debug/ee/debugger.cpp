@@ -75,6 +75,9 @@ SVAL_IMPL_INIT(BOOL, Debugger, s_fCanChangeNgenFlags, TRUE);
 
 bool g_EnableSIS = false;
 
+// The following instances are used for invoking overloaded new/delete
+InteropSafe interopsafe;
+InteropSafeExecutable interopsafeEXEC;
 
 #ifndef DACCESS_COMPILE
 
@@ -594,8 +597,8 @@ void DoAssertOnType(DebuggerIPCEventType event, int count)
         if (g_iDbgRuntimeCounter[event & 0x00ff] == count)
         {
             char        tmpStr[256];
-            sprintf(tmpStr, "%s == %d, break now!",
-                     IPCENames::GetName(event), count);
+            _snprintf_s(tmpStr, _countof(tmpStr), _TRUNCATE, "%s == %d, break now!",
+                        IPCENames::GetName(event), count);
 
             // fire the assertion
             DbgAssertDialog(__FILE__, __LINE__, tmpStr);
@@ -608,8 +611,8 @@ void DoAssertOnType(DebuggerIPCEventType event, int count)
         if (g_iDbgDebuggerCounter[event & 0x00ff] == count)
         {
             char        tmpStr[256];
-            sprintf(tmpStr, "%s == %d, break now!",
-                     IPCENames::GetName(event), count);
+            _snprintf_s(tmpStr, _countof(tmpStr), _TRUNCATE, "%s == %d, break now!",
+                        IPCENames::GetName(event), count);
 
             // fire the assertion
             DbgAssertDialog(__FILE__, __LINE__, tmpStr);
@@ -1463,7 +1466,7 @@ DebuggerEval::DebuggerEval(CONTEXT * pContext, DebuggerIPCE_FuncEvalInfo * pEval
     m_genericArgsNodeCount = pEvalInfo->genericArgsNodeCount;
     m_successful = false;
     m_argData = NULL;
-    m_result = 0;
+    memset(m_result, 0, sizeof(m_result));
     m_md = NULL;
     m_resultType = TypeHandle();
     m_aborting = FE_ABORT_NONE;
@@ -1519,7 +1522,7 @@ DebuggerEval::DebuggerEval(CONTEXT * pContext, Thread * pThread, Thread::ThreadA
     m_successful = false;
     m_argData = NULL;
     m_targetCodeAddr = NULL;
-    m_result = 0;
+    memset(m_result, 0, sizeof(m_result));
     m_md = NULL;
     m_resultType = TypeHandle();
     m_aborting = FE_ABORT_NONE;
@@ -1895,7 +1898,7 @@ void Debugger::SendCreateProcess(DebuggerLockHolder * pDbgLockHolder)
 
 #if defined(FEATURE_CORECLR) && !defined(FEATURE_PAL)
 
-HANDLE g_hContinueStartupEvent = NULL;
+HANDLE g_hContinueStartupEvent = INVALID_HANDLE_VALUE;
 
 CLR_ENGINE_METRICS g_CLREngineMetrics = {
     sizeof(CLR_ENGINE_METRICS), 
@@ -1942,7 +1945,7 @@ void NotifyDebuggerOfTelestoStartup()
     // enumeration of this process will get back a valid continue event
     // the instant we signal the startup notification event.
 
-    CONSISTENCY_CHECK(NULL == g_hContinueStartupEvent);
+    CONSISTENCY_CHECK(INVALID_HANDLE_VALUE == g_hContinueStartupEvent);
     g_hContinueStartupEvent = WszCreateEvent(NULL, TRUE, FALSE, NULL);
     CONSISTENCY_CHECK(INVALID_HANDLE_VALUE != g_hContinueStartupEvent); // we reserve this value for error conditions in EnumerateCLRs
 
@@ -2170,7 +2173,14 @@ HRESULT Debugger::Startup(void)
     // Signal the debugger (via dbgshim) and wait until it is ready for us to 
     // continue. This needs to be outside the lock and after the transport is
     // initialized.
-    PAL_NotifyRuntimeStarted();
+    if (PAL_NotifyRuntimeStarted())
+    {
+        // The runtime was successfully launched and attached so mark it now
+        // so no notifications are missed especially the initial module load 
+        // which would cause debuggers problems with reliable setting breakpoints 
+        // in startup code or Main.
+       MarkDebuggerAttachedInternal();
+    }
 #endif // FEATURE_PAL
 
     // We don't bother changing this process's permission.
@@ -8380,7 +8390,7 @@ FramePointer GetHandlerFramePointer(BYTE *pStack)
 {
     FramePointer handlerFP;
 
-#if !defined(_TARGET_ARM_)
+#if !defined(_TARGET_ARM_) && !defined(_TARGET_ARM64_) 
     // Refer to the comment in DispatchUnwind() to see why we have to add
     // sizeof(LPVOID) to the handler ebp.
     handlerFP = FramePointer::MakeFramePointer(LPVOID(pStack + sizeof(void*)));
@@ -10353,7 +10363,7 @@ void Debugger::FuncEvalComplete(Thread* pThread, DebuggerEval *pDE)
     if (CORDBUnrecoverableError(this))
         return;
 
-    LOG((LF_CORDB, LL_INFO10000, "D::FEC: func eval complete pDE:%08x evalType:%d %s %s\n",
+    LOG((LF_CORDB, LL_INFO1000, "D::FEC: func eval complete pDE:%p evalType:%d %s %s\n",
         pDE, pDE->m_evalType, pDE->m_successful ? "Success" : "Fail", pDE->m_aborted ? "Abort" : "Completed"));
 
 
@@ -10386,11 +10396,11 @@ void Debugger::FuncEvalComplete(Thread* pThread, DebuggerEval *pDE)
     ipce->FuncEvalComplete.funcEvalKey = pDE->m_funcEvalKey;
     ipce->FuncEvalComplete.successful = pDE->m_successful;
     ipce->FuncEvalComplete.aborted = pDE->m_aborted;
-    ipce->FuncEvalComplete.resultAddr = &(pDE->m_result);
+    ipce->FuncEvalComplete.resultAddr = pDE->m_result;
     ipce->FuncEvalComplete.vmAppDomain.SetRawPtr(pResultDomain);
     ipce->FuncEvalComplete.vmObjectHandle = pDE->m_vmObjectHandle;
 
-    LOG((LF_CORDB, LL_INFO10000, "D::FEC: TypeHandle is :%08x\n", pDE->m_resultType.AsPtr()));
+    LOG((LF_CORDB, LL_INFO1000, "D::FEC: TypeHandle is %p\n", pDE->m_resultType.AsPtr()));
 
     Debugger::TypeHandleToExpandedTypeInfo(pDE->m_retValueBoxing, // whether return values get boxed or not depends on the particular FuncEval we're doing...
                                            pResultDomain,
@@ -10399,11 +10409,12 @@ void Debugger::FuncEvalComplete(Thread* pThread, DebuggerEval *pDE)
 
     _ASSERTE(ipce->FuncEvalComplete.resultType.elementType != ELEMENT_TYPE_VALUETYPE);
 
-    LOG((LF_CORDB, LL_INFO10000, "D::FEC: returned from call\n"));
-
     // We must adjust the result address to point to the right place
     ipce->FuncEvalComplete.resultAddr = ArgSlotEndianessFixup((ARG_SLOT*)ipce->FuncEvalComplete.resultAddr, 
         GetSizeForCorElementType(ipce->FuncEvalComplete.resultType.elementType));
+
+    LOG((LF_CORDB, LL_INFO1000, "D::FEC: returned el %04x resultAddr %p\n", 
+        ipce->FuncEvalComplete.resultType.elementType, ipce->FuncEvalComplete.resultAddr));
 
     m_pRCThread->SendIPCEvent();
 
@@ -11888,7 +11899,7 @@ HRESULT Debugger::GetAndSendInterceptCommand(DebuggerIPCEvent *event)
                                                               csi.m_activeFrame.MethodToken,
                                                               csi.m_activeFrame.md,
                                                               foundOffset,
-#ifdef _TARGET_ARM_
+#if defined (_TARGET_ARM_ )|| defined (_TARGET_ARM64_ )
                                                               // ARM requires the caller stack pointer, not the current stack pointer
                                                               CallerStackFrame::FromRegDisplay(&(csi.m_activeFrame.registers)),
 #else
@@ -11906,7 +11917,7 @@ HRESULT Debugger::GetAndSendInterceptCommand(DebuggerIPCEvent *event)
 
                             //
                             // Save off this breakpoint, so that if the exception gets unwound before we hit
-                            // the breakpoint - the exeception info can call back to remove it.
+                            // the breakpoint - the exception info can call back to remove it.
                             //
                             pExState->GetDebuggerState()->SetDebuggerInterceptContext((void *)pBreakpoint);
 
@@ -15359,6 +15370,8 @@ HRESULT Debugger::FuncEvalSetup(DebuggerIPCE_FuncEvalInfo *pEvalInfo,
 #endif // !UNIX_AMD64_ABI
 #elif defined(_TARGET_ARM_)
         filterContext->R0 = (DWORD)pDE;
+#elif defined(_TARGET_ARM64_)
+        filterContext->X0 = (SIZE_T)pDE;
 #else
         PORTABILITY_ASSERT("Debugger::FuncEvalSetup is not implemented on this platform.");
 #endif
@@ -15453,6 +15466,8 @@ HRESULT Debugger::FuncEvalSetupReAbort(Thread *pThread, Thread::ThreadAbortReque
     filterContext->Rcx = (SIZE_T)pDE;
 #elif defined(_TARGET_ARM_)
     filterContext->R0 = (DWORD)pDE;
+#elif defined(_TARGET_ARM64_)
+    filterContext->X0 = (SIZE_T)pDE;
 #else
     PORTABILITY_ASSERT("FuncEvalSetupReAbort (Debugger.cpp) is not implemented on this platform.");
 #endif

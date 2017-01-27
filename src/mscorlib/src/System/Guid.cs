@@ -10,6 +10,7 @@ namespace System {
     using Microsoft.Win32;
     using System.Runtime.InteropServices;
     using System.Runtime.CompilerServices;
+    using System.Diagnostics;
     using System.Diagnostics.Contracts;
 
     // Represents a Globally Unique Identifier.
@@ -47,9 +48,9 @@ namespace System {
         public Guid(byte[] b)
         {
             if (b==null)
-                throw new ArgumentNullException("b");
+                throw new ArgumentNullException(nameof(b));
             if (b.Length != 16)
-                throw new ArgumentException(Environment.GetResourceString("Arg_GuidArrayCtor", "16"), "b");
+                throw new ArgumentException(Environment.GetResourceString("Arg_GuidArrayCtor", "16"), nameof(b));
             Contract.EndContractBlock();
 
             _a = ((int)b[3] << 24) | ((int)b[2] << 16) | ((int)b[1] << 8) | b[0];
@@ -87,10 +88,10 @@ namespace System {
         public Guid(int a, short b, short c, byte[] d)
         {
             if (d==null)
-                throw new ArgumentNullException("d");
+                throw new ArgumentNullException(nameof(d));
             // Check that array is not too big
             if(d.Length != 8)
-                throw new ArgumentException(Environment.GetResourceString("Arg_GuidArrayCtor", "8"), "d");
+                throw new ArgumentException(Environment.GetResourceString("Arg_GuidArrayCtor", "8"), nameof(d));
             Contract.EndContractBlock();
 
             _a  = a;
@@ -185,7 +186,7 @@ namespace System {
             }
             internal void SetFailure(ParseFailureKind failure, string failureMessageID, object failureMessageFormatArgument,
                                      string failureArgumentName, Exception innerException) {
-                Contract.Assert(failure != ParseFailureKind.NativeException, "ParseFailureKind.NativeException should not be used with this overload");
+                Debug.Assert(failure != ParseFailureKind.NativeException, "ParseFailureKind.NativeException should not be used with this overload");
                 m_failure = failure;
                 m_failureMessageID = failureMessageID;
                 m_failureMessageFormatArgument = failureMessageFormatArgument;
@@ -214,7 +215,7 @@ namespace System {
                     return m_innerException;
 
                 default:
-                    Contract.Assert(false, "Unknown GuidParseFailure: " + m_failure);
+                    Debug.Assert(false, "Unknown GuidParseFailure: " + m_failure);
                     return new FormatException(Environment.GetResourceString("Format_GuidUnrecognized"));
                 }
             }
@@ -231,7 +232,7 @@ namespace System {
         public Guid(String g)
         {
             if (g==null) {
-                throw new ArgumentNullException("g");
+                throw new ArgumentNullException(nameof(g));
             }
             Contract.EndContractBlock();
             this = Guid.Empty;
@@ -250,7 +251,7 @@ namespace System {
         public static Guid Parse(String input)
         {
             if (input == null) {
-                throw new ArgumentNullException("input");
+                throw new ArgumentNullException(nameof(input));
             }
             Contract.EndContractBlock();
 
@@ -281,10 +282,10 @@ namespace System {
         public static Guid ParseExact(String input, String format)
         {
             if (input == null)
-                throw new ArgumentNullException("input");
+                throw new ArgumentNullException(nameof(input));
 
             if (format == null)
-                throw new ArgumentNullException("format");
+                throw new ArgumentNullException(nameof(format));
 
             if( format.Length != 1) {
                 // all acceptable format strings are of length 1
@@ -752,17 +753,14 @@ namespace System {
         //
         // StringToShort, StringToInt, and StringToLong are wrappers around COMUtilNative integer parsing routines;
 
-        [System.Security.SecuritySafeCritical]
         private static unsafe bool StringToShort(String str, int requiredLength, int flags, out short result, ref GuidResult parseResult) {
             return StringToShort(str, null, requiredLength, flags, out result, ref parseResult);
         }
-        [System.Security.SecuritySafeCritical]
         private static unsafe bool StringToShort(String str, ref int parsePos, int requiredLength, int flags, out short result, ref GuidResult parseResult) {
             fixed(int * ppos = &parsePos) {
                 return StringToShort(str, ppos, requiredLength, flags, out result, ref parseResult);
             }
         }
-        [System.Security.SecurityCritical]
         private static unsafe bool StringToShort(String str, int* parsePos, int requiredLength, int flags, out short result, ref GuidResult parseResult) {
             result = 0;
             int x;
@@ -771,17 +769,14 @@ namespace System {
             return retValue;
         }
 
-        [System.Security.SecuritySafeCritical]
         private static unsafe bool StringToInt(String str, int requiredLength, int flags, out int result, ref GuidResult parseResult) {
             return StringToInt(str, null, requiredLength, flags, out result, ref parseResult);
         }
-        [System.Security.SecuritySafeCritical]
         private static unsafe bool StringToInt(String str, ref int parsePos, int requiredLength, int flags, out int result, ref GuidResult parseResult) {
             fixed(int * ppos = &parsePos) {
                 return StringToInt(str, ppos, requiredLength, flags, out result, ref parseResult);
             }
         }
-        [System.Security.SecurityCritical]
         private static unsafe bool StringToInt(String str, int* parsePos, int requiredLength, int flags, out int result, ref GuidResult parseResult) {
             result = 0;
 
@@ -818,17 +813,14 @@ namespace System {
             }
             return true;
         }
-        [System.Security.SecuritySafeCritical]
         private static unsafe bool StringToLong(String str, int flags, out long result, ref GuidResult parseResult) {
             return StringToLong(str, null, flags, out result, ref parseResult);
         }
-        [System.Security.SecuritySafeCritical]
         private static unsafe bool StringToLong(String str, ref int parsePos, int flags, out long result, ref GuidResult parseResult) {
             fixed(int * ppos = &parsePos) {
                 return StringToLong(str, ppos, flags, out result, ref parseResult);
             }
         }
-        [System.Security.SecuritySafeCritical]
         private static unsafe bool StringToLong(String str, int* parsePos, int flags, out long result, ref GuidResult parseResult) {
             result = 0;
 
@@ -921,7 +913,6 @@ namespace System {
             return ToString("D",null);
         }
 
-        [System.Security.SecuritySafeCritical]
         public unsafe override int GetHashCode()
         {
             // Simply XOR all the bits of the GUID 32 bits at a time.
@@ -1007,7 +998,7 @@ namespace System {
                 return 1;
             }
             if (!(value is Guid)) {
-                throw new ArgumentException(Environment.GetResourceString("Arg_MustBeGuid"), "value");
+                throw new ArgumentException(Environment.GetResourceString("Arg_MustBeGuid"), nameof(value));
             }
             Guid g = (Guid)value;
 
@@ -1143,7 +1134,6 @@ namespace System {
 
         // This will create a new guid.  Since we've now decided that constructors should 0-init,
         // we need a method that allows users to create a guid.
-        [System.Security.SecuritySafeCritical]  // auto-generated
         public static Guid NewGuid() {
             // CoCreateGuid should never return Guid.Empty, since it attempts to maintain some
             // uniqueness guarantees.  It should also never return a known GUID, but it's unclear
@@ -1165,13 +1155,11 @@ namespace System {
             return (char) ((a > 9) ? a - 10 + 0x61 : a + 0x30);
         }
 
-        [System.Security.SecurityCritical]
         unsafe private static int HexsToChars(char* guidChars, int offset, int a, int b)
         {
             return HexsToChars(guidChars, offset, a, b, false);
         }
 
-        [System.Security.SecurityCritical]
         unsafe private static int HexsToChars(char* guidChars, int offset, int a, int b, bool hex)
         {
             if (hex) {
@@ -1192,7 +1180,6 @@ namespace System {
 
         // IFormattable interface
         // We currently ignore provider
-        [System.Security.SecuritySafeCritical]
         public String ToString(String format, IFormatProvider provider)
         {
             if (format == null || format.Length == 0)

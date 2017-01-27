@@ -7,6 +7,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Diagnostics.Contracts;
 //using System.Globalization;
 using System.Runtime.CompilerServices;
@@ -33,7 +34,7 @@ namespace System.Collections.Generic
             Contract.Ensures(Contract.Result<Comparer<T>>() != null);
 
             if (comparison == null)
-                throw new ArgumentNullException("comparison");
+                throw new ArgumentNullException(nameof(comparison));
 
             return new ComparisonComparer<T>(comparison);
         }
@@ -42,7 +43,6 @@ namespace System.Collections.Generic
         // Note that logic in this method is replicated in vm\compile.cpp to ensure that NGen
         // saves the right instantiations
         //
-        [System.Security.SecuritySafeCritical]  // auto-generated
         private static Comparer<T> CreateComparer()
         {
             object result = null;
@@ -139,7 +139,7 @@ namespace System.Collections.Generic
     [Serializable]
     internal sealed class NullableComparer<T> : Comparer<T?> where T : struct, IComparable<T>
     {
-        public override int Compare(Nullable<T> x, Nullable<T> y) {
+        public override int Compare(T? x, T? y) {
             if (x.HasValue) {
                 if (y.HasValue) return x.value.CompareTo(y.value);
                 return 1;
@@ -191,14 +191,12 @@ namespace System.Collections.Generic
     // since we want to serialize as ObjectComparer for
     // back-compat reasons (see below).
 
-#if FEATURE_SERIALIZATION
     [Serializable]
-#endif
     internal sealed class Int32EnumComparer<T> : Comparer<T>, ISerializable where T : struct
     {
         public Int32EnumComparer()
         {
-            Contract.Assert(typeof(T).IsEnum, "This type is only intended to be used to compare enums!");
+            Debug.Assert(typeof(T).IsEnum, "This type is only intended to be used to compare enums!");
         }
         
         // Used by the serialization engine.
@@ -218,7 +216,6 @@ namespace System.Collections.Generic
         public override int GetHashCode() =>
             GetType().GetHashCode();
 
-        [SecurityCritical]
         public void GetObjectData(SerializationInfo info, StreamingContext context)
         {
             // Previously Comparer<T> was not specialized for enums,
@@ -229,14 +226,12 @@ namespace System.Collections.Generic
         }
     }
 
-#if FEATURE_SERIALIZATION
     [Serializable]
-#endif
     internal sealed class UInt32EnumComparer<T> : Comparer<T>, ISerializable where T : struct
     {
         public UInt32EnumComparer()
         {
-            Contract.Assert(typeof(T).IsEnum, "This type is only intended to be used to compare enums!");
+            Debug.Assert(typeof(T).IsEnum, "This type is only intended to be used to compare enums!");
         }
         
         // Used by the serialization engine.
@@ -256,21 +251,18 @@ namespace System.Collections.Generic
         public override int GetHashCode() =>
             GetType().GetHashCode();
 
-        [SecurityCritical]
         public void GetObjectData(SerializationInfo info, StreamingContext context)
         {
             info.SetType(typeof(ObjectComparer<T>));
         }
     }
 
-#if FEATURE_SERIALIZATION
     [Serializable]
-#endif
     internal sealed class Int64EnumComparer<T> : Comparer<T>, ISerializable where T : struct
     {
         public Int64EnumComparer()
         {
-            Contract.Assert(typeof(T).IsEnum, "This type is only intended to be used to compare enums!");
+            Debug.Assert(typeof(T).IsEnum, "This type is only intended to be used to compare enums!");
         }
         
         // Used by the serialization engine.
@@ -290,21 +282,18 @@ namespace System.Collections.Generic
         public override int GetHashCode() =>
             GetType().GetHashCode();
 
-        [SecurityCritical]
         public void GetObjectData(SerializationInfo info, StreamingContext context)
         {
             info.SetType(typeof(ObjectComparer<T>));
         }
     }
 
-#if FEATURE_SERIALIZATION
     [Serializable]
-#endif
     internal sealed class UInt64EnumComparer<T> : Comparer<T>, ISerializable where T : struct
     {
         public UInt64EnumComparer()
         {
-            Contract.Assert(typeof(T).IsEnum, "This type is only intended to be used to compare enums!");
+            Debug.Assert(typeof(T).IsEnum, "This type is only intended to be used to compare enums!");
         }
         
         // Used by the serialization engine.
@@ -324,7 +313,6 @@ namespace System.Collections.Generic
         public override int GetHashCode() =>
             GetType().GetHashCode();
 
-        [SecurityCritical]
         public void GetObjectData(SerializationInfo info, StreamingContext context)
         {
             info.SetType(typeof(ObjectComparer<T>));

@@ -18,15 +18,11 @@ namespace System.Runtime.Serialization
     using System.Collections.Generic;
     using System.Reflection;
     using System.Runtime.Remoting;
-#if FEATURE_REMOTING
-    using System.Runtime.Remoting.Proxies;
-#endif
     using System.Globalization;
+    using System.Diagnostics;
     using System.Diagnostics.Contracts;
     using System.Security;
-#if FEATURE_CORECLR
     using System.Runtime.CompilerServices;
-#endif 
 
     [System.Runtime.InteropServices.ComVisible(true)]
     public sealed class SerializationInfo
@@ -61,12 +57,12 @@ namespace System.Runtime.Serialization
         {
             if ((object)type == null)
             {
-                throw new ArgumentNullException("type");
+                throw new ArgumentNullException(nameof(type));
             }
 
             if (converter == null)
             {
-                throw new ArgumentNullException("converter");
+                throw new ArgumentNullException(nameof(converter));
             }
 
             Contract.EndContractBlock();
@@ -96,7 +92,7 @@ namespace System.Runtime.Serialization
             {
                 if (null == value)
                 {
-                    throw new ArgumentNullException("value");
+                    throw new ArgumentNullException(nameof(value));
                 }
                 Contract.EndContractBlock();
            
@@ -111,12 +107,11 @@ namespace System.Runtime.Serialization
             {
                 return m_assemName;
             }
-            [SecuritySafeCritical]
             set
             {
                 if (null == value)
                 {
-                    throw new ArgumentNullException("value");
+                    throw new ArgumentNullException(nameof(value));
                 }
                 Contract.EndContractBlock();
                 if (this.requireSameTokenInPartialTrust)
@@ -128,12 +123,11 @@ namespace System.Runtime.Serialization
             }
         }
 
-        [SecuritySafeCritical]
         public void SetType(Type type)
         {
             if ((object)type == null)
             {
-                throw new ArgumentNullException("type");
+                throw new ArgumentNullException(nameof(type));
             }
             Contract.EndContractBlock();
 
@@ -170,15 +164,8 @@ namespace System.Runtime.Serialization
             }
         }
 
-        [SecuritySafeCritical]
         internal static void DemandForUnsafeAssemblyNameAssignments(string originalAssemblyName, string newAssemblyName)
         {
-#if !FEATURE_CORECLR
-            if (!IsAssemblyNameAssignmentSafe(originalAssemblyName, newAssemblyName))
-            {
-                CodeAccessPermission.Demand(PermissionType.SecuritySerialization);
-            }
-#endif
         }
 
         internal static bool IsAssemblyNameAssignmentSafe(string originalAssemblyName, string newAssemblyName)
@@ -242,7 +229,7 @@ namespace System.Runtime.Serialization
         private void ExpandArrays()
         {
             int newSize;
-            Contract.Assert(m_members.Length == m_currMember, "[SerializationInfo.ExpandArrays]m_members.Length == m_currMember");
+            Debug.Assert(m_members.Length == m_currMember, "[SerializationInfo.ExpandArrays]m_members.Length == m_currMember");
 
             newSize = (m_currMember * 2);
 
@@ -280,12 +267,12 @@ namespace System.Runtime.Serialization
         {
             if (null == name)
             {
-                throw new ArgumentNullException("name");
+                throw new ArgumentNullException(nameof(name));
             }
 
             if ((object)type == null)
             {
-                throw new ArgumentNullException("type");
+                throw new ArgumentNullException(nameof(type));
             }
             Contract.EndContractBlock();
 
@@ -408,20 +395,22 @@ namespace System.Runtime.Serialization
         /*=================================UpdateValue==================================
         **Action: Finds the value if it exists in the current data.  If it does, we replace
         **        the values, if not, we append it to the end.  This is useful to the 
-        **        ObjectManager when it's performing fixups, but shouldn't be used by 
-        **        clients.  Exposing out this functionality would allow children to overwrite
-        **        their parent's values.
+        **        ObjectManager when it's performing fixups.
         **Returns: void
         **Arguments: name  -- the name of the data to be updated.
         **           value -- the new value.
         **           type  -- the type of the data being added.
-        **Exceptions: None.  All error checking is done with asserts.
+        **Exceptions: None.  All error checking is done with asserts. Although public in coreclr,
+        **            it's not exposed in a contract and is only meant to be used by corefx.
         ==============================================================================*/
-        internal void UpdateValue(String name, Object value, Type type)
+        // This should not be used by clients: exposing out this functionality would allow children
+        // to overwrite their parent's values. It is public in order to give corefx access to it for
+        // its ObjectManager implementation, but it should not be exposed out of a contract.
+        public void UpdateValue(String name, Object value, Type type)
         {
-            Contract.Assert(null != name, "[SerializationInfo.UpdateValue]name!=null");
-            Contract.Assert(null != value, "[SerializationInfo.UpdateValue]value!=null");
-            Contract.Assert(null != (object)type, "[SerializationInfo.UpdateValue]type!=null");
+            Debug.Assert(null != name, "[SerializationInfo.UpdateValue]name!=null");
+            Debug.Assert(null != value, "[SerializationInfo.UpdateValue]value!=null");
+            Debug.Assert(null != (object)type, "[SerializationInfo.UpdateValue]type!=null");
 
             int index = FindElement(name);
             if (index < 0)
@@ -440,7 +429,7 @@ namespace System.Runtime.Serialization
         {
             if (null == name)
             {
-                throw new ArgumentNullException("name");
+                throw new ArgumentNullException(nameof(name));
             }
             Contract.EndContractBlock();
             BCLDebug.Trace("SER", "[SerializationInfo.FindElement]Looking for ", name, " CurrMember is: ", m_currMember);
@@ -470,11 +459,11 @@ namespace System.Runtime.Serialization
                 throw new SerializationException(Environment.GetResourceString("Serialization_NotFound", name));
             }
 
-            Contract.Assert(index < m_data.Length, "[SerializationInfo.GetElement]index<m_data.Length");
-            Contract.Assert(index < m_types.Length, "[SerializationInfo.GetElement]index<m_types.Length");
+            Debug.Assert(index < m_data.Length, "[SerializationInfo.GetElement]index<m_data.Length");
+            Debug.Assert(index < m_types.Length, "[SerializationInfo.GetElement]index<m_types.Length");
 
             foundType = m_types[index];
-            Contract.Assert((object)foundType != null, "[SerializationInfo.GetElement]foundType!=null");
+            Debug.Assert((object)foundType != null, "[SerializationInfo.GetElement]foundType!=null");
             return m_data[index];
         }
 
@@ -488,11 +477,11 @@ namespace System.Runtime.Serialization
                 return null;
             }
 
-            Contract.Assert(index < m_data.Length, "[SerializationInfo.GetElement]index<m_data.Length");
-            Contract.Assert(index < m_types.Length, "[SerializationInfo.GetElement]index<m_types.Length");
+            Debug.Assert(index < m_data.Length, "[SerializationInfo.GetElement]index<m_data.Length");
+            Debug.Assert(index < m_types.Length, "[SerializationInfo.GetElement]index<m_types.Length");
 
             foundType = m_types[index];
-            Contract.Assert((object)foundType != null, "[SerializationInfo.GetElement]foundType!=null");
+            Debug.Assert((object)foundType != null, "[SerializationInfo.GetElement]foundType!=null");
             return m_data[index];
         }
 
@@ -501,13 +490,12 @@ namespace System.Runtime.Serialization
         // form requested.  
         //
 
-        [System.Security.SecuritySafeCritical]  // auto-generated
         public Object GetValue(String name, Type type)
         {
 
             if ((object)type == null)
             {
-                throw new ArgumentNullException("type");
+                throw new ArgumentNullException(nameof(type));
             }
             Contract.EndContractBlock();
 
@@ -519,53 +507,36 @@ namespace System.Runtime.Serialization
             Object value;
 
             value = GetElement(name, out foundType);
-#if FEATURE_REMOTING
-            if (RemotingServices.IsTransparentProxy(value))
-            {
-                RealProxy proxy = RemotingServices.GetRealProxy(value);
-                if (RemotingServices.ProxyCheckCast(proxy, rt))
-                    return value;
-            }
-            else
-#endif
-                if (Object.ReferenceEquals(foundType, type) || type.IsAssignableFrom(foundType) || value == null)
-                {
-                    return value;
-                }
 
-            Contract.Assert(m_converter != null, "[SerializationInfo.GetValue]m_converter!=null");
+            if (Object.ReferenceEquals(foundType, type) || type.IsAssignableFrom(foundType) || value == null)
+            {
+                return value;
+            }
+
+            Debug.Assert(m_converter != null, "[SerializationInfo.GetValue]m_converter!=null");
 
             return m_converter.Convert(value, type);
         }
 
-        [System.Security.SecuritySafeCritical]  // auto-generated
         [System.Runtime.InteropServices.ComVisible(true)]
         internal Object GetValueNoThrow(String name, Type type)
         {
             Type foundType;
             Object value;
 
-            Contract.Assert((object)type != null, "[SerializationInfo.GetValue]type ==null");
-            Contract.Assert(type is RuntimeType, "[SerializationInfo.GetValue]type is not a runtime type");
+            Debug.Assert((object)type != null, "[SerializationInfo.GetValue]type ==null");
+            Debug.Assert(type is RuntimeType, "[SerializationInfo.GetValue]type is not a runtime type");
 
             value = GetElementNoThrow(name, out foundType);
             if (value == null)
                 return null;
-#if FEATURE_REMOTING
-            if (RemotingServices.IsTransparentProxy(value))
-            {
-                RealProxy proxy = RemotingServices.GetRealProxy(value);
-                if (RemotingServices.ProxyCheckCast(proxy, (RuntimeType)type))
-                    return value;
-            }
-            else
-#endif
-                if (Object.ReferenceEquals(foundType, type) || type.IsAssignableFrom(foundType) || value == null)
-                {
-                    return value;
-                }
 
-            Contract.Assert(m_converter != null, "[SerializationInfo.GetValue]m_converter!=null");
+            if (Object.ReferenceEquals(foundType, type) || type.IsAssignableFrom(foundType) || value == null)
+            {
+                return value;
+            }
+
+            Debug.Assert(m_converter != null, "[SerializationInfo.GetValue]m_converter!=null");
 
             return m_converter.Convert(value, type);
         }

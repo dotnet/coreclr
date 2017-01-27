@@ -16,26 +16,23 @@ namespace System.Threading
     using System.Security.Permissions;
     using System.Runtime.InteropServices;
     using System.Runtime.CompilerServices;
-#if FEATURE_CORRUPTING_EXCEPTIONS
     using System.Runtime.ExceptionServices;
-#endif // FEATURE_CORRUPTING_EXCEPTIONS
     using System.Runtime;
     using System.Runtime.Versioning;
     using System.Runtime.ConstrainedExecution;
     using System.Reflection;
     using System.Security;
+    using System.Diagnostics;
     using System.Diagnostics.Contracts;
     using System.Diagnostics.CodeAnalysis;
 
 
-#if FEATURE_SYNCHRONIZATIONCONTEXT_WAIT
     [Flags]
     enum SynchronizationContextProperties
     {
         None = 0,
         RequireWaitNotification = 0x1
     };
-#endif
 
 #if FEATURE_COMINTEROP && FEATURE_APPX
     //
@@ -43,28 +40,20 @@ namespace System.Threading
     // I'd like this to be an interface, or at least an abstract class - but neither seems to play nice with FriendAccessAllowed.
     //
     [FriendAccessAllowed]
-    [SecurityCritical]
     internal class WinRTSynchronizationContextFactoryBase
     {
-        [SecurityCritical]
         public virtual SynchronizationContext Create(object coreDispatcher) {return null;}
     }
 #endif //FEATURE_COMINTEROP
 
-#if !FEATURE_CORECLR
-    [SecurityPermissionAttribute(SecurityAction.InheritanceDemand, Flags =SecurityPermissionFlag.ControlPolicy|SecurityPermissionFlag.ControlEvidence)]
-#endif
     public class SynchronizationContext
     {
-#if FEATURE_SYNCHRONIZATIONCONTEXT_WAIT
         SynchronizationContextProperties _props = SynchronizationContextProperties.None;
-#endif
         
         public SynchronizationContext()
         {
         }
                         
-#if FEATURE_SYNCHRONIZATIONCONTEXT_WAIT
 
         // helper delegate to statically bind to Wait method
         private delegate int WaitDelegate(IntPtr[] waitHandles, bool waitAll, int millisecondsTimeout);
@@ -76,7 +65,6 @@ namespace System.Threading
         static Type s_cachedPreparedType5;
 
         // protected so that only the derived sync context class can enable these flags
-        [System.Security.SecuritySafeCritical]  // auto-generated
         [SuppressMessage("Microsoft.Concurrency", "CA8001", Justification = "We never dereference s_cachedPreparedType*, so ordering is unimportant")]
         protected void SetWaitNotificationRequired()
         {
@@ -114,7 +102,6 @@ namespace System.Threading
         {
             return ((_props & SynchronizationContextProperties.RequireWaitNotification) != 0);  
         }
-#endif
 
     
         public virtual void Send(SendOrPostCallback d, Object state)
@@ -142,40 +129,42 @@ namespace System.Threading
         {
         }
 
-#if FEATURE_SYNCHRONIZATIONCONTEXT_WAIT
-        // Method called when the CLR does a wait operation 
-        [System.Security.SecurityCritical]  // auto-generated_required
+        // Method called when the CLR does a wait operation
         [CLSCompliant(false)]
         [PrePrepareMethod]
         public virtual int Wait(IntPtr[] waitHandles, bool waitAll, int millisecondsTimeout)
         {
-            if (waitHandles == null)
-            {
-                throw new ArgumentNullException("waitHandles");
-            }
-            Contract.EndContractBlock();
             return WaitHelper(waitHandles, waitAll, millisecondsTimeout);
         }
-                                
-        // Static helper to which the above method can delegate to in order to get the default 
-        // COM behavior.
-        [System.Security.SecurityCritical]  // auto-generated_required
+
+        // Method that can be called by Wait overrides
         [CLSCompliant(false)]
         [PrePrepareMethod]
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]       
         [ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]
-        protected static extern int WaitHelper(IntPtr[] waitHandles, bool waitAll, int millisecondsTimeout);
-#endif
+        protected static int WaitHelper(IntPtr[] waitHandles, bool waitAll, int millisecondsTimeout)
+        {
+            if (waitHandles == null)
+            {
+                throw new ArgumentNullException(nameof(waitHandles));
+            }
+            Contract.EndContractBlock();
 
-#if FEATURE_CORECLR
+            return WaitHelperNative(waitHandles, waitAll, millisecondsTimeout);
+        }
 
-        [System.Security.SecurityCritical]
+        // Static helper to which the above method can delegate to in order to get the default
+        // COM behavior.
+        [CLSCompliant(false)]
+        [PrePrepareMethod]
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]
+        private static extern int WaitHelperNative(IntPtr[] waitHandles, bool waitAll, int millisecondsTimeout);
+
         public static void SetSynchronizationContext(SynchronizationContext syncContext)
         {
             Thread.CurrentThread.SynchronizationContext = syncContext;
         }
 
-        [System.Security.SecurityCritical]
         public static void SetThreadStaticContext(SynchronizationContext syncContext)
         {
             Thread.CurrentThread.SynchronizationContext = syncContext;
@@ -206,56 +195,11 @@ namespace System.Threading
             }
         }
 
-#else //FEATURE_CORECLR
-
-        // set SynchronizationContext on the current thread
-        [System.Security.SecurityCritical]  // auto-generated_required
-        public static void SetSynchronizationContext(SynchronizationContext syncContext)
-        {
-            ExecutionContext ec = Thread.CurrentThread.GetMutableExecutionContext();
-            ec.SynchronizationContext = syncContext;
-            ec.SynchronizationContextNoFlow = syncContext;
-        }
-
-        // Get the current SynchronizationContext on the current thread
-        public static SynchronizationContext Current 
-        {
-            get      
-            {
-                return Thread.CurrentThread.GetExecutionContextReader().SynchronizationContext ?? GetThreadLocalContext();
-            }
-        }
-
-        // Get the last SynchronizationContext that was set explicitly (not flowed via ExecutionContext.Capture/Run)        
-        internal static SynchronizationContext CurrentNoFlow
-        {
-            [FriendAccessAllowed]
-            get
-            {
-                return Thread.CurrentThread.GetExecutionContextReader().SynchronizationContextNoFlow ?? GetThreadLocalContext();
-            }
-        }
-
-        private static SynchronizationContext GetThreadLocalContext()
-        {
-            SynchronizationContext context = null;
-            
 #if FEATURE_APPX
-            if (context == null && AppDomain.IsAppXModel())
-                context = GetWinRTContext();
-#endif
-
-            return context;
-        }
-
-#endif //FEATURE_CORECLR
-
-#if FEATURE_APPX
-        [SecuritySafeCritical]
         private static SynchronizationContext GetWinRTContext()
         {
-            Contract.Assert(Environment.IsWinRTSupported);
-            Contract.Assert(AppDomain.IsAppXModel());
+            Debug.Assert(Environment.IsWinRTSupported);
+            Debug.Assert(AppDomain.IsAppXModel());
     
             //
             // We call into the VM to get the dispatcher.  This is because:
@@ -274,10 +218,8 @@ namespace System.Threading
             return null;
         }
 
-        [SecurityCritical]
         static WinRTSynchronizationContextFactoryBase s_winRTContextFactory;
 
-        [SecurityCritical]
         private static WinRTSynchronizationContextFactoryBase GetWinRTSynchronizationContextFactory()
         {
             //
@@ -295,7 +237,6 @@ namespace System.Threading
         }
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        [SecurityCritical]
         [SuppressUnmanagedCodeSecurity]
         [return: MarshalAs(UnmanagedType.Interface)]
         private static extern object GetWinRTDispatcherForCurrentThread();
@@ -309,12 +250,9 @@ namespace System.Threading
             return new SynchronizationContext();
         }
 
-#if FEATURE_SYNCHRONIZATIONCONTEXT_WAIT
-        [System.Security.SecurityCritical]  // auto-generated
         private static int InvokeWaitMethodHelper(SynchronizationContext syncContext, IntPtr[] waitHandles, bool waitAll, int millisecondsTimeout)
         {
             return syncContext.Wait(waitHandles, waitAll, millisecondsTimeout);
         }
-#endif
     }
 }

@@ -1,6 +1,8 @@
 function(clr_unknown_arch)
     if (WIN32)
-        message(FATAL_ERROR "Only AMD64, ARM64 and I386 are supported")
+        message(FATAL_ERROR "Only AMD64, ARM64, ARM and I386 are supported")
+    elseif(CLR_CROSS_COMPONENTS_BUILD)
+        message(FATAL_ERROR "Only AMD64, I386 host are supported for linux cross-architecture component")
     else()
         message(FATAL_ERROR "Only AMD64, ARM64 and ARM are supported")
     endif()
@@ -24,14 +26,39 @@ function(get_compile_definitions DefinitionName)
     set(${DefinitionName} ${DEFINITIONS} PARENT_SCOPE)
 endfunction(get_compile_definitions)
 
-# Build a list of include directories by putting -I in front of each include dir.
+# Build a list of include directories
 function(get_include_directories IncludeDirectories)
     get_directory_property(dirs INCLUDE_DIRECTORIES)
     foreach(dir IN LISTS dirs)
+
+      if (CLR_CMAKE_PLATFORM_ARCH_ARM AND WIN32)
+        list(APPEND INC_DIRECTORIES /I${dir})
+      else()
         list(APPEND INC_DIRECTORIES -I${dir})
+      endif(CLR_CMAKE_PLATFORM_ARCH_ARM AND WIN32)
+
     endforeach()
     set(${IncludeDirectories} ${INC_DIRECTORIES} PARENT_SCOPE)
 endfunction(get_include_directories)
+
+# Build a list of include directories for consumption by the assembler
+function(get_include_directories_asm IncludeDirectories)
+    get_directory_property(dirs INCLUDE_DIRECTORIES)
+    
+    if (CLR_CMAKE_PLATFORM_ARCH_ARM AND WIN32)
+        list(APPEND INC_DIRECTORIES "-I ")
+    endif()
+    
+    foreach(dir IN LISTS dirs)
+      if (CLR_CMAKE_PLATFORM_ARCH_ARM AND WIN32)
+        list(APPEND INC_DIRECTORIES ${dir};)
+      else()
+        list(APPEND INC_DIRECTORIES -I${dir})
+      endif()
+    endforeach()
+
+    set(${IncludeDirectories} ${INC_DIRECTORIES} PARENT_SCOPE)
+endfunction(get_include_directories_asm)
 
 # Set the passed in RetSources variable to the list of sources with added current source directory
 # to form absolute paths.
@@ -47,12 +74,12 @@ endfunction(convert_to_absolute_path)
 #Preprocess exports definition file
 function(preprocess_def_file inputFilename outputFilename)
   get_compile_definitions(PREPROCESS_DEFINITIONS)
-
+  get_include_directories(ASM_INCLUDE_DIRECTORIES)
   add_custom_command(
     OUTPUT ${outputFilename}
-    COMMAND ${CMAKE_CXX_COMPILER} /P /EP /TC ${PREPROCESS_DEFINITIONS}  /Fi${outputFilename}  ${inputFilename}
+    COMMAND ${CMAKE_CXX_COMPILER} ${ASM_INCLUDE_DIRECTORIES} /P /EP /TC ${PREPROCESS_DEFINITIONS}  /Fi${outputFilename}  ${inputFilename}
     DEPENDS ${inputFilename}
-    COMMENT "Preprocessing ${inputFilename}"
+    COMMENT "Preprocessing ${inputFilename} - ${CMAKE_CXX_COMPILER} ${ASM_INCLUDE_DIRECTORIES} /P /EP /TC ${PREPROCESS_DEFINITIONS}  /Fi${outputFilename}  ${inputFilename}"
   )
 
   set_source_files_properties(${outputFilename}
@@ -154,6 +181,11 @@ function(install_clr targetName)
     else()  
         install(FILES ${strip_destination_file} DESTINATION .)  
     endif()  
+    if(CLR_CMAKE_PGO_INSTRUMENT)
+        if(WIN32)
+            install(FILES ${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>/${targetName}.pgd DESTINATION PGD OPTIONAL)
+        endif()
+    endif()
   endif()  
 endfunction()
 
@@ -184,5 +216,21 @@ endfunction()
 function(_install)
     if(NOT DEFINED CLR_CROSS_COMPONENTS_BUILD)
       install(${ARGV})
+    endif()
+endfunction()
+
+function(verify_dependencies targetName errorMessage)
+    # We don't need to verify dependencies on OSX, since missing dependencies
+    # result in link error over there.
+    if (NOT CLR_CMAKE_PLATFORM_DARWIN)
+        add_custom_command(
+            TARGET ${targetName}
+            POST_BUILD
+            VERBATIM
+            COMMAND ${CMAKE_SOURCE_DIR}/verify-so.sh 
+                $<TARGET_FILE:${targetName}> 
+                ${errorMessage}
+            COMMENT "Verifying ${targetName} dependencies"
+        )
     endif()
 endfunction()

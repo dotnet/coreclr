@@ -101,10 +101,8 @@ public:
     //
     static FCDECL1(FC_BOOL_RET, nativeInitCultureData, CultureDataBaseObject *data);
     static FCDECL3(FC_BOOL_RET, nativeGetNumberFormatInfoValues, StringObject* localeNameUNSAFE, NumberFormatInfo* nfi, CLR_BOOL useUserOverride);
-#ifdef FEATURE_USE_LCID
     static FCDECL1(Object*, LCIDToLocaleName, LCID lcid);
     static FCDECL1(INT32, LocaleNameToLCID, StringObject* localeNameUNSAFE);
-#endif // FEATURE_USE_LCID
 
     static INT32 QCALLTYPE InternalCompareString (INT_PTR handle, INT_PTR handleOrigin, LPCWSTR localeName, LPCWSTR string1, INT32 offset1, INT32 length1, LPCWSTR string2, INT32 offset2, INT32 length2, INT32 flags);
     static INT32 QCALLTYPE InternalGetGlobalizedHashCode(INT_PTR handle, INT_PTR handleOrigin, LPCWSTR localeName, LPCWSTR pString, INT32 length, INT32 dwFlagsIn, BOOL bForceRandomizedHashing, INT64 additionalEntropy);
@@ -117,19 +115,8 @@ public:
     static INT_PTR InternalInitVersionedSortHandle(LPCWSTR localeName, INT_PTR* handleOrigin);
     static INT_PTR InternalInitVersionedSortHandle(LPCWSTR localeName, INT_PTR* handleOrigin, DWORD sortVersion);
     static DWORD QCALLTYPE InternalGetSortVersion();
-    static BOOL QCALLTYPE InternalGetNlsVersionEx(INT_PTR handle, INT_PTR handleOrigin, LPCWSTR lpLocaleName, NLSVERSIONINFOEX * lpVersionInformation);
 #endif
-
-
-#ifndef FEATURE_CORECLR
-    //
-    //  Native helper function for methods in TimeZone
-    //
-    static FCDECL0(LONG, nativeGetTimeZoneMinuteOffset);
-    static FCDECL0(Object*, nativeGetStandardName);
-    static FCDECL0(Object*, nativeGetDaylightName);
-    static FCDECL1(Object*, nativeGetDaylightChanges, int year);
-#endif // FEATURE_CORECLR
+    static BOOL QCALLTYPE InternalGetNlsVersionEx(INT_PTR handle, INT_PTR handleOrigin, LPCWSTR lpLocaleName, NLSVERSIONINFOEX * lpVersionInformation);
 
     //
     //  Native helper function for methods in EncodingTable
@@ -227,7 +214,7 @@ private:
     //  Definitions.
     //
 
-#ifndef FEATURE_CORECLR
+#ifndef FEATURE_COREFX_GLOBALIZATION
     // Normalization
     static HMODULE m_hNormalization;
     static PFN_NORMALIZATION_IS_NORMALIZED_STRING m_pfnNormalizationIsNormalizedStringFunc;

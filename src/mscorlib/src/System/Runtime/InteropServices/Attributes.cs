@@ -8,6 +8,7 @@ namespace System.Runtime.InteropServices{
 
     using System;
     using System.Reflection;
+    using System.Diagnostics;
     using System.Diagnostics.Contracts;
 
     [AttributeUsage(AttributeTargets.Delegate, AllowMultiple = false, Inherited = false)]
@@ -277,115 +278,6 @@ namespace System.Runtime.InteropServices{
         }
     }
     
-[Serializable]
-[Flags()]
-    [System.Runtime.InteropServices.ComVisible(true)]
-    public enum TypeLibTypeFlags
-    {
-        FAppObject      = 0x0001,
-        FCanCreate      = 0x0002,
-        FLicensed       = 0x0004,
-        FPreDeclId      = 0x0008,
-        FHidden         = 0x0010,
-        FControl        = 0x0020,
-        FDual           = 0x0040,
-        FNonExtensible  = 0x0080,
-        FOleAutomation  = 0x0100,
-        FRestricted     = 0x0200,
-        FAggregatable   = 0x0400,
-        FReplaceable    = 0x0800,
-        FDispatchable   = 0x1000,
-        FReverseBind    = 0x2000,
-    }
-    
-[Serializable]
-[Flags()]
-    [System.Runtime.InteropServices.ComVisible(true)]
-    public enum TypeLibFuncFlags
-    {   
-        FRestricted         = 0x0001,
-        FSource             = 0x0002,
-        FBindable           = 0x0004,
-        FRequestEdit        = 0x0008,
-        FDisplayBind        = 0x0010,
-        FDefaultBind        = 0x0020,
-        FHidden             = 0x0040,
-        FUsesGetLastError   = 0x0080,
-        FDefaultCollelem    = 0x0100,
-        FUiDefault          = 0x0200,
-        FNonBrowsable       = 0x0400,
-        FReplaceable        = 0x0800,
-        FImmediateBind      = 0x1000,
-    }
-
-[Serializable]
-[Flags()]
-    [System.Runtime.InteropServices.ComVisible(true)]
-    public enum TypeLibVarFlags
-    {   
-        FReadOnly           = 0x0001,
-        FSource             = 0x0002,
-        FBindable           = 0x0004,
-        FRequestEdit        = 0x0008,
-        FDisplayBind        = 0x0010,
-        FDefaultBind        = 0x0020,
-        FHidden             = 0x0040,
-        FRestricted         = 0x0080,
-        FDefaultCollelem    = 0x0100,
-        FUiDefault          = 0x0200,
-        FNonBrowsable       = 0x0400,
-        FReplaceable        = 0x0800,
-        FImmediateBind      = 0x1000,
-    }
-
-    [AttributeUsage(AttributeTargets.Class | AttributeTargets.Interface | AttributeTargets.Enum | AttributeTargets.Struct, Inherited = false)]
-    [System.Runtime.InteropServices.ComVisible(true)]
-    public sealed class  TypeLibTypeAttribute : Attribute
-    {
-        internal TypeLibTypeFlags _val;
-        public TypeLibTypeAttribute(TypeLibTypeFlags flags)
-        {
-            _val = flags;
-        }
-        public TypeLibTypeAttribute(short flags)
-        {
-            _val = (TypeLibTypeFlags)flags;
-        }
-        public TypeLibTypeFlags Value { get {return _val;} }    
-    }
-
-    [AttributeUsage(AttributeTargets.Method, Inherited = false)] 
-    [System.Runtime.InteropServices.ComVisible(true)]
-    public sealed class TypeLibFuncAttribute : Attribute
-    {
-        internal TypeLibFuncFlags _val;
-        public TypeLibFuncAttribute(TypeLibFuncFlags flags)
-        {
-            _val = flags;
-        }
-        public TypeLibFuncAttribute(short flags)
-        {
-            _val = (TypeLibFuncFlags)flags;
-        }
-        public TypeLibFuncFlags Value { get {return _val;} }    
-    }
-
-    [AttributeUsage(AttributeTargets.Field, Inherited = false)] 
-    [System.Runtime.InteropServices.ComVisible(true)]
-    public sealed class TypeLibVarAttribute : Attribute
-    {
-        internal TypeLibVarFlags _val;
-        public TypeLibVarAttribute(TypeLibVarFlags flags)
-        {
-            _val = flags;
-        }
-        public TypeLibVarAttribute(short flags)
-        {
-            _val = (TypeLibVarFlags)flags;
-        }
-        public TypeLibVarFlags Value { get {return _val;} } 
-    }   
-
     [Serializable]
     [System.Runtime.InteropServices.ComVisible(true)]
     public enum VarEnum
@@ -525,31 +417,26 @@ namespace System.Runtime.InteropServices{
     [System.Runtime.InteropServices.ComVisible(true)]
     public unsafe sealed class MarshalAsAttribute : Attribute
     {
-        [System.Security.SecurityCritical]  // auto-generated
         internal static Attribute GetCustomAttribute(RuntimeParameterInfo parameter)
         {
             return GetCustomAttribute(parameter.MetadataToken, parameter.GetRuntimeModule());
         }
 
-        [System.Security.SecurityCritical]  // auto-generated
         internal static bool IsDefined(RuntimeParameterInfo parameter)
         {
             return GetCustomAttribute(parameter) != null;
         }
 
-        [System.Security.SecurityCritical]  // auto-generated
         internal static Attribute GetCustomAttribute(RuntimeFieldInfo field)
         {
             return GetCustomAttribute(field.MetadataToken, field.GetRuntimeModule()); ;
         }
 
-        [System.Security.SecurityCritical]  // auto-generated
         internal static bool IsDefined(RuntimeFieldInfo field)
         {
             return GetCustomAttribute(field) != null;
         }
 
-        [System.Security.SecurityCritical]  // auto-generated
         internal static Attribute GetCustomAttribute(int token, RuntimeModule scope)
         {
             UnmanagedType unmanagedType, arraySubType;
@@ -578,7 +465,7 @@ namespace System.Runtime.InteropServices{
             {
                 // The user may have supplied a bad type name string causing this TypeLoadException
                 // Regardless, we return the bad type name
-                Contract.Assert(marshalTypeName != null);
+                Debug.Assert(marshalTypeName != null);
             }
 
             return new MarshalAsAttribute(
@@ -772,7 +659,6 @@ namespace System.Runtime.InteropServices{
     [System.Runtime.InteropServices.ComVisible(true)]
     public unsafe sealed class DllImportAttribute : Attribute
     {
-        [System.Security.SecurityCritical]  // auto-generated
         internal static Attribute GetCustomAttribute(RuntimeMethodInfo method)
         {
             if ((method.Attributes & MethodAttributes.PinvokeImpl) == 0)
@@ -869,7 +755,6 @@ namespace System.Runtime.InteropServices{
     {
         private const int DEFAULT_PACKING_SIZE = 8;
 
-        [System.Security.SecurityCritical]  // auto-generated
         internal static Attribute GetCustomAttribute(RuntimeType type)
         {
             if (!IsDefined(type))
@@ -940,7 +825,6 @@ namespace System.Runtime.InteropServices{
     [System.Runtime.InteropServices.ComVisible(true)]
     public unsafe sealed class FieldOffsetAttribute : Attribute
     {
-        [System.Security.SecurityCritical]  // auto-generated
         internal static Attribute GetCustomAttribute(RuntimeFieldInfo field)
         {
             int fieldOffset;
@@ -952,7 +836,6 @@ namespace System.Runtime.InteropServices{
             return null;
         }
 
-        [System.Security.SecurityCritical]  // auto-generated
         internal static bool IsDefined(RuntimeFieldInfo field)
         {
             return GetCustomAttribute(field) != null;

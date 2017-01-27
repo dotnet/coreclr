@@ -382,7 +382,6 @@ HRESULT CEECompileInfo::LoadAssemblyByPath(
 
     Assembly * pAssembly;
     HRESULT    hrProcessLibraryBitnessMismatch = S_OK;
-    bool       verifyingImageIsAssembly = false;
 
     // We don't want to do a LoadFrom, since they do not work with ngen. Instead,
     // read the metadata from the file and do a bind based on that.
@@ -416,9 +415,6 @@ HRESULT CEECompileInfo::LoadAssemblyByPath(
                 fExplicitBindToNativeImage ? MDInternalImport_NoCache : MDInternalImport_Default);
         }
 
-#if defined(FEATURE_WINDOWSPHONE)
-        verifyingImageIsAssembly = true;
-#endif // FEATURE_WINDOWSPHONE
         if (fExplicitBindToNativeImage && !pImage->HasReadyToRunHeader())
         {
             pImage->VerifyIsNIAssembly();
@@ -427,8 +423,6 @@ HRESULT CEECompileInfo::LoadAssemblyByPath(
         {
             pImage->VerifyIsAssembly();
         }
-        
-        verifyingImageIsAssembly = false;
 
         // Check to make sure the bitness of the assembly matches the bitness of the process
         // we will be loading it into and store the result.  If a COR_IMAGE_ERROR gets thrown
@@ -552,11 +546,7 @@ HRESULT CEECompileInfo::LoadAssemblyByPath(
     }
     EX_CATCH_HRESULT(hr);
     
-    if (verifyingImageIsAssembly && hr != S_OK)
-    {
-        hr = NGEN_E_FILE_NOT_ASSEMBLY;
-    }
-    else if ( hrProcessLibraryBitnessMismatch != S_OK && ( hr == COR_E_BADIMAGEFORMAT || hr == HRESULT_FROM_WIN32(ERROR_BAD_EXE_FORMAT) ) )
+    if ( hrProcessLibraryBitnessMismatch != S_OK && ( hr == COR_E_BADIMAGEFORMAT || hr == HRESULT_FROM_WIN32(ERROR_BAD_EXE_FORMAT) ) )
     {
         hr = hrProcessLibraryBitnessMismatch;
     }
@@ -1497,7 +1487,7 @@ void CEECompileInfo::CompressDebugInfo(
 
 HRESULT CEECompileInfo::GetBaseJitFlags(
         IN  CORINFO_METHOD_HANDLE   hMethod,
-        OUT DWORD                  *pFlags)
+        OUT CORJIT_FLAGS           *pFlags)
 {
     STANDARD_VM_CONTRACT;
 
@@ -2368,7 +2358,8 @@ void CEECompileInfo::EncodeField(
                          SigBuilder *          pSigBuilder,
                          LPVOID                encodeContext,
                          ENCODEMODULE_CALLBACK pfnEncodeModule,
-                         CORINFO_RESOLVED_TOKEN * pResolvedToken)
+                         CORINFO_RESOLVED_TOKEN * pResolvedToken, 
+                         BOOL fEncodeUsingResolvedTokenSpecStreams)
 {
     STANDARD_VM_CONTRACT;
 
@@ -2379,7 +2370,8 @@ void CEECompileInfo::EncodeField(
                         pSigBuilder,
                         encodeContext, 
                         pfnEncodeModule,
-                        pResolvedToken);
+                        pResolvedToken,
+                        fEncodeUsingResolvedTokenSpecStreams);
 
     COOPERATIVE_TRANSITION_END();
 }
@@ -2917,36 +2909,44 @@ public:
     {
         LIMITED_METHOD_CONTRACT;
     }
-            
-    HRESULT Load()
+
+#ifdef FEATURE_CORECLR
+#define WRITER_LOAD_ERROR_MESSAGE W("Unable to load ") NATIVE_SYMBOL_READER_DLL W(".  Please ensure that ") NATIVE_SYMBOL_READER_DLL W(" is on the path.  Error='%d'\n")
+#else
+#define WRITER_LOAD_ERROR_MESSAGE W("Unable to load diasymreader.dll.  Please ensure that version 11 or greater of diasymreader.dll is on the path.  You can typically find this DLL in the desktop .NET install directory for 4.5 or greater.  Error='%d'\n")
+#endif
+
+    HRESULT Load(LPCWSTR wszDiasymreaderPath = nullptr)
     {
         STANDARD_VM_CONTRACT;
 
         HRESULT hr = S_OK;
 
-        m_hModule = WszLoadLibrary(W("diasymreader.dll"));
+        m_hModule = WszLoadLibrary(wszDiasymreaderPath != nullptr ? wszDiasymreaderPath : (LPCWSTR)NATIVE_SYMBOL_READER_DLL);
         if (m_hModule == NULL)
         {
-            GetSvcLogger()->Printf(
-                W("Unable to load diasymreader.dll.  Please ensure that version 11 or greater of diasymreader.dll is on the path.  You can typically find this DLL in the desktop .NET install directory for 4.5 or greater.  Error='%d'\n"),
-                GetLastError());
-            return HRESULT_FROM_WIN32(GetLastError());
+            hr = HRESULT_FROM_WIN32(GetLastError());
+            GetSvcLogger()->Printf(WRITER_LOAD_ERROR_MESSAGE, GetLastError());
+            return hr;
         }
 
         m_Create = reinterpret_cast<CreateNGenPdbWriter_t>(GetProcAddress(m_hModule, "CreateNGenPdbWriter"));
         if (m_Create == NULL)
         {
-            GetSvcLogger()->Printf(
-                W("An incorrect version of diasymreader.dll was found.  Please ensure that version 11 or greater of diasymreader.dll is on the path.  You can typically find this DLL in the desktop .NET install directory for 4.5 or greater.  Error='%d'\n"),
-                GetLastError());
-            return HRESULT_FROM_WIN32(GetLastError());
+            hr = HRESULT_FROM_WIN32(GetLastError());
+            GetSvcLogger()->Printf(WRITER_LOAD_ERROR_MESSAGE, GetLastError());
+            return hr;
         }
 
         if ((m_dwExtraData & kPDBLines) != 0)
         {
             hr = FakeCoCreateInstanceEx(
                 CLSID_CorSymBinder_SxS,
-                NULL,
+#ifdef FEATURE_CORECLR
+                wszDiasymreaderPath != nullptr ? wszDiasymreaderPath : (LPCWSTR)NATIVE_SYMBOL_READER_DLL,
+#else
+                wszDiasymreaderPath,
+#endif
                 IID_ISymUnmanagedBinder,
                 (void**)&m_pBinder,
                 NULL);
@@ -3058,6 +3058,13 @@ private:
     DWORD m_dwExtraData;
     LPCWSTR m_wszManagedPDBSearchPath;
 
+	// Currently The DiasymWriter does not use the correct PDB signature for NGEN PDBS unless 
+	// the NGEN DLL whose symbols are being generated end in .ni.dll.   Thus we copy
+	// to this name if it does not follow this covention (as is true with readyToRun
+	// dlls).   This variable remembers this temp file path so we can delete it after
+	// Pdb generation.   If DiaSymWriter is fixed, we can remove this.  
+	SString m_tempSourceDllName;
+
     // Interfaces for reading IL PDB info
     ReleaseHolder<ISymUnmanagedBinder> m_pBinder;
     ReleaseHolder<ISymUnmanagedReader> m_pReader;
@@ -3105,6 +3112,8 @@ public:
 
         ZeroMemory(m_wszPDBFilePath, sizeof(m_wszPDBFilePath));
     }
+
+	~NGenModulePdbWriter();
     
     HRESULT WritePDBData();
 
@@ -3405,6 +3414,13 @@ HRESULT NGenModulePdbWriter::InitILPdbData()
     return S_OK;
 }
 
+NGenModulePdbWriter::~NGenModulePdbWriter()
+{
+	// Delete any temporary files we created. 
+	if (m_tempSourceDllName.GetCount() != 0)
+		DeleteFileW(m_tempSourceDllName);
+	m_tempSourceDllName.Clear();
+}
 
 //---------------------------------------------------------------------------------------
 //
@@ -3439,8 +3455,32 @@ HRESULT NGenModulePdbWriter::WritePDBData()
 
     PEImageLayout * pLoadedLayout = m_pModule->GetFile()->GetLoaded();
 
+	// Currently DiaSymReader does not work properly generating NGEN PDBS unless 
+	// the DLL whose PDB is being generated ends in .ni.*.   Unfortunately, readyToRun
+	// images do not follow this convention and end up producing bad PDBS.  To fix
+	// this (without changing diasymreader.dll which ships indepdendently of .Net Core)
+	// we copy the file to somethign with this convention before generating the PDB
+	// and delete it when we are done.  
+	SString dllPath = pLoadedLayout->GetPath();
+	if (!dllPath.EndsWithCaseInsensitive(L".ni.dll") && !dllPath.EndsWithCaseInsensitive(L".ni.exe"))
+	{
+		SString::Iterator fileNameStart = dllPath.Begin();
+		dllPath.FindBack(fileNameStart, '\\');
+
+		SString::Iterator ext = dllPath.End();
+		dllPath.FindBack(ext, '.');
+
+		// m_tempSourceDllName = Convertion of  INPUT.dll  to INPUT.ni.dll where the PDB lives.  
+		m_tempSourceDllName = m_wszPdbPath;
+		m_tempSourceDllName += SString(dllPath, fileNameStart, ext - fileNameStart);
+		m_tempSourceDllName += L".ni";
+		m_tempSourceDllName += SString(dllPath, ext, dllPath.End() - ext);
+		CopyFileW(dllPath, m_tempSourceDllName, false);
+		dllPath = m_tempSourceDllName;
+	}
+
     ReleaseHolder<ISymNGenWriter> pWriter1;
-    hr = m_Create(pLoadedLayout->GetPath(), m_wszPdbPath, &pWriter1);
+    hr = m_Create(dllPath, m_wszPdbPath, &pWriter1);
     if (FAILED(hr))
         return hr;
     
@@ -4792,7 +4832,7 @@ BOOL NGenMethodLinesPdbWriter::FinalizeLinesFileBlock(
 }
 #endif // NO_NGENPDB
 #if defined(FEATURE_PERFMAP) || !defined(NO_NGENPDB)
-HRESULT __stdcall CreatePdb(CORINFO_ASSEMBLY_HANDLE hAssembly, BSTR pNativeImagePath, BSTR pPdbPath, BOOL pdbLines, BSTR pManagedPdbSearchPath)
+HRESULT __stdcall CreatePdb(CORINFO_ASSEMBLY_HANDLE hAssembly, BSTR pNativeImagePath, BSTR pPdbPath, BOOL pdbLines, BSTR pManagedPdbSearchPath, LPCWSTR pDiasymreaderPath)
 {
     STANDARD_VM_CONTRACT;
 
@@ -4807,7 +4847,7 @@ HRESULT __stdcall CreatePdb(CORINFO_ASSEMBLY_HANDLE hAssembly, BSTR pNativeImage
         pPdbPath, 
         pdbLines ? kPDBLines : 0,
         pManagedPdbSearchPath);
-    IfFailThrow(pdbWriter.Load());
+    IfFailThrow(pdbWriter.Load(pDiasymreaderPath));
 #elif defined(FEATURE_PERFMAP)
     NativeImagePerfMap perfMap(pAssembly, pPdbPath);
 #endif
@@ -4851,7 +4891,7 @@ HRESULT __stdcall CreatePdb(CORINFO_ASSEMBLY_HANDLE hAssembly, BSTR pNativeImage
     return S_OK;
 }
 #else
-HRESULT __stdcall CreatePdb(CORINFO_ASSEMBLY_HANDLE hAssembly, BSTR pNativeImagePath, BSTR pPdbPath, BOOL pdbLines, BSTR pManagedPdbSearchPath)
+HRESULT __stdcall CreatePdb(CORINFO_ASSEMBLY_HANDLE hAssembly, BSTR pNativeImagePath, BSTR pPdbPath, BOOL pdbLines, BSTR pManagedPdbSearchPath, LPCWSTR pDiasymreaderPath)
 {
     return E_NOTIMPL;
 }
@@ -5413,7 +5453,7 @@ static BOOL CanSatisfyConstraints(Instantiation typicalInst, Instantiation candi
             StackScratchBuffer buffer;
             thArg.GetName(candidateInstName);
             char output[1024];
-            sprintf(output, "Generics TypeDependencyAttribute processing: Couldn't satisfy a constraint.  Class with Attribute: %s  Bad candidate instantiated type: %s\r\n", pMT->GetDebugClassName(), candidateInstName.GetANSI(buffer));
+            _snprintf_s(output, _countof(output), _TRUNCATE, "Generics TypeDependencyAttribute processing: Couldn't satisfy a constraint.  Class with Attribute: %s  Bad candidate instantiated type: %s\r\n", pMT->GetDebugClassName(), candidateInstName.GetANSI(buffer));
             OutputDebugStringA(output);
             */
 #endif
@@ -6563,7 +6603,9 @@ void CEEPreloader::PrePrepareMethodIfNecessary(CORINFO_METHOD_HANDLE hMethod)
 {
     STANDARD_VM_CONTRACT;
 
+#ifdef FEATURE_CER
     ::PrePrepareMethodIfNecessary(hMethod);
+#endif
 }
 
 static void SetStubMethodDescOnInteropMethodDesc(MethodDesc* pInteropMD, MethodDesc* pStubMD, bool fReverseStub)
@@ -6640,9 +6682,9 @@ MethodDesc * CEEPreloader::CompileMethodStubIfNeeded(
     {
         if (!pStubMD->AsDynamicMethodDesc()->GetILStubResolver()->IsCompiled())
         {
-            DWORD dwJitFlags = pStubMD->AsDynamicMethodDesc()->GetILStubResolver()->GetJitFlags();
+            CORJIT_FLAGS jitFlags = pStubMD->AsDynamicMethodDesc()->GetILStubResolver()->GetJitFlags();
 
-            pfnCallback(pCallbackContext, (CORINFO_METHOD_HANDLE)pStubMD, dwJitFlags);
+            pfnCallback(pCallbackContext, (CORINFO_METHOD_HANDLE)pStubMD, jitFlags);
         }
 
 #ifndef FEATURE_FULL_NGEN // Deduplication

@@ -73,7 +73,7 @@ inline HRESULT HRESULT_FROM_WIN32(unsigned long x)
 #define FALSE false
 
 #define CALLBACK __stdcall
-#define FORCEINLINE inline
+#define FORCEINLINE __forceinline
 
 #define INFINITE 0xFFFFFFFF
 
@@ -96,7 +96,7 @@ inline HRESULT HRESULT_FROM_WIN32(unsigned long x)
 #define UNREFERENCED_PARAMETER(P)          (void)(P)
 
 #ifdef PLATFORM_UNIX
-#define  _vsnprintf vsnprintf
+#define _vsnprintf_s(string, sizeInBytes, count, format, args) vsnprintf(string, sizeInBytes, format, args)
 #define sprintf_s snprintf
 #define swprintf_s swprintf
 #endif
@@ -175,6 +175,12 @@ typedef DWORD (WINAPI *PTHREAD_START_ROUTINE)(void* lpThreadParameter);
 #else // _MSC_VER
 
 #endif // _MSC_VER
+
+typedef struct _PROCESSOR_NUMBER {
+    uint16_t Group;
+    uint8_t Number;
+    uint8_t Reserved;
+} PROCESSOR_NUMBER, *PPROCESSOR_NUMBER;
 
 #endif // _INC_WINDOWS
 
@@ -435,33 +441,16 @@ extern MethodTable * g_pFreeObjectMethodTable;
 
 extern int32_t g_TrapReturningThreads;
 
-extern bool g_fFinalizerRunOnShutDown;
-
 //
 // Locks
 //
 
-struct alloc_context;
+struct gc_alloc_context;
 class Thread;
 
 Thread * GetThread();
 
 typedef void (CALLBACK *HANDLESCANPROC)(PTR_UNCHECKED_OBJECTREF pref, uintptr_t *pExtraInfo, uintptr_t param1, uintptr_t param2);
-
-class FinalizerThread
-{
-public:
-    static bool Initialize();
-    static void EnableFinalization();
-
-    static bool HaveExtraWorkForFinalizer();
-
-    static bool IsCurrentThreadFinalizer();
-    static void Wait(DWORD timeout, bool allowReentrantWait = false);
-    static void SignalFinalizationDone(bool fFinalizer);
-    static void SetFinalizerThread(Thread * pThread);
-    static HANDLE GetFinalizerEvent();
-};
 
 bool IsGCSpecialThread();
 
@@ -503,8 +492,6 @@ void LogSpewAlways(const char *fmt, ...);
 
 // -----------------------------------------------------------------------------------------------------------
 
-void StompWriteBarrierEphemeral(bool isRuntimeSuspended);
-void StompWriteBarrierResize(bool isRuntimeSuspended, bool bReqUpperBoundsCheck);
 bool IsGCThread();
 
 class CLRConfig
@@ -599,5 +586,22 @@ public:
     }
 };
 #endif // STRESS_HEAP
+
+class NumaNodeInfo
+{
+public:
+    static bool CanEnableGCNumaAware();
+    static void GetGroupForProcessor(uint16_t processor_number, uint16_t * group_number, uint16_t * group_processor_number);
+    static bool GetNumaProcessorNodeEx(PPROCESSOR_NUMBER proc_no, uint16_t * node_no);
+};
+
+class CPUGroupInfo
+{
+public:
+    static bool CanEnableGCCPUGroups();
+    static uint32_t GetNumActiveProcessors();
+    static void GetGroupForProcessor(uint16_t processor_number, uint16_t * group_number, uint16_t * group_processor_number);
+};
+
 
 #endif // __GCENV_BASE_INCLUDED__

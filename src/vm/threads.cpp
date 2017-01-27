@@ -18,7 +18,7 @@
 #include "excep.h"
 #include "comsynchronizable.h"
 #include "log.h"
-#include "gc.h"
+#include "gcheaputilities.h"
 #include "mscoree.h"
 #include "dbginterface.h"
 #include "corprof.h"                // profiling
@@ -2022,8 +2022,10 @@ Thread::Thread()
     m_ppvHJRetAddrPtr = (VOID**) 0xCCCCCCCCCCCCCCCC;
     m_pvHJRetAddr = (VOID*) 0xCCCCCCCCCCCCCCCC;
 
+#ifndef PLATFORM_UNIX
     X86_ONLY(m_LastRedirectIP = 0);
     X86_ONLY(m_SpinCount = 0);
+#endif // PLATFORM_UNIX
 #endif // FEATURE_HIJACK
 
 #if defined(_DEBUG) && defined(TRACK_SYNC)
@@ -2232,17 +2234,14 @@ Thread::Thread()
     
     m_fGCSpecial = FALSE;
 
-#if !defined(FEATURE_CORECLR)
+#if !defined(FEATURE_PAL)
     m_wCPUGroup = 0;
     m_pAffinityMask = 0;
 #endif
 
     m_pAllLoggedTypes = NULL;
-#ifdef FEATURE_UNIX_AMD64_STRUCT_PASSING
-    m_pHijackReturnTypeClass = NULL;
-#endif
+    m_HijackReturnKind = RT_Illegal;
 }
-
 
 //--------------------------------------------------------------------
 // Failable initialization occurs here.
@@ -2378,10 +2377,7 @@ BOOL Thread::InitThread(BOOL fInternal)
 
     // Set floating point mode to round to nearest
 #ifndef FEATURE_PAL
-#ifndef _TARGET_ARM64_
-    //ARM64TODO: remove the ifdef
     (void) _controlfp_s( NULL, _RC_NEAR, _RC_CHOP|_RC_UP|_RC_DOWN|_RC_NEAR );
-#endif
 
     m_pTEB = (struct _NT_TIB*)NtCurrentTeb();
 
@@ -3895,14 +3891,14 @@ void Thread::OnThreadTerminate(BOOL holdingLock)
 #endif
     }
 
-    if  (GCHeap::IsGCHeapInitialized())
+    if  (GCHeapUtilities::IsGCHeapInitialized())
     {
         // Guaranteed to NOT be a shutdown case, because we tear down the heap before
         // we tear down any threads during shutdown.
         if (ThisThreadID == CurrentThreadID)
         {
             GCX_COOP();
-            GCHeap::GetGCHeap()->FixAllocContext(&m_alloc_context, FALSE, NULL, NULL);
+            GCHeapUtilities::GetGCHeap()->FixAllocContext(&m_alloc_context, FALSE, NULL, NULL);
             m_alloc_context.init();
         }
     }
@@ -3963,11 +3959,11 @@ void Thread::OnThreadTerminate(BOOL holdingLock)
 #endif
         }
 
-        if  (GCHeap::IsGCHeapInitialized() && ThisThreadID != CurrentThreadID)
+        if  (GCHeapUtilities::IsGCHeapInitialized() && ThisThreadID != CurrentThreadID)
         {
             // We must be holding the ThreadStore lock in order to clean up alloc context.
             // We should never call FixAllocContext during GC.
-            GCHeap::GetGCHeap()->FixAllocContext(&m_alloc_context, FALSE, NULL, NULL);
+            GCHeapUtilities::GetGCHeap()->FixAllocContext(&m_alloc_context, FALSE, NULL, NULL);
             m_alloc_context.init();
         }
 
@@ -4537,9 +4533,6 @@ retry:
         {
             // Probe all handles with a timeout of zero. When we find one that's
             // invalid, move it out of the list and retry the wait.
-#ifdef _DEBUG
-            BOOL fFoundInvalid = FALSE;
-#endif
             for (int i = 0; i < countHandles; i++)
             {
                 // WaitForSingleObject won't pump memssage; we already probe enough space
@@ -4552,12 +4545,8 @@ retry:
                 if ((countHandles - i - 1) > 0)
                     memmove(&handles[i], &handles[i+1], (countHandles - i - 1) * sizeof(HANDLE));
                 countHandles--;
-#ifdef _DEBUG
-                fFoundInvalid = TRUE;
-#endif
                 break;
             }
-            _ASSERTE(fFoundInvalid);
 
             // Compute the new timeout value by assume that the timeout
             // is not large enough for more than one wrap
@@ -4603,7 +4592,6 @@ retry:
                 _ASSERTE(subRet == WAIT_TIMEOUT);
                 ret++;
             }
-            _ASSERTE(i != countHandles);
         }
     }
 
@@ -4710,7 +4698,7 @@ WaitCompleted:
     return ret;
 }
 
-#ifndef FEATURE_CORECLR
+#ifndef FEATURE_PAL
 //--------------------------------------------------------------------
 // Only one style of wait for DoSignalAndWait since we don't support this on STA Threads
 //--------------------------------------------------------------------
@@ -4857,7 +4845,7 @@ WaitCompleted:
 
     return ret;
 }
-#endif // FEATURE_CORECLR
+#endif // !FEATURE_PAL
 
 #ifdef FEATURE_SYNCHRONIZATIONCONTEXT_WAIT
 DWORD Thread::DoSyncContextWait(OBJECTREF *pSyncCtxObj, int countHandles, HANDLE *handles, BOOL waitAll, DWORD millis)
@@ -6811,17 +6799,14 @@ void Thread::HandleThreadInterrupt (BOOL fWaitForADUnload)
     }
     if ((m_UserInterrupt & TI_Interrupt) != 0)
     {
-        if (ReadyForInterrupt())
-        {
-            ResetThreadState ((ThreadState)(TS_Interrupted | TS_Interruptible));
-            FastInterlockAnd ((DWORD*)&m_UserInterrupt, ~TI_Interrupt);
+        ResetThreadState ((ThreadState)(TS_Interrupted | TS_Interruptible));
+        FastInterlockAnd ((DWORD*)&m_UserInterrupt, ~TI_Interrupt);
 
 #ifdef _DEBUG
-            AddFiberInfo(ThreadTrackInfo_Abort);
+        AddFiberInfo(ThreadTrackInfo_Abort);
 #endif
 
-            COMPlusThrow(kThreadInterruptedException);
-        }
+        COMPlusThrow(kThreadInterruptedException);
     }
     END_SO_INTOLERANT_CODE;
 }
@@ -8245,18 +8230,20 @@ void Thread::FillRegDisplay(const PREGDISPLAY pRD, PT_CONTEXT pctx)
 }
 
 
-#if defined(DEBUG_REGDISPLAY) && !defined(_TARGET_X86_)
+#ifdef DEBUG_REGDISPLAY
 
 void CheckRegDisplaySP (REGDISPLAY *pRD)
 {
     if (pRD->SP && pRD->_pThread)
     {
+#ifndef NO_FIXED_STACK_LIMIT
         _ASSERTE(PTR_VOID(pRD->SP) >= pRD->_pThread->GetCachedStackLimit());
+#endif // NO_FIXED_STACK_LIMIT
         _ASSERTE(PTR_VOID(pRD->SP) <  pRD->_pThread->GetCachedStackBase());
     }
 }
 
-#endif // defined(DEBUG_REGDISPLAY) && !defined(_TARGET_X86_)
+#endif // DEBUG_REGDISPLAY
 
 //                      Trip Functions
 //                      ==============
@@ -9165,89 +9152,7 @@ void Thread::ReturnToContextAndOOM(ContextTransitionFrame* pFrame)
     COMPlusThrowOM();
 }
 
-
-#ifdef FEATURE_CORECLR
-
-//---------------------------------------------------------------------------------------
-// Allocates an agile CrossAppDomainMarshaledException whose ToString() and ErrorCode
-// matches the original exception.
-//
-// This is our "remoting" story for exceptions that leak across appdomains in Telesto.
-//---------------------------------------------------------------------------------------
-static OBJECTREF WrapThrowableInCrossAppDomainMarshaledException(OBJECTREF pOriginalThrowable)
-{
-    CONTRACTL
-    {
-        GC_TRIGGERS;
-        THROWS;
-        MODE_COOPERATIVE;
-    }
-    CONTRACTL_END;
-
-    _ASSERTE(GetThread() != NULL);
-
-
-    struct _gc
-    {
-        OBJECTREF pOriginalThrowable;
-        OBJECTREF pThrowable;
-        STRINGREF pOriginalMessage;
-    }
-    prot;
-
-
-    memset(&prot, 0, sizeof(prot));
-
-    GCPROTECT_BEGIN(prot);
-    prot.pOriginalThrowable = pOriginalThrowable;
-    prot.pOriginalMessage   = GetExceptionMessage(prot.pOriginalThrowable);
-    HRESULT originalHResult = GetExceptionHResult(prot.pOriginalThrowable);
-
-    MethodTable *pMT = MscorlibBinder::GetClass(CLASS__CROSSAPPDOMAINMARSHALEDEXCEPTION);
-    prot.pThrowable = AllocateObject(pMT);
-
-    MethodDescCallSite exceptionCtor(METHOD__CROSSAPPDOMAINMARSHALEDEXCEPTION__STR_INT_CTOR);
-
-    ARG_SLOT args1[] = { 
-        ObjToArgSlot(prot.pThrowable),
-        ObjToArgSlot(prot.pOriginalMessage),
-        (ARG_SLOT)originalHResult,
-    };
-    exceptionCtor.Call(args1);
-
-#ifndef FEATURE_PAL
-    // Since, on CoreCLR, we dont have serialization of exceptions going across
-    // AD transition boundaries, we will copy over the bucket details to the 
-    // CrossAppDomainMarshalledException object from the original exception object 
-    // if it isnt a preallocated exception.
-    if (IsWatsonEnabled() && (!CLRException::IsPreallocatedExceptionObject(prot.pOriginalThrowable)))
-    {
-        // If the watson buckets are present, then copy them over.
-        // They maybe missing if the original throwable couldnt get them from Watson helper functions
-        // during SetupInitialThrowBucketDetails due to OOM.
-        if (((EXCEPTIONREF)prot.pOriginalThrowable)->AreWatsonBucketsPresent())
-        {
-            _ASSERTE(prot.pThrowable != NULL);
-            // Copy them to CrossADMarshalledException object
-            CopyWatsonBucketsBetweenThrowables(prot.pOriginalThrowable, prot.pThrowable);
-
-            // The exception object should now have the buckets inside it
-            _ASSERTE(((EXCEPTIONREF)prot.pThrowable)->AreWatsonBucketsPresent());
-        }
-    }
-#endif // !FEATURE_PAL
-
-    GCPROTECT_END(); //Prot
-
-
-    return prot.pThrowable;
-}
-
-
-
-#endif
-
-
+#ifdef FEATURE_REMOTING
 // for cases when marshaling is not needed
 // throws it is able to take a shortcut, otherwise just returns
 void Thread::RaiseCrossContextExceptionHelper(Exception* pEx, ContextTransitionFrame* pFrame)
@@ -9417,15 +9322,7 @@ Thread::TryRaiseCrossContextException(Exception **ppExOrig,
             *ppThrowable = CLRException::GetThrowableFromException(exception);
             _ASSERTE(*ppThrowable != NULL);
 
-#ifdef FEATURE_CORECLR
-            (*pOrBlob) = WrapThrowableInCrossAppDomainMarshaledException(*ppThrowable);
-#if CHECK_APP_DOMAIN_LEAKS 
-            (*pOrBlob)->SetAppDomainAgile();
-#endif //CHECK_APP_DOMAIN_LEAKS 
-#else
             AppDomainHelper::MarshalObject(ppThrowable, pOrBlob);
-#endif //FEATURE_CORECLR
-        
         }
     }
     EX_CATCH
@@ -9603,6 +9500,25 @@ void DECLSPEC_NORETURN Thread::RaiseCrossContextException(Exception* pExOrig, Co
         GCPROTECT_END();
     }
 }
+
+#else // FEATURE_REMOTING
+
+void DECLSPEC_NORETURN Thread::RaiseCrossContextException(Exception* pExOrig, ContextTransitionFrame* pFrame)
+{
+    CONTRACTL
+    {
+        THROWS;
+        WRAPPER(GC_TRIGGERS);
+    }
+    CONTRACTL_END;
+
+    // pEx is NULL means that the exception is CLRLastThrownObjectException
+    CLRLastThrownObjectException lastThrown;
+    Exception* pException = pExOrig ? pExOrig : &lastThrown;
+    COMPlusThrow(CLRException::GetThrowableFromException(pException));
+}
+
+#endif
 
 struct FindADCallbackType {
     AppDomain *pSearchDomain;
@@ -9852,7 +9768,7 @@ void Thread::DoExtraWorkForFinalizer()
         Thread::CleanupDetachedThreads();
     }
     
-    if(ExecutionManager::IsCacheCleanupRequired() && GCHeap::GetGCHeap()->GetCondemnedGeneration()>=1)
+    if(ExecutionManager::IsCacheCleanupRequired() && GCHeapUtilities::GetGCHeap()->GetCondemnedGeneration()>=1)
     {
         ExecutionManager::ClearCaches();
     }
@@ -11192,7 +11108,7 @@ void Thread::SetHasPromotedBytes ()
 
     m_fPromoted = TRUE;
 
-    _ASSERTE(GCHeap::IsGCInProgress()  && IsGCThread ());
+    _ASSERTE(GCHeapUtilities::IsGCInProgress()  && IsGCThread ());
 
     if (!m_fPreemptiveGCDisabled)
     {
@@ -11622,7 +11538,7 @@ HRESULT Thread::GetMemStats (COR_GC_THREAD_STATS *pStats)
     CONTRACTL_END;
 
     // Get the allocation context which contains this counter in it.
-    alloc_context *p = &m_alloc_context;
+    gc_alloc_context *p = &m_alloc_context;
     pStats->PerThreadAllocation = p->alloc_bytes + p->alloc_bytes_loh;
     if (GetHasPromotedBytes())
         pStats->Flags = COR_GC_THREAD_HAS_PROMOTED_BYTES;

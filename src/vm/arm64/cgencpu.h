@@ -38,24 +38,18 @@ class ComCallMethodDesc;
 
 #define USE_INDIRECT_CODEHEADER
 
-#ifdef FEATURE_REMOTING
-#define HAS_REMOTING_PRECODE                    1
-#endif
-
-//ARM64TODO: Enable it once we complete work on precode
-//#define HAS_FIXUP_PRECODE                       1
-//#define HAS_FIXUP_PRECODE_CHUNKS                1
+#define HAS_FIXUP_PRECODE                       1
+#define HAS_FIXUP_PRECODE_CHUNKS                1
 
 // ThisPtrRetBufPrecode one is necessary for closed delegates over static methods with return buffer
 #define HAS_THISPTR_RETBUF_PRECODE              1
 
-//ARM64TODO: verify this
 #define CODE_SIZE_ALIGN                         8
-#define CACHE_LINE_SIZE                         32  // As per Intel Optimization Manual the cache line size is 32 bytes
+#define CACHE_LINE_SIZE                         64
 #define LOG2SLOT                                LOG2_PTRSIZE
 
-#define ENREGISTERED_RETURNTYPE_MAXSIZE         64  // bytes (maximum HFA size is 8 doubles)
-#define ENREGISTERED_RETURNTYPE_INTEGER_MAXSIZE 8   // bytes
+#define ENREGISTERED_RETURNTYPE_MAXSIZE         32  // bytes (four FP registers: d0,d1,d2 and d3)
+#define ENREGISTERED_RETURNTYPE_INTEGER_MAXSIZE 16  // bytes (two int registers: x0 and x1)
 #define ENREGISTERED_PARAMTYPE_MAXSIZE          16  // bytes (max value type size that can be passed by value)
 
 #define CALLDESCR_ARGREGS                       1   // CallDescrWorker has ArgumentRegister parameter
@@ -71,7 +65,6 @@ class ComCallMethodDesc;
 // as large as the largest FieldMarshaler subclass. This requirement
 // is guarded by an assert.
 //=======================================================================
-//ARM64TODO: verify this
 #define MAXFIELDMARSHALERSIZE               40
 
 //**********************************************************************
@@ -153,9 +146,34 @@ inline TADDR GetSP(const T_CONTEXT * context) {
     return TADDR(context->Sp);
 }
 
-inline PCODE GetLR(const T_CONTEXT * context) {
+inline TADDR GetLR(const T_CONTEXT * context) {
     LIMITED_METHOD_DAC_CONTRACT;
-    return PCODE(context->Lr);
+    return context->Lr;
+}
+
+inline void SetLR( T_CONTEXT * context, TADDR eip) {
+    LIMITED_METHOD_DAC_CONTRACT;
+    context->Lr = eip;
+}
+
+inline TADDR GetReg(T_CONTEXT * context, int Regnum)
+{
+    LIMITED_METHOD_DAC_CONTRACT;
+    _ASSERTE(Regnum >= 0 && Regnum < 32 );
+     return context->X[Regnum];
+}
+
+inline void SetReg(T_CONTEXT * context,  int Regnum, PCODE RegContent)
+{
+    LIMITED_METHOD_DAC_CONTRACT;
+    _ASSERTE(Regnum >= 0 && Regnum <=28 );
+    context->X[Regnum] = RegContent;
+}
+inline void SetSimdReg(T_CONTEXT * context, int Regnum, NEON128 RegContent)
+{
+    LIMITED_METHOD_DAC_CONTRACT;
+    _ASSERTE(Regnum >= 0 && Regnum <= 28);
+    context->V[Regnum] = RegContent;
 }
 
 extern "C" LPVOID __stdcall GetCurrentSP();
@@ -175,6 +193,40 @@ inline TADDR GetFP(const T_CONTEXT * context)
     LIMITED_METHOD_DAC_CONTRACT;
     return (TADDR)(context->Fp);
 }
+
+inline NEON128 GetSimdMem(PCODE ip)
+{
+    NEON128 mem;
+    LIMITED_METHOD_DAC_CONTRACT;
+    EX_TRY
+    {
+        mem.Low  = dac_cast<PCODE>(ip);
+        mem.High = dac_cast<PCODE>(ip + sizeof(PCODE));
+    }
+    EX_CATCH
+    {
+        _ASSERTE(!"Memory read within jitted Code Failed, this should not happen!!!!");
+    }
+    EX_END_CATCH(SwallowAllExceptions);
+
+    return mem;
+}
+inline TADDR GetMem(PCODE ip)
+{
+    TADDR mem;
+    LIMITED_METHOD_DAC_CONTRACT;
+    EX_TRY
+    {
+        mem = dac_cast<TADDR>(ip);
+    }
+    EX_CATCH
+    {
+        _ASSERTE(!"Memory read within jitted Code Failed, this should not happen!!!!");
+    }
+    EX_END_CATCH(SwallowAllExceptions);
+    return mem;
+}
+
 
 #ifdef FEATURE_COMINTEROP
 void emitCOMStubCall (ComCallMethodDesc *pCOMMethod, PCODE target);
@@ -261,8 +313,8 @@ inline PCODE decodeBackToBackJump(PCODE pBuffer)
 
 inline BOOL IsUnmanagedValueTypeReturnedByRef(UINT sizeofvaluetype) 
 {
-//   ARM64TODO : Check if we need to consider HFA
-    return (sizeofvaluetype > 8);
+    // ARM64TODO: Does this need to care about HFA. It does not for ARM32
+    return (sizeofvaluetype > ENREGISTERED_RETURNTYPE_INTEGER_MAXSIZE);
 }
 
 
@@ -417,9 +469,7 @@ extern "C" void SinglecastDelegateInvokeStub();
 
 
 // preferred alignment for data
-//ARM64TODO: double check
 #define DATA_ALIGNMENT 8
-
 
 struct DECLSPEC_ALIGN(16) UMEntryThunkCode
 {
@@ -456,8 +506,11 @@ struct HijackArgs
     DWORD64 X19, X20, X21, X22, X23, X24, X25, X26, X27, X28;
     union
     {
-        DWORD64 X0;
-        size_t ReturnValue;
+        struct {  
+             DWORD64 X0;  
+             DWORD64 X1;  
+         }; 
+        size_t ReturnValue[2];
     };
 };
 
@@ -560,44 +613,76 @@ typedef DPTR(NDirectImportPrecode) PTR_NDirectImportPrecode;
 
 struct FixupPrecode {
 
-    static const int Type = 0xfc;
+    static const int Type = 0x0C;
 
-    // mov r12, pc
-    // ldr pc, [pc, #4]     ; =m_pTarget
+    // adr x12, #0 
+    // ldr x11, [pc, #12]     ; =m_pTarget
+    // br  x11
     // dcb m_MethodDescChunkIndex
     // dcb m_PrecodeChunkIndex
+    // 2 byte padding
     // dcd m_pTarget
-    WORD    m_rgCode[3];
+
+
+    UINT32  m_rgCode[3];
+    BYTE    padding[2];
     BYTE    m_MethodDescChunkIndex;
     BYTE    m_PrecodeChunkIndex;
     TADDR   m_pTarget;
 
     void Init(MethodDesc* pMD, LoaderAllocator *pLoaderAllocator, int iMethodDescChunkIndex = 0, int iPrecodeChunkIndex = 0);
+    void InitCommon()
+    {
+        WRAPPER_NO_CONTRACT;
+        int n = 0;
+
+        m_rgCode[n++] = 0x1000000C;   // adr x12, #0
+        m_rgCode[n++] = 0x5800006B;   // ldr x11, [pc, #12]     ; =m_pTarget
+
+        _ASSERTE((UINT32*)&m_pTarget == &m_rgCode[n + 2]);
+
+        m_rgCode[n++] = 0xD61F0160;   // br  x11
+
+        _ASSERTE(n == _countof(m_rgCode));
+    }
 
     TADDR GetBase()
     {
-        _ASSERTE(!"ARM64:NYI");
-        return NULL;
+        LIMITED_METHOD_CONTRACT;
+        SUPPORTS_DAC;
+
+        return dac_cast<TADDR>(this) + (m_PrecodeChunkIndex + 1) * sizeof(FixupPrecode);
     }
 
     TADDR GetMethodDesc();
 
     PCODE GetTarget()
     {
-        _ASSERTE(!"ARM64:NYI");
-        return NULL;
+        LIMITED_METHOD_DAC_CONTRACT;
+        return m_pTarget;
     }
 
     BOOL SetTargetInterlocked(TADDR target, TADDR expected)
     {
-        _ASSERTE(!"ARM64:NYI");
-        return NULL;
+        CONTRACTL
+        {
+            THROWS;
+            GC_TRIGGERS;
+        }
+        CONTRACTL_END;
+
+        EnsureWritableExecutablePages(&m_pTarget);
+        return (TADDR)InterlockedCompareExchange64(
+            (LONGLONG*)&m_pTarget, (TADDR)target, (TADDR)expected) == expected;
     }
 
     static BOOL IsFixupPrecodeByASM(PCODE addr)
     {
-        _ASSERTE(!"ARM64:NYI");
-        return NULL;
+        PTR_DWORD pInstr = dac_cast<PTR_DWORD>(PCODEToPINSTR(addr));
+        return
+            (pInstr[0] == 0x1000000C) &&
+            (pInstr[1] == 0x5800006B) &&
+            (pInstr[2] == 0xD61F0160);
     }
 
 #ifdef FEATURE_PREJIT
@@ -653,58 +738,5 @@ struct ThisPtrRetBufPrecode {
     }
 };
 typedef DPTR(ThisPtrRetBufPrecode) PTR_ThisPtrRetBufPrecode;
-
-
-#ifdef HAS_REMOTING_PRECODE
-
-// Precode with embedded remoting interceptor
-struct RemotingPrecode {
-
-    static const int Type = 0x02;
-
-    // push {r1,lr}
-    // ldr r1, [pc, #16]    ; =m_pPrecodeRemotingThunk
-    // blx r1
-    // pop {r1,lr}
-    // ldr pc, [pc, #12]    ; =m_pLocalTarget
-    // nop                  ; padding for alignment
-    // dcd m_pMethodDesc
-    // dcd m_pPrecodeRemotingThunk
-    // dcd m_pLocalTarget
-    WORD    m_rgCode[8];
-    TADDR   m_pMethodDesc;
-    TADDR   m_pPrecodeRemotingThunk;
-    TADDR   m_pLocalTarget;
-
-    void Init(MethodDesc* pMD, LoaderAllocator *pLoaderAllocator = NULL);
-
-    TADDR GetMethodDesc()
-    {
-        _ASSERTE(!"ARM64:NYI");
-        return NULL;
-    }
-
-    PCODE GetTarget()
-    { 
-        _ASSERTE(!"ARM64:NYI");
-        return NULL;
-    }
-
-    BOOL SetTargetInterlocked(TADDR target, TADDR expected)
-    {
-        _ASSERTE(!"ARM64:NYI");
-        return NULL;
-    }
-
-#ifdef FEATURE_PREJIT
-    void Fixup(DataImage *image, ZapNode *pCodeNode);
-#endif
-};
-typedef DPTR(RemotingPrecode) PTR_RemotingPrecode;
-
-EXTERN_C void PrecodeRemotingThunk();
-
-#endif // HAS_REMOTING_PRECODE
-
 
 #endif // __cgencpu_h__

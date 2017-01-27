@@ -21,6 +21,10 @@ C_FUNC(\Name):
         LEAF_END \Name, \Section
 .endm
 
+.macro NESTED_END_MARKED Name, Section
+        LEAF_END_MARKED \Name, \Section
+.endm
+
 .macro PATCH_LABEL Name
         .thumb_func
         .global C_FUNC(\Name)
@@ -225,7 +229,8 @@ C_FUNC(\Name\()_End):
 .endm
 
 .macro EPILOG_STACK_RESTORE_OFFSET Register, Offset
-        sub sp, \Register, \Offset
+        sub \Register, \Offset
+        mov sp, \Register
 .endm
 
 .macro EPILOG_BRANCH Target

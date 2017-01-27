@@ -3,7 +3,12 @@ project(protojit)
 add_definitions(-DALT_JIT)
 add_definitions(-DFEATURE_NO_HOST)
 add_definitions(-DSELF_NO_HOST)
+add_definitions(-DFEATURE_READYTORUN_COMPILER)
 remove_definitions(-DFEATURE_MERGE_JIT_AND_ENGINE)
+
+if(WIN32)
+  add_definitions(-DFX_VER_INTERNALNAME_STR=protojit.dll)
+endif(WIN32)
 
 add_library_clr(protojit
    SHARED
@@ -28,7 +33,8 @@ if(CLR_CMAKE_PLATFORM_UNIX)
     )
 else()
     list(APPEND RYUJIT_LINK_LIBRARIES
-       msvcrt.lib
+       ${STATIC_MT_CRT_LIB}
+       ${STATIC_MT_VCRT_LIB}
        kernel32.lib
        advapi32.lib
        ole32.lib

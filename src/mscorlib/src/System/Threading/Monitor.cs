@@ -24,9 +24,9 @@ namespace System.Threading {
     using System.Runtime.CompilerServices;
     using System.Runtime.ConstrainedExecution;
     using System.Runtime.Versioning;
+    using System.Diagnostics;
     using System.Diagnostics.Contracts;
 
-    [HostProtection(Synchronization=true, ExternalThreading=true)]
     [System.Runtime.InteropServices.ComVisible(true)]
     public static class Monitor 
     {
@@ -38,7 +38,6 @@ namespace System.Threading {
         **
         ** Exceptions: ArgumentNullException if object is null.
         =========================================================================*/
-        [System.Security.SecuritySafeCritical]
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         public static extern void Enter(Object obj);
 
@@ -54,7 +53,7 @@ namespace System.Threading {
                 ThrowLockTakenException();
 
             ReliableEnter(obj, ref lockTaken);
-            Contract.Assert(lockTaken);
+            Debug.Assert(lockTaken);
         }
 
         private static void ThrowLockTakenException()
@@ -62,7 +61,6 @@ namespace System.Threading {
             throw new ArgumentException(Environment.GetResourceString("Argument_MustBeFalse"), "lockTaken");
         }
 
-        [System.Security.SecuritySafeCritical]
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         private static extern void ReliableEnter(Object obj, ref bool lockTaken);
 
@@ -77,7 +75,6 @@ namespace System.Threading {
         **             SynchronizationLockException if the current thread does not
         **             own the lock.
         =========================================================================*/
-        [System.Security.SecuritySafeCritical]
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
         public static extern void Exit(Object obj);
@@ -127,7 +124,7 @@ namespace System.Threading {
         {
             long tm = (long)timeout.TotalMilliseconds;
             if (tm < -1 || tm > (long)Int32.MaxValue)
-                throw new ArgumentOutOfRangeException("timeout", Environment.GetResourceString("ArgumentOutOfRange_NeedNonNegOrNegative1"));
+                throw new ArgumentOutOfRangeException(nameof(timeout), Environment.GetResourceString("ArgumentOutOfRange_NeedNonNegOrNegative1"));
             return (int)tm;
         }
 
@@ -154,20 +151,17 @@ namespace System.Threading {
             ReliableEnterTimeout(obj, MillisecondsTimeoutFromTimeSpan(timeout), ref lockTaken);
         }
 
-        [System.Security.SecuritySafeCritical]
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         private static extern void ReliableEnterTimeout(Object obj, int timeout, ref bool lockTaken);
 
-        [System.Security.SecuritySafeCritical]
         public static bool IsEntered(object obj)
         {
             if (obj == null)
-                throw new ArgumentNullException("obj");
+                throw new ArgumentNullException(nameof(obj));
 
             return IsEnteredNative(obj);
         }
 
-        [System.Security.SecurityCritical]
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         private static extern bool IsEnteredNative(Object obj);
 
@@ -182,15 +176,13 @@ namespace System.Threading {
     **
         ** Exceptions: ArgumentNullException if object is null.
     ========================================================================*/
-        [System.Security.SecurityCritical]  // auto-generated
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         private static extern bool ObjWait(bool exitContext, int millisecondsTimeout, Object obj);
 
-        [System.Security.SecuritySafeCritical]  // auto-generated
         public static bool Wait(Object obj, int millisecondsTimeout, bool exitContext)
         {
             if (obj == null)
-                throw (new ArgumentNullException("obj"));
+                throw (new ArgumentNullException(nameof(obj)));
             return ObjWait(exitContext, millisecondsTimeout, obj);
         }
 
@@ -219,16 +211,14 @@ namespace System.Threading {
         * Exceptions: SynchronizationLockException if this method is not called inside
         * a synchronized block of code.
         ========================================================================*/
-        [System.Security.SecurityCritical]  // auto-generated
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         private static extern void ObjPulse(Object obj);
 
-        [System.Security.SecuritySafeCritical]  // auto-generated
         public static void Pulse(Object obj)
         {
             if (obj == null)
             {
-                throw new ArgumentNullException("obj");
+                throw new ArgumentNullException(nameof(obj));
             }
             Contract.EndContractBlock();
 
@@ -237,16 +227,14 @@ namespace System.Threading {
         /*========================================================================
         ** Sends a notification to all waiting objects. 
         ========================================================================*/
-        [System.Security.SecurityCritical]  // auto-generated
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         private static extern void ObjPulseAll(Object obj);
 
-        [System.Security.SecuritySafeCritical]  // auto-generated
         public static void PulseAll(Object obj)
         {
             if (obj == null)
             {
-                throw new ArgumentNullException("obj");
+                throw new ArgumentNullException(nameof(obj));
             }
             Contract.EndContractBlock();
 

@@ -45,12 +45,6 @@ namespace System.Collections.Concurrent
     /// </remarks>
     [DebuggerDisplay("Count = {Count}")]
     [DebuggerTypeProxy(typeof(SystemCollectionsConcurrent_ProducerConsumerCollectionDebugView<>))]
-    [HostProtection(Synchronization = true, ExternalThreading = true)]
-#if !FEATURE_CORECLR
-#if FEATURE_SERIALIZATION
-    [Serializable]
-#endif
-#endif //!FEATURE_CORECLR
     public class ConcurrentStack<T> : IProducerConsumerCollection<T>, IReadOnlyCollection<T>
     {
         /// <summary>
@@ -72,14 +66,7 @@ namespace System.Collections.Concurrent
             }
         }
 
-#if !FEATURE_CORECLR
-        [NonSerialized]
-#endif //!FEATURE_CORECLR
         private volatile Node m_head; // The stack is a singly linked list, and only remembers the head.
-
-#if !FEATURE_CORECLR
-        private T[] m_serializationArray; // Used for custom serialization.
-#endif //!FEATURE_CORECLR
 
         private const int BACKOFF_MAX_YIELDS = 8; // Arbitrary number to cap backoff.
 
@@ -103,7 +90,7 @@ namespace System.Collections.Concurrent
         {
             if (collection == null)
             {
-                throw new ArgumentNullException("collection");
+                throw new ArgumentNullException(nameof(collection));
             }
             InitializeFromCollection(collection);
         }
@@ -125,50 +112,6 @@ namespace System.Collections.Concurrent
 
             m_head = lastNode;
         }
-
-#if !FEATURE_CORECLR
-        /// <summary>
-        /// Get the data array to be serialized
-        /// </summary>
-        [OnSerializing]
-        private void OnSerializing(StreamingContext context)
-        {
-            // save the data into the serialization array to be saved
-            m_serializationArray = ToArray();
-        }
-
-        /// <summary>
-        /// Construct the stack from a previously seiralized one
-        /// </summary>
-        [OnDeserialized]
-        private void OnDeserialized(StreamingContext context)
-        {
-            Contract.Assert(m_serializationArray != null);
-            // Add the elements to our stack.  We need to add them from head-to-tail, to
-            // preserve the original ordering of the stack before serialization.
-            Node prevNode = null;
-            Node head = null;
-            for (int i = 0; i < m_serializationArray.Length; i++)
-            {
-                Node currNode = new Node(m_serializationArray[i]);
-
-                if (prevNode == null)
-                {
-                    head = currNode;
-                }
-                else
-                {
-                    prevNode.m_next = currNode;
-                }
-
-                prevNode = currNode;
-            }
-
-            m_head = head;
-            m_serializationArray = null;
-        }
-#endif //!FEATURE_CORECLR
-
 
         /// <summary>
         /// Gets a value that indicates whether the <see cref="ConcurrentStack{T}"/> is empty.
@@ -222,7 +165,6 @@ namespace System.Collections.Concurrent
                 return count;
             }
         }
-
 
         /// <summary>
         /// Gets a value indicating whether access to the <see cref="T:System.Collections.ICollection"/> is
@@ -295,7 +237,7 @@ namespace System.Collections.Concurrent
             // Validate arguments.
             if (array == null)
             {
-                throw new ArgumentNullException("array");
+                throw new ArgumentNullException(nameof(array));
             }
 
             // We must be careful not to corrupt the array, so we will first accumulate an
@@ -329,7 +271,7 @@ namespace System.Collections.Concurrent
         {
             if (array == null)
             {
-                throw new ArgumentNullException("array");
+                throw new ArgumentNullException(nameof(array));
             }
 
             // We must be careful not to corrupt the array, so we will first accumulate an
@@ -381,7 +323,7 @@ namespace System.Collections.Concurrent
         {
             if (items == null)
             {
-                throw new ArgumentNullException("items");
+                throw new ArgumentNullException(nameof(items));
             }
             PushRange(items, 0, items.Length);
         }
@@ -457,13 +399,6 @@ namespace System.Collections.Concurrent
             }
             while (Interlocked.CompareExchange(
                 ref m_head, head, tail.m_next) != tail.m_next);
-
-#if !FEATURE_CORECLR
-            if (CDSCollectionETWBCLProvider.Log.IsEnabled())
-            {
-                CDSCollectionETWBCLProvider.Log.ConcurrentStack_FastPushFailed(spin.Count);
-            }
-#endif // !FEATURE_CORECLR
         }
 
         /// <summary>
@@ -473,16 +408,16 @@ namespace System.Collections.Concurrent
         {
             if (items == null)
             {
-                throw new ArgumentNullException("items");
+                throw new ArgumentNullException(nameof(items));
             }
             if (count < 0)
             {
-                throw new ArgumentOutOfRangeException("count", Environment.GetResourceString("ConcurrentStack_PushPopRange_CountOutOfRange"));
+                throw new ArgumentOutOfRangeException(nameof(count), Environment.GetResourceString("ConcurrentStack_PushPopRange_CountOutOfRange"));
             }
             int length = items.Length;
             if (startIndex >= length || startIndex < 0)
             {
-                throw new ArgumentOutOfRangeException("startIndex", Environment.GetResourceString("ConcurrentStack_PushPopRange_StartOutOfRange"));
+                throw new ArgumentOutOfRangeException(nameof(startIndex), Environment.GetResourceString("ConcurrentStack_PushPopRange_StartOutOfRange"));
             }
             if (length - count < startIndex) //instead of (startIndex + count > items.Length) to prevent overflow
             {
@@ -586,7 +521,7 @@ namespace System.Collections.Concurrent
         {
             if (items == null)
             {
-                throw new ArgumentNullException("items");
+                throw new ArgumentNullException(nameof(items));
             }
 
             return TryPopRange(items, 0, items.Length);
@@ -685,12 +620,6 @@ namespace System.Collections.Concurrent
                 // Is the stack empty?
                 if (head == null)
                 {
-#if !FEATURE_CORECLR
-                    if (count == 1 && CDSCollectionETWBCLProvider.Log.IsEnabled())
-                    {
-                        CDSCollectionETWBCLProvider.Log.ConcurrentStack_FastPopFailed(spin.Count);
-                    }
-#endif //!FEATURE_CORECLR
                     poppedHead = null;
                     return 0;
                 }
@@ -704,12 +633,6 @@ namespace System.Collections.Concurrent
                 // Try to swap the new head.  If we succeed, break out of the loop.
                 if (Interlocked.CompareExchange(ref m_head, next.m_next, head) == head)
                 {
-#if !FEATURE_CORECLR
-                    if (count == 1 && CDSCollectionETWBCLProvider.Log.IsEnabled())
-                    {
-                        CDSCollectionETWBCLProvider.Log.ConcurrentStack_FastPopFailed(spin.Count);
-                    }
-#endif //!FEATURE_CORECLR
                     // Return the popped Node.
                     poppedHead = head;
                     return nodesCount;

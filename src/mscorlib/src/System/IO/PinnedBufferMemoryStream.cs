@@ -15,6 +15,7 @@
 ===========================================================*/
 using System;
 using System.Runtime.InteropServices;
+using System.Diagnostics;
 using System.Diagnostics.Contracts;
 
 namespace System.IO {
@@ -24,13 +25,11 @@ namespace System.IO {
         private GCHandle _pinningHandle;
 
         // The new inheritance model requires a Critical default ctor since base (UnmanagedMemoryStream) has one
-        [System.Security.SecurityCritical]
         private PinnedBufferMemoryStream():base(){}
 
-        [System.Security.SecurityCritical]  // auto-generated
         internal PinnedBufferMemoryStream(byte[] array)
         {
-            Contract.Assert(array != null, "Array can't be null");
+            Debug.Assert(array != null, "Array can't be null");
 
             int len = array.Length;
             // Handle 0 length byte arrays specially.
@@ -52,7 +51,6 @@ namespace System.IO {
             Dispose(false);
         }
 
-        [System.Security.SecuritySafeCritical]  // auto-generated
         protected override void Dispose(bool disposing)
         {
             if (_isOpen) {

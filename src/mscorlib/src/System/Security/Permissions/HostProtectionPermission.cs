@@ -41,11 +41,9 @@ namespace System.Security.Permissions
     [AttributeUsage(AttributeTargets.Method | AttributeTargets.Constructor | AttributeTargets.Class | AttributeTargets.Struct | AttributeTargets.Assembly | AttributeTargets.Delegate, AllowMultiple = true, Inherited = false )] 
     [System.Runtime.InteropServices.ComVisible(true)]
     [Serializable]
-#if FEATURE_CORECLR
     // This needs to be in the asmmeta to enable SecAnnotate to successfully resolve and run the security rules. It gets marked
     // as internal by BCLRewriter so we are simply marking it as FriendAccessAllowed so it stays in the asmmeta.
     [System.Runtime.CompilerServices.FriendAccessAllowedAttribute]
-#endif // FEATURE_CORECLR
 #pragma warning disable 618
     sealed public class HostProtectionAttribute : CodeAccessSecurityAttribute
 #pragma warning restore 618
@@ -246,38 +244,6 @@ namespace System.Security.Permissions
         {
             return new HostProtectionPermission(m_resources);
         }
-
-#if FEATURE_CAS_POLICY
-        //------------------------------------------------------
-        //
-        // XML
-        //
-        //------------------------------------------------------
-        public override SecurityElement ToXml()
-        {
-            SecurityElement esd = CodeAccessPermission.CreatePermissionElement( this, this.GetType().FullName );
-            if(IsUnrestricted())
-                esd.AddAttribute( "Unrestricted", "true" );
-            else
-                esd.AddAttribute( "Resources", XMLUtil.BitFieldEnumToString( typeof( HostProtectionResource ), Resources ) );
-            return esd;
-        }
-
-        public override void FromXml(SecurityElement esd)
-        {
-            CodeAccessPermission.ValidateElement( esd, this );
-            if (XMLUtil.IsUnrestricted( esd ))
-                Resources = HostProtectionResource.All;
-            else
-            {
-                String resources = esd.Attribute( "Resources" );
-                if (resources == null)
-                    Resources = HostProtectionResource.None;
-                else
-                    Resources = (HostProtectionResource)Enum.Parse( typeof( HostProtectionResource ), resources );
-            }
-        }
-#endif // FEATURE_CAS_POLICY
 
         //------------------------------------------------------
         //

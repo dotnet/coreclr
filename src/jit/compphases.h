@@ -11,17 +11,26 @@
 // corresponding array of string names of those phases.  This include file undefines CompPhaseNameMacro
 // after the last use.
 // The arguments are:
-//   CompPhaseNameMacro(enumName, stringName, hasChildren, parent)
+//   CompPhaseNameMacro(enumName, stringName, shortName, hasChildren, parent)
 //     "enumName" is an Enumeration-style all-caps name.
 //     "stringName" is a self-explanatory.
+//     "shortName" is an abbreviated form for stringName
 //     "hasChildren" is true if this phase is broken out into subphases.
 //         (We should never do EndPhase on a phase that has children, only on 'leaf phases.')
 //     "parent" is -1 for leaf phases, otherwise it is the "enumName" of the parent phase.
 
+// clang-format off
 CompPhaseNameMacro(PHASE_PRE_IMPORT,             "Pre-import",                     "PRE-IMP",  false, -1)
 CompPhaseNameMacro(PHASE_IMPORTATION,            "Importation",                    "IMPORT",   false, -1)
 CompPhaseNameMacro(PHASE_POST_IMPORT,            "Post-import",                    "POST-IMP", false, -1)
-CompPhaseNameMacro(PHASE_MORPH,                  "Morph",                          "MORPH",    false, -1)
+CompPhaseNameMacro(PHASE_MORPH_INIT,             "Morph - Init",                   "MOR-INIT" ,false, -1)
+CompPhaseNameMacro(PHASE_MORPH_INLINE,           "Morph - Inlining",               "MOR-INL",  false, -1)
+CompPhaseNameMacro(PHASE_MORPH_IMPBYREF,         "Morph - ByRefs",                 "MOR-BYREF",false, -1)
+CompPhaseNameMacro(PHASE_EMPTY_FINALLY,          "Remove empty finally",           "EMPTYFIN", false, -1)
+CompPhaseNameMacro(PHASE_CLONE_FINALLY,          "Clone finally",                  "CLONEFIN", false, -1)
+CompPhaseNameMacro(PHASE_STR_ADRLCL,             "Morph - Structs/AddrExp",        "MOR-STRAL",false, -1)
+CompPhaseNameMacro(PHASE_MORPH_GLOBAL,           "Morph - Global",                 "MOR-GLOB", false, -1)
+CompPhaseNameMacro(PHASE_MORPH_END,              "Morph - Finish",                 "MOR-END",  false, -1)
 CompPhaseNameMacro(PHASE_GS_COOKIE,              "GS Cookie",                      "GS-COOK",  false, -1)
 CompPhaseNameMacro(PHASE_COMPUTE_PREDS,          "Compute preds",                  "PREDS",    false, -1)
 CompPhaseNameMacro(PHASE_MARK_GC_POLL_BLOCKS,    "Mark GC poll blocks",            "GC-POLL",  false, -1)
@@ -30,6 +39,7 @@ CompPhaseNameMacro(PHASE_COMPUTE_EDGE_WEIGHTS,   "Compute edge weights (1)",    
 CompPhaseNameMacro(PHASE_CREATE_FUNCLETS,        "Create EH funclets",             "EH-FUNC",  false, -1)
 #endif // FEATURE_EH_FUNCLETS
 CompPhaseNameMacro(PHASE_OPTIMIZE_LAYOUT,        "Optimize layout",                "LAYOUT",   false, -1)
+CompPhaseNameMacro(PHASE_ALLOCATE_OBJECTS,       "Allocate Objects",               "ALLOC-OBJ",false, -1)
 CompPhaseNameMacro(PHASE_OPTIMIZE_LOOPS,         "Optimize loops",                 "LOOP-OPT", false, -1)
 CompPhaseNameMacro(PHASE_CLONE_LOOPS,            "Clone loops",                    "LP-CLONE", false, -1)
 CompPhaseNameMacro(PHASE_UNROLL_LOOPS,           "Unroll loops",                   "UNROLL",   false, -1)
@@ -53,7 +63,7 @@ CompPhaseNameMacro(PHASE_OPTIMIZE_INDEX_CHECKS,  "Optimize index checks",       
 
 #if FEATURE_VALNUM_CSE
 CompPhaseNameMacro(PHASE_OPTIMIZE_VALNUM_CSES,   "Optimize Valnum CSEs",           "OPT-CSE",  false, -1)
-#endif  
+#endif
 
 CompPhaseNameMacro(PHASE_VN_COPY_PROP,           "VN based copy prop",             "CP-PROP",  false, -1)
 #if ASSERTION_PROP
@@ -84,5 +94,12 @@ CompPhaseNameMacro(PHASE_LINEAR_SCAN_RESOLVE,    "LSRA resolve",                
 CompPhaseNameMacro(PHASE_GENERATE_CODE,          "Generate code",                  "CODEGEN",  false, -1)
 CompPhaseNameMacro(PHASE_EMIT_CODE,              "Emit code",                      "EMIT",     false, -1)
 CompPhaseNameMacro(PHASE_EMIT_GCEH,              "Emit GC+EH tables",              "EMT-GCEH", false, -1)
+
+#if MEASURE_CLRAPI_CALLS
+// The following is a "pseudo-phase" - it aggregates timing info
+// for calls through ICorJitInfo across all "real" phases.
+CompPhaseNameMacro(PHASE_CLR_API,                "CLR API calls",                  "CLR-API",  false, -1)
+#endif
+// clang-format on
 
 #undef CompPhaseNameMacro

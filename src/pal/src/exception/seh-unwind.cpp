@@ -73,6 +73,14 @@ Abstract:
     ASSIGN_REG(X26)        \
     ASSIGN_REG(X27)        \
     ASSIGN_REG(X28)
+#elif defined(_X86_)
+#define ASSIGN_UNWIND_REGS \
+    ASSIGN_REG(Eip)        \
+    ASSIGN_REG(Esp)        \
+    ASSIGN_REG(Ebp)        \
+    ASSIGN_REG(Ebx)        \
+    ASSIGN_REG(Esi)        \
+    ASSIGN_REG(Edi)
 #else
 #error unsupported architecture
 #endif
@@ -122,6 +130,13 @@ static void WinContextToUnwindCursor(CONTEXT *winContext, unw_cursor_t *cursor)
     unw_set_reg(cursor, UNW_X86_64_R13, winContext->R13);
     unw_set_reg(cursor, UNW_X86_64_R14, winContext->R14);
     unw_set_reg(cursor, UNW_X86_64_R15, winContext->R15);
+#elif defined(_X86_)
+    unw_set_reg(cursor, UNW_REG_IP, winContext->Eip);
+    unw_set_reg(cursor, UNW_REG_SP, winContext->Esp);
+    unw_set_reg(cursor, UNW_X86_EBP, winContext->Ebp);
+    unw_set_reg(cursor, UNW_X86_EBX, winContext->Ebx);
+    unw_set_reg(cursor, UNW_X86_ESI, winContext->Esi);
+    unw_set_reg(cursor, UNW_X86_EDI, winContext->Edi);
 #endif
 }
 #endif
@@ -137,6 +152,13 @@ static void UnwindContextToWinContext(unw_cursor_t *cursor, CONTEXT *winContext)
     unw_get_reg(cursor, UNW_X86_64_R13, (unw_word_t *) &winContext->R13);
     unw_get_reg(cursor, UNW_X86_64_R14, (unw_word_t *) &winContext->R14);
     unw_get_reg(cursor, UNW_X86_64_R15, (unw_word_t *) &winContext->R15);
+#elif defined(_X86_)
+    unw_get_reg(cursor, UNW_REG_IP, (unw_word_t *) &winContext->Eip);
+    unw_get_reg(cursor, UNW_REG_SP, (unw_word_t *) &winContext->Esp);
+    unw_get_reg(cursor, UNW_X86_EBP, (unw_word_t *) &winContext->Ebp);
+    unw_get_reg(cursor, UNW_X86_EBX, (unw_word_t *) &winContext->Ebx);
+    unw_get_reg(cursor, UNW_X86_ESI, (unw_word_t *) &winContext->Esi);
+    unw_get_reg(cursor, UNW_X86_EDI, (unw_word_t *) &winContext->Edi);
 #elif defined(_ARM_)
     unw_get_reg(cursor, UNW_REG_SP, (unw_word_t *) &winContext->Sp);
     unw_get_reg(cursor, UNW_REG_IP, (unw_word_t *) &winContext->Pc);
@@ -196,6 +218,11 @@ static void GetContextPointers(unw_cursor_t *cursor, unw_context_t *unwContext, 
     GetContextPointer(cursor, unwContext, UNW_X86_64_R13, &contextPointers->R13);
     GetContextPointer(cursor, unwContext, UNW_X86_64_R14, &contextPointers->R14);
     GetContextPointer(cursor, unwContext, UNW_X86_64_R15, &contextPointers->R15);
+#elif defined(_X86_)
+    GetContextPointer(cursor, unwContext, UNW_X86_EBX, &contextPointers->Ebx);
+    GetContextPointer(cursor, unwContext, UNW_X86_EBP, &contextPointers->Ebp);
+    GetContextPointer(cursor, unwContext, UNW_X86_ESI, &contextPointers->Esi);
+    GetContextPointer(cursor, unwContext, UNW_X86_EDI, &contextPointers->Edi);
 #elif defined(_ARM_)
     GetContextPointer(cursor, unwContext, UNW_ARM_R4, &contextPointers->R4);
     GetContextPointer(cursor, unwContext, UNW_ARM_R5, &contextPointers->R5);
@@ -221,15 +248,34 @@ static void GetContextPointers(unw_cursor_t *cursor, unw_context_t *unwContext, 
 #endif
 }
 
+extern int g_common_signal_handler_context_locvar_offset;
+
 BOOL PAL_VirtualUnwind(CONTEXT *context, KNONVOLATILE_CONTEXT_POINTERS *contextPointers)
 {
     int st;
     unw_context_t unwContext;
     unw_cursor_t cursor;
 
-#if defined(__APPLE__) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(_ARM64_) || defined(_ARM_)
-    DWORD64 curPc;
-#endif
+    DWORD64 curPc = CONTEXTGetPC(context);
+
+#ifndef __APPLE__
+    // Check if the PC is the return address from the SEHProcessException in the common_signal_handler. 
+    // If that's the case, extract its local variable containing the native_context_t of the hardware 
+    // exception and return that. This skips the hardware signal handler trampoline that the libunwind 
+    // cannot cross on some systems.
+    if ((void*)curPc == g_SEHProcessExceptionReturnAddress)
+    {
+        ULONG contextFlags = CONTEXT_CONTROL | CONTEXT_INTEGER | CONTEXT_FLOATING_POINT | CONTEXT_EXCEPTION_ACTIVE;
+
+    #if defined(_AMD64_)
+        contextFlags |= CONTEXT_XSTATE;
+    #endif
+        size_t nativeContext = *(size_t*)(CONTEXTGetFP(context) + g_common_signal_handler_context_locvar_offset);
+        CONTEXTFromNativeContext((const native_context_t *)nativeContext, context, contextFlags);
+
+        return TRUE;
+    }
+#endif 
 
     if ((context->ContextFlags & CONTEXT_EXCEPTION_ACTIVE) != 0)
     {
@@ -240,7 +286,7 @@ BOOL PAL_VirtualUnwind(CONTEXT *context, KNONVOLATILE_CONTEXT_POINTERS *contextP
         // So we compensate it by incrementing the PC before passing it to the unwinder.
         // Without it, the unwinder would not find unwind info if the hardware exception
         // happened in the first instruction of a function.
-        CONTEXTSetPC(context, CONTEXTGetPC(context) + 1);
+        CONTEXTSetPC(context, curPc + 1);
     }
 
 #if !UNWIND_CONTEXT_IS_UCONTEXT_T
@@ -264,18 +310,6 @@ BOOL PAL_VirtualUnwind(CONTEXT *context, KNONVOLATILE_CONTEXT_POINTERS *contextP
     WinContextToUnwindCursor(context, &cursor);
 #endif
 
-#if defined(__APPLE__) || defined(__FreeBSD__) || defined(__NetBSD__)  || defined(_ARM64_) || defined(_ARM_)
-    // FreeBSD, NetBSD and OSX appear to do two different things when unwinding
-    // 1: If it reaches where it cannot unwind anymore, say a 
-    // managed frame.  It wil return 0, but also update the $pc
-    // 2: If it unwinds all the way to _start it will return
-    // 0 from the step, but $pc will stay the same.
-    // The behaviour of libunwind from nongnu.org is to null the PC
-    // So we bank the original PC here, so we can compare it after
-    // the step
-    curPc = CONTEXTGetPC(context);
-#endif
-
     st = unw_step(&cursor);
     if (st < 0)
     {
@@ -288,14 +322,14 @@ BOOL PAL_VirtualUnwind(CONTEXT *context, KNONVOLATILE_CONTEXT_POINTERS *contextP
     if (unw_is_signal_frame(&cursor) > 0)
     {
         context->ContextFlags |= CONTEXT_EXCEPTION_ACTIVE;
-#if defined(_ARM_) || defined(_ARM64_)
+#if defined(_ARM_) || defined(_ARM64_) || defined(_X86_)
         context->ContextFlags &= ~CONTEXT_UNWOUND_TO_CALL;
 #endif // _ARM_ || _ARM64_
     }
     else
     {
         context->ContextFlags &= ~CONTEXT_EXCEPTION_ACTIVE;
-#if defined(_ARM_) || defined(_ARM64_)
+#if defined(_ARM_) || defined(_ARM64_) || defined(_X86_)
         context->ContextFlags |= CONTEXT_UNWOUND_TO_CALL;
 #endif // _ARM_ || _ARM64_
     }
@@ -303,12 +337,18 @@ BOOL PAL_VirtualUnwind(CONTEXT *context, KNONVOLATILE_CONTEXT_POINTERS *contextP
     // Update the passed in windows context to reflect the unwind
     //
     UnwindContextToWinContext(&cursor, context);
-#if defined(__APPLE__) || defined(__FreeBSD__) || defined(__NetBSD__)  || defined(_ARM64_) || defined(_ARM_)
+
+    // FreeBSD, NetBSD, OSX and Alpine appear to do two different things when unwinding
+    // 1: If it reaches where it cannot unwind anymore, say a 
+    // managed frame.  It will return 0, but also update the $pc
+    // 2: If it unwinds all the way to _start it will return
+    // 0 from the step, but $pc will stay the same.
+    // So we detect that here and set the $pc to NULL in that case.
+    // This is the default behavior of the libunwind on Linux.
     if (st == 0 && CONTEXTGetPC(context) == curPc)
     {
         CONTEXTSetPC(context, 0);
     }
-#endif
 
     if (contextPointers != NULL)
     {

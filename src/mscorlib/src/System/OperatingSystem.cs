@@ -19,9 +19,7 @@ namespace System {
 
 
     [ComVisible(true)]
-#if FEATURE_SERIALIZATION
     [Serializable]
-#endif
     public sealed class OperatingSystem : ICloneable , ISerializable
     {
         private Version _version;
@@ -40,11 +38,11 @@ namespace System {
             if( platform < PlatformID.Win32S || platform > PlatformID.MacOSX) {
                 throw new ArgumentException(
                     Environment.GetResourceString("Arg_EnumIllegalVal", (int)platform),
-                    "platform");
+                    nameof(platform));
             }
 
             if ((Object) version == null)
-                throw new ArgumentNullException("version");
+                throw new ArgumentNullException(nameof(version));
             Contract.EndContractBlock();
 
             _platform = platform;
@@ -73,10 +71,9 @@ namespace System {
             }
         }
 
-        [System.Security.SecurityCritical]  // auto-generated_required
         public void GetObjectData(SerializationInfo info, StreamingContext context) {
             if( info == null ) {
-                throw new ArgumentNullException("info");
+                throw new ArgumentNullException(nameof(info));
             }
             Contract.EndContractBlock();
 

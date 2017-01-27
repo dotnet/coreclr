@@ -53,6 +53,7 @@
 namespace System.Globalization {
     using System.Text;
     using System;
+    using System.Diagnostics;
     using System.Diagnostics.Contracts;
     using System.Globalization;
 
@@ -126,10 +127,10 @@ namespace System.Globalization {
             }
 
             public bool IsInvalidNumber(int maxValue, int maxPrecision) {
-                Contract.Assert(ttt == TTT.Num);
-                Contract.Assert(num > -1);
-                Contract.Assert(maxValue > 0);
-                Contract.Assert(maxPrecision == maxFractionDigits || maxPrecision == unlimitedDigits);
+                Debug.Assert(ttt == TTT.Num);
+                Debug.Assert(num > -1);
+                Debug.Assert(maxValue > 0);
+                Debug.Assert(maxPrecision == maxFractionDigits || maxPrecision == unlimitedDigits);
 
                 if (num > maxValue)
                     return true;
@@ -163,7 +164,7 @@ namespace System.Globalization {
             }
             // used by the parsing routines that operate on standard-formats
             internal TimeSpanToken GetNextToken() {
-                Contract.Assert(m_pos > -1);
+                Debug.Assert(m_pos > -1);
 
                 TimeSpanToken tok = new TimeSpanToken();
                 char ch = CurrentChar;
@@ -374,7 +375,7 @@ namespace System.Globalization {
             private const int MaxNumericTokens = 5;
 
             internal void Init(DateTimeFormatInfo dtfi) {
-                Contract.Assert(dtfi != null);
+                Debug.Assert(dtfi != null);
 
                 lastSeenTTT = TTT.None;
                 tokenCount = 0;
@@ -416,7 +417,7 @@ namespace System.Globalization {
                 }
 
                 lastSeenTTT = tok.ttt;
-                Contract.Assert(tokenCount == (SepCount + NumCount), "tokenCount == (SepCount + NumCount)");
+                Debug.Assert(tokenCount == (SepCount + NumCount), "tokenCount == (SepCount + NumCount)");
                 return true;
             }
 
@@ -486,7 +487,7 @@ namespace System.Globalization {
                     return new OverflowException(Environment.GetResourceString(m_failureMessageID));
 
                 default:
-                    Contract.Assert(false, "Unknown TimeSpanParseFailure: " + m_failure);
+                    Debug.Assert(false, "Unknown TimeSpanParseFailure: " + m_failure);
                     return new FormatException(Environment.GetResourceString("Format_InvalidString"));
                 }
             }
@@ -627,7 +628,7 @@ namespace System.Globalization {
         // 
         private static Boolean TryParseTimeSpan(String input, TimeSpanStandardStyles style, IFormatProvider formatProvider, ref TimeSpanResult result) {
             if (input == null) {
-                result.SetFailure(ParseFailureKind.ArgumentNull, "ArgumentNull_String", null, "input");
+                result.SetFailure(ParseFailureKind.ArgumentNull, "ArgumentNull_String", null, nameof(input));
                 return false;
             }
 
@@ -1117,11 +1118,11 @@ namespace System.Globalization {
         // 
         private static Boolean TryParseExactTimeSpan(String input, String format, IFormatProvider formatProvider, TimeSpanStyles styles, ref TimeSpanResult result) {
             if (input == null) {
-                result.SetFailure(ParseFailureKind.ArgumentNull, "ArgumentNull_String", null, "input");
+                result.SetFailure(ParseFailureKind.ArgumentNull, "ArgumentNull_String", null, nameof(input));
                 return false;
             }
             if (format == null) {
-                result.SetFailure(ParseFailureKind.ArgumentNull, "ArgumentNull_String", null, "format");
+                result.SetFailure(ParseFailureKind.ArgumentNull, "ArgumentNull_String", null, nameof(format));
                 return false;
             }
             if (format.Length == 0) {
@@ -1158,8 +1159,8 @@ namespace System.Globalization {
         //  Actions: Parse the TimeSpan instance using the specified format.  Used by TryParseExactTimeSpan.
         // 
         private static Boolean TryParseByFormat(String input, String format, TimeSpanStyles styles, ref TimeSpanResult result) {
-            Contract.Assert(input != null, "input != null");
-            Contract.Assert(format != null, "format != null");
+            Debug.Assert(input != null, "input != null");
+            Debug.Assert(format != null, "format != null");
 
             bool seenDD = false;      // already processed days?
             bool seenHH = false;      // already processed hours?
@@ -1376,7 +1377,7 @@ namespace System.Globalization {
                 result.parsedTimeSpan._ticks = 0;
 
                 if (input == null) {
-                    result.SetFailure(ParseFailureKind.ArgumentNull, "ArgumentNull_String", null, "input");
+                    result.SetFailure(ParseFailureKind.ArgumentNull, "ArgumentNull_String", null, nameof(input));
                     return false;
                 }
                 str = input;
@@ -1511,11 +1512,11 @@ namespace System.Globalization {
         // 
         private static Boolean TryParseExactMultipleTimeSpan(String input, String[] formats, IFormatProvider formatProvider, TimeSpanStyles styles, ref TimeSpanResult result) {
             if (input == null) {
-                result.SetFailure(ParseFailureKind.ArgumentNull, "ArgumentNull_String", null, "input");
+                result.SetFailure(ParseFailureKind.ArgumentNull, "ArgumentNull_String", null, nameof(input));
                 return false;
             }
             if (formats == null) {
-                result.SetFailure(ParseFailureKind.ArgumentNull, "ArgumentNull_String", null, "formats");
+                result.SetFailure(ParseFailureKind.ArgumentNull, "ArgumentNull_String", null, nameof(formats));
                 return false;
             }
 

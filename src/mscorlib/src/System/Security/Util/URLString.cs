@@ -22,9 +22,6 @@ namespace System.Security.Util {
     using System.IO;
     using System.Diagnostics.Contracts;
 
-#if FEATURE_SERIALIZATION
-    [Serializable]
-#endif
     internal sealed class URLString : SiteString
     {
         private String m_protocol;
@@ -484,10 +481,11 @@ namespace System.Security.Util {
         private static void CheckPathTooLong(StringBuilder path)
         {
             if (path.Length >= (
-#if FEATURE_PATHCOMPAT
-                AppContextSwitches.BlockLongPaths ? PathInternal.MaxShortPath :
-#endif
+#if PLATFORM_UNIX
+                Interop.Sys.MaxPath))
+#else
                 PathInternal.MaxLongPath))
+#endif
             {
                 throw new PathTooLongException(Environment.GetResourceString("IO.PathTooLong"));
             }
@@ -513,7 +511,7 @@ namespace System.Security.Util {
             //      file:/home/johndoe/here
             //      file:../johndoe/here
             //      file:~/johndoe/here
-            String temp = url;            
+            String temp = url;
             int  nbSlashes = 0;
             while(nbSlashes<temp.Length && '/'==temp[nbSlashes])
                 nbSlashes++;  
@@ -533,7 +531,7 @@ namespace System.Security.Util {
         {
 
             String temp = url;
-#if !PLATFORM_UNIX            
+#if !PLATFORM_UNIX
             int index = temp.IndexOf( '/');
 
             if (index != -1 &&
@@ -651,7 +649,7 @@ namespace System.Security.Util {
             }
             else
             {
-#if !PLATFORM_UNIX 
+#if !PLATFORM_UNIX
                 String site = temp.Substring( 0, index );
                 m_localSite = null;
                 m_siteString = new SiteString( site );
@@ -680,7 +678,7 @@ namespace System.Security.Util {
         {
             if (url == null)
             {
-                throw new ArgumentNullException( "url" );
+                throw new ArgumentNullException( nameof(url) );
             }
             Contract.EndContractBlock();
             
@@ -1127,7 +1125,6 @@ namespace System.Security.Util {
         }
         
 #if !PLATFORM_UNIX
-        [System.Security.SecuritySafeCritical]  // auto-generated
         internal URLString SpecialNormalizeUrl()
         {
             // Under WinXP, file protocol urls can be mapped to
@@ -1177,7 +1174,6 @@ namespace System.Security.Util {
             }
         }
                 
-        [System.Security.SecurityCritical]  // auto-generated
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         [SuppressUnmanagedCodeSecurity]
         private static extern void GetDeviceName( String driveLetter, StringHandleOnStack retDeviceName );
@@ -1196,8 +1192,6 @@ namespace System.Security.Util {
     internal class DirectoryString : SiteString
     {
         private bool m_checkForIllegalChars;
-
-        private new static char[] m_separators = { '/' };
 
         // From KB #Q177506, file/folder illegal characters are \ / : * ? " < > | 
         protected static char[] m_illegalDirectoryCharacters = { '\\', ':', '*', '?', '"', '<', '>', '|' };
@@ -1224,7 +1218,7 @@ namespace System.Security.Util {
             Contract.EndContractBlock();
 
             ArrayList list = new ArrayList();
-            String[] separatedArray = directory.Split(m_separators);
+            String[] separatedArray = directory.Split('/');
             
             for (int index = 0; index < separatedArray.Length; ++index)
             {
@@ -1283,8 +1277,6 @@ namespace System.Security.Util {
     [Serializable]
     internal class LocalSiteString : SiteString
     {
-        private new static char[] m_separators = { '/' };
-
         public LocalSiteString( String site )
         {
             m_site = site.Replace( '|', ':');
@@ -1304,7 +1296,7 @@ namespace System.Security.Util {
             Contract.EndContractBlock();
 
             ArrayList list = new ArrayList();
-            String[] separatedArray = directory.Split(m_separators);
+            String[] separatedArray = directory.Split('/');
             
             for (int index = 0; index < separatedArray.Length; ++index)
             {

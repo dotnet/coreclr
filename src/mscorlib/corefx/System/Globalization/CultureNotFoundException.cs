@@ -2,19 +2,18 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-// 
-
-// 
-
 using System;
 using System.Threading;
+using System.Runtime.Serialization;
 
 namespace System.Globalization
 {
+    [Serializable]
     [System.Runtime.InteropServices.ComVisible(true)]
-    public class CultureNotFoundException : ArgumentException
+    public partial class CultureNotFoundException : ArgumentException, ISerializable
     {
-        private string m_invalidCultureName; // unrecognized culture name
+        private string _invalidCultureName; // unrecognized culture name
+        private int? _invalidCultureId;     // unrecognized culture Lcid
 
         public CultureNotFoundException()
             : base(DefaultMessage)
@@ -39,19 +38,55 @@ namespace System.Globalization
         public CultureNotFoundException(String paramName, string invalidCultureName, String message)
             : base(message, paramName)
         {
-            m_invalidCultureName = invalidCultureName;
+            _invalidCultureName = invalidCultureName;
         }
 
         public CultureNotFoundException(String message, string invalidCultureName, Exception innerException)
             : base(message, innerException)
         {
-            m_invalidCultureName = invalidCultureName;
+            _invalidCultureName = invalidCultureName;
         }
 
+        public CultureNotFoundException(string message, int invalidCultureId, Exception innerException)
+            : base(message, innerException)
+        {
+            _invalidCultureId = invalidCultureId;
+        }
+
+        public CultureNotFoundException(string paramName, int invalidCultureId, string message)
+            : base(message, paramName)
+        {
+            _invalidCultureId = invalidCultureId;
+        }
+
+        protected CultureNotFoundException(SerializationInfo info, StreamingContext context)
+            : base(info, context)
+        {
+            _invalidCultureId = (int?)info.GetValue("InvalidCultureId", typeof(int?));
+            _invalidCultureName = (string)info.GetValue("InvalidCultureName", typeof(string));
+        }
+
+        [System.Security.SecurityCritical]  // auto-generated_required
+        public override void GetObjectData(SerializationInfo info, StreamingContext context)
+        {
+            if (info == null)
+            {
+                throw new ArgumentNullException(nameof(info));
+            }
+
+            base.GetObjectData(info, context);
+            info.AddValue("InvalidCultureId", _invalidCultureId, typeof(int?));
+            info.AddValue("InvalidCultureName", _invalidCultureName, typeof(string));
+        }
+
+        public virtual Nullable<int> InvalidCultureId
+        {
+            get { return _invalidCultureId; }
+        }
 
         public virtual string InvalidCultureName
         {
-            get { return m_invalidCultureName; }
+            get { return _invalidCultureName; }
         }
 
         private static String DefaultMessage
@@ -66,7 +101,9 @@ namespace System.Globalization
         {
             get
             {
-                return InvalidCultureName;
+                return InvalidCultureId != null ?
+                    String.Format(CultureInfo.InvariantCulture, "{0} (0x{0:x4})", (int)InvalidCultureId) :
+                    InvalidCultureName;
             }
         }
 
@@ -75,12 +112,14 @@ namespace System.Globalization
             get
             {
                 String s = base.Message;
-                if (
-                    m_invalidCultureName != null)
+                if (_invalidCultureId != null || _invalidCultureName != null)
                 {
                     String valueMessage = SR.Format(SR.Argument_CultureInvalidIdentifier, FormatedInvalidCultureId);
                     if (s == null)
+                    {
                         return valueMessage;
+                    }
+
                     return s + Environment.NewLine + valueMessage;
                 }
                 return s;

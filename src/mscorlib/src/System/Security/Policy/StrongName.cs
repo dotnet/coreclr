@@ -42,20 +42,20 @@ namespace System.Security.Policy {
         internal StrongName(StrongNamePublicKeyBlob blob, String name, Version version, Assembly assembly)
         {
             if (name == null)
-                throw new ArgumentNullException("name");
+                throw new ArgumentNullException(nameof(name));
             if (String.IsNullOrEmpty(name))
                 throw new ArgumentException(Environment.GetResourceString("Argument_EmptyStrongName"));
 
             if (blob == null)
-                throw new ArgumentNullException("blob");
+                throw new ArgumentNullException(nameof(blob));
 
             if (version == null)
-                throw new ArgumentNullException("version");
+                throw new ArgumentNullException(nameof(version));
             Contract.EndContractBlock();
 
             RuntimeAssembly rtAssembly = assembly as RuntimeAssembly;
             if (assembly != null && rtAssembly == null)
-                throw new ArgumentException(Environment.GetResourceString("Argument_MustBeRuntimeAssembly"), "assembly");
+                throw new ArgumentException(Environment.GetResourceString("Argument_MustBeRuntimeAssembly"), nameof(assembly));
 
             m_publicKeyBlob = blob;
             m_name = name;
@@ -89,14 +89,9 @@ namespace System.Security.Policy {
 
         bool IDelayEvaluatedEvidence.IsVerified
         {
-            [System.Security.SecurityCritical]  // auto-generated
             get
             {
-#if FEATURE_CAS_POLICY
-                return m_assembly != null ? m_assembly.IsStrongNameVerified : true;
-#else // !FEATURE_CAS_POLICY
                 return true;
-#endif // FEATURE_CAS_POLICY
             }
         }
 
@@ -132,52 +127,6 @@ namespace System.Security.Policy {
         {
             return Clone();
         }
-
-#if FEATURE_CAS_POLICY
-        internal SecurityElement ToXml()
-        {
-            SecurityElement root = new SecurityElement( "StrongName" );
-            root.AddAttribute( "version", "1" );
-
-            if (m_publicKeyBlob != null)
-                root.AddAttribute( "Key", System.Security.Util.Hex.EncodeHexString( m_publicKeyBlob.PublicKey ) );
-
-            if (m_name != null)
-                root.AddAttribute( "Name", m_name );
-
-            if (m_version != null)
-                root.AddAttribute( "Version", m_version.ToString() );
-
-            return root;
-        }
-
-        internal void FromXml (SecurityElement element)
-        {
-            if (element == null)
-                throw new ArgumentNullException("element");
-            if (String.Compare(element.Tag, "StrongName", StringComparison.Ordinal) != 0)
-                throw new ArgumentException(Environment.GetResourceString("Argument_InvalidXML"));
-            Contract.EndContractBlock();
-
-            m_publicKeyBlob = null;
-            m_version = null;
-
-            string key = element.Attribute("Key");
-            if (key != null)
-                m_publicKeyBlob = new StrongNamePublicKeyBlob(System.Security.Util.Hex.DecodeHexString(key));
-
-            m_name = element.Attribute("Name");
-
-            string version = element.Attribute("Version");
-            if (version != null)
-                m_version = new Version(version);
-        }
-
-        public override String ToString()
-        {
-            return ToXml().ToString();
-        }
-#endif // FEATURE_CAS_POLICY
 
         public override bool Equals( Object o )
         {

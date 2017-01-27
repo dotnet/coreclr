@@ -9,6 +9,10 @@
 #include "gcenv.h"
 #include "gc.h"
 
+MethodTable * g_pFreeObjectMethodTable;
+
+int32_t g_TrapReturningThreads;
+
 EEConfig * g_pConfig;
 
 bool CLREventStatic::CreateManualEventNoThrow(bool bInitialState)
@@ -129,9 +133,9 @@ void ThreadStore::AttachCurrentThread()
     g_pThreadList = pThread;
 }
 
-void GCToEEInterface::SuspendEE(GCToEEInterface::SUSPEND_REASON reason)
+void GCToEEInterface::SuspendEE(SUSPEND_REASON reason)
 {
-    GCHeap::GetGCHeap()->SetGCInProgress(TRUE);
+    g_theGCHeap->SetGCInProgress(TRUE);
 
     // TODO: Implement
 }
@@ -140,7 +144,7 @@ void GCToEEInterface::RestartEE(bool bFinishedGC)
 {
     // TODO: Implement
 
-    GCHeap::GetGCHeap()->SetGCInProgress(FALSE);
+    g_theGCHeap->SetGCInProgress(FALSE);
 }
 
 void GCToEEInterface::GcScanRoots(promote_func* fn,  int condemned, int max_gen, ScanContext* sc)
@@ -184,7 +188,7 @@ void GCToEEInterface::DisablePreemptiveGC(Thread * pThread)
     pThread->DisablePreemptiveGC();
 }
 
-alloc_context * GCToEEInterface::GetAllocContext(Thread * pThread)
+gc_alloc_context * GCToEEInterface::GetAllocContext(Thread * pThread)
 {
     return pThread->GetAllocContext();
 }
@@ -221,29 +225,48 @@ Thread* GCToEEInterface::CreateBackgroundThread(GCBackgroundThreadFunction threa
     return NULL;
 }
 
-void FinalizerThread::EnableFinalization()
+void GCToEEInterface::DiagGCStart(int gen, bool isInduced)
+{
+}
+
+void GCToEEInterface::DiagUpdateGenerationBounds()
+{
+}
+
+void GCToEEInterface::DiagGCEnd(size_t index, int gen, int reason, bool fConcurrent)
+{
+}
+
+void GCToEEInterface::DiagWalkFReachableObjects(void* gcContext)
+{
+}
+
+void GCToEEInterface::DiagWalkSurvivors(void* gcContext)
+{
+}
+
+void GCToEEInterface::DiagWalkLOHSurvivors(void* gcContext)
+{
+}
+
+void GCToEEInterface::DiagWalkBGCSurvivors(void* gcContext)
+{
+}
+
+void GCToEEInterface::StompWriteBarrier(WriteBarrierParameters* args)
+{
+}
+
+void GCToEEInterface::EnableFinalization(bool foundFinalizers)
 {
     // Signal to finalizer thread that there are objects to finalize
     // TODO: Implement for finalization
-}
-
-bool FinalizerThread::HaveExtraWorkForFinalizer()
-{
-    return false;
 }
 
 bool IsGCSpecialThread()
 {
     // TODO: Implement for background GC
     return false;
-}
-
-void StompWriteBarrierEphemeral(bool /* isRuntimeSuspended */)
-{
-}
-
-void StompWriteBarrierResize(bool /* isRuntimeSuspended */, bool /*bReqUpperBoundsCheck*/)
-{
 }
 
 bool IsGCThread()

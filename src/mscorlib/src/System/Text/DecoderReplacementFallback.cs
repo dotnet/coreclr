@@ -5,6 +5,7 @@
 namespace System.Text
 {
     using System;
+    using System.Diagnostics;
     using System.Diagnostics.Contracts;
 
     [Serializable]
@@ -21,7 +22,7 @@ namespace System.Text
         public DecoderReplacementFallback(String replacement)
         {
             if (replacement == null)
-                throw new ArgumentNullException("replacement");
+                throw new ArgumentNullException(nameof(replacement));
             Contract.EndContractBlock();
 
             // Make sure it doesn't have bad surrogate pairs
@@ -58,7 +59,7 @@ namespace System.Text
                     break;
             }
             if (bFoundHigh)
-                throw new ArgumentException(Environment.GetResourceString("Argument_InvalidCharSequenceNoIndex", "replacement"));
+                throw new ArgumentException(Environment.GetResourceString("Argument_InvalidCharSequenceNoIndex", nameof(replacement)));
 
             strDefault = replacement;
         }
@@ -156,7 +157,7 @@ namespace System.Text
             }
 
             // Now make sure its in the expected range
-            Contract.Assert(fallbackIndex < strDefault.Length && fallbackIndex >= 0,
+            Debug.Assert(fallbackIndex < strDefault.Length && fallbackIndex >= 0,
                             "Index exceeds buffer range");
 
             return strDefault[fallbackIndex];            
@@ -187,7 +188,6 @@ namespace System.Text
         }
 
         // Clear the buffer
-        [System.Security.SecuritySafeCritical]  // auto-generated
         public override unsafe void Reset()
         {
             fallbackCount = -1;
@@ -196,7 +196,6 @@ namespace System.Text
         }
 
         // This version just counts the fallback and doesn't actually copy anything.
-        [System.Security.SecurityCritical]  // auto-generated
         internal unsafe override int InternalFallback(byte[] bytes, byte* pBytes)
         // Right now this has both bytes and bytes[], since we might have extra bytes, hence the
         // array, and we might need the index, hence the byte*

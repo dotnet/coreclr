@@ -15,15 +15,14 @@ using System.Runtime.Serialization;
 
 namespace System.Globalization {
     using System.Collections;
+    using System.Diagnostics;
     using System.Diagnostics.Contracts;
 
     //
     // This is public because GetTextElement() is public.
     //
 
-#if FEATURE_SERIALIZATION
     [Serializable]
-#endif
     [System.Runtime.InteropServices.ComVisible(true)]
     public class TextElementEnumerator: IEnumerator
     {
@@ -45,9 +44,9 @@ namespace System.Globalization {
 
         internal TextElementEnumerator(String str, int startIndex, int strLen)
         {
-            Contract.Assert(str != null, "TextElementEnumerator(): str != null");
-            Contract.Assert(startIndex >= 0 && strLen >= 0, "TextElementEnumerator(): startIndex >= 0 && strLen >= 0");
-            Contract.Assert(strLen >= startIndex, "TextElementEnumerator(): strLen >= startIndex");
+            Debug.Assert(str != null, "TextElementEnumerator(): str != null");
+            Debug.Assert(startIndex >= 0 && strLen >= 0, "TextElementEnumerator(): startIndex >= 0 && strLen >= 0");
+            Debug.Assert(strLen >= startIndex, "TextElementEnumerator(): strLen >= startIndex");
             this.str = str;
             this.startIndex = startIndex;
             this.strLen = strLen;

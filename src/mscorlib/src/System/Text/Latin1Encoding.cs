@@ -5,6 +5,7 @@
 namespace System.Text
 {
     using System;
+    using System.Diagnostics;
     using System.Diagnostics.Contracts;
     using System.Globalization;
     using System.Runtime.InteropServices;
@@ -19,14 +20,13 @@ namespace System.Text
     // Latin1Encoding is a simple override to optimize the GetString version of Latin1Encoding.
     // because of the best fit cases we can't do this when encoding the string, only when decoding
     //
-#if FEATURE_SERIALIZATION
     [Serializable]
-#endif
-    internal class Latin1Encoding : EncodingNLS
-#if FEATURE_SERIALIZATION
-        , ISerializable
-#endif
+    internal class Latin1Encoding : EncodingNLS, ISerializable
     {
+        // Used by Encoding.Latin1 for lazy initialization
+        // The initialization code will not be run until a static member of the class is referenced
+        internal static readonly Latin1Encoding s_default = new Latin1Encoding();
+
         // We only use the best-fit table, of which ASCII is a superset for us.
         public Latin1Encoding() : base(Encoding.ISO_8859_1)
         {
@@ -43,14 +43,12 @@ namespace System.Text
             // Nothing unique to Whidbey for Latin1
         }
 
-#if FEATURE_SERIALIZATION
         // ISerializable implementation, serialize it as a CodePageEncoding
-        [System.Security.SecurityCritical]  // auto-generated_required
         void ISerializable.GetObjectData(SerializationInfo info, StreamingContext context)
         {
             // Make sure to get the base stuff too This throws if info is null
             SerializeEncoding(info, context);
-            Contract.Assert(info!=null, "[Latin1Encoding.GetObjectData] Expected null info to throw");
+            Debug.Assert(info!=null, "[Latin1Encoding.GetObjectData] Expected null info to throw");
 
             // In Everett this is a CodePageEncoding, so it needs maxCharSize
             info.AddValue("CodePageEncoding+maxCharSize", 1);
@@ -59,20 +57,18 @@ namespace System.Text
             info.AddValue("CodePageEncoding+m_codePage", this.CodePage);
             info.AddValue("CodePageEncoding+dataItem", null);
         }
-#endif
 
         // GetByteCount
         // Note: We start by assuming that the output will be the same as count.  Having
         // an encoder or fallback may change that assumption
-        [System.Security.SecurityCritical]  // auto-generated
         internal override unsafe int GetByteCount(char* chars, int charCount, EncoderNLS encoder)
         {
             // Just need to ASSERT, this is called by something else internal that checked parameters already
-            Contract.Assert(charCount >= 0, "[Latin1Encoding.GetByteCount]count is negative");
-            Contract.Assert(chars != null, "[Latin1Encoding.GetByteCount]chars is null");
+            Debug.Assert(charCount >= 0, "[Latin1Encoding.GetByteCount]count is negative");
+            Debug.Assert(chars != null, "[Latin1Encoding.GetByteCount]chars is null");
 
             // Assert because we shouldn't be able to have a null encoder.
-            Contract.Assert(encoderFallback != null, "[Latin1Encoding.GetByteCount]Attempting to use null fallback encoder");
+            Debug.Assert(encoderFallback != null, "[Latin1Encoding.GetByteCount]Attempting to use null fallback encoder");
 
             char charLeftOver = (char)0;
 
@@ -82,13 +78,13 @@ namespace System.Text
             if (encoder != null)
             {
                 charLeftOver = encoder.charLeftOver;
-                Contract.Assert(charLeftOver == 0 || Char.IsHighSurrogate(charLeftOver),
+                Debug.Assert(charLeftOver == 0 || Char.IsHighSurrogate(charLeftOver),
                     "[Latin1Encoding.GetByteCount]leftover character should be high surrogate");
 
                 fallback = encoder.Fallback as EncoderReplacementFallback;
 
                 // Verify that we have no fallbackbuffer, for Latin1 its always empty, so just assert
-                Contract.Assert(!encoder.m_throwOnOverflow || !encoder.InternalHasFallbackBuffer ||
+                Debug.Assert(!encoder.m_throwOnOverflow || !encoder.InternalHasFallbackBuffer ||
                     encoder.FallbackBuffer.Remaining == 0,
                     "[Latin1CodePageEncoding.GetByteCount]Expected empty fallback buffer");
             }
@@ -125,7 +121,7 @@ namespace System.Text
             if (charLeftOver > 0)
             {
                 // Initialize the buffer
-                Contract.Assert(encoder != null,
+                Debug.Assert(encoder != null,
                     "[Latin1Encoding.GetByteCount]Expected encoder if we have charLeftOver");
                 fallbackBuffer = encoder.FallbackBuffer;
                 fallbackBuffer.InternalInitialize(chars, charEnd, encoder, false);
@@ -174,24 +170,23 @@ namespace System.Text
                 byteCount++;
             }
 
-            Contract.Assert(fallbackBuffer == null || fallbackBuffer.Remaining == 0,
+            Debug.Assert(fallbackBuffer == null || fallbackBuffer.Remaining == 0,
                 "[Latin1Encoding.GetByteCount]Expected Empty fallback buffer");
 
             return byteCount;
         }
 
-        [System.Security.SecurityCritical]  // auto-generated
         internal override unsafe int GetBytes(char* chars, int charCount,
                                                 byte* bytes, int byteCount, EncoderNLS encoder)
         {
             // Just need to ASSERT, this is called by something else internal that checked parameters already
-            Contract.Assert(bytes != null, "[Latin1Encoding.GetBytes]bytes is null");
-            Contract.Assert(byteCount >= 0, "[Latin1Encoding.GetBytes]byteCount is negative");
-            Contract.Assert(chars != null, "[Latin1Encoding.GetBytes]chars is null");
-            Contract.Assert(charCount >= 0, "[Latin1Encoding.GetBytes]charCount is negative");
+            Debug.Assert(bytes != null, "[Latin1Encoding.GetBytes]bytes is null");
+            Debug.Assert(byteCount >= 0, "[Latin1Encoding.GetBytes]byteCount is negative");
+            Debug.Assert(chars != null, "[Latin1Encoding.GetBytes]chars is null");
+            Debug.Assert(charCount >= 0, "[Latin1Encoding.GetBytes]charCount is negative");
 
             // Assert because we shouldn't be able to have a null encoder.
-            Contract.Assert(encoderFallback != null, "[Latin1Encoding.GetBytes]Attempting to use null encoder fallback");
+            Debug.Assert(encoderFallback != null, "[Latin1Encoding.GetBytes]Attempting to use null encoder fallback");
 
             // Get any left over characters & check fast or slower fallback type
             char charLeftOver = (char)0;
@@ -200,11 +195,11 @@ namespace System.Text
             {
                 charLeftOver = encoder.charLeftOver;
                 fallback = encoder.Fallback as EncoderReplacementFallback;
-                Contract.Assert(charLeftOver == 0 || Char.IsHighSurrogate(charLeftOver),
+                Debug.Assert(charLeftOver == 0 || Char.IsHighSurrogate(charLeftOver),
                     "[Latin1Encoding.GetBytes]leftover character should be high surrogate");
 
                 // Verify that we have no fallbackbuffer, for ASCII its always empty, so just assert
-                Contract.Assert(!encoder.m_throwOnOverflow || !encoder.InternalHasFallbackBuffer ||
+                Debug.Assert(!encoder.m_throwOnOverflow || !encoder.InternalHasFallbackBuffer ||
                     encoder.FallbackBuffer.Remaining == 0,
                     "[Latin1CodePageEncoding.GetBytes]Expected empty fallback buffer");
             }
@@ -287,7 +282,7 @@ namespace System.Text
             {
                 // Since left over char was a surrogate, it'll have to be fallen back.
                 // Get Fallback
-                Contract.Assert(encoder != null,
+                Debug.Assert(encoder != null,
                     "[Latin1Encoding.GetBytes]Expected encoder if we have charLeftOver");
                 fallbackBuffer = encoder.FallbackBuffer;
                 fallbackBuffer.InternalInitialize(chars, charEnd, encoder, true);
@@ -341,7 +336,7 @@ namespace System.Text
                     {
                         // Didn't use this char, throw it.  Chars should've advanced by now
                         // If we had encoder fallback data it would've thrown before the loop
-                        Contract.Assert(chars > charStart, 
+                        Debug.Assert(chars > charStart, 
                             "[Latin1Encoding.GetBytes]Expected chars to have advanced (fallback case)");
                         chars--;
                         fallbackBuffer.InternalReset();
@@ -359,11 +354,11 @@ namespace System.Text
                 if (bytes >= byteEnd)
                 {
                     // didn't use this char, we'll throw or use buffer
-                    Contract.Assert(fallbackBuffer == null || fallbackBuffer.bFallingBack == false,
+                    Debug.Assert(fallbackBuffer == null || fallbackBuffer.bFallingBack == false,
                         "[Latin1Encoding.GetBytes]Expected fallback to have throw initially if insufficient space");
                     if (fallbackBuffer == null || fallbackBuffer.bFallingBack == false)
                     {
-                        Contract.Assert(chars > charStart, 
+                        Debug.Assert(chars > charStart, 
                             "[Latin1Encoding.GetBytes]Expected chars to have advanced (fallback case)");
                         chars--;                                        // don't use last char
                     }
@@ -388,34 +383,32 @@ namespace System.Text
                 encoder.m_charsUsed = (int)(chars - charStart);
             }
 
-            Contract.Assert(fallbackBuffer == null || fallbackBuffer.Remaining == 0,
+            Debug.Assert(fallbackBuffer == null || fallbackBuffer.Remaining == 0,
                 "[Latin1Encoding.GetBytes]Expected Empty fallback buffer");
 
             return (int)(bytes - byteStart);
         }
 
         // This is internal and called by something else,
-        [System.Security.SecurityCritical]  // auto-generated
         internal override unsafe int GetCharCount(byte* bytes, int count, DecoderNLS decoder)
         {
             // Just assert, we're called internally so these should be safe, checked already
-            Contract.Assert(bytes != null, "[Latin1Encoding.GetCharCount]bytes is null");
-            Contract.Assert(count >= 0, "[Latin1Encoding.GetCharCount]byteCount is negative");
+            Debug.Assert(bytes != null, "[Latin1Encoding.GetCharCount]bytes is null");
+            Debug.Assert(count >= 0, "[Latin1Encoding.GetCharCount]byteCount is negative");
 
             // Just return length, SBCS stay the same length because they don't map to surrogate
             // pairs and we don't have to fallback because all latin1Encoding code points are unicode
             return count;
         }
 
-        [System.Security.SecurityCritical]  // auto-generated
         internal override unsafe int GetChars(byte* bytes, int byteCount,
                                                 char* chars, int charCount, DecoderNLS decoder)
         {
             // Just need to ASSERT, this is called by something else internal that checked parameters already
-            Contract.Assert(bytes != null, "[Latin1Encoding.GetChars]bytes is null");
-            Contract.Assert(byteCount >= 0, "[Latin1Encoding.GetChars]byteCount is negative");
-            Contract.Assert(chars != null, "[Latin1Encoding.GetChars]chars is null");
-            Contract.Assert(charCount >= 0, "[Latin1Encoding.GetChars]charCount is negative");
+            Debug.Assert(bytes != null, "[Latin1Encoding.GetChars]bytes is null");
+            Debug.Assert(byteCount >= 0, "[Latin1Encoding.GetChars]byteCount is negative");
+            Debug.Assert(chars != null, "[Latin1Encoding.GetChars]chars is null");
+            Debug.Assert(charCount >= 0, "[Latin1Encoding.GetChars]charCount is negative");
 
             // Need byteCount chars, otherwise too small buffer
             if (charCount < byteCount)
@@ -449,7 +442,7 @@ namespace System.Text
         public override int GetMaxByteCount(int charCount)
         {
             if (charCount < 0)
-               throw new ArgumentOutOfRangeException("charCount",
+               throw new ArgumentOutOfRangeException(nameof(charCount),
                     Environment.GetResourceString("ArgumentOutOfRange_NeedNonNegNum"));
             Contract.EndContractBlock();
 
@@ -462,14 +455,14 @@ namespace System.Text
             // 1 to 1 for most characters.  Only surrogates with fallbacks have less.
 
             if (byteCount > 0x7fffffff)
-                throw new ArgumentOutOfRangeException("charCount", Environment.GetResourceString("ArgumentOutOfRange_GetByteCountOverflow"));
+                throw new ArgumentOutOfRangeException(nameof(charCount), Environment.GetResourceString("ArgumentOutOfRange_GetByteCountOverflow"));
             return (int)byteCount;
         }
 
         public override int GetMaxCharCount(int byteCount)
         {
             if (byteCount < 0)
-               throw new ArgumentOutOfRangeException("byteCount",
+               throw new ArgumentOutOfRangeException(nameof(byteCount),
                     Environment.GetResourceString("ArgumentOutOfRange_NeedNonNegNum"));
             Contract.EndContractBlock();
 
@@ -481,7 +474,7 @@ namespace System.Text
                 charCount *= DecoderFallback.MaxCharCount;
 
             if (charCount > 0x7fffffff)
-                throw new ArgumentOutOfRangeException("byteCount", Environment.GetResourceString("ArgumentOutOfRange_GetCharCountOverflow"));
+                throw new ArgumentOutOfRangeException(nameof(byteCount), Environment.GetResourceString("ArgumentOutOfRange_GetCharCountOverflow"));
 
             return (int)charCount;
         }
@@ -495,7 +488,6 @@ namespace System.Text
             }
         }
 
-#if !FEATURE_NORM_IDNA_ONLY
         public override bool IsAlwaysNormalized(NormalizationForm form)
         {
             // Latin-1 contains precomposed characters, so normal for Form C.
@@ -505,7 +497,6 @@ namespace System.Text
             // Only true for form C.
             return (form == NormalizationForm.FormC);
         }
-#endif // !FEATURE_NORM_IDNA_ONLY        
         // Since our best fit table is small we'll hard code it
         internal override char[] GetBestFitUnicodeToBytesData()
         {

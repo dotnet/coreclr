@@ -8,6 +8,7 @@ namespace System.Reflection.Emit
 {
     using System.Text;
     using System;
+    using System.Diagnostics;
     using System.Diagnostics.Contracts;
     using System.Reflection;
     using System.Runtime.CompilerServices;
@@ -25,19 +26,16 @@ namespace System.Reflection.Emit
         #endregion
     
         #region Static Members
-        [System.Security.SecuritySafeCritical]  // auto-generated
         public static SignatureHelper GetMethodSigHelper(Module mod, Type returnType, Type[] parameterTypes)
         {
             return GetMethodSigHelper(mod, CallingConventions.Standard, returnType, null, null, parameterTypes, null, null);
         }
 
-        [System.Security.SecurityCritical]  // auto-generated
         internal static SignatureHelper GetMethodSigHelper(Module mod, CallingConventions callingConvention, Type returnType, int cGenericParam)
         {
             return GetMethodSigHelper(mod, callingConvention, cGenericParam, returnType, null, null, null, null, null);
         }
         
-        [System.Security.SecuritySafeCritical]  // auto-generated
         public static SignatureHelper GetMethodSigHelper(Module mod, CallingConventions callingConvention, Type returnType)
         {
             return GetMethodSigHelper(mod, callingConvention, returnType, null, null, null, null, null);
@@ -52,7 +50,6 @@ namespace System.Reflection.Emit
             return sigHelp;
         }
         
-        [System.Security.SecurityCritical]  // auto-generated
         internal static SignatureHelper GetMethodSigHelper(
             Module scope, CallingConventions callingConvention,
             Type returnType, Type[] requiredReturnTypeCustomModifiers, Type[] optionalReturnTypeCustomModifiers,
@@ -62,7 +59,6 @@ namespace System.Reflection.Emit
                 optionalReturnTypeCustomModifiers, parameterTypes, requiredParameterTypeCustomModifiers, optionalParameterTypeCustomModifiers);
         }
 
-        [System.Security.SecurityCritical]  // auto-generated
         internal static SignatureHelper GetMethodSigHelper(
             Module scope, CallingConventions callingConvention, int cGenericParam,
             Type returnType, Type[] requiredReturnTypeCustomModifiers, Type[] optionalReturnTypeCustomModifiers,
@@ -96,7 +92,6 @@ namespace System.Reflection.Emit
             return sigHelp;
         }
 
-        [System.Security.SecuritySafeCritical]  // auto-generated
         public static SignatureHelper GetMethodSigHelper(Module mod, CallingConvention unmanagedCallConv, Type returnType)
         {
             SignatureHelper sigHelp;
@@ -123,7 +118,7 @@ namespace System.Reflection.Emit
             }
             else
             {
-                throw new ArgumentException(Environment.GetResourceString("Argument_UnknownUnmanagedCallConv"), "unmanagedCallConv");                          
+                throw new ArgumentException(Environment.GetResourceString("Argument_UnknownUnmanagedCallConv"), nameof(unmanagedCallConv));                          
             }
             
             sigHelp = new SignatureHelper(mod, intCall, returnType, null, null);
@@ -168,7 +163,6 @@ namespace System.Reflection.Emit
             return GetPropertySigHelper(mod, (CallingConventions)0, returnType, requiredReturnTypeCustomModifiers, optionalReturnTypeCustomModifiers, 
                 parameterTypes, requiredParameterTypeCustomModifiers, optionalParameterTypeCustomModifiers);
         }
-        [System.Security.SecuritySafeCritical]  // auto-generated
         public static SignatureHelper GetPropertySigHelper(Module mod, CallingConventions callingConvention,
             Type returnType, Type[] requiredReturnTypeCustomModifiers, Type[] optionalReturnTypeCustomModifiers, 
             Type[] parameterTypes, Type[][] requiredParameterTypeCustomModifiers, Type[][] optionalParameterTypeCustomModifiers)
@@ -192,16 +186,15 @@ namespace System.Reflection.Emit
             return sigHelp;
         }
         
-        [System.Security.SecurityCritical]  // auto-generated
-        internal static SignatureHelper GetTypeSigToken(Module mod, Type type)
+        internal static SignatureHelper GetTypeSigToken(Module module, Type type)
         {
-            if (mod == null)
-                throw new ArgumentNullException("module");
+            if (module == null)
+                throw new ArgumentNullException(nameof(module));
 
             if (type == null)
-                throw new ArgumentNullException("type");
+                throw new ArgumentNullException(nameof(type));
 
-            return new SignatureHelper(mod, type);
+            return new SignatureHelper(module, type);
         }
         #endregion
 
@@ -221,7 +214,6 @@ namespace System.Reflection.Emit
             Init(mod, callingConvention);
         }
 
-        [System.Security.SecurityCritical]  // auto-generated
         private SignatureHelper(Module mod, MdSigCallingConvention callingConvention, int cGenericParameters,
             Type returnType, Type[] requiredCustomModifiers, Type[] optionalCustomModifiers)
         {
@@ -234,14 +226,12 @@ namespace System.Reflection.Emit
             AddOneArgTypeHelper(returnType, requiredCustomModifiers, optionalCustomModifiers);                          
         }
 
-        [System.Security.SecurityCritical]  // auto-generated
         private SignatureHelper(Module mod, MdSigCallingConvention callingConvention, 
             Type returnType, Type[] requiredCustomModifiers, Type[] optionalCustomModifiers)
             : this(mod, callingConvention, 0, returnType, requiredCustomModifiers, optionalCustomModifiers)
         {
         }
 
-        [System.Security.SecurityCritical]  // auto-generated
         private SignatureHelper(Module mod, Type type)
         {
             Init(mod);
@@ -290,7 +280,6 @@ namespace System.Reflection.Emit
         #endregion
 
         #region Private Members
-        [System.Security.SecurityCritical]  // auto-generated
         private void AddOneArgTypeHelper(Type argument, bool pinned)
         {
             if (pinned)
@@ -299,7 +288,6 @@ namespace System.Reflection.Emit
             AddOneArgTypeHelper(argument);
         }
 
-        [System.Security.SecurityCritical]  // auto-generated
         private void AddOneArgTypeHelper(Type clsArgument, Type[] requiredCustomModifiers, Type[] optionalCustomModifiers)
         {
             // This function will not increase the argument count. It only fills in bytes 
@@ -315,18 +303,18 @@ namespace System.Reflection.Emit
                     Type t = optionalCustomModifiers[i];
 
                     if (t == null)
-                        throw new ArgumentNullException("optionalCustomModifiers");
+                        throw new ArgumentNullException(nameof(optionalCustomModifiers));
 
                     if (t.HasElementType)
-                        throw new ArgumentException(Environment.GetResourceString("Argument_ArraysInvalid"), "optionalCustomModifiers");
+                        throw new ArgumentException(Environment.GetResourceString("Argument_ArraysInvalid"), nameof(optionalCustomModifiers));
 
                     if (t.ContainsGenericParameters)
-                        throw new ArgumentException(Environment.GetResourceString("Argument_GenericsInvalid"), "optionalCustomModifiers");
+                        throw new ArgumentException(Environment.GetResourceString("Argument_GenericsInvalid"), nameof(optionalCustomModifiers));
 
                     AddElementType(CorElementType.CModOpt);
 
                     int token = m_module.GetTypeToken(t).Token;
-                    Contract.Assert(!MetadataToken.IsNullToken(token));
+                    Debug.Assert(!MetadataToken.IsNullToken(token));
                     AddToken(token);
                 }
             }
@@ -338,18 +326,18 @@ namespace System.Reflection.Emit
                     Type t = requiredCustomModifiers[i];
 
                     if (t == null)
-                        throw new ArgumentNullException("requiredCustomModifiers");
+                        throw new ArgumentNullException(nameof(requiredCustomModifiers));
 
                     if (t.HasElementType)
-                        throw new ArgumentException(Environment.GetResourceString("Argument_ArraysInvalid"), "requiredCustomModifiers");
+                        throw new ArgumentException(Environment.GetResourceString("Argument_ArraysInvalid"), nameof(requiredCustomModifiers));
 
                     if (t.ContainsGenericParameters)
-                        throw new ArgumentException(Environment.GetResourceString("Argument_GenericsInvalid"), "requiredCustomModifiers");
+                        throw new ArgumentException(Environment.GetResourceString("Argument_GenericsInvalid"), nameof(requiredCustomModifiers));
 
                     AddElementType(CorElementType.CModReqd);
 
                     int token = m_module.GetTypeToken(t).Token;
-                    Contract.Assert(!MetadataToken.IsNullToken(token));
+                    Debug.Assert(!MetadataToken.IsNullToken(token));
                     AddToken(token);
                 }
             }
@@ -357,9 +345,7 @@ namespace System.Reflection.Emit
             AddOneArgTypeHelper(clsArgument);
         }
 
-        [System.Security.SecurityCritical]  // auto-generated
         private void AddOneArgTypeHelper(Type clsArgument) { AddOneArgTypeHelperWorker(clsArgument, false); }
-        [System.Security.SecurityCritical]  // auto-generated
         private void AddOneArgTypeHelperWorker(Type clsArgument, bool lastWasGenericInst)
         {
             if (clsArgument.IsGenericParameter)
@@ -613,7 +599,6 @@ namespace System.Reflection.Emit
             AddToken(clsToken.Token);
         }
     
-        [System.Security.SecurityCritical]  // auto-generated
         private unsafe void InternalAddRuntimeType(Type type)
         {
             // Add a runtime type into the signature. 
@@ -822,11 +807,10 @@ namespace System.Reflection.Emit
             AddArgument(clsArgument, null, null);
         }
 
-        [System.Security.SecuritySafeCritical]  // auto-generated
         public void AddArgument(Type argument, bool pinned)
         {
             if (argument == null)
-                throw new ArgumentNullException("argument");
+                throw new ArgumentNullException(nameof(argument));
 
             IncrementArgCounts();
             AddOneArgTypeHelper(argument, pinned);
@@ -835,10 +819,10 @@ namespace System.Reflection.Emit
         public void AddArguments(Type[] arguments, Type[][] requiredCustomModifiers, Type[][] optionalCustomModifiers)
         {
             if (requiredCustomModifiers != null && (arguments == null || requiredCustomModifiers.Length != arguments.Length))
-                throw new ArgumentException(Environment.GetResourceString("Argument_MismatchedArrays", "requiredCustomModifiers", "arguments"));
+                throw new ArgumentException(Environment.GetResourceString("Argument_MismatchedArrays", nameof(requiredCustomModifiers), nameof(arguments)));
 
             if (optionalCustomModifiers != null && (arguments == null || optionalCustomModifiers.Length != arguments.Length))
-                throw new ArgumentException(Environment.GetResourceString("Argument_MismatchedArrays", "optionalCustomModifiers", "arguments"));
+                throw new ArgumentException(Environment.GetResourceString("Argument_MismatchedArrays", nameof(optionalCustomModifiers), nameof(arguments)));
 
             if (arguments != null)
             {
@@ -851,14 +835,13 @@ namespace System.Reflection.Emit
             }
         }
 
-        [System.Security.SecuritySafeCritical]  // auto-generated
         public void AddArgument(Type argument, Type[] requiredCustomModifiers, Type[] optionalCustomModifiers)
         {
             if (m_sigDone)
                 throw new ArgumentException(Environment.GetResourceString("Argument_SigIsFinalized"));
     
             if (argument == null)
-                throw new ArgumentNullException("argument");
+                throw new ArgumentNullException(nameof(argument));
 
             IncrementArgCounts();
     
@@ -967,28 +950,6 @@ namespace System.Reflection.Emit
         }
         
         #endregion
-
-#if !FEATURE_CORECLR
-        void _SignatureHelper.GetTypeInfoCount(out uint pcTInfo)
-        {
-            throw new NotImplementedException();
-        }
-
-        void _SignatureHelper.GetTypeInfo(uint iTInfo, uint lcid, IntPtr ppTInfo)
-        {
-            throw new NotImplementedException();
-        }
-
-        void _SignatureHelper.GetIDsOfNames([In] ref Guid riid, IntPtr rgszNames, uint cNames, uint lcid, IntPtr rgDispId)
-        {
-            throw new NotImplementedException();
-        }
-
-        void _SignatureHelper.Invoke(uint dispIdMember, [In] ref Guid riid, uint lcid, short wFlags, IntPtr pDispParams, IntPtr pVarResult, IntPtr pExcepInfo, IntPtr puArgErr)
-        {
-            throw new NotImplementedException();
-        }
-#endif
 
     }
 }

@@ -24,7 +24,9 @@
 
 inline void FATAL_GC_ERROR()
 {
+#ifndef DACCESS_COMPILE
     GCToOSInterface::DebugBreak();
+#endif // DACCESS_COMPILE
     _ASSERTE(!"Fatal Error in GC.");
     EEPOLICY_HANDLE_FATAL_ERROR(COR_E_EXECUTIONENGINE);
 }
@@ -1073,9 +1075,6 @@ enum interesting_data_point
 };
 
 //class definition of the internal class
-#if defined(GC_PROFILING) || defined(FEATURE_EVENT_TRACE)
-extern void GCProfileWalkHeapWorker(BOOL fProfilerPinned, BOOL fShouldWalkHeapRootsForEtw, BOOL fShouldWalkHeapObjectsForEtw);
-#endif // defined(GC_PROFILING) || defined(FEATURE_EVENT_TRACE)
 class gc_heap
 {
     friend struct ::_DacGlobals;
@@ -1225,7 +1224,7 @@ public:
     static 
     gc_heap* balance_heaps_loh (alloc_context* acontext, size_t size);
     static
-    void __stdcall gc_thread_stub (void* arg);
+    void gc_thread_stub (void* arg);
 #endif //MULTIPLE_HEAPS
 
     CObjectHeader* try_fast_alloc (size_t jsize);
@@ -1283,34 +1282,47 @@ public:
 
 protected:
 
-    PER_HEAP
+    PER_HEAP_ISOLATED
     void walk_heap (walk_fn fn, void* context, int gen_number, BOOL walk_large_object_heap_p);
+
+    PER_HEAP
+    void walk_heap_per_heap (walk_fn fn, void* context, int gen_number, BOOL walk_large_object_heap_p);
 
     struct walk_relocate_args
     {
         uint8_t* last_plug;
         BOOL is_shortened;
         mark* pinned_plug_entry;
+        size_t profiling_context;
+        record_surv_fn fn;
     };
 
     PER_HEAP
+    void walk_survivors (record_surv_fn fn, size_t context, walk_surv_type type);
+
+    PER_HEAP
     void walk_plug (uint8_t* plug, size_t size, BOOL check_last_object_p,
-                    walk_relocate_args* args, size_t profiling_context);
+                    walk_relocate_args* args);
 
     PER_HEAP
-    void walk_relocation (int condemned_gen_number,
-                          uint8_t* first_condemned_address, size_t profiling_context);
+    void walk_relocation (size_t profiling_context, record_surv_fn fn);
 
     PER_HEAP
-    void walk_relocation_in_brick (uint8_t* tree, walk_relocate_args* args, size_t profiling_context);
+    void walk_relocation_in_brick (uint8_t* tree, walk_relocate_args* args);
+
+    PER_HEAP
+    void walk_finalize_queue (fq_walk_fn fn);
 
 #if defined(BACKGROUND_GC) && defined(FEATURE_EVENT_TRACE)
     PER_HEAP
-    void walk_relocation_for_bgc(size_t profiling_context);
-
-    PER_HEAP
-    void make_free_lists_for_profiler_for_bgc();
+    void walk_survivors_for_bgc (size_t profiling_context, record_surv_fn fn);
 #endif // defined(BACKGROUND_GC) && defined(FEATURE_EVENT_TRACE)
+
+    // used in blocking GCs after plan phase so this walks the plugs.
+    PER_HEAP
+    void walk_survivors_relocation (size_t profiling_context, record_surv_fn fn);
+    PER_HEAP
+    void walk_survivors_for_loh (size_t profiling_context, record_surv_fn fn);
 
     PER_HEAP
     int generation_to_condemn (int n, 
@@ -1659,7 +1671,7 @@ protected:
     PER_HEAP
     void reset_write_watch (BOOL concurrent_p);
     PER_HEAP
-    void adjust_ephemeral_limits (bool is_runtime_suspended);
+    void adjust_ephemeral_limits ();
     PER_HEAP
     void make_generation (generation& gen, heap_segment* seg,
                           uint8_t* start, uint8_t* pointer);
@@ -2148,10 +2160,8 @@ protected:
     PER_HEAP
     void relocate_in_loh_compact();
 
-#if defined(GC_PROFILING) || defined(FEATURE_EVENT_TRACE)
     PER_HEAP
-    void walk_relocation_loh (size_t profiling_context);
-#endif // defined(GC_PROFILING) || defined(FEATURE_EVENT_TRACE)
+    void walk_relocation_for_loh (size_t profiling_context, record_surv_fn fn);
 
     PER_HEAP
     BOOL loh_enque_pinned_plug (uint8_t* plug, size_t len);
@@ -2547,14 +2557,8 @@ protected:
     PER_HEAP
     void descr_generations (BOOL begin_gc_p);
 
-#if defined(GC_PROFILING) || defined(FEATURE_EVENT_TRACE)
     PER_HEAP_ISOLATED
     void descr_generations_to_profiler (gen_walk_fn fn, void *context);
-    PER_HEAP
-    void record_survived_for_profiler(int condemned_gen_number, uint8_t * first_condemned_address);
-    PER_HEAP
-    void notify_profiler_of_surviving_large_objects ();
-#endif // defined(GC_PROFILING) || defined(FEATURE_EVENT_TRACE)
 
     /*------------ Multiple non isolated heaps ----------------*/
 #ifdef MULTIPLE_HEAPS
@@ -2798,13 +2802,11 @@ public:
     PER_HEAP
     void exit_gc_done_event_lock();
 
-#ifdef MULTIPLE_HEAPS
     PER_HEAP
     uint8_t*  ephemeral_low;      //lowest ephemeral address
 
     PER_HEAP
     uint8_t*  ephemeral_high;     //highest ephemeral address
-#endif //MULTIPLE_HEAPS
 
     PER_HEAP
     uint32_t* card_table;
@@ -2978,7 +2980,7 @@ protected:
     PER_HEAP
     VOLATILE(int) alloc_context_count;
 #else //MULTIPLE_HEAPS
-#define vm_heap ((GCHeap*) g_pGCHeap)
+#define vm_heap ((GCHeap*) g_theGCHeap)
 #define heap_number (0)
 #endif //MULTIPLE_HEAPS
 
@@ -3763,9 +3765,7 @@ public:
     Object* GetNextFinalizableObject (BOOL only_non_critical=FALSE);
     BOOL ScanForFinalization (promote_func* fn, int gen,BOOL mark_only_p, gc_heap* hp);
     void RelocateFinalizationData (int gen, gc_heap* hp);
-#ifdef GC_PROFILING
-    void WalkFReachableObjects (gc_heap* hp);
-#endif //GC_PROFILING
+    void WalkFReachableObjects (fq_walk_fn fn);
     void GcScanRoots (promote_func* fn, int hn, ScanContext *pSC);
     void UpdatePromotedGenerations (int gen, BOOL gen_0_empty_p);
     size_t GetPromotedCount();
@@ -4073,8 +4073,6 @@ size_t generation_unusable_fragmentation (generation* inst)
 }
 
 #define plug_skew           sizeof(ObjHeader)
-#define min_obj_size        (sizeof(uint8_t*)+plug_skew+sizeof(size_t))//syncblock + vtable+ first field
-//Note that this encodes the fact that plug_skew is a multiple of uint8_t*.
 // We always use USE_PADDING_TAIL when fitting so items on the free list should be
 // twice the min_obj_size.
 #define min_free_list       (2*min_obj_size)
@@ -4318,9 +4316,6 @@ dynamic_data* gc_heap::dynamic_data_of (int gen_number)
 {
     return &dynamic_data_table [ gen_number ];
 }
-
-extern "C" uint8_t* g_ephemeral_low;
-extern "C" uint8_t* g_ephemeral_high;
 
 #define card_word_width ((size_t)32)
 

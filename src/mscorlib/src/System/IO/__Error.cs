@@ -74,7 +74,6 @@ namespace System.IO {
         // discovery permission to that path.  If we do not, return just the 
         // file name.  If we know it is a directory, then don't return the 
         // directory name.
-        [System.Security.SecurityCritical]  // auto-generated
         internal static String GetDisplayablePath(String path, bool isInvalidPath)
         {
             
@@ -85,7 +84,7 @@ namespace System.IO {
             bool isFullyQualified = false;
             if (path.Length < 2)
                 return path;
-            if (Path.IsDirectorySeparator(path[0]) && Path.IsDirectorySeparator(path[1]))
+            if (PathInternal.IsDirectorySeparator(path[0]) && PathInternal.IsDirectorySeparator(path[1]))
                 isFullyQualified = true;
             else if (path[1] == Path.VolumeSeparatorChar) {
                 isFullyQualified = true;
@@ -97,9 +96,6 @@ namespace System.IO {
             bool safeToReturn = false;
             try {
                 if (!isInvalidPath) {
-#if !FEATURE_CORECLR
-                    new FileIOPermission(FileIOPermissionAccess.PathDiscovery, new String[] { path }, false, false).Demand();
-#endif
                     safeToReturn = true;
                 }
             }
@@ -116,7 +112,7 @@ namespace System.IO {
             }
             
             if (!safeToReturn) {
-                if (Path.IsDirectorySeparator(path[path.Length - 1]))
+                if (PathInternal.IsDirectorySeparator(path[path.Length - 1]))
                     path = Environment.GetResourceString("IO.IO_NoPermissionToDirectoryName");
                 else
                     path = Path.GetFileName(path);
@@ -125,7 +121,6 @@ namespace System.IO {
             return path;
         }
 
-        [System.Security.SecuritySafeCritical]  // auto-generated
         internal static void WinIOError() {
             int errorCode = Marshal.GetLastWin32Error();
             WinIOError(errorCode, String.Empty);
@@ -136,7 +131,6 @@ namespace System.IO {
         // will determine the appropriate exception to throw dependent on your 
         // error, and depending on the error, insert a string into the message 
         // gotten from the ResourceManager.
-        [System.Security.SecurityCritical]  // auto-generated
         internal static void WinIOError(int errorCode, String maybeFullPath) {
             // This doesn't have to be perfect, but is a perf optimization.
             bool isInvalidPath = errorCode == Win32Native.ERROR_INVALID_NAME || errorCode == Win32Native.ERROR_BAD_PATHNAME;
@@ -195,13 +189,11 @@ namespace System.IO {
         }
 
         // An alternative to WinIOError with friendlier messages for drives
-        [System.Security.SecuritySafeCritical]  // auto-generated
         internal static void WinIODriveError(String driveName) {
             int errorCode = Marshal.GetLastWin32Error();
             WinIODriveError(driveName, errorCode);
         }
 
-        [System.Security.SecurityCritical]  // auto-generated
         internal static void WinIODriveError(String driveName, int errorCode)
         {
             switch (errorCode) {

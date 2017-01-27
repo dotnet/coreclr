@@ -16,13 +16,12 @@ namespace System.Globalization {
     using System;
     using System.Runtime.CompilerServices;
     using System.Runtime.Serialization;
+    using System.Diagnostics;
     using System.Diagnostics.Contracts;
 
     [System.Runtime.InteropServices.ComVisible(true)]
-#if FEATURE_SERIALIZATION
     [Serializable]
-#endif
-    public class SortKey
+    public partial class SortKey
     {
         //--------------------------------------------------------------------//
         //                        Internal Information                        //
@@ -121,15 +120,15 @@ namespace System.Globalization {
         public static int Compare(SortKey sortkey1, SortKey sortkey2) {
     
             if (sortkey1==null || sortkey2==null) {
-                throw new ArgumentNullException((sortkey1==null ? "sortkey1": "sortkey2"));
+                throw new ArgumentNullException((sortkey1==null ? nameof(sortkey1): nameof(sortkey2)));
             }
             Contract.EndContractBlock();
     
             byte[] key1Data = sortkey1.m_KeyData;
             byte[] key2Data = sortkey2.m_KeyData;
     
-            Contract.Assert(key1Data!=null, "key1Data!=null");
-            Contract.Assert(key2Data!=null, "key2Data!=null");
+            Debug.Assert(key1Data!=null, "key1Data!=null");
+            Debug.Assert(key2Data!=null, "key2Data!=null");
 
             if (key1Data.Length == 0) {
                 if (key2Data.Length == 0) {

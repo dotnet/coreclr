@@ -1078,7 +1078,7 @@ BOOL MethodDesc::IsVerifiable()
 #endif // _VER_EE_VERIFICATION_ENABLED
     }
 
-    UnsafeJitFunction(this, pHeader, CORJIT_FLG_IMPORT_ONLY, 0);
+    UnsafeJitFunction(this, pHeader, CORJIT_FLAGS(CORJIT_FLAGS::CORJIT_FLAG_IMPORT_ONLY));
     _ASSERTE(IsVerified());
 
     return (IsVerified() && (m_wFlags & mdcVerifiable));
@@ -2466,7 +2466,18 @@ MethodDesc* Entry2MethodDesc(PCODE entryPoint, MethodTable *pMT)
 BOOL MethodDesc::IsFCallOrIntrinsic()
 {
     WRAPPER_NO_CONTRACT;
-    return (IsFCall() || IsArray());
+
+    if (IsFCall() || IsArray())
+        return TRUE;
+
+#ifdef FEATURE_SPAN_OF_T
+    // Intrinsic methods on ByReference<T> or Span<T>
+    MethodTable * pMT = GetMethodTable();
+    if (pMT->IsByRefLike() && pMT->GetModule()->IsSystem())
+        return TRUE;
+#endif
+
+    return FALSE;
 }
 
 //*******************************************************************************
@@ -3249,6 +3260,7 @@ bool MethodDesc::CanSkipDoPrestub (
         return false;
     }
 
+#ifdef FEATURE_CER
     // Can't hard bind to a method which contains one or more Constrained Execution Region roots (we need to force the prestub to
     // execute for such methods).
     if (ContainsPrePreparableCerRoot(this))
@@ -3256,6 +3268,7 @@ bool MethodDesc::CanSkipDoPrestub (
         *pReason = CORINFO_INDIRECT_CALL_CER;
         return false;
     }
+#endif // FEATURE_CER
 
     // Check whether our methoddesc needs restore
     if (NeedsRestore(GetAppDomain()->ToCompilationDomain()->GetTargetImage(), TRUE))

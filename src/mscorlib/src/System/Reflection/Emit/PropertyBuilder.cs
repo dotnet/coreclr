@@ -25,7 +25,6 @@ namespace System.Reflection.Emit {
     // A PropertyBuilder is always associated with a TypeBuilder.  The TypeBuilder.DefineProperty
     // method will return a new PropertyBuilder to a client.
     // 
-    [HostProtection(MayLeakOnAbort = true)]
     [ClassInterface(ClassInterfaceType.None)]
     [ComDefaultInterface(typeof(_PropertyBuilder))]
     [System.Runtime.InteropServices.ComVisible(true)]
@@ -47,11 +46,11 @@ namespace System.Reflection.Emit {
             TypeBuilder         containingType) // the containing type
         {
             if (name == null)
-                throw new ArgumentNullException("name");
+                throw new ArgumentNullException(nameof(name));
             if (name.Length == 0)
-                throw new ArgumentException(Environment.GetResourceString("Argument_EmptyName"), "name");
+                throw new ArgumentException(Environment.GetResourceString("Argument_EmptyName"), nameof(name));
             if (name[0] == '\0')
-                throw new ArgumentException(Environment.GetResourceString("Argument_IllegalName"), "name");
+                throw new ArgumentException(Environment.GetResourceString("Argument_IllegalName"), nameof(name));
             Contract.EndContractBlock();
             
             m_name = name;
@@ -67,7 +66,6 @@ namespace System.Reflection.Emit {
         //************************************************
         // Set the default value of the Property
         //************************************************
-        [System.Security.SecuritySafeCritical]  // auto-generated
         public void SetConstant(Object defaultValue) 
         {
             m_containingType.ThrowIfCreated();
@@ -103,12 +101,11 @@ namespace System.Reflection.Emit {
             }
         }
 
-        [System.Security.SecurityCritical]  // auto-generated
         private void SetMethodSemantics(MethodBuilder mdBuilder, MethodSemanticsAttributes semantics)
         {
             if (mdBuilder == null)
             {
-                throw new ArgumentNullException("mdBuilder");
+                throw new ArgumentNullException(nameof(mdBuilder));
             }
 
             m_containingType.ThrowIfCreated();
@@ -119,21 +116,18 @@ namespace System.Reflection.Emit {
                 mdBuilder.GetToken().Token);
         }    
 
-        [System.Security.SecuritySafeCritical]  // auto-generated
         public void SetGetMethod(MethodBuilder mdBuilder)
         {
             SetMethodSemantics(mdBuilder, MethodSemanticsAttributes.Getter);
             m_getMethod = mdBuilder;
         }
     
-        [System.Security.SecuritySafeCritical]  // auto-generated
         public void SetSetMethod(MethodBuilder mdBuilder)
         {
             SetMethodSemantics(mdBuilder, MethodSemanticsAttributes.Setter);
             m_setMethod = mdBuilder;                
         }
 
-        [System.Security.SecuritySafeCritical]  // auto-generated
         public void AddOtherMethod(MethodBuilder mdBuilder)
         {
             SetMethodSemantics(mdBuilder, MethodSemanticsAttributes.Other);
@@ -141,18 +135,13 @@ namespace System.Reflection.Emit {
     
         // Use this function if client decides to form the custom attribute blob themselves
 
-#if FEATURE_CORECLR
-[System.Security.SecurityCritical] // auto-generated
-#else
-[System.Security.SecuritySafeCritical]
-#endif
 [System.Runtime.InteropServices.ComVisible(true)]
         public void SetCustomAttribute(ConstructorInfo con, byte[] binaryAttribute)
         {
             if (con == null)
-                throw new ArgumentNullException("con");
+                throw new ArgumentNullException(nameof(con));
             if (binaryAttribute == null)
-                throw new ArgumentNullException("binaryAttribute");
+                throw new ArgumentNullException(nameof(binaryAttribute));
             
             m_containingType.ThrowIfCreated();
             TypeBuilder.DefineCustomAttribute(
@@ -164,12 +153,11 @@ namespace System.Reflection.Emit {
         }
 
         // Use this function if client wishes to build CustomAttribute using CustomAttributeBuilder
-        [System.Security.SecuritySafeCritical]  // auto-generated
         public void SetCustomAttribute(CustomAttributeBuilder customBuilder)
         {
             if (customBuilder == null)
             {
-                throw new ArgumentNullException("customBuilder");
+                throw new ArgumentNullException(nameof(customBuilder));
             }
             m_containingType.ThrowIfCreated();
             customBuilder.CreateCustomAttribute(m_moduleBuilder, m_prToken.Token);
@@ -256,28 +244,6 @@ namespace System.Reflection.Emit {
             throw new NotSupportedException(Environment.GetResourceString("NotSupported_DynamicModule"));
         }
 
-#if !FEATURE_CORECLR
-        void _PropertyBuilder.GetTypeInfoCount(out uint pcTInfo)
-        {
-            throw new NotImplementedException();
-        }
-
-        void _PropertyBuilder.GetTypeInfo(uint iTInfo, uint lcid, IntPtr ppTInfo)
-        {
-            throw new NotImplementedException();
-        }
-
-        void _PropertyBuilder.GetIDsOfNames([In] ref Guid riid, IntPtr rgszNames, uint cNames, uint lcid, IntPtr rgDispId)
-        {
-            throw new NotImplementedException();
-        }
-
-        void _PropertyBuilder.Invoke(uint dispIdMember, [In] ref Guid riid, uint lcid, short wFlags, IntPtr pDispParams, IntPtr pVarResult, IntPtr pExcepInfo, IntPtr puArgErr)
-        {
-            throw new NotImplementedException();
-        }
-#endif
-
         public override String Name {
             get { return m_name; }
         }
@@ -302,5 +268,4 @@ namespace System.Reflection.Emit {
         private MethodInfo          m_setMethod;
         private TypeBuilder         m_containingType;
     }
-
 }

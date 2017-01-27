@@ -127,7 +127,7 @@ inline BOOL IsCustomCultureId(LCID lcid)
     return (lcid == LOCALE_CUSTOM_DEFAULT || lcid == LOCALE_CUSTOM_UNSPECIFIED);
 }
 
-#ifndef FEATURE_CORECLR
+#ifndef FEATURE_COREFX_GLOBALIZATION
 //
 // Normalization Implementation
 //
@@ -136,7 +136,7 @@ HMODULE COMNlsInfo::m_hNormalization = NULL;
 PFN_NORMALIZATION_IS_NORMALIZED_STRING COMNlsInfo::m_pfnNormalizationIsNormalizedStringFunc = NULL;
 PFN_NORMALIZATION_NORMALIZE_STRING COMNlsInfo::m_pfnNormalizationNormalizeStringFunc = NULL;
 PFN_NORMALIZATION_INIT_NORMALIZATION COMNlsInfo::m_pfnNormalizationInitNormalizationFunc = NULL;
-#endif
+#endif // FEATURE_COREFX_GLOBALIZATION
 
 #if FEATURE_CODEPAGES_FILE
 /*============================nativeCreateOpenFileMapping============================
@@ -796,7 +796,6 @@ BOOL COMNlsInfo::CallGetLocaleInfoEx(LPCWSTR localeName, int lcType, STRINGREF* 
     return (result != 0);
 }
 
-#ifdef FEATURE_USE_LCID
 FCIMPL1(Object*, COMNlsInfo::LCIDToLocaleName, LCID lcid)
 {
     FCALL_CONTRACT;
@@ -849,7 +848,6 @@ FCIMPL1(INT32, COMNlsInfo::LocaleNameToLCID, StringObject* localeNameUNSAFE)
     return result;
 }
 FCIMPLEND
-#endif // FEATURE_USE_LCID
 
 ////////////////////////////////////////////////////////////////////////
 //
@@ -1007,10 +1005,8 @@ FCIMPL3(FC_BOOL_RET, COMNlsInfo::nativeGetNumberFormatInfoValues,
     _ASSERT(ret == TRUE);
     ret &= CallGetLocaleInfoEx(pLocaleName, LOCALE_INEGNUMBER| LOCALE_RETURN_NUMBER         , &(gc.numfmt->cNegativeNumberFormat), useUserOverride);
     _ASSERT(ret == TRUE);
-#ifndef FEATURE_CORECLR
     ret &= CallGetLocaleInfoEx(pLocaleName, LOCALE_IDIGITSUBSTITUTION | LOCALE_RETURN_NUMBER, &(gc.numfmt->iDigitSubstitution), useUserOverride);
     _ASSERT(ret == TRUE);
-#endif
 
     // LOCALE_SNATIVEDIGITS (gc.tempArray of strings)
     if (GetNativeDigitsFromWin32(pLocaleName, &gc.tempArray, useUserOverride)) {
@@ -1061,7 +1057,7 @@ FCIMPLEND
 #define CULTURETYPES_FRAMEWORKCULTURES            0x0040
 
 
-const LPWSTR WHIDBEY_FRAMEWORK_CULTURE_LIST [] =
+const LPCWSTR WHIDBEY_FRAMEWORK_CULTURE_LIST [] =
 {
     W(""),
     W("af"),
@@ -1881,127 +1877,6 @@ INT32 QCALLTYPE COMNlsInfo::InternalGetGlobalizedHashCode(INT_PTR handle, INT_PT
     return(iReturnHash);
 }
 
-#ifndef FEATURE_CORECLR // FCalls used by System.TimeZone
-
-FCIMPL0(LONG, COMNlsInfo::nativeGetTimeZoneMinuteOffset)
-{
-    FCALL_CONTRACT;
-
-    TIME_ZONE_INFORMATION timeZoneInfo;
-
-    GetTimeZoneInformation(&timeZoneInfo);
-
-    //
-    // In Win32, UTC = local + offset.  So for Pacific Standard Time, offset = 8.
-    // In NLS+, Local time = UTC + offset. So for PST, offset = -8.
-    // So we have to reverse the sign here.
-    //
-    return (timeZoneInfo.Bias * -1);
-}
-FCIMPLEND
-
-FCIMPL0(Object*, COMNlsInfo::nativeGetStandardName)
-{
-    FCALL_CONTRACT;
-
-    STRINGREF refRetVal = NULL;
-    HELPER_METHOD_FRAME_BEGIN_RET_1(refRetVal);
-
-    TIME_ZONE_INFORMATION timeZoneInfo;
-    GetTimeZoneInformation(&timeZoneInfo);
-
-    refRetVal = StringObject::NewString(timeZoneInfo.StandardName);
-
-    HELPER_METHOD_FRAME_END();
-    return OBJECTREFToObject(refRetVal);
-}
-FCIMPLEND
-
-FCIMPL0(Object*, COMNlsInfo::nativeGetDaylightName)
-{
-    FCALL_CONTRACT;
-
-    STRINGREF refRetVal = NULL;
-    HELPER_METHOD_FRAME_BEGIN_RET_1(refRetVal);
-
-    TIME_ZONE_INFORMATION timeZoneInfo;
-    GetTimeZoneInformation(&timeZoneInfo);
-    // Instead of returning null when daylight saving is not used, now we return the same result as the OS.
-    //In this case, if daylight saving time is used, the standard name is returned.
-
-#if 0
-    if (result == TIME_ZONE_ID_UNKNOWN || timeZoneInfo.DaylightDate.wMonth == 0) {
-        // If daylight saving time is not used in this timezone, return null.
-        //
-        // Windows NT/2000: TIME_ZONE_ID_UNKNOWN is returned if daylight saving time is not used in
-        // the current time zone, because there are no transition dates.
-        //
-        // For Windows 9x, a zero in the wMonth in DaylightDate means daylight saving time
-        // is not specified.
-        //
-        // If the current timezone uses daylight saving rule, but user unchekced the
-        // "Automatically adjust clock for daylight saving changes", the value
-        // for DaylightBias will be 0.
-        return (I2ARRAYREF)NULL;
-    }
-#endif  // 0
-
-    refRetVal = StringObject::NewString(timeZoneInfo.DaylightName);
-
-    HELPER_METHOD_FRAME_END();
-    return OBJECTREFToObject(refRetVal);
-}
-FCIMPLEND
-
-FCIMPL1(Object*, COMNlsInfo::nativeGetDaylightChanges, int year)
-{
-    FCALL_CONTRACT;
-
-    I2ARRAYREF pResultArray = NULL;
-    HELPER_METHOD_FRAME_BEGIN_RET_1(pResultArray);
-
-    TIME_ZONE_INFORMATION timeZoneInfo;
-    DWORD result = GetTimeZoneInformation(&timeZoneInfo);
-
-    if (result == TIME_ZONE_ID_UNKNOWN || timeZoneInfo.DaylightBias == 0
-        || timeZoneInfo.DaylightDate.wMonth == 0
-        ) {
-        // If daylight saving time is not used in this timezone, return null.
-        //
-        // If the current timezone uses daylight saving rule, but user unchekced the
-        // "Automatically adjust clock for daylight saving changes", the value
-        // for DaylightBias will be 0.
-        goto lExit;
-    }
-
-    pResultArray = (I2ARRAYREF)AllocatePrimitiveArray(ELEMENT_TYPE_I2, 17);
-
-    //
-    // The content of timeZoneInfo.StandardDate is 8 words, which
-    // contains year, month, day, dayOfWeek, hour, minute, second, millisecond.
-    //
-    memcpyNoGCRefs(pResultArray->m_Array,
-            (LPVOID)&timeZoneInfo.DaylightDate,
-            8 * sizeof(INT16));
-
-    //
-    // The content of timeZoneInfo.DaylightDate is 8 words, which
-    // contains year, month, day, dayOfWeek, hour, minute, second, millisecond.
-    //
-    memcpyNoGCRefs(((INT16*)pResultArray->m_Array) + 8,
-            (LPVOID)&timeZoneInfo.StandardDate,
-            8 * sizeof(INT16));
-
-    ((INT16*)pResultArray->m_Array)[16] = (INT16)timeZoneInfo.DaylightBias * -1;
-
-lExit: ;
-    HELPER_METHOD_FRAME_END();
-    return OBJECTREFToObject(pResultArray);
-}
-FCIMPLEND
-
-#endif // FEATURE_CORECLR
-
 inline BOOL IsInvariantLocale(STRINGREF localeName)
 {
    return localeName->GetStringLength() == 0;
@@ -2627,7 +2502,7 @@ FCIMPL0(CodePageDataItem *, COMNlsInfo::nativeGetCodePageTableDataPointer)
 FCIMPLEND
 
 
-#ifndef FEATURE_CORECLR
+#ifndef FEATURE_COREFX_GLOBALIZATION
 //
 // Normalization
 //
@@ -2726,12 +2601,15 @@ void QCALLTYPE COMNlsInfo::nativeNormalizationInitNormalization(int NormForm, BY
             if (!hNormalization)
                ThrowLastError();
         }
+#ifndef FEATURE_CORECLR
+        // in coreclr we should always find the normalization in kernel32 as it supports Win7 and up 
         else
         {
             HRESULT hr = g_pCLRRuntime->LoadLibrary(NORMALIZATION_DLL, &hNormalization);
             if (FAILED(hr))
                 ThrowHR(hr);
         }
+#endif // FEATURE_CORECLR
 
         _ASSERTE(hNormalization != NULL);
         m_hNormalization = hNormalization;
@@ -2771,7 +2649,7 @@ void QCALLTYPE COMNlsInfo::nativeNormalizationInitNormalization(int NormForm, BY
     END_QCALL;
 }
 
-#endif // FEATURE_CORECLR
+#endif // FEATURE_COREFX_GLOBALIZATION
 
 
 //
@@ -2880,10 +2758,8 @@ FCIMPL1(FC_BOOL_RET, COMNlsInfo::nativeInitCultureData, CultureDataBaseObject *c
     // Remember our neutrality
     gc.cultureData->bNeutral = (bNeutral != 0);
 
-#ifndef FEATURE_CORECLR
     gc.cultureData->bWin32Installed = (IsOSValidLocaleName(buffer, gc.cultureData->bNeutral) != 0);
     gc.cultureData->bFramework = (IsWhidbeyFrameworkCulture(buffer) != 0);
-#endif // FEATURE_CORECLR
 
 
     // Note: Parents will be set dynamically
@@ -3414,7 +3290,6 @@ INT_PTR COMNlsInfo::InternalInitOsSortHandle(LPCWSTR localeName, __out INT_PTR* 
     return pSort;
 }
 
-#ifndef FEATURE_CORECLR
 BOOL QCALLTYPE COMNlsInfo::InternalGetNlsVersionEx(INT_PTR handle, INT_PTR handleOrigin, LPCWSTR lpLocaleName, NLSVERSIONINFOEX * lpVersionInformation)
 {
     CONTRACTL {
@@ -3424,7 +3299,7 @@ BOOL QCALLTYPE COMNlsInfo::InternalGetNlsVersionEx(INT_PTR handle, INT_PTR handl
     BOOL ret = FALSE;
 
     BEGIN_QCALL;
-    
+#ifndef FEATURE_CORECLR
     AppDomain* curDomain = GetAppDomain();
 
     if(curDomain->m_bUseOsSorting)
@@ -3452,12 +3327,15 @@ BOOL QCALLTYPE COMNlsInfo::InternalGetNlsVersionEx(INT_PTR handle, INT_PTR handl
         lpVersionInformation->dwEffectiveId = 0;
         ZeroMemory(&(lpVersionInformation->guidCustomVersion), sizeof(GUID));                
     }
-    
+#else
+    ret = GetNLSVersionEx(COMPARE_STRING, lpLocaleName, lpVersionInformation);
+#endif // FEATURE_CORECLR
     END_QCALL;
  
     return ret;
 }
 
+#ifndef FEATURE_CORECLR
 DWORD QCALLTYPE COMNlsInfo::InternalGetSortVersion()
 {
     CONTRACTL {

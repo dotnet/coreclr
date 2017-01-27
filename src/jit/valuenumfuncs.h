@@ -2,17 +2,19 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-
 // Defines the functions understood by the value-numbering system.
-// ValueNumFuncDef(<name of function>, <arity (1-4)>, <is-commutative (for arity = 2)>, <non-null (for gc functions)>, <is-shared-static>)
+// ValueNumFuncDef(<name of function>, <arity (1-4)>, <is-commutative (for arity = 2)>, <non-null (for gc functions)>,
+// <is-shared-static>)
 
+// clang-format off
 ValueNumFuncDef(MapStore, 3, false, false, false)
 ValueNumFuncDef(MapSelect, 2, false, false, false)
 
 ValueNumFuncDef(FieldSeq, 2, false, false, false)   // Sequence (VN of null == empty) of (VN's of) field handles.
+ValueNumFuncDef(NotAField, 0, false, false, false)  // Value number function for FieldSeqStore::NotAField.
 ValueNumFuncDef(ZeroMap, 0, false, false, false)    // The "ZeroMap": indexing at any index yields "zero of the desired type".
 
-ValueNumFuncDef(PtrToLoc, 3, false, false, false)           // Pointer (byref) to a local variable.  Args: VN's of: 0: var num, 1: FieldSeq, 2: Unique value for this PtrToLoc.
+ValueNumFuncDef(PtrToLoc, 2, false, false, false)           // Pointer (byref) to a local variable.  Args: VN's of: 0: var num, 1: FieldSeq.
 ValueNumFuncDef(PtrToArrElem, 4, false, false, false)       // Pointer (byref) to an array element.  Args: 0: array elem type eq class var_types value, VN's of: 1: array, 2: index, 3: FieldSeq.
 ValueNumFuncDef(PtrToStatic, 1, false, false, false)        // Pointer (byref) to a static variable (or possibly a field thereof, if the static variable is a struct).  Args: 0: FieldSeq, first element
                                                      // of which is the static var.
@@ -98,6 +100,7 @@ ValueNumFuncDef(GetsharedNongcstaticBase, 2, false, true, true)
 ValueNumFuncDef(GetsharedGcstaticBaseNoctor, 1, false, true, true)
 ValueNumFuncDef(GetsharedNongcstaticBaseNoctor, 1, false, true, true)
 ValueNumFuncDef(ReadyToRunStaticBase, 1, false, true, true)
+ValueNumFuncDef(ReadyToRunGenericStaticBase, 2, false, true, true)
 ValueNumFuncDef(GetsharedGcstaticBaseDynamicclass, 2, false, true, true)
 ValueNumFuncDef(GetsharedNongcstaticBaseDynamicclass, 2, false, true, true)
 ValueNumFuncDef(GetgenericsGcthreadstaticBase, 1, false, true, true)
@@ -135,7 +138,6 @@ ValueNumFuncDef(MOD_UN, 2, false, false, false)
 ValueNumFuncDef(StrCns, 2, false, true, false)
 
 ValueNumFuncDef(Unbox, 2, false, true, false)
-
-
+// clang-format on
 
 #undef ValueNumFuncDef

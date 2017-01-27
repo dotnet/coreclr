@@ -139,10 +139,6 @@ namespace System.Runtime.InteropServices
 // we'll do this to ensure we've cut off all attack vectors.  Similarly, all
 // methods have a link demand to ensure untrusted code cannot directly edit
 // or alter a handle.
-[System.Security.SecurityCritical]  // auto-generated_required
-#if !FEATURE_CORECLR
-[SecurityPermission(SecurityAction.InheritanceDemand, UnmanagedCode=true)]
-#endif
 public abstract class CriticalHandle : CriticalFinalizerObject, IDisposable
 {
     // ! Do not add or rearrange fields as the EE depends on this layout.
@@ -168,19 +164,15 @@ public abstract class CriticalHandle : CriticalFinalizerObject, IDisposable
 #endif
     }
 
-#if FEATURE_CORECLR
     // Adding an empty default constructor for annotation purposes
     private CriticalHandle(){} 
-#endif
 
-    [System.Security.SecuritySafeCritical]  // auto-generated
     [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
     ~CriticalHandle()
     {
         Dispose(false);
     }
 
-    [System.Security.SecurityCritical]  // auto-generated
     [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
     private void Cleanup()
     {
@@ -229,20 +221,17 @@ public abstract class CriticalHandle : CriticalFinalizerObject, IDisposable
         get;
     }
 
-    [System.Security.SecurityCritical]  // auto-generated
     [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
     public void Close() {
         Dispose(true);
     }
     
-    [System.Security.SecuritySafeCritical]  // auto-generated
     [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
     public void Dispose()
     {
         Dispose(true);
     }
 
-    [System.Security.SecurityCritical]  // auto-generated
     [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
     protected virtual void Dispose(bool disposing)
     {

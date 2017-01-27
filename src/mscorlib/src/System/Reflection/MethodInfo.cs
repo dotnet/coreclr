@@ -14,9 +14,6 @@ namespace System.Reflection
     using System.Runtime;
     using System.Runtime.InteropServices;
     using System.Runtime.ConstrainedExecution;
-#if FEATURE_REMOTING
-    using System.Runtime.Remoting.Metadata;
-#endif //FEATURE_REMOTING
     using System.Runtime.Serialization;
     using System.Security;
     using System.Security.Permissions;
@@ -29,9 +26,6 @@ namespace System.Reflection
     [Serializable]
     [ClassInterface(ClassInterfaceType.None)]
     [ComDefaultInterface(typeof(_MethodInfo))]
-#pragma warning disable 618
-    [PermissionSetAttribute(SecurityAction.InheritanceDemand, Name = "FullTrust")]
-#pragma warning restore 618
     [System.Runtime.InteropServices.ComVisible(true)]
     public abstract class MethodInfo : MethodBase, _MethodInfo
     {
@@ -39,7 +33,6 @@ namespace System.Reflection
         protected MethodInfo() { }
         #endregion
 
-#if !FEATURE_CORECLR
         public static bool operator ==(MethodInfo left, MethodInfo right)
         {
             if (ReferenceEquals(left, right))
@@ -57,7 +50,6 @@ namespace System.Reflection
         {
             return !(left == right);
         }
-#endif // !FEATURE_CORECLR
 
         public override bool Equals(object obj)
         {
@@ -93,40 +85,9 @@ namespace System.Reflection
         public virtual Delegate CreateDelegate(Type delegateType) { throw new NotSupportedException(Environment.GetResourceString("NotSupported_SubclassOverride")); }
         public virtual Delegate CreateDelegate(Type delegateType, Object target) { throw new NotSupportedException(Environment.GetResourceString("NotSupported_SubclassOverride")); }
         #endregion
-
-#if !FEATURE_CORECLR
-        Type _MethodInfo.GetType()
-        {
-            return base.GetType();
-        }
-
-        void _MethodInfo.GetTypeInfoCount(out uint pcTInfo)
-        {
-            throw new NotImplementedException();
-        }
-
-        void _MethodInfo.GetTypeInfo(uint iTInfo, uint lcid, IntPtr ppTInfo)
-        {
-            throw new NotImplementedException();
-        }
-
-        void _MethodInfo.GetIDsOfNames([In] ref Guid riid, IntPtr rgszNames, uint cNames, uint lcid, IntPtr rgDispId)
-        {
-            throw new NotImplementedException();
-        }
-
-        // If you implement this method, make sure to include _MethodInfo.Invoke in VM\DangerousAPIs.h and 
-        // include _MethodInfo in SystemDomain::IsReflectionInvocationMethod in AppDomain.cpp.
-        void _MethodInfo.Invoke(uint dispIdMember, [In] ref Guid riid, uint lcid, short wFlags, IntPtr pDispParams, IntPtr pVarResult, IntPtr pExcepInfo, IntPtr puArgErr)
-        {
-            throw new NotImplementedException();
-        }
-#endif
     }
 
-#if FEATURE_SERIALIZATION
     [Serializable]
-#endif
     internal sealed class RuntimeMethodInfo : MethodInfo, ISerializable, IRuntimeMethodInfo
     {
         #region Private Data Members
@@ -184,7 +145,6 @@ namespace System.Reflection
 
         internal INVOCATION_FLAGS InvocationFlags
         {
-            [System.Security.SecuritySafeCritical]
             get
             {
                 if ((m_invocationFlags & INVOCATION_FLAGS.INVOCATION_FLAGS_INITIALIZED) == 0)
@@ -247,15 +207,14 @@ namespace System.Reflection
         #endregion
 
         #region Constructor
-        [System.Security.SecurityCritical]  // auto-generated
         internal RuntimeMethodInfo(
             RuntimeMethodHandleInternal handle, RuntimeType declaringType, 
             RuntimeTypeCache reflectedTypeCache, MethodAttributes methodAttributes, BindingFlags bindingFlags, object keepalive)
         {
             Contract.Ensures(!m_handle.IsNull());
 
-            Contract.Assert(!handle.IsNullHandle());
-            Contract.Assert(methodAttributes == RuntimeMethodHandle.GetAttributes(handle));            
+            Debug.Assert(!handle.IsNullHandle());
+            Debug.Assert(methodAttributes == RuntimeMethodHandle.GetAttributes(handle));            
 
             m_bindingFlags = bindingFlags;
             m_declaringType = declaringType;
@@ -266,40 +225,9 @@ namespace System.Reflection
         }
         #endregion
 
-#if FEATURE_REMOTING
-        #region Legacy Remoting Cache
-        // The size of CachedData is accounted for by BaseObjectWithCachedData in object.h.
-        // This member is currently being used by Remoting for caching remoting data. If you
-        // need to cache data here, talk to the Remoting team to work out a mechanism, so that
-        // both caching systems can happily work together.
-        private RemotingMethodCachedData m_cachedData;
-
-        internal RemotingMethodCachedData RemotingCache
-        {
-            get
-            {
-                // This grabs an internal copy of m_cachedData and uses
-                // that instead of looking at m_cachedData directly because
-                // the cache may get cleared asynchronously.  This prevents
-                // us from having to take a lock.
-                RemotingMethodCachedData cache = m_cachedData;
-                if (cache == null)
-                {
-                    cache = new RemotingMethodCachedData(this);
-                    RemotingMethodCachedData ret = Interlocked.CompareExchange(ref m_cachedData, cache, null);
-                    if (ret != null)
-                        cache = ret;
-                }
-                return cache;
-            }
-        }
-        #endregion
-#endif //FEATURE_REMOTING
-
         #region Private Methods
         RuntimeMethodHandleInternal IRuntimeMethodInfo.Value
         {
-            [System.Security.SecuritySafeCritical]
             get
             {
                 return new RuntimeMethodHandleInternal(m_handle);
@@ -314,7 +242,6 @@ namespace System.Reflection
             } 
         }
 
-        [System.Security.SecurityCritical]  // auto-generated
         private ParameterInfo[] FetchNonReturnParameters()
         {
             if (m_parameters == null)
@@ -323,7 +250,6 @@ namespace System.Reflection
             return m_parameters;
         }
 
-        [System.Security.SecurityCritical]  // auto-generated
         private ParameterInfo FetchReturnParameter()
         {
             if (m_returnParameter == null)
@@ -383,7 +309,6 @@ namespace System.Reflection
             return new RuntimeMethodHandle(this);
         }
 
-        [System.Security.SecuritySafeCritical]  // auto-generated
         internal RuntimeMethodInfo GetParentDefinition()
         {
             if (!IsVirtual || m_declaringType.IsInterface)
@@ -428,7 +353,6 @@ namespace System.Reflection
                 return base.GetHashCode();
         }
 
-        [System.Security.SecuritySafeCritical]  // auto-generated
         public override bool Equals(object obj)
         {
             if (!IsGenericMethod)
@@ -473,23 +397,21 @@ namespace System.Reflection
         #endregion
 
         #region ICustomAttributeProvider
-        [System.Security.SecuritySafeCritical]  // auto-generated
         public override Object[] GetCustomAttributes(bool inherit)
         {
             return CustomAttribute.GetCustomAttributes(this, typeof(object) as RuntimeType as RuntimeType, inherit);
         }
 
-        [System.Security.SecuritySafeCritical]  // auto-generated
         public override Object[] GetCustomAttributes(Type attributeType, bool inherit)
         {
             if (attributeType == null)
-                throw new ArgumentNullException("attributeType");
+                throw new ArgumentNullException(nameof(attributeType));
             Contract.EndContractBlock();
 
             RuntimeType attributeRuntimeType = attributeType.UnderlyingSystemType as RuntimeType;
 
             if (attributeRuntimeType == null) 
-                throw new ArgumentException(Environment.GetResourceString("Arg_MustBeType"),"attributeType");
+                throw new ArgumentException(Environment.GetResourceString("Arg_MustBeType"),nameof(attributeType));
 
             return CustomAttribute.GetCustomAttributes(this, attributeRuntimeType, inherit);
         }
@@ -497,13 +419,13 @@ namespace System.Reflection
         public override bool IsDefined(Type attributeType, bool inherit)
         {
             if (attributeType == null)
-                throw new ArgumentNullException("attributeType");
+                throw new ArgumentNullException(nameof(attributeType));
             Contract.EndContractBlock();
 
             RuntimeType attributeRuntimeType = attributeType.UnderlyingSystemType as RuntimeType;
 
             if (attributeRuntimeType == null) 
-                throw new ArgumentException(Environment.GetResourceString("Arg_MustBeType"),"attributeType");
+                throw new ArgumentException(Environment.GetResourceString("Arg_MustBeType"),nameof(attributeType));
 
             return CustomAttribute.IsDefined(this, attributeRuntimeType, inherit);
         }
@@ -517,7 +439,6 @@ namespace System.Reflection
         #region MemberInfo Overrides
         public override String Name 
         {
-            [System.Security.SecuritySafeCritical]  // auto-generated
             get
             {
                 if (m_name == null)
@@ -552,7 +473,6 @@ namespace System.Reflection
         public override MemberTypes MemberType { get { return MemberTypes.Method; } }
         public override int MetadataToken
         {
-            [System.Security.SecuritySafeCritical]  // auto-generated
             get { return RuntimeMethodHandle.GetMethodDef(this); }
         }        
         public override Module Module { get { return GetRuntimeModule(); } }
@@ -562,20 +482,19 @@ namespace System.Reflection
 
         public override bool IsSecurityCritical 
         {
-            get { return RuntimeMethodHandle.IsSecurityCritical(this); } 
+            get { return true; }
         }
         public override bool IsSecuritySafeCritical
         {
-            get { return RuntimeMethodHandle.IsSecuritySafeCritical(this); }
+            get { return false; }
         }
         public override bool IsSecurityTransparent
         {
-            get { return RuntimeMethodHandle.IsSecurityTransparent(this); }
+            get { return false; }
         }
-        #endregion
+#endregion
 
-        #region MethodBase Overrides
-        [System.Security.SecuritySafeCritical]  // auto-generated
+#region MethodBase Overrides
         internal override ParameterInfo[] GetParametersNoCopy()
         {
             FetchNonReturnParameters();
@@ -583,7 +502,6 @@ namespace System.Reflection
             return m_parameters;
         }
 
-        [System.Security.SecuritySafeCritical]  // auto-generated
         [System.Diagnostics.Contracts.Pure]
         public override ParameterInfo[] GetParameters()
         {
@@ -633,12 +551,6 @@ namespace System.Reflection
             } 
         }
 
-        [System.Security.SecuritySafeCritical] // overrides SafeCritical member
-#if !FEATURE_CORECLR
-#pragma warning disable 618
-        [ReflectionPermissionAttribute(SecurityAction.Demand, Flags = ReflectionPermissionFlag.MemberAccess)]
-#pragma warning restore 618
-#endif
         public override MethodBody GetMethodBody()
         {
             MethodBody mb = RuntimeMethodHandle.GetMethodBody(this, ReflectedTypeInternal);
@@ -646,9 +558,9 @@ namespace System.Reflection
                 mb.m_methodBase = this;
             return mb;
         }        
-        #endregion
+#endregion
 
-        #region Invocation Logic(On MemberBase)
+#region Invocation Logic(On MemberBase)
         private void CheckConsistency(Object target) 
         {
             // only test instance methods
@@ -664,7 +576,6 @@ namespace System.Reflection
             }
         }
 
-        [System.Security.SecuritySafeCritical]
         private void ThrowNoInvokeException()
         {
             // method is ReflectionOnly
@@ -702,7 +613,6 @@ namespace System.Reflection
             throw new TargetException();
         }
         
-        [System.Security.SecuritySafeCritical]
         [DebuggerStepThroughAttribute]
         [Diagnostics.DebuggerHidden]
         [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
@@ -710,7 +620,7 @@ namespace System.Reflection
         {
             object[] arguments = InvokeArgumentsCheck(obj, invokeAttr, binder, parameters, culture);
 
-            #region Security Check
+#region Security Check
             INVOCATION_FLAGS invocationFlags = InvocationFlags;
 
 #if FEATURE_APPX
@@ -722,23 +632,11 @@ namespace System.Reflection
                     throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_APIInvalidForCurrentContext", FullName));
             }
 #endif
-
-#if !FEATURE_CORECLR
-            if ((invocationFlags & (INVOCATION_FLAGS.INVOCATION_FLAGS_RISKY_METHOD | INVOCATION_FLAGS.INVOCATION_FLAGS_NEED_SECURITY)) != 0)
-            {
-                if ((invocationFlags & INVOCATION_FLAGS.INVOCATION_FLAGS_RISKY_METHOD) != 0)
-                    CodeAccessPermission.Demand(PermissionType.ReflectionMemberAccess);
-
-                if ((invocationFlags & INVOCATION_FLAGS.INVOCATION_FLAGS_NEED_SECURITY) != 0)
-                    RuntimeMethodHandle.PerformSecurityCheck(obj, this, m_declaringType, (uint)m_invocationFlags);
-            }
-#endif // !FEATURE_CORECLR
-            #endregion
+#endregion
 
             return UnsafeInvokeInternal(obj, parameters, arguments);
         }
 
-        [System.Security.SecurityCritical]
         [DebuggerStepThroughAttribute]
         [Diagnostics.DebuggerHidden]
         internal object UnsafeInvoke(Object obj, BindingFlags invokeAttr, Binder binder, Object[] parameters, CultureInfo culture)
@@ -748,7 +646,6 @@ namespace System.Reflection
             return UnsafeInvokeInternal(obj, parameters, arguments);
         }
 
-        [System.Security.SecurityCritical]
         [DebuggerStepThroughAttribute]
         [Diagnostics.DebuggerHidden]
         private object UnsafeInvokeInternal(Object obj, Object[] parameters, Object[] arguments)
@@ -797,9 +694,9 @@ namespace System.Reflection
                 return null;
         }
 
-        #endregion
+#endregion
 
-        #region MethodInfo Overrides
+#region MethodInfo Overrides
         public override Type ReturnType 
         { 
             get { return Signature.ReturnType; } 
@@ -812,7 +709,6 @@ namespace System.Reflection
 
         public override ParameterInfo ReturnParameter 
         {
-            [System.Security.SecuritySafeCritical]  // auto-generated
             get
             {
                 Contract.Ensures(m_returnParameter != null);
@@ -822,7 +718,6 @@ namespace System.Reflection
             }
         }
 
-        [System.Security.SecuritySafeCritical]  // auto-generated
         public override MethodInfo GetBaseDefinition()
         {
             if (!IsVirtual || IsStatic || m_declaringType == null || m_declaringType.IsInterface)
@@ -848,7 +743,6 @@ namespace System.Reflection
             return(MethodInfo)RuntimeType.GetMethodBase(baseDeclaringType, baseMethodHandle);
         }
 
-        [System.Security.SecuritySafeCritical]
         public override Delegate CreateDelegate(Type delegateType)
         {
             StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
@@ -868,7 +762,6 @@ namespace System.Reflection
                 ref stackMark);
         }
 
-        [System.Security.SecuritySafeCritical]
         public override Delegate CreateDelegate(Type delegateType, Object target)
         {
             StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
@@ -885,20 +778,19 @@ namespace System.Reflection
                 ref stackMark);
         }
 
-        [System.Security.SecurityCritical]
         private Delegate CreateDelegateInternal(Type delegateType, Object firstArgument, DelegateBindingFlags bindingFlags, ref StackCrawlMark stackMark)
         {
             // Validate the parameters.
             if (delegateType == null)
-                throw new ArgumentNullException("delegateType");
+                throw new ArgumentNullException(nameof(delegateType));
             Contract.EndContractBlock();
 
             RuntimeType rtType = delegateType as RuntimeType;
             if (rtType == null)
-                throw new ArgumentException(Environment.GetResourceString("Argument_MustBeRuntimeType"), "delegateType");
+                throw new ArgumentException(Environment.GetResourceString("Argument_MustBeRuntimeType"), nameof(delegateType));
 
             if (!rtType.IsDelegate())
-                throw new ArgumentException(Environment.GetResourceString("Arg_MustBeDelegate"), "delegateType");
+                throw new ArgumentException(Environment.GetResourceString("Arg_MustBeDelegate"), nameof(delegateType));
 
             Delegate d = Delegate.CreateDelegateInternal(rtType, this, firstArgument, bindingFlags, ref stackMark);
             if (d == null)
@@ -909,14 +801,13 @@ namespace System.Reflection
             return d;
         }
 
-        #endregion
+#endregion
 
-        #region Generics
-        [System.Security.SecuritySafeCritical]  // auto-generated
+#region Generics
         public override MethodInfo MakeGenericMethod(params Type[] methodInstantiation)
         {
           if (methodInstantiation == null)
-                throw new ArgumentNullException("methodInstantiation");
+                throw new ArgumentNullException(nameof(methodInstantiation));
           Contract.EndContractBlock();
 
             RuntimeType[] methodInstantionRuntimeType = new RuntimeType[methodInstantiation.Length];
@@ -1021,14 +912,13 @@ namespace System.Reflection
                 return false;
             } 
         }
-        #endregion
+#endregion
 
-        #region ISerializable Implementation
-        [System.Security.SecurityCritical]  // auto-generated
+#region ISerializable Implementation
         public void GetObjectData(SerializationInfo info, StreamingContext context)
         {
             if (info == null)
-                throw new ArgumentNullException("info");
+                throw new ArgumentNullException(nameof(info));
             Contract.EndContractBlock();
 
             if (m_reflectedTypeCache.IsGlobal)
@@ -1048,9 +938,9 @@ namespace System.Reflection
         {
             return ReturnType.FormatTypeName(true) + " " + FormatNameAndSig(true);
         }
-        #endregion
+#endregion
 
-        #region Legacy Internal
+#region Legacy Internal
         internal static MethodBase InternalGetCurrentMethod(ref StackCrawlMark stackMark)
         {
             IRuntimeMethodInfo method = RuntimeMethodHandle.GetCurrentMethod(ref stackMark);
@@ -1060,6 +950,6 @@ namespace System.Reflection
             
             return RuntimeType.GetMethodBase(method);
         }
-        #endregion
+#endregion
     }
 }

@@ -81,7 +81,7 @@ typedef unsigned short wchar_t;
 
 class ClassLoader;
 class LoaderHeap;
-class GCHeap;
+class IGCHeap;
 class Object;
 class StringObject;
 class TransparentProxyObject;
@@ -402,6 +402,9 @@ GPTR_DECL(MethodTable,      g_pStringClass);
 GPTR_DECL(MethodTable,      g_pArrayClass);
 GPTR_DECL(MethodTable,      g_pSZArrayHelperClass);
 GPTR_DECL(MethodTable,      g_pNullableClass);
+#ifdef FEATURE_SPAN_OF_T
+GPTR_DECL(MethodTable,      g_pByReferenceClass);
+#endif
 GPTR_DECL(MethodTable,      g_pExceptionClass);
 GPTR_DECL(MethodTable,      g_pThreadAbortExceptionClass);
 GPTR_DECL(MethodTable,      g_pOutOfMemoryExceptionClass);
@@ -414,8 +417,12 @@ GPTR_DECL(MethodTable,      g_pFreeObjectMethodTable);
 GPTR_DECL(MethodTable,      g_pValueTypeClass);
 GPTR_DECL(MethodTable,      g_pEnumClass);
 GPTR_DECL(MethodTable,      g_pThreadClass);
+#ifdef FEATURE_CER
 GPTR_DECL(MethodTable,      g_pCriticalFinalizerObjectClass);
+#endif
+#ifndef FEATURE_CORECLR
 GPTR_DECL(MethodTable,      g_pAsyncFileStream_AsyncResultClass);
+#endif // !FEATURE_CORECLR
 GPTR_DECL(MethodTable,      g_pOverlappedDataClass);
 
 GPTR_DECL(MethodTable,      g_TypedReferenceMT);
@@ -431,7 +438,9 @@ GPTR_DECL(MethodTable,      g_pBaseRuntimeClass);
 GPTR_DECL(MethodTable,      g_pICastableInterface);
 #endif // FEATURE_ICASTABLE
 
+#ifdef FEATURE_CER
 GPTR_DECL(MethodDesc,       g_pPrepareConstrainedRegionsMethod);
+#endif
 GPTR_DECL(MethodDesc,       g_pExecuteBackoutCodeHelperMethod);
 
 GPTR_DECL(MethodDesc,       g_pObjectCtorMD);
@@ -583,7 +592,6 @@ EXTERN BOOL g_fSuspendOnShutdown;
 EXTERN BOOL g_fSuspendFinalizerOnShutdown;
 #endif // DACCESS_COMPILE
 EXTERN Volatile<LONG> g_fForbidEnterEE;
-EXTERN bool g_fFinalizerRunOnShutDown;
 GVAL_DECL(bool, g_fProcessDetach);
 EXTERN bool g_fManagedAttach;
 EXTERN bool g_fNoExceptions;

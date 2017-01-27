@@ -8,13 +8,19 @@
     <OsEnvironment Condition="'$(OsEnvironment)'==''">$(OS)</OsEnvironment>
   </PropertyGroup>
 
+  <!-- Version numbers for both managed & native binaries -->
+  <PropertyGroup>
+    <MajorVersion>4</MajorVersion>
+    <MinorVersion>6</MinorVersion>
+  </PropertyGroup>
+
   <!-- Build Tools Versions -->
   <PropertyGroup>
     <RoslynVersion>1.0.0-rc3-20150510-01</RoslynVersion>
     <RoslynPackageName>Microsoft.Net.ToolsetCompilers</RoslynPackageName>
   </PropertyGroup>
 
-    <!--
+  <!--
      Switching to the .NET Core version of the BuildTools tasks seems to break numerous scenarios, such as VS intellisense and resource designer
      as well as runnning the build on mono. Until we can get these sorted out we will continue using the .NET 4.5 version of the tasks.
      -->
@@ -25,7 +31,6 @@
   <!-- Common properties -->
   <PropertyGroup>
     <!-- Set basic properties and normalize -->
-
     <BuildArch>$(__BuildArch)</BuildArch>
     <BuildArch Condition="'$(__BuildArch)'==''">x64</BuildArch>
     <BuildArch Condition="'$(__BuildArch)' == 'amd64'">x64</BuildArch>
@@ -52,7 +57,8 @@
 
     <BinDir>$(__BinDir)\</BinDir>
     <BinDir Condition="'$(__BinDir)'==''">$(RootBinDir)Product\$(BuildOS).$(BuildArch).$(BuildType)\</BinDir>
-
+    
+    <__IntermediatesDir Condition="'$(__IntermediatesDir)' == ''">$(RootBinDir)obj\$(BuildOS).$(BuildArch).$(BuildType)</__IntermediatesDir>
     <IntermediateOutputRootPath Condition="'$(IntermediateOutputRootPath)' == ''">$(__IntermediatesDir)\</IntermediateOutputRootPath>
 
     <!-- We don't append back slash because this path is used by nuget.exe as output directory and it
@@ -63,12 +69,11 @@
 
     <ToolsDir Condition="'$(ToolsDir)'==''">$(ProjectDir)Tools/</ToolsDir>
     <DotnetCliPath Condition="'$(DotnetCliPath)'==''">$(ToolsDir)dotnetcli/</DotnetCliPath>
-    <OverrideToolHost>$(DotnetCliPath)dotnet</OverrideToolHost> 
+    <OverrideToolHost>$(DotnetCliPath)dotnet</OverrideToolHost>
     <BuildToolsSemaphore Condition="'$(BuildToolsSemaphore)' == ''">$(ToolsDir)Microsoft.DotNet.Build.Tasks.dll</BuildToolsSemaphore>
 
     <TestWorkingDir>$(__TestWorkingDir)\</TestWorkingDir>
     <TestWorkingDir Condition="'$(__TestWorkingDir)'==''">$(RootBinDir)tests\$(BuildOS).$(BuildArch).$(BuildType)\</TestWorkingDir>
-    <BuildToolsTaskDir Condition="'$(BuildToolsTargets45)' == 'true'">$(ToolsDir)net45/</BuildToolsTaskDir>
 
     <Platform Condition="'$(Platform)' == ''">$(BuildArch)</Platform>
     <Platform Condition="'$(Platform)' == 'amd64'">x64</Platform>
@@ -77,9 +82,9 @@
 
   <!-- Output paths -->
   <PropertyGroup>
-    <BaseIntermediateOutputPath Condition="'$(BaseIntermediateOutputPath)' == ''">$(RootBinDir)obj/</BaseIntermediateOutputPath>
-    <IntermediateOutputPath Condition="'$(IntermediateOutputPath)' == ''">$(BaseIntermediateOutputPath)\$(BuildOS).$(BuildArch).$(BuildType)</IntermediateOutputPath>
-    <OutputPath Condition="'$(OutputPath)' == ''">$(BaseIntermediateOutputPath)\$(BuildOS).$(BuildArch).$(BuildType)</OutputPath>
+    <BaseIntermediateOutputPath Condition="'$(BaseIntermediateOutputPath)' == ''">$(RootBinDir)obj\</BaseIntermediateOutputPath>
+    <IntermediateOutputPath Condition="'$(IntermediateOutputPath)' == ''">$(BaseIntermediateOutputPath)$(BuildOS).$(BuildArch).$(BuildType)\</IntermediateOutputPath>
+    <OutputPath Condition="'$(OutputPath)' == ''">$(BaseIntermediateOutputPath)$(BuildOS).$(BuildArch).$(BuildType)</OutputPath>
     <FinalOutputPath Condition="'$(FinalOutputPath)' == ''">$(BinDir)</FinalOutputPath>
   </PropertyGroup>
 
@@ -114,14 +119,6 @@
     <DnuRestoreCommand>$(DnuRestoreCommand) --packages "$(PackagesDir.TrimEnd('\\'))"</DnuRestoreCommand>
   </PropertyGroup>
 
-  <!--
-    Set up Roslyn predefines
-  -->
-  <PropertyGroup>
-    <RoslynPackageDir>$(PackagesDir)/$(RoslynPackageName).$(RoslynVersion)/</RoslynPackageDir>
-    <RoslynPropsFile>$(RoslynPackageDir)build/Microsoft.Net.ToolsetCompilers.props</RoslynPropsFile>
-  </PropertyGroup>
-
   <!-- Setup common target properties that we use to conditionally include sources -->
   <PropertyGroup>
     <TargetsFreeBSD Condition="'$(BuildOS)' == 'FreeBSD'">true</TargetsFreeBSD>
@@ -136,6 +133,9 @@
     <DistroRid Condition="'$(TargetsLinux)' == 'true'">$(__DistroRid)</DistroRid>
 
   </PropertyGroup>
+
+  <!-- Provides properties for dependency versions and configures dependency verification/auto-upgrade. -->
+  <Import Project="$(ProjectDir)dependencies.props" />
 
   <!-- Packaging properties -->
   <PropertyGroup>
@@ -152,9 +152,13 @@
 
     <ProjectUrl>https://dot.net</ProjectUrl>
 
-    <!-- PreReleaseSuffix for packages published from closed build (e.g. CoreCLR for Arm32, APISet, etc) -->
-    <ExternalExpectedPrerelease>beta-24320-00</ExternalExpectedPrerelease>
-
+    <!-- Central place to set the versions of all nuget packages produced in the repo -->
+    <PackageVersion Condition="'$(PackageVersion)' == ''">2.0.0</PackageVersion>
+    
+    <!-- Set the boolean below to true to generate packages with stabilized versions -->
+    <StabilizePackageVersion Condition="'$(StabilizePackageVersion)' == ''">false</StabilizePackageVersion>
+    <StableVersion Condition="'$(StabilizePackageVersion)' == 'true' and '$(StableVersion)' == ''">$(PackageVersion)</StableVersion>
+    
     <!-- On Windows, MSbuild still runs against Desktop FX while it runs on .NET Core on non-Windows. this requires
          pulling in different packaging dependencies.
      -->
@@ -166,10 +170,13 @@
     <MinOSForArch>win7</MinOSForArch>
     <MinOSForArch Condition="'$(PackagePlatform)' == 'arm'">win8</MinOSForArch>
     <MinOSForArch Condition="'$(PackagePlatform)' == 'arm64'">win10</MinOSForArch>
-    
-    <!-- Arm64 cross target components are x64 hosted -->
-    <HasCrossTargetComponents Condition="'$(PackagePlatform)' =='arm64'">true</HasCrossTargetComponents>
+        <!-- This property must be set to disable local package installation -->
+    <SkipInstallLocallyBuiltPackages>true</SkipInstallLocallyBuiltPackages>
+
+    <!-- Define packaging attributes for cross target components -->
+    <HasCrossTargetComponents Condition="'$(TargetsWindows)' == 'true' and ('$(PackagePlatform)' =='arm64' or '$(PackagePlatform)' =='arm')">true</HasCrossTargetComponents>
     <CrossTargetComponentFolder Condition="'$(PackagePlatform)' == 'arm64'">x64</CrossTargetComponentFolder>
+    <CrossTargetComponentFolder Condition="'$(PackagePlatform)' == 'arm'">x86</CrossTargetComponentFolder>
 
     <PackageOutputPath>$(PackagesBinDir)/pkg/</PackageOutputPath>
     <SymbolPackageOutputPath>$(PackagesBinDir)/symbolpkg/</SymbolPackageOutputPath>
@@ -179,11 +186,11 @@
   <ItemGroup Condition="'$(MSBuildProjectExtension)' == '.pkgproj'">
     <File Condition="Exists('$(PackageLicenseFile)')"
           Include="$(PackageLicenseFile)" >
-        <SkipPackageFileCheck>true</SkipPackageFileCheck>
+      <SkipPackageFileCheck>true</SkipPackageFileCheck>
     </File>
     <File Condition="Exists('$(PackageThirdPartyNoticesFile)')"
           Include="$(PackageThirdPartyNoticesFile)" >
-        <SkipPackageFileCheck>true</SkipPackageFileCheck>
+      <SkipPackageFileCheck>true</SkipPackageFileCheck>
     </File>
   </ItemGroup>
 

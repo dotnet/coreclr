@@ -176,7 +176,6 @@ void ArrayInitializeWorker(ARRAYBASEREF * arrayRef,
 #ifdef _X86_
     BEGIN_CALL_TO_MANAGED();
 
-    typedef void (__fastcall * CtorFtnType)(BYTE*, BYTE*);
 
     for (SIZE_T i = 0; i < cElements; i++)
     {
@@ -197,6 +196,7 @@ void ArrayInitializeWorker(ARRAYBASEREF * arrayRef,
             nop                // Mark the fact that we can call managed code
         }
 #else // _DEBUG
+        typedef void (__fastcall * CtorFtnType)(BYTE*, BYTE*);
         (*(CtorFtnType)ctorFtn)(thisPtr, (BYTE*)pElemMT);
 #endif // _DEBUG
 
@@ -961,7 +961,7 @@ void memmoveGCRefs(void *dest, const void *src, size_t len)
         }
     }
 
-    GCHeap::GetGCHeap()->SetCardsAfterBulkCopy((Object**)dest, len);
+    SetCardsAfterBulkCopy((Object**)dest, len);
 }
 
 void ArrayNative::ArrayCopyNoTypeCheck(BASEARRAYREF pSrc, unsigned int srcIndex, BASEARRAYREF pDest, unsigned int destIndex, unsigned int length)

@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 2.8.12.2)
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
 set(SOURCES
-  WFSOMutexTest.c
+  WFSOMutexTest.cpp
 )
 
 add_executable(paltest_waitforsingleobject_wfsomutextest
@@ -13,7 +13,5 @@ add_executable(paltest_waitforsingleobject_wfsomutextest
 add_dependencies(paltest_waitforsingleobject_wfsomutextest coreclrpal)
 
 target_link_libraries(paltest_waitforsingleobject_wfsomutextest
-  pthread
-  m
-  coreclrpal
+  ${COMMON_TEST_LIBRARIES}
 )

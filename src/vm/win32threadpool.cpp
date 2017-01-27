@@ -85,7 +85,8 @@ SVAL_IMPL(LONG,ThreadpoolMgr,MaxFreeCPThreads);                   // = MaxFreeCP
 
 Volatile<LONG> ThreadpoolMgr::NumCPInfrastructureThreads = 0;      // number of threads currently busy handling draining cycle
 
-SVAL_IMPL(ThreadpoolMgr::ThreadCounter, ThreadpoolMgr, WorkerCounter);
+// Cacheline aligned, hot variable
+DECLSPEC_ALIGN(64) SVAL_IMPL(ThreadpoolMgr::ThreadCounter, ThreadpoolMgr, WorkerCounter);
 
 SVAL_IMPL(LONG,ThreadpoolMgr,MinLimitTotalWorkerThreads);          // = MaxLimitCPThreadsPerCPU * number of CPUS
 SVAL_IMPL(LONG,ThreadpoolMgr,MaxLimitTotalWorkerThreads);        // = MaxLimitCPThreadsPerCPU * number of CPUS
@@ -95,9 +96,11 @@ LONG    ThreadpoolMgr::cpuUtilizationAverage = 0;
 
 HillClimbing ThreadpoolMgr::HillClimbingInstance;
 
-Volatile<LONG> ThreadpoolMgr::PriorCompletedWorkRequests = 0;
-Volatile<DWORD> ThreadpoolMgr::PriorCompletedWorkRequestsTime;
-Volatile<DWORD> ThreadpoolMgr::NextCompletedWorkRequestsTime;
+// Cacheline aligned, 3 hot variables updated in a group
+DECLSPEC_ALIGN(64) LONG ThreadpoolMgr::PriorCompletedWorkRequests = 0;
+DWORD ThreadpoolMgr::PriorCompletedWorkRequestsTime;
+DWORD ThreadpoolMgr::NextCompletedWorkRequestsTime;
+
 LARGE_INTEGER ThreadpoolMgr::CurrentSampleStartTime;
 
 int ThreadpoolMgr::ThreadAdjustmentInterval;
@@ -111,8 +114,12 @@ int ThreadpoolMgr::ThreadAdjustmentInterval;
 #define SUSPEND_TIME GATE_THREAD_DELAY+100      // milliseconds to suspend during SuspendProcessing
 
 LONG ThreadpoolMgr::Initialization=0;           // indicator of whether the threadpool is initialized.
-Volatile<unsigned int> ThreadpoolMgr::LastDequeueTime; // used to determine if work items are getting thread starved
-int ThreadpoolMgr::offset_counter = 0;
+
+// Cacheline aligned, hot variable
+DECLSPEC_ALIGN(64) unsigned int ThreadpoolMgr::LastDequeueTime; // used to determine if work items are getting thread starved
+
+// Move out of from preceeding variables' cache line
+DECLSPEC_ALIGN(64) int ThreadpoolMgr::offset_counter = 0;
 
 SPTR_IMPL(WorkRequest,ThreadpoolMgr,WorkRequestHead);        // Head of work request queue
 SPTR_IMPL(WorkRequest,ThreadpoolMgr,WorkRequestTail);        // Head of work request queue
@@ -135,15 +142,19 @@ CLRSemaphore* ThreadpoolMgr::RetiredWorkerSemaphore;
 CrstStatic ThreadpoolMgr::TimerQueueCriticalSection;
 HANDLE ThreadpoolMgr::TimerThread=NULL;
 Thread *ThreadpoolMgr::pTimerThread=NULL;
-DWORD ThreadpoolMgr::LastTickCount;
+
+// Cacheline aligned, hot variable
+DECLSPEC_ALIGN(64) DWORD ThreadpoolMgr::LastTickCount;
 
 #ifdef _DEBUG
 DWORD ThreadpoolMgr::TickCountAdjustment=0;
 #endif
 
-LONG  ThreadpoolMgr::GateThreadStatus=GATE_THREAD_STATUS_NOT_RUNNING;
+// Cacheline aligned, hot variable
+DECLSPEC_ALIGN(64) LONG  ThreadpoolMgr::GateThreadStatus=GATE_THREAD_STATUS_NOT_RUNNING;
 
-ThreadpoolMgr::RecycledListsWrapper ThreadpoolMgr::RecycledLists;
+// Move out of from preceeding variables' cache line
+DECLSPEC_ALIGN(64) ThreadpoolMgr::RecycledListsWrapper ThreadpoolMgr::RecycledLists;
 
 ThreadpoolMgr::TimerInfo *ThreadpoolMgr::TimerInfosToBeRecycled = NULL;
 
@@ -359,7 +370,8 @@ BOOL ThreadpoolMgr::Initialize()
         RetiredCPWakeupEvent->CreateAutoEvent(FALSE);
         _ASSERTE(RetiredCPWakeupEvent->IsValid());
 
-        WorkerSemaphore = new UnfairSemaphore(ThreadCounter::MaxPossibleCount);
+        int spinLimitPerProcessor = CLRConfig::GetConfigValue(CLRConfig::INTERNAL_ThreadPool_UnfairSemaphoreSpinLimit);
+        WorkerSemaphore = new UnfairSemaphore(ThreadCounter::MaxPossibleCount, spinLimitPerProcessor);
 
         RetiredWorkerSemaphore = new CLRSemaphore();
         RetiredWorkerSemaphore->Create(0, ThreadCounter::MaxPossibleCount);
@@ -520,7 +532,9 @@ BOOL ThreadpoolMgr::SetMaxThreadsHelper(DWORD MaxWorkerThreads,
     CrstHolder csh(&WorkerCriticalSection);
 
     if (MaxWorkerThreads >= (DWORD)MinLimitTotalWorkerThreads &&
-       MaxIOCompletionThreads >= (DWORD)MinLimitTotalCPThreads)
+        MaxIOCompletionThreads >= (DWORD)MinLimitTotalCPThreads &&
+        MaxWorkerThreads != 0 &&
+        MaxIOCompletionThreads != 0)
     {
         BEGIN_SO_INTOLERANT_CODE(GetThread());
 
@@ -1188,7 +1202,7 @@ void ThreadpoolMgr::AdjustMaxWorkersActive()
 
     DWORD currentTicks = GetTickCount();
     LONG totalNumCompletions = Thread::GetTotalThreadPoolCompletionCount();
-    LONG numCompletions = totalNumCompletions - PriorCompletedWorkRequests;
+    LONG numCompletions = totalNumCompletions - VolatileLoad(&PriorCompletedWorkRequests);
 
     LARGE_INTEGER startTime = CurrentSampleStartTime;
     LARGE_INTEGER endTime;
@@ -1251,9 +1265,10 @@ void ThreadpoolMgr::AdjustMaxWorkersActive()
         }
 
         PriorCompletedWorkRequests = totalNumCompletions;
+        NextCompletedWorkRequestsTime = currentTicks + ThreadAdjustmentInterval;
+        MemoryBarrier(); // flush previous writes (especially NextCompletedWorkRequestsTime)
         PriorCompletedWorkRequestsTime = currentTicks;
-        NextCompletedWorkRequestsTime = PriorCompletedWorkRequestsTime + ThreadAdjustmentInterval;
-        CurrentSampleStartTime = endTime;
+        CurrentSampleStartTime = endTime;;
     }
 }
 
@@ -1270,7 +1285,8 @@ void ThreadpoolMgr::MaybeAddWorkingWorker()
 
     _ASSERTE(!CLRThreadpoolHosted());
 
-    ThreadCounter::Counts counts = WorkerCounter.GetCleanCounts();
+    // counts volatile read paired with CompareExchangeCounts loop set
+    ThreadCounter::Counts counts = WorkerCounter.DangerousGetDirtyCounts();
     ThreadCounter::Counts newCounts;
     while (true)
     {
@@ -1324,7 +1340,9 @@ void ThreadpoolMgr::MaybeAddWorkingWorker()
             // Of course, there's no guarantee *that* will work - but hopefully enough time will have passed
             // to allow whoever's using all the memory right now to release some.
             //
-            counts = WorkerCounter.GetCleanCounts();
+
+            // counts volatile read paired with CompareExchangeCounts loop set
+            counts = WorkerCounter.DangerousGetDirtyCounts();
             while (true)
             {
                 //
@@ -2285,7 +2303,8 @@ Work:
             #ifdef FEATURE_COMINTEROP
             if (pThread->SetApartment(Thread::AS_InMTA, TRUE) != Thread::AS_InMTA)
             {
-                counts = WorkerCounter.GetCleanCounts();
+                // counts volatile read paired with CompareExchangeCounts loop set
+                counts = WorkerCounter.DangerousGetDirtyCounts();
                 while (true)
                 {
                     newCounts = counts;
@@ -2310,7 +2329,8 @@ Work:
 
     // make sure there's really work.  If not, go back to sleep
 
-    counts = WorkerCounter.GetCleanCounts();
+    // counts volatile read paired with CompareExchangeCounts loop set
+    counts = WorkerCounter.DangerousGetDirtyCounts();
     while (true)
     {
         _ASSERTE(counts.NumActive > 0);
@@ -2349,11 +2369,11 @@ Work:
         counts = oldCounts;
     }
 
-    if (GCHeap::IsGCInProgress(TRUE))
+    if (GCHeapUtilities::IsGCInProgress(TRUE))
     {
         // GC is imminent, so wait until GC is complete before executing next request.
         // this reduces in-flight objects allocated right before GC, easing the GC's work
-        GCHeap::WaitForGCCompletion(TRUE);
+        GCHeapUtilities::WaitForGCCompletion(TRUE);
     }
 
     {
@@ -2402,6 +2422,7 @@ RetryRetire:
         if (WAIT_OBJECT_0 == result)
         {
             foundWork = true;
+
             counts = WorkerCounter.GetCleanCounts();
             FireEtwThreadPoolWorkerThreadRetirementStop(counts.NumActive, counts.NumRetired, GetClrInstanceId());
             goto Work;
@@ -2434,7 +2455,9 @@ RetryRetire:
             // if we don't hit zero, then there's another retired thread that will pick up this signal.  So it's ok
             // to exit.
             //
-            counts = WorkerCounter.GetCleanCounts();
+
+            // counts volatile read paired with CompareExchangeCounts loop set
+            counts = WorkerCounter.DangerousGetDirtyCounts();
             while (true)
             {
                 if (counts.NumRetired == 0)
@@ -2490,7 +2513,8 @@ RetryWaitForWork:
 
             DangerousNonHostedSpinLockHolder tal(&ThreadAdjustmentLock);
 
-            counts = WorkerCounter.GetCleanCounts();
+            // counts volatile read paired with CompareExchangeCounts loop set
+            counts = WorkerCounter.DangerousGetDirtyCounts();
             while (true)
             {
                 if (counts.NumActive == counts.NumWorking)
@@ -2556,9 +2580,6 @@ Exit:
 }
 
 
-#ifdef _MSC_VER
-#pragma warning(default:4702)
-#endif
 BOOL ThreadpoolMgr::SuspendProcessing()
 {
     CONTRACTL
@@ -3658,6 +3679,8 @@ DWORD __stdcall ThreadpoolMgr::CompletionPortThreadStart(LPVOID lpArgs)
     BOOL fThreadInit = FALSE;
     Thread *pThread = NULL;
 
+    DWORD cpThreadWait = 0;
+
     if (g_fEEStarted) {
         pThread = SetupThreadNoThrow();
         if (pThread == NULL) {
@@ -3692,7 +3715,7 @@ DWORD __stdcall ThreadpoolMgr::CompletionPortThreadStart(LPVOID lpArgs)
     ThreadCounter::Counts oldCounts;
     ThreadCounter::Counts newCounts;
 
-    DWORD cpThreadWait = CP_THREAD_WAIT;
+    cpThreadWait = CP_THREAD_WAIT;
     for (;; )
     {
 Top:
@@ -3832,7 +3855,9 @@ Top:
             // and the state of the rest of the IOCP threads, we need to figure out whether to de-activate (exit) this thread, retire this thread,
             // or transition to "working."
             //
-            oldCounts = CPThreadCounter.GetCleanCounts();
+
+            // counts volatile read paired with CompareExchangeCounts loop set
+            oldCounts = CPThreadCounter.DangerousGetDirtyCounts();
             newCounts = oldCounts;
             enterRetirement = false;
 
@@ -3915,7 +3940,8 @@ Top:
                             // We can now exit; decrement the retired count.
                             while (true)
                             {
-                                oldCounts = CPThreadCounter.GetCleanCounts();
+                                // counts volatile read paired with CompareExchangeCounts loop set
+                                oldCounts = CPThreadCounter.DangerousGetDirtyCounts();
                                 newCounts = oldCounts;
                                 newCounts.NumRetired--;
                                 if (oldCounts == CPThreadCounter.CompareExchangeCounts(newCounts, oldCounts))
@@ -3929,7 +3955,8 @@ Top:
                         // put back into rotation -- we need a thread
                         while (true)
                         {
-                            oldCounts = CPThreadCounter.GetCleanCounts();
+                            // counts volatile read paired with CompareExchangeCounts loop set
+                            oldCounts = CPThreadCounter.DangerousGetDirtyCounts();
                             newCounts = oldCounts;
                             newCounts.NumRetired--;
                             newCounts.NumActive++;
@@ -3963,14 +3990,15 @@ Top:
 
             if (key != 0)
             {
-                if (GCHeap::IsGCInProgress(TRUE))
+                if (GCHeapUtilities::IsGCInProgress(TRUE))
                 {
                     //Indicate that this thread is free, and waiting on GC, not doing any user work.
                     //This helps in threads not getting injected when some threads have woken up from the
                     //GC event, and some have not.
                     while (true)
                     {
-                        oldCounts = CPThreadCounter.GetCleanCounts();
+                        // counts volatile read paired with CompareExchangeCounts loop set
+                        oldCounts = CPThreadCounter.DangerousGetDirtyCounts();
                         newCounts = oldCounts;
                         newCounts.NumWorking--;
                         if (oldCounts == CPThreadCounter.CompareExchangeCounts(newCounts, oldCounts))
@@ -3979,11 +4007,12 @@ Top:
 
                     // GC is imminent, so wait until GC is complete before executing next request.
                     // this reduces in-flight objects allocated right before GC, easing the GC's work
-                    GCHeap::WaitForGCCompletion(TRUE);
+                    GCHeapUtilities::WaitForGCCompletion(TRUE);
 
                     while (true)
                     {
-                        oldCounts = CPThreadCounter.GetCleanCounts();
+                        // counts volatile read paired with CompareExchangeCounts loop set
+                        oldCounts = CPThreadCounter.DangerousGetDirtyCounts();
                         newCounts = oldCounts;
                         newCounts.NumWorking++;
                         if (oldCounts == CPThreadCounter.CompareExchangeCounts(newCounts, oldCounts))
@@ -4192,7 +4221,7 @@ BOOL ThreadpoolMgr::ShouldGrowCompletionPortThreadpool(ThreadCounter::Counts cou
 
     if (counts.NumWorking >= counts.NumActive 
         && NumCPInfrastructureThreads == 0
-        && (counts.NumActive == 0 ||  !GCHeap::IsGCInProgress(TRUE))
+        && (counts.NumActive == 0 ||  !GCHeapUtilities::IsGCInProgress(TRUE))
         )
     {
         // adjust limit if neeeded
@@ -4258,7 +4287,8 @@ void ThreadpoolMgr::GrowCompletionPortThreadpoolIfNeeded()
                         // if thread creation failed, we have to adjust the counts back down.
                         while (true)
                         {
-                            oldCounts = CPThreadCounter.GetCleanCounts();
+                            // counts volatile read paired with CompareExchangeCounts loop set
+                            oldCounts = CPThreadCounter.DangerousGetDirtyCounts();
                             newCounts = oldCounts;
                             newCounts.NumActive--;
                             newCounts.NumWorking--;
@@ -4592,7 +4622,7 @@ DWORD __stdcall ThreadpoolMgr::GateThreadStart(LPVOID lpArgs)
             EX_END_CATCH(SwallowAllExceptions);
         }
 
-        if (!GCHeap::IsGCInProgress(FALSE) )
+        if (!GCHeapUtilities::IsGCInProgress(FALSE) )
         {
             if (IgnoreNextSample)
             {
@@ -4634,7 +4664,7 @@ DWORD __stdcall ThreadpoolMgr::GateThreadStart(LPVOID lpArgs)
                 oldCounts.NumActive < MaxLimitTotalCPThreads &&
                 !g_fCompletionPortDrainNeeded &&
                 NumCPInfrastructureThreads == 0 &&       // infrastructure threads count as "to be free as needed"
-                !GCHeap::IsGCInProgress(TRUE))
+                !GCHeapUtilities::IsGCInProgress(TRUE))
 
             {
                 BOOL status;
@@ -4688,7 +4718,8 @@ DWORD __stdcall ThreadpoolMgr::GateThreadStart(LPVOID lpArgs)
                     // IOCP threads are created as "active" and "working"
                     while (true)
                     {
-                        oldCounts = CPThreadCounter.GetCleanCounts();
+                        // counts volatile read paired with CompareExchangeCounts loop set
+                        oldCounts = CPThreadCounter.DangerousGetDirtyCounts();
                         newCounts = oldCounts;
                         newCounts.NumActive++;
                         newCounts.NumWorking++;
@@ -4796,7 +4827,7 @@ BOOL ThreadpoolMgr::SufficientDelaySinceLastDequeue()
 
     #define DEQUEUE_DELAY_THRESHOLD (GATE_THREAD_DELAY * 2)
 
-    unsigned delay = GetTickCount() - LastDequeueTime;
+    unsigned delay = GetTickCount() - VolatileLoad(&LastDequeueTime);
     unsigned tooLong;
 
     if(cpuUtilization < CpuUtilizationLow)

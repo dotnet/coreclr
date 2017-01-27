@@ -1649,7 +1649,7 @@ public:
 
     PCODE DoPrestub(MethodTable *pDispatchingMT);
 
-    PCODE MakeJitWorker(COR_ILMETHOD_DECODER* ILHeader, DWORD  flags, DWORD flags2);
+    PCODE MakeJitWorker(COR_ILMETHOD_DECODER* ILHeader, CORJIT_FLAGS flags);
 
     VOID GetMethodInfo(SString &namespaceOrClassName, SString &methodName, SString &methodSignature);
     VOID GetMethodInfoWithNewSig(SString &namespaceOrClassName, SString &methodName, SString &methodSignature);
@@ -2304,6 +2304,7 @@ protected:
         nomdStubNeedsCOMStarted   = 0x0800,  // EnsureComStarted must be called before executing the method
         nomdMulticastStub         = 0x1000,
         nomdUnboxingILStub        = 0x2000,
+        nomdSecureDelegateStub    = 0x4000,
 
         nomdILStub          = 0x00010000,
         nomdLCGMethod       = 0x00020000,
@@ -2412,6 +2413,11 @@ public:
     bool IsSignatureNeedsRestore() { LIMITED_METHOD_CONTRACT; _ASSERTE(IsILStub()); return (0 != (m_dwExtendedFlags & nomdSignatureNeedsRestore)); }
     bool IsStubNeedsCOMStarted()   { LIMITED_METHOD_CONTRACT; _ASSERTE(IsILStub()); return (0 != (m_dwExtendedFlags & nomdStubNeedsCOMStarted)); }
 #ifdef FEATURE_STUBS_AS_IL
+    bool IsSecureDelegateStub() {
+        LIMITED_METHOD_DAC_CONTRACT;
+        _ASSERTE(IsILStub());
+        return !!(m_dwExtendedFlags & nomdSecureDelegateStub);
+    }
     bool IsMulticastStub() { 
         LIMITED_METHOD_DAC_CONTRACT; 
         _ASSERTE(IsILStub());
@@ -3589,6 +3595,22 @@ inline BOOL MethodDesc::HasMethodInstantiation() const
 
     return mcInstantiated == GetClassification() && AsInstantiatedMethodDesc()->IMD_HasMethodInstantiation();
 }
+
+#if defined(FEATURE_GDBJIT)
+class CalledMethod
+{
+private:
+    MethodDesc * m_pMD;
+    void * m_CallAddr;
+    CalledMethod * m_pNext;
+public:
+    CalledMethod(MethodDesc *pMD, void * addr, CalledMethod * next) : m_pMD(pMD), m_CallAddr(addr), m_pNext(next)  {}
+    ~CalledMethod() {}
+    MethodDesc * GetMethodDesc() { return m_pMD; }
+    void * GetCallAddr() { return m_CallAddr; }
+    CalledMethod * GetNext() { return m_pNext; }
+};
+#endif
 
 #include "method.inl"
 

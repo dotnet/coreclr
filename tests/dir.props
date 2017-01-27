@@ -21,52 +21,44 @@
     <BuildToolsTargets45>true</BuildToolsTargets45>   
   </PropertyGroup>  
 
-  <!-- Make the stable version of xunit that the tests depend on available to both the project.json generation and the validation task. -->
-  <PropertyGroup>
-    <XunitPackageVersion>2.1.0</XunitPackageVersion>
-  </PropertyGroup>
-
   <!-- Common repo directories -->
   <PropertyGroup>
     <CopyNuGetImplementations Condition="'$(CopyNuGetImplementations)'==''">false</CopyNuGetImplementations>
     <ProjectDir>$(MSBuildThisFileDirectory)</ProjectDir>
     <SourceDir>$(ProjectDir)src\</SourceDir>
     <PackagesDir>$(ProjectDir)..\packages\</PackagesDir>
-    <ToolsDir Condition="'$(ToolsDir)'==''">$(ProjectDir)..\Tools\</ToolsDir>  
-    <DotnetCliPath Condition="'$(DotnetCliPath)'==''">$(ToolsDir)dotnetcli/</DotnetCliPath> 
+    <ToolsDir Condition="'$(ToolsDir)'==''">$(ProjectDir)..\Tools\</ToolsDir>
+    <DotnetCliPath Condition="'$(DotnetCliPath)'==''">$(ToolsDir)dotnetcli/</DotnetCliPath>
     <BuildToolsTaskDir Condition="'$(BuildToolsTargets45)' == 'true'">$(ToolsDir)net45/</BuildToolsTaskDir>
     <SkipImportILTargets>true</SkipImportILTargets>
   </PropertyGroup>
 
-   <!-- Package dependency validation -->
+  <!-- Common properties -->
   <PropertyGroup>
-    <ValidatePackageVersions>true</ValidatePackageVersions>
-    <ProhibitFloatingDependencies>true</ProhibitFloatingDependencies>
-
-    <CoreFxExpectedPrerelease>rc3-24117-00</CoreFxExpectedPrerelease>
-    <CoreClrPackageVersion>beta-24314-02</CoreClrPackageVersion>
-
-    <CoreFxVersionsIdentityRegex>^(?i)((System\..*)|(Microsoft\.CSharp)|(Microsoft\.NETCore.*)|(Microsoft\.Win32\..*)|(Microsoft\.VisualBasic))(?&lt;!TestData)$</CoreFxVersionsIdentityRegex>
+    <RootBinDir>$(__RootBinDir)\</RootBinDir>
+    <RootBinDir Condition="'$(__RootBinDir)'==''">$(ProjectDir)bin\</RootBinDir>
   </PropertyGroup>
 
-  <ItemGroup>
-    <ValidationPattern Include="CoreFxVersions">
-      <IdentityRegex>$(CoreFxVersionsIdentityRegex)</IdentityRegex>
-      <ExpectedPrerelease>$(CoreFxExpectedPrerelease)</ExpectedPrerelease>
-    </ValidationPattern>
-    <ValidationPattern Include="XunitPackageVersions">
-      <IdentityRegex>^(?i)(xunit(\.assert|\.core|\.runner\.(utility|msbuild))?)$</IdentityRegex>
-      <ExpectedVersion>$(XunitPackageVersion)</ExpectedVersion>
-    </ValidationPattern>
-    <ValidationPattern Include="XunitConsoleVersion">
-      <IdentityRegex>^(?i)(xunit\.console\.netcore)$</IdentityRegex>
-      <ExpectedVersion>1.0.2-prerelease-00101</ExpectedVersion>
-    </ValidationPattern>
-    <ValidationPattern Include="XunitPerformanceVersion">
-      <IdentityRegex>^(?i)Microsoft\.DotNet\.xunit\.performance.*$</IdentityRegex>
-      <ExpectedVersion>1.0.0-alpha-build0035</ExpectedVersion>
-    </ValidationPattern>
-  </ItemGroup>
+<!-- Default Test platform to deploy the netstandard compiled tests to -->
+  <PropertyGroup>
+    <!-- we default TestTFM and FilterToTestTFM to netcoreapp1.0 if they are not explicity defined -->
+    <DefaultTestTFM Condition="'$(DefaultTestTFM)'==''">netcoreapp1.0</DefaultTestTFM>
+    <TestTFM Condition="'$(TestTFM)'==''">$(DefaultTestTFM)</TestTFM>
+    <FilterToTestTFM Condition="'$(FilterToTestTFM)'==''">$(DefaultTestTFM)</FilterToTestTFM>
+  </PropertyGroup>
+
+  <!-- Output paths -->
+  <PropertyGroup>
+    <BaseIntermediateOutputPath Condition="'$(BaseIntermediateOutputPath)' == ''">$(RootBinDir)obj\</BaseIntermediateOutputPath>
+    <IntermediateOutputPath Condition="'$(IntermediateOutputPath)' == ''">$(BaseIntermediateOutputPath)\$(BuildOS).$(BuildArch).$(BuildType)</IntermediateOutputPath>
+    <OutputPath Condition="'$(OutputPath)' == ''">$(BaseIntermediateOutputPath)\$(BuildOS).$(BuildArch).$(BuildType)</OutputPath>
+    <FinalOutputPath Condition="'$(FinalOutputPath)' == ''">$(BinDir)</FinalOutputPath>
+  </PropertyGroup>
+
+  <Import Condition="Exists('$(ToolsDir)BuildVersion.targets')" Project="$(ToolsDir)BuildVersion.targets" />
+
+  <!-- Provides properties for dependency versions and configures dependency verification/auto-upgrade. -->
+  <Import Project="$(ProjectDir)..\dependencies.props" />
 
   <!-- Common nuget properties -->
   <PropertyGroup>
@@ -86,7 +78,8 @@
 
    <!-- list of nuget package sources passed to dnu --> 
    <ItemGroup> 
-     <!-- Need to escape double forward slash (%2F) or MSBuild will normalize to one slash on Unix. --> 
+     <!-- Need to escape double forward slash (%2F) or MSBuild will normalize to one slash on Unix. -->
+     <DnuSourceList Include="https:%2F%2Fdotnet.myget.org/F/dotnet-corefxlab/api/v3/index.json" />
      <DnuSourceList Include="https:%2F%2Fdotnet.myget.org/F/dotnet-core/api/v3/index.json" /> 
      <DnuSourceList Include="https:%2F%2Fapi.nuget.org/v3/index.json" /> 
    </ItemGroup> 
@@ -113,11 +106,6 @@
     <DnuRestoreCommand>$(DnuRestoreCommand) restore</DnuRestoreCommand>
     <DnuRestoreCommand>$(DnuRestoreCommand) --packages "$(PackagesDir.TrimEnd('/\'.ToCharArray()))" $(DnuRestoreSource)</DnuRestoreCommand>
   </PropertyGroup>
-
-  <!-- Create a collection of all project.json files for dependency updates. -->
-  <ItemGroup>
-    <ProjectJsonFiles Include="$(SourceDir)**\project.json" />
-  </ItemGroup>
 
   <!-- Which tests shall we build? Default: Priority 0 tests.
     At the command-line, the user can specify /p:CLRTestPriorityToBuild=666 (for example), and

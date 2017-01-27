@@ -15,26 +15,23 @@
 **
 ===========================================================*/
 using System;
+using System.Buffers;
 using System.Threading;
 using System.Threading.Tasks;
-
 using System.Runtime;
 using System.Runtime.InteropServices;
 using System.Runtime.CompilerServices;
 using System.Runtime.ExceptionServices;
 using System.Security;
 using System.Security.Permissions;
+using System.Diagnostics;
 using System.Diagnostics.Contracts;
 using System.Reflection;
 
 namespace System.IO {
     [Serializable]
     [ComVisible(true)]
-#if FEATURE_REMOTING
     public abstract class Stream : MarshalByRefObject, IDisposable {
-#else // FEATURE_REMOTING
-    public abstract class Stream : IDisposable {
-#endif // FEATURE_REMOTING
 
         public static readonly Stream Null = new NullStream();
 
@@ -112,13 +109,11 @@ namespace System.IO {
             }
         }
 
-        [HostProtection(ExternalThreading = true)]
         [ComVisible(false)]
         public Task CopyToAsync(Stream destination)
         {
             int bufferSize = _DefaultCopyBufferSize;
 
-#if FEATURE_CORECLR
             if (CanSeek)
             {
                 long length = Length;
@@ -147,23 +142,20 @@ namespace System.IO {
                         bufferSize = (int)Math.Min(bufferSize, remaining);
                 }
             }
-#endif // FEATURE_CORECLR
-            
+
             return CopyToAsync(destination, bufferSize);
         }
 
-        [HostProtection(ExternalThreading = true)]
         [ComVisible(false)]
         public Task CopyToAsync(Stream destination, Int32 bufferSize)
         {
             return CopyToAsync(destination, bufferSize, CancellationToken.None);
         }
 
-        [HostProtection(ExternalThreading = true)]
         [ComVisible(false)]
         public virtual Task CopyToAsync(Stream destination, Int32 bufferSize, CancellationToken cancellationToken)
         {
-            ValidateCopyToArguments(destination, bufferSize);
+            StreamHelpers.ValidateCopyToArgs(this, destination, bufferSize);
 
             return CopyToAsyncInternal(destination, bufferSize, cancellationToken);
         }
@@ -175,11 +167,22 @@ namespace System.IO {
             Contract.Requires(CanRead);
             Contract.Requires(destination.CanWrite);
 
-            byte[] buffer = new byte[bufferSize];
-            int bytesRead;
-            while ((bytesRead = await ReadAsync(buffer, 0, buffer.Length, cancellationToken).ConfigureAwait(false)) != 0)
+            byte[] buffer = ArrayPool<byte>.Shared.Rent(bufferSize);
+            bufferSize = 0; // reuse same field for high water mark to avoid needing another field in the state machine
+            try
             {
-                await destination.WriteAsync(buffer, 0, bytesRead, cancellationToken).ConfigureAwait(false);
+                while (true)
+                {
+                    int bytesRead = await ReadAsync(buffer, 0, buffer.Length, cancellationToken).ConfigureAwait(false);
+                    if (bytesRead == 0) break;
+                    if (bytesRead > bufferSize) bufferSize = bytesRead;
+                    await destination.WriteAsync(buffer, 0, bytesRead, cancellationToken).ConfigureAwait(false);
+                }
+            }
+            finally
+            {
+                Array.Clear(buffer, 0, bufferSize); // clear only the most we used
+                ArrayPool<byte>.Shared.Return(buffer, clearArray: false);
             }
         }
 
@@ -190,7 +193,6 @@ namespace System.IO {
         {
             int bufferSize = _DefaultCopyBufferSize;
 
-#if FEATURE_CORECLR
             if (CanSeek)
             {
                 long length = Length;
@@ -209,19 +211,30 @@ namespace System.IO {
                         bufferSize = (int)Math.Min(bufferSize, remaining);
                 }
             }
-#endif // FEATURE_CORECLR
-            
+
             CopyTo(destination, bufferSize);
         }
 
-        public void CopyTo(Stream destination, int bufferSize)
+        public virtual void CopyTo(Stream destination, int bufferSize)
         {
-            ValidateCopyToArguments(destination, bufferSize);
-            
-            byte[] buffer = new byte[bufferSize];
-            int read;
-            while ((read = Read(buffer, 0, buffer.Length)) != 0)
-                destination.Write(buffer, 0, read);
+            StreamHelpers.ValidateCopyToArgs(this, destination, bufferSize);
+
+            byte[] buffer = ArrayPool<byte>.Shared.Rent(bufferSize);
+            int highwaterMark = 0;
+            try
+            {
+                int read;
+                while ((read = Read(buffer, 0, buffer.Length)) != 0)
+                {
+                    if (read > highwaterMark) highwaterMark = read;
+                    destination.Write(buffer, 0, read);
+                }
+            }
+            finally
+            {
+                Array.Clear(buffer, 0, highwaterMark); // clear only the most we used
+                ArrayPool<byte>.Shared.Return(buffer, clearArray: false);
+            }
         }
 
         // Stream used to require that all cleanup logic went into Close(),
@@ -265,14 +278,12 @@ namespace System.IO {
 
         public abstract void Flush();
 
-        [HostProtection(ExternalThreading=true)]
         [ComVisible(false)]
         public Task FlushAsync()
         {
             return FlushAsync(CancellationToken.None);
         }
 
-        [HostProtection(ExternalThreading=true)]
         [ComVisible(false)]
         public virtual Task FlushAsync(CancellationToken cancellationToken)
         {
@@ -287,14 +298,12 @@ namespace System.IO {
             return new ManualResetEvent(false);
         }
 
-        [HostProtection(ExternalThreading=true)]
         public virtual IAsyncResult BeginRead(byte[] buffer, int offset, int count, AsyncCallback callback, Object state)
         {
             Contract.Ensures(Contract.Result<IAsyncResult>() != null);
             return BeginReadInternal(buffer, offset, count, callback, state, serializeAsynchronously: false, apm: true);
         }
 
-        [HostProtection(ExternalThreading = true)]
         internal IAsyncResult BeginReadInternal(
             byte[] buffer, int offset, int count, AsyncCallback callback, Object state, 
             bool serializeAsynchronously, bool apm)
@@ -326,7 +335,7 @@ namespace System.IO {
                 // As we're currently inside of it, we can get the current task
                 // and grab the parameters from it.
                 var thisTask = Task.InternalCurrent as ReadWriteTask;
-                Contract.Assert(thisTask != null, "Inside ReadWriteTask, InternalCurrent should be the ReadWriteTask");
+                Debug.Assert(thisTask != null, "Inside ReadWriteTask, InternalCurrent should be the ReadWriteTask");
 
                 try
                 {
@@ -360,7 +369,7 @@ namespace System.IO {
         public virtual int EndRead(IAsyncResult asyncResult)
         {
             if (asyncResult == null)
-                throw new ArgumentNullException("asyncResult");
+                throw new ArgumentNullException(nameof(asyncResult));
             Contract.Ensures(Contract.Result<int>() >= 0);
             Contract.EndContractBlock();
 
@@ -389,14 +398,12 @@ namespace System.IO {
             }
         }
 
-        [HostProtection(ExternalThreading = true)]
         [ComVisible(false)]
         public Task<int> ReadAsync(Byte[] buffer, int offset, int count)
         {
             return ReadAsync(buffer, offset, count, CancellationToken.None);
         }
 
-        [HostProtection(ExternalThreading = true)]
         [ComVisible(false)]
         public virtual Task<int> ReadAsync(Byte[] buffer, int offset, int count, CancellationToken cancellationToken)
         {
@@ -407,7 +414,6 @@ namespace System.IO {
                         : BeginEndReadAsync(buffer, offset, count);
         }
 
-        [System.Security.SecuritySafeCritical]
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         private extern bool HasOverriddenBeginEndRead();
 
@@ -436,14 +442,12 @@ namespace System.IO {
 
 
 
-        [HostProtection(ExternalThreading=true)]
         public virtual IAsyncResult BeginWrite(byte[] buffer, int offset, int count, AsyncCallback callback, Object state)
         {
             Contract.Ensures(Contract.Result<IAsyncResult>() != null);
             return BeginWriteInternal(buffer, offset, count, callback, state, serializeAsynchronously: false, apm: true);
         }
 
-        [HostProtection(ExternalThreading = true)]
         internal IAsyncResult BeginWriteInternal(
             byte[] buffer, int offset, int count, AsyncCallback callback, Object state, 
             bool serializeAsynchronously, bool apm)
@@ -475,7 +479,7 @@ namespace System.IO {
                 // As we're currently inside of it, we can get the current task
                 // and grab the parameters from it.
                 var thisTask = Task.InternalCurrent as ReadWriteTask;
-                Contract.Assert(thisTask != null, "Inside ReadWriteTask, InternalCurrent should be the ReadWriteTask");
+                Debug.Assert(thisTask != null, "Inside ReadWriteTask, InternalCurrent should be the ReadWriteTask");
 
                 try
                 {
@@ -508,20 +512,20 @@ namespace System.IO {
 
         private void RunReadWriteTaskWhenReady(Task asyncWaiter, ReadWriteTask readWriteTask)
         {
-            Contract.Assert(readWriteTask != null);  // Should be Contract.Requires, but CCRewrite is doing a poor job with
+            Debug.Assert(readWriteTask != null);  // Should be Contract.Requires, but CCRewrite is doing a poor job with
                                                      // preconditions in async methods that await.  
-            Contract.Assert(asyncWaiter != null);    // Ditto
+            Debug.Assert(asyncWaiter != null);    // Ditto
 
             // If the wait has already completed, run the task.
             if (asyncWaiter.IsCompleted)
             {
-                Contract.Assert(asyncWaiter.IsRanToCompletion, "The semaphore wait should always complete successfully.");
+                Debug.Assert(asyncWaiter.IsRanToCompletion, "The semaphore wait should always complete successfully.");
                 RunReadWriteTask(readWriteTask);
             }                
             else  // Otherwise, wait for our turn, and then run the task.
             {
                 asyncWaiter.ContinueWith((t, state) => {
-                    Contract.Assert(t.IsRanToCompletion, "The semaphore wait should always complete successfully.");
+                    Debug.Assert(t.IsRanToCompletion, "The semaphore wait should always complete successfully.");
                     var rwt = (ReadWriteTask)state;
                     rwt._stream.RunReadWriteTask(rwt); // RunReadWriteTask(readWriteTask);
                 }, readWriteTask, default(CancellationToken), TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
@@ -531,7 +535,7 @@ namespace System.IO {
         private void RunReadWriteTask(ReadWriteTask readWriteTask)
         {
             Contract.Requires(readWriteTask != null);
-            Contract.Assert(_activeReadWriteTask == null, "Expected no other readers or writers");
+            Debug.Assert(_activeReadWriteTask == null, "Expected no other readers or writers");
 
             // Schedule the task.  ScheduleAndStart must happen after the write to _activeReadWriteTask to avoid a race.
             // Internally, we're able to directly call ScheduleAndStart rather than Start, avoiding
@@ -545,14 +549,14 @@ namespace System.IO {
         private void FinishTrackingAsyncOperation()
         {
              _activeReadWriteTask = null;
-            Contract.Assert(_asyncActiveSemaphore != null, "Must have been initialized in order to get here.");
+            Debug.Assert(_asyncActiveSemaphore != null, "Must have been initialized in order to get here.");
             _asyncActiveSemaphore.Release();
         }
 
         public virtual void EndWrite(IAsyncResult asyncResult)
         {
             if (asyncResult==null)
-                throw new ArgumentNullException("asyncResult");
+                throw new ArgumentNullException(nameof(asyncResult));
             Contract.EndContractBlock();
 
             var writeTask = _activeReadWriteTask;
@@ -572,7 +576,7 @@ namespace System.IO {
             try 
             {
                 writeTask.GetAwaiter().GetResult(); // block until completion, then propagate any exceptions
-                Contract.Assert(writeTask.Status == TaskStatus.RanToCompletion);
+                Debug.Assert(writeTask.Status == TaskStatus.RanToCompletion);
             }
             finally
             {
@@ -613,7 +617,6 @@ namespace System.IO {
                 _buffer = null;
             }
 
-            [SecuritySafeCritical] // necessary for EC.Capture
             [MethodImpl(MethodImplOptions.NoInlining)]
             public ReadWriteTask(
                 bool isRead,
@@ -651,7 +654,6 @@ namespace System.IO {
                 }
             }
 
-            [SecurityCritical] // necessary for CoreCLR
             private static void InvokeAsyncCallback(object completedTask)
             {
                 var rwc = (ReadWriteTask)completedTask;
@@ -660,10 +662,8 @@ namespace System.IO {
                 callback(rwc);
             }
 
-            [SecurityCritical] // necessary for CoreCLR
             private static ContextCallback s_invokeAsyncCallback;
             
-            [SecuritySafeCritical] // necessary for ExecutionContext.Run
             void ITaskCompletionAction.Invoke(Task completingTask)
             {
                 // Get the ExecutionContext.  If there is none, just run the callback
@@ -690,7 +690,6 @@ namespace System.IO {
             bool ITaskCompletionAction.InvokeMayRunArbitraryCode { get { return true; } }
         }
 
-        [HostProtection(ExternalThreading = true)]
         [ComVisible(false)]
         public Task WriteAsync(Byte[] buffer, int offset, int count)
         {
@@ -699,7 +698,6 @@ namespace System.IO {
 
 
 
-        [HostProtection(ExternalThreading = true)]
         [ComVisible(false)]
         public virtual Task WriteAsync(Byte[] buffer, int offset, int count, CancellationToken cancellationToken)
         {
@@ -710,7 +708,6 @@ namespace System.IO {
                         : BeginEndWriteAsync(buffer, offset, count);
         }
 
-        [System.Security.SecuritySafeCritical]
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         private extern bool HasOverriddenBeginEndWrite();
 
@@ -772,11 +769,10 @@ namespace System.IO {
             Write(oneByteArray, 0, 1);
         }
 
-        [HostProtection(Synchronization=true)]
         public static Stream Synchronized(Stream stream) 
         {
             if (stream==null)
-                throw new ArgumentNullException("stream");
+                throw new ArgumentNullException(nameof(stream));
             Contract.Ensures(Contract.Result<Stream>() != null);
             Contract.EndContractBlock();
             if (stream is SyncStream)
@@ -853,23 +849,6 @@ namespace System.IO {
         {
             SynchronousAsyncResult.EndWrite(asyncResult);
         }
-        
-        internal void ValidateCopyToArguments(Stream destination, int bufferSize)
-        {
-            if (destination == null)
-                throw new ArgumentNullException("destination");
-            if (bufferSize <= 0)
-                throw new ArgumentOutOfRangeException("bufferSize", Environment.GetResourceString("ArgumentOutOfRange_NeedPosNum"));
-            if (!CanRead && !CanWrite)
-                throw new ObjectDisposedException(null, Environment.GetResourceString("ObjectDisposed_StreamClosed"));
-            if (!destination.CanRead && !destination.CanWrite)
-                throw new ObjectDisposedException("destination", Environment.GetResourceString("ObjectDisposed_StreamClosed"));
-            if (!CanRead)
-                throw new NotSupportedException(Environment.GetResourceString("NotSupported_UnreadableStream"));
-            if (!destination.CanWrite)
-                throw new NotSupportedException(Environment.GetResourceString("NotSupported_UnwritableStream"));
-            Contract.EndContractBlock();
-        }
 
         [Serializable]
         private sealed class NullStream : Stream
@@ -900,11 +879,18 @@ namespace System.IO {
                 set {}
             }
             
+            public override void CopyTo(Stream destination, int bufferSize)
+            {
+                StreamHelpers.ValidateCopyToArgs(this, destination, bufferSize);
+                
+                // After we validate arguments this is a nop.
+            }
+            
             public override Task CopyToAsync(Stream destination, int bufferSize, CancellationToken cancellationToken)
             {
                 // Validate arguments here for compat, since previously this method
                 // was inherited from Stream (which did check its arguments).
-                ValidateCopyToArguments(destination, bufferSize);
+                StreamHelpers.ValidateCopyToArgs(this, destination, bufferSize);
                 
                 return cancellationToken.IsCancellationRequested ?
                     Task.FromCanceled(cancellationToken) :
@@ -928,7 +914,6 @@ namespace System.IO {
                     Task.CompletedTask;
             }
 
-            [HostProtection(ExternalThreading = true)]
             public override IAsyncResult BeginRead(byte[] buffer, int offset, int count, AsyncCallback callback, Object state)
             {
                 if (!CanRead) __Error.ReadNotSupported();
@@ -939,13 +924,12 @@ namespace System.IO {
             public override int EndRead(IAsyncResult asyncResult)
             {
                 if (asyncResult == null)
-                    throw new ArgumentNullException("asyncResult");
+                    throw new ArgumentNullException(nameof(asyncResult));
                 Contract.EndContractBlock();
 
                 return BlockingEndRead(asyncResult);
             }
 
-            [HostProtection(ExternalThreading = true)]
             public override IAsyncResult BeginWrite(byte[] buffer, int offset, int count, AsyncCallback callback, Object state)
             {
                 if (!CanWrite) __Error.WriteNotSupported();
@@ -956,7 +940,7 @@ namespace System.IO {
             public override void EndWrite(IAsyncResult asyncResult)
             {
                 if (asyncResult == null)
-                    throw new ArgumentNullException("asyncResult");
+                    throw new ArgumentNullException(nameof(asyncResult));
                 Contract.EndContractBlock();
 
                 BlockingEndWrite(asyncResult);
@@ -1102,7 +1086,7 @@ namespace System.IO {
             internal SyncStream(Stream stream)
             {
                 if (stream == null)
-                    throw new ArgumentNullException("stream");
+                    throw new ArgumentNullException(nameof(stream));
                 Contract.EndContractBlock();
                 _stream = stream;
             }
@@ -1217,7 +1201,6 @@ namespace System.IO {
                     return _stream.ReadByte();
             }
         
-            [HostProtection(ExternalThreading=true)]
             public override IAsyncResult BeginRead(byte[] buffer, int offset, int count, AsyncCallback callback, Object state)
             {
                 bool overridesBeginRead = _stream.HasOverriddenBeginEndRead();
@@ -1239,7 +1222,7 @@ namespace System.IO {
             public override int EndRead(IAsyncResult asyncResult)
             {
                 if (asyncResult == null)
-                    throw new ArgumentNullException("asyncResult");
+                    throw new ArgumentNullException(nameof(asyncResult));
                 Contract.Ensures(Contract.Result<int>() >= 0);
                 Contract.EndContractBlock();
 
@@ -1271,7 +1254,6 @@ namespace System.IO {
                     _stream.WriteByte(b);
             }
         
-            [HostProtection(ExternalThreading=true)]
             public override IAsyncResult BeginWrite(byte[] buffer, int offset, int count, AsyncCallback callback, Object state)
             {
                 bool overridesBeginWrite = _stream.HasOverriddenBeginEndWrite();
@@ -1293,7 +1275,7 @@ namespace System.IO {
             public override void EndWrite(IAsyncResult asyncResult)
             {
                 if (asyncResult == null)
-                    throw new ArgumentNullException("asyncResult");
+                    throw new ArgumentNullException(nameof(asyncResult));
                 Contract.EndContractBlock();
 
                 lock(_stream)

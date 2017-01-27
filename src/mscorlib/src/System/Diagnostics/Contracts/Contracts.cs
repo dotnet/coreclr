@@ -32,6 +32,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.Contracts;
 
@@ -127,9 +128,7 @@ namespace System.Diagnostics.Contracts {
     }
 
     /*
-#if FEATURE_SERIALIZATION
     [Serializable]
-#endif
     internal enum Mutability
     {
         Immutable,    // read-only after construction, except for lazy initialization & caches
@@ -289,7 +288,7 @@ namespace System.Diagnostics.Contracts {
         /// </summary>
         /// <param name="condition">Expression to assume will always be true.</param>
         /// <remarks>
-        /// At runtime this is equivalent to an <seealso cref="System.Diagnostics.Contracts.Contract.Assert(bool)"/>.
+        /// At runtime this is equivalent to an <seealso cref="System.Diagnostics.Contracts.Debug.Assert(bool)"/>.
         /// </remarks>
         [Pure]
         [Conditional("DEBUG")]
@@ -310,7 +309,7 @@ namespace System.Diagnostics.Contracts {
         /// <param name="condition">Expression to assume will always be true.</param>
         /// <param name="userMessage">If it is not a constant string literal, then the contract may not be understood by tools.</param>
         /// <remarks>
-        /// At runtime this is equivalent to an <seealso cref="System.Diagnostics.Contracts.Contract.Assert(bool)"/>.
+        /// At runtime this is equivalent to an <seealso cref="System.Diagnostics.Contracts.Debug.Assert(bool)"/>.
         /// </remarks>
         [Pure]
         [Conditional("DEBUG")]
@@ -656,7 +655,7 @@ namespace System.Diagnostics.Contracts {
                 throw new ArgumentException("fromInclusive must be less than or equal to toExclusive.");
 #endif
             if (predicate == null)
-                throw new ArgumentNullException("predicate");
+                throw new ArgumentNullException(nameof(predicate));
             Contract.EndContractBlock();
 
             for (int i = fromInclusive; i < toExclusive; i++)
@@ -681,9 +680,9 @@ namespace System.Diagnostics.Contracts {
         public static bool ForAll<T>(IEnumerable<T> collection, Predicate<T> predicate)
         {
             if (collection == null)
-                throw new ArgumentNullException("collection");
+                throw new ArgumentNullException(nameof(collection));
             if (predicate == null)
-                throw new ArgumentNullException("predicate");
+                throw new ArgumentNullException(nameof(predicate));
             Contract.EndContractBlock();
 
             foreach (T t in collection)
@@ -718,7 +717,7 @@ namespace System.Diagnostics.Contracts {
                 throw new ArgumentException("fromInclusive must be less than or equal to toExclusive.");
 #endif
             if (predicate == null)
-                throw new ArgumentNullException("predicate");
+                throw new ArgumentNullException(nameof(predicate));
             Contract.EndContractBlock();
 
             for (int i = fromInclusive; i < toExclusive; i++)
@@ -742,9 +741,9 @@ namespace System.Diagnostics.Contracts {
         public static bool Exists<T>(IEnumerable<T> collection, Predicate<T> predicate)
         {
             if (collection == null)
-                throw new ArgumentNullException("collection");
+                throw new ArgumentNullException(nameof(collection));
             if (predicate == null)
-                throw new ArgumentNullException("predicate");
+                throw new ArgumentNullException(nameof(predicate));
             Contract.EndContractBlock();
 
             foreach (T t in collection)
@@ -757,109 +756,6 @@ namespace System.Diagnostics.Contracts {
         #endregion Quantifiers
 
         #region Pointers
-#if FEATURE_UNSAFE_CONTRACTS    
-        /// <summary>
-        /// Runtime checking for pointer bounds is not currently feasible. Thus, at runtime, we just return
-        /// a very long extent for each pointer that is writable. As long as assertions are of the form
-        /// WritableBytes(ptr) >= ..., the runtime assertions will not fail.
-        /// The runtime value is 2^64 - 1 or 2^32 - 1.
-        /// </summary>
-        [SuppressMessage("Microsoft.Performance", "CA1802", Justification = "FxCop is confused")]
-        static readonly ulong MaxWritableExtent = (UIntPtr.Size == 4) ? UInt32.MaxValue : UInt64.MaxValue;
-
-        /// <summary>
-        /// Allows specifying a writable extent for a UIntPtr, similar to SAL's writable extent.
-        /// NOTE: this is for static checking only. No useful runtime code can be generated for this
-        /// at the moment.
-        /// </summary>
-        /// <param name="startAddress">Start of memory region</param>
-        /// <returns>The result is the number of bytes writable starting at <paramref name="startAddress"/></returns>
-        [CLSCompliant(false)]
-        [Pure]
-        [ContractRuntimeIgnored]
-#if FEATURE_RELIABILITY_CONTRACTS
-        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]
-#endif
-        public static ulong WritableBytes(UIntPtr startAddress) { return MaxWritableExtent - startAddress.ToUInt64(); }
-
-        /// <summary>
-        /// Allows specifying a writable extent for a UIntPtr, similar to SAL's writable extent.
-        /// NOTE: this is for static checking only. No useful runtime code can be generated for this
-        /// at the moment.
-        /// </summary>
-        /// <param name="startAddress">Start of memory region</param>
-        /// <returns>The result is the number of bytes writable starting at <paramref name="startAddress"/></returns>
-        [CLSCompliant(false)]
-        [Pure]
-        [ContractRuntimeIgnored]
-#if FEATURE_RELIABILITY_CONTRACTS
-        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]
-#endif
-        public static ulong WritableBytes(IntPtr startAddress) { return MaxWritableExtent - (ulong)startAddress; }
-        
-        /// <summary>
-        /// Allows specifying a writable extent for a UIntPtr, similar to SAL's writable extent.
-        /// NOTE: this is for static checking only. No useful runtime code can be generated for this
-        /// at the moment.
-        /// </summary>
-        /// <param name="startAddress">Start of memory region</param>
-        /// <returns>The result is the number of bytes writable starting at <paramref name="startAddress"/></returns>
-        [CLSCompliant(false)]
-        [Pure]
-        [ContractRuntimeIgnored]
-        [SecurityCritical]
-#if FEATURE_RELIABILITY_CONTRACTS
-        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]
-#endif
-
-        unsafe public static ulong WritableBytes(void* startAddress) { return MaxWritableExtent - (ulong)startAddress; }
-
-        /// <summary>
-        /// Allows specifying a readable extent for a UIntPtr, similar to SAL's readable extent.
-        /// NOTE: this is for static checking only. No useful runtime code can be generated for this
-        /// at the moment.
-        /// </summary>
-        /// <param name="startAddress">Start of memory region</param>
-        /// <returns>The result is the number of bytes readable starting at <paramref name="startAddress"/></returns>
-        [CLSCompliant(false)]
-        [Pure]
-        [ContractRuntimeIgnored]
-#if FEATURE_RELIABILITY_CONTRACTS
-        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]
-#endif
-        public static ulong ReadableBytes(UIntPtr startAddress) { return MaxWritableExtent - startAddress.ToUInt64(); }
-
-        /// <summary>
-        /// Allows specifying a readable extent for a UIntPtr, similar to SAL's readable extent.
-        /// NOTE: this is for static checking only. No useful runtime code can be generated for this
-        /// at the moment.
-        /// </summary>
-        /// <param name="startAddress">Start of memory region</param>
-        /// <returns>The result is the number of bytes readable starting at <paramref name="startAddress"/></returns>
-        [CLSCompliant(false)]
-        [Pure]
-        [ContractRuntimeIgnored]
-#if FEATURE_RELIABILITY_CONTRACTS
-        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]
-#endif
-        public static ulong ReadableBytes(IntPtr startAddress) { return MaxWritableExtent - (ulong)startAddress; }
-
-        /// <summary>
-        /// Allows specifying a readable extent for a UIntPtr, similar to SAL's readable extent.
-        /// NOTE: this is for static checking only. No useful runtime code can be generated for this
-        /// at the moment.
-        /// </summary>
-        /// <param name="startAddress">Start of memory region</param>
-        /// <returns>The result is the number of bytes readable starting at <paramref name="startAddress"/></returns>
-        [CLSCompliant(false)]
-        [Pure]
-        [ContractRuntimeIgnored]
-        [SecurityCritical]
-#if FEATURE_RELIABILITY_CONTRACTS
-        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]
-#endif
-        unsafe public static ulong ReadableBytes(void* startAddress) { return MaxWritableExtent - (ulong)startAddress; }
-#endif // FEATURE_UNSAFE_CONTRACTS
         #endregion
 
         #region Misc.

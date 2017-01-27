@@ -11,10 +11,10 @@
 // =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
 using System;
-using System.Diagnostics;
 using System.Security.Permissions;
 using System.Runtime.InteropServices;
 using System.Threading;
+using System.Diagnostics;
 using System.Diagnostics.Contracts;
 
 namespace System.Threading
@@ -32,7 +32,6 @@ namespace System.Threading
     /// </remarks>
     [ComVisible(false)]
     [DebuggerDisplay("Initial Count={InitialCount}, Current Count={CurrentCount}")]
-    [HostProtection(Synchronization = true, ExternalThreading = true)]
     public class CountdownEvent : IDisposable
     {
         // CountdownEvent is a simple synchronization primitive used for fork/join parallelism. We create a
@@ -59,7 +58,7 @@ namespace System.Threading
         {
             if (initialCount < 0)
             {
-                throw new ArgumentOutOfRangeException("initialCount");
+                throw new ArgumentOutOfRangeException(nameof(initialCount));
             }
 
             m_initialCount = initialCount;
@@ -186,7 +185,7 @@ namespace System.Threading
         public bool Signal()
         {
             ThrowIfDisposed();
-            Contract.Assert(m_event != null);
+            Debug.Assert(m_event != null);
 
             if (m_currentCount <= 0)
             {
@@ -229,11 +228,11 @@ namespace System.Threading
         {
             if (signalCount <= 0)
             {
-                throw new ArgumentOutOfRangeException("signalCount");
+                throw new ArgumentOutOfRangeException(nameof(signalCount));
             }
 
             ThrowIfDisposed();
-            Contract.Assert(m_event != null);
+            Debug.Assert(m_event != null);
 
             int observedCount;
             SpinWait spin = new SpinWait();
@@ -267,7 +266,7 @@ namespace System.Threading
                 return true;
             }
 
-            Contract.Assert(m_currentCount >= 0, "latch was decremented below zero");
+            Debug.Assert(m_currentCount >= 0, "latch was decremented below zero");
             return false;
         }
 
@@ -340,7 +339,7 @@ namespace System.Threading
         {
             if (signalCount <= 0)
             {
-                throw new ArgumentOutOfRangeException("signalCount");
+                throw new ArgumentOutOfRangeException(nameof(signalCount));
             }
 
             ThrowIfDisposed();
@@ -409,7 +408,7 @@ namespace System.Threading
 
             if (count < 0)
             {
-                throw new ArgumentOutOfRangeException("count");
+                throw new ArgumentOutOfRangeException(nameof(count));
             }
 
             m_currentCount = count;
@@ -481,7 +480,7 @@ namespace System.Threading
             long totalMilliseconds = (long)timeout.TotalMilliseconds;
             if (totalMilliseconds < -1 || totalMilliseconds > int.MaxValue)
             {
-                throw new ArgumentOutOfRangeException("timeout");
+                throw new ArgumentOutOfRangeException(nameof(timeout));
             }
 
             return Wait((int)totalMilliseconds, new CancellationToken());
@@ -511,7 +510,7 @@ namespace System.Threading
             long totalMilliseconds = (long)timeout.TotalMilliseconds;
             if (totalMilliseconds < -1 || totalMilliseconds > int.MaxValue)
             {
-                throw new ArgumentOutOfRangeException("timeout");
+                throw new ArgumentOutOfRangeException(nameof(timeout));
             }
 
             return Wait((int)totalMilliseconds, cancellationToken);
@@ -555,7 +554,7 @@ namespace System.Threading
         {
             if (millisecondsTimeout < -1)
             {
-                throw new ArgumentOutOfRangeException("millisecondsTimeout");
+                throw new ArgumentOutOfRangeException(nameof(millisecondsTimeout));
             }
 
             ThrowIfDisposed();

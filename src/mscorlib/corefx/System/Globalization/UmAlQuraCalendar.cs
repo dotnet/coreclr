@@ -2,7 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-using System;
+using System.Diagnostics;
 using System.Diagnostics.Contracts;
 
 namespace System.Globalization
@@ -20,7 +20,8 @@ namespace System.Globalization
     **      UmAlQura    1318/01/01   1500/12/30
     */
 
-    public class UmAlQuraCalendar : Calendar
+    [Serializable]
+    public partial class UmAlQuraCalendar : Calendar
     {
         internal const int MinCalendarYear = 1318;
         internal const int MaxCalendarYear = 1500;
@@ -36,11 +37,12 @@ namespace System.Globalization
             internal DateTime GregorianDate;
         }
 
-        static readonly DateMapping[] HijriYearInfo = InitDateMapping();
+        private static readonly DateMapping[] s_hijriYearInfo = InitDateMapping();
 
-        static DateMapping[] InitDateMapping()
+        private static DateMapping[] InitDateMapping()
         {
-            short[] rawData = new short[] {
+            short[] rawData = new short[] 
+            {
                 //These data is taken from Tables/Excel/UmAlQura.xls please make sure that the two places are in sync
                 /*  DaysPerM     GY      GM     GD     D1   D2   D3   D4   D5   D6   D7   D8   D9   D10  D11  D12    
                 1318*/0x02EA,    1900,     4,    30,/* 0    1    0    1    0    1    1    1    0    1    0    0    4/30/1900
@@ -247,30 +249,10 @@ namespace System.Globalization
         internal const int DatePartMonth = 2;
         internal const int DatePartDay = 3;
 
-        //internal static Calendar m_defaultInstance;
-
 
         // This is the minimal Gregorian date that we support in the UmAlQuraCalendar.
         internal static DateTime minDate = new DateTime(1900, 4, 30);
         internal static DateTime maxDate = new DateTime((new DateTime(2077, 11, 16, 23, 59, 59, 999)).Ticks + 9999);
-
-        /*=================================GetDefaultInstance==========================
-        **Action: Internal method to provide a default intance of UmAlQuraCalendar.  Used by NLS+ implementation
-        **       and other calendars.
-        **Returns:
-        **Arguments:
-        **Exceptions:
-        ============================================================================*/
-        /*
-        internal static Calendar GetDefaultInstance() {
-            if (m_defaultInstance == null) {
-                m_defaultInstance = new UmAlQuraCalendar();
-            }
-            return (m_defaultInstance);
-        }
-        */
-
-
 
         public override DateTime MinSupportedDateTime
         {
@@ -280,7 +262,6 @@ namespace System.Globalization
             }
         }
 
-
         public override DateTime MaxSupportedDateTime
         {
             get
@@ -289,8 +270,13 @@ namespace System.Globalization
             }
         }
 
-
-        // Construct an instance of UmAlQura calendar.
+        public override CalendarAlgorithmType AlgorithmType
+        {
+            get
+            {
+                return CalendarAlgorithmType.LunarCalendar;
+            }
+        }
 
         public UmAlQuraCalendar()
         {
@@ -329,20 +315,20 @@ namespace System.Globalization
         ** Output: Gregorian date: year:yg, month:mg, day:dg , day of week:dayweek                   
         **       and returns flag found:1 not found:0                                                                      
         =========================ConvertHijriToGregorian============================*/
-        static void ConvertHijriToGregorian(int HijriYear, int HijriMonth, int HijriDay, ref int yg, ref int mg, ref int dg)
+        private static void ConvertHijriToGregorian(int HijriYear, int HijriMonth, int HijriDay, ref int yg, ref int mg, ref int dg)
         {
-            Contract.Assert((HijriYear >= MinCalendarYear) && (HijriYear <= MaxCalendarYear), "Hijri year is out of range.");
-            Contract.Assert(HijriMonth >= 1, "Hijri month is out of range.");
-            Contract.Assert(HijriDay >= 1, "Hijri day is out of range.");
+            Debug.Assert((HijriYear >= MinCalendarYear) && (HijriYear <= MaxCalendarYear), "Hijri year is out of range.");
+            Debug.Assert(HijriMonth >= 1, "Hijri month is out of range.");
+            Debug.Assert(HijriDay >= 1, "Hijri day is out of range.");
             int index, b, nDays = HijriDay - 1;
             DateTime dt;
 
 
             index = HijriYear - MinCalendarYear;
-            dt = HijriYearInfo[index].GregorianDate;
+            dt = s_hijriYearInfo[index].GregorianDate;
 
 
-            b = HijriYearInfo[index].HijriMonthsLengthFlags;
+            b = s_hijriYearInfo[index].HijriMonthsLengthFlags;
 
             for (int m = 1; m < HijriMonth; m++)
             {
@@ -363,7 +349,7 @@ namespace System.Globalization
         **Arguments:
         **Exceptions:
         ============================================================================*/
-        static long GetAbsoluteDateUmAlQura(int year, int month, int day)
+        private static long GetAbsoluteDateUmAlQura(int year, int month, int day)
         {
             //Caller should check the validaty of year, month and day.
 
@@ -372,7 +358,7 @@ namespace System.Globalization
             return GregorianCalendar.GetAbsoluteDate(yg, mg, dg);
         }
 
-        static internal void CheckTicksRange(long ticks)
+        internal static void CheckTicksRange(long ticks)
         {
             if (ticks < minDate.Ticks || ticks > maxDate.Ticks)
             {
@@ -386,21 +372,21 @@ namespace System.Globalization
             }
         }
 
-        static internal void CheckEraRange(int era)
+        internal static void CheckEraRange(int era)
         {
             if (era != CurrentEra && era != UmAlQuraEra)
             {
-                throw new ArgumentOutOfRangeException("era", SR.ArgumentOutOfRange_InvalidEraValue);
+                throw new ArgumentOutOfRangeException(nameof(era), SR.ArgumentOutOfRange_InvalidEraValue);
             }
         }
 
-        static internal void CheckYearRange(int year, int era)
+        internal static void CheckYearRange(int year, int era)
         {
             CheckEraRange(era);
             if (year < MinCalendarYear || year > MaxCalendarYear)
             {
                 throw new ArgumentOutOfRangeException(
-                            "year",
+                            nameof(year),
                             String.Format(
                                 CultureInfo.CurrentCulture,
                                 SR.ArgumentOutOfRange_Range,
@@ -409,12 +395,12 @@ namespace System.Globalization
             }
         }
 
-        static internal void CheckYearMonthRange(int year, int month, int era)
+        internal static void CheckYearMonthRange(int year, int month, int era)
         {
             CheckYearRange(year, era);
             if (month < 1 || month > 12)
             {
-                throw new ArgumentOutOfRangeException("month", SR.ArgumentOutOfRange_Month);
+                throw new ArgumentOutOfRangeException(nameof(month), SR.ArgumentOutOfRange_Month);
             }
         }
 
@@ -424,14 +410,14 @@ namespace System.Globalization
         ** Input: DateTime                                                                                                         
         ** Output: Hijrah  date: year:yh, month:mh, day:dh                                                          
         ============================================================================*/
-        static void ConvertGregorianToHijri(DateTime time, ref int HijriYear, ref int HijriMonth, ref int HijriDay)
+        private static void ConvertGregorianToHijri(DateTime time, ref int HijriYear, ref int HijriMonth, ref int HijriDay)
         {
             int index, b, DaysPerThisMonth;
             double nDays;
             TimeSpan ts;
             int yh1 = 0, mh1 = 0, dh1 = 0;
 
-            Contract.Assert((time.Ticks >= minDate.Ticks) && (time.Ticks <= maxDate.Ticks), "Gregorian date is out of range.");
+            Debug.Assert((time.Ticks >= minDate.Ticks) && (time.Ticks <= maxDate.Ticks), "Gregorian date is out of range.");
 
             // Find the index where we should start our search by quessing the Hijri year that we will be in HijriYearInfo.
             // A Hijri year is 354 or 355 days.  Use 355 days so that we will search from a lower index.
@@ -439,20 +425,20 @@ namespace System.Globalization
             index = (int)((time.Ticks - minDate.Ticks) / Calendar.TicksPerDay) / 355;
             do
             {
-            } while (time.CompareTo(HijriYearInfo[++index].GregorianDate) > 0); //while greater
+            } while (time.CompareTo(s_hijriYearInfo[++index].GregorianDate) > 0); //while greater
 
-            if (time.CompareTo(HijriYearInfo[index].GregorianDate) != 0)
+            if (time.CompareTo(s_hijriYearInfo[index].GregorianDate) != 0)
             {
                 index--;
             }
 
-            ts = time.Subtract(HijriYearInfo[index].GregorianDate);
+            ts = time.Subtract(s_hijriYearInfo[index].GregorianDate);
             yh1 = index + MinCalendarYear;
 
             mh1 = 1;
             dh1 = 1;
             nDays = ts.TotalDays;
-            b = HijriYearInfo[index].HijriMonthsLengthFlags;
+            b = s_hijriYearInfo[index].HijriMonthsLengthFlags;
             DaysPerThisMonth = 29 + (b & 1);
 
             while (nDays >= DaysPerThisMonth)
@@ -532,7 +518,7 @@ namespace System.Globalization
             if (months < -120000 || months > 120000)
             {
                 throw new ArgumentOutOfRangeException(
-                            "months",
+                            nameof(months),
                             String.Format(
                                 CultureInfo.CurrentCulture,
                                 SR.ArgumentOutOfRange_Range,
@@ -634,26 +620,26 @@ namespace System.Globalization
         {
             CheckYearMonthRange(year, month, era);
 
-            if ((HijriYearInfo[year - MinCalendarYear].HijriMonthsLengthFlags & (1 << month - 1)) == 0)
+            if ((s_hijriYearInfo[year - MinCalendarYear].HijriMonthsLengthFlags & (1 << month - 1)) == 0)
                 return 29;
             else
                 return 30;
         }
 
-        static internal int RealGetDaysInYear(int year)
+        internal static int RealGetDaysInYear(int year)
         {
             int days = 0, b;
 
-            Contract.Assert((year >= MinCalendarYear) && (year <= MaxCalendarYear), "Hijri year is out of range.");
+            Debug.Assert((year >= MinCalendarYear) && (year <= MaxCalendarYear), "Hijri year is out of range.");
 
-            b = HijriYearInfo[year - MinCalendarYear].HijriMonthsLengthFlags;
+            b = s_hijriYearInfo[year - MinCalendarYear].HijriMonthsLengthFlags;
 
             for (int m = 1; m <= 12; m++)
             {
                 days = days + 29 + (b & 1);   /* Add the months lengths before mh */
                 b = b >> 1;
             }
-            Contract.Assert((days == 354) || (days == 355), "Hijri year has to be 354 or 355 days.");
+            Debug.Assert((days == 354) || (days == 355), "Hijri year has to be 354 or 355 days.");
             return days;
         }
 
@@ -733,7 +719,7 @@ namespace System.Globalization
             if (day < 1 || day > daysInMonth)
             {
                 throw new ArgumentOutOfRangeException(
-                            "day",
+                            nameof(day),
                             String.Format(
                                 CultureInfo.CurrentCulture,
                                 SR.ArgumentOutOfRange_Day,
@@ -797,7 +783,7 @@ namespace System.Globalization
             if (day < 1 || day > daysInMonth)
             {
                 throw new ArgumentOutOfRangeException(
-                           "day",
+                           nameof(day),
                            String.Format(
                                CultureInfo.CurrentCulture,
                                SR.ArgumentOutOfRange_Day,
@@ -837,7 +823,7 @@ namespace System.Globalization
                 if (value != 99 && (value < MinCalendarYear || value > MaxCalendarYear))
                 {
                     throw new ArgumentOutOfRangeException(
-                                "value",
+                                nameof(value),
                                 String.Format(
                                     CultureInfo.CurrentCulture,
                                     SR.ArgumentOutOfRange_Range,
@@ -857,7 +843,7 @@ namespace System.Globalization
         {
             if (year < 0)
             {
-                throw new ArgumentOutOfRangeException("year",
+                throw new ArgumentOutOfRangeException(nameof(year),
                     SR.ArgumentOutOfRange_NeedNonNegNum);
             }
             Contract.EndContractBlock();
@@ -870,7 +856,7 @@ namespace System.Globalization
             if ((year < MinCalendarYear) || (year > MaxCalendarYear))
             {
                 throw new ArgumentOutOfRangeException(
-                            "year",
+                            nameof(year),
                             String.Format(
                                     CultureInfo.CurrentCulture,
                                     SR.ArgumentOutOfRange_Range,

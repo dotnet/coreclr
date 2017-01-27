@@ -9,6 +9,7 @@ namespace System.Globalization
     using System.Runtime.InteropServices;    
     using System.Runtime.CompilerServices;
     using System.Runtime.Versioning;
+    using System.Diagnostics;
     using System.Diagnostics.Contracts;
     //
     // List of calendar data
@@ -121,7 +122,7 @@ namespace System.Globalization
             this.bUseUserOverrides = bUseUserOverrides;
             if (!nativeGetCalendarData(this, localeName, calendarId))
             {
-                Contract.Assert(false, "[CalendarData] nativeGetCalendarData call isn't expected to fail for calendar " + calendarId + " locale " +localeName);
+                Debug.Assert(false, "[CalendarData] nativeGetCalendarData call isn't expected to fail for calendar " + calendarId + " locale " +localeName);
                 
                 // Something failed, try invariant for missing parts
                 // This is really not good, but we don't want the callers to crash.
@@ -436,17 +437,14 @@ namespace System.Globalization
 
         
         // Get native two digit year max
-        [System.Security.SecurityCritical]  // auto-generated
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         internal static extern int nativeGetTwoDigitYearMax(int calID);
 
         // Call native side to load our calendar data
-        [System.Security.SecuritySafeCritical]  // auto-generated
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         private static extern bool nativeGetCalendarData(CalendarData data, String localeName, int calendar);
 
         // Call native side to figure out which calendars are allowed
-        [System.Security.SecuritySafeCritical]  // auto-generated
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         internal static extern int nativeGetCalendars(String localeName, bool useUserOverride, [In, Out] int[] calendars);
 

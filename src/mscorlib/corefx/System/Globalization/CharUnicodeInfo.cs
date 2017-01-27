@@ -4,22 +4,15 @@
 
 ////////////////////////////////////////////////////////////////////////////
 //
-//  Class:    CharacterInfo
 //
 //  Purpose:  This class implements a set of methods for retrieving
 //            character type information.  Character type information is
 //            independent of culture and region.
 //
-//  Date:     August 12, 1998
 //
 ////////////////////////////////////////////////////////////////////////////
 
-using System;
-using System.Threading;
-using System.Runtime.InteropServices;
-using System.Runtime.CompilerServices;
-using System.Reflection;
-using System.Security;
+using System.Diagnostics;
 using System.Diagnostics.Contracts;
 
 namespace System.Globalization
@@ -61,8 +54,8 @@ namespace System.Globalization
 
         internal static int InternalConvertToUtf32(String s, int index)
         {
-            Contract.Assert(s != null, "s != null");
-            Contract.Assert(index >= 0 && index < s.Length, "index < s.Length");
+            Debug.Assert(s != null, "s != null");
+            Debug.Assert(index >= 0 && index < s.Length, "index < s.Length");
             if (index < s.Length - 1)
             {
                 int temp1 = (int)s[index] - HIGH_SURROGATE_START;
@@ -102,9 +95,9 @@ namespace System.Globalization
 
         internal static int InternalConvertToUtf32(String s, int index, out int charLength)
         {
-            Contract.Assert(s != null, "s != null");
-            Contract.Assert(s.Length > 0, "s.Length > 0");
-            Contract.Assert(index >= 0 && index < s.Length, "index >= 0 && index < s.Length");
+            Debug.Assert(s != null, "s != null");
+            Debug.Assert(s.Length > 0, "s.Length > 0");
+            Debug.Assert(index >= 0 && index < s.Length, "index >= 0 && index < s.Length");
             charLength = 1;
             if (index < s.Length - 1)
             {
@@ -133,8 +126,8 @@ namespace System.Globalization
 
         internal static bool IsWhiteSpace(String s, int index)
         {
-            Contract.Assert(s != null, "s!=null");
-            Contract.Assert(index >= 0 && index < s.Length, "index >= 0 && index < s.Length");
+            Debug.Assert(s != null, "s!=null");
+            Debug.Assert(index >= 0 && index < s.Length, "index >= 0 && index < s.Length");
 
             UnicodeCategory uc = GetUnicodeCategory(s, index);
             // In Unicode 3.0, U+2028 is the only character which is under the category "LineSeparator".
@@ -172,10 +165,9 @@ namespace System.Globalization
         //
         // Note that for ch in the range D800-DFFF we just treat it as any other non-numeric character
         //
-        [System.Security.SecuritySafeCritical]  // auto-generated
-        internal unsafe static double InternalGetNumericValue(int ch)
+        internal static unsafe double InternalGetNumericValue(int ch)
         {
-            Contract.Assert(ch >= 0 && ch <= 0x10ffff, "ch is not in valid Unicode range.");
+            Debug.Assert(ch >= 0 && ch <= 0x10ffff, "ch is not in valid Unicode range.");
             // Get the level 2 item from the highest 12 bit (8 - 19) of ch.
             ushort index = s_pNumericLevel1Index[ch >> 8];
             // Get the level 2 WORD offset from the 4 - 7 bit of ch.  This provides the base offset of the level 3 table.
@@ -194,6 +186,21 @@ namespace System.Globalization
             }
         }
 
+        internal static unsafe ushort InternalGetDigitValues(int ch)
+        {
+            Debug.Assert(ch >= 0 && ch <= 0x10ffff, "ch is not in valid Unicode range.");
+            // Get the level 2 item from the highest 12 bit (8 - 19) of ch.
+            ushort index = s_pNumericLevel1Index[ch >> 8];
+            // Get the level 2 WORD offset from the 4 - 7 bit of ch.  This provides the base offset of the level 3 table.
+            // Note that & has the lower precedence than addition, so don't forget the parathesis.
+            index = s_pNumericLevel1Index[index + ((ch >> 4) & 0x000f)];
+            
+            fixed (ushort* pUshortPtr = &(s_pNumericLevel1Index[index]))
+            {
+                byte* pBytePtr = (byte*)pUshortPtr;
+                return s_pDigitValues[pBytePtr[(ch & 0x000f)]];
+            }
+        }
 
         ////////////////////////////////////////////////////////////////////////
         //
@@ -221,14 +228,56 @@ namespace System.Globalization
         {
             if (s == null)
             {
-                throw new ArgumentNullException("s");
+                throw new ArgumentNullException(nameof(s));
             }
             if (index < 0 || index >= s.Length)
             {
-                throw new ArgumentOutOfRangeException("index", SR.ArgumentOutOfRange_Index);
+                throw new ArgumentOutOfRangeException(nameof(index), SR.ArgumentOutOfRange_Index);
             }
             Contract.EndContractBlock();
             return (InternalGetNumericValue(InternalConvertToUtf32(s, index)));
+        }
+
+        public static int GetDecimalDigitValue(char ch) 
+        {
+            return (sbyte) (InternalGetDigitValues(ch) >> 8);
+        }
+
+        public static int GetDecimalDigitValue(String s, int index) 
+        {
+            if (s == null) 
+            {
+                throw new ArgumentNullException(nameof(s));
+            }
+            
+            if (index < 0 || index >= s.Length) 
+            {
+                throw new ArgumentOutOfRangeException(nameof(index), SR.ArgumentOutOfRange_Index);
+            }
+            Contract.EndContractBlock();
+
+            return (sbyte) (InternalGetDigitValues(InternalConvertToUtf32(s, index)) >> 8);
+        }
+        
+        public static int GetDigitValue(char ch)
+        {
+            return (sbyte) (InternalGetDigitValues(ch) & 0x00FF);
+        }
+
+        public static int GetDigitValue(String s, int index) 
+        {
+            if (s == null) 
+            {
+                throw new ArgumentNullException(nameof(s));
+            }
+            
+            if (index < 0 || index >= s.Length) 
+            {
+                throw new ArgumentOutOfRangeException(nameof(index), SR.ArgumentOutOfRange_Index);
+            }
+            
+            Contract.EndContractBlock();
+            return (sbyte) (InternalGetDigitValues(InternalConvertToUtf32(s, index)) & 0x00FF);
         }
 
         public static UnicodeCategory GetUnicodeCategory(char ch)
@@ -239,16 +288,16 @@ namespace System.Globalization
         public static UnicodeCategory GetUnicodeCategory(String s, int index)
         {
             if (s == null)
-                throw new ArgumentNullException("s");
+                throw new ArgumentNullException(nameof(s));
             if (((uint)index) >= ((uint)s.Length))
             {
-                throw new ArgumentOutOfRangeException("index");
+                throw new ArgumentOutOfRangeException(nameof(index));
             }
             Contract.EndContractBlock();
             return InternalGetUnicodeCategory(s, index);
         }
 
-        internal unsafe static UnicodeCategory InternalGetUnicodeCategory(int ch)
+        internal static unsafe UnicodeCategory InternalGetUnicodeCategory(int ch)
         {
             return ((UnicodeCategory)InternalGetCategoryValue(ch, UNICODE_CATEGORY_OFFSET));
         }
@@ -268,10 +317,9 @@ namespace System.Globalization
         //
         ////////////////////////////////////////////////////////////////////////
 
-        [System.Security.SecuritySafeCritical]  // auto-generated
-        internal unsafe static byte InternalGetCategoryValue(int ch, int offset)
+        internal static unsafe byte InternalGetCategoryValue(int ch, int offset)
         {
-            Contract.Assert(ch >= 0 && ch <= 0x10ffff, "ch is not in valid Unicode range.");
+            Debug.Assert(ch >= 0 && ch <= 0x10ffff, "ch is not in valid Unicode range.");
             // Get the level 2 item from the highest 12 bit (8 - 19) of ch.
             ushort index = s_pCategoryLevel1Index[ch >> 8];
             // Get the level 2 WORD offset from the 4 - 7 bit of ch.  This provides the base offset of the level 3 table.
@@ -288,7 +336,7 @@ namespace System.Globalization
                 // Make sure that OtherNotAssigned is the last category in UnicodeCategory.
                 // If that changes, change the following assertion as well.
                 //
-                //Contract.Assert(uc >= 0 && uc <= UnicodeCategory.OtherNotAssigned, "Table returns incorrect Unicode category");
+                //Debug.Assert(uc >= 0 && uc <= UnicodeCategory.OtherNotAssigned, "Table returns incorrect Unicode category");
                 return (uc);
             }
         }
@@ -308,8 +356,8 @@ namespace System.Globalization
 
         internal static UnicodeCategory InternalGetUnicodeCategory(String value, int index)
         {
-            Contract.Assert(value != null, "value can not be null");
-            Contract.Assert(index < value.Length, "index < value.Length");
+            Debug.Assert(value != null, "value can not be null");
+            Debug.Assert(index < value.Length, "index < value.Length");
 
             return (InternalGetUnicodeCategory(InternalConvertToUtf32(value, index)));
         }
@@ -323,16 +371,16 @@ namespace System.Globalization
 
         internal static UnicodeCategory InternalGetUnicodeCategory(String str, int index, out int charLength)
         {
-            Contract.Assert(str != null, "str can not be null");
-            Contract.Assert(str.Length > 0, "str.Length > 0"); ;
-            Contract.Assert(index >= 0 && index < str.Length, "index >= 0 && index < str.Length");
+            Debug.Assert(str != null, "str can not be null");
+            Debug.Assert(str.Length > 0, "str.Length > 0"); ;
+            Debug.Assert(index >= 0 && index < str.Length, "index >= 0 && index < str.Length");
 
             return (InternalGetUnicodeCategory(InternalConvertToUtf32(str, index, out charLength)));
         }
 
         internal static bool IsCombiningCategory(UnicodeCategory uc)
         {
-            Contract.Assert(uc >= 0, "uc >= 0");
+            Debug.Assert(uc >= 0, "uc >= 0");
             return (
                 uc == UnicodeCategory.NonSpacingMark ||
                 uc == UnicodeCategory.SpacingCombiningMark ||

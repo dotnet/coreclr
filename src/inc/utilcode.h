@@ -134,6 +134,17 @@ inline TADDR PCODEToPINSTR(PCODE pc)
 #endif
 }
 
+// Convert from a PINSTR to the corresponding PCODE.  On many architectures this will be the identity function;
+// on ARM, this will raise the THUMB bit.
+inline PCODE PINSTRToPCODE(TADDR addr)
+{
+#ifdef _TARGET_ARM_
+    return DataPointerToThumbCode<PCODE,TADDR>(addr);
+#else
+    return dac_cast<PCODE>(addr);
+#endif
+}
+
 typedef LPCSTR  LPCUTF8;
 typedef LPSTR   LPUTF8;
 
@@ -599,7 +610,7 @@ BOOL CLRFreeLibrary(HMODULE hModule);
 // Load a string using the resources for the current module.
 STDAPI UtilLoadStringRC(UINT iResouceID, __out_ecount (iMax) LPWSTR szBuffer, int iMax, int bQuiet=FALSE);
 
-#if ENABLE_DOWNLEVEL_FOR_NLS
+#if defined(ENABLE_DOWNLEVEL_FOR_NLS) || defined(FEATURE_USE_LCID)
 STDAPI UtilLoadStringRCEx(LCID lcid, UINT iResourceID, __out_ecount (iMax) LPWSTR szBuffer, int iMax, int bQuiet, int *pcwchUsed);
 #endif
 
@@ -3389,7 +3400,7 @@ public:
         m_iSize = iBuckets + 7;
     }
 
-    ~CClosedHashBase()
+    virtual ~CClosedHashBase()
     {
         WRAPPER_NO_CONTRACT;
         Clear();
@@ -5170,6 +5181,11 @@ template<class T> void DeleteExecutable(T *p)
 
 INDEBUG(BOOL DbgIsExecutable(LPVOID lpMem, SIZE_T length);)
 
+BOOL NoGuiOnAssert();
+#ifdef _DEBUG
+VOID TerminateOnAssert();
+#endif // _DEBUG
+
 class HighCharHelper {
 public:
     static inline BOOL IsHighChar(int c) {
@@ -5749,5 +5765,7 @@ struct SpinConstants
 extern SpinConstants g_SpinConstants;
 
 // ======================================================================================
+
+void* __stdcall GetCLRFunction(LPCSTR FunctionName);
 
 #endif // __UtilCode_h__

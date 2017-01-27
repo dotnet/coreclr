@@ -128,7 +128,7 @@ MethodDesc* ILStubCache::CreateAndLinkNewILStubMethodDesc(LoaderAllocator* pAllo
         pStubLinker->GenerateCode(pbBuffer, cbCode);
         pStubLinker->GetLocalSig(pbLocalSig, cbSig);
 
-        pResolver->SetJitFlags(CORJIT_FLG_IL_STUB);
+        pResolver->SetJitFlags(CORJIT_FLAGS(CORJIT_FLAGS::CORJIT_FLAG_IL_STUB));
     }
 
     pResolver->SetTokenLookupMap(pStubLinker->GetTokenLookupMap());
@@ -217,6 +217,12 @@ MethodDesc* ILStubCache::CreateNewMethodDesc(LoaderHeap* pCreationHeap, MethodTa
     else
 #endif
 #ifdef FEATURE_STUBS_AS_IL
+    if (SF_IsSecureDelegateStub(dwStubFlags))
+    {
+        pMD->m_dwExtendedFlags |= DynamicMethodDesc::nomdSecureDelegateStub;
+        pMD->GetILStubResolver()->SetStubType(ILStubResolver::SecureDelegateStub);
+    }
+    else
     if (SF_IsMulticastDelegateStub(dwStubFlags))
     {
         pMD->m_dwExtendedFlags |= DynamicMethodDesc::nomdMulticastStub;

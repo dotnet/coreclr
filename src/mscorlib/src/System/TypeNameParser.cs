@@ -2,6 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 using System;
+using System.Diagnostics;
 using System.Diagnostics.Contracts;
 using System.IO;
 using System.Reflection;
@@ -13,14 +14,11 @@ using System.Threading;
 using System.Runtime.Versioning;
 using Microsoft.Win32.SafeHandles;
 
-#if !FEATURE_CORECLR
 namespace System
 {
-    [SecurityCritical]
     internal class SafeTypeNameParserHandle : SafeHandleZeroOrMinusOneIsInvalid
     {
         #region QCalls
-        [SecurityCritical]
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         [SuppressUnmanagedCodeSecurity]
         private static extern void _ReleaseTypeNameParser(IntPtr pTypeNameParser);
@@ -31,7 +29,6 @@ namespace System
         {
         }
 
-        [SecurityCritical]
         protected override bool ReleaseHandle()
         {
             _ReleaseTypeNameParser(handle);
@@ -43,34 +40,28 @@ namespace System
     internal sealed class TypeNameParser : IDisposable
     {
         #region QCalls
-        [SecurityCritical]
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         [SuppressUnmanagedCodeSecurity]
         private static extern void _CreateTypeNameParser(string typeName, ObjectHandleOnStack retHandle, bool throwOnError);
 
-        [SecurityCritical]
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         [SuppressUnmanagedCodeSecurity]
         private static extern void _GetNames(SafeTypeNameParserHandle pTypeNameParser, ObjectHandleOnStack retArray);
 
-        [SecurityCritical]
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         [SuppressUnmanagedCodeSecurity]
         private static extern void _GetTypeArguments(SafeTypeNameParserHandle pTypeNameParser, ObjectHandleOnStack retArray);
 
-        [SecurityCritical]
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         [SuppressUnmanagedCodeSecurity]
         private static extern void _GetModifiers(SafeTypeNameParserHandle pTypeNameParser, ObjectHandleOnStack retArray);
 
-        [SecurityCritical]
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         [SuppressUnmanagedCodeSecurity]
         private static extern void _GetAssemblyName(SafeTypeNameParserHandle pTypeNameParser, StringHandleOnStack retString);
         #endregion
 
         #region Static Members
-        [SecuritySafeCritical]
         internal static Type GetType(
             string typeName,
             Func<AssemblyName, Assembly> assemblyResolver,
@@ -80,7 +71,7 @@ namespace System
             ref StackCrawlMark stackMark)
         {
             if (typeName == null)
-                throw new ArgumentNullException("typeName");
+                throw new ArgumentNullException(nameof(typeName));
             if (typeName.Length > 0 && typeName[0] == '\0')
                 throw new ArgumentException(Environment.GetResourceString("Format_StringZeroLength"));
             Contract.EndContractBlock();
@@ -104,19 +95,16 @@ namespace System
         #endregion
 
         #region Private Data Members
-        [SecurityCritical]
         private SafeTypeNameParserHandle m_NativeParser;
         private static readonly char[] SPECIAL_CHARS = {',', '[', ']', '&', '*', '+', '\\'}; /* see typeparse.h */
         #endregion
 
         #region Constructor and Disposer
-        [SecuritySafeCritical]
         private TypeNameParser(SafeTypeNameParserHandle handle)
         {
             m_NativeParser = handle;
         }
 
-        [SecuritySafeCritical]
         public void Dispose()
         {
             m_NativeParser.Dispose();
@@ -124,7 +112,6 @@ namespace System
         #endregion
 
         #region private Members
-        [SecuritySafeCritical]
         private unsafe Type ConstructType(
             Func<AssemblyName, Assembly> assemblyResolver,
             Func<Assembly, string, bool, Type> typeResolver,
@@ -137,7 +124,7 @@ namespace System
             string asmName = GetAssemblyName();
 
             // GetAssemblyName never returns null
-            Contract.Assert(asmName != null);
+            Debug.Assert(asmName != null);
 
             if (asmName.Length > 0)
             {
@@ -165,7 +152,7 @@ namespace System
             if (baseType == null)
             {
                 // Cannot resolve the type. If throwOnError is true we should have already thrown.
-                Contract.Assert(throwOnError == false);
+                Debug.Assert(throwOnError == false);
                 return null;
             }
 
@@ -177,7 +164,7 @@ namespace System
                 types = new Type[typeArguments.Length];
                 for (int i = 0; i < typeArguments.Length; i++)
                 {
-                    Contract.Assert(typeArguments[i] != null);
+                    Debug.Assert(typeArguments[i] != null);
 
                     using (TypeNameParser argParser = new TypeNameParser(typeArguments[i]))
                     {
@@ -187,7 +174,7 @@ namespace System
                     if (types[i] == null)
                     {
                         // If throwOnError is true argParser.ConstructType should have already thrown.
-                        Contract.Assert(throwOnError == false);
+                        Debug.Assert(throwOnError == false);
                         return null;
                     }
                 }
@@ -202,7 +189,6 @@ namespace System
             }
         }
 
-        [SecuritySafeCritical]
         private static Assembly ResolveAssembly(string asmName, Func<AssemblyName, Assembly> assemblyResolver, bool throwOnError, ref StackCrawlMark stackMark)
         {
             Contract.Requires(asmName != null && asmName.Length > 0);
@@ -317,7 +303,6 @@ namespace System
             return StringBuilderCache.GetStringAndRelease(sb);
         }
 
-        [SecuritySafeCritical]
         private static SafeTypeNameParserHandle CreateTypeNameParser(string typeName, bool throwOnError)
         {
             SafeTypeNameParserHandle retHandle = null;
@@ -326,7 +311,6 @@ namespace System
             return retHandle;
         }
 
-        [SecuritySafeCritical]
         private string[] GetNames()
         {
             string[] names = null;
@@ -335,7 +319,6 @@ namespace System
             return names;
         }
 
-        [SecuritySafeCritical]
         private SafeTypeNameParserHandle[] GetTypeArguments()
         {
             SafeTypeNameParserHandle[] arguments = null;
@@ -344,7 +327,6 @@ namespace System
             return arguments;
         }
 
-        [SecuritySafeCritical]
         private int[] GetModifiers()
         {
             int[] modifiers = null;
@@ -353,7 +335,6 @@ namespace System
             return modifiers;
         }
 
-        [SecuritySafeCritical]
         private string GetAssemblyName()
         {
             string assemblyName = null;
@@ -364,4 +345,3 @@ namespace System
         #endregion
     }
 }
-#endif //!FEATURE_CORECLR

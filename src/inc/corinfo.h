@@ -231,11 +231,11 @@ TODO: Talk about initializing strutures before use
 #if COR_JIT_EE_VERSION > 460
 
 // Update this one
-SELECTANY const GUID JITEEVersionIdentifier = { /* 718c4238-2a85-45de-88ad-9b1fed806547 */
-    0x718c4238,
-    0x2a85,
-    0x45de,
-    { 0x88, 0xad, 0x9b, 0x1f, 0xed, 0x80, 0x65, 0x47 }
+SELECTANY const GUID JITEEVersionIdentifier = { /* 4bd06266-8ef7-4172-bec6-d3149fde7859 */
+    0x4bd06266,
+    0x8ef7,
+    0x4172,
+    {0xbe, 0xc6, 0xd3, 0x14, 0x9f, 0xde, 0x78, 0x59}
 };
 
 #else
@@ -642,6 +642,7 @@ enum CorInfoHelpFunc
 #if COR_JIT_EE_VERSION > 460
     CORINFO_HELP_READYTORUN_GENERIC_HANDLE,
     CORINFO_HELP_READYTORUN_DELEGATE_CTOR,
+    CORINFO_HELP_READYTORUN_GENERIC_STATIC_BASE,
 #else
     #define CORINFO_HELP_READYTORUN_DELEGATE_CTOR CORINFO_HELP_EE_PRESTUB
 #endif // COR_JIT_EE_VERSION
@@ -910,10 +911,12 @@ enum CORINFO_ACCESS_FLAGS
 // These are the flags set on an CORINFO_EH_CLAUSE
 enum CORINFO_EH_CLAUSE_FLAGS
 {
-    CORINFO_EH_CLAUSE_NONE    = 0,
-    CORINFO_EH_CLAUSE_FILTER  = 0x0001, // If this bit is on, then this EH entry is for a filter
-    CORINFO_EH_CLAUSE_FINALLY = 0x0002, // This clause is a finally clause
-    CORINFO_EH_CLAUSE_FAULT   = 0x0004, // This clause is a fault   clause
+    CORINFO_EH_CLAUSE_NONE      = 0,
+    CORINFO_EH_CLAUSE_FILTER    = 0x0001, // If this bit is on, then this EH entry is for a filter
+    CORINFO_EH_CLAUSE_FINALLY   = 0x0002, // This clause is a finally clause
+    CORINFO_EH_CLAUSE_FAULT     = 0x0004, // This clause is a fault clause
+    CORINFO_EH_CLAUSE_DUPLICATE = 0x0008, // Duplicated clause. This clause was duplicated to a funclet which was pulled out of line
+    CORINFO_EH_CLAUSE_SAMETRY   = 0x0010, // This clause covers same try block as the previous one. (Used by CoreRT ABI.)
 };
 
 // This enumeration is passed to InternalThrow
@@ -985,6 +988,8 @@ enum CorInfoIntrinsics
     CORINFO_INTRINSIC_MemoryBarrier,
     CORINFO_INTRINSIC_GetCurrentManagedThread,
     CORINFO_INTRINSIC_GetManagedThreadId,
+    CORINFO_INTRINSIC_ByReference_Ctor,
+    CORINFO_INTRINSIC_ByReference_Value,
 
     CORINFO_INTRINSIC_Count,
     CORINFO_INTRINSIC_Illegal = -1,         // Not a true intrinsic,
@@ -1311,9 +1316,10 @@ struct CORINFO_LOOKUP_KIND
     bool                        needsRuntimeLookup;
     CORINFO_RUNTIME_LOOKUP_KIND runtimeLookupKind;
 
-    // The 'runtimeLookupFlags' field is just for internal VM / ZAP communication, 
-    // not to be used by the JIT.
+    // The 'runtimeLookupFlags' and 'runtimeLookupArgs' fields
+    // are just for internal VM / ZAP communication, not to be used by the JIT.
     WORD                        runtimeLookupFlags;
+    void *                      runtimeLookupArgs;
 } ;
 
 #else
@@ -1685,6 +1691,8 @@ struct CORINFO_CALL_INFO
     };
 
     CORINFO_CONST_LOOKUP    instParamLookup;    // Used by Ready-to-Run
+
+    BOOL                    secureDelegateInvoke;
 };
 
 //----------------------------------------------------------------------------
@@ -1703,6 +1711,9 @@ enum CORINFO_FIELD_ACCESSOR
     CORINFO_FIELD_STATIC_GENERICS_STATIC_HELPER, // static field access using the "generic static" helper (argument is MethodTable *)
     CORINFO_FIELD_STATIC_ADDR_HELPER,       // static field accessed using address-of helper (argument is FieldDesc *)
     CORINFO_FIELD_STATIC_TLS,               // unmanaged TLS access
+#if COR_JIT_EE_VERSION > 460
+    CORINFO_FIELD_STATIC_READYTORUN_HELPER, // static field access using a runtime lookup helper
+#endif
 
     CORINFO_FIELD_INTRINSIC_ZERO,           // intrinsic zero (IntPtr.Zero, UIntPtr.Zero)
     CORINFO_FIELD_INTRINSIC_EMPTY_STRING,   // intrinsic emptry string (String.Empty)
@@ -1806,6 +1817,9 @@ struct CORINFO_EE_INFO
     // Delegate offsets
     unsigned    offsetOfDelegateInstance;
     unsigned    offsetOfDelegateFirstTarget;
+
+    // Secure delegate offsets
+    unsigned    offsetOfSecureDelegateIndirectCell;
 
     // Remoting offsets
     unsigned    offsetOfTransparentProxyRP;
@@ -2625,7 +2639,7 @@ public:
     // in the code are.  The native compiler will ensure that these places
     // have a corresponding break point in native code.
     //
-    // Note that unless CORJIT_FLG_DEBUG_CODE is specified, this function will
+    // Note that unless CORJIT_FLAG_DEBUG_CODE is specified, this function will
     // be used only as a hint and the native compiler should not change its
     // code generation.
     virtual void getBoundaries(
@@ -2655,7 +2669,7 @@ public:
     // under debugging, the JIT needs to keep them live over their
     // entire scope so that they can be inspected.
     //
-    // Note that unless CORJIT_FLG_DEBUG_CODE is specified, this function will
+    // Note that unless CORJIT_FLAG_DEBUG_CODE is specified, this function will
     // be used only as a hint and the native compiler should not change its
     // code generation.
     virtual void getVars(

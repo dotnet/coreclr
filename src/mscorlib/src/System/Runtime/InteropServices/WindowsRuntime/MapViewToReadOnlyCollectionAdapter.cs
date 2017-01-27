@@ -8,6 +8,7 @@ using System;
 using System.Security;
 using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Diagnostics.Contracts;
 using System.Runtime.InteropServices;
 using System.Runtime.CompilerServices;
@@ -29,12 +30,11 @@ namespace System.Runtime.InteropServices.WindowsRuntime
     {
         private MapViewToReadOnlyCollectionAdapter()
         {
-            Contract.Assert(false, "This class is never instantiated");
+            Debug.Assert(false, "This class is never instantiated");
         }
 
         // int Count { get }
         [Pure]
-        [SecurityCritical]
         internal int Count<K, V>()
         {
             object _this = JitHelpers.UnsafeCast<object>(this);

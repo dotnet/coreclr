@@ -19,6 +19,7 @@ namespace System {
     using System.Globalization;
     using System.Runtime.CompilerServices;
     using System.Runtime.Versioning;
+    using System.Diagnostics;
     using System.Diagnostics.Contracts;
 
     [Serializable]
@@ -118,19 +119,14 @@ namespace System {
         //
         // Native Methods
         //
-        [System.Security.SecurityCritical]  // auto-generated
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         internal extern double GetR8FromVar();
-        [System.Security.SecurityCritical]  // auto-generated
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         internal extern float  GetR4FromVar();
-        [System.Security.SecurityCritical]  // auto-generated
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         internal extern void   SetFieldsR4(float val);
-        [System.Security.SecurityCritical]  // auto-generated
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         internal extern void   SetFieldsR8(double val);
-        [System.Security.SecurityCritical]  // auto-generated
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         internal extern void SetFieldsObject(Object val);
 
@@ -224,7 +220,6 @@ namespace System {
             m_data2 = (int)(val >> 32);
         }
 
-        [System.Security.SecuritySafeCritical]  // auto-generated
         public Variant(float val) {
             m_objref=null;
             m_flags=CV_R4;
@@ -233,7 +228,6 @@ namespace System {
             SetFieldsR4(val);
         }
 
-        [System.Security.SecurityCritical]  // auto-generated
         public Variant(double val) {
             m_objref=null;
             m_flags=CV_R8;
@@ -257,7 +251,6 @@ namespace System {
             m_data2=0;
         }
 
-        [System.Security.SecuritySafeCritical]  // auto-generated
         public Variant(Object obj) {
             m_data1=0;
             m_data2=0;
@@ -317,13 +310,13 @@ namespace System {
             {
                 vt = VarEnum.VT_ERROR;
                 obj = (Object)(((ErrorWrapper)obj).ErrorCode);
-                Contract.Assert(obj != null, "obj != null");
+                Debug.Assert(obj != null, "obj != null");
             }
             else if (obj is CurrencyWrapper)
             {
                 vt = VarEnum.VT_CY;
                 obj = (Object)(((CurrencyWrapper)obj).WrappedObject);
-                Contract.Assert(obj != null, "obj != null");
+                Debug.Assert(obj != null, "obj != null");
             }
             else if (obj is BStrWrapper)
             {
@@ -342,12 +335,11 @@ namespace System {
         }
 
 
-        [System.Security.SecurityCritical]  // auto-generated
         unsafe public Variant(void* voidPointer,Type pointerType) {
             if (pointerType == null)
-                throw new ArgumentNullException("pointerType");
+                throw new ArgumentNullException(nameof(pointerType));
             if (!pointerType.IsPointer)
-                throw new ArgumentException(Environment.GetResourceString("Arg_MustBePointer"),"pointerType");
+                throw new ArgumentException(Environment.GetResourceString("Arg_MustBePointer"),nameof(pointerType));
             Contract.EndContractBlock();
 
             m_objref = pointerType;
@@ -365,7 +357,6 @@ namespace System {
             }
         }
 
-        [System.Security.SecuritySafeCritical]  // auto-generated
         public Object ToObject() {
             switch (CVType) {
             case CV_EMPTY:
@@ -413,21 +404,16 @@ namespace System {
         }
 
         // This routine will return an boxed enum.
-        [System.Security.SecurityCritical]  // auto-generated
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         private extern Object BoxEnum();
 
 
         // Helper code for marshaling managed objects to VARIANT's (we use
         // managed variants as an intermediate type.
-        [System.Security.SecuritySafeCritical]  // auto-generated
         internal static void MarshalHelperConvertObjectToVariant(Object o, ref Variant v)
         {
-#if FEATURE_REMOTING
-            IConvertible ic = System.Runtime.Remoting.RemotingServices.IsTransparentProxy(o) ? null : o as IConvertible;
-#else
             IConvertible ic = o as IConvertible;
-#endif
+
             if (o == null)
             {
                 v = Empty;
@@ -532,7 +518,6 @@ namespace System {
         // Helper code: on the back propagation path where a VT_BYREF VARIANT*
         // is marshaled to a "ref Object", we use this helper to force the
         // updated object back to the original type.
-        [System.Security.SecurityCritical]  // auto-generated
         internal static void MarshalHelperCastVariant(Object pValue, int vt, ref Variant v)
         {
             IConvertible iv = pValue as IConvertible;

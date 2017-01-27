@@ -20,17 +20,13 @@ namespace System.Resources {
     using System.Text;
     using System.Collections;
     using System.Collections.Generic;
-#if FEATURE_SERIALIZATION
-    using System.Runtime.Serialization;
-    using System.Runtime.Serialization.Formatters;
-    using System.Runtime.Serialization.Formatters.Binary;
-#endif // FEATURE_SERIALIZATION
     using System.Reflection;
     using System.Security.Permissions;
     using System.Security;
     using System.Globalization;
     using System.Configuration.Assemblies;
     using System.Runtime.Versioning;
+    using System.Diagnostics;
     using System.Diagnostics.Contracts;
 
     // Provides the default implementation of IResourceReader, reading
@@ -66,7 +62,7 @@ namespace System.Resources {
 
         internal static bool CanCache(ResourceTypeCode value)
         {
-            Contract.Assert(value >= 0, "negative ResourceTypeCode.  What?");
+            Debug.Assert(value >= 0, "negative ResourceTypeCode.  What?");
             return value <= ResourceTypeCode.LastPrimitive;
         }   
     }
@@ -94,16 +90,11 @@ namespace System.Resources {
         // of the assembly.  The pointers here are pointers into that block of
         // memory controlled by the OS's loader.
         private int[] _nameHashes;    // hash values for all names.
-        [SecurityCritical]
         private unsafe int* _nameHashesPtr;  // In case we're using UnmanagedMemoryStream
         private int[] _namePositions; // relative locations of names
-        [SecurityCritical]
         private unsafe int* _namePositionsPtr;  // If we're using UnmanagedMemoryStream
         private RuntimeType[] _typeTable;    // Lazy array of Types for resource values.
         private int[] _typeNamePositions;  // To delay initialize type table
-#if FEATURE_SERIALIZATION
-        private BinaryFormatter _objFormatter; // Deserialization stuff.
-#endif // FEATURE_SERIALIZATION
         private int _numResources;    // Num of resources files, in case arrays aren't allocated.        
 
         // We'll include a separate code path that uses UnmanagedMemoryStream to
@@ -117,46 +108,7 @@ namespace System.Resources {
         private bool _debug;   // Whether this file has debugging stuff in it.
 #endif
 
-#if FEATURE_SERIALIZATION
-        private bool[] _safeToDeserialize; // Whether to assert serialization permission
-        private TypeLimitingDeserializationBinder _typeLimitingBinder;
 
-        // One of our goals is to make sure localizable Windows Forms apps
-        // work in semi-trusted scenarios (ie, without serialization permission).
-        // Unfortunate we're serializing out some complex types that currently
-        // require a security check on deserialization.  We may fix this
-        // in a next version, but for now just hard-code a list.
-        // Hard-code in the assembly name (minus version) so people can't spoof us.
-        private static readonly String[] TypesSafeForDeserialization = {
-            "System.String[], mscorlib, Culture=neutral, PublicKeyToken=" + AssemblyRef.MicrosoftPublicKeyToken,
-            "System.DateTime[], mscorlib, Culture=neutral, PublicKeyToken=" + AssemblyRef.MicrosoftPublicKeyToken,
-            "System.Drawing.Bitmap, System.Drawing, Culture=neutral, PublicKeyToken=" + AssemblyRef.MicrosoftPublicKeyToken,
-            "System.Drawing.Imaging.Metafile, System.Drawing, Culture=neutral, PublicKeyToken=" + AssemblyRef.MicrosoftPublicKeyToken,
-            "System.Drawing.Point, System.Drawing, Culture=neutral, PublicKeyToken=" + AssemblyRef.MicrosoftPublicKeyToken,
-            "System.Drawing.PointF, System.Drawing, Culture=neutral, PublicKeyToken=" + AssemblyRef.MicrosoftPublicKeyToken,
-            "System.Drawing.Size, System.Drawing, Culture=neutral, PublicKeyToken=" + AssemblyRef.MicrosoftPublicKeyToken,
-            "System.Drawing.SizeF, System.Drawing, Culture=neutral, PublicKeyToken=" + AssemblyRef.MicrosoftPublicKeyToken,
-            "System.Drawing.Font, System.Drawing, Culture=neutral, PublicKeyToken=" + AssemblyRef.MicrosoftPublicKeyToken,
-            "System.Drawing.Icon, System.Drawing, Culture=neutral, PublicKeyToken=" + AssemblyRef.MicrosoftPublicKeyToken,
-            "System.Drawing.Color, System.Drawing, Culture=neutral, PublicKeyToken=" + AssemblyRef.MicrosoftPublicKeyToken,
-            "System.Windows.Forms.Cursor, System.Windows.Forms, Culture=neutral, PublicKeyToken=" + AssemblyRef.EcmaPublicKeyToken,
-            "System.Windows.Forms.Padding, System.Windows.Forms, Culture=neutral, PublicKeyToken=" + AssemblyRef.EcmaPublicKeyToken,
-            "System.Windows.Forms.LinkArea, System.Windows.Forms, Culture=neutral, PublicKeyToken=" + AssemblyRef.EcmaPublicKeyToken,
-            "System.Windows.Forms.ImageListStreamer, System.Windows.Forms, Culture=neutral, PublicKeyToken=" + AssemblyRef.EcmaPublicKeyToken,
-            "System.Windows.Forms.ListViewGroup, System.Windows.Forms, Culture=neutral, PublicKeyToken=" + AssemblyRef.EcmaPublicKeyToken,
-            "System.Windows.Forms.ListViewItem, System.Windows.Forms, Culture=neutral, PublicKeyToken=" + AssemblyRef.EcmaPublicKeyToken,
-            "System.Windows.Forms.ListViewItem+ListViewSubItem, System.Windows.Forms, Culture=neutral, PublicKeyToken=" + AssemblyRef.EcmaPublicKeyToken,
-            "System.Windows.Forms.ListViewItem+ListViewSubItem+SubItemStyle, System.Windows.Forms, Culture=neutral, PublicKeyToken=" + AssemblyRef.EcmaPublicKeyToken,
-            "System.Windows.Forms.OwnerDrawPropertyBag, System.Windows.Forms, Culture=neutral, PublicKeyToken=" + AssemblyRef.EcmaPublicKeyToken,
-            "System.Windows.Forms.TreeNode, System.Windows.Forms, Culture=neutral, PublicKeyToken=" + AssemblyRef.EcmaPublicKeyToken
-        };
-#endif // FEATURE_SERIALIZATION
-
-        #if FEATURE_CORECLR
-        [System.Security.SecurityCritical] // auto-generated
-        #else
-        [System.Security.SecuritySafeCritical]
-        #endif
         public ResourceReader(String fileName)
         {
             _resCache = new Dictionary<String, ResourceLocator>(FastResourceComparer.Default);
@@ -172,11 +124,10 @@ namespace System.Resources {
             }
         }
     
-        [System.Security.SecurityCritical]  // auto-generated_required
         public ResourceReader(Stream stream)
         {
             if (stream==null)
-                throw new ArgumentNullException("stream");
+                throw new ArgumentNullException(nameof(stream));
             if (!stream.CanRead)
                 throw new ArgumentException(Environment.GetResourceString("Argument_StreamNotReadable"));
             Contract.EndContractBlock();
@@ -194,7 +145,6 @@ namespace System.Resources {
         // passing in the stream to read from and the RuntimeResourceSet's 
         // internal hash table (hash table of names with file offsets
         // and values, coupled to this ResourceReader).
-        [System.Security.SecurityCritical]  // auto-generated
         internal ResourceReader(Stream stream, Dictionary<String, ResourceLocator> resCache)
         {
             Contract.Requires(stream != null, "Need a stream!");
@@ -221,7 +171,6 @@ namespace System.Resources {
             Close();
         }
 
-        [System.Security.SecuritySafeCritical]  // auto-generated
         private unsafe void Dispose(bool disposing)
         {
             if (_store != null) {
@@ -243,7 +192,6 @@ namespace System.Resources {
             }
         }
         
-        [System.Security.SecurityCritical]  // auto-generated
         internal static unsafe int ReadUnalignedI4(int* p)
         {
             byte* buffer = (byte*)p;
@@ -264,11 +212,10 @@ namespace System.Resources {
             _store.BaseStream.Seek(stringLength, SeekOrigin.Current);
         }
 
-        [System.Security.SecuritySafeCritical]  // auto-generated
         private unsafe int GetNameHash(int index)
         {
-            Contract.Assert(index >=0 && index < _numResources, "Bad index into hash array.  index: "+index);
-            Contract.Assert((_ums == null && _nameHashes != null && _nameHashesPtr == null) || 
+            Debug.Assert(index >=0 && index < _numResources, "Bad index into hash array.  index: "+index);
+            Debug.Assert((_ums == null && _nameHashes != null && _nameHashesPtr == null) || 
                             (_ums != null && _nameHashes == null && _nameHashesPtr != null), "Internal state mangled.");
             if (_ums == null)
                 return _nameHashes[index];
@@ -276,11 +223,10 @@ namespace System.Resources {
                 return ReadUnalignedI4(&_nameHashesPtr[index]);
         }
 
-        [System.Security.SecuritySafeCritical]  // auto-generated
         private unsafe int GetNamePosition(int index)
         {
-            Contract.Assert(index >=0 && index < _numResources, "Bad index into name position array.  index: "+index);
-            Contract.Assert((_ums == null && _namePositions != null && _namePositionsPtr == null) || 
+            Debug.Assert(index >=0 && index < _numResources, "Bad index into name position array.  index: "+index);
+            Debug.Assert((_ums == null && _namePositions != null && _namePositionsPtr == null) || 
                             (_ums != null && _namePositions == null && _namePositionsPtr != null), "Internal state mangled.");
             int r;
             if (_ums == null)
@@ -316,7 +262,7 @@ namespace System.Resources {
         // This does a binary search through the names.
         internal int FindPosForResource(String name)
         {
-            Contract.Assert(_store != null, "ResourceReader is closed!");
+            Debug.Assert(_store != null, "ResourceReader is closed!");
             int hash = FastResourceComparer.HashFunction(name);
             BCLDebug.Log("RESMGRFILEFORMAT", "FindPosForResource for "+name+"  hash: "+hash.ToString("x", CultureInfo.InvariantCulture));
             // Binary search over the hashes.  Use the _namePositions array to 
@@ -395,10 +341,9 @@ namespace System.Resources {
         // with the string you pass in. 
         // Whoever calls this method should make sure that they take a lock
         // so no one else can cause us to seek in the stream.
-        [System.Security.SecuritySafeCritical]  // auto-generated
         private unsafe bool CompareStringEqualsName(String name)
         {
-            Contract.Assert(_store != null, "ResourceReader is closed!");
+            Debug.Assert(_store != null, "ResourceReader is closed!");
             int byteLen = _store.Read7BitEncodedInt();
             if (byteLen < 0) {
                 throw new BadImageFormatException(Environment.GetResourceString("BadImageFormat_NegativeStringLength"));
@@ -433,10 +378,9 @@ namespace System.Resources {
         // This is used in the enumerator.  The enumerator iterates from 0 to n
         // of our resources and this returns the resource name for a particular
         // index.  The parameter is NOT a virtual offset.
-        [System.Security.SecurityCritical]  // auto-generated
         private unsafe String AllocateStringForNameIndex(int index, out int dataOffset)
         {
-            Contract.Assert(_store != null, "ResourceReader is closed!");
+            Debug.Assert(_store != null, "ResourceReader is closed!");
             byte[] bytes;
             int byteLen;
             long nameVA = GetNamePosition(index);
@@ -500,7 +444,7 @@ namespace System.Resources {
         // index.  The parameter is NOT a virtual offset.
         private Object GetValueForNameIndex(int index)
         {
-            Contract.Assert(_store != null, "ResourceReader is closed!");
+            Debug.Assert(_store != null, "ResourceReader is closed!");
             long nameVA = GetNamePosition(index);
             lock(this) {
                 _store.BaseStream.Seek(nameVA + _nameSectionOffset, SeekOrigin.Begin);
@@ -525,7 +469,7 @@ namespace System.Resources {
         // no one can cause us to do a seek in here.
         internal String LoadString(int pos)
         {
-            Contract.Assert(_store != null, "ResourceReader is closed!");
+            Debug.Assert(_store != null, "ResourceReader is closed!");
             _store.BaseStream.Seek(_dataSectionOffset+pos, SeekOrigin.Begin);
             String s = null;
             int typeIndex = _store.Read7BitEncodedInt();
@@ -578,8 +522,8 @@ namespace System.Resources {
         // no one can cause us to do a seek in here.
         internal Object LoadObjectV1(int pos)
         {
-            Contract.Assert(_store != null, "ResourceReader is closed!");
-            Contract.Assert(_version == 1, ".resources file was not a V1 .resources file!");
+            Debug.Assert(_store != null, "ResourceReader is closed!");
+            Debug.Assert(_version == 1, ".resources file was not a V1 .resources file!");
 
             try {
                 // mega try-catch performs exceptionally bad on x64; factored out body into 
@@ -594,9 +538,6 @@ namespace System.Resources {
             }
         }
 
-#if FEATURE_SERIALIZATION
-        [SecuritySafeCritical]
-#endif
         private Object _LoadObjectV1(int pos) {
             _store.BaseStream.Seek(_dataSectionOffset+pos, SeekOrigin.Begin);
             int typeIndex = _store.Read7BitEncodedInt();
@@ -644,18 +585,14 @@ namespace System.Resources {
                 return new Decimal(bits);
             }
             else {
-#if FEATURE_SERIALIZATION
-                return DeserializeObject(typeIndex);
-#else
                 throw new NotSupportedException(Environment.GetResourceString("NotSupported_ResourceObjectSerialization"));
-#endif // FEATURE_SERIALIZATION
             }
         }
 
         internal Object LoadObjectV2(int pos, out ResourceTypeCode typeCode)
         {
-            Contract.Assert(_store != null, "ResourceReader is closed!");
-            Contract.Assert(_version >= 2, ".resources file was not a V2 (or higher) .resources file!");
+            Debug.Assert(_store != null, "ResourceReader is closed!");
+            Debug.Assert(_version >= 2, ".resources file was not a V2 (or higher) .resources file!");
 
             try {
                 // mega try-catch performs exceptionally bad on x64; factored out body into 
@@ -670,7 +607,6 @@ namespace System.Resources {
             }
         }
 
-        [System.Security.SecuritySafeCritical]  // auto-generated
         private Object _LoadObjectV2(int pos, out ResourceTypeCode typeCode) {
             _store.BaseStream.Seek(_dataSectionOffset+pos, SeekOrigin.Begin);
             typeCode = (ResourceTypeCode) _store.Read7BitEncodedInt();
@@ -752,7 +688,7 @@ namespace System.Resources {
 
                     byte[] bytes = new byte[len];
                     int r = _ums.Read(bytes, 0, len);
-                    Contract.Assert(r == len, "ResourceReader needs to use a blocking read here.  (Call _store.ReadBytes(len)?)");
+                    Debug.Assert(r == len, "ResourceReader needs to use a blocking read here.  (Call _store.ReadBytes(len)?)");
                     return bytes;
                 }
 
@@ -787,72 +723,17 @@ namespace System.Resources {
             }
 
             // Normal serialized objects
-#if FEATURE_SERIALIZATION
-            int typeIndex = typeCode - ResourceTypeCode.StartOfUserTypes;
-            return DeserializeObject(typeIndex);
-#else 
             throw new NotSupportedException(Environment.GetResourceString("NotSupported_ResourceObjectSerialization"));
-#endif // FEATURE_SERIALIZATION
         }
 
 
-#if FEATURE_SERIALIZATION
-        // Helper method to safely deserialize a type, using a type-limiting
-        // deserialization binder to simulate a type-limiting deserializer.
-        // This method handles types that are safe to deserialize, as well as
-        // ensuring we only get back what we expect.
-        [System.Security.SecurityCritical]  // auto-generated
-        private Object DeserializeObject(int typeIndex)
-        {
-            RuntimeType type = FindType(typeIndex);
-            // Initialize deserialization permission array, if needed
-            if (_safeToDeserialize == null)
-                InitSafeToDeserializeArray();
-
-            // Ensure that the object we deserialized is exactly the same
-            // type of object we thought we should be deserializing.  This
-            // will help prevent malformed .resources files from using our
-            // serialization permission assert to deserialize anything
-            // via a malformed type ID.   
-
-            Object graph;
-            if (_safeToDeserialize[typeIndex]) {
-                // Don't assert serialization permission - just ask the binary 
-                // formatter to avoid a permission check.  This ensures that any
-                // types which do demand serialization permission in their 
-                // deserialization .cctors will fail.
-                // Also, use a serialization binder to limit bind requests to 
-                // our allowed list of WinForms types.
-                _objFormatter.Binder = _typeLimitingBinder;
-                _typeLimitingBinder.ExpectingToDeserialize(type);
-                graph = _objFormatter.UnsafeDeserialize(_store.BaseStream, null);
-            }
-            else {
-                _objFormatter.Binder = null;
-                graph = _objFormatter.Deserialize(_store.BaseStream);
-            }
-
-            // This check is about correctness, not security at this point.
-            if (graph.GetType() != type)
-                throw new BadImageFormatException(Environment.GetResourceString("BadImageFormat_ResType&SerBlobMismatch", type.FullName, graph.GetType().FullName));
-
-            return graph;
-        }
-#endif // FEATURE_SERIALIZATION
 
         // Reads in the header information for a .resources file.  Verifies some
         // of the assumptions about this resource set, and builds the class table
         // for the default resource file format.
-        [System.Security.SecurityCritical]  // auto-generated
         private void ReadResources()
         {
-            Contract.Assert(_store != null, "ResourceReader is closed!");
-#if FEATURE_SERIALIZATION
-            BinaryFormatter bf = new BinaryFormatter(null, new StreamingContext(StreamingContextStates.File | StreamingContextStates.Persistence));
-            _typeLimitingBinder = new TypeLimitingDeserializationBinder();
-            bf.Binder = _typeLimitingBinder;
-            _objFormatter = bf;
-#endif // FEATURE_SERIALIZATION
+            Debug.Assert(_store != null, "ResourceReader is closed!");
 
             try {
                 // mega try-catch performs exceptionally bad on x64; factored out body into 
@@ -867,7 +748,6 @@ namespace System.Resources {
             }
         }
 
-        [System.Security.SecurityCritical]  // auto-generated
         private void _ReadResources()
         {
             // Read ResourceManager header
@@ -1068,7 +948,6 @@ namespace System.Resources {
                     String typeName = _store.ReadString();
                     _typeTable[typeIndex] = (RuntimeType)Type.GetType(typeName, true);
                 }
-#if !FEATURE_SERIALIZATION
                 // If serialization isn't supported, we convert FileNotFoundException to 
                 // NotSupportedException for consistency with v2. This is a corner-case, but the 
                 // idea is that we want to give the user a more accurate error message. Even if
@@ -1083,89 +962,19 @@ namespace System.Resources {
                 {
                     throw new NotSupportedException(Environment.GetResourceString("NotSupported_ResourceObjectSerialization"));
                 }
-#endif // FEATURE_SERIALIZATION
                 finally {
                     _store.BaseStream.Position = oldPos;
                 }
             }
-            Contract.Assert(_typeTable[typeIndex] != null, "Should have found a type!");
+            Debug.Assert(_typeTable[typeIndex] != null, "Should have found a type!");
             return _typeTable[typeIndex];
         }
 
-#if FEATURE_SERIALIZATION
-        [System.Security.SecurityCritical]  // auto-generated
-        private void InitSafeToDeserializeArray()
-        {
-            _safeToDeserialize = new bool[_typeTable.Length];
-            for(int i=0; i<_typeTable.Length; i++) {
-                long oldPos = _store.BaseStream.Position;
-                String typeName;
-                try {
-                    _store.BaseStream.Position = _typeNamePositions[i];
-                    typeName = _store.ReadString();
-                }
-                finally {
-                    _store.BaseStream.Position = oldPos;
-                }
-
-                AssemblyName an;
-                String typePart;
-                RuntimeType resourceType = (RuntimeType)Type.GetType(typeName, false);
-                if (resourceType == null) {
-                    an = null;
-                    typePart = typeName;
-                }
-                else {
-                    // Enums should be safe to deserialize, and this helps out
-                    // partially trusted, localized WinForms apps.
-                    if (resourceType.BaseType == typeof(Enum)) {
-                        _safeToDeserialize[i] = true;
-                        continue;
-                    }
-
-                    // For most types, check our TypesSafeForDeserialization.
-                    typePart = resourceType.FullName;
-
-                    an = new AssemblyName();
-                    
-                    // resourceType is retrieved via Type.GetType and must be a RuntimeType
-                    RuntimeAssembly a = (RuntimeAssembly)resourceType.Assembly;
-                    an.Init(a.GetSimpleName(), 
-                            a.GetPublicKey(),
-                            null, // public key token
-                            null, // version
-                            a.GetLocale(),
-                            AssemblyHashAlgorithm.None,
-                            AssemblyVersionCompatibility.SameMachine,
-                            null, // codebase
-                            AssemblyNameFlags.PublicKey,
-                            null); // strong name key pair
-                }
-
-                foreach(String safeType in TypesSafeForDeserialization) {
-                    if (ResourceManager.CompareNames(safeType, typePart, an)) {
-#if _DEBUG
-                        if (ResourceManager.DEBUG >= 7)
-                            Console.WriteLine("ResReader: Found a type-safe type to deserialize!  Type name: {0}", typeName);
-#endif
-                        _safeToDeserialize[i] = true;
-                        continue;
-                    }
-                }
-
-#if _DEBUG
-                if (ResourceManager.DEBUG >= 7)
-                    if (!_safeToDeserialize[i])
-                        Console.WriteLine("ResReader: Found a type that wasn't safe to deserialize: {0}", typeName);
-#endif
-            }
-        }
-#endif // FEATURE_SERIALIZATION
 
         public void GetResourceData(String resourceName, out String resourceType, out byte[] resourceData)
         {
             if (resourceName == null)
-                throw new ArgumentNullException("resourceName");
+                throw new ArgumentNullException(nameof(resourceName));
             Contract.EndContractBlock();
             if (_resCache == null)
                 throw new InvalidOperationException(Environment.GetResourceString("ResourceReaderIsClosed"));
@@ -1200,10 +1009,10 @@ namespace System.Resources {
                 Array.Sort(sortedDataPositions);
 
                 int index = Array.BinarySearch(sortedDataPositions, dataPos);
-                Contract.Assert(index >= 0 && index < _numResources, "Couldn't find data position within sorted data positions array!");
+                Debug.Assert(index >= 0 && index < _numResources, "Couldn't find data position within sorted data positions array!");
                 long nextData = (index < _numResources - 1) ? sortedDataPositions[index + 1] + _dataSectionOffset : _store.BaseStream.Length;
                 int len = (int) (nextData - (dataPos + _dataSectionOffset));
-                Contract.Assert(len >= 0 && len <= (int) _store.BaseStream.Length - dataPos + _dataSectionOffset, "Length was negative or outside the bounds of the file!");
+                Debug.Assert(len >= 0 && len <= (int) _store.BaseStream.Length - dataPos + _dataSectionOffset, "Length was negative or outside the bounds of the file!");
 
                 // Read type code then byte[]
                 _store.BaseStream.Position = _dataSectionOffset + dataPos;
@@ -1227,12 +1036,12 @@ namespace System.Resources {
         {
             Contract.Requires(typeCode >= 0, "can't be negative");
             if (typeCode < ResourceTypeCode.StartOfUserTypes) {
-                Contract.Assert(!String.Equals(typeCode.ToString(), "LastPrimitive"), "Change ResourceTypeCode metadata order so LastPrimitive isn't what Enum.ToString prefers.");
+                Debug.Assert(!String.Equals(typeCode.ToString(), "LastPrimitive"), "Change ResourceTypeCode metadata order so LastPrimitive isn't what Enum.ToString prefers.");
                 return "ResourceTypeCode." + typeCode.ToString();
             }
             else {
                 int typeIndex = typeCode - ResourceTypeCode.StartOfUserTypes;
-                Contract.Assert(typeIndex >= 0 && typeIndex < _typeTable.Length, "TypeCode is broken or corrupted!");
+                Debug.Assert(typeIndex >= 0 && typeIndex < _typeTable.Length, "TypeCode is broken or corrupted!");
                 long oldPos = _store.BaseStream.Position;
                 try {
                     _store.BaseStream.Position = _typeNamePositions[typeIndex];
@@ -1244,73 +1053,6 @@ namespace System.Resources {
             }
         }
 
-#if FEATURE_SERIALIZATION
-        // We need to build a type-limiting deserializer.  We know exactly which
-        // type we want to deserialize, and if someone tells us we have type X
-        // (which might be safe to deserialize) and they give us a serialized 
-        // form of type Y, we don't want to run the deserialization constructor
-        // because we've asserted serialization formatter permission.  Instead,
-        // limit the binary formatter's type binding to precisely the type we 
-        // expect.  If they ever don't match, that's a corrupt .resources file.
-        // We also must check the complete object graph to ensure all of the 
-        // graph contains safe objects.
-        // Note this is tightly coupled to the BinaryFormatter, since we use 
-        // its internal ObjectReader::FastBindToType method, and we had to
-        // change the ObjectReader to register itself with this type. 
-        internal sealed class TypeLimitingDeserializationBinder : SerializationBinder 
-        {
-            private RuntimeType _typeToDeserialize;
-            // This is tightly coupled with the binary formatter, because we
-            // want to use exactly the same code found in the ObjectReader
-            // to do the lookup, then just give a thumbs up or down based on
-            // a type equality comparison.  In the future, we could consider 
-            // some better refactoring of this code.
-            private ObjectReader _objectReader;
-
-            internal ObjectReader ObjectReader {
-                get { return _objectReader; }
-                set { _objectReader = value; }
-            }
-
-            internal void ExpectingToDeserialize(RuntimeType type)
-            {
-                _typeToDeserialize = type;
-            }
-            
-            [System.Security.SecuritySafeCritical] // overrides transparent public member
-            public override Type BindToType(string assemblyName, string typeName)
-            {
-                // BinaryObjectReader::Bind tries us first, then its own code.
-                // Returning null means let the default binding rules happen.
-                AssemblyName an = new AssemblyName(assemblyName);
-
-                bool safe = false;
-                foreach(String safeType in TypesSafeForDeserialization) {
-                    if (ResourceManager.CompareNames(safeType, typeName, an)) {
-                        safe = true;
-                        break;
-                    }
-                }
-                
-                // WinForms types may internally use some enums that aren't 
-                // on our safe to deserialize list, like Font using FontStyle.
-                Type t = ObjectReader.FastBindToType(assemblyName, typeName);
-                if (t.IsEnum)
-                    safe = true;
-
-                if (safe)
-                    return null;
-
-                // Throw instead of returning null.
-                // If you're looking at this in a debugger, you've either 
-                // got a malformed .resources file on your hands, or WinForms 
-                // types have taken a new dependency on another type.  Check 
-                // whether assemblyName & typeName refer to a trustworthy type,
-                // & consider adding it to the TypesSafeToDeserialize list.
-                throw new BadImageFormatException(Environment.GetResourceString("BadImageFormat_ResType&SerBlobMismatch", _typeToDeserialize.FullName, typeName));
-            }
-        }
-#endif // FEATURE_SERIALIZATION
 
 
         internal sealed class ResourceEnumerator : IDictionaryEnumerator
@@ -1343,7 +1085,6 @@ namespace System.Resources {
             }
         
             public Object Key {
-                [System.Security.SecuritySafeCritical]  // auto-generated
                 get {
                     if (_currentName == ENUM_DONE) throw new InvalidOperationException(Environment.GetResourceString(ResId.InvalidOperation_EnumEnded));
                     if (!_currentIsValid) throw new InvalidOperationException(Environment.GetResourceString(ResId.InvalidOperation_EnumNotStarted));
@@ -1367,7 +1108,6 @@ namespace System.Resources {
             }
 
             public DictionaryEntry Entry {
-                [System.Security.SecuritySafeCritical]  // auto-generated
                 get {
                     if (_currentName == ENUM_DONE) throw new InvalidOperationException(Environment.GetResourceString(ResId.InvalidOperation_EnumEnded));
                     if (!_currentIsValid) throw new InvalidOperationException(Environment.GetResourceString(ResId.InvalidOperation_EnumNotStarted));

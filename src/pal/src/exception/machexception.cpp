@@ -14,12 +14,14 @@ Abstract:
 
 --*/
 
+#include "pal/dbgmsg.h"
+SET_DEFAULT_DEBUG_CHANNEL(EXCEPT); // some headers have code with asserts, so do this first
+
 #include "pal/thread.hpp"
 #include "pal/seh.hpp"
 #include "pal/palinternal.h"
 #if HAVE_MACH_EXCEPTIONS
 #include "machexception.h"
-#include "pal/dbgmsg.h"
 #include "pal/critsect.h"
 #include "pal/debug.h"
 #include "pal/init.h"
@@ -41,8 +43,6 @@ Abstract:
 #include <mach-o/loader.h>
 
 using namespace CorUnix;
-
-SET_DEFAULT_DEBUG_CHANNEL(EXCEPT);
 
 // The port we use to handle exceptions and to set the thread context
 mach_port_t s_ExceptionPort;
@@ -177,7 +177,7 @@ GetExceptionMask()
         if (exceptionSettings)
         {
             exMode = (MachExceptionMode)atoi(exceptionSettings);
-            InternalFree(exceptionSettings);
+            free(exceptionSettings);
         }
         else
         {
@@ -1518,6 +1518,7 @@ ActivationHandler(CONTEXT* context)
 
 extern "C" void ActivationHandlerWrapper();
 extern "C" int ActivationHandlerReturnOffset;
+extern "C" unsigned int XmmYmmStateSupport();
 
 /*++
 Function :
@@ -1581,6 +1582,12 @@ InjectActivationInternal(CPalThread* pThread)
                 // after the activation function returns.
                 CONTEXT *pContext = (CONTEXT *)contextAddress;
                 pContext->ContextFlags = CONTEXT_FULL | CONTEXT_SEGMENTS;
+#ifdef XSTATE_SUPPORTED
+                if (XmmYmmStateSupport() == 1)
+                {
+                    pContext->ContextFlags |= CONTEXT_XSTATE;
+                }
+#endif
                 MachRet = CONTEXT_GetThreadContextFromPort(threadPort, pContext);
                 _ASSERT_MSG(MachRet == KERN_SUCCESS, "CONTEXT_GetThreadContextFromPort\n");
 

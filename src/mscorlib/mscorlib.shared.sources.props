@@ -2,7 +2,6 @@
   <ItemGroup>
     <CompilerServicesSources Include="$(BclSourcesRoot)\System\Runtime\CompilerServices\AccessedThroughPropertyAttribute.cs" />
     <CompilerServicesSources Include="$(BclSourcesRoot)\System\Runtime\CompilerServices\AssemblyAttributesGoHere.cs" />
-    <CompilerServicesSources Include="$(BclSourcesRoot)\System\Runtime\CompilerServices\CallingConvention.cs" />
     <CompilerServicesSources Include="$(BclSourcesRoot)\System\Runtime\CompilerServices\RuntimeHelpers.cs" />
     <CompilerServicesSources Include="$(BclSourcesRoot)\System\Runtime\CompilerServices\CompilerGeneratedAttribute.cs" />
     <CompilerServicesSources Include="$(BclSourcesRoot)\System\Runtime\CompilerServices\CustomConstantAttribute.cs" />
@@ -21,29 +20,15 @@
     <CompilerServicesSources Include="$(BclSourcesRoot)\System\Runtime\CompilerServices\MethodImplAttribute.cs" />
     <CompilerServicesSources Include="$(BclSourcesRoot)\System\Runtime\CompilerServices\FixedAddressValueTypeAttribute.cs" />
     <CompilerServicesSources Include="$(BclSourcesRoot)\System\Runtime\CompilerServices\UnsafeValueTypeAttribute.cs" />
-    <CompilerServicesSources Include="$(BclSourcesRoot)\System\Runtime\CompilerServices\RequiredAttributeAttribute.cs" />
     <CompilerServicesSources Include="$(BclSourcesRoot)\System\Runtime\CompilerServices\AssemblySettingAttributes.cs" />
     <CompilerServicesSources Include="$(BclSourcesRoot)\System\Runtime\CompilerServices\TypeDependencyAttribute.cs" />
     <CompilerServicesSources Include="$(BclSourcesRoot)\System\Runtime\CompilerServices\CompilerMarshalOverride.cs" />
-    <CompilerServicesSources Include="$(BclSourcesRoot)\System\Runtime\CompilerServices\HasCopySemanticsAttribute.cs" />
-    <CompilerServicesSources Include="$(BclSourcesRoot)\System\Runtime\CompilerServices\IsBoxed.cs" />
-    <CompilerServicesSources Include="$(BclSourcesRoot)\System\Runtime\CompilerServices\IsByValue.cs" />
-    <CompilerServicesSources Include="$(BclSourcesRoot)\System\Runtime\CompilerServices\IsConst.cs" />
-    <CompilerServicesSources Include="$(BclSourcesRoot)\System\Runtime\CompilerServices\IsExplicitlyDereferenced.cs" />
-    <CompilerServicesSources Include="$(BclSourcesRoot)\System\Runtime\CompilerServices\IsImplicitlyDereferenced.cs" />
-    <CompilerServicesSources Include="$(BclSourcesRoot)\System\Runtime\CompilerServices\IsJitIntrinsic.cs" />
-    <CompilerServicesSources Include="$(BclSourcesRoot)\System\Runtime\CompilerServices\IsLong.cs" />
-    <CompilerServicesSources Include="$(BclSourcesRoot)\System\Runtime\CompilerServices\IsPinned.cs" />
-    <CompilerServicesSources Include="$(BclSourcesRoot)\System\Runtime\CompilerServices\IsSignUnspecifiedByte.cs" />
-    <CompilerServicesSources Include="$(BclSourcesRoot)\System\Runtime\CompilerServices\IsUdtReturn.cs" />
     <CompilerServicesSources Include="$(BclSourcesRoot)\System\Runtime\CompilerServices\jithelpers.cs" />
-    <CompilerServicesSources Include="$(BclSourcesRoot)\System\Runtime\CompilerServices\ScopelessEnumAttribute.cs" />
+    <CompilerServicesSources Include="$(BclSourcesRoot)\System\Runtime\CompilerServices\Unsafe.cs" />
     <CompilerServicesSources Include="$(BclSourcesRoot)\System\Runtime\CompilerServices\SpecialNameAttribute.cs" />
     <CompilerServicesSources Include="$(BclSourcesRoot)\System\Runtime\CompilerServices\SuppressMergeCheckAttribute.cs" />
-    <CompilerServicesSources Include="$(BclSourcesRoot)\System\Runtime\CompilerServices\IsCopyConstructed.cs" />
     <CompilerServicesSources Condition="'$(FeatureICastable)' == 'true'" Include="$(BclSourcesRoot)\System\Runtime\CompilerServices\ICastable.cs" />
     <CompilerServicesSources Include="$(BclSourcesRoot)\System\Runtime\CompilerServices\SuppressIldasmAttribute.cs" />
-    <CompilerServicesSources Include="$(BclSourcesRoot)\System\Runtime\CompilerServices\NativeCppClassAttribute.cs" />
     <CompilerServicesSources Include="$(BclSourcesRoot)\System\Runtime\CompilerServices\DecoratedNameAttribute.cs" />
     <CompilerServicesSources Include="$(BclSourcesRoot)\System\Runtime\CompilerServices\TypeForwardedToAttribute.cs" />
     <CompilerServicesSources Include="$(BclSourcesRoot)\System\Runtime\CompilerServices\TypeForwardedFromAttribute.cs" />
@@ -62,8 +47,6 @@
     <CompilerServicesSources Include="$(BclSourcesRoot)\System\Runtime\CompilerServices\INotifyCompletion.cs" />
     <CompilerServicesSources Include="$(BclSourcesRoot)\System\Runtime\CompilerServices\TaskAwaiter.cs" />
     <CompilerServicesSources Include="$(BclSourcesRoot)\System\Runtime\CompilerServices\YieldAwaitable.cs" />
-    <CompilerServicesSources Condition="'$(FeatureCominterop)' == 'true'" Include="$(BclSourcesRoot)\System\Runtime\CompilerServices\IDispatchConstantAttribute.cs" />
-    <CompilerServicesSources Condition="'$(FeatureCominterop)' == 'true'" Include="$(BclSourcesRoot)\System\Runtime\CompilerServices\IUnknownConstantAttribute.cs" />
   </ItemGroup>
   <ItemGroup>
     <ReliabilitySources Include="$(BclSourcesRoot)\System\Runtime\Reliability\CriticalFinalizerObject.cs" />
@@ -73,12 +56,11 @@
   <ItemGroup>
     <RuntimeSources Include="$(BclSourcesRoot)\System\Runtime\MemoryFailPoint.cs" />
     <RuntimeSources Include="$(BclSourcesRoot)\System\Runtime\GcSettings.cs" />
-    <RuntimeSources Condition="'$(FeatureMulticoreJIT)' == 'true'" Include="$(BclSourcesRoot)\System\Runtime\ProfileOptimization.cs" />
+    <RuntimeSources Include="$(BclSourcesRoot)\System\Runtime\ProfileOptimization.cs" />
   </ItemGroup>
   <ItemGroup>
     <CollectionsSources Include="$(BclSourcesRoot)\System\Collections\CollectionBase.cs" />
     <CollectionsSources Include="$(BclSourcesRoot)\System\Collections\ArrayList.cs" />
-    <CollectionsSources Include="$(BclSourcesRoot)\System\Collections\BitArray.cs" />
     <CollectionsSources Include="$(BclSourcesRoot)\System\Collections\Stack.cs" />
     <CollectionsSources Include="$(BclSourcesRoot)\System\Collections\Comparer.cs" />
     <CollectionsSources Include="$(BclSourcesRoot)\System\Collections\CompatibleComparer.cs" />
@@ -102,6 +84,9 @@
     <CollectionsSources Include="$(BclSourcesRoot)\System\Collections\StructuralComparisons.cs" />
   </ItemGroup>
   <ItemGroup>
+    <ComponentModelSources Include="$(BclSourcesRoot)\System\ComponentModel\EditorBrowsableAttribute.cs" />
+  </ItemGroup>
+  <ItemGroup>
     <InteropSources Include="$(BclSourcesRoot)\System\Runtime\InteropServices\ArrayWithOffset.cs" />
     <InteropSources Include="$(BclSourcesRoot)\System\Runtime\InteropServices\Attributes.cs" />
     <InteropSources Include="$(BclSourcesRoot)\System\Runtime\InteropServices\CallingConvention.cs" />
@@ -123,7 +108,6 @@
     <InteropSources Include="$(BclSourcesRoot)\System\Runtime\InteropServices\SEHException.cs" />
     <InteropSources Include="$(BclSourcesRoot)\System\Runtime\InteropServices\SafeBuffer.cs" />
     <InteropSources Include="$(BclSourcesRoot)\System\Runtime\InteropServices\SafeHandle.cs" />
-    <InteropSources Include="$(BclSourcesRoot)\System\Runtime\InteropServices\SafeHeapHandle.cs" />
     <InteropSources Include="$(BclSourcesRoot)\System\Runtime\InteropServices\BStrWrapper.cs" />
     <InteropSources Include="$(BclSourcesRoot)\System\Runtime\InteropServices\CurrencyWrapper.cs" />
     <InteropSources Include="$(BclSourcesRoot)\System\Runtime\InteropServices\ErrorWrapper.cs" />
@@ -135,39 +119,16 @@
     <InteropSources Include="$(BclSourcesRoot)\System\Runtime\InteropServices\InvalidComObjectException.cs" />
     <InteropSources Include="$(BclSourcesRoot)\System\Runtime\InteropServices\SafeArrayRankMismatchException.cs" />
     <InteropSources Include="$(BclSourcesRoot)\System\Runtime\InteropServices\SafeArrayTypeMismatchException.cs" />
-    <InteropSources Include="$(BclSourcesRoot)\System\Runtime\InteropServices\NativeBuffer.cs" />
-    <InteropSources Include="$(BclSourcesRoot)\System\Runtime\InteropServices\StringBuffer.cs" />
-    <InteropSources Condition="'$(FeatureCoreClr)'=='true'"  Include="$(BclSourcesRoot)\System\Runtime\InteropServices\NativeCallableAttribute.cs" />
+    <InteropSources Include="$(BclSourcesRoot)\System\Runtime\InteropServices\NativeCallableAttribute.cs" />
     <InteropSources Condition="'$(FeatureCominterop)' != 'true'" Include="$(BclSourcesRoot)\System\Runtime\InteropServices\NonPortable.cs" />
     <InteropSources Condition="'$(FeatureCominterop)' == 'true'" Include="$(BclSourcesRoot)\System\Runtime\InteropServices\DispatchWrapper.cs" />
-    <InteropSources Condition="'$(FeatureCominterop)' == 'true'" Include="$(BclSourcesRoot)\System\Runtime\InteropServices\ExtensibleClassFactory.cs" />
-    <InteropSources Condition="'$(FeatureCominterop)' == 'true'" Include="$(BclSourcesRoot)\System\Runtime\InteropServices\ICustomFactory.cs" />
-    <InteropSources Condition="'$(FeatureCominterop)' == 'true'" Include="$(BclSourcesRoot)\System\Runtime\InteropServices\ObjectCreationDelegate.cs" />
+    <InteropSources Include="$(BclSourcesRoot)\System\Runtime\InteropServices\ICustomFactory.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <InteropSources Include="$(CoreFxSourcesRoot)\System\Runtime\InteropServices\StringBuffer.cs" />
   </ItemGroup>
   <ItemGroup Condition="'$(FeatureClassicCominterop)' == 'true'">
-    <InteropSources Include="$(BclSourcesRoot)\System\Runtime\InteropServices\IRegistrationServices.cs" />
     <InteropSources Include="$(BclSourcesRoot)\System\Runtime\InteropServices\ITypeLibConverter.cs" />
-    <InteropSources Include="$(BclSourcesRoot)\System\Runtime\InteropServices\RegistrationServices.cs" />
-    <InteropSources Include="$(BclSourcesRoot)\System\Runtime\InteropServices\TypeLibConverter.cs" />
-    <InteropSources Include="$(BclSourcesRoot)\System\Runtime\InteropServices\UCOMIBindCtx.cs" />
-    <InteropSources Include="$(BclSourcesRoot)\System\Runtime\InteropServices\UCOMIConnectionPointContainer.cs" />
-    <InteropSources Include="$(BclSourcesRoot)\System\Runtime\InteropServices\UCOMIConnectionPoint.cs" />
-    <InteropSources Include="$(BclSourcesRoot)\System\Runtime\InteropServices\UCOMIEnumerable.cs" />
-    <InteropSources Include="$(BclSourcesRoot)\System\Runtime\InteropServices\UCOMIEnumerator.cs" />
-    <InteropSources Include="$(BclSourcesRoot)\System\Runtime\InteropServices\UCOMIEnumMoniker.cs" />
-    <InteropSources Include="$(BclSourcesRoot)\System\Runtime\InteropServices\UCOMIEnumConnections.cs" />
-    <InteropSources Include="$(BclSourcesRoot)\System\Runtime\InteropServices\UCOMIEnumConnectionPoints.cs" />
-    <InteropSources Include="$(BclSourcesRoot)\System\Runtime\InteropServices\UCOMIEnumString.cs" />
-    <InteropSources Include="$(BclSourcesRoot)\System\Runtime\InteropServices\UCOMIEnumVARIANT.cs" />
-    <InteropSources Include="$(BclSourcesRoot)\System\Runtime\InteropServices\UCOMIExpando.cs" />
-    <InteropSources Include="$(BclSourcesRoot)\System\Runtime\InteropServices\UCOMIMoniker.cs" />
-    <InteropSources Include="$(BclSourcesRoot)\System\Runtime\InteropServices\UCOMIPersistFile.cs" />
-    <InteropSources Include="$(BclSourcesRoot)\System\Runtime\InteropServices\UCOMIReflect.cs" />
-    <InteropSources Include="$(BclSourcesRoot)\System\Runtime\InteropServices\UCOMIRunningObjectTable.cs" />
-    <InteropSources Include="$(BclSourcesRoot)\System\Runtime\InteropServices\UCOMIStream.cs" />
-    <InteropSources Include="$(BclSourcesRoot)\System\Runtime\InteropServices\UCOMITypeComp.cs" />
-    <InteropSources Include="$(BclSourcesRoot)\System\Runtime\InteropServices\UCOMITypeInfo.cs" />
-    <InteropSources Include="$(BclSourcesRoot)\System\Runtime\InteropServices\UCOMITypeLib.cs" />
   </ItemGroup>
   <ItemGroup>
     <InteropExpandoSources Include="$(BclSourcesRoot)\System\Runtime\InteropServices\Expando\IExpando.cs" />
@@ -178,23 +139,18 @@
     <InteropComeventsSources Include="$(BclSourcesRoot)\System\Runtime\InteropServices\ComEventsMethod.cs" />
     <InteropComeventsSources Include="$(BclSourcesRoot)\System\Runtime\InteropServices\ComEventsSink.cs" />
     <InteropComeventsSources Include="$(BclSourcesRoot)\System\Runtime\InteropServices\NativeMethods.cs" />
-    <InteropComeventsSources Include="$(BclSourcesRoot)\System\Runtime\InteropServices\Variant.cs" />
   </ItemGroup>
   <ItemGroup>
     <InteropComtypesSources Include="$(BclSourcesRoot)\System\Runtime\InteropServices\ComTypes\IBindCtx.cs" />
     <InteropComtypesSources Include="$(BclSourcesRoot)\System\Runtime\InteropServices\ComTypes\IConnectionPointContainer.cs" />
     <InteropComtypesSources Include="$(BclSourcesRoot)\System\Runtime\InteropServices\ComTypes\IConnectionPoint.cs" />
-    <InteropComtypesSources Include="$(BclSourcesRoot)\System\Runtime\InteropServices\ComTypes\IEnumerable.cs" />
-    <InteropComtypesSources Include="$(BclSourcesRoot)\System\Runtime\InteropServices\ComTypes\IEnumerator.cs" />
     <InteropComtypesSources Include="$(BclSourcesRoot)\System\Runtime\InteropServices\ComTypes\IEnumMoniker.cs" />
     <InteropComtypesSources Include="$(BclSourcesRoot)\System\Runtime\InteropServices\ComTypes\IEnumConnections.cs" />
     <InteropComtypesSources Include="$(BclSourcesRoot)\System\Runtime\InteropServices\ComTypes\IEnumConnectionPoints.cs" />
     <InteropComtypesSources Include="$(BclSourcesRoot)\System\Runtime\InteropServices\ComTypes\IEnumString.cs" />
     <InteropComtypesSources Include="$(BclSourcesRoot)\System\Runtime\InteropServices\ComTypes\IEnumVARIANT.cs" />
-    <InteropComtypesSources Include="$(BclSourcesRoot)\System\Runtime\InteropServices\ComTypes\IExpando.cs" />
     <InteropComtypesSources Include="$(BclSourcesRoot)\System\Runtime\InteropServices\ComTypes\IMoniker.cs" />
     <InteropComtypesSources Include="$(BclSourcesRoot)\System\Runtime\InteropServices\ComTypes\IPersistFile.cs" />
-    <InteropComtypesSources Include="$(BclSourcesRoot)\System\Runtime\InteropServices\ComTypes\IReflect.cs" />
     <InteropComtypesSources Include="$(BclSourcesRoot)\System\Runtime\InteropServices\ComTypes\IRunningObjectTable.cs" />
     <InteropComtypesSources Include="$(BclSourcesRoot)\System\Runtime\InteropServices\ComTypes\IStream.cs" />
     <InteropComtypesSources Include="$(BclSourcesRoot)\System\Runtime\InteropServices\ComTypes\ITypeComp.cs" />
@@ -261,9 +217,11 @@
     <SystemSources Include="$(BclSourcesRoot)\System\AppContext\AppContext.cs" />
     <SystemSources Include="$(BclSourcesRoot)\System\AppContext\AppContextSwitches.cs" />
     <SystemSources Include="$(BclSourcesRoot)\System\AppContext\AppContextDefaultValues.cs" />
-    <SystemSources Condition="'$(FeatureCoreClr)'=='true'" Include="$(BclSourcesRoot)\System\AppContext\AppContextDefaultValues.CoreClrOverrides.cs" />
+    <SystemSources Include="$(BclSourcesRoot)\System\AppContext\AppContextDefaultValues.CoreClrOverrides.cs" />
     <SystemSources Include="$(BclSourcesRoot)\System\AppContext\AppContextDefaultValues.Defaults.cs" />
     <SystemSources Include="$(BclSourcesRoot)\System\AppContext\AppContextDefaultValues.Defaults.Central.cs" />
+    <SystemSources Include="$(BclSourcesRoot)\System\CurrentTimeZone.cs" />
+    <SystemSources Include="$(BclSourcesRoot)\System\TimeZone.cs" />
     <SystemSources Include="$(BclSourcesRoot)\System\Object.cs" />
     <SystemSources Include="$(BclSourcesRoot)\System\ICloneable.cs" />
     <SystemSources Include="$(BclSourcesRoot)\System\Action.cs" />
@@ -274,8 +232,12 @@
     <SystemSources Include="$(BclSourcesRoot)\System\ThrowHelper.cs" />
     <SystemSources Include="$(BclSourcesRoot)\System\Tuple.cs" />
     <SystemSources Include="$(BclSourcesRoot)\System\String.cs" />
+    <SystemSources Include="$(BclSourcesRoot)\System\String.Comparison.cs" />
+    <SystemSources Include="$(BclSourcesRoot)\System\String.Manipulation.cs" />
+    <SystemSources Include="$(BclSourcesRoot)\System\String.Searching.cs" />
     <SystemSources Include="$(BclSourcesRoot)\System\StringComparer.cs" />
     <SystemSources Include="$(BclSourcesRoot)\System\StringComparison.cs" />
+    <SystemSources Include="$(BclSourcesRoot)\System\StringSplitOptions.cs" />
     <SystemSources Include="$(BclSourcesRoot)\System\Text\StringBuilder.cs" />
     <SystemSources Include="$(BclSourcesRoot)\System\Text\StringBuilderCache.cs" />
     <SystemSources Include="$(BclSourcesRoot)\System\Exception.cs" />
@@ -302,7 +264,6 @@
     <SystemSources Include="$(BclSourcesRoot)\System\AppDomainManager.cs" />
     <SystemSources Include="$(BclSourcesRoot)\System\IAppDomainPauseManager.cs" />
     <SystemSources Include="$(BclSourcesRoot)\System\IAppDomain.cs" />
-    <SystemSources Include="$(BclSourcesRoot)\System\IAppDomainSetup.cs" />
     <SystemSources Include="$(BclSourcesRoot)\System\AppDomainAttributes.cs" />
     <SystemSources Include="$(BclSourcesRoot)\System\AppDomainUnloadedException.cs" />
     <SystemSources Include="$(BclSourcesRoot)\System\ApplicationId.cs" />
@@ -329,11 +290,9 @@
     <SystemSources Include="$(BclSourcesRoot)\System\TypeUnloadedException.cs" />
     <SystemSources Include="$(BclSourcesRoot)\System\cominterfaces.cs" />
     <SystemSources Include="$(BclSourcesRoot)\System\CompatibilitySwitches.cs" />
-    <SystemSources Condition="'$(FeatureCoreClr)'=='true'" Include="$(BclSourcesRoot)\System\LowLevelConsole.cs" />
+    <SystemSources Include="$(BclSourcesRoot)\System\LowLevelConsole.cs" />
     <SystemSources Include="$(BclSourcesRoot)\System\ContextMarshalException.cs" />
     <SystemSources Include="$(BclSourcesRoot)\System\Convert.cs" />
-    <SystemSources Include="$(BclSourcesRoot)\System\ContextBoundObject.cs" />
-    <SystemSources Include="$(BclSourcesRoot)\System\ContextStaticAttribute.cs" />
     <SystemSources Include="$(BclSourcesRoot)\System\StringFreezingAttribute.cs" />
     <SystemSources Include="$(BclSourcesRoot)\System\Currency.cs" />
     <SystemSources Include="$(BclSourcesRoot)\System\DayOfWeek.cs" />
@@ -383,6 +342,7 @@
     <SystemSources Include="$(BclSourcesRoot)\System\_LocalDataStoreMgr.cs" />
     <SystemSources Include="$(BclSourcesRoot)\System\MarshalByRefObject.cs" />
     <SystemSources Include="$(BclSourcesRoot)\System\Math.cs" />
+    <SystemSources Include="$(BclSourcesRoot)\System\MathF.cs" />
     <SystemSources Include="$(BclSourcesRoot)\System\mda.cs" />
     <SystemSources Include="$(BclSourcesRoot)\System\MethodAccessException.cs" />
     <SystemSources Include="$(BclSourcesRoot)\System\MidpointRounding.cs" />
@@ -421,7 +381,10 @@
     <SystemSources Include="$(BclSourcesRoot)\System\ThreadAttributes.cs" />
     <SystemSources Include="$(BclSourcesRoot)\System\TimeoutException.cs" />
     <SystemSources Include="$(BclSourcesRoot)\System\TimeSpan.cs" />
+    <SystemSources Include="$(BclSourcesRoot)\System\TimeZoneInfo.AdjustmentRule.cs" />
     <SystemSources Include="$(BclSourcesRoot)\System\TimeZoneInfo.cs" />
+    <SystemSources Include="$(BclSourcesRoot)\System\TimeZoneInfo.StringSerializer.cs" />
+    <SystemSources Include="$(BclSourcesRoot)\System\TimeZoneInfo.TransitionTime.cs" />
     <SystemSources Include="$(BclSourcesRoot)\System\TimeZoneNotFoundException.cs" />
     <SystemSources Include="$(BclSourcesRoot)\System\Type.cs" />
     <SystemSources Include="$(BclSourcesRoot)\System\TypeAccessException.cs" />
@@ -438,7 +401,6 @@
     <SystemSources Include="$(BclSourcesRoot)\System\UnitySerializationHolder.cs" />
     <SystemSources Include="$(BclSourcesRoot)\System\UnhandledExceptionEventArgs.cs" />
     <SystemSources Include="$(BclSourcesRoot)\System\UnhandledExceptionEventHandler.cs" />
-    <SystemSources Include="$(BclSourcesRoot)\System\UnSafeCharBuffer.cs" />
     <SystemSources Include="$(BclSourcesRoot)\System\ValueType.cs" />
     <SystemSources Include="$(BclSourcesRoot)\System\Version.cs" />
     <SystemSources Include="$(BclSourcesRoot)\System\Void.cs" />
@@ -449,9 +411,19 @@
     <SystemSources Condition="'$(FeatureCominterop)' == 'true'" Include="$(BclSourcesRoot)\System\__ComObject.cs" />
     <SystemSources Condition="'$(FeatureCominterop)' == 'true'" Include="$(BclSourcesRoot)\System\Variant.cs" />
     <SystemSources Condition="'$(FeatureClassicCominterop)' == 'true'" Include="$(BclSourcesRoot)\System\OleAutBinder.cs" />
+    <SystemSources Include="$(BclSourcesRoot)\System\ByReference.cs" />
+    <SystemSources Include="$(BclSourcesRoot)\System\Span.cs" />
+    <SystemSources Include="$(BclSourcesRoot)\System\ReadOnlySpan.cs" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(TargetsUnix)' == 'true'">
+    <SystemSources Include="$(BclSourcesRoot)\System\TimeZoneInfo.Unix.cs" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(TargetsUnix)' != 'true'">
+    <SystemSources Include="$(BclSourcesRoot)\System\TimeZoneInfo.Win32.cs" />
   </ItemGroup>
   <ItemGroup>
-    <SystemSources Condition="'$(FeatureCoreclr)' == 'true'" Include="$(BclSourcesRoot)\Internal\Runtime\Augments\EnvironmentAugments.cs" />
+    <InternalSources Include="$(BclSourcesRoot)\Internal\Runtime\Augments\EnvironmentAugments.cs" />
+    <InternalSources Include="$(BclSourcesRoot)\Internal\Runtime\Augments\RuntimeThread.cs" />
   </ItemGroup>
   <ItemGroup>
     <ReflectionSources Include="$(BclSourcesRoot)\System\Reflection\__Filters.cs" />
@@ -565,7 +537,7 @@
     <ReflectionEmitSources Include="$(BclSourcesRoot)\System\Reflection\Emit\XXXOnTypeBuilderInstantiation.cs" />
     <ReflectionEmitSources Include="$(BclSourcesRoot)\System\Reflection\Emit\UnmanagedMarshal.cs" />
   </ItemGroup>
-  <ItemGroup Condition="'$(FeatureCoreclr)' == 'true'">
+  <ItemGroup>
     <ReflectionMetadataSources Include="$(BclSourcesRoot)\System\Reflection\Metadata\AssemblyExtensions.cs" />
   </ItemGroup>
   <ItemGroup>
@@ -575,6 +547,7 @@
     <GlobalizationSources Include="$(BclSourcesRoot)\System\Globalization\NumberStyles.cs" />
     <GlobalizationSources Include="$(BclSourcesRoot)\System\Globalization\TimeSpanFormat.cs" />
     <GlobalizationSources Include="$(BclSourcesRoot)\System\Globalization\TimeSpanParse.cs" />
+    <GlobalizationSources Include="$(BclSourcesRoot)\System\Globalization\DaylightTime.cs" />
   </ItemGroup>
   <ItemGroup Condition="'$(FeatureCoreFxGlobalization)' != 'true'">
     <GlobalizationSources Include="$(BclSourcesRoot)\System\Globalization\BidiCategory.cs" />
@@ -590,7 +563,6 @@
     <GlobalizationSources Include="$(BclSourcesRoot)\System\Globalization\CultureTypes.cs" />
     <GlobalizationSources Include="$(BclSourcesRoot)\System\Globalization\DateTimeFormatInfo.cs" />
     <GlobalizationSources Include="$(BclSourcesRoot)\System\Globalization\DateTimeFormatInfoScanner.cs" />
-    <GlobalizationSources Include="$(BclSourcesRoot)\System\Globalization\DaylightTime.cs" />
     <GlobalizationSources Include="$(BclSourcesRoot)\System\Globalization\DigitShapes.cs" />
     <GlobalizationSources Include="$(BclSourcesRoot)\System\Globalization\EncodingDataItem.cs" />
     <GlobalizationSources Include="$(BclSourcesRoot)\System\Globalization\EncodingTable.cs" />
@@ -607,6 +579,7 @@
     <GlobalizationSources Include="$(BclSourcesRoot)\System\Globalization\KoreanCalendar.cs" />
     <GlobalizationSources Include="$(BclSourcesRoot)\System\Globalization\RegionInfo.cs" />
     <GlobalizationSources Include="$(BclSourcesRoot)\System\Globalization\SortKey.cs" />
+    <GlobalizationSources Include="$(BclSourcesRoot)\System\Globalization\SortVersion.cs" />
     <GlobalizationSources Include="$(BclSourcesRoot)\System\Globalization\StringInfo.cs" />
     <GlobalizationSources Include="$(BclSourcesRoot)\System\Globalization\TaiwanCalendar.cs" />
     <GlobalizationSources Include="$(BclSourcesRoot)\System\Globalization\TextElementEnumerator.cs" />
@@ -624,10 +597,12 @@
     <GlobalizationSources Condition="'$(FeatureOnlyCoreCalendars)'==''" Include="$(BclSourcesRoot)\System\Globalization\KoreanLunisolarCalendar.cs" />
     <GlobalizationSources Condition="'$(FeatureOnlyCoreCalendars)'==''" Include="$(BclSourcesRoot)\System\Globalization\TaiwanLunisolarCalendar.cs" />
   </ItemGroup>
-  <ItemGroup Condition="'$(FeatureCoreFxGlobalization)' == 'true'">
+  <ItemGroup>
     <GlobalizationSources Include="$(CoreFxSourcesRoot)\SR.cs" />
-  
+  </ItemGroup>
+  <ItemGroup Condition="'$(FeatureCoreFxGlobalization)' == 'true'">
     <GlobalizationSources Include="$(CoreFxSourcesRoot)\System\Globalization\Calendar.cs" />
+    <GlobalizationSources Include="$(CoreFxSourcesRoot)\System\Globalization\CalendarAlgorithmType.cs" />
     <GlobalizationSources Include="$(CoreFxSourcesRoot)\System\Globalization\CalendarData.cs" />
     <GlobalizationSources Include="$(CoreFxSourcesRoot)\System\Globalization\CalendarWeekRule.cs" />
     <GlobalizationSources Include="$(CoreFxSourcesRoot)\System\Globalization\CalendricalCalculationsHelper.cs" />
@@ -637,10 +612,10 @@
     <GlobalizationSources Include="$(CoreFxSourcesRoot)\System\Globalization\CompareInfo.cs" />
     <GlobalizationSources Include="$(CoreFxSourcesRoot)\System\Globalization\CultureData.cs" />
     <GlobalizationSources Include="$(CoreFxSourcesRoot)\System\Globalization\CultureInfo.cs" />
+    <GlobalizationSources Include="$(CoreFxSourcesRoot)\System\Globalization\CultureTypes.cs" />
     <GlobalizationSources Include="$(CoreFxSourcesRoot)\System\Globalization\CultureNotFoundException.cs" />
     <GlobalizationSources Include="$(CoreFxSourcesRoot)\System\Globalization\DateTimeFormatInfo.cs" />
     <GlobalizationSources Include="$(CoreFxSourcesRoot)\System\Globalization\DateTimeFormatInfoScanner.cs" />
-    <GlobalizationSources Include="$(CoreFxSourcesRoot)\System\Globalization\DayLightTime.cs" />
     <GlobalizationSources Include="$(CoreFxSourcesRoot)\System\Globalization\EastAsianLunisolarCalendar.cs" />
     <GlobalizationSources Include="$(CoreFxSourcesRoot)\System\Globalization\GregorianCalendar.cs" />
     <GlobalizationSources Include="$(CoreFxSourcesRoot)\System\Globalization\GregorianCalendarHelper.cs" />
@@ -648,6 +623,7 @@
     <GlobalizationSources Include="$(CoreFxSourcesRoot)\System\Globalization\HebrewCalendar.cs" />
     <GlobalizationSources Include="$(CoreFxSourcesRoot)\System\Globalization\HebrewNumber.cs" />
     <GlobalizationSources Include="$(CoreFxSourcesRoot)\System\Globalization\HijriCalendar.cs" />
+    <GlobalizationSources Include="$(CoreFxSourcesRoot)\System\Globalization\IdnMapping.cs" />
     <GlobalizationSources Include="$(CoreFxSourcesRoot)\System\Globalization\InternalGlobalizationHelper.cs" />
     <GlobalizationSources Include="$(CoreFxSourcesRoot)\System\Globalization\JapaneseCalendar.cs" />
     <GlobalizationSources Include="$(CoreFxSourcesRoot)\System\Globalization\JapaneseLunisolarCalendar.cs" />
@@ -657,6 +633,8 @@
     <GlobalizationSources Include="$(CoreFxSourcesRoot)\System\Globalization\NumberFormatInfo.cs" />
     <GlobalizationSources Include="$(CoreFxSourcesRoot)\System\Globalization\PersianCalendar.cs" />
     <GlobalizationSources Include="$(CoreFxSourcesRoot)\System\Globalization\RegionInfo.cs" />
+    <GlobalizationSources Include="$(CoreFxSourcesRoot)\System\Globalization\SortKey.cs" />
+    <GlobalizationSources Include="$(CoreFxSourcesRoot)\System\Globalization\SortVersion.cs" />
     <GlobalizationSources Include="$(CoreFxSourcesRoot)\System\Globalization\StringInfo.cs" />
     <GlobalizationSources Include="$(CoreFxSourcesRoot)\System\Globalization\TaiwanCalendar.cs" />
     <GlobalizationSources Include="$(CoreFxSourcesRoot)\System\Globalization\TaiwanLunisolarCalendar.cs" />
@@ -670,12 +648,14 @@
   <ItemGroup Condition="'$(FeatureCoreFxGlobalization)' == 'true' and '$(TargetsUnix)' == 'true'">
     <GlobalizationSources Include="$(BclSourcesRoot)\System\Globalization\EncodingTable.Unix.cs" />
     <GlobalizationSources Include="$(BclSourcesRoot)\System\Globalization\EncodingDataItem.Unix.cs" />
+    <GlobalizationSources Include="$(BclSourcesRoot)\System\Text\Normalization.Unix.cs" />
 
-    <GlobalizationSources Include="$(CoreFxSourcesRoot)\Interop\Unix\Interop.Libraries.cs" />
     <GlobalizationSources Include="$(CoreFxSourcesRoot)\Interop\Unix\System.Globalization.Native\Interop.Calendar.cs" />
     <GlobalizationSources Include="$(CoreFxSourcesRoot)\Interop\Unix\System.Globalization.Native\Interop.Casing.cs" />
     <GlobalizationSources Include="$(CoreFxSourcesRoot)\Interop\Unix\System.Globalization.Native\Interop.Collation.cs" />
+    <GlobalizationSources Include="$(CoreFxSourcesRoot)\Interop\Unix\System.Globalization.Native\Interop.Idna.cs" />
     <GlobalizationSources Include="$(CoreFxSourcesRoot)\Interop\Unix\System.Globalization.Native\Interop.Locale.cs" />
+    <GlobalizationSources Include="$(CoreFxSourcesRoot)\Interop\Unix\System.Globalization.Native\Interop.Normalization.cs" />
     <GlobalizationSources Include="$(CoreFxSourcesRoot)\Interop\Unix\System.Globalization.Native\Interop.ResultCode.cs" />
     <GlobalizationSources Include="$(CoreFxSourcesRoot)\Interop\Unix\System.Globalization.Native\Interop.TimeZoneInfo.cs" />
     <GlobalizationSources Include="$(CoreFxSourcesRoot)\Interop\Unix\System.Globalization.Native\Interop.Utils.cs" />
@@ -683,8 +663,11 @@
     <GlobalizationSources Include="$(CoreFxSourcesRoot)\System\Globalization\CompareInfo.Unix.cs" />
     <GlobalizationSources Include="$(CoreFxSourcesRoot)\System\Globalization\CultureData.Unix.cs" />
     <GlobalizationSources Include="$(CoreFxSourcesRoot)\System\Globalization\CultureInfo.Unix.cs" />
+    <GlobalizationSources Include="$(CoreFxSourcesRoot)\System\Globalization\DigitShapes.cs" />
     <GlobalizationSources Include="$(CoreFxSourcesRoot)\System\Globalization\HijriCalendar.Unix.cs" />
+    <GlobalizationSources Include="$(CoreFxSourcesRoot)\System\Globalization\IdnMapping.Unix.cs" />
     <GlobalizationSources Include="$(CoreFxSourcesRoot)\System\Globalization\JapaneseCalendar.Unix.cs" />
+    <GlobalizationSources Include="$(CoreFxSourcesRoot)\System\Globalization\LocaleData.Unix.cs" />
     <GlobalizationSources Include="$(CoreFxSourcesRoot)\System\Globalization\TextInfo.Unix.cs" />
   </ItemGroup>
   <ItemGroup>
@@ -705,8 +688,7 @@
     <ThreadingSources Include="$(BclSourcesRoot)\System\Threading\Mutex.cs" />
     <ThreadingSources Include="$(BclSourcesRoot)\System\Threading\Overlapped.cs" />
     <ThreadingSources Include="$(BclSourcesRoot)\System\Threading\ParameterizedThreadStart.cs" />
-    <ThreadingSources Include="$(BclSourcesRoot)\System\Threading\ReaderWriterLock.cs" />
-    <ThreadingSources Condition="'$(FeatureCoreClr)'=='true'" Include="$(BclSourcesRoot)\System\Threading\Semaphore.cs" />
+    <ThreadingSources Include="$(BclSourcesRoot)\System\Threading\Semaphore.cs" />
     <ThreadingSources Include="$(BclSourcesRoot)\System\Threading\SemaphoreFullException.cs" />
     <ThreadingSources Include="$(BclSourcesRoot)\System\Threading\SynchronizationLockException.cs" />
     <ThreadingSources Include="$(BclSourcesRoot)\System\Threading\Thread.cs" />
@@ -723,7 +705,6 @@
     <ThreadingSources Include="$(BclSourcesRoot)\System\Threading\Timer.cs" />
     <ThreadingSources Include="$(BclSourcesRoot)\System\Threading\Volatile.cs" />
     <ThreadingSources Include="$(BclSourcesRoot)\System\Threading\WaitHandle.cs" />
-    <ThreadingSources Include="$(BclSourcesRoot)\System\Threading\WaitHandleExtensions.cs" />
     <ThreadingSources Include="$(BclSourcesRoot)\System\Threading\WaitHandleCannotBeOpenedException.cs" />
     <ThreadingSources Include="$(BclSourcesRoot)\System\Threading\ApartmentState.cs" />
     <ThreadingSources Include="$(BclSourcesRoot)\System\Threading\SpinLock.cs" />
@@ -738,9 +719,6 @@
     <ThreadingSources Include="$(BclSourcesRoot)\System\Threading\CancellationToken.cs" />
     <ThreadingSources Include="$(BclSourcesRoot)\System\Threading\Tasks\future.cs" />
     <ThreadingSources Include="$(BclSourcesRoot)\System\Threading\Tasks\FutureFactory.cs" />
-    <ThreadingSources Include="$(BclSourcesRoot)\System\Threading\Tasks\Parallel.cs" />
-    <ThreadingSources Include="$(BclSourcesRoot)\System\Threading\Tasks\ParallelRangeManager.cs" />
-    <ThreadingSources Include="$(BclSourcesRoot)\System\Threading\Tasks\ParallelLoopState.cs" />
     <ThreadingSources Include="$(BclSourcesRoot)\System\Threading\Tasks\Task.cs" />
     <ThreadingSources Include="$(BclSourcesRoot)\System\Threading\Tasks\TaskContinuation.cs" />
     <ThreadingSources Include="$(BclSourcesRoot)\System\Threading\Tasks\TaskCanceledException.cs" />
@@ -754,58 +732,76 @@
     <ThreadingSources Include="$(BclSourcesRoot)\System\Threading\Tasks\ConcurrentExclusiveSchedulerPair.cs" />
     <ThreadingSources Include="$(BclSourcesRoot)\System\Threading\Tasks\ProducerConsumerQueues.cs" />
     <ThreadingSources Include="$(BclSourcesRoot)\System\Threading\Tasks\TPLETWProvider.cs" />
-    <ThreadingSources Include="$(BclSourcesRoot)\System\Threading\Tasks\BeginEndAwaitableAdapter.cs" />
     <ThreadingSources Include="$(BclSourcesRoot)\System\Threading\Tasks\TaskToApm.cs" />
     <ThreadingSources Condition="'$(FeatureCominterop)' == 'true'" Include="$(BclSourcesRoot)\System\Threading\Tasks\IAsyncCausalityTracerStatics.cs" />
   </ItemGroup>
   <ItemGroup>
-    <IoSources Include="$(BclSourcesRoot)\System\IO\__DebugOutputTextWriter.cs" />
+    <FileStreamSources Include="$(CoreFxSourcesRoot)\System\IO\FileStream.cs" />
+    <FileStreamSources Include="$(CoreFxSourcesRoot)\System\IO\FileStream.NetStandard17.cs" />
+    <FileStreamSources Include="$(CoreFxSourcesRoot)\System\IO\Error.cs" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(TargetsUnix)' == 'true'">
+    <SafehandleSources Include="$(CoreFxSourcesRoot)\Microsoft\Win32\SafeHandles\SafeFileHandle.Unix.cs" />
+    <FileStreamSources Include="$(CoreFxSourcesRoot)\System\IO\FileStream.Unix.cs" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(TargetsUnix)' != 'true'">
+    <SafehandleSources Include="$(CoreFxSourcesRoot)\Microsoft\Win32\SafeHandles\SafeFileHandle.Windows.cs" />
+    <FileStreamSources Include="$(CoreFxSourcesRoot)\System\IO\FileStream.Win32.cs" />
+    <FileStreamSources Include="$(CoreFxSourcesRoot)\System\IO\FileStreamCompletionSource.Win32.cs" />
+    <FileStreamSources Include="$(CoreFxSourcesRoot)\System\IO\Win32Marshal.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <IoSources Include="$(CoreFxSourcesRoot)\System\IO\Path.cs" />
+    <IoSources Include="$(CoreFxSourcesRoot)\System\IO\PathInternal.cs" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(TargetsUnix)' == 'true'">
+    <IoSources Include="$(CoreFxSourcesRoot)\System\IO\Path.Unix.cs" />
+    <IoSources Include="$(CoreFxSourcesRoot)\System\IO\PathInternal.Unix.cs" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(TargetsUnix)' != 'true'">
+    <IoSources Include="$(CoreFxSourcesRoot)\System\IO\Path.Win32.cs" />
+    <IoSources Include="$(CoreFxSourcesRoot)\System\IO\Path.Windows.cs" />
+    <IoSources Include="$(CoreFxSourcesRoot)\System\IO\PathHelper.Windows.cs" />
+    <IoSources Include="$(CoreFxSourcesRoot)\System\IO\PathInternal.Windows.cs" />
+    <IoSources Include="$(CoreFxSourcesRoot)\System\IO\PathInternal.Windows.StringBuffer.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <ThreadingSources Include="$(CoreFxSourcesRoot)\System\Threading\DeferredDisposableLifetime.cs" />
+    <ThreadingSources Include="$(CoreFxSourcesRoot)\System\Threading\ClrThreadPoolBoundHandle.cs" />
+    <ThreadingSources Include="$(CoreFxSourcesRoot)\System\Threading\ClrThreadPoolBoundHandleOverlapped.cs" />
+    <ThreadingSources Include="$(CoreFxSourcesRoot)\System\Threading\ClrThreadPoolPreAllocatedOverlapped.cs" />
+  </ItemGroup>
+  <ItemGroup>
     <IoSources Include="$(BclSourcesRoot)\System\IO\__Error.cs" />
     <IoSources Include="$(BclSourcesRoot)\System\IO\__HResults.cs" />
     <IoSources Include="$(BclSourcesRoot)\System\IO\BinaryReader.cs" />
     <IoSources Include="$(BclSourcesRoot)\System\IO\BinaryWriter.cs" />
-    <IoSources Include="$(BclSourcesRoot)\System\IO\BufferedStream.cs" />
     <IoSources Include="$(BclSourcesRoot)\System\IO\Directory.cs" />
-    <IoSources Include="$(BclSourcesRoot)\System\IO\DirectoryInfo.cs" />
     <IoSources Include="$(BclSourcesRoot)\System\IO\SearchOption.cs" />
     <IoSources Include="$(BclSourcesRoot)\System\IO\DirectoryNotFoundException.cs" />
-    <IoSources Include="$(BclSourcesRoot)\System\IO\DriveInfo.cs" />
     <IoSources Include="$(BclSourcesRoot)\System\IO\DriveNotFoundException.cs" />
+    <IoSources Include="$(BclSourcesRoot)\System\IO\EncodingCache.cs" />
     <IoSources Include="$(BclSourcesRoot)\System\IO\EndOfStreamException.cs" />
     <IoSources Include="$(BclSourcesRoot)\System\IO\File.cs" />
     <IoSources Include="$(BclSourcesRoot)\System\IO\FileAccess.cs" />
-    <IoSources Include="$(BclSourcesRoot)\System\IO\FileInfo.cs" />
     <IoSources Include="$(BclSourcesRoot)\System\IO\FileLoadException.cs" />
     <IoSources Include="$(BclSourcesRoot)\System\IO\FileMode.cs" />
     <IoSources Include="$(BclSourcesRoot)\System\IO\FileNotFoundException.cs" />
     <IoSources Include="$(BclSourcesRoot)\System\IO\FileOptions.cs" />
     <IoSources Include="$(BclSourcesRoot)\System\IO\FileShare.cs" />
-    <IoSources Include="$(BclSourcesRoot)\System\IO\FileStream.cs" />
     <IoSources Include="$(BclSourcesRoot)\System\IO\FileSystemEnumerable.cs" />
-    <IoSources Include="$(BclSourcesRoot)\System\IO\FileSystemInfo.cs" />
-    <IoSources Include="$(BclSourcesRoot)\System\IO\FileAttributes.cs" />
     <IoSources Include="$(BclSourcesRoot)\System\IO\IOException.cs" />
     <IoSources Include="$(BclSourcesRoot)\System\IO\MemoryStream.cs" />
-    <IoSources Include="$(BclSourcesRoot)\System\IO\Path.cs" />
-    <IoSources Include="$(BclSourcesRoot)\System\IO\PathHelper.cs" />
-    <IoSources Condition="'$(TargetsUnix)' != 'true'" Include="$(BclSourcesRoot)\System\IO\LongPathHelper.cs" />
-    <IoSources Include="$(BclSourcesRoot)\System\IO\PathInternal.cs" />
     <IoSources Include="$(BclSourcesRoot)\System\IO\PathTooLongException.cs" />
     <IoSources Include="$(BclSourcesRoot)\System\IO\PinnedBufferMemoryStream.cs" />
-    <IoSources Include="$(BclSourcesRoot)\System\IO\ReadLinesIterator.cs" />
     <IoSources Include="$(BclSourcesRoot)\System\IO\SeekOrigin.cs" />
     <IoSources Include="$(BclSourcesRoot)\System\IO\Stream.cs" />
+    <IoSources Include="$(BclSourcesRoot)\System\IO\StreamHelpers.CopyValidation.cs" />
     <IoSources Include="$(BclSourcesRoot)\System\IO\StreamReader.cs" />
-    <IoSources Include="$(BclSourcesRoot)\System\IO\StreamWriter.cs" />
-    <IoSources Include="$(BclSourcesRoot)\System\IO\StringReader.cs" />
-    <IoSources Include="$(BclSourcesRoot)\System\IO\StringWriter.cs" />
     <IoSources Include="$(BclSourcesRoot)\System\IO\TextReader.cs" />
-    <IoSources Include="$(BclSourcesRoot)\System\IO\TextWriter.cs" />
     <IoSources Include="$(BclSourcesRoot)\System\IO\UnmanagedMemoryAccessor.cs" />
     <IoSources Include="$(BclSourcesRoot)\System\IO\UnmanagedMemoryStream.cs" />
     <IoSources Include="$(BclSourcesRoot)\System\IO\UnmanagedMemoryStreamWrapper.cs" />
-    <IoSources Condition="'$(FeatureCoreclr)' == 'true'" Include="$(BclSourcesRoot)\System\IO\FileSecurityState.cs" />
-    <IoSources Condition="'$(FeatureCoreclr)' == 'true'" Include="$(BclSourcesRoot)\System\IO\FileSecurityStateAccess.cs" />
   </ItemGroup>
   <ItemGroup>
     <SecuritySources Include="$(BclSourcesRoot)\System\Security\Attributes.cs" />
@@ -825,7 +821,6 @@
     <SecuritySources Include="$(BclSourcesRoot)\System\Security\PermissionToken.cs" />
     <SecuritySources Include="$(BclSourcesRoot)\System\Security\PermissionSetTriple.cs" />
     <SecuritySources Include="$(BclSourcesRoot)\System\Security\PermissionListSet.cs" />
-    <SecuritySources Include="$(BclSourcesRoot)\System\Security\SafeSecurityHandles.cs" />
     <SecuritySources Include="$(BclSourcesRoot)\System\Security\SecurityContext.cs" />
     <SecuritySources Include="$(BclSourcesRoot)\System\Security\SecurityException.cs" />
     <SecuritySources Include="$(BclSourcesRoot)\System\Security\SecurityState.cs" />
@@ -834,8 +829,8 @@
     <SecuritySources Include="$(BclSourcesRoot)\System\Security\SecurityRuntime.cs" />
     <SecuritySources Include="$(BclSourcesRoot)\System\Security\SecurityZone.cs" />
     <SecuritySources Include="$(BclSourcesRoot)\System\Security\VerificationException.cs" />
-    <SecuritySources Condition="'$(FeatureLegacySurface)' == 'true'" Include="$(BclSourcesRoot)\System\Security\securestring.cs" />
   </ItemGroup>
+
   <ItemGroup>
     <SecUtilSources Include="$(BclSourcesRoot)\System\Security\Util\Config.cs" />
     <SecUtilSources Include="$(BclSourcesRoot)\System\Security\Util\Hex.cs" />
@@ -883,7 +878,6 @@
     <DiagnosticsSources Include="$(BclSourcesRoot)\System\Diagnostics\Eventing\TraceLogging\EventFieldFormat.cs" />
     <DiagnosticsSources Include="$(BclSourcesRoot)\System\Diagnostics\Eventing\TraceLogging\EventIgnoreAttribute.cs" />
     <DiagnosticsSources Include="$(BclSourcesRoot)\System\Diagnostics\Eventing\TraceLogging\EventPayload.cs" />
-    <DiagnosticsSources Include="$(BclSourcesRoot)\System\Diagnostics\Eventing\TraceLogging\EventSourceActivity.cs" />
     <DiagnosticsSources Include="$(BclSourcesRoot)\System\Diagnostics\Eventing\TraceLogging\EventSourceOptions.cs" />
     <DiagnosticsSources Include="$(BclSourcesRoot)\System\Diagnostics\Eventing\TraceLogging\FieldMetadata.cs" />
     <DiagnosticsSources Include="$(BclSourcesRoot)\System\Diagnostics\Eventing\TraceLogging\InvokeTypeInfo.cs" />
@@ -908,27 +902,18 @@
     <DiagnosticsCodeanalysisSources Include="$(BclSourcesRoot)\System\Diagnostics\Contracts\ContractsBCL.cs" />
   </ItemGroup>
   <ItemGroup>
-    <DiagnosticsSymbolstoreSources Include="$(BclSourcesRoot)\System\Diagnostics\SymbolStore\ISymBinder.cs" />
-    <DiagnosticsSymbolstoreSources Include="$(BclSourcesRoot)\System\Diagnostics\SymbolStore\ISymDocument.cs" />
     <DiagnosticsSymbolstoreSources Include="$(BclSourcesRoot)\System\Diagnostics\SymbolStore\ISymDocumentWriter.cs" />
-    <DiagnosticsSymbolstoreSources Include="$(BclSourcesRoot)\System\Diagnostics\SymbolStore\ISymMethod.cs" />
-    <DiagnosticsSymbolstoreSources Include="$(BclSourcesRoot)\System\Diagnostics\SymbolStore\ISymNamespace.cs" />
-    <DiagnosticsSymbolstoreSources Include="$(BclSourcesRoot)\System\Diagnostics\SymbolStore\ISymReader.cs" />
-    <DiagnosticsSymbolstoreSources Include="$(BclSourcesRoot)\System\Diagnostics\SymbolStore\ISymScope.cs" />
-    <DiagnosticsSymbolstoreSources Include="$(BclSourcesRoot)\System\Diagnostics\SymbolStore\ISymVariable.cs" />
     <DiagnosticsSymbolstoreSources Include="$(BclSourcesRoot)\System\Diagnostics\SymbolStore\ISymWriter.cs" />
     <DiagnosticsSymbolstoreSources Include="$(BclSourcesRoot)\System\Diagnostics\SymbolStore\SymAddressKind.cs" />
-    <DiagnosticsSymbolstoreSources Include="$(BclSourcesRoot)\System\Diagnostics\SymbolStore\SymDocumentType.cs" />
-    <DiagnosticsSymbolstoreSources Include="$(BclSourcesRoot)\System\Diagnostics\SymbolStore\SymLanguageType.cs" />
-    <DiagnosticsSymbolstoreSources Include="$(BclSourcesRoot)\System\Diagnostics\SymbolStore\SymLanguageVendor.cs" />
     <DiagnosticsSymbolstoreSources Include="$(BclSourcesRoot)\System\Diagnostics\SymbolStore\Token.cs" />
   </ItemGroup>
   <ItemGroup>
-    <ExceptionservicesSources Condition="'$(FeatureCorruptingExceptions)' == 'true'" Include="$(BclSourcesRoot)\System\Runtime\ExceptionServices\CorruptingExceptionCommon.cs" />
-    <ExceptionservicesSources Condition="'$(FeatureExceptionDispatchInfo)' == 'true'" Include="$(BclSourcesRoot)\System\Runtime\ExceptionServices\ExceptionServicesCommon.cs" />
+    <ExceptionservicesSources Include="$(BclSourcesRoot)\System\Runtime\ExceptionServices\CorruptingExceptionCommon.cs" />
+    <ExceptionservicesSources Include="$(BclSourcesRoot)\System\Runtime\ExceptionServices\ExceptionServicesCommon.cs" />
+    <ExceptionservicesSources Include="$(BclSourcesRoot)\System\Runtime\ExceptionServices\ExceptionNotification.cs" />
   </ItemGroup>
   <ItemGroup>
-    <HostingSources Condition="'$(FeatureHostAssemblyResolver)' == 'true'" Include="$(BclSourcesRoot)\System\Runtime\Loader\AssemblyLoadContext.cs" />
+    <HostingSources Include="$(BclSourcesRoot)\System\Runtime\Loader\AssemblyLoadContext.cs" />
   </ItemGroup>
   <ItemGroup>
     <SerializationSources Include="$(BclSourcesRoot)\System\Runtime\Serialization\FormatterConverter.cs" />
@@ -948,11 +933,9 @@
     <SerializationSources Include="$(BclSourcesRoot)\System\Runtime\Serialization\SerializationInfo.cs" />
     <SerializationSources Include="$(BclSourcesRoot)\System\Runtime\Serialization\SerializationInfoEnumerator.cs" />
     <SerializationSources Include="$(BclSourcesRoot)\System\Runtime\Serialization\StreamingContext.cs" />
+    <SerializationSources Include="$(BclSourcesRoot)\System\Runtime\Serialization\SafeSerializationManager.cs" />
   </ItemGroup>
   <ItemGroup>
-    <VersioningSources Include="$(BclSourcesRoot)\System\Runtime\Versioning\BinaryCompatibility.cs" />
-    <VersioningSources Include="$(BclSourcesRoot)\System\Runtime\Versioning\ComponentGuaranteesAttribute.cs" />
-    <VersioningSources Include="$(BclSourcesRoot)\System\Runtime\Versioning\ResourceAttributes.cs" />
     <VersioningSources Include="$(BclSourcesRoot)\System\Runtime\Versioning\TargetFrameworkAttribute.cs" />
     <VersioningSources Include="$(BclSourcesRoot)\System\Runtime\Versioning\TargetFrameworkId.cs" />
     <VersioningSources Include="$(BclSourcesRoot)\System\Runtime\Versioning\CompatibilitySwitch.cs" />
@@ -970,7 +953,6 @@
   </ItemGroup>
   <ItemGroup>
     <TextSources Include="$(BclSourcesRoot)\System\Text\ASCIIEncoding.cs" />
-    <TextSources Include="$(BclSourcesRoot)\System\Text\BaseCodePageEncoding.cs" />
     <TextSources Include="$(BclSourcesRoot)\System\Text\CodePageEncoding.cs" />
     <TextSources Include="$(BclSourcesRoot)\System\Text\Decoder.cs" />
     <TextSources Include="$(BclSourcesRoot)\System\Text\DecoderNLS.cs" />
@@ -993,16 +975,12 @@
     <TextSources Include="$(BclSourcesRoot)\System\Text\Latin1Encoding.cs" />
     <TextSources Include="$(BclSourcesRoot)\System\Text\MLangCodePageEncoding.cs" />
     <TextSources Include="$(BclSourcesRoot)\System\Text\Normalization.cs" />
-    <TextSources Include="$(BclSourcesRoot)\System\Text\DBCSCodePageEncoding.cs" />
-    <TextSources Include="$(BclSourcesRoot)\System\Text\SBCSCodePageEncoding.cs" />
+    <TextSources Include="$(BclSourcesRoot)\System\Text\Normalization.Windows.cs" Condition="'$(TargetsUnix)' != 'true'"/>
     <TextSources Include="$(BclSourcesRoot)\System\Text\SurrogateEncoder.cs" />
     <TextSources Include="$(BclSourcesRoot)\System\Text\UnicodeEncoding.cs" />
     <TextSources Include="$(BclSourcesRoot)\System\Text\UTF7Encoding.cs" />
     <TextSources Include="$(BclSourcesRoot)\System\Text\UTF8Encoding.cs" />
     <TextSources Include="$(BclSourcesRoot)\System\Text\UTF32Encoding.cs" />
-    <TextSources Include="$(BclSourcesRoot)\System\Text\GB18030Encoding.cs" />
-    <TextSources Include="$(BclSourcesRoot)\System\Text\ISO2022Encoding.cs" />
-    <TextSources Include="$(BclSourcesRoot)\System\Text\EUCJPEncoding.cs" />
   </ItemGroup>
   <ItemGroup>
     <SecurityAclSources Include="$(BclSourcesRoot)\System\Security\AccessControl\Enums.cs" />
@@ -1034,13 +1012,6 @@
     <Win32Sources Condition="'$(FeatureWin32Registry)' == 'true'" Include="$(BclSourcesRoot)\Microsoft\Win32\RegistryValueKind.cs" />
     <Win32Sources Condition="'$(FeatureWin32Registry)' == 'true'" Include="$(BclSourcesRoot)\Microsoft\Win32\RegistryView.cs" />
     <Win32Sources Condition="'$(FeatureClassicCominterop)' == 'true'" Include="$(BclSourcesRoot)\Microsoft\Win32\OAVariantLib.cs" />
-  </ItemGroup>
-  <ItemGroup Condition="'$(FeatureClassicCominterop)' == 'true'" >
-    <InteropTceadaptergenSources Include="$(BclSourcesRoot)\System\Runtime\InteropServices\TCEAdapterGen\EventProviderWriter.cs" />
-    <InteropTceadaptergenSources Include="$(BclSourcesRoot)\System\Runtime\InteropServices\TCEAdapterGen\EventSinkHelperWriter.cs" />
-    <InteropTceadaptergenSources Include="$(BclSourcesRoot)\System\Runtime\InteropServices\TCEAdapterGen\EventItfInfo.cs" />
-    <InteropTceadaptergenSources Include="$(BclSourcesRoot)\System\Runtime\InteropServices\TCEAdapterGen\NameSpaceExtractor.cs" />
-    <InteropTceadaptergenSources Include="$(BclSourcesRoot)\System\Runtime\InteropServices\TCEAdapterGen\TCEAdapterGenerator.cs" />
   </ItemGroup>
   <ItemGroup>
     <SecurityPrincipalSources Include="$(BclSourcesRoot)\System\Security\Principal\IIdentity.cs" />
@@ -1124,7 +1095,6 @@
     <GenericsSources Include="$(BclSourcesRoot)\System\Collections\Concurrent\PartitionerStatic.cs" />
   </ItemGroup>
   <ItemGroup>
-    <SafehandleSources Include="$(BclSourcesRoot)\Microsoft\Win32\SafeHandles\SafeFileHandle.cs" />
     <SafehandleSources Include="$(BclSourcesRoot)\Microsoft\Win32\SafeHandles\SafeFileMappingHandle.cs" />
     <SafehandleSources Include="$(BclSourcesRoot)\Microsoft\Win32\SafeHandles\SafeFindHandle.cs" />
     <SafehandleSources Include="$(BclSourcesRoot)\Microsoft\Win32\SafeHandles\SafeLocalAllocHandle.cs" />
@@ -1135,10 +1105,103 @@
     <SafehandleSources Condition="'$(FeatureWin32Registry)' == 'true'" Include="$(BclSourcesRoot)\Microsoft\Win32\SafeHandles\SafeRegistryHandle.cs" />
   </ItemGroup>
   <ItemGroup>
+    <NumericsSources Include="$(BclSourcesRoot)\System\Numerics\Hashing\HashHelpers.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <BuffersSources Include="$(CoreFxSourcesRoot)\System\Buffers\ArrayPool.cs" />
+    <BuffersSources Include="$(CoreFxSourcesRoot)\System\Buffers\ArrayPoolEventSource.cs" />
+    <BuffersSources Include="$(CoreFxSourcesRoot)\System\Buffers\ConfigurableArrayPool.cs" />
+    <BuffersSources Include="$(CoreFxSourcesRoot)\System\Buffers\TlsOverPerCoreLockedStacksArrayPool.cs" />
+    <BuffersSources Include="$(CoreFxSourcesRoot)\System\Buffers\Utilities.cs" />
+    <SecuritySources Include="$(CoreFxSourcesRoot)\System\Security\CryptographicException.cs" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(TargetsUnix)' != 'true'">
+    <WindowsInteropSources Include="$(CoreFxSourcesRoot)\System\HResults.cs" />
+    <WindowsInteropSources Include="$(CoreFxSourcesRoot)\Interop\Windows\Interop.BOOL.cs" />
+    <WindowsInteropSources Include="$(CoreFxSourcesRoot)\Interop\Windows\Interop.Errors.cs" />
+    <WindowsInteropSources Include="$(CoreFxSourcesRoot)\Interop\Windows\Interop.Libraries.cs" />
+    <WindowsInteropSources Include="$(CoreFxSourcesRoot)\Interop\Windows\BCrypt\Interop.BCryptGenRandom.cs" />
+    <WindowsInteropSources Include="$(CoreFxSourcesRoot)\Interop\Windows\BCrypt\Interop.NTSTATUS.cs" />
+    <WindowsInteropSources Include="$(CoreFxSourcesRoot)\Interop\Windows\kernel32\Interop.CancelIoEx.cs" />
+    <WindowsInteropSources Include="$(CoreFxSourcesRoot)\Interop\Windows\kernel32\Interop.CloseHandle.cs" />
+    <WindowsInteropSources Include="$(CoreFxSourcesRoot)\Interop\Windows\kernel32\Interop.CreateFile.cs" />
+    <WindowsInteropSources Include="$(CoreFxSourcesRoot)\Interop\Windows\kernel32\Interop.FileTypes.cs" />
+    <WindowsInteropSources Include="$(CoreFxSourcesRoot)\Interop\Windows\kernel32\Interop.FileOperations.cs" />
+    <WindowsInteropSources Include="$(CoreFxSourcesRoot)\Interop\Windows\kernel32\Interop.FlushFileBuffers.cs" />
+    <WindowsInteropSources Include="$(CoreFxSourcesRoot)\Interop\Windows\kernel32\Interop.FormatMessage.cs" />
+    <WindowsInteropSources Include="$(CoreFxSourcesRoot)\Interop\Windows\kernel32\Interop.GetFileInformationByHandleEx.cs" />
+    <WindowsInteropSources Include="$(CoreFxSourcesRoot)\Interop\Windows\kernel32\Interop.GetFileType_SafeHandle.cs" />
+    <WindowsInteropSources Include="$(CoreFxSourcesRoot)\Interop\Windows\kernel32\Interop.GetFullPathNameW.cs" />
+    <WindowsInteropSources Include="$(CoreFxSourcesRoot)\Interop\Windows\kernel32\Interop.GetLongPathNameW.cs" />
+    <WindowsInteropSources Include="$(CoreFxSourcesRoot)\Interop\Windows\kernel32\Interop.GetTempFileNameW.cs" />
+    <WindowsInteropSources Include="$(CoreFxSourcesRoot)\Interop\Windows\kernel32\Interop.GetTempPathW.cs" />
+    <WindowsInteropSources Include="$(CoreFxSourcesRoot)\Interop\Windows\kernel32\Interop.LockFile.cs" />
+    <WindowsInteropSources Include="$(CoreFxSourcesRoot)\Interop\Windows\kernel32\Interop.ReadFile_SafeHandle_IntPtr.cs" />
+    <WindowsInteropSources Include="$(CoreFxSourcesRoot)\Interop\Windows\kernel32\Interop.ReadFile_SafeHandle_NativeOverlapped.cs" />
+    <WindowsInteropSources Include="$(CoreFxSourcesRoot)\Interop\Windows\kernel32\Interop.SafeCreateFile.cs" />
+    <WindowsInteropSources Include="$(CoreFxSourcesRoot)\Interop\Windows\kernel32\Interop.SECURITY_ATTRIBUTES.cs" />
+    <WindowsInteropSources Include="$(CoreFxSourcesRoot)\Interop\Windows\kernel32\Interop.SecurityOptions.cs" />
+    <WindowsInteropSources Include="$(CoreFxSourcesRoot)\Interop\Windows\kernel32\Interop.SetEndOfFile.cs" />
+    <WindowsInteropSources Include="$(CoreFxSourcesRoot)\Interop\Windows\kernel32\Interop.SetErrorMode.cs" />
+    <WindowsInteropSources Include="$(CoreFxSourcesRoot)\Interop\Windows\kernel32\Interop.SetFileInformationByHandle.cs" />
+    <WindowsInteropSources Include="$(CoreFxSourcesRoot)\Interop\Windows\kernel32\Interop.SetFilePointerEx.cs" />
+    <WindowsInteropSources Include="$(CoreFxSourcesRoot)\Interop\Windows\kernel32\Interop.UnsafeCreateFile.cs" />
+    <WindowsInteropSources Include="$(CoreFxSourcesRoot)\Interop\Windows\kernel32\Interop.WriteFile_SafeHandle_IntPtr.cs" />
+    <WindowsInteropSources Include="$(CoreFxSourcesRoot)\Interop\Windows\kernel32\Interop.WriteFile_SafeHandle_NativeOverlapped.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <SecuritySources Include="$(CoreFxSourcesRoot)\System\Security\SecureString.cs" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(TargetsUnix)' != 'true'">
+    <SecuritySources Include="$(CoreFxSourcesRoot)\System\Security\SafeBSTRHandle.cs" />
+    <SecuritySources Include="$(CoreFxSourcesRoot)\System\Security\SecureString.Windows.cs" />
+    <!-- Interop sources -->
+    <SecuritySources Include="$(CoreFxSourcesRoot)\Interop\Windows\Crypt32\Interop.CryptProtectMemory.cs" />
+    <SecuritySources Include="$(CoreFxSourcesRoot)\Interop\Windows\NtDll\Interop.ZeroMemory.cs" />
+    <SecuritySources Include="$(CoreFxSourcesRoot)\Interop\Windows\kernel32\Interop.WideCharToMultiByte.cs" />
+    <SecuritySources Include="$(CoreFxSourcesRoot)\Interop\Windows\oleaut32\Interop.SysAllocStringLen.cs" />
+    <SecuritySources Include="$(CoreFxSourcesRoot)\Interop\Windows\oleaut32\Interop.SysStringLen.cs" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(TargetsUnix)' == 'true'">
+    <SecuritySources Include="$(CoreFxSourcesRoot)\System\Security\SecureString.Unix.cs" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(TargetsUnix)' == 'true'">
+    <WindowsInteropSources Include="$(CoreFxSourcesRoot)\System\HResults.cs" />
+    <UnixInteropSources Include="$(CoreFxSourcesRoot)\Interop\Unix\Interop.Errors.cs" />
+    <UnixInteropSources Include="$(CoreFxSourcesRoot)\Interop\Unix\Interop.IOErrors.cs" />
+    <UnixInteropSources Include="$(CoreFxSourcesRoot)\Interop\Unix\Interop.Libraries.cs" />
+    <UnixInteropSources Include="$(CoreFxSourcesRoot)\Interop\Unix\System.Native\Interop.Close.cs" />
+    <UnixInteropSources Include="$(CoreFxSourcesRoot)\Interop\Unix\System.Native\Interop.GetCwd.cs" />
+    <UnixInteropSources Include="$(CoreFxSourcesRoot)\Interop\Unix\System.Native\Interop.GetUnixName.cs" />
+    <UnixInteropSources Include="$(CoreFxSourcesRoot)\Interop\Unix\System.Native\Interop.Fcntl.cs" />
+    <UnixInteropSources Include="$(CoreFxSourcesRoot)\Interop\Unix\System.Native\Interop.FLock.cs" />
+    <UnixInteropSources Include="$(CoreFxSourcesRoot)\Interop\Unix\System.Native\Interop.FSync.cs" />
+    <UnixInteropSources Include="$(CoreFxSourcesRoot)\Interop\Unix\System.Native\Interop.FTruncate.cs" />
+    <UnixInteropSources Include="$(CoreFxSourcesRoot)\Interop\Unix\System.Native\Interop.LSeek.cs" />
+    <UnixInteropSources Include="$(CoreFxSourcesRoot)\Interop\Unix\System.Native\Interop.MksTemps.cs" />
+    <UnixInteropSources Include="$(CoreFxSourcesRoot)\Interop\Unix\System.Native\Interop.Open.cs" />
+    <UnixInteropSources Include="$(CoreFxSourcesRoot)\Interop\Unix\System.Native\Interop.OpenFlags.cs" />
+    <UnixInteropSources Include="$(CoreFxSourcesRoot)\Interop\Unix\System.Native\Interop.PathConf.cs" />
+    <UnixInteropSources Include="$(CoreFxSourcesRoot)\Interop\Unix\System.Native\Interop.Permissions.cs" />
+    <UnixInteropSources Include="$(CoreFxSourcesRoot)\Interop\Unix\System.Native\Interop.PosixFAdvise.cs" />
+    <UnixInteropSources Include="$(CoreFxSourcesRoot)\Interop\Unix\System.Native\Interop.Read.cs" />
+    <UnixInteropSources Include="$(CoreFxSourcesRoot)\Interop\Unix\System.Native\Interop.Stat.cs" />
+    <UnixInteropSources Include="$(CoreFxSourcesRoot)\Interop\Unix\System.Native\Interop.Unlink.cs" />
+    <UnixInteropSources Include="$(CoreFxSourcesRoot)\Interop\Unix\System.Native\Interop.Write.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <WindowsInteropSources Include="$(CoreFxSourcesRoot)\Debug.cs" />
+  </ItemGroup>
+  <ItemGroup>
     <MscorlibSources Include="@(SystemSources)"/>
     <MscorlibSources Include="@(ThreadingSources)"/>
     <MscorlibSources Include="@(DeploymentSources)"/>
     <MscorlibSources Include="@(CollectionsSources)"/>
+    <MscorlibSources Include="@(ComponentModelSources)"/>
     <MscorlibSources Include="@(GenericsSources)"/>
     <MscorlibSources Include="@(DiagnosticsSources)"/>
     <MscorlibSources Include="@(DiagnosticsCodeanalysisSources)"/>
@@ -1164,6 +1227,7 @@
     <MscorlibSources Include="@(WinRTTSources)"/>
     <MscorlibSources Include="@(WinRTCollectionSources)"/>
     <MscorlibSources Include="@(IoSources)"/>
+    <MscorlibSources Include="@(FileStreamSources)"/>
     <MscorlibSources Include="@(CompilerServicesSources)"/>
     <MscorlibSources Include="@(RuntimeSources)"/>
     <MscorlibSources Include="@(XmlSources)"/>
@@ -1178,11 +1242,15 @@
     <MscorlibSources Include="@(ConfigurationAssembliesSources)"/>
     <MscorlibSources Include="@(SecCryptographySources)"/>
     <MscorlibSources Include="@(SecPublickeySources)"/>
-    <MscorlibSources Include="@(InteropTceadaptergenSources)"/>
     <MscorlibSources Include="@(SecurityAclSources)"/>
     <MscorlibSources Include="@(IdentitySources)"/>
     <MscorlibSources Include="@(VersioningSources)"/>
     <MscorlibSources Include="@(DesignerServicesSources)"/>
+    <MscorlibSources Include="@(InternalSources)"/>
+    <MscorlibSources Include="@(NumericsSources)"/>
     <MscorlibSources Include="$(BclSourcesRoot)\GlobalSuppressions.cs"/>
+    <MscorlibSources Include="@(BuffersSources)"/>
+    <MscorlibSources Include="@(WindowsInteropSources)"/>
+    <MscorlibSources Include="@(UnixInteropSources)"/>
   </ItemGroup>
 </Project>

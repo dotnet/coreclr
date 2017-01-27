@@ -14,6 +14,7 @@ namespace System.Security.Policy {
     using System.Security.Util;
     using UrlIdentityPermission = System.Security.Permissions.UrlIdentityPermission;
     using System.Runtime.Serialization;
+    using System.Diagnostics;
     using System.Diagnostics.Contracts;
 
     [Serializable]
@@ -25,7 +26,7 @@ namespace System.Security.Policy {
         internal Url( String name, bool parsed )
         {
             if (name == null)
-                throw new ArgumentNullException( "name" );
+                throw new ArgumentNullException( nameof(name) );
             Contract.EndContractBlock();
 
             m_url = new URLString( name, parsed );
@@ -34,7 +35,7 @@ namespace System.Security.Policy {
         public Url( String name )
         {
             if (name == null)
-                throw new ArgumentNullException( "name" );
+                throw new ArgumentNullException( nameof(name) );
             Contract.EndContractBlock();
 
             m_url = new URLString( name );
@@ -42,7 +43,7 @@ namespace System.Security.Policy {
 
         private Url(Url url)
         {
-            Contract.Assert(url != null);
+            Debug.Assert(url != null);
             m_url = url.m_url;
         }
 
@@ -86,28 +87,6 @@ namespace System.Security.Policy {
         {
             return Clone();
         }
-
-#if FEATURE_CAS_POLICY
-        internal SecurityElement ToXml()
-        {
-            SecurityElement root = new SecurityElement( "System.Security.Policy.Url" );
-            // If you hit this assert then most likely you are trying to change the name of this class. 
-            // This is ok as long as you change the hard coded string above and change the assert below.
-            Contract.Assert( this.GetType().FullName.Equals( "System.Security.Policy.Url" ), "Class name changed!" );
-
-            root.AddAttribute( "version", "1" );
-
-            if (m_url != null)
-                root.AddChild( new SecurityElement( "Url", m_url.ToString() ) );
-
-            return root;
-        }
-
-        public override String ToString()
-        {
-            return ToXml().ToString();
-        }
-#endif // FEATURE_CAS_POLICY
 
         // INormalizeForIsolatedStorage is not implemented for startup perf
         // equivalent to INormalizeForIsolatedStorage.Normalize()

@@ -6,6 +6,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Diagnostics.Contracts;
 using System.Reflection;
 using System.Runtime.CompilerServices;
@@ -23,15 +24,14 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         // delegate.  It then stores the corresponding token in a dictionary for easy access by RemoveEventHandler
         // later.  Note that the dictionary is indexed by the remove method that will be used for RemoveEventHandler
         // so the removeMethod given here must match the remove method supplied there exactly.
-        [SecurityCritical]
         public static void AddEventHandler<T>(Func<T, EventRegistrationToken> addMethod,
                                               Action<EventRegistrationToken> removeMethod,
                                               T handler)
         {
             if (addMethod == null)
-                throw new ArgumentNullException("addMethod");
+                throw new ArgumentNullException(nameof(addMethod));
             if (removeMethod == null)
-                throw new ArgumentNullException("removeMethod");
+                throw new ArgumentNullException(nameof(removeMethod));
             Contract.EndContractBlock();
 
             // Managed code allows adding a null event handler, the effect is a no-op.  To match this behavior
@@ -54,11 +54,10 @@ namespace System.Runtime.InteropServices.WindowsRuntime
 
         // Remove the delegate handler from the Windows Runtime style event registration by looking for
         // its token, previously stored via AddEventHandler<T>
-        [SecurityCritical]
         public static void RemoveEventHandler<T>(Action<EventRegistrationToken> removeMethod, T handler)
         {
             if (removeMethod == null)
-                throw new ArgumentNullException("removeMethod");
+                throw new ArgumentNullException(nameof(removeMethod));
             Contract.EndContractBlock();
 
             // Managed code allows removing a null event handler, the effect is a no-op.  To match this behavior
@@ -79,11 +78,10 @@ namespace System.Runtime.InteropServices.WindowsRuntime
                 ManagedEventRegistrationImpl.RemoveEventHandler<T>(removeMethod, handler);            
         }
         
-        [SecurityCritical]
         public static void RemoveAllEventHandlers(Action<EventRegistrationToken> removeMethod)
         {
             if (removeMethod == null)
-                throw new ArgumentNullException("removeMethod");
+                throw new ArgumentNullException(nameof(removeMethod));
             Contract.EndContractBlock();
 
             // Delegate to managed event registration implementation or native event registration implementation
@@ -220,7 +218,6 @@ namespace System.Runtime.InteropServices.WindowsRuntime
                 ConditionalWeakTable<object, Dictionary<MethodInfo, Dictionary<object, EventRegistrationTokenList>>> s_eventRegistrations = 
                     new ConditionalWeakTable<object, Dictionary<MethodInfo, Dictionary<object, EventRegistrationTokenList>>>();
     
-            [SecurityCritical]
             internal static void AddEventHandler<T>(Func<T, EventRegistrationToken> addMethod,
                                                   Action<EventRegistrationToken> removeMethod,
                                                   T handler)
@@ -280,7 +277,6 @@ namespace System.Runtime.InteropServices.WindowsRuntime
                 }
             }
 
-            [SecurityCritical]
             internal static void RemoveEventHandler<T>(Action<EventRegistrationToken> removeMethod, T handler)
             {
                 Contract.Requires(removeMethod != null);
@@ -322,7 +318,6 @@ namespace System.Runtime.InteropServices.WindowsRuntime
                 BCLDebug.Log("INTEROP", "[WinRT_Eventing] Event unsubscribed for managed instance = " + instance + ", handler = " + handler + ", token = " + token.m_value + "\n");                
             }
 
-            [SecurityCritical]
             internal static void RemoveAllEventHandlers(Action<EventRegistrationToken> removeMethod)
             {
                 Contract.Requires(removeMethod != null);                                        
@@ -538,11 +533,10 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             private volatile static MyReaderWriterLock s_eventCacheRWLock = new MyReaderWriterLock();
 
             // Get InstanceKey to use in the cache
-            [SecuritySafeCritical]
             private static object GetInstanceKey(Action<EventRegistrationToken> removeMethod)
             {
                 object target = removeMethod.Target;
-                Contract.Assert(target == null || Marshal.IsComObject(target), "Must be null or a RCW");
+                Debug.Assert(target == null || Marshal.IsComObject(target), "Must be null or a RCW");
                 if (target == null)
                     return removeMethod.Method.DeclaringType;
                 
@@ -550,7 +544,6 @@ namespace System.Runtime.InteropServices.WindowsRuntime
                 return (object) Marshal.GetRawIUnknownForComObjectNoAddRef(target);
             }
             
-            [SecurityCritical]
             internal static void AddEventHandler<T>(Func<T, EventRegistrationToken> addMethod,
                                                   Action<EventRegistrationToken> removeMethod,
                                                   T handler)
@@ -685,7 +678,6 @@ namespace System.Runtime.InteropServices.WindowsRuntime
                 }
             }
 
-            [SecurityCritical]
             internal static void RemoveEventHandler<T>(Action<EventRegistrationToken> removeMethod, T handler)
             {
                 object instanceKey = GetInstanceKey(removeMethod);
@@ -721,7 +713,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
                         // Note that inside TryGetValueWithValueEquality we assumes that any delegate 
                         // with the same value equality would have the same hash code
                         object key = registrationTokens.FindEquivalentKeyUnsafe(handler, out tokens);
-                        Contract.Assert((key != null && tokens != null) || (key == null && tokens == null), 
+                        Debug.Assert((key != null && tokens != null) || (key == null && tokens == null), 
                                         "key and tokens must be both null or non-null");
                         if (tokens == null)
                         {
@@ -762,7 +754,6 @@ namespace System.Runtime.InteropServices.WindowsRuntime
                 removeMethod(token);            
             }
 
-            [SecurityCritical]
             internal static void RemoveAllEventHandlers(Action<EventRegistrationToken> removeMethod)
             {
                 object instanceKey = GetInstanceKey(removeMethod);
@@ -908,7 +899,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
                 internal void ReleaseReaderLock()
                 {
                     EnterMyLock();
-                    Contract.Assert(owners > 0, "ReleasingReaderLock: releasing lock and no read lock taken");
+                    Debug.Assert(owners > 0, "ReleasingReaderLock: releasing lock and no read lock taken");
                     --owners;
                     ExitAndWakeUpAppropriateWaiters();
                 }
@@ -916,7 +907,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
                 internal void ReleaseWriterLock()
                 {
                     EnterMyLock();
-                    Contract.Assert(owners == -1, "Calling ReleaseWriterLock when no write lock is held");
+                    Debug.Assert(owners == -1, "Calling ReleaseWriterLock when no write lock is held");
                     owners++;
                     ExitAndWakeUpAppropriateWaiters();
                 }
@@ -928,8 +919,8 @@ namespace System.Runtime.InteropServices.WindowsRuntime
                 /// set 'waitEvent' 
                 /// </summary>
                 private void LazyCreateEvent(ref EventWaitHandle waitEvent, bool makeAutoResetEvent) {
-                    Contract.Assert(myLock != 0, "Lock must be held");
-                    Contract.Assert(waitEvent == null, "Wait event must be null");
+                    Debug.Assert(myLock != 0, "Lock must be held");
+                    Debug.Assert(waitEvent == null, "Wait event must be null");
 
                     ExitMyLock();
                     EventWaitHandle newEvent;
@@ -948,7 +939,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
                 /// </summary>
                 private void WaitOnEvent(EventWaitHandle waitEvent, ref uint numWaiters, int millisecondsTimeout)
                 {
-                    Contract.Assert(myLock != 0, "Lock must be held");
+                    Debug.Assert(myLock != 0, "Lock must be held");
 
                     waitEvent.Reset();
                     numWaiters++;
@@ -976,7 +967,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
                 /// </summary>
                 private void ExitAndWakeUpAppropriateWaiters()
                 {
-                    Contract.Assert(myLock != 0, "Lock must be held");
+                    Debug.Assert(myLock != 0, "Lock must be held");
 
                     if (owners == 0 && numWriteWaiters > 0)
                     {
@@ -1012,7 +1003,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
                 }
                 private void ExitMyLock()
                 {
-                    Contract.Assert(myLock != 0, "Exiting spin lock that is not held");
+                    Debug.Assert(myLock != 0, "Exiting spin lock that is not held");
                     myLock = 0;
                 }
             };            
@@ -1044,7 +1035,6 @@ namespace System.Runtime.InteropServices.WindowsRuntime
                 throw new AggregateException(exceptions.ToArray());
         }
         
-        [SecurityCritical]
         internal static unsafe string HStringToString(IntPtr hstring)
         {
             Contract.Requires(Environment.IsWinRTSupported);
@@ -1092,7 +1082,6 @@ namespace System.Runtime.InteropServices.WindowsRuntime
 
         private static bool s_haveBlueErrorApis = true;
 
-        [SecurityCritical]
         private static bool RoOriginateLanguageException(int error, string message, IntPtr languageException)
         {
             if (s_haveBlueErrorApis)
@@ -1110,7 +1099,6 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             return false;
         }
 
-        [SecurityCritical]
         private static void RoReportUnhandledError(IRestrictedErrorInfo error)
         {
             if (s_haveBlueErrorApis)
@@ -1134,7 +1122,6 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         /// </summary>
         /// <returns>true if the error was reported, false if not (ie running on Win8)</returns>
         [FriendAccessAllowed]
-        [SecuritySafeCritical]
         internal static bool ReportUnhandledError(Exception e)
         {
             // Only report to the WinRT global exception handler in modern apps
@@ -1200,14 +1187,12 @@ namespace System.Runtime.InteropServices.WindowsRuntime
 
 #if FEATURE_COMINTEROP_WINRT_MANAGED_ACTIVATION
         // Get an IActivationFactory * for a managed type
-        [SecurityCritical]
         internal static IntPtr GetActivationFactoryForType(Type type)
         {
             ManagedActivationFactory activationFactory = GetManagedActivationFactory(type); 
             return Marshal.GetComInterfaceForObject(activationFactory, typeof(IActivationFactory));
         }        
 
-        [SecurityCritical]
         internal static ManagedActivationFactory GetManagedActivationFactory(Type type)
         {
             ManagedActivationFactory activationFactory = new ManagedActivationFactory(type);
@@ -1218,43 +1203,6 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             return activationFactory;
         }
 
-#if FEATURE_COMINTEROP_WINRT_DESKTOP_HOST
-        // Currently we use only a single class activator since we have a requirement that all class activations come from the same
-        // app base and we haven't sorted through the various code sharing implications of spinning up multiple AppDomains.  This
-        // holds the IWinRTClassActivator* that is used for the process
-        private static IntPtr s_pClassActivator = IntPtr.Zero;
-
-        [SecurityCritical]
-        internal static IntPtr GetClassActivatorForApplication(string appBase)
-        {
-            if (s_pClassActivator == IntPtr.Zero)
-            {
-                AppDomainSetup hostDomainSetup = new AppDomainSetup()
-                {
-                    ApplicationBase = appBase,
-                };
-
-                AppDomain hostDomain = AppDomain.CreateDomain(Environment.GetResourceString("WinRTHostDomainName", appBase), null, hostDomainSetup);
-                WinRTClassActivator activator = (WinRTClassActivator)hostDomain.CreateInstanceAndUnwrap(typeof(WinRTClassActivator).Assembly.FullName, typeof(WinRTClassActivator).FullName);
-                IntPtr pActivator = activator.GetIWinRTClassActivator();
-
-                if (Interlocked.CompareExchange(ref s_pClassActivator, pActivator, IntPtr.Zero) != IntPtr.Zero)
-                {
-                    Marshal.Release(pActivator);
-                    activator = null;
-
-                    try
-                    {
-                        AppDomain.Unload(hostDomain);
-                    }
-                    catch (CannotUnloadAppDomainException) { }
-                }
-            }
-
-            Marshal.AddRef(s_pClassActivator);
-            return s_pClassActivator;
-        }
-#endif // FEATURE_COMINTEROP_WINRT_DESKTOP_HOST
 
 #endif // FEATURE_COMINTEROP_WINRT_MANAGED_ACTIVATION
 
@@ -1268,11 +1216,10 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         // factories from other apartments and make transiton to those apartments and cause
         // deadlocks and create objects in incorrect apartments
         //
-        [SecurityCritical]
         public static IActivationFactory GetActivationFactory(Type type)
         {
             if (type == null)
-                throw new ArgumentNullException("type");
+                throw new ArgumentNullException(nameof(type));
 
             if (type.IsWindowsRuntimeObject && type.IsImport)
             {
@@ -1291,14 +1238,13 @@ namespace System.Runtime.InteropServices.WindowsRuntime
 
         // HSTRING marshaling methods:
 
-        [SecurityCritical]
         public static IntPtr StringToHString(String s)
         {
             if (!Environment.IsWinRTSupported)
                 throw new PlatformNotSupportedException(Environment.GetResourceString("PlatformNotSupported_WinRT"));
 
             if (s == null)
-                throw new ArgumentNullException("s");
+                throw new ArgumentNullException(nameof(s));
 
             unsafe
             {
@@ -1309,7 +1255,6 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             }
         }
 
-        [SecurityCritical]
         public static String PtrToStringHString(IntPtr ptr)
         {
             if (!Environment.IsWinRTSupported)
@@ -1320,7 +1265,6 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             return HStringToString(ptr);
         }
 
-        [SecurityCritical]
         public static void FreeHString(IntPtr ptr)
         {
             if (!Environment.IsWinRTSupported)

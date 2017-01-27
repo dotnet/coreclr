@@ -8,12 +8,10 @@
 #include <stdint.h>
 #include <vector>
 #include <map>
-#include <unicode/uchar.h>
-#include <unicode/ucol.h>
-#include <unicode/usearch.h>
-#include <unicode/utf16.h>
 
-#include "config.h"
+#include "icushim.h"
+#include "locale.hpp"
+#include "errors.h"
 
 const int32_t CompareOptionsIgnoreCase = 0x1;
 const int32_t CompareOptionsIgnoreNonSpace = 0x2;
@@ -298,7 +296,7 @@ UCollator* CloneCollatorWithOptions(const UCollator* pCollator, int32_t options,
 // Returns TRUE if all the collation elements in str are completely ignorable
 bool CanIgnoreAllCollationElements(const UCollator* pColl, const UChar* lpStr, int32_t length)
 {
-    bool result = FALSE;
+    bool result = false;
     UErrorCode err = U_ZERO_ERROR;
     UCollationElements* pCollElem = ucol_openElements(pColl, lpStr, length, &err);
 
@@ -306,20 +304,20 @@ bool CanIgnoreAllCollationElements(const UCollator* pColl, const UChar* lpStr, i
     {
         int32_t curCollElem = UCOL_NULLORDER;
 
-        result = TRUE;
+        result = true;
 
         while ((curCollElem = ucol_next(pCollElem, &err)) != UCOL_NULLORDER)
         {
             if (curCollElem != 0)
             {
-                result = FALSE;
+                result = false;
                 break;
             }
         }
 
         if (U_FAILURE(err))
         {
-            result = FALSE;
+            result = false;
         }
 
         ucol_closeElements(pCollElem);
@@ -329,24 +327,36 @@ bool CanIgnoreAllCollationElements(const UCollator* pColl, const UChar* lpStr, i
 
 }
 
-extern "C" SortHandle* GlobalizationNative_GetSortHandle(const char* lpLocaleName)
+extern "C" int32_t GlobalizationNative_GetSortVersion()
 {
-    SortHandle* pSortHandle = new SortHandle();
+    // we didn't use UCOL_TAILORINGS_VERSION because it is deprecated in ICU v5
+    return UCOL_RUNTIME_VERSION << 16 | UCOL_BUILDER_VERSION;
+}
+
+extern "C" ResultCode GlobalizationNative_GetSortHandle(const char* lpLocaleName, SortHandle** ppSortHandle)
+{
+    assert(ppSortHandle != nullptr);
+    
+    *ppSortHandle = new (std::nothrow) SortHandle();
+    if ((*ppSortHandle) == nullptr)
+    {
+        return GetResultCode(U_MEMORY_ALLOCATION_ERROR);
+    }
 
     UErrorCode err = U_ZERO_ERROR;
 
-    pSortHandle->regular = ucol_open(lpLocaleName, &err);
+    (*ppSortHandle)->regular = ucol_open(lpLocaleName, &err);
 
     if (U_FAILURE(err))
     {
-        if (pSortHandle->regular != nullptr)
-              ucol_close(pSortHandle->regular);
+        if ((*ppSortHandle)->regular != nullptr)
+            ucol_close((*ppSortHandle)->regular);
 
-        delete pSortHandle;
-        pSortHandle = nullptr;
+        delete (*ppSortHandle);
+        (*ppSortHandle) = nullptr;
     }
 
-    return pSortHandle;
+    return GetResultCode(err);
 }
 
 extern "C" void GlobalizationNative_CloseSortHandle(SortHandle* pSortHandle)

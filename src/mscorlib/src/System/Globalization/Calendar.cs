@@ -7,6 +7,7 @@ namespace System.Globalization {
     using System.Runtime.CompilerServices;
     using System.Globalization;
     using System.Runtime.Versioning;
+    using System.Diagnostics;
     using System.Diagnostics.Contracts;
 
     // This abstract class represents a calendar. A calendar reckons time in
@@ -192,7 +193,7 @@ namespace System.Globalization {
         [System.Runtime.InteropServices.ComVisible(false)]
         public static Calendar ReadOnly(Calendar calendar) 
         {
-            if (calendar == null)       { throw new ArgumentNullException("calendar"); }
+            if (calendar == null)       { throw new ArgumentNullException(nameof(calendar)); }
             Contract.EndContractBlock();
             if (calendar.IsReadOnly)    { return (calendar); }
             
@@ -229,7 +230,7 @@ namespace System.Globalization {
             get {
                 // The following code assumes that the current era value can not be -1.
                 if (m_currentEraValue == -1) {
-                    Contract.Assert(BaseCalendarID > 0, "[Calendar.CurrentEraValue] Expected ID > 0");
+                    Debug.Assert(BaseCalendarID > 0, "[Calendar.CurrentEraValue] Expected ID > 0");
                     m_currentEraValue = CalendarData.GetCalendarData(BaseCalendarID).iCurrentEra;
                 }
                 return (m_currentEraValue);
@@ -262,7 +263,7 @@ namespace System.Globalization {
             double tempMillis = (value * scale + (value >= 0 ? 0.5 : -0.5));
             if (!((tempMillis > -(double)MaxMillis) && (tempMillis < (double)MaxMillis)))
             {
-                throw new ArgumentOutOfRangeException("value", Environment.GetResourceString("ArgumentOutOfRange_AddValue"));
+                throw new ArgumentOutOfRangeException(nameof(value), Environment.GetResourceString("ArgumentOutOfRange_AddValue"));
             }
 
             long millis = (long)tempMillis;
@@ -529,7 +530,7 @@ namespace System.Globalization {
             // this value can be less than 0.  It's fine since we are making it positive again in calculating offset.
             int dayForJan1 = (int)GetDayOfWeek(time) - (dayOfYear % 7);
             int offset = (dayForJan1 - firstDayOfWeek + 14) % 7;
-            Contract.Assert(offset >= 0, "Calendar.GetFirstDayWeekOfYear(): offset >= 0");
+            Debug.Assert(offset >= 0, "Calendar.GetFirstDayWeekOfYear(): offset >= 0");
             return ((dayOfYear + offset) / 7 + 1);
         }
 
@@ -651,7 +652,7 @@ namespace System.Globalization {
         {
             if ((int)firstDayOfWeek < 0 || (int)firstDayOfWeek > 6) {
                 throw new ArgumentOutOfRangeException(
-                    "firstDayOfWeek", Environment.GetResourceString("ArgumentOutOfRange_Range",
+                    nameof(firstDayOfWeek), Environment.GetResourceString("ArgumentOutOfRange_Range",
                     DayOfWeek.Sunday, DayOfWeek.Saturday));
             }
             Contract.EndContractBlock();
@@ -664,7 +665,7 @@ namespace System.Globalization {
                     return (GetWeekOfYearFullDays(time, (int)firstDayOfWeek, 4));
             }
             throw new ArgumentOutOfRangeException(
-                "rule", Environment.GetResourceString("ArgumentOutOfRange_Range",
+                nameof(rule), Environment.GetResourceString("ArgumentOutOfRange_Range",
                 CalendarWeekRule.FirstDay, CalendarWeekRule.FirstFourDayWeek));
 
         }
@@ -815,7 +816,7 @@ namespace System.Globalization {
 
         public virtual int ToFourDigitYear(int year) {
             if (year < 0) {
-                throw new ArgumentOutOfRangeException("year",
+                throw new ArgumentOutOfRangeException(nameof(year),
                     Environment.GetResourceString("ArgumentOutOfRange_NeedNonNegNum"));
             }
             Contract.EndContractBlock();
@@ -835,7 +836,7 @@ namespace System.Globalization {
             {
                 if (millisecond < 0 || millisecond >= MillisPerSecond) {
                     throw new ArgumentOutOfRangeException(
-                                "millisecond",
+                                nameof(millisecond),
                                 String.Format(
                                     CultureInfo.InvariantCulture,
                                     Environment.GetResourceString("ArgumentOutOfRange_Range"), 0, MillisPerSecond - 1));
@@ -845,7 +846,6 @@ namespace System.Globalization {
             throw new ArgumentOutOfRangeException(null, Environment.GetResourceString("ArgumentOutOfRange_BadHourMinuteSecond"));
         }
 
-        [System.Security.SecuritySafeCritical]  // auto-generated
         internal static int GetSystemTwoDigitYearSetting(int CalID, int defaultYearValue)
         {
             // Call nativeGetTwoDigitYearMax

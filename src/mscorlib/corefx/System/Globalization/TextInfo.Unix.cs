@@ -2,6 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+using System.Diagnostics;
 using System.Diagnostics.Contracts;
 using System.Security;
 using System.Text;
@@ -10,7 +11,8 @@ namespace System.Globalization
 {
     public partial class TextInfo
     {
-        private readonly bool m_needsTurkishCasing;
+        [NonSerialized]
+        private Tristate _needsTurkishCasing = Tristate.NotInitialized;
 
         //////////////////////////////////////////////////////////////////////////
         ////
@@ -21,16 +23,20 @@ namespace System.Globalization
         //////////////////////////////////////////////////////////////////////////
         internal unsafe TextInfo(CultureData cultureData)
         {
-            m_cultureData = cultureData;
-            m_cultureName = m_cultureData.CultureName;
-            m_textInfoName = m_cultureData.STEXTINFO;
-            m_needsTurkishCasing = NeedsTurkishCasing(m_textInfoName);
+            _cultureData = cultureData;
+            _cultureName = _cultureData.CultureName;
+            _textInfoName = _cultureData.STEXTINFO;
+            FinishInitialization(_textInfoName);
+        }
+
+        private void FinishInitialization(string textInfoName)
+        {
         }
 
         [SecuritySafeCritical]
         private unsafe string ChangeCase(string s, bool toUpper)
         {
-            Contract.Assert(s != null);
+            Debug.Assert(s != null);
 
             if (s.Length == 0)
             {
@@ -88,27 +94,33 @@ namespace System.Globalization
 
         private bool NeedsTurkishCasing(string localeName)
         {
-            Contract.Assert(localeName != null);
+            Debug.Assert(localeName != null);
 
             return CultureInfo.GetCultureInfo(localeName).CompareInfo.Compare("\u0131", "I", CompareOptions.IgnoreCase) == 0;
         }
 
-        private bool IsInvariant { get { return m_cultureName.Length == 0; } }
+        private bool IsInvariant { get { return _cultureName.Length == 0; } }
 
-        [SecurityCritical]
         internal unsafe void ChangeCase(char* src, int srcLen, char* dstBuffer, int dstBufferCapacity, bool bToUpper)
         {
             if (IsInvariant)
             {
                 Interop.GlobalizationInterop.ChangeCaseInvariant(src, srcLen, dstBuffer, dstBufferCapacity, bToUpper);
             }
-            else if (m_needsTurkishCasing)
-            {
-                Interop.GlobalizationInterop.ChangeCaseTurkish(src, srcLen, dstBuffer, dstBufferCapacity, bToUpper);
-            }
             else
             {
-                Interop.GlobalizationInterop.ChangeCase(src, srcLen, dstBuffer, dstBufferCapacity, bToUpper);
+                if (_needsTurkishCasing == Tristate.NotInitialized)
+                {
+                    _needsTurkishCasing = NeedsTurkishCasing(_textInfoName) ? Tristate.True : Tristate.False;
+                }
+                if (_needsTurkishCasing == Tristate.True)
+                {
+                    Interop.GlobalizationInterop.ChangeCaseTurkish(src, srcLen, dstBuffer, dstBufferCapacity, bToUpper);
+                }
+                else
+                {
+                    Interop.GlobalizationInterop.ChangeCase(src, srcLen, dstBuffer, dstBufferCapacity, bToUpper);
+                }
             }
         }
 

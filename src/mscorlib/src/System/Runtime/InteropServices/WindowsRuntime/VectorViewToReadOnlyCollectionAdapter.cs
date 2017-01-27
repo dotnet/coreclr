@@ -8,6 +8,7 @@ using System;
 using System.Security;
 using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Diagnostics.Contracts;
 using System.Runtime.InteropServices;
 using System.Runtime.CompilerServices;
@@ -26,12 +27,11 @@ namespace System.Runtime.InteropServices.WindowsRuntime
     {
         private VectorViewToReadOnlyCollectionAdapter()
         {
-            Contract.Assert(false, "This class is never instantiated");
+            Debug.Assert(false, "This class is never instantiated");
         }
 
         // int Count { get }
         [Pure]
-        [SecurityCritical]
         internal int Count<T>()
         {
             IVectorView<T> _this = JitHelpers.UnsafeCast<IVectorView<T>>(this);

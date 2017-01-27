@@ -213,7 +213,7 @@ void EHContext::Setup(PCODE resumePC, PREGDISPLAY regs)
     LIMITED_METHOD_DAC_CONTRACT;
 
     // EAX ECX EDX are scratch
-    this->Esp  = regs->Esp;
+    this->Esp  = regs->SP;
     this->Ebx = *regs->pEbx;
     this->Esi = *regs->pEsi;
     this->Edi = *regs->pEdi;
@@ -275,6 +275,8 @@ void TransitionFrame::UpdateRegDisplay(const PREGDISPLAY pRD)
     _ASSERTE(pFunc != NULL);
     UpdateRegDisplayHelper(pRD, pFunc->CbStackPop());
 
+    LOG((LF_GCROOTS, LL_INFO100000, "STACKWALK    TransitionFrame::UpdateRegDisplay(ip:%p, sp:%p)\n", pRD->ControlPC, pRD->SP));
+
     RETURN;
 }
 
@@ -296,13 +298,37 @@ void TransitionFrame::UpdateRegDisplayHelper(const PREGDISPLAY pRD, UINT cbStack
 
     pRD->pContext = NULL;
 
-    pRD->pEdi = (DWORD*) &regs->edi;
-    pRD->pEsi = (DWORD*) &regs->esi;
-    pRD->pEbx = (DWORD*) &regs->ebx;
-    pRD->pEbp = (DWORD*) &regs->ebp;
+#define CALLEE_SAVED_REGISTER(regname) pRD->p##regname = (DWORD*) &regs->regname;
+    ENUM_CALLEE_SAVED_REGISTERS();
+#undef CALLEE_SAVED_REGISTER
     pRD->PCTAddr = GetReturnAddressPtr();
+
+#ifdef WIN64EXCEPTIONS
+
+    pRD->IsCallerContextValid = FALSE;
+    pRD->IsCallerSPValid      = FALSE;
+
+    pRD->pCurrentContext->Eip = *PTR_PCODE(pRD->PCTAddr);;
+    pRD->pCurrentContext->Esp = GetSP();
+
+    T_CONTEXT * pContext = pRD->pCurrentContext;
+#define CALLEE_SAVED_REGISTER(regname) pContext->regname = regs->regname;
+    ENUM_CALLEE_SAVED_REGISTERS();
+#undef CALLEE_SAVED_REGISTER
+
+    KNONVOLATILE_CONTEXT_POINTERS * pContextPointers = pRD->pCurrentContextPointers;
+#define CALLEE_SAVED_REGISTER(regname) pContextPointers->regname = (DWORD*)&regs->regname;
+    ENUM_CALLEE_SAVED_REGISTERS();
+#undef CALLEE_SAVED_REGISTER
+
+    SyncRegDisplayToCurrentContext(pRD);
+
+#else // WIN64EXCEPTIONS
+
     pRD->ControlPC = *PTR_PCODE(pRD->PCTAddr);
-    pRD->Esp  = (DWORD)(pRD->PCTAddr + sizeof(TADDR) + cbStackPop);
+    pRD->SP  = (DWORD)(pRD->PCTAddr + sizeof(TADDR) + cbStackPop);
+
+#endif // WIN64EXCEPTIONS
 
     RETURN;
 }
@@ -322,6 +348,8 @@ void HelperMethodFrame::UpdateRegDisplay(const PREGDISPLAY pRD)
 
     ENABLE_FORBID_GC_LOADER_USE_IN_THIS_SCOPE();
 
+    LOG((LF_GCROOTS, LL_INFO100000, "STACKWALK    HelperMethodFrame::UpdateRegDisplay cached ip:%p, sp:%p\n", m_MachState.GetRetAddr(), m_MachState.esp()));
+
     // reset pContext; it's only valid for active (top-most) frame
     pRD->pContext = NULL;
 
@@ -340,7 +368,7 @@ void HelperMethodFrame::UpdateRegDisplay(const PREGDISPLAY pRD)
         InsureInit(false, &unwindState);
         pRD->PCTAddr = dac_cast<TADDR>(unwindState.pRetAddr());
         pRD->ControlPC = unwindState.GetRetAddr();
-        pRD->Esp = unwindState._esp;
+        pRD->SP = unwindState._esp;
 
         // Get some special host instance memory
         // so we have a place to point to.
@@ -363,6 +391,10 @@ void HelperMethodFrame::UpdateRegDisplay(const PREGDISPLAY pRD)
         // in the real code.  I'm not sure exactly
         // what should happen in the on-the-fly case,
         // but go with what would happen from an InsureInit.
+#ifdef WIN64EXCEPTIONS
+        PORTABILITY_ASSERT("HelperMethodFrame::UpdateRegDisplay");
+#endif
+
         RETURN;
     }
 
@@ -377,7 +409,26 @@ void HelperMethodFrame::UpdateRegDisplay(const PREGDISPLAY pRD)
     pRD->pEbp = (DWORD*) m_MachState.pEbp();
     pRD->PCTAddr = dac_cast<TADDR>(m_MachState.pRetAddr());
     pRD->ControlPC = m_MachState.GetRetAddr();
-    pRD->Esp  = (DWORD) m_MachState.esp();
+    pRD->SP  = (DWORD) m_MachState.esp();
+
+#ifdef WIN64EXCEPTIONS
+    pRD->IsCallerContextValid = FALSE;
+    pRD->IsCallerSPValid      = FALSE;        // Don't add usage of this field.  This is only temporary.
+
+    //
+    // Copy the saved state from the frame to the current context.
+    //
+    pRD->pCurrentContext->Eip = pRD->ControlPC;
+    pRD->pCurrentContext->Esp = pRD->SP;
+
+#define CALLEE_SAVED_REGISTER(regname) pRD->pCurrentContext->regname = *pRD->p##regname;
+    ENUM_CALLEE_SAVED_REGISTERS();
+#undef CALLEE_SAVED_REGISTER
+
+#define CALLEE_SAVED_REGISTER(regname) pRD->pCurrentContextPointers->regname = pRD->p##regname;
+    ENUM_CALLEE_SAVED_REGISTERS();
+#undef CALLEE_SAVED_REGISTER
+#endif // WIN64EXCEPTIONS
 
     RETURN;
 }
@@ -509,18 +560,42 @@ void FaultingExceptionFrame::UpdateRegDisplay(const PREGDISPLAY pRD)
     }
     CONTRACT_END;
 
-    CalleeSavedRegisters* regs = GetCalleeSavedRegisters();
-
     // reset pContext; it's only valid for active (top-most) frame
     pRD->pContext = NULL;
 
-    pRD->pEdi = (DWORD*) &regs->edi;
-    pRD->pEsi = (DWORD*) &regs->esi;
-    pRD->pEbx = (DWORD*) &regs->ebx;
-    pRD->pEbp = (DWORD*) &regs->ebp;
+#ifndef WIN64EXCEPTIONS
+    CalleeSavedRegisters* regs = GetCalleeSavedRegisters();
+
+#define CALLEE_SAVED_REGISTER(regname) pRD->p##regname = (DWORD*) &regs->regname;
+    ENUM_CALLEE_SAVED_REGISTERS();
+#undef CALLEE_SAVED_REGISTER
+    pRD->SP = m_Esp;
     pRD->PCTAddr = GetReturnAddressPtr();
     pRD->ControlPC = *PTR_PCODE(pRD->PCTAddr);
-    pRD->Esp = m_Esp;
+
+#else // WIN64EXCEPTIONS
+
+    pRD->IsCallerContextValid = FALSE;
+    pRD->IsCallerSPValid = FALSE;        // Don't add usage of this field.  This is only temporary.
+
+    memcpy(pRD->pCurrentContext, &m_ctx, sizeof(CONTEXT));
+
+#define CALLEE_SAVED_REGISTER(regname) pRD->pCurrentContextPointers->regname = &m_ctx.regname;
+    ENUM_CALLEE_SAVED_REGISTERS();
+#undef CALLEE_SAVED_REGISTER
+
+#define CALLEE_SAVED_REGISTER(regname) pRD->p##regname = &m_ctx.regname;
+    ENUM_CALLEE_SAVED_REGISTERS();
+#undef CALLEE_SAVED_REGISTER
+
+    pRD->SP = m_ctx.Esp;
+    pRD->PCTAddr = GetReturnAddressPtr();
+    pRD->ControlPC = m_ctx.Eip;
+
+#endif // WIN64EXCEPTIONS
+
+    LOG((LF_GCROOTS, LL_INFO100000, "STACKWALK    FaultingExceptionFrame::UpdateRegDisplay(ip:%p, sp:%p)\n", pRD->ControlPC, pRD->SP));
+
     RETURN;
 }
 
@@ -575,7 +650,27 @@ void InlinedCallFrame::UpdateRegDisplay(const PREGDISPLAY pRD)
     pRD->ControlPC = *PTR_PCODE(pRD->PCTAddr);
 
     /* Now we need to pop off the outgoing arguments */
-    pRD->Esp  = (DWORD) dac_cast<TADDR>(m_pCallSiteSP) + stackArgSize;
+    pRD->SP  = (DWORD) dac_cast<TADDR>(m_pCallSiteSP) + stackArgSize;
+
+#ifdef WIN64EXCEPTIONS
+    pRD->IsCallerContextValid = FALSE;
+    pRD->IsCallerSPValid      = FALSE;        // Don't add usage of this field.  This is only temporary.
+
+    pRD->pCurrentContext->Eip = pRD->ControlPC;
+    pRD->pCurrentContext->Esp = pRD->SP;
+    pRD->pCurrentContext->Ebp = *pRD->pEbp;
+
+#define CALLEE_SAVED_REGISTER(regname) pRD->pCurrentContextPointers->regname = NULL;
+    ENUM_CALLEE_SAVED_REGISTERS();
+#undef CALLEE_SAVED_REGISTER
+
+    pRD->pCurrentContextPointers->Ebp = pRD->pEbp;
+
+    SyncRegDisplayToCurrentContext(pRD);
+#endif
+
+    LOG((LF_GCROOTS, LL_INFO100000, "STACKWALK    InlinedCallFrame::UpdateRegDisplay(ip:%p, sp:%p)\n", pRD->ControlPC, pRD->SP));
+
     RETURN;
 }
 
@@ -606,6 +701,7 @@ void ResumableFrame::UpdateRegDisplay(const PREGDISPLAY pRD)
 
     CONTEXT* pUnwoundContext = m_Regs;
 
+#ifndef WIN64EXCEPTIONS
 #if !defined(DACCESS_COMPILE)
     // "pContextForUnwind" field is only used on X86 since not only is it initialized just for it,
     // but its used only under the confines of STACKWALKER_MAY_POP_FRAMES preprocessor define,
@@ -625,6 +721,7 @@ void ResumableFrame::UpdateRegDisplay(const PREGDISPLAY pRD)
         pUnwoundContext->Eip = m_Regs->Eip;
     }
 #endif // !defined(DACCESS_COMPILE)
+#endif // !WIN64EXCEPTIONS
 
     pRD->pEax = &pUnwoundContext->Eax;
     pRD->pEcx = &pUnwoundContext->Ecx;
@@ -638,13 +735,12 @@ void ResumableFrame::UpdateRegDisplay(const PREGDISPLAY pRD)
     pRD->ControlPC = pUnwoundContext->Eip;
     pRD->PCTAddr = dac_cast<TADDR>(m_Regs) + offsetof(CONTEXT, Eip);
 
-    pRD->Esp  = m_Regs->Esp;
+    pRD->SP  = m_Regs->Esp;
 
     RETURN;
 }
 
-// The HijackFrame has to know the registers that are pushed by OnHijackObjectTripThread
-// and OnHijackScalarTripThread, so all three are implemented together.
+// The HijackFrame has to know the registers that are pushed by OnHijackTripThread
 void HijackFrame::UpdateRegDisplay(const PREGDISPLAY pRD)
 {
     CONTRACTL {
@@ -668,7 +764,7 @@ void HijackFrame::UpdateRegDisplay(const PREGDISPLAY pRD)
     pRD->pEbp = &m_Args->Ebp;
     pRD->PCTAddr = dac_cast<TADDR>(m_Args) + offsetof(HijackArgs, Eip);
     pRD->ControlPC = *PTR_PCODE(pRD->PCTAddr);
-    pRD->Esp  = (DWORD)(pRD->PCTAddr + sizeof(TADDR));
+    pRD->SP  = (DWORD)(pRD->PCTAddr + sizeof(TADDR));
 }
 
 #endif  // FEATURE_HIJACK
@@ -706,14 +802,13 @@ void TailCallFrame::UpdateRegDisplay(const PREGDISPLAY pRD)
     // reset pContext; it's only valid for active (top-most) frame
     pRD->pContext = NULL;
 
-    pRD->pEdi = (DWORD*)&m_regs.edi;
-    pRD->pEsi = (DWORD*)&m_regs.esi;
-    pRD->pEbx = (DWORD*)&m_regs.ebx;
-    pRD->pEbp = (DWORD*)&m_regs.ebp;
+#define CALLEE_SAVED_REGISTER(regname) pRD->p##regname = (DWORD*) &m_regs.regname;
+    ENUM_CALLEE_SAVED_REGISTERS();
+#undef CALLEE_SAVED_REGISTER
 
     pRD->PCTAddr = GetReturnAddressPtr();
     pRD->ControlPC = *PTR_PCODE(pRD->PCTAddr);
-    pRD->Esp  = (DWORD)(pRD->PCTAddr + sizeof(TADDR));
+    pRD->SP  = (DWORD)(pRD->PCTAddr + sizeof(TADDR));
 
     RETURN;
 }
@@ -761,6 +856,7 @@ WORD GetUnpatchedCodeData(LPCBYTE pAddr)
 
 #ifndef DACCESS_COMPILE
 
+#if defined(_TARGET_X86_) && !defined(FEATURE_STUBS_AS_IL)
 //-------------------------------------------------------------------------
 // One-time creation of special prestub to initialize UMEntryThunks.
 //-------------------------------------------------------------------------
@@ -810,6 +906,7 @@ Stub *GenerateUMThunkPrestub()
 
     RETURN psl->Link(SystemDomain::GetGlobalLoaderAllocator()->GetExecutableHeap());
 }
+#endif // _TARGET_X86_ && !FEATURE_STUBS_AS_IL
 
 Stub *GenerateInitPInvokeFrameHelper()
 {
@@ -1057,7 +1154,7 @@ public:
     {
         LIMITED_METHOD_CONTRACT;
         return offsetof(StubForHostStackFrame, m_calleeSavedRegisters) + 
-               offsetof(CalleeSavedRegisters, ebp); 
+               offsetof(CalleeSavedRegisters, Ebp);
     }
 
     static INT32 GetFPrelOffsOfArgumentRegisters() 
@@ -1594,6 +1691,7 @@ extern "C" VOID STDCALL StubRareDisableTHROWWorker(Thread *pThread)
     pThread->HandleThreadAbort();
 }
 
+#ifndef FEATURE_PAL
 // Note that this logic is copied below, in PopSEHRecords
 __declspec(naked)
 VOID __cdecl PopSEHRecords(LPVOID pTargetSP)
@@ -1615,6 +1713,7 @@ VOID __cdecl PopSEHRecords(LPVOID pTargetSP)
         retn
     }
 }
+#endif // FEATURE_PAL
 
 //////////////////////////////////////////////////////////////////////////////
 //
@@ -1681,9 +1780,10 @@ void ResumeAtJit(PCONTEXT pContext, LPVOID oldESP)
 #endif // !EnC_SUPPORTED
 
 
+#ifndef FEATURE_PAL
 #pragma warning(push)
 #pragma warning(disable: 4035)
-DWORD getcpuid(DWORD arg, unsigned char result[16])
+extern "C" DWORD __stdcall getcpuid(DWORD arg, unsigned char result[16])
 {
     LIMITED_METHOD_CONTRACT
 
@@ -1710,7 +1810,7 @@ DWORD getcpuid(DWORD arg, unsigned char result[16])
 //     Arg3 is a pointer to the return buffer
 //   No need to check whether or not CPUID is supported because we have already called CPUID with success to come here.
 
-DWORD getextcpuid(DWORD arg1, DWORD arg2, unsigned char result[16])
+extern "C" DWORD __stdcall getextcpuid(DWORD arg1, DWORD arg2, unsigned char result[16])
 {
     LIMITED_METHOD_CONTRACT
 
@@ -1731,8 +1831,75 @@ DWORD getextcpuid(DWORD arg1, DWORD arg2, unsigned char result[16])
     }
 }
 
+extern "C" DWORD __stdcall xmmYmmStateSupport()
+{
+    // No CONTRACT
+    STATIC_CONTRACT_NOTHROW;
+    STATIC_CONTRACT_GC_NOTRIGGER;
+
+    __asm
+    {
+        mov     ecx, 0                  ; Specify xcr0
+        xgetbv                          ; result in EDX:EAX
+        and eax, 06H
+        cmp eax, 06H                    ; check OS has enabled both XMM and YMM state support
+        jne     not_supported
+        mov     eax, 1
+        jmp     done
+    not_supported:
+        mov     eax, 0
+    done:
+    }
+}
+
 #pragma warning(pop)
 
+#else // !FEATURE_PAL
+
+extern "C" DWORD __stdcall getcpuid(DWORD arg, unsigned char result[16])
+{
+    DWORD eax;
+    __asm("  xor %%ecx, %%ecx\n" \
+            "  cpuid\n" \
+            "  mov %%eax, 0(%[result])\n" \
+            "  mov %%ebx, 4(%[result])\n" \
+            "  mov %%ecx, 8(%[result])\n" \
+            "  mov %%edx, 12(%[result])\n" \
+        : "=a"(eax) /*output in eax*/\
+        : "a"(arg), [result]"r"(result) /*inputs - arg in eax, result in any register*/\
+        : "eax", "rbx", "ecx", "edx", "memory" /* registers that are clobbered, *result is clobbered */
+        );
+    return eax;
+}
+
+extern "C" DWORD __stdcall getextcpuid(DWORD arg1, DWORD arg2, unsigned char result[16])
+{
+    DWORD eax;
+    __asm("  cpuid\n" \
+            "  mov %%eax, 0(%[result])\n" \
+            "  mov %%ebx, 4(%[result])\n" \
+            "  mov %%ecx, 8(%[result])\n" \
+            "  mov %%edx, 12(%[result])\n" \
+        : "=a"(eax) /*output in eax*/\
+        : "c"(arg1), "a"(arg2), [result]"r"(result) /*inputs - arg1 in ecx, arg2 in eax, result in any register*/\
+        : "eax", "rbx", "ecx", "edx", "memory" /* registers that are clobbered, *result is clobbered */
+        );
+    return eax;
+}
+
+extern "C" DWORD __stdcall xmmYmmStateSupport()
+{
+    DWORD eax;
+    __asm("  xgetbv\n" \
+        : "=a"(eax) /*output in eax*/\
+        : "c"(0) /*inputs - 0 in ecx*/\
+        : "eax", "edx" /* registers that are clobbered*/
+        );
+    // check OS has enabled both XMM and YMM state support
+    return ((eax & 0x06) == 0x06) ? 1 : 0;
+}
+
+#endif // !FEATURE_PAL
 
 // This function returns the number of logical processors on a given physical chip.  If it cannot
 // determine the number of logical cpus, or the machine is not populated uniformly with the same
@@ -1762,13 +1929,14 @@ DWORD GetLogicalCpuCount()
     PAL_TRY(Param *, pParam, &param)
     {
         unsigned char buffer[16];
+        DWORD* dwBuffer = NULL;
 
         DWORD maxCpuId = getcpuid(0, buffer);
 
         if (maxCpuId < 1)
             goto lDone;
 
-        DWORD* dwBuffer = (DWORD*)buffer;
+        dwBuffer = (DWORD*)buffer;
 
         if (dwBuffer[1] == 'uneG') {
             if (dwBuffer[3] == 'Ieni') {

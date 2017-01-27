@@ -28,10 +28,10 @@ extern "C"
 typedef struct _CMI {
 
     struct _CMI * pNext;        /* Link to the next entry. */
-    struct _CMI * pLast;        /* Link to the previous entry. */
+    struct _CMI * pPrevious;    /* Link to the previous entry. */
 
-    UINT_PTR   startBoundary;   /* Starting location of the region. */
-    SIZE_T   memSize;         /* Size of the entire region.. */
+    UINT_PTR startBoundary;     /* Starting location of the region. */
+    SIZE_T   memSize;           /* Size of the entire region.. */
 
     DWORD  accessProtection;    /* Initial allocation access protection. */
     DWORD  allocationType;      /* Initial allocation type. */
@@ -58,12 +58,7 @@ enum VIRTUAL_CONSTANTS
     VIRTUAL_EXECUTE,
     VIRTUAL_EXECUTE_READ,
     
-    /* Page manipulation constants. */
-#ifdef __sparc__
-    VIRTUAL_PAGE_SIZE       = 0x2000,
-#else   // __sparc__
     VIRTUAL_PAGE_SIZE       = 0x1000,
-#endif  // __sparc__
     VIRTUAL_PAGE_MASK       = VIRTUAL_PAGE_SIZE - 1,
     BOUNDARY_64K    = 0xffff
 };

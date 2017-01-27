@@ -30,7 +30,7 @@ DLL_EXPORT BOOL _cdecl CdeclSimpleStructByRef(Sstr *p)
 {
   p->a = 100;
   p->b=1;
-  strncpy(p->str,"after",6);
+  strcpy_s(p->str, 7, "after");
   return TRUE;
 }
 
@@ -81,7 +81,7 @@ DLL_EXPORT ExplStruct* _cdecl CdeclSimpleExplStruct(ExplStruct p,BOOL *result)
 }
 
 extern "C"
-DLL_EXPORT voidPtr _cdecl GetFptr(int i)
+DLL_EXPORT voidPtr __stdcall GetFptr(int i)
 {
 	switch(i)
 	{

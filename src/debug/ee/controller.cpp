@@ -1373,7 +1373,7 @@ bool DebuggerController::ApplyPatch(DebuggerControllerPatch *patch)
         patch->opcode = CORDbgGetInstruction(patch->address);
 
         CORDbgInsertBreakpoint((CORDB_ADDRESS_TYPE *)patch->address);
-        LOG((LF_CORDB, LL_EVERYTHING, "Breakpoint was inserted\n"));
+        LOG((LF_CORDB, LL_EVERYTHING, "Breakpoint was inserted at %p for opcode %x\n", patch->address, patch->opcode));
 
         if (!VirtualProtect(baseAddress,
                             CORDbg_BREAK_INSTRUCTION_SIZE,
@@ -2531,7 +2531,7 @@ DPOSS_ACTION DebuggerController::ScanForTriggers(CORDB_ADDRESS_TYPE *address,
 
     CONTRACT_VIOLATION(ThrowsViolation);
 
-    LOG((LF_CORDB, LL_INFO10000, "DC::SFT: starting scan for addr:0x%x"
+    LOG((LF_CORDB, LL_INFO10000, "DC::SFT: starting scan for addr:0x%p"
             " thread:0x%x\n", address, thread));
 
     _ASSERTE( pTpr != NULL );
@@ -2824,6 +2824,8 @@ DPOSS_ACTION DebuggerController::DispatchPatchOrSingleStep(Thread *thread, CONTE
     
     CrstHolderWithState lockController(&g_criticalSection);
 
+    TADDR originalAddress = 0;
+
 #ifdef EnC_SUPPORTED
     DebuggerControllerPatch *dcpEnCOriginal = NULL;
 
@@ -2878,7 +2880,7 @@ DPOSS_ACTION DebuggerController::DispatchPatchOrSingleStep(Thread *thread, CONTE
     // If we setip, then that will change the address in the context.
     // Remeber the old address so that we can compare it to the context's ip and see if it changed.
     // If it did change, then don't dispatch our current event.
-    TADDR originalAddress = (TADDR) address;
+    originalAddress = (TADDR) address;
 
 #ifdef _DEBUG
     // If we do a SetIP after this point, the value of address will be garbage.  Set it to a distictive pattern now, so
@@ -4069,7 +4071,7 @@ bool DebuggerController::DispatchNativeException(EXCEPTION_RECORD *pException,
     CONTRACTL_END;
 
     LOG((LF_CORDB, LL_EVERYTHING, "DispatchNativeException was called\n"));
-    LOG((LF_CORDB, LL_INFO10000, "Native exception at 0x%x, code=0x%8x, context=0x%p, er=0x%p\n",
+    LOG((LF_CORDB, LL_INFO10000, "Native exception at 0x%p, code=0x%8x, context=0x%p, er=0x%p\n",
          pException->ExceptionAddress, dwCode, pContext, pException));
 
 
@@ -4290,7 +4292,7 @@ DebuggerPatchSkip::DebuggerPatchSkip(Thread *thread,
     m_address(patch->address)
 {
     LOG((LF_CORDB, LL_INFO10000,
-         "DPS::DPS: Patch skip 0x%x\n", patch->address));
+         "DPS::DPS: Patch skip 0x%p\n", patch->address));
 
     // On ARM the single-step emulation already utilizes a per-thread execution buffer similar to the scheme
     // below. As a result we can skip most of the instruction parsing logic that's instead internalized into
@@ -4330,14 +4332,15 @@ DebuggerPatchSkip::DebuggerPatchSkip(Thread *thread,
     CORDbgSetInstruction((CORDB_ADDRESS_TYPE *)patchBypass, patch->opcode);
 
     LOG((LF_CORDB, LL_EVERYTHING, "SetInstruction was called\n"));
-
     //
     // Look at instruction to get some attributes
     //
 
     NativeWalker::DecodeInstructionForPatchSkip(patchBypass, &(m_instrAttrib));
-    
+
 #if defined(_TARGET_AMD64_)
+    
+
     // The code below handles RIP-relative addressing on AMD64.  the original implementation made the assumption that
     // we are only using RIP-relative addressing to access read-only data (see VSW 246145 for more information).  this
     // has since been expanded to handle RIP-relative writes as well.
@@ -4392,7 +4395,7 @@ DebuggerPatchSkip::DebuggerPatchSkip(Thread *thread,
     // Set IP of context to point to patch bypass buffer
     //
 
-    CONTEXT *context = g_pEEInterface->GetThreadFilterContext(thread);
+    T_CONTEXT *context = g_pEEInterface->GetThreadFilterContext(thread);
     _ASSERTE(!ISREDIRECTEDTHREAD(thread));
     CONTEXT c;
     if (context == NULL)
@@ -4409,7 +4412,7 @@ DebuggerPatchSkip::DebuggerPatchSkip(Thread *thread,
         c.ContextFlags = CONTEXT_CONTROL;
 
         thread->GetThreadContext(&c);
-        context = &c;
+        context =(T_CONTEXT *) &c;
 
         ARM_ONLY(_ASSERTE(!"We should always have a filter context in DebuggerPatchSkip."));
     }
@@ -4436,16 +4439,21 @@ DebuggerPatchSkip::DebuggerPatchSkip(Thread *thread,
         thread->BypassWithSingleStep((DWORD)patch->address, patch->opcode, opcode2);
         m_singleStep = true;
     }
+
 #else // _TARGET_ARM_
+   
+#ifdef _TARGET_ARM64_
+    patchBypass = NativeWalker::SetupOrSimulateInstructionForPatchSkip(context, m_pSharedPatchBypassBuffer, (const BYTE *)patch->address, patch->opcode);
+#endif //_TARGET_ARM64_
 
     //set eip to point to buffer...
     SetIP(context, (PCODE)patchBypass);
 
-    if (context == &c)
+    if (context ==(T_CONTEXT*) &c)
         thread->SetThreadContext(&c);
         
 
-    LOG((LF_CORDB, LL_INFO10000, "Bypass at 0x%x\n", patchBypass));
+    LOG((LF_CORDB, LL_INFO10000, "DPS::DPS Bypass at 0x%p for opcode %p \n", patchBypass, patch->opcode));
 
     //
     // Turn on single step (if the platform supports it) so we can
@@ -4480,7 +4488,7 @@ void DebuggerPatchSkip::DebuggerDetachClean()
    // THIS FIX IS INCOMPLETE!It attempts to update the IP in the cases we can easily detect.However, 
    // if a thread is in pre - emptive mode, and its filter context has been propagated to a VEH 
    // context, then the filter context we get will be NULL and this fix will not work.Our belief is 
-   // that this scenario is rare enough that it doesn’t justify the cost and risk associated with a 
+   // that this scenario is rare enough that it doesnt justify the cost and risk associated with a 
    // complete fix, in which we would have to either :
    // 1. Change the reference counting for DebuggerController and then change the exception handling 
    // logic in the debuggee so that we can handle the debugger event after detach.
@@ -4642,7 +4650,32 @@ TP_RESULT DebuggerPatchSkip::TriggerExceptionHook(Thread *thread, CONTEXT * cont
 
     LOG((LF_CORDB,LL_INFO10000, "DPS::TEH: doing the patch-skip thing\n"));    
 
-#ifndef _TARGET_ARM_
+#if defined(_TARGET_ARM64_)
+
+    if (!IsSingleStep(exception->ExceptionCode))
+    {
+        LOG((LF_CORDB, LL_INFO10000, "Exception in patched Bypass instruction .\n"));
+        return (TPR_IGNORE_AND_STOP);
+    }
+
+    _ASSERTE(m_pSharedPatchBypassBuffer);
+    BYTE* patchBypass = m_pSharedPatchBypassBuffer->PatchBypass;
+    PCODE targetIp;
+    if (m_pSharedPatchBypassBuffer->RipTargetFixup)
+    {
+        targetIp = m_pSharedPatchBypassBuffer->RipTargetFixup;
+    }
+    else
+    {
+        targetIp = (PCODE)((BYTE *)GetIP(context) - (patchBypass - (BYTE *)m_address));
+    }
+
+    SetIP(context, targetIp);
+    LOG((LF_CORDB, LL_ALWAYS, "Redirecting after Patch to 0x%p\n", GetIP(context)));
+
+#elif defined (_TARGET_ARM_)
+//Do nothing 
+#else
     _ASSERTE(m_pSharedPatchBypassBuffer);
     BYTE* patchBypass = m_pSharedPatchBypassBuffer->PatchBypass;
 
@@ -4754,7 +4787,8 @@ TP_RESULT DebuggerPatchSkip::TriggerExceptionHook(Thread *thread, CONTEXT * cont
 
     }
 
-#endif // _TARGET_ARM_
+#endif 
+
 
     // Signals our thread that the debugger is done manipulating the context
     // during the patch skip operation. This effectively prevented other threads
@@ -5906,7 +5940,7 @@ bool DebuggerStepper::TrapStep(ControllerStackInfo *info, bool in)
 
         SIZE_T offset = CodeRegionInfo::GetCodeRegionInfo(ji, info->m_activeFrame.md).AddressToOffset(ip);
 
-        LOG((LF_CORDB, LL_INFO1000, "Walking to ip 0x%x (natOff:0x%x)\n",ip,offset));
+        LOG((LF_CORDB, LL_INFO1000, "Walking to ip 0x%p (natOff:0x%x)\n",ip,offset));
 
         if (!IsInRange(offset, range, rangeCount)
             && !ShouldContinueStep( info, offset ))
@@ -7040,7 +7074,7 @@ TP_RESULT DebuggerStepper::TriggerPatch(DebuggerControllerPatch *patch,
                         // Grab the jit info for the method.
                         DebuggerJitInfo *dji;
                         dji = g_pDebugger->GetJitInfoFromAddr((TADDR) traceManagerRetAddr);
-
+                        
                         MethodDesc * mdNative = (dji == NULL) ? 
                             g_pEEInterface->GetNativeCodeMethodDesc(dac_cast<PCODE>(traceManagerRetAddr)) : dji->m_fd;
                         _ASSERTE(mdNative != NULL);

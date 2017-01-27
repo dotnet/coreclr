@@ -29,9 +29,7 @@ namespace System
     /// <see cref="AggregateException"/> is used to consolidate multiple failures into a single, throwable
     /// exception object.
     /// </remarks>
-#if FEATURE_SERIALIZATION
     [Serializable]
-#endif
     [DebuggerDisplay("Count = {InnerExceptionCount}")]
     public class AggregateException : Exception
     {
@@ -71,7 +69,7 @@ namespace System
         {
             if (innerException == null)
             {
-                throw new ArgumentNullException("innerException");
+                throw new ArgumentNullException(nameof(innerException));
             }
 
             m_innerExceptions = new ReadOnlyCollection<Exception>(new Exception[] { innerException });
@@ -151,7 +149,7 @@ namespace System
         {
             if (innerExceptions == null)
             {
-                throw new ArgumentNullException("innerExceptions");
+                throw new ArgumentNullException(nameof(innerExceptions));
             }
 
             // Copy exceptions to our internal array and validate them. We must copy them,
@@ -229,7 +227,7 @@ namespace System
         {
             if (innerExceptionInfos == null)
             {
-                throw new ArgumentNullException("innerExceptionInfos");
+                throw new ArgumentNullException(nameof(innerExceptionInfos));
             }
 
             // Copy exceptions to our internal array and validate them. We must copy them,
@@ -260,13 +258,12 @@ namespace System
         /// contains contextual information about the source or destination. </param>
         /// <exception cref="T:System.ArgumentNullException">The <paramref name="info"/> argument is null.</exception>
         /// <exception cref="T:System.Runtime.Serialization.SerializationException">The exception could not be deserialized correctly.</exception>
-        [SecurityCritical]
         protected AggregateException(SerializationInfo info, StreamingContext context) :
             base(info, context)
         {
             if (info == null)
             {
-                throw new ArgumentNullException("info");
+                throw new ArgumentNullException(nameof(info));
             }
 
             Exception[] innerExceptions = info.GetValue("InnerExceptions", typeof(Exception[])) as Exception[];
@@ -287,12 +284,11 @@ namespace System
         /// <param name="context">The <see cref="T:System.Runtime.Serialization.StreamingContext"/> that
         /// contains contextual information about the source or destination. </param>
         /// <exception cref="T:System.ArgumentNullException">The <paramref name="info"/> argument is null.</exception>
-        [SecurityCritical]
         public override void GetObjectData(SerializationInfo info, StreamingContext context)
         {
             if (info == null)
             {
-                throw new ArgumentNullException("info");
+                throw new ArgumentNullException(nameof(info));
             }
 
             base.GetObjectData(info, context);
@@ -353,7 +349,7 @@ namespace System
         {
             if (predicate == null)
             {
-                throw new ArgumentNullException("predicate");
+                throw new ArgumentNullException(nameof(predicate));
             }
 
             List<Exception> unhandledExceptions = null;
@@ -381,7 +377,8 @@ namespace System
 
 
         /// <summary>
-        /// Flattens an <see cref="AggregateException"/> instances into a single, new instance.
+        /// Flattens the inner instances of <see cref="AggregateException"/> by expanding its contained <see cref="Exception"/> instances
+        /// into a new <see cref="AggregateException"/>
         /// </summary>
         /// <returns>A new, flattened <see cref="AggregateException"/>.</returns>
         /// <remarks>

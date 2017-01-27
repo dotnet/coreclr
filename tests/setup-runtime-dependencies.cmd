@@ -1,4 +1,4 @@
-@if not defined __echo @echo off
+@if not defined _echo @echo off
 setlocal
 
 set __ThisScriptShort=%0
@@ -34,6 +34,12 @@ goto Usage
 
 if not defined __OutputDir goto Usage
 if not defined __Arch goto Usage 
+
+REM Check if the platform is supported
+if /i %__Arch% == "arm" (
+    echo No runtime dependencies for Arm32.
+    exit /b 0
+    )
 
 REM =========================================================================================
 REM ===

@@ -142,7 +142,8 @@
 #include "regdisp.h"
 #include "mscoree.h"
 #include "appdomainstack.h"
-#include "gc.h"
+#include "gcheaputilities.h"
+#include "gcinfotypes.h"
 #include <clrhost.h>
 
 class     Thread;
@@ -630,8 +631,9 @@ enum ThreadpoolThreadType
 //
 // Public functions for taking control of a thread at a safe point
 //
-//      VOID OnHijackObjectTripThread() - we've hijacked a JIT object-ref return
-//      VOID OnHijackScalarTripThread() - we've hijacked a JIT non-object ref return
+//      VOID OnHijackTripThread() - we've hijacked a JIT method
+//      VOID OnHijackFPTripThread() - we've hijacked a JIT method, 
+//                                    and need to save the x87 FP stack.
 //
 //***************************************************************************
 
@@ -686,15 +688,9 @@ void InitThreadManager();
 
 #ifdef FEATURE_HIJACK
 
-EXTERN_C void __stdcall OnHijackObjectTripThread();                 // hijacked JIT code is returning an objectref
-EXTERN_C void __stdcall OnHijackInteriorPointerTripThread();        // hijacked JIT code is returning a byref
-EXTERN_C void __stdcall OnHijackScalarTripThread();                 // hijacked JIT code is returning a non-objectref, non-FP
-#ifdef FEATURE_UNIX_AMD64_STRUCT_PASSING
-EXTERN_C void __stdcall OnHijackStructInRegsTripThread();           // hijacked JIT code is returning a struct in registers
-#endif // FEATURE_UNIX_AMD64_STRUCT_PASSING
-
+EXTERN_C void __stdcall OnHijackTripThread();
 #ifdef _TARGET_X86_
-EXTERN_C void __stdcall OnHijackFloatingPointTripThread();          // hijacked JIT code is returning an FP value
+EXTERN_C void __stdcall OnHijackFPTripThread();  // hijacked JIT code is returning an FP value
 #endif // _TARGET_X86_
 
 #endif // FEATURE_HIJACK
@@ -1016,13 +1012,17 @@ typedef DWORD (*AppropriateWaitFunc) (void *args, DWORD timeout, DWORD option);
 // unstarted System.Thread), then this instance can be found in the TLS
 // of that physical thread.
 
-#ifdef FEATURE_HIJACK
-EXTERN_C void STDCALL OnHijackObjectWorker(HijackArgs * pArgs);
-EXTERN_C void STDCALL OnHijackInteriorPointerWorker(HijackArgs * pArgs);
-EXTERN_C void STDCALL OnHijackScalarWorker(HijackArgs * pArgs);
-#ifdef FEATURE_UNIX_AMD64_STRUCT_PASSING
-EXTERN_C void STDCALL OnHijackStructInRegsWorker(HijackArgs * pArgs);
-#endif // FEATURE_UNIX_AMD64_STRUCT_PASSING
+// FEATURE_MULTIREG_RETURN is set for platforms where a struct return value 
+// [GcInfo v2 only]        can be returned in multiple registers
+//                         ex: Windows/Unix ARM/ARM64, Unix-AMD64.
+//                         
+//                       
+// FEATURE_UNIX_AMD64_STRUCT_PASSING is a specific kind of FEATURE_MULTIREG_RETURN
+// [GcInfo v1 and v2]       specified by SystemV ABI for AMD64
+//                                   
+
+#ifdef FEATURE_HIJACK                                                    // Hijack function returning
+EXTERN_C void STDCALL OnHijackWorker(HijackArgs * pArgs);              
 #endif // FEATURE_HIJACK
 
 // This is the code we pass around for Thread.Interrupt, mainly for assertions
@@ -1070,14 +1070,9 @@ class Thread: public IUnknown
 #ifdef FEATURE_HIJACK
     // MapWin32FaultToCOMPlusException needs access to Thread::IsAddrOfRedirectFunc()
     friend DWORD MapWin32FaultToCOMPlusException(EXCEPTION_RECORD *pExceptionRecord);
-    friend void STDCALL OnHijackObjectWorker(HijackArgs *pArgs);
-    friend void STDCALL OnHijackInteriorPointerWorker(HijackArgs *pArgs);
-    friend void STDCALL OnHijackScalarWorker(HijackArgs *pArgs);
-#ifdef FEATURE_UNIX_AMD64_STRUCT_PASSING
-    friend void STDCALL OnHijackStructInRegsWorker(HijackArgs *pArgs);
-#endif // FEATURE_UNIX_AMD64_STRUCT_PASSING
+    friend void STDCALL OnHijackWorker(HijackArgs * pArgs);
 #ifdef PLATFORM_UNIX
-    friend void PALAPI HandleGCSuspensionForInterruptedThread(CONTEXT *interruptedContext);
+    friend void HandleGCSuspensionForInterruptedThread(CONTEXT *interruptedContext);
 #endif // PLATFORM_UNIX
 
 #endif // FEATURE_HIJACK
@@ -1744,9 +1739,9 @@ public:
 
     // on MP systems, each thread has its own allocation chunk so we can avoid
     // lock prefixes and expensive MP cache snooping stuff
-    alloc_context        m_alloc_context;
+    gc_alloc_context        m_alloc_context;
 
-    inline alloc_context *GetAllocContext() { LIMITED_METHOD_CONTRACT; return &m_alloc_context; }
+    inline gc_alloc_context *GetAllocContext() { LIMITED_METHOD_CONTRACT; return &m_alloc_context; }
 
     // This is the type handle of the first object in the alloc context at the time 
     // we fire the AllocationTick event. It's only for tooling purpose.
@@ -2801,7 +2796,8 @@ public:
         CONTRACTL_END;
         return (ObjectFromHandle(m_ExposedObject) != NULL) ;
     }
-#ifndef FEATURE_CORECLR
+
+#ifdef FEATURE_SYNCHRONIZATIONCONTEXT_WAIT
     void GetSynchronizationContext(OBJECTREF *pSyncContextObj)
     {
         CONTRACTL
@@ -2819,7 +2815,8 @@ public:
         if (ExposedThreadObj != NULL)
             *pSyncContextObj = ExposedThreadObj->GetSynchronizationContext();
     }
-#endif //!FEATURE_CORECLR
+#endif // FEATURE_SYNCHRONIZATIONCONTEXT_WAIT
+
 #ifdef FEATURE_COMPRESSEDSTACK    
     OBJECTREF GetCompressedStack()
     {
@@ -3169,12 +3166,7 @@ public:
     };
 
 private:
-    BOOL           ReadyForInterrupt()
-    {
-        return ReadyForAsyncException(TI_Interrupt);
-    }
-
-    BOOL           ReadyForAsyncException(ThreadInterruptMode mode);
+    BOOL           ReadyForAsyncException();
 
 public:
     inline BOOL IsYieldRequested()
@@ -3188,7 +3180,7 @@ public:
     void           SetAbortRequest(EEPolicy::ThreadAbortTypes abortType);  // Should only be called by ADUnload
     BOOL           ReadyForAbort()
     {
-        return ReadyForAsyncException(TI_Abort);
+        return ReadyForAsyncException();
     }
 
     BOOL           IsRudeAbort();
@@ -3389,7 +3381,7 @@ public:
         m_singleStepper.Disable();
     }
 
-    void ApplySingleStep(CONTEXT *pCtx)
+    void ApplySingleStep(T_CONTEXT *pCtx)
     {
         m_singleStepper.Apply(pCtx);
     }
@@ -3402,7 +3394,7 @@ public:
     // Fixup code called by our vectored exception handler to complete the emulation of single stepping
     // initiated by EnableSingleStep above. Returns true if the exception was indeed encountered during
     // stepping.
-    bool HandleSingleStep(CONTEXT *pCtx, DWORD dwExceptionCode)
+    bool HandleSingleStep(T_CONTEXT *pCtx, DWORD dwExceptionCode)
     {
         return m_singleStepper.Fixup(pCtx, dwExceptionCode);
     }
@@ -3509,19 +3501,19 @@ public:
 
     DWORD          DoAppropriateWait(AppropriateWaitFunc func, void *args, DWORD millis,
                                      WaitMode mode, PendingSync *syncInfo = 0);
-#ifndef FEATURE_CORECLR
+#ifndef FEATURE_PAL
     DWORD          DoSignalAndWait(HANDLE *handles, DWORD millis, BOOL alertable,
                                      PendingSync *syncState = 0);
-#endif
+#endif // !FEATURE_PAL
 private:
     void           DoAppropriateWaitWorkerAlertableHelper(WaitMode mode);
     DWORD          DoAppropriateWaitWorker(int countHandles, HANDLE *handles, BOOL waitAll,
                                            DWORD millis, WaitMode mode);
     DWORD          DoAppropriateWaitWorker(AppropriateWaitFunc func, void *args,
                                            DWORD millis, WaitMode mode);
-#ifndef FEATURE_CORECLR
+#ifndef FEATURE_PAL
     DWORD          DoSignalAndWaitWorker(HANDLE* pHandles, DWORD millis,BOOL alertable);
-#endif
+#endif // !FEATURE_PAL
     DWORD          DoAppropriateAptStateWait(int numWaiters, HANDLE* pHandles, BOOL bWaitAll, DWORD timeout, WaitMode mode);
 #ifdef FEATURE_SYNCHRONIZATIONCONTEXT_WAIT
     DWORD          DoSyncContextWait(OBJECTREF *pSyncCtxObj, int countHandles, HANDLE *handles, BOOL waitAll, DWORD millis);
@@ -4889,7 +4881,7 @@ private:
 private:
     // When we create an object, or create an OBJECTREF, or create an Interior Pointer, or enter EE from managed
     // code, we will set this flag.
-    // Inside GCHeap::StressHeap, we only do GC if this flag is TRUE.  Then we reset it to zero.
+    // Inside GCHeapUtilities::StressHeap, we only do GC if this flag is TRUE.  Then we reset it to zero.
     BOOL m_fStressHeapCount;
 public:
     void EnableStressHeap()
@@ -5577,24 +5569,33 @@ public:
         _ASSERTE(pAllLoggedTypes != NULL ? m_pAllLoggedTypes == NULL : TRUE);
         m_pAllLoggedTypes = pAllLoggedTypes;
     }
-#ifdef FEATURE_UNIX_AMD64_STRUCT_PASSING
+
+#ifdef FEATURE_HIJACK
 private:
-    EEClass* m_pHijackReturnTypeClass;
+
+    // By the time a frame is scanned by the runtime, m_pHijackReturnKind always 
+    // identifies the gc-ness of the return register(s)
+    // If the ReturnKind information is not available from the GcInfo, the runtime
+    // computes it using the return types's class handle.
+
+    ReturnKind m_HijackReturnKind;
+
 public:
-    EEClass* GetHijackReturnTypeClass()
+
+    ReturnKind GetHijackReturnKind()
     {
         LIMITED_METHOD_CONTRACT;
 
-        return m_pHijackReturnTypeClass;
+        return m_HijackReturnKind;
     }
 
-    void SetHijackReturnTypeClass(EEClass* pClass)
+    void SetHijackReturnKind(ReturnKind returnKind)
     {
         LIMITED_METHOD_CONTRACT;
 
-        m_pHijackReturnTypeClass = pClass;
+        m_HijackReturnKind = returnKind;
     }
-#endif // FEATURE_UNIX_AMD64_STRUCT_PASSING
+#endif // FEATURE_HIJACK
 };
 
 // End of class Thread

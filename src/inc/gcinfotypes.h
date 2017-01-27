@@ -6,50 +6,15 @@
 #ifndef __GCINFOTYPES_H__
 #define __GCINFOTYPES_H__
 
+#ifndef FEATURE_REDHAWK
 #include "gcinfo.h"
+#endif
 
-// This file is included when building an "alt jit".  In that case, we are doing a cross-compile:
-// we may be building the ARM jit on x86, for example.  We generally make that work by conditionalizing on
-// a _TARGET_XXX_ variable that we explicitly set in the build, rather than the _XXX_ variable implicitly
-// set by the compiler.  But this file is *also* included by the runtime, and needs in that case to be
-// conditionalized by the actual platform we're compiling for.  We solve this by:
-//    1) conditionalizing on _TARGET_XXX_ in this file,
-//    2) having a _TARGET_SET_ variable so we know whether we're in a compilation for JIT in which some
-//       _TARGET_XXX_ has already been set, and
-//    3) if _TARGET_SET_ is not set, set the _TARGET_XXX_ variable appropriate for the current _XXX_.
-// 
-#ifndef _TARGET_SET_
 
-//#ifdef _X86_
-//#define _TARGET_X86_
-//#endif
-
-//#ifdef _AMD64_
-//#define _TARGET_AMD64_
-//#endif
-
-//#ifdef _ARM_
-//#define _TARGET_ARM_
-//#endif
-
-#endif // _TARGET_SET_
-
-#if defined(_TARGET_AMD64_) || defined(_TARGET_ARM_) || defined(_TARGET_ARM64_)
 #define PARTIALLY_INTERRUPTIBLE_GC_SUPPORTED
-#endif
 
-#ifdef PARTIALLY_INTERRUPTIBLE_GC_SUPPORTED
-//
-// The EH vector mechanism is not completely worked out, 
-//   so it's temporarily disabled. We rely on fully-interruptible instead.
-//
-#define DISABLE_EH_VECTORS
-#endif
-
-
-#if defined(_TARGET_AMD64_) || defined(_TARGET_ARM_) || defined(_TARGET_ARM64_)
 #define FIXED_STACK_PARAMETER_SCRATCH_AREA
-#endif
+
 
 #define BITS_PER_SIZE_T ((int)sizeof(size_t)*8)
 
@@ -136,6 +101,225 @@ struct GcStackSlot
     }
 };
 
+//--------------------------------------------------------------------------------
+// ReturnKind -- encoding return type information in GcInfo
+// 
+// When a method is stopped at a call - site for GC (ex: via return-address 
+// hijacking) the runtime needs to know whether the value is a GC - value
+// (gc - pointer or gc - pointers stored in an aggregate).
+// It needs this information so that mark - phase can preserve the gc-pointers 
+// being returned.
+//
+// The Runtime doesn't need the precise return-type of a method. 
+// It only needs to find the GC-pointers in the return value.
+// The only scenarios currently supported by CoreCLR are:
+// 1. Object references
+// 2. ByRef pointers
+// 3. ARM64/X64 only : Structs returned in two registers
+// 4. X86 only : Floating point returns to perform the correct save/restore 
+//    of the return value around return-hijacking.
+//
+// Based on these cases, the legal set of ReturnKind enumerations are specified 
+// for each architecture/encoding. 
+// A value of this enumeration is stored in the GcInfo header.
+//
+//--------------------------------------------------------------------------------
+
+// RT_Unset: An intermediate step for staged bringup.
+// When ReturnKind is RT_Unset, it means that the JIT did not set 
+// the ReturnKind in the GCInfo, and therefore the VM cannot rely on it,
+// and must use other mechanisms (similar to GcInfo ver 1) to determine 
+// the Return type's GC information.
+// 
+// RT_Unset is only used in the following situations:
+// X64: Used by JIT64 until updated to use GcInfo v2 API
+// ARM: Used by JIT32 until updated to use GcInfo v2 API
+//
+// RT_Unset should have a valid encoding, whose bits are actually stored in the image.
+// For X86, there are no free bits, and there's no RT_Unused enumeration.
+
+#if defined(_TARGET_X86_)
+
+// 00    RT_Scalar
+// 01    RT_Object
+// 10    RT_ByRef
+// 11    RT_Float
+
+#elif defined(_TARGET_ARM_)
+
+// 00    RT_Scalar
+// 01    RT_Object
+// 10    RT_ByRef
+// 11    RT_Unset
+
+#elif defined(_TARGET_AMD64_) || defined(_TARGET_ARM64_) 
+
+// Slim Header:
+
+// 00    RT_Scalar
+// 01    RT_Object
+// 10    RT_ByRef
+// 11    RT_Unset
+
+// Fat Header:
+
+// 0000  RT_Scalar
+// 0001  RT_Object
+// 0010  RT_ByRef
+// 0011  RT_Unset
+// 0100  RT_Scalar_Obj
+// 1000  RT_Scalar_ByRef
+// 0101  RT_Obj_Obj
+// 1001  RT_Obj_ByRef
+// 0110  RT_ByRef_Obj
+// 1010  RT_ByRef_ByRef
+
+#else
+#ifdef PORTABILITY_WARNING
+PORTABILITY_WARNING("Need ReturnKind for new Platform")
+#endif // PORTABILITY_WARNING
+#endif // Target checks 
+
+enum ReturnKind {
+
+    // Cases for Return in one register
+
+    RT_Scalar = 0,
+    RT_Object = 1,
+    RT_ByRef = 2,
+
+#ifdef _TARGET_X86_
+    RT_Float = 3,       // Encoding 3 means RT_Float on X86
+#else
+    RT_Unset = 3,       // RT_Unset on other platforms
+#endif // _TARGET_X86_
+
+    // Cases for Struct Return in two registers
+    //
+    // We have the following equivalencies, because the VM's behavior is the same 
+    // for both cases:
+    // RT_Scalar_Scalar == RT_Scalar
+    // RT_Obj_Scalar    == RT_Object
+    // RT_ByRef_Scalar  == RT_Byref
+    // The encoding for these equivalencies will play out well because 
+    // RT_Scalar is zero. 
+    //
+    // Naming: RT_firstReg_secondReg
+    // Encoding: <Two bits for secondRef> <Two bits for first Reg> 
+    //
+    // This encoding with exclusive bits for each register is chosen for ease of use,
+    // and because it doesn't cost any more bits. 
+    // It can be changed (ex: to a linear sequence) if necessary. 
+    // For example, we can encode the GC-information for the two registers in 3 bits (instead of 4) 
+    // if we approximate RT_Obj_ByRef and RT_ByRef_Obj as RT_ByRef_ByRef.
+
+    // RT_Scalar_Scalar = RT_Scalar
+    RT_Scalar_Obj   = RT_Object << 2 | RT_Scalar,
+    RT_Scalar_ByRef = RT_ByRef << 2  | RT_Scalar,
+
+    // RT_Obj_Scalar   = RT_Object
+    RT_Obj_Obj      = RT_Object << 2 | RT_Object,
+    RT_Obj_ByRef    = RT_ByRef << 2  | RT_Object,
+
+    // RT_ByRef_Scalar  = RT_Byref
+    RT_ByRef_Obj    = RT_Object << 2 | RT_ByRef,
+    RT_ByRef_ByRef  = RT_ByRef << 2  | RT_ByRef,
+
+    // Illegal or uninitialized value, 
+    // Not a valid encoding, never written to image.
+    RT_Illegal = 0xFF
+};
+
+// Identify ReturnKinds containing useful information
+inline bool IsValidReturnKind(ReturnKind returnKind)
+{
+    return (returnKind != RT_Illegal)
+#ifndef _TARGET_X86_
+        && (returnKind != RT_Unset)
+#endif // _TARGET_X86_
+        ;
+}
+
+// Identify ReturnKinds that can be a part of a multi-reg struct return
+inline bool IsValidFieldReturnKind(ReturnKind returnKind)
+{
+    return (returnKind == RT_Scalar || returnKind == RT_Object || returnKind == RT_ByRef);
+}
+
+inline bool IsValidReturnRegister(size_t regNo)
+{
+    return (regNo == 0)
+#ifdef FEATURE_MULTIREG_RETURN
+        || (regNo == 1)
+#endif // FEATURE_MULTIREG_RETURN
+        ;
+}
+
+inline bool IsStructReturnKind(ReturnKind returnKind)
+{
+    // Two bits encode integer/ref/float return-kinds.
+    // Encodings needing more than two bits are (non-scalar) struct-returns.
+    return returnKind > 3;
+}
+
+// Helpers for combining/extracting individual ReturnKinds from/to Struct ReturnKinds.
+// Encoding is two bits per register
+
+inline ReturnKind GetStructReturnKind(ReturnKind reg0, ReturnKind reg1)
+{
+    _ASSERTE(IsValidFieldReturnKind(reg0) && IsValidFieldReturnKind(reg1));
+
+    ReturnKind structReturnKind = (ReturnKind)(reg1 << 2 | reg0);
+
+    _ASSERTE(IsValidReturnKind(structReturnKind));
+
+    return structReturnKind;
+}
+
+// Extract returnKind for the specified return register.
+// Also determines if higher ordinal return registers contain object references
+inline ReturnKind ExtractRegReturnKind(ReturnKind returnKind, size_t returnRegOrdinal, bool& moreRegs)
+{
+    _ASSERTE(IsValidReturnKind(returnKind));
+    _ASSERTE(IsValidReturnRegister(returnRegOrdinal));
+
+    // Return kind of each return register is encoded in two bits at returnRegOrdinal*2 position from LSB
+    ReturnKind regReturnKind = (ReturnKind)((returnKind >> (returnRegOrdinal * 2)) & 3);
+    
+    // Check if any other higher ordinal return registers have object references. 
+    // ReturnKind of higher ordinal return registers are encoded at (returnRegOrdinal+1)*2) position from LSB
+    // If all of the remaining bits are 0 then there isn't any more RT_Object or RT_ByRef encoded in returnKind. 
+    moreRegs = (returnKind >> ((returnRegOrdinal+1) * 2)) != 0;
+
+    _ASSERTE(IsValidReturnKind(regReturnKind));
+    _ASSERTE((returnRegOrdinal == 0) || IsValidFieldReturnKind(regReturnKind));
+
+    return regReturnKind;
+}
+
+inline const char *ReturnKindToString(ReturnKind returnKind)
+{
+    switch (returnKind) {
+    case RT_Scalar: return "Scalar";
+    case RT_Object: return "Object";
+    case RT_ByRef:  return "ByRef";
+#ifdef _TARGET_X86_
+    case RT_Float:  return "Float";
+#else
+    case RT_Unset:         return "UNSET";
+#endif // _TARGET_X86_
+    case RT_Scalar_Obj:    return "{Scalar, Object}";
+    case RT_Scalar_ByRef:  return "{Scalar, ByRef}";
+    case RT_Obj_Obj:       return "{Object, Object}";
+    case RT_Obj_ByRef:     return "{Object, ByRef}";
+    case RT_ByRef_Obj:     return "{ByRef, Object}";
+    case RT_ByRef_ByRef:   return "{ByRef, ByRef}";
+
+    case RT_Illegal:   return "<Illegal>";
+    default: return "!Impossible!";
+    }
+}
+
 #ifdef _TARGET_X86_
 
 #include <stdlib.h>     // For memcmp()
@@ -158,12 +342,17 @@ enum infoHdrAdjustConstants {
     SET_PROLOGSIZE_MAX = 16,
     SET_EPILOGSIZE_MAX = 10,  // Change to 6
     SET_EPILOGCNT_MAX = 4,
-    SET_UNTRACKED_MAX = 3
+    SET_UNTRACKED_MAX = 3,
+    SET_RET_KIND_MAX = 4,   // 2 bits for ReturnKind
+    ADJ_ENCODING_MAX = 0x7f, // Maximum valid encoding in a byte
+                             // Also used to mask off next bit from each encoding byte.
+    MORE_BYTES_TO_FOLLOW = 0x80 // If the High-bit of a header or adjustment byte 
+                               // is set, then there are more adjustments to follow.
 };
 
 //
-// Enum to define the 128 codes that are used to incrementally adjust the InfoHdr structure
-//
+// Enum to define codes that are used to incrementally adjust the InfoHdr structure.
+// First set of opcodes
 enum infoHdrAdjust {
 
     SET_FRAMESIZE = 0,                                            // 0x00
@@ -194,18 +383,25 @@ enum infoHdrAdjust {
     FLIP_SYNC,                // 0x4B
     FLIP_HAS_GENERICS_CONTEXT,// 0x4C
     FLIP_GENERICS_CONTEXT_IS_METHODDESC,// 0x4D
+    FLIP_REV_PINVOKE_FRAME,   // 0x4E
+    NEXT_OPCODE,              // 0x4F -- see next Adjustment enumeration
+    NEXT_FOUR_START = 0x50,
+    NEXT_FOUR_FRAMESIZE = 0x50,
+    NEXT_FOUR_ARGCOUNT = 0x60,
+    NEXT_THREE_PROLOGSIZE = 0x70,
+    NEXT_THREE_EPILOGSIZE = 0x78
+};
 
-                                        // 0x4E .. 0x4f unused
-
-                                        NEXT_FOUR_START = 0x50,
-                                        NEXT_FOUR_FRAMESIZE = 0x50,
-                                        NEXT_FOUR_ARGCOUNT = 0x60,
-                                        NEXT_THREE_PROLOGSIZE = 0x70,
-                                        NEXT_THREE_EPILOGSIZE = 0x78
+// Second set of opcodes, when first code is 0x4F
+enum infoHdrAdjust2 {
+    SET_RETURNKIND = 0,  // 0x00-SET_RET_KIND_MAX Set ReturnKind to value
 };
 
 #define HAS_UNTRACKED               ((unsigned int) -1)
 #define HAS_VARPTR                  ((unsigned int) -1)
+
+#define INVALID_REV_PINVOKE_OFFSET   0
+#define HAS_REV_PINVOKE_FRAME_OFFSET ((unsigned int) -1)
 // 0 is not a valid offset for EBP-frames as all locals are at a negative offset
 // For ESP frames, the cookie is above (at a higher address than) the buffers, 
 // and so cannot be at offset 0.
@@ -245,6 +441,7 @@ struct InfoHdrSmall {
     unsigned char  profCallbacks : 1; // 4 [0]
     unsigned char  genericsContext : 1;//4 [1]      function reports a generics context parameter is present
     unsigned char  genericsContextIsMethodDesc : 1;//4[2]
+    unsigned char  returnKind : 2; // 4 [4]  Available GcInfo v2 onwards, previously undefined 
     unsigned short argCount;          // 5,6        in bytes
     unsigned int   frameSize;         // 7,8,9,10   in bytes
     unsigned int   untrackedCnt;      // 11,12,13,14
@@ -265,8 +462,8 @@ struct InfoHdr : public InfoHdrSmall {
     unsigned int   gsCookieOffset;    // 19,20,21,22
     unsigned int   syncStartOffset;   // 23,24,25,26
     unsigned int   syncEndOffset;     // 27,28,29,30
-
-                                      // 31 bytes total
+    unsigned int   revPInvokeOffset;  // 31,32,33,34 Available GcInfo v2 onwards, previously undefined 
+                                      // 35 bytes total
 
                                       // Checks whether "this" is compatible with "target".
                                       // It is not an exact bit match as "this" could have some 
@@ -280,7 +477,8 @@ struct InfoHdr : public InfoHdrSmall {
         _ASSERTE(target.untrackedCnt != HAS_UNTRACKED &&
             target.varPtrTableSize != HAS_VARPTR &&
             target.gsCookieOffset != HAS_GS_COOKIE_OFFSET &&
-            target.syncStartOffset != HAS_SYNC_OFFSET);
+            target.syncStartOffset != HAS_SYNC_OFFSET && 
+            target.revPInvokeOffset != HAS_REV_PINVOKE_FRAME_OFFSET);
 #endif
 
         // compare two InfoHdr's up to but not including the untrackCnt field
@@ -305,6 +503,10 @@ struct InfoHdr : public InfoHdrSmall {
 
         if ((syncStartOffset == INVALID_SYNC_OFFSET) !=
             (target.syncStartOffset == INVALID_SYNC_OFFSET))
+            return false;
+
+        if ((revPInvokeOffset == INVALID_REV_PINVOKE_OFFSET) !=
+            (target.revPInvokeOffset == INVALID_REV_PINVOKE_OFFSET))
             return false;
 
         return true;
@@ -333,15 +535,16 @@ inline void GetInfoHdr(int index, InfoHdr * header)
 {
     *((InfoHdrSmall *)header) = infoHdrShortcut[index];
 
-    header->gsCookieOffset = 0;
-    header->syncStartOffset = 0;
-    header->syncEndOffset = 0;
+    header->gsCookieOffset = INVALID_GS_COOKIE_OFFSET;
+    header->syncStartOffset = INVALID_SYNC_OFFSET;
+    header->syncEndOffset = INVALID_SYNC_OFFSET;
+    header->revPInvokeOffset = INVALID_REV_PINVOKE_OFFSET;
 }
 
-PTR_CBYTE FASTCALL decodeHeader(PTR_CBYTE table, InfoHdr* header);
+PTR_CBYTE FASTCALL decodeHeader(PTR_CBYTE table, UINT32 version, InfoHdr* header);
 
 BYTE FASTCALL encodeHeaderFirst(const InfoHdr& header, InfoHdr* state, int* more, int *pCached);
-BYTE FASTCALL encodeHeaderNext(const InfoHdr& header, InfoHdr* state);
+BYTE FASTCALL encodeHeaderNext(const InfoHdr& header, InfoHdr* state, BYTE &codeSet);
 
 size_t FASTCALL decodeUnsigned(PTR_CBYTE src, unsigned* value);
 size_t FASTCALL decodeUDelta(PTR_CBYTE src, unsigned* value, unsigned lastValue);
@@ -375,6 +578,7 @@ void FASTCALL decodeCallPattern(int         pattern,
 #define NO_STACK_BASE_REGISTER    (0xffffffff)
 #define NO_SIZE_OF_EDIT_AND_CONTINUE_PRESERVED_AREA (0xffffffff)
 #define NO_GENERICS_INST_CONTEXT  (-1)
+#define NO_REVERSE_PINVOKE_FRAME  (-1)
 #define NO_PSP_SYM                (-1)
 
 #if defined(_TARGET_AMD64_)
@@ -408,9 +612,12 @@ void FASTCALL decodeCallPattern(int         pattern,
 #define SECURITY_OBJECT_STACK_SLOT_ENCBASE 6
 #define GS_COOKIE_STACK_SLOT_ENCBASE 6
 #define CODE_LENGTH_ENCBASE 8
+#define SIZE_OF_RETURN_KIND_IN_SLIM_HEADER 2
+#define SIZE_OF_RETURN_KIND_IN_FAT_HEADER  4
 #define STACK_BASE_REGISTER_ENCBASE 3
 #define SIZE_OF_STACK_AREA_ENCBASE 3
 #define SIZE_OF_EDIT_AND_CONTINUE_PRESERVED_AREA_ENCBASE 4
+#define REVERSE_PINVOKE_FRAME_ENCBASE 6
 #define NUM_REGISTERS_ENCBASE 2
 #define NUM_STACK_SLOTS_ENCBASE 2
 #define NUM_UNTRACKED_SLOTS_ENCBASE 1
@@ -463,9 +670,12 @@ void FASTCALL decodeCallPattern(int         pattern,
 #define SECURITY_OBJECT_STACK_SLOT_ENCBASE 5
 #define GS_COOKIE_STACK_SLOT_ENCBASE 5
 #define CODE_LENGTH_ENCBASE 7
+#define SIZE_OF_RETURN_KIND_IN_SLIM_HEADER 2
+#define SIZE_OF_RETURN_KIND_IN_FAT_HEADER  2
 #define STACK_BASE_REGISTER_ENCBASE 1
 #define SIZE_OF_STACK_AREA_ENCBASE 3
 #define SIZE_OF_EDIT_AND_CONTINUE_PRESERVED_AREA_ENCBASE 3
+#define REVERSE_PINVOKE_FRAME_ENCBASE 5
 #define NUM_REGISTERS_ENCBASE 2
 #define NUM_STACK_SLOTS_ENCBASE 3
 #define NUM_UNTRACKED_SLOTS_ENCBASE 3
@@ -515,9 +725,12 @@ void FASTCALL decodeCallPattern(int         pattern,
 #define SECURITY_OBJECT_STACK_SLOT_ENCBASE 6
 #define GS_COOKIE_STACK_SLOT_ENCBASE 6
 #define CODE_LENGTH_ENCBASE 8
+#define SIZE_OF_RETURN_KIND_IN_SLIM_HEADER 2
+#define SIZE_OF_RETURN_KIND_IN_FAT_HEADER  4
 #define STACK_BASE_REGISTER_ENCBASE 2 // FP encoded as 0, SP as 2.
 #define SIZE_OF_STACK_AREA_ENCBASE 3
 #define SIZE_OF_EDIT_AND_CONTINUE_PRESERVED_AREA_ENCBASE 4
+#define REVERSE_PINVOKE_FRAME_ENCBASE 6
 #define NUM_REGISTERS_ENCBASE 3
 #define NUM_STACK_SLOTS_ENCBASE 2
 #define NUM_UNTRACKED_SLOTS_ENCBASE 1
@@ -573,9 +786,12 @@ PORTABILITY_WARNING("Please specialize these definitions for your platform!")
 #define SECURITY_OBJECT_STACK_SLOT_ENCBASE 6
 #define GS_COOKIE_STACK_SLOT_ENCBASE 6
 #define CODE_LENGTH_ENCBASE 6
+#define SIZE_OF_RETURN_KIND_IN_SLIM_HEADER 2
+#define SIZE_OF_RETURN_KIND_IN_FAT_HEADER  2
 #define STACK_BASE_REGISTER_ENCBASE 3
 #define SIZE_OF_STACK_AREA_ENCBASE 6
 #define SIZE_OF_EDIT_AND_CONTINUE_PRESERVED_AREA_ENCBASE 3
+#define REVERSE_PINVOKE_FRAME_ENCBASE 6
 #define NUM_REGISTERS_ENCBASE 3
 #define NUM_STACK_SLOTS_ENCBASE 5
 #define NUM_UNTRACKED_SLOTS_ENCBASE 5

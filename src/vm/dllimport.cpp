@@ -1024,7 +1024,7 @@ public:
             pcsUnmarshal->EmitRET();
         }
 
-        DWORD dwJitFlags = CORJIT_FLG_IL_STUB;
+        CORJIT_FLAGS jitFlags(CORJIT_FLAGS::CORJIT_FLAG_IL_STUB);
                 
         if (m_slIL.HasInteropParamExceptionInfo())
         {
@@ -1049,7 +1049,7 @@ public:
         else
         {
             // All other IL stubs will need to use the secret parameter.
-            dwJitFlags |= CORJIT_FLG_PUBLISH_SECRET_PARAM;
+            jitFlags.Set(CORJIT_FLAGS::CORJIT_FLAG_PUBLISH_SECRET_PARAM);
         }
 
         if (SF_IsReverseStub(m_dwStubFlags))
@@ -1114,7 +1114,7 @@ public:
         m_slIL.GenerateCode(pbBuffer, cbCode);
         m_slIL.GetLocalSig(pbLocalSig, cbSig);
 
-        pResolver->SetJitFlags(dwJitFlags);
+        pResolver->SetJitFlags(jitFlags);
 
 #ifdef LOGGING
         LOG((LF_STUBS, LL_INFO1000, "---------------------------------------------------------------------\n"));
@@ -1153,7 +1153,7 @@ public:
 
             LogILStubFlags(LF_STUBS, LL_INFO1000, m_dwStubFlags);
 
-            m_slIL.LogILStub(dwJitFlags);
+            m_slIL.LogILStub(jitFlags);
         }
         LOG((LF_STUBS, LL_INFO1000, "^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n"));
 #endif // LOGGING
@@ -1170,7 +1170,7 @@ public:
                 pStubMD, 
                 pbLocalSig, 
                 cbSig,
-                dwJitFlags,
+                jitFlags,
                 &convertToHRTryCatch,
                 &cleanupTryFinally,
                 maxStack,
@@ -1188,7 +1188,7 @@ public:
         MethodDesc *    pStubMD, 
         PCCOR_SIGNATURE pbLocalSig, 
         DWORD           cbSig, 
-        DWORD           dwJitFlags, 
+        CORJIT_FLAGS    jitFlags,
         ILStubEHClause * pConvertToHRTryCatchBounds,
         ILStubEHClause * pCleanupTryFinallyBounds,
         DWORD           maxStack, 
@@ -1256,7 +1256,7 @@ public:
         strILStubCode.AppendPrintf(W(".maxstack %d \n"), maxStack);
         strILStubCode.AppendPrintf(W(".locals %s\n"), strLocalSig.GetUnicode());
         
-        m_slIL.LogILStub(dwJitFlags, &strILStubCode);
+        m_slIL.LogILStub(jitFlags, &strILStubCode);
 
         if (pConvertToHRTryCatchBounds->cbTryLength != 0 && pConvertToHRTryCatchBounds->cbHandlerLength != 0)
         {
@@ -2559,12 +2559,14 @@ void NDirectStubLinker::DoNDirect(ILCodeStream *pcsEmit, DWORD dwStubFlags, Meth
 
 #else // _TARGET_X86_
 
+#ifdef FEATURE_INCLUDE_ALL_INTERFACES 
                 if (NDirect::IsHostHookEnabled())
                 {
                     // the stub for host will get the original target from the secret arg
                     pcsEmit->EmitLDC((DWORD_PTR)GetEEFuncEntryPoint(PInvokeStubForHost));
                 }
                 else
+#endif // FEATURE_INCLUDE_ALL_INTERFACES 
                 {
                     // the secret arg has been shifted to left and ORed with 1 (see code:GenericPInvokeCalliHelper)
                     EmitLoadStubContext(pcsEmit, dwStubFlags);
@@ -3199,7 +3201,7 @@ void PInvokeStaticSigInfo::DllImportInit(MethodDesc* pMD, LPCUTF8 *ppLibName, LP
     // initialize data members to defaults
     PreInit(pMD);
 
-    // System.Runtime.InteropServices.DLLImportAttribute
+    // System.Runtime.InteropServices.DllImportAttribute
     IMDInternalImport  *pInternalImport = pMD->GetMDImport();
     CorPinvokeMap mappingFlags = pmMaxValue;
     mdModuleRef modref = mdModuleRefNil;
@@ -4938,7 +4940,7 @@ void NDirect::PopulateNDirectMethodDesc(NDirectMethodDesc* pNMD, PInvokeStaticSi
 // Currently only ManagedToNativeComInteropStubAttribute is supported.
 // It returns NULL if no such attribute(s) can be found.  
 // But if the attribute is found and is invalid, or something went wrong in the looking up
-// process, a exception will be thrown. If everything goes well, you'll get the MethodDesc
+// process, an exception will be thrown. If everything goes well, you'll get the MethodDesc
 // of the stub method
 HRESULT FindPredefinedILStubMethod(MethodDesc *pTargetMD, DWORD dwStubFlags, MethodDesc **ppRetStubMD)
 {
@@ -5945,8 +5947,8 @@ PCODE JitILStub(MethodDesc* pStubMD)
             // A dynamically generated IL stub
             //
             
-            DWORD dwFlags = pStubMD->AsDynamicMethodDesc()->GetILStubResolver()->GetJitFlags();
-            pCode = pStubMD->MakeJitWorker(NULL, dwFlags, 0);
+            CORJIT_FLAGS jitFlags = pStubMD->AsDynamicMethodDesc()->GetILStubResolver()->GetJitFlags();
+            pCode = pStubMD->MakeJitWorker(NULL, jitFlags);
 
             _ASSERTE(pCode == pStubMD->GetNativeCode());            
         }
@@ -6250,7 +6252,9 @@ VOID NDirectMethodDesc::SetNDirectTarget(LPVOID pTarget)
         }
 #else
         _ASSERTE(pInterceptStub == NULL); // we don't intercept for anything else than host on !_TARGET_X86_
+#ifdef FEATURE_INCLUDE_ALL_INTERFACES 
         pWriteableData->m_pNDirectTarget = (LPVOID)GetEEFuncEntryPoint(PInvokeStubForHost);
+#endif // FEATURE_INCLUDE_ALL_INTERFACES 
 #endif
     }
     else
@@ -6828,15 +6832,29 @@ HMODULE NDirect::LoadLibraryModuleViaHost(NDirectMethodDesc * pMD, AppDomain* pD
     CLRPrivBinderCoreCLR *pTPABinder = pDomain->GetTPABinderContext();
     Assembly* pAssembly = pMD->GetMethodTable()->GetAssembly();
    
-    PTR_ICLRPrivBinder pBindingContext = pAssembly->GetManifestFile()->GetBindingContext();
+    PEFile *pManifestFile = pAssembly->GetManifestFile();
+    PTR_ICLRPrivBinder pBindingContext = pManifestFile->GetBindingContext();
 
     //Step 0: Check if  the assembly was bound using TPA. 
     //        The Binding Context can be null or an overridden TPA context
     if (pBindingContext == NULL)
     {
-        return NULL;
+        pBindingContext = nullptr;
+
+        // If the assembly does not have a binder associated with it explicitly, then check if it is
+        // a dynamic assembly, or not, since they can have a fallback load context associated with them.
+        if (pManifestFile->IsDynamic())
+        {
+            pBindingContext = pManifestFile->GetFallbackLoadContextBinder();
+        } 
     }
-    
+
+    // If we do not have any binder associated, then return to the default resolution mechanism.
+    if (pBindingContext == nullptr)
+    {
+        return NULL;
+    }    
+
     UINT_PTR assemblyBinderID = 0;
     IfFailThrow(pBindingContext->GetBinderID(&assemblyBinderID));
         
@@ -6991,62 +7009,6 @@ HINSTANCE NDirect::LoadLibraryModule(NDirectMethodDesc * pMD, LoadLibErrorTracke
 #if !defined(FEATURE_CORESYSTEM)
     hmod = CheckForWellKnownModules(wszLibName, pErrorTracker);
 #endif
-
-#ifndef FEATURE_CORECLR
-    // Since fusion.dll has been incorporated into mscorwks.dll, we need to redirect
-    // any PInvokes for fusion.dll over to this runtime module. In order to avoid picking
-    // up invalid versions of fusion.dll, we perform this redirection first. Also redirect
-    // PInvokes to mscorwks.dll and clr.dll to this runtime module (module rename back
-    // compat and in-proc SxS correctness).
-    if (hmod == NULL)
-    {
-        static LPCWSTR const rwszAliases[] =
-        {
-            W("fusion.dll"), W("mscorwks.dll"), W("clr.dll"),
-            W("fusion"),     W("mscorwks"),     W("clr")
-        };
-
-        for (int i = 0; i < COUNTOF(rwszAliases); i++)
-        {
-            if (SString::_wcsicmp(wszLibName, rwszAliases[i]) == 0)
-            {
-                hmod = GetCLRModule();
-                break;
-            }
-        }
-    }
-    // Some CLR DLLs cannot be directly PInvoked. They need in-proc SxS intialization - shim 
-    // (mscoreei.dll) takes care of that. Load such DLLs via shim.
-    // 
-    // Note that we do not support PInvoking into the newly renamed SxS versions of DLLs directly. 
-    // For example mscorpe.dll functionality was moved to mscorpehost.dll in 4.0. When asked for 
-    // loading mscorpe.dll, shim will load mscorpehost.dll and will call its InitializeSxS function 
-    // first. However shim will not call InitializeSxS when asked for mscorpehost.dll directly. 
-    // As a result users cannot use mscorpehost.dll directly for PInvokes (by design), they can only 
-    // use the old mscorpe.dll name.
-    if (hmod == NULL)
-    {
-        static LPCWSTR const rgSxSAwareDlls[] = 
-        {
-            W("mscorpe.dll"), W("mscorpe")
-        };
-
-        for (int i = 0; i < COUNTOF(rgSxSAwareDlls); i++)
-        {
-            if (SString::_wcsicmp(wszLibName, rgSxSAwareDlls[i]) == 0)
-            {
-                // Load the DLL using shim (shim takes care of the DLL SxS initialization)
-                HRESULT hr = g_pCLRRuntime->LoadLibrary(rgSxSAwareDlls[i], &hmod);
-                if (FAILED(hr))
-                {   // We failed to load CLR DLL (probably corrupted installation)
-                    pErrorTracker->TrackHR_CouldNotLoad(hr);
-                    hmod = NULL;
-                }
-                break;
-            }
-        }
-    }
-#endif //!FEATURE_CORECLR
 
 #ifdef FEATURE_PAL
     // In the PAL version of CoreCLR, the CLR module itself exports the functionality

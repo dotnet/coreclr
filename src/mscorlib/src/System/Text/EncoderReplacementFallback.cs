@@ -6,6 +6,7 @@ namespace System.Text
 {
     using System;
     using System.Runtime;
+    using System.Diagnostics;
     using System.Diagnostics.Contracts;
 
     [Serializable]
@@ -23,7 +24,7 @@ namespace System.Text
         {
             // Must not be null
             if (replacement == null)
-                throw new ArgumentNullException("replacement");
+                throw new ArgumentNullException(nameof(replacement));
             Contract.EndContractBlock();
 
             // Make sure it doesn't have bad surrogate pairs
@@ -60,7 +61,7 @@ namespace System.Text
                     break;
             }
             if (bFoundHigh)
-                throw new ArgumentException(Environment.GetResourceString("Argument_InvalidCharSequenceNoIndex", "replacement"));
+                throw new ArgumentException(Environment.GetResourceString("Argument_InvalidCharSequenceNoIndex", nameof(replacement)));
 
             strDefault = replacement;
         }
@@ -147,12 +148,12 @@ namespace System.Text
         {
             // Double check input surrogate pair
             if (!Char.IsHighSurrogate(charUnknownHigh))
-                throw new ArgumentOutOfRangeException("charUnknownHigh",
+                throw new ArgumentOutOfRangeException(nameof(charUnknownHigh),
                     Environment.GetResourceString("ArgumentOutOfRange_Range",
                     0xD800, 0xDBFF));
 
             if (!Char.IsLowSurrogate(charUnknownLow))
-                throw new ArgumentOutOfRangeException("CharUnknownLow",
+                throw new ArgumentOutOfRangeException(nameof(charUnknownLow),
                     Environment.GetResourceString("ArgumentOutOfRange_Range",
                     0xDC00, 0xDFFF));
             Contract.EndContractBlock();
@@ -189,7 +190,7 @@ namespace System.Text
             }
 
             // Now make sure its in the expected range
-            Contract.Assert(fallbackIndex < strDefault.Length && fallbackIndex >= 0,
+            Debug.Assert(fallbackIndex < strDefault.Length && fallbackIndex >= 0,
                             "Index exceeds buffer range");
 
             return strDefault[fallbackIndex];
@@ -220,7 +221,6 @@ namespace System.Text
         }
 
         // Clear the buffer
-        [System.Security.SecuritySafeCritical]  // auto-generated
         public override unsafe void Reset()
         {
             fallbackCount = -1;

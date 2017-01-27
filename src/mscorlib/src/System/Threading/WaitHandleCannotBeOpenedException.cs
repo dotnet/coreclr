@@ -9,16 +9,10 @@ namespace System.Threading
     using System.Runtime.Serialization;
     using System.Runtime.InteropServices;
 
-#if FEATURE_SERIALIZATION
     [Serializable]
-#endif
     [ComVisibleAttribute(false)]
 
-#if FEATURE_CORECLR
-    public class WaitHandleCannotBeOpenedException : Exception {
-#else
     public class WaitHandleCannotBeOpenedException : ApplicationException { 
-#endif // FEATURE_CORECLR
         public WaitHandleCannotBeOpenedException() : base(Environment.GetResourceString("Threading.WaitHandleCannotBeOpenedException")) 
         {
             SetErrorCode(__HResults.COR_E_WAITHANDLECANNOTBEOPENED);

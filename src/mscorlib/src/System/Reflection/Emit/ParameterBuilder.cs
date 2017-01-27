@@ -25,13 +25,12 @@ namespace System.Reflection.Emit {
     public class ParameterBuilder : _ParameterBuilder
     {
         // set ParamMarshal
-        [System.Security.SecuritySafeCritical]  // auto-generated
         [Obsolete("An alternate API is available: Emit the MarshalAs custom attribute instead. http://go.microsoft.com/fwlink/?linkid=14202")]
         public virtual void SetMarshal(UnmanagedMarshal unmanagedMarshal)
         {
             if (unmanagedMarshal == null)
             {
-                throw new ArgumentNullException("unmanagedMarshal");
+                throw new ArgumentNullException(nameof(unmanagedMarshal));
             }
             Contract.EndContractBlock();
             
@@ -44,7 +43,6 @@ namespace System.Reflection.Emit {
         }
     
         // Set the default value of the parameter
-        [System.Security.SecuritySafeCritical]  // auto-generated
         public virtual void SetConstant(Object defaultValue) 
         {
             TypeBuilder.SetConstantValue(
@@ -56,14 +54,13 @@ namespace System.Reflection.Emit {
         
         // Use this function if client decides to form the custom attribute blob themselves
 
-        [System.Security.SecuritySafeCritical]
         [System.Runtime.InteropServices.ComVisible(true)]
         public void SetCustomAttribute(ConstructorInfo con, byte[] binaryAttribute)
         {
             if (con == null)
-                throw new ArgumentNullException("con");
+                throw new ArgumentNullException(nameof(con));
             if (binaryAttribute == null)
-                throw new ArgumentNullException("binaryAttribute");
+                throw new ArgumentNullException(nameof(binaryAttribute));
             Contract.EndContractBlock();
 
             TypeBuilder.DefineCustomAttribute(
@@ -75,12 +72,11 @@ namespace System.Reflection.Emit {
         }
 
         // Use this function if client wishes to build CustomAttribute using CustomAttributeBuilder
-        [System.Security.SecuritySafeCritical]  // auto-generated
         public void SetCustomAttribute(CustomAttributeBuilder customBuilder)
         {
             if (customBuilder == null)
             {
-                throw new ArgumentNullException("customBuilder");
+                throw new ArgumentNullException(nameof(customBuilder));
             }
             Contract.EndContractBlock();
             customBuilder.CreateCustomAttribute((ModuleBuilder) (m_methodBuilder .GetModule()), m_pdToken.Token);
@@ -92,7 +88,6 @@ namespace System.Reflection.Emit {
         private ParameterBuilder() {}
 
 
-        [System.Security.SecurityCritical]  // auto-generated
         internal ParameterBuilder(
             MethodBuilder   methodBuilder, 
             int             sequence, 
@@ -117,28 +112,6 @@ namespace System.Reflection.Emit {
             return m_pdToken;
         } 
 
-#if !FEATURE_CORECLR
-        void _ParameterBuilder.GetTypeInfoCount(out uint pcTInfo)
-        {
-            throw new NotImplementedException();
-        }
-
-        void _ParameterBuilder.GetTypeInfo(uint iTInfo, uint lcid, IntPtr ppTInfo)
-        {
-            throw new NotImplementedException();
-        }
-
-        void _ParameterBuilder.GetIDsOfNames([In] ref Guid riid, IntPtr rgszNames, uint cNames, uint lcid, IntPtr rgDispId)
-        {
-            throw new NotImplementedException();
-        }
-
-        void _ParameterBuilder.Invoke(uint dispIdMember, [In] ref Guid riid, uint lcid, short wFlags, IntPtr pDispParams, IntPtr pVarResult, IntPtr pExcepInfo, IntPtr puArgErr)
-        {
-            throw new NotImplementedException();
-        }
-#endif
-    
         internal int MetadataTokenInternal { get { return m_pdToken.Token; } }
         
         public virtual String Name {

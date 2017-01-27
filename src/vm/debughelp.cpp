@@ -6,9 +6,9 @@
 #include "common.h"
 
 /*******************************************************************/
-/* The folowing routines used to exist in all builds so they could called from the
+/* The following routines used to exist in all builds so they could called from the
  * debugger before we had strike.
- * Now most of them are only inclued in debug builds for diagnostics purposes.
+ * Now most of them are only included in debug builds for diagnostics purposes.
 */
 /*******************************************************************/
 
@@ -23,6 +23,12 @@ BOOL isMemoryReadable(const TADDR start, unsigned len)
         SO_TOLERANT;
     }
     CONTRACTL_END;
+
+#if !defined(DACCESS_COMPILE) && defined(FEATURE_PAL)
+
+    return PAL_ProbeMemory((PVOID)start, len, FALSE);
+
+#else // !DACCESS_COMPILE && FEATURE_PAL
 
     //
     // To accomplish this in a no-throw way, we have to touch each and every page
@@ -87,6 +93,7 @@ BOOL isMemoryReadable(const TADDR start, unsigned len)
     }
 
     return 1;
+#endif // !DACCESS_COMPILE && FEATURE_PAL
 }
 
 
@@ -202,7 +209,7 @@ void *DumpEnvironmentBlock(void)
     return WszGetEnvironmentStrings();
 }
 
-#if defined(_TARGET_X86_)
+#if defined(_TARGET_X86_) && !defined(FEATURE_PAL)
 /*******************************************************************/
 // Dump the SEH chain to stderr
 void PrintSEHChain(void)
@@ -1198,12 +1205,12 @@ void DumpGCInfo(MethodDesc* method)
     _ASSERTE(codeInfo.GetRelOffset() == 0);
 
     ICodeManager* codeMan = codeInfo.GetCodeManager();
-    GCInfoToken table = codeInfo.GetGCInfoToken();
+    GCInfoToken gcInfoToken = codeInfo.GetGCInfoToken();
 
-    unsigned methodSize = (unsigned)codeMan->GetFunctionSize(table);
+    unsigned methodSize = (unsigned)codeMan->GetFunctionSize(gcInfoToken);
 
-    GCDump gcDump(table.Version);
-    PTR_CBYTE gcInfo = PTR_CBYTE(table.Info);
+    GCDump gcDump(gcInfoToken.Version);
+    PTR_CBYTE gcInfo = PTR_CBYTE(gcInfoToken.Info);
 
     gcDump.gcPrintf = printfToDbgOut;
 

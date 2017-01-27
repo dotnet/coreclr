@@ -324,13 +324,17 @@ typedef SimplerHashTable<const BitArray *, LiveStateFuncs, UINT32, GcInfoHashBeh
 // Pi = partially-interruptible; methods with zero fully-interruptible ranges
 GcInfoSize g_FiGcInfoSize;
 GcInfoSize g_PiGcInfoSize;
+// Number of methods with GcInfo that have SlimHeader
+size_t g_NumSlimHeaders = 0;
+// Number of methods with GcInfo that have FatHeader
+size_t g_NumFatHeaders = 0;
 
 GcInfoSize::GcInfoSize()
 {
     memset(this, 0, sizeof(*this));
 }
 
-GcInfoSize& operator+=(const GcInfoSize& other)
+GcInfoSize& GcInfoSize::operator+=(const GcInfoSize& other)
 {
     TotalSize += other.TotalSize;
 
@@ -339,10 +343,13 @@ GcInfoSize& operator+=(const GcInfoSize& other)
     NumRanges += other.NumRanges;
     NumRegs += other.NumRegs;
     NumStack += other.NumStack;
-    NumEh += other.NumEh;
+    NumUntracked += other.NumUntracked;
     NumTransitions += other.NumTransitions;
     SizeOfCode += other.SizeOfCode;
+    EncPreservedSlots += other.EncPreservedSlots;
     
+    UntrackedSlotSize += other.UntrackedSlotSize;
+    NumUntrackedSize += other.NumUntrackedSize;
     FlagsSize += other.FlagsSize;
     CodeLengthSize += other.CodeLengthSize;
     ProEpilogSize += other.ProEpilogSize;
@@ -351,7 +358,7 @@ GcInfoSize& operator+=(const GcInfoSize& other)
     GenericsCtxSize += other.GenericsCtxSize;
     PspSymSize += other.PspSymSize;
     StackBaseSize += other.StackBaseSize;
-    FrameMarkerSize += other.FrameMarkerSize;
+    ReversePInvokeFrameSize += other.ReversePInvokeFrameSize;
     FixedAreaSize += other.FixedAreaSize;
     NumCallSitesSize += other.NumCallSitesSize;
     NumRangesSize += other.NumRangesSize;
@@ -362,7 +369,6 @@ GcInfoSize& operator+=(const GcInfoSize& other)
     RegSlotSize += other.RegSlotSize;
     StackSlotSize += other.StackSlotSize;
     CallSiteStateSize += other.CallSiteStateSize;
-    NumEhSize += other.NumEhSize;
     EhPosSize += other.EhPosSize;
     EhStateSize += other.EhStateSize;
     ChunkPtrSize += other.ChunkPtrSize;
@@ -385,12 +391,15 @@ void GcInfoSize::Log(DWORD level, const char * header)
         LogSpew(LF_GCINFO, level, "NumRanges: %Iu\n", NumRanges);
         LogSpew(LF_GCINFO, level, "NumRegs: %Iu\n", NumRegs);
         LogSpew(LF_GCINFO, level, "NumStack: %Iu\n", NumStack);
-        LogSpew(LF_GCINFO, level, "NumEh: %Iu\n", NumEh);
+        LogSpew(LF_GCINFO, level, "NumUntracked: %Iu\n", NumUntracked);
         LogSpew(LF_GCINFO, level, "NumTransitions: %Iu\n", NumTransitions);
         LogSpew(LF_GCINFO, level, "SizeOfCode: %Iu\n", SizeOfCode);
+        LogSpew(LF_GCINFO, level, "EncPreservedSlots: %Iu\n", EncPreservedSlots);
 
         LogSpew(LF_GCINFO, level, "---SIZES(bits)---\n");
         LogSpew(LF_GCINFO, level, "Total: %Iu\n", TotalSize);
+        LogSpew(LF_GCINFO, level, "UntrackedSlot: %Iu\n", UntrackedSlotSize);
+        LogSpew(LF_GCINFO, level, "NumUntracked: %Iu\n", NumUntrackedSize);
         LogSpew(LF_GCINFO, level, "Flags: %Iu\n", FlagsSize);
         LogSpew(LF_GCINFO, level, "CodeLength: %Iu\n", CodeLengthSize);
         LogSpew(LF_GCINFO, level, "Prolog/Epilog: %Iu\n", ProEpilogSize);
@@ -398,8 +407,9 @@ void GcInfoSize::Log(DWORD level, const char * header)
         LogSpew(LF_GCINFO, level, "GsCookie: %Iu\n", GsCookieSize);
         LogSpew(LF_GCINFO, level, "PspSym: %Iu\n", PspSymSize);
         LogSpew(LF_GCINFO, level, "GenericsCtx: %Iu\n", GenericsCtxSize);
-        LogSpew(LF_GCINFO, level, "FrameMarker: %Iu\n", FrameMarkerSize);
+        LogSpew(LF_GCINFO, level, "StackBase: %Iu\n", StackBaseSize);
         LogSpew(LF_GCINFO, level, "FixedArea: %Iu\n", FixedAreaSize);
+        LogSpew(LF_GCINFO, level, "ReversePInvokeFrame: %Iu\n", ReversePInvokeFrameSize);
         LogSpew(LF_GCINFO, level, "NumCallSites: %Iu\n", NumCallSitesSize);
         LogSpew(LF_GCINFO, level, "NumRanges: %Iu\n", NumRangesSize);
         LogSpew(LF_GCINFO, level, "CallSiteOffsets: %Iu\n", CallSitePosSize);
@@ -409,7 +419,6 @@ void GcInfoSize::Log(DWORD level, const char * header)
         LogSpew(LF_GCINFO, level, "RegSlots: %Iu\n", RegSlotSize);
         LogSpew(LF_GCINFO, level, "StackSlots: %Iu\n", StackSlotSize);
         LogSpew(LF_GCINFO, level, "CallSiteStates: %Iu\n", CallSiteStateSize);
-        LogSpew(LF_GCINFO, level, "NumEh: %Iu\n", NumEhSize);
         LogSpew(LF_GCINFO, level, "EhOffsets: %Iu\n", EhPosSize);
         LogSpew(LF_GCINFO, level, "EhStates: %Iu\n", EhStateSize);
         LogSpew(LF_GCINFO, level, "ChunkPointers: %Iu\n", ChunkPtrSize);
@@ -419,17 +428,6 @@ void GcInfoSize::Log(DWORD level, const char * header)
     }
 }
 
-#endif
-
-#ifndef DISABLE_EH_VECTORS
-inline BOOL IsEssential(EE_ILEXCEPTION_CLAUSE *pClause)
-{
-    _ASSERTE(pClause->TryEndPC >= pClause->TryStartPC);
-     if(pClause->TryEndPC == pClause->TryStartPC)
-        return FALSE;
-
-     return TRUE;
-}
 #endif
 
 GcInfoEncoder::GcInfoEncoder(
@@ -488,17 +486,27 @@ GcInfoEncoder::GcInfoEncoder(
 
     m_StackBaseRegister = NO_STACK_BASE_REGISTER;
     m_SizeOfEditAndContinuePreservedArea = NO_SIZE_OF_EDIT_AND_CONTINUE_PRESERVED_AREA;
+    m_ReversePInvokeFrameSlot = NO_REVERSE_PINVOKE_FRAME;
     m_WantsReportOnlyLeaf = false;
     m_IsVarArg = false;
     m_pLastInterruptibleRange = NULL;
     
 #ifdef _DEBUG
     m_IsSlotTableFrozen = FALSE;
+#endif //_DEBUG
+
+#ifndef _TARGET_X86_
+    // If the compiler doesn't set the GCInfo, report RT_Unset.
+    // This is used for compatibility with JITs that aren't updated to use the new API.
+    m_ReturnKind = RT_Unset;
+#else
+    m_ReturnKind = RT_Illegal;
+#endif // _TARGET_X86_
     m_CodeLength = 0;
 #ifdef FIXED_STACK_PARAMETER_SCRATCH_AREA
     m_SizeOfStackOutgoingAndScratchArea = -1;
 #endif // FIXED_STACK_PARAMETER_SCRATCH_AREA
-#endif //_DEBUG
+
 }
 
 #ifdef PARTIALLY_INTERRUPTIBLE_GC_SUPPORTED
@@ -758,13 +766,23 @@ void GcInfoEncoder::SetSizeOfStackOutgoingAndScratchArea( UINT32 size )
 }
 #endif // FIXED_STACK_PARAMETER_SCRATCH_AREA
 
+void GcInfoEncoder::SetReversePInvokeFrameSlot(INT32 spOffset)
+{
+    m_ReversePInvokeFrameSlot = spOffset;
+}
+
+void GcInfoEncoder::SetReturnKind(ReturnKind returnKind)
+{
+    _ASSERTE(IsValidReturnKind(returnKind));
+
+    m_ReturnKind = returnKind;
+}
 
 struct GcSlotDescAndId
 {
     GcSlotDesc m_SlotDesc;
     UINT32 m_SlotId;
 };
-
 
 int __cdecl CompareSlotDescAndIdBySlotDesc(const void* p1, const void* p2)
 {
@@ -985,20 +1003,27 @@ void GcInfoEncoder::Build()
     // Method header
     ///////////////////////////////////////////////////////////////////////
 
+    
     UINT32 hasSecurityObject = (m_SecurityObjectStackSlot != NO_SECURITY_OBJECT);
     UINT32 hasGSCookie = (m_GSCookieStackSlot != NO_GS_COOKIE);
     UINT32 hasContextParamType = (m_GenericsInstContextStackSlot != NO_GENERICS_INST_CONTEXT);
+    UINT32 hasReversePInvokeFrame = (m_ReversePInvokeFrameSlot != NO_REVERSE_PINVOKE_FRAME);
 
     BOOL slimHeader = (!m_IsVarArg && !hasSecurityObject && !hasGSCookie && (m_PSPSymStackSlot == NO_PSP_SYM) &&
-        !hasContextParamType && !m_WantsReportOnlyLeaf && (m_InterruptibleRanges.Count() == 0) &&
+        !hasContextParamType && !m_WantsReportOnlyLeaf && (m_InterruptibleRanges.Count() == 0) && !hasReversePInvokeFrame &&
         ((m_StackBaseRegister == NO_STACK_BASE_REGISTER) || (NORMALIZE_STACK_BASE_REGISTER(m_StackBaseRegister) == 0))) &&
-        (m_SizeOfEditAndContinuePreservedArea == NO_SIZE_OF_EDIT_AND_CONTINUE_PRESERVED_AREA);
+        (m_SizeOfEditAndContinuePreservedArea == NO_SIZE_OF_EDIT_AND_CONTINUE_PRESERVED_AREA) && 
+        !IsStructReturnKind(m_ReturnKind);
 
+    // All new code is generated for the latest GCINFO_VERSION.
+    // So, always encode RetunrKind and encode ReversePInvokeFrameSlot where applicable.
     if (slimHeader)
     {
         // Slim encoding means nothing special, partially interruptible, maybe a default frame register
         GCINFO_WRITE(m_Info1, 0, 1, FlagsSize); // Slim encoding
         GCINFO_WRITE(m_Info1, (m_StackBaseRegister == NO_STACK_BASE_REGISTER) ? 0 : 1, 1, FlagsSize);
+
+        GCINFO_WRITE(m_Info1, m_ReturnKind, SIZE_OF_RETURN_KIND_IN_SLIM_HEADER, RetKindSize);
     }
     else
     {
@@ -1011,6 +1036,9 @@ void GcInfoEncoder::Build()
         GCINFO_WRITE(m_Info1, ((m_StackBaseRegister != NO_STACK_BASE_REGISTER) ? 1 : 0), 1, FlagsSize);
         GCINFO_WRITE(m_Info1, (m_WantsReportOnlyLeaf ? 1 : 0), 1, FlagsSize);
         GCINFO_WRITE(m_Info1, ((m_SizeOfEditAndContinuePreservedArea != NO_SIZE_OF_EDIT_AND_CONTINUE_PRESERVED_AREA) ? 1 : 0), 1, FlagsSize);
+        GCINFO_WRITE(m_Info1, (hasReversePInvokeFrame ? 1 : 0), 1, FlagsSize);
+
+        GCINFO_WRITE(m_Info1, m_ReturnKind, SIZE_OF_RETURN_KIND_IN_FAT_HEADER, RetKindSize);
     }
 
     _ASSERTE( m_CodeLength > 0 );
@@ -1109,6 +1137,12 @@ void GcInfoEncoder::Build()
         GCINFO_WRITE_VARL_U(m_Info1, m_SizeOfEditAndContinuePreservedArea, SIZE_OF_EDIT_AND_CONTINUE_PRESERVED_AREA_ENCBASE, EncPreservedSlots);
     }
 
+    if (hasReversePInvokeFrame)
+    {
+        _ASSERTE(!slimHeader);
+        GCINFO_WRITE_VARL_S(m_Info1, NORMALIZE_STACK_SLOT(m_ReversePInvokeFrameSlot), REVERSE_PINVOKE_FRAME_ENCBASE, ReversePInvokeFrameSize);
+    }
+
 #ifdef FIXED_STACK_PARAMETER_SCRATCH_AREA
     if (!slimHeader)
     {
@@ -1129,7 +1163,8 @@ void GcInfoEncoder::Build()
     int size_tCount = (m_NumSlots + BITS_PER_SIZE_T - 1) / BITS_PER_SIZE_T;
     BitArray liveState(m_pAllocator, size_tCount);
     BitArray couldBeLive(m_pAllocator, size_tCount);
-
+    liveState.ClearAll();
+    couldBeLive.ClearAll();
 
 #ifdef PARTIALLY_INTERRUPTIBLE_GC_SUPPORTED
     _ASSERTE(m_NumCallSites == 0 || m_pCallSites != NULL);
@@ -1313,83 +1348,6 @@ void GcInfoEncoder::Build()
 #endif
     }
 
-
-#ifdef PARTIALLY_INTERRUPTIBLE_GC_SUPPORTED
-    ///////////////////////////////////////////////////////////////////////
-    // Gather EH information
-    ///////////////////////////////////////////////////////////////////////
-   
-    couldBeLive.ClearAll();
-
-#ifndef DISABLE_EH_VECTORS
-    UINT32 numEHClauses;
-    EE_ILEXCEPTION *pEHInfo = (EE_ILEXCEPTION*) m_pCorJitInfo->getEHInfo();
-    if (!pEHInfo)
-        numEHClauses = 0;
-    else
-        numEHClauses = pEHInfo->EHCount();
-
-    UINT32 numUsedEHClauses = numEHClauses;
-    for (UINT32 clauseIndex = 0; clauseIndex < numEHClauses; clauseIndex++)
-    {
-        EE_ILEXCEPTION_CLAUSE * pClause;
-        pClause = pEHInfo->EHClause(clauseIndex);
-
-        if(!IsEssential(pClause))
-            numUsedEHClauses--;
-    }
-    
-    UINT32 ehTableBitCount = m_NumSlots * numUsedEHClauses;
-    BitArray ehLiveSlots(m_pAllocator, (ehTableBitCount + BITS_PER_SIZE_T - 1) / BITS_PER_SIZE_T);
-    ehLiveSlots.ClearAll();
-
-    UINT32 basePos = 0;
-    for (UINT32 clauseIndex = 0; clauseIndex < numEHClauses; clauseIndex++)
-    {
-        EE_ILEXCEPTION_CLAUSE * pClause;
-        pClause = pEHInfo->EHClause(clauseIndex);
-
-        _ASSERTE(pClause->TryEndPC <= m_CodeLength);
-        if(!IsEssential(pClause))
-            continue;
-        
-        liveState.ClearAll();
-        
-        for(pCurrent = pTransitions; pCurrent < pEndTransitions; pCurrent++)
-        {
-            if(pCurrent->CodeOffset > pClause->TryStartPC)
-                break;
-            
-            UINT32 slotIndex = pCurrent->SlotId;
-            BYTE becomesLive = pCurrent->BecomesLive;
-            _ASSERTE(liveState.ReadBit(slotIndex) && !becomesLive
-                    || !liveState.ReadBit(slotIndex) && becomesLive);
-            liveState.WriteBit(slotIndex, becomesLive);
-        }
-
-        for( ; pCurrent < pEndTransitions; pCurrent++)
-        {
-            if(pCurrent->CodeOffset >= pClause->TryEndPC)
-                break;
-            
-            UINT32 slotIndex = pCurrent->SlotId;
-            liveState.ClearBit(slotIndex);
-        }
-
-        // Copy to the EH live state table
-        for(UINT32 i = 0; i < m_NumSlots; i++)
-        {
-            if(liveState.ReadBit(i))
-                ehLiveSlots.SetBit(basePos + i);
-        }
-        basePos += m_NumSlots;
-
-        // Keep track of which slots are used
-        couldBeLive |= liveState;
-    }
-#endif  // DISABLE_EH_VECTORS
-#endif  // PARTIALLY_INTERRUPTIBLE_GC_SUPPORTED
-    
 #if CODE_OFFSETS_NEED_NORMALIZATION
     // Do a pass to normalize transition offsets
     for(pCurrent = pTransitions; pCurrent < pEndTransitions; pCurrent++)
@@ -1403,6 +1361,7 @@ void GcInfoEncoder::Build()
     // Find out which slots are really used
     ///////////////////////////////////////////////////////////////////
 
+    couldBeLive.ClearAll();
     
 #ifdef PARTIALLY_INTERRUPTIBLE_GC_SUPPORTED
     if(m_NumCallSites)
@@ -1953,40 +1912,6 @@ void GcInfoEncoder::Build()
 #endif // MUST_CALL_JITALLOCATOR_FREE
 
     }
-
-    //-----------------------------------------------------------------
-    // Encode EH clauses and bit vectors
-    //-----------------------------------------------------------------
-
-#ifndef DISABLE_EH_VECTORS
-    GCINFO_WRITE_VARL_U(m_Info1, numUsedEHClauses, NUM_EH_CLAUSES_ENCBASE, NumEhSize);
-
-    basePos = 0;
-    for(UINT32 clauseIndex = 0; clauseIndex < numEHClauses; clauseIndex++)
-    {
-        EE_ILEXCEPTION_CLAUSE * pClause;
-        pClause = pEHInfo->EHClause(clauseIndex);
-
-        if(!IsEssential(pClause))
-            continue;
-
-        UINT32 normStartOffset = NORMALIZE_CODE_OFFSET(pClause->TryStartPC);
-        UINT32 normStopOffset = NORMALIZE_CODE_OFFSET(pClause->TryEndPC);
-        _ASSERTE(normStopOffset > normStartOffset);        
-
-        GCINFO_WRITE(m_Info1, normStartOffset, numBitsPerOffset, EhPosSize);
-        GCINFO_WRITE(m_Info1, normStopOffset - 1, numBitsPerOffset, EhPosSize);
-                
-        for(UINT slotIndex = 0; slotIndex < m_NumSlots; slotIndex++)
-        {
-            if(!m_SlotTable[slotIndex].IsDeleted())
-            {
-                GCINFO_WRITE(m_Info1, ehLiveSlots.ReadBit(basePos + slotIndex) ? 1 : 0, 1, EhStateSize);
-            }
-        }
-        basePos += m_NumSlots;
-    }
-#endif  // DISABLE_EH_VECTORS    
 #endif  // PARTIALLY_INTERRUPTIBLE_GC_SUPPORTED
 
     
@@ -2305,14 +2230,18 @@ lExitSuccess:;
     //-------------------------------------------------------------------
 
 #ifdef MEASURE_GCINFO
+    if (slimHeader)
+    {
+        g_NumSlimHeaders++;
+    }
+    else
+    {
+        g_NumFatHeaders++;
+    }
+
     m_CurrentMethodSize.NumMethods = 1;
 #ifdef PARTIALLY_INTERRUPTIBLE_GC_SUPPORTED
     m_CurrentMethodSize.NumCallSites = m_NumCallSites;
-#ifdef DISABLE_EH_VECTORS
-    m_CurrentMethodSize.NumEh = 0;
-#else
-    m_CurrentMethodSize.NumEh = numUsedEHClauses;
-#endif
 #endif
     m_CurrentMethodSize.NumRanges = numInterruptibleRanges;
     m_CurrentMethodSize.NumRegs = numRegisters;
@@ -2331,6 +2260,8 @@ lExitSuccess:;
         m_CurrentMethodSize.Log(LL_INFO100, "=== PartiallyInterruptible method breakdown ===\r\n");
         g_PiGcInfoSize.Log(LL_INFO10, "=== PartiallyInterruptible global breakdown ===\r\n");
     }
+    LogSpew(LF_GCINFO, LL_INFO10, "Total SlimHeaders: %Iu\n", g_NumSlimHeaders);
+    LogSpew(LF_GCINFO, LL_INFO10, "NumMethods: %Iu\n", g_NumFatHeaders);
 #endif
 }
 

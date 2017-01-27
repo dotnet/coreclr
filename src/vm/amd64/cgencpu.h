@@ -65,14 +65,16 @@ EXTERN_C void FastCallFinalizeWorker(Object *obj, PCODE funcPtr);
 #define CACHE_LINE_SIZE                         64   // Current AMD64 processors have 64-byte cache lines as per AMD64 optmization manual
 #define LOG2SLOT                                LOG2_PTRSIZE
 
-#define ENREGISTERED_RETURNTYPE_INTEGER_MAXSIZE 8    // bytes
-#define ENREGISTERED_PARAMTYPE_MAXSIZE          8    // bytes
 
 #ifdef UNIX_AMD64_ABI
+#define ENREGISTERED_RETURNTYPE_INTEGER_MAXSIZE 16   // bytes
+#define ENREGISTERED_PARAMTYPE_MAXSIZE          16   // bytes
 #define ENREGISTERED_RETURNTYPE_MAXSIZE         16   // bytes
 #define CALLDESCR_ARGREGS                       1    // CallDescrWorker has ArgumentRegister parameter
 #define CALLDESCR_FPARGREGS                     1    // CallDescrWorker has FloatArgumentRegisters parameter
 #else
+#define ENREGISTERED_RETURNTYPE_INTEGER_MAXSIZE 8    // bytes
+#define ENREGISTERED_PARAMTYPE_MAXSIZE          8    // bytes
 #define ENREGISTERED_RETURNTYPE_MAXSIZE         8    // bytes
 #define COM_STUBS_SEPARATE_FP_LOCATIONS
 #define CALLDESCR_REGTYPEMAP                    1
@@ -479,13 +481,13 @@ struct DECLSPEC_ALIGN(8) UMEntryThunkCode
 
 struct HijackArgs
 {
-#ifndef PLATFORM_UNIX
+#ifndef FEATURE_MULTIREG_RETURN
     union
     {
         ULONG64 Rax;
-        ULONG64 ReturnValue;
+        ULONG64 ReturnValue[1];
     };
-#else // PLATFORM_UNIX
+#else // FEATURE_MULTIREG_RETURN
     union
     {
         struct

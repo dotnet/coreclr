@@ -41,11 +41,8 @@ EXTERN _StubRareDisableTHROWWorker@4:PROC
 EXTERN __imp__TlsGetValue@4:DWORD
 TlsGetValue PROTO stdcall
 ifdef FEATURE_HIJACK
-EXTERN _OnHijackObjectWorker@4:PROC
-EXTERN _OnHijackInteriorPointerWorker@4:PROC
-EXTERN _OnHijackScalarWorker@4:PROC
+EXTERN _OnHijackWorker@4:PROC
 endif ;FEATURE_HIJACK
-EXTERN _COMPlusEndCatch@20:PROC
 EXTERN _COMPlusFrameHandler:PROC
 ifdef FEATURE_COMINTEROP
 EXTERN _COMPlusFrameHandlerRevCom:PROC
@@ -932,12 +929,9 @@ endif
 
 ifdef FEATURE_HIJACK
 
-; A JITted method's return address was hijacked to return to us here.  What we do
-; is make a __cdecl call with 2 ints.  One is the return value we wish to preserve.
-; The other is space for our real return address.
-;
-;VOID __stdcall OnHijackObjectTripThread();
-OnHijackObjectTripThread PROC stdcall public
+; A JITted method's return address was hijacked to return to us here.  
+; VOID OnHijackTripThread()
+OnHijackTripThread PROC stdcall public
 
     ; Don't fiddle with this unless you change HijackFrame::UpdateRegDisplay
     ; and HijackArgs
@@ -954,41 +948,7 @@ OnHijackObjectTripThread PROC stdcall public
     sub     esp,12
 
     push    esp
-    call    _OnHijackObjectWorker@4
-
-    ; unused space for floating point state
-    add     esp,12
-
-    pop     edi
-    pop     esi
-    pop     ebx
-    pop     edx
-    pop     ecx
-    pop     eax
-    pop     ebp
-    retn                 ; return to the correct place, adjusted by our caller
-OnHijackObjectTripThread ENDP
-
-
-; VOID OnHijackInteriorPointerTripThread()
-OnHijackInteriorPointerTripThread PROC stdcall public
-
-    ; Don't fiddle with this unless you change HijackFrame::UpdateRegDisplay
-    ; and HijackArgs
-    push    eax         ; make room for the real return address (Eip)
-    push    ebp
-    push    eax
-    push    ecx
-    push    edx
-    push    ebx
-    push    esi
-    push    edi
-
-    ; unused space for floating point state
-    sub     esp,12
-
-    push    esp
-    call    _OnHijackInteriorPointerWorker@4
+    call    _OnHijackWorker@4
 
     ; unused space for floating point state
     add     esp,12
@@ -1001,43 +961,10 @@ OnHijackInteriorPointerTripThread PROC stdcall public
     pop     eax
     pop     ebp
     retn                ; return to the correct place, adjusted by our caller
-OnHijackInteriorPointerTripThread ENDP
+OnHijackTripThread ENDP
 
-; VOID OnHijackScalarTripThread()
-OnHijackScalarTripThread PROC stdcall public
-
-    ; Don't fiddle with this unless you change HijackFrame::UpdateRegDisplay
-    ; and HijackArgs
-    push    eax         ; make room for the real return address (Eip)
-    push    ebp
-    push    eax
-    push    ecx
-    push    edx
-    push    ebx
-    push    esi
-    push    edi
-
-    ; unused space for floating point state
-    sub     esp,12
-
-    push    esp
-    call    _OnHijackScalarWorker@4
-
-    ; unused space for floating point state
-    add     esp,12
-
-    pop     edi
-    pop     esi
-    pop     ebx
-    pop     edx
-    pop     ecx
-    pop     eax
-    pop     ebp
-    retn                ; return to the correct place, adjusted by our caller
-OnHijackScalarTripThread ENDP
-
-; VOID OnHijackFloatingPointTripThread()
-OnHijackFloatingPointTripThread PROC stdcall public
+; VOID OnHijackFPTripThread()
+OnHijackFPTripThread PROC stdcall public
 
     ; Don't fiddle with this unless you change HijackFrame::UpdateRegDisplay
     ; and HijackArgs
@@ -1057,7 +984,7 @@ OnHijackFloatingPointTripThread PROC stdcall public
     fstp    tbyte ptr [esp]
 
     push    esp
-    call    _OnHijackScalarWorker@4
+    call    _OnHijackWorker@4
 
     ; restore top of the floating point stack
     fld     tbyte ptr [esp]
@@ -1072,38 +999,11 @@ OnHijackFloatingPointTripThread PROC stdcall public
     pop     eax
     pop     ebp
     retn                ; return to the correct place, adjusted by our caller
-OnHijackFloatingPointTripThread ENDP
+OnHijackFPTripThread ENDP
 
 endif ; FEATURE_HIJACK
 
 
-; Note that the debugger skips this entirely when doing SetIP,
-; since COMPlusCheckForAbort should always return 0.  Excep.cpp:LeaveCatch
-; asserts that to be true.  If this ends up doing more work, then the
-; debugger may need additional support.
-; void __stdcall JIT_EndCatch();
-JIT_EndCatch PROC stdcall public
-
-    ; make temp storage for return address, and push the address of that 
-    ; as the last arg to COMPlusEndCatch	
-    mov     ecx, [esp]
-    push    ecx;
-    push    esp;
-
-    ; push the rest of COMPlusEndCatch's args, right-to-left
-    push    esi
-    push    edi
-    push    ebx
-    push    ebp
-
-    call    _COMPlusEndCatch@20 ; returns old esp value in eax, stores jump address 
-    ; now eax = new esp, [esp] = new eip
-
-    pop     edx         ; edx = new eip
-    mov     esp, eax    ; esp = new esp
-    jmp     edx         ; eip = new eip
-
-JIT_EndCatch ENDP
 
 ;==========================================================================
 ; This function is reached only via the embedded ImportThunkGlue code inside

@@ -1187,12 +1187,12 @@ NativeImageDumper::DumpNativeImage()
             mscorlib->fIsMscorlib = TRUE;
             _ASSERTE(mscorlib->fIsHardbound);
         }
+
+        _ASSERTE(mscorlib != NULL);
         if( mscorlib->fIsHardbound )
         {
             m_isMscorlibHardBound = true;
         }
-
-        _ASSERTE(mscorlib != NULL);
         if( m_isMscorlibHardBound )
         {
             //go through the module to the binder.
@@ -3112,7 +3112,7 @@ void NativeImageDumper::DumpCompleteMethod(PTR_Module module, MethodIterator& mi
         GCDump gcDump(gcInfoToken.Version);
         gcDump.gcPrintf = stringOutFn;
 #if !defined(_TARGET_X86_) && defined(USE_GC_INFO_DECODER)
-        GcInfoDecoder gcInfoDecoder(gcInfoToken, DECODE_CODE_LENGTH, 0);
+        GcInfoDecoder gcInfoDecoder(gcInfoToken, DECODE_CODE_LENGTH);
         methodSize = gcInfoDecoder.GetCodeLength();
 #endif
 
@@ -3120,7 +3120,7 @@ void NativeImageDumper::DumpCompleteMethod(PTR_Module module, MethodIterator& mi
 #ifdef _TARGET_X86_
         InfoHdr hdr;
         stringOutFn( "method info Block:\n" );
-        curGCInfoPtr += gcDump.DumpInfoHdr(PTR_CBYTE(gcInfoToken.Info), &hdr, &methodSize, 0);
+        curGCInfoPtr += gcDump.DumpInfoHdr(curGCInfoPtr, &hdr, &methodSize, 0);
         stringOutFn( "\n" );
 #endif
 
@@ -4088,6 +4088,7 @@ void NativeImageDumper::DumpModule( PTR_Module module )
                  (int)(module->m_maxDynamicEntries
                  * sizeof(*(module->m_pDynamicStaticsInfo))));
 
+#ifdef FEATURE_CER
     DisplayWriteFieldInt( m_dwReliabilityContract,
                           module->m_dwReliabilityContract, Module, MODULE );
 
@@ -4105,6 +4106,7 @@ void NativeImageDumper::DumpModule( PTR_Module module )
                            offsetof(Module, m_pCerNgenRootTable),
                            fieldsize(Module, m_pCerNgenRootTable) );
     }
+#endif
 
 
     _ASSERTE(module->m_debuggerSpecificData.m_pDynamicILCrst == NULL);
@@ -4152,6 +4154,7 @@ bool NativeImageDumper::isPrecode(TADDR maybePrecode)
     return !!module->IsZappedPrecode(maybePrecode);
 }
 
+#ifdef FEATURE_CER
 void NativeImageDumper::DumpNgenRootTable( PTR_CerNgenRootTable table,
                                            const char * name, unsigned offset,
                                            unsigned fieldSize )
@@ -4231,6 +4234,8 @@ void NativeImageDumper::DumpNgenRootTable( PTR_CerNgenRootTable table,
 
     DisplayEndStructure( MODULE ); //CERNgenRootTable
 }
+#endif // FEATURE_CER
+
 void NativeImageDumper::IterateTypeDefToMTCallback( TADDR mtTarget,
                                                     TADDR flags,
                                                     PTR_LookupMapBase map,
@@ -9034,12 +9039,14 @@ NativeImageDumper::DumpEEClassForMethodTable( PTR_MethodTable mt )
         DisplayWriteFieldInt( m_cbModuleDynamicID, pClassOptional->m_cbModuleDynamicID,
                               EEClassOptionalFields, EECLASSES );
 
+#ifdef FEATURE_CER
         /* REVISIT_TODO Fri 10/14/2005
          * Use the macros from ConstrainedExecutionRegion.cpp on this?
          */
         DisplayWriteFieldUInt( m_dwReliabilityContract,
                                clazz->GetReliabilityContract(),
                                EEClassOptionalFields, EECLASSES );
+#endif
 
         DisplayWriteFieldEnumerated( m_SecProps, clazz->GetSecurityProperties()->dwFlags,
                                      EEClassOptionalFields, s_SecurityProperties, W("|"),
@@ -9439,8 +9446,12 @@ void NativeImageDumper::DumpReadyToRunMethod(PCODE pEntryPoint, PTR_RUNTIME_FUNC
         g_holdStringOutData.Clear();
         GCDump gcDump(GCINFO_VERSION);
         gcDump.gcPrintf = stringOutFn;
+        UINT32 r2rversion = m_pReadyToRunHeader->MajorVersion;
+        UINT32 gcInfoVersion = GCInfoToken::ReadyToRunVersionToGcInfoVersion(r2rversion);
+        GCInfoToken gcInfoToken = { curGCInfoPtr, gcInfoVersion };
+
 #if !defined(_TARGET_X86_) && defined(USE_GC_INFO_DECODER)
-        GcInfoDecoder gcInfoDecoder({ curGCInfoPtr, GCINFO_VERSION }, DECODE_CODE_LENGTH, 0);
+        GcInfoDecoder gcInfoDecoder(gcInfoToken, DECODE_CODE_LENGTH);
         methodSize = gcInfoDecoder.GetCodeLength();
 #endif
 
@@ -9539,8 +9550,10 @@ mdTypeRef NativeImageDumper::FindTypeRefForMT( PTR_MethodTable mt )
 #undef GC_NOTRIGGER
 
 #if defined _DEBUG && defined _TARGET_X86_ 
+#ifdef _MSC_VER
 // disable FPO for checked build
 #pragma optimize("y", off)
+#endif // _MSC_VER
 #endif
 
 #undef _ASSERTE

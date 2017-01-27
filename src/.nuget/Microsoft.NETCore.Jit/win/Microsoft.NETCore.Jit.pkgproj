@@ -2,13 +2,13 @@
 <Project ToolsVersion="12.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.props))\dir.props" />
   <PropertyGroup>
-    <Version>1.0.4</Version>
     <SkipPackageFileCheck>true</SkipPackageFileCheck>
     <PackageTargetRuntime>$(MinOSForArch)-$(PackagePlatform)</PackageTargetRuntime>
     <SkipPackageFileCheck>true</SkipPackageFileCheck>
   </PropertyGroup>
   <ItemGroup>
     <ArchitectureSpecificNativeFile Include="$(BinDir)clrjit.dll" />
+    <ArchitectureSpecificNativeFile Condition="'$(PackagePlatform)' == 'x86'" Include="$(BinDir)compatjit.dll" />
     <CrossArchitectureSpecificNativeFile Include="$(BinDir)$(CrossTargetComponentFolder)\clrjit.dll" />
     <File Include="@(ArchitectureSpecificNativeFile)">
       <TargetPath>runtimes/$(PackageTargetRuntime)/native</TargetPath>
@@ -25,7 +25,7 @@
 
     <ArchitectureSpecificNativeSymbol Include="@(ArchitectureSpecificNativeFile -> '%(RelativeDir)PDB\%(FileName).pdb')" />
     <AdditionalSymbolPackageExcludes Include="%2A%2A\%2A.dll" />
-    <ArchitectureSpecificNativeSymbol Include="..\_.pdb" />
+    <ArchitectureSpecificNativeSymbol Include="..\..\_.pdb" />
     <CrossArchitectureSpecificNativeSymbol Condition="'$(HasCrossTargetComponents)' == 'true'" Include="@(CrossArchitectureSpecificNativeFile -> '%(RelativeDir)PDB\%(FileName).pdb')" />
     <File Include="@(ArchitectureSpecificNativeSymbol)">
       <TargetPath>runtimes/$(PackageTargetRuntime)/native</TargetPath>

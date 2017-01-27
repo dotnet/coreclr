@@ -11,6 +11,7 @@ namespace System {
     using System.Runtime.InteropServices;
     using System.Runtime.Versioning;
     using System.Security;
+    using System.Diagnostics;
     using System.Diagnostics.Contracts;
 
     /*  
@@ -139,8 +140,13 @@ namespace System {
         internal const String RoundtripFormat = "yyyy'-'MM'-'dd'T'HH':'mm':'ss.fffffffK";
         internal const String RoundtripDateTimeUnfixed = "yyyy'-'MM'-'ddTHH':'mm':'ss zzz";
     
-        private const int DEFAULT_ALL_DATETIMES_SIZE = 132; 
-        
+        private const int DEFAULT_ALL_DATETIMES_SIZE = 132;
+
+        internal static readonly DateTimeFormatInfo InvariantFormatInfo = CultureInfo.InvariantCulture.DateTimeFormat;
+        internal static readonly string[] InvariantAbbreviatedMonthNames = InvariantFormatInfo.AbbreviatedMonthNames;
+        internal static readonly string[] InvariantAbbreviatedDayNames = InvariantFormatInfo.AbbreviatedDayNames;
+        internal const string Gmt = "GMT";
+
         internal static String[] fixedNumberFormats = new String[] {
             "0",
             "00",
@@ -166,13 +172,12 @@ namespace System {
         //
         ////////////////////////////////////////////////////////////////////////////
         internal static void FormatDigits(StringBuilder outputBuffer, int value, int len) {
-            Contract.Assert(value >= 0, "DateTimeFormat.FormatDigits(): value >= 0");
+            Debug.Assert(value >= 0, "DateTimeFormat.FormatDigits(): value >= 0");
             FormatDigits(outputBuffer, value, len, false);
         }
 
-        [System.Security.SecuritySafeCritical]  // auto-generated
         internal unsafe static void FormatDigits(StringBuilder outputBuffer, int value, int len, bool overrideLengthLimit) {
-            Contract.Assert(value >= 0, "DateTimeFormat.FormatDigits(): value >= 0");
+            Debug.Assert(value >= 0, "DateTimeFormat.FormatDigits(): value >= 0");
 
             // Limit the use of this function to be two-digits, so that we have the same behavior
             // as RTM bits.
@@ -218,7 +223,7 @@ namespace System {
         
         private static String FormatDayOfWeek(int dayOfWeek, int repeat, DateTimeFormatInfo dtfi)
         {
-            Contract.Assert(dayOfWeek >= 0 && dayOfWeek <= 6, "dayOfWeek >= 0 && dayOfWeek <= 6");
+            Debug.Assert(dayOfWeek >= 0 && dayOfWeek <= 6, "dayOfWeek >= 0 && dayOfWeek <= 6");
             if (repeat == 3)
             {            
                 return (dtfi.GetAbbreviatedDayName((DayOfWeek)dayOfWeek));
@@ -230,7 +235,7 @@ namespace System {
     
         private static String FormatMonth(int month, int repeatCount, DateTimeFormatInfo dtfi)
         {
-            Contract.Assert(month >=1 && month <= 12, "month >=1 && month <= 12");
+            Debug.Assert(month >=1 && month <= 12, "month >=1 && month <= 12");
             if (repeatCount == 3)
             {
                 return (dtfi.GetAbbreviatedMonthName(month));
@@ -271,7 +276,7 @@ namespace System {
         */
         private static String FormatHebrewMonthName(DateTime time, int month, int repeatCount, DateTimeFormatInfo dtfi)
         {
-            Contract.Assert(repeatCount != 3 || repeatCount != 4, "repeateCount should be 3 or 4");
+            Debug.Assert(repeatCount != 3 || repeatCount != 4, "repeateCount should be 3 or 4");
             if (dtfi.Calendar.IsLeapYear(dtfi.Calendar.GetYear(time))) {
                 // This month is in a leap year
                 return (dtfi.internalGetMonthName(month, MonthNameStyles.LeapYear, (repeatCount == 3)));
@@ -703,24 +708,13 @@ namespace System {
                     // accurate than the system's current offset because of daylight saving time.
                     offset = TimeZoneInfo.GetLocalUtcOffset(DateTime.Now, TimeZoneInfoOptions.NoThrowOnInvalidTime);
                 } else if (dateTime.Kind == DateTimeKind.Utc) {
-#if FEATURE_CORECLR
                     offset = TimeSpan.Zero;
-#else // FEATURE_CORECLR
-                    // This code path points to a bug in user code. It would make sense to return a 0 offset in this case.
-                    // However, because it was only possible to detect this in Whidbey, there is user code that takes a 
-                    // dependency on being serialize a UTC DateTime using the 'z' format, and it will work almost all the
-                    // time if it is offset by an incorrect conversion to local time when parsed. Therefore, we need to 
-                    // explicitly emit the local time offset, which we can do by removing the UTC flag.
-                    InvalidFormatForUtc(format, dateTime);
-                    dateTime = DateTime.SpecifyKind(dateTime, DateTimeKind.Local);
-                    offset = TimeZoneInfo.GetLocalUtcOffset(dateTime, TimeZoneInfoOptions.NoThrowOnInvalidTime);
-#endif // FEATURE_CORECLR
                 } else {
                     offset = TimeZoneInfo.GetLocalUtcOffset(dateTime, TimeZoneInfoOptions.NoThrowOnInvalidTime);
                 }
             }
             if (offset >= TimeSpan.Zero) {
-                result.Append('+');                
+                result.Append('+');
             }
             else {
                 result.Append('-');
@@ -739,7 +733,7 @@ namespace System {
                     // 'zzz*' or longer format e.g "-07:30"
                     result.AppendFormat(CultureInfo.InvariantCulture, ":{0:00}", offset.Minutes);
                 }
-            }        
+            }
         }
 
         // output the 'K' format, which is for round-tripping the data
@@ -775,7 +769,9 @@ namespace System {
                 offset = offset.Negate();
             }
 
-            result.AppendFormat(CultureInfo.InvariantCulture, "{0:00}:{1:00}", offset.Hours, offset.Minutes);
+            AppendNumber(result, offset.Hours, 2);
+            result.Append(':');
+            AppendNumber(result, offset.Minutes, 2);
         }
         
     
@@ -957,12 +953,101 @@ namespace System {
             }
 
             if (format.Length == 1) {
+                switch (format[0])
+                {
+                    case 'O':
+                    case 'o':
+                        return FastFormatRoundtrip(dateTime, offset);
+                    case 'R':
+                    case 'r':
+                        return FastFormatRfc1123(dateTime, offset, dtfi);
+                }
+
                 format = ExpandPredefinedFormat(format, ref dateTime, ref dtfi, ref offset);
-            }            
+            }      
 
             return (FormatCustomized(dateTime, format, dtfi, offset));
         }
-    
+
+        internal static string FastFormatRfc1123(DateTime dateTime, TimeSpan offset, DateTimeFormatInfo dtfi)
+        {
+            // ddd, dd MMM yyyy HH:mm:ss GMT
+            const int Rfc1123FormatLength = 29;
+            StringBuilder result = StringBuilderCache.Acquire(Rfc1123FormatLength);
+
+            if (offset != NullOffset)
+            {
+                // Convert to UTC invariants
+                dateTime = dateTime - offset;
+            }
+
+            result.Append(InvariantAbbreviatedDayNames[(int)dateTime.DayOfWeek]);
+            result.Append(',');
+            result.Append(' ');
+            AppendNumber(result, dateTime.Day, 2);
+            result.Append(' ');
+            result.Append(InvariantAbbreviatedMonthNames[dateTime.Month - 1]);
+            result.Append(' ');
+            AppendNumber(result, dateTime.Year, 4);
+            result.Append(' ');
+            AppendHHmmssTimeOfDay(result, dateTime);
+            result.Append(' ');
+            result.Append(Gmt);
+
+            return StringBuilderCache.GetStringAndRelease(result);
+        }
+
+        internal static string FastFormatRoundtrip(DateTime dateTime, TimeSpan offset)
+        {
+            // yyyy-MM-ddTHH:mm:ss.fffffffK
+            const int roundTripFormatLength = 28;
+            StringBuilder result = StringBuilderCache.Acquire(roundTripFormatLength);
+
+            AppendNumber(result, dateTime.Year, 4);
+            result.Append('-');
+            AppendNumber(result, dateTime.Month, 2);
+            result.Append('-');
+            AppendNumber(result, dateTime.Day, 2);
+            result.Append('T');
+            AppendHHmmssTimeOfDay(result, dateTime);
+            result.Append('.');
+
+            long fraction = dateTime.Ticks % TimeSpan.TicksPerSecond;
+            AppendNumber(result, fraction, 7);
+
+            FormatCustomizedRoundripTimeZone(dateTime, offset, result);
+
+            return StringBuilderCache.GetStringAndRelease(result);
+        }
+
+        private static void AppendHHmmssTimeOfDay(StringBuilder result, DateTime dateTime)
+        {
+            // HH:mm:ss
+            AppendNumber(result, dateTime.Hour, 2);
+            result.Append(':');
+            AppendNumber(result, dateTime.Minute, 2);
+            result.Append(':');
+            AppendNumber(result, dateTime.Second, 2);
+        }
+
+        internal static void AppendNumber(StringBuilder builder, long val, int digits)
+        {
+            for (int i = 0; i < digits; i++)
+            {
+                builder.Append('0');
+            }
+
+            int index = 1;
+            while (val > 0 && index <= digits)
+            {
+                builder[builder.Length - index] = (char)('0' + (val % 10));
+                val = val / 10;
+                index++;
+            }
+
+            Debug.Assert(val == 0, "DateTimeFormat.AppendNumber(): digits less than size of val");
+        }
+
         internal static String[] GetAllDateTimes(DateTime dateTime, char format, DateTimeFormatInfo dtfi)
         {
             Contract.Requires(dtfi != null);
@@ -1009,7 +1094,7 @@ namespace System {
                 case 'O':
                 case 's':
                 case 'u':            
-                    results = new String[] {Format(dateTime, new String(new char[] {format}), dtfi)};
+                    results = new String[] {Format(dateTime, new String(format, 1), dtfi)};
                     break;   
                 default:
                     throw new FormatException(Environment.GetResourceString("Format_InvalidString"));
@@ -1042,7 +1127,6 @@ namespace System {
 
         // This is an MDA for cases when the user is using a local format with
         // a Utc DateTime.
-        [System.Security.SecuritySafeCritical]  // auto-generated
         internal static void InvalidFormatForUtc(String format, DateTime dateTime) {
 #if MDA_SUPPORTED
             Mda.DateTimeInvalidLocalFormat();

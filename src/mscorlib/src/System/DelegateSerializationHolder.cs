@@ -13,20 +13,17 @@ using System.Diagnostics.Contracts;
 
 namespace System
 {
-#if FEATURE_SERIALIZATION
     [Serializable]
-#endif
     internal sealed class DelegateSerializationHolder : IObjectReference, ISerializable
     {
         #region Static Members
-        [System.Security.SecurityCritical]  // auto-generated
         internal static DelegateEntry GetDelegateSerializationInfo(
             SerializationInfo info, Type delegateType, Object target, MethodInfo method, int targetIndex)
         {
             // Used for MulticastDelegate
 
             if (method == null) 
-                throw new ArgumentNullException("method");
+                throw new ArgumentNullException(nameof(method));
             Contract.EndContractBlock();
     
             if (!method.IsPublic || (method.DeclaringType != null && !method.DeclaringType.IsVisible))
@@ -118,11 +115,10 @@ namespace System
         #endregion    
     
         #region Constructor
-        [System.Security.SecurityCritical]  // auto-generated
         private DelegateSerializationHolder(SerializationInfo info, StreamingContext context)
         {
             if (info == null)
-                throw new ArgumentNullException("info");
+                throw new ArgumentNullException(nameof(info));
             Contract.EndContractBlock();
     
             bool bNewWire = true;
@@ -184,7 +180,7 @@ namespace System
         private DelegateEntry OldDelegateWireFormat(SerializationInfo info, StreamingContext context)
         {
             if (info == null)
-                throw new ArgumentNullException("info");
+                throw new ArgumentNullException(nameof(info));
             Contract.EndContractBlock();
 
             String delegateType = info.GetString("DelegateType");
@@ -197,7 +193,6 @@ namespace System
             return new DelegateEntry(delegateType, delegateAssembly, target, targetTypeAssembly, targetTypeName, methodName);
         }
 
-        [System.Security.SecurityCritical]
         private Delegate GetDelegate(DelegateEntry de, int index)
         {
             Delegate d;
@@ -220,27 +215,19 @@ namespace System
                 // If we received the new style delegate encoding we already have the target MethodInfo in hand.
                 if (m_methods != null)
                 {
-#if FEATURE_REMOTING                
-                    Object target = de.target != null ? RemotingServices.CheckCast(de.target, targetType) : null;
-#else
-                    if(!targetType.IsInstanceOfType(de.target))
+                    if(de.target != null && !targetType.IsInstanceOfType(de.target))
                         throw new InvalidCastException();
                     Object target=de.target;
-#endif
                     d = Delegate.CreateDelegateNoSecurityCheck(type, target, m_methods[index]);
                 }
                 else
                 {
                     if (de.target != null)
-#if FEATURE_REMOTING                
-                        d = Delegate.CreateDelegate(type, RemotingServices.CheckCast(de.target, targetType), de.methodName);
-#else
-                {
-                    if(!targetType.IsInstanceOfType(de.target))
-                        throw new InvalidCastException();
-                     d = Delegate.CreateDelegate(type, de.target, de.methodName);
-                }
-#endif
+                    {
+                        if(!targetType.IsInstanceOfType(de.target))
+                            throw new InvalidCastException();
+                         d = Delegate.CreateDelegate(type, de.target, de.methodName);
+                    }
                     else
                         d = Delegate.CreateDelegate(type, targetType, de.methodName);
                 }
@@ -261,7 +248,6 @@ namespace System
         #endregion
 
         #region IObjectReference
-        [System.Security.SecurityCritical]  // auto-generated
         public Object GetRealObject(StreamingContext context)
         {
             int count = 0;
@@ -291,7 +277,6 @@ namespace System
         #endregion
 
         #region ISerializable
-        [System.Security.SecurityCritical]  // auto-generated
         public void GetObjectData(SerializationInfo info, StreamingContext context)
         {
             throw new NotSupportedException(Environment.GetResourceString("NotSupported_DelegateSerHolderSerial"));

@@ -291,9 +291,6 @@ void ZapImage::OutputEntrypointsTableForReadyToRun()
     pReadyToRunHeader->RegisterSection(READYTORUN_SECTION_INSTANCE_METHOD_ENTRYPOINTS, pHashtableBlob);
     pReadyToRunHeader->RegisterSection(READYTORUN_SECTION_RUNTIME_FUNCTIONS, m_pRuntimeFunctionSection);
 
-    if (m_pImportSectionsTable->GetSize() != 0)
-        pReadyToRunHeader->RegisterSection(READYTORUN_SECTION_IMPORT_SECTIONS, m_pImportSectionsTable);
-
     if (m_pLazyMethodCallHelperSection->GetNodeCount() != 0)
         pReadyToRunHeader->RegisterSection(READYTORUN_SECTION_DELAYLOAD_METHODCALL_THUNKS, m_pLazyMethodCallHelperSection);
 
@@ -514,6 +511,8 @@ static_assert_no_msg((int)READYTORUN_FIXUP_Check_TypeLayout          == (int)ENC
 static_assert_no_msg((int)READYTORUN_FIXUP_Check_FieldOffset         == (int)ENCODE_CHECK_FIELD_OFFSET);
 
 static_assert_no_msg((int)READYTORUN_FIXUP_DelegateCtor              == (int)ENCODE_DELEGATE_CTOR);
+
+static_assert_no_msg((int)READYTORUN_FIXUP_DeclaringTypeHandle       == (int)ENCODE_DECLARINGTYPE_HANDLE);
 
 //
 // READYTORUN_EXCEPTION

@@ -13,14 +13,9 @@ namespace System.Reflection
     using System.Diagnostics.Contracts;
 
     // This is not serializable because it is a reflection command.
-#if FEATURE_SERIALIZATION
     [Serializable]
-#endif
     [System.Runtime.InteropServices.ComVisible(true)]
-    public sealed class Missing
-#if FEATURE_SERIALIZATION
-        : ISerializable
-#endif
+    public sealed class Missing : ISerializable
     {
         public static readonly Missing Value = new Missing();
 
@@ -28,18 +23,15 @@ namespace System.Reflection
         private Missing() { }
         #endregion
 
-#if FEATURE_SERIALIZATION
         #region ISerializable
-        [System.Security.SecurityCritical]  // auto-generated_required
         void ISerializable.GetObjectData(SerializationInfo info, StreamingContext context)
         {
             if (info == null)
-                throw new ArgumentNullException("info");
+                throw new ArgumentNullException(nameof(info));
             Contract.EndContractBlock();
 
             UnitySerializationHolder.GetUnitySerializationInfo(info, this);
         }
         #endregion
-#endif
     }
 }
