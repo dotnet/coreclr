@@ -258,11 +258,12 @@ namespace System {
         [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
         internal unsafe static void MemoryCopyCore(byte* destination, byte* source, nuint length)
         {
-            const nuint PInvokeThreshold = 512;
 #if AMD64
+            const nuint PInvokeThreshold = 1024;
             const nuint CopyAlignment = 16; // SIMD is enabled for AMD64, so align on a 16-byte boundary
             const nuint BytesPerIteration = 64;
 #else
+            const nuint PInvokeThreshold = 512;
             const nuint CopyAlignment = 4; // Align on a 4-byte boundary
             const nuint BytesPerIteration = 16;
 #endif
