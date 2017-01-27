@@ -5,9 +5,8 @@
 #ifndef _INTEROP_TYPES__H
 #define _INTEROP_TYPES__H
 
-#ifndef __ANDROID__
+#undef INT_MIN
 #define INT_MIN	   (-2147483647 - 1)
-#endif
 
 typedef char16_t WCHAR;
 typedef unsigned long DWORD;
