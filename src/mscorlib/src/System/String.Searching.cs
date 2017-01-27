@@ -11,10 +11,10 @@ namespace System
     public partial class String
     {
         [Pure]
-        public bool Contains( string value ) {
-            return ( IndexOf(value, StringComparison.Ordinal) >=0 );
+        public bool Contains(string value) {
+            return IndexOf(value, 0, Length, StringComparison.Ordinal) >= 0;
         }
-    
+
         // Returns the index of the first occurrence of a specified character in the current instance.
         // The search starts at startIndex and runs thorough the next count characters.
         //
@@ -95,7 +95,7 @@ namespace System
         //
         [Pure]
         public int IndexOf(String value) {
-            return IndexOf(value, StringComparison.CurrentCulture);
+            return IndexOf(value, 0, Length, StringComparison.CurrentCulture);
         }
 
         // Determines the position within this string of the first occurrence of the specified
@@ -104,7 +104,7 @@ namespace System
         //
         [Pure]
         public int IndexOf(String value, int startIndex) {
-            return IndexOf(value, startIndex, StringComparison.CurrentCulture);
+            return IndexOf(value, startIndex, Length - startIndex, StringComparison.CurrentCulture);
         }
 
         // Determines the position within this string of the first occurrence of the specified
