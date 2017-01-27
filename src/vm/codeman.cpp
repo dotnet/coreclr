@@ -3217,8 +3217,8 @@ void EEJitManager::RemoveJitData (CodeHeader * pCHdr, size_t GCinfo_len, size_t 
 
             LCGMethodResolver * pResolver = pMD->AsDynamicMethodDesc()->GetLCGMethodResolver();
 
-            // Clear the pointer only if it matches what we are about to free. There may be cases where the JIT is reentered and
-            // the method JITed multiple times.
+            // Clear the pointer only if it matches what we are about to free. 
+            // There can be cases where the JIT is reentered and we JITed the method multiple times.
             if (pResolver->m_recordCodePointer == codeStart)
                 pResolver->m_recordCodePointer = NULL;
         }
@@ -4930,7 +4930,7 @@ void ExecutionManager::Unload(LoaderAllocator *pLoaderAllocator)
     */
     StackwalkCache::Invalidate(pLoaderAllocator);
 
-    JumpStubCache * pJumpStubCache = (JumpStubCache *)pLoaderAllocator->m_pJumpStubCache;
+    JumpStubCache * pJumpStubCache = (JumpStubCache *) pLoaderAllocator->m_pJumpStubCache;
     if (pJumpStubCache != NULL)
     {
         delete pJumpStubCache;
@@ -4999,18 +4999,33 @@ PCODE ExecutionManager::jumpStub(MethodDesc* pMD, PCODE target,
     PCODE jumpStub = NULL;
 
     if (pLoaderAllocator == NULL)
+    {
         pLoaderAllocator = pMD->GetLoaderAllocatorForCode();
+    }
     _ASSERTE(pLoaderAllocator != NULL);
 
-    bool isLCG = pMD && pMD->IsLCGMethod();
+    bool                 isLCG          = pMD && pMD->IsLCGMethod();
+    LCGMethodResolver *  pResolver      = nullptr;
+    JumpStubCache *      pJumpStubCache = (JumpStubCache *) pLoaderAllocator->m_pJumpStubCache;
+
+    if (isLCG)
+    {
+        pResolver      = pMD->AsDynamicMethodDesc()->GetLCGMethodResolver();
+        pJumpStubCache = pResolver->m_pJumpStubCache;
+    }
 
     CrstHolder ch(&m_JumpStubCrst);
-
-    JumpStubCache * pJumpStubCache = (JumpStubCache *)pLoaderAllocator->m_pJumpStubCache;
     if (pJumpStubCache == NULL)
     {
         pJumpStubCache = new JumpStubCache();
-        pLoaderAllocator->m_pJumpStubCache = pJumpStubCache;
+        if (isLCG)
+        {
+            pResolver->m_pJumpStubCache = pJumpStubCache;
+        }
+        else
+        {
+            pLoaderAllocator->m_pJumpStubCache = pJumpStubCache;
+        }
     }
 
     if (isLCG)
@@ -5063,9 +5078,19 @@ PCODE ExecutionManager::getNextJumpStub(MethodDesc* pMD, PCODE target,
         POSTCONDITION(RETVAL != NULL);
     } CONTRACT_END;
 
-    BYTE *                 jumpStub = NULL;
-    bool                   isLCG    = pMD && pMD->IsLCGMethod();
-    JumpStubBlockHeader ** ppHead   = isLCG ? &(pMD->AsDynamicMethodDesc()->GetLCGMethodResolver()->m_jumpStubBlock) : &(((JumpStubCache *)(pLoaderAllocator->m_pJumpStubCache))->m_pBlocks);
+    DWORD            numJumpStubs   = DEFAULT_JUMPSTUBS_PER_BLOCK;  // a block of 32 JumpStubs
+    BYTE *           jumpStub       = NULL;
+    bool             isLCG          = pMD && pMD->IsLCGMethod();
+    JumpStubCache *  pJumpStubCache = (JumpStubCache *) pLoaderAllocator->m_pJumpStubCache;
+
+    if (isLCG)
+    {
+        LCGMethodResolver *  pResolver;
+        pResolver      = pMD->AsDynamicMethodDesc()->GetLCGMethodResolver();
+        pJumpStubCache = pResolver->m_pJumpStubCache;
+    }
+
+    JumpStubBlockHeader ** ppHead   = &(pJumpStubCache->m_pBlocks);
     JumpStubBlockHeader *  curBlock = *ppHead;
     
     // allocate a new jumpstub from 'curBlock' if it is not fully allocated
@@ -5084,7 +5109,6 @@ PCODE ExecutionManager::getNextJumpStub(MethodDesc* pMD, PCODE target,
                 goto DONE;
             }
         }
-
         curBlock = curBlock->m_next;
     }
 
@@ -5092,6 +5116,24 @@ PCODE ExecutionManager::getNextJumpStub(MethodDesc* pMD, PCODE target,
 
     if (isLCG)
     {
+        // For LCG we request a small block of 4 jumpstubs, because we can not share them
+        // with any other methods and very frequently our method only needs one jump stub.
+        // Using 4 gives a request size of (32 + 4*12) or 80 bytes.
+        // Also note that request sizes are rounded up to a multiples of 16.
+        // The request size is calculated into 'blockSize' in allocJumpStubBlock.
+        // For x64 the value of BACK_TO_BACK_JUMP_ALLOCATE_SIZE is 12 bytes
+        // and the sizeof(JumpStubBlockHeader) is 32.
+        //
+
+        numJumpStubs = 4;
+
+#ifdef _TARGET_ARM64_
+        // Note this these values are not requirements, instead we are 
+        // just confirming the values that are mentioned in the comments.
+        _ASSERTE(BACK_TO_BACK_JUMP_ALLOCATE_SIZE == 12);
+        _ASSERTE(sizeof(JumpStubBlockHeader) == 32);
+#endif
+
         // Increment counter of LCG jump stub block allocations
         m_LCG_JumpStubBlockAllocCount++;
     }
@@ -5101,9 +5143,12 @@ PCODE ExecutionManager::getNextJumpStub(MethodDesc* pMD, PCODE target,
         m_normal_JumpStubBlockAllocCount++;
     }
 
-    // allocJumpStubBlock will allocate from the LoaderCodeHeap for normal methods and HostCodeHeap for LCG methods
-    // this can throw an OM exception
-    curBlock = ExecutionManager::GetEEJitManager()->allocJumpStubBlock(pMD, DEFAULT_JUMPSTUBS_PER_BLOCK, loAddr, hiAddr, pLoaderAllocator);
+    // allocJumpStubBlock will allocate from the LoaderCodeHeap for normal methods
+    // and will alocate from a HostCodeHeap for LCG methods.
+    //
+    // note that this can throw an OOM exception
+
+    curBlock = ExecutionManager::GetEEJitManager()->allocJumpStubBlock(pMD, numJumpStubs, loAddr, hiAddr, pLoaderAllocator);
 
     jumpStub = (BYTE *) curBlock + sizeof(JumpStubBlockHeader) + ((size_t) curBlock->m_used * BACK_TO_BACK_JUMP_ALLOCATE_SIZE);
 
@@ -5123,25 +5168,16 @@ DONE:
 
     emitBackToBackJump(jumpStub, (void*) target);
 
-    if (isLCG)
-    {
-        // always get a new jump stub for LCG method
-        // We don't share jump stubs among different LCG methods so that the jump stubs used
-        // by every LCG method can be cleaned up individually
-        // There is not much benefit to share jump stubs within one LCG method anyway.
-    }
-    else
-    {
-        JumpStubCache * pJumpStubCache = (JumpStubCache *)pLoaderAllocator->m_pJumpStubCache;
-        _ASSERTE(pJumpStubCache != NULL);
+    // We always add the new jumpstub to the jumpStubCache 
+    //
+    _ASSERTE(pJumpStubCache != NULL);
 
-        JumpStubEntry entry;
+    JumpStubEntry entry;
 
-        entry.m_target = target;
-        entry.m_jumpStub = (PCODE)jumpStub;
+    entry.m_target = target;
+    entry.m_jumpStub = (PCODE)jumpStub;
 
-        pJumpStubCache->m_Table.Add(entry);
-    }
+    pJumpStubCache->m_Table.Add(entry);
 
     curBlock->m_used++;    // record that we have used up one more jumpStub in the block
 
@@ -5601,9 +5637,9 @@ BOOL NativeImageJitManager::JitCodeToMethodInfo(RangeSection * pRangeSection,
             g_IBCLogger.LogMethodCodeAccess(*ppMethodDesc);
         }
 
-        //Get the function entry that corresponds to the real method desc.
+        // Get the function entry that corresponds to the real method desc.
         _ASSERTE((RelativePc >= RUNTIME_FUNCTION__BeginAddress(FunctionEntry)));
-    
+
         if (pCodeInfo)
         {
             pCodeInfo->m_relOffset = (DWORD)
