@@ -18,16 +18,19 @@ namespace System {
     [System.Runtime.InteropServices.ComVisible(true)]
     [Serializable]
     public class NullReferenceException : SystemException {
+        [Obsolete("Do not throw NullReferenceException from your code. Use ArgumentNullException instead")]
         public NullReferenceException() 
             : base(Environment.GetResourceString("Arg_NullReferenceException")) {
             SetErrorCode(__HResults.COR_E_NULLREFERENCE);
         }
     
+        [Obsolete("Do not throw NullReferenceException from your code. Use ArgumentNullException instead")]
         public NullReferenceException(String message) 
             : base(message) {
             SetErrorCode(__HResults.COR_E_NULLREFERENCE);
         }
         
+        [Obsolete("Do not throw NullReferenceException from your code. Use ArgumentNullException instead")]
         public NullReferenceException(String message, Exception innerException) 
             : base(message, innerException) {
             SetErrorCode(__HResults.COR_E_NULLREFERENCE);
