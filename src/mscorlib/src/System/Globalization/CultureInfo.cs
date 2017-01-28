@@ -665,7 +665,7 @@ namespace System.Globalization {
         //
         // This is the equivalence of the Win32 GetUserDefaultLCID()
         //
-        internal static CultureInfo UserDefaultCulture {
+        public static CultureInfo UserDefaultCulture {
             get
             {
                 Contract.Ensures(Contract.Result<CultureInfo>() != null);
@@ -690,7 +690,7 @@ namespace System.Globalization {
         //
         //  This is the equivalence of the Win32 GetUserDefaultUILanguage()
         //
-        internal static CultureInfo UserDefaultUICulture {
+        public static CultureInfo UserDefaultUICulture {
             get {
                 Contract.Ensures(Contract.Result<CultureInfo>() != null);
 
