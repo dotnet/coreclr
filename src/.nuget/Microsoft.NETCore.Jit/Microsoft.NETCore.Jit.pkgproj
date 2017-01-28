@@ -7,6 +7,7 @@
     <PackagePlatforms>x64;x86;arm64;arm;</PackagePlatforms>
     <OutputPath>$(PackagesOutputPath)</OutputPath>
     <IncludeRuntimeJson>true</IncludeRuntimeJson>
+    <Serviceable>true</Serviceable>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="win\Microsoft.NETCore.Jit.pkgproj">
