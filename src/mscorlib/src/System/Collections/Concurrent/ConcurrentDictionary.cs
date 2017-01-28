@@ -993,6 +993,10 @@ namespace System.Collections.Concurrent
             if (key == null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.key);
 
             TValue resultingValue;
+            if (TryGetValue(key, out resultingValue))
+            {
+                return resultingValue;
+            }
             TryAddInternal(key, value, false, true, out resultingValue);
             return resultingValue;
         }
