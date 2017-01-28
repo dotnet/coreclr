@@ -328,7 +328,7 @@ namespace System
         public static ReadOnlySpan<T> Empty => default(ReadOnlySpan<T>);
     }
 
-    public static class ReadOnlySpanExtensions
+    public static class ReadOnlySpanExtensionMethods
     {
         /// <summary>
         /// Creates a new readonly span over the portion of the target string.

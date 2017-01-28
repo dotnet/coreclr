@@ -396,7 +396,7 @@ namespace System
         public static Span<T> Empty => default(Span<T>);
     }
 
-    public static class SpanExtensions
+    public static class SpanExtensionMethods
     {
         /// <summary>
         /// Casts a Span of one primitive type <typeparamref name="T"/> to Span of bytes.
