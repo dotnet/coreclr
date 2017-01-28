@@ -428,7 +428,7 @@ namespace System.Threading
             void GetIndexes(out int upper, out int lower)
             {
                 int i = indexes;
-                upper = (i >> 16) & SixteenBits;
+                upper = i >> 16;
                 lower = i & SixteenBits;
 
                 Debug.Assert(upper >= lower);
@@ -1037,8 +1037,8 @@ namespace System.Threading
             // This will result in a "leak" of sorts (since the handle will not be cleaned up)
             // but the process is exiting anyway.
             //
-            // During AD-unload, we don’t finalize live objects until all threads have been 
-            // aborted out of the AD.  Since these locked regions are CERs, we won’t abort them 
+            // During AD-unload, we donÂ’t finalize live objects until all threads have been 
+            // aborted out of the AD.  Since these locked regions are CERs, we wonÂ’t abort them 
             // while the lock is held.  So there should be no leak on AD-unload.
             //
             if (Interlocked.CompareExchange(ref m_lock, 1, 0) == 0)
