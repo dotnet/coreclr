@@ -50,7 +50,7 @@ namespace System {
         }
 
         protected NotFiniteNumberException(SerializationInfo info, StreamingContext context) : base(info, context) {
-            _offendingNumber = info.GetInt32("OffendingNumber");
+            _offendingNumber = info.GetDouble("OffendingNumber");
         }
 
         public double OffendingNumber {
@@ -63,7 +63,7 @@ namespace System {
             }
             Contract.EndContractBlock();
             base.GetObjectData(info, context);
-            info.AddValue("OffendingNumber", _offendingNumber, typeof(Int32));
+            info.AddValue("OffendingNumber", _offendingNumber, typeof(Double));
         }
     }
 }
