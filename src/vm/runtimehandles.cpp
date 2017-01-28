@@ -1261,7 +1261,6 @@ FCIMPL1(INT32, RuntimeTypeHandle::GetAttributes, ReflectClassBaseObject *pTypeUN
 }
 FCIMPLEND
 
-#ifdef FEATURE_REMOTING    
 FCIMPL1(FC_BOOL_RET, RuntimeTypeHandle::IsContextful, ReflectClassBaseObject *pTypeUNSAFE) {
     CONTRACTL {
         FCALL_CHECK;
@@ -1286,7 +1285,6 @@ FCIMPL1(FC_BOOL_RET, RuntimeTypeHandle::IsContextful, ReflectClassBaseObject *pT
     FC_RETURN_BOOL(pMT->IsContextful());
 }
 FCIMPLEND
-#endif
 
 FCIMPL1(FC_BOOL_RET, RuntimeTypeHandle::IsValueType, ReflectClassBaseObject *pTypeUNSAFE)
 {
