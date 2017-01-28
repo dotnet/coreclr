@@ -967,6 +967,20 @@ namespace System {
             return ArraySortHelper<T>.Default.BinarySearch(array, index, length, value, comparer);
         }
 
+        public static T[] Clone<T>(T[] array)
+        {
+            if (array == null)
+            {
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
+            }
+
+            // Note: We should always return a new instance, even for empty arrays.
+
+            var result = new T[array.Length];
+            Array.Copy(array, 0, result, 0, array.Length);
+            return result;
+        }
+
         public static TOutput[] ConvertAll<TInput, TOutput>(TInput[] array, Converter<TInput,TOutput> converter) {
             if( array == null) {
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
