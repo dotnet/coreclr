@@ -671,7 +671,6 @@ FCIMPL2(Object*, RuntimeTypeHandle::CreateCaInstance, ReflectClassBaseObject* pC
     CONTRACTL {
         FCALL_CHECK;
         PRECONDITION(CheckPointer(pCaTypeUNSAFE));
-        PRECONDITION(!pCaTypeUNSAFE->GetType().IsGenericVariable()); 
         PRECONDITION(pCaTypeUNSAFE->GetType().IsValueType() || CheckPointer(pCtorUNSAFE));
     }
     CONTRACTL_END;
@@ -695,10 +694,6 @@ FCIMPL2(Object*, RuntimeTypeHandle::CreateCaInstance, ReflectClassBaseObject* pC
         PRECONDITION(
             (!pCtor && gc.refCaType->GetType().IsValueType() && !gc.refCaType->GetType().GetMethodTable()->HasDefaultConstructor()) || 
             (pCtor == gc.refCaType->GetType().GetMethodTable()->GetDefaultConstructor()));
-
-        // If we relax this, we need to insure custom attributes construct properly for Nullable<T>
-        if (gc.refCaType->GetType().HasInstantiation())
-            COMPlusThrow(kNotSupportedException, W("Argument_GenericsInvalid"));
         
         gc.o = pCaMT->Allocate();
 
@@ -767,10 +762,6 @@ FCIMPL5(LPVOID, COMCustomAttribute::CreateCaObject, ReflectModuleBaseObject* pAt
         
         OBJECTREF *argToProtect = (OBJECTREF*)_alloca(cArgs * sizeof(OBJECTREF));
         memset((void*)argToProtect, 0, cArgs * sizeof(OBJECTREF));
-
-        // If we relax this, we need to insure custom attributes construct properly for Nullable<T>
-        if (pCtorMD->GetMethodTable()->HasInstantiation())
-            COMPlusThrow(kNotSupportedException, W("Argument_GenericsInvalid"));
 
         // load the this pointer
         argToProtect[0] = pCtorMD->GetMethodTable()->Allocate(); // this is the value to return after the ctor invocation
