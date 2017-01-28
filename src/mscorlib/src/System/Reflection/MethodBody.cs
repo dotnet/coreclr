@@ -151,12 +151,7 @@ namespace System.Reflection
         #region Object Overrides
         public override string ToString()
         {
-            string toString = LocalType.ToString() + " (" + LocalIndex + ")";
-            
-            if (IsPinned)
-                toString += " (pinned)";
-
-            return toString;
+            return LocalType.ToString() + " (" + LocalIndex.ToString() + (IsPinned ? ") (pinned)" : ")");
         }
         #endregion
 
