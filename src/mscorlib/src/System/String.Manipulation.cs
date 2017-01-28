@@ -532,14 +532,13 @@ namespace System
             return result;
         }
 
-        public static string Join(char separator, params string[] value)
+        public unsafe static string Join(char separator, params string[] value)
         {
             if (value == null)
             {
                 throw new ArgumentNullException(nameof(value));
             }
-
-            return Join(separator, value, 0, value.Length);
+            return JoinCore(&separator, 1, value, 0, value.Length);
         }
 
         public unsafe static string Join(char separator, params object[] values)
@@ -559,22 +558,33 @@ namespace System
             // Defer argument validation to the internal function
             return JoinCore(&separator, 1, value, startIndex, count);
         }
-    
+
         // Joins an array of strings together as one string with a separator between each original string.
         //
-        public static string Join(string separator, params string[] value)
+        public unsafe static string Join(string separator, params string[] value)
         {
             if (value == null)
             {
                 throw new ArgumentNullException(nameof(value));
             }
-            return Join(separator, value, 0, value.Length);
+            if (string.IsNullOrEmpty(separator))
+            {
+                return string.Concat(value);
+            }
+            fixed (char* pSeparator = &separator.m_firstChar)
+            {
+                return JoinCore(pSeparator, separator.Length, value, 0, value.Length);
+            }
         }
 
         [ComVisible(false)]
         public unsafe static string Join(string separator, params object[] values)
         {
-            separator = separator ?? string.Empty;
+            if (string.IsNullOrEmpty(separator))
+            {
+                // Defer argument validation to the internal function
+                return string.Concat(values);
+            }
             fixed (char* pSeparator = &separator.m_firstChar)
             {
                 // Defer argument validation to the internal function
@@ -585,7 +595,11 @@ namespace System
         [ComVisible(false)]
         public unsafe static string Join<T>(string separator, IEnumerable<T> values)
         {
-            separator = separator ?? string.Empty;
+            if (string.IsNullOrEmpty(separator))
+            {
+                // Defer argument validation to the internal function
+                return string.Concat(values);
+            }
             fixed (char* pSeparator = &separator.m_firstChar)
             {
                 // Defer argument validation to the internal function
@@ -594,40 +608,17 @@ namespace System
         }
 
         [ComVisible(false)]
-        public static string Join(string separator, IEnumerable<string> values)
+        public unsafe static string Join(string separator, IEnumerable<string> values)
         {
-            if (values == null)
+            if (string.IsNullOrEmpty(separator))
             {
-                throw new ArgumentNullException(nameof(values));
+                // Defer argument validation to the internal function
+                return string.Concat(values);
             }
-
-            using (IEnumerator<string> en = values.GetEnumerator())
+            fixed (char* pSeparator = &separator.m_firstChar)
             {
-                if (!en.MoveNext())
-                {
-                    return string.Empty;
-                }
-
-                string firstValue = en.Current;
-
-                if (!en.MoveNext())
-                {
-                    // Only one value available
-                    return firstValue ?? string.Empty;
-                }
-
-                // Null separator and values are handled by the StringBuilder
-                StringBuilder result = StringBuilderCache.Acquire();
-                result.Append(firstValue);
-
-                do
-                {
-                    result.Append(separator);
-                    result.Append(en.Current);
-                }
-                while (en.MoveNext());
-
-                return StringBuilderCache.GetStringAndRelease(result);
+                // Defer argument validation to the internal function
+                return JoinCore(pSeparator, separator.Length, values);
             }
         }
 
@@ -645,6 +636,11 @@ namespace System
 
         private unsafe static string JoinCore(char* separator, int separatorLength, object[] values)
         {
+            // If the separator is null, it is converted to an empty string before entering this function.
+            // Even for empty strings, fixed should never return null (it should return a pointer to a null char).
+            Contract.Assert(separator != null);
+            Contract.Assert(separatorLength >= 0);
+
             if (values == null)
             {
                 throw new ArgumentNullException(nameof(values));
@@ -680,6 +676,11 @@ namespace System
 
         private unsafe static string JoinCore<T>(char* separator, int separatorLength, IEnumerable<T> values)
         {
+            // If the separator is null, it is converted to an empty string before entering this function.
+            // Even for empty strings, fixed should never return null (it should return a pointer to a null char).
+            Contract.Assert(separator != null);
+            Contract.Assert(separatorLength >= 0);
+
             if (values == null)
             {
                 throw new ArgumentNullException(nameof(values));
