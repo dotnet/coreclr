@@ -102,9 +102,20 @@
 #define OS_PAGE_SIZE PAGE_SIZE
 #endif
 
+#ifndef THREAD_MIN_EXECUTION_STACK_SIZE
+// This stack size is sufficient to allow the average Framework function to run, and to allow us to throw and dispatch an
+// exception up a reasonable call chain
+#ifdef BIT64
+#define THREAD_MIN_EXECUTION_STACK_SIZE (128 * 1024)
+#else // !BIT64
+#define THREAD_MIN_EXECUTION_STACK_SIZE (64 * 1024)
+#endif // BIT64
+#endif // !THREAD_MIN_EXECUTION_STACK_SIZE
+
 #ifndef THREAD_MIN_STACK_SIZE
-#define THREAD_MIN_STACK_SIZE (64 * 1024) // 64 KB is a reasonably portable minimum between Windows and Unix
-#endif
+// Make sure a thread has some extra stack space prior to reaching the minimum execution stack size
+#define THREAD_MIN_STACK_SIZE (THREAD_MIN_EXECUTION_STACK_SIZE * 2)
+#endif // !THREAD_MIN_STACK_SIZE
 
 #if defined(_WIN64)
 #define JIT_IS_ALIGNED

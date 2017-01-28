@@ -7322,10 +7322,13 @@ BOOL Thread::SetStackLimits(SetStackLimitScope scope)
         }
 
         // Compute the limit used by EnsureSufficientExecutionStack and cache it on the thread. The limit
-        // is currently set at 50% of the stack, which should be sufficient to allow the average Framework
-        // function to run, and to allow us to throw and dispatch an exception up a reasonable call chain.
-        m_CacheStackSufficientExecutionLimit = reinterpret_cast<UINT_PTR>(m_CacheStackBase) - 
-            (reinterpret_cast<UINT_PTR>(m_CacheStackBase) - reinterpret_cast<UINT_PTR>(m_CacheStackLimit)) / 2;
+        // is should be sufficient to allow the average Framework function to run, and to allow us to throw
+        // and dispatch an exception up a reasonable call chain.
+        _ASSERTE(m_CacheStackBase > m_CacheStackLimit);
+        _ASSERTE(
+            (reinterpret_cast<UINT_PTR>(m_CacheStackBase) - reinterpret_cast<UINT_PTR>(m_CacheStackLimit)) >
+            THREAD_MIN_EXECUTION_STACK_SIZE);
+        m_CacheStackSufficientExecutionLimit = reinterpret_cast<UINT_PTR>(m_CacheStackLimit) + THREAD_MIN_EXECUTION_STACK_SIZE;
     }
 
     // Ensure that we've setup the stack guarantee properly before we cache the stack limits
