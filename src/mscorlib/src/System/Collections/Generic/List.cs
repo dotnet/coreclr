@@ -281,7 +281,7 @@ namespace System.Collections.Generic {
         public int BinarySearch(T item)
         {
             Contract.Ensures(Contract.Result<int>() <= Count);
-            return BinarySearch(0, Count, item, null);
+            return BinarySearch(0, Count, item, (IComparer<T>)null);
         }
 
         public int BinarySearch(T item, IComparer<T> comparer)
@@ -290,7 +290,35 @@ namespace System.Collections.Generic {
             return BinarySearch(0, Count, item, comparer);
         }
 
-    
+        public int BinarySearch(T item, Comparison<T> comparison)
+        {
+            if (comparison == null)
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.comparison);
+            Contract.Ensures(Contract.Result<int>() <= Count);
+            Contract.EndContractBlock();
+
+            IComparer<T> comparer = Comparer<T>.Create(comparison);
+            return Array.BinarySearch<T>(_items, 0, Count, item, comparer);
+        }
+
+        public int BinarySearch(int index, int count, T item, Comparison<T> comparison)
+        {
+            if (index < 0)
+                ThrowHelper.ThrowIndexArgumentOutOfRange_NeedNonNegNumException();
+            if (count < 0)
+                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.count, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
+            if (_size - index < count)
+                ThrowHelper.ThrowArgumentException(ExceptionResource.Argument_InvalidOffLen);
+            if (comparison == null)
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.comparison);
+            Contract.Ensures(Contract.Result<int>() <= index + count);
+            Contract.EndContractBlock();
+
+            IComparer<T> comparer = Comparer<T>.Create(comparison);
+            return Array.BinarySearch<T>(_items, index, count, item, comparer);
+        }
+
+
         // Clears the contents of List.
         public void Clear() {
             if (_size > 0)
