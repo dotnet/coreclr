@@ -640,14 +640,13 @@ namespace System {
                 //If we failed TryStringToNumber, it may be from one of our special strings.
                 //Check the three with which we're concerned and rethrow if it's not one of
                 //those strings.
-                String sTrim = value.Trim();
-                if (sTrim.Equals(numfmt.PositiveInfinitySymbol)) {
+                if (LeftTrimmedEquals(value, numfmt.PositiveInfinitySymbol)) {
                     return Double.PositiveInfinity;
                 }
-                if (sTrim.Equals(numfmt.NegativeInfinitySymbol)) {
+                if (LeftTrimmedEquals(value, numfmt.NegativeInfinitySymbol)) {
                     return Double.NegativeInfinity;
                 }
-                if (sTrim.Equals(numfmt.NaNSymbol)) {
+                if (LeftTrimmedEquals(value, numfmt.NaNSymbol)) {
                     return Double.NaN;
                 }
                 throw new FormatException(Environment.GetResourceString("Format_InvalidString"));
@@ -890,14 +889,13 @@ namespace System {
                 //If we failed TryStringToNumber, it may be from one of our special strings.
                 //Check the three with which we're concerned and rethrow if it's not one of
                 //those strings.
-                String sTrim = value.Trim();
-                if (sTrim.Equals(numfmt.PositiveInfinitySymbol)) {
+                if (LeftTrimmedEquals(value, numfmt.PositiveInfinitySymbol)) {
                     return Single.PositiveInfinity;
                 }
-                if (sTrim.Equals(numfmt.NegativeInfinitySymbol)) {
+                if (LeftTrimmedEquals(value, numfmt.NegativeInfinitySymbol)) {
                     return Single.NegativeInfinity;
                 }
-                if (sTrim.Equals(numfmt.NaNSymbol)) {
+                if (LeftTrimmedEquals(value, numfmt.NaNSymbol)) {
                     return Single.NaN;
                 }
                 throw new FormatException(Environment.GetResourceString("Format_InvalidString"));
@@ -1144,6 +1142,52 @@ namespace System {
                 }
             }
 
+            return true;
+        }
+        
+        // Compares 2 strings and returns true if left.Trim() == right.
+        // We have a separate method for this so we can avoid string allocations.
+        private static bool LeftTrimmedEquals(string left, string right)
+        {
+            // find the first non-whitespace char
+            int startIndex = -1;
+            for (int i = 0; i < left.Length; i++)
+            {
+                if (!char.IsWhiteSpace(left[i]))
+                {
+                    startIndex = i;
+                    break;
+                }
+            }
+            
+            if (startIndex == -1) // all of them are whitespace
+                return right == string.Empty;
+            
+            // find the last non-whitespace char
+            int endIndex = -1;
+            for (int i = left.Length - 1; i >= 0; i--)
+            {
+                if (!char.IsWhiteSpace(left[i]))
+                {
+                    endIndex = i;
+                    break;
+                }
+            }
+            
+            // We know there's at least one non-whitespace char
+            // because of the check above, so don't check again here.
+            
+            int length = endIndex - startIndex + 1;
+            
+            if (length != right.Length) // short circuit
+                return false;
+            
+            for (int i = 0; i < right.Length; i++)
+            {
+                if (left[startIndex + i] != right[i])
+                    return false;
+            }
+            
             return true;
         }
     }
