@@ -3203,6 +3203,9 @@ void GetTimeStampsForNativeImage(CORCOMPILE_VERSION_INFO * pNativeVersionInfo)
 #endif // FEATURE_CORECLR
 }
 
+static const uint32_t CMOVFlags = 0x00008001;
+static const uint32_t SSE2Flags = 0x04000000;
+
 //
 // Which processor should ngen target?
 // This is needed when ngen wants to target for "reach" if the ngen images will be
@@ -3215,23 +3218,12 @@ void GetNGenCpuInfo(CORINFO_CPU * cpuInfo)
 
 #ifdef _TARGET_X86_
 
-#ifdef FEATURE_CORECLR
     static CORINFO_CPU ngenCpuInfo =
-        {
-            (CPU_X86_PENTIUM_PRO << 8), // dwCPUType
-            0x00000000,                 // dwFeatures
-            0                           // dwExtendedFeatures
-        };
-
-    // We always generate P3-compatible code on CoreCLR
-    *cpuInfo = ngenCpuInfo;
-#else // FEATURE_CORECLR
-    static CORINFO_CPU ngenCpuInfo =
-        {
-            (CPU_X86_PENTIUM_4 << 8),   // dwCPUType
-            0x00008001,                 // dwFeatures
-            0                           // dwExtendedFeatures
-        };
+    {
+        (CPU_X86_PENTIUM_4 << 8),   // dwCPUType
+        CMOVFlags | SSE2Flags,      // dwFeatures
+        0                           // dwExtendedFeatures
+    };
 
 #ifndef CROSSGEN_COMPILE
     GetSpecificCpuInfo(cpuInfo);
@@ -3241,14 +3233,13 @@ void GetNGenCpuInfo(CORINFO_CPU * cpuInfo)
         // with the "recommended" processor. We expect most platforms to be compatible
         return;
     }
-#endif
+#endif // !CROSSGEN_COMPILE
 
     *cpuInfo = ngenCpuInfo;
-#endif // FEATURE_CORECLR
 
 #else // _TARGET_X86_
     cpuInfo->dwCPUType = 0;
-    cpuInfo->dwFeatures = 0;
+    cpuInfo->dwFeatures = 0; // CMOV and SSE2 are enabled by default for AMD64
     cpuInfo->dwExtendedFeatures = 0;
 #endif // _TARGET_X86_
 }
