@@ -661,6 +661,14 @@ namespace System {
         }
 
         internal unsafe static Int32 ParseInt32(String s, NumberStyles style, NumberFormatInfo info) {
+            if (style == NumberStyles.Integer && info == NumberFormatInfo.InvariantInfo) {
+                long resultLong;
+                NumberTryParseResult result = TryParseSignedInvariantInteger(s, int.MinValue, int.MaxValue, out resultLong);
+                if (result != NumberTryParseResult.Succeeded) {
+                    throw GetException(result, "Overflow_Int32");
+                }
+                return (int)resultLong;
+            }
 
             Byte * numberBufferBytes = stackalloc Byte[NumberBuffer.NumberBufferBytes];
             NumberBuffer number = new NumberBuffer(numberBufferBytes);
@@ -682,6 +690,15 @@ namespace System {
         }
 
         internal unsafe static Int64 ParseInt64(String value, NumberStyles options, NumberFormatInfo numfmt) {
+            if (options == NumberStyles.Integer && numfmt == NumberFormatInfo.InvariantInfo) {
+                long resultLong;
+                NumberTryParseResult result = TryParseSignedInvariantInteger(value, long.MinValue, long.MaxValue, out resultLong);
+                if (result != NumberTryParseResult.Succeeded) {
+                    throw GetException(result, "Overflow_Int64");
+                }
+                return resultLong;
+            }
+
             Byte * numberBufferBytes = stackalloc Byte[NumberBuffer.NumberBufferBytes];
             NumberBuffer number = new NumberBuffer(numberBufferBytes);
             Int64 i = 0;
@@ -914,6 +931,16 @@ namespace System {
         }
 
         internal unsafe static UInt32 ParseUInt32(String value, NumberStyles options, NumberFormatInfo numfmt) {
+            if (options == NumberStyles.Integer && numfmt == NumberFormatInfo.InvariantInfo)
+            {
+                ulong resultLong;
+                NumberTryParseResult result = TryParseUnsignedInvariantInteger(value, uint.MinValue, uint.MaxValue, out resultLong);
+                if (result != NumberTryParseResult.Succeeded)
+                {
+                    throw GetException(result, "Overflow_UInt32");
+                }
+                return (uint)resultLong;
+            }
 
             Byte * numberBufferBytes = stackalloc Byte[NumberBuffer.NumberBufferBytes];
             NumberBuffer number = new NumberBuffer(numberBufferBytes);
@@ -936,6 +963,17 @@ namespace System {
         }
 
         internal unsafe static UInt64 ParseUInt64(String value, NumberStyles options, NumberFormatInfo numfmt) {
+            if (options == NumberStyles.Integer && numfmt == NumberFormatInfo.InvariantInfo)
+            {
+                ulong resultLong;
+                NumberTryParseResult result = TryParseUnsignedInvariantInteger(value, ulong.MinValue, ulong.MaxValue, out resultLong);
+                if (result != NumberTryParseResult.Succeeded)
+                {
+                    throw GetException(result, "Overflow_UInt64");
+                }
+                return resultLong;
+            }
+
             Byte * numberBufferBytes = stackalloc Byte[NumberBuffer.NumberBufferBytes];
             NumberBuffer number = new NumberBuffer(numberBufferBytes);
             UInt64 i = 0;
@@ -1012,6 +1050,13 @@ namespace System {
         }
 
         internal unsafe static Boolean TryParseInt32(String s, NumberStyles style, NumberFormatInfo info, out Int32 result) {
+            if (style == NumberStyles.Integer && info == NumberFormatInfo.InvariantInfo) {
+                long resultLong;
+                NumberTryParseResult tryParseResult = TryParseSignedInvariantInteger(s, int.MinValue, int.MaxValue, out resultLong);
+                // ResultLong is guaranteed to be within bounds for Int32, so this cast is safe
+                result = (int)resultLong;
+                return tryParseResult == NumberTryParseResult.Succeeded;
+            }
 
             Byte * numberBufferBytes = stackalloc Byte[NumberBuffer.NumberBufferBytes];
             NumberBuffer number = new NumberBuffer(numberBufferBytes);
@@ -1035,6 +1080,9 @@ namespace System {
         }
 
         internal unsafe static Boolean TryParseInt64(String s, NumberStyles style, NumberFormatInfo info, out Int64 result) {
+            if (style == NumberStyles.Integer && info == NumberFormatInfo.InvariantInfo) {
+                return TryParseSignedInvariantInteger(s, long.MinValue, long.MaxValue, out result) == NumberTryParseResult.Succeeded;
+            }
 
             Byte * numberBufferBytes = stackalloc Byte[NumberBuffer.NumberBufferBytes];
             NumberBuffer number = new NumberBuffer(numberBufferBytes);
@@ -1079,6 +1127,13 @@ namespace System {
         }
 
         internal unsafe static Boolean TryParseUInt32(String s, NumberStyles style, NumberFormatInfo info, out UInt32 result) {
+            if (style == NumberStyles.Integer && info == NumberFormatInfo.InvariantInfo) {
+                ulong resultLong;
+                NumberTryParseResult tryParseResult = TryParseUnsignedInvariantInteger(s, uint.MinValue, uint.MaxValue, out resultLong);
+                // ResultLong is guaranteed to be within bounds for UInt32, so this cast is safe
+                result = (uint)resultLong;
+                return tryParseResult == NumberTryParseResult.Succeeded;
+            }
 
             Byte * numberBufferBytes = stackalloc Byte[NumberBuffer.NumberBufferBytes];
             NumberBuffer number = new NumberBuffer(numberBufferBytes);
@@ -1102,6 +1157,9 @@ namespace System {
         }
 
         internal unsafe static Boolean TryParseUInt64(String s, NumberStyles style, NumberFormatInfo info, out UInt64 result) {
+            if (style == NumberStyles.Integer && info == NumberFormatInfo.InvariantInfo) {
+                return TryParseUnsignedInvariantInteger(s, ulong.MinValue, ulong.MaxValue, out result) == NumberTryParseResult.Succeeded;
+            }
 
             Byte * numberBufferBytes = stackalloc Byte[NumberBuffer.NumberBufferBytes];
             NumberBuffer number = new NumberBuffer(numberBufferBytes);
@@ -1145,6 +1203,146 @@ namespace System {
             }
 
             return true;
+        }
+
+        private unsafe static NumberTryParseResult TryParseUnsignedInvariantInteger(string str, ulong minValue, ulong maxValue, out ulong result) {
+            result = 0;
+            if (str == null) {
+                return NumberTryParseResult.NullString;
+            }
+
+            ulong actualResult = 0;
+            fixed (char* strPointer = str) {
+                // Consume any leading or trailing whitespace
+                int start = 0;
+                int end = str.Length;
+                while (start < end && IsWhite(strPointer[start]))
+                    start++;
+                while (end > start && IsWhite(strPointer[end - 1]))
+                    end--;
+
+                char firstChar = strPointer[start];
+                if (strPointer[start] == '-') {
+                    // Can't have a negative unsigned integer
+                    return NumberTryParseResult.Overflow;
+                }
+                else if (strPointer[start] == '+') {
+                    start++;
+                }
+
+                if (start == end) {
+                    // Nothing to parse
+                    return NumberTryParseResult.InvalidFormat;
+                }
+
+                for (int i = start; i < end; i++)
+                {
+                    int digitValue = 0;
+                    char c = strPointer[i];
+                    if (c >= '0' && c <= '9') {
+                        digitValue = c - '0';
+                    }
+                    else {
+                        // Non-digit char
+                        return NumberTryParseResult.InvalidFormat;
+                    }
+
+                    ulong previousResult = actualResult;
+                    actualResult = (actualResult * 10) + (ulong)digitValue;
+                    if (actualResult < previousResult) {
+                        // Overflow occured
+                        return NumberTryParseResult.Overflow;
+                    }
+                }
+                if (actualResult < minValue || actualResult > maxValue) {
+                    return NumberTryParseResult.Overflow;
+                }
+                result = actualResult;
+                return NumberTryParseResult.Succeeded;
+            }
+        }
+
+        private unsafe static NumberTryParseResult TryParseSignedInvariantInteger(String str, long minValue, long maxValue, out long result) {
+            result = 0;
+            if (str == null) {
+                return NumberTryParseResult.NullString;
+            }
+
+            long actualResult = 0;
+            fixed (char* strPointer = str) {
+                // Consume any leading or trailing whitespace
+                int start = 0;
+                int end = str.Length;
+                while (start < end && IsWhite(strPointer[start]))
+                    start++;
+                while (end > start && IsWhite(strPointer[end - 1]))
+                    end--;
+
+                char firstChar = strPointer[start];
+                bool negative = firstChar == '-';
+                if (negative || firstChar == '+') {
+                    start++;
+                }
+
+                if (start == end) {
+                    // Nothing to parse
+                    return NumberTryParseResult.InvalidFormat;
+                }
+
+                for (int i = start; i < end; i++) {
+                    int digitValue = 0;
+                    char c = strPointer[i];
+                    if (c >= '0' && c <= '9') {
+                        digitValue = c - '0';
+                    }
+                    else {
+                        // Non-digit char
+                        return NumberTryParseResult.InvalidFormat;
+                    }
+
+                    long previousResult = actualResult;
+                    actualResult = (actualResult * 10) + digitValue;
+                    if (actualResult < previousResult) {
+                        // Overflow occured
+                        return NumberTryParseResult.Overflow;
+                    }
+                }
+                if (negative) {
+                    actualResult = -actualResult;
+                    if (result > 0) {
+                        // Overflow occured
+                        return NumberTryParseResult.Overflow;
+                    }
+                }
+                if (actualResult < minValue || actualResult > maxValue) {
+                    return NumberTryParseResult.Overflow;
+                }
+                result = actualResult;
+                return NumberTryParseResult.Succeeded;
+            }
+        }
+
+        private static Exception GetException(NumberTryParseResult result, string overflowExceptionReource)
+        {
+            switch (result)
+            {
+                case NumberTryParseResult.NullString:
+                    return new ArgumentNullException("String");
+                case NumberTryParseResult.Overflow:
+                    return new OverflowException(Environment.GetResourceString("Format_InvalidString"));
+                case NumberTryParseResult.InvalidFormat:
+                    return new FormatException(Environment.GetResourceString(overflowExceptionReource));
+                default:
+                    return null;
+            }
+        }
+
+        private enum NumberTryParseResult
+        {
+            Succeeded,
+            NullString,
+            InvalidFormat,
+            Overflow
         }
     }
 }
