@@ -326,6 +326,10 @@ namespace System.Collections.Generic {
             if( key == null) {
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.key);
             }
+            
+            // save field accesses
+            Entry[] entries = this.entries;
+            IEqualityComparer<TKey> comparer = this.comparer;
 
             if (buckets != null) {
                 int hashCode = comparer.GetHashCode(key) & 0x7FFFFFFF;
@@ -351,19 +355,27 @@ namespace System.Collections.Generic {
             }
 
             if (buckets == null) Initialize(0);
+            
             int hashCode = comparer.GetHashCode(key) & 0x7FFFFFFF;
             int targetBucket = hashCode % buckets.Length;
+
+            // save field accesses
+            // Note: only use these within the for loop
+            // below, since beyond that the values of these
+            // fields are updated (e.g. Resize changes buckets and entries)
+            Entry[] oldEntries = this.entries;
+            IEqualityComparer<TKey> oldComparer = this.comparer;
 
 #if FEATURE_RANDOMIZED_STRING_HASHING
             int collisionCount = 0;
 #endif
 
-            for (int i = buckets[targetBucket]; i >= 0; i = entries[i].next) {
-                if (entries[i].hashCode == hashCode && comparer.Equals(entries[i].key, key)) {
+            for (int i = buckets[targetBucket]; i >= 0; i = oldEntries[i].next) {
+                if (oldEntries[i].hashCode == hashCode && oldComparer.Equals(oldEntries[i].key, key)) {
                     if (add) { 
                         ThrowHelper.ThrowAddingDuplicateWithKeyArgumentException(key);
                     }
-                    entries[i].value = value;
+                    oldEntries[i].value = value;
                     version++;
                     return;
                 } 
@@ -464,6 +476,9 @@ namespace System.Collections.Generic {
             for (int i = 0; i < newBuckets.Length; i++) newBuckets[i] = -1;
             Entry[] newEntries = new Entry[newSize];
             Array.Copy(entries, 0, newEntries, 0, count);
+            
+            IEqualityComparer<TKey> comparer = this.comparer; // save field accesses
+            
             if(forceNewHashCodes) {
                 for (int i = 0; i < count; i++) {
                     if(newEntries[i].hashCode != -1) {
@@ -486,6 +501,10 @@ namespace System.Collections.Generic {
             if(key == null) {
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.key);
             }
+            
+            // save field accesses
+            Entry[] entries = this.entries;
+            IEqualityComparer<TKey> comparer = this.comparer;
 
             if (buckets != null) {
                 int hashCode = comparer.GetHashCode(key) & 0x7FFFFFFF;
@@ -738,19 +757,23 @@ namespace System.Collections.Generic {
                 if (version != dictionary.version) {
                     ThrowHelper.ThrowInvalidOperationException_InvalidOperation_EnumFailedVersion();
                 }
+                
+                // save field accesses
+                int count = dictionary.count;
+                Entry[] entries = dictionary.entries;
 
                 // Use unsigned comparison since we set index to dictionary.count+1 when the enumeration ends.
                 // dictionary.count+1 could be negative if dictionary.count is Int32.MaxValue
-                while ((uint)index < (uint)dictionary.count) {
-                    if (dictionary.entries[index].hashCode >= 0) {
-                        current = new KeyValuePair<TKey, TValue>(dictionary.entries[index].key, dictionary.entries[index].value);
+                while ((uint)index < (uint)count) {
+                    if (entries[index].hashCode >= 0) {
+                        current = new KeyValuePair<TKey, TValue>(entries[index].key, entries[index].value);
                         index++;
                         return true;
                     }
                     index++;
                 }
 
-                index = dictionary.count + 1;
+                index = count + 1;
                 current = new KeyValuePair<TKey, TValue>();
                 return false;
             }
@@ -961,17 +984,21 @@ namespace System.Collections.Generic {
                     if (version != dictionary.version) {
                         ThrowHelper.ThrowInvalidOperationException_InvalidOperation_EnumFailedVersion();
                     }
+                    
+                    // save field accesses
+                    int count = dictionary.count;
+                    Entry[] entries = dictionary.entries;
 
-                    while ((uint)index < (uint)dictionary.count) {
-                        if (dictionary.entries[index].hashCode >= 0) {
-                            currentKey = dictionary.entries[index].key;
+                    while ((uint)index < (uint)count) {
+                        if (entries[index].hashCode >= 0) {
+                            currentKey = entries[index].key;
                             index++;
                             return true;
                         }
                         index++;
                     }
 
-                    index = dictionary.count + 1;
+                    index = count + 1;
                     currentKey = default(TKey);
                     return false;
                 }
@@ -1148,15 +1175,19 @@ namespace System.Collections.Generic {
                         ThrowHelper.ThrowInvalidOperationException_InvalidOperation_EnumFailedVersion();
                     }
                     
-                    while ((uint)index < (uint)dictionary.count) {
-                        if (dictionary.entries[index].hashCode >= 0) {
-                            currentValue = dictionary.entries[index].value;
+                    // save field accesses
+                    int count = dictionary.count;
+                    Entry[] entries = dictionary.entries;
+                    
+                    while ((uint)index < (uint)count) {
+                        if (entries[index].hashCode >= 0) {
+                            currentValue = entries[index].value;
                             index++;
                             return true;
                         }
                         index++;
                     }
-                    index = dictionary.count + 1;
+                    index = count + 1;
                     currentValue = default(TValue);
                     return false;
                 }
