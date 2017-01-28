@@ -298,13 +298,27 @@
         <Member Name="get_Array" />
         <Member Name="get_Count" />
         <Member Name="get_Offset" />
+        <Member Name="get_Length" />
+        <Member Name="get_Item(System.Int32)" />
+        <Member Name="set_Item(System.Int32,T)" />
+        <Member Name="get_Empty" />
+        <Member Name="get_IsEmpty" />
+        <Member Name="Slice(System.Int32)" />
+        <Member Name="Slice(System.Int32,System.Int32)" />
+        <Member Name="CopyTo(System.Span&lt;T&gt;)" />
+        <Member Name="ToArray" />
         <Member Name="GetEnumerator" />
         <Member Name="GetHashCode" />
         <Member Name="op_Equality(System.ArraySegment&lt;T&gt;,System.ArraySegment&lt;T&gt;)" />
         <Member Name="op_Inequality(System.ArraySegment&lt;T&gt;,System.ArraySegment&lt;T&gt;)" />
+        <Member Name="op_Implicit(T[])" ReturnType="System.ArraySegment&lt;T&gt;" />
+        <Member Name="op_Explicit(System.ArraySegment&lt;T&gt;)" ReturnType="T[]" />
         <Member MemberType="Property" Name="Array" />
         <Member MemberType="Property" Name="Count" />
         <Member MemberType="Property" Name="Offset" />
+        <Member MemberType="Property" Name="Length" />
+        <Member MemberType="Property" Name="Item(System.Int32)" />
+        <Member MemberType="Property" Name="IsEmpty" />
     </Type>
     <Type Name="System.ArraySegment&lt;T&gt;+Enumerator">
       <Member Name="Dispose" />
@@ -7794,6 +7808,8 @@
       <Member Name="Append(System.UInt16)" />
       <Member Name="Append(System.UInt32)" />
       <Member Name="Append(System.UInt64)" />
+      <Member Name="Append(System.Text.StringBuilder)" />
+      <Member Name="Append(System.Text.StringBuilder,System.Int32,System.Int32)" />
       <Member Name="AppendFormat(System.IFormatProvider,System.String,System.Object)" />
       <Member Name="AppendFormat(System.IFormatProvider,System.String,System.Object,System.Object)" />
       <Member Name="AppendFormat(System.IFormatProvider,System.String,System.Object,System.Object,System.Object)" />

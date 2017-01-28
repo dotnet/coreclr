@@ -111,6 +111,78 @@ namespace System
             }
         }
 
+        public int Length => Count;
+
+        public T this[int index]
+        {
+            get
+            {
+                if (_array == null)
+                    ThrowHelper.ThrowInvalidOperationException(ExceptionResource.InvalidOperation_NullArray);
+                if (index < 0 || index >= _count)
+                    ThrowHelper.ThrowArgumentOutOfRange_IndexException();
+                Contract.EndContractBlock();
+
+                return _array[_offset + index];
+            }
+
+            set
+            {
+                if (_array == null)
+                    ThrowHelper.ThrowInvalidOperationException(ExceptionResource.InvalidOperation_NullArray);
+                if (index < 0 || index >= _count)
+                    ThrowHelper.ThrowArgumentOutOfRange_IndexException();
+                Contract.EndContractBlock();
+
+                _array[_offset + index] = value;
+            }
+        }
+
+        /// <summary>
+        /// Returns an empty <see cref="ArraySegment{T}"/>
+        /// </summary>
+        public static ArraySegment<T> Empty
+        {
+            get { return default(ArraySegment<T>); }
+        }
+
+        public bool IsEmpty => _count == 0;
+
+        public ArraySegment<T> Slice(int start)
+        {
+            if (_array == null)
+                ThrowHelper.ThrowInvalidOperationException(ExceptionResource.InvalidOperation_NullArray);
+            if ((uint)start > (uint)_count)
+                ThrowHelper.ThrowArgumentOutOfRangeException();
+            Contract.EndContractBlock();
+
+            return new ArraySegment<T>(_array, _offset + start, _count - start);
+        }
+
+        public ArraySegment<T> Slice(int start, int length)
+        {
+            if (_array == null)
+                ThrowHelper.ThrowInvalidOperationException(ExceptionResource.InvalidOperation_NullArray);
+            if ((uint)start > (uint)_count || (uint)length > (uint)(_count - start))
+                ThrowHelper.ThrowArgumentOutOfRangeException();
+            Contract.EndContractBlock();
+
+            return new ArraySegment<T>(_array, start, length);
+        }
+
+        public void CopyTo(Span<T> destination)
+        {
+            if (!((Span<T>)this).TryCopyTo(destination.Slice(0, _count))) 
+                ThrowHelper.ThrowArgumentOutOfRangeException();
+        }
+
+        public T[] ToArray()
+        {
+            if (_array == null)
+                ThrowHelper.ThrowInvalidOperationException(ExceptionResource.InvalidOperation_NullArray);
+            return ((Span<T>)this).ToArray();
+        }
+
         public Enumerator GetEnumerator()
         {
             if (_array == null)
@@ -160,31 +232,17 @@ namespace System
             return !(a == b);
         }
 
-        #region IList<T>
-        T IList<T>.this[int index]
+        public static implicit operator ArraySegment<T>(T[] array)
         {
-            get
-            {
-                if (_array == null)
-                    ThrowHelper.ThrowInvalidOperationException(ExceptionResource.InvalidOperation_NullArray);
-                if (index < 0 || index >=  _count)
-                    ThrowHelper.ThrowArgumentOutOfRange_IndexException();
-                Contract.EndContractBlock();
-
-                return _array[_offset + index];
-            }
-
-            set
-            {
-                if (_array == null)
-                    ThrowHelper.ThrowInvalidOperationException(ExceptionResource.InvalidOperation_NullArray);
-                if (index < 0 || index >= _count)
-                    ThrowHelper.ThrowArgumentOutOfRange_IndexException();
-                Contract.EndContractBlock();
-
-                _array[_offset + index] = value;
-            }
+            return new ArraySegment<T>(array);
         }
+
+        public static explicit operator T[] (ArraySegment<T> segment)
+        {
+            return segment.ToArray();
+        }
+
+        #region IList<T>
 
         int IList<T>.IndexOf(T item)
         {
@@ -210,22 +268,6 @@ namespace System
             ThrowHelper.ThrowNotSupportedException();
         }
         #endregion
-
-        #region IReadOnlyList<T>
-        T IReadOnlyList<T>.this[int index]
-        {
-            get
-            {
-                if (_array == null)
-                    ThrowHelper.ThrowInvalidOperationException(ExceptionResource.InvalidOperation_NullArray);
-                if (index < 0 || index >= _count)
-                    ThrowHelper.ThrowArgumentOutOfRange_IndexException();
-                Contract.EndContractBlock();
-
-                return _array[_offset + index];
-            }
-        }
-        #endregion IReadOnlyList<T>
 
         #region ICollection<T>
         bool ICollection<T>.IsReadOnly
@@ -279,12 +321,10 @@ namespace System
         #endregion
 
         #region IEnumerable<T>
-
         IEnumerator<T> IEnumerable<T>.GetEnumerator() => GetEnumerator();
         #endregion
 
         #region IEnumerable
-
         IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
         #endregion
 
