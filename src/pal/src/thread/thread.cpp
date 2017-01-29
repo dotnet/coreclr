@@ -22,7 +22,6 @@ Abstract:
 SET_DEFAULT_DEBUG_CHANNEL(THREAD); // some headers have code with asserts, so do this first
 
 #include "stdmacros.h"
-#include "switches.h"
 
 #include "pal/corunix.hpp"
 #include "pal/context.h"
@@ -79,13 +78,6 @@ using namespace CorUnix;
 
 
 /* ------------------- Definitions ------------------------------*/
-
-// The default stack size of a newly created thread (currently 256KB)
-// when the dwStackSize parameter of PAL_CreateThread()
-// is zero. This value can be set by setting the
-// environment variable PAL_THREAD_DEFAULT_STACK_SIZE
-// (the value should be in bytes and in hex).
-DWORD CPalThread::s_dwDefaultThreadStackSize = 256*1024; 
 
 /* list of free CPalThread objects */
 static Volatile<CPalThread*> free_threads_list = NULL;
@@ -634,39 +626,23 @@ CorUnix::InternalCreateThread(
     fAttributesInitialized = TRUE;
 
     /* adjust the stack size if necessary */
-    if (0 != pthread_attr_getstacksize(&pthreadAttr, &pthreadStackSize))
+    if (dwStackSize != 0)
     {
-        ERROR("couldn't set thread stack size\n");
-        palError = ERROR_INTERNAL_ERROR;
-        goto EXIT;        
-    }
-
-    TRACE("default pthread stack size is %d, caller requested %d (default is %d)\n",
-          pthreadStackSize, dwStackSize, CPalThread::s_dwDefaultThreadStackSize);
-
 #ifdef PTHREAD_STACK_MIN
-    if (PTHREAD_STACK_MIN > pthreadStackSize)
-    {
-        WARN("default stack size is reported as %d, but PTHREAD_STACK_MIN is "
-             "%d\n", pthreadStackSize, PTHREAD_STACK_MIN);
-    }
-#endif
+        const size_t MinStackSize = PTHREAD_STACK_MIN;
+#else // !PTHREAD_STACK_MIN
+        const size_t MinStackSize = 64 * 1024; // this value is typically accepted by pthread_attr_setstacksize()
+#endif // PTHREAD_STACK_MIN
 
-    if (dwStackSize == 0)
-    {
-        dwStackSize = CPalThread::s_dwDefaultThreadStackSize;
-        if (dwStackSize < pthreadStackSize)
+        if (dwStackSize < MinStackSize)
         {
-            dwStackSize = pthreadStackSize;
+            // Adjust the stack size to a minimum value that is likely to be accepted by pthread_attr_setstacksize(). If this
+            // function fails, typically the caller will end up throwing OutOfMemoryException under the assumption that the
+            // requested stack size is too large or the system does not have sufficient memory to create a thread. Try to
+            // prevent failing just just because the stack size value is too low.
+            dwStackSize = MinStackSize;
         }
-    }
-    else if (dwStackSize < THREAD_MIN_STACK_SIZE)
-    {
-        dwStackSize = THREAD_MIN_STACK_SIZE;
-    }
 
-    if (dwStackSize != pthreadStackSize)
-    {
         TRACE("setting thread stack size to %d\n", dwStackSize);
         if (0 != pthread_attr_setstacksize(&pthreadAttr, dwStackSize))
         {
@@ -677,7 +653,7 @@ CorUnix::InternalCreateThread(
     }
     else
     {
-        TRACE("using the system default thread stack size of %d\n", pthreadStackSize);
+        TRACE("using the system default thread stack size\n");
     }
 
 #if HAVE_THREAD_SELF || HAVE__LWP_SELF
@@ -1780,39 +1756,6 @@ fail:
        above should release all resources */
     return NULL;
 }
-
-
-#define PAL_THREAD_DEFAULT_STACK_SIZE "PAL_THREAD_DEFAULT_STACK_SIZE"
-
-PAL_ERROR
-CorUnix::InitializeGlobalThreadData(
-    void
-    )
-{
-    PAL_ERROR palError = NO_ERROR;
-    char *pszStackSize = NULL;
-
-    //
-    // Read in the environment to see whether we need to change the default
-    // thread stack size.
-    //
-    pszStackSize = EnvironGetenv(PAL_THREAD_DEFAULT_STACK_SIZE);
-    if (NULL != pszStackSize)
-    {
-        // Environment variable exists
-        char *pszEnd;
-        DWORD dw = PAL_strtoul(pszStackSize, &pszEnd, 16); // treat it as hex
-        if ( (pszStackSize != pszEnd) && (0 != dw) )
-        {
-            CPalThread::s_dwDefaultThreadStackSize = dw;
-        }
-
-        free(pszStackSize);
-    }
-
-    return palError;
-}
-
 
 /*++
 Function:

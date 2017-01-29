@@ -314,17 +314,6 @@ Initialize(
 #endif // HAVE_MACH_EXCEPTIONS
 
         //
-        // Initialize global thread data
-        //
-
-        palError = InitializeGlobalThreadData();
-        if (NO_ERROR != palError)
-        {
-            ERROR("Unable to initialize thread data\n");
-            goto CLEANUP1;
-        }
-
-        //
         // Allocate the initial thread data
         //
 
