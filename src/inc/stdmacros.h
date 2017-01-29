@@ -18,7 +18,10 @@
 #ifndef _stdmacros_h_
 #define _stdmacros_h_
 
+#ifdef FEATURE_PAL
 #include "specstrings.h"
+#endif // FEATURE_PAL
+
 #include "contract.h"
 
 #ifndef _ASSERTE
