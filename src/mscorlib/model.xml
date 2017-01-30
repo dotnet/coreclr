@@ -7794,6 +7794,8 @@
       <Member Name="Append(System.UInt16)" />
       <Member Name="Append(System.UInt32)" />
       <Member Name="Append(System.UInt64)" />
+      <Member Name="Append(System.Text.StringBuilder)" />
+      <Member Name="Append(System.Text.StringBuilder,System.Int32,System.Int32)" />
       <Member Name="AppendFormat(System.IFormatProvider,System.String,System.Object)" />
       <Member Name="AppendFormat(System.IFormatProvider,System.String,System.Object,System.Object)" />
       <Member Name="AppendFormat(System.IFormatProvider,System.String,System.Object,System.Object,System.Object)" />

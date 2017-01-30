@@ -999,6 +999,130 @@ namespace System.Text {
             return this;
         }
 
+        public StringBuilder Append(StringBuilder value)
+        {
+            Contract.Ensures(Contract.Result<StringBuilder>() != null);
+
+            if (value != null && value.Length > 0)
+            {
+                if (value != this)
+                    AppendCore(value, 0, value.Length);
+                else
+                    Append(value.ToString());
+            }
+            return this;
+        }
+
+        public StringBuilder Append(StringBuilder value, int startIndex, int count)
+        {
+            if (startIndex < 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(startIndex), Environment.GetResourceString("ArgumentOutOfRange_GenericPositive"));
+            }
+            if (count < 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(count), Environment.GetResourceString("ArgumentOutOfRange_GenericPositive"));
+            }
+            Contract.Ensures(Contract.Result<StringBuilder>() != null);
+            Contract.EndContractBlock();
+
+            if (value == null)
+            {
+                if (startIndex == 0 && count == 0)
+                {
+                    return this;
+                }
+                throw new ArgumentNullException(nameof(value));
+            }
+            if (count > value.Length - startIndex)
+            {
+                throw new ArgumentOutOfRangeException(nameof(count), Environment.GetResourceString("ArgumentOutOfRange_IndexLength"));
+            }
+
+            if (count > 0)
+            {
+                if (value != this)
+                    AppendCore(value, startIndex, count);
+                else
+                    Append(value.ToString(startIndex, count));
+            }
+            return this;
+        }
+
+        private void AppendCore(StringBuilder value, int startIndex, int count)
+        {
+            Contract.Assert(value != null, "StringBuilder is null");
+            Contract.Assert(count > 0, "count should be more zero");
+            Contract.Assert(startIndex >= 0 && startIndex <= value.Length - count, "startIndex and count out of range");
+
+            int newLength = Length + count;
+            if ((uint)newLength > (uint)m_MaxCapacity)
+            {
+                throw new ArgumentOutOfRangeException(nameof(count), Environment.GetResourceString("ArgumentOutOfRange_LengthGreaterThanCapacity"));
+            }
+
+            while (count > 0)
+            {
+                int length = Math.Min(m_ChunkChars.Length - m_ChunkLength, count);
+                if (length == 0)
+                {
+                    ExpandByABlock(count);
+                    length = Math.Min(m_ChunkChars.Length - m_ChunkLength, count);
+                    Contract.Assert(length > 0, "ExpandByABlock bad work");
+                }
+
+                StringBuilder chunk = value;
+                int sourceEndIndex = startIndex + length;
+                int curDestIndex = length;
+                unsafe
+                {
+                    fixed (char* destinationPtr = &m_ChunkChars[m_ChunkLength])
+                    {
+                        while (curDestIndex > 0)
+                        {
+                            int chunkEndIndex = sourceEndIndex - chunk.m_ChunkOffset;
+                            if (chunkEndIndex >= 0)
+                            {
+                                if (chunkEndIndex > chunk.m_ChunkLength)
+                                    chunkEndIndex = chunk.m_ChunkLength;
+
+                                int countLeft = curDestIndex;
+                                int chunkCount = countLeft;
+                                int chunkStartIndex = chunkEndIndex - countLeft;
+                                if (chunkStartIndex < 0)
+                                {
+                                    chunkCount += chunkStartIndex;
+                                    chunkStartIndex = 0;
+                                }
+                                curDestIndex -= chunkCount;
+
+                                if (chunkCount > 0)
+                                {
+                                    // work off of local variables so that they are stable even in the presence of race conditions
+                                    char[] sourceArray = chunk.m_ChunkChars;
+
+                                    // Check that we will not overrun our boundaries. 
+                                    if ((uint)(chunkCount + curDestIndex) <= (uint)length && (uint)(chunkCount + chunkStartIndex) <= (uint)sourceArray.Length)
+                                    {
+                                        fixed (char* sourcePtr = &sourceArray[chunkStartIndex])
+                                            string.wstrcpy(destinationPtr + curDestIndex, sourcePtr, chunkCount);
+                                    }
+                                    else
+                                    {
+                                        throw new ArgumentOutOfRangeException(nameof(chunkCount), Environment.GetResourceString("ArgumentOutOfRange_Index"));
+                                    }
+                                }
+                            }
+                            chunk = chunk.m_ChunkPrevious;
+                        }
+                    }
+                }
+                m_ChunkLength += length;
+                startIndex += length;
+                count -= length;
+            }
+        }
+
         // Append joined values with a separator between each value.
         public unsafe StringBuilder AppendJoin<T>(char separator, params T[] values)
         {
