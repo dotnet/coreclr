@@ -21,8 +21,6 @@ Abstract:
 #include "pal/dbgmsg.h"
 SET_DEFAULT_DEBUG_CHANNEL(THREAD); // some headers have code with asserts, so do this first
 
-#include "stdmacros.h"
-
 #include "pal/corunix.hpp"
 #include "pal/context.h"
 #include "pal/thread.hpp"
@@ -36,6 +34,7 @@ SET_DEFAULT_DEBUG_CHANNEL(THREAD); // some headers have code with asserts, so do
 #include "pal/module.h"
 #include "pal/environ.h"
 #include "pal/init.h"
+#include "pal/utils.h"
 
 #if defined(__NetBSD__) && !HAVE_PTHREAD_GETCPUCLOCKID
 #include <sys/cdefs.h>
@@ -569,19 +568,19 @@ CorUnix::InternalCreateThread(
         goto EXIT;
     }
 
-    if (dwStackSize != 0)
+    size_t alignedStackSize = dwStackSize;
+    if (alignedStackSize != 0)
     {
         // Some systems require the stack size to be aligned to the page size
-        DWORD alignedStackSize = static_cast<DWORD>(ALIGN_UP(dwStackSize, OS_PAGE_SIZE));
-        if (alignedStackSize < dwStackSize)
+        if (sizeof(alignedStackSize) <= sizeof(dwStackSize) && alignedStackSize + (OS_PAGE_SIZE - 1) < alignedStackSize)
         {
             // When coming here from the public API surface, the incoming value is originally a nonnegative signed int32, so
             // this shouldn't happen
-            ASSERT("Couldn't align the requested stack size (%u) to the page size\n", dwStackSize);
+            ASSERT("Couldn't align the requested stack size (%zu) to the page size\n", alignedStackSize);
             palError = ERROR_INVALID_PARAMETER;
             goto EXIT;
         }
-        dwStackSize = alignedStackSize;
+        alignedStackSize = ALIGN_UP(alignedStackSize, OS_PAGE_SIZE);
     }
 
     // Ignore the STACK_SIZE_PARAM_IS_A_RESERVATION flag
@@ -626,27 +625,27 @@ CorUnix::InternalCreateThread(
     fAttributesInitialized = TRUE;
 
     /* adjust the stack size if necessary */
-    if (dwStackSize != 0)
+    if (alignedStackSize != 0)
     {
 #ifdef PTHREAD_STACK_MIN
         const size_t MinStackSize = PTHREAD_STACK_MIN;
 #else // !PTHREAD_STACK_MIN
         const size_t MinStackSize = 64 * 1024; // this value is typically accepted by pthread_attr_setstacksize()
 #endif // PTHREAD_STACK_MIN
-
-        if (dwStackSize < MinStackSize)
+        _ASSERTE(IS_ALIGNED(MinStackSize, OS_PAGE_SIZE));
+        if (alignedStackSize < MinStackSize)
         {
             // Adjust the stack size to a minimum value that is likely to be accepted by pthread_attr_setstacksize(). If this
             // function fails, typically the caller will end up throwing OutOfMemoryException under the assumption that the
             // requested stack size is too large or the system does not have sufficient memory to create a thread. Try to
             // prevent failing just just because the stack size value is too low.
-            dwStackSize = MinStackSize;
+            alignedStackSize = MinStackSize;
         }
 
-        TRACE("setting thread stack size to %d\n", dwStackSize);
-        if (0 != pthread_attr_setstacksize(&pthreadAttr, dwStackSize))
+        TRACE("setting thread stack size to %zu\n", alignedStackSize);
+        if (0 != pthread_attr_setstacksize(&pthreadAttr, alignedStackSize))
         {
-            ERROR("couldn't set pthread stack size to %d\n", dwStackSize);
+            ERROR("couldn't set pthread stack size to %zu\n", alignedStackSize);
             palError = ERROR_INTERNAL_ERROR;
             goto EXIT;
         }
