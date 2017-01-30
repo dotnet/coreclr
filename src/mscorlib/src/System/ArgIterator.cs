@@ -16,6 +16,7 @@ namespace System {
     [StructLayout(LayoutKind.Sequential)]
     public struct ArgIterator
     {
+#if VARARGS_ENABLED //The JIT doesn't support Varargs calling convention.
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         private extern ArgIterator(IntPtr arglist);
 
@@ -34,7 +35,6 @@ namespace System {
         // This is much like the C va_start macro
 
         [CLSCompliant(false)]
-
         public unsafe ArgIterator(RuntimeArgumentHandle arglist, void* ptr) : this(arglist.Value, ptr)
         {
         }
@@ -133,5 +133,54 @@ namespace System {
             
         private IntPtr ArgPtr;                  // Pointer to remaining args.
         private int    RemainingArgs;           // # of remaining args.
+#else
+        public ArgIterator(RuntimeArgumentHandle arglist)
+        {
+            throw new PlatformNotSupportedException(); //The JIT requires work to enable ArgIterator see: https://github.com/dotnet/standard/issues/20#issuecomment-272775599.
+        }
+
+        [CLSCompliant(false)]
+        public unsafe ArgIterator(RuntimeArgumentHandle arglist, void* ptr)
+        {
+            throw new PlatformNotSupportedException(); //The JIT requires work to enable ArgIterator https://github.com/dotnet/standard/issues/20#issuecomment-272775599.
+        }
+
+        public void End() 
+        { 
+            throw new PlatformNotSupportedException(); //The JIT requires work to enable ArgIterator https://github.com/dotnet/standard/issues/20#issuecomment-272775599.
+        }
+
+        public override bool Equals(Object o) 
+        {  
+            throw new PlatformNotSupportedException(); //The JIT requires work to enable ArgIterator https://github.com/dotnet/standard/issues/20#issuecomment-272775599.
+        }
+
+        public override int GetHashCode()
+        { 
+            throw new PlatformNotSupportedException(); //The JIT requires work to enable ArgIterator https://github.com/dotnet/standard/issues/20#issuecomment-272775599.
+        }
+
+        [System.CLSCompliantAttribute(false)]
+        public System.TypedReference GetNextArg()
+        {
+            throw new PlatformNotSupportedException(); //The JIT requires work to enable ArgIterator https://github.com/dotnet/standard/issues/20#issuecomment-272775599.
+        }
+
+        [System.CLSCompliantAttribute(false)]
+        public System.TypedReference GetNextArg(System.RuntimeTypeHandle rth)
+        {
+            throw new PlatformNotSupportedException(); //The JIT requires work to enable ArgIterator https://github.com/dotnet/standard/issues/20#issuecomment-272775599.
+        }
+
+        public unsafe System.RuntimeTypeHandle GetNextArgType()
+        {
+            throw new PlatformNotSupportedException(); //The JIT requires work to enable ArgIterator https://github.com/dotnet/standard/issues/20#issuecomment-272775599.
+        }
+
+        public int GetRemainingCount()
+        {  
+            throw new PlatformNotSupportedException(); //The JIT requires work to enable ArgIterator https://github.com/dotnet/standard/issues/20#issuecomment-272775599.
+        }
+#endif //VARARGS_ENABLED
     }
 }
