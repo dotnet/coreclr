@@ -523,6 +523,7 @@ CorUnix::InternalCreateThread(
 #endif  // PTHREAD_CREATE_MODIFIES_ERRNO
     BOOL fHoldingProcessLock = FALSE;
     int iError = 0;
+    size_t alignedStackSize;
 
     if (0 != terminator)
     {
@@ -569,7 +570,7 @@ CorUnix::InternalCreateThread(
         goto EXIT;
     }
 
-    size_t alignedStackSize = dwStackSize;
+    alignedStackSize = dwStackSize;
     if (alignedStackSize != 0)
     {
         // Some systems require the stack size to be aligned to the page size
