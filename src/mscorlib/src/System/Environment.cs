@@ -114,12 +114,23 @@ namespace System {
                 // returning, we're going into an infinite loop and we should 
                 // return a bogus string.  
 
-                GetResourceStringUserData userData = new GetResourceStringUserData(this, key);
+                var userData = new GetResourceStringUserData(this, key);
 
-                RuntimeHelpers.TryCode tryCode = new RuntimeHelpers.TryCode(GetResourceStringCode);
-                RuntimeHelpers.CleanupCode cleanupCode = new RuntimeHelpers.CleanupCode(GetResourceStringBackoutCode);
+                bool exceptionThrown = false;
+                try
+                {
+                    GetResourceString(userData);
+                }
+                catch
+                {
+                    exceptionThrown = true;
+                    throw;
+                }
+                finally
+                {
+                    GetResourceStringBackoutCode(userData, exceptionThrown);
+                }
 
-                RuntimeHelpers.ExecuteCodeWithGuaranteedCleanup(tryCode, cleanupCode, userData);
                 return userData.m_retVal;
             }
 
@@ -211,7 +222,7 @@ namespace System {
         
         }
 
-              private static volatile ResourceHelper m_resHelper;  // Doesn't need to be initialized as they're zero-init.
+        private static volatile ResourceHelper m_resHelper;  // Doesn't need to be initialized as they're zero-init.
 
         private const  int    MaxMachineNameLength = 256;
 
