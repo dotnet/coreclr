@@ -35,6 +35,7 @@ SET_DEFAULT_DEBUG_CHANNEL(THREAD); // some headers have code with asserts, so do
 #include "pal/environ.h"
 #include "pal/init.h"
 #include "pal/utils.h"
+#include "pal/virtual.h"
 
 #if defined(__NetBSD__) && !HAVE_PTHREAD_GETCPUCLOCKID
 #include <sys/cdefs.h>
@@ -572,15 +573,17 @@ CorUnix::InternalCreateThread(
     if (alignedStackSize != 0)
     {
         // Some systems require the stack size to be aligned to the page size
-        if (sizeof(alignedStackSize) <= sizeof(dwStackSize) && alignedStackSize + (OS_PAGE_SIZE - 1) < alignedStackSize)
+        if (sizeof(alignedStackSize) <= sizeof(dwStackSize) && alignedStackSize + (VIRTUAL_PAGE_SIZE - 1) < alignedStackSize)
         {
             // When coming here from the public API surface, the incoming value is originally a nonnegative signed int32, so
             // this shouldn't happen
-            ASSERT("Couldn't align the requested stack size (%zu) to the page size\n", alignedStackSize);
+            ASSERT(
+                "Couldn't align the requested stack size (%zu) to the page size because the stack size was too large\n",
+                alignedStackSize);
             palError = ERROR_INVALID_PARAMETER;
             goto EXIT;
         }
-        alignedStackSize = ALIGN_UP(alignedStackSize, OS_PAGE_SIZE);
+        alignedStackSize = ALIGN_UP(alignedStackSize, VIRTUAL_PAGE_SIZE);
     }
 
     // Ignore the STACK_SIZE_PARAM_IS_A_RESERVATION flag
@@ -632,7 +635,7 @@ CorUnix::InternalCreateThread(
 #else // !PTHREAD_STACK_MIN
         const size_t MinStackSize = 64 * 1024; // this value is typically accepted by pthread_attr_setstacksize()
 #endif // PTHREAD_STACK_MIN
-        _ASSERTE(IS_ALIGNED(MinStackSize, OS_PAGE_SIZE));
+        _ASSERTE(IS_ALIGNED(MinStackSize, VIRTUAL_PAGE_SIZE));
         if (alignedStackSize < MinStackSize)
         {
             // Adjust the stack size to a minimum value that is likely to be accepted by pthread_attr_setstacksize(). If this
