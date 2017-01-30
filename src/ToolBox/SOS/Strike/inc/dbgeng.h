@@ -42,7 +42,12 @@ typedef struct _MEMORY_BASIC_INFORMATION64* PMEMORY_BASIC_INFORMATION64;
 #define __out_xcount(x)
 #define __inout
 #define __inout_opt
+//Android defines __reserved[x] in wchar.h
+#ifdef __ANDROID__
+#define __dbg_reserved
+#else
 #define __reserved
+#endif
 #endif
 
 #ifdef __cplusplus
@@ -1509,7 +1514,11 @@ DECLARE_INTERFACE_(IDebugClient, IUnknown)
         THIS_
         __in ULONG Flags,
         __in PCSTR Options,
+#ifdef __ANDROID__
+        __in_opt __dbg_reserved PVOID Reserved
+#else
         __in_opt __reserved PVOID Reserved
+#endif
         ) PURE;
     STDMETHOD(ConnectProcessServer)(
         THIS_
@@ -1937,7 +1946,11 @@ DECLARE_INTERFACE_(IDebugClient2, IUnknown)
         THIS_
         __in ULONG Flags,
         __in PCSTR Options,
-        __in_opt __reserved PVOID Reserved
+ #ifdef __ANDROID__
+       __in_opt __dbg_reserved PVOID Reserved
+#else
+       __in_opt __reserved PVOID Reserved
+#endif
         ) PURE;
     STDMETHOD(ConnectProcessServer)(
         THIS_
@@ -2394,7 +2407,11 @@ DECLARE_INTERFACE_(IDebugClient3, IUnknown)
         THIS_
         __in ULONG Flags,
         __in PCSTR Options,
+#ifdef __ANDROID__
+        __in_opt __dbg_reserved PVOID Reserved
+#else
         __in_opt __reserved PVOID Reserved
+#endif
         ) PURE;
     STDMETHOD(ConnectProcessServer)(
         THIS_
@@ -2902,7 +2919,11 @@ DECLARE_INTERFACE_(IDebugClient4, IUnknown)
         THIS_
         __in ULONG Flags,
         __in PCSTR Options,
+#ifdef __ANDROID__
+        __in_opt __dbg_reserved PVOID Reserved
+#else
         __in_opt __reserved PVOID Reserved
+#endif
         ) PURE;
     STDMETHOD(ConnectProcessServer)(
         THIS_
@@ -3449,7 +3470,11 @@ DECLARE_INTERFACE_(IDebugClient5, IUnknown)
         THIS_
         __in ULONG Flags,
         __in PCSTR Options,
+#ifdef __ANDROID
+        __in_opt __dbg_reserved PVOID Reserved
+#else
         __in_opt __reserved PVOID Reserved
+#endif
         ) PURE;
     STDMETHOD(ConnectProcessServer)(
         THIS_
@@ -3961,7 +3986,11 @@ DECLARE_INTERFACE_(IDebugClient5, IUnknown)
         THIS_
         __in ULONG Flags,
         __in PCWSTR Options,
+#ifdef __ANDROID__
+        __in_opt __dbg_reserved PVOID Reserved
+#else
         __in_opt __reserved PVOID Reserved
+#endif
         ) PURE;
     STDMETHOD(ConnectProcessServerWide)(
         THIS_

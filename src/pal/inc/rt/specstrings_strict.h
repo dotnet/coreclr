@@ -626,7 +626,11 @@
 #define __in_awcount(expr,size)  __allowed(on_parameter)   
 #define __nullterminated         _SAL_VERSION_CHECK(__nullterminated)
 #define __nullnullterminated     _SAL_VERSION_CHECK(__nullnullterminated)
+#ifdef __ANDROID__
+#define __dbg_reserved               _SAL_VERSION_CHECK(__reserved)
+#else
 #define __reserved               _SAL_VERSION_CHECK(__reserved)
+#endif
 #define __checkReturn            _SAL_VERSION_CHECK(__checkReturn)
 #define __typefix(ctype)         __allowed(on_parameter_or_return) 
 #define __override               __allowed(on_function) 

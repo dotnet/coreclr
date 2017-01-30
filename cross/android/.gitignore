@@ -1,0 +1,7 @@
+deb/
+tmp/
+toolchain/
+lldb/
+android-ndk-*/
+libunwind/
+*.zip
