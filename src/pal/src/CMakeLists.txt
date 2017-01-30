@@ -293,6 +293,22 @@ if(CMAKE_SYSTEM_NAME STREQUAL Linux)
     find_library(INTL intl)
   endif()
 
+  # On Android, we don't need to link with gcc_s, pthread and rt
+  if(NOT CLR_CMAKE_PLATFORM_ANDROID)
+    target_link_libraries(coreclrpal
+      gcc_s
+      pthread
+      rt
+    )
+  endif()
+
+  if(CLR_CMAKE_PLATFORM_ANDROID)
+    target_link_libraries(coreclrpal
+      gnustl_shared
+      android-support
+      android-glob)
+  endif()
+
   if(NOT CLR_CMAKE_PLATFORM_ANDROID)
     find_library(UNWIND NAMES unwind)
 
@@ -326,22 +342,6 @@ if(CMAKE_SYSTEM_NAME STREQUAL Linux)
   endif()
 
   find_library(UNWIND_GENERIC NAMES unwind-generic)
-
-  # On Android, we don't need to link with gcc_s, pthread and rt
-  if(NOT CLR_CMAKE_PLATFORM_ANDROID)
-    target_link_libraries(coreclrpal
-      gcc_s
-      pthread
-      rt
-    )
-  endif()
-
-  if(CLR_CMAKE_PLATFORM_ANDROID)
-    target_link_libraries(coreclrpal
-      gnustl_shared
-      android-support
-      android-glob)
-  endif()
 
   target_link_libraries(coreclrpal
     dl
