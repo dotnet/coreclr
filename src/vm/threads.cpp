@@ -2241,6 +2241,7 @@ Thread::Thread()
 
     m_pAllLoggedTypes = NULL;
     m_HijackReturnKind = RT_Illegal;
+    m_pParentOfLoadAssemblyByName = NULL;
 }
 
 //--------------------------------------------------------------------
@@ -11857,6 +11858,8 @@ HRESULT Thread::Reset(BOOL fFull)
     InternalSwitchOut();
     m_OSThreadId = SWITCHED_OUT_FIBER_OSID;
     }
+    
+    m_pParentOfLoadAssemblyByName  = NULL;
 
 ErrExit:
 

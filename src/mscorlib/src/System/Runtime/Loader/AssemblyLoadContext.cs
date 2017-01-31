@@ -192,15 +192,15 @@ namespace System.Runtime.Loader
         
         // This method is invoked by the VM to resolve an assembly reference using the Resolving event
         // after trying assembly resolution via Load override and TPA load context without success.
-        private static Assembly ResolveUsingResolvingEvent(IntPtr gchManagedAssemblyLoadContext, AssemblyName assemblyName)
+        private static Assembly ResolveUsingResolvingEvent(IntPtr gchManagedAssemblyLoadContext, AssemblyName assemblyName, Assembly parentAssembly)
         {
             AssemblyLoadContext context = (AssemblyLoadContext)(GCHandle.FromIntPtr(gchManagedAssemblyLoadContext).Target);
             
             // Invoke the AssemblyResolve event callbacks if wired up
-            return context.ResolveUsingEvent(assemblyName);
+            return context.ResolveUsingEvent(assemblyName, parentAssembly);
         }
         
-        private Assembly GetFirstResolvedAssembly(AssemblyName assemblyName)
+        private Assembly GetFirstResolvedAssembly(AssemblyName assemblyName, Assembly parentAssembly)
         {
             Assembly resolvedAssembly = null;
 
@@ -213,6 +213,21 @@ namespace System.Runtime.Loader
                 for(int i = 0; i < arrSubscribers.Length; i++)
                 {
                     resolvedAssembly = ((Func<AssemblyLoadContext, AssemblyName, Assembly>)arrSubscribers[i])(this, assemblyName);
+                    if (resolvedAssembly != null)
+                    {
+                        break;
+                    }
+                }
+            }
+            
+            Func<AssemblyLoadContext, AssemblyName, Assembly, Assembly> resolveHandler = ResolvingWithParentAssembly;            
+            if (resolvedAssembly == null && resolveHandler != null)
+            {
+                // Loop through the event subscribers and return the first non-null Assembly instance
+                Delegate [] arrSubscribers = resolveHandler.GetInvocationList();
+                for(int i = 0; i < arrSubscribers.Length; i++)
+                {
+                    resolvedAssembly = ((Func<AssemblyLoadContext, AssemblyName, Assembly, Assembly>)arrSubscribers[i])(this, assemblyName, parentAssembly);
                     if (resolvedAssembly != null)
                     {
                         break;
@@ -258,12 +273,12 @@ namespace System.Runtime.Loader
             return assembly;
         }
         
-        private Assembly ResolveUsingEvent(AssemblyName assemblyName)
+        private Assembly ResolveUsingEvent(AssemblyName assemblyName, Assembly parentAssembly)
         {
             string simpleName = assemblyName.Name;
             
             // Invoke the AssemblyResolve event callbacks if wired up
-            Assembly assembly = GetFirstResolvedAssembly(assemblyName);
+            Assembly assembly = GetFirstResolvedAssembly(assemblyName, parentAssembly);
             if (assembly != null)
             {
                 assembly = ValidateAssemblyNameWithSimpleName(assembly, simpleName);
@@ -449,6 +464,7 @@ namespace System.Runtime.Loader
         }
 
         public event Func<AssemblyLoadContext, AssemblyName, Assembly> Resolving;
+        public event Func<AssemblyLoadContext, AssemblyName, Assembly, Assembly> ResolvingWithParentAssembly;        
         public event Action<AssemblyLoadContext> Unloading;
 
         // Contains the reference to VM's representation of the AssemblyLoadContext

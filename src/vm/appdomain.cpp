@@ -14331,12 +14331,21 @@ HRESULT RuntimeInvokeHostAssemblyResolver(INT_PTR pManagedAssemblyLoadContextToB
                 // Finally, setup arguments for invocation
                 BinderMethodID idHAR_ResolveUsingEvent = METHOD__ASSEMBLYLOADCONTEXT__RESOLVEUSINGEVENT;
                 MethodDescCallSite methLoadAssembly(idHAR_ResolveUsingEvent);
+                OBJECTREF parentAssembly = NULL;
+                GCPROTECT_BEGIN(parentAssembly);
+                if(GetThread() != NULL)
+                {
+                    DomainAssembly* assem = GetThread()->GetParentOfLoadAssemblyByName();
+                    if(assem != NULL)
+                        parentAssembly = assem->GetExposedAssemblyObject();
+                }
                 
                 // Setup the arguments for the call
-                ARG_SLOT args[2] =
+                ARG_SLOT args[3] =
                 {
                     PtrToArgSlot(pManagedAssemblyLoadContextToBindWithin), // IntPtr for managed assembly load context instance
                     ObjToArgSlot(_gcRefs.oRefAssemblyName), // AssemblyName instance
+                    ObjToArgSlot(parentAssembly)
                 };
 
                 // Make the call
@@ -14346,6 +14355,7 @@ HRESULT RuntimeInvokeHostAssemblyResolver(INT_PTR pManagedAssemblyLoadContextToB
                     // Set the flag indicating we found the assembly
                     fResolvedAssembly = true;
                 }
+                GCPROTECT_END();
             }
             
             if (fResolvedAssembly && !fResolvedAssemblyViaTPALoadContext)
