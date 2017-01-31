@@ -153,10 +153,11 @@ namespace System {
         public override bool Equals(Object o) 
         {  
             throw new PlatformNotSupportedException(); //The JIT requires work to enable ArgIterator see: https://github.com/dotnet/coreclr/issues/9204.
+        }
 
         public override int GetHashCode()
         { 
-            throw new PlatformNotSupportedException(); //The JIT requires work to enable ArgIterator see: https://github.com/dotnet/coreclr/issues/9204..
+            throw new PlatformNotSupportedException(); //The JIT requires work to enable ArgIterator see: https://github.com/dotnet/coreclr/issues/9204.
         }
 
         [System.CLSCompliantAttribute(false)]
