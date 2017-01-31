@@ -62,52 +62,52 @@ namespace GCTest
                 s_arr[i].CheckValid();
                 s_arr[i] = null;
             }
-            GC.Collect();
-            GC.WaitForPendingFinalizers();
-            GC.Collect();
         }
         [System.Runtime.CompilerServices.MethodImplAttribute(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
         private static void Test3()
         {
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
+            GC.Collect();
             for (int i = 0; i < 50; i++)
             {
                 if (s_arr[i] == null) throw new Exception();
                 s_arr[i].CheckValid();
                 s_arr[i] = null;
             }
-            GC.Collect();
-            GC.WaitForPendingFinalizers();
-            GC.Collect();
         }
         [System.Runtime.CompilerServices.MethodImplAttribute(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
         private static void Test4()
         {
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
+            GC.Collect();
             for (int i = 0; i < 50; i++)
             {
                 if (s_arr[i] == null) throw new Exception();
                 s_arr[i].CheckValid();
                 s_arr[i] = null;
             }
-            GC.Collect();
-            GC.WaitForPendingFinalizers();
-            GC.Collect();
         }
         [System.Runtime.CompilerServices.MethodImplAttribute(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
         private static void Test5()
         {
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
+            GC.Collect();
             for (int i = 0; i < 50; i++)
             {
                 if (s_arr[i] == null) throw new Exception();
                 s_arr[i].CheckValid();
                 s_arr[i] = null;
             }
-            GC.Collect();
-            GC.WaitForPendingFinalizers();
-            GC.Collect();
         }
         [System.Runtime.CompilerServices.MethodImplAttribute(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
         private static void Test6()
         {
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
+            GC.Collect();
             for (int i = 0; i < 50; i++)
             {
                 if (s_arr[i] == null) throw new Exception();

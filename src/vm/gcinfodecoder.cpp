@@ -628,6 +628,9 @@ bool GcInfoDecoder::EnumerateLiveSlots(
 
 
 #ifdef PARTIALLY_INTERRUPTIBLE_GC_SUPPORTED
+#if defined(_TARGET_AMD64_) && defined(FEATURE_CORECLR)
+    bool noTrackedRefs = false;
+#endif
     if(m_SafePointIndex < m_NumSafePoints && !executionAborted)
     {
         // Skip interruptibility information
@@ -648,7 +651,16 @@ bool GcInfoDecoder::EnumerateLiveSlots(
         //
         if(!executionAborted)
         {
+#if defined(_TARGET_AMD64_) && defined(FEATURE_CORECLR)
+            if(m_NumInterruptibleRanges == 0)
+            {
+                // No ranges and no explicit safepoint - must be MinOpts.
+                noTrackedRefs = true;
+                goto NO_RANGES;
+            }
+#else
             _ASSERTE(m_NumInterruptibleRanges);
+#endif
         }
 
         int countIntersections = 0;
@@ -677,6 +689,10 @@ bool GcInfoDecoder::EnumerateLiveSlots(
             goto ExitSuccess;
         }
     }        
+#if defined(_TARGET_AMD64_) && defined(FEATURE_CORECLR)
+NO_RANGES:
+#endif
+
 #else   // !PARTIALLY_INTERRUPTIBLE_GC_SUPPORTED
 
     // Skip interruptibility information
@@ -787,6 +803,11 @@ bool GcInfoDecoder::EnumerateLiveSlots(
         else
         {
             m_Reader.Skip(m_NumSafePoints * numSlots);
+
+#if defined(_TARGET_AMD64_) && defined(FEATURE_CORECLR)
+            if(noTrackedRefs)
+                goto ReportUntracked;
+#endif
         }
 #endif // PARTIALLY_INTERRUPTIBLE_GC_SUPPORTED
         
