@@ -137,6 +137,9 @@ namespace System {
                     case PlatformID.MacOSX:
                         os = "Mac OS X ";
                         break;
+                    case PlatformID.Unix:
+                        os = "Unix ";
+                        break;
                     default:
                         os = "<unknown> ";
                         break;
