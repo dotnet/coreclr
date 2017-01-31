@@ -63,13 +63,13 @@ struct REGDISPLAY : public REGDISPLAY_BASE {
                                 // used to preserve context saved in the frame that
                                 // could be otherwise wiped by the unwinding
 
-    DWORD * pEax;
-    DWORD * pEcx;
-    DWORD * pEdx;
-
-    DWORD * pEbx;
-    DWORD * pEsi;
     DWORD * pEdi;
+    DWORD * pEsi;
+    DWORD * pEbx;
+    DWORD * pEdx;
+    DWORD * pEcx;
+    DWORD * pEax;
+
     DWORD * pEbp;
 #endif // !WIN64EXCEPTIONS
 
