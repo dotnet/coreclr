@@ -1642,10 +1642,10 @@ void *      getCalleeSavedReg(PREGDISPLAY pContext, regNum reg)
 
     switch (reg)
     {
-        case REGI_EBP: return pContext->LocateEbp();
-        case REGI_EBX: return pContext->LocateEbx();
-        case REGI_ESI: return pContext->LocateEsi();
-        case REGI_EDI: return pContext->LocateEdi();
+        case REGI_EBP: return pContext->GetEbpLocation();
+        case REGI_EBX: return pContext->GetEbxLocation();
+        case REGI_ESI: return pContext->GetEsiLocation();
+        case REGI_EDI: return pContext->GetEdiLocation();
 
         default: _ASSERTE(!"bad info.thisPtrResult"); return NULL;
     }
@@ -2840,9 +2840,9 @@ void    TRASH_CALLEE_UNSAVED_REGS(PREGDISPLAY pContext)
     /* This is not completely correct as we lose the current value, but
        it should not really be useful to anyone. */
     static DWORD s_badData = 0xDEADBEEF;
-    pContext->TrashEax(&s_badData);
-    pContext->TrashEcx(&s_badData);
-    pContext->TrashEdx(&s_badData);
+    pContext->SetEaxLocation(&s_badData);
+    pContext->SetEcxLocation(&s_badData);
+    pContext->SetEdxLocation(&s_badData);
 #endif //_DEBUG
 }
 
@@ -3128,10 +3128,10 @@ void EECodeManager::QuickUnwindStackFrame(PREGDISPLAY pRD, StackwalkCacheEntry *
     if (pCacheEntry->fUseEbpAsFrameReg)
     {
         _ASSERTE(pCacheEntry->fUseEbp);
-        TADDR curEBP = (TADDR)pRD->ReadEbp();
+        TADDR curEBP = (TADDR)*pRD->GetEbpLocation();
 
         // EBP frame, update ESP through EBP, since ESPOffset may vary
-        pRD->RestoreEbp(PTR_DWORD(curEBP));
+        pRD->SetEbpLocation(PTR_DWORD(curEBP));
         pRD->SP = curEBP + sizeof(void*);
     }
     else
@@ -3279,7 +3279,7 @@ void UnwindEspFrameEpilog(
                Get the value from the stack if needed */
             if ((flags & UpdateAllRegs) || (regMask == RM_EBP))
             {
-                pContext->Restore(CALLEE_SAVED_REGISTERS_TAG[i - 1], PTR_DWORD((TADDR)ESP));
+                pContext->SetLocation(CALLEE_SAVED_REGISTERS_TAG[i - 1], PTR_DWORD((TADDR)ESP));
             }
 
             /* Adjust ESP */
@@ -3384,7 +3384,7 @@ void UnwindEbpDoubleAlignFrameEpilog(
             unsigned calleeSavedRegsSize = info->savedRegsCountExclFP * sizeof(void*); 
 
             if (!InstructionAlreadyExecuted(offset, info->epilogOffs))
-                ESP = pContext->ReadEbp() - calleeSavedRegsSize;
+                ESP = *pContext->GetEbpLocation() - calleeSavedRegsSize;
             
             offset = SKIP_LEA_ESP_EBP(-int(calleeSavedRegsSize), epilogBase, offset);
         }
@@ -3402,7 +3402,7 @@ void UnwindEbpDoubleAlignFrameEpilog(
         {
             if (flags & UpdateAllRegs)
             {
-                pContext->Restore(CALLEE_SAVED_REGISTERS_TAG[i - 1], PTR_DWORD((TADDR)ESP));
+                pContext->SetLocation(CALLEE_SAVED_REGISTERS_TAG[i - 1], PTR_DWORD((TADDR)ESP));
             }
             ESP += sizeof(void*);
         }
@@ -3413,7 +3413,7 @@ void UnwindEbpDoubleAlignFrameEpilog(
     if (needMovEspEbp)
     {
         if (!InstructionAlreadyExecuted(offset, info->epilogOffs))
-            ESP = pContext->ReadEbp();
+            ESP = *pContext->GetEbpLocation();
             
         offset = SKIP_MOV_REG_REG(epilogBase, offset);
     }
@@ -3421,7 +3421,7 @@ void UnwindEbpDoubleAlignFrameEpilog(
     // Have we executed the pop EBP?
     if (!InstructionAlreadyExecuted(offset, info->epilogOffs))
     {
-        pContext->RestoreEbp(PTR_DWORD(TADDR(ESP)));
+        pContext->SetEbpLocation(PTR_DWORD(TADDR(ESP)));
         ESP += sizeof(void*);
     }
     offset = SKIP_POP_REG(epilogBase, offset);
@@ -3554,16 +3554,16 @@ void UnwindEspFrameProlog(
 
     // Always restore EBP
     if (regsMask & RM_EBP)
-        pContext->RestoreEbp(savedRegPtr++);
+        pContext->SetEbpLocation(savedRegPtr++);
 
     if (flags & UpdateAllRegs)
     {
         if (regsMask & RM_EBX)
-            pContext->RestoreEbx(savedRegPtr++);
+            pContext->SetEbxLocation(savedRegPtr++);
         if (regsMask & RM_ESI)
-            pContext->RestoreEsi(savedRegPtr++);
+            pContext->SetEsiLocation(savedRegPtr++);
         if (regsMask & RM_EDI)
-            pContext->RestoreEdi(savedRegPtr++);
+            pContext->SetEdiLocation(savedRegPtr++);
 
         TRASH_CALLEE_UNSAVED_REGS(pContext);
     }
@@ -3629,7 +3629,7 @@ void UnwindEspFrame(
             if ((regMask & regsMask) == 0)
                 continue;
             
-            pContext->Restore(CALLEE_SAVED_REGISTERS_TAG[i - 1], PTR_DWORD((TADDR)ESP));
+            pContext->SetLocation(CALLEE_SAVED_REGISTERS_TAG[i - 1], PTR_DWORD((TADDR)ESP));
 
             ESP += sizeof(unsigned);
         }
@@ -3707,7 +3707,7 @@ void UnwindEbpDoubleAlignFrameProlog(
        can be determined using EBP. Since we are still in the prolog,
        we need to know our exact location to determine the callee-saved registers */
        
-    const unsigned curEBP = pContext->ReadEbp();
+    const unsigned curEBP = *pContext->GetEbpLocation();
     
     if (flags & UpdateAllRegs)
     {        
@@ -3740,7 +3740,7 @@ void UnwindEbpDoubleAlignFrameProlog(
             
             if (InstructionAlreadyExecuted(offset, curOffs))
             {
-                pContext->Restore(CALLEE_SAVED_REGISTERS_TAG[i], PTR_DWORD(--pSavedRegs));
+                pContext->SetLocation(CALLEE_SAVED_REGISTERS_TAG[i], PTR_DWORD(--pSavedRegs));
             }
 
             // "push reg"
@@ -3752,7 +3752,7 @@ void UnwindEbpDoubleAlignFrameProlog(
     
     /* The caller's saved EBP is pointed to by our EBP */
 
-    pContext->RestoreEbp(PTR_DWORD((TADDR)curEBP));
+    pContext->SetEbpLocation(PTR_DWORD((TADDR)curEBP));
     pContext->SP = DWORD((TADDR)(curEBP + sizeof(void *)));
     
     /* Stack pointer points to return address */
@@ -3776,7 +3776,7 @@ bool UnwindEbpDoubleAlignFrame(
     _ASSERTE(info->ebpFrame || info->doubleAlign);
 
     const unsigned curESP =  pContext->SP;
-    const unsigned curEBP =  pContext->ReadEbp();
+    const unsigned curEBP = *pContext->GetEbpLocation();
 
     /* First check if we are in a filter (which is obviously after the prolog) */
 
@@ -3819,13 +3819,13 @@ bool UnwindEbpDoubleAlignFrame(
             {
                 static DWORD s_badData = 0xDEADBEEF;
 
-                pContext->TrashEax(&s_badData);
-                pContext->TrashEcx(&s_badData);
-                pContext->TrashEdx(&s_badData);
+                pContext->SetEaxLocation(&s_badData);
+                pContext->SetEcxLocation(&s_badData);
+                pContext->SetEdxLocation(&s_badData);
 
-                pContext->TrashEbx(&s_badData);
-                pContext->TrashEsi(&s_badData);
-                pContext->TrashEdi(&s_badData);
+                pContext->SetEbxLocation(&s_badData);
+                pContext->SetEsiLocation(&s_badData);
+                pContext->SetEdiLocation(&s_badData);
             }
 #endif
 
@@ -3868,7 +3868,7 @@ bool UnwindEbpDoubleAlignFrame(
             if ((info->savedRegMask & regMask) == 0)
                 continue;
             
-            pContext->Restore(CALLEE_SAVED_REGISTERS_TAG[i], --pSavedRegs);
+            pContext->SetLocation(CALLEE_SAVED_REGISTERS_TAG[i], --pSavedRegs);
         }
     }
 
@@ -3883,7 +3883,7 @@ bool UnwindEbpDoubleAlignFrame(
 
     /* The caller's saved EBP is pointed to by our EBP */
 
-    pContext->RestoreEbp(PTR_DWORD((TADDR)curEBP));
+    pContext->SetEbpLocation(PTR_DWORD((TADDR)curEBP));
 
     return true;
 }
@@ -4122,7 +4122,7 @@ bool EECodeManager::EnumGcRefs( PREGDISPLAY     pContext,
     GCInfoToken gcInfoToken = pCodeInfo->GetGCInfoToken();
     unsigned  curOffs = pCodeInfo->GetRelOffset();
 
-    unsigned  EBP     =  pContext->ReadEbp();
+    unsigned  EBP     = *pContext->GetEbpLocation();
     unsigned  ESP     =  pContext->SP;
 
     unsigned  ptrOffs;
@@ -4189,7 +4189,7 @@ bool EECodeManager::EnumGcRefs( PREGDISPLAY     pContext,
             if (dspPtr)                                                 \
                 printf("    Live pointer register %s: ", #regName);     \
                 pCallBack(hCallBack,                                    \
-                          (OBJECTREF*)(pContext->Locate##regName()),    \
+                          (OBJECTREF*)(pContext->Get##regName##Location()), \
                           (iptr ? GC_CALL_INTERIOR : 0)                 \
                           | CHECK_APP_DOMAIN                            \
                           DAC_ARG(DacSlotLocation(reg, 0, false)));     \
@@ -4198,7 +4198,7 @@ bool EECodeManager::EnumGcRefs( PREGDISPLAY     pContext,
 #define CHK_AND_REPORT_REG(reg, doIt, iptr, regName)                    \
         if  (doIt)                                                      \
                 pCallBack(hCallBack,                                    \
-                          (OBJECTREF*)(pContext->Locate##regName()),    \
+                          (OBJECTREF*)(pContext->Get##regName##Location()), \
                           (iptr ? GC_CALL_INTERIOR : 0)                 \
                           | CHECK_APP_DOMAIN                            \
                           DAC_ARG(DacSlotLocation(reg, 0, false)));
@@ -5023,7 +5023,7 @@ OBJECTREF* EECodeManager::GetAddrOfSecurityObjectFromCachedInfo(PREGDISPLAY pRD,
     // We pretend that filters are ESP-based methods in UnwindEbpDoubleAlignFrame().
     // Hence we cannot enforce this assert.
     // _ASSERTE(stackwalkCacheUnwindInfo->fUseEbpAsFrameReg);
-    return (OBJECTREF *) (size_t) (pRD->ReadEbp() - (securityObjectOffset * sizeof(void*)));
+    return (OBJECTREF *) (size_t) (*pRD->GetEbpLocation() - (securityObjectOffset * sizeof(void*)));
 #else
     PORTABILITY_ASSERT("EECodeManager::GetAddrOfSecurityObjectFromContext is not implemented on this platform.");
     return NULL;
@@ -5063,7 +5063,7 @@ OBJECTREF* EECodeManager::GetAddrOfSecurityObject(CrawlFrame *pCF)
         if(stateBuf->hdrInfoBody.prologOffs == hdrInfo::NOT_IN_PROLOG &&
                 stateBuf->hdrInfoBody.epilogOffs == hdrInfo::NOT_IN_EPILOG)
         {
-            return (OBJECTREF *)(size_t)(pRD->ReadEbp() - GetSecurityObjectOffset(&stateBuf->hdrInfoBody));
+            return (OBJECTREF *)(size_t)(*pRD->GetEbpLocation() - GetSecurityObjectOffset(&stateBuf->hdrInfoBody));
         }
     }
 #elif defined(USE_GC_INFO_DECODER) && !defined(CROSSGEN_COMPILE)
@@ -5165,7 +5165,7 @@ OBJECTREF EECodeManager::GetInstance( PREGDISPLAY    pContext,
     if (info.ebpFrame)
     {
         _ASSERTE(stackDepth == 0);
-        taArgBase =  pContext->ReadEbp();
+        taArgBase = *pContext->GetEbpLocation();
     }
     else
     {

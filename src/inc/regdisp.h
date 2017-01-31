@@ -71,28 +71,26 @@ struct REGDISPLAY : public REGDISPLAY_BASE {
     DWORD * pEsi;
     DWORD * pEdi;
     DWORD * pEbp;
+#endif // !WIN64EXCEPTIONS
+
+#ifndef WIN64EXCEPTIONS
 
 #define VOLATILE_REG_METHODS(reg) \
-    inline DWORD  Read##reg(void)   { return *p##reg; } \
-    inline PDWORD Locate##reg(void) { return p##reg;  } \
-    inline void   Restore##reg(PDWORD p##reg) { this->p##reg = p##reg; } \
-    inline void   Trash##reg(PDWORD p##reg)   { this->p##reg = p##reg; }
+    inline PDWORD Get##reg##Location(void) { return p##reg;  } \
+    inline void   Set##reg##Location(PDWORD p##reg) { this->p##reg = p##reg; }
 
 #define NONVOLATILE_REG_METHODS(reg) VOLATILE_REG_METHODS(reg)
 
 #else // !WIN64EXCEPTIONS
 
 #define VOLATILE_REG_METHODS(reg) \
-    inline DWORD  Read##reg(void)   { return pCurrentContext->reg; } \
-    inline PDWORD Locate##reg(void) { return NULL; } \
-    inline void   Restore##reg(PDWORD p##reg) { pCurrentContext->reg = *p##reg; } \
-    inline void   Trash##reg(PDWORD p##reg)   { pCurrentContext->reg = *p##reg; }
+    inline PDWORD Get##reg##Location(void) { return &pCurrentContext->reg; } \
+    inline void   Set##reg##Location(PDWORD p##reg) { pCurrentContext->reg = *p##reg; }
 
 #define NONVOLATILE_REG_METHODS(reg) \
-    inline DWORD  Read##reg(void)   { return pCurrentContext->reg; } \
-    inline PDWORD Locate##reg(void) { return (pCurrentContextPointers) ? pCurrentContextPointers->reg : NULL; } \
-    inline void   Restore##reg(PDWORD p##reg) { if (pCurrentContextPointers) { pCurrentContextPointers->reg = p##reg; } pCurrentContext->reg = *p##reg; } \
-    inline void   Trash##reg(PDWORD p##reg)   { if (pCurrentContextPointers) { pCurrentContextPointers->reg = NULL; } pCurrentContext->reg = *p##reg; }
+    inline PDWORD Get##reg##Location(void) { return (pCurrentContextPointers) ? pCurrentContextPointers->reg : &pCurrentContext->reg; } \
+    inline void   Set##reg##Location(PDWORD p##reg) { if (pCurrentContextPointers) { pCurrentContextPointers->reg = p##reg; } pCurrentContext->reg = *p##reg; }
+
 #endif // WIN64EXCEPTIONS
 
     VOLATILE_REG_METHODS(Eax)
@@ -117,21 +115,21 @@ struct REGDISPLAY : public REGDISPLAY_BASE {
       TAG_EBP
     };
 
-    inline void Restore(TAG tag, PDWORD pReg)
+    inline void SetLocation(TAG tag, PDWORD pReg)
     {
         switch (tag)
         {
         case TAG_EBX:
-            RestoreEbx(pReg);
+            SetEbxLocation(pReg);
             break;
         case TAG_ESI:
-            RestoreEsi(pReg);
+            SetEsiLocation(pReg);
             break;
         case TAG_EDI:
-            RestoreEdi(pReg);
+            SetEdiLocation(pReg);
             break;
         case TAG_EBP:
-            RestoreEbp(pReg);
+            SetEbpLocation(pReg);
             break;
         default:
             _ASSERTE(!"Invalid register");
@@ -155,13 +153,13 @@ inline void SetRegdisplaySP(REGDISPLAY *display, LPVOID sp ) {
 inline TADDR GetRegdisplayFP(REGDISPLAY *display) {
     LIMITED_METHOD_DAC_CONTRACT;
 
-    return (TADDR)display->ReadEbp();
+    return (TADDR)*display->GetEbpLocation();
 }
 
 inline LPVOID GetRegdisplayFPAddress(REGDISPLAY *display) {
     LIMITED_METHOD_CONTRACT;
     
-    return (LPVOID)display->LocateEbp();
+    return (LPVOID)display->GetEbpLocation();
 }
 
 inline PCODE GetControlPC(REGDISPLAY *display) {

@@ -214,10 +214,10 @@ void EHContext::Setup(PCODE resumePC, PREGDISPLAY regs)
 
     // EAX ECX EDX are scratch
     this->Esp  = regs->SP;
-    this->Ebx =  regs->ReadEbx();
-    this->Esi =  regs->ReadEsi();
-    this->Edi =  regs->ReadEdi();
-    this->Ebp =  regs->ReadEbp();
+    this->Ebx = *regs->GetEbxLocation();
+    this->Esi = *regs->GetEsiLocation();
+    this->Edi = *regs->GetEdiLocation();
+    this->Ebp = *regs->GetEbpLocation();
 
     this->Eip = (ULONG)(size_t)resumePC;
 }
@@ -246,15 +246,15 @@ void EHContext::UpdateFrame(PREGDISPLAY regs)
     // EAX ECX EDX are scratch. 
     // No need to update ESP as unwinder takes care of that for us
 
-    LOG((LF_EH, LL_INFO1000, "Updating saved EBX: *%p= %p\n", regs->LocateEbx(), this->Ebx));
-    LOG((LF_EH, LL_INFO1000, "Updating saved ESI: *%p= %p\n", regs->LocateEsi(), this->Esi));
-    LOG((LF_EH, LL_INFO1000, "Updating saved EDI: *%p= %p\n", regs->LocateEdi(), this->Edi));
-    LOG((LF_EH, LL_INFO1000, "Updating saved EBP: *%p= %p\n", regs->LocateEbp(), this->Ebp));
+    LOG((LF_EH, LL_INFO1000, "Updating saved EBX: *%p= %p\n", regs->GetEbxLocation(), this->Ebx));
+    LOG((LF_EH, LL_INFO1000, "Updating saved ESI: *%p= %p\n", regs->GetEsiLocation(), this->Esi));
+    LOG((LF_EH, LL_INFO1000, "Updating saved EDI: *%p= %p\n", regs->GetEdiLocation(), this->Edi));
+    LOG((LF_EH, LL_INFO1000, "Updating saved EBP: *%p= %p\n", regs->GetEbpLocation(), this->Ebp));
     
-    *regs->LocateEbx() = this->Ebx;
-    *regs->LocateEsi() = this->Esi;
-    *regs->LocateEdi() = this->Edi;
-    *regs->LocateEbp() = this->Ebp;
+    *regs->GetEbxLocation() = this->Ebx;
+    *regs->GetEsiLocation() = this->Esi;
+    *regs->GetEdiLocation() = this->Edi;
+    *regs->GetEbpLocation() = this->Ebp;
 }
 
 void TransitionFrame::UpdateRegDisplay(const PREGDISPLAY pRD)
@@ -298,7 +298,7 @@ void TransitionFrame::UpdateRegDisplayHelper(const PREGDISPLAY pRD, UINT cbStack
 
     pRD->pContext = NULL;
 
-#define CALLEE_SAVED_REGISTER(regname) pRD->Restore##regname(PDWORD(&regs->regname));
+#define CALLEE_SAVED_REGISTER(regname) pRD->Set##regname##Location(PDWORD(&regs->regname));
     ENUM_CALLEE_SAVED_REGISTERS();
 #undef CALLEE_SAVED_REGISTER
     pRD->PCTAddr = GetReturnAddressPtr();
@@ -369,13 +369,13 @@ void HelperMethodFrame::UpdateRegDisplay(const PREGDISPLAY pRD)
             DacAllocHostOnlyInstance(sizeof(*thisState), true);
 
         thisState->_edi = unwindState._edi;
-        pRD->RestoreEdi((DWORD *)&thisState->_edi);
+        pRD->SetEdiLocation((DWORD *)&thisState->_edi);
         thisState->_esi = unwindState._esi;
-        pRD->RestoreEsi((DWORD *)&thisState->_esi);
+        pRD->SetEsiLocation((DWORD *)&thisState->_esi);
         thisState->_ebx = unwindState._ebx;
-        pRD->RestoreEbx((DWORD *)&thisState->_ebx);
+        pRD->SetEbxLocation((DWORD *)&thisState->_ebx);
         thisState->_ebp = unwindState._ebp;
-        pRD->RestoreEbp((DWORD *)&thisState->_ebp);
+        pRD->SetEbpLocation((DWORD *)&thisState->_ebp);
 
         // InsureInit always sets m_RegArgs to zero
         // in the real code.  I'm not sure exactly
@@ -393,10 +393,10 @@ void HelperMethodFrame::UpdateRegDisplay(const PREGDISPLAY pRD)
     // DACCESS: The MachState pointers are kept as PTR_TADDR so
     // the host pointers here refer to the appropriate size and
     // these casts are not a problem.
-    pRD->RestoreEdi((DWORD*) m_MachState.pEdi());
-    pRD->RestoreEsi((DWORD*) m_MachState.pEsi());
-    pRD->RestoreEbx((DWORD*) m_MachState.pEbx());
-    pRD->RestoreEbp((DWORD*) m_MachState.pEbp());
+    pRD->SetEdiLocation((DWORD*) m_MachState.pEdi());
+    pRD->SetEsiLocation((DWORD*) m_MachState.pEsi());
+    pRD->SetEbxLocation((DWORD*) m_MachState.pEbx());
+    pRD->SetEbpLocation((DWORD*) m_MachState.pEbp());
     pRD->PCTAddr = dac_cast<TADDR>(m_MachState.pRetAddr());
     pRD->ControlPC = m_MachState.GetRetAddr();
     pRD->SP  = (DWORD) m_MachState.esp();
@@ -628,7 +628,7 @@ void InlinedCallFrame::UpdateRegDisplay(const PREGDISPLAY pRD)
 #undef CALLEE_SAVED_REGISTER
 #endif
 
-    pRD->RestoreEbp(PDWORD(&m_pCalleeSavedFP));
+    pRD->SetEbpLocation(PDWORD(&m_pCalleeSavedFP));
 
     /* The return address is just above the "ESP" */
     pRD->PCTAddr = PTR_HOST_MEMBER_TADDR(InlinedCallFrame, this,
@@ -699,14 +699,14 @@ void ResumableFrame::UpdateRegDisplay(const PREGDISPLAY pRD)
 #endif // !defined(DACCESS_COMPILE)
 #endif // !WIN64EXCEPTIONS
 
-    pRD->RestoreEax(&pUnwoundContext->Eax);
-    pRD->RestoreEcx(&pUnwoundContext->Ecx);
-    pRD->RestoreEdx(&pUnwoundContext->Edx);
+    pRD->SetEaxLocation(&pUnwoundContext->Eax);
+    pRD->SetEcxLocation(&pUnwoundContext->Ecx);
+    pRD->SetEdxLocation(&pUnwoundContext->Edx);
 
-    pRD->RestoreEdi(&pUnwoundContext->Edi);
-    pRD->RestoreEsi(&pUnwoundContext->Esi);
-    pRD->RestoreEbx(&pUnwoundContext->Ebx);
-    pRD->RestoreEbp(&pUnwoundContext->Ebp);
+    pRD->SetEdiLocation(&pUnwoundContext->Edi);
+    pRD->SetEsiLocation(&pUnwoundContext->Esi);
+    pRD->SetEbxLocation(&pUnwoundContext->Ebx);
+    pRD->SetEbpLocation(&pUnwoundContext->Ebp);
 
     pRD->ControlPC = pUnwoundContext->Eip;
     pRD->PCTAddr = dac_cast<TADDR>(m_Regs) + offsetof(CONTEXT, Eip);
@@ -730,14 +730,14 @@ void HijackFrame::UpdateRegDisplay(const PREGDISPLAY pRD)
     // This only describes the top-most frame
     pRD->pContext = NULL;
 
-    pRD->RestoreEdi(&m_Args->Edi);
-    pRD->RestoreEsi(&m_Args->Esi);
-    pRD->RestoreEbx(&m_Args->Ebx);
-    pRD->RestoreEdx(&m_Args->Edx);
-    pRD->RestoreEcx(&m_Args->Ecx);
-    pRD->RestoreEax(&m_Args->Eax);
+    pRD->SetEdiLocation(&m_Args->Edi);
+    pRD->SetEsiLocation(&m_Args->Esi);
+    pRD->SetEbxLocation(&m_Args->Ebx);
+    pRD->SetEdxLocation(&m_Args->Edx);
+    pRD->SetEcxLocation(&m_Args->Ecx);
+    pRD->SetEaxLocation(&m_Args->Eax);
 
-    pRD->RestoreEbp(&m_Args->Ebp);
+    pRD->SetEbpLocation(&m_Args->Ebp);
     pRD->PCTAddr = dac_cast<TADDR>(m_Args) + offsetof(HijackArgs, Eip);
     pRD->ControlPC = *PTR_PCODE(pRD->PCTAddr);
     pRD->SP  = (DWORD)(pRD->PCTAddr + sizeof(TADDR));
@@ -778,7 +778,7 @@ void TailCallFrame::UpdateRegDisplay(const PREGDISPLAY pRD)
     // reset pContext; it's only valid for active (top-most) frame
     pRD->pContext = NULL;
 
-#define CALLEE_SAVED_REGISTER(regname) pRD->Restore##regname(PDWORD(&m_regs.regname));
+#define CALLEE_SAVED_REGISTER(regname) pRD->Set##regname##Location(PDWORD(&m_regs.regname));
     ENUM_CALLEE_SAVED_REGISTERS();
 #undef CALLEE_SAVED_REGISTER
 
