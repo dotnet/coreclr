@@ -133,7 +133,7 @@ ArchQuery(void)
     if (targetMachine == NULL)
     {
         g_targetMachine = NULL;
-        ExtErr("SOS does not support the current target architecture %llx.\n", targetArchitecture);
+        ExtErr("SOS does not support the current target architecture 0x%llx.\n", targetArchitecture);
         return E_FAIL;
     }
 

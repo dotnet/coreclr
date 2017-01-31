@@ -8,11 +8,6 @@
 #include <string.h>
 #include <string>
 
-
-#ifndef IMAGE_FILE_MACHINE_ARM64
-#define IMAGE_FILE_MACHINE_ARM64             0xAA64  // ARM64 Little-Endian
-#endif
-
 ULONG g_currentThreadIndex = -1;
 ULONG g_currentThreadSystemId = -1;
 char *g_coreclrDirectory;
