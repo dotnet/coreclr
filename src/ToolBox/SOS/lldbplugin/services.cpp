@@ -8,6 +8,11 @@
 #include <string.h>
 #include <string>
 
+
+#ifndef IMAGE_FILE_MACHINE_ARM64
+#define IMAGE_FILE_MACHINE_ARM64             0xAA64  // ARM64 Little-Endian
+#endif
+
 ULONG g_currentThreadIndex = -1;
 ULONG g_currentThreadSystemId = -1;
 char *g_coreclrDirectory;
@@ -411,6 +416,10 @@ LLDBServices::GetExecutingProcessorType(
     *type = IMAGE_FILE_MACHINE_AMD64;
 #elif DBG_TARGET_ARM
     *type = IMAGE_FILE_MACHINE_ARMNT;
+#elif DBG_TARGET_ARM64
+    *type = IMAGE_FILE_MACHINE_ARM64;
+#else
+#error "Unsupported target"
 #endif
     return S_OK;
 }
