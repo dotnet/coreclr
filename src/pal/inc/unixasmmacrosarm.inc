@@ -31,16 +31,12 @@ C_FUNC(\Name):
 C_FUNC(\Name):
 .endm
 
-.macro LEAF_END Name, Section
-        .size \Name, .-\Name
-        .fnend
-.endm
-
 .macro LEAF_END_MARKED Name, Section
         .thumb_func
         .global C_FUNC(\Name\()_End)
 C_FUNC(\Name\()_End):
-        LEAF_END \Name, \Section
+        .size \Name, .-\Name
+        .fnend
 .endm
 
 .macro PREPARE_EXTERNAL_VAR Name, HelperReg
