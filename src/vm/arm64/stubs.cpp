@@ -268,6 +268,12 @@ static BYTE gLoadFromLabelIF[sizeof(LoadFromLabelInstructionFormat)];
 
 #endif
 
+void ClearRegDisplayArgumentAndScratchRegisters(REGDISPLAY * pRD)
+{
+    for (int i=0; i < 18; i++)
+        pRD->volatileCurrContextPointers.X[i] = NULL;
+}
+
 #ifndef CROSSGEN_COMPILE
 void LazyMachState::unwindLazyState(LazyMachState* baseState,
                                     MachState* unwoundstate,
@@ -532,6 +538,8 @@ void HelperMethodFrame::UpdateRegDisplay(const PREGDISPLAY pRD)
     pRD->pCurrentContextPointers->Fp = m_MachState.ptrX19_X29[10];
     pRD->pCurrentContextPointers->Lr = NULL; // Unwind again to get Caller's PC
 #endif
+
+    ClearRegDisplayArgumentAndScratchRegisters(pRD);
 }
 #endif // CROSSGEN_COMPILE
 
@@ -819,6 +827,8 @@ void TransitionFrame::UpdateRegDisplay(const PREGDISPLAY pRD)
     CalleeSavedRegisters *pCalleeSaved = GetCalleeSavedRegisters();
     UpdateRegDisplayFromCalleeSavedRegisters(pRD, pCalleeSaved);
 
+    ClearRegDisplayArgumentAndScratchRegisters(pRD);
+
     // copy the control registers
     pRD->pCurrentContext->Fp = pCalleeSaved->x29;
     pRD->pCurrentContext->Lr = pCalleeSaved->x30;
@@ -877,6 +887,8 @@ void FaultingExceptionFrame::UpdateRegDisplay(const PREGDISPLAY pRD)
     pRD->pCurrentContextPointers->Fp = (PDWORD64)&m_ctx.Fp;
     pRD->pCurrentContextPointers->Lr = (PDWORD64)&m_ctx.Lr;
 
+    ClearRegDisplayArgumentAndScratchRegisters(pRD);
+
     pRD->IsCallerContextValid = FALSE;
     pRD->IsCallerSPValid      = FALSE;        // Don't add usage of this field.  This is only temporary.
 }
@@ -926,6 +938,7 @@ void InlinedCallFrame::UpdateRegDisplay(const PREGDISPLAY pRD)
     // reset pContext; it's only valid for active (top-most) frame
     pRD->pContext = NULL;
 
+    ClearRegDisplayArgumentAndScratchRegisters(pRD);
 
 
     // Update the frame pointer in the current context.
