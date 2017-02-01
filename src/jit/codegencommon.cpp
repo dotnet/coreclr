@@ -10281,7 +10281,12 @@ void CodeGen::genFuncletProlog(BasicBlock* block)
 
     compiler->unwindBegProlog();
 
-    // TODO Save callee-saved registers
+    // Save frame pointer
+    inst_RV(INS_push, REG_FPBASE, TYP_REF);
+    compiler->unwindPush(REG_FPBASE);
+
+    // Save callee-saved registers
+    genPushCalleeSavedRegisters();
 
     // This is the end of the OS-reported prolog for purposes of unwinding
     compiler->unwindEndProlog();
@@ -10303,7 +10308,11 @@ void CodeGen::genFuncletEpilog()
 
     ScopedSetVariable<bool> _setGeneratingEpilog(&compiler->compGeneratingEpilog, true);
 
-    // TODO Restore callee-saved registers
+    // Restore callee-saved registers
+    genPopCalleeSavedRegisters();
+
+    // Restore frame pointer
+    inst_RV(INS_pop, REG_EBP, TYP_I_IMPL);
 
     instGen_Return(0);
 }
