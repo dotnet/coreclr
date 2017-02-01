@@ -2,12 +2,9 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-using System.Diagnostics;
-using System.Diagnostics.Contracts;
-using System.Security;
-
 namespace System.Text
 {
+    using System.Diagnostics.Contracts;
     // Shared implementations for commonly overriden Encoding methods
 
     internal static class EncodingForwarder
@@ -35,19 +32,11 @@ namespace System.Text
         public unsafe static int GetByteCount(Encoding encoding, char[] chars, int index, int count)
         {
             // Validate parameters
-
             Debug.Assert(encoding != null); // this parameter should only be affected internally, so just do a debug check here
-            if (chars == null)
+            if (chars == null || index < 0 || count < 0 ||
+                (chars.Length - index < count))
             {
-                throw new ArgumentNullException(nameof(chars), Environment.GetResourceString("ArgumentNull_Array"));
-            }
-            if (index < 0 || count < 0)
-            {
-                throw new ArgumentOutOfRangeException(index < 0 ? nameof(index) : nameof(count), Environment.GetResourceString("ArgumentOutOfRange_NeedNonNegNum"));
-            }
-            if (chars.Length - index < count)
-            {
-                throw new ArgumentOutOfRangeException(nameof(chars), Environment.GetResourceString("ArgumentOutOfRange_IndexCountBuffer"));
+                ThrowValidationFailedException(chars, index, count);
             }
             Contract.EndContractBlock();
 
@@ -65,9 +54,7 @@ namespace System.Text
             Debug.Assert(encoding != null);
             if (s == null)
             {
-                string paramName = encoding is ASCIIEncoding ? "chars" : nameof(s); // ASCIIEncoding calls the string chars
-                // UTF8Encoding does this as well, but it originally threw an ArgumentNull for "s" so don't check for that
-                throw new ArgumentNullException(paramName);
+                ThrowValidationFailedException(encoding);
             }
             Contract.EndContractBlock();
 
@@ -86,13 +73,9 @@ namespace System.Text
         public unsafe static int GetByteCount(Encoding encoding, char* chars, int count)
         {
             Debug.Assert(encoding != null);
-            if (chars == null)
+            if (chars == null || count < 0)
             {
-                throw new ArgumentNullException(nameof(chars), Environment.GetResourceString("ArgumentNull_Array"));
-            }
-            if (count < 0)
-            {
-                throw new ArgumentOutOfRangeException(nameof(count), Environment.GetResourceString("ArgumentOutOfRange_NeedNonNegNum"));
+                EncodingForwarder.ThrowValidationFailedException(chars, count);
             }
             Contract.EndContractBlock();
 
@@ -103,24 +86,12 @@ namespace System.Text
         public unsafe static int GetBytes(Encoding encoding, string s, int charIndex, int charCount, byte[] bytes, int byteIndex)
         {
             Debug.Assert(encoding != null);
-            if (s == null || bytes == null)
+            if (s == null || bytes == null ||
+                charIndex < 0 || charCount < 0 ||
+                (s.Length - charIndex < charCount) ||
+                (byteIndex < 0 || byteIndex > bytes.Length))
             {
-                string stringName = encoding is ASCIIEncoding ? "chars" : nameof(s); // ASCIIEncoding calls the first parameter chars
-                throw new ArgumentNullException(s == null ? stringName : nameof(bytes), Environment.GetResourceString("ArgumentNull_Array"));
-            }
-            if (charIndex < 0 || charCount < 0)
-            {
-                throw new ArgumentOutOfRangeException(charIndex < 0 ? nameof(charIndex) : nameof(charCount), Environment.GetResourceString("ArgumentOutOfRange_NeedNonNegNum"));
-            }
-            if (s.Length - charIndex < charCount)
-            {
-                string stringName = encoding is ASCIIEncoding ? "chars" : nameof(s); // ASCIIEncoding calls the first parameter chars
-                // Duplicate the above check since we don't want the overhead of a type check on the general path
-                throw new ArgumentOutOfRangeException(stringName, Environment.GetResourceString("ArgumentOutOfRange_IndexCount"));
-            }
-            if (byteIndex < 0 || byteIndex > bytes.Length)
-            {
-                throw new ArgumentOutOfRangeException(nameof(byteIndex), Environment.GetResourceString("ArgumentOutOfRange_Index"));
+                ThrowValidationFailedException(encoding, s, charIndex, charCount, bytes);
             }
             Contract.EndContractBlock();
 
@@ -139,21 +110,12 @@ namespace System.Text
         public unsafe static int GetBytes(Encoding encoding, char[] chars, int charIndex, int charCount, byte[] bytes, int byteIndex)
         {
             Debug.Assert(encoding != null);
-            if (chars == null || bytes == null)
+            // Validate parameters
+            if (chars == null || bytes == null || charIndex < 0 || charCount < 0 ||
+                (chars.Length - charIndex < charCount) ||
+                (byteIndex < 0 || byteIndex > bytes.Length))
             {
-                throw new ArgumentNullException(chars == null ? nameof(chars) : nameof(bytes), Environment.GetResourceString("ArgumentNull_Array"));
-            }
-            if (charIndex < 0 || charCount < 0)
-            {
-                throw new ArgumentOutOfRangeException(charIndex < 0 ? nameof(charIndex) : nameof(charCount), Environment.GetResourceString("ArgumentOutOfRange_NeedNonNegNum"));
-            }
-            if (chars.Length - charIndex < charCount)
-            {
-                throw new ArgumentOutOfRangeException(nameof(chars), Environment.GetResourceString("ArgumentOutOfRange_IndexCountBuffer"));
-            }
-            if (byteIndex < 0 || byteIndex > bytes.Length)
-            {
-                throw new ArgumentOutOfRangeException(nameof(byteIndex), Environment.GetResourceString("ArgumentOutOfRange_Index"));
+                ThrowValidationFailedException(chars, charIndex, charCount, bytes);
             }
             Contract.EndContractBlock();
 
@@ -179,13 +141,10 @@ namespace System.Text
         public unsafe static int GetBytes(Encoding encoding, char* chars, int charCount, byte* bytes, int byteCount)
         {
             Debug.Assert(encoding != null);
-            if (bytes == null || chars == null)
+            // Validate parameters
+            if (bytes == null || chars == null || charCount < 0 || byteCount < 0)
             {
-                throw new ArgumentNullException(bytes == null ? nameof(bytes) : nameof(chars), Environment.GetResourceString("ArgumentNull_Array"));
-            }
-            if (charCount < 0 || byteCount < 0)
-            {
-                throw new ArgumentOutOfRangeException(charCount < 0 ? nameof(charCount) : nameof(byteCount), Environment.GetResourceString("ArgumentOutOfRange_NeedNonNegNum"));
+                ThrowValidationFailedException(chars, charCount, bytes);
             }
             Contract.EndContractBlock();
 
@@ -195,17 +154,11 @@ namespace System.Text
         public unsafe static int GetCharCount(Encoding encoding, byte[] bytes, int index, int count)
         {
             Debug.Assert(encoding != null);
-            if (bytes == null)
+            // Validate parameters
+            if (bytes == null || index < 0 || count < 0 ||
+                (bytes.Length - index < count))
             {
-                throw new ArgumentNullException(nameof(bytes), Environment.GetResourceString("ArgumentNull_Array"));
-            }
-            if (index < 0 || count < 0)
-            {
-                throw new ArgumentOutOfRangeException(index < 0 ? nameof(index) : nameof(count), Environment.GetResourceString("ArgumentOutOfRange_NeedNonNegNum"));
-            }
-            if (bytes.Length - index < count)
-            {
-                throw new ArgumentOutOfRangeException(nameof(bytes), Environment.GetResourceString("ArgumentOutOfRange_IndexCountBuffer"));
+                ThrowValidationFailedException(bytes, index, count);
             }
             Contract.EndContractBlock();
 
@@ -221,13 +174,10 @@ namespace System.Text
         public unsafe static int GetCharCount(Encoding encoding, byte* bytes, int count)
         {
             Debug.Assert(encoding != null);
-            if (bytes == null)
+            // Validate parameters
+            if (bytes == null || count < 0)
             {
-                throw new ArgumentNullException(nameof(bytes), Environment.GetResourceString("ArgumentNull_Array"));
-            }
-            if (count < 0)
-            {
-                throw new ArgumentOutOfRangeException(nameof(count), Environment.GetResourceString("ArgumentOutOfRange_NeedNonNegNum"));
+                ThrowValidationFailedException(bytes);
             }
             Contract.EndContractBlock();
 
@@ -237,21 +187,12 @@ namespace System.Text
         public unsafe static int GetChars(Encoding encoding, byte[] bytes, int byteIndex, int byteCount, char[] chars, int charIndex)
         {
             Debug.Assert(encoding != null);
-            if (bytes == null || chars == null)
+            // Validate parameters
+            if (bytes == null || chars == null || byteIndex < 0 || byteCount < 0 ||
+                (bytes.Length - byteIndex < byteCount) ||
+                (charIndex < 0 || charIndex > chars.Length))
             {
-                throw new ArgumentNullException(bytes == null ? nameof(bytes) : nameof(chars), Environment.GetResourceString("ArgumentNull_Array"));
-            }
-            if (byteIndex < 0 || byteCount < 0)
-            {
-                throw new ArgumentOutOfRangeException(byteIndex < 0 ? nameof(byteIndex) : nameof(byteCount), Environment.GetResourceString("ArgumentOutOfRange_NeedNonNegNum"));
-            }
-            if (bytes.Length - byteIndex < byteCount)
-            {
-                throw new ArgumentOutOfRangeException(nameof(bytes), Environment.GetResourceString("ArgumentOutOfRange_IndexCountBuffer"));
-            }
-            if (charIndex < 0 || charIndex > chars.Length)
-            {
-                throw new ArgumentOutOfRangeException(nameof(charIndex), Environment.GetResourceString("ArgumentOutOfRange_Index"));
+                ThrowValidationFailedException(bytes, byteIndex, byteCount, chars);
             }
             Contract.EndContractBlock();
 
@@ -275,13 +216,10 @@ namespace System.Text
         public unsafe static int GetChars(Encoding encoding, byte* bytes, int byteCount, char* chars, int charCount)
         {
             Debug.Assert(encoding != null);
-            if (bytes == null || chars == null)
+            // Validate parameters
+            if (bytes == null || chars == null || charCount < 0 || byteCount < 0)
             {
-                throw new ArgumentNullException(bytes == null ? nameof(bytes) : nameof(chars), Environment.GetResourceString("ArgumentNull_Array"));
-            }
-            if (charCount < 0 || byteCount < 0)
-            {
-                throw new ArgumentOutOfRangeException(charCount < 0 ? nameof(charCount) : nameof(byteCount), Environment.GetResourceString("ArgumentOutOfRange_NeedNonNegNum"));
+                ThrowValidationFailedException(bytes, byteCount, chars);
             }
             Contract.EndContractBlock();
 
@@ -291,21 +229,11 @@ namespace System.Text
         public unsafe static string GetString(Encoding encoding, byte[] bytes, int index, int count)
         {
             Debug.Assert(encoding != null);
-            if (bytes == null)
+            // Validate parameters
+            if (bytes == null || index < 0 ||  count < 0 ||
+                (bytes.Length - index < count))
             {
-                throw new ArgumentNullException(nameof(bytes), Environment.GetResourceString("ArgumentNull_Array"));
-            }
-            if (index < 0 || count < 0)
-            {
-                // ASCIIEncoding has different names for its parameters here (byteIndex, byteCount)
-                bool ascii = encoding is ASCIIEncoding;
-                string indexName = ascii ? "byteIndex" : nameof(index);
-                string countName = ascii ? "byteCount" : nameof(count);
-                throw new ArgumentOutOfRangeException(index < 0 ? indexName : countName, Environment.GetResourceString("ArgumentOutOfRange_NeedNonNegNum"));
-            }
-            if (bytes.Length - index < count)
-            {
-                throw new ArgumentOutOfRangeException(nameof(bytes), Environment.GetResourceString("ArgumentOutOfRange_IndexCountBuffer"));
+                ThrowValidationFailedException(encoding, bytes, index, count);
             }
             Contract.EndContractBlock();
             
@@ -324,6 +252,266 @@ namespace System.Text
             {
                 return string.CreateStringFromEncoding(pBytes + index, count, encoding);
             }
+        }
+
+        internal static void ThrowBytesOverflow(Encoding encoding)
+        {
+            throw GetArgumentException_ThrowBytesOverflow(encoding);
+        }
+
+        internal static unsafe void ThrowValidationFailedException(char* chars, int count)
+        {
+            throw GetValidationFailedException(chars, count);
+        }
+
+        internal static void ThrowValidationFailedException(char[] chars, int index, int count)
+        {
+            throw GetValidationFailedException(chars, index, count);
+        }
+
+        internal static void ThrowValidationFailedException(char[] chars, int charIndex, int charCount, byte[] bytes)
+        {
+            throw GetValidationFailedException(chars, charIndex, charCount, bytes);
+        }
+
+        internal static void ThrowValidationFailedException(string s, int index, int count)
+        {
+            throw GetValidationFailedException(s, index, count);
+        }
+        
+        internal static void ThrowValidationFailedException(Encoding encoding, string s, int charIndex, int charCount, byte[] bytes)
+        {
+            throw GetValidationFailedException(encoding, s, charIndex, charCount, bytes);
+        }
+
+        internal static unsafe void ThrowValidationFailedException(char* chars, int charCount, byte* bytes)
+        {
+            throw GetValidationFailedException(chars, charCount, bytes);
+        }
+
+        private static void ThrowValidationFailedException(Encoding encoding)
+        {
+            throw GetValidationFailedException(encoding);
+        }
+
+        internal static void ThrowValidationFailedException(byte[] bytes, int index, int count)
+        {
+            throw GetValidationFailedException(bytes, index, count);
+        }
+
+        private static void ThrowValidationFailedException(Encoding encoding, byte[] bytes, int index, int count)
+        {
+            throw GetValidationFailedException(encoding, bytes, index, count);
+        }
+
+        internal static void ThrowValidationFailedException(byte[] bytes, int byteIndex, int byteCount, char[] chars)
+        {
+            throw GetValidationFailedException(bytes, byteIndex, byteCount, chars);
+        }
+
+        internal static unsafe void ThrowValidationFailedException(byte* bytes)
+        {
+            throw GetValidationFailedException(bytes);
+        }
+
+        internal static unsafe void ThrowValidationFailedException(byte* bytes, int byteCount, char* chars)
+        {
+            throw GetValidationFailedException(bytes, byteCount, chars);
+        }
+
+        internal static void ThrowValidationFailedException(char[] chars, int charIndex, int charCount, byte[] bytes, int byteIndex, int byteCount)
+        {
+            throw GetValidationFailedException(chars, charIndex, charCount, bytes, byteIndex, byteCount);
+        }
+
+        internal static unsafe void ThrowValidationFailedException(byte* bytes, int count)
+        {
+            throw GetValidationFailedException(bytes, count);
+        }
+
+        private static ArgumentException GetArgumentException_ThrowBytesOverflow(Encoding encoding)
+        {
+            throw new ArgumentException(
+                Environment.GetResourceString("Argument_EncodingConversionOverflowBytes",
+                encoding.EncodingName, encoding.EncoderFallback.GetType()), "bytes");
+        }
+
+        private static Exception GetValidationFailedException(Encoding encoding)
+        {
+            if (encoding is ASCIIEncoding)
+                return ThrowHelper.GetArgumentNullException(ExceptionArgument.chars);
+            else 
+                return ThrowHelper.GetArgumentNullException(ExceptionArgument.s);
+        }
+
+        private static unsafe Exception GetValidationFailedException(char* chars, int count)
+        {
+            if (chars == null)
+                return ThrowHelper.GetArgumentNullException(ExceptionArgument.chars, ExceptionResource.ArgumentNull_Array);
+            Debug.Assert(count < 0);
+            return ThrowHelper.GetArgumentOutOfRangeException(ExceptionArgument.count, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
+        }
+
+        private static Exception GetValidationFailedException(char[] chars, int index, int count)
+        {
+            if (chars == null)
+                return ThrowHelper.GetArgumentNullException(ExceptionArgument.chars, ExceptionResource.ArgumentNull_Array);
+            if (index < 0)
+                return ThrowHelper.GetArgumentOutOfRangeException(ExceptionArgument.index, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
+            if (count < 0)
+                return ThrowHelper.GetArgumentOutOfRangeException(ExceptionArgument.count, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
+            Debug.Assert(chars.Length - index < count);
+            return ThrowHelper.GetArgumentOutOfRangeException(ExceptionArgument.chars, ExceptionResource.ArgumentOutOfRange_IndexCountBuffer);
+        }
+
+        private static Exception GetValidationFailedException(char[] chars, int charIndex, int charCount, byte[] bytes)
+        {
+            if (chars == null)
+                return ThrowHelper.GetArgumentNullException(ExceptionArgument.chars, ExceptionResource.ArgumentNull_Array);
+            if (bytes == null)
+                return ThrowHelper.GetArgumentNullException(ExceptionArgument.bytes, ExceptionResource.ArgumentNull_Array);
+            if (charIndex < 0)
+                return ThrowHelper.GetArgumentOutOfRangeException(ExceptionArgument.charIndex, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
+            if (charCount < 0)
+                return ThrowHelper.GetArgumentOutOfRangeException(ExceptionArgument.charCount, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
+            if (chars.Length - charIndex < charCount)
+                return ThrowHelper.GetArgumentOutOfRangeException(ExceptionArgument.chars, ExceptionResource.ArgumentOutOfRange_IndexCountBuffer);
+            //if (byteIndex < 0 || byteIndex > bytes.Length)
+            return ThrowHelper.GetArgumentOutOfRangeException(ExceptionArgument.byteIndex, ExceptionResource.ArgumentOutOfRange_Index);
+        }
+
+        private static Exception GetValidationFailedException(byte[] bytes, int byteIndex, int byteCount, char[] chars)
+        {
+            if (bytes == null)
+                return ThrowHelper.GetArgumentNullException(ExceptionArgument.bytes, ExceptionResource.ArgumentNull_Array);
+            if (chars == null)
+                return ThrowHelper.GetArgumentNullException(ExceptionArgument.chars, ExceptionResource.ArgumentNull_Array);
+            if (byteIndex < 0)
+                return ThrowHelper.GetArgumentOutOfRangeException(ExceptionArgument.byteIndex, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
+            if (byteCount < 0)
+                return ThrowHelper.GetArgumentOutOfRangeException(ExceptionArgument.byteCount, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
+            if (bytes.Length - byteIndex < byteCount)
+                return ThrowHelper.GetArgumentOutOfRangeException(ExceptionArgument.bytes, ExceptionResource.ArgumentOutOfRange_IndexCountBuffer);
+            // if (charIndex < 0 || charIndex > chars.Length);
+            return ThrowHelper.GetArgumentOutOfRangeException(ExceptionArgument.charIndex, ExceptionResource.ArgumentOutOfRange_Index);
+        }
+
+        private static Exception GetValidationFailedException(string s, int index, int count)
+        {
+            if (s == null)
+                return ThrowHelper.GetArgumentNullException(ExceptionArgument.s, ExceptionResource.ArgumentNull_String);
+            if (index < 0)
+                return ThrowHelper.GetArgumentOutOfRangeException(ExceptionArgument.index, ExceptionResource.ArgumentOutOfRange_Index);
+            if (count < 0)
+                return ThrowHelper.GetArgumentOutOfRangeException(ExceptionArgument.count, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
+            Debug.Assert(index > s.Length - count);
+            return ThrowHelper.GetArgumentOutOfRangeException(ExceptionArgument.index, ExceptionResource.ArgumentOutOfRange_IndexCountBuffer);
+        }
+        
+        private static unsafe Exception GetValidationFailedException(char* chars, int charCount, byte* bytes)
+        {
+            if (bytes == null)
+                return ThrowHelper.GetArgumentNullException(ExceptionArgument.bytes, ExceptionResource.ArgumentNull_Array);
+            if (chars == null)
+                return ThrowHelper.GetArgumentNullException(ExceptionArgument.chars, ExceptionResource.ArgumentNull_Array);
+            if (charCount < 0)
+                return ThrowHelper.GetArgumentOutOfRangeException(ExceptionArgument.charCount, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
+            // (byteCount < 0)
+            return ThrowHelper.GetArgumentOutOfRangeException(ExceptionArgument.byteCount, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
+        }
+
+        private static Exception GetValidationFailedException(Encoding encoding, string s, int charIndex, int charCount, byte[] bytes)
+        {
+            if (s == null)
+                return ThrowHelper.GetArgumentNullException(encoding is ASCIIEncoding ? ExceptionArgument.chars : ExceptionArgument.s, ExceptionResource.ArgumentNull_String);
+            if (bytes == null)
+                return ThrowHelper.GetArgumentNullException(ExceptionArgument.bytes, ExceptionResource.ArgumentNull_Array);
+            if (charIndex < 0)
+                return ThrowHelper.GetArgumentOutOfRangeException(ExceptionArgument.charIndex, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
+            if (charCount < 0)
+                return ThrowHelper.GetArgumentOutOfRangeException(ExceptionArgument.charCount, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
+            if (s.Length - charIndex < charCount)
+                return ThrowHelper.GetArgumentOutOfRangeException(encoding is ASCIIEncoding ? ExceptionArgument.chars : ExceptionArgument.s, ExceptionResource.ArgumentOutOfRange_IndexCountBuffer);
+            // (byteIndex < 0 || byteIndex > bytes.Length)
+            return ThrowHelper.GetArgumentOutOfRangeException(ExceptionArgument.byteIndex, ExceptionResource.ArgumentOutOfRange_Index);
+        }
+
+        private static Exception GetValidationFailedException(byte[] bytes, int index, int count)
+        {
+            if (bytes == null)
+                return ThrowHelper.GetArgumentNullException(ExceptionArgument.bytes, ExceptionResource.ArgumentNull_Array);
+            if (index < 0)
+                return ThrowHelper.GetArgumentOutOfRangeException(ExceptionArgument.index, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
+            if (count < 0)
+                return ThrowHelper.GetArgumentOutOfRangeException(ExceptionArgument.count, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
+            Debug.Assert(bytes.Length - index < count);
+            return ThrowHelper.GetArgumentOutOfRangeException(ExceptionArgument.bytes, ExceptionResource.ArgumentOutOfRange_IndexCountBuffer);
+        }
+
+        private static Exception GetValidationFailedException(Encoding encoding, byte[] bytes, int index, int count)
+        {
+            if (bytes == null)
+                return ThrowHelper.GetArgumentNullException(ExceptionArgument.bytes, ExceptionResource.ArgumentNull_Array);
+            if (index < 0)
+                return ThrowHelper.GetArgumentOutOfRangeException(encoding is ASCIIEncoding ? ExceptionArgument.byteIndex : ExceptionArgument.index, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
+            if (count < 0)
+                return ThrowHelper.GetArgumentOutOfRangeException(encoding is ASCIIEncoding ? ExceptionArgument.byteCount : ExceptionArgument.count, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
+            Debug.Assert(bytes.Length - index < count);
+            return ThrowHelper.GetArgumentOutOfRangeException(ExceptionArgument.bytes, ExceptionResource.ArgumentOutOfRange_IndexCountBuffer);
+        }
+
+        private static unsafe Exception GetValidationFailedException(byte* bytes)
+        {
+            if (bytes == null)
+                return ThrowHelper.GetArgumentNullException(ExceptionArgument.bytes, ExceptionResource.ArgumentNull_Array);
+            // if (count < 0)
+            return ThrowHelper.GetArgumentOutOfRangeException(ExceptionArgument.count, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
+        }
+
+        private static unsafe Exception GetValidationFailedException(byte* bytes, int byteCount, char* chars)
+        {
+            if (bytes == null)
+                return ThrowHelper.GetArgumentNullException(ExceptionArgument.bytes, ExceptionResource.ArgumentNull_Array);
+            if (chars == null)
+                return ThrowHelper.GetArgumentNullException(ExceptionArgument.chars, ExceptionResource.ArgumentNull_Array);
+            if (byteCount < 0)
+                return ThrowHelper.GetArgumentOutOfRangeException(ExceptionArgument.byteCount, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
+            // if (charCount < 0)
+            return ThrowHelper.GetArgumentOutOfRangeException(ExceptionArgument.charCount, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
+        }
+
+        private static Exception GetValidationFailedException(char[] chars, int charIndex, int charCount, byte[] bytes, int byteIndex, int byteCount)
+        {
+            if (chars == null)
+                return ThrowHelper.GetArgumentNullException(ExceptionArgument.chars, ExceptionResource.ArgumentNull_Array);
+            if (bytes == null)
+                return ThrowHelper.GetArgumentNullException(ExceptionArgument.bytes, ExceptionResource.ArgumentNull_Array);
+            if (charIndex < 0)
+                return ThrowHelper.GetArgumentOutOfRangeException(ExceptionArgument.charIndex,
+                    ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
+            if (charCount < 0)
+                return ThrowHelper.GetArgumentOutOfRangeException(ExceptionArgument.charCount,
+                    ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
+            if (byteIndex < 0)
+                return ThrowHelper.GetArgumentOutOfRangeException(ExceptionArgument.byteIndex,
+                    ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
+            if (byteCount < 0)
+                return ThrowHelper.GetArgumentOutOfRangeException(ExceptionArgument.byteCount,
+                    ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
+            if (chars.Length - charIndex < charCount)
+                return ThrowHelper.GetArgumentOutOfRangeException(ExceptionArgument.chars,
+                    ExceptionResource.ArgumentOutOfRange_IndexCountBuffer);
+            Debug.Assert(bytes.Length - byteIndex < byteCount);
+            return ThrowHelper.GetArgumentOutOfRangeException(ExceptionArgument.bytes,
+                ExceptionResource.ArgumentOutOfRange_IndexCountBuffer);
+        }
+
+        private static unsafe Exception GetValidationFailedException(byte* bytes, int count)
+        {
+            if (bytes == null)
+                return ThrowHelper.GetArgumentNullException(ExceptionArgument.bytes, ExceptionResource.ArgumentNull_Array);
+            Debug.Assert(count < 0);
+            return ThrowHelper.GetArgumentOutOfRangeException(ExceptionArgument.count, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
         }
     }
 }

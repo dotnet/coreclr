@@ -4,11 +4,9 @@
 
 namespace System.Text
 {
-    using System.Runtime.Serialization;
-    using System.Security.Permissions;
-    using System.Text;
     using System;
     using System.Diagnostics.Contracts;
+    using System.Runtime.Serialization;
     // A Decoder is used to decode a sequence of blocks of bytes into a
     // sequence of blocks of characters. Following instantiation of a decoder,
     // sequential blocks of bytes are converted into blocks of characters through
@@ -67,11 +65,10 @@ namespace System.Text
 
         public override void Reset()
         {
-            if (m_fallbackBuffer != null)
-                m_fallbackBuffer.Reset();
+            m_fallbackBuffer?.Reset();
         }
 
-        public override unsafe int GetCharCount(byte[] bytes, int index, int count)
+        public override int GetCharCount(byte[] bytes, int index, int count)
         {
             return GetCharCount(bytes, index, count, false);
         }
@@ -79,18 +76,11 @@ namespace System.Text
         public override unsafe int GetCharCount(byte[] bytes, int index, int count, bool flush)
         {
             // Validate Parameters
-            if (bytes == null)
-                throw new ArgumentNullException(nameof(bytes),
-                    Environment.GetResourceString("ArgumentNull_Array"));
-
-            if (index < 0 || count < 0)
-                throw new ArgumentOutOfRangeException((index<0 ? nameof(index) : nameof(count)),
-                    Environment.GetResourceString("ArgumentOutOfRange_NeedNonNegNum"));
-
-            if (bytes.Length - index < count)
-                throw new ArgumentOutOfRangeException(nameof(bytes),
-                    Environment.GetResourceString("ArgumentOutOfRange_IndexCountBuffer"));
-
+            if (bytes == null || index < 0 || count < 0 ||
+                (bytes.Length - index < count))
+            {
+                EncodingForwarder.ThrowValidationFailedException(bytes, index, count);
+            }
             Contract.EndContractBlock();
 
             // Avoid null fixed problem
@@ -105,13 +95,10 @@ namespace System.Text
         public unsafe override int GetCharCount(byte* bytes, int count, bool flush)
         {
             // Validate parameters
-            if (bytes == null)
-                throw new ArgumentNullException(nameof(bytes),
-                      Environment.GetResourceString("ArgumentNull_Array"));
-
-            if (count < 0)
-                throw new ArgumentOutOfRangeException(nameof(count),
-                      Environment.GetResourceString("ArgumentOutOfRange_NeedNonNegNum"));
+            if (bytes == null || count < 0)
+            {
+                EncodingForwarder.ThrowValidationFailedException(bytes);
+            }
             Contract.EndContractBlock();
 
             // Remember the flush
@@ -122,7 +109,7 @@ namespace System.Text
             return m_encoding.GetCharCount(bytes, count, this);
         }
 
-        public override unsafe int GetChars(byte[] bytes, int byteIndex, int byteCount,
+        public override int GetChars(byte[] bytes, int byteIndex, int byteCount,
                                              char[] chars, int charIndex)
         {
             return GetChars(bytes, byteIndex, byteCount, chars, charIndex, false);
@@ -132,22 +119,12 @@ namespace System.Text
                                              char[] chars, int charIndex, bool flush)
         {
             // Validate Parameters
-            if (bytes == null || chars == null)
-                throw new ArgumentNullException(bytes == null ? nameof(bytes) : nameof(chars),
-                    Environment.GetResourceString("ArgumentNull_Array"));
-
-            if (byteIndex < 0 || byteCount < 0)
-                throw new ArgumentOutOfRangeException((byteIndex<0 ? nameof(byteIndex) : nameof(byteCount)),
-                    Environment.GetResourceString("ArgumentOutOfRange_NeedNonNegNum"));
-
-            if ( bytes.Length - byteIndex < byteCount)
-                throw new ArgumentOutOfRangeException(nameof(bytes),
-                    Environment.GetResourceString("ArgumentOutOfRange_IndexCountBuffer"));
-
-            if (charIndex < 0 || charIndex > chars.Length)
-                throw new ArgumentOutOfRangeException(nameof(charIndex),
-                    Environment.GetResourceString("ArgumentOutOfRange_Index"));
-
+            if (bytes == null || chars == null || byteIndex < 0 || byteCount < 0 ||
+                (bytes.Length - byteIndex < byteCount) ||
+                (charIndex < 0 || charIndex > chars.Length))
+            {
+                EncodingForwarder.ThrowValidationFailedException(bytes, byteIndex, byteCount, chars);
+            }
             Contract.EndContractBlock();
 
             // Avoid empty input fixed problem
@@ -170,13 +147,10 @@ namespace System.Text
                                               char* chars, int charCount, bool flush)
         {
             // Validate parameters
-            if (chars == null || bytes == null)
-                throw new ArgumentNullException((chars == null ? nameof(chars) : nameof(bytes)),
-                      Environment.GetResourceString("ArgumentNull_Array"));
-
-            if (byteCount < 0 || charCount < 0)
-                throw new ArgumentOutOfRangeException((byteCount<0 ? nameof(byteCount) : nameof(charCount)),
-                      Environment.GetResourceString("ArgumentOutOfRange_NeedNonNegNum"));
+            if (chars == null || bytes == null || byteCount < 0 || charCount < 0)
+            {
+                EncodingForwarder.ThrowValidationFailedException(bytes, byteCount, chars);
+            }
             Contract.EndContractBlock();
 
             // Remember our flush
@@ -194,26 +168,13 @@ namespace System.Text
                                               out int bytesUsed, out int charsUsed, out bool completed)
         {
             // Validate parameters
-            if (bytes == null || chars == null)
-                throw new ArgumentNullException((bytes == null ? nameof(bytes) : nameof(chars)),
-                      Environment.GetResourceString("ArgumentNull_Array"));
-
-            if (byteIndex < 0 || byteCount < 0)
-                throw new ArgumentOutOfRangeException((byteIndex<0 ? nameof(byteIndex) : nameof(byteCount)),
-                      Environment.GetResourceString("ArgumentOutOfRange_NeedNonNegNum"));
-
-            if (charIndex < 0 || charCount < 0)
-                throw new ArgumentOutOfRangeException((charIndex<0 ? nameof(charIndex) : nameof(charCount)),
-                      Environment.GetResourceString("ArgumentOutOfRange_NeedNonNegNum"));
-
-            if (bytes.Length - byteIndex < byteCount)
-                throw new ArgumentOutOfRangeException(nameof(bytes),
-                      Environment.GetResourceString("ArgumentOutOfRange_IndexCountBuffer"));
-
-            if (chars.Length - charIndex < charCount)
-                throw new ArgumentOutOfRangeException(nameof(chars),
-                      Environment.GetResourceString("ArgumentOutOfRange_IndexCountBuffer"));
-
+            if (bytes == null || chars == null || 
+                byteIndex < 0 || byteCount < 0 || charIndex < 0 || charCount < 0 ||
+                (bytes.Length - byteIndex < byteCount) ||
+                (chars.Length - charIndex < charCount))
+            {
+                EncodingForwarder.ThrowValidationFailedException(chars, charIndex, charCount, bytes, byteIndex, byteCount);
+            }
             Contract.EndContractBlock();
 
             // Avoid empty input problem
@@ -240,13 +201,10 @@ namespace System.Text
                                               out int bytesUsed, out int charsUsed, out bool completed)
         {
             // Validate input parameters
-            if (chars == null || bytes == null)
-                throw new ArgumentNullException(chars == null ? nameof(chars) : nameof(bytes),
-                    Environment.GetResourceString("ArgumentNull_Array"));
-
-            if (byteCount < 0 || charCount < 0)
-                throw new ArgumentOutOfRangeException((byteCount<0 ? nameof(byteCount) : nameof(charCount)),
-                    Environment.GetResourceString("ArgumentOutOfRange_NeedNonNegNum"));
+            if (bytes == null || chars == null || charCount < 0 || byteCount < 0)
+            {
+                EncodingForwarder.ThrowValidationFailedException(chars, charCount, bytes);
+            }
             Contract.EndContractBlock();
 
             // We don't want to throw
@@ -265,22 +223,10 @@ namespace System.Text
             // Our data thingys are now full, we can return
         }
 
-        public bool MustFlush
-        {
-            get
-            {
-                return m_mustFlush;
-            }
-        }
+        public bool MustFlush => m_mustFlush;
 
         // Anything left in our decoder?
-        internal virtual bool HasState
-        {
-            get
-            {
-                return false;
-            }
-        }
+        internal virtual bool HasState => false;
 
         // Allow encoding to clear our must flush instead of throwing (in ThrowCharsOverflow)
         internal void ClearMustFlush()

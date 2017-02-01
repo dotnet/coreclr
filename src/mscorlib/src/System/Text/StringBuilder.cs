@@ -10,19 +10,15 @@
 ** class.
 **
 ===========================================================*/
-namespace System.Text {
-    using System.Text;
-    using System.Runtime;
-    using System.Runtime.Serialization;
+namespace System.Text
+{
     using System;
-    using System.Runtime.CompilerServices;
-    using System.Runtime.Versioning;
-    using System.Security;
-    using System.Threading;
-    using System.Globalization;
-    using System.Diagnostics;
-    using System.Diagnostics.Contracts;
     using System.Collections.Generic;
+    using System.Diagnostics.Contracts;
+    using System.Globalization;
+    using System.Runtime.CompilerServices;
+    using System.Runtime.InteropServices;
+    using System.Runtime.Serialization;
 
     // This class represents a mutable string.  It is convenient for situations in
     // which it is desirable to modify a string, perhaps by removing, replacing, or 
@@ -41,7 +37,7 @@ namespace System.Text {
     // Console.WriteLine(sb1);
     // Console.WriteLine(sb2);
     // 
-    [System.Runtime.InteropServices.ComVisible(true)]
+    [ComVisible(true)]
     [Serializable]
     public sealed class StringBuilder : ISerializable
     {
@@ -715,20 +711,20 @@ namespace System.Text {
             }
         }
 
-        [System.Runtime.InteropServices.ComVisible(false)]
+        [ComVisible(false)]
         public StringBuilder AppendLine() {
             Contract.Ensures(Contract.Result<StringBuilder>() != null);
             return Append(Environment.NewLine);
         }
 
-        [System.Runtime.InteropServices.ComVisible(false)]
+        [ComVisible(false)]
         public StringBuilder AppendLine(string value) {
             Contract.Ensures(Contract.Result<StringBuilder>() != null);
             Append(value);
             return Append(Environment.NewLine);
         }
 
-        [System.Runtime.InteropServices.ComVisible(false)]
+        [ComVisible(false)]
         public void CopyTo(int sourceIndex, char[] destination, int destinationIndex, int count) {
             if (destination == null) {
                 throw new ArgumentNullException(nameof(destination));

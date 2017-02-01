@@ -5,15 +5,13 @@
 namespace System.Text
 {
     using System;
-    using System.Runtime;
-    using System.Diagnostics;
     using System.Diagnostics.Contracts;
 
     [Serializable]
     public sealed class EncoderReplacementFallback : EncoderFallback
     {
         // Our variables
-        private String strDefault;
+        private readonly String strDefault;
 
         // Construction.  Default replacement fallback uses no best fit and ? replacement string
         public EncoderReplacementFallback() : this("?")
@@ -66,13 +64,7 @@ namespace System.Text
             strDefault = replacement;
         }
 
-        public String DefaultString
-        {
-             get
-             {
-                return strDefault;
-             }
-        }
+        public String DefaultString => strDefault;
 
         public override EncoderFallbackBuffer CreateFallbackBuffer()
         {
@@ -80,13 +72,7 @@ namespace System.Text
         }
 
         // Maximum number of characters that this instance of this fallback could return
-        public override int MaxCharCount
-        {
-            get
-            {
-                return strDefault.Length;
-            }
-        }
+        public override int MaxCharCount => strDefault.Length;
 
         public override bool Equals(Object value)
         {

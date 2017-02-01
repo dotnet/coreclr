@@ -31,7 +31,6 @@
 **            cache and return the resulting string
 **
 ===========================================================*/
-using System.Threading;
 
 namespace System.Text
 {

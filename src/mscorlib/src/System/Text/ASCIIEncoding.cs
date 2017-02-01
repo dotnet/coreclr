@@ -5,10 +5,8 @@
 namespace System.Text
 {
     using System;
-    using System.Runtime.Serialization;
-    using System.Security.Permissions;
-    using System.Diagnostics;
     using System.Diagnostics.Contracts;
+    using System.Runtime.InteropServices;
 
     // ASCIIEncoding
     //
@@ -22,12 +20,14 @@ namespace System.Text
     //
 
     [Serializable]
-[System.Runtime.InteropServices.ComVisible(true)]
+    [ComVisible(true)]
     public class ASCIIEncoding : Encoding
     {
+        // Allow for devirtualization (see https://github.com/dotnet/coreclr/issues/1166#issuecomment-276251559)
+        internal sealed class ASCIIEncodingSealed : ASCIIEncoding { }
         // Used by Encoding.ASCII for lazy initialization
         // The initialization code will not be run until a static member of the class is referenced
-        internal static readonly ASCIIEncoding s_default = new ASCIIEncoding();
+        internal static readonly ASCIIEncodingSealed s_default = new ASCIIEncodingSealed();
 
         public ASCIIEncoding() : base(Encoding.CodePageASCII)
         {
@@ -72,18 +72,164 @@ namespace System.Text
         }
 
         [CLSCompliant(false)]
-        [System.Runtime.InteropServices.ComVisible(false)]
+        [ComVisible(false)]
         public override unsafe int GetByteCount(char* chars, int count)
         {
             return EncodingForwarder.GetByteCount(this, chars, count);
         }
 
-        public override int GetBytes(String chars, int charIndex, int charCount,
+        public override unsafe int GetBytes(String chars, int charIndex, int charCount,
                                               byte[] bytes, int byteIndex)
         {
-            return EncodingForwarder.GetBytes(this, chars, charIndex, charCount, bytes, byteIndex);
+            // Validate input parameters
+            if (chars == null || bytes == null || charIndex < 0 || charCount < 0 ||
+                (chars.Length - charIndex < charCount) ||
+                (byteIndex < 0 || byteIndex > bytes.Length))
+            {
+                EncodingForwarder.ThrowValidationFailedException(this, chars, charIndex, charCount, bytes);
+            }
+            Contract.EndContractBlock();
+
+            // Note that byteCount is the # of bytes to decode, not the size of the array
+            int byteCount = bytes.Length - byteIndex;
+            int bytesWritten;
+            if (charCount > 0) 
+            {
+                if (byteCount == 0)
+                {
+                    // Definitely not enough space, early bail
+                    EncodingForwarder.ThrowBytesOverflow(this);
+                }
+                fixed (char* pInput = chars)
+                fixed (byte* pOutput = &bytes[0]) 
+                {
+                    char* input = pInput + charIndex;
+                    byte* output = pOutput + byteIndex;
+                    int charactersConsumed;
+                    if (!TryEncode(input, charCount, output, byteCount, out charactersConsumed, out bytesWritten)) 
+                    {
+                        // Not all ASCII, GetBytesFallback for remaining conversion
+                        bytesWritten += GetBytesFallback(input + charactersConsumed, charCount - charactersConsumed, output + bytesWritten, byteCount - bytesWritten, null);
+                    }
+                }
+            } 
+            else 
+            {
+                // Nothing to encode
+                bytesWritten = 0;
+            }
+
+            return bytesWritten;
         }
 
+        public override unsafe byte[] GetBytes(String s)
+        {
+            if (s == null)
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.s, ExceptionResource.ArgumentNull_String);
+            Contract.EndContractBlock();
+
+            int charCount = s.Length;
+
+            byte[] bytes;
+            if (charCount > 0)
+            {
+                fixed (char* input = s)
+                    bytes = GetBytesValidated(input, charCount);
+            }
+            else
+            {
+                bytes = Array.Empty<byte>();
+            }
+
+            return bytes;
+        }
+
+        public override byte[] GetBytes(char[] chars)
+        {
+            if (chars == null)
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.chars, ExceptionResource.ArgumentNull_Array);
+            Contract.EndContractBlock();
+            
+            return GetBytesValidated(chars, 0, chars.Length);
+        }
+
+        public override byte[] GetBytes(char[] chars, int index, int count)
+        {
+            // Validate input parameters
+            if (chars == null || index < 0 || count < 0 ||
+                (chars.Length - index < count))
+            {
+                EncodingForwarder.ThrowValidationFailedException(chars, index, count);
+            }
+            Contract.EndContractBlock();
+            
+            return GetBytesValidated(chars, index, count);
+        }
+
+        private unsafe byte[] GetBytesValidated(char[] chars, int index, int count)
+        {
+            byte[] bytes;
+            if (count > 0)
+            {
+                fixed (char* input = chars)
+                {
+                    bytes = GetBytesValidated(input + index, count);
+                }
+            }
+            else
+            {
+                bytes = Array.Empty<byte>();
+            }
+
+            return bytes;
+        }
+
+        private unsafe byte[] GetBytesValidated(char* input, int charCount)
+        {
+            int remaining = 0;
+            // Assume string is all ASCII and size array for that
+            byte[] bytes = new byte[charCount];
+
+            int bytesWritten;
+            fixed (byte* output = &bytes[0]) 
+            {
+                int charactersConsumed;
+                if (!TryEncode(input, charCount, output, charCount, out charactersConsumed, out bytesWritten)) 
+                {
+                    // Not all ASCII, get the byte count for the remaining encoded conversion
+                    remaining = GetByteCount(input + charactersConsumed, charCount - charactersConsumed, null);
+                }
+            }
+
+            if (remaining > 0) 
+            {
+                // Not all ASCII, fallback to slower path for remaining encoding
+                var encoded = ResizeGetRemainingBytes(input, charCount, ref bytes, bytesWritten, remaining);
+                Debug.Assert(encoded == remaining);
+            }
+
+            return bytes;
+        }
+
+        private unsafe int ResizeGetRemainingBytes(char* chars, int charCount, ref byte[] bytes, int alreadyEncoded, int remaining)
+        {
+            if (bytes.Length - remaining != alreadyEncoded) {
+                // Resize the array to the correct size
+                byte[] oldArray = bytes;
+                bytes = new byte[alreadyEncoded + remaining];
+                // Copy already encoded bytes
+                Array.Copy(oldArray, 0, bytes, 0, alreadyEncoded);
+            }
+            int encoded;
+            fixed (byte* output = &bytes[0]) 
+            {
+                // Use GetBytesFallback for remaining conversion
+                encoded = GetBytesFallback(chars + alreadyEncoded, charCount - alreadyEncoded, output + alreadyEncoded, remaining, null);
+            }
+
+            return encoded;
+        }
+        
         // Encodes a range of characters in a character array into a range of bytes
         // in a byte array. An exception occurs if the byte array is not large
         // enough to hold the complete encoding of the characters. The
@@ -92,18 +238,279 @@ namespace System.Text
         // Alternatively, the GetMaxByteCount method can be used to
         // determine the maximum number of bytes that will be produced for a given
         // number of characters, regardless of the actual character values.
-
-        public override int GetBytes(char[] chars, int charIndex, int charCount,
+        public override unsafe int GetBytes(char[] chars, int charIndex, int charCount, 
                                                byte[] bytes, int byteIndex)
         {
-            return EncodingForwarder.GetBytes(this, chars, charIndex, charCount, bytes, byteIndex);
+            // Validate input parameters
+            if (chars == null || bytes == null || charIndex < 0 || charCount < 0 ||
+                (chars.Length - charIndex < charCount) ||
+                (byteIndex < 0 || byteIndex > bytes.Length))
+            {
+                EncodingForwarder.ThrowValidationFailedException(chars, charIndex, charCount, bytes);
+            }
+            Contract.EndContractBlock();
+
+            // Note that byteCount is the # of bytes to decode, not the size of the array
+            int byteCount = bytes.Length - byteIndex;
+            int bytesWritten;
+            if (charCount > 0) 
+            {
+                if (byteCount == 0)
+                {
+                    // Definitely not enough space, early bail
+                    EncodingForwarder.ThrowBytesOverflow(this);
+                }
+
+                fixed (char* pInput = &chars[0])
+                fixed (byte* pOutput = &bytes[0]) 
+                {
+                    char* input = pInput + charIndex;
+                    byte* output = pOutput + byteIndex;
+                    int charactersConsumed;
+                    if (!TryEncode(input, charCount, output, byteCount, out charactersConsumed, out bytesWritten)) 
+                    {
+                        // Not all ASCII, GetBytesFallback for remaining conversion
+                        bytesWritten += GetBytesFallback(input + charactersConsumed, charCount - charactersConsumed, output + bytesWritten, byteCount - bytesWritten, null);
+                    }
+                }
+            } 
+            else 
+            {
+                // Nothing to encode
+                bytesWritten = 0;
+            }
+
+            return bytesWritten;
         }
 
         [CLSCompliant(false)]
-        [System.Runtime.InteropServices.ComVisible(false)]
+        [ComVisible(false)]
         public override unsafe int GetBytes(char* chars, int charCount, byte* bytes, int byteCount)
         {
-            return EncodingForwarder.GetBytes(this, chars, charCount, bytes, byteCount);
+            if ((bytes == null || chars == null) ||
+                (charCount < 0 || byteCount < 0))
+            {
+                EncodingForwarder.ThrowValidationFailedException(chars, charCount, bytes);
+            }
+            Contract.EndContractBlock();
+
+            int bytesWritten;
+            if (charCount > 0)
+            {
+                if (byteCount == 0)
+                {
+                    // Definitely not enough space, early bail
+                    EncodingForwarder.ThrowBytesOverflow(this);
+                }
+                int charactersConsumed;
+                if (!TryEncode(chars, charCount, bytes, byteCount, out charactersConsumed, out bytesWritten))
+                {
+                    // Not all ASCII, GetBytesFallback for remaining conversion
+                    bytesWritten += GetBytesFallback(chars + charactersConsumed, charCount - charactersConsumed, bytes + bytesWritten, byteCount - bytesWritten, null);
+                }
+            }
+            else
+            {
+                // Nothing to encode
+                bytesWritten = 0;
+            }
+
+            return bytesWritten;
+        }
+
+        internal override unsafe int GetBytes(char* chars, int charCount, byte* bytes, int byteCount, EncoderNLS encoder)
+        {
+            // Just need to Assert, this is called by internal EncoderNLS and parameters should already be checked
+            Debug.Assert(this != null);
+            Debug.Assert(bytes != null);
+            Debug.Assert(chars != null);
+            Debug.Assert(charCount >= 0);
+            Debug.Assert(byteCount >= 0);
+
+            int bytesWritten;
+            int charactersConsumed = 0;
+            if (((encoder?.InternalHasFallbackBuffer ?? false) && 
+                 (encoder.FallbackBuffer.Remaining > 0)) ||
+                (charCount > byteCount))
+            {
+                // Data already in Fallback buffer, so straight to GetBytesFallback
+                bytesWritten = GetBytesFallback(chars, charCount, bytes, byteCount, encoder);
+            } 
+            else if (charCount > 0)
+            {
+                if (byteCount == 0)
+                {
+                    // Definitely not enough space, early bail
+                    EncodingForwarder.ThrowBytesOverflow(this);
+                }
+                if (!TryEncode(chars, charCount, bytes, byteCount, out charactersConsumed, out bytesWritten))
+                {
+                    // Not all ASCII, use GetBytesFallback for remaining conversion
+                    bytesWritten += GetBytesFallback(chars + charactersConsumed, charCount - charactersConsumed, bytes + bytesWritten, byteCount - bytesWritten, encoder);
+                }
+            }
+            else
+            {
+                // Nothing to encode
+                bytesWritten = 0;
+            }
+
+            if (encoder != null)
+            {
+                encoder.m_charsUsed += charactersConsumed;
+            }
+            
+            return bytesWritten;
+        }
+
+        private unsafe static bool TryEncode(char* chars, int charCount, byte* bytes, int byteCount, out int charactersConsumed, out int bytesWritten)
+        {
+            const int Shift16Shift24 = (1 << 16) | (1 << 24);
+            const int Shift8Identity = (1 << 8) | (1);
+
+            int charsToEncode = Math.Min(charCount, byteCount);
+
+            // Encode as bytes upto the first non-ASCII byte and return count encoded
+            int i = 0;
+#if BIT64 && !BIGENDIAN
+            if (charsToEncode < 4) goto trailing;
+
+            int unaligned = (int)(((ulong)chars) & 0x7) >> 1;
+            // Unaligned chars
+            for (; i < unaligned; i++)
+            {
+                char ch = *(chars + i);
+                if (ch > 0x7F)
+                {
+                    goto exit; // Found non-ASCII, bail
+                }
+                else
+                {
+                    *(bytes + i) = (byte)ch; // Cast convert
+                }
+            }
+
+            // Aligned
+            int ulongDoubleCount = (charsToEncode - i) & ~0x7;
+            for (; i < ulongDoubleCount; i += 8)
+            {
+                ulong inputUlong0 = *(ulong*)(chars + i);
+                ulong inputUlong1 = *(ulong*)(chars + i + 4);
+                if (((inputUlong0 | inputUlong1) & 0xFF80FF80FF80FF80) != 0)
+                {
+                    goto exit; // Found non-ASCII, bail
+                }
+                // Pack 16 ASCII chars into 16 bytes
+                *(uint*)(bytes + i) =
+                    ((uint)((inputUlong0 * Shift16Shift24) >> 24) & 0xffff) |
+                    ((uint)((inputUlong0 * Shift8Identity) >> 24) & 0xffff0000);
+                *(uint*)(bytes + i + 4) =
+                    ((uint)((inputUlong1 * Shift16Shift24) >> 24) & 0xffff) |
+                    ((uint)((inputUlong1 * Shift8Identity) >> 24) & 0xffff0000);
+            }
+            if (charsToEncode - 4 > i)
+            {
+                ulong inputUlong = *(ulong*)(chars + i);
+                if ((inputUlong & 0xFF80FF80FF80FF80) != 0)
+                {
+                    goto exit; // Found non-ASCII, bail
+                }
+                // Pack 8 ASCII chars into 8 bytes
+                *(uint*)(bytes + i) =
+                    ((uint)((inputUlong * Shift16Shift24) >> 24) & 0xffff) |
+                    ((uint)((inputUlong * Shift8Identity) >> 24) & 0xffff0000);
+                i += 4;
+            }
+
+        trailing:
+            for (; i < charsToEncode; i++)
+            {
+                char ch = *(chars + i);
+                if (ch > 0x7F)
+                {
+                    goto exit; // Found non-ASCII, bail
+                }
+                else
+                {
+                    *(bytes + i) = (byte)ch; // Cast convert
+                }
+            }
+#else
+            // Unaligned chars
+            if ((unchecked((int)chars) & 0x2) != 0) 
+            {
+                char ch = *chars;
+                if (ch > 0x7F) 
+                {
+                    goto exit; // Found non-ASCII, bail
+                } 
+                else 
+                {
+                    i = 1;
+                    *(bytes) = (byte)ch; // Cast convert
+                }
+            }
+
+            // Aligned
+            int uintCount = (charsToEncode - i) & ~0x3;
+            for (; i < uintCount; i += 4) 
+            {
+                uint inputUint0 = *(uint*)(chars + i);
+                uint inputUint1 = *(uint*)(chars + i + 2);
+                if (((inputUint0 | inputUint1) & 0xFF80FF80) != 0) 
+                {
+                    goto exit; // Found non-ASCII, bail
+                }
+                // Pack 4 ASCII chars into 4 bytes
+#if BIGENDIAN
+                *(bytes + i) = (byte)(inputUint0 >> 16);
+                *(bytes + i + 1) = (byte)inputUint0;
+                *(bytes + i + 2) = (byte)(inputUint1 >> 16);
+                *(bytes + i + 3) = (byte)inputUint1;
+#else // BIGENDIAN
+                *(ushort*)(bytes + i) = (ushort)(inputUint0 | (inputUint0 >> 8));
+                *(ushort*)(bytes + i + 2) = (ushort)(inputUint1 | (inputUint1 >> 8));
+#endif // BIGENDIAN
+            }
+            if (charsToEncode - 1 > i) 
+            {
+                uint inputUint = *(uint*)(chars + i);
+                if ((inputUint & 0xFF80FF80) != 0) 
+                {
+                    goto exit; // Found non-ASCII, bail
+                }
+#if BIGENDIAN
+                *(bytes + i) = (byte)(inputUint0 >> 16);
+                *(bytes + i + 1) = (byte)inputUint0;
+#else // BIGENDIAN
+                // Pack 2 ASCII chars into 2 bytes
+                *(ushort*)(bytes + i) = (ushort)(inputUint | (inputUint >> 8));
+#endif // BIGENDIAN
+                i += 2;
+            }
+
+            if (i < charsToEncode) 
+            {
+                char ch = *(chars + i);
+                if (ch > 0x7F) 
+                {
+                    goto exit; // Found non-ASCII, bail
+                }
+                else 
+                {
+#if BIGENDIAN
+                    *(bytes + i) = (byte)(ch >> 16);
+#else // BIGENDIAN
+                    *(bytes + i) = (byte)ch; // Cast convert
+#endif // BIGENDIAN
+                    i = charsToEncode;
+                }
+            }
+#endif // BIT64
+        exit:
+            bytesWritten = i;
+            charactersConsumed = i;
+            return charCount == charactersConsumed;
         }
 
         // Returns the number of characters produced by decoding a range of bytes
@@ -115,7 +522,7 @@ namespace System.Text
         }
 
         [CLSCompliant(false)]
-        [System.Runtime.InteropServices.ComVisible(false)]
+        [ComVisible(false)]
         public override unsafe int GetCharCount(byte* bytes, int count)
         {
             return EncodingForwarder.GetCharCount(this, bytes, count);
@@ -128,7 +535,7 @@ namespace System.Text
         }
 
         [CLSCompliant(false)]
-        [System.Runtime.InteropServices.ComVisible(false)]
+        [ComVisible(false)]
         public unsafe override int GetChars(byte* bytes, int byteCount, char* chars, int charCount)
         {
             return EncodingForwarder.GetChars(this, bytes, byteCount, chars, charCount);
@@ -281,7 +688,7 @@ namespace System.Text
             return byteCount;
         }
 
-        internal override unsafe int GetBytes(char* chars, int charCount,
+        private unsafe int GetBytesFallback(char* chars, int charCount,
                                                 byte* bytes, int byteCount, EncoderNLS encoder)
         {
             // Just need to ASSERT, this is called by something else internal that checked parameters already
@@ -697,12 +1104,10 @@ namespace System.Text
             return (int)(chars - charStart);
         }
 
-
         public override int GetMaxByteCount(int charCount)
         {
             if (charCount < 0)
-               throw new ArgumentOutOfRangeException(nameof(charCount),
-                    Environment.GetResourceString("ArgumentOutOfRange_NeedNonNegNum"));
+                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.charCount, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
             Contract.EndContractBlock();
 
             // Characters would be # of characters + 1 in case high surrogate is ? * max fallback
@@ -714,16 +1119,15 @@ namespace System.Text
             // 1 to 1 for most characters.  Only surrogates with fallbacks have less.
 
             if (byteCount > 0x7fffffff)
-                throw new ArgumentOutOfRangeException(nameof(charCount), Environment.GetResourceString("ArgumentOutOfRange_GetByteCountOverflow"));
+                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.charCount, ExceptionResource.ArgumentOutOfRange_GetByteCountOverflow);
+
             return (int)byteCount;
         }
-
 
         public override int GetMaxCharCount(int byteCount)
         {
             if (byteCount < 0)
-               throw new ArgumentOutOfRangeException(nameof(byteCount),
-                    Environment.GetResourceString("ArgumentOutOfRange_NeedNonNegNum"));
+                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.byteCount, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
             Contract.EndContractBlock();
 
             // Just return length, SBCS stay the same length because they don't map to surrogate
@@ -734,30 +1138,24 @@ namespace System.Text
                 charCount *= DecoderFallback.MaxCharCount;
 
             if (charCount > 0x7fffffff)
-                throw new ArgumentOutOfRangeException(nameof(byteCount), Environment.GetResourceString("ArgumentOutOfRange_GetCharCountOverflow"));
+                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.byteCount, ExceptionResource.ArgumentOutOfRange_GetCharCountOverflow);
 
             return (int)charCount;
         }
 
         // True if and only if the encoding only uses single byte code points.  (Ie, ASCII, 1252, etc)
 
-        [System.Runtime.InteropServices.ComVisible(false)]
-        public override bool IsSingleByte
-        {
-            get
-            {
-                return true;
-            }
-        }
+        [ComVisible(false)]
+        public override bool IsSingleByte => true;
 
-        [System.Runtime.InteropServices.ComVisible(false)]
+        [ComVisible(false)]
         public override Decoder GetDecoder()
         {
             return new DecoderNLS(this);
         }
 
 
-        [System.Runtime.InteropServices.ComVisible(false)]
+        [ComVisible(false)]
         public override Encoder GetEncoder()
         {
             return new EncoderNLS(this);

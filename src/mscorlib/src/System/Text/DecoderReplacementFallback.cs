@@ -5,14 +5,13 @@
 namespace System.Text
 {
     using System;
-    using System.Diagnostics;
     using System.Diagnostics.Contracts;
 
     [Serializable]
     public sealed class DecoderReplacementFallback : DecoderFallback
     {
         // Our variables
-        private String strDefault;
+        private readonly String strDefault;
 
         // Construction.  Default replacement fallback uses no best fit and ? replacement string
         public DecoderReplacementFallback() : this("?")
@@ -64,13 +63,7 @@ namespace System.Text
             strDefault = replacement;
         }
 
-        public String DefaultString
-        {
-             get
-             {
-                return strDefault;
-             }
-        }
+        public String DefaultString => strDefault;
 
         public override DecoderFallbackBuffer CreateFallbackBuffer()
         {
@@ -78,13 +71,7 @@ namespace System.Text
         }
 
         // Maximum number of characters that this instance of this fallback could return
-        public override int MaxCharCount
-        {
-            get
-            {
-                return strDefault.Length;
-            }
-        }
+        public override int MaxCharCount => strDefault.Length;
 
         public override bool Equals(Object value)
         {
@@ -107,7 +94,7 @@ namespace System.Text
     public sealed class DecoderReplacementFallbackBuffer : DecoderFallbackBuffer
     {
         // Store our default string
-        private String strDefault;
+        private readonly String strDefault;
         int fallbackCount = -1;
         int fallbackIndex = -1;
 
@@ -178,14 +165,7 @@ namespace System.Text
         }
 
         // How many characters left to output?
-        public override int Remaining
-        {
-            get
-            {
-                // Our count is 0 for 1 character left.
-                return (fallbackCount < 0) ? 0 : fallbackCount;
-            }
-        }
+        public override int Remaining => (fallbackCount < 0) ? 0 : fallbackCount;
 
         // Clear the buffer
         public override unsafe void Reset()

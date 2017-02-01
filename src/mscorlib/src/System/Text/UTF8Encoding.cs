@@ -18,11 +18,10 @@
 namespace System.Text
 {
     using System;
-    using System.Globalization;
-    using System.Runtime.Serialization;
-    using System.Security.Permissions;
-    using System.Diagnostics;
     using System.Diagnostics.Contracts;
+    using System.Globalization;
+    using System.Runtime.InteropServices;
+    using System.Runtime.Serialization;
 
     // Encodes text into and out of UTF-8.  UTF-8 is a way of writing
     // Unicode characters with variable numbers of bytes per character,
@@ -37,7 +36,7 @@ namespace System.Text
     // switch the byte orderings.
 
     [Serializable]
-[System.Runtime.InteropServices.ComVisible(true)]
+    [ComVisible(true)]
     public class UTF8Encoding : Encoding
     {
         /*
@@ -54,10 +53,15 @@ namespace System.Text
         */
 
         private const int UTF8_CODEPAGE=65001;
-        
+
+        // Allow for devirtualization (see https://github.com/dotnet/coreclr/issues/1166#issuecomment-276251559)
+        internal sealed class UTF8EncodingSealed : UTF8Encoding
+        {
+            public UTF8EncodingSealed() : base(encoderShouldEmitUTF8Identifier: true) {}
+        }
         // Used by Encoding.UTF8 for lazy initialization
         // The initialization code will not be run until a static member of the class is referenced
-        internal static readonly UTF8Encoding s_default = new UTF8Encoding(encoderShouldEmitUTF8Identifier: true);
+        internal static readonly UTF8EncodingSealed s_default = new UTF8EncodingSealed();
 
         // Yes, the idea of emitting U+FEFF as a UTF-8 identifier has made it into
         // the standard.
@@ -131,7 +135,7 @@ namespace System.Text
         }
 
         [CLSCompliant(false)]
-        [System.Runtime.InteropServices.ComVisible(false)]
+        [ComVisible(false)]
         public override unsafe int GetByteCount(char* chars, int count)
         {
             return EncodingForwarder.GetByteCount(this, chars, count);
@@ -159,7 +163,7 @@ namespace System.Text
         }
 
         [CLSCompliant(false)]
-        [System.Runtime.InteropServices.ComVisible(false)]
+        [ComVisible(false)]
         public override unsafe int GetBytes(char* chars, int charCount, byte* bytes, int byteCount)
         {
             return EncodingForwarder.GetBytes(this, chars, charCount, bytes, byteCount);
@@ -174,7 +178,7 @@ namespace System.Text
         }
 
         [CLSCompliant(false)]
-        [System.Runtime.InteropServices.ComVisible(false)]
+        [ComVisible(false)]
         public override unsafe int GetCharCount(byte* bytes, int count)
         {
             return EncodingForwarder.GetCharCount(this, bytes, count);
@@ -187,7 +191,7 @@ namespace System.Text
         }
 
         [CLSCompliant(false)]
-        [System.Runtime.InteropServices.ComVisible(false)]
+        [ComVisible(false)]
         public unsafe override int GetChars(byte* bytes, int byteCount, char* chars, int charCount)
         {
             return EncodingForwarder.GetChars(this, bytes, byteCount, chars, charCount);
@@ -196,7 +200,7 @@ namespace System.Text
         // Returns a string containing the decoded representation of a range of
         // bytes in a byte array.
 
-        [System.Runtime.InteropServices.ComVisible(false)]
+        [ComVisible(false)]
         public override String GetString(byte[] bytes, int index, int count)
         {
             return EncodingForwarder.GetString(this, bytes, index, count);

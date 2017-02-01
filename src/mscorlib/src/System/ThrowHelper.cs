@@ -77,6 +77,11 @@ namespace System {
                                                     ExceptionResource.ArgumentOutOfRange_Index);
         }
 
+        internal static void ThrowCountArgumentOutOfRange_NeedNonNegNumException() {
+            throw GetArgumentOutOfRangeException(ExceptionArgument.count,
+                                                    ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
+        }
+
         internal static void ThrowIndexArgumentOutOfRange_NeedNonNegNumException() {
             throw GetArgumentOutOfRangeException(ExceptionArgument.index, 
                                                     ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
@@ -205,6 +210,18 @@ namespace System {
             throw GetInvalidOperationException(ExceptionResource.InvalidOperation_EnumFailedVersion);
         }
 
+        internal static ArgumentNullException GetArgumentNullException(ExceptionArgument argument) {
+            return new ArgumentNullException(GetArgumentName(argument));
+        }
+
+        internal static ArgumentNullException GetArgumentNullException(ExceptionArgument argument, ExceptionResource resource) {
+            throw new ArgumentNullException(GetArgumentName(argument), GetResourceString(resource));
+        }
+
+        internal static void ThrowArgumentNullException(ExceptionArgument argument, ExceptionResource resource) {
+            throw GetArgumentNullException(argument, resource);
+        }
+
         internal static void ThrowInvalidOperationException_InvalidOperation_EnumOpCantHappen() {
             throw GetInvalidOperationException(ExceptionResource.InvalidOperation_EnumOpCantHappen);
         }
@@ -225,7 +242,7 @@ namespace System {
             return new ArgumentException(Environment.GetResourceString("Arg_WrongType", value, targetType), nameof(value));
         }
 
-        private static ArgumentOutOfRangeException GetArgumentOutOfRangeException(ExceptionArgument argument, ExceptionResource resource) {
+        internal static ArgumentOutOfRangeException GetArgumentOutOfRangeException(ExceptionArgument argument, ExceptionResource resource) {
             return new ArgumentOutOfRangeException(GetArgumentName(argument), GetResourceString(resource));
         }
 
@@ -361,6 +378,13 @@ namespace System {
         updateValueFactory,
         concurrencyLevel,
         text,
+        s,
+        chars,
+        bytes,
+        byteIndex,
+        charIndex,
+        byteCount,
+        charCount,
 
     }
 
@@ -466,7 +490,13 @@ namespace System {
         ConcurrentDictionary_ArrayNotLargeEnough,
         ConcurrentDictionary_ArrayIncorrectType,
         ConcurrentCollection_SyncRoot_NotSupported,
-
+        ArgumentNull_Array,
+        ArgumentOutOfRange_IndexCountBuffer,
+        ArgumentNull_String,
+        ArgumentOutOfRange_GetByteCountOverflow,
+        ArgumentOutOfRange_GetCharCountOverflow,
+        Argument_ConversionOverflow,
+        Argument_FallbackBufferNotEmpty,
     }
 }
 

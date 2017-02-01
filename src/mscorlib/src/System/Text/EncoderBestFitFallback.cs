@@ -9,9 +9,7 @@ namespace System.Text
 {
     using System;
     using System.Globalization;
-    using System.Text;
     using System.Threading;
-    using System.Diagnostics;
     using System.Diagnostics.Contracts;
 
     [Serializable]
@@ -34,13 +32,7 @@ namespace System.Text
         }
 
         // Maximum number of characters that this instance of this fallback could return
-        public override int MaxCharCount
-        {
-            get
-            {
-                return 1;
-            }
-        }
+        public override int MaxCharCount => 1;
 
         public override bool Equals(Object value)
         {
@@ -62,9 +54,9 @@ namespace System.Text
     {
         // Our variables
         private char                    cBestFit = '\0';
-        private InternalEncoderBestFitFallback  oFallback;
         private int                     iCount = -1;
         private int                     iSize;
+        private readonly InternalEncoderBestFitFallback  oFallback;
 
         // Private object for locking instead of locking on a public type for SQL reliability work.
         private static Object s_InternalSyncObject;
@@ -175,13 +167,7 @@ namespace System.Text
 
 
         // How many characters left to output?
-        public override int Remaining
-        {
-            get
-            {
-                return (iCount > 0) ? iCount : 0;
-            }
-        }
+        public override int Remaining => (iCount > 0) ? iCount : 0;
 
         // Clear the buffer
         public override unsafe void Reset()

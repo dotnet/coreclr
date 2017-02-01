@@ -22,13 +22,7 @@ namespace System.Text
         }
 
         // Maximum number of characters that this instance of this fallback could return
-        public override int MaxCharCount
-        {
-            get
-            {
-                return 0;
-            }
-        }
+        public override int MaxCharCount => 0;
 
         public override bool Equals(Object value)
         {
@@ -67,13 +61,7 @@ namespace System.Text
         }
 
         // Exceptions are always empty
-        public override int Remaining
-        {
-            get
-            {
-                return 0;
-            }
-        }
+        public override int Remaining => 0;
 
         private void Throw(byte[] bytesUnknown, int index)
         {
@@ -104,8 +92,8 @@ namespace System.Text
     [Serializable]
     public sealed class DecoderFallbackException : ArgumentException
     {
-        byte[]    bytesUnknown = null;
-        int       index = 0;
+        readonly byte[]    bytesUnknown = null;
+        readonly int       index = 0;
 
         public DecoderFallbackException()
             : base(Environment.GetResourceString("Arg_ArgumentException"))
@@ -136,20 +124,8 @@ namespace System.Text
             this.index = index;
         }
 
-        public byte[] BytesUnknown
-        {
-            get
-            {
-                return (bytesUnknown);
-            }
-        }
+        public byte[] BytesUnknown => (bytesUnknown);
 
-        public int Index
-        {
-            get
-            {
-                return this.index;
-            }
-        }
+        public int Index => this.index;
     }
 }

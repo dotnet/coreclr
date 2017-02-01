@@ -5,15 +5,13 @@
 namespace System.Text
 {
     using System;
-    using System.Text;
-
 
     [Serializable]
     public sealed class EncodingInfo
     {
-        int     iCodePage;          // Code Page #
-        String  strEncodingName;    // Short name (web name)
-        String  strDisplayName;     // Full localized name
+        readonly int    iCodePage;          // Code Page #
+        readonly String strEncodingName;    // Short name (web name)
+        readonly String strDisplayName;     // Full localized name
 
         internal EncodingInfo(int codePage, string name, string displayName)
         {
@@ -22,32 +20,11 @@ namespace System.Text
             this.strDisplayName = displayName;
         }
 
+        public int CodePage => iCodePage;
 
-        public int CodePage
-        {
-            get
-            {
-                return iCodePage;
-            }
-        }
+        public String Name => strEncodingName;
 
-
-        public String Name
-        {
-            get
-            {
-                return strEncodingName;
-            }
-        }
-
-
-        public String DisplayName
-        {
-            get
-            {
-                return strDisplayName;
-            }
-        }
+        public String DisplayName => strDisplayName;
 
 
         public Encoding GetEncoding()
