@@ -89,7 +89,7 @@ struct REGDISPLAY : public REGDISPLAY_BASE {
 
 #define NONVOLATILE_REG_METHODS(reg) \
     inline PDWORD Get##reg##Location(void) { return (pCurrentContextPointers) ? pCurrentContextPointers->reg : &pCurrentContext->reg; } \
-    inline void   Set##reg##Location(PDWORD p##reg) { if (pCurrentContextPointers) { pCurrentContextPointers->reg = p##reg; } pCurrentContext->reg = *p##reg; }
+    inline void   Set##reg##Location(PDWORD p##reg) { pCurrentContextPointers->reg = p##reg; }
 
 #endif // WIN64EXCEPTIONS
 

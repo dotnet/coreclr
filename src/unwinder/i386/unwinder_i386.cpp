@@ -75,12 +75,14 @@ OOPStackUnwinderX86::VirtualUnwind(
 
     REGDISPLAY rd;
 
-    rd.pCurrentContext = ContextRecord;
-    rd.pCurrentContextPointers = ContextPointers;
+    FillRegDisplay(&rd, ContextRecord);
 
-    rd.SP = ContextRecord->Esp;
-    rd.ControlPC = (PCODE)(ContextRecord->Eip);
     rd.PCTAddr = (UINT_PTR)&(ContextRecord->Eip);
+
+    if (ContextPointers)
+    {
+        rd.pCurrentContextPointers = ContextPointers;
+    }
 
     CodeManState codeManState;
     codeManState.dwIsSet = 0;
@@ -94,6 +96,10 @@ OOPStackUnwinderX86::VirtualUnwind(
     }
 
     ContextRecord->ContextFlags |= CONTEXT_UNWOUND_TO_CALL;
+
+#define CALLEE_SAVED_REGISTER(reg) if (rd.pCurrentContextPointers->reg) ContextRecord->reg = *rd.pCurrentContextPointers->reg;
+    ENUM_CALLEE_SAVED_REGISTERS();
+#undef CALLEE_SAVED_REGISTER
 
     ContextRecord->Esp = rd.SP;
     ContextRecord->Eip = rd.ControlPC;
