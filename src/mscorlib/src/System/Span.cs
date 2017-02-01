@@ -217,7 +217,8 @@ namespace System
         // TODO: https://github.com/dotnet/corefx/issues/13681
         //   Until we get over the hurdle of C# 7 tooling, this temporary method will simulate the intended "ref T" indexer for those
         //   who need bypass the workaround for performance.
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        //[MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(MethodImplOptions.NoOptimization)] // TODO-SPAN: Workaround for https://github.com/dotnet/coreclr/issues/7894 
         public ref T GetItem(int index)
         {
             if ((uint)index >= ((uint)_length))
