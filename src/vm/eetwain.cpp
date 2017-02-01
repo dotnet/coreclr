@@ -3207,13 +3207,18 @@ const RegMask CALLEE_SAVED_REGISTERS_MASK[] =
     RM_EBP  // last register to be pushed
 };
 
-const REGDISPLAY::TAG CALLEE_SAVED_REGISTERS_TAG[] =
+static void SetLocation(PREGDISPLAY pRD, int ind, PDWORD loc)
 {
-    REGDISPLAY::TAG_EDI, // first register to be pushed
-    REGDISPLAY::TAG_ESI,
-    REGDISPLAY::TAG_EBX,
-    REGDISPLAY::TAG_EBP  // last register to be pushed
-};
+    static const REGDISPLAY::TAG CALLEE_SAVED_REGISTERS_TAG[] =
+    {
+        REGDISPLAY::TAG_EDI, // first register to be pushed
+        REGDISPLAY::TAG_ESI,
+        REGDISPLAY::TAG_EBX,
+        REGDISPLAY::TAG_EBP  // last register to be pushed
+    };
+
+    pRD->SetLocation(CALLEE_SAVED_REGISTERS_TAG[ind], loc);
+}
 
 /*****************************************************************************/
 
@@ -3279,7 +3284,7 @@ void UnwindEspFrameEpilog(
                Get the value from the stack if needed */
             if ((flags & UpdateAllRegs) || (regMask == RM_EBP))
             {
-                pContext->SetLocation(CALLEE_SAVED_REGISTERS_TAG[i - 1], PTR_DWORD((TADDR)ESP));
+                SetLocation(pContext, i - 1, PTR_DWORD((TADDR)ESP));
             }
 
             /* Adjust ESP */
@@ -3402,7 +3407,7 @@ void UnwindEbpDoubleAlignFrameEpilog(
         {
             if (flags & UpdateAllRegs)
             {
-                pContext->SetLocation(CALLEE_SAVED_REGISTERS_TAG[i - 1], PTR_DWORD((TADDR)ESP));
+                SetLocation(pContext, i - 1, PTR_DWORD((TADDR)ESP));
             }
             ESP += sizeof(void*);
         }
@@ -3629,7 +3634,7 @@ void UnwindEspFrame(
             if ((regMask & regsMask) == 0)
                 continue;
             
-            pContext->SetLocation(CALLEE_SAVED_REGISTERS_TAG[i - 1], PTR_DWORD((TADDR)ESP));
+            SetLocation(pContext, i - 1, PTR_DWORD((TADDR)ESP));
 
             ESP += sizeof(unsigned);
         }
@@ -3740,7 +3745,7 @@ void UnwindEbpDoubleAlignFrameProlog(
             
             if (InstructionAlreadyExecuted(offset, curOffs))
             {
-                pContext->SetLocation(CALLEE_SAVED_REGISTERS_TAG[i], PTR_DWORD(--pSavedRegs));
+                SetLocation(pContext, i, PTR_DWORD(--pSavedRegs));
             }
 
             // "push reg"
@@ -3868,7 +3873,7 @@ bool UnwindEbpDoubleAlignFrame(
             if ((info->savedRegMask & regMask) == 0)
                 continue;
             
-            pContext->SetLocation(CALLEE_SAVED_REGISTERS_TAG[i], --pSavedRegs);
+            SetLocation(pContext, i, --pSavedRegs);
         }
     }
 
