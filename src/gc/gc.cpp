@@ -7042,6 +7042,7 @@ int gc_heap::grow_brick_card_tables (uint8_t* start,
     uint8_t* ha = g_gc_highest_address;
     uint8_t* saved_g_lowest_address = min (start, g_gc_lowest_address);
     uint8_t* saved_g_highest_address = max (end, g_gc_highest_address);
+    seg_mapping* new_seg_mapping_table;
 #ifdef BACKGROUND_GC
     // This value is only for logging purpose - it's not necessarily exactly what we 
     // would commit for mark array but close enough for diagnostics purpose.
@@ -7202,14 +7203,18 @@ int gc_heap::grow_brick_card_tables (uint8_t* start,
 
 #ifdef GROWABLE_SEG_MAPPING_TABLE
         {
-            seg_mapping* new_seg_mapping_table = (seg_mapping*)(mem + st_table_offset_aligned);
+            new_seg_mapping_table = (seg_mapping*)(mem + st_table_offset_aligned);
             new_seg_mapping_table = (seg_mapping*)((uint8_t*)new_seg_mapping_table -
                                               size_seg_mapping_table_of (0, (align_lower_segment (saved_g_lowest_address))));
             memcpy(&new_seg_mapping_table[seg_mapping_word_of(g_gc_lowest_address)],
                 &seg_mapping_table[seg_mapping_word_of(g_gc_lowest_address)],
                 size_seg_mapping_table_of(g_gc_lowest_address, g_gc_highest_address));
 
-            seg_mapping_table = new_seg_mapping_table;
+            // new_seg_mapping_table gets assigned to seg_mapping_table at the bottom of this function,
+            // not here. The reason for this is that, if we fail at mark array committing (OOM) and we've
+            // already switched seg_mapping_table to point to the new mapping table, we'll decommit it and
+            // run into trouble. By not assigning here, we're making sure that we will not change seg_mapping_table
+            // if an OOM occurs.
         }
 #endif //GROWABLE_SEG_MAPPING_TABLE
 
@@ -7303,6 +7308,7 @@ int gc_heap::grow_brick_card_tables (uint8_t* start,
 
         g_gc_lowest_address = saved_g_lowest_address;
         g_gc_highest_address = saved_g_highest_address;
+        seg_mapping_table = new_seg_mapping_table;
 
         if (!write_barrier_updated)
         {
