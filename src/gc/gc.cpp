@@ -7042,7 +7042,7 @@ int gc_heap::grow_brick_card_tables (uint8_t* start,
     uint8_t* ha = g_gc_highest_address;
     uint8_t* saved_g_lowest_address = min (start, g_gc_lowest_address);
     uint8_t* saved_g_highest_address = max (end, g_gc_highest_address);
-    seg_mapping* new_seg_mapping_table;
+    seg_mapping* new_seg_mapping_table = nullptr;
 #ifdef BACKGROUND_GC
     // This value is only for logging purpose - it's not necessarily exactly what we 
     // would commit for mark array but close enough for diagnostics purpose.
@@ -7228,7 +7228,7 @@ int gc_heap::grow_brick_card_tables (uint8_t* start,
         translated_ct = translate_card_table (ct);
 
         dprintf (GC_TABLE_LOG, ("card table: %Ix(translated: %Ix), seg map: %Ix, mark array: %Ix", 
-            (size_t)ct, (size_t)translated_ct, (size_t)seg_mapping_table, (size_t)card_table_mark_array (ct)));
+            (size_t)ct, (size_t)translated_ct, (size_t)new_seg_mapping_table, (size_t)card_table_mark_array (ct)));
 
 #ifdef BACKGROUND_GC
         if (hp->should_commit_mark_array())
