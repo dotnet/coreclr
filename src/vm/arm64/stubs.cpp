@@ -810,19 +810,9 @@ void UpdateRegDisplayFromCalleeSavedRegisters(REGDISPLAY * pRD, CalleeSavedRegis
 
 void TransitionFrame::UpdateRegDisplay(const PREGDISPLAY pRD) 
 { 
-    
     pRD->IsCallerContextValid = FALSE;
     pRD->IsCallerSPValid      = FALSE;        // Don't add usage of this field.  This is only temporary.
     
-    // copy the argumetn registers
-    ArgumentRegisters *pArgRegs = GetArgumentRegisters();
-    for (int i = 0; i < ARGUMENTREGISTERS_SIZE; i++)
-#ifdef __clang__
-        *(&pRD->pCurrentContext->X0 + i) = pArgRegs->x[i];
-#else
-        pRD->pCurrentContext->X[i] = pArgRegs->x[i];
-#endif
-
     // copy the callee saved regs
     CalleeSavedRegisters *pCalleeSaved = GetCalleeSavedRegisters();
     UpdateRegDisplayFromCalleeSavedRegisters(pRD, pCalleeSaved);
