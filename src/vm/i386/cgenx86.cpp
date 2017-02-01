@@ -305,6 +305,9 @@ void TransitionFrame::UpdateRegDisplayHelper(const PREGDISPLAY pRD, UINT cbStack
     pRD->IsCallerContextValid = FALSE;
     pRD->IsCallerSPValid      = FALSE;
 
+    pRD->pCurrentContext->Eip = *PTR_PCODE(pRD->PCTAddr);;
+    pRD->pCurrentContext->Esp = GetSP();
+
     T_CONTEXT * pContext = pRD->pCurrentContext;
 #define CALLEE_SAVED_REGISTER(regname) pContext->regname = regs->regname;
     ENUM_CALLEE_SAVED_REGISTERS();
@@ -314,9 +317,6 @@ void TransitionFrame::UpdateRegDisplayHelper(const PREGDISPLAY pRD, UINT cbStack
 #define CALLEE_SAVED_REGISTER(regname) pContextPointers->regname = (DWORD*)&regs->regname;
     ENUM_CALLEE_SAVED_REGISTERS();
 #undef CALLEE_SAVED_REGISTER
-
-    pRD->pCurrentContext->Eip = *PTR_PCODE(pRD->PCTAddr);;
-    pRD->pCurrentContext->Esp = GetSP();
 
     SyncRegDisplayToCurrentContext(pRD);
 
