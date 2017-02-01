@@ -7306,9 +7306,9 @@ int gc_heap::grow_brick_card_tables (uint8_t* start,
             g_gc_card_table = translated_ct;
         }
 
+        seg_mapping_table = new_seg_mapping_table;
         g_gc_lowest_address = saved_g_lowest_address;
         g_gc_highest_address = saved_g_highest_address;
-        seg_mapping_table = new_seg_mapping_table;
 
         if (!write_barrier_updated)
         {
