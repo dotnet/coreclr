@@ -3209,15 +3209,29 @@ const RegMask CALLEE_SAVED_REGISTERS_MASK[] =
 
 static void SetLocation(PREGDISPLAY pRD, int ind, PDWORD loc)
 {
-    static const REGDISPLAY::TAG CALLEE_SAVED_REGISTERS_TAG[] =
+#ifdef WIN64EXCEPTIONS
+    static const SIZE_T OFFSET_OF_CALLEE_SAVED_REGISTERS[] =
     {
-        REGDISPLAY::TAG_EDI, // first register to be pushed
-        REGDISPLAY::TAG_ESI,
-        REGDISPLAY::TAG_EBX,
-        REGDISPLAY::TAG_EBP  // last register to be pushed
+        offsetof(T_KNONVOLATILE_CONTEXT_POINTERS, Edi), // first register to be pushed
+        offsetof(T_KNONVOLATILE_CONTEXT_POINTERS, Esi),
+        offsetof(T_KNONVOLATILE_CONTEXT_POINTERS, Ebx),
+        offsetof(T_KNONVOLATILE_CONTEXT_POINTERS, Ebp), // last register to be pushed
     };
 
-    pRD->SetLocation(CALLEE_SAVED_REGISTERS_TAG[ind], loc);
+    SIZE_T offsetOfRegPtr = OFFSET_OF_CALLEE_SAVED_REGISTERS[ind];
+    *(LPVOID*)(PBYTE(pRD->pCurrentContextPointers) + offsetOfRegPtr) = loc;
+#else
+    static const SIZE_T OFFSET_OF_CALLEE_SAVED_REGISTERS[] =
+    {
+        offsetof(REGDISPLAY, pEdi), // first register to be pushed
+        offsetof(REGDISPLAY, pEsi),
+        offsetof(REGDISPLAY, pEbx),
+        offsetof(REGDISPLAY, pEbp), // last register to be pushed
+    };
+
+    SIZE_T offsetOfRegPtr = OFFSET_OF_CALLEE_SAVED_REGISTERS[ind];
+    *(LPVOID*)(PBYTE(pRD) + offsetOfRegPtr) = loc;
+#endif
 }
 
 /*****************************************************************************/

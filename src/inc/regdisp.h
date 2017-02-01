@@ -106,36 +106,6 @@ struct REGDISPLAY : public REGDISPLAY_BASE {
 #undef NONVOLATILE_REG_METHODS
 
     TADDR   PCTAddr;
-
-    enum TAG
-    {
-      TAG_EBX,
-      TAG_ESI,
-      TAG_EDI,
-      TAG_EBP
-    };
-
-    inline void SetLocation(TAG tag, PDWORD pReg)
-    {
-        switch (tag)
-        {
-        case TAG_EBX:
-            SetEbxLocation(pReg);
-            break;
-        case TAG_ESI:
-            SetEsiLocation(pReg);
-            break;
-        case TAG_EDI:
-            SetEdiLocation(pReg);
-            break;
-        case TAG_EBP:
-            SetEbpLocation(pReg);
-            break;
-        default:
-            _ASSERTE(!"Invalid register");
-            break;
-        }
-    }
 };
 
 inline TADDR GetRegdisplaySP(REGDISPLAY *display) {
