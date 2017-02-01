@@ -1796,10 +1796,16 @@ typedef struct _CONTEXT {
 typedef struct _KNONVOLATILE_CONTEXT_POINTERS {
 
     // TODO WIP x86/Linux, need to fix this.
+    // Callee-saved registers
     PDWORD Ebx;
     PDWORD Esi;
     PDWORD Edi;
     PDWORD Ebp;
+
+    // Caller-saved registers
+    PDWORD Eax;
+    PDWORD Ecx;
+    PDWORD Edx;
 
 } KNONVOLATILE_CONTEXT_POINTERS, *PKNONVOLATILE_CONTEXT_POINTERS;
 

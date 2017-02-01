@@ -60,6 +60,30 @@ extern "C" DWORD STDCALL GetSpecificCpuFeaturesAsm(DWORD *pInfo);
 
 void generate_noref_copy (unsigned nbytes, StubLinkerCPU* sl);
 
+void UpdateRegDisplayFromCalleeSavedRegisters(REGDISPLAY * pRD, CalleeSavedRegisters * regs)
+{
+    LIMITED_METHOD_CONTRACT;
+
+    T_CONTEXT * pContext = pRD->pCurrentContext;
+#define CALLEE_SAVED_REGISTER(regname) pContext->regname = regs->regname;
+    ENUM_CALLEE_SAVED_REGISTERS();
+#undef CALLEE_SAVED_REGISTER
+
+    KNONVOLATILE_CONTEXT_POINTERS * pContextPointers = pRD->pCurrentContextPointers;
+#define CALLEE_SAVED_REGISTER(regname) pContextPointers->regname = (DWORD*)&regs->regname;
+    ENUM_CALLEE_SAVED_REGISTERS();
+#undef CALLEE_SAVED_REGISTER
+}
+
+void ClearRegDisplayArgumentAndScratchRegisters(REGDISPLAY * pRD)
+{
+    LIMITED_METHOD_CONTRACT;
+
+#define CALLER_SAVED_REGISTER(regname) pRD->pCurrentContextPointers->regname = NULL;
+    ENUM_CALLER_SAVED_REGISTERS();
+#undef CALLER_SAVED_REGISTER
+}
+
 #ifndef DACCESS_COMPILE
 
 //=============================================================================
@@ -294,10 +318,6 @@ void TransitionFrame::UpdateRegDisplayHelper(const PREGDISPLAY pRD, UINT cbStack
 
     CalleeSavedRegisters* regs = GetCalleeSavedRegisters();
 
-    // reset pContext; it's only valid for active (top-most) frame
-
-    pRD->pContext = NULL;
-
     pRD->PCTAddr = GetReturnAddressPtr();
 
 #ifdef WIN64EXCEPTIONS
@@ -308,19 +328,15 @@ void TransitionFrame::UpdateRegDisplayHelper(const PREGDISPLAY pRD, UINT cbStack
     pRD->pCurrentContext->Eip = *PTR_PCODE(pRD->PCTAddr);;
     pRD->pCurrentContext->Esp = GetSP();
 
-    T_CONTEXT * pContext = pRD->pCurrentContext;
-#define CALLEE_SAVED_REGISTER(regname) pContext->regname = regs->regname;
-    ENUM_CALLEE_SAVED_REGISTERS();
-#undef CALLEE_SAVED_REGISTER
-
-    KNONVOLATILE_CONTEXT_POINTERS * pContextPointers = pRD->pCurrentContextPointers;
-#define CALLEE_SAVED_REGISTER(regname) pContextPointers->regname = (DWORD*)&regs->regname;
-    ENUM_CALLEE_SAVED_REGISTERS();
-#undef CALLEE_SAVED_REGISTER
+    UpdateRegDisplayFromCalleeSavedRegisters(pRD, regs);
+    ClearRegDisplayArgumentAndScratchRegisters(pRD);
 
     SyncRegDisplayToCurrentContext(pRD);
 
 #else // WIN64EXCEPTIONS
+
+    // reset pContext; it's only valid for active (top-most) frame
+    pRD->pContext = NULL;
 
 #define CALLEE_SAVED_REGISTER(regname) pRD->p##regname = (DWORD*) &regs->regname;
     ENUM_CALLEE_SAVED_REGISTERS();
@@ -351,6 +367,38 @@ void HelperMethodFrame::UpdateRegDisplay(const PREGDISPLAY pRD)
 
     LOG((LF_GCROOTS, LL_INFO100000, "STACKWALK    HelperMethodFrame::UpdateRegDisplay cached ip:%p, sp:%p\n", m_MachState.GetRetAddr(), m_MachState.esp()));
 
+    pRD->PCTAddr = dac_cast<TADDR>(m_MachState.pRetAddr());
+
+#ifdef WIN64EXCEPTIONS
+
+    pRD->IsCallerContextValid = FALSE;
+    pRD->IsCallerSPValid      = FALSE;        // Don't add usage of this field.  This is only temporary.
+
+#ifdef DACCESS_COMPILE
+    PORTABILITY_ASSERT("HelperMethodFrame::UpdateRegDisplay");
+#endif // DACCESS_COMPILE
+
+    pRD->pCurrentContext->Eip = pRD->ControlPC = m_MachState.GetRetAddr();
+    pRD->pCurrentContext->Esp = pRD->SP = (DWORD) m_MachState.esp();
+
+#define CALLEE_SAVED_REGISTER(regname) pRD->pCurrentContext->regname = *((DWORD*) m_MachState.p##regname());
+    ENUM_CALLEE_SAVED_REGISTERS();
+#undef CALLEE_SAVED_REGISTER
+
+#define CALLEE_SAVED_REGISTER(regname) pRD->pCurrentContextPointers->regname = (DWORD*) m_MachState.p##regname();
+    ENUM_CALLEE_SAVED_REGISTERS();
+#undef CALLEE_SAVED_REGISTER
+
+    //
+    // Clear all knowledge of scratch registers.  We're skipping to any
+    // arbitrary point on the stack, and frames aren't required to preserve or
+    // keep track of these anyways.
+    //
+
+    ClearRegDisplayArgumentAndScratchRegisters(pRD);
+
+#else // WIN64EXCEPTIONS
+
     // reset pContext; it's only valid for active (top-most) frame
     pRD->pContext = NULL;
 
@@ -380,30 +428,23 @@ void HelperMethodFrame::UpdateRegDisplay(const PREGDISPLAY pRD)
             DacAllocHostOnlyInstance(sizeof(*thisState), true);
 
         thisState->_edi = unwindState._edi;
-        pRD->SetEdiLocation((DWORD *)&thisState->_edi);
+        pRD->pEdi = (DWORD *)&thisState->_edi;
         thisState->_esi = unwindState._esi;
-        pRD->SetEsiLocation((DWORD *)&thisState->_esi);
+        pRD->pEsi = (DWORD *)&thisState->_esi;
         thisState->_ebx = unwindState._ebx;
-        pRD->SetEbxLocation((DWORD *)&thisState->_ebx);
+        pRD->pEbx = (DWORD *)&thisState->_ebx;
         thisState->_ebp = unwindState._ebp;
-        pRD->SetEbpLocation((DWORD *)&thisState->_ebp);
+        pRD->pEbp = (DWORD *)&thisState->_ebp;
 
         // InsureInit always sets m_RegArgs to zero
         // in the real code.  I'm not sure exactly
         // what should happen in the on-the-fly case,
         // but go with what would happen from an InsureInit.
-#ifdef WIN64EXCEPTIONS
-        PORTABILITY_ASSERT("HelperMethodFrame::UpdateRegDisplay");
-#endif
 
         RETURN;
     }
 
 #endif // #ifdef DACCESS_COMPILE
-
-    pRD->PCTAddr = dac_cast<TADDR>(m_MachState.pRetAddr());
-
-#ifndef WIN64EXCEPTIONS
 
     // DACCESS: The MachState pointers are kept as PTR_TADDR so
     // the host pointers here refer to the appropriate size and
@@ -415,25 +456,6 @@ void HelperMethodFrame::UpdateRegDisplay(const PREGDISPLAY pRD)
 
     pRD->ControlPC = m_MachState.GetRetAddr();
     pRD->SP  = (DWORD) m_MachState.esp();
-
-#else // WIN64EXCEPTIONS
-
-    pRD->IsCallerContextValid = FALSE;
-    pRD->IsCallerSPValid      = FALSE;        // Don't add usage of this field.  This is only temporary.
-
-    //
-    // Copy the saved state from the frame to the current context.
-    //
-    pRD->pCurrentContext->Eip = pRD->ControlPC = m_MachState.GetRetAddr();
-    pRD->pCurrentContext->Esp = pRD->SP = (DWORD) m_MachState.esp();
-
-#define CALLEE_SAVED_REGISTER(regname) pRD->pCurrentContext->regname = *((DWORD*) m_MachState.p##regname());
-    ENUM_CALLEE_SAVED_REGISTERS();
-#undef CALLEE_SAVED_REGISTER
-
-#define CALLEE_SAVED_REGISTER(regname) pRD->pCurrentContextPointers->regname = (DWORD*) m_MachState.p##regname();
-    ENUM_CALLEE_SAVED_REGISTERS();
-#undef CALLEE_SAVED_REGISTER
 
 #endif // WIN64EXCEPTIONS
 
@@ -572,7 +594,22 @@ void FaultingExceptionFrame::UpdateRegDisplay(const PREGDISPLAY pRD)
 
     pRD->PCTAddr = GetReturnAddressPtr();
 
-#ifndef WIN64EXCEPTIONS
+#ifdef WIN64EXCEPTIONS
+
+    memcpy(pRD->pCurrentContext, &m_ctx, sizeof(CONTEXT));
+
+    pRD->SP = m_ctx.Esp;
+    pRD->ControlPC = m_ctx.Eip;
+
+#define CALLEE_SAVED_REGISTER(regname) pRD->pCurrentContextPointers->regname = &m_ctx.regname;
+    ENUM_CALLEE_SAVED_REGISTERS();
+#undef CALLEE_SAVED_REGISTER
+
+    pRD->IsCallerContextValid = FALSE;
+    pRD->IsCallerSPValid = FALSE;        // Don't add usage of this field.  This is only temporary.
+
+#else // WIN64EXCEPTIONS
+
     CalleeSavedRegisters* regs = GetCalleeSavedRegisters();
 
 #define CALLEE_SAVED_REGISTER(regname) pRD->p##regname = (DWORD*) &regs->regname;
@@ -581,20 +618,6 @@ void FaultingExceptionFrame::UpdateRegDisplay(const PREGDISPLAY pRD)
 
     pRD->SP = m_Esp;
     pRD->ControlPC = *PTR_PCODE(pRD->PCTAddr);
-
-#else // WIN64EXCEPTIONS
-
-    pRD->IsCallerContextValid = FALSE;
-    pRD->IsCallerSPValid = FALSE;        // Don't add usage of this field.  This is only temporary.
-
-    memcpy(pRD->pCurrentContext, &m_ctx, sizeof(CONTEXT));
-
-#define CALLEE_SAVED_REGISTER(regname) pRD->pCurrentContextPointers->regname = &m_ctx.regname;
-    ENUM_CALLEE_SAVED_REGISTERS();
-#undef CALLEE_SAVED_REGISTER
-
-    pRD->SP = m_ctx.Esp;
-    pRD->ControlPC = m_ctx.Eip;
 
 #endif // WIN64EXCEPTIONS
 
@@ -642,9 +665,6 @@ void InlinedCallFrame::UpdateRegDisplay(const PREGDISPLAY pRD)
         stackArgSize = pMD->GetStackArgumentSize();
     }
 
-    // reset pContext; it's only valid for active (top-most) frame
-    pRD->pContext = NULL;
-
     /* The return address is just above the "ESP" */
     pRD->PCTAddr = PTR_HOST_MEMBER_TADDR(InlinedCallFrame, this,
                                          m_pCallerReturnAddress);
@@ -654,18 +674,24 @@ void InlinedCallFrame::UpdateRegDisplay(const PREGDISPLAY pRD)
     pRD->IsCallerContextValid = FALSE;
     pRD->IsCallerSPValid      = FALSE;        // Don't add usage of this field.  This is only temporary.
 
+    pRD->pCurrentContext->Eip = *PTR_PCODE(pRD->PCTAddr);
+    pRD->pCurrentContext->Esp = (DWORD) dac_cast<TADDR>(m_pCallSiteSP) + stackArgSize;
+    pRD->pCurrentContext->Ebp = (DWORD) m_pCalleeSavedFP;
+
+    ClearRegDisplayArgumentAndScratchRegisters(pRD);
+
 #define CALLEE_SAVED_REGISTER(regname) pRD->pCurrentContextPointers->regname = NULL;
     ENUM_CALLEE_SAVED_REGISTERS();
 #undef CALLEE_SAVED_REGISTER
 
     pRD->pCurrentContextPointers->Ebp = (DWORD*) &m_pCalleeSavedFP;
 
-    pRD->pCurrentContext->Eip = *PTR_PCODE(pRD->PCTAddr);
-    pRD->pCurrentContext->Esp = (DWORD) dac_cast<TADDR>(m_pCallSiteSP) + stackArgSize;
-
     SyncRegDisplayToCurrentContext(pRD);
 
-#else
+#else // WIN64EXCEPTIONS
+
+    // reset pContext; it's only valid for active (top-most) frame
+    pRD->pContext = NULL;
 
     pRD->pEbp = (DWORD*) &m_pCalleeSavedFP;
 
@@ -673,7 +699,7 @@ void InlinedCallFrame::UpdateRegDisplay(const PREGDISPLAY pRD)
     /* Now we need to pop off the outgoing arguments */
     pRD->SP  = (DWORD) dac_cast<TADDR>(m_pCallSiteSP) + stackArgSize;
 
-#endif
+#endif // WIN64EXCEPTIONS
 
     LOG((LF_GCROOTS, LL_INFO100000, "STACKWALK    InlinedCallFrame::UpdateRegDisplay(ip:%p, sp:%p)\n", pRD->ControlPC, pRD->SP));
 
@@ -702,12 +728,33 @@ void ResumableFrame::UpdateRegDisplay(const PREGDISPLAY pRD)
     }
     CONTRACT_END;
 
+    pRD->PCTAddr = dac_cast<TADDR>(m_Regs) + offsetof(CONTEXT, Eip);
+
+#ifdef WIN64EXCEPTIONS
+
+    memcpy(pRD->pCurrentContext, &m_Regs, sizeof(CONTEXT));
+
+    pRD->SP = m_Regs->Esp;
+    pRD->ControlPC = m_Regs->Eip;
+
+#define CALLER_SAVED_REGISTER(reg) pRD->pCurrentContextPointers->reg = &m_Regs->reg;
+    ENUM_CALLER_SAVED_REGISTERS();
+#undef CALLER_SAVED_REGISTER
+
+#define CALLEE_SAVED_REGISTER(reg) pRD->pCurrentContextPointers->reg = &m_Regs->reg;
+    ENUM_CALLEE_SAVED_REGISTERS();
+#undef CALLEE_SAVED_REGISTER
+
+    pRD->IsCallerContextValid = FALSE;
+    pRD->IsCallerSPValid      = FALSE;        // Don't add usage of this field.  This is only temporary.
+
+#else // WIN64EXCEPTIONS
+
     // reset pContext; it's only valid for active (top-most) frame
     pRD->pContext = NULL;
 
     CONTEXT* pUnwoundContext = m_Regs;
 
-#ifndef WIN64EXCEPTIONS
 #if !defined(DACCESS_COMPILE)
     // "pContextForUnwind" field is only used on X86 since not only is it initialized just for it,
     // but its used only under the confines of STACKWALKER_MAY_POP_FRAMES preprocessor define,
@@ -727,21 +774,21 @@ void ResumableFrame::UpdateRegDisplay(const PREGDISPLAY pRD)
         pUnwoundContext->Eip = m_Regs->Eip;
     }
 #endif // !defined(DACCESS_COMPILE)
-#endif // !WIN64EXCEPTIONS
 
-    pRD->SetEaxLocation(&pUnwoundContext->Eax);
-    pRD->SetEcxLocation(&pUnwoundContext->Ecx);
-    pRD->SetEdxLocation(&pUnwoundContext->Edx);
+    pRD->pEax = &pUnwoundContext->Eax;
+    pRD->pEcx = &pUnwoundContext->Ecx;
+    pRD->pEdx = &pUnwoundContext->Edx;
 
-    pRD->SetEdiLocation(&pUnwoundContext->Edi);
-    pRD->SetEsiLocation(&pUnwoundContext->Esi);
-    pRD->SetEbxLocation(&pUnwoundContext->Ebx);
-    pRD->SetEbpLocation(&pUnwoundContext->Ebp);
+    pRD->pEdi = &pUnwoundContext->Edi;
+    pRD->pEsi = &pUnwoundContext->Esi;
+    pRD->pEbx = &pUnwoundContext->Ebx;
+    pRD->pEbp = &pUnwoundContext->Ebp;
 
     pRD->ControlPC = pUnwoundContext->Eip;
-    pRD->PCTAddr = dac_cast<TADDR>(m_Regs) + offsetof(CONTEXT, Eip);
 
     pRD->SP  = m_Regs->Esp;
+
+#endif // !WIN64EXCEPTIONS
 
     RETURN;
 }
@@ -757,20 +804,47 @@ void HijackFrame::UpdateRegDisplay(const PREGDISPLAY pRD)
     }
     CONTRACTL_END;
 
+    pRD->PCTAddr = dac_cast<TADDR>(m_Args) + offsetof(HijackArgs, Eip);
+
+#ifdef WIN64EXCEPTIONS
+
+    pRD->IsCallerContextValid = FALSE;
+    pRD->IsCallerSPValid      = FALSE;        // Don't add usage of this field.  This is only temporary.
+
+    pRD->pCurrentContext->Eip = *PTR_PCODE(pRD->PCTAddr);
+    pRD->pCurrentContext->Esp = (DWORD)(pRD->PCTAddr + sizeof(TADDR));
+
+#define CALLEE_SAVED_REGISTER(reg) pRD->pCurrentContext->reg = m_Args->reg;
+    ENUM_CALLEE_SAVED_REGISTERS();
+#undef CALLEE_SAVED_REGISTER
+
+#define CALLEE_SAVED_REGISTER(reg) pRD->pCurrentContextPointers->reg = &m_Args->reg;
+    ENUM_CALLEE_SAVED_REGISTERS();
+#undef CALLEE_SAVED_REGISTER
+
+#define CALLER_SAVED_REGISTER(reg) pRD->pCurrentContextPointers->reg = &m_Args->reg;
+    ENUM_CALLER_SAVED_REGISTERS();
+#undef CALLER_SAVED_REGISTER
+
+    SyncRegDisplayToCurrentContext(pRD);
+
+#else // WIN64EXCEPTIONS
+
     // This only describes the top-most frame
     pRD->pContext = NULL;
 
-    pRD->SetEdiLocation(&m_Args->Edi);
-    pRD->SetEsiLocation(&m_Args->Esi);
-    pRD->SetEbxLocation(&m_Args->Ebx);
-    pRD->SetEdxLocation(&m_Args->Edx);
-    pRD->SetEcxLocation(&m_Args->Ecx);
-    pRD->SetEaxLocation(&m_Args->Eax);
+    pRD->pEdi = &m_Args->Edi;
+    pRD->pEsi = &m_Args->Esi;
+    pRD->pEbx = &m_Args->Ebx;
+    pRD->pEdx = &m_Args->Edx;
+    pRD->pEcx = &m_Args->Ecx;
+    pRD->pEax = &m_Args->Eax;
 
-    pRD->SetEbpLocation(&m_Args->Ebp);
-    pRD->PCTAddr = dac_cast<TADDR>(m_Args) + offsetof(HijackArgs, Eip);
+    pRD->pEbp = &m_Args->Ebp;
     pRD->ControlPC = *PTR_PCODE(pRD->PCTAddr);
     pRD->SP  = (DWORD)(pRD->PCTAddr + sizeof(TADDR));
+
+#endif // WIN64EXCEPTIONS
 }
 
 #endif  // FEATURE_HIJACK
@@ -807,14 +881,33 @@ void TailCallFrame::UpdateRegDisplay(const PREGDISPLAY pRD)
 
     // reset pContext; it's only valid for active (top-most) frame
     pRD->pContext = NULL;
+    pRD->PCTAddr = GetReturnAddressPtr();
 
-#define CALLEE_SAVED_REGISTER(regname) pRD->Set##regname##Location(PDWORD(&m_regs.regname));
+#ifdef WIN64EXCEPTIONS
+
+    pRD->IsCallerContextValid = FALSE;
+    pRD->IsCallerSPValid      = FALSE;        // Don't add usage of this field.  This is only temporary.
+
+    pRD->pCurrentContext->Eip = *PTR_PCODE(pRD->PCTAddr);
+    pRD->pCurrentContext->Esp = (DWORD)(pRD->PCTAddr + sizeof(TADDR));
+
+    UpdateRegDisplayFromCalleeSavedRegisters(pRD, &m_regs);
+    ClearRegDisplayArgumentAndScratchRegisters(pRD);
+
+    SyncRegDisplayToCurrentContext(pRD);
+
+#else
+
+#define CALLEE_SAVED_REGISTER(regname) pRD->p##regname = (DWORD*) &m_regs.regname;
     ENUM_CALLEE_SAVED_REGISTERS();
 #undef CALLEE_SAVED_REGISTER
 
-    pRD->PCTAddr = GetReturnAddressPtr();
     pRD->ControlPC = *PTR_PCODE(pRD->PCTAddr);
     pRD->SP  = (DWORD)(pRD->PCTAddr + sizeof(TADDR));
+
+#endif
+
+    LOG((LF_GCROOTS, LL_INFO100000, "STACKWALK    TransitionFrame::UpdateRegDisplay(ip:%p, sp:%p)\n", pRD->ControlPC, pRD->SP));
 
     RETURN;
 }

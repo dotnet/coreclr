@@ -97,6 +97,10 @@ OOPStackUnwinderX86::VirtualUnwind(
 
     ContextRecord->ContextFlags |= CONTEXT_UNWOUND_TO_CALL;
 
+#define CALLER_SAVED_REGISTER(reg) if (rd.pCurrentContextPointers->reg) ContextRecord->reg = *rd.pCurrentContextPointers->reg;
+    ENUM_CALLER_SAVED_REGISTERS();
+#undef CALLER_SAVED_REGISTER
+
 #define CALLEE_SAVED_REGISTER(reg) if (rd.pCurrentContextPointers->reg) ContextRecord->reg = *rd.pCurrentContextPointers->reg;
     ENUM_CALLEE_SAVED_REGISTERS();
 #undef CALLEE_SAVED_REGISTER

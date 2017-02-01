@@ -75,35 +75,28 @@ struct REGDISPLAY : public REGDISPLAY_BASE {
 
 #ifndef WIN64EXCEPTIONS
 
-#define VOLATILE_REG_METHODS(reg) \
+#define REG_METHODS(reg) \
     inline PDWORD Get##reg##Location(void) { return p##reg;  } \
     inline void   Set##reg##Location(PDWORD p##reg) { this->p##reg = p##reg; }
 
-#define NONVOLATILE_REG_METHODS(reg) VOLATILE_REG_METHODS(reg)
-
 #else // !WIN64EXCEPTIONS
 
-#define VOLATILE_REG_METHODS(reg) \
-    inline PDWORD Get##reg##Location(void) { return &pCurrentContext->reg; } \
-    inline void   Set##reg##Location(PDWORD p##reg) { pCurrentContext->reg = *p##reg; }
-
-#define NONVOLATILE_REG_METHODS(reg) \
+#define REG_METHODS(reg) \
     inline PDWORD Get##reg##Location(void) { return (pCurrentContextPointers) ? pCurrentContextPointers->reg : &pCurrentContext->reg; } \
     inline void   Set##reg##Location(PDWORD p##reg) { pCurrentContextPointers->reg = p##reg; }
 
 #endif // WIN64EXCEPTIONS
 
-    VOLATILE_REG_METHODS(Eax)
-    VOLATILE_REG_METHODS(Ecx)
-    VOLATILE_REG_METHODS(Edx)
+    REG_METHODS(Eax)
+    REG_METHODS(Ecx)
+    REG_METHODS(Edx)
 
-    NONVOLATILE_REG_METHODS(Ebx)
-    NONVOLATILE_REG_METHODS(Esi)
-    NONVOLATILE_REG_METHODS(Edi)
-    NONVOLATILE_REG_METHODS(Ebp)
+    REG_METHODS(Ebx)
+    REG_METHODS(Esi)
+    REG_METHODS(Edi)
+    REG_METHODS(Ebp)
 
-#undef VOLATILE_REG_METHODS
-#undef NONVOLATILE_REG_METHODS
+#undef REG_METHODS
 
     TADDR   PCTAddr;
 };
@@ -430,6 +423,10 @@ inline void FillRegDisplay(const PREGDISPLAY pRD, PT_CONTEXT pctx, PT_CONTEXT pC
     pRD->ctxPtrsOne.Esi = &pctx->Esi;
     pRD->ctxPtrsOne.Edi = &pctx->Edi;
     pRD->ctxPtrsOne.Ebp = &pctx->Ebp;
+
+    pRD->ctxPtrsOne.Eax = &pctx->Eax;
+    pRD->ctxPtrsOne.Ecx = &pctx->Ecx;
+    pRD->ctxPtrsOne.Edx = &pctx->Edx;
 #else // _TARGET_X86_
     PORTABILITY_ASSERT("FillRegDisplay");
 #endif // _TARGET_???_ (ELSE)
