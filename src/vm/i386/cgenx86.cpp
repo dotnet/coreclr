@@ -79,9 +79,9 @@ void ClearRegDisplayArgumentAndScratchRegisters(REGDISPLAY * pRD)
 {
     LIMITED_METHOD_CONTRACT;
 
-#define CALLER_SAVED_REGISTER(regname) pRD->pCurrentContextPointers->regname = NULL;
-    ENUM_CALLER_SAVED_REGISTERS();
-#undef CALLER_SAVED_REGISTER
+#define ARGUMENT_AND_SCRATCH_REGISTER(regname) pRD->pCurrentContextPointers->regname = NULL;
+    ENUM_ARGUMENT_AND_SCRATCH_REGISTERS();
+#undef ARGUMENT_AND_SCRATCH_REGISTER
 }
 
 #ifndef DACCESS_COMPILE
@@ -601,6 +601,10 @@ void FaultingExceptionFrame::UpdateRegDisplay(const PREGDISPLAY pRD)
     pRD->SP = m_ctx.Esp;
     pRD->ControlPC = m_ctx.Eip;
 
+#define ARGUMENT_AND_SCRATCH_REGISTER(regname) pRD->pCurrentContextPointers->regname = &m_ctx.regname;
+    ENUM_ARGUMENT_AND_SCRATCH_REGISTERS();
+#undef ARGUMENT_AND_SCRATCH_REGISTER
+
 #define CALLEE_SAVED_REGISTER(regname) pRD->pCurrentContextPointers->regname = &m_ctx.regname;
     ENUM_CALLEE_SAVED_REGISTERS();
 #undef CALLEE_SAVED_REGISTER
@@ -737,9 +741,9 @@ void ResumableFrame::UpdateRegDisplay(const PREGDISPLAY pRD)
     pRD->SP = m_Regs->Esp;
     pRD->ControlPC = m_Regs->Eip;
 
-#define CALLER_SAVED_REGISTER(reg) pRD->pCurrentContextPointers->reg = &m_Regs->reg;
-    ENUM_CALLER_SAVED_REGISTERS();
-#undef CALLER_SAVED_REGISTER
+#define ARGUMENT_AND_SCRATCH_REGISTER(reg) pRD->pCurrentContextPointers->reg = &m_Regs->reg;
+    ENUM_ARGUMENT_AND_SCRATCH_REGISTERS();
+#undef ARGUMENT_AND_SCRATCH_REGISTER
 
 #define CALLEE_SAVED_REGISTER(reg) pRD->pCurrentContextPointers->reg = &m_Regs->reg;
     ENUM_CALLEE_SAVED_REGISTERS();
@@ -818,13 +822,15 @@ void HijackFrame::UpdateRegDisplay(const PREGDISPLAY pRD)
     ENUM_CALLEE_SAVED_REGISTERS();
 #undef CALLEE_SAVED_REGISTER
 
-#define CALLEE_SAVED_REGISTER(reg) pRD->pCurrentContextPointers->reg = &m_Args->reg;
+#define CALLEE_SAVED_REGISTER(reg) pRD->pCurrentContextPointers->reg = NULL;
     ENUM_CALLEE_SAVED_REGISTERS();
 #undef CALLEE_SAVED_REGISTER
 
-#define CALLER_SAVED_REGISTER(reg) pRD->pCurrentContextPointers->reg = &m_Args->reg;
-    ENUM_CALLER_SAVED_REGISTERS();
-#undef CALLER_SAVED_REGISTER
+#define ARGUMENT_AND_SCRATCH_REGISTER(reg) pRD->pCurrentContextPointers->reg = NULL;
+    ENUM_ARGUMENT_AND_SCRATCH_REGISTERS();
+#undef ARGUMENT_AND_SCRATCH_REGISTER
+
+    pRD->pCurrentContextPointers->Eax = (PDWORD) &m_Args->Eax;
 
     SyncRegDisplayToCurrentContext(pRD);
 

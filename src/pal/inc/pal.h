@@ -1795,17 +1795,18 @@ typedef struct _CONTEXT {
 
 typedef struct _KNONVOLATILE_CONTEXT_POINTERS {
 
-    // TODO WIP x86/Linux, need to fix this.
-    // Callee-saved registers
-    PDWORD Ebx;
-    PDWORD Esi;
+    // The ordering of these fields should be aligned with that
+    // of corresponding fields in CONTEXT
+    //
+    // (See FillRegDisplay in inc/regdisp.h for details)
     PDWORD Edi;
-    PDWORD Ebp;
-
-    // Caller-saved registers
-    PDWORD Eax;
-    PDWORD Ecx;
+    PDWORD Esi;
+    PDWORD Ebx;
     PDWORD Edx;
+    PDWORD Ecx;
+    PDWORD Eax;
+
+    PDWORD Ebp;
 
 } KNONVOLATILE_CONTEXT_POINTERS, *PKNONVOLATILE_CONTEXT_POINTERS;
 

@@ -82,7 +82,7 @@ struct REGDISPLAY : public REGDISPLAY_BASE {
 #else // !WIN64EXCEPTIONS
 
 #define REG_METHODS(reg) \
-    inline PDWORD Get##reg##Location(void) { return (pCurrentContextPointers) ? pCurrentContextPointers->reg : &pCurrentContext->reg; } \
+    inline PDWORD Get##reg##Location(void) { return pCurrentContextPointers->reg; } \
     inline void   Set##reg##Location(PDWORD p##reg) { pCurrentContextPointers->reg = p##reg; }
 
 #endif // WIN64EXCEPTIONS
@@ -419,14 +419,10 @@ inline void FillRegDisplay(const PREGDISPLAY pRD, PT_CONTEXT pctx, PT_CONTEXT pC
 
     pRD->ctxPtrsOne.Lr = &pctx->Lr;
 #elif defined(_TARGET_X86_) // _TARGET_ARM_
-    pRD->ctxPtrsOne.Ebx = &pctx->Ebx;
-    pRD->ctxPtrsOne.Esi = &pctx->Esi;
-    pRD->ctxPtrsOne.Edi = &pctx->Edi;
-    pRD->ctxPtrsOne.Ebp = &pctx->Ebp;
-
-    pRD->ctxPtrsOne.Eax = &pctx->Eax;
-    pRD->ctxPtrsOne.Ecx = &pctx->Ecx;
-    pRD->ctxPtrsOne.Edx = &pctx->Edx;
+    for (int i = 0; i < 7; i++)
+    {
+        *(&pRD->ctxPtrsOne.Esi + i) = (&pctx->Esi + i);
+    }
 #else // _TARGET_X86_
     PORTABILITY_ASSERT("FillRegDisplay");
 #endif // _TARGET_???_ (ELSE)
