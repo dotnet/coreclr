@@ -60,6 +60,7 @@ extern "C" DWORD STDCALL GetSpecificCpuFeaturesAsm(DWORD *pInfo);
 
 void generate_noref_copy (unsigned nbytes, StubLinkerCPU* sl);
 
+#ifdef WIN64EXCEPTIONS
 void UpdateRegDisplayFromCalleeSavedRegisters(REGDISPLAY * pRD, CalleeSavedRegisters * regs)
 {
     LIMITED_METHOD_CONTRACT;
@@ -83,6 +84,7 @@ void ClearRegDisplayArgumentAndScratchRegisters(REGDISPLAY * pRD)
     ENUM_ARGUMENT_AND_SCRATCH_REGISTERS();
 #undef ARGUMENT_AND_SCRATCH_REGISTER
 }
+#endif // WIN64EXCEPTIONS
 
 #ifndef DACCESS_COMPILE
 
