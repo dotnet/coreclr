@@ -153,6 +153,7 @@ namespace System
 
                     Debug.Assert((charA | charB) <= 0x7F, "strings have to be ASCII");
 
+                    // Ordinal equals or lowercase equals if the result ends up in the a-z range 
                     if (charA == charB ||
                        ((charA | 0x20) == (charB | 0x20) &&
                           (uint)((charA | 0x20) - 'a') <= (uint)('z' - 'a')))
