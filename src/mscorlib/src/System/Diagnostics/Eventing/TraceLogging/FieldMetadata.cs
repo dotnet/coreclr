@@ -59,44 +59,6 @@ namespace System.Diagnostics.Tracing
             return;
         }
 
-        /// <summary>
-        /// Fixed-length array.
-        /// </summary>
-        public FieldMetadata(
-            string name,
-            TraceLoggingDataType type,
-            EventFieldTags tags,
-            ushort fixedCount)
-            : this(
-                name,
-                type,
-                tags,
-                Statics.InTypeFixedCountFlag,
-                fixedCount,
-                null)
-        {
-            return;
-        }
-
-        /// <summary>
-        /// Custom serializer
-        /// </summary>
-        public FieldMetadata(
-            string name,
-            TraceLoggingDataType type,
-            EventFieldTags tags,
-            byte[] custom)
-            : this(
-                name,
-                type,
-                tags,
-                Statics.InTypeCustomCountFlag,
-                checked((ushort)(custom == null ? 0 : custom.Length)),
-                custom)
-        {
-            return;
-        }
-
         private FieldMetadata(
             string name,
             TraceLoggingDataType dataType,

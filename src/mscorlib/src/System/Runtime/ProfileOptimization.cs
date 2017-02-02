@@ -22,27 +22,5 @@ namespace System.Runtime {
     using System.Runtime.Versioning;
     using System.Runtime.CompilerServices;
 
-
-    public static class ProfileOptimization
-    {
-        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        [SuppressUnmanagedCodeSecurity]
-        internal static extern void InternalSetProfileRoot(string directoryPath);
-
-        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        [SuppressUnmanagedCodeSecurity]
-        internal static extern void InternalStartProfile(string profile, IntPtr ptrNativeAssemblyLoadContext);
-
-        public static void SetProfileRoot(string directoryPath)
-        {
-            InternalSetProfileRoot(directoryPath);
-        }
-
-        public static void StartProfile(string profile)
-        {
-            InternalStartProfile(profile, IntPtr.Zero);
-        }
-    }
-
 }
 

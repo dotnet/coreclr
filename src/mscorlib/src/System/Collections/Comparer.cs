@@ -22,7 +22,7 @@ namespace System.Collections {
 
     [Serializable]
     [System.Runtime.InteropServices.ComVisible(true)]
-    public sealed class Comparer : IComparer , ISerializable
+    internal sealed class Comparer : IComparer , ISerializable
     {
         private CompareInfo m_compareInfo;   
         public static readonly Comparer Default = new Comparer(CultureInfo.CurrentCulture);
@@ -40,18 +40,6 @@ namespace System.Collections {
             }
             Contract.EndContractBlock();
             m_compareInfo = culture.CompareInfo;
-        }
-        
-        private Comparer(SerializationInfo info, StreamingContext context) {            
-            m_compareInfo = null;
-            SerializationInfoEnumerator enumerator = info.GetEnumerator();                        
-            while( enumerator.MoveNext()) {
-                switch( enumerator.Name) {
-                    case CompareInfoName:
-                        m_compareInfo = (CompareInfo) info.GetValue(CompareInfoName, typeof(CompareInfo));
-                        break;
-                }
-            }
         }
     
         // Compares two Objects by calling CompareTo.  If a == 

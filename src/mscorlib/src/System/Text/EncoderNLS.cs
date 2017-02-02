@@ -35,15 +35,6 @@ namespace System.Text
 
 #region Serialization
 
-        // Constructor called by serialization. called during deserialization.
-        internal EncoderNLS(SerializationInfo info, StreamingContext context)
-        {
-            throw new NotSupportedException(
-                        String.Format(
-                            System.Globalization.CultureInfo.CurrentCulture, 
-                            Environment.GetResourceString("NotSupported_TypeCannotDeserialized"), this.GetType()));
-        }
-
         // ISerializable implementation. called during serialization.
         void ISerializable.GetObjectData(SerializationInfo info, StreamingContext context)
         {

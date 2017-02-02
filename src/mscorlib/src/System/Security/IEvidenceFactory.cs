@@ -4,8 +4,4 @@
 
 namespace System.Security
 {
-    [System.Runtime.InteropServices.ComVisible(true)]
-    public interface IEvidenceFactory
-    {
-    }
 }

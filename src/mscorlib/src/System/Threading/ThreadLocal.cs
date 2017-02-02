@@ -486,20 +486,6 @@ namespace System.Threading
             return valueList;
         }
 
-        /// <summary>Gets the number of threads that have data in this instance.</summary>
-        private int ValuesCountForDebugDisplay
-        {
-            get
-            {
-                int count = 0;
-                for (LinkedSlot linkedSlot = m_linkedSlot.Next; linkedSlot != null; linkedSlot = linkedSlot.Next)
-                {
-                    count++;
-                }
-                return count;
-            }
-        }
-
         /// <summary>
         /// Gets whether <see cref="Value"/> is initialized on the current thread.
         /// </summary>

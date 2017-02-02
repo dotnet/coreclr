@@ -8,7 +8,7 @@ namespace System.Threading
     /// Represents pre-allocated state for native overlapped I/O operations.
     /// </summary>
     /// <seealso cref="ThreadPoolBoundHandle.AllocateNativeOverlapped(PreAllocatedOverlapped)"/>
-    public sealed class PreAllocatedOverlapped : IDisposable, IDeferredDisposable
+    internal sealed class PreAllocatedOverlapped : IDisposable, IDeferredDisposable
     {
         internal readonly ThreadPoolBoundHandleOverlapped _overlapped;
         private DeferredDisposableLifetime<PreAllocatedOverlapped> _lifetime;
