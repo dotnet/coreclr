@@ -31,7 +31,7 @@
     "xunit.runner.utility": "2.2.0-beta2-build3300"
   },
   "frameworks": {
-    "netstandard1.4": {
+    "netstandard1.5": {
       "imports": [
         "dnxcore50",
         "portable-net45+win8"
