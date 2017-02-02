@@ -16,6 +16,18 @@ namespace System {
     [StructLayout(LayoutKind.Sequential)]
     public struct ArgIterator
     {
+        private IntPtr ArgCookie;               // Cookie from the EE.
+
+        // The SigPointer structure consists of the following members.  (Note: this is an inline native SigPointer data type)
+        private IntPtr sigPtr;                  // Pointer to remaining signature.
+        private IntPtr sigPtrLen;               // Remaining length of the pointer
+
+        // Note, sigPtrLen is actually a DWORD, but on 64bit systems this structure becomes
+        // 8-byte aligned, which requires us to pad it.
+            
+        private IntPtr ArgPtr;                  // Pointer to remaining args.
+        private int    RemainingArgs;           // # of remaining args.
+        
 #if VARARGS_ENABLED //The JIT doesn't support Varargs calling convention.
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         private extern ArgIterator(IntPtr arglist);
@@ -121,18 +133,6 @@ namespace System {
         {
             throw new NotSupportedException(Environment.GetResourceString("NotSupported_NYI"));
         }
-
-        private IntPtr ArgCookie;               // Cookie from the EE.
-
-        // The SigPointer structure consists of the following members.  (Note: this is an inline native SigPointer data type)
-        private IntPtr sigPtr;                  // Pointer to remaining signature.
-        private IntPtr sigPtrLen;               // Remaining length of the pointer
-
-        // Note, sigPtrLen is actually a DWORD, but on 64bit systems this structure becomes
-        // 8-byte aligned, which requires us to pad it.
-            
-        private IntPtr ArgPtr;                  // Pointer to remaining args.
-        private int    RemainingArgs;           // # of remaining args.
 #else
         public ArgIterator(RuntimeArgumentHandle arglist)
         {
