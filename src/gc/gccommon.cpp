@@ -42,8 +42,6 @@ uint32_t* g_gc_card_table;
 uint8_t* g_gc_lowest_address  = 0;
 uint8_t* g_gc_highest_address = 0;
 bool g_fFinalizerRunOnShutDown = false;
-uint8_t g_gc_dac_major_version = 1;
-uint8_t g_gc_dac_minor_version = 0;
 
 #ifdef FEATURE_SVR_GC
 bool g_built_with_svr_gc = true;

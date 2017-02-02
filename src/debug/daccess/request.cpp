@@ -2826,24 +2826,15 @@ ClrDataAccess::GetGCHeapStaticData(struct DacpGcHeapDetails *detailsData)
     detailsData->highest_address = PTR_CDADDR(g_highest_address);
     detailsData->card_table = PTR_CDADDR(g_card_table);
     detailsData->heapAddr = NULL;
-    detailsData->alloc_allocated =
-        dac_cast<CLRDATA_ADDRESS>(g_gcDacGlobals->alloc_allocated.GetAddr());
-    detailsData->ephemeral_heap_segment =
-        dac_cast<CLRDATA_ADDRESS>(g_gcDacGlobals->ephemeral_heap_segment.GetAddr());
-    detailsData->mark_array =
-        dac_cast<CLRDATA_ADDRESS>(g_gcDacGlobals->mark_array.GetAddr());
-    detailsData->current_c_gc_state =
-        dac_cast<CLRDATA_ADDRESS>(g_gcDacGlobals->current_c_gc_state.GetAddr());
-    detailsData->next_sweep_obj =
-        dac_cast<CLRDATA_ADDRESS>(g_gcDacGlobals->next_sweep_obj.GetAddr());
-    detailsData->saved_sweep_ephemeral_seg =
-        dac_cast<CLRDATA_ADDRESS>(g_gcDacGlobals->saved_sweep_ephemeral_seg.GetAddr());
-    detailsData->saved_sweep_ephemeral_start =
-        dac_cast<CLRDATA_ADDRESS>(g_gcDacGlobals->saved_sweep_ephemeral_start.GetAddr());
-    detailsData->background_saved_lowest_address =
-        dac_cast<CLRDATA_ADDRESS>(g_gcDacGlobals->background_saved_lowest_address.GetAddr());
-    detailsData->background_saved_highest_address =
-        dac_cast<CLRDATA_ADDRESS>(g_gcDacGlobals->background_saved_highest_address.GetAddr());
+    detailsData->alloc_allocated = (CLRDATA_ADDRESS)*g_gcDacGlobals->alloc_allocated;
+    detailsData->ephemeral_heap_segment = (CLRDATA_ADDRESS)*g_gcDacGlobals->ephemeral_heap_segment;
+    detailsData->mark_array = (CLRDATA_ADDRESS)*g_gcDacGlobals->mark_array;
+    detailsData->current_c_gc_state = (CLRDATA_ADDRESS)*g_gcDacGlobals->current_c_gc_state;
+    detailsData->next_sweep_obj = (CLRDATA_ADDRESS)*g_gcDacGlobals->next_sweep_obj;
+    detailsData->saved_sweep_ephemeral_seg = (CLRDATA_ADDRESS)*g_gcDacGlobals->saved_sweep_ephemeral_seg;
+    detailsData->saved_sweep_ephemeral_start = (CLRDATA_ADDRESS)*g_gcDacGlobals->saved_sweep_ephemeral_start;
+    detailsData->background_saved_lowest_address = (CLRDATA_ADDRESS)*g_gcDacGlobals->background_saved_lowest_address;
+    detailsData->background_saved_highest_address = (CLRDATA_ADDRESS)*g_gcDacGlobals->background_saved_highest_address;
 
     for (int i=0;i<NUMBERGENERATIONS;i++)
     {
@@ -2903,7 +2894,7 @@ ClrDataAccess::GetHeapSegmentData(CLRDATA_ADDRESS seg, struct DacpHeapSegmentDat
             heapSegment->reserved = (CLRDATA_ADDRESS)(ULONG_PTR) pSegment->reserved;
             heapSegment->used = (CLRDATA_ADDRESS)(ULONG_PTR) pSegment->used;
             heapSegment->mem = (CLRDATA_ADDRESS)(ULONG_PTR) pSegment->mem;
-            heapSegment->next = (CLRDATA_ADDRESS)dac_cast<TADDR>(pSegment->next);
+            heapSegment->next = (CLRDATA_ADDRESS)pSegment->next;
             heapSegment->flags = pSegment->flags;
             heapSegment->gc_heap = NULL;
             heapSegment->background_allocated = (CLRDATA_ADDRESS)(ULONG_PTR)pSegment->background_allocated;

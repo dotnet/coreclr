@@ -102,8 +102,6 @@ extern "C" uint32_t* g_gc_card_table;
 extern "C" uint8_t* g_gc_lowest_address;
 extern "C" uint8_t* g_gc_highest_address;
 extern "C" bool g_fFinalizerRunOnShutDown;
-extern "C" uint8_t g_gc_dac_major_version;
-extern "C" uint8_t g_gc_dac_minor_version;
 extern "C" bool g_built_with_svr_gc;
 extern "C" uint8_t g_build_variant;
 

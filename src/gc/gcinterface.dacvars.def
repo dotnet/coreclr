@@ -34,8 +34,6 @@
 
 // This sequence of macros defines the specific variables that are exposed by the
 // GC to the DAC.
-GC_DAC_VAR        (uint8_t,               major_version_number)
-GC_DAC_VAR        (uint8_t,               minor_version_number)
 GC_DAC_VAR        (uint8_t,               build_variant)
 GC_DAC_VAR        (bool,                  built_with_svr)
 GC_DAC_ARRAY_VAR  (size_t,                gc_global_mechanisms, MAX_GLOBAL_GC_MECHANISMS_COUNT)

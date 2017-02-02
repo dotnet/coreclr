@@ -36800,8 +36800,8 @@ void PopulateDacVars(GcDacVars *gcDacVars)
 #ifndef DACCESS_COMPILE
     assert(gcDacVars != nullptr);
     *gcDacVars = {};
-    gcDacVars->major_version_number = &g_gc_dac_major_version;
-    gcDacVars->minor_version_number = &g_gc_dac_minor_version;
+    gcDacVars->major_version_number = 1;
+    gcDacVars->minor_version_number = 0;
     gcDacVars->built_with_svr = &g_built_with_svr_gc;
     gcDacVars->build_variant = &g_build_variant;
     gcDacVars->gc_structures_invalid_cnt = const_cast<int32_t*>(&GCScan::m_GcStructuresInvalidCnt);

@@ -130,6 +130,8 @@ struct oom_history
 // this structure contains __DPtrs for every DAC variable that will marshal values
 // from the debugee process to the debugger process when dereferenced.
 struct GcDacVars {
+  uint8_t major_version_number;
+  uint8_t minor_version_number;
 #ifdef DACCESS_COMPILE
  #define GC_DAC_VAR(type, name) DPTR(type) name;
  // ArrayDPTR doesn't allow decaying arrays to pointers, which
