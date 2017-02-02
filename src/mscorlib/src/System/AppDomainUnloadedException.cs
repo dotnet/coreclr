@@ -22,6 +22,12 @@ namespace System {
             : base(Environment.GetResourceString("Arg_AppDomainUnloadedException")) {
             SetErrorCode(__HResults.COR_E_APPDOMAINUNLOADED);
         }
+
+        //
+        //This constructor is required for serialization.
+        //
+        protected AppDomainUnloadedException(SerializationInfo info, StreamingContext context) : base(info, context) {
+        }
     }
 }
 

@@ -46,6 +46,27 @@ namespace System {
             _version = (Version) version.Clone();
             _servicePack = servicePack;
         }
+        
+        private OperatingSystem(SerializationInfo info, StreamingContext context) {            
+            SerializationInfoEnumerator enumerator = info.GetEnumerator();                        
+            while( enumerator.MoveNext()) {
+                switch( enumerator.Name) {
+                    case "_version":
+                        _version = (Version) info.GetValue("_version", typeof(Version));
+                        break;
+                    case "_platform":
+                        _platform = (PlatformID) info.GetValue("_platform", typeof(PlatformID));
+                        break;
+                    case "_servicePack":
+                        _servicePack = info.GetString("_servicePack");
+                        break;
+                }
+            }
+
+            if (_version == null ) {
+                throw new SerializationException(Environment.GetResourceString("Serialization_MissField", "_version"));
+            }
+        }
 
         public void GetObjectData(SerializationInfo info, StreamingContext context) {
             if( info == null ) {

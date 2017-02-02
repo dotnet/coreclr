@@ -652,6 +652,20 @@ namespace System.Text
                 // base calls reset
             }
 
+            // Constructor called by serialization, have to handle deserializing from Everett
+            internal Decoder(SerializationInfo info, StreamingContext context)
+            {
+                // Any info?
+                if (info==null) throw new ArgumentNullException(nameof(info));
+                Contract.EndContractBlock();
+
+                // Get common info
+                this.bits = (int)info.GetValue("bits", typeof(int));
+                this.bitCount = (int)info.GetValue("bitCount", typeof(int));
+                this.firstByte = (bool)info.GetValue("firstByte", typeof(bool));
+                this.m_encoding = (Encoding)info.GetValue("encoding", typeof(Encoding));
+            }
+
             // ISerializable implementation, get data for this object
             void ISerializable.GetObjectData(SerializationInfo info, StreamingContext context)
             {

@@ -41,6 +41,11 @@ namespace System.Runtime.CompilerServices {
             base.GetObjectData(info, context);
             info.AddValue("WrappedException", m_wrappedException, typeof(Object));
         }
+
+        internal RuntimeWrappedException(SerializationInfo info, StreamingContext context)
+            : base(info, context) {
+            m_wrappedException = info.GetValue("WrappedException", typeof(Object));
+        }
     }
 }
 

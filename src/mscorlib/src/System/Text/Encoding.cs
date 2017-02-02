@@ -271,6 +271,46 @@ namespace System.Text
             dataItem = null;
         }
 
+        // the following two methods are used for the inherited classes which implemented ISerializable
+        // Deserialization Helper
+        internal void DeserializeEncoding(SerializationInfo info, StreamingContext context)
+        {
+            // Any info?
+            if (info==null) throw new ArgumentNullException(nameof(info));
+            Contract.EndContractBlock();
+
+            // All versions have a code page
+            this.m_codePage = (int)info.GetValue("m_codePage", typeof(int));
+
+            // We can get dataItem on the fly if needed, and the index is different between versions
+            // so ignore whatever dataItem data we get from Everett.
+            this.dataItem   = null;
+
+            // See if we have a code page
+            try
+            {
+                //
+                // Try Whidbey V2.0 Fields
+                //
+
+                this.m_isReadOnly = (bool)info.GetValue("m_isReadOnly", typeof(bool));
+
+                this.encoderFallback = (EncoderFallback)info.GetValue("encoderFallback", typeof(EncoderFallback));
+                this.decoderFallback = (DecoderFallback)info.GetValue("decoderFallback", typeof(DecoderFallback));
+            }
+            catch (SerializationException)
+            {
+                //
+                // Didn't have Whidbey things, must be Everett
+                //
+                this.m_deserializedFromEverett = true;
+
+                // May as well be read only
+                this.m_isReadOnly = true;
+                SetDefaultFallbacks();
+            }
+        }
+
         // Serialization Helper
         internal void SerializeEncoding(SerializationInfo info, StreamingContext context)
         {
@@ -1392,6 +1432,25 @@ namespace System.Text
                 m_hasInitializedEncoding = true;
             }
 
+            // Constructor called by serialization, have to handle deserializing from Everett
+            internal DefaultEncoder(SerializationInfo info, StreamingContext context)
+            {
+                if (info==null) throw new ArgumentNullException(nameof(info));
+                Contract.EndContractBlock();
+
+                // All we have is our encoding
+                this.m_encoding = (Encoding)info.GetValue("encoding", typeof(Encoding));
+
+                try 
+                {
+                    this.m_fallback     = (EncoderFallback) info.GetValue("m_fallback",   typeof(EncoderFallback));
+                    this.charLeftOver   = (Char)            info.GetValue("charLeftOver", typeof(Char));
+                }
+                catch (SerializationException)
+                {
+                }
+            }
+
             // Just get it from GetEncoding
             public Object GetRealObject(StreamingContext context)
             {
@@ -1493,6 +1552,26 @@ namespace System.Text
                 m_encoding = encoding;
                 m_hasInitializedEncoding = true;
            }
+
+            // Constructor called by serialization, have to handle deserializing from Everett
+            internal DefaultDecoder(SerializationInfo info, StreamingContext context)
+            {
+                // Any info?
+                if (info==null) throw new ArgumentNullException(nameof(info));
+                Contract.EndContractBlock();
+
+                // All we have is our encoding
+                this.m_encoding = (Encoding)info.GetValue("encoding", typeof(Encoding));
+                
+                try 
+                {
+                    this.m_fallback = (DecoderFallback) info.GetValue("m_fallback", typeof(DecoderFallback));
+                }
+                catch (SerializationException)
+                {
+                    m_fallback = null;
+                }
+            }
 
             // Just get it from GetEncoding
             public Object GetRealObject(StreamingContext context)
