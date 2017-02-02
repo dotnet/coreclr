@@ -20,7 +20,7 @@ namespace System.Globalization {
     using System.Diagnostics.Contracts;
 
     [Serializable]
-    public partial class SortKey  
+    public partial class SortKey
     {
         //--------------------------------------------------------------------//
         //                        Internal Information                        //
