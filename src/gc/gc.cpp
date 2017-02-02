@@ -7307,6 +7307,8 @@ int gc_heap::grow_brick_card_tables (uint8_t* start,
         }
 
         seg_mapping_table = new_seg_mapping_table;
+
+        GCToOSInterface::FlushProcessWriteBuffers();
         g_gc_lowest_address = saved_g_lowest_address;
         g_gc_highest_address = saved_g_highest_address;
 
