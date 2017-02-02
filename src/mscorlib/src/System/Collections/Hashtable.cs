@@ -232,20 +232,20 @@ namespace System.Collections {
             : this(capacity, 1.0f, equalityComparer) {
         }
 
-        // �InitHash� is basically an implementation of classic DoubleHashing (see http://en.wikipedia.org/wiki/Double_hashing)  
+        // InitHash is basically an implementation of classic DoubleHashing (see http://en.wikipedia.org/wiki/Double_hashing)  
         //
-        // 1) The only �correctness� requirement is that the �increment� used to probe 
+        // 1) The only correctness requirement is that the increment used to probe 
         //    a. Be non-zero
-        //    b. Be relatively prime to the table size �hashSize�. (This is needed to insure you probe all entries in the table before you �wrap� and visit entries already probed)
+        //    b. Be relatively prime to the table size hashSize. (This is needed to insure you probe all entries in the table before you wrap and visit entries already probed)
         // 2) Because we choose table sizes to be primes, we just need to insure that the increment is 0 < incr < hashSize
         //
         // Thus this function would work: Incr = 1 + (seed % (hashSize-1))
         // 
-        // While this works well for �uniformly distributed� keys, in practice, non-uniformity is common. 
-        // In particular in practice we can see �mostly sequential� where you get long clusters of keys that �pack�. 
-        // To avoid bad behavior you want it to be the case that the increment is �large� even for �small� values (because small 
-        // values tend to happen more in practice). Thus we multiply �seed� by a number that will make these small values
-        // bigger (and not hurt large values). We picked HashPrime (101) because it was prime, and if �hashSize-1� is not a multiple of HashPrime
+        // While this works well for uniformly distributed keys, in practice, non-uniformity is common.   
+        // In particular in practice we can see mostly sequential where you get long clusters of keys that pack. 
+        // To avoid bad behavior you want it to be the case that the increment is large even for small values (because small 
+        // values tend to happen more in practice). Thus we multiply seed by a number that will make these small values
+        // bigger (and not hurt large values). We picked HashPrime (101) because it was prime, and if hashSize-1 is not a multiple of HashPrime
         // (enforced in GetPrime), then incr has the potential of being every value from 1 to hashSize-1. The choice was largely arbitrary.
         // 
         // Computes the hash function:  H(key, i) = h1(key) + i*h2(key, hashSize).
