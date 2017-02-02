@@ -474,6 +474,23 @@ namespace System
 
             return text;
         }
+
+        /// <summary>
+        /// This helper property is used by the DebuggerDisplay.
+        /// 
+        /// Note that we don't want to remove this property and change the debugger display to {InnerExceptions.Count} 
+        /// because DebuggerDisplay should be a single property access or parameterless method call, so that the debugger 
+        /// can use a fast path without using the expression evaluator.
+        /// 
+        /// See http://msdn.microsoft.com/en-us/library/x810d419.aspx
+        /// </summary>
+        private int InnerExceptionCount
+        {
+            get
+            {
+                return InnerExceptions.Count;
+            }
+        }
     }
 
 }
