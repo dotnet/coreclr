@@ -262,6 +262,30 @@ namespace System.Diagnostics.Tracing
             this.impl.EndBuffered();
         }
 
+        /// <summary>
+        /// Adds a custom-serialized field to an event.
+        /// </summary>
+        /// <param name="name">
+        /// The name to use for the added field. This value must not be null.
+        /// </param>
+        /// <param name="type">The encoding type for the field.</param>
+        /// <param name="metadata">Additional information needed to decode the field, if any.</param>
+        public void AddCustom(string name, TraceLoggingDataType type, byte[] metadata)
+        {
+            if (this.BeginningBufferedArray)
+            {
+                throw new NotSupportedException(Resources.GetResourceString("EventSource_NotSupportedCustomSerializedData"));
+            }
+
+            this.impl.AddScalar(2);
+            this.impl.AddNonscalar();
+            this.AddField(new FieldMetadata(
+                name,
+                type,
+                this.Tags,
+                metadata));
+        }
+
         internal byte[] GetMetadata()
         {
             var size = this.impl.Encode(null);
