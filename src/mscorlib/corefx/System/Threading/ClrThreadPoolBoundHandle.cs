@@ -15,7 +15,7 @@ namespace System.Threading
     ///     Represents an I/O handle that is bound to the system thread pool and enables low-level
     ///     components to receive notifications for asynchronous I/O operations.
     /// </summary>
-    internal sealed partial class ThreadPoolBoundHandle : IDisposable
+    public sealed partial class ThreadPoolBoundHandle : IDisposable
     {
         private readonly SafeHandle _handle;
         private bool _isDisposed;
@@ -23,6 +23,17 @@ namespace System.Threading
         private ThreadPoolBoundHandle(SafeHandle handle)
         {
             _handle = handle;
+        }
+
+        /// <summary>
+        ///     Gets the bound operating system handle.
+        /// </summary>
+        /// <value>
+        ///     A <see cref="SafeHandle"/> object that holds the bound operating system handle.
+        /// </value>
+        public SafeHandle Handle
+        {
+            get { return _handle; }
         }
 
         /// <summary>
