@@ -35,7 +35,7 @@ public class RetArgImpl: IRetArg<string>
 {
     public string ReturnArg(string t)
     {
-        Console.WriteLine("ReturnArg has been called.");
+        LowLevelConsole.WriteLine("ReturnArg has been called.");
         return t;
     }
 }
@@ -44,7 +44,7 @@ public class GenRetArgImpl<T>: IRetArg<T>
 {
     public T ReturnArg(T t)
     {
-        Console.WriteLine(String.Format("Generic ReturnArg has been called. My type is {0}", GetType()));
+        LowLevelConsole.WriteLine(String.Format("Generic ReturnArg has been called. My type is {0}", GetType()));
         return t;
     }
 }
@@ -54,13 +54,13 @@ public class RetThisImpl: IRetThis
 {
     public IRetThis ReturnThis()
     {
-        Console.WriteLine("RetThis has been called.");
+        LowLevelConsole.WriteLine("RetThis has been called.");
         return this;
     }
 
     public Type GetMyType()
     {
-        Console.WriteLine(String.Format("GetMyType has been called. My type is {0}", GetType()));
+        LowLevelConsole.WriteLine(String.Format("GetMyType has been called. My type is {0}", GetType()));
         return GetType();
     }
 }
@@ -77,7 +77,7 @@ public class Castable : ICastable, IExtra
 
     public bool IsInstanceOfInterface(RuntimeTypeHandle interfaceType, out Exception castError)
     {
-        Console.WriteLine(String.Format("IsInstanceOfInterface has been called for type {0}", Type.GetTypeFromHandle(interfaceType)));
+        LowLevelConsole.WriteLine(String.Format("IsInstanceOfInterface has been called for type {0}", Type.GetTypeFromHandle(interfaceType)));
         if (_interface2impl == null)
         {
             castError = new CastableException();
@@ -89,13 +89,13 @@ public class Castable : ICastable, IExtra
 
     public RuntimeTypeHandle GetImplType(RuntimeTypeHandle interfaceType)
     {
-        Console.WriteLine(String.Format("GetImplType has been called for type {0}", Type.GetTypeFromHandle(interfaceType)));
+        LowLevelConsole.WriteLine(String.Format("GetImplType has been called for type {0}", Type.GetTypeFromHandle(interfaceType)));
         return _interface2impl[Type.GetTypeFromHandle(interfaceType)].TypeHandle;
     }
 
     public int InnocentMethod()
     {
-        Console.WriteLine(String.Format("InnocentMethod has been called. My type is {0}", GetType()));
+        LowLevelConsole.WriteLine(String.Format("InnocentMethod has been called. My type is {0}", GetType()));
         return 3;
     }
 }
@@ -123,15 +123,15 @@ public class Program
     {
         if (!value)
         {
-            Console.WriteLine("FAIL! " + message);
+            LowLevelConsole.WriteLine("FAIL! " + message);
             passed = false;
         }
     }
 
     public static int Main()
     {
-        //Console.WriteLine("Execution started. Attach debugger and press enter.");
-        //Console.ReadLine();
+        //LowLevelConsole.WriteLine("Execution started. Attach debugger and press enter.");
+        //LowLevelConsole.ReadLine();
 
         try
         {
@@ -214,12 +214,12 @@ public class Program
 
        if (passed)
        {
-            Console.WriteLine("Test PASSED!");
+            LowLevelConsole.WriteLine("Test PASSED!");
             return 100;
        }
        else
        {
-            Console.WriteLine("Test FAILED!");
+            LowLevelConsole.WriteLine("Test FAILED!");
             return -1;
        }
         

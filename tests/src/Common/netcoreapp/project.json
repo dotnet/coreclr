@@ -1,7 +1,6 @@
 {
   "dependencies": {
-    "Microsoft.NETCore.App": "2.0.0-beta-001494-00",
-    "System.Runtime.CompilerServices.Unsafe": "4.4.0-beta-24913-02"
+    "Microsoft.NETCore.App": "2.0.0-beta-001500-00"
   },
   "frameworks": {
     "netcoreapp2.0": { }
