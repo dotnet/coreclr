@@ -271,46 +271,6 @@ namespace System.Text
             dataItem = null;
         }
 
-        // the following two methods are used for the inherited classes which implemented ISerializable
-        // Deserialization Helper
-        internal void DeserializeEncoding(SerializationInfo info, StreamingContext context)
-        {
-            // Any info?
-            if (info==null) throw new ArgumentNullException(nameof(info));
-            Contract.EndContractBlock();
-
-            // All versions have a code page
-            this.m_codePage = (int)info.GetValue("m_codePage", typeof(int));
-
-            // We can get dataItem on the fly if needed, and the index is different between versions
-            // so ignore whatever dataItem data we get from Everett.
-            this.dataItem   = null;
-
-            // See if we have a code page
-            try
-            {
-                //
-                // Try Whidbey V2.0 Fields
-                //
-
-                this.m_isReadOnly = (bool)info.GetValue("m_isReadOnly", typeof(bool));
-
-                this.encoderFallback = (EncoderFallback)info.GetValue("encoderFallback", typeof(EncoderFallback));
-                this.decoderFallback = (DecoderFallback)info.GetValue("decoderFallback", typeof(DecoderFallback));
-            }
-            catch (SerializationException)
-            {
-                //
-                // Didn't have Whidbey things, must be Everett
-                //
-                this.m_deserializedFromEverett = true;
-
-                // May as well be read only
-                this.m_isReadOnly = true;
-                SetDefaultFallbacks();
-            }
-        }
-
         // Serialization Helper
         internal void SerializeEncoding(SerializationInfo info, StreamingContext context)
         {
@@ -1432,25 +1392,6 @@ namespace System.Text
                 m_hasInitializedEncoding = true;
             }
 
-            // Constructor called by serialization, have to handle deserializing from Everett
-            internal DefaultEncoder(SerializationInfo info, StreamingContext context)
-            {
-                if (info==null) throw new ArgumentNullException(nameof(info));
-                Contract.EndContractBlock();
-
-                // All we have is our encoding
-                this.m_encoding = (Encoding)info.GetValue("encoding", typeof(Encoding));
-
-                try 
-                {
-                    this.m_fallback     = (EncoderFallback) info.GetValue("m_fallback",   typeof(EncoderFallback));
-                    this.charLeftOver   = (Char)            info.GetValue("charLeftOver", typeof(Char));
-                }
-                catch (SerializationException)
-                {
-                }
-            }
-
             // Just get it from GetEncoding
             public Object GetRealObject(StreamingContext context)
             {
@@ -1552,26 +1493,6 @@ namespace System.Text
                 m_encoding = encoding;
                 m_hasInitializedEncoding = true;
            }
-
-            // Constructor called by serialization, have to handle deserializing from Everett
-            internal DefaultDecoder(SerializationInfo info, StreamingContext context)
-            {
-                // Any info?
-                if (info==null) throw new ArgumentNullException(nameof(info));
-                Contract.EndContractBlock();
-
-                // All we have is our encoding
-                this.m_encoding = (Encoding)info.GetValue("encoding", typeof(Encoding));
-                
-                try 
-                {
-                    this.m_fallback = (DecoderFallback) info.GetValue("m_fallback", typeof(DecoderFallback));
-                }
-                catch (SerializationException)
-                {
-                    m_fallback = null;
-                }
-            }
 
             // Just get it from GetEncoding
             public Object GetRealObject(StreamingContext context)
@@ -1728,20 +1649,6 @@ namespace System.Text
                 return AddChar(ch,1);
             }
 
-
-            internal unsafe bool AddChar(char ch1, char ch2, int numBytes)
-            {
-                // Need room for 2 chars
-                if (chars >= charEnd - 1)
-                {
-                    // Throw maybe
-                    bytes-=numBytes;                                        // Didn't encode these bytes
-                    enc.ThrowCharsOverflow(decoder, bytes <= byteStart);    // Throw?
-                    return false;                                           // No throw, but no store either
-                }
-                return AddChar(ch1, numBytes) && AddChar(ch2, numBytes);
-            }
-
             internal unsafe void AdjustBytes(int count)
             {
                 bytes += count;
@@ -1753,12 +1660,6 @@ namespace System.Text
                 {
                     return bytes < byteEnd;
                 }
-            }
-
-            // Do we have count more bytes?
-            internal unsafe bool EvenMoreData(int count)
-            {
-                return (bytes <= byteEnd - count);
             }
 
             // GetNextByte shouldn't be called unless the caller's already checked more data or even more data,
@@ -1783,24 +1684,6 @@ namespace System.Text
             {
                 // Build our buffer
                 byte[] byteBuffer = new byte[] { fallbackByte };
-
-                // Do the fallback and add the data.
-                return Fallback(byteBuffer);
-            }
-
-            internal unsafe bool Fallback(byte byte1, byte byte2)
-            {
-                // Build our buffer
-                byte[] byteBuffer = new byte[] { byte1, byte2 };
-
-                // Do the fallback and add the data.
-                return Fallback(byteBuffer);
-            }
-
-            internal unsafe bool Fallback(byte byte1, byte byte2, byte byte3, byte byte4)
-            {
-                // Build our buffer
-                byte[] byteBuffer = new byte[] { byte1, byte2, byte3, byte4 };
 
                 // Do the fallback and add the data.
                 return Fallback(byteBuffer);
@@ -1913,26 +1796,6 @@ namespace System.Text
                 return (AddByte(b1, 1 + moreBytesExpected) && AddByte(b2, moreBytesExpected));
             }
 
-            internal unsafe bool AddByte(byte b1, byte b2, byte b3)
-            {
-                return AddByte(b1, b2, b3, (int)0);
-            }
-
-            internal unsafe bool AddByte(byte b1, byte b2, byte b3, int moreBytesExpected)
-            {
-                return (AddByte(b1, 2 + moreBytesExpected) &&
-                        AddByte(b2, 1 + moreBytesExpected) &&
-                        AddByte(b3, moreBytesExpected));
-            }
-
-            internal unsafe bool AddByte(byte b1, byte b2, byte b3, byte b4)
-            {
-                return (AddByte(b1, 3) &&
-                        AddByte(b2, 2) &&
-                        AddByte(b3, 1) &&
-                        AddByte(b4, 0));
-            }
-
             internal unsafe void MovePrevious(bool bThrow)
             {
                 if (fallbackBuffer.bFallingBack)
@@ -1948,12 +1811,6 @@ namespace System.Text
 
                 if (bThrow)
                     enc.ThrowBytesOverflow(encoder, bytes == byteStart);    // Throw? (and reset fallback if not converting)
-            }
-
-            internal unsafe bool Fallback(char charFallback)
-            {
-                // Do the fallback
-                return fallbackBuffer.InternalFallback(charFallback, ref chars);
             }
 
             internal unsafe bool MoreData

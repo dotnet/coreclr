@@ -199,9 +199,6 @@ namespace System.Collections.Generic
             Debug.Assert(typeof(T).IsEnum, "This type is only intended to be used to compare enums!");
         }
         
-        // Used by the serialization engine.
-        private Int32EnumComparer(SerializationInfo info, StreamingContext context) { }
-        
         public override int Compare(T x, T y)
         {
             int ix = JitHelpers.UnsafeEnumCast(x);
@@ -234,9 +231,6 @@ namespace System.Collections.Generic
             Debug.Assert(typeof(T).IsEnum, "This type is only intended to be used to compare enums!");
         }
         
-        // Used by the serialization engine.
-        private UInt32EnumComparer(SerializationInfo info, StreamingContext context) { }
-        
         public override int Compare(T x, T y)
         {
             uint ix = (uint)JitHelpers.UnsafeEnumCast(x);
@@ -265,9 +259,6 @@ namespace System.Collections.Generic
             Debug.Assert(typeof(T).IsEnum, "This type is only intended to be used to compare enums!");
         }
         
-        // Used by the serialization engine.
-        private Int64EnumComparer(SerializationInfo info, StreamingContext context) { }
-        
         public override int Compare(T x, T y)
         {
             long lx = JitHelpers.UnsafeEnumCastLong(x);
@@ -295,9 +286,6 @@ namespace System.Collections.Generic
         {
             Debug.Assert(typeof(T).IsEnum, "This type is only intended to be used to compare enums!");
         }
-        
-        // Used by the serialization engine.
-        private UInt64EnumComparer(SerializationInfo info, StreamingContext context) { }
         
         public override int Compare(T x, T y)
         {

@@ -1770,31 +1770,6 @@ namespace System.Text
                 // base calls reset
             }
 
-            // Constructor called by serialization, have to handle deserializing from Everett
-            internal Decoder(SerializationInfo info, StreamingContext context)
-            {
-                // Any info?
-                if (info==null) throw new ArgumentNullException(nameof(info));
-                Contract.EndContractBlock();
-
-                // Get Common Info
-                this.lastByte = (int)info.GetValue("lastByte", typeof(int));
-
-                try
-                {
-                    // Try the encoding, which is only serialized in Whidbey
-                    this.m_encoding = (Encoding)info.GetValue("m_encoding", typeof(Encoding));
-                    this.lastChar = (char)info.GetValue("lastChar", typeof(char));
-                    this.m_fallback = (DecoderFallback)info.GetValue("m_fallback", typeof(DecoderFallback));
-                }
-                catch (SerializationException)
-                {
-                    // Everett didn't serialize the UnicodeEncoding, get the default one
-                    bool bigEndian = (bool)info.GetValue("bigEndian", typeof(bool));
-                    this.m_encoding = new UnicodeEncoding(bigEndian, false);
-                }
-            }
-
             // ISerializable implementation, get data for this object
             void ISerializable.GetObjectData(SerializationInfo info, StreamingContext context)
             {

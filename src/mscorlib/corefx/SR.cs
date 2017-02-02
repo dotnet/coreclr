@@ -4,111 +4,12 @@ using System.Globalization;
 // CoreFX creates SR in the System namespace. While putting the CoreCLR SR adapter in the root
 // may be unconventional, it allows us to keep the shared code identical.
 
-internal static class SR
+internal static class SR 
 {
-    public static string Arg_ArrayZeroError
-    {
-        get { return Environment.GetResourceString("Arg_ArrayZeroError"); }
-    }
-
-    public static string Arg_ExternalException
-    {
-        get { return Environment.GetResourceString("Arg_ExternalException"); }
-    }
-
-    public static string Arg_HexStyleNotSupported
-    {
-        get { return Environment.GetResourceString("Arg_HexStyleNotSupported"); }
-    }
-
-    public static string Arg_InvalidHexStyle
-    {
-        get { return Environment.GetResourceString("Arg_InvalidHexStyle"); }
-    }
-
-    public static string ArgumentNull_Array
-    {
-        get { return Environment.GetResourceString("ArgumentNull_Array"); }
-    }
-
-    public static string ArgumentNull_ArrayValue
-    {
-        get { return Environment.GetResourceString("ArgumentNull_ArrayValue"); }
-    }
-
-    public static string ArgumentNull_Obj
-    {
-        get { return Environment.GetResourceString("ArgumentNull_Obj"); }
-    }
-
-    public static string ArgumentNull_String
-    {
-        get { return Environment.GetResourceString("ArgumentNull_String"); }
-    }
-
-    public static string ArgumentOutOfRange_AddValue
-    {
-        get { return Environment.GetResourceString("ArgumentOutOfRange_AddValue"); }
-    }
-
-    public static string ArgumentOutOfRange_BadHourMinuteSecond
-    {
-        get { return Environment.GetResourceString("ArgumentOutOfRange_BadHourMinuteSecond"); }
-    }
-
-    public static string ArgumentOutOfRange_BadYearMonthDay
-    {
-        get { return Environment.GetResourceString("ArgumentOutOfRange_BadYearMonthDay"); }
-    }
-
-    public static string ArgumentOutOfRange_Bounds_Lower_Upper
-    {
-        get { return Environment.GetResourceString("ArgumentOutOfRange_Bounds_Lower_Upper"); }
-    }
-
-    public static string ArgumentOutOfRange_CalendarRange
-    {
-        get { return Environment.GetResourceString("ArgumentOutOfRange_CalendarRange"); }
-    }
-
-    public static string ArgumentOutOfRange_Count
-    {
-        get { return Environment.GetResourceString("ArgumentOutOfRange_Count"); }
-    }
-
-    public static string ArgumentOutOfRange_Day
-    {
-        get { return Environment.GetResourceString("ArgumentOutOfRange_Day"); }
-    }
 
     public static string ArgumentOutOfRange_Enum
     {
         get { return Environment.GetResourceString("ArgumentOutOfRange_Enum"); }
-    }
-
-    public static string ArgumentOutOfRange_Era
-    {
-        get { return Environment.GetResourceString("ArgumentOutOfRange_Era"); }
-    }
-
-    public static string ArgumentOutOfRange_Index
-    {
-        get { return Environment.GetResourceString("ArgumentOutOfRange_Index"); }
-    }
-
-    public static string ArgumentOutOfRange_IndexCountBuffer
-    {
-        get { return Environment.GetResourceString("ArgumentOutOfRange_IndexCountBuffer"); }
-    }
-
-    public static string ArgumentOutOfRange_InvalidEraValue
-    {
-        get { return Environment.GetResourceString("ArgumentOutOfRange_InvalidEraValue"); }
-    }
-
-    public static string ArgumentOutOfRange_Month
-    {
-        get { return Environment.GetResourceString("ArgumentOutOfRange_Month"); }
     }
 
     public static string ArgumentOutOfRange_NeedNonNegNum
@@ -119,181 +20,6 @@ internal static class SR
     public static string ArgumentOutOfRange_NeedPosNum
     {
         get { return Environment.GetResourceString("ArgumentOutOfRange_NeedPosNum"); }
-    }
-
-    public static string Arg_ArgumentOutOfRangeException
-    {
-        get { return Environment.GetResourceString("Arg_ArgumentOutOfRangeException"); }
-    }
-
-    public static string ArgumentOutOfRange_OffsetLength
-    {
-        get { return Environment.GetResourceString("ArgumentOutOfRange_OffsetLength"); }
-    }
-
-    public static string ArgumentOutOfRange_Range
-    {
-        get { return Environment.GetResourceString("ArgumentOutOfRange_Range"); }
-    }
-
-    public static string Argument_CompareOptionOrdinal
-    {
-        get { return Environment.GetResourceString("Argument_CompareOptionOrdinal"); }
-    }
-
-    public static string Argument_ConflictingDateTimeRoundtripStyles
-    {
-        get { return Environment.GetResourceString("Argument_ConflictingDateTimeRoundtripStyles"); }
-    }
-
-    public static string Argument_ConflictingDateTimeStyles
-    {
-        get { return Environment.GetResourceString("Argument_ConflictingDateTimeStyles"); }
-    }
-
-    public static string Argument_CultureIetfNotSupported
-    {
-        get { return Environment.GetResourceString("Argument_CultureIetfNotSupported"); }
-    }
-
-    public static string Argument_CultureInvalidIdentifier
-    {
-        get { return Environment.GetResourceString("Argument_CultureInvalidIdentifier"); }
-    }
-
-    public static string Argument_CultureNotSupported
-    {
-        get { return Environment.GetResourceString("Argument_CultureNotSupported"); }
-    }
-
-    public static string Argument_CultureIsNeutral
-    {
-        get { return Environment.GetResourceString("Argument_CultureIsNeutral"); }
-    }
-
-    public static string Argument_CustomCultureCannotBePassedByNumber
-    {
-        get { return Environment.GetResourceString("Argument_CustomCultureCannotBePassedByNumber"); }
-    }
-       
-    public static string Argument_EmptyDecString
-    {
-        get { return Environment.GetResourceString("Argument_EmptyDecString"); }
-    }
-
-    public static string Argument_IdnBadLabelSize
-    {
-        get { return Environment.GetResourceString("Argument_IdnBadLabelSize"); }
-    }
-
-    public static string Argument_IdnBadPunycode
-    {
-        get { return Environment.GetResourceString("Argument_IdnBadPunycode"); }
-    }
-
-    public static string Argument_IdnIllegalName
-    {
-        get { return Environment.GetResourceString("Argument_IdnIllegalName"); }
-    }
-
-    public static string Argument_InvalidArrayLength
-    {
-        get { return Environment.GetResourceString("Argument_InvalidArrayLength"); }
-    }
-
-    public static string Argument_InvalidCalendar
-    {
-        get { return Environment.GetResourceString("Argument_InvalidCalendar"); }
-    }
-
-    public static string Argument_InvalidCharSequence
-    {
-        get { return Environment.GetResourceString("Argument_InvalidCharSequence"); }
-    }
-
-    public static string Argument_InvalidCultureName
-    {
-        get { return Environment.GetResourceString("Argument_InvalidCultureName"); }
-    }
-
-    public static string Argument_InvalidDateTimeStyles
-    {
-        get { return Environment.GetResourceString("Argument_InvalidDateTimeStyles"); }
-    }
-
-    public static string Argument_InvalidDigitSubstitution
-    {
-        get { return Environment.GetResourceString("Argument_InvalidDigitSubstitution"); }
-    }
-
-    public static string Argument_InvalidFlag
-    {
-        get { return Environment.GetResourceString("Argument_InvalidFlag"); }
-    }
-
-    public static string Argument_InvalidGroupSize
-    {
-        get { return Environment.GetResourceString("Argument_InvalidGroupSize"); }
-    }
-
-    public static string Argument_InvalidNativeDigitCount
-    {
-        get { return Environment.GetResourceString("Argument_InvalidNativeDigitCount"); }
-    }
-
-    public static string Argument_InvalidNativeDigitValue
-    {
-        get { return Environment.GetResourceString("Argument_InvalidNativeDigitValue"); }
-    }
-
-    public static string Argument_InvalidNeutralRegionName
-    {
-        get { return Environment.GetResourceString("Argument_InvalidNeutralRegionName"); }
-    }
-
-    public static string Argument_InvalidNumberStyles
-    {
-        get { return Environment.GetResourceString("Argument_InvalidNumberStyles"); }
-    }
-
-    public static string Argument_InvalidResourceCultureName
-    {
-        get { return Environment.GetResourceString("Argument_InvalidResourceCultureName"); }
-    }
-
-    public static string Argument_NoEra
-    {
-        get { return Environment.GetResourceString("Argument_NoEra"); }
-    }
-
-    public static string Argument_NoRegionInvariantCulture
-    {
-        get { return Environment.GetResourceString("Argument_NoRegionInvariantCulture"); }
-    }
-
-    public static string Argument_OneOfCulturesNotSupported
-    {
-        get { return Environment.GetResourceString("Argument_OneOfCulturesNotSupported"); }
-    }
-
-    public static string Argument_OnlyMscorlib
-    {
-        get { return Environment.GetResourceString("Argument_OnlyMscorlib"); }
-    }
-
-    public static string Argument_ResultCalendarRange
-    {
-        get { return Environment.GetResourceString("Argument_ResultCalendarRange"); }
-    }
-
-    public static string Format_BadFormatSpecifier
-    {
-        get { return Environment.GetResourceString("Format_BadFormatSpecifier"); }
-    }
-
-    public static string InvalidOperation_DateTimeParsing
-    {
-        get { return Environment.GetResourceString("InvalidOperation_DateTimeParsing"); }
     }
 
     public static string InvalidOperation_EnumEnded
@@ -309,16 +35,6 @@ internal static class SR
     public static string InvalidOperation_ReadOnly
     {
         get { return Environment.GetResourceString("InvalidOperation_ReadOnly"); }
-    }
-
-    public static string Overflow_TimeSpanTooLong
-    {
-        get { return Environment.GetResourceString("Overflow_TimeSpanTooLong"); }
-    }
-
-    public static string Serialization_MemberOutOfRange
-    {
-        get { return Environment.GetResourceString("Serialization_MemberOutOfRange"); }
     }
 
     public static string Arg_InvalidHandle
@@ -569,16 +285,6 @@ internal static class SR
     public static string Arg_PathIllegalUNC
     {
         get { return Environment.GetResourceString("Arg_PathIllegalUNC"); }
-    }
-
-    public static string Arg_InvalidSearchPattern
-    {
-        get { return Environment.GetResourceString("Arg_InvalidSearchPattern"); }
-    }
-
-    public static string InvalidOperation_Cryptography
-    {
-        get { return Environment.GetResourceString("InvalidOperation_Cryptography"); }
     }
 
     public static string Format(string formatString, params object[] args)

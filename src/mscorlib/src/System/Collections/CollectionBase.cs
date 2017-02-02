@@ -14,18 +14,13 @@ namespace System.Collections {
     [Serializable]
 [System.Runtime.InteropServices.ComVisible(true)]
     public abstract class CollectionBase : IList {
-        ArrayList list;
+        private ArrayList list;
 
         protected CollectionBase() {
             list = new ArrayList();
         }
-        
-        protected CollectionBase(int capacity) {
-            list = new ArrayList(capacity);
-        }
 
-
-        protected ArrayList InnerList { 
+        internal ArrayList InnerList { 
             get { 
                 if (list == null)
                     list = new ArrayList();
@@ -35,16 +30,6 @@ namespace System.Collections {
 
         protected IList List {
             get { return (IList)this; }
-        }
-
-        [System.Runtime.InteropServices.ComVisible(false)]        
-        public int Capacity {
-            get {
-                return InnerList.Capacity;
-            }
-            set {
-                InnerList.Capacity = value;
-            }
         }
 
 
@@ -181,33 +166,33 @@ namespace System.Collections {
             return InnerList.GetEnumerator();
         }
 
-        protected virtual void OnSet(int index, Object oldValue, Object newValue) { 
+        protected internal virtual void OnSet(int index, Object oldValue, Object newValue) { 
         }
 
-        protected virtual void OnInsert(int index, Object value) { 
+        protected internal virtual void OnInsert(int index, Object value) { 
         }
 
-        protected virtual void OnClear() { 
+        protected internal virtual void OnClear() { 
         }
 
-        protected virtual void OnRemove(int index, Object value) { 
+        protected internal virtual void OnRemove(int index, Object value) { 
         }
 
-        protected virtual void OnValidate(Object value) { 
+        protected internal virtual void OnValidate(Object value) { 
             if (value == null) throw new ArgumentNullException(nameof(value));
             Contract.EndContractBlock();
         }
 
-        protected virtual void OnSetComplete(int index, Object oldValue, Object newValue) { 
+        protected internal virtual void OnSetComplete(int index, Object oldValue, Object newValue) { 
         }
 
-        protected virtual void OnInsertComplete(int index, Object value) { 
+        protected internal virtual void OnInsertComplete(int index, Object value) { 
         }
 
-        protected virtual void OnClearComplete() { 
+        protected internal virtual void OnClearComplete() { 
         }
 
-        protected virtual void OnRemoveComplete(int index, Object value) { 
+        protected internal virtual void OnRemoveComplete(int index, Object value) { 
         }
     
     }

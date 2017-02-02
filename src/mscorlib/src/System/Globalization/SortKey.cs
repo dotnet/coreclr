@@ -55,25 +55,6 @@ namespace System.Globalization {
         }
 
 #if FEATURE_USE_LCID
-        [OnSerializing]
-        private void OnSerializing(StreamingContext context)
-        {
-            //set LCID to proper value for Whidbey serialization (no other use)
-            if (win32LCID == 0)
-            {
-                win32LCID = CultureInfo.GetCultureInfo(localeName).LCID;
-            }
-        }
-
-        [OnDeserialized]
-        private void OnDeserialized(StreamingContext context)
-        {
-            //set locale name to proper value after Whidbey deserialization
-            if (String.IsNullOrEmpty(localeName) && win32LCID != 0)
-            {
-                localeName = CultureInfo.GetCultureInfo(win32LCID).Name;
-            }
-        }
 #endif //FEATURE_USE_LCID
     
         ////////////////////////////////////////////////////////////////////////

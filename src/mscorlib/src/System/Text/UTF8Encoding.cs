@@ -2158,29 +2158,6 @@ namespace System.Text
                 // base calls reset
             }
 
-            // Constructor called by serialization, have to handle deserializing from Everett
-            internal UTF8Encoder(SerializationInfo info, StreamingContext context)
-            {
-                // Any info?
-                if (info==null) throw new ArgumentNullException(nameof(info));
-                Contract.EndContractBlock();
-
-                // Get common info
-                this.m_encoding = (Encoding)info.GetValue("encoding", typeof(Encoding));
-
-                // SurrogateChar happens to mean the same thing
-                this.surrogateChar = (int)info.GetValue("surrogateChar", typeof(int));
-
-                try 
-                {
-                    this.m_fallback = (EncoderFallback) info.GetValue("m_fallback", typeof(EncoderFallback));
-                } 
-                catch (SerializationException)
-                {
-                    this.m_fallback = null;
-                }
-            }
-
             // ISerializable implementation, get data for this object
             void ISerializable.GetObjectData(SerializationInfo info, StreamingContext context)
             {

@@ -244,13 +244,7 @@ namespace System.Diagnostics.Tracing
         /// </summary>
         public static ActivityTracker Instance { get { return s_activityTrackerInstance; } }
 
-
-        #region private
-
-        /// <summary>
-        /// The current activity ID.  Use this to log normal events.  
-        /// </summary>
-        private Guid CurrentActivityId { get { return m_current.Value.ActivityId; } }
+#region private
 
         /// <summary>
         /// Searched for a active (nonstopped) activity with the given name.  Returns null if not found.  

@@ -18,17 +18,4 @@ namespace System.Runtime.Serialization {
     using System.Security.Permissions;
     using System;
     using System.Reflection;
-[System.Runtime.InteropServices.ComVisible(true)]
-    public interface ISerializationSurrogate {
-    // Interface does not need to be marked with the serializable attribute
-        // Returns a SerializationInfo completely populated with all of the data needed to reinstantiate the
-        // the object at the other end of serialization.  
-        //
-        void GetObjectData(Object obj, SerializationInfo info, StreamingContext context);
-    
-        // Reinflate the object using all of the information in data.  The information in
-        // members is used to find the particular field or property which needs to be set.
-        // 
-        Object SetObjectData(Object obj, SerializationInfo info, StreamingContext context, ISurrogateSelector selector);
-    }
 }

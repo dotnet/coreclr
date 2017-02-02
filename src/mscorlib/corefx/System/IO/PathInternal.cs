@@ -40,64 +40,6 @@ namespace System.IO
             if (HasIllegalCharacters(path))
                 throw new ArgumentException(SR.Argument_InvalidPathChars, nameof(path));
         }
-
-
-        /// <summary>
-        /// Returns true if the given StringBuilder starts with the given value.
-        /// </summary>
-        /// <param name="value">The string to compare against the start of the StringBuilder.</param>
-        internal static bool StartsWithOrdinal(this StringBuilder builder, string value)
-        {
-            if (value == null || builder.Length < value.Length)
-                return false;
-
-            for (int i = 0; i < value.Length; i++)
-            {
-                if (builder[i] != value[i]) return false;
-            }
-            return true;
-        }
-
-        /// <summary>
-        /// Returns true if the given string starts with the given value.
-        /// </summary>
-        /// <param name="value">The string to compare against the start of the source string.</param>
-        internal static bool StartsWithOrdinal(this string source, string value)
-        {
-            if (value == null || source.Length < value.Length)
-                return false;
-
-            return source.StartsWith(value, StringComparison.Ordinal);
-        }
-
-        /// <summary>
-        /// Trims the specified characters from the end of the StringBuilder.
-        /// </summary>
-        internal static StringBuilder TrimEnd(this StringBuilder builder, params char[] trimChars)
-        {
-            if (trimChars == null || trimChars.Length == 0)
-                return builder;
-
-            int end = builder.Length - 1;
-
-            for (; end >= 0; end--)
-            {
-                int i = 0;
-                char ch = builder[end];
-                for (; i < trimChars.Length; i++)
-                {
-                    if (trimChars[i] == ch) break;
-                }
-                if (i == trimChars.Length)
-                {
-                    // Not a trim char
-                    break;
-                }
-            }
-
-            builder.Length = end + 1;
-            return builder;
-        }
         
         /// <summary>
         /// Returns the start index of the filename
@@ -203,28 +145,6 @@ namespace System.IO
                     indexB: 0,
                     length: firstRootLength,
                     comparisonType: comparisonType) == 0;
-        }
-
-        /// <summary>
-        /// Returns false for ".." unless it is specified as a part of a valid File/Directory name.
-        /// (Used to avoid moving up directories.)
-        ///
-        ///       Valid: a..b   abc..d
-        ///     Invalid: ..ab   ab..   ..   abc..d\abc..
-        /// </summary>
-        internal static void CheckSearchPattern(string searchPattern)
-        {
-            int index;
-            while ((index = searchPattern.IndexOf("..", StringComparison.Ordinal)) != -1)
-            {
-                // Terminal ".." . Files names cannot end in ".."
-                if (index + 2 == searchPattern.Length
-                    || IsDirectorySeparator(searchPattern[index + 2]))
-                    throw new ArgumentException(SR.Arg_InvalidSearchPattern);
-
-                searchPattern = searchPattern.Substring(index + 2);
-            }
-
         }
     }
 }

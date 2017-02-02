@@ -6,7 +6,6 @@ internal static partial class Interop
 {
     internal static class Libraries
     {
-        internal const string Advapi32 = "advapi32.dll";
         internal const string BCrypt = "BCrypt.dll";
         internal const string Combase = "combase.dll";
         internal const string Console_L1 = "api-ms-win-core-console-l1-1-0.dll";
