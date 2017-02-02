@@ -9102,33 +9102,33 @@ CorInfoType CEEInfo::getFieldTypeInternal (CORINFO_FIELD_HANDLE fieldHnd,
     FieldDesc* field = (FieldDesc*) fieldHnd;
     CorElementType type   = field->GetFieldType();
 
-    // <REVISIT_TODO>TODO should not burn the time to do this for anything but Value Classes</REVISIT_TODO>
-    _ASSERTE(type != ELEMENT_TYPE_BYREF);
-
-    // For verifying code involving generics, use the class instantiation
-    // of the optional owner (to provide exact, not representative,
-    // type information)
-    SigTypeContext typeContext(field, (TypeHandle) owner);
-
-    if (!CorTypeInfo::IsPrimitiveType(type))
+    if (type != ELEMENT_TYPE_BYREF)
     {
-        PCCOR_SIGNATURE sig;
-        DWORD sigCount;
-        CorCallingConvention conv;
+        // For verifying code involving generics, use the class instantiation
+        // of the optional owner (to provide exact, not representative,
+        // type information)
+        SigTypeContext typeContext(field, (TypeHandle) owner);
 
-        field->GetSig(&sig, &sigCount);
+        if (!CorTypeInfo::IsPrimitiveType(type))
+        {
+            PCCOR_SIGNATURE sig;
+            DWORD sigCount;
+            CorCallingConvention conv;
 
-         conv = (CorCallingConvention) CorSigUncompressCallingConv(sig);
-        _ASSERTE(isCallConv(conv, IMAGE_CEE_CS_CALLCONV_FIELD));
+            field->GetSig(&sig, &sigCount);
 
-        SigPointer ptr(sig, sigCount);
+             conv = (CorCallingConvention) CorSigUncompressCallingConv(sig);
+            _ASSERTE(isCallConv(conv, IMAGE_CEE_CS_CALLCONV_FIELD));
 
-        clsHnd = ptr.GetTypeHandleThrowing(field->GetModule(), &typeContext);
-        _ASSERTE(!clsHnd.IsNull());
+            SigPointer ptr(sig, sigCount);
 
-        // I believe it doesn't make any diff. if this is GetInternalCorElementType 
-        // or GetSignatureCorElementType.
-        type = clsHnd.GetSignatureCorElementType();
+            clsHnd = ptr.GetTypeHandleThrowing(field->GetModule(), &typeContext);
+            _ASSERTE(!clsHnd.IsNull());
+
+            // I believe it doesn't make any diff. if this is GetInternalCorElementType 
+            // or GetSignatureCorElementType.
+            type = clsHnd.GetSignatureCorElementType();
+        }
     }
 
     return CEEInfo::asCorInfoType(type, clsHnd, pTypeHnd);
