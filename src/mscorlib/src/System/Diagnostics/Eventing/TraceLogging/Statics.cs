@@ -144,6 +144,21 @@ namespace System.Diagnostics.Tracing
             }
         }
 
+        public static byte Combine(
+            int settingValue1,
+            int settingValue2,
+            byte defaultValue)
+        {
+            unchecked
+            {
+                return (byte)settingValue1 == settingValue1
+                    ? (byte)settingValue1
+                    : (byte)settingValue2 == settingValue2
+                    ? (byte)settingValue2
+                    : defaultValue;
+            }
+        }
+
         public static int Combine(
             int settingValue1,
             int settingValue2)
@@ -337,8 +352,20 @@ namespace System.Diagnostics.Tracing
             }
         }
 
-#endregion
-#region Reflection helpers
+        #endregion
+
+        #region Reflection helpers
+
+        /*
+        All TraceLogging use of reflection APIs should go through wrappers here.
+        This helps with portability, and it also makes it easier to audit what
+        kinds of reflection operations are being done.
+        */
+
+        public static object CreateInstance(Type type, params object[] parameters)
+        {
+            return Activator.CreateInstance(type, parameters);
+        }
 
         public static bool IsValueType(Type type)
         {
@@ -361,6 +388,19 @@ namespace System.Diagnostics.Tracing
         public static MethodInfo GetGetMethod(PropertyInfo propInfo)
         {
             MethodInfo result = propInfo.GetGetMethod();
+            return result;
+        }
+
+        public static MethodInfo GetDeclaredStaticMethod(Type declaringType, string name)
+        {
+            MethodInfo result;
+#if (ES_BUILD_PCL || PROJECTN)
+            result = declaringType.GetTypeInfo().GetDeclaredMethod(name);
+#else
+            result = declaringType.GetMethod(
+                name,
+                BindingFlags.DeclaredOnly | BindingFlags.Static | BindingFlags.NonPublic);
+#endif
             return result;
         }
 
@@ -467,6 +507,20 @@ namespace System.Diagnostics.Tracing
         public static bool IsGenericMatch(Type type, object openType)
         {
             return type.IsGenericType() && type.GetGenericTypeDefinition() == (Type)openType;
+        }
+
+        public static Delegate CreateDelegate(Type delegateType, MethodInfo methodInfo)
+        {
+            Delegate result;
+#if (ES_BUILD_PCL || PROJECTN)
+            result = methodInfo.CreateDelegate(
+                delegateType);
+#else
+            result = Delegate.CreateDelegate(
+                delegateType,
+                methodInfo);
+#endif
+            return result;
         }
 
         public static TraceLoggingTypeInfo CreateDefaultTypeInfo(

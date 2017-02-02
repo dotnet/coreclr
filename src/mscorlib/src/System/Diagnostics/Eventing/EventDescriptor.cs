@@ -179,5 +179,15 @@ namespace System.Diagnostics.Tracing
             }
             return true;
         }
+
+        public static bool operator ==(EventDescriptor event1, EventDescriptor event2)
+        {
+            return event1.Equals(event2);
+        }
+
+        public static bool operator !=(EventDescriptor event1, EventDescriptor event2)
+        {
+            return !event1.Equals(event2);
+        }
     }
 }

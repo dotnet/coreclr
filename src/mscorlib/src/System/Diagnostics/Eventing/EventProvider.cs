@@ -199,6 +199,15 @@ namespace System.Diagnostics.Tracing
 
         }
 
+        /// <summary>
+        /// This method deregisters the controlGuid of this class with ETW.
+        /// 
+        /// </summary>
+        public virtual void Close()
+        {
+            Dispose();
+        }
+
         ~EventProvider()
         {
             Dispose(false);
@@ -309,6 +318,7 @@ namespace System.Diagnostics.Tracing
         protected virtual void OnControllerCommand(ControllerCommand command, IDictionary<string, string> arguments, int sessionId, int etwSessionId) { }
         protected EventLevel Level { get { return (EventLevel)m_level; } set { m_level = (byte)value; } }
         protected EventKeywords MatchAnyKeyword { get { return (EventKeywords)m_anyKeywordMask; } set { m_anyKeywordMask = unchecked((long)value); } }
+        protected EventKeywords MatchAllKeyword { get { return (EventKeywords)m_allKeywordMask; } set { m_allKeywordMask = unchecked((long)value); } }
 
         static private int FindNull(byte[] buffer, int idx)
         {

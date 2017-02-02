@@ -4180,13 +4180,39 @@ namespace System.Diagnostics.Tracing
     /// </summary>
     public class EventListener : IDisposable
     {
-        private EventHandler<EventSourceCreatedEventArgs> _EventSourceCreated;
+        private event EventHandler<EventSourceCreatedEventArgs> _EventSourceCreated;
+
+        /// <summary>
+        /// This event is raised whenever a new eventSource is 'attached' to the dispatcher.
+        /// This can happen for all existing EventSources when the EventListener is created
+        /// as well as for any EventSources that come into existence after the EventListener
+        /// has been created.
+        /// 
+        /// These 'catch up' events are called during the construction of the EventListener.
+        /// Subclasses need to be prepared for that.
+        /// 
+        /// In a multi-threaded environment, it is possible that 'EventSourceEventWrittenCallback' 
+        /// events for a particular eventSource to occur BEFORE the EventSourceCreatedCallback is issued.
+        /// </summary>
+        public event EventHandler<EventSourceCreatedEventArgs> EventSourceCreated
+        {
+            add
+            {
+                CallBackForExistingEventSources(false, value);
+
+                this._EventSourceCreated = (EventHandler<EventSourceCreatedEventArgs>)Delegate.Combine(_EventSourceCreated, value);
+            }
+            remove
+            {
+                this._EventSourceCreated = (EventHandler<EventSourceCreatedEventArgs>)Delegate.Remove(_EventSourceCreated, value);
+            }
+        }
 
         /// <summary>
         /// This event is raised whenever an event has been written by a EventSource for which 
         /// the EventListener has enabled events.  
         /// </summary>
-        private EventHandler<EventWrittenEventArgs> EventWritten;
+        public event EventHandler<EventWrittenEventArgs> EventWritten;
 
         /// <summary>
         /// Create a new EventListener in which all events start off turned off (use EnableEvents to turn
@@ -4416,6 +4442,26 @@ namespace System.Diagnostics.Tracing
                     newEventSource.AddListener(listener);
 
                 Validate();
+            }
+        }
+
+        // Whenver we have async callbacks from native code, there is an ugly issue where
+        // during .NET shutdown native code could be calling the callback, but the CLR
+        // has already prohibited callbacks to managed code in the appdomain, causing the CLR 
+        // to throw a COMPLUS_BOOT_EXCEPTION.   The guideline we give is that you must unregister
+        // such callbacks on process shutdown or appdomain so that unmanaged code will never 
+        // do this.  This is what this callback is for.  
+        // See bug 724140 for more
+        private static void DisposeOnShutdown(object sender, EventArgs e)
+        {
+            lock (EventListenersLock)
+            {
+                foreach (var esRef in s_EventSources)
+                {
+                    EventSource es = esRef.Target as EventSource;
+                    if (es != null)
+                        es.Dispose();
+                }
             }
         }
 
@@ -4686,7 +4732,7 @@ namespace System.Diagnostics.Tracing
     /// <summary>
     /// EventSourceCreatedEventArgs is passed to <see cref="EventListener.EventSourceCreated"/>
     /// </summary>
-    internal class EventSourceCreatedEventArgs : EventArgs
+    public class EventSourceCreatedEventArgs : EventArgs
     {
         /// <summary>
         /// The EventSource that is attaching to the listener.
@@ -5322,6 +5368,19 @@ namespace System.Diagnostics.Tracing
         }
 
         /// <summary>
+        /// Returns the first ActivityFilter from 'filterList' corresponding to 'source'.
+        /// </summary>
+        public static ActivityFilter GetFilter(ActivityFilter filterList, EventSource source)
+        {
+            for (var af = filterList; af != null; af = af.m_next)
+            {
+                if (af.m_providerGuid == source.Guid && af.m_samplingFreq != -1)
+                    return af;
+            }
+            return null;
+        }
+
+        /// <summary>
         /// Returns a session mask representing all sessions in which the activity 
         /// associated with the current thread is allowed  through the activity filter. 
         /// If 'triggeringEvent' is true the event MAY be a triggering event. Ideally 
@@ -5411,6 +5470,16 @@ namespace System.Diagnostics.Tracing
             }
             // EventSource.OutputDebugString(string.Format("  PassesAF - shouldBeLogged(evt {0}) = {1:x}", eventId, shouldBeLogged));
             return shouldBeLogged;
+        }
+
+        public static bool IsCurrentActivityActive(ActivityFilter filterList)
+        {
+            var activeActivities = GetActiveActivities(filterList);
+            if (activeActivities != null &&
+                activeActivities.ContainsKey(EventSource.InternalCurrentThreadActivityId))
+                return true;
+
+            return false;
         }
 
         /// <summary>
@@ -5779,6 +5848,8 @@ namespace System.Diagnostics.Tracing
     /// </summary>
     internal struct SessionMask
     {
+        public SessionMask(SessionMask m)
+        { m_mask = m.m_mask; }
 
         public SessionMask(uint mask = 0)
         { m_mask = mask & MASK; }
@@ -5822,6 +5893,26 @@ namespace System.Diagnostics.Tracing
                 if (value) m_mask |= ((uint)1 << perEventSourceSessionId);
                 else m_mask &= ~((uint)1 << perEventSourceSessionId);
             }
+        }
+
+        public static SessionMask operator |(SessionMask m1, SessionMask m2)
+        {
+            return new SessionMask(m1.m_mask | m2.m_mask);
+        }
+
+        public static SessionMask operator &(SessionMask m1, SessionMask m2)
+        {
+            return new SessionMask(m1.m_mask & m2.m_mask);
+        }
+
+        public static SessionMask operator ^(SessionMask m1, SessionMask m2)
+        {
+            return new SessionMask(m1.m_mask ^ m2.m_mask);
+        }
+
+        public static SessionMask operator ~(SessionMask m)
+        {
+            return new SessionMask(MASK & ~(m.m_mask));
         }
 
         public static explicit operator ulong(SessionMask m)

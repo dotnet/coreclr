@@ -22,7 +22,7 @@ namespace System.Diagnostics.Tracing
     /// TraceLogging: Used when calling EventSource.WriteMultiMerge.
     /// Stores the type information to use when writing the event fields.
     /// </summary>
-    internal class TraceLoggingEventTypes
+    public class TraceLoggingEventTypes
     {
         internal readonly TraceLoggingTypeInfo[] typeInfos;
         internal readonly string name;
@@ -163,6 +163,30 @@ namespace System.Diagnostics.Tracing
         internal string Name
         {
             get { return this.name; }
+        }
+
+        /// <summary>
+        /// Gets the default level that will be used for events with this descriptor.
+        /// </summary>
+        internal EventLevel Level
+        {
+            get { return (EventLevel)this.level; }
+        }
+
+        /// <summary>
+        /// Gets the default opcode that will be used for events with this descriptor.
+        /// </summary>
+        internal EventOpcode Opcode
+        {
+            get { return (EventOpcode)this.opcode; }
+        }
+
+        /// <summary>
+        /// Gets the default set of keywords that will added to events with this descriptor.
+        /// </summary>
+        internal EventKeywords Keywords
+        {
+            get { return (EventKeywords)this.keywords; }
         }
 
         /// <summary>

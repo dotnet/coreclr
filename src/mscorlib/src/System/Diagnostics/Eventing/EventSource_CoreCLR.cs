@@ -116,9 +116,19 @@ namespace System.Diagnostics.Tracing
             }
         }
 
+        private int GetParameterCount(EventMetadata eventData)
+        {
+            return eventData.Parameters.Length;
+        }
+
         private Type GetDataType(EventMetadata eventData, int parameterId)
         {
             return eventData.Parameters[parameterId].ParameterType;
+        }
+
+        private static string GetResourceString(string key, params object[] args)
+        {
+            return Environment.GetResourceString(key, args);
         }
         
         private static readonly bool m_EventSourcePreventRecursion = false;
