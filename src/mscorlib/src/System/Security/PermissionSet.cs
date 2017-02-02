@@ -78,6 +78,11 @@ namespace System.Security {
         internal static readonly PermissionSet s_fullTrust = new PermissionSet( true );
 
 #if _DEBUG
+        [OnSerialized]
+        private void OnSerialized(StreamingContext context)
+        {
+            Debug.Assert(false, "PermissionSet does not support serialization on CoreCLR");
+        }
 #endif // _DEBUG
 
         internal PermissionSet()

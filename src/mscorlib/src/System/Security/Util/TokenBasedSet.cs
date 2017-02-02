@@ -34,6 +34,57 @@ namespace System.Security.Util
         private volatile int m_maxIndex;
 
 
+        [OnDeserialized]
+        private void OnDeserialized(StreamingContext ctx)
+        {
+            OnDeserializedInternal();
+        }
+        private void OnDeserializedInternal()
+        {
+            if (m_objSet != null) //v1.x case 
+            {
+                if (m_cElt == 1)
+                    m_Obj = m_objSet[m_maxIndex];
+                else
+                    m_Set = m_objSet;
+                m_objSet = null;
+            }
+            // Nothing to do for the v2.0 and beyond case
+        }
+
+        [OnSerializing]
+        private void OnSerializing(StreamingContext ctx)
+        {
+
+            if ((ctx.State & ~(StreamingContextStates.Clone|StreamingContextStates.CrossAppDomain)) != 0)
+            {
+                //Nothing special for the v2 and beyond case
+                
+                // for the v1.x case, we need to create m_objSet if necessary
+                if (m_cElt == 1)
+                {
+                    m_objSet = new Object[m_maxIndex+1];
+                    m_objSet[m_maxIndex] = m_Obj;
+                }
+                else if (m_cElt > 0)
+                {
+                    // Array case:
+                    m_objSet = m_Set;
+                }
+                
+            }
+        }   
+        [OnSerialized]
+        private void OnSerialized(StreamingContext ctx)
+        {
+            if ((ctx.State & ~(StreamingContextStates.Clone|StreamingContextStates.CrossAppDomain)) != 0)
+            {
+                m_objSet = null;
+                
+            }
+        }
+
+
         internal bool MoveNext(ref TokenBasedSetEnumerator e)
         {
             switch (m_cElt)

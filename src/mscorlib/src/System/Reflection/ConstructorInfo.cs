@@ -619,6 +619,11 @@ namespace System.Reflection
             // We don't need the return type for constructors.
             return FormatNameAndSig(true);
         }
+
+        internal void SerializationInvoke(Object target, SerializationInfo info, StreamingContext context)
+        {
+            RuntimeMethodHandle.SerializationInvoke(this, target, info, ref context);
+        }
        #endregion
     }
 }

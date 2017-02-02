@@ -32,6 +32,17 @@ namespace System.Text
         {
         }
 
+        // Constructor called by serialization.
+        // Note:  We use the base GetObjectData however
+        internal Latin1Encoding(SerializationInfo info, StreamingContext context) :
+            base(Encoding.ISO_8859_1)
+        {
+            // Set up our base, also throws if info was empty
+            DeserializeEncoding(info, context);
+
+            // Nothing unique to Whidbey for Latin1
+        }
+
         // ISerializable implementation, serialize it as a CodePageEncoding
         void ISerializable.GetObjectData(SerializationInfo info, StreamingContext context)
         {

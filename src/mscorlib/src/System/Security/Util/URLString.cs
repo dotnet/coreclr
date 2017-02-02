@@ -48,6 +48,40 @@ namespace System.Security.Util {
 
         // legacy field from v1.x, not used in v2 and beyond. Retained purely for serialization compatibility.
         private String m_fullurl;
+
+
+        [OnDeserialized]
+        public void OnDeserialized(StreamingContext ctx)
+        {
+
+            if (m_urlOriginal == null)
+            {
+                // pre-v2 deserialization. Need to fix-up fields here
+                m_parseDeferred = false;
+                m_parsedOriginal = false; // Dont care what this value is - never used
+                m_userpass = "";
+                m_urlOriginal = m_fullurl;
+                m_fullurl = null;
+            }
+        }
+        [OnSerializing]
+        private void OnSerializing(StreamingContext ctx)
+        {
+
+            if ((ctx.State & ~(StreamingContextStates.Clone|StreamingContextStates.CrossAppDomain)) != 0)
+            {
+                DoDeferredParse();
+                m_fullurl = m_urlOriginal;
+            }
+        }   
+        [OnSerialized]
+        private void OnSerialized(StreamingContext ctx)
+        {
+            if ((ctx.State & ~(StreamingContextStates.Clone|StreamingContextStates.CrossAppDomain)) != 0)
+            {
+                m_fullurl = null;
+            }
+        }
         
         public URLString()
         {

@@ -38,5 +38,8 @@ namespace System {
             : base(message, innerException) {
             SetErrorCode(__HResults.COR_E_INSUFFICIENTMEMORY);
         }
+
+        private InsufficientMemoryException(SerializationInfo info, StreamingContext context) : base(info, context) {
+        }
     }
 }
