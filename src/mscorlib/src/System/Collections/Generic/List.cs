@@ -559,11 +559,24 @@ namespace System.Collections.Generic {
 
         /// <internalonly/>
         IEnumerator<T> IEnumerable<T>.GetEnumerator() {
-            return new Enumerator(this);
+            PooledIEnumerator<T, Enumerator> enumerator;
+            if (!ObjectPool<PooledIEnumerator<T, Enumerator>>.Shared.TryRent(out enumerator))
+            {
+                enumerator = new PooledIEnumerator<T, Enumerator>();
+            }
+            enumerator.Enumerator = new Enumerator(this);
+            return enumerator;
         }
 
-        System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() {
-            return new Enumerator(this);
+        System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator()
+        {
+            PooledIEnumerator<T, Enumerator> enumerator;
+            if (!ObjectPool<PooledIEnumerator<T, Enumerator>>.Shared.TryRent(out enumerator))
+            {
+                enumerator = new PooledIEnumerator<T, Enumerator>();
+            }
+            enumerator.Enumerator = new Enumerator(this);
+            return enumerator;
         }
 
         public List<T> GetRange(int index, int count) {

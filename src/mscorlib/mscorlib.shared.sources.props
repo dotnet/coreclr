@@ -1071,6 +1071,9 @@
     <GenericsSources Include="$(BclSourcesRoot)\System\Collections\Generic\KeyValuePair.cs" />
     <GenericsSources Include="$(BclSourcesRoot)\System\Collections\Generic\List.cs" />
     <GenericsSources Include="$(BclSourcesRoot)\System\Collections\Generic\ArraySortHelper.cs" />
+    <GenericsSources Include="$(BclSourcesRoot)\System\Collections\Generic\ObjectPool.cs" />
+    <GenericsSources Include="$(BclSourcesRoot)\System\Collections\Generic\DefaultObjectPool.cs" />
+    <GenericsSources Include="$(BclSourcesRoot)\System\Collections\Generic\PooledIEnumerator.cs" />
     <GenericsSources Include="$(BclSourcesRoot)\System\Collections\ObjectModel\Collection.cs" />
     <GenericsSources Include="$(BclSourcesRoot)\System\Collections\ObjectModel\ReadOnlyCollection.cs" />
     <GenericsSources Include="$(BclSourcesRoot)\System\Collections\ObjectModel\ReadOnlyDictionary.cs" />
