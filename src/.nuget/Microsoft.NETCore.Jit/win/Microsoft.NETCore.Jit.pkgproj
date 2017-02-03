@@ -9,14 +9,13 @@
   <ItemGroup>
     <ArchitectureSpecificNativeFileAndSymbol Include="$(BinDir)clrjit.dll" />
     <ArchitectureSpecificNativeFileAndSymbol Condition="'$(PackagePlatform)' == 'x86'" Include="$(BinDir)compatjit.dll" />
-    <CrossArchitectureSpecificNativeFile Include="$(BinDir)$(CrossTargetComponentFolder)\clrjit.dll" />
+    <CrossArchitectureSpecificNativeFileAndSymbol Include="$(BinDir)$(CrossTargetComponentFolder)\clrjit.dll" />
   </ItemGroup>
   <ItemGroup>
     <!-- prevent accidental inclusion in AOT projects. -->
     <File Include="$(PlaceholderFile)">
       <TargetPath>runtimes/$(PackageTargetRuntime)-aot/native</TargetPath>
     </File>
-    <CrossArchitectureSpecificNativeSymbol Condition="'$(HasCrossTargetComponents)' == 'true'" Include="@(CrossArchitectureSpecificNativeFile -> '%(RelativeDir)PDB\%(FileName).pdb')" />
   </ItemGroup>
   <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.targets))\dir.targets" />
 </Project>
