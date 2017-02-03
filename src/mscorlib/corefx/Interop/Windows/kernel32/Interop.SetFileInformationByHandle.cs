@@ -10,15 +10,6 @@ internal partial class Interop
 {
     internal partial class Kernel32
     {
-        internal struct FILE_BASIC_INFO
-        {
-            internal long CreationTime;
-            internal long LastAccessTime;
-            internal long LastWriteTime;
-            internal long ChangeTime;
-            internal uint FileAttributes;
-        }
-
         internal enum FILE_INFO_BY_HANDLE_CLASS : uint
         {
             FileBasicInfo = 0x0u,

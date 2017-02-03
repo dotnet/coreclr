@@ -214,9 +214,6 @@ namespace System {
 
     }
 
-#if FEATURE_RANDOMIZED_STRING_HASHING
-#endif
-
     // Provide x more optimal implementation of ordinal comparison.
     [Serializable]
     internal sealed class OrdinalComparer : StringComparer 

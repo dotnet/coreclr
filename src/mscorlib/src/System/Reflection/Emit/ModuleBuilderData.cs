@@ -63,8 +63,6 @@ namespace System.Reflection.Emit
 
         private int            m_tkFile;
         internal bool          m_isSaved;
-        [NonSerialized]
-        internal ResWriterData m_embeddedRes;
         internal const String MULTI_BYTE_VALUE_CLASS = "$ArrayType$";
         internal String        m_strResourceFileName;
         internal byte[]        m_resourceBytes;
