@@ -10265,7 +10265,52 @@ void CodeGen::genCaptureFuncletPrologEpilogInfo()
 
 /*****************************************************************************
  *
- *  Generates code for an EH funclet prolog.
+ *  Generates code for an EH funclet prolog. WIP.
+ *
+ *  Funclets have the following incoming arguments:
+ *
+ *      catch/filter-handler: ebp+8 = CallerSP, ebp+12 = the exception object that was caught (see GT_CATCH_ARG)
+ *      filter:               ebp+8 = CallerSP, ebp+12 = the exception object to filter (see GT_CATCH_ARG)
+ *      finally/fault:        ebp+8 = CallerSP
+ *
+ *  Funclets set the following registers on exit:
+ *
+ *      catch/filter-handler: eax = the address at which execution should resume (see BBJ_EHCATCHRET)
+ *      filter:               eax = non-zero if the handler should handle the exception, zero otherwise (see GT_RETFILT)
+ *      finally/fault:        none
+ *
+ *  The X86 funclet prolog sequence is:
+ *
+ *     push     ebp
+ *     mov      ebp, dword ptr [esp+08H]
+ *     lea      ebp, [ebp-08H]
+ *     mov      eax, dword ptr [esp+0CH]
+ *     push     callee-saved regs   ; if necessary
+ *
+ *  The epilog sequence is then:
+ *
+ *     pop callee-saved regs        ; if necessary
+ *     pop ebp
+ *     ret
+ *
+ *  The funclet frame is thus:
+ *
+ *      |                       |
+ *      |-----------------------|
+ *      |       incoming        |
+ *      |       arguments       |
+ *      +=======================+ <---- Caller's SP
+ *      |    Return address     |
+ *      |-----------------------|
+ *      |      Saved EBP        |
+ *      |-----------------------|
+ *      |Callee saved registers |
+ *      |-----------------------|
+ *      |       |               |
+ *      ~       | Stack grows   ~
+ *      |       | downward      |
+ *              V
+ *
  */
 
 void CodeGen::genFuncletProlog(BasicBlock* block)
@@ -10279,12 +10324,36 @@ void CodeGen::genFuncletProlog(BasicBlock* block)
 
     ScopedSetVariable<bool> _setGeneratingProlog(&compiler->compGeneratingProlog, true);
 
+    gcInfo.gcResetForBB();
+
     compiler->unwindBegProlog();
 
-    // TODO Save callee-saved registers
+    inst_RV(INS_push, REG_FPBASE, TYP_REF);
+    compiler->unwindPush(REG_FPBASE);
 
     // This is the end of the OS-reported prolog for purposes of unwinding
     compiler->unwindEndProlog();
+
+    // Use PSPSym value as a flag for restoring EBP
+    if (compiler->lvaPSPSym != BAD_VAR_NUM)
+    {
+        if (block->bbCatchTyp != BBCT_FINALLY && block->bbCatchTyp != BBCT_FAULT)
+        {
+            regTracker.rsTrackRegTrash(REG_FPBASE);
+
+            // TODO 16 byte stack alignment
+            // TODO Fix, if needed, for nested try-catch
+
+            // mov ebp, [esp + 8]  ; get ebp from caller argument
+            getEmitter()->emitIns_R_AR(INS_mov, EA_PTRSIZE, REG_FPBASE, REG_SPBASE, 8);
+            // lea ebp, [ebp - 8]  ; load ebp from main function
+            getEmitter()->emitIns_R_AR(INS_lea, EA_PTRSIZE, REG_FPBASE, REG_FPBASE, -8);
+            // mov eax, [esp + 12] ; exception object to eax: funclet needs eax having the exception object
+            getEmitter()->emitIns_R_AR(INS_mov, EA_PTRSIZE, REG_EXCEPTION_OBJECT, REG_SPBASE, 12);
+
+            regSet.rsRemoveRegsModified(RBM_FPBASE);
+        }
+    }
 }
 
 /*****************************************************************************
@@ -10303,7 +10372,7 @@ void CodeGen::genFuncletEpilog()
 
     ScopedSetVariable<bool> _setGeneratingEpilog(&compiler->compGeneratingEpilog, true);
 
-    // TODO Restore callee-saved registers
+    inst_RV(INS_pop, REG_EBP, TYP_I_IMPL);
 
     instGen_Return(0);
 }
@@ -10504,6 +10573,16 @@ void CodeGen::genSetPSPSym(regNumber initReg, bool* pInitRegZeroed)
     //     mov     [rbp-20h], rsp       // store the Initial-SP (our current rsp) in the PSPsym
 
     getEmitter()->emitIns_S_R(ins_Store(TYP_I_IMPL), EA_PTRSIZE, REG_SPBASE, compiler->lvaPSPSym, 0);
+
+#elif defined(_TARGET_X86_)
+
+    regNumber regTmp = initReg;
+    *pInitRegZeroed  = false;
+
+    // lea      eax, [ebp + 08H]            ; caller-sp
+    // mov      dword ptr [ebp-??H], eax    ; store in compiler->lvaPSPSym
+    getEmitter()->emitIns_R_AR(INS_lea, EA_PTRSIZE, regTmp, REG_FPBASE, 8);
+    getEmitter()->emitIns_S_R(ins_Store(TYP_I_IMPL), EA_PTRSIZE, regTmp, compiler->lvaPSPSym, 0);
 
 #else // _TARGET_*
 
