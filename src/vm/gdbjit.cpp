@@ -164,7 +164,7 @@ GetTypeInfoFromTypeHandle(TypeHandle typeHandle, NotifyGdb::PTK_TypeInfoMap pTyp
         case ELEMENT_TYPE_ARRAY:
         case ELEMENT_TYPE_SZARRAY:
         {
-            typeInfo = new (nothrow) ClassTypeInfo(typeHandle, 2);
+            typeInfo = new (nothrow) ClassTypeInfo(typeHandle, pMT->GetRank() == 1 ? 2 : 3);
             if (typeInfo == nullptr)
                 return nullptr;
             typeInfo->m_type_size = pMT->GetClass()->GetSize();
@@ -201,7 +201,20 @@ GetTypeInfoFromTypeHandle(TypeHandle typeHandle, NotifyGdb::PTK_TypeInfoMap pTyp
             strcpy(info->members[1].m_member_name, "m_Data");
             info->members[1].m_member_offset = ArrayBase::GetDataPtrOffset(pMT);
             info->members[1].m_member_type = arrayTypeInfo;
-            info->members[1].m_member_type->m_type_size = sizeof(TADDR);
+
+            if (pMT->GetRank() != 1)
+            {
+                TypeHandle dwordArray(MscorlibBinder::GetElementType(ELEMENT_TYPE_I4));
+                TypeInfoBase* arrayTypeInfo = new (nothrow) ArrayTypeInfo(dwordArray.MakeSZArray(), pMT->GetRank(), lengthTypeInfo);
+                if (arrayTypeInfo == nullptr)
+                    return nullptr;
+
+                info->members[2].m_member_name = new (nothrow) char[9];
+                strcpy(info->members[2].m_member_name, "m_Bounds");
+                info->members[2].m_member_offset = ArrayBase::GetBoundsOffset(pMT);
+                info->members[2].m_member_type = arrayTypeInfo;
+                info->members[2].m_member_type->m_type_size = pMT->GetRank() * sizeof(DWORD);
+            }
 
             return refTypeInfo;
         }
