@@ -131,7 +131,7 @@ GetTypeInfoFromTypeHandle(TypeHandle typeHandle, NotifyGdb::PTK_TypeInfoMap pTyp
                 if (pMT->IsString() && i == 1)
                 {
                     TypeInfoBase* elemTypeInfo = info->members[1].m_member_type;
-                    TypeInfoBase* arrayTypeInfo = new (nothrow) ArrayTypeInfo(typeHandle.MakeSZArray(), 0, elemTypeInfo);
+                    TypeInfoBase* arrayTypeInfo = new (nothrow) ArrayTypeInfo(typeHandle.MakeSZArray(), 1, elemTypeInfo);
                     if (arrayTypeInfo == nullptr)
                         return nullptr;
                     info->members[1].m_member_type = arrayTypeInfo;
@@ -185,7 +185,7 @@ GetTypeInfoFromTypeHandle(TypeHandle typeHandle, NotifyGdb::PTK_TypeInfoMap pTyp
                 TypeHandle(MscorlibBinder::GetElementType(ELEMENT_TYPE_I4)), pTypeMap);
 
             TypeInfoBase* valTypeInfo = GetTypeInfoFromTypeHandle(typeHandle.GetTypeParam(), pTypeMap);
-            TypeInfoBase* arrayTypeInfo = new (nothrow) ArrayTypeInfo(typeHandle, 0, valTypeInfo);
+            TypeInfoBase* arrayTypeInfo = new (nothrow) ArrayTypeInfo(typeHandle, 1, valTypeInfo);
             if (arrayTypeInfo == nullptr)
                 return nullptr;
 
@@ -749,6 +749,9 @@ const unsigned char AbbrevTable[] = {
 
     18, DW_TAG_inheritance, DW_CHILDREN_no, DW_AT_type, DW_FORM_ref4, DW_AT_data_member_location, DW_FORM_data1,
         0, 0,
+
+    19, DW_TAG_subrange_type, DW_CHILDREN_no,
+        DW_AT_upper_bound, DW_FORM_udata, 0, 0,
 
     0
 };
@@ -1516,23 +1519,13 @@ void ArrayTypeInfo::DumpDebugInfo(char* ptr, int& offset)
     offset += sizeof(DebugInfoArrayType);
 
     char tmp[16] = { 0 };
-    int len = Leb128Encode(static_cast<int32_t>(m_count_offset), tmp, sizeof(tmp));
+    int len = Leb128Encode(static_cast<uint32_t>(m_count - 1), tmp + 1, sizeof(tmp) - 1);
     if (ptr != nullptr)
     {
-        char buf[64];
-        buf[0] = 11; // DW_TAG_subrange_type abbrev
-        buf[1] = len + 3;
-        buf[2] = DW_OP_push_object_address;
-        buf[3] = DW_OP_plus_uconst;
-        for (int j = 0; j < len; j++)
-        {
-            buf[j + 4] = tmp[j];
-        }
-        buf[len + 4] = DW_OP_deref;
-
-        memcpy(ptr + offset, buf, len + 5);
+        tmp[0] = 19; // DW_TAG_subrange_type abbrev with const upper bound
+        memcpy(ptr + offset, tmp, len + 1);
     }
-    offset += (len + 5);
+    offset += len + 1;
 
     if (ptr != nullptr)
     {

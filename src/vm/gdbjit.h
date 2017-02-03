@@ -284,9 +284,9 @@ public:
 class ArrayTypeInfo: public TypeInfoBase
 {
 public:
-    ArrayTypeInfo(TypeHandle typeHandle, int countOffset, TypeInfoBase* elemType)
+    ArrayTypeInfo(TypeHandle typeHandle, int count, TypeInfoBase* elemType)
         : TypeInfoBase(typeHandle),
-          m_count_offset(countOffset),
+          m_count(count),
           m_elem_type(elemType)
     {
     }
@@ -301,7 +301,7 @@ public:
 
     void DumpDebugInfo(char* ptr, int& offset) override;
 
-    int m_count_offset;
+    int m_count;
     TypeInfoBase *m_elem_type;
 };
 
