@@ -676,9 +676,7 @@ FCFuncEnd()
 
 #ifdef FEATURE_CAS_POLICY
 FCFuncStart(gCodeAccessSecurityEngineFuncs)
-    FCFuncElement("SpecialDemand", SecurityStackWalk::FcallSpecialDemand)
     FCFuncElement("Check", SecurityStackWalk::Check)
-    FCFuncElement("CheckNReturnSO", SecurityStackWalk::CheckNReturnSO)
     FCFuncElement("GetZoneAndOriginInternal", SecurityStackWalk::GetZoneAndOrigin)
 #ifdef FEATURE_COMPRESSEDSTACK    
     FCFuncElement("QuickCheckForAllDemands", SecurityStackWalk::FCallQuickCheckForAllDemands)

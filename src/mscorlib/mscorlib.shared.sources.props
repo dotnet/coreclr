@@ -974,7 +974,7 @@
   <ItemGroup>
     <SecurityAclSources Include="$(BclSourcesRoot)\System\Security\AccessControl\Enums.cs" />
   </ItemGroup>
-  <ItemGroup Condition="'$(FeatureCasPolicy)' != 'true'">
+  <ItemGroup>
     <SecurityPolicySources Include="$(BclSourcesRoot)\System\Security\Policy\ApplicationTrust.cs" />
     <SecurityPolicySources Include="$(BclSourcesRoot)\System\Security\Policy\Evidence.cs" />
     <SecurityPolicySources Include="$(BclSourcesRoot)\System\Security\Policy\EvidenceBase.cs" />
