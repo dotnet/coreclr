@@ -283,7 +283,6 @@ FCFuncStart(gEnvironmentFuncs)
     FCFuncElement("get_HasShutdownStarted", SystemNative::HasShutdownStarted)
     QCFuncElement("GetProcessorCount", SystemNative::GetProcessorCount)
 #ifndef FEATURE_CORECLR
-    QCFuncElement("GetWorkingSet", SystemNative::GetWorkingSet)
     FCFuncElement("nativeGetEnvironmentVariable", SystemNative::_GetEnvironmentVariable)
     FCFuncElement("GetCompatibilityFlag", SystemNative::_GetCompatibilityFlag)
     QCFuncElement("GetCommandLine", SystemNative::_GetCommandLine)
@@ -296,9 +295,6 @@ FCFuncStart(gEnvironmentFuncs)
     QCFuncElement("WinRTSupported", SystemNative::WinRTSupported)
 #endif // FEATURE_COMINTEROP
     FCFuncElementSig("FailFast", &gsig_SM_Str_RetVoid, SystemNative::FailFast)
-#ifndef FEATURE_CORECLR
-    FCFuncElementSig("FailFast", &gsig_SM_Str_Uint_RetVoid, SystemNative::FailFastWithExitCode)
-#endif
     FCFuncElementSig("FailFast", &gsig_SM_Str_Exception_RetVoid, SystemNative::FailFastWithException)
 #ifndef FEATURE_CORECLR
     QCFuncElement("GetIsCLRHosted", SystemNative::IsCLRHosted)
@@ -308,16 +304,8 @@ FCFuncEnd()
 
 FCFuncStart(gRuntimeEnvironmentFuncs)
     FCFuncElement("GetModuleFileName", SystemNative::_GetModuleFileName)
-    FCFuncElement("GetRuntimeDirectoryImpl", SystemNative::GetRuntimeDirectory)
-#ifdef FEATURE_FUSION
-    FCFuncElement("GetDeveloperPath", SystemNative::GetDeveloperPath)
-    FCFuncElement("GetHostBindingFile", SystemNative::GetHostBindingFile)
-#endif // FEATURE_FUSION
 #ifndef FEATURE_CORECLR
     QCFuncElement("_GetSystemVersion", SystemNative::_GetSystemVersion)
-#endif
-#if defined(FEATURE_CLASSIC_COMINTEROP) && !defined(FEATURE_CORECLR)
-    QCFuncElement("GetRuntimeInterfaceImpl", SystemNative::GetRuntimeInterfaceImpl)
 #endif
 FCFuncEnd()
 
@@ -1137,7 +1125,6 @@ FCFuncStart(gAssemblyLoadContextFuncs)
     QCFuncElement("LoadFromPath", AssemblyNative::LoadFromPath)
     QCFuncElement("GetLoadedAssembliesInternal", AssemblyNative::GetLoadedAssembliesInternal)
     QCFuncElement("InternalLoadUnmanagedDllFromPath", AssemblyNative::InternalLoadUnmanagedDllFromPath)
-    QCFuncElement("OverrideDefaultAssemblyLoadContextForCurrentDomain", AssemblyNative::OverrideDefaultAssemblyLoadContextForCurrentDomain)
     QCFuncElement("CanUseAppPathAssemblyLoadContextInCurrentDomain", AssemblyNative::CanUseAppPathAssemblyLoadContextInCurrentDomain)
     QCFuncElement("LoadFromStream", AssemblyNative::LoadFromStream)
     FCFuncElement("nGetFileInformation", AssemblyNameNative::GetFileInformation)
@@ -1415,11 +1402,6 @@ FCFuncStart(gDecimalFuncs)
     FCFuncElement("FCallAddSub", COMDecimal::DoAddSubThrow)
     FCFuncElement("FCallMultiply", COMDecimal::DoMultiplyThrow)
     FCFuncElement("FCallDivide", COMDecimal::DoDivideThrow)
-#ifndef FEATURE_CORECLR
-    FCFuncElement("FCallAddSubOverflowed", COMDecimal::DoAddSub)
-    FCFuncElement("FCallMultiplyOverflowed", COMDecimal::DoMultiply)
-    FCFuncElement("FCallDivideOverflowed", COMDecimal::DoDivide)
-#endif // FEATURE_CORECLR
     FCFuncElement("FCallCompare", COMDecimal::DoCompare)
     FCFuncElement("FCallFloor", COMDecimal::DoFloor)
     FCFuncElement("GetHashCode", COMDecimal::GetHashCode)
@@ -1460,9 +1442,6 @@ FCFuncStart(gEncodingTableFuncs)
     FCFuncElement("GetNumEncodingItems", COMNlsInfo::nativeGetNumEncodingItems)
     FCFuncElement("GetEncodingData", COMNlsInfo::nativeGetEncodingTableDataPointer)
     FCFuncElement("GetCodePageData", COMNlsInfo::nativeGetCodePageTableDataPointer)
-#if FEATURE_CODEPAGES_FILE
-    FCFuncElement("nativeCreateOpenFileMapping", COMNlsInfo::nativeCreateOpenFileMapping)
-#endif
 FCFuncEnd()
 
 FCFuncStart(gCalendarDataFuncs)
@@ -1487,9 +1466,6 @@ FCFuncStart(gCultureInfoFuncs)
     FCFuncElement("nativeGetLocaleInfoEx", COMNlsInfo::nativeGetLocaleInfoEx)
     FCFuncElement("nativeGetLocaleInfoExInt", COMNlsInfo::nativeGetLocaleInfoExInt)
     
-#ifndef FEATURE_CORECLR
-    FCFuncElement("nativeSetThreadLocale", COMNlsInfo::nativeSetThreadLocale)
-#endif
     QCFuncElement("InternalGetUserDefaultUILanguage", COMNlsInfo::InternalGetUserDefaultUILanguage)
     QCFuncElement("InternalGetSystemDefaultUILanguage", COMNlsInfo::InternalGetSystemDefaultUILanguage)
 // Added but disabled from desktop in .NET 4.0, stayed disabled in .NET 4.5
@@ -2021,9 +1997,6 @@ FCFuncStart(gGCHandleFuncs)
     FCFuncElement("InternalCompareExchange", MarshalNative::GCHandleInternalCompareExchange)
     FCFuncElement("InternalAddrOfPinnedObject", MarshalNative::GCHandleInternalAddrOfPinnedObject)
     FCFuncElement("InternalCheckDomain", MarshalNative::GCHandleInternalCheckDomain)
-#ifndef FEATURE_CORECLR
-    FCFuncElement("InternalGetHandleType", MarshalNative::GCHandleInternalGetHandleType)
-#endif
 FCFuncEnd()
 
 #ifndef FEATURE_CORECLR

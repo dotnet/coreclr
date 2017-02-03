@@ -116,11 +116,6 @@ namespace System.Diagnostics.Tracing
             }
         }
 
-        private int GetParameterCount(EventMetadata eventData)
-        {
-            return eventData.Parameters.Length;
-        }
-
         private Type GetDataType(EventMetadata eventData, int parameterId)
         {
             return eventData.Parameters[parameterId].ParameterType;
