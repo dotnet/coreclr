@@ -142,11 +142,6 @@ namespace System.Diagnostics.Tracing
             }
         }
 
-        internal void AddBinary(Array value, int size)
-        {
-            this.AddArray(value, size, 1);
-        }
-
         internal void AddArray(Array value, int length, int itemSize)
         {
             if (length > ushort.MaxValue)
