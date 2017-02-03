@@ -3104,7 +3104,7 @@ size_t EECodeManager::GetCallerSp( PREGDISPLAY  pRD )
 
 #endif // WIN64EXCEPTIONS && !CROSSGEN_COMPILE
 
-#ifdef USE_QUICKUNWIND
+#ifdef HAS_QUICKUNWIND
 /*
   *  Light unwind the current stack frame, using provided cache entry.
   *  pPC, Esp and pEbp of pContext are updated.
@@ -3195,7 +3195,7 @@ void EECodeManager::QuickUnwindStackFrame(PREGDISPLAY pRD, StackwalkCacheEntry *
     PORTABILITY_ASSERT("EECodeManager::QuickUnwindStackFrame is not implemented on this platform.");
 #endif // !_TARGET_X86_ && !_TARGET_AMD64_
 }
-#endif // USE_QUICKUNWIND
+#endif // HAS_QUICKUNWIND
 
 /*****************************************************************************/
 #ifdef _TARGET_X86_ // UnwindStackFrame
