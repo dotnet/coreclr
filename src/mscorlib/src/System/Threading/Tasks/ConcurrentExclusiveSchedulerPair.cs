@@ -251,6 +251,16 @@ namespace System.Threading.Tasks
         /// </summary>
         public TaskScheduler ExclusiveScheduler { get { return m_exclusiveTaskScheduler; } }
 
+        /// <summary>Gets the number of tasks waiting to run concurrently.</summary>
+        /// <remarks>This does not take the necessary lock, as it's only called from under the debugger.</remarks>
+        [SuppressMessage("Microsoft.Performance", "CA1811:AvoidUncalledPrivateCode")]
+        private int ConcurrentTaskCountForDebugger { get { return m_concurrentTaskScheduler.m_tasks.Count; } }
+
+        /// <summary>Gets the number of tasks waiting to run exclusively.</summary>
+        /// <remarks>This does not take the necessary lock, as it's only called from under the debugger.</remarks>
+        [SuppressMessage("Microsoft.Performance", "CA1811:AvoidUncalledPrivateCode")]
+        private int ExclusiveTaskCountForDebugger { get { return m_exclusiveTaskScheduler.m_tasks.Count; } }
+
         /// <summary>Notifies the pair that new work has arrived to be processed.</summary>
         /// <param name="fairly">Whether tasks should be scheduled fairly with regards to other tasks.</param>
         /// <remarks>Must only be called while holding the lock.</remarks>
@@ -637,6 +647,10 @@ namespace System.Threading.Tasks
             /// <summary>Gets for debugging purposes the tasks scheduled to this scheduler.</summary>
             /// <returns>An enumerable of the tasks queued.</returns>
             protected override IEnumerable<Task> GetScheduledTasks() { return m_tasks; }
+
+            /// <summary>Gets the number of tasks queued to this scheduler.</summary>
+            [SuppressMessage("Microsoft.Performance", "CA1811:AvoidUncalledPrivateCode")]
+            private int CountForDebugger { get { return m_tasks.Count; } }
 
             /// <summary>Provides a debug view for ConcurrentExclusiveTaskScheduler.</summary>
             private sealed class DebugView

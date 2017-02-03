@@ -385,6 +385,18 @@ namespace System.Runtime.CompilerServices
         public void SetException(Exception exception) { m_builder.SetException(exception); }
 
         /// <summary>
+        /// Called by the debugger to request notification when the first wait operation
+        /// (await, Wait, Result, etc.) on this builder's task completes.
+        /// </summary>
+        /// <param name="enabled">
+        /// true to enable notification; false to disable a previously set notification.
+        /// </param>
+        internal void SetNotificationForWaitCompletion(bool enabled)
+        {
+            m_builder.SetNotificationForWaitCompletion(enabled);
+        }
+
+        /// <summary>
         /// Gets an object that may be used to uniquely identify this builder to the debugger.
         /// </summary>
         /// <remarks>
@@ -658,6 +670,23 @@ namespace System.Runtime.CompilerServices
             {
                 throw new InvalidOperationException(Environment.GetResourceString("TaskT_TransitionToFinal_AlreadyCompleted"));
             }
+        }
+
+        /// <summary>
+        /// Called by the debugger to request notification when the first wait operation
+        /// (await, Wait, Result, etc.) on this builder's task completes.
+        /// </summary>
+        /// <param name="enabled">
+        /// true to enable notification; false to disable a previously set notification.
+        /// </param>
+        /// <remarks>
+        /// This should only be invoked from within an asynchronous method,
+        /// and only by the debugger.
+        /// </remarks>
+        internal void SetNotificationForWaitCompletion(bool enabled)
+        {
+            // Get the task (forcing initialization if not already initialized), and set debug notification
+            this.Task.SetNotificationForWaitCompletion(enabled);
         }
 
         /// <summary>
