@@ -49,17 +49,6 @@ namespace System.Diagnostics.Tracing
             DataCollector.ThreadInstance.EndBufferedArray(bookmark, count);
         }
 
-        /// <summary>
-        /// Adds the start of a group to the event.
-        /// This has no effect on the event payload, but is provided to allow
-        /// WriteMetadata and WriteData implementations to have similar
-        /// sequences of calls, allowing for easier verification of correctness.
-        /// </summary>
-        public TraceLoggingDataCollector AddGroup()
-        {
-            return this;
-        }
-
         public void AddScalar(PropertyValue value)
         {
             var scalar = value.ScalarValue;
