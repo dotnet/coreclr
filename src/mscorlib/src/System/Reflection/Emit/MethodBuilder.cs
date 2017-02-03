@@ -61,9 +61,9 @@ namespace System.Reflection.Emit
         // Generics
         private GenericTypeParameterBuilder[] m_inst;
         private bool m_bIsGenMethDef;
+        #endregion
 
-#endregion
-#region Constructor
+        #region Constructor
 
         internal MethodBuilder(String name, MethodAttributes attributes, CallingConventions callingConvention,
             Type returnType, Type[] returnTypeRequiredCustomModifiers, Type[] returnTypeOptionalCustomModifiers,

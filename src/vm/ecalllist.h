@@ -592,18 +592,8 @@ FCFuncStart(gCOMModuleBuilderFuncs)
     QCFuncElement("GetMemberRefOfMethodInfo", COMModule::GetMemberRefOfMethodInfo)
     QCFuncElement("GetMemberRefOfFieldInfo", COMModule::GetMemberRefOfFieldInfo)
     QCFuncElement("GetMemberRefFromSignature", COMModule::GetMemberRefFromSignature)
-#ifndef FEATURE_CORECLR
-    QCFuncElement("SetModuleName", COMModule::SetModuleName)
-    QCFuncElement("PreSavePEFile", COMDynamicWrite::PreSavePEFile)
-    QCFuncElement("SavePEFile", COMDynamicWrite::SavePEFile)
-    QCFuncElement("AddResource", COMDynamicWrite::AddResource)
-#endif
     QCFuncElement("GetArrayMethodToken", COMModule::GetArrayMethodToken)
     QCFuncElement("SetFieldRVAContent", COMModule::SetFieldRVAContent)
-#ifndef FEATURE_CORECLR
-    QCFuncElement("DefineNativeResourceFile", COMDynamicWrite::DefineNativeResourceFile)
-    QCFuncElement("DefineNativeResourceBytes", COMDynamicWrite::DefineNativeResourceBytes)
-#endif // FEATURE_CORECLR
 FCFuncEnd()
 
 FCFuncStart(gCOMModuleHandleFuncs)
@@ -662,10 +652,6 @@ FCFuncStart(gCOMClassWriter)
     QCFuncElement("SetFieldLayoutOffset", COMDynamicWrite::SetFieldLayoutOffset)
     QCFuncElement("SetClassLayout", COMDynamicWrite::SetClassLayout)
     QCFuncElement("SetParamInfo", COMDynamicWrite::SetParamInfo)
-#ifndef FEATURE_CORECLR
-    QCFuncElement("SetPInvokeData", COMDynamicWrite::SetPInvokeData)
-    QCFuncElement("SetFieldMarshal", COMDynamicWrite::SetFieldMarshal)
-#endif // FEATURE_CORECLR
     QCFuncElement("SetConstantValue", COMDynamicWrite::SetConstantValue)
     QCFuncElement("DefineCustomAttribute", COMDynamicWrite::DefineCustomAttribute)
 #ifndef FEATURE_CORECLR
@@ -1065,7 +1051,6 @@ FCFuncStart(gAssemblyFuncs)
 #endif
     FCFuncElement("nLoadImage", AssemblyNative::LoadImage)
 #ifndef FEATURE_CORECLR
-    FCFuncElement("nLoadFile", AssemblyNative::LoadFile)
     QCFuncElement("LoadModule", AssemblyNative::LoadModule)
 #endif  // FEATURE_CORECLR
     QCFuncElement("GetType", AssemblyNative::GetType)
@@ -1076,9 +1061,6 @@ FCFuncStart(gAssemblyFuncs)
     QCFuncElement("GetModules", AssemblyNative::GetModules)
     QCFuncElement("GetModule", AssemblyNative::GetModule)
     FCFuncElement("GetReferencedAssemblies", AssemblyNative::GetReferencedAssemblies)
-#ifndef FEATURE_CORECLR
-    QCFuncElement("GetForwardedTypes", AssemblyNative::GetForwardedTypes)
-#endif  // FEATURE_CORECLR
     QCFuncElement("GetExportedTypes", AssemblyNative::GetExportedTypes)
     FCFuncElement("GetManifestResourceNames", AssemblyNative::GetManifestResourceNames)
     QCFuncElement("GetEntryPoint", AssemblyNative::GetEntryPoint)
@@ -1088,29 +1070,20 @@ FCFuncStart(gAssemblyFuncs)
     QCFuncElement("IsAllSecuritySafeCritical", AssemblyNative::IsAllSecuritySafeCritical)
     QCFuncElement("IsAllPublicAreaSecuritySafeCritical", AssemblyNative::IsAllPublicAreaSecuritySafeCritical)
     QCFuncElement("GetGrantSet", AssemblyNative::GetGrantSet)
-    FCFuncElement("IsGlobalAssemblyCache", AssemblyNative::IsGlobalAssemblyCache)
 #endif // !FEATURE_CORECLR
 #ifdef FEATURE_CAS_POLICY
     QCFuncElement("GetEvidence", SecurityPolicy::GetEvidence)
 #endif // FEATURE_CAS_POLICY
     QCFuncElement("GetImageRuntimeVersion", AssemblyNative::GetImageRuntimeVersion)
     FCFuncElement("IsReflectionOnly", AssemblyNative::IsReflectionOnly)
-#ifndef FEATURE_CORECLR
-    QCFuncElement("GetHostContext", AssemblyNative::GetHostContext)
-#endif
 #ifdef FEATURE_CAS_POLICY
     QCFuncElement("GetIsStrongNameVerified", AssemblyNative::IsStrongNameVerified)
-    QCFuncElement("GetRawBytes", AssemblyNative::GetRawBytes)
 #endif // FEATURE_CAS_POLICY
     FCFuncElement("GetManifestModule", AssemblyHandle::GetManifestModule)
     FCFuncElement("GetToken", AssemblyHandle::GetToken)
 #ifdef FEATURE_APTCA
     FCFuncElement("AptcaCheck", AssemblyHandle::AptcaCheck)
 #endif // FEATURE_APTCA
-#ifdef FEATURE_APPX
-    QCFuncElement("nIsDesignerBindingContext", AssemblyNative::IsDesignerBindingContext)
-#endif
-
 FCFuncEnd()
 
 #ifdef FEATURE_CORECLR

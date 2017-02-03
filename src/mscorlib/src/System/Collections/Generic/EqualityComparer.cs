@@ -488,8 +488,4 @@ namespace System.Collections.Generic
             return -1;
         }
     }
-
-#if FEATURE_RANDOMIZED_STRING_HASHING
-#endif
 }
-

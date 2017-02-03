@@ -14,7 +14,6 @@ namespace System.Reflection.Emit {
     using System.Security;
     using System.Diagnostics;
     using CultureInfo = System.Globalization.CultureInfo;
-    using IResourceWriter = System.Resources.IResourceWriter;
     using System.IO;
     using System.Runtime.Versioning;
     using System.Diagnostics.SymbolStore;
@@ -193,8 +192,6 @@ namespace System.Reflection.Emit {
     **********************************************/
     internal class ResWriterData 
     {
-
-        internal IResourceWriter        m_resWriter;
         internal String                 m_strName;
         internal String                 m_strFileName;
         internal String                 m_strFullFileName;

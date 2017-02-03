@@ -53,7 +53,6 @@ namespace System {
         internal static bool m_safeHandleStackTraces;
 #if _DEBUG
         internal static volatile bool m_domainUnloadAdded;
-
 #endif
 
         static readonly SwitchStructure[] switches = {
