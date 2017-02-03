@@ -8,11 +8,8 @@
 
 namespace System.Text
 {
-
     using System;
-    using System.Diagnostics;
     using System.Diagnostics.Contracts;
-    using System.Globalization;
     // Encodes text into and out of UTF-32.  UTF-32 is a way of writing
     // Unicode characters with a single storage unit (32 bits) per character,
     //

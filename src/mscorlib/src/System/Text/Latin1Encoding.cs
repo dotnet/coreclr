@@ -5,17 +5,8 @@
 namespace System.Text
 {
     using System;
-    using System.Diagnostics;
     using System.Diagnostics.Contracts;
-    using System.Globalization;
-    using System.Runtime.InteropServices;
-    using System.Security;
-    using System.Collections;
-    using System.Runtime.CompilerServices;
     using System.Runtime.Serialization;
-    using System.Security.Permissions;
-
-
     //
     // Latin1Encoding is a simple override to optimize the GetString version of Latin1Encoding.
     // because of the best fit cases we can't do this when encoding the string, only when decoding

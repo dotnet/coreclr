@@ -5,10 +5,9 @@
 namespace System.Text
 {
     using System;
-    using System.Collections;
-    using System.Collections.Generic;
+    using System.Runtime.InteropServices;
 
-    [System.Runtime.InteropServices.ComVisible(true)]
+    [ComVisible(true)]
     public abstract class EncodingProvider
     {
         public EncodingProvider() { }
@@ -131,7 +130,7 @@ namespace System.Text
             return null;
         }
 
-        private static Object s_InternalSyncObject = new Object();
+        private static readonly Object s_InternalSyncObject = new Object();
         private static volatile EncodingProvider[] s_providers;
     }
 }

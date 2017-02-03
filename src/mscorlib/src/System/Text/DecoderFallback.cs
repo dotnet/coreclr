@@ -2,13 +2,8 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-//
-using System;
-using System.Security;
 using System.Threading;
 using System.Globalization;
-using System.Diagnostics;
-using System.Diagnostics.Contracts;
 
 namespace System.Text
 {
@@ -17,8 +12,8 @@ namespace System.Text
     {
         internal bool                  bIsMicrosoftBestFitFallback = false;
 
-        private static volatile DecoderFallback replacementFallback; // Default fallback, uses no best fit & "?"
-        private static volatile DecoderFallback exceptionFallback;
+        private static volatile DecoderFallback s_replacementFallback; // Default fallback, uses no best fit & "?"
+        private static volatile DecoderFallback s_exceptionFallback;
 
         // Private object for locking instead of locking on a internal type for SQL reliability work.
         private static Object s_InternalSyncObject;
@@ -41,12 +36,12 @@ namespace System.Text
         {
             get
             {
-                if (replacementFallback == null)
+                if (s_replacementFallback == null)
                     lock(InternalSyncObject)
-                        if (replacementFallback == null)
-                            replacementFallback = new DecoderReplacementFallback();
+                        if (s_replacementFallback == null)
+                            s_replacementFallback = new DecoderReplacementFallback();
 
-                return replacementFallback;
+                return s_replacementFallback;
             }
         }
 
@@ -55,12 +50,12 @@ namespace System.Text
         {
             get
             {
-                if (exceptionFallback == null)
+                if (s_exceptionFallback == null)
                     lock(InternalSyncObject)
-                        if (exceptionFallback == null)
-                            exceptionFallback = new DecoderExceptionFallback();
+                        if (s_exceptionFallback == null)
+                            s_exceptionFallback = new DecoderExceptionFallback();
 
-                return exceptionFallback;
+                return s_exceptionFallback;
             }
         }
 
@@ -76,13 +71,7 @@ namespace System.Text
 
         public abstract int MaxCharCount { get; }
 
-        internal bool IsMicrosoftBestFitFallback
-        {
-            get
-            {
-                return bIsMicrosoftBestFitFallback;
-            }
-        }
+        internal bool IsMicrosoftBestFitFallback => bIsMicrosoftBestFitFallback;
     }
 
 

@@ -22,13 +22,7 @@ namespace System.Text
         }
 
         // Maximum number of characters that this instance of this fallback could return
-        public override int MaxCharCount
-        {
-            get
-            {
-                return 0;
-            }
-        }
+        public override int MaxCharCount => 0;
 
         public override bool Equals(Object value)
         {
@@ -94,22 +88,16 @@ namespace System.Text
         }
 
         // Exceptions are always empty
-        public override int Remaining
-        {
-            get
-            {
-                return 0;
-            }
-        }
+        public override int Remaining => 0;
     }
 
     [Serializable]
     public sealed class EncoderFallbackException : ArgumentException
     {
-        char    charUnknown;
-        char    charUnknownHigh;
-        char    charUnknownLow;
-        int     index;
+        readonly char charUnknown;
+        readonly char charUnknownHigh;
+        readonly char charUnknownLow;
+        readonly int  index;
 
         public EncoderFallbackException()
             : base(Environment.GetResourceString("Arg_ArgumentException"))
@@ -162,37 +150,13 @@ namespace System.Text
             this.index = index;
         }
 
-        public char CharUnknown
-        {
-            get
-            {
-                return (charUnknown);
-            }
-        }
+        public char CharUnknown => (charUnknown);
 
-        public char CharUnknownHigh
-        {
-            get
-            {
-                return (charUnknownHigh);
-            }
-        }
+        public char CharUnknownHigh => (charUnknownHigh);
 
-        public char CharUnknownLow
-        {
-            get
-            {
-                return (charUnknownLow);
-            }
-        }
+        public char CharUnknownLow => (charUnknownLow);
 
-        public int Index
-        {
-            get
-            {
-                return index;
-            }
-        }
+        public int Index => index;
 
         // Return true if the unknown character is a surrogate pair.
         public bool IsUnknownSurrogate()

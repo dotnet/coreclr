@@ -5,7 +5,7 @@
 namespace System.Text
 {
     // This is the enumeration for Normalization Forms
-[System.Runtime.InteropServices.ComVisible(true)]
+    [System.Runtime.InteropServices.ComVisible(true)]
     public enum NormalizationForm
     {
         FormC    = 1,

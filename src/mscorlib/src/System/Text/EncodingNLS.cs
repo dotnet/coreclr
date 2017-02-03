@@ -4,18 +4,12 @@
 
 namespace System.Text
 {
-    
     using System;
-    using System.Diagnostics.Contracts;
-    using System.Collections;
-    using System.Runtime.Remoting;
-    using System.Globalization;
-    using System.Threading;
-    using Win32Native = Microsoft.Win32.Win32Native;
-    
+    using System.Runtime.InteropServices;
+
     // This class overrides Encoding with the things we need for our NLS Encodings
-    
-    [System.Runtime.InteropServices.ComVisible(true)]
+
+    [ComVisible(true)]
     [Serializable]
     internal abstract class EncodingNLS : Encoding
     {    

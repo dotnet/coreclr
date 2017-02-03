@@ -7,11 +7,8 @@ namespace System.Text
     using System;
     using System.Security;
     using System.Globalization;
-    using System.Text;
     using System.Runtime.CompilerServices;
     using System.Runtime.InteropServices;
-    using System.Runtime.Versioning;
-    using System.Diagnostics;
     using System.Diagnostics.Contracts;
 
     // This internal class wraps up our normalization behavior
@@ -259,14 +256,14 @@ namespace System.Text
             return new String(cBuffer, 0, iLength);
         }
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        unsafe private static extern int nativeNormalizationNormalizeString(
+        [MethodImpl(MethodImplOptions.InternalCall)]
+        private static extern int nativeNormalizationNormalizeString(
             NormalizationForm normForm, ref int iError,
             String lpSrcString, int cwSrcLength,
             char[] lpDstString, int cwDstLength);
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        unsafe private static extern bool nativeNormalizationIsNormalizedString(
+        [MethodImpl(MethodImplOptions.InternalCall)]
+        private static extern bool nativeNormalizationIsNormalizedString(
             NormalizationForm normForm, ref int iError,
             String lpString, int cwLength);
 
