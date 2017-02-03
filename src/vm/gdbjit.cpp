@@ -69,7 +69,10 @@ GetTypeInfoFromTypeHandle(TypeHandle typeHandle, NotifyGdb::PTK_TypeInfoMap pTyp
             if (typeInfo == nullptr)
                 return nullptr;
 
-            typeInfo->m_type_size = typeHandle.AsMethodTable()->GetClass()->GetSize();
+            if (pMT->IsValueType())
+                typeInfo->m_type_size = typeHandle.GetSize();
+            else
+                typeInfo->m_type_size = typeHandle.AsMethodTable()->GetClass()->GetSize();
 
             RefTypeInfo* refTypeInfo = nullptr;
             if (!typeHandle.IsValueType())
