@@ -121,6 +121,10 @@ namespace System {
             throw GetArgumentException(resource);
         }
 
+        internal static void ThrowArgumentException_NotSupported_StringComparison() {
+            throw GetArgumentException(ExceptionResource.NotSupported_StringComparison, ExceptionArgument.comparisonType);
+        }
+
         internal static void ThrowArgumentException(ExceptionResource resource, ExceptionArgument argument) {
             throw GetArgumentException(resource, argument);
         }
@@ -284,6 +288,11 @@ namespace System {
 
             return Environment.GetResourceString(resource.ToString());
         }
+
+        internal static void ThrowNullReferenceException()
+        {
+            throw new NullReferenceException();
+        }
     }
 
     //
@@ -361,6 +370,7 @@ namespace System {
         updateValueFactory,
         concurrencyLevel,
         text,
+        comparisonType,
 
     }
 
@@ -466,6 +476,7 @@ namespace System {
         ConcurrentDictionary_ArrayNotLargeEnough,
         ConcurrentDictionary_ArrayIncorrectType,
         ConcurrentCollection_SyncRoot_NotSupported,
+        NotSupported_StringComparison,
 
     }
 }

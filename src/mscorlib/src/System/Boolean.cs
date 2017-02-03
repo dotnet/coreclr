@@ -169,28 +169,23 @@ namespace System {
             if (value==null) {
                 return false;
             }
-            // For perf reasons, let's first see if they're equal, then do the
-            // trim to get rid of white space, and check again.
-            if (TrueLiteral.Equals(value, StringComparison.OrdinalIgnoreCase)) {
-                result = true;
-                return true;
-            }
-            if (FalseLiteral.Equals(value,StringComparison.OrdinalIgnoreCase)) {
-                result = false;
-                return true;
-            }
+            // For perf reasons, let's first see if they're equal, 
+            // repeat doing trim to get rid of white space, and check again.
+            for (var i = 0; i < 4; i++)
+            {
+                // This is done in a loop as String.Equals will partially inline; so this reduces the function size by 336 bytes of asm
+                if (((i & 1) == 0 ? TrueLiteral : FalseLiteral).Equals(value, StringComparison.OrdinalIgnoreCase))
+                {
+                    result = (i & 1) == 0;
+                    return true;
+                }
 
-            // Special case: Trim whitespace as well as null characters.
-            value = TrimWhiteSpaceAndNull(value);
-
-            if (TrueLiteral.Equals(value, StringComparison.OrdinalIgnoreCase)) {
-                result = true;
-                return true;
-            }
-            
-            if (FalseLiteral.Equals(value,StringComparison.OrdinalIgnoreCase)) {
-                result = false;
-                return true;
+                // Looped twice, not parsed true or false; trim input string and try again
+                if (i == 1)
+                {
+                    // Special case: Trim whitespace as well as null characters.
+                    value = TrimWhiteSpaceAndNull(value);
+                }
             }
             
             return false;
