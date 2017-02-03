@@ -54,6 +54,7 @@ public class DateTimeParseExact2
         MyFormater formater = new MyFormater();
         string   dateBefore = "";
         DateTime dateAfter;
+        DateTime dateAfter1;
 
         TestLibrary.TestFramework.BeginScenario("PosTest1: DateTime.ParseExact(DateTime.Now)");
 
@@ -68,10 +69,14 @@ public class DateTimeParseExact2
                 if (!TestLibrary.Utilities.IsWindows && 
                     (c_STYLES[i]==DateTimeStyles.AdjustToUniversal)) // Mac prints offset
                 {
-                    dateAfter = dateAfter.ToLocalTime();
+                    dateAfter1 = dateAfter.ToLocalTime();
+                }
+                else
+                {
+                    dateAfter1 = dateAfter;
                 }
 
-                if (!dateBefore.Equals(dateAfter.ToString()))
+                if (!dateBefore.Equals(dateAfter.ToString()) && !dateBefore.Equals(dateAfter1.ToString()))
                 {
                    TestLibrary.TestFramework.LogError("001", "DateTime.ParseExact(" + dateBefore + ", G, " + c_STYLES[i] + ") did not equal " + dateAfter.ToString());
                    retVal = false;

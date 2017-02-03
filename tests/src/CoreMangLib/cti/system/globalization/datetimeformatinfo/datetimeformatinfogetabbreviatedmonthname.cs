@@ -263,7 +263,7 @@ public class DateTimeFormatInfoGetAbbreviatedMonthName
         for (int i = c_MIN_MONTH_VALUE; i <= c_MAX_MONTH_VALUE; ++i)
         {
             string actual = info.GetAbbreviatedMonthName(i);
-            if (actual != expected[i])
+            if (!actual.Equals(expected[i], StringComparison.OrdinalIgnoreCase))
             {
                 TestLibrary.TestFramework.LogError(errorno, "GetAbbreviatedDayName returns wrong value");
                 TestLibrary.TestFramework.LogInformation("WARNING[LOCAL VARIABLES] i = " + i + ", expected[i] = " + expected[i] + ", actual = " + actual);

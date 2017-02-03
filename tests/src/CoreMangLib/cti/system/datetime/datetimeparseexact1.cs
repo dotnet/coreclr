@@ -234,6 +234,7 @@ public class DateTimeParseExact1
 
         try
         {
+            bool supportExpectedLongDate = String.Compare(TestLibrary.Utilities.CurrentCulture.DateTimeFormat.LongTimePattern, "hh:mm:ss tt", StringComparison.Ordinal) == 0;
             for(int i=0; i<c_NUM_LOOPS; i++)
             {
                 day       = (TestLibrary.Generator.GetInt32(-55) % 27) + 1;
@@ -255,11 +256,11 @@ public class DateTimeParseExact1
                              c_MONTHS[month] + " " +
                              (String.Compare(TestLibrary.Utilities.CurrentCulture.DateTimeFormat.LongDatePattern, "dddd, MMMM dd, yyyy", StringComparison.Ordinal) == 0 && 10 > day ? "0" : "") + day + ", " + 
                              year + " " +
-                             (String.Compare(TestLibrary.Utilities.CurrentCulture.DateTimeFormat.LongTimePattern, "hh:mm:ss tt", StringComparison.Ordinal) == 0 && 10 > hour ? "0" : "") + hour + ":" + 
+                             (supportExpectedLongDate && 10 > hour ? "0" : "") + hour + ":" + 
                              (10 > minute ? "0" : "") + minute + ":" + 
                              (10 > second ? "0" : "") + second + " " + twelveHour[timeOfDay];
 
-                if (!TestLibrary.Utilities.IsWindows)
+                if (!TestLibrary.Utilities.IsWindows && supportExpectedLongDate)
                 {
                     dateAfter = DateTime.Parse(dateBefore);
                     TimeSpan span = dateAfter - dateAfter.ToUniversalTime();
@@ -592,6 +593,8 @@ public class DateTimeParseExact1
 
         try
         {
+            bool expectedTimeFormat = String.Compare(TestLibrary.Utilities.CurrentCulture.DateTimeFormat.LongTimePattern, "hh:mm:ss tt", StringComparison.Ordinal) == 0;
+
             for(int i=0; i<c_NUM_LOOPS; i++)
             {
                 hour      = (TestLibrary.Generator.GetInt32(-55) % 12);
@@ -599,11 +602,12 @@ public class DateTimeParseExact1
                 second    = (TestLibrary.Generator.GetInt32(-55) % 60);
                 timeOfDay = (TestLibrary.Generator.GetInt32(-55) % 2);
 
+
                 // parse the date
                 int newHour = hour==0?12:hour;
-                dateBefore = (String.Compare(TestLibrary.Utilities.CurrentCulture.DateTimeFormat.LongTimePattern, "hh:mm:ss tt", StringComparison.Ordinal) == 0 && 10 > newHour ? "0" : "") + newHour + 
+                dateBefore = (expectedTimeFormat && 10 > newHour ? "0" : "") + newHour + 
                              ":" + (10 > minute ? "0" : "") + minute + ":" + (10 > second ? "0" : "") + second + " " + twelveHour[timeOfDay];
-                if (!TestLibrary.Utilities.IsWindows)
+                if (!TestLibrary.Utilities.IsWindows && expectedTimeFormat)
                 {
                     dateAfter = DateTime.Parse(dateBefore);
                     TimeSpan span = dateAfter - dateAfter.ToUniversalTime();
