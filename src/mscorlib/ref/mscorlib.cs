@@ -6863,26 +6863,6 @@ namespace System.IO
         public override System.Threading.Tasks.Task WriteLineAsync(string value) { throw null; }
     }
     [System.Runtime.InteropServices.ComVisibleAttribute(true)]
-    public partial class StringReader : System.IO.TextReader
-    {
-        public StringReader(string s) { }
-        public override void Close() { }
-        protected override void Dispose(bool disposing) { }
-        public override int Peek() { throw null; }
-        public override int Read() { throw null; }
-        public override int Read(char[] buffer, int index, int count) { buffer = default(char[]); throw null; }
-        [System.Runtime.InteropServices.ComVisibleAttribute(false)]
-        public override System.Threading.Tasks.Task<int> ReadAsync(char[] buffer, int index, int count) { throw null; }
-        [System.Runtime.InteropServices.ComVisibleAttribute(false)]
-        public override System.Threading.Tasks.Task<int> ReadBlockAsync(char[] buffer, int index, int count) { throw null; }
-        public override string ReadLine() { throw null; }
-        [System.Runtime.InteropServices.ComVisibleAttribute(false)]
-        public override System.Threading.Tasks.Task<string> ReadLineAsync() { throw null; }
-        public override string ReadToEnd() { throw null; }
-        [System.Runtime.InteropServices.ComVisibleAttribute(false)]
-        public override System.Threading.Tasks.Task<string> ReadToEndAsync() { throw null; }
-    }
-    [System.Runtime.InteropServices.ComVisibleAttribute(true)]
     public partial class StringWriter : System.IO.TextWriter
     {
         public StringWriter() { }
