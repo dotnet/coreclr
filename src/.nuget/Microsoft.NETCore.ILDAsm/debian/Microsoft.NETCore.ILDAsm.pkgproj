@@ -9,21 +9,6 @@
   </PropertyGroup>
   <ItemGroup>
     <NativeSplittableBinary Include="$(BinDir)ildasm" />
-    <ArchitectureSpecificNativeFile Include="@(NativeSplittableBinary)" />
-    <File Include="@(ArchitectureSpecificNativeFile)">
-      <TargetPath>runtimes/$(PackageTargetRuntime)/native</TargetPath>
-    </File>
-  </ItemGroup>
-  <ItemGroup Condition="'$(__BuildType)' == 'Release'">
-    <ArchitectureSpecificNativeSymbol Include="@(NativeSplittableBinary -> '%(Identity).dbg')" />
-    <AdditionalLibPackageExcludes Include="%2A%2A\%2A.dbg" />
-    <AdditionalSymbolPackageExcludes Include="%2A%2A\%2A.so" />
-    <AdditionalSymbolPackageExcludes Include="%2A%2A\%2A.dll" />
-    <ArchitectureSpecificNativeSymbol Include="..\..\_.pdb" />
-    <File Include="@(ArchitectureSpecificNativeSymbol)">
-      <TargetPath>runtimes/$(PackageTargetRuntime)/native</TargetPath>
-      <IsSymbolFile>true</IsSymbolFile>
-    </File>
   </ItemGroup>
   <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.targets))\dir.targets" />
 </Project>
