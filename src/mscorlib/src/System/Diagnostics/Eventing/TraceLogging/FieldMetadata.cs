@@ -60,6 +60,25 @@ namespace System.Diagnostics.Tracing
         }
 
         /// <summary>
+        /// Fixed-length array.
+        /// </summary>
+        public FieldMetadata(
+            string name,
+            TraceLoggingDataType type,
+            EventFieldTags tags,
+            ushort fixedCount)
+            : this(
+                name,
+                type,
+                tags,
+                Statics.InTypeFixedCountFlag,
+                fixedCount,
+                null)
+        {
+            return;
+        }
+
+        /// <summary>
         /// Custom serializer
         /// </summary>
         public FieldMetadata(
