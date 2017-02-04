@@ -716,9 +716,6 @@ FCFuncEnd()
 FCFuncStart(gCOMSecurityManagerFuncs)
     QCFuncElement("IsSameType", SecurityPolicy::IsSameType)
     FCFuncElement("_SetThreadSecurity", SecurityPolicy::SetThreadSecurity)
-#ifdef FEATURE_CAS_POLICY
-    QCFuncElement("GetGrantedPermissions", SecurityPolicy::GetGrantedPermissions)
-#endif
 FCFuncEnd()
 
 FCFuncStart(gCOMSecurityContextFuncs)
@@ -748,12 +745,6 @@ FCFuncEnd()
 FCFuncStart(gCOMUrlStringFuncs)
     QCFuncElement("GetDeviceName", SecurityPolicy::GetDeviceName)
 FCFuncEnd()
-
-#ifdef FEATURE_CAS_POLICY
-FCFuncStart(gCOMSecurityRuntimeFuncs)
-    FCFuncElement("GetSecurityObjectForFrame", SecurityRuntime::GetSecurityObjectForFrame)
-FCFuncEnd()
-#endif // FEATURE_CAS_POLICY
 
 #ifdef FEATURE_X509
 
