@@ -144,6 +144,21 @@ namespace System.Diagnostics.Tracing
             }
         }
 
+        public static byte Combine(
+            int settingValue1,
+            int settingValue2,
+            byte defaultValue)
+        {
+            unchecked
+            {
+                return (byte)settingValue1 == settingValue1
+                    ? (byte)settingValue1
+                    : (byte)settingValue2 == settingValue2
+                    ? (byte)settingValue2
+                    : defaultValue;
+            }
+        }
+
         public static int Combine(
             int settingValue1,
             int settingValue2)

@@ -166,6 +166,14 @@ namespace System.Diagnostics.Tracing
         }
 
         /// <summary>
+        /// Gets the default level that will be used for events with this descriptor.
+        /// </summary>
+        internal EventLevel Level
+        {
+            get { return (EventLevel)this.level; }
+        }
+
+        /// <summary>
         /// Gets the default opcode that will be used for events with this descriptor.
         /// </summary>
         internal EventOpcode Opcode
