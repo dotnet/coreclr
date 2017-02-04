@@ -146,5 +146,27 @@ namespace System.IO
                     length: firstRootLength,
                     comparisonType: comparisonType) == 0;
         }
+
+        /// <summary>
+        /// Returns false for ".." unless it is specified as a part of a valid File/Directory name.
+        /// (Used to avoid moving up directories.)
+        ///
+        ///       Valid: a..b   abc..d
+        ///     Invalid: ..ab   ab..   ..   abc..d\abc..
+        /// </summary>
+        internal static void CheckSearchPattern(string searchPattern)
+        {
+            int index;
+            while ((index = searchPattern.IndexOf("..", StringComparison.Ordinal)) != -1)
+            {
+                // Terminal ".." . Files names cannot end in ".."
+                if (index + 2 == searchPattern.Length
+                    || IsDirectorySeparator(searchPattern[index + 2]))
+                    throw new ArgumentException(SR.Arg_InvalidSearchPattern);
+
+                searchPattern = searchPattern.Substring(index + 2);
+            }
+
+        }
     }
 }

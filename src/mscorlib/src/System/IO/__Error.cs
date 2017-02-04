@@ -43,6 +43,10 @@ namespace System.IO {
         internal static void MemoryStreamNotExpandable() {
             throw new NotSupportedException(Environment.GetResourceString("NotSupported_MemStreamNotExpandable"));
         }
+    
+        internal static void ReaderClosed() {
+            throw new ObjectDisposedException(null, Environment.GetResourceString("ObjectDisposed_ReaderClosed"));
+        }
 
         internal static void ReadNotSupported() {
             throw new NotSupportedException(Environment.GetResourceString("NotSupported_UnreadableStream"));

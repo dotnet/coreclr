@@ -83,6 +83,58 @@ namespace System.IO
             return (dataInitialised == 0) && (data.fileAttributes != -1) 
                     && ((data.fileAttributes  & Win32Native.FILE_ATTRIBUTE_DIRECTORY) == 0);
         }
+
+        public static byte[] ReadAllBytes(String path)
+        {
+            byte[] bytes;
+            using(FileStream fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read, 
+                FileStream.DefaultBufferSize, FileOptions.None)) {
+                // Do a blocking read
+                int index = 0;
+                long fileLength = fs.Length;
+                if (fileLength > Int32.MaxValue)
+                    throw new IOException(Environment.GetResourceString("IO.IO_FileTooLong2GB"));
+                int count = (int) fileLength;
+                bytes = new byte[count];
+                while(count > 0) {
+                    int n = fs.Read(bytes, index, count);
+                    if (n == 0)
+                        __Error.EndOfFile();
+                    index += n;
+                    count -= n;
+                }
+            }
+            return bytes;
+        }
+
+#if PLATFORM_UNIX
+        public static String[] ReadAllLines(String path)
+        {
+            if (path == null)
+                throw new ArgumentNullException(nameof(path));
+            if (path.Length == 0)
+                throw new ArgumentException(Environment.GetResourceString("Argument_EmptyPath"));
+            Contract.EndContractBlock();
+
+            return InternalReadAllLines(path, Encoding.UTF8);
+        }
+
+        private static String[] InternalReadAllLines(String path, Encoding encoding)
+        {
+            Contract.Requires(path != null);
+            Contract.Requires(encoding != null);
+            Contract.Requires(path.Length != 0);
+
+            String line;
+            List<String> lines = new List<String>();
+
+            using (StreamReader sr = new StreamReader(path, encoding))
+                while ((line = sr.ReadLine()) != null)
+                    lines.Add(line);
+
+            return lines.ToArray();
+        }
+#endif // PLATFORM_UNIX
         
         // Returns 0 on success, otherwise a Win32 error code.  Note that
         // classes should use -1 as the uninitialized state for dataInitialized.

@@ -758,6 +758,12 @@ namespace Microsoft.Win32 {
         [DllImport(KERNEL32, SetLastError=true, CharSet=CharSet.Auto, BestFitMapping=false)]
         internal static extern SafeFindHandle FindFirstFile(String fileName, [In, Out] Win32Native.WIN32_FIND_DATA data);
 
+        [DllImport(KERNEL32, SetLastError=true, CharSet=CharSet.Auto, BestFitMapping=false)]
+        internal static extern bool FindNextFile(
+                    SafeFindHandle hndFindFile,
+                    [In, Out, MarshalAs(UnmanagedType.LPStruct)]
+                    WIN32_FIND_DATA lpFindFileData);
+
         [DllImport(KERNEL32)]
         [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
         internal static extern bool FindClose(IntPtr handle);
