@@ -817,13 +817,13 @@ namespace System.Security.Util {
                     string host = m_localSite != null ? m_localSite.ToString() : null;
                     // If the host name ends with the * character, treat this as an absolute URL since the *
                     // could represent the rest of the full path.
-                    if (host.EndsWith('*'))
+                    if (host.EndsWithOrdinal('*'))
                         return false;
 #endif // !PLATFORM_UNIX
                     string directory = m_directory != null ? m_directory.ToString() : null;
 
 #if !PLATFORM_UNIX
-                    return host == null || host.Length < 2 || !host.EndsWith(':') ||
+                    return host == null || host.Length < 2 || !host.EndsWithOrdinal(':') ||
                            String.IsNullOrEmpty(directory);
 #else
                     return String.IsNullOrEmpty(directory);

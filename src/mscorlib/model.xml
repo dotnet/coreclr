@@ -7232,6 +7232,9 @@
       <Member Name="EndsWith(System.String)" />
       <Member Name="EndsWith(System.String,System.Boolean,System.Globalization.CultureInfo)" />
       <Member Name="EndsWith(System.String,System.StringComparison)" />
+      <Member Name="EndsWith(System.Char)" />
+      <Member Name="EndsWith(System.Char,System.Boolean,System.Globalization.CultureInfo)" />
+      <Member Name="EndsWith(System.Char,System.StringComparison)" />
       <Member Name="Equals(System.Object)" />
       <Member Name="Equals(System.String)" />
       <Member Name="Equals(System.String,System.String)" />
@@ -7316,6 +7319,9 @@
       <Member Name="StartsWith(System.String)" />
       <Member Name="StartsWith(System.String,System.Boolean,System.Globalization.CultureInfo)" />
       <Member Name="StartsWith(System.String,System.StringComparison)" />
+      <Member Name="StartsWith(System.Char)" />
+      <Member Name="StartsWith(System.Char,System.Boolean,System.Globalization.CultureInfo)" />
+      <Member Name="StartsWith(System.Char,System.StringComparison)" />
       <Member Name="Substring(System.Int32)" />
       <Member Name="Substring(System.Int32,System.Int32)" />
       <Member Name="ToCharArray" />
