@@ -166,33 +166,33 @@ namespace System.Collections {
             return InnerList.GetEnumerator();
         }
 
-        protected internal virtual void OnSet(int index, Object oldValue, Object newValue) { 
+        protected virtual void OnSet(int index, Object oldValue, Object newValue) { 
         }
 
-        protected internal virtual void OnInsert(int index, Object value) { 
+        protected virtual void OnInsert(int index, Object value) { 
         }
 
-        protected internal virtual void OnClear() { 
+        protected virtual void OnClear() { 
         }
 
-        protected internal virtual void OnRemove(int index, Object value) { 
+        protected virtual void OnRemove(int index, Object value) { 
         }
 
-        protected internal virtual void OnValidate(Object value) { 
+        protected virtual void OnValidate(Object value) { 
             if (value == null) throw new ArgumentNullException(nameof(value));
             Contract.EndContractBlock();
         }
 
-        protected internal virtual void OnSetComplete(int index, Object oldValue, Object newValue) { 
+        protected virtual void OnSetComplete(int index, Object oldValue, Object newValue) { 
         }
 
-        protected internal virtual void OnInsertComplete(int index, Object value) { 
+        protected virtual void OnInsertComplete(int index, Object value) { 
         }
 
-        protected internal virtual void OnClearComplete() { 
+        protected virtual void OnClearComplete() { 
         }
 
-        protected internal virtual void OnRemoveComplete(int index, Object value) { 
+        protected virtual void OnRemoveComplete(int index, Object value) { 
         }
     
     }

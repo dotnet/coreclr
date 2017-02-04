@@ -30,7 +30,7 @@ namespace Microsoft.Win32.SafeHandles
         }
 
         // A default constructor is needed to satisfy CoreCLR inheritence rules. It should not be called at runtime
-        protected internal SafeHandleZeroOrMinusOneIsInvalid()
+        protected SafeHandleZeroOrMinusOneIsInvalid()
         {
             throw new NotImplementedException();
         }
@@ -49,7 +49,7 @@ namespace Microsoft.Win32.SafeHandles
         }
 
         // A default constructor is needed to satisfy CoreCLR inheritence rules. It should not be called at runtime
-        protected internal SafeHandleMinusOneIsInvalid()
+        protected SafeHandleMinusOneIsInvalid()
         {
             throw new NotImplementedException();
         }
