@@ -1747,9 +1747,6 @@ namespace System.Threading.Tasks
             return capturedContext.CreateCopy();
         }
 
-#if DEBUG
-#endif
-
         /////////////
         // methods
 

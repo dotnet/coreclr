@@ -366,7 +366,7 @@ namespace System.Threading.Tasks
         }
     }
 
-    //// <summary>A placeholder class for common padding constants and eventually routines.</summary>
+    /// <summary>A placeholder class for common padding constants and eventually routines.</summary>
     static class PaddingHelpers
     {
         /// <summary>A size greater than or equal to the size of the most common CPU cache lines.</summary>
