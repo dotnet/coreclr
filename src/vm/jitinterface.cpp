@@ -9115,11 +9115,11 @@ CorInfoType CEEInfo::getFieldTypeInternal (CORINFO_FIELD_HANDLE fieldHnd,
             ))
         {
             _ASSERTE(field->GetOffset() == 0);
-            type = ELEMENT_TYPE_BYREF;
+            return CORINFO_TYPE_BYREF;
         }
     }
 
-    if (type != ELEMENT_TYPE_BYREF && !CorTypeInfo::IsPrimitiveType(type))
+    if (!CorTypeInfo::IsPrimitiveType(type))
     {
         PCCOR_SIGNATURE sig;
         DWORD sigCount;
