@@ -9108,11 +9108,7 @@ CorInfoType CEEInfo::getFieldTypeInternal (CORINFO_FIELD_HANDLE fieldHnd,
     if (type == ELEMENT_TYPE_I)
     {
         PTR_MethodTable enclosingMethodTable = field->GetApproxEnclosingMethodTable();
-        if (enclosingMethodTable->IsByRefLike() &&
-            (
-                enclosingMethodTable == g_TypedReferenceMT && field->GetOffset() == 0 ||
-                enclosingMethodTable->HasSameTypeDefAs(g_pByReferenceClass)
-            ))
+        if (enclosingMethodTable->IsByRefLike() && enclosingMethodTable->HasSameTypeDefAs(g_pByReferenceClass))
         {
             _ASSERTE(field->GetOffset() == 0);
             return CORINFO_TYPE_BYREF;
