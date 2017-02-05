@@ -6,20 +6,8 @@
     <SkipPackageFileCheck>true</SkipPackageFileCheck>
   </PropertyGroup>
   <ItemGroup>
-    <ArchitectureSpecificNativeFile Include="$(BinDir)ildasm.exe" />
-    <ArchitectureSpecificNativeFile Include="$(BinDir)ildasmrc.dll" />
-    <File Include="@(ArchitectureSpecificNativeFile)">
-      <TargetPath>runtimes/$(PackageTargetRuntime)/native</TargetPath>
-    </File>
-  </ItemGroup>
-  <ItemGroup>
-    <ArchitectureSpecificNativeSymbol Include="@(ArchitectureSpecificNativeFile -> '%(RelativeDir)PDB\%(FileName).pdb')" />
-    <AdditionalSymbolPackageExcludes Include="%2A%2A\%2A.dll" />
-    <ArchitectureSpecificNativeSymbol Include="..\..\_.pdb" />
-    <File Include="@(ArchitectureSpecificNativeSymbol)">
-      <TargetPath>runtimes/$(PackageTargetRuntime)/native</TargetPath>
-      <IsSymbolFile>true</IsSymbolFile>
-    </File>
+    <ArchitectureSpecificNativeFileAndSymbol Include="$(BinDir)ildasm.exe" />
+    <ArchitectureSpecificNativeFileAndSymbol Include="$(BinDir)ildasmrc.dll" />
   </ItemGroup>
   <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.targets))\dir.targets" />
 </Project>
