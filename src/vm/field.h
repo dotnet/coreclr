@@ -167,14 +167,7 @@ public:
         // Set in code:FieldDesc.Init which in turn is called from
         // code:MethodTableBuilder.InitializeFieldDescs#InitCall which in turn calls
         // code:MethodTableBuilder.InitializeFieldDescs#FieldDescTypeMorph
-        // code:SetFieldType, which is called from code:MethodTableBuilder.CheckForSystemTypes
         return (CorElementType) m_type;
-    }
-
-    void SetFieldType(CorElementType type)
-    {
-        LIMITED_METHOD_DAC_CONTRACT;
-        m_type = type;
     }
 
     DWORD GetFieldProtection()

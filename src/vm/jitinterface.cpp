@@ -9102,12 +9102,29 @@ CorInfoType CEEInfo::getFieldTypeInternal (CORINFO_FIELD_HANDLE fieldHnd,
     FieldDesc* field = (FieldDesc*) fieldHnd;
     CorElementType type   = field->GetFieldType();
 
+    // <REVISIT_TODO>TODO should not burn the time to do this for anything but Value Classes</REVISIT_TODO>
+    _ASSERTE(type != ELEMENT_TYPE_BYREF);
+
+    if (type == ELEMENT_TYPE_I)
+    {
+        PTR_MethodTable enclosingMethodTable = field->GetApproxEnclosingMethodTable();
+        if (enclosingMethodTable->IsByRefLike() &&
+            (
+                enclosingMethodTable == g_TypedReferenceMT && field->GetOffset() == 0 ||
+                enclosingMethodTable->HasSameTypeDefAs(g_pByReferenceClass)
+            ))
+        {
+            _ASSERTE(field->GetOffset() == 0);
+            type = ELEMENT_TYPE_BYREF;
+        }
+    }
+
     if (type != ELEMENT_TYPE_BYREF)
     {
         // For verifying code involving generics, use the class instantiation
         // of the optional owner (to provide exact, not representative,
         // type information)
-        SigTypeContext typeContext(field, (TypeHandle) owner);
+        SigTypeContext typeContext(field, (TypeHandle)owner);
 
         if (!CorTypeInfo::IsPrimitiveType(type))
         {
@@ -9117,7 +9134,7 @@ CorInfoType CEEInfo::getFieldTypeInternal (CORINFO_FIELD_HANDLE fieldHnd,
 
             field->GetSig(&sig, &sigCount);
 
-             conv = (CorCallingConvention) CorSigUncompressCallingConv(sig);
+            conv = (CorCallingConvention)CorSigUncompressCallingConv(sig);
             _ASSERTE(isCallConv(conv, IMAGE_CEE_CS_CALLCONV_FIELD));
 
             SigPointer ptr(sig, sigCount);

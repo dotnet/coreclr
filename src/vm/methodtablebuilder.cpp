@@ -10227,7 +10227,6 @@ void MethodTableBuilder::CheckForSystemTypes()
         if (GetCl() == g_pByReferenceClass->GetCl())
         {
             pMT->SetIsByRefLike();
-
 #ifdef _TARGET_X86_
             // x86 by default treats the type of ByReference<T> as the actual type of its IntPtr field, see calls to
             // ComputeInternalCorElementTypeForValueType in this file. This is a special case where the struct needs to be
@@ -10236,12 +10235,6 @@ void MethodTableBuilder::CheckForSystemTypes()
             pMT->ClearFlag(MethodTable::enum_flag_Category_Mask);
             pMT->SetInternalCorElementType(ELEMENT_TYPE_VALUETYPE);
 #endif
-
-            // Fix the element type of the by-ref field
-            _ASSERTE(pMT->GetNumIntroducedInstanceFields() == 1);
-            PTR_FieldDesc byRefFieldDesc = pMT->GetFieldDescByIndex(0);
-            _ASSERTE(byRefFieldDesc->GetFieldType() == ELEMENT_TYPE_I);
-            byRefFieldDesc->SetFieldType(ELEMENT_TYPE_BYREF);
             return;
         }
 #endif
@@ -10294,12 +10287,6 @@ void MethodTableBuilder::CheckForSystemTypes()
             if (type == ELEMENT_TYPE_TYPEDBYREF)
             {
                 pMT->SetIsByRefLike();
-
-                // Fix the element type of the by-ref field
-                _ASSERTE(pMT->GetNumIntroducedInstanceFields() == 2);
-                PTR_FieldDesc byRefFieldDesc = pMT->GetFieldDescByIndex(0);
-                _ASSERTE(byRefFieldDesc->GetFieldType() == ELEMENT_TYPE_I);
-                byRefFieldDesc->SetFieldType(ELEMENT_TYPE_BYREF);
             }
         }
         else if (strcmp(name, g_NullableName) == 0)
@@ -10310,7 +10297,6 @@ void MethodTableBuilder::CheckForSystemTypes()
         else if (strcmp(name, g_ByReferenceName) == 0)
         {
             pMT->SetIsByRefLike();
-
 #ifdef _TARGET_X86_
             // x86 by default treats the type of ByReference<T> as the actual type of its IntPtr field, see calls to
             // ComputeInternalCorElementTypeForValueType in this file. This is a special case where the struct needs to be
@@ -10319,12 +10305,6 @@ void MethodTableBuilder::CheckForSystemTypes()
             pMT->ClearFlag(MethodTable::enum_flag_Category_Mask);
             pMT->SetInternalCorElementType(ELEMENT_TYPE_VALUETYPE);
 #endif
-
-            // Fix the element type of the by-ref field
-            _ASSERTE(pMT->GetNumIntroducedInstanceFields() == 1);
-            PTR_FieldDesc byRefFieldDesc = pMT->GetFieldDescByIndex(0);
-            _ASSERTE(byRefFieldDesc->GetFieldType() == ELEMENT_TYPE_I);
-            byRefFieldDesc->SetFieldType(ELEMENT_TYPE_BYREF);
         }
 #endif
         else if (strcmp(name, g_ArgIteratorName) == 0)
