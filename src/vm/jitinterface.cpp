@@ -9119,33 +9119,30 @@ CorInfoType CEEInfo::getFieldTypeInternal (CORINFO_FIELD_HANDLE fieldHnd,
         }
     }
 
-    if (type != ELEMENT_TYPE_BYREF)
+    if (type != ELEMENT_TYPE_BYREF && !CorTypeInfo::IsPrimitiveType(type))
     {
+        PCCOR_SIGNATURE sig;
+        DWORD sigCount;
+        CorCallingConvention conv;
+
+        field->GetSig(&sig, &sigCount);
+
+        conv = (CorCallingConvention)CorSigUncompressCallingConv(sig);
+        _ASSERTE(isCallConv(conv, IMAGE_CEE_CS_CALLCONV_FIELD));
+
+        SigPointer ptr(sig, sigCount);
+
         // For verifying code involving generics, use the class instantiation
         // of the optional owner (to provide exact, not representative,
         // type information)
         SigTypeContext typeContext(field, (TypeHandle)owner);
 
-        if (!CorTypeInfo::IsPrimitiveType(type))
-        {
-            PCCOR_SIGNATURE sig;
-            DWORD sigCount;
-            CorCallingConvention conv;
+        clsHnd = ptr.GetTypeHandleThrowing(field->GetModule(), &typeContext);
+        _ASSERTE(!clsHnd.IsNull());
 
-            field->GetSig(&sig, &sigCount);
-
-            conv = (CorCallingConvention)CorSigUncompressCallingConv(sig);
-            _ASSERTE(isCallConv(conv, IMAGE_CEE_CS_CALLCONV_FIELD));
-
-            SigPointer ptr(sig, sigCount);
-
-            clsHnd = ptr.GetTypeHandleThrowing(field->GetModule(), &typeContext);
-            _ASSERTE(!clsHnd.IsNull());
-
-            // I believe it doesn't make any diff. if this is GetInternalCorElementType 
-            // or GetSignatureCorElementType.
-            type = clsHnd.GetSignatureCorElementType();
-        }
+        // I believe it doesn't make any diff. if this is GetInternalCorElementType 
+        // or GetSignatureCorElementType.
+        type = clsHnd.GetSignatureCorElementType();
     }
 
     return CEEInfo::asCorInfoType(type, clsHnd, pTypeHnd);
