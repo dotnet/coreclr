@@ -827,7 +827,8 @@ class CompilationDomain : public AppDomain,
         BOOL fRaisePrebindEvents,
         StackCrawlMark *pCallerStackMark = NULL,
         AssemblyLoadSecurity *pLoadSecurity = NULL,
-        BOOL fUseHostBinderIfAvailable = TRUE) DAC_EMPTY_RET(NULL);
+        BOOL fUseHostBinderIfAvailable = TRUE,
+        BOOL fUseExplicitPath = false) DAC_EMPTY_RET(NULL);
 
     BOOL CanEagerBindToZapFile(Module *targetModule, BOOL limitToHardBindList = TRUE);
 

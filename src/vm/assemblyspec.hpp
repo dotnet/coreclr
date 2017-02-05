@@ -278,12 +278,14 @@ class AssemblySpec  : public BaseAssemblySpec
                            AssemblyLoadSecurity *pLoadSecurity = NULL,
                            BOOL fThrowOnFileNotFound = TRUE,
                            BOOL fRaisePrebindEvents = TRUE,
-                           StackCrawlMark *pCallerStackMark = NULL);
+                           StackCrawlMark *pCallerStackMark = NULL,
+                           BOOL fUseExplicitPath = FALSE);
     DomainAssembly *LoadDomainAssembly(FileLoadLevel targetLevel,
                                        AssemblyLoadSecurity *pLoadSecurity = NULL,
                                        BOOL fThrowOnFileNotFound = TRUE,
                                        BOOL fRaisePrebindEvents = TRUE,
-                                       StackCrawlMark *pCallerStackMark = NULL);
+                                       StackCrawlMark *pCallerStackMark = NULL,
+                                       BOOL fUseExplicitPath = FALSE);
 
     //****************************************************************************************
     //
@@ -307,7 +309,7 @@ class AssemblySpec  : public BaseAssemblySpec
 #endif
 
     // Load an assembly based on an explicit path
-    static Assembly *LoadAssembly(LPCWSTR pFilePath);
+    static Assembly *LoadAssembly(LPCWSTR pFilePath, BOOL fUseExplicitPath = FALSE);
 
 #ifdef FEATURE_FUSION
     BOOL FindAssemblyFile(AppDomain *pAppDomain, BOOL fThrowOnFileNotFound,
