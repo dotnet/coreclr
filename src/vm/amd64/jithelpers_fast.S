@@ -349,6 +349,8 @@ LEAF_ENTRY JIT_ByRefWriteBarrier, _TEXT
 
         // Check if this card is dirty
         ///// cmp     byte ptr [rcx], 0FFh
+
+        mov     rax, [rax]
         cmp     byte ptr [rcx + rax], 0FFh
 
 
