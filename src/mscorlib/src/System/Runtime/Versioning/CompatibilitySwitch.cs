@@ -19,24 +19,14 @@ namespace System.Runtime.Versioning
                 * 3. specialized apis: These apis are defined in order to retrieve a specific value defined in CLR Config. That value can have specific look-up rules
                 *                        for the order and location of the config sources used.
                 *                        
-                *     These apis are for internal use only for FX assmeblies. It has not been decided if they can be used by OOB components due to EULA restrictions
+                *     These apis are for internal use only for FX assemblies. It has not been decided if they can be used by OOB components due to EULA restrictions
                 */
-        public static bool IsEnabled(string compatibilitySwitchName)
-        {
-            return IsEnabledInternalCall(compatibilitySwitchName, true);
-        }
-
         public static string GetValue(string compatibilitySwitchName)
         {
             // This is used by AppContext.TryGetSwitch to check switch overrides in the Windows Quirk DB
             // If this method is updated to check other locations than the DB, please ensure compat with 
             // the AppContext class.
             return GetValueInternalCall(compatibilitySwitchName, true);
-        }
-
-        internal static bool IsEnabledInternal(string compatibilitySwitchName)
-        {
-            return IsEnabledInternalCall(compatibilitySwitchName, false);
         }
 
         internal static string GetValueInternal(string compatibilitySwitchName)
@@ -47,8 +37,6 @@ namespace System.Runtime.Versioning
         [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern string GetAppContextOverridesInternalCall();
 
-        [MethodImpl(MethodImplOptions.InternalCall)]
-        private static extern bool IsEnabledInternalCall(string compatibilitySwitchName, bool onlyDB);
 
         [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern string GetValueInternalCall(string compatibilitySwitchName, bool onlyDB);

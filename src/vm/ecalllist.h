@@ -650,10 +650,6 @@ FCFuncEnd()
 
 FCFuncStart(gCompatibilitySwitchFuncs)
     FCFuncElement("GetValueInternalCall", CompatibilitySwitch::GetValue)
-#ifndef FEATURE_CORECLR
-    FCFuncElement("IsEnabledInternalCall", CompatibilitySwitch::IsEnabled)
-    FCFuncElement("GetAppContextOverridesInternalCall", CompatibilitySwitch::GetAppContextOverrides)
-#endif
 FCFuncEnd()
 
 
