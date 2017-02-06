@@ -236,7 +236,6 @@
     <MscorlibSources Include="$(BclSourcesRoot)\System\Runtime\InteropServices\GCHandleCookieTable.cs" />
     <MscorlibSources Include="$(BclSourcesRoot)\System\Runtime\InteropServices\HandleRef.cs" />
     <MscorlibSources Include="$(BclSourcesRoot)\System\Runtime\InteropServices\ICustomMarshaler.cs" />
-    <MscorlibSources Include="$(BclSourcesRoot)\System\Runtime\InteropServices\IException.cs" />
     <MscorlibSources Include="$(BclSourcesRoot)\System\Runtime\InteropServices\InvalidOleVariantTypeException.cs" />
     <MscorlibSources Include="$(BclSourcesRoot)\System\Runtime\InteropServices\LayoutKind.cs" />
     <MscorlibSources Include="$(BclSourcesRoot)\System\Runtime\InteropServices\Marshal.cs" />
