@@ -503,9 +503,6 @@ FCFuncEnd()
 FCFuncStart(gRuntimeMethodHandle)
     QCFuncElement("ConstructInstantiation", RuntimeMethodHandle::ConstructInstantiation)
     FCFuncElement("_GetCurrentMethod", RuntimeMethodHandle::GetCurrentMethod)
-#ifdef FEATURE_SERIALIZATION
-    FCFuncElement("SerializationInvoke", RuntimeMethodHandle::SerializationInvoke)
-#endif // FEATURE_SERIALIZATION
     FCFuncElement("InvokeMethod", RuntimeMethodHandle::InvokeMethod)
     QCFuncElement("GetFunctionPointer", RuntimeMethodHandle::GetFunctionPointer)
     FCFuncElement("GetImplAttributes", RuntimeMethodHandle::GetImplAttributes)
