@@ -7042,6 +7042,7 @@ int gc_heap::grow_brick_card_tables (uint8_t* start,
     uint8_t* ha = g_gc_highest_address;
     uint8_t* saved_g_lowest_address = min (start, g_gc_lowest_address);
     uint8_t* saved_g_highest_address = max (end, g_gc_highest_address);
+    seg_mapping* new_seg_mapping_table = nullptr;
 #ifdef BACKGROUND_GC
     // This value is only for logging purpose - it's not necessarily exactly what we 
     // would commit for mark array but close enough for diagnostics purpose.
@@ -7202,14 +7203,18 @@ int gc_heap::grow_brick_card_tables (uint8_t* start,
 
 #ifdef GROWABLE_SEG_MAPPING_TABLE
         {
-            seg_mapping* new_seg_mapping_table = (seg_mapping*)(mem + st_table_offset_aligned);
+            new_seg_mapping_table = (seg_mapping*)(mem + st_table_offset_aligned);
             new_seg_mapping_table = (seg_mapping*)((uint8_t*)new_seg_mapping_table -
                                               size_seg_mapping_table_of (0, (align_lower_segment (saved_g_lowest_address))));
             memcpy(&new_seg_mapping_table[seg_mapping_word_of(g_gc_lowest_address)],
                 &seg_mapping_table[seg_mapping_word_of(g_gc_lowest_address)],
                 size_seg_mapping_table_of(g_gc_lowest_address, g_gc_highest_address));
 
-            seg_mapping_table = new_seg_mapping_table;
+            // new_seg_mapping_table gets assigned to seg_mapping_table at the bottom of this function,
+            // not here. The reason for this is that, if we fail at mark array committing (OOM) and we've
+            // already switched seg_mapping_table to point to the new mapping table, we'll decommit it and
+            // run into trouble. By not assigning here, we're making sure that we will not change seg_mapping_table
+            // if an OOM occurs.
         }
 #endif //GROWABLE_SEG_MAPPING_TABLE
 
@@ -7223,7 +7228,7 @@ int gc_heap::grow_brick_card_tables (uint8_t* start,
         translated_ct = translate_card_table (ct);
 
         dprintf (GC_TABLE_LOG, ("card table: %Ix(translated: %Ix), seg map: %Ix, mark array: %Ix", 
-            (size_t)ct, (size_t)translated_ct, (size_t)seg_mapping_table, (size_t)card_table_mark_array (ct)));
+            (size_t)ct, (size_t)translated_ct, (size_t)new_seg_mapping_table, (size_t)card_table_mark_array (ct)));
 
 #ifdef BACKGROUND_GC
         if (hp->should_commit_mark_array())
@@ -7301,6 +7306,9 @@ int gc_heap::grow_brick_card_tables (uint8_t* start,
             g_gc_card_table = translated_ct;
         }
 
+        seg_mapping_table = new_seg_mapping_table;
+
+        GCToOSInterface::FlushProcessWriteBuffers();
         g_gc_lowest_address = saved_g_lowest_address;
         g_gc_highest_address = saved_g_highest_address;
 
@@ -15363,7 +15371,10 @@ void gc_heap::gc1()
     if (!settings.concurrent)
 #endif //BACKGROUND_GC
     {
+#ifndef FEATURE_REDHAWK
+        // IsGCThread() always returns false on CoreRT, but this assert is useful in CoreCLR.
         assert(!!IsGCThread());
+#endif // FEATURE_REDHAWK
         adjust_ephemeral_limits();
     }
 
@@ -16204,7 +16215,10 @@ BOOL gc_heap::expand_soh_with_minimal_gc()
         dd_gc_new_allocation (dynamic_data_of (max_generation)) -= ephemeral_size;
         dd_new_allocation (dynamic_data_of (max_generation)) = dd_gc_new_allocation (dynamic_data_of (max_generation));
 
+#ifndef FEATURE_REDHAWK
+        // IsGCThread() always returns false on CoreRT, but this assert is useful in CoreCLR.
         assert(!!IsGCThread());
+#endif // FEATURE_REDHAWK
         adjust_ephemeral_limits();
         return TRUE;
     }
@@ -35141,11 +35155,7 @@ GCHeap::GarbageCollectGeneration (unsigned int gen, gc_reason reason)
 #endif //!MULTIPLE_HEAPS
 
 #ifdef FEATURE_PREMORTEM_FINALIZATION
-    if ((!pGenGCHeap->settings.concurrent && pGenGCHeap->settings.found_finalizers) || 
-        FinalizerThread::HaveExtraWorkForFinalizer())
-    {
-        FinalizerThread::EnableFinalization();
-    }
+    GCToEEInterface::EnableFinalization(!pGenGCHeap->settings.concurrent && pGenGCHeap->settings.found_finalizers);
 #endif // FEATURE_PREMORTEM_FINALIZATION
 
     return dd_collection_count (dd);
@@ -36226,7 +36236,7 @@ CFinalize::ScanForFinalization (promote_func* pfn, int gen, BOOL mark_only_p,
         if (hp->settings.concurrent && hp->settings.found_finalizers)
         {
             if (!mark_only_p)
-                FinalizerThread::EnableFinalization();
+                GCToEEInterface::EnableFinalization(true);
         }
     }
 
@@ -36482,11 +36492,13 @@ void GCHeap::DiagScanFinalizeQueue (fq_scan_fn fn, ScanContext* sc)
 
 void GCHeap::DiagScanHandles (handle_scan_fn fn, int gen_number, ScanContext* context)
 {
+    UNREFERENCED_PARAMETER(gen_number);
     GCScan::GcScanHandlesForProfilerAndETW (max_generation, context, fn);
 }
 
 void GCHeap::DiagScanDependentHandles (handle_scan_fn fn, int gen_number, ScanContext* context)
 {
+    UNREFERENCED_PARAMETER(gen_number);
     GCScan::GcScanDependentHandlesForProfilerAndETW (max_generation, context, fn);
 }
 

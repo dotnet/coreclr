@@ -80,24 +80,9 @@
       <Member Name="CreateInstanceFrom(System.String,System.String)" />
       <Member Name="CreateInstanceFrom(System.String,System.String,System.Boolean,System.Reflection.BindingFlags,System.Reflection.Binder,System.Object[],System.Globalization.CultureInfo,System.Object[])" />
       <Member Name="CreateInstanceFrom(System.String,System.String,System.Object[])" />
-      <Member Status="ImplRoot" Name="System.Runtime.InteropServices._Activator.GetIDsOfNames(System.Guid@,System.IntPtr,System.UInt32,System.UInt32,System.IntPtr)" />
-      <Member Status="ImplRoot" Name="System.Runtime.InteropServices._Activator.GetTypeInfo(System.UInt32,System.UInt32,System.IntPtr)" />
-      <Member Status="ImplRoot" Name="System.Runtime.InteropServices._Activator.GetTypeInfoCount(System.UInt32@)" />
-      <Member Status="ImplRoot" Name="System.Runtime.InteropServices._Activator.Invoke(System.UInt32,System.Guid@,System.UInt32,System.Int16,System.IntPtr,System.IntPtr,System.IntPtr,System.IntPtr)" />
     </Type>
     <Type Status="ImplRoot" Name="System.AppDomain">
       <Member Status="ImplRoot" Name="get_CurrentDomain" />
-      <Member Status="ImplRoot" Name="get_MonitoringIsEnabled" />
-      <Member Status="ImplRoot" Name="set_MonitoringIsEnabled(System.Boolean)" />
-      <Member Status="ImplRoot" Name="get_MonitoringTotalProcessorTime" />
-      <Member Status="ImplRoot" Name="get_MonitoringTotalAllocatedMemorySize" />
-      <Member Status="ImplRoot" Name="get_MonitoringSurvivedMemorySize" />
-      <Member Status="ImplRoot" Name="get_MonitoringSurvivedProcessMemorySize" />
-      <Member Status="ImplRoot" MemberType="Property" Name="MonitoringIsEnabled" />
-      <Member Status="ImplRoot" MemberType="Property" Name="MonitoringTotalProcessorTime" />
-      <Member Status="ImplRoot" MemberType="Property" Name="MonitoringTotalAllocatedMemorySize" />
-      <Member Status="ImplRoot" MemberType="Property" Name="MonitoringSurvivedMemorySize" />
-      <Member Status="ImplRoot" MemberType="Property" Name="MonitoringSurvivedProcessMemorySize" />
       <Member Status="ImplRoot" MemberType="Property" Name="IsFullyTrusted" />
       <Member Status="ImplRoot" Name="GetData(System.String)" />
       <Member Status="ImplRoot" Name="ToString" />
@@ -1011,7 +996,7 @@
       <Member Name="EndInvoke(System.IAsyncResult)" />
       <Member Name="Invoke(T,T)" />
     </Type>
-    <Type Name="System.Runtime.Loader.AssemblyLoadContext" condition="FEATURE_HOST_ASSEMBLY_RESOLVER">
+    <Type Name="System.Runtime.Loader.AssemblyLoadContext">
       <Member Name="#ctor" />
       <Member MemberType="Property" Name="Default" />
       <Member Name="GetAssemblyName(System.String)" />
@@ -3516,9 +3501,6 @@
       <Member Name="get_Value"/>
       <Member Status="ImplRoot" Name="OnSerializing(System.Runtime.Serialization.StreamingContext)" />
     </Type>
-    <Type Name="System.LocalDataStoreSlot">
-      <Member Status="ImplRoot" Name="Finalize" />
-    </Type>
     <Type Name="System.MarshalByRefObject">
       <Member Name="#ctor" />
       <Member Name="GetLifetimeService" />
@@ -4016,8 +3998,8 @@
       <Member Status="ImplRoot" MemberType="Field" Name="m_assembly" />
       <Member Status="ImplRoot" Name="OnModuleResolveEvent(System.String)" /> <!-- EE -->
       <Member Status="ImplRoot" MemberType="Property" Name="DefinedTypes" />
-      <!-- On Windows Phone Assembly.LoadFrom throws a NotSupportedException.  Prevent this internal helper from being stripped by the rewriter so that tests may reflect and call it since they need LoadFrom functionality -->
-      <Member Status="ImplRoot" Name="InternalLoadFrom(System.String,System.Security.Policy.Evidence,System.Byte[],System.Configuration.Assemblies.AssemblyHashAlgorithm,System.Boolean,System.Boolean,System.Threading.StackCrawlMark@)" Condition="FEATURE_WINDOWSPHONE" />
+      <!-- Assembly.LoadFrom throws a NotSupportedException.  Prevent this internal helper from being stripped by the rewriter so that tests may reflect and call it since they need LoadFrom functionality -->
+      <Member Status="ImplRoot" Name="InternalLoadFrom(System.String,System.Security.Policy.Evidence,System.Byte[],System.Configuration.Assemblies.AssemblyHashAlgorithm,System.Boolean,System.Boolean,System.Threading.StackCrawlMark@)" />
     </Type>
     <Type Name="System.Reflection.TypeInfo">
       <Member Name="#ctor" />
@@ -5562,6 +5544,7 @@
       <Member Name="GetFieldFromHandle(System.RuntimeFieldHandle)" />
       <Member Name="GetFieldFromHandle(System.RuntimeFieldHandle,System.RuntimeTypeHandle)" />
       <Member Name="GetValue(System.Object)" />
+      <Member Name="GetValueDirect(System.TypedReference)" />
       <Member Name="GetOptionalCustomModifiers" />
       <Member Name="GetRequiredCustomModifiers" />
       <Member Name="GetRawConstantValue" />
@@ -5569,6 +5552,7 @@
       <Member Name="GetHashCode" />
       <Member Name="SetValue(System.Object,System.Object)" />
       <Member Name="SetValue(System.Object,System.Object,System.Reflection.BindingFlags,System.Reflection.Binder,System.Globalization.CultureInfo)" />
+      <Member Name="SetValueDirect(System.TypedReference,System.Object)" />
       <Member MemberType="Property" Name="Attributes" />
       <Member MemberType="Property" Name="FieldHandle" />
       <Member MemberType="Property" Name="FieldType" />
@@ -6411,6 +6395,7 @@
       <Member Name="#ctor" />
       <Member Name="Add(TKey,TValue)" />
       <Member Name="AddOrUpdate(TKey,TValue)" />
+      <Member Name="Clear" />
       <Member Name="Remove(TKey)" />
       <Member Name="TryGetValue(TKey,TValue@)" />
       <Member Name="GetValue(TKey,System.Runtime.CompilerServices.ConditionalWeakTable+CreateValueCallback)" />
@@ -6434,11 +6419,9 @@
     <Type Name="System.Runtime.CompilerServices.SuppressIldasmAttribute">
       <Member Name="#ctor" />
     </Type>
-    <!-- #if FEATURE_CORRUPTING_EXCEPTIONS -->
     <Type Name="System.Runtime.ExceptionServices.HandleProcessCorruptedStateExceptionsAttribute">
       <Member Name="#ctor" />
     </Type>
-    <!-- #endif FEATURE_CORRUPTING_EXCEPTIONS -->
     <!-- #if FEATURE_EXCEPTIONDISPATCHINFO -->
     <Type Status="ApiRoot" Name="System.Runtime.ExceptionServices.ExceptionDispatchInfo">
       <Member Status="ApiRoot" Name="Capture(System.Exception)" />
@@ -6618,36 +6601,6 @@
     <Type Name="System.Runtime.InteropServices.AllowReversePInvokeCallsAttribute">
       <Member Name="#ctor" />
     </Type>
-    <Type Name="System.Runtime.InteropServices.AutomationProxyAttribute">
-      <Member Name="#ctor(System.Boolean)" />
-      <Member Name="get_Value" />
-      <Member MemberType="Property" Name="Value" />      
-    </Type>
-   <Type Name="System.Runtime.InteropServices.ComAliasNameAttribute">
-      <Member Name="#ctor(System.String)" />
-      <Member Name="get_Value" />
-      <Member MemberType="Property" Name="Value" />      
-    </Type>
-    <Type Name="System.Runtime.InteropServices.ComCompatibleVersionAttribute">
-      <Member Name="#ctor(System.Int32,System.Int32,System.Int32,System.Int32)" />
-      <Member Name="get_MajorVersion" />
-      <Member MemberType="Property" Name="MajorVersion" />      
-      <Member Name="get_MinorVersion" />
-      <Member MemberType="Property" Name="MinorVersion" />      
-      <Member Name="get_BuildNumber" />
-      <Member MemberType="Property" Name="BuildNumber" />      
-      <Member Name="get_RevisionNumber" />
-      <Member MemberType="Property" Name="RevisionNumber" />      
-    </Type>    
-    <Type Name="System.Runtime.InteropServices.ComConversionLossAttribute">
-      <Member Name="#ctor" />
-    </Type>
-    <Type Name="System.Runtime.InteropServices.ComRegisterFunctionAttribute">
-      <Member Name="#ctor" />
-    </Type>
-    <Type Name="System.Runtime.InteropServices.ComUnregisterFunctionAttribute">
-      <Member Name="#ctor" />
-    </Type>
     <Type Name="System.Runtime.InteropServices.ExternalException">
       <Member Name="#ctor" />
       <Member Name="#ctor(System.Runtime.Serialization.SerializationInfo,System.Runtime.Serialization.StreamingContext)" />
@@ -6709,11 +6662,6 @@
     <Type Name="System.Runtime.InteropServices.ICustomFactory">
       <Member Name="CreateInstance(System.Type)" />
     </Type>
-    <Type Name="System.Runtime.InteropServices.ImportedFromTypeLibAttribute">
-      <Member Name="#ctor(System.String)" />
-      <Member Name="get_Value" />
-      <Member MemberType="Property" Name="Value" />      
-    </Type>    
     <Type Name="System.Runtime.InteropServices.InAttribute">
       <Member Name="#ctor" />
     </Type>
@@ -6750,7 +6698,7 @@
     <Type Name="System.Runtime.InteropServices.LCIDConversionAttribute">
       <Member Name="#ctor(System.Int32)" />
       <Member Name="get_Value" />
-      <Member MemberType="Property" Name="Value" />      
+      <Member MemberType="Property" Name="Value" />
     </Type>
     <Type Name="System.Runtime.InteropServices.Marshal">
       <Member MemberType="Field" Name="SystemDefaultCharSize" />
@@ -6925,13 +6873,6 @@
       <Member MemberType="Field" Name="SafeArraySubType" />
       <Member MemberType="Field" Name="SafeArrayUserDefinedSubType" />
     </Type>
-    <Type Name="System.Runtime.InteropServices.ManagedToNativeComInteropStubAttribute">
-      <Member Name="#ctor(System.Type,System.String)" />
-      <Member Name="get_ClassType" />
-      <Member MemberType="Property" Name="ClassType" />      
-      <Member Name="get_MethodName" />
-      <Member MemberType="Property" Name="MethodName" />      
-    </Type>       
     <Type Name="System.Runtime.InteropServices.MarshalDirectiveException" >
       <Member Name="#ctor" />
       <Member Name="#ctor(System.String)" />
@@ -6952,17 +6893,10 @@
     <Type Name="System.Runtime.InteropServices.PreserveSigAttribute">
       <Member Name="#ctor" />
     </Type>
-    <Type Name="System.Runtime.InteropServices.PrimaryInteropAssemblyAttribute">
-      <Member Name="#ctor(System.Int32,System.Int32)" />
-      <Member Name="get_MajorVersion" />
-      <Member MemberType="Property" Name="MajorVersion" />
-      <Member Name="get_MinorVersion" />
-      <Member MemberType="Property" Name="MinorVersion" />
-    </Type>    
     <Type Name="System.Runtime.InteropServices.ProgIdAttribute">
       <Member Name="#ctor(System.String)" />
       <Member Name="get_Value" />
-      <Member MemberType="Property" Name="Value" />      
+      <Member MemberType="Property" Name="Value" />
     </Type>
     <Type Name="System.Runtime.InteropServices.SafeHandle">
       <Member MemberType="Field" Name="handle" />
@@ -6983,18 +6917,6 @@
       <Member MemberType="Property" Name="IsClosed" />
       <Member MemberType="Property" Name="IsInvalid" />
     </Type>
-   <Type Name="System.Runtime.InteropServices.TypeLibImportClassAttribute">
-      <Member Name="#ctor(System.Type)" />
-      <Member Name="get_Value" />
-      <Member MemberType="Property" Name="Value" />
-    </Type>
-    <Type Name="System.Runtime.InteropServices.TypeLibVersionAttribute">
-      <Member Name="#ctor(System.Int32,System.Int32)" />
-      <Member Name="get_MajorVersion" />
-      <Member MemberType="Property" Name="MajorVersion" />
-      <Member Name="get_MinorVersion" />
-      <Member MemberType="Property" Name="MinorVersion" />
-    </Type>       
     <Type Name="System.Runtime.InteropServices.CriticalHandle">
       <Member MemberType="Field" Name="handle" />
       <Member MemberType="Field" Name="_stackTrace" Flavor="chk,dbg" />
@@ -7297,6 +7219,7 @@
       <Member Name="Concat(System.Object)" />
       <Member Name="Concat(System.Object,System.Object)" />
       <Member Name="Concat(System.Object,System.Object,System.Object)" />
+      <Member Name="Concat(System.Object,System.Object,System.Object,System.Object,__arglist)" />
       <Member Name="Concat(System.Object[])" />
       <Member Name="Concat(System.String,System.String)" />
       <Member Name="Concat(System.String,System.String,System.String)" />
@@ -7406,9 +7329,14 @@
       <Member Name="ToUpper(System.Globalization.CultureInfo)" />
       <Member Name="ToUpperInvariant" />
       <Member Name="Trim" />
+      <Member Name="Trim(System.Char)" />
       <Member Name="Trim(System.Char[])" />
+      <Member Name="TrimEnd(System.Char)" />
       <Member Name="TrimEnd(System.Char[])" />
+      <Member Name="TrimEnd" />
+      <Member Name="TrimStart(System.Char)" />
       <Member Name="TrimStart(System.Char[])" />
+      <Member Name="TrimStart" />
       <Member MemberType="Property" Name="Chars(System.Int32)" />
       <Member MemberType="Property" Name="Length" />
       <Member Status="ImplRoot" Name="System.Collections.IEnumerable.GetEnumerator" />
@@ -8226,6 +8154,19 @@
       <Member Name="UnsafePack(System.Threading.IOCompletionCallback,System.Object)" Condition="FEATURE_COMINTEROP" />
     </Type>
     <Type Name="System.Threading.IOCompletionCallback">
+    </Type>
+    <Type Name="System.Threading.PreAllocatedOverlapped">
+      <Member Name="#ctor(System.Threading.IOCompletionCallback,System.Object,System.Object)" />
+      <Member Name="Dispose" />
+    </Type>
+    <Type Name="System.Threading.ThreadPoolBoundHandle">
+      <Member Name="get_Handle" />      
+      <Member Name="AllocateNativeOverlapped(System.Threading.IOCompletionCallback,System.Object,System.Object)" />
+      <Member Name="AllocateNativeOverlapped(System.Threading.PreAllocatedOverlapped)" />
+      <Member Name="BindHandle(System.Runtime.InteropServices.SafeHandle)" />
+      <Member Name="Dispose" />
+      <Member Name="FreeNativeOverlapped(System.Threading.NativeOverlapped*)" />
+      <Member Name="GetNativeOverlappedState(System.Threading.NativeOverlapped*)" />
     </Type>
     <Type Name="System.Threading.RegisteredWaitHandle">
       <Member Name="Unregister(System.Threading.WaitHandle)" />
@@ -9050,7 +8991,15 @@
       <Member Name="get_TypeName" />
       <Member MemberType="Property" Name="TypeName" />
     </Type>
-    <Type Name="System.TypedReference" />
+    <Type Name="System.TypedReference">
+      <Member Name="Equals(System.Object)" />
+      <Member Name="GetHashCode" />
+      <Member Name="GetTargetType(System.TypedReference)" />
+      <Member Name="MakeTypedReference(System.Object,System.Reflection.FieldInfo[])" />
+      <Member Name="SetTypedReference(System.TypedReference,System.Object)" />
+      <Member Name="TargetTypeToken(System.TypedReference)" />
+      <Member Name="ToObject(System.TypedReference)" />
+    </Type>
     <Type Name="System.TypeLoadException">
       <Member Name="#ctor" />
       <Member Name="#ctor(System.String)" />
@@ -11119,20 +11068,21 @@
     </Type>
     <Type Status="ImplRoot" Name="System.Runtime.InteropServices.PInvokeMap" />
     <Type Name="System.ArgIterator">  <!-- for MC++ -->
-      <Member Status="ImplRoot" Name="#ctor(System.RuntimeArgumentHandle,System.Void*)" /> <!-- EE - il stubs -->
+      <Member Name="#ctor(System.RuntimeArgumentHandle)" />
+      <Member Name="#ctor(System.RuntimeArgumentHandle,System.Void*)" />
+      <Member Name="End" />
+      <Member Name="Equals(System.Object)" />
+      <Member Name="GetHashCode" />
+      <Member Name="GetNextArg" />
+      <Member Name="GetNextArg(System.RuntimeTypeHandle)" />
+      <Member Name="GetNextArgType" />
+      <Member Name="GetRemainingCount" />
     </Type>
         <Type Name="System.Runtime.InteropServices.BestFitMappingAttribute">
       <Member MemberType="Field" Name="ThrowOnUnmappableChar" />
       <Member Name="#ctor(System.Boolean)" />
       <Member MemberType="Property" Name="BestFitMapping" />
       <Member Name="get_BestFitMapping" />
-    </Type>
-    <Type Name="System.Runtime.InteropServices.ComEventInterfaceAttribute">
-      <Member Name="#ctor(System.Type,System.Type)" />
-      <Member MemberType="Property" Name="EventProvider" />
-      <Member MemberType="Property" Name="SourceInterface" />
-      <Member Name="get_EventProvider" />
-      <Member Name="get_SourceInterface" />
     </Type>
     <Type Name="System.Runtime.InteropServices.ComEventsHelper">
       <Member Name="Combine(System.Object,System.Guid,System.Int32,System.Delegate)" />
@@ -12638,12 +12588,12 @@
       <Member Name="get_TraceLevel" />
     </Type>
     <!--End of PFX types -->
-    <Type Name="System.Console">
+    <Type Name="System.LowLevelConsole">
       <Member Name="Write(System.String)" />
       <Member Name="WriteLine(System.String)" />
       <Member Name="WriteLine" />
     </Type>
-    <Type Name="System.Span&lt;T&gt;" Condition="FEATURE_SPAN_OF_T">
+    <Type Name="System.Span&lt;T&gt;">
       <Member Name="#ctor(T[])" />
       <Member Name="#ctor(T[],System.Int32)" />
       <Member Name="#ctor(T[],System.Int32,System.Int32)" />
@@ -12664,17 +12614,19 @@
       <Member Name="Slice(System.Int32,System.Int32)" />
       <Member Name="Equals(System.Object)" />
       <Member Name="DangerousCreate(System.Object,T@,System.Int32)" />
+      <Member Name="Clear" />
+      <Member Name="Fill(T)" />
+      <Member Name="GetItem(System.Int32)" /> 
       <Member Name="GetHashCode" />
       <Member Name="CopyTo(System.Span&lt;T&gt;)" />
       <Member Name="TryCopyTo(System.Span&lt;T&gt;)" />
     </Type>
-    <Type Name="System.ReadOnlySpan&lt;T&gt;" Condition="FEATURE_SPAN_OF_T">
+    <Type Name="System.ReadOnlySpan&lt;T&gt;">
       <Member Name="#ctor(T[])" />
       <Member Name="#ctor(T[],System.Int32)" />
       <Member Name="#ctor(T[],System.Int32,System.Int32)" />
       <Member Name="#ctor(System.Void*,System.Int32)" />
       <Member Name="DangerousGetPinnableReference" />
-      <Member Name="op_Implicit(System.Span&lt;T&gt;)" ReturnType="System.ReadOnlySpan&lt;T&gt;" />
       <Member Name="op_Implicit(T[])" ReturnType="System.ReadOnlySpan&lt;T&gt;" />
       <Member Name="op_Implicit(System.ArraySegment&lt;T&gt;)" ReturnType="System.ReadOnlySpan&lt;T&gt;" />
       <Member Name="op_Equality(System.ReadOnlySpan&lt;T&gt;,System.ReadOnlySpan&lt;T&gt;)" />
@@ -12692,13 +12644,11 @@
       <Member Name="TryCopyTo(System.Span&lt;T&gt;)" />
       <Member Name="CopyTo(System.Span&lt;T&gt;)" />
     </Type>
-    <Type Name="System.SpanExtensions" Condition="FEATURE_SPAN_OF_T">
+    <Type Name="System.Span">
       <Member Name="AsBytes&lt;T&gt;(System.Span&lt;T&gt;)" />
       <Member Name="AsBytes&lt;T&gt;(System.ReadOnlySpan&lt;T&gt;)" />
       <Member Name="NonPortableCast&lt;TFrom,TTo&gt;(System.Span&lt;TFrom&gt;)" />
       <Member Name="NonPortableCast&lt;TFrom,TTo&gt;(System.ReadOnlySpan&lt;TFrom&gt;)" />
-    </Type>
-    <Type Name="System.ReadOnlySpanExtensions" Condition="FEATURE_SPAN_OF_T">
       <Member Name="Slice(System.String)" />
       <Member Name="Slice(System.String,System.Int32)" />
       <Member Name="Slice(System.String,System.Int32,System.Int32)" />
@@ -12713,6 +12663,9 @@
       <Member MemberType="Field" Name="Always" />
       <Member MemberType="Field" Name="Never" />
       <Member MemberType="Field" Name="Advanced" />
+    </Type>
+    <Type Status="ImplRoot" Name="System.Runtime.CompilerServices.Unsafe">
+      <Member Status="ImplRoot" Name="AsPointer&lt;T&gt;(T@)" />
     </Type>
   </Assembly>
 </ThinModel>
