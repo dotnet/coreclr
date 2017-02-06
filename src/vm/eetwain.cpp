@@ -2832,7 +2832,7 @@ unsigned GetPushedArgSize(hdrInfo * info, PTR_CBYTE table, DWORD curOffs)
 /*****************************************************************************/
 
 inline
-void    TRASH_CALLEE_UNSAVED_REGS(PREGDISPLAY pContext)
+void    TRASH_CALLEE_UNSAVED_REGS(IUnwindFrameListener *pListener)
 {
     LIMITED_METHOD_DAC_CONTRACT;
 
@@ -2840,9 +2840,9 @@ void    TRASH_CALLEE_UNSAVED_REGS(PREGDISPLAY pContext)
     /* This is not completely correct as we lose the current value, but
        it should not really be useful to anyone. */
     static DWORD s_badData = 0xDEADBEEF;
-    pContext->SetEaxLocation(&s_badData);
-    pContext->SetEcxLocation(&s_badData);
-    pContext->SetEdxLocation(&s_badData);
+    pListener->NotifyEaxLocation(&s_badData);
+    pListener->NotifyEcxLocation(&s_badData);
+    pListener->NotifyEdxLocation(&s_badData);
 #endif //_DEBUG
 }
 
@@ -3209,37 +3209,66 @@ const RegMask CALLEE_SAVED_REGISTERS_MASK[] =
     RM_EBP  // last register to be pushed
 };
 
-static void SetLocation(PREGDISPLAY pRD, int ind, PDWORD loc)
+static void NotifyLocation(IUnwindFrameListener *pListener, int ind, PDWORD loc)
 {
-#ifdef WIN64EXCEPTIONS
-    static const SIZE_T OFFSET_OF_CALLEE_SAVED_REGISTERS[] =
+    switch (ind)
     {
-        offsetof(T_KNONVOLATILE_CONTEXT_POINTERS, Edi), // first register to be pushed
-        offsetof(T_KNONVOLATILE_CONTEXT_POINTERS, Esi),
-        offsetof(T_KNONVOLATILE_CONTEXT_POINTERS, Ebx),
-        offsetof(T_KNONVOLATILE_CONTEXT_POINTERS, Ebp), // last register to be pushed
-    };
+    case 0:
+        pListener->NotifyEdiLocation(loc);
+        return;
+    case 1:
+        pListener->NotifyEsiLocation(loc);
+        return;
+    case 2:
+        pListener->NotifyEbxLocation(loc);
+        return;
+    case 3:
+        pListener->NotifyEbpLocation(loc);
+        return;
+    default:
+        break;
+    }
 
-    SIZE_T offsetOfRegPtr = OFFSET_OF_CALLEE_SAVED_REGISTERS[ind];
-    *(LPVOID*)(PBYTE(pRD->pCurrentContextPointers) + offsetOfRegPtr) = loc;
-#else
-    static const SIZE_T OFFSET_OF_CALLEE_SAVED_REGISTERS[] =
-    {
-        offsetof(REGDISPLAY, pEdi), // first register to be pushed
-        offsetof(REGDISPLAY, pEsi),
-        offsetof(REGDISPLAY, pEbx),
-        offsetof(REGDISPLAY, pEbp), // last register to be pushed
-    };
-
-    SIZE_T offsetOfRegPtr = OFFSET_OF_CALLEE_SAVED_REGISTERS[ind];
-    *(LPVOID*)(PBYTE(pRD) + offsetOfRegPtr) = loc;
-#endif
+    UNREACHABLE();
 }
+
 
 /*****************************************************************************/
 
-void UnwindEspFrameEpilog(
-        PREGDISPLAY pContext, 
+class EpilogUnwinder
+{
+private:
+DWORD   SP;
+
+private:
+void UnwindEspFrame(
+        IUnwindFrameReader *pReader,
+        IUnwindFrameListener *pListener,
+        hdrInfo * info,
+        PTR_CBYTE epilogBase,
+        unsigned flags);
+
+void UnwindEbpDoubleAlignFrame(
+        IUnwindFrameReader *pReader,
+        IUnwindFrameListener *pListener,
+        hdrInfo * info,
+        PTR_CBYTE epilogBase,
+        unsigned flags);
+
+public:
+void Unwind(
+        IUnwindFrameReader *pReader,
+        IUnwindFrameListener *pListener,
+        hdrInfo * info,
+        PTR_CBYTE epilogBase,
+        unsigned flags);
+};
+
+/*****************************************************************************/
+
+void EpilogUnwinder::UnwindEspFrame(
+        IUnwindFrameReader *pReader,
+        IUnwindFrameListener *pListener,
         hdrInfo * info,
         PTR_CBYTE epilogBase,
         unsigned flags)
@@ -3252,7 +3281,7 @@ void UnwindEspFrameEpilog(
     _ASSERTE(info->epilogOffs > 0);
     
     int offset = 0;
-    unsigned ESP = pContext->SP;
+    unsigned ESP = pReader->GetSP();
 
     if (info->rawStkSize)
     {
@@ -3300,7 +3329,7 @@ void UnwindEspFrameEpilog(
                Get the value from the stack if needed */
             if ((flags & UpdateAllRegs) || (regMask == RM_EBP))
             {
-                SetLocation(pContext, i - 1, PTR_DWORD((TADDR)ESP));
+                NotifyLocation(pListener, i - 1, PTR_DWORD((TADDR)ESP));
             }
 
             /* Adjust ESP */
@@ -3316,16 +3345,17 @@ void UnwindEspFrameEpilog(
         || CheckInstrWord(*PTR_WORD(epilogBase + offset), X86_INSTR_w_JMP_FAR_IND_IMM)); //jmp [addr32]
 
     /* Finally we can set pPC */
-    pContext->PCTAddr = (TADDR)ESP;
-    pContext->ControlPC = *PTR_PCODE(pContext->PCTAddr);
+    pListener->NotifyPCLocation((PDWORD)ESP);
 
-    pContext->SP = ESP;
+    this->SP = ESP;
 }
 
 /*****************************************************************************/
 
-void UnwindEbpDoubleAlignFrameEpilog(
-        PREGDISPLAY pContext, 
+
+void EpilogUnwinder::UnwindEbpDoubleAlignFrame(
+        IUnwindFrameReader *pReader,
+        IUnwindFrameListener *pListener,
         hdrInfo * info, 
         PTR_CBYTE epilogBase, 
         unsigned flags)
@@ -3343,7 +3373,7 @@ void UnwindEbpDoubleAlignFrameEpilog(
       have already been popped */
     int offset = 0;
    
-    unsigned ESP = pContext->SP;
+    unsigned ESP = pReader->GetSP();
 
     bool needMovEspEbp = false;
 
@@ -3405,7 +3435,7 @@ void UnwindEbpDoubleAlignFrameEpilog(
             unsigned calleeSavedRegsSize = info->savedRegsCountExclFP * sizeof(void*); 
 
             if (!InstructionAlreadyExecuted(offset, info->epilogOffs))
-                ESP = *pContext->GetEbpLocation() - calleeSavedRegsSize;
+                ESP = pReader->GetFP() - calleeSavedRegsSize;
             
             offset = SKIP_LEA_ESP_EBP(-int(calleeSavedRegsSize), epilogBase, offset);
         }
@@ -3423,7 +3453,7 @@ void UnwindEbpDoubleAlignFrameEpilog(
         {
             if (flags & UpdateAllRegs)
             {
-                SetLocation(pContext, i - 1, PTR_DWORD((TADDR)ESP));
+                NotifyLocation(pListener, i - 1, PTR_DWORD((TADDR)ESP));
             }
             ESP += sizeof(void*);
         }
@@ -3434,7 +3464,7 @@ void UnwindEbpDoubleAlignFrameEpilog(
     if (needMovEspEbp)
     {
         if (!InstructionAlreadyExecuted(offset, info->epilogOffs))
-            ESP = *pContext->GetEbpLocation();
+            ESP = pReader->GetFP();
             
         offset = SKIP_MOV_REG_REG(epilogBase, offset);
     }
@@ -3442,15 +3472,14 @@ void UnwindEbpDoubleAlignFrameEpilog(
     // Have we executed the pop EBP?
     if (!InstructionAlreadyExecuted(offset, info->epilogOffs))
     {
-        pContext->SetEbpLocation(PTR_DWORD(TADDR(ESP)));
+        pListener->NotifyEbpLocation(PTR_DWORD(TADDR(ESP)));
         ESP += sizeof(void*);
     }
     offset = SKIP_POP_REG(epilogBase, offset);
 
-    pContext->PCTAddr = (TADDR)ESP;
-    pContext->ControlPC = *PTR_PCODE(pContext->PCTAddr);
+    pListener->NotifyPCLocation((PDWORD)ESP);
 
-    pContext->SP = ESP;
+    this->SP = ESP;
 }
 
 inline SIZE_T GetStackParameterSize(hdrInfo * info)
@@ -3459,20 +3488,11 @@ inline SIZE_T GetStackParameterSize(hdrInfo * info)
     return (info->varargs ? 0 : info->argSize); // Note varargs is caller-popped
 }
 
-//****************************************************************************
-// This is the value ESP is incremented by on doing a "return"
-
-inline SIZE_T ESPIncrOnReturn(hdrInfo * info)
-{
-    SUPPORTS_DAC;
-    return sizeof(void *) + // pop off the return address
-           GetStackParameterSize(info);
-}
-
 /*****************************************************************************/
 
-void UnwindEpilog(
-        PREGDISPLAY pContext, 
+void EpilogUnwinder::Unwind(
+        IUnwindFrameReader *pReader,
+        IUnwindFrameListener *pListener,
         hdrInfo * info, 
         PTR_CBYTE epilogBase, 
         unsigned flags)
@@ -3485,27 +3505,54 @@ void UnwindEpilog(
 
     if  (info->ebpFrame || info->doubleAlign)
     {
-        UnwindEbpDoubleAlignFrameEpilog(pContext, info, epilogBase, flags);
+        UnwindEbpDoubleAlignFrame(pReader, pListener, info, epilogBase, flags);
     }
     else
     {
-        UnwindEspFrameEpilog(pContext, info, epilogBase, flags);
+        UnwindEspFrame(pReader, pListener, info, epilogBase, flags);
     }
 
 #ifdef _DEBUG    
     if (flags & UpdateAllRegs)
-        TRASH_CALLEE_UNSAVED_REGS(pContext);
+        TRASH_CALLEE_UNSAVED_REGS(pListener);
 #endif
 
     /* Now adjust stack pointer */
 
-    pContext->SP += ESPIncrOnReturn(info);
+    pListener->NotifySP(this->SP + sizeof(DWORD), GetStackParameterSize(info));
 }
 
 /*****************************************************************************/
 
-void UnwindEspFrameProlog(
-        PREGDISPLAY pContext, 
+class EspFrameUnwinder
+{
+private:
+DWORD   SP;
+
+private:
+void UnwindProlog(
+        IUnwindFrameReader *pReader,
+        IUnwindFrameListener *pListener,
+        hdrInfo * info,
+        PTR_CBYTE methodStart,
+        unsigned flags);
+
+public:
+void Unwind(
+        IUnwindFrameReader *pReader,
+        IUnwindFrameListener *pListener,
+        hdrInfo * info,
+        PTR_CBYTE table,
+        PTR_CBYTE methodStart,
+        DWORD curOffs,
+        unsigned flags);
+};
+
+/*****************************************************************************/
+
+void EspFrameUnwinder::UnwindProlog(
+        IUnwindFrameReader *pReader,
+        IUnwindFrameListener *pListener,
         hdrInfo * info, 
         PTR_CBYTE methodStart, 
         unsigned flags)
@@ -3529,7 +3576,7 @@ void UnwindEspFrameProlog(
 #endif
 
     const DWORD curOffs = info->prologOffs;
-    unsigned ESP = pContext->SP;
+    unsigned ESP = pReader->GetSP();
     
     // Find out how many callee-saved regs have already been pushed
 
@@ -3575,18 +3622,18 @@ void UnwindEspFrameProlog(
 
     // Always restore EBP
     if (regsMask & RM_EBP)
-        pContext->SetEbpLocation(savedRegPtr++);
+        pListener->NotifyEbpLocation(savedRegPtr++);
 
     if (flags & UpdateAllRegs)
     {
         if (regsMask & RM_EBX)
-            pContext->SetEbxLocation(savedRegPtr++);
+            pListener->NotifyEbxLocation(savedRegPtr++);
         if (regsMask & RM_ESI)
-            pContext->SetEsiLocation(savedRegPtr++);
+            pListener->NotifyEsiLocation(savedRegPtr++);
         if (regsMask & RM_EDI)
-            pContext->SetEdiLocation(savedRegPtr++);
+            pListener->NotifyEdiLocation(savedRegPtr++);
 
-        TRASH_CALLEE_UNSAVED_REGS(pContext);
+        TRASH_CALLEE_UNSAVED_REGS(pListener);
     }
 
 #if 0
@@ -3601,13 +3648,14 @@ void UnwindEspFrameProlog(
     _ASSERTE(offset == info->prologOffs);
 #endif
 
-    pContext->SP = ESP;
+    this->SP = ESP;
 }
 
 /*****************************************************************************/
 
-void UnwindEspFrame(
-        PREGDISPLAY pContext, 
+void EspFrameUnwinder::Unwind(
+        IUnwindFrameReader *pReader,
+        IUnwindFrameListener *pListener,
         hdrInfo * info, 
         PTR_CBYTE table, 
         PTR_CBYTE methodStart,
@@ -3620,15 +3668,13 @@ void UnwindEspFrame(
     _ASSERTE(!info->ebpFrame && !info->doubleAlign);
     _ASSERTE(info->epilogOffs == hdrInfo::NOT_IN_EPILOG);
 
-    unsigned ESP = pContext->SP;
+    SP = pReader->GetSP();
 
-    
     if (info->prologOffs != hdrInfo::NOT_IN_PROLOG)
     {
         if (info->prologOffs != 0) // Do nothing for the very start of the method
         {
-            UnwindEspFrameProlog(pContext, info, methodStart, flags);
-            ESP = pContext->SP;
+            UnwindProlog(pReader, pListener, info, methodStart, flags);
         }
     }
     else
@@ -3637,9 +3683,9 @@ void UnwindEspFrame(
 
         // Are there any arguments pushed on the stack?
         
-        ESP += GetPushedArgSize(info, table, curOffs);
+        SP += GetPushedArgSize(info, table, curOffs);
 
-        ESP += info->rawStkSize;
+        SP += info->rawStkSize;
 
         const RegMask regsMask = info->savedRegMask;
 
@@ -3650,27 +3696,49 @@ void UnwindEspFrame(
             if ((regMask & regsMask) == 0)
                 continue;
             
-            SetLocation(pContext, i - 1, PTR_DWORD((TADDR)ESP));
+            NotifyLocation(pListener, i - 1, PTR_DWORD((TADDR)SP));
 
-            ESP += sizeof(unsigned);
+            SP += sizeof(unsigned);
         }
     }
 
     /* we can now set the (address of the) return address */
 
-    pContext->PCTAddr = (TADDR)ESP;
-    pContext->ControlPC = *PTR_PCODE(pContext->PCTAddr);
+    pListener->NotifyPCLocation((PDWORD)SP);
 
     /* Now adjust stack pointer */
 
-    pContext->SP = ESP + ESPIncrOnReturn(info);
+    pListener->NotifySP(this->SP + sizeof(DWORD), GetStackParameterSize(info));
 }
 
+class EbpFrameUnwinder
+{
+private:
+DWORD   SP;
+
+private:
+void UnwindProlog(
+        IUnwindFrameReader *pReader,
+        IUnwindFrameListener *pListener,
+        hdrInfo * info,
+        PTR_CBYTE methodStart,
+        unsigned flags);
+
+public:
+bool Unwind(
+        IUnwindFrameReader *pReader,
+        IUnwindFrameListener *pListener,
+        hdrInfo * info,
+        PTR_CBYTE methodStart,
+        unsigned flags,
+        StackwalkCacheUnwindInfo  *pUnwindInfo /* out-only, perf improvement */);
+};
 
 /*****************************************************************************/
 
-void UnwindEbpDoubleAlignFrameProlog(
-        PREGDISPLAY pContext, 
+void EbpFrameUnwinder::UnwindProlog(
+        IUnwindFrameReader *pReader,
+        IUnwindFrameListener *pListener,
         hdrInfo * info, 
         PTR_CBYTE methodStart, 
         unsigned flags)
@@ -3695,6 +3763,8 @@ void UnwindEbpDoubleAlignFrameProlog(
 
     const DWORD curOffs = info->prologOffs;
 
+    this->SP = pReader->GetSP();
+
     // If we have still not excecuted "push ebp; mov ebp, esp", then we need to
     // report the frame relative to ESP
     
@@ -3707,12 +3777,11 @@ void UnwindEbpDoubleAlignFrameProlog(
         /* If we're past the "push ebp", adjust ESP to pop EBP off */
 
         if  (curOffs == (offset + 1))
-            pContext->SP += sizeof(TADDR);
+            this->SP += sizeof(TADDR);
 
         /* Stack pointer points to return address */
 
-        pContext->PCTAddr = (TADDR)pContext->SP;
-        pContext->ControlPC = *PTR_PCODE(pContext->PCTAddr);
+        pListener->NotifyPCLocation((PDWORD)this->SP);
 
         /* EBP and callee-saved registers still have the correct value */
         
@@ -3728,7 +3797,7 @@ void UnwindEbpDoubleAlignFrameProlog(
        can be determined using EBP. Since we are still in the prolog,
        we need to know our exact location to determine the callee-saved registers */
        
-    const unsigned curEBP = *pContext->GetEbpLocation();
+    const unsigned curEBP = pReader->GetFP();
     
     if (flags & UpdateAllRegs)
     {        
@@ -3761,31 +3830,31 @@ void UnwindEbpDoubleAlignFrameProlog(
             
             if (InstructionAlreadyExecuted(offset, curOffs))
             {
-                SetLocation(pContext, i, PTR_DWORD(--pSavedRegs));
+                NotifyLocation(pListener, i, PTR_DWORD(--pSavedRegs));
             }
 
             // "push reg"
             offset = SKIP_PUSH_REG(methodStart, offset) ;
         }
 
-        TRASH_CALLEE_UNSAVED_REGS(pContext);
+        TRASH_CALLEE_UNSAVED_REGS(pListener);
     }
     
     /* The caller's saved EBP is pointed to by our EBP */
 
-    pContext->SetEbpLocation(PTR_DWORD((TADDR)curEBP));
-    pContext->SP = DWORD((TADDR)(curEBP + sizeof(void *)));
+    pListener->NotifyEbpLocation(PTR_DWORD((TADDR)curEBP));
+    this->SP = DWORD((TADDR)(curEBP + sizeof(void *)));
     
     /* Stack pointer points to return address */
 
-    pContext->PCTAddr = (TADDR)pContext->SP;
-    pContext->ControlPC = *PTR_PCODE(pContext->PCTAddr);
+    pListener->NotifyPCLocation((PDWORD)this->SP);
 }
 
 /*****************************************************************************/
 
-bool UnwindEbpDoubleAlignFrame(
-        PREGDISPLAY pContext, 
+bool EbpFrameUnwinder::Unwind(
+        IUnwindFrameReader *pReader,
+        IUnwindFrameListener *pListener,
         hdrInfo * info, 
         PTR_CBYTE methodStart, 
         unsigned flags,
@@ -3796,8 +3865,8 @@ bool UnwindEbpDoubleAlignFrame(
 
     _ASSERTE(info->ebpFrame || info->doubleAlign);
 
-    const unsigned curESP =  pContext->SP;
-    const unsigned curEBP = *pContext->GetEbpLocation();
+    const unsigned curESP =  pReader->GetSP();
+    const unsigned curEBP =  pReader->GetFP();
 
     /* First check if we are in a filter (which is obviously after the prolog) */
 
@@ -3824,10 +3893,8 @@ bool UnwindEbpDoubleAlignFrame(
 
         if (frameType == FR_FILTER)
         {
-            pContext->PCTAddr = baseSP;
-            pContext->ControlPC = *PTR_PCODE(pContext->PCTAddr);
-
-            pContext->SP = (DWORD)(baseSP + sizeof(TADDR));
+            pListener->NotifyPCLocation((PDWORD)baseSP);
+            pListener->NotifySP((DWORD)(baseSP + sizeof(TADDR)), 0);
 
          // pContext->pEbp = same as before;
 
@@ -3840,13 +3907,13 @@ bool UnwindEbpDoubleAlignFrame(
             {
                 static DWORD s_badData = 0xDEADBEEF;
 
-                pContext->SetEaxLocation(&s_badData);
-                pContext->SetEcxLocation(&s_badData);
-                pContext->SetEdxLocation(&s_badData);
+                pListener->NotifyEaxLocation(&s_badData);
+                pListener->NotifyEcxLocation(&s_badData);
+                pListener->NotifyEdxLocation(&s_badData);
 
-                pContext->SetEbxLocation(&s_badData);
-                pContext->SetEsiLocation(&s_badData);
-                pContext->SetEdiLocation(&s_badData);
+                pListener->NotifyEbxLocation(&s_badData);
+                pListener->NotifyEsiLocation(&s_badData);
+                pListener->NotifyEdiLocation(&s_badData);
             }
 #endif
 
@@ -3867,11 +3934,11 @@ bool UnwindEbpDoubleAlignFrame(
     
     if (info->prologOffs != hdrInfo::NOT_IN_PROLOG)
     {
-        UnwindEbpDoubleAlignFrameProlog(pContext, info, methodStart, flags);
+        UnwindProlog(pReader, pListener, info, methodStart, flags);
         
         /* Now adjust stack pointer. */
 
-        pContext->SP += ESPIncrOnReturn(info);
+        pListener->NotifySP(this->SP + sizeof(DWORD), GetStackParameterSize(info));
         return true;
     }
 
@@ -3889,27 +3956,27 @@ bool UnwindEbpDoubleAlignFrame(
             if ((info->savedRegMask & regMask) == 0)
                 continue;
             
-            SetLocation(pContext, i, --pSavedRegs);
+            NotifyLocation(pListener, i, --pSavedRegs);
         }
     }
 
     /* The caller's ESP will be equal to EBP + retAddrSize + argSize. */
 
-    pContext->SP = (DWORD)(curEBP + sizeof(curEBP) + ESPIncrOnReturn(info));
+    pListener->NotifySP(DWORD(curEBP + 2 * sizeof(DWORD)), GetStackParameterSize(info));
 
     /* The caller's saved EIP is right after our EBP */
 
-    pContext->PCTAddr = (TADDR)curEBP + RETURN_ADDR_OFFS * sizeof(TADDR);
-    pContext->ControlPC = *PTR_PCODE(pContext->PCTAddr);
+    pListener->NotifyPCLocation(PDWORD(curEBP + RETURN_ADDR_OFFS * sizeof(TADDR)));
 
     /* The caller's saved EBP is pointed to by our EBP */
 
-    pContext->SetEbpLocation(PTR_DWORD((TADDR)curEBP));
+    pListener->NotifyEbpLocation(PDWORD(curEBP));
 
     return true;
 }
 
-bool UnwindStackFrame(PREGDISPLAY     pContext,
+bool UnwindStackFrame(IUnwindFrameReader *pUnwindFrameReader,
+                      IUnwindFrameListener *pUnwindFrameListener,
                       EECodeInfo     *pCodeInfo,
                       unsigned        flags,
                       CodeManState   *pState,
@@ -3923,7 +3990,7 @@ bool UnwindStackFrame(PREGDISPLAY     pContext,
     } CONTRACTL_END;
 
     // Address where the method has been interrupted
-    PCODE       breakPC = pContext->ControlPC;
+    PCODE       breakPC = pUnwindFrameReader->GetPC();
     _ASSERTE(PCODEToPINSTR(breakPC) == pCodeInfo->GetCodeAddress());
 
     PTR_CBYTE methodStart = PTR_CBYTE(pCodeInfo->GetSavedMethodCode());
@@ -3949,7 +4016,7 @@ bool UnwindStackFrame(PREGDISPLAY     pContext,
     hdrInfo * info = &stateBuf->hdrInfoBody;
 
     info->isSpeculativeStackWalk = ((flags & SpeculativeStackwalk) != 0);
-    
+
     if (pUnwindInfo != NULL)
     {
         pUnwindInfo->securityObjectOffset = 0;
@@ -3971,16 +4038,19 @@ bool UnwindStackFrame(PREGDISPLAY     pContext,
          *  First, handle the epilog
          */
 
+        EpilogUnwinder epilogUnwinder;
+
         PTR_CBYTE epilogBase = (PTR_CBYTE) (breakPC - info->epilogOffs);
-        UnwindEpilog(pContext, info, epilogBase, flags);
+        epilogUnwinder.Unwind(pUnwindFrameReader, pUnwindFrameListener, info, epilogBase, flags);
     }
     else if (!info->ebpFrame && !info->doubleAlign)
     {
         /*---------------------------------------------------------------------
          *  Now handle ESP frames
          */
-         
-        UnwindEspFrame(pContext, info, table, methodStart, curOffs, flags);
+        EspFrameUnwinder espFrameUnwinder;
+
+        espFrameUnwinder.Unwind(pUnwindFrameReader, pUnwindFrameListener, info, table, methodStart, curOffs, flags);
         return true;
     }
     else
@@ -3988,8 +4058,9 @@ bool UnwindStackFrame(PREGDISPLAY     pContext,
         /*---------------------------------------------------------------------
          *  Now we know that have an EBP frame
          */
+        EbpFrameUnwinder ebpFrameUnwinder;
 
-        if (!UnwindEbpDoubleAlignFrame(pContext, info, methodStart, flags, pUnwindInfo))
+        if (!ebpFrameUnwinder.Unwind(pUnwindFrameReader, pUnwindFrameListener, info, methodStart, flags, pUnwindInfo))
             return false;
     }
 
@@ -4011,6 +4082,56 @@ bool UnwindStackFrame(PREGDISPLAY     pContext,
 #ifndef CROSSGEN_COMPILE
 #ifndef WIN64EXCEPTIONS
 
+class UnwindFrameReader : public IUnwindFrameReader
+{
+private:
+    PREGDISPLAY pRD;
+
+public:
+    UnwindFrameReader(PREGDISPLAY pRD)
+    {
+        this->pRD = pRD;
+    }
+
+public:
+    virtual DWORD GetSP(void) { return pRD->SP; }
+    virtual DWORD GetFP(void) { return *pRD->GetEbpLocation(); }
+    virtual DWORD GetPC(void) { return pRD->ControlPC; }
+};
+
+struct UnwindFrameListener : public IUnwindFrameListener
+{
+private:
+    PREGDISPLAY pRD;
+
+public:
+    UnwindFrameListener(PREGDISPLAY pRD)
+    {
+        this->pRD = pRD;
+    }
+
+    virtual ~UnwindFrameListener() = default;
+
+    virtual void NotifyEaxLocation(PDWORD loc) { pRD->pEax = loc; }
+    virtual void NotifyEbxLocation(PDWORD loc) { pRD->pEbx = loc; }
+    virtual void NotifyEcxLocation(PDWORD loc) { pRD->pEcx = loc; }
+    virtual void NotifyEdxLocation(PDWORD loc) { pRD->pEdx = loc; }
+    virtual void NotifyEsiLocation(PDWORD loc) { pRD->pEsi = loc; }
+    virtual void NotifyEdiLocation(PDWORD loc) { pRD->pEdi = loc; }
+    virtual void NotifyEbpLocation(PDWORD loc) { pRD->pEbp = loc; }
+
+    virtual void NotifySP(DWORD SP, DWORD stackArgumentSize)
+    {
+        pRD->SP = SP + stackArgumentSize;
+    }
+
+    virtual void NotifyPCLocation(PDWORD loc)
+    {
+        pRD->PCTAddr = (TADDR)loc;
+        pRD->ControlPC = *loc;
+    }
+};
+
 /*****************************************************************************
  *
  *  Unwind the current stack frame, i.e. update the virtual register
@@ -4028,7 +4149,10 @@ bool EECodeManager::UnwindStackFrame(PREGDISPLAY     pContext,
                                      StackwalkCacheUnwindInfo  *pUnwindInfo /* out-only, perf improvement */)
 {
 #ifdef _TARGET_X86_
-    return ::UnwindStackFrame(pContext, pCodeInfo, flags, pState, pUnwindInfo);
+    UnwindFrameReader   unwReader(pContext);
+    UnwindFrameListener unwListener(pContext);
+
+    return ::UnwindStackFrame(&unwReader, &unwListener, pCodeInfo, flags, pState, pUnwindInfo);
 #else // _TARGET_X86_
     PORTABILITY_ASSERT("EECodeManager::UnwindStackFrame");
     return false;

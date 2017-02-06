@@ -8,6 +8,74 @@
 #include "unwinder_i386.h"
 
 #ifdef WIN64EXCEPTIONS
+class UnwindFrameReader : public IUnwindFrameReader
+{
+private:
+    PCONTEXT pContextRecord;
+
+public:
+    UnwindFrameReader(PCONTEXT pContextRecord)
+    {
+        this->pContextRecord = pContextRecord;
+    }
+
+public:
+    virtual DWORD GetSP(void) { return pContextRecord->Esp; }
+    virtual DWORD GetFP(void) { return pContextRecord->Ebp; }
+    virtual DWORD GetPC(void) { return pContextRecord->Eip; }
+};
+
+struct UnwindFrameListener : public IUnwindFrameListener
+{
+private:
+    PCONTEXT pContextRecord;
+    PKNONVOLATILE_CONTEXT_POINTERS pContextPointers;
+
+    T_KNONVOLATILE_CONTEXT_POINTERS ctxPtrs;
+
+public:
+    DWORD EstablisherFrame;
+
+public:
+    UnwindFrameListener(PCONTEXT pContextRecord, PKNONVOLATILE_CONTEXT_POINTERS pContextPointers)
+    {
+        this->pContextRecord = pContextRecord;
+        this->pContextPointers = (pContextPointers) ? pContextPointers : &ctxPtrs;
+
+        this->EstablisherFrame = 0xdeadbeaf;
+    }
+
+    virtual ~UnwindFrameListener() = default;
+
+#define NOTIFY_METHOD(reg) \
+    virtual void Notify##reg##Location(PDWORD loc) \
+    { \
+        pContextRecord->reg = *loc; \
+        pContextPointers->reg = loc; \
+    }
+
+    NOTIFY_METHOD(Eax);
+    NOTIFY_METHOD(Ebx);
+    NOTIFY_METHOD(Ecx);
+    NOTIFY_METHOD(Edx);
+    NOTIFY_METHOD(Esi);
+    NOTIFY_METHOD(Edi);
+    NOTIFY_METHOD(Ebp);
+
+#undef NOTIFY_METHOD
+
+    virtual void NotifySP(DWORD SP, DWORD stackArgumentSize)
+    {
+        pContextRecord->Esp = SP;
+        EstablisherFrame = SP;
+    }
+
+    virtual void NotifyPCLocation(PDWORD loc)
+    {
+        pContextRecord->Eip = *loc;
+    }
+};
+
 /*++
 
 Routine Description:
@@ -72,16 +140,8 @@ OOPStackUnwinderX86::VirtualUnwind(
         *HandlerRoutine = NULL;
     }
 
-    REGDISPLAY rd;
-
-    FillRegDisplay(&rd, ContextRecord);
-
-    rd.PCTAddr = (UINT_PTR)&(ContextRecord->Eip);
-
-    if (ContextPointers)
-    {
-        rd.pCurrentContextPointers = ContextPointers;
-    }
+    UnwindFrameReader unwindFrameReader(ContextRecord);
+    UnwindFrameListener unwindFrameListener(ContextRecord, ContextPointers);
 
     CodeManState codeManState;
     codeManState.dwIsSet = 0;
@@ -89,28 +149,17 @@ OOPStackUnwinderX86::VirtualUnwind(
     EECodeInfo codeInfo;
     codeInfo.Init((PCODE) ControlPc);
 
-    if (!UnwindStackFrame(&rd, &codeInfo, UpdateAllRegs, &codeManState, NULL))
+    if (!UnwindStackFrame(&unwindFrameReader, &unwindFrameListener, &codeInfo, UpdateAllRegs, &codeManState, NULL))
     {
         return HRESULT_FROM_WIN32(ERROR_READ_FAULT);
     }
 
     ContextRecord->ContextFlags |= CONTEXT_UNWOUND_TO_CALL;
 
-#define ARGUMENT_AND_SCRATCH_REGISTER(reg) if (rd.pCurrentContextPointers->reg) ContextRecord->reg = *rd.pCurrentContextPointers->reg;
-    ENUM_ARGUMENT_AND_SCRATCH_REGISTERS();
-#undef ARGUMENT_AND_SCRATCH_REGISTER
-
-#define CALLEE_SAVED_REGISTER(reg) if (rd.pCurrentContextPointers->reg) ContextRecord->reg = *rd.pCurrentContextPointers->reg;
-    ENUM_CALLEE_SAVED_REGISTERS();
-#undef CALLEE_SAVED_REGISTER
-
-    ContextRecord->Esp = rd.SP;
-    ContextRecord->Eip = rd.ControlPC;
-
     // For x86, the value of Establisher Frame Pointer is Caller SP
     //
     // (Please refers to CLR ABI for details)
-    *EstablisherFrame = ContextRecord->Esp;
+    *EstablisherFrame = unwindFrameListener.EstablisherFrame;
     return S_OK;
 }
 

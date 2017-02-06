@@ -641,7 +641,35 @@ HRESULT FixContextForEnC(PCONTEXT        pCtx,
 };
 
 #ifdef _TARGET_X86_
-bool UnwindStackFrame(PREGDISPLAY     pContext,
+struct IUnwindFrameReader
+{
+    IUnwindFrameReader() = default;
+    virtual ~IUnwindFrameReader() = default;
+
+    virtual DWORD GetSP(void) = 0;
+    virtual DWORD GetFP(void) = 0;
+    virtual DWORD GetPC(void) = 0;
+};
+
+struct IUnwindFrameListener
+{
+    IUnwindFrameListener() = default;
+    virtual ~IUnwindFrameListener() = default;
+
+    virtual void NotifyEaxLocation(PDWORD loc) = 0;
+    virtual void NotifyEbxLocation(PDWORD loc) = 0;
+    virtual void NotifyEcxLocation(PDWORD loc) = 0;
+    virtual void NotifyEdxLocation(PDWORD loc) = 0;
+    virtual void NotifyEsiLocation(PDWORD loc) = 0;
+    virtual void NotifyEdiLocation(PDWORD loc) = 0;
+    virtual void NotifyEbpLocation(PDWORD loc) = 0;
+
+    virtual void NotifySP(DWORD SP, DWORD stackArgumentSize) = 0;
+    virtual void NotifyPCLocation(PDWORD loc) = 0;
+};
+
+bool UnwindStackFrame(IUnwindFrameReader *pUnwindFrameReader,
+                      IUnwindFrameListener *pUnwindFrameListener,
                       EECodeInfo     *pCodeInfo,
                       unsigned        flags,
                       CodeManState   *pState,
