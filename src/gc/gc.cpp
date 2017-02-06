@@ -36806,9 +36806,6 @@ void PopulateDacVars(GcDacVars *gcDacVars)
     gcDacVars->build_variant = &g_build_variant;
     gcDacVars->gc_structures_invalid_cnt = const_cast<int32_t*>(&GCScan::m_GcStructuresInvalidCnt);
     gcDacVars->generation_size = sizeof(generation);
-#ifdef GC_CONFIG_DRIVEN
-    gcDacVars->gc_global_mechanisms = reinterpret_cast<size_t**>(&gc_global_mechanisms);
-#endif // GC_CONFIG_DRIVEN
 #ifdef FEATURE_SVR_GC
     gcDacVars->gc_heap_type = &IGCHeap::gcHeapType;
 #endif // FEATURE_SVR_GC
@@ -36826,6 +36823,13 @@ void PopulateDacVars(GcDacVars *gcDacVars)
     gcDacVars->oom_info = &gc_heap::oom_info;
     gcDacVars->finalize_queue = reinterpret_cast<dac_finalize_queue**>(&gc_heap::finalize_queue);
     gcDacVars->generation_table = reinterpret_cast<dac_generation**>(&generation_table);
+#ifdef GC_CONFIG_DRIVEN
+    gcDacVars->gc_global_mechanisms = reinterpret_cast<size_t**>(&gc_global_mechanisms);
+    gcDacVars->interesting_data_per_heap = reinterpret_cast<size_t**>(&interesting_data_per_heap);
+    gcDacVars->compact_reasons_per_heap = reinterpret_cast<size_t**>(&compact_reasons_per_heap);
+    gcDacVars->expand_mechanisms_per_heap = reinterpret_cast<size_t**>(&expand_mechanisms_per_heap);
+    gcDacVars->interesting_mechanism_bits_per_heap = reinterpret_cast<size_t**>(&interesting_mechanism_bits_per_heap);
+#endif // GC_CONFIG_DRIVEN
 #ifdef HEAP_ANALYZE
     gcDacVars->internal_root_array = &gc_heap::internal_root_array;
     gcDacVars->internal_root_array_index = &gc_heap::internal_root_array_index;

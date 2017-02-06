@@ -6,7 +6,6 @@
 #define _GCHEAPUTILITIES_H_
 
 #include "gcinterface.h"
-#include "common.h"
 
 // The singular heap instance.
 GPTR_DECL(IGCHeap, g_pGCHeap);
@@ -35,8 +34,19 @@ extern "C" bool g_sw_ww_enabled_for_gc_heap;
 
 #endif // FEATURE_USE_SOFTWARE_WRITE_WATCH_FOR_GC_HEAP
 
+// g_gc_dac_vars is a structure of pointers to GC globals that the
+// DAC uses. It is not exposed directly to the DAC.
 extern GcDacVars g_gc_dac_vars;
 
+// Instead of exposing g_gc_dac_vars to the DAC, a pointer to it
+// is exposed here (g_gcDacGlobals). The reason for this is to avoid
+// a problem in which a debugger attaches to a program while the program
+// is in the middle of initializing the GC DAC vars - if the "publishing"
+// of DAC vars isn't atomic, the debugger could see a partially initialized
+// GcDacVars structure.
+//
+// Instead, the debuggee "publishes" GcDacVars by assigning a pointer to g_gc_dac_vars
+// to this global, and the DAC will read this global.
 typedef DPTR(GcDacVars) PTR_GcDacVars;
 GPTR_DECL(GcDacVars, g_gcDacGlobals);
 
@@ -188,3 +198,4 @@ private:
 };
 
 #endif // _GCHEAPUTILITIES_H_
+

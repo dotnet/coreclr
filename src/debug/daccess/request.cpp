@@ -267,7 +267,7 @@ VOID GetJITMethodInfo (EECodeInfo * pCodeInfo, JITTypes *pJITType, CLRDATA_ADDRE
 // size of the GC's generation class.
 DPTR(dac_generation) GenerationTableIndex(ArrayDPTR(dac_generation) base, size_t index)
 {
-    TADDR base_addr = base.GetAddr(); 
+    TADDR base_addr = base.GetAddr();
     TADDR element_addr = DacTAddrOffset(base_addr, index, g_gcDacGlobals->generation_size);
     return __DPtr<dac_generation>(element_addr);
 }
@@ -3087,6 +3087,11 @@ ClrDataAccess::GetGCInterestingInfoStaticData(struct DacpGCInterestingInfoData *
 #ifdef GC_CONFIG_DRIVEN
     if (data == NULL)
         return E_INVALIDARG;
+
+    static_assert_no_msg(DAC_NUM_GC_DATA_POINTS == NUM_GC_DATA_POINTS);
+    static_assert_no_msg(DAC_MAX_COMPACT_REASONS_COUNT == MAX_COMPACT_REASONS_COUNT);
+    static_assert_no_msg(DAC_MAX_EXPAND_MECHANISMS_COUNT == MAX_EXPAND_MECHANISMS_COUNT);
+    static_assert_no_msg(DAC_MAX_GC_MECHANISM_BITS_COUNT == MAX_GC_MECHANISM_BITS_COUNT);
 
     SOSDacEnter();
     memset(data, 0, sizeof(DacpGCInterestingInfoData));
