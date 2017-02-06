@@ -7,8 +7,12 @@ set(FLOAT_SOURCES
     floatsingle.cpp
 )
 
+if(WIN32)
+    add_compile_options(/fp:fast)
+endif(WIN32)
+
 if(CLR_CMAKE_PLATFORM_UNIX)
-    add_compile_options(-fPIC)
+    add_compile_options(-fPIC -ffast-math)
 endif(CLR_CMAKE_PLATFORM_UNIX)
 
 add_library_clr(comfloat_wks
