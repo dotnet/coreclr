@@ -1456,12 +1456,19 @@ class ICorCompilationDomain
 /*********************************************************************************
  * ICorCompileInfo is the interface for a compiler
  *********************************************************************************/
-
+#if defined(_X86_) and !defined(FEATURE_PAL)
 // Define function pointer ENCODEMODULE_CALLBACK
 typedef DWORD (__stdcall *ENCODEMODULE_CALLBACK)(LPVOID pModuleContext, CORINFO_MODULE_HANDLE moduleHandle);
 
 // Define function pointer DEFINETOKEN_CALLBACK
 typedef void (__stdcall *DEFINETOKEN_CALLBACK)(LPVOID pModuleContext, CORINFO_MODULE_HANDLE moduleHandle, DWORD index, mdTypeRef* token);
+#else
+// Define function pointer ENCODEMODULE_CALLBACK
+typedef DWORD (*ENCODEMODULE_CALLBACK)(LPVOID pModuleContext, CORINFO_MODULE_HANDLE moduleHandle);
+
+// Define function pointer DEFINETOKEN_CALLBACK
+typedef void (*DEFINETOKEN_CALLBACK)(LPVOID pModuleContext, CORINFO_MODULE_HANDLE moduleHandle, DWORD index, mdTypeRef* token);
+#endif
 
 typedef HRESULT (__stdcall *CROSS_DOMAIN_CALLBACK)(LPVOID pArgs);
 
