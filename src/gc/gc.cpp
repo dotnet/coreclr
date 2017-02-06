@@ -36805,6 +36805,7 @@ void PopulateDacVars(GcDacVars *gcDacVars)
     gcDacVars->built_with_svr = &g_built_with_svr_gc;
     gcDacVars->build_variant = &g_build_variant;
     gcDacVars->gc_structures_invalid_cnt = const_cast<int32_t*>(&GCScan::m_GcStructuresInvalidCnt);
+    gcDacVars->generation_size = sizeof(generation);
 #ifdef GC_CONFIG_DRIVEN
     gcDacVars->gc_global_mechanisms = reinterpret_cast<size_t**>(&gc_global_mechanisms);
 #endif // GC_CONFIG_DRIVEN
@@ -36824,7 +36825,7 @@ void PopulateDacVars(GcDacVars *gcDacVars)
     gcDacVars->next_sweep_obj = &gc_heap::next_sweep_obj;
     gcDacVars->oom_info = &gc_heap::oom_info;
     gcDacVars->finalize_queue = reinterpret_cast<dac_finalize_queue**>(&gc_heap::finalize_queue);
-    gcDacVars->generation_table = reinterpret_cast<dac_generation**>(&generation_table[0]);
+    gcDacVars->generation_table = reinterpret_cast<dac_generation**>(&generation_table);
 #ifdef HEAP_ANALYZE
     gcDacVars->internal_root_array = &gc_heap::internal_root_array;
     gcDacVars->internal_root_array_index = &gc_heap::internal_root_array_index;

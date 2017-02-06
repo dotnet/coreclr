@@ -35,9 +35,7 @@ public:
     uint8_t* mem;
     size_t flags;
     dac_heap_segment* next;
-    uint8_t _padding1[8];
     uint8_t* background_allocated;
-    uint8_t _padding2[40];
 };
 
 // Analogue for the GC generation class, containing information about the start segment
@@ -45,30 +43,15 @@ public:
 class dac_generation {
 public:
     gc_alloc_context allocation_context;
-    uint8_t _padding1[8];
     dac_heap_segment* start_segment;
-    uint8_t _padding2[8];
     uint8_t* allocation_start;
-    uint8_t _padding3[149];
 };
 
 // Analogue for the GC CFinalize class, containing information about the finalize queue.
 class dac_finalize_queue {
 public:
     static const int ExtraSegCount = 2;
-    uint8_t _padding1[8];
     uint8_t** m_FillPointers[NUMBERGENERATIONS + ExtraSegCount];
-    uint8_t _padding2[24];
-
-    // TODO(segilles) - The finalize queue has a different layout depending on
-    // whether or not we are doing a debug build. This may work when debugging
-    // with a release build of the DAC and a debug build of the GC, but it probably
-    // will cause trouble. It would be useful for us in the future to be able
-    // to debug a configuration using a release build of the runtime and a debug
-    // build of the GC.
-#ifdef DEBUG
-    uint8_t _padding3[8];
-#endif // DEBUG
 };
 
 // Possible values of the current_c_gc_state dacvar, indicating the state of
@@ -132,6 +115,7 @@ struct oom_history
 struct GcDacVars {
   uint8_t major_version_number;
   uint8_t minor_version_number;
+  size_t generation_size;
 #ifdef DACCESS_COMPILE
  #define GC_DAC_VAR(type, name) DPTR(type) name;
  // ArrayDPTR doesn't allow decaying arrays to pointers, which

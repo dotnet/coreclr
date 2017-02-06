@@ -18,7 +18,8 @@ uint8_t* g_ephemeral_high = (uint8_t*)~0;
 // This is the global GC heap, maintained by the VM.
 GPTR_IMPL(IGCHeap, g_pGCHeap);
 
-GVAL_IMPL_INIT(GcDacVars, g_gc_dac_vars, {});
+GcDacVars g_gc_dac_vars;
+GPTR_IMPL(GcDacVars, g_gcDacGlobals);
 
 #ifdef FEATURE_USE_SOFTWARE_WRITE_WATCH_FOR_GC_HEAP
 

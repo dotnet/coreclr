@@ -2933,6 +2933,7 @@ void InitializeGarbageCollector()
 
     assert(pGCHeap != nullptr);
     g_pGCHeap = pGCHeap;
+    g_gcDacGlobals = &g_gc_dac_vars;
 
     hr = pGCHeap->Initialize();
     IfFailThrow(hr);

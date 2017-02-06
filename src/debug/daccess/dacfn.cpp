@@ -29,7 +29,6 @@
 
 DacTableInfo g_dacTableInfo;
 DacGlobals g_dacGlobals;
-GcDacVars *g_gcDacGlobals;
 
 struct DacHostVtPtrs
 {

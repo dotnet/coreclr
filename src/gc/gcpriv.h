@@ -757,10 +757,10 @@ public:
     // Don't move these first two fields without adjusting the references
     // from the __asm in jitinterface.cpp.
     alloc_context   allocation_context;
-    heap_segment*   allocation_segment;
     PTR_heap_segment start_segment;
-    uint8_t*        allocation_context_start_region;
     uint8_t*        allocation_start;
+    heap_segment*   allocation_segment;
+    uint8_t*        allocation_context_start_region;
     allocator       free_list_allocator;
     size_t          free_list_allocated;
     size_t          end_seg_allocated;
@@ -779,9 +779,6 @@ public:
     int             gen_num;
 
 #ifdef FREE_USAGE_STATS
-    #pragma message ("FREE_USAGE_STATS changes the layout of the 'generation' class, which is known to the DAC. " \
-                    "Changing the layout of this class will result in a degraded debugging experience.")
-
     size_t          gen_free_spaces[NUM_GEN_POWER2];
     // these are non pinned plugs only
     size_t          gen_plugs[NUM_GEN_POWER2];
@@ -793,7 +790,6 @@ public:
 #endif //FREE_USAGE_STATS
 };
 
-static_assert(sizeof(dac_generation) == sizeof(generation), "DAC generation size mismatch");
 static_assert(offsetof(dac_generation, allocation_context) == offsetof(generation, allocation_context), "DAC generation offset mismatch");
 static_assert(offsetof(dac_generation, start_segment) == offsetof(generation, start_segment), "DAC generation offset mismatch");
 static_assert(offsetof(dac_generation, allocation_start) == offsetof(generation, allocation_start), "DAC generation offset mismatch");
@@ -3726,8 +3722,8 @@ private:
     //Does not correspond to a segment
     static const int FreeList = NUMBERGENERATIONS+ExtraSegCount;
 
-    PTR_PTR_Object m_Array;
     PTR_PTR_Object m_FillPointers[NUMBERGENERATIONS+ExtraSegCount];
+    PTR_PTR_Object m_Array;
     PTR_PTR_Object m_EndArray;
     size_t   m_PromotedCount;
     
@@ -3790,7 +3786,6 @@ public:
 class CFinalizeStaticAsserts {
     static_assert(dac_finalize_queue::ExtraSegCount == CFinalize::ExtraSegCount, "ExtraSegCount mismatch");
     static_assert(offsetof(dac_finalize_queue, m_FillPointers) == offsetof(CFinalize, m_FillPointers), "CFinalize layout mismatch");
-    static_assert(sizeof(dac_finalize_queue) == sizeof(CFinalize), "CFinalize size mismatch");
 };
 
 
@@ -4185,11 +4180,9 @@ public:
     uint8_t*        mem;
     size_t          flags;
     PTR_heap_segment next;
-    uint8_t*        plan_allocated;
-#ifdef BACKGROUND_GC
     uint8_t*        background_allocated;
+    uint8_t*        plan_allocated;
     uint8_t*        saved_bg_allocated;
-#endif //BACKGROUND_GC
 
 #ifdef MULTIPLE_HEAPS
     gc_heap*        heap;
@@ -4204,10 +4197,6 @@ public:
 #pragma warning(default:4324)  // structure was padded due to __declspec(align())
 #endif
 };
-
-#ifndef MULTIPLE_HEAPS
-static_assert(sizeof(dac_heap_segment) == sizeof(heap_segment), "DAC heap segment size mismatch");
-#endif
 
 static_assert(offsetof(dac_heap_segment, allocated) == offsetof(heap_segment, allocated), "DAC heap segment layout mismatch");
 static_assert(offsetof(dac_heap_segment, committed) == offsetof(heap_segment, committed), "DAC heap segment layout mismatch");

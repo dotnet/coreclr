@@ -3904,8 +3904,7 @@ public:
 #define DAC_ENTER() \
     EnterCriticalSection(&g_dacCritSec); \
     ClrDataAccess* __prevDacImpl = g_dacImpl; \
-    g_dacImpl = this; \
-    g_gcDacGlobals = &g_gc_dac_vars;
+    g_dacImpl = this;
 
 // When entering a child object we validate that
 // the process's host instance cache hasn't been flushed

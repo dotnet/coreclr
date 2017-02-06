@@ -6,6 +6,7 @@
 #define _GCHEAPUTILITIES_H_
 
 #include "gcinterface.h"
+#include "common.h"
 
 // The singular heap instance.
 GPTR_DECL(IGCHeap, g_pGCHeap);
@@ -34,7 +35,10 @@ extern "C" bool g_sw_ww_enabled_for_gc_heap;
 
 #endif // FEATURE_USE_SOFTWARE_WRITE_WATCH_FOR_GC_HEAP
 
-GVAL_DECL(GcDacVars, g_gc_dac_vars);
+extern GcDacVars g_gc_dac_vars;
+
+typedef DPTR(GcDacVars) PTR_GcDacVars;
+GPTR_DECL(GcDacVars, g_gcDacGlobals);
 
 // GCHeapUtilities provides a number of static methods
 // that operate on the global heap instance. It can't be
