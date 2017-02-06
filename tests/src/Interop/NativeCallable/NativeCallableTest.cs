@@ -94,7 +94,7 @@ public class Program
         }
         catch (Exception)
         {
-            Console.WriteLine(":bla");
+            LowLevelConsole.WriteLine(":bla");
         }
     }
 
