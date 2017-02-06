@@ -351,13 +351,13 @@ ZapGenericSignature * ZapImportTable::GetGenericSignature(PVOID signature, BOOL 
 // At ngen time Zapper::CompileModule PlaceFixups called from
 //     code:ZapSig.GetSignatureForTypeHandle
 //
-#if defined(_X86_) && !defined(FEATURE_PAL)
-/*static*/ DWORD __stdcall ZapImportTable::EncodeModuleHelper( LPVOID compileContext,
-                                                CORINFO_MODULE_HANDLE referencedModule)
-#else
+#if defined(_X86_) && defined(FEATURE_PAL)
 /*static*/ DWORD ZapImportTable::EncodeModuleHelper( LPVOID compileContext,
                                                 CORINFO_MODULE_HANDLE referencedModule)
-#endif
+#else // !_X86_ || !FEATURE_PAL
+/*static*/ DWORD __stdcall ZapImportTable::EncodeModuleHelper( LPVOID compileContext,
+                                                CORINFO_MODULE_HANDLE referencedModule)
+#endif // _X86_ && FEATURE_PAL
 {
     ZapImportTable * pTable = (ZapImportTable *)compileContext;
     return pTable->GetIndexOfModule(referencedModule);
