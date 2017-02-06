@@ -895,24 +895,24 @@ namespace System.Reflection.Emit
         public override String ToString()
         {
             StringBuilder sb = new StringBuilder();
-            sb.Append("Length: " + m_currSig + Environment.NewLine);
+            sb.Append("Length: ").Append(m_currSig).AppendLine();
 
             if (m_sizeLoc != -1)
             {
-                sb.Append("Arguments: " + m_signature[m_sizeLoc] + Environment.NewLine);
+                sb.Append("Arguments: ").Append(m_signature[m_sizeLoc]).AppendLine();
             }
             else
             {
-                sb.Append("Field Signature" + Environment.NewLine);
+                sb.AppendLine("Field Signature");
             }
 
-            sb.Append("Signature: " + Environment.NewLine);
-            for (int i=0; i<=m_currSig; i++) 
+            sb.AppendLine("Signature: ");
+            for (int i = 0; i <= m_currSig; i++) 
             {
-                sb.Append(m_signature[i] + "  ");
+                sb.Append(m_signature[i]).Append("  ");
             }
 
-            sb.Append(Environment.NewLine);
+            sb.AppendLine();
             return sb.ToString();
         }
         
