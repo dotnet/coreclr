@@ -13,10 +13,6 @@ namespace System.Security
         CurrentAppDomain = 0,
         CurrentAssembly
     }
-
-    internal sealed class PermissionSet
-    {
-    }
 }
 
 namespace System.Security.Permissions

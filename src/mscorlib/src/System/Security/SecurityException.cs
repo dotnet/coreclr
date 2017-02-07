@@ -35,7 +35,7 @@ namespace System.Security
         }
 
 #pragma warning disable 618
-        internal static Exception MakeSecurityException(AssemblyName asmName, Evidence asmEvidence, PermissionSet granted, PermissionSet refused, RuntimeMethodHandleInternal rmh, Object demand)
+        internal static Exception MakeSecurityException(AssemblyName asmName, Evidence asmEvidence, RuntimeMethodHandleInternal rmh, Object demand)
 #pragma warning restore 618
         {
             return new SecurityException(GetResString("Arg_SecurityException"));

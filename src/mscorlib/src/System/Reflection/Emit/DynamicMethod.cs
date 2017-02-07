@@ -270,7 +270,7 @@ namespace System.Reflection.Emit
                 AssemblyBuilder assembly = AssemblyBuilder.InternalDefineDynamicAssembly(
                     assemblyName,
                     AssemblyBuilderAccess.Run,
-                    null, null, null, null, null,
+                    null, null,
                     ref stackMark,
                     assemblyAttributes,
                     SecurityContextSource.CurrentAssembly);
