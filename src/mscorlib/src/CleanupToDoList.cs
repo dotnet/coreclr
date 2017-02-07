@@ -25,10 +25,3 @@ namespace System.Security.Policy
     {
     }
 }
-
-namespace System.Security.Principal
-{
-    internal interface IPrincipal
-    {
-    }
-}
