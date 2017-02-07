@@ -17,11 +17,6 @@ namespace System.Security
 
 namespace System.Security.Permissions
 {
-    internal class HostProtectionAttribute : Attribute
-    {
-        public bool MayLeakOnAbort { get; set; }
-    }
-
     internal enum PermissionState
     {
         Unrestricted = 1,
