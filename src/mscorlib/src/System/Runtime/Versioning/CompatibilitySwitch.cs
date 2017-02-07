@@ -21,22 +21,10 @@ namespace System.Runtime.Versioning
                 *                        
                 *     These apis are for internal use only for FX assemblies. It has not been decided if they can be used by OOB components due to EULA restrictions
                 */
-        public static string GetValue(string compatibilitySwitchName)
-        {
-            // This is used by AppContext.TryGetSwitch to check switch overrides in the Windows Quirk DB
-            // If this method is updated to check other locations than the DB, please ensure compat with 
-            // the AppContext class.
-            return GetValueInternalCall(compatibilitySwitchName, true);
-        }
-
         internal static string GetValueInternal(string compatibilitySwitchName)
         {
             return GetValueInternalCall(compatibilitySwitchName, false);
         }
-
-        [MethodImpl(MethodImplOptions.InternalCall)]
-        internal static extern string GetAppContextOverridesInternalCall();
-
 
         [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern string GetValueInternalCall(string compatibilitySwitchName, bool onlyDB);
