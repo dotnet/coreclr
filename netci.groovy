@@ -1947,7 +1947,7 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                                 def workspaceRelativeFxRoot = "_/fx"
                                 def absoluteFxRoot = "%WORKSPACE%\\_\\fx"
 
-                                buildCommands += "python %WORKSPACE%\\tests\\scripts\\run-corefx-tests.py -arch ${arch} -build_type ${configuration} -fx_root ${absoluteFxRoot} -fx_branch ${branch} -env_script ${stepScriptLocation}"
+                                buildCommands += "python -u %WORKSPACE%\\tests\\scripts\\run-corefx-tests.py -arch ${arch} -build_type ${configuration} -fx_root ${absoluteFxRoot} -fx_branch ${branch} -env_script ${stepScriptLocation}"
 
                                 setTestJobTimeOut(newJob, scenario)
 
@@ -2122,7 +2122,7 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                         def workspaceRelativeFxRoot = "_/fx"
                         def absoluteFxRoot = "\$WORKSPACE/${workspaceRelativeFxRoot}"
 
-                        buildCommands += "python \$WORKSPACE/tests/scripts/run-corefx-tests.py -arch ${arch} -build_type ${configuration} -fx_root ${absoluteFxRoot} -fx_branch ${branch} -env_script ${scriptFileName}"
+                        buildCommands += "python -u \$WORKSPACE/tests/scripts/run-corefx-tests.py -arch ${arch} -build_type ${configuration} -fx_root ${absoluteFxRoot} -fx_branch ${branch} -env_script ${scriptFileName}"
 
                         setTestJobTimeOut(newJob, scenario)
 
