@@ -328,7 +328,7 @@ void TransitionFrame::UpdateRegDisplayHelper(const PREGDISPLAY pRD, UINT cbStack
     pRD->IsCallerSPValid      = FALSE;
 
     pRD->pCurrentContext->Eip = *PTR_PCODE(pRD->PCTAddr);;
-    pRD->pCurrentContext->Esp = GetSP();
+    pRD->pCurrentContext->Esp = (DWORD)(pRD->PCTAddr + sizeof(TADDR) + cbStackPop);
 
     UpdateRegDisplayFromCalleeSavedRegisters(pRD, regs);
     ClearRegDisplayArgumentAndScratchRegisters(pRD);

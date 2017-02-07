@@ -110,7 +110,7 @@ OOPStackUnwinderX86::VirtualUnwind(
     // For x86, the value of Establisher Frame Pointer is Caller SP
     //
     // (Please refers to CLR ABI for details)
-    *EstablisherFrame = ContextRecord->Esp;
+    *EstablisherFrame = rd.SP - codeInfo.GetCodeManager()->GetStackParameterSize(&codeInfo);
     return S_OK;
 }
 
