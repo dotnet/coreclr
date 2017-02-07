@@ -7,7 +7,7 @@ using System.Runtime.CompilerServices;
 
 namespace System.Runtime.Versioning
 {
-    public static class CompatibilitySwitch
+    internal static class CompatibilitySwitch
     {
         /* This class contains 3 sets of api:
                 * 1. internal apis : These apis are supposed to be used by mscorlib.dll and other assemblies which use the <runtime> section in config 
