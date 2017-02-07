@@ -34,15 +34,10 @@ private:
     T_KNONVOLATILE_CONTEXT_POINTERS ctxPtrs;
 
 public:
-    DWORD EstablisherFrame;
-
-public:
     UnwindFrameListener(PCONTEXT pContextRecord, PKNONVOLATILE_CONTEXT_POINTERS pContextPointers)
     {
         this->pContextRecord = pContextRecord;
         this->pContextPointers = (pContextPointers) ? pContextPointers : &ctxPtrs;
-
-        this->EstablisherFrame = 0xdeadbeaf;
     }
 
     virtual ~UnwindFrameListener() = default;
@@ -66,8 +61,7 @@ public:
 
     virtual void NotifySP(DWORD SP, DWORD stackArgumentSize)
     {
-        pContextRecord->Esp = SP;
-        EstablisherFrame = SP;
+        pContextRecord->Esp = SP + stackArgumentSize;
     }
 
     virtual void NotifyPCLocation(PDWORD loc)
@@ -159,7 +153,7 @@ OOPStackUnwinderX86::VirtualUnwind(
     // For x86, the value of Establisher Frame Pointer is Caller SP
     //
     // (Please refers to CLR ABI for details)
-    *EstablisherFrame = unwindFrameListener.EstablisherFrame;
+    *EstablisherFrame = ContextRecord->Esp;
     return S_OK;
 }
 
