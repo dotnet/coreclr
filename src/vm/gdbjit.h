@@ -236,6 +236,16 @@ public:
     TypeInfoBase *m_value_type;
 };
 
+class NamedRefTypeInfo: public RefTypeInfo
+{
+public:
+    NamedRefTypeInfo(TypeHandle typeHandle, TypeInfoBase *value_type)
+        : RefTypeInfo(typeHandle, value_type)
+    {
+    }
+    void DumpDebugInfo(char* ptr, int& offset) override;
+};
+
 class ClassTypeInfo: public TypeInfoBase
 {
 public:

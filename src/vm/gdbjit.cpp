@@ -78,7 +78,7 @@ GetTypeInfoFromTypeHandle(TypeHandle typeHandle, NotifyGdb::PTK_TypeInfoMap pTyp
             if (!typeHandle.IsValueType())
             {
                 // name the type
-                refTypeInfo = new (nothrow) RefTypeInfo(typeHandle, typeInfo);
+                refTypeInfo = new (nothrow) NamedRefTypeInfo(typeHandle, typeInfo);
                 if (refTypeInfo == nullptr)
                 {
                     return nullptr;
@@ -176,7 +176,7 @@ GetTypeInfoFromTypeHandle(TypeHandle typeHandle, NotifyGdb::PTK_TypeInfoMap pTyp
             typeInfo->m_type_size = pMT->GetClass()->GetSize();
 
             typeInfo->CalculateName();
-            RefTypeInfo *refTypeInfo = new (nothrow) RefTypeInfo(typeHandle, typeInfo);
+            RefTypeInfo *refTypeInfo = new (nothrow) NamedRefTypeInfo(typeHandle, typeInfo);
             if (refTypeInfo == nullptr)
             {
                 return nullptr;
@@ -955,8 +955,17 @@ void TypeInfoBase::CalculateName()
     typeHandle.GetName(sName);
     StackScratchBuffer buffer;
     const UTF8 *utf8 = sName.GetUTF8(buffer);
-    m_type_name = new char[strlen(utf8) + 1];
-    strcpy(m_type_name, utf8);
+    if (typeHandle.IsValueType())
+    {
+        m_type_name = new char[strlen(utf8) + 1];
+        strcpy(m_type_name, utf8);
+    }
+    else
+    {
+        m_type_name = new char[strlen(utf8) + 1 + 2];
+        strcpy(m_type_name, "__");
+        strcpy(m_type_name + 2, utf8);
+    }
 }
 
 void TypeInfoBase::SetTypeHandle(TypeHandle handle)
@@ -1430,6 +1439,37 @@ void RefTypeInfo::DumpDebugInfo(char* ptr, int& offset)
         m_type_offset = 0;
     }
 }
+
+void NamedRefTypeInfo::DumpDebugInfo(char* ptr, int& offset)
+{
+    if (m_type_offset != 0)
+    {
+        return;
+    }
+    m_type_offset = offset;
+    offset += sizeof(DebugInfoRefType) + sizeof(DebugInfoTypeDef);
+    m_value_type->DumpDebugInfo(ptr, offset);
+    if (ptr != nullptr)
+    {
+        DebugInfoRefType refType;
+        refType.m_type_abbrev = 9;
+        refType.m_ref_type = m_value_type->m_type_offset;
+        refType.m_byte_size = m_type_size;
+        memcpy(ptr + m_type_offset, &refType, sizeof(DebugInfoRefType));
+
+        DebugInfoTypeDef bugTypeDef;
+        bugTypeDef.m_typedef_abbrev = 3;
+        bugTypeDef.m_typedef_name = m_value_type->m_type_name_offset + 2;
+        bugTypeDef.m_typedef_type = m_type_offset;
+        memcpy(ptr + m_type_offset + sizeof(DebugInfoRefType), &bugTypeDef, sizeof(DebugInfoTypeDef));
+        m_type_offset += sizeof(DebugInfoRefType);
+    }
+    else
+    {
+        m_type_offset = 0;
+    }
+}
+
 void ClassTypeInfo::DumpDebugInfo(char* ptr, int& offset)
 {
     if (m_type_offset != 0)
