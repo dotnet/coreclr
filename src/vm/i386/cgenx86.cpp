@@ -299,7 +299,12 @@ void TransitionFrame::UpdateRegDisplay(const PREGDISPLAY pRD)
 
     MethodDesc * pFunc = GetFunction();
     _ASSERTE(pFunc != NULL);
+
+#ifdef WIN64EXCEPTIONS
+    UpdateRegDisplayHelper(pRD, 0);
+#else
     UpdateRegDisplayHelper(pRD, pFunc->CbStackPop());
+#endif // WIN64EXCEPTIONS
 
     LOG((LF_GCROOTS, LL_INFO100000, "STACKWALK    TransitionFrame::UpdateRegDisplay(ip:%p, sp:%p)\n", pRD->ControlPC, pRD->SP));
 
