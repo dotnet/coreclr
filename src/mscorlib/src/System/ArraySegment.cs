@@ -111,6 +111,85 @@ namespace System
             }
         }
 
+        public int Length => Count;
+
+        public T this[int index]
+        {
+            get
+            {
+                if (_array == null)
+                    ThrowHelper.ThrowInvalidOperationException(ExceptionResource.InvalidOperation_NullArray);
+                if (index < 0 || index >= _count)
+                    ThrowHelper.ThrowArgumentOutOfRange_IndexException();
+                Contract.EndContractBlock();
+
+                return _array[_offset + index];
+            }
+
+            set
+            {
+                if (_array == null)
+                    ThrowHelper.ThrowInvalidOperationException(ExceptionResource.InvalidOperation_NullArray);
+                if (index < 0 || index >= _count)
+                    ThrowHelper.ThrowArgumentOutOfRange_IndexException();
+                Contract.EndContractBlock();
+
+                _array[_offset + index] = value;
+            }
+        }
+
+        /// <summary>
+        /// Returns an empty <see cref="ArraySegment{T}"/>
+        /// </summary>
+        public static ArraySegment<T> Empty => default(ArraySegment<T>);
+
+        public ArraySegment<T> Slice(int start) => Slice(start, _count - start);
+
+        public ArraySegment<T> Slice(int start, int length)
+        {
+            if (_array == null)
+                ThrowHelper.ThrowInvalidOperationException(ExceptionResource.InvalidOperation_NullArray);
+            if ((uint)start > (uint)_count || (uint)length > (uint)(_count - start))
+                ThrowHelper.ThrowArgumentOutOfRangeException();
+            Contract.EndContractBlock();
+
+            return new ArraySegment<T>(_array, _offset + start, length);
+        }
+
+        public void CopyTo(T[] destination) => CopyTo(destination, 0);
+
+        public void CopyTo(T[] destination, int destinationIndex)
+        {
+            if (_array == null)
+                ThrowHelper.ThrowInvalidOperationException(ExceptionResource.InvalidOperation_NullArray);
+            Contract.EndContractBlock();
+
+            // Delegate destinationIndex validation to Array.Copy method
+            System.Array.Copy(_array, _offset, destination, destinationIndex, _count);
+        }
+
+        public void CopyTo(ArraySegment<T> destination)
+        {
+            if (_array == null || destination._array == null)
+                ThrowHelper.ThrowInvalidOperationException(ExceptionResource.InvalidOperation_NullArray);
+            if (_count != destination._count)
+                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.destinationArray, ExceptionResource.ArgumentException_OtherNotArrayOfCorrectLength);
+            Contract.EndContractBlock();
+
+            if (_count > 0)
+                System.Array.Copy(_array, _offset, destination._array, destination._offset, _count);
+        }
+
+        public T[] ToArray()
+        {
+            if (_array == null)
+                ThrowHelper.ThrowInvalidOperationException(ExceptionResource.InvalidOperation_NullArray);
+
+            var destination = new T[_count];
+            System.Array.Copy(_array, _offset, destination, 0, _count);
+            return destination;
+        }
+
         public Enumerator GetEnumerator()
         {
             if (_array == null)
@@ -160,31 +239,17 @@ namespace System
             return !(a == b);
         }
 
-        #region IList<T>
-        T IList<T>.this[int index]
+        public static implicit operator ArraySegment<T>(T[] array)
         {
-            get
-            {
-                if (_array == null)
-                    ThrowHelper.ThrowInvalidOperationException(ExceptionResource.InvalidOperation_NullArray);
-                if (index < 0 || index >=  _count)
-                    ThrowHelper.ThrowArgumentOutOfRange_IndexException();
-                Contract.EndContractBlock();
-
-                return _array[_offset + index];
-            }
-
-            set
-            {
-                if (_array == null)
-                    ThrowHelper.ThrowInvalidOperationException(ExceptionResource.InvalidOperation_NullArray);
-                if (index < 0 || index >= _count)
-                    ThrowHelper.ThrowArgumentOutOfRange_IndexException();
-                Contract.EndContractBlock();
-
-                _array[_offset + index] = value;
-            }
+            return new ArraySegment<T>(array);
         }
+
+        public static explicit operator T[] (ArraySegment<T> segment)
+        {
+            return segment.ToArray();
+        }
+
+#region IList<T>
 
         int IList<T>.IndexOf(T item)
         {
@@ -209,25 +274,9 @@ namespace System
         {
             ThrowHelper.ThrowNotSupportedException();
         }
-        #endregion
+#endregion
 
-        #region IReadOnlyList<T>
-        T IReadOnlyList<T>.this[int index]
-        {
-            get
-            {
-                if (_array == null)
-                    ThrowHelper.ThrowInvalidOperationException(ExceptionResource.InvalidOperation_NullArray);
-                if (index < 0 || index >= _count)
-                    ThrowHelper.ThrowArgumentOutOfRange_IndexException();
-                Contract.EndContractBlock();
-
-                return _array[_offset + index];
-            }
-        }
-        #endregion IReadOnlyList<T>
-
-        #region ICollection<T>
+#region ICollection<T>
         bool ICollection<T>.IsReadOnly
         {
             get
@@ -262,31 +311,20 @@ namespace System
             return index >= 0;
         }
 
-        void ICollection<T>.CopyTo(T[] array, int arrayIndex)
-        {
-            if (_array == null)
-                ThrowHelper.ThrowInvalidOperationException(ExceptionResource.InvalidOperation_NullArray);
-            Contract.EndContractBlock();
-
-            System.Array.Copy(_array, _offset, array, arrayIndex, _count);
-        }
-
         bool ICollection<T>.Remove(T item)
         {
             ThrowHelper.ThrowNotSupportedException();
             return default(bool);
         }
-        #endregion
+#endregion
 
-        #region IEnumerable<T>
-
+#region IEnumerable<T>
         IEnumerator<T> IEnumerable<T>.GetEnumerator() => GetEnumerator();
-        #endregion
+#endregion
 
-        #region IEnumerable
-
+#region IEnumerable
         IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
-        #endregion
+#endregion
 
         [Serializable]
         public struct Enumerator : IEnumerator<T>
