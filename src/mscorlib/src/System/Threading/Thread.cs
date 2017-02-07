@@ -19,7 +19,6 @@ namespace System.Threading {
     using System.Runtime;
     using System.Runtime.InteropServices;
     using System;
-    using System.Security.Permissions;
     using System.Security.Principal;
     using System.Globalization;
     using System.Collections.Generic;

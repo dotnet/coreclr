@@ -38,7 +38,6 @@ namespace System.Reflection.Emit
     using System.Runtime.Serialization;
     using System.Runtime.Versioning;
     using System.Security;
-    using System.Security.Permissions;
     using System.Security.Policy;
     using System.Threading;
 

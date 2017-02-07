@@ -8,7 +8,6 @@ namespace System.Globalization {
     using System.Diagnostics.CodeAnalysis;
     using System.Diagnostics.Contracts;
     using Microsoft.Win32;
-    using System.Security.Permissions;
 
     /*=================================JapaneseCalendar==========================
     **
