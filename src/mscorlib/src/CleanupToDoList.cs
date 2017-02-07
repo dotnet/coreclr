@@ -15,15 +15,6 @@ namespace System.Security
     }
 }
 
-namespace System.Security.Permissions
-{
-    internal enum PermissionState
-    {
-        Unrestricted = 1,
-        None = 0,
-    }
-}
-
 namespace System.Security.Policy
 {
     internal sealed class Evidence
