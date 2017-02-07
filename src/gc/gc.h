@@ -85,7 +85,7 @@ class IGCHeapInternal;
 
 #ifdef GC_CONFIG_DRIVEN
 #define MAX_GLOBAL_GC_MECHANISMS_COUNT 6
-GARY_DECL(size_t, gc_global_mechanisms, MAX_GLOBAL_GC_MECHANISMS_COUNT);
+extern size_t gc_global_mechanisms[MAX_GLOBAL_GC_MECHANISMS_COUNT];
 #endif //GC_CONFIG_DRIVEN
 
 #ifdef DACCESS_COMPILE

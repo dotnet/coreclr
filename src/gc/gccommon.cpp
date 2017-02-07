@@ -27,7 +27,7 @@ IGCToCLR* g_theGCToCLR;
 #endif // FEATURE_STANDALONE_GC
 
 #ifdef GC_CONFIG_DRIVEN
-GARY_IMPL(size_t, gc_global_mechanisms, MAX_GLOBAL_GC_MECHANISMS_COUNT);
+size_t gc_global_mechanisms[MAX_GLOBAL_GC_MECHANISMS_COUNT];
 #endif //GC_CONFIG_DRIVEN
 
 #ifndef DACCESS_COMPILE

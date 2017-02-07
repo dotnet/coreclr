@@ -36,6 +36,7 @@ public:
     size_t flags;
     dac_heap_segment* next;
     uint8_t* background_allocated;
+    class dac_gc_heap *heap;
 };
 
 // Analogue for the GC generation class, containing information about the start segment
@@ -104,6 +105,33 @@ struct oom_history
     size_t size;
     size_t available_pagefile_mb;
     BOOL loh_p;
+};
+
+// Analogue for the GC gc_heap class, containing information regarding a single
+// GC heap (of which there are multiple, with server GC).
+class dac_gc_heap {
+public:
+    uint8_t* alloc_allocated;
+    dac_heap_segment* ephemeral_heap_segment;
+    dac_finalize_queue *finalize_queue;
+    oom_history oom_info;
+    size_t interesting_data_per_heap[NUM_GC_DATA_POINTS];
+    size_t compact_reasons_per_heap[MAX_COMPACT_REASONS_COUNT];
+    size_t expand_mechanisms_per_heap[MAX_EXPAND_MECHANISMS_COUNT];
+    size_t interesting_mechanism_bits_per_heap[MAX_GC_MECHANISM_BITS_COUNT];
+    uint8_t* internal_root_array;
+    size_t internal_root_array_index;
+    BOOL heap_analyze_success;
+
+    // The generation table must always be last, because the size of this array
+    // (stored inline in the gc_heap class) can vary.
+    //
+    // The size of the generation class is not part of the GC-DAC interface, 
+    // despite being embedded by-value into the gc_heap class. The DAC variable
+    // "generation_size" stores the size of the generation class, so the DAC can
+    // use it and pointer arithmetic to calculate correct offsets into the generation
+    // table. (See "GenerationTableIndex" function in the DAC for details)
+    dac_generation generation_table[0];
 };
 
 

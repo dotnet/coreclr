@@ -31,6 +31,8 @@
 #include "comcallablewrapper.h"
 #endif // FEATURE_COMINTEROP
 
+#include "request_common.h"
+
 //-----------------------------------------------------------------------------
 // Have standard enter and leave macros at the DacDbi boundary to enforce 
 // standard behavior. 
@@ -6607,7 +6609,6 @@ HRESULT DacHeapWalker::ListNearObjects(CORDB_ADDRESS obj, CORDB_ADDRESS *pPrev, 
     return hr;
 }
 
-#include "gceewks.cpp"
 HRESULT DacHeapWalker::InitHeapDataWks(HeapData *&pHeaps, size_t &pCount)
 {
     // Scrape basic heap details
@@ -6616,16 +6617,20 @@ HRESULT DacHeapWalker::InitHeapDataWks(HeapData *&pHeaps, size_t &pCount)
     if (pHeaps == NULL)
         return E_OUTOFMEMORY;
 
-    pHeaps[0].YoungestGenPtr = (CORDB_ADDRESS)WKS::generation_table[0].allocation_context.alloc_ptr;
-    pHeaps[0].YoungestGenLimit = (CORDB_ADDRESS)WKS::generation_table[0].allocation_context.alloc_limit;
+    dac_generation gen0 = *GenerationTableIndex(g_gcDacGlobals->generation_table, 0);
+    dac_generation gen1 = *GenerationTableIndex(g_gcDacGlobals->generation_table, 1);
+    dac_generation gen2 = *GenerationTableIndex(g_gcDacGlobals->generation_table, 2);
+    dac_generation loh  = *GenerationTableIndex(g_gcDacGlobals->generation_table, 3);
+    pHeaps[0].YoungestGenPtr = (CORDB_ADDRESS)gen0.allocation_context.alloc_ptr;
+    pHeaps[0].YoungestGenLimit = (CORDB_ADDRESS)gen0.allocation_context.alloc_limit;
 
-    pHeaps[0].Gen0Start = (CORDB_ADDRESS)WKS::generation_table[0].allocation_start;
-    pHeaps[0].Gen0End = (CORDB_ADDRESS)WKS::gc_heap::alloc_allocated.GetAddr();
-    pHeaps[0].Gen1Start = (CORDB_ADDRESS)WKS::generation_table[1].allocation_start;
+    pHeaps[0].Gen0Start = (CORDB_ADDRESS)gen0.allocation_start;
+    pHeaps[0].Gen0End = (CORDB_ADDRESS)*g_gcDacGlobals->alloc_allocated;
+    pHeaps[0].Gen1Start = (CORDB_ADDRESS)gen1.allocation_start;
     
     // Segments
-    int count = GetSegmentCount(WKS::generation_table[NUMBERGENERATIONS-1].start_segment);
-    count += GetSegmentCount(WKS::generation_table[NUMBERGENERATIONS-2].start_segment);
+    int count = GetSegmentCount(loh.start_segment);
+    count += GetSegmentCount(gen2.start_segment);
 
     pHeaps[0].SegmentCount = count;
     pHeaps[0].Segments = new (nothrow) SegmentData[count];
@@ -6633,14 +6638,14 @@ HRESULT DacHeapWalker::InitHeapDataWks(HeapData *&pHeaps, size_t &pCount)
         return E_OUTOFMEMORY;
     
     // Small object heap segments
-    WKS::heap_segment *seg = WKS::generation_table[NUMBERGENERATIONS-2].start_segment;
+    DPTR(dac_heap_segment) seg = __DPtr<dac_heap_segment>(gen2.start_segment);
     int i = 0;
     for (; seg && (i < count); ++i)
     {
         pHeaps[0].Segments[i].Start = (CORDB_ADDRESS)seg->mem;
-        if (seg == WKS::gc_heap::ephemeral_heap_segment)
+        if (seg.GetAddr() == dac_cast<TADDR>(*g_gcDacGlobals->ephemeral_heap_segment))
         {
-            pHeaps[0].Segments[i].End = (CORDB_ADDRESS)WKS::gc_heap::alloc_allocated.GetAddr();
+            pHeaps[0].Segments[i].End = (CORDB_ADDRESS)*g_gcDacGlobals->alloc_allocated;
             pHeaps[0].Segments[i].Generation = 1;
             pHeaps[0].EphemeralSegment = i;
         }
@@ -6650,18 +6655,18 @@ HRESULT DacHeapWalker::InitHeapDataWks(HeapData *&pHeaps, size_t &pCount)
             pHeaps[0].Segments[i].Generation = 2;
         }
         
-        seg = seg->next;
+        seg = __DPtr<dac_heap_segment>(seg->next);
     }
 
     // Large object heap segments
-    seg = WKS::generation_table[NUMBERGENERATIONS-1].start_segment;
+    seg = __DPtr<dac_heap_segment>(loh.start_segment);
     for (; seg && (i < count); ++i)
     {
         pHeaps[0].Segments[i].Generation = 3;
         pHeaps[0].Segments[i].Start = (CORDB_ADDRESS)seg->mem;
         pHeaps[0].Segments[i].End = (CORDB_ADDRESS)seg->allocated;
         
-        seg = seg->next;
+        seg = __DPtr<dac_heap_segment>(seg->next);
     }
 
     return S_OK;
@@ -7156,7 +7161,7 @@ void DacDbiInterfaceImpl::GetGCHeapInformation(COR_HEAPINFO * pHeapInfo)
     DD_ENTER_MAY_THROW;
     
     size_t heapCount = 0;
-    pHeapInfo->areGCStructuresValid = GCScan::GetGcRuntimeStructuresValid();
+    pHeapInfo->areGCStructuresValid = *g_gcDacGlobals->gc_structures_invalid_cnt == 0;
     
 #ifdef FEATURE_SVR_GC
     if (GCHeapUtilities::IsServerHeap())

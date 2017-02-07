@@ -2257,8 +2257,8 @@ void virtual_free (void* add, size_t size);
 /* per heap static initialization */
 #ifdef MARK_ARRAY
 #ifndef MULTIPLE_HEAPS
-SPTR_IMPL_NS(uint32_t, WKS, gc_heap, mark_array);
-#endif //!MULTIPLE_HEAPS
+uint32_t*   gc_heap::mark_array;
+#endif //MULTIPLE_HEAPS
 #endif //MARK_ARRAY
 
 #ifdef MARK_LIST
@@ -2292,8 +2292,9 @@ CLREvent    gc_heap::gc_start_event;
 
 bool        gc_heap::gc_thread_no_affinitize_p = false;
 
-SVAL_IMPL_NS(int, SVR, gc_heap, n_heaps);
-SPTR_IMPL_NS(PTR_gc_heap, SVR, gc_heap, g_heaps);
+int         gc_heap::n_heaps;
+
+gc_heap**   gc_heap::g_heaps;
 
 size_t*     gc_heap::g_promoted;
 
@@ -2384,11 +2385,7 @@ size_t      gc_heap::ephemeral_fgc_counts[max_generation];
 
 BOOL        gc_heap::alloc_wait_event_p = FALSE;
 
-#if defined (DACCESS_COMPILE) && !defined (MULTIPLE_HEAPS)
-SVAL_IMPL_NS_INIT(c_gc_state, WKS, gc_heap, current_c_gc_state, c_gc_state_free);
-#else
 VOLATILE(c_gc_state) gc_heap::current_c_gc_state = c_gc_state_free;
-#endif //DACCESS_COMPILE && !MULTIPLE_HEAPS
 
 #endif //BACKGROUND_GC
 
@@ -2409,14 +2406,14 @@ BOOL        gc_heap::elevation_requested = FALSE;
 BOOL        gc_heap::last_gc_before_oom = FALSE;
 
 #ifdef BACKGROUND_GC
-SPTR_IMPL_NS_INIT(uint8_t, WKS, gc_heap, background_saved_lowest_address, 0);
-SPTR_IMPL_NS_INIT(uint8_t, WKS, gc_heap, background_saved_highest_address, 0);
-SPTR_IMPL_NS_INIT(uint8_t, WKS, gc_heap, next_sweep_obj, 0);
+uint8_t*    gc_heap::background_saved_lowest_address = 0;
+uint8_t*    gc_heap::background_saved_highest_address = 0;
+uint8_t*    gc_heap::next_sweep_obj = 0;
 uint8_t*    gc_heap::current_sweep_pos = 0;
 exclusive_sync* gc_heap::bgc_alloc_lock;
 #endif //BACKGROUND_GC
 
-SVAL_IMPL_NS(oom_history, WKS, gc_heap, oom_info);
+oom_history gc_heap::oom_info;
 
 fgm_history gc_heap::fgm_result;
 
@@ -2467,7 +2464,7 @@ size_t      gc_heap::allocation_running_time;
 
 size_t      gc_heap::allocation_running_amount;
 
-SPTR_IMPL_NS_INIT(heap_segment, WKS, gc_heap, ephemeral_heap_segment, 0);
+heap_segment* gc_heap::ephemeral_heap_segment = 0;
 
 BOOL        gc_heap::blocking_collection = FALSE;
 
@@ -2542,8 +2539,9 @@ uint8_t*    gc_heap::background_min_soh_overflow_address =0;
 
 uint8_t*    gc_heap::background_max_soh_overflow_address =0;
 
-SPTR_IMPL_NS_INIT(heap_segment, WKS, gc_heap, saved_sweep_ephemeral_seg, 0);
-SPTR_IMPL_NS_INIT(uint8_t, WKS, gc_heap, saved_sweep_ephemeral_start, 0);
+heap_segment* gc_heap::saved_sweep_ephemeral_seg = 0;
+
+uint8_t*    gc_heap::saved_sweep_ephemeral_start = 0;
 
 heap_segment* gc_heap::saved_overflow_ephemeral_seg = 0;
 
@@ -2619,9 +2617,11 @@ size_t      gc_heap::total_ephemeral_size = 0;
 
 size_t      gc_heap::internal_root_array_length = initial_internal_roots;
 
-SPTR_IMPL_NS_INIT(PTR_uint8_t, WKS, gc_heap, internal_root_array, 0);
-SVAL_IMPL_NS_INIT(size_t, WKS, gc_heap, internal_root_array_index, 0);
-SVAL_IMPL_NS_INIT(BOOL, WKS, gc_heap, heap_analyze_success, TRUE);
+uint8_t**   gc_heap::internal_root_array = 0;
+
+size_t      gc_heap::internal_root_array_index = 0;
+
+BOOL        gc_heap::heap_analyze_success = TRUE;
 
 uint8_t*    gc_heap::current_obj = 0;
 size_t      gc_heap::current_obj_size = 0;
@@ -2681,24 +2681,6 @@ BOOL        gc_heap::heap_analyze_enabled = FALSE;
 
 #ifndef MULTIPLE_HEAPS
 
-#ifndef DACCESS_COMPILE
-extern "C" {
-#endif //!DACCESS_COMPILE
-GARY_IMPL(generation, generation_table,NUMBERGENERATIONS+1);
-#ifdef GC_CONFIG_DRIVEN
-GARY_IMPL(size_t, interesting_data_per_heap, max_idp_count);
-GARY_IMPL(size_t, compact_reasons_per_heap, max_compact_reasons_count);
-GARY_IMPL(size_t, expand_mechanisms_per_heap, max_expand_mechanisms_count);
-GARY_IMPL(size_t, interesting_mechanism_bits_per_heap, max_gc_mechanism_bits_count);
-#endif //GC_CONFIG_DRIVEN
-#ifndef DACCESS_COMPILE
-}
-#endif //!DACCESS_COMPILE
-
-#endif //MULTIPLE_HEAPS
-
-#ifndef MULTIPLE_HEAPS
-
 alloc_list gc_heap::loh_alloc_list [NUM_LOH_ALIST-1];
 alloc_list gc_heap::gen2_alloc_list[NUM_GEN2_ALIST-1];
 
@@ -2706,7 +2688,7 @@ dynamic_data gc_heap::dynamic_data_table [NUMBERGENERATIONS+1];
 gc_history_per_heap gc_heap::gc_data_per_heap;
 size_t gc_heap::maxgen_pinned_compact_before_advance = 0;
 
-SPTR_IMPL_NS_INIT(uint8_t, WKS, gc_heap, alloc_allocated, 0);
+uint8_t* gc_heap::alloc_allocated = 0;
 
 size_t gc_heap::allocation_quantum = CLR_SIZE;
 
@@ -2737,8 +2719,18 @@ int         gc_heap::gen0_must_clear_bricks = 0;
 #endif //FFIND_OBJECT
 
 #ifdef FEATURE_PREMORTEM_FINALIZATION
-SPTR_IMPL_NS_INIT(CFinalize, WKS, gc_heap, finalize_queue, 0);
+CFinalize*  gc_heap::finalize_queue = 0;
 #endif // FEATURE_PREMORTEM_FINALIZATION
+
+generation gc_heap::generation_table [NUMBERGENERATIONS + 1];
+
+size_t     gc_heap::interesting_data_per_heap[max_idp_count];
+
+size_t     gc_heap::compact_reasons_per_heap[max_compact_reasons_count];
+
+size_t     gc_heap::expand_mechanisms_per_heap[max_expand_mechanisms_count];
+
+size_t     gc_heap::interesting_mechanism_bits_per_heap[max_gc_mechanism_bits_count];
 
 #endif // MULTIPLE_HEAPS
 
@@ -36822,13 +36814,13 @@ void PopulateDacVars(GcDacVars *gcDacVars)
     gcDacVars->next_sweep_obj = &gc_heap::next_sweep_obj;
     gcDacVars->oom_info = &gc_heap::oom_info;
     gcDacVars->finalize_queue = reinterpret_cast<dac_finalize_queue**>(&gc_heap::finalize_queue);
-    gcDacVars->generation_table = reinterpret_cast<dac_generation**>(&generation_table);
+    gcDacVars->generation_table = reinterpret_cast<dac_generation**>(&gc_heap::generation_table);
 #ifdef GC_CONFIG_DRIVEN
     gcDacVars->gc_global_mechanisms = reinterpret_cast<size_t**>(&gc_global_mechanisms);
-    gcDacVars->interesting_data_per_heap = reinterpret_cast<size_t**>(&interesting_data_per_heap);
-    gcDacVars->compact_reasons_per_heap = reinterpret_cast<size_t**>(&compact_reasons_per_heap);
-    gcDacVars->expand_mechanisms_per_heap = reinterpret_cast<size_t**>(&expand_mechanisms_per_heap);
-    gcDacVars->interesting_mechanism_bits_per_heap = reinterpret_cast<size_t**>(&interesting_mechanism_bits_per_heap);
+    gcDacVars->interesting_data_per_heap = reinterpret_cast<size_t**>(&gc_heap::interesting_data_per_heap);
+    gcDacVars->compact_reasons_per_heap = reinterpret_cast<size_t**>(&gc_heap::compact_reasons_per_heap);
+    gcDacVars->expand_mechanisms_per_heap = reinterpret_cast<size_t**>(&gc_heap::expand_mechanisms_per_heap);
+    gcDacVars->interesting_mechanism_bits_per_heap = reinterpret_cast<size_t**>(&gc_heap::interesting_mechanism_bits_per_heap);
 #endif // GC_CONFIG_DRIVEN
 #ifdef HEAP_ANALYZE
     gcDacVars->internal_root_array = &gc_heap::internal_root_array;
@@ -36837,7 +36829,7 @@ void PopulateDacVars(GcDacVars *gcDacVars)
 #endif // HEAP_ANALYZE
 #else
     gcDacVars->n_heaps = &gc_heap::n_heaps;
-    gcDacVars->g_heaps = &gc_heap::g_heaps;
+    gcDacVars->g_heaps = reinterpret_cast<dac_gc_heap***>(&gc_heap::g_heaps);
 #endif // MULTIPLE_HEAPS
 #endif // DACCESS_COMPILE
 }

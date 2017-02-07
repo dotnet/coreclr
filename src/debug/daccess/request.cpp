@@ -30,7 +30,7 @@
 #include <exstatecommon.h>
 
 #include "rejit.h"
-
+#include "request_common.h"
 
 // GC headers define these to EE-specific stuff that we don't want.
 #undef EnterCriticalSection
@@ -261,15 +261,6 @@ VOID GetJITMethodInfo (EECodeInfo * pCodeInfo, JITTypes *pJITType, CLRDATA_ADDRE
     }
 
     *pGCInfo = (CLRDATA_ADDRESS)PTR_TO_TADDR(pCodeInfo->GetGCInfo());
-}
-
-// Indexes into the GC's generation table, using the generation_size dacvar as the
-// size of the GC's generation class.
-DPTR(dac_generation) GenerationTableIndex(ArrayDPTR(dac_generation) base, size_t index)
-{
-    TADDR base_addr = base.GetAddr();
-    TADDR element_addr = DacTAddrOffset(base_addr, index, g_gcDacGlobals->generation_size);
-    return __DPtr<dac_generation>(element_addr);
 }
 
 HRESULT
