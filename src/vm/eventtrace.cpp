@@ -6853,11 +6853,11 @@ VOID ETW::MethodLog::SendEventsForNgenMethods(Module *pModule, DWORD dwEventOpti
     if (!pModule)
         return;
 
-    PEImageLayout * pLoadedLayout = pModule->GetFile()->GetLoaded();
-    _ASSERTE(pLoadedLayout != NULL);
-
 #ifdef FEATURE_READYTORUN
-    if (pLoadedLayout->HasReadyToRunHeader())
+    PEImageLayout * pLoadedLayout = pModule->GetFile()->GetLoaded();
+
+    // pLoadedLayout can be NULL for RefEmit modules
+    if (pLoadedLayout != NULL && pLoadedLayout->HasReadyToRunHeader())
     {
         ReadyToRunInfo::MethodIterator mi(pModule->GetReadyToRunInfo());
         while (mi.Next())
