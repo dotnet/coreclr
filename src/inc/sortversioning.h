@@ -64,8 +64,8 @@ namespace SortVersioning
         __in_ecount(cchValue)   LPCWSTR lpStringValue,
         __in                    int cchValue,
         __out_opt               LPINT pcchFound,
-        __clr_reserved              LPVOID lpReserved,
-        __clr_reserved              LPARAM lParam);
+        __clr_reserved          LPVOID lpReserved,
+        __clr_reserved          LPARAM lParam);
 
     typedef BOOL (*SORTISDEFINEDSTRING) (
         __in                PSORTHANDLE     pSortHandle,
