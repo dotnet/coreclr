@@ -6854,10 +6854,7 @@ VOID ETW::MethodLog::SendEventsForNgenMethods(Module *pModule, DWORD dwEventOpti
         return;
 
 #ifdef FEATURE_READYTORUN
-    PEImageLayout * pLoadedLayout = pModule->GetFile()->GetLoaded();
-
-    // pLoadedLayout can be NULL for RefEmit modules
-    if (pLoadedLayout != NULL && pLoadedLayout->HasReadyToRunHeader())
+    if (pModule->IsReadyToRun())
     {
         ReadyToRunInfo::MethodIterator mi(pModule->GetReadyToRunInfo());
         while (mi.Next())
