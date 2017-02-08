@@ -22,6 +22,7 @@ GPTR_DECL(uint32_t,g_card_table);
 
 extern "C" uint8_t* g_ephemeral_low;
 extern "C" uint8_t* g_ephemeral_high;
+extern "C" void* g_generation_table;
 
 #ifdef FEATURE_USE_SOFTWARE_WRITE_WATCH_FOR_GC_HEAP
 

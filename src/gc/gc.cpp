@@ -2203,7 +2203,7 @@ void stomp_write_barrier_ephemeral(uint8_t* ephemeral_low, uint8_t* ephemeral_hi
     GCToEEInterface::StompWriteBarrier(&args);
 }
 
-void stomp_write_barrier_initialize()
+void stomp_write_barrier_initialize(void* generation_table)
 {
     WriteBarrierParameters args = {};
     args.operation = WriteBarrierOp::Initialize;
@@ -2214,6 +2214,7 @@ void stomp_write_barrier_initialize()
     args.highest_address = g_gc_highest_address;
     args.ephemeral_low = reinterpret_cast<uint8_t*>(1);
     args.ephemeral_high = reinterpret_cast<uint8_t*>(~0);
+    args.generation_table = generation_table;
     GCToEEInterface::StompWriteBarrier(&args);
 }
 
@@ -33443,7 +33444,12 @@ HRESULT GCHeap::Initialize ()
         return E_FAIL;
     }
 
-    stomp_write_barrier_initialize();
+#ifdef MULTIPLE_HEAPS
+    void* generation_table = nullptr;
+#else
+    void* generation_table = gc_heap::generation_table;
+#endif // MULTIPLE_HEAPS
+    stomp_write_barrier_initialize(generation_table);
 
 #ifndef FEATURE_REDHAWK // Redhawk forces relocation a different way
 #if defined (STRESS_HEAP) && !defined (MULTIPLE_HEAPS)

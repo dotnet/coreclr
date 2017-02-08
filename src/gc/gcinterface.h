@@ -96,6 +96,10 @@ struct WriteBarrierParameters
     // The new write watch table, if we are using our own write watch
     // implementation. Used for WriteBarrierOp::SwitchToWriteWatch only.
     uint8_t* write_watch_table;
+
+    // The generation table, if we are using Workstation GC. Used for
+    // WriteBarrierOp::Initialize only.
+    void* generation_table;
 };
 
 #include "gcinterface.ee.h"

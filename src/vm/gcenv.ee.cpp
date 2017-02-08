@@ -1270,9 +1270,12 @@ void GCToEEInterface::StompWriteBarrier(WriteBarrierParameters* args)
         assert(args->highest_address != nullptr);
         assert(args->ephemeral_low != nullptr);
         assert(args->ephemeral_high != nullptr);
+        // generation_table may be null, in the case of Server GC.
+        // This is okay, because it won't be used.
         assert(args->is_runtime_suspended && "the runtime must be suspended here!");
         assert(!args->requires_upper_bounds_check && "the ephemeral generation must be at the top of the heap!");
 
+        g_generation_table = args->generation_table;
         g_card_table = args->card_table;
         FlushProcessWriteBuffers();
         g_lowest_address = args->lowest_address;
