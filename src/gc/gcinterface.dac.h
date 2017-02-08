@@ -34,9 +34,9 @@ public:
     uint8_t* used;
     uint8_t* mem;
     size_t flags;
-    dac_heap_segment* next;
+    DPTR(dac_heap_segment) next;
     uint8_t* background_allocated;
-    class dac_gc_heap *heap;
+    DPTR(class dac_gc_heap) heap;
 };
 
 // Analogue for the GC generation class, containing information about the start segment
@@ -44,7 +44,7 @@ public:
 class dac_generation {
 public:
     gc_alloc_context allocation_context;
-    dac_heap_segment* start_segment;
+    DPTR(dac_heap_segment) start_segment;
     uint8_t* allocation_start;
 };
 
@@ -112,8 +112,8 @@ struct oom_history
 class dac_gc_heap {
 public:
     uint8_t* alloc_allocated;
-    dac_heap_segment* ephemeral_heap_segment;
-    dac_finalize_queue *finalize_queue;
+    DPTR(dac_heap_segment) ephemeral_heap_segment;
+    DPTR(dac_finalize_queue) finalize_queue;
     oom_history oom_info;
     size_t interesting_data_per_heap[NUM_GC_DATA_POINTS];
     size_t compact_reasons_per_heap[MAX_COMPACT_REASONS_COUNT];

@@ -13,7 +13,8 @@
 #include "stdafx.h"
 #include <win32threadpool.h>
 
-#include <handletablepriv.h>
+// TODO(Local GC) - The DAC should not include GC headers
+#include <../../gc/handletablepriv.h>
 #include "typestring.h"
 #include <gccover.h>
 #include <virtualcallstub.h>
@@ -2839,7 +2840,7 @@ ClrDataAccess::GetGCHeapStaticData(struct DacpGcHeapDetails *detailsData)
     for (int i=0;i<NUMBERGENERATIONS;i++)
     {
         auto generation = *GenerationTableIndex(g_gcDacGlobals->generation_table, i);
-        detailsData->generation_table[i].start_segment = (CLRDATA_ADDRESS)generation.start_segment;
+        detailsData->generation_table[i].start_segment = (CLRDATA_ADDRESS)dac_cast<TADDR>(generation.start_segment);
         detailsData->generation_table[i].allocation_start = (CLRDATA_ADDRESS)generation.allocation_start;
         detailsData->generation_table[i].allocContextPtr = (CLRDATA_ADDRESS)generation.allocation_context.alloc_ptr;
         detailsData->generation_table[i].allocContextLimit = (CLRDATA_ADDRESS)generation.allocation_context.alloc_limit;
@@ -2895,7 +2896,7 @@ ClrDataAccess::GetHeapSegmentData(CLRDATA_ADDRESS seg, struct DacpHeapSegmentDat
             heapSegment->reserved = (CLRDATA_ADDRESS)(ULONG_PTR) pSegment->reserved;
             heapSegment->used = (CLRDATA_ADDRESS)(ULONG_PTR) pSegment->used;
             heapSegment->mem = (CLRDATA_ADDRESS)(ULONG_PTR) pSegment->mem;
-            heapSegment->next = (CLRDATA_ADDRESS)pSegment->next;
+            heapSegment->next = (CLRDATA_ADDRESS)dac_cast<TADDR>(pSegment->next);
             heapSegment->flags = pSegment->flags;
             heapSegment->gc_heap = NULL;
             heapSegment->background_allocated = (CLRDATA_ADDRESS)(ULONG_PTR)pSegment->background_allocated;

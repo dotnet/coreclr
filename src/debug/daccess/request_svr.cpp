@@ -45,7 +45,7 @@ HRESULT GetServerHeapData(CLRDATA_ADDRESS addr, DacpHeapSegmentData *pSegment)
     pSegment->used = (CLRDATA_ADDRESS)(ULONG_PTR) pHeapSegment->used;
     pSegment->mem = (CLRDATA_ADDRESS)(ULONG_PTR) (pHeapSegment->mem);
     pSegment->next = (CLRDATA_ADDRESS)dac_cast<TADDR>(pHeapSegment->next);
-    pSegment->gc_heap = (CLRDATA_ADDRESS)(ULONG_PTR) pHeapSegment->heap;
+    pSegment->gc_heap = (CLRDATA_ADDRESS)dac_cast<TADDR>(pHeapSegment->heap);
 
     return S_OK;
 }
@@ -61,7 +61,14 @@ HRESULT GetServerHeaps(CLRDATA_ADDRESS pGCHeaps[], ICorDebugDataTarget * pTarget
     // a DAC global (__GlobalPtr). The __GlobalPtr<...>::GetAddr() function gets the starting address of that global, but 
     // be sure to note this is a target address. We'll use this as our source for getting our local list of 
     // heap addresses.
-    TADDR ptr = g_gcDacGlobals->g_heaps.GetAddr();
+    for (int i = 0; i < GCHeapCount(); i++) 
+    {
+        pGCHeaps[i] = (CLRDATA_ADDRESS)g_gcDacGlobals->g_heaps[i];
+    }
+
+    return S_OK;
+    /*
+    TADDR ptr = (TADDR)*g_gcDacGlobals->g_heaps;
     ULONG32 bytesRead = 0;    
     
     for (int i=0;i<GCHeapCount();i++)
@@ -87,6 +94,7 @@ HRESULT GetServerHeaps(CLRDATA_ADDRESS pGCHeaps[], ICorDebugDataTarget * pTarget
         pGCHeaps[i] = (CLRDATA_ADDRESS)(ULONG_PTR) pGCHeapAddr;
     }
     return S_OK;
+    */
 }
 
 #define PTR_CDADDR(ptr)   TO_CDADDR(PTR_TO_TADDR(ptr))
@@ -138,13 +146,16 @@ HRESULT ClrDataAccess::ServerGCHeapDetails(CLRDATA_ADDRESS heapAddr, DacpGcHeapD
     
     // now get information specific to this heap (server mode gives us several heaps; we're getting
     // information about only one of them. 
-    detailsData->alloc_allocated = (CLRDATA_ADDRESS)(ULONG_PTR) pHeap->alloc_allocated;
-    detailsData->ephemeral_heap_segment = (CLRDATA_ADDRESS)(ULONG_PTR) pHeap->ephemeral_heap_segment;
+    DPTR(uint8_t*) alloc_allocated = dac_cast<TADDR>(pHeap) + offsetof(dac_gc_heap, alloc_allocated);
+    detailsData->alloc_allocated = (CLRDATA_ADDRESS)*alloc_allocated;
+
+    DPTR(dac_heap_segment*) ephemeral_seg = dac_cast<TADDR>(pHeap) + offsetof(dac_gc_heap, ephemeral_heap_segment);
+    detailsData->ephemeral_heap_segment = (CLRDATA_ADDRESS)*ephemeral_seg;
 
     // get bounds for the different generations
     for (i=0; i<NUMBERGENERATIONS; i++)
     {
-        dac_generation generation = *ServerGenerationTableIndex(pHeap, i);
+        dac_generation generation = pHeap->generation_table[i];
         detailsData->generation_table[i].start_segment     = (CLRDATA_ADDRESS)dac_cast<TADDR>(generation.start_segment);
         detailsData->generation_table[i].allocation_start   = (CLRDATA_ADDRESS)(ULONG_PTR) generation.allocation_start;
         detailsData->generation_table[i].allocContextPtr    = (CLRDATA_ADDRESS)(ULONG_PTR) generation.allocation_context.alloc_ptr;
@@ -152,7 +163,8 @@ HRESULT ClrDataAccess::ServerGCHeapDetails(CLRDATA_ADDRESS heapAddr, DacpGcHeapD
     }
 
     // since these are all TADDRS, we have to compute the address of the m_FillPointers field explicitly
-    TADDR pFillPointerArray = dac_cast<TADDR>(pHeap->finalize_queue) + offsetof(dac_finalize_queue, m_FillPointers);
+    DPTR(dac_finalize_queue) fq = __DPtr<dac_finalize_queue>(pHeap->finalize_queue);
+    TADDR pFillPointerArray = dac_cast<TADDR>(fq) + offsetof(dac_finalize_queue, m_FillPointers);
 
     for(i=0; i<(NUMBERGENERATIONS+dac_finalize_queue::ExtraSegCount); i++)
     {
@@ -316,7 +328,7 @@ HRESULT DacHeapWalker::InitHeapDataSvr(HeapData *&pHeaps, size_t &pCount)
         for (; seg && (j < count); ++j)
         {
             pHeaps[i].Segments[j].Start = (CORDB_ADDRESS)seg->mem;
-            if (seg.GetAddr() == TO_TADDR(heap->ephemeral_heap_segment))
+            if (seg.GetAddr() == heap->ephemeral_heap_segment.GetAddr())
             {
                 pHeaps[i].Segments[j].End = (CORDB_ADDRESS)heap->alloc_allocated;
                 pHeaps[i].EphemeralSegment = j;
