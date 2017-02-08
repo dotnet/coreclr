@@ -45,6 +45,8 @@ typedef struct _MEMORY_BASIC_INFORMATION64* PMEMORY_BASIC_INFORMATION64;
 // Android defines various fields on struct which are named __reserved[x]; for example, in wchar.h,
 // so we must prefix __reserved with __clr_
 #define __clr_reserved
+#else
+#define __clr_reserved __reserved
 #endif
 
 #ifdef __cplusplus
