@@ -15,8 +15,6 @@
 
 using System.Collections;
 using System.Collections.Generic;
-using System.Runtime.InteropServices;
-using System.Diagnostics;
 using System.Diagnostics.Contracts;
 
 namespace System
@@ -46,14 +44,9 @@ namespace System
 
         public ArraySegment(T[] array, int offset, int count)
         {
-            if (array == null)
-                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
-            if (offset < 0)
-                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.offset, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
-            if (count < 0)
-                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.count, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
-            if (array.Length - offset < count)
-                ThrowHelper.ThrowArgumentException(ExceptionResource.Argument_InvalidOffLen);
+            // Validate input arguments
+            if (array == null || offset < 0 || count < 0|| (array.Length - offset < count))
+                ThrowConstructorValidationFailedExceptions(array, offset, count);
             Contract.EndContractBlock();
 
             _array = array;
@@ -158,6 +151,24 @@ namespace System
         public static bool operator !=(ArraySegment<T> a, ArraySegment<T> b)
         {
             return !(a == b);
+        }
+
+        private static void ThrowConstructorValidationFailedExceptions(T[] array, int offset, int count)
+        {
+            throw GetConstructorValidationFailedException(array, offset, count);
+        }
+
+        private static Exception GetConstructorValidationFailedException(T[] array, int offset, int count)
+        {
+            if (array == null)
+                return ThrowHelper.GetArgumentNullException(ExceptionArgument.array);
+            if (offset < 0)
+                return ThrowHelper.GetArgumentOutOfRangeException(ExceptionArgument.offset, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
+            if (count < 0)
+                return ThrowHelper.GetArgumentOutOfRangeException(ExceptionArgument.count, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
+
+            Debug.Assert(array.Length - offset < count);
+            return ThrowHelper.GetArgumentException(ExceptionResource.Argument_InvalidOffLen);
         }
 
         #region IList<T>

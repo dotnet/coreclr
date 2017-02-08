@@ -39,7 +39,6 @@ namespace System {
     using Collections.Generic;
     using System.Runtime.CompilerServices;
     using System.Runtime.Serialization;
-    using System.Diagnostics;
     using System.Diagnostics.Contracts;
 
     [Pure]
@@ -125,8 +124,12 @@ namespace System {
             throw GetArgumentException(resource, argument);
         }
 
+        internal static ArgumentNullException GetArgumentNullException(ExceptionArgument argument) {
+            return new ArgumentNullException(GetArgumentName(argument));
+        }
+
         internal static void ThrowArgumentNullException(ExceptionArgument argument) {
-            throw new ArgumentNullException(GetArgumentName(argument));
+            throw GetArgumentNullException(argument);
         }
 
         internal static void ThrowArgumentNullException(ExceptionResource resource) {
@@ -209,7 +212,7 @@ namespace System {
             throw GetInvalidOperationException(ExceptionResource.InvalidOperation_EnumOpCantHappen);
         }
 
-        private static ArgumentException GetArgumentException(ExceptionResource resource) {
+        internal static ArgumentException GetArgumentException(ExceptionResource resource) {
             return new ArgumentException(GetResourceString(resource));
         }
 
@@ -225,7 +228,7 @@ namespace System {
             return new ArgumentException(Environment.GetResourceString("Arg_WrongType", value, targetType), nameof(value));
         }
 
-        private static ArgumentOutOfRangeException GetArgumentOutOfRangeException(ExceptionArgument argument, ExceptionResource resource) {
+        internal static ArgumentOutOfRangeException GetArgumentOutOfRangeException(ExceptionArgument argument, ExceptionResource resource) {
             return new ArgumentOutOfRangeException(GetArgumentName(argument), GetResourceString(resource));
         }
 
