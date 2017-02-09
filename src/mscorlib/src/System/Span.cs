@@ -231,6 +231,7 @@ namespace System
         /// <summary>
         /// Clears the contents of this span.
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Clear()
         {
             // TODO: Optimize - https://github.com/dotnet/coreclr/issues/9161
@@ -243,12 +244,42 @@ namespace System
         /// <summary>
         /// Fills the contents of this span with the given value.
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Fill(T value)
         {
-            // TODO: Optimize - https://github.com/dotnet/coreclr/issues/9161
-            for (int i = 0; i < _length; i++)
+            int length = _length;
+
+            if (length == 0)
+                return;
+            
+            ref T r = ref _pointer.Value;
+
+            // TODO: Create block fill for value types of power of two sizes e.g. 2,4,8,16
+
+            // Simple loop unrolling
+            int i = 0;
+            for (; i < (length & ~7); i += 8)
             {
-                this[i] = value;
+                Unsafe.Add<T>(ref r, i + 0) = value;
+                Unsafe.Add<T>(ref r, i + 1) = value;
+                Unsafe.Add<T>(ref r, i + 2) = value;
+                Unsafe.Add<T>(ref r, i + 3) = value;
+                Unsafe.Add<T>(ref r, i + 4) = value;
+                Unsafe.Add<T>(ref r, i + 5) = value;
+                Unsafe.Add<T>(ref r, i + 6) = value;
+                Unsafe.Add<T>(ref r, i + 7) = value;
+            }
+            if (i < (length & ~3))
+            {
+                Unsafe.Add<T>(ref r, i + 0) = value;
+                Unsafe.Add<T>(ref r, i + 1) = value;
+                Unsafe.Add<T>(ref r, i + 2) = value;
+                Unsafe.Add<T>(ref r, i + 3) = value;
+                i += 4;
+            }
+            for (; i < length; i++)
+            {
+                Unsafe.Add<T>(ref r, i) = value;
             }
         }
 
