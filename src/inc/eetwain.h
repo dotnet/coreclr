@@ -264,7 +264,7 @@ virtual OBJECTREF* GetAddrOfSecurityObject(CrawlFrame *pCF) = 0;
 */
 virtual OBJECTREF GetInstance(PREGDISPLAY     pContext,
                               EECodeInfo*     pCodeInfo) = 0;
-#endif // CROSSGEN_COMPILE
+#endif // !CROSSGEN_COMPILE
 
 /*
     Returns the extra argument passed to to shared generic code if it is still alive.
@@ -528,7 +528,7 @@ virtual
 OBJECTREF GetInstance(
                 PREGDISPLAY     pContext,
                 EECodeInfo *    pCodeInfo);
-#endif // CROSSGEN_COMPILE
+#endif // !CROSSGEN_COMPILE
 
 /*
     Returns the extra argument passed to to shared generic code if it is still alive.
