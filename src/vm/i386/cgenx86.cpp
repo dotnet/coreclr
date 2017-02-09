@@ -802,6 +802,7 @@ void ResumableFrame::UpdateRegDisplay(const PREGDISPLAY pRD)
 }
 
 // The HijackFrame has to know the registers that are pushed by OnHijackTripThread
+//  -> HijackFrame::UpdateRegDisplay should restore all the registers pushed by OnHijackTripThread
 void HijackFrame::UpdateRegDisplay(const PREGDISPLAY pRD)
 {
     CONTRACTL {
@@ -822,19 +823,15 @@ void HijackFrame::UpdateRegDisplay(const PREGDISPLAY pRD)
     pRD->pCurrentContext->Eip = *PTR_PCODE(pRD->PCTAddr);
     pRD->pCurrentContext->Esp = (DWORD)(pRD->PCTAddr + sizeof(TADDR));
 
-#define CALLEE_SAVED_REGISTER(reg) pRD->pCurrentContext->reg = m_Args->reg;
-    ENUM_CALLEE_SAVED_REGISTERS();
-#undef CALLEE_SAVED_REGISTER
-
-#define CALLEE_SAVED_REGISTER(reg) pRD->pCurrentContextPointers->reg = NULL;
-    ENUM_CALLEE_SAVED_REGISTERS();
-#undef CALLEE_SAVED_REGISTER
-
-#define ARGUMENT_AND_SCRATCH_REGISTER(reg) pRD->pCurrentContextPointers->reg = NULL;
-    ENUM_ARGUMENT_AND_SCRATCH_REGISTERS();
-#undef ARGUMENT_AND_SCRATCH_REGISTER
-
-    pRD->pCurrentContextPointers->Eax = (PDWORD) &m_Args->Eax;
+#define RESTORE_REG(reg) { pRD->pCurrentContext->reg = m_Args->reg; pRD->pCurrentContextPointers->reg = &m_Args->reg; }
+    RESTORE_REG(Edi);
+    RESTORE_REG(Esi);
+    RESTORE_REG(Ebx);
+    RESTORE_REG(Edx);
+    RESTORE_REG(Ecx);
+    RESTORE_REG(Eax);
+    RESTORE_REG(Ebp);
+#undef RESTORE_REG
 
     SyncRegDisplayToCurrentContext(pRD);
 
