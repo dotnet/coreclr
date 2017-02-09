@@ -46,7 +46,7 @@ namespace System
         {
             // Validate arguments, check is minimal instructions with reduced branching for inlinable fast-path
             // Failure should be rare and location determination and message is delegated to failure functions
-            if ((array == null | (offset | count) < 0) || (array.Length - offset < count))
+            if (array == null || (offset | count) < 0 || (array.Length - offset < count))
                 ThrowHelper.ThrowArraySegmentCtorValidationFailedExceptions(array, offset, count);
             Contract.EndContractBlock();
 
