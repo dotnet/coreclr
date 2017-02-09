@@ -7,7 +7,6 @@ namespace System.Runtime.InteropServices
     using System;
     using System.Runtime.CompilerServices;
     using System.Threading;
-    using System.Runtime.Versioning;
     using System.Diagnostics.Contracts;
 
     // These are the types of handles used by the EE.  
@@ -57,7 +56,7 @@ namespace System.Runtime.InteropServices
         {
             // Make sure the type parameter is within the valid range for the enum.
             if ((uint)type > (uint)MaxHandleType)
-                throw new ArgumentOutOfRangeException(nameof(type), Environment.GetResourceString("ArgumentOutOfRange_Enum"));
+                ThrowArgumentOutOfRangeException_ArgumentOutOfRange_Enum();
             Contract.EndContractBlock();
 
             m_handle = InternalAlloc(value, type);
@@ -65,7 +64,7 @@ namespace System.Runtime.InteropServices
             // Record if the handle is pinned.
             if (type == GCHandleType.Pinned)
                 SetIsPinned();
-        }  
+        }
 
         // Used in the conversion functions below.
         internal GCHandle(IntPtr handle)
@@ -89,36 +88,21 @@ namespace System.Runtime.InteropServices
             return new GCHandle(value, type);
         }
 
-
         // Frees a GC handle.
         public void Free()
         {
-            // Copy the handle instance member to a local variable. This is required to prevent
-            // race conditions releasing the handle.
-            IntPtr handle = m_handle;
-
             // Free the handle if it hasn't already been freed.
-            if (handle != IntPtr.Zero && Interlocked.CompareExchange(ref m_handle, IntPtr.Zero, handle) == handle)
-            {
+            IntPtr handle = Interlocked.Exchange(ref m_handle, IntPtr.Zero);
+            ValidateHandle(handle);
 #if MDA_SUPPORTED
-                // If this handle was passed out to unmanaged code, we need to remove it
-                // from the cookie table.
-                // NOTE: the entry in the cookie table must be released before the
-                // internal handle is freed to prevent a race with reusing GC handles.
-                if (s_probeIsActive)
-                    s_cookieTable.RemoveHandleIfPresent(handle);
+            // If this handle was passed out to unmanaged code, we need to remove it
+            // from the cookie table.
+            // NOTE: the entry in the cookie table must be released before the
+            // internal handle is freed to prevent a race with reusing GC handles.
+            if (s_probeIsActive)
+                s_cookieTable.RemoveHandleIfPresent(handle);
 #endif
-
-#if BIT64
-                InternalFree((IntPtr)(((long)handle) & ~1L));
-#else // BIT64 (32)
-                InternalFree((IntPtr)(((int)handle) & ~1));
-#endif
-            }
-            else
-            {
-                throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_HandleIsNotInitialized"));
-            }
+            InternalFree(GetHandleValue(handle));
         }
         
         // Target property - allows getting / updating of the handle's referent.
@@ -126,23 +110,17 @@ namespace System.Runtime.InteropServices
         {
             get
             {
-                // Check if the handle was never initialized or was freed.
-                if (m_handle == IntPtr.Zero)
-                    throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_HandleIsNotInitialized"));
-
+                ValidateHandle();
                 return InternalGet(GetHandleValue());
             }
     
             set
             {
-                // Check if the handle was never initialized or was freed.
-                if (m_handle == IntPtr.Zero)
-                    throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_HandleIsNotInitialized"));
-
+                ValidateHandle();
                 InternalSet(GetHandleValue(), value, IsPinned());
             }
         }
-        
+
         // Retrieve the address of an object in a Pinned handle.  This throws
         // an exception if the handle is any type other than Pinned.
         public IntPtr AddrOfPinnedObject()
@@ -150,9 +128,7 @@ namespace System.Runtime.InteropServices
             // Check if the handle was not a pinned handle.
             if (!IsPinned())
             {
-                // Check if the handle was never initialized for was freed.
-                if (m_handle == IntPtr.Zero)
-                    throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_HandleIsNotInitialized"));
+                ValidateHandle();
 
                 // You can only get the address of pinned handles.
                 throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_HandleIsNotPinned"));
@@ -163,30 +139,23 @@ namespace System.Runtime.InteropServices
         }
 
         // Determine whether this handle has been allocated or not.
-        public bool IsAllocated
-        {
-            get
-            {
-                return m_handle != IntPtr.Zero;
-            }
-        }
+        public bool IsAllocated => !m_handle.IsNull();
 
         // Used to create a GCHandle from an int.  This is intended to
         // be used with the reverse conversion.
         public static explicit operator GCHandle(IntPtr value)
         {
-            return FromIntPtr(value);
+            ValidateHandle(value);
+            return new GCHandle(value);
         }
 
         public static GCHandle FromIntPtr(IntPtr value)
         {
-            if (value == IntPtr.Zero)
-                throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_HandleIsNotInitialized"));
+            ValidateHandle(value);
             Contract.EndContractBlock();
 
-            IntPtr handle = value;
-            
 #if MDA_SUPPORTED
+            IntPtr handle = value;
             if (s_probeIsActive)
             {
                 // Make sure this cookie matches up with a GCHandle we've passed out a cookie for.
@@ -197,10 +166,16 @@ namespace System.Runtime.InteropServices
                     Mda.FireInvalidGCHandleCookieProbe(value);
                     return new GCHandle(IntPtr.Zero);
                 }
+                return new GCHandle(handle);
             }
 #endif
+            return new GCHandle(value);
+        }
 
-            return new GCHandle(handle);
+        internal static object GetTargetFromIntPtr(IntPtr value)
+        {
+            ValidateHandle(value);
+            return InternalGet(GetHandleValue(value));
         }
 
         // Used to get the internal integer representation of the handle out.
@@ -252,15 +227,22 @@ namespace System.Runtime.InteropServices
 
         internal IntPtr GetHandleValue()
         {
+            return GetHandleValue(m_handle);
+        }
+
+        private static IntPtr GetHandleValue(IntPtr handle)
+        {
+            // Remove Pin flag
 #if BIT64
-            return new IntPtr(((long)m_handle) & ~1L);
+            return new IntPtr(((long)handle) & ~1L);
 #else // !BIT64 (32)
-            return new IntPtr(((int)m_handle) & ~1);
+            return new IntPtr(((int)handle) & ~1);
 #endif
         }
 
         internal bool IsPinned()
         {
+            // Check Pin flag
 #if BIT64
             return (((long)m_handle) & 1) != 0;
 #else // !BIT64 (32)
@@ -299,5 +281,29 @@ namespace System.Runtime.InteropServices
         static private volatile GCHandleCookieTable s_cookieTable = null;
         static private volatile bool s_probeIsActive = false;
 #endif
+
+        private void ValidateHandle()
+        {
+            // Check if the handle was never initialized or was freed.
+            if (m_handle.IsNull())
+                ThrowInvalidOperationException_HandleIsNotInitialized();
+        }
+
+        private static void ValidateHandle(IntPtr handle)
+        {
+            // Check if the handle was never initialized or was freed.
+            if (handle.IsNull())
+                ThrowInvalidOperationException_HandleIsNotInitialized();
+        }
+
+        private static void ThrowArgumentOutOfRangeException_ArgumentOutOfRange_Enum()
+        {
+            throw ThrowHelper.GetArgumentOutOfRangeException(ExceptionArgument.type, ExceptionResource.ArgumentOutOfRange_Enum);
+        }
+
+        private static void ThrowInvalidOperationException_HandleIsNotInitialized()
+        {
+            throw ThrowHelper.GetInvalidOperationException(ExceptionResource.InvalidOperation_HandleIsNotInitialized);
+        }
     }
 }
