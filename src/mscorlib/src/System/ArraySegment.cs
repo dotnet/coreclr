@@ -45,7 +45,7 @@ namespace System
         public ArraySegment(T[] array, int offset, int count)
         {
             // Validate input arguments
-            if (array == null || offset < 0 || count < 0|| (array.Length - offset < count))
+            if (array == null || (offset | count) < 0 || (array.Length - offset < count))
                 ThrowConstructorValidationFailedExceptions(array, offset, count);
             Contract.EndContractBlock();
 
