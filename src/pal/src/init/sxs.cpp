@@ -16,6 +16,7 @@
 #include "pal/module.h"
 #include "pal/process.h"
 #include "pal/seh.hpp"
+#include "pal/signal.hpp"
 
 using namespace CorUnix;
 
@@ -67,6 +68,16 @@ PAL_Enter(PAL_Boundary boundary)
         {
             ERROR("Unable to allocate pal thread: error %d\n", palError);
         }
+
+#if !HAVE_MACH_EXCEPTIONS
+        // Ensure alternate stack for SIGSEGV handling. Our SIGSEGV handler is set to
+        // run on an alternate stack and the stack needs to be allocated per thread.
+        if (!EnsureSignalAlternateStack())
+        {
+            ERROR("Cannot allocate alternate stack for SIGSEGV!\n");
+            palError = ERROR_NOT_ENOUGH_MEMORY;
+        }
+#endif // !HAVE_MACH_EXCEPTIONS
     }
 
     LOGEXIT("PAL_Enter returns %d\n", palError);

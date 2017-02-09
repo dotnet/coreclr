@@ -27,12 +27,14 @@ SET_DEFAULT_DEBUG_CHANNEL(EXCEPT); // some headers have code with asserts, so do
 #include "pal/threadinfo.hpp"
 #include "pal/threadsusp.hpp"
 #include "pal/seh.hpp"
+#include "pal/signal.hpp"
 
 #include "pal/palinternal.h"
 #if !HAVE_MACH_EXCEPTIONS
 #include "pal/init.h"
 #include "pal/process.h"
 #include "pal/debug.h"
+#include "pal/virtual.h"
 
 #include <signal.h>
 #include <errno.h>
@@ -40,6 +42,7 @@ SET_DEFAULT_DEBUG_CHANNEL(EXCEPT); // some headers have code with asserts, so do
 #include <sys/ucontext.h>
 #include <sys/utsname.h>
 #include <unistd.h>
+#include <sys/mman.h>
 
 #include "pal/context.h"
 
@@ -63,6 +66,13 @@ typedef void *siginfo_t;
 #endif  /* !HAVE_SIGINFO_T */
 typedef void (*SIGFUNC)(int, siginfo_t *, void *);
 
+// Return context and status for the signal_handler_worker.
+struct SignalHandlerWorkerReturnPoint
+{
+    bool returnFromHandler;
+    ucontext_t context;
+};
+
 /* internal function declarations *********************************************/
 
 static void sigill_handler(int code, siginfo_t *siginfo, void *context);
@@ -80,7 +90,7 @@ static bool common_signal_handler(int code, siginfo_t *siginfo, void *sigcontext
 static void inject_activation_handler(int code, siginfo_t *siginfo, void *context);
 #endif
 
-static void handle_signal(int signal_id, SIGFUNC sigfunc, struct sigaction *previousAction);
+static void handle_signal(int signal_id, SIGFUNC sigfunc, struct sigaction *previousAction, int additionalFlags = 0);
 static void restore_signal(int signal_id, struct sigaction *previousAction);
 
 /* internal data declarations *********************************************/
@@ -105,6 +115,75 @@ struct sigaction g_previous_activation;
 int g_common_signal_handler_context_locvar_offset = 0;
 
 /* public function definitions ************************************************/
+
+/*++
+Function :
+    EnsureSignalAlternateStack
+
+    Ensure that alternate stack for signal handling is allocated for the current thread
+
+Parameters :
+    None
+
+Return :
+    TRUE in case of a success, FALSE otherwise
+--*/
+BOOL EnsureSignalAlternateStack()
+{
+    stack_t oss;
+    sigaltstack(NULL, &oss);
+    if (oss.ss_flags == SS_DISABLE)
+    {
+        int altStackSize = SIGSTKSZ + VIRTUAL_PAGE_SIZE;
+        // Allocate alternate stack for SIGSEGV handling
+        void* altStack;
+        int st = posix_memalign(&altStack, VIRTUAL_PAGE_SIZE, altStackSize);
+        if (st != 0)
+        {
+            return FALSE;
+        }
+
+        stack_t ss;
+        ss.ss_sp = (char*)altStack;
+        ss.ss_size = altStackSize;
+        ss.ss_flags = 0;
+        sigaltstack(&ss, NULL);
+        // create a guard page for the alternate stack
+        st = mprotect(altStack, VIRTUAL_PAGE_SIZE, PROT_NONE);
+        if (st != 0)
+        {
+            free(altStack);
+            return FALSE;
+        }
+    }
+
+    return TRUE;
+}
+
+/*++
+Function :
+    FreeSignalAlternateStack
+
+    Free alternate stack for signal handling
+
+Parameters :
+    None
+
+Return :
+    None
+--*/
+void FreeSignalAlternateStack()
+{
+    stack_t ss, oss;
+    ss.ss_flags = SS_DISABLE;
+    sigaltstack(&ss, &oss);
+    if (oss.ss_flags != SS_DISABLE)
+    {
+        int st = mprotect(oss.ss_sp, VIRTUAL_PAGE_SIZE, PROT_READ | PROT_WRITE);
+        _ASSERTE(st == 0);
+        free(oss.ss_sp);
+    }
+}
 
 /*++
 Function :
@@ -139,9 +218,15 @@ BOOL SEHInitializeSignals(DWORD flags)
     handle_signal(SIGTRAP, sigtrap_handler, &g_previous_sigtrap);
     handle_signal(SIGFPE, sigfpe_handler, &g_previous_sigfpe);
     handle_signal(SIGBUS, sigbus_handler, &g_previous_sigbus);
-    handle_signal(SIGSEGV, sigsegv_handler, &g_previous_sigsegv);
+    // SIGSEGV handler runs on a separate stack so that we can handle stack overflow
+    handle_signal(SIGSEGV, sigsegv_handler, &g_previous_sigsegv, SA_ONSTACK);
     handle_signal(SIGINT, sigint_handler, &g_previous_sigint);
     handle_signal(SIGQUIT, sigquit_handler, &g_previous_sigquit);
+
+    if (!EnsureSignalAlternateStack())
+    {
+        return FALSE;
+    }
 
     if (flags & PAL_INITIALIZE_REGISTER_SIGTERM_HANDLER)
     {
@@ -276,6 +361,28 @@ static void sigfpe_handler(int code, siginfo_t *siginfo, void *context)
 
 /*++
 Function :
+    signal_handler_worker
+
+    Handles signal on the original stack where the signal occured. 
+    Invoked via setcontext.
+
+Parameters :
+    POSIX signal handler parameter list ("man sigaction" for details)
+    returnPoint - context to which the function returns if the common_signal_handler returns
+
+    (no return value)
+--*/
+extern "C" void signal_handler_worker(int code, siginfo_t *siginfo, void *context, SignalHandlerWorkerReturnPoint* returnPoint)
+{
+    // TODO: First variable parameter says whether a read (0) or write (non-0) caused the
+    // fault. We must disassemble the instruction at record.ExceptionAddress
+    // to correctly fill in this value.
+    returnPoint->returnFromHandler = common_signal_handler(code, siginfo, context, 2, (size_t)0, (size_t)siginfo->si_addr);
+    setcontext(&returnPoint->context);
+}
+
+/*++
+Function :
     sigsegv_handler
 
     handle SIGSEGV signal (EXCEPTION_ACCESS_VIOLATION, others)
@@ -289,10 +396,38 @@ static void sigsegv_handler(int code, siginfo_t *siginfo, void *context)
 {
     if (PALIsInitialized())
     {
-        // TODO: First variable parameter says whether a read (0) or write (non-0) caused the
-        // fault. We must disassemble the instruction at record.ExceptionAddress
-        // to correctly fill in this value.
-        if (common_signal_handler(code, siginfo, context, 2, (size_t)0, (size_t)siginfo->si_addr))
+        // First check if we have a stack overflow
+        size_t sp = (size_t)GetNativeContextSP((native_context_t *)context);
+        size_t failureAddress = (size_t)siginfo->si_addr;
+
+        // If the failure address is at most one page above or below the stack pointer, 
+        // we have a stack overflow. 
+        if ((failureAddress - (sp - VIRTUAL_PAGE_SIZE)) < 2 * VIRTUAL_PAGE_SIZE)
+        {
+            (void)write(STDERR_FILENO, StackOverflowMessage, sizeof(StackOverflowMessage) - 1);
+            PROCAbort();
+        }
+
+        // Now that we know the SIGSEGV didn't happen due to the stack overflow, execute the common
+        // hardware signal handler on the original stack.
+
+        // Establish a return point in case the common_signal_handler returns
+
+        bool contextInitialization = true;
+
+        SignalHandlerWorkerReturnPoint returnPoint;
+        getcontext(&returnPoint.context);        
+
+        // When the signal handler worker completes, it uses setcontext to return to this point
+
+        if (contextInitialization)
+        {
+            contextInitialization = false;
+            ExecuteHandlerOnOriginalStack(code, siginfo, context, &returnPoint);
+            _ASSERTE(FALSE); // The ExecuteHandlerOnOriginalStack should never return
+        }
+        
+        if (returnPoint.returnFromHandler)
         {
             return;
         }
@@ -666,11 +801,11 @@ Parameters :
     
 note : if sigfunc is NULL, the default signal handler is restored    
 --*/
-void handle_signal(int signal_id, SIGFUNC sigfunc, struct sigaction *previousAction)
+void handle_signal(int signal_id, SIGFUNC sigfunc, struct sigaction *previousAction, int additionalFlags)
 {
     struct sigaction newAction;
 
-    newAction.sa_flags = SA_RESTART;
+    newAction.sa_flags = SA_RESTART | additionalFlags;
 #if HAVE_SIGINFO_T
     newAction.sa_handler = NULL;
     newAction.sa_sigaction = sigfunc;
