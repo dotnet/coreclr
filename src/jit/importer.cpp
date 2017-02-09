@@ -12752,13 +12752,17 @@ void Compiler::impImportBlockCode(BasicBlock* block)
                 {
                     if (compIsForInlining())
                     {
-                        // Are we inlining at an implicit tail call site? If so we can flag
-                        // implicit tail call sites in the inline body.
+#if FEATURE_TAILCALL_OPT_SHARED_RETURN
+                        // Are we inlining at an implicit tail call site? If so the we can flag
+                        // implicit tail call sites in the inline body. These call sites
+                        // often end up in non BBJ_RETURN blocks, so only flag them when
+                        // we're able to handle shared returns.
                         if (impInlineInfo->iciCall->IsImplicitTailCall())
                         {
                             JITDUMP(" (Inline Implicit Tail call: prefixFlags |= PREFIX_TAILCALL_IMPLICIT)");
                             prefixFlags |= PREFIX_TAILCALL_IMPLICIT;
                         }
+#endif // FEATURE_TAILCALL_OPT_SHARED_RETURN
                     }
                     else
                     {
