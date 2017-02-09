@@ -6709,6 +6709,11 @@ void emitter::emitIns_Call(EmitCallType          callType,
         {
             savedSet |= RBM_PROFILER_RET_SCRATCH;
         }
+
+        if(Compiler::eeGetHelperNum(methHnd) == CORINFO_HELP_ASSIGN_BYREF)
+        {
+            savedSet |= RBM_WRITE_BARRIER_SRC_BYREF | RBM_WRITE_BARRIER_DST_BYREF;
+        }
     }
     else
     {
