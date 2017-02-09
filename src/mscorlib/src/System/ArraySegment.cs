@@ -44,8 +44,9 @@ namespace System
 
         public ArraySegment(T[] array, int offset, int count)
         {
-            // Validate input arguments
-            if (array == null || (offset | count) < 0 || (array.Length - offset < count))
+            // Validate arguments, check is minimal instructions with reduced branching for inlinable fast-path
+            // Failure should be rare and location determination and message is delegated to failure functions
+            if (array == null | ((offset | count) < 0) || (array.Length - offset < count))
                 ThrowConstructorValidationFailedExceptions(array, offset, count);
             Contract.EndContractBlock();
 
