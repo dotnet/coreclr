@@ -124,7 +124,7 @@ namespace System {
             throw GetArgumentException(resource, argument);
         }
 
-        internal static ArgumentNullException GetArgumentNullException(ExceptionArgument argument) {
+        private static ArgumentNullException GetArgumentNullException(ExceptionArgument argument) {
             return new ArgumentNullException(GetArgumentName(argument));
         }
 
@@ -212,7 +212,24 @@ namespace System {
             throw GetInvalidOperationException(ExceptionResource.InvalidOperation_EnumOpCantHappen);
         }
 
-        internal static ArgumentException GetArgumentException(ExceptionResource resource) {
+        internal static void ThrowArraySegmentCtorValidationFailedExceptions(object array, int offset, int count) {
+            Debug.Assert(array is Array);
+            throw GetArraySegmentCtorValidationFailedException(array, offset, count);
+        }
+
+        private static Exception GetArraySegmentCtorValidationFailedException(object array, int offset, int count) {
+            if (array == null)
+                return GetArgumentNullException(ExceptionArgument.array);
+            if (offset < 0)
+                return GetArgumentOutOfRangeException(ExceptionArgument.offset, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
+            if (count < 0)
+                return GetArgumentOutOfRangeException(ExceptionArgument.count, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
+
+            Debug.Assert((array as Array).Length - offset < count);
+            return GetArgumentException(ExceptionResource.Argument_InvalidOffLen);
+        }
+
+        private static ArgumentException GetArgumentException(ExceptionResource resource) {
             return new ArgumentException(GetResourceString(resource));
         }
 
@@ -228,7 +245,7 @@ namespace System {
             return new ArgumentException(Environment.GetResourceString("Arg_WrongType", value, targetType), nameof(value));
         }
 
-        internal static ArgumentOutOfRangeException GetArgumentOutOfRangeException(ExceptionArgument argument, ExceptionResource resource) {
+        private static ArgumentOutOfRangeException GetArgumentOutOfRangeException(ExceptionArgument argument, ExceptionResource resource) {
             return new ArgumentOutOfRangeException(GetArgumentName(argument), GetResourceString(resource));
         }
 

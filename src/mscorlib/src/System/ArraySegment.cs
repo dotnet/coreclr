@@ -47,7 +47,7 @@ namespace System
             // Validate arguments, check is minimal instructions with reduced branching for inlinable fast-path
             // Failure should be rare and location determination and message is delegated to failure functions
             if (array == null | ((offset | count) < 0) || (array.Length - offset < count))
-                ThrowConstructorValidationFailedExceptions(array, offset, count);
+                ThrowHelper.ThrowArraySegmentCtorValidationFailedExceptions(array, offset, count);
             Contract.EndContractBlock();
 
             _array = array;
@@ -152,24 +152,6 @@ namespace System
         public static bool operator !=(ArraySegment<T> a, ArraySegment<T> b)
         {
             return !(a == b);
-        }
-
-        private static void ThrowConstructorValidationFailedExceptions(T[] array, int offset, int count)
-        {
-            throw GetConstructorValidationFailedException(array, offset, count);
-        }
-
-        private static Exception GetConstructorValidationFailedException(T[] array, int offset, int count)
-        {
-            if (array == null)
-                return ThrowHelper.GetArgumentNullException(ExceptionArgument.array);
-            if (offset < 0)
-                return ThrowHelper.GetArgumentOutOfRangeException(ExceptionArgument.offset, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
-            if (count < 0)
-                return ThrowHelper.GetArgumentOutOfRangeException(ExceptionArgument.count, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
-
-            Debug.Assert(array.Length - offset < count);
-            return ThrowHelper.GetArgumentException(ExceptionResource.Argument_InvalidOffLen);
         }
 
         #region IList<T>
