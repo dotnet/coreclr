@@ -60,6 +60,7 @@ class Thread;
 
 // stackOverwriteBarrier is used to detect overwriting of stack which will mess up handler registration
 #if defined(_DEBUG)
+#if !defined(FEATURE_PAL)
 #define DECLARE_CPFH_EH_RECORD(pCurThread) \
     FrameHandlerExRecordWithBarrier *___pExRecordWithBarrier = (FrameHandlerExRecordWithBarrier *)_alloca(sizeof(FrameHandlerExRecordWithBarrier)); \
     for (int ___i =0; ___i < STACK_OVERWRITE_BARRIER_SIZE; ___i++) \
@@ -67,14 +68,19 @@ class Thread;
     FrameHandlerExRecord *___pExRecord = &(___pExRecordWithBarrier->m_ExRecord); \
     ___pExRecord->m_ExReg.Handler = (PEXCEPTION_ROUTINE)COMPlusFrameHandler; \
     ___pExRecord->m_pEntryFrame = (pCurThread)->GetFrame();
-
-#else
+#else // !FEATURE_PAL
+#define DECLARE_CPFH_EH_RECORD(pCurThread) \
+    FrameHandlerExRecord *___pExRecord = (FrameHandlerExRecord *)_alloca(sizeof(FrameHandlerExRecord)); \
+    ___pExRecord->m_ExReg.Handler = (PEXCEPTION_ROUTINE)COMPlusFrameHandler; \
+    ___pExRecord->m_pEntryFrame = (pCurThread)->GetFrame();
+#endif // !FEATURE_PAL
+#else // _DEBUG
 #define DECLARE_CPFH_EH_RECORD(pCurThread) \
     FrameHandlerExRecord *___pExRecord = (FrameHandlerExRecord *)_alloca(sizeof(FrameHandlerExRecord)); \
     ___pExRecord->m_ExReg.Handler = (PEXCEPTION_ROUTINE)COMPlusFrameHandler; \
     ___pExRecord->m_pEntryFrame = (pCurThread)->GetFrame();
 
-#endif
+#endif // _DEBUG
 
 
 PEXCEPTION_REGISTRATION_RECORD GetCurrentSEHRecord();

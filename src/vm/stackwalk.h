@@ -285,12 +285,12 @@ public:
             }
         }
 
-#if defined(WIN64EXCEPTIONS)
+#if defined(WIN64EXCEPTIONS) && !defined(_TARGET_X86_)
         if (ShouldParentToFuncletSkipReportingGCReferences())
         {
             flags |= ParentOfFuncletStackFrame;
         }
-#endif // defined(WIN64EXCEPTIONS)
+#endif // WIN64EXCEPTIONS && && !_TARGET_X86_
 
         return flags;
     }
@@ -384,7 +384,7 @@ public:
 
     void CheckGSCookies();
 
-#if defined(WIN64EXCEPTIONS)
+#if defined(WIN64EXCEPTIONS) && !defined(_TARGET_X86_)
     bool IsFunclet()
     {
         WRAPPER_NO_CONTRACT;
@@ -425,7 +425,7 @@ public:
         return ehClauseForCatch;
     }
 
-#endif // WIN64EXCEPTIONS
+#endif // WIN64EXCEPTIONS && !_TARGET_X86_
 
 protected:
     // CrawlFrames are temporarily created by the enumerator.
@@ -439,9 +439,9 @@ private:
     friend class Thread;
     friend class EECodeManager;
     friend class StackFrameIterator;
-#ifdef WIN64EXCEPTIONS
+#if defined(WIN64EXCEPTIONS) && !defined(_TARGET_X86_)
     friend class ExceptionTracker;
-#endif // WIN64EXCEPTIONS
+#endif // WIN64EXCEPTIONS && !_TARGET_X86_
 
     CodeManState      codeManState;
 
@@ -466,14 +466,14 @@ private:
     PREGDISPLAY       pRD; // "thread context"/"virtual register set"
 
     EECodeInfo        codeInfo;
-#if defined(WIN64EXCEPTIONS)
+#if defined(WIN64EXCEPTIONS) && !defined(_TARGET_X86_)
     bool              isFilterFunclet;
     bool              isFilterFuncletCached;
     bool              fShouldParentToFuncletSkipReportingGCReferences;
     bool              fShouldCrawlframeReportGCReferences;
     bool              fShouldParentFrameUseUnwindTargetPCforGCReporting;
     EE_ILEXCEPTION_CLAUSE ehClauseForCatch;
-#endif //WIN64EXCEPTIONS
+#endif //WIN64EXCEPTIONS && !_TARGET_X86_
     Thread*           pThread;
 
     // fields used for stackwalk cache
@@ -653,7 +653,7 @@ private:
     // the CONTEXT stored in the ExInfo and updating the REGDISPLAY to the faulting managed stack frame.
     void PostProcessingForNoFrameTransition(void);
 
-#if defined(WIN64EXCEPTIONS)    
+#if defined(WIN64EXCEPTIONS) && !defined(_TARGET_X86_)
     void ResetGCRefReportingState(bool ResetOnlyIntermediaryState = false)
     {
         LIMITED_METHOD_CONTRACT;
@@ -667,7 +667,7 @@ private:
         m_sfIntermediaryFuncletParent = StackFrame();
         m_fProcessIntermediaryNonFilterFunclet = false;
     }
-#endif // defined(WIN64EXCEPTIONS)    
+#endif // WIN64EXCEPTIONS && !_TARGET_X86_
 
     // Iteration state.
     FrameState m_frameState;
@@ -695,7 +695,7 @@ private:
     ExInfoWalker m_exInfoWalk;
 #endif // ELIMINATE_FEF
 
-#if defined(WIN64EXCEPTIONS)
+#if defined(WIN64EXCEPTIONS) && !defined(_TARGET_X86_)
     // used in funclet-skipping
     StackFrame    m_sfParent;
     
@@ -705,7 +705,7 @@ private:
     StackFrame    m_sfIntermediaryFuncletParent;
     bool          m_fProcessIntermediaryNonFilterFunclet;
     bool          m_fDidFuncletReportGCReferences;
-#endif // WIN64EXCEPTIONS
+#endif // WIN64EXCEPTIONS && !_TARGET_X86_
 
 #if !defined(_TARGET_X86_)
     LPVOID m_pvResumableFrameTargetSP;

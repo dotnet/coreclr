@@ -612,7 +612,7 @@ void EEDbgInterfaceImpl::GetMethodRegionInfo(const PCODE    pStart,
     *coldSize = methodRegionInfo.coldSize;
 }
 
-#if defined(WIN64EXCEPTIONS)
+#if defined(WIN64EXCEPTIONS) && !defined(_TARGET_X86_)
 DWORD EEDbgInterfaceImpl::GetFuncletStartOffsets(const BYTE *pStart, DWORD* pStartOffsets, DWORD dwLength)
 {
     CONTRACTL
@@ -648,7 +648,7 @@ StackFrame EEDbgInterfaceImpl::FindParentStackFrame(CrawlFrame* pCF)
 
 #endif // !DACCESS_COMPILE
 }
-#endif // WIN64EXCEPTIONS
+#endif // WIN64EXCEPTIONS && !_TARGET_X86_
 
 #ifndef DACCESS_COMPILE
 size_t EEDbgInterfaceImpl::GetFunctionSize(MethodDesc *pFD)

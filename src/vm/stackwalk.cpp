@@ -425,7 +425,7 @@ void CrawlFrame::SetCurGSCookie(GSCookie * pGSCookie)
 #endif // !DACCESS_COMPILE
 }
 
-#if defined(WIN64EXCEPTIONS)
+#if defined(WIN64EXCEPTIONS) && !defined(_TARGET_X86_)
 bool CrawlFrame::IsFilterFunclet()
 {
     WRAPPER_NO_CONTRACT;
@@ -444,7 +444,7 @@ bool CrawlFrame::IsFilterFunclet()
     return isFilterFunclet;
 }
 
-#endif // WIN64EXCEPTIONS
+#endif // WIN64EXCEPTIONS && !_TARGET_X86_
 
 //******************************************************************************
 #if defined(ELIMINATE_FEF)
@@ -539,7 +539,7 @@ void ExInfoWalker::WalkToManaged()
 } // void ExInfoWalker::WalkToManaged()
 #endif // defined(ELIMINATE_FEF)
 
-#ifdef WIN64EXCEPTIONS
+#if defined(WIN64EXCEPTIONS) && !defined(_TARGET_X86_)
 // static
 UINT_PTR Thread::VirtualUnwindCallFrame(PREGDISPLAY pRD, EECodeInfo* pCodeInfo /*= NULL*/)
 {
@@ -797,7 +797,7 @@ UINT_PTR Thread::VirtualUnwindToFirstManagedCallFrame(T_CONTEXT* pContext)
 }
 
 #endif // DACCESS_COMPILE
-#endif // WIN64EXCEPTIONS
+#endif // WIN64EXCEPTIONS && !_TARGET_X86_
 
 #ifdef _DEBUG
 void Thread::DebugLogStackWalkInfo(CrawlFrame* pCF, __in_z LPCSTR pszTag, UINT32 uFramesProcessed)
@@ -808,13 +808,13 @@ void Thread::DebugLogStackWalkInfo(CrawlFrame* pCF, __in_z LPCSTR pszTag, UINT32
     {
         LPCSTR pszType = "";
 
-#ifdef WIN64EXCEPTIONS
+#if defined(WIN64EXCEPTIONS) && !defined(_TARGET_X86_)
         if (pCF->IsFunclet())
         {
             pszType = "[funclet]";
         }
         else
-#endif // WIN64EXCEPTIONS
+#endif // WIN64EXCEPTIONS && !_TARGET_X86_
         if (pCF->pFunc->IsNoMetadata())
         {
             pszType = "[no metadata]";
@@ -1137,11 +1137,11 @@ void StackFrameIterator::CommonCtor(Thread * pThread, PTR_Frame pFrame, ULONG32 
 
     m_pCachedGSCookie = NULL;
 
-#if defined(WIN64EXCEPTIONS)
+#if defined(WIN64EXCEPTIONS) && !defined(_TARGET_X86_)
     m_sfParent = StackFrame();
     ResetGCRefReportingState();
     m_fDidFuncletReportGCReferences = true;
-#endif // WIN64EXCEPTIONS
+#endif // WIN64EXCEPTIONS && !_TARGET_X86_
 
 #if !defined(_TARGET_X86_)
     m_pvResumableFrameTargetSP = NULL;
@@ -1498,12 +1498,12 @@ void StackFrameIterator::ResetCrawlFrame()
 
     m_crawl.taNoFrameTransitionMarker = NULL;
 
-#if defined(WIN64EXCEPTIONS)
+#if defined(WIN64EXCEPTIONS) && !defined(_TARGET_X86_)
     m_crawl.isFilterFunclet       = false;
     m_crawl.isFilterFuncletCached = false;
     m_crawl.fShouldParentToFuncletSkipReportingGCReferences = false;
     m_crawl.fShouldParentFrameUseUnwindTargetPCforGCReporting = false;
-#endif // WIN64EXCEPTIONS
+#endif // WIN64EXCEPTIONS && !_TARGET_X86_
 
     m_crawl.pThread = this->m_pThread;
 
@@ -1639,10 +1639,10 @@ StackWalkAction StackFrameIterator::Filter(void)
     bool fStop            = false;
     bool fSkippingFunclet = false;
 
-#if defined(WIN64EXCEPTIONS)
+#if defined(WIN64EXCEPTIONS) && !defined(_TARGET_X86_)
     bool fRecheckCurrentFrame = false;
     bool fSkipFuncletCallback = true;
-#endif // defined(WIN64EXCEPTIONS)
+#endif // WIN64EXCEPTIONS && !_TARGET_X86_
 
     StackWalkAction retVal = SWA_CONTINUE;
 
@@ -1651,7 +1651,7 @@ StackWalkAction StackFrameIterator::Filter(void)
         fStop = false;
         fSkippingFunclet = false;
         
-#if defined(WIN64EXCEPTIONS)
+#if defined(WIN64EXCEPTIONS) && !defined(_TARGET_X86_)
         ExceptionTracker* pTracker = m_crawl.pThread->GetExceptionState()->GetCurrentExceptionTracker();
         fRecheckCurrentFrame = false;
         fSkipFuncletCallback = true;
@@ -1673,12 +1673,12 @@ StackWalkAction StackFrameIterator::Filter(void)
             // we are now skipping frames to get to the funclet's parent
             fSkippingFunclet = true;
         }
-#endif // WIN64EXCEPTIONS
+#endif // WIN64EXCEPTIONS && !_TARGET_X86_
 
         switch (m_frameState)
         {
             case SFITER_FRAMELESS_METHOD:
-#if defined(WIN64EXCEPTIONS)
+#if defined(WIN64EXCEPTIONS) && !defined(_TARGET_X86_)
 ProcessFuncletsForGCReporting:
                 do
                 {
@@ -2171,7 +2171,7 @@ ProcessFuncletsForGCReporting:
                     }
                 }
                     
-#else // WIN64EXCEPTIONS
+#else // WIN64EXCEPTIONS && !_TARGET_X86_
                 // Skip IL stubs
                 if (m_flags & FUNCTIONSONLY)
                 {
@@ -2185,7 +2185,7 @@ ProcessFuncletsForGCReporting:
                         break;
                     }
                 }
-#endif // WIN64EXCEPTIONS
+#endif // WIN64EXCEPTIONS && !_TARGET_X86_
 
                 fStop = true;
                 break;
@@ -2198,7 +2198,7 @@ ProcessFuncletsForGCReporting:
             case SFITER_SKIPPED_FRAME_FUNCTION:
                 if (!fSkippingFunclet)
                 {
-#if defined(WIN64EXCEPTIONS)
+#if defined(WIN64EXCEPTIONS) && !defined(_TARGET_X86_)
                     if (m_flags & GC_FUNCLET_REFERENCE_REPORTING)
                     {
                         // If we are enumerating frames for GC reporting and we determined that
@@ -2220,7 +2220,7 @@ ProcessFuncletsForGCReporting:
                             break;
                         }
                     }
-#endif // WIN64EXCEPTIONS
+#endif // WIN64EXCEPTIONS && !_TARGET_X86_
                     if ( (m_crawl.pFunc != NULL) || !(m_flags & FUNCTIONSONLY) )
                     {
                         fStop = true;
@@ -2962,9 +2962,9 @@ void StackFrameIterator::ProcessCurrentFrame(void)
 #endif // DACCESS_COMPILE
 
 
-#if defined(WIN64EXCEPTIONS)
+#if defined(WIN64EXCEPTIONS) && !defined(_TARGET_X86_)
             m_crawl.isFilterFuncletCached = false;
-#endif // WIN64EXCEPTIONS
+#endif // WIN64EXCEPTIONS && !_TARGET_X86_
 
             m_crawl.pFunc = m_crawl.codeInfo.GetMethodDesc();
 

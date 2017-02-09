@@ -124,7 +124,7 @@ static void _dumpVarNativeInfo(ICorDebugInfo::NativeVarInfo* vni)
 }
 #endif
 
-#if defined(WIN64EXCEPTIONS)
+#if defined(WIN64EXCEPTIONS) && !defined(_TARGET_X86_)
 void DebuggerJitInfo::InitFuncletAddress()
 {
     CONTRACTL
@@ -232,13 +232,13 @@ int DebuggerJitInfo::GetFuncletIndex(CORDB_ADDRESS offsetOrAddr, GetFuncletIndex
     UNREACHABLE();
 }
 
-#endif // WIN64EXCEPTIONS
+#endif // WIN64EXCEPTIONS && !_TARGET_X86_
 
 // It is entirely possible that we have multiple sequence points for the
 // same IL offset (because of funclets, optimization, etc.).  Just to be
 // uniform in all cases, let's return the sequence point with the smallest
 // native offset if fWantFirst is TRUE.
-#if defined(WIN64EXCEPTIONS)
+#if defined(WIN64EXCEPTIONS) && !defined(_TARGET_X86_)
 #define ADJUST_MAP_ENTRY(_map, _wantFirst)                                                        \
     if ((_wantFirst))                                                                             \
         for ( ; (_map) > m_sequenceMap && (((_map)-1)->ilOffset == (_map)->ilOffset); (_map)--);  \
@@ -266,10 +266,10 @@ DebuggerJitInfo::DebuggerJitInfo(DebuggerMethodInfo *minfo, MethodDesc *fd) :
     m_sequenceMapSorted(false),
     m_varNativeInfo(NULL), m_varNativeInfoCount(0),
     m_fAttemptInit(false)
-#if defined(WIN64EXCEPTIONS)
+#if defined(WIN64EXCEPTIONS) && !defined(_TARGET_X86_)
     ,m_rgFunclet(NULL)
     , m_funcletCount(0)
-#endif // defined(WIN64EXCEPTIONS)
+#endif // WIN64EXCEPTIONS && !_TARGET_X86_
 {
     WRAPPER_NO_CONTRACT;
 
@@ -381,18 +381,18 @@ DebuggerJitInfo::NativeOffset DebuggerJitInfo::MapILOffsetToNative(DebuggerJitIn
 
     DebuggerILToNativeMap *map = MapILOffsetToMapEntry(ilOffset.m_ilOffset, &(resultOffset.m_fExact));
 
-#if defined(WIN64EXCEPTIONS)
+#if defined(WIN64EXCEPTIONS) && !defined(_TARGET_X86_)
     // See if we want the map entry for the parent.
     if (ilOffset.m_funcletIndex <= PARENT_METHOD_INDEX)
     {
-#endif // _WIN64
+#endif // WIN64EXCEPTIONS && !_TARGET_X86_
         PREFIX_ASSUME( map != NULL );
         LOG((LF_CORDB, LL_INFO10000, "DJI::MILOTN: ilOff 0x%x to nat 0x%x exact:0x%x (Entry IL Off:0x%x)\n",
              ilOffset.m_ilOffset, map->nativeStartOffset, resultOffset.m_fExact, map->ilOffset));
 
         resultOffset.m_nativeOffset = map->nativeStartOffset;
 
-#if defined(WIN64EXCEPTIONS)
+#if defined(WIN64EXCEPTIONS) && !defined(_TARGET_X86_)
     }
     else
     {
@@ -440,7 +440,7 @@ DebuggerJitInfo::NativeOffset DebuggerJitInfo::MapILOffsetToNative(DebuggerJitIn
             }
         }
     }
-#endif // WIN64EXCEPTIONS
+#endif // WIN64EXCEPTIONS && !_TARGET_X86_
 
     return resultOffset;
 }
@@ -452,7 +452,7 @@ DebuggerJitInfo::ILToNativeOffsetIterator::ILToNativeOffsetIterator()
 
     m_dji = NULL;
     m_currentILOffset.m_ilOffset = INVALID_IL_OFFSET;
-#ifdef WIN64EXCEPTIONS
+#if defined(WIN64EXCEPTIONS) && !defined(_TARGET_X86_)
     m_currentILOffset.m_funcletIndex = PARENT_METHOD_INDEX;
 #endif
 }
@@ -463,7 +463,7 @@ void DebuggerJitInfo::ILToNativeOffsetIterator::Init(DebuggerJitInfo* dji, SIZE_
 
     m_dji = dji;
     m_currentILOffset.m_ilOffset = ilOffset;
-#ifdef WIN64EXCEPTIONS
+#if defined(WIN64EXCEPTIONS) && !defined(_TARGET_X86_)
     m_currentILOffset.m_funcletIndex = PARENT_METHOD_INDEX;
 #endif
 
@@ -502,7 +502,7 @@ SIZE_T DebuggerJitInfo::ILToNativeOffsetIterator::CurrentAssertOnlyOne(BOOL* pfE
 
 void DebuggerJitInfo::ILToNativeOffsetIterator::Next()
 {
-#if defined(WIN64EXCEPTIONS)
+#if defined(WIN64EXCEPTIONS) && !defined(_TARGET_X86_)
     NativeOffset tmpNativeOffset;
 
     for (m_currentILOffset.m_funcletIndex += 1;
@@ -522,9 +522,9 @@ void DebuggerJitInfo::ILToNativeOffsetIterator::Next()
     {
         m_currentILOffset.m_ilOffset = INVALID_IL_OFFSET;
     }
-#else  // !WIN64EXCEPTIONS
+#else  // WIN64EXCEPTIONS && !_TARGET_X86_
     m_currentILOffset.m_ilOffset = INVALID_IL_OFFSET;
-#endif // !WIN64EXCEPTIONS
+#endif // WIN64EXCEPTIONS && !_TARGET_X86_
 }
 
 
@@ -593,7 +593,7 @@ SIZE_T DebuggerJitInfo::MapSpecialToNative(CorDebugMappingResult mapping,
     return 0;
 }
 
-#if defined(WIN64EXCEPTIONS)
+#if defined(WIN64EXCEPTIONS) && !defined(_TARGET_X86_)
 //
 // DebuggerJitInfo::MapILOffsetToNativeForSetIP()
 //
@@ -654,7 +654,7 @@ SIZE_T DebuggerJitInfo::MapILOffsetToNativeForSetIP(SIZE_T offsetILTo, int funcl
 
     return offsetNatTo;
 }
-#endif // _WIN64
+#endif // WIN64EXCEPTIONS && !_TARGET_X86_
 
 // void DebuggerJitInfo::MapILRangeToMapEntryRange():   MIRTMER
 // calls MapILOffsetToNative for the startOffset (putting the
@@ -867,13 +867,13 @@ DebuggerJitInfo::~DebuggerJitInfo()
         DeleteInteropSafe(m_varNativeInfo);
     }
 
-#if defined(WIN64EXCEPTIONS)
+#if defined(WIN64EXCEPTIONS) && !defined(_TARGET_X86_)
     if (m_rgFunclet)
     {
         DeleteInteropSafe(m_rgFunclet);
         m_rgFunclet = NULL;
     }
-#endif // WIN64EXCEPTIONS
+#endif // WIN64EXCEPTIONS && !_TARGET_X86_
 
 
 #ifdef _DEBUG
@@ -1233,9 +1233,9 @@ void DebuggerJitInfo::Init(TADDR newAddress)
 
     this->m_encVersion = this->m_methodInfo->GetCurrentEnCVersion();
 
-#if defined(WIN64EXCEPTIONS)
+#if defined(WIN64EXCEPTIONS) && !defined(_TARGET_X86_)
     this->InitFuncletAddress();
-#endif // WIN64EXCEPTIONS
+#endif // WIN64EXCEPTIONS && !_TARGET_X86_
 
     LOG((LF_CORDB,LL_INFO10000,"De::JITCo:Got DJI 0x%p(V %d),"
          "Hot section from 0x%p to 0x%p "
