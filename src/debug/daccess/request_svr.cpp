@@ -63,38 +63,10 @@ HRESULT GetServerHeaps(CLRDATA_ADDRESS pGCHeaps[], ICorDebugDataTarget * pTarget
     // heap addresses.
     for (int i = 0; i < GCHeapCount(); i++) 
     {
-        pGCHeaps[i] = (CLRDATA_ADDRESS)g_gcDacGlobals->g_heaps[i];
+        pGCHeaps[i] = (CLRDATA_ADDRESS)HeapTableIndex(g_gcDacGlobals->g_heaps, i).GetAddr();
     }
 
     return S_OK;
-    /*
-    TADDR ptr = (TADDR)*g_gcDacGlobals->g_heaps;
-    ULONG32 bytesRead = 0;    
-    
-    for (int i=0;i<GCHeapCount();i++)
-    {
-        
-        LPVOID pGCHeapAddr;
-
-        // read the i-th element of g_heaps into pGCHeapAddr
-        // @todo Microsoft: Again, if we capture the HRESULT from ReadVirtual, we can print a more explanatory
-        // failure message. 
-        if (pTarget->ReadVirtual(ptr + i*sizeof(TADDR),
-                                 (PBYTE) &pGCHeapAddr, sizeof(TADDR),
-                                 &bytesRead) != S_OK)
-        {
-            return E_FAIL;
-        }
-        if (bytesRead != sizeof(LPVOID))
-        {
-            return E_FAIL;
-        }
-
-        // store the heap's starting address in our array. 
-        pGCHeaps[i] = (CLRDATA_ADDRESS)(ULONG_PTR) pGCHeapAddr;
-    }
-    return S_OK;
-    */
 }
 
 #define PTR_CDADDR(ptr)   TO_CDADDR(PTR_TO_TADDR(ptr))
@@ -111,7 +83,7 @@ HRESULT ClrDataAccess::GetServerAllocData(unsigned int count, struct DacpGenerat
         if (count > heaps)
             count = heaps;
         
-        for (int n=0; n < heaps; n++)
+        for (unsigned int n=0; n < heaps; n++)
         {
             DPTR(dac_gc_heap) pHeap = HeapTableIndex(g_gcDacGlobals->g_heaps, n);
             for (int i=0;i<NUMBERGENERATIONS;i++)
@@ -146,17 +118,14 @@ HRESULT ClrDataAccess::ServerGCHeapDetails(CLRDATA_ADDRESS heapAddr, DacpGcHeapD
     
     // now get information specific to this heap (server mode gives us several heaps; we're getting
     // information about only one of them. 
-    DPTR(uint8_t*) alloc_allocated = dac_cast<TADDR>(pHeap) + offsetof(dac_gc_heap, alloc_allocated);
-    detailsData->alloc_allocated = (CLRDATA_ADDRESS)*alloc_allocated;
-
-    DPTR(dac_heap_segment*) ephemeral_seg = dac_cast<TADDR>(pHeap) + offsetof(dac_gc_heap, ephemeral_heap_segment);
-    detailsData->ephemeral_heap_segment = (CLRDATA_ADDRESS)*ephemeral_seg;
+    detailsData->alloc_allocated = (CLRDATA_ADDRESS)*READ_FIELD(pHeap, alloc_allocated);
+    detailsData->ephemeral_heap_segment = (CLRDATA_ADDRESS)*READ_FIELD(pHeap, ephemeral_heap_segment);
 
     // get bounds for the different generations
     for (i=0; i<NUMBERGENERATIONS; i++)
     {
-        dac_generation generation = pHeap->generation_table[i];
-        detailsData->generation_table[i].start_segment     = (CLRDATA_ADDRESS)dac_cast<TADDR>(generation.start_segment);
+        dac_generation generation = *ServerGenerationTableIndex(pHeap, i);
+        detailsData->generation_table[i].start_segment     = (CLRDATA_ADDRESS)generation.start_segment.GetAddr();
         detailsData->generation_table[i].allocation_start   = (CLRDATA_ADDRESS)(ULONG_PTR) generation.allocation_start;
         detailsData->generation_table[i].allocContextPtr    = (CLRDATA_ADDRESS)(ULONG_PTR) generation.allocation_context.alloc_ptr;
         detailsData->generation_table[i].allocContextLimit = (CLRDATA_ADDRESS)(ULONG_PTR) generation.allocation_context.alloc_limit;
@@ -188,9 +157,9 @@ HRESULT ClrDataAccess::ServerGCHeapDetails(CLRDATA_ADDRESS heapAddr, DacpGcHeapD
 HRESULT 
 ClrDataAccess::ServerOomData(CLRDATA_ADDRESS addr, DacpOomData *oomData)
 {
-    dac_gc_heap *pHeap = __DPtr<dac_gc_heap>(TO_TADDR(addr));
+    DPTR(dac_gc_heap) pHeap = __DPtr<dac_gc_heap>(TO_TADDR(addr));
 
-    oom_history* pOOMInfo = (oom_history*)((TADDR)pHeap + offsetof(dac_gc_heap,oom_info));
+    oom_history *pOOMInfo = *READ_FIELD(pHeap, oom_info);
     oomData->reason = pOOMInfo->reason;
     oomData->alloc_size = pOOMInfo->alloc_size;
     oomData->available_pagefile_mb = pOOMInfo->available_pagefile_mb;
@@ -235,12 +204,12 @@ HRESULT ClrDataAccess::ServerGCHeapAnalyzeData(CLRDATA_ADDRESS heapAddr, DacpGcH
         return E_INVALIDARG;
     }
 
-    dac_gc_heap *pHeap = __DPtr<dac_gc_heap>(TO_TADDR(heapAddr));
+    DPTR(dac_gc_heap) pHeap = __DPtr<dac_gc_heap>(TO_TADDR(heapAddr));
 
     analyzeData->heapAddr = heapAddr;
-    analyzeData->internal_root_array = (CLRDATA_ADDRESS)(ULONG_PTR) pHeap->internal_root_array;
-    analyzeData->internal_root_array_index = (size_t) pHeap->internal_root_array_index;
-    analyzeData->heap_analyze_success = (BOOL)pHeap->heap_analyze_success;
+    analyzeData->internal_root_array = (CLRDATA_ADDRESS)*READ_FIELD(pHeap, internal_root_array);
+    analyzeData->internal_root_array_index = (size_t)*READ_FIELD(pHeap, internal_root_array_index);
+    analyzeData->heap_analyze_success = (BOOL)*READ_FIELD(pHeap, heap_analyze_success);
 
     return S_OK;
 }

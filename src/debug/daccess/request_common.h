@@ -19,6 +19,14 @@ DPTR(T) TableIndex(ArrayDPTR(T) base, size_t index, size_t t_size)
     return __DPtr<T>(element_addr); 
 }
 
+// Dereferences a DPTR(T*), yielding a DPTR(T).
+template<typename T>
+DPTR(T) Dereference(DPTR(T*) ptr)
+{
+    TADDR ptr_base = (TADDR)*ptr;
+    return __DPtr<T>(ptr_base);
+}
+
 // Indexes into a given generation table, returning a DPTR to the
 // requested element (the element at the given index) of the table.
 inline DPTR(dac_generation)
@@ -42,9 +50,19 @@ ServerGenerationTableIndex(DPTR(dac_gc_heap) heap, size_t index)
 inline DPTR(dac_gc_heap)
 HeapTableIndex(ArrayDPTR(dac_gc_heap*) heaps, size_t index)
 {
-    DPTR(dac_gc_heap*) ptr = TableIndex(heaps, index, sizeof(dac_gc_heap*));
-    TADDR gc_heap_base = dac_cast<TADDR>(*ptr);
-    return __DPtr<dac_gc_heap>(gc_heap_base);
+    dac_gc_heap *table = *heaps;
+    ArrayDPTR(dac_gc_heap*) heap_table = __ArrayDPtr<dac_gc_heap*>((TADDR)table);
+    DPTR(dac_gc_heap*) ptr = TableIndex(heap_table, index, sizeof(dac_gc_heap*));
+    return Dereference(ptr);
+}
+
+#define READ_FIELD(base, field) \
+  ReadField<decltype(&base->field), std::remove_reference<decltype(*base)>::type>(base, offsetof(std::remove_reference<decltype(*base)>::type, field))
+template<typename T, typename R>
+DPTR(T) ReadField(DPTR(R) base, size_t offset)
+{
+    DPTR(T) offset_ptr = dac_cast<TADDR>(base) + offset;
+    return offset_ptr;
 }
 
 #endif // _REQUEST_COMMON_H_

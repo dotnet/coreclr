@@ -131,7 +131,7 @@ public:
     // "generation_size" stores the size of the generation class, so the DAC can
     // use it and pointer arithmetic to calculate correct offsets into the generation
     // table. (See "GenerationTableIndex" function in the DAC for details)
-    dac_generation generation_table[0];
+    dac_generation generation_table[1];
 };
 
 
