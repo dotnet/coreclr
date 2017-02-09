@@ -212,12 +212,11 @@ namespace System {
             throw GetInvalidOperationException(ExceptionResource.InvalidOperation_EnumOpCantHappen);
         }
 
-        internal static void ThrowArraySegmentCtorValidationFailedExceptions(object array, int offset, int count) {
-            Debug.Assert(array is Array);
+        internal static void ThrowArraySegmentCtorValidationFailedExceptions(Array array, int offset, int count) {
             throw GetArraySegmentCtorValidationFailedException(array, offset, count);
         }
 
-        private static Exception GetArraySegmentCtorValidationFailedException(object array, int offset, int count) {
+        private static Exception GetArraySegmentCtorValidationFailedException(Array array, int offset, int count) {
             if (array == null)
                 return GetArgumentNullException(ExceptionArgument.array);
             if (offset < 0)
@@ -225,7 +224,7 @@ namespace System {
             if (count < 0)
                 return GetArgumentOutOfRangeException(ExceptionArgument.count, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
 
-            Debug.Assert((array as Array).Length - offset < count);
+            Debug.Assert(array.Length - offset < count);
             return GetArgumentException(ExceptionResource.Argument_InvalidOffLen);
         }
 
