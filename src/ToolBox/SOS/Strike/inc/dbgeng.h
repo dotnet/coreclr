@@ -1941,7 +1941,7 @@ DECLARE_INTERFACE_(IDebugClient2, IUnknown)
         THIS_
         __in ULONG Flags,
         __in PCSTR Options,
-       __in_opt __clr_reserved PVOID Reserved
+        __in_opt __clr_reserved PVOID Reserved
         ) PURE;
     STDMETHOD(ConnectProcessServer)(
         THIS_
