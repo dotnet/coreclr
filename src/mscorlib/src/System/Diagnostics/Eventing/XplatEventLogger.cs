@@ -23,6 +23,9 @@ namespace System.Diagnostics.Tracing
 
         private static bool initializedPersistentListener = false;
 
+#if !CORECLR
+        [System.Security.SecuritySafeCritical]
+#endif // !CORECLR
         public static EventListener InitializePersistentListener()
         {
             try{
@@ -149,6 +152,9 @@ namespace System.Diagnostics.Tracing
             }
         }
 
+#if !CORECLR
+        [System.Security.SecuritySafeCritical]
+#endif // !CORECLR
         private void LogOnEventWritten(EventWrittenEventArgs eventData)
         {
             string payload = "";
