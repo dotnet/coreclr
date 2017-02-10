@@ -3903,7 +3903,7 @@ void Compiler::compSetOptimizationLevel()
             }
         }
     }
-#else  // !DEBUG
+#else // !DEBUG
 #if defined(OPT_CONFIG)
     theMinOptsValue = JitConfig.JitMinOpts() != 0;
 #endif // OPT_CONFIG
