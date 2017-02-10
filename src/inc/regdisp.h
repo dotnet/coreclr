@@ -44,18 +44,25 @@ struct REGDISPLAY_BASE {
     Thread *_pThread;
 #endif // DEBUG_REGDISPLAY
 
-#if defined(_TARGET_X86_) || defined(_TARGET_ARM_)
-    DWORD   SP;                // Stack Pointer
-    PCODE   ControlPC;
-#else // _TARGET_X86_ || _TARGET_ARM_
-    size_t  SP;
-    size_t  ControlPC;
-#endif // !_TARGET_X86_ && !_TARGET_ARM
+    TADDR SP;
+    TADDR ControlPC;
 };
 
 inline PCODE GetControlPC(REGDISPLAY_BASE *pRD) {
     LIMITED_METHOD_DAC_CONTRACT;
     return (PCODE)(pRD->ControlPC);
+}
+
+inline TADDR GetRegdisplaySP(REGDISPLAY_BASE *pRD) {
+    LIMITED_METHOD_DAC_CONTRACT;
+
+    return pRD->SP;
+}
+
+inline void SetRegdisplaySP(REGDISPLAY_BASE *pRD, LPVOID sp) {
+    LIMITED_METHOD_DAC_CONTRACT;
+
+    pRD->SP = (TADDR)sp;
 }
 
 #if defined(_TARGET_X86_)
@@ -105,18 +112,6 @@ struct REGDISPLAY : public REGDISPLAY_BASE {
 
     TADDR   PCTAddr;
 };
-
-inline TADDR GetRegdisplaySP(REGDISPLAY *display) {
-    LIMITED_METHOD_DAC_CONTRACT;
-
-    return (TADDR)display->SP;
-}
-
-inline void SetRegdisplaySP(REGDISPLAY *display, LPVOID sp ) {
-    LIMITED_METHOD_DAC_CONTRACT;
-
-    (display->SP) = (DWORD)(size_t)sp;
-}
 
 inline TADDR GetRegdisplayFP(REGDISPLAY *display) {
     LIMITED_METHOD_DAC_CONTRACT;
@@ -195,10 +190,6 @@ struct REGDISPLAY : public REGDISPLAY_BASE {
     }
 };
 
-inline TADDR GetRegdisplaySP(REGDISPLAY *display) {
-    LIMITED_METHOD_DAC_CONTRACT;
-    return (TADDR)display->SP;
-}
 
 inline TADDR GetRegdisplayFP(REGDISPLAY *display) {
     LIMITED_METHOD_CONTRACT;
@@ -209,9 +200,6 @@ inline TADDR GetRegdisplayFPAddress(REGDISPLAY *display) {
     LIMITED_METHOD_CONTRACT;
     return NULL; 
 }
-
-
-
 
 // This function tells us if the given stack pointer is in one of the frames of the functions called by the given frame
 inline BOOL IsInCalleesFrames(REGDISPLAY *display, LPVOID stackPointer)
@@ -237,7 +225,6 @@ inline TADDR GetRegdisplayStackMark(REGDISPLAY *display)
     return NULL;
 #endif // _TARGET_AMD64_
 }
-
 
 #elif defined(_TARGET_ARM_)
 
@@ -274,13 +261,6 @@ struct REGDISPLAY : public REGDISPLAY_BASE {
     }
 };
 
-inline TADDR GetRegdisplaySP(REGDISPLAY *display) {
-    LIMITED_METHOD_DAC_CONTRACT;
-    return (TADDR)(size_t)display->SP;
-}
-
-
-
 // This function tells us if the given stack pointer is in one of the frames of the functions called by the given frame
 inline BOOL IsInCalleesFrames(REGDISPLAY *display, LPVOID stackPointer) {
     LIMITED_METHOD_CONTRACT;
@@ -302,12 +282,6 @@ struct REGDISPLAY : public REGDISPLAY_BASE {
     size_t * FramePtr;
     SLOT   * pPC;
 };
-
-
-inline LPVOID GetRegdisplaySP(REGDISPLAY *display) {
-    LIMITED_METHOD_DAC_CONTRACT;
-    return (LPVOID)display->SP;
-}
 
 inline TADDR GetRegdisplayFP(REGDISPLAY *display) {
     LIMITED_METHOD_CONTRACT;
