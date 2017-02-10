@@ -47,7 +47,7 @@ namespace System {
         //
         internal unsafe static int IndexOfByte(byte* src, byte value, int index, int count)
         {
-            Debug.Assert(src != null, "src should not be null");
+            Debug.Assert(src != null);
 
             byte* pByte = src + index;
 
@@ -249,332 +249,231 @@ namespace System {
         [MethodImplAttribute(MethodImplOptions.AggressiveInlining)]
         internal unsafe static void Memcpy(byte* dest, byte* src, int len) {
             Debug.Assert(len >= 0, "Negative length in memcopy!");
-            Memmove(dest, src, (uint)len);
+            MemoryCopyCore(dest, src, (uint)len);
         }
 #endif // ARM
 
-        // This method has different signature for x64 and other platforms and is done for performance reasons.
+        // This method has different signature for x64 and other platforms for performance reasons.
         [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
-        internal unsafe static void Memmove(byte* dest, byte* src, nuint len)
+        internal unsafe static void MemoryCopyCore(byte* destination, byte* source, nuint length)
         {
-            // P/Invoke into the native version when the buffers are overlapping and the copy needs to be performed backwards
-            // This check can produce false positives for lengths greater than Int32.MaxInt. It is fine because we want to use PInvoke path for the large lengths anyway.
+#if AMD64
+            const nuint PInvokeThreshold = 1024;
+            const nuint CopyAlignment = 16; // SIMD is enabled for AMD64, so align on a 16-byte boundary
+            const nuint BytesPerIteration = 64;
+#else
+            const nuint PInvokeThreshold = 512;
+            const nuint CopyAlignment = 4; // Align on a 4-byte boundary
+            const nuint BytesPerIteration = 16;
+#endif
 
-            if ((nuint)dest - (nuint)src < len) goto PInvoke;
+            // P/Invoke into the native version when the buffers are overlapping and the copy needs to be performed backwards.
+            // This check can produce false positives for very large lengths if the destination is behind the source.
+            // It is fine because we would take the P/Invoke path later for such large lengths anyway.
 
-            // This is portable version of memcpy. It mirrors what the hand optimized assembly versions of memcpy typically do.
-            //
-            // Ideally, we would just use the cpblk IL instruction here. Unfortunately, cpblk IL instruction is not as efficient as
-            // possible yet and so we have this implementation here for now.
+            if ((nuint)destination - (nuint)source < length)
+            {
+                goto PInvoke;
+            }
+            
+            // Currently, the following code seems to be faster than `Unsafe.CopyBlock` in benchmarks. If that is no longer
+            // the case after changes to the JIT, the below code can simply be replaced with a call to that method.
 
-            // Note: It's important that this switch handles lengths at least up to 22.
-            // See notes below near the main loop for why.
-
-            // The switch will be very fast since it can be implemented using a jump
-            // table in assembly. See http://stackoverflow.com/a/449297/4077294 for more info.
-
-            switch (len)
+            // This switch will be fast since it is compiled into a jump table in assembly.
+            // See http://stackoverflow.com/a/449297/4077294 for more info.
+            switch (length)
             {
             case 0:
                 return;
             case 1:
-                *dest = *src;
+                *destination = *source;
                 return;
             case 2:
-                *(short*)dest = *(short*)src;
+                *(short*)destination = *(short*)source;
                 return;
             case 3:
-                *(short*)dest = *(short*)src;
-                *(dest + 2) = *(src + 2);
+                *(short*)destination = *(short*)source;
+                *(destination + 2) = *(source + 2);
                 return;
             case 4:
-                *(int*)dest = *(int*)src;
+                *(int*)destination = *(int*)source;
                 return;
             case 5:
-                *(int*)dest = *(int*)src;
-                *(dest + 4) = *(src + 4);
+                *(int*)destination = *(int*)source;
+                *(destination + 4) = *(source + 4);
                 return;
             case 6:
-                *(int*)dest = *(int*)src;
-                *(short*)(dest + 4) = *(short*)(src + 4);
+                *(int*)destination = *(int*)source;
+                *(short*)(destination + 4) = *(short*)(source + 4);
                 return;
             case 7:
-                *(int*)dest = *(int*)src;
-                *(short*)(dest + 4) = *(short*)(src + 4);
-                *(dest + 6) = *(src + 6);
+                *(int*)destination = *(int*)source;
+                *(short*)(destination + 4) = *(short*)(source + 4);
+                *(destination + 6) = *(source + 6);
                 return;
             case 8:
 #if BIT64
-                *(long*)dest = *(long*)src;
+                *(long*)destination = *(long*)source;
 #else
-                *(int*)dest = *(int*)src;
-                *(int*)(dest + 4) = *(int*)(src + 4);
+                *(int*)destination = *(int*)source;
+                *(int*)(destination + 4) = *(int*)(source + 4);
 #endif
                 return;
             case 9:
 #if BIT64
-                *(long*)dest = *(long*)src;
+                *(long*)destination = *(long*)source;
 #else
-                *(int*)dest = *(int*)src;
-                *(int*)(dest + 4) = *(int*)(src + 4);
+                *(int*)destination = *(int*)source;
+                *(int*)(destination + 4) = *(int*)(source + 4);
 #endif
-                *(dest + 8) = *(src + 8);
+                *(destination + 8) = *(source + 8);
                 return;
             case 10:
 #if BIT64
-                *(long*)dest = *(long*)src;
+                *(long*)destination = *(long*)source;
 #else
-                *(int*)dest = *(int*)src;
-                *(int*)(dest + 4) = *(int*)(src + 4);
+                *(int*)destination = *(int*)source;
+                *(int*)(destination + 4) = *(int*)(source + 4);
 #endif
-                *(short*)(dest + 8) = *(short*)(src + 8);
+                *(short*)(destination + 8) = *(short*)(source + 8);
                 return;
             case 11:
 #if BIT64
-                *(long*)dest = *(long*)src;
+                *(long*)destination = *(long*)source;
 #else
-                *(int*)dest = *(int*)src;
-                *(int*)(dest + 4) = *(int*)(src + 4);
+                *(int*)destination = *(int*)source;
+                *(int*)(destination + 4) = *(int*)(source + 4);
 #endif
-                *(short*)(dest + 8) = *(short*)(src + 8);
-                *(dest + 10) = *(src + 10);
+                *(short*)(destination + 8) = *(short*)(source + 8);
+                *(destination + 10) = *(source + 10);
                 return;
             case 12:
 #if BIT64
-                *(long*)dest = *(long*)src;
+                *(long*)destination = *(long*)source;
 #else
-                *(int*)dest = *(int*)src;
-                *(int*)(dest + 4) = *(int*)(src + 4);
+                *(int*)destination = *(int*)source;
+                *(int*)(destination + 4) = *(int*)(source + 4);
 #endif
-                *(int*)(dest + 8) = *(int*)(src + 8);
+                *(int*)(destination + 8) = *(int*)(source + 8);
                 return;
             case 13:
 #if BIT64
-                *(long*)dest = *(long*)src;
+                *(long*)destination = *(long*)source;
 #else
-                *(int*)dest = *(int*)src;
-                *(int*)(dest + 4) = *(int*)(src + 4);
+                *(int*)destination = *(int*)source;
+                *(int*)(destination + 4) = *(int*)(source + 4);
 #endif
-                *(int*)(dest + 8) = *(int*)(src + 8);
-                *(dest + 12) = *(src + 12);
+                *(int*)(destination + 8) = *(int*)(source + 8);
+                *(destination + 12) = *(source + 12);
                 return;
             case 14:
 #if BIT64
-                *(long*)dest = *(long*)src;
+                *(long*)destination = *(long*)source;
 #else
-                *(int*)dest = *(int*)src;
-                *(int*)(dest + 4) = *(int*)(src + 4);
+                *(int*)destination = *(int*)source;
+                *(int*)(destination + 4) = *(int*)(source + 4);
 #endif
-                *(int*)(dest + 8) = *(int*)(src + 8);
-                *(short*)(dest + 12) = *(short*)(src + 12);
+                *(int*)(destination + 8) = *(int*)(source + 8);
+                *(short*)(destination + 12) = *(short*)(source + 12);
                 return;
             case 15:
 #if BIT64
-                *(long*)dest = *(long*)src;
+                *(long*)destination = *(long*)source;
 #else
-                *(int*)dest = *(int*)src;
-                *(int*)(dest + 4) = *(int*)(src + 4);
+                *(int*)destination = *(int*)source;
+                *(int*)(destination + 4) = *(int*)(source + 4);
 #endif
-                *(int*)(dest + 8) = *(int*)(src + 8);
-                *(short*)(dest + 12) = *(short*)(src + 12);
-                *(dest + 14) = *(src + 14);
-                return;
-            case 16:
-#if BIT64
-                *(long*)dest = *(long*)src;
-                *(long*)(dest + 8) = *(long*)(src + 8);
-#else
-                *(int*)dest = *(int*)src;
-                *(int*)(dest + 4) = *(int*)(src + 4);
-                *(int*)(dest + 8) = *(int*)(src + 8);
-                *(int*)(dest + 12) = *(int*)(src + 12);
-#endif
-                return;
-            case 17:
-#if BIT64
-                *(long*)dest = *(long*)src;
-                *(long*)(dest + 8) = *(long*)(src + 8);
-#else
-                *(int*)dest = *(int*)src;
-                *(int*)(dest + 4) = *(int*)(src + 4);
-                *(int*)(dest + 8) = *(int*)(src + 8);
-                *(int*)(dest + 12) = *(int*)(src + 12);
-#endif
-                *(dest + 16) = *(src + 16);
-                return;
-            case 18:
-#if BIT64
-                *(long*)dest = *(long*)src;
-                *(long*)(dest + 8) = *(long*)(src + 8);
-#else
-                *(int*)dest = *(int*)src;
-                *(int*)(dest + 4) = *(int*)(src + 4);
-                *(int*)(dest + 8) = *(int*)(src + 8);
-                *(int*)(dest + 12) = *(int*)(src + 12);
-#endif
-                *(short*)(dest + 16) = *(short*)(src + 16);
-                return;
-            case 19:
-#if BIT64
-                *(long*)dest = *(long*)src;
-                *(long*)(dest + 8) = *(long*)(src + 8);
-#else
-                *(int*)dest = *(int*)src;
-                *(int*)(dest + 4) = *(int*)(src + 4);
-                *(int*)(dest + 8) = *(int*)(src + 8);
-                *(int*)(dest + 12) = *(int*)(src + 12);
-#endif
-                *(short*)(dest + 16) = *(short*)(src + 16);
-                *(dest + 18) = *(src + 18);
-                return;
-            case 20:
-#if BIT64
-                *(long*)dest = *(long*)src;
-                *(long*)(dest + 8) = *(long*)(src + 8);
-#else
-                *(int*)dest = *(int*)src;
-                *(int*)(dest + 4) = *(int*)(src + 4);
-                *(int*)(dest + 8) = *(int*)(src + 8);
-                *(int*)(dest + 12) = *(int*)(src + 12);
-#endif
-                *(int*)(dest + 16) = *(int*)(src + 16);
-                return;
-            case 21:
-#if BIT64
-                *(long*)dest = *(long*)src;
-                *(long*)(dest + 8) = *(long*)(src + 8);
-#else
-                *(int*)dest = *(int*)src;
-                *(int*)(dest + 4) = *(int*)(src + 4);
-                *(int*)(dest + 8) = *(int*)(src + 8);
-                *(int*)(dest + 12) = *(int*)(src + 12);
-#endif
-                *(int*)(dest + 16) = *(int*)(src + 16);
-                *(dest + 20) = *(src + 20);
-                return;
-            case 22:
-#if BIT64
-                *(long*)dest = *(long*)src;
-                *(long*)(dest + 8) = *(long*)(src + 8);
-#else
-                *(int*)dest = *(int*)src;
-                *(int*)(dest + 4) = *(int*)(src + 4);
-                *(int*)(dest + 8) = *(int*)(src + 8);
-                *(int*)(dest + 12) = *(int*)(src + 12);
-#endif
-                *(int*)(dest + 16) = *(int*)(src + 16);
-                *(short*)(dest + 20) = *(short*)(src + 20);
+                *(int*)(destination + 8) = *(int*)(source + 8);
+                *(short*)(destination + 12) = *(short*)(source + 12);
+                *(destination + 14) = *(source + 14);
                 return;
             }
 
             // P/Invoke into the native version for large lengths
-            if (len >= 512) goto PInvoke;
-
-            nuint i = 0; // byte offset at which we're copying
-
-            if (((int)dest & 3) != 0)
+            if (length > PInvokeThreshold)
             {
-                if (((int)dest & 1) != 0)
-                {
-                    *(dest + i) = *(src + i);
-                    i += 1;
-                    if (((int)dest & 2) != 0)
-                        goto IntAligned;
-                }
-                *(short*)(dest + i) = *(short*)(src + i);
-                i += 2;
+                goto PInvoke;
             }
+            
+            // We've already handled lengths 0-15, so we can write at least 16 bytes.
+            // This calculates the offset of the next aligned address we know it's okay to write up to.
+            Debug.Assert(length >= 16);
+            nuint offset = 16 - ((nuint)destination % CopyAlignment);
 
-            IntAligned:
+            Debug.Assert(offset > 0 && offset <= 16);
+            Debug.Assert((nuint)(destination + offset) % CopyAlignment == 0);
 
-#if BIT64
-            // On 64-bit IntPtr.Size == 8, so we want to advance to the next 8-aligned address. If
-            // (int)dest % 8 is 0, 5, 6, or 7, we will already have advanced by 0, 3, 2, or 1
-            // bytes to the next aligned address (respectively), so do nothing. On the other hand,
-            // if it is 1, 2, 3, or 4 we will want to copy-and-advance another 4 bytes until
-            // we're aligned.
-            // The thing 1, 2, 3, and 4 have in common that the others don't is that if you
-            // subtract one from them, their 3rd lsb will not be set. Hence, the below check.
-
-            if ((((int)dest - 1) & 4) == 0)
-            {
-                *(int*)(dest + i) = *(int*)(src + i);
-                i += 4;
-            }
-#endif // BIT64
-
-            nuint end = len - 16;
-            len -= i; // lower 4 bits of len represent how many bytes are left *after* the unrolled loop
-
-            // We know due to the above switch-case that this loop will always run 1 iteration; max
-            // bytes we copy before checking is 23 (7 to align the pointers, 16 for 1 iteration) so
-            // the switch handles lengths 0-22.
-            Debug.Assert(end >= 7 && i <= end);
-
-            // This is separated out into a different variable, so the i + 16 addition can be
-            // performed at the start of the pipeline and the loop condition does not have
-            // a dependency on the writes.
-            nuint counter; 
-
-            do
-            {
-                counter = i + 16;
-
-                // This loop looks very costly since there appear to be a bunch of temporary values
-                // being created with the adds, but the jit (for x86 anyways) will convert each of
-                // these to use memory addressing operands.
-
-                // So the only cost is a bit of code size, which is made up for by the fact that
-                // we save on writes to dest/src.
-
-#if BIT64
-                *(long*)(dest + i) = *(long*)(src + i);
-                *(long*)(dest + i + 8) = *(long*)(src + i + 8);
+#if AMD64
+            // SIMD is enabled for AMD64. Take advantage of that and use movdqu
+            *(Block16*)destination = *(Block16*)source;
 #else
-                *(int*)(dest + i) = *(int*)(src + i);
-                *(int*)(dest + i + 4) = *(int*)(src + i + 4);
-                *(int*)(dest + i + 8) = *(int*)(src + i + 8);
-                *(int*)(dest + i + 12) = *(int*)(src + i + 12);
+            // Make one unaligned 4-byte write, then 3 aligned 4-byte writes.
+            *(int*)destination = source;
+            *(int*)(destination + offset - 12) = *(int*)(source + offset - 12);
+            *(int*)(destination + offset - 8) = *(int*)(source + offset - 8);
+            *(int*)(destination + offset - 4) = *(int*)(source + offset - 4);
 #endif
 
-                i = counter;
-                
-                // See notes above for why this wasn't used instead
-                // i += 16;
-            }
-            while (counter <= end);
-
-            if ((len & 8) != 0)
+            // Catch unsigned overflow before we do the subtraction.
+            if (length < BytesPerIteration)
             {
-#if BIT64
-                *(long*)(dest + i) = *(long*)(src + i);
+                goto AfterUnrolledCopy;
+            }
+
+            nuint endOffset = length - BytesPerIteration;
+            
+            while (offset <= endOffset)
+            {
+#if AMD64
+                // Write 64 bytes at a time, taking advantage of xmm register on AMD64
+                // This will be translated to 4 movdqus (maybe movdqas in the future, see dotnet/coreclr#2725)
+                *(Block64*)destination = *(Block64*)source;
 #else
-                *(int*)(dest + i) = *(int*)(src + i);
-                *(int*)(dest + i + 4) = *(int*)(src + i + 4);
+                // Write 16 bytes at a time, via 4 4-byte writes.
+                *(int*)(destination + offset) = *(int*)(source + offset);
+                *(int*)(destination + offset + 4) = *(int*)(source + offset + 4);
+                *(int*)(destination + offset + 8) = *(int*)(source + offset + 8);
+                *(int*)(destination + offset + 12) = *(int*)(source + offset + 12);
 #endif
-                i += 8;
-            }
-            if ((len & 4) != 0) 
-            {
-                *(int*)(dest + i) = *(int*)(src + i);
-                i += 4;
-            }
-            if ((len & 2) != 0) 
-            {
-                *(short*)(dest + i) = *(short*)(src + i);
-                i += 2;
-            }
-            if ((len & 1) != 0)
-            {
-                *(dest + i) = *(src + i);
-                // We're not using i after this, so not needed
-                // i += 1;
+                offset += BytesPerIteration;
             }
 
+            AfterUnrolledCopy:
+
+            Debug.Assert((nuint)(destination + offset) % CopyAlignment == 0);
+
+            nuint remainingLength = length - offset;
+            Debug.Assert(remainingLength < BytesPerIteration);
+
+            // Finish up the copy by dividing it into blocks of smaller powers of 2.
+            // The bits of `remainingLength` tells us how it can be expressed as a sum of powers of 2.
+
+#if AMD64
+            if ((remainingLength & 32) != 0)
+            {
+                *(Block32*)(destination + offset) = *(Block32*)(source + offset);
+                offset += 32;
+            }
+
+            if ((remainingLength & 16) != 0)
+            {
+                *(Block16*)(destination + offset) = *(Block16*)(source + offset);
+                offset += 16;
+            }
+
+            // Make one potentially unaligned write and quit.
+            *(Block16*)(destination + length - 16) = *(Block16*)(source + length - 16);
+#else
+            // Make 3 aligned 4-byte writes, then one unaligned 4-byte write.
+            *(int*)(destination + offset) = *(int*)(source + offset);
+            *(int*)(destination + offset + 4) = *(int*)(source + offset + 4);
+            *(int*)(destination + offset + 8) = *(int*)(source + offset + 8);
+            *(int*)(destination + length - 4) = *(int*)(source + length - 4);
+#endif
             return;
 
             PInvoke:
-            _Memmove(dest, src, len);
+            _Memmove(destination, source, length);
 
         }
 
@@ -602,7 +501,7 @@ namespace System {
             {
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.sourceBytesToCopy);
             }
-            Memmove((byte*)destination, (byte*)source, checked((nuint)sourceBytesToCopy));
+            MemoryCopyCore((byte*)destination, (byte*)source, checked((nuint)sourceBytesToCopy));
         }
 
 
@@ -617,10 +516,19 @@ namespace System {
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.sourceBytesToCopy);
             }
 #if BIT64
-            Memmove((byte*)destination, (byte*)source, sourceBytesToCopy);
+            MemoryCopyCore((byte*)destination, (byte*)source, sourceBytesToCopy);
 #else // BIT64
-            Memmove((byte*)destination, (byte*)source, checked((uint)sourceBytesToCopy));
+            MemoryCopyCore((byte*)destination, (byte*)source, checked((uint)sourceBytesToCopy));
 #endif // BIT64
         }
+
+        [StructLayout(LayoutKind.Sequential, Size = 16)]
+        private struct Block16 { }
+
+        [StructLayout(LayoutKind.Sequential, Size = 32)]
+        private struct Block32 { }
+
+        [StructLayout(LayoutKind.Sequential, Size = 64)]
+        private struct Block64 { }
     }
 }

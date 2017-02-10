@@ -604,9 +604,9 @@ namespace System
                     fixed (byte* pSource = &Unsafe.As<T, byte>(ref source))
                     {
 #if BIT64
-                        Buffer.Memmove(pDestination, pSource, (ulong)elementsCount * (ulong)Unsafe.SizeOf<T>());
+                        Buffer.MemoryCopyCore(pDestination, pSource, (ulong)elementsCount * (ulong)Unsafe.SizeOf<T>());
 #else
-                        Buffer.Memmove(pDestination, pSource, (uint)elementsCount * (uint)Unsafe.SizeOf<T>());
+                        Buffer.MemoryCopyCore(pDestination, pSource, (uint)elementsCount * (uint)Unsafe.SizeOf<T>());
 #endif
                     }
                 }
