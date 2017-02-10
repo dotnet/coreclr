@@ -4090,7 +4090,7 @@ void Compiler::lvaFixVirtualFrameOffsets()
 {
     LclVarDsc* varDsc;
 
-#if FEATURE_EH_FUNCLETS && defined(_TARGET_AMD64_)
+#if FEATURE_EH_FUNCLETS && defined(_TARGET_XARCH_)
     if (lvaPSPSym != BAD_VAR_NUM)
     {
         // We need to fix the offset of the PSPSym so there is no padding between it and the outgoing argument space.
@@ -4099,7 +4099,10 @@ void Compiler::lvaFixVirtualFrameOffsets()
         varDsc = &lvaTable[lvaPSPSym];
         assert(varDsc->lvFramePointerBased); // We always access it RBP-relative.
         assert(!varDsc->lvMustInit);         // It is never "must init".
-        varDsc->lvStkOffs = codeGen->genCallerSPtoInitialSPdelta() + lvaLclSize(lvaOutgoingArgSpaceVar);
+        varDsc->lvStkOffs = codeGen->genCallerSPtoInitialSPdelta();
+#if FEATURE_FIXED_OUT_ARGS
+        varDsc->lvStkOffs += lvaLclSize(lvaOutgoingArgSpaceVar);
+#endif
     }
 #endif
 
@@ -5509,7 +5512,7 @@ void Compiler::lvaAssignVirtualFrameOffsetsToLocals()
         }
     }
 
-#if FEATURE_EH_FUNCLETS && defined(_TARGET_AMD64_)
+#if FEATURE_EH_FUNCLETS && defined(_TARGET_XARCH_)
     if (lvaPSPSym != BAD_VAR_NUM)
     {
         // On AMD64, if we need a PSPSym, allocate it last, immediately above the outgoing argument
@@ -5518,7 +5521,7 @@ void Compiler::lvaAssignVirtualFrameOffsetsToLocals()
         noway_assert(codeGen->isFramePointerUsed()); // We need an explicit frame pointer
         stkOffs = lvaAllocLocalAndSetVirtualOffset(lvaPSPSym, TARGET_POINTER_SIZE, stkOffs);
     }
-#endif // FEATURE_EH_FUNCLETS && defined(_TARGET_AMD64_)
+#endif // FEATURE_EH_FUNCLETS && defined(_TARGET_XARCH_)
 
 #ifdef _TARGET_ARM64_
     if (isFramePointerUsed())

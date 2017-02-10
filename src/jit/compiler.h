@@ -1784,11 +1784,7 @@ public:
     // a PSPSym for functions with any EH.
     bool ehNeedsPSPSym() const
     {
-#ifdef _TARGET_X86_
-        return false;
-#else  // _TARGET_X86_
         return compHndBBtabCount > 0;
-#endif // _TARGET_X86_
     }
 
     bool     ehAnyFunclets();  // Are there any funclets in this function?

@@ -10284,12 +10284,21 @@ void CodeGen::genFuncletProlog(BasicBlock* block)
 
     ScopedSetVariable<bool> _setGeneratingProlog(&compiler->compGeneratingProlog, true);
 
+    gcInfo.gcResetForBB();
+
     compiler->unwindBegProlog();
 
-    // TODO Save callee-saved registers
+    inst_RV(INS_push, REG_FPBASE, TYP_REF);
+    compiler->unwindPush(REG_FPBASE);
+
+    inst_RV(INS_push, REG_EBX, TYP_REF);
+    inst_RV(INS_push, REG_ESI, TYP_REF);
+    inst_RV(INS_push, REG_EDI, TYP_REF);
 
     // This is the end of the OS-reported prolog for purposes of unwinding
     compiler->unwindEndProlog();
+
+    getEmitter()->emitIns_R_R(INS_mov, EA_PTRSIZE, REG_EXCEPTION_OBJECT, REG_ECX);
 }
 
 /*****************************************************************************
@@ -10308,7 +10317,11 @@ void CodeGen::genFuncletEpilog()
 
     ScopedSetVariable<bool> _setGeneratingEpilog(&compiler->compGeneratingEpilog, true);
 
-    // TODO Restore callee-saved registers
+    inst_RV(INS_pop, REG_EDI, TYP_REF);
+    inst_RV(INS_pop, REG_ESI, TYP_REF);
+    inst_RV(INS_pop, REG_EBX, TYP_REF);
+
+    inst_RV(INS_pop, REG_EBP, TYP_I_IMPL);
 
     instGen_Return(0);
 }
@@ -10509,6 +10522,16 @@ void CodeGen::genSetPSPSym(regNumber initReg, bool* pInitRegZeroed)
     //     mov     [rbp-20h], rsp       // store the Initial-SP (our current rsp) in the PSPsym
 
     getEmitter()->emitIns_S_R(ins_Store(TYP_I_IMPL), EA_PTRSIZE, REG_SPBASE, compiler->lvaPSPSym, 0);
+
+#elif defined(_TARGET_X86_)
+
+    regNumber regTmp = initReg;
+    *pInitRegZeroed  = false;
+
+    // lea      eax, [ebp + 08H]            ; caller-sp
+    // mov      dword ptr [ebp-??H], eax    ; store in compiler->lvaPSPSym
+    getEmitter()->emitIns_R_AR(INS_lea, EA_PTRSIZE, regTmp, REG_FPBASE, 8);
+    getEmitter()->emitIns_S_R(ins_Store(TYP_I_IMPL), EA_PTRSIZE, regTmp, compiler->lvaPSPSym, 0);
 
 #else // _TARGET_*
 

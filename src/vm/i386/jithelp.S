@@ -720,3 +720,50 @@ LEAF_END JIT_PatchedCodeLast, _TEXT
 LEAF_ENTRY JIT_PatchedCodeEnd, _TEXT
     ret
 LEAF_END JIT_PatchedCodeEnd, _TEXT
+
+// **********************************************************************
+// EH Funclet Helpers (WIN64EXCEPTION)
+
+// This helper enables us to call into a funclet after applying the non-volatiles
+// DWORD_PTR STDCALL CallEHFunclet(Object *pThrowable, UINT_PTR pFuncletToInvoke, UINT_PTR *pFirstNonVolReg, UINT_PTR *pFuncletCallerSP);
+NESTED_ENTRY CallEHFunclet, _TEXT, NoHandler
+
+    PROLOG_BEG
+    PROLOG_PUSH ebx
+    PROLOG_PUSH esi
+    PROLOG_PUSH edi
+    PROLOG_END
+
+    // On entry:
+    //
+    // [ebp+8]  = throwable
+    // [ebp+12] = PC to invoke
+    // [ebp+16] = address of EDI register in CONTEXT record // used to restore the non-volatile registers of CrawlFrame
+    // [ebp+20] = address of the location where the SP of funclet's caller (i.e. this helper) should be saved.
+    //
+
+    // Save the SP of this function
+	mov     ecx, [ebp + 20]
+	mov     [ecx], esp
+    // Save the funclet PC for later call
+	mov     edx, [ebp + 12]
+    // apply the non-volatiles corresponding to the CrawlFrame
+	mov     ecx, [ebp + 16]
+    mov     edi, [ecx]
+    mov     esi, [ecx + 4]
+    mov     ebx, [ecx + 8]
+    mov     ebp, [ecx + 24]
+	// Pass throwable object to funclet
+	mov     ecx, [ebp + 8]
+    // Invoke the funclet
+    call    edx
+
+    EPILOG_BEG
+    EPILOG_POP edi
+    EPILOG_POP esi
+    EPILOG_POP ebx
+    EPILOG_END
+    ret     16
+
+NESTED_END CallEHFunclet, _TEXT
+
