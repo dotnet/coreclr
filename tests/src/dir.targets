@@ -184,4 +184,9 @@
 
   </Target>
 
+  <Target Name="CopyReflectRoots">  
+    <Copy SourceFiles="_reflect.xml" 
+          DestinationFolder="$(OutputPath)"
+	  Condition="Exists('_reflect.xml')"/>  
+  </Target>  
 </Project>
