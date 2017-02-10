@@ -36,7 +36,7 @@ public:
     size_t flags;
     DPTR(dac_heap_segment) next;
     uint8_t* background_allocated;
-    DPTR(class dac_gc_heap) heap;
+    class dac_gc_heap* heap;
 };
 
 // Analogue for the GC generation class, containing information about the start segment
@@ -44,7 +44,7 @@ public:
 class dac_generation {
 public:
     gc_alloc_context allocation_context;
-    DPTR(dac_heap_segment) start_segment;
+    dac_heap_segment* start_segment;
     uint8_t* allocation_start;
 };
 
@@ -112,8 +112,8 @@ struct oom_history
 class dac_gc_heap {
 public:
     uint8_t* alloc_allocated;
-    DPTR(dac_heap_segment) ephemeral_heap_segment;
-    DPTR(dac_finalize_queue) finalize_queue;
+    dac_heap_segment* ephemeral_heap_segment;
+    dac_finalize_queue* finalize_queue;
     oom_history oom_info;
     size_t interesting_data_per_heap[NUM_GC_DATA_POINTS];
     size_t compact_reasons_per_heap[MAX_COMPACT_REASONS_COUNT];
@@ -131,6 +131,9 @@ public:
     // "generation_size" stores the size of the generation class, so the DAC can
     // use it and pointer arithmetic to calculate correct offsets into the generation
     // table. (See "GenerationTableIndex" function in the DAC for details)
+    //
+    // Also note that this array has length 1 because the C++ standard doesn't allow
+    // for 0-length arrays, although every major compiler is willing to tolerate it.
     dac_generation generation_table[1];
 };
 
@@ -148,7 +151,7 @@ struct GcDacVars {
  #define GC_DAC_VAR(type, name) DPTR(type) name;
  // ArrayDPTR doesn't allow decaying arrays to pointers, which
  // avoids some accidental errors.
- #define GC_DAC_ARRAY_VAR(type, name, len) ArrayDPTR(type) name;
+ #define GC_DAC_ARRAY_VAR(type, name) ArrayDPTR(type) name;
 #else
  #define GC_DAC_VAR(type, name) type *name;
 #endif

@@ -2840,25 +2840,17 @@ ClrDataAccess::GetGCHeapStaticData(struct DacpGcHeapDetails *detailsData)
     for (int i=0;i<NUMBERGENERATIONS;i++)
     {
         auto generation = *GenerationTableIndex(g_gcDacGlobals->generation_table, i);
-        detailsData->generation_table[i].start_segment = (CLRDATA_ADDRESS)dac_cast<TADDR>(generation.start_segment);
+        detailsData->generation_table[i].start_segment = (CLRDATA_ADDRESS)generation.start_segment;
         detailsData->generation_table[i].allocation_start = (CLRDATA_ADDRESS)generation.allocation_start;
         detailsData->generation_table[i].allocContextPtr = (CLRDATA_ADDRESS)generation.allocation_context.alloc_ptr;
         detailsData->generation_table[i].allocContextLimit = (CLRDATA_ADDRESS)generation.allocation_context.alloc_limit;
     }
 
-    TADDR pFillPointerArray = dac_cast<TADDR>(g_gcDacGlobals->finalize_queue) + offsetof(dac_finalize_queue, m_FillPointers);
-    for(int i=0 ;i < dac_finalize_queue::ExtraSegCount; i++)
+    dac_finalize_queue *fq = *g_gcDacGlobals->finalize_queue;
+    ArrayDPTR(uint8_t) dfq = __ArrayDPtr<uint8_t>((TADDR)fq + offsetof(dac_finalize_queue, m_FillPointers));
+    for (int i = 0; i<(NUMBERGENERATIONS + dac_finalize_queue::ExtraSegCount); i++)
     {
-        ULONG32 returned = 0;
-        size_t pValue;
-        hr = m_pTarget->ReadVirtual(pFillPointerArray+(i*sizeof(size_t)), (PBYTE)&pValue, sizeof(size_t), &returned);
-        if (SUCCEEDED(hr))
-        {
-            if (returned == sizeof(size_t))
-                detailsData->finalization_fill_pointers[i] = (CLRDATA_ADDRESS) pValue;
-            else
-                hr = E_FAIL;
-        }
+        detailsData->finalization_fill_pointers[i] = *TableIndex(dfq, i, sizeof(uint8_t*));
     }
 
     SOSDacLeave();
@@ -3863,7 +3855,7 @@ ClrDataAccess::EnumWksGlobalMemoryRegions(CLRDataEnumMemoryFlags flags)
                 {
                         DacEnumMemoryRegion(dac_cast<TADDR>(seg), sizeof(dac_heap_segment));
 
-                        seg = __DPtr<dac_heap_segment>(dac_cast<TADDR>(seg->next));
+                        seg = seg->next;
                 }
             }
     }

@@ -25,7 +25,7 @@
 #endif // GC_DAC_VAR
 
 #ifndef GC_DAC_ARRAY_VAR
- #define GC_DAC_ARRAY_VAR(type, name, length) GC_DAC_VAR(type*, name)
+ #define GC_DAC_ARRAY_VAR(type, name) GC_DAC_VAR(type*, name)
 #endif // GC_DAC_ARRAY_VAR
 
 #ifndef GC_DAC_PTR_VAR
@@ -36,8 +36,8 @@
 // GC to the DAC.
 GC_DAC_VAR        (uint8_t,               build_variant)
 GC_DAC_VAR        (bool,                  built_with_svr)
-GC_DAC_ARRAY_VAR  (size_t,                gc_global_mechanisms, MAX_GLOBAL_GC_MECHANISMS_COUNT)
-GC_DAC_ARRAY_VAR  (dac_generation,        generation_table, NUMBERGENERATIONS)
+GC_DAC_ARRAY_VAR  (size_t,                gc_global_mechanisms)
+GC_DAC_ARRAY_VAR  (dac_generation,        generation_table)
 GC_DAC_VAR        (uint32_t,              gc_heap_type)
 GC_DAC_VAR        (uint32_t,              max_gen)
 GC_DAC_PTR_VAR    (uint32_t,              mark_array)
@@ -55,12 +55,12 @@ GC_DAC_PTR_VAR    (uint8_t*,              internal_root_array)
 GC_DAC_VAR        (size_t,                internal_root_array_index)
 GC_DAC_VAR        (BOOL,                  heap_analyze_success)
 GC_DAC_VAR        (int,                   n_heaps)
-GC_DAC_ARRAY_VAR  (dac_gc_heap*,          g_heaps, 0)
+GC_DAC_ARRAY_VAR  (dac_gc_heap*,          g_heaps)
 GC_DAC_VAR        (int32_t,               gc_structures_invalid_cnt)
-GC_DAC_ARRAY_VAR  (size_t,                interesting_data_per_heap, NUM_GC_DATA_POINTS)
-GC_DAC_ARRAY_VAR  (size_t,                compact_reasons_per_heap, MAX_COMPACT_REASONS_COUNT)
-GC_DAC_ARRAY_VAR  (size_t,                expand_mechanisms_per_heap, MAX_EXPAND_MECHANISMS_COUNT)
-GC_DAC_ARRAY_VAR  (size_t,                interesting_mechanism_bits_per_heap, MAX_GC_MECHANISM_BITS_COUNT)
+GC_DAC_ARRAY_VAR  (size_t,                interesting_data_per_heap)
+GC_DAC_ARRAY_VAR  (size_t,                compact_reasons_per_heap)
+GC_DAC_ARRAY_VAR  (size_t,                expand_mechanisms_per_heap)
+GC_DAC_ARRAY_VAR  (size_t,                interesting_mechanism_bits_per_heap)
 
 #undef GC_DAC_VAR
 #undef GC_DAC_ARRAY_VAR

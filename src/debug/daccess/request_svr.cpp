@@ -125,15 +125,14 @@ HRESULT ClrDataAccess::ServerGCHeapDetails(CLRDATA_ADDRESS heapAddr, DacpGcHeapD
     for (i=0; i<NUMBERGENERATIONS; i++)
     {
         dac_generation generation = *ServerGenerationTableIndex(pHeap, i);
-        detailsData->generation_table[i].start_segment     = (CLRDATA_ADDRESS)generation.start_segment.GetAddr();
+        detailsData->generation_table[i].start_segment     = (CLRDATA_ADDRESS)generation.start_segment;
         detailsData->generation_table[i].allocation_start   = (CLRDATA_ADDRESS)(ULONG_PTR) generation.allocation_start;
         detailsData->generation_table[i].allocContextPtr    = (CLRDATA_ADDRESS)(ULONG_PTR) generation.allocation_context.alloc_ptr;
         detailsData->generation_table[i].allocContextLimit = (CLRDATA_ADDRESS)(ULONG_PTR) generation.allocation_context.alloc_limit;
     }
 
-    // since these are all TADDRS, we have to compute the address of the m_FillPointers field explicitly
-    DPTR(dac_finalize_queue) fq = __DPtr<dac_finalize_queue>(pHeap->finalize_queue);
-    TADDR pFillPointerArray = dac_cast<TADDR>(fq) + offsetof(dac_finalize_queue, m_FillPointers);
+    DPTR(dac_finalize_queue) fq = Dereference(Dereference(READ_FIELD(pHeap, finalize_queue)));
+    TADDR pFillPointerArray = dac_cast<TADDR>(*READ_FIELD(fq, m_FillPointers));
 
     for(i=0; i<(NUMBERGENERATIONS+dac_finalize_queue::ExtraSegCount); i++)
     {
@@ -279,7 +278,7 @@ HRESULT DacHeapWalker::InitHeapDataSvr(HeapData *&pHeaps, size_t &pCount)
         pHeaps[i].YoungestGenLimit = (CORDB_ADDRESS)gen0.allocation_context.alloc_limit;
 
         pHeaps[i].Gen0Start = (CORDB_ADDRESS)gen0.allocation_start;
-        pHeaps[i].Gen0End = (CORDB_ADDRESS)heap->alloc_allocated;
+        pHeaps[i].Gen0End = (CORDB_ADDRESS)*READ_FIELD(heap, alloc_allocated);
         pHeaps[i].Gen1Start = (CORDB_ADDRESS)gen1.allocation_start;
         
         // Segments
@@ -297,7 +296,7 @@ HRESULT DacHeapWalker::InitHeapDataSvr(HeapData *&pHeaps, size_t &pCount)
         for (; seg && (j < count); ++j)
         {
             pHeaps[i].Segments[j].Start = (CORDB_ADDRESS)seg->mem;
-            if (seg.GetAddr() == heap->ephemeral_heap_segment.GetAddr())
+            if (seg.GetAddr() == dac_cast<TADDR>(heap->ephemeral_heap_segment))
             {
                 pHeaps[i].Segments[j].End = (CORDB_ADDRESS)heap->alloc_allocated;
                 pHeaps[i].EphemeralSegment = j;
@@ -321,7 +320,7 @@ HRESULT DacHeapWalker::InitHeapDataSvr(HeapData *&pHeaps, size_t &pCount)
             pHeaps[i].Segments[j].Start = (CORDB_ADDRESS)seg->mem;
             pHeaps[i].Segments[j].End = (CORDB_ADDRESS)seg->allocated;
             
-            seg = __DPtr<dac_heap_segment>(seg->next);
+            seg = seg->next;
         }
     }
 
