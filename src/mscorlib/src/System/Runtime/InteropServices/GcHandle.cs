@@ -9,10 +9,8 @@ namespace System.Runtime.InteropServices
     using System.Threading;
     using System.Diagnostics.Contracts;
 #if BIT64
-    using nuint = System.UInt64;
     using nint = System.Int64;
 #else
-    using nuint = System.UInt32;
     using nint = System.Int32;
 #endif
 
@@ -46,13 +44,8 @@ namespace System.Runtime.InteropServices
     [StructLayout(LayoutKind.Sequential)]
     public struct GCHandle
     {
-#if BIT64
-    private const long NoFlag = ~1L;
-#else
-    private const int NoFlag = ~1;
-#endif
-    // IMPORTANT: This must be kept in sync with the GCHandleType enum.
-    private const GCHandleType MaxHandleType = GCHandleType.Pinned;
+        // IMPORTANT: This must be kept in sync with the GCHandleType enum.
+        private const GCHandleType MaxHandleType = GCHandleType.Pinned;
 
 #if MDA_SUPPORTED
         static GCHandle()
@@ -76,7 +69,7 @@ namespace System.Runtime.InteropServices
             if (type == GCHandleType.Pinned)
             {
                 // Record if the handle is pinned.
-                handle = (IntPtr)((nuint)handle | 1);
+                handle = (IntPtr)((nint)handle | 1);
             }
 
             m_handle = handle;
@@ -243,13 +236,13 @@ namespace System.Runtime.InteropServices
         private static IntPtr GetHandleValue(IntPtr handle)
         {
             // Remove Pin flag
-            return new IntPtr((nint)handle & NoFlag);
+            return new IntPtr((nint)handle & ~(nint)1);
         }
 
         internal bool IsPinned()
         {
             // Check Pin flag
-            return ((nuint)m_handle & 1) != 0;
+            return ((nint)m_handle & 1) != 0;
         }
 
         // Internal native calls that this implementation uses.
