@@ -824,13 +824,13 @@ void HijackFrame::UpdateRegDisplay(const PREGDISPLAY pRD)
     pRD->pCurrentContext->Esp = (DWORD)(pRD->PCTAddr + sizeof(TADDR));
 
 #define RESTORE_REG(reg) { pRD->pCurrentContext->reg = m_Args->reg; pRD->pCurrentContextPointers->reg = &m_Args->reg; }
-    RESTORE_REG(Edi);
-    RESTORE_REG(Esi);
-    RESTORE_REG(Ebx);
-    RESTORE_REG(Edx);
-    RESTORE_REG(Ecx);
-    RESTORE_REG(Eax);
-    RESTORE_REG(Ebp);
+#define CALLEE_SAVED_REGISTER(reg) RESTORE_REG(reg)
+    ENUM_CALLEE_SAVED_REGISTERS();
+#undef CALLEE_SAVED_REGISTER
+
+#define ARGUMENT_AND_SCRATCH_REGISTER(reg) RESTORE_REG(reg)
+    ENUM_ARGUMENT_AND_SCRATCH_REGISTERS();
+#undef ARGUMENT_AND_SCRATCH_REGISTER
 #undef RESTORE_REG
 
     SyncRegDisplayToCurrentContext(pRD);
@@ -840,14 +840,16 @@ void HijackFrame::UpdateRegDisplay(const PREGDISPLAY pRD)
     // This only describes the top-most frame
     pRD->pContext = NULL;
 
-    pRD->pEdi = &m_Args->Edi;
-    pRD->pEsi = &m_Args->Esi;
-    pRD->pEbx = &m_Args->Ebx;
-    pRD->pEdx = &m_Args->Edx;
-    pRD->pEcx = &m_Args->Ecx;
-    pRD->pEax = &m_Args->Eax;
+#define RESTORE_REG(reg) { pRD->p##reg = &m_Args->reg; }
+#define CALLEE_SAVED_REGISTER(reg) RESTORE_REG(reg)
+    ENUM_CALLEE_SAVED_REGISTERS();
+#undef CALLEE_SAVED_REGISTER
 
-    pRD->pEbp = &m_Args->Ebp;
+#define ARGUMENT_AND_SCRATCH_REGISTER(reg) RESTORE_REG(reg)
+    ENUM_ARGUMENT_AND_SCRATCH_REGISTERS();
+#undef ARGUMENT_AND_SCRATCH_REGISTER
+#undef RESTORE_REG
+
     pRD->ControlPC = *PTR_PCODE(pRD->PCTAddr);
     pRD->SP  = (DWORD)(pRD->PCTAddr + sizeof(TADDR));
 
