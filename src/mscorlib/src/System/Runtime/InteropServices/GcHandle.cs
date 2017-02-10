@@ -8,6 +8,13 @@ namespace System.Runtime.InteropServices
     using System.Runtime.CompilerServices;
     using System.Threading;
     using System.Diagnostics.Contracts;
+#if BIT64
+    using nuint = System.UInt64;
+    using nint = System.Int64;
+#else
+    using nuint = System.UInt32;
+    using nint = System.Int32;
+#endif
 
     // These are the types of handles used by the EE.  
     // IMPORTANT: These must match the definitions in ObjectHandle.h in the EE. 
@@ -39,8 +46,13 @@ namespace System.Runtime.InteropServices
     [StructLayout(LayoutKind.Sequential)]
     public struct GCHandle
     {
-        // IMPORTANT: This must be kept in sync with the GCHandleType enum.
-        private const GCHandleType MaxHandleType = GCHandleType.Pinned;
+#if BIT64
+    private const long NoFlag = ~1L;
+#else
+    private const int NoFlag = ~1;
+#endif
+    // IMPORTANT: This must be kept in sync with the GCHandleType enum.
+    private const GCHandleType MaxHandleType = GCHandleType.Pinned;
 
 #if MDA_SUPPORTED
         static GCHandle()
@@ -59,11 +71,15 @@ namespace System.Runtime.InteropServices
                 ThrowArgumentOutOfRangeException_ArgumentOutOfRange_Enum();
             Contract.EndContractBlock();
 
-            m_handle = InternalAlloc(value, type);
+            IntPtr handle = InternalAlloc(value, type);
 
-            // Record if the handle is pinned.
             if (type == GCHandleType.Pinned)
-                SetIsPinned();
+            {
+                // Record if the handle is pinned.
+                handle = (IntPtr)((nuint)handle | 1);
+            }
+
+            m_handle = handle;
         }
 
         // Used in the conversion functions below.
@@ -172,12 +188,6 @@ namespace System.Runtime.InteropServices
             return new GCHandle(value);
         }
 
-        internal static object GetTargetFromIntPtr(IntPtr value)
-        {
-            ValidateHandle(value);
-            return InternalGet(GetHandleValue(value));
-        }
-
         // Used to get the internal integer representation of the handle out.
         public static explicit operator IntPtr(GCHandle value)
         {
@@ -233,30 +243,13 @@ namespace System.Runtime.InteropServices
         private static IntPtr GetHandleValue(IntPtr handle)
         {
             // Remove Pin flag
-#if BIT64
-            return new IntPtr(((long)handle) & ~1L);
-#else // !BIT64 (32)
-            return new IntPtr(((int)handle) & ~1);
-#endif
+            return new IntPtr((nint)handle & NoFlag);
         }
 
         internal bool IsPinned()
         {
             // Check Pin flag
-#if BIT64
-            return (((long)m_handle) & 1) != 0;
-#else // !BIT64 (32)
-            return (((int)m_handle) & 1) != 0;
-#endif
-        }
-
-        internal void SetIsPinned()
-        {
-#if BIT64
-            m_handle = new IntPtr(((long)m_handle) | 1L);
-#else // !BIT64 (32)
-            m_handle = new IntPtr(((int)m_handle) | 1);
-#endif
+            return ((nuint)m_handle & 1) != 0;
         }
 
         // Internal native calls that this implementation uses.

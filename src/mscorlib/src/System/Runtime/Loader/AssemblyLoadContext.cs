@@ -178,7 +178,7 @@ namespace System.Runtime.Loader
         // implementation.
         private static Assembly Resolve(IntPtr gchManagedAssemblyLoadContext, AssemblyName assemblyName)
         {
-            AssemblyLoadContext context = (AssemblyLoadContext)(GCHandle.GetTargetFromIntPtr(gchManagedAssemblyLoadContext));
+            AssemblyLoadContext context = (AssemblyLoadContext)(GCHandle.FromIntPtr(gchManagedAssemblyLoadContext).Target);
             
             return context.ResolveUsingLoad(assemblyName);
         }
@@ -187,7 +187,7 @@ namespace System.Runtime.Loader
         // after trying assembly resolution via Load override and TPA load context without success.
         private static Assembly ResolveUsingResolvingEvent(IntPtr gchManagedAssemblyLoadContext, AssemblyName assemblyName)
         {
-            AssemblyLoadContext context = (AssemblyLoadContext)(GCHandle.GetTargetFromIntPtr(gchManagedAssemblyLoadContext));
+            AssemblyLoadContext context = (AssemblyLoadContext)(GCHandle.FromIntPtr(gchManagedAssemblyLoadContext).Target);
             
             // Invoke the AssemblyResolve event callbacks if wired up
             return context.ResolveUsingEvent(assemblyName);
@@ -317,7 +317,7 @@ namespace System.Runtime.Loader
         // implementation.
         private static IntPtr ResolveUnmanagedDll(String unmanagedDllName, IntPtr gchManagedAssemblyLoadContext)
         {
-            AssemblyLoadContext context = (AssemblyLoadContext)(GCHandle.GetTargetFromIntPtr(gchManagedAssemblyLoadContext));
+            AssemblyLoadContext context = (AssemblyLoadContext)(GCHandle.FromIntPtr(gchManagedAssemblyLoadContext).Target);
             return context.LoadUnmanagedDll(unmanagedDllName);
         }
 
@@ -391,7 +391,7 @@ namespace System.Runtime.Loader
                 }
                 else
                 {
-                    loadContextForAssembly = (AssemblyLoadContext)(GCHandle.GetTargetFromIntPtr(ptrAssemblyLoadContext));
+                    loadContextForAssembly = (AssemblyLoadContext)(GCHandle.FromIntPtr(ptrAssemblyLoadContext).Target);
                 }
             }
 
