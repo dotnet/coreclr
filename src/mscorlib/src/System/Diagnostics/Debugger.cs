@@ -8,12 +8,7 @@
 namespace System.Diagnostics
 {
     using System;
-    using System.IO;
-    using System.Collections;
-    using System.Reflection;
     using System.Runtime.CompilerServices;
-    using System.Security;
-    using System.Runtime.Versioning;
 
     // No data, does not need to be marked with the serializable attribute
     public sealed class Debugger
@@ -41,7 +36,7 @@ namespace System.Diagnostics
             BreakInternal();
         }
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern void BreakInternal();
 
         // Launch launches & attaches a debugger to the process. If a debugger is already attached,
@@ -68,8 +63,18 @@ namespace System.Diagnostics
         }
 
         // Do not inline the slow path 
-        [MethodImplAttribute(MethodImplOptions.NoInlining)]
         private static void NotifyOfCrossThreadDependencySlow()
+        {
+            // This is indirected through a second NoInlining function it has a special meaning
+            // in System.Private.CoreLib of indicatating it takes a StackMark which cause 
+            // the caller to also be not inlined; so we can't mark it directly.
+            // So is the effect of marking this function as non-inlining in a regular situation.
+            NotifyOfCrossThreadDependencyInner();
+        }
+
+        // Second function in chain so as to not propergate the non-inlining to outside caller
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private static void NotifyOfCrossThreadDependencyInner()
         {
             CrossThreadDependencyNotification notification = new CrossThreadDependencyNotification();
             CustomNotification(notification);
@@ -91,14 +96,14 @@ namespace System.Diagnostics
             }
         }
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern bool LaunchInternal();
 
         // Returns whether or not a debugger is attached to the process.
         //
         public static extern bool IsAttached
         {
-            [MethodImplAttribute(MethodImplOptions.InternalCall)]
+            [MethodImpl(MethodImplOptions.InternalCall)]
             get;
         }
 
@@ -115,18 +120,18 @@ namespace System.Diagnostics
         // Posts a message for the attached debugger.  If there is no
         // debugger attached, has no effect.  The debugger may or may not
         // report the message depending on its settings. 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         public static extern void Log(int level, String category, String message);
 
         // Checks to see if an attached debugger has logging enabled
         //  
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         public static extern bool IsLogging();
 
         // Posts a custom notification for the attached debugger.  If there is no
         // debugger attached, has no effect.  The debugger may or may not
         // report the notification depending on its settings. 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern void CustomNotification(ICustomDebuggerNotification data);
 
     }
