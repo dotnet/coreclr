@@ -1269,7 +1269,7 @@ public class ByteMark
         Setup();
         NumericSortJagged t = new NumericSortJagged();
         t.numarrays = 1000;
-        t.adjust = 0;
+        t.adjust = 1;
 
         foreach (var iteration in Benchmark.Iterations)
         {
@@ -1291,7 +1291,7 @@ public class ByteMark
         Setup();
         NumericSortRect t = new NumericSortRect();
         t.numarrays = 1000;
-        t.adjust = 0;
+        t.adjust = 1;
 
         foreach (var iteration in Benchmark.Iterations)
         {
@@ -1313,7 +1313,7 @@ public class ByteMark
         Setup();
         StringSort t = new StringSort();
         t.numarrays = 1000;
-        t.adjust = 0;
+        t.adjust = 1;
 
         foreach (var iteration in Benchmark.Iterations)
         {
@@ -1333,7 +1333,7 @@ public class ByteMark
     {
         Setup();
         BitOps t = new BitOps();
-        t.adjust = 0;
+        t.adjust = 1;
 
         foreach (var iteration in Benchmark.Iterations)
         {
@@ -1355,7 +1355,7 @@ public class ByteMark
         Setup();
         EmFloatStruct t = new EMFloat();
         t.loops = 100;
-        t.adjust = 0;
+        t.adjust = 1;
 
         foreach (var iteration in Benchmark.Iterations)
         {
@@ -1377,7 +1377,7 @@ public class ByteMark
         Setup();
         EmFloatStruct t = new EMFloatClass();
         t.loops = 100;
-        t.adjust = 0;
+        t.adjust = 1;
 
         foreach (var iteration in Benchmark.Iterations)
         {
@@ -1398,7 +1398,7 @@ public class ByteMark
     {
         Setup();
         FourierStruct t = new Fourier();
-        t.adjust = 0;
+        t.adjust = 1;
 
         foreach (var iteration in Benchmark.Iterations)
         {
@@ -1420,7 +1420,7 @@ public class ByteMark
         Setup();
         AssignStruct t = new AssignJagged();
         t.numarrays = 1000;
-        t.adjust = 0;
+        t.adjust = 1;
 
         foreach (var iteration in Benchmark.Iterations)
         {
@@ -1442,7 +1442,7 @@ public class ByteMark
         Setup();
         AssignStruct t = new AssignRect();
         t.numarrays = 1000;
-        t.adjust = 0;
+        t.adjust = 1;
 
         foreach (var iteration in Benchmark.Iterations)
         {
@@ -1464,7 +1464,7 @@ public class ByteMark
         Setup();
         IDEAStruct t = new IDEAEncryption();
         t.loops = 100;
-        t.adjust = 0;
+        t.adjust = 1;
 
         foreach (var iteration in Benchmark.Iterations)
         {
@@ -1486,7 +1486,7 @@ public class ByteMark
         Setup();
         NNetStruct t = new NeuralJagged();
         t.loops = 100;
-        t.adjust = 0;
+        t.adjust = 1;
 
         foreach (var iteration in Benchmark.Iterations)
         {
@@ -1508,7 +1508,7 @@ public class ByteMark
         Setup();
         NNetStruct t = new Neural();
         t.loops = 100;
-        t.adjust = 0;
+        t.adjust = 1;
 
         foreach (var iteration in Benchmark.Iterations)
         {
@@ -1530,7 +1530,7 @@ public class ByteMark
         Setup();
         LUStruct t = new LUDecomp();
         t.numarrays = 1000;
-        t.adjust = 0;
+        t.adjust = 1;
 
         foreach (var iteration in Benchmark.Iterations)
         {
