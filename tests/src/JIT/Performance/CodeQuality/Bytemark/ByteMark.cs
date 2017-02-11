@@ -1350,14 +1350,14 @@ public class ByteMark
         }
     }
 
-    const int EmFloatIterations = 8;
+    const int EmFloatIterations = 10;
 
     [Benchmark]
     public static void BenchEmFloat()
     {
         Setup();
         EmFloatStruct t = new EMFloat();
-        t.loops = 100;
+        t.loops = 50;
         t.adjust = 1;
 
         foreach (var iteration in Benchmark.Iterations)
@@ -1379,7 +1379,7 @@ public class ByteMark
     {
         Setup();
         EmFloatStruct t = new EMFloatClass();
-        t.loops = 20;
+        t.loops = 50;
         t.adjust = 1;
 
         foreach (var iteration in Benchmark.Iterations)
@@ -1415,7 +1415,7 @@ public class ByteMark
         }
     }
 
-    const int AssignJaggedIterations = 5;
+    const int AssignJaggedIterations = 2;
 
     [Benchmark]
     public static void BenchAssignJagged()
@@ -1503,7 +1503,7 @@ public class ByteMark
         }
     }
 
-    const int NeuralIterations = 10;
+    const int NeuralIterations = 20;
 
     [Benchmark]
     public static void BenchNeural()
