@@ -2516,7 +2516,18 @@ namespace System {
                 _index = -1;
             }
     
-            public bool MoveNext() => _index < _array.Length && ++_index < _array.Length;
+            public bool MoveNext()
+            {
+                int index = _index + 1;
+                bool result = index < _array.Length;
+                
+                if (result)
+                {
+                    _index = index;
+                }
+
+                return result;
+            }
     
             public T Current
             {
