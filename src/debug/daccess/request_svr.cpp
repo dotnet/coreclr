@@ -118,25 +118,25 @@ HRESULT ClrDataAccess::ServerGCHeapDetails(CLRDATA_ADDRESS heapAddr, DacpGcHeapD
     
     // now get information specific to this heap (server mode gives us several heaps; we're getting
     // information about only one of them. 
-    detailsData->alloc_allocated = (CLRDATA_ADDRESS)*READ_FIELD(pHeap, alloc_allocated);
+    detailsData->alloc_allocated = (CLRDATA_ADDRESS)pHeap->alloc_allocated;
     detailsData->ephemeral_heap_segment = (CLRDATA_ADDRESS)dac_cast<TADDR>(pHeap->ephemeral_heap_segment);
 
     // get bounds for the different generations
     for (i=0; i<NUMBERGENERATIONS; i++)
     {
         DPTR(dac_generation) generation = ServerGenerationTableIndex(pHeap, i);
-        detailsData->generation_table[i].start_segment     = (CLRDATA_ADDRESS) *READ_FIELD(generation, start_segment);
-        detailsData->generation_table[i].allocation_start   = (CLRDATA_ADDRESS)(ULONG_PTR) *READ_FIELD(generation, allocation_start);
-        DPTR(gc_alloc_context) alloc_context = ReadField<gc_alloc_context, dac_generation>(generation, offsetof(dac_generation, allocation_context));
-        detailsData->generation_table[i].allocContextPtr    = (CLRDATA_ADDRESS)(ULONG_PTR) *READ_FIELD(alloc_context, alloc_ptr);
-        detailsData->generation_table[i].allocContextLimit = (CLRDATA_ADDRESS)(ULONG_PTR) *READ_FIELD(alloc_context, alloc_limit);
+        detailsData->generation_table[i].start_segment     = (CLRDATA_ADDRESS)generation->start_segment;
+        detailsData->generation_table[i].allocation_start   = (CLRDATA_ADDRESS)(ULONG_PTR)generation->allocation_start;
+        DPTR(gc_alloc_context) alloc_context = dac_cast<TADDR>(generation) + offsetof(dac_generation, allocation_context);
+        detailsData->generation_table[i].allocContextPtr    = (CLRDATA_ADDRESS)(ULONG_PTR) alloc_context->alloc_ptr;
+        detailsData->generation_table[i].allocContextLimit = (CLRDATA_ADDRESS)(ULONG_PTR) alloc_context->alloc_limit;
     }
 
     DPTR(dac_finalize_queue) fq = pHeap->finalize_queue;
-    DPTR(uint8_t*) pFillPointerArray= ReadField<uint8_t*, dac_finalize_queue>(fq, offsetof(dac_finalize_queue, m_FillPointers));
+    DPTR(uint8_t*) pFillPointerArray= dac_cast<TADDR>(fq) + offsetof(dac_finalize_queue, m_FillPointers);
     for(i=0; i<(NUMBERGENERATIONS+dac_finalize_queue::ExtraSegCount); i++)
     {
-        detailsData->finalization_fill_pointers[i] = (CLRDATA_ADDRESS) *TableIndex(pFillPointerArray, i, sizeof(uint8_t*));
+        detailsData->finalization_fill_pointers[i] = (CLRDATA_ADDRESS) pFillPointerArray[i];
     }
 
     return S_OK;
@@ -147,14 +147,14 @@ ClrDataAccess::ServerOomData(CLRDATA_ADDRESS addr, DacpOomData *oomData)
 {
     DPTR(dac_gc_heap) pHeap = __DPtr<dac_gc_heap>(TO_TADDR(addr));
 
-    oom_history *pOOMInfo = *READ_FIELD(pHeap, oom_info);
-    oomData->reason = pOOMInfo->reason;
-    oomData->alloc_size = pOOMInfo->alloc_size;
-    oomData->available_pagefile_mb = pOOMInfo->available_pagefile_mb;
-    oomData->gc_index = pOOMInfo->gc_index;
-    oomData->fgm = pOOMInfo->fgm;
-    oomData->size = pOOMInfo->size;
-    oomData->loh_p = pOOMInfo->loh_p;
+    oom_history pOOMInfo = pHeap->oom_info;
+    oomData->reason = pOOMInfo.reason;
+    oomData->alloc_size = pOOMInfo.alloc_size;
+    oomData->available_pagefile_mb = pOOMInfo.available_pagefile_mb;
+    oomData->gc_index = pOOMInfo.gc_index;
+    oomData->fgm = pOOMInfo.fgm;
+    oomData->size = pOOMInfo.size;
+    oomData->loh_p = pOOMInfo.loh_p;
 
     return S_OK;
 }
@@ -195,9 +195,9 @@ HRESULT ClrDataAccess::ServerGCHeapAnalyzeData(CLRDATA_ADDRESS heapAddr, DacpGcH
     DPTR(dac_gc_heap) pHeap = __DPtr<dac_gc_heap>(TO_TADDR(heapAddr));
 
     analyzeData->heapAddr = heapAddr;
-    analyzeData->internal_root_array = (CLRDATA_ADDRESS)*READ_FIELD(pHeap, internal_root_array);
-    analyzeData->internal_root_array_index = (size_t)*READ_FIELD(pHeap, internal_root_array_index);
-    analyzeData->heap_analyze_success = (BOOL)*READ_FIELD(pHeap, heap_analyze_success);
+    analyzeData->internal_root_array = (CLRDATA_ADDRESS)pHeap->internal_root_array;
+    analyzeData->internal_root_array_index = (size_t)pHeap->internal_root_array_index;
+    analyzeData->heap_analyze_success = (BOOL)pHeap->heap_analyze_success;
 
     return S_OK;
 }
@@ -267,7 +267,7 @@ HRESULT DacHeapWalker::InitHeapDataSvr(HeapData *&pHeaps, size_t &pCount)
         pHeaps[i].YoungestGenLimit = (CORDB_ADDRESS)gen0.allocation_context.alloc_limit;
 
         pHeaps[i].Gen0Start = (CORDB_ADDRESS)gen0.allocation_start;
-        pHeaps[i].Gen0End = (CORDB_ADDRESS)*READ_FIELD(heap, alloc_allocated);
+        pHeaps[i].Gen0End = (CORDB_ADDRESS)heap->alloc_allocated;
         pHeaps[i].Gen1Start = (CORDB_ADDRESS)gen1.allocation_start;
         
         // Segments

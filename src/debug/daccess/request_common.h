@@ -55,15 +55,4 @@ HeapTableIndex(DPTR(dac_gc_heap**) heaps, size_t index)
     return Dereference(ptr);
 }
 
-#define READ_FIELD(base, field)                                                    \
-  ReadField<decltype(&base->field), std::remove_reference<decltype(*base)>::type>( \
-      base,                                                                        \
-      offsetof(std::remove_reference<decltype(*base)>::type, field))
-template<typename T, typename R>
-DPTR(T) ReadField(DPTR(R) base, size_t offset)
-{
-    DPTR(T) offset_ptr = dac_cast<TADDR>(base) + offset;
-    return offset_ptr;
-}
-
 #endif // _REQUEST_COMMON_H_
