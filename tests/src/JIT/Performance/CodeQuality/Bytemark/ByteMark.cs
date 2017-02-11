@@ -120,10 +120,12 @@ internal class global
     public const int LUARRAYROWS = 101;
     public const int LUARRAYCOLS = 101;
 
-
     // EMFLOAT constants
     public const int CPUEMFLOATLOOPMAX = 50000;
     public const int EMFARRAYSIZE = 3000;
+
+    // FOURIER constants
+    public const int FOURIERARRAYSIZE = 100;
 }
 
 /*
@@ -183,7 +185,7 @@ public abstract class HuffStruct : HarnessTest
 
 public abstract class FourierStruct : HarnessTest
 {
-    public int arraysize;                       /* Size of coeff. arrays */
+    public int arraysize = global.FOURIERARRAYSIZE;
     public override void ShowStats()
     {
         ByteMark.OutputString(
@@ -1268,7 +1270,7 @@ public class ByteMark
     {
         Setup();
         NumericSortJagged t = new NumericSortJagged();
-        t.numarrays = 1000;
+        t.numarrays = 200;
         t.adjust = 1;
 
         foreach (var iteration in Benchmark.Iterations)
@@ -1290,7 +1292,7 @@ public class ByteMark
     {
         Setup();
         NumericSortRect t = new NumericSortRect();
-        t.numarrays = 1000;
+        t.numarrays = 200;
         t.adjust = 1;
 
         foreach (var iteration in Benchmark.Iterations)
@@ -1312,7 +1314,7 @@ public class ByteMark
     {
         Setup();
         StringSort t = new StringSort();
-        t.numarrays = 1000;
+        t.numarrays = 40;
         t.adjust = 1;
 
         foreach (var iteration in Benchmark.Iterations)
@@ -1326,7 +1328,8 @@ public class ByteMark
             }
         }
     }
-    const int BitOpsIterations = 15;
+
+    const int BitOpsIterations = 60000;
 
     [Benchmark]
     public static void BenchBitOps()
@@ -1376,7 +1379,7 @@ public class ByteMark
     {
         Setup();
         EmFloatStruct t = new EMFloatClass();
-        t.loops = 100;
+        t.loops = 20;
         t.adjust = 1;
 
         foreach (var iteration in Benchmark.Iterations)
@@ -1391,7 +1394,7 @@ public class ByteMark
         }
     }
 
-    const int FourierIterations = 20;
+    const int FourierIterations = 300;
 
     [Benchmark]
     public static void BenchFourier()
@@ -1412,14 +1415,14 @@ public class ByteMark
         }
     }
 
-    const int AssignJaggedIterations = 15;
+    const int AssignJaggedIterations = 5;
 
     [Benchmark]
     public static void BenchAssignJagged()
     {
         Setup();
         AssignStruct t = new AssignJagged();
-        t.numarrays = 1000;
+        t.numarrays = 50;
         t.adjust = 1;
 
         foreach (var iteration in Benchmark.Iterations)
@@ -1434,14 +1437,14 @@ public class ByteMark
         }
     }
 
-    const int AssignRectangularIterations = 20;
+    const int AssignRectangularIterations = 5;
 
     [Benchmark]
     public static void BenchAssignRectangular()
     {
         Setup();
         AssignStruct t = new AssignRect();
-        t.numarrays = 1000;
+        t.numarrays = 50;
         t.adjust = 1;
 
         foreach (var iteration in Benchmark.Iterations)
@@ -1456,7 +1459,7 @@ public class ByteMark
         }
     }
 
-    const int IDEAEncryptionIterations = 20;
+    const int IDEAEncryptionIterations = 200;
 
     [Benchmark]
     public static void BenchIDEAEncryption()
@@ -1478,14 +1481,14 @@ public class ByteMark
         }
     }
 
-    const int NeuralJaggedIterations = 20;
+    const int NeuralJaggedIterations = 10;
 
     [Benchmark]
     public static void BenchNeuralJagged()
     {
         Setup();
         NNetStruct t = new NeuralJagged();
-        t.loops = 100;
+        t.loops = 3;
         t.adjust = 1;
 
         foreach (var iteration in Benchmark.Iterations)
@@ -1500,14 +1503,14 @@ public class ByteMark
         }
     }
 
-    const int NeuralIterations = 12;
+    const int NeuralIterations = 10;
 
     [Benchmark]
     public static void BenchNeural()
     {
         Setup();
         NNetStruct t = new Neural();
-        t.loops = 100;
+        t.loops = 1;
         t.adjust = 1;
 
         foreach (var iteration in Benchmark.Iterations)
@@ -1522,14 +1525,14 @@ public class ByteMark
         }
     }
 
-    const int LUDecompIterations = 20;
+    const int LUDecompIterations = 10;
 
     [Benchmark]
     public static void BenchLUDecomp()
     {
         Setup();
         LUStruct t = new LUDecomp();
-        t.numarrays = 1000;
+        t.numarrays = 500;
         t.adjust = 1;
 
         foreach (var iteration in Benchmark.Iterations)
