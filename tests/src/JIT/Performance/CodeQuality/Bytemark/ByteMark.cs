@@ -1263,7 +1263,7 @@ public class ByteMark
         global.write_to_file = false;
     }
 
-    const int NumericSortJaggedIterations = 20;
+    const int NumericSortJaggedIterations = 10;
 
     [Benchmark]
     public static void BenchNumericSortJagged()
@@ -1285,7 +1285,7 @@ public class ByteMark
         }
     }
 
-    const int NumericSortRectangularIterations = 20;
+    const int NumericSortRectangularIterations = 5;
 
     [Benchmark]
     public static void BenchNumericSortRectangular()
@@ -1329,7 +1329,7 @@ public class ByteMark
         }
     }
 
-    const int BitOpsIterations = 60000;
+    const int BitOpsIterations = 100000;
 
     [Benchmark]
     public static void BenchBitOps()
@@ -1372,7 +1372,7 @@ public class ByteMark
         }
     }
 
-    const int EmFloatClassIterations = 8;
+    const int EmFloatClassIterations = 2;
 
     [Benchmark]
     public static void BenchEmFloatClass()
@@ -1422,7 +1422,7 @@ public class ByteMark
     {
         Setup();
         AssignStruct t = new AssignJagged();
-        t.numarrays = 50;
+        t.numarrays = 25;
         t.adjust = 1;
 
         foreach (var iteration in Benchmark.Iterations)
@@ -1444,7 +1444,7 @@ public class ByteMark
     {
         Setup();
         AssignStruct t = new AssignRect();
-        t.numarrays = 50;
+        t.numarrays = 10;
         t.adjust = 1;
 
         foreach (var iteration in Benchmark.Iterations)
@@ -1459,7 +1459,7 @@ public class ByteMark
         }
     }
 
-    const int IDEAEncryptionIterations = 200;
+    const int IDEAEncryptionIterations = 50;
 
     [Benchmark]
     public static void BenchIDEAEncryption()
@@ -1532,7 +1532,7 @@ public class ByteMark
     {
         Setup();
         LUStruct t = new LUDecomp();
-        t.numarrays = 500;
+        t.numarrays = 250;
         t.adjust = 1;
 
         foreach (var iteration in Benchmark.Iterations)
