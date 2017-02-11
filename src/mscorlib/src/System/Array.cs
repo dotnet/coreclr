@@ -2406,8 +2406,7 @@ namespace System {
             //! Warning: "this" is an array, not an SZArrayHelper. See comments above
             //! or you may introduce a security hole!
             T[] _this = JitHelpers.UnsafeCast<T[]>(this);
-            int length = _this.Length;
-            return length == 0 ? SZGenericArrayEnumerator<T>.Empty : new SZGenericArrayEnumerator<T>(_this, length);
+            return _this.Length == 0 ? SZGenericArrayEnumerator<T>.Empty : new SZGenericArrayEnumerator<T>(_this);
         }
 
         // -----------------------------------------------------------
@@ -2502,45 +2501,43 @@ namespace System {
         // This is a normal generic Enumerator for SZ arrays. It doesn't have any of the "this" stuff
         // that SZArrayHelper does.
         //
-        [Serializable] private sealed class SZGenericArrayEnumerator<T> : IEnumerator<T> {
+        [Serializable]
+        private sealed class SZGenericArrayEnumerator<T> : IEnumerator<T>
+        {
             private T[] _array;
             private int _index;
-            private int _endIndex; // cache array length, since it's a little slow.
 
-            // Passing -1 for endIndex so that MoveNext always returns false without mutating _index
-            internal static readonly SZGenericArrayEnumerator<T> Empty = new SZGenericArrayEnumerator<T>(null, -1);
+            internal static readonly SZGenericArrayEnumerator<T> Empty = new SZGenericArrayEnumerator<T>(Array.Empty<T>());
 
-            internal SZGenericArrayEnumerator(T[] array, int endIndex) {
-                // We allow passing null array in case of empty enumerator. 
-                Debug.Assert(array != null || endIndex == -1, "endIndex should be -1 in the case of a null array (for the empty enumerator).");
+            internal SZGenericArrayEnumerator(T[] array)
+            {
+                Debug.Assert(array != null);
                 _array = array;
                 _index = -1;
-                _endIndex = endIndex;
             }
     
-            public bool MoveNext() {
-                if (_index < _endIndex) {
-                    _index++;
-                    return (_index < _endIndex);
-                }
-                return false;
-            }
+            public bool MoveNext() => ++_index < _array.Length;
     
-            public T Current {
-                get {
-                    if (_index < 0) ThrowHelper.ThrowInvalidOperationException_InvalidOperation_EnumNotStarted();
-                    if (_index >= _endIndex) ThrowHelper.ThrowInvalidOperationException_InvalidOperation_EnumEnded();
+            public T Current
+            {
+                get
+                {
+                    if ((uint)_index >= (uint)_array.Length)
+                    {
+                        var exceptionResource = _index < 0 ?
+                            ExceptionResource.InvalidOperation_EnumNotStarted :
+                            ExceptionResource.InvalidOperation_EnumEnded;
+                        ThrowHelper.ThrowInvalidOperationException(exceptionResource);
+                    }
+
                     return _array[_index];
                 }
             }
     
-            object IEnumerator.Current {
-                get {
-                    return Current;
-                }
-            }
+            object IEnumerator.Current => Current;
 
-            void IEnumerator.Reset() {
+            void IEnumerator.Reset()
+            {
                 _index = -1;
             }
 
