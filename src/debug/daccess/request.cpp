@@ -2839,18 +2839,21 @@ ClrDataAccess::GetGCHeapStaticData(struct DacpGcHeapDetails *detailsData)
 
     for (int i=0;i<NUMBERGENERATIONS;i++)
     {
-        auto generation = *GenerationTableIndex(g_gcDacGlobals->generation_table, i);
-        detailsData->generation_table[i].start_segment = (CLRDATA_ADDRESS)generation.start_segment;
-        detailsData->generation_table[i].allocation_start = (CLRDATA_ADDRESS)generation.allocation_start;
-        detailsData->generation_table[i].allocContextPtr = (CLRDATA_ADDRESS)generation.allocation_context.alloc_ptr;
-        detailsData->generation_table[i].allocContextLimit = (CLRDATA_ADDRESS)generation.allocation_context.alloc_limit;
+        DPTR(dac_generation) generation = GenerationTableIndex(g_gcDacGlobals->generation_table, i);
+        detailsData->generation_table[i].start_segment = (CLRDATA_ADDRESS) *READ_FIELD(generation, start_segment);
+
+        detailsData->generation_table[i].allocation_start = (CLRDATA_ADDRESS) *READ_FIELD(generation, allocation_start);
+
+        DPTR(gc_alloc_context) alloc_context = ReadField<gc_alloc_context, dac_generation>(generation, offsetof(dac_generation, allocation_context));
+        detailsData->generation_table[i].allocContextPtr = (CLRDATA_ADDRESS)*READ_FIELD(alloc_context, alloc_ptr);
+        detailsData->generation_table[i].allocContextLimit = (CLRDATA_ADDRESS)*READ_FIELD(alloc_context, alloc_limit);
     }
 
-    dac_finalize_queue *fq = *g_gcDacGlobals->finalize_queue;
-    ArrayDPTR(uint8_t) dfq = __ArrayDPtr<uint8_t>((TADDR)fq + offsetof(dac_finalize_queue, m_FillPointers));
+    DPTR(dac_finalize_queue) fq = Dereference(g_gcDacGlobals->finalize_queue);
+    DPTR(uint8_t*) fillPointersTable = ReadField<uint8_t*, dac_finalize_queue>(fq, offsetof(dac_finalize_queue, m_FillPointers));
     for (int i = 0; i<(NUMBERGENERATIONS + dac_finalize_queue::ExtraSegCount); i++)
     {
-        detailsData->finalization_fill_pointers[i] = *TableIndex(dfq, i, sizeof(uint8_t*));
+        detailsData->finalization_fill_pointers[i] = (CLRDATA_ADDRESS)*TableIndex(fillPointersTable, i, sizeof(uint8_t*));
     }
 
     SOSDacLeave();

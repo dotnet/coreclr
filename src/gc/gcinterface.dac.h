@@ -112,8 +112,8 @@ struct oom_history
 class dac_gc_heap {
 public:
     uint8_t* alloc_allocated;
-    dac_heap_segment* ephemeral_heap_segment;
-    dac_finalize_queue* finalize_queue;
+    DPTR(dac_heap_segment) ephemeral_heap_segment;
+    DPTR(dac_finalize_queue) finalize_queue;
     oom_history oom_info;
     size_t interesting_data_per_heap[NUM_GC_DATA_POINTS];
     size_t compact_reasons_per_heap[MAX_COMPACT_REASONS_COUNT];
@@ -151,7 +151,8 @@ struct GcDacVars {
  #define GC_DAC_VAR(type, name) DPTR(type) name;
  // ArrayDPTR doesn't allow decaying arrays to pointers, which
  // avoids some accidental errors.
- #define GC_DAC_ARRAY_VAR(type, name) ArrayDPTR(type) name;
+ #define GC_DAC_PTR_VAR(type, name)   DPTR(type*) name;
+ #define GC_DAC_ARRAY_VAR(type, name) DPTR(type) name;
 #else
  #define GC_DAC_VAR(type, name) type *name;
 #endif

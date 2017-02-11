@@ -12,7 +12,7 @@
 // T is not (or may not be) known at compile-time. 
 // Returns a DPTR to the requested element (the element at the given index).
 template<typename T>
-DPTR(T) TableIndex(ArrayDPTR(T) base, size_t index, size_t t_size)
+DPTR(T) TableIndex(DPTR(T) base, size_t index, size_t t_size)
 {
     TADDR base_addr = base.GetAddr();
     TADDR element_addr = DacTAddrOffset(base_addr, index, t_size);
@@ -30,7 +30,7 @@ DPTR(T) Dereference(DPTR(T*) ptr)
 // Indexes into a given generation table, returning a DPTR to the
 // requested element (the element at the given index) of the table.
 inline DPTR(dac_generation)
-GenerationTableIndex(ArrayDPTR(dac_generation) base, size_t index)
+GenerationTableIndex(DPTR(dac_generation) base, size_t index)
 {
     return TableIndex(base, index, g_gcDacGlobals->generation_size);
 }
@@ -41,17 +41,16 @@ inline DPTR(dac_generation)
 ServerGenerationTableIndex(DPTR(dac_gc_heap) heap, size_t index)
 {
     TADDR base_addr = dac_cast<TADDR>(heap) + offsetof(dac_gc_heap, generation_table);
-    ArrayDPTR(dac_generation) base = __ArrayDPtr<dac_generation>(base_addr);
+    DPTR(dac_generation) base = __DPtr<dac_generation>(base_addr);
     return TableIndex(base, index, g_gcDacGlobals->generation_size);
 }
 
 // Indexes into the global heap table, returning a DPTR to the requested
 // heap instance.
 inline DPTR(dac_gc_heap)
-HeapTableIndex(ArrayDPTR(dac_gc_heap*) heaps, size_t index)
+HeapTableIndex(DPTR(dac_gc_heap**) heaps, size_t index)
 {
-    dac_gc_heap *table = *heaps;
-    ArrayDPTR(dac_gc_heap*) heap_table = __ArrayDPtr<dac_gc_heap*>((TADDR)table);
+    DPTR(dac_gc_heap*) heap_table = Dereference(heaps);
     DPTR(dac_gc_heap*) ptr = TableIndex(heap_table, index, sizeof(dac_gc_heap*));
     return Dereference(ptr);
 }

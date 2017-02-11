@@ -45,7 +45,7 @@ HRESULT GetServerHeapData(CLRDATA_ADDRESS addr, DacpHeapSegmentData *pSegment)
     pSegment->used = (CLRDATA_ADDRESS)(ULONG_PTR) pHeapSegment->used;
     pSegment->mem = (CLRDATA_ADDRESS)(ULONG_PTR) (pHeapSegment->mem);
     pSegment->next = (CLRDATA_ADDRESS)dac_cast<TADDR>(pHeapSegment->next);
-    pSegment->gc_heap = (CLRDATA_ADDRESS)dac_cast<TADDR>(pHeapSegment->heap);
+    pSegment->gc_heap = (CLRDATA_ADDRESS)pHeapSegment->heap;
 
     return S_OK;
 }
@@ -119,35 +119,24 @@ HRESULT ClrDataAccess::ServerGCHeapDetails(CLRDATA_ADDRESS heapAddr, DacpGcHeapD
     // now get information specific to this heap (server mode gives us several heaps; we're getting
     // information about only one of them. 
     detailsData->alloc_allocated = (CLRDATA_ADDRESS)*READ_FIELD(pHeap, alloc_allocated);
-    detailsData->ephemeral_heap_segment = (CLRDATA_ADDRESS)*READ_FIELD(pHeap, ephemeral_heap_segment);
+    detailsData->ephemeral_heap_segment = (CLRDATA_ADDRESS)dac_cast<TADDR>(pHeap->ephemeral_heap_segment);
 
     // get bounds for the different generations
     for (i=0; i<NUMBERGENERATIONS; i++)
     {
-        dac_generation generation = *ServerGenerationTableIndex(pHeap, i);
-        detailsData->generation_table[i].start_segment     = (CLRDATA_ADDRESS)generation.start_segment;
-        detailsData->generation_table[i].allocation_start   = (CLRDATA_ADDRESS)(ULONG_PTR) generation.allocation_start;
-        detailsData->generation_table[i].allocContextPtr    = (CLRDATA_ADDRESS)(ULONG_PTR) generation.allocation_context.alloc_ptr;
-        detailsData->generation_table[i].allocContextLimit = (CLRDATA_ADDRESS)(ULONG_PTR) generation.allocation_context.alloc_limit;
+        DPTR(dac_generation) generation = ServerGenerationTableIndex(pHeap, i);
+        detailsData->generation_table[i].start_segment     = (CLRDATA_ADDRESS) *READ_FIELD(generation, start_segment);
+        detailsData->generation_table[i].allocation_start   = (CLRDATA_ADDRESS)(ULONG_PTR) *READ_FIELD(generation, allocation_start);
+        DPTR(gc_alloc_context) alloc_context = ReadField<gc_alloc_context, dac_generation>(generation, offsetof(dac_generation, allocation_context));
+        detailsData->generation_table[i].allocContextPtr    = (CLRDATA_ADDRESS)(ULONG_PTR) *READ_FIELD(alloc_context, alloc_ptr);
+        detailsData->generation_table[i].allocContextLimit = (CLRDATA_ADDRESS)(ULONG_PTR) *READ_FIELD(alloc_context, alloc_limit);
     }
 
-    DPTR(dac_finalize_queue) fq = Dereference(Dereference(READ_FIELD(pHeap, finalize_queue)));
-    TADDR pFillPointerArray = dac_cast<TADDR>(*READ_FIELD(fq, m_FillPointers));
-
+    DPTR(dac_finalize_queue) fq = pHeap->finalize_queue;
+    DPTR(uint8_t*) pFillPointerArray= ReadField<uint8_t*, dac_finalize_queue>(fq, offsetof(dac_finalize_queue, m_FillPointers));
     for(i=0; i<(NUMBERGENERATIONS+dac_finalize_queue::ExtraSegCount); i++)
     {
-        ULONG32 returned = 0;
-        size_t pValue;
-        HRESULT hr = m_pTarget->ReadVirtual(pFillPointerArray+(i*sizeof(TADDR)),
-                                            (PBYTE)&pValue,
-                                            sizeof(TADDR),
-                                            &returned);
-        if (FAILED(hr) || (returned != sizeof(TADDR)))
-        {
-            return E_FAIL;
-        }
-
-        detailsData->finalization_fill_pointers[i] = (CLRDATA_ADDRESS) pValue;
+        detailsData->finalization_fill_pointers[i] = (CLRDATA_ADDRESS) *TableIndex(pFillPointerArray, i, sizeof(uint8_t*));
     }
 
     return S_OK;
@@ -225,7 +214,7 @@ ClrDataAccess::EnumSvrGlobalMemoryRegions(CLRDataEnumMemoryFlags flags)
     
     for (int i=0; i < *g_gcDacGlobals->n_heaps; i++)
     {
-        dac_gc_heap *pHeap = g_gcDacGlobals->g_heaps[i];
+        DPTR(dac_gc_heap) pHeap = HeapTableIndex(g_gcDacGlobals->g_heaps, i);
 
         // TODO ask noah/mike if this is sufficient?
         DacEnumMemoryRegion(dac_cast<TADDR>(pHeap), sizeof(dac_gc_heap));
@@ -291,7 +280,7 @@ HRESULT DacHeapWalker::InitHeapDataSvr(HeapData *&pHeaps, size_t &pCount)
             return E_OUTOFMEMORY;
 
         // Small object heap segments
-        DPTR(dac_heap_segment) seg = __DPtr<dac_heap_segment>(heap->generation_table[NUMBERGENERATIONS-2].start_segment);
+        DPTR(dac_heap_segment) seg = __DPtr<dac_heap_segment>(gen2.start_segment);
         int j = 0;
         for (; seg && (j < count); ++j)
         {
@@ -313,7 +302,7 @@ HRESULT DacHeapWalker::InitHeapDataSvr(HeapData *&pHeaps, size_t &pCount)
         
 
         // Large object heap segments
-        seg = __DPtr<dac_heap_segment>(heap->generation_table[NUMBERGENERATIONS-1].start_segment);
+        seg = __DPtr<dac_heap_segment>(loh.start_segment);
         for (; seg && (j < count); ++j)
         {
             pHeaps[i].Segments[j].Generation = 3;
