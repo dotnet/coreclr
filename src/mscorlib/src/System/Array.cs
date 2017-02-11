@@ -2516,21 +2516,21 @@ namespace System {
                 _index = -1;
             }
     
-            public bool MoveNext() => ++_index < _array.Length;
+            public bool MoveNext() => _index < _array.Length && ++_index < _array.Length;
     
             public T Current
             {
                 get
                 {
-                    if ((uint)_index >= (uint)_array.Length)
+                    int index = _index;
+                    T[] array = _array;
+
+                    if ((uint)index >= (uint)array.Length)
                     {
-                        var exceptionResource = _index < 0 ?
-                            ExceptionResource.InvalidOperation_EnumNotStarted :
-                            ExceptionResource.InvalidOperation_EnumEnded;
-                        ThrowHelper.ThrowInvalidOperationException(exceptionResource);
+                        ThrowHelper.ThrowInvalidOperationException_EnumCurrent(index);
                     }
 
-                    return _array[_index];
+                    return array[index];
                 }
             }
     
