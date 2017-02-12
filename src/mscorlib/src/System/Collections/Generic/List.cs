@@ -292,13 +292,21 @@ namespace System.Collections.Generic
         // Clears the contents of List.
         public void Clear()
         {
-            if (JitHelpers.ContainsReferences<T>() && _size > 0)
+            if (JitHelpers.ContainsReferences<T>())
             {
-                Array.Clear(_items, 0, _size); // Clear the elements so that the gc can reclaim the references.
+                int size = _size;
+                _size = 0;
+                _version++;
+                if (size > 0)
+                {
+                    Array.Clear(_items, 0, size); // Clear the elements so that the gc can reclaim the references.
+                }
             }
-
-            _size = 0;
-            _version++;
+            else
+            {
+                _size = 0;
+                _version++;
+            }
         }
     
         // Contains returns true if the specified element is in the List.
