@@ -1184,7 +1184,7 @@ then
     scriptPath=$(dirname $0)
     ${scriptPath}/setup-runtime-dependencies.sh --outputDir=$coreOverlayDir
 else
-    if [ ! "$ARCH" != "arm64" ]
+    if [ "$ARCH" != "arm64" ]
     then
         echo "Skip preparing for GC stress test. Dependent package is not supported on this architecture."
     fi
