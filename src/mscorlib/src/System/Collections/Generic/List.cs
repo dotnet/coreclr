@@ -861,9 +861,13 @@ namespace System.Collections.Generic
                     // copy item to the free slot.
                     _items[freeIndex++] = _items[current++];
                 }
-            }                       
-            
-            Array.Clear(_items, freeIndex, _size - freeIndex);
+            }
+
+            if (JitHelpers.ContainsReferences<T>())
+            {
+                Array.Clear(_items, freeIndex, _size - freeIndex); // Clear the elements so that the gc can reclaim the references.
+            }
+
             int result = _size - freeIndex;
             _size = freeIndex;
             _version++;
@@ -911,8 +915,12 @@ namespace System.Collections.Generic
                 if (index < _size) {
                     Array.Copy(_items, index + count, _items, index, _size - index);
                 }
-                Array.Clear(_items, _size, count);
+
                 _version++;
+                if (JitHelpers.ContainsReferences<T>())
+                {
+                    Array.Clear(_items, _size, count);
+                }
             }
         }
     
