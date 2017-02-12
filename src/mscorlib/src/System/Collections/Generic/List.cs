@@ -16,6 +16,7 @@ namespace System.Collections.Generic {
 
     using System;
     using System.Runtime;
+    using System.Runtime.CompilerServices;
     using System.Runtime.Versioning;
     using System.Diagnostics;
     using System.Diagnostics.Contracts;
@@ -209,9 +210,19 @@ namespace System.Collections.Generic {
         // before adding the new element.
         //
         public void Add(T item) {
-            if (_size == _items.Length) EnsureCapacity(_size + 1);
-            _items[_size++] = item;
+            int size = _size;
+            if (size == _items.Length) GrowCapacityForAdd();
+            _items[size] = item;
+            _size = size + 1;
             _version++;
+        }
+
+        // Separated out of List.Add to improve its code quality
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private void GrowCapacityForAdd()
+        {
+            Debug.Assert(_size == _items.Length);
+            EnsureCapacity(_size + 1);
         }
 
         int System.Collections.IList.Add(Object item)
