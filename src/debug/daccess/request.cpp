@@ -736,10 +736,10 @@ ClrDataAccess::GetHeapAllocData(unsigned int count, struct DacpGenerationAllocDa
     
         if (data && count >= 1)
         {
-            auto table = g_gcDacGlobals->generation_table;
+            DPTR(dac_generation) table = g_gcDacGlobals->generation_table;
             for (int i=0;i<NUMBERGENERATIONS;i++)
             {
-                auto entry = *GenerationTableIndex(table, i);
+                dac_generation entry = *GenerationTableIndex(table, i);
                 data[0].allocData[i].allocBytes = (CLRDATA_ADDRESS)(ULONG_PTR) entry.allocation_context.alloc_bytes;
                 data[0].allocData[i].allocBytesLoh = (CLRDATA_ADDRESS)(ULONG_PTR) entry.allocation_context.alloc_bytes_loh;
             }
@@ -2840,7 +2840,7 @@ ClrDataAccess::GetGCHeapStaticData(struct DacpGcHeapDetails *detailsData)
     for (int i=0;i<NUMBERGENERATIONS;i++)
     {
         DPTR(dac_generation) generation = GenerationTableIndex(g_gcDacGlobals->generation_table, i);
-        detailsData->generation_table[i].start_segment = (CLRDATA_ADDRESS) generation->start_segment;
+        detailsData->generation_table[i].start_segment = (CLRDATA_ADDRESS) dac_cast<TADDR>(generation->start_segment);
 
         detailsData->generation_table[i].allocation_start = (CLRDATA_ADDRESS) generation->allocation_start;
 

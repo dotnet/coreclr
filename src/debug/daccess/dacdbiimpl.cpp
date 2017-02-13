@@ -6638,12 +6638,12 @@ HRESULT DacHeapWalker::InitHeapDataWks(HeapData *&pHeaps, size_t &pCount)
         return E_OUTOFMEMORY;
     
     // Small object heap segments
-    DPTR(dac_heap_segment) seg = __DPtr<dac_heap_segment>(gen2.start_segment);
+    DPTR(dac_heap_segment) seg = gen2.start_segment;
     int i = 0;
     for (; seg && (i < count); ++i)
     {
         pHeaps[0].Segments[i].Start = (CORDB_ADDRESS)seg->mem;
-        if (seg.GetAddr() == dac_cast<TADDR>(*g_gcDacGlobals->ephemeral_heap_segment))
+        if (seg.GetAddr() == g_gcDacGlobals->ephemeral_heap_segment.GetAddr())
         {
             pHeaps[0].Segments[i].End = (CORDB_ADDRESS)*g_gcDacGlobals->alloc_allocated;
             pHeaps[0].Segments[i].Generation = 1;
@@ -6655,18 +6655,18 @@ HRESULT DacHeapWalker::InitHeapDataWks(HeapData *&pHeaps, size_t &pCount)
             pHeaps[0].Segments[i].Generation = 2;
         }
         
-        seg = __DPtr<dac_heap_segment>(seg->next);
+        seg = seg->next;
     }
 
     // Large object heap segments
-    seg = __DPtr<dac_heap_segment>(loh.start_segment);
+    seg = loh.start_segment;
     for (; seg && (i < count); ++i)
     {
         pHeaps[0].Segments[i].Generation = 3;
         pHeaps[0].Segments[i].Start = (CORDB_ADDRESS)seg->mem;
         pHeaps[0].Segments[i].End = (CORDB_ADDRESS)seg->allocated;
         
-        seg = __DPtr<dac_heap_segment>(seg->next);
+        seg = seg->next;
     }
 
     return S_OK;

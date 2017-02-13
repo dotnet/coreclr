@@ -44,7 +44,7 @@ public:
 class dac_generation {
 public:
     gc_alloc_context allocation_context;
-    dac_heap_segment* start_segment;
+    DPTR(dac_heap_segment) start_segment;
     uint8_t* allocation_start;
 };
 

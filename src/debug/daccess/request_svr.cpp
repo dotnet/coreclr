@@ -125,7 +125,7 @@ HRESULT ClrDataAccess::ServerGCHeapDetails(CLRDATA_ADDRESS heapAddr, DacpGcHeapD
     for (i=0; i<NUMBERGENERATIONS; i++)
     {
         DPTR(dac_generation) generation = ServerGenerationTableIndex(pHeap, i);
-        detailsData->generation_table[i].start_segment     = (CLRDATA_ADDRESS)generation->start_segment;
+        detailsData->generation_table[i].start_segment     = (CLRDATA_ADDRESS)dac_cast<TADDR>(generation->start_segment);
         detailsData->generation_table[i].allocation_start   = (CLRDATA_ADDRESS)(ULONG_PTR)generation->allocation_start;
         DPTR(gc_alloc_context) alloc_context = dac_cast<TADDR>(generation) + offsetof(dac_generation, allocation_context);
         detailsData->generation_table[i].allocContextPtr    = (CLRDATA_ADDRESS)(ULONG_PTR) alloc_context->alloc_ptr;
@@ -225,12 +225,12 @@ ClrDataAccess::EnumSvrGlobalMemoryRegions(CLRDataEnumMemoryFlags flags)
         // this is the convention in the GC so it is repeated here
         for (ULONG i = *g_gcDacGlobals->max_gen; i <= *g_gcDacGlobals->max_gen +1; i++)
         {
-            DPTR(dac_heap_segment) seg = dac_cast<TADDR>(pHeap->generation_table[i].start_segment);
+            DPTR(dac_heap_segment) seg = ServerGenerationTableIndex(pHeap, i)->start_segment;
             while (seg)
             {
                     DacEnumMemoryRegion(PTR_HOST_TO_TADDR(seg), sizeof(dac_heap_segment));
 
-                    seg = __DPtr<dac_heap_segment>(dac_cast<TADDR>(seg->next));
+                    seg = seg->next;
             }
         }
     }
