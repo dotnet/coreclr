@@ -265,49 +265,49 @@ WRITE_BARRIER_END JIT_CheckedWriteBarrier
 //
 WRITE_BARRIER_ENTRY JIT_WriteBarrier
     dmb  ST
-    str      x15, [x14]
+    str  x15, [x14]
 
 #ifdef WRITE_BARRIER_CHECK
     // Update GC Shadow Heap
 
     // need temporary registers. Save them before using.
-    stp      x12, x13, [sp, #-16]!
+    stp  x12, x13, [sp, #-16]!
 
     // Compute address of shadow heap location:
     //   pShadow = g_GCShadow + (x14 - g_lowest_address)
-    ldr      x12, =g_lowest_address
-    ldr      x12, [x12]
-    sub      x12, x14, x12
-    ldr      x13, =g_GCShadow
-    ldr      x13, [x13]
-    add      x12, x13, x12
+    ldr  x12, =g_lowest_address
+    ldr  x12, [x12]
+    sub  x12, x14, x12
+    ldr  x13, =g_GCShadow
+    ldr  x13, [x13]
+    add  x12, x13, x12
 
     // if (pShadow >= g_GCShadowEnd) goto end
-    ldr      x13, =g_GCShadowEnd
-    ldr      x13, [x13]
-    cmp      x12, x13
-    bhs      LOCAL_LABEL(shadowupdateend)
+    ldr  x13, =g_GCShadowEnd
+    ldr  x13, [x13]
+    cmp  x12, x13
+    bhs  LOCAL_LABEL(shadowupdateend)
 
     // *pShadow = x15
-    str      x15, [x12]
+    str  x15, [x12]
 
     // Ensure that the write to the shadow heap occurs before the read from the GC heap so that race
     // conditions are caught by INVALIDGCVALUE.
-    dmb      sy
+    dmb  sy
 
     // if ([x14] == x15) goto end
-    ldr      x13, [x14]
-    cmp      x13, x15
+    ldr  x13, [x14]
+    cmp  x13, x15
     beq LOCAL_LABEL(shadowupdateend)
 
     // *pShadow = INVALIDGCVALUE (0xcccccccd)
-    mov      x13, #0
-    movk     x13, #0xcccd
-    movk     x13, #0xcccc, LSL #16
-    str      x13, [x12]
+    mov  x13, #0
+    movk x13, #0xcccd
+    movk x13, #0xcccc, LSL #16
+    str  x13, [x12]
 
 LOCAL_LABEL(shadowupdateend):
-    ldp      x12, x13, [sp],#16
+    ldp  x12, x13, [sp],#16
 #endif
 
     // Branch to Exit if the reference is not in the Gen0 heap
@@ -843,7 +843,7 @@ NESTED_END UM2MThunk_WrapperHelper, _TEXT
 #ifdef FEATURE_HIJACK
 // ------------------------------------------------------------------
 // Hijack function for functions which return a scalar type or a struct (value type)
-    NESTED_ENTRY OnHijackTripThread, _TEXT, NoHandler
+NESTED_ENTRY OnHijackTripThread, _TEXT, NoHandler
     PROLOG_SAVE_REG_PAIR_INDEXED   fp, lr, -144
     // Spill callee saved registers
     PROLOG_SAVE_REG_PAIR   x19, x20, 16
@@ -876,7 +876,7 @@ NESTED_END UM2MThunk_WrapperHelper, _TEXT
     EPILOG_RESTORE_REG_PAIR   x27, x28, 80
     EPILOG_RESTORE_REG_PAIR_INDEXED   fp, lr,   144
     EPILOG_RETURN
-    NESTED_END OnHijackTripThread, _TEXT
+NESTED_END OnHijackTripThread, _TEXT
 
 #endif // FEATURE_HIJACK
 
