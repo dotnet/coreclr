@@ -29,13 +29,6 @@ struct MachState {
     
     BOOL   isValid()    { LIMITED_METHOD_DAC_CONTRACT; return _isValid; }
     TADDR  GetRetAddr() { LIMITED_METHOD_DAC_CONTRACT; return _pc; }
-
-#ifdef FEATURE_PAL
-    // On PAL, we don't always have the context pointers available due to
-    // a limitation of an unwinding library. In such case, preserve
-    // the unwound values.
-    CalleeSavedRegisters m_Unwound;
-#endif
 };
 
 struct LazyMachState : public MachState{
@@ -62,10 +55,6 @@ inline void LazyMachState::setLazyStateFromUnwind(MachState* copy)
 
     _sp = copy->_sp;
     _pc = copy->_pc;
-
-#ifdef FEATURE_PAL
-    this->m_Unwound = copy->m_Unwound;
-#endif
 
     // Capture* has already been set, so there is no need to touch it
 
