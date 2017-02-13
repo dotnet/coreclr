@@ -45,7 +45,7 @@ LOCAL_LABEL(stackloop):
     bne     LOCAL_LABEL(stackloop)
 LOCAL_LABEL(donestack):
 
-    // If FP arguments are supplied in registers (x8 != NULL) then initialize all of them from the pointer
+    // If FP arguments are supplied in registers (x9 != NULL) then initialize all of them from the pointer
     // given in x8. 
     ldr     x9, [x19,#CallDescrData__pFloatArgumentRegisters]
     cbz     x9, LOCAL_LABEL(NoFloatingPoint)
