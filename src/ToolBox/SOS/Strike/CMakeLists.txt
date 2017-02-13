@@ -9,6 +9,11 @@ if (CORECLR_SET_RPATH)
   endif(CLR_CMAKE_PLATFORM_DARWIN)
 endif (CORECLR_SET_RPATH)
 
+if(FEATURE_HISTDBG)
+  add_definitions(-DFEATURE_HISTDBG)
+  include_directories(${CLR_DIR}/src/dlls/histdbg)
+endif(FEATURE_HISTDBG)
+
 if(CLR_CMAKE_PLATFORM_ARCH_AMD64)
   add_definitions(-DSOS_TARGET_AMD64=1)
   add_definitions(-D_TARGET_WIN64_=1)
