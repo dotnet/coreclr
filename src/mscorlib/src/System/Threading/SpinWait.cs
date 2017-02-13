@@ -146,6 +146,11 @@ namespace System.Threading
                     Thread.Yield();
                 }
             }
+            else if (m_count == 0)
+            {
+                // Not spun yet, single cpu PAUSE, bitshift below would result in 0 PAUSEs
+                Thread.SpinWait(1);
+            }
             else
             {
                 //
