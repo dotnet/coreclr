@@ -71,6 +71,7 @@ namespace System.Threading
     /// </remarks>
     public struct SpinWait
     {
+        private const int MAX_COUNT = int.MaxValue >> 4;
 
         // These constants determine the frequency of yields versus spinning. The
         // numbers may seem fairly arbitrary, but were derived with at least some
@@ -168,7 +169,7 @@ namespace System.Threading
             }
 
             // Finally, increment our spin counter.
-            m_count = (m_count == int.MaxValue ? YIELD_THRESHOLD : m_count + 1);
+            m_count = (m_count == MAX_COUNT ? YIELD_THRESHOLD : m_count + 1);
         }
 
         /// <summary>
