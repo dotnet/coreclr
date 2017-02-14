@@ -3844,18 +3844,15 @@ struct InterruptibleRangeReporter
     }
 };
 
-void GCInfo::gcMakeRegPtrTable(GcInfoEncoder* gcInfoEncoder,
-                               unsigned       codeSize,
-                               unsigned       prologSize,
-                               MakeRegPtrMode mode,
-                               unsigned*      callCntRef)
+void GCInfo::gcMakeRegPtrTable(
+    GcInfoEncoder* gcInfoEncoder, unsigned codeSize, unsigned prologSize, MakeRegPtrMode mode, unsigned* callCntRef)
 {
     GCENCODER_WITH_LOGGING(gcInfoEncoderWithLog, gcInfoEncoder);
 
 #if defined(_TARGET_AMD64_) && defined(FEATURE_CORECLR)
-    const bool noTrackedGCSlots = (compiler->opts.MinOpts() &&
-                                   !compiler->opts.jitFlags->IsSet(JitFlags::JIT_FLAG_PREJIT) &&
-                                   !JitConfig.JitMinOptsTrackGCrefs());
+    const bool noTrackedGCSlots =
+        (compiler->opts.MinOpts() && !compiler->opts.jitFlags->IsSet(JitFlags::JIT_FLAG_PREJIT) &&
+         !JitConfig.JitMinOptsTrackGCrefs());
 #endif
 
     if (mode == MAKE_REG_PTR_MODE_ASSIGN_SLOTS)
@@ -3972,7 +3969,9 @@ void GCInfo::gcMakeRegPtrTable(GcInfoEncoder* gcInfoEncoder,
             if (noTrackedGCSlots)
             {
                 if (mode == MAKE_REG_PTR_MODE_ASSIGN_SLOTS)
+                {
                     gcInfoEncoderWithLog->GetStackSlotId(varDsc->lvStkOffs, flags, stackSlotBase);
+                }
             }
             else
 #endif
@@ -4289,15 +4288,17 @@ void GCInfo::gcMakeRegPtrTable(GcInfoEncoder* gcInfoEncoder,
                 // Append an entry for the call if doing the real thing.
                 if (mode == MAKE_REG_PTR_MODE_DO_WORK)
                 {
-                    pCallSites    [callSiteNum] = callOffset;
+                    pCallSites[callSiteNum]     = callOffset;
                     pCallSiteSizes[callSiteNum] = call->cdCallInstrSize;
                 }
                 callSiteNum++;
 
                 // Record that these registers are live before the call...
-                gcInfoRecordGCRegStateChange(gcInfoEncoder, mode, callOffset, regMask, GC_SLOT_LIVE, byrefRegMask, nullptr);
+                gcInfoRecordGCRegStateChange(gcInfoEncoder, mode, callOffset, regMask, GC_SLOT_LIVE, byrefRegMask,
+                                             nullptr);
                 // ...and dead after.
-                gcInfoRecordGCRegStateChange(gcInfoEncoder, mode, nextOffset, regMask, GC_SLOT_DEAD, byrefRegMask, nullptr);
+                gcInfoRecordGCRegStateChange(gcInfoEncoder, mode, nextOffset, regMask, GC_SLOT_DEAD, byrefRegMask,
+                                             nullptr);
             }
         }
 
