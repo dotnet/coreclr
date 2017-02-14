@@ -37,9 +37,6 @@
 #define MON_DEBUG 1
 #endif
 
-class generation;
-extern "C" generation generation_table[];
-
 extern "C" void STDCALL JIT_WriteBarrierReg_PreGrow();// JIThelp.asm/JIThelp.s
 extern "C" void STDCALL JIT_WriteBarrierReg_PostGrow();// JIThelp.asm/JIThelp.s
 
@@ -677,9 +674,9 @@ void JIT_TrialAlloc::EmitCore(CPUSTUBLINKER *psl, CodeLabel *noLock, CodeLabel *
             psl->X86EmitIndexRegLoad(kEDX, kECX, offsetof(MethodTable, m_BaseSize));
         }
 
-        // mov             eax, dword ptr [generation_table]
+        // mov             eax, dword ptr [g_generation_table]
         psl->Emit8(0xA1);
-        psl->Emit32((int)(size_t)&generation_table);
+        psl->Emit32((int)(size_t)&g_generation_table);
 
         // Try the allocation.
         // add             edx, eax
@@ -688,17 +685,17 @@ void JIT_TrialAlloc::EmitCore(CPUSTUBLINKER *psl, CodeLabel *noLock, CodeLabel *
         if (flags & (ALIGN8 | ALIGN8OBJ))
             EmitAlignmentRoundup(psl, kEAX, kEDX, flags);      // bump up EDX size by 12 if EAX unaligned (so that we are aligned)
 
-        // cmp             edx, dword ptr [generation_table+4]
+        // cmp             edx, dword ptr [g_generation_table+4]
         psl->Emit16(0x153b);
-        psl->Emit32((int)(size_t)&generation_table + 4);
+        psl->Emit32((int)(size_t)&g_generation_table + 4);
 
         // ja              noAlloc
         psl->X86EmitCondJump(noAlloc, X86CondCode::kJA);
 
         // Fill in the allocation and get out.
-        // mov             dword ptr [generation_table], edx
+        // mov             dword ptr [g_generation_table], edx
         psl->Emit16(0x1589);
-        psl->Emit32((int)(size_t)&generation_table);
+        psl->Emit32((int)(size_t)&g_generation_table);
 
         if (flags & (ALIGN8 | ALIGN8OBJ))
             EmitDummyObject(psl, kEAX, flags);
