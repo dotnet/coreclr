@@ -1,6 +1,6 @@
 {
   "dependencies": {
-    "Microsoft.NETCore.Platforms": "2.0.0-beta-25007-01",
+    "Microsoft.NETCore.Platforms": "2.0.0-beta-25014-02",
     "xunit": "2.2.0-beta2-build3300",
     "xunit.assert": "2.2.0-beta2-build3300",
     "xunit.core": "2.2.0-beta2-build3300",
@@ -27,7 +27,6 @@
     "centos.7-x64": {},
     "rhel.7-x64": {},
     "debian.8-x64": {},
-    "fedora.23-x64": {},
-    "opensuse.13.2-x64": {}
+    "fedora.23-x64": {}
   }
 }

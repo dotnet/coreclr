@@ -4727,16 +4727,10 @@ HRESULT ProfToEEInterfaceImpl::SetILInstrumentedCodeMap(FunctionID functionId,
     if (!pMethodDesc ->IsRestored())
         return CORPROF_E_DATAINCOMPLETE;
 
-#ifdef FEATURE_CORECLR
     if (g_pDebugInterface == NULL)
     {
         return CORPROF_E_DEBUGGING_DISABLED;
     }
-#else
-    // g_pDebugInterface is initialized on startup on desktop CLR, regardless of whether a debugger
-    // or profiler is loaded.  So it should always be available.
-    _ASSERTE(g_pDebugInterface != NULL);
-#endif // FEATURE_CORECLR
 
     COR_IL_MAP * rgNewILMapEntries = new (nothrow) COR_IL_MAP[cILMapEntries];
 
@@ -5181,16 +5175,10 @@ HRESULT ProfToEEInterfaceImpl::GetILToNativeMapping2(FunctionID functionId,
         return E_INVALIDARG;
     }
 
-#ifdef FEATURE_CORECLR
     if (g_pDebugInterface == NULL)
     {
         return CORPROF_E_DEBUGGING_DISABLED;
     }
-#else
-    // g_pDebugInterface is initialized on startup on desktop CLR, regardless of whether a debugger
-    // or profiler is loaded.  So it should always be available.
-    _ASSERTE(g_pDebugInterface != NULL);
-#endif // FEATURE_CORECLR
 
     return (g_pDebugInterface->GetILToNativeMapping(pMD, cMap, pcMap, map));
 #else
@@ -8681,11 +8669,7 @@ HRESULT ProfToEEInterfaceImpl::GetRuntimeInformation(USHORT * pClrInstanceId,
 
     if (pRuntimeType != NULL)
     {
-#ifdef FEATURE_CORECLR
         *pRuntimeType = COR_PRF_CORE_CLR;
-#else // FEATURE_CORECLR
-        *pRuntimeType = COR_PRF_DESKTOP_CLR;
-#endif // FEATURE_CORECLR
     }
 
     if (pMajorVersion != NULL)
@@ -9413,8 +9397,7 @@ HRESULT ProfToEEInterfaceImpl::EnumNgenModuleMethodsInliningThisMethod(
         return CORPROF_E_DATAINCOMPLETE;
     }
 
-    PersistentInlineTrackingMap *inliningMap = inlinersModule->GetNgenInlineTrackingMap();
-    if (inliningMap == NULL)
+    if (!inlinersModule->HasInlineTrackingMap())
     {
         return CORPROF_E_DATAINCOMPLETE;
     }
@@ -9427,14 +9410,14 @@ HRESULT ProfToEEInterfaceImpl::EnumNgenModuleMethodsInliningThisMethod(
     EX_TRY
     {
         // Trying to use static buffer
-        COUNT_T methodsAvailable = inliningMap->GetInliners(inlineeOwnerModule, inlineeMethodId, staticBufferSize, staticBuffer, incompleteData);
+        COUNT_T methodsAvailable = inlinersModule->GetInliners(inlineeOwnerModule, inlineeMethodId, staticBufferSize, staticBuffer, incompleteData);
 
         // If static buffer is not enough, allocate an array.
         if (methodsAvailable > staticBufferSize)
         {
             DWORD dynamicBufferSize = methodsAvailable;
             dynamicBuffer = methodsBuffer = new MethodInModule[dynamicBufferSize];
-            methodsAvailable = inliningMap->GetInliners(inlineeOwnerModule, inlineeMethodId, dynamicBufferSize, dynamicBuffer, incompleteData);                
+            methodsAvailable = inlinersModule->GetInliners(inlineeOwnerModule, inlineeMethodId, dynamicBufferSize, dynamicBuffer, incompleteData);                
             if (methodsAvailable > dynamicBufferSize)
             {
                 _ASSERTE(!"Ngen image inlining info changed, this shouldn't be possible.");

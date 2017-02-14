@@ -70,7 +70,6 @@ namespace System {
             // Is this thread currently doing infinite resource lookups?
             private int infinitelyRecursingCount;
             
-            [ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]
             internal String GetResourceString(String key)  {
                 if (key == null || key.Length == 0) {
                     Debug.Assert(false, "Environment::GetResourceString with null or empty key.  Bug in caller, or weird recursive loading problem?");
@@ -175,7 +174,6 @@ namespace System {
         // Private object for locking instead of locking on a public type for SQL reliability work.
         private static Object s_InternalSyncObject;
         private static Object InternalSyncObject {
-            [ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]
             get {
                 if (s_InternalSyncObject == null) {
                     Object o = new Object();
@@ -598,8 +596,6 @@ namespace System {
         // if you change this method's signature then you must change the code that calls it
         // in excep.cpp and probably you will have to visit mscorlib.h to add the new signature
         // as well as metasig.h to create the new signature type
-        // NoInlining causes the caller and callee to not be inlined in mscorlib as it is an assumption of StackCrawlMark use
-        [MethodImpl(MethodImplOptions.NoInlining)]
         internal static String GetResourceStringLocal(String key) {
             if (m_resHelper == null)
                 InitResourceHelper();
@@ -616,40 +612,38 @@ namespace System {
         // thrown, we want the code size to be as small as possible.
         // Using the params object[] overload works against this since the
         // initialization of the array is done inline in the caller at the IL
-        // level. So we have overloads that simply wrap the params one, and
-        // the methods they call through to are tagged as NoInlining. 
-        // In mscorlib NoInlining causes the caller and callee to not be inlined
-        // as it is an assumption of StackCrawlMark use so it is not added 
-        // directly to these methods, but to the ones they call.
-        // That way they do not bloat either the IL or the generated asm.
+        // level. So we have overloads that simply wrap the params one.
 
+        [MethodImpl(MethodImplOptions.NoInlining)]
         internal static string GetResourceString(string key, object val0)
         {
             return GetResourceStringFormatted(key, new object[] { val0 });
         }
 
+        [MethodImpl(MethodImplOptions.NoInlining)]
         internal static string GetResourceString(string key, object val0, object val1)
         {
             return GetResourceStringFormatted(key, new object[] { val0, val1 });
         }
 
+        [MethodImpl(MethodImplOptions.NoInlining)]
         internal static string GetResourceString(string key, object val0, object val1, object val2)
         {
             return GetResourceStringFormatted(key, new object[] { val0, val1, val2 });
         }
 
+        [MethodImpl(MethodImplOptions.NoInlining)]
         internal static string GetResourceString(string key, object val0, object val1, object val2, object val3)
         {
             return GetResourceStringFormatted(key, new object[] { val0, val1, val2, val3 });
         }
 
+        [MethodImpl(MethodImplOptions.NoInlining)]
         internal static String GetResourceString(string key, params object[] values)
         {
             return GetResourceStringFormatted(key, values);
         }
 
-        // NoInlining causes the caller and callee to not be inlined in mscorlib as it is an assumption of StackCrawlMark use
-        [MethodImpl(MethodImplOptions.NoInlining)]
         private static String GetResourceStringFormatted(string key, params object[] values)
         {
             string rs = GetResourceString(key);
@@ -669,7 +663,6 @@ namespace System {
         }
         public static int CurrentManagedThreadId
         {
-            [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
             get
             {
                 return Thread.CurrentThread.ManagedThreadId;

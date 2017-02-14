@@ -6519,7 +6519,7 @@ var_types Compiler::impImportCall(OPCODE                  opcode,
 
             if (mflags & CORINFO_FLG_DONT_INLINE_CALLER)
             {
-                compInlineResult->NoteFatal(InlineObservation::CALLEE_HAS_NOINLINE_CALLEE);
+                compInlineResult->NoteFatal(InlineObservation::CALLEE_STACK_CRAWL_MARK);
                 return callRetTyp;
             }
 
@@ -7692,10 +7692,33 @@ DONE_CALL:
                         call           = gtNewLclvNode(calliSlot, type);
                     }
                 }
+
                 // For non-candidates we must also spill, since we
                 // might have locals live on the eval stack that this
                 // call can modify.
-                impSpillSideEffects(true, CHECK_SPILL_ALL DEBUGARG("non-inline candidate call"));
+                //
+                // Suppress this for certain well-known call targets
+                // that we know won't modify locals, eg calls that are
+                // recognized in gtCanOptimizeTypeEquality. Otherwise
+                // we may break key fragile pattern matches later on.
+                bool spillStack = true;
+                if (call->IsCall())
+                {
+                    GenTreeCall* callNode = call->AsCall();
+                    if ((callNode->gtCallType == CT_HELPER) && gtIsTypeHandleToRuntimeTypeHelper(callNode))
+                    {
+                        spillStack = false;
+                    }
+                    else if ((callNode->gtCallMoreFlags & GTF_CALL_M_SPECIAL_INTRINSIC) != 0)
+                    {
+                        spillStack = false;
+                    }
+                }
+
+                if (spillStack)
+                {
+                    impSpillSideEffects(true, CHECK_SPILL_ALL DEBUGARG("non-inline candidate call"));
+                }
             }
         }
 
@@ -12770,11 +12793,31 @@ void Compiler::impImportBlockCode(BasicBlock* block)
                             prefixFlags |= PREFIX_TAILCALL_EXPLICIT;
                         }
                     }
+                }
 
-                    // Note that when running under tail call stress, a call will be marked as explicit tail prefixed
-                    // hence will not be considered for implicit tail calling.
-                    bool isRecursive = (callInfo.hMethod == info.compMethodHnd);
-                    if (impIsImplicitTailCallCandidate(opcode, codeAddr + sz, codeEndp, prefixFlags, isRecursive))
+                // This is split up to avoid goto flow warnings.
+                bool isRecursive;
+                isRecursive = !compIsForInlining() && (callInfo.hMethod == info.compMethodHnd);
+
+                // Note that when running under tail call stress, a call will be marked as explicit tail prefixed
+                // hence will not be considered for implicit tail calling.
+                if (impIsImplicitTailCallCandidate(opcode, codeAddr + sz, codeEndp, prefixFlags, isRecursive))
+                {
+                    if (compIsForInlining())
+                    {
+#if FEATURE_TAILCALL_OPT_SHARED_RETURN
+                        // Are we inlining at an implicit tail call site? If so the we can flag
+                        // implicit tail call sites in the inline body. These call sites
+                        // often end up in non BBJ_RETURN blocks, so only flag them when
+                        // we're able to handle shared returns.
+                        if (impInlineInfo->iciCall->IsImplicitTailCall())
+                        {
+                            JITDUMP(" (Inline Implicit Tail call: prefixFlags |= PREFIX_TAILCALL_IMPLICIT)");
+                            prefixFlags |= PREFIX_TAILCALL_IMPLICIT;
+                        }
+#endif // FEATURE_TAILCALL_OPT_SHARED_RETURN
+                    }
+                    else
                     {
                         JITDUMP(" (Implicit Tail call: prefixFlags |= PREFIX_TAILCALL_IMPLICIT)");
                         prefixFlags |= PREFIX_TAILCALL_IMPLICIT;
@@ -12793,7 +12836,7 @@ void Compiler::impImportBlockCode(BasicBlock* block)
                     impHandleAccessAllowed(callInfo.accessAllowed, &callInfo.callsiteCalloutHelper);
 
 #if 0 // DevDiv 410397 - This breaks too many obfuscated apps to do this in an in-place release
-     
+
                 // DevDiv 291703 - we need to check for accessibility between the caller of InitializeArray
                 // and the field it is reading, thus it is now unverifiable to not immediately precede with
                 // ldtoken <filed token>, and we now check accessibility

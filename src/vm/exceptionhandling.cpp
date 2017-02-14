@@ -966,7 +966,6 @@ ProcessCLRException(IN     PEXCEPTION_RECORD   pExceptionRecord
         }
 #endif // FEATURE_CORRUPTING_EXCEPTIONS
 
-#ifdef FEATURE_CORECLR
         {
             // Switch to COOP mode since we are going to work
             // with throwable
@@ -1009,7 +1008,6 @@ ProcessCLRException(IN     PEXCEPTION_RECORD   pExceptionRecord
                 }
             }
         }
-#endif // FEATURE_CORECLR
 
 #ifndef FEATURE_PAL // Watson is on Windows only
         // Setup bucketing details for nested exceptions (rethrow and non-rethrow) only if we are in the first pass
@@ -2213,13 +2211,11 @@ CLRUnwindStatus ExceptionTracker::ProcessExplicitFrame(
 #if defined(DEBUGGING_SUPPORTED)
                 if (ExceptionTracker::NotifyDebuggerOfStub(pThread, sf, pFrame))
                 {
-#ifdef FEATURE_EXCEPTION_NOTIFICATIONS
                     // Deliver the FirstChanceNotification after the debugger, if not already delivered.
                     if (!this->DeliveredFirstChanceNotification())
                     {
                         ExceptionNotifications::DeliverFirstChanceNotification();
                     }
-#endif // FEATURE_EXCEPTION_NOTIFICATIONS
                 }
 #endif // DEBUGGING_SUPPORTED
 
@@ -2553,14 +2549,12 @@ CLRUnwindStatus ExceptionTracker::ProcessManagedCallFrame(
                     }
 #endif // DEBUGGING_SUPPORTED
 
-#ifdef FEATURE_EXCEPTION_NOTIFICATIONS
                     // Attempt to deliver the first chance notification to the AD only *AFTER* the debugger
                     // has done that, provided we have not already delivered it.
                     if (!this->DeliveredFirstChanceNotification())
                     {
                         ExceptionNotifications::DeliverFirstChanceNotification();
                     }
-#endif // FEATURE_EXCEPTION_NOTIFICATIONS
                 }
                 else
                 {
