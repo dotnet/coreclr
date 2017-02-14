@@ -22512,8 +22512,10 @@ void Compiler::fgRemoveEmptyFinally()
 {
     JITDUMP("\n*************** In fgRemoveEmptyFinally()\n");
 
+#if FEATURE_EH_FUNCLETS
     // We need to do this transformation before funclets are created.
     assert(!fgFuncletsCreated);
+#endif // FEATURE_EH_FUNCLETS
 
     // Assume we don't need to update the bbPreds lists.
     assert(!fgComputePredsDone);
@@ -22747,8 +22749,10 @@ void Compiler::fgRemoveEmptyTry()
 {
     JITDUMP("\n*************** In fgRemoveEmptyTry()\n");
 
+#if FEATURE_EH_FUNCLETS
     // We need to do this transformation before funclets are created.
     assert(!fgFuncletsCreated);
+#endif // FEATURE_EH_FUNCLETS
 
     // Assume we don't need to update the bbPreds lists.
     assert(!fgComputePredsDone);
@@ -23073,8 +23077,10 @@ void Compiler::fgCloneFinally()
 {
     JITDUMP("\n*************** In fgCloneFinally()\n");
 
+#if FEATURE_EH_FUNCLETS
     // We need to do this transformation before funclets are created.
     assert(!fgFuncletsCreated);
+#endif // FEATURE_EH_FUNCLETS
 
     // Assume we don't need to update the bbPreds lists.
     assert(!fgComputePredsDone);
@@ -23906,8 +23912,10 @@ void Compiler::fgMergeFinallyChains()
 {
     JITDUMP("\n*************** In fgMergeFinallyChains()\n");
 
+#if FEATURE_EH_FUNCLETS
     // We need to do this transformation before funclets are created.
     assert(!fgFuncletsCreated);
+#endif // FEATURE_EH_FUNCLETS
 
     // Assume we don't need to update the bbPreds lists.
     assert(!fgComputePredsDone);
