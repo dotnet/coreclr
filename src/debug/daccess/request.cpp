@@ -737,7 +737,7 @@ ClrDataAccess::GetHeapAllocData(unsigned int count, struct DacpGenerationAllocDa
         if (data && count >= 1)
         {
             DPTR(dac_generation) table = g_gcDacGlobals->generation_table;
-            for (int i=0;i<NUMBERGENERATIONS;i++)
+            for (unsigned int i=0; i < *g_gcDacGlobals->max_gen + 2; i++)
             {
                 dac_generation entry = *GenerationTableIndex(table, i);
                 data[0].allocData[i].allocBytes = (CLRDATA_ADDRESS)(ULONG_PTR) entry.allocation_context.alloc_bytes;
@@ -2837,7 +2837,7 @@ ClrDataAccess::GetGCHeapStaticData(struct DacpGcHeapDetails *detailsData)
     detailsData->background_saved_lowest_address = (CLRDATA_ADDRESS)*g_gcDacGlobals->background_saved_lowest_address;
     detailsData->background_saved_highest_address = (CLRDATA_ADDRESS)*g_gcDacGlobals->background_saved_highest_address;
 
-    for (int i=0;i<NUMBERGENERATIONS;i++)
+    for (unsigned int i=0; i < *g_gcDacGlobals->max_gen + 2; i++)
     {
         DPTR(dac_generation) generation = GenerationTableIndex(g_gcDacGlobals->generation_table, i);
         detailsData->generation_table[i].start_segment = (CLRDATA_ADDRESS) dac_cast<TADDR>(generation->start_segment);
@@ -2851,7 +2851,7 @@ ClrDataAccess::GetGCHeapStaticData(struct DacpGcHeapDetails *detailsData)
 
     DPTR(dac_finalize_queue) fq = Dereference(g_gcDacGlobals->finalize_queue);
     DPTR(uint8_t*) fillPointersTable = dac_cast<TADDR>(fq) + offsetof(dac_finalize_queue, m_FillPointers);
-    for (int i = 0; i<(NUMBERGENERATIONS + dac_finalize_queue::ExtraSegCount); i++)
+    for (unsigned int i = 0; i<(*g_gcDacGlobals->max_gen + 2 + dac_finalize_queue::ExtraSegCount); i++)
     {
         detailsData->finalization_fill_pointers[i] = (CLRDATA_ADDRESS)*TableIndex(fillPointersTable, i, sizeof(uint8_t*));
     }
@@ -3075,6 +3075,7 @@ ClrDataAccess::GetGCInterestingInfoStaticData(struct DacpGCInterestingInfoData *
     if (data == NULL)
         return E_INVALIDARG;
 
+    static_assert_no_msg(DAC_NUMBERGENERATIONS == NUMBERGENERATIONS);
     static_assert_no_msg(DAC_NUM_GC_DATA_POINTS == NUM_GC_DATA_POINTS);
     static_assert_no_msg(DAC_MAX_COMPACT_REASONS_COUNT == MAX_COMPACT_REASONS_COUNT);
     static_assert_no_msg(DAC_MAX_EXPAND_MECHANISMS_COUNT == MAX_EXPAND_MECHANISMS_COUNT);
