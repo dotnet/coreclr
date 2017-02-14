@@ -2290,9 +2290,6 @@ public:
 
     static int __cdecl RefCntCmp(const void* op1, const void* op2);
     static int __cdecl WtdRefCntCmp(const void* op1, const void* op2);
-#ifdef _TARGET_AMD64_
-    static int __cdecl WtdRefCntCmpSimpleGC(const void* op1, const void* op2);
-#endif
 
     /*****************************************************************************/
 

@@ -3853,11 +3853,9 @@ void GCInfo::gcMakeRegPtrTable(GcInfoEncoder* gcInfoEncoder,
     GCENCODER_WITH_LOGGING(gcInfoEncoderWithLog, gcInfoEncoder);
 
 #if defined(_TARGET_AMD64_) && defined(FEATURE_CORECLR)
-    const bool fastPath = (compiler->opts.MinOpts() &&
-                           !compiler->opts.jitFlags->IsSet(JitFlags::JIT_FLAG_PREJIT) &&
-                           !JitConfig.JitMinOptsTrackGCrefs());
-#else
-    const bool fastPath = false;
+    const bool noTrackedGCSlots = (compiler->opts.MinOpts() &&
+                                   !compiler->opts.jitFlags->IsSet(JitFlags::JIT_FLAG_PREJIT) &&
+                                   !JitConfig.JitMinOptsTrackGCrefs());
 #endif
 
     if (mode == MAKE_REG_PTR_MODE_ASSIGN_SLOTS)
@@ -3971,7 +3969,7 @@ void GCInfo::gcMakeRegPtrTable(GcInfoEncoder* gcInfoEncoder,
                 stackSlotBase = GC_FRAMEREG_REL;
             }
 #if defined(_TARGET_AMD64_) && defined(FEATURE_CORECLR)
-            if (fastPath)
+            if (noTrackedGCSlots)
             {
                 if (mode == MAKE_REG_PTR_MODE_ASSIGN_SLOTS)
                     gcInfoEncoderWithLog->GetStackSlotId(varDsc->lvStkOffs, flags, stackSlotBase);
@@ -4224,7 +4222,7 @@ void GCInfo::gcMakeRegPtrTable(GcInfoEncoder* gcInfoEncoder,
             if (gcCallDescList != nullptr)
             {
 #if defined(_TARGET_AMD64_) && defined(FEATURE_CORECLR)
-                if (fastPath)
+                if (noTrackedGCSlots)
                 {
                     // We have the call count from the previous run.
                     numCallSites = *callCntRef;
@@ -4281,7 +4279,7 @@ void GCInfo::gcMakeRegPtrTable(GcInfoEncoder* gcInfoEncoder,
             unsigned callOffset = nextOffset - call->cdCallInstrSize;
 
 #if defined(_TARGET_AMD64_) && defined(FEATURE_CORECLR)
-            if (fastPath && regMask == 0)
+            if (noTrackedGCSlots && regMask == 0)
             {
                 // No live GC refs in regs at the call -> don't record the call.
             }

@@ -656,43 +656,41 @@ bool GcInfoDecoder::EnumerateLiveSlots(
             {
                 // No ranges and no explicit safepoint - must be MinOpts.
                 noTrackedRefs = true;
-                goto NO_RANGES;
             }
 #else
             _ASSERTE(m_NumInterruptibleRanges);
 #endif
         }
 
-        int countIntersections = 0;
-        UINT32 lastNormStop = 0;
-        for(UINT32 i=0; i<m_NumInterruptibleRanges; i++)
+        if(m_NumInterruptibleRanges != 0)
         {
-            UINT32 normStartDelta = (UINT32) m_Reader.DecodeVarLengthUnsigned( INTERRUPTIBLE_RANGE_DELTA1_ENCBASE );
-            UINT32 normStopDelta = (UINT32) m_Reader.DecodeVarLengthUnsigned( INTERRUPTIBLE_RANGE_DELTA2_ENCBASE ) + 1;
-
-            UINT32 normStart = lastNormStop + normStartDelta;
-            UINT32 normStop = normStart + normStopDelta;
-            if(normBreakOffset >= normStart && normBreakOffset < normStop)
+            int countIntersections = 0;
+            UINT32 lastNormStop = 0;
+            for(UINT32 i=0; i<m_NumInterruptibleRanges; i++)
             {
-                _ASSERTE(pseudoBreakOffset == 0);
-                countIntersections++;
-                pseudoBreakOffset = numInterruptibleLength + normBreakOffset - normStart;
+                UINT32 normStartDelta = (UINT32) m_Reader.DecodeVarLengthUnsigned( INTERRUPTIBLE_RANGE_DELTA1_ENCBASE );
+                UINT32 normStopDelta = (UINT32) m_Reader.DecodeVarLengthUnsigned( INTERRUPTIBLE_RANGE_DELTA2_ENCBASE ) + 1;
+
+                UINT32 normStart = lastNormStop + normStartDelta;
+                UINT32 normStop = normStart + normStopDelta;
+                if(normBreakOffset >= normStart && normBreakOffset < normStop)
+                {
+                    _ASSERTE(pseudoBreakOffset == 0);
+                    countIntersections++;
+                    pseudoBreakOffset = numInterruptibleLength + normBreakOffset - normStart;
+                }
+                numInterruptibleLength += normStopDelta;
+                lastNormStop = normStop;
             }
-            numInterruptibleLength += normStopDelta;
-            lastNormStop = normStop;
-        }        
-        _ASSERTE(countIntersections <= 1);
-        if(countIntersections == 0)
-        {
-            _ASSERTE(executionAborted);
-            LOG((LF_GCROOTS, LL_INFO100000, "Not reporting this frame because it is aborted and not fully interruptible.\n"));
-            goto ExitSuccess;
+            _ASSERTE(countIntersections <= 1);
+            if(countIntersections == 0)
+            {
+                _ASSERTE(executionAborted);
+                LOG((LF_GCROOTS, LL_INFO100000, "Not reporting this frame because it is aborted and not fully interruptible.\n"));
+                goto ExitSuccess;
+            }
         }
     }        
-#if defined(_TARGET_AMD64_) && defined(FEATURE_CORECLR)
-NO_RANGES:
-#endif
-
 #else   // !PARTIALLY_INTERRUPTIBLE_GC_SUPPORTED
 
     // Skip interruptibility information
