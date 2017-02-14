@@ -1,12 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="12.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-  <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.props))\dir.props" />
-  <PropertyGroup>
-    <SkipPackageFileCheck>true</SkipPackageFileCheck>
-    <PackageTargetRuntime>linux-$(PackagePlatform)</PackageTargetRuntime>
-    <!-- only build for x64 -->
-    <PackagePlatforms>x64;</PackagePlatforms>
-  </PropertyGroup>
   <ItemGroup>
     <NativeSplittableBinary Include="$(BinDir)libcoreclr.so" />
     <NativeSplittableBinary Include="$(BinDir)libcoreclrtraceptprovider.so" />
@@ -19,8 +12,8 @@
     <ArchitectureSpecificNativeFile Include="$(BinDir)sosdocsunix.txt" />
     <ArchitectureSpecificNativeFile Include="$(BinDir)mscorlib.ni.dll" />
     <ArchitectureSpecificNativeFile Include="$(BinDir)System.Private.CoreLib.ni.dll" />
-    <ArchitectureSpecificLibFile Include="$(BinDir)System.Private.CoreLib.dll" />
     <ArchitectureSpecificLibFile Include="$(BinDir)mscorlib.dll" />
+    <ArchitectureSpecificLibFile Include="$(BinDir)System.Private.CoreLib.dll" />
     <ArchitectureSpecificLibFile Include="$(BinDir)SOS.NETCore.dll" />
     <ArchitectureSpecificToolFile Include="$(BinDir)crossgen" />
     <ArchitectureSpecificNativeFile Include="@(NativeSplittableBinary)" />
@@ -46,11 +39,10 @@
     <AdditionalSymbolPackageExcludes Include="%2A%2A\%2A.dll" />
     <AdditionalSymbolPackageExcludes Include="%2A%2A\sosdocsunix.txt" />
     <AdditionalSymbolPackageExcludes Include="%2A%2A\crossgen" />
-    <ArchitectureSpecificNativeSymbol Include="..\..\_.pdb" />
+    <ArchitectureSpecificNativeSymbol Include="..\_.pdb" />
     <File Include="@(ArchitectureSpecificNativeSymbol)">
       <TargetPath>runtimes/$(PackageTargetRuntime)/native</TargetPath>
       <IsSymbolFile>true</IsSymbolFile>
     </File>
   </ItemGroup>
-  <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.targets))\dir.targets" />
 </Project>
