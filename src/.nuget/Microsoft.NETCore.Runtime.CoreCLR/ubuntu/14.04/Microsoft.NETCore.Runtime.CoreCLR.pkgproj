@@ -9,7 +9,7 @@
   </PropertyGroup>
   <ItemGroup>
     <NativeSplittableBinary Include="$(BinDir)libcoreclr.so" />
-    <NativeSplittableBinary Condition="'$(PackagePlatform)' != 'arm'" Include="$(BinDir)libcoreclrtraceptprovider.so" />
+    <NativeSplittableBinary Include="$(BinDir)libcoreclrtraceptprovider.so" />
     <NativeSplittableBinary Include="$(BinDir)libdbgshim.so" />
     <NativeSplittableBinary Include="$(BinDir)libmscordaccore.so" />
     <NativeSplittableBinary Include="$(BinDir)libmscordbi.so" />
