@@ -3100,16 +3100,7 @@ size_t EECodeManager::GetCallerSp( PREGDISPLAY  pRD )
         EnsureCallerContextIsValid(pRD, NULL);
     }
 
-    size_t res = GetSP(pRD->pCallerContext);
-
-#ifdef _TARGET_X86_
-    EECodeInfo codeInfo;
-    codeInfo.Init((PCODE) pRD->ControlPC);
-
-    res -= codeInfo.GetCodeManager()->GetStackParameterSize(&codeInfo);
-#endif // _TARGET_X86_
-
-    return res;
+    return GetSP(pRD->pCallerContext);
 }
 
 #endif // WIN64EXCEPTIONS && !CROSSGEN_COMPILE
