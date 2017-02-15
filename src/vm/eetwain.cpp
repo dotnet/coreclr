@@ -3786,10 +3786,11 @@ void UnwindEbpDoubleAlignFrameProlog(
 /*****************************************************************************/
 
 bool UnwindEbpDoubleAlignFrame(
-        PREGDISPLAY pContext, 
-        hdrInfo * info, 
-        PTR_CBYTE methodStart, 
-        unsigned flags,
+        PREGDISPLAY     pContext,
+        EECodeInfo     *pCodeInfo,
+        hdrInfo        *info,
+        PTR_CBYTE       methodStart,
+        unsigned        flags,
         StackwalkCacheUnwindInfo  *pUnwindInfo) // out-only, perf improvement
 {
     LIMITED_METHOD_CONTRACT;
@@ -3805,6 +3806,24 @@ bool UnwindEbpDoubleAlignFrame(
     if (info->handlers && info->prologOffs == hdrInfo::NOT_IN_PROLOG)
     {
         TADDR baseSP;
+
+#ifdef WIN64EXCEPTIONS
+        if (pCodeInfo->IsFunclet())
+        {
+            baseSP = curESP + 8;
+
+            pContext->SetEbpLocation(PTR_DWORD(baseSP));
+
+            baseSP += sizeof(TADDR);
+
+            pContext->PCTAddr = baseSP;
+            pContext->ControlPC = *PTR_PCODE(pContext->PCTAddr);
+
+            pContext->SP = (DWORD)(baseSP + sizeof(TADDR));
+
+            return true;
+        }
+#else // WIN64EXCEPTIONS
 
         FrameType frameType = GetHandlerFrameInfo(info, curEBP,
                                                   curESP, (DWORD) IGNORE_VAL,
@@ -3860,6 +3879,7 @@ bool UnwindEbpDoubleAlignFrame(
 
             return true;
         }
+#endif // !WIN64EXCEPTIONS
     }
 
     //
@@ -3990,7 +4010,7 @@ bool UnwindStackFrame(PREGDISPLAY     pContext,
          *  Now we know that have an EBP frame
          */
 
-        if (!UnwindEbpDoubleAlignFrame(pContext, info, methodStart, flags, pUnwindInfo))
+        if (!UnwindEbpDoubleAlignFrame(pContext, pCodeInfo, info, methodStart, flags, pUnwindInfo))
             return false;
     }
 

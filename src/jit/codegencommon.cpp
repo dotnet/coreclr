@@ -10317,10 +10317,33 @@ void CodeGen::genFuncletProlog(BasicBlock* block)
 
     compiler->unwindBegProlog();
 
+    inst_RV(INS_push, REG_FPBASE, TYP_REF);
+    compiler->unwindPush(REG_FPBASE);
+
     // TODO Save callee-saved registers
 
     // This is the end of the OS-reported prolog for purposes of unwinding
     compiler->unwindEndProlog();
+
+    if (block->bbCatchTyp != BBCT_FINALLY && block->bbCatchTyp != BBCT_FAULT)
+    {
+        getEmitter()->emitIns_R_AR(INS_mov, EA_PTRSIZE, REG_EXCEPTION_OBJECT, REG_SPBASE, 12);
+
+        getEmitter()->emitIns_R_AR(INS_mov, EA_PTRSIZE, REG_FPBASE, REG_SPBASE, 8);
+        getEmitter()->emitIns_R_AR(INS_lea, EA_PTRSIZE, REG_FPBASE, REG_FPBASE, -8);
+    }
+    else if (block->bbCatchTyp == BBCT_FAULT)
+    {
+        getEmitter()->emitIns_R_AR(INS_mov, EA_PTRSIZE, REG_FPBASE, REG_SPBASE, 8);
+        getEmitter()->emitIns_R_AR(INS_lea, EA_PTRSIZE, REG_FPBASE, REG_FPBASE, -8);
+    }
+
+    // Add a padding (for 16-byte alignment)
+    //  See #9439 for details
+    inst_RV_IV(INS_sub, REG_SPBASE, 8, EA_PTRSIZE);
+
+    // We've modified EBP, but not really. Say that we haven't...
+    regSet.rsRemoveRegsModified(RBM_FPBASE);
 }
 
 /*****************************************************************************
@@ -10341,6 +10364,9 @@ void CodeGen::genFuncletEpilog()
 
     // TODO Restore callee-saved registers
 
+    inst_RV_IV(INS_add, REG_SPBASE, 8, EA_PTRSIZE);
+
+    inst_RV(INS_pop, REG_FPBASE, TYP_REF);
     instGen_Return(0);
 }
 
