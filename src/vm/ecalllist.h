@@ -1420,11 +1420,6 @@ FCFuncStart(gStreamFuncs)
     FCFuncElement("HasOverriddenBeginEndWrite", StreamNative::HasOverriddenBeginEndWrite)
 FCFuncEnd()
 
-#if defined(FEATURE_COMINTEROP) && defined(FEATURE_REFLECTION_ONLY_LOAD)
-FCFuncStart(gWindowsRuntimeMetadata)
-    QCFuncElement("nResolveNamespace", CLRPrivTypeCacheReflectionOnlyWinRT::ResolveNamespace)
-FCFuncEnd()
-#endif //FEATURE_COMINTEROP && FEATURE_REFLECTION_ONLY_LOAD
 
 #ifdef FEATURE_COMINTEROP
 FCFuncStart(gWindowsRuntimeBufferHelperFuncs)
@@ -1694,9 +1689,6 @@ FCClassElement("WindowsRuntimeBufferHelper", "System.Runtime.InteropServices.Win
 #endif
 
 
-#if defined(FEATURE_COMINTEROP) && defined(FEATURE_REFLECTION_ONLY_LOAD)
-FCClassElement("WindowsRuntimeMetadata", "System.Runtime.InteropServices.WindowsRuntime", gWindowsRuntimeMetadata)
-#endif
 
 #if defined(FEATURE_EVENTSOURCE_XPLAT)
 FCClassElement("XplatEventLogger", "System.Diagnostics.Tracing", gEventLogger)
