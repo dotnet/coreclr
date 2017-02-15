@@ -2801,9 +2801,11 @@ public:
     PER_HEAP
     BOOL heap_analyze_success;
 
+#ifdef MULTIPLE_HEAPS
     // The generation table. Must always be last.
     PER_HEAP
     generation generation_table [NUMBERGENERATIONS + 1];
+#endif // MULTIPLE_HEAPS
 
     // End DAC zone
 
@@ -4277,6 +4279,11 @@ gc_heap*& heap_segment_heap (heap_segment* inst)
 }
 #endif //MULTIPLE_HEAPS
 
+#ifndef MULTIPLE_HEAPS
+extern "C" {
+    extern generation generation_table[NUMBERGENERATIONS + 1];
+}
+#endif // MULTIPLE_HEAPS
 
 inline
 generation* gc_heap::generation_of (int  n)

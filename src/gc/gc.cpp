@@ -2681,6 +2681,10 @@ BOOL        gc_heap::heap_analyze_enabled = FALSE;
 
 #ifndef MULTIPLE_HEAPS
 
+extern "C" {
+    generation generation_table[NUMBERGENERATIONS + 1];
+}
+
 alloc_list gc_heap::loh_alloc_list [NUM_LOH_ALIST-1];
 alloc_list gc_heap::gen2_alloc_list[NUM_GEN2_ALIST-1];
 
@@ -2722,7 +2726,9 @@ int         gc_heap::gen0_must_clear_bricks = 0;
 CFinalize*  gc_heap::finalize_queue = 0;
 #endif // FEATURE_PREMORTEM_FINALIZATION
 
+#ifdef MULTIPLE_HEAPS
 generation gc_heap::generation_table [NUMBERGENERATIONS + 1];
+#endif // MULTIPLE_HEAPS
 
 size_t     gc_heap::interesting_data_per_heap[max_idp_count];
 
@@ -36814,7 +36820,7 @@ void PopulateDacVars(GcDacVars *gcDacVars)
     gcDacVars->next_sweep_obj = &gc_heap::next_sweep_obj;
     gcDacVars->oom_info = &gc_heap::oom_info;
     gcDacVars->finalize_queue = reinterpret_cast<dac_finalize_queue**>(&gc_heap::finalize_queue);
-    gcDacVars->generation_table = reinterpret_cast<dac_generation**>(&gc_heap::generation_table);
+    gcDacVars->generation_table = reinterpret_cast<dac_generation**>(&generation_table);
 #ifdef GC_CONFIG_DRIVEN
     gcDacVars->gc_global_mechanisms = reinterpret_cast<size_t**>(&gc_global_mechanisms);
     gcDacVars->interesting_data_per_heap = reinterpret_cast<size_t**>(&gc_heap::interesting_data_per_heap);
