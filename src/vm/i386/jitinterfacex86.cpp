@@ -1397,6 +1397,10 @@ void EmitFastGetSharedStaticBase(CPUSTUBLINKER *psl, CodeLabel *init, bool bCCto
         // DoInit:
         psl->EmitLabel(DoInit);
 
+#ifdef FEATURE_PAL
+        psl->X86EmitPushEBPframe();
+#endif // FEATURE_PAL
+
 #if defined(UNIX_X86_ABI)
         // sub esp, 8 ; to align the stack
         psl->X86EmitSubEsp(8);
@@ -1413,6 +1417,10 @@ void EmitFastGetSharedStaticBase(CPUSTUBLINKER *psl, CodeLabel *init, bool bCCto
 #if defined(UNIX_X86_ABI)
         // add esp, 8
         psl->X86EmitAddEsp(8);
+#endif
+
+#ifdef FEATURE_PAL
+        psl->X86EmitPopReg(kEBP);
 #endif
         // ret
         psl->X86EmitReturn(0);
