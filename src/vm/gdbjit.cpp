@@ -89,8 +89,11 @@ GetTypeInfoFromTypeHandle(TypeHandle typeHandle, NotifyGdb::PTK_TypeInfoMap pTyp
 
                 pTypeMap->Add(refTypeInfo->GetTypeKey(), refTypeInfo);
             }
+            else
+            {
+                pTypeMap->Add(typeInfo->GetTypeKey(), typeInfo);
+            }
 
-            pTypeMap->Add(typeInfo->GetTypeKey(), typeInfo);
             typeInfo->CalculateName();
 
             //
