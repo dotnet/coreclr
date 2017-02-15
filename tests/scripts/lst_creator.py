@@ -34,6 +34,7 @@ PARSER.add_argument("-lst_file", dest="old_list_file", nargs='?', default=None)
 PARSER.add_argument("-test_dir", dest="test_dir", nargs='?', default=None)
 PARSER.add_argument("-commit_hash", dest="commit_hash", nargs='?', default=None)
 PARSER.add_argument("-failures_csv", dest="failures_csv", nargs='?', default=None)
+PARSER.add_argument("-pass_csv", dest="pass_csv", nargs='?', default=None)
 ARGS = PARSER.parse_args(sys.argv[1:])
 
 ################################################################################
@@ -109,25 +110,7 @@ def create_metadata(tests):
     test_metadata = defaultdict(lambda: None)
 
     failures_csv = ARGS.failures_csv
-
-    failure_information = defaultdict(lambda: None)
-
-    if failures_csv is not None:
-        lines = []
-        assert(os.path.isfile(failures_csv))
-
-        with open(failures_csv, "r") as file_handle:
-            lines = file_handle.readlines()
-        
-        try:
-            for line in lines:
-                split = line.split(",")
-                relative_path = split[0].replace("/", "\\")
-                category = split[1]
-
-                failure_information[relative_path] = category.strip()
-        except:
-            raise Exception("Error. CSV format expects: relativepath,category")
+    failure_information = parse_csv(failures_csv)
 
     for test in tests:
         working_directory = os.path.dirname(test).replace("/", "\\")
@@ -208,6 +191,38 @@ def log(message):
     if ARGS.testing is True:
         print message
 
+def parse_csv(csv):
+    """Parse a csv given.
+
+    Args:
+        csv_file (str): location of the csv file
+
+    Returns:
+        information(defaultdict(lambda: None)): Key is the relative path, value
+                                                is the category to add
+    """
+
+    information = defaultdict(lambda: None)
+
+    if csv is not None:
+        lines = []
+        assert(os.path.isfile(csv))
+
+        with open(csv, "r") as file_handle:
+            lines = file_handle.readlines()
+        
+        try:
+            for line in lines:
+                split = line.split(",")
+                relative_path = split[0].replace("/", "\\")
+                category = split[1]
+
+                information[relative_path] = category.strip()
+        except:
+            raise Exception("Error. CSV format expects: relativepath,category")
+
+    return information
+
 def parse_lst_file(lst_file):
     """Parse a lstFile given.
 
@@ -273,6 +288,9 @@ def main(args):
     test_dir = args.test_dir
     old_list_file = args.old_list_file
     commit_hash = args.commit_hash
+    pass_csv = args.pass_csv
+
+    pass_information = parse_csv(pass_csv)
 
     if commit_hash is None:
         print "Error please provide a commit hash."
@@ -338,7 +356,28 @@ def main(args):
                         # If an old test is marked as a failing test. Make
                         # sure that we carry that information along.
                         if "EXPECTED_PASS" in new_split and "EXPECTED_FAIL" in old_split:
-                            new_split.remove("EXPECTED_PASS")
+                            # If this is a newly passing test and we have passed that
+                            # information, then overwrite the EXPECTED_FAIL to EXPECTED_PASS
+                            if (pass_information[old_metadata["RelativePath"]] is None):
+                                new_split.remove("EXPECTED_PASS")
+                            else:
+                                old_split.remove("EXPECTED_FAIL")
+                                
+                                values_to_append = ["EXPECTED_PASS", pass_information[new_metadata["RelativePath"]]]
+                                new_split += values_to_append
+
+                                def string_is_int(value):
+                                    try:
+                                        int(value)
+                                        return True
+                                    except ValueError:
+                                        return False
+
+                                # Remove the old issue tag
+                                new_split = [item for item in new_split if "ISSUE" not in item]
+                                new_split = [item for item in new_split if not string_is_int(item)]
+                                old_split = [item for item in old_split if "ISSUE" not in item]
+                                old_split = [item for item in old_split if not string_is_int(item)]
 
                         # If it used to be marked as pass but it is now failing. Make sure
                         # we remove the old category.
