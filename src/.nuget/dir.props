@@ -47,6 +47,7 @@
   <PropertyGroup>
     <SkipPackageFileCheck>true</SkipPackageFileCheck>
     <OutputPath>$(PackageOutputPath)</OutputPath>
+    <SkipValidatePackage>true</SkipValidatePackage>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(IsLineupPackage)' == 'true'">
