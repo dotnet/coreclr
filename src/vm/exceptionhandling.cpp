@@ -1930,12 +1930,12 @@ lExit:
             // DispatcherContext->EstablisherFrame's value
             // represents the CallerSP of the current frame.
             UINT_PTR EnclosingClauseCallerSP = (UINT_PTR)pDispatcherContext->EstablisherFrame;
-#elif defined(_TARGET_AMD64_)            
-            // Extract the CallerSP from RegDisplay on AMD64
+#elif defined(_TARGET_AMD64_) || defined(_TARGET_X86_)
+            // Extract the CallerSP from RegDisplay on AMD64 and x86
             REGDISPLAY *pRD = cfThisFrame.GetRegisterSet();
             _ASSERTE(pRD->IsCallerContextValid || pRD->IsCallerSPValid);
             UINT_PTR EnclosingClauseCallerSP = (UINT_PTR)GetSP(pRD->pCallerContext);
-#else // !_ARM_ && !_AMD64_ && !_ARM64_
+#else // !_ARM_ && !_AMD64_ && !_ARM64_ && !_X86_
             PORTABILITY_ASSERT("ExceptionTracker::ProcessOSExceptionNotification");
             UINT_PTR EnclosingClauseCallerSP = NULL;
 #endif // defined(_TARGET_ARM_) || defined(_TARGET_ARM64_)
