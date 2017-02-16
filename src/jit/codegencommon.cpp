@@ -10302,6 +10302,21 @@ void CodeGen::genCaptureFuncletPrologEpilogInfo()
 /*****************************************************************************
  *
  *  Generates code for an EH funclet prolog.
+ *
+ *  Funclets have the following incoming arguments:
+ *
+ *      catch/filter-handler: ecx = CallerSP, edx = the exception object that was caught (see GT_CATCH_ARG)
+ *      filter:               ecx = CallerSP, edx = the exception object to filter (see GT_CATCH_ARG)
+ *      finally/fault:        ecx = CallerSP
+ *
+ *  Funclets set the following registers on exit:
+ *
+ *      catch/filter-handler: eax = the address at which execution should resume (see BBJ_EHCATCHRET)
+ *      filter:               eax = non-zero if the handler should handle the exception, zero otherwise (see GT_RETFILT)
+ *      finally/fault:        none
+ *
+ *  Funclet prolog/epilog sequence and funclet frame layout are TBD.
+ *
  */
 
 void CodeGen::genFuncletProlog(BasicBlock* block)
@@ -10325,21 +10340,17 @@ void CodeGen::genFuncletProlog(BasicBlock* block)
     // This is the end of the OS-reported prolog for purposes of unwinding
     compiler->unwindEndProlog();
 
-    if (block->bbCatchTyp != BBCT_FINALLY && block->bbCatchTyp != BBCT_FAULT)
+    if (handlerGetsXcptnObj(block->bbCatchTyp))
     {
-        getEmitter()->emitIns_R_AR(INS_mov, EA_PTRSIZE, REG_EXCEPTION_OBJECT, REG_SPBASE, 12);
+        getEmitter()->emitIns_R_R(INS_mov, EA_PTRSIZE, REG_EXCEPTION_OBJECT, REG_ARG_1);
+    }
 
-        getEmitter()->emitIns_R_AR(INS_mov, EA_PTRSIZE, REG_FPBASE, REG_SPBASE, 8);
-        getEmitter()->emitIns_R_AR(INS_lea, EA_PTRSIZE, REG_FPBASE, REG_FPBASE, -8);
-    }
-    else if (block->bbCatchTyp == BBCT_FAULT)
-    {
-        getEmitter()->emitIns_R_AR(INS_mov, EA_PTRSIZE, REG_FPBASE, REG_SPBASE, 8);
-        getEmitter()->emitIns_R_AR(INS_lea, EA_PTRSIZE, REG_FPBASE, REG_FPBASE, -8);
-    }
+    // TODO We will need changes here when we introduce PSPSym
+    getEmitter()->emitIns_R_R(INS_mov, EA_PTRSIZE, REG_FPBASE, REG_ARG_0);
+    getEmitter()->emitIns_R_AR(INS_lea, EA_PTRSIZE, REG_FPBASE, REG_FPBASE, -8);
 
     // Add a padding (for 16-byte alignment)
-    //  See #9439 for details
+    //  See https://github.com/dotnet/coreclr/issues/9439 for details
     inst_RV_IV(INS_sub, REG_SPBASE, 8, EA_PTRSIZE);
 
     // We've modified EBP, but not really. Say that we haven't...
