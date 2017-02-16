@@ -6643,7 +6643,7 @@ HRESULT DacHeapWalker::InitHeapDataWks(HeapData *&pHeaps, size_t &pCount)
     for (; seg && (i < count); ++i)
     {
         pHeaps[0].Segments[i].Start = (CORDB_ADDRESS)seg->mem;
-        if (seg.GetAddr() == g_gcDacGlobals->ephemeral_heap_segment.GetAddr())
+        if (seg.GetAddr() == (TADDR)*g_gcDacGlobals->ephemeral_heap_segment)
         {
             pHeaps[0].Segments[i].End = (CORDB_ADDRESS)*g_gcDacGlobals->alloc_allocated;
             pHeaps[0].Segments[i].Generation = 1;
