@@ -25,7 +25,7 @@
   </Target>
 
   <Target Name="RestoreNETCorePlatforms" AfterTargets="Build" Condition="'$(RestoreDuringBuild)'=='true'">
-    <Exec Command="$(DnuRestoreCommand) &quot;$(SourceDir).nuget/init/project.json&quot; --source https://dotnet.myget.org/F/dotnet-core/api/v3/index.json" />
+    <Exec Command="$(DnuRestoreCommand) &quot;$(SourceDir).nuget/init/project.json&quot; --source https://dotnet.myget.org/F/dotnet-core/" />
   </Target>
   
 </Project>
