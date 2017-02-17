@@ -3840,11 +3840,13 @@ ClrDataAccess::EnumWksGlobalMemoryRegions(CLRDataEnumMemoryFlags flags)
 {
     SUPPORTS_DAC;
 
-    g_gcDacGlobals->ephemeral_heap_segment.EnumMem();
+    Dereference(g_gcDacGlobals->ephemeral_heap_segment).EnumMem();
     g_gcDacGlobals->alloc_allocated.EnumMem();
-    g_gcDacGlobals->finalize_queue.EnumMem();
-    g_gcDacGlobals->generation_table.EnumMem();
-    g_gcDacGlobals->oom_info.EnumMem();
+    Dereference(g_gcDacGlobals->finalize_queue).EnumMem();
+
+    // Enumerate the entire generation table, which has variable size
+    size_t gen_table_size = g_gcDacGlobals->generation_size * (*g_gcDacGlobals->max_gen + 1);
+    DacEnumMemoryRegion(dac_cast<TADDR>(g_gcDacGlobals->generation_table), gen_table_size);
 
     if (g_gcDacGlobals->generation_table.IsValid())
     {
