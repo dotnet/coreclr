@@ -952,7 +952,13 @@ void TypeInfoBase::CalculateName()
 {
     // name the type
     SString sName;
-    typeHandle.GetName(sName);
+
+    const TypeString::FormatFlags formatFlags = static_cast<TypeString::FormatFlags>(
+        TypeString::FormatNamespace |
+        TypeString::FormatAngleBrackets);
+
+    TypeString::AppendType(sName, typeHandle, formatFlags);
+
     StackScratchBuffer buffer;
     const UTF8 *utf8 = sName.GetUTF8(buffer);
     if (typeHandle.IsValueType())
@@ -965,6 +971,13 @@ void TypeInfoBase::CalculateName()
         m_type_name = new char[strlen(utf8) + 1 + 2];
         strcpy(m_type_name, "__");
         strcpy(m_type_name + 2, utf8);
+    }
+
+    // Fix nested names
+    for (char *p = m_type_name; *p; ++p)
+    {
+        if (*p == '+')
+            *p = '.';
     }
 }
 
