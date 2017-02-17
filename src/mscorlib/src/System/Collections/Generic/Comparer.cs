@@ -222,7 +222,7 @@ namespace System.Collections.Generic
     {
         public Int32EnumComparer()
         {
-            Debug.Assert(typeof(T).IsEnum, "This type is only intended to be used to compare enums!");
+            Debug.Assert(typeof(T).IsEnum);
         }
         
         // Used by the serialization engine.
@@ -257,7 +257,7 @@ namespace System.Collections.Generic
     {
         public UInt32EnumComparer()
         {
-            Debug.Assert(typeof(T).IsEnum, "This type is only intended to be used to compare enums!");
+            Debug.Assert(typeof(T).IsEnum);
         }
         
         // Used by the serialization engine.
@@ -288,7 +288,7 @@ namespace System.Collections.Generic
     {
         public Int64EnumComparer()
         {
-            Debug.Assert(typeof(T).IsEnum, "This type is only intended to be used to compare enums!");
+            Debug.Assert(typeof(T).IsEnum);
         }
         
         public override int Compare(T x, T y)
@@ -316,7 +316,7 @@ namespace System.Collections.Generic
     {
         public UInt64EnumComparer()
         {
-            Debug.Assert(typeof(T).IsEnum, "This type is only intended to be used to compare enums!");
+            Debug.Assert(typeof(T).IsEnum);
         }
         
         // Used by the serialization engine.

@@ -35,58 +35,88 @@ namespace System.Collections.Generic
         {
             Contract.Ensures(Contract.Result<EqualityComparer<T>>() != null);
             
-            object result = null;
-            RuntimeType t = (RuntimeType)typeof(T);
+            var type = (RuntimeType)typeof(T);
             
-            // Specialize type byte for performance reasons
-            if (t == typeof(byte)) {
-                result = new ByteEqualityComparer();
+            // Specialize for byte so Array.IndexOf is faster.
+            if (type == typeof(byte))
+            {
+                return (EqualityComparer<T>)(object)new ByteEqualityComparer();
             }
             // If T implements IEquatable<T> return a GenericEqualityComparer<T>
-            else if (typeof(IEquatable<T>).IsAssignableFrom(t))
+            if (typeof(IEquatable<T>).IsAssignableFrom(type))
             {
-                result = RuntimeTypeHandle.CreateInstanceForAnotherGenericParameter((RuntimeType)typeof(GenericEqualityComparer<int>), t);
+                return (EqualityComparer<T>)RuntimeTypeHandle.CreateInstanceForAnotherGenericParameter((RuntimeType)typeof(GenericEqualityComparer<int>), type);
             }
-            else if (default(T) == null) // Reference type/Nullable
+            if (default(T) == null) // Reference type/Nullable
             {
-                // If T is a Nullable<U> where U implements IEquatable<U> return a NullableEqualityComparer<U>
-                if (t.IsGenericType && t.GetGenericTypeDefinition() == typeof(Nullable<>)) {
-                    RuntimeType u = (RuntimeType)t.GetGenericArguments()[0];
-                    if (typeof(IEquatable<>).MakeGenericType(u).IsAssignableFrom(u)) {
-                        result = RuntimeTypeHandle.CreateInstanceForAnotherGenericParameter((RuntimeType)typeof(NullableEqualityComparer<int>), u);
-                    }
+                // Nullable does not implement IEquatable<T?> directly because that would add an extra interface call per comparison.
+                // Instead, it relies on EqualityComparer<T?>.Default to specialize for nullables and do the lifted comparisons if T implements IEquatable.
+                if (type.IsValueType)
+                {
+                    return CreateNullableComparer();
                 }
             }
-            // See the METHOD__JIT_HELPERS__UNSAFE_ENUM_CAST and METHOD__JIT_HELPERS__UNSAFE_ENUM_CAST_LONG cases in getILIntrinsicImplementation
-            else if (t.IsEnum) {
-                TypeCode underlyingTypeCode = Type.GetTypeCode(Enum.GetUnderlyingType(t));
-
-                // Depending on the enum type, we need to special case the comparers so that we avoid boxing
-                // Note: We have different comparers for Short and SByte because for those types we need to make sure we call GetHashCode on the actual underlying type as the 
-                // implementation of GetHashCode is more complex than for the other types.
-                switch (underlyingTypeCode) {
-                    case TypeCode.Int16: // short
-                        result = RuntimeTypeHandle.CreateInstanceForAnotherGenericParameter((RuntimeType)typeof(ShortEnumEqualityComparer<short>), t);
-                        break;
-                    case TypeCode.SByte:
-                        result = RuntimeTypeHandle.CreateInstanceForAnotherGenericParameter((RuntimeType)typeof(SByteEnumEqualityComparer<sbyte>), t);
-                        break;
-                    case TypeCode.Int32:
-                    case TypeCode.UInt32:
-                    case TypeCode.Byte:
-                    case TypeCode.UInt16: //ushort
-                        result = RuntimeTypeHandle.CreateInstanceForAnotherGenericParameter((RuntimeType)typeof(EnumEqualityComparer<int>), t);
-                        break;
-                    case TypeCode.Int64:
-                    case TypeCode.UInt64:
-                        result = RuntimeTypeHandle.CreateInstanceForAnotherGenericParameter((RuntimeType)typeof(LongEnumEqualityComparer<long>), t);
-                        break;
-                }
+            else if (type.IsEnum)
+            {
+                // The equality comparer for enums is specialized to avoid boxing.
+                return CreateEnumComparer();
             }
             
-            return result != null ?
-                (EqualityComparer<T>)result :
-                new ObjectEqualityComparer<T>(); // Fallback to ObjectEqualityComparer, which uses boxing
+            return new ObjectEqualityComparer<T>();
+        }
+
+        private static EqualityComparer<T> CreateNullableComparer()
+        {
+            Debug.Assert(default(T) == null && typeof(T).IsValueType);
+            Debug.Assert(typeof(T).IsGenericType && typeof(T).GetGenericTypeDefinition() == typeof(Nullable<>));
+
+            var nullableType = (RuntimeType)typeof(T);
+            var embeddedType = (RuntimeType)nullableType.GetGenericArguments()[0];
+
+            if (typeof(IEquatable<>).MakeGenericType(embeddedType).IsAssignableFrom(embeddedType))
+            {
+                return (EqualityComparer<T>)RuntimeTypeHandle.CreateInstanceForAnotherGenericParameter((RuntimeType)typeof(NullableEqualityComparer<int>), embeddedType);
+            }
+
+            return new ObjectEqualityComparer<T>();
+        }
+
+        private static EqualityComparer<T> CreateEnumComparer()
+        {
+            Debug.Assert(typeof(T).IsEnum);
+
+            // See the METHOD__JIT_HELPERS__UNSAFE_ENUM_CAST and METHOD__JIT_HELPERS__UNSAFE_ENUM_CAST_LONG cases in getILIntrinsicImplementation
+            // for how we cast the enum types to integral values in the comparer without boxing.
+
+            object result = null;
+            var enumType = (RuntimeType)typeof(T);
+
+            TypeCode underlyingTypeCode = Type.GetTypeCode(Enum.GetUnderlyingType(enumType));
+
+            // Depending on the enum type, we need to special case the comparers so that we avoid boxing.
+            // Note: We have different comparers for short and sbyte, since for those types GetHashCode does not simply return the value.
+            // We need to preserve what they would return.
+            switch (underlyingTypeCode)
+            {
+                case TypeCode.Int16:
+                    result = RuntimeTypeHandle.CreateInstanceForAnotherGenericParameter((RuntimeType)typeof(ShortEnumEqualityComparer<short>), enumType);
+                    break;
+                case TypeCode.SByte:
+                    result = RuntimeTypeHandle.CreateInstanceForAnotherGenericParameter((RuntimeType)typeof(SByteEnumEqualityComparer<sbyte>), enumType);
+                    break;
+                case TypeCode.Int32:
+                case TypeCode.UInt32:
+                case TypeCode.Byte:
+                case TypeCode.UInt16:
+                    result = RuntimeTypeHandle.CreateInstanceForAnotherGenericParameter((RuntimeType)typeof(EnumEqualityComparer<int>), enumType);
+                    break;
+                case TypeCode.Int64:
+                case TypeCode.UInt64:
+                    result = RuntimeTypeHandle.CreateInstanceForAnotherGenericParameter((RuntimeType)typeof(LongEnumEqualityComparer<long>), enumType);
+                    break;
+            }
+
+            return result != null ? (EqualityComparer<T>)result : new ObjectEqualityComparer<T>();
         }
 
         [Pure]
