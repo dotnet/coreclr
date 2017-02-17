@@ -45,58 +45,84 @@ namespace System.Collections.Generic
         //
         private static Comparer<T> CreateComparer()
         {
-            object result = null;
-            RuntimeType t = (RuntimeType)typeof(T);
+            var type = (RuntimeType)typeof(T);
 
             // If T implements IComparable<T> return a GenericComparer<T>
-            if (typeof(IComparable<T>).IsAssignableFrom(t))
+            if (typeof(IComparable<T>).IsAssignableFrom(type))
             {
-                result = RuntimeTypeHandle.CreateInstanceForAnotherGenericParameter((RuntimeType)typeof(GenericComparer<int>), t);
+                return (Comparer<T>)RuntimeTypeHandle.CreateInstanceForAnotherGenericParameter((RuntimeType)typeof(GenericComparer<int>), type);
             }
-            else if (default(T) == null)
+
+            if (default(T) == null)
             {
-                // If T is a Nullable<U> where U implements IComparable<U> return a NullableComparer<U>
-                if (t.IsGenericType && t.GetGenericTypeDefinition() == typeof(Nullable<>)) {
-                    RuntimeType u = (RuntimeType)t.GetGenericArguments()[0];
-                    if (typeof(IComparable<>).MakeGenericType(u).IsAssignableFrom(u)) {
-                        result = RuntimeTypeHandle.CreateInstanceForAnotherGenericParameter((RuntimeType)typeof(NullableComparer<int>), u);
-                    }
-                }
-            }
-            else if (t.IsEnum)
-            {
-                // Explicitly call Enum.GetUnderlyingType here. Although GetTypeCode
-                // ends up doing this anyway, we end up avoiding an unnecessary P/Invoke
-                // and virtual method call.
-                TypeCode underlyingTypeCode = Type.GetTypeCode(Enum.GetUnderlyingType(t));
-                
-                // Depending on the enum type, we need to special case the comparers so that we avoid boxing
-                // Specialize differently for signed/unsigned types so we avoid problems with large numbers
-                switch (underlyingTypeCode)
+                // Nullable does not implement IComparable<T?> directly because that would add an extra interface call per comparison.
+                // Instead, it relies on Comparer<T?>.Default to specialize for nullables and do the lifted comparisons if T implements IComparable.
+                if (type.IsValueType)
                 {
-                    case TypeCode.SByte:
-                    case TypeCode.Int16:
-                    case TypeCode.Int32:
-                        result = RuntimeTypeHandle.CreateInstanceForAnotherGenericParameter((RuntimeType)typeof(Int32EnumComparer<int>), t);
-                        break;
-                    case TypeCode.Byte:
-                    case TypeCode.UInt16:
-                    case TypeCode.UInt32:
-                        result = RuntimeTypeHandle.CreateInstanceForAnotherGenericParameter((RuntimeType)typeof(UInt32EnumComparer<uint>), t);
-                        break;
-                    // 64-bit enums: use UnsafeEnumCastLong
-                    case TypeCode.Int64:
-                        result = RuntimeTypeHandle.CreateInstanceForAnotherGenericParameter((RuntimeType)typeof(Int64EnumComparer<long>), t);
-                        break;
-                    case TypeCode.UInt64:
-                        result = RuntimeTypeHandle.CreateInstanceForAnotherGenericParameter((RuntimeType)typeof(UInt64EnumComparer<ulong>), t);
-                        break;
+                    return CreateNullableComparer();
                 }
+            }
+            else if (type.IsEnum)
+            {
+                // The comparer for enums is specialized to avoid boxing.
+                return CreateEnumComparer();
             }
             
-            return result != null ?
-                (Comparer<T>)result :
-                new ObjectComparer<T>(); // Fallback to ObjectComparer, which uses boxing
+            return new ObjectComparer<T>();
+        }
+
+        private static Comparer<T> CreateNullableComparer()
+        {
+            Debug.Assert(default(T) == null && typeof(T).IsValueType);
+            Debug.Assert(typeof(T).IsGenericType && typeof(T).GetGenericTypeDefinition() == typeof(Nullable<>));
+            
+            var nullableType = (RuntimeType)typeof(T);
+            var embeddedType = (RuntimeType)nullableType.GetGenericArguments()[0];
+
+            if (typeof(IComparable<>).MakeGenericType(embeddedType).IsAssignableFrom(embeddedType))
+            {
+                return (Comparer<T>)RuntimeTypeHandle.CreateInstanceForAnotherGenericParameter((RuntimeType)typeof(NullableComparer<int>), embeddedType);
+            }
+
+            return new ObjectComparer<T>();
+        }
+
+        private static Comparer<T> CreateEnumComparer()
+        {
+            Debug.Assert(typeof(T).IsEnum);
+
+            object result = null;
+            var enumType = (RuntimeType)typeof(T);
+
+            // Explicitly call Enum.GetUnderlyingType here. Although GetTypeCode
+            // ends up doing this anyway, we end up avoiding an unnecessary P/Invoke
+            // and virtual method call.
+            TypeCode underlyingTypeCode = Type.GetTypeCode(Enum.GetUnderlyingType(enumType));
+            
+            // Depending on the enum type, we need to special case the comparers so that we avoid boxing.
+            // Specialize differently for signed/unsigned types so we avoid problems with large numbers.
+            switch (underlyingTypeCode)
+            {
+                case TypeCode.SByte:
+                case TypeCode.Int16:
+                case TypeCode.Int32:
+                    result = RuntimeTypeHandle.CreateInstanceForAnotherGenericParameter((RuntimeType)typeof(Int32EnumComparer<int>), enumType);
+                    break;
+                case TypeCode.Byte:
+                case TypeCode.UInt16:
+                case TypeCode.UInt32:
+                    result = RuntimeTypeHandle.CreateInstanceForAnotherGenericParameter((RuntimeType)typeof(UInt32EnumComparer<uint>), enumType);
+                    break;
+                // 64-bit enums: use UnsafeEnumCastLong
+                case TypeCode.Int64:
+                    result = RuntimeTypeHandle.CreateInstanceForAnotherGenericParameter((RuntimeType)typeof(Int64EnumComparer<long>), enumType);
+                    break;
+                case TypeCode.UInt64:
+                    result = RuntimeTypeHandle.CreateInstanceForAnotherGenericParameter((RuntimeType)typeof(UInt64EnumComparer<ulong>), enumType);
+                    break;
+            }
+            
+            return result != null ? (Comparer<T>)result : new ObjectComparer<T>();
         }
 
         public abstract int Compare(T x, T y);
