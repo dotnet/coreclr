@@ -470,7 +470,7 @@ LEAF_END SinglecastDelegateInvokeStub, _TEXT
 // On exit:
 //   tail calls to real method
 //
-    NESTED_ENTRY ComCallPreStub, _TEXT, NoHandler
+NESTED_ENTRY ComCallPreStub, _TEXT, NoHandler
 
     // Save arguments and return address
     PROLOG_SAVE_REG_PAIR           fp, lr, -ComCallPreStub_FirstStackAdjust!
@@ -508,7 +508,7 @@ ComCallPreStub_ErrorExit
 
     EPILOG_RETURN
 
-    NESTED_END ComCallPreStub, _TEXT
+NESTED_END ComCallPreStub, _TEXT
 
 // ------------------------------------------------------------------
 // COM to CLR stub which sets up a ComMethodFrame and calls COMToCLRWorker.
@@ -1062,65 +1062,65 @@ GenerateRedirectedStubWithFrame NakedThrowHelper, NakedThrowHelper2
 #define BACKPATCH_FLAG      1
 #define PROMOTE_CHAIN_FLAG  2
 
-    NESTED_ENTRY ResolveWorkerChainLookupAsmStub, _TEXT, NoHandler
+NESTED_ENTRY ResolveWorkerChainLookupAsmStub, _TEXT, NoHandler
 
-        tst     x11, #BACKPATCH_FLAG    // First we check if x11 has the BACKPATCH_FLAG set
-        bne     LOCAL_LABEL(Fail)       // If the BACKPATCH_FLAGS is set we will go directly to the ResolveWorkerAsmStub
+    tst     x11, #BACKPATCH_FLAG    // First we check if x11 has the BACKPATCH_FLAG set
+    bne     LOCAL_LABEL(Fail)       // If the BACKPATCH_FLAGS is set we will go directly to the ResolveWorkerAsmStub
 
-        ldr     x13, [x0]         // retrieve the MethodTable from the object ref in x0
+    ldr     x13, [x0]         // retrieve the MethodTable from the object ref in x0
 LOCAL_LABEL(MainLoop):
-        ldr     x9, [x9, #ResolveCacheElem__pNext]     // x9 <= the next entry in the chain
-        cmp     x9, #0
-        beq     LOCAL_LABEL(Fail)
+    ldr     x9, [x9, #ResolveCacheElem__pNext]     // x9 <= the next entry in the chain
+    cmp     x9, #0
+    beq     LOCAL_LABEL(Fail)
 
-        ldp     x16, x17, [x9]
-        cmp     x16, x13          // compare our MT with the one in the ResolveCacheElem
-        bne     LOCAL_LABEL(MainLoop)
+    ldp     x16, x17, [x9]
+    cmp     x16, x13          // compare our MT with the one in the ResolveCacheElem
+    bne     LOCAL_LABEL(MainLoop)
 
-        cmp     x17, x12          // compare our DispatchToken with one in the ResolveCacheElem
-        bne     LOCAL_LABEL(MainLoop)
+    cmp     x17, x12          // compare our DispatchToken with one in the ResolveCacheElem
+    bne     LOCAL_LABEL(MainLoop)
 
 LOCAL_LABEL(Success):
-        PREPARE_EXTERNAL_VAR g_dispatch_cache_chain_success_counter, x13
-        ldr     x16, [x13]
-        subs    x16, x16, #1
-        str     x16, [x13]
-        blt     LOCAL_LABEL(Promote)
+    PREPARE_EXTERNAL_VAR g_dispatch_cache_chain_success_counter, x13
+    ldr     x16, [x13]
+    subs    x16, x16, #1
+    str     x16, [x13]
+    blt     LOCAL_LABEL(Promote)
 
-        ldr     x16, [x9, #ResolveCacheElem__target]    // get the ImplTarget
-        br      x16               // branch to interface implemenation target
+    ldr     x16, [x9, #ResolveCacheElem__target]    // get the ImplTarget
+    br      x16               // branch to interface implemenation target
 
 LOCAL_LABEL(Promote):
-                                  // Move this entry to head postion of the chain
-        mov     x16, #256
-        str     x16, [x13]         // be quick to reset the counter so we don't get a bunch of contending threads
-        orr     x11, x11, #PROMOTE_CHAIN_FLAG   // set PROMOTE_CHAIN_FLAG
+                              // Move this entry to head postion of the chain
+    mov     x16, #256
+    str     x16, [x13]         // be quick to reset the counter so we don't get a bunch of contending threads
+    orr     x11, x11, #PROMOTE_CHAIN_FLAG   // set PROMOTE_CHAIN_FLAG
 
 LOCAL_LABEL(Fail):
-        b       ResolveWorkerAsmStub // call the ResolveWorkerAsmStub method to transition into the VM
+    b       ResolveWorkerAsmStub // call the ResolveWorkerAsmStub method to transition into the VM
 
-    NESTED_END ResolveWorkerChainLookupAsmStub, _TEXT
+NESTED_END ResolveWorkerChainLookupAsmStub, _TEXT
 
 // ------------------------------------------------------------------
 // void ResolveWorkerAsmStub(args in regs x0-x7 & stack and possibly retbuf arg in x8, x11:IndirectionCellAndFlags, x12:DispatchToken)
 //
 // The stub dispatch thunk which transfers control to VSD_ResolveWorker.
-        NESTED_ENTRY ResolveWorkerAsmStub, _TEXT, NoHandler
+NESTED_ENTRY ResolveWorkerAsmStub, _TEXT, NoHandler
 
-        PROLOG_WITH_TRANSITION_BLOCK
+    PROLOG_WITH_TRANSITION_BLOCK
 
-        add x0, sp, #__PWTB_TransitionBlock // pTransitionBlock
-        and x1, x11, #-4 // Indirection cell
-        mov x2, x12 // DispatchToken
-        and x3, x11, #3 // flag
-        bl VSD_ResolveWorker
-        mov x9, x0
+    add x0, sp, #__PWTB_TransitionBlock // pTransitionBlock
+    and x1, x11, #-4 // Indirection cell
+    mov x2, x12 // DispatchToken
+    and x3, x11, #3 // flag
+    bl VSD_ResolveWorker
+    mov x9, x0
 
-        EPILOG_WITH_TRANSITION_BLOCK_TAILCALL
+    EPILOG_WITH_TRANSITION_BLOCK_TAILCALL
 
-        EPILOG_BRANCH_REG  x9
+    EPILOG_BRANCH_REG  x9
 
-        NESTED_END ResolveWorkerAsmStub, _TEXT
+NESTED_END ResolveWorkerAsmStub, _TEXT
 
 #ifdef FEATURE_READYTORUN
 
@@ -1144,27 +1144,27 @@ NESTED_END DelayLoad_MethodCall_FakeProlog, _TEXT
 
 
 .macro DynamicHelper frameFlags, suffix
-    NESTED_ENTRY DelayLoad_Helper\suffix\()_FakeProlog, _TEXT, NoHandler
+NESTED_ENTRY DelayLoad_Helper\suffix\()_FakeProlog, _TEXT, NoHandler
 DelayLoad_Helper\suffix:
-        .global DelayLoad_Helper\suffix
+    .global DelayLoad_Helper\suffix
 
-        PROLOG_WITH_TRANSITION_BLOCK
+    PROLOG_WITH_TRANSITION_BLOCK
 
-        add x0, sp, #__PWTB_TransitionBlock // pTransitionBlock
-        mov x1, x11 // Indirection cell
-        mov x2, x9 // sectionIndex
-        mov x3, x10 // Module*
-        mov x4, \frameFlags
-        bl DynamicHelperWorker
-        cbnz x0, LOCAL_LABEL(FakeProlog\suffix\()_0)
-        ldr x0, [sp, #__PWTB_ArgumentRegisters]
-        EPILOG_WITH_TRANSITION_BLOCK_RETURN
+    add x0, sp, #__PWTB_TransitionBlock // pTransitionBlock
+    mov x1, x11 // Indirection cell
+    mov x2, x9 // sectionIndex
+    mov x3, x10 // Module*
+    mov x4, \frameFlags
+    bl DynamicHelperWorker
+    cbnz x0, LOCAL_LABEL(FakeProlog\suffix\()_0)
+    ldr x0, [sp, #__PWTB_ArgumentRegisters]
+    EPILOG_WITH_TRANSITION_BLOCK_RETURN
 LOCAL_LABEL(FakeProlog\suffix\()_0):
-        mov x12, x0
-        EPILOG_WITH_TRANSITION_BLOCK_TAILCALL
-        EPILOG_BRANCH_REG  x12
+    mov x12, x0
+    EPILOG_WITH_TRANSITION_BLOCK_TAILCALL
+    EPILOG_BRANCH_REG  x12
 
-    NESTED_END DelayLoad_Helper\suffix\()_FakeProlog, _TEXT
+NESTED_END DelayLoad_Helper\suffix\()_FakeProlog, _TEXT
 .endm
 
 DynamicHelper DynamicHelperFrameFlags_Default
