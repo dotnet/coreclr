@@ -2507,7 +2507,9 @@ namespace System {
             private T[] _array;
             private int _index;
 
-            internal static readonly SZGenericArrayEnumerator<T> Empty = new SZGenericArrayEnumerator<T>(Array.Empty<T>());
+            // Array.Empty is intentionally not used here, so we don't have to pay for generic instantiation overhead
+            // if it wouldn't have otherwise been used for that type.
+            internal static readonly SZGenericArrayEnumerator<T> Empty = new SZGenericArrayEnumerator<T>(new T[0]);
 
             internal SZGenericArrayEnumerator(T[] array)
             {
