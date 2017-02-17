@@ -641,7 +641,7 @@ LPVOID GetNativeContextPC(const native_context_t *context);
 Function :
     GetNativeContextSP
 
-    Returns the stack poiner from the native context.
+    Returns the stack pointer from the native context.
 
 Parameters :
     const native_context_t *native : native context

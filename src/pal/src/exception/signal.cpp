@@ -131,33 +131,45 @@ Return :
 BOOL EnsureSignalAlternateStack()
 {
     stack_t oss;
-    sigaltstack(NULL, &oss);
-    if (oss.ss_flags == SS_DISABLE)
+
+    // Query the current alternate signal stack
+    int st = sigaltstack(NULL, &oss);
+
+    if ((st == 0) && (oss.ss_flags == SS_DISABLE))
     {
+        // There is no alternate stack installed yet
+
         int altStackSize = SIGSTKSZ + VIRTUAL_PAGE_SIZE;
         // Allocate alternate stack for SIGSEGV handling
         void* altStack;
         int st = posix_memalign(&altStack, VIRTUAL_PAGE_SIZE, altStackSize);
-        if (st != 0)
+        if (st == 0)
         {
-            return FALSE;
-        }
+            // create a guard page for the alternate stack
+            st = mprotect(altStack, VIRTUAL_PAGE_SIZE, PROT_NONE);
+            if (st == 0)
+            {
+                stack_t ss;
+                ss.ss_sp = (char*)altStack;
+                ss.ss_size = altStackSize;
+                ss.ss_flags = 0;
+                st = sigaltstack(&ss, NULL);
+                if (st != 0)
+                {
+                    // Installation of the alternate stack failed, so revert the guard page protection
+                    int st2 = mprotect(altStack, VIRTUAL_PAGE_SIZE, PROT_READ | PROT_WRITE);
+                    _ASSERTE(st2 == 0);
+                }
+            }
 
-        stack_t ss;
-        ss.ss_sp = (char*)altStack;
-        ss.ss_size = altStackSize;
-        ss.ss_flags = 0;
-        sigaltstack(&ss, NULL);
-        // create a guard page for the alternate stack
-        st = mprotect(altStack, VIRTUAL_PAGE_SIZE, PROT_NONE);
-        if (st != 0)
-        {
-            free(altStack);
-            return FALSE;
+            if (st != 0)
+            {
+                free(altStack);
+            }
         }
     }
 
-    return TRUE;
+    return (st == 0);
 }
 
 /*++
@@ -176,8 +188,8 @@ void FreeSignalAlternateStack()
 {
     stack_t ss, oss;
     ss.ss_flags = SS_DISABLE;
-    sigaltstack(&ss, &oss);
-    if (oss.ss_flags != SS_DISABLE)
+    int st = sigaltstack(&ss, &oss);
+    if ((st == 0) && (oss.ss_flags != SS_DISABLE))
     {
         int st = mprotect(oss.ss_sp, VIRTUAL_PAGE_SIZE, PROT_READ | PROT_WRITE);
         _ASSERTE(st == 0);
@@ -408,7 +420,7 @@ static void sigsegv_handler(int code, siginfo_t *siginfo, void *context)
             PROCAbort();
         }
 
-        // Now that we know the SIGSEGV didn't happen due to the stack overflow, execute the common
+        // Now that we know the SIGSEGV didn't happen due to a stack overflow, execute the common
         // hardware signal handler on the original stack.
 
         // Establish a return point in case the common_signal_handler returns
