@@ -275,15 +275,15 @@ WRITE_BARRIER_ENTRY JIT_WriteBarrier
 
     // Compute address of shadow heap location:
     //   pShadow = g_GCShadow + (x14 - g_lowest_address)
-    ldr  x12, =g_lowest_address
+    PREPARE_EXTERNAL_VAR g_lowest_address, x12
     ldr  x12, [x12]
     sub  x12, x14, x12
-    ldr  x13, =g_GCShadow
+    PREPARE_EXTERNAL_VAR g_GCShadow, x13
     ldr  x13, [x13]
     add  x12, x13, x12
 
     // if (pShadow >= g_GCShadowEnd) goto end
-    ldr  x13, =g_GCShadowEnd
+    PREPARE_EXTERNAL_VAR g_GCShadowEnd, x13
     ldr  x13, [x13]
     cmp  x12, x13
     bhs  LOCAL_LABEL(shadowupdateend)
@@ -1081,7 +1081,7 @@ LOCAL_LABEL(MainLoop):
         bne     LOCAL_LABEL(MainLoop)
 
 LOCAL_LABEL(Success):
-        ldr     x13, =g_dispatch_cache_chain_success_counter
+        PREPARE_EXTERNAL_VAR g_dispatch_cache_chain_success_counter, x13
         ldr     x16, [x13]
         subs    x16, x16, #1
         str     x16, [x13]
