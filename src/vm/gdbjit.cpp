@@ -1009,6 +1009,11 @@ void TypeDefInfo::DumpStrings(char *ptr, int &offset)
 
 void TypeDefInfo::DumpDebugInfo(char *ptr, int &offset)
 {
+    if (m_typedef_type_offset != 0)
+    {
+        return;
+    }
+
     if (ptr != nullptr)
     {
         DebugInfoTypeDef buf;

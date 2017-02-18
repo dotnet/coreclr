@@ -190,7 +190,7 @@ class TypeDefInfo : public DwarfDumpable
 {
 public:
     TypeDefInfo(char *typedef_name,int typedef_type):
-    m_typedef_name(typedef_name), m_typedef_type(typedef_type) {}
+    m_typedef_name(typedef_name), m_typedef_type(typedef_type), m_typedef_type_offset(0) {}
     void DumpStrings(char* ptr, int& offset) override;
     void DumpDebugInfo(char* ptr, int& offset) override;
     virtual ~TypeDefInfo()
