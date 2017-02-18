@@ -68,16 +68,6 @@ PAL_Enter(PAL_Boundary boundary)
         {
             ERROR("Unable to allocate pal thread: error %d\n", palError);
         }
-
-#if !HAVE_MACH_EXCEPTIONS
-        // Ensure alternate stack for SIGSEGV handling. Our SIGSEGV handler is set to
-        // run on an alternate stack and the stack needs to be allocated per thread.
-        if (!EnsureSignalAlternateStack())
-        {
-            ERROR("Cannot allocate alternate stack for SIGSEGV!\n");
-            palError = ERROR_NOT_ENOUGH_MEMORY;
-        }
-#endif // !HAVE_MACH_EXCEPTIONS
     }
 
     LOGEXIT("PAL_Enter returns %d\n", palError);
@@ -117,8 +107,20 @@ PAL_ERROR
 AllocatePalThread(CPalThread **ppThread)
 {
     CPalThread *pThread = NULL;
+    PAL_ERROR palError;
 
-    PAL_ERROR palError = CreateThreadData(&pThread);
+#if !HAVE_MACH_EXCEPTIONS
+    // Ensure alternate stack for SIGSEGV handling. Our SIGSEGV handler is set to
+    // run on an alternate stack and the stack needs to be allocated per thread.
+    if (!EnsureSignalAlternateStack())
+    {
+        ERROR("Cannot allocate alternate stack for SIGSEGV handler!\n");
+        palError = ERROR_NOT_ENOUGH_MEMORY;
+        goto exit;
+    }
+#endif // !HAVE_MACH_EXCEPTIONS
+
+    palError = CreateThreadData(&pThread);
     if (NO_ERROR != palError)
     {
         goto exit;

@@ -425,7 +425,7 @@ static void sigsegv_handler(int code, siginfo_t *siginfo, void *context)
 
         // Establish a return point in case the common_signal_handler returns
 
-        bool contextInitialization = true;
+        volatile bool contextInitialization = true;
 
         SignalHandlerWorkerReturnPoint returnPoint;
         getcontext(&returnPoint.context);        
