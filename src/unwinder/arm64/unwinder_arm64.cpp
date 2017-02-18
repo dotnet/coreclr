@@ -114,6 +114,7 @@ typedef struct _ARM64_UNWIND_PARAMS
 
 #define UNWIND_PARAMS_SET_TRAP_FRAME(Params, Address, Size)
 
+#ifdef FEATURE_PAL
 #define UPDATE_CONTEXT_POINTERS(Params, RegisterNumber, Address)                    \
 do {                                                                                \
     if (ARGUMENT_PRESENT(Params)) {                                                 \
@@ -139,6 +140,10 @@ do {                                                                            
         }                                                                           \
     }                                                                               \
 } while (0)
+#else
+#define UPDATE_CONTEXT_POINTERS(Params, RegisterNumber, Address)
+#define UPDATE_FP_CONTEXT_POINTERS(Params, RegisterNumber, Address)
+#endif
 
 #define VALIDATE_STACK_ADDRESS_EX(Params, Context, Address, DataSize, Alignment, OutStatus)
 #define VALIDATE_STACK_ADDRESS(Params, Context, DataSize, Alignment, OutStatus)
