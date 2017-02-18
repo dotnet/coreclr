@@ -1101,6 +1101,7 @@
     <MscorlibSources Include="$(BclSourcesRoot)\System\Collections\Generic\KeyNotFoundException.cs" />
     <MscorlibSources Include="$(BclSourcesRoot)\System\Collections\Generic\KeyValuePair.cs" />
     <MscorlibSources Include="$(BclSourcesRoot)\System\Collections\Generic\List.cs" />
+    <MscorlibSources Include="$(BclSourcesRoot)\System\Collections\Generic\RareComparers.cs" />
     <MscorlibSources Include="$(BclSourcesRoot)\System\Collections\Generic\ArraySortHelper.cs" />
     <MscorlibSources Include="$(BclSourcesRoot)\System\Collections\ObjectModel\Collection.cs" />
     <MscorlibSources Include="$(BclSourcesRoot)\System\Collections\ObjectModel\ReadOnlyCollection.cs" />
