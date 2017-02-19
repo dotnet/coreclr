@@ -20,7 +20,7 @@ namespace System.Collections.Generic
     [TypeDependencyAttribute("System.Collections.Generic.ObjectComparer`1")] 
     public abstract class Comparer<T> : IComparer, IComparer<T>
     {
-        static readonly Comparer<T> defaultComparer = CreateComparer();
+        static readonly Comparer<T> defaultComparer = (Comparer<T>)ComparerHelpers.CreateDefaultComparer(typeof(T));
 
         public static Comparer<T> Default {
             get {
@@ -37,41 +37,6 @@ namespace System.Collections.Generic
                 throw new ArgumentNullException(nameof(comparison));
 
             return new ComparisonComparer<T>(comparison);
-        }
-
-        //
-        // Note that logic in this method is replicated in vm\compile.cpp to ensure that NGen
-        // saves the right instantiations
-        //
-        private static Comparer<T> CreateComparer()
-        {
-            object result = null;
-            var type = (RuntimeType)typeof(T);
-
-            // If T implements IComparable<T> return a GenericComparer<T>
-            if (typeof(IComparable<T>).IsAssignableFrom(type))
-            {
-                result = RuntimeTypeHandle.CreateInstanceForAnotherGenericParameter((RuntimeType)typeof(GenericComparer<int>), type);
-            }
-            else if (default(T) == null)
-            {
-                // Nullable does not implement IComparable<T?> directly because that would add an extra interface call per comparison.
-                // Instead, it relies on Comparer<T?>.Default to specialize for nullables and do the lifted comparisons if T implements IComparable.
-                if (type.IsValueType)
-                {
-                    // Nullable/enum comparers are less common than IComparable comparers.
-                    // Their creation logic is put in a separate, non-generic class to minimize the cost of generic instantiations of this method
-                    // for the more-common codepath.
-                    result = RareComparers.TryCreateNullableComparer(type);
-                }
-            }
-            else if (type.IsEnum)
-            {
-                // The comparer for enums is specialized to avoid boxing.
-                result = RareComparers.TryCreateEnumComparer(type);
-            }
-
-            return result != null ? (Comparer<T>)result : new ObjectComparer<T>();
         }
 
         public abstract int Compare(T x, T y);

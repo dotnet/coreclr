@@ -18,55 +18,13 @@ namespace System.Collections.Generic
     [TypeDependencyAttribute("System.Collections.Generic.ObjectEqualityComparer`1")]
     public abstract class EqualityComparer<T> : IEqualityComparer, IEqualityComparer<T>
     {
-        static readonly EqualityComparer<T> defaultComparer = CreateComparer();
+        static readonly EqualityComparer<T> defaultComparer = (EqualityComparer<T>)ComparerHelpers.CreateDefaultEqualityComparer(typeof(T));
 
         public static EqualityComparer<T> Default {
             get {
                 Contract.Ensures(Contract.Result<EqualityComparer<T>>() != null);
                 return defaultComparer;
             }
-        }
-
-        //
-        // Note that logic in this method is replicated in vm\compile.cpp to ensure that NGen
-        // saves the right instantiations
-        //
-        private static EqualityComparer<T> CreateComparer()
-        {
-            Contract.Ensures(Contract.Result<EqualityComparer<T>>() != null);
-            
-            object result = null;
-            var type = (RuntimeType)typeof(T);
-            
-            // Specialize for byte so Array.IndexOf is faster.
-            if (type == typeof(byte))
-            {
-                result = new ByteEqualityComparer();
-            }
-            // If T implements IEquatable<T> return a GenericEqualityComparer<T>
-            else if (typeof(IEquatable<T>).IsAssignableFrom(type))
-            {
-                result = RuntimeTypeHandle.CreateInstanceForAnotherGenericParameter((RuntimeType)typeof(GenericEqualityComparer<int>), type);
-            }
-            else if (default(T) == null) // Reference type/Nullable
-            {
-                // Nullable does not implement IEquatable<T?> directly because that would add an extra interface call per comparison.
-                // Instead, it relies on EqualityComparer<T?>.Default to specialize for nullables and do the lifted comparisons if T implements IEquatable.
-                if (type.IsValueType)
-                {
-                    // Nullable/enum equality comparers are less common than IEquatable equality comparers.
-                    // Their creation logic is put in a separate, non-generic class to minimize the cost of generic instantiations of this method
-                    // for the more-common codepath.
-                    result = RareComparers.TryCreateNullableEqualityComparer(type);
-                }
-            }
-            else if (type.IsEnum)
-            {
-                // The equality comparer for enums is specialized to avoid boxing.
-                result = RareComparers.TryCreateEnumEqualityComparer(type);
-            }
-            
-            return result != null ? (EqualityComparer<T>)result : new ObjectEqualityComparer<T>();
         }
 
         [Pure]

@@ -1085,6 +1085,7 @@
   <ItemGroup>
     <MscorlibSources Include="$(BclSourcesRoot)\System\Nullable.cs" />
     <MscorlibSources Include="$(BclSourcesRoot)\System\Collections\Generic\Comparer.cs" />
+    <MscorlibSources Include="$(BclSourcesRoot)\System\Collections\Generic\ComparerHelpers.cs" />
     <MscorlibSources Include="$(BclSourcesRoot)\System\Collections\Generic\Dictionary.cs" />
     <MscorlibSources Include="$(BclSourcesRoot)\System\Collections\Generic\EqualityComparer.cs" />
     <MscorlibSources Include="$(BclSourcesRoot)\System\Collections\Generic\DebugView.cs" />
@@ -1101,7 +1102,6 @@
     <MscorlibSources Include="$(BclSourcesRoot)\System\Collections\Generic\KeyNotFoundException.cs" />
     <MscorlibSources Include="$(BclSourcesRoot)\System\Collections\Generic\KeyValuePair.cs" />
     <MscorlibSources Include="$(BclSourcesRoot)\System\Collections\Generic\List.cs" />
-    <MscorlibSources Include="$(BclSourcesRoot)\System\Collections\Generic\RareComparers.cs" />
     <MscorlibSources Include="$(BclSourcesRoot)\System\Collections\Generic\ArraySortHelper.cs" />
     <MscorlibSources Include="$(BclSourcesRoot)\System\Collections\ObjectModel\Collection.cs" />
     <MscorlibSources Include="$(BclSourcesRoot)\System\Collections\ObjectModel\ReadOnlyCollection.cs" />
