@@ -18,14 +18,9 @@ namespace System.Collections.Generic
     [TypeDependencyAttribute("System.Collections.Generic.ObjectEqualityComparer`1")]
     public abstract class EqualityComparer<T> : IEqualityComparer, IEqualityComparer<T>
     {
-        static readonly EqualityComparer<T> defaultComparer = (EqualityComparer<T>)ComparerHelpers.CreateDefaultEqualityComparer(typeof(T));
-
-        public static EqualityComparer<T> Default {
-            get {
-                Contract.Ensures(Contract.Result<EqualityComparer<T>>() != null);
-                return defaultComparer;
-            }
-        }
+        // To minimize generic instantiation overhead of creating the comparer per type, we keep the generic portion of the code as small
+        // as possible and define most of the creation logic in a non-generic class.
+        public static EqualityComparer<T> Default { get; } = (EqualityComparer<T>)ComparerHelpers.CreateDefaultEqualityComparer(typeof(T));
 
         [Pure]
         public abstract bool Equals(T x, T y);

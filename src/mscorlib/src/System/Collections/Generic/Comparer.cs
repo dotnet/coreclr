@@ -20,14 +20,9 @@ namespace System.Collections.Generic
     [TypeDependencyAttribute("System.Collections.Generic.ObjectComparer`1")] 
     public abstract class Comparer<T> : IComparer, IComparer<T>
     {
-        static readonly Comparer<T> defaultComparer = (Comparer<T>)ComparerHelpers.CreateDefaultComparer(typeof(T));
-
-        public static Comparer<T> Default {
-            get {
-                Contract.Ensures(Contract.Result<Comparer<T>>() != null);
-                return defaultComparer;
-            }
-        }
+        // To minimize generic instantiation overhead of creating the comparer per type, we keep the generic portion of the code as small
+        // as possible and define most of the creation logic in a non-generic class.
+        public static Comparer<T> Default { get; } = (Comparer<T>)ComparerHelpers.CreateDefaultComparer(typeof(T));
 
         public static Comparer<T> Create(Comparison<T> comparison)
         {
