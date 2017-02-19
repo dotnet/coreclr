@@ -9021,6 +9021,49 @@ void Compiler::fgSimpleLowering()
                     // Add in a call to an error routine.
                     fgSetRngChkTarget(tree, false);
                 }
+
+#if FEATURE_FIXED_OUT_ARGS
+                if (tree->gtOper == GT_CALL)
+                {
+                    GenTreeCall* call = tree->AsCall();
+                    // Fast tail calls use the caller-supplied scratch
+                    // space so have no impact on this methods outgong arg size.
+                    if (!call->IsFastTailCall())
+                    {
+                        // Update outgoing arg size to handle this call
+                        const unsigned thisCallOutAreaSize = tree->AsCall()->fgArgInfo->GetOutArgSize();
+                        assert(thisCallOutAreaSize >= MIN_ARG_AREA_FOR_CALL);
+
+                        if (thisCallOutAreaSize > lvaOutgoingArgSpaceSize)
+                        {
+                            lvaOutgoingArgSpaceSize = thisCallOutAreaSize;
+
+                            // If a function has localloc, we will need to move the outgoing arg space when the
+                            // localloc happens. When we do this, we need to maintain stack alignment. To avoid
+                            // leaving alignment-related holes when doing this move, make sure the outgoing
+                            // argument space size is a multiple of the stack alignment by aligning up to the next
+                            // stack alignment boundary.
+                            if (compLocallocUsed)
+                            {
+                                lvaOutgoingArgSpaceSize = (unsigned)roundUp(lvaOutgoingArgSpaceSize, STACK_ALIGN);
+                            }
+
+                            JITDUMP("Bumping lvaOutgoingArgSpaceSize to %u for call [%06d]\n", lvaOutgoingArgSpaceSize,
+                                    dspTreeID(tree));
+                        }
+                        else
+                        {
+                            JITDUMP("lvaOutgoingArgSpaceSize %u sufficient for call [%06d], which needs %u\n",
+                                    lvaOutgoingArgSpaceSize, dspTreeID(tree), thisCallOutAreaSize);
+                        }
+                    }
+                    else
+                    {
+                        JITDUMP("lvaOutgoingArgSpaceSize not impacted by fast tail call [%06d]\n", dspTreeID(tree))
+                    }
+                }
+
+#endif // FEATURE_FIXED_OUT_ARGS
             }
         }
     }
@@ -12127,7 +12170,8 @@ bool Compiler::fgRelocateEHRegions()
                 }
 
                 // Currently it is not good to move the rarely run handler regions to the end of the method
-                // because fgDetermineFirstColdBlock() must put the start of any handler region in the hot section.
+                // because fgDetermineFirstColdBlock() must put the start of any handler region in the hot
+                // section.
                 CLANG_FORMAT_COMMENT_ANCHOR;
 
 #if 0
