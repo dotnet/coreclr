@@ -2966,12 +2966,9 @@ void Compiler::lvaSortByRefCount()
 #endif
         }
 #if defined(_TARGET_AMD64_) && defined(FEATURE_CORECLR)
-        else if (opts.MinOpts() && !JitConfig.JitMinOptsTrackGCrefs())
+        else if (opts.MinOpts() && !JitConfig.JitMinOptsTrackGCrefs() && varTypeIsGC(varDsc->TypeGet()))
         {
-            if (varTypeIsGC(varDsc->TypeGet()))
-            {
-                varDsc->lvTracked = 0;
-            }
+            varDsc->lvTracked = 0;
         }
 #endif
 
