@@ -1033,15 +1033,18 @@ void TypeDefInfo::DumpDebugInfo(char *ptr, int &offset)
 void ByteTypeInfo::DumpStrings(char* ptr, int& offset)
 {
     PrimitiveTypeInfo::DumpStrings(ptr, offset);
-    m_typedef_info->m_typedef_name = new (nothrow) char[strlen(m_type_name) + 1];
-    if (strcmp(m_type_name, "System.Byte") == 0)
-        strcpy(m_typedef_info->m_typedef_name, "byte");
-    else if (strcmp(m_type_name, "System.SByte") == 0)
-        strcpy(m_typedef_info->m_typedef_name, "sbyte");
-    else if (strcmp(m_type_name, "char16_t") == 0)
-        strcpy(m_typedef_info->m_typedef_name, "char");
-    else
-        strcpy(m_typedef_info->m_typedef_name, m_type_name);
+    if (!m_typedef_info->m_typedef_name)
+    {
+        m_typedef_info->m_typedef_name = new (nothrow) char[strlen(m_type_name) + 1];
+        if (strcmp(m_type_name, "System.Byte") == 0)
+            strcpy(m_typedef_info->m_typedef_name, "byte");
+        else if (strcmp(m_type_name, "System.SByte") == 0)
+            strcpy(m_typedef_info->m_typedef_name, "sbyte");
+        else if (strcmp(m_type_name, "char16_t") == 0)
+            strcpy(m_typedef_info->m_typedef_name, "char");
+        else
+            strcpy(m_typedef_info->m_typedef_name, m_type_name);
+    }
     m_typedef_info->DumpStrings(ptr, offset);
 }
 
