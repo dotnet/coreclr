@@ -241,10 +241,10 @@ BasicBlock* CodeGen::genCallFinally(BasicBlock* block)
     if ((compiler->lvaPSPSym == BAD_VAR_NUM) ||
         (!compiler->compLocallocUsed && (compiler->funCurrentFunc()->funKind == FUNC_ROOT)))
     {
-#ifdef _TARGET_X86_
-        getEmitter()->emitIns_R_AR(INS_lea, EA_PTRSIZE, REG_ARG_0, REG_FPBASE, 8); // caller-SP for x86
-#else
-        inst_RV_RV(INS_mov, REG_ARG_0, REG_SPBASE, TYP_I_IMPL);
+#ifdef UNIX_X86_ABI
+        inst_RV_RV(INS_mov, REG_ARG_0, REG_FPBASE, TYP_I_IMPL); // FP for UNIX_X86
+#else // UNIX_X86_ABI
+        inst_RV_RV(INS_mov, REG_ARG_0, REG_SPBASE, TYP_I_IMPL); // SP for all except UNIX_X86
 #endif
     }
     else

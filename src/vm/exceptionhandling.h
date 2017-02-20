@@ -32,11 +32,7 @@ ClrUnwindEx(EXCEPTION_RECORD* pExceptionRecord,
                  UINT_PTR          TargetIP,
                  UINT_PTR          TargetFrameSp);
 
-#if defined(_TARGET_X86_) && defined(FEATURE_PAL)
-typedef DWORD_PTR FASTCALL (HandlerFn)(UINT_PTR uStackFrame, Object* pExceptionObj);
-#else
 typedef DWORD_PTR   (HandlerFn)(UINT_PTR uStackFrame, Object* pExceptionObj);
-#endif // _TARGET_X86_ && FEATURE_PAL
 
 enum CLRUnwindStatus { UnwindPending, FirstPassComplete, SecondPassComplete };
 
@@ -406,6 +402,7 @@ private:
                     EE_ILEXCEPTION_CLAUSE*  pEHClause,
                     MethodDesc*             pMD,
                     EHFuncletType funcletType
+                    X86_ARG(PT_CONTEXT pContextRecord)
                     ARM_ARG(PT_CONTEXT pContextRecord)
                     ARM64_ARG(PT_CONTEXT pContextRecord)
                     );

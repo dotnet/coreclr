@@ -10303,11 +10303,12 @@ void CodeGen::genCaptureFuncletPrologEpilogInfo()
  *
  *  Generates code for an EH funclet prolog.
  *
+ *
  *  Funclets have the following incoming arguments:
  *
- *      catch/filter-handler: ecx = CallerSP, edx = the exception object that was caught (see GT_CATCH_ARG)
- *      filter:               ecx = CallerSP, edx = the exception object to filter (see GT_CATCH_ARG)
- *      finally/fault:        ecx = CallerSP
+ *      catch/filter-handler: eax = the exception object that was caught (see GT_CATCH_ARG), ecx = FP
+ *      filter:               eax = the exception object that was caught (see GT_CATCH_ARG), ecx = FP
+ *      finally/fault:        ecx = FP
  *
  *  Funclets set the following registers on exit:
  *
@@ -10340,17 +10341,11 @@ void CodeGen::genFuncletProlog(BasicBlock* block)
     // This is the end of the OS-reported prolog for purposes of unwinding
     compiler->unwindEndProlog();
 
-    if (handlerGetsXcptnObj(block->bbCatchTyp))
-    {
-        getEmitter()->emitIns_R_R(INS_mov, EA_PTRSIZE, REG_EXCEPTION_OBJECT, REG_ARG_1);
-    }
-
+    // Restore frame pointer
     // TODO We will need changes here when we introduce PSPSym
-    getEmitter()->emitIns_R_R(INS_mov, EA_PTRSIZE, REG_FPBASE, REG_ARG_0);
-    getEmitter()->emitIns_R_AR(INS_lea, EA_PTRSIZE, REG_FPBASE, REG_FPBASE, -8);
+    inst_RV_RV(INS_mov, REG_FPBASE, REG_ARG_0);
 
-    // Add a padding (for 16-byte alignment)
-    //  See https://github.com/dotnet/coreclr/issues/9439 for details
+    // Add a padding for 16-byte alignment
     inst_RV_IV(INS_sub, REG_SPBASE, 8, EA_PTRSIZE);
 
     // We've modified EBP, but not really. Say that we haven't...
@@ -10375,6 +10370,7 @@ void CodeGen::genFuncletEpilog()
 
     // TODO Restore callee-saved registers
 
+    // Revert a padding that was added for 16-byte alignment
     inst_RV_IV(INS_add, REG_SPBASE, 8, EA_PTRSIZE);
 
     inst_RV(INS_pop, REG_FPBASE, TYP_REF);

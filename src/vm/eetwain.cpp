@@ -3810,8 +3810,9 @@ bool UnwindEbpDoubleAlignFrame(
 #ifdef WIN64EXCEPTIONS
         // Funclets' frame pointers(EBP) are always restored so they can access to main function's local variables.
         // Therefore the value of EBP is invalid for unwinder so we should use ESP instead.
-        // If funclet frame layout is changed from CodeGen::genFuncletProlog() and genFuncletEpilog(),
-        // we need to change here accordingly.
+        // TODO If funclet frame layout is changed from CodeGen::genFuncletProlog() and genFuncletEpilog(),
+        //      we need to change here accordingly. It is likely to have changes when introducing PSPSym.
+        // TODO Currently we assume that ESP of funclet frames is always fixed but actually it could change.
         if (pCodeInfo->IsFunclet())
         {
             baseSP = curESP + 8; // padding for 16byte stack alignment allocated in genFuncletProlog()
