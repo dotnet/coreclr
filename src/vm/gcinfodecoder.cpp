@@ -732,7 +732,10 @@ bool GcInfoDecoder::EnumerateLiveSlots(
 
         if(executionAborted)
         {
+#if !defined(_TARGET_AMD64_) || !defined(FEATURE_CORECLR)
+            // This assert is not applicable when MinOpts isn't encoding all calls.
             _ASSERTE(m_NumSafePoints == 0);
+#endif
             m_Reader.Skip(m_NumSafePoints * numSlots);
         }
         else if( m_SafePointIndex != m_NumSafePoints )
