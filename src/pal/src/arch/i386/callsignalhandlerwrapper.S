@@ -6,25 +6,39 @@
 #include "unixasmmacros.inc"
 #include "asmconstants.h"
 
-.globl C_FUNC(SignalHandlerWorkerReturnOffset)
-C_FUNC(SignalHandlerWorkerReturnOffset):
-    .int LOCAL_LABEL(SignalHandlerWorkerReturn)-C_FUNC(CallSignalHandlerWrapper)
+.macro CALL_SIGNAL_HANDLER_WRAPPER Alignment
+
+.globl C_FUNC(SignalHandlerWorkerReturnOffset\Alignment)
+C_FUNC(SignalHandlerWorkerReturnOffset\Alignment):
+    .int LOCAL_LABEL(SignalHandlerWorkerReturn\Alignment)-C_FUNC(CallSignalHandlerWrapper\Alignment)
 
 // This function is never called, only a fake stack frame will be setup to have a return
 // address set to SignalHandlerWorkerReturn during SIGSEGV handling.
 // It enables the unwinder to unwind stack from the handling code to the actual failure site.
-NESTED_ENTRY CallSignalHandlerWrapper, _TEXT, NoHandler
-    PROLOG_BEG
-    PROLOG_END
+NESTED_ENTRY CallSignalHandlerWrapper\Alignment, _TEXT, NoHandler
+
+    .cfi_def_cfa_offset (4 + \Alignment) // return address + stack alignment
+    .cfi_offset eip, -(4 + \Alignment)
+    push ebp
+    .cfi_adjust_cfa_offset 4
+    .cfi_def_cfa_register ebp
+    mov ebp, esp
     // Simulate arguments pushing
     push eax
     push eax
     push eax
     push eax
     call    EXTERNAL_C_FUNC(signal_handler_worker)
-LOCAL_LABEL(SignalHandlerWorkerReturn):
+LOCAL_LABEL(SignalHandlerWorkerReturn\Alignment):
     add esp, 16
-    EPILOG_BEG
-    EPILOG_END
+    pop ebp
     ret
-NESTED_END CallSignalHandlerWrapper, _TEXT
+
+NESTED_END CallSignalHandlerWrapper\Alignment, _TEXT
+
+.endm
+
+CALL_SIGNAL_HANDLER_WRAPPER 0
+CALL_SIGNAL_HANDLER_WRAPPER 4
+CALL_SIGNAL_HANDLER_WRAPPER 8
+CALL_SIGNAL_HANDLER_WRAPPER 12

@@ -5,19 +5,26 @@
 #include "unixasmmacros.inc"
 #include "asmconstants.h"
 
-.globl C_FUNC(SignalHandlerWorkerReturnOffset)
-C_FUNC(SignalHandlerWorkerReturnOffset):
-    .int LOCAL_LABEL(SignalHandlerWorkerReturn)-C_FUNC(CallSignalHandlerWrapper)
+.macro CALL_SIGNAL_HANDLER_WRAPPER Alignment
+
+.globl C_FUNC(SignalHandlerWorkerReturnOffset\Alignment)
+C_FUNC(SignalHandlerWorkerReturnOffset\Alignment):
+    .int LOCAL_LABEL(SignalHandlerWorkerReturn\Alignment)-C_FUNC(CallSignalHandlerWrapper\Alignment)
 
 // This function is never called, only a fake stack frame will be setup to have a return
 // address set to SignalHandlerWorkerReturn during SIGSEGV handling.
 // It enables the unwinder to unwind stack from the handling code to the actual failure site.
-NESTED_ENTRY CallSignalHandlerWrapper, _TEXT, NoHandler
-    PROLOG_STACK_ALLOC 144 // red zone + fp + lr
+NESTED_ENTRY CallSignalHandlerWrapper\Alignment, _TEXT, NoHandler
+    PROLOG_STACK_ALLOC (128 + 8 + 8 + \Alignment) // red zone + fp + lr + alignment
     PROLOG_SAVE_REG_PAIR fp, lr, 0
     bl      EXTERNAL_C_FUNC(signal_handler_worker)
-LOCAL_LABEL(SignalHandlerWorkerReturn):
+LOCAL_LABEL(SignalHandlerWorkerReturn\Alignment):
     EPILOG_RESTORE_REG_PAIR fp, lr, 0
-    EPILOG_STACK_FREE 144
+    EPILOG_STACK_FREE (128 + 8 + 8 + \Alignment)
     ret
-NESTED_END CallSignalHandlerWrapper, _TEXT
+NESTED_END CallSignalHandlerWrapper\Alignment, _TEXT
+
+.endm
+
+CALL_SIGNAL_HANDLER_WRAPPER 0
+CALL_SIGNAL_HANDLER_WRAPPER 8

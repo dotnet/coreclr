@@ -37,13 +37,17 @@ Parameters :
 
     (no return value)
 --*/
-extern "C" void CallSignalHandlerWrapper();
-extern "C" void CallSignalHandlerWrapperWithSpAlign();
+extern "C" void CallSignalHandlerWrapper0();
+extern "C" void CallSignalHandlerWrapper4();
+extern "C" void CallSignalHandlerWrapper8();
+extern "C" void CallSignalHandlerWrapper12();
 
 // Offset of the return address from the SignalHandlerWorker in the CallSignalHandlerWrapper 
 // relative to the start of the function
-extern "C" int SignalHandlerWorkerReturnOffset;
-extern "C" int SignalHandlerWorkerReturnOffsetWithSpAlign;
+extern "C" int SignalHandlerWorkerReturnOffset0;
+extern "C" int SignalHandlerWorkerReturnOffset4;
+extern "C" int SignalHandlerWorkerReturnOffset8;
+extern "C" int SignalHandlerWorkerReturnOffset12;
 
 /*++
 Function :

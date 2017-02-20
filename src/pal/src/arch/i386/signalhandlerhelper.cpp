@@ -8,6 +8,7 @@ SET_DEFAULT_DEBUG_CHANNEL(EXCEPT); // some headers have code with asserts, so do
 #include "pal/palinternal.h"
 #include "pal/context.h"
 #include "pal/signal.hpp"
+#include "pal/utils.h"
 #include <sys/ucontext.h>
 
 /*++
@@ -26,10 +27,29 @@ Parameters :
 void ExecuteHandlerOnOriginalStack(int code, siginfo_t *siginfo, void *context, SignalHandlerWorkerReturnPoint* returnPoint)
 {
     ucontext_t *ucontext = (ucontext_t *)context;
-    size_t* sp = (size_t*)MCREG_Esp(ucontext->uc_mcontext);
+    size_t faultSp = (size_t)MCREG_Esp(ucontext->uc_mcontext);
 
-    // Hmm, we will need to ensure proper alignment, we don't have any guarantee, do we?
-    _ASSERTE((((size_t)sp) & 0xf) == 0);
+    _ASSERTE(IS_ALIGNED(faultSp, 4));
+
+    size_t fakeFrameReturnAddress;
+
+    switch (faultSp & 0xc)
+    {
+        case 0x0:
+            fakeFrameReturnAddress = (size_t)SignalHandlerWorkerReturnOffset0 + (size_t)CallSignalHandlerWrapper0;
+            break;
+        case 0x4:
+            fakeFrameReturnAddress = (size_t)SignalHandlerWorkerReturnOffset4 + (size_t)CallSignalHandlerWrapper4;
+            break;
+        case 0x8:
+            fakeFrameReturnAddress = (size_t)SignalHandlerWorkerReturnOffset8 + (size_t)CallSignalHandlerWrapper8;
+            break;
+        case 0xc:
+            fakeFrameReturnAddress = (size_t)SignalHandlerWorkerReturnOffset12 + (size_t)CallSignalHandlerWrapper12;
+            break;
+    }
+
+    size_t* sp = (size_t*)ALIGN_DOWN(faultSp, 16);
 
     // Build fake stack frame to enable the stack unwinder to unwind from signal_handler_worker to the faulting instruction
     *--sp = (size_t)MCREG_Eip(ucontext->uc_mcontext);
@@ -39,7 +59,7 @@ void ExecuteHandlerOnOriginalStack(int code, siginfo_t *siginfo, void *context, 
     *--sp = (size_t)context;
     *--sp = (size_t)siginfo;
     *--sp = code;
-    *--sp = (size_t)SignalHandlerWorkerReturnOffset + (size_t)CallSignalHandlerWrapper;
+    *--sp = fakeFrameReturnAddress;
 
     // Switch the current context to the signal_handler_worker and the original stack
     ucontext_t ucontext2;

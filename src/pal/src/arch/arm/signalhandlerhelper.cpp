@@ -8,6 +8,7 @@ SET_DEFAULT_DEBUG_CHANNEL(EXCEPT); // some headers have code with asserts, so do
 #include "pal/palinternal.h"
 #include "pal/context.h"
 #include "pal/signal.hpp"
+#include "pal/utils.h"
 #include <sys/ucontext.h>
 
 /*++
@@ -26,10 +27,23 @@ Parameters :
 void ExecuteHandlerOnOriginalStack(int code, siginfo_t *siginfo, void *context, SignalHandlerWorkerReturnPoint* returnPoint)
 {
     ucontext_t *ucontext = (ucontext_t *)context;
-    size_t* sp = (size_t*)MCREG_Sp(ucontext->uc_mcontext);
-    _ASSERTE((((size_t)sp) & 0x7) == 0);
+    size_t faultSp = (size_t)MCREG_Sp(ucontext->uc_mcontext);
 
-    sp -= 8 / sizeof(size_t); // red zone
+    _ASSERTE(IS_ALIGNED(faultSp, 4));
+
+    size_t fakeFrameReturnAddress;
+
+    if (IS_ALIGNED(faultSp, 8))
+    {
+        fakeFrameReturnAddress = (size_t)SignalHandlerWorkerReturnOffset0 + (size_t)CallSignalHandlerWrapper0;
+    }
+    else
+    {
+        fakeFrameReturnAddress = (size_t)SignalHandlerWorkerReturnOffset4 + (size_t)CallSignalHandlerWrapper4;
+    }
+
+    // preserve 8 bytes long red zone and align stack pointer
+    size_t* sp = (size_t*)ALIGN_DOWN(faultSp - 8, 8);
 
     // Build fake stack frame to enable the stack unwinder to unwind from signal_handler_worker to the faulting instruction
     // pushed LR
@@ -45,7 +59,7 @@ void ExecuteHandlerOnOriginalStack(int code, siginfo_t *siginfo, void *context, 
     // them for the target frame directly from the signal context.
     MCREG_Sp(ucontext2.uc_mcontext) = (size_t)sp;
     MCREG_R7(ucontext2.uc_mcontext) = (size_t)sp; // Fp and Sp are the same
-    MCREG_Lr(ucontext2.uc_mcontext) = (size_t)SignalHandlerWorkerReturnOffset + (size_t)CallSignalHandlerWrapper;
+    MCREG_Lr(ucontext2.uc_mcontext) = fakeFrameReturnAddress;
     MCREG_Pc(ucontext2.uc_mcontext) = (size_t)signal_handler_worker;
     MCREG_R0(ucontext2.uc_mcontext) = code;
     MCREG_R1(ucontext2.uc_mcontext) = (size_t)siginfo;
