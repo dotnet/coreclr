@@ -45,13 +45,18 @@ namespace GCTest
             return 100;
         }
         [System.Runtime.CompilerServices.MethodImplAttribute(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
+        private static void CollectAndFinalize()
+        {
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
+            GC.Collect();
+        }
+        [System.Runtime.CompilerServices.MethodImplAttribute(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
         private static void Test1()
         {
             for (int i = 0; i < 50; i++)
                 s_arr[i] = new Test(i);
-            GC.Collect();
-            GC.WaitForPendingFinalizers();
-            GC.Collect();
+            CollectAndFinalize();
         }
         [System.Runtime.CompilerServices.MethodImplAttribute(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
         private static void Test2()
@@ -66,9 +71,7 @@ namespace GCTest
         [System.Runtime.CompilerServices.MethodImplAttribute(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
         private static void Test3()
         {
-            GC.Collect();
-            GC.WaitForPendingFinalizers();
-            GC.Collect();
+            CollectAndFinalize();
             for (int i = 0; i < 50; i++)
             {
                 if (s_arr[i] == null) throw new Exception();
@@ -79,9 +82,7 @@ namespace GCTest
         [System.Runtime.CompilerServices.MethodImplAttribute(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
         private static void Test4()
         {
-            GC.Collect();
-            GC.WaitForPendingFinalizers();
-            GC.Collect();
+            CollectAndFinalize();
             for (int i = 0; i < 50; i++)
             {
                 if (s_arr[i] == null) throw new Exception();
@@ -92,9 +93,7 @@ namespace GCTest
         [System.Runtime.CompilerServices.MethodImplAttribute(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
         private static void Test5()
         {
-            GC.Collect();
-            GC.WaitForPendingFinalizers();
-            GC.Collect();
+            CollectAndFinalize();
             for (int i = 0; i < 50; i++)
             {
                 if (s_arr[i] == null) throw new Exception();
@@ -105,9 +104,7 @@ namespace GCTest
         [System.Runtime.CompilerServices.MethodImplAttribute(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
         private static void Test6()
         {
-            GC.Collect();
-            GC.WaitForPendingFinalizers();
-            GC.Collect();
+            CollectAndFinalize();
             for (int i = 0; i < 50; i++)
             {
                 if (s_arr[i] == null) throw new Exception();
