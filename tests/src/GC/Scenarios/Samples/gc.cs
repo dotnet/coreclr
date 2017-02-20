@@ -273,7 +273,7 @@ class Application {
     static public ResurrectObj ResObjHolder;    // Defaults to null
 
 
-    // These methods demonstrates how the GC supports resurrection.
+    // These methods demonstrate how the GC supports resurrection.
     // NOTE: Resurrection is discouraged.
     private static void ResurrectionInit() {
         // Create a ResurrectionObj
