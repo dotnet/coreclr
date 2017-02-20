@@ -8,6 +8,7 @@ SET_DEFAULT_DEBUG_CHANNEL(EXCEPT); // some headers have code with asserts, so do
 #include "pal/palinternal.h"
 #include "pal/context.h"
 #include "pal/signal.hpp"
+#include "pal/utils.h"
 #include <sys/ucontext.h>
 
 /*++
@@ -26,18 +27,24 @@ Parameters :
 void ExecuteHandlerOnOriginalStack(int code, siginfo_t *siginfo, void *context, SignalHandlerWorkerReturnPoint* returnPoint)
 {
     ucontext_t *ucontext = (ucontext_t *)context;
-    size_t* sp = (size_t*)MCREG_Rsp(ucontext->uc_mcontext);
+    size_t rsp = (size_t)MCREG_Rsp(ucontext->uc_mcontext);
+    size_t* sp = (size_t*)rsp;
 
-    _ASSERTE((((size_t)sp) & 0xf) == 0);
+    _ASSERTE(IS_ALIGNED(rsp, 8));
 
     // preserve red zone
     sp -= 128 / sizeof(size_t); 
-
+    if (!IS_ALIGNED(rsp, 16))
+    {
+        --sp;
+    }
     // Build fake stack frame to enable the stack unwinder to unwind from signal_handler_worker to the faulting instruction
     *--sp = (size_t)MCREG_Rip(ucontext->uc_mcontext);
     *--sp = (size_t)MCREG_Rbp(ucontext->uc_mcontext);
     size_t fp = (size_t)sp;
-    *--sp = (size_t)SignalHandlerWorkerReturnOffset + (size_t)CallSignalHandlerWrapper;
+    *--sp = (size_t)MCREG_Rbx(ucontext->uc_mcontext);
+    --sp; // stack alignment
+    *--sp = (size_t)SignalHandlerWorkerReturnOffset + (size_t)CallSignalHandlerWrapper;;
 
     // Switch the current context to the signal_handler_worker and the original stack
     ucontext_t ucontext2;
@@ -46,6 +53,7 @@ void ExecuteHandlerOnOriginalStack(int code, siginfo_t *siginfo, void *context, 
     // We don't care about the other registers state since the stack unwinding restores
     // them for the target frame directly from the signal context.
     MCREG_Rsp(ucontext2.uc_mcontext) = (size_t)sp;
+    MCREG_Rbx(ucontext2.uc_mcontext) = (size_t)rsp;
     MCREG_Rbp(ucontext2.uc_mcontext) = (size_t)fp;
     MCREG_Rip(ucontext2.uc_mcontext) = (size_t)signal_handler_worker;
     MCREG_Rdi(ucontext2.uc_mcontext) = code;

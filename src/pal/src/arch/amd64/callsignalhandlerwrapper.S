@@ -14,10 +14,16 @@ C_FUNC(SignalHandlerWorkerReturnOffset):
 // address set to SignalHandlerWorkerReturn during SIGSEGV handling.
 // It enables the unwinder to unwind stack from the handling code to the actual failure site.
 NESTED_ENTRY CallSignalHandlerWrapper, _TEXT, NoHandler
-    .cfi_def_cfa_offset 136 // red zone + return address
-    .cfi_offset rip, -136
     push_nonvol_reg rbp
+    push_nonvol_reg rbx
+    push_register rax // stack alignment
+    set_cfa_register rbp, 16
+    .cfi_register rsp, rbx
     call    EXTERNAL_C_FUNC(signal_handler_worker)
 LOCAL_LABEL(SignalHandlerWorkerReturn):
+    pop rax
+    pop rbx
+    pop rbp
     ret
 NESTED_END CallSignalHandlerWrapper, _TEXT
+
