@@ -17,6 +17,17 @@
 #include "eventtrace.h"
 #include "virtualcallstub.h"
 
+#if defined(_TARGET_X86_) || defined(_TARGET_ARM_) || defined(_TARGET_ARM64_)
+// On ARM & ARM64, the EstablisherFrame is the value of SP at the time a function was called and before it's prolog
+// executed. Effectively, it is the SP of the caller. This has been confirmed by AaronGi from the kernel
+// team.
+#define ESTABLISHER_FRAME_POINTER_IS_CALLER_SP 1
+#elif defined(_TARGET_AMD64_) // _TARGET_X86_ || _TARGET_ARM_ || _TARGET_ARM64
+#define ESTABLISHER_FRAME_POINTER_IS_CALLER_SP 0
+#else // _TARGET_AMD64_
+#error "Unsupported architecture"
+#endif // _TARGET_???_
+
 #ifndef DACCESS_COMPILE
 
 // o Functions and funclets are tightly associated.  In fact, they are laid out in contiguous memory.
@@ -1291,12 +1302,12 @@ void ExceptionTracker::InitializeCurrentContextForCrawlFrame(CrawlFrame* pcfThis
         pRD->SP = sfEstablisherFrame.SP;
         pRD->ControlPC = pDispatcherContext->ControlPc;
 
-#if defined(_TARGET_ARM_) || defined(_TARGET_ARM64_)    
+#if ESTABLISHER_FRAME_POINTER_IS_CALLER_SP
         pcfThisFrame->pRD->IsCallerSPValid = TRUE;
         
-        // Assert our first pass assumptions for the Arm/Arm64
+        // Assert our first pass assumptions
         _ASSERTE(sfEstablisherFrame.SP == GetSP(pDispatcherContext->ContextRecord));
-#endif // defined(_TARGET_ARM_) || defined(_TARGET_ARM64_)    
+#endif // ESTABLISHER_FRAME_POINTER_IS_CALLER_SP
 
     }
 
@@ -1390,7 +1401,7 @@ void ExceptionTracker::InitializeCrawlFrame(CrawlFrame* pcfThisFrame, Thread* pT
     {
         pCurrentTracker->InitializeCurrentContextForCrawlFrame(pcfThisFrame, pDispatcherContext, sf);
     }
-#if defined(_TARGET_ARM_) || defined(_TARGET_ARM64_)    
+#if ESTABLISHER_FRAME_POINTER_IS_CALLER_SP
     else
     {
         // See the comment above the call to InitRegDisplay for this assertion.
@@ -1402,7 +1413,9 @@ void ExceptionTracker::InitializeCrawlFrame(CrawlFrame* pcfThisFrame, Thread* pT
         ::SetSP(pcfThisFrame->pRD->pCallerContext, sf.SP);
         pcfThisFrame->pRD->IsCallerSPValid = TRUE;
     }
+#endif // ESTABLISHER_FRAME_POINTER_IS_CALLER_SP
 
+#if defined(_TARGET_ARM_) || defined(_TARGET_ARM64_)
     // Further below, we will adjust the ControlPC based upon whether we are at a callsite or not.
     // We need to do this for "RegDisplay.ControlPC" field as well so that when data structures like
     // EECodeInfo initialize themselves using this field, they will have the correct absolute value
@@ -1608,17 +1621,11 @@ CLRUnwindStatus ExceptionTracker::ProcessOSExceptionNotification(
 
     ExceptionTracker::InitializeCrawlFrame(&cfThisFrame, pThread, sf, &regdisp, pDispatcherContext, ControlPc, &uMethodStartPC, this);
 
-#if defined(_TARGET_X86_) || defined(_TARGET_AMD64_)
+#if !ESTABLISHER_FRAME_POINTER_IS_CALLER_SP
     uCallerSP = EECodeManager::GetCallerSp(cfThisFrame.pRD);
-#elif defined(_TARGET_ARM_) || defined(_TARGET_ARM64_)
-    // On ARM & ARM64, the EstablisherFrame is the value of SP at the time a function was called and before it's prolog
-    // executed. Effectively, it is the SP of the caller. This has been confirmed by AaronGi from the kernel
-    // team.
+#else // !ESTABLISHER_FRAME_POINTER_IS_CALLER_SP
     uCallerSP = sf.SP;
-#else
-    PORTABILITY_ASSERT("ExceptionTracker::ProcessOSExceptionNotification");
-    uCallerSP = NULL;
-#endif // _TARGET_AMD64_
+#endif // ESTABLISHER_FRAME_POINTER_IS_CALLER_SP
 
     EH_LOG((LL_INFO100, "ProcessCrawlFrame: PSP: " FMT_ADDR " EstablisherFrame: " FMT_ADDR "\n", DBG_ADDR(uCallerSP), DBG_ADDR(sf.SP)));
 
@@ -1919,19 +1926,16 @@ lExit:
         // in ExceptionTracker::ProcessManagedCallFrame.
         if (m_fResetEnclosingClauseSPForCatchFunclet)
         {
-#if defined(_TARGET_ARM_) || defined(_TARGET_ARM64_)           
+#if ESTABLISHER_FRAME_POINTER_IS_CALLER_SP
             // DispatcherContext->EstablisherFrame's value
             // represents the CallerSP of the current frame.
             UINT_PTR EnclosingClauseCallerSP = (UINT_PTR)pDispatcherContext->EstablisherFrame;
-#elif defined(_TARGET_AMD64_)            
-            // Extract the CallerSP from RegDisplay on AMD64
+#else // ESTABLISHER_FRAME_POINTER_IS_CALLER_SP
+            // Extract the CallerSP from RegDisplay
             REGDISPLAY *pRD = cfThisFrame.GetRegisterSet();
             _ASSERTE(pRD->IsCallerContextValid || pRD->IsCallerSPValid);
             UINT_PTR EnclosingClauseCallerSP = (UINT_PTR)GetSP(pRD->pCallerContext);
-#else // !_ARM_ && !_AMD64_ && !_ARM64_
-            PORTABILITY_ASSERT("ExceptionTracker::ProcessOSExceptionNotification");
-            UINT_PTR EnclosingClauseCallerSP = NULL;
-#endif // defined(_TARGET_ARM_) || defined(_TARGET_ARM64_)
+#endif // ESTABLISHER_FRAME_POINTER_IS_CALLER_SP
             m_EnclosingClauseInfo = EnclosingClauseInfo(false, cfThisFrame.GetRelOffset(), EnclosingClauseCallerSP);
         }
         m_fResetEnclosingClauseSPForCatchFunclet = FALSE;
@@ -2826,13 +2830,11 @@ CLRUnwindStatus ExceptionTracker::ProcessManagedCallFrame(
                                         // executes.
                                         m_dwIndexClauseForCatch = i + 1;
                                         m_sfEstablisherOfActualHandlerFrame = sfEstablisherFrame;
-#ifdef _TARGET_AMD64_
+#if !ESTABLISHER_FRAME_POINTER_IS_CALLER_SP
                                         m_sfCallerOfActualHandlerFrame = EECodeManager::GetCallerSp(pcfThisFrame->pRD);
-#else
-                                        // On ARM & ARM64, the EstablisherFrame is the value of SP at the time a function was called and before it's prolog
-                                        // executed. Effectively, it is the SP of the caller.
+#else // !ESTABLISHER_FRAME_POINTER_IS_CALLER_SP
                                         m_sfCallerOfActualHandlerFrame = sfEstablisherFrame.SP;                            
-#endif
+#endif // ESTABLISHER_FRAME_POINTER_IS_CALLER_SP
                                         
                                         ReturnStatus = FirstPassComplete;
                                     }
@@ -2874,8 +2876,10 @@ CLRUnwindStatus ExceptionTracker::ProcessManagedCallFrame(
                                 SetEnclosingClauseInfo(fIsFunclet,
                                                               pcfThisFrame->GetRelOffset(),
                                                               GetSP(pcfThisFrame->GetRegisterSet()->pCallerContext));
-#if defined(_TARGET_ARM_) || defined(_TARGET_ARM64_)
-                                // On ARM & ARM64, the OS passes us the CallerSP for the frame for which personality routine has been invoked.
+#if ESTABLISHER_FRAME_POINTER_IS_CALLER_SP
+                                // ESTABLISHER_FRAME_POINTER_IS_CALLER_SP should be set as 1 only when OS passes us the Caller-SP for the
+                                // frame for which personality routine has been invoked.
+                                //
                                 // Since IL filters are invoked in the first pass, we pass this CallerSP to the filter funclet which will
                                 // then lookup the actual frame pointer value using it since we dont have a frame pointer to pass to it
                                 // directly.
@@ -2889,7 +2893,7 @@ CLRUnwindStatus ExceptionTracker::ProcessManagedCallFrame(
                                 _ASSERTE(pCurRegDisplay->IsCallerContextValid && pCurRegDisplay->IsCallerSPValid);
                                 // 3) CallerSP is intact
                                 _ASSERTE(GetSP(pCurRegDisplay->pCallerContext) == GetRegdisplaySP(pCurRegDisplay));
-#endif // _TARGET_ARM_ || _TARGET_ARM64_
+#endif // ESTABLISHER_FRAME_POINTER_IS_CALLER_SP
                                 {
                                     // CallHandler expects to be in COOP mode.
                                     GCX_COOP();
@@ -3092,13 +3096,11 @@ CLRUnwindStatus ExceptionTracker::ProcessManagedCallFrame(
                             m_dwIndexClauseForCatch = i + 1;
                             m_sfEstablisherOfActualHandlerFrame = sfEstablisherFrame;
 
-#ifdef _TARGET_AMD64_
+#if !ESTABLISHER_FRAME_POINTER_IS_CALLER_SP
                             m_sfCallerOfActualHandlerFrame = EECodeManager::GetCallerSp(pcfThisFrame->pRD);
-#else
-                            // On ARM & ARM64, the EstablisherFrame is the value of SP at the time a function was called and before it's prolog
-                            // executed. Effectively, it is the SP of the caller.
+#else // !ESTABLISHER_FRAME_POINTER_IS_CALLER_SP
                             m_sfCallerOfActualHandlerFrame = sfEstablisherFrame.SP;                            
-#endif
+#endif // ESTABLISHER_FRAME_POINTER_IS_CALLER_SP
                             //
                             // END resume frame code
                             //
