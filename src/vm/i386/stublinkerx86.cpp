@@ -5079,10 +5079,12 @@ VOID StubLinkerCPU::EmitArrayOpStub(const ArrayOpScript* pArrayOpScript)
         }
     }
 #else
+#ifdef FEATURE_PAL
     // Emit frame
     X86EmitPushEBPframe();
 
     ofsadjust += sizeof(void*);
+#endif // FEATURE_PAL
 
     // Preserve the callee-saved registers
     // NOTE: if you change the sequence of these pushes, you must also update:
@@ -5722,8 +5724,10 @@ COPY_VALUE_CLASS:
     X86EmitPopReg(kFactorReg);
     X86EmitPopReg(kTotalReg);
 
+#ifdef FEATURE_PAL
     // Restore EBP
     X86EmitPopReg(kEBP);
+#endif // FEATURE_PAL
 
     // ret N
     X86EmitReturn(pArrayOpScript->m_cbretpop);
