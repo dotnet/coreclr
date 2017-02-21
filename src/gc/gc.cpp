@@ -5235,8 +5235,8 @@ bool gc_heap::create_gc_thread ()
 #if !defined(FEATURE_PAL)
     if (!gc_thread_no_affinitize_p)
     {
-        // We are about to set affinity for GC threads, it is a good place to setup NUMA and
-        // CPU groups, because the process mask, processor number, group number are all
+        // We are about to set affinity for GC threads. It is a good place to set up NUMA and
+        // CPU groups because the process mask, processor number, and group number are all
         // readily available.
         if (CPUGroupInfo::CanEnableGCCPUGroups()) 
             set_thread_group_affinity_for_heap(heap_number, &affinity);
@@ -6384,20 +6384,20 @@ BOOL gc_heap::card_bundle_set_p (size_t cardb)
 // Returns the size (in bytes) of a card bundle representing the region from 'from' to 'end'
 size_t size_card_bundle_of (uint8_t* from, uint8_t* end)
 {
-    size_t num_heap_bytes_represented_by_card_bundle_word = card_size*card_word_width*card_bundle_size*card_bundle_word_width;
+    // Number of heap bytes represented by a card bundle word
+    size_t cbw_span = card_size * card_word_width * card_bundle_size * card_bundle_word_width;
 
     // Align the start of the region down
-    from = (uint8_t*)((size_t)from & ~(num_heap_bytes_represented_by_card_bundle_word - 1));
+    from = (uint8_t*)((size_t)from & ~(cbw_span - 1));
 
     // Align the end of the region up
-    end = (uint8_t*)((size_t)(end + (num_heap_bytes_represented_by_card_bundle_word - 1)) &
-                  ~(num_heap_bytes_represented_by_card_bundle_word - 1));
+    end = (uint8_t*)((size_t)(end + (cbw_span - 1)) & ~(cbw_span - 1));
 
     // Make sure they're really aligned
-    assert (((size_t)from & (num_heap_bytes_represented_by_card_bundle_word - 1)) == 0);
-    assert (((size_t)end  & (num_heap_bytes_represented_by_card_bundle_word - 1)) == 0);
+    assert (((size_t)from & (cbw_span - 1)) == 0);
+    assert (((size_t)end  & (cbw_span - 1)) == 0);
 
-    return ((end - from) / num_heap_bytes_represented_by_card_bundle_word) * sizeof (uint32_t);
+    return ((end - from) / cbw_span) * sizeof (uint32_t);
 }
 
 // Takes a pointer to a card bundle table and an address, and returns a pointer that represents
@@ -6952,14 +6952,9 @@ uint32_t* gc_heap::make_card_table (uint8_t* start, uint8_t* end)
 
     uint32_t virtual_reserve_flags = VirtualReserveFlags::None;
 
-    // Number of bytes required for a brick table over this range
     size_t bs = size_brick_of (start, end);
-    
-    // Number of bytes required for a card table over this range
     size_t cs = size_card_of (start, end);
 #ifdef MARK_ARRAY
-
-    // Number of bytes required for a mark array over this range (if concurrent GC enabled)
     size_t ms = (gc_can_use_concurrent ? 
                  size_mark_array_of (start, end) :
                  0);
@@ -7508,9 +7503,8 @@ void gc_heap::copy_brick_card_range (uint8_t* la, uint32_t* old_card_table,
             }
 
 #ifdef FEATURE_MANUALLY_MANAGED_CARD_BUNDLES
-            //// think about this. for now just set all the bundles on for the dest words
+            //// think about this. for now just set all the bundles for the dest words
             card_bundles_set(cardw_card_bundle(card_word(card_of(start))), cardw_card_bundle( align_cardw_on_bundle(card_word(card_of(end)))));
-            verify_card_bundles_are_consistent();
 #endif
         }
 
@@ -7664,7 +7658,6 @@ void gc_heap::copy_brick_card_table()
         seg = heap_segment_next (seg);
     }
 
-    verify_card_bundles_are_consistent(); ///// remove
     release_card_table (&old_card_table[card_word (card_of(la))]);
 }
 
@@ -9426,7 +9419,7 @@ inline void gc_heap::verify_card_bundle_bits_set(size_t first_card_word, size_t 
 }
 
 // Verifies that any bundles that are not set represent only cards that are not set.
-inline void gc_heap::verify_card_bundles_are_consistent()
+inline void gc_heap::verify_card_bundles()
 {
 #ifdef _DEBUG
     size_t lowest_card = card_word (card_of (lowest_address));
@@ -9517,7 +9510,7 @@ void gc_heap::update_card_table_bundle()
 
         // Now that we've updated the card bundle bits, reset the write-tracking state. 
         GCToOSInterface::ResetWriteWatch (saved_base_address, saved_region_size);
-        verify_card_bundles_are_consistent();
+        verify_card_bundles();
     }
 }
 #endif //CARD_BUNDLE
@@ -16450,8 +16443,6 @@ void gc_heap::init_records()
 
 int gc_heap::garbage_collect (int n)
 {
-    verify_card_bundles_are_consistent(); //// remove
-
     //reset the number of alloc contexts
     alloc_contexts_used = 0;
 
@@ -19656,7 +19647,7 @@ void gc_heap::mark_phase (int condemned_gen_number, BOOL mark_only_p)
 #ifdef FEATURE_MANUALLY_MANAGED_CARD_BUNDLES
                 // Every write to the card table should already be accounted for in the card bundle table
                 // so there's nothing to update here. We will just verify that this is the case.
-                verify_card_bundles_are_consistent();
+                verify_card_bundles();
 #else
                 update_card_table_bundle();
 #endif
@@ -27120,6 +27111,11 @@ void gc_heap::copy_cards (size_t dst_card,
     unsigned int srctmp = card_table[srcwrd];
     unsigned int dsttmp = card_table[dstwrd];
 
+
+    //////
+    size_t first_dst_word = dstwrd;
+    //////
+
     for (size_t card = dst_card; card < end_card; card++)
     {
         if (srctmp & (1 << srcbit))
@@ -27163,7 +27159,20 @@ void gc_heap::copy_cards (size_t dst_card,
     card_table[dstwrd] = dsttmp;
 
 #ifdef FEATURE_MANUALLY_MANAGED_CARD_BUNDLES
-    // update the bundles here in an efficient way
+    //////
+    /// considered this way.... but this means we might set bundles where the cards were all 0 
+    //////
+    // size_t end_bundle = cardw_card_bundle(dstwrd);
+    // size_t start_bundle = end_bundle;
+    // if (dstwrd != first_dst_word)
+    // {
+    //     start_bundle = cardw_card_bundle(first_dst_word);
+    // }
+    //
+    // card_bundles_set(start_bundle, end_bundle);
+    //////
+
+
     if (dsttmp != 0)
     {
         size_t bundle_to_set = cardw_card_bundle(dstwrd);
@@ -32237,8 +32246,6 @@ void gc_heap::descr_generations (BOOL begin_gc_p)
     {
         dprintf (1, ("total heap size: %Id, commit size: %Id", get_total_heap_size(), get_total_committed_size()));
     }
-
-    verify_card_bundles_are_consistent(); ////remove
 
     int curr_gen_number = max_generation+1;
     while (curr_gen_number >= 0)
