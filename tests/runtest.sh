@@ -954,6 +954,10 @@ do
         --testRootDir=*)
             testRootDir=${i#*=}
             ;;
+        --testNativeBinDir=*)
+            testNativeBinDir=${i#*=}
+            echo "--testNativeBinDir no more required"
+            ;;
         --coreOverlayDir=*)
             coreOverlayDir=${i#*=}
             ;;
