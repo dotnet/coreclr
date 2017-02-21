@@ -49,10 +49,6 @@ namespace System.Globalization
         //
         private static Hashtable hashByCodePage = Hashtable.Synchronized(new Hashtable());
 
-        static EncodingTable()
-        { 
-        }
-
         // Find the data item by binary searching the table that we have in native.
         // nativeCompareOrdinalWC is an internal-only function.
         unsafe private static int internalGetCodePageFromName(String name) {
@@ -203,10 +199,6 @@ namespace System.Globalization
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         private unsafe static extern InternalCodePageDataItem* GetCodePageData();
-
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        internal unsafe static extern byte* nativeCreateOpenFileMapping(
-            String inSectionName, int inBytesToAllocate, out IntPtr mappedFileHandle);   
     }
     
     /*=================================InternalEncodingDataItem==========================

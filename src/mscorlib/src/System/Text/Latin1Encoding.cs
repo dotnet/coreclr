@@ -13,7 +13,6 @@ namespace System.Text
     using System.Collections;
     using System.Runtime.CompilerServices;
     using System.Runtime.Serialization;
-    using System.Security.Permissions;
 
 
     //
@@ -488,7 +487,6 @@ namespace System.Text
             }
         }
 
-#if !FEATURE_NORM_IDNA_ONLY
         public override bool IsAlwaysNormalized(NormalizationForm form)
         {
             // Latin-1 contains precomposed characters, so normal for Form C.
@@ -498,7 +496,6 @@ namespace System.Text
             // Only true for form C.
             return (form == NormalizationForm.FormC);
         }
-#endif // !FEATURE_NORM_IDNA_ONLY        
         // Since our best fit table is small we'll hard code it
         internal override char[] GetBestFitUnicodeToBytesData()
         {

@@ -187,7 +187,9 @@ using System.Globalization;
 using System.Reflection;
 using System.Resources;
 using System.Security;
+#if !CORECLR
 using System.Security.Permissions;
+#endif // !CORECLR
 
 using System.Text;
 using System.Threading;
@@ -3047,7 +3049,7 @@ namespace System.Diagnostics.Tracing
             }
             if (s_currentPid == 0)
             {
-#if ES_BUILD_STANDALONE && !ES_BUILD_PCL
+#if ES_BUILD_STANDALONE && !ES_BUILD_PCL && !CORECLR
                 // for non-BCL EventSource we must assert SecurityPermission
                 new SecurityPermission(PermissionState.Unrestricted).Assert();
 #endif
@@ -3803,7 +3805,9 @@ namespace System.Diagnostics.Tracing
             // RET
             // 
             // If we find this pattern we return the XXX.  Otherwise we return -1.  
+#if !CORECLR
             (new ReflectionPermission(ReflectionPermissionFlag.MemberAccess)).Assert();
+#endif
             byte[] instrs = method.GetMethodBody().GetILAsByteArray();
             int retVal = -1;
             for (int idx = 0; idx < instrs.Length;)
@@ -4221,7 +4225,7 @@ namespace System.Diagnostics.Tracing
         public EventListener()
         {
             // This will cause the OnEventSourceCreated callback to fire. 
-            CallBackForExistingEventSources(true, (obj, args) => args.EventSource.AddListener(this));
+            CallBackForExistingEventSources(true, (obj, args) => args.EventSource.AddListener((EventListener)obj));
         }
 
         /// <summary>
@@ -6741,6 +6745,7 @@ namespace System.Diagnostics.Tracing
             stringBuilder.Append(eventMessage, startIndex, count);
         }
 
+        private static readonly string[] s_escapes = { "&amp;", "&lt;", "&gt;", "&apos;", "&quot;", "%r", "%n", "%t" };
         // Manifest messages use %N conventions for their message substitutions.   Translate from
         // .NET conventions.   We can't use RegEx for this (we are in mscorlib), so we do it 'by hand' 
         private string TranslateToManifestConvention(string eventMessage, string evtName)
@@ -6808,16 +6813,10 @@ namespace System.Diagnostics.Tracing
                 }
                 else if ((chIdx = "&<>'\"\r\n\t".IndexOf(eventMessage[i])) >= 0)
                 {
-                    string[] escapes = { "&amp;", "&lt;", "&gt;", "&apos;", "&quot;", "%r", "%n", "%t" };
-                    var update = new Action<char, string>(
-                        (ch, escape) =>
-                        {
-                            UpdateStringBuilder(ref stringBuilder, eventMessage, writtenSoFar, i - writtenSoFar);
-                            i++;
-                            stringBuilder.Append(escape);
-                            writtenSoFar = i;
-                        });
-                    update(eventMessage[i], escapes[chIdx]);
+                    UpdateStringBuilder(ref stringBuilder, eventMessage, writtenSoFar, i - writtenSoFar);
+                    i++;
+                    stringBuilder.Append(s_escapes[chIdx]);
+                    writtenSoFar = i;
                 }
                 else
                     i++;

@@ -147,7 +147,6 @@ set(VM_SOURCES_WKS
     comdatetime.cpp
     comdependenthandle.cpp
     comdynamic.cpp
-    comisolatedstorage.cpp
     commemoryfailpoint.cpp
     commodule.cpp
     compatibilityswitch.cpp
@@ -216,7 +215,6 @@ set(VM_SOURCES_WKS
     securitydeclarative.cpp
     securitydeclarativecache.cpp
     securitydescriptorappdomain.cpp
-    securityhostprotection.cpp
     securitymeta.cpp
     securitypolicy.cpp
     securitytransparentassembly.cpp
@@ -240,12 +238,6 @@ set(VM_SOURCES_WKS
     weakreferencenative.cpp
     ${VM_SOURCES_GDBJIT}
 )
-
-if(FEATURE_CER)
-    list(APPEND VM_SOURCES_WKS
-        constrainedexecutionregion.cpp
-        )
-endif(FEATURE_CER)
 
 if(FEATURE_EVENT_TRACE)
     list(APPEND VM_SOURCES_WKS
@@ -294,7 +286,6 @@ list(APPEND VM_SOURCES_WKS
     rcwrefcache.cpp
     rtlfunctions.cpp
     runtimecallablewrapper.cpp
-    securityprincipal.cpp
     stacksampler.cpp
     stdinterfaces.cpp
     stdinterfaces_wrapper.cpp
@@ -432,6 +423,8 @@ elseif(CLR_CMAKE_TARGET_ARCH_I386)
     set(VM_SOURCES_WKS_ARCH
         ${ARCH_SOURCES_DIR}/jitinterfacex86.cpp
         ${ARCH_SOURCES_DIR}/profiler.cpp
+        exceptionhandling.cpp
+        gcinfodecoder.cpp
     )
 elseif(CLR_CMAKE_TARGET_ARCH_ARM)
     set(VM_SOURCES_DAC_AND_WKS_ARCH

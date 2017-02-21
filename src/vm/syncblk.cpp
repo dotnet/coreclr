@@ -3298,10 +3298,6 @@ bool AwareLock::Contention(INT32 timeOut)
 
     COUNTER_ONLY(GetPerfCounters().m_LocksAndThreads.cContention++);
 
-#ifndef FEATURE_CORECLR
-    // Fire a contention start event for a managed contention
-    FireEtwContentionStart_V1(ETW::ContentionLog::ContentionStructs::ManagedContention, GetClrInstanceId());
-#endif // !FEATURE_CORECLR
 
     LogContention();
     Thread      *pCurThread = GetThread();
@@ -3406,9 +3402,6 @@ entered: ;
         Enter();
         bEntered = TRUE;
     }
-#ifndef FEATURE_CORECLR
-    FireEtwContentionStop(ETW::ContentionLog::ContentionStructs::ManagedContention, GetClrInstanceId());
-#endif // !FEATURE_CORECLR
     return bEntered;
 }
 
@@ -3541,18 +3534,7 @@ BOOL SyncBlock::Wait(INT32 timeOut, BOOL exitContext)
         Context* defaultContext;
         defaultContext = pCurThread->GetDomain()->GetDefaultContext();
         _ASSERTE(defaultContext);
-#ifdef FEATURE_REMOTING
-        if (exitContext &&
-            targetContext != defaultContext)
-        {
-            Context::MonitorWaitArgs waitArgs = {timeOut, &syncState, &isTimedOut};
-            Context::CallBackInfo callBackInfo = {Context::MonitorWait_callback, (void*) &waitArgs};
-            Context::RequestCallBack(CURRENT_APPDOMAIN_ID, defaultContext, &callBackInfo);
-        }
-        else
-#else
         _ASSERTE( exitContext==NULL || targetContext == defaultContext);
-#endif            
         {
             isTimedOut = pCurThread->Block(timeOut, &syncState);
         }

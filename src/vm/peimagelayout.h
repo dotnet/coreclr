@@ -33,9 +33,6 @@ class PEImageLayout : public PEDecoder
 {
     VPTR_BASE_CONCRETE_VTABLE_CLASS(PEImageLayout)
     friend class PEModule;
-#ifdef FEATURE_INCLUDE_ALL_INTERFACES
-    friend class CCLRDebugManager;
-#endif // FEATURE_INCLUDE_ALL_INTERFACES
 public:
     // ------------------------------------------------------------
     // Public constants
@@ -176,20 +173,6 @@ public:
 
 };
 
-#ifdef FEATURE_FUSION
-class StreamImageLayout: public PEImageLayout
-{
-    VPTR_VTABLE_CLASS(StreamImageLayout,PEImageLayout)
-    VPTR_UNIQUE(0x71)
-protected:
-    HandleHolder m_FileMap;
-    CLRMapViewHolder m_FileView;
-public:
-#ifndef DACCESS_COMPILE    
-    StreamImageLayout(IStream* pIStream,PEImage* pOwner);   
-#endif
-};
-#endif // FEATURE_FUSION
 
 
 #endif  // PEIMAGELAYOUT_H_

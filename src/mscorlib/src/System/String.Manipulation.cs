@@ -14,10 +14,6 @@ namespace System
 {
     public partial class String
     {
-        private const int TrimHead = 0;
-        private const int TrimTail = 1;
-        private const int TrimBoth = 2;
-
         unsafe private static void FillStringChecked(String dest, int destPos, String src)
         {
             Contract.Requires(dest != null);
@@ -176,7 +172,6 @@ namespace System
             return result;
         }
 
-        [ComVisible(false)]
         public static string Concat<T>(IEnumerable<T> values)
         {
             if (values == null)
@@ -227,7 +222,6 @@ namespace System
         }
 
 
-        [ComVisible(false)]
         public static string Concat(IEnumerable<string> values)
         {
             if (values == null)
@@ -575,7 +569,6 @@ namespace System
             return Join(separator, value, 0, value.Length);
         }
 
-        [ComVisible(false)]
         public unsafe static string Join(string separator, params object[] values)
         {
             separator = separator ?? string.Empty;
@@ -586,7 +579,6 @@ namespace System
             }
         }
 
-        [ComVisible(false)]
         public unsafe static string Join<T>(string separator, IEnumerable<T> values)
         {
             separator = separator ?? string.Empty;
@@ -597,7 +589,6 @@ namespace System
             }
         }
 
-        [ComVisible(false)]
         public static string Join(string separator, IEnumerable<string> values)
         {
             if (values == null)
@@ -955,7 +946,95 @@ namespace System
             Contract.EndContractBlock();
 
             return Substring(0, startIndex);
-        }   
+        }
+
+        public string Replace(string oldValue, string newValue, bool ignoreCase, CultureInfo culture)
+        {
+            Contract.Ensures(Contract.Result<String>() != null);
+            Contract.EndContractBlock();
+
+            return ReplaceCore(oldValue, newValue, culture, ignoreCase ? CompareOptions.IgnoreCase : CompareOptions.None);
+        }
+
+        public string Replace(string oldValue, string newValue, StringComparison comparisonType)
+        {
+            Contract.Ensures(Contract.Result<String>() != null);
+            Contract.EndContractBlock();
+
+            switch (comparisonType)
+            {
+                case StringComparison.CurrentCulture:
+                    return ReplaceCore(oldValue, newValue, CultureInfo.CurrentCulture, CompareOptions.None);
+
+                case StringComparison.CurrentCultureIgnoreCase:
+                    return ReplaceCore(oldValue, newValue, CultureInfo.CurrentCulture, CompareOptions.IgnoreCase);
+
+                case StringComparison.InvariantCulture:
+                    return ReplaceCore(oldValue, newValue, CultureInfo.InvariantCulture, CompareOptions.None);
+
+                case StringComparison.InvariantCultureIgnoreCase:
+                    return ReplaceCore(oldValue, newValue, CultureInfo.InvariantCulture, CompareOptions.IgnoreCase);
+
+                case StringComparison.Ordinal:
+                    return ReplaceCore(oldValue, newValue, CultureInfo.InvariantCulture, CompareOptions.Ordinal);
+
+                case StringComparison.OrdinalIgnoreCase:
+                    return ReplaceCore(oldValue, newValue, CultureInfo.InvariantCulture, CompareOptions.OrdinalIgnoreCase);
+
+                default:
+                    throw new ArgumentException(Environment.GetResourceString("NotSupported_StringComparison"), nameof(comparisonType));
+            }
+        }
+
+        private unsafe String ReplaceCore(string oldValue, string newValue, CultureInfo culture, CompareOptions options)
+        {
+            if (oldValue == null)
+                throw new ArgumentNullException(nameof(oldValue));
+
+            // If they asked to replace oldValue with a null, replace all occurences
+            // with the empty string.
+            if (newValue == null)
+                newValue = string.Empty;
+
+            CultureInfo referenceCulture = culture ?? CultureInfo.CurrentCulture;
+            StringBuilder result = StringBuilderCache.Acquire();
+
+            int startIndex = 0;
+            int index = 0;
+
+            int matchLength = 0;
+
+            bool hasDoneAnyReplacements = false;
+
+            do
+            {
+                index = referenceCulture.CompareInfo.IndexOfCore(this, oldValue, startIndex, m_stringLength - startIndex, options, &matchLength);
+                if (index >= 0)
+                {
+                    // append the unmodified portion of string
+                    result.Append(this, startIndex, index - startIndex);
+
+                    // append the replacement
+                    result.Append(newValue);
+
+                    startIndex = index + matchLength;
+                    hasDoneAnyReplacements = true;
+                }
+                else if (!hasDoneAnyReplacements)
+                {
+                    // small optimization,
+                    // if we have not done any replacements,
+                    // we will return the original string
+                    return this;
+                }
+                else
+                {
+                    result.Append(this, startIndex, m_stringLength - startIndex);
+                }
+            } while (index >= 0);
+
+            return StringBuilderCache.GetStringAndRelease(result);
+        }
 
         // Replaces all instances of oldChar with newChar.
         //
@@ -1043,16 +1122,14 @@ namespace System
             return ReplaceInternal(oldValue, newValue);
         }
 
-        [ComVisible(false)]
-        public String[] Split(char separator, StringSplitOptions options = StringSplitOptions.None) {
+        public unsafe String[] Split(char separator, StringSplitOptions options = StringSplitOptions.None) {
             Contract.Ensures(Contract.Result<String[]>() != null);
-            return SplitInternal(separator, Int32.MaxValue, options);
+            return SplitInternal(&separator, 1, int.MaxValue, options);
         }
 
-        [ComVisible(false)]
-        public String[] Split(char separator, int count, StringSplitOptions options = StringSplitOptions.None) {
+        public unsafe String[] Split(char separator, int count, StringSplitOptions options = StringSplitOptions.None) {
             Contract.Ensures(Contract.Result<String[]>() != null);
-            return SplitInternal(separator, count, options);
+            return SplitInternal(&separator, 1, count, options);
         }
 
         // Creates an array of strings by splitting this string at each
@@ -1085,22 +1162,15 @@ namespace System
             return SplitInternal(separator, count, StringSplitOptions.None);
         }
 
-        [ComVisible(false)]
         public String[] Split(char[] separator, StringSplitOptions options) {
             Contract.Ensures(Contract.Result<String[]>() != null);
             return SplitInternal(separator, Int32.MaxValue, options);
         }
 
-        [ComVisible(false)]
         public String[] Split(char[] separator, int count, StringSplitOptions options)
         {
             Contract.Ensures(Contract.Result<String[]>() != null);
             return SplitInternal(separator, count, options);
-        }
-
-        private unsafe String[] SplitInternal(char separator, int count, StringSplitOptions options)
-        {
-            return SplitInternal(&separator, 1, count, options);
         }
 
         private unsafe String[] SplitInternal(char[] separator, int count, StringSplitOptions options)
@@ -1153,25 +1223,21 @@ namespace System
             }
         }
 
-        [ComVisible(false)]
         public String[] Split(String separator, StringSplitOptions options = StringSplitOptions.None) {
             Contract.Ensures(Contract.Result<String[]>() != null);
             return SplitInternal(separator ?? String.Empty, null, Int32.MaxValue, options);
         }
 
-        [ComVisible(false)]
         public String[] Split(String separator, Int32 count, StringSplitOptions options = StringSplitOptions.None) {
             Contract.Ensures(Contract.Result<String[]>() != null);
             return SplitInternal(separator ?? String.Empty, null, count, options);
         }
 
-        [ComVisible(false)]
         public String [] Split(String[] separator, StringSplitOptions options) {
             Contract.Ensures(Contract.Result<String[]>() != null);
             return SplitInternal(null, separator, Int32.MaxValue, options);
         }
 
-        [ComVisible(false)]
         public String[] Split(String[] separator, Int32 count, StringSplitOptions options) {
             Contract.Ensures(Contract.Result<String[]>() != null);
             return SplitInternal(null, separator, count, options);
@@ -1536,116 +1602,177 @@ namespace System
             Contract.EndContractBlock();
             return this.ToUpper(CultureInfo.InvariantCulture);
         }
-    
-        // Removes a set of characters from the end of this string.
-        [Pure]
-        public String Trim(params char[] trimChars) {
-            if (null==trimChars || trimChars.Length == 0) {
-                return TrimHelper(TrimBoth);
-            }
-            return TrimHelper(trimChars,TrimBoth);
-        }
-    
-        // Removes a set of characters from the beginning of this string.
-        public String TrimStart(params char[] trimChars) {
-            if (null==trimChars || trimChars.Length == 0) {
-                return TrimHelper(TrimHead);
-            }
-            return TrimHelper(trimChars,TrimHead);
-        }
-    
-    
-        // Removes a set of characters from the end of this string.
-        public String TrimEnd(params char[] trimChars) {
-            if (null==trimChars || trimChars.Length == 0) {
-                return TrimHelper(TrimTail);
-            }
-            return TrimHelper(trimChars,TrimTail);
-        }
 
         // Trims the whitespace from both ends of the string.  Whitespace is defined by
         // Char.IsWhiteSpace.
         //
         [Pure]
-        public String Trim() {
-            Contract.Ensures(Contract.Result<String>() != null);
+        public string Trim()
+        {
+            Contract.Ensures(Contract.Result<string>() != null);
             Contract.EndContractBlock();
 
-            return TrimHelper(TrimBoth);        
+            return TrimWhiteSpaceHelper(TrimType.Both);
         }
 
-       
-        private String TrimHelper(int trimType) {
-            //end will point to the first non-trimmed character on the right
-            //start will point to the first non-trimmed character on the Left
-            int end = this.Length-1;
-            int start=0;
+        // Removes a set of characters from the beginning and end of this string.
+        public unsafe string Trim(char trimChar) => TrimHelper(&trimChar, 1, TrimType.Both);
 
-            //Trim specified characters.
-            if (trimType !=TrimTail)  {
-                for (start=0; start < this.Length; start++) {
-                    if (!Char.IsWhiteSpace(this[start])) break;
+        // Removes a set of characters from the beginning and end of this string.
+        [Pure]
+        public unsafe string Trim(params char[] trimChars)
+        {
+            if (trimChars == null || trimChars.Length == 0)
+            {
+                return TrimWhiteSpaceHelper(TrimType.Both);
+            }
+            fixed (char* pTrimChars = &trimChars[0])
+            {
+                return TrimHelper(pTrimChars, trimChars.Length, TrimType.Both);
+            }
+        }
+
+        // Removes a set of characters from the beginning of this string.
+        public string TrimStart() => TrimWhiteSpaceHelper(TrimType.Head);
+
+        // Removes a set of characters from the beginning of this string.
+        public unsafe string TrimStart(char trimChar) => TrimHelper(&trimChar, 1, TrimType.Head);
+
+        // Removes a set of characters from the beginning of this string.
+        public unsafe string TrimStart(params char[] trimChars)
+        {
+            if (trimChars == null || trimChars.Length == 0)
+            {
+                return TrimWhiteSpaceHelper(TrimType.Head);
+            }
+            fixed (char* pTrimChars = &trimChars[0])
+            {
+                return TrimHelper(pTrimChars, trimChars.Length, TrimType.Head);
+            }
+        }
+
+        // Removes a set of characters from the end of this string.
+        public string TrimEnd() => TrimWhiteSpaceHelper(TrimType.Tail);
+
+        // Removes a set of characters from the end of this string.
+        public unsafe string TrimEnd(char trimChar) => TrimHelper(&trimChar, 1, TrimType.Tail);
+
+        // Removes a set of characters from the end of this string.
+        public unsafe string TrimEnd(params char[] trimChars)
+        {
+            if (trimChars == null || trimChars.Length == 0)
+            {
+                return TrimWhiteSpaceHelper(TrimType.Tail);
+            }
+            fixed (char* pTrimChars = &trimChars[0])
+            {
+                return TrimHelper(pTrimChars, trimChars.Length, TrimType.Tail);
+            }
+        }
+
+        private string TrimWhiteSpaceHelper(TrimType trimType)
+        {
+            // end will point to the first non-trimmed character on the right.
+            // start will point to the first non-trimmed character on the left.
+            int end = Length - 1;
+            int start = 0;
+
+            // Trim specified characters.
+            if (trimType != TrimType.Tail)
+            {
+                for (start = 0; start < Length; start++)
+                {
+                    if (!char.IsWhiteSpace(this[start]))
+                    {
+                        break;
+                    }
                 }
             }
-            
-            if (trimType !=TrimHead) {
-                for (end= Length -1; end >= start;  end--) {
-                    if (!Char.IsWhiteSpace(this[end])) break;
+
+            if (trimType != TrimType.Head)
+            {
+                for (end = Length - 1; end >= start; end--)
+                {
+                    if (!char.IsWhiteSpace(this[end]))
+                    {
+                        break;
+                    }
                 }
             }
 
             return CreateTrimmedString(start, end);
         }
-    
-    
-        private String TrimHelper(char[] trimChars, int trimType) {
-            //end will point to the first non-trimmed character on the right
-            //start will point to the first non-trimmed character on the Left
-            int end = this.Length-1;
-            int start=0;
 
-            //Trim specified characters.
-            if (trimType !=TrimTail)  {
-                for (start=0; start < this.Length; start++) {
+        private unsafe string TrimHelper(char* trimChars, int trimCharsLength, TrimType trimType)
+        {
+            Debug.Assert(trimChars != null);
+            Debug.Assert(trimCharsLength > 0);
+
+            // end will point to the first non-trimmed character on the right.
+            // start will point to the first non-trimmed character on the left.
+            int end = Length - 1;
+            int start = 0;
+
+            // Trim specified characters.
+            if (trimType != TrimType.Tail)
+            {
+                for (start = 0; start < Length; start++)
+                {
                     int i = 0;
                     char ch = this[start];
-                    for( i = 0; i < trimChars.Length; i++) {
-                        if( trimChars[i] == ch) break;
+                    for (i = 0; i < trimCharsLength; i++)
+                    {
+                        if (trimChars[i] == ch)
+                        {
+                            break;
+                        }
                     }
-                    if( i == trimChars.Length) { // the character is not white space
-                        break;  
+                    if (i == trimCharsLength)
+                    {
+                        // The character is not in trimChars, so stop trimming.
+                        break;
                     }
                 }
             }
-            
-            if (trimType !=TrimHead) {
-                for (end= Length -1; end >= start;  end--) {
-                    int i = 0;    
-                    char ch = this[end];                    
-                    for(i = 0; i < trimChars.Length; i++) {
-                        if( trimChars[i] == ch) break;
+
+            if (trimType != TrimType.Head)
+            {
+                for (end = Length - 1; end >= start; end--)
+                {
+                    int i = 0;
+                    char ch = this[end];
+                    for (i = 0; i < trimCharsLength; i++)
+                    {
+                        if (trimChars[i] == ch)
+                        {
+                            break;
+                        }
                     }
-                    if( i == trimChars.Length) { // the character is not white space
-                        break;  
-                    }                    
+                    if (i == trimCharsLength)
+                    {
+                        // The character is not in trimChars, so stop trimming.
+                        break;
+                    }
                 }
             }
 
             return CreateTrimmedString(start, end);
         }
 
+        private string CreateTrimmedString(int start, int end)
+        {
+            int len = end - start + 1;
+            return
+                len == Length ? this :
+                len == 0 ? string.Empty :
+                InternalSubString(start, len);
+        }
 
-        private String CreateTrimmedString(int start, int end) {
-            int len = end -start + 1;
-            if (len == this.Length) {
-                // Don't allocate a new string as the trimmed string has not changed.
-                return this;
-            }
-
-            if( len == 0) {
-                return String.Empty;
-            }
-            return InternalSubString(start, len);
+        private enum TrimType
+        {
+            Head = 0,
+            Tail = 1,
+            Both = 2
         }
     }
 }

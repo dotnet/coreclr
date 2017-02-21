@@ -2,16 +2,8 @@
 
 # resolve python-version to use
 if [ "$PYTHON" == "" ] ; then
-    if which python >/dev/null 2>&1
+    if ! PYTHON=$(command -v python || command -v python2 || command -v python 2.7)
     then
-       PYTHON=python
-    elif which python2 >/dev/null 2>&1
-    then
-       PYTHON=python2
-    elif which python2.7 >/dev/null 2>&1
-    then
-       PYTHON=python2.7
-    else
        echo "Unable to locate build-dependency python2.x!" 1>&2
        exit 1
     fi
@@ -19,7 +11,7 @@ fi
 
 # validate python-dependency
 # useful in case of explicitly set option.
-if ! which $PYTHON > /dev/null 2>&1
+if ! command -v $PYTHON > /dev/null
 then
    echo "Unable to locate build-dependency python2.x ($PYTHON)!" 1>&2
    exit 1
@@ -28,13 +20,15 @@ fi
 usage()
 {
     echo "Usage: $0 [BuildArch] [BuildType] [verbose] [coverage] [cross] [clangx.y] [ninja] [configureonly] [skipconfigure] [skipnative] [skipmscorlib] [skiptests] [cmakeargs] [bindir]"
-    echo "BuildArch can be: x64, x86, arm, arm-softfp, arm64"
+    echo "BuildArch can be: x64, x86, arm, armel, arm64"
     echo "BuildType can be: debug, checked, release"
     echo "coverage - optional argument to enable code coverage build (currently supported only for Linux and OSX)."
     echo "ninja - target ninja instead of GNU make"
     echo "clangx.y - optional argument to build using clang version x.y."
     echo "cross - optional argument to signify cross compilation,"
     echo "      - will use ROOTFS_DIR environment variable if set."
+    echo "crosscomponent - optional argument to build cross-architecture component,"
+    echo "               - will use CAC_ROOTFS_DIR environment variable if set."
     echo "pgoinstrument - generate instrumented code for profile guided optimization enabled binaries."
     echo "configureonly - do not perform any builds; just configure the build."
     echo "skipconfigure - skip build configuration."
@@ -53,7 +47,8 @@ usage()
     echo "skipgenerateversion - disable version generation even if MSBuild is supported."
     echo "cmakeargs - user-settable additional arguments passed to CMake."
     echo "bindir - output directory (defaults to $__ProjectRoot/bin)"
-
+    echo "buildstandalonegc - builds the GC in a standalone mode. Can't be used with \"cmakeargs\"."
+    echo "msbuildonunsupportedplatform - build managed binaries even if distro is not officially supported."
     exit 1
 }
 
@@ -194,11 +189,7 @@ build_native()
     if [ $__UseNinja == 1 ]; then
         generator="ninja"
         buildFile="build.ninja"
-        if which ninja >/dev/null 2>&1; then
-            buildTool="ninja"
-        elif which ninja-build >/dev/null 2>&1; then
-            buildTool="ninja-build"
-        else
+        if ! buildTool=$(command -v ninja || command -v ninja-build); then
            echo "Unable to locate ninja!" 1>&2
            exit 1
         fi
@@ -266,6 +257,48 @@ build_native()
     popd
 }
 
+build_cross_arch_component()
+{
+    __SkipCrossArchBuild=1
+    TARGET_ROOTFS=""
+    # check supported cross-architecture components host(__HostArch)/target(__BuildArch) pair
+    if [[ "$__BuildArch" == "arm" && "$__CrossArch" == "x86" ]]; then
+        export CROSSCOMPILE=0
+        __SkipCrossArchBuild=0
+
+        # building x64-host/arm-target cross-architecture component need to use cross toolchain of x86
+        if [ "$__HostArch" == "x64" ]; then
+            export CROSSCOMPILE=1
+        fi
+    else
+        # not supported
+        return
+    fi    
+    
+    export __CMakeBinDir="$__CrossComponentBinDir"
+    export CROSSCOMPONENT=1
+    __IncludeTests=
+
+    if [ $CROSSCOMPILE == 1 ]; then
+        TARGET_ROOTFS="$ROOTFS_DIR"
+        if [ -n "$CAC_ROOTFS_DIR" ]; then
+            export ROOTFS_DIR="$CAC_ROOTFS_DIR"
+        else
+            export ROOTFS_DIR="$__ProjectRoot/cross/rootfs/$__CrossArch"
+        fi
+    fi
+
+    __ExtraCmakeArgs="-DCLR_CMAKE_TARGET_ARCH=$__BuildArch -DCLR_CMAKE_TARGET_OS=$__BuildOS -DCLR_CMAKE_PACKAGES_DIR=$__PackagesDir -DCLR_CMAKE_PGO_INSTRUMENT=$__PgoInstrument"
+    build_native $__SkipCrossArchBuild "$__CrossArch" "$__CrossCompIntermediatesDir" "$__ExtraCmakeArgs" "cross-architecture component"
+   
+    # restore ROOTFS_DIR, CROSSCOMPONENT, and CROSSCOMPILE 
+    if [ -n "$TARGET_ROOTFS" ]; then
+        export ROOTFS_DIR="$TARGET_ROOTFS"
+    fi
+    export CROSSCOMPONENT=
+    export CROSSCOMPILE=1
+}
+
 isMSBuildOnNETCoreSupported()
 {
     # This needs to be updated alongwith corresponding changes to netci.groovy.
@@ -286,13 +319,10 @@ isMSBuildOnNETCoreSupported()
                 "fedora.24-x64")
                     __isMSBuildOnNETCoreSupported=1
                     ;;
-                "opensuse.13.2-x64")
-                    __isMSBuildOnNETCoreSupported=1
-                    ;;
                 "opensuse.42.1-x64")
                     __isMSBuildOnNETCoreSupported=1
                     ;;
-                "rhel.7.2-x64")
+                "rhel.7"*"-x64")
                     __isMSBuildOnNETCoreSupported=1
                     ;;
                 "ubuntu.14.04-x64")
@@ -308,6 +338,7 @@ isMSBuildOnNETCoreSupported()
                     __isMSBuildOnNETCoreSupported=1
                     ;;
                 *)
+                __isMSBuildOnNETCoreSupported=$__msbuildonunsupportedplatform
             esac
         elif [ "$__HostOS" == "OSX" ]; then
             __isMSBuildOnNETCoreSupported=1
@@ -444,7 +475,6 @@ case $CPUName in
         ;;
 
     aarch64)
-        echo "Unsupported CPU $CPUName detected, build might not succeed!"
         __BuildArch=arm64
         __HostArch=arm64
         ;;
@@ -527,6 +557,7 @@ __cmakeargs=""
 __SkipGenerateVersion=0
 __DoCrossArchBuild=0
 __PortableLinux=0
+__msbuildonunsupportedplatform=0
 
 while :; do
     if [ $# -le 0 ]; then
@@ -552,8 +583,8 @@ while :; do
             __BuildArch=arm
             ;;
 
-        arm-softfp)
-            __BuildArch=arm-softfp
+        armel)
+            __BuildArch=armel
             ;;
 
         arm64)
@@ -694,7 +725,12 @@ while :; do
                 exit 1
             fi
             ;;
-
+        buildstandalonegc)
+            __cmakeargs="-DFEATURE_STANDALONE_GC=1"
+            ;;
+        msbuildonunsupportedplatform)
+            __msbuildonunsupportedplatform=1
+            ;;
         *)
             __UnprocessedBuildArgs="$__UnprocessedBuildArgs $1"
             ;;
@@ -791,19 +827,8 @@ __ExtraCmakeArgs="-DCLR_CMAKE_TARGET_OS=$__BuildOS -DCLR_CMAKE_PACKAGES_DIR=$__P
 build_native $__SkipCoreCLR "$__BuildArch" "$__IntermediatesDir" "$__ExtraCmakeArgs" "CoreCLR component"
 
 # Build cross-architecture components
-if [ $__CrossBuild == 1 ]; then
-    __SkipCrossArchBuild=1
-    if [ $__DoCrossArchBuild == 1 ]; then
-        # build cross-architecture components for x86-host/arm-target
-        if [[ "$__BuildArch" == "arm" && "$__CrossArch" == "x86" ]]; then
-            __SkipCrossArchBuild=0
-        fi
-    fi
-
-    export __CMakeBinDir="$__CrossComponentBinDir"
-    export CROSSCOMPONENT=1
-    __ExtraCmakeArgs="-DCLR_CMAKE_TARGET_ARCH=$__BuildArch -DCLR_CMAKE_TARGET_OS=$__BuildOS -DCLR_CMAKE_PACKAGES_DIR=$__PackagesDir -DCLR_CMAKE_PGO_INSTRUMENT=$__PgoInstrument"
-    build_native $__SkipCrossArchBuild "$__CrossArch" "$__CrossCompIntermediatesDir" "$__ExtraCmakeArgs" "cross-architecture component"
+if [[ $__CrossBuild == 1 && $__DoCrossArchBuild == 1 ]]; then
+    build_cross_arch_component
 fi
 
 # Build System.Private.CoreLib.

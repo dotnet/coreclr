@@ -10,6 +10,7 @@ set CORECLR_REPO=%CD%
 set TEST_FILE_EXT=exe
 set TEST_ARCH=x64
 set TEST_CONFIG=Release
+set TEST_ENV=thisfilewillnotexist
 
 goto :ARGLOOP
 
@@ -65,14 +66,23 @@ goto :EOF
 
 :DOIT
 set BENCHNAME=%~n1
+set BENCHDIR=%~p1
 set PERFOUT=perf-%BENCHNAME%
 set XMLOUT=%PERFOUT%-summary.xml
 
 echo --- Running %BENCHNAME%
 
+@rem copy benchmark and any input files
+
 xcopy /s %1 . >> %RUNLOG%
+xcopy /s %BENCHDIR%*.txt . >> %RUNLOG%
 
 set CORE_ROOT=%CORECLR_REPO%\sandbox
+
+@rem setup additional environment variables
+if EXIST %TEST_ENV% (
+    call %TEST_ENV%
+)
 
 xunit.performance.run.exe %BENCHNAME%.%TEST_FILE_EXT% -runner xunit.console.netcore.exe -runnerhost corerun.exe -verbose -runid %PERFOUT% > %BENCHNAME%.out
 
@@ -118,6 +128,12 @@ goto :ARGLOOP
 )
 IF /I [%1] == [-arch] (
 set TEST_ARCH=%2
+shift
+shift
+goto :ARGLOOP
+)
+IF /I [%1] == [-testEnv] (
+set TEST_ENV=%2
 shift
 shift
 goto :ARGLOOP

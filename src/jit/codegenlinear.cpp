@@ -133,9 +133,8 @@ void CodeGen::genCodeForBBlist()
      */
 
     BasicBlock* block;
-    BasicBlock* lblk; /* previous block */
 
-    for (lblk = nullptr, block = compiler->fgFirstBB; block != nullptr; lblk = block, block = block->bbNext)
+    for (block = compiler->fgFirstBB; block != nullptr; block = block->bbNext)
     {
 #ifdef DEBUG
         if (compiler->verbose)
@@ -247,6 +246,10 @@ void CodeGen::genCodeForBBlist()
             }
         }
 
+#if FEATURE_EH_FUNCLETS && defined(_TARGET_ARM_)
+        genInsertNopForUnwinder(block);
+#endif
+
         /* Start a new code output block */
 
         genUpdateCurrentFunclet(block);
@@ -284,7 +287,7 @@ void CodeGen::genCodeForBBlist()
             }
 #endif
             // We should never have a block that falls through into the Cold section
-            noway_assert(!lblk->bbFallsThrough());
+            noway_assert(!block->bbPrev->bbFallsThrough());
 
             // We require the block that starts the Cold section to have a label
             noway_assert(block->bbEmitCookie);
@@ -602,7 +605,7 @@ void CodeGen::genCodeForBBlist()
                 break;
 
             case BBJ_CALLFINALLY:
-                block = genCallFinally(block, lblk);
+                block = genCallFinally(block);
                 break;
 
 #if FEATURE_EH_FUNCLETS
@@ -1210,21 +1213,15 @@ void CodeGen::genConsumeRegs(GenTree* tree)
     }
 #endif // !defined(_TARGET_64BIT_)
 
-    if (tree->isContained())
+    if (tree->isUsedFromSpillTemp())
     {
-        if (tree->isContainedSpillTemp())
-        {
-            // spill temps are un-tracked and hence no need to update life
-        }
-        else if (tree->isIndir())
+        // spill temps are un-tracked and hence no need to update life
+    }
+    else if (tree->isContained())
+    {
+        if (tree->isIndir())
         {
             genConsumeAddress(tree->AsIndir()->Addr());
-        }
-        else if (tree->OperGet() == GT_AND)
-        {
-            // This is the special contained GT_AND that we created in Lowering::TreeNodeInfoInitCmp()
-            // Now we need to consume the operands of the GT_AND node.
-            genConsumeOperands(tree->AsOp());
         }
 #ifdef _TARGET_XARCH_
         else if (tree->OperGet() == GT_LCL_VAR)

@@ -63,15 +63,14 @@ namespace System.Globalization
         internal bool       bUseUserOverrides        ; // True if we want user overrides.
 
         // Static invariant for the invariant locale
-        internal static CalendarData Invariant;
+        internal static readonly CalendarData Invariant = CreateInvariant();
 
         // Private constructor
         private CalendarData() {}
 
-        // Invariant constructor
-        static CalendarData()
+        // Invariant factory
+        private static CalendarData CreateInvariant()
         {
-
             // Set our default/gregorian US calendar data
             // Calendar IDs are 1-based, arrays are 0 based.
             CalendarData invariant = new CalendarData();
@@ -107,8 +106,7 @@ namespace System.Globalization
 
             invariant.bUseUserOverrides     = false;
 
-            // Calendar was built, go ahead and assign it...            
-            Invariant = invariant;
+            return invariant;
         }
 
 
@@ -398,41 +396,6 @@ namespace System.Globalization
             }
 
             return "en-US";
-        }
-
-        internal void FixupWin7MonthDaySemicolonBug()
-        {
-            int unescapedCharacterIndex = FindUnescapedCharacter(sMonthDay, ';');
-            if (unescapedCharacterIndex > 0)
-            {
-                sMonthDay = sMonthDay.Substring(0, unescapedCharacterIndex);
-            }
-        }
-        private static int FindUnescapedCharacter(string s, char charToFind)
-        {
-            bool inComment = false;
-            int length = s.Length;
-            for (int i = 0; i < length; i++)
-            {
-                char c = s[i];
-
-                switch (c)
-                {
-                    case '\'':
-                        inComment = !inComment;
-                        break;
-                    case '\\':
-                        i++; // escape sequence -- skip next character
-                        break;
-                    default:
-                        if (!inComment && charToFind == c)
-                        {
-                            return i;
-                        }
-                        break;
-                }
-            }
-            return -1;
         }
 
         

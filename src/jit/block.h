@@ -144,6 +144,88 @@ struct EntryState
     StackEntry* esStack;               // ptr to  stack
 };
 
+// Enumeration of the kinds of memory whose state changes the compiler tracks
+enum MemoryKind
+{
+    ByrefExposed = 0, // Includes anything byrefs can read/write (everything in GcHeap, address-taken locals,
+                      //                                          unmanaged heap, callers' locals, etc.)
+    GcHeap,           // Includes actual GC heap, and also static fields
+    MemoryKindCount,  // Number of MemoryKinds
+};
+#ifdef DEBUG
+const char* const memoryKindNames[] = {"ByrefExposed", "GcHeap"};
+#endif // DEBUG
+
+// Bitmask describing a set of memory kinds (usable in bitfields)
+typedef unsigned int MemoryKindSet;
+
+// Bitmask for a MemoryKindSet containing just the specified MemoryKind
+inline MemoryKindSet memoryKindSet(MemoryKind memoryKind)
+{
+    return (1U << memoryKind);
+}
+
+// Bitmask for a MemoryKindSet containing the specified MemoryKinds
+template <typename... MemoryKinds>
+inline MemoryKindSet memoryKindSet(MemoryKind memoryKind, MemoryKinds... memoryKinds)
+{
+    return memoryKindSet(memoryKind) | memoryKindSet(memoryKinds...);
+}
+
+// Bitmask containing all the MemoryKinds
+const MemoryKindSet fullMemoryKindSet = (1 << MemoryKindCount) - 1;
+
+// Bitmask containing no MemoryKinds
+const MemoryKindSet emptyMemoryKindSet = 0;
+
+// Standard iterator class for iterating through MemoryKinds
+class MemoryKindIterator
+{
+    int value;
+
+public:
+    explicit inline MemoryKindIterator(int val) : value(val)
+    {
+    }
+    inline MemoryKindIterator& operator++()
+    {
+        ++value;
+        return *this;
+    }
+    inline MemoryKindIterator operator++(int)
+    {
+        return MemoryKindIterator(value++);
+    }
+    inline MemoryKind operator*()
+    {
+        return static_cast<MemoryKind>(value);
+    }
+    friend bool operator==(const MemoryKindIterator& left, const MemoryKindIterator& right)
+    {
+        return left.value == right.value;
+    }
+    friend bool operator!=(const MemoryKindIterator& left, const MemoryKindIterator& right)
+    {
+        return left.value != right.value;
+    }
+};
+
+// Empty struct that allows enumerating memory kinds via `for(MemoryKind kind : allMemoryKinds())`
+struct allMemoryKinds
+{
+    inline allMemoryKinds()
+    {
+    }
+    inline MemoryKindIterator begin()
+    {
+        return MemoryKindIterator(0);
+    }
+    inline MemoryKindIterator end()
+    {
+        return MemoryKindIterator(MemoryKindCount);
+    }
+};
+
 // This encapsulates the "exception handling" successors of a block.  That is,
 // if a basic block BB1 occurs in a try block, we consider the first basic block
 // BB2 of the corresponding handler to be an "EH successor" of BB1.  Because we
@@ -353,15 +435,18 @@ struct BasicBlock : private LIR::Range
                                        // BBJ_CALLFINALLY block, as well as, on x86, the final step block out of a
                                        // finally.
 
+#define BBF_CLONED_FINALLY_BEGIN 0x100000000 // First block of a cloned finally region
+#define BBF_CLONED_FINALLY_END 0x200000000   // Last block of a cloned finally region
+
 // Flags that relate blocks to loop structure.
 
 #define BBF_LOOP_FLAGS (BBF_LOOP_PREHEADER | BBF_LOOP_HEAD | BBF_LOOP_CALL0 | BBF_LOOP_CALL1)
 
-    bool isRunRarely()
+    bool isRunRarely() const
     {
         return ((bbFlags & BBF_RUN_RARELY) != 0);
     }
-    bool isLoopHead()
+    bool isLoopHead() const
     {
         return ((bbFlags & BBF_LOOP_HEAD) != 0);
     }
@@ -388,7 +473,7 @@ struct BasicBlock : private LIR::Range
 // For example, the top block might or might not have BBF_GC_SAFE_POINT,
 // but we assume it does not have BBF_GC_SAFE_POINT any more.
 
-#define BBF_SPLIT_LOST (BBF_GC_SAFE_POINT | BBF_HAS_JMP | BBF_KEEP_BBJ_ALWAYS)
+#define BBF_SPLIT_LOST (BBF_GC_SAFE_POINT | BBF_HAS_JMP | BBF_KEEP_BBJ_ALWAYS | BBF_CLONED_FINALLY_END)
 
 // Flags gained by the bottom block when a block is split.
 // Note, this is a conservative guess.
@@ -399,7 +484,7 @@ struct BasicBlock : private LIR::Range
 
 #define BBF_SPLIT_GAINED                                                                                               \
     (BBF_DONT_REMOVE | BBF_HAS_LABEL | BBF_HAS_JMP | BBF_BACKWARD_JUMP | BBF_HAS_IDX_LEN | BBF_HAS_NEWARRAY |          \
-     BBF_PROF_WEIGHT | BBF_HAS_NEWOBJ | BBF_KEEP_BBJ_ALWAYS)
+     BBF_PROF_WEIGHT | BBF_HAS_NEWOBJ | BBF_KEEP_BBJ_ALWAYS | BBF_CLONED_FINALLY_END)
 
 #ifndef __GNUC__ // GCC doesn't like C_ASSERT at global scope
     static_assert_no_msg((BBF_SPLIT_NONEXIST & BBF_SPLIT_LOST) == 0);
@@ -801,64 +886,46 @@ struct BasicBlock : private LIR::Range
 
     VARSET_TP bbVarUse; // variables used     by block (before an assignment)
     VARSET_TP bbVarDef; // variables assigned by block (before a use)
-    VARSET_TP bbVarTmp; // TEMP: only used by FP enregistering code!
 
     VARSET_TP bbLiveIn;  // variables live on entry
     VARSET_TP bbLiveOut; // variables live on exit
 
-    // Use, def, live in/out information for the implicit "Heap" variable.
-    unsigned bbHeapUse : 1;
-    unsigned bbHeapDef : 1;
-    unsigned bbHeapLiveIn : 1;
-    unsigned bbHeapLiveOut : 1;
-    unsigned bbHeapHavoc : 1; // If true, at some point the block does an operation that leaves the heap
-                              // in an unknown state. (E.g., unanalyzed call, store through unknown
-                              // pointer...)
+    // Use, def, live in/out information for the implicit memory variable.
+    MemoryKindSet bbMemoryUse : MemoryKindCount; // must be set for any MemoryKinds this block references
+    MemoryKindSet bbMemoryDef : MemoryKindCount; // must be set for any MemoryKinds this block mutates
+    MemoryKindSet bbMemoryLiveIn : MemoryKindCount;
+    MemoryKindSet bbMemoryLiveOut : MemoryKindCount;
+    MemoryKindSet bbMemoryHavoc : MemoryKindCount; // If true, at some point the block does an operation
+                                                   // that leaves memory in an unknown state. (E.g.,
+                                                   // unanalyzed call, store through unknown pointer...)
 
-    // We want to make phi functions for the special implicit var "Heap".  But since this is not a real
+    // We want to make phi functions for the special implicit var memory.  But since this is not a real
     // lclVar, and thus has no local #, we can't use a GenTreePhiArg.  Instead, we use this struct.
-    struct HeapPhiArg
+    struct MemoryPhiArg
     {
-        bool m_isSsaNum; // If true, the phi arg is an SSA # for an internal try block heap state, being
-                         // added to the phi of a catch block.  If false, it's a pred block.
-        union {
-            BasicBlock* m_predBB; // Predecessor block from which the SSA # flows.
-            unsigned    m_ssaNum; // SSA# for internal block heap state.
-        };
-        HeapPhiArg* m_nextArg; // Next arg in the list, else NULL.
+        unsigned      m_ssaNum;  // SSA# for incoming value.
+        MemoryPhiArg* m_nextArg; // Next arg in the list, else NULL.
 
         unsigned GetSsaNum()
         {
-            if (m_isSsaNum)
-            {
-                return m_ssaNum;
-            }
-            else
-            {
-                assert(m_predBB != nullptr);
-                return m_predBB->bbHeapSsaNumOut;
-            }
+            return m_ssaNum;
         }
 
-        HeapPhiArg(BasicBlock* predBB, HeapPhiArg* nextArg = nullptr)
-            : m_isSsaNum(false), m_predBB(predBB), m_nextArg(nextArg)
-        {
-        }
-        HeapPhiArg(unsigned ssaNum, HeapPhiArg* nextArg = nullptr)
-            : m_isSsaNum(true), m_ssaNum(ssaNum), m_nextArg(nextArg)
+        MemoryPhiArg(unsigned ssaNum, MemoryPhiArg* nextArg = nullptr) : m_ssaNum(ssaNum), m_nextArg(nextArg)
         {
         }
 
         void* operator new(size_t sz, class Compiler* comp);
     };
-    static HeapPhiArg* EmptyHeapPhiDef; // Special value (0x1, FWIW) to represent a to-be-filled in Phi arg list
-                                        // for Heap.
-    HeapPhiArg* bbHeapSsaPhiFunc;       // If the "in" Heap SSA var is not a phi definition, this value is NULL.
-                                        // Otherwise, it is either the special value EmptyHeapPhiDefn, to indicate
-                                        // that Heap needs a phi definition on entry, or else it is the linked list
-                                        // of the phi arguments.
-    unsigned bbHeapSsaNumIn;            // The SSA # of "Heap" on entry to the block.
-    unsigned bbHeapSsaNumOut;           // The SSA # of "Heap" on exit from the block.
+    static MemoryPhiArg* EmptyMemoryPhiDef; // Special value (0x1, FWIW) to represent a to-be-filled in Phi arg list
+                                            // for Heap.
+    MemoryPhiArg* bbMemorySsaPhiFunc[MemoryKindCount]; // If the "in" Heap SSA var is not a phi definition, this value
+                                                       // is NULL.
+    // Otherwise, it is either the special value EmptyMemoryPhiDefn, to indicate
+    // that Heap needs a phi definition on entry, or else it is the linked list
+    // of the phi arguments.
+    unsigned bbMemorySsaNumIn[MemoryKindCount];  // The SSA # of memory on entry to the block.
+    unsigned bbMemorySsaNumOut[MemoryKindCount]; // The SSA # of memory on exit from the block.
 
     VARSET_TP bbScope; // variables in scope over the block
 
@@ -981,8 +1048,8 @@ struct BasicBlock : private LIR::Range
         return bbNum - 1;
     }
 
-    GenTreeStmt* firstStmt();
-    GenTreeStmt* lastStmt();
+    GenTreeStmt* firstStmt() const;
+    GenTreeStmt* lastStmt() const;
     GenTreeStmt* lastTopLevelStmt();
 
     GenTree* firstNode();

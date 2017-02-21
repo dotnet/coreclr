@@ -2475,6 +2475,10 @@ emitJumpKind CodeGen::genJumpKindForOper(genTreeOps cmp, CompareKind compareKind
         EJ_jle, // GT_LE
         EJ_jge, // GT_GE
         EJ_jg,  // GT_GT
+#ifndef LEGACY_BACKEND
+        EJ_je,  // GT_TEST_EQ
+        EJ_jne, // GT_TEST_NE
+#endif
 #elif defined(_TARGET_ARMARCH_)
         EJ_eq,   // GT_EQ
         EJ_ne,   // GT_NE
@@ -2494,6 +2498,10 @@ emitJumpKind CodeGen::genJumpKindForOper(genTreeOps cmp, CompareKind compareKind
         EJ_jbe, // GT_LE
         EJ_jae, // GT_GE
         EJ_ja,  // GT_GT
+#ifndef LEGACY_BACKEND
+        EJ_je,  // GT_TEST_EQ
+        EJ_jne, // GT_TEST_NE
+#endif
 #elif defined(_TARGET_ARMARCH_)
         EJ_eq,   // GT_EQ
         EJ_ne,   // GT_NE
@@ -2513,6 +2521,10 @@ emitJumpKind CodeGen::genJumpKindForOper(genTreeOps cmp, CompareKind compareKind
         EJ_NONE, // GT_LE
         EJ_jns,  // GT_GE   (S == 0)
         EJ_NONE, // GT_GT
+#ifndef LEGACY_BACKEND
+        EJ_NONE, // GT_TEST_EQ
+        EJ_NONE, // GT_TEST_NE
+#endif
 #elif defined(_TARGET_ARMARCH_)
         EJ_eq,   // GT_EQ   (Z == 1)
         EJ_ne,   // GT_NE   (Z == 0)
@@ -2530,6 +2542,10 @@ emitJumpKind CodeGen::genJumpKindForOper(genTreeOps cmp, CompareKind compareKind
     assert(genJCCinsSigned[GT_LE - GT_EQ] == EJ_jle);
     assert(genJCCinsSigned[GT_GE - GT_EQ] == EJ_jge);
     assert(genJCCinsSigned[GT_GT - GT_EQ] == EJ_jg);
+#ifndef LEGACY_BACKEND
+    assert(genJCCinsSigned[GT_TEST_EQ - GT_EQ] == EJ_je);
+    assert(genJCCinsSigned[GT_TEST_NE - GT_EQ] == EJ_jne);
+#endif
 
     assert(genJCCinsUnsigned[GT_EQ - GT_EQ] == EJ_je);
     assert(genJCCinsUnsigned[GT_NE - GT_EQ] == EJ_jne);
@@ -2537,6 +2553,10 @@ emitJumpKind CodeGen::genJumpKindForOper(genTreeOps cmp, CompareKind compareKind
     assert(genJCCinsUnsigned[GT_LE - GT_EQ] == EJ_jbe);
     assert(genJCCinsUnsigned[GT_GE - GT_EQ] == EJ_jae);
     assert(genJCCinsUnsigned[GT_GT - GT_EQ] == EJ_ja);
+#ifndef LEGACY_BACKEND
+    assert(genJCCinsUnsigned[GT_TEST_EQ - GT_EQ] == EJ_je);
+    assert(genJCCinsUnsigned[GT_TEST_NE - GT_EQ] == EJ_jne);
+#endif
 
     assert(genJCCinsLogical[GT_EQ - GT_EQ] == EJ_je);
     assert(genJCCinsLogical[GT_NE - GT_EQ] == EJ_jne);
@@ -2794,6 +2814,37 @@ void CodeGen::genUpdateCurrentFunclet(BasicBlock* block)
         }
     }
 }
+
+#if defined(_TARGET_ARM_)
+void CodeGen::genInsertNopForUnwinder(BasicBlock* block)
+{
+    // If this block is the target of a finally return, we need to add a preceding NOP, in the same EH region,
+    // so the unwinder doesn't get confused by our "movw lr, xxx; movt lr, xxx; b Lyyy" calling convention that
+    // calls the funclet during non-exceptional control flow.
+    if (block->bbFlags & BBF_FINALLY_TARGET)
+    {
+        assert(block->bbFlags & BBF_JMP_TARGET);
+
+#ifdef DEBUG
+        if (compiler->verbose)
+        {
+            printf("\nEmitting finally target NOP predecessor for BB%02u\n", block->bbNum);
+        }
+#endif
+        // Create a label that we'll use for computing the start of an EH region, if this block is
+        // at the beginning of such a region. If we used the existing bbEmitCookie as is for
+        // determining the EH regions, then this NOP would end up outside of the region, if this
+        // block starts an EH region. If we pointed the existing bbEmitCookie here, then the NOP
+        // would be executed, which we would prefer not to do.
+
+        block->bbUnwindNopEmitCookie =
+            getEmitter()->emitAddLabel(gcInfo.gcVarPtrSetCur, gcInfo.gcRegGCrefSetCur, gcInfo.gcRegByrefSetCur);
+
+        instGen(INS_nop);
+    }
+}
+#endif
+
 #endif // FEATURE_EH_FUNCLETS
 
 /*****************************************************************************
@@ -3145,12 +3196,17 @@ void CodeGen::genGenerateCode(void** codePtr, ULONG* nativeSizeOfCode)
     /* Check our max stack level. Needed for fgAddCodeRef().
        We need to relax the assert as our estimation won't include code-gen
        stack changes (which we know don't affect fgAddCodeRef()) */
-    noway_assert(getEmitter()->emitMaxStackDepth <=
-                 (compiler->fgPtrArgCntMax +              // Max number of pointer-sized stack arguments.
-                  compiler->compHndBBtabCount +           // Return address for locally-called finallys
-                  genTypeStSz(TYP_LONG) +                 // longs/doubles may be transferred via stack, etc
-                  (compiler->compTailCallUsed ? 4 : 0))); // CORINFO_HELP_TAILCALL args
+    {
+        unsigned maxAllowedStackDepth = compiler->fgPtrArgCntMax +    // Max number of pointer-sized stack arguments.
+                                        compiler->compHndBBtabCount + // Return address for locally-called finallys
+                                        genTypeStSz(TYP_LONG) +       // longs/doubles may be transferred via stack, etc
+                                        (compiler->compTailCallUsed ? 4 : 0); // CORINFO_HELP_TAILCALL args
+#if defined(UNIX_X86_ABI)
+        maxAllowedStackDepth += genTypeStSz(TYP_INT) * 3; // stack align for x86 - allow up to 3 INT's for padding
 #endif
+        noway_assert(getEmitter()->emitMaxStackDepth <= maxAllowedStackDepth);
+    }
+#endif // EMIT_TRACK_STACK_DEPTH
 
     *nativeSizeOfCode                 = codeSize;
     compiler->info.compNativeCodeSize = (UNATIVE_OFFSET)codeSize;
@@ -10241,6 +10297,66 @@ void CodeGen::genCaptureFuncletPrologEpilogInfo()
 
 // Look in CodeGenArm64.cpp
 
+#elif defined(_TARGET_X86_)
+
+/*****************************************************************************
+ *
+ *  Generates code for an EH funclet prolog.
+ */
+
+void CodeGen::genFuncletProlog(BasicBlock* block)
+{
+#ifdef DEBUG
+    if (verbose)
+    {
+        printf("*************** In genFuncletProlog()\n");
+    }
+#endif
+
+    ScopedSetVariable<bool> _setGeneratingProlog(&compiler->compGeneratingProlog, true);
+
+    compiler->unwindBegProlog();
+
+    // TODO Save callee-saved registers
+
+    // This is the end of the OS-reported prolog for purposes of unwinding
+    compiler->unwindEndProlog();
+}
+
+/*****************************************************************************
+ *
+ *  Generates code for an EH funclet epilog.
+ */
+
+void CodeGen::genFuncletEpilog()
+{
+#ifdef DEBUG
+    if (verbose)
+    {
+        printf("*************** In genFuncletEpilog()\n");
+    }
+#endif
+
+    ScopedSetVariable<bool> _setGeneratingEpilog(&compiler->compGeneratingEpilog, true);
+
+    // TODO Restore callee-saved registers
+
+    instGen_Return(0);
+}
+
+/*****************************************************************************
+ *
+ *  Capture the information used to generate the funclet prologs and epilogs.
+ */
+
+void CodeGen::genCaptureFuncletPrologEpilogInfo()
+{
+    if (!compiler->ehAnyFunclets())
+    {
+        return;
+    }
+}
+
 #else // _TARGET_*
 
 /*****************************************************************************
@@ -10583,6 +10699,7 @@ GenTreePtr CodeGen::genMakeConst(const void* cnsAddr, var_types cnsType, GenTree
 //             funclet frames: this will be FuncletInfo.fiSpDelta.
 void CodeGen::genPreserveCalleeSavedFltRegs(unsigned lclFrameSize)
 {
+    genVzeroupperIfNeeded(false);
     regMaskTP regMask = compiler->compCalleeFPRegsSavedMask;
 
     // Only callee saved floating point registers should be in regMask
@@ -10621,16 +10738,6 @@ void CodeGen::genPreserveCalleeSavedFltRegs(unsigned lclFrameSize)
             offset -= XMM_REGSIZE_BYTES;
         }
     }
-
-#ifdef FEATURE_AVX_SUPPORT
-    // Just before restoring float registers issue a Vzeroupper to zero out upper 128-bits of all YMM regs.
-    // This is to avoid penalty if this routine is using AVX-256 and now returning to a routine that is
-    // using SSE2.
-    if (compiler->getFloatingPointInstructionSet() == InstructionSet_AVX)
-    {
-        instGen(INS_vzeroupper);
-    }
-#endif
 }
 
 // Save/Restore compCalleeFPRegsPushed with the smallest register number saved at [RSP+offset], working
@@ -10651,6 +10758,7 @@ void CodeGen::genRestoreCalleeSavedFltRegs(unsigned lclFrameSize)
     // fast path return
     if (regMask == RBM_NONE)
     {
+        genVzeroupperIfNeeded();
         return;
     }
 
@@ -10682,16 +10790,6 @@ void CodeGen::genRestoreCalleeSavedFltRegs(unsigned lclFrameSize)
     assert((offset % 16) == 0);
 #endif // _TARGET_AMD64_
 
-#ifdef FEATURE_AVX_SUPPORT
-    // Just before restoring float registers issue a Vzeroupper to zero out upper 128-bits of all YMM regs.
-    // This is to avoid penalty if this routine is using AVX-256 and now returning to a routine that is
-    // using SSE2.
-    if (compiler->getFloatingPointInstructionSet() == InstructionSet_AVX)
-    {
-        instGen(INS_vzeroupper);
-    }
-#endif
-
     for (regNumber reg = REG_FLT_CALLEE_SAVED_FIRST; regMask != RBM_NONE; reg = REG_NEXT(reg))
     {
         regMaskTP regBit = genRegMask(reg);
@@ -10706,7 +10804,41 @@ void CodeGen::genRestoreCalleeSavedFltRegs(unsigned lclFrameSize)
             offset -= XMM_REGSIZE_BYTES;
         }
     }
+    genVzeroupperIfNeeded();
 }
+
+// Generate Vzeroupper instruction as needed to zero out upper 128b-bit of all YMM registers so that the
+// AVX/Legacy SSE transition penalties can be avoided. This function is been used in genPreserveCalleeSavedFltRegs
+// (prolog) and genRestoreCalleeSavedFltRegs (epilog). Issue VZEROUPPER in Prolog if the method contains
+// 128-bit or 256-bit AVX code, to avoid legacy SSE to AVX transition penalty, which could happen when native
+// code contains legacy SSE code calling into JIT AVX code (e.g. reverse pinvoke). Issue VZEROUPPER in Epilog
+// if the method contains 256-bit AVX code, to avoid AVX to legacy SSE transition penalty.
+//
+// Params
+//   check256bitOnly  - true to check if the function contains 256-bit AVX instruction and generate Vzeroupper
+//      instruction, false to check if the function contains AVX instruciton (either 128-bit or 256-bit).
+//
+void CodeGen::genVzeroupperIfNeeded(bool check256bitOnly /* = true*/)
+{
+#ifdef FEATURE_AVX_SUPPORT
+    bool emitVzeroUpper = false;
+    if (check256bitOnly)
+    {
+        emitVzeroUpper = getEmitter()->Contains256bitAVX();
+    }
+    else
+    {
+        emitVzeroUpper = getEmitter()->ContainsAVX();
+    }
+
+    if (emitVzeroUpper)
+    {
+        assert(compiler->getSIMDInstructionSet() == InstructionSet_AVX);
+        instGen(INS_vzeroupper);
+    }
+#endif
+}
+
 #endif // defined(_TARGET_XARCH_) && !FEATURE_STACK_FP_X87
 
 //-----------------------------------------------------------------------------------

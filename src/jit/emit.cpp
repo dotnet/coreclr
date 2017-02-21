@@ -1643,12 +1643,10 @@ void emitter::emitCreatePlaceholderIG(insGroupPlaceholderType igType,
     {
         igPh->igFlags |= IGF_FUNCLET_PROLOG;
     }
-#ifdef DEBUG
     else if (igType == IGPT_FUNCLET_EPILOG)
     {
         igPh->igFlags |= IGF_FUNCLET_EPILOG;
     }
-#endif // DEBUG
 #endif // FEATURE_EH_FUNCLETS
 
     /* Link it into the placeholder list */
@@ -4235,7 +4233,7 @@ void emitter::emitCheckFuncletBranch(instrDesc* jmp, insGroup* jmpIG)
     // meets one of those criteria...
     assert(jmp->idIsBound());
 
-#ifdef _TARGET_AMD64_
+#ifdef _TARGET_XARCH_
     // An lea of a code address (for constant data stored with the code)
     // is treated like a jump for emission purposes but is not really a jump so
     // we don't have to check anything here.

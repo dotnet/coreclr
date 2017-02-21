@@ -39,9 +39,6 @@ Stub * GenerateInitPInvokeFrameHelper();
 EXTERN_C void STDCALL PInvokeStackImbalanceHelper(void);
 #endif // MDA_SUPPORTED
 
-#ifndef FEATURE_CORECLR
-EXTERN_C void STDCALL CopyCtorCallStub(void);
-#endif // !FEATURE_CORECLR
 
 #ifdef FEATURE_STUBS_AS_IL
 EXTERN_C void SinglecastDelegateInvokeStub();
@@ -86,14 +83,15 @@ BOOL Runtime_Test_For_SSE2();
 #define JUMP_ALLOCATE_SIZE                      8   // # bytes to allocate for a jump instruction
 #define BACK_TO_BACK_JUMP_ALLOCATE_SIZE         8   // # bytes to allocate for a back to back jump instruction
 
+#ifdef WIN64EXCEPTIONS
+#define USE_INDIRECT_CODEHEADER
+#endif // WIN64EXCEPTIONS
+
 #define HAS_COMPACT_ENTRYPOINTS                 1
 
 // Needed for PInvoke inlining in ngened images
 #define HAS_NDIRECT_IMPORT_PRECODE              1
 
-#ifdef FEATURE_REMOTING
-#define HAS_REMOTING_PRECODE                    1
-#endif
 #ifdef FEATURE_PREJIT
 #define HAS_FIXUP_PRECODE                       1
 #define HAS_FIXUP_PRECODE_CHUNKS                1
@@ -150,12 +148,22 @@ typedef INT32 StackElemType;
 // This represents some of the FramedMethodFrame fields that are
 // stored at negative offsets.
 //--------------------------------------------------------------------
+#define ENUM_ARGUMENT_AND_SCRATCH_REGISTERS() \
+    ARGUMENT_AND_SCRATCH_REGISTER(Eax) \
+    ARGUMENT_AND_SCRATCH_REGISTER(Ecx) \
+    ARGUMENT_AND_SCRATCH_REGISTER(Edx)
+
+#define ENUM_CALLEE_SAVED_REGISTERS() \
+    CALLEE_SAVED_REGISTER(Edi) \
+    CALLEE_SAVED_REGISTER(Esi) \
+    CALLEE_SAVED_REGISTER(Ebx) \
+    CALLEE_SAVED_REGISTER(Ebp)
+
 typedef DPTR(struct CalleeSavedRegisters) PTR_CalleeSavedRegisters;
 struct CalleeSavedRegisters {
-    INT32       edi;
-    INT32       esi;
-    INT32       ebx;
-    INT32       ebp;
+#define CALLEE_SAVED_REGISTER(regname) INT32 regname;
+    ENUM_CALLEE_SAVED_REGISTERS();
+#undef CALLEE_SAVED_REGISTER
 };
 
 //--------------------------------------------------------------------
@@ -194,6 +202,7 @@ struct ArgumentRegisters {
 struct REGDISPLAY;
 typedef REGDISPLAY *PREGDISPLAY;
 
+#ifndef WIN64EXCEPTIONS
 // Sufficient context for Try/Catch restoration.
 struct EHContext {
     INT32       Eax;
@@ -242,6 +251,7 @@ struct EHContext {
         Eip = 0;
     }
 };
+#endif // !WIN64EXCEPTIONS
 
 #define ARGUMENTREGISTERS_SIZE sizeof(ArgumentRegisters)
 

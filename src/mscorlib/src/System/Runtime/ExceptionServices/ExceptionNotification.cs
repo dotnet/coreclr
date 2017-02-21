@@ -13,7 +13,6 @@
 ** <owner>gkhanna</owner>
 ** 
 =============================================================================*/
-#if FEATURE_EXCEPTION_NOTIFICATIONS
 namespace System.Runtime.ExceptionServices {
     using System;
     using System.Runtime.ConstrainedExecution;
@@ -30,7 +29,6 @@ namespace System.Runtime.ExceptionServices {
         // Returns the exception object pertaining to the first chance exception
         public Exception Exception
         {
-            [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
             get { return m_Exception; }
         }
 
@@ -38,4 +36,3 @@ namespace System.Runtime.ExceptionServices {
         private Exception m_Exception;
     }
 }
-#endif // FEATURE_EXCEPTION_NOTIFICATIONS

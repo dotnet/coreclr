@@ -16,7 +16,6 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Security;
-using System.Security.Permissions;
 using System.Runtime.InteropServices;
 using System.Diagnostics.Contracts;
 using System.Threading.Tasks;
@@ -39,7 +38,6 @@ namespace System.Threading
     /// completed.
     /// </para>
     /// </remarks>
-    [ComVisible(false)]
     [DebuggerDisplay("Current Count = {m_currentCount}")]
     public class SemaphoreSlim : IDisposable
     {
@@ -315,7 +313,7 @@ namespace System.Threading
             if (millisecondsTimeout < -1)
             {
                 throw new ArgumentOutOfRangeException(
-                    "totalMilliSeconds", millisecondsTimeout, GetResourceString("SemaphoreSlim_Wait_TimeoutWrong"));
+                    nameof(millisecondsTimeout), millisecondsTimeout, GetResourceString("SemaphoreSlim_Wait_TimeoutWrong"));
             }
 
             cancellationToken.ThrowIfCancellationRequested();
@@ -609,7 +607,7 @@ namespace System.Threading
             if (millisecondsTimeout < -1)
             {
                 throw new ArgumentOutOfRangeException(
-                    "totalMilliSeconds", millisecondsTimeout, GetResourceString("SemaphoreSlim_Wait_TimeoutWrong"));
+                    nameof(millisecondsTimeout), millisecondsTimeout, GetResourceString("SemaphoreSlim_Wait_TimeoutWrong"));
             }
 
             // Bail early for cancellation

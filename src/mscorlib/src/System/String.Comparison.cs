@@ -73,7 +73,6 @@ namespace System
         // Search/Query methods
         //
 
-        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]
         private unsafe static bool EqualsHelper(String strA, String strB)
         {
             Contract.Requires(strA != null);
@@ -134,7 +133,48 @@ namespace System
             }
         }
 
-        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]
+        private unsafe static bool EqualsIgnoreCaseAsciiHelper(String strA, String strB)
+        {
+            Contract.Requires(strA != null);
+            Contract.Requires(strB != null);
+            Contract.Requires(strA.Length == strB.Length);
+            Contract.EndContractBlock();
+            int length = strA.Length;
+
+            fixed (char* ap = &strA.m_firstChar) fixed (char* bp = &strB.m_firstChar)
+            {
+                char* a = ap;
+                char* b = bp;
+
+                while (length != 0)
+                {
+                    int charA = *a;
+                    int charB = *b;
+
+                    Debug.Assert((charA | charB) <= 0x7F, "strings have to be ASCII");
+
+                    // Ordinal equals or lowercase equals if the result ends up in the a-z range 
+                    if (charA == charB ||
+                       ((charA | 0x20) == (charB | 0x20) &&
+                          (uint)((charA | 0x20) - 'a') <= (uint)('z' - 'a')))
+                    {
+                        a++;
+                        b++;
+                        length--;
+                    }
+                    else
+                    {
+                        goto ReturnFalse;
+                    }
+                }
+
+                return true;
+
+                ReturnFalse:
+                return false;
+            }
+        }
+
         private unsafe static bool StartsWithOrdinalHelper(String str, String startsWith)
         {
             Contract.Requires(str != null);
@@ -716,7 +756,6 @@ namespace System
         }
 
         [Pure]
-        [ComVisible(false)]
         public Boolean EndsWith(String value, StringComparison comparisonType) {
             if( (Object)value == null) {
                 throw new ArgumentNullException(nameof(value));                                
@@ -783,17 +822,12 @@ namespace System
         }
 
         [Pure]
-        internal bool EndsWith(char value) {
-            int thisLen = this.Length;
-            if (thisLen != 0) {
-                if (this[thisLen - 1] == value)
-                    return true;
-            }
-            return false;
+        public bool EndsWith(char value) {
+            int thisLen = Length;
+            return thisLen != 0 && this[thisLen - 1] == value;
         }
 
         // Determines whether two strings match.
-        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]
         public override bool Equals(Object obj)
         {
             if (this == null)                        // this is necessary to guard against reverse-pinvokes and
@@ -814,7 +848,6 @@ namespace System
 
         // Determines whether two strings match.
         [Pure]
-        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]
         public bool Equals(String value)
         {
             if (this == null)                        // this is necessary to guard against reverse-pinvokes and
@@ -874,7 +907,7 @@ namespace System
 
                     // If both strings are ASCII strings, we can take the fast path.
                     if (this.IsAscii() && value.IsAscii()) {
-                        return (CompareOrdinalIgnoreCaseHelper(this, value) == 0);
+                        return EqualsIgnoreCaseAsciiHelper(this, value);
                     }
 
 #if FEATURE_COREFX_GLOBALIZATION
@@ -943,7 +976,7 @@ namespace System
                     else {
                         // If both strings are ASCII strings, we can take the fast path.
                         if (a.IsAscii() && b.IsAscii()) {
-                            return (CompareOrdinalIgnoreCaseHelper(a, b) == 0);
+                            return EqualsIgnoreCaseAsciiHelper(a, b);
                         }
                         // Take the slow path.
 
@@ -984,7 +1017,6 @@ namespace System
 
         // Gets a hash code for this string.  If strings A and B are such that A.Equals(B), then
         // they will return the same hash code.
-        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]
         public override int GetHashCode()
         {
 #if FEATURE_RANDOMIZED_STRING_HASHING
@@ -999,12 +1031,10 @@ namespace System
 
         // Gets a hash code for this string and this comparison. If strings A and B and comparition C are such
         // that String.Equals(A, B, C), then they will return the same hash code with this comparison C.
-        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]
         public int GetHashCode(StringComparison comparisonType) => StringComparer.FromComparison(comparisonType).GetHashCode(this);
 
         // Use this if and only if you need the hashcode to not change across app domains (e.g. you have an app domain agile
         // hash table).
-        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]
         internal int GetLegacyNonRandomizedHashCode() {
             unsafe {
                 fixed (char* src = &m_firstChar) {
@@ -1069,7 +1099,6 @@ namespace System
         }
 
         [Pure]
-        [ComVisible(false)]
         public Boolean StartsWith(String value, StringComparison comparisonType) {
             if( (Object)value == null) {
                 throw new ArgumentNullException(nameof(value));                                
@@ -1144,5 +1173,8 @@ namespace System
 
             return referenceCulture.CompareInfo.IsPrefix(this, value, ignoreCase ? CompareOptions.IgnoreCase : CompareOptions.None);
         }
+
+        [Pure]
+        public bool StartsWith(char value) => Length != 0 && m_firstChar == value;
     }
 }

@@ -8,7 +8,6 @@ namespace System.Diagnostics {
     using System.Text;
     using System.Threading;
     using System.Security;
-    using System.Security.Permissions;
     using System.IO;
     using System.Reflection;
     using System.Runtime.InteropServices;
@@ -49,10 +48,8 @@ namespace System.Diagnostics {
         private String[] rgFilename;
         private int[] rgiLineNumber;
         private int[] rgiColumnNumber;
-#if FEATURE_EXCEPTIONDISPATCHINFO
         [OptionalField]
         private bool[] rgiLastFrameFromForeignExceptionStackTrace;
-#endif // FEATURE_EXCEPTIONDISPATCHINFO
         private GetSourceLineInfoDelegate getSourceLineInfo;
         private int iFrameCount;
 #pragma warning restore 414
@@ -86,9 +83,7 @@ namespace System.Diagnostics {
             rgiColumnNumber = null;
             getSourceLineInfo = null;
 
-#if FEATURE_EXCEPTIONDISPATCHINFO
             rgiLastFrameFromForeignExceptionStackTrace = null;
-#endif // FEATURE_EXCEPTIONDISPATCHINFO
 
             // 0 means capture all frames.  For StackTraces from an Exception, the EE always
             // captures all frames.  For other uses of StackTraces, we can abort stack walking after
@@ -198,15 +193,12 @@ namespace System.Diagnostics {
         public virtual int GetLineNumber(int i) { return rgiLineNumber == null ? 0 : rgiLineNumber[i];}
         public virtual int GetColumnNumber(int i) { return rgiColumnNumber == null ? 0 : rgiColumnNumber[i];}
 
-#if FEATURE_EXCEPTIONDISPATCHINFO
         public virtual bool IsLastFrameFromForeignExceptionStackTrace(int i) 
         { 
             return (rgiLastFrameFromForeignExceptionStackTrace == null)?false:rgiLastFrameFromForeignExceptionStackTrace[i];
         } 
-#endif // FEATURE_EXCEPTIONDISPATCHINFO
 
         public virtual int GetNumberOfFrames() { return iFrameCount;}
-        public virtual void SetNumberOfFrames(int i) { iFrameCount = i;}
     
         //
         // serialization implementation
@@ -259,7 +251,6 @@ namespace System.Diagnostics {
     // StackTrace, we use an InheritanceDemand to prevent partially-trusted
     // subclasses.
     [Serializable]
-    [System.Runtime.InteropServices.ComVisible(true)]
     public class StackTrace
     {
         private StackFrame[] frames;
@@ -468,9 +459,7 @@ namespace System.Diagnostics {
                         sfTemp.SetOffset(StackF.GetOffset(i));
                         sfTemp.SetILOffset(StackF.GetILOffset(i));
 
-#if FEATURE_EXCEPTIONDISPATCHINFO
                     sfTemp.SetIsLastFrameFromForeignExceptionStackTrace(StackF.IsLastFrameFromForeignExceptionStackTrace(i));
-#endif // FEATURE_EXCEPTIONDISPATCHINFO
 
                         if (fNeedFileInfo)
                         {
@@ -524,7 +513,6 @@ namespace System.Diagnostics {
         // The nth element of this array is the same as GetFrame(n). 
         // The length of the array is the same as FrameCount.
         // 
-        [ComVisible(false)]
         public virtual StackFrame [] GetFrames()
         {
             if (frames == null || m_iNumOfFrames <= 0)
@@ -680,13 +668,11 @@ namespace System.Diagnostics {
                         }
                     }
 
-#if FEATURE_EXCEPTIONDISPATCHINFO
                     if (sf.GetIsLastFrameFromForeignExceptionStackTrace())
                     {
                         sb.Append(Environment.NewLine);
                         sb.Append(Environment.GetResourceString("Exception_EndStackTraceFromPreviousThrow"));
                     }
-#endif // FEATURE_EXCEPTIONDISPATCHINFO
                 }
             }
 

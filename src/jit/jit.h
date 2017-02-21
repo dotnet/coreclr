@@ -416,14 +416,6 @@ typedef ptrdiff_t ssize_t;
 
 //=============================================================================
 
-#define FANCY_ARRAY_OPT 0 // optimize more complex index checks
-
-//=============================================================================
-
-#define LONG_ASG_OPS 0 // implementation isn't complete yet
-
-//=============================================================================
-
 #define OPT_MULT_ADDSUB 1 // optimize consecutive "lclVar += or -= icon"
 #define OPT_BOOL_OPS 1    // optimize boolean operations
 
@@ -699,11 +691,7 @@ inline unsigned int unsigned_abs(int x)
 #ifdef _TARGET_64BIT_
 inline size_t unsigned_abs(ssize_t x)
 {
-#ifndef FEATURE_PAL
     return ((size_t)abs(x));
-#else  // !FEATURE_PAL
-    return ((size_t)labs(x));
-#endif // !FEATURE_PAL
 }
 #endif // _TARGET_64BIT_
 

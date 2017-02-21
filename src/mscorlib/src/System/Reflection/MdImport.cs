@@ -9,7 +9,6 @@ using System.Reflection;
 using System.Globalization;
 using System.Threading;
 using System.Diagnostics;
-using System.Security.Permissions;
 using System.Collections;
 using System.Runtime.CompilerServices;
 using System.Security;
@@ -408,7 +407,7 @@ namespace System.Reflection
                 return null;
 
             char[] c = new char[length];
-            for (int i = 0; i < length; i ++)
+            for (int i = 0; i < c.Length; i ++)
             {
 #if ALIGN_ACCESS
                 c[i] = (char)Marshal.ReadInt16( (IntPtr) (((char*)name) + i) );

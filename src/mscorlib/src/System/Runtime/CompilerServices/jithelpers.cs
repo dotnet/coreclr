@@ -216,16 +216,7 @@ namespace System.Runtime.CompilerServices {
         extern static bool IsAddressInStack(IntPtr ptr);
 #endif
 
-#if FEATURE_SPAN_OF_T
         static internal bool ByRefLessThan<T>(ref T refA, ref T refB)
-        {
-            // The body of this function will be replaced by the EE with unsafe code!!!
-            // See getILIntrinsicImplementation for how this happens.
-            throw new InvalidOperationException();
-        }
-
-        /// <returns>true if given type is reference type or value type that contains references</returns>
-        static internal bool ContainsReferences<T>()
         {
             // The body of this function will be replaced by the EE with unsafe code!!!
             // See getILIntrinsicImplementation for how this happens.
@@ -239,6 +230,5 @@ namespace System.Runtime.CompilerServices {
             typeof(ArrayPinningHelper).ToString(); // Type used by the actual method body
             throw new InvalidOperationException();
         }
-#endif // FEATURE_SPAN_OF_T
     }
 }

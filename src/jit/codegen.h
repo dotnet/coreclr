@@ -390,6 +390,8 @@ protected:
     // Save/Restore callee saved float regs to stack
     void genPreserveCalleeSavedFltRegs(unsigned lclFrameSize);
     void genRestoreCalleeSavedFltRegs(unsigned lclFrameSize);
+    // Generate VZeroupper instruction to avoid AVX/SSE transition penalty
+    void genVzeroupperIfNeeded(bool check256bitOnly = true);
 
 #endif // _TARGET_XARCH_ && FEATURE_STACK_FP_X87
 
@@ -468,6 +470,9 @@ protected:
     void genSetPSPSym(regNumber initReg, bool* pInitRegZeroed);
 
     void genUpdateCurrentFunclet(BasicBlock* block);
+#if defined(_TARGET_ARM_)
+    void genInsertNopForUnwinder(BasicBlock* block);
+#endif
 
 #else // FEATURE_EH_FUNCLETS
 
@@ -476,6 +481,13 @@ protected:
     {
         return;
     }
+
+#if defined(_TARGET_ARM_)
+    void genInsertNopForUnwinder(BasicBlock* block)
+    {
+        return;
+    }
+#endif
 
 #endif // FEATURE_EH_FUNCLETS
 

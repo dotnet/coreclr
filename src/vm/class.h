@@ -703,9 +703,6 @@ class EEClassOptionalFields
     #define    MODULE_NON_DYNAMIC_STATICS      ((DWORD)-1)
     DWORD m_cbModuleDynamicID;
 
-#ifdef FEATURE_CER
-    DWORD m_dwReliabilityContract;
-#endif
 
     SecurityProperties m_SecProps;
 
@@ -1042,21 +1039,6 @@ public:
         return m_pMethodTable;
     }
 #ifndef DACCESS_COMPILE
-#ifdef FEATURE_REMOTING
-    inline void SetMethodTableForTransparentProxy(MethodTable*  pMT)
-    {
-        LIMITED_METHOD_CONTRACT;
-        // Transparent proxy class' true method table
-        // is replaced by a global thunk table
-
-        _ASSERTE(pMT->IsTransparentProxy() &&
-                m_pMethodTable->IsTransparentProxy());
-
-        IBCLOG(LogEEClassCOWTableAccess(GetMethodTable()));
-
-        m_pMethodTable = pMT;
-    }
-#endif
 
     inline void SetMethodTable(MethodTable*  pMT)
     {
@@ -1360,9 +1342,6 @@ public:
         _ASSERTE(HasCriticalTransparentInfo());
         return (m_VMFlags & VMFLAG_TRANSPARENCY_MASK) == VMFLAG_TRANSPARENCY_ALLCRITICAL_TAS ||
                (m_VMFlags & VMFLAG_TRANSPARENCY_MASK) == VMFLAG_TRANSPARENCY_TAS_NOTCRITICAL
-#ifndef FEATURE_CORECLR
-            || (m_VMFlags & VMFLAG_TRANSPARENCY_MASK) == VMFLAG_TRANSPARENCY_CRITICAL_TAS
-#endif // !FEATURE_CORECLR;
             ;
     }
 
@@ -1388,9 +1367,6 @@ public:
     }
 
     void SetCriticalTransparentInfo(
-#ifndef FEATURE_CORECLR
-                                    BOOL fIsCritical,
-#endif // !FEATURE_CORECLR
                                     BOOL fIsTreatAsSafe,
                                     BOOL fIsAllTransparent,
                                     BOOL fIsAllCritical)
@@ -1399,9 +1375,7 @@ public:
         
         // TAS wihtout critical doesn't make sense - although it was allowed in the v2 desktop model,
         // so we need to allow it for compatibility reasons on the desktop.
-#ifdef FEATURE_CORECLR
         _ASSERTE(!fIsTreatAsSafe || fIsAllCritical);
-#endif // FEATURE_CORECLR
 
         //if nothing is set, then we're transparent.
         unsigned flags = VMFLAG_TRANSPARENCY_TRANSPARENT;
@@ -1415,13 +1389,6 @@ public:
             flags = fIsTreatAsSafe ? VMFLAG_TRANSPARENCY_ALLCRITICAL_TAS :
                                      VMFLAG_TRANSPARENCY_ALLCRITICAL;
         }
-#ifndef FEATURE_CORECLR
-        else if (fIsCritical)
-        {
-            flags = fIsTreatAsSafe ? VMFLAG_TRANSPARENCY_CRITICAL_TAS :
-                                     VMFLAG_TRANSPARENCY_CRITICAL;
-        }
-#endif // !FEATURE_CORECLR
         else
         {
             flags = fIsTreatAsSafe ? VMFLAG_TRANSPARENCY_TAS_NOTCRITICAL :
@@ -1652,23 +1619,10 @@ public:
         LIMITED_METHOD_CONTRACT;
         m_VMFlags |= (DWORD)VMFLAG_HAS_FIELDS_WHICH_MUST_BE_INITED;
     }
-#ifdef FEATURE_REMOTING
-    DWORD CannotBeBlittedByObjectCloner()
-    {
-        LIMITED_METHOD_CONTRACT;
-        return (m_VMFlags & VMFLAG_CANNOT_BE_BLITTED_BY_OBJECT_CLONER);
-    }
-    void SetCannotBeBlittedByObjectCloner()
-    {
-        LIMITED_METHOD_CONTRACT;
-        m_VMFlags |= (DWORD)VMFLAG_CANNOT_BE_BLITTED_BY_OBJECT_CLONER;
-    }
-#else
     void SetCannotBeBlittedByObjectCloner()
     {
         /* no op */
     }
-#endif
     DWORD HasNonPublicFields()
     {
         LIMITED_METHOD_CONTRACT;
@@ -1770,14 +1724,6 @@ public:
     // Cached class level reliability contract info, see ConstrainedExecutionRegion.cpp for details.
     DWORD GetReliabilityContract();
 
-#ifdef FEATURE_CER
-    inline void SetReliabilityContract(DWORD dwValue)
-    {
-        LIMITED_METHOD_CONTRACT;
-        _ASSERTE(HasOptionalFields());
-        GetOptionalFields()->m_dwReliabilityContract = dwValue;
-    }
-#endif
 
 #if defined(UNIX_AMD64_ABI) && defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
     // Get number of eightbytes used by a struct passed in registers.
@@ -2138,9 +2084,6 @@ public:
         VMFLAG_FIXED_ADDRESS_VT_STATICS        = 0x00000020, // Value type Statics in this class will be pinned
         VMFLAG_HASLAYOUT                       = 0x00000040,
         VMFLAG_ISNESTED                        = 0x00000080,
-#ifdef FEATURE_REMOTING
-        VMFLAG_CANNOT_BE_BLITTED_BY_OBJECT_CLONER = 0x00000100,  // This class has GC type fields, or implements ISerializable or has non-Serializable fields
-#endif
 
         VMFLAG_IS_EQUIVALENT_TYPE              = 0x00000200,
 

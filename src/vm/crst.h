@@ -105,7 +105,6 @@ extern DWORD g_fEEShutDown;
 // Total count of Crst lock  of the type (Shutdown) that are currently in use
 extern Volatile<LONG> g_ShutdownCrstUsageCount;
 extern Volatile<LONG> g_fForbidEnterEE;
-extern bool g_fFinalizerRunOnShutDown;
 
 // The CRST.
 class CrstBase
@@ -298,9 +297,6 @@ protected:
 
     union {
         CRITICAL_SECTION    m_criticalsection;
-#ifdef FEATURE_INCLUDE_ALL_INTERFACES
-        IHostCrst          *m_pHostCrst;
-#endif // FEATURE_INCLUDE_ALL_INTERFACES
     };
 
     typedef enum

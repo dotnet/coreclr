@@ -18,45 +18,41 @@ __INIT_TOOLS_DONE_MARKER=$__PROJECT_JSON_PATH/done
 # Extended version of platform detection logic from dotnet/cli/scripts/obtain/dotnet-install.sh 16692fc
 get_current_linux_name() {
     # Detect Distro
-    if [ "$(cat /etc/*-release | grep -cim1 ubuntu)" -eq 1 ]; then
-        if [ "$(cat /etc/*-release | grep -cim1 16.04)" -eq 1 ]; then
+    if [ "$(cat /etc/os-release | grep -cim1 ubuntu)" -eq 1 ]; then
+        if [ "$(cat /etc/os-release | grep -cim1 16.04)" -eq 1 ]; then
             echo "ubuntu.16.04"
             return 0
         fi
-        if [ "$(cat /etc/*-release | grep -cim1 16.10)" -eq 1 ]; then
+        if [ "$(cat /etc/os-release | grep -cim1 16.10)" -eq 1 ]; then
             echo "ubuntu.16.10"
             return 0
         fi
 
         echo "ubuntu"
         return 0
-    elif [ "$(cat /etc/*-release | grep -cim1 centos)" -eq 1 ]; then
+    elif [ "$(cat /etc/os-release | grep -cim1 centos)" -eq 1 ]; then
         echo "centos"
         return 0
-    elif [ "$(cat /etc/*-release | grep -cim1 rhel)" -eq 1 ]; then
+    elif [ "$(cat /etc/os-release | grep -cim1 rhel)" -eq 1 ]; then
         echo "rhel"
         return 0
-    elif [ "$(cat /etc/*-release | grep -cim1 debian)" -eq 1 ]; then
+    elif [ "$(cat /etc/os-release | grep -cim1 debian)" -eq 1 ]; then
         echo "debian"
         return 0
-    elif [ "$(cat /etc/*-release | grep -cim1 alpine)" -eq 1 ]; then
+    elif [ "$(cat /etc/os-release | grep -cim1 alpine)" -eq 1 ]; then
         echo "alpine"
         return 0
-    elif [ "$(cat /etc/*-release | grep -cim1 fedora)" -eq 1 ]; then
-        if [ "$(cat /etc/*-release | grep -cim1 23)" -eq 1 ]; then
+    elif [ "$(cat /etc/os-release | grep -cim1 fedora)" -eq 1 ]; then
+        if [ "$(cat /etc/os-release | grep -cim1 23)" -eq 1 ]; then
             echo "fedora.23"
             return 0
         fi
-        if [ "$(cat /etc/*-release | grep -cim1 24)" -eq 1 ]; then
+        if [ "$(cat /etc/os-release | grep -cim1 24)" -eq 1 ]; then
             echo "fedora.24"
             return 0
         fi
-    elif [ "$(cat /etc/*-release | grep -cim1 opensuse)" -eq 1 ]; then
-        if [ "$(cat /etc/*-release | grep -cim1 13.2)" -eq 1 ]; then
-            echo "opensuse.13.2"
-            return 0
-        fi
-        if [ "$(cat /etc/*-release | grep -cim1 42.1)" -eq 1 ]; then
+    elif [ "$(cat /etc/os-release | grep -cim1 opensuse)" -eq 1 ]; then
+        if [ "$(cat /etc/os-release | grep -cim1 42.1)" -eq 1 ]; then
             echo "opensuse.42.1"
             return 0
         fi
@@ -107,14 +103,13 @@ if [ ! -e $__INIT_TOOLS_DONE_MARKER ]; then
             cp -r $DOTNET_TOOL_DIR/* $__DOTNET_PATH
         else
             echo "Installing dotnet cli..."
-            __DOTNET_LOCATION="https://dotnetcli.blob.core.windows.net/dotnet/Sdk/${__DOTNET_TOOLS_VERSION}/${__DOTNET_PKG}.${__DOTNET_TOOLS_VERSION}.tar.gz"
+            __DOTNET_LOCATION="https://dotnetcli.blob.core.windows.net/dotnet/preview/Binaries/${__DOTNET_TOOLS_VERSION}/${__DOTNET_PKG}.${__DOTNET_TOOLS_VERSION}.tar.gz"
             # curl has HTTPS CA trust-issues less often than wget, so lets try that first.
             echo "Installing '${__DOTNET_LOCATION}' to '$__DOTNET_PATH/dotnet.tar'" >> $__init_tools_log
-            which curl > /dev/null 2> /dev/null
-            if [ $? -ne 0 ]; then
-                wget -q -O $__DOTNET_PATH/dotnet.tar ${__DOTNET_LOCATION}
-            else
+            if command -v curl > /dev/null; then
                 curl --retry 10 -sSL --create-dirs -o $__DOTNET_PATH/dotnet.tar ${__DOTNET_LOCATION}
+            else
+                wget -q -O $__DOTNET_PATH/dotnet.tar ${__DOTNET_LOCATION}
             fi
             cd $__DOTNET_PATH
             tar -xf $__DOTNET_PATH/dotnet.tar

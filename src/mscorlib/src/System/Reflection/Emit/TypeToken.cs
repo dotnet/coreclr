@@ -17,21 +17,14 @@ namespace System.Reflection.Emit {
     using System;
     using System.Reflection;
     using System.Threading;
-    using System.Security.Permissions;
 
     [Serializable]
-    [System.Runtime.InteropServices.ComVisible(true)]
     public struct TypeToken {
     
         public static readonly TypeToken Empty = new TypeToken();
 
         internal int m_class;
     
-#if false
-        public TypeToken() {
-            m_class=0;
-        }
-#endif
         
         internal TypeToken(int str) {
             m_class=str;

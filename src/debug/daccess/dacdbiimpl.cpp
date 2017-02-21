@@ -25,9 +25,6 @@
 #include "stackwalk.h"
 
 #include "dacdbiimpl.h"
-#ifndef FEATURE_CORECLR
-#include "assemblyusagelogmanager.h"
-#endif
 
 #ifdef FEATURE_COMINTEROP
 #include "runtimecallablewrapper.h"
@@ -3249,12 +3246,6 @@ CORDB_ADDRESS DacDbiInterfaceImpl::GetThreadOrContextStaticAddress(VMPTR_FieldDe
     {
         fieldAddress = pRuntimeThread->GetStaticFieldAddrNoCreate(pFieldDesc, NULL);
     }
-#ifdef FEATURE_REMOTING
-    else if (pFieldDesc->IsContextStatic())
-    {
-        fieldAddress = PTR_TO_TADDR(pRuntimeThread->GetContext()->GetStaticFieldAddrNoCreate(pFieldDesc));
-    }
-#endif
     else
     {
         // In case we have more special cases added later, this will allow us to notice the need to
@@ -3473,12 +3464,7 @@ void DacDbiInterfaceImpl::GetStackFramesFromException(VMPTR_Object vmObject, Dac
             currentFrame.vmDomainFile.SetHostPtr(pDomainFile);
             currentFrame.ip = currentElement.ip;
             currentFrame.methodDef = currentElement.pFunc->GetMemberDef();
-#if defined(FEATURE_EXCEPTIONDISPATCHINFO)
             currentFrame.isLastForeignExceptionFrame = currentElement.fIsLastFrameFromForeignStackTrace;
-#else
-            // for CLRs lacking exception dispatch info just set it to 0
-            currentFrame.isLastForeignExceptionFrame = 0;
-#endif
         }
     }
 }
@@ -4541,29 +4527,6 @@ void DacDbiInterfaceImpl::MarkDebuggerAttached(BOOL fAttached)
 
 }
 
-#ifdef FEATURE_INCLUDE_ALL_INTERFACES
-// Enumerate all the Connections in the process.
-void DacDbiInterfaceImpl::EnumerateConnections(FP_CONNECTION_CALLBACK fpCallback, void * pUserData)
-{
-    DD_ENTER_MAY_THROW;
-
-    ConnectionNameHashEntry * pConnection;
-    
-    HASHFIND hashfind;
-
-    pConnection = CCLRDebugManager::FindFirst(&hashfind);
-    while (pConnection)
-    {    
-        DWORD id = pConnection->m_dwConnectionId;
-        LPCWSTR pName = pConnection->m_pwzName;
-        
-        fpCallback(id, pName, pUserData);
-
-        // now get the next connection record
-        pConnection = CCLRDebugManager::FindNext(&hashfind);
-    }
-}
-#endif
 
 
 // Enumerate all threads in the process. 
@@ -5684,28 +5647,7 @@ VMPTR_Object DacDbiInterfaceImpl::GetObject(CORDB_ADDRESS ptr)
 
 HRESULT DacDbiInterfaceImpl::EnableNGENPolicy(CorDebugNGENPolicy ePolicy)
 {
-#ifndef FEATURE_CORECLR
-    DD_ENTER_MAY_THROW;
-
-    // translate from our publicly exposed enum to the appropriate internal value
-    AssemblyUsageLogManager::ASSEMBLY_USAGE_LOG_FLAGS asmFlag = AssemblyUsageLogManager::ASSEMBLY_USAGE_LOG_FLAGS_NONE;
-
-    switch (ePolicy)
-    {
-    case DISABLE_LOCAL_NIC:
-        asmFlag = AssemblyUsageLogManager::ASSEMBLY_USAGE_LOG_FLAGS_APPLOCALNGENDISABLED;
-        break;
-    default:
-        return E_INVALIDARG;
-    }
-
-    // we should have made some selection
-    _ASSERTE(asmFlag != AssemblyUsageLogManager::ASSEMBLY_USAGE_LOG_FLAGS_NONE);
-
-    return AssemblyUsageLogManager::SetUsageLogFlag(asmFlag, TRUE);
-#else
     return E_NOTIMPL;
-#endif // FEATURE_CORECLR
 }
 
 HRESULT DacDbiInterfaceImpl::SetNGENCompilerFlags(DWORD dwFlags)

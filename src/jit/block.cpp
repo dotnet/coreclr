@@ -365,6 +365,14 @@ void BasicBlock::dspFlags()
     {
         printf("KEEP ");
     }
+    if (bbFlags & BBF_CLONED_FINALLY_BEGIN)
+    {
+        printf("cfb ");
+    }
+    if (bbFlags & BBF_CLONED_FINALLY_END)
+    {
+        printf("cfe ");
+    }
 }
 
 /*****************************************************************************
@@ -564,10 +572,10 @@ void BasicBlock::dspBlockHeader(Compiler* compiler,
 
 #endif // DEBUG
 
-// Allocation function for HeapPhiArg.
-void* BasicBlock::HeapPhiArg::operator new(size_t sz, Compiler* comp)
+// Allocation function for MemoryPhiArg.
+void* BasicBlock::MemoryPhiArg::operator new(size_t sz, Compiler* comp)
 {
-    return comp->compGetMem(sz, CMK_HeapPhiArg);
+    return comp->compGetMem(sz, CMK_MemoryPhiArg);
 }
 
 //------------------------------------------------------------------------
@@ -664,7 +672,7 @@ bool BasicBlock::IsLIR()
 // Return Value:
 //    The first statement in the block's bbTreeList.
 //
-GenTreeStmt* BasicBlock::firstStmt()
+GenTreeStmt* BasicBlock::firstStmt() const
 {
     if (bbTreeList == nullptr)
     {
@@ -683,7 +691,7 @@ GenTreeStmt* BasicBlock::firstStmt()
 // Return Value:
 //    The last statement in the block's bbTreeList.
 //
-GenTreeStmt* BasicBlock::lastStmt()
+GenTreeStmt* BasicBlock::lastStmt() const
 {
     if (bbTreeList == nullptr)
     {
@@ -765,7 +773,7 @@ BasicBlock* BasicBlock::GetUniqueSucc()
 }
 
 // Static vars.
-BasicBlock::HeapPhiArg* BasicBlock::EmptyHeapPhiDef = (BasicBlock::HeapPhiArg*)0x1;
+BasicBlock::MemoryPhiArg* BasicBlock::EmptyMemoryPhiDef = (BasicBlock::MemoryPhiArg*)0x1;
 
 unsigned PtrKeyFuncs<BasicBlock>::GetHashCode(const BasicBlock* ptr)
 {

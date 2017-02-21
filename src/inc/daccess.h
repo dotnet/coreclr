@@ -784,7 +784,7 @@ BOOL DacUnwindStackFrame(T_CONTEXT * pContext, T_KNONVOLATILE_CONTEXT_POINTERS* 
 
 #if defined(FEATURE_PAL)
 // call back through data target to unwind out-of-process
-HRESULT DacVirtualUnwind(ULONG32 threadId, PCONTEXT context, PT_KNONVOLATILE_CONTEXT_POINTERS contextPointers);
+HRESULT DacVirtualUnwind(ULONG32 threadId, PT_CONTEXT context, PT_KNONVOLATILE_CONTEXT_POINTERS contextPointers);
 #endif // FEATURE_PAL
 
 #ifdef FEATURE_MINIMETADATA_IN_TRIAGEDUMPS
@@ -2445,13 +2445,8 @@ typedef DPTR(PTR_PCODE) PTR_PTR_PCODE;
 #endif
 
 // Macros like MAIN_CLR_MODULE_NAME* for the DAC module
-#ifdef FEATURE_MAIN_CLR_MODULE_USES_CORE_NAME
 #define MAIN_DAC_MODULE_NAME_W  W("mscordaccore")
 #define MAIN_DAC_MODULE_DLL_NAME_W  W("mscordaccore.dll")
-#else
-#define MAIN_DAC_MODULE_NAME_W  W("mscordacwks")
-#define MAIN_DAC_MODULE_DLL_NAME_W  W("mscordacwks.dll")
-#endif
 
 // TARGET_CONSISTENCY_CHECK represents a condition that should not fail unless the DAC target is corrupt. 
 // This is in contrast to ASSERTs in DAC infrastructure code which shouldn't fail regardless of the memory

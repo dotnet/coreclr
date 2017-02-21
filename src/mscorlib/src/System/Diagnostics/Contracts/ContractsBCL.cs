@@ -20,7 +20,6 @@
 #else // CLR
 #define FEATURE_UNTRUSTED_CALLERS
 #define FEATURE_RELIABILITY_CONTRACTS
-#define FEATURE_SERIALIZATION
 #endif
 
 using System;
@@ -35,7 +34,6 @@ using System.Runtime.ConstrainedExecution;
 #endif
 #if FEATURE_UNTRUSTED_CALLERS
 using System.Security;
-using System.Security.Permissions;
 #endif
 
 namespace System.Diagnostics.Contracts {
@@ -93,7 +91,6 @@ namespace System.Diagnostics.Contracts {
         [SuppressMessage("Microsoft.Portability", "CA1903:UseOnlyApiFromTargetedFramework", MessageId = "System.Security.SecuritySafeCriticalAttribute")]
         [System.Diagnostics.DebuggerNonUserCode]
 #if FEATURE_RELIABILITY_CONTRACTS
-        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]
 #endif
         static partial void ReportFailure(ContractFailureKind failureKind, String userMessage, String conditionText, Exception innerException)
         {
@@ -120,15 +117,11 @@ namespace System.Diagnostics.Contracts {
         /// </summary>
         public static event EventHandler<ContractFailedEventArgs> ContractFailed {
 #if FEATURE_UNTRUSTED_CALLERS
-#if FEATURE_LINK_DEMAND
-#endif
 #endif
             add {
                 System.Runtime.CompilerServices.ContractHelper.InternalContractFailed += value;
             }
 #if FEATURE_UNTRUSTED_CALLERS
-#if FEATURE_LINK_DEMAND
-#endif
 #endif
             remove {
                 System.Runtime.CompilerServices.ContractHelper.InternalContractFailed -= value;
@@ -149,7 +142,6 @@ namespace System.Diagnostics.Contracts {
         internal Exception thrownDuringHandler;
 
 #if FEATURE_RELIABILITY_CONTRACTS
-        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]
 #endif
         public ContractFailedEventArgs(ContractFailureKind failureKind, String message, String condition, Exception originalException)
         {
@@ -171,8 +163,6 @@ namespace System.Diagnostics.Contracts {
         }
 
 #if FEATURE_UNTRUSTED_CALLERS
-#if FEATURE_LINK_DEMAND
-#endif
 #endif
         public void SetHandled()
         {
@@ -184,8 +174,6 @@ namespace System.Diagnostics.Contracts {
         }
 
 #if FEATURE_UNTRUSTED_CALLERS
-#if FEATURE_LINK_DEMAND
-#endif
 #endif
         public void SetUnwind()
         {
@@ -233,10 +221,6 @@ namespace System.Diagnostics.Contracts {
             _Condition = info.GetString("Condition");
         }
 
-#if FEATURE_UNTRUSTED_CALLERS && FEATURE_SERIALIZATION
-#if FEATURE_LINK_DEMAND && FEATURE_SERIALIZATION
-#endif // FEATURE_LINK_DEMAND
-#endif // FEATURE_UNTRUSTED_CALLERS
         public override void GetObjectData(System.Runtime.Serialization.SerializationInfo info, System.Runtime.Serialization.StreamingContext context)
         {
             base.GetObjectData(info, context);
@@ -434,7 +418,6 @@ namespace System.Runtime.CompilerServices
         }
 
 #if FEATURE_RELIABILITY_CONTRACTS
-        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]
 #endif
         private static String GetDisplayMessage(ContractFailureKind failureKind, String userMessage, String conditionText)
         {

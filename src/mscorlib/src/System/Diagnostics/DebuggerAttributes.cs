@@ -19,23 +19,13 @@ namespace System.Diagnostics {
     
 [Serializable]
 [AttributeUsage(AttributeTargets.Class | AttributeTargets.Struct | AttributeTargets.Method | AttributeTargets.Constructor, Inherited = false)]
-    [ComVisible(true)]
     public sealed class DebuggerStepThroughAttribute : Attribute
     {
         public DebuggerStepThroughAttribute () {}
     } 
 
 [Serializable]
-[AttributeUsage(AttributeTargets.Method | AttributeTargets.Constructor, Inherited = false)]
-    [ComVisible(true)]
-    public sealed class DebuggerStepperBoundaryAttribute : Attribute
-    {
-        public DebuggerStepperBoundaryAttribute () {}
-    } 
-
-[Serializable]
 [AttributeUsage(AttributeTargets.Method | AttributeTargets.Property | AttributeTargets.Constructor, Inherited = false)]
-    [ComVisible(true)]
     public sealed class DebuggerHiddenAttribute : Attribute
     {
         public DebuggerHiddenAttribute () {}
@@ -43,7 +33,6 @@ namespace System.Diagnostics {
 
 [Serializable]
 [AttributeUsage(AttributeTargets.Class | AttributeTargets.Method | AttributeTargets.Property | AttributeTargets.Constructor |AttributeTargets.Struct, Inherited = false)]
-    [ComVisible(true)]
     public sealed class DebuggerNonUserCodeAttribute : Attribute
     {
        public DebuggerNonUserCodeAttribute () {}
@@ -58,11 +47,9 @@ namespace System.Diagnostics {
     // won't preserve the debugging info, which will make debugging after
     // a JIT attach difficult.
     [AttributeUsage(AttributeTargets.Assembly|AttributeTargets.Module, AllowMultiple = false)]
-    [ComVisible(true)]
     public sealed class DebuggableAttribute : Attribute
     {
         [Flags]
-        [ComVisible(true)]
         public enum DebuggingModes 
         {
             None = 0x0,
@@ -121,7 +108,6 @@ namespace System.Diagnostics {
 
     //  Please also change the code which validates DebuggerBrowsableState variable (in this file)
     //  if you change this enum.
-    [ComVisible(true)]
     public enum DebuggerBrowsableState 
     { 
         Never = 0, 
@@ -135,7 +121,6 @@ namespace System.Diagnostics {
     // the one currently supported with the csee.dat 
     // (mcee.dat, autoexp.dat) file. 
     [AttributeUsage(AttributeTargets.Field | AttributeTargets.Property, AllowMultiple = false)]
-    [ComVisible(true)]
     public sealed class DebuggerBrowsableAttribute: Attribute
     {
         private DebuggerBrowsableState state;
@@ -156,7 +141,6 @@ namespace System.Diagnostics {
 
     // DebuggerTypeProxyAttribute
     [AttributeUsage(AttributeTargets.Struct | AttributeTargets.Class | AttributeTargets.Assembly, AllowMultiple = true)]
-    [ComVisible(true)]
     public sealed class DebuggerTypeProxyAttribute: Attribute
     {
         private string typeName;
@@ -215,7 +199,6 @@ namespace System.Diagnostics {
     // however: there is no access to aliases, locals, or pointers. 
     // In addition, attributes on properties referenced in the expression are not processed.
     [AttributeUsage(AttributeTargets.Class | AttributeTargets.Struct | AttributeTargets.Delegate | AttributeTargets.Enum | AttributeTargets.Field | AttributeTargets.Property | AttributeTargets.Assembly, AllowMultiple = true)]
-    [ComVisible(true)]
     public sealed class DebuggerDisplayAttribute : Attribute
     {
         private string name;
@@ -272,105 +255,6 @@ namespace System.Diagnostics {
             get { return targetName; }
             set { targetName = value; }
     
-        }
-    }
-
-
-    /// <summary>
-    /// Signifies that the attributed type has a visualizer which is pointed
-    /// to by the parameter type name strings.
-    /// </summary>
-    [AttributeUsage(AttributeTargets.Struct | AttributeTargets.Class | AttributeTargets.Assembly, AllowMultiple = true)]
-    [ComVisible(true)]
-    public sealed class DebuggerVisualizerAttribute: Attribute
-    {
-        private string visualizerObjectSourceName;
-        private string visualizerName;
-        private string description;
-        private string targetName;
-        private Type target;
-
-        public DebuggerVisualizerAttribute(string visualizerTypeName)
-        {
-            this.visualizerName = visualizerTypeName;
-        }
-        public DebuggerVisualizerAttribute(string visualizerTypeName, string visualizerObjectSourceTypeName)
-        {
-            this.visualizerName = visualizerTypeName;
-            this.visualizerObjectSourceName = visualizerObjectSourceTypeName;
-        }
-        public DebuggerVisualizerAttribute(string visualizerTypeName, Type visualizerObjectSource)
-        {
-            if (visualizerObjectSource == null) {
-                throw new ArgumentNullException(nameof(visualizerObjectSource));
-            }
-            Contract.EndContractBlock();
-            this.visualizerName = visualizerTypeName;
-            this.visualizerObjectSourceName = visualizerObjectSource.AssemblyQualifiedName;
-        }
-        public DebuggerVisualizerAttribute(Type visualizer)
-        {    
-            if (visualizer == null) {
-                throw new ArgumentNullException(nameof(visualizer));
-            }
-            Contract.EndContractBlock();
-            this.visualizerName = visualizer.AssemblyQualifiedName;
-        }
-        public DebuggerVisualizerAttribute(Type visualizer, Type visualizerObjectSource)
-        {
-            if (visualizer == null) {
-                throw new ArgumentNullException(nameof(visualizer));
-            }
-            if (visualizerObjectSource == null) {
-                throw new ArgumentNullException(nameof(visualizerObjectSource));
-            }
-            Contract.EndContractBlock();
-            this.visualizerName = visualizer.AssemblyQualifiedName;
-            this.visualizerObjectSourceName = visualizerObjectSource.AssemblyQualifiedName;
-        }
-        public DebuggerVisualizerAttribute(Type visualizer, string visualizerObjectSourceTypeName)
-        {
-            if (visualizer == null) {
-                throw new ArgumentNullException(nameof(visualizer));
-            }
-            Contract.EndContractBlock();
-            this.visualizerName = visualizer.AssemblyQualifiedName;
-            this.visualizerObjectSourceName = visualizerObjectSourceTypeName;
-        }
-
-        public string VisualizerObjectSourceTypeName
-        {
-            get { return visualizerObjectSourceName; }
-        }
-        public string VisualizerTypeName
-        {
-            get { return visualizerName; }
-        }
-        public string Description
-        {
-            get { return description; }
-            set { description = value; }
-        }
-
-        public Type Target
-        {
-            set {                 
-                if( value == null) {
-                    throw new ArgumentNullException(nameof(value));
-                }
-                Contract.EndContractBlock();
-                
-                targetName = value.AssemblyQualifiedName; 
-                target = value; 
-            }
-            
-            get { return target; }
-        }
-
-        public string TargetTypeName
-        {
-            set { targetName = value; }
-            get { return targetName; }
         }
     }
 }

@@ -18,9 +18,6 @@
 #include "field.h"
 #include "dllimportcallback.h"
 #include "dllimport.h"
-#ifdef FEATURE_REMOTING
-#include "remoting.h"
-#endif
 #include "eeconfig.h"
 #include "mdaassistants.h"
 #include "cgensys.h"
@@ -919,28 +916,11 @@ void COMDelegate::BindToMethod(DELEGATEREF   *pRefThis,
         {
             _ASSERTE(pRefFirstArg == NULL || *pRefFirstArg == NULL);
 
-#ifdef FEATURE_REMOTING
-            if (!pTargetMethod->IsStatic())
-            {
-                // Open-instance delegate may have remoted target if the method is declared by
-                // an interface, by a type deriving from MarshalByRefObject, or by System.Object.
-                // The following condition is necessary but not sufficient as it's always possible
-                // to invoke the delegate on a local instance. Precise check would require doing
-                // the check at invocation time. We are secure because we demand MemberAccess when
-                // there is a possibility that the invocation will be remote.
-                // 
-                MethodTable *pMT = pTargetMethod->GetMethodTable();
-                targetPossiblyRemoted = (pMT == g_pObjectClass || pMT->IsInterface() || pMT->IsMarshaledByRef());
-            }
-#endif // FEATURE_REMOTING
         }
         else
         {
             // closed-static is OK and we can check the target in the closed-instance case
             pInstanceMT = (*pRefFirstArg == NULL ? NULL : (*pRefFirstArg)->GetMethodTable());
-#ifdef FEATURE_REMOTING
-            targetPossiblyRemoted = InvokeUtil::IsTargetRemoted(pTargetMethod, pInstanceMT);
-#endif
         }
 
         RefSecContext sCtx(InvokeUtil::GetInvocationAccessCheckType(targetPossiblyRemoted));
@@ -1098,7 +1078,6 @@ void COMDelegate::BindToMethod(DELEGATEREF   *pRefThis,
     GCPROTECT_END();
 }
 
-#ifdef FEATURE_CORECLR
 // On the CoreCLR, we don't allow non-fulltrust delegates to be marshaled out (or created: CorHost::CreateDelegate ensures that)
 // This helper function checks if we have a full-trust delegate with AllowReversePInvokeCallsAttribute targets.
 BOOL COMDelegate::IsFullTrustDelegate(DELEGATEREF pDelegate)
@@ -1218,7 +1197,6 @@ BOOL COMDelegate::IsMethodAllowedToSinkReversePInvoke(MethodDesc *pMD)
                         NULL));
 #endif // FEATURE_WINDOWSPHONE
 }
-#endif // FEATURE_CORECLR
 
 // Marshals a managed method to an unmanaged callback provided the 
 // managed method is static and it's parameters require no marshalling.
@@ -1312,7 +1290,6 @@ LPVOID COMDelegate::ConvertToCallback(OBJECTREF pDelegateObj)
     MethodTable* pMT = pDelegate->GetMethodTable();
     DelegateEEClass* pClass = (DelegateEEClass*)(pMT->GetClass());
 
-#ifdef FEATURE_CORECLR
     // On the CoreCLR, we only allow marshaling out delegates that we can guarantee are full-trust delegates
     if (!IsFullTrustDelegate(pDelegate))
     {        
@@ -1320,7 +1297,6 @@ LPVOID COMDelegate::ConvertToCallback(OBJECTREF pDelegateObj)
         TypeString::AppendType(strDelegateType, pMT, TypeString::FormatNamespace | TypeString::FormatAngleBrackets| TypeString::FormatSignature);
         COMPlusThrow(kSecurityException, IDS_E_DELEGATE_FULLTRUST_ARPIC_1, strDelegateType.GetUnicode());
     }
-#endif        
 
     if (pMT->HasInstantiation())
         COMPlusThrowArgumentException(W("delegate"), W("Argument_NeedNonGenericType"));
@@ -1502,13 +1478,11 @@ OBJECTREF COMDelegate::ConvertToDelegate(LPVOID pCallback, MethodTable* pMT)
         if (pUMEntryThunk->GetDomainId() != GetAppDomain()->GetId())
             COMPlusThrow(kNotSupportedException, W("NotSupported_DelegateMarshalToWrongDomain"));
 
-#ifdef FEATURE_CORECLR
         // On the CoreCLR, we only allow marshaling out delegates that we can guarantee are full-trust delegates
         if (!IsFullTrustDelegate((DELEGATEREF)pDelegate))
         {
             COMPlusThrow(kSecurityException, IDS_E_DELEGATE_FULLTRUST_ARPIC_2);
         }
-#endif        
 
         GCPROTECT_END();
         return pDelegate;
@@ -1590,13 +1564,6 @@ OBJECTREF COMDelegate::ConvertToDelegate(LPVOID pCallback, MethodTable* pMT)
         MethodDesc *pStubMD = pClass->m_pForwardStubMD;
         _ASSERTE(pStubMD != NULL && pStubMD->IsILStub());
 
-#ifndef FEATURE_CORECLR
-        if (pStubMD->AsDynamicMethodDesc()->HasCopyCtorArgs())
-        {
-            // static stub that gets its arguments in a thread-static field
-            pInterceptStub = NDirect::GetStubForCopyCtor();
-        }
-#endif // !FEATURE_CORECLR
 
 #ifdef MDA_SUPPORTED
         if (MDA_GET_ASSISTANT(PInvokeStackImbalance))
@@ -1605,16 +1572,6 @@ OBJECTREF COMDelegate::ConvertToDelegate(LPVOID pCallback, MethodTable* pMT)
         }
 #endif // MDA_SUPPORTED
 
-#ifdef FEATURE_INCLUDE_ALL_INTERFACES
-        if (NDirect::IsHostHookEnabled() && CallNeedsHostHook((size_t)pCallback))
-        {
-            pInterceptStub = GenerateStubForHost(
-                pMD,
-                pStubMD,
-                pCallback,
-                pInterceptStub);
-        }
-#endif // FEATURE_INCLUDE_ALL_INTERFACES
 
     }
 
@@ -1630,13 +1587,11 @@ OBJECTREF COMDelegate::ConvertToDelegate(LPVOID pCallback, MethodTable* pMT)
     GCPROTECT_END();
 #endif // defined(_TARGET_X86_)
 
-#ifdef FEATURE_CORECLR
     // On the CoreCLR, we only allow marshaling out delegates that we can guarantee are full-trust delegates
     if (!IsFullTrustDelegate(delObj))
     {
         COMPlusThrow(kSecurityException, IDS_E_DELEGATE_FULLTRUST_ARPIC_2);
     }
-#endif        
 
     return delObj;
 }
@@ -2182,17 +2137,6 @@ void COMDelegate::DoUnmanagedCodeAccessCheck(MethodDesc* pMeth)
     {
         // Check whether this is actually a SuppressUnmanagedCodePermission attribute and
         // if so, don't do a demand
-#ifndef FEATURE_CORECLR
-        MethodTable* pMTMeth = pMeth->GetMethodTable();
-        if (pMTMeth->GetMDImport()->GetCustomAttributeByName(pMeth->GetMethodTable()->GetCl(),
-                                                             COR_SUPPRESS_UNMANAGED_CODE_CHECK_ATTRIBUTE_ANSI,
-                                                             NULL,
-                                                             NULL) == S_OK ||
-            pMTMeth->GetMDImport()->GetCustomAttributeByName(pMeth->GetMemberDef(),
-                                                             COR_SUPPRESS_UNMANAGED_CODE_CHECK_ATTRIBUTE_ANSI,
-                                                             NULL,
-                                                             NULL) == S_OK)
-#endif
         {
             return;
         }
@@ -2443,29 +2387,8 @@ PCODE COMDelegate::GetInvokeMethodStub(EEImplMethodDesc* pMD)
 
         ret = COMDelegate::TheDelegateInvokeStub();
     }
-#ifdef FEATURE_REMOTING
-    else if (pMD == pClass->m_pBeginInvokeMethod)
-    {
-        CRemotingServices::EnsureRemotingStarted();
-
-        if (!ValidateBeginInvoke(pClass))
-            COMPlusThrow(kInvalidProgramException);
-
-        ret = CTPMethodTable::GetDelegateStubEntryPoint();
-    }
-    else if (pMD == pClass->m_pEndInvokeMethod)
-    {
-        CRemotingServices::EnsureRemotingStarted();
-
-        if (!ValidateEndInvoke(pClass))
-            COMPlusThrow(kInvalidProgramException);
-
-        ret = CTPMethodTable::GetDelegateStubEntryPoint();
-    }
-#endif // FEATURE_REMOTING
     else
     {
-#ifndef FEATURE_REMOTING
 
         // Since we do not support asynchronous delegates in CoreCLR, we much ensure that it was indeed a async delegate call
         // and not an invalid-delegate-layout condition. 
@@ -2476,7 +2399,6 @@ PCODE COMDelegate::GetInvokeMethodStub(EEImplMethodDesc* pMD)
             COMPlusThrow(kPlatformNotSupportedException);
         }
 
-#endif //FEATURE_REMOTING
 
         _ASSERTE(!"Bad Delegate layout");
         COMPlusThrow(kInvalidProgramException);
@@ -2555,38 +2477,7 @@ BOOL COMDelegate::NeedsSecureDelegate(MethodDesc* pCreatorMethod, AppDomain *pCr
     }
     CONTRACTL_END;
 
-#ifndef FEATURE_CAS_POLICY
     return FALSE;
-#else
-    if (pCreatorMethod)
-    {
-        Assembly* pTargetAssembly = pTargetMD->GetAssembly();
-        Assembly* pCreatorAssembly = pCreatorMethod->GetAssembly();
-        if (pCreatorAssembly != pTargetAssembly)
-        {
-            // We don't need secure delegate is everything in the AppDomain is full trust.
-            if (!pCreatorDomain->GetSecurityDescriptor()->DomainMayContainPartialTrustCode())
-                return FALSE;
-
-            IAssemblySecurityDescriptor *pCreatorAsd = pCreatorAssembly->GetSecurityDescriptor(pCreatorDomain);
-
-            // We should also create secure delegates for anonymously hosted dynamic methods which
-            // are themselves full trust (although transparent) yet can be created from partial trust.
-            if (!pCreatorAsd->IsFullyTrusted() ||
-                pCreatorAssembly->GetDomainAssembly(pCreatorDomain) == pCreatorDomain->GetAnonymouslyHostedDynamicMethodsAssembly())
-            {
-                return TRUE;
-            }
-
-            // Note that if we begin to support using an NGEN image which is not fully trusted, we may need
-            // to force on secure delegates as the grant set of the image may not match between NGEN time
-            // and runtime.
-        }
-    }
-
-    return FALSE;
-
-#endif // FEATURE_CAS_POLICY
 }
 
 BOOL COMDelegate::NeedsWrapperDelegate(MethodDesc* pTargetMD)
@@ -2928,9 +2819,6 @@ PCODE COMDelegate::GetSecureInvoke(MethodDesc* pMD)
     }
     CONTRACTL_END;
 
-#ifdef FEATURE_CAS_POLICY
-#error GetSecureInvoke not implemented
-#else
     MethodTable *       pDelegateMT = pMD->GetMethodTable();
     DelegateEEClass*    delegateEEClass = (DelegateEEClass*) pDelegateMT->GetClass();
     Stub *pStub = delegateEEClass->m_pSecureDelegateInvokeStub;
@@ -2986,7 +2874,6 @@ PCODE COMDelegate::GetSecureInvoke(MethodDesc* pMD)
 
     }
     return pStub->GetEntryPoint();
-#endif
 }
 #else // FEATURE_STUBS_AS_IL
 PCODE COMDelegate::GetSecureInvoke(MethodDesc* pMD)
@@ -3800,7 +3687,6 @@ BOOL COMDelegate::ValidateSecurityTransparency(MethodDesc *pFtn, MethodTable *pd
 {
     WRAPPER_NO_CONTRACT;
 
-#ifdef FEATURE_CORECLR
     if (GetAppDomain()->GetSecurityDescriptor()->IsFullyTrusted())
         return TRUE;
 
@@ -3811,9 +3697,6 @@ BOOL COMDelegate::ValidateSecurityTransparency(MethodDesc *pFtn, MethodTable *pd
     //     1. the delegate is critical and the target method is critical, or
     //     2. the delegate is transparent/safecritical and the target method is transparent/safecritical
     return (fCriticalDelegate == fCriticalTarget);
-#else
-    return TRUE;
-#endif // !FEATURE_CORECLR
 }
 
 
@@ -4029,13 +3912,7 @@ static void InvokeUnhandledSwallowing(OBJECTREF *pDelegate,
 
     EX_TRY
     {
-        // We have used both the FEATURE_ defines here since without CSE feature,
-        // this aspect of notification feature is pointless. And skipping
-        // FEATURE_EXCEPTION_NOTIFICATIONS with only FEATURE_CORRUPTING_EXCEPTIONS
-        // specified would enable this change for builds that dont support
-        // FEATURE_EXCEPTION_NOTIFICATIONS, like CoreCLR. We dont want that to happen
-        // as well.
-#if defined(FEATURE_CORRUPTING_EXCEPTIONS) && defined(FEATURE_EXCEPTION_NOTIFICATIONS)
+#if defined(FEATURE_CORRUPTING_EXCEPTIONS)
         BOOL fCanMethodHandleException = g_pConfig->LegacyCorruptedStateExceptionsPolicy();
         if (!fCanMethodHandleException)
         {
@@ -4067,7 +3944,7 @@ static void InvokeUnhandledSwallowing(OBJECTREF *pDelegate,
         }
 
         if (fCanMethodHandleException)
-#endif // defined(FEATURE_CORRUPTING_EXCEPTIONS) && defined(FEATURE_EXCEPTION_NOTIFICATIONS)
+#endif // defined(FEATURE_CORRUPTING_EXCEPTIONS)
         {
             // We've already exercised the prestub on this delegate's COMDelegate::GetMethodDesc,
             // as part of wiring up a reliable event sink. Deliver the notification.

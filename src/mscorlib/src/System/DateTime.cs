@@ -13,7 +13,6 @@ namespace System {
     using System.Runtime.Serialization;
     using System.Runtime.Versioning;
     using System.Security;
-    using System.Security.Permissions;
     using System.Diagnostics.Contracts;
     using CultureInfo = System.Globalization.CultureInfo;
     using Calendar = System.Globalization.Calendar;
@@ -461,7 +460,12 @@ namespace System {
         // parts of the result are the same as those of this DateTime.
         //
         public DateTime AddYears(int value) {
-            if (value < -10000 || value > 10000) throw new ArgumentOutOfRangeException("years", Environment.GetResourceString("ArgumentOutOfRange_DateTimeBadYears"));
+            if (value < -10000 || value > 10000)
+            {
+                // DateTimeOffset.AddYears(int years) is implemented on top of DateTime.AddYears(int value). Use the more appropriate
+                // parameter name out of the two for the exception.
+                throw new ArgumentOutOfRangeException("years", Environment.GetResourceString("ArgumentOutOfRange_DateTimeBadYears"));
+            }
             Contract.EndContractBlock();
             return AddMonths(value * 12);
         }
@@ -658,7 +662,6 @@ namespace System {
             return new DateTime(DoubleDateToTicks(d), DateTimeKind.Unspecified);
         }        
 
-        [System.Security.SecurityCritical /*auto-generated_required*/]
         void ISerializable.GetObjectData(SerializationInfo info, StreamingContext context) {
             if (info==null) {
                 throw new ArgumentNullException(nameof(info));
@@ -704,12 +707,6 @@ namespace System {
             else {
                 return (Int64)dateData;
             }
-        }        
-
-        // Return the underlying data, without adjust local times to the right time zone. Needed if performance
-        // or compatibility are important.
-        internal Int64 ToBinaryRaw() {
-            return (Int64)dateData;
         }        
     
         // Returns the date part of this DateTime. The resulting value

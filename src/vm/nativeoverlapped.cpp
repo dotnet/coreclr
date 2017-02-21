@@ -61,13 +61,6 @@ FCIMPL3(void, CheckVMForIOPacket, LPOVERLAPPED* lpOverlapped, DWORD* errorCode, 
         // no user delegate to callback
         _ASSERTE((overlapped->m_iocbHelper == NULL) || !"This is benign, but should be optimized");
 
-#ifndef FEATURE_CORECLR
-        if (g_pAsyncFileStream_AsyncResultClass)
-        {
-            SetAsyncResultProperties(overlapped, *errorCode, *numBytes);
-        }
-        else
-#endif // !FEATURE_CORECLR
         {
             //We're not initialized yet, go back to the Vm, and process the packet there.
             ThreadpoolMgr::StoreOverlappedInfoInThread(pThread, *errorCode, *numBytes, key, *lpOverlapped);
@@ -163,21 +156,6 @@ FCIMPL1(void*, AllocateNativeOverlapped, OverlappedDataObject* overlappedUNSAFE)
 
     handle = GetAppDomain()->CreateTypedHandle(overlapped, HNDTYPE_ASYNCPINNED);
 
-#ifdef FEATURE_INCLUDE_ALL_INTERFACES
-    // CoreCLR does not have IO completion hosted
-    if (CLRIoCompletionHosted()) 
-    {
-        _ASSERTE(CorHost2::GetHostIoCompletionManager());
-        HRESULT hr;
-        BEGIN_SO_TOLERANT_CODE_CALLING_HOST(GetThread());
-        hr = CorHost2::GetHostIoCompletionManager()->InitializeHostOverlapped(&overlapped->Internal);
-        END_SO_TOLERANT_CODE_CALLING_HOST;
-        if (FAILED(hr)) 
-        {
-            COMPlusThrowHR(hr);
-        }
-    }
-#endif // FEATURE_INCLUDE_ALL_INTERFACES
 
     handle.SuppressRelease();
     overlapped->m_pinSelf = handle;

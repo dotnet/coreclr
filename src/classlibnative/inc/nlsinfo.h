@@ -68,9 +68,6 @@ class CultureDataBaseObject;
 class COMNlsInfo {
 
 public:
-#ifdef FEATURE_SYNTHETIC_CULTURES
-    static INT32  WstrToInteger4(__in_z LPCWSTR wstrLocale, __in int Radix);
-#endif // FEATURE_SYNTHETIC_CULTURES
 
     static INT32 GetCHTLanguage();
     static INT32 CallGetSystemDefaultUILanguage();
@@ -83,11 +80,6 @@ public:
     static BOOL QCALLTYPE InternalGetDefaultLocaleName(INT32 langType, QCall::StringHandleOnStack defaultLocaleName);
     static BOOL QCALLTYPE InternalGetUserDefaultUILanguage(QCall::StringHandleOnStack userDefaultUiLanguage);
     static BOOL QCALLTYPE InternalGetSystemDefaultUILanguage(QCall::StringHandleOnStack systemDefaultUiLanguage);
-
-// Added but disabled from desktop in .NET 4.0, stayed disabled in .NET 4.5
-#ifdef FEATURE_CORECLR
-    static FCDECL0(Object*, nativeGetResourceFallbackArray);
-#endif
 
     //
     // Native helper functions for methods in DateTimeFormatInfo
@@ -111,11 +103,6 @@ public:
     static INT_PTR QCALLTYPE InternalInitSortHandle(LPCWSTR localeName, INT_PTR* handleOrigin);
     static INT_PTR InitSortHandleHelper(LPCWSTR localeName, INT_PTR* handleOrigin);
     static INT_PTR InternalInitOsSortHandle(LPCWSTR localeName, INT_PTR* handleOrigin);
-#ifndef FEATURE_CORECLR
-    static INT_PTR InternalInitVersionedSortHandle(LPCWSTR localeName, INT_PTR* handleOrigin);
-    static INT_PTR InternalInitVersionedSortHandle(LPCWSTR localeName, INT_PTR* handleOrigin, DWORD sortVersion);
-    static DWORD QCALLTYPE InternalGetSortVersion();
-#endif
     static BOOL QCALLTYPE InternalGetNlsVersionEx(INT_PTR handle, INT_PTR handleOrigin, LPCWSTR lpLocaleName, NLSVERSIONINFOEX * lpVersionInformation);
 
     //
@@ -124,10 +111,6 @@ public:
     static FCDECL0(INT32, nativeGetNumEncodingItems);
     static FCDECL0(EncodingDataItem *, nativeGetEncodingTableDataPointer);
     static FCDECL0(CodePageDataItem *, nativeGetCodePageTableDataPointer);
-#if FEATURE_CODEPAGES_FILE
-    static FCDECL3(LPVOID, nativeCreateOpenFileMapping,
-                       StringObject* inSectionNameUNSAFE, int inBytesToAllocate, HANDLE *mappedFile);
-#endif // FEATURE_CODEPAGES_FILE
 
     //
     //  Native helper function for methods in CharacterInfo
@@ -179,7 +162,8 @@ public:
         __in                   int         cchSource,            // number of characters lpStringSource after sourceIndex
         __in                   int         sourceIndex,          // index from where the search will start in lpStringSource
         __in_ecount(cchValue)  LPCWSTR     lpStringValue,        // the string we search for
-        __in                   int         cchValue);            // length of the string we search for
+        __in                   int         cchValue,			 // length of the string we search for
+        __out_opt              LPINT       pcchFound);           // length of the string we found in source
 
     static int QCALLTYPE InternalGetSortKey(
         __in_opt               INT_PTR handle,        // PSORTHANDLE

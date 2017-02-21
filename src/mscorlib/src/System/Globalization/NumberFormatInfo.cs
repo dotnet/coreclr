@@ -3,7 +3,6 @@
 // See the LICENSE file in the project root for more information.
 
 namespace System.Globalization {
-    using System.Security.Permissions;
     using System.Runtime.Serialization;
     using System.Text;
     using System;
@@ -41,7 +40,6 @@ namespace System.Globalization {
     //
 
     [Serializable]
-[System.Runtime.InteropServices.ComVisible(true)]
     sealed public partial class NumberFormatInfo : ICloneable, IFormatProvider
     {
         // invariantInfo is constant irrespective of your current culture.
@@ -312,7 +310,7 @@ namespace System.Globalization {
             get { return currencyDecimalSeparator; }
             set {
                 VerifyWritable();
-                VerifyDecimalSeparator(value, "CurrencyDecimalSeparator");
+                VerifyDecimalSeparator(value, nameof(CurrencyDecimalSeparator));
                 currencyDecimalSeparator = value;
             }
         }
@@ -361,7 +359,7 @@ namespace System.Globalization {
                 VerifyWritable();                
                 
                 Int32[] inputSizes = (Int32[])value.Clone();
-                CheckGroupSize("CurrencyGroupSizes", inputSizes);
+                CheckGroupSize(nameof(CurrencyGroupSizes), inputSizes);
                 currencyGroupSizes = inputSizes;
             }
 
@@ -382,7 +380,7 @@ namespace System.Globalization {
                 VerifyWritable();
                 
                 Int32[] inputSizes = (Int32[])value.Clone();
-                CheckGroupSize("NumberGroupSizes", inputSizes);
+                CheckGroupSize(nameof(NumberGroupSizes), inputSizes);
                 numberGroupSizes = inputSizes;
             }
         }
@@ -400,7 +398,7 @@ namespace System.Globalization {
                 Contract.EndContractBlock();
                 VerifyWritable();
                 Int32[] inputSizes = (Int32[])value.Clone();
-                CheckGroupSize("PercentGroupSizes", inputSizes);
+                CheckGroupSize(nameof(PercentGroupSizes), inputSizes);
                 percentGroupSizes = inputSizes;
             }
 
@@ -411,7 +409,7 @@ namespace System.Globalization {
             get { return currencyGroupSeparator; }
             set {
                 VerifyWritable();
-                VerifyGroupSeparator(value, "CurrencyGroupSeparator");
+                VerifyGroupSeparator(value, nameof(CurrencyGroupSeparator));
                 currencyGroupSeparator = value;
             }
         }
@@ -602,7 +600,7 @@ namespace System.Globalization {
             get { return numberDecimalSeparator; }
             set {
                 VerifyWritable();
-                VerifyDecimalSeparator(value, "NumberDecimalSeparator");
+                VerifyDecimalSeparator(value, nameof(NumberDecimalSeparator));
                 numberDecimalSeparator = value;
             }
         }
@@ -612,7 +610,7 @@ namespace System.Globalization {
             get { return numberGroupSeparator; }
             set {
                 VerifyWritable();
-                VerifyGroupSeparator(value, "NumberGroupSeparator");
+                VerifyGroupSeparator(value, nameof(NumberGroupSeparator));
                 numberGroupSeparator = value;
             }
         }
@@ -690,7 +688,7 @@ namespace System.Globalization {
             get { return percentDecimalSeparator; }
             set {
                 VerifyWritable();
-                VerifyDecimalSeparator(value, "PercentDecimalSeparator");
+                VerifyDecimalSeparator(value, nameof(PercentDecimalSeparator));
                 percentDecimalSeparator = value;
             }
         }
@@ -700,7 +698,7 @@ namespace System.Globalization {
             get { return percentGroupSeparator; }
             set {
                 VerifyWritable();
-                VerifyGroupSeparator(value, "PercentGroupSeparator");
+                VerifyGroupSeparator(value, nameof(PercentGroupSeparator));
                 percentGroupSeparator = value;
             }
         }
@@ -736,26 +734,24 @@ namespace System.Globalization {
         }
 
 
-        [System.Runtime.InteropServices.ComVisible(false)]
         public String[] NativeDigits
         {
             get { return (String[])nativeDigits.Clone(); }
             set
             {
                 VerifyWritable();
-                VerifyNativeDigits(value, "NativeDigits");
+                VerifyNativeDigits(value, nameof(NativeDigits));
                 nativeDigits = value;
             }
         }
 
-        [System.Runtime.InteropServices.ComVisible(false)]
         public DigitShapes DigitSubstitution
         {
             get { return (DigitShapes)digitSubstitution; }
             set
             {
                 VerifyWritable();
-                VerifyDigitSubstitution(value, "DigitSubstitution");
+                VerifyDigitSubstitution(value, nameof(DigitSubstitution));
                 digitSubstitution = (int)value;
             }
         }

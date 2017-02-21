@@ -11,7 +11,6 @@ namespace System.Reflection.Emit
     using CultureInfo = System.Globalization.CultureInfo;
     using System.Reflection;
     using System.Security;
-    using System.Security.Permissions;
     using System.Threading;
     using System.Runtime.CompilerServices;
     using System.Runtime.Versioning;
@@ -19,7 +18,6 @@ namespace System.Reflection.Emit
     using System.Diagnostics.Contracts;
     using System.Runtime.InteropServices;
 
-    [System.Runtime.InteropServices.ComVisible(true)]
     public sealed class DynamicMethod : MethodInfo
     {
         private RuntimeType[] m_parameterTypes;
@@ -58,9 +56,6 @@ namespace System.Reflection.Emit
         // We capture the creation context so that we can do the checks against the same context,
         // irrespective of when the method gets compiled. Note that the DynamicMethod does not know when
         // it is ready for use since there is not API which indictates that IL generation has completed.
-#if FEATURE_COMPRESSEDSTACK
-        internal CompressedStack m_creationContext;
-#endif // FEATURE_COMPRESSEDSTACK
         private static volatile InternalModuleBuilder s_anonymouslyHostedDynamicMethodsModule;
         private static readonly object s_anonymouslyHostedDynamicMethodsModuleLock = new object();
         
@@ -70,7 +65,7 @@ namespace System.Reflection.Emit
 
         private DynamicMethod() { }
 
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [System.Security.DynamicSecurityMethod] // Methods containing StackCrawlMark local var has to be marked DynamicSecurityMethod
         public DynamicMethod(string name,
                              Type returnType,
                              Type[] parameterTypes)
@@ -89,7 +84,7 @@ namespace System.Reflection.Emit
                 ref stackMark);  // transparentMethod
         }
 
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [System.Security.DynamicSecurityMethod] // Methods containing StackCrawlMark local var has to be marked DynamicSecurityMethod
         public DynamicMethod(string name,
                              Type returnType,
                              Type[] parameterTypes,
@@ -109,7 +104,7 @@ namespace System.Reflection.Emit
                 ref stackMark);  // transparentMethod
         }
 
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [System.Security.DynamicSecurityMethod] // Methods containing StackCrawlMark local var has to be marked DynamicSecurityMethod
         public DynamicMethod(string name, 
                              Type returnType, 
                              Type[] parameterTypes, 
@@ -128,7 +123,7 @@ namespace System.Reflection.Emit
                 ref stackMark);  // transparentMethod
         }
 
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [System.Security.DynamicSecurityMethod] // Methods containing StackCrawlMark local var has to be marked DynamicSecurityMethod
         public DynamicMethod(string name, 
                              Type returnType, 
                              Type[] parameterTypes, 
@@ -148,7 +143,7 @@ namespace System.Reflection.Emit
                 ref stackMark); // transparentMethod
         }
 
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [System.Security.DynamicSecurityMethod] // Methods containing StackCrawlMark local var has to be marked DynamicSecurityMethod
         public DynamicMethod(string name, 
                              MethodAttributes attributes, 
                              CallingConventions callingConvention, 
@@ -170,7 +165,7 @@ namespace System.Reflection.Emit
                 ref stackMark); // transparentMethod
         }
 
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [System.Security.DynamicSecurityMethod] // Methods containing StackCrawlMark local var has to be marked DynamicSecurityMethod
         public DynamicMethod(string name, 
                              Type returnType, 
                              Type[] parameterTypes, 
@@ -189,7 +184,7 @@ namespace System.Reflection.Emit
                 ref stackMark); // transparentMethod
         }
         
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [System.Security.DynamicSecurityMethod] // Methods containing StackCrawlMark local var has to be marked DynamicSecurityMethod
         public DynamicMethod(string name, 
                              Type returnType, 
                              Type[] parameterTypes, 
@@ -209,7 +204,7 @@ namespace System.Reflection.Emit
                 ref stackMark); // transparentMethod
         }
         
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [System.Security.DynamicSecurityMethod] // Methods containing StackCrawlMark local var has to be marked DynamicSecurityMethod
         public DynamicMethod(string name, 
                              MethodAttributes attributes, 
                              CallingConventions callingConvention, 
@@ -252,7 +247,7 @@ namespace System.Reflection.Emit
 
         // We create a transparent assembly to host DynamicMethods. Since the assembly does not have any
         // non-public fields (or any fields at all), it is a safe anonymous assembly to host DynamicMethods
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [System.Security.DynamicSecurityMethod] // Methods containing StackCrawlMark local var has to be marked DynamicSecurityMethod
         private static RuntimeModule GetDynamicMethodsModule()
         {
             if (s_anonymouslyHostedDynamicMethodsModule != null)
@@ -274,7 +269,7 @@ namespace System.Reflection.Emit
                 AssemblyBuilder assembly = AssemblyBuilder.InternalDefineDynamicAssembly(
                     assemblyName,
                     AssemblyBuilderAccess.Run,
-                    null, null, null, null, null,
+                    null, null,
                     ref stackMark,
                     assemblyAttributes,
                     SecurityContextSource.CurrentAssembly);
@@ -330,9 +325,6 @@ namespace System.Reflection.Emit
                     m_restrictedSkipVisibility = true;
                 }
 
-#if FEATURE_COMPRESSEDSTACK
-                m_creationContext = CompressedStack.Capture();
-#endif // FEATURE_COMPRESSEDSTACK
             }
             else
             {
@@ -401,7 +393,6 @@ namespace System.Reflection.Emit
         // Delegate and method creation
         //
 
-        [System.Runtime.InteropServices.ComVisible(true)]
         public sealed override Delegate CreateDelegate(Type delegateType) {
             if (m_restrictedSkipVisibility)
             {
@@ -416,7 +407,6 @@ namespace System.Reflection.Emit
             return d;
         }
 
-        [System.Runtime.InteropServices.ComVisible(true)]
         public sealed override Delegate CreateDelegate(Type delegateType, Object target) {
             if (m_restrictedSkipVisibility)
             {
@@ -592,30 +582,6 @@ namespace System.Reflection.Emit
                 parameters[position].SetAttributes(attributes);
             }
             return null;
-        }
-
-        public DynamicILInfo GetDynamicILInfo()
-        {
-#pragma warning disable 618
-            new SecurityPermission(SecurityPermissionFlag.UnmanagedCode).Demand();
-#pragma warning restore 618
-
-            if (m_DynamicILInfo != null)
-                return m_DynamicILInfo;
-
-            return GetDynamicILInfo(new DynamicScope());
-        }
-
-        internal DynamicILInfo GetDynamicILInfo(DynamicScope scope)
-        {
-            if (m_DynamicILInfo == null)
-            {
-                byte[] methodSignature = SignatureHelper.GetMethodSigHelper(
-                        null, CallingConvention, ReturnType, null, null, m_parameterTypes, null, null).GetSignature(true);
-                m_DynamicILInfo = new DynamicILInfo(scope, this, methodSignature);
-            }
-
-            return m_DynamicILInfo;
         }
 
         public ILGenerator GetILGenerator() {

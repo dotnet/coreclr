@@ -27,7 +27,6 @@
 #else // CLR
 #define FEATURE_UNTRUSTED_CALLERS
 #define FEATURE_RELIABILITY_CONTRACTS
-#define FEATURE_SERIALIZATION
 #endif
 
 using System;
@@ -41,7 +40,6 @@ using System.Runtime.ConstrainedExecution;
 #endif
 #if FEATURE_UNTRUSTED_CALLERS
 using System.Security;
-using System.Security.Permissions;
 #endif
 
 namespace System.Diagnostics.Contracts {
@@ -294,7 +292,6 @@ namespace System.Diagnostics.Contracts {
         [Conditional("DEBUG")]
         [Conditional("CONTRACTS_FULL")]
 #if FEATURE_RELIABILITY_CONTRACTS
-        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]
 #endif
         public static void Assume(bool condition)
         {
@@ -315,7 +312,6 @@ namespace System.Diagnostics.Contracts {
         [Conditional("DEBUG")]
         [Conditional("CONTRACTS_FULL")]
 #if FEATURE_RELIABILITY_CONTRACTS
-        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]
 #endif
         public static void Assume(bool condition, String userMessage)
         {
@@ -336,7 +332,6 @@ namespace System.Diagnostics.Contracts {
         [Conditional("DEBUG")]
         [Conditional("CONTRACTS_FULL")]
 #if FEATURE_RELIABILITY_CONTRACTS
-        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]
 #endif
         public static void Assert(bool condition)
         {
@@ -353,7 +348,6 @@ namespace System.Diagnostics.Contracts {
         [Conditional("DEBUG")]
         [Conditional("CONTRACTS_FULL")]
 #if FEATURE_RELIABILITY_CONTRACTS
-        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]
 #endif
         public static void Assert(bool condition, String userMessage)
         {
@@ -377,7 +371,6 @@ namespace System.Diagnostics.Contracts {
         [Pure]
         [Conditional("CONTRACTS_FULL")]
 #if FEATURE_RELIABILITY_CONTRACTS
-        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]
 #endif
         public static void Requires(bool condition)
         {
@@ -397,7 +390,6 @@ namespace System.Diagnostics.Contracts {
         [Pure]
         [Conditional("CONTRACTS_FULL")]
 #if FEATURE_RELIABILITY_CONTRACTS
-        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]
 #endif
         public static void Requires(bool condition, String userMessage)
         {
@@ -417,7 +409,6 @@ namespace System.Diagnostics.Contracts {
         [SuppressMessage("Microsoft.Design", "CA1004:GenericMethodsShouldProvideTypeParameter")]
         [Pure]
 #if FEATURE_RELIABILITY_CONTRACTS
-        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]
 #endif
         public static void Requires<TException>(bool condition) where TException : Exception
         {
@@ -439,7 +430,6 @@ namespace System.Diagnostics.Contracts {
         [SuppressMessage("Microsoft.Design", "CA1004:GenericMethodsShouldProvideTypeParameter")]
         [Pure]
 #if FEATURE_RELIABILITY_CONTRACTS
-        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]
 #endif
         public static void Requires<TException>(bool condition, String userMessage) where TException : Exception
         {
@@ -462,7 +452,6 @@ namespace System.Diagnostics.Contracts {
         [Pure]
         [Conditional("CONTRACTS_FULL")]
 #if FEATURE_RELIABILITY_CONTRACTS
-        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]
 #endif
         public static void Ensures(bool condition)
         {
@@ -482,7 +471,6 @@ namespace System.Diagnostics.Contracts {
         [Pure]
         [Conditional("CONTRACTS_FULL")]
 #if FEATURE_RELIABILITY_CONTRACTS
-        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]
 #endif
         public static void Ensures(bool condition, String userMessage)
         {
@@ -503,7 +491,6 @@ namespace System.Diagnostics.Contracts {
         [Conditional("CONTRACTS_FULL")]
         [SuppressMessage("Microsoft.Design", "CA1004:GenericMethodsShouldProvideTypeParameter", Justification = "Exception type used in tools.")]
 #if FEATURE_RELIABILITY_CONTRACTS
-        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]
 #endif
         public static void EnsuresOnThrow<TException>(bool condition) where TException : Exception
         {
@@ -525,7 +512,6 @@ namespace System.Diagnostics.Contracts {
         [Conditional("CONTRACTS_FULL")]
         [SuppressMessage("Microsoft.Design", "CA1004:GenericMethodsShouldProvideTypeParameter", Justification = "Exception type used in tools.")]
 #if FEATURE_RELIABILITY_CONTRACTS
-        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]
 #endif
         public static void EnsuresOnThrow<TException>(bool condition, String userMessage) where TException : Exception
         {
@@ -545,7 +531,6 @@ namespace System.Diagnostics.Contracts {
         [SuppressMessage("Microsoft.Design", "CA1004:GenericMethodsShouldProvideTypeParameter", Justification = "Not intended to be called at runtime.")]
         [Pure]
 #if FEATURE_RELIABILITY_CONTRACTS
-        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
 #endif
         public static T Result<T>() { return default(T); }
 
@@ -561,7 +546,6 @@ namespace System.Diagnostics.Contracts {
         [SuppressMessage("Microsoft.Design", "CA1021:AvoidOutParameters", MessageId = "0#", Justification = "Not intended to be called at runtime.")]
         [Pure]
 #if FEATURE_RELIABILITY_CONTRACTS
-        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
 #endif
         public static T ValueAtReturn<T>(out T value) { value = default(T); return value; }
 
@@ -577,7 +561,6 @@ namespace System.Diagnostics.Contracts {
         [SuppressMessage("Microsoft.Usage", "CA1801:ReviewUnusedParameters", MessageId = "value")]
         [Pure]
 #if FEATURE_RELIABILITY_CONTRACTS
-        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
 #endif
         public static T OldValue<T>(T value) { return default(T); }
 
@@ -599,7 +582,6 @@ namespace System.Diagnostics.Contracts {
         [Pure]
         [Conditional("CONTRACTS_FULL")]
 #if FEATURE_RELIABILITY_CONTRACTS
-        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]
 #endif
         public static void Invariant(bool condition)
         {
@@ -619,7 +601,6 @@ namespace System.Diagnostics.Contracts {
         [Pure]
         [Conditional("CONTRACTS_FULL")]
 #if FEATURE_RELIABILITY_CONTRACTS
-        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]
 #endif
         public static void Invariant(bool condition, String userMessage)
         {
@@ -644,7 +625,6 @@ namespace System.Diagnostics.Contracts {
         /// <seealso cref="System.Collections.Generic.List&lt;T&gt;.TrueForAll"/>
         [Pure]
 #if FEATURE_RELIABILITY_CONTRACTS
-        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]  // Assumes predicate obeys CER rules.
 #endif
         public static bool ForAll(int fromInclusive, int toExclusive, Predicate<int> predicate)
         {
@@ -675,7 +655,6 @@ namespace System.Diagnostics.Contracts {
         /// <seealso cref="System.Collections.Generic.List&lt;T&gt;.TrueForAll"/>
         [Pure]
 #if FEATURE_RELIABILITY_CONTRACTS
-        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]  // Assumes predicate & collection enumerator obey CER rules.
 #endif
         public static bool ForAll<T>(IEnumerable<T> collection, Predicate<T> predicate)
         {
@@ -706,7 +685,6 @@ namespace System.Diagnostics.Contracts {
         /// <seealso cref="System.Collections.Generic.List&lt;T&gt;.Exists"/>
         [Pure]
 #if FEATURE_RELIABILITY_CONTRACTS
-        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]  // Assumes predicate obeys CER rules.
 #endif
         public static bool Exists(int fromInclusive, int toExclusive, Predicate<int> predicate)
         {
@@ -736,7 +714,6 @@ namespace System.Diagnostics.Contracts {
         /// <seealso cref="System.Collections.Generic.List&lt;T&gt;.Exists"/>
         [Pure]
 #if FEATURE_RELIABILITY_CONTRACTS
-        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]  // Assumes predicate & collection enumerator obey CER rules.
 #endif
         public static bool Exists<T>(IEnumerable<T> collection, Predicate<T> predicate)
         {
@@ -756,107 +733,6 @@ namespace System.Diagnostics.Contracts {
         #endregion Quantifiers
 
         #region Pointers
-#if FEATURE_UNSAFE_CONTRACTS    
-        /// <summary>
-        /// Runtime checking for pointer bounds is not currently feasible. Thus, at runtime, we just return
-        /// a very long extent for each pointer that is writable. As long as assertions are of the form
-        /// WritableBytes(ptr) >= ..., the runtime assertions will not fail.
-        /// The runtime value is 2^64 - 1 or 2^32 - 1.
-        /// </summary>
-        [SuppressMessage("Microsoft.Performance", "CA1802", Justification = "FxCop is confused")]
-        static readonly ulong MaxWritableExtent = (UIntPtr.Size == 4) ? UInt32.MaxValue : UInt64.MaxValue;
-
-        /// <summary>
-        /// Allows specifying a writable extent for a UIntPtr, similar to SAL's writable extent.
-        /// NOTE: this is for static checking only. No useful runtime code can be generated for this
-        /// at the moment.
-        /// </summary>
-        /// <param name="startAddress">Start of memory region</param>
-        /// <returns>The result is the number of bytes writable starting at <paramref name="startAddress"/></returns>
-        [CLSCompliant(false)]
-        [Pure]
-        [ContractRuntimeIgnored]
-#if FEATURE_RELIABILITY_CONTRACTS
-        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]
-#endif
-        public static ulong WritableBytes(UIntPtr startAddress) { return MaxWritableExtent - startAddress.ToUInt64(); }
-
-        /// <summary>
-        /// Allows specifying a writable extent for a UIntPtr, similar to SAL's writable extent.
-        /// NOTE: this is for static checking only. No useful runtime code can be generated for this
-        /// at the moment.
-        /// </summary>
-        /// <param name="startAddress">Start of memory region</param>
-        /// <returns>The result is the number of bytes writable starting at <paramref name="startAddress"/></returns>
-        [CLSCompliant(false)]
-        [Pure]
-        [ContractRuntimeIgnored]
-#if FEATURE_RELIABILITY_CONTRACTS
-        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]
-#endif
-        public static ulong WritableBytes(IntPtr startAddress) { return MaxWritableExtent - (ulong)startAddress; }
-        
-        /// <summary>
-        /// Allows specifying a writable extent for a UIntPtr, similar to SAL's writable extent.
-        /// NOTE: this is for static checking only. No useful runtime code can be generated for this
-        /// at the moment.
-        /// </summary>
-        /// <param name="startAddress">Start of memory region</param>
-        /// <returns>The result is the number of bytes writable starting at <paramref name="startAddress"/></returns>
-        [CLSCompliant(false)]
-        [Pure]
-        [ContractRuntimeIgnored]
-#if FEATURE_RELIABILITY_CONTRACTS
-        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]
-#endif
-
-        unsafe public static ulong WritableBytes(void* startAddress) { return MaxWritableExtent - (ulong)startAddress; }
-
-        /// <summary>
-        /// Allows specifying a readable extent for a UIntPtr, similar to SAL's readable extent.
-        /// NOTE: this is for static checking only. No useful runtime code can be generated for this
-        /// at the moment.
-        /// </summary>
-        /// <param name="startAddress">Start of memory region</param>
-        /// <returns>The result is the number of bytes readable starting at <paramref name="startAddress"/></returns>
-        [CLSCompliant(false)]
-        [Pure]
-        [ContractRuntimeIgnored]
-#if FEATURE_RELIABILITY_CONTRACTS
-        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]
-#endif
-        public static ulong ReadableBytes(UIntPtr startAddress) { return MaxWritableExtent - startAddress.ToUInt64(); }
-
-        /// <summary>
-        /// Allows specifying a readable extent for a UIntPtr, similar to SAL's readable extent.
-        /// NOTE: this is for static checking only. No useful runtime code can be generated for this
-        /// at the moment.
-        /// </summary>
-        /// <param name="startAddress">Start of memory region</param>
-        /// <returns>The result is the number of bytes readable starting at <paramref name="startAddress"/></returns>
-        [CLSCompliant(false)]
-        [Pure]
-        [ContractRuntimeIgnored]
-#if FEATURE_RELIABILITY_CONTRACTS
-        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]
-#endif
-        public static ulong ReadableBytes(IntPtr startAddress) { return MaxWritableExtent - (ulong)startAddress; }
-
-        /// <summary>
-        /// Allows specifying a readable extent for a UIntPtr, similar to SAL's readable extent.
-        /// NOTE: this is for static checking only. No useful runtime code can be generated for this
-        /// at the moment.
-        /// </summary>
-        /// <param name="startAddress">Start of memory region</param>
-        /// <returns>The result is the number of bytes readable starting at <paramref name="startAddress"/></returns>
-        [CLSCompliant(false)]
-        [Pure]
-        [ContractRuntimeIgnored]
-#if FEATURE_RELIABILITY_CONTRACTS
-        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]
-#endif
-        unsafe public static ulong ReadableBytes(void* startAddress) { return MaxWritableExtent - (ulong)startAddress; }
-#endif // FEATURE_UNSAFE_CONTRACTS
         #endregion
 
         #region Misc.
@@ -866,7 +742,6 @@ namespace System.Diagnostics.Contracts {
         /// </summary>
         [Conditional("CONTRACTS_FULL")]
 #if FEATURE_RELIABILITY_CONTRACTS
-        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
 #endif
         public static void EndContractBlock() { }
 
@@ -927,7 +802,6 @@ namespace System.Diagnostics.Contracts.Internal
         [SuppressMessage("Microsoft.Design", "CA1030:UseEventsWhereAppropriate")]
         [System.Diagnostics.DebuggerNonUserCode]
 #if FEATURE_RELIABILITY_CONTRACTS
-        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]
 #endif
         public static string RaiseContractFailedEvent(ContractFailureKind failureKind, String userMessage, String conditionText, Exception innerException)
         {
@@ -939,7 +813,6 @@ namespace System.Diagnostics.Contracts.Internal
         /// </summary>
         [System.Diagnostics.DebuggerNonUserCode]
 #if FEATURE_RELIABILITY_CONTRACTS
-        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
 #endif
         public static void TriggerFailure(ContractFailureKind kind, String displayMessage, String userMessage, String conditionText, Exception innerException)
         {
@@ -966,7 +839,6 @@ namespace System.Runtime.CompilerServices
         [SuppressMessage("Microsoft.Design", "CA1030:UseEventsWhereAppropriate")]
         [System.Diagnostics.DebuggerNonUserCode]
 #if FEATURE_RELIABILITY_CONTRACTS
-        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]
 #endif
         public static string RaiseContractFailedEvent(ContractFailureKind failureKind, String userMessage, String conditionText, Exception innerException)
         {
@@ -981,7 +853,6 @@ namespace System.Runtime.CompilerServices
         /// </summary>
         [System.Diagnostics.DebuggerNonUserCode]
 #if FEATURE_RELIABILITY_CONTRACTS
-        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
 #endif
         public static void TriggerFailure(ContractFailureKind kind, String displayMessage, String userMessage, String conditionText, Exception innerException)
         {

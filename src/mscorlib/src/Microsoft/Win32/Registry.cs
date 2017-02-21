@@ -15,11 +15,7 @@ namespace Microsoft.Win32 {
      * @security(checkClassLinking=on)
      */
     //This class contains only static members and does not need to be serializable.
-    [ComVisible(true)]
-    public static class Registry {
-        static Registry()
-        { 
-        }
+    internal static class Registry {
 
         /**
          * Current User Key.
@@ -130,24 +126,6 @@ namespace Microsoft.Win32 {
                 key.Close();
             }            
         }
-        
-        public static void SetValue(string keyName, string valueName, object value ) {
-            SetValue(keyName, valueName, value, RegistryValueKind.Unknown);            
-        }
-        
-        public static void SetValue(string keyName, string valueName, object value, RegistryValueKind valueKind ) {
-            string subKeyName; 
-            RegistryKey basekey = GetBaseKeyFromKeyName(keyName, out subKeyName);
-            BCLDebug.Assert(basekey != null, "basekey can't be null!");                
-            RegistryKey key = basekey.CreateSubKey(subKeyName);
-            BCLDebug.Assert(key != null, "An exception should be thrown if failed!");
-            try {
-                key.SetValue(valueName, value, valueKind);            
-            }
-            finally {
-                key.Close();
-            }
-        }                
     }
 }
 

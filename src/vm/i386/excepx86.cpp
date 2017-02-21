@@ -27,17 +27,14 @@
 #include "eedbginterfaceimpl.inl"
 #include "dllimportcallback.h"
 #include "threads.h"
-#ifdef FEATURE_REMOTING
-#include "appdomainhelper.h"
-#endif
 #include "eeconfig.h"
 #include "vars.hpp"
 #include "generics.h"
-#include "securityprincipal.h"
 
 #include "asmconstants.h"
 #include "virtualcallstub.h"
 
+#ifndef WIN64EXCEPTIONS
 MethodDesc * GetUserMethodForILStub(Thread * pThread, UINT_PTR uStubSP, MethodDesc * pILStubMD, Frame ** ppFrameOut);
 
 #if !defined(DACCESS_COMPILE)
@@ -1095,7 +1092,6 @@ CPFH_RealFirstPassHandler(                  // ExceptionContinueSearch, etc.
         }
 #endif // FEATURE_CORRUPTING_EXCEPTIONS
 
-#ifdef FEATURE_CORECLR
         // Check if we are dealing with AV or not and if we are,
         // ensure that this is a real AV and not managed AV exception
         BOOL fIsThrownExceptionAV = FALSE;
@@ -1124,7 +1120,6 @@ CPFH_RealFirstPassHandler(                  // ExceptionContinueSearch, etc.
                 EEPOLICY_HANDLE_FATAL_ERROR(COR_E_SECURITY);
             }
         }
-#endif // FEATURE_CORECLR
 
         // If we're out of memory, then we figure there's probably not memory to maintain a stack trace, so we skip it.
         // If we've got a stack overflow, then we figure the stack will be so huge as to make tracking the stack trace
@@ -2018,20 +2013,6 @@ PEXCEPTION_REGISTRATION_RECORD GetCurrentSEHRecord()
     return (EXCEPTION_REGISTRATION_RECORD*) fs0;
 }
 
-#ifdef FEATURE_PAL
-VOID SetSEHRecord(PEXCEPTION_REGISTRATION_RECORD record)
-{
-    WRAPPER_NO_CONTRACT;
-    record->Next = CurrentSEHRecord;
-    CurrentSEHRecord = record;
-}
-
-VOID ResetSEHRecord(PEXCEPTION_REGISTRATION_RECORD record)
-{
-    CurrentSEHRecord = record->Next;
-}
-#endif // FEATURE_PAL
-
 PEXCEPTION_REGISTRATION_RECORD GetFirstCOMPlusSEHRecord(Thread *pThread) {
     WRAPPER_NO_CONTRACT;
 #ifndef FEATURE_PAL
@@ -2447,13 +2428,11 @@ StackWalkAction COMPlusThrowCallback(       // SWA value
                     currentSP = (SIZE_T) ((void*) pFrameStub);
                     currentIP = 0; // no IP.
                     EEToDebuggerExceptionInterfaceWrapper::FirstChanceManagedException(pThread, (SIZE_T)currentIP, (SIZE_T)currentSP);
-#ifdef FEATURE_EXCEPTION_NOTIFICATIONS
                     // Deliver the FirstChanceNotification after the debugger, if not already delivered.
                     if (!pExInfo->DeliveredFirstChanceNotification())
                     {
                         ExceptionNotifications::DeliverFirstChanceNotification();
                     }
-#endif // FEATURE_EXCEPTION_NOTIFICATIONS
                 }
             }
         }
@@ -2502,14 +2481,12 @@ StackWalkAction COMPlusThrowCallback(       // SWA value
         }
 #endif // DEBUGGING_SUPPORTED
 
-#ifdef FEATURE_EXCEPTION_NOTIFICATIONS
         // Attempt to deliver the first chance notification to the AD only *AFTER* the debugger
         // has done that, provided we have not already done that.
         if (!pExInfo->DeliveredFirstChanceNotification())
         {
             ExceptionNotifications::DeliverFirstChanceNotification();
         }
-#endif // FEATURE_EXCEPTION_NOTIFICATIONS
     }
     IJitManager* pJitManager = pCf->GetJitManager();
     _ASSERTE(pJitManager);
@@ -3622,33 +3599,11 @@ EXCEPTION_HANDLER_IMPL(UMThunkPrestubHandler)
     return retval;
 }
 
-LONG CLRNoCatchHandler(EXCEPTION_POINTERS* pExceptionInfo, PVOID pv)
-{
-    WRAPPER_NO_CONTRACT;
-    STATIC_CONTRACT_ENTRY_POINT;
-
-    LONG result = EXCEPTION_CONTINUE_SEARCH;
-
-    // This function can be called during the handling of a SO
-    //BEGIN_ENTRYPOINT_VOIDRET;
-
-    result = CLRVectoredExceptionHandler(pExceptionInfo);
-
-    if (EXCEPTION_EXECUTE_HANDLER == result)
-    {
-        result = EXCEPTION_CONTINUE_SEARCH;
-    }
-
-    //END_ENTRYPOINT_VOIDRET;
-
-    return result;
-}
-
 #ifdef FEATURE_COMINTEROP
 // The reverse COM interop path needs to be sure to pop the ComMethodFrame that is pushed, but we do not want
-// to have an additional FS:0 handler between the COM callsite and the call into managed.  So we push this 
-// FS:0 handler, which will defer to the usual COMPlusFrameHandler and then perform the cleanup of the 
-// ComMethodFrame, if needed. 
+// to have an additional FS:0 handler between the COM callsite and the call into managed.  So we push this
+// FS:0 handler, which will defer to the usual COMPlusFrameHandler and then perform the cleanup of the
+// ComMethodFrame, if needed.
 EXCEPTION_HANDLER_IMPL(COMPlusFrameHandlerRevCom)
 {
     STATIC_CONTRACT_THROWS;
@@ -3667,7 +3622,36 @@ EXCEPTION_HANDLER_IMPL(COMPlusFrameHandlerRevCom)
     return result;
 }
 #endif // FEATURE_COMINTEROP
+#endif // !DACCESS_COMPILE
+#endif // !WIN64EXCEPTIONS
 
+#ifndef DACCESS_COMPILE
+LONG CLRNoCatchHandler(EXCEPTION_POINTERS* pExceptionInfo, PVOID pv)
+{
+#ifndef WIN64EXCEPTIONS
+    WRAPPER_NO_CONTRACT;
+    STATIC_CONTRACT_ENTRY_POINT;
+
+    LONG result = EXCEPTION_CONTINUE_SEARCH;
+
+    // This function can be called during the handling of a SO
+    //BEGIN_ENTRYPOINT_VOIDRET;
+
+    result = CLRVectoredExceptionHandler(pExceptionInfo);
+
+    if (EXCEPTION_EXECUTE_HANDLER == result)
+    {
+        result = EXCEPTION_CONTINUE_SEARCH;
+    }
+
+    //END_ENTRYPOINT_VOIDRET;
+
+    return result;
+#else  // !WIN64EXCEPTIONS
+    return EXCEPTION_CONTINUE_SEARCH;
+#endif // !WIN64EXCEPTIONS
+}
+#endif // !DACCESS_COMPILE
 
 // Returns TRUE if caller should resume execution.
 BOOL
@@ -3724,11 +3708,3 @@ AdjustContextForVirtualStub(
 
     return TRUE;
 }
-
-#ifdef FEATURE_PAL
-VOID DECLSPEC_NORETURN DispatchManagedException(PAL_SEHException& ex, bool isHardwareException)
-{
-    UNREACHABLE();
-}
-#endif
-#endif // !DACCESS_COMPILE

@@ -16,10 +16,6 @@
 #ifdef FEATURE_PREJIT
 #include "compile.h"
 #endif // FEATURE_PREJIT
-#ifdef FEATURE_REMOTING
-#include <remoting.h>
-#include "objectclone.h"
-#endif
 #include <virtualcallstub.h>
 #include "peimagelayout.inl"
 
@@ -219,7 +215,7 @@ DacWriteAll(TADDR addr, PVOID buffer, ULONG32 size, bool throwEx)
 
 #ifdef FEATURE_PAL
 HRESULT 
-DacVirtualUnwind(DWORD threadId, PCONTEXT context, PT_KNONVOLATILE_CONTEXT_POINTERS contextPointers)
+DacVirtualUnwind(DWORD threadId, PT_CONTEXT context, PT_KNONVOLATILE_CONTEXT_POINTERS contextPointers)
 {
     if (!g_dacImpl)
     {

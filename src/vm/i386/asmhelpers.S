@@ -127,110 +127,6 @@ LEAF_ENTRY RestoreFPUContext, _TEXT
     ret     4
 LEAF_END RestoreFPUContext, _TEXT
 
-LEAF_ENTRY ResumeAtJitEHHelper, _TEXT
-    mov     edx, [esp + 4]     // edx = pContext (EHContext*)
-
-    mov     ebx, [edx + EHContext_Ebx]
-    mov     esi, [edx + EHContext_Esi]
-    mov     edi, [edx + EHContext_Edi]
-    mov     ebp, [edx + EHContext_Ebp]
-    mov     ecx, [edx + EHContext_Esp]
-    mov     eax, [edx + EHContext_Eip]
-    mov     [ecx - 4], eax
-    mov     eax, [edx + EHContext_Eax]
-    mov     [ecx - 8], eax
-    mov     eax, [edx + EHContext_Ecx]
-    mov     [ecx - 0Ch], eax
-    mov     eax, [edx + EHContext_Edx]
-    mov     [ecx - 10h], eax
-    lea     esp, [ecx - 10h]
-    pop     edx
-    pop     ecx
-    pop     eax
-    ret
-LEAF_END ResumeAtJitEHHelper, _TEXT
-
-// int __stdcall CallJitEHFilterHelper(size_t *pShadowSP, EHContext *pContext);
-//   on entry, only the pContext->Esp, Ebx, Esi, Edi, Ebp, and Eip are initialized
-NESTED_ENTRY CallJitEHFilterHelper, _TEXT, NoHandler
-    push    ebp
-    mov     ebp, esp
-    push    ebx
-    push    esi
-    push    edi
-
-    // Write esp-4 to the shadowSP slot
-    mov     eax, [ebp + 8] // pShadowSP = [ebp+8]
-    test    eax, eax
-    jz      LOCAL_LABEL(DONE_SHADOWSP_FILTER)
-    mov     ebx, esp
-    sub     ebx, 4
-    or      ebx, SHADOW_SP_IN_FILTER_ASM
-    mov     [eax], ebx
-
-LOCAL_LABEL(DONE_SHADOWSP_FILTER):
-    mov     edx, [ebp + 12]       // pContext = [ebp+12]
-    mov     eax, [edx + EHContext_Eax]
-    mov     ebx, [edx + EHContext_Ebx]
-    mov     esi, [edx + EHContext_Esi]
-    mov     edi, [edx + EHContext_Edi]
-    mov     ebp, [edx + EHContext_Ebp]
-
-    call    DWORD PTR [edx + EHContext_Eip]
-#ifdef _DEBUG
-    nop  // Indicate that it is OK to call managed code directly from here
-#endif // _DEBUG
-
-    pop     edi
-    pop     esi
-    pop     ebx
-    pop     ebp // don't use 'leave' here, as ebp as been trashed
-    ret     8
-NESTED_END CallJitEHFilterHelper, _TEXT
-
-// void __stdcall CallJITEHFinallyHelper(size_t *pShadowSP, EHContext *pContext);
-//   on entry, only the pContext->Esp, Ebx, Esi, Edi, Ebp, and Eip are initialized
-NESTED_ENTRY CallJitEHFinallyHelper, _TEXT, NoHandler
-    push    ebp
-    mov     ebp, esp
-    push    ebx
-    push    esi
-    push    edi
-
-    // Write esp-4 to the shadowSP slot
-    mov     eax, [ebp + 8]  // pShadowSP = [ebp+8]
-    test    eax, eax
-    jz      LOCAL_LABEL(DONE_SHADOWSP_FINALLY)
-    mov     ebx, esp
-    sub     ebx, 4
-    mov     [eax], ebx
-
-LOCAL_LABEL(DONE_SHADOWSP_FINALLY):
-    mov     edx, [ebp + 12] // pContext = [ebp+12]
-    mov     eax, [edx + EHContext_Eax]
-    mov     ebx, [edx + EHContext_Ebx]
-    mov     esi, [edx + EHContext_Esi]
-    mov     edi, [edx + EHContext_Edi]
-    mov     ebp, [edx + EHContext_Ebp]
-    call    DWORD PTR [edx + EHContext_Eip]
-#ifdef _DEBUG
-    nop  // Indicate that it is OK to call managed code directly from here
-#endif // _DEBUG
-
-    // Reflect the changes to the context and only update non-volatile registers.
-    // This will be used later to update REGDISPLAY
-    mov     edx, [esp + 12 + 12]
-    mov     [edx + EHContext_Ebx], ebx
-    mov     [edx + EHContext_Esi], esi
-    mov     [edx + EHContext_Edi], edi
-    mov     [edx + EHContext_Ebp], ebp
-
-    pop     edi
-    pop     esi
-    pop     ebx
-    pop     ebp // don't use 'leave' here, as ebp as been trashed
-    ret     8
-NESTED_END CallJitEHFinallyHelper, _TEXT
 
 LEAF_ENTRY GetSpecificCpuTypeAsm, _TEXT
     push    ebx         // ebx is trashed by the cpuid calls
@@ -1138,3 +1034,112 @@ NESTED_ENTRY ResolveWorkerAsmStub, _TEXT, NoHandler
     // Now jump to the target
     jmp     eax             // continue on into the method
 NESTED_END ResolveWorkerAsmStub, _TEXT
+
+#ifdef FEATURE_STUBS_AS_IL
+// ==========================================================================
+// void SinglecastDelegateInvokeStub();
+//
+LEAF_ENTRY SinglecastDelegateInvokeStub, _TEXT
+
+    test        ecx, ecx
+    jz          LOCAL_LABEL(NullObject)
+
+    mov         eax, [ecx + DelegateObject___methodPtr]
+    mov         ecx, [ecx + DelegateObject___target]    // replace "this" pointer
+    jmp         eax
+
+LOCAL_LABEL(NullObject):
+
+    mov         ecx, CORINFO_NullReferenceException_ASM
+    jmp         C_FUNC(JIT_InternalThrow)
+
+LEAF_END SinglecastDelegateInvokeStub, _TEXT
+#endif // FEATURE_STUBS_AS_IL
+
+#ifndef CROSSGEN_COMPILE
+// =======================================================================================
+// void ResolveWorkerChainLookupAsmStub();
+//
+//  This will perform a chained lookup of the entry if the initial cache lookup fails
+//
+//  Entry stack:
+//           dispatch token
+//           siteAddrForRegisterIndirect (used only if this is a RegisterIndirect dispatch call)
+//           return address of caller to stub
+//  Also, EAX contains the pointer to the first ResolveCacheElem pointer for the calculated
+//  bucket in the cache table.
+//
+NESTED_ENTRY ResolveWorkerChainLookupAsmStub, _TEXT, NoHandler
+
+#define CALL_STUB_CACHE_INITIAL_SUCCESS_COUNT   0x100
+
+// this is the part of the stack that is present as we enter this function:
+#define ChainLookup__token                  0x00
+#define ChainLookup__indirect_addr          0x04
+#define ChainLookup__caller_ret_addr        0x08
+#define ChainLookup__ret_esp                0x0c
+
+#define ChainLookup_spilled_reg_size        8
+
+    // spill regs
+    push    edx
+    push    ecx
+
+    // move the token into edx
+    mov     edx, [esp + ChainLookup_spilled_reg_size + ChainLookup__token]
+
+    // move the MT into ecx
+    mov     ecx, [ecx]
+
+LOCAL_LABEL(main_loop):
+
+    // get the next entry in the chain (don't bother checking the first entry again)
+    mov     eax, [eax + ResolveCacheElem__pNext]
+
+    // test if we hit a terminating NULL
+    test    eax, eax
+    jz      LOCAL_LABEL(fail)
+
+    // compare the MT of the ResolveCacheElem
+    cmp     ecx, [eax + ResolveCacheElem__pMT]
+    jne     LOCAL_LABEL(main_loop)
+
+    // compare the token of the ResolveCacheElem
+    cmp     edx, [eax + ResolveCacheElem__token]
+    jne     LOCAL_LABEL(main_loop)
+
+    // success
+    // decrement success counter and move entry to start if necessary
+    PREPARE_EXTERNAL_VAR g_dispatch_cache_chain_success_counter, edx
+    mov     ecx, dword ptr [edx]
+    sub     ecx, 1
+    mov     dword ptr [edx], ecx
+
+    //@TODO: Perhaps this should be a jl for better branch prediction?
+    jge     LOCAL_LABEL(nopromote)
+
+    // be quick to reset the counter so we don't get a bunch of contending threads
+    mov     dword ptr [edx], CALL_STUB_CACHE_INITIAL_SUCCESS_COUNT
+
+    // promote the entry to the beginning of the chain
+    mov     ecx, eax
+    // call C_FUNC(VirtualCallStubManager::PromoteChainEntry)
+    call    C_FUNC(_ZN22VirtualCallStubManager17PromoteChainEntryEP16ResolveCacheElem)
+
+LOCAL_LABEL(nopromote):
+
+    pop     ecx
+    pop     edx
+    add     esp, (ChainLookup__caller_ret_addr - ChainLookup__token)
+    mov     eax, [eax + ResolveCacheElem__target]
+    jmp     eax
+
+LOCAL_LABEL(fail):
+
+    // restore registers
+    pop     ecx
+    pop     edx
+    jmp     ResolveWorkerAsmStub
+
+NESTED_END ResolveWorkerChainLookupAsmStub, _TEXT
+#endif // CROSSGEN_COMPILE

@@ -2199,9 +2199,7 @@ public:
     // ICorDebug
     //-----------------------------------------------------------
 
-#ifdef FEATURE_CORECLR
     HRESULT SetTargetCLR(HMODULE hmodTargetCLR);
-#endif // FEATURE_CORECLR
 
     COM_METHOD Initialize();
     COM_METHOD Terminate();
@@ -6929,11 +6927,11 @@ public:
     // new-style constructor
     CordbMiscFrame(DebuggerIPCE_JITFuncData * pJITFuncData);
 
-#if defined(DBG_TARGET_WIN64) || defined(DBG_TARGET_ARM)
+#ifdef WIN64EXCEPTIONS
     SIZE_T             parentIP;
     FramePointer       fpParentOrSelf;
     bool               fIsFilterFunclet;
-#endif // DBG_TARGET_WIN64 || DBG_TARGET_ARM
+#endif // WIN64EXCEPTIONS
 };
 
 

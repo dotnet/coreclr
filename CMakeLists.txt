@@ -544,9 +544,9 @@ include(pgosupport.cmake)
 #     - project which require platform header not clr's
 #     - do not depend on clr's compile definitions
 #-----------------------------------------
-if(CLR_CMAKE_PLATFORM_UNIX)
+if(CLR_CMAKE_PLATFORM_UNIX AND NOT DEFINED CLR_CROSS_COMPONENTS_BUILD)
   add_subdirectory(src/corefx)
-endif(CLR_CMAKE_PLATFORM_UNIX)
+endif()
 
 if(CLR_CMAKE_PLATFORM_UNIX)
     add_subdirectory(src/ToolBox/SOS/lldbplugin)
@@ -578,6 +578,14 @@ endif(WIN32)
 # Include the basic prebuilt headers - required for getting fileversion resource details.
 include_directories("src/pal/prebuilt/inc")
 include_directories("bin/obj")
+
+if(FEATURE_STANDALONE_GC)
+  add_definitions(-DFEATURE_STANDALONE_GC)
+
+  if(CLR_CMAKE_PLATFORM_UNIX)
+    add_subdirectory(src/gc/unix)
+  endif(CLR_CMAKE_PLATFORM_UNIX)
+endif(FEATURE_STANDALONE_GC)
 
 if (CLR_CMAKE_PLATFORM_UNIX)
   include_directories("src/pal/inc")

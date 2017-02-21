@@ -10,16 +10,10 @@ using System;
 namespace System.Reflection.Emit 
 {
     [Serializable]
-    [System.Runtime.InteropServices.ComVisible(true)]
     [Flags]
     public enum AssemblyBuilderAccess
     {
         Run = 1,
-#if FEATURE_REFLECTION_ONLY_LOAD
-        ReflectionOnly = 6, // 4 | Save,
-#endif // FEATURE_REFLECTION_ONLY_LOAD
-#if FEATURE_COLLECTIBLE_TYPES
         RunAndCollect = 8 | Run
-#endif
     }
 }

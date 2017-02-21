@@ -35,14 +35,7 @@
 #include "runtimecallablewrapper.h"
 #endif // FEATURE_COMINTEROP
 
-#ifdef FEATURE_REMOTING
-#include "remoting.h"
-#endif 
 
-#ifdef FEATURE_UEF_CHAINMANAGER
-// This is required to register our UEF callback with the UEF chain manager
-#include <mscoruefwrapper.h>
-#endif // FEATURE_UEF_CHAINMANAGER
 
 #define GCMemoryStatus MEMORYSTATUSEX
 
@@ -50,8 +43,6 @@
 
 #include "gcenv.interlocked.h"
 #include "gcenv.interlocked.inl"
-
-#include "../gc/softwarewritewatch.h"
 
 namespace ETW
 {

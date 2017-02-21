@@ -16,22 +16,15 @@ namespace System.Reflection.Emit {
     
     using System;
     using System.Reflection;
-    using System.Security.Permissions;
 
     // The ParameterToken class is an opaque representation of the Token returned
     // by the Metadata to represent the parameter. 
     [Serializable]
-    [System.Runtime.InteropServices.ComVisible(true)]
     public struct ParameterToken {
     
         public static readonly ParameterToken Empty = new ParameterToken();
         internal int m_tkParameter;
     
-#if false
-        public ParameterToken() {
-            m_tkParameter=0;
-        }
-#endif
         
         internal ParameterToken(int tkParam) {
             m_tkParameter = tkParam;

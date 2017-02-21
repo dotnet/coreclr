@@ -1837,6 +1837,15 @@ void CodeGen::genRangeCheck(GenTreePtr oper)
     GenTreePtr arrRef    = NULL;
     int        lenOffset = 0;
 
+    /* Is the array index a constant value? */
+    GenTreePtr index = bndsChk->gtIndex;
+    if (!index->IsCnsIntOrI())
+    {
+        // No, it's not a constant.
+        genCodeForTree(index, RBM_ALLINT);
+        regSet.rsMarkRegUsed(index);
+    }
+
     // If "arrLen" is a ARR_LENGTH operation, get the array whose length that takes in a register.
     // Otherwise, if the length is not a constant, get it (the length, not the arr reference) in
     // a register.
@@ -1884,14 +1893,8 @@ void CodeGen::genRangeCheck(GenTreePtr oper)
         }
     }
 
-    /* Is the array index a constant value? */
-    GenTreePtr index = bndsChk->gtIndex;
     if (!index->IsCnsIntOrI())
     {
-        // No, it's not a constant.
-        genCodeForTree(index, RBM_ALLINT);
-        regSet.rsMarkRegUsed(index);
-
         // If we need "arrRef" or "arrLen", and evaluating "index" displaced whichever of them we're using
         // from its register, get it back in a register.
         if (arrRef != NULL)
@@ -1983,6 +1986,11 @@ void CodeGen::genRangeCheck(GenTreePtr oper)
     }
 
     // Free the registers that were used.
+    if (!index->IsCnsIntOrI())
+    {
+        regSet.rsMarkRegFree(index->gtRegNum, index);
+    }
+
     if (arrRef != NULL)
     {
         regSet.rsMarkRegFree(arrRef->gtRegNum, arrRef);
@@ -1990,11 +1998,6 @@ void CodeGen::genRangeCheck(GenTreePtr oper)
     else if (!arrLen->IsCnsIntOrI())
     {
         regSet.rsMarkRegFree(arrLen->gtRegNum, arrLen);
-    }
-
-    if (!index->IsCnsIntOrI())
-    {
-        regSet.rsMarkRegFree(index->gtRegNum, index);
     }
 }
 
@@ -2590,7 +2593,7 @@ regMaskTP CodeGen::genRestoreAddrMode(GenTreePtr addr, GenTreePtr tree, bool loc
 
             if (tree->gtOp.gtOp1)
                 regMask |= genRestoreAddrMode(addr, tree->gtOp.gtOp1, lockPhase);
-            if (tree->gtGetOp2())
+            if (tree->gtGetOp2IfPresent())
                 regMask |= genRestoreAddrMode(addr, tree->gtOp.gtOp2, lockPhase);
         }
         else if (tree->gtOper == GT_ARR_ELEM)
@@ -3039,7 +3042,7 @@ AGAIN:
 
     noway_assert(kind & GTK_SMPOP);
 
-    if (tree->gtGetOp2())
+    if (tree->gtGetOp2IfPresent())
     {
         genEvalSideEffects(tree->gtOp.gtOp1);
 
@@ -9689,7 +9692,7 @@ void CodeGen::genCodeForTreeSmpOp(GenTreePtr tree, regMaskTP destReg, regMaskTP 
     const genTreeOps oper     = tree->OperGet();
     const var_types  treeType = tree->TypeGet();
     GenTreePtr       op1      = tree->gtOp.gtOp1;
-    GenTreePtr       op2      = tree->gtGetOp2();
+    GenTreePtr       op2      = tree->gtGetOp2IfPresent();
     regNumber        reg      = DUMMY_INIT(REG_CORRUPT);
     regMaskTP        regs     = regSet.rsMaskUsed;
     regMaskTP        needReg  = destReg;
@@ -12677,30 +12680,7 @@ void CodeGen::genCodeForBBlist()
 
 #if FEATURE_EH_FUNCLETS
 #if defined(_TARGET_ARM_)
-        // If this block is the target of a finally return, we need to add a preceding NOP, in the same EH region,
-        // so the unwinder doesn't get confused by our "movw lr, xxx; movt lr, xxx; b Lyyy" calling convention that
-        // calls the funclet during non-exceptional control flow.
-        if (block->bbFlags & BBF_FINALLY_TARGET)
-        {
-            assert(block->bbFlags & BBF_JMP_TARGET);
-
-#ifdef DEBUG
-            if (compiler->verbose)
-            {
-                printf("\nEmitting finally target NOP predecessor for BB%02u\n", block->bbNum);
-            }
-#endif
-            // Create a label that we'll use for computing the start of an EH region, if this block is
-            // at the beginning of such a region. If we used the existing bbEmitCookie as is for
-            // determining the EH regions, then this NOP would end up outside of the region, if this
-            // block starts an EH region. If we pointed the existing bbEmitCookie here, then the NOP
-            // would be executed, which we would prefer not to do.
-
-            block->bbUnwindNopEmitCookie =
-                getEmitter()->emitAddLabel(gcInfo.gcVarPtrSetCur, gcInfo.gcRegGCrefSetCur, gcInfo.gcRegByrefSetCur);
-
-            instGen(INS_nop);
-        }
+        genInsertNopForUnwinder(block);
 #endif // defined(_TARGET_ARM_)
 
         genUpdateCurrentFunclet(block);
@@ -13394,7 +13374,7 @@ void CodeGen::genCodeForTreeLng(GenTreePtr tree, regMaskTP needReg, regMaskTP av
         int         helper;
 
         GenTreePtr op1 = tree->gtOp.gtOp1;
-        GenTreePtr op2 = tree->gtGetOp2();
+        GenTreePtr op2 = tree->gtGetOp2IfPresent();
 
         switch (oper)
         {
@@ -14537,79 +14517,6 @@ void CodeGen::genCodeForTreeLng(GenTreePtr tree, regMaskTP needReg, regMaskTP av
                 }
 
                 goto DONE;
-
-#if LONG_ASG_OPS
-
-            case GT_ASG_OR:
-                insLo = insHi = INS_OR;
-                goto ASG_OPR;
-            case GT_ASG_XOR:
-                insLo = insHi = INS_XOR;
-                goto ASG_OPR;
-            case GT_ASG_AND:
-                insLo = insHi = INS_AND;
-                goto ASG_OPR;
-            case GT_ASG_SUB:
-                insLo = INS_sub;
-                insHi = INS_SUBC;
-                goto ASG_OPR;
-            case GT_ASG_ADD:
-                insLo = INS_add;
-                insHi = INS_ADDC;
-                goto ASG_OPR;
-
-            ASG_OPR:
-
-                if (op2->gtOper == GT_CNS_LNG)
-                {
-                    __int64 lval = op2->gtLngCon.gtLconVal;
-
-                    /* Make the target addressable */
-
-                    addrReg = genMakeAddressable(op1, needReg, RegSet::FREE_REG);
-
-                    /* Optimize some special cases */
-
-                    doLo = doHi = true;
-
-                    /* Check for "(op1 AND -1)" and "(op1 [X]OR 0)" */
-
-                    switch (oper)
-                    {
-                        case GT_ASG_AND:
-                            if ((int)(lval) == -1)
-                                doLo = false;
-                            if ((int)(lval >> 32) == -1)
-                                doHi = false;
-                            break;
-
-                        case GT_ASG_OR:
-                        case GT_ASG_XOR:
-                            if (!(lval & 0x00000000FFFFFFFF))
-                                doLo = false;
-                            if (!(lval & 0xFFFFFFFF00000000))
-                                doHi = false;
-                            break;
-                    }
-
-                    if (doLo)
-                        inst_TT_IV(insLo, op1, (int)(lval), 0);
-                    if (doHi)
-                        inst_TT_IV(insHi, op1, (int)(lval >> 32), 4);
-
-                    bool isArith = (oper == GT_ASG_ADD || oper == GT_ASG_SUB);
-                    if (doLo || doHi)
-                        tree->gtFlags |= GTF_ZSF_SET;
-
-                    genDoneAddressable(op1, addrReg, RegSet::FREE_REG);
-                    goto DONE_ASSG_REGS;
-                }
-
-                /* TODO: allow non-const long assignment operators */
-
-                noway_assert(!"non-const long asgop NYI");
-
-#endif // LONG_ASG_OPS
 
             case GT_IND:
             case GT_NULLCHECK:
@@ -20725,27 +20632,26 @@ bool CodeGen::genRegTrashable(regNumber reg, GenTreePtr tree)
 */
 
 GenTreePtr Compiler::fgLegacyPerStatementLocalVarLiveness(GenTreePtr startNode, // The node to start walking with.
-                                                          GenTreePtr relopNode, // The node before the startNode.
+                                                          GenTreePtr relopNode) // The node before the startNode.
                                                                                 // (It should either be NULL or
                                                                                 // a GTF_RELOP_QMARK node.)
-                                                          GenTreePtr asgdLclVar)
 {
     GenTreePtr tree;
 
     VARSET_TP VARSET_INIT(this, defSet_BeforeSplit, fgCurDefSet); // Store the current fgCurDefSet and fgCurUseSet so
     VARSET_TP VARSET_INIT(this, useSet_BeforeSplit, fgCurUseSet); // we can restore then before entering the elseTree.
 
-    bool heapUse_BeforeSplit   = fgCurHeapUse;
-    bool heapDef_BeforeSplit   = fgCurHeapDef;
-    bool heapHavoc_BeforeSplit = fgCurHeapHavoc;
+    MemoryKindSet memoryUse_BeforeSplit   = fgCurMemoryUse;
+    MemoryKindSet memoryDef_BeforeSplit   = fgCurMemoryDef;
+    MemoryKindSet memoryHavoc_BeforeSplit = fgCurMemoryHavoc;
 
     VARSET_TP VARSET_INIT_NOCOPY(defSet_AfterThenTree, VarSetOps::MakeEmpty(this)); // These two variables will store
                                                                                     // the USE and DEF sets after
     VARSET_TP VARSET_INIT_NOCOPY(useSet_AfterThenTree, VarSetOps::MakeEmpty(this)); // evaluating the thenTree.
 
-    bool heapUse_AfterThenTree   = fgCurHeapUse;
-    bool heapDef_AfterThenTree   = fgCurHeapDef;
-    bool heapHavoc_AfterThenTree = fgCurHeapHavoc;
+    MemoryKindSet memoryUse_AfterThenTree   = fgCurMemoryUse;
+    MemoryKindSet memoryDef_AfterThenTree   = fgCurMemoryDef;
+    MemoryKindSet memoryHavoc_AfterThenTree = fgCurMemoryHavoc;
 
     // relopNode is either NULL or a GTF_RELOP_QMARK node.
     assert(!relopNode || (relopNode->OperKind() & GTK_RELOP) && (relopNode->gtFlags & GTF_RELOP_QMARK));
@@ -20772,9 +20678,9 @@ GenTreePtr Compiler::fgLegacyPerStatementLocalVarLiveness(GenTreePtr startNode, 
                 VarSetOps::IntersectionD(this, fgCurDefSet, defSet_AfterThenTree);
                 VarSetOps::UnionD(this, fgCurUseSet, useSet_AfterThenTree);
 
-                fgCurHeapDef   = fgCurHeapDef && heapDef_AfterThenTree;
-                fgCurHeapHavoc = fgCurHeapHavoc && heapHavoc_AfterThenTree;
-                fgCurHeapUse   = fgCurHeapUse || heapUse_AfterThenTree;
+                fgCurMemoryDef   = fgCurMemoryDef & memoryDef_AfterThenTree;
+                fgCurMemoryHavoc = fgCurMemoryHavoc & memoryHavoc_AfterThenTree;
+                fgCurMemoryUse   = fgCurMemoryUse | memoryUse_AfterThenTree;
 
                 // Return the GT_QMARK node itself so the caller can continue from there.
                 // NOTE: the caller will get to the next node by doing the "tree = tree->gtNext"
@@ -20791,16 +20697,16 @@ GenTreePtr Compiler::fgLegacyPerStatementLocalVarLiveness(GenTreePtr startNode, 
                 VarSetOps::Assign(this, defSet_AfterThenTree, fgCurDefSet);
                 VarSetOps::Assign(this, useSet_AfterThenTree, fgCurUseSet);
 
-                heapDef_AfterThenTree   = fgCurHeapDef;
-                heapHavoc_AfterThenTree = fgCurHeapHavoc;
-                heapUse_AfterThenTree   = fgCurHeapUse;
+                memoryDef_AfterThenTree   = fgCurMemoryDef;
+                memoryHavoc_AfterThenTree = fgCurMemoryHavoc;
+                memoryUse_AfterThenTree   = fgCurMemoryUse;
 
                 VarSetOps::Assign(this, fgCurDefSet, defSet_BeforeSplit);
                 VarSetOps::Assign(this, fgCurUseSet, useSet_BeforeSplit);
 
-                fgCurHeapDef   = heapDef_BeforeSplit;
-                fgCurHeapHavoc = heapHavoc_BeforeSplit;
-                fgCurHeapUse   = heapUse_BeforeSplit;
+                fgCurMemoryDef   = memoryDef_BeforeSplit;
+                fgCurMemoryHavoc = memoryHavoc_BeforeSplit;
+                fgCurMemoryUse   = memoryUse_BeforeSplit;
 
                 break;
 
@@ -20810,43 +20716,43 @@ GenTreePtr Compiler::fgLegacyPerStatementLocalVarLiveness(GenTreePtr startNode, 
             case GT_LCL_FLD_ADDR:
             case GT_STORE_LCL_VAR:
             case GT_STORE_LCL_FLD:
-                fgMarkUseDef(tree->AsLclVarCommon(), asgdLclVar);
+                fgMarkUseDef(tree->AsLclVarCommon());
                 break;
 
             case GT_CLS_VAR:
-                // For Volatile indirection, first mutate the global heap
+                // For Volatile indirection, first mutate GcHeap/ByrefExposed
                 // see comments in ValueNum.cpp (under case GT_CLS_VAR)
                 // This models Volatile reads as def-then-use of the heap.
                 // and allows for a CSE of a subsequent non-volatile read
                 if ((tree->gtFlags & GTF_FLD_VOLATILE) != 0)
                 {
                     // For any Volatile indirection, we must handle it as a
-                    // definition of the global heap
-                    fgCurHeapDef = true;
+                    // definition of GcHeap/ByrefExposed
+                    fgCurMemoryDef |= memoryKindSet(GcHeap, ByrefExposed);
                 }
                 // If the GT_CLS_VAR is the lhs of an assignment, we'll handle it as a heap def, when we get to
                 // assignment.
                 // Otherwise, we treat it as a use here.
-                if (!fgCurHeapDef && (tree->gtFlags & GTF_CLS_VAR_ASG_LHS) == 0)
+                if ((tree->gtFlags & GTF_CLS_VAR_ASG_LHS) == 0)
                 {
-                    fgCurHeapUse = true;
+                    fgCurMemoryUse |= memoryKindSet(GcHeap, ByrefExposed);
                 }
                 break;
 
             case GT_IND:
-                // For Volatile indirection, first mutate the global heap
+                // For Volatile indirection, first mutate GcHeap/ByrefExposed
                 // see comments in ValueNum.cpp (under case GT_CLS_VAR)
                 // This models Volatile reads as def-then-use of the heap.
                 // and allows for a CSE of a subsequent non-volatile read
                 if ((tree->gtFlags & GTF_IND_VOLATILE) != 0)
                 {
                     // For any Volatile indirection, we must handle it as a
-                    // definition of the global heap
-                    fgCurHeapDef = true;
+                    // definition of GcHeap/ByrefExposed
+                    fgCurMemoryDef |= memoryKindSet(GcHeap, ByrefExposed);
                 }
 
                 // If the GT_IND is the lhs of an assignment, we'll handle it
-                // as a heap def, when we get to assignment.
+                // as a heap/byref def, when we get to assignment.
                 // Otherwise, we treat it as a use here.
                 if ((tree->gtFlags & GTF_IND_ASG_LHS) == 0)
                 {
@@ -20855,16 +20761,13 @@ GenTreePtr Compiler::fgLegacyPerStatementLocalVarLiveness(GenTreePtr startNode, 
                     GenTreePtr           addrArg         = tree->gtOp.gtOp1->gtEffectiveVal(/*commaOnly*/ true);
                     if (!addrArg->DefinesLocalAddr(this, /*width doesn't matter*/ 0, &dummyLclVarTree, &dummyIsEntire))
                     {
-                        if (!fgCurHeapDef)
-                        {
-                            fgCurHeapUse = true;
-                        }
+                        fgCurMemoryUse |= memoryKindSet(GcHeap, ByrefExposed);
                     }
                     else
                     {
                         // Defines a local addr
                         assert(dummyLclVarTree != nullptr);
-                        fgMarkUseDef(dummyLclVarTree->AsLclVarCommon(), asgdLclVar);
+                        fgMarkUseDef(dummyLclVarTree->AsLclVarCommon());
                     }
                 }
                 break;
@@ -20875,25 +20778,23 @@ GenTreePtr Compiler::fgLegacyPerStatementLocalVarLiveness(GenTreePtr startNode, 
                 unreached();
                 break;
 
-            // We'll assume these are use-then-defs of the heap.
+            // We'll assume these are use-then-defs of GcHeap/ByrefExposed.
             case GT_LOCKADD:
             case GT_XADD:
             case GT_XCHG:
             case GT_CMPXCHG:
-                if (!fgCurHeapDef)
-                {
-                    fgCurHeapUse = true;
-                }
-                fgCurHeapDef   = true;
-                fgCurHeapHavoc = true;
+                fgCurMemoryUse |= memoryKindSet(GcHeap, ByrefExposed);
+                fgCurMemoryDef |= memoryKindSet(GcHeap, ByrefExposed);
+                fgCurMemoryHavoc |= memoryKindSet(GcHeap, ByrefExposed);
                 break;
 
             case GT_MEMORYBARRIER:
-                // Simliar to any Volatile indirection, we must handle this as a definition of the global heap
-                fgCurHeapDef = true;
+                // Simliar to any Volatile indirection, we must handle this as a definition of GcHeap/ByrefExposed
+                fgCurMemoryDef |= memoryKindSet(GcHeap, ByrefExposed);
                 break;
 
-            // For now, all calls read/write the heap, the latter in its entirety.  Might tighten this case later.
+            // For now, all calls read/write GcHeap/ByrefExposed, writes in their entirety.  Might tighten this case
+            // later.
             case GT_CALL:
             {
                 GenTreeCall* call    = tree->AsCall();
@@ -20909,12 +20810,9 @@ GenTreePtr Compiler::fgLegacyPerStatementLocalVarLiveness(GenTreePtr startNode, 
                 }
                 if (modHeap)
                 {
-                    if (!fgCurHeapDef)
-                    {
-                        fgCurHeapUse = true;
-                    }
-                    fgCurHeapDef   = true;
-                    fgCurHeapHavoc = true;
+                    fgCurMemoryUse |= memoryKindSet(GcHeap, ByrefExposed);
+                    fgCurMemoryDef |= memoryKindSet(GcHeap, ByrefExposed);
+                    fgCurMemoryHavoc |= memoryKindSet(GcHeap, ByrefExposed);
                 }
             }
 
@@ -20946,14 +20844,26 @@ GenTreePtr Compiler::fgLegacyPerStatementLocalVarLiveness(GenTreePtr startNode, 
 
             default:
 
-                // Determine whether it defines a heap location.
+                // Determine what memory kinds it defines.
                 if (tree->OperIsAssignment() || tree->OperIsBlkOp())
                 {
                     GenTreeLclVarCommon* dummyLclVarTree = NULL;
-                    if (!tree->DefinesLocal(this, &dummyLclVarTree))
+                    if (tree->DefinesLocal(this, &dummyLclVarTree))
                     {
-                        // If it doesn't define a local, then it might update the heap.
-                        fgCurHeapDef = true;
+                        if (lvaVarAddrExposed(dummyLclVarTree->gtLclNum))
+                        {
+                            fgCurMemoryDef |= memoryKindSet(ByrefExposed);
+
+                            // We've found a store that modifies ByrefExposed
+                            // memory but not GcHeap memory, so track their
+                            // states separately.
+                            byrefStatesMatchGcHeapStates = false;
+                        }
+                    }
+                    else
+                    {
+                        // If it doesn't define a local, then it might update GcHeap/ByrefExposed.
+                        fgCurMemoryDef |= memoryKindSet(GcHeap, ByrefExposed);
                     }
                 }
 
@@ -20967,7 +20877,7 @@ GenTreePtr Compiler::fgLegacyPerStatementLocalVarLiveness(GenTreePtr startNode, 
                     // fgCurDefSet and fgCurUseSet into local variables defSet_BeforeSplit and useSet_BeforeSplit.
                     // The cached values will be used to restore fgCurDefSet and fgCurUseSet once we see the GT_COLON
                     // node.
-                    tree = fgLegacyPerStatementLocalVarLiveness(tree->gtNext, tree, asgdLclVar);
+                    tree = fgLegacyPerStatementLocalVarLiveness(tree->gtNext, tree);
 
                     // We must have been returned here after seeing a GT_QMARK node.
                     noway_assert(tree->gtOper == GT_QMARK);
