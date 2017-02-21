@@ -26,11 +26,14 @@ struct SignalHandlerWorkerReturnPoint;
 
 /*++
 Function :
-    CallSignalHandlerWrapper
+    CallSignalHandlerWrapperX
 
-    This function is never called, only a fake stack frame will be setup to have a return
-    address set to SignalHandlerWorkerReturn during SIGSEGV handling.
+    These functions are never called, only a fake stack frame will be setup to have a return
+    address set to SignalHandlerWorkerReturnX during SIGSEGV handling.
     It enables the unwinder to unwind stack from the handling code to the actual failure site.
+
+    There are four variants of this function based on what stack alignment needs to be done
+    to ensure properly aligned stack pointer at the call site of the signal_handler_worker.
 
 Parameters :
     none
@@ -42,8 +45,9 @@ extern "C" void CallSignalHandlerWrapper4();
 extern "C" void CallSignalHandlerWrapper8();
 extern "C" void CallSignalHandlerWrapper12();
 
-// Offset of the return address from the SignalHandlerWorker in the CallSignalHandlerWrapper 
-// relative to the start of the function
+// Offset of the return address from the signal_handler_worker in the CallSignalHandlerWrapperX 
+// relative to the start of the function.
+// There are four offsets matching the stack alignments as described in the function header above.
 extern "C" int SignalHandlerWorkerReturnOffset0;
 extern "C" int SignalHandlerWorkerReturnOffset4;
 extern "C" int SignalHandlerWorkerReturnOffset8;

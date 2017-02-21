@@ -55,6 +55,8 @@ void ExecuteHandlerOnOriginalStack(int code, siginfo_t *siginfo, void *context, 
     *--sp = (size_t)MCREG_Eip(ucontext->uc_mcontext);
     *--sp = (size_t)MCREG_Ebp(ucontext->uc_mcontext);
     size_t fp = (size_t)sp;
+    // Align stack
+    sp -= 2; 
     *--sp = (size_t)returnPoint;
     *--sp = (size_t)context;
     *--sp = (size_t)siginfo;

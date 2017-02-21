@@ -137,10 +137,11 @@ BOOL EnsureSignalAlternateStack()
 
     if ((st == 0) && (oss.ss_flags == SS_DISABLE))
     {
-        // There is no alternate stack installed yet
+        // There is no alternate stack for SIGSEGV handling installed yet so allocate one
 
-        int altStackSize = SIGSTKSZ + VIRTUAL_PAGE_SIZE;
-        // Allocate alternate stack for SIGSEGV handling
+        // We include the size of the SignalHandlerWorkerReturnPoint in the alternate stack size since the 
+        // context contained in it is large and the SIGSTKSZ was not sufficient on ARM64 during testing.
+        int altStackSize = SIGSTKSZ + ALIGN_UP(sizeof(SignalHandlerWorkerReturnPoint), 16) + VIRTUAL_PAGE_SIZE;
         void* altStack;
         int st = posix_memalign(&altStack, VIRTUAL_PAGE_SIZE, altStackSize);
         if (st == 0)

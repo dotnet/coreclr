@@ -21,8 +21,11 @@ NESTED_ENTRY CallSignalHandlerWrapper\Alignment, _TEXT, NoHandler
     .cfi_offset eip, -(4 + \Alignment)
     push ebp
     .cfi_adjust_cfa_offset 4
-    .cfi_def_cfa_register ebp
+    .cfi_rel_offset ebp, 0
     mov ebp, esp
+    .cfi_def_cfa_register ebp
+    // Align stack
+    sub  esp, 8
     // Simulate arguments pushing
     push eax
     push eax
@@ -30,7 +33,7 @@ NESTED_ENTRY CallSignalHandlerWrapper\Alignment, _TEXT, NoHandler
     push eax
     call    EXTERNAL_C_FUNC(signal_handler_worker)
 LOCAL_LABEL(SignalHandlerWorkerReturn\Alignment):
-    add esp, 16
+    add esp, 4 * 4 + 8
     pop ebp
     ret
 
