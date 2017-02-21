@@ -242,9 +242,6 @@ function copy_to_emulator {
     sudo cp -R "$__testRootDir" "$__ARMRootfsCoreclrPath/$testRootDirBase"
     __testRootDirBase="$__ARMEmulCoreclr/$testRootDirBase"
 
-    sudo cp -R "./$__testNativeBinDirBase" "$__ARMRootfsCoreclrPath/$__testNativeBinDirBase"
-    __testNativeBinDirBase="$__ARMEmulCoreclr/$__testNativeBinDirBase"
-
     sudo cp -R "./$__coreClrBinDirBase" "$__ARMRootfsCoreclrPath/$__coreClrBinDirBase"
     if [ ! -z "$__mscorlibDir" ]; then
         sudo cp "$__mscorlibDir/mscorlib.dll" "$__ARMRootfsCoreclrPath/$__coreClrBinDirBase/"
@@ -292,7 +289,6 @@ function run_tests {
                            --coreFxNativeBinDir=$__coreFxNativeBinDirBase \
                            --coreFxBinDir="$__coreFxBinDirBase" \
                            --testDirFile=$__testDirFileBase \
-                           --testNativeBinDir=$__testNativeBinDirBase \
                            --coreClrBinDir=$__coreClrBinDirBase
 EOF
 }
@@ -425,7 +421,6 @@ __mscorlibDirBase=
 __coreFxNativeBinDirBase=
 __coreFxBinDirBase=
 __testDirFileBase=
-__testNativeBinDirBase="bin/obj/$__buildDirName/tests"
 __coreClrBinDirBase="bin/Product/$__buildDirName"
 
 set -x

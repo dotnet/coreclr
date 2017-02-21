@@ -28,7 +28,6 @@ UNIXARCHFLAVOR=OSX.x64.Debug
 
 ARGS="\
 --testRootDir=${TESTROOT}/${WINDOWSFLAVOR} \
---testNativeBinDir=${CORECLRROOT}/bin/obj/${UNIXARCHFLAVOR}/tests \
 --coreClrBinDir=${CORECLRROOT}/bin/Product/${UNIXARCHFLAVOR} \
 --mscorlibDir=${WINDOWSCORECLRROOT}/bin/Product/${UNIXARCHFLAVOR} \
 --coreFxBinDir=${COREFXROOT}/bin/${UNIXANYFLAVOR};${COREFXROOT}/bin/Unix.AnyCPU.Debug;${COREFXROOT}/bin/AnyOS.AnyCPU.Debug \
