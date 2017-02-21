@@ -4122,7 +4122,7 @@ void ExceptionTracker::MakeCallbacksRelatedToHandler(
     }
 }
 
-#ifdef DEBUGGER_INTERCEPTION_SUPPORTED
+#ifdef DEBUGGER_EXCEPTION_INTERCEPTION_SUPPORTED
 //---------------------------------------------------------------------------------------
 //
 // This function is called by DefaultCatchHandler() to intercept an exception and start an unwind.
@@ -4159,7 +4159,7 @@ EXCEPTION_DISPOSITION ClrDebuggerDoUnwindAndIntercept(X86_FIRST_ARG(EXCEPTION_RE
 
     UNREACHABLE();
 }
-#endif // DEBUGGER_INTERCEPTION_SUPPORTED
+#endif // DEBUGGER_EXCEPTION_INTERCEPTION_SUPPORTED
 #endif // DEBUGGING_SUPPORTED
 
 #ifdef _DEBUG
