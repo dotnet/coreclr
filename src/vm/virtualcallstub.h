@@ -164,6 +164,7 @@ extern "C" void ResolveWorkerChainLookupAsmStub();    // for chaining of entries
 
 #ifdef _TARGET_X86_ 
 extern "C" void BackPatchWorkerAsmStub();             // backpatch a call site to point to a different stub
+extern "C" void BackPatchWorkerStaticStub(PCODE returnAddr, TADDR siteAddrForRegisterIndirect);
 #endif // _TARGET_X86_
 
 
@@ -547,6 +548,10 @@ private:
                                    , UINT_PTR flags
 #endif                            
                                    );
+
+#ifdef _TARGET_X86_
+    friend void BackPatchWorkerStaticStub(PCODE returnAddr, TADDR siteAddrForRegisterIndirect);
+#endif // _TARGET_X86_
 
     //These are the entrypoints that the stubs actually end up calling via the
     // xxxAsmStub methods above
