@@ -51,8 +51,9 @@ public class knucleotide
 
        // Normal testing -- input file will end up next to the assembly
        // and CoreRoot points at the test overlay dir
+       string CoreTestRoot = CoreRoot.Replace("Product", "tests");
        string[] pathPartsNormal = new string[] {
-           CoreRoot, "..", "..", "JIT", "Performance",
+           CoreTestRoot, "JIT", "Performance",
            "CodeQuality", "BenchmarksGame", "k-nucleotide", "k-nucleotide", inputFile
        };
 
