@@ -2185,10 +2185,8 @@ void stomp_write_barrier_resize(bool is_runtime_suspended, bool requires_upper_b
     args.operation = WriteBarrierOp::StompResize;
     args.is_runtime_suspended = is_runtime_suspended;
     args.requires_upper_bounds_check = requires_upper_bounds_check;
-    
     args.card_table = g_gc_card_table;
     args.card_bundle_table = g_gc_card_bundle_table;
-
     args.lowest_address = g_gc_lowest_address;
     args.highest_address = g_gc_highest_address;
 #ifdef FEATURE_USE_SOFTWARE_WRITE_WATCH_FOR_GC_HEAP
@@ -2216,10 +2214,8 @@ void stomp_write_barrier_initialize()
     args.operation = WriteBarrierOp::Initialize;
     args.is_runtime_suspended = true;
     args.requires_upper_bounds_check = false;
-    
     args.card_table = g_gc_card_table;
     args.card_bundle_table = g_gc_card_bundle_table;
-
     args.lowest_address = g_gc_lowest_address;
     args.highest_address = g_gc_highest_address;
     args.ephemeral_low = reinterpret_cast<uint8_t*>(1);
@@ -3707,8 +3703,6 @@ heap_segment* seg_mapping_table_segment_of (uint8_t* o)
 
     if (seg)
     {
-        // Can't assert this when it's called by everyone (it's true when it's called by mark cards).
-        //assert (in_range_for_segment (o, seg));
         if (in_range_for_segment (o, seg))
         {
             dprintf (2, ("obj %Ix belongs to segment %Ix(-%Ix)", o, (uint8_t*)heap_segment_mem(seg), (uint8_t*)heap_segment_reserved(seg)));
@@ -6563,15 +6557,15 @@ void gc_heap::clear_card (size_t card)
 inline
 void gc_heap::set_card (size_t card)
 {
-    size_t corresponding_card_word = card_word (card);
-    card_table[corresponding_card_word] = (card_table [corresponding_card_word] | (1 << card_bit (card)));
+    size_t word = card_word (card);
+    card_table[word] = (card_table [word] | (1 << card_bit (card)));
 
 #ifdef FEATURE_MANUALLY_MANAGED_CARD_BUNDLES
     // Also set the card bundle that corresponds to the card
-    size_t bundle_to_set = cardw_card_bundle(corresponding_card_word);
+    size_t bundle_to_set = cardw_card_bundle(word);
     card_bundles_set(bundle_to_set, bundle_to_set);
 
-    dprintf (1,("Set card %Ix [%Ix, %Ix[ and bundle %Ix", card, (size_t)card_address (card), (size_t)card_address (card+1), bundle_to_set));
+    dprintf (3,("Set card %Ix [%Ix, %Ix[ and bundle %Ix", card, (size_t)card_address (card), (size_t)card_address (card+1), bundle_to_set));
     assert(card_bundle_set_p(bundle_to_set) != 0);
 #endif
 }
@@ -21299,7 +21293,7 @@ void gc_heap::convert_to_pinned_plug (BOOL& last_npinned_plug_p,
     artificial_pinned_size = ps;
 }
 
-// Because we have the artifical pinning, we can't guarantee that pinned and npinned
+// Because we have the artificial pinning, we can't guarantee that pinned and unpinned
 // plugs are always interleaved.
 void gc_heap::store_plug_gap_info (uint8_t* plug_start,
                                    uint8_t* plug_end,
@@ -27050,7 +27044,7 @@ void gc_heap::clear_cards (size_t start_card, size_t end_card)
         size_t end_word = card_word (end_card);
         if (start_word < end_word)
         {
-            // Figure out the bit position of the card within its word
+            // Figure out the bit positions of the cards within their words
             unsigned bits = card_bit (start_card);
             card_table [start_word] &= lowbits (~0, bits);
             for (size_t i = start_word+1; i < end_word; i++)
@@ -27113,7 +27107,7 @@ void gc_heap::copy_cards (size_t dst_card,
 
 
     //////
-    size_t first_dst_word = dstwrd;
+    // size_t first_dst_word = dstwrd;
     //////
 
     for (size_t card = dst_card; card < end_card; card++)
@@ -27427,7 +27421,8 @@ BOOL gc_heap::find_card_dword (size_t& cardw, size_t cardw_end)
                 cardw = (card_word - &card_table[0]);
                 return TRUE;
             }
-            else if ((cardw <= card_bundle_cardw (cardb)) && (card_word == &card_table [card_bundle_cardw (cardb+1)]))
+            else if ((cardw <= card_bundle_cardw (cardb)) &&
+                     (card_word == &card_table [card_bundle_cardw (cardb+1)]))
             {
                 // a whole bundle was explored and is empty
                 dprintf  (3, ("gc: %d, find_card_dword clear bundle: %Ix cardw:[%Ix,%Ix[",
@@ -27690,10 +27685,9 @@ BOOL gc_heap::card_transition (uint8_t* po, uint8_t* end, size_t card_word_end,
         dprintf(3,(" CC [%Ix, %Ix[ ",
                 (size_t)card_address(card), (size_t)po));
         clear_cards (card, card_of(po));
+        n_card_set -= (card_of (po) - card);
+        n_cards_cleared += (card_of (po) - card);
 
-        size_t number_of_cards_cleared = (card_of (po) - card);
-        n_card_set -= number_of_cards_cleared;
-        n_cards_cleared += number_of_cards_cleared;
     }
     n_eph +=cg_pointers_found;
     cg_pointers_found = 0;
@@ -27785,7 +27779,7 @@ void gc_heap::mark_through_cards_for_segments (card_fn fn, BOOL relocating)
     {
         if (card_of(last_object) > card)
         {
-            // cg means cross generational
+            // cg means cross-generational
             dprintf (3, ("Found %Id cg pointers", cg_pointers_found));
             if (cg_pointers_found == 0)
             {
@@ -27797,7 +27791,6 @@ void gc_heap::mark_through_cards_for_segments (card_fn fn, BOOL relocating)
 
             n_eph += cg_pointers_found;
             cg_pointers_found = 0;
-
             card = card_of (last_object);
         }
 
@@ -35897,89 +35890,6 @@ void GCHeap::SetFinalizationRun (Object* obj)
 
 #endif // FEATURE_PREMORTEM_FINALIZATION
 
-//----------------------------------------------------------------------------
-//
-// Write Barrier Support for bulk copy ("Clone") operations
-//
-// StartPoint is the target bulk copy start point
-// len is the length of the bulk copy (in bytes)
-//
-//
-// Performance Note:
-//
-// This is implemented somewhat "conservatively", that is we
-// assume that all the contents of the bulk copy are object
-// references.  If they are not, and the value lies in the
-// ephemeral range, we will set false positives in the card table.
-//
-// We could use the pointer maps and do this more accurately if necessary
-
-// #if defined(_MSC_VER) && defined(_TARGET_X86_)
-// #pragma optimize("y", on)        // Small critical routines, don't put in EBP frame 
-// #endif //_MSC_VER && _TARGET_X86_
-
-// void
-// GCHeap::SetCardsAfterBulkCopy( Object **StartPoint, size_t len )
-// {
-//     Object **rover;
-//     Object **end;
-
-//     // Target should aligned
-//     assert(Aligned ((size_t)StartPoint));
-
-
-//     // Don't optimize the Generation 0 case if we are checking for write barrier violations
-//     // since we need to update the shadow heap even in the generation 0 case.
-// #if defined (WRITE_BARRIER_CHECK) && !defined (SERVER_GC)
-//     if (g_pConfig->GetHeapVerifyLevel() & EEConfig::HEAPVERIFY_BARRIERCHECK)
-//         for(unsigned i=0; i < len / sizeof(Object*); i++)
-//             updateGCShadow(&StartPoint[i], StartPoint[i]);
-// #endif //WRITE_BARRIER_CHECK && !SERVER_GC
-
-// #ifdef FEATURE_USE_SOFTWARE_WRITE_WATCH_FOR_GC_HEAP
-//     if (SoftwareWriteWatch::IsEnabledForGCHeap())
-//     {
-//         SoftwareWriteWatch::SetDirtyRegion(StartPoint, len);
-//     }
-// #endif // FEATURE_USE_SOFTWARE_WRITE_WATCH_FOR_GC_HEAP
-
-//     // If destination is in Gen 0 don't bother
-//     if (
-// #ifdef BACKGROUND_GC
-//         (!gc_heap::settings.concurrent) &&
-// #endif //BACKGROUND_GC
-//         (g_theGCHeap->WhichGeneration( (Object*) StartPoint ) == 0))
-//         return;
-
-//     rover = StartPoint;
-//     end = StartPoint + (len/sizeof(Object*));
-//     while (rover < end)
-//     {
-//         if ( (((uint8_t*)*rover) >= g_gc_ephemeral_low) && (((uint8_t*)*rover) < g_gc_ephemeral_high) )
-//         {
-//             // Set Bit For Card and advance to next card
-//             size_t card = gcard_of ((uint8_t*)rover);
-
-//             Interlocked::Or (&g_gc_card_table[card/card_word_width], (1U << (card % card_word_width)));
-
-// #ifdef FEATURE_MANUALLY_MANAGED_CARD_BUNDLES
-//             size_t bundle_to_set = cardw_card_bundle (card_word (card));
-//             Interlocked::Or (&g_gc_card_bundle_table[card_bundle_word (bundle_to_set)], (1U << card_bundle_bit(bundle_to_set)));
-// #endif
-
-//             // Skip to next card for the object
-//             rover = (Object**)align_on_card ((uint8_t*)(rover+1));
-//         }
-//         else
-//         {
-//             rover++;
-//         }
-//     }
-// }
-
-// #if defined(_MSC_VER) && defined(_TARGET_X86_)
-// #pragma optimize("", on)        // Go back to command line default optimizations
-// #endif //_MSC_VER && _TARGET_X86_
 
 #ifdef FEATURE_PREMORTEM_FINALIZATION
 
