@@ -3238,8 +3238,32 @@ static void SetLocation(PREGDISPLAY pRD, int ind, PDWORD loc)
 }
 
 /*****************************************************************************/
+class EpilogUnwinder
+{
+private:
+static
+void UnwindEspFrame(
+        PREGDISPLAY pContext,
+        hdrInfo * info,
+        PTR_CBYTE epilogBase,
+        unsigned flags);
 
-void UnwindEspFrameEpilog(
+static
+void UnwindEbpDoubleAlignFrame(
+        PREGDISPLAY pContext,
+        hdrInfo * info,
+        PTR_CBYTE epilogBase,
+        unsigned flags);
+
+public:
+static
+void Unwind(PREGDISPLAY pContext,
+            hdrInfo * info,
+            PTR_CBYTE epilogBase,
+            unsigned flags);
+};
+
+void EpilogUnwinder::UnwindEspFrame(
         PREGDISPLAY pContext, 
         hdrInfo * info,
         PTR_CBYTE epilogBase,
@@ -3323,9 +3347,7 @@ void UnwindEspFrameEpilog(
     pContext->SP = ESP;
 }
 
-/*****************************************************************************/
-
-void UnwindEbpDoubleAlignFrameEpilog(
+void EpilogUnwinder::UnwindEbpDoubleAlignFrame(
         PREGDISPLAY pContext, 
         hdrInfo * info, 
         PTR_CBYTE epilogBase, 
@@ -3470,9 +3492,7 @@ inline SIZE_T ESPIncrOnReturn(hdrInfo * info)
            GetStackParameterSize(info);
 }
 
-/*****************************************************************************/
-
-void UnwindEpilog(
+void EpilogUnwinder::Unwind(
         PREGDISPLAY pContext, 
         hdrInfo * info, 
         PTR_CBYTE epilogBase, 
@@ -3486,11 +3506,11 @@ void UnwindEpilog(
 
     if  (info->ebpFrame || info->doubleAlign)
     {
-        UnwindEbpDoubleAlignFrameEpilog(pContext, info, epilogBase, flags);
+        UnwindEbpDoubleAlignFrame(pContext, info, epilogBase, flags);
     }
     else
     {
-        UnwindEspFrameEpilog(pContext, info, epilogBase, flags);
+        UnwindEspFrame(pContext, info, epilogBase, flags);
     }
 
 #ifdef _DEBUG    
@@ -3504,8 +3524,27 @@ void UnwindEpilog(
 }
 
 /*****************************************************************************/
+class EspFrameUnwinder
+{
+private:
+static
+void UnwindProlog(
+        PREGDISPLAY pContext,
+        hdrInfo * info,
+        PTR_CBYTE methodStart,
+        unsigned flags);
 
-void UnwindEspFrameProlog(
+public:
+static
+void Unwind(PREGDISPLAY pContext,
+            hdrInfo * info,
+            PTR_CBYTE table,
+            PTR_CBYTE methodStart,
+            DWORD curOffs,
+            unsigned flags);
+};
+
+void EspFrameUnwinder::UnwindProlog(
         PREGDISPLAY pContext, 
         hdrInfo * info, 
         PTR_CBYTE methodStart, 
@@ -3605,9 +3644,7 @@ void UnwindEspFrameProlog(
     pContext->SP = ESP;
 }
 
-/*****************************************************************************/
-
-void UnwindEspFrame(
+void EspFrameUnwinder::Unwind(
         PREGDISPLAY pContext, 
         hdrInfo * info, 
         PTR_CBYTE table, 
@@ -3628,7 +3665,7 @@ void UnwindEspFrame(
     {
         if (info->prologOffs != 0) // Do nothing for the very start of the method
         {
-            UnwindEspFrameProlog(pContext, info, methodStart, flags);
+            UnwindProlog(pContext, info, methodStart, flags);
             ESP = pContext->SP;
         }
     }
@@ -3669,8 +3706,27 @@ void UnwindEspFrame(
 
 
 /*****************************************************************************/
+class EbpDoubleAlignFrameUnwinder
+{
+private:
+static
+void UnwindProlog(
+        PREGDISPLAY pContext,
+        hdrInfo * info,
+        PTR_CBYTE methodStart,
+        unsigned flags);
 
-void UnwindEbpDoubleAlignFrameProlog(
+public:
+static
+bool Unwind(PREGDISPLAY     pContext,
+            EECodeInfo     *pCodeInfo,
+            hdrInfo        *info,
+            PTR_CBYTE       methodStart,
+            unsigned        flags,
+            StackwalkCacheUnwindInfo  *pUnwindInfo); // out-only, perf improvement
+};
+
+void EbpDoubleAlignFrameUnwinder::UnwindProlog(
         PREGDISPLAY pContext, 
         hdrInfo * info, 
         PTR_CBYTE methodStart, 
@@ -3785,7 +3841,7 @@ void UnwindEbpDoubleAlignFrameProlog(
 
 /*****************************************************************************/
 
-bool UnwindEbpDoubleAlignFrame(
+bool EbpDoubleAlignFrameUnwinder::Unwind(
         PREGDISPLAY     pContext,
         EECodeInfo     *pCodeInfo,
         hdrInfo        *info,
@@ -3889,7 +3945,7 @@ bool UnwindEbpDoubleAlignFrame(
     
     if (info->prologOffs != hdrInfo::NOT_IN_PROLOG)
     {
-        UnwindEbpDoubleAlignFrameProlog(pContext, info, methodStart, flags);
+        UnwindProlog(pContext, info, methodStart, flags);
         
         /* Now adjust stack pointer. */
 
@@ -3930,6 +3986,8 @@ bool UnwindEbpDoubleAlignFrame(
 
     return true;
 }
+
+/*****************************************************************************/
 
 bool UnwindStackFrame(PREGDISPLAY     pContext,
                       EECodeInfo     *pCodeInfo,
@@ -3994,7 +4052,7 @@ bool UnwindStackFrame(PREGDISPLAY     pContext,
          */
 
         PTR_CBYTE epilogBase = (PTR_CBYTE) (breakPC - info->epilogOffs);
-        UnwindEpilog(pContext, info, epilogBase, flags);
+        EpilogUnwinder::Unwind(pContext, info, epilogBase, flags);
     }
     else if (!info->ebpFrame && !info->doubleAlign)
     {
@@ -4002,7 +4060,7 @@ bool UnwindStackFrame(PREGDISPLAY     pContext,
          *  Now handle ESP frames
          */
          
-        UnwindEspFrame(pContext, info, table, methodStart, curOffs, flags);
+        EspFrameUnwinder::Unwind(pContext, info, table, methodStart, curOffs, flags);
         return true;
     }
     else
@@ -4011,7 +4069,7 @@ bool UnwindStackFrame(PREGDISPLAY     pContext,
          *  Now we know that have an EBP frame
          */
 
-        if (!UnwindEbpDoubleAlignFrame(pContext, pCodeInfo, info, methodStart, flags, pUnwindInfo))
+        if (!EbpDoubleAlignFrameUnwinder::Unwind(pContext, pCodeInfo, info, methodStart, flags, pUnwindInfo))
             return false;
     }
 
