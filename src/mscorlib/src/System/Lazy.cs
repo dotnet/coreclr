@@ -225,7 +225,7 @@ namespace System
         /// An instance created with this constructor may be used concurrently from multiple threads.
         /// </remarks>
         public Lazy()
-            : this(null, LazyThreadSafetyMode.ExecutionAndPublication, true)
+            : this(null, LazyThreadSafetyMode.ExecutionAndPublication, useDefaultConstructor:true)
         {
         }
 
