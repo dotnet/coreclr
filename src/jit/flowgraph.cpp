@@ -8938,7 +8938,20 @@ void Compiler::fgFindOperOrder()
     }
 }
 
-/*****************************************************************************/
+//------------------------------------------------------------------------
+// fgSimpleLowering: do full walk of all IR, lowering selected operations
+// and computing lvaOutgoingArgumentAreaSize.
+//
+// Notes:
+//    Lowers GT_ARR_LENGTH, GT_ARR_BOUNDS_CHECK, and GT_SIMD_CHK.
+//
+//    For target ABIs with fixed out args area, computes upper bound on
+//    the size of this area from the calls in the IR.
+//
+//    Outgoing arg area size is computed here because we want to run it
+//    after optimization (in case calls are removed) and need to look at
+//    all possible calls in the method.
+
 void Compiler::fgSimpleLowering()
 {
     for (BasicBlock* block = fgFirstBB; block; block = block->bbNext)
