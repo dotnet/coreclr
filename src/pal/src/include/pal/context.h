@@ -30,11 +30,9 @@ extern "C"
 #include <pthread.h>
 
 #ifdef __ANDROID__
-// There's no getcontext in Android, but we can use getcontext from libunwind;
-// there's no setcontext implementation.
-#include "libunwind.h"
-#define getcontext unw_tdep_getcontext
+// getcontext and setcontext are not available natively on Android
 int setcontext(const ucontext_t *ucp);
+int getcontext(ucontext_t* ucp);
 #endif
 
 #if !HAVE_MACH_EXCEPTIONS
