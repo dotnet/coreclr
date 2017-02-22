@@ -406,7 +406,7 @@ namespace System.Globalization {
 
             if ((options & ValidCompareMaskOffFlags) != 0)
             {
-                throw new ArgumentException(Environment.GetResourceString("Argument_InvalidFlag"), nameof(options));
+                throw new ArgumentException(Environment.GetResourceString("Argument_InvalidFlag"));
             }
 
             //Our paradigm is that null sorts less than any other string and
@@ -494,7 +494,7 @@ namespace System.Globalization {
             }
             else if ((options & ValidCompareMaskOffFlags) != 0)
             {
-                throw new ArgumentException(Environment.GetResourceString("Argument_InvalidFlag"), nameof(options));
+                throw new ArgumentException(Environment.GetResourceString("Argument_InvalidFlag"));
             }
 
             //
@@ -558,7 +558,7 @@ namespace System.Globalization {
             }
 
             if ((options & ValidIndexMaskOffFlags) != 0) {
-                throw new ArgumentException(Environment.GetResourceString("Argument_InvalidFlag"), nameof(options));
+                throw new ArgumentException(Environment.GetResourceString("Argument_InvalidFlag"));
             }
 
 
@@ -610,7 +610,7 @@ namespace System.Globalization {
             }
 
             if ((options & ValidIndexMaskOffFlags) != 0) {
-                throw new ArgumentException(Environment.GetResourceString("Argument_InvalidFlag"), nameof(options));
+                throw new ArgumentException(Environment.GetResourceString("Argument_InvalidFlag"));
             }
 
             // to let the sorting DLL do the call optimization in case of Ascii strings, we check if the strings are in Ascii and then send the flag RESERVED_FIND_ASCII_STRING  to 
@@ -753,7 +753,7 @@ namespace System.Globalization {
             // Validate CompareOptions
             // Ordinal can't be selected with other flags
             if ((options & ValidIndexMaskOffFlags) != 0 && (options != CompareOptions.Ordinal))
-                throw new ArgumentException(Environment.GetResourceString("Argument_InvalidFlag"), nameof(options));
+                throw new ArgumentException(Environment.GetResourceString("Argument_InvalidFlag"));
 
             // to let the sorting DLL do the call optimization in case of Ascii strings, we check if the strings are in Ascii and then send the flag RESERVED_FIND_ASCII_STRING  to 
             // the sorting DLL API SortFindString so sorting DLL don't have to check if the string is Ascii with every call to SortFindString.
@@ -817,7 +817,7 @@ namespace System.Globalization {
             // Validate CompareOptions
             // Ordinal can't be selected with other flags
             if ((options & ValidIndexMaskOffFlags) != 0 && (options != CompareOptions.Ordinal))
-                throw new ArgumentException(Environment.GetResourceString("Argument_InvalidFlag"), nameof(options));
+                throw new ArgumentException(Environment.GetResourceString("Argument_InvalidFlag"));
 
             // to let the sorting DLL do the call optimization in case of Ascii strings, we check if the strings are in Ascii and then send the flag RESERVED_FIND_ASCII_STRING  to 
             // the sorting DLL API SortFindString so sorting DLL don't have to check if the string is Ascii with every call to SortFindString.
@@ -936,7 +936,7 @@ namespace System.Globalization {
             if ((options & ValidIndexMaskOffFlags) != 0 &&
                 (options != CompareOptions.Ordinal) &&
                 (options != CompareOptions.OrdinalIgnoreCase))
-                throw new ArgumentException(Environment.GetResourceString("Argument_InvalidFlag"), nameof(options));
+                throw new ArgumentException(Environment.GetResourceString("Argument_InvalidFlag"));
 
             // Special case for 0 length input strings
             if (source.Length == 0 && (startIndex == -1 || startIndex == 0))
@@ -986,7 +986,7 @@ namespace System.Globalization {
             if ((options & ValidIndexMaskOffFlags) != 0 &&
                 (options != CompareOptions.Ordinal) &&
                 (options != CompareOptions.OrdinalIgnoreCase))
-                throw new ArgumentException(Environment.GetResourceString("Argument_InvalidFlag"), nameof(options));
+                throw new ArgumentException(Environment.GetResourceString("Argument_InvalidFlag"));
 
             // Special case for 0 length input strings
             if (source.Length == 0 && (startIndex == -1 || startIndex == 0))
@@ -1059,7 +1059,7 @@ namespace System.Globalization {
 
             if ((options & ValidSortkeyCtorMaskOffFlags) != 0)
             {
-                throw new ArgumentException(Environment.GetResourceString("Argument_InvalidFlag"), nameof(options));
+                throw new ArgumentException(Environment.GetResourceString("Argument_InvalidFlag"));
             }
             byte[] keyData = null;
             // The OS doesn't have quite the same behavior so we have to test for empty inputs
@@ -1080,7 +1080,7 @@ namespace System.Globalization {
             // If there was an error, return an error
             if (length == 0)
             {
-                throw new ArgumentException(Environment.GetResourceString("Argument_InvalidFlag"), nameof(source));
+                throw new ArgumentException(Environment.GetResourceString("Argument_InvalidFlag"));
             }
 
             // If input was empty, return the empty byte[] we made earlier and skip this
@@ -1211,7 +1211,7 @@ namespace System.Globalization {
 
             if ((options & ValidHashCodeOfStringMaskOffFlags) != 0)
             {
-                throw new ArgumentException(Environment.GetResourceString("Argument_InvalidFlag"), nameof(options));
+                throw new ArgumentException(Environment.GetResourceString("Argument_InvalidFlag"));
             }
             Contract.EndContractBlock();
 
