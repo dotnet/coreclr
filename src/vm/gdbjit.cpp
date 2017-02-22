@@ -33,11 +33,6 @@ GetTypeInfoFromTypeHandle(TypeHandle typeHandle, NotifyGdb::PTK_TypeInfoMap pTyp
         case ELEMENT_TYPE_I1:
         case ELEMENT_TYPE_U1:
         case ELEMENT_TYPE_CHAR:
-            typeInfo = new (nothrow) ByteTypeInfo(typeHandle, CorElementTypeToDWEncoding[corType]);
-            if (typeInfo == nullptr)
-                return nullptr;
-            typeInfo->m_type_size = CorTypeInfo::Size(corType);
-            break;
         case ELEMENT_TYPE_VOID:
         case ELEMENT_TYPE_BOOLEAN:
         case ELEMENT_TYPE_I2:
@@ -50,7 +45,7 @@ GetTypeInfoFromTypeHandle(TypeHandle typeHandle, NotifyGdb::PTK_TypeInfoMap pTyp
         case ELEMENT_TYPE_R8:
         case ELEMENT_TYPE_U:
         case ELEMENT_TYPE_I:
-            typeInfo = new (nothrow) PrimitiveTypeInfo(typeHandle, CorElementTypeToDWEncoding[corType]);
+            typeInfo = new (nothrow) ByteTypeInfo(typeHandle, CorElementTypeToDWEncoding[corType]);
             if (typeInfo == nullptr)
                 return nullptr;
 
@@ -1030,20 +1025,35 @@ void TypeDefInfo::DumpDebugInfo(char *ptr, int &offset)
     offset += sizeof(DebugInfoTypeDef);
 }
 
+static const char *GetCSharpTypeName(TypeInfoBase *typeInfo)
+{
+    switch(typeInfo->GetTypeHandle().GetSignatureCorElementType())
+    {
+        case ELEMENT_TYPE_I1: return "sbyte";
+        case ELEMENT_TYPE_U1:  return "byte";
+        case ELEMENT_TYPE_CHAR: return "char";
+        case ELEMENT_TYPE_VOID: return "void";
+        case ELEMENT_TYPE_BOOLEAN: return "bool";
+        case ELEMENT_TYPE_I2: return "short";
+        case ELEMENT_TYPE_U2: return "ushort";
+        case ELEMENT_TYPE_I4: return "int";
+        case ELEMENT_TYPE_U4: return "uint";
+        case ELEMENT_TYPE_I8: return "long";
+        case ELEMENT_TYPE_U8: return "ulong";
+        case ELEMENT_TYPE_R4: return "float";
+        case ELEMENT_TYPE_R8: return "double";
+        default: return typeInfo->m_type_name;
+    }
+}
+
 void ByteTypeInfo::DumpStrings(char* ptr, int& offset)
 {
     PrimitiveTypeInfo::DumpStrings(ptr, offset);
     if (!m_typedef_info->m_typedef_name)
     {
-        m_typedef_info->m_typedef_name = new (nothrow) char[strlen(m_type_name) + 1];
-        if (strcmp(m_type_name, "System.Byte") == 0)
-            strcpy(m_typedef_info->m_typedef_name, "byte");
-        else if (strcmp(m_type_name, "System.SByte") == 0)
-            strcpy(m_typedef_info->m_typedef_name, "sbyte");
-        else if (strcmp(m_type_name, "char16_t") == 0)
-            strcpy(m_typedef_info->m_typedef_name, "char");
-        else
-            strcpy(m_typedef_info->m_typedef_name, m_type_name);
+        const char *typeName = GetCSharpTypeName(this);
+        m_typedef_info->m_typedef_name = new (nothrow) char[strlen(typeName) + 1];
+        strcpy(m_typedef_info->m_typedef_name, typeName);
     }
     m_typedef_info->DumpStrings(ptr, offset);
 }
