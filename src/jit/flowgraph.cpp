@@ -9040,11 +9040,11 @@ void Compiler::fgSimpleLowering()
                 {
                     GenTreeCall* call = tree->AsCall();
                     // Fast tail calls use the caller-supplied scratch
-                    // space so have no impact on this methods outgong arg size.
+                    // space so have no impact on this method's outgoing arg size.
                     if (!call->IsFastTailCall())
                     {
                         // Update outgoing arg size to handle this call
-                        const unsigned thisCallOutAreaSize = tree->AsCall()->fgArgInfo->GetOutArgSize();
+                        const unsigned thisCallOutAreaSize = call->fgArgInfo->GetOutArgSize();
                         assert(thisCallOutAreaSize >= MIN_ARG_AREA_FOR_CALL);
 
                         if (thisCallOutAreaSize > lvaOutgoingArgSpaceSize)
