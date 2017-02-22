@@ -29,6 +29,14 @@ extern "C"
 #include <signal.h>
 #include <pthread.h>
 
+#ifdef __ANDROID__
+// There's no getcontext in Android, but we can use getcontext from libunwind;
+// there's no setcontext implementation.
+#include "libunwind.h"
+#define getcontext unw_tdep_getcontext
+int setcontext(const ucontext_t *ucp);
+#endif
+
 #if !HAVE_MACH_EXCEPTIONS
 /* A type to wrap the native context type, which is ucontext_t on some
  * platforms and another type elsewhere. */

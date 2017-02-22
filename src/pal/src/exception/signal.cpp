@@ -47,6 +47,14 @@ SET_DEFAULT_DEBUG_CHANNEL(EXCEPT); // some headers have code with asserts, so do
 
 #include "pal/context.h"
 
+#ifdef __ANDROID__
+int setcontext(const ucontext_t *ucp)
+{
+    // Not implemented on Android
+    return -1;
+}
+#endif
+
 using namespace CorUnix;
 
 #ifdef SIGRTMIN
