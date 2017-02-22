@@ -8954,6 +8954,8 @@ void Compiler::fgFindOperOrder()
 
 void Compiler::fgSimpleLowering()
 {
+    unsigned outgoingArgSpaceSize = 0;
+
     for (BasicBlock* block = fgFirstBB; block; block = block->bbNext)
     {
         // Walk the statement trees in this basic block, converting ArrLength nodes.
@@ -9047,9 +9049,9 @@ void Compiler::fgSimpleLowering()
                         const unsigned thisCallOutAreaSize = call->fgArgInfo->GetOutArgSize();
                         assert(thisCallOutAreaSize >= MIN_ARG_AREA_FOR_CALL);
 
-                        if (thisCallOutAreaSize > lvaOutgoingArgSpaceSize)
+                        if (thisCallOutAreaSize > outgoingArgSpaceSize)
                         {
-                            lvaOutgoingArgSpaceSize = thisCallOutAreaSize;
+                            outgoingArgSpaceSize = thisCallOutAreaSize;
 
                             // If a function has localloc, we will need to move the outgoing arg space when the
                             // localloc happens. When we do this, we need to maintain stack alignment. To avoid
@@ -9058,21 +9060,21 @@ void Compiler::fgSimpleLowering()
                             // stack alignment boundary.
                             if (compLocallocUsed)
                             {
-                                lvaOutgoingArgSpaceSize = (unsigned)roundUp(lvaOutgoingArgSpaceSize, STACK_ALIGN);
+                                outgoingArgSpaceSize = (unsigned)roundUp(outgoingArgSpaceSize, STACK_ALIGN);
                             }
 
-                            JITDUMP("Bumping lvaOutgoingArgSpaceSize to %u for call [%06d]\n", lvaOutgoingArgSpaceSize,
+                            JITDUMP("Bumping outgoingArgSpaceSize to %u for call [%06d]\n", outgoingArgSpaceSize,
                                     dspTreeID(tree));
                         }
                         else
                         {
-                            JITDUMP("lvaOutgoingArgSpaceSize %u sufficient for call [%06d], which needs %u\n",
-                                    lvaOutgoingArgSpaceSize, dspTreeID(tree), thisCallOutAreaSize);
+                            JITDUMP("outgoingArgSpaceSize %u sufficient for call [%06d], which needs %u\n",
+                                    outgoingArgSpaceSize, dspTreeID(tree), thisCallOutAreaSize);
                         }
                     }
                     else
                     {
-                        JITDUMP("lvaOutgoingArgSpaceSize not impacted by fast tail call [%06d]\n", dspTreeID(tree))
+                        JITDUMP("outgoingArgSpaceSize not impacted by fast tail call [%06d]\n", dspTreeID(tree))
                     }
                 }
 
@@ -9080,6 +9082,29 @@ void Compiler::fgSimpleLowering()
             }
         }
     }
+
+    // Finish computing the outgoing args area size
+    //
+    // Need to make sure the MIN_ARG_AREA_FOR_CALL space is added to the frame if:
+    // 1. there are calls to THROW_HEPLPER methods.
+    // 2. we are generating profiling Enter/Leave/TailCall hooks. This will ensure
+    //    that even methods without any calls will have outgoing arg area space allocated.
+    //
+    // An example for these two cases is Windows Amd64, where the ABI requires to have 4 slots for
+    // the outgoing arg space if the method makes any calls.
+    if (outgoingArgSpaceSize < MIN_ARG_AREA_FOR_CALL)
+    {
+        if (compUsesThrowHelper || compIsProfilerHookNeeded())
+        {
+            outgoingArgSpaceSize = MIN_ARG_AREA_FOR_CALL;
+            JITDUMP("Bumping outgoingArgSpaceSizeTo %u for throw helper or profile hook", outgoingArgSpaceSize);
+        }
+    }
+
+    // Publish the final value and mark it as read only so any update
+    // attempt later will cause an assert.
+    lvaOutgoingArgSpaceSize = outgoingArgSpaceSize;
+    lvaOutgoingArgSpaceSize.MarkAsReadOnly();
 
 #ifdef DEBUG
     if (verbose && fgRngChkThrowAdded)

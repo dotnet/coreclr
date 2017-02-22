@@ -4343,10 +4343,10 @@ GenTreeCall* Compiler::fgMorphArgs(GenTreeCall* callNode)
 
 #if FEATURE_FIXED_OUT_ARGS
 
-    // Update the outgoing argument size.
-    // If the call is a fast tail call, it will setup its arguments in incoming arg
-    // area instead of the out-going arg area.  Therefore, don't consider fast tail
-    // calls to update lvaOutgoingArgSpaceSize.
+    // Record the outgoing argument size.  If the call is a fast tail
+    // call, it will setup its arguments in incoming arg area instead
+    // of the out-going arg area, so we don't need to track the
+    // outgoing arg size.
     if (!call->IsFastTailCall())
     {
         unsigned preallocatedArgCount = call->fgArgInfo->GetNextSlotNum();

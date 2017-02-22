@@ -2417,9 +2417,9 @@ public:
                                         // in case there are multiple BBJ_RETURN blocks in the inlinee.
 
 #if FEATURE_FIXED_OUT_ARGS
-    unsigned lvaOutgoingArgSpaceVar;  // dummy TYP_LCLBLK var for fixed outgoing argument space
-    unsigned lvaOutgoingArgSpaceSize; // size of fixed outgoing argument space
-#endif                                // FEATURE_FIXED_OUT_ARGS
+    unsigned            lvaOutgoingArgSpaceVar;  // dummy TYP_LCLBLK var for fixed outgoing argument space
+    PhasedVar<unsigned> lvaOutgoingArgSpaceSize; // size of fixed outgoing argument space
+#endif                                           // FEATURE_FIXED_OUT_ARGS
 
 #ifdef _TARGET_ARM_
     // On architectures whose ABIs allow structs to be passed in registers, struct promotion will sometimes
@@ -2582,7 +2582,7 @@ public:
 
     void lvaMarkLocalVars(); // Local variable ref-counting
 
-    void lvaAllocOutgoingArgSpace(); // 'Commit' lvaOutgoingArgSpaceSize and lvaOutgoingArgSpaceVar
+    void lvaAllocOutgoingArgSpaceVar(); // Set up lvaOutgoingArgSpaceVar
 
     VARSET_VALRET_TP lvaStmtLclMask(GenTreePtr stmt);
 
