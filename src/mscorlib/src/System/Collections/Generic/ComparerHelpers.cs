@@ -55,6 +55,10 @@ namespace System.Collections.Generic
             return result ?? CreateInstanceForAnotherGenericParameter((RuntimeType)typeof(ObjectComparer<object>), runtimeType);
         }
 
+        /// <summary>
+        /// Creates the default <see cref="Comparer{T}"/> for a nullable type.
+        /// </summary>
+        /// <param name="nullableType">The nullable type to create the default comparer for.</param>
         private static object TryCreateNullableComparer(RuntimeType nullableType)
         {
             Debug.Assert(nullableType != null);
@@ -70,6 +74,10 @@ namespace System.Collections.Generic
             return null;
         }
 
+        /// <summary>
+        /// Creates the default <see cref="Comparer{T}"/> for an enum type.
+        /// </summary>
+        /// <param name="enumType">The enum type to create the default comparer for.</param>
         private static object TryCreateEnumComparer(RuntimeType enumType)
         {
             Debug.Assert(enumType != null);
@@ -144,6 +152,10 @@ namespace System.Collections.Generic
             return result ?? CreateInstanceForAnotherGenericParameter((RuntimeType)typeof(ObjectEqualityComparer<object>), runtimeType);
         }
 
+        /// <summary>
+        /// Creates the default <see cref="EqualityComparer{T}"/> for a nullable type.
+        /// </summary>
+        /// <param name="nullableType">The nullable type to create the default equality comparer for.</param>
         private static object TryCreateNullableEqualityComparer(RuntimeType nullableType)
         {
             Debug.Assert(nullableType != null);
@@ -159,6 +171,10 @@ namespace System.Collections.Generic
             return null;
         }
 
+        /// <summary>
+        /// Creates the default <see cref="EqualityComparer{T}"/> for an enum type.
+        /// </summary>
+        /// <param name="enumType">The enum type to create the default equality comparer for.</param>
         private static object TryCreateEnumEqualityComparer(RuntimeType enumType)
         {
             Debug.Assert(enumType != null);
