@@ -2683,6 +2683,9 @@ regMaskTP LinearScan::getKillSetForNode(GenTree* tree)
             {
                 assert(tree->AsObj()->gtGcPtrCount != 0);
                 killMask = compiler->compHelperCallKillSet(CORINFO_HELP_ASSIGN_BYREF);
+#ifdef _TARGET_ARM64_
+                killMask |= REG_WRITE_BARRIER_SRC_BYREF | REG_WRITE_BARRIER_DST_BYREF;
+#endif // _TARGET_ARM64_
                 break;
             }
             __fallthrough;
