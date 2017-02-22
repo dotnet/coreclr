@@ -43,56 +43,59 @@ namespace System
         ExecutionAndPublicationException      = 9,
     }
 
-    internal class LazyNonGeneric
+    internal class LazyHelper
     {
-        internal readonly static LazyNonGeneric NoneViaConstructor            = new LazyNonGeneric(LazyState.NoneViaConstructor);
-        internal readonly static LazyNonGeneric NoneViaFactory                = new LazyNonGeneric(LazyState.NoneViaFactory);
-        internal readonly static LazyNonGeneric PublicationOnlyViaConstructor = new LazyNonGeneric(LazyState.PublicationOnlyViaConstructor);
-        internal readonly static LazyNonGeneric PublicationOnlyViaFactory     = new LazyNonGeneric(LazyState.PublicationOnlyViaFactory);
-        internal readonly static LazyNonGeneric PublicationOnlySpinWait       = new LazyNonGeneric(LazyState.PublicationOnlyWait);
+        internal readonly static LazyHelper NoneViaConstructor            = new LazyHelper(LazyState.NoneViaConstructor);
+        internal readonly static LazyHelper NoneViaFactory                = new LazyHelper(LazyState.NoneViaFactory);
+        internal readonly static LazyHelper PublicationOnlyViaConstructor = new LazyHelper(LazyState.PublicationOnlyViaConstructor);
+        internal readonly static LazyHelper PublicationOnlyViaFactory     = new LazyHelper(LazyState.PublicationOnlyViaFactory);
+        internal readonly static LazyHelper PublicationOnlyWaitForOtherThreadToPublish       = new LazyHelper(LazyState.PublicationOnlyWait);
 
         internal LazyState State { get; }
 
-        private readonly System.Runtime.ExceptionServices.ExceptionDispatchInfo _exceptionDispatch;
+        private readonly ExceptionDispatchInfo _exceptionDispatch;
 
         /// <summary>
         /// Constructor that defines the state
         /// </summary>
-        /// <param name="state"></param>
-        internal LazyNonGeneric(LazyState state)
+        internal LazyHelper(LazyState state)
         {
             State = state;
-        }
-
-        private Exception InvalidLogic()
-        {
-            // correctly implemented, we should never create this exception
-            return new Exception("Invalid logic; execution should not get here");
         }
 
         /// <summary>
         /// Constructor used for exceptions
         /// </summary>
-        /// <param name="mode"></param>
-        /// <param name="exception"></param>
-        internal LazyNonGeneric(LazyThreadSafetyMode mode, Exception exception)
+        internal LazyHelper(LazyThreadSafetyMode mode, Exception exception)
         {
-            if (mode == LazyThreadSafetyMode.ExecutionAndPublication)
-                State = LazyState.ExecutionAndPublicationException;
-            else if (mode == LazyThreadSafetyMode.None)
-                State = LazyState.NoneException;
-            else if (mode == LazyThreadSafetyMode.PublicationOnly)
-                State = LazyState.PublicationOnlyException;
-            else
-                throw InvalidLogic();
+            switch(mode)
+            {
+                case LazyThreadSafetyMode.ExecutionAndPublication:
+                    State = LazyState.ExecutionAndPublicationException;
+                    break;
 
-            _exceptionDispatch = System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(exception);
+                case LazyThreadSafetyMode.None:
+                    State = LazyState.NoneException;
+                    break;
+
+                case LazyThreadSafetyMode.PublicationOnly:
+                    State = LazyState.PublicationOnlyException;
+                    break;
+
+                default:
+                    Debug.Assert(false, "internal constructor, this should never occur");
+                    break;
+            }
+
+            _exceptionDispatch = ExceptionDispatchInfo.Capture(exception);
         }
 
         internal void ThrowException()
         {
             if (_exceptionDispatch == null)
-                throw InvalidLogic();
+            {
+                Debug.Assert(false, "execution path is invalid");
+            }
 
             _exceptionDispatch.Throw();
         }
@@ -118,14 +121,15 @@ namespace System
                     return LazyThreadSafetyMode.ExecutionAndPublication;
 
                 default:
-                    throw InvalidLogic();
+                    Debug.Assert(false, "Invalid logic; State should always have a valid value");
+                    throw new ArgumentOutOfRangeException();
             }
         }
 
-        internal static LazyThreadSafetyMode GetMode(LazyNonGeneric state)
+        internal static LazyThreadSafetyMode? GetMode(LazyHelper state)
         {
             if (state == null)
-                return LazyThreadSafetyMode.None; // we don't know the mode anymore
+                return null; // we don't know the mode anymore
             return state.GetMode();
         }
 
@@ -134,33 +138,31 @@ namespace System
             return _exceptionDispatch != null;
         }
 
-        internal static bool GetIsValueFaulted(LazyNonGeneric state)
+        internal static bool GetIsValueFaulted(LazyHelper state)
         {
             if (state == null)
                 return false;
             return state.GetIsValueFaulted();
         }
 
-        internal static LazyNonGeneric Create(LazyThreadSafetyMode mode, bool useDefaultConstructor)
+        internal static LazyHelper Create(LazyThreadSafetyMode mode, bool useDefaultConstructor)
         {
-            if (mode == LazyThreadSafetyMode.None)
+            switch (mode)
             {
-                return useDefaultConstructor ? NoneViaConstructor : NoneViaFactory;
-            }
+                case LazyThreadSafetyMode.None:
+                    return useDefaultConstructor ? NoneViaConstructor : NoneViaFactory;
 
-            if (mode == LazyThreadSafetyMode.PublicationOnly)
-            {
-                return useDefaultConstructor ? PublicationOnlyViaConstructor : PublicationOnlyViaFactory;
-            }
+                case LazyThreadSafetyMode.PublicationOnly:
+                    return useDefaultConstructor ? PublicationOnlyViaConstructor : PublicationOnlyViaFactory;
 
-            if (mode == LazyThreadSafetyMode.ExecutionAndPublication)
-            {
-                // we need to create an object for ExecutionAndPublication because we use Monitor-based locking
-                var state = useDefaultConstructor ? LazyState.ExecutionAndPublicationViaConstructor : LazyState.ExecutionAndPublicationViaFactory;
-                return new LazyNonGeneric(state);
-            }
+                case LazyThreadSafetyMode.ExecutionAndPublication:
+                    // we need to create an object for ExecutionAndPublication because we use Monitor-based locking
+                    var state = useDefaultConstructor ? LazyState.ExecutionAndPublicationViaConstructor : LazyState.ExecutionAndPublicationViaFactory;
+                    return new LazyHelper(state);
 
-            throw new ArgumentOutOfRangeException(nameof(mode), Environment.GetResourceString("Lazy_ctor_ModeInvalid"));
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(mode), Environment.GetResourceString("Lazy_ctor_ModeInvalid"));
+            }
         }
 
         internal static object CreateViaDefaultConstructor(Type type)
@@ -200,19 +202,19 @@ namespace System
     {
         private static T CreateViaDefaultConstructor()
         {
-            return (T)LazyNonGeneric.CreateViaDefaultConstructor(typeof(T));
+            return (T)LazyHelper.CreateViaDefaultConstructor(typeof(T));
         }
 
         // _state, a volatile reference, is set to null after m_value has been set
         [NonSerialized]
-        private volatile LazyNonGeneric _state;
+        private volatile LazyHelper _state;
 
-        // we ensure that m_factory when finished is set to null to allow garbage collector to clean up
+        // we ensure that _factory when finished is set to null to allow garbage collector to clean up
         // any referenced items
         [NonSerialized]
         private Func<T> _factory;
 
-        // m_value eventually stores the lazily created value. It is ready when _state = null.
+        // m_value eventually stores the lazily created value. It is valid when _state = null.
         private T _value;
 
         /// <summary>
@@ -254,7 +256,7 @@ namespace System
         /// An instance created with this constructor may be used concurrently from multiple threads.
         /// </remarks>
         public Lazy(Func<T> valueFactory)
-            : this(valueFactory, LazyThreadSafetyMode.ExecutionAndPublication, false)
+            : this(valueFactory, LazyThreadSafetyMode.ExecutionAndPublication, useDefaultConstructor:false)
         {
         }
 
@@ -265,7 +267,7 @@ namespace System
         /// <param name="isThreadSafe">true if this instance should be usable by multiple threads concurrently; false if the instance will only be used by one thread at a time.
         /// </param>
         public Lazy(bool isThreadSafe) :
-            this(null, LazyNonGeneric.GetModeFromIsThreadSafe(isThreadSafe), true)
+            this(null, LazyHelper.GetModeFromIsThreadSafe(isThreadSafe), useDefaultConstructor:true)
         {
         }
 
@@ -276,7 +278,7 @@ namespace System
         /// <param name="mode">The lazy thread-safety mode mode</param>
         /// <exception cref="System.ArgumentOutOfRangeException"><paramref name="mode"/> mode contains an invalid valuee</exception>
         public Lazy(LazyThreadSafetyMode mode) :
-            this(null, mode, true)
+            this(null, mode, useDefaultConstructor:true)
         {
         }
 
@@ -292,7 +294,7 @@ namespace System
         /// <exception cref="System.ArgumentNullException"><paramref name="valueFactory"/> is
         /// a null reference (Nothing in Visual Basic).</exception>
         public Lazy(Func<T> valueFactory, bool isThreadSafe) :
-            this(valueFactory, LazyNonGeneric.GetModeFromIsThreadSafe(isThreadSafe), false)
+            this(valueFactory, LazyHelper.GetModeFromIsThreadSafe(isThreadSafe), useDefaultConstructor:false)
         {
         }
 
@@ -308,7 +310,7 @@ namespace System
         /// a null reference (Nothing in Visual Basic).</exception>
         /// <exception cref="System.ArgumentOutOfRangeException"><paramref name="mode"/> mode contains an invalid value.</exception>
         public Lazy(Func<T> valueFactory, LazyThreadSafetyMode mode)
-            : this(valueFactory, mode, false)
+            : this(valueFactory, mode, useDefaultConstructor:false)
         {
         }
 
@@ -318,113 +320,133 @@ namespace System
                 throw new ArgumentNullException(nameof(valueFactory));
 
             _factory = valueFactory;
-            _state = LazyNonGeneric.Create(mode, useDefaultConstructor);
+            _state = LazyHelper.Create(mode, useDefaultConstructor);
         }
 
-        private T ViaConstructor()
+        private void ViaConstructor()
         {
             _value = CreateViaDefaultConstructor();
-            _state = null;
-
-            return _value;
+            _state = null; // volatile write, must occur after setting _value
         }
 
-        private T ViaFactory(LazyThreadSafetyMode mode)
+        private void ViaFactory(LazyThreadSafetyMode mode)
         {
             try
             {
-                var factory = _factory;
+                Func<T> factory = _factory;
                 if (factory == null)
                     throw new InvalidOperationException(Environment.GetResourceString("Lazy_Value_RecursiveCallsToValue"));
                 _factory = null;
 
                 _value = factory();
-                _state = null;
-
-                return _value;
+                _state = null; // volatile write, must occur after setting _value
             }
             catch (Exception exception)
             {
-                _state = new LazyNonGeneric(mode, exception);
+                _state = new LazyHelper(mode, exception);
                 throw;
             }
         }
 
-        private T ExecutionAndPublication(LazyNonGeneric executionAndPublication, bool useDefaultConstructor)
+        private void ExecutionAndPublication(LazyHelper executionAndPublication, bool useDefaultConstructor)
         {
             lock (executionAndPublication)
             {
                 // it's possible for multiple calls to have piled up behind the lock, so we need to check
                 // to see if the ExecutionAndPublication object is still the current implementation.
                 if (ReferenceEquals(_state, executionAndPublication))
-                    return useDefaultConstructor ? ViaConstructor() : ViaFactory(LazyThreadSafetyMode.ExecutionAndPublication);
-
-                return Value;
-            }
-        }
-
-        private T PublicationOnly(LazyNonGeneric publicationOnly, T possibleValue)
-        {
-            try { }
-            finally
-            {
-                // we run this in a finally block to ensure that we don't get a partial completion due
-                // to a Thread.Abort, which could mean that other threads might be left in infinite loops
-                var previous = Interlocked.CompareExchange(ref _state, LazyNonGeneric.PublicationOnlySpinWait, publicationOnly);
-                if (previous == publicationOnly)
                 {
-                    _value = possibleValue;
-                    _factory = null;
-                    _state = null;
+                    if (useDefaultConstructor)
+                    {
+                        ViaConstructor();
+                    }
+                    else
+                    {
+                        ViaFactory(LazyThreadSafetyMode.ExecutionAndPublication);
+                    }
                 }
             }
-
-            return Value;
         }
 
-        private T PublicationOnlyViaConstructor(LazyNonGeneric initializer)
+        private void PublicationOnly(LazyHelper publicationOnly, T possibleValue)
         {
-            return PublicationOnly(initializer, CreateViaDefaultConstructor());
+            LazyHelper previous = Interlocked.CompareExchange(ref _state, LazyHelper.PublicationOnlyWaitForOtherThreadToPublish, publicationOnly);
+            if (previous == publicationOnly)
+            {
+                _factory = null;
+                _value = possibleValue;
+                _state = null; // volatile write, must occur after setting _value
+            }
         }
 
-        private T PublicationOnlyViaFactory(LazyNonGeneric initializer)
+        private void PublicationOnlyViaConstructor(LazyHelper initializer)
         {
-            var factory = _factory;
+            PublicationOnly(initializer, CreateViaDefaultConstructor());
+        }
+
+        private void PublicationOnlyViaFactory(LazyHelper initializer)
+        {
+            Func<T> factory = _factory;
             if (factory == null)
-                return PublicationOnlySpinWait();
-            return PublicationOnly(initializer, factory());
+            {
+                PublicationOnlyWaitForOtherThreadToPublish();
+            }
+            else
+            {
+                PublicationOnly(initializer, factory());
+            }
         }
 
-        private T PublicationOnlySpinWait()
+        private void PublicationOnlyWaitForOtherThreadToPublish()
         {
             var spinWait = new SpinWait();
             while (!ReferenceEquals(_state, null))
             {
-                // We get here when PublicationOnly temporarily sets _state to LazyNonGeneric.PublicationOnlySpinWait.
+                // We get here when PublicationOnly temporarily sets _state to LazyHelper.PublicationOnlyWaitForOtherThreadToPublish.
                 // This temporary state should be quickly followed by _state being set to null.
                 spinWait.SpinOnce();
             }
-            return Value;
         }
 
-        private T LazyGetValue(LazyNonGeneric state)
+        private T LazyGetValue()
         {
+            var state = _state;
             switch (state.State)
             {
-                case LazyState.NoneViaConstructor:                    return ViaConstructor();
-                case LazyState.NoneViaFactory:                        return ViaFactory(LazyThreadSafetyMode.None);
+                case LazyState.NoneViaConstructor:
+                    ViaConstructor();
+                    break;
 
-                case LazyState.PublicationOnlyViaConstructor:         return PublicationOnlyViaConstructor(state);
-                case LazyState.PublicationOnlyViaFactory:             return PublicationOnlyViaFactory(state);
-                case LazyState.PublicationOnlyWait:                   return PublicationOnlySpinWait();
+                case LazyState.NoneViaFactory:
+                    ViaFactory(LazyThreadSafetyMode.None);
+                    break;
 
-                case LazyState.ExecutionAndPublicationViaConstructor: return ExecutionAndPublication(state, true);
-                case LazyState.ExecutionAndPublicationViaFactory:     return ExecutionAndPublication(state, false);
+                case LazyState.PublicationOnlyViaConstructor:
+                    PublicationOnlyViaConstructor(state);
+                    break;
+
+                case LazyState.PublicationOnlyViaFactory:
+                    PublicationOnlyViaFactory(state);
+                    break;
+
+                case LazyState.PublicationOnlyWait:
+                    PublicationOnlyWaitForOtherThreadToPublish();
+                    break;
+
+                case LazyState.ExecutionAndPublicationViaConstructor:
+                    ExecutionAndPublication(state, useDefaultConstructor:true);
+                    break;
+
+                case LazyState.ExecutionAndPublicationViaFactory:
+                    ExecutionAndPublication(state, useDefaultConstructor:false);
+                    break;
 
                 default:
                     state.ThrowException();
                     return default(T);
             }
+
+            return Value;
         }
 
         /// <summary>Forces initialization during serialization.</summary>
@@ -456,16 +478,16 @@ namespace System
                 {
                     return default(T);
                 }
-                return Value;
+                return _value;
             }
         }
 
         /// <summary>
         /// Gets a value indicating whether this instance may be used concurrently from multiple threads.
         /// </summary>
-        internal LazyThreadSafetyMode Mode
+        internal LazyThreadSafetyMode? Mode
         {
-            get { return LazyNonGeneric.GetMode(_state); }
+            get { return LazyHelper.GetMode(_state); }
         }
 
         /// <summary>
@@ -473,7 +495,7 @@ namespace System
         /// </summary>
         internal bool IsValueFaulted
         {
-            get { return LazyNonGeneric.GetIsValueFaulted(_state); }
+            get { return LazyHelper.GetIsValueFaulted(_state); }
         }
 
         /// <summary>Gets a value indicating whether the <see cref="T:System.Lazy{T}"/> has been initialized.
@@ -512,16 +534,7 @@ namespace System
         /// from initialization delegate.
         /// </remarks>
         [DebuggerBrowsable(DebuggerBrowsableState.Never)]
-        public T Value
-        {
-            get
-            {
-                var state = _state;
-                if (state == null)
-                    return _value;
-                return LazyGetValue(state);
-            }
-        }
+        public T Value => _state == null ? _value : LazyGetValue();
     }
 
     /// <summary>A debugger view of the Lazy&lt;T&gt; to surface additional debugging properties and 
@@ -552,7 +565,7 @@ namespace System
         }
 
         /// <summary>Returns the execution mode of the Lazy object</summary>
-        public LazyThreadSafetyMode Mode
+        public LazyThreadSafetyMode? Mode
         {
             get { return m_lazy.Mode; }
         }
