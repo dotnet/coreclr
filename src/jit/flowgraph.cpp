@@ -9075,6 +9075,12 @@ void Compiler::fgSimpleLowering()
                         break;
                     }
 
+                    default:
+                    {
+                        // No other operators need processing.
+                        break;
+                    }
+
 #endif // FEATURE_FIXED_OUT_ARGS
                 }
             } // foreach gtNext
