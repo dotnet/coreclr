@@ -335,45 +335,37 @@ LEAF_ENTRY JIT_ByRefWriteBarrier, _TEXT
         add     rsi, 8h
         add     rdi, 8h
 
-#ifdef FEATURE_MANUALLY_MANAGED_CARD_BUNDLES
-        // also move the address into rdx because we're going to overwrite rcx
-        // and we may need the address below.
-        mov     rdx, rcx
-#endif
-
         // Check if we need to update the card table
         // Calc pCardByte
         shr     rcx, 0x0B
+        
         PREPARE_EXTERNAL_VAR g_card_table, rax
-        ///// add     rcx, [rax]
+        mov     rax, [rax]
 
         // Check if this card is dirty
-        ///// cmp     byte ptr [rcx], 0FFh
-
-        mov     rax, [rax]
         cmp     byte ptr [rcx + rax], 0FFh
-
 
         jne     UpdateCardTable_ByRefWriteBarrier
         REPRET
 
     UpdateCardTable_ByRefWriteBarrier:
-        ///// mov     byte ptr [rcx], 0FFh
         mov     byte ptr [rcx + rax], 0FFh
 
 #ifdef FEATURE_MANUALLY_MANAGED_CARD_BUNDLES
-        // Shifting an address by 0x15 gives us its corresponding card bundle byte
-        shr     rdx, 0x15
+        // Shift rcx by 0x0A more to get the card bundle byte (we shifted by 0x0B already)
+        shr     rcx, 0x0A
+        
         PREPARE_EXTERNAL_VAR g_card_bundle_table, rax
-        add     rdx, [rax]
+        mov     rax, [rax]
 
         // Check if this bundle byte is dirty
-        cmp     byte ptr [rdx], 0FFh
+        cmp     byte ptr [rcx + rax], 0FFh
+
         jne     UpdateCardBundle_ByRefWriteBarrier
         REPRET
 
     UpdateCardBundle_ByRefWriteBarrier:
-        mov     byte ptr [rdx], 0FFh
+        mov     byte ptr [rcx + rax], 0FFh
 #endif
 
         ret

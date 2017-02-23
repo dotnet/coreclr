@@ -48,9 +48,8 @@ PATCH_LABEL JIT_WriteBarrier_PreGrow64_Patch_Label_CardTable
         mov     byte ptr [rdi + rax], 0FFh
 
 #ifdef FEATURE_MANUALLY_MANAGED_CARD_BUNDLES
-        //// HOW CAN WE GET AROUND THIS?
         NOP_3_BYTE // padding for alignment of constant
-        NOP_3_BYTE // padding for alignment of constant
+        NOP_3_BYTE
 
 PATCH_LABEL JIT_WriteBarrier_PreGrow64_Patch_Label_CardBundleTable
         movabs  rax, 0xF0F0F0F0F0F0F0F0
@@ -137,7 +136,6 @@ PATCH_LABEL JIT_WriteBarrier_PostGrow64_Patch_Label_CardTable
         mov     byte ptr [rdi + rax], 0FFh
 
 #ifdef FEATURE_MANUALLY_MANAGED_CARD_BUNDLES
-        //// HOW CAN WE GET AROUND THIS?
         NOP_3_BYTE // padding for alignment of constant
         NOP_3_BYTE // padding for alignment of constant
 
@@ -198,7 +196,6 @@ PATCH_LABEL JIT_WriteBarrier_SVR64_PatchLabel_CardTable
         mov     byte ptr [rdi + rax], 0FFh
 
 #ifdef FEATURE_MANUALLY_MANAGED_CARD_BUNDLES
-        //////////
         NOP_3_BYTE // padding for alignment of constant
         NOP_3_BYTE // padding for alignment of constant
 
