@@ -381,7 +381,7 @@ public:
         return m_value;
     }
 
-    // Mark the value as read only
+    // Mark the value as read only; explicitly change the variable to the "read" phase.
     void MarkAsReadOnly() const
     {
 #ifdef DEBUG

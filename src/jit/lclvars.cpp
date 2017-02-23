@@ -50,6 +50,7 @@ void Compiler::lvaInit()
 #if FEATURE_FIXED_OUT_ARGS
     lvaPInvokeFrameRegSaveVar = BAD_VAR_NUM;
     lvaOutgoingArgSpaceVar    = BAD_VAR_NUM;
+    lvaOutgoingArgSpaceSize   = PhasedVar<unsigned>();
 #endif // FEATURE_FIXED_OUT_ARGS
 #ifdef _TARGET_ARM_
     lvaPromotedStructAssemblyScratchVar = BAD_VAR_NUM;
