@@ -828,28 +828,19 @@ namespace System
         }
 
         // Determines whether two strings match.
-        public override bool Equals(Object obj)
-        {
-            if (object.ReferenceEquals(this, obj))
-                return true;
-
-            string str = obj as string;
-            return str != null && Length == str.Length && EqualsHelper(this, str);
-        }
+        public override bool Equals(object obj) =>
+            this == obj ||
+            (obj is string str &&
+             Length == str.Length &&
+             EqualsHelper(this, str));
 
         // Determines whether two strings match.
         [Pure]
-        public bool Equals(String value)
-        {
-            if (object.ReferenceEquals(this, value))
-                return true;
-
-            // NOTE: No need to worry about casting to object here.
-            // If either side of an == comparison between strings
-            // is null, Roslyn generates a simple ceq instruction
-            // instead of calling string.op_Equality.
-            return value != null && Length == value.Length && EqualsHelper(this, value);
-        }
+        public bool Equals(string value) =>
+            (object)this == value ||
+            ((object)value != null &&
+             Length == value.Length &&
+             EqualsHelper(this, value));
 
         [Pure]
         public bool Equals(String value, StringComparison comparisonType) {
@@ -907,17 +898,12 @@ namespace System
 
         // Determines whether two Strings match.
         [Pure]
-        public static bool Equals(String a, String b) {
-            if ((Object)a==(Object)b) {
-                return true;
-            }
-
-            if ((Object)a == null || (Object)b == null || a.Length != b.Length) {
-                return false;
-            }
-
-            return EqualsHelper(a, b);
-        }
+        public static bool Equals(string a, string b) =>
+            (object)a == b ||
+            ((object)a != null &&
+             (object)b != null &&
+             a.Length == b.Length &&
+             EqualsHelper(a, b));
 
         [Pure]
         public static bool Equals(String a, String b, StringComparison comparisonType) {
