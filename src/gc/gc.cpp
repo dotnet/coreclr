@@ -2185,16 +2185,22 @@ void stomp_write_barrier_resize(bool is_runtime_suspended, bool requires_upper_b
     args.operation = WriteBarrierOp::StompResize;
     args.is_runtime_suspended = is_runtime_suspended;
     args.requires_upper_bounds_check = requires_upper_bounds_check;
+
     args.card_table = g_gc_card_table;
+#ifdef FEATURE_MANUALLY_MANAGED_CARD_BUNDLES
     args.card_bundle_table = g_gc_card_bundle_table;
+#endif
+
     args.lowest_address = g_gc_lowest_address;
     args.highest_address = g_gc_highest_address;
+
 #ifdef FEATURE_USE_SOFTWARE_WRITE_WATCH_FOR_GC_HEAP
     if (SoftwareWriteWatch::IsEnabledForGCHeap())
     {
         args.write_watch_table = g_gc_sw_ww_table;
     }
 #endif // FEATURE_USE_SOFTWARE_WRITE_WATCH_FOR_GC_HEAP
+
     GCToEEInterface::StompWriteBarrier(&args);
 }
 
@@ -2215,7 +2221,11 @@ void stomp_write_barrier_initialize()
     args.is_runtime_suspended = true;
     args.requires_upper_bounds_check = false;
     args.card_table = g_gc_card_table;
+
+#ifdef FEATURE_MANUALLY_MANAGED_CARD_BUNDLES
     args.card_bundle_table = g_gc_card_bundle_table;
+#endif
+    
     args.lowest_address = g_gc_lowest_address;
     args.highest_address = g_gc_highest_address;
     args.ephemeral_low = reinterpret_cast<uint8_t*>(1);
@@ -6338,12 +6348,20 @@ void gc_heap::card_bundle_clear (size_t cardb)
               (size_t)card_bundle_cardw (cardb+1)));
 }
 
+void gc_heap::card_bundle_set (size_t cardb)
+{
+    if (!card_bundle_set_p (cardb))
+    {
+        card_bundle_table [card_bundle_word (cardb)] |= (1 << card_bundle_bit (cardb));
+    }
+}
+
 // Set the card bundle bits between start_cardb and end_cardb
 void gc_heap::card_bundles_set (size_t start_cardb, size_t end_cardb)
 {
     if (start_cardb == end_cardb)
     {
-        card_bundle_table [card_bundle_word (start_cardb)] |= (1 << card_bundle_bit (start_cardb));
+        card_bundle_set(start_cardb);
         return;
     }
 
@@ -6563,7 +6581,8 @@ void gc_heap::set_card (size_t card)
 #ifdef FEATURE_MANUALLY_MANAGED_CARD_BUNDLES
     // Also set the card bundle that corresponds to the card
     size_t bundle_to_set = cardw_card_bundle(word);
-    card_bundles_set(bundle_to_set, bundle_to_set);
+
+    card_bundle_set(bundle_to_set);
 
     dprintf (3,("Set card %Ix [%Ix, %Ix[ and bundle %Ix", card, (size_t)card_address (card), (size_t)card_address (card+1), bundle_to_set));
     assert(card_bundle_set_p(bundle_to_set) != 0);
@@ -6912,7 +6931,10 @@ void release_card_table (uint32_t* c_table)
             if (&g_gc_card_table[card_word (gcard_of(g_gc_lowest_address))] == c_table)
             {
                 g_gc_card_table = 0;
+
+#ifdef FEATURE_MANUALLY_MANAGED_CARD_BUNDLES
                 g_gc_card_bundle_table = 0;
+#endif
 #ifdef FEATURE_USE_SOFTWARE_WRITE_WATCH_FOR_GC_HEAP
                 SoftwareWriteWatch::StaticClose();
 #endif // FEATURE_USE_SOFTWARE_WRITE_WATCH_FOR_GC_HEAP
@@ -7025,6 +7047,11 @@ uint32_t* gc_heap::make_card_table (uint8_t* start, uint8_t* end)
 
 #ifdef CARD_BUNDLE
     card_table_card_bundle_table (ct) = (uint32_t*)((uint8_t*)card_table_brick_table (ct) + bs);
+
+#ifdef FEATURE_MANUALLY_MANAGED_CARD_BUNDLES
+    g_gc_card_bundle_table = translate_card_bundle_table(card_table_card_bundle_table(ct), g_gc_lowest_address);
+#endif
+
 #endif //CARD_BUNDLE
 
 #ifdef FEATURE_USE_SOFTWARE_WRITE_WATCH_FOR_GC_HEAP
@@ -7047,7 +7074,7 @@ uint32_t* gc_heap::make_card_table (uint8_t* start, uint8_t* end)
         card_table_mark_array (ct) = NULL;
 #endif //MARK_ARRAY
 
-    return ct;
+    return translate_card_table(ct);
 }
 
 void gc_heap::set_fgm_result (failure_get_memory f, size_t s, BOOL loh_p)
@@ -7135,7 +7162,11 @@ int gc_heap::grow_brick_card_tables (uint8_t* start,
         bool write_barrier_updated = false;
         uint32_t virtual_reserve_flags = VirtualReserveFlags::None;
         uint32_t* saved_g_card_table = g_gc_card_table;
+
+#ifdef FEATURE_MANUALLY_MANAGED_CARD_BUNDLES
         uint32_t* saved_g_card_bundle_table = g_gc_card_bundle_table;
+#endif
+
         uint32_t* ct = 0;
         uint32_t* translated_ct = 0;
         short* bt = 0;
@@ -7324,7 +7355,10 @@ int gc_heap::grow_brick_card_tables (uint8_t* start,
             }
 
             g_gc_card_table = translated_ct;
+
+#ifdef FEATURE_MANUALLY_MANAGED_CARD_BUNDLES
             g_gc_card_bundle_table = translate_card_bundle_table(card_table_card_bundle_table(ct), saved_g_lowest_address);
+#endif
 
             SoftwareWriteWatch::SetResizedUntranslatedTable(
                 mem + sw_ww_table_offset,
@@ -7350,7 +7384,10 @@ int gc_heap::grow_brick_card_tables (uint8_t* start,
 #endif // FEATURE_USE_SOFTWARE_WRITE_WATCH_FOR_GC_HEAP
         {
             g_gc_card_table = translated_ct;
+
+#ifdef FEATURE_MANUALLY_MANAGED_CARD_BUNDLES
             g_gc_card_bundle_table = translate_card_bundle_table(card_table_card_bundle_table(ct), saved_g_lowest_address);
+#endif
         }
 
         seg_mapping_table = new_seg_mapping_table;
@@ -7381,7 +7418,10 @@ fail:
         if (mem)
         {
             assert(g_gc_card_table == saved_g_card_table);
+
+#ifdef FEATURE_MANUALLY_MANAGED_CARD_BUNDLES
             assert(g_gc_card_bundle_table  == saved_g_card_bundle_table);
+#endif
 
             //delete (uint32_t*)((uint8_t*)ct - sizeof(card_table_info));
             if (!GCToOSInterface::VirtualRelease (mem, alloc_size_aligned))
@@ -7486,20 +7526,31 @@ void gc_heap::copy_brick_card_range (uint8_t* la, uint32_t* old_card_table,
             (card_table_lowest_address (ct) <= start))
         {
             // or the card_tables
-            uint32_t* dest = &card_table [card_word (card_of (start))];
-            uint32_t* src = &((translate_card_table (ct)) [card_word (card_of (start))]);
+
+            size_t start_word = card_word (card_of (start));
+
+            uint32_t* dest = &card_table[start_word];
+            uint32_t* src = &((translate_card_table (ct))[start_word]);
             ptrdiff_t count = count_card_of (start, end);
             for (int x = 0; x < count; x++)
             {
                 *dest |= *src;
+
+#ifdef FEATURE_MANUALLY_MANAGED_CARD_BUNDLES
+                if (*src != 0)
+                {
+                    card_bundle_set(cardw_card_bundle(start_word+x));
+                }
+#endif
+
                 dest++;
                 src++;
             }
 
-#ifdef FEATURE_MANUALLY_MANAGED_CARD_BUNDLES
-            //// think about this. for now just set all the bundles for the dest words
-            card_bundles_set(cardw_card_bundle(card_word(card_of(start))), cardw_card_bundle( align_cardw_on_bundle(card_word(card_of(end)))));
-#endif
+// #ifdef FEATURE_MANUALLY_MANAGED_CARD_BUNDLES
+//             //// think about this. for now just set all the bundles for the dest words
+//             card_bundles_set(cardw_card_bundle(card_word(card_of(start))), cardw_card_bundle( align_cardw_on_bundle(card_word(card_of(end)))));
+// #endif
         }
 
         ct = card_table_next (ct);
@@ -9504,7 +9555,6 @@ void gc_heap::update_card_table_bundle()
 
         // Now that we've updated the card bundle bits, reset the write-tracking state. 
         GCToOSInterface::ResetWriteWatch (saved_base_address, saved_region_size);
-        verify_card_bundles();
     }
 }
 #endif //CARD_BUNDLE
@@ -9932,13 +9982,18 @@ HRESULT gc_heap::initialize_gc (size_t segment_size,
 
     settings.first_init();
 
-    uint32_t* untranslated_card_table = make_card_table (g_gc_lowest_address, g_gc_highest_address);
+    // uint32_t* untranslated_card_table = make_card_table (g_gc_lowest_address, g_gc_highest_address);
 
-#ifdef CARD_BUNDLE
-    g_gc_card_bundle_table = translate_card_bundle_table(card_table_card_bundle_table(untranslated_card_table), g_gc_lowest_address);
-#endif
+    g_gc_card_table = make_card_table (g_gc_lowest_address, g_gc_highest_address);
 
-    g_gc_card_table = translate_card_table(untranslated_card_table);
+// #ifdef CARD_BUNDLE
+//     ///// set this in make_card_table and don't change any code here
+//     #ifdef FEATURE_MANUALLY_MANAGED_CARD_BUNDLES
+//         g_gc_card_bundle_table = translate_card_bundle_table(card_table_card_bundle_table(untranslated_card_table), g_gc_lowest_address);
+//     #endif
+// #endif
+
+    // g_gc_card_table = translate_card_table(untranslated_card_table);
 
     if (!g_gc_card_table)
         return E_OUTOFMEMORY;
@@ -15305,7 +15360,10 @@ void gc_heap::gc1()
     vm_heap->GcCondemnedGeneration = settings.condemned_generation;
 
     assert (g_gc_card_table == card_table);
+
+#ifdef FEATURE_MANUALLY_MANAGED_CARD_BUNDLES
     assert (g_gc_card_bundle_table == card_bundle_table);
+#endif    
 
     {
         if (n == max_generation)
@@ -16546,9 +16604,6 @@ int gc_heap::garbage_collect (int n)
         // check for card table growth
         if (g_gc_card_table != card_table)
             copy_brick_card_table();
-
-        assert(g_gc_card_table == card_table);
-        assert(g_gc_card_bundle_table == card_bundle_table);
 
 #endif //MULTIPLE_HEAPS
 
@@ -18621,9 +18676,9 @@ gc_heap::scan_background_roots (promote_func* fn, int hn, ScanContext *pSC)
 
 #endif //BACKGROUND_GC
 
-
 void gc_heap::fix_card_table ()
 {
+#ifdef NO_WRITE_BARRIER
 #ifdef WRITE_WATCH
     heap_segment* seg = heap_segment_rw (generation_start_segment (generation_of (max_generation)));
 
@@ -18698,9 +18753,11 @@ void gc_heap::fix_card_table ()
                       card_of (g_addresses [i]), (size_t)g_addresses [i],
                       card_of (g_addresses [i]+OS_PAGE_SIZE), (size_t)g_addresses [i]+OS_PAGE_SIZE));
 
-                // Note for FEATURE_MANUALLY_MANAGED_CARD_BUNDLES
-                // We don't need to update card bundles here because this function is only used when
-                // we don't have write barriers (and so we can't have manually managed card bundles).
+#ifdef FEATURE_MANUALLY_MANAGED_CARD_BUNDLES
+    // We don't need to update card bundles here because this function is only used when
+    // we don't have write barriers.
+    #error Cannot have manually managed card bundles without write barriers.
+#endif
             }
 
             if (bcount >= array_size){
@@ -18723,6 +18780,7 @@ void gc_heap::fix_card_table ()
     }
 #endif //BACKGROUND_GC
 #endif //WRITE_WATCH
+#endif //NO_WRITE_BARRIER
 }
 
 #ifdef BACKGROUND_GC
@@ -19638,13 +19696,15 @@ void gc_heap::mark_phase (int condemned_gen_number, BOOL mark_only_p)
             {
 #endif //MULTIPLE_HEAPS
 
-#ifdef FEATURE_MANUALLY_MANAGED_CARD_BUNDLES
-                // Every write to the card table should already be accounted for in the card bundle table
-                // so there's nothing to update here. We will just verify that this is the case.
-                verify_card_bundles();
-#else
+#ifndef FEATURE_MANUALLY_MANAGED_CARD_BUNDLES
+                // If we are manually managing card bundles, every write to the card table should already be
+                // accounted for in the card bundle table so there's nothing to update here.
                 update_card_table_bundle();
 #endif
+                if (card_bundles_enabled())
+                {
+                    verify_card_bundles();
+                }
 
 #ifdef MULTIPLE_HEAPS
                 gc_t_join.r_restart();
@@ -21293,7 +21353,7 @@ void gc_heap::convert_to_pinned_plug (BOOL& last_npinned_plug_p,
     artificial_pinned_size = ps;
 }
 
-// Because we have the artificial pinning, we can't guarantee that pinned and unpinned
+// Because we have the artificial pinning, we can't guarantee that pinned and npinned
 // plugs are always interleaved.
 void gc_heap::store_plug_gap_info (uint8_t* plug_start,
                                    uint8_t* plug_end,
@@ -27105,11 +27165,6 @@ void gc_heap::copy_cards (size_t dst_card,
     unsigned int srctmp = card_table[srcwrd];
     unsigned int dsttmp = card_table[dstwrd];
 
-
-    //////
-    // size_t first_dst_word = dstwrd;
-    //////
-
     for (size_t card = dst_card; card < end_card; card++)
     {
         if (srctmp & (1 << srcbit))
@@ -27134,13 +27189,9 @@ void gc_heap::copy_cards (size_t dst_card,
             card_table[dstwrd] = dsttmp;
 
 #ifdef FEATURE_MANUALLY_MANAGED_CARD_BUNDLES
-            ////// improvement: instead of setting the bundles here, 
-            // get the lowest bundle and highest bundle that need to be set
-            // and do it all at the end.
             if (dsttmp != 0)
             {
-                size_t bundle_to_set = cardw_card_bundle(dstwrd);
-                card_bundles_set(bundle_to_set, bundle_to_set);
+                card_bundle_set(cardw_card_bundle(dstwrd));
             }
 #endif
 
@@ -27153,24 +27204,9 @@ void gc_heap::copy_cards (size_t dst_card,
     card_table[dstwrd] = dsttmp;
 
 #ifdef FEATURE_MANUALLY_MANAGED_CARD_BUNDLES
-    //////
-    /// considered this way.... but this means we might set bundles where the cards were all 0 
-    //////
-    // size_t end_bundle = cardw_card_bundle(dstwrd);
-    // size_t start_bundle = end_bundle;
-    // if (dstwrd != first_dst_word)
-    // {
-    //     start_bundle = cardw_card_bundle(first_dst_word);
-    // }
-    //
-    // card_bundles_set(start_bundle, end_bundle);
-    //////
-
-
     if (dsttmp != 0)
     {
-        size_t bundle_to_set = cardw_card_bundle(dstwrd);
-        card_bundles_set(bundle_to_set, bundle_to_set);
+        card_bundle_set(cardw_card_bundle(dstwrd));
     }
 #endif
 }
@@ -27544,14 +27580,13 @@ BOOL gc_heap::find_card(uint32_t* card_table,
                 card_word_value = *(++last_card_word);
             } while ((last_card_word < &card_table [card_word_end]) &&
 
-// #ifdef _MSC_VER
-//                      (card_word_value == (1 << card_word_width)-1)
-// #else
+#ifdef _MSC_VER
+                     (card_word_value == (1 << card_word_width)-1)
+#else
                      // if left shift count >= width of type,
                      // gcc reports error.
-                     ///////////// WHY DON'T WE JUST USE THIS EVERYWHERE????
                      (card_word_value == ~0u)
-// #endif // _MSC_VER
+#endif // _MSC_VER
                 );
             bit_position = 0;
         }
@@ -27721,7 +27756,6 @@ void gc_heap::mark_through_cards_for_segments (card_fn fn, BOOL relocating)
     dprintf (3, ("current_sweep_pos is %Ix, saved_sweep_ephemeral_seg is %Ix(%Ix)",
                  current_sweep_pos, saved_sweep_ephemeral_seg, saved_sweep_ephemeral_start));
 
-    // Find the first RW segment, starting with the Gen 2 start segment.
     heap_segment* soh_seg = heap_segment_rw (generation_start_segment (generation_of (max_generation)));
     PREFIX_ASSUME(soh_seg != NULL);
 
@@ -33489,7 +33523,10 @@ HRESULT GCHeap::Shutdown ()
     {
         destroy_card_table (ct);
         g_gc_card_table = nullptr;
+
+#ifdef FEATURE_MANUALLY_MANAGED_CARD_BUNDLES
         g_gc_card_bundle_table = nullptr;
+#endif
 #ifdef FEATURE_USE_SOFTWARE_WRITE_WATCH_FOR_GC_HEAP
         SoftwareWriteWatch::StaticClose();
 #endif // FEATURE_USE_SOFTWARE_WRITE_WATCH_FOR_GC_HEAP

@@ -1121,9 +1121,17 @@ OBJECTREF AllocateObject(MethodTable *pMT
 #define card_bit(addr)  (1 << ((((size_t)(addr)) >> (card_byte_shift - 3)) & 7))
 
 #ifdef FEATURE_MANUALLY_MANAGED_CARD_BUNDLES
-    #define card_bundle_byte(addr) (((size_t)(addr)) >> card_bundle_byte_shift)
-#endif
+#define card_bundle_byte(addr) (((size_t)(addr)) >> card_bundle_byte_shift)
 
+static void SetCardBundleByte(BYTE* addr)
+{
+    BYTE* cbByte = (BYTE *)VolatileLoadWithoutBarrier(&g_card_bundle_table) + card_bundle_byte(addr);
+    if (*cbByte != 0xFF)
+    {
+        *cbByte = 0xFF;
+    }
+}
+#endif
 
 #ifdef FEATURE_USE_ASM_GC_WRITE_BARRIERS
 
@@ -1276,10 +1284,13 @@ extern "C" HCIMPL2_RAW(VOID, JIT_CheckedWriteBarrier, Object **dst, Object *ref)
 #endif
             *pCardByte = 0xFF;
 
+///// refactor this out? we're doing it in a bunch of places in this file
 #ifdef FEATURE_MANUALLY_MANAGED_CARD_BUNDLES
-            BYTE* pCardBundleByte = (BYTE *)VolatileLoadWithoutBarrier(&g_card_bundle_table) + card_bundle_byte((BYTE *)dst);
-            if (*pCardBundleByte != 0xFF)
-                *pCardBundleByte = 0xFF;
+            // BYTE* pCardBundleByte = (BYTE *)VolatileLoadWithoutBarrier(&g_card_bundle_table) + card_bundle_byte((BYTE *)dst);
+            // if (*pCardBundleByte != 0xFF)
+            //     *pCardBundleByte = 0xFF;
+
+            SetCardBundleByte((BYTE*)dst);
 #endif
         }
     }
@@ -1339,11 +1350,13 @@ extern "C" HCIMPL2_RAW(VOID, JIT_WriteBarrier, Object **dst, Object *ref)
 
 #ifdef FEATURE_MANUALLY_MANAGED_CARD_BUNDLES
             // Also update the corresponding card bundle byte
-            BYTE* pBundleByte = (BYTE *)VolatileLoadWithoutBarrier(&g_card_bundle_table) + card_bundle_byte((BYTE *)dst);
-            if (*pBundleByte != 0xFF)
-            {
-                *pBundleByte = 0xFF;
-            }
+            // BYTE* pBundleByte = (BYTE *)VolatileLoadWithoutBarrier(&g_card_bundle_table) + card_bundle_byte((BYTE *)dst);
+            // if (*pBundleByte != 0xFF)
+            // {
+            //     *pBundleByte = 0xFF;
+            // }
+
+            SetCardBundleByte((BYTE*)dst);
 #endif
 
         }
@@ -1407,11 +1420,13 @@ void ErectWriteBarrier(OBJECTREF *dst, OBJECTREF ref)
             
 #ifdef FEATURE_MANUALLY_MANAGED_CARD_BUNDLES
             // Also update the corresponding card bundle byte
-            BYTE* pBundleByte = (BYTE *)VolatileLoadWithoutBarrier(&g_card_bundle_table) + card_bundle_byte((BYTE *)dst);
-            if (*pBundleByte != 0xFF)
-            {
-                *pBundleByte = 0xFF;
-            }
+            // BYTE* pBundleByte = (BYTE *)VolatileLoadWithoutBarrier(&g_card_bundle_table) + card_bundle_byte((BYTE *)dst);
+            // if (*pBundleByte != 0xFF)
+            // {
+            //     *pBundleByte = 0xFF;
+            // }
+
+            SetCardBundleByte((BYTE*)dst);
 #endif
 
         }
@@ -1453,11 +1468,13 @@ void ErectWriteBarrierForMT(MethodTable **dst, MethodTable *ref)
 
 #ifdef FEATURE_MANUALLY_MANAGED_CARD_BUNDLES
                 // Also update the corresponding card bundle byte
-                BYTE* pBundleByte = (BYTE *)VolatileLoadWithoutBarrier(&g_card_bundle_table) + card_bundle_byte((BYTE *)dst);
-                if (*pBundleByte != 0xFF)
-                {
-                    *pBundleByte = 0xFF;
-                }
+                // BYTE* pBundleByte = (BYTE *)VolatileLoadWithoutBarrier(&g_card_bundle_table) + card_bundle_byte((BYTE *)dst);
+                // if (*pBundleByte != 0xFF)
+                // {
+                //     *pBundleByte = 0xFF;
+                // }
+
+                SetCardBundleByte((BYTE*)dst);
 #endif
 
             }
