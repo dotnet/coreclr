@@ -36,6 +36,8 @@ internal class ScanProjectFiles
 
             // CORE_ROOT should be something like
             //  c:\repos\coreclr\bin\tests\Windows_NT.x64.Checked\Tests\Core_Root
+            // or
+            //  D:\j\workspace\x64_release_w---0575cb46\bin\tests\Windows_NT.x64.Release\Tests\Core_Root
             // We want
             //  c:\repos\coreclr\tests\src\JIT
             string coreRoot = System.Environment.GetEnvironmentVariable("CORE_ROOT");
@@ -46,15 +48,16 @@ internal class ScanProjectFiles
                 return -1;
             }
 
-            int repoIndex = coreRoot.IndexOf("coreclr");
+            int binIndex = coreRoot.IndexOf("bin");
 
-            if (repoIndex < 0)
+            if (binIndex < 0)
             {
-                Console.WriteLine("CORE_ROOT must be set to full path to repo test dir");
+                Console.WriteLine("CORE_ROOT must be set to full path to repo test dir; was '{0}'.",
+                    coreRoot);
                 return -1;
             }
 
-            string repoRoot = coreRoot.Substring(0, repoIndex + "coreclr".Length);
+            string repoRoot = coreRoot.Substring(0, binIndex);
 
             projectRoot = Path.Combine(repoRoot, "tests", "src", "JIT");
         }
