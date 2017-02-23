@@ -849,6 +849,7 @@ namespace System
 
         // Determines whether two strings match.
         [Pure]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool Equals(string value) =>
             ((object)value == null ||
              Length == value.Length) && EqualsHelper(this, value);
@@ -909,6 +910,7 @@ namespace System
 
         // Determines whether two Strings match.
         [Pure]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool Equals(string a, string b) =>
             ((object)a == null ||
              (object)b == null ||
