@@ -830,29 +830,17 @@ namespace System
         // Determines whether two strings match.
         public override bool Equals(Object obj)
         {
-            if (this == null)                        // this is necessary to guard against reverse-pinvokes and
-                throw new NullReferenceException();  // other callers who do not use the callvirt instruction
-
             if (object.ReferenceEquals(this, obj))
                 return true;
 
             string str = obj as string;
-            if (str == null)
-                return false;
-
-            if (this.Length != str.Length)
-                return false;
-
-            return EqualsHelper(this, str);
+            return str != null && Length == str.Length && EqualsHelper(this, str);
         }
 
         // Determines whether two strings match.
         [Pure]
         public bool Equals(String value)
         {
-            if (this == null)                        // this is necessary to guard against reverse-pinvokes and
-                throw new NullReferenceException();  // other callers who do not use the callvirt instruction
-
             if (object.ReferenceEquals(this, value))
                 return true;
 
@@ -860,13 +848,7 @@ namespace System
             // If either side of an == comparison between strings
             // is null, Roslyn generates a simple ceq instruction
             // instead of calling string.op_Equality.
-            if (value == null)
-                return false;
-            
-            if (this.Length != value.Length)
-                return false;
-
-            return EqualsHelper(this, value);
+            return value != null && Length == value.Length && EqualsHelper(this, value);
         }
 
         [Pure]
