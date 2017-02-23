@@ -69,7 +69,7 @@
     <XunitPerformanceDependency Include="Microsoft.DotNet.xunit.performance.runner.cli" />
     <XunitPerformanceDependency Include="Microsoft.DotNet.xunit.performance.runner.Windows" />
     <StaticDependency Include="@(XunitPerformanceDependency)">
-      <Version>1.0.0-alpha-build0040</Version>
+      <Version>1.0.0-alpha-build0047</Version>
     </StaticDependency>
 
     <StaticDependency Include="xunit.console.netcore">
