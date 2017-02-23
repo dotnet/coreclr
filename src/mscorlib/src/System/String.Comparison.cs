@@ -75,9 +75,17 @@ namespace System
 
         private unsafe static bool EqualsHelper(String strA, String strB)
         {
-            Contract.Requires(strA != null);
-            Contract.Requires(strB != null);
-            Contract.Requires(strA.Length == strB.Length);
+            Debug.Assert((strA == null || strB == null) || strA.Length == strB.Length);
+
+            if ((object)strA == strB)
+            {
+                return true;
+            }
+
+            if ((object)strA == null || (object)strB == null)
+            {
+                return false;
+            }
 
             int length = strA.Length;
 
@@ -828,19 +836,22 @@ namespace System
         }
 
         // Determines whether two strings match.
-        public override bool Equals(object obj) =>
-            this == obj ||
-            (obj is string str &&
-             Length == str.Length &&
-             EqualsHelper(this, str));
+        public override bool Equals(object obj)
+        {
+            if (this == obj)
+            {
+                return true;
+            }
+
+            string str = obj as string;
+            return str != null && Length == str.Length && EqualsHelper(this, str);
+        }
 
         // Determines whether two strings match.
         [Pure]
         public bool Equals(string value) =>
-            (object)this == value ||
-            ((object)value != null &&
-             Length == value.Length &&
-             EqualsHelper(this, value));
+            ((object)value == null ||
+             Length == value.Length) && EqualsHelper(this, value);
 
         [Pure]
         public bool Equals(String value, StringComparison comparisonType) {
@@ -899,11 +910,9 @@ namespace System
         // Determines whether two Strings match.
         [Pure]
         public static bool Equals(string a, string b) =>
-            (object)a == b ||
-            ((object)a != null &&
-             (object)b != null &&
-             a.Length == b.Length &&
-             EqualsHelper(a, b));
+            ((object)a == null ||
+             (object)b == null ||
+             a.Length == b.Length) && EqualsHelper(a, b);
 
         [Pure]
         public static bool Equals(String a, String b, StringComparison comparisonType) {
