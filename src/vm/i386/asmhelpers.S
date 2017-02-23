@@ -1112,12 +1112,12 @@ NESTED_ENTRY BackPatchWorkerAsmStub, _TEXT, NoHandler
     PROLOG_PUSH edx
     PROLOG_END
 
-    push eax        //  push any indirect call address as the second arg to BackPatchWorker
-    push [ebp+8]    //  and push return address as the first arg to BackPatchWorker
-    sub esp, 4      //  for 16 bytes align
+    sub     esp, 4     //  for 16 bytes align
+    push    eax        //  push any indirect call address as the second arg to BackPatchWorker
+    push    [ebp+8]    //  and push return address as the first arg to BackPatchWorker
 
-    call C_FUNC(BackPatchWorkerStaticStub)
-    add esp, 12
+    call    C_FUNC(BackPatchWorkerStaticStub)
+    add     esp, 12
 
     EPILOG_BEG
     EPILOG_POP edx
@@ -1125,4 +1125,4 @@ NESTED_ENTRY BackPatchWorkerAsmStub, _TEXT, NoHandler
     EPILOG_POP eax
     EPILOG_END
     ret
-NESTED_END BackPatchWorkerAsmStub, _TEX
+NESTED_END BackPatchWorkerAsmStub, _TEXT
