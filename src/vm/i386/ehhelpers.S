@@ -7,13 +7,14 @@
 #include "asmconstants.h"
 
 // DWORD_PTR STDCALL CallEHFunclet(Object *pThrowable, UINT_PTR pFuncletToInvoke, UINT_PTR *pFirstNonVolReg, UINT_PTR *pFuncletCallerSP);
+// ESP based frame
 NESTED_ENTRY CallEHFunclet, _TEXT, NoHandler
 
-    PROLOG_BEG
+    ESP_PROLOG_BEG
     PROLOG_PUSH ebx
     PROLOG_PUSH esi
     PROLOG_PUSH edi
-    PROLOG_END
+    ESP_PROLOG_END
 
     // On entry:
     //
@@ -26,38 +27,38 @@ NESTED_ENTRY CallEHFunclet, _TEXT, NoHandler
     // Save the SP of this function
     mov     eax, [ebp + 20]
     mov     [eax], esp
-    // Restore non-volatiles registers (except ebp)
-    mov     eax, [ebp + 16]
-    mov     edi, [eax]
-    mov     esi, [eax +  4]
-    mov     ebx, [eax +  8]
-    // Pass FP to funclet
-	// We don't restore EBP here or it would affect unwinding this helper
-    mov     ecx, [eax + 24]
+    // Save the funclet PC for later call
+    mov     edx, [ebp + 12]
     // Pass throwable object to funclet
     mov     eax, [ebp +  8]
+    // Restore non-volatiles registers
+    mov     ecx, [ebp + 16]
+    mov     edi, [ecx]
+    mov     esi, [ecx +  4]
+    mov     ebx, [ecx +  8]
+    mov     ebp, [ecx + 24]
     // Invoke the funclet
-    mov     edx, [ebp + 12]
     call    edx
 
-    EPILOG_BEG
+    ESP_EPILOG_BEG
     EPILOG_POP edi
     EPILOG_POP esi
     EPILOG_POP ebx
-    EPILOG_END
+    ESP_EPILOG_END
 
     ret     16
 
 NESTED_END CallEHFunclet, _TEXT
 
 // DWORD_PTR STDCALL CallEHFilterFunclet(Object *pThrowable, TADDR CallerSP, UINT_PTR pFuncletToInvoke, UINT_PTR *pFuncletCallerSP);
+// ESP based frame
 NESTED_ENTRY CallEHFilterFunclet, _TEXT, NoHandler
 
-    PROLOG_BEG
+    ESP_PROLOG_BEG
     PROLOG_PUSH ebx
     PROLOG_PUSH esi
     PROLOG_PUSH edi
-    PROLOG_END
+    ESP_PROLOG_END
 
     // On entry:
     //
@@ -70,19 +71,20 @@ NESTED_ENTRY CallEHFilterFunclet, _TEXT, NoHandler
     // Save the SP of this function
     mov     eax, [ebp + 20]
     mov     [eax], esp
+    // Save the funclet PC for later call
+    mov     edx, [ebp + 16]
     // Pass throwable object to funclet
     mov     eax, [ebp +  8]
-    // Pass FP to funclet
-    mov     ecx, [ebp + 12]
+    // Restore FP
+    mov     ebp, [ebp + 12]
     // Invoke the funclet
-    mov     edx, [ebp + 16]
     call    edx
 
-    EPILOG_BEG
+    ESP_EPILOG_BEG
     EPILOG_POP edi
     EPILOG_POP esi
     EPILOG_POP ebx
-    EPILOG_END
+    ESP_EPILOG_END
 
     ret     16
 

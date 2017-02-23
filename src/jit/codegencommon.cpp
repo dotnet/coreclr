@@ -10306,9 +10306,9 @@ void CodeGen::genCaptureFuncletPrologEpilogInfo()
  *
  *  Funclets have the following incoming arguments:
  *
- *      catch/filter-handler: eax = the exception object that was caught (see GT_CATCH_ARG), ecx = FP
- *      filter:               eax = the exception object that was caught (see GT_CATCH_ARG), ecx = FP
- *      finally/fault:        ecx = FP
+ *      catch/filter-handler: eax = the exception object that was caught (see GT_CATCH_ARG)
+ *      filter:               eax = the exception object that was caught (see GT_CATCH_ARG)
+ *      finally/fault:        none
  *
  *  Funclets set the following registers on exit:
  *
@@ -10336,20 +10336,13 @@ void CodeGen::genFuncletProlog(BasicBlock* block)
     inst_RV(INS_push, REG_FPBASE, TYP_REF);
     compiler->unwindPush(REG_FPBASE);
 
-    // TODO Save callee-saved registers
-
     // This is the end of the OS-reported prolog for purposes of unwinding
     compiler->unwindEndProlog();
 
-    // Restore frame pointer
-    // TODO We will need changes here when we introduce PSPSym
-    inst_RV_RV(INS_mov, REG_FPBASE, REG_ARG_0);
+    // TODO We may need EBP restore sequence here if we introduce PSPSym
 
     // Add a padding for 16-byte alignment
     inst_RV_IV(INS_sub, REG_SPBASE, 8, EA_PTRSIZE);
-
-    // We've modified EBP, but not really. Say that we haven't...
-    regSet.rsRemoveRegsModified(RBM_FPBASE);
 }
 
 /*****************************************************************************
@@ -10367,8 +10360,6 @@ void CodeGen::genFuncletEpilog()
 #endif
 
     ScopedSetVariable<bool> _setGeneratingEpilog(&compiler->compGeneratingEpilog, true);
-
-    // TODO Restore callee-saved registers
 
     // Revert a padding that was added for 16-byte alignment
     inst_RV_IV(INS_add, REG_SPBASE, 8, EA_PTRSIZE);
