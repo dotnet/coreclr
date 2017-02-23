@@ -220,7 +220,7 @@ CONFIG_INTEGER(JitEnableNoWayAssert, W("JitEnableNoWayAssert"), 1)
 #else
 #define JitMinOptsTrackGCrefs_Default 1
 #endif
-CONFIG_INTEGER(JitMinOptsTrackGCrefs, W("JitMinOptsTrackGCrefs"), JitMinOptsTrackGCrefs_Default) // Track GC roots w/MinOpts
+CONFIG_INTEGER(JitMinOptsTrackGCrefs, W("JitMinOptsTrackGCrefs"), JitMinOptsTrackGCrefs_Default) // Track GC roots
 #endif // !defined(JIT32_GCENCODER)
 
 // The following should be wrapped inside "#if MEASURE_MEM_ALLOC / #endif", but
