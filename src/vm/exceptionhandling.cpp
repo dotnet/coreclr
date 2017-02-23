@@ -3215,7 +3215,7 @@ static inline UINT_PTR CastHandlerFn(HandlerFn *pfnHandler)
 #endif
 }
 
-static inline UINT_PTR *GetRegRestoreBase(PCONTEXT pContextRecord)
+static inline UINT_PTR *GetFirstNonVolatileRegisterAddress(PCONTEXT pContextRecord)
 {
 #if defined(_TARGET_ARM_)
     return (UINT_PTR*)&(pContextRecord->R4);
@@ -3224,7 +3224,7 @@ static inline UINT_PTR *GetRegRestoreBase(PCONTEXT pContextRecord)
 #elif defined(_TARGET_X86_)
     return (UINT_PTR*)&(pContextRecord->Edi);
 #else
-    PORTABILITY_ASSERT("GetRegRestoreBase");
+    PORTABILITY_ASSERT("GetFirstNonVolatileRegisterAddress");
     return NULL;
 #endif
 }
@@ -3314,7 +3314,7 @@ DWORD_PTR ExceptionTracker::CallHandler(
     {
         dwResumePC = CallEHFunclet((funcletType == EHFuncletType::Catch)?OBJECTREFToObject(throwable):(Object *)NULL, 
                                    CastHandlerFn(pfnHandler),
-                                   GetRegRestoreBase(pContextRecord),
+                                   GetFirstNonVolatileRegisterAddress(pContextRecord),
                                    pFuncletCallerSP);
     }
     else

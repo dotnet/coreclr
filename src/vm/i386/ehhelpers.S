@@ -11,6 +11,8 @@
 NESTED_ENTRY CallEHFunclet, _TEXT, NoHandler
 
     ESP_PROLOG_BEG
+    PROLOG_PUSH ebp
+    mov ebp, esp
     PROLOG_PUSH ebx
     PROLOG_PUSH esi
     PROLOG_PUSH edi
@@ -44,6 +46,7 @@ NESTED_ENTRY CallEHFunclet, _TEXT, NoHandler
     EPILOG_POP edi
     EPILOG_POP esi
     EPILOG_POP ebx
+    EPILOG_POP ebp
     ESP_EPILOG_END
 
     ret     16
@@ -55,6 +58,8 @@ NESTED_END CallEHFunclet, _TEXT
 NESTED_ENTRY CallEHFilterFunclet, _TEXT, NoHandler
 
     ESP_PROLOG_BEG
+    PROLOG_PUSH ebp
+    mov ebp, esp
     PROLOG_PUSH ebx
     PROLOG_PUSH esi
     PROLOG_PUSH edi
@@ -84,6 +89,7 @@ NESTED_ENTRY CallEHFilterFunclet, _TEXT, NoHandler
     EPILOG_POP edi
     EPILOG_POP esi
     EPILOG_POP ebx
+    EPILOG_POP ebp
     ESP_EPILOG_END
 
     ret     16

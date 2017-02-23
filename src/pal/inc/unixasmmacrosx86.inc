@@ -67,8 +67,6 @@ C_FUNC(\Name\()_End):
 .endm
 
 .macro ESP_PROLOG_BEG
-        push ebp
-        mov ebp, esp
 .endm
 
 .macro ESP_PROLOG_END
@@ -78,7 +76,6 @@ C_FUNC(\Name\()_End):
 .endm
 
 .macro ESP_EPILOG_END
-        pop ebp
 .endm
 
 .macro PREPARE_EXTERNAL_VAR Name, Reg
