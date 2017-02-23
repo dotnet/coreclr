@@ -63,7 +63,9 @@ internal class ScanProjectFiles
         }
         else if (args.Length != 1)
         {
-            Console.WriteLine("Usage: scan <dir>");
+            Console.WriteLine("Usage: CheckProjects [<dir>]");
+            Console.WriteLine("If optional <dir> is specified,"
+                + " all project files under <dir> will be scanned and updates will be attempted.");
             return -1;
         }
         else
@@ -71,9 +73,17 @@ internal class ScanProjectFiles
             projectRoot = args[0];
         }
 
-        Console.WriteLine("Scanning for projects in {0}", projectRoot);
+        Console.WriteLine("Scanning{0}projects under {1}",
+            s_tryAndFix ? " and attempting to update " : " ", projectRoot);
+
+        if (!Directory.Exists(projectRoot))
+        {
+            Console.WriteLine("Project directory does not exist");
+            return -1;
+        }
 
         DirectoryInfo projectRootDir = new DirectoryInfo(projectRoot);
+
         foreach (FileInfo f in projectRootDir.GetFiles("*.*proj", SearchOption.AllDirectories))
         {
             ParseAndUpdateProj(f.FullName, s_tryAndFix);
