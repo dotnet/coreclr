@@ -5,7 +5,6 @@
     <DebuggingSupportedBuild>true</DebuggingSupportedBuild>
     <EnCSupported Condition="('$(TargetArch)' == 'i386') or ('$(TargetArch)' == 'amd64')">true</EnCSupported>
     <EnableDownlevelForNls Condition="'$(CrossTargetArchitecture)' != ''">true</EnableDownlevelForNls>
-    <FeatureArrayStubAsIL Condition="('$(TargetArch)' == 'arm') or ('$(TargetArch)' == 'amd64') or ('$(TargetArch)' == 'arm64')">true</FeatureArrayStubAsIL>
     <FeatureStubsAsIL Condition="'$(TargetArch)' == 'arm64'">true</FeatureStubsAsIL>
     <FeatureCominteropApartmentSupport>true</FeatureCominteropApartmentSupport>
     <FeatureDbiDebugging>true</FeatureDbiDebugging>
@@ -67,6 +66,7 @@
     <FeaturePal>true</FeaturePal>
     <FeatureXplatEventSource>true</FeatureXplatEventSource>
 
+    <FeatureArrayStubAsIL>true</FeatureArrayStubAsIL>
     <FeatureStubsAsIL>true</FeatureStubsAsIL>
 
     <!-- Windows specific features -->
@@ -83,6 +83,7 @@
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(TargetsUnix)' != 'true'">
+    <FeatureArrayStubAsIL Condition="('$(TargetArch)' == 'arm') or ('$(TargetArch)' == 'amd64') or ('$(TargetArch)' == 'arm64')">true</FeatureArrayStubAsIL>
     <FeatureUseLcid>true</FeatureUseLcid>
     <FeatureImplicitLongPath>true</FeatureImplicitLongPath>
   </PropertyGroup>
