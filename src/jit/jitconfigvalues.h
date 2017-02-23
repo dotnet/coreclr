@@ -214,9 +214,14 @@ CONFIG_INTEGER(JitEnableNoWayAssert, W("JitEnableNoWayAssert"), 0)
 CONFIG_INTEGER(JitEnableNoWayAssert, W("JitEnableNoWayAssert"), 1)
 #endif // !defined(DEBUG) && !defined(_DEBUG)
 
+#if !defined(JIT32_GCENCODER)
 #if defined(_TARGET_AMD64_) && defined(FEATURE_CORECLR)
-CONFIG_INTEGER(JitMinOptsTrackGCrefs, W("JitMinOptsTrackGCrefs"), 0) // Allow GC roots to be tracked w/MinOpts
+#define JitMinOptsTrackGCrefs_Default 0 // Not tracking GC refs in MinOpts is new behavior
+#else
+#define JitMinOptsTrackGCrefs_Default 1
 #endif
+CONFIG_INTEGER(JitMinOptsTrackGCrefs, W("JitMinOptsTrackGCrefs"), JitMinOptsTrackGCrefs_Default) // Track GC roots w/MinOpts
+#endif // !defined(JIT32_GCENCODER)
 
 // The following should be wrapped inside "#if MEASURE_MEM_ALLOC / #endif", but
 // some files include this one without bringing in the definitions from "jit.h"

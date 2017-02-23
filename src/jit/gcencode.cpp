@@ -3849,11 +3849,9 @@ void GCInfo::gcMakeRegPtrTable(
 {
     GCENCODER_WITH_LOGGING(gcInfoEncoderWithLog, gcInfoEncoder);
 
-#if defined(_TARGET_AMD64_) && defined(FEATURE_CORECLR)
     const bool noTrackedGCSlots =
         (compiler->opts.MinOpts() && !compiler->opts.jitFlags->IsSet(JitFlags::JIT_FLAG_PREJIT) &&
          !JitConfig.JitMinOptsTrackGCrefs());
-#endif
 
     if (mode == MAKE_REG_PTR_MODE_ASSIGN_SLOTS)
     {
@@ -3965,16 +3963,15 @@ void GCInfo::gcMakeRegPtrTable(
             {
                 stackSlotBase = GC_FRAMEREG_REL;
             }
-#if defined(_TARGET_AMD64_) && defined(FEATURE_CORECLR)
             if (noTrackedGCSlots)
             {
+                // No need to hash/lookup untracked GC refs; just grab a new Slot Id.
                 if (mode == MAKE_REG_PTR_MODE_ASSIGN_SLOTS)
                 {
                     gcInfoEncoderWithLog->GetStackSlotId(varDsc->lvStkOffs, flags, stackSlotBase);
                 }
             }
             else
-#endif
             {
                 StackSlotIdKey sskey(varDsc->lvStkOffs, (stackSlotBase == GC_FRAMEREG_REL), flags);
                 GcSlotId       varSlotId;
@@ -4220,7 +4217,6 @@ void GCInfo::gcMakeRegPtrTable(
         {
             if (gcCallDescList != nullptr)
             {
-#if defined(_TARGET_AMD64_) && defined(FEATURE_CORECLR)
                 if (noTrackedGCSlots)
                 {
                     // We have the call count from the previous run.
@@ -4234,7 +4230,6 @@ void GCInfo::gcMakeRegPtrTable(
                     }
                 }
                 else
-#endif
                 {
                     for (CallDsc* call = gcCallDescList; call != nullptr; call = call->cdNext)
                     {
@@ -4277,13 +4272,11 @@ void GCInfo::gcMakeRegPtrTable(
             // the call instruction size to get the offset of the actual call instruction...
             unsigned callOffset = nextOffset - call->cdCallInstrSize;
 
-#if defined(_TARGET_AMD64_) && defined(FEATURE_CORECLR)
             if (noTrackedGCSlots && regMask == 0)
             {
                 // No live GC refs in regs at the call -> don't record the call.
             }
             else
-#endif
             {
                 // Append an entry for the call if doing the real thing.
                 if (mode == MAKE_REG_PTR_MODE_DO_WORK)
