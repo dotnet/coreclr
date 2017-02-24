@@ -200,7 +200,7 @@ namespace System
         {
             if (object.ReferenceEquals(x, y)) return true;
             if (x == null || y == null) return false;
-            return (_compareInfo.Compare(x, y, _options) == 0);
+            return _compareInfo.Compare(x, y, _options) == 0;
         }
 
         public override int GetHashCode(string obj)
