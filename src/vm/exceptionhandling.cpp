@@ -20,6 +20,10 @@
 #if defined(_TARGET_ARM_) || defined(_TARGET_ARM64_) || defined(_TARGET_X86_)
 #define ADJUST_PC_UNWOUND_TO_CALL
 #define USE_CALLER_SP_IN_FUNCLET
+// EstablisherFrame is Caller-SP (SP just before executing call instruction) for x86, ARM, ARM64.
+//
+// This has been confirmed by AaronGi from the kernel team for Windows.
+#define ESTABLISHER_FRAME_POINTER_IS_CALLER_SP
 #endif // _TARGET_ARM_ || _TARGET_ARM64_ || _TARGET_X86_
 
 #ifndef DACCESS_COMPILE
@@ -1607,17 +1611,11 @@ CLRUnwindStatus ExceptionTracker::ProcessOSExceptionNotification(
 
     ExceptionTracker::InitializeCrawlFrame(&cfThisFrame, pThread, sf, &regdisp, pDispatcherContext, ControlPc, &uMethodStartPC, this);
 
-#if defined(_TARGET_X86_) || defined(_TARGET_AMD64_)
+#ifndef ESTABLISHER_FRAME_POINTER_IS_CALLER_SP
     uCallerSP = EECodeManager::GetCallerSp(cfThisFrame.pRD);
-#elif defined(_TARGET_ARM_) || defined(_TARGET_ARM64_)
-    // On ARM & ARM64, the EstablisherFrame is the value of SP at the time a function was called and before it's prolog
-    // executed. Effectively, it is the SP of the caller. This has been confirmed by AaronGi from the kernel
-    // team.
+#else // !ESTABLISHER_FRAME_POINTER_IS_CALLER_SP
     uCallerSP = sf.SP;
-#else
-    PORTABILITY_ASSERT("ExceptionTracker::ProcessOSExceptionNotification");
-    uCallerSP = NULL;
-#endif // _TARGET_AMD64_
+#endif // ESTABLISHER_FRAME_POINTER_IS_CALLER_SP
 
     EH_LOG((LL_INFO100, "ProcessCrawlFrame: PSP: " FMT_ADDR " EstablisherFrame: " FMT_ADDR "\n", DBG_ADDR(uCallerSP), DBG_ADDR(sf.SP)));
 
@@ -1918,19 +1916,16 @@ lExit:
         // in ExceptionTracker::ProcessManagedCallFrame.
         if (m_fResetEnclosingClauseSPForCatchFunclet)
         {
-#if defined(_TARGET_ARM_) || defined(_TARGET_ARM64_)           
+#ifdef ESTABLISHER_FRAME_POINTER_IS_CALLER_SP
             // DispatcherContext->EstablisherFrame's value
             // represents the CallerSP of the current frame.
             UINT_PTR EnclosingClauseCallerSP = (UINT_PTR)pDispatcherContext->EstablisherFrame;
-#elif defined(_TARGET_AMD64_)            
-            // Extract the CallerSP from RegDisplay on AMD64
+#else // ESTABLISHER_FRAME_POINTER_IS_CALLER_SP
+            // Extract the CallerSP from RegDisplay
             REGDISPLAY *pRD = cfThisFrame.GetRegisterSet();
             _ASSERTE(pRD->IsCallerContextValid || pRD->IsCallerSPValid);
             UINT_PTR EnclosingClauseCallerSP = (UINT_PTR)GetSP(pRD->pCallerContext);
-#else // !_ARM_ && !_AMD64_ && !_ARM64_
-            PORTABILITY_ASSERT("ExceptionTracker::ProcessOSExceptionNotification");
-            UINT_PTR EnclosingClauseCallerSP = NULL;
-#endif // defined(_TARGET_ARM_) || defined(_TARGET_ARM64_)
+#endif // !ESTABLISHER_FRAME_POINTER_IS_CALLER_SP
             m_EnclosingClauseInfo = EnclosingClauseInfo(false, cfThisFrame.GetRelOffset(), EnclosingClauseCallerSP);
         }
         m_fResetEnclosingClauseSPForCatchFunclet = FALSE;
