@@ -3815,11 +3815,7 @@ bool UnwindEbpDoubleAlignFrame(
         // TODO Currently we assume that ESP of funclet frames is always fixed but actually it could change.
         if (pCodeInfo->IsFunclet())
         {
-            baseSP = curESP + 8; // padding for 16byte stack alignment allocated in genFuncletProlog()
-
-            pContext->SetEbpLocation(PTR_DWORD(baseSP));
-
-            baseSP += sizeof(TADDR);
+            baseSP = curESP + 12; // padding for 16byte stack alignment allocated in genFuncletProlog()
 
             pContext->PCTAddr = baseSP;
             pContext->ControlPC = *PTR_PCODE(pContext->PCTAddr);

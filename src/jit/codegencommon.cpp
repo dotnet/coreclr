@@ -10339,7 +10339,7 @@ void CodeGen::genFuncletProlog(BasicBlock* block)
     // TODO We may need EBP restore sequence here if we introduce PSPSym
 
     // Add a padding for 16-byte alignment
-    inst_RV_IV(INS_sub, REG_SPBASE, 8, EA_PTRSIZE);
+    inst_RV_IV(INS_sub, REG_SPBASE, 12, EA_PTRSIZE);
 }
 
 /*****************************************************************************
@@ -10359,7 +10359,7 @@ void CodeGen::genFuncletEpilog()
     ScopedSetVariable<bool> _setGeneratingEpilog(&compiler->compGeneratingEpilog, true);
 
     // Revert a padding that was added for 16-byte alignment
-    inst_RV_IV(INS_add, REG_SPBASE, 8, EA_PTRSIZE);
+    inst_RV_IV(INS_add, REG_SPBASE, 12, EA_PTRSIZE);
 
     instGen_Return(0);
 }
