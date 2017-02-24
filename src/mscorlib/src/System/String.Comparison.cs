@@ -849,10 +849,11 @@ namespace System
 
         // Determines whether two strings match.
         [Pure]
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public bool Equals(string value) =>
-            ((object)value == null ||
-             Length == value.Length) && EqualsHelper(this, value);
+        public bool Equals(string value)
+            => ShouldCallEqualsHelper(value) && EqualsHelper(this, value);
+        
+        private bool ShouldCallEqualsHelper(string value)
+            => (object)value == null || Length == value.Length;
 
         [Pure]
         public bool Equals(String value, StringComparison comparisonType) {
@@ -910,11 +911,11 @@ namespace System
 
         // Determines whether two Strings match.
         [Pure]
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static bool Equals(string a, string b) =>
-            ((object)a == null ||
-             (object)b == null ||
-             a.Length == b.Length) && EqualsHelper(a, b);
+        public static bool Equals(string a, string b)
+            => ShouldCallEqualsHelper(a, b) && EqualsHelper(a, b);
+        
+        private static bool ShouldCallEqualsHelper(string a, string b)
+            => (object)a == null || (object)b == null || a.Length == b.Length;
 
         [Pure]
         public static bool Equals(String a, String b, StringComparison comparisonType) {
