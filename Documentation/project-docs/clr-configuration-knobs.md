@@ -14,7 +14,7 @@ System.Threading.ThreadPool.MaxThreads|Override MaxThreads for the ThreadPool wo
 
 ## Environment/Registry Configuration Knobs
 
-This table is machine-generated from commit 82ed770 on 05/31/16. It might be out of date.
+This table is machine-generated from commit 4ea9714 on 02/23/17. It might be out of date.
 
 When using these configurations from environment variables, the variables need to have the `COMPlus_` prefix in their names. e.g. To set DumpJittedMethods to 1, add the environment variable `COMPlus_DumpJittedMethods=1`.
 
@@ -197,7 +197,7 @@ Name | Description | Type | Class | Default Value | Flags
 `GCRetainVM` | When set we put the segments that should be deleted on a standby list (instead of releasing them back to the OS) which will be considered to satisfy new segment requests (note that the same thing can be specified via API which is the supported way) | DWORD | UNSUPPORTED | 0 | 
 `GCSegmentSize` | Specifies the managed heap segment size | DWORD | UNSUPPORTED | | 
 `GCLOHCompact` | Specifies the LOH compaction mode | DWORD | UNSUPPORTED | | 
-`gcAllowVeryLargeObjects` | allow allocation of 2GB+ objects on GC heap | DWORD | EXTERNAL | 0 | 
+`gcAllowVeryLargeObjects` | allow allocation of 2GB+ objects on GC heap | DWORD | EXTERNAL | 1 | 
 `GCStress` | trigger GCs at regular intervals | DWORD | EXTERNAL | 0 | REGUTIL_default
 `GcStressOnDirectCalls` | whether to trigger a GC on direct calls | DWORD | INTERNAL | 0 | REGUTIL_default
 `GCStressStart` | start GCStress after N stress GCs have been attempted | DWORD | EXTERNAL | 0 | 
@@ -212,6 +212,8 @@ Name | Description | Type | Class | Default Value | Flags
 `SetupGcCoverage` | This doesn't appear to be a config flag | STRING | EXTERNAL | | REGUTIL_default
 `GCNumaAware` | Specifies if to enable GC NUMA aware | DWORD | UNSUPPORTED | 1 | 
 `GCCpuGroup` | Specifies if to enable GC to support CPU groups | DWORD | EXTERNAL | 0 | 
+`GCHeapCount` |  | DWORD | UNSUPPORTED | 0 | 
+`GCNoAffinitize` |  | DWORD | UNSUPPORTED | 0 | 
 `IBCPrint` |  | STRING | INTERNAL | | REGUTIL_default
 `IBCPrint3` |  | STRING | INTERNAL | | REGUTIL_default
 `ConvertIbcData` | Converts between v1 and v2 IBC data | DWORD | UNSUPPORTED | 1 | REGUTIL_default
@@ -306,6 +308,8 @@ Name | Description | Type | Class | Default Value | Flags
 `UseRyuJIT` | Set to 1 by .NET 4.6 installer to indicate RyuJIT should be used, not JIT64. | DWORD | INTERNAL | 0 | IgnoreEnv / IgnoreHKCU / IgnoreConfigFiles
 `useLegacyJit` | Set to 1 to do all JITing with compatjit.dll. Only applicable to x64. | DWORD | EXTERNAL | 0 | 
 `DisableNativeImageLoadList` | Refuse to load native images corresponding to one of the assemblies on this semicolon-delimited list of assembly names. | STRING | EXTERNAL | | REGUTIL_default
+`UseWindowsX86CoreLegacyJit` | Set to 1 to do all JITing with compatjit.dll. Only applicable to Windows x86 .NET Core. | DWORD | EXTERNAL | 0 | 
+`RequireLegacyJit` | Set to 1 to require the use of legacy JIT (via COMPlus_useLegacyJit=1 or COMPlus_UseWindowsX86CoreLegacyJit=1). | DWORD | EXTERNAL | 0 | 
 `JitValNumCSE` | Enables ValNum CSE for the specified methods | STRING | INTERNAL | | REGUTIL_default 
 `JitLexicalCSE` | Enables Lexical CSE for the specified methods | STRING | INTERNAL | | REGUTIL_default 
 `JitNoCSE` |  | DWORD | INTERNAL | 0 | REGUTIL_default
@@ -319,7 +323,7 @@ Name | Description | Type | Class | Default Value | Flags
 `JitNoStructPromotion` | Disables struct promotion in Jit32 | DWORD | INTERNAL | 0 | REGUTIL_default
 `JitNoUnroll` |  | DWORD | INTERNAL | 0 | REGUTIL_default
 `JitNoMemoryBarriers` | If 1, don't generate memory barriers | DWORD | INTERNAL | 0 | REGUTIL_default
-`JitNoRngChks` | If 1, don't generate range checks | DWORD | PRIVATE | 0 | 
+`JitNoRngChks` | If 1, don't generate range checks | DWORD | PRIVATE | 0 | REGUTIL_default
 `JitOptimizeType` |  | DWORD | EXTERNAL | | 
 `JitOrder` |  | DWORD | INTERNAL | 0 | REGUTIL_default
 `JitDiffableDasm` | Make the disassembly diff-able | DWORD | INTERNAL | 0 | REGUTIL_default
@@ -443,7 +447,6 @@ Name | Description | Type | Class | Default Value | Flags
 `MD_RegMetaDump` | ? Dump MD in 4 functions? | DWORD | INTERNAL | 0 | REGUTIL_default
 `MD_TlbImp_BreakOnErr` | ASSERT when importing TLB into MD | DWORD | INTERNAL | 0 | REGUTIL_default
 `MD_TlbImp_BreakOnTypeImport` | ASSERT when importing a type from TLB | STRING | INTERNAL | | (LookupOptions) (REGUTIL_default / DontPrependCOMPlus_)
-`MD_UseMinimalDeltas` | ? Some MD modifications when applying EnC? | DWORD | INTERNAL | 1 | REGUTIL_default
 `MD_WinMD_Disable` | Never activate the WinMD import adapter | DWORD | INTERNAL | 0 | REGUTIL_default
 `MD_WinMD_AssertOnIllegalUsage` | ASSERT if a WinMD import adapter detects a tool incompatibility | DWORD | INTERNAL | 0 | REGUTIL_default
 `MD_PreserveDebuggerMetadataMemory` | Save all versions of metadata memory in the debugger when debuggee metadata is updated | DWORD | EXTERNAL | 0 | REGUTIL_default
@@ -521,7 +524,6 @@ Name | Description | Type | Class | Default Value | Flags
 `NicPath` | Redirects NIC access to a specified alternative | STRING | UNSUPPORTED | | REGUTIL_default
 `NGenTaskDelayStart` | Use NGen Task delay start trigger, instead of critical idle task | DWORD | INTERNAL | 0 | 
 `Ningen` | Enable no-impact ngen | DWORD | INTERNAL | 1 | 
-`Ningen` | Enable no-impact ngen | DWORD | INTERNAL | 0 | 
 `NoASLRForNgen` | Turn off IMAGE_DLLCHARACTERISTICS_DYNAMIC_BASE bit in generated ngen images. Makes nidump output repeatable from run to run. | DWORD | INTERNAL | 0 | 
 `NgenAllowOutput` | If set to 1, the NGEN worker will bind to the parent console, thus allowing stdout output to work | DWORD | EXTERNAL | 0 | REGUTIL_default
 `CrossGenAssumeInputSigned` | CrossGen should assume that its input assemblies will be signed before deployment | DWORD | INTERNAL | 1 | 
@@ -646,6 +648,7 @@ Name | Description | Type | Class | Default Value | Flags
 `ThreadPool_DisableStarvationDetection` | Disables the ThreadPool feature that forces new threads to be added when workitems run for too long | DWORD | INTERNAL | 0 | 
 `ThreadPool_DebugBreakOnWorkerStarvation` | Breaks into the debugger if the ThreadPool detects work queue starvation | DWORD | INTERNAL | 0 | 
 `ThreadPool_EnableWorkerTracking` | Enables extra expensive tracking of how many workers threads are working simultaneously | DWORD | INTERNAL | 0 | 
+`ThreadPool_UnfairSemaphoreSpinLimit` | Per processor limit used when calculating spin duration in UnfairSemaphore::Wait | DWORD | INTERNAL | 50 | 
 `Thread_UseAllCpuGroups` | Specifies if to automatically distribute thread across CPU Groups | DWORD | EXTERNAL | 0 | 
 `ThreadpoolTickCountAdjustment` |  | DWORD | INTERNAL | 0 | 
 `HillClimbing_WavePeriod` |  | DWORD | INTERNAL | 4 | 
@@ -684,8 +687,11 @@ Name | Description | Type | Class | Default Value | Flags
 `ZapLazyCOWPagesEnabled` |  | DWORD | INTERNAL | 0 | 
 `DebugAssertOnMissedCOWPage` |  | DWORD | INTERNAL | 1 | 
 `ReadyToRun` | Enable/disable use of ReadyToRun native code | DWORD | EXTERNAL | 1 |  // On by default for CoreCLR
-`ReadyToRun` | Enable/disable use of ReadyToRun native code | DWORD | EXTERNAL | 0 |  // Off by default for desktop
+`ReadyToRunExcludeList` | List of assemblies that cannot use Ready to Run images | STRING | EXTERNAL | | 
+`ReadyToRunLogFile` | Name of file to log success/failure of using Ready to Run images | STRING | EXTERNAL | | 
 `EnableEventLog` | Enable/disable use of EnableEventLogging mechanism  | DWORD | EXTERNAL | 0 |  // Off by default 
+`EventSourceFilter` |  | STRING | INTERNAL | | 
+`EventNameFilter` |  | STRING | INTERNAL | | 
 `ExposeExceptionsInCOM` |  | DWORD | INTERNAL | | 
 `PreferComInsteadOfManagedRemoting` | When communicating with a cross app domain CCW, use COM instead of managed remoting. | DWORD | EXTERNAL | 0 | 
 `GenerateStubForHost` | Forces the host hook stub to be built for all unmanaged calls, even when not running hosted. | DWORD | INTERNAL | 0 | 
@@ -708,7 +714,6 @@ Name | Description | Type | Class | Default Value | Flags
 `AssertOnUnneededThis` | While the ConfigDWORD is unnecessary, the contained ASSERT should be kept. This may result in some work tracking down violating MethodDescCallSites. | DWORD | INTERNAL | 0 | 
 `AssertStacktrace` |  | DWORD | INTERNAL | 1 | REGUTIL_default
 `BuildFlavor` | Choice of build flavor (wks or svr) of CLR | STRING | UNSUPPORTED | | 
-`CerLogging` | In vm\\ConstrainedExecutionRegion.cpp.  Debug-only logging when we prepare methods, find reliability contract problems, restore stuff from ngen images, etc. | DWORD | INTERNAL | 0 | 
 `clearNativeImageStress` |  | DWORD | INTERNAL | 0 | REGUTIL_default
 `CLRLoadLogDir` | Enable logging of CLR selection | STRING | INTERNAL | | 
 `CONFIG` | Used to specify an XML config file for EEConfig | STRING | EXTERNAL | | REGUTIL_default
@@ -807,3 +812,4 @@ Name | Description | Type | Class | Default Value | Flags
 `VerifyAllOnLoad` |  | DWORD | EXTERNAL | | 
 `Version` | Version of CLR to load. | STRING | INTERNAL | | 
 `ShimHookLibrary` | Path to a DLL that should be notified when shim loads the runtime DLL. | STRING | INTERNAL | | 
+`EnableSSE3_4` |  Enable SSE3, SSSE3, and SSE4 instruction set as default | DWORD | JIT | 1 | | 
