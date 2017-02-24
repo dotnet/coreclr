@@ -10333,9 +10333,6 @@ void CodeGen::genFuncletProlog(BasicBlock* block)
 
     compiler->unwindBegProlog();
 
-    inst_RV(INS_push, REG_FPBASE, TYP_REF);
-    compiler->unwindPush(REG_FPBASE);
-
     // This is the end of the OS-reported prolog for purposes of unwinding
     compiler->unwindEndProlog();
 
@@ -10364,7 +10361,6 @@ void CodeGen::genFuncletEpilog()
     // Revert a padding that was added for 16-byte alignment
     inst_RV_IV(INS_add, REG_SPBASE, 8, EA_PTRSIZE);
 
-    inst_RV(INS_pop, REG_FPBASE, TYP_REF);
     instGen_Return(0);
 }
 
