@@ -915,7 +915,7 @@ namespace System
             => ShouldCallEqualsHelper(a, b) && EqualsHelper(a, b);
         
         private static bool ShouldCallEqualsHelper(string a, string b)
-            => (object)a == null || (object)b == null || a.Length == b.Length;
+            => (object)a == null || a.ShouldCallEqualsHelper(b);
 
         [Pure]
         public static bool Equals(String a, String b, StringComparison comparisonType) {
