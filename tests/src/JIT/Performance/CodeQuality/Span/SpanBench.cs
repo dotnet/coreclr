@@ -27,9 +27,9 @@ namespace Span
         const int FillAllIterations = 1;
         const int BaseIterations = 1;
 #else
-        const int BubbleSortIterations = 1000;
-        const int QuickSortIterations = 10000;
-        const int FillAllIterations = 1000000;
+        const int BubbleSortIterations = 100;
+        const int QuickSortIterations = 100;
+        const int FillAllIterations = 100;
         const int BaseIterations = 100;
 #endif
 
