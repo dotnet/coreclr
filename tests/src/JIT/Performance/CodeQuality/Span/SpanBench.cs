@@ -17,7 +17,7 @@ using Xunit;
 namespace Span
 {
 
-public class SpanBench
+public class Bench
 {
 
 #if DEBUG
@@ -451,7 +451,7 @@ public class SpanBench
 
     static Action LookupFunc(object o)
     {
-        TypeInfo t = typeof(SpanBench).GetTypeInfo();
+        TypeInfo t = typeof(Bench).GetTypeInfo();
         MethodInfo m = t.GetDeclaredMethod((string) o);
         return m.CreateDelegate(typeof(Action)) as Action;
     }
