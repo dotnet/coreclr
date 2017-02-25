@@ -4,6 +4,12 @@
 
 using System.Runtime.Versioning;
 
+#if BIT64
+using nuint = System.UInt64;
+#else
+using nuint = System.UInt32;
+#endif
+
 namespace System.Runtime.CompilerServices
 {
     //
@@ -66,11 +72,36 @@ namespace System.Runtime.CompilerServices
         }
 
         /// <summary>
+        /// Adds an element offset to the given reference.
+        /// </summary>
+        [NonVersionable]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static ref T AddByteOffset<T>(ref T source, nuint byteOffset)
+        {
+            // The body of this function will be replaced by the EE with unsafe code!!!
+            // See getILIntrinsicImplementationForUnsafe for how this happens.
+            throw new InvalidOperationException();
+        }
+
+        /// <summary>
         /// Determines whether the specified references point to the same location.
         /// </summary>
         [NonVersionable]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool AreSame<T>(ref T left, ref T right)
+        {
+            // The body of this function will be replaced by the EE with unsafe code!!!
+            // See getILIntrinsicImplementationForUnsafe for how this happens.  
+            throw new InvalidOperationException();
+        }
+
+        /// <summary>
+        /// Initializes a block of memory at the given location with a given initial value 
+        /// without assuming architecture dependent alignment of the address.
+        /// </summary>
+        [NonVersionable]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static void InitBlockUnaligned(ref byte startAddress, byte value, uint byteCount)
         {
             // The body of this function will be replaced by the EE with unsafe code!!!
             // See getILIntrinsicImplementationForUnsafe for how this happens.  

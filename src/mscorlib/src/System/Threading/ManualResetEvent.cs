@@ -11,16 +11,15 @@
 **
 **
 =============================================================================*/
-namespace System.Threading {
-    
-    using System;
-    using System.Security.Permissions;
-    using System.Runtime.InteropServices;
 
-[System.Runtime.InteropServices.ComVisible(true)]
+using System;
+using System.Runtime.InteropServices;
+
+namespace System.Threading
+{
     public sealed class ManualResetEvent : EventWaitHandle
-    {        
-        public ManualResetEvent(bool initialState) : base(initialState,EventResetMode.ManualReset){}
+    {
+        public ManualResetEvent(bool initialState) : base(initialState, EventResetMode.ManualReset) { }
     }
 }
-    
+

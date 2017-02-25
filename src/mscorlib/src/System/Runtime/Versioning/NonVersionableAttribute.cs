@@ -4,7 +4,6 @@
 
 /*============================================================
 **
-** Class:  NonVersionableAttribute
 **
 **
 ** The [NonVersionable] attribute is applied to indicate that the implementation 
@@ -13,19 +12,26 @@
 ** is never changed in ReadyToRun native images. Any changes to such members or types would be 
 ** breaking changes for ReadyToRun.
 **
+** Applying this type also has the side effect that the inlining tables in R2R images will not
+** report that inlining of NonVersionable attributed methods occured. These inlining tables are used
+** by profilers to figure out the set of methods that need to be rejited when one method is instrumented,
+** so in effect NonVersionable methods are also non-instrumentable. Generally this is OK for
+** extremely trivial low level methods where NonVersionable gets used, but if there is any plan to 
+** significantly extend its usage or allow 3rd parties to use it please discuss with the diagnostics team.
 ===========================================================*/
+
 using System;
 using System.Diagnostics;
 
-namespace System.Runtime.Versioning {
-
+namespace System.Runtime.Versioning
+{
     // This Conditional is here to strip the annotations for targets where ReadyToRun is not supported.
     // If this attribute is ever made public, this Conditional should be removed.
     [Conditional("FEATURE_READYTORUN")]
-    [AttributeUsage(AttributeTargets.Class | AttributeTargets.Struct | AttributeTargets.Method | AttributeTargets.Constructor, 
+    [AttributeUsage(AttributeTargets.Class | AttributeTargets.Struct | AttributeTargets.Method | AttributeTargets.Constructor,
                     AllowMultiple = false, Inherited = false)]
-    sealed class NonVersionableAttribute : Attribute {
-
+    internal sealed class NonVersionableAttribute : Attribute
+    {
         public NonVersionableAttribute()
         {
         }

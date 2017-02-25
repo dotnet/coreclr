@@ -6,7 +6,6 @@
 
 namespace System.Reflection.Emit
 {
-
     using System;
     using System.Globalization;
     using System.Diagnostics.SymbolStore;
@@ -14,7 +13,6 @@ namespace System.Reflection.Emit
     using System.Reflection;
     using System.Collections;
     using System.Collections.Generic;
-    using System.Security.Permissions;
     using System.Threading;
     using System.Diagnostics;
     using System.Diagnostics.CodeAnalysis;
@@ -23,7 +21,6 @@ namespace System.Reflection.Emit
 
     internal class DynamicILGenerator : ILGenerator
     {
-
         internal DynamicScope m_scope;
         private int m_methodSigToken;
 
@@ -142,7 +139,6 @@ namespace System.Reflection.Emit
             PutInteger4(token);
         }
 
-        [System.Runtime.InteropServices.ComVisible(true)]
         public override void Emit(OpCode opcode, ConstructorInfo con)
         {
             if (con == null)
@@ -926,7 +922,6 @@ namespace System.Reflection.Emit
     }
 
 
-    [System.Runtime.InteropServices.ComVisible(true)]
     internal class DynamicILInfo
     {
         #region Private Data Members
@@ -965,8 +960,8 @@ namespace System.Reflection.Emit
         public DynamicMethod DynamicMethod { get { return m_method; } }
         internal DynamicScope DynamicScope { get { return m_scope; } }
 
-#endregion
-#region Public Scope Methods
+        #endregion
+        #region Public Scope Methods
         #endregion
     }
 
@@ -1122,5 +1117,4 @@ namespace System.Reflection.Emit
             m_signature = signature;
         }
     }
-
 }

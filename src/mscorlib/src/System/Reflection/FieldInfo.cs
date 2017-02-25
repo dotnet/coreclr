@@ -16,7 +16,6 @@ namespace System.Reflection
     using System.Runtime.ConstrainedExecution;
     using System.Runtime.InteropServices;
     using System.Runtime.Serialization;
-    using System.Security.Permissions;
     using System.Threading;
     using RuntimeTypeCache = System.RuntimeType.RuntimeTypeCache;
 
@@ -28,30 +27,29 @@ namespace System.Reflection
         {
             if (handle.IsNullHandle())
                 throw new ArgumentException(Environment.GetResourceString("Argument_InvalidHandle"), nameof(handle));
-                
+
             FieldInfo f = RuntimeType.GetFieldInfo(handle.GetRuntimeFieldInfo());
-                       
+
             Type declaringType = f.DeclaringType;
             if (declaringType != null && declaringType.IsGenericType)
                 throw new ArgumentException(String.Format(
-                    CultureInfo.CurrentCulture, Environment.GetResourceString("Argument_FieldDeclaringTypeGeneric"), 
+                    CultureInfo.CurrentCulture, Environment.GetResourceString("Argument_FieldDeclaringTypeGeneric"),
                     f.Name, declaringType.GetGenericTypeDefinition()));
 
-            return f;            
-        }           
-        
-        [System.Runtime.InteropServices.ComVisible(false)]
+            return f;
+        }
+
         public static FieldInfo GetFieldFromHandle(RuntimeFieldHandle handle, RuntimeTypeHandle declaringType)
         {
             if (handle.IsNullHandle())
                 throw new ArgumentException(Environment.GetResourceString("Argument_InvalidHandle"));
 
             return RuntimeType.GetFieldInfo(declaringType.GetRuntimeType(), handle.GetRuntimeFieldInfo());
-        }           
+        }
         #endregion
 
         #region Constructor
-        protected FieldInfo() { }       
+        protected FieldInfo() { }
         #endregion
 
         public static bool operator ==(FieldInfo left, FieldInfo right)
@@ -87,7 +85,7 @@ namespace System.Reflection
         #endregion
 
         #region Public Abstract\Virtual Members
-        
+
         public virtual Type[] GetRequiredCustomModifiers()
         {
             throw new NotImplementedException();
@@ -108,12 +106,12 @@ namespace System.Reflection
         public virtual Object GetValueDirect(TypedReference obj)
         {
             throw new NotSupportedException(Environment.GetResourceString("NotSupported_AbstractNonCLS"));
-        }    
+        }
 
         public abstract RuntimeFieldHandle FieldHandle { get; }
 
-        public abstract Type FieldType { get; }    
-     
+        public abstract Type FieldType { get; }
+
         public abstract Object GetValue(Object obj);
 
         public virtual Object GetRawConstantValue() { throw new NotSupportedException(Environment.GetResourceString("NotSupported_AbstractNonCLS")); }
@@ -137,29 +135,29 @@ namespace System.Reflection
             SetValue(obj, value, BindingFlags.Default, Type.DefaultBinder, null);
         }
 
-        public bool IsPublic { get { return(Attributes & FieldAttributes.FieldAccessMask) == FieldAttributes.Public; } }
+        public bool IsPublic { get { return (Attributes & FieldAttributes.FieldAccessMask) == FieldAttributes.Public; } }
 
-        public bool IsPrivate { get { return(Attributes & FieldAttributes.FieldAccessMask) == FieldAttributes.Private; } }
+        public bool IsPrivate { get { return (Attributes & FieldAttributes.FieldAccessMask) == FieldAttributes.Private; } }
 
-        public bool IsFamily { get { return(Attributes & FieldAttributes.FieldAccessMask) == FieldAttributes.Family; } }
+        public bool IsFamily { get { return (Attributes & FieldAttributes.FieldAccessMask) == FieldAttributes.Family; } }
 
-        public bool IsAssembly { get { return(Attributes & FieldAttributes.FieldAccessMask) == FieldAttributes.Assembly; } }
+        public bool IsAssembly { get { return (Attributes & FieldAttributes.FieldAccessMask) == FieldAttributes.Assembly; } }
 
-        public bool IsFamilyAndAssembly { get { return(Attributes & FieldAttributes.FieldAccessMask) == FieldAttributes.FamANDAssem; } }
+        public bool IsFamilyAndAssembly { get { return (Attributes & FieldAttributes.FieldAccessMask) == FieldAttributes.FamANDAssem; } }
 
-        public bool IsFamilyOrAssembly { get { return(Attributes & FieldAttributes.FieldAccessMask) == FieldAttributes.FamORAssem; } }
+        public bool IsFamilyOrAssembly { get { return (Attributes & FieldAttributes.FieldAccessMask) == FieldAttributes.FamORAssem; } }
 
-        public bool IsStatic { get { return(Attributes & FieldAttributes.Static) != 0; } }
+        public bool IsStatic { get { return (Attributes & FieldAttributes.Static) != 0; } }
 
-        public bool IsInitOnly { get { return(Attributes & FieldAttributes.InitOnly) != 0; } }
+        public bool IsInitOnly { get { return (Attributes & FieldAttributes.InitOnly) != 0; } }
 
-        public bool IsLiteral { get { return(Attributes & FieldAttributes.Literal) != 0; } }
+        public bool IsLiteral { get { return (Attributes & FieldAttributes.Literal) != 0; } }
 
-        public bool IsNotSerialized { get { return(Attributes & FieldAttributes.NotSerialized) != 0; } }
+        public bool IsNotSerialized { get { return (Attributes & FieldAttributes.NotSerialized) != 0; } }
 
-        public bool IsSpecialName  { get { return(Attributes & FieldAttributes.SpecialName) != 0; } }
+        public bool IsSpecialName { get { return (Attributes & FieldAttributes.SpecialName) != 0; } }
 
-        public bool IsPinvokeImpl { get { return(Attributes & FieldAttributes.PinvokeImpl) != 0; } }
+        public bool IsPinvokeImpl { get { return (Attributes & FieldAttributes.PinvokeImpl) != 0; } }
 
         public virtual bool IsSecurityCritical
         {
@@ -185,7 +183,7 @@ namespace System.Reflection
         #region Private Data Members
         private BindingFlags m_bindingFlags;
         protected RuntimeTypeCache m_reflectedTypeCache;
-        protected RuntimeType m_declaringType;        
+        protected RuntimeType m_declaringType;
         #endregion
 
         #region Constructor
@@ -204,11 +202,11 @@ namespace System.Reflection
         #region NonPublic Members
         internal BindingFlags BindingFlags { get { return m_bindingFlags; } }
         private RuntimeType ReflectedTypeInternal
-        { 
-            get 
-            { 
-                return m_reflectedTypeCache.GetRuntimeType(); 
-            } 
+        {
+            get
+            {
+                return m_reflectedTypeCache.GetRuntimeType();
+            }
         }
 
         internal RuntimeType GetDeclaringTypeInternal()
@@ -229,20 +227,20 @@ namespace System.Reflection
                 return m_reflectedTypeCache.IsGlobal ? null : ReflectedTypeInternal;
             }
         }
-        
-        public override Type DeclaringType 
-        { 
-            get 
-            { 
-                return m_reflectedTypeCache.IsGlobal ? null : m_declaringType; 
-            } 
+
+        public override Type DeclaringType
+        {
+            get
+            {
+                return m_reflectedTypeCache.IsGlobal ? null : m_declaringType;
+            }
         }
-        
+
         public override Module Module { get { return GetRuntimeModule(); } }
         #endregion
 
         #region Object Overrides
-        public unsafe override String ToString() 
+        public unsafe override String ToString()
         {
             return FieldType.FormatTypeName() + " " + Name;
         }
@@ -262,8 +260,8 @@ namespace System.Reflection
 
             RuntimeType attributeRuntimeType = attributeType.UnderlyingSystemType as RuntimeType;
 
-            if (attributeRuntimeType == null) 
-                throw new ArgumentException(Environment.GetResourceString("Arg_MustBeType"),nameof(attributeType));
+            if (attributeRuntimeType == null)
+                throw new ArgumentException(Environment.GetResourceString("Arg_MustBeType"), nameof(attributeType));
 
             return CustomAttribute.GetCustomAttributes(this, attributeRuntimeType);
         }
@@ -276,8 +274,8 @@ namespace System.Reflection
 
             RuntimeType attributeRuntimeType = attributeType.UnderlyingSystemType as RuntimeType;
 
-            if (attributeRuntimeType == null) 
-                throw new ArgumentException(Environment.GetResourceString("Arg_MustBeType"),nameof(attributeType));
+            if (attributeRuntimeType == null)
+                throw new ArgumentException(Environment.GetResourceString("Arg_MustBeType"), nameof(attributeType));
 
             return CustomAttribute.IsDefined(this, attributeRuntimeType);
         }
@@ -410,7 +408,7 @@ namespace System.Reflection
 
         #region Constructor
         internal RtFieldInfo(
-            RuntimeFieldHandleInternal handle, RuntimeType declaringType, RuntimeTypeCache reflectedTypeCache, BindingFlags bindingFlags) 
+            RuntimeFieldHandleInternal handle, RuntimeType declaringType, RuntimeTypeCache reflectedTypeCache, BindingFlags bindingFlags)
             : base(reflectedTypeCache, declaringType, bindingFlags)
         {
             m_fieldHandle = handle.Value;
@@ -430,10 +428,10 @@ namespace System.Reflection
         #endregion
 
         #region Internal Members
-        internal void CheckConsistency(Object target) 
+        internal void CheckConsistency(Object target)
         {
             // only test instance fields
-            if ((m_fieldAttributes & FieldAttributes.Static) != FieldAttributes.Static) 
+            if ((m_fieldAttributes & FieldAttributes.Static) != FieldAttributes.Static)
             {
                 if (!m_declaringType.IsInstanceOfType(target))
                 {
@@ -451,7 +449,6 @@ namespace System.Reflection
             }
         }
 
-        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
         internal override bool CacheEquals(object o)
         {
             RtFieldInfo m = o as RtFieldInfo;
@@ -495,7 +492,7 @@ namespace System.Reflection
             }
 #endif
 
-            if ((invocationFlags & (INVOCATION_FLAGS.INVOCATION_FLAGS_SPECIAL_FIELD | INVOCATION_FLAGS.INVOCATION_FLAGS_NEED_SECURITY)) != 0) 
+            if ((invocationFlags & (INVOCATION_FLAGS.INVOCATION_FLAGS_SPECIAL_FIELD | INVOCATION_FLAGS.INVOCATION_FLAGS_NEED_SECURITY)) != 0)
                 PerformVisibilityCheckOnField(m_fieldHandle, obj, m_declaringType, m_fieldAttributes, (uint)m_invocationFlags);
             #endregion
 
@@ -600,13 +597,13 @@ namespace System.Reflection
                 object retVal = RuntimeFieldHandle.GetValue(this, obj, fieldType, declaringType, ref domainInitialized);
                 declaringType.DomainInitialized = domainInitialized;
                 return retVal;
-            }               
-        } 
+            }
+        }
 
         #endregion
 
         #region MemberInfo Overrides
-        public override String Name 
+        public override String Name
         {
             get
             {
@@ -642,8 +639,8 @@ namespace System.Reflection
         {
             StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
             return InternalGetValue(obj, ref stackMark);
-        } 
-        
+        }
+
         public override object GetRawConstantValue() { throw new InvalidOperationException(); }
 
         [DebuggerStepThroughAttribute]
@@ -684,7 +681,7 @@ namespace System.Reflection
             }
         }
 
-        public override RuntimeFieldHandle FieldHandle 
+        public override RuntimeFieldHandle FieldHandle
         {
             get
             {
@@ -695,12 +692,12 @@ namespace System.Reflection
             }
         }
 
-        internal IntPtr GetFieldHandle() 
+        internal IntPtr GetFieldHandle()
         {
             return m_fieldHandle;
         }
 
-        public override FieldAttributes Attributes 
+        public override FieldAttributes Attributes
         {
             get
             {
@@ -708,7 +705,7 @@ namespace System.Reflection
             }
         }
 
-        public override Type FieldType 
+        public override Type FieldType
         {
             get
             {
@@ -717,8 +714,8 @@ namespace System.Reflection
 
                 return m_fieldType;
             }
-        }       
-        
+        }
+
         public override Type[] GetRequiredCustomModifiers()
         {
             return new Signature(this, m_declaringType).GetCustomModifiers(1, true);
@@ -748,13 +745,12 @@ namespace System.Reflection
             : base(reflectedTypeCache, declaringTypeHandle.GetRuntimeType(), bindingFlags)
         {
             m_tkField = tkField;
-            m_name = null; 
+            m_name = null;
             m_fieldAttributes = fieldAttributes;
         }
         #endregion
 
         #region Internal Members
-        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
         internal override bool CacheEquals(object o)
         {
             MdFieldInfo m = o as MdFieldInfo;
@@ -762,14 +758,14 @@ namespace System.Reflection
             if ((object)m == null)
                 return false;
 
-            return m.m_tkField == m_tkField && 
+            return m.m_tkField == m_tkField &&
                 m_declaringType.GetTypeHandleInternal().GetModuleHandle().Equals(
                     m.m_declaringType.GetTypeHandleInternal().GetModuleHandle());
         }
         #endregion
 
         #region MemberInfo Overrides
-        public override String Name 
+        public override String Name
         {
             get
             {
@@ -801,7 +797,7 @@ namespace System.Reflection
 
         [DebuggerStepThroughAttribute]
         [Diagnostics.DebuggerHidden]
-        public override void SetValueDirect(TypedReference obj,Object value)
+        public override void SetValueDirect(TypedReference obj, Object value)
         {
             throw new FieldAccessException(Environment.GetResourceString("Acc_ReadOnly"));
         }
@@ -814,7 +810,7 @@ namespace System.Reflection
         }
 
         public unsafe override Object GetRawConstantValue() { return GetValue(true); }
-        
+
         private unsafe Object GetValue(bool raw)
         {
             // Cannot cache these because they could be user defined non-agile enumerations
@@ -825,7 +821,7 @@ namespace System.Reflection
                 throw new NotSupportedException(Environment.GetResourceString("Arg_EnumLitValueNotFound"));
 
             return value;
-        } 
+        }
 
         [DebuggerStepThroughAttribute]
         [Diagnostics.DebuggerHidden]
@@ -834,7 +830,7 @@ namespace System.Reflection
             throw new FieldAccessException(Environment.GetResourceString("Acc_ReadOnly"));
         }
 
-        public override Type FieldType 
+        public override Type FieldType
         {
             get
             {
@@ -842,14 +838,14 @@ namespace System.Reflection
                 {
                     ConstArray fieldMarshal = GetRuntimeModule().MetadataImport.GetSigOfFieldDef(m_tkField);
 
-                    m_fieldType = new Signature(fieldMarshal.Signature.ToPointer(), 
+                    m_fieldType = new Signature(fieldMarshal.Signature.ToPointer(),
                         (int)fieldMarshal.Length, m_declaringType).FieldType;
                 }
 
                 return m_fieldType;
             }
-        }       
-    
+        }
+
         public override Type[] GetRequiredCustomModifiers()
         {
             return EmptyArray<Type>.Value;
@@ -862,5 +858,4 @@ namespace System.Reflection
 
         #endregion
     }
-
 }

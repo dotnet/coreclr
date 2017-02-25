@@ -232,9 +232,10 @@ INST3( maxsd,  "maxsd",  0, IUM_WR, 0, 0, BAD_CODE, BAD_CODE, SSEDBL(0x5F))    /
 INST3( xorpd,  "xorpd",  0, IUM_WR, 0, 0, BAD_CODE, BAD_CODE, PCKDBL(0x57))    // XOR packed doubles
 INST3( andps,  "andps",  0, IUM_WR, 0, 0, BAD_CODE, BAD_CODE, PCKFLT(0x54))    // AND packed singles
 INST3( andpd,  "andpd",  0, IUM_WR, 0, 0, BAD_CODE, BAD_CODE, PCKDBL(0x54))    // AND packed doubles
-INST3( sqrtsd, "sqrtsd", 0, IUM_WR, 0, 0, BAD_CODE, BAD_CODE, SSEDBL(0x51))    // Sqrt of a scalar double
-INST3( sqrtps, "sqrtps", 0, IUM_WR, 0, 0, BAD_CODE, BAD_CODE, PCKFLT(0x51))    // Sqrt of a packed float
-INST3( sqrtpd, "sqrtpd", 0, IUM_WR, 0, 0, BAD_CODE, BAD_CODE, PCKDBL(0x51))    // Sqrt of a packed double
+INST3( sqrtps, "sqrtps", 0, IUM_WR, 0, 0, BAD_CODE, BAD_CODE, PCKFLT(0x51))    // Sqrt of packed singles
+INST3( sqrtss, "sqrtss", 0, IUM_WR, 0, 0, BAD_CODE, BAD_CODE, SSEFLT(0x51))    // Sqrt of scalar single
+INST3( sqrtpd, "sqrtpd", 0, IUM_WR, 0, 0, BAD_CODE, BAD_CODE, PCKDBL(0x51))    // Sqrt of packed doubles
+INST3( sqrtsd, "sqrtsd", 0, IUM_WR, 0, 0, BAD_CODE, BAD_CODE, SSEDBL(0x51))    // Sqrt of scalar double
 INST3( andnps, "andnps", 0, IUM_WR, 0, 0, BAD_CODE, BAD_CODE, PCKFLT(0x55))    // And-Not packed singles
 INST3( andnpd, "andnpd", 0, IUM_WR, 0, 0, BAD_CODE, BAD_CODE, PCKDBL(0x55))    // And-Not packed doubles
 INST3( orps,   "orps",   0, IUM_WR, 0, 0, BAD_CODE, BAD_CODE, PCKFLT(0x56))    // Or packed singles
@@ -310,7 +311,6 @@ INST3(LAST_SSE2_INSTRUCTION, "LAST_SSE2_INSTRUCTION",  0, IUM_WR, 0, 0, BAD_CODE
 
 #ifndef LEGACY_BACKEND
 INST3(FIRST_SSE4_INSTRUCTION, "FIRST_SSE4_INSTRUCTION",  0, IUM_WR, 0, 0, BAD_CODE, BAD_CODE, BAD_CODE)
-// Most of the following instructions should be included in the method Is4ByteAVXInstruction()
 //    enum           name           FP updmode rf wf    MR            MI        RM
 INST3( dpps,         "dpps"        , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE3A(0x40))   // Packed bit-wise AND NOT of two xmm regs
 INST3( dppd,         "dppd"        , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE3A(0x41))   // Packed bit-wise AND NOT of two xmm regs
@@ -323,6 +323,14 @@ INST3( phaddd,       "phaddd"      , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SS
 INST3( pabsb,        "pabsb"       , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE38(0x1C))   // Packed absolute value of bytes
 INST3( pabsw,        "pabsw"       , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE38(0x1D))   // Packed absolute value of 16-bit integers
 INST3( pabsd,        "pabsd"       , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE38(0x1E))   // Packed absolute value of 32-bit integers
+INST3( pminsb,       "pminsb"      , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE38(0x38))   // packed minimum signed bytes
+INST3( pminsd,       "pminsd"      , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE38(0x39))   // packed minimum 32-bit signed integers
+INST3( pminuw,       "pminuw"      , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE38(0x3A))   // packed minimum 16-bit unsigned integers
+INST3( pminud,       "pminud"      , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE38(0x3B))   // packed minimum 32-bit unsigned integers
+INST3( pmaxsb,       "pmaxsb"      , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE38(0x3C))   // packed maximum signed bytes
+INST3( pmaxsd,       "pmaxsd"      , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE38(0x3D))   // packed maximum 32-bit signed integers
+INST3( pmaxuw,       "pmaxuw"      , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE38(0x3E))   // packed maximum 16-bit unsigned integers
+INST3( pmaxud,       "pmaxud"      , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE38(0x3F))   // packed maximum 32-bit unsigned integers
 INST3(LAST_SSE4_INSTRUCTION, "LAST_SSE4_INSTRUCTION",  0, IUM_WR, 0, 0, BAD_CODE, BAD_CODE, BAD_CODE)
 
 INST3(FIRST_AVX_INSTRUCTION, "FIRST_AVX_INSTRUCTION",  0, IUM_WR, 0, 0, BAD_CODE, BAD_CODE, BAD_CODE)

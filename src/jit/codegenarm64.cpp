@@ -1326,7 +1326,7 @@ void CodeGen::genEmitGSCookieCheck(bool pushReg)
     genDefineTempLabel(gsCheckBlk);
 }
 
-BasicBlock* CodeGen::genCallFinally(BasicBlock* block, BasicBlock* lblk)
+BasicBlock* CodeGen::genCallFinally(BasicBlock* block)
 {
     // Generate a call to the finally, like this:
     //      mov         x0,qword ptr [fp + 10H] / sp    // Load x0 with PSPSym, or sp if PSPSym is not used
@@ -1387,8 +1387,6 @@ BasicBlock* CodeGen::genCallFinally(BasicBlock* block, BasicBlock* lblk)
     if (!(block->bbFlags & BBF_RETLESS_CALL))
     {
         assert(block->isBBCallAlwaysPair());
-
-        lblk  = block;
         block = block->bbNext;
     }
     return block;
@@ -3380,7 +3378,14 @@ void CodeGen::genCodeForInitBlk(GenTreeBlk* initBlkNode)
 
     assert(!dstAddr->isContained());
     assert(!initVal->isContained());
-    assert(initBlkNode->gtRsvdRegs == RBM_ARG_2);
+    if (initBlkNode->gtOper == GT_STORE_DYN_BLK)
+    {
+        assert(initBlkNode->AsDynBlk()->gtDynamicSize->gtRegNum == REG_ARG_2);
+    }
+    else
+    {
+        assert(initBlkNode->gtRsvdRegs == RBM_ARG_2);
+    }
 
 // TODO-ARM64-CQ: When initblk loop unrolling is implemented
 //                put this assert back on.
@@ -3589,22 +3594,28 @@ void CodeGen::genCodeForCpObj(GenTreeObj* cpObjNode)
     unsigned slots = cpObjNode->gtSlots;
     emitter* emit  = getEmitter();
 
+    BYTE* gcPtrs = cpObjNode->gtGcPtrs;
+
     // If we can prove it's on the stack we don't need to use the write barrier.
     if (dstOnStack)
     {
         // TODO-ARM64-CQ: Consider using LDP/STP to save codesize.
-        while (slots > 0)
+        for (unsigned i = 0; i < slots; ++i)
         {
-            emit->emitIns_R_R_I(INS_ldr, EA_8BYTE, tmpReg, REG_WRITE_BARRIER_SRC_BYREF, TARGET_POINTER_SIZE,
+            emitAttr attr = EA_8BYTE;
+            if (gcPtrs[i] == GCT_GCREF)
+                attr = EA_GCREF;
+            else if (gcPtrs[i] == GCT_BYREF)
+                attr = EA_BYREF;
+
+            emit->emitIns_R_R_I(INS_ldr, attr, tmpReg, REG_WRITE_BARRIER_SRC_BYREF, TARGET_POINTER_SIZE,
                                 INS_OPTS_POST_INDEX);
-            emit->emitIns_R_R_I(INS_str, EA_8BYTE, tmpReg, REG_WRITE_BARRIER_DST_BYREF, TARGET_POINTER_SIZE,
+            emit->emitIns_R_R_I(INS_str, attr, tmpReg, REG_WRITE_BARRIER_DST_BYREF, TARGET_POINTER_SIZE,
                                 INS_OPTS_POST_INDEX);
-            slots--;
         }
     }
     else
     {
-        BYTE*    gcPtrs     = cpObjNode->gtGcPtrs;
         unsigned gcPtrCount = cpObjNode->gtGcPtrCount;
 
         unsigned i = 0;
@@ -3621,8 +3632,14 @@ void CodeGen::genCodeForCpObj(GenTreeObj* cpObjNode)
                     break;
 
                 default:
-                    // We have a GC pointer, call the memory barrier.
+                    // In the case of a GC-Pointer we'll call the ByRef write barrier helper
                     genEmitHelperCall(CORINFO_HELP_ASSIGN_BYREF, 0, EA_PTRSIZE);
+
+                    // genEmitHelperCall(CORINFO_HELP_ASSIGN_BYREF...) killed these registers.
+                    // However they are still live references to the structures we are copying.
+                    gcInfo.gcMarkRegPtrVal(REG_WRITE_BARRIER_SRC_BYREF, TYP_BYREF);
+                    gcInfo.gcMarkRegPtrVal(REG_WRITE_BARRIER_DST_BYREF, TYP_BYREF);
+
                     gcPtrCount--;
                     break;
             }
@@ -5752,9 +5769,8 @@ void CodeGen::genPutArgStk(GenTreePutArgStk* treeNode)
             // the xor ensures that only one of the two is setup, not both
             assert((varNode != nullptr) ^ (addrNode != nullptr));
 
-            BYTE     gcPtrs[MAX_ARG_REG_COUNT] = {};         // TYPE_GC_NONE = 0
-            BYTE*    structGcLayout            = &gcPtrs[0]; // The GC layout for the struct
-            unsigned gcPtrCount;                             // The count of GC pointers in the struct
+            BYTE     gcPtrs[MAX_ARG_REG_COUNT] = {}; // TYPE_GC_NONE = 0
+            unsigned gcPtrCount;                     // The count of GC pointers in the struct
             int      structSize;
             bool     isHfa;
 
@@ -5771,9 +5787,10 @@ void CodeGen::genPutArgStk(GenTreePutArgStk* treeNode)
 
                 structSize = varDsc->lvSize(); // This yields the roundUp size, but that is fine
                                                // as that is how much stack is allocated for this LclVar
-                isHfa          = varDsc->lvIsHfa();
-                gcPtrCount     = varDsc->lvStructGcCount;
-                structGcLayout = varDsc->lvGcLayout;
+                isHfa      = varDsc->lvIsHfa();
+                gcPtrCount = varDsc->lvStructGcCount;
+                for (unsigned i = 0; i < gcPtrCount; ++i)
+                    gcPtrs[i]   = varDsc->lvGcLayout[i];
             }
             else // addrNode is used
             {
@@ -6044,14 +6061,17 @@ void CodeGen::genCreateAndStoreGCInfoX64(unsigned codeSize, unsigned prologSize 
     // Follow the code pattern of the x86 gc info encoder (genCreateAndStoreGCInfoJIT32).
     gcInfo.gcInfoBlockHdrSave(gcInfoEncoder, codeSize, prologSize);
 
+    // We keep the call count for the second call to gcMakeRegPtrTable() below.
+    unsigned callCnt = 0;
+
     // First we figure out the encoder ID's for the stack slots and registers.
-    gcInfo.gcMakeRegPtrTable(gcInfoEncoder, codeSize, prologSize, GCInfo::MAKE_REG_PTR_MODE_ASSIGN_SLOTS);
+    gcInfo.gcMakeRegPtrTable(gcInfoEncoder, codeSize, prologSize, GCInfo::MAKE_REG_PTR_MODE_ASSIGN_SLOTS, &callCnt);
 
     // Now we've requested all the slots we'll need; "finalize" these (make more compact data structures for them).
     gcInfoEncoder->FinalizeSlotIds();
 
     // Now we can actually use those slot ID's to declare live ranges.
-    gcInfo.gcMakeRegPtrTable(gcInfoEncoder, codeSize, prologSize, GCInfo::MAKE_REG_PTR_MODE_DO_WORK);
+    gcInfo.gcMakeRegPtrTable(gcInfoEncoder, codeSize, prologSize, GCInfo::MAKE_REG_PTR_MODE_DO_WORK, &callCnt);
 
     if (compiler->opts.compDbgEnC)
     {

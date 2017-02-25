@@ -107,7 +107,18 @@ void SetUseSSE3_4(bool value)
 {
     useSSE3_4Encodings = value;
 }
+bool EncodedBySSE38orSSE3A(instruction ins);
 bool Is4ByteSSE4Instruction(instruction ins);
+
+bool hasRexPrefix(code_t code)
+{
+#ifdef _TARGET_AMD64_
+    const code_t REX_PREFIX_MASK = 0xFF00000000LL;
+    return (code & REX_PREFIX_MASK) != 0;
+#else  // !_TARGET_AMD64_
+    return false;
+#endif // !_TARGET_AMD64_
+}
 
 #ifdef FEATURE_AVX_SUPPORT
 
@@ -178,7 +189,7 @@ bool IsThreeOperandAVXInstruction(instruction ins)
 }
 bool Is4ByteAVXInstruction(instruction ins);
 #else  // !FEATURE_AVX_SUPPORT
-bool                     UseAVX()
+bool UseAVX()
 {
     return false;
 }

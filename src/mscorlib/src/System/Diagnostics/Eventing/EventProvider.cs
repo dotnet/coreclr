@@ -1,6 +1,7 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
+
 using Microsoft.Win32;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -8,7 +9,9 @@ using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Runtime.InteropServices;
 using System.Security;
+#if !CORECLR
 using System.Security.Permissions;
+#endif // !CORECLR
 using System.Threading;
 using System;
 
@@ -43,7 +46,9 @@ namespace System.Diagnostics.Tracing
     /// Only here because System.Diagnostics.EventProvider needs one more extensibility hook (when it gets a 
     /// controller callback)
     /// </summary>
+#if !CORECLR
     [System.Security.Permissions.HostProtection(MayLeakOnAbort = true)]
+#endif // CORECLR
     internal partial class EventProvider : IDisposable
     {
         // This is the windows EVENT_DATA_DESCRIPTOR structure.  We expose it because this is what
@@ -74,7 +79,7 @@ namespace System.Diagnostics.Tracing
 
         private static bool m_setInformationMissing;
 
-        UnsafeNativeMethods.ManifestEtw.EtwEnableCallback m_etwCallback;     // Trace Callback function
+        private UnsafeNativeMethods.ManifestEtw.EtwEnableCallback m_etwCallback;     // Trace Callback function
         private long m_regHandle;                        // Trace Registration Handle
         private byte m_level;                            // Tracing Level
         private long m_anyKeywordMask;                   // Trace Enable Flags
@@ -174,7 +179,7 @@ namespace System.Diagnostics.Tracing
 
             // Do most of the work under a lock to avoid shutdown race.
 
-            long registrationHandle = 0;  
+            long registrationHandle = 0;
             lock (EventListener.EventListenersLock)
             {
                 // Double check
@@ -196,7 +201,6 @@ namespace System.Diagnostics.Tracing
             // We solve by Unregistering after releasing the EventListenerLock.     
             if (registrationHandle != 0)
                 EventUnregister(registrationHandle);
-
         }
 
         /// <summary>
@@ -217,7 +221,7 @@ namespace System.Diagnostics.Tracing
         // <UsesUnsafeCode Name="Parameter filterData of type: Void*" />
         // <UsesUnsafeCode Name="Parameter callbackContext of type: Void*" />
         // </SecurityKernel>
-        unsafe void EtwEnableCallBack(
+        private unsafe void EtwEnableCallBack(
                         [In] ref System.Guid sourceId,
                         [In] int controlCode,
                         [In] byte setLevel,
@@ -358,7 +362,6 @@ namespace System.Diagnostics.Tracing
                     if ((idx = IndexOfSessionInList(liveSessionList, s.etwSessionId)) < 0 ||
                         (liveSessionList[idx].sessionIdBit != s.sessionIdBit))
                         changedSessionList.Add(Tuple.Create(s, false));
-
                 }
             }
             // next look for sessions that were created since the last callback  (or have changed)
@@ -409,7 +412,7 @@ namespace System.Diagnostics.Tracing
         }
 
         private delegate void SessionInfoCallback(int etwSessionId, long matchAllKeywords, ref List<SessionInfo> sessionList);
-        
+
         /// <summary>
         /// This method enumerates over all active ETW sessions that have enabled 'this.m_Guid' 
         /// for the current process ID, calling 'action' for each session, and passing it the
@@ -428,7 +431,7 @@ namespace System.Diagnostics.Tracing
 #if ES_SESSION_INFO || !ES_BUILD_STANDALONE  
             int buffSize = 256;     // An initial guess that probably works most of the time.  
             byte* buffer;
-            for (; ; )
+            for (;;)
             {
                 var space = stackalloc byte[buffSize];
                 buffer = space;
@@ -559,7 +562,9 @@ namespace System.Diagnostics.Tracing
                 string valueName = "ControllerData_Session_" + etwSessionId.ToString(CultureInfo.InvariantCulture);
 
                 // we need to assert this permission for partial trust scenarios
+#if !CORECLR
                 (new RegistryPermission(RegistryPermissionAccess.Read, regKey)).Assert();
+#endif
                 data = Microsoft.Win32.Registry.GetValue(regKey, valueName, null) as byte[];
                 if (data != null)
                 {
@@ -615,7 +620,6 @@ namespace System.Diagnostics.Tracing
             if ((level <= m_level) ||
                 (m_level == 0))
             {
-
                 //
                 // Check if Keyword is enabled
                 //
@@ -1180,7 +1184,7 @@ namespace System.Diagnostics.Tracing
             return UnsafeNativeMethods.ManifestEtw.EventUnregister(registrationHandle);
         }
 
-        static int[] nibblebits = { 0, 1, 1, 2, 1, 2, 2, 3, 1, 2, 2, 3, 2, 3, 3, 4 };
+        private static int[] nibblebits = { 0, 1, 1, 2, 1, 2, 2, 3, 1, 2, 2, 3, 2, 3, 3, 4 };
         private static int bitcount(uint n)
         {
             int count = 0;

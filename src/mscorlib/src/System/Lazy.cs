@@ -18,7 +18,6 @@
 using System.Runtime;
 using System.Runtime.InteropServices;
 using System.Security;
-using System.Security.Permissions;
 using System.Diagnostics;
 using System.Runtime.Serialization;
 using System.Threading;
@@ -47,19 +46,17 @@ namespace System
     /// </para>
     /// </remarks>
     [Serializable]
-    [ComVisible(false)]
     [DebuggerTypeProxy(typeof(System_LazyDebugView<>))]
     [DebuggerDisplay("ThreadSafetyMode={Mode}, IsValueCreated={IsValueCreated}, IsValueFaulted={IsValueFaulted}, Value={ValueForDebugDisplay}")]
     public class Lazy<T>
     {
-
-#region Inner classes
+        #region Inner classes
         /// <summary>
         /// wrapper class to box the initialized value, this is mainly created to avoid boxing/unboxing the value each time the value is called in case T is 
         /// a value type
         /// </summary>
         [Serializable]
-        class Boxed
+        private class Boxed
         {
             internal Boxed(T value)
             {
@@ -72,7 +69,7 @@ namespace System
         /// <summary>
         /// Wrapper class to wrap the excpetion thrown by the value factory
         /// </summary>
-        class LazyInternalExceptionHolder
+        private class LazyInternalExceptionHolder
         {
             internal ExceptionDispatchInfo m_edi;
             internal LazyInternalExceptionHolder(Exception ex)
@@ -80,12 +77,12 @@ namespace System
                 m_edi = ExceptionDispatchInfo.Capture(ex);
             }
         }
-#endregion
+        #endregion
 
         // A dummy delegate used as a  :
         // 1- Flag to avoid recursive call to Value in None and ExecutionAndPublication modes in m_valueFactory
         // 2- Flag to m_threadSafeObj if ExecutionAndPublication mode and the value is known to be initialized
-        static readonly Func<T> ALREADY_INVOKED_SENTINEL = delegate 
+        private static readonly Func<T> ALREADY_INVOKED_SENTINEL = delegate
         {
             Debug.Assert(false, "ALREADY_INVOKED_SENTINEL should never be invoked.");
             return default(T);
@@ -157,8 +154,8 @@ namespace System
         /// </summary>
         /// <param name="isThreadSafe">true if this instance should be usable by multiple threads concurrently; false if the instance will only be used by one thread at a time.
         /// </param>
-        public Lazy(bool isThreadSafe) : 
-            this(isThreadSafe? LazyThreadSafetyMode.ExecutionAndPublication : LazyThreadSafetyMode.None)
+        public Lazy(bool isThreadSafe) :
+            this(isThreadSafe ? LazyThreadSafetyMode.ExecutionAndPublication : LazyThreadSafetyMode.None)
         {
         }
 
@@ -221,7 +218,7 @@ namespace System
                 return LazyHelpers.PUBLICATION_ONLY_SENTINEL;
             else if (mode != LazyThreadSafetyMode.None)
                 throw new ArgumentOutOfRangeException(nameof(mode), Environment.GetResourceString("Lazy_ctor_ModeInvalid"));
-            
+
             return null; // None mode
         }
 
@@ -323,7 +320,7 @@ namespace System
             get
             {
                 Boxed boxed = null;
-                if (m_boxed != null )
+                if (m_boxed != null)
                 {
                     // Do a quick check up front for the fast path.
                     boxed = m_boxed as Boxed;
@@ -449,7 +446,6 @@ namespace System
                 try
                 {
                     boxed = new Boxed((T)Activator.CreateInstance(typeof(T)));
-
                 }
                 catch (System.MissingMethodException)
                 {
@@ -462,7 +458,6 @@ namespace System
 
             return boxed;
         }
-
     }
 
     /// <summary>A debugger view of the Lazy&lt;T&gt; to surface additional debugging properties and 
@@ -503,6 +498,5 @@ namespace System
         {
             get { return m_lazy.IsValueFaulted; }
         }
-
     }
 }

@@ -13,32 +13,28 @@
 **
 =============================================================================*/
 
+using System.Security;
+using System;
+using System.Runtime.Serialization;
+using System.Reflection;
+using System.Text;
+using System.Security.Policy;
+using System.IO;
+using System.Globalization;
+using System.Diagnostics.Contracts;
+
 namespace System.Security
 {
-    using System.Security;
-    using System;
-    using System.Runtime.Serialization;
-    using System.Security.Permissions;
-    using System.Reflection;
-    using System.Text;
-    using System.Security.Policy;
-    using System.IO;
-    using System.Globalization;
-    using System.Security.Util;
-    using System.Diagnostics.Contracts;
-
-    [System.Runtime.InteropServices.ComVisible(true)]
     [Serializable]
     public class SecurityException : SystemException
     {
         internal static string GetResString(string sResourceName)
         {
-            PermissionSet.s_fullTrust.Assert();
             return Environment.GetResourceString(sResourceName);
         }
 
 #pragma warning disable 618
-        internal static Exception MakeSecurityException(AssemblyName asmName, Evidence asmEvidence, PermissionSet granted, PermissionSet refused, RuntimeMethodHandleInternal rmh, SecurityAction action, Object demand, IPermission permThatFailed)
+        internal static Exception MakeSecurityException(AssemblyName asmName, Evidence asmEvidence, RuntimeMethodHandleInternal rmh, Object demand)
 #pragma warning restore 618
         {
             return new SecurityException(GetResString("Arg_SecurityException"));
@@ -62,9 +58,6 @@ namespace System.Security
         {
             SetErrorCode(System.__HResults.COR_E_SECURITY);
         }
-
-        internal SecurityException(string message, Object deny, Object permitOnly, MethodInfo method, Object demanded, IPermission permThatFailed)
-                    : this(){}
 
         protected SecurityException(SerializationInfo info, StreamingContext context) : base(info, context)
         {

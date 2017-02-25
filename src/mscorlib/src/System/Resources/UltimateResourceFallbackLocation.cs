@@ -17,10 +17,9 @@
 
 using System;
 
-namespace System.Resources {
-
-[Serializable]
-[System.Runtime.InteropServices.ComVisible(true)]
+namespace System.Resources
+{
+    [Serializable]
     public enum UltimateResourceFallbackLocation
     {
         MainAssembly,

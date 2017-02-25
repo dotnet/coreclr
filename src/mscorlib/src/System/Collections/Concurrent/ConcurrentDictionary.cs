@@ -24,7 +24,6 @@ using System.Runtime.Serialization;
 using System.Text;
 using System.Threading;
 using System.Security;
-using System.Security.Permissions;
 
 namespace System.Collections.Concurrent
 {
@@ -37,10 +36,9 @@ namespace System.Collections.Concurrent
     /// All public and protected members of <see cref="ConcurrentDictionary{TKey,TValue}"/> are thread-safe and may be used
     /// concurrently from multiple threads.
     /// </remarks>
-    [ComVisible(false)]
     [DebuggerTypeProxy(typeof(Mscorlib_DictionaryDebugView<,>))]
     [DebuggerDisplay("Count = {Count}")]
-    public class ConcurrentDictionary<TKey, TValue> : IDictionary<TKey, TValue>, IDictionary, IReadOnlyDictionary<TKey, TValue>
+    internal class ConcurrentDictionary<TKey, TValue> : IDictionary<TKey, TValue>, IDictionary, IReadOnlyDictionary<TKey, TValue>
     {
         /// <summary>
         /// Tables that hold the internal state of the ConcurrentDictionary
@@ -67,7 +65,7 @@ namespace System.Collections.Concurrent
         private volatile Tables m_tables; // Internal tables of the dictionary       
         // NOTE: this is only used for compat reasons to serialize the comparer.
         // This should not be accessed from anywhere else outside of the serialization methods.
-        internal IEqualityComparer<TKey> m_comparer; 
+        internal IEqualityComparer<TKey> m_comparer;
         private readonly bool m_growLockArray; // Whether to dynamically increase the size of the striped lock
 
         // How many times we resized becaused of collisions. 
@@ -104,6 +102,10 @@ namespace System.Collections.Concurrent
         private static bool IsValueWriteAtomic()
         {
             Type valueType = typeof(TValue);
+            if (valueType.IsEnum)
+            {
+                valueType = Enum.GetUnderlyingType(valueType);
+            }
 
             //
             // Section 12.6.6 of ECMA CLI explains which types can be read and written atomically without
@@ -707,7 +709,6 @@ namespace System.Collections.Concurrent
                     {
                         count += m_tables.m_countPerLock[i];
                     }
-
                 }
                 finally
                 {
@@ -1406,7 +1407,6 @@ namespace System.Collections.Concurrent
         /// </summary>
         private static int DefaultConcurrencyLevel
         {
-
             get { return DEFAULT_CONCURRENCY_MULTIPLIER * PlatformHelper.ProcessorCount; }
         }
 
@@ -1561,7 +1561,7 @@ namespace System.Collections.Concurrent
         /// </summary>
         private class DictionaryEnumerator : IDictionaryEnumerator
         {
-            IEnumerator<KeyValuePair<TKey, TValue>> m_enumerator; // Enumerator over the dictionary.
+            private IEnumerator<KeyValuePair<TKey, TValue>> m_enumerator; // Enumerator over the dictionary.
 
             internal DictionaryEnumerator(ConcurrentDictionary<TKey, TValue> dictionary)
             {

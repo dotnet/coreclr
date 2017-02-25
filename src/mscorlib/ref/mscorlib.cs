@@ -3157,6 +3157,7 @@ namespace System
         [System.Runtime.InteropServices.ComVisibleAttribute(false)]
         [System.Security.SecuritySafeCriticalAttribute]
         public bool EndsWith(System.String value, System.StringComparison comparisonType) { throw null; }
+        public bool EndsWith(System.Char value) { throw null; }
         public override bool Equals(object obj) { throw null; }
         public bool Equals(System.String value) { throw null; }
         public static bool Equals(System.String a, System.String b) { throw null; }
@@ -3245,6 +3246,8 @@ namespace System
         [System.Security.SecuritySafeCriticalAttribute]
         public System.String Replace(char oldChar, char newChar) { throw null; }
         public System.String Replace(System.String oldValue, System.String newValue) { throw null; }
+		public System.String Replace(System.String oldValue, System.String newValue, System.StringComparison comparison) { throw null; }
+        public System.String Replace(System.String oldValue, System.String newValue, System.Boolean ignoreCase, System.Globalization.CultureInfo cultureInfo) { throw null; }
         [System.Runtime.InteropServices.ComVisibleAttribute(false)]
         public string[] Split(char separator, int count, System.StringSplitOptions options = (System.StringSplitOptions)(0)) { throw null; }
         [System.Runtime.InteropServices.ComVisibleAttribute(false)]
@@ -3268,6 +3271,7 @@ namespace System
         [System.Runtime.InteropServices.ComVisibleAttribute(false)]
         [System.Security.SecuritySafeCriticalAttribute]
         public bool StartsWith(System.String value, System.StringComparison comparisonType) { throw null; }
+        public bool StartsWith(System.Char value) { throw null; }
         public System.String Substring(int startIndex) { throw null; }
         [System.Security.SecuritySafeCriticalAttribute]
         public System.String Substring(int startIndex, int length) { throw null; }

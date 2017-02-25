@@ -80,9 +80,6 @@ public:
     static HMODULE LoadLibraryFromPath(LPCWSTR libraryPath);
     static HINSTANCE LoadLibraryModule(NDirectMethodDesc * pMD, LoadLibErrorTracker *pErrorTracker);
 
-#ifndef FEATURE_CORECLR
-    static VOID CheckUnificationList(NDirectMethodDesc * pMD, DWORD * pDllImportSearchPathFlag, BOOL * pSearchAssemblyDirectory);
-#endif // !FEATURE_CORECLR
 
     static VOID NDirectLink(NDirectMethodDesc *pMD);
 
@@ -121,9 +118,6 @@ public:
 
     inline static ILStubCache*     GetILStubCache(NDirectStubParameters* pParams);
 
-#if defined(_TARGET_X86_) && !defined(FEATURE_CORECLR)
-    static Stub*            GetStubForCopyCtor();
-#endif // _TARGET_X86_ && !FEATURE_CORECLR
 
     static BOOL IsHostHookEnabled();
 
@@ -132,14 +126,10 @@ public:
 private:
     NDirect() {LIMITED_METHOD_CONTRACT;};     // prevent "new"'s on this class
 
-#ifdef FEATURE_CORECLR
     static HMODULE LoadFromNativeDllSearchDirectories(AppDomain* pDomain, LPCWSTR libName, DWORD flags, LoadLibErrorTracker *pErrorTracker);
-#endif
     static HMODULE LoadFromPInvokeAssemblyDirectory(Assembly *pAssembly, LPCWSTR libName, DWORD flags, LoadLibErrorTracker *pErrorTracker);
 
-#if defined(FEATURE_HOST_ASSEMBLY_RESOLVER)
     static HMODULE LoadLibraryModuleViaHost(NDirectMethodDesc * pMD, AppDomain* pDomain, const wchar_t* wszLibName);
-#endif //defined(FEATURE_HOST_ASSEMBLY_RESOLVER)
 
 #if !defined(FEATURE_CORESYSTEM)
     static HINSTANCE    CheckForWellKnownModules(LPCWSTR wszLibName, LoadLibErrorTracker *pErrorTracker);
@@ -357,9 +347,6 @@ private:
     void PreInit(Module* pModule, MethodTable *pClass);
     void PreInit(MethodDesc* pMD);
     void SetError(WORD error) { if (!m_error) m_error = error; }
-#ifdef FEATURE_MIXEDMODE
-    void BestGuessNDirectDefaults(MethodDesc* pMD);
-#endif 
 
 public:     
     DWORD GetStubFlags() 
@@ -507,9 +494,6 @@ public:
     void    GetCleanupFinallyOffsets(ILStubEHClause * pClause);
     void    AdjustTargetStackDeltaForReverseInteropHRESULTSwapping();
     void    AdjustTargetStackDeltaForExtraParam();
-#if defined(_TARGET_X86_) && !defined(FEATURE_CORECLR)
-    DWORD   CreateCopyCtorCookie(ILCodeStream* pcsEmit);
-#endif // _TARGET_X86_ && !FEATURE_CORECLR
 
     void    SetInteropParamExceptionInfo(UINT resID, UINT paramIdx);
     bool    HasInteropParamExceptionInfo();
@@ -549,9 +533,6 @@ protected:
     void            InitCleanupCode();
     void            InitExceptionCleanupCode();
 
-#if defined(_TARGET_X86_) && !defined(FEATURE_CORECLR)
-    BOOL            IsCopyCtorStubNeeded();
-#endif // _TARGET_X86_ && !FEATURE_CORECLR
 
 
     ILCodeStream*   m_pcsSetup;
@@ -583,10 +564,6 @@ protected:
     DWORD               m_dwCleanupWorkListLocalNum;
     DWORD               m_dwRetValLocalNum;
     
-#if defined(_TARGET_X86_) && !defined(FEATURE_CORECLR)
-    DWORD               m_dwFirstCopyCtorCookieLocalNum;    // list head passed to SetCopyCtorCookieChain
-    DWORD               m_dwLastCopyCtorCookieLocalNum;     // used for chaining the cookies into a linked list
-#endif // _TARGET_X86_ && !FEATURE_CORECLR
 
     UINT                m_ErrorResID;
     UINT                m_ErrorParamIdx;
@@ -600,12 +577,6 @@ protected:
 EXTERN_C void PInvokeStubForHost(void);
 #endif
 
-#ifdef FEATURE_MIXEDMODE // IJW
-// This attempts to guess whether a target is an API call that uses SetLastError to communicate errors.
-BOOL HeuristicDoesThisLooksLikeAnApiCall(LPBYTE pTarget);
-BOOL HeuristicDoesThisLookLikeAGetLastErrorCall(LPBYTE pTarget);
-DWORD __stdcall FalseGetLastError();
-#endif // FEATURE_MIXEDMODE
 
 class NDirectStubParameters
 {
@@ -665,7 +636,6 @@ HRESULT FindPredefinedILStubMethod(MethodDesc *pTargetMD, DWORD dwStubFlags, Met
 
 EXTERN_C BOOL CallNeedsHostHook(size_t target);
 
-#ifndef FEATURE_INCLUDE_ALL_INTERFACES
 //
 // Inlinable implementation allows compiler to strip all code related to host hook
 //
@@ -680,7 +650,6 @@ inline BOOL CallNeedsHostHook(size_t target)
     LIMITED_METHOD_CONTRACT;
     return FALSE;
 }
-#endif
 
 // 
 // Limit length of string field in IL stub ETW events so that the whole

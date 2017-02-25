@@ -127,6 +127,8 @@ typedef int __ptrace_request;
         ASSIGN_REG(R12)
 #elif defined(_ARM64_)
 #define ASSIGN_CONTROL_REGS \
+        ASSIGN_REG(Cpsr)    \
+        ASSIGN_REG(Fp)      \
         ASSIGN_REG(Sp)      \
         ASSIGN_REG(Lr)      \
         ASSIGN_REG(Pc)
@@ -499,11 +501,13 @@ void CONTEXTFromNativeContext(const native_context_t *native, LPCONTEXT lpContex
     if ((contextFlags & CONTEXT_CONTROL) == CONTEXT_CONTROL)
     {
         ASSIGN_CONTROL_REGS
-#ifdef _ARM_
+#if defined(_ARM_)
         // WinContext assumes that the least bit of Pc is always 1 (denoting thumb)
         // although the pc value retrived from native context might not have set the least bit.
         // This becomes especially problematic if the context is on the JIT_WRITEBARRIER.
         lpContext->Pc |= 0x1;
+#elif defined(_X86_)
+        lpContext->ResumeEsp = MCREG_Esp(native->uc_mcontext);
 #endif
     }
 
@@ -610,6 +614,35 @@ LPVOID GetNativeContextPC(const native_context_t *context)
 #   error implement me for this architecture
 #endif
 }
+
+/*++
+Function :
+    GetNativeContextSP
+
+    Returns the stack pointer from the native context.
+
+Parameters :
+    const native_context_t *native : native context
+
+Return value :
+    The stack pointer from the native context.
+
+--*/
+LPVOID GetNativeContextSP(const native_context_t *context)
+{
+#ifdef _AMD64_
+    return (LPVOID)MCREG_Rsp(context->uc_mcontext);
+#elif defined(_X86_)
+    return (LPVOID) MCREG_Esp(context->uc_mcontext);
+#elif defined(_ARM_)
+    return (LPVOID) MCREG_Sp(context->uc_mcontext);
+#elif defined(_ARM64_)
+    return (LPVOID) MCREG_Sp(context->uc_mcontext);
+#else
+#   error implement me for this architecture
+#endif
+}
+
 
 /*++
 Function :
@@ -945,6 +978,7 @@ CONTEXT_GetThreadContextFromThreadState(
                 lpContext->Esi = pState->esi;
                 lpContext->Ebp = pState->ebp;
                 lpContext->Esp = pState->esp;
+                lpContext->ResumeEsp = pState->esp;
                 lpContext->SegSs = pState->ss;
                 lpContext->EFlags = pState->eflags;
                 lpContext->Eip = pState->eip;

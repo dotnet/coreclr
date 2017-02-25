@@ -20,7 +20,6 @@ using System.Diagnostics.Contracts;
 using System.Runtime.ConstrainedExecution;
 using System.Runtime.Serialization;
 using System.Security;
-using System.Security.Permissions;
 using System.Threading;
 
 namespace System.Collections.Concurrent
@@ -307,7 +306,6 @@ namespace System.Collections.Concurrent
 
             result = default(T);
             return false;
-
         }
 
         /// <summary>
@@ -329,7 +327,7 @@ namespace System.Collections.Concurrent
             Node head;
             Node next;
             int backoff = 1;
-            Random r = new Random(Environment.TickCount & Int32.MaxValue); // avoid the case where TickCount could return Int32.MinValue
+            Random r = null;
             while (true)
             {
                 head = m_head;
@@ -360,7 +358,18 @@ namespace System.Collections.Concurrent
                     spin.SpinOnce();
                 }
 
-                backoff = spin.NextSpinWillYield ? r.Next(1, BACKOFF_MAX_YIELDS) : backoff * 2;
+                if (spin.NextSpinWillYield)
+                {
+                    if (r == null)
+                    {
+                        r = new Random();
+                    }
+                    backoff = r.Next(1, BACKOFF_MAX_YIELDS);
+                }
+                else
+                {
+                    backoff *= 2;
+                }
             }
         }
 

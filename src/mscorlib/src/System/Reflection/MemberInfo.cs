@@ -4,15 +4,14 @@
 
 // 
 
+using System;
+using System.Collections.Generic;
+using System.Diagnostics.Contracts;
+using System.Runtime;
+using System.Runtime.InteropServices;
+
 namespace System.Reflection
 {
-    using System;
-    using System.Collections.Generic;
-    using System.Diagnostics.Contracts;
-    using System.Runtime;
-    using System.Runtime.InteropServices;
-    using System.Security.Permissions;
-
     [Serializable]
     public abstract class MemberInfo : ICustomAttributeProvider
     {
@@ -21,7 +20,7 @@ namespace System.Reflection
         #endregion
 
         #region Internal Methods
-        internal virtual bool CacheEquals(object o) { throw new NotImplementedException(); } 
+        internal virtual bool CacheEquals(object o) { throw new NotImplementedException(); }
         #endregion
 
         #region Public Abstract\Virtual Members
@@ -54,18 +53,18 @@ namespace System.Reflection
         public virtual int MetadataToken { get { throw new InvalidOperationException(); } }
 
         public virtual Module Module
-        { 
+        {
             get
             {
                 if (this is Type)
                     return ((Type)this).Module;
 
-                throw new NotImplementedException(); 
-            } 
+                throw new NotImplementedException();
+            }
         }
-        
-        
-        
+
+
+
         #endregion
 
         public static bool operator ==(MemberInfo left, MemberInfo right)

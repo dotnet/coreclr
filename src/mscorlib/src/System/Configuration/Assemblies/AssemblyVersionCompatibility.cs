@@ -10,15 +10,16 @@
 **
 **
 ===========================================================*/
-namespace System.Configuration.Assemblies {
-    
-    using System;
-     [Serializable]
-[System.Runtime.InteropServices.ComVisible(true)]
+
+using System;
+
+namespace System.Configuration.Assemblies
+{
+    [Serializable]
     public enum AssemblyVersionCompatibility
     {
-        SameMachine         = 1,
-        SameProcess         = 2,
-        SameDomain          = 3,
+        SameMachine = 1,
+        SameProcess = 2,
+        SameDomain = 3,
     }
 }

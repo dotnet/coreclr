@@ -10,12 +10,12 @@
 **
 **
 ============================================================*/
-namespace System.Globalization {
 
+namespace System.Globalization
+{
     [Serializable]
-[System.Runtime.InteropServices.ComVisible(true)]
-    public enum UnicodeCategory {
-
+    public enum UnicodeCategory
+    {
         UppercaseLetter = 0,
 
         LowercaseLetter = 1,

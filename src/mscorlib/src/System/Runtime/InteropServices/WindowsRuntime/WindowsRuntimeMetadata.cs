@@ -4,22 +4,22 @@
 
 //
 
+using System;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.Diagnostics.Contracts;
+using System.Reflection;
+using System.Reflection.Emit;
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
+using System.Security;
+
 namespace System.Runtime.InteropServices.WindowsRuntime
 {
-    using System;
-    using System.Collections.Generic;
-    using System.Collections.ObjectModel;
-    using System.Diagnostics.Contracts;
-    using System.Reflection;
-    using System.Reflection.Emit;
-    using System.Runtime.CompilerServices;
-    using System.Runtime.InteropServices;
-    using System.Security;
-    
     internal static class WindowsRuntimeMetadata
     {
         private static EventHandler<DesignerNamespaceResolveEventArgs> DesignerNamespaceResolve;
-        
+
         internal static string[] OnDesignerNamespaceResolveEvent(AppDomain appDomain, string namespaceName)
         {
             EventHandler<DesignerNamespaceResolveEventArgs> eventHandler = DesignerNamespaceResolve;
@@ -52,53 +52,12 @@ namespace System.Runtime.InteropServices.WindowsRuntime
                     }
                 }
             }
-            
+
             return null;
         }
     }
-    
-#if FEATURE_REFLECTION_ONLY_LOAD
-    [ComVisible(false)]
-    public class NamespaceResolveEventArgs : EventArgs
-    {
-        private string _NamespaceName;
-        private Assembly _RequestingAssembly;
-        private Collection<Assembly> _ResolvedAssemblies;
 
-        public string NamespaceName
-        {
-            get
-            {
-                return _NamespaceName;
-            }
-        }
 
-        public Assembly RequestingAssembly
-        {
-            get
-            {
-                return _RequestingAssembly;
-            }
-        }
-
-        public Collection<Assembly> ResolvedAssemblies
-        {
-            get
-            {
-                return _ResolvedAssemblies;
-            }
-        }
-        
-        public NamespaceResolveEventArgs(string namespaceName, Assembly requestingAssembly)
-        {
-            _NamespaceName = namespaceName;
-            _RequestingAssembly = requestingAssembly;
-            _ResolvedAssemblies = new Collection<Assembly>();
-        }
-    }
-#endif //FEATURE_REFLECTION_ONLY
-
-    [ComVisible(false)]
     internal class DesignerNamespaceResolveEventArgs : EventArgs
     {
         private string _NamespaceName;

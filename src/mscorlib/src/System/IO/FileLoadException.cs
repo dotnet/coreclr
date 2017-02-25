@@ -20,31 +20,32 @@ using System.Runtime.Serialization;
 using System.Runtime.InteropServices;
 using System.Runtime.CompilerServices;
 using System.Security;
-using System.Security.Permissions;
 using System.Runtime.Versioning;
 using SecurityException = System.Security.SecurityException;
 
-namespace System.IO {
-
+namespace System.IO
+{
     [Serializable]
-    [System.Runtime.InteropServices.ComVisible(true)]
-    public class FileLoadException : IOException {
-
+    public class FileLoadException : IOException
+    {
         private String _fileName;   // the name of the file we could not load.
         private String _fusionLog;  // fusion log (when applicable)
 
-        public FileLoadException() 
-            : base(Environment.GetResourceString("IO.FileLoad")) {
+        public FileLoadException()
+            : base(Environment.GetResourceString("IO.FileLoad"))
+        {
             SetErrorCode(__HResults.COR_E_FILELOAD);
         }
-    
-        public FileLoadException(String message) 
-            : base(message) {
+
+        public FileLoadException(String message)
+            : base(message)
+        {
             SetErrorCode(__HResults.COR_E_FILELOAD);
         }
-    
-        public FileLoadException(String message, Exception inner) 
-            : base(message, inner) {
+
+        public FileLoadException(String message, Exception inner)
+            : base(message, inner)
+        {
             SetErrorCode(__HResults.COR_E_FILELOAD);
         }
 
@@ -54,15 +55,17 @@ namespace System.IO {
             _fileName = fileName;
         }
 
-        public FileLoadException(String message, String fileName, Exception inner) 
-            : base(message, inner) {
+        public FileLoadException(String message, String fileName, Exception inner)
+            : base(message, inner)
+        {
             SetErrorCode(__HResults.COR_E_FILELOAD);
             _fileName = fileName;
         }
 
         public override String Message
         {
-            get {
+            get
+            {
                 SetMessageField();
                 return _message;
             }
@@ -74,7 +77,8 @@ namespace System.IO {
                 _message = FormatFileLoadExceptionMessage(_fileName, HResult);
         }
 
-        public String FileName {
+        public String FileName
+        {
             get { return _fileName; }
         }
 
@@ -84,7 +88,7 @@ namespace System.IO {
 
             if (_fileName != null && _fileName.Length != 0)
                 s += Environment.NewLine + Environment.GetResourceString("IO.FileName_Name", _fileName);
-            
+
             if (InnerException != null)
                 s = s + " ---> " + InnerException.ToString();
 
@@ -93,24 +97,24 @@ namespace System.IO {
 
             try
             {
-                if(FusionLog!=null)
+                if (FusionLog != null)
                 {
-                    if (s==null)
-                        s=" ";
-                    s+=Environment.NewLine;
-                    s+=Environment.NewLine;
-                    s+=FusionLog;
+                    if (s == null)
+                        s = " ";
+                    s += Environment.NewLine;
+                    s += Environment.NewLine;
+                    s += FusionLog;
                 }
             }
-            catch(SecurityException)
+            catch (SecurityException)
             {
-            
             }
 
             return s;
         }
 
-        protected FileLoadException(SerializationInfo info, StreamingContext context) : base (info, context) {
+        protected FileLoadException(SerializationInfo info, StreamingContext context) : base(info, context)
+        {
             // Base class constructor will check info != null.
 
             _fileName = info.GetString("FileLoad_FileName");
@@ -119,26 +123,28 @@ namespace System.IO {
             {
                 _fusionLog = info.GetString("FileLoad_FusionLog");
             }
-            catch 
+            catch
             {
                 _fusionLog = null;
             }
         }
 
-        private FileLoadException(String fileName, String fusionLog,int hResult)
+        private FileLoadException(String fileName, String fusionLog, int hResult)
             : base(null)
         {
             SetErrorCode(hResult);
             _fileName = fileName;
-            _fusionLog=fusionLog;
+            _fusionLog = fusionLog;
             SetMessageField();
         }
 
-        public String FusionLog {
+        public String FusionLog
+        {
             get { return _fusionLog; }
         }
 
-        public override void GetObjectData(SerializationInfo info, StreamingContext context) {
+        public override void GetObjectData(SerializationInfo info, StreamingContext context)
+        {
             // Serialize data for our base classes.  base will verify info != null.
             base.GetObjectData(info, context);
 

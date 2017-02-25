@@ -17,7 +17,6 @@ using System.Diagnostics.Contracts;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Runtime.ExceptionServices;
-using System.Security.Permissions;
 using System.Threading;
 
 // Disable the "reference to volatile field not treated as volatile" error.
@@ -132,7 +131,7 @@ namespace System.Threading.Tasks
         {
             // Spin wait until the completion is finalized by another thread.
             var sw = new SpinWait();
-            while (!m_task.IsCompleted) 
+            while (!m_task.IsCompleted)
                 sw.SpinOnce();
         }
 
@@ -186,7 +185,7 @@ namespace System.Threading.Tasks
         public bool TrySetException(IEnumerable<Exception> exceptions)
         {
             if (exceptions == null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.exceptions);
-            
+
             List<Exception> defensiveCopy = new List<Exception>();
             foreach (Exception e in exceptions)
             {
@@ -277,7 +276,7 @@ namespace System.Threading.Tasks
         public bool TrySetResult(TResult result)
         {
             bool rval = m_task.TrySetResult(result);
-            if (!rval && !m_task.IsCompleted) SpinUntilCompleted();
+            if (!rval) SpinUntilCompleted();
             return rval;
         }
 
@@ -347,7 +346,7 @@ namespace System.Threading.Tasks
         /// <exception cref="T:System.ObjectDisposedException">The <see cref="Task"/> was disposed.</exception>
         public void SetCanceled()
         {
-            if(!TrySetCanceled())
+            if (!TrySetCanceled())
                 ThrowHelper.ThrowInvalidOperationException(ExceptionResource.TaskT_TransitionToFinal_AlreadyCompleted);
         }
     }

@@ -2782,9 +2782,6 @@ regMaskTP LinearScan::getKillSetForNode(GenTree* tree)
             if (compiler->codeGen->gcInfo.gcIsWriteBarrierAsgNode(tree))
             {
                 killMask = RBM_CALLEE_TRASH_NOGC;
-#if !NOGC_WRITE_BARRIERS && (defined(_TARGET_ARM_) || defined(_TARGET_AMD64_))
-                killMask |= (RBM_ARG_0 | RBM_ARG_1);
-#endif // !NOGC_WRITE_BARRIERS && (defined(_TARGET_ARM_) || defined(_TARGET_AMD64_))
             }
             break;
 
@@ -3417,7 +3414,7 @@ static int ComputeOperandDstCount(GenTree* operand)
 // ComputeAvailableSrcCount: computes the number of registers available as
 //                           sources for a node.
 //
-// This is simply the sum of the number of registers prduced by each
+// This is simply the sum of the number of registers produced by each
 // operand to the node.
 //
 // Arguments:
@@ -3436,7 +3433,7 @@ static int ComputeAvailableSrcCount(GenTree* node)
 
     return numSources;
 }
-#endif
+#endif // DEBUG
 
 void LinearScan::buildRefPositionsForNode(GenTree*                  tree,
                                           BasicBlock*               block,

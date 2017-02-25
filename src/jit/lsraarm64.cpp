@@ -107,7 +107,7 @@ void Lowering::TreeNodeInfoInit(GenTree* tree)
             }
             else if (kind & (GTK_SMPOP))
             {
-                if (tree->gtGetOp2() != nullptr)
+                if (tree->gtGetOp2IfPresent() != nullptr)
                 {
                     info->srcCount = 2;
                 }
@@ -504,6 +504,7 @@ void Lowering::TreeNodeInfoInit(GenTree* tree)
         case GT_STORE_BLK:
         case GT_STORE_OBJ:
         case GT_STORE_DYN_BLK:
+            LowerBlockStore(tree->AsBlk());
             TreeNodeInfoInitBlockStore(tree->AsBlk());
             break;
 
@@ -1256,7 +1257,6 @@ void Lowering::TreeNodeInfoInitBlockStore(GenTreeBlk* blkNode)
             // The helper follows the regular ABI.
             dstAddr->gtLsraInfo.setSrcCandidates(l, RBM_ARG_0);
             initVal->gtLsraInfo.setSrcCandidates(l, RBM_ARG_1);
-            blkNode->gtBlkOpKind = GenTreeBlk::BlkOpKindHelper;
             if (size != 0)
             {
                 // Reserve a temp register for the block size argument.
@@ -1333,7 +1333,6 @@ void Lowering::TreeNodeInfoInitBlockStore(GenTreeBlk* blkNode)
                     GenTree* blockSize = blkNode->AsDynBlk()->gtDynamicSize;
                     blockSize->gtLsraInfo.setSrcCandidates(l, RBM_ARG_2);
                 }
-                blkNode->gtBlkOpKind = GenTreeBlk::BlkOpKindHelper;
             }
             if (internalIntCount != 0)
             {
@@ -1493,9 +1492,10 @@ void Lowering::TreeNodeInfoInitSIMD(GenTree* tree)
             // The result is baseType of SIMD struct.
             info->srcCount = 2;
 
-            op2 = tree->gtGetOp2()
-                  // If the index is a constant, mark it as contained.
-                  if (CheckImmedAndMakeContained(tree, op2))
+            op2 = tree->gtGetOp2();
+
+            // If the index is a constant, mark it as contained.
+            if (CheckImmedAndMakeContained(tree, op2))
             {
                 info->srcCount = 1;
             }

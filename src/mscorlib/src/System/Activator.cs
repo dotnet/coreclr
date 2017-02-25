@@ -11,8 +11,9 @@
 // 
 // 
 //
-namespace System {
 
+namespace System
+{
     using System;
     using System.Reflection;
     using System.Runtime.Remoting;
@@ -22,7 +23,6 @@ namespace System {
     using StackCrawlMark = System.Threading.StackCrawlMark;
     using System.Runtime.InteropServices;
     using System.Runtime.CompilerServices;
-    using System.Security.Permissions;
     using AssemblyHashAlgorithm = System.Configuration.Assemblies.AssemblyHashAlgorithm;
     using System.Runtime.Versioning;
     using System.Diagnostics.Contracts;
@@ -30,9 +30,9 @@ namespace System {
     // Only statics, does not need to be marked with the serializable attribute
     public sealed class Activator
     {
-        internal const int LookupMask                 = 0x000000FF;
-        internal const BindingFlags ConLookup         = (BindingFlags) (BindingFlags.Instance | BindingFlags.Public);
-        internal const BindingFlags ConstructorDefault= BindingFlags.Instance | BindingFlags.Public | BindingFlags.CreateInstance;
+        internal const int LookupMask = 0x000000FF;
+        internal const BindingFlags ConLookup = (BindingFlags)(BindingFlags.Instance | BindingFlags.Public);
+        internal const BindingFlags ConstructorDefault = BindingFlags.Instance | BindingFlags.Public | BindingFlags.CreateInstance;
 
         // This class only contains statics, so hide the worthless constructor
         private Activator()
@@ -48,12 +48,12 @@ namespace System {
                                             BindingFlags bindingAttr,
                                             Binder binder,
                                             Object[] args,
-                                            CultureInfo culture) 
+                                            CultureInfo culture)
         {
             return CreateInstance(type, bindingAttr, binder, args, culture, null);
         }
 
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [System.Security.DynamicSecurityMethod] // Methods containing StackCrawlMark local var has to be marked DynamicSecurityMethod
         static public Object CreateInstance(Type type,
                                             BindingFlags bindingAttr,
                                             Binder binder,
@@ -69,11 +69,12 @@ namespace System {
                 throw new NotSupportedException(Environment.GetResourceString("NotSupported_CreateInstanceWithTypeBuilder"));
 
             // If they didn't specify a lookup, then we will provide the default lookup.
-            if ((bindingAttr & (BindingFlags) LookupMask) == 0)
+            if ((bindingAttr & (BindingFlags)LookupMask) == 0)
                 bindingAttr |= Activator.ConstructorDefault;
 
-            if (activationAttributes != null && activationAttributes.Length > 0){
-                throw new PlatformNotSupportedException(Environment.GetResourceString("NotSupported_ActivAttr" ));
+            if (activationAttributes != null && activationAttributes.Length > 0)
+            {
+                throw new PlatformNotSupportedException(Environment.GetResourceString("NotSupported_ActivAttr"));
             }
 
             RuntimeType rt = type.UnderlyingSystemType as RuntimeType;
@@ -82,7 +83,7 @@ namespace System {
                 throw new ArgumentException(Environment.GetResourceString("Arg_MustBeType"), nameof(type));
 
             StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
-            return rt.CreateInstanceImpl(bindingAttr,binder,args,culture,activationAttributes, ref stackMark);
+            return rt.CreateInstanceImpl(bindingAttr, binder, args, culture, activationAttributes, ref stackMark);
         }
 
         static public Object CreateInstance(Type type, params Object[] args)
@@ -99,14 +100,14 @@ namespace System {
                                             Object[] args,
                                             Object[] activationAttributes)
         {
-             return CreateInstance(type,
-                                   Activator.ConstructorDefault,
-                                   null,
-                                   args,
-                                   null,
-                                   activationAttributes);
+            return CreateInstance(type,
+                                  Activator.ConstructorDefault,
+                                  null,
+                                  args,
+                                  null,
+                                  activationAttributes);
         }
-        
+
         static public Object CreateInstance(Type type)
         {
             return Activator.CreateInstance(type, false);
@@ -117,13 +118,13 @@ namespace System {
          * types to be created remotely without having to load the type locally.
          */
 
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [System.Security.DynamicSecurityMethod] // Methods containing StackCrawlMark local var has to be marked DynamicSecurityMethod
         static public ObjectHandle CreateInstance(String assemblyName,
                                                   String typeName)
         {
             StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
             return CreateInstance(assemblyName,
-                                  typeName, 
+                                  typeName,
                                   false,
                                   Activator.ConstructorDefault,
                                   null,
@@ -134,15 +135,15 @@ namespace System {
                                   ref stackMark);
         }
 
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable                                                  
+        [System.Security.DynamicSecurityMethod] // Methods containing StackCrawlMark local var has to be marked DynamicSecurityMethod                                                  
         static public ObjectHandle CreateInstance(String assemblyName,
                                                   String typeName,
                                                   Object[] activationAttributes)
-                                                  
+
         {
             StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
             return CreateInstance(assemblyName,
-                                  typeName, 
+                                  typeName,
                                   false,
                                   Activator.ConstructorDefault,
                                   null,
@@ -152,8 +153,8 @@ namespace System {
                                   null,
                                   ref stackMark);
         }
-            
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+
+        [System.Security.DynamicSecurityMethod] // Methods containing StackCrawlMark local var has to be marked DynamicSecurityMethod
         static public Object CreateInstance(Type type, bool nonPublic)
         {
             if ((object)type == null)
@@ -169,7 +170,7 @@ namespace System {
             return rt.CreateInstanceDefaultCtor(!nonPublic, false, true, ref stackMark);
         }
 
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [System.Security.DynamicSecurityMethod] // Methods containing StackCrawlMark local var has to be marked DynamicSecurityMethod
         static public T CreateInstance<T>()
         {
             RuntimeType rt = typeof(T) as RuntimeType;
@@ -187,7 +188,7 @@ namespace System {
 
         static public ObjectHandle CreateInstanceFrom(String assemblyFile,
                                                       String typeName)
-                                         
+
         {
             return CreateInstanceFrom(assemblyFile, typeName, null);
         }
@@ -195,10 +196,10 @@ namespace System {
         static public ObjectHandle CreateInstanceFrom(String assemblyFile,
                                                       String typeName,
                                                       Object[] activationAttributes)
-                                         
+
         {
             return CreateInstanceFrom(assemblyFile,
-                                      typeName, 
+                                      typeName,
                                       false,
                                       Activator.ConstructorDefault,
                                       null,
@@ -207,7 +208,7 @@ namespace System {
                                       activationAttributes);
         }
 
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [System.Security.DynamicSecurityMethod] // Methods containing StackCrawlMark local var has to be marked DynamicSecurityMethod
         public static ObjectHandle CreateInstance(string assemblyName,
                                                   string typeName,
                                                   bool ignoreCase,
@@ -230,10 +231,10 @@ namespace System {
                                   ref stackMark);
         }
 
-        static internal ObjectHandle CreateInstance(String assemblyString, 
-                                                    String typeName, 
+        static internal ObjectHandle CreateInstance(String assemblyString,
+                                                    String typeName,
                                                     bool ignoreCase,
-                                                    BindingFlags bindingAttr, 
+                                                    BindingFlags bindingAttr,
                                                     Binder binder,
                                                     Object[] args,
                                                     CultureInfo culture,
@@ -243,33 +244,42 @@ namespace System {
         {
             Type type = null;
             Assembly assembly = null;
-            if (assemblyString == null) {
+            if (assemblyString == null)
+            {
                 assembly = RuntimeAssembly.GetExecutingAssembly(ref stackMark);
-            } else {
+            }
+            else
+            {
                 RuntimeAssembly assemblyFromResolveEvent;
                 AssemblyName assemblyName = RuntimeAssembly.CreateAssemblyName(assemblyString, false /*forIntrospection*/, out assemblyFromResolveEvent);
-                if (assemblyFromResolveEvent != null) {
+                if (assemblyFromResolveEvent != null)
+                {
                     // Assembly was resolved via AssemblyResolve event
                     assembly = assemblyFromResolveEvent;
-                } else if (assemblyName.ContentType == AssemblyContentType.WindowsRuntime) {
+                }
+                else if (assemblyName.ContentType == AssemblyContentType.WindowsRuntime)
+                {
                     // WinRT type - we have to use Type.GetType
                     type = Type.GetType(typeName + ", " + assemblyString, true /*throwOnError*/, ignoreCase);
-                } else {
+                }
+                else
+                {
                     // Classic managed type
                     assembly = RuntimeAssembly.InternalLoadAssemblyName(
                         assemblyName, securityInfo, null, ref stackMark,
-                        true /*thrownOnFileNotFound*/, false /*forIntrospection*/, false /*suppressSecurityChecks*/);
+                        true /*thrownOnFileNotFound*/, false /*forIntrospection*/);
                 }
             }
 
-            if (type == null) {
+            if (type == null)
+            {
                 // It's classic managed type (not WinRT type)
                 Log(assembly != null, "CreateInstance:: ", "Loaded " + assembly.FullName, "Failed to Load: " + assemblyString);
-                if(assembly == null) return null;
+                if (assembly == null) return null;
 
                 type = assembly.GetType(typeName, true /*throwOnError*/, ignoreCase);
             }
-            
+
             Object o = Activator.CreateInstance(type,
                                                 bindingAttr,
                                                 binder,
@@ -278,9 +288,10 @@ namespace System {
                                                 activationAttributes);
 
             Log(o != null, "CreateInstance:: ", "Created Instance of class " + typeName, "Failed to create instance of class " + typeName);
-            if(o == null)
+            if (o == null)
                 return null;
-            else {
+            else
+            {
                 ObjectHandle Handle = new ObjectHandle(o);
                 return Handle;
             }
@@ -307,9 +318,9 @@ namespace System {
         }
 
         private static ObjectHandle CreateInstanceFromInternal(String assemblyFile,
-                                                               String typeName, 
+                                                               String typeName,
                                                                bool ignoreCase,
-                                                               BindingFlags bindingAttr, 
+                                                               BindingFlags bindingAttr,
                                                                Binder binder,
                                                                Object[] args,
                                                                CultureInfo culture,
@@ -320,7 +331,7 @@ namespace System {
             Assembly assembly = Assembly.LoadFrom(assemblyFile, securityInfo);
 #pragma warning restore 618
             Type t = assembly.GetType(typeName, true, ignoreCase);
-            
+
             Object o = Activator.CreateInstance(t,
                                                 bindingAttr,
                                                 binder,
@@ -329,9 +340,10 @@ namespace System {
                                                 activationAttributes);
 
             Log(o != null, "CreateInstanceFrom:: ", "Created Instance of class " + typeName, "Failed to create instance of class " + typeName);
-            if(o == null)
+            if (o == null)
                 return null;
-            else {
+            else
+            {
                 ObjectHandle Handle = new ObjectHandle(o);
                 return Handle;
             }
@@ -344,30 +356,29 @@ namespace System {
                                          typeName,
                                          null,
                                          AssemblyHashAlgorithm.None);
-                                         
         }
-                                         
+
         public static ObjectHandle CreateComInstanceFrom(String assemblyName,
                                                          String typeName,
-                                                         byte[] hashValue, 
+                                                         byte[] hashValue,
                                                          AssemblyHashAlgorithm hashAlgorithm)
         {
             Assembly assembly = Assembly.LoadFrom(assemblyName, hashValue, hashAlgorithm);
 
             Type t = assembly.GetType(typeName, true, false);
 
-            Object[] Attr = t.GetCustomAttributes(typeof(ComVisibleAttribute),false);
+            Object[] Attr = t.GetCustomAttributes(typeof(ComVisibleAttribute), false);
             if (Attr.Length > 0)
             {
                 if (((ComVisibleAttribute)Attr[0]).Value == false)
-                    throw new TypeLoadException(Environment.GetResourceString( "Argument_TypeMustBeVisibleFromCom" ));
+                    throw new TypeLoadException(Environment.GetResourceString("Argument_TypeMustBeVisibleFromCom"));
             }
 
             Log(assembly != null, "CreateInstance:: ", "Loaded " + assembly.FullName, "Failed to Load: " + assemblyName);
 
-            if(assembly == null) return null;
+            if (assembly == null) return null;
 
-  
+
             Object o = Activator.CreateInstance(t,
                                                 Activator.ConstructorDefault,
                                                 null,
@@ -376,9 +387,10 @@ namespace System {
                                                 null);
 
             Log(o != null, "CreateInstance:: ", "Created Instance of class " + typeName, "Failed to create instance of class " + typeName);
-            if(o == null)
+            if (o == null)
                 return null;
-            else {
+            else
+            {
                 ObjectHandle Handle = new ObjectHandle(o);
                 return Handle;
             }

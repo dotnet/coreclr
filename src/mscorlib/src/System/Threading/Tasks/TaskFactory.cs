@@ -15,7 +15,6 @@
 using System;
 using System.Collections.Generic;
 using System.Security;
-using System.Security.Permissions;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Diagnostics;
@@ -41,30 +40,20 @@ namespace System.Threading.Tasks
     public class TaskFactory
     {
         // member variables
-        private CancellationToken m_defaultCancellationToken;
-        private TaskScheduler m_defaultScheduler;
-        private TaskCreationOptions m_defaultCreationOptions;
-        private TaskContinuationOptions m_defaultContinuationOptions;
+        private readonly CancellationToken m_defaultCancellationToken;
+        private readonly TaskScheduler m_defaultScheduler;
+        private readonly TaskCreationOptions m_defaultCreationOptions;
+        private readonly TaskContinuationOptions m_defaultContinuationOptions;
 
-
-        private TaskScheduler DefaultScheduler
-        {
-            get
-            {
-                if (m_defaultScheduler == null) return TaskScheduler.Current;
-                else return m_defaultScheduler;
-            }
-        }
+        private TaskScheduler DefaultScheduler => m_defaultScheduler ?? TaskScheduler.Current;
 
         // sister method to above property -- avoids a TLS lookup
         private TaskScheduler GetDefaultScheduler(Task currTask)
         {
-            if (m_defaultScheduler != null) return m_defaultScheduler;
-            else if ((currTask != null)
-                && ((currTask.CreationOptions & TaskCreationOptions.HideScheduler) == 0)
-                )
-                return currTask.ExecutingTaskScheduler;
-            else return TaskScheduler.Default;
+            return
+                m_defaultScheduler ??
+                (currTask != null && (currTask.CreationOptions & TaskCreationOptions.HideScheduler) == 0 ? currTask.ExecutingTaskScheduler :
+                 TaskScheduler.Default);
         }
 
         /* Constructors */
@@ -2326,7 +2315,7 @@ namespace System.Threading.Tasks
             {
                 Contract.Requires(tasks != null, "Expected non-null collection of tasks");
                 _tasks = tasks;
-                
+
                 if (AsyncCausalityTracer.LoggingOn)
                     AsyncCausalityTracer.TraceOperationCreation(CausalityTraceLevel.Required, this.Id, "TaskFactory.ContinueWhenAny", 0);
 
@@ -2338,7 +2327,8 @@ namespace System.Threading.Tasks
 
             public void Invoke(Task completingTask)
             {
-                if (Interlocked.CompareExchange(ref m_firstTaskAlreadyCompleted, 1, 0) == 0)
+                if (m_firstTaskAlreadyCompleted == 0 &&
+                    Interlocked.Exchange(ref m_firstTaskAlreadyCompleted, 1) == 0)
                 {
                     if (AsyncCausalityTracer.LoggingOn)
                     {
@@ -2368,7 +2358,6 @@ namespace System.Threading.Tasks
                             !task.IsCompleted) task.RemoveContinuation(this);
                     }
                     _tasks = null;
-
                 }
             }
 
@@ -2390,7 +2379,7 @@ namespace System.Threading.Tasks
 
             bool checkArgsOnly = false;
             int numTasks = tasks.Count;
-            for(int i=0; i<numTasks; i++)
+            for (int i = 0; i < numTasks; i++)
             {
                 var task = tasks[i];
                 if (task == null) throw new ArgumentException(Environment.GetResourceString("Task_MultiTaskContinuation_NullTask"), nameof(tasks));
@@ -2664,7 +2653,7 @@ namespace System.Threading.Tasks
             if (continuationFunction == null) throw new ArgumentNullException(nameof(continuationFunction));
             Contract.EndContractBlock();
 
-            return TaskFactory<TResult>.ContinueWhenAnyImpl(tasks, continuationFunction, null,continuationOptions, m_defaultCancellationToken, DefaultScheduler);
+            return TaskFactory<TResult>.ContinueWhenAnyImpl(tasks, continuationFunction, null, continuationOptions, m_defaultCancellationToken, DefaultScheduler);
         }
 
         /// <summary>
@@ -2776,7 +2765,7 @@ namespace System.Threading.Tasks
             if (continuationFunction == null) throw new ArgumentNullException(nameof(continuationFunction));
             Contract.EndContractBlock();
 
-            return TaskFactory<TResult>.ContinueWhenAnyImpl<TAntecedentResult>(tasks, continuationFunction, null,  m_defaultContinuationOptions, cancellationToken, DefaultScheduler);
+            return TaskFactory<TResult>.ContinueWhenAnyImpl<TAntecedentResult>(tasks, continuationFunction, null, m_defaultContinuationOptions, cancellationToken, DefaultScheduler);
         }
 
         /// <summary>
@@ -3090,5 +3079,4 @@ namespace System.Threading.Tasks
             Contract.EndContractBlock();
         }
     }
-
 }

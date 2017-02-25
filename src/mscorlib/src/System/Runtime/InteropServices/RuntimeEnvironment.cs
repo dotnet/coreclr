@@ -17,7 +17,6 @@ using System.IO;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Security;
-using System.Security.Permissions;
 using System.Reflection;
 using Microsoft.Win32;
 using System.Runtime.Versioning;
@@ -25,19 +24,14 @@ using StackCrawlMark = System.Threading.StackCrawlMark;
 
 namespace System.Runtime.InteropServices
 {
-    [System.Runtime.InteropServices.ComVisible(true)]
-    static public class RuntimeEnvironment {
-
+    static internal class RuntimeEnvironment
+    {
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         internal static extern String GetModuleFileName();
 
-        [MethodImpl (MethodImplOptions.NoInlining)]
         public static String GetSystemVersion()
         {
             return Assembly.GetExecutingAssembly().ImageRuntimeVersion;
         }
-
-#if FEATURE_COMINTEROP
-#endif // FEATURE_COMINTEROP
     }
 }

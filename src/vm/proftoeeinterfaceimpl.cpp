@@ -3557,90 +3557,7 @@ HRESULT ProfToEEInterfaceImpl::GetContextStaticAddress(ClassID classId,
          fieldToken, 
          contextId));
     
-#ifdef FEATURE_REMOTING
-
-    //
-    // Check for NULL parameters
-    //
-    if ((classId == NULL) || (contextId == NULL) || (ppAddress == NULL))
-    {
-        return E_INVALIDARG;
-    }
-
-    if (GetThread() == NULL)
-    {
-        return CORPROF_E_NOT_MANAGED_THREAD;
-    }
-
-    if (GetAppDomain() == NULL)
-    {
-        return E_FAIL;
-    }
-
-    TypeHandle typeHandle = TypeHandle::FromPtr((void *)classId);
-
-    //
-    // If this class is not fully restored, that is all the information we can get at this time.
-    //
-    if (!typeHandle.IsRestored())
-    {
-        return CORPROF_E_DATAINCOMPLETE;
-    }
-
-    //
-    // Get the field descriptor object
-    //
-    FieldDesc *pFieldDesc = typeHandle.GetModule()->LookupFieldDef(fieldToken);
-
-    if (pFieldDesc == NULL)
-    {
-        return E_INVALIDARG;
-    }
-
-    //
-    // Verify this field is of the right type
-    //
-    if(!pFieldDesc->IsStatic() ||
-       !pFieldDesc->IsContextStatic() ||
-       pFieldDesc->IsRVA() ||
-       pFieldDesc->IsThreadStatic())
-    {
-        return E_INVALIDARG;
-    }
-
-    // It may seem redundant to try to retrieve the same method table from GetEnclosingMethodTable, but classId 
-    // leads to the instantiated method table while GetEnclosingMethodTable returns the uninstantiated one.
-    MethodTable *pMethodTable = pFieldDesc->GetEnclosingMethodTable();
-
-    //
-    // Check that the data is available
-    //
-    if (!IsClassOfMethodTableInited(pMethodTable, GetAppDomain()))
-    {
-        return CORPROF_E_DATAINCOMPLETE;
-    }
-
-    //
-    // Get the context
-    //
-    Context *pContext = reinterpret_cast<Context *>(contextId);
-
-    //
-    // Store the result and return
-    //
-    PTR_VOID pAddress = pContext->GetStaticFieldAddrNoCreate(pFieldDesc);
-    if (pAddress == NULL)
-    {
-        return E_INVALIDARG;
-    }
-
-    *ppAddress = pAddress;
-
-    return S_OK;
-
-#else // FEATURE_REMOTING
     return E_NOTIMPL;
-#endif // FEATURE_REMOTING
 }
 
 /*
@@ -4727,16 +4644,10 @@ HRESULT ProfToEEInterfaceImpl::SetILInstrumentedCodeMap(FunctionID functionId,
     if (!pMethodDesc ->IsRestored())
         return CORPROF_E_DATAINCOMPLETE;
 
-#ifdef FEATURE_CORECLR
     if (g_pDebugInterface == NULL)
     {
         return CORPROF_E_DEBUGGING_DISABLED;
     }
-#else
-    // g_pDebugInterface is initialized on startup on desktop CLR, regardless of whether a debugger
-    // or profiler is loaded.  So it should always be available.
-    _ASSERTE(g_pDebugInterface != NULL);
-#endif // FEATURE_CORECLR
 
     COR_IL_MAP * rgNewILMapEntries = new (nothrow) COR_IL_MAP[cILMapEntries];
 
@@ -5181,16 +5092,10 @@ HRESULT ProfToEEInterfaceImpl::GetILToNativeMapping2(FunctionID functionId,
         return E_INVALIDARG;
     }
 
-#ifdef FEATURE_CORECLR
     if (g_pDebugInterface == NULL)
     {
         return CORPROF_E_DEBUGGING_DISABLED;
     }
-#else
-    // g_pDebugInterface is initialized on startup on desktop CLR, regardless of whether a debugger
-    // or profiler is loaded.  So it should always be available.
-    _ASSERTE(g_pDebugInterface != NULL);
-#endif // FEATURE_CORECLR
 
     return (g_pDebugInterface->GetILToNativeMapping(pMD, cMap, pcMap, map));
 #else
@@ -8681,11 +8586,7 @@ HRESULT ProfToEEInterfaceImpl::GetRuntimeInformation(USHORT * pClrInstanceId,
 
     if (pRuntimeType != NULL)
     {
-#ifdef FEATURE_CORECLR
         *pRuntimeType = COR_PRF_CORE_CLR;
-#else // FEATURE_CORECLR
-        *pRuntimeType = COR_PRF_DESKTOP_CLR;
-#endif // FEATURE_CORECLR
     }
 
     if (pMajorVersion != NULL)
@@ -9413,8 +9314,7 @@ HRESULT ProfToEEInterfaceImpl::EnumNgenModuleMethodsInliningThisMethod(
         return CORPROF_E_DATAINCOMPLETE;
     }
 
-    PersistentInlineTrackingMap *inliningMap = inlinersModule->GetNgenInlineTrackingMap();
-    if (inliningMap == NULL)
+    if (!inlinersModule->HasInlineTrackingMap())
     {
         return CORPROF_E_DATAINCOMPLETE;
     }
@@ -9427,14 +9327,14 @@ HRESULT ProfToEEInterfaceImpl::EnumNgenModuleMethodsInliningThisMethod(
     EX_TRY
     {
         // Trying to use static buffer
-        COUNT_T methodsAvailable = inliningMap->GetInliners(inlineeOwnerModule, inlineeMethodId, staticBufferSize, staticBuffer, incompleteData);
+        COUNT_T methodsAvailable = inlinersModule->GetInliners(inlineeOwnerModule, inlineeMethodId, staticBufferSize, staticBuffer, incompleteData);
 
         // If static buffer is not enough, allocate an array.
         if (methodsAvailable > staticBufferSize)
         {
             DWORD dynamicBufferSize = methodsAvailable;
             dynamicBuffer = methodsBuffer = new MethodInModule[dynamicBufferSize];
-            methodsAvailable = inliningMap->GetInliners(inlineeOwnerModule, inlineeMethodId, dynamicBufferSize, dynamicBuffer, incompleteData);                
+            methodsAvailable = inlinersModule->GetInliners(inlineeOwnerModule, inlineeMethodId, dynamicBufferSize, dynamicBuffer, incompleteData);                
             if (methodsAvailable > dynamicBufferSize)
             {
                 _ASSERTE(!"Ngen image inlining info changed, this shouldn't be possible.");

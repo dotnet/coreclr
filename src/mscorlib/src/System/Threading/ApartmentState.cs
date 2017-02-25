@@ -12,12 +12,11 @@
 **
 =============================================================================*/
 
-namespace System.Threading {
-
+namespace System.Threading
+{
     [Serializable]
-[System.Runtime.InteropServices.ComVisible(true)]
     public enum ApartmentState
-    {   
+    {
         /*=========================================================================
         ** Constants for thread apartment states.
         =========================================================================*/

@@ -2,12 +2,11 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-    
+
 using System;
 using System.Reflection;
 using System.Runtime.Remoting;
 using System.Runtime.Serialization;
-using System.Security.Permissions;
 using System.Globalization;
 using System.Diagnostics.Contracts;
 
@@ -22,17 +21,14 @@ namespace System
         {
             // Used for MulticastDelegate
 
-            if (method == null) 
+            if (method == null)
                 throw new ArgumentNullException(nameof(method));
             Contract.EndContractBlock();
-    
-            if (!method.IsPublic || (method.DeclaringType != null && !method.DeclaringType.IsVisible))
-                new ReflectionPermission(ReflectionPermissionFlag.MemberAccess).Demand();
-    
+
             Type c = delegateType.BaseType;
 
             if (c == null || (c != typeof(Delegate) && c != typeof(MulticastDelegate)))
-                throw new ArgumentException(Environment.GetResourceString("Arg_MustBeDelegate"),"type");
+                throw new ArgumentException(Environment.GetResourceString("Arg_MustBeDelegate"), "type");
 
             if (method.DeclaringType == null)
                 throw new NotSupportedException(Environment.GetResourceString("NotSupported_GlobalMethodSerialization"));
@@ -43,7 +39,7 @@ namespace System
             if (info.MemberCount == 0)
             {
                 info.SetType(typeof(DelegateSerializationHolder));
-                info.AddValue("Delegate",de,typeof(DelegateEntry));
+                info.AddValue("Delegate", de, typeof(DelegateEntry));
             }
 
             // target can be an object so it needs to be added to the info, or else a fixup is needed
@@ -112,15 +108,15 @@ namespace System
         #region Private Data Members
         private DelegateEntry m_delegateEntry;
         private MethodInfo[] m_methods;
-        #endregion    
-    
+        #endregion
+
         #region Constructor
         private DelegateSerializationHolder(SerializationInfo info, StreamingContext context)
         {
             if (info == null)
                 throw new ArgumentNullException(nameof(info));
             Contract.EndContractBlock();
-    
+
             bool bNewWire = true;
 
             try
@@ -215,25 +211,22 @@ namespace System
                 // If we received the new style delegate encoding we already have the target MethodInfo in hand.
                 if (m_methods != null)
                 {
-                    if(de.target != null && !targetType.IsInstanceOfType(de.target))
+                    if (de.target != null && !targetType.IsInstanceOfType(de.target))
                         throw new InvalidCastException();
-                    Object target=de.target;
+                    Object target = de.target;
                     d = Delegate.CreateDelegateNoSecurityCheck(type, target, m_methods[index]);
                 }
                 else
                 {
                     if (de.target != null)
                     {
-                        if(!targetType.IsInstanceOfType(de.target))
+                        if (!targetType.IsInstanceOfType(de.target))
                             throw new InvalidCastException();
-                         d = Delegate.CreateDelegate(type, de.target, de.methodName);
+                        d = Delegate.CreateDelegate(type, de.target, de.methodName);
                     }
                     else
                         d = Delegate.CreateDelegate(type, targetType, de.methodName);
                 }
-
-                if ((d.Method != null && !d.Method.IsPublic) || (d.Method.DeclaringType != null && !d.Method.DeclaringType.IsVisible))
-                    new ReflectionPermission(ReflectionPermissionFlag.MemberAccess).Demand();
             }
             catch (Exception e)
             {
@@ -263,7 +256,7 @@ namespace System
             else
             {
                 object[] invocationList = new object[count];
-                
+
                 for (DelegateEntry de = m_delegateEntry; de != null; de = de.Entry)
                 {
                     // Be careful to match the index we pass to GetDelegate (used to look up extra information for each delegate) to

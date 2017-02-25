@@ -19,15 +19,11 @@
 #include <algorithm>
 #endif
 
-#include <constrainedexecutionregion.h>
 
 #include <formattype.h>
 
 #include <pedecoder.h>
 
-#ifdef FEATURE_REMOTING
-#include <crossdomaincalls.h>
-#endif
 
 #include <mdfileformat.h>
 
@@ -623,20 +619,6 @@ void NativeImageDumper::DumpAssemblySignature(CORCOMPILE_ASSEMBLY_SIGNATURE & as
                           CORCOMPILE_ASSEMBLY_SIGNATURE, COR_INFO );
 }
 
-#ifndef FEATURE_CORECLR
-
-const NativeImageDumper::EnumMnemonics s_CorCompileDependencyInfoFlags[] =
-{
-#define CMDI_ENTRY(f) NativeImageDumper::EnumMnemonics(CORCOMPILE_DEPENDENCY_ ## f, W(#f))
-
-#ifdef FEATURE_APTCA
-    CMDI_ENTRY(IS_APTCA),
-    CMDI_ENTRY(IS_CAPTCA),
-#endif //FEATURE_APTCA
-#undef CMDI_ENTRY
-};
-
-#endif //!FEATURE_CORECLR
 
 //error code return?
 void
@@ -1102,12 +1084,6 @@ NativeImageDumper::DumpNativeImage()
             WriteFieldMDTokenImport( dwAssemblyDef, deps[i].dwAssemblyDef,
                                      CORCOMPILE_DEPENDENCY, COR_INFO,
                                      m_manifestImport );
-#ifndef FEATURE_CORECLR
-            DisplayWriteFieldEnumerated( dependencyInfo, deps[i].dependencyInfo,
-                                         CORCOMPILE_DEPENDENCY,
-                                         s_CorCompileDependencyInfoFlags, W(", "),
-                                         COR_INFO );
-#endif // !FEATURE_CORECLR
             DisplayStartStructureWithOffset( signAssemblyDef,
                                              DPtrToPreferredAddr(deps + i) + offsetof(CORCOMPILE_DEPENDENCY, signAssemblyDef),
                                              sizeof(deps[i]).signAssemblyDef,
@@ -3749,9 +3725,6 @@ const NativeImageDumper::EnumMnemonics s_MSDFlags[] =
 {
 #define MSD_ENTRY(f) NativeImageDumper::EnumMnemonics(ModuleSecurityDescriptorFlags_ ## f, W(#f))
     MSD_ENTRY(IsComputed),
-#ifdef FEATURE_APTCA
-    MSD_ENTRY(IsAPTCA),
-#endif // FEATURE_APTCA
     MSD_ENTRY(IsAllCritical),
     MSD_ENTRY(IsAllTransparent),
     MSD_ENTRY(IsTreatAsSafe),
@@ -4044,12 +4017,6 @@ void NativeImageDumper::DumpModule( PTR_Module module )
     DisplayWriteFieldPointer( m_pNgenStats,
                               DataPtrToDisplay((TADDR)module->m_pNgenStats),
                               Module, MODULE );
-#if defined(FEATURE_MIXEDMODE)
-    DisplayWriteFieldPointer( m_pThunkHeap,
-                              DataPtrToDisplay(dac_cast<TADDR>(module->m_pThunkHeap)),
-                              Module, MODULE );
-    _ASSERTE(module->m_pThunkHeap == NULL);
-#endif
 
     DisplayWriteFieldAddress(m_propertyNameSet,
                              DPtrToPreferredAddr(module->m_propertyNameSet),
@@ -4088,25 +4055,6 @@ void NativeImageDumper::DumpModule( PTR_Module module )
                  (int)(module->m_maxDynamicEntries
                  * sizeof(*(module->m_pDynamicStaticsInfo))));
 
-#ifdef FEATURE_CER
-    DisplayWriteFieldInt( m_dwReliabilityContract,
-                          module->m_dwReliabilityContract, Module, MODULE );
-
-    DisplayWriteFieldPointer( m_pCerPrepInfo,
-                              DataPtrToDisplay((TADDR)module->m_pCerPrepInfo),
-                              Module, MODULE );
-    DisplayWriteFieldPointer( m_pCerCrst, DataPtrToDisplay((TADDR)module->m_pCerCrst),
-                              Module, MODULE );
-    _ASSERTE(module->m_pCerPrepInfo == NULL && module->m_pCerCrst == NULL);
-
-    IF_OPT_OR(MODULE, SLIM_MODULE_TBLS)
-    {
-        PTR_CerNgenRootTable table( TO_TADDR(module->m_pCerNgenRootTable) );
-        DumpNgenRootTable( table, "m_pCerNgenRootTable",
-                           offsetof(Module, m_pCerNgenRootTable),
-                           fieldsize(Module, m_pCerNgenRootTable) );
-    }
-#endif
 
 
     _ASSERTE(module->m_debuggerSpecificData.m_pDynamicILCrst == NULL);
@@ -4154,87 +4102,6 @@ bool NativeImageDumper::isPrecode(TADDR maybePrecode)
     return !!module->IsZappedPrecode(maybePrecode);
 }
 
-#ifdef FEATURE_CER
-void NativeImageDumper::DumpNgenRootTable( PTR_CerNgenRootTable table,
-                                           const char * name, unsigned offset,
-                                           unsigned fieldSize )
-{
-    if( table == NULL )
-    {
-        IF_OPT(MODULE)
-        {
-            m_display->WriteFieldPointer( name, (unsigned)DPtrToPreferredAddr(table),
-                                          offset, fieldSize );
-        }
-        return;
-    }
-    IF_OPT(MODULE)
-    {
-        m_display->StartStructureWithOffset( name, offset, fieldSize,
-                                             DPtrToPreferredAddr(table),
-                                             sizeof(*table) ); 
-    }
-
-    DisplayWriteFieldPointer( m_cRoots, table->GetRootCount(),
-                              CerNgenRootTable, MODULE );
-    DisplayWriteFieldAddress( m_pRestoreBitmap,
-                              DataPtrToDisplay((TADDR)table->GetRestoreBitmap()),
-                              table->SizeOfRestoreBitmap(),
-                              CerNgenRootTable, MODULE );
-    DisplayWriteFieldInt( m_cSlots, table->m_cSlots, CerNgenRootTable,
-                          MODULE );
-    DisplayStartArray( "Roots", NULL, SLIM_MODULE_TBLS );
-
-    PTR_CerRoot roots(TO_TADDR(table->GetRoots()));
-    for( unsigned i = 0; i < table->GetRootCount(); ++i )
-    {
-        PTR_CerRoot root = roots + i;
-        DisplayStartStructure( "CerRoot", DPtrToPreferredAddr(root),
-                               sizeof(*root), SLIM_MODULE_TBLS );
-        WriteFieldMethodDesc( m_pRootMD,
-                              PTR_MethodDesc(TO_TADDR(root->m_pRootMD)),
-                              CerRoot, SLIM_MODULE_TBLS );
-
-        DisplayStartArray( "MethodContexts", NULL, SLIM_MODULE_TBLS );
-
-        PTR_MethodContextElement ctx(TO_TADDR(root->m_pList));
-        bool dumpedSentinel = false;
-        while( !dumpedSentinel )
-        {
-            DisplayStartStructure( "MethodContext",
-                                   DPtrToPreferredAddr(ctx),
-                                   sizeof(*ctx), SLIM_MODULE_TBLS );
-            if( ctx->m_pMethodDesc.IsNull() )
-                dumpedSentinel = true;
-            WriteFieldMethodDesc( m_pMethodDesc,
-                                  ctx->m_pMethodDesc.GetValue(),
-                                  MethodContextElement, SLIM_MODULE_TBLS );
-
-            if (!ctx->m_pExactMT.IsNull())
-            {
-                WriteFieldMethodTable( m_pExactMT,
-                                       ctx->m_pExactMT.GetValue(),
-                                       MethodContextElement, SLIM_MODULE_TBLS );    
-            }
-
-            DisplayEndStructure( SLIM_MODULE_TBLS ); //MethodContext
-            ++ctx;
-        }
-
-        DisplayEndArray( "Total Contexts", SLIM_MODULE_TBLS); //MethodContexts
-        DisplayEndStructure(SLIM_MODULE_TBLS); //CerRoot
-    }
-
-    DisplayEndArray( "Total Roots", SLIM_MODULE_TBLS ); //Roots
-
-    /* REVISIT_TODO Wed 10/05/2005
-     * m_cSlots seems to be set to something, but the number seems
-     * completely useless.  What is up with that?
-     */
-
-    DisplayEndStructure( MODULE ); //CERNgenRootTable
-}
-#endif // FEATURE_CER
 
 void NativeImageDumper::IterateTypeDefToMTCallback( TADDR mtTarget,
                                                     TADDR flags,
@@ -5675,9 +5542,6 @@ NativeImageDumper::EnumMnemonics s_MTFlagsLow[] =
     MTFLAG_ENTRY(GenericsMask_GenericInst),
     MTFLAG_ENTRY(GenericsMask_SharedInst),
     MTFLAG_ENTRY(GenericsMask_TypicalInst),
-#if defined(FEATURE_REMOTING)
-    MTFLAG_ENTRY(ContextStatic),
-#endif
     MTFLAG_ENTRY(HasRemotingVtsInfo),
     MTFLAG_ENTRY(HasVariance),
     MTFLAG_ENTRY(HasDefaultCtor),
@@ -5918,9 +5782,6 @@ static NativeImageDumper::EnumMnemonics s_VMFlags[] =
         VMF_ENTRY(FIXED_ADDRESS_VT_STATICS),
         VMF_ENTRY(HASLAYOUT),
         VMF_ENTRY(ISNESTED),
-#ifdef FEATURE_REMOTING
-        VMF_ENTRY(CANNOT_BE_BLITTED_BY_OBJECT_CLONER),
-#endif
         VMF_ENTRY(IS_EQUIVALENT_TYPE),
 
         VMF_ENTRY(HASOVERLAYEDFIELDS),
@@ -7027,12 +6888,6 @@ void NativeImageDumper::DumpFieldDesc( PTR_FieldDesc fd, const char * name )
                                offsetof(FieldDesc, m_dword1),
                                fieldsize(FieldDesc, m_dword1),
                                fd->m_isThreadLocal );
-#if defined(FEATURE_REMOTING)
-    m_display->WriteFieldFlag( "m_isContextLocal",
-                               offsetof(FieldDesc, m_dword1),
-                               fieldsize(FieldDesc, m_dword1),
-                               fd->m_isContextLocal );
-#endif
     m_display->WriteFieldFlag( "m_isRVA", offsetof(FieldDesc, m_dword1),
                                fieldsize(FieldDesc, m_dword1),
                                fd->m_isRVA );
@@ -7064,30 +6919,6 @@ void NativeImageDumper::DumpFieldDesc( PTR_FieldDesc fd, const char * name )
 #endif
     DisplayEndStructure( ALWAYS ); //name
 }
-#if defined(FEATURE_REMOTING)
-NativeImageDumper::EnumMnemonics s_XADOptFlags[] =
-{
-#define XAD_ENTRY(x) NativeImageDumper::EnumMnemonics( RemotableMethodInfo:: x, W(#x) )
-      XAD_ENTRY(XAD_FLAGS_INITIALIZED),
-      XAD_ENTRY(XAD_NOT_OPTIMIZABLE),
-      XAD_ENTRY(XAD_BLITTABLE_ARGS),
-      XAD_ENTRY(XAD_BLITTABLE_RET),
-
-      //this is actually the OR of the three below this.  It is a "flag" so
-      //it gets cleared out.
-      XAD_ENTRY(XAD_RET_GC_REF),
-      XAD_ENTRY(XAD_RET_FLOAT),
-      XAD_ENTRY(XAD_RET_DOUBLE),
-#ifdef FEATURE_HFA
-      XAD_ENTRY(XAD_RET_HFA_TYPE),
-#endif
-
-      XAD_ENTRY(XAD_METHOD_IS_VIRTUAL),
-      XAD_ENTRY(XAD_ARGS_HAVE_A_FLOAT),
-
-#undef XAD_ENTRY
-};
-#endif
 
 #ifdef _PREFAST_
 #pragma warning(push)
@@ -7570,135 +7401,6 @@ NativeImageDumper::DumpMethodTable( PTR_MethodTable mt, const char * name,
     }
 #endif // FEATURE_COMINTEROP
 
-#if defined(FEATURE_REMOTING)
-    //RemotingVtsInfo comes after the generic dictionaries.  So if I
-    //don't have extents, I can't print them.
-    if(haveCompleteExtents &&
-        mt->HasRemotingVtsInfo() 
-        && CHECK_OPT(METHODTABLES)
-        )
-    {
-        _ASSERTE(clazz == GetClassFromMT(mt));
-        /* REVISIT_TODO Tue 12/13/2005
-         * Is this right?  is m_wNumStaticFields actually the number of static
-         * fields?
-         */
-        unsigned numFields = (unsigned)(CountFields(mt)
-            - clazz->GetNumStaticFields());
-        PTR_RemotingVtsInfo vts = *mt->GetRemotingVtsInfoPtr();
-        m_display->StartStructureWithOffset( "OptionalMember_RemotingVtsInfo",
-                                             mt->GetOffsetOfOptionalMember(MethodTable::OptionalMember_RemotingVtsInfo),
-                                             sizeof(void*),
-                                             DPtrToPreferredAddr(vts),
-                                             RemotingVtsInfo::GetSize(numFields)
-                                             );
-
-        DisplayStartArrayWithOffset( m_pCallbacks, W("%-30s: %s"),
-                                     RemotingVtsInfo, ALWAYS );
-        for( int i = 0; i < _countof(vts->m_pCallbacks); ++i )
-        {
-            PTR_MethodDesc md( vts->m_pCallbacks[i].GetValue() );
-            DisplayStartElement( "Callback", ALWAYS );
-            DisplayWriteElementString( "CallbackType", s_VTSCallbackNames[i],
-                                       ALWAYS );
-            if (CORCOMPILE_IS_POINTER_TAGGED(PTR_TO_TADDR(md)))
-            {
-                DoWriteFieldMethodDesc( "MethodDesc", UINT_MAX, UINT_MAX, md );
-            }
-            else
-            {
-                WriteElementMethodDesc( "MethodDesc", md );
-            }
-            DisplayEndElement( ALWAYS ); //Callback
-        }
-        DisplayEndArray( NULL, ALWAYS ); //m_pCallbacks
-#ifdef _DEBUG
-        DisplayWriteFieldInt( m_dwNumFields, vts->m_dwNumFields,
-                              RemotingVtsInfo, ALWAYS );
-#endif
-        /* REVISIT_TODO Tue 12/13/2005
-         * Is there any reason to dump this map?
-         */
-        m_display->WriteFieldEmpty("m_rFieldTypes",
-                                   offsetof(RemotingVtsInfo, m_rFieldTypes),
-                                   RemotingVtsInfo::GetSize(numFields)
-                                   - offsetof(RemotingVtsInfo, m_rFieldTypes) );
-        DisplayEndStructure( ALWAYS ); //OptionalMember_RemotingVtsInfo
-    }
-
-    //RemotableMethodInfo comes after the generic dictionaries.  So if I
-    //don't have extents, I can't print them.
-    if(haveCompleteExtents &&
-        mt->HasRemotableMethodInfo() && 
-        CHECK_OPT(METHODTABLES)
-        )
-    {
-        PTR_CrossDomainOptimizationInfo cdOpt = *mt->GetRemotableMethodInfoPtr();
-        if( cdOpt == NULL )
-        {
-            _ASSERTE(mt->GetNumVtableSlots() == 0 );
-            m_display->WriteElementPointer("OptionalMember_RemotableMethodInfo",
-                                           NULL); 
-        }
-        else
-        {
-            _ASSERTE(mt->GetNumVtableSlots() > 0 );
-            /* REVISIT_TODO Tue 12/13/2005
-             * One liner copied from CrossDomainCalls.cpp
-             */
-            unsigned size = sizeof(RemotableMethodInfo) * mt->GetNumVtableSlots();
-            //one remotable method info for each method.
-            m_display->StartStructureWithOffset( "OptionalMember_RemotableMethodInfo",
-                                                 mt->GetOffsetOfOptionalMember(MethodTable::OptionalMember_RemotableMethodInfo),
-                                                 sizeof(void*),
-                                                 DPtrToPreferredAddr(cdOpt),
-                                                 size );
-            m_display->StartArrayWithOffset( "m_rmi",
-                                             offsetof(CrossDomainOptimizationInfo,
-                                                      m_rmi),
-                                             mt->GetNumVtableSlots()
-                                             * sizeof(RemotableMethodInfo), NULL );
-            PTR_RemotableMethodInfo rmi( PTR_HOST_MEMBER_TADDR(CrossDomainOptimizationInfo, cdOpt, m_rmi) ); 
-            for( unsigned i = 0; i < mt->GetNumVtableSlots(); ++i )
-            {
-                PTR_RemotableMethodInfo current = rmi + i;
-                DisplayStartStructure( "RemotableMethodInfo",
-                                       DPtrToPreferredAddr(current),
-                                       sizeof(*current), ALWAYS );
-                DisplayWriteFieldEnumerated( m_OptFlags, current->m_OptFlags,
-                                             RemotableMethodInfo, s_XADOptFlags,
-                                             W(", "), ALWAYS );
-                DisplayEndStructure( ALWAYS ); //RemotableMethodInfo 
-            }
-            DisplayEndArray( "Total RemotableMethodInfos", ALWAYS ); //m_rmi
-            DisplayEndStructure( ALWAYS ); // OptionalMember_RemotableMethodInfo
-        }
-    }
-
-    //ContextStatics comes after the generic dictionaries.  So if I
-    //don't have extents, I can't print them.
-    if(haveCompleteExtents &&
-        mt->HasContextStatics() && 
-        CHECK_OPT(METHODTABLES)
-        )
-    {
-        PTR_ContextStaticsBucket statics =
-            *(mt->GetContextStaticsBucketPtr());
-        m_display->StartStructureWithOffset( "OptionalMember_ContextStatics",
-                                             mt->GetOffsetOfOptionalMember(MethodTable::OptionalMember_ContextStatics),
-                                             sizeof(void*),
-                                             DPtrToPreferredAddr(statics),
-                                             sizeof(*statics) );
-
-#define HANDLE_FIELD(field) \
-        DisplayWriteFieldInt( field, statics->field, \
-                              ContextStaticsBucket, ALWAYS )
-        HANDLE_FIELD(m_dwContextStaticsOffset);
-        HANDLE_FIELD(m_wContextStaticsSize);
-#undef HANDLE_FIELD
-        DisplayEndStructure( ALWAYS ); //OptionalMember_ContextStatics                                                                           
-    }
-#endif
     DisplayEndStructure( METHODTABLES ); //MethodTable
 } // NativeImageDumper::DumpMethodTable
 #ifdef _PREFAST_
@@ -9039,14 +8741,6 @@ NativeImageDumper::DumpEEClassForMethodTable( PTR_MethodTable mt )
         DisplayWriteFieldInt( m_cbModuleDynamicID, pClassOptional->m_cbModuleDynamicID,
                               EEClassOptionalFields, EECLASSES );
 
-#ifdef FEATURE_CER
-        /* REVISIT_TODO Fri 10/14/2005
-         * Use the macros from ConstrainedExecutionRegion.cpp on this?
-         */
-        DisplayWriteFieldUInt( m_dwReliabilityContract,
-                               clazz->GetReliabilityContract(),
-                               EEClassOptionalFields, EECLASSES );
-#endif
 
         DisplayWriteFieldEnumerated( m_SecProps, clazz->GetSecurityProperties()->dwFlags,
                                      EEClassOptionalFields, s_SecurityProperties, W("|"),

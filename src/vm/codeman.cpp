@@ -31,9 +31,7 @@
 #include "debuginfostore.h"
 #include "strsafe.h"
 
-#ifdef FEATURE_CORECLR
 #include "configuration.h"
-#endif
 
 #ifdef _WIN64
 #define CHECK_DUPLICATED_STRUCT_LAYOUTS
@@ -1397,12 +1395,12 @@ struct JIT_LOAD_DATA
 // Here's the global data for JIT load and initialization state.
 JIT_LOAD_DATA g_JitLoadData;
 
-#if defined(FEATURE_CORECLR) && !defined(FEATURE_MERGE_JIT_AND_ENGINE)
+#if !defined(FEATURE_MERGE_JIT_AND_ENGINE)
 
 // Global that holds the path to custom JIT location
 extern "C" LPCWSTR g_CLRJITPath = nullptr;
 
-#endif // defined(FEATURE_CORECLR) && !defined(FEATURE_MERGE_JIT_AND_ENGINE)
+#endif // !defined(FEATURE_MERGE_JIT_AND_ENGINE)
 
 
 // LoadAndInitializeJIT: load the JIT dll into the process, and initialize it (call the UtilCode initialization function,
@@ -1439,7 +1437,6 @@ static void LoadAndInitializeJIT(LPCWSTR pwzJitName, OUT HINSTANCE* phJit, OUT I
 
     HRESULT hr = E_FAIL;
 
-#ifdef FEATURE_CORECLR
     PathString CoreClrFolderHolder;
     extern HINSTANCE g_hThisInst;
     bool havePath = false;
@@ -1482,9 +1479,6 @@ static void LoadAndInitializeJIT(LPCWSTR pwzJitName, OUT HINSTANCE* phJit, OUT I
         }
     }
 
-#else
-    hr = g_pCLRRuntime->LoadLibrary(pwzJitName, phJit);
-#endif
 
     if (SUCCEEDED(hr))
     {
@@ -1493,25 +1487,9 @@ static void LoadAndInitializeJIT(LPCWSTR pwzJitName, OUT HINSTANCE* phJit, OUT I
         EX_TRY
         {
             bool fContinueToLoadJIT = false;
-#if !defined(FEATURE_CORECLR)
-            typedef void (__stdcall* psxsJitStartup) (CoreClrCallbacks const &);
-            psxsJitStartup sxsJitStartupFn = (psxsJitStartup) GetProcAddress(*phJit, "sxsJitStartup");
-
-            if (sxsJitStartupFn)
-            {
-                pJitLoadData->jld_status = JIT_LOAD_STATUS_DONE_GET_SXSJITSTARTUP;
-
-                CoreClrCallbacks cccallbacks = GetClrCallbacks();
-                (*sxsJitStartupFn) (cccallbacks);
-
-                pJitLoadData->jld_status = JIT_LOAD_STATUS_DONE_CALL_SXSJITSTARTUP;
-                fContinueToLoadJIT = true;
-            }
-#else // FEATURE_CORECLR
             // For CoreCLR, we never use "sxsJitStartup" as that is Desktop utilcode initialization
             // specific. Thus, assume we always got 
             fContinueToLoadJIT = true;
-#endif // !defined(FEATURE_CORECLR)
 
             if (fContinueToLoadJIT)
             {
@@ -1644,7 +1622,7 @@ BOOL EEJitManager::LoadJIT()
     // Set as a courtesy to code:CorCompileGetRuntimeDll
     s_ngenCompilerDll = m_JITCompiler;
 
-#if (defined(_TARGET_AMD64_) && !defined(CROSSGEN_COMPILE) && !defined(FEATURE_CORECLR)) || (defined(_TARGET_X86_) && defined(FEATURE_CORECLR))
+#if defined(_TARGET_X86_)
     // If COMPlus_UseLegacyJit=1, then we fall back to compatjit.dll.
     //
     // This fallback mechanism was introduced for Visual Studio "14" Preview, when JIT64 (the legacy JIT) was replaced with
@@ -1670,11 +1648,7 @@ BOOL EEJitManager::LoadJIT()
     // Thus, the COMPlus_useLegacyJit=1 mechanism has been enabled for x86 CoreCLR. This scenario does not have the UseRyuJIT
     // registry key, nor the AppX binder mode.
 
-#if defined(FEATURE_CORECLR)
     bool fUseRyuJit = true;
-#else
-    bool fUseRyuJit = UseRyuJit();
-#endif
 
     if ((!IsCompilationProcess() || !fUseRyuJit) &&     // Use RyuJIT for all NGEN, unless we're falling back to JIT64 for everything.
         (newJitCompiler != nullptr))    // the main JIT must successfully load before we try loading the fallback JIT
@@ -1688,34 +1662,13 @@ BOOL EEJitManager::LoadJIT()
 
         if (!fUsingCompatJit)
         {
-#if defined(FEATURE_CORECLR)
             DWORD useLegacyJit = Configuration::GetKnobBooleanValue(W("System.JIT.UseWindowsX86CoreLegacyJit"), CLRConfig::EXTERNAL_UseWindowsX86CoreLegacyJit);
-#else
-            DWORD useLegacyJit = CLRConfig::GetConfigValue(CLRConfig::EXTERNAL_UseLegacyJit); // uncached access, since this code is run no more than one time
-#endif
             if (useLegacyJit == 1)
             {
                 fUsingCompatJit = TRUE;
             }
         }
 
-#if defined(FEATURE_APPX_BINDER)
-        if (!fUsingCompatJit)
-        {
-            // AppX applications don't have a .config file for per-app configuration. So, we allow the placement of a single
-            // distinguished file, "UseLegacyJit.txt" in the root of the app's package to indicate that the app should fall
-            // back to JIT64. This same file is also used to prevent this app from participating in AutoNgen.
-            if (AppX::IsAppXProcess())
-            {
-                WCHAR szPathName[MAX_LONGPATH];
-                UINT32 cchPathName = MAX_LONGPATH;
-                if (AppX::FindFileInCurrentPackage(L"UseLegacyJit.txt", &cchPathName, szPathName, PACKAGE_FILTER_HEAD) == S_OK)
-                {
-                    fUsingCompatJit = TRUE;
-                }
-            }
-        }
-#endif // FEATURE_APPX_BINDER
 
         if (fUsingCompatJit)
         {
@@ -1740,7 +1693,7 @@ BOOL EEJitManager::LoadJIT()
             }
         }
     }
-#endif // (defined(_TARGET_AMD64_) && !defined(CROSSGEN_COMPILE) && !defined(FEATURE_CORECLR)) || (defined(_TARGET_X86_) && defined(FEATURE_CORECLR))
+#endif // (defined(_TARGET_AMD64_) && !defined(CROSSGEN_COMPILE)) || (defined(_TARGET_X86_) )
 
 #endif // !FEATURE_MERGE_JIT_AND_ENGINE
 
@@ -4404,7 +4357,6 @@ LPCWSTR ExecutionManager::GetJitName()
 
     LPCWSTR  pwzJitName = NULL;
 
-#if defined(FEATURE_CORECLR)
 #if !defined(CROSSGEN_COMPILE)
     if (g_CLRJITPath != nullptr)
     {
@@ -4419,10 +4371,6 @@ LPCWSTR ExecutionManager::GetJitName()
         }
     }
 #endif // !defined(CROSSGEN_COMPILE)
-#else // !FEATURE_CORECLR
-    // Try to obtain a name for the jit library from the env. variable
-    IfFailThrow(CLRConfig::GetConfigValue(CLRConfig::EXTERNAL_JitName, const_cast<LPWSTR *>(&pwzJitName)));
-#endif // !FEATURE_CORECLR
     
     if (NULL == pwzJitName)
     {

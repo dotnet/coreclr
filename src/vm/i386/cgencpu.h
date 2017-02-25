@@ -39,9 +39,6 @@ Stub * GenerateInitPInvokeFrameHelper();
 EXTERN_C void STDCALL PInvokeStackImbalanceHelper(void);
 #endif // MDA_SUPPORTED
 
-#ifndef FEATURE_CORECLR
-EXTERN_C void STDCALL CopyCtorCallStub(void);
-#endif // !FEATURE_CORECLR
 
 #ifdef FEATURE_STUBS_AS_IL
 EXTERN_C void SinglecastDelegateInvokeStub();
@@ -95,9 +92,6 @@ BOOL Runtime_Test_For_SSE2();
 // Needed for PInvoke inlining in ngened images
 #define HAS_NDIRECT_IMPORT_PRECODE              1
 
-#ifdef FEATURE_REMOTING
-#define HAS_REMOTING_PRECODE                    1
-#endif
 #ifdef FEATURE_PREJIT
 #define HAS_FIXUP_PRECODE                       1
 #define HAS_FIXUP_PRECODE_CHUNKS                1
@@ -208,6 +202,7 @@ struct ArgumentRegisters {
 struct REGDISPLAY;
 typedef REGDISPLAY *PREGDISPLAY;
 
+#ifndef WIN64EXCEPTIONS
 // Sufficient context for Try/Catch restoration.
 struct EHContext {
     INT32       Eax;
@@ -256,6 +251,7 @@ struct EHContext {
         Eip = 0;
     }
 };
+#endif // !WIN64EXCEPTIONS
 
 #define ARGUMENTREGISTERS_SIZE sizeof(ArgumentRegisters)
 

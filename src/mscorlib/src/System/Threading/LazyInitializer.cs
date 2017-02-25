@@ -11,12 +11,11 @@
 // =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
 
-using System.Security.Permissions;
 using System.Diagnostics;
 using System.Diagnostics.Contracts;
+
 namespace System.Threading
 {
-
     /// <summary>
     /// Specifies how a <see cref="T:System.Threading.Lazy{T}"/> instance should synchronize access among multiple threads.
     /// </summary>
@@ -242,11 +241,10 @@ namespace System.Threading
 
             return target;
         }
-
     }
 
     // Caches the activation selector function to avoid delegate allocations.
-    static class LazyHelpers<T>
+    internal static class LazyHelpers<T>
     {
         internal static Func<T> s_activatorFactorySelector = new Func<T>(ActivatorFactorySelector);
 

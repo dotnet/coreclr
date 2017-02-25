@@ -229,6 +229,7 @@ virtual unsigned FindEndOfLastInterruptibleRegion(unsigned curOffset,
                                                   GCInfoToken gcInfoToken) = 0;
 #endif // _TARGET_AMD64_ && _DEBUG
 
+#ifndef CROSSGEN_COMPILE
 /*
     Enumerate all live object references in that function using
     the virtual register set. Same reference location cannot be enumerated
@@ -242,13 +243,17 @@ virtual bool EnumGcRefs(PREGDISPLAY     pContext,
                         GCEnumCallback  pCallback,
                         LPVOID          hCallBack,
                         DWORD           relOffsetOverride = NO_OVERRIDE_OFFSET) = 0;
+#endif // !CROSSGEN_COMPILE
 
+#if !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
 /*
     Return the address of the local security object reference
     (if available).
 */
 virtual OBJECTREF* GetAddrOfSecurityObject(CrawlFrame *pCF) = 0;
+#endif // !DACCESS_COMPILE && !CROSSGEN_COMPILE
 
+#ifndef CROSSGEN_COMPILE
 /*
     For a non-static method, "this" pointer is passed in as argument 0.
     However, if there is a "ldarga 0" or "starg 0" in the IL, 
@@ -261,13 +266,16 @@ virtual OBJECTREF* GetAddrOfSecurityObject(CrawlFrame *pCF) = 0;
 */
 virtual OBJECTREF GetInstance(PREGDISPLAY     pContext,
                               EECodeInfo*     pCodeInfo) = 0;
+#endif // !CROSSGEN_COMPILE
 
+#ifndef CROSSGEN_COMPILE
 /*
     Returns the extra argument passed to to shared generic code if it is still alive.
     Returns NULL in all other cases.
 */
 virtual PTR_VOID GetParamTypeArg(PREGDISPLAY     pContext,
                                  EECodeInfo *    pCodeInfo) = 0;
+#endif // !CROSSGEN_COMPILE
 
 // Returns the type of the context parameter (this, methodtable, methoddesc, or none)
 virtual GenericParamContextType GetParamContextType(PREGDISPLAY     pContext,
@@ -290,7 +298,6 @@ virtual void * GetGSCookieAddr(PREGDISPLAY     pContext,
 virtual bool IsInPrologOrEpilog(DWORD  relPCOffset,
                                 GCInfoToken gcInfoToken,
                                 size_t* prologSize) = 0;
-#endif
 
 /*
   Returns true if the given IP is in the synchronized region of the method (valid for synchronized methods only)
@@ -299,6 +306,7 @@ virtual bool IsInSynchronizedRegion(
                 DWORD       relOffset,
                 GCInfoToken gcInfoToken,
                 unsigned    flags) = 0;
+#endif // !USE_GC_INFO_DECODER
 
 /*
   Returns the size of a given function as reported in the GC info (does
@@ -313,10 +321,12 @@ Returns the ReturnKind of a given function as reported in the GC info.
 
 virtual ReturnKind GetReturnKind(GCInfoToken gcInfotoken) = 0;
 
+#ifndef USE_GC_INFO_DECODER
 /*
   Returns the size of the frame (barring localloc)
 */
 virtual unsigned int GetFrameSize(GCInfoToken gcInfoToken) = 0;
+#endif // USE_GC_INFO_DECODER
 
 #ifndef DACCESS_COMPILE
 
@@ -476,6 +486,7 @@ unsigned FindEndOfLastInterruptibleRegion(unsigned curOffset,
                                           GCInfoToken gcInfoToken);
 #endif // _TARGET_AMD64_ && _DEBUG
 
+#ifndef CROSSGEN_COMPILE
 /*
     Enumerate all live object references in that function using
     the virtual register set. Same reference location cannot be enumerated
@@ -490,6 +501,7 @@ bool EnumGcRefs(PREGDISPLAY     pContext,
                 GCEnumCallback  pCallback,
                 LPVOID          hCallBack,
                 DWORD           relOffsetOverride = NO_OVERRIDE_OFFSET);
+#endif // !CROSSGEN_COMPILE
 
 #ifdef FEATURE_CONSERVATIVE_GC
 // Temporary conservative collection, for testing purposes, until we have
@@ -512,14 +524,19 @@ static OBJECTREF* GetAddrOfSecurityObjectFromCachedInfo(
         StackwalkCacheUnwindInfo * stackwalkCacheUnwindInfo);
 #endif // _TARGET_X86_
 
+#if !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
 virtual
 OBJECTREF* GetAddrOfSecurityObject(CrawlFrame *pCF) DAC_UNEXPECTED();
+#endif // !DACCESS_COMPILE && !CROSSGEN_COMPILE
 
+#ifndef CROSSGEN_COMPILE
 virtual
 OBJECTREF GetInstance(
                 PREGDISPLAY     pContext,
                 EECodeInfo *    pCodeInfo);
+#endif // !CROSSGEN_COMPILE
 
+#ifndef CROSSGEN_COMPILE
 /*
     Returns the extra argument passed to to shared generic code if it is still alive.
     Returns NULL in all other cases.
@@ -527,12 +544,13 @@ OBJECTREF GetInstance(
 virtual
 PTR_VOID GetParamTypeArg(PREGDISPLAY     pContext,
                          EECodeInfo *    pCodeInfo);
+#endif // !CROSSGEN_COMPILE
 
 // Returns the type of the context parameter (this, methodtable, methoddesc, or none)
 virtual GenericParamContextType GetParamContextType(PREGDISPLAY     pContext,
                                                     EECodeInfo *    pCodeInfo);
 
-#if defined(WIN64EXCEPTIONS) && !defined(CROSSGEN_COMPILE)
+#if defined(WIN64EXCEPTIONS) && defined(USE_GC_INFO_DECODER) && !defined(CROSSGEN_COMPILE)
 /*
     Returns the generics token.  This is used by GetInstance() and GetParamTypeArg() on WIN64.
 */
@@ -545,7 +563,7 @@ PTR_VOID GetExactGenericsToken(SIZE_T          baseStackSlot,
                                EECodeInfo *    pCodeInfo);
 
 
-#endif // WIN64EXCEPTIONS && !CROSSGEN_COMPILE
+#endif // WIN64EXCEPTIONS && USE_GC_INFO_DECODER && !CROSSGEN_COMPILE
 
 #ifndef CROSSGEN_COMPILE
 /*
@@ -568,7 +586,6 @@ bool IsInPrologOrEpilog(
                 DWORD       relOffset,
                 GCInfoToken gcInfoToken,
                 size_t*     prologSize);
-#endif
 
 /*
   Returns true if the given IP is in the synchronized region of the method (valid for synchronized functions only)
@@ -578,6 +595,7 @@ bool IsInSynchronizedRegion(
                 DWORD       relOffset,
                 GCInfoToken gcInfoToken,
                 unsigned    flags);
+#endif // !USE_GC_INFO_DECODER
 
 /*
   Returns the size of a given function.
@@ -590,11 +608,13 @@ Returns the ReturnKind of a given function.
 */
 virtual ReturnKind GetReturnKind(GCInfoToken gcInfotoken);
 
+#ifndef USE_GC_INFO_DECODER
 /*
   Returns the size of the frame (barring localloc)
 */
 virtual
 unsigned int GetFrameSize(GCInfoToken gcInfoToken);
+#endif // USE_GC_INFO_DECODER
 
 #ifndef DACCESS_COMPILE
 

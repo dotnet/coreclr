@@ -12,10 +12,9 @@ using System.Runtime.Versioning;
 using System.Diagnostics;
 using System.Diagnostics.Contracts;
 
-namespace System 
+namespace System
 {
     [Serializable]
-    [System.Runtime.InteropServices.ComVisible(true)]
     public abstract class Enum : ValueType, IComparable, IFormattable, IConvertible
     {
         #region Private Constants
@@ -140,7 +139,7 @@ namespace System
             }
         }
 
-        private static String InternalFlagsFormat(RuntimeType eT,ulong result)
+        private static String InternalFlagsFormat(RuntimeType eT, ulong result)
         {
             // These values are sorted by value. Don't change this
             TypeValuesAndNames entry = GetCachedValuesAndNames(eT, true);
@@ -274,11 +273,11 @@ namespace System
         #region Public Static Methods
         private enum ParseFailureKind
         {
-            None                  = 0,
-            Argument              = 1,
-            ArgumentNull          = 2,
+            None = 0,
+            Argument = 1,
+            ArgumentNull = 2,
             ArgumentWithParameter = 3,
-            UnhandledException    = 4
+            UnhandledException = 4
         }
 
         // This will store the result of the parsing.
@@ -363,17 +362,15 @@ namespace System
             bool retValue;
 
             if (retValue = TryParseEnum(typeof(TEnum), value, ignoreCase, ref parseResult))
-                result = (TEnum)parseResult.parsedEnum;           
+                result = (TEnum)parseResult.parsedEnum;
             return retValue;
         }
 
-        [System.Runtime.InteropServices.ComVisible(true)]
         public static Object Parse(Type enumType, String value)
         {
             return Parse(enumType, value, false);
         }
 
-        [System.Runtime.InteropServices.ComVisible(true)]
         public static Object Parse(Type enumType, String value, bool ignoreCase)
         {
             EnumResult parseResult = new EnumResult() { canThrow = true };
@@ -410,7 +407,8 @@ namespace System
             if (!enumType.IsEnum)
                 throw new ArgumentException(Environment.GetResourceString("Arg_MustBeEnum"), nameof(enumType));
 
-            if (value == null) {
+            if (value == null)
+            {
                 parseResult.SetFailure(ParseFailureKind.ArgumentNull, nameof(value));
                 return false;
             }
@@ -424,7 +422,8 @@ namespace System
                     break;
                 }
             }
-            if (firstNonWhitespaceIndex == -1) {
+            if (firstNonWhitespaceIndex == -1)
+            {
                 parseResult.SetFailure(ParseFailureKind.Argument, "Arg_MustContainEnumInfo", null);
                 return false;
             }
@@ -469,8 +468,8 @@ namespace System
             String[] enumNames = entry.Names;
             ulong[] enumValues = entry.Values;
 
-            StringComparison comparison = ignoreCase ? 
-                StringComparison.OrdinalIgnoreCase : 
+            StringComparison comparison = ignoreCase ?
+                StringComparison.OrdinalIgnoreCase :
                 StringComparison.Ordinal;
 
             int valueIndex = firstNonWhitespaceIndex;
@@ -493,7 +492,7 @@ namespace System
                 bool success = false;
                 for (int i = 0; i < enumNames.Length; i++)
                 {
-                    if (enumNames[i].Length == valueSubstringLength && 
+                    if (enumNames[i].Length == valueSubstringLength &&
                         string.Compare(enumNames[i], 0, value, valueIndex, valueSubstringLength, comparison) == 0)
                     {
                         result |= enumValues[i];
@@ -531,7 +530,6 @@ namespace System
             }
         }
 
-        [System.Runtime.InteropServices.ComVisible(true)]
         public static Type GetUnderlyingType(Type enumType)
         {
             if (enumType == null)
@@ -542,7 +540,6 @@ namespace System
             return enumType.GetEnumUnderlyingType();
         }
 
-        [System.Runtime.InteropServices.ComVisible(true)]
         public static Array GetValues(Type enumType)
         {
             if (enumType == null)
@@ -558,8 +555,7 @@ namespace System
             // Get all of the values
             return GetCachedValuesAndNames(enumType, false).Values;
         }
-        
-        [System.Runtime.InteropServices.ComVisible(true)]
+
         public static String GetName(Type enumType, Object value)
         {
             if (enumType == null)
@@ -569,7 +565,6 @@ namespace System
             return enumType.GetEnumName(value);
         }
 
-        [System.Runtime.InteropServices.ComVisible(true)]
         public static String[] GetNames(Type enumType)
         {
             if (enumType == null)
@@ -586,7 +581,6 @@ namespace System
             return GetCachedValuesAndNames(enumType, true).Names;
         }
 
-        [System.Runtime.InteropServices.ComVisible(true)]
         public static Object ToObject(Type enumType, Object value)
         {
             if (value == null)
@@ -598,28 +592,28 @@ namespace System
 
             switch (typeCode)
             {
-                case TypeCode.Int32 :
+                case TypeCode.Int32:
                     return ToObject(enumType, (int)value);
 
-                case TypeCode.SByte :
+                case TypeCode.SByte:
                     return ToObject(enumType, (sbyte)value);
 
-                case TypeCode.Int16 :
+                case TypeCode.Int16:
                     return ToObject(enumType, (short)value);
 
-                case TypeCode.Int64 :
+                case TypeCode.Int64:
                     return ToObject(enumType, (long)value);
 
-                case TypeCode.UInt32 :
+                case TypeCode.UInt32:
                     return ToObject(enumType, (uint)value);
 
-                case TypeCode.Byte :
+                case TypeCode.Byte:
                     return ToObject(enumType, (byte)value);
 
-                case TypeCode.UInt16 :
+                case TypeCode.UInt16:
                     return ToObject(enumType, (ushort)value);
 
-                case TypeCode.UInt64 :
+                case TypeCode.UInt64:
                     return ToObject(enumType, (ulong)value);
 
                 case TypeCode.Char:
@@ -635,7 +629,6 @@ namespace System
         }
 
         [Pure]
-        [System.Runtime.InteropServices.ComVisible(true)]
         public static bool IsDefined(Type enumType, Object value)
         {
             if (enumType == null)
@@ -644,8 +637,7 @@ namespace System
 
             return enumType.IsEnumDefined(value);
         }
-        
-        [System.Runtime.InteropServices.ComVisible(true)]
+
         public static String Format(Type enumType, Object value, String format)
         {
             if (enumType == null)
@@ -671,8 +663,8 @@ namespace System
             Type underlyingType = GetUnderlyingType(enumType);
 
             // If the value is an Enum then we need to extract the underlying value from it
-            if (valueType.IsEnum) {
-
+            if (valueType.IsEnum)
+            {
                 if (!valueType.IsEquivalentTo(enumType))
                     throw new ArgumentException(Environment.GetResourceString("Arg_EnumAndObjectMustBeSameType", valueType.ToString(), enumType.ToString()));
 
@@ -684,7 +676,8 @@ namespace System
                 return ((Enum)value).ToString(format);
             }
             // The value must be of the same type as the Underlying type of the Enum
-            else if (valueType != underlyingType) {
+            else if (valueType != underlyingType)
+            {
                 throw new ArgumentException(Environment.GetResourceString("Arg_EnumFormatUnderlyingTypeAndObjectMustBeSameType", valueType.ToString(), underlyingType.ToString()));
             }
             if (format.Length != 1)
@@ -894,7 +887,7 @@ namespace System
         #endregion
 
         #region IFormattable
-        [Obsolete("The provider argument is not used. Please use ToString(String).")]        
+        [Obsolete("The provider argument is not used. Please use ToString(String).")]
         public String ToString(String format, IFormatProvider provider)
         {
             return ToString(format);
@@ -910,10 +903,10 @@ namespace System
             if (this == null)
                 throw new NullReferenceException();
             Contract.EndContractBlock();
-        
+
             int ret = InternalCompareTo(this, target);
 
-            if (ret < retIncompatibleMethodTables) 
+            if (ret < retIncompatibleMethodTables)
             {
                 // -1, 0 and 1 are the normal return codes
                 return ret;
@@ -923,21 +916,22 @@ namespace System
                 Type thisType = this.GetType();
                 Type targetType = target.GetType();
 
-                throw new ArgumentException(Environment.GetResourceString("Arg_EnumAndObjectMustBeSameType", 
+                throw new ArgumentException(Environment.GetResourceString("Arg_EnumAndObjectMustBeSameType",
                         targetType.ToString(), thisType.ToString()));
             }
             else
             {
                 // assert valid return code (3)
                 Debug.Assert(ret == retInvalidEnumType, "Enum.InternalCompareTo return code was invalid");
-                
+
                 throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_UnknownEnumType"));
             }
         }
         #endregion
 
         #region Public Methods
-        public String ToString(String format) {
+        public String ToString(String format)
+        {
             char formatCh;
             if (format == null || format.Length == 0)
                 formatCh = 'G';
@@ -967,12 +961,14 @@ namespace System
             return ToString();
         }
 
-        public Boolean HasFlag(Enum flag) {
+        public Boolean HasFlag(Enum flag)
+        {
             if (flag == null)
                 throw new ArgumentNullException(nameof(flag));
             Contract.EndContractBlock();
-            
-            if (!this.GetType().IsEquivalentTo(flag.GetType())) {
+
+            if (!this.GetType().IsEquivalentTo(flag.GetType()))
+            {
                 throw new ArgumentException(Environment.GetResourceString("Argument_EnumTypeDoesNotMatch", flag.GetType(), this.GetType()));
             }
 
@@ -1012,99 +1008,98 @@ namespace System
         }
 
         /// <internalonly/>
-        bool IConvertible.ToBoolean(IFormatProvider provider) 
+        bool IConvertible.ToBoolean(IFormatProvider provider)
         {
             return Convert.ToBoolean(GetValue(), CultureInfo.CurrentCulture);
         }
 
         /// <internalonly/>
-        char IConvertible.ToChar(IFormatProvider provider) 
+        char IConvertible.ToChar(IFormatProvider provider)
         {
             return Convert.ToChar(GetValue(), CultureInfo.CurrentCulture);
         }
 
         /// <internalonly/>
-        sbyte IConvertible.ToSByte(IFormatProvider provider) 
+        sbyte IConvertible.ToSByte(IFormatProvider provider)
         {
             return Convert.ToSByte(GetValue(), CultureInfo.CurrentCulture);
         }
 
         /// <internalonly/>
-        byte IConvertible.ToByte(IFormatProvider provider) 
+        byte IConvertible.ToByte(IFormatProvider provider)
         {
             return Convert.ToByte(GetValue(), CultureInfo.CurrentCulture);
         }
 
         /// <internalonly/>
-        short IConvertible.ToInt16(IFormatProvider provider) 
+        short IConvertible.ToInt16(IFormatProvider provider)
         {
             return Convert.ToInt16(GetValue(), CultureInfo.CurrentCulture);
         }
 
         /// <internalonly/>
-        ushort IConvertible.ToUInt16(IFormatProvider provider) 
+        ushort IConvertible.ToUInt16(IFormatProvider provider)
         {
             return Convert.ToUInt16(GetValue(), CultureInfo.CurrentCulture);
         }
 
         /// <internalonly/>
-        int IConvertible.ToInt32(IFormatProvider provider) 
+        int IConvertible.ToInt32(IFormatProvider provider)
         {
             return Convert.ToInt32(GetValue(), CultureInfo.CurrentCulture);
         }
 
         /// <internalonly/>
-        uint IConvertible.ToUInt32(IFormatProvider provider) 
+        uint IConvertible.ToUInt32(IFormatProvider provider)
         {
             return Convert.ToUInt32(GetValue(), CultureInfo.CurrentCulture);
         }
 
         /// <internalonly/>
-        long IConvertible.ToInt64(IFormatProvider provider) 
+        long IConvertible.ToInt64(IFormatProvider provider)
         {
             return Convert.ToInt64(GetValue(), CultureInfo.CurrentCulture);
         }
 
         /// <internalonly/>
-        ulong IConvertible.ToUInt64(IFormatProvider provider) 
+        ulong IConvertible.ToUInt64(IFormatProvider provider)
         {
             return Convert.ToUInt64(GetValue(), CultureInfo.CurrentCulture);
         }
 
         /// <internalonly/>
-        float IConvertible.ToSingle(IFormatProvider provider) 
+        float IConvertible.ToSingle(IFormatProvider provider)
         {
             return Convert.ToSingle(GetValue(), CultureInfo.CurrentCulture);
         }
 
         /// <internalonly/>
-        double IConvertible.ToDouble(IFormatProvider provider) 
+        double IConvertible.ToDouble(IFormatProvider provider)
         {
             return Convert.ToDouble(GetValue(), CultureInfo.CurrentCulture);
         }
 
         /// <internalonly/>
-        Decimal IConvertible.ToDecimal(IFormatProvider provider) 
+        Decimal IConvertible.ToDecimal(IFormatProvider provider)
         {
             return Convert.ToDecimal(GetValue(), CultureInfo.CurrentCulture);
         }
 
         /// <internalonly/>
-        DateTime IConvertible.ToDateTime(IFormatProvider provider) 
+        DateTime IConvertible.ToDateTime(IFormatProvider provider)
         {
             throw new InvalidCastException(Environment.GetResourceString("InvalidCast_FromTo", "Enum", "DateTime"));
         }
 
         /// <internalonly/>
-        Object IConvertible.ToType(Type type, IFormatProvider provider) 
+        Object IConvertible.ToType(Type type, IFormatProvider provider)
         {
             return Convert.DefaultToType((IConvertible)this, type, provider);
         }
         #endregion
-    
+
         #region ToObject
         [CLSCompliant(false)]
-        [System.Runtime.InteropServices.ComVisible(true)]
         public static Object ToObject(Type enumType, sbyte value)
         {
             if (enumType == null)
@@ -1118,7 +1113,6 @@ namespace System
             return InternalBoxEnum(rtType, value);
         }
 
-        [System.Runtime.InteropServices.ComVisible(true)]
         public static Object ToObject(Type enumType, short value)
         {
             if (enumType == null)
@@ -1132,7 +1126,6 @@ namespace System
             return InternalBoxEnum(rtType, value);
         }
 
-        [System.Runtime.InteropServices.ComVisible(true)]
         public static Object ToObject(Type enumType, int value)
         {
             if (enumType == null)
@@ -1146,7 +1139,6 @@ namespace System
             return InternalBoxEnum(rtType, value);
         }
 
-        [System.Runtime.InteropServices.ComVisible(true)]
         public static Object ToObject(Type enumType, byte value)
         {
             if (enumType == null)
@@ -1161,7 +1153,6 @@ namespace System
         }
 
         [CLSCompliant(false)]
-        [System.Runtime.InteropServices.ComVisible(true)]
         public static Object ToObject(Type enumType, ushort value)
         {
             if (enumType == null)
@@ -1176,7 +1167,6 @@ namespace System
         }
 
         [CLSCompliant(false)]
-        [System.Runtime.InteropServices.ComVisible(true)]
         public static Object ToObject(Type enumType, uint value)
         {
             if (enumType == null)
@@ -1190,7 +1180,6 @@ namespace System
             return InternalBoxEnum(rtType, value);
         }
 
-        [System.Runtime.InteropServices.ComVisible(true)]
         public static Object ToObject(Type enumType, long value)
         {
             if (enumType == null)
@@ -1205,7 +1194,6 @@ namespace System
         }
 
         [CLSCompliant(false)]
-        [System.Runtime.InteropServices.ComVisible(true)]
         public static Object ToObject(Type enumType, ulong value)
         {
             if (enumType == null)

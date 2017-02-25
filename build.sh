@@ -48,7 +48,7 @@ usage()
     echo "cmakeargs - user-settable additional arguments passed to CMake."
     echo "bindir - output directory (defaults to $__ProjectRoot/bin)"
     echo "buildstandalonegc - builds the GC in a standalone mode. Can't be used with \"cmakeargs\"."
-
+    echo "msbuildonunsupportedplatform - build managed binaries even if distro is not officially supported."
     exit 1
 }
 
@@ -277,6 +277,8 @@ build_cross_arch_component()
     
     export __CMakeBinDir="$__CrossComponentBinDir"
     export CROSSCOMPONENT=1
+    __IncludeTests=
+
     if [ $CROSSCOMPILE == 1 ]; then
         TARGET_ROOTFS="$ROOTFS_DIR"
         if [ -n "$CAC_ROOTFS_DIR" ]; then
@@ -317,9 +319,6 @@ isMSBuildOnNETCoreSupported()
                 "fedora.24-x64")
                     __isMSBuildOnNETCoreSupported=1
                     ;;
-                "opensuse.13.2-x64")
-                    __isMSBuildOnNETCoreSupported=1
-                    ;;
                 "opensuse.42.1-x64")
                     __isMSBuildOnNETCoreSupported=1
                     ;;
@@ -339,6 +338,7 @@ isMSBuildOnNETCoreSupported()
                     __isMSBuildOnNETCoreSupported=1
                     ;;
                 *)
+                __isMSBuildOnNETCoreSupported=$__msbuildonunsupportedplatform
             esac
         elif [ "$__HostOS" == "OSX" ]; then
             __isMSBuildOnNETCoreSupported=1
@@ -475,7 +475,6 @@ case $CPUName in
         ;;
 
     aarch64)
-        echo "Unsupported CPU $CPUName detected, build might not succeed!"
         __BuildArch=arm64
         __HostArch=arm64
         ;;
@@ -558,6 +557,7 @@ __cmakeargs=""
 __SkipGenerateVersion=0
 __DoCrossArchBuild=0
 __PortableLinux=0
+__msbuildonunsupportedplatform=0
 
 while :; do
     if [ $# -le 0 ]; then
@@ -727,6 +727,9 @@ while :; do
             ;;
         buildstandalonegc)
             __cmakeargs="-DFEATURE_STANDALONE_GC=1"
+            ;;
+        msbuildonunsupportedplatform)
+            __msbuildonunsupportedplatform=1
             ;;
         *)
             __UnprocessedBuildArgs="$__UnprocessedBuildArgs $1"

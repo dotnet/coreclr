@@ -14,13 +14,12 @@
 
 using Internal.Runtime.Augments;
 
-namespace System.Threading {
+namespace System.Threading
+{
     using System.Threading;
     using System.Runtime;
     using System.Runtime.InteropServices;
     using System;
-    using System.Security.Permissions;
-    using System.Security.Principal;
     using System.Globalization;
     using System.Collections.Generic;
     using System.Runtime.Serialization;
@@ -35,11 +34,9 @@ namespace System.Threading {
 
     internal class ThreadHelper
     {
-        static ThreadHelper() {}
-
-        Delegate _start;
-        Object _startArg = null;
-        ExecutionContext _executionContext = null;
+        private Delegate _start;
+        private Object _startArg = null;
+        private ExecutionContext _executionContext = null;
         internal ThreadHelper(Delegate start)
         {
             _start = start;
@@ -51,7 +48,7 @@ namespace System.Threading {
         }
 
         static internal ContextCallback _ccb = new ContextCallback(ThreadStart_Context);
-        
+
         static private void ThreadStart_Context(Object state)
         {
             ThreadHelper t = (ThreadHelper)state;
@@ -67,9 +64,9 @@ namespace System.Threading {
 
         // call back helper
         internal void ThreadStart(object obj)
-        {               
+        {
             _startArg = obj;
-            if (_executionContext != null) 
+            if (_executionContext != null)
             {
                 ExecutionContext.Run(_executionContext, _ccb, (Object)this);
             }
@@ -82,7 +79,7 @@ namespace System.Threading {
         // call back helper
         internal void ThreadStart()
         {
-            if (_executionContext != null) 
+            if (_executionContext != null)
             {
                 ExecutionContext.Run(_executionContext, _ccb, (Object)this);
             }
@@ -113,10 +110,10 @@ namespace System.Threading {
         private ExecutionContext m_ExecutionContext;    // this call context follows the logical thread
         private SynchronizationContext m_SynchronizationContext;    // On CoreCLR, this is maintained separately from ExecutionContext
 
-        private String          m_Name;
-        private Delegate        m_Delegate;             // Delegate
+        private String m_Name;
+        private Delegate m_Delegate;             // Delegate
 
-        private Object          m_ThreadStartArg;
+        private Object m_ThreadStartArg;
 
         /*=========================================================================
         ** The base implementation of Thread is all native.  The following fields
@@ -128,10 +125,10 @@ namespace System.Threading {
 #pragma warning disable 414  // These fields are not used from managed.
         // IntPtrs need to be together, and before ints, because IntPtrs are 64-bit
         //  fields on 64-bit platforms, where they will be sorted together.
-                                                        
-        private IntPtr  DONT_USE_InternalThread;        // Pointer
-        private int     m_Priority;                     // INT32
-        private int     m_ManagedThreadId;              // INT32
+
+        private IntPtr DONT_USE_InternalThread;        // Pointer
+        private int m_Priority;                     // INT32
+        private int m_ManagedThreadId;              // INT32
 
 #pragma warning restore 414
 #pragma warning restore 169
@@ -145,25 +142,25 @@ namespace System.Threading {
         // with native code
         // See code:#threadCultureInfo
         [ThreadStatic]
-        internal static CultureInfo     m_CurrentCulture;
+        internal static CultureInfo m_CurrentCulture;
         [ThreadStatic]
-        internal static CultureInfo     m_CurrentUICulture;
+        internal static CultureInfo m_CurrentUICulture;
 
-        static AsyncLocal<CultureInfo> s_asyncLocalCurrentCulture; 
-        static AsyncLocal<CultureInfo> s_asyncLocalCurrentUICulture;
+        private static AsyncLocal<CultureInfo> s_asyncLocalCurrentCulture;
+        private static AsyncLocal<CultureInfo> s_asyncLocalCurrentUICulture;
 
-        static void AsyncLocalSetCurrentCulture(AsyncLocalValueChangedArgs<CultureInfo> args)
+        private static void AsyncLocalSetCurrentCulture(AsyncLocalValueChangedArgs<CultureInfo> args)
         {
             m_CurrentCulture = args.CurrentValue;
         }
 
-        static void AsyncLocalSetCurrentUICulture(AsyncLocalValueChangedArgs<CultureInfo> args)
+        private static void AsyncLocalSetCurrentUICulture(AsyncLocalValueChangedArgs<CultureInfo> args)
         {
             m_CurrentUICulture = args.CurrentValue;
         }
 
         // Adding an empty default ctor for annotation purposes
-        internal Thread(){}
+        internal Thread() { }
 
         /*=========================================================================
         ** Creates a new Thread object which will begin execution at
@@ -171,42 +168,49 @@ namespace System.Threading {
         **
         ** Exceptions: ArgumentNullException if start == null.
         =========================================================================*/
-        public Thread(ThreadStart start) {
-            if (start == null) {
+        public Thread(ThreadStart start)
+        {
+            if (start == null)
+            {
                 throw new ArgumentNullException(nameof(start));
             }
             Contract.EndContractBlock();
-            SetStartHelper((Delegate)start,0);  //0 will setup Thread with default stackSize
+            SetStartHelper((Delegate)start, 0);  //0 will setup Thread with default stackSize
         }
 
-        internal Thread(ThreadStart start, int maxStackSize) {
-            if (start == null) {
+        internal Thread(ThreadStart start, int maxStackSize)
+        {
+            if (start == null)
+            {
                 throw new ArgumentNullException(nameof(start));
             }
             if (0 > maxStackSize)
-                throw new ArgumentOutOfRangeException(nameof(maxStackSize),Environment.GetResourceString("ArgumentOutOfRange_NeedNonNegNum"));
+                throw new ArgumentOutOfRangeException(nameof(maxStackSize), Environment.GetResourceString("ArgumentOutOfRange_NeedNonNegNum"));
             Contract.EndContractBlock();
             SetStartHelper((Delegate)start, maxStackSize);
         }
-        public Thread(ParameterizedThreadStart start) {
-            if (start == null) {
+        public Thread(ParameterizedThreadStart start)
+        {
+            if (start == null)
+            {
                 throw new ArgumentNullException(nameof(start));
             }
             Contract.EndContractBlock();
             SetStartHelper((Delegate)start, 0);
         }
 
-        internal Thread(ParameterizedThreadStart start, int maxStackSize) {
-            if (start == null) {
+        internal Thread(ParameterizedThreadStart start, int maxStackSize)
+        {
+            if (start == null)
+            {
                 throw new ArgumentNullException(nameof(start));
             }
             if (0 > maxStackSize)
-                throw new ArgumentOutOfRangeException(nameof(maxStackSize),Environment.GetResourceString("ArgumentOutOfRange_NeedNonNegNum"));
+                throw new ArgumentOutOfRangeException(nameof(maxStackSize), Environment.GetResourceString("ArgumentOutOfRange_NeedNonNegNum"));
             Contract.EndContractBlock();
             SetStartHelper((Delegate)start, maxStackSize);
         }
 
-        [ComVisible(false)]
         public override int GetHashCode()
         {
             return m_ManagedThreadId;
@@ -214,7 +218,6 @@ namespace System.Threading {
 
         extern public new int ManagedThreadId
         {
-            [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
             [MethodImplAttribute(MethodImplOptions.InternalCall)]
             get;
         }
@@ -241,19 +244,19 @@ namespace System.Threading {
         **
         ** Exceptions: ThreadStateException if the thread has already been started.
         =========================================================================*/
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [System.Security.DynamicSecurityMethod] // Methods containing StackCrawlMark local var has to be marked DynamicSecurityMethod
         public new void Start()
         {
             StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
             Start(ref stackMark);
         }
 
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [System.Security.DynamicSecurityMethod] // Methods containing StackCrawlMark local var has to be marked DynamicSecurityMethod
         public new void Start(object parameter)
         {
             //In the case of a null delegate (second call to start on same thread)
             //    StartInternal method will take care of the error reporting
-            if(m_Delegate is ThreadStart)
+            if (m_Delegate is ThreadStart)
             {
                 //We expect the thread to be setup with a ParameterizedThreadStart
                 //    if this constructor is called.
@@ -284,13 +287,12 @@ namespace System.Threading {
                 t.SetExecutionContextHelper(ec);
             }
 
-            IPrincipal principal = null;
-            StartInternal(principal, ref stackMark);
+            StartInternal(ref stackMark);
         }
 
         internal ExecutionContext ExecutionContext
         {
-            get { return m_ExecutionContext; } 
+            get { return m_ExecutionContext; }
             set { m_ExecutionContext = value; }
         }
 
@@ -301,7 +303,7 @@ namespace System.Threading {
         }
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        private extern void StartInternal(IPrincipal principal, ref StackCrawlMark stackMark);
+        private extern void StartInternal(ref StackCrawlMark stackMark);
 
 
         // Helper method to get a logical thread ID for StringBuilder (for
@@ -325,14 +327,14 @@ namespace System.Threading {
         {
             SleepInternal(millisecondsTimeout);
             // Ensure we don't return to app code when the pause is underway
-            if(AppDomainPauseManager.IsPaused)
+            if (AppDomainPauseManager.IsPaused)
                 AppDomainPauseManager.ResumeEvent.WaitOneWithoutFAS();
         }
 
         public static void Sleep(TimeSpan timeout)
         {
             long tm = (long)timeout.TotalMilliseconds;
-            if (tm < -1 || tm > (long) Int32.MaxValue)
+            if (tm < -1 || tm > (long)Int32.MaxValue)
                 throw new ArgumentOutOfRangeException(nameof(timeout), Environment.GetResourceString("ArgumentOutOfRange_NeedNonNegOrNegative1"));
             Sleep((int)tm);
         }
@@ -343,10 +345,8 @@ namespace System.Threading {
            a explict busy loop because the hardware can be informed that it is busy waiting. */
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
         private static extern void SpinWaitInternal(int iterations);
 
-        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
         public static new void SpinWait(int iterations)
         {
             SpinWaitInternal(iterations);
@@ -354,18 +354,17 @@ namespace System.Threading {
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         [SuppressUnmanagedCodeSecurity]
-        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
         private static extern bool YieldInternal();
 
-        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
         internal static new bool Yield()
         {
             return YieldInternal();
         }
-        
-        public static new Thread CurrentThread {
-            [ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]
-            get {
+
+        public static new Thread CurrentThread
+        {
+            get
+            {
                 Contract.Ensures(Contract.Result<Thread>() != null);
                 return GetCurrentThreadNative();
             }
@@ -378,14 +377,14 @@ namespace System.Threading {
             Debug.Assert(maxStackSize >= 0);
 
             ThreadHelper threadStartCallBack = new ThreadHelper(start);
-            if(start is ThreadStart)
+            if (start is ThreadStart)
             {
                 SetStart(new ThreadStart(threadStartCallBack.ThreadStart), maxStackSize);
             }
             else
             {
                 SetStart(new ParameterizedThreadStart(threadStartCallBack.ThreadStart), maxStackSize);
-            }                
+            }
         }
 
         /*=========================================================================
@@ -398,14 +397,12 @@ namespace System.Threading {
         /*=========================================================================
         ** Clean up the thread when it goes away.
         =========================================================================*/
-        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
         ~Thread()
         {
             // Delegate to the unmanaged portion.
             InternalFinalize();
         }
 
-        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         private extern void InternalFinalize();
 
@@ -449,22 +446,27 @@ namespace System.Threading {
         // app domain get unloaded there is a code to clean up the culture from the thread
         // using the code in AppDomain::ReleaseDomainStores.
 
-        public CultureInfo CurrentUICulture {
-            get {
+        public CultureInfo CurrentUICulture
+        {
+            get
+            {
                 Contract.Ensures(Contract.Result<CultureInfo>() != null);
 #if FEATURE_APPX && !FEATURE_COREFX_GLOBALIZATION
-                if(AppDomain.IsAppXModel()) {
+                if (AppDomain.IsAppXModel())
+                {
                     return CultureInfo.GetCultureInfoForUserPreferredLanguageInAppX() ?? GetCurrentUICultureNoAppX();
-                } 
-                else 
+                }
+                else
 #endif
                 {
                     return GetCurrentUICultureNoAppX();
                 }
             }
 
-            set {
-                if (value == null) {
+            set
+            {
+                if (value == null)
+                {
                     throw new ArgumentNullException(nameof(value));
                 }
                 Contract.EndContractBlock();
@@ -496,8 +498,8 @@ namespace System.Threading {
             }
         }
 
-        internal CultureInfo GetCurrentUICultureNoAppX() {
-
+        internal CultureInfo GetCurrentUICultureNoAppX()
+        {
             Contract.Ensures(Contract.Result<CultureInfo>() != null);
 
 #if FEATURE_COREFX_GLOBALIZATION
@@ -506,7 +508,8 @@ namespace System.Threading {
 
             // Fetch a local copy of m_CurrentUICulture to 
             // avoid race conditions that malicious user can introduce
-            if (m_CurrentUICulture == null) {
+            if (m_CurrentUICulture == null)
+            {
                 CultureInfo appDomainDefaultUICulture = CultureInfo.DefaultThreadCurrentUICulture;
                 return (appDomainDefaultUICulture != null ? appDomainDefaultUICulture : CultureInfo.UserDefaultUICulture);
             }
@@ -529,23 +532,28 @@ namespace System.Threading {
         // app domain get unloaded there is a code to clean up the culture from the thread
         // using the code in AppDomain::ReleaseDomainStores.
 
-        public CultureInfo CurrentCulture {
-            get {
+        public CultureInfo CurrentCulture
+        {
+            get
+            {
                 Contract.Ensures(Contract.Result<CultureInfo>() != null);
 
 #if FEATURE_APPX && !FEATURE_COREFX_GLOBALIZATION
-                if(AppDomain.IsAppXModel()) {
+                if (AppDomain.IsAppXModel())
+                {
                     return CultureInfo.GetCultureInfoForUserPreferredLanguageInAppX() ?? GetCurrentCultureNoAppX();
-                } 
-                else 
+                }
+                else
 #endif
                 {
                     return GetCurrentCultureNoAppX();
                 }
             }
 
-            set {
-                if (null==value) {
+            set
+            {
+                if (null == value)
+                {
                     throw new ArgumentNullException(nameof(value));
                 }
                 Contract.EndContractBlock();
@@ -572,8 +580,8 @@ namespace System.Threading {
             }
         }
 
-        private CultureInfo GetCurrentCultureNoAppX() {
-
+        private CultureInfo GetCurrentCultureNoAppX()
+        {
 #if FEATURE_COREFX_GLOBALIZATION
             return CultureInfo.CurrentCulture;
 #else
@@ -581,8 +589,9 @@ namespace System.Threading {
 
             // Fetch a local copy of m_CurrentCulture to 
             // avoid race conditions that malicious user can introduce
-            if (m_CurrentCulture == null) {
-                CultureInfo appDomainDefaultCulture =  CultureInfo.DefaultThreadCurrentCulture;
+            if (m_CurrentCulture == null)
+            {
+                CultureInfo appDomainDefaultCulture = CultureInfo.DefaultThreadCurrentCulture;
                 return (appDomainDefaultCulture != null ? appDomainDefaultCulture : CultureInfo.UserDefaultCulture);
             }
 
@@ -620,7 +629,7 @@ namespace System.Threading {
         /*
          *  This returns a unique id to identify an appdomain.
          */
-        public static int GetDomainID()
+        internal static int GetDomainID()
         {
             return GetDomain().GetId();
         }
@@ -628,12 +637,16 @@ namespace System.Threading {
 
         // Retrieves the name of the thread.
         //
-        public new String Name {
-            get {
+        public new String Name
+        {
+            get
+            {
                 return m_Name;
             }
-            set {
-                lock(this) {
+            set
+            {
+                lock (this)
+                {
                     if (m_Name != null)
                         throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_WriteOnce"));
                     m_Name = value;
@@ -649,7 +662,6 @@ namespace System.Threading {
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         public static extern void MemoryBarrier();
-
     } // End of class Thread
 
     // declaring a local var of this enum type and passing it by ref into a function that needs to do a
@@ -663,5 +675,4 @@ namespace System.Threading {
         LookForMyCallersCaller = 2,
         LookForThread = 3
     }
-
 }

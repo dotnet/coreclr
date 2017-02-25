@@ -21,7 +21,7 @@ namespace System.Collections.Concurrent
     [DebuggerDisplay("Count = {Count}")]
     [DebuggerTypeProxy(typeof(SystemCollectionsConcurrent_ProducerConsumerCollectionDebugView<>))]
     [Serializable]
-    public class ConcurrentQueue<T> : IProducerConsumerCollection<T>, IReadOnlyCollection<T>
+    internal class ConcurrentQueue<T> : IProducerConsumerCollection<T>, IReadOnlyCollection<T>
     {
         // This implementation provides an unbounded, multi-producer multi-consumer queue
         // that supports the standard Enqueue/TryDequeue operations, as well as support for
@@ -443,7 +443,7 @@ namespace System.Collections.Concurrent
             long count = GetCount(head, headHead, tail, tailTail);
             if (index > array.Length - count)
             {
-                throw new ArgumentException(); // TODO: finish this
+                throw new ArgumentException(Environment.GetResourceString("Arg_ArrayPlusOffTooSmall"));
             }
 
             // Copy the items to the target array
@@ -929,7 +929,8 @@ namespace System.Collections.Concurrent
 
                     // We can dequeue from this slot if it's been filled by an enqueuer, which
                     // would have left the sequence number at pos+1.
-                    if (sequenceNumber == currentHead + 1)
+                    int diff = sequenceNumber - (currentHead + 1);
+                    if (diff == 0)
                     {
                         // We may be racing with other dequeuers.  Try to reserve the slot by incrementing
                         // the head.  Once we've done that, no one else will be able to read from this slot,
@@ -955,7 +956,7 @@ namespace System.Collections.Concurrent
                             return true;
                         }
                     }
-                    else if (sequenceNumber < currentHead + 1)
+                    else if (diff < 0)
                     {
                         // The sequence number was less than what we needed, which means this slot doesn't
                         // yet contain a value we can dequeue, i.e. the segment is empty.  Technically it's
@@ -1008,12 +1009,13 @@ namespace System.Collections.Concurrent
 
                     // We can peek from this slot if it's been filled by an enqueuer, which
                     // would have left the sequence number at pos+1.
-                    if (sequenceNumber == currentHead + 1)
+                    int diff = sequenceNumber - (currentHead + 1);
+                    if (diff == 0)
                     {
                         result = resultUsed ? _slots[slotsIndex].Item : default(T);
                         return true;
                     }
-                    else if (sequenceNumber < currentHead + 1)
+                    else if (diff < 0)
                     {
                         // The sequence number was less than what we needed, which means this slot doesn't
                         // yet contain a value we can peek, i.e. the segment is empty.  Technically it's
@@ -1060,7 +1062,8 @@ namespace System.Collections.Concurrent
 
                     // The slot is empty and ready for us to enqueue into it if its sequence
                     // number matches the slot.
-                    if (sequenceNumber == currentTail)
+                    int diff = sequenceNumber - currentTail;
+                    if (diff == 0)
                     {
                         // We may be racing with other enqueuers.  Try to reserve the slot by incrementing
                         // the tail.  Once we've done that, no one else will be able to write to this slot,
@@ -1079,7 +1082,7 @@ namespace System.Collections.Concurrent
                             return true;
                         }
                     }
-                    else if (sequenceNumber < currentTail)
+                    else if (diff < 0)
                     {
                         // The sequence number was less than what we needed, which means this slot still
                         // contains a value, i.e. the segment is full.  Technically it's possible that multiple
@@ -1112,7 +1115,7 @@ namespace System.Collections.Concurrent
     [StructLayout(LayoutKind.Explicit, Size = 192)] // padding before/between/after fields based on typical cache line size of 64
     internal struct PaddedHeadAndTail
     {
-        [FieldOffset(64)]  public int Head;
+        [FieldOffset(64)] public int Head;
         [FieldOffset(128)] public int Tail;
     }
 }

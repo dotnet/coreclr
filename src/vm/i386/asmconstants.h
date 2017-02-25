@@ -34,12 +34,7 @@
 #endif
 
 //***************************************************************************
-#if defined(_DEBUG) && defined(_TARGET_X86_) && !defined(FEATURE_CORECLR)
- #define HAS_TRACK_CXX_EXCEPTION_CODE_HACK 1
- #define TRACK_CXX_EXCEPTION_CODE_HACK
-#else
  #define HAS_TRACK_CXX_EXCEPTION_CODE_HACK 0
-#endif
 
 #define INITIAL_SUCCESS_COUNT               0x100
 
@@ -47,16 +42,6 @@
 #define DynamicHelperFrameFlags_ObjectArg   1
 #define DynamicHelperFrameFlags_ObjectArg2  2
 
-#ifdef FEATURE_REMOTING
-#define TransparentProxyObject___stubData 0x8
-ASMCONSTANTS_C_ASSERT(TransparentProxyObject___stubData == offsetof(TransparentProxyObject, _stubData))
-
-#define TransparentProxyObject___stub 0x14
-ASMCONSTANTS_C_ASSERT(TransparentProxyObject___stub == offsetof(TransparentProxyObject, _stub))
-
-#define TransparentProxyObject___pMT 0xc
-ASMCONSTANTS_C_ASSERT(TransparentProxyObject___pMT == offsetof(TransparentProxyObject, _pMT))
-#endif // FEATURE_REMOTING
 
 // CONTEXT from rotor_pal.h
 #define CONTEXT_Edi 0x9c
@@ -97,6 +82,7 @@ ASMCONSTANTS_C_ASSERT(SpinConstants_dwMaximumDuration == offsetof(SpinConstants,
 #define SpinConstants_dwBackoffFactor 8
 ASMCONSTANTS_C_ASSERT(SpinConstants_dwBackoffFactor == offsetof(SpinConstants,dwBackoffFactor))
 
+#ifndef WIN64EXCEPTIONS
 // EHContext from clr/src/vm/i386/cgencpu.h
 #define EHContext_Eax 0x00
 ASMCONSTANTS_C_ASSERT(EHContext_Eax == offsetof(EHContext,Eax))
@@ -124,6 +110,7 @@ ASMCONSTANTS_C_ASSERT(EHContext_Esp == offsetof(EHContext,Esp))
 
 #define EHContext_Eip 0x20
 ASMCONSTANTS_C_ASSERT(EHContext_Eip == offsetof(EHContext,Eip))
+#endif // WIN64EXCEPTIONS
 
 
 // from clr/src/fjit/helperframe.h
@@ -256,16 +243,6 @@ ASMCONSTANTS_C_ASSERT(Thread::TS_Hijacked == TS_Hijacked_ASM)
 ASMCONSTANTS_C_ASSERT(AppDomain__m_dwId == offsetof(AppDomain, m_dwId));
 
 // from clr/src/vm/ceeload.cpp
-#ifdef FEATURE_MIXEDMODE
-#define IJWNOADThunk__m_cache 0x1C
-ASMCONSTANTS_C_ASSERT(IJWNOADThunk__m_cache == offsetof(IJWNOADThunk, m_cache))
-
-#define IJWNOADThunk__NextCacheOffset 0x8
-ASMCONSTANTS_C_ASSERT(IJWNOADThunk__NextCacheOffset == sizeof(IJWNOADThunkStubCache))
-
-#define IJWNOADThunk__CodeAddrOffsetFromADID 0x4
-ASMCONSTANTS_C_ASSERT(IJWNOADThunk__CodeAddrOffsetFromADID == offsetof(IJWNOADThunkStubCache, m_CodeAddr))
-#endif //FEATURE_MIXEDMODE
 
 // from clr/src/vm/syncblk.h
 #define SizeOfSyncTableEntry_ASM 8

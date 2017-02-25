@@ -241,20 +241,14 @@ GenTree* Lowering::LowerNode(GenTree* node)
                 unsigned   varNum = node->AsLclVarCommon()->GetLclNum();
                 LclVarDsc* varDsc = &comp->lvaTable[varNum];
 
-#if defined(_TARGET_64BIT_)
-                assert(varDsc->lvSize() == 16);
-                node->gtType = TYP_SIMD16;
-#else  // !_TARGET_64BIT_
-                if (varDsc->lvSize() == 16)
+                if (comp->lvaMapSimd12ToSimd16(varDsc))
                 {
+                    JITDUMP("Mapping TYP_SIMD12 lclvar node to TYP_SIMD16:\n");
+                    DISPNODE(node);
+                    JITDUMP("============");
+
                     node->gtType = TYP_SIMD16;
                 }
-                else
-                {
-                    // The following assert is guaranteed by lvSize().
-                    assert(varDsc->lvIsParam);
-                }
-#endif // !_TARGET_64BIT_
             }
 #endif // FEATURE_SIMD
             __fallthrough;
@@ -554,7 +548,7 @@ GenTree* Lowering::LowerSwitch(GenTree* node)
     // If the number of possible destinations is small enough, we proceed to expand the switch
     // into a series of conditional branches, otherwise we follow the jump table based switch
     // transformation.
-    else if (jumpCnt < minSwitchTabJumpCnt)
+    else if ((jumpCnt < minSwitchTabJumpCnt) || comp->compStressCompile(Compiler::STRESS_SWITCH_CMP_BR_EXPANSION, 50))
     {
         // Lower the switch into a series of compare and branch IR trees.
         //
@@ -644,7 +638,7 @@ GenTree* Lowering::LowerSwitch(GenTree* node)
 
                 GenTreePtr gtCaseBranch = comp->gtNewOperNode(GT_JTRUE, TYP_VOID, gtCaseCond);
                 LIR::Range caseRange    = LIR::SeqTree(comp, gtCaseBranch);
-                currentBBRange->InsertAtEnd(std::move(condRange));
+                currentBBRange->InsertAtEnd(std::move(caseRange));
             }
         }
 
@@ -949,6 +943,11 @@ GenTreePtr Lowering::NewPutArg(GenTreeCall* call, GenTreePtr arg, fgArgTabEntryP
                              info->slotNum PUT_STRUCT_ARG_STK_ONLY_ARG(info->numSlots) DEBUGARG(call));
 #endif
 
+#if defined(UNIX_X86_ABI)
+        assert((info->padStkAlign > 0 && info->numSlots > 0) || (info->padStkAlign == 0));
+        putArg->AsPutArgStk()->setArgPadding(info->padStkAlign);
+#endif
+
 #ifdef FEATURE_PUT_STRUCT_ARG_STK
         // If the ArgTabEntry indicates that this arg is a struct
         // get and store the number of slots that are references.
@@ -972,6 +971,43 @@ GenTreePtr Lowering::NewPutArg(GenTreeCall* call, GenTreePtr arg, fgArgTabEntryP
                 assert(!varTypeIsSIMD(arg));
                 numRefs = comp->info.compCompHnd->getClassGClayout(arg->gtObj.gtClass, gcLayout);
                 putArg->AsPutArgStk()->setGcPointers(numRefs, gcLayout);
+
+#ifdef _TARGET_X86_
+                // On x86 VM lies about the type of a struct containing a pointer sized
+                // integer field by returning the type of its field as the type of struct.
+                // Such struct can be passed in a register depending its position in
+                // parameter list.  VM does this unwrapping only one level and therefore
+                // a type like Struct Foo { Struct Bar { int f}} awlays needs to be
+                // passed on stack.  Also, VM doesn't lie about type of such a struct
+                // when it is a field of another struct.  That is VM doesn't lie about
+                // the type of Foo.Bar
+                //
+                // We now support the promotion of fields that are of type struct.
+                // However we only support a limited case where the struct field has a
+                // single field and that single field must be a scalar type. Say Foo.Bar
+                // field is getting passed as a parameter to a call, Since it is a TYP_STRUCT,
+                // as per x86 ABI it should always be passed on stack.  Therefore GenTree
+                // node under a PUTARG_STK could be GT_OBJ(GT_LCL_VAR_ADDR(v1)), where
+                // local v1 could be a promoted field standing for Foo.Bar.  Note that
+                // the type of v1 will be the type of field of Foo.Bar.f when Foo is
+                // promoted.  That is v1 will be a scalar type.  In this case we need to
+                // pass v1 on stack instead of in a register.
+                //
+                // TODO-PERF: replace GT_OBJ(GT_LCL_VAR_ADDR(v1)) with v1 if v1 is
+                // a scalar type and the width of GT_OBJ matches the type size of v1.
+                // Note that this cannot be done till call node arguments are morphed
+                // because we should not lose the fact that the type of argument is
+                // a struct so that the arg gets correctly marked to be passed on stack.
+                GenTree* objOp1 = arg->gtGetOp1();
+                if (objOp1->OperGet() == GT_LCL_VAR_ADDR)
+                {
+                    unsigned lclNum = objOp1->AsLclVarCommon()->GetLclNum();
+                    if (comp->lvaTable[lclNum].lvType != TYP_STRUCT)
+                    {
+                        comp->lvaSetVarDoNotEnregister(lclNum DEBUGARG(Compiler::DNER_VMNeedsStackAddr));
+                    }
+                }
+#endif // _TARGET_X86_
             }
         }
 #endif // FEATURE_PUT_STRUCT_ARG_STK
@@ -1062,6 +1098,15 @@ void Lowering::LowerArg(GenTreeCall* call, GenTreePtr* ppArg)
             unsigned   varNum = arg->AsLclVarCommon()->GetLclNum();
             LclVarDsc* varDsc = &comp->lvaTable[varNum];
             type              = varDsc->lvType;
+        }
+        else if (arg->OperGet() == GT_SIMD)
+        {
+            assert((arg->AsSIMD()->gtSIMDSize == 16) || (arg->AsSIMD()->gtSIMDSize == 12));
+
+            if (arg->AsSIMD()->gtSIMDSize == 12)
+            {
+                type = TYP_SIMD12;
+            }
         }
     }
 #endif // defined(FEATURE_SIMD) && defined(_TARGET_X86_)
@@ -1188,9 +1233,6 @@ void Lowering::LowerCall(GenTree* node)
 
     LowerArgsForCall(call);
 
-// RyuJIT arm is not set up for lowered call control
-#ifndef _TARGET_ARM_
-
     // note that everything generated from this point on runs AFTER the outgoing args are placed
     GenTree* result = nullptr;
 
@@ -1295,7 +1337,6 @@ void Lowering::LowerCall(GenTree* node)
 
         call->gtControlExpr = result;
     }
-#endif //!_TARGET_ARM_
 
     if (comp->opts.IsJit64Compat())
     {
@@ -4479,13 +4520,12 @@ void Lowering::DoPhase()
         m_block = block;
         for (GenTree* node : BlockRange().NonPhiNodes())
         {
-/* We increment the number position of each tree node by 2 to
-* simplify the logic when there's the case of a tree that implicitly
-* does a dual-definition of temps (the long case).  In this case
-* is easier to already have an idle spot to handle a dual-def instead
-* of making some messy adjustments if we only increment the
-* number position by one.
-*/
+            // We increment the number position of each tree node by 2 to simplify the logic when there's the case of
+            // a tree that implicitly does a dual-definition of temps (the long case).  In this case it is easier to
+            // already have an idle spot to handle a dual-def instead of making some messy adjustments if we only
+            // increment the number position by one.
+            CLANG_FORMAT_COMMENT_ANCHOR;
+
 #ifdef DEBUG
             node->gtSeqNum = currentLoc;
 #endif

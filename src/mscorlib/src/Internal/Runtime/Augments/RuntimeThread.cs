@@ -9,14 +9,13 @@ using System.Runtime.CompilerServices;
 using System.Runtime.ConstrainedExecution;
 using System.Runtime.InteropServices;
 using System.Security;
-using System.Security.Permissions;
 using System.Threading;
 
 namespace Internal.Runtime.Augments
 {
     public class RuntimeThread : CriticalFinalizerObject
     {
-        internal RuntimeThread() {}
+        internal RuntimeThread() { }
 
         public static RuntimeThread Create(ThreadStart start) => new Thread(start);
         public static RuntimeThread Create(ThreadStart start, int maxStackSize) => new Thread(start, maxStackSize);
@@ -149,11 +148,9 @@ namespace Internal.Runtime.Augments
 #endif // FEATURE_COMINTEROP_APARTMENT_SUPPORT
 
 #if FEATURE_COMINTEROP
-        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
         [MethodImpl(MethodImplOptions.InternalCall)]
         public extern void DisableComObjectEagerCleanup();
 #else // !FEATURE_COMINTEROP
-        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
         public void DisableComObjectEagerCleanup()
         {
             Debug.Assert(false); // the Thread class in CoreFX should have handled this case

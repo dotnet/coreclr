@@ -495,9 +495,15 @@ typedef unsigned short regPairNoSmall; // arm: need 12 bits
   #define MIN_ARG_AREA_FOR_CALL    0       // Minimum required outgoing argument space for a call.
 
   #define CODE_ALIGN               1       // code alignment requirement
+#if !defined(UNIX_X86_ABI)
   #define STACK_ALIGN              4       // stack alignment requirement
   #define STACK_ALIGN_SHIFT        2       // Shift-right amount to convert stack size in bytes to size in DWORD_PTRs
   #define STACK_ALIGN_SHIFT_ALL    2       // Shift-right amount to convert stack size in bytes to size in STACK_ALIGN units
+#else
+  #define STACK_ALIGN              16      // stack alignment requirement
+  #define STACK_ALIGN_SHIFT        4       // Shift-right amount to convert stack size in bytes to size in DWORD_PTRs
+  #define STACK_ALIGN_SHIFT_ALL    4       // Shift-right amount to convert stack size in bytes to size in STACK_ALIGN units
+#endif // !UNIX_X86_ABI
 
   #define RBM_INT_CALLEE_SAVED    (RBM_EBX|RBM_ESI|RBM_EDI)
   #define RBM_INT_CALLEE_TRASH    (RBM_EAX|RBM_ECX|RBM_EDX)
@@ -1074,10 +1080,10 @@ typedef unsigned short regPairNoSmall; // arm: need 12 bits
   #define REG_ARG_4                REG_R8
   #define REG_ARG_5                REG_R9
 
-  SELECTANY const regNumber intArgRegs[] = { REG_EDI, REG_ESI, REG_EDX, REG_ECX, REG_R8, REG_R9 };
-  SELECTANY const regMaskTP intArgMasks[] = { REG_EDI, REG_ESI, REG_EDX, REG_ECX, REG_R8, REG_R9 };
-  SELECTANY const regNumber fltArgRegs[] = { REG_XMM0, REG_XMM1, REG_XMM2, REG_XMM3, REG_XMM4, REG_XMM5, REG_XMM6, REG_XMM7 };
-  SELECTANY const regMaskTP fltArgMasks[] = { REG_XMM0, REG_XMM1, REG_XMM2, REG_XMM3, REG_XMM4, REG_XMM5, REG_XMM6, REG_XMM7 };
+  SELECTANY const regNumber intArgRegs [] = { REG_EDI, REG_ESI, REG_EDX, REG_ECX, REG_R8, REG_R9 };
+  SELECTANY const regMaskTP intArgMasks[] = { RBM_EDI, RBM_ESI, RBM_EDX, RBM_ECX, RBM_R8, RBM_R9 };
+  SELECTANY const regNumber fltArgRegs [] = { REG_XMM0, REG_XMM1, REG_XMM2, REG_XMM3, REG_XMM4, REG_XMM5, REG_XMM6, REG_XMM7 };
+  SELECTANY const regMaskTP fltArgMasks[] = { RBM_XMM0, RBM_XMM1, RBM_XMM2, RBM_XMM3, RBM_XMM4, RBM_XMM5, RBM_XMM6, RBM_XMM7 };
 
   #define RBM_ARG_0                RBM_RDI
   #define RBM_ARG_1                RBM_RSI
@@ -1097,9 +1103,9 @@ typedef unsigned short regPairNoSmall; // arm: need 12 bits
   #define REG_ARG_2                REG_R8
   #define REG_ARG_3                REG_R9
 
-  SELECTANY const regNumber intArgRegs[] = { REG_ECX, REG_EDX, REG_R8, REG_R9 };
+  SELECTANY const regNumber intArgRegs [] = { REG_ECX, REG_EDX, REG_R8, REG_R9 };
   SELECTANY const regMaskTP intArgMasks[] = { RBM_ECX, RBM_EDX, RBM_R8, RBM_R9 };
-  SELECTANY const regNumber fltArgRegs[] = { REG_XMM0, REG_XMM1, REG_XMM2, REG_XMM3 };
+  SELECTANY const regNumber fltArgRegs [] = { REG_XMM0, REG_XMM1, REG_XMM2, REG_XMM3 };
   SELECTANY const regMaskTP fltArgMasks[] = { RBM_XMM0, RBM_XMM1, RBM_XMM2, RBM_XMM3 };
 
   #define RBM_ARG_0                RBM_ECX
@@ -1176,7 +1182,11 @@ typedef unsigned short regPairNoSmall; // arm: need 12 bits
   // TODO-ARM-CQ: Check for sdiv/udiv at runtime and generate it if available
   #define USE_HELPERS_FOR_INT_DIV  1       // BeagleBoard (ARMv7A) doesn't support SDIV/UDIV
   #define CPU_LOAD_STORE_ARCH      1
+#ifdef LEGACY_BACKEND
   #define CPU_LONG_USES_REGPAIR    1
+#else
+  #define CPU_LONG_USES_REGPAIR    0
+#endif
   #define CPU_HAS_FP_SUPPORT       1
   #define ROUND_FLOAT              0       // Do not round intermed float expression results
   #define CPU_HAS_BYTE_REGS        0
@@ -1236,7 +1246,11 @@ typedef unsigned short regPairNoSmall; // arm: need 12 bits
 
   #define RBM_CALLEE_SAVED        (RBM_INT_CALLEE_SAVED | RBM_FLT_CALLEE_SAVED)
   #define RBM_CALLEE_TRASH        (RBM_INT_CALLEE_TRASH | RBM_FLT_CALLEE_TRASH)
+#ifdef LEGACY_BACKEND
   #define RBM_CALLEE_TRASH_NOGC   (RBM_R2|RBM_R3|RBM_LR)
+#else
+  #define RBM_CALLEE_TRASH_NOGC   RBM_CALLEE_TRASH
+#endif
   #define REG_DEFAULT_HELPER_CALL_TARGET REG_R12
 
   #define RBM_ALLINT              (RBM_INT_CALLEE_SAVED | RBM_INT_CALLEE_TRASH)
@@ -1418,6 +1432,10 @@ typedef unsigned short regPairNoSmall; // arm: need 12 bits
   #define RBM_INTRET               RBM_R0
   #define REG_LNGRET               REG_PAIR_R0R1
   #define RBM_LNGRET              (RBM_R1|RBM_R0)
+  #define REG_LNGRET_LO            REG_R0
+  #define REG_LNGRET_HI            REG_R1
+  #define RBM_LNGRET_LO            RBM_R0
+  #define RBM_LNGRET_HI            RBM_R1
 
   #define REG_FLOATRET             REG_F0
   #define RBM_FLOATRET             RBM_F0

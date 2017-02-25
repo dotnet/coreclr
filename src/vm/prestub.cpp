@@ -17,14 +17,10 @@
 #include "eeconfig.h"
 #include "dllimport.h"
 #include "comdelegate.h"
-#ifdef FEATURE_REMOTING
-#include "remoting.h"
-#endif
 #include "dbginterface.h"
 #include "listlock.inl"
 #include "stubgen.h"
 #include "eventtrace.h"
-#include "constrainedexecutionregion.h"
 #include "array.h"
 #include "compile.h"
 #include "ecall.h"
@@ -732,14 +728,22 @@ Stub * CreateUnboxingILStubForSharedGenericValueTypeMethods(MethodDesc* pTargetM
 
     // 2. Emit the method body
     mdToken tokPinningHelper = pCode->GetToken(MscorlibBinder::GetField(FIELD__PINNING_HELPER__M_DATA));
-    
+
     // 2.1 Push the thisptr
     // We need to skip over the MethodTable*
-    // The trick below will do that. 
+    // The trick below will do that.
     pCode->EmitLoadThis();
     pCode->EmitLDFLDA(tokPinningHelper);
 
-    // 2.2 Push the hidden context param 
+#if defined(_TARGET_X86_)
+    // 2.2 Push the rest of the arguments for x86
+    for (unsigned i = 0; i < msig.NumFixedArgs();i++)
+    {
+        pCode->EmitLDARG(i);
+    }
+#endif
+
+    // 2.3 Push the hidden context param
     // The context is going to be captured from the thisptr
     pCode->EmitLoadThis();
     pCode->EmitLDFLDA(tokPinningHelper);
@@ -747,16 +751,18 @@ Stub * CreateUnboxingILStubForSharedGenericValueTypeMethods(MethodDesc* pTargetM
     pCode->EmitSUB();
     pCode->EmitLDIND_I();
 
-    // 2.3 Push the rest of the arguments
+#if !defined(_TARGET_X86_)
+    // 2.4 Push the rest of the arguments for not x86
     for (unsigned i = 0; i < msig.NumFixedArgs();i++)
     {
         pCode->EmitLDARG(i);
     }
+#endif
 
-    // 2.4 Push the target address
+    // 2.5 Push the target address
     pCode->EmitLDC((TADDR)pTargetMD->GetMultiCallableAddrOfCode(CORINFO_ACCESS_ANY));
 
-    // 2.5 Do the calli
+    // 2.6 Do the calli
     pCode->EmitCALLI(TOKEN_ILSTUB_TARGET_SIG, msig.NumFixedArgs() + 1, msig.IsReturnTypeVoid() ? 0 : 1);
     pCode->EmitRET();
 
@@ -829,39 +835,31 @@ Stub * CreateInstantiatingILStub(MethodDesc* pTargetMD, void* pHiddenArg)
     CreateInstantiatingILStubTargetSig(pTargetMD, typeContext, &stubSigBuilder);
     
     // 2. Emit the method body
-    unsigned int numArgs = msig.NumFixedArgs();
     if (msig.HasThis())
     {
         // 2.1 Push the thisptr
         pCode->EmitLoadThis();
-        numArgs++;
     }
 
 #if defined(_TARGET_X86_)
-    if (numArgs < NUM_ARGUMENT_REGISTERS)
-    {
-#endif // _TARGET_X86_
-        // 2.2 Push the hidden context param
-        // InstantiatingStub
-        pCode->EmitLDC((TADDR)pHiddenArg);
-#if defined(_TARGET_X86_)
-    }
-#endif // _TARGET_X86_
-
-    // 2.3 Push the rest of the arguments
+    // 2.2 Push the rest of the arguments for x86
     for (unsigned i = 0; i < msig.NumFixedArgs();i++)
     {
         pCode->EmitLDARG(i);
     }
-
-#if defined(_TARGET_X86_)
-    if (numArgs >= NUM_ARGUMENT_REGISTERS)
-    {
-        // 2.4 Push the hidden context param
-        // InstantiatingStub
-        pCode->EmitLDC((TADDR)pHiddenArg);
-    }
 #endif // _TARGET_X86_
+
+    // 2.3 Push the hidden context param
+    // InstantiatingStub
+    pCode->EmitLDC((TADDR)pHiddenArg);
+
+#if !defined(_TARGET_X86_)
+    // 2.4 Push the rest of the arguments for not x86
+    for (unsigned i = 0; i < msig.NumFixedArgs();i++)
+    {
+        pCode->EmitLDARG(i);
+    }
+#endif // !_TARGET_X86_
 
     // 2.5 Push the target address
     pCode->EmitLDC((TADDR)pTargetMD->GetMultiCallableAddrOfCode(CORINFO_ACCESS_ANY));
@@ -1233,12 +1231,6 @@ PCODE MethodDesc::DoPrestub(MethodTable *pDispatchingMT)
         RETURN GetStableEntryPoint();
     }
 
-#if defined(FEATURE_PREJIT) && defined(FEATURE_CER)
-    // If this method is the root of a CER call graph and we've recorded this fact in the ngen image then we're in the prestub in
-    // order to trip any runtime level preparation needed for this graph (P/Invoke stub generation/library binding, generic
-    // dictionary prepopulation etc.).
-    GetModule()->RestoreCer(this);
-#endif // FEATURE_PREJIT && FEATURE_CER
 
 #ifdef FEATURE_COMINTEROP 
     /**************************   INTEROP   *************************/
@@ -1301,13 +1293,6 @@ PCODE MethodDesc::DoPrestub(MethodTable *pDispatchingMT)
     {
         pStub = MakeUnboxingStubWorker(this);
     }
-#ifdef FEATURE_REMOTING
-    else if (pMT->IsInterface() && !IsStatic() && !IsFCall())
-    {
-        pCode = CRemotingServices::GetDispatchInterfaceHelper(this);
-        GetOrCreatePrecode();
-    }
-#endif // FEATURE_REMOTING
 #if defined(FEATURE_SHARE_GENERIC_CODE) 
     else if (IsInstantiatingStub())
     {
@@ -1576,24 +1561,6 @@ PCODE MethodDesc::DoPrestub(MethodTable *pDispatchingMT)
     // stub that performs declarative checks prior to calling the real stub.
     // record if security needs to intercept this call (also depends on whether we plan to use stubs for declarative security)
 
-#if !defined( HAS_REMOTING_PRECODE) && defined (FEATURE_REMOTING)
-    /**************************   REMOTING   *************************/
-
-    // check for MarshalByRef scenarios ... we need to intercept
-    // Non-virtual calls on MarshalByRef types
-    if (fRemotingIntercepted)
-    {
-        // let us setup a remoting stub to intercept all the calls
-        Stub *pRemotingStub = CRemotingServices::GetStubForNonVirtualMethod(this, 
-            (pStub != NULL) ? (LPVOID)pStub->GetEntryPoint() : (LPVOID)pCode, pStub);
-        
-        if (pRemotingStub != NULL)
-        {
-            pStub = pRemotingStub;
-            pCode = NULL;
-        }
-    }
-#endif // HAS_REMOTING_PRECODE
 
     _ASSERTE((pStub != NULL) ^ (pCode != NULL));
 
@@ -1626,6 +1593,7 @@ PCODE MethodDesc::DoPrestub(MethodTable *pDispatchingMT)
             else
 #endif // FEATURE_INTERPRETER
             {
+                ReJitPublishMethodHolder publishWorker(this, pCode);
                 SetStableEntryPointInterlocked(pCode);
             }
         }
