@@ -17,7 +17,7 @@ using Xunit;
 namespace Span
 {
 
-public class Tests
+public class SpanBench
 {
 
 #if DEBUG
@@ -31,7 +31,6 @@ public class Tests
 #endif
 
     const int Size = 1024;
-
 
     [MethodImpl(MethodImplOptions.NoInlining)]
     static void TestFillAllSpan(Span<byte> span)
@@ -452,7 +451,7 @@ public class Tests
 
     static Action LookupFunc(object o)
     {
-        TypeInfo t = typeof(Tests).GetTypeInfo();
+        TypeInfo t = typeof(SpanBench).GetTypeInfo();
         MethodInfo m = t.GetDeclaredMethod((string) o);
         return m.CreateDelegate(typeof(Action)) as Action;
     }
