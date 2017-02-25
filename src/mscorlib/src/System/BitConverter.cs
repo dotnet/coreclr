@@ -139,11 +139,11 @@ namespace System
         public static char ToChar(byte[] value, int startIndex)
         {
             if (value == null)
-                ThrowValueArgumentNull();
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.value);
             if (unchecked((uint)startIndex) >= value.Length)
-                ThrowStartIndexArgumentOutOfRange();
+                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.startIndex, ExceptionResource.ArgumentOutOfRange_Index);;
             if (startIndex > value.Length - 2)
-                ThrowValueArgumentTooSmall();
+                ThrowHelper.ThrowArgumentException(ExceptionResource.Arg_ArrayPlusOffTooSmall, ExceptionArgument.value);
             Contract.EndContractBlock();
 
             return unchecked((char)ToInt16(value, startIndex));
@@ -153,11 +153,11 @@ namespace System
         public static unsafe short ToInt16(byte[] value, int startIndex)
         {
             if (value == null)
-                ThrowValueArgumentNull();
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.value);
             if (unchecked((uint)startIndex) >= value.Length)
-                ThrowStartIndexArgumentOutOfRange();
+                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.startIndex, ExceptionResource.ArgumentOutOfRange_Index);;
             if (startIndex > value.Length - 2)
-                ThrowValueArgumentTooSmall();
+                ThrowHelper.ThrowArgumentException(ExceptionResource.Arg_ArrayPlusOffTooSmall, ExceptionArgument.value);
             Contract.EndContractBlock();
 
             fixed (byte* pbyte = &value[startIndex])
@@ -182,11 +182,11 @@ namespace System
         public static unsafe int ToInt32(byte[] value, int startIndex)
         {
             if (value == null)
-                ThrowValueArgumentNull();
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.value);
             if (unchecked((uint)startIndex) >= value.Length)
-                ThrowStartIndexArgumentOutOfRange();
+                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.startIndex, ExceptionResource.ArgumentOutOfRange_Index);;
             if (startIndex > value.Length - 4)
-                ThrowValueArgumentTooSmall();
+                ThrowHelper.ThrowArgumentException(ExceptionResource.Arg_ArrayPlusOffTooSmall, ExceptionArgument.value);
             Contract.EndContractBlock();
 
             fixed (byte* pbyte = &value[startIndex])
@@ -211,11 +211,11 @@ namespace System
         public static unsafe long ToInt64(byte[] value, int startIndex)
         {
             if (value == null)
-                ThrowValueArgumentNull();
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.value);
             if (unchecked((uint)startIndex) >= value.Length)
-                ThrowStartIndexArgumentOutOfRange();
+                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.startIndex, ExceptionResource.ArgumentOutOfRange_Index);;
             if (startIndex > value.Length - 8)
-                ThrowValueArgumentTooSmall();
+                ThrowHelper.ThrowArgumentException(ExceptionResource.Arg_ArrayPlusOffTooSmall, ExceptionArgument.value);
             Contract.EndContractBlock();
 
             fixed (byte* pbyte = &value[startIndex])
@@ -247,11 +247,11 @@ namespace System
         public static ushort ToUInt16(byte[] value, int startIndex)
         {
             if (value == null)
-                ThrowValueArgumentNull();
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.value);
             if (unchecked((uint)startIndex) >= value.Length)
-                ThrowStartIndexArgumentOutOfRange();
+                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.startIndex, ExceptionResource.ArgumentOutOfRange_Index);;
             if (startIndex > value.Length - 2)
-                ThrowValueArgumentTooSmall();
+                ThrowHelper.ThrowArgumentException(ExceptionResource.Arg_ArrayPlusOffTooSmall, ExceptionArgument.value);
             Contract.EndContractBlock();
 
             return unchecked((ushort)ToInt16(value, startIndex));
@@ -263,11 +263,11 @@ namespace System
         public static uint ToUInt32(byte[] value, int startIndex)
         {
             if (value == null)
-                ThrowValueArgumentNull();
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.value);
             if (unchecked((uint)startIndex) >= value.Length)
-                ThrowStartIndexArgumentOutOfRange();
+                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.startIndex, ExceptionResource.ArgumentOutOfRange_Index);;
             if (startIndex > value.Length - 4)
-                ThrowValueArgumentTooSmall();
+                ThrowHelper.ThrowArgumentException(ExceptionResource.Arg_ArrayPlusOffTooSmall, ExceptionArgument.value);
             Contract.EndContractBlock();
 
             return unchecked((uint)ToInt32(value, startIndex));
@@ -279,11 +279,11 @@ namespace System
         public static ulong ToUInt64(byte[] value, int startIndex)
         {
             if (value == null)
-                ThrowValueArgumentNull();
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.value);
             if (unchecked((uint)startIndex) >= value.Length)
-                ThrowStartIndexArgumentOutOfRange();
+                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.startIndex, ExceptionResource.ArgumentOutOfRange_Index);;
             if (startIndex > value.Length - 8)
-                ThrowValueArgumentTooSmall();
+                ThrowHelper.ThrowArgumentException(ExceptionResource.Arg_ArrayPlusOffTooSmall, ExceptionArgument.value);
             Contract.EndContractBlock();
 
             return unchecked((ulong)ToInt64(value, startIndex));
@@ -293,11 +293,11 @@ namespace System
         public static unsafe float ToSingle(byte[] value, int startIndex)
         {
             if (value == null)
-                ThrowValueArgumentNull();
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.value);
             if (unchecked((uint)startIndex) >= value.Length)
-                ThrowStartIndexArgumentOutOfRange();
+                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.startIndex, ExceptionResource.ArgumentOutOfRange_Index);;
             if (startIndex > value.Length - 4)
-                ThrowValueArgumentTooSmall();
+                ThrowHelper.ThrowArgumentException(ExceptionResource.Arg_ArrayPlusOffTooSmall, ExceptionArgument.value);
             Contract.EndContractBlock();
 
             int val = ToInt32(value, startIndex);
@@ -308,11 +308,11 @@ namespace System
         public static unsafe double ToDouble(byte[] value, int startIndex)
         {
             if (value == null)
-                ThrowValueArgumentNull();
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.value);
             if (unchecked((uint)startIndex) >= value.Length)
-                ThrowStartIndexArgumentOutOfRange();
+                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.startIndex, ExceptionResource.ArgumentOutOfRange_Index);;
             if (startIndex > value.Length - 8)
-                ThrowValueArgumentTooSmall();
+                ThrowHelper.ThrowArgumentException(ExceptionResource.Arg_ArrayPlusOffTooSmall, ExceptionArgument.value);
             Contract.EndContractBlock();
 
             long val = ToInt64(value, startIndex);
@@ -334,13 +334,13 @@ namespace System
         public static string ToString(byte[] value, int startIndex, int length)
         {
             if (value == null)
-                ThrowValueArgumentNull();
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.value);
             if (startIndex < 0 || startIndex >= value.Length && startIndex > 0)
-                ThrowStartIndexArgumentOutOfRange();
+                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.startIndex, ExceptionResource.ArgumentOutOfRange_Index);;
             if (length < 0)
                 throw new ArgumentOutOfRangeException(nameof(length), SR.ArgumentOutOfRange_GenericPositive);
             if (startIndex > value.Length - length)
-                ThrowValueArgumentTooSmall();
+                ThrowHelper.ThrowArgumentException(ExceptionResource.Arg_ArrayPlusOffTooSmall, ExceptionArgument.value);
             Contract.EndContractBlock();
 
             if (length == 0)
@@ -395,7 +395,7 @@ namespace System
         public static string ToString(byte[] value)
         {
             if (value == null)
-                ThrowValueArgumentNull();
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.value);
             Contract.Ensures(Contract.Result<string>() != null);
             Contract.EndContractBlock();
             return ToString(value, 0, value.Length);
@@ -405,7 +405,7 @@ namespace System
         public static string ToString(byte[] value, int startIndex)
         {
             if (value == null)
-                ThrowValueArgumentNull();
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.value);
             Contract.Ensures(Contract.Result<string>() != null);
             Contract.EndContractBlock();
             return ToString(value, startIndex, value.Length - startIndex);
@@ -423,11 +423,11 @@ namespace System
         public static bool ToBoolean(byte[] value, int startIndex)
         {
             if (value == null)
-                ThrowValueArgumentNull();
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.value);
             if (startIndex < 0)
-                ThrowStartIndexArgumentOutOfRange();
+                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.startIndex, ExceptionResource.ArgumentOutOfRange_Index);;
             if (startIndex > value.Length - 1)
-                ThrowStartIndexArgumentOutOfRange(); // differs from other overloads, which throw base ArgumentException
+                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.startIndex, ExceptionResource.ArgumentOutOfRange_Index);; // differs from other overloads, which throw base ArgumentException
             Contract.EndContractBlock();
 
             return value[startIndex] != 0;
@@ -451,21 +451,6 @@ namespace System
         public static unsafe float Int32BitsToSingle(int value)
         {
             return *((float*)&value);
-        }
-
-        private static void ThrowValueArgumentNull()
-        {
-            throw new ArgumentNullException("value");
-        }
-
-        private static void ThrowStartIndexArgumentOutOfRange()
-        {
-            throw new ArgumentOutOfRangeException("startIndex", SR.ArgumentOutOfRange_Index);
-        }
-
-        private static void ThrowValueArgumentTooSmall()
-        {
-            throw new ArgumentException(SR.Arg_ArrayPlusOffTooSmall, "value");
         }
     }
 }
