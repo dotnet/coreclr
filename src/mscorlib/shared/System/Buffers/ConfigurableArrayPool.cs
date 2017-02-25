@@ -3,6 +3,7 @@
 // See the LICENSE file in the project root for more information.
 
 using System.Diagnostics;
+using System.Runtime.CompilerServices;
 using System.Threading;
 
 namespace System.Buffers
@@ -77,7 +78,8 @@ namespace System.Buffers
             T[] buffer = null;
 
             int index = Utilities.SelectBucketIndex(minimumLength);
-            if (index < _buckets.Length)
+            var buckets = _buckets;
+            if (buckets.IndexInRange(index))
             {
                 // Search for an array starting at the 'index' bucket. If the bucket is empty, bump up to the
                 // next higher bucket and try that one, but only try at most a few buckets.
@@ -86,21 +88,21 @@ namespace System.Buffers
                 do
                 {
                     // Attempt to rent from the bucket.  If we get a buffer from it, return it.
-                    buffer = _buckets[i].Rent();
+                    buffer = buckets[i].Rent();
                     if (buffer != null)
                     {
                         if (log.IsEnabled())
                         {
-                            log.BufferRented(buffer.GetHashCode(), buffer.Length, Id, _buckets[i].Id);
+                            log.BufferRented(buffer.GetHashCode(), buffer.Length, Id, buckets[i].Id);
                         }
                         return buffer;
                     }
                 }
-                while (++i < _buckets.Length && i != index + MaxBucketsToTry);
+                while (buckets.IndexInRange(++i) && i != index + MaxBucketsToTry);
 
                 // The pool was exhausted for this buffer size.  Allocate a new buffer with a size corresponding
                 // to the appropriate bucket.
-                buffer = new T[_buckets[index]._bufferLength];
+                buffer = new T[buckets[index]._bufferLength];
             }
             else
             {
@@ -113,7 +115,7 @@ namespace System.Buffers
             {
                 int bufferId = buffer.GetHashCode(), bucketId = -1; // no bucket for an on-demand allocated buffer
                 log.BufferRented(bufferId, buffer.Length, Id, bucketId);
-                log.BufferAllocated(bufferId, buffer.Length, Id, bucketId, index >= _buckets.Length ?
+                log.BufferAllocated(bufferId, buffer.Length, Id, bucketId, index >= buckets.Length ?
                     ArrayPoolEventSource.BufferAllocatedReason.OverMaximumSize : ArrayPoolEventSource.BufferAllocatedReason.PoolExhausted);
             }
 
@@ -137,7 +139,8 @@ namespace System.Buffers
             int bucket = Utilities.SelectBucketIndex(array.Length);
 
             // If we can tell that the buffer was allocated, drop it. Otherwise, check if we have space in the pool
-            if (bucket < _buckets.Length)
+            var buckets = _buckets;
+            if (buckets.IndexInRange(bucket))
             {
                 // Clear the array if the user requests
                 if (clearArray)
@@ -148,7 +151,7 @@ namespace System.Buffers
                 // Return the buffer to its bucket.  In the future, we might consider having Return return false
                 // instead of dropping a bucket, in which case we could try to return to a lower-sized bucket,
                 // just as how in Rent we allow renting from a higher-sized bucket.
-                _buckets[bucket].Return(array);
+                buckets[bucket].Return(array);
             }
 
             // Log that the buffer was returned
@@ -198,10 +201,12 @@ namespace System.Buffers
                 {
                     _lock.Enter(ref lockTaken);
 
-                    if (_index < buffers.Length)
+                    var index = _index;
+                    if (buffers.IndexInRange(index))
                     {
-                        buffer = buffers[_index];
-                        buffers[_index++] = null;
+                        buffer = buffers[index];
+                        buffers[index] = null;
+                        _index = index + 1;
                         allocateBuffer = buffer == null;
                     }
                 }
