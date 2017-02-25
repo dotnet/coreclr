@@ -79,9 +79,17 @@ namespace System
 
         private unsafe static bool EqualsHelper(String strA, String strB)
         {
-            Contract.Requires(strA != null);
-            Contract.Requires(strB != null);
-            Contract.Requires(strA.Length == strB.Length);
+            Debug.Assert((strA == null || strB == null) || strA.Length == strB.Length);
+
+            if ((object)strA == strB)
+            {
+                return true;
+            }
+
+            if ((object)strA == null || (object)strB == null)
+            {
+                return false;
+            }
 
             int length = strA.Length;
 
@@ -848,46 +856,24 @@ namespace System
         }
 
         // Determines whether two strings match.
-        public override bool Equals(Object obj)
+        public override bool Equals(object obj)
         {
-            if (this == null)                        // this is necessary to guard against reverse-pinvokes and
-                throw new NullReferenceException();  // other callers who do not use the callvirt instruction
-
-            if (object.ReferenceEquals(this, obj))
+            if (this == obj)
+            {
                 return true;
+            }
 
             string str = obj as string;
-            if (str == null)
-                return false;
-
-            if (this.Length != str.Length)
-                return false;
-
-            return EqualsHelper(this, str);
+            return str != null && Length == str.Length && EqualsHelper(this, str);
         }
 
         // Determines whether two strings match.
         [Pure]
-        public bool Equals(String value)
-        {
-            if (this == null)                        // this is necessary to guard against reverse-pinvokes and
-                throw new NullReferenceException();  // other callers who do not use the callvirt instruction
-
-            if (object.ReferenceEquals(this, value))
-                return true;
-
-            // NOTE: No need to worry about casting to object here.
-            // If either side of an == comparison between strings
-            // is null, Roslyn generates a simple ceq instruction
-            // instead of calling string.op_Equality.
-            if (value == null)
-                return false;
-
-            if (this.Length != value.Length)
-                return false;
-
-            return EqualsHelper(this, value);
-        }
+        public bool Equals(string value)
+            => ShouldCallEqualsHelper(value) && EqualsHelper(this, value);
+        
+        private bool ShouldCallEqualsHelper(string value)
+            => (object)value == null || Length == value.Length;
 
         [Pure]
         public bool Equals(String value, StringComparison comparisonType)
@@ -950,20 +936,11 @@ namespace System
 
         // Determines whether two Strings match.
         [Pure]
-        public static bool Equals(String a, String b)
-        {
-            if ((Object)a == (Object)b)
-            {
-                return true;
-            }
-
-            if ((Object)a == null || (Object)b == null || a.Length != b.Length)
-            {
-                return false;
-            }
-
-            return EqualsHelper(a, b);
-        }
+        public static bool Equals(string a, string b)
+            => ShouldCallEqualsHelper(a, b) && EqualsHelper(a, b);
+        
+        private static bool ShouldCallEqualsHelper(string a, string b)
+            => (object)a == null || a.ShouldCallEqualsHelper(b);
 
         [Pure]
         public static bool Equals(String a, String b, StringComparison comparisonType)
