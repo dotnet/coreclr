@@ -43,6 +43,22 @@ namespace System.IO
         }
 
         /// <summary>
+        /// Returns true if the path is too long
+        /// </summary>
+        internal static bool IsPathTooLong(string fullPath)
+        {
+            return fullPath.Length >= Interop.Sys.MaxPath;
+        }
+
+        /// <summary>
+        /// Returns true if the directory is too long
+        /// </summary>
+        internal static bool IsDirectoryTooLong(string fullPath)
+        {
+            return fullPath.Length >= Interop.Sys.MaxPath;
+        }
+
+        /// <summary>
         /// Normalize separators in the given path. Compresses forward slash runs.
         /// </summary>
         internal static string NormalizeDirectorySeparators(string path)
@@ -92,6 +108,12 @@ namespace System.IO
             Debug.Assert(DirectorySeparatorChar == AltDirectorySeparatorChar);
             Debug.Assert(DirectorySeparatorChar == VolumeSeparatorChar);
             return ch == DirectorySeparatorChar;
+        }
+
+        internal static bool HasInvalidVolumeSeparator(string path)
+        {
+            // This is only ever true for Windows
+            return false;
         }
 
         internal static bool IsPartiallyQualified(string path)

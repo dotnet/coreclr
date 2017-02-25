@@ -6,34 +6,37 @@
     <TargetsOSX Condition="'$(TargetsOSX)' != 'true'">false</TargetsOSX>
   </PropertyGroup>
   <ItemGroup>
-    <MscorlibSources Include="$(MSBuildThisFileDirectory)\System\Buffers\*.cs"/>
-    <MscorlibSources Include="$(MSBuildThisFileDirectory)\System\IO\Error.cs"/>
-    <MscorlibSources Include="$(MSBuildThisFileDirectory)\System\IO\FileStream.cs"/>
-    <MscorlibSources Include="$(MSBuildThisFileDirectory)\System\IO\Path.cs"/>
-    <MscorlibSources Include="$(MSBuildThisFileDirectory)\System\IO\PathInternal.cs"/>
-    <!--<MscorlibSources Include="$(MSBuildThisFileDirectory)\Microsoft\Win32\SafeHandles\SafeThreadPoolIOHandle.cs"/>-->
+    <Compile Include="$(MSBuildThisFileDirectory)\System\Buffers\ArrayPool.cs"/>
+    <Compile Include="$(MSBuildThisFileDirectory)\System\Buffers\ArrayPoolEventSource.cs"/>
+    <Compile Include="$(MSBuildThisFileDirectory)\System\Buffers\ConfigurableArrayPool.cs"/>
+    <Compile Include="$(MSBuildThisFileDirectory)\System\Buffers\TlsOverPerCoreLockedStacksArrayPool.cs"/>
+    <Compile Include="$(MSBuildThisFileDirectory)\System\Buffers\Utilities.cs"/>
+    <Compile Include="$(MSBuildThisFileDirectory)\System\IO\Error.cs"/>
+    <Compile Include="$(MSBuildThisFileDirectory)\System\IO\FileStream.cs"/>
+    <Compile Include="$(MSBuildThisFileDirectory)\System\IO\Path.cs"/>
+    <Compile Include="$(MSBuildThisFileDirectory)\System\IO\PathInternal.cs"/>
   </ItemGroup>
   <ItemGroup Condition="$(TargetsWindows)">
-    <MscorlibSources Include="$(MSBuildThisFileDirectory)\System\IO\FileStream.Win32.cs"/>
-    <MscorlibSources Include="$(MSBuildThisFileDirectory)\System\IO\FileStreamCompletionSource.Win32.cs"/>
-    <MscorlibSources Include="$(MSBuildThisFileDirectory)\System\IO\Path.Win32.cs"/>
-    <MscorlibSources Include="$(MSBuildThisFileDirectory)\System\IO\Path.Windows.cs"/>
-    <MscorlibSources Include="$(MSBuildThisFileDirectory)\System\IO\PathHelper.Windows.cs"/>
-    <MscorlibSources Include="$(MSBuildThisFileDirectory)\System\IO\PathInternal.Windows.cs"/>
-    <MscorlibSources Include="$(MSBuildThisFileDirectory)\System\IO\PathInternal.Windows.StringBuffer.cs"/>
-    <MscorlibSources Include="$(MSBuildThisFileDirectory)\System\IO\Win32Marshal.cs"/>
-    <MscorlibSources Include="$(MSBuildThisFileDirectory)\Microsoft\Win32\SafeHandles\SafeFileHandle.Windows.cs"/>
+    <Compile Include="$(MSBuildThisFileDirectory)\System\IO\FileStream.Win32.cs"/>
+    <Compile Include="$(MSBuildThisFileDirectory)\System\IO\FileStreamCompletionSource.Win32.cs"/>
+    <Compile Include="$(MSBuildThisFileDirectory)\System\IO\Path.Win32.cs"/>
+    <Compile Include="$(MSBuildThisFileDirectory)\System\IO\Path.Windows.cs"/>
+    <Compile Include="$(MSBuildThisFileDirectory)\System\IO\PathHelper.Windows.cs"/>
+    <Compile Include="$(MSBuildThisFileDirectory)\System\IO\PathInternal.Windows.cs"/>
+    <Compile Include="$(MSBuildThisFileDirectory)\System\IO\PathInternal.Windows.StringBuffer.cs"/>
+    <Compile Include="$(MSBuildThisFileDirectory)\System\IO\Win32Marshal.cs"/>
+    <Compile Include="$(MSBuildThisFileDirectory)\Microsoft\Win32\SafeHandles\SafeFileHandle.Windows.cs"/>
   </ItemGroup>
   <ItemGroup Condition="$(TargetsUnix)">
-    <MscorlibSources Include="$(MSBuildThisFileDirectory)\System\IO\FileStream.Unix.cs"/>
-    <MscorlibSources Include="$(MSBuildThisFileDirectory)\System\IO\Path.Unix.cs"/>
-    <MscorlibSources Include="$(MSBuildThisFileDirectory)\System\IO\PathInternal.Unix.cs"/>
-    <MscorlibSources Include="$(MSBuildThisFileDirectory)\Microsoft\Win32\SafeHandles\SafeFileHandle.Unix.cs"/>
+    <Compile Include="$(MSBuildThisFileDirectory)\System\IO\FileStream.Unix.cs"/>
+    <Compile Include="$(MSBuildThisFileDirectory)\System\IO\Path.Unix.cs"/>
+    <Compile Include="$(MSBuildThisFileDirectory)\System\IO\PathInternal.Unix.cs"/>
+    <Compile Include="$(MSBuildThisFileDirectory)\Microsoft\Win32\SafeHandles\SafeFileHandle.Unix.cs"/>
   </ItemGroup>
   <ItemGroup Condition="$(TargetsUnix) and $(TargetsOSX)">
-    <MscorlibSources Include="$(MSBuildThisFileDirectory)\System\IO\FileStream.OSX.cs"/>
+    <Compile Include="$(MSBuildThisFileDirectory)\System\IO\FileStream.OSX.cs"/>
   </ItemGroup>
   <ItemGroup Condition="$(TargetsUnix) and !$(TargetsOSX)">
-    <MscorlibSources Include="$(MSBuildThisFileDirectory)\System\IO\FileStream.Linux.cs"/>
+    <Compile Include="$(MSBuildThisFileDirectory)\System\IO\FileStream.Linux.cs"/>
   </ItemGroup>
 </Project>
