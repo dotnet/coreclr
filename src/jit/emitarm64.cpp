@@ -10929,7 +10929,11 @@ CORINFO_FIELD_HANDLE emitter::emitLiteralConst(ssize_t cnsValIn, emitAttr attr /
 // Generates a float or double data section constant and returns field handle representing
 // the data offset to access the constant.  This is called by emitInsBinary() in case
 // of contained float of double constants.
+#if FEATURE_X87_DOUBLES
 CORINFO_FIELD_HANDLE emitter::emitFltOrDblConst(GenTreeDblCon* tree, emitAttr attr /*=EA_UNKNOWN*/)
+#else
+CORINFO_FIELD_HANDLE emitter::emitDblConst(GenTreeDblCon* tree, emitAttr attr /*=EA_UNKNOWN*/)
+#endif // FEATURE_X87_DOUBLES
 {
     if (attr == EA_UNKNOWN)
     {
@@ -10941,9 +10945,10 @@ CORINFO_FIELD_HANDLE emitter::emitFltOrDblConst(GenTreeDblCon* tree, emitAttr at
     }
 
     double constValue = tree->gtDblCon.gtDconVal;
-    void*  cnsAddr;
-    float  f;
-    bool   dblAlign;
+#if FEATURE_X87_DOUBLES
+    void* cnsAddr;
+    float f;
+    bool  dblAlign;
 
     if (attr == EA_4BYTE)
     {
@@ -10956,16 +10961,51 @@ CORINFO_FIELD_HANDLE emitter::emitFltOrDblConst(GenTreeDblCon* tree, emitAttr at
         cnsAddr  = &constValue;
         dblAlign = true;
     }
+#else
+    assert(attr == EA_8BYTE);
+    void*          cnsAddr = &constValue;
+#endif // FEATURE_X87_DOUBLES
+
+// Access to inline data is 'abstracted' by a special type of static member
+// (produced by eeFindJitDataOffs) which the emitter recognizes as being a reference
+// to constant data, not a real static field.
+
+#if FEATURE_X87_DOUBLES
+    UNATIVE_OFFSET cnsSize = (attr == EA_4BYTE) ? 4 : 8;
+    UNATIVE_OFFSET cnum    = emitDataConst(cnsAddr, cnsSize, dblAlign);
+#else
+    UNATIVE_OFFSET cnum    = emitDataConst(cnsAddr, 8, true);
+#endif // FEATURE_X87_DOUBLES
+    return emitComp->eeFindJitDataOffs(cnum);
+}
+
+#if !FEATURE_X87_DOUBLES
+// Generates a float data section constant and returns field handle representing
+// the data offset to access the constant.  This is called by emitInsBinary() in case
+// of contained float constants.
+CORINFO_FIELD_HANDLE emitter::emitFltConst(GenTreeFltCon* tree, emitAttr attr /*=EA_UNKNOWN*/)
+{
+    if (attr == EA_UNKNOWN)
+    {
+        attr = emitTypeSize(tree->TypeGet());
+    }
+    else
+    {
+        assert(emitTypeSize(tree->TypeGet()) == attr);
+    }
+
+    assert(attr == EA_4BYTE);
+    float constValue = tree->gtFltCon.gtFconVal;
+    void* cnsAddr    = &constValue;
 
     // Access to inline data is 'abstracted' by a special type of static member
     // (produced by eeFindJitDataOffs) which the emitter recognizes as being a reference
     // to constant data, not a real static field.
 
-    UNATIVE_OFFSET cnsSize = (attr == EA_4BYTE) ? 4 : 8;
-    UNATIVE_OFFSET cnum    = emitDataConst(cnsAddr, cnsSize, dblAlign);
+    UNATIVE_OFFSET cnum = emitDataConst(cnsAddr, 4, false);
     return emitComp->eeFindJitDataOffs(cnum);
 }
-
+#endif
 // The callee must call genConsumeReg() for any non-contained srcs
 // and genProduceReg() for any non-contained dsts.
 

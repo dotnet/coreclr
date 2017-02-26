@@ -2352,6 +2352,9 @@ regMaskTP CodeGen::genMakeAddressable(
             __fallthrough;
 
         case GT_CNS_LNG:
+#if !FEATURE_X87_DOUBLES
+        case GT_CNS_FLT:
+#endif // !FEATURE_X87_DOUBLES
         case GT_CNS_DBL:
             // For MinOpts, we don't do constant folding, so we have
             // constants showing up in places we don't like.
@@ -2792,13 +2795,23 @@ GenTreePtr CodeGen::genMakeAddrOrFPstk(GenTreePtr tree, regMaskTP* regMaskPtr, b
         case GT_CLS_VAR:
             return tree;
 
+#if !FEATURE_X87_DOUBLES
+        case GT_CNS_FLT:
+            assert(tree->gtType == TYP_FLOAT);
+            return genMakeConst(&tree->gtFltCon.gtFconVal, TYP_FLOAT, tree, false);
+#endif // !FEATURE_X87_DOUBLES
         case GT_CNS_DBL:
+#if FEATURE_X87_DOUBLES
             if (tree->gtType == TYP_FLOAT)
             {
                 float f = forceCastToFloat(tree->gtDblCon.gtDconVal);
                 return genMakeConst(&f, TYP_FLOAT, tree, false);
             }
             return genMakeConst(&tree->gtDblCon.gtDconVal, tree->gtType, tree, true);
+#else
+            assert(tree->gtType == TYP_DOUBLE);
+            return genMakeConst(&tree->gtDblCon.gtDconVal, TYP_DOUBLE, tree, true);
+#endif // FEATURE_X87_DOUBLES
 
         case GT_IND:
         case GT_NULLCHECK:
@@ -10604,6 +10617,17 @@ regNumber CodeGen::genIntegerCast(GenTree* tree, regMaskTP needReg, regMaskTP be
     return reg;
 }
 
+// Windows x86 and Windows ARM/ARM64 may not define _finitef() but they do define _finite().
+// We will redirect the macros to these other functions if the macro is not defined for the
+// platform. This has the side effect of a possible implicit upcasting for arguments passed.
+#if !FEATURE_X87_DOUBLES && (defined(_TARGET_X86_) || defined(_TARGET_ARM_) || defined(_TARGET_ARM64_)) &&             \
+    !defined(FEATURE_PAL)
+
+#if !defined(_finitef)
+#define _finitef _finite
+#endif
+
+#endif
 void CodeGen::genCodeForNumericCast(GenTreePtr tree, regMaskTP destReg, regMaskTP bestReg)
 {
     GenTreePtr op1      = tree->gtOp.gtOp1;
@@ -10615,15 +10639,23 @@ void CodeGen::genCodeForNumericCast(GenTreePtr tree, regMaskTP destReg, regMaskT
     emitAttr   size;
     BOOL       unsv;
 
-    /*
-      * Constant casts should have been folded earlier
-      * If not finite don't bother
-      * We don't do this optimization for debug code/no optimization
-      */
+/*
+  * Constant casts should have been folded earlier
+  * If not finite don't bother
+  * We don't do this optimization for debug code/no optimization
+  */
 
+#if FEATURE_X87_DOUBLES
     noway_assert((op1->gtOper != GT_CNS_INT && op1->gtOper != GT_CNS_LNG && op1->gtOper != GT_CNS_DBL) ||
                  tree->gtOverflow() || (op1->gtOper == GT_CNS_DBL && !_finite(op1->gtDblCon.gtDconVal)) ||
                  !compiler->opts.OptEnabled(CLFLG_CONSTANTFOLD));
+#else
+    noway_assert((op1->gtOper != GT_CNS_INT && op1->gtOper != GT_CNS_LNG && op1->gtOper != GT_CNS_FLT &&
+                  op1->gtOper != GT_CNS_DBL) ||
+                 tree->gtOverflow() || (op1->gtOper == GT_CNS_FLT && !_finitef(op1->gtFltCon.gtFconVal)) ||
+                 (op1->gtOper == GT_CNS_DBL && !_finite(op1->gtDblCon.gtDconVal)) ||
+                 !compiler->opts.OptEnabled(CLFLG_CONSTANTFOLD));
+#endif // FEATURE_X87_DOUBLES
 
     noway_assert(dstType != TYP_VOID);
 
@@ -13239,7 +13271,16 @@ void CodeGen::genCodeForTreeLng(GenTreePtr tree, regMaskTP needReg, regMaskTP av
         CLANG_FORMAT_COMMENT_ANCHOR;
 
 #if !CPU_HAS_FP_SUPPORT
-        if (oper == GT_CNS_DBL)
+#if !FEATURE_X87_DOUBLES
+        if (oper == GT_CNS_FLT)
+        {
+            noway_assert(sizeof(__int32) == sizeof(float));
+
+            lval = *(__int32*)(&tree->gtFltCon.gtFconVal);
+        }
+        else
+#endif // FEATURE_X87_DOUBLES
+            if (oper == GT_CNS_DBL)
         {
             noway_assert(sizeof(__int64) == sizeof(double));
 

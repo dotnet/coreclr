@@ -1966,6 +1966,9 @@ public:
 
     GenTreePtr gtNewLconNode(__int64 value);
 
+#if !FEATURE_X87_DOUBLES
+    GenTreePtr gtNewFconNode(float value);
+#endif // !FEATURE_X87_DOUBLES
     GenTreePtr gtNewDconNode(double value);
 
     GenTreePtr gtNewSconNode(int CPX, CORINFO_MODULE_HANDLE scpHandle);
@@ -5688,6 +5691,9 @@ public:
         O2K_IND_CNS_INT,
         O2K_CONST_INT,
         O2K_CONST_LONG,
+#if !FEATURE_X87_DOUBLES
+        O2K_CONST_FLOAT,
+#endif // !FEATURE_X87_DOUBLES
         O2K_CONST_DOUBLE,
         O2K_ARR_LEN,
         O2K_SUBRANGE,
@@ -5734,7 +5740,10 @@ public:
                 IntVal  u1;
                 __int64 lconVal;
                 double  dconVal;
-                Range   u2;
+#if !FEATURE_X87_DOUBLES
+                float fconVal;
+#endif // !FEATURE_X87_DOUBLES
+                Range u2;
             };
         } op2;
 
@@ -5845,6 +5854,11 @@ public:
                 case O2K_CONST_LONG:
                     return (op2.lconVal == that->op2.lconVal);
 
+#if !FEATURE_X87_DOUBLES
+                case O2K_CONST_FLOAT:
+                    // exact match because of positive and negative zero.
+                    return (memcmp(&op2.fconVal, &that->op2.fconVal, sizeof(float)) == 0);
+#endif // !FEATURE_X87_DOUBLES
                 case O2K_CONST_DOUBLE:
                     // exact match because of positive and negative zero.
                     return (memcmp(&op2.dconVal, &that->op2.dconVal, sizeof(double)) == 0);

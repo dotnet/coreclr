@@ -38,6 +38,7 @@ regNumber alignFloatArgReg(regNumber argReg, int alignment)
 
 void CodeGen::genFloatConst(GenTree* tree, RegSet::RegisterPreference* pref)
 {
+#if FEATURE_X87_DOUBLES
     assert(tree->gtOper == GT_CNS_DBL);
     var_types type       = tree->gtType;
     double    constValue = tree->gtDblCon.gtDconVal;
@@ -53,9 +54,37 @@ void CodeGen::genFloatConst(GenTree* tree, RegSet::RegisterPreference* pref)
         genSetRegToIcon(reg, *((int*)(&f)));
         getEmitter()->emitIns_R_R(INS_vmov_i2f, EA_4BYTE, dst, reg);
     }
+#else
+    if (tree->gtOper == GT_CNS_FLT)
+    {
+        assert(tree->gtType == TYP_FLOAT);
+
+        float   constValue = tree->gtFltCon.gtFconVal;
+        size_t* cv         = (size_t*)&constValue;
+
+        regNumber dst = regSet.PickRegFloat(TYP_FLOAT, pref);
+
+        regNumber reg = regSet.rsPickReg();
+
+        genSetRegToIcon(reg, cv[0]);
+        getEmitter()->emitIns_R_R(INS_vmov_i2f, EA_4BYTE, dst, reg);
+
+        genMarkTreeInReg(tree, dst);
+    }
+#endif // FEATURE_X87_DOUBLES
     else
     {
+#if FEATURE_X87_DOUBLES
         assert(type == TYP_DOUBLE);
+#else
+        assert(tree->gtOper == GT_CNS_DBL);
+        assert(tree->gtType == TYP_DOUBLE);
+
+        double  constValue = tree->gtDblCon.gtDconVal;
+        size_t* cv         = (size_t*)&constValue;
+
+        regNumber dst = regSet.PickRegFloat(TYP_DOUBLE, pref);
+#endif // FEATURE_X87_DOUBLES
         regNumber reg1 = regSet.rsPickReg();
         regNumber reg2 = regSet.rsGrabReg(RBM_ALLINT & ~genRegMask(reg1));
 
@@ -65,10 +94,15 @@ void CodeGen::genFloatConst(GenTree* tree, RegSet::RegisterPreference* pref)
         regSet.rsUnlockReg(genRegMask(reg1));
 
         getEmitter()->emitIns_R_R_R(INS_vmov_i2d, EA_8BYTE, dst, reg1, reg2);
+#if FEATURE_X87_DOUBLES
     }
     genMarkTreeInReg(tree, dst);
 
     return;
+#else
+        genMarkTreeInReg(tree, dst);
+    }
+#endif
 }
 
 void CodeGen::genFloatMath(GenTree* tree, RegSet::RegisterPreference* pref)
@@ -986,6 +1020,9 @@ void CodeGen::genKeepAddressableFloat(GenTreePtr tree, regMaskTP* regMaskIntPtr,
             }
             break;
 
+#if !FEATURE_X87_DOUBLES
+        case GT_CNS_FLT:
+#endif // !FEATURE_X87_DOUBLES
         case GT_CNS_DBL:
             if (tree->gtFlags & GTF_SPILLED)
             {
@@ -1356,6 +1393,9 @@ void CodeGen::genRoundFloatExpression(GenTreePtr op, var_types type)
 
         case GT_LCL_FLD:
         case GT_CLS_VAR:
+#if !FEATURE_X87_DOUBLES
+        case GT_CNS_FLT:
+#endif // !FEATURE_X87_DOUBLES
         case GT_CNS_DBL:
         case GT_IND:
             if (type == op->TypeGet())

@@ -180,6 +180,26 @@ void Lowering::TreeNodeInfoInit(GenTree* tree)
             info->dstCount = 0;
             break;
 
+#if !FEATURE_X87_DOUBLES
+        case GT_CNS_FLT:
+            info->srcCount = 0;
+            info->dstCount = 1;
+            {
+                GenTreeFltCon* fltConst   = tree->AsFltCon();
+                float          constValue = fltConst->gtFltCon.gtFconVal;
+
+                if (emitter::emitIns_valid_imm_for_fmov(constValue))
+                {
+                    // Directly encode constant to instructions.
+                }
+                else
+                {
+                    // Reserve int to load constant from memory (IF_LARGELDC)
+                    info->internalIntCount = 1;
+                }
+            }
+            break;
+#endif // !FEATURE_X87_DOUBLES
         case GT_CNS_DBL:
             info->srcCount = 0;
             info->dstCount = 1;

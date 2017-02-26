@@ -360,6 +360,9 @@ void GenTree::InitNodeSize()
 #endif // !LEGACY_BACKEND
     static_assert_no_msg(sizeof(GenTreeIntCon)       <= TREE_NODE_SZ_SMALL);
     static_assert_no_msg(sizeof(GenTreeLngCon)       <= TREE_NODE_SZ_SMALL);
+#if !FEATURE_X87_DOUBLES
+    static_assert_no_msg(sizeof(GenTreeFltCon)       <= TREE_NODE_SZ_SMALL);
+#endif // !FEATURE_X87_DOUBLES
     static_assert_no_msg(sizeof(GenTreeDblCon)       <= TREE_NODE_SZ_SMALL);
     static_assert_no_msg(sizeof(GenTreeStrCon)       <= TREE_NODE_SZ_SMALL);
     static_assert_no_msg(sizeof(GenTreeLclVarCommon) <= TREE_NODE_SZ_SMALL);
@@ -2084,18 +2087,26 @@ AGAIN:
                     return true;
                 }
                 break;
-#if 0
-            // TODO-CQ: Enable this in the future
-        case GT_CNS_LNG:
-            if  (op1->gtLngCon.gtLconVal == op2->gtLngCon.gtLconVal)
-                return true;
-            break;
-
-        case GT_CNS_DBL:
-            if  (op1->gtDblCon.gtDconVal == op2->gtDblCon.gtDconVal)
-                return true;
-            break;
-#endif
+            case GT_CNS_LNG:
+                if (op1->gtLngCon.gtLconVal == op2->gtLngCon.gtLconVal)
+                {
+                    return true;
+                }
+                break;
+#if !FEATURE_X87_DOUBLES
+            case GT_CNS_FLT:
+                if (op1->gtFltCon.gtFconVal == op2->gtFltCon.gtFconVal)
+                {
+                    return true;
+                }
+                break;
+#endif // !FEATURE_X87_DOUBLES
+            case GT_CNS_DBL:
+                if (op1->gtDblCon.gtDconVal == op2->gtDblCon.gtDconVal)
+                {
+                    return true;
+                }
+                break;
             default:
                 break;
         }
@@ -2752,6 +2763,11 @@ AGAIN:
             case GT_CNS_LNG:
                 add = (int)tree->gtLngCon.gtLconVal;
                 break;
+#if !FEATURE_X87_DOUBLES
+            case GT_CNS_FLT:
+                add = (int)tree->gtFltCon.gtFconVal;
+                break;
+#endif // !FEATURE_X87_DOUBLES
             case GT_CNS_DBL:
                 add = (int)tree->gtDblCon.gtDconVal;
                 break;
@@ -4041,6 +4057,24 @@ unsigned Compiler::gtSetEvalOrder(GenTree* tree)
                 level = 0;
                 break;
 
+#if !FEATURE_X87_DOUBLES
+            case GT_CNS_FLT:
+                level = 0;
+                /* We use fldz and fld1 to load 0.0f and 1.0f, but all other  */
+                /* floating point constants are loaded using an indirection */
+                if ((*((__int32*)&(tree->gtFltCon.gtFconVal)) == 0) ||
+                    (*((__int32*)&(tree->gtFltCon.gtFconVal)) == 0x3f800000))
+                {
+                    costEx = 1;
+                    costSz = 1;
+                }
+                else
+                {
+                    costEx = IND_COST_EX;
+                    costSz = 4;
+                }
+                break;
+#endif // !FEATURE_X87_DOUBLES
             case GT_CNS_DBL:
                 level = 0;
                 /* We use fldz and fld1 to load 0.0 and 1.0, but all other  */
@@ -6702,6 +6736,14 @@ GenTreePtr Compiler::gtNewLconNode(__int64 value)
     return node;
 }
 
+#if !FEATURE_X87_DOUBLES
+GenTreePtr Compiler::gtNewFconNode(float value)
+{
+    GenTreePtr node = new (this, GT_CNS_FLT) GenTreeFltCon(value);
+
+    return node;
+}
+#endif // !FEATURE_X87_DOUBLES
 GenTreePtr Compiler::gtNewDconNode(double value)
 {
     GenTreePtr node = new (this, GT_CNS_DBL) GenTreeDblCon(value);
@@ -6748,8 +6790,12 @@ GenTreePtr Compiler::gtNewZeroConNode(var_types type)
             break;
 
         case TYP_FLOAT:
+#if FEATURE_X87_DOUBLES
             zero         = gtNewDconNode(0.0);
             zero->gtType = type;
+#else
+            zero    = gtNewFconNode(0.0f);
+#endif // FEATURE_X87_DOUBLES
             break;
 
         case TYP_DOUBLE:
@@ -6778,9 +6824,13 @@ GenTreePtr Compiler::gtNewOneConNode(var_types type)
 
         case TYP_FLOAT:
         {
+#if FEATURE_X87_DOUBLES
             GenTreePtr one = gtNewDconNode(1.0);
             one->gtType    = type;
             return one;
+#else
+            return gtNewFconNode(1.0f);
+#endif // FEATURE_X87_DOUBLES
         }
 
         case TYP_DOUBLE:
@@ -7837,6 +7887,12 @@ GenTreePtr Compiler::gtCloneExpr(
                 copy = gtNewLconNode(tree->gtLngCon.gtLconVal);
                 goto DONE;
 
+#if !FEATURE_X87_DOUBLES
+            case GT_CNS_FLT:
+                copy         = gtNewFconNode(tree->gtFltCon.gtFconVal);
+                copy->gtType = tree->gtType; // keep the same type
+                goto DONE;
+#endif // !FEATURE_X87_DOUBLES
             case GT_CNS_DBL:
                 copy         = gtNewDconNode(tree->gtDblCon.gtDconVal);
                 copy->gtType = tree->gtType; // keep the same type
@@ -10863,6 +10919,18 @@ void Compiler::gtDispConst(GenTree* tree)
             printf(" 0x%016I64x", tree->gtLngCon.gtLconVal);
             break;
 
+#if !FEATURE_X87_DOUBLES
+        case GT_CNS_FLT:
+            if (*((__int32*)&tree->gtFltCon.gtFconVal) == (__int32)0x80000000)
+            {
+                printf(" -0.00000");
+            }
+            else
+            {
+                printf(" %#.9g", tree->gtFltCon.gtFconVal);
+            }
+            break;
+#endif // !FEATURE_X87_DOUBLES
         case GT_CNS_DBL:
             if (*((__int64*)&tree->gtDblCon.gtDconVal) == (__int64)I64(0x8000000000000000))
             {
@@ -10873,6 +10941,7 @@ void Compiler::gtDispConst(GenTree* tree)
                 printf(" %#.17g", tree->gtDblCon.gtDconVal);
             }
             break;
+
         case GT_CNS_STR:
             printf("<string constant>");
             break;
@@ -12658,6 +12727,21 @@ DONE_FOLD:
     return op;
 }
 
+// Windows x86 and Windows ARM/ARM64 may not define _isnanf() or _finitef() but they do define _isnan() and _finite().
+// We will redirect the macros to these other functions if the macro is not defined for the
+// platform. This has the side effect of a possible implicit upcasting for arguments passed.
+#if !FEATURE_X87_DOUBLES && (defined(_TARGET_X86_) || defined(_TARGET_ARM_) || defined(_TARGET_ARM64_)) &&             \
+    !defined(FEATURE_PAL)
+
+#if !defined(_isnanf)
+#define _isnanf _isnan
+#endif
+
+#if !defined(_finitef)
+#define _finitef _finite
+#endif
+
+#endif
 /*****************************************************************************
  *
  *  Fold the given constant tree.
@@ -12822,8 +12906,12 @@ GenTreePtr Compiler::gtFoldExprConst(GenTreePtr tree)
                                 {
                                     f1 = forceCastToFloat(INT32(i1));
                                 }
+#if FEATURE_X87_DOUBLES
                                 d1 = f1;
                                 goto CNS_DOUBLE;
+#else
+                                goto CNS_FLOAT;
+#endif // FEATURE_X87_DOUBLES
 
                             case TYP_DOUBLE:
                                 if (tree->gtFlags & GTF_UNSIGNED)
@@ -12928,7 +13016,26 @@ GenTreePtr Compiler::gtFoldExprConst(GenTreePtr tree)
                                 goto CNS_LONG;
 
                             case TYP_FLOAT:
+#if !FEATURE_X87_DOUBLES
+                                assert(tree->CastToType() == TYP_FLOAT);
+
+                                if ((tree->gtFlags & GTF_UNSIGNED) && lval1 < 0)
+                                {
+                                    d1 = FloatingPointUtils::convertUInt64ToDouble((unsigned __int64)lval1);
+                                    f1 = forceCastToFloat(d1); // truncate precision
+                                }
+                                else
+                                {
+                                    f1 = (float)lval1;
+                                }
+
+                                goto CNS_FLOAT;
+#endif // !FEATURE_X87_DOUBLES
                             case TYP_DOUBLE:
+#if !FEATURE_X87_DOUBLES
+                                assert(tree->CastToType() == TYP_DOUBLE);
+#endif // !FEATURE_X87_DOUBLES
+
                                 if ((tree->gtFlags & GTF_UNSIGNED) && lval1 < 0)
                                 {
                                     d1 = FloatingPointUtils::convertUInt64ToDouble((unsigned __int64)lval1);
@@ -12938,11 +13045,13 @@ GenTreePtr Compiler::gtFoldExprConst(GenTreePtr tree)
                                     d1 = (double)lval1;
                                 }
 
+#if FEATURE_X87_DOUBLES
                                 if (tree->CastToType() == TYP_FLOAT)
                                 {
                                     f1 = forceCastToFloat(d1); // truncate precision
                                     d1 = f1;
                                 }
+#endif // FEATURE_X87_DOUBLES
                                 goto CNS_DOUBLE;
                             default:
                                 assert(!"BAD_TYP");
@@ -12957,6 +13066,110 @@ GenTreePtr Compiler::gtFoldExprConst(GenTreePtr tree)
                 goto CNS_LONG;
 
             case TYP_FLOAT:
+#if !FEATURE_X87_DOUBLES
+                assert(op1->gtOper == GT_CNS_FLT);
+
+                /* Fold constant FLOAT unary operator */
+
+                f1 = op1->gtFltCon.gtFconVal;
+
+                switch (tree->gtOper)
+                {
+                    case GT_NEG:
+                    case GT_CHS:
+                        f1 = -f1;
+                        break;
+
+                    case GT_CAST:
+
+                        if (tree->gtOverflowEx())
+                        {
+                            return tree;
+                        }
+
+                        assert(genActualType(tree->CastToType()) == tree->gtType);
+
+                        if (!_finitef(f1))
+                        {
+                            // The floating point constant is not finite.  The ECMA spec says, in
+                            // III 3.27, that "...if overflow occurs converting a floating point type
+                            // to an integer, ..., the value returned is unspecified."  However, it would
+                            // at least be desirable to have the same value returned for casting an overflowing
+                            // constant to an int as would obtained by passing that constant as a parameter
+                            // then casting that parameter to an int type.  We will assume that the C compiler's
+                            // cast logic will yield the desired result (and trust testing to tell otherwise).
+                            // Cross-compilation is an issue here; if that becomes an important scenario, we should
+                            // capture the target-specific values of overflow casts to the various integral types as
+                            // constants in a target-specific function.
+                            CLANG_FORMAT_COMMENT_ANCHOR;
+
+                            // Don't fold conversions of +inf/-inf to integral value on all platforms
+                            // as the value returned by JIT helper doesn't match with the C compiler's cast result.
+                            // We want the behavior to be same with or without folding.
+                            return tree;
+                        }
+
+                        if (f1 <= -1.0f && varTypeIsUnsigned(tree->CastToType()))
+                        {
+                            // Don't fold conversions of these cases becasue the result is unspecified per ECMA spec
+                            // and the native math doing the fold doesn't match the run-time computation on all
+                            // platforms.
+                            // We want the behavior to be same with or without folding.
+                            return tree;
+                        }
+
+                        switch (tree->CastToType())
+                        {
+                            case TYP_BYTE:
+                                i1 = INT32(INT8(f1));
+                                goto CNS_INT;
+
+                            case TYP_SHORT:
+                                i1 = INT32(INT16(f1));
+                                goto CNS_INT;
+
+                            case TYP_CHAR:
+                                i1 = INT32(UINT16(f1));
+                                goto CNS_INT;
+
+                            case TYP_UBYTE:
+                                i1 = INT32(UINT8(f1));
+                                goto CNS_INT;
+
+                            case TYP_INT:
+                                i1 = INT32(f1);
+                                goto CNS_INT;
+
+                            case TYP_UINT:
+                                i1 = forceCastToUInt32(f1);
+                                goto CNS_INT;
+
+                            case TYP_LONG:
+                                lval1 = INT64(f1);
+                                goto CNS_LONG;
+
+                            case TYP_ULONG:
+                                lval1 = FloatingPointUtils::convertDoubleToUInt64(f1);
+                                goto CNS_LONG;
+
+                            case TYP_FLOAT:
+                                goto CNS_FLOAT; // redundant cast
+
+                            case TYP_DOUBLE:
+                                d1 = f1;
+                                goto CNS_DOUBLE;
+
+                            default:
+                                assert(!"BAD_TYP");
+                                break;
+                        }
+                        return tree;
+
+                    default:
+                        return tree;
+                }
+                goto CNS_FLOAT;
+#endif // !FEATURE_X87_DOUBLES
             case TYP_DOUBLE:
                 assert(op1->gtOper == GT_CNS_DBL);
 
@@ -12980,8 +13193,12 @@ GenTreePtr Compiler::gtFoldExprConst(GenTreePtr tree)
 
                         assert(genActualType(tree->CastToType()) == tree->gtType);
 
+#if FEATURE_X87_DOUBLES
                         if ((op1->gtType == TYP_FLOAT && !_finite(forceCastToFloat(d1))) ||
                             (op1->gtType == TYP_DOUBLE && !_finite(d1)))
+#else
+                        if (!_finite(d1))
+#endif // FEATURE_X87_DOUBLES
                         {
                             // The floating point constant is not finite.  The ECMA spec says, in
                             // III 3.27, that "...if overflow occurs converting a floating point type
@@ -13045,14 +13262,21 @@ GenTreePtr Compiler::gtFoldExprConst(GenTreePtr tree)
                                 goto CNS_LONG;
 
                             case TYP_FLOAT:
+#if FEATURE_X87_DOUBLES
                                 d1 = forceCastToFloat(d1);
                                 goto CNS_DOUBLE;
+#else
+                                f1 = forceCastToFloat(d1);
+                                goto CNS_FLOAT;
+#endif // FEATURE_X87_DOUBLES
 
                             case TYP_DOUBLE:
+#if FEATURE_X87_DOUBLES
                                 if (op1->gtType == TYP_FLOAT)
                                 {
                                     d1 = forceCastToFloat(d1); // truncate precision
                                 }
+#endif                                           // FEATURE_X87_DOUBLES
                                 goto CNS_DOUBLE; // redundant cast
 
                             default:
@@ -13848,6 +14072,120 @@ GenTreePtr Compiler::gtFoldExprConst(GenTreePtr tree)
          */
 
         case TYP_FLOAT:
+#if !FEATURE_X87_DOUBLES
+            if (tree->gtOverflowEx())
+            {
+                return tree;
+            }
+
+            assert(op1->gtOper == GT_CNS_FLT);
+            f1 = op1->gtFltCon.gtFconVal;
+
+            assert(op2->gtType == TYP_FLOAT);
+            assert(op2->gtOper == GT_CNS_FLT);
+            f2 = op2->gtFltCon.gtFconVal;
+
+            /* Special case - check if we have NaN operands.
+             * For comparisons if not an unordered operation always return 0.
+             * For unordered operations (i.e. the GTF_RELOP_NAN_UN flag is set)
+             * the result is always true - return 1. */
+
+            if (_isnanf(f1) || _isnanf(f2))
+            {
+#ifdef DEBUG
+                if (verbose)
+                {
+                    printf("Single operator(s) is NaN\n");
+                }
+#endif
+                if (tree->OperKind() & GTK_RELOP)
+                {
+                    if (tree->gtFlags & GTF_RELOP_NAN_UN)
+                    {
+                        /* Unordered comparison with NaN always succeeds */
+                        i1 = 1;
+                        goto FOLD_COND;
+                    }
+                    else
+                    {
+                        /* Normal comparison with NaN always fails */
+                        i1 = 0;
+                        goto FOLD_COND;
+                    }
+                }
+            }
+
+            switch (tree->gtOper)
+            {
+                case GT_EQ:
+                    i1 = (f1 == f2);
+                    goto FOLD_COND;
+                case GT_NE:
+                    i1 = (f1 != f2);
+                    goto FOLD_COND;
+
+                case GT_LT:
+                    i1 = (f1 < f2);
+                    goto FOLD_COND;
+                case GT_LE:
+                    i1 = (f1 <= f2);
+                    goto FOLD_COND;
+                case GT_GE:
+                    i1 = (f1 >= f2);
+                    goto FOLD_COND;
+                case GT_GT:
+                    i1 = (f1 > f2);
+                    goto FOLD_COND;
+
+                case GT_ADD:
+                    f1 += f2;
+                    break;
+                case GT_SUB:
+                    f1 -= f2;
+                    break;
+                case GT_MUL:
+                    f1 *= f2;
+                    break;
+                case GT_DIV:
+                    if (!f2)
+                    {
+                        return tree;
+                    }
+                    f1 /= f2;
+                    break;
+
+                default:
+                    return tree;
+            }
+
+        CNS_FLOAT:
+
+#ifdef DEBUG
+            if (verbose)
+            {
+                printf("\nFolding fp operator with constant nodes into a fp constant:\n");
+                gtDispTree(tree);
+            }
+#endif
+
+            assert((GenTree::s_gtNodeSizes[GT_CNS_FLT] == TREE_NODE_SZ_SMALL) ||
+                   (tree->gtDebugFlags & GTF_DEBUG_NODE_LARGE));
+
+            tree->ChangeOperConst(GT_CNS_FLT);
+            tree->gtFltCon.gtFconVal = f1;
+            if (vnStore != nullptr)
+            {
+                fgValueNumberTreeConst(tree);
+            }
+#ifdef DEBUG
+            if (verbose)
+            {
+                printf("Bashed to fp constant:\n");
+                gtDispTree(tree);
+            }
+#endif
+            goto DONE;
+#endif // !FEATURE_X87_DOUBLES
         case TYP_DOUBLE:
 
             if (tree->gtOverflowEx())
@@ -13858,7 +14196,11 @@ GenTreePtr Compiler::gtFoldExprConst(GenTreePtr tree)
             assert(op1->gtOper == GT_CNS_DBL);
             d1 = op1->gtDblCon.gtDconVal;
 
+#if FEATURE_X87_DOUBLES
             assert(varTypeIsFloating(op2->gtType));
+#else
+            assert(op2->gtType == TYP_DOUBLE);
+#endif // FEATURE_X87_DOUBLES
             assert(op2->gtOper == GT_CNS_DBL);
             d2 = op2->gtDblCon.gtDconVal;
 
@@ -13914,7 +14256,7 @@ GenTreePtr Compiler::gtFoldExprConst(GenTreePtr tree)
                     i1 = (d1 > d2);
                     goto FOLD_COND;
 
-#if FEATURE_STACK_FP_X87
+#if FEATURE_STACK_FP_X87 || !FEATURE_X87_DOUBLES
                 case GT_ADD:
                     d1 += d2;
                     break;
@@ -13926,10 +14268,12 @@ GenTreePtr Compiler::gtFoldExprConst(GenTreePtr tree)
                     break;
                 case GT_DIV:
                     if (!d2)
+                    {
                         return tree;
+                    }
                     d1 /= d2;
                     break;
-#else  //! FEATURE_STACK_FP_X87
+#else
                 // non-x86 arch: floating point arithmetic should be done in declared
                 // precision while doing constant folding. For this reason though TYP_FLOAT
                 // constants are stored as double constants, while performing float arithmetic,
@@ -13997,8 +14341,7 @@ GenTreePtr Compiler::gtFoldExprConst(GenTreePtr tree)
                         d1 /= d2;
                     }
                     break;
-#endif //! FEATURE_STACK_FP_X87
-
+#endif // FEATURE_STACK_FP_X87 || !FEATURE_X87_DOUBLES
                 default:
                     return tree;
             }

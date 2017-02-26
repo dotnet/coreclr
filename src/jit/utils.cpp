@@ -554,8 +554,11 @@ DECODE_OPCODE:
         {
             __int64 iOp;
             double  dOp;
-            int     jOp;
-            DWORD   jOp2;
+#if !FEATURE_X87_DOUBLES
+            float fOp;
+#endif // !FEATURE_X87_DOUBLES
+            int   jOp;
+            DWORD jOp2;
 
             switch (argKind)
             {
@@ -593,13 +596,23 @@ DECODE_OPCODE:
                     break;
 
                 case ShortInlineR:
+#if FEATURE_X87_DOUBLES
                     dOp = getR4LittleEndian(opcodePtr);
                     goto FLT_OP;
+#else
+                    fOp = getR4LittleEndian(opcodePtr);
+                    dumpILBytes(startOpcodePtr, (unsigned)((opcodePtr - startOpcodePtr) + sz), ALIGN_WIDTH);
+                    printf(" %-12s %f", opcodeNames[opcode], fOp);
+                    break;
+#endif // FEATURE_X87_DOUBLES
+
                 case InlineR:
                     dOp = getR8LittleEndian(opcodePtr);
+#if FEATURE_X87_DOUBLES
                     goto FLT_OP;
 
                 FLT_OP:
+#endif // FEATURE_X87_DOUBLES
                     dumpILBytes(startOpcodePtr, (unsigned)((opcodePtr - startOpcodePtr) + sz), ALIGN_WIDTH);
                     printf(" %-12s %f", opcodeNames[opcode], dOp);
                     break;

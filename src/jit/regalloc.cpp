@@ -2017,7 +2017,31 @@ regMaskTP Compiler::rpPredictTreeRegUse(GenTreePtr   tree,
         switch (oper)
         {
 #ifdef _TARGET_ARM_
+#if !FEATURE_X87_DOUBLES
+            case GT_CNS_FLT:
+                assert(type == TYP_FLOAT);
+
+                // Codegen for floating point constants on the ARM is currently
+                // movw/movt    rT1, <bits>
+                //  vmov.i2f    dT0, rT1
+                //
+                // These integer register(s) immediately die
+                tmpMask = rpPredictRegPick(TYP_INT, PREDICT_REG, lockedRegs | rsvdRegs);
+
+                // We also need a floating point register that we keep
+                //
+                if (predictReg == PREDICT_NONE)
+                    predictReg = PREDICT_SCRATCH_REG;
+
+                regMask          = rpPredictRegPick(type, predictReg, lockedRegs | rsvdRegs);
+                tree->gtUsedRegs = regMask | tmpMask;
+                goto RETURN_CHECK;
+#endif // !FEATURE_X87_DOUBLES
             case GT_CNS_DBL:
+#if !FEATURE_X87_DOUBLES
+                assert(type == TYP_DOUBLE);
+#endif // !FEATURE_X87_DOUBLES
+
                 // Codegen for floating point constants on the ARM is currently
                 // movw/movt    rT1, <lo32 bits>
                 // movw/movt    rT2, <hi32 bits>
@@ -2027,12 +2051,16 @@ regMaskTP Compiler::rpPredictTreeRegUse(GenTreePtr   tree,
                 //
                 // These integer register(s) immediately die
                 tmpMask = rpPredictRegPick(TYP_INT, PREDICT_REG, lockedRegs | rsvdRegs);
+#if FEATURE_X87_DOUBLES
                 if (type == TYP_DOUBLE)
                 {
                     // For TYP_DOUBLE a second integer register is required
                     //
                     tmpMask |= rpPredictRegPick(TYP_INT, PREDICT_REG, lockedRegs | rsvdRegs | tmpMask);
                 }
+#else
+                tmpMask |= rpPredictRegPick(TYP_INT, PREDICT_REG, lockedRegs | rsvdRegs | tmpMask);
+#endif // FEATURE_X87_DOUBLES
 
                 // We also need a floating point register that we keep
                 //

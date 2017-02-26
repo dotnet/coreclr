@@ -222,6 +222,9 @@ void Lowering::TreeNodeInfoInit(GenTree* tree)
             info->dstCount = 0;
             break;
 
+#if !FEATURE_X87_DOUBLES
+        case GT_CNS_FLT:
+#endif // !FEATURE_X87_DOUBLES
         case GT_CNS_DBL:
             info->srcCount = 0;
             info->dstCount = 1;

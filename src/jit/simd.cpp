@@ -1261,7 +1261,11 @@ GenTreePtr Compiler::impSIMDAbs(CORINFO_CLASS_HANDLE typeHnd, var_types baseType
             float f;
             static_assert_no_msg(sizeof(float) == sizeof(int));
             *((int*)&f) = 0x7fffffff;
-            bitMask     = gtNewDconNode(f);
+#if FEATURE_X87_DOUBLES
+            bitMask = gtNewDconNode(f);
+#else
+            bitMask = gtNewFconNode(f);
+#endif // FEATURE_X87_DOUBLES
         }
         else if (baseType == TYP_DOUBLE)
         {

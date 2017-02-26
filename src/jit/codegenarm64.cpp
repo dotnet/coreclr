@@ -1453,7 +1453,7 @@ void CodeGen::instGen_Set_Reg_To_Imm(emitAttr size, regNumber reg, ssize_t imm, 
 /***********************************************************************************
  *
  * Generate code to set a register 'targetReg' of type 'targetType' to the constant
- * specified by the constant (GT_CNS_INT or GT_CNS_DBL) in 'tree'. This does not call
+ * specified by the constant (GT_CNS_INT, GT_CNS_FLT, or GT_CNS_DBL) in 'tree'. This does not call
  * genProduceReg() on the target register.
  */
 void CodeGen::genSetRegToConst(regNumber targetReg, var_types targetType, GenTreePtr tree)
@@ -1480,6 +1480,43 @@ void CodeGen::genSetRegToConst(regNumber targetReg, var_types targetType, GenTre
         }
         break;
 
+#if !FEATURE_X87_DOUBLES
+        case GT_CNS_FLT:
+        {
+            emitter*       emit       = getEmitter();
+            emitAttr       size       = emitTypeSize(tree);
+            GenTreeFltCon* fltConst   = tree->AsFltCon();
+            float          constValue = fltConst->gtFltCon.gtFconVal;
+
+            // Make sure we use "movi reg, 0x00"  only for positive zero (0.0) and not for negative zero (-0.0)
+            if (*(__int32*)&constValue == 0)
+            {
+                // A faster/smaller way to generate 0.0
+                // We will just zero out the entire vector register for both float and double
+                emit->emitIns_R_I(INS_movi, EA_16BYTE, targetReg, 0x00, INS_OPTS_16B);
+            }
+            else if (emitter::emitIns_valid_imm_for_fmov(constValue))
+            {
+                // We can load the FP constant using the fmov FP-immediate for this constValue
+                emit->emitIns_R_F(INS_fmov, size, targetReg, constValue);
+            }
+            else
+            {
+                // Get a temp integer register to compute long address.
+                regMaskTP addrRegMask = tree->gtRsvdRegs;
+                regNumber addrReg     = genRegNumFromMask(addrRegMask);
+                noway_assert(addrReg != REG_NA);
+
+                // We must load the FP constant from the constant pool
+                // Emit a data section constant for the float or double constant.
+                CORINFO_FIELD_HANDLE hnd = emit->emitFltConst(fltConst);
+                // For long address (default): `adrp + ldr + fmov` will be emitted.
+                // For short address (proven later), `ldr` will be emitted.
+                emit->emitIns_R_C(INS_ldr, size, targetReg, addrReg, hnd, 0);
+            }
+        }
+        break;
+#endif // !FEATURE_X87_DOUBLES
         case GT_CNS_DBL:
         {
             emitter*       emit       = getEmitter();
@@ -1506,9 +1543,13 @@ void CodeGen::genSetRegToConst(regNumber targetReg, var_types targetType, GenTre
                 regNumber addrReg     = genRegNumFromMask(addrRegMask);
                 noway_assert(addrReg != REG_NA);
 
-                // We must load the FP constant from the constant pool
-                // Emit a data section constant for the float or double constant.
+// We must load the FP constant from the constant pool
+// Emit a data section constant for the float or double constant.
+#if FEATURE_X87_DOUBLES
                 CORINFO_FIELD_HANDLE hnd = emit->emitFltOrDblConst(dblConst);
+#else
+                CORINFO_FIELD_HANDLE hnd = emit->emitDblConst(dblConst);
+#endif // FEATURE_X87_DOUBLES
                 // For long address (default): `adrp + ldr + fmov` will be emitted.
                 // For short address (proven later), `ldr` will be emitted.
                 emit->emitIns_R_C(INS_ldr, size, targetReg, addrReg, hnd, 0);
@@ -1932,8 +1973,13 @@ void CodeGen::genCodeForTreeNode(GenTreePtr treeNode)
     // setting the GTF_REUSE_REG_VAL flag.
     if (treeNode->IsReuseRegVal())
     {
-        // For now, this is only used for constant nodes.
+// For now, this is only used for constant nodes.
+#if FEATURE_X87_DOUBLES
         assert((treeNode->OperGet() == GT_CNS_INT) || (treeNode->OperGet() == GT_CNS_DBL));
+#else
+        assert((treeNode->OperGet() == GT_CNS_INT) || (treeNode->OperGet() == GT_CNS_FLT) ||
+               (treeNode->OperGet() == GT_CNS_DBL));
+#endif // FEATURE_X87_DOUBLES
         JITDUMP("  TreeNode is marked ReuseReg\n");
         return;
     }
@@ -1969,6 +2015,9 @@ void CodeGen::genCodeForTreeNode(GenTreePtr treeNode)
             break;
 
         case GT_CNS_INT:
+#if !FEATURE_X87_DOUBLES
+        case GT_CNS_FLT:
+#endif // !FEATURE_X87_DOUBLES
         case GT_CNS_DBL:
             genSetRegToConst(targetReg, targetType, treeNode);
             genProduceReg(treeNode);
