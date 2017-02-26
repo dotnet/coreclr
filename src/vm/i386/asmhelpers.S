@@ -263,6 +263,7 @@ LEAF_ENTRY ArrayOpStubNullException, _TEXT
     // them anyway for consistency and to avoid future bugs.
     pop     esi
     pop     edi
+    pop     ebp
     mov     ecx, CORINFO_NullReferenceException_ASM
     jmp     C_FUNC(InternalExceptionWorker)
 LEAF_END ArrayOpStubNullException, _TEXT
@@ -274,6 +275,7 @@ LEAF_ENTRY ArrayOpStubRangeException, _TEXT
     // them anyway for consistency and to avoid future bugs.
     pop     esi
     pop     edi
+    pop     ebp
     mov     ecx, CORINFO_IndexOutOfRangeException_ASM
     jmp     C_FUNC(InternalExceptionWorker)
 LEAF_END ArrayOpStubRangeException, _TEXT
@@ -285,6 +287,7 @@ LEAF_ENTRY ArrayOpStubTypeMismatchException, _TEXT
     // them anyway for consistency and to avoid future bugs.
     pop     esi
     pop     edi
+    pop     ebp
     mov     ecx, CORINFO_ArrayTypeMismatchException_ASM
     jmp     C_FUNC(InternalExceptionWorker)
 LEAF_END ArrayOpStubTypeMismatchException, _TEXT
