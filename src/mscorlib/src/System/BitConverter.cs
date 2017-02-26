@@ -39,47 +39,46 @@ namespace System
         public static byte[] GetBytes(char value)
         {
             Contract.Ensures(Contract.Result<byte[]>() != null);
-            Contract.Ensures(Contract.Result<byte[]>().Length == 2);
+            Contract.Ensures(Contract.Result<byte[]>().Length == sizeof(char));
 
-            return GetBytes((short)value);
+            byte[] bytes = new byte[sizeof(char)];
+            Unsafe.As<byte, char>(ref bytes[0]) = value;
+            return bytes;
         }
 
         // Converts a short into an array of bytes with length
         // two.
-        public static unsafe byte[] GetBytes(short value)
+        public static byte[] GetBytes(short value)
         {
             Contract.Ensures(Contract.Result<byte[]>() != null);
-            Contract.Ensures(Contract.Result<byte[]>().Length == 2);
+            Contract.Ensures(Contract.Result<byte[]>().Length == sizeof(short));
 
-            byte[] bytes = new byte[2];
-            fixed (byte* b = &bytes[0])
-                *((short*)b) = value;
+            byte[] bytes = new byte[sizeof(short)];
+            Unsafe.As<byte, short>(ref bytes[0]) = value;
             return bytes;
         }
 
         // Converts an int into an array of bytes with length 
         // four.
-        public static unsafe byte[] GetBytes(int value)
+        public static byte[] GetBytes(int value)
         {
             Contract.Ensures(Contract.Result<byte[]>() != null);
-            Contract.Ensures(Contract.Result<byte[]>().Length == 4);
+            Contract.Ensures(Contract.Result<byte[]>().Length == sizeof(int));
 
-            byte[] bytes = new byte[4];
-            fixed (byte* b = &bytes[0])
-                *((int*)b) = value;
+            byte[] bytes = new byte[sizeof(int)];
+            Unsafe.As<byte, int>(ref bytes[0]) = value;
             return bytes;
         }
 
         // Converts a long into an array of bytes with length 
         // eight.
-        public static unsafe byte[] GetBytes(long value)
+        public static byte[] GetBytes(long value)
         {
             Contract.Ensures(Contract.Result<byte[]>() != null);
-            Contract.Ensures(Contract.Result<byte[]>().Length == 8);
+            Contract.Ensures(Contract.Result<byte[]>().Length == sizeof(long));
 
-            byte[] bytes = new byte[8];
-            fixed (byte* b = &bytes[0])
-                *((long*)b) = value;
+            byte[] bytes = new byte[sizeof(long)];
+            Unsafe.As<byte, long>(ref bytes[0]) = value;
             return bytes;
         }
 
@@ -89,9 +88,11 @@ namespace System
         public static byte[] GetBytes(ushort value)
         {
             Contract.Ensures(Contract.Result<byte[]>() != null);
-            Contract.Ensures(Contract.Result<byte[]>().Length == 2);
+            Contract.Ensures(Contract.Result<byte[]>().Length == sizeof(ushort));
 
-            return GetBytes(unchecked((short)value));
+            byte[] bytes = new byte[sizeof(ushort)];
+            Unsafe.As<byte, ushort>(ref bytes[0]) = value;
+            return bytes;
         }
 
         // Converts an uint into an array of bytes with
@@ -100,9 +101,11 @@ namespace System
         public static byte[] GetBytes(uint value)
         {
             Contract.Ensures(Contract.Result<byte[]>() != null);
-            Contract.Ensures(Contract.Result<byte[]>().Length == 4);
+            Contract.Ensures(Contract.Result<byte[]>().Length == sizeof(uint));
 
-            return GetBytes(unchecked((int)value));
+            byte[] bytes = new byte[sizeof(uint)];
+            Unsafe.As<byte, uint>(ref bytes[0]) = value;
+            return bytes;
         }
 
         // Converts an unsigned long into an array of bytes with
@@ -111,29 +114,35 @@ namespace System
         public static byte[] GetBytes(ulong value)
         {
             Contract.Ensures(Contract.Result<byte[]>() != null);
-            Contract.Ensures(Contract.Result<byte[]>().Length == 8);
+            Contract.Ensures(Contract.Result<byte[]>().Length == sizeof(ulong));
 
-            return GetBytes(unchecked((long)value));
+            byte[] bytes = new byte[sizeof(ulong)];
+            Unsafe.As<byte, ulong>(ref bytes[0]) = value;
+            return bytes;
         }
 
         // Converts a float into an array of bytes with length 
         // four.
-        public static unsafe byte[] GetBytes(float value)
+        public static byte[] GetBytes(float value)
         {
             Contract.Ensures(Contract.Result<byte[]>() != null);
-            Contract.Ensures(Contract.Result<byte[]>().Length == 4);
+            Contract.Ensures(Contract.Result<byte[]>().Length == sizeof(float));
 
-            return GetBytes(*(int*)&value);
+            byte[] bytes = new byte[sizeof(float)];
+            Unsafe.As<byte, float>(ref bytes[0]) = value;
+            return bytes;
         }
 
         // Converts a double into an array of bytes with length 
         // eight.
-        public static unsafe byte[] GetBytes(double value)
+        public static byte[] GetBytes(double value)
         {
             Contract.Ensures(Contract.Result<byte[]>() != null);
-            Contract.Ensures(Contract.Result<byte[]>().Length == 8);
+            Contract.Ensures(Contract.Result<byte[]>().Length == sizeof(double));
 
-            return GetBytes(*(long*)&value);
+            byte[] bytes = new byte[sizeof(double)];
+            Unsafe.As<byte, double>(ref bytes[0]) = value;
+            return bytes;
         }
 
         // Converts an array of bytes into a char.  
