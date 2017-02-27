@@ -122,10 +122,11 @@ BOOL LoaderAllocator::AddReferenceIfAlive()
     CONTRACTL_END;
     
 #ifndef DACCESS_COMPILE
+    // Local snaphost of ref-count
+    UINT32 cReferencesLocalSnapshot = m_cReferences;
+
     for (;;)
     {
-        // Local snaphost of ref-count
-        UINT32 cReferencesLocalSnapshot = m_cReferences;
         _ASSERTE(cReferencesLocalSnapshot != (UINT32)-1);
         
         if (cReferencesLocalSnapshot == 0)
@@ -142,7 +143,9 @@ BOOL LoaderAllocator::AddReferenceIfAlive()
         {   // The exchange happened
             return TRUE;
         }
+
         // Let's spin till we are the only thread to modify this value
+        cReferencesLocalSnapshot = cOriginalReferences;
     }
 #else //DACCESS_COMPILE
     // DAC won't AddRef
