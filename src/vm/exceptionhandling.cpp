@@ -1394,19 +1394,23 @@ void ExceptionTracker::InitializeCrawlFrame(CrawlFrame* pcfThisFrame, Thread* pT
     {
         pCurrentTracker->InitializeCurrentContextForCrawlFrame(pcfThisFrame, pDispatcherContext, sf);
     }
-#if defined(_TARGET_ARM_) || defined(_TARGET_ARM64_)    
     else
     {
+#if defined(_TARGET_ARM_) || defined(_TARGET_ARM64_)
         // See the comment above the call to InitRegDisplay for this assertion.
         _ASSERTE(pDispatcherContext->ControlPc == GetIP(pDispatcherContext->ContextRecord));
+#endif // _TARGET_ARM_ || _TARGET_ARM64_
 
+#ifdef ESTABLISHER_FRAME_POINTER_IS_CALLER_SP
         // Simply setup the callerSP during the second pass in the caller context.
         // This is used in setting up the "EnclosingClauseCallerSP" in ExceptionTracker::ProcessManagedCallFrame
         // when the termination handlers are invoked.
         ::SetSP(pcfThisFrame->pRD->pCallerContext, sf.SP);
         pcfThisFrame->pRD->IsCallerSPValid = TRUE;
+#endif // ESTABLISHER_FRAME_POINTER_IS_CALLER_SP
     }
 
+#if defined(_TARGET_ARM_) || defined(_TARGET_ARM64_)
     // Further below, we will adjust the ControlPC based upon whether we are at a callsite or not.
     // We need to do this for "RegDisplay.ControlPC" field as well so that when data structures like
     // EECodeInfo initialize themselves using this field, they will have the correct absolute value
