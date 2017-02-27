@@ -124,10 +124,10 @@ public:
     virtual
     void DiagWalkBGCSurvivors(void* gcContext) = 0;
 
-    // Informs the EE of changes to the location of the card table, potentially updating the write
-    // barrier if it needs to be updated.
+    // Informs the EE of changes to GC global variables. Depending on the operation,
+    // the EE may need to take action by e.g. stomping the current write barrier.
     virtual
-    void StompWriteBarrier(WriteBarrierParameters* args) = 0;
+    void UpdateEEGlobals(UpdateEEGlobalsParameters* args) = 0;
 
     // Signals to the finalizer thread that there are objects ready to
     // be finalized.

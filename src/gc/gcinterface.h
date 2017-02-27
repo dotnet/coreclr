@@ -41,8 +41,8 @@ typedef enum
     walk_for_loh = 3
 } walk_surv_type;
 
-// Different operations that can be done by GCToEEInterface::StompWriteBarrier
-enum class WriteBarrierOp
+// Different operations that can be done by GCToEEInterface::UpdateEEGlobals
+enum class UpdateEEGlobalsOp 
 {
     StompResize,
     StompEphemeral,
@@ -51,11 +51,12 @@ enum class WriteBarrierOp
     SwitchToNonWriteWatch
 };
 
-// Arguments to GCToEEInterface::StompWriteBarrier
-struct WriteBarrierParameters
+// Arguments to GCToEEInterface::UpdateEEGlobals
+struct UpdateEEGlobalsParameters 
 {
-    // The operation that StompWriteBarrier will perform.
-    WriteBarrierOp operation;
+    // The operation that UpdateEEGlobals will perform. Depending on the operation,
+    // UpdateEEGlobals may expect different members of this struct to be set.
+    UpdateEEGlobalsOp operation;
 
     // Whether or not the runtime is currently suspended. If it is not,
     // the EE will need to suspend it before bashing the write barrier.
@@ -70,32 +71,41 @@ struct WriteBarrierParameters
     // generation. When this is not the case, however, the GC must inform the EE
     // so that the EE can switch to a write barrier that checks that a pointer
     // is both greater than g_ephemeral_low and less than g_ephemeral_high.
-    // Used for WriteBarrierOp::StompResize.
+    // Used for UpdateEEGlobalsOp::StompResize.
     bool requires_upper_bounds_check;
 
     // The new card table location. May or may not be the same as the previous
-    // card table. Used for WriteBarrierOp::Initialize and WriteBarrierOp::StompResize.
+    // card table. Used for UpdateEEGlobalsOp::Initialize and UpdateEEGlobalsOp::StompResize.
     uint32_t* card_table;
 
     // The heap's new low boundary. May or may not be the same as the previous
-    // value. Used for WriteBarrierOp::Initialize and WriteBarrierOp::StompResize.
+    // value. Used for UpdateEEGlobalsOp::Initialize and UpdateEEGlobalsOp::StompResize.
     uint8_t* lowest_address;
 
     // The heap's new high boundary. May or may not be the same as the previous
-    // value. Used for WriteBarrierOp::Initialize and WriteBarrierOp::StompResize.
+    // value. Used for UpdateEEGlobalsOp::Initialize and UpdateEEGlobalsOp::StompResize.
     uint8_t* highest_address;
 
     // The new start of the ephemeral generation. 
-    // Used for WriteBarrierOp::StompEphemeral.
+    // Used for UpdateEEGlobalsOp::StompEphemeral.
     uint8_t* ephemeral_low;
 
     // The new end of the ephemeral generation.
-    // Used for WriteBarrierOp::StompEphemeral.
+    // Used for UpdateEEGlobalsOp::StompEphemeral.
     uint8_t* ephemeral_high;
 
     // The new write watch table, if we are using our own write watch
-    // implementation. Used for WriteBarrierOp::SwitchToWriteWatch only.
+    // implementation. Used for UpdateEEGlobalsOp::SwitchToWriteWatch only.
     uint8_t* write_watch_table;
+
+    // The generation table. If we are running on a single proc machine (or
+    // we are not using allocation contexts, for some other reason), the EE 
+    // will use the alloc context attached to Gen 0's entry in the 
+    // generation table.
+    //
+    // Note that generation_table is an array, and so this pointer must point
+    // to the first element of the array.
+    uint8_t* generation_table;
 };
 
 #include "gcinterface.ee.h"

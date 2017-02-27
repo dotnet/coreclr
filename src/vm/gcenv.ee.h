@@ -41,7 +41,7 @@ public:
     void DiagWalkSurvivors(void* gcContext);
     void DiagWalkLOHSurvivors(void* gcContext);
     void DiagWalkBGCSurvivors(void* gcContext);
-    void StompWriteBarrier(WriteBarrierParameters* args);
+    void UpdateEEGlobals(UpdateEEGlobalsParameters* args);
 
     void EnableFinalization(bool foundFinalizers);
 };

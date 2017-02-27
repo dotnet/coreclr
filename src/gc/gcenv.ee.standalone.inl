@@ -195,10 +195,10 @@ ALWAYS_INLINE void GCToEEInterface::DiagWalkBGCSurvivors(void* gcContext)
     return g_theGCToCLR->DiagWalkBGCSurvivors(gcContext);
 }
 
-ALWAYS_INLINE void GCToEEInterface::StompWriteBarrier(WriteBarrierParameters* args)
+ALWAYS_INLINE void GCToEEInterface::UpdateEEGlobals(UpdateEEGlobalsParameters* args)
 {
     assert(g_theGCToCLR != nullptr);
-    g_theGCToCLR->StompWriteBarrier(args);
+    g_theGCToCLR->UpdateEEGlobals(args);
 }
 
 ALWAYS_INLINE void GCToEEInterface::EnableFinalization(bool foundFinalizers)
