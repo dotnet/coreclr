@@ -16289,6 +16289,15 @@ GenTreePtr Compiler::fgInitThisClass()
         // Only CoreRT understands CORINFO_HELP_READYTORUN_GENERIC_STATIC_BASE. Don't do this on CoreCLR.
         if (opts.IsReadyToRun() && IsTargetAbi(CORINFO_CORERT_ABI))
         {
+            // We might be in a shared method body, but maybe we don't need a runtime lookup after all.
+            // This covers the case of a generic method on a non-generic type.
+            DWORD classAttribs = info.compCompHnd->getClassAttribs(info.compClassHnd);
+            if (!(classAttribs & CORINFO_FLG_SHAREDINST))
+            {
+                return fgGetSharedCCtor(info.compClassHnd);
+            }
+
+            // We need a runtime lookup for the static base of the type that owns the method.
             CORINFO_RESOLVED_TOKEN resolvedToken;
             memset(&resolvedToken, 0, sizeof(resolvedToken));
 
