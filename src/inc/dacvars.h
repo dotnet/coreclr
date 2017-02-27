@@ -175,6 +175,7 @@ DEFINE_DACVAR(ULONG, ProfControlBlock, dac__g_profControlBlock, ::g_profControlB
 #endif // defined(PROFILING_SUPPORTED) || defined(PROFILING_SUPPORTED_DATA)
 
 DEFINE_DACVAR(ULONG, PTR_DWORD, dac__g_card_table, ::g_card_table)
+// DEFINE_DACVAR(ULONG, PTR_DWORD, dac__g_card_bundle_table, ::g_card_bundle_table)
 DEFINE_DACVAR(ULONG, PTR_BYTE, dac__g_lowest_address, ::g_lowest_address)
 DEFINE_DACVAR(ULONG, PTR_BYTE, dac__g_highest_address, ::g_highest_address)
 
