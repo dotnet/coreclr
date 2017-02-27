@@ -2822,13 +2822,13 @@ CLRUnwindStatus ExceptionTracker::ProcessManagedCallFrame(
                                         // executes.
                                         m_dwIndexClauseForCatch = i + 1;
                                         m_sfEstablisherOfActualHandlerFrame = sfEstablisherFrame;
-#ifdef _TARGET_AMD64_
+#ifndef ESTABLISHER_FRAME_POINTER_IS_CALLER_SP
                                         m_sfCallerOfActualHandlerFrame = EECodeManager::GetCallerSp(pcfThisFrame->pRD);
-#else
+#else // !ESTABLISHER_FRAME_POINTER_IS_CALLER_SP
                                         // On ARM & ARM64, the EstablisherFrame is the value of SP at the time a function was called and before it's prolog
                                         // executed. Effectively, it is the SP of the caller.
                                         m_sfCallerOfActualHandlerFrame = sfEstablisherFrame.SP;                            
-#endif
+#endif // ESTABLISHER_FRAME_POINTER_IS_CALLER_SP
                                         
                                         ReturnStatus = FirstPassComplete;
                                     }
@@ -3088,13 +3088,11 @@ CLRUnwindStatus ExceptionTracker::ProcessManagedCallFrame(
                             m_dwIndexClauseForCatch = i + 1;
                             m_sfEstablisherOfActualHandlerFrame = sfEstablisherFrame;
 
-#ifdef _TARGET_AMD64_
+#ifndef ESTABLISHER_FRAME_POINTER_IS_CALLER_SP
                             m_sfCallerOfActualHandlerFrame = EECodeManager::GetCallerSp(pcfThisFrame->pRD);
-#else
-                            // On ARM & ARM64, the EstablisherFrame is the value of SP at the time a function was called and before it's prolog
-                            // executed. Effectively, it is the SP of the caller.
+#else // !ESTABLISHER_FRAME_POINTER_IS_CALLER_SP
                             m_sfCallerOfActualHandlerFrame = sfEstablisherFrame.SP;                            
-#endif
+#endif // ESTABLISHER_FRAME_POINTER_IS_CALLER_SP
                             //
                             // END resume frame code
                             //
