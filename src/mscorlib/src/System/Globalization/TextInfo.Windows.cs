@@ -4,6 +4,12 @@
 
 using System.Diagnostics;
 
+#if INSIDE_CLR
+using Kernel32 = Interop.Kernel32;
+#else
+using Kernel32 = Interop.mincore;
+#endif 
+
 namespace System.Globalization
 {
     public partial class TextInfo
@@ -24,12 +30,12 @@ namespace System.Globalization
             FinishInitialization(_textInfoName);
         }
 
-        private void FinishInitialization(string textInfoName)
+        private unsafe void FinishInitialization(string textInfoName)
         {
             const uint LCMAP_SORTHANDLE = 0x20000000;
 
             long handle;
-            int ret = Interop.mincore.LCMapStringEx(_textInfoName, LCMAP_SORTHANDLE, null, 0, &handle, IntPtr.Size, null, null, IntPtr.Zero);
+            int ret = Kernel32.LCMapStringEx(_textInfoName, LCMAP_SORTHANDLE, null, 0, &handle, IntPtr.Size, null, null, IntPtr.Zero);
             _sortHandle = ret > 0 ? (IntPtr)handle : IntPtr.Zero;
         }
 
@@ -64,7 +70,7 @@ namespace System.Globalization
                 fixed (char* pSource = s)
                 fixed (char* pResult = result)
                 {
-                    ret = Interop.mincore.LCMapStringEx(_sortHandle != IntPtr.Zero ? null : _textInfoName,
+                    ret = Kernel32.LCMapStringEx(_sortHandle != IntPtr.Zero ? null : _textInfoName,
                                                         toUpper ? LCMAP_UPPERCASE | linguisticCasing : LCMAP_LOWERCASE | linguisticCasing,
                                                         pSource,
                                                         nLengthInput,
@@ -92,7 +98,7 @@ namespace System.Globalization
             // Check for Invariant to avoid A/V in LCMapStringEx
             uint linguisticCasing = IsInvariantLocale(_textInfoName) ? 0 : LCMAP_LINGUISTIC_CASING;
 
-            Interop.mincore.LCMapStringEx(_sortHandle != IntPtr.Zero ? null : _textInfoName,
+            Kernel32.LCMapStringEx(_sortHandle != IntPtr.Zero ? null : _textInfoName,
                                           toUpper ? LCMAP_UPPERCASE | linguisticCasing : LCMAP_LOWERCASE | linguisticCasing,
                                           &c,
                                           1,
@@ -107,7 +113,7 @@ namespace System.Globalization
 
         // PAL Ends here
 
-        private readonly IntPtr _sortHandle;
+        private IntPtr _sortHandle;
 
         private const uint LCMAP_LINGUISTIC_CASING = 0x01000000;
         private const uint LCMAP_LOWERCASE = 0x00000100;

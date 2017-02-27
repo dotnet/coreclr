@@ -18,7 +18,7 @@ namespace System.Globalization
             if (CultureData.GetDefaultLocaleName(out localeName))
             {
                 cultureInfo = GetCultureByName(localeName, true);
-                cultureInfo.m_isReadOnly = true;
+                cultureInfo._isReadOnly = true;
             }
             else
             {
@@ -26,6 +26,11 @@ namespace System.Globalization
             }
 
             return cultureInfo;
+        }
+
+        private static CultureInfo GetUserDefaultUILanguage()
+        {
+            return GetUserDefaultCulture();
         }
     }
 }

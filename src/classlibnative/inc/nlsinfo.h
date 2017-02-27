@@ -91,7 +91,6 @@ public:
     //
     //  Native helper functions for CultureData
     //
-    static FCDECL1(FC_BOOL_RET, nativeInitCultureData, CultureDataBaseObject *data);
     static FCDECL3(FC_BOOL_RET, nativeGetNumberFormatInfoValues, StringObject* localeNameUNSAFE, NumberFormatInfo* nfi, CLR_BOOL useUserOverride);
     static FCDECL1(Object*, LCIDToLocaleName, LCID lcid);
     static FCDECL1(INT32, LocaleNameToLCID, StringObject* localeNameUNSAFE);

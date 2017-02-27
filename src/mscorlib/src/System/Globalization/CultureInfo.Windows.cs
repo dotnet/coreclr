@@ -6,6 +6,10 @@
 using Internal.Runtime.Augments;
 #endif
 
+#if INSIDE_CLR
+using Kernel32 = Interop.Kernel32;
+#endif 
+
 namespace System.Globalization
 {
     public partial class CultureInfo : IFormatProvider
@@ -35,10 +39,10 @@ namespace System.Globalization
             const string LOCALE_NAME_USER_DEFAULT = null;
             const string LOCALE_NAME_SYSTEM_DEFAULT = "!x-sys-default-locale";
 
-            string strDefault = Interop.mincore.GetLocaleInfoEx(LOCALE_NAME_USER_DEFAULT, LOCALE_SNAME);
+            string strDefault = CultureData.GetLocaleInfoEx(LOCALE_NAME_USER_DEFAULT, LOCALE_SNAME);
             if (strDefault == null)
             {
-                strDefault = Interop.mincore.GetLocaleInfoEx(LOCALE_NAME_SYSTEM_DEFAULT, LOCALE_SNAME);
+                strDefault = CultureData.GetLocaleInfoEx(LOCALE_NAME_SYSTEM_DEFAULT, LOCALE_SNAME);
 
                 if (strDefault == null)
                 {
@@ -52,6 +56,32 @@ namespace System.Globalization
             temp._isReadOnly = true;
 
             return temp;
+        }
+
+        private static CultureInfo GetUserDefaultUILanguage()
+        {
+            const uint MUI_LANGUAGE_NAME = 0x8;    // Use ISO language (culture) name convention
+            uint langCount = 0;
+            uint bufLen = 0;
+
+            if (Kernel32.GetUserPreferredUILanguages(MUI_LANGUAGE_NAME, out langCount, null, ref bufLen))
+            {
+                char [] languages = new char[bufLen];
+                if (Kernel32.GetUserPreferredUILanguages(MUI_LANGUAGE_NAME, out langCount, languages, ref bufLen))
+                {
+                    int index = 0;
+                    while (languages[index] != (char) 0 && index<languages.Length)
+                    {
+                        index++;
+                    }
+
+                    CultureInfo temp = GetCultureByName(new String(languages, 0, index), true);
+                    temp._isReadOnly = true;
+                    return temp;
+                }
+            }
+
+            return GetUserDefaultCulture();
         }
     }
 }

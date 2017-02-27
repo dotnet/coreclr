@@ -357,7 +357,7 @@ namespace System.Globalization
 
             byte[] sortKey = new byte[sortKeyLength];
 
-            fixed(byte* pSortKey = sortKey)
+            fixed (byte* pSortKey = sortKey)
             {
                 Interop.GlobalizationInterop.GetSortKey(_sortHandle, source, source.Length, pSortKey, sortKeyLength, options);
                 return InternalHashSortKey(pSortKey, sortKeyLength, false, additionalEntropy);
