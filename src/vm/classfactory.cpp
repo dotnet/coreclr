@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 
 #include "common.h"
@@ -12,9 +11,6 @@
 #include "frames.h"
 #include "excep.h"
 #include "registration.h"
-#ifdef FEATURE_REMOTING
-#include "remoting.h"
-#endif
 #include "typeparse.h"
 #include "mdaassistants.h"
 

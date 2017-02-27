@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //*****************************************************************************
 
 // 
@@ -105,13 +104,7 @@ class UnifiedAssemblySigComparer : public MDSigComparer::MDSigComparerBaseType
   protected:
     RegMeta *m_pRegMeta;
 
-#ifdef FEATURE_FUSION
-    HRESULT _CreateIAssemblyNameFromAssemblyRef(
-        mdToken tkAsmRef,
-        IAssemblyName **ppAsmName);
-#else
     HRESULT _CompareAssemblies(mdToken tkAsmRef1,mdToken tkAsmRef2, BOOL* pfEquivalent);
-#endif
 
     HRESULT _CreateTypeNameFromTypeRef(
         mdToken tkTypeRef,

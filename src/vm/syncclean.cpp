@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 
 #include "common.h"
@@ -74,7 +73,7 @@ void SyncClean::CleanUp ()
     // Only GC thread can call this.
     _ASSERTE (g_fProcessDetach || 
               IsGCSpecialThread() ||
-              (GCHeap::IsGCInProgress()  && GetThread() == ThreadSuspend::GetSuspensionThread()));
+              (GCHeapUtilities::IsGCInProgress()  && GetThread() == ThreadSuspend::GetSuspensionThread()));
     if (m_HashMap)
     {
         Bucket * pTempBucket = FastInterlockExchangePointer(m_HashMap.GetPointer(), NULL);

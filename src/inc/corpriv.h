@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 // ===========================================================================
 // File: CORPRIV.H
 //
@@ -24,10 +23,6 @@
 #include "peinformation.h"
 //
 
-#ifndef FEATURE_CORECLR
-interface IILFingerprint;
-interface IILFingerprintFactory;
-#endif
 interface IAssemblyName;
 
 // PE images loaded through the runtime.
@@ -45,15 +40,9 @@ STDAPI MetaDataGetDispenser(            // Return HRESULT
 STDAPI RuntimeCheckLocationAccess(LPCWSTR wszLocation);
 STDAPI RuntimeIsNativeImageOptedOut(IAssemblyName* pAssemblyDef);
 
-#ifdef FEATURE_VERSIONING
 LocaleID RuntimeGetFileSystemLocale();
-#endif // FEATURE_VERSIONING
 
 BOOL RuntimeFileNotFound(HRESULT hr);
-
-#ifdef FEATURE_LEGACYNETCF
-BOOL RuntimeIsLegacyNetCF(DWORD adid);
-#endif
 
 // Helper function to get an Internal interface with an in-memory metadata section
 STDAPI  GetMetaDataInternalInterface(
@@ -336,11 +325,6 @@ STDAPI RuntimeOpenImageInternal(LPCWSTR pszFileName, HCORMODULE* hHandle,
 STDAPI RuntimeOpenImageByStream(IStream* pIStream, UINT64 AssemblyId, DWORD dwModuleId,
                                 HCORMODULE* hHandle, DWORD *pdwLength, MDInternalImportFlags flags);
 
-#ifndef FEATURE_CORECLR
-// NOTE: Performance critical codepaths should cache the result of this function.
-STDAPI RuntimeGetILFingerprintForPath(LPCWSTR path, IILFingerprint **ppFingerprint);
-STDAPI RuntimeCreateCachingILFingerprintFactory(IILFingerprintFactory **ppILFingerprintFactory);
-#endif //!FEATURE_CORECLR
 void   RuntimeAddRefHandle(HCORMODULE hHandle);
 STDAPI RuntimeReleaseHandle(HCORMODULE hHandle);
 STDAPI RuntimeGetImageBase(HCORMODULE hHandle, LPVOID* base, BOOL bMapped, COUNT_T* dwSize);
@@ -485,153 +469,6 @@ struct CORCOMPILE_VERSION_INFO;
 struct CORCOMPILE_DEPENDENCY;
 typedef GUID CORCOMPILE_NGEN_SIGNATURE;
 
-#ifdef FEATURE_FUSION
-//**********************************************************************
-// Gets the dependancies of a native image. If these change, then
-// the native image cannot be used.
-//
-// IMetaDataImport::GetAssemblyRefProps() can be used to obtain information about
-// the mdAssemblyRefs.
-//*****************************************************************************
-
-// {814C9E35-3F3F-4975-977A-371F0A878AC7}
-EXTERN_GUID(IID_INativeImageDependency, 0x814c9e35, 0x3f3f, 0x4975, 0x97, 0x7a, 0x37, 0x1f, 0xa, 0x87, 0x8a, 0xc7);
-
-DECLARE_INTERFACE_(INativeImageDependency, IUnknown)
-{
-    // Get the referenced assembly
-    STDMETHOD (GetILAssemblyRef) (
-        mdAssemblyRef * pAssemblyRef        // [OUT]
-        ) PURE;
-
-    // Get the post-policy assembly actually used
-    STDMETHOD (GetILAssemblyDef) (
-        mdAssemblyRef * ppAssemblyDef,          // [OUT]
-        CORCOMPILE_ASSEMBLY_SIGNATURE * pSign   // [OUT]
-        ) PURE;
-
-    // Get the native image corresponding to GetILAssemblyDef() IF
-    // there is a hard-bound (directly-referenced) native dependancy
-    //
-    // We do not need the configStrig because configStrings have to
-    // be an exact part. Any partial matches are factored out into GetConfigMask()
-    STDMETHOD (GetNativeAssemblyDef) (
-        CORCOMPILE_NGEN_SIGNATURE * pNativeSign // [OUT] INVALID_NGEN_SIGNATURE if there is no hard-bound dependancy
-        ) PURE;
-
-    // Get PEKIND of the referenced assembly
-    STDMETHOD (GetPEKind) (
-        PEKIND * CorPEKind                      // [OUT]
-        ) PURE;
-
-};  // INativeImageDependency
-
-//*****************************************************************************
-//
-// Fusion uses IFusionNativeImageInfo to obtain (and cache) informaton
-// about a native image being installed into the native image cache.
-// This allows Fusion to bind directly to native images
-// without requiring (expensively) binding to the IL assembly first.
-//
-// IMetaDataAssemblyImport can be queried for this interface
-//
-//*****************************************************************************
-// {0EA273D0-B4DA-4008-A60D-8D6EFFDD6E91}
-EXTERN_GUID(IID_INativeImageInstallInfo, 0xea273d0, 0xb4da, 0x4008, 0xa6, 0xd, 0x8d, 0x6e, 0xff, 0xdd, 0x6e, 0x91);
-
-DECLARE_INTERFACE_(INativeImageInstallInfo, IUnknown)
-{
-    // Signature of the ngen image
-    // This matches the argument type of INativeImageDependency::GetNativeAssemblyDef
-    
-    STDMETHOD (GetSignature) (
-        CORCOMPILE_NGEN_SIGNATURE * pNgenSign // [OUT]
-        ) PURE;
-
-
-    // CLR timestamp, CPU, compile options, OS type and other attributes of the
-    // NI image. This can be used to verify that the NI image was built
-    // with the running CLR.
-
-    STDMETHOD (GetVersionInfo) (
-        CORCOMPILE_VERSION_INFO * pVersionInfo // [OUT]
-        ) PURE;
-            
-
-    // Signature of the source IL assembly. This can be used to
-    // verify that the IL image matches a candidate ngen image.
-    // This matches the argument type of IAssemblyRuntimeSignature::CheckSignature
-    //
-
-    STDMETHOD (GetILSignature) (
-        CORCOMPILE_ASSEMBLY_SIGNATURE * pILSign // [OUT]
-        ) PURE;
-
-    // A partial match is allowed for the current NativeImage to be valid
-    
-    STDMETHOD (GetConfigMask) (
-        DWORD * pConfigMask // [OUT]
-        ) PURE;
-
-    //
-    // Dependancy assemblies. The native image is only valid
-    // if the dependancies have not changed.
-    //
-
-    STDMETHOD (EnumDependencies) (
-        HCORENUM * phEnum,                  // [IN/OUT] - Pointer to the enum
-        INativeImageDependency *rDeps[],    // [OUT]
-        ULONG cMax,                         // [IN] Max dependancies to enumerate in this iteration
-        DWORD * pdwCount                    // [OUT] - Number of dependancies actually enumerated
-        ) PURE;
-
-
-    // Retrieve a specific dependency by the ngen signature.
-
-    STDMETHOD (GetDependency) (
-        const CORCOMPILE_NGEN_SIGNATURE *pcngenSign,  // [IN] ngenSig of dependency you want
-        CORCOMPILE_DEPENDENCY           *pDep         // [OUT] matching dependency
-        ) PURE;
-    
-};  // INativeImageInstallInfo
-
-//*****************************************************************************
-//
-// Runtime callback made by Fusion into the CLR to determine if the NativeAssembly
-// can be used. The pUnkBindSink argument of CAssemblyName::BindToObject() can
-// be queried for this interface
-//
-//*****************************************************************************
-// {065AA013-9BDC-447c-922F-FEE929908447}
-EXTERN_GUID(IID_INativeImageEvaluate, 0x65aa013, 0x9bdc, 0x447c, 0x92, 0x2f, 0xfe, 0xe9, 0x29, 0x90, 0x84, 0x47);
-
-#ifdef _PREFAST_
-#pragma warning(push)
-#pragma warning(disable:28718) 
-#endif //_PREFAST_
-
-interface IAssembly;
-
-#ifdef _PREFAST_
-#pragma warning(pop)
-#endif //_PREFAST_
-
-
-DECLARE_INTERFACE_(INativeImageEvaluate, IUnknown)
-{
-    // This will be called before the assemblies are actually loaded.
-    //
-    // Returns S_FALSE if the native-image cannot be used.
-    
-    STDMETHOD (Evaluate) (
-        IAssembly *pILAssembly,             // [IN] IL assembly in question
-        IAssembly *pNativeAssembly,         // [IN] NGen image we are trying to use for pILAssembly 
-        BYTE * pbCachedData,                // [IN] Data cached when the native-image was generated
-        DWORD dwDataSize                    // [IN] Size of the pbCachedData buffer
-        ) PURE;
-};  // INativeImageEvaluate
-
-#endif // FEATURE_FUSION
 
 //**********************************************************************
 // Internal versions of shim functions for use by the CLR.
@@ -642,10 +479,16 @@ STDAPI LoadLibraryShimInternal(
     LPVOID pvReserved,
     HMODULE *phModDll);
 
+STDAPI GetCORSystemDirectoryInternaL(
+    SString& pBuffer
+      );
+
+//LONGPATH:TODO: Remove this once Desktop usage has been removed 
 STDAPI GetCORSystemDirectoryInternal(
-    __out_ecount_part_opt(cchBuffer, *pdwLength) LPWSTR pBuffer, 
-                                                 DWORD  cchBuffer,
-    __out_opt                                    DWORD* pdwLength);
+    __out_ecount_part_opt(cchBuffer, *pdwLength) LPWSTR pBuffer,
+    DWORD  cchBuffer,
+    __out_opt DWORD* pdwLength
+    );
 
 STDAPI GetCORVersionInternal(
     __out_ecount_z_opt(cchBuffer) LPWSTR pBuffer, 
@@ -657,7 +500,7 @@ STDAPI GetRequestedRuntimeInfoInternal(LPCWSTR pExe,
                                LPCWSTR pConfigurationFile, 
                                DWORD startupFlags,
                                DWORD runtimeInfoFlags, 
-                               __out_ecount_opt(dwDirectory) LPWSTR pDirectory, 
+                               __out_ecount_opt(dwDirectory) LPWSTR pDirectory,
                                DWORD dwDirectory, 
                                __out_opt DWORD *pdwDirectoryLength, 
                                __out_ecount_opt(cchBuffer) LPWSTR pVersion, 
@@ -675,10 +518,6 @@ STDAPI GetRequestedRuntimeInfoInternal(LPCWSTR pExe,
 // and is shared by the desktop and coreclr's which have separate native binders.
 // Hence, this interface inherits a lot of "baggage."
 
-#ifdef FEATURE_FUSION
-interface IFusionBindLog;
-interface IAssemblyName;
-#endif // FEATURE_FUSION
 
 
 // A small shim around PEAssemblies/IBindResult that allow us to write Fusion/CLR-agnostic code
@@ -693,10 +532,6 @@ class LoggableAssembly
 {
   public:
     virtual SString         DisplayString() = 0;        // Returns an unspecified representation suitable for injecting into log messages.   
-#ifdef FEATURE_FUSION
-    virtual IAssemblyName*  FusionAssemblyName() = 0;   // Can return NULL. Caller must NOT release result.
-    virtual IFusionBindLog* FusionBindLog() = 0;        // Can return NULL. Caller must NOT release result.
-#endif // FEATURE_FUSION
 };
 
 
@@ -719,11 +554,6 @@ BOOL RuntimeVerifyNativeImageDependency(const CORCOMPILE_DEPENDENCY   *pExpected
 
 
 
-#ifndef FEATURE_CORECLR
-
-#include "iilfingerprint.h"
-
-#endif //!FEATURE_CORECLR
 
 #endif  // _CORPRIV_H_
 // EOF =======================================================================

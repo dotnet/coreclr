@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 //
 #include "common.h"
@@ -15,7 +14,7 @@
 #include "openum.h"
 #include "fcall.h"
 #include "frames.h"
-#include "gc.h"
+#include "gcheaputilities.h"
 #include <float.h>
 #include "jitinterface.h"
 #include "safemath.h"
@@ -24,9 +23,6 @@
 #include "runtimehandles.h"
 #include "vars.hpp"
 #include "cycletimer.h"
-#ifdef FEATURE_REMOTING
-#include "remoting.h"
-#endif
 
 inline CORINFO_CALLINFO_FLAGS combine(CORINFO_CALLINFO_FLAGS flag1, CORINFO_CALLINFO_FLAGS flag2)
 {
@@ -42,22 +38,22 @@ static CorInfoType asCorInfoType(CORINFO_CLASS_HANDLE clsHnd)
 InterpreterMethodInfo::InterpreterMethodInfo(CEEInfo* comp, CORINFO_METHOD_INFO* methInfo)
     : m_method(methInfo->ftn),
       m_module(methInfo->scope),
+      m_jittedCode(0),
       m_ILCode(methInfo->ILCode),
       m_ILCodeEnd(methInfo->ILCode + methInfo->ILCodeSize),
       m_maxStack(methInfo->maxStack),
-      m_numArgs(methInfo->args.numArgs),
-      m_flags(0),
-      m_argDescs(NULL),
-      m_numLocals(methInfo->locals.numArgs),
-      m_returnType(methInfo->args.retType),
-      m_invocations(0),
-      m_jittedCode(0),
 #if INTERP_PROFILE
       m_totIlInstructionsExeced(0),
       m_maxIlInstructionsExeced(0),
 #endif
       m_ehClauseCount(methInfo->EHcount),
       m_varArgHandleArgNum(NO_VA_ARGNUM),
+      m_numArgs(methInfo->args.numArgs),
+      m_numLocals(methInfo->locals.numArgs),
+      m_flags(0),
+      m_argDescs(NULL),
+      m_returnType(methInfo->args.retType),
+      m_invocations(0),
       m_methodCache(NULL)
 { 
     // Overflow sanity check. (Can ILCodeSize ever be zero?)
@@ -431,7 +427,7 @@ InterpreterMethodInfo::~InterpreterMethodInfo()
 {
     if (m_methodCache != NULL)
     {
-        delete m_methodCache;
+        delete reinterpret_cast<ILOffsetToItemCache*>(m_methodCache);
     }
 }
 
@@ -534,7 +530,7 @@ void Interpreter::ArgState::AddArg(unsigned canonIndex, short numSlots, bool noR
         argOffsets[canonIndex] = offset.Value();
 #if defined(_ARM_) || defined(_ARM64_)
         callerArgStackSlots += numSlots;
-#endif;
+#endif
     }
 #endif // !_AMD64_
 }
@@ -904,9 +900,10 @@ CorJitResult Interpreter::GenerateInterpreterStub(CEEInfo* comp,
 #endif
         {
             // But we also have to use r4, because ThumbEmitCondRegJump below requires a low register.
+            sl.ThumbEmitMovConstant(r11, 0);
             sl.ThumbEmitMovConstant(r12, UINT_PTR(interpMethInfo));
             sl.ThumbEmitLoadRegIndirect(r12, r12, offsetof(InterpreterMethodInfo, m_jittedCode));
-            sl.ThumbEmitCmpImm(r12, 0); // Set condition codes.
+            sl.ThumbEmitCmpReg(r12, r11); // Set condition codes.
             // If r12 is zero, then go on to do the interpretation.
             CodeLabel* doInterpret = sl.NewCodeLabel();
             sl.ThumbEmitCondFlagJump(doInterpret, thumbCondEq.cond);
@@ -1063,7 +1060,7 @@ CorJitResult Interpreter::GenerateInterpreterStub(CEEInfo* comp,
         // for instance a VT with two float fields will have the same size as a VT with 1 double field. (ARM64TODO: Verify it)
         // It works on ARM because the overlapping layout of the floating point registers
         // but it won't work on ARM64.
-        cHFAVars = (comp->getHFAType(info->args.retTypeClass) == ELEMENT_TYPE_R4) ? HFARetTypeSize/sizeof(float) : HFARetTypeSize/sizeof(double);
+        cHFAVars = (comp->getHFAType(info->args.retTypeClass) == CORINFO_TYPE_FLOAT) ? HFARetTypeSize/sizeof(float) : HFARetTypeSize/sizeof(double);
 #endif
     }
 
@@ -1579,7 +1576,7 @@ CorJitResult Interpreter::GenerateInterpreterStub(CEEInfo* comp,
 #else
 #error unsupported platform
 #endif
-        stub = sl.Link();
+        stub = sl.Link(SystemDomain::GetGlobalLoaderAllocator()->GetStubHeap());
 
         *nativeSizeOfCode = static_cast<ULONG>(stub->GetNumCodeBytes());
         // TODO: manage reference count of interpreter stubs.  Look for examples...
@@ -1737,13 +1734,13 @@ void Interpreter::JitMethodIfAppropriate(InterpreterMethodInfo* interpMethInfo, 
                 fprintf(GetLogFile(), "JITting method %s:%s.\n", md->m_pszDebugClassName, md->m_pszDebugMethodName);
             }
 #endif // _DEBUG
-            DWORD dwFlags = CORJIT_FLG_MAKEFINALCODE;
+            CORJIT_FLAGS jitFlags(CORJIT_FLAGS::CORJIT_FLAG_MAKEFINALCODE);
             NewHolder<COR_ILMETHOD_DECODER> pDecoder(NULL);
             // Dynamic methods (e.g., IL stubs) do not have an IL decoder but may
             // require additional flags.  Ordinary methods require the opposite.
             if (md->IsDynamicMethod())
             {
-                dwFlags |= md->AsDynamicMethodDesc()->GetILStubResolver()->GetJitFlags();
+                jitFlags.Add(md->AsDynamicMethodDesc()->GetILStubResolver()->GetJitFlags());
             }
             else
             {
@@ -1752,7 +1749,7 @@ void Interpreter::JitMethodIfAppropriate(InterpreterMethodInfo* interpMethInfo, 
                                                     md->GetMDImport(),
                                                     &status);
             }
-            PCODE res = md->MakeJitWorker(pDecoder, dwFlags, 0);
+            PCODE res = md->MakeJitWorker(pDecoder, jitFlags);
             interpMethInfo->m_jittedCode = res;
         }
     }
@@ -1815,14 +1812,6 @@ enum OPCODE_2BYTE {
 #include "opcode.def"
 #undef OPDEF
 };
-
-#ifdef _DEBUG
-static const char* getMethodName(CEEInfo* info, CORINFO_METHOD_HANDLE meth, const char** pClsName)
-{
-    GCX_PREEMP();
-    return info->getMethodName(meth, pClsName);
-}
-#endif // _DEBUG
 
 // Optimize the interpreter loop for speed.
 #ifdef _MSC_VER
@@ -2247,7 +2236,7 @@ EvalLoop:
             break;
 
         case CEE_JMP:
-            *pJmpCallToken = getU4LittleEndian(m_ILCodePtr + sizeof(byte));
+            *pJmpCallToken = getU4LittleEndian(m_ILCodePtr + sizeof(BYTE));
             *pDoJmpCall = true;
             goto ExitEvalLoop;
 
@@ -4825,10 +4814,6 @@ void Interpreter::BinaryArithOvfOp()
         }
         break;
 
-    case CORINFO_TYPE_SHIFTED_CLASS:
-        VerificationError("Can't do binary arithmetic overflow operation on object references.");
-        break;
-
     default:
         _ASSERTE_MSG(false, "Non-stack-normal type on stack.");
     }
@@ -5099,7 +5084,7 @@ void Interpreter::ShiftOpWork(unsigned op1idx, CorInfoType cit2)
             res = (static_cast<UT>(val)) >> shiftAmt;
         }
     } 
-    else if (cit2 = CORINFO_TYPE_NATIVEINT)
+    else if (cit2 == CORINFO_TYPE_NATIVEINT)
     {
         NativeInt shiftAmt = OpStackGet<NativeInt>(op2idx);
         if (op == CEE_SHL)
@@ -5932,7 +5917,7 @@ void Interpreter::NewObj()
         {
             void* dest = LargeStructOperandStackPush(sz);
             memcpy(dest, tempDest, sz);
-            delete[] tempDest;
+            delete[] reinterpret_cast<BYTE*>(tempDest);
             OpStackSet<void*>(m_curStackHt, dest);
         }
         else
@@ -6005,20 +5990,6 @@ void Interpreter::NewObj()
             MethodTable * pNewObjMT = GetMethodTableFromClsHnd(methTok.hClass);
             switch (newHelper)
             {
-#ifdef FEATURE_REMOTING
-            case CORINFO_HELP_NEW_CROSSCONTEXT:
-                {
-                    if (CRemotingServices::RequiresManagedActivation(pNewObjMT) && !pNewObjMT->IsComObjectType())
-                    {
-                        thisArgObj = CRemotingServices::CreateProxyOrObject(pNewObjMT);
-                    }
-                    else
-                    {
-                        thisArgObj = AllocateObject(pNewObjMT);
-                    }
-                }
-                break;
-#endif // FEATURE_REMOTING
             case CORINFO_HELP_NEWFAST:
             default:
                 thisArgObj = AllocateObject(pNewObjMT);
@@ -6172,10 +6143,9 @@ void Interpreter::CastClass()
     Object * pObj = OpStackGet<Object*>(idx);
     if (pObj != NULL)
     {
-        if (!ObjIsInstanceOf(pObj, TypeHandle(cls)))
+        if (!ObjIsInstanceOf(pObj, TypeHandle(cls), TRUE))
         {
-            OBJECTREF oref = ObjectToOBJECTREF(OpStackGet<Object*>(idx));
-            COMPlusThrowInvalidCastException(&oref, TypeHandle(cls));
+            UNREACHABLE(); //ObjIsInstanceOf will throw if cast can't be done
         }
     }
 
@@ -7300,7 +7270,7 @@ void Interpreter::LdFld(FieldDesc* fldIn)
         }
         if (fld == NULL)
         {
-            unsigned tok = getU4LittleEndian(m_ILCodePtr + sizeof(byte));
+            unsigned tok = getU4LittleEndian(m_ILCodePtr + sizeof(BYTE));
             fld = FindField(tok  InterpTracingArg(RTK_LdFld));
             assert(fld != NULL);
 
@@ -7343,12 +7313,6 @@ void Interpreter::LdFld(FieldDesc* fldIn)
     {
         OBJECTREF obj = OBJECTREF(OpStackGet<Object*>(stackInd));
         ThrowOnInvalidPointer(OBJECTREFToObject(obj));
-#ifdef FEATURE_REMOTING
-        if (obj->IsTransparentProxy())
-        {
-            NYI_INTERP("Thunking objects not supported");
-        }
-#endif
         if (valCit == CORINFO_TYPE_VALUECLASS)
         {
             void* srcPtr = fld->GetInstanceAddress(obj);
@@ -7521,7 +7485,7 @@ void Interpreter::LdFldA()
         MODE_COOPERATIVE;
     } CONTRACTL_END;
 
-    unsigned tok = getU4LittleEndian(m_ILCodePtr + sizeof(byte));
+    unsigned tok = getU4LittleEndian(m_ILCodePtr + sizeof(BYTE));
 
 #if INTERP_TRACING
     InterlockedIncrement(&s_tokenResolutionOpportunities[RTK_LdFldA]);
@@ -7585,7 +7549,7 @@ void Interpreter::StFld()
         if (s_InterpreterUseCaching) fld = GetCachedInstanceField(ilOffset);
         if (fld == NULL)
         {
-            unsigned tok = getU4LittleEndian(m_ILCodePtr + sizeof(byte));
+            unsigned tok = getU4LittleEndian(m_ILCodePtr + sizeof(BYTE));
             GCX_PREEMP();
             fld = FindField(tok  InterpTracingArg(RTK_StFld));
             assert(fld != NULL);
@@ -7737,7 +7701,7 @@ bool Interpreter::StaticFldAddrWork(CORINFO_ACCESS_FLAGS accessFlgs, /*out (byre
     bool isCacheable = true;
     *pManagedMem = true;  // Default result.
 
-    unsigned tok = getU4LittleEndian(m_ILCodePtr + sizeof(byte));
+    unsigned tok = getU4LittleEndian(m_ILCodePtr + sizeof(BYTE));
     m_ILCodePtr += 5;  // Above is last use of m_ILCodePtr in this method, so update now.
 
     FieldDesc* fld;
@@ -8580,10 +8544,6 @@ void Interpreter::Box()
         }
 
         MethodTable* pMT = th.AsMethodTable();
-        if (pMT->ContainsStackPtr()) // TODO: the call to MethodTable::Box() below also calls ContainsStackPtr(), and throws kInvalidOperationException if it returns true. Should we not call it here?
-        {
-            COMPlusThrow(kInvalidProgramException);
-        }
 
         {
             Object* res = OBJECTREFToObject(pMT->Box(valPtr));
@@ -8625,9 +8585,7 @@ void Interpreter::BoxStructRefAt(unsigned ind, CORINFO_CLASS_HANDLE valCls)
     if (th.IsTypeDesc())
         COMPlusThrow(kInvalidOperationException,W("InvalidOperation_TypeCannotBeBoxed"));
 
-    MethodTable * pMT = th.AsMethodTable();
-    if (pMT->ContainsStackPtr())
-        COMPlusThrow(kInvalidProgramException);
+    MethodTable* pMT = th.AsMethodTable();
 
     {
         Object* res = OBJECTREFToObject(pMT->Box(valPtr));
@@ -8822,8 +8780,10 @@ void Interpreter::UnboxAny()
     if ((boxTypeAttribs & CORINFO_FLG_VALUECLASS) == 0)
     {
         Object* obj = OpStackGet<Object*>(tos);
-        if (obj != NULL && !ObjIsInstanceOf(obj, TypeHandle(boxTypeClsHnd)))
-            COMPlusThrowInvalidCastException(&ObjectToOBJECTREF(obj), TypeHandle(boxTypeClsHnd));
+        if (obj != NULL && !ObjIsInstanceOf(obj, TypeHandle(boxTypeClsHnd), TRUE))
+        {
+            UNREACHABLE(); //ObjIsInstanceOf will throw if cast can't be done
+        }
     }
     else
     {
@@ -9030,7 +8990,7 @@ void Interpreter::DoCallWork(bool virtualCall, void* thisArg, CORINFO_RESOLVED_T
 #if INTERP_TRACING
     InterlockedIncrement(&s_totalInterpCalls);
 #endif // INTERP_TRACING
-    unsigned tok = getU4LittleEndian(m_ILCodePtr + sizeof(byte));
+    unsigned tok = getU4LittleEndian(m_ILCodePtr + sizeof(BYTE));
 
     // It's possible for an IL method to push a capital-F Frame.  If so, we pop it and save it;
     // we'll push it back on after our GCPROTECT frame is popped.
@@ -9598,6 +9558,9 @@ void Interpreter::DoCallWork(bool virtualCall, void* thisArg, CORINFO_RESOLVED_T
 
     // This is the argument slot that will be used to hold the return value.
     ARG_SLOT retVal = 0;
+#ifndef _ARM_
+    _ASSERTE (NUMBER_RETURNVALUE_SLOTS == 1);
+#endif
 
     // If the return type is a structure, then these will be initialized.
     CORINFO_CLASS_HANDLE retTypeClsHnd = NULL;
@@ -9608,7 +9571,7 @@ void Interpreter::DoCallWork(bool virtualCall, void* thisArg, CORINFO_RESOLVED_T
     // (I could probably optimize this pop all the arguments first, then allocate space for the return value
     // on the large structure operand stack, and pass a pointer directly to that space, avoiding the extra
     // copy we have below.  But this seemed more expedient, and this should be a pretty rare case.)
-    byte* pLargeStructRetVal = NULL;
+    BYTE* pLargeStructRetVal = NULL;
 
     // If there's a "GetFlag<Flag_hasRetBuffArg>()" struct return value, it will be stored in this variable if it fits,
     // otherwise, we'll dynamically allocate memory for it.
@@ -9659,7 +9622,7 @@ void Interpreter::DoCallWork(bool virtualCall, void* thisArg, CORINFO_RESOLVED_T
 #ifdef ENREGISTERED_RETURNTYPE_MAXSIZE
                 retBuffSize = max(retTypeSz, ENREGISTERED_RETURNTYPE_MAXSIZE);
 #endif // ENREGISTERED_RETURNTYPE_MAXSIZE
-                pLargeStructRetVal = (byte*)_alloca(retBuffSize);
+                pLargeStructRetVal = (BYTE*)_alloca(retBuffSize);
                 // Clear this in case a GC happens.
                 for (unsigned i = 0; i < retTypeSz; i++) pLargeStructRetVal[i] = 0;
                 // Register this as location needing GC.
@@ -9873,7 +9836,7 @@ void Interpreter::DoCallWork(bool virtualCall, void* thisArg, CORINFO_RESOLVED_T
 #if INTERP_ILCYCLE_PROFILE
             bool b = CycleTimer::GetThreadCyclesS(&startCycles); assert(b);
 #endif // INTERP_ILCYCLE_PROFILE
-            retVal = mdcs.CallTargetWorker(args);
+            mdcs.CallTargetWorker(args, &retVal, sizeof(retVal));
 
             if (pCscd != NULL)
             {
@@ -10086,7 +10049,7 @@ void Interpreter::CallI()
     InterlockedIncrement(&s_totalInterpCalls);
 #endif // INTERP_TRACING
 
-    unsigned tok = getU4LittleEndian(m_ILCodePtr + sizeof(byte));
+    unsigned tok = getU4LittleEndian(m_ILCodePtr + sizeof(BYTE));
 
     CORINFO_SIG_INFO sigInfo;
 
@@ -10182,7 +10145,7 @@ void Interpreter::CallI()
     // (I could probably optimize this pop all the arguments first, then allocate space for the return value
     // on the large structure operand stack, and pass a pointer directly to that space, avoiding the extra
     // copy we have below.  But this seemed more expedient, and this should be a pretty rare case.)
-    byte* pLargeStructRetVal = NULL;
+    BYTE* pLargeStructRetVal = NULL;
 
     // If there's a "GetFlag<Flag_hasRetBuffArg>()" struct return value, it will be stored in this variable if it fits,
     // otherwise, we'll dynamically allocate memory for it.
@@ -10218,7 +10181,7 @@ void Interpreter::CallI()
 #ifdef ENREGISTERED_RETURNTYPE_MAXSIZE
                 retBuffSize = max(retTypeSz, ENREGISTERED_RETURNTYPE_MAXSIZE);
 #endif // ENREGISTERED_RETURNTYPE_MAXSIZE
-                pLargeStructRetVal = (byte*)_alloca(retBuffSize);
+                pLargeStructRetVal = (BYTE*)_alloca(retBuffSize);
 
                 // Clear this in case a GC happens.
                 for (unsigned i = 0; i < retTypeSz; i++)
@@ -10335,15 +10298,23 @@ void Interpreter::CallI()
             }
             else
             {
-                pMD = g_pPrepareConstrainedRegionsMethod;  // A random static method.
+                pMD = g_pExecuteBackoutCodeHelperMethod;  // A random static method.
             }
             MethodDescCallSite mdcs(pMD, &mSig, ftnPtr);
+#if 0
             // If the current method being interpreted is an IL stub, we're calling native code, so
             // change the GC mode.  (We'll only do this at the call if the calling convention turns out
             // to be a managed calling convention.)
             MethodDesc* pStubContextMD = reinterpret_cast<MethodDesc*>(m_stubContext);
             bool transitionToPreemptive = (pStubContextMD != NULL && !pStubContextMD->IsIL());
-            retVal = mdcs.CallTargetWorker(args, transitionToPreemptive);
+            mdcs.CallTargetWorker(args, &retVal, sizeof(retVal), transitionToPreemptive);
+#else
+            // TODO The code above triggers assertion at threads.cpp:6861:
+            //     _ASSERTE(thread->PreemptiveGCDisabled());  // Should have been in managed code
+            // The workaround will likely break more things than what it is fixing:
+            // just do not make transition to preemptive GC for now.
+            mdcs.CallTargetWorker(args, &retVal, sizeof(retVal));
+#endif
         }
         // retVal is now vulnerable.
         GCX_FORBID();
@@ -10849,7 +10820,7 @@ Interpreter::AddrToMDMap* Interpreter::GetAddrToMdMap()
 
     if (s_addrToMDMap == NULL)
     {
-        s_addrToMDMap = new AddrToMDMap(/* use default allocator */ NULL);
+        s_addrToMDMap = new AddrToMDMap();
     }
     return s_addrToMDMap;
 }
@@ -10871,7 +10842,7 @@ void Interpreter::RecordInterpreterStubForMethodDesc(CORINFO_METHOD_HANDLE md, v
     CORINFO_METHOD_HANDLE dummy;
     assert(!map->Lookup(addr, &dummy));
 #endif // DEBUG
-    map->Set(addr, md);
+    map->AddOrReplace(KeyValuePair<void*,CORINFO_METHOD_HANDLE>(addr, md));
 }
 
 MethodDesc* Interpreter::InterpretationStubToMethodInfo(PCODE addr)
@@ -10911,7 +10882,7 @@ Interpreter::MethodHandleToInterpMethInfoPtrMap* Interpreter::GetMethodHandleToI
 
     if (s_methodHandleToInterpMethInfoPtrMap == NULL)
     {
-        s_methodHandleToInterpMethInfoPtrMap = new MethodHandleToInterpMethInfoPtrMap(/* use default allocator */ NULL);
+        s_methodHandleToInterpMethInfoPtrMap = new MethodHandleToInterpMethInfoPtrMap();
     }
     return s_methodHandleToInterpMethInfoPtrMap;
 }
@@ -10947,8 +10918,8 @@ InterpreterMethodInfo* Interpreter::RecordInterpreterMethodInfoForMethodHandle(C
     mi.m_thread = GetThread();
 #endif
 
-    bool b = map->Set(md, mi);
-    _ASSERTE_MSG(!b, "Multiple InterpMethInfos for method desc.");
+    _ASSERTE_MSG(map->LookupPtr(md) == NULL, "Multiple InterpMethInfos for method desc.");
+    map->Add(md, mi);
     return methInfo;
 }
 
@@ -11828,7 +11799,7 @@ void Interpreter::PrintValue(InterpreterType it, BYTE* valAddr)
                 {
                     fprintf(GetLogFile(), " ");
                 }
-                fprintf(GetLogFile(), "0x%p", valAddr[i]);
+                fprintf(GetLogFile(), "0x%02x", valAddr[i]);
             }
             fprintf(GetLogFile(), "]");
         }

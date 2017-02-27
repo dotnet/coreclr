@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information. 
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*++
 
@@ -25,8 +24,6 @@ Abstract:
 #include "pal/palinternal.h"
 #include "pal/corunix.hpp"
 
-extern PHARDWARE_EXCEPTION_HANDLER g_hardwareExceptionHandler;
-
 // Uncomment this define to turn off the signal handling thread.
 // #define DO_NOT_USE_SIGNAL_HANDLING_THREAD
 
@@ -45,7 +42,8 @@ Return value:
     FALSE otherwise
 
 --*/
-BOOL SEHInitialize(CorUnix::CPalThread *pthrCurrent, DWORD flags);
+BOOL 
+SEHInitialize(CorUnix::CPalThread *pthrCurrent, DWORD flags);
 
 /*++
 Function :
@@ -54,37 +52,41 @@ Function :
     Clean up SEH-related stuff(signals, etc)
 
 Parameters:
-    flags : PAL initialize flags
+    None
 
     (no return value)
 --*/
-void SEHCleanup(DWORD flags);
+VOID 
+SEHCleanup();
 
 /*++
-Function :
-    SEHRaiseException
+Function:
+    SEHProcessException
 
-    Raise an exception given a specified exception information.
+    Send the PAL exception to any handler registered.
 
-Parameters :
-    CPalThread * pthrCurrent : reference to the current thread.
-    PEXCEPTION_POINTERS lpExceptionPointers : specification of exception 
-    to raise.
-    int signal_code : signal that caused the exception, if applicable; 
-                      0 otherwise
+Parameters:
+    PAL_SEHException* exception
 
-    (no return value; function should never return)
-
-Notes :
-    The PAL does not support continuing execution after an exception was raised
-    (using EXCEPTION_CONTINUE_EXECUTION). For this reason, this function should
-    never return.
+Return value:
+    Returns TRUE if the exception happened in managed code and the execution should 
+    continue (with possibly modified context).
+    Returns FALSE if the exception happened in managed code and it was not handled.
+    In case the exception was handled by calling a catch handler, it doesn't return at all.
 --*/
-PAL_NORETURN
-void SEHRaiseException( 
-                        CorUnix::CPalThread *pthrCurrent,
-                        PEXCEPTION_POINTERS lpExceptionPointers, 
-                        int signal_code );
+BOOL 
+SEHProcessException(PAL_SEHException* exception);
+
+/*++
+Function:
+    AllocateExceptionRecords
+
+Parameters:
+    exceptionRecord - output pointer to the allocated Windows exception record
+    contextRecord - output pointer to the allocated Windows context record
+--*/
+VOID
+AllocateExceptionRecords(EXCEPTION_RECORD** exceptionRecord, CONTEXT** contextRecord);
 
 #if !HAVE_MACH_EXCEPTIONS
 // TODO: Implement for Mach exceptions.  Not in CoreCLR surface area.

@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //*****************************************************************************
 // DataTargetAdapter.h
 // 
@@ -25,7 +24,7 @@ interface ICLRDataTarget;
  * for dbgeng (watson, windbg, etc.) and for any other 3rd parties since 
  * it is a documented API for dump generation.
  */
-class DataTargetAdapter : public ICorDebugMutableDataTarget 
+class DataTargetAdapter : public ICorDebugMutableDataTarget
 {
 public:
     // Create an adapter over the supplied legacy data target interface

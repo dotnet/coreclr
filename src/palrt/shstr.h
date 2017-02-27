@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //
 
 //
@@ -16,7 +15,7 @@
 //  default shstr to something small, so we don't waste too much stack space
 //  MAX_PATH is used frequently, so we'd like to a factor of that - so that
 //  if we do grow to MAX_PATH size, we don't waste any extra.
-#define DEFAULT_SHSTR_LENGTH    (MAX_PATH/4)
+#define DEFAULT_SHSTR_LENGTH    (MAX_PATH_FNAME/4)
 
 
 #ifdef UNICODE

@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //
 // File: clsload.inl
 //
@@ -81,14 +80,8 @@ inline void AccessCheckOptions::Initialize(
                      !throwIfTargetIsInaccessible ||
                      ((pTargetMT ? 1 : 0) + (pTargetMethod ? 1 : 0) + (pTargetField ? 1 : 0)) == 1);
         // m_pAccessContext can only be set for kRestrictedMemberAccess
-#ifdef FEATURE_CORECLR
         PRECONDITION(m_pAccessContext == NULL || 
                      accessCheckType == AccessCheckOptions::kRestrictedMemberAccess);
-#else
-        PRECONDITION(m_pAccessContext == NULL || 
-                     accessCheckType == AccessCheckOptions::kUserCodeOnlyRestrictedMemberAccess ||
-                     accessCheckType == AccessCheckOptions::kRestrictedMemberAccess);
-#endif
     }
     CONTRACTL_END;
 

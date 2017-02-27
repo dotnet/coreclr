@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*============================================================
 **
@@ -27,7 +28,6 @@ namespace System.Resources {
 
     [Serializable]
 
-[System.Runtime.InteropServices.ComVisible(true)]
     public struct LooselyLinkedResourceReference {
         private String _manifestResourceName;
         private String _typeName;
@@ -35,13 +35,13 @@ namespace System.Resources {
         public LooselyLinkedResourceReference(String looselyLinkedResourceName, String typeName)
         {
             if (looselyLinkedResourceName == null)
-                throw new ArgumentNullException("looselyLinkedResourceName");
+                throw new ArgumentNullException(nameof(looselyLinkedResourceName));
             if (typeName == null)
-                throw new ArgumentNullException("typeName");
+                throw new ArgumentNullException(nameof(typeName));
             if (looselyLinkedResourceName.Length == 0)
-                throw new ArgumentException(Environment.GetResourceString("Argument_EmptyName"), "looselyLinkedResourceName");
+                throw new ArgumentException(Environment.GetResourceString("Argument_EmptyName"), nameof(looselyLinkedResourceName));
             if (typeName.Length == 0)
-                throw new ArgumentException(Environment.GetResourceString("Argument_EmptyName"), "typeName");
+                throw new ArgumentException(Environment.GetResourceString("Argument_EmptyName"), nameof(typeName));
             Contract.EndContractBlock();
             
             _manifestResourceName = looselyLinkedResourceName;
@@ -59,7 +59,7 @@ namespace System.Resources {
         public Object Resolve(Assembly assembly)
         {
             if (assembly == null)
-                throw new ArgumentNullException("assembly");
+                throw new ArgumentNullException(nameof(assembly));
             Contract.EndContractBlock();
 
             Stream data = assembly.GetManifestResourceStream(_manifestResourceName);

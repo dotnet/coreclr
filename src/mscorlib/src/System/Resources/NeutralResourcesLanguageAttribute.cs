@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*============================================================
 **
@@ -20,13 +21,13 @@
 ** through an internal runtime call.
 ===========================================================*/
 
-namespace System.Resources {
-    using System;
-    using System.Diagnostics.Contracts;
-    
-    [AttributeUsage(AttributeTargets.Assembly, AllowMultiple=false)]  
-    [System.Runtime.InteropServices.ComVisible(true)]
-    public sealed class NeutralResourcesLanguageAttribute : Attribute 
+using System;
+using System.Diagnostics.Contracts;
+
+namespace System.Resources
+{
+    [AttributeUsage(AttributeTargets.Assembly, AllowMultiple = false)]
+    public sealed class NeutralResourcesLanguageAttribute : Attribute
     {
         private String _culture;
         private UltimateResourceFallbackLocation _fallbackLoc;
@@ -34,7 +35,7 @@ namespace System.Resources {
         public NeutralResourcesLanguageAttribute(String cultureName)
         {
             if (cultureName == null)
-                throw new ArgumentNullException("cultureName");
+                throw new ArgumentNullException(nameof(cultureName));
             Contract.EndContractBlock();
 
             _culture = cultureName;
@@ -44,7 +45,7 @@ namespace System.Resources {
         public NeutralResourcesLanguageAttribute(String cultureName, UltimateResourceFallbackLocation location)
         {
             if (cultureName == null)
-                throw new ArgumentNullException("cultureName");
+                throw new ArgumentNullException(nameof(cultureName));
             if (!Enum.IsDefined(typeof(UltimateResourceFallbackLocation), location))
                 throw new ArgumentException(Environment.GetResourceString("Arg_InvalidNeutralResourcesLanguage_FallbackLoc", location));
             Contract.EndContractBlock();
@@ -53,11 +54,13 @@ namespace System.Resources {
             _fallbackLoc = location;
         }
 
-        public String CultureName {
+        public String CultureName
+        {
             get { return _culture; }
         }
 
-        public UltimateResourceFallbackLocation Location {
+        public UltimateResourceFallbackLocation Location
+        {
             get { return _fallbackLoc; }
         }
     }

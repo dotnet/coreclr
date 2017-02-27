@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*============================================================
 **
@@ -11,11 +12,12 @@
 **   Used by C# with this syntax: "fixed int buffer[10];"
 **
 ===========================================================*/
+
 using System;
 
 namespace System.Runtime.CompilerServices
 {
-    [AttributeUsage(AttributeTargets.Field, Inherited=false)]
+    [AttributeUsage(AttributeTargets.Field, Inherited = false)]
     public sealed class FixedBufferAttribute : Attribute
     {
         private Type elementType;
@@ -27,14 +29,18 @@ namespace System.Runtime.CompilerServices
             this.length = length;
         }
 
-        public Type ElementType {
-            get {
+        public Type ElementType
+        {
+            get
+            {
                 return elementType;
             }
         }
 
-        public int Length {
-            get {
+        public int Length
+        {
+            get
+            {
                 return length;
             }
         }

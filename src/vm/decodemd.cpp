@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 
 
@@ -73,7 +72,7 @@ const BYTE decoded_10[2] = {10, END_DECODED };
 #define DOING_BITS (MAX_HEADER+1)
 #define DECODING_BITS(partial, got, header) (DOING_BITS+(partial<<8)+(got<<16)+(header<<24))
 #define DECODING_ERROR ((unsigned) -1)
-#define MASK(len) (~((~0)<<len))
+#define MASK(len) (~(~0u <<len))
 #define MASK64(len) ((~((~((unsigned __int64)0))<<len)))
 #define BITS_PER_BYTE (sizeof(BYTE)*8)
 

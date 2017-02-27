@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information. 
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*++
 
@@ -24,10 +23,9 @@ Revision History:
 #include "pal/palinternal.h"
 #include "pal/dbgmsg.h"
 #include "pal/file.h"
+#include "pal/stackstring.hpp"
 
-#if HAVE_ALLOCA_H
-#include <alloca.h>
-#endif  // HAVE_ALLOCA_H
+#include <stdlib.h>
 #include <sys/param.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -127,7 +125,7 @@ Return Value:
 static
 BOOL
 RemoveDirectoryHelper (
-    LPSTR lpPathName,
+    PathCharString& lpPathName,
     LPDWORD dwLastError
 )
 {
@@ -135,16 +133,11 @@ RemoveDirectoryHelper (
     *dwLastError = 0; 
 
     FILEDosToUnixPathA( lpPathName );
-    if ( !FILEGetFileNameFromSymLink(lpPathName))
-    {
-        FILEGetProperNotFoundError( lpPathName, dwLastError );
-        goto done;
-    }
 
     if ( rmdir(lpPathName) != 0 )
     {
         TRACE("Removal of directory [%s] was unsuccessful, errno = %d.\n",
-              lpPathName, errno);
+              lpPathName.GetString(), errno);
 
         switch( errno )
         {
@@ -174,11 +167,10 @@ RemoveDirectoryHelper (
         }
     }
     else {
-        TRACE("Removal of directory [%s] was successful.\n", lpPathName);
+        TRACE("Removal of directory [%s] was successful.\n", lpPathName.GetString());
         bRet = TRUE;
     }
 
-done:
     return bRet;
 }
 
@@ -195,8 +187,8 @@ RemoveDirectoryA(
 {
     DWORD dwLastError = 0;
     BOOL  bRet = FALSE;
-    char  mb_dir[MAX_PATH];
-
+    PathCharString mb_dirPathString;
+    
     PERF_ENTRY(RemoveDirectoryA);
     ENTRY("RemoveDirectoryA(lpPathName=%p (%s))\n",
           lpPathName,
@@ -208,14 +200,14 @@ RemoveDirectoryA(
         goto done;
     }
 
-    mb_dir[MAX_PATH - 1] = '\0';
-    if (strncpy_s (mb_dir, sizeof(mb_dir), lpPathName, MAX_PATH) != SAFECRT_SUCCESS)
+    if (!mb_dirPathString.Set(lpPathName, strlen(lpPathName)))
     {
-        dwLastError = ERROR_FILENAME_EXCED_RANGE;
+        WARN("Set failed !\n");
+        dwLastError = ERROR_NOT_ENOUGH_MEMORY;
         goto done;
     }
 
-    bRet = RemoveDirectoryHelper (mb_dir, &dwLastError);
+    bRet = RemoveDirectoryHelper (mb_dirPathString, &dwLastError);
 
 done:
     if( dwLastError )
@@ -239,10 +231,12 @@ PALAPI
 RemoveDirectoryW(
          IN LPCWSTR lpPathName)
 {
-    char  mb_dir[MAX_PATH];
+    PathCharString mb_dirPathString;
     int   mb_size;
     DWORD dwLastError = 0;
     BOOL  bRet = FALSE;
+    size_t length;
+    char * mb_dir = NULL;
 
     PERF_ENTRY(RemoveDirectoryW);
     ENTRY("RemoveDirectoryW(lpPathName=%p (%S))\n",
@@ -254,26 +248,29 @@ RemoveDirectoryW(
         dwLastError = ERROR_PATH_NOT_FOUND;
         goto done;
     }
-    
-    mb_size = WideCharToMultiByte( CP_ACP, 0, lpPathName, -1, mb_dir, MAX_PATH,
-                                   NULL, NULL );
-    if( mb_size == 0 )
+
+    length = (PAL_wcslen(lpPathName)+1) * 3;
+    mb_dir = mb_dirPathString.OpenStringBuffer(length);
+    if (NULL == mb_dir)
     {
-        dwLastError = GetLastError();
-        if( dwLastError == ERROR_INSUFFICIENT_BUFFER )
-        {
-            WARN("lpPathName is larger than MAX_PATH (%d)!\n", MAX_PATH);
-            dwLastError = ERROR_FILENAME_EXCED_RANGE;
-        }
-        else
-        {
-            ASSERT("WideCharToMultiByte failure! error is %d\n", dwLastError);
-            dwLastError = ERROR_INTERNAL_ERROR;
-        }
-        goto done;
+        dwLastError = ERROR_NOT_ENOUGH_MEMORY;
+        goto done;        
     }
 
-    if ((bRet = RemoveDirectoryHelper (mb_dir, &dwLastError)))
+    mb_size = WideCharToMultiByte( CP_ACP, 0, lpPathName, -1, mb_dir, length,
+                                   NULL, NULL );
+
+    if( mb_size == 0 )
+    {
+        mb_dirPathString.CloseBuffer(0);
+        ASSERT("WideCharToMultiByte failure! error is %d\n", dwLastError);
+        dwLastError = ERROR_INTERNAL_ERROR;
+        goto done;
+    }
+    
+    mb_dirPathString.CloseBuffer(mb_size - 1);
+
+    if ((bRet = RemoveDirectoryHelper (mb_dirPathString, &dwLastError)))
     {
         TRACE("Removal of directory [%s] was successful.\n", mb_dir);
     }
@@ -294,13 +291,9 @@ done:
 Function:
   GetCurrentDirectoryA
 
-See MSDN doc.
 --*/
 DWORD
-PALAPI
-GetCurrentDirectoryA(
-             IN DWORD nBufferLength,
-             OUT LPSTR lpBuffer)
+GetCurrentDirectoryA(PathCharString& lpBuffer)
 {
     DWORD dwDirLen = 0;
     DWORD dwLastError = 0;
@@ -308,34 +301,36 @@ GetCurrentDirectoryA(
     char  *current_dir;
 
     PERF_ENTRY(GetCurrentDirectoryA);
-    ENTRY("GetCurrentDirectoryA(nBufferLength=%u, lpBuffer=%p)\n", nBufferLength, lpBuffer);
+    ENTRY("GetCurrentDirectoryA(lpBuffer=%p)\n", lpBuffer.GetString());
 
+    current_dir = lpBuffer.OpenStringBuffer(MAX_PATH);
     /* NULL first arg means getcwd will allocate the string */
-    current_dir = PAL__getcwd( NULL, MAX_PATH + 1 );
+    current_dir = PAL__getcwd( current_dir, MAX_PATH);
+
+    if (current_dir != NULL )
+    {
+        dwDirLen = strlen( current_dir );
+        lpBuffer.CloseBuffer(dwDirLen);
+        goto done;
+    }
+    else if ( errno == ERANGE )
+    {
+        lpBuffer.CloseBuffer(0);
+        current_dir = PAL__getcwd( NULL, 0);
+    }
 
     if ( !current_dir )
     {
-        WARN( "PAL__getcwd returned NULL\n" );
+        WARN("Getcwd failed with errno=%d [%s]\n", errno, strerror(errno));
         dwLastError = DIRGetLastErrorFromErrno();
+        dwDirLen = 0;
         goto done;
     }
 
     dwDirLen = strlen( current_dir );
-
-    /* if the supplied buffer isn't long enough, return the required
-       length, including room for the NULL terminator */
-    if ( nBufferLength <= dwDirLen )
-    {
-        ++dwDirLen; /* include space for the NULL */
-        goto done;
-    }
-    else
-    {
-        strcpy_s( lpBuffer, nBufferLength, current_dir );
-    }
-
+    lpBuffer.Set(current_dir, dwDirLen);
+    PAL_free(current_dir);
 done:
-    PAL_free( current_dir );
 
     if ( dwLastError )
     {
@@ -347,6 +342,35 @@ done:
     return dwDirLen;
 }
 
+/*++
+Function:
+  GetCurrentDirectoryA
+
+See MSDN doc.
+--*/
+DWORD
+PALAPI
+GetCurrentDirectoryA(
+             IN DWORD nBufferLength,
+             OUT LPSTR lpBuffer)
+{
+
+    PathCharString lpBufferString;
+    DWORD dwDirLen = GetCurrentDirectoryA(lpBufferString);
+
+    /* if the supplied buffer isn't long enough, return the required
+       length, including room for the NULL terminator */
+    if ( nBufferLength <= dwDirLen )
+    {
+        ++dwDirLen; /* include space for the NULL */
+    }
+    else
+    {
+        strcpy_s( lpBuffer, nBufferLength, lpBufferString );
+    }
+
+    return dwDirLen;
+}
 
 /*++
 Function:
@@ -361,25 +385,23 @@ GetCurrentDirectoryW(
              OUT LPWSTR lpBuffer)
 {
     DWORD dwWideLen = 0;
-    DWORD dwLastError = 0;
-
-    char  *current_dir;
+    DWORD dwLastError = ERROR_BAD_PATHNAME;
     int   dir_len;
+    PathCharString  current_dir;
 
     PERF_ENTRY(GetCurrentDirectoryW);
     ENTRY("GetCurrentDirectoryW(nBufferLength=%u, lpBuffer=%p)\n",
           nBufferLength, lpBuffer);
 
-    current_dir = PAL__getcwd( NULL, MAX_PATH + 1 );
 
-    if ( !current_dir )
+    dir_len = GetCurrentDirectoryA(current_dir);
+
+    if( dir_len == 0)
     {
-        WARN( "PAL__getcwd returned NULL\n" );
         dwLastError = DIRGetLastErrorFromErrno();
         goto done;
     }
 
-    dir_len = strlen( current_dir );
     dwWideLen = MultiByteToWideChar( CP_ACP, 0,
                  current_dir, dir_len,
                  NULL, 0 );
@@ -398,11 +420,10 @@ GetCurrentDirectoryW(
     }
     else
     {
-        ++dwWideLen; /* include space for the NULL */
+        ++dwWideLen; /* include the  space for the NULL */
     }
 
 done:
-    PAL_free( current_dir );
 
     if ( dwLastError )
     {
@@ -428,9 +449,11 @@ SetCurrentDirectoryW(
 {
     BOOL bRet;
     DWORD dwLastError = 0;
-    char dir[MAX_PATH];
+    PathCharString dirPathString;
     int  size;
-
+    size_t length;
+    char * dir = NULL;
+    
     PERF_ENTRY(SetCurrentDirectoryW);
     ENTRY("SetCurrentDirectoryW(lpPathName=%p (%S))\n",
           lpPathName?lpPathName:W16_NULLSTRING,
@@ -446,25 +469,29 @@ SetCurrentDirectoryW(
         goto done;
     }
 
-    size = WideCharToMultiByte( CP_ACP, 0, lpPathName, -1, dir, MAX_PATH,
+    length = (PAL_wcslen(lpPathName)+1) * 3;
+    dir = dirPathString.OpenStringBuffer(length);
+    if (NULL == dir)
+    {
+        dwLastError = ERROR_NOT_ENOUGH_MEMORY;
+        bRet = FALSE;
+        goto done;
+    }
+    
+    size = WideCharToMultiByte( CP_ACP, 0, lpPathName, -1, dir, length,
                                 NULL, NULL );
+    
     if( size == 0 )
     {
+        dirPathString.CloseBuffer(0);
         dwLastError = GetLastError();
-        if( dwLastError == ERROR_INSUFFICIENT_BUFFER )
-        {
-            WARN("lpPathName is larger than MAX_PATH (%d)!\n", MAX_PATH);
-            dwLastError = ERROR_FILENAME_EXCED_RANGE;
-        }
-        else
-        {
-            ASSERT("WideCharToMultiByte failure! error is %d\n", dwLastError);
-            dwLastError = ERROR_INTERNAL_ERROR;
-        }
+        ASSERT("WideCharToMultiByte failure! error is %d\n", dwLastError);
+        dwLastError = ERROR_INTERNAL_ERROR;
         bRet = FALSE;
         goto done;
     }
 
+    dirPathString.CloseBuffer(size - 1);
     bRet = SetCurrentDirectoryA(dir);
 done:
     if( dwLastError )
@@ -494,8 +521,9 @@ CreateDirectoryA(
 {
     BOOL  bRet = FALSE;
     DWORD dwLastError = 0;
-    char *realPath;
-    LPSTR UnixPathName = NULL;
+    PathCharString realPath;
+    char* realPathBuf;
+    LPSTR unixPathName = NULL;
     int pathLength;
     int i;
     const int mode = S_IRWXU | S_IRWXG | S_IRWXO;
@@ -521,23 +549,23 @@ CreateDirectoryA(
         goto done;
     }
 
-    UnixPathName = PAL__strdup(lpPathName);
-    if (UnixPathName == NULL )
+    unixPathName = PAL__strdup(lpPathName);
+    if (unixPathName == NULL )
     {
         ERROR("PAL__strdup() failed\n");
         dwLastError = ERROR_NOT_ENOUGH_MEMORY;
         goto done;
     }
-    FILEDosToUnixPathA( UnixPathName );
+    FILEDosToUnixPathA( unixPathName );
     // Remove any trailing slashes at the end because mkdir might not
     // handle them appropriately on all platforms.
-    pathLength = strlen(UnixPathName);
+    pathLength = strlen(unixPathName);
     i = pathLength;
     while(i > 1)
     {
-        if(UnixPathName[i - 1] =='/')
+        if(unixPathName[i - 1] =='/')
         {
-            UnixPathName[i - 1]='\0';
+            unixPathName[i - 1]='\0';
             i--;
         }
         else
@@ -546,52 +574,42 @@ CreateDirectoryA(
         }
     }
 
-    // Check the constraint for the real path length (should be < MAX_PATH).
 
     // Get an absolute path.
-    if (UnixPathName[0] == '/')
+    if (unixPathName[0] == '/')
     {
-        realPath = UnixPathName;
+        realPathBuf = unixPathName;
     }
     else
     {
-        const char *cwd = PAL__getcwd(NULL, MAX_PATH);        
-        if (NULL == cwd)
+
+        DWORD len = GetCurrentDirectoryA(realPath);
+        if (len == 0 || !realPath.Reserve(realPath.GetCount() + pathLength + 1 ))
         {
-            WARN("Getcwd failed with errno=%d [%s]\n", errno, strerror(errno));
             dwLastError = DIRGetLastErrorFromErrno();
+            WARN("Getcwd failed with errno=%d \n", dwLastError);
             goto done;
         }
 
-        // Copy cwd, '/', path
-        int iLen = strlen(cwd) + 1 + pathLength + 1;
-        realPath = static_cast<char *>(alloca(iLen));
-        sprintf_s(realPath, iLen, "%s/%s", cwd, UnixPathName);
-
-        PAL_free((char *)cwd);
+        realPath.Append("/", 1);
+        realPath.Append(unixPathName, pathLength);
+        realPathBuf = realPath.OpenStringBuffer(realPath.GetCount());
     }
-    
+   
     // Canonicalize the path so we can determine its length.
-    FILECanonicalizePath(realPath);
+    FILECanonicalizePath(realPathBuf);
 
-    if (strlen(realPath) >= MAX_PATH)
-    {
-        WARN("UnixPathName is larger than MAX_PATH (%d)!\n", MAX_PATH);
-        dwLastError = ERROR_FILENAME_EXCED_RANGE;
-        goto done;
-    }
-
-    if ( mkdir(realPath, mode) != 0 )
+    if ( mkdir(realPathBuf, mode) != 0 )
     {
         TRACE("Creation of directory [%s] was unsuccessful, errno = %d.\n",
-              UnixPathName, errno);
+              unixPathName, errno);
 
         switch( errno )
         {
         case ENOTDIR:
             /* FALL THROUGH */
         case ENOENT:
-            FILEGetProperNotFoundError( realPath, &dwLastError );
+            FILEGetProperNotFoundError( realPathBuf, &dwLastError );
             goto done;
         case EEXIST:
             dwLastError = ERROR_ALREADY_EXISTS;
@@ -602,16 +620,17 @@ CreateDirectoryA(
     }
     else
     {
-        TRACE("Creation of directory [%s] was successful.\n", UnixPathName);
+        TRACE("Creation of directory [%s] was successful.\n", unixPathName);
         bRet = TRUE;
     }
 
+    realPath.CloseBuffer(0); //The PathCharString usage is done
 done:
     if( dwLastError )
     {
         SetLastError( dwLastError );
     }
-    PAL_free( UnixPathName );
+    PAL_free( unixPathName );
     LOGEXIT("CreateDirectoryA returns BOOL %d\n", bRet);
     PERF_EXIT(CreateDirectoryA);
     return bRet;
@@ -631,7 +650,7 @@ SetCurrentDirectoryA(
     BOOL bRet = FALSE;
     DWORD dwLastError = 0;
     int result;
-    LPSTR UnixPathName = NULL;
+    LPSTR unixPathName = NULL;
 
     PERF_ENTRY(SetCurrentDirectoryA);
     ENTRY("SetCurrentDirectoryA(lpPathName=%p (%s))\n",
@@ -646,24 +665,18 @@ SetCurrentDirectoryA(
         dwLastError = ERROR_INVALID_NAME;
         goto done;
     }
-    if (strlen(lpPathName) >= MAX_PATH)
-    {
-        WARN("Path/directory name longer than MAX_PATH characters\n");
-        dwLastError = ERROR_FILENAME_EXCED_RANGE;
-        goto done;
-    }
 
-    UnixPathName = PAL__strdup(lpPathName);
-    if (UnixPathName == NULL )
+    unixPathName = PAL__strdup(lpPathName);
+    if (unixPathName == NULL )
     {
         ERROR("PAL__strdup() failed\n");
         dwLastError = ERROR_NOT_ENOUGH_MEMORY;
         goto done;
     }
-    FILEDosToUnixPathA( UnixPathName );
+    FILEDosToUnixPathA( unixPathName );
 
-    TRACE("Attempting to open Unix dir [%s]\n", UnixPathName);
-    result = chdir(UnixPathName);
+    TRACE("Attempting to open Unix dir [%s]\n", unixPathName);
+    result = chdir(unixPathName);
 
     if ( result == 0 )
     {
@@ -675,7 +688,7 @@ SetCurrentDirectoryA(
         {
             struct stat stat_data;
 
-            if ( stat( UnixPathName, &stat_data) == 0 &&
+            if ( stat( unixPathName, &stat_data) == 0 &&
                  (stat_data.st_mode & S_IFMT) == S_IFREG )
             {
                 /* Not a directory, it is a file. */
@@ -683,7 +696,7 @@ SetCurrentDirectoryA(
             }
             else
             {
-                FILEGetProperNotFoundError( UnixPathName, &dwLastError );
+                FILEGetProperNotFoundError( unixPathName, &dwLastError );
             }
             TRACE("chdir() failed, path was invalid.\n");
         }
@@ -701,9 +714,9 @@ done:
         SetLastError(dwLastError);
     }
 
-    if(UnixPathName != NULL)
+    if(unixPathName != NULL)
     {
-        PAL_free( UnixPathName );
+        PAL_free( unixPathName );
     }
 
     LOGEXIT("SetCurrentDirectoryA returns BOOL %d\n", bRet);

@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //*****************************************************************************
 // ShimDataTarget.h
 // 
@@ -21,9 +20,11 @@ typedef HRESULT (*FPContinueStatusChanged)(void * pUserData, DWORD dwThreadId, C
 //---------------------------------------------------------------------------------------
 // Data target for a live process. This is used by Shim. 
 // 
-class ShimDataTarget : public ICorDebugMutableDataTarget
+class ShimDataTarget : public ICorDebugMutableDataTarget, ICorDebugDataTarget4
 {
 public:
+    virtual ~ShimDataTarget() {}
+
     // Allow hooking an implementation for ContinueStatusChanged.
     void HookContinueStatusChanged(FPContinueStatusChanged fpContinueStatusChanged, void * pUserData);
 
@@ -82,6 +83,14 @@ public:
         CORDB_CONTINUE_STATUS dwContinueStatus) = 0;
 
     // @dbgtodo - add Native Patch Table support
+
+    //
+    // ICorDebugDataTarget4
+    //    
+
+    // Unwind to the next stack frame
+    virtual HRESULT STDMETHODCALLTYPE VirtualUnwind(
+        DWORD threadId, ULONG32 contextSize, PBYTE context) = 0;
 
 protected:
     // Pid of the target process.

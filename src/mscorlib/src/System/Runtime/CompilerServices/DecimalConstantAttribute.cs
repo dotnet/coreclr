@@ -1,18 +1,19 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 
 // Note: If you add a new ctor overloads you need to update ParameterInfo.RawDefaultValue
 
 using System.Reflection;
+using System.Diagnostics;
 using System.Diagnostics.Contracts;
 using System.Collections.Generic;
 
 namespace System.Runtime.CompilerServices
 {
     [Serializable]
-    [AttributeUsage(AttributeTargets.Field | AttributeTargets.Parameter, Inherited=false)]
-    [System.Runtime.InteropServices.ComVisible(true)]
+    [AttributeUsage(AttributeTargets.Field | AttributeTargets.Parameter, Inherited = false)]
     public sealed class DecimalConstantAttribute : Attribute
     {
         [CLSCompliant(false)]
@@ -24,7 +25,7 @@ namespace System.Runtime.CompilerServices
             uint low
         )
         {
-            dec = new System.Decimal((int) low, (int)mid, (int)hi, (sign != 0), scale);
+            dec = new System.Decimal((int)low, (int)mid, (int)hi, (sign != 0), scale);
         }
 
         public DecimalConstantAttribute(
@@ -56,16 +57,16 @@ namespace System.Runtime.CompilerServices
                 if (namedArgument.MemberInfo.Name.Equals("Value"))
                 {
                     // This is not possible because Decimal cannot be represented directly in the metadata.
-                    Contract.Assert(false, "Decimal cannot be represented directly in the metadata.");
+                    Debug.Assert(false, "Decimal cannot be represented directly in the metadata.");
                     return (Decimal)namedArgument.TypedValue.Value;
                 }
             }
 
             ParameterInfo[] parameters = attr.Constructor.GetParameters();
-            Contract.Assert(parameters.Length == 5);
+            Debug.Assert(parameters.Length == 5);
 
             System.Collections.Generic.IList<CustomAttributeTypedArgument> args = attr.ConstructorArguments;
-            Contract.Assert(args.Count == 5);
+            Debug.Assert(args.Count == 5);
 
             if (parameters[2].ParameterType == typeof(uint))
             {

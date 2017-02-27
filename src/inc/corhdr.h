@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*****************************************************************************
  **                                                                         **
@@ -1078,7 +1077,7 @@ typedef enum CorNativeType
 
     NATIVE_TYPE_IINSPECTABLE = 0x2e,
     NATIVE_TYPE_HSTRING     = 0x2f,
-
+    NATIVE_TYPE_LPUTF8STR   = 0x30, // utf-8 string
     NATIVE_TYPE_MAX         = 0x50, // first invalid element type
 } CorNativeType;
 
@@ -1703,7 +1702,7 @@ typedef enum CorAttributeTargets
 #define INTEROP_COMIMPORT_TYPE                  "System.Runtime.InteropServices.ComImportAttribute"
 #define INTEROP_COMIMPORT_SIG                   {IMAGE_CEE_CS_CALLCONV_DEFAULT_HASTHIS, 0, ELEMENT_TYPE_VOID}
 
-#define INTEROP_GUID_TYPE_W                     L"System.Runtime.InteropServices.GuidAttribute"
+#define INTEROP_GUID_TYPE_W                     W("System.Runtime.InteropServices.GuidAttribute")
 #define INTEROP_GUID_TYPE                       "System.Runtime.InteropServices.GuidAttribute"
 #define INTEROP_GUID_SIG                        {IMAGE_CEE_CS_CALLCONV_DEFAULT_HASTHIS, 1, ELEMENT_TYPE_VOID, ELEMENT_TYPE_STRING}
 

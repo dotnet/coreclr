@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //*****************************************************************************
 // MetaModelRW.cpp
 // 
@@ -4318,11 +4317,6 @@ CMiniMdRW::SaveHotPoolsToStream(
     UINT32                   *pnPoolDirSize, 
     UINT32                   *pnHeapsSavedSize)
 {
-// @todo: Triton workaround: FEATURE_METADATA_STANDALNE_WINRT_RO is supposed to disable FEATURE_PREJIT - remove this #if once we figure out how to get that working in the CoreClr build. 
-#ifdef FEATURE_METADATA_STANDALONE_WINRT_RO
-    _ASSERTE(!"SaveHotPoolsToStream: This method not supported in RoMetadata.dll");
-    return E_NOTIMPL;
-#else // FEATURE_METADATA_STANDALONE_WINRT_RO
     HRESULT hr = S_OK;
     UINT32  rgHeapSavedSize[MDPoolCount] = { 0, 0, 0, 0 };
     
@@ -4394,7 +4388,6 @@ CMiniMdRW::SaveHotPoolsToStream(
     }
     
     return S_OK;
-#endif //FEATURE_METADATA_STANDALONE_WINRT_RO
 } // CMiniMdRW::SaveHotPoolsToStream
 
 // write hot data of specific blob
@@ -4407,11 +4400,6 @@ CMiniMdRW::SaveHotPoolToStream(
     MetaData::HotHeapWriter *pHotHeapWriter, 
     UINT32                  *pnSavedSize)
 {
-// @todo: Triton workaround: FEATURE_METADATA_STANDALNE_WINRT_RO is supposed to disable FEATURE_PREJIT - remove this #if once we figure out how to get that working in the CoreClr build. 
-#ifdef FEATURE_METADATA_STANDALONE_WINRT_RO
-    _ASSERTE(!"SaveHotPoolToStream: This method not supported in RoMetadata.dll");
-    return E_NOTIMPL;
-#else //FEATURE_METADATA_STANDALONE_WINRT_RO
 
     _ASSERTE(pProfileData != NULL);
 
@@ -4436,7 +4424,6 @@ CMiniMdRW::SaveHotPoolToStream(
     }
     
     return S_OK;
-#endif // FEATURE_METADATA_STANDALONE_WINRT_RO
 } // CMiniMdRW::SaveHotPoolToStream
 
 #endif //FEATURE_PREJIT
@@ -8229,19 +8216,6 @@ CMiniMdRW::ResetENCLog()
     // Get the module record.
     IfFailGo(GetModuleRecord(1, &pMod));
     
-#ifndef FEATURE_CORECLR
-    if (CLRConfig::GetConfigValue(CLRConfig::INTERNAL_MD_UseMinimalDeltas))
-    {   // Update the ENC Guids
-        GUID encid;
-        // Copy EncId as BaseId.
-        ULONG uVal = GetCol(TBL_Module, ModuleRec::COL_EncId, pMod);
-        IfFailGo(PutCol(TBL_Module, ModuleRec::COL_EncBaseId, pMod, uVal));
-
-        // Allocate a new GUID for EncId.
-        IfFailGo(CoCreateGuid(&encid));
-        IfFailGo(PutGuid(TBL_Module, ModuleRec::COL_EncId, pMod, encid));
-    }
-#endif //!FEATURE_CORECLR
     
     // Reset the pool deltas
     m_StringHeap.StartNewEnCSession();

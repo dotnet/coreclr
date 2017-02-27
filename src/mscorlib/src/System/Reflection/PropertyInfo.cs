@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 // 
 
@@ -14,24 +15,16 @@ namespace System.Reflection
     using System.Runtime.ConstrainedExecution;
     using System.Runtime.InteropServices;
     using System.Runtime.Serialization;
-    using System.Security.Permissions;
     using System.Text;
     using RuntimeTypeCache = System.RuntimeType.RuntimeTypeCache;
 
     [Serializable]
-    [ClassInterface(ClassInterfaceType.None)]
-    [ComDefaultInterface(typeof(_PropertyInfo))]
-#pragma warning disable 618
-    [PermissionSetAttribute(SecurityAction.InheritanceDemand, Name = "FullTrust")]
-#pragma warning restore 618
-    [System.Runtime.InteropServices.ComVisible(true)]
-    public abstract class PropertyInfo : MemberInfo, _PropertyInfo
+    public abstract class PropertyInfo : MemberInfo
     {
         #region Constructor
         protected PropertyInfo() { }
         #endregion
 
-#if !FEATURE_CORECLR
         public static bool operator ==(PropertyInfo left, PropertyInfo right)
         {
             if (ReferenceEquals(left, right))
@@ -49,7 +42,6 @@ namespace System.Reflection
         {
             return !(left == right);
         }
-#endif // !FEATURE_CORECLR
 
         public override bool Equals(object obj)
         {
@@ -79,19 +71,19 @@ namespace System.Reflection
         public abstract Type PropertyType { get; }
 
         public abstract void SetValue(Object obj, Object value, BindingFlags invokeAttr, Binder binder, Object[] index, CultureInfo culture);
-        
+
         public abstract MethodInfo[] GetAccessors(bool nonPublic);
-        
+
         public abstract MethodInfo GetGetMethod(bool nonPublic);
-        
+
         public abstract MethodInfo GetSetMethod(bool nonPublic);
 
         public abstract ParameterInfo[] GetIndexParameters();
-            
+
         public abstract PropertyAttributes Attributes { get; }
 
         public abstract bool CanRead { get; }
-                                        
+
         public abstract bool CanWrite { get; }
 
         [DebuggerStepThroughAttribute]
@@ -103,7 +95,7 @@ namespace System.Reflection
 
         [DebuggerStepThroughAttribute]
         [Diagnostics.DebuggerHidden]
-        public virtual Object GetValue(Object obj,Object[] index)
+        public virtual Object GetValue(Object obj, Object[] index)
         {
             return GetValue(obj, BindingFlags.Default, null, index, null);
         }
@@ -152,37 +144,8 @@ namespace System.Reflection
 
         public MethodInfo GetSetMethod() { return GetSetMethod(false); }
 
-        public bool IsSpecialName { get { return(Attributes & PropertyAttributes.SpecialName) != 0; } }
+        public bool IsSpecialName { get { return (Attributes & PropertyAttributes.SpecialName) != 0; } }
         #endregion
-
-#if !FEATURE_CORECLR
-        Type _PropertyInfo.GetType()
-        {
-            return base.GetType();
-        }
-
-        void _PropertyInfo.GetTypeInfoCount(out uint pcTInfo)
-        {
-            throw new NotImplementedException();
-        }
-
-        void _PropertyInfo.GetTypeInfo(uint iTInfo, uint lcid, IntPtr ppTInfo)
-        {
-            throw new NotImplementedException();
-        }
-
-        void _PropertyInfo.GetIDsOfNames([In] ref Guid riid, IntPtr rgszNames, uint cNames, uint lcid, IntPtr rgDispId)
-        {
-            throw new NotImplementedException();
-        }
-
-        // If you implement this method, make sure to include _PropertyInfo.Invoke in VM\DangerousAPIs.h and 
-        // include _PropertyInfo in SystemDomain::IsReflectionInvocationMethod in AppDomain.cpp.
-        void _PropertyInfo.Invoke(uint dispIdMember, [In] ref Guid riid, uint lcid, short wFlags, IntPtr pDispParams, IntPtr pVarResult, IntPtr pExcepInfo, IntPtr puArgErr)
-        {
-            throw new NotImplementedException();
-        }
-#endif
     }
 
     [Serializable]
@@ -191,7 +154,6 @@ namespace System.Reflection
         #region Private Data Members
         private int m_token;
         private string m_name;
-        [System.Security.SecurityCritical]
         private void* m_utf8name;
         private PropertyAttributes m_flags;
         private RuntimeTypeCache m_reflectedTypeCache;
@@ -205,25 +167,24 @@ namespace System.Reflection
         #endregion
 
         #region Constructor
-        [System.Security.SecurityCritical]  // auto-generated
         internal RuntimePropertyInfo(
             int tkProperty, RuntimeType declaredType, RuntimeTypeCache reflectedTypeCache, out bool isPrivate)
         {
             Contract.Requires(declaredType != null);
             Contract.Requires(reflectedTypeCache != null);
-            Contract.Assert(!reflectedTypeCache.IsGlobal);
+            Debug.Assert(!reflectedTypeCache.IsGlobal);
 
             MetadataImport scope = declaredType.GetRuntimeModule().MetadataImport;
 
             m_token = tkProperty;
-            m_reflectedTypeCache = reflectedTypeCache;    
+            m_reflectedTypeCache = reflectedTypeCache;
             m_declaringType = declaredType;
 
             ConstArray sig;
             scope.GetPropertyProps(tkProperty, out m_utf8name, out m_flags, out sig);
 
             RuntimeMethodInfo dummy;
-            Associates.AssignAssociates(scope, tkProperty, declaredType, reflectedTypeCache.GetRuntimeType(), 
+            Associates.AssignAssociates(scope, tkProperty, declaredType, reflectedTypeCache.GetRuntimeType(),
                 out dummy, out dummy, out dummy,
                 out m_getterMethod, out m_setterMethod, out m_otherMethod,
                 out isPrivate, out m_bindingFlags);
@@ -231,7 +192,6 @@ namespace System.Reflection
         #endregion
 
         #region Internal Members
-        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
         internal override bool CacheEquals(object o)
         {
             RuntimePropertyInfo m = o as RuntimePropertyInfo;
@@ -246,7 +206,6 @@ namespace System.Reflection
 
         internal Signature Signature
         {
-            [System.Security.SecuritySafeCritical]  // auto-generated
             get
             {
                 if (m_signature == null)
@@ -294,52 +253,10 @@ namespace System.Reflection
             Contract.Requires(this != target);
             Contract.Requires(this.ReflectedType == target.ReflectedType);
 
-
-#if FEATURE_LEGACYNETCF
-            if (CompatibilitySwitches.IsAppEarlierThanWindowsPhone8)
-                return Signature.CompareSigForAppCompat(this.Signature, this.m_declaringType,
-                                                        target.Signature, target.m_declaringType);
-#endif
             return Signature.CompareSig(this.Signature, target.Signature);
         }
         internal BindingFlags BindingFlags { get { return m_bindingFlags; } }
         #endregion
-
-#if FEATURE_LEGACYNETCF
-        // BEGIN helper methods for Dev11 466969 quirk
-        internal bool HasMatchingAccessibility(RuntimePropertyInfo target)
-        {
-            Contract.Assert(CompatibilitySwitches.IsAppEarlierThanWindowsPhone8);
-            bool match = true;
-            
-            if (!IsMatchingAccessibility(this.GetGetMethod(true), target.GetGetMethod(true)))
-            {
-                match = false;
-            }
-            else if (!IsMatchingAccessibility(this.GetSetMethod(true), target.GetSetMethod(true)))
-            {
-                match = false;
-            }
-
-            return match;
-        }
-
-        private bool IsMatchingAccessibility(MethodInfo lhsInfo, MethodInfo rhsInfo)
-        {
-            if (lhsInfo != null && rhsInfo != null)
-            {
-                return lhsInfo.IsPublic == rhsInfo.IsPublic;
-            }
-            else
-            {
-                // don't be tempted to return false here!  we only want to introduce
-                // the quirk behavior when we know that the accessibility is different.
-                // in all other cases return true so the code works as before.
-                return true;
-            }
-        }
-        // END helper methods for Dev11 466969 quirk
-#endif
 
         #region Object Overrides
         public override String ToString()
@@ -375,28 +292,27 @@ namespace System.Reflection
         public override Object[] GetCustomAttributes(Type attributeType, bool inherit)
         {
             if (attributeType == null)
-                throw new ArgumentNullException("attributeType");
+                throw new ArgumentNullException(nameof(attributeType));
             Contract.EndContractBlock();
 
             RuntimeType attributeRuntimeType = attributeType.UnderlyingSystemType as RuntimeType;
 
-            if (attributeRuntimeType == null) 
-                throw new ArgumentException(Environment.GetResourceString("Arg_MustBeType"),"attributeType");
+            if (attributeRuntimeType == null)
+                throw new ArgumentException(Environment.GetResourceString("Arg_MustBeType"), nameof(attributeType));
 
             return CustomAttribute.GetCustomAttributes(this, attributeRuntimeType);
         }
 
-        [System.Security.SecuritySafeCritical]  // auto-generated
         public override bool IsDefined(Type attributeType, bool inherit)
         {
             if (attributeType == null)
-                throw new ArgumentNullException("attributeType");
+                throw new ArgumentNullException(nameof(attributeType));
             Contract.EndContractBlock();
 
             RuntimeType attributeRuntimeType = attributeType.UnderlyingSystemType as RuntimeType;
 
-            if (attributeRuntimeType == null) 
-                throw new ArgumentException(Environment.GetResourceString("Arg_MustBeType"),"attributeType");
+            if (attributeRuntimeType == null)
+                throw new ArgumentException(Environment.GetResourceString("Arg_MustBeType"), nameof(attributeType));
 
             return CustomAttribute.IsDefined(this, attributeRuntimeType);
         }
@@ -409,22 +325,21 @@ namespace System.Reflection
 
         #region MemberInfo Overrides
         public override MemberTypes MemberType { get { return MemberTypes.Property; } }
-        public override String Name 
+        public override String Name
         {
-            [System.Security.SecuritySafeCritical]  // auto-generated
-            get 
+            get
             {
                 if (m_name == null)
                     m_name = new Utf8String(m_utf8name).ToString();
-                
-                return m_name; 
-            } 
+
+                return m_name;
+            }
         }
-        public override Type DeclaringType 
-        { 
-            get 
-            { 
-                return m_declaringType; 
+        public override Type DeclaringType
+        {
+            get
+            {
+                return m_declaringType;
             }
         }
 
@@ -443,9 +358,9 @@ namespace System.Reflection
                 return m_reflectedTypeCache.GetRuntimeType();
             }
         }
-       
+
         public override int MetadataToken { get { return m_token; } }
-        
+
         public override Module Module { get { return GetRuntimeModule(); } }
         internal RuntimeModule GetRuntimeModule() { return m_declaringType.GetRuntimeModule(); }
         #endregion
@@ -458,29 +373,28 @@ namespace System.Reflection
         {
             return Signature.GetCustomModifiers(0, true);
         }
-        
+
         public override Type[] GetOptionalCustomModifiers()
         {
             return Signature.GetCustomModifiers(0, false);
         }
 
-        [System.Security.SecuritySafeCritical]  // auto-generated
         internal object GetConstantValue(bool raw)
         {
             Object defaultValue = MdConstant.GetValue(GetRuntimeModule().MetadataImport, m_token, PropertyType.GetTypeHandleInternal(), raw);
-        
+
             if (defaultValue == DBNull.Value)
                 // Arg_EnumLitValueNotFound -> "Literal value was not found."
                 throw new InvalidOperationException(Environment.GetResourceString("Arg_EnumLitValueNotFound"));
-        
+
             return defaultValue;
         }
-            
+
         public override object GetConstantValue() { return GetConstantValue(false); }
 
         public override object GetRawConstantValue() { return GetConstantValue(true); }
 
-        public override MethodInfo[] GetAccessors(bool nonPublic) 
+        public override MethodInfo[] GetAccessors(bool nonPublic)
         {
             List<MethodInfo> accessorList = new List<MethodInfo>();
 
@@ -492,7 +406,7 @@ namespace System.Reflection
 
             if ((object)m_otherMethod != null)
             {
-                for(int i = 0; i < m_otherMethod.Length; i ++)
+                for (int i = 0; i < m_otherMethod.Length; i++)
                 {
                     if (Associates.IncludeAccessor(m_otherMethod[i] as MethodInfo, nonPublic))
                         accessorList.Add(m_otherMethod[i]);
@@ -501,12 +415,12 @@ namespace System.Reflection
             return accessorList.ToArray();
         }
 
-        public override Type PropertyType 
+        public override Type PropertyType
         {
             get { return Signature.ReturnType; }
         }
 
-        public override MethodInfo GetGetMethod(bool nonPublic) 
+        public override MethodInfo GetGetMethod(bool nonPublic)
         {
             if (!Associates.IncludeAccessor(m_getterMethod, nonPublic))
                 return null;
@@ -514,7 +428,7 @@ namespace System.Reflection
             return m_getterMethod;
         }
 
-        public override MethodInfo GetSetMethod(bool nonPublic) 
+        public override MethodInfo GetSetMethod(bool nonPublic)
         {
             if (!Associates.IncludeAccessor(m_setterMethod, nonPublic))
                 return null;
@@ -522,7 +436,7 @@ namespace System.Reflection
             return m_setterMethod;
         }
 
-        public override ParameterInfo[] GetIndexParameters() 
+        public override ParameterInfo[] GetIndexParameters()
         {
             ParameterInfo[] indexParams = GetIndexParametersNoCopy();
 
@@ -582,7 +496,7 @@ namespace System.Reflection
             return m_parameters;
         }
 
-        public override PropertyAttributes Attributes 
+        public override PropertyAttributes Attributes
         {
             get
             {
@@ -590,7 +504,7 @@ namespace System.Reflection
             }
         }
 
-        public override bool CanRead 
+        public override bool CanRead
         {
             get
             {
@@ -598,7 +512,7 @@ namespace System.Reflection
             }
         }
 
-        public override bool CanWrite 
+        public override bool CanWrite
         {
             get
             {
@@ -610,21 +524,20 @@ namespace System.Reflection
         #region Dynamic
         [DebuggerStepThroughAttribute]
         [Diagnostics.DebuggerHidden]
-        public override Object GetValue(Object obj,Object[] index) 
+        public override Object GetValue(Object obj, Object[] index)
         {
-            return GetValue(obj, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static, 
+            return GetValue(obj, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static,
                 null, index, null);
         }
 
         [DebuggerStepThroughAttribute]
         [Diagnostics.DebuggerHidden]
-        public override Object GetValue(Object obj, BindingFlags invokeAttr, Binder binder, Object[] index, CultureInfo culture) 
+        public override Object GetValue(Object obj, BindingFlags invokeAttr, Binder binder, Object[] index, CultureInfo culture)
         {
-            
             MethodInfo m = GetGetMethod(true);
             if (m == null)
                 throw new ArgumentException(System.Environment.GetResourceString("Arg_GetMethNotFnd"));
-            return m.Invoke(obj, invokeAttr, binder, index, null); 
+            return m.Invoke(obj, invokeAttr, binder, index, null);
         }
 
         [DebuggerStepThroughAttribute]
@@ -633,9 +546,9 @@ namespace System.Reflection
         {
             SetValue(obj,
                     value,
-                    BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static, 
-                    null, 
-                    index, 
+                    BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static,
+                    null,
+                    index,
                     null);
         }
 
@@ -643,7 +556,6 @@ namespace System.Reflection
         [Diagnostics.DebuggerHidden]
         public override void SetValue(Object obj, Object value, BindingFlags invokeAttr, Binder binder, Object[] index, CultureInfo culture)
         {
-             
             MethodInfo m = GetSetMethod(true);
 
             if (m == null)
@@ -651,16 +563,16 @@ namespace System.Reflection
 
             Object[] args = null;
 
-            if (index != null) 
+            if (index != null)
             {
                 args = new Object[index.Length + 1];
 
-                for(int i=0;i<index.Length;i++)
+                for (int i = 0; i < index.Length; i++)
                     args[i] = index[i];
 
                 args[index.Length] = value;
             }
-            else 
+            else
             {
                 args = new Object[1];
                 args[0] = value;
@@ -673,11 +585,10 @@ namespace System.Reflection
         #endregion
 
         #region ISerializable Implementation
-        [System.Security.SecurityCritical]  // auto-generated
         public void GetObjectData(SerializationInfo info, StreamingContext context)
         {
             if (info == null)
-                throw new ArgumentNullException("info");
+                throw new ArgumentNullException(nameof(info));
             Contract.EndContractBlock();
 
             MemberInfoSerializationHolder.GetSerializationInfo(
@@ -696,5 +607,4 @@ namespace System.Reflection
         }
         #endregion
     }
-
 }

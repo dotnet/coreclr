@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //
 // File: decimal.cpp
 //
@@ -247,6 +246,10 @@ FCIMPL1(INT32, COMDecimal::ToInt32, FC_DECIMAL d)
             if (i >= 0) return i;
         }
         else {
+            // Int32.MinValue is represented as sign being negative
+            // and Lo32 being 0x80000000 (-ve number). Return that as is without
+            // reversing the sign of the number.
+            if(i == 0x80000000) return i;
             i = -i;
             if (i <= 0) return i;
         }
@@ -335,10 +338,10 @@ int COMDecimal::NumberToDecimal(NUMBER* number, DECIMAL* value)
         }
     } else {
         if (e > DECIMAL_PRECISION) return 0;
-        while ((e > 0 || *p && e > -28) &&
-                (DECIMAL_HI32(d) < 0x19999999 || DECIMAL_HI32(d) == 0x19999999 &&
-                    (DECIMAL_MID32(d) < 0x99999999 || DECIMAL_MID32(d) == 0x99999999 &&
-                        (DECIMAL_LO32(d) < 0x99999999 || DECIMAL_LO32(d) == 0x99999999 && *p <= '5')))) {
+        while ((e > 0 || (*p && e > -28)) &&
+                (DECIMAL_HI32(d) < 0x19999999 || (DECIMAL_HI32(d) == 0x19999999 &&
+                    (DECIMAL_MID32(d) < 0x99999999 || (DECIMAL_MID32(d) == 0x99999999 &&
+                        (DECIMAL_LO32(d) < 0x99999999 || (DECIMAL_LO32(d) == 0x99999999 && *p <= '5'))))))) {
             DecMul10(&d);
             if (*p) DecAddInt32(&d, *p++ - '0');
             e--;
@@ -1306,10 +1309,10 @@ HaveScale64:
         rgulRem[1] = (rgulRem[1] << 1) + ulTmp;
         rgulRem[2] = (rgulRem[2] << 1) + ulTmp1;
 
-        if (rgulRem[2] > rgulDivisor[2] || rgulRem[2] == rgulDivisor[2] &&
-        (rgulRem[1] > rgulDivisor[1] || rgulRem[1] == rgulDivisor[1] &&
-        (rgulRem[0] > rgulDivisor[0] || rgulRem[0] == rgulDivisor[0] &&
-        (rgulQuo[0] & 1))))
+        if (rgulRem[2] > rgulDivisor[2] || (rgulRem[2] == rgulDivisor[2] &&
+        (rgulRem[1] > rgulDivisor[1] || (rgulRem[1] == rgulDivisor[1] &&
+        (rgulRem[0] > rgulDivisor[0] || (rgulRem[0] == rgulDivisor[0] &&
+        (rgulQuo[0] & 1)))))))
           goto RoundUp;
         break;
       }
@@ -1707,10 +1710,10 @@ HaveScale64:
         rgulRem[1] = (rgulRem[1] << 1) + ulTmp;
         rgulRem[2] = (rgulRem[2] << 1) + ulTmp1;
 
-        if (rgulRem[2] > rgulDivisor[2] || rgulRem[2] == rgulDivisor[2] &&
-        (rgulRem[1] > rgulDivisor[1] || rgulRem[1] == rgulDivisor[1] &&
-        (rgulRem[0] > rgulDivisor[0] || rgulRem[0] == rgulDivisor[0] &&
-        (rgulQuo[0] & 1))))
+        if (rgulRem[2] > rgulDivisor[2] || (rgulRem[2] == rgulDivisor[2] &&
+        (rgulRem[1] > rgulDivisor[1] || (rgulRem[1] == rgulDivisor[1] &&
+        (rgulRem[0] > rgulDivisor[0] || (rgulRem[0] == rgulDivisor[0] &&
+        (rgulQuo[0] & 1)))))))
           goto RoundUp;
         break;
       }

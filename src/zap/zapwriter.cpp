@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //
 // ZapWriter.cpp
 //
@@ -388,8 +387,11 @@ void ZapWriter::WritePad(DWORD dwSize, BYTE fill)
 
     while (dwSize >= WRITE_BUFFER_SIZE)
     {
+        ULONG cbWritten;
         cbAvailable = min(WRITE_BUFFER_SIZE, dwSize);
-        IfFailThrow(m_pStream->Write(m_pBuffer, cbAvailable, NULL));
+        IfFailThrow(m_pStream->Write(m_pBuffer, cbAvailable, &cbWritten));
+        _ASSERTE(cbWritten == cbAvailable);
+
         dwSize -= cbAvailable;
     }
 
@@ -581,7 +583,9 @@ void ZapWriter::SaveSections()
         header.VirtualAddress = VAL32(pPhysicalSection->GetRVA());
 
         header.SizeOfRawData = VAL32(AlignUp(pPhysicalSection->m_dwSizeOfRawData, m_FileAlignment));
-        header.PointerToRawData = VAL32(pPhysicalSection->m_dwFilePos);
+
+        if (header.SizeOfRawData != 0)
+            header.PointerToRawData = VAL32(pPhysicalSection->m_dwFilePos);
 
         header.Characteristics = VAL32(pPhysicalSection->m_dwCharacteristics);
 
@@ -628,7 +632,7 @@ ZapBlob * ZapBlob::NewBlob(ZapWriter * pWriter, PVOID pData, SIZE_T cbSize)
     ZapBlob * pZapBlob = new (pMemory) ZapBlob(cbSize);
     
     if (pData != NULL)
-        memcpy(pZapBlob + 1, pData, cbSize);
+        memcpy((void*)(pZapBlob + 1), pData, cbSize);
 
     return pZapBlob;
 }
@@ -659,7 +663,7 @@ public:
         ZapAlignedBlobConst<alignment> * pZapBlob = new (pMemory) ZapAlignedBlobConst<alignment>(cbSize);
 
         if (pData != NULL)
-            memcpy(pZapBlob + 1, pData, cbSize);
+            memcpy((void *)(pZapBlob + 1), pData, cbSize);
 
         return pZapBlob;
     }

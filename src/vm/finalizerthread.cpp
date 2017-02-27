@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 // ===========================================================================
 
 #include "common.h"
@@ -13,9 +12,6 @@
 #include "runtimecallablewrapper.h"
 #endif
 
-#ifdef FEATURE_REMOTING
-#include "remoting.h"
-#endif
 
 #ifdef FEATURE_PROFAPI_ATTACH_DETACH 
 #include "profattach.h"
@@ -23,6 +19,16 @@
 
 BOOL FinalizerThread::fRunFinalizersOnUnload = FALSE;
 BOOL FinalizerThread::fQuitFinalizer = FALSE;
+
+#if defined(__linux__) && defined(FEATURE_EVENT_TRACE)
+#define LINUX_HEAP_DUMP_TIME_OUT 10000
+
+extern bool s_forcedGCInProgress;
+ULONGLONG FinalizerThread::LastHeapDumpTime = 0;
+
+Volatile<BOOL> g_TriggerHeapDump = FALSE;
+#endif // __linux__
+
 AppDomain * FinalizerThread::UnloadingAppDomain;
 
 CLREvent * FinalizerThread::hEventFinalizer = NULL;
@@ -85,48 +91,6 @@ void CallFinalizer(Object* obj)
     {
         if (!((obj->GetHeader()->GetBits()) & BIT_SBLK_FINALIZER_RUN))
         {
-#ifdef FEATURE_REMOTING        
-            if (pMT->IsContextful())
-            {
-                Object *proxy = OBJECTREFToObject(CRemotingServices::GetProxyFromObject(ObjectToOBJECTREF(obj)));
-
-                _ASSERTE(proxy && "finalizing an object that was never wrapped?????");                
-                if (proxy == NULL)
-                {
-                    // Quite possibly the app abruptly shutdown while a proxy
-                    // was being setup for a contextful object. We will skip
-                    // finalizing this object.
-                    _ASSERTE (g_fEEShutDown);
-                    return;
-                }
-                else
-                {
-                    // This saves us from the situation where an object gets GC-ed 
-                    // after its Context. 
-                    OBJECTREF stub = ((TRANSPARENTPROXYREF)ObjectToOBJECTREF(proxy))->GetStubData();
-                    Context *pServerCtx = *((Context **)stub->UnBox());
-                    // Check if the context is valid             
-                    if (!Context::ValidateContext(pServerCtx))
-                    {
-                        // Since the server context is gone (GC-ed)
-                        // we will associate the server with the default 
-                        // context for a good faith attempt to run 
-                        // the finalizer
-                        // We want to do this only if we are using RemotingProxy
-                        // and not for other types of proxies (eg. SvcCompPrxy)
-                        OBJECTREF orRP = ObjectToOBJECTREF(CRemotingServices::GetRealProxy(proxy));
-                        if(CTPMethodTable::IsInstanceOfRemotingProxy(
-                            orRP->GetMethodTable()))
-                        {
-                            *((Context **)stub->UnBox()) = (Context*) GetThread()->GetContext();
-                        }
-                    }
-                    // call Finalize on the proxy of the server object.
-                    obj = proxy;
-                    pMT = obj->GetMethodTable();
-                }
-            }
-#endif // FEATURE_REMOTING         
 
             _ASSERTE(obj->GetMethodTable() == pMT);
             _ASSERTE(pMT->HasFinalizer() || pMT->IsTransparentProxy());
@@ -286,7 +250,7 @@ Object * FinalizerThread::FinalizeAllObjects(Object* fobj, int bitToCheck)
         {
             return NULL;
         }
-        fobj = GCHeap::GetGCHeap()->GetNextFinalizable();
+        fobj = GCHeapUtilities::GetGCHeap()->GetNextFinalizable();
     }
 
     Thread *pThread = GetThread();
@@ -311,7 +275,7 @@ Object * FinalizerThread::FinalizeAllObjects(Object* fobj, int bitToCheck)
             {
                 return NULL;
             }
-            fobj = GCHeap::GetGCHeap()->GetNextFinalizable();
+            fobj = GCHeapUtilities::GetGCHeap()->GetNextFinalizable();
         }
         else
         {
@@ -328,7 +292,7 @@ Object * FinalizerThread::FinalizeAllObjects(Object* fobj, int bitToCheck)
                 {
                     return NULL;
                 }
-                fobj = GCHeap::GetGCHeap()->GetNextFinalizable();
+                fobj = GCHeapUtilities::GetGCHeap()->GetNextFinalizable();
             }
         }
     }
@@ -510,7 +474,11 @@ void FinalizerThread::WaitForFinalizerEvent (CLREvent *event)
                 cEventsForWait,                           // # objects to wait on
                 &(MHandles[uiEventIndexOffsetForWait]),   // array of objects to wait on
                 FALSE,          // bWaitAll == FALSE, so wait for first signal
+#if defined(__linux__) && defined(FEATURE_EVENT_TRACE)
+                LINUX_HEAP_DUMP_TIME_OUT,
+#else
                 INFINITE,       // timeout
+#endif
                 FALSE)          // alertable
                 
                 // Adjust the returned array index for the offset we used, so the return
@@ -520,7 +488,7 @@ void FinalizerThread::WaitForFinalizerEvent (CLREvent *event)
             case (WAIT_OBJECT_0 + kLowMemoryNotification):
                 //short on memory GC immediately
                 GetFinalizerThread()->DisablePreemptiveGC();
-                GCHeap::GetGCHeap()->GarbageCollect(0, TRUE);
+                GCHeapUtilities::GetGCHeap()->GarbageCollect(0, TRUE);
                 GetFinalizerThread()->EnablePreemptiveGC();
                 //wait only on the event for 2s 
                 switch (event->Wait(2000, FALSE))
@@ -540,7 +508,17 @@ void FinalizerThread::WaitForFinalizerEvent (CLREvent *event)
                 // Spawn thread to perform the profiler attach, then resume our wait
                 ProfilingAPIAttachDetach::ProcessSignaledAttachEvent();
                 break;
-#endif // FEATURE_PROFAPI_ATTACH_DETACH 
+#endif // FEATURE_PROFAPI_ATTACH_DETACH
+#if defined(__linux__) && defined(FEATURE_EVENT_TRACE)
+            case (WAIT_TIMEOUT + kLowMemoryNotification):
+            case (WAIT_TIMEOUT + kFinalizer):
+                if (g_TriggerHeapDump)
+                {
+                    return;
+                }
+                
+                break;
+#endif
             default:
                 //what's wrong?
                 _ASSERTE (!"Bad return code from WaitForMultipleObjects");
@@ -551,13 +529,17 @@ void FinalizerThread::WaitForFinalizerEvent (CLREvent *event)
     else {
         static LONG sLastLowMemoryFromHost = 0;
         while (1) {
+#if defined(__linux__) && defined(FEATURE_EVENT_TRACE)
+            DWORD timeout = LINUX_HEAP_DUMP_TIME_OUT;
+#else
             DWORD timeout = INFINITE;
+#endif
             if (!CLRMemoryHosted())
             {
                 if (WaitForSingleObject(MHandles[kLowMemoryNotification], 0) == WAIT_OBJECT_0) {
                     //short on memory GC immediately
                     GetFinalizerThread()->DisablePreemptiveGC();
-                    GCHeap::GetGCHeap()->GarbageCollect(0, TRUE);
+                    GCHeapUtilities::GetGCHeap()->GarbageCollect(0, TRUE);
                     GetFinalizerThread()->EnablePreemptiveGC();
                 }
                 //wait only on the event for 2s
@@ -577,7 +559,7 @@ void FinalizerThread::WaitForFinalizerEvent (CLREvent *event)
                         if (sLastLowMemoryFromHost != 0)
                         {
                             GetFinalizerThread()->DisablePreemptiveGC();
-                            GCHeap::GetGCHeap()->GarbageCollect(0, TRUE);
+                            GCHeapUtilities::GetGCHeap()->GarbageCollect(0, TRUE);
                             GetFinalizerThread()->EnablePreemptiveGC();
                         }
                     }
@@ -586,6 +568,12 @@ void FinalizerThread::WaitForFinalizerEvent (CLREvent *event)
             case (WAIT_ABANDONED):
                 return;
             case (WAIT_TIMEOUT):
+#if defined(__linux__) && defined(FEATURE_EVENT_TRACE)
+                if (g_TriggerHeapDump)
+                {
+                    return;
+                }
+#endif
                 break;
             }
         }
@@ -639,6 +627,20 @@ VOID FinalizerThread::FinalizerThreadWorker(void *args)
 
         WaitForFinalizerEvent (hEventFinalizer);
 
+#if defined(__linux__) && defined(FEATURE_EVENT_TRACE)
+        if (g_TriggerHeapDump && (CLRGetTickCount64() > (LastHeapDumpTime + LINUX_HEAP_DUMP_TIME_OUT)))
+        {
+            s_forcedGCInProgress = true;
+            GetFinalizerThread()->DisablePreemptiveGC();
+            GCHeapUtilities::GetGCHeap()->GarbageCollect(2, FALSE, collection_blocking);
+            GetFinalizerThread()->EnablePreemptiveGC();
+            s_forcedGCInProgress = false;
+            
+            LastHeapDumpTime = CLRGetTickCount64();
+            g_TriggerHeapDump = FALSE;
+        }
+#endif
+
         if (!bPriorityBoosted)
         {
             if (GetFinalizerThread()->SetThreadPriority(THREAD_PRIORITY_HIGHEST))
@@ -663,14 +665,14 @@ VOID FinalizerThread::FinalizerThreadWorker(void *args)
 
             do
             {
-                last_gc_count = GCHeap::GetGCHeap()->CollectionCount(0);
+                last_gc_count = GCHeapUtilities::GetGCHeap()->CollectionCount(0);
                 GetFinalizerThread()->m_GCOnTransitionsOK = FALSE; 
                 GetFinalizerThread()->EnablePreemptiveGC();
                 __SwitchToThread (0, ++dwSwitchCount);
                 GetFinalizerThread()->DisablePreemptiveGC();             
                 // If no GCs happended, then we assume we are quiescent
                 GetFinalizerThread()->m_GCOnTransitionsOK = TRUE; 
-            } while (GCHeap::GetGCHeap()->CollectionCount(0) - last_gc_count > 0);
+            } while (GCHeapUtilities::GetGCHeap()->CollectionCount(0) - last_gc_count > 0);
         }
 #endif //_DEBUG
 
@@ -700,7 +702,7 @@ VOID FinalizerThread::FinalizerThreadWorker(void *args)
             }
             else if (UnloadingAppDomain == NULL)
                 break;
-            else if (!GCHeap::GetGCHeap()->FinalizeAppDomain(UnloadingAppDomain, fRunFinalizersOnUnload))
+            else if (!GCHeapUtilities::GetGCHeap()->FinalizeAppDomain(UnloadingAppDomain, fRunFinalizersOnUnload))
             {
                 break;
             }
@@ -803,6 +805,8 @@ DWORD __stdcall FinalizerThread::FinalizerThreadStart(void *args)
 
     if (s_FinalizerThreadOK)
     {
+        INSTALL_UNHANDLED_MANAGED_EXCEPTION_TRAP;
+
 #ifdef _DEBUG       // The only purpose of this try/finally is to trigger an assertion
         EE_TRY_FOR_FINALLY(void *, unused, NULL)
         {
@@ -860,16 +864,19 @@ DWORD __stdcall FinalizerThread::FinalizerThreadStart(void *args)
             hEventShutDownToFinalizer->Wait(INFINITE,FALSE);
             GetFinalizerThread()->DisablePreemptiveGC();
 
-            GCHeap::GetGCHeap()->SetFinalizeQueueForShutdown (FALSE);
-
-            // Finalize all registered objects during shutdown, even they are still reachable.
-            // we have been asked to quit, so must be shutting down      
+            // We have been asked to quit, so must be shutting down
             _ASSERTE(g_fEEShutDown);
             _ASSERTE(GetFinalizerThread()->PreemptiveGCDisabled());
 
-            // This will apply any policy for swallowing exceptions during normal
-            // processing, without allowing the finalizer thread to disappear on us.
-            ManagedThreadBase::FinalizerBase(FinalizeObjectsOnShutdown);
+            if (CLRConfig::GetConfigValue(CLRConfig::EXTERNAL_FinalizeOnShutdown) != 0)
+            {
+                // Finalize all registered objects during shutdown, even they are still reachable.
+                GCHeapUtilities::GetGCHeap()->SetFinalizeQueueForShutdown(FALSE);
+
+                // This will apply any policy for swallowing exceptions during normal
+                // processing, without allowing the finalizer thread to disappear on us.
+                ManagedThreadBase::FinalizerBase(FinalizeObjectsOnShutdown);
+            }
 
             _ASSERTE(GetFinalizerThread()->GetDomain()->IsDefaultDomain());
 
@@ -913,6 +920,7 @@ DWORD __stdcall FinalizerThread::FinalizerThreadStart(void *args)
         }
         EE_END_FINALLY;
 #endif
+        UNINSTALL_UNHANDLED_MANAGED_EXCEPTION_TRAP;
     }
     // finalizer should always park in default domain
     _ASSERTE(GetThread()->GetDomain()->IsDefaultDomain());
@@ -941,13 +949,13 @@ DWORD __stdcall FinalizerThread::FinalizerThreadStart(void *args)
     return 0;
 }
 
-DWORD FinalizerThread::FinalizerThreadCreate()
+void FinalizerThread::FinalizerThreadCreate()
 {
-    DWORD   dwRet = 0;
-
-    // TODO: The following line should be removed after contract violation is fixed.
-    // See bug 27409
-    SCAN_IGNORE_THROW;
+    CONTRACTL{
+        THROWS;
+        GC_TRIGGERS;
+        MODE_ANY;
+    } CONTRACTL_END;
 
 #ifndef FEATURE_PAL
     if (!CLRMemoryHosted())
@@ -968,9 +976,6 @@ DWORD FinalizerThread::FinalizerThreadCreate()
 
     _ASSERTE(g_pFinalizerThread == 0);
     g_pFinalizerThread = SetupUnstartedThread();
-    if (g_pFinalizerThread == 0) {
-        return 0;
-    }
 
     // We don't want the thread block disappearing under us -- even if the
     // actual thread terminates.
@@ -978,7 +983,7 @@ DWORD FinalizerThread::FinalizerThreadCreate()
 
     if (GetFinalizerThread()->CreateNewThread(0, &FinalizerThreadStart, NULL))
     {
-        dwRet = GetFinalizerThread()->StartThread();
+        DWORD dwRet = GetFinalizerThread()->StartThread();
 
         // When running under a user mode native debugger there is a race
         // between the moment we've created the thread (in CreateNewThread) and 
@@ -993,10 +998,6 @@ DWORD FinalizerThread::FinalizerThreadCreate()
         // debugger may have been detached between the time it got the notification
         // and the moment we execute the test below.
         _ASSERTE(dwRet == 1 || dwRet == 2);
-        if (dwRet == 2)
-        {
-            dwRet = 1;
-        }
         
         // workaround wwl: make sure finalizer is ready.  This avoids OOM problem on finalizer
         // thread startup.
@@ -1004,12 +1005,10 @@ DWORD FinalizerThread::FinalizerThreadCreate()
             FinalizerThreadWait(INFINITE);
             if (!s_FinalizerThreadOK)
             {
-                dwRet = 0;
+                ThrowOutOfMemory();
             }
         }
     }
-
-    return dwRet;
 }
 
 void FinalizerThread::SignalFinalizationDone(BOOL fFinalizer)
@@ -1206,17 +1205,24 @@ BOOL FinalizerThread::FinalizerThreadWatchDog()
             pGenGCHeap->background_gc_wait();
 #endif //BACKGROUND_GC
 
-        _ASSERTE ((g_fEEShutDown & ShutDown_Finalize1) || g_fFastExitProcess);
-        ThreadSuspend::SuspendEE(ThreadSuspend::SUSPEND_FOR_SHUTDOWN);
+        _ASSERTE((g_fEEShutDown & ShutDown_Finalize1) || g_fFastExitProcess);
 
-        g_fSuspendOnShutdown = TRUE;
-        
-        // Do not balance the trap returning threads.
-        // We are shutting down CLR.  Only Finalizer/Shutdown threads can
-        // return from DisablePreemptiveGC.
-        ThreadStore::TrapReturningThreads(TRUE);
+        if (CLRConfig::GetConfigValue(CLRConfig::EXTERNAL_FinalizeOnShutdown) != 0)
+        {
+            // When running finalizers on shutdown (including for reachable objects), suspend threads for shutdown before
+            // running finalizers, so that the reachable objects will not be used after they are finalized.
 
-        ThreadSuspend::RestartEE(FALSE, TRUE);
+            ThreadSuspend::SuspendEE(ThreadSuspend::SUSPEND_FOR_SHUTDOWN);
+
+            g_fSuspendOnShutdown = TRUE;
+
+            // Do not balance the trap returning threads.
+            // We are shutting down CLR.  Only Finalizer/Shutdown threads can
+            // return from DisablePreemptiveGC.
+            ThreadStore::TrapReturningThreads(TRUE);
+
+            ThreadSuspend::RestartEE(FALSE, TRUE);
+        }
 
         if (g_fFastExitProcess)
         {
@@ -1230,14 +1236,14 @@ BOOL FinalizerThread::FinalizerThreadWatchDog()
             pThread->EnablePreemptiveGC();
         }
         
-        g_fFinalizerRunOnShutDown = TRUE;
+        GCHeapUtilities::GetGCHeap()->SetFinalizeRunOnShutdown(true);
         
         // Wait for finalizer thread to finish finalizing all objects.
         hEventShutDownToFinalizer->Set();
         BOOL fTimeOut = FinalizerThreadWatchDogHelper();
 
         if (!fTimeOut) {
-            g_fFinalizerRunOnShutDown = FALSE;
+            GCHeapUtilities::GetGCHeap()->SetFinalizeRunOnShutdown(false);
         }
         
         // Can not call ExitProcess here if we are in a hosting environment.
@@ -1262,7 +1268,8 @@ BOOL FinalizerThread::FinalizerThreadWatchDog()
         {
             pThread->EnablePreemptiveGC();
         }
-        g_fFinalizerRunOnShutDown = TRUE;
+
+        GCHeapUtilities::GetGCHeap()->SetFinalizeRunOnShutdown(true);
         
         hEventShutDownToFinalizer->Set();
         DWORD status = WAIT_OBJECT_0;
@@ -1272,7 +1279,6 @@ BOOL FinalizerThread::FinalizerThreadWatchDog()
         
         BOOL fTimeOut = (status == WAIT_TIMEOUT) ? TRUE : FALSE;
 
-#ifndef GOLDEN
         if (fTimeOut) 
         {
             if (dwBreakOnFinalizeTimeOut) {
@@ -1280,7 +1286,6 @@ BOOL FinalizerThread::FinalizerThreadWatchDog()
                 DebugBreak();
             }
         }
-#endif // GOLDEN
 
         if (pThread)
         {
@@ -1331,7 +1336,7 @@ BOOL FinalizerThread::FinalizerThreadWatchDogHelper()
     }
     else
     {
-        prevCount = GCHeap::GetGCHeap()->GetNumberOfFinalizable();
+        prevCount = GCHeapUtilities::GetGCHeap()->GetNumberOfFinalizable();
     }
 
     DWORD maxTry = (DWORD)(totalWaitTimeout*1.0/FINALIZER_WAIT_TIMEOUT + 0.5);
@@ -1358,12 +1363,10 @@ BOOL FinalizerThread::FinalizerThreadWatchDogHelper()
     }
 #endif // PROFILING_SUPPORTED
 
-#ifdef FEATURE_CORECLR
     // This change was added late in Windows Phone 8, so we want to keep it minimal.
     // We should consider refactoring this later, as we've got a lot of dead code here now on CoreCLR.
     dwTimeout = INFINITE;
     maxTotalWait = INFINITE;
-#endif // FEATURE_CORECLR
 
     while (1) {
         struct Param
@@ -1398,11 +1401,11 @@ BOOL FinalizerThread::FinalizerThreadWatchDogHelper()
         }
         else
         {
-            curCount = GCHeap::GetGCHeap()->GetNumberOfFinalizable();
+            curCount = GCHeapUtilities::GetGCHeap()->GetNumberOfFinalizable();
         }
 
         if ((prevCount <= curCount)
-            && !GCHeap::GetGCHeap()->ShouldRestartFinalizerWatchDog()
+            && !GCHeapUtilities::GetGCHeap()->ShouldRestartFinalizerWatchDog()
             && (pThread == NULL || !(pThread->m_State & (Thread::TS_UserSuspendPending | Thread::TS_DebugSuspendPending)))){
             if (nTry == maxTry) {
                 if (!s_fRaiseExitProcessEvent) {
@@ -1436,13 +1439,12 @@ BOOL FinalizerThread::FinalizerThreadWatchDogHelper()
         }
     }
 
-#ifndef GOLDEN
-    if (fTimeOut) 
+    if (fTimeOut)
     {
         if (dwBreakOnFinalizeTimeOut){
             DebugBreak();
         }
     }
-#endif
+
     return fTimeOut;
 }

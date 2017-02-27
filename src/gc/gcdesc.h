@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //
 //
 // GC Object Pointer Location Series Stuff
@@ -12,10 +11,10 @@
 #ifndef _GCDESC_H_
 #define _GCDESC_H_
 
-#ifdef _WIN64
-typedef UINT32 HALF_SIZE_T;
-#else   // _WIN64
-typedef UINT16 HALF_SIZE_T;
+#ifdef BIT64
+typedef uint32_t HALF_SIZE_T;
+#else   // BIT64
+typedef uint16_t HALF_SIZE_T;
 #endif
 
 
@@ -86,12 +85,12 @@ public:
         return seriessize/sizeof(JSlot); 
     }
 
-    VOID SetSeriesCount (size_t newcount)
+    void SetSeriesCount (size_t newcount)
     {
         seriessize = newcount * sizeof(JSlot);
     }
 
-    VOID IncSeriesCount (size_t increment = 1)
+    void IncSeriesCount (size_t increment = 1)
     {
         seriessize += increment * sizeof(JSlot);
     }
@@ -101,17 +100,17 @@ public:
         return seriessize;
     }
 
-    VOID SetSeriesSize (size_t newsize)
+    void SetSeriesSize (size_t newsize)
     {
         seriessize = newsize;
     }
 
-    VOID SetSeriesValItem (val_serie_item item, int index)
+    void SetSeriesValItem (val_serie_item item, int index)
     {
         val_serie [index] = item;
     }
 
-    VOID SetSeriesOffset (size_t newoffset)
+    void SetSeriesOffset (size_t newoffset)
     {
         startoffset = newoffset;
     }
@@ -139,7 +138,7 @@ class CGCDesc
 public:
     static size_t ComputeSize (size_t NumSeries)
     {
-        _ASSERTE (SSIZE_T(NumSeries) > 0);
+        _ASSERTE (ptrdiff_t(NumSeries) > 0);
         
         return sizeof(size_t) + NumSeries*sizeof(CGCDescSeries);
     }
@@ -147,21 +146,21 @@ public:
     // For value type array
     static size_t ComputeSizeRepeating (size_t NumSeries)
     {
-        _ASSERTE (SSIZE_T(NumSeries) > 0);
+        _ASSERTE (ptrdiff_t(NumSeries) > 0);
         
         return sizeof(size_t) + sizeof(CGCDescSeries) +
                (NumSeries-1)*sizeof(val_serie_item);
     }
 
 #ifndef DACCESS_COMPILE
-    static VOID Init (PVOID mem, size_t NumSeries)
+    static void Init (void* mem, size_t NumSeries)
     {
         *((size_t*)mem-1) = NumSeries;
     }
 
-    static VOID InitValueClassSeries (PVOID mem, size_t NumSeries)
+    static void InitValueClassSeries (void* mem, size_t NumSeries)
     {
-        *((SSIZE_T*)mem-1) = -((SSIZE_T)NumSeries);
+        *((ptrdiff_t*)mem-1) = -((ptrdiff_t)NumSeries);
     }
 #endif
 
@@ -169,9 +168,9 @@ public:
     {
         // If it doesn't contain pointers, there isn't a GCDesc
         PTR_MethodTable mt(pMT);
-#ifndef BINDER
+
         _ASSERTE(mt->ContainsPointersOrCollectible());
-#endif
+
         return PTR_CGCDesc(mt);
     }
 
@@ -184,8 +183,8 @@ public:
     // Cannot be used for valuetype arrays
     PTR_CGCDescSeries GetLowestSeries ()
     {
-        _ASSERTE (SSIZE_T(GetNumSeries()) > 0);
-        return PTR_CGCDescSeries(PTR_BYTE(PTR_CGCDesc(this))
+        _ASSERTE (ptrdiff_t(GetNumSeries()) > 0);
+        return PTR_CGCDescSeries(PTR_uint8_t(PTR_CGCDesc(this))
                                  - ComputeSize(GetNumSeries()));
     }
 
@@ -203,7 +202,7 @@ public:
         size_t NumOfPointers = 0;
         CGCDesc* map = GetCGCDescFromMT(pMT);
         CGCDescSeries* cur = map->GetHighestSeries();
-        SSIZE_T cnt = (SSIZE_T) map->GetNumSeries();
+        ptrdiff_t cnt = (ptrdiff_t) map->GetNumSeries();
 
         if (cnt > 0)
         {
@@ -217,7 +216,7 @@ public:
         else
         {
             /* Handle the repeating case - array of valuetypes */
-            for (SSIZE_T __i = 0; __i > cnt; __i--)
+            for (ptrdiff_t __i = 0; __i > cnt; __i--)
             {
                 NumOfPointers += cur->val_serie[__i].nptrs;
             }
@@ -232,7 +231,7 @@ public:
     // Size of the entire slot map.
     size_t GetSize ()
     {
-        SSIZE_T numSeries = (SSIZE_T) GetNumSeries();
+        ptrdiff_t numSeries = (ptrdiff_t) GetNumSeries();
         if (numSeries < 0)
         {
             return ComputeSizeRepeating(-numSeries);
@@ -243,16 +242,16 @@ public:
         }
     }
 
-    BYTE *GetStartOfGCData()
+    uint8_t *GetStartOfGCData()
     {
-        return ((BYTE *)this) - GetSize();
+        return ((uint8_t *)this) - GetSize();
     }
 
 private:
     
     BOOL IsValueClassSeries()
     {
-        return ((SSIZE_T) GetNumSeries()) < 0;
+        return ((ptrdiff_t) GetNumSeries()) < 0;
     }
 
 };

@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //*************************************************************************************************
 // PerfDefaults.cpp
 // 
@@ -27,7 +26,7 @@
 PerformanceDefaults::PerformanceScenario PerformanceDefaults::s_Scenario = Uninitialized;
 
 // See use in code:PerformanceDefaults:InitializeForScenario
-extern LONG g_bLowMemoryFromHost;
+extern int32_t g_bLowMemoryFromHost;
 
 
 //

@@ -15,6 +15,7 @@ endif(CLR_CMAKE_PLATFORM_UNIX)
 
 add_subdirectory(dac)
 add_subdirectory(full)
+add_subdirectory(crossgen)
 if(WIN32)
   add_subdirectory(full-staticcrt)
 endif(WIN32)

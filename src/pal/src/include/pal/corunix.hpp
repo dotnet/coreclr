@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information. 
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*++
 
@@ -103,14 +102,11 @@ namespace CorUnix
 
         PAL_ERROR
         CopyString(
-            CPalThread *pthr,
             CPalString *psSource
             );
 
         void
-        FreeBuffer(
-            CPalThread *pthr
-            );            
+        FreeBuffer();
 
         const WCHAR *
         GetString()
@@ -182,6 +178,7 @@ namespace CorUnix
         otiAutoResetEvent = 0,
         otiManualResetEvent,
         otiMutex,
+        otiNamedMutex,
         otiSemaphore,
         otiFile,
         otiFileMapping,
@@ -602,25 +599,25 @@ namespace CorUnix
         virtual
         PAL_ERROR
         GetSignalCount(
-            DWORD *pdwSignalCount
+            LONG *plSignalCount
             ) = 0;
 
         virtual
         PAL_ERROR
         SetSignalCount(
-            DWORD dwNewCount
+            LONG lNewCount
             ) = 0;
 
         virtual
         PAL_ERROR
         IncrementSignalCount(
-            DWORD dwAmountToIncrement
+            LONG lAmountToIncrement
             ) = 0;
 
         virtual
         PAL_ERROR
         DecrementSignalCount(
-            DWORD dwAmountToDecrement
+            LONG lAmountToDecrement
             ) = 0;
 
         //
@@ -1128,6 +1125,10 @@ namespace CorUnix
             CPalThread *pThread
             ) = 0;
 
+        virtual
+        PAL_ERROR
+        SendTerminationRequestToWorkerThread() = 0;
+
         //
         // This routine is primarily meant for use by WaitForMultipleObjects[Ex].
         // The caller must individually release each of the returned controller
@@ -1240,9 +1241,7 @@ namespace CorUnix
 
         virtual
         void
-        ReleaseLock(
-            CPalThread *pThread                 // IN, OPTIONAL
-            ) = 0;
+        ReleaseLock() = 0;
     };
 
     class IFileLockController
@@ -1317,10 +1316,7 @@ namespace CorUnix
 
         virtual
         void
-        ReleaseController(
-            CPalThread *pThread                 // IN, OPTIONAL
-            ) = 0;
-        
+        ReleaseController() = 0;
     };
 
     class IFileLockManager
@@ -1350,27 +1346,13 @@ namespace CorUnix
         // not found)
         // 
         virtual
-	PAL_ERROR
-	GetFileShareModeForFile(
-            CPalThread *pThread,
+        PAL_ERROR
+        GetFileShareModeForFile(
             LPCSTR szFileName,
             DWORD* pdwShareMode) = 0;
     };
 
     extern IFileLockManager *g_pFileLockManager;
-
-    //
-    // Utility function for converting sz object names to wsz
-    //
-
-    PAL_ERROR
-    InternalWszNameFromSzName(
-        CPalThread *pthr,
-        LPCSTR pszName,
-        LPWSTR pwszName,
-        DWORD cch
-        );
-
 }
 
 #endif // _CORUNIX_H

@@ -89,9 +89,10 @@
 
     <AsmSuffix Condition="'$(BuildArchitecture)' == 'i386' or '$(BuildArchitecture)' == 'amd64'">asm</AsmSuffix>
 
+    <CDefines Condition="'$(BuildArchitecture)' == 'amd64' or '$(BuildArchitecture)' == 'arm64'">$(CDefines);BIT64</CDefines>
+
     <!-- Note: ClrProduct can be set prior to this file to 'Standalone'. -->
     <ClrProduct Condition="(('$(BuildProjectName)' == 'CoreCLR' or '$(BuildProjectName)' == 'CoreSys')) and ('$(ClrProduct)' == '' or '$(CoreTarget)' == 'true')">core_clr</ClrProduct>
-    <ClrProduct Condition="('$(BuildProjectName)' == '') and ('$(ClrProduct)' == '')">desktop_clr</ClrProduct>
 
     <ClAdditionalOptions>$(ClAdditionalOptions) /Zm200</ClAdditionalOptions>
     <TargetDefines Condition="'$(BuildArchitecture)'=='i386'">$(BuildArchitecture);_X86_</TargetDefines>
@@ -99,8 +100,8 @@
     <TargetDefines Condition="'$(BuildArchitecture)'=='arm'">$(BuildArchitecture);_ARM_</TargetDefines>
     <TargetDefines Condition="'$(BuildArchitecture)'=='arm64'">$(BuildArchitecture);_ARM64_</TargetDefines>
 
-    <TargetCpu Condition="('$(TargetArch)' == 'i386') or ('$(TargetArch)' == 'rotor_x86')">i386</TargetCpu>
-    <TargetCpu Condition="('$(TargetArch)' == 'amd64') or ('$(TargetArch)' == 'rotor_amd64')">amd64</TargetCpu>
+    <TargetCpu Condition="('$(TargetArch)' == 'i386')">i386</TargetCpu>
+    <TargetCpu Condition="('$(TargetArch)' == 'amd64')">amd64</TargetCpu>
     <TargetCpu Condition="('$(TargetArch)' == 'arm')">arm</TargetCpu>
     <TargetCpu Condition="('$(TargetArch)' == 'arm64')">arm64</TargetCpu>
     
@@ -118,7 +119,6 @@
   <!-- CLR Feature Settings.  We set the default values here, allow leaf projects to override, and then
        set the CDefines based on these properties in clr.targets
   -->
-  <Import Project="$(MSBuildThisFileDirectory)clr.desktop.props" />
   <Import Project="$(MSBuildThisFileDirectory)clr.coreclr.props" />
 
   <PropertyGroup Condition="'$(CrossGenCompile)'=='true'">
@@ -126,25 +126,16 @@
     <!-- If you add new features to this list make sure that they are not affecting codegen or content of datastructures persisted in NGen image -->
     <EnCSupported>false</EnCSupported>
     <PerfcountersSupportedBuild>false</PerfcountersSupportedBuild>
-    <FeatureAppXBinder>false</FeatureAppXBinder>
-    <FeatureCasPolicy>false</FeatureCasPolicy>
     <FeatureEventTrace>false</FeatureEventTrace>
     <FeatureFusion>false</FeatureFusion>
-    <FeatureIncludeAllInterfaces>false</FeatureIncludeAllInterfaces>
-    <FeatureLoaderOptimization>false</FeatureLoaderOptimization>
     <FeatureMdaSupported>false</FeatureMdaSupported>
     <FeatureMergeJitAndEngine>true</FeatureMergeJitAndEngine>
-    <FeatureMulticoreJIT>false</FeatureMulticoreJIT>
     <FeatureRandomizedStringHashing>false</FeatureRandomizedStringHashing>
-    <FeatureReflectionOnlyLoad>false</FeatureReflectionOnlyLoad>
     <FeatureStackProbe>false</FeatureStackProbe>
     <FeatureReJIT>false</FeatureReJIT>
-    <FeaturePls>false</FeaturePls>
     <FeatureVersioningLog>false</FeatureVersioningLog>
     <FeatureNativeImageGeneration>true</FeatureNativeImageGeneration>
     <FeatureReadyToRunCompiler Condition="'$(FeatureReadyToRun)' == 'true'">true</FeatureReadyToRunCompiler>
-    <!-- Turn on MDIL generation support in crossgen for phone -->
-    <MDILGenerator Condition="'$(BuildForCoreSystem)' == 'true' and '$(TargetArch)'=='arm'">true</MDILGenerator>
     <!-- Link crossgen with static CRT to make it standalone .exe -->
     <LinkUseCMT>true</LinkUseCMT>
     <UseMsvcrt>false</UseMsvcrt>
@@ -162,14 +153,7 @@
             <LinkUseCMT>true</LinkUseCMT>
     -->
   </PropertyGroup>
-  
-  <PropertyGroup>
-    <MainClrModuleName Condition="'$(FeatureCoreclr)'=='true'">coreclr</MainClrModuleName>
-    <MainClrModuleName Condition="'$(FeatureCoreclr)'!='true'">clr</MainClrModuleName>
-    <MainDacMouleName Condition="'$(FeatureCoreclr)'=='true'">mscordaccore</MainDacMouleName>
-    <MainDacMouleName Condition="'$(FeatureCoreclr)'!='true'">mscordacwks</MainDacMouleName>
-  </PropertyGroup>
-
+ 
   <PropertyGroup>
     <DebugBuild Condition="'$(NTDEBUG)' == '' or '$(NTDEBUG)'=='ntsdnodbg'">false</DebugBuild>
     <DebugBuild Condition="'$(NTDEBUG)' != '' and '$(NTDEBUG)'!='ntsdnodbg'">true</DebugBuild>
@@ -183,7 +167,6 @@
       </PropertyGroup>
       
       <PropertyGroup Condition="'$(_BUILDOPT)' == 'no opt'">
-        <CDefines>$(CDefines);WRITE_BARRIER_CHECK=1</CDefines> 
         <Optimize>false</Optimize> 
       </PropertyGroup>
     </When>
@@ -253,14 +236,7 @@
     <PogoUpdate>false</PogoUpdate> 
     <PogoExePhase>1</PogoExePhase>
     
-    <ResgenDefines Condition="'$(FeatureImpersonation)' == '1'">$(ResgenDefines) /define:FEATURE_IMPERSONATION</ResgenDefines> 
-    <ResgenDefines Condition="'$(FeatureCrypto)' == '1'">$(ResgenDefines) /define:FEATURE_CRYPTO</ResgenDefines> 
-    <ResgenDefines Condition="'$(FeatureIsostore)' == '1'">$(ResgenDefines) /define:FEATURE_ISOSTORE</ResgenDefines> 
     <ResgenDefines Condition="'$(FeatureMacl)' == '1'">$(ResgenDefines) /define:FEATURE_MACL</ResgenDefines> 
-    <ResgenDefines Condition="'$(FeatureCasPolicy)' == '1'">$(ResgenDefines) /define:FEATURE_CAS_POLICY</ResgenDefines> 
-    <ResgenDefines Condition="'$(FeatureRemoting)' == '1'">$(ResgenDefines) /define:FEATURE_REMOTING</ResgenDefines> 
-    <ResgenDefines Condition="'$(FeatureSerialization)' == '1'">$(ResgenDefines) /define:FEATURE_SERIALIZATION</ResgenDefines> 
-    <ResgenDefines Condition="'$(FeatureIdentityReference)' == '1'">$(ResgenDefines) /define:FEATURE_IDENTITY_REFERENCE</ResgenDefines> 
     <ResgenDefines Condition="'$(FeatureDisplayCultureInfo)' == '1'">$(ResgenDefines) /define:FEATURE_DISPLAY_CULTURE_INFO</ResgenDefines> 
     <ResgenDefines Condition="'$(FeatureDisplayRegionInfo)' == '1'">$(ResgenDefines) /define:FEATURE_DISPLAY_REGION_INFO</ResgenDefines> 
 

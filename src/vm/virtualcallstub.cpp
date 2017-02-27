@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //
 // File: VirtualCallStub.CPP
 //
@@ -16,9 +15,6 @@
 // ============================================================================
 
 #include "common.h"
-#ifdef FEATURE_REMOTING
-#include "remoting.h"
-#endif
 #include "array.h"
 #ifdef FEATURE_PREJIT
 #include "compile.h"
@@ -83,7 +79,11 @@ UINT32 g_bucket_space_dead = 0;         //# of bytes of abandoned buckets not ye
 // This is the number of times a successful chain lookup will occur before the
 // entry is promoted to the front of the chain. This is declared as extern because
 // the default value (CALL_STUB_CACHE_INITIAL_SUCCESS_COUNT) is defined in the header.
+#ifdef _TARGET_ARM64_
+extern "C" size_t g_dispatch_cache_chain_success_counter;
+#else
 extern size_t g_dispatch_cache_chain_success_counter;
+#endif
 
 #define DECLARE_DATA
 #include "virtualcallstub.h"
@@ -1104,7 +1104,7 @@ BOOL VirtualCallStubManager::TraceManager(Thread *thread,
 
 #ifdef FEATURE_PREJIT
     // This is the case for the lazy slot fixup
-    if (GetIP(pContext) == GFN_TADDR(StubDispatchFixupPatchLabel)) {
+    if (GetIP(pContext) == GetEEFuncEntryPoint(StubDispatchFixupPatchLabel)) {
 
         *pRetAddr = (BYTE *)StubManagerHelpers::GetReturnAddress(pContext);
 
@@ -1228,6 +1228,7 @@ extern "C" PCODE STDCALL StubDispatchFixupWorker(TransitionBlock * pTransitionBl
     pSDFrame->SetCallSite(pModule, pIndirectCell);
 
     pSDFrame->Push(CURRENT_THREAD);
+    INSTALL_MANAGED_EXCEPTION_DISPATCHER;
     INSTALL_UNWIND_AND_CONTINUE_HANDLER;
 
     PEImageLayout *pNativeImage = pModule->GetNativeOrReadyToRunImage();
@@ -1296,6 +1297,7 @@ extern "C" PCODE STDCALL StubDispatchFixupWorker(TransitionBlock * pTransitionBl
     // Ready to return
 
     UNINSTALL_UNWIND_AND_CONTINUE_HANDLER;
+    UNINSTALL_MANAGED_EXCEPTION_DISPATCHER;
     pSDFrame->Pop(CURRENT_THREAD);
 
     return pTarget;
@@ -1534,9 +1536,11 @@ PCODE VSD_ResolveWorker(TransitionBlock * pTransitionBlock,
     if (pObj == NULL) {
         pSDFrame->SetForNullReferenceException();
         pSDFrame->Push(CURRENT_THREAD);
+        INSTALL_MANAGED_EXCEPTION_DISPATCHER;
         INSTALL_UNWIND_AND_CONTINUE_HANDLER;
         COMPlusThrow(kNullReferenceException);
         UNINSTALL_UNWIND_AND_CONTINUE_HANDLER;
+        UNINSTALL_MANAGED_EXCEPTION_DISPATCHER;
         _ASSERTE(!"Throw returned");
     }
 
@@ -1575,6 +1579,7 @@ PCODE VSD_ResolveWorker(TransitionBlock * pTransitionBlock,
 
     pSDFrame->SetRepresentativeSlot(pRepresentativeMT, representativeToken.GetSlotNumber());
     pSDFrame->Push(CURRENT_THREAD);
+    INSTALL_MANAGED_EXCEPTION_DISPATCHER;
     INSTALL_UNWIND_AND_CONTINUE_HANDLER;
 
     // For Virtual Delegates the m_siteAddr is a field of a managed object
@@ -1604,6 +1609,7 @@ PCODE VSD_ResolveWorker(TransitionBlock * pTransitionBlock,
     GCPROTECT_END();
 
     UNINSTALL_UNWIND_AND_CONTINUE_HANDLER;
+    UNINSTALL_MANAGED_EXCEPTION_DISPATCHER;
     pSDFrame->Pop(CURRENT_THREAD);
 
     return target;
@@ -1962,16 +1968,6 @@ PCODE VirtualCallStubManager::ResolveWorker(StubCallSite* pCallSite,
                 // <token, TPMT, target> entry where target is in AD1, and then matching against
                 // this entry from AD2 which happens to be using the same token, perhaps for a
                 // completely different interface.
-#ifdef FEATURE_REMOTING
-                if (token.IsTypedToken() && objectType->IsTransparentProxy())
-                {
-                    MethodTable * pItfMT = GetTypeFromToken(token);
-                    if (pItfMT->GetDomain() != SharedDomain::GetDomain())
-                    {
-                        insertKind = DispatchCache::IK_NONE;
-                    }
-                }
-#endif
             }
 
             if (insertKind != DispatchCache::IK_NONE)
@@ -2101,44 +2097,6 @@ VirtualCallStubManager::Resolver(
 
     // NOTE: CERs are not hardened against transparent proxy types,
     // so no need to worry about throwing an exception from here.
-#ifdef FEATURE_REMOTING    
-    if (pMT->IsTransparentProxy())
-    {
-        if (IsInterfaceToken(token))
-        {
-            MethodTable * pItfMT = GetTypeFromToken(token);
-            DispatchSlot ds(pItfMT->FindDispatchSlot(token.GetSlotNumber()));
-            if (pItfMT->HasInstantiation())
-            {
-                MethodDesc * pTargetMD = ds.GetMethodDesc();
-                if (!pTargetMD->HasMethodInstantiation())
-                {
-                    MethodDesc * pInstMD = MethodDesc::FindOrCreateAssociatedMethodDesc(
-                        pTargetMD, 
-                        pItfMT, 
-                        FALSE,              // forceBoxedEntryPoint
-                        Instantiation(),    // methodInst
-                        FALSE,              // allowInstParam
-                        TRUE);              // forceRemotableMethod
-                    *ppTarget = CRemotingServices::GetStubForInterfaceMethod(pInstMD);
-                    return TRUE;
-                }
-            }
-            *ppTarget = ds.GetTarget();
-        }
-        else
-        {
-            CONSISTENCY_CHECK(IsClassToken(token));
-            // All we do here is call the TP thunk stub.
-            DispatchSlot thunkSlot(CTPMethodTable::GetMethodTable()->FindDispatchSlot(token.GetTypeID(), token.GetSlotNumber()));
-            CONSISTENCY_CHECK(!thunkSlot.IsNull());
-            *ppTarget = thunkSlot.GetTarget();
-        }
-        return TRUE;
-    }
-
-    CONSISTENCY_CHECK(!pMT->IsTransparentProxy());
-#endif //  FEATURE_REMOTING
 
     LOG((LF_LOADER, LL_INFO10000, "SD: VCSM::Resolver: (start) looking up %s method in %s\n",
          token.IsThisToken() ? "this" : "interface",
@@ -2268,12 +2226,11 @@ VirtualCallStubManager::Resolver(
         // It allows objects that implement ICastable to mimic behavior of other types. 
         MethodTable * pTokenMT = GetTypeFromToken(token);
 
-        // Make call to obj.GetImplType(interfaceTypeObj)
-        MethodDesc *pGetImplTypeMD = pMT->GetMethodDescForInterfaceMethod(MscorlibBinder::GetMethod(METHOD__ICASTABLE__GETIMPLTYPE));
+        // Make call to ICastableHelpers.GetImplType(this, interfaceTypeObj)
+        PREPARE_NONVIRTUAL_CALLSITE(METHOD__ICASTABLEHELPERS__GETIMPLTYPE);
+
         OBJECTREF tokenManagedType = pTokenMT->GetManagedClassObject(); //GC triggers
-
-        PREPARE_NONVIRTUAL_CALLSITE_USING_METHODDESC(pGetImplTypeMD);
-
+        
         DECLARE_ARGHOLDER_ARRAY(args, 2);
         args[ARGNUM_0] = OBJECTREF_TO_ARGHOLDER(*protectedObj);
         args[ARGNUM_1] = OBJECTREF_TO_ARGHOLDER(tokenManagedType);
@@ -2447,151 +2404,6 @@ PCODE VirtualCallStubManager::CacheLookup(size_t token, UINT16 tokenHash, Method
     return (PCODE)(pElem != NULL ? pElem->target : NULL);
 }
 
-#ifdef FEATURE_REMOTING
-//----------------------------------------------------------------------------
-// This is used by TransparentProxyWorkerStub to take a stub address (token),
-// and MethodTable and return the target. This is the fast version that only
-// checks the cache and returns NULL if a target is not found.
-//
-PCODE VSD_GetTargetForTPWorkerQuick(TransparentProxyObject * orTP, size_t token)
-{
-    CONTRACTL {
-        NOTHROW;
-        GC_NOTRIGGER;
-        SO_TOLERANT;
-        PRECONDITION(CheckPointer(orTP));
-        PRECONDITION(orTP->IsTransparentProxy());
-    } CONTRACTL_END
-
-    GCX_FORBID();
-
-    DispatchToken tok;
-
-    // If we have a 16-bit number in the token then we have a slot number
-    if (((UINT16)token) == token)
-    {
-        tok = DispatchToken::CreateDispatchToken((UINT32)token);
-    }
-    // Otherwise, we have a MethodDesc
-    else
-    {
-        UINT32       typeID = 0;
-        MethodDesc * pMD    = (MethodDesc *) token;
-
-        if  (pMD->IsInterface())
-        {
-            typeID = pMD->GetMethodTable()->LookupTypeID();
-            // If this type has never had a TypeID assigned, then it couldn't possibly
-            // be in the cache. We do this instead of calling GetTypeID because that can
-            // throw, and this method is not protected from that.
-            if (typeID == TypeIDProvider::INVALID_TYPE_ID)
-            {
-                return NULL;
-            }
-
-#ifdef FAT_DISPATCH_TOKENS
-            if (DispatchToken::RequiresDispatchTokenFat(typeID, pMD->GetSlot()))
-            {
-                tok = pMD->GetMethodTable()->GetLoaderAllocator()->TryLookupDispatchToken(typeID, pMD->GetSlot());
-                if (!tok.IsValid())
-                {
-                    return NULL;
-                }
-            }
-            else
-#endif
-            {
-                tok = DispatchToken::CreateDispatchToken(typeID, pMD->GetSlot());
-            }
-        }
-        else
-        {
-            // On AMD64 a non-virtual call on an in context transparent proxy
-            // results in us reaching here with (pMD->IsInterface == FALSE)
-            return pMD->GetSingleCallableAddrOfCode();
-        }
-    }
-
-    return VirtualCallStubManager::CacheLookup(tok.To_SIZE_T(), DispatchCache::INVALID_HASH, orTP->GetMethodTableBeingProxied());
-}
-
-//----------------------------------------------------------------------------
-// This is used by TransparentProxyWorkerStub to take a stub address (token),
-// and MethodTable and return the target. This is the slow version that can throw
-// On x86 we construct a HelperMethodFrame, while on the 64 bit platforms we are
-// called by ResolveWorkerStatic which already has constructed a frame
-//
-PCODE VSD_GetTargetForTPWorker(TransitionBlock * pTransitionBlock, size_t token)
-{
-    CONTRACTL {
-        THROWS;
-        GC_TRIGGERS;
-        SO_TOLERANT;
-        INJECT_FAULT(COMPlusThrowOM(););
-        PRECONDITION(CheckPointer(pTransitionBlock));
-    } CONTRACTL_END
-
-    MAKE_CURRENT_THREAD_AVAILABLE();
-
-    DispatchToken tok;
-    MethodDesc *pRepresentativeMD = NULL;
-    PCODE pRet = NULL;
-
-    BEGIN_SO_INTOLERANT_CODE(CURRENT_THREAD);
-    
-    FrameWithCookie<StubDispatchFrame> frame(pTransitionBlock);
-    StubDispatchFrame * pSDFrame = &frame;
-
-    MethodTable * pMT = CTPMethodTable::GetMethodTableBeingProxied(pSDFrame->GetThis());
-
-    // If we have a 16-bit number in the token then we have a slot number
-    if (((UINT16)token) == token) {
-        tok = DispatchToken::CreateDispatchToken((UINT32)token);
-        pRepresentativeMD = VirtualCallStubManager::GetRepresentativeMethodDescFromToken(tok.To_SIZE_T(), pMT);
-    }
-    // Otherwise, we have a MethodDesc
-    else {
-        // The token will be calculated after we erect a GC frame.
-        pRepresentativeMD = (MethodDesc *)token;
-    }
-    PREFIX_ASSUME(pRepresentativeMD != NULL);
-
-    // Get the current appdomain
-    AppDomain *pAD = (AppDomain *) CURRENT_THREAD->GetDomain();
-
-    // Get the virtual stub manager for this AD. We pick the current
-    // AD because when the AD is unloaded the cache entry will be cleared.
-    // If we happen to be calling from shared to shared, it's no big
-    // deal because we'll just come through here again and add a new
-    // cache entry. We can't choose the manager based on the return
-    // address because this could be tail-called or called indirectly
-    // via helper and so the return address won't be recognized.
-    VirtualCallStubManager *pMgr = pAD->GetLoaderAllocator()->GetVirtualCallStubManager();
-    CONSISTENCY_CHECK(CheckPointer(pMgr));
-
-    pSDFrame->SetFunction(pRepresentativeMD);
-    pSDFrame->Push(CURRENT_THREAD);
-    INSTALL_UNWIND_AND_CONTINUE_HANDLER_NO_PROBE;
-
-    // If we didn't properly create a token above, it's because we needed to wait until
-    // the helper frame was created (GetTypeID is a throwing operation).
-    if (!tok.IsValid()) {
-        tok = pAD->GetLoaderAllocator()->GetDispatchToken(pRepresentativeMD->GetMethodTable()->GetTypeID(),
-                                    pRepresentativeMD->GetSlot());
-    }
-    CONSISTENCY_CHECK(tok.IsValid());
-
-    pRet = pMgr->GetTarget(tok.To_SIZE_T(), pMT);
-    CONSISTENCY_CHECK(pRet != NULL);
-
-    UNINSTALL_UNWIND_AND_CONTINUE_HANDLER_NO_PROBE;
-    pSDFrame->Pop(CURRENT_THREAD);
-
-    END_SO_INTOLERANT_CODE;
-    
-    return pRet;
-}
-#endif // FEATURE_REMOTING
 
 //----------------------------------------------------------------------------
 /* static */
@@ -2694,17 +2506,6 @@ VirtualCallStubManager::TraceResolver(
     MethodTable *pMT = pObj->GetMethodTable();
     CONSISTENCY_CHECK(CheckPointer(pMT));
 
-#ifdef FEATURE_REMOTING
-    if (pMT->IsTransparentProxy())
-    {
-#ifdef DACCESS_COMPILE
-        DacNotImpl();
-#else
-        trace->InitForFramePush(GetEEFuncEntryPoint(TransparentProxyStubPatchLabel));
-#endif
-        return TRUE;
-    }
-#endif    
 
     DispatchSlot slot(pMT->FindDispatchSlot(token));
 

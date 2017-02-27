@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 // 
 // File: ILStubCache.cpp
 // 
@@ -82,7 +81,6 @@ void CreateModuleIndependentSignature(LoaderHeap* pCreationHeap,
     *pcbNewSig = cbNewSig;
 }
 
-#ifndef CLR_STANDALONE_BINDER
 // static
 MethodDesc* ILStubCache::CreateAndLinkNewILStubMethodDesc(LoaderAllocator* pAllocator, MethodTable* pMT, DWORD dwStubFlags, 
                                              Module* pSigModule, PCCOR_SIGNATURE pSig, DWORD cbSig, SigTypeContext *pTypeContext,
@@ -130,7 +128,7 @@ MethodDesc* ILStubCache::CreateAndLinkNewILStubMethodDesc(LoaderAllocator* pAllo
         pStubLinker->GenerateCode(pbBuffer, cbCode);
         pStubLinker->GetLocalSig(pbLocalSig, cbSig);
 
-        pResolver->SetJitFlags(CORJIT_FLG_IL_STUB);
+        pResolver->SetJitFlags(CORJIT_FLAGS(CORJIT_FLAGS::CORJIT_FLAG_IL_STUB));
     }
 
     pResolver->SetTokenLookupMap(pStubLinker->GetTokenLookupMap());
@@ -138,7 +136,6 @@ MethodDesc* ILStubCache::CreateAndLinkNewILStubMethodDesc(LoaderAllocator* pAllo
     RETURN pStubMD;
 
 }
-#endif
 
 // static
 MethodDesc* ILStubCache::CreateNewMethodDesc(LoaderHeap* pCreationHeap, MethodTable* pMT, DWORD dwStubFlags, 
@@ -220,6 +217,12 @@ MethodDesc* ILStubCache::CreateNewMethodDesc(LoaderHeap* pCreationHeap, MethodTa
     else
 #endif
 #ifdef FEATURE_STUBS_AS_IL
+    if (SF_IsSecureDelegateStub(dwStubFlags))
+    {
+        pMD->m_dwExtendedFlags |= DynamicMethodDesc::nomdSecureDelegateStub;
+        pMD->GetILStubResolver()->SetStubType(ILStubResolver::SecureDelegateStub);
+    }
+    else
     if (SF_IsMulticastDelegateStub(dwStubFlags))
     {
         pMD->m_dwExtendedFlags |= DynamicMethodDesc::nomdMulticastStub;
@@ -528,47 +531,6 @@ MethodDesc* ILStubCache::GetStubMethodDesc(
         }
     }
 
-#ifndef FEATURE_CORECLR
-    //
-    // Publish ETW events for IL stubs
-    //
-    if (bFireETWCacheHitEvent)    
-    {
-        if (ETW_EVENT_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PROVIDER_Context, ILStubCacheHit))
-        {
-
-            SString strNamespaceOrClassName, strMethodName, strMethodSignature;
-            UINT64 uModuleId = 0;
-
-            if (pTargetMD)
-            {
-                pTargetMD->GetMethodInfoWithNewSig(strNamespaceOrClassName, strMethodName, strMethodSignature);
-                uModuleId = (UINT64)pTargetMD->GetModule()->GetAddrModuleID();               
-            }
-
-            DWORD dwToken = 0;
-            if (pTargetMD)
-                dwToken = pTargetMD->GetMemberDef();
-
-            //
-            // Truncate string fields. Make sure the whole event is less than 64KB
-            //
-            TruncateUnicodeString(strNamespaceOrClassName, ETW_IL_STUB_EVENT_STRING_FIELD_MAXSIZE);
-            TruncateUnicodeString(strMethodName,           ETW_IL_STUB_EVENT_STRING_FIELD_MAXSIZE);
-            TruncateUnicodeString(strMethodSignature,      ETW_IL_STUB_EVENT_STRING_FIELD_MAXSIZE);           
-            
-            FireEtwILStubCacheHit(
-                GetClrInstanceId(),                         // ClrInstanceId
-                uModuleId,                                  // ModuleIdentifier
-                (UINT64)pMD,                                // StubMethodIdentifier
-                dwToken,                                    // ManagedInteropMethodToken
-                strNamespaceOrClassName.GetUnicode(),       // ManagedInteropMethodNamespace
-                strMethodName.GetUnicode(),                 // ManagedInteropMethodName
-                strMethodSignature.GetUnicode()             // ManagedInteropMethodSignature
-                );
-        }                       
-    }
-#endif // !FEATURE_CORECLR
     
     if (!pMD)
     {

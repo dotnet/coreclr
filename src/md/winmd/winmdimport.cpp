@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information. 
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
  
 
@@ -589,13 +588,15 @@ class WinMDImport : public IMetaDataImport2
 
         *pmb = mdMethodDefNil;
 
-        // check to see if this is a vararg signature
-        PCCOR_SIGNATURE pvSigTemp = pvSigBlob;
-        if (isCallConv(CorSigUncompressCallingConv(pvSigTemp), IMAGE_CEE_CS_CALLCONV_VARARG))
         {
-            // Get the fixed part of VARARG signature
-            IfFailGo(_GetFixedSigOfVarArg(pvSigBlob, cbSigBlob, &qbSig, &cbSigBlob));
-            pvSigBlob = (PCCOR_SIGNATURE) qbSig.Ptr();
+            // check to see if this is a vararg signature
+            PCCOR_SIGNATURE pvSigTemp = pvSigBlob;
+            if (isCallConv(CorSigUncompressCallingConv(pvSigTemp), IMAGE_CEE_CS_CALLCONV_VARARG))
+            {
+                // Get the fixed part of VARARG signature
+                IfFailGo(_GetFixedSigOfVarArg(pvSigBlob, cbSigBlob, &qbSig, &cbSigBlob));
+                pvSigBlob = (PCCOR_SIGNATURE) qbSig.Ptr();
+            }
         }
 
         // now iterate all methods in td and compare name and signature
@@ -1655,15 +1656,17 @@ class WinMDImport : public IMetaDataImport2
             // Step 1: Call EnumAssemblyRefs with an empty buffer to create the HENUMInternal
             IfFailGo(m_pRawAssemblyImport->EnumAssemblyRefs(phEnum, NULL, 0, NULL));
 
-            // Step 2: Increment the cound to include the extra assembly refs
-            HENUMInternal *phInternalEnum = static_cast<HENUMInternal*>(*phEnum);
+            {
+                // Step 2: Increment the count to include the extra assembly refs
+                HENUMInternal *phInternalEnum = static_cast<HENUMInternal*>(*phEnum);
 
-            _ASSERTE(phInternalEnum->m_EnumType == MDSimpleEnum);
+                _ASSERTE(phInternalEnum->m_EnumType == MDSimpleEnum);
 
-            _ASSERTE( phInternalEnum->m_ulCount == m_pWinMDAdapter->GetRawAssemblyRefCount());
-            int n = WinMDAdapter::GetExtraAssemblyRefCount();
-            phInternalEnum->m_ulCount += n;
-            phInternalEnum->u.m_ulEnd += n;
+                _ASSERTE( phInternalEnum->m_ulCount == m_pWinMDAdapter->GetRawAssemblyRefCount());
+                int n = m_pWinMDAdapter->GetExtraAssemblyRefCount();
+                phInternalEnum->m_ulCount += n;
+                phInternalEnum->u.m_ulEnd += n;
+            }
 
             // Step 3: Call EnumAssemblyRefs again and pass in the modifed HENUMInternal and the real buffer
             IfFailGo(m_pRawAssemblyImport->EnumAssemblyRefs(phEnum, rAssemblyRefs, cMax, pcTokens));

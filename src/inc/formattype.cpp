@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //
 
 //
@@ -93,7 +92,7 @@ const PCCOR_SIGNATURE PrettyPrintSignature(
     const char* name,                   // can be "", the name of the method for this sig 0 means local var sig 
     CQuickBytes *out,                   // where to put the pretty printed string   
     IMDInternalImport *pIMDI,           // ptr to IMDInternalImport class with ComSig
-    __in_opt const char* inlabel,       // prefix for names (NULL if no names required)
+	_In_opt_z_ const char* inlabel,       // prefix for names (NULL if no names required)
     BOOL printTyArity=FALSE);
 
 
@@ -206,14 +205,14 @@ const PCCOR_SIGNATURE PrettyPrintSignature(
     PCCOR_SIGNATURE typeEnd = typePtr + typeLen;
     unsigned ixArg= 0; //arg index
     char argname[1024];
-    char label[16];
+    char label[MAX_PREFIX_SIZE];
     const char* openpar = "(";
     const char* closepar = ")";
     ParamDescriptor* pszArgName = NULL; // ptr to array of names (if provided by debug info)
 
     if(inlabel && *inlabel) // check for *inlabel is totally unnecessary, added to pacify the PREFIX
     {
-        strcpy_s(label,COUNTOF(label),inlabel);
+        strcpy_s(label,MAX_PREFIX_SIZE,inlabel);
         ixArg = label[strlen(label)-1] - '0';
         label[strlen(label)-1] = 0;
         if(label[0] == '@') // it's pointer!

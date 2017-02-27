@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //
 // File: CLASS.INL
 //
@@ -14,7 +13,6 @@
 
 #ifndef _CLASS_INL_
 #define _CLASS_INL_
-#include "constrainedexecutionregion.h"
 //***************************************************************************************
 inline PTR_MethodDescChunk EEClass::GetChunks()
 {
@@ -51,8 +49,10 @@ inline void EEClassOptionalFields::Init()
     m_WinRTRedirectedTypeIndex = WinMDAdapter::RedirectedTypeIndex_Invalid;
 #endif // FEATURE_COMINTEROP
     m_cbModuleDynamicID = MODULE_NON_DYNAMIC_STATICS;
-    m_dwReliabilityContract = RC_NULL;
     m_SecProps = 0;
+#if defined(UNIX_AMD64_ABI) && defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+    m_numberEightBytes = 0;
+#endif // UNIX_AMD64_ABI && FEATURE_UNIX_AMD64_STRUCT_PASSING    
 }
 #endif // !DACCESS_COMPILE
 

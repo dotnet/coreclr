@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //
 // File: winrtredirector.h
 //
@@ -22,7 +21,6 @@
 class WinRTInterfaceRedirector
 {
 public:
-#ifndef CLR_STANDALONE_BINDER
     // Returns a MethodDesc to be used as an interop stub for the given redirected interface/slot/direction.
     static MethodDesc *GetStubMethodForRedirectedInterface(
         WinMDAdapter::RedirectedTypeIndex   interfaceIndex,                // redirected interface index
@@ -36,12 +34,9 @@ public:
 
     // Returns MethodTable (typical instantiation) of the Framework copy of the specified redirected WinRT interface.
     static MethodTable *GetWinRTTypeForRedirectedInterfaceIndex(WinMDAdapter::RedirectedTypeIndex index);
-
-    // Loads a type from the given Framework assembly.
-    static MethodTable *LoadTypeFromRedirectedAssembly(WinMDAdapter::FrameworkAssemblyIndex index, LPCWSTR wzTypeName);
-
+    
     // Loads a method from the given Framework assembly.
-    static MethodDesc *LoadMethodFromRedirectedAssembly(WinMDAdapter::FrameworkAssemblyIndex index, LPCWSTR wzTypeName, LPCUTF8 szMethodName);
+    static MethodDesc *LoadMethodFromRedirectedAssembly(LPCUTF8 szAssemblyQualifiedTypeName, LPCUTF8 szMethodName);
 
     // Lists WinRT-legal types assignable from .NET reference types that are projected from WinRT structures/arrays/delegates.
     enum WinRTLegalStructureBaseType
@@ -75,12 +70,9 @@ public:
         }
         return BaseType_None;
     }
-#endif // !CLR_STANDALONE_BINDER
 
     // Returns the redirection index if the MethodTable* is a redirected interface.
     static inline bool ResolveRedirectedInterface(MethodTable *pMT, WinMDAdapter::RedirectedTypeIndex * pIndex);
-
-#ifndef CLR_STANDALONE_BINDER
 
 #ifdef _DEBUG
     static void VerifyRedirectedInterfaceStubs();
@@ -120,10 +112,9 @@ private:
 
     struct NonMscorlibRedirectedInterfaceInfo
     {
-        const WinMDAdapter::FrameworkAssemblyIndex m_AssemblyIndex;
-        const LPCWSTR m_wzWinRTInterfaceTypeName;
-        const LPCWSTR m_wzCLRStubClassTypeName;
-        const LPCWSTR m_wzWinRTStubClassTypeName;
+        const LPCUTF8 m_szWinRTInterfaceAssemblyQualifiedTypeName;
+        const LPCUTF8 m_szCLRStubClassAssemblyQualifiedTypeName;
+        const LPCUTF8 m_szWinRTStubClassAssemblyQualifiedTypeName;
         const LPCUTF8 *m_rszMethodNames;
     };
 
@@ -137,7 +128,6 @@ private:
     const static NonMscorlibRedirectedInterfaceInfo s_rNonMscorlibInterfaceInfos[3];
 
     const static int NON_MSCORLIB_MARKER = 0x80000000;
-#endif // !CLR_STANDALONE_BINDER
 };
 
 
@@ -147,7 +137,7 @@ class WinRTDelegateRedirector
 public:
     static MethodTable *GetWinRTTypeForRedirectedDelegateIndex(WinMDAdapter::RedirectedTypeIndex index);
 
-    static bool WinRTDelegateRedirector::ResolveRedirectedDelegate(MethodTable *pMT, WinMDAdapter::RedirectedTypeIndex *pIndex);
+    static bool ResolveRedirectedDelegate(MethodTable *pMT, WinMDAdapter::RedirectedTypeIndex *pIndex);
 };
 
 #endif // WINRT_DELEGATE_REDIRECTOR_H

@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information. 
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*++
 
@@ -121,7 +120,7 @@ CSharedMemoryObject::Initialize(
             // Allocate local memory to hold the shared data
             //
 
-            m_pvSharedData = InternalMalloc(pthr, m_pot->GetSharedDataSize());
+            m_pvSharedData = InternalMalloc(m_pot->GetSharedDataSize());
             if (NULL == m_pvSharedData)
             {
                 ERROR("Failure allocating m_pvSharedData (local copy)\n");
@@ -498,7 +497,6 @@ CSharedMemoryObject::PromoteSharedData(
 
     if (0 != m_pot->GetSharedDataSize())
     {
-        CPalThread *pthr = InternalGetCurrentThread();
         void *pvSharedData;
 
         pvSharedData = SHMPTR_TO_TYPED_PTR(void, psmod->shmObjSharedData);
@@ -510,7 +508,7 @@ CSharedMemoryObject::PromoteSharedData(
             m_pot->GetSharedDataSize()
             );
         
-        InternalFree(pthr, m_pvSharedData);
+        free(m_pvSharedData);
         m_pvSharedData = pvSharedData;
     }
 
@@ -652,7 +650,7 @@ CSharedMemoryObject::CleanupForProcessShutdown(
     m_pthrCleanup = pthr;
     pthr->AddThreadReference();
     
-    InternalDelete(pthr, this);
+    InternalDelete(this);
 
     pthr->ReleaseThreadReference();
 
@@ -871,7 +869,7 @@ CSharedMemoryObject::~CSharedMemoryObject()
 
     if (NULL != m_pvSharedData && ProcessLocalObject == m_ObjectDomain)
     {
-        InternalFree(m_pthrCleanup, m_pvSharedData);
+        free(m_pvSharedData);
     }
     else if (SHMNULL != m_shmod && m_fDeleteSharedData)
     {

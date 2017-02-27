@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 // 
 // File: COMDependentHandle.cpp
 //
@@ -75,3 +74,24 @@ FCIMPL3(VOID, DependentHandle::nGetPrimaryAndSecondary, OBJECTHANDLE handle, Obj
 }
 FCIMPLEND
 
+FCIMPL2(VOID, DependentHandle::nSetPrimary, OBJECTHANDLE handle, Object *_primary)
+{
+    FCALL_CONTRACT;
+
+    _ASSERTE(handle != NULL);
+
+    OBJECTREF primary(_primary);
+    StoreObjectInHandle(handle, primary);
+}
+FCIMPLEND
+
+FCIMPL2(VOID, DependentHandle::nSetSecondary, OBJECTHANDLE handle, Object *_secondary)
+{
+    FCALL_CONTRACT;
+
+    _ASSERTE(handle != NULL);
+
+    OBJECTREF secondary(_secondary);
+    SetDependentHandleSecondary(handle, secondary);
+}
+FCIMPLEND

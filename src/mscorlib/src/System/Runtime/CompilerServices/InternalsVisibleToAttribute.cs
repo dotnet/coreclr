@@ -1,15 +1,15 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 //------------------------------------------------------------------------------
 //------------------------------------------------------------------------------
+
+using System;
 
 namespace System.Runtime.CompilerServices
 {
-    using System;
-
-
-    [AttributeUsage(AttributeTargets.Assembly, AllowMultiple=true, Inherited=false)]
+    [AttributeUsage(AttributeTargets.Assembly, AllowMultiple = true, Inherited = false)]
     public sealed class InternalsVisibleToAttribute : Attribute
     {
         private string _assemblyName;
@@ -17,12 +17,12 @@ namespace System.Runtime.CompilerServices
 
         public InternalsVisibleToAttribute(string assemblyName)
         {
-            this._assemblyName = assemblyName;
+            _assemblyName = assemblyName;
         }
 
-        public string AssemblyName 
+        public string AssemblyName
         {
-            get 
+            get
             {
                 return _assemblyName;
             }
@@ -51,7 +51,8 @@ namespace System.Runtime.CompilerServices
         AllowMultiple = false,
         Inherited = false)]
     [FriendAccessAllowed]
-    internal sealed class FriendAccessAllowedAttribute : Attribute {
+    internal sealed class FriendAccessAllowedAttribute : Attribute
+    {
     }
 }
 

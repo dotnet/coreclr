@@ -1,11 +1,13 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 //
 
 using System;
 using System.Security;
 using System.Reflection;
+using System.Diagnostics;
 using System.Diagnostics.Contracts;
 using System.Runtime.InteropServices;
 using System.Runtime.CompilerServices;
@@ -19,8 +21,8 @@ namespace System.Runtime.InteropServices.WindowsRuntime
     // ICustomProperty implementation - basically a wrapper of PropertyInfo
     //
     internal sealed class CustomPropertyImpl : ICustomProperty
-    {     
-        private PropertyInfo  m_property;
+    {
+        private PropertyInfo m_property;
 
         //
         // Constructor
@@ -28,7 +30,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         public CustomPropertyImpl(PropertyInfo propertyInfo)
         {
             if (propertyInfo == null)
-                throw new ArgumentNullException("propertyInfo");
+                throw new ArgumentNullException(nameof(propertyInfo));
 
             m_property = propertyInfo;
         }
@@ -44,11 +46,11 @@ namespace System.Runtime.InteropServices.WindowsRuntime
                 return m_property.Name;
             }
         }
-        
+
         public bool CanRead
         {
-            get 
-            { 
+            get
+            {
                 // Return false if the getter is not public
                 return m_property.GetGetMethod() != null;
             }
@@ -56,7 +58,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
 
         public bool CanWrite
         {
-            get 
+            get
             {
                 // Return false if the setter is not public
                 return m_property.GetSetMethod() != null;
@@ -87,7 +89,6 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             InvokeInternal(target, new object[] { indexValue, value }, false);
         }
 
-        [SecuritySafeCritical]
         private object InvokeInternal(object target, object[] args, bool getValue)
         {
             // Forward to the right object if we are dealing with a proxy
@@ -104,7 +105,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
 
             // We get non-public accessors just so that we can throw the correct exception.
             MethodInfo accessor = getValue ? m_property.GetGetMethod(true) : m_property.GetSetMethod(true);
-            
+
             if (accessor == null)
                 throw new ArgumentException(System.Environment.GetResourceString(getValue ? "Arg_GetMethNotFnd" : "Arg_SetMethNotFnd"));
 
@@ -122,7 +123,6 @@ namespace System.Runtime.InteropServices.WindowsRuntime
 
             // We can safely skip access check because this is only used in full trust scenarios.
             // And we have already verified that the property accessor is public.
-            Contract.Assert(AppDomain.CurrentDomain.PermissionSet.IsUnrestricted());
             return rtMethod.UnsafeInvoke(target, BindingFlags.Default, null, args, null);
         }
 

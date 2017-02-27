@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*=============================================================================
 **
@@ -10,13 +11,12 @@
 **
 =============================================================================*/
 
-namespace System.Runtime.InteropServices {
-   
-    using System;
-    using System.Security.Permissions;
 
+using System;
+
+namespace System.Runtime.InteropServices
+{
     [Serializable]
-[System.Runtime.InteropServices.ComVisible(true)]
     public sealed class ErrorWrapper
     {
         public ErrorWrapper(int errorCode)
@@ -27,22 +27,18 @@ namespace System.Runtime.InteropServices {
         public ErrorWrapper(Object errorCode)
         {
             if (!(errorCode is int))
-                throw new ArgumentException(Environment.GetResourceString("Arg_MustBeInt32"), "errorCode");
+                throw new ArgumentException(Environment.GetResourceString("Arg_MustBeInt32"), nameof(errorCode));
             m_ErrorCode = (int)errorCode;
-        }        
+        }
 
-        [System.Security.SecuritySafeCritical]  // auto-generated
-#pragma warning disable 618
-        [SecurityPermissionAttribute(SecurityAction.Demand, Flags=SecurityPermissionFlag.UnmanagedCode)]
-#pragma warning restore 618
         public ErrorWrapper(Exception e)
         {
             m_ErrorCode = Marshal.GetHRForException(e);
         }
 
-        public int ErrorCode 
+        public int ErrorCode
         {
-            get 
+            get
             {
                 return m_ErrorCode;
             }

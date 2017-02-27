@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information. 
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*============================================================================
 **
@@ -15,7 +14,7 @@
 #ifndef __wprintf_H__
 #define __wprintf_H__
 
-void DoStrTest(WCHAR *formatstr, WCHAR* param, WCHAR *checkstr)
+void DoStrTest(const WCHAR *formatstr, const WCHAR *param, const WCHAR *checkstr)
 {
     int ret;
 
@@ -28,8 +27,8 @@ void DoStrTest(WCHAR *formatstr, WCHAR* param, WCHAR *checkstr)
 }
 
 
-void DoPointerTest(WCHAR *formatstr, void* param, WCHAR* paramstr, 
-                   WCHAR *checkstr1)
+void DoPointerTest(const WCHAR *formatstr, void* param, WCHAR* paramstr, 
+                   const WCHAR *checkstr1)
 {
     int ret;
 
@@ -41,7 +40,7 @@ void DoPointerTest(WCHAR *formatstr, void* param, WCHAR* paramstr,
     }
 }
 
-void DoCountTest(WCHAR *formatstr, int param, WCHAR *checkstr)
+void DoCountTest(const WCHAR *formatstr, int param, const WCHAR *checkstr)
 {
     int ret;
     int n = -1;
@@ -60,7 +59,7 @@ void DoCountTest(WCHAR *formatstr, int param, WCHAR *checkstr)
     }    
 }
 
-void DoShortCountTest(WCHAR *formatstr, int param, WCHAR *checkstr)
+void DoShortCountTest(const WCHAR *formatstr, int param, const WCHAR *checkstr)
 {
     int ret;
     short int n = -1;
@@ -80,7 +79,7 @@ void DoShortCountTest(WCHAR *formatstr, int param, WCHAR *checkstr)
 }
 
 
-void DoCharTest(WCHAR *formatstr, WCHAR param, WCHAR *checkstr)
+void DoCharTest(const WCHAR *formatstr, WCHAR param, const WCHAR *checkstr)
 {
     int ret;
 
@@ -92,7 +91,7 @@ void DoCharTest(WCHAR *formatstr, WCHAR param, WCHAR *checkstr)
     }
 }
 
-void DoWCharTest(WCHAR *formatstr, WCHAR param, WCHAR *checkstr)
+void DoWCharTest(const WCHAR *formatstr, WCHAR param, const WCHAR *checkstr)
 {
     int ret;
 
@@ -104,7 +103,7 @@ void DoWCharTest(WCHAR *formatstr, WCHAR param, WCHAR *checkstr)
     }    
 }
 
-void DoNumTest(WCHAR *formatstr, int param, WCHAR *checkstr)
+void DoNumTest(const WCHAR *formatstr, int param, const WCHAR *checkstr)
 {
     int ret;
 
@@ -116,8 +115,8 @@ void DoNumTest(WCHAR *formatstr, int param, WCHAR *checkstr)
     }    
 }
 
-void DoI64Test(WCHAR *formatstr, INT64 param, WCHAR *valuestr, 
-               WCHAR *checkstr1)
+void DoI64Test(const WCHAR *formatstr, INT64 param, const WCHAR *valuestr, 
+               const WCHAR *checkstr1)
 {
     int ret;
 
@@ -129,8 +128,8 @@ void DoI64Test(WCHAR *formatstr, INT64 param, WCHAR *valuestr,
     }
 }
 
-void DoDoubleTest(WCHAR *formatstr, double param, 
-                  WCHAR *checkstr1, WCHAR *checkstr2)
+void DoDoubleTest(const WCHAR *formatstr, double param, 
+                  const WCHAR *checkstr1, const WCHAR *checkstr2)
 {
     int ret;
 
@@ -142,8 +141,8 @@ void DoDoubleTest(WCHAR *formatstr, double param,
     }
 }
 
-void DoArgumentPrecTest(WCHAR *formatstr, int precision, void *param, 
-                        WCHAR *paramstr, WCHAR *checkstr1, WCHAR *checkstr2)
+void DoArgumentPrecTest(const WCHAR *formatstr, int precision, void *param, 
+                        WCHAR *paramstr, const WCHAR *checkstr1, const WCHAR *checkstr2)
 {
     int ret;
 
@@ -155,8 +154,8 @@ void DoArgumentPrecTest(WCHAR *formatstr, int precision, void *param,
     }
 }
 
-void DoArgumentPrecDoubleTest(WCHAR *formatstr, int precision, double param, 
-    WCHAR *checkstr1, WCHAR *checkstr2)
+void DoArgumentPrecDoubleTest(const WCHAR *formatstr, int precision, double param, 
+    const WCHAR *checkstr1, const WCHAR *checkstr2)
 {
     int ret;
 

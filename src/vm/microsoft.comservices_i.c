@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 #pragma warning( disable: 4049 )  /* more than 64k source lines */
 
@@ -24,13 +23,12 @@
 
 #if !defined(_M_IA64) && !defined(_M_AXP64)
 
+#include <rpc.h>
+#include <rpcndr.h>
+
 #ifdef __cplusplus
 extern "C"{
 #endif 
-
-
-#include <rpc.h>
-#include <rpcndr.h>
 
 #ifdef _MIDL_USE_GUIDDEF_
 
@@ -110,13 +108,12 @@ MIDL_DEFINE_GUID(CLSID, CLSID_RegistrationHelperTx,0x89A86E7B,0xC229,0x4008,0x9B
 
 #if defined(_M_IA64) || defined(_M_AXP64)
 
+#include <rpc.h>
+#include <rpcndr.h>
+
 #ifdef __cplusplus
 extern "C"{
 #endif 
-
-
-#include <rpc.h>
-#include <rpcndr.h>
 
 #ifdef _MIDL_USE_GUIDDEF_
 
@@ -154,7 +151,7 @@ typedef IID CLSID;
 #define MIDL_DEFINE_GUID(type,name,l,w1,w2,b1,b2,b3,b4,b5,b6,b7,b8) \
         const type name = {l,w1,w2,{b1,b2,b3,b4,b5,b6,b7,b8}}
 
-#endif !_MIDL_USE_GUIDDEF_
+#endif // !_MIDL_USE_GUIDDEF_
 
 MIDL_DEFINE_GUID(IID, LIBID_Microsoft_ComServices,0xD7F68C66,0x3833,0x3832,0xB6,0xD0,0xB7,0x96,0xBB,0x7D,0x2D,0xFF);
 

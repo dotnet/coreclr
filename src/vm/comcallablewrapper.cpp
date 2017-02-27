@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //--------------------------------------------------------------------------
 // ComCallablewrapper.cpp
 //
@@ -17,9 +16,6 @@
 #include "clrtypes.h"
 
 #include "comcallablewrapper.h"
-#ifdef FEATURE_REMOTING
-#include "remoting.h"
-#endif
 
 #include "object.h"
 #include "field.h"
@@ -410,17 +406,6 @@ MethodTable* RefineProxy(OBJECTREF pServer)
     
     MethodTable* pRefinedClass = NULL;
     
-#ifdef FEATURE_REMOTING
-    GCPROTECT_BEGIN(pServer);
-    if (pServer->IsTransparentProxy())
-    {
-        // if we have a transparent proxy let us refine it fully 
-        // before giving it out to unmanaged code
-        REFLECTCLASSBASEREF refClass= CRemotingServices::GetClass(pServer);
-        pRefinedClass = refClass->GetType().GetMethodTable();
-    }
-    GCPROTECT_END();
-#endif
 
     RETURN pRefinedClass;
 }
@@ -1287,10 +1272,6 @@ void SimpleComCallWrapper::InitNew(OBJECTREF oref, ComCallWrapperCache *pWrapper
     MethodTable* pMT = pTemplate->GetClassType().GetMethodTable();
     PREFIX_ASSUME(pMT != NULL);
 
-#ifdef FEATURE_REMOTING
-    if (CRemotingServices::IsTransparentProxy(OBJECTREFToObject(oref)))
-        m_flags |= enum_IsObjectTP;
-#endif
     
     m_pMT = pMT;
     m_pWrap = pWrap; 
@@ -1775,12 +1756,10 @@ IUnknown* SimpleComCallWrapper::QIStandardInterface(Enum_StdInterfaces index)
 
     else if (index == enum_IDispatchEx)
     {
-#ifdef FEATURE_CORECLR
         if (AppX::IsAppXProcess())
         { 
             RETURN NULL;
         }
-#endif // FEATURE_CORECLR
 
         if (SupportsIReflect(m_pMT))
         {
@@ -1989,9 +1968,6 @@ IUnknown* SimpleComCallWrapper::QIStandardInterface(REFIID riid)
             // Keeping the Apollo behaviour also ensures that we allow SL 8.1 scenarios (which do not pass the AppX flag like the modern host) 
             // to use CorDispatcher for async, in the expected manner, as the OS implementation for CoreDispatcher expects objects to be Agile.
             if (!IsAggregated() 
-#if !defined(FEATURE_CORECLR)
-            && AppX::IsAppXProcess()
-#endif // !defined(FEATURE_CORECLR)
             )
             {
                 ComCallWrapperTemplate *pTemplate = GetComCallWrapperTemplate();
@@ -2386,7 +2362,7 @@ ComCallWrapper* ComCallWrapper::CopyFromTemplate(ComCallWrapperTemplate* pTempla
     if (pStartWrapper == NULL)
         COMPlusThrowOM();
 
-    LOG((LF_INTEROP, LL_INFO100, "ComCallWrapper::CopyFromTemplate on Object %8.8x, Wrapper %8.8x\n", oh, pStartWrapper));
+    LOG((LF_INTEROP, LL_INFO100, "ComCallWrapper::CopyFromTemplate on Object %8.8x, Wrapper %8.8x\n", oh, static_cast<ComCallWrapperPtr>(pStartWrapper)));
 
     // addref commgr
     pWrapperCache->AddRef();
@@ -2742,11 +2718,7 @@ ComCallWrapper* ComCallWrapper::CreateWrapper(OBJECTREF* ppObj, ComCallWrapperTe
 
     pServer = *ppObj;
 
-#ifdef FEATURE_REMOTING
-    Context *pContext = Context::GetExecutionContext(pServer);
-#else
     Context *pContext = GetAppDomain()->GetDefaultContext();
-#endif
 
     // Force Refine the object if it is a transparent proxy
     RefineProxy(pServer);
@@ -3615,12 +3587,10 @@ IUnknown* ComCallWrapper::GetComIPFromCCW(ComCallWrapper *pWrap, REFIID riid, Me
     }                    
     if (IsIDispatch(riid))
     {
-#ifdef FEATURE_CORECLR
         if (AppX::IsAppXProcess())
         { 
             RETURN NULL;
         }
-#endif // FEATURE_CORECLR
 
         // We don't do visibility checks on IUnknown.
         RETURN pWrap->GetIDispatchIP();
@@ -4736,11 +4706,6 @@ BOOL ComMethodTable::LayOutInterfaceMethodTable(MethodTable* pClsMT)
     SLOT *pComVtable;
     unsigned i;
 
-#ifndef FEATURE_CORECLR
-    // Skip this unnecessary expensive check for CoreCLR
-    if (!CheckSigTypesCanBeLoaded(pItfClass))
-        return FALSE;
-#endif
 
     LOG((LF_INTEROP, LL_INFO1000, "LayOutInterfaceMethodTable: %s, this: %p\n", pItfClass->GetDebugClassName(), this));
 

@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 //
 // Abstract derivations of SafeHandle designed to provide the common
@@ -12,100 +13,74 @@
 // 
 //
 
+using System;
+using System.Runtime.InteropServices;
+using System.Runtime.CompilerServices;
+using System.Runtime.ConstrainedExecution;
+
 namespace Microsoft.Win32.SafeHandles
 {
-    using System;
-    using System.Runtime.InteropServices;
-    using System.Runtime.CompilerServices;
-    using System.Security.Permissions;
-    using System.Runtime.ConstrainedExecution;
-
     // Class of safe handle which uses 0 or -1 as an invalid handle.
-    [System.Security.SecurityCritical]  // auto-generated_required
-#if !FEATURE_CORECLR
-    [SecurityPermission(SecurityAction.InheritanceDemand, UnmanagedCode=true)]
-#endif
     public abstract class SafeHandleZeroOrMinusOneIsInvalid : SafeHandle
     {
-        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]
-        protected SafeHandleZeroOrMinusOneIsInvalid(bool ownsHandle) : base(IntPtr.Zero, ownsHandle) 
+        protected SafeHandleZeroOrMinusOneIsInvalid(bool ownsHandle) : base(IntPtr.Zero, ownsHandle)
         {
         }
 
-#if FEATURE_CORECLR
         // A default constructor is needed to satisfy CoreCLR inheritence rules. It should not be called at runtime
         protected SafeHandleZeroOrMinusOneIsInvalid()
         {
             throw new NotImplementedException();
         }
-#endif // FEATURE_CORECLR
 
-        public override bool IsInvalid {
-            [System.Security.SecurityCritical]
+        public override bool IsInvalid
+        {
             get { return handle.IsNull() || handle == new IntPtr(-1); }
         }
     }
 
     // Class of safe handle which uses only -1 as an invalid handle.
-    [System.Security.SecurityCritical]  // auto-generated_required
-#if !FEATURE_CORECLR
-    [SecurityPermission(SecurityAction.InheritanceDemand, UnmanagedCode=true)]
-#endif
     public abstract class SafeHandleMinusOneIsInvalid : SafeHandle
     {
-        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]
-        protected SafeHandleMinusOneIsInvalid(bool ownsHandle) : base(new IntPtr(-1), ownsHandle) 
+        protected SafeHandleMinusOneIsInvalid(bool ownsHandle) : base(new IntPtr(-1), ownsHandle)
         {
         }
 
-#if FEATURE_CORECLR
         // A default constructor is needed to satisfy CoreCLR inheritence rules. It should not be called at runtime
         protected SafeHandleMinusOneIsInvalid()
         {
             throw new NotImplementedException();
         }
-#endif // FEATURE_CORECLR
 
-        public override bool IsInvalid {
-            [System.Security.SecurityCritical]
+        public override bool IsInvalid
+        {
             get { return handle == new IntPtr(-1); }
         }
     }
 
     // Class of critical handle which uses 0 or -1 as an invalid handle.
-    [System.Security.SecurityCritical]  // auto-generated_required
-#if !FEATURE_CORECLR
-    [SecurityPermission(SecurityAction.InheritanceDemand, UnmanagedCode=true)]
-#endif
     public abstract class CriticalHandleZeroOrMinusOneIsInvalid : CriticalHandle
     {
-        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]
-        protected CriticalHandleZeroOrMinusOneIsInvalid() : base(IntPtr.Zero) 
+        protected CriticalHandleZeroOrMinusOneIsInvalid() : base(IntPtr.Zero)
         {
         }
 
-        public override bool IsInvalid {
-            [System.Security.SecurityCritical]
+        public override bool IsInvalid
+        {
             get { return handle.IsNull() || handle == new IntPtr(-1); }
         }
     }
 
     // Class of critical handle which uses only -1 as an invalid handle.
-    [System.Security.SecurityCritical]  // auto-generated_required
-#if !FEATURE_CORECLR
-    [SecurityPermission(SecurityAction.InheritanceDemand, UnmanagedCode=true)]
-#endif
     public abstract class CriticalHandleMinusOneIsInvalid : CriticalHandle
     {
-        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]
-        protected CriticalHandleMinusOneIsInvalid() : base(new IntPtr(-1)) 
+        protected CriticalHandleMinusOneIsInvalid() : base(new IntPtr(-1))
         {
         }
 
-        public override bool IsInvalid {
-            [System.Security.SecurityCritical]
+        public override bool IsInvalid
+        {
             get { return handle == new IntPtr(-1); }
         }
     }
-
 }

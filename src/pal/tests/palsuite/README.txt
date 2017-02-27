@@ -1,5 +1,6 @@
-; Copyright (c) Microsoft Corporation.  All rights reserved.
-
+; Licensed to the .NET Foundation under one or more agreements.
+; The .NET Foundation licenses this file to you under the MIT license.
+; See the LICENSE file in the project root for more information.
 
 ===========================================================================
 
@@ -19,8 +20,6 @@
      File_IO: gettempfilename(a,w)/test2
      File_IO: setfileattributesa/test(1,4), setfileattributesw/test(1,4)
      Miscellaneous: messageboxw/test(1,2)
-     Networking: closesocket/closesocket_raw
-     Networking: wsasocketw/test2
      Pal_specific:: pal_get_stdin/test1, pal_get_stdout/test1, pal_get_stderr/test1
      Threading: setconsolectrlhandler/test(3,4)
 
@@ -127,20 +126,7 @@ where user interaction is not desired/possible, setting this environment
 variable will prevent a pause in the automated test run.
 
 
-Networking: closesocket/closesocket_raw
-
-This test case fails only when run by a non-root FreeBSD user as it depends on 
-the ability to create a socket of type SOCK_RAW, a function that only a root
-user can perform.
-
-
-Networking: wsasocketw/test2
-
-This test case requires administrator or super user (root) permissions in order
-to pass.
-
-
-Pal_specific: pal_get_stdin/test1, pal_get_stdout/test1, pal_get_stderr/test1
+ic: pal_get_stdin/test1, pal_get_stdout/test1, pal_get_stderr/test1
 
 These test cases should be manually inspected to ensure the information being returned
 is correct.  The pal_get_stdin test case requires user input.  The pal_get_stdout and 

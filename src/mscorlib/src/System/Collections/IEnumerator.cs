@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*============================================================
 **
@@ -12,14 +13,15 @@
 **
 ** 
 ===========================================================*/
-namespace System.Collections {    
-    using System;
-    using System.Runtime.InteropServices;
 
+using System;
+using System.Runtime.InteropServices;
+
+namespace System.Collections
+{
     // Base interface for all enumerators, providing a simple approach
     // to iterating over a collection.
     [Guid("496B0ABF-CDEE-11d3-88E8-00902754C43A")]
-    [System.Runtime.InteropServices.ComVisible(true)]
     public interface IEnumerator
     {
         // Interfaces are not serializable
@@ -30,17 +32,18 @@ namespace System.Collections {
         // brings the first element of the enumeration into view.
         // 
         bool MoveNext();
-    
+
         // Returns the current element of the enumeration. The returned value is
         // undefined before the first call to MoveNext and following a
         // call to MoveNext that returned false. Multiple calls to
         // GetCurrent with no intervening calls to MoveNext 
         // will return the same object.
         // 
-        Object Current {
-            get; 
+        Object Current
+        {
+            get;
         }
-    
+
         // Resets the enumerator to the beginning of the enumeration, starting over.
         // The preferred behavior for Reset is to return the exact same enumeration.
         // This means if you modify the underlying collection then call Reset, your

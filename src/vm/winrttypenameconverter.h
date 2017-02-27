@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //
 // File: WinRTTypeNameConverter.cpp
 //
@@ -75,9 +74,8 @@ public :
     // calculate the redirected type index at EEClass creation time.
     //
     static WinMDAdapter::RedirectedTypeIndex GetRedirectedTypeIndexByName(
-                                                    IMDInternalImport *pMDImport, 
-                                                    mdTypeDef token,
-                                                    WinMDAdapter::FrameworkAssemblyIndex assemblyIndex);
+        Module *pModule,
+        mdTypeDef token);
 public :
     //==============================================================================================
     // WinRT -> Managed

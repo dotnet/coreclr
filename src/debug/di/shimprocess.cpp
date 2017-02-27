@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //*****************************************************************************
 // File: ShimProcess.cpp
 // 
@@ -19,9 +18,7 @@
 #include <limits.h>
 #include "shimpriv.h"
 
-#if defined(FEATURE_PAL)
-#include "debug-pal.h"
-#else
+#if !defined(FEATURE_CORESYSTEM)
 #include <tlhelp32.h>
 #endif
 
@@ -681,10 +678,8 @@ CorDebugRecordFormat GetHostExceptionRecordFormat()
 {
 #if defined(_WIN64)
     return FORMAT_WINDOWS_EXCEPTIONRECORD64;
-#elif defined(_WIN32)
-    return FORMAT_WINDOWS_EXCEPTIONRECORD32;
 #else
-    C_ASSERTE(!"CorDebugRecordFormat not implemented for this platform");
+    return FORMAT_WINDOWS_EXCEPTIONRECORD32;
 #endif
 }
 
@@ -741,6 +736,7 @@ HRESULT ShimProcess::HandleWin32DebugEvent(const DEBUG_EVENT * pEvent)
             if (!dwFirstChance && (pRecord->ExceptionCode == STATUS_BREAKPOINT) && !m_fIsInteropDebugging)
             {            
                 DWORD pid = (m_pLiveDataTarget == NULL) ? 0 : m_pLiveDataTarget->GetPid();
+
                 CONSISTENCY_CHECK_MSGF(false, 
                     ("Unhandled breakpoint exception in debuggee (pid=%d (0x%x)) on thread %d(0x%x)\n"
                     "This may mean there was an assert in the debuggee on that thread.\n"
@@ -1745,9 +1741,11 @@ CORDB_ADDRESS ShimProcess::GetCLRInstanceBaseAddress()
 {
     CORDB_ADDRESS baseAddress = CORDB_ADDRESS(NULL);
     DWORD dwPid = m_pLiveDataTarget->GetPid();
-#if defined(FEATURE_PAL)
-    baseAddress = PTR_TO_CORDB_ADDRESS (GetDynamicLibraryAddressInProcess(dwPid, MAKEDLLNAME_A(MAIN_CLR_MODULE_NAME_A)));
-#elif !defined(FEATURE_CORESYSTEM)
+
+#if defined(FEATURE_CORESYSTEM)
+    // Debugger attaching to CoreCLR via CoreCLRCreateCordbObject should have already specified CLR module address.
+    // Code that help to find it now lives in dbgshim.
+#else
     // get a "snapshot" of all modules in the target
     HandleHolder hSnapshot = CreateToolhelp32Snapshot(TH32CS_SNAPMODULE, dwPid);
     MODULEENTRY32 moduleEntry = { 0 };
@@ -1802,10 +1800,6 @@ CORDB_ADDRESS ShimProcess::GetCLRInstanceBaseAddress()
 //    
 HRESULT ShimProcess::FindLoadedCLR(CORDB_ADDRESS * pClrInstanceId)
 {
-#if defined(FEATURE_CORESYSTEM) && !defined(FEATURE_PAL)
-    _ASSERTE(!"Attempting to get CLR base address on Windows-core platform");
-    return E_NOTIMPL;
-#else
     *pClrInstanceId = GetCLRInstanceBaseAddress();
     
     if (*pClrInstanceId == 0)
@@ -1814,51 +1808,8 @@ HRESULT ShimProcess::FindLoadedCLR(CORDB_ADDRESS * pClrInstanceId)
     }
 
     return S_OK;
-#endif
 }
 
-//---------------------------------------------------------------------------------------
-//
-// If a debugger calls ICDRemote::CreateProcessEx() or ICDRemote::DebugActiveProcessEx(), 
-// then an ICDRemoteTarget should have been passed to us. We can query this port to find 
-// out the remote IP address (and possibly port) that the user wants to connect to.
-//
-// Arguments:
-//    pRemoteTarget - provided by the debugger for us to query the host name of the target machine
-//
-// Return Value:
-//    None.  Throws on errors.
-//
- 
-void ShimProcess::CheckForPortInfo(ICorDebugRemoteTarget * pRemoteTarget)
-{
-#if defined(FEATURE_DBGIPC_TRANSPORT_DI)
-    if (pRemoteTarget != NULL)
-    {
-        DWORD dwIPAddress = ResolveHostName(pRemoteTarget);
-        m_machineInfo.Init(dwIPAddress, 0);
-    }
-#endif // FEATURE_DBGIPC_TRANSPORT_DI
-}
-
-//---------------------------------------------------------------------------------------
-//
-// Resolve the host name given by the ICorDebugRemote to an IP address.  Currently only IPv4 and fully
-// qualified domain name are supported.
-//
-// Arguments:
-//    pRemoteTarget - provides the host name
-//
-// Return Value:
-//    Returns the IPv4 address of the target machine.
-//    Throws on errors.
-//
-
-DWORD ShimProcess::ResolveHostName(ICorDebugRemoteTarget * pRemoteTarget)
-{
-    DWORD dwIPAddress = 0;
-    return dwIPAddress;
-}
 
 //---------------------------------------------------------------------------------------
 //
@@ -1871,51 +1822,38 @@ DWORD ShimProcess::ResolveHostName(ICorDebugRemoteTarget * pRemoteTarget)
 
 HMODULE ShimProcess::GetDacModule()
 {
-    
     HModuleHolder hDacDll;
+    PathString wszAccessDllPath;
 
 #ifdef FEATURE_PAL
-    // For now on Unix we'll just search for DAC in the default location.
-    // Debugger can always control it by setting LD_LIBRARY_PATH env var.
-    WCHAR wszAccessDllPath[MAX_PATH] = MAKEDLLNAME_W(W("mscordaccore"));
-
-#else    
-    WCHAR wszAccessDllPath[MAX_PATH];
+    if (!PAL_GetPALDirectoryWrapper(wszAccessDllPath))
+    {
+        ThrowLastError();
+    }
+    PCWSTR eeFlavor = MAKEDLLNAME_W(W("mscordaccore"));
+#else
     //
     // Load the access DLL from the same directory as the the current CLR Debugging Services DLL.
     //
 
-    if (!WszGetModuleFileName(GetModuleInst(), wszAccessDllPath, NumItems(wszAccessDllPath)))
+    if (!WszGetModuleFileName(GetModuleInst(), wszAccessDllPath))
     {
         ThrowLastError();
     }
 
-    PWSTR pPathTail = wcsrchr(wszAccessDllPath, '\\');
-    if (!pPathTail)
+	if (!SUCCEEDED(CopySystemDirectory(wszAccessDllPath, wszAccessDllPath)))
     {
         ThrowHR(E_INVALIDARG);
     }
-    pPathTail++;
 
     // Dac Dll is named:
     //   mscordaccore.dll  <-- coreclr
     //   mscordacwks.dll   <-- desktop
     PCWSTR eeFlavor = 
-#ifdef FEATURE_MAIN_CLR_MODULE_USES_CORE_NAME
-        W("core");    
-#else
-        W("wks");    
-#endif
-
-    if (_snwprintf_s(pPathTail, 
-                     _countof(wszAccessDllPath) + (wszAccessDllPath - pPathTail),
-                     NumItems(wszAccessDllPath) - (pPathTail - wszAccessDllPath),
-                     MAKEDLLNAME_W(W("mscordac%s")), 
-                     eeFlavor) <= 0)
-    {
-        ThrowHR(E_INVALIDARG);
-    }
-#endif //!FEATURE_PAL  
+        W("mscordaccore.dll");
+    
+#endif // FEATURE_PAL
+    wszAccessDllPath.Append(eeFlavor);
 
     hDacDll.Assign(WszLoadLibrary(wszAccessDllPath));
     if (!hDacDll)

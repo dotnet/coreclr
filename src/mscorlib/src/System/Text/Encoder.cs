@@ -1,12 +1,15 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
+
+using System.Runtime.Serialization;
+using System.Text;
+using System;
+using System.Diagnostics;
+using System.Diagnostics.Contracts;
 
 namespace System.Text
 {
-    using System.Runtime.Serialization;
-    using System.Text;
-    using System;
-    using System.Diagnostics.Contracts;
     // An Encoder is used to encode a sequence of blocks of characters into
     // a sequence of blocks of bytes. Following instantiation of an encoder,
     // sequential blocks of characters are converted into blocks of bytes through
@@ -18,14 +21,13 @@ namespace System.Text
     // class are typically obtained through calls to the GetEncoder method
     // of Encoding objects.
     //
-    [System.Runtime.InteropServices.ComVisible(true)]
     [Serializable]
     public abstract class Encoder
     {
-        internal EncoderFallback         m_fallback = null;
+        internal EncoderFallback m_fallback = null;
 
         [NonSerialized]
-        internal EncoderFallbackBuffer   m_fallbackBuffer = null;
+        internal EncoderFallbackBuffer m_fallbackBuffer = null;
 
         internal void SerializeEncoder(SerializationInfo info)
         {
@@ -37,7 +39,6 @@ namespace System.Text
             // We don't call default reset because default reset probably isn't good if we aren't initialized.
         }
 
-        [System.Runtime.InteropServices.ComVisible(false)]
         public EncoderFallback Fallback
         {
             get
@@ -48,13 +49,13 @@ namespace System.Text
             set
             {
                 if (value == null)
-                    throw new ArgumentNullException("value");
+                    throw new ArgumentNullException(nameof(value));
                 Contract.EndContractBlock();
 
                 // Can't change fallback if buffer is wrong
                 if (m_fallbackBuffer != null && m_fallbackBuffer.Remaining > 0)
                     throw new ArgumentException(
-                      Environment.GetResourceString("Argument_FallbackBufferNotEmpty"), "value");
+                      Environment.GetResourceString("Argument_FallbackBufferNotEmpty"), nameof(value));
 
                 m_fallback = value;
                 m_fallbackBuffer = null;
@@ -63,7 +64,6 @@ namespace System.Text
 
         // Note: we don't test for threading here because async access to Encoders and Decoders
         // doesn't work anyway.
-        [System.Runtime.InteropServices.ComVisible(false)]
         public EncoderFallbackBuffer FallbackBuffer
         {
             get
@@ -97,10 +97,9 @@ namespace System.Text
         //
         // Virtual implimentation has to call GetBytes with flush and a big enough buffer to clear a 0 char string
         // We avoid GetMaxByteCount() because a) we can't call the base encoder and b) it might be really big.
-        [System.Runtime.InteropServices.ComVisible(false)]
         public virtual void Reset()
         {
-            char[] charTemp = {};
+            char[] charTemp = { };
             byte[] byteTemp = new byte[GetByteCount(charTemp, 0, 0, true)];
             GetBytes(charTemp, 0, 0, byteTemp, 0, true);
             if (m_fallbackBuffer != null)
@@ -119,18 +118,16 @@ namespace System.Text
         // We expect this to be the workhorse for NLS encodings
         // unfortunately for existing overrides, it has to call the [] version,
         // which is really slow, so avoid this method if you might be calling external encodings.
-        [System.Security.SecurityCritical]  // auto-generated
         [CLSCompliant(false)]
-        [System.Runtime.InteropServices.ComVisible(false)]
         public virtual unsafe int GetByteCount(char* chars, int count, bool flush)
         {
             // Validate input parameters
             if (chars == null)
-                throw new ArgumentNullException("chars",
+                throw new ArgumentNullException(nameof(chars),
                       Environment.GetResourceString("ArgumentNull_Array"));
 
             if (count < 0)
-                throw new ArgumentOutOfRangeException("count",
+                throw new ArgumentOutOfRangeException(nameof(count),
                       Environment.GetResourceString("ArgumentOutOfRange_NeedNonNegNum"));
             Contract.EndContractBlock();
 
@@ -181,19 +178,17 @@ namespace System.Text
         // the byte[] to our byte* output buffer.  If the result count was wrong, we
         // could easily overflow our output buffer.  Therefore we do an extra test
         // when we copy the buffer so that we don't overflow byteCount either.
-        [System.Security.SecurityCritical]  // auto-generated
         [CLSCompliant(false)]
-        [System.Runtime.InteropServices.ComVisible(false)]
         public virtual unsafe int GetBytes(char* chars, int charCount,
                                               byte* bytes, int byteCount, bool flush)
         {
             // Validate input parameters
             if (bytes == null || chars == null)
-                throw new ArgumentNullException(bytes == null ? "bytes" : "chars",
+                throw new ArgumentNullException(bytes == null ? nameof(bytes) : nameof(chars),
                     Environment.GetResourceString("ArgumentNull_Array"));
 
             if (charCount < 0 || byteCount < 0)
-                throw new ArgumentOutOfRangeException((charCount<0 ? "charCount" : "byteCount"),
+                throw new ArgumentOutOfRangeException((charCount < 0 ? nameof(charCount) : nameof(byteCount)),
                     Environment.GetResourceString("ArgumentOutOfRange_NeedNonNegNum"));
             Contract.EndContractBlock();
 
@@ -210,7 +205,7 @@ namespace System.Text
             // Do the work
             int result = GetBytes(arrChar, 0, charCount, arrByte, 0, flush);
 
-            Contract.Assert(result <= byteCount, "Returned more bytes than we have space for");
+            Debug.Assert(result <= byteCount, "Returned more bytes than we have space for");
 
             // Copy the byte array
             // WARNING: We MUST make sure that we don't copy too many bytes.  We can't
@@ -240,30 +235,29 @@ namespace System.Text
         // Note that if all of the input chars are not consumed, then we'll do a /2, which means
         // that its likely that we didn't consume as many chars as we could have.  For some
         // applications this could be slow.  (Like trying to exactly fill an output buffer from a bigger stream)
-        [System.Runtime.InteropServices.ComVisible(false)]
         public virtual void Convert(char[] chars, int charIndex, int charCount,
                                       byte[] bytes, int byteIndex, int byteCount, bool flush,
                                       out int charsUsed, out int bytesUsed, out bool completed)
         {
             // Validate parameters
             if (chars == null || bytes == null)
-                throw new ArgumentNullException((chars == null ? "chars" : "bytes"),
+                throw new ArgumentNullException((chars == null ? nameof(chars) : nameof(bytes)),
                       Environment.GetResourceString("ArgumentNull_Array"));
 
             if (charIndex < 0 || charCount < 0)
-                throw new ArgumentOutOfRangeException((charIndex<0 ? "charIndex" : "charCount"),
+                throw new ArgumentOutOfRangeException((charIndex < 0 ? nameof(charIndex) : nameof(charCount)),
                       Environment.GetResourceString("ArgumentOutOfRange_NeedNonNegNum"));
 
             if (byteIndex < 0 || byteCount < 0)
-                throw new ArgumentOutOfRangeException((byteIndex<0 ? "byteIndex" : "byteCount"),
+                throw new ArgumentOutOfRangeException((byteIndex < 0 ? nameof(byteIndex) : nameof(byteCount)),
                       Environment.GetResourceString("ArgumentOutOfRange_NeedNonNegNum"));
 
             if (chars.Length - charIndex < charCount)
-                throw new ArgumentOutOfRangeException("chars",
+                throw new ArgumentOutOfRangeException(nameof(chars),
                       Environment.GetResourceString("ArgumentOutOfRange_IndexCountBuffer"));
 
             if (bytes.Length - byteIndex < byteCount)
-                throw new ArgumentOutOfRangeException("bytes",
+                throw new ArgumentOutOfRangeException(nameof(bytes),
                       Environment.GetResourceString("ArgumentOutOfRange_IndexCountBuffer"));
             Contract.EndContractBlock();
 
@@ -298,21 +292,19 @@ namespace System.Text
         // Note that if all of the input chars are not consumed, then we'll do a /2, which means
         // that its likely that we didn't consume as many chars as we could have.  For some
         // applications this could be slow.  (Like trying to exactly fill an output buffer from a bigger stream)
-        [System.Security.SecurityCritical]  // auto-generated
         [CLSCompliant(false)]
-        [System.Runtime.InteropServices.ComVisible(false)]
         public virtual unsafe void Convert(char* chars, int charCount,
                                              byte* bytes, int byteCount, bool flush,
                                              out int charsUsed, out int bytesUsed, out bool completed)
         {
             // Validate input parameters
             if (bytes == null || chars == null)
-                throw new ArgumentNullException(bytes == null ? "bytes" : "chars",
+                throw new ArgumentNullException(bytes == null ? nameof(bytes) : nameof(chars),
                     Environment.GetResourceString("ArgumentNull_Array"));
-                if (charCount < 0 || byteCount < 0)
-                throw new ArgumentOutOfRangeException((charCount<0 ? "charCount" : "byteCount"),
+            if (charCount < 0 || byteCount < 0)
+                throw new ArgumentOutOfRangeException((charCount < 0 ? nameof(charCount) : nameof(byteCount)),
                     Environment.GetResourceString("ArgumentOutOfRange_NeedNonNegNum"));
-                Contract.EndContractBlock();
+            Contract.EndContractBlock();
 
             // Get ready to do it
             charsUsed = charCount;

@@ -1,13 +1,16 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
-namespace System.Globalization {
-    using System;
-    using System.Runtime.CompilerServices;
-    using System.Globalization;
-    using System.Runtime.Versioning;
-    using System.Diagnostics.Contracts;
+using System;
+using System.Runtime.CompilerServices;
+using System.Globalization;
+using System.Runtime.Versioning;
+using System.Diagnostics;
+using System.Diagnostics.Contracts;
 
+namespace System.Globalization
+{
     // This abstract class represents a calendar. A calendar reckons time in
     // divisions such as weeks, months and years. The number, length and start of
     // the divisions vary in each calendar.
@@ -29,65 +32,63 @@ namespace System.Globalization {
     // since most of the calendars (or all?) have the same way of calcuating hour/minute/second.
 
     [Serializable]
-    [System.Runtime.InteropServices.ComVisible(true)]
     public abstract class Calendar : ICloneable
     {
-
         // Number of 100ns (10E-7 second) ticks per time unit
-        internal const long TicksPerMillisecond   = 10000;
-        internal const long TicksPerSecond        = TicksPerMillisecond * 1000;
-        internal const long TicksPerMinute        = TicksPerSecond * 60;
-        internal const long TicksPerHour          = TicksPerMinute * 60;
-        internal const long TicksPerDay           = TicksPerHour * 24;
+        internal const long TicksPerMillisecond = 10000;
+        internal const long TicksPerSecond = TicksPerMillisecond * 1000;
+        internal const long TicksPerMinute = TicksPerSecond * 60;
+        internal const long TicksPerHour = TicksPerMinute * 60;
+        internal const long TicksPerDay = TicksPerHour * 24;
 
         // Number of milliseconds per time unit
-        internal const int MillisPerSecond        = 1000;
-        internal const int MillisPerMinute        = MillisPerSecond * 60;
-        internal const int MillisPerHour          = MillisPerMinute * 60;
-        internal const int MillisPerDay           = MillisPerHour * 24;
+        internal const int MillisPerSecond = 1000;
+        internal const int MillisPerMinute = MillisPerSecond * 60;
+        internal const int MillisPerHour = MillisPerMinute * 60;
+        internal const int MillisPerDay = MillisPerHour * 24;
 
         // Number of days in a non-leap year
-        internal const int DaysPerYear            = 365;
+        internal const int DaysPerYear = 365;
         // Number of days in 4 years
-        internal const int DaysPer4Years          = DaysPerYear * 4 + 1;
+        internal const int DaysPer4Years = DaysPerYear * 4 + 1;
         // Number of days in 100 years
-        internal const int DaysPer100Years        = DaysPer4Years * 25 - 1;
+        internal const int DaysPer100Years = DaysPer4Years * 25 - 1;
         // Number of days in 400 years
-        internal const int DaysPer400Years        = DaysPer100Years * 4 + 1;
+        internal const int DaysPer400Years = DaysPer100Years * 4 + 1;
 
         // Number of days from 1/1/0001 to 1/1/10000
-        internal const int DaysTo10000            = DaysPer400Years * 25 - 366;
+        internal const int DaysTo10000 = DaysPer400Years * 25 - 366;
 
-        internal const long MaxMillis             = (long)DaysTo10000 * MillisPerDay;
+        internal const long MaxMillis = (long)DaysTo10000 * MillisPerDay;
 
         //
         //  Calendar ID Values.  This is used to get data from calendar.nlp.
         //  The order of calendar ID means the order of data items in the table.
         //
 
-        internal const int CAL_GREGORIAN                  = 1 ;     // Gregorian (localized) calendar
-        internal const int CAL_GREGORIAN_US               = 2 ;     // Gregorian (U.S.) calendar
-        internal const int CAL_JAPAN                      = 3 ;     // Japanese Emperor Era calendar
-        internal const int CAL_TAIWAN                     = 4 ;     // Taiwan Era calendar
-        internal const int CAL_KOREA                      = 5 ;     // Korean Tangun Era calendar
-        internal const int CAL_HIJRI                      = 6 ;     // Hijri (Arabic Lunar) calendar
-        internal const int CAL_THAI                       = 7 ;     // Thai calendar
-        internal const int CAL_HEBREW                     = 8 ;     // Hebrew (Lunar) calendar
-        internal const int CAL_GREGORIAN_ME_FRENCH        = 9 ;     // Gregorian Middle East French calendar
-        internal const int CAL_GREGORIAN_ARABIC           = 10;     // Gregorian Arabic calendar
-        internal const int CAL_GREGORIAN_XLIT_ENGLISH     = 11;     // Gregorian Transliterated English calendar
-        internal const int CAL_GREGORIAN_XLIT_FRENCH      = 12;
-        internal const int CAL_JULIAN                     = 13;
-        internal const int CAL_JAPANESELUNISOLAR          = 14;
-        internal const int CAL_CHINESELUNISOLAR           = 15;
-        internal const int CAL_SAKA                       = 16;     // reserved to match Office but not implemented in our code
-        internal const int CAL_LUNAR_ETO_CHN              = 17;     // reserved to match Office but not implemented in our code
-        internal const int CAL_LUNAR_ETO_KOR              = 18;     // reserved to match Office but not implemented in our code
-        internal const int CAL_LUNAR_ETO_ROKUYOU          = 19;     // reserved to match Office but not implemented in our code
-        internal const int CAL_KOREANLUNISOLAR            = 20;
-        internal const int CAL_TAIWANLUNISOLAR            = 21;
-        internal const int CAL_PERSIAN                    = 22;
-        internal const int CAL_UMALQURA                   = 23;
+        internal const int CAL_GREGORIAN = 1;     // Gregorian (localized) calendar
+        internal const int CAL_GREGORIAN_US = 2;     // Gregorian (U.S.) calendar
+        internal const int CAL_JAPAN = 3;     // Japanese Emperor Era calendar
+        internal const int CAL_TAIWAN = 4;     // Taiwan Era calendar
+        internal const int CAL_KOREA = 5;     // Korean Tangun Era calendar
+        internal const int CAL_HIJRI = 6;     // Hijri (Arabic Lunar) calendar
+        internal const int CAL_THAI = 7;     // Thai calendar
+        internal const int CAL_HEBREW = 8;     // Hebrew (Lunar) calendar
+        internal const int CAL_GREGORIAN_ME_FRENCH = 9;     // Gregorian Middle East French calendar
+        internal const int CAL_GREGORIAN_ARABIC = 10;     // Gregorian Arabic calendar
+        internal const int CAL_GREGORIAN_XLIT_ENGLISH = 11;     // Gregorian Transliterated English calendar
+        internal const int CAL_GREGORIAN_XLIT_FRENCH = 12;
+        internal const int CAL_JULIAN = 13;
+        internal const int CAL_JAPANESELUNISOLAR = 14;
+        internal const int CAL_CHINESELUNISOLAR = 15;
+        internal const int CAL_SAKA = 16;     // reserved to match Office but not implemented in our code
+        internal const int CAL_LUNAR_ETO_CHN = 17;     // reserved to match Office but not implemented in our code
+        internal const int CAL_LUNAR_ETO_KOR = 18;     // reserved to match Office but not implemented in our code
+        internal const int CAL_LUNAR_ETO_ROKUYOU = 19;     // reserved to match Office but not implemented in our code
+        internal const int CAL_KOREANLUNISOLAR = 20;
+        internal const int CAL_TAIWANLUNISOLAR = 21;
+        internal const int CAL_PERSIAN = 22;
+        internal const int CAL_UMALQURA = 23;
 
         internal int m_currentEraValue = -1;
 
@@ -96,7 +97,6 @@ namespace System.Globalization {
 
         // The minimum supported DateTime range for the calendar.
 
-        [System.Runtime.InteropServices.ComVisible(false)]
         public virtual DateTime MinSupportedDateTime
         {
             get
@@ -107,7 +107,6 @@ namespace System.Globalization {
 
         // The maximum supported DateTime range for the calendar.
 
-        [System.Runtime.InteropServices.ComVisible(false)]
         public virtual DateTime MaxSupportedDateTime
         {
             get
@@ -119,15 +118,18 @@ namespace System.Globalization {
 
 
 
-        protected Calendar() {
+        protected Calendar()
+        {
             //Do-nothing constructor.
         }
 
         ///
         // This can not be abstract, otherwise no one can create a subclass of Calendar.
         //
-        internal virtual int ID {
-            get {
+        internal virtual int ID
+        {
+            get
+            {
                 return (-1);
             }
         }
@@ -143,7 +145,6 @@ namespace System.Globalization {
 
         // Returns  the type of the calendar.
         //
-        [System.Runtime.InteropServices.ComVisible(false)]
         public virtual CalendarAlgorithmType AlgorithmType
         {
             get
@@ -159,7 +160,6 @@ namespace System.Globalization {
         //  Detect if the object is readonly.
         //
         ////////////////////////////////////////////////////////////////////////
-        [System.Runtime.InteropServices.ComVisible(false)]
         public bool IsReadOnly
         {
             get { return (m_isReadOnly); }
@@ -169,17 +169,16 @@ namespace System.Globalization {
         //
         //  Clone
         //
-        //  Is the implementation of IColnable.
+        //  Is the implementation of ICloneable.
         //
         ////////////////////////////////////////////////////////////////////////
-        [System.Runtime.InteropServices.ComVisible(false)]
         public virtual Object Clone()
         {
             object o = MemberwiseClone();
-            ((Calendar) o).SetReadOnlyState(false);
+            ((Calendar)o).SetReadOnlyState(false);
             return (o);
         }
-        
+
         ////////////////////////////////////////////////////////////////////////
         //
         //  ReadOnly
@@ -188,16 +187,15 @@ namespace System.Globalization {
         //  readonly.
         //
         ////////////////////////////////////////////////////////////////////////
-        [System.Runtime.InteropServices.ComVisible(false)]
-        public static Calendar ReadOnly(Calendar calendar) 
+        public static Calendar ReadOnly(Calendar calendar)
         {
-            if (calendar == null)       { throw new ArgumentNullException("calendar"); }
+            if (calendar == null) { throw new ArgumentNullException(nameof(calendar)); }
             Contract.EndContractBlock();
-            if (calendar.IsReadOnly)    { return (calendar); }
-            
+            if (calendar.IsReadOnly) { return (calendar); }
+
             Calendar clonedCalendar = (Calendar)(calendar.MemberwiseClone());
             clonedCalendar.SetReadOnlyState(true);
-            
+
             return (clonedCalendar);
         }
 
@@ -224,11 +222,14 @@ namespace System.Globalization {
         ** The value is from calendar.nlp.
         ============================================================================*/
 
-        internal virtual int CurrentEraValue {
-            get {
+        internal virtual int CurrentEraValue
+        {
+            get
+            {
                 // The following code assumes that the current era value can not be -1.
-                if (m_currentEraValue == -1) {
-                    Contract.Assert(BaseCalendarID > 0, "[Calendar.CurrentEraValue] Expected ID > 0");
+                if (m_currentEraValue == -1)
+                {
+                    Debug.Assert(BaseCalendarID > 0, "[Calendar.CurrentEraValue] Expected ID > 0");
                     m_currentEraValue = CalendarData.GetCalendarData(BaseCalendarID).iCurrentEra;
                 }
                 return (m_currentEraValue);
@@ -241,8 +242,10 @@ namespace System.Globalization {
 
         internal int twoDigitYearMax = -1;
 
-        internal static void CheckAddResult(long ticks, DateTime minValue, DateTime maxValue) {
-            if (ticks < minValue.Ticks || ticks > maxValue.Ticks) {
+        internal static void CheckAddResult(long ticks, DateTime minValue, DateTime maxValue)
+        {
+            if (ticks < minValue.Ticks || ticks > maxValue.Ticks)
+            {
                 throw new ArgumentException(
                     String.Format(CultureInfo.InvariantCulture, Environment.GetResourceString("Argument_ResultCalendarRange"),
                         minValue, maxValue));
@@ -250,7 +253,8 @@ namespace System.Globalization {
             Contract.EndContractBlock();
         }
 
-        internal DateTime Add(DateTime time, double value, int scale) {
+        internal DateTime Add(DateTime time, double value, int scale)
+        {
             // From ECMA CLI spec, Partition III, section 3.27:
             //
             // If overflow occurs converting a floating-point type to an integer, or if the floating-point value 
@@ -261,7 +265,7 @@ namespace System.Globalization {
             double tempMillis = (value * scale + (value >= 0 ? 0.5 : -0.5));
             if (!((tempMillis > -(double)MaxMillis) && (tempMillis < (double)MaxMillis)))
             {
-                throw new ArgumentOutOfRangeException("value", Environment.GetResourceString("ArgumentOutOfRange_AddValue"));
+                throw new ArgumentOutOfRangeException(nameof(value), Environment.GetResourceString("ArgumentOutOfRange_AddValue"));
             }
 
             long millis = (long)tempMillis;
@@ -277,7 +281,8 @@ namespace System.Globalization {
         // argument is permitted to be negative.
         //
 
-        public virtual DateTime AddMilliseconds(DateTime time, double milliseconds) {
+        public virtual DateTime AddMilliseconds(DateTime time, double milliseconds)
+        {
             return (Add(time, milliseconds, 1));
         }
 
@@ -289,7 +294,8 @@ namespace System.Globalization {
         // value argument is permitted to be negative.
         //
 
-        public virtual DateTime AddDays(DateTime time, int days) {
+        public virtual DateTime AddDays(DateTime time, int days)
+        {
             return (Add(time, days, MillisPerDay));
         }
 
@@ -300,7 +306,8 @@ namespace System.Globalization {
         // value argument is permitted to be negative.
         //
 
-        public virtual DateTime AddHours(DateTime time, int hours) {
+        public virtual DateTime AddHours(DateTime time, int hours)
+        {
             return (Add(time, hours, MillisPerHour));
         }
 
@@ -312,7 +319,8 @@ namespace System.Globalization {
         // value argument is permitted to be negative.
         //
 
-        public virtual DateTime AddMinutes(DateTime time, int minutes) {
+        public virtual DateTime AddMinutes(DateTime time, int minutes)
+        {
             return (Add(time, minutes, MillisPerMinute));
         }
 
@@ -344,7 +352,8 @@ namespace System.Globalization {
         // value argument is permitted to be negative.
         //
 
-        public virtual DateTime AddSeconds(DateTime time, int seconds) {
+        public virtual DateTime AddSeconds(DateTime time, int seconds)
+        {
             return Add(time, seconds, MillisPerSecond);
         }
 
@@ -353,7 +362,8 @@ namespace System.Globalization {
         // value argument is permitted to be negative.
         //
 
-        public virtual DateTime AddWeeks(DateTime time, int weeks) {
+        public virtual DateTime AddWeeks(DateTime time, int weeks)
+        {
             return (AddDays(time, weeks * 7));
         }
 
@@ -430,7 +440,8 @@ namespace System.Globalization {
         ============================================================================*/
 
 
-        public abstract int[] Eras {
+        public abstract int[] Eras
+        {
             get;
         }
 
@@ -439,7 +450,8 @@ namespace System.Globalization {
         // integer between 0 and 23.
         //
 
-        public virtual int GetHour(DateTime time) {
+        public virtual int GetHour(DateTime time)
+        {
             return ((int)((time.Ticks / TicksPerHour) % 24));
         }
 
@@ -447,7 +459,8 @@ namespace System.Globalization {
         // is an integer between 0 and 999.
         //
 
-        public virtual double GetMilliseconds(DateTime time) {
+        public virtual double GetMilliseconds(DateTime time)
+        {
             return (double)((time.Ticks / TicksPerMillisecond) % 1000);
         }
 
@@ -455,7 +468,8 @@ namespace System.Globalization {
         // an integer between 0 and 59.
         //
 
-        public virtual int GetMinute(DateTime time) {
+        public virtual int GetMinute(DateTime time)
+        {
             return ((int)((time.Ticks / TicksPerMinute) % 60));
         }
 
@@ -480,7 +494,8 @@ namespace System.Globalization {
         // an integer between 0 and 59.
         //
 
-        public virtual int GetSecond(DateTime time) {
+        public virtual int GetSecond(DateTime time)
+        {
             return ((int)((time.Ticks / TicksPerSecond) % 60));
         }
 
@@ -521,18 +536,20 @@ namespace System.Globalization {
         **      So Week of year = (GetDayOfYear(time) + offset - 1) / 7 + 1
         ============================================================================*/
 
-        internal int GetFirstDayWeekOfYear(DateTime time, int firstDayOfWeek) {
+        internal int GetFirstDayWeekOfYear(DateTime time, int firstDayOfWeek)
+        {
             int dayOfYear = GetDayOfYear(time) - 1;   // Make the day of year to be 0-based, so that 1/1 is day 0.
             // Calculate the day of week for the first day of the year.
             // dayOfWeek - (dayOfYear % 7) is the day of week for the first day of this year.  Note that
             // this value can be less than 0.  It's fine since we are making it positive again in calculating offset.
             int dayForJan1 = (int)GetDayOfWeek(time) - (dayOfYear % 7);
             int offset = (dayForJan1 - firstDayOfWeek + 14) % 7;
-            Contract.Assert(offset >= 0, "Calendar.GetFirstDayWeekOfYear(): offset >= 0");
+            Debug.Assert(offset >= 0, "Calendar.GetFirstDayWeekOfYear(): offset >= 0");
             return ((dayOfYear + offset) / 7 + 1);
         }
 
-        private int GetWeekOfYearFullDays(DateTime time, int firstDayOfWeek, int fullDays) {
+        private int GetWeekOfYearFullDays(DateTime time, int firstDayOfWeek, int fullDays)
+        {
             int dayForJan1;
             int offset;
             int day;
@@ -581,11 +598,12 @@ namespace System.Globalization {
             // Calculate the day of year for specified time by taking offset into account.
             //
             day = dayOfYear - offset;
-            if (day >= 0) {
+            if (day >= 0)
+            {
                 //
                 // If the day of year value is greater than zero, get the week of year.
                 //
-                return (day/7 + 1);
+                return (day / 7 + 1);
             }
             //
             // Otherwise, the specified time falls on the week of previous year.
@@ -648,13 +666,15 @@ namespace System.Globalization {
 
         public virtual int GetWeekOfYear(DateTime time, CalendarWeekRule rule, DayOfWeek firstDayOfWeek)
         {
-            if ((int)firstDayOfWeek < 0 || (int)firstDayOfWeek > 6) {
+            if ((int)firstDayOfWeek < 0 || (int)firstDayOfWeek > 6)
+            {
                 throw new ArgumentOutOfRangeException(
-                    "firstDayOfWeek", Environment.GetResourceString("ArgumentOutOfRange_Range",
+                    nameof(firstDayOfWeek), Environment.GetResourceString("ArgumentOutOfRange_Range",
                     DayOfWeek.Sunday, DayOfWeek.Saturday));
             }
             Contract.EndContractBlock();
-            switch (rule) {
+            switch (rule)
+            {
                 case CalendarWeekRule.FirstDay:
                     return (GetFirstDayWeekOfYear(time, (int)firstDayOfWeek));
                 case CalendarWeekRule.FirstFullWeek:
@@ -663,9 +683,8 @@ namespace System.Globalization {
                     return (GetWeekOfYearFullDays(time, (int)firstDayOfWeek, 4));
             }
             throw new ArgumentOutOfRangeException(
-                "rule", Environment.GetResourceString("ArgumentOutOfRange_Range",
+                nameof(rule), Environment.GetResourceString("ArgumentOutOfRange_Range",
                 CalendarWeekRule.FirstDay, CalendarWeekRule.FirstFourDayWeek));
-
         }
 
         // Returns the year part of the specified DateTime. The returned value is an
@@ -693,7 +712,8 @@ namespace System.Globalization {
         // month is a leap month, or false if not.
         //
 
-        public virtual bool IsLeapMonth(int year, int month) {
+        public virtual bool IsLeapMonth(int year, int month)
+        {
             return (IsLeapMonth(year, month, CurrentEra));
         }
 
@@ -707,7 +727,6 @@ namespace System.Globalization {
         // if this calendar does not have leap month, or this year is not a leap year.
         //
 
-        [System.Runtime.InteropServices.ComVisible(false)]
         public virtual int GetLeapMonth(int year)
         {
             return (GetLeapMonth(year, CurrentEra));
@@ -717,14 +736,13 @@ namespace System.Globalization {
         // if this calendar does not have leap month, or this year is not a leap year.
         //
 
-        [System.Runtime.InteropServices.ComVisible(false)]
         public virtual int GetLeapMonth(int year, int era)
         {
             if (!IsLeapYear(year, era))
                 return 0;
 
             int monthsCount = GetMonthsInYear(year, era);
-            for (int month=1; month<=monthsCount; month++)
+            for (int month = 1; month <= monthsCount; month++)
             {
                 if (IsLeapMonth(year, month, era))
                     return month;
@@ -751,7 +769,7 @@ namespace System.Globalization {
         // Returns the date and time converted to a DateTime value.  Throws an exception if the n-tuple is invalid.
         //
 
-        public virtual DateTime ToDateTime(int year, int month,  int day, int hour, int minute, int second, int millisecond)
+        public virtual DateTime ToDateTime(int year, int month, int day, int hour, int minute, int second, int millisecond)
         {
             return (ToDateTime(year, month, day, hour, minute, second, millisecond, CurrentEra));
         }
@@ -761,30 +779,35 @@ namespace System.Globalization {
 
         public abstract DateTime ToDateTime(int year, int month, int day, int hour, int minute, int second, int millisecond, int era);
 
-        internal virtual Boolean TryToDateTime(int year, int month, int day, int hour, int minute, int second, int millisecond, int era, out DateTime result) {
+        internal virtual Boolean TryToDateTime(int year, int month, int day, int hour, int minute, int second, int millisecond, int era, out DateTime result)
+        {
             result = DateTime.MinValue;
-            try {
+            try
+            {
                 result = ToDateTime(year, month, day, hour, minute, second, millisecond, era);
                 return true;
             }
-            catch (ArgumentException) {
+            catch (ArgumentException)
+            {
                 return false;
             }
         }
-        
-        internal virtual bool IsValidYear(int year, int era) {
+
+        internal virtual bool IsValidYear(int year, int era)
+        {
             return (year >= GetYear(MinSupportedDateTime) && year <= GetYear(MaxSupportedDateTime));
         }
-        
-        internal virtual bool IsValidMonth(int year, int month, int era) {
+
+        internal virtual bool IsValidMonth(int year, int month, int era)
+        {
             return (IsValidYear(year, era) && month >= 1 && month <= GetMonthsInYear(year, era));
         }
-        
+
         internal virtual bool IsValidDay(int year, int month, int day, int era)
         {
             return (IsValidMonth(year, month, era) && day >= 1 && day <= GetDaysInMonth(year, month, era));
         }
-        
+
 
         // Returns and assigns the maximum value to represent a two digit year.  This
         // value is the upper boundary of a 100 year range that allows a two digit year
@@ -812,14 +835,17 @@ namespace System.Globalization {
         // then a two digit value of 30 will get converted to 1930 while a two digit
         // value of 29 will get converted to 2029.
 
-        public virtual int ToFourDigitYear(int year) {
-            if (year < 0) {
-                throw new ArgumentOutOfRangeException("year",
+        public virtual int ToFourDigitYear(int year)
+        {
+            if (year < 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(year),
                     Environment.GetResourceString("ArgumentOutOfRange_NeedNonNegNum"));
             }
             Contract.EndContractBlock();
-            if (year < 100) {
-                return ((TwoDigitYearMax/100 - ( year > TwoDigitYearMax % 100 ? 1 : 0))*100 + year);
+            if (year < 100)
+            {
+                return ((TwoDigitYearMax / 100 - (year > TwoDigitYearMax % 100 ? 1 : 0)) * 100 + year);
             }
             // If the year value is above 100, just return the year value.  Don't have to do
             // the TwoDigitYearMax comparison.
@@ -830,11 +856,12 @@ namespace System.Globalization {
         // Will check the if the parameters are valid.
         internal static long TimeToTicks(int hour, int minute, int second, int millisecond)
         {
-            if (hour >= 0 && hour < 24 && minute >= 0 && minute < 60 && second >=0 && second < 60)
+            if (hour >= 0 && hour < 24 && minute >= 0 && minute < 60 && second >= 0 && second < 60)
             {
-                if (millisecond < 0 || millisecond >= MillisPerSecond) {
+                if (millisecond < 0 || millisecond >= MillisPerSecond)
+                {
                     throw new ArgumentOutOfRangeException(
-                                "millisecond",
+                                nameof(millisecond),
                                 String.Format(
                                     CultureInfo.InvariantCulture,
                                     Environment.GetResourceString("ArgumentOutOfRange_Range"), 0, MillisPerSecond - 1));
@@ -844,7 +871,6 @@ namespace System.Globalization {
             throw new ArgumentOutOfRangeException(null, Environment.GetResourceString("ArgumentOutOfRange_BadHourMinuteSecond"));
         }
 
-        [System.Security.SecuritySafeCritical]  // auto-generated
         internal static int GetSystemTwoDigitYearSetting(int CalID, int defaultYearValue)
         {
             // Call nativeGetTwoDigitYearMax
@@ -855,6 +881,5 @@ namespace System.Globalization {
             }
             return (twoDigitYearMax);
         }
-
     }
 }

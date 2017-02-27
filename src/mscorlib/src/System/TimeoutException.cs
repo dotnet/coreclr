@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*=============================================================================
 **
@@ -10,35 +11,31 @@
 **
 =============================================================================*/
 
-namespace System 
-{
-    using System.Runtime.Serialization;
+using System.Runtime.Serialization;
 
+namespace System
+{
     [Serializable]
-[System.Runtime.InteropServices.ComVisible(true)]
-    public class TimeoutException : SystemException {
-        
-        public TimeoutException() 
-            : base(Environment.GetResourceString("Arg_TimeoutException")) {
-            SetErrorCode(__HResults.COR_E_TIMEOUT);
+    public class TimeoutException : SystemException
+    {
+        public TimeoutException()
+            : base(SR.Arg_TimeoutException)
+        {
+            HResult = __HResults.COR_E_TIMEOUT;
         }
-    
-        public TimeoutException(String message) 
-            : base(message) {
-            SetErrorCode(__HResults.COR_E_TIMEOUT);
+
+        public TimeoutException(String message)
+            : base(message)
+        {
+            HResult = __HResults.COR_E_TIMEOUT;
         }
-        
+
         public TimeoutException(String message, Exception innerException)
-            : base(message, innerException) {
-            SetErrorCode(__HResults.COR_E_TIMEOUT);
+            : base(message, innerException)
+        {
+            HResult = __HResults.COR_E_TIMEOUT;
         }
-    
-        //
-        //This constructor is required for serialization.
-        //
-        protected TimeoutException(SerializationInfo info, StreamingContext context) 
-            : base(info, context) {
-        }
+
+        protected TimeoutException(SerializationInfo info, StreamingContext context) : base(info, context) { }
     }
 }
-

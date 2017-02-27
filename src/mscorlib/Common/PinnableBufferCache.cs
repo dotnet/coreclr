@@ -1,11 +1,10 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 #define ENABLE
 #define MINBUFFERS
+
 using System;
-#if !FEATURE_CORECLR
-using System.Diagnostics.Tracing;
-#endif
 using System.Runtime.InteropServices;
 using System.Runtime.ConstrainedExecution;
 using System.Collections.Generic;
@@ -13,7 +12,6 @@ using System.Collections.Concurrent;
 using System.Threading;
 using System.Runtime.CompilerServices;
 using System.Diagnostics;
-using System.Security.Permissions;
 
 #if PINNABLEBUFFERCACHE_MSCORLIB
 namespace System.Threading
@@ -24,32 +22,9 @@ namespace System
     internal sealed class PinnableBufferCache
     {
         /// <summary>
-        /// Create a new cache for pinned byte[] buffers
-        /// </summary>
-        /// <param name="cacheName">A name used in diagnostic messages</param>
-        /// <param name="numberOfElements">The size of byte[] buffers in the cache (they are all the same size)</param>
-        public PinnableBufferCache(string cacheName, int numberOfElements) : this(cacheName, () => new byte[numberOfElements]) { }
-
-        /// <summary>
-        /// Get a buffer from the buffer manager.  If no buffers exist, allocate a new one.
-        /// </summary>
-        public byte[] AllocateBuffer() { return (byte[])Allocate(); }
-
-        /// <summary>
-        /// Return a buffer back to the buffer manager.
-        /// </summary>
-        public void FreeBuffer(byte[] buffer) { Free(buffer); }
-
-        /// <summary>
         /// Create a PinnableBufferCache that works on any object (it is intended for OverlappedData)
         /// This is only used in mscorlib.
         /// </summary>
-#if (ENABLE || MINBUFFERS)
-#pragma warning disable 618
-        [EnvironmentPermission(SecurityAction.Assert, Unrestricted = true)]
-#pragma warning restore 618
-        [System.Security.SecuritySafeCritical]
-#endif
         internal PinnableBufferCache(string cacheName, Func<object> factory)
         {
             m_NotGen2 = new List<object>(DefaultNumberOfBuffers);
@@ -102,7 +77,6 @@ namespace System
         /// <summary>
         /// Get a object from the buffer manager.  If no buffers exist, allocate a new one.
         /// </summary>
-        [System.Security.SecuritySafeCritical]
         internal object Allocate()
         {
 #if ENABLE
@@ -148,7 +122,6 @@ namespace System
         /// <summary>
         /// Return a buffer back to the buffer manager.
         /// </summary>
-        [System.Security.SecuritySafeCritical]
         internal void Free(object buffer)
         {
 #if ENABLE
@@ -187,7 +160,6 @@ namespace System
         /// Called when we don't have any buffers in our free list to give out.    
         /// </summary>
         /// <returns></returns>
-        [System.Security.SecuritySafeCritical]
         private void Restock(out object returnBuffer)
         {
             lock (this)
@@ -240,7 +212,6 @@ namespace System
         /// <summary>
         /// See if we can promote the buffers to the free list.  Returns true if sucessful. 
         /// </summary>
-        [System.Security.SecuritySafeCritical]
         private bool AgePendingBuffers()
         {
             if (m_gen1CountAtLastRestock < GC.CollectionCount(GC.MaxGeneration - 1))
@@ -316,7 +287,6 @@ namespace System
         /// otherwise, we root the cache to the Gen2GcCallback object, and leak the cache even when
         /// the application no longer needs it.
         /// </summary>
-        [System.Security.SecuritySafeCritical]
         private static bool Gen2GcCallbackFunc(object targetObj)
         {
             return ((PinnableBufferCache)(targetObj)).TrimFreeListIfNeeded();
@@ -327,7 +297,6 @@ namespace System
         /// NOTE: DO NOT CALL THIS DIRECTLY FROM THE GEN2GCCALLBACK.  INSTEAD CALL IT VIA A STATIC FUNCTION (SEE ABOVE).
         /// If you register a non-static function as a callback, then this object will be leaked.
         /// </summary>
-        [System.Security.SecuritySafeCritical]
         private bool TrimFreeListIfNeeded()
         {
             int curMSec = Environment.TickCount;
@@ -403,7 +372,7 @@ namespace System
                     return true;
                 }
 
-                // Move buffers from teh free list back to the non-aged list.  If we don't use them by next time, then we'll consider trimming them.
+                // Move buffers from the free list back to the non-aged list.  If we don't use them by next time, then we'll consider trimming them.
                 PinnableBufferCacheEventSource.Log.TrimExperiment(m_CacheName, m_buffersUnderManagement, freeCount, trimSize);
                 object buffer;
                 for (int i = 0; i < trimSize; i++)
@@ -480,7 +449,6 @@ namespace System
     /// </summary>
     internal sealed class Gen2GcCallback : CriticalFinalizerObject
     {
-        [System.Security.SecuritySafeCritical]
         public Gen2GcCallback()
             : base()
         {
@@ -505,14 +473,12 @@ namespace System
         private Func<object, bool> m_callback;
         private GCHandle m_weakTargetObj;
 
-        [System.Security.SecuritySafeCritical]
         private void Setup(Func<object, bool> callback, object targetObj)
         {
             m_callback = callback;
             m_weakTargetObj = GCHandle.Alloc(targetObj, GCHandleType.Weak);
         }
 
-        [System.Security.SecuritySafeCritical]
         ~Gen2GcCallback()
         {
             // Check to see if the target object is still alive.
@@ -548,118 +514,31 @@ namespace System
         #endregion
     }
 
-
-#if FEATURE_CORECLR
     internal sealed class PinnableBufferCacheEventSource
     {
         public static readonly PinnableBufferCacheEventSource Log = new PinnableBufferCacheEventSource();
 
         public bool IsEnabled() { return false; }
-        public void DebugMessage(string message) {}
-        public void DebugMessage1(string message, long value) {}
-        public void DebugMessage2(string message, long value1, long value2) {}
-        public void DebugMessage3(string message, long value1, long value2, long value3) {}
-        public void Create(string cacheName) {}
-        public void AllocateBuffer(string cacheName, ulong objectId, int objectHash, int objectGen, int freeCountAfter) {}
-        public void AllocateBufferFromNotGen2(string cacheName, int notGen2CountAfter) {}
-        public void AllocateBufferCreatingNewBuffers(string cacheName, int totalBuffsBefore, int objectCount) {}
-        public void AllocateBufferAged(string cacheName, int agedCount) {}
-        public void AllocateBufferFreeListEmpty(string cacheName, int notGen2CountBefore) {}
-        public void FreeBuffer(string cacheName, ulong objectId, int objectHash, int freeCountBefore) {}
-        public void FreeBufferStillTooYoung(string cacheName, int notGen2CountBefore) {}
-        public void TrimCheck(string cacheName, int totalBuffs, bool neededMoreThanFreeList, int deltaMSec) {}
-        public void TrimFree(string cacheName, int totalBuffs, int freeListCount, int toBeFreed) {}
-        public void TrimExperiment(string cacheName, int totalBuffs, int freeListCount, int numTrimTrial) {}
-        public void TrimFreeSizeOK(string cacheName, int totalBuffs, int freeListCount) {}
-        public void TrimFlush(string cacheName, int totalBuffs, int freeListCount, int notGen2CountBefore) {}
-        public void AgePendingBuffersResults(string cacheName, int promotedToFreeListCount, int heldBackCount) {}
-        public void WalkFreeListResult(string cacheName, int freeListCount, int gen0BuffersInFreeList) {}
+        public void DebugMessage(string message) { }
+        public void Create(string cacheName) { }
+        public void AllocateBuffer(string cacheName, ulong objectId, int objectHash, int objectGen, int freeCountAfter) { }
+        public void AllocateBufferFromNotGen2(string cacheName, int notGen2CountAfter) { }
+        public void AllocateBufferCreatingNewBuffers(string cacheName, int totalBuffsBefore, int objectCount) { }
+        public void AllocateBufferAged(string cacheName, int agedCount) { }
+        public void AllocateBufferFreeListEmpty(string cacheName, int notGen2CountBefore) { }
+        public void FreeBuffer(string cacheName, ulong objectId, int objectHash, int freeCountBefore) { }
+        public void FreeBufferStillTooYoung(string cacheName, int notGen2CountBefore) { }
+        public void TrimCheck(string cacheName, int totalBuffs, bool neededMoreThanFreeList, int deltaMSec) { }
+        public void TrimFree(string cacheName, int totalBuffs, int freeListCount, int toBeFreed) { }
+        public void TrimExperiment(string cacheName, int totalBuffs, int freeListCount, int numTrimTrial) { }
+        public void TrimFreeSizeOK(string cacheName, int totalBuffs, int freeListCount) { }
+        public void TrimFlush(string cacheName, int totalBuffs, int freeListCount, int notGen2CountBefore) { }
+        public void AgePendingBuffersResults(string cacheName, int promotedToFreeListCount, int heldBackCount) { }
+        public void WalkFreeListResult(string cacheName, int freeListCount, int gen0BuffersInFreeList) { }
 
         static internal ulong AddressOf(object obj)
         {
             return 0;
         }
-
-        [System.Security.SecuritySafeCritical]
-        static internal unsafe long AddressOfObject(byte[] array)
-        {
-            return 0;
-        }
     }
-#else
-    /// <summary>
-    /// PinnableBufferCacheEventSource is a private eventSource that we are using to
-    /// debug and monitor the effectiveness of PinnableBufferCache
-    /// </summary>
-#if PINNABLEBUFFERCACHE_MSCORLIB
-    [EventSource(Name = "Microsoft-DotNETRuntime-PinnableBufferCache")]
-#else
-    [EventSource(Name = "Microsoft-DotNETRuntime-PinnableBufferCache-System")]
-#endif
-    internal sealed class PinnableBufferCacheEventSource : EventSource
-    {
-        public static readonly PinnableBufferCacheEventSource Log = new PinnableBufferCacheEventSource();
-
-        [Event(1, Level = EventLevel.Verbose)]
-        public void DebugMessage(string message) { if (IsEnabled()) WriteEvent(1, message); }
-        [Event(2, Level = EventLevel.Verbose)]
-        public void DebugMessage1(string message, long value) { if (IsEnabled()) WriteEvent(2, message, value); }
-        [Event(3, Level = EventLevel.Verbose)]
-        public void DebugMessage2(string message, long value1, long value2) { if (IsEnabled()) WriteEvent(3, message, value1, value2); }
-        [Event(18, Level = EventLevel.Verbose)]
-        public void DebugMessage3(string message, long value1, long value2, long value3) { if (IsEnabled()) WriteEvent(18, message, value1, value2, value3); }
-
-        [Event(4)]
-        public void Create(string cacheName) { if (IsEnabled()) WriteEvent(4, cacheName); }
-
-        [Event(5, Level = EventLevel.Verbose)]
-        public void AllocateBuffer(string cacheName, ulong objectId, int objectHash, int objectGen, int freeCountAfter) { if (IsEnabled()) WriteEvent(5, cacheName, objectId, objectHash, objectGen, freeCountAfter); }
-        [Event(6)]
-        public void AllocateBufferFromNotGen2(string cacheName, int notGen2CountAfter) { if (IsEnabled()) WriteEvent(6, cacheName, notGen2CountAfter); }
-        [Event(7)]
-        public void AllocateBufferCreatingNewBuffers(string cacheName, int totalBuffsBefore, int objectCount) { if (IsEnabled()) WriteEvent(7, cacheName, totalBuffsBefore, objectCount); }
-        [Event(8)]
-        public void AllocateBufferAged(string cacheName, int agedCount) { if (IsEnabled()) WriteEvent(8, cacheName, agedCount); }
-        [Event(9)]
-        public void AllocateBufferFreeListEmpty(string cacheName, int notGen2CountBefore) { if (IsEnabled()) WriteEvent(9, cacheName, notGen2CountBefore); }
-
-        [Event(10, Level = EventLevel.Verbose)]
-        public void FreeBuffer(string cacheName, ulong objectId, int objectHash, int freeCountBefore) { if (IsEnabled()) WriteEvent(10, cacheName, objectId, objectHash, freeCountBefore); }
-        [Event(11)]
-        public void FreeBufferStillTooYoung(string cacheName, int notGen2CountBefore) { if (IsEnabled()) WriteEvent(11, cacheName, notGen2CountBefore); }
-
-        [Event(13)]
-        public void TrimCheck(string cacheName, int totalBuffs, bool neededMoreThanFreeList, int deltaMSec) { if (IsEnabled()) WriteEvent(13, cacheName, totalBuffs, neededMoreThanFreeList, deltaMSec); }
-        [Event(14)]
-        public void TrimFree(string cacheName, int totalBuffs, int freeListCount, int toBeFreed) { if (IsEnabled()) WriteEvent(14, cacheName, totalBuffs, freeListCount, toBeFreed); }
-        [Event(15)]
-        public void TrimExperiment(string cacheName, int totalBuffs, int freeListCount, int numTrimTrial) { if (IsEnabled()) WriteEvent(15, cacheName, totalBuffs, freeListCount, numTrimTrial); }
-        [Event(16)]
-        public void TrimFreeSizeOK(string cacheName, int totalBuffs, int freeListCount) { if (IsEnabled()) WriteEvent(16, cacheName, totalBuffs, freeListCount); }
-        [Event(17)]
-        public void TrimFlush(string cacheName, int totalBuffs, int freeListCount, int notGen2CountBefore) { if (IsEnabled()) WriteEvent(17, cacheName, totalBuffs, freeListCount, notGen2CountBefore); }
-        [Event(20)]
-        public void AgePendingBuffersResults(string cacheName, int promotedToFreeListCount, int heldBackCount) { if (IsEnabled()) WriteEvent(20, cacheName, promotedToFreeListCount, heldBackCount); }
-        [Event(21)]
-        public void WalkFreeListResult(string cacheName, int freeListCount, int gen0BuffersInFreeList) { if (IsEnabled()) WriteEvent(21, cacheName, freeListCount, gen0BuffersInFreeList); }
-
-
-        static internal ulong AddressOf(object obj)
-        {
-            var asByteArray = obj as byte[];
-            if (asByteArray != null)
-                return (ulong)AddressOfByteArray(asByteArray);
-            return 0;
-        }
-
-        [System.Security.SecuritySafeCritical]
-        static internal unsafe long AddressOfByteArray(byte[] array)
-        {
-            if (array == null)
-                return 0;
-            fixed (byte* ptr = array)
-                return (long)(ptr - 2 * sizeof(void*));
-        }
-    }
-#endif
 }

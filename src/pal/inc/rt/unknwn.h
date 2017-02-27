@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //
 
 //
@@ -34,6 +33,14 @@ IUnknown
     virtual ULONG STDMETHODCALLTYPE AddRef( void) = 0;
         
     virtual ULONG STDMETHODCALLTYPE Release( void) = 0;
+
+    template<class Q>
+    HRESULT
+    STDMETHODCALLTYPE
+    QueryInterface(Q** pp)
+    {
+        return QueryInterface(__uuidof(Q), (void **)pp);
+    }
 };
 
 #endif // __IUnknown_INTERFACE_DEFINED__

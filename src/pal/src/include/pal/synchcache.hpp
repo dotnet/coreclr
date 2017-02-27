@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information. 
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*++
 
@@ -114,11 +113,11 @@ namespace CorUnix
             }
 #endif // _DEBUG
 
-            Unlock(pthrCurrent);       
+            Unlock(pthrCurrent);
 
             for (j=i;j<n;j++)
             {
-                pvObjRaw = (void *) InternalNew<USynchCacheStackNode>(pthrCurrent);
+                pvObjRaw = (void *) InternalNew<USynchCacheStackNode>();
                 if (NULL == pvObjRaw)
                     break;
 #ifdef _DEBUG
@@ -161,14 +160,14 @@ namespace CorUnix
             }
             else
             {
-                InternalDelete(pthrCurrent, (char *)pNode);
+                InternalDelete((char *)pNode);
             }
-            Unlock(pthrCurrent);       
+            Unlock(pthrCurrent);
         }
 
         void Flush(CPalThread * pthrCurrent, bool fDontLock = false)
         {
-            USynchCacheStackNode * pNode, * pTemp;        
+            USynchCacheStackNode * pNode, * pTemp;
 
             if (!fDontLock)
             {
@@ -186,9 +185,9 @@ namespace CorUnix
             {
                 pTemp = pNode;
                 pNode = pNode->next;
-                InternalDelete(pthrCurrent, (char *)pTemp);
-            } 
-        }    
+                InternalDelete((char *)pTemp);
+            }
+        }
     };
 
     template <typename T> class CSHRSynchCache

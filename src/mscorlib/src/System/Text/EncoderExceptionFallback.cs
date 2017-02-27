@@ -1,12 +1,13 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
+
+using System;
+using System.Runtime.Serialization;
+using System.Diagnostics.Contracts;
 
 namespace System.Text
 {
-    using System;
-    using System.Runtime.Serialization;
-    using System.Diagnostics.Contracts;
-
     [Serializable]
     public sealed class EncoderExceptionFallback : EncoderFallback
     {
@@ -48,7 +49,7 @@ namespace System.Text
 
     public sealed class EncoderExceptionFallbackBuffer : EncoderFallbackBuffer
     {
-        public EncoderExceptionFallbackBuffer(){}
+        public EncoderExceptionFallbackBuffer() { }
         public override bool Fallback(char charUnknown, int index)
         {
             // Fall back our char
@@ -61,13 +62,13 @@ namespace System.Text
         {
             if (!Char.IsHighSurrogate(charUnknownHigh))
             {
-                throw new ArgumentOutOfRangeException("charUnknownHigh",
+                throw new ArgumentOutOfRangeException(nameof(charUnknownHigh),
                     Environment.GetResourceString("ArgumentOutOfRange_Range",
                     0xD800, 0xDBFF));
             }
             if (!Char.IsLowSurrogate(charUnknownLow))
             {
-                throw new ArgumentOutOfRangeException("CharUnknownLow",
+                throw new ArgumentOutOfRangeException(nameof(charUnknownLow),
                     Environment.GetResourceString("ArgumentOutOfRange_Range",
                     0xDC00, 0xDFFF));
             }
@@ -105,10 +106,10 @@ namespace System.Text
     [Serializable]
     public sealed class EncoderFallbackException : ArgumentException
     {
-        char    charUnknown;
-        char    charUnknownHigh;
-        char    charUnknownLow;
-        int     index;
+        private char charUnknown;
+        private char charUnknownHigh;
+        private char charUnknownLow;
+        private int index;
 
         public EncoderFallbackException()
             : base(Environment.GetResourceString("Arg_ArgumentException"))
@@ -144,13 +145,13 @@ namespace System.Text
         {
             if (!Char.IsHighSurrogate(charUnknownHigh))
             {
-                throw new ArgumentOutOfRangeException("charUnknownHigh",
+                throw new ArgumentOutOfRangeException(nameof(charUnknownHigh),
                     Environment.GetResourceString("ArgumentOutOfRange_Range",
                     0xD800, 0xDBFF));
             }
             if (!Char.IsLowSurrogate(charUnknownLow))
             {
-                throw new ArgumentOutOfRangeException("CharUnknownLow",
+                throw new ArgumentOutOfRangeException(nameof(CharUnknownLow),
                     Environment.GetResourceString("ArgumentOutOfRange_Range",
                     0xDC00, 0xDFFF));
             }
@@ -196,7 +197,7 @@ namespace System.Text
         // Return true if the unknown character is a surrogate pair.
         public bool IsUnknownSurrogate()
         {
-            return (this.charUnknownHigh != '\0');
+            return (charUnknownHigh != '\0');
         }
     }
 }

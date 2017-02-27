@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System;
 using System.Runtime.InteropServices;
@@ -21,7 +22,9 @@ namespace System.Diagnostics.Tracing
 #endif
 {
     [StructLayout(LayoutKind.Explicit, Size = 16)]
+#if !CORECLR    
     [System.Security.Permissions.HostProtection(MayLeakOnAbort = true)]
+#endif // CORECLR    
     internal struct EventDescriptor
     {
         # region private
@@ -50,14 +53,14 @@ namespace System.Diagnostics.Tracing
                 long keywords
                 )
         {
-            this.m_id = 0;
-            this.m_version = 0;
-            this.m_channel = 0;
-            this.m_traceloggingId = traceloggingId;
-            this.m_level = level;
-            this.m_opcode = opcode;
-            this.m_task = 0;
-            this.m_keywords = keywords;
+            m_id = 0;
+            m_version = 0;
+            m_channel = 0;
+            m_traceloggingId = traceloggingId;
+            m_level = level;
+            m_opcode = opcode;
+            m_task = 0;
+            m_keywords = keywords;
         }
 
         public EventDescriptor(
@@ -72,12 +75,12 @@ namespace System.Diagnostics.Tracing
         {
             if (id < 0)
             {
-                throw new ArgumentOutOfRangeException("id", Environment.GetResourceString("ArgumentOutOfRange_NeedNonNegNum"));
+                throw new ArgumentOutOfRangeException(nameof(id), Resources.GetResourceString("ArgumentOutOfRange_NeedNonNegNum"));
             }
 
             if (id > ushort.MaxValue)
             {
-                throw new ArgumentOutOfRangeException("id", Environment.GetResourceString("ArgumentOutOfRange_NeedValidId", 1, ushort.MaxValue));
+                throw new ArgumentOutOfRangeException(nameof(id), Resources.GetResourceString("ArgumentOutOfRange_NeedValidId", 1, ushort.MaxValue));
             }
 
             m_traceloggingId = 0;
@@ -90,19 +93,21 @@ namespace System.Diagnostics.Tracing
 
             if (task < 0)
             {
-                throw new ArgumentOutOfRangeException("task", Environment.GetResourceString("ArgumentOutOfRange_NeedNonNegNum"));
+                throw new ArgumentOutOfRangeException(nameof(task), Resources.GetResourceString("ArgumentOutOfRange_NeedNonNegNum"));
             }
 
             if (task > ushort.MaxValue)
             {
-                throw new ArgumentOutOfRangeException("task", Environment.GetResourceString("ArgumentOutOfRange_NeedValidId", 1, ushort.MaxValue));
+                throw new ArgumentOutOfRangeException(nameof(task), Resources.GetResourceString("ArgumentOutOfRange_NeedValidId", 1, ushort.MaxValue));
             }
 
             m_task = (ushort)task;
         }
 
-        public int EventId { 
-            get {
+        public int EventId
+        {
+            get
+            {
                 return m_id;
             }
         }
@@ -154,12 +159,12 @@ namespace System.Diagnostics.Tracing
             if (!(obj is EventDescriptor))
                 return false;
 
-            return Equals((EventDescriptor) obj);
+            return Equals((EventDescriptor)obj);
         }
 
         public override int GetHashCode()
         {
-            return m_id ^ m_version ^ m_channel ^ m_level ^ m_opcode ^ m_task ^ (int)m_keywords; 
+            return m_id ^ m_version ^ m_channel ^ m_level ^ m_opcode ^ m_task ^ (int)m_keywords;
         }
 
         public bool Equals(EventDescriptor other)
@@ -185,6 +190,6 @@ namespace System.Diagnostics.Tracing
         public static bool operator !=(EventDescriptor event1, EventDescriptor event2)
         {
             return !event1.Equals(event2);
-        }    
+        }
     }
 }

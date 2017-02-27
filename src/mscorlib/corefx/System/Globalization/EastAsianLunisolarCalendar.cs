@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System;
 using System.Diagnostics.Contracts;
@@ -12,8 +13,7 @@ namespace System.Globalization
     //
     ////////////////////////////////////////////////////////////////////////////
 
-
-    [System.Runtime.InteropServices.ComVisible(true)]
+    [Serializable]
     public abstract class EastAsianLunisolarCalendar : Calendar
     {
         internal const int LeapMonth = 0;
@@ -37,14 +37,13 @@ namespace System.Globalization
         internal const int DatePartMonth = 2;
         internal const int DatePartDay = 3;
 
-        // Return the type of the East Asian Lunisolar calendars.
-        //
-
-        //public override CalendarAlgorithmType AlgorithmType {
-        //    get {
-        //        return CalendarAlgorithmType.LunisolarCalendar;
-        //    }
-        //}
+        public override CalendarAlgorithmType AlgorithmType
+        {
+            get
+            {
+                return CalendarAlgorithmType.LunisolarCalendar;
+            }
+        }
 
         // Return the year number in the 60-year cycle.
         //
@@ -68,7 +67,7 @@ namespace System.Globalization
             if ((sexagenaryYear < 1) || (sexagenaryYear > 60))
             {
                 throw new ArgumentOutOfRangeException(
-                                "sexagenaryYear",
+                                nameof(sexagenaryYear),
                                 SR.Format(SR.ArgumentOutOfRange_Range, 1, 60));
             }
             Contract.EndContractBlock();
@@ -85,7 +84,7 @@ namespace System.Globalization
             if ((sexagenaryYear < 1) || (sexagenaryYear > 60))
             {
                 throw new ArgumentOutOfRangeException(
-                                "sexagenaryYear",
+                                nameof(sexagenaryYear),
                                 SR.Format(SR.ArgumentOutOfRange_Range, 1, 60));
             }
             Contract.EndContractBlock();
@@ -132,7 +131,7 @@ namespace System.Globalization
                     return (mEraInfo[i].minEraYear);
                 }
             }
-            throw new ArgumentOutOfRangeException("era", SR.ArgumentOutOfRange_InvalidEraValue);
+            throw new ArgumentOutOfRangeException(nameof(era), SR.ArgumentOutOfRange_InvalidEraValue);
         }
 
         internal int MaxEraCalendarYear(int era)
@@ -161,10 +160,8 @@ namespace System.Globalization
                     return (mEraInfo[i].maxEraYear);
                 }
             }
-            throw new ArgumentOutOfRangeException("era", SR.ArgumentOutOfRange_InvalidEraValue);
+            throw new ArgumentOutOfRangeException(nameof(era), SR.ArgumentOutOfRange_InvalidEraValue);
         }
-
-        // Construct an instance of EastAsianLunisolar calendar.
 
         internal EastAsianLunisolarCalendar()
         {
@@ -191,7 +188,7 @@ namespace System.Globalization
 
             if ((era < GetEra(MinDate)) || (era > GetEra(MaxDate)))
             {
-                throw new ArgumentOutOfRangeException("era", SR.ArgumentOutOfRange_InvalidEraValue);
+                throw new ArgumentOutOfRangeException(nameof(era), SR.ArgumentOutOfRange_InvalidEraValue);
             }
         }
 
@@ -203,7 +200,7 @@ namespace System.Globalization
             if ((year < MinCalendarYear) || (year > MaxCalendarYear))
             {
                 throw new ArgumentOutOfRangeException(
-                                "year",
+                                nameof(year),
                                 SR.Format(SR.ArgumentOutOfRange_Range, MinEraCalendarYear(era), MaxEraCalendarYear(era)));
             }
             return year;
@@ -217,12 +214,12 @@ namespace System.Globalization
             {
                 //Reject if there is no leap month this year
                 if (GetYearInfo(year, LeapMonth) == 0)
-                    throw new ArgumentOutOfRangeException("month", SR.ArgumentOutOfRange_Month);
+                    throw new ArgumentOutOfRangeException(nameof(month), SR.ArgumentOutOfRange_Month);
             }
 
             if (month < 1 || month > 13)
             {
-                throw new ArgumentOutOfRangeException("month", SR.ArgumentOutOfRange_Month);
+                throw new ArgumentOutOfRangeException(nameof(month), SR.ArgumentOutOfRange_Month);
             }
             return year;
         }
@@ -252,7 +249,7 @@ namespace System.Globalization
             return InternalGetDaysInMonth(year, month);
         }
 
-        static int GregorianIsLeapYear(int y)
+        private static int GregorianIsLeapYear(int y)
         {
             return ((((y) % 4) != 0) ? 0 : ((((y) % 100) != 0) ? 1 : ((((y) % 400) != 0) ? 0 : 1)));
         }
@@ -267,7 +264,7 @@ namespace System.Globalization
             if (day < 1 || day > daysInMonth)
             {
                 throw new ArgumentOutOfRangeException(
-                            "day",
+                            nameof(day),
                             SR.Format(SR.ArgumentOutOfRange_Day, daysInMonth, month));
             }
 
@@ -448,7 +445,7 @@ namespace System.Globalization
             if (months < -120000 || months > 120000)
             {
                 throw new ArgumentOutOfRangeException(
-                            "months",
+                            nameof(months),
                             SR.Format(SR.ArgumentOutOfRange_Range, -120000, 120000));
             }
             Contract.EndContractBlock();
@@ -628,7 +625,7 @@ namespace System.Globalization
             if (day < 1 || day > daysInMonth)
             {
                 throw new ArgumentOutOfRangeException(
-                            "day",
+                            nameof(day),
                             SR.Format(SR.ArgumentOutOfRange_Day, daysInMonth, month));
             }
             int m = GetYearInfo(year, LeapMonth);
@@ -695,7 +692,7 @@ namespace System.Globalization
                 if (value < 99 || value > MaxCalendarYear)
                 {
                     throw new ArgumentOutOfRangeException(
-                                "value",
+                                nameof(value),
                                 SR.Format(SR.ArgumentOutOfRange_Range, 99, MaxCalendarYear));
                 }
                 twoDigitYearMax = value;
@@ -707,7 +704,7 @@ namespace System.Globalization
         {
             if (year < 0)
             {
-                throw new ArgumentOutOfRangeException("year",
+                throw new ArgumentOutOfRangeException(nameof(year),
                     SR.ArgumentOutOfRange_NeedNonNegNum);
             }
             Contract.EndContractBlock();

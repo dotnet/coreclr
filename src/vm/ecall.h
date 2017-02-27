@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 // ECALL.H -
 //
 // Handles our private native calling interface.
@@ -17,16 +16,8 @@
 
 class MethodDesc;
 
-#ifndef FEATURE_CORECLR
-// Every program tends to use only a subset of ~1000 FCalls. Even big apps like 
-// VS do not usually hit more than 300. Pick a size of the hashtable that's sufficient
-// for the typical case. It is ok to have some colisions in the rare case. Note that 
-// the size of the table should be prime.
-#define FCALL_HASH_SIZE 257
-#else
 // CoreCLR defines fewer FCalls so make the hashtable even smaller.
 #define FCALL_HASH_SIZE 127
-#endif
 
 typedef DPTR(struct ECHash) PTR_ECHash;
 

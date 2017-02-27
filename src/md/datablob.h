@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 // 
 // File: DataBlob.h
 // 
@@ -67,19 +66,19 @@ public:
     // Returns FALSE if there's not enough data in the blob, doesn't initialize the value '*pnValue' then.
     // Returns TRUE otherwise, fills *pnValue, but doesn't move the memory block (doesn't skip the read 
     // data).
-    __checkReturn inline BOOL PeekU1(__out BYTE   *pnValue) const;
-    __checkReturn inline BOOL PeekU2(__out UINT16 *pnValue) const;
-    __checkReturn inline BOOL PeekU4(__out UINT32 *pnValue) const;
-    __checkReturn inline BOOL PeekU8(__out UINT64 *pnValue) const;
+    __checkReturn __success(return) inline BOOL PeekU1(__out BYTE   *pnValue) const;
+    __checkReturn __success(return) inline BOOL PeekU2(__out UINT16 *pnValue) const;
+    __checkReturn __success(return) inline BOOL PeekU4(__out UINT32 *pnValue) const;
+    __checkReturn __success(return) inline BOOL PeekU8(__out UINT64 *pnValue) const;
     
     //#GetUx_Functions
     // Reads the U1/U2/U4/U8 from the data blob and skips the read data.
     // Returns FALSE if there's not enough data in the blob, doesn't initialize the value '*pnValue' then.
     // Returns TRUE otherwise, fills *pnValue and moves the memory block behind the read data.
-    __checkReturn inline BOOL GetU1(__out BYTE   *pnValue);
-    __checkReturn inline BOOL GetU2(__out UINT16 *pnValue);
-    __checkReturn inline BOOL GetU4(__out UINT32 *pnValue);
-    __checkReturn inline BOOL GetU8(__out UINT64 *pnValue);
+    __checkReturn __success(return) inline BOOL GetU1(__out BYTE   *pnValue);
+    __checkReturn __success(return) inline BOOL GetU2(__out UINT16 *pnValue);
+    __checkReturn __success(return) inline BOOL GetU4(__out UINT32 *pnValue);
+    __checkReturn __success(return) inline BOOL GetU8(__out UINT64 *pnValue);
     
     // Reads compressed integer (1, 2 or 4 bytes of format code:CompressedInteger#Format - returns the size 
     // in *pcbCompressedValueSize) from the data blob without skipping the read data.
@@ -89,6 +88,7 @@ public:
     // Returns TRUE otherwise, fills *pnValue and *pcbCompressedValueSize (with number 1,2 or 4), but 
     // doesn't move the memory block (doesn't skip the read data).
     __checkReturn 
+    __success(return)
     inline BOOL PeekCompressedU(
         __out UINT32 *pnValue, 
         __out UINT32 *pcbCompressedValueSize);
@@ -97,7 +97,8 @@ public:
     // Returns FALSE if there's not enough data in the blob or the compression is invalid (starts with byte 
     // 111? ????), doesn't initialize the value *pnValue then.
     // Returns TRUE otherwise, fills *pnValue and moves the memory block behind the read data.
-    __checkReturn 
+    __checkReturn
+    __success(return)
     inline BOOL GetCompressedU(__out UINT32 *pnValue);
     // Reads compressed integer (1, 2 or 4 bytes of format code:CompressedInteger#Format - returns the size 
     // in *pcbCompressedValueSize) from the data blob and skips the read data.
@@ -107,6 +108,7 @@ public:
     // Returns TRUE otherwise, fills *pnValue and *pcbCompressedValueSize (with number 1,2 or 4) and moves 
     // the memory block behind the read data.
     __checkReturn 
+    __success(return)
     inline BOOL GetCompressedU(
         __out UINT32 *pnValue, 
         __out UINT32 *pcbCompressedValueSize);
@@ -117,6 +119,7 @@ public:
     // Returns TRUE otherwise, fills *pData with the "read" data and moves the memory block behind the 
     // "read" data.
     __checkReturn 
+    __success(return)
     inline BOOL GetDataOfSize(
               UINT32    cbDataSize, 
         __out DataBlob *pData);
@@ -174,11 +177,13 @@ public:
     // Returns FALSE if there's less than cbSize data represented.
     // Returns TRUE otherwise and truncates the represented data size to cbSize.
     __checkReturn 
+    __success(return)
     inline BOOL TruncateToExactSize(UINT32 cbSize);
     // Truncates the buffer by size (cbSize).
     // Returns FALSE if there's less than cbSize data represented.
     // Returns TRUE otherwise and truncates the represented data size by cbSize.
     __checkReturn 
+    __success(return)
     inline BOOL TruncateBySize(UINT32 cbSize);
     
 #ifdef _DEBUG
@@ -198,12 +203,14 @@ public:
     // integer (bigger than code:CompressedInteger::const_Max).
     // Returns TRUE on success and moves the memory block behind the written data.
     __checkReturn 
+    __success(return)
     inline BOOL StoreCompressedU(UINT32 nValue);
     
     // Writes data from *pSource to the data blob and skips the written data.
     // Returns FALSE if there's not enough data in the blob.
     // Returns TRUE on success and moves memory block behind the written data.
     __checkReturn 
+    __success(return)
     inline BOOL StoreData(__in const DataBlob *pSource);
     
 private:

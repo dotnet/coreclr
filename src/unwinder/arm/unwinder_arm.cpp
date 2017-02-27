@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 // 
 
@@ -20,8 +19,33 @@
 #define STATUS_UNWIND_UNSUPPORTED_VERSION   STATUS_UNSUCCESSFUL
 
 
-#define UPDATE_CONTEXT_POINTERS(Params, RegisterNumber, Address)
-#define UPDATE_FP_CONTEXT_POINTERS(Params, RegisterNumber, Address)
+#define UPDATE_CONTEXT_POINTERS(Params, RegisterNumber, Address)                    \
+do {                                                                                \
+    if (ARGUMENT_PRESENT(Params)) {                                                 \
+        PT_KNONVOLATILE_CONTEXT_POINTERS ContextPointers = (Params)->ContextPointers; \
+        if (ARGUMENT_PRESENT(ContextPointers)) {                                    \
+            if (RegisterNumber >=  4 && RegisterNumber <= 11) {                     \
+                (&ContextPointers->R4)[RegisterNumber - 4] = (PULONG)Address;       \
+            } else if (RegisterNumber == 14) {                                      \
+                ContextPointers->Lr = (PULONG)Address;                              \
+            }                                                                       \
+        }                                                                           \
+    }                                                                               \
+} while (0)
+
+#define UPDATE_FP_CONTEXT_POINTERS(Params, RegisterNumber, Address)                 \
+do {                                                                                \
+    if (ARGUMENT_PRESENT(Params)) {                                                 \
+        PT_KNONVOLATILE_CONTEXT_POINTERS ContextPointers = (Params)->ContextPointers; \
+        if (ARGUMENT_PRESENT(ContextPointers) &&                                    \
+            (RegisterNumber >=  8) &&                                               \
+            (RegisterNumber <= 15)) {                                               \
+                                                                                    \
+            (&ContextPointers->D8)[RegisterNumber - 8] = (PULONGLONG)Address;       \
+        }                                                                           \
+    }                                                                               \
+} while (0)
+
 #define VALIDATE_STACK_ADDRESS(Params, Context, DataSize, Alignment, OutStatus)
 #define UNWIND_PARAMS_SET_TRAP_FRAME(Params, Address)
 
@@ -32,6 +56,10 @@
 
 #define CONTEXT_REGISTER(ctx, idx)    ((&(ctx)->R0)[idx])
 
+typedef struct _ARM_UNWIND_PARAMS
+{
+    PT_KNONVOLATILE_CONTEXT_POINTERS ContextPointers;
+} ARM_UNWIND_PARAMS, *PARM_UNWIND_PARAMS;
 
 //
 // The ConditionTable is used to look up the state of a condition
@@ -65,22 +93,22 @@
 
 static const UINT16 ConditionTable[16] =
 {
-    ZSET_MASK,                     // EQ: Z
-    ~ZSET_MASK,                    // NE: !Z
-    CSET_MASK,                     // CS: C
-    ~CSET_MASK,                    // CC: !C
-    NSET_MASK,                     // MI: N
-    ~NSET_MASK,                    // PL: !N
-    VSET_MASK,                     // VS: V
-    ~VSET_MASK,                    // VC: !V
-    CSET_MASK & ~ZSET_MASK,        // HI: C & !Z
-    ~CSET_MASK | ZSET_MASK,        // LO: !C | Z
-    NEQUALV_MASK,                  // GE: N == V
-    ~NEQUALV_MASK,                 // LT: N != V
-    NEQUALV_MASK & ~ZSET_MASK,     // GT: (N == V) & !Z
-    ~NEQUALV_MASK | ZSET_MASK,     // LE: (N != V) | Z
-    0xffff,                        // AL: always
-    0x0000                         // NV: never
+    (UINT16)(ZSET_MASK),                     // EQ: Z
+    (UINT16)(~ZSET_MASK),                    // NE: !Z
+    (UINT16)(CSET_MASK),                     // CS: C
+    (UINT16)(~CSET_MASK),                    // CC: !C
+    (UINT16)(NSET_MASK),                     // MI: N
+    (UINT16)(~NSET_MASK),                    // PL: !N
+    (UINT16)(VSET_MASK),                     // VS: V
+    (UINT16)(~VSET_MASK),                    // VC: !V
+    (UINT16)(CSET_MASK & ~ZSET_MASK),        // HI: C & !Z
+    (UINT16)(~CSET_MASK | ZSET_MASK),        // LO: !C | Z
+    (UINT16)(NEQUALV_MASK),                  // GE: N == V
+    (UINT16)(~NEQUALV_MASK),                 // LT: N != V
+    (UINT16)(NEQUALV_MASK & ~ZSET_MASK),     // GT: (N == V) & !Z
+    (UINT16)(~NEQUALV_MASK | ZSET_MASK),     // LE: (N != V) | Z
+    (UINT16)(0xffff),                        // AL: always
+    (UINT16)(0x0000)                         // NV: never
 };
 
 
@@ -230,7 +258,7 @@ NTSTATUS
 RtlpUnwindCustom(
     __inout PT_CONTEXT ContextRecord,
     __in BYTE Opcode,
-    __in PVOID UnwindParams
+    __in PARM_UNWIND_PARAMS UnwindParams
     )
 
 /*++
@@ -358,7 +386,7 @@ RtlpPopVfpRegisterRange(
     __inout PT_CONTEXT ContextRecord,
     __in ULONG RegStart,
     __in ULONG RegStop,
-    __in PVOID UnwindParams
+    __in PARM_UNWIND_PARAMS UnwindParams
     )
 
 /*++
@@ -457,7 +485,7 @@ NTSTATUS
 RtlpPopRegisterMask(
     __inout PT_CONTEXT ContextRecord,
     __in WORD RegMask,
-    __in PVOID UnwindParams
+    __in PARM_UNWIND_PARAMS UnwindParams
     )
 /*++
 
@@ -624,7 +652,7 @@ RtlpUnwindFunctionCompact(
     __out PULONG EstablisherFrame,
     __deref_opt_out_opt PEXCEPTION_ROUTINE *HandlerRoutine,
     __out PVOID *HandlerData,
-    __in PVOID UnwindParams
+    __in PARM_UNWIND_PARAMS UnwindParams
     )
 {
     ULONG CBit;
@@ -894,7 +922,7 @@ RtlpUnwindFunctionFull(
     __out PULONG EstablisherFrame,
     __deref_opt_out_opt PEXCEPTION_ROUTINE *HandlerRoutine,
     __out PVOID *HandlerData,
-    __in PVOID UnwindParams
+    __in PARM_UNWIND_PARAMS UnwindParams
     )
 
 /*++
@@ -1467,3 +1495,54 @@ BOOL DacUnwindStackFrame(T_CONTEXT *pContext, T_KNONVOLATILE_CONTEXT_POINTERS* p
     
     return res;
 }
+
+#if defined(FEATURE_PAL)
+PEXCEPTION_ROUTINE RtlVirtualUnwind(
+    __in ULONG HandlerType,
+    __in ULONG ImageBase,
+    __in ULONG ControlPc,
+    __in PT_RUNTIME_FUNCTION FunctionEntry,
+    __in OUT PCONTEXT ContextRecord,
+    __out PVOID *HandlerData,
+    __out PULONG EstablisherFrame,
+    __inout_opt PT_KNONVOLATILE_CONTEXT_POINTERS ContextPointers
+    )
+{
+    PEXCEPTION_ROUTINE handlerRoutine;
+    HRESULT res;
+    
+    IMAGE_ARM_RUNTIME_FUNCTION_ENTRY rfe;
+    rfe.BeginAddress = FunctionEntry->BeginAddress;
+    rfe.UnwindData = FunctionEntry->UnwindData;
+    
+    ARM_UNWIND_PARAMS unwindParams;
+    unwindParams.ContextPointers = ContextPointers;
+    
+    if ((FunctionEntry->UnwindData & 3) != 0) 
+    {
+        res = RtlpUnwindFunctionCompact(ControlPc - ImageBase,
+                                        &rfe,
+                                        ContextRecord,
+                                        EstablisherFrame,
+                                        &handlerRoutine,
+                                        HandlerData,
+                                        &unwindParams);
+
+    }
+    else
+    {
+        res = RtlpUnwindFunctionFull(ControlPc - ImageBase,
+                                    ImageBase,
+                                    &rfe,
+                                    ContextRecord,
+                                    EstablisherFrame,
+                                    &handlerRoutine,
+                                    HandlerData,
+                                    &unwindParams);
+    }
+
+    _ASSERTE(SUCCEEDED(res));
+    
+    return handlerRoutine;
+}
+#endif

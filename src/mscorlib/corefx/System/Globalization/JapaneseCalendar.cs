@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System;
 using System.Diagnostics;
@@ -8,11 +9,6 @@ using System.Diagnostics.Contracts;
 
 namespace System.Globalization
 {
-
-#if INSIDE_CLR
-    using Debug = BCLDebug;
-#endif
-
     /*=================================JapaneseCalendar==========================
     **
     ** JapaneseCalendar is based on Gregorian calendar.  The month and day values are the same as
@@ -42,13 +38,12 @@ namespace System.Globalization
     ============================================================================*/
 
 
-    [System.Runtime.InteropServices.ComVisible(true)]
+    [Serializable]
     public partial class JapaneseCalendar : Calendar
     {
         internal static readonly DateTime calendarMinValue = new DateTime(1868, 9, 8);
 
 
-        [System.Runtime.InteropServices.ComVisible(false)]
         public override DateTime MinSupportedDateTime
         {
             get
@@ -57,7 +52,6 @@ namespace System.Globalization
             }
         }
 
-        [System.Runtime.InteropServices.ComVisible(false)]
         public override DateTime MaxSupportedDateTime
         {
             get
@@ -66,10 +60,18 @@ namespace System.Globalization
             }
         }
 
+        public override CalendarAlgorithmType AlgorithmType
+        {
+            get
+            {
+                return CalendarAlgorithmType.SolarCalendar;
+            }
+        }
+
         //
         // Using a field initializer rather than a static constructor so that the whole class can be lazy
         // init.
-        static internal volatile EraInfo[] japaneseEraInfo;
+        internal static volatile EraInfo[] japaneseEraInfo;
 
         //
         // Read our era info
@@ -123,49 +125,6 @@ namespace System.Globalization
             // return the era we found/made
             return japaneseEraInfo;
         }
-
-        private static EraInfo[] GetJapaneseEras()
-        {
-            int erasCount = GetJapaneseEraCount();
-            if (erasCount < 4)
-            {
-                return null;
-            }
-
-            EraInfo[] eras = new EraInfo[erasCount];
-            int lastMaxYear = GregorianCalendar.MaxYear;
-
-            for (int i = erasCount; i > 0; i--)
-            {
-                DateTimeOffset dateOffset;
-
-                string eraName;
-                string abbreviatedEraName;
-
-                if (!GetJapaneseEraInfo(i, out dateOffset, out eraName, out abbreviatedEraName))
-                {
-                    return null;
-                }
-
-                DateTime dt = new DateTime(dateOffset.Ticks);
-
-                eras[erasCount - i] = new EraInfo(i, dt.Year, dt.Month, dt.Day, dt.Year - 1, 1, lastMaxYear - dt.Year + 1,
-                                                   eraName, abbreviatedEraName, GetJapaneseEnglishEraName(i));    // era #4 start year/month/day, yearOffset, minEraYear
-
-                lastMaxYear = dt.Year;
-            }
-
-            return eras;
-        }
-
-        private static string[] JapaneseErasEnglishNames = new String[] { "M", "T", "S", "H" };
-
-        private static string GetJapaneseEnglishEraName(int era)
-        {
-            Debug.Assert(era > 0);
-            return era <= JapaneseErasEnglishNames.Length ? JapaneseErasEnglishNames[era - 1] : " ";
-        }
-
 
         internal static volatile Calendar s_defaultInstance;
         internal GregorianCalendarHelper helper;
@@ -270,7 +229,6 @@ namespace System.Globalization
 
 
         [SuppressMessage("Microsoft.Contracts", "CC1055")]  // Skip extra error checking to avoid *potential* AppCompat problems.
-        [System.Runtime.InteropServices.ComVisible(false)]
         public override int GetWeekOfYear(DateTime time, CalendarWeekRule rule, DayOfWeek firstDayOfWeek)
         {
             return (helper.GetWeekOfYear(time, rule, firstDayOfWeek));
@@ -318,7 +276,6 @@ namespace System.Globalization
         // if this calendar does not have leap month, or this year is not a leap year.
         //
 
-        [System.Runtime.InteropServices.ComVisible(false)]
         public override int GetLeapMonth(int year, int era)
         {
             return (helper.GetLeapMonth(year, era));
@@ -343,7 +300,7 @@ namespace System.Globalization
         {
             if (year <= 0)
             {
-                throw new ArgumentOutOfRangeException("year",
+                throw new ArgumentOutOfRangeException(nameof(year),
                     SR.ArgumentOutOfRange_NeedPosNum);
             }
             Contract.EndContractBlock();
@@ -351,7 +308,7 @@ namespace System.Globalization
             if (year > helper.MaxYear)
             {
                 throw new ArgumentOutOfRangeException(
-                            "year",
+                            nameof(year),
                             String.Format(
                                 CultureInfo.CurrentCulture,
                                 SR.ArgumentOutOfRange_Range,

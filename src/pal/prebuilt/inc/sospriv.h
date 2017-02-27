@@ -1,14 +1,19 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information. 
-//
-
 
 
 /* this ALWAYS GENERATED file contains the definitions for the interfaces */
 
 
- /* File created by MIDL compiler version 8.00.0603 */
+ /* File created by MIDL compiler version 8.00.0613 */
+/* at Mon Jan 18 19:14:07 2038
+ */
+/* Compiler settings for C:/ssd/coreclr/src/inc/sospriv.idl:
+    Oicf, W1, Zp8, env=Win32 (32b run), target_arch=X86 8.00.0613 
+    protocol : dce , ms_ext, c_ext, robust
+    error checks: allocation ref bounds_check enum stub_data 
+    VC __declspec() decoration level: 
+         __declspec(uuid()), __declspec(selectany), __declspec(novtable)
+         DECLSPEC_UUID(), MIDL_INTERFACE()
+*/
 /* @@MIDL_FILE_HEADING(  ) */
 
 #pragma warning( disable: 4049 )  /* more than 64k source lines */
@@ -24,7 +29,7 @@
 
 #ifndef __RPCNDR_H_VERSION__
 #error this stub requires an updated version of <rpcndr.h>
-#endif // __RPCNDR_H_VERSION__
+#endif /* __RPCNDR_H_VERSION__ */
 
 #ifndef COM_NO_WINDOWS_H
 #include "windows.h"
@@ -80,6 +85,20 @@ typedef interface ISOSDacInterface ISOSDacInterface;
 typedef interface ISOSDacInterface2 ISOSDacInterface2;
 
 #endif 	/* __ISOSDacInterface2_FWD_DEFINED__ */
+
+
+#ifndef __ISOSDacInterface3_FWD_DEFINED__
+#define __ISOSDacInterface3_FWD_DEFINED__
+typedef interface ISOSDacInterface3 ISOSDacInterface3;
+
+#endif 	/* __ISOSDacInterface3_FWD_DEFINED__ */
+
+
+#ifndef __ISOSDacInterface4_FWD_DEFINED__
+#define __ISOSDacInterface4_FWD_DEFINED__
+typedef interface ISOSDacInterface4 ISOSDacInterface4;
+
+#endif 	/* __ISOSDacInterface4_FWD_DEFINED__ */
 
 
 /* header files for imported files */
@@ -680,7 +699,7 @@ EXTERN_C const IID IID_ISOSDacInterface;
         virtual HRESULT STDMETHODCALLTYPE GetAppDomainName( 
             CLRDATA_ADDRESS addr,
             unsigned int count,
-            wchar_t *name,
+            WCHAR *name,
             unsigned int *pNeeded) = 0;
         
         virtual HRESULT STDMETHODCALLTYPE GetDomainFromContext( 
@@ -701,7 +720,7 @@ EXTERN_C const IID IID_ISOSDacInterface;
         virtual HRESULT STDMETHODCALLTYPE GetAssemblyName( 
             CLRDATA_ADDRESS assembly,
             unsigned int count,
-            wchar_t *name,
+            WCHAR *name,
             unsigned int *pNeeded) = 0;
         
         virtual HRESULT STDMETHODCALLTYPE GetModule( 
@@ -758,7 +777,7 @@ EXTERN_C const IID IID_ISOSDacInterface;
         virtual HRESULT STDMETHODCALLTYPE GetMethodDescName( 
             CLRDATA_ADDRESS methodDesc,
             unsigned int count,
-            wchar_t *name,
+            WCHAR *name,
             unsigned int *pNeeded) = 0;
         
         virtual HRESULT STDMETHODCALLTYPE GetMethodDescPtrFromFrame( 
@@ -812,19 +831,19 @@ EXTERN_C const IID IID_ISOSDacInterface;
         virtual HRESULT STDMETHODCALLTYPE GetObjectStringData( 
             CLRDATA_ADDRESS obj,
             unsigned int count,
-            wchar_t *stringData,
+            WCHAR *stringData,
             unsigned int *pNeeded) = 0;
         
         virtual HRESULT STDMETHODCALLTYPE GetObjectClassName( 
             CLRDATA_ADDRESS obj,
             unsigned int count,
-            wchar_t *className,
+            WCHAR *className,
             unsigned int *pNeeded) = 0;
         
         virtual HRESULT STDMETHODCALLTYPE GetMethodTableName( 
             CLRDATA_ADDRESS mt,
             unsigned int count,
-            wchar_t *mtName,
+            WCHAR *mtName,
             unsigned int *pNeeded) = 0;
         
         virtual HRESULT STDMETHODCALLTYPE GetMethodTableData( 
@@ -855,7 +874,7 @@ EXTERN_C const IID IID_ISOSDacInterface;
         virtual HRESULT STDMETHODCALLTYPE GetFrameName( 
             CLRDATA_ADDRESS vtable,
             unsigned int count,
-            wchar_t *frameName,
+            WCHAR *frameName,
             unsigned int *pNeeded) = 0;
         
         virtual HRESULT STDMETHODCALLTYPE GetPEFileBase( 
@@ -865,7 +884,7 @@ EXTERN_C const IID IID_ISOSDacInterface;
         virtual HRESULT STDMETHODCALLTYPE GetPEFileName( 
             CLRDATA_ADDRESS addr,
             unsigned int count,
-            wchar_t *fileName,
+            WCHAR *fileName,
             unsigned int *pNeeded) = 0;
         
         virtual HRESULT STDMETHODCALLTYPE GetGCHeapData( 
@@ -1012,7 +1031,7 @@ EXTERN_C const IID IID_ISOSDacInterface;
         virtual HRESULT STDMETHODCALLTYPE GetRegisterName( 
             /* [in] */ int regName,
             /* [in] */ unsigned int count,
-            /* [out] */ wchar_t *buffer,
+            /* [out] */ WCHAR *buffer,
             /* [out] */ unsigned int *pNeeded) = 0;
         
         virtual HRESULT STDMETHODCALLTYPE GetThreadAllocData( 
@@ -1033,25 +1052,25 @@ EXTERN_C const IID IID_ISOSDacInterface;
         virtual HRESULT STDMETHODCALLTYPE GetPrivateBinPaths( 
             CLRDATA_ADDRESS appDomain,
             int count,
-            wchar_t *paths,
+            WCHAR *paths,
             unsigned int *pNeeded) = 0;
         
         virtual HRESULT STDMETHODCALLTYPE GetAssemblyLocation( 
             CLRDATA_ADDRESS assembly,
             int count,
-            wchar_t *location,
+            WCHAR *location,
             unsigned int *pNeeded) = 0;
         
         virtual HRESULT STDMETHODCALLTYPE GetAppDomainConfigFile( 
             CLRDATA_ADDRESS appDomain,
             int count,
-            wchar_t *configFile,
+            WCHAR *configFile,
             unsigned int *pNeeded) = 0;
         
         virtual HRESULT STDMETHODCALLTYPE GetApplicationBase( 
             CLRDATA_ADDRESS appDomain,
             int count,
-            wchar_t *base,
+            WCHAR *base,
             unsigned int *pNeeded) = 0;
         
         virtual HRESULT STDMETHODCALLTYPE GetFailedAssemblyData( 
@@ -1062,13 +1081,13 @@ EXTERN_C const IID IID_ISOSDacInterface;
         virtual HRESULT STDMETHODCALLTYPE GetFailedAssemblyLocation( 
             CLRDATA_ADDRESS assesmbly,
             unsigned int count,
-            wchar_t *location,
+            WCHAR *location,
             unsigned int *pNeeded) = 0;
         
         virtual HRESULT STDMETHODCALLTYPE GetFailedAssemblyDisplayName( 
             CLRDATA_ADDRESS assembly,
             unsigned int count,
-            wchar_t *name,
+            WCHAR *name,
             unsigned int *pNeeded) = 0;
         
     };
@@ -1115,7 +1134,7 @@ EXTERN_C const IID IID_ISOSDacInterface;
             ISOSDacInterface * This,
             CLRDATA_ADDRESS addr,
             unsigned int count,
-            wchar_t *name,
+            WCHAR *name,
             unsigned int *pNeeded);
         
         HRESULT ( STDMETHODCALLTYPE *GetDomainFromContext )( 
@@ -1140,7 +1159,7 @@ EXTERN_C const IID IID_ISOSDacInterface;
             ISOSDacInterface * This,
             CLRDATA_ADDRESS assembly,
             unsigned int count,
-            wchar_t *name,
+            WCHAR *name,
             unsigned int *pNeeded);
         
         HRESULT ( STDMETHODCALLTYPE *GetModule )( 
@@ -1208,7 +1227,7 @@ EXTERN_C const IID IID_ISOSDacInterface;
             ISOSDacInterface * This,
             CLRDATA_ADDRESS methodDesc,
             unsigned int count,
-            wchar_t *name,
+            WCHAR *name,
             unsigned int *pNeeded);
         
         HRESULT ( STDMETHODCALLTYPE *GetMethodDescPtrFromFrame )( 
@@ -1274,21 +1293,21 @@ EXTERN_C const IID IID_ISOSDacInterface;
             ISOSDacInterface * This,
             CLRDATA_ADDRESS obj,
             unsigned int count,
-            wchar_t *stringData,
+            WCHAR *stringData,
             unsigned int *pNeeded);
         
         HRESULT ( STDMETHODCALLTYPE *GetObjectClassName )( 
             ISOSDacInterface * This,
             CLRDATA_ADDRESS obj,
             unsigned int count,
-            wchar_t *className,
+            WCHAR *className,
             unsigned int *pNeeded);
         
         HRESULT ( STDMETHODCALLTYPE *GetMethodTableName )( 
             ISOSDacInterface * This,
             CLRDATA_ADDRESS mt,
             unsigned int count,
-            wchar_t *mtName,
+            WCHAR *mtName,
             unsigned int *pNeeded);
         
         HRESULT ( STDMETHODCALLTYPE *GetMethodTableData )( 
@@ -1326,7 +1345,7 @@ EXTERN_C const IID IID_ISOSDacInterface;
             ISOSDacInterface * This,
             CLRDATA_ADDRESS vtable,
             unsigned int count,
-            wchar_t *frameName,
+            WCHAR *frameName,
             unsigned int *pNeeded);
         
         HRESULT ( STDMETHODCALLTYPE *GetPEFileBase )( 
@@ -1338,7 +1357,7 @@ EXTERN_C const IID IID_ISOSDacInterface;
             ISOSDacInterface * This,
             CLRDATA_ADDRESS addr,
             unsigned int count,
-            wchar_t *fileName,
+            WCHAR *fileName,
             unsigned int *pNeeded);
         
         HRESULT ( STDMETHODCALLTYPE *GetGCHeapData )( 
@@ -1520,7 +1539,7 @@ EXTERN_C const IID IID_ISOSDacInterface;
             ISOSDacInterface * This,
             /* [in] */ int regName,
             /* [in] */ unsigned int count,
-            /* [out] */ wchar_t *buffer,
+            /* [out] */ WCHAR *buffer,
             /* [out] */ unsigned int *pNeeded);
         
         HRESULT ( STDMETHODCALLTYPE *GetThreadAllocData )( 
@@ -1545,28 +1564,28 @@ EXTERN_C const IID IID_ISOSDacInterface;
             ISOSDacInterface * This,
             CLRDATA_ADDRESS appDomain,
             int count,
-            wchar_t *paths,
+            WCHAR *paths,
             unsigned int *pNeeded);
         
         HRESULT ( STDMETHODCALLTYPE *GetAssemblyLocation )( 
             ISOSDacInterface * This,
             CLRDATA_ADDRESS assembly,
             int count,
-            wchar_t *location,
+            WCHAR *location,
             unsigned int *pNeeded);
         
         HRESULT ( STDMETHODCALLTYPE *GetAppDomainConfigFile )( 
             ISOSDacInterface * This,
             CLRDATA_ADDRESS appDomain,
             int count,
-            wchar_t *configFile,
+            WCHAR *configFile,
             unsigned int *pNeeded);
         
         HRESULT ( STDMETHODCALLTYPE *GetApplicationBase )( 
             ISOSDacInterface * This,
             CLRDATA_ADDRESS appDomain,
             int count,
-            wchar_t *base,
+            WCHAR *base,
             unsigned int *pNeeded);
         
         HRESULT ( STDMETHODCALLTYPE *GetFailedAssemblyData )( 
@@ -1579,14 +1598,14 @@ EXTERN_C const IID IID_ISOSDacInterface;
             ISOSDacInterface * This,
             CLRDATA_ADDRESS assesmbly,
             unsigned int count,
-            wchar_t *location,
+            WCHAR *location,
             unsigned int *pNeeded);
         
         HRESULT ( STDMETHODCALLTYPE *GetFailedAssemblyDisplayName )( 
             ISOSDacInterface * This,
             CLRDATA_ADDRESS assembly,
             unsigned int count,
-            wchar_t *name,
+            WCHAR *name,
             unsigned int *pNeeded);
         
         END_INTERFACE
@@ -1979,6 +1998,192 @@ EXTERN_C const IID IID_ISOSDacInterface2;
 
 
 #endif 	/* __ISOSDacInterface2_INTERFACE_DEFINED__ */
+
+
+#ifndef __ISOSDacInterface3_INTERFACE_DEFINED__
+#define __ISOSDacInterface3_INTERFACE_DEFINED__
+
+/* interface ISOSDacInterface3 */
+/* [uuid][local][object] */ 
+
+
+EXTERN_C const IID IID_ISOSDacInterface3;
+
+#if defined(__cplusplus) && !defined(CINTERFACE)
+    
+    MIDL_INTERFACE("B08C5CDC-FD8A-49C5-AB38-5FEEF35235B4")
+    ISOSDacInterface3 : public IUnknown
+    {
+    public:
+        virtual HRESULT STDMETHODCALLTYPE GetGCInterestingInfoData( 
+            CLRDATA_ADDRESS interestingInfoAddr,
+            struct DacpGCInterestingInfoData *data) = 0;
+        
+        virtual HRESULT STDMETHODCALLTYPE GetGCInterestingInfoStaticData( 
+            struct DacpGCInterestingInfoData *data) = 0;
+        
+        virtual HRESULT STDMETHODCALLTYPE GetGCGlobalMechanisms( 
+            size_t *globalMechanisms) = 0;
+        
+    };
+    
+    
+#else 	/* C style interface */
+
+    typedef struct ISOSDacInterface3Vtbl
+    {
+        BEGIN_INTERFACE
+        
+        HRESULT ( STDMETHODCALLTYPE *QueryInterface )( 
+            ISOSDacInterface3 * This,
+            /* [in] */ REFIID riid,
+            /* [annotation][iid_is][out] */ 
+            _COM_Outptr_  void **ppvObject);
+        
+        ULONG ( STDMETHODCALLTYPE *AddRef )( 
+            ISOSDacInterface3 * This);
+        
+        ULONG ( STDMETHODCALLTYPE *Release )( 
+            ISOSDacInterface3 * This);
+        
+        HRESULT ( STDMETHODCALLTYPE *GetGCInterestingInfoData )( 
+            ISOSDacInterface3 * This,
+            CLRDATA_ADDRESS interestingInfoAddr,
+            struct DacpGCInterestingInfoData *data);
+        
+        HRESULT ( STDMETHODCALLTYPE *GetGCInterestingInfoStaticData )( 
+            ISOSDacInterface3 * This,
+            struct DacpGCInterestingInfoData *data);
+        
+        HRESULT ( STDMETHODCALLTYPE *GetGCGlobalMechanisms )( 
+            ISOSDacInterface3 * This,
+            size_t *globalMechanisms);
+        
+        END_INTERFACE
+    } ISOSDacInterface3Vtbl;
+
+    interface ISOSDacInterface3
+    {
+        CONST_VTBL struct ISOSDacInterface3Vtbl *lpVtbl;
+    };
+
+    
+
+#ifdef COBJMACROS
+
+
+#define ISOSDacInterface3_QueryInterface(This,riid,ppvObject)	\
+    ( (This)->lpVtbl -> QueryInterface(This,riid,ppvObject) ) 
+
+#define ISOSDacInterface3_AddRef(This)	\
+    ( (This)->lpVtbl -> AddRef(This) ) 
+
+#define ISOSDacInterface3_Release(This)	\
+    ( (This)->lpVtbl -> Release(This) ) 
+
+
+#define ISOSDacInterface3_GetGCInterestingInfoData(This,interestingInfoAddr,data)	\
+    ( (This)->lpVtbl -> GetGCInterestingInfoData(This,interestingInfoAddr,data) ) 
+
+#define ISOSDacInterface3_GetGCInterestingInfoStaticData(This,data)	\
+    ( (This)->lpVtbl -> GetGCInterestingInfoStaticData(This,data) ) 
+
+#define ISOSDacInterface3_GetGCGlobalMechanisms(This,globalMechanisms)	\
+    ( (This)->lpVtbl -> GetGCGlobalMechanisms(This,globalMechanisms) ) 
+
+#endif /* COBJMACROS */
+
+
+#endif 	/* C style interface */
+
+
+
+
+#endif 	/* __ISOSDacInterface3_INTERFACE_DEFINED__ */
+
+
+#ifndef __ISOSDacInterface4_INTERFACE_DEFINED__
+#define __ISOSDacInterface4_INTERFACE_DEFINED__
+
+/* interface ISOSDacInterface4 */
+/* [uuid][local][object] */ 
+
+
+EXTERN_C const IID IID_ISOSDacInterface4;
+
+#if defined(__cplusplus) && !defined(CINTERFACE)
+    
+    MIDL_INTERFACE("74B9D34C-A612-4B07-93DD-5462178FCE11")
+    ISOSDacInterface4 : public IUnknown
+    {
+    public:
+        virtual HRESULT STDMETHODCALLTYPE GetClrNotification( 
+            CLRDATA_ADDRESS arguments[  ],
+            int count,
+            int *pNeeded) = 0;
+        
+    };
+    
+    
+#else 	/* C style interface */
+
+    typedef struct ISOSDacInterface4Vtbl
+    {
+        BEGIN_INTERFACE
+        
+        HRESULT ( STDMETHODCALLTYPE *QueryInterface )( 
+            ISOSDacInterface4 * This,
+            /* [in] */ REFIID riid,
+            /* [annotation][iid_is][out] */ 
+            _COM_Outptr_  void **ppvObject);
+        
+        ULONG ( STDMETHODCALLTYPE *AddRef )( 
+            ISOSDacInterface4 * This);
+        
+        ULONG ( STDMETHODCALLTYPE *Release )( 
+            ISOSDacInterface4 * This);
+        
+        HRESULT ( STDMETHODCALLTYPE *GetClrNotification )( 
+            ISOSDacInterface4 * This,
+            CLRDATA_ADDRESS arguments[  ],
+            int count,
+            int *pNeeded);
+        
+        END_INTERFACE
+    } ISOSDacInterface4Vtbl;
+
+    interface ISOSDacInterface4
+    {
+        CONST_VTBL struct ISOSDacInterface4Vtbl *lpVtbl;
+    };
+
+    
+
+#ifdef COBJMACROS
+
+
+#define ISOSDacInterface4_QueryInterface(This,riid,ppvObject)	\
+    ( (This)->lpVtbl -> QueryInterface(This,riid,ppvObject) ) 
+
+#define ISOSDacInterface4_AddRef(This)	\
+    ( (This)->lpVtbl -> AddRef(This) ) 
+
+#define ISOSDacInterface4_Release(This)	\
+    ( (This)->lpVtbl -> Release(This) ) 
+
+
+#define ISOSDacInterface4_GetClrNotification(This,arguments,count,pNeeded)	\
+    ( (This)->lpVtbl -> GetClrNotification(This,arguments,count,pNeeded) ) 
+
+#endif /* COBJMACROS */
+
+
+#endif 	/* C style interface */
+
+
+
+
+#endif 	/* __ISOSDacInterface4_INTERFACE_DEFINED__ */
 
 
 /* Additional Prototypes for ALL interfaces */

@@ -1,7 +1,6 @@
-;
-; Copyright (c) Microsoft. All rights reserved.
-; Licensed under the MIT license. See LICENSE file in the project root for full license information. 
-;
+; Licensed to the .NET Foundation under one or more agreements.
+; The .NET Foundation licenses this file to you under the MIT license.
+; See the LICENSE file in the project root for more information.
 
 ;
 
@@ -32,7 +31,7 @@
         pld     [r1]                                    ; preload the first cache line
         cmp     r2, #16                                 ; less than 16 bytes?
         mov     r3, r0                                  ; use r3 as our destination
-        bhs     __FCallMemcpy_large                     ; go to the large copy case directly
+        bhs.W     __FCallMemcpy_large                   ; go to the large copy case directly. ".W" indicates encoding using 32bits
 
 CpySmal tbb     [pc, r2]                                ; branch to specialized bits for small copies
 __SwitchTable1_Copy

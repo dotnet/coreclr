@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //*****************************************************************************
 // SafeWrap.cpp
 //
@@ -36,27 +35,17 @@ void ClrGetCurrentDirectory(SString & value)
     CONTRACTL_END;
 
     // Get size needed
-    DWORD lenWithNull = WszGetCurrentDirectory(0, NULL);
+    DWORD len = WszGetCurrentDirectory(value);
 
-    // Now read it for content.
-    WCHAR * pCharBuf = value.OpenUnicodeBuffer(lenWithNull);
-    DWORD lenWithoutNull = WszGetCurrentDirectory(lenWithNull, pCharBuf);
 
     // An actual API failure in GetCurrentDirectory failure should be very rare, so we'll throw on those.
-    if (lenWithoutNull == 0)
+    if (len == 0)
     {   
         value.CloseBuffer(0);    
         ThrowLastError();
     }
-    if (lenWithoutNull != (lenWithNull - 1))
-    {
-        value.CloseBuffer(lenWithoutNull);
     
-        // must have changed underneath us.
-        ThrowHR(E_FAIL);
-    }
-    
-    value.CloseBuffer(lenWithoutNull);
+    value.CloseBuffer();
 }
 
 // Nothrowing wrapper.
@@ -186,9 +175,13 @@ ClrDirectoryEnumerator::ClrDirectoryEnumerator(LPCWSTR pBaseDirectory, LPCWSTR p
     }
     CONTRACTL_END;
 
-    StackSString strMask;
-    SString s(SString::Literal, W("\\"));
-    strMask.Set(pBaseDirectory, s, pMask);
+    StackSString strMask(pBaseDirectory);
+    SString s(SString::Literal, DIRECTORY_SEPARATOR_STR_W);
+    if (!strMask.EndsWith(s))
+    {
+        strMask.Append(s);
+    }
+    strMask.Append(pMask);
     dirHandle = WszFindFirstFile(strMask, &data);
 
     if (dirHandle == INVALID_HANDLE_VALUE)

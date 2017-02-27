@@ -1,5 +1,6 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 #pragma warning disable 0420
 
 // =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
@@ -17,7 +18,6 @@
 using System.Runtime;
 using System.Runtime.InteropServices;
 using System.Security;
-using System.Security.Permissions;
 using System.Diagnostics;
 using System.Runtime.Serialization;
 using System.Threading;
@@ -46,22 +46,17 @@ namespace System
     /// </para>
     /// </remarks>
     [Serializable]
-    [ComVisible(false)]
-#if !FEATURE_CORECLR
-    [HostProtection(Synchronization = true, ExternalThreading = true)]
-#endif
     [DebuggerTypeProxy(typeof(System_LazyDebugView<>))]
     [DebuggerDisplay("ThreadSafetyMode={Mode}, IsValueCreated={IsValueCreated}, IsValueFaulted={IsValueFaulted}, Value={ValueForDebugDisplay}")]
     public class Lazy<T>
     {
-
         #region Inner classes
         /// <summary>
         /// wrapper class to box the initialized value, this is mainly created to avoid boxing/unboxing the value each time the value is called in case T is 
         /// a value type
         /// </summary>
         [Serializable]
-        class Boxed
+        private class Boxed
         {
             internal Boxed(T value)
             {
@@ -74,7 +69,7 @@ namespace System
         /// <summary>
         /// Wrapper class to wrap the excpetion thrown by the value factory
         /// </summary>
-        class LazyInternalExceptionHolder
+        private class LazyInternalExceptionHolder
         {
             internal ExceptionDispatchInfo m_edi;
             internal LazyInternalExceptionHolder(Exception ex)
@@ -87,9 +82,9 @@ namespace System
         // A dummy delegate used as a  :
         // 1- Flag to avoid recursive call to Value in None and ExecutionAndPublication modes in m_valueFactory
         // 2- Flag to m_threadSafeObj if ExecutionAndPublication mode and the value is known to be initialized
-        static readonly Func<T> ALREADY_INVOKED_SENTINEL = delegate 
+        private static readonly Func<T> ALREADY_INVOKED_SENTINEL = delegate
         {
-            Contract.Assert(false, "ALREADY_INVOKED_SENTINEL should never be invoked.");
+            Debug.Assert(false, "ALREADY_INVOKED_SENTINEL should never be invoked.");
             return default(T);
         };
 
@@ -123,6 +118,19 @@ namespace System
         }
 
         /// <summary>
+        /// Initializes a new instance of the <see cref="T:System.Threading.Lazy{T}"/> class that
+        /// uses a pre-initialized specified value.
+        /// </summary>
+        /// <remarks>
+        /// An instance created with this constructor should be usable by multiple threads
+        //  concurrently.
+        /// </remarks>
+        public Lazy(T value)
+        {
+            m_boxed = new Boxed(value);
+        }
+
+        /// <summary>
         /// Initializes a new instance of the <see cref="T:System.Threading.Lazy{T}"/> class that uses a
         /// specified initialization function.
         /// </summary>
@@ -146,8 +154,8 @@ namespace System
         /// </summary>
         /// <param name="isThreadSafe">true if this instance should be usable by multiple threads concurrently; false if the instance will only be used by one thread at a time.
         /// </param>
-        public Lazy(bool isThreadSafe) : 
-            this(isThreadSafe? LazyThreadSafetyMode.ExecutionAndPublication : LazyThreadSafetyMode.None)
+        public Lazy(bool isThreadSafe) :
+            this(isThreadSafe ? LazyThreadSafetyMode.ExecutionAndPublication : LazyThreadSafetyMode.None)
         {
         }
 
@@ -193,7 +201,7 @@ namespace System
         public Lazy(Func<T> valueFactory, LazyThreadSafetyMode mode)
         {
             if (valueFactory == null)
-                throw new ArgumentNullException("valueFactory");
+                throw new ArgumentNullException(nameof(valueFactory));
 
             m_threadSafeObj = GetObjectFromMode(mode);
             m_valueFactory = valueFactory;
@@ -209,8 +217,8 @@ namespace System
             else if (mode == LazyThreadSafetyMode.PublicationOnly)
                 return LazyHelpers.PUBLICATION_ONLY_SENTINEL;
             else if (mode != LazyThreadSafetyMode.None)
-                throw new ArgumentOutOfRangeException("mode", Environment.GetResourceString("Lazy_ctor_ModeInvalid"));
-            
+                throw new ArgumentOutOfRangeException(nameof(mode), Environment.GetResourceString("Lazy_ctor_ModeInvalid"));
+
             return null; // None mode
         }
 
@@ -312,7 +320,7 @@ namespace System
             get
             {
                 Boxed boxed = null;
-                if (m_boxed != null )
+                if (m_boxed != null)
                 {
                     // Do a quick check up front for the fast path.
                     boxed = m_boxed as Boxed;
@@ -322,18 +330,12 @@ namespace System
                     }
 
                     LazyInternalExceptionHolder exc = m_boxed as LazyInternalExceptionHolder;
-                    Contract.Assert(m_boxed != null);
+                    Debug.Assert(exc != null);
                     exc.m_edi.Throw();
                 }
 
                 // Fall through to the slow path.
-#if !FEATURE_CORECLR
-                // We call NOCTD to abort attempts by the debugger to funceval this property (e.g. on mouseover)
-                //   (the debugger proxy is the correct way to look at state/value of this object)
-                Debugger.NotifyOfCrossThreadDependency(); 
-#endif
                 return LazyInitValue();
-               
             }
         }
 
@@ -377,7 +379,7 @@ namespace System
                     if (threadSafeObj != (object)ALREADY_INVOKED_SENTINEL)
                         Monitor.Enter(threadSafeObj, ref lockTaken);
                     else
-                        Contract.Assert(m_boxed != null);
+                        Debug.Assert(m_boxed != null);
 
                     if (m_boxed == null)
                     {
@@ -391,7 +393,7 @@ namespace System
                         if (boxed == null) // it is not Boxed, so it is a LazyInternalExceptionHolder
                         {
                             LazyInternalExceptionHolder exHolder = m_boxed as LazyInternalExceptionHolder;
-                            Contract.Assert(exHolder != null);
+                            Debug.Assert(exHolder != null);
                             exHolder.m_edi.Throw();
                         }
                     }
@@ -402,7 +404,7 @@ namespace System
                         Monitor.Exit(threadSafeObj);
                 }
             }
-            Contract.Assert(boxed != null);
+            Debug.Assert(boxed != null);
             return boxed.m_value;
         }
 
@@ -444,7 +446,6 @@ namespace System
                 try
                 {
                     boxed = new Boxed((T)Activator.CreateInstance(typeof(T)));
-
                 }
                 catch (System.MissingMethodException)
                 {
@@ -457,7 +458,6 @@ namespace System
 
             return boxed;
         }
-
     }
 
     /// <summary>A debugger view of the Lazy&lt;T&gt; to surface additional debugging properties and 
@@ -498,6 +498,5 @@ namespace System
         {
             get { return m_lazy.IsValueFaulted; }
         }
-
     }
 }

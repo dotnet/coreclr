@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 ////////////////////////////////////////////////////////////////////////////
 //
@@ -25,7 +26,8 @@
 //
 ////////////////////////////////////////////////////////////////////////////
 
-namespace System.Globalization {
+namespace System.Globalization
+{
     using System;
     using System.Security;
     using System.Threading;
@@ -35,15 +37,15 @@ namespace System.Globalization {
     using System.Runtime.InteropServices;
     using System.Runtime.Serialization;
     using System.Runtime.Versioning;
-    using System.Security.Permissions;
     using System.Reflection;
     using Microsoft.Win32;
+    using System.Diagnostics;
     using System.Diagnostics.Contracts;
     using System.Resources;
 
     [Serializable]
-    [System.Runtime.InteropServices.ComVisible(true)]
-    public class CultureInfo : ICloneable, IFormatProvider {
+    public partial class CultureInfo : ICloneable, IFormatProvider
+    {
         //--------------------------------------------------------------------//
         //                        Internal Information                        //
         //--------------------------------------------------------------------//
@@ -65,34 +67,22 @@ namespace System.Globalization {
         internal bool m_isReadOnly;
         internal CompareInfo compareInfo;
         internal TextInfo textInfo;
-        // Not serialized for now since we only build it privately for use in the CARIB (so rebuilding is OK)
-#if !FEATURE_CORECLR
-        [NonSerialized]internal RegionInfo regionInfo;
-#endif
         internal NumberFormatInfo numInfo;
         internal DateTimeFormatInfo dateTimeInfo;
         internal Calendar calendar;
-#if !FEATURE_CORECLR
         [OptionalField(VersionAdded = 1)]
         internal int m_dataItem;       // NEVER USED, DO NOT USE THIS! (Serialized in Whidbey/Everett)
         [OptionalField(VersionAdded = 1)]
-        internal int cultureID  = 0x007f;  // NEVER USED, DO NOT USE THIS! (Serialized in Whidbey/Everett)
-#endif // !FEATURE_CORECLR
+        internal int cultureID = 0x007f;  // NEVER USED, DO NOT USE THIS! (Serialized in Whidbey/Everett)
         //
         // The CultureData instance that we are going to read data from.
         // For supported culture, this will be the CultureData instance that read data from mscorlib assembly.
         // For customized culture, this will be the CultureData instance that read data from user customized culture binary file.
         //
-        [NonSerialized]internal CultureData m_cultureData;
-        
-        [NonSerialized]internal bool m_isInherited;
-#if FEATURE_LEAK_CULTURE_INFO
-        [NonSerialized]private bool m_isSafeCrossDomain;
-        [NonSerialized]private int m_createdDomainID;
-#endif // !FEATURE_CORECLR
-#if !FEATURE_CORECLR
-        [NonSerialized]private CultureInfo m_consoleFallbackCulture;
-#endif // !FEATURE_CORECLR
+        [NonSerialized] internal CultureData m_cultureData;
+
+        [NonSerialized] internal bool m_isInherited;
+        [NonSerialized] private CultureInfo m_consoleFallbackCulture;
 
         // Names are confusing.  Here are 3 names we have:
         //
@@ -112,12 +102,12 @@ namespace System.Globalization {
 
         // This will hold the non sorting name to be returned from CultureInfo.Name property.
         // This has a de-DE style name even for de-DE_phoneb type cultures
-        [NonSerialized]private string m_nonSortName;
+        [NonSerialized] private string m_nonSortName;
 
         // This will hold the sorting name to be returned from CultureInfo.SortName property.
         // This might be completely unrelated to the culture name if a custom culture.  Ie en-US for fj-FJ.
         // Otherwise its the sort name, ie: de-DE or de-DE_phoneb
-        [NonSerialized]private string m_sortName;
+        [NonSerialized] private string m_sortName;
 
 
         //--------------------------------------------------------------------//
@@ -153,7 +143,6 @@ namespace System.Globalization {
 
 #if FEATURE_APPX
         // When running under AppX, we use this to get some information about the language list
-        [SecurityCritical]
         private static volatile WindowsRuntimeResourceManagerBase s_WindowsRuntimeResourceManager;
 
         [ThreadStatic]
@@ -161,17 +150,17 @@ namespace System.Globalization {
 #endif
 
         //The parent culture.
-        [NonSerialized]private CultureInfo m_parent;
+        [NonSerialized] private CultureInfo m_parent;
 
         // LOCALE constants of interest to us internally and privately for LCID functions
         // (ie: avoid using these and use names if possible)
-        internal const int LOCALE_NEUTRAL              = 0x0000;
-        private  const int LOCALE_USER_DEFAULT         = 0x0400;
-        private  const int LOCALE_SYSTEM_DEFAULT       = 0x0800;
-        internal const int LOCALE_CUSTOM_DEFAULT       = 0x0c00;
-        internal const int LOCALE_CUSTOM_UNSPECIFIED   = 0x1000;
-        internal const int LOCALE_INVARIANT            = 0x007F;
-        private  const int LOCALE_TRADITIONAL_SPANISH  = 0x040a;
+        internal const int LOCALE_NEUTRAL = 0x0000;
+        private const int LOCALE_USER_DEFAULT = 0x0400;
+        private const int LOCALE_SYSTEM_DEFAULT = 0x0800;
+        internal const int LOCALE_CUSTOM_DEFAULT = 0x0c00;
+        internal const int LOCALE_CUSTOM_UNSPECIFIED = 0x1000;
+        internal const int LOCALE_INVARIANT = 0x007F;
+        private const int LOCALE_TRADITIONAL_SPANISH = 0x040a;
 
         //
         // The CultureData  instance that reads the data provided by our CultureData class.
@@ -181,8 +170,7 @@ namespace System.Globalization {
         private static readonly bool init = Init();
         private static bool Init()
         {
-
-            if (s_InvariantCultureInfo == null) 
+            if (s_InvariantCultureInfo == null)
             {
                 CultureInfo temp = new CultureInfo("", false);
                 temp.m_isReadOnly = true;
@@ -198,8 +186,7 @@ namespace System.Globalization {
             return true;
         }
 
-        [System.Security.SecuritySafeCritical]  // auto-generated
-        static CultureInfo InitUserDefaultCulture()
+        private static CultureInfo InitUserDefaultCulture()
         {
             String strDefault = GetDefaultLocaleName(LOCALE_USER_DEFAULT);
             if (strDefault == null)
@@ -219,7 +206,7 @@ namespace System.Globalization {
             return (temp);
         }
 
-        static CultureInfo InitUserDefaultUICulture()
+        private static CultureInfo InitUserDefaultUICulture()
         {
             String strDefault = GetUserDefaultUILanguage();
 
@@ -229,7 +216,7 @@ namespace System.Globalization {
                 return (UserDefaultCulture);
             }
 
-            CultureInfo temp = GetCultureByName( strDefault, true);
+            CultureInfo temp = GetCultureByName(strDefault, true);
 
             if (temp == null)
             {
@@ -242,7 +229,6 @@ namespace System.Globalization {
         }
 
 #if FEATURE_APPX
-        [SecuritySafeCritical]
         internal static CultureInfo GetCultureInfoForUserPreferredLanguageInAppX()
         {
             // If a call to GetCultureInfoForUserPreferredLanguageInAppX() generated a recursive
@@ -251,7 +237,7 @@ namespace System.Globalization {
             // (which is common on check'd build because of BCLDebug logging which calls Int32.ToString()).  
             // In this case, returning null will mean CultureInfo.CurrentCulture gets the default Win32 
             // value, which should be fine. 
-            if(ts_IsDoingAppXCultureInfoLookup)
+            if (ts_IsDoingAppXCultureInfoLookup)
             {
                 return null;
             }
@@ -269,23 +255,44 @@ namespace System.Globalization {
 
             CultureInfo toReturn = null;
 
-            try 
+            try
             {
                 ts_IsDoingAppXCultureInfoLookup = true;
 
-                if(s_WindowsRuntimeResourceManager == null)
+                if (s_WindowsRuntimeResourceManager == null)
                 {
                     s_WindowsRuntimeResourceManager = ResourceManager.GetWinRTResourceManager();
                 }
 
                 toReturn = s_WindowsRuntimeResourceManager.GlobalResourceContextBestFitCultureInfo;
-            } 
-            finally 
-            {
-               ts_IsDoingAppXCultureInfoLookup = false;
             }
- 
+            finally
+            {
+                ts_IsDoingAppXCultureInfoLookup = false;
+            }
+
             return toReturn;
+        }
+
+        internal static bool SetCultureInfoForUserPreferredLanguageInAppX(CultureInfo ci)
+        {
+            // If running within a compilation process (mscorsvw.exe, for example), it is illegal to
+            // load any non-mscorlib assembly for execution. Since WindowsRuntimeResourceManager lives
+            // in System.Runtime.WindowsRuntime, caller will need to fall back to default Win32 value,
+            // which should be fine because we should only ever need to access FX resources during NGEN.
+            // FX resources are always loaded from satellite assemblies - even in AppX processes (see the
+            // comments in code:System.Resources.ResourceManager.SetAppXConfiguration for more details).
+            if (AppDomain.IsAppXNGen)
+            {
+                return false;
+            }
+
+            if (s_WindowsRuntimeResourceManager == null)
+            {
+                s_WindowsRuntimeResourceManager = ResourceManager.GetWinRTResourceManager();
+            }
+
+            return s_WindowsRuntimeResourceManager.SetGlobalResourceContextDefaultCulture(ci);
         }
 #endif
 
@@ -296,36 +303,26 @@ namespace System.Globalization {
         ////////////////////////////////////////////////////////////////////////
 
 
-        public CultureInfo(String name) : this(name, true) {
+        public CultureInfo(String name) : this(name, true)
+        {
         }
 
 
-        public CultureInfo(String name, bool useUserOverride) {
-            if (name==null) {
-                throw new ArgumentNullException("name",
+        public CultureInfo(String name, bool useUserOverride)
+        {
+            if (name == null)
+            {
+                throw new ArgumentNullException(nameof(name),
                     Environment.GetResourceString("ArgumentNull_String"));
             }
             Contract.EndContractBlock();
 
-#if FEATURE_LEGACYNETCF
-            // Windows Phone 7 and 7.1 do not support Bengali.  When running on Windows Phone 8,
-            // WinPhone 7.x apps get the old Mango text stack, not the Apollo text stack.  The Mango
-            // text stack cannot display characters in Bengali, such as the culture's native name.
-            // Phone apps are already written to catch an exception here and bypass this culture.
-            if (CompatibilitySwitches.IsAppEarlierThanWindowsPhone8 &&
-                (name == "bn" || name == "bn-BD" || name == "bn-IN" ||  name == "ml" || name == "or"))
-                throw new ArgumentException(Environment.GetResourceString("Argument_CultureNotSupported"));
-#endif
-
             // Get our data providing record
             this.m_cultureData = CultureData.GetCultureData(name, useUserOverride);
 
-            if (this.m_cultureData == null) {
-#if FEATURE_LEGACYNETCF
-                if (CompatibilitySwitches.IsAppEarlierThanWindowsPhone8)
-                    throw new PlatformNotSupportedException(Environment.GetResourceString("Argument_CultureNotSupported"));
-#endif
-                throw new CultureNotFoundException("name", name, Environment.GetResourceString("Argument_CultureNotSupported"));
+            if (this.m_cultureData == null)
+            {
+                throw new CultureNotFoundException(nameof(name), name, Environment.GetResourceString("Argument_CultureNotSupported"));
             }
 
             this.m_name = this.m_cultureData.CultureName;
@@ -333,14 +330,17 @@ namespace System.Globalization {
         }
 
 
-#if  FEATURE_USE_LCID         
-        public CultureInfo(int culture) : this(culture, true) {
+#if FEATURE_USE_LCID
+        public CultureInfo(int culture) : this(culture, true)
+        {
         }
 
-        public CultureInfo(int culture, bool useUserOverride) {
+        public CultureInfo(int culture, bool useUserOverride)
+        {
             // We don't check for other invalid LCIDS here...
-            if (culture < 0) {
-                throw new ArgumentOutOfRangeException("culture",
+            if (culture < 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(culture),
                     Environment.GetResourceString("ArgumentOutOfRange_NeedPosNum"));
             }
             Contract.EndContractBlock();
@@ -360,7 +360,7 @@ namespace System.Globalization {
                     // Can't support unknown custom cultures and we do not support neutral or
                     // non-custom user locales.
                     throw new CultureNotFoundException(
-                        "culture", culture, Environment.GetResourceString("Argument_CultureNotSupported"));
+                        nameof(culture), culture, Environment.GetResourceString("Argument_CultureNotSupported"));
 
                 default:
                     // Now see if this LCID is supported in the system default CultureData  table.
@@ -372,33 +372,14 @@ namespace System.Globalization {
         }
 #endif // FEATURE_USE_LCID
 
-        //
-        // CheckDomainSafetyObject throw if the object is customized object which cannot be attached to 
-        // other object (like CultureInfo or DateTimeFormatInfo).
-        //
-
-        internal static void CheckDomainSafetyObject(Object obj, Object container)
-        {
-            if (obj.GetType().Assembly != typeof(System.Globalization.CultureInfo).Assembly) {
-                
-                throw new InvalidOperationException(
-                            String.Format(
-                                CultureInfo.CurrentCulture, 
-                                Environment.GetResourceString("InvalidOperation_SubclassedObject"), 
-                                obj.GetType(),
-                                container.GetType()));
-            }
-            Contract.EndContractBlock();
-        }
-
-#region Serialization
+        #region Serialization
         // We need to store the override from the culture data record.
-        private bool    m_useUserOverride;
+        private bool m_useUserOverride;
 
         [OnDeserialized]
         private void OnDeserialized(StreamingContext ctx)
         {
-#if  FEATURE_USE_LCID         
+#if FEATURE_USE_LCID
             // Whidbey+ should remember our name
             // but v1 and v1.1 did not store name -- only lcid
             // Whidbey did not store actual alternate sort name in m_name
@@ -406,41 +387,26 @@ namespace System.Globalization {
             // e.g. for es-ES_tradnl: v2 puts es-ES in m_name; v4 puts es-ES_tradnl
             if (m_name == null || IsAlternateSortLcid(cultureID))
             {
-                Contract.Assert(cultureID >=0, "[CultureInfo.OnDeserialized] cultureID >= 0");
+                Debug.Assert(cultureID >= 0, "[CultureInfo.OnDeserialized] cultureID >= 0");
                 InitializeFromCultureId(cultureID, m_useUserOverride);
             }
             else
             {
 #endif
-                Contract.Assert(m_name != null, "[CultureInfo.OnDeserialized] m_name != null");
+                Debug.Assert(m_name != null, "[CultureInfo.OnDeserialized] m_name != null");
 
                 this.m_cultureData = CultureData.GetCultureData(m_name, m_useUserOverride);
                 if (this.m_cultureData == null)
                     throw new CultureNotFoundException(
-                        "m_name", m_name, Environment.GetResourceString("Argument_CultureNotSupported"));
-                    
-#if  FEATURE_USE_LCID         
+                        nameof(m_name), m_name, Environment.GetResourceString("Argument_CultureNotSupported"));
+
+#if FEATURE_USE_LCID
             }
 #endif
             m_isInherited = (this.GetType() != typeof(System.Globalization.CultureInfo));
-
-            // in case we have non customized CultureInfo object we shouldn't allow any customized object  
-            // to be attached to it for cross app domain safety.
-            if (this.GetType().Assembly == typeof(System.Globalization.CultureInfo).Assembly)
-            {
-                if (textInfo != null)
-                {
-                    CheckDomainSafetyObject(textInfo, this);
-                }
-                
-                if (compareInfo != null)
-                {
-                    CheckDomainSafetyObject(compareInfo, this);
-                }
-            }
         }
 
-#if  FEATURE_USE_LCID         
+#if FEATURE_USE_LCID
         //  A locale ID is a 32 bit value which is the combination of a
         //  language ID, a sort ID, and a reserved area.  The bits are
         //  allocated as follows:
@@ -453,7 +419,7 @@ namespace System.Globalization {
 
         static private bool IsAlternateSortLcid(int lcid)
         {
-            if(lcid == LOCALE_TRADITIONAL_SPANISH)
+            if (lcid == LOCALE_TRADITIONAL_SPANISH)
             {
                 return true;
             }
@@ -465,64 +431,15 @@ namespace System.Globalization {
         [OnSerializing]
         private void OnSerializing(StreamingContext ctx)
         {
-            this.m_name              = this.m_cultureData.CultureName;
-            this.m_useUserOverride   = this.m_cultureData.UseUserOverride;
+            this.m_name = this.m_cultureData.CultureName;
+            m_useUserOverride = this.m_cultureData.UseUserOverride;
 #if FEATURE_USE_LCID
             // for compatibility with v2 serialize cultureID
             this.cultureID = this.m_cultureData.ILANGUAGE;
 #endif
         }
-#endregion Serialization
 
-#if FEATURE_LEAK_CULTURE_INFO
-        // Is it safe to send this CultureInfo as an instance member of a Thread cross AppDomain boundaries?
-        // For Silverlight, the answer is always no.
-        internal bool IsSafeCrossDomain {
-            get {
-                Contract.Assert(m_createdDomainID != 0, "[CultureInfo.IsSafeCrossDomain] m_createdDomainID != 0");
-                return m_isSafeCrossDomain;
-            }
-        }
-
-        internal int CreatedDomainID {
-            get {
-                Contract.Assert(m_createdDomainID != 0,  "[CultureInfo.CreatedDomain] m_createdDomainID != 0");
-                return m_createdDomainID;
-            }
-        }
-
-        internal void StartCrossDomainTracking() {
-        
-            // If we have decided about cross domain safety of this instance, we are done
-            if (m_createdDomainID != 0)
-                return;
-
-            // If FEATURE_LEAK_CULTURE_INFO isn't enabled, we never want to pass
-            // CultureInfo as an instance member of a Thread. 
-            if (CanSendCrossDomain())
-            {
-                m_isSafeCrossDomain = true;
-            }
-
-            // m_createdDomainID has to be assigned last. We use it to signal that we have
-            // completed the check.
-            System.Threading.Thread.MemoryBarrier();
-            m_createdDomainID = Thread.GetDomainID();
-        }
-#endif // FEATURE_LEAK_CULTURE_INFO
-
-        // Is it safe to pass the CultureInfo cross AppDomain boundaries, not necessarily as an instance
-        // member of Thread. This is different from IsSafeCrossDomain, which implies passing the CultureInfo
-        // as a Thread instance member. 
-        internal bool CanSendCrossDomain()
-        {
-            bool isSafe = false;
-            if (this.GetType() == typeof(System.Globalization.CultureInfo))
-            {
-                isSafe = true;
-            }
-            return isSafe;
-        }
+        #endregion Serialization
 
         // Constructor called by SQL Server's special munged culture - creates a culture with
         // a TextInfo and CompareInfo that come from a supplied alternate source. This object
@@ -532,8 +449,9 @@ namespace System.Globalization {
         // the GetCultureInfo override *only*.
         internal CultureInfo(String cultureName, String textAndCompareCultureName)
         {
-            if (cultureName==null) {
-                throw new ArgumentNullException("cultureName",
+            if (cultureName == null)
+            {
+                throw new ArgumentNullException(nameof(cultureName),
                     Environment.GetResourceString("ArgumentNull_String"));
             }
             Contract.EndContractBlock();
@@ -541,9 +459,9 @@ namespace System.Globalization {
             this.m_cultureData = CultureData.GetCultureData(cultureName, false);
             if (this.m_cultureData == null)
                 throw new CultureNotFoundException(
-                    "cultureName", cultureName, Environment.GetResourceString("Argument_CultureNotSupported"));
-            
-            this.m_name = this.m_cultureData.CultureName;            
+                    nameof(cultureName), cultureName, Environment.GetResourceString("Argument_CultureNotSupported"));
+
+            this.m_name = this.m_cultureData.CultureName;
 
             CultureInfo altCulture = GetCultureInfo(textAndCompareCultureName);
             this.compareInfo = altCulture.CompareInfo;
@@ -553,7 +471,7 @@ namespace System.Globalization {
         // We do this to try to return the system UI language and the default user languages
         // The callers should have a fallback if this fails (like Invariant)
         private static CultureInfo GetCultureByName(String name, bool userOverride)
-        {           
+        {
             // Try to get our culture
             try
             {
@@ -574,15 +492,18 @@ namespace System.Globalization {
         // if we can't find a bigger name.  That doesn't help with things like "zh" though, so
         // the approach is of questionable value
         //
-#if !FEATURE_CORECLR
-        public static CultureInfo CreateSpecificCulture(String name) {
+        public static CultureInfo CreateSpecificCulture(String name)
+        {
             Contract.Ensures(Contract.Result<CultureInfo>() != null);
 
             CultureInfo culture;
 
-            try {
+            try
+            {
                 culture = new CultureInfo(name);
-            } catch(ArgumentException) {
+            }
+            catch (ArgumentException)
+            {
                 // When CultureInfo throws this exception, it may be because someone passed the form
                 // like "az-az" because it came out of an http accept lang. We should try a little
                 // parsing to perhaps fall back to "az" here and use *it* to create the neutral.
@@ -590,65 +511,74 @@ namespace System.Globalization {
                 int idx;
 
                 culture = null;
-                for(idx = 0; idx < name.Length; idx++) {
-                    if('-' == name[idx]) {
-                        try {
+                for (idx = 0; idx < name.Length; idx++)
+                {
+                    if ('-' == name[idx])
+                    {
+                        try
+                        {
                             culture = new CultureInfo(name.Substring(0, idx));
                             break;
-                        } catch(ArgumentException) {
+                        }
+                        catch (ArgumentException)
+                        {
                             // throw the original exception so the name in the string will be right
                             throw;
                         }
                     }
                 }
 
-                if(null == culture) {
+                if (null == culture)
+                {
                     // nothing to save here; throw the original exception
                     throw;
                 }
             }
 
             //In the most common case, they've given us a specific culture, so we'll just return that.
-            if (!(culture.IsNeutralCulture)) {
+            if (!(culture.IsNeutralCulture))
+            {
                 return culture;
             }
 
             return (new CultureInfo(culture.m_cultureData.SSPECIFICCULTURE));
         }
-#endif // !FEATURE_CORECLR
 
-        internal static bool VerifyCultureName(String cultureName, bool throwException) 
+        internal static bool VerifyCultureName(String cultureName, bool throwException)
         {
             // This function is used by ResourceManager.GetResourceFileName(). 
             // ResourceManager searches for resource using CultureInfo.Name,
             // so we should check against CultureInfo.Name.
 
-            for (int i=0; i<cultureName.Length; i++) {
+            for (int i = 0; i < cultureName.Length; i++)
+            {
                 char c = cultureName[i];
 
-                if (Char.IsLetterOrDigit(c) || c=='-' || c=='_') {
+                if (Char.IsLetterOrDigit(c) || c == '-' || c == '_')
+                {
                     continue;
                 }
-                if (throwException) {
+                if (throwException)
+                {
                     throw new ArgumentException(Environment.GetResourceString("Argument_InvalidResourceCultureName", cultureName));
                 }
                 return false;
             }
             return true;
-            
         }
 
-        internal static bool VerifyCultureName(CultureInfo culture, bool throwException) {
-            Contract.Assert(culture!=null, "[CultureInfo.VerifyCultureName]culture!=null");
+        internal static bool VerifyCultureName(CultureInfo culture, bool throwException)
+        {
+            Debug.Assert(culture != null, "[CultureInfo.VerifyCultureName]culture!=null");
 
             //If we have an instance of one of our CultureInfos, the user can't have changed the
             //name and we know that all names are valid in files.
-            if (!culture.m_isInherited) {
+            if (!culture.m_isInherited)
+            {
                 return true;
             }
 
             return VerifyCultureName(culture.Name, throwException);
-
         }
 
         ////////////////////////////////////////////////////////////////////////
@@ -664,12 +594,10 @@ namespace System.Globalization {
 
         public static CultureInfo CurrentCulture
         {
-            get {
+            get
+            {
                 Contract.Ensures(Contract.Result<CultureInfo>() != null);
 
-#if !FEATURE_CORECLR
-                return Thread.CurrentThread.CurrentCulture;
-#else
                 // In the case of CoreCLR, Thread.m_CurrentCulture and
                 // Thread.m_CurrentUICulture are thread static so as not to let
                 // CultureInfo objects leak across AppDomain boundaries. The
@@ -680,7 +608,8 @@ namespace System.Globalization {
                 // because these fields are thread static, and so do not
                 // require a Thread instance to be accessed.
 #if FEATURE_APPX
-                if(AppDomain.IsAppXModel()) {
+                if (AppDomain.IsAppXModel())
+                {
                     CultureInfo culture = GetCultureInfoForUserPreferredLanguageInAppX();
                     if (culture != null)
                         return culture;
@@ -690,10 +619,25 @@ namespace System.Globalization {
                     s_DefaultThreadCurrentCulture ??
                     s_userDefaultCulture ??
                     UserDefaultCulture;
-#endif
             }
 
-            set {
+            set
+            {
+#if FEATURE_APPX
+                if (value == null)
+                {
+                    throw new ArgumentNullException(nameof(value));
+                }
+
+                if (AppDomain.IsAppXModel())
+                {
+                    if (SetCultureInfoForUserPreferredLanguageInAppX(value))
+                    {
+                        // successfully set the culture, otherwise fallback to legacy path
+                        return;
+                    }
+                }
+#endif
                 Thread.CurrentThread.CurrentCulture = value;
             }
         }
@@ -701,7 +645,8 @@ namespace System.Globalization {
         //
         // This is the equivalence of the Win32 GetUserDefaultLCID()
         //
-        internal static CultureInfo UserDefaultCulture {
+        internal static CultureInfo UserDefaultCulture
+        {
             get
             {
                 Contract.Ensures(Contract.Result<CultureInfo>() != null);
@@ -714,7 +659,7 @@ namespace System.Globalization {
                     // against recursion problem just in case if somebody called CurrentCulture from the CultureInfo
                     // creation path. the recursion can happen if the current user culture is a replaced custom culture.
                     //
-                    
+
                     s_userDefaultCulture = CultureInfo.InvariantCulture;
                     temp = InitUserDefaultCulture();
                     s_userDefaultCulture = temp;
@@ -726,21 +671,23 @@ namespace System.Globalization {
         //
         //  This is the equivalence of the Win32 GetUserDefaultUILanguage()
         //
-        internal static CultureInfo UserDefaultUICulture {
-            get {
+        internal static CultureInfo UserDefaultUICulture
+        {
+            get
+            {
                 Contract.Ensures(Contract.Result<CultureInfo>() != null);
 
                 CultureInfo temp = s_userDefaultUICulture;
-                if (temp == null) 
+                if (temp == null)
                 {
                     //
                     // setting the s_userDefaultCulture with invariant culture before intializing it is a protection
                     // against recursion problem just in case if somebody called CurrentUICulture from the CultureInfo
                     // creation path. the recursion can happen if the current user culture is a replaced custom culture.
                     //
-                    
+
                     s_userDefaultUICulture = CultureInfo.InvariantCulture;
-                    
+
                     temp = InitUserDefaultUICulture();
                     s_userDefaultUICulture = temp;
                 }
@@ -749,13 +696,12 @@ namespace System.Globalization {
         }
 
 
-        public static CultureInfo CurrentUICulture {
-            get {
+        public static CultureInfo CurrentUICulture
+        {
+            get
+            {
                 Contract.Ensures(Contract.Result<CultureInfo>() != null);
 
-#if !FEATURE_CORECLR
-                return Thread.CurrentThread.CurrentUICulture;
-#else
                 // In the case of CoreCLR, Thread.m_CurrentCulture and
                 // Thread.m_CurrentUICulture are thread static so as not to let
                 // CultureInfo objects leak across AppDomain boundaries. The
@@ -766,7 +712,8 @@ namespace System.Globalization {
                 // because these fields are thread static, and so do not
                 // require a Thread instance to be accessed.
 #if FEATURE_APPX
-                if(AppDomain.IsAppXModel()) {
+                if (AppDomain.IsAppXModel())
+                {
                     CultureInfo culture = GetCultureInfoForUserPreferredLanguageInAppX();
                     if (culture != null)
                         return culture;
@@ -776,10 +723,25 @@ namespace System.Globalization {
                     s_DefaultThreadCurrentUICulture ??
                     s_userDefaultUICulture ??
                     UserDefaultUICulture;
-#endif
             }
 
-            set {
+            set
+            {
+#if FEATURE_APPX
+                if (value == null)
+                {
+                    throw new ArgumentNullException(nameof(value));
+                }
+
+                if (AppDomain.IsAppXModel())
+                {
+                    if (SetCultureInfoForUserPreferredLanguageInAppX(value))
+                    {
+                        // successfully set the culture, otherwise fallback to legacy path
+                        return;
+                    }
+                }
+#endif
                 Thread.CurrentThread.CurrentUICulture = value;
             }
         }
@@ -788,12 +750,15 @@ namespace System.Globalization {
         //
         // This is the equivalence of the Win32 GetSystemDefaultUILanguage()
         //
-        public static CultureInfo InstalledUICulture {
-            get {
+        public static CultureInfo InstalledUICulture
+        {
+            get
+            {
                 Contract.Ensures(Contract.Result<CultureInfo>() != null);
 
                 CultureInfo temp = s_InstalledUICultureInfo;
-                if (temp == null) {
+                if (temp == null)
+                {
                     String strDefault = GetSystemDefaultUILanguage();
                     temp = GetCultureByName(strDefault, true);
 
@@ -809,17 +774,15 @@ namespace System.Globalization {
             }
         }
 
-        public static CultureInfo DefaultThreadCurrentCulture {
-            get {
+        public static CultureInfo DefaultThreadCurrentCulture
+        {
+            get
+            {
                 return s_DefaultThreadCurrentCulture;
             }
 
-            [System.Security.SecuritySafeCritical]  // auto-generated
-#pragma warning disable 618
-            [SecurityPermission(SecurityAction.Demand, ControlThread = true)]
-#pragma warning restore 618
-            set {
-
+            set
+            {
                 // If you add pre-conditions to this method, check to see if you also need to 
                 // add them to Thread.CurrentCulture.set.
 
@@ -827,46 +790,29 @@ namespace System.Globalization {
             }
         }
 
-        public static CultureInfo DefaultThreadCurrentUICulture {
-            get {
+        public static CultureInfo DefaultThreadCurrentUICulture
+        {
+            get
+            {
                 return s_DefaultThreadCurrentUICulture;
             }
 
-            [System.Security.SecuritySafeCritical]  // auto-generated
-#pragma warning disable 618
-            [SecurityPermission(SecurityAction.Demand, ControlThread = true)]
-#pragma warning restore 618
-            set {
-
+            set
+            {
                 //If they're trying to use a Culture with a name that we can't use in resource lookup,
                 //don't even let them set it on the thread.
 
                 // If you add more pre-conditions to this method, check to see if you also need to 
                 // add them to Thread.CurrentUICulture.set.
 
-                if (value != null) 
-                {                   
+                if (value != null)
+                {
                     CultureInfo.VerifyCultureName(value, true);
                 }
 
                 s_DefaultThreadCurrentUICulture = value;
             }
         }
-
-#if FEATURE_LEGACYNETCF
-        //
-        // Helper methods to set default thread culture without security demand. Used
-        // by NetCF compatibility quirk. See comment in Thread.CurrentUICulture setter for details.
-        //
-        internal static void SetCurrentUICultureQuirk(CultureInfo value) {
-            s_DefaultThreadCurrentUICulture = value;
-        }
-
-        internal static void SetCurrentCultureQuirk(CultureInfo value) {
-            s_DefaultThreadCurrentCulture = value;
-        }
-#endif
-
 
         ////////////////////////////////////////////////////////////////////////
         //
@@ -882,9 +828,11 @@ namespace System.Globalization {
         ////////////////////////////////////////////////////////////////////////
 
 
-        public static CultureInfo InvariantCulture {
+        public static CultureInfo InvariantCulture
+        {
             [Pure]
-            get {
+            get
+            {
                 Contract.Ensures(Contract.Result<CultureInfo>() != null);
                 return (s_InvariantCultureInfo);
             }
@@ -901,24 +849,23 @@ namespace System.Globalization {
 
         public virtual CultureInfo Parent
         {
-            [System.Security.SecuritySafeCritical]  // auto-generated
             get
             {
                 Contract.Ensures(Contract.Result<CultureInfo>() != null);
+                CultureInfo culture = null;
 
                 if (null == m_parent)
                 {
                     try
                     {
                         string parentName = this.m_cultureData.SPARENT;
-
                         if (String.IsNullOrEmpty(parentName))
                         {
-                            m_parent = InvariantCulture;
+                            culture = InvariantCulture;
                         }
                         else
                         {
-                            m_parent = new CultureInfo(parentName, this.m_cultureData.UseUserOverride);
+                            culture = new CultureInfo(parentName, this.m_cultureData.UseUserOverride);
                         }
                     }
                     catch (ArgumentException)
@@ -926,8 +873,10 @@ namespace System.Globalization {
                         // For whatever reason our IPARENT or SPARENT wasn't correct, so use invariant
                         // We can't allow ourselves to fail.  In case of custom cultures the parent of the
                         // current custom culture isn't installed.
-                        m_parent =  InvariantCulture;
+                        culture = InvariantCulture;
                     }
+
+                    Interlocked.CompareExchange<CultureInfo>(ref m_parent, culture, null);
                 }
                 return m_parent;
             }
@@ -943,8 +892,10 @@ namespace System.Globalization {
         ////////////////////////////////////////////////////////////////////////
 
 #if FEATURE_USE_LCID
-        public virtual int LCID {
-            get {
+        public virtual int LCID
+        {
+            get
+            {
                 return (this.m_cultureData.ILANGUAGE);
             }
         }
@@ -958,8 +909,7 @@ namespace System.Globalization {
         //  of a customized culture (LCID == LOCALE_CUSTOM_UNSPECIFIED).
         //
         ////////////////////////////////////////////////////////////////////////
-#if FEATURE_USE_LCID    
-        [System.Runtime.InteropServices.ComVisible(false)]
+#if FEATURE_USE_LCID
         public virtual int KeyboardLayoutId
         {
             get
@@ -972,18 +922,17 @@ namespace System.Globalization {
         }
 #endif
 
-#if !FEATURE_CORECLR
-        public static CultureInfo[] GetCultures(CultureTypes types) {
+        public static CultureInfo[] GetCultures(CultureTypes types)
+        {
             Contract.Ensures(Contract.Result<CultureInfo[]>() != null);
             // internally we treat UserCustomCultures as Supplementals but v2
             // treats as Supplementals and Replacements
-            if((types & CultureTypes.UserCustomCulture) == CultureTypes.UserCustomCulture)
+            if ((types & CultureTypes.UserCustomCulture) == CultureTypes.UserCustomCulture)
             {
                 types |= CultureTypes.ReplacementCultures;
             }
             return (CultureData.GetCultures(types));
         }
-#endif
 
         ////////////////////////////////////////////////////////////////////////
         //
@@ -993,18 +942,22 @@ namespace System.Globalization {
         //  "en-US"  This version does NOT include sort information in the name.
         //
         ////////////////////////////////////////////////////////////////////////
-        public virtual String Name {
-            get {
+        public virtual String Name
+        {
+            get
+            {
                 Contract.Ensures(Contract.Result<String>() != null);
 
                 // We return non sorting name here.
-                if (this.m_nonSortName == null) {
-                    this.m_nonSortName = this.m_cultureData.SNAME;
-                    if (this.m_nonSortName == null) {
-                        this.m_nonSortName = String.Empty;
+                if (m_nonSortName == null)
+                {
+                    m_nonSortName = this.m_cultureData.SNAME;
+                    if (m_nonSortName == null)
+                    {
+                        m_nonSortName = String.Empty;
                     }
                 }
-                return this.m_nonSortName;
+                return m_nonSortName;
             }
         }
 
@@ -1013,17 +966,15 @@ namespace System.Globalization {
         {
             get
             {
-                if (this.m_sortName == null)
+                if (m_sortName == null)
                 {
-                    this.m_sortName = this.m_cultureData.SCOMPAREINFO;
+                    m_sortName = this.m_cultureData.SCOMPAREINFO;
                 }
 
-                return this.m_sortName;
+                return m_sortName;
             }
         }
 
-#if !FEATURE_CORECLR
-        [System.Runtime.InteropServices.ComVisible(false)]
         public String IetfLanguageTag
         {
             get
@@ -1042,7 +993,6 @@ namespace System.Globalization {
                 }
             }
         }
-#endif
 
         ////////////////////////////////////////////////////////////////////////
         //
@@ -1055,11 +1005,10 @@ namespace System.Globalization {
         ////////////////////////////////////////////////////////////////////////
         public virtual String DisplayName
         {
-            [System.Security.SecuritySafeCritical]  // auto-generated
             get
             {
                 Contract.Ensures(Contract.Result<String>() != null);
-                Contract.Assert(m_name != null, "[CultureInfo.DisplayName]Always expect m_name to be set");
+                Debug.Assert(m_name != null, "[CultureInfo.DisplayName]Always expect m_name to be set");
 
                 return m_cultureData.SLOCALIZEDDISPLAYNAME;
             }
@@ -1074,9 +1023,10 @@ namespace System.Globalization {
         //  (United States)" will be returned.
         //
         ////////////////////////////////////////////////////////////////////////
-        public virtual String NativeName {
-            [System.Security.SecuritySafeCritical]  // auto-generated
-            get {
+        public virtual String NativeName
+        {
+            get
+            {
                 Contract.Ensures(Contract.Result<String>() != null);
                 return (this.m_cultureData.SNATIVEDISPLAYNAME);
             }
@@ -1091,28 +1041,30 @@ namespace System.Globalization {
         //  (United States)" will be returned.
         //
         ////////////////////////////////////////////////////////////////////////
-        public virtual String EnglishName {
-            [System.Security.SecuritySafeCritical]  // auto-generated
-            get {
+        public virtual String EnglishName
+        {
+            get
+            {
                 Contract.Ensures(Contract.Result<String>() != null);
                 return (this.m_cultureData.SENGDISPLAYNAME);
             }
         }
-      
+
         // ie: en
-        public virtual String TwoLetterISOLanguageName {
-            [System.Security.SecuritySafeCritical]  // auto-generated
-            get {
+        public virtual String TwoLetterISOLanguageName
+        {
+            get
+            {
                 Contract.Ensures(Contract.Result<String>() != null);
                 return (this.m_cultureData.SISO639LANGNAME);
             }
         }
 
-#if !FEATURE_CORECLR
         // ie: eng
-        public virtual String ThreeLetterISOLanguageName {
-            [System.Security.SecuritySafeCritical]  // auto-generated
-            get {
+        public virtual String ThreeLetterISOLanguageName
+        {
+            get
+            {
                 Contract.Ensures(Contract.Result<String>() != null);
                 return (this.m_cultureData.SISO639LANGNAME2);
             }
@@ -1126,14 +1078,14 @@ namespace System.Globalization {
         //  The ISO names are much preferred
         //
         ////////////////////////////////////////////////////////////////////////
-        public virtual String ThreeLetterWindowsLanguageName {
-            [System.Security.SecuritySafeCritical]  // auto-generated
-            get {
+        public virtual String ThreeLetterWindowsLanguageName
+        {
+            get
+            {
                 Contract.Ensures(Contract.Result<String>() != null);
                 return (this.m_cultureData.SABBREVLANGNAME);
             }
         }
-#endif
 
         ////////////////////////////////////////////////////////////////////////
         //
@@ -1152,8 +1104,8 @@ namespace System.Globalization {
                 {
                     // Since CompareInfo's don't have any overrideable properties, get the CompareInfo from
                     // the Non-Overridden CultureInfo so that we only create one CompareInfo per culture
-                    CompareInfo temp = UseUserOverride 
-                                        ? GetCultureInfo(this.m_name).CompareInfo 
+                    CompareInfo temp = UseUserOverride
+                                        ? GetCultureInfo(this.m_name).CompareInfo
                                         : new CompareInfo(this);
                     if (CompatibilitySwitches.IsCompatibilityBehaviorDefined)
                     {
@@ -1168,31 +1120,6 @@ namespace System.Globalization {
             }
         }
 
-#if !FEATURE_CORECLR
-        ////////////////////////////////////////////////////////////////////////
-        //
-        //  RegionInfo
-        //
-        //  Gets the RegionInfo for this culture.
-        //
-        ////////////////////////////////////////////////////////////////////////
-        private RegionInfo Region
-        {
-            get
-            {
-                if (regionInfo==null)
-                {
-                    // Make a new regionInfo
-                    RegionInfo tempRegionInfo = new RegionInfo(this.m_cultureData);
-                    regionInfo = tempRegionInfo;
-                }
-                return (regionInfo);
-            }
-        }
-#endif // FEATURE_CORECLR
-
-
-
         ////////////////////////////////////////////////////////////////////////
         //
         //  TextInfo
@@ -1202,11 +1129,13 @@ namespace System.Globalization {
         ////////////////////////////////////////////////////////////////////////
 
 
-        public virtual TextInfo TextInfo {
-            get {
+        public virtual TextInfo TextInfo
+        {
+            get
+            {
                 Contract.Ensures(Contract.Result<TextInfo>() != null);
 
-                if (textInfo==null) 
+                if (textInfo == null)
                 {
                     // Make a new textInfo
                     TextInfo tempTextInfo = new TextInfo(this.m_cultureData);
@@ -1284,29 +1213,32 @@ namespace System.Globalization {
         {
             Contract.Ensures(Contract.Result<String>() != null);
 
-            Contract.Assert(m_name != null, "[CultureInfo.ToString]Always expect m_name to be set");
+            Debug.Assert(m_name != null, "[CultureInfo.ToString]Always expect m_name to be set");
             return m_name;
         }
 
 
-        public virtual Object GetFormat(Type formatType) {
-            if (formatType == typeof(NumberFormatInfo)) {
+        public virtual Object GetFormat(Type formatType)
+        {
+            if (formatType == typeof(NumberFormatInfo))
+            {
                 return (NumberFormat);
             }
-            if (formatType == typeof(DateTimeFormatInfo)) {
+            if (formatType == typeof(DateTimeFormatInfo))
+            {
                 return (DateTimeFormat);
             }
             return (null);
         }
 
-        public virtual bool IsNeutralCulture {
-            get {
+        public virtual bool IsNeutralCulture
+        {
+            get
+            {
                 return this.m_cultureData.IsNeutralCulture;
             }
         }
 
-#if !FEATURE_CORECLR
-        [System.Runtime.InteropServices.ComVisible(false)]
         public CultureTypes CultureTypes
         {
             get
@@ -1315,39 +1247,42 @@ namespace System.Globalization {
 
                 if (m_cultureData.IsNeutralCulture)
                     types |= CultureTypes.NeutralCultures;
-                else 
+                else
                     types |= CultureTypes.SpecificCultures;
 
                 types |= m_cultureData.IsWin32Installed ? CultureTypes.InstalledWin32Cultures : 0;
 
-// Disable  warning 618: System.Globalization.CultureTypes.FrameworkCultures' is obsolete
+                // Disable  warning 618: System.Globalization.CultureTypes.FrameworkCultures' is obsolete
 #pragma warning disable 618
                 types |= m_cultureData.IsFramework ? CultureTypes.FrameworkCultures : 0;
-
 #pragma warning restore 618
+
                 types |= m_cultureData.IsSupplementalCustomCulture ? CultureTypes.UserCustomCulture : 0;
                 types |= m_cultureData.IsReplacementCulture ? CultureTypes.ReplacementCultures | CultureTypes.UserCustomCulture : 0;
 
                 return types;
             }
         }
-#endif
 
-        public virtual NumberFormatInfo NumberFormat {
-            get 
+        public virtual NumberFormatInfo NumberFormat
+        {
+            get
             {
                 Contract.Ensures(Contract.Result<NumberFormatInfo>() != null);
 
-                if (numInfo == null) {
+                if (numInfo == null)
+                {
                     NumberFormatInfo temp = new NumberFormatInfo(this.m_cultureData);
                     temp.isReadOnly = m_isReadOnly;
-                    numInfo = temp;
+                    Interlocked.CompareExchange(ref numInfo, temp, null);
                 }
                 return (numInfo);
             }
-            set {
-                if (value == null) {
-                    throw new ArgumentNullException("value",
+            set
+            {
+                if (value == null)
+                {
+                    throw new ArgumentNullException(nameof(value),
                         Environment.GetResourceString("ArgumentNull_Obj"));
                 }
                 Contract.EndContractBlock();
@@ -1366,24 +1301,28 @@ namespace System.Globalization {
         ////////////////////////////////////////////////////////////////////////
 
 
-        public virtual DateTimeFormatInfo DateTimeFormat {
-            get {
+        public virtual DateTimeFormatInfo DateTimeFormat
+        {
+            get
+            {
                 Contract.Ensures(Contract.Result<DateTimeFormatInfo>() != null);
 
-                if (dateTimeInfo == null) {
+                if (dateTimeInfo == null)
+                {
                     // Change the calendar of DTFI to the specified calendar of this CultureInfo.
                     DateTimeFormatInfo temp = new DateTimeFormatInfo(
                         this.m_cultureData, this.Calendar);
                     temp.m_isReadOnly = m_isReadOnly;
-                    System.Threading.Thread.MemoryBarrier();
-                    dateTimeInfo = temp;
+                    Interlocked.CompareExchange(ref dateTimeInfo, temp, null);
                 }
                 return (dateTimeInfo);
             }
 
-            set {
-                if (value == null) {
-                    throw new ArgumentNullException("value",
+            set
+            {
+                if (value == null)
+                {
+                    throw new ArgumentNullException(nameof(value),
                         Environment.GetResourceString("ArgumentNull_Obj"));
                 }
                 Contract.EndContractBlock();
@@ -1392,17 +1331,17 @@ namespace System.Globalization {
             }
         }
 
-
-
-        public void ClearCachedData() {
+        public void ClearCachedData()
+        {
             s_userDefaultUICulture = null;
             s_userDefaultCulture = null;
 
             RegionInfo.s_currentRegionInfo = null;
-#if !FEATURE_CORECLR // System.TimeZone does not exist in CoreCLR
+#pragma warning disable CS0618
             TimeZone.ResetTimeZone();
-#endif // FEATURE_CORECLR
+#pragma warning restore CS0618
             TimeZoneInfo.ClearCachedData();
+
             // Delete the cached cultures.
             s_LcidCachedCultures = null;
             s_NameCachedCultures = null;
@@ -1418,8 +1357,10 @@ namespace System.Globalization {
         **      Shouldn't throw exception since the calType value is from our data table or from Win32 registry.
         **      If we are in trouble (like getting a weird value from Win32 registry), just return the GregorianCalendar.
         ============================================================================*/
-        internal static Calendar GetCalendarInstance(int calType) {
-            if (calType==Calendar.CAL_GREGORIAN) {
+        internal static Calendar GetCalendarInstance(int calType)
+        {
+            if (calType == Calendar.CAL_GREGORIAN)
+            {
                 return (new GregorianCalendar());
             }
             return GetCalendarInstanceRare(calType);
@@ -1427,10 +1368,12 @@ namespace System.Globalization {
 
         //This function exists as a shortcut to prevent us from loading all of the non-gregorian
         //calendars unless they're required.
-        internal static Calendar GetCalendarInstanceRare(int calType) {
-            Contract.Assert(calType!=Calendar.CAL_GREGORIAN, "calType!=Calendar.CAL_GREGORIAN");
+        internal static Calendar GetCalendarInstanceRare(int calType)
+        {
+            Debug.Assert(calType != Calendar.CAL_GREGORIAN, "calType!=Calendar.CAL_GREGORIAN");
 
-            switch (calType) {
+            switch (calType)
+            {
                 case Calendar.CAL_GREGORIAN_US:               // Gregorian (U.S.) calendar
                 case Calendar.CAL_GREGORIAN_ME_FRENCH:        // Gregorian Middle East French calendar
                 case Calendar.CAL_GREGORIAN_ARABIC:           // Gregorian Arabic calendar
@@ -1476,11 +1419,14 @@ namespace System.Globalization {
         ============================================================================*/
 
 
-        public virtual Calendar Calendar {
-            get {
+        public virtual Calendar Calendar
+        {
+            get
+            {
                 Contract.Ensures(Contract.Result<Calendar>() != null);
-                if (calendar == null) {
-                    Contract.Assert(this.m_cultureData.CalendarIds.Length > 0, "this.m_cultureData.CalendarIds.Length > 0");
+                if (calendar == null)
+                {
+                    Debug.Assert(this.m_cultureData.CalendarIds.Length > 0, "this.m_cultureData.CalendarIds.Length > 0");
                     // Get the default calendar for this culture.  Note that the value can be
                     // from registry if this is a user default culture.
                     Calendar newObj = this.m_cultureData.DefaultCalendar;
@@ -1501,16 +1447,19 @@ namespace System.Globalization {
         ============================================================================*/
 
 
-        public virtual Calendar[] OptionalCalendars {
-            get {
+        public virtual Calendar[] OptionalCalendars
+        {
+            get
+            {
                 Contract.Ensures(Contract.Result<Calendar[]>() != null);
 
                 //
                 // This property always returns a new copy of the calendar array.
                 //
                 int[] calID = this.m_cultureData.CalendarIds;
-                Calendar [] cals = new Calendar[calID.Length];
-                for (int i = 0; i < cals.Length; i++) {
+                Calendar[] cals = new Calendar[calID.Length];
+                for (int i = 0; i < cals.Length; i++)
+                {
                     cals[i] = GetCalendarInstance(calID[i]);
                 }
                 return (cals);
@@ -1518,15 +1467,14 @@ namespace System.Globalization {
         }
 
 
-        public bool UseUserOverride {
-            get {
+        public bool UseUserOverride
+        {
+            get
+            {
                 return (this.m_cultureData.UseUserOverride);
             }
         }
 
-#if !FEATURE_CORECLR
-        [System.Security.SecuritySafeCritical]  // auto-generated
-        [System.Runtime.InteropServices.ComVisible(false)]
         public CultureInfo GetConsoleFallbackUICulture()
         {
             Contract.Ensures(Contract.Result<CultureInfo>() != null);
@@ -1540,7 +1488,6 @@ namespace System.Globalization {
             }
             return (temp);
         }
-#endif
 
         public virtual Object Clone()
         {
@@ -1551,7 +1498,7 @@ namespace System.Globalization {
 
             //If this is exactly our type, we can make certain optimizations so that we don't allocate NumberFormatInfo or DTFI unless
             //they've already been allocated.  If this is a derived type, we'll take a more generic codepath.
-            if (!m_isInherited) 
+            if (!m_isInherited)
             {
                 if (this.dateTimeInfo != null)
                 {
@@ -1561,36 +1508,38 @@ namespace System.Globalization {
                 {
                     ci.numInfo = (NumberFormatInfo)this.numInfo.Clone();
                 }
-
             }
             else
             {
                 ci.DateTimeFormat = (DateTimeFormatInfo)this.DateTimeFormat.Clone();
-                ci.NumberFormat   = (NumberFormatInfo)this.NumberFormat.Clone();
+                ci.NumberFormat = (NumberFormatInfo)this.NumberFormat.Clone();
             }
 
             if (textInfo != null)
             {
-                ci.textInfo = (TextInfo) textInfo.Clone();
+                ci.textInfo = (TextInfo)textInfo.Clone();
             }
 
             if (calendar != null)
             {
-                ci.calendar = (Calendar) calendar.Clone();
+                ci.calendar = (Calendar)calendar.Clone();
             }
 
             return (ci);
         }
 
 
-        public static CultureInfo ReadOnly(CultureInfo ci) {
-            if (ci == null) {
-                throw new ArgumentNullException("ci");
+        public static CultureInfo ReadOnly(CultureInfo ci)
+        {
+            if (ci == null)
+            {
+                throw new ArgumentNullException(nameof(ci));
             }
             Contract.Ensures(Contract.Result<CultureInfo>() != null);
             Contract.EndContractBlock();
 
-            if (ci.IsReadOnly) {
+            if (ci.IsReadOnly)
+            {
                 return (ci);
             }
             CultureInfo newInfo = (CultureInfo)(ci.MemberwiseClone());
@@ -1599,20 +1548,24 @@ namespace System.Globalization {
             {
                 //If this is exactly our type, we can make certain optimizations so that we don't allocate NumberFormatInfo or DTFI unless
                 //they've already been allocated.  If this is a derived type, we'll take a more generic codepath.
-                if (!ci.m_isInherited) {
-                    if (ci.dateTimeInfo != null) {
+                if (!ci.m_isInherited)
+                {
+                    if (ci.dateTimeInfo != null)
+                    {
                         newInfo.dateTimeInfo = DateTimeFormatInfo.ReadOnly(ci.dateTimeInfo);
                     }
-                    if (ci.numInfo != null) {
+                    if (ci.numInfo != null)
+                    {
                         newInfo.numInfo = NumberFormatInfo.ReadOnly(ci.numInfo);
                     }
-
-                } else {
+                }
+                else
+                {
                     newInfo.DateTimeFormat = DateTimeFormatInfo.ReadOnly(ci.DateTimeFormat);
                     newInfo.NumberFormat = NumberFormatInfo.ReadOnly(ci.NumberFormat);
                 }
             }
-            
+
             if (ci.textInfo != null)
             {
                 newInfo.textInfo = TextInfo.ReadOnly(ci.textInfo);
@@ -1631,14 +1584,18 @@ namespace System.Globalization {
         }
 
 
-        public bool IsReadOnly {
-            get {
+        public bool IsReadOnly
+        {
+            get
+            {
                 return (m_isReadOnly);
             }
         }
 
-        private void VerifyWritable() {
-            if (m_isReadOnly) {
+        private void VerifyWritable()
+        {
+            if (m_isReadOnly)
+            {
                 throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_ReadOnly"));
             }
             Contract.EndContractBlock();
@@ -1673,7 +1630,7 @@ namespace System.Globalization {
             {
                 name = CultureData.AnsiToLower(name);
             }
-            
+
             if (altName != null)
             {
                 altName = CultureData.AnsiToLower(altName);
@@ -1718,7 +1675,7 @@ namespace System.Globalization {
                 // If we were called by Lcid, check if the object exists in the table.  If so, return it.
                 if (lcid > 0)
                 {
-                    retval = (CultureInfo) tempLcidHT[lcid];
+                    retval = (CultureInfo)tempLcidHT[lcid];
                     if (retval != null)
                     {
                         return retval;
@@ -1730,7 +1687,7 @@ namespace System.Globalization {
             // We'll construct it.  We catch any exceptions from the constructor call and return null.
             try
             {
-                switch(lcid)
+                switch (lcid)
                 {
                     case -1:
                         // call the private constructor
@@ -1750,7 +1707,7 @@ namespace System.Globalization {
 #endif
                 }
             }
-            catch(ArgumentException)
+            catch (ArgumentException)
             {
                 return null;
             }
@@ -1771,7 +1728,7 @@ namespace System.Globalization {
                 // Remember our name (as constructed).  Do NOT use alternate sort name versions because
                 // we have internal state representing the sort.  (So someone would get the wrong cached version)
                 string newName = CultureData.AnsiToLower(retval.m_name);
-                
+
                 // We add this new culture info object to both tables.
                 tempNameHT[newName] = retval;
 #if FEATURE_USE_LCID
@@ -1795,7 +1752,7 @@ namespace System.Globalization {
 #if FEATURE_USE_LCID
             // Copy the two hashtables to the corresponding member variables.  This will potentially overwrite
             // new tables simultaneously created by a new thread, but maximizes thread safety.
-            if(-1 != lcid)
+            if (-1 != lcid)
             {
                 // Only when we modify the lcid hash table, is there a need to overwrite.
                 s_LcidCachedCultures = tempLcidHT;
@@ -1816,8 +1773,9 @@ namespace System.Globalization {
             // Must check for -1 now since the helper function uses the value to signal
             // the altCulture code path for SQL Server.
             // Also check for zero as this would fail trying to add as a key to the hash.
-            if (culture <= 0) {
-                throw new ArgumentOutOfRangeException("culture",
+            if (culture <= 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(culture),
                     Environment.GetResourceString("ArgumentOutOfRange_NeedPosNum"));
             }
             Contract.Ensures(Contract.Result<CultureInfo>() != null);
@@ -1826,7 +1784,7 @@ namespace System.Globalization {
             if (null == retval)
             {
                 throw new CultureNotFoundException(
-                    "culture", culture, Environment.GetResourceString("Argument_CultureNotSupported"));
+                    nameof(culture), culture, Environment.GetResourceString("Argument_CultureNotSupported"));
             }
             return retval;
         }
@@ -1839,7 +1797,7 @@ namespace System.Globalization {
             // Make sure we have a valid, non-zero length string as name
             if (name == null)
             {
-                throw new ArgumentNullException("name");
+                throw new ArgumentNullException(nameof(name));
             }
             Contract.Ensures(Contract.Result<CultureInfo>() != null);
             Contract.EndContractBlock();
@@ -1848,8 +1806,7 @@ namespace System.Globalization {
             if (retval == null)
             {
                 throw new CultureNotFoundException(
-                    "name", name, Environment.GetResourceString("Argument_CultureNotSupported"));
-                
+                    nameof(name), name, Environment.GetResourceString("Argument_CultureNotSupported"));
             }
             return retval;
         }
@@ -1861,12 +1818,12 @@ namespace System.Globalization {
             // Make sure we have a valid, non-zero length string as name
             if (null == name)
             {
-                throw new ArgumentNullException("name");
+                throw new ArgumentNullException(nameof(name));
             }
 
             if (null == altName)
             {
-                throw new ArgumentNullException("altName");
+                throw new ArgumentNullException(nameof(altName));
             }
             Contract.Ensures(Contract.Result<CultureInfo>() != null);
             Contract.EndContractBlock();
@@ -1874,10 +1831,10 @@ namespace System.Globalization {
             CultureInfo retval = GetCultureInfoHelper(-1, name, altName);
             if (retval == null)
             {
-                throw new CultureNotFoundException("name or altName",
+                throw new CultureNotFoundException(nameof(name) + " or " + nameof(altName),
                                         String.Format(
-                                            CultureInfo.CurrentCulture, 
-                                            Environment.GetResourceString("Argument_OneOfCulturesNotSupported"), 
+                                            CultureInfo.CurrentCulture,
+                                            Environment.GetResourceString("Argument_OneOfCulturesNotSupported"),
                                             name,
                                             altName));
             }
@@ -1885,7 +1842,6 @@ namespace System.Globalization {
         }
 
 
-#if !FEATURE_CORECLR
         // This function is deprecated, we don't like it
         public static CultureInfo GetCultureInfoByIetfLanguageTag(string name)
         {
@@ -1895,25 +1851,25 @@ namespace System.Globalization {
             if (name == "zh-CHT" || name == "zh-CHS")
             {
                 throw new CultureNotFoundException(
-                            "name",
+                            nameof(name),
                             String.Format(CultureInfo.CurrentCulture, Environment.GetResourceString("Argument_CultureIetfNotSupported"), name)
                             );
             }
-            
+
             CultureInfo ci = GetCultureInfo(name);
 
             // Disallow alt sorts and es-es_TS
             if (ci.LCID > 0xffff || ci.LCID == 0x040a)
             {
                 throw new CultureNotFoundException(
-                            "name",
+                            nameof(name),
                             String.Format(CultureInfo.CurrentCulture, Environment.GetResourceString("Argument_CultureIetfNotSupported"), name)
                             );
             }
-            
+
             return ci;
         }
-#endif
+
         private static volatile bool s_isTaiwanSku;
         private static volatile bool s_haveIsTaiwanSku;
         internal static bool IsTaiwanSku
@@ -1932,27 +1888,20 @@ namespace System.Globalization {
         //
         //  Helper Methods.
         //
-        
+
         // Get Locale Info Ex calls.  So we don't have to muck with the different int/string return types we declared two of these:
-        [System.Security.SecurityCritical]  // auto-generated
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         internal static extern String nativeGetLocaleInfoEx(String localeName, uint field);
-        
-        [System.Security.SecuritySafeCritical]  // auto-generated
+
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         internal static extern int nativeGetLocaleInfoExInt(String localeName, uint field);
 
-        [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        internal static extern bool nativeSetThreadLocale(String localeName);
-
-        [System.Security.SecurityCritical]
         private static String GetDefaultLocaleName(int localeType)
         {
-            Contract.Assert(localeType == LOCALE_USER_DEFAULT || localeType == LOCALE_SYSTEM_DEFAULT, "[CultureInfo.GetDefaultLocaleName] localeType must be LOCALE_USER_DEFAULT or LOCALE_SYSTEM_DEFAULT");
+            Debug.Assert(localeType == LOCALE_USER_DEFAULT || localeType == LOCALE_SYSTEM_DEFAULT, "[CultureInfo.GetDefaultLocaleName] localeType must be LOCALE_USER_DEFAULT or LOCALE_SYSTEM_DEFAULT");
 
             string localeName = null;
-            if(InternalGetDefaultLocaleName(localeType, JitHelpers.GetStringHandleOnStack(ref localeName)))
+            if (InternalGetDefaultLocaleName(localeType, JitHelpers.GetStringHandleOnStack(ref localeName)))
             {
                 return localeName;
             }
@@ -1960,55 +1909,42 @@ namespace System.Globalization {
         }
 
         // Get the default locale name
-        [System.Security.SecurityCritical]  // auto-generated
         [SuppressUnmanagedCodeSecurity]
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         [return: MarshalAs(UnmanagedType.Bool)]
         private static extern bool InternalGetDefaultLocaleName(int localetype, StringHandleOnStack localeString);
 
-        [System.Security.SecuritySafeCritical] // auto-generated
         private static String GetUserDefaultUILanguage()
         {
             string userDefaultUiLanguage = null;
-            if(InternalGetUserDefaultUILanguage(JitHelpers.GetStringHandleOnStack(ref userDefaultUiLanguage)))
+            if (InternalGetUserDefaultUILanguage(JitHelpers.GetStringHandleOnStack(ref userDefaultUiLanguage)))
             {
                 return userDefaultUiLanguage;
             }
             return String.Empty;
         }
-        
+
         // Get the user's default UI language, return locale name
-        [System.Security.SecurityCritical]  // auto-generated
         [SuppressUnmanagedCodeSecurity]
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         [return: MarshalAs(UnmanagedType.Bool)]
         private static extern bool InternalGetUserDefaultUILanguage(StringHandleOnStack userDefaultUiLanguage);
 
-        [System.Security.SecuritySafeCritical] // auto-generated
         private static String GetSystemDefaultUILanguage()
         {
             string systemDefaultUiLanguage = null;
-            if(InternalGetSystemDefaultUILanguage(JitHelpers.GetStringHandleOnStack(ref systemDefaultUiLanguage)))
+            if (InternalGetSystemDefaultUILanguage(JitHelpers.GetStringHandleOnStack(ref systemDefaultUiLanguage)))
             {
                 return systemDefaultUiLanguage;
             }
             return String.Empty;
-
         }
 
-        [System.Security.SecurityCritical] // auto-generated
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         [SuppressUnmanagedCodeSecurity]
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         [return: MarshalAs(UnmanagedType.Bool)]
         private static extern bool InternalGetSystemDefaultUILanguage(StringHandleOnStack systemDefaultUiLanguage);
-
-// Added but disabled from desktop in .NET 4.0, stayed disabled in .NET 4.5
-#if FEATURE_CORECLR
-        [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        internal static extern String[] nativeGetResourceFallbackArray();
-#endif
     }
 }
 

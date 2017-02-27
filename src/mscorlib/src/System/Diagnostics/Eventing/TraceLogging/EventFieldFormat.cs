@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 #if ES_BUILD_STANDALONE
 namespace Microsoft.Diagnostics.Tracing
@@ -24,7 +25,7 @@ namespace System.Diagnostics.Tracing
         /// Field should not be displayed.
         /// </summary>
         NoPrint = 1,
-#endif 
+#endif
         /// <summary>
         /// Field should be formatted as character or string data.
         /// Typically applied to 8-bit or 16-bit integers.
@@ -77,7 +78,7 @@ namespace System.Diagnostics.Tracing
         /// Field should be formatted as a SOCKADDR. Typically applied to byte[] types.
         /// </summary>
         SocketAddress = 10,
-#endif 
+#endif
         /// <summary>
         /// Field should be formatted as XML string data. Typically applied to
         /// strings or arrays of 8-bit or 16-bit integers.

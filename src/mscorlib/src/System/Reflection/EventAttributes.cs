@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
@@ -10,20 +11,22 @@
 //    bits and enums.
 //
 //
-namespace System.Reflection {
-    
-    using System;
+
+using System;
+
+namespace System.Reflection
+{
     [Serializable]
     [Flags]
-    [System.Runtime.InteropServices.ComVisible(true)]
-    public enum EventAttributes {
-        None              =   0x0000,
-            
+    public enum EventAttributes
+    {
+        None = 0x0000,
+
         // This Enum matchs the CorEventAttr defined in CorHdr.h
-        SpecialName       =   0x0200,     // event is special.  Name describes how.
+        SpecialName = 0x0200,     // event is special.  Name describes how.
 
         // Reserved flags for Runtime use only.
-        ReservedMask      =   0x0400,
-        RTSpecialName     =   0x0400,     // Runtime(metadata internal APIs) should check name encoding.
+        ReservedMask = 0x0400,
+        RTSpecialName = 0x0400,     // Runtime(metadata internal APIs) should check name encoding.
     }
 }

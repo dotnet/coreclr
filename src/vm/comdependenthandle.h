@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 // 
 // File: COMDependentHandle.h
 //
@@ -46,6 +45,8 @@ public:
     static FCDECL2(VOID,   nGetPrimary, OBJECTHANDLE handle, Object **outPrimary);
     static FCDECL3(VOID,   nGetPrimaryAndSecondary, OBJECTHANDLE handle, Object **outPrimary, Object **outSecondary);
     static FCDECL1(VOID,   nFree, OBJECTHANDLE handle);
+    static FCDECL2(VOID,   nSetPrimary, OBJECTHANDLE handle, Object *primary);
+    static FCDECL2(VOID,   nSetSecondary, OBJECTHANDLE handle, Object *secondary);
 };
 
 #endif

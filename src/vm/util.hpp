@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //
 // util.hpp
 //
@@ -26,7 +25,6 @@
 
                   
 // Prevent the use of UtilMessageBox and WszMessageBox from inside the EE.
-#ifndef CLR_STANDALONE_BINDER
 #undef UtilMessageBoxCatastrophic
 #undef UtilMessageBoxCatastrophicNonLocalized
 #undef UtilMessageBoxCatastrophic
@@ -45,7 +43,6 @@
 #define UtilMessageBoxVA __error("Use one of the EEMessageBox APIs (defined in eemessagebox.h) from inside the EE")
 #define UtilMessageBoxNonLocalizedVA __error("Use one of the EEMessageBox APIs (defined in eemessagebox.h) from inside the EE")
 #define WszMessageBox __error("Use one of the EEMessageBox APIs (defined in eemessagebox.h) from inside the EE")
-#endif
 
 //========================================================================
 // More convenient names for integer types of a guaranteed size.
@@ -357,7 +354,7 @@ HRESULT VMPostError(                    // Returned error.
     ...);                               // Error arguments.
     
 //=====================================================================
-// Displays the messaage box or logs the message, corresponding to the last COM+ error occured
+// Displays the messaage box or logs the message, corresponding to the last COM+ error occurred
 void VMDumpCOMErrors(HRESULT hrErr);
 HRESULT LoadMscorsn();
 
@@ -365,7 +362,7 @@ HRESULT LoadMscorsn();
 
 #ifndef FEATURE_PAL
 
-HRESULT WszSHGetFolderPath(HWND hwndOwner, int nFolder, HANDLE hToken, DWORD dwFlags, size_t cchPath, __out_ecount(MAX_PATH) LPWSTR pszwPath);
+HRESULT WszSHGetFolderPath(HWND hwndOwner, int nFolder, HANDLE hToken, DWORD dwFlags, size_t cchPath, __out_ecount(MAX_LONGPATH) LPWSTR pszwPath);
 HRESULT WszShellExecute(HWND hwnd, LPCTSTR lpOperation, LPCTSTR lpFile, LPCTSTR lpParameters, LPCTSTR lpDirectory, INT nShowCmd);
 
 #ifndef DACCESS_COMPILE
@@ -652,14 +649,14 @@ public:
     }
 #endif
 
-    void SetThreadId()
+    void SetToCurrentThread()
     {
         WRAPPER_NO_CONTRACT;
 
         m_FiberPtrId = ClrTeb::GetFiberPtrId();
     }
 
-    BOOL IsSameThread() const
+    bool IsCurrentThread() const
     {
         WRAPPER_NO_CONTRACT;
 
@@ -668,29 +665,19 @@ public:
 
     
 #ifdef _DEBUG
-    BOOL IsUnknown() const
+    bool IsUnknown() const
     {
         LIMITED_METHOD_CONTRACT;
         return m_FiberPtrId == NULL;
     }
 #endif
-    void ResetThreadId()
+    void Clear()
     {
         LIMITED_METHOD_CONTRACT;
         m_FiberPtrId = NULL;
     }
 };
 
-#ifdef FEATURE_INCLUDE_ALL_INTERFACES
-#define CLRMEMORYHOSTED                             0x1
-#define CLRTASKHOSTED                               0x2
-#define CLRSYNCHOSTED                               0x4
-#define CLRTHREADPOOLHOSTED                         0x8
-#define CLRIOCOMPLETIONHOSTED                       0x10
-#define CLRASSEMBLYHOSTED                           0x20
-#define CLRGCHOSTED                                 0x40
-#define CLRSECURITYHOSTED                           0x80
-#endif
 #define CLRHOSTED           0x80000000
 
 GVAL_DECL(DWORD, g_fHostConfig);
@@ -703,61 +690,6 @@ inline BOOL CLRHosted()
     return g_fHostConfig;
 }
 
-#ifdef FEATURE_INCLUDE_ALL_INTERFACES
-inline BOOL CLRMemoryHosted()
-{
-    LIMITED_METHOD_CONTRACT;
-
-    return g_fHostConfig&CLRMEMORYHOSTED;
-}
-
-inline BOOL CLRTaskHosted()
-{
-    // !!! Can not use contract here.
-    // !!! This function is called by Thread::DetachThread after we free TLS memory.
-    // !!! Contract will recreate TLS memory.
-    LIMITED_METHOD_DAC_CONTRACT;
-
-    return g_fHostConfig&CLRTASKHOSTED;
-}
-
-inline BOOL CLRSyncHosted()
-{
-    LIMITED_METHOD_CONTRACT;
-
-    return g_fHostConfig&CLRSYNCHOSTED;
-}
-inline BOOL CLRThreadpoolHosted()
-{
-    LIMITED_METHOD_CONTRACT;
-
-    return g_fHostConfig&CLRTHREADPOOLHOSTED;
-}
-inline BOOL CLRIoCompletionHosted()
-{
-    LIMITED_METHOD_CONTRACT;
-
-    return g_fHostConfig&CLRIOCOMPLETIONHOSTED;
-}
-inline BOOL CLRAssemblyHosted()
-{
-    return g_fHostConfig&CLRASSEMBLYHOSTED;
-}
-
-inline BOOL CLRGCHosted()
-{
-    LIMITED_METHOD_CONTRACT;
-
-    return g_fHostConfig&CLRGCHOSTED;
-}
-
-inline BOOL CLRSecurityHosted()
-{
-    LIMITED_METHOD_CONTRACT;
-
-    return g_fHostConfig&CLRSECURITYHOSTED;
-}
-#else // FEATURE_INCLUDE_ALL_INTERFACES
 inline BOOL CLRMemoryHosted()
 {
     LIMITED_METHOD_CONTRACT;
@@ -805,7 +737,6 @@ inline BOOL CLRSecurityHosted()
     LIMITED_METHOD_CONTRACT;
     return FALSE;
 }
-#endif // FEATURE_INCLUDE_ALL_INTERFACES
 
 #ifndef FEATURE_PAL
 HMODULE CLRGetModuleHandle(LPCWSTR lpModuleFileName);
@@ -1004,7 +935,6 @@ typedef Wrapper<LPVOID, DoNothing<LPVOID>, VoidFreeWinAllocatedBlock, NULL> WinA
 
 #endif // !FEATURE_PAL
 
-#ifndef CLR_STANDALONE_BINDER
 // For debugging, we can track arbitrary Can't-Stop regions.
 // In V1.0, this was on the Thread object, but we need to track this for threads w/o a Thread object.
 FORCEINLINE void IncCantStopCount()
@@ -1034,7 +964,6 @@ inline bool IsInCantStopRegion()
     return (GetCantStopCount() > 0);
 }
 #endif // _DEBUG
-#endif // !CLR_STANDALONE_BINDER
 
 
 // PAL does not support per-thread locales. The holder is no-op for FEATURE_PALs
@@ -1078,8 +1007,23 @@ struct JITNotification
     }
 };
 
-GPTR_DECL(JITNotification,g_pNotificationTable);
+// The maximum number of TADDR sized arguments that the SOS exception notification can use
+#define MAX_CLR_NOTIFICATION_ARGS 3
+GARY_DECL(size_t, g_clrNotificationArguments, MAX_CLR_NOTIFICATION_ARGS);
+extern void InitializeClrNotifications();
+
+GPTR_DECL(JITNotification, g_pNotificationTable);
 GVAL_DECL(ULONG32, g_dacNotificationFlags);
+
+#if defined(FEATURE_PAL) && !defined(DACCESS_COMPILE)
+
+inline void
+InitializeJITNotificationTable()
+{
+    g_pNotificationTable = new (nothrow) JITNotification[1001];
+}
+
+#endif // FEATURE_PAL && !DACCESS_COMPILE
 
 class JITNotifications
 {
@@ -1284,35 +1228,7 @@ public:
 
 extern LONG g_OLEAUT32_Loaded;
 
-#ifndef FEATURE_CORECLR
-#define ENSURE_OLEAUT32_LOADED()                                            \
-{                                                                           \
-    /* Should only be used in FCALL */                                      \
-    _ASSERTE (__me != 0);                                                   \
-    if (g_OLEAUT32_Loaded == 0)                                             \
-    {                                                                       \
-        /* CLRLoadLibrary/CLRFreeLibrary claim they trigger, but this */    \
-        /* isn't really true in this case because we're loading oleaut32 */ \
-        /* which we know doesn't contain any managed code in its DLLMain */ \
-        CONTRACT_VIOLATION(GCViolation|SOToleranceViolation);               \
-        HMODULE hMod = CLRLoadLibrary(W("oleaut32"));                         \
-        if (hMod == NULL)                                                   \
-        {                                                                   \
-            __FCThrow(__me, kOutOfMemoryException, 0, 0, 0, 0);             \
-        }                                                                   \
-        else                                                                \
-        {                                                                   \
-            if (FastInterlockExchange(&g_OLEAUT32_Loaded, 1) == 1)          \
-            {                                                               \
-                CLRFreeLibrary(hMod);                                       \
-            }                                                               \
-        }                                                                   \
-    }                                                                       \
-}                                                                           \
-INDEBUG(DisableDelayLoadCheckForOleaut32 _disableOleaut32Check);
-#else // !FEATURE_CORECLR
 #define ENSURE_OLEAUT32_LOADED()
-#endif // !FEATURE_CORECLR
 
 BOOL DbgIsExecutable(LPVOID lpMem, SIZE_T length);
 

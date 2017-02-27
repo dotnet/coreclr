@@ -1,14 +1,13 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
-namespace System.Globalization {
-
+namespace System.Globalization
+{
     using System;
     using System.Diagnostics.CodeAnalysis;
     using System.Diagnostics.Contracts;
     using Microsoft.Win32;
-    using PermissionSet = System.Security.PermissionSet;
-    using System.Security.Permissions;
 
     /*=================================JapaneseCalendar==========================
     **
@@ -40,13 +39,11 @@ namespace System.Globalization {
 
 
     [Serializable]
-[System.Runtime.InteropServices.ComVisible(true)]
     public class JapaneseCalendar : Calendar
     {
         internal static readonly DateTime calendarMinValue = new DateTime(1868, 9, 8);
 
 
-        [System.Runtime.InteropServices.ComVisible(false)]
         public override DateTime MinSupportedDateTime
         {
             get
@@ -55,7 +52,6 @@ namespace System.Globalization {
             }
         }
 
-        [System.Runtime.InteropServices.ComVisible(false)]
         public override DateTime MaxSupportedDateTime
         {
             get
@@ -67,7 +63,6 @@ namespace System.Globalization {
         // Return the type of the Japanese calendar.
         //
 
-        [System.Runtime.InteropServices.ComVisible(false)]
         public override CalendarAlgorithmType AlgorithmType
         {
             get
@@ -117,13 +112,13 @@ namespace System.Globalization {
                 {
                     // We know about some built-in ranges
                     EraInfo[] defaultEraRanges = new EraInfo[4];
-                    defaultEraRanges[0] = new EraInfo( 4, 1989,  1,  8, 1988, 1, GregorianCalendar.MaxYear - 1988,
+                    defaultEraRanges[0] = new EraInfo(4, 1989, 1, 8, 1988, 1, GregorianCalendar.MaxYear - 1988,
                                                        "\x5e73\x6210", "\x5e73", "H");    // era #4 start year/month/day, yearOffset, minEraYear
-                    defaultEraRanges[1] = new EraInfo( 3, 1926, 12, 25, 1925, 1, 1989-1925,
+                    defaultEraRanges[1] = new EraInfo(3, 1926, 12, 25, 1925, 1, 1989 - 1925,
                                                        "\x662d\x548c", "\x662d", "S");    // era #3,start year/month/day, yearOffset, minEraYear
-                    defaultEraRanges[2] = new EraInfo( 2, 1912,  7, 30, 1911, 1, 1926-1911,
+                    defaultEraRanges[2] = new EraInfo(2, 1912, 7, 30, 1911, 1, 1926 - 1911,
                                                        "\x5927\x6b63", "\x5927", "T");    // era #2,start year/month/day, yearOffset, minEraYear
-                    defaultEraRanges[3] = new EraInfo( 1, 1868,  1,  1, 1867, 1, 1912-1867,
+                    defaultEraRanges[3] = new EraInfo(1, 1868, 1, 1, 1867, 1, 1912 - 1867,
                                                        "\x660e\x6cbb", "\x660e", "M");    // era #1,start year/month/day, yearOffset, minEraYear
 
                     // Remember the ranges we built
@@ -158,20 +153,15 @@ namespace System.Globalization {
         // . is a delimiter, but the value of . doesn't matter.
         // '_' marks the space between the japanese era name, japanese abbreviated era name
         //     english name, and abbreviated english names.
-        [System.Security.SecuritySafeCritical]  // auto-generated
         private static EraInfo[] GetErasFromRegistry()
         {
             // Look in the registry key and see if we can find any ranges
             int iFoundEras = 0;
             EraInfo[] registryEraRanges = null;
-            
+
             try
             {
-                // Need to access registry
-                PermissionSet permSet = new PermissionSet(PermissionState.None);
-                permSet.AddPermission(new RegistryPermission(RegistryPermissionAccess.Read, c_japaneseErasHivePermissionList));
-                permSet.Assert();
-                RegistryKey key = RegistryKey.GetBaseKey(RegistryKey.HKEY_LOCAL_MACHINE).OpenSubKey(c_japaneseErasHive, false);
+                RegistryKey key = Registry.LocalMachine.OpenSubKey(c_japaneseErasHive, writable: false);
 
                 // Abort if we didn't find anything
                 if (key == null) return null;
@@ -193,7 +183,7 @@ namespace System.Globalization {
 
                         // Remember we found one.
                         registryEraRanges[iFoundEras] = era;
-                        iFoundEras++;                        
+                        iFoundEras++;
                     }
                 }
             }
@@ -243,7 +233,7 @@ namespace System.Globalization {
                 else
                 {
                     // Rest are until the next era (remember most recent era is first in array)
-                    registryEraRanges[i].maxEraYear = registryEraRanges[i-1].yearOffset + 1 - registryEraRanges[i].yearOffset;
+                    registryEraRanges[i].maxEraYear = registryEraRanges[i - 1].yearOffset + 1 - registryEraRanges[i].yearOffset;
                 }
             }
 
@@ -287,7 +277,7 @@ namespace System.Globalization {
         {
             // Need inputs
             if (value == null || data == null) return null;
-            
+
             //
             // Get Date
             //
@@ -299,9 +289,9 @@ namespace System.Globalization {
             int month;
             int day;
 
-            if (!Number.TryParseInt32(value.Substring(0,4), NumberStyles.None, NumberFormatInfo.InvariantInfo, out year) ||
-                !Number.TryParseInt32(value.Substring(5,2), NumberStyles.None, NumberFormatInfo.InvariantInfo, out month) ||
-                !Number.TryParseInt32(value.Substring(8,2), NumberStyles.None, NumberFormatInfo.InvariantInfo, out day))
+            if (!Number.TryParseInt32(value.Substring(0, 4), NumberStyles.None, NumberFormatInfo.InvariantInfo, out year) ||
+                !Number.TryParseInt32(value.Substring(5, 2), NumberStyles.None, NumberFormatInfo.InvariantInfo, out month) ||
+                !Number.TryParseInt32(value.Substring(8, 2), NumberStyles.None, NumberFormatInfo.InvariantInfo, out day))
             {
                 // Couldn't convert integer, fail
                 return null;
@@ -311,7 +301,7 @@ namespace System.Globalization {
             // Get Strings
             //
             // Needs to be a certain length e_a_E_A at least (7 chars, exactly 4 groups)
-            String[] names = data.Split(new char[] {'_'});
+            String[] names = data.Split('_');
 
             // Should have exactly 4 parts
             // 0 - Era Name
@@ -332,7 +322,7 @@ namespace System.Globalization {
             // Note that the era # and max era year need cleaned up after sorting
             // Don't use the full English Era Name (names[2])
             //
-            return new EraInfo( 0, year, month, day, year - 1, 1, 0, 
+            return new EraInfo(0, year, month, day, year - 1, 1, 0,
                                 names[0], names[1], names[3]);
         }
 
@@ -347,36 +337,46 @@ namespace System.Globalization {
         **Exceptions:
         ============================================================================*/
 
-        internal static Calendar GetDefaultInstance() {
-            if (s_defaultInstance == null) {
+        internal static Calendar GetDefaultInstance()
+        {
+            if (s_defaultInstance == null)
+            {
                 s_defaultInstance = new JapaneseCalendar();
             }
             return (s_defaultInstance);
         }
 
 
-        public JapaneseCalendar() {
-            try {
+        public JapaneseCalendar()
+        {
+            try
+            {
                 new CultureInfo("ja-JP");
-            } catch (ArgumentException e) {
+            }
+            catch (ArgumentException e)
+            {
                 throw new TypeInitializationException(this.GetType().FullName, e);
             }
             helper = new GregorianCalendarHelper(this, GetEraInfo());
         }
 
-        internal override int ID {
-            get {
+        internal override int ID
+        {
+            get
+            {
                 return (CAL_JAPAN);
             }
         }
 
 
-        public override DateTime AddMonths(DateTime time, int months) {
+        public override DateTime AddMonths(DateTime time, int months)
+        {
             return (helper.AddMonths(time, months));
         }
 
 
-        public override DateTime AddYears(DateTime time, int years) {
+        public override DateTime AddYears(DateTime time, int years)
+        {
             return (helper.AddYears(time, years));
         }
 
@@ -392,22 +392,26 @@ namespace System.Globalization {
         ============================================================================*/
 
 
-        public override int GetDaysInMonth(int year, int month, int era) {
+        public override int GetDaysInMonth(int year, int month, int era)
+        {
             return (helper.GetDaysInMonth(year, month, era));
         }
 
 
-        public override int GetDaysInYear(int year, int era) {
+        public override int GetDaysInYear(int year, int era)
+        {
             return (helper.GetDaysInYear(year, era));
         }
 
 
-        public override int GetDayOfMonth(DateTime time) {
+        public override int GetDayOfMonth(DateTime time)
+        {
             return (helper.GetDayOfMonth(time));
         }
 
 
-        public override DayOfWeek GetDayOfWeek(DateTime time)  {
+        public override DayOfWeek GetDayOfWeek(DateTime time)
+        {
             return (helper.GetDayOfWeek(time));
         }
 
@@ -425,7 +429,6 @@ namespace System.Globalization {
 
 
         [SuppressMessage("Microsoft.Contracts", "CC1055")]  // Skip extra error checking to avoid *potential* AppCompat problems.
-        [System.Runtime.InteropServices.ComVisible(false)]
         public override int GetWeekOfYear(DateTime time, CalendarWeekRule rule, DayOfWeek firstDayOfWeek)
         {
             return (helper.GetWeekOfYear(time, rule, firstDayOfWeek));
@@ -440,17 +443,20 @@ namespace System.Globalization {
         ============================================================================*/
 
 
-        public override int GetEra(DateTime time) {
+        public override int GetEra(DateTime time)
+        {
             return (helper.GetEra(time));
         }
 
 
-        public override int GetMonth(DateTime time) {
+        public override int GetMonth(DateTime time)
+        {
             return (helper.GetMonth(time));
-            }
+        }
 
 
-        public override int GetYear(DateTime time) {
+        public override int GetYear(DateTime time)
+        {
             return (helper.GetYear(time));
         }
 
@@ -461,7 +467,8 @@ namespace System.Globalization {
         }
 
 
-        public override bool IsLeapYear(int year, int era) {
+        public override bool IsLeapYear(int year, int era)
+        {
             return (helper.IsLeapYear(year, era));
         }
 
@@ -469,35 +476,39 @@ namespace System.Globalization {
         // if this calendar does not have leap month, or this year is not a leap year.
         //
 
-        [System.Runtime.InteropServices.ComVisible(false)]
         public override int GetLeapMonth(int year, int era)
         {
             return (helper.GetLeapMonth(year, era));
         }
 
 
-        public override bool IsLeapMonth(int year, int month, int era) {
+        public override bool IsLeapMonth(int year, int month, int era)
+        {
             return (helper.IsLeapMonth(year, month, era));
         }
 
 
-        public override DateTime ToDateTime(int year, int month, int day, int hour, int minute, int second, int millisecond, int era) {
+        public override DateTime ToDateTime(int year, int month, int day, int hour, int minute, int second, int millisecond, int era)
+        {
             return (helper.ToDateTime(year, month, day, hour, minute, second, millisecond, era));
         }
 
         // For Japanese calendar, four digit year is not used.  Few emperors will live for more than one hundred years.
         // Therefore, for any two digit number, we just return the original number.
 
-        public override int ToFourDigitYear(int year) {
-            if (year <= 0) {
-                throw new ArgumentOutOfRangeException("year",
+        public override int ToFourDigitYear(int year)
+        {
+            if (year <= 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(year),
                     Environment.GetResourceString("ArgumentOutOfRange_NeedPosNum"));
             }
             Contract.EndContractBlock();
 
-            if (year > helper.MaxYear) {
+            if (year > helper.MaxYear)
+            {
                 throw new ArgumentOutOfRangeException(
-                            "year",
+                            nameof(year),
                             String.Format(
                                 CultureInfo.CurrentCulture,
                                 Environment.GetResourceString("ArgumentOutOfRange_Range"),
@@ -508,8 +519,10 @@ namespace System.Globalization {
         }
 
 
-        public override int[] Eras {
-            get {
+        public override int[] Eras
+        {
+            get
+            {
                 return (helper.Eras);
             }
         }
@@ -561,20 +574,25 @@ namespace System.Globalization {
         }
 
         private const int DEFAULT_TWO_DIGIT_YEAR_MAX = 99;
-        
-        internal override bool IsValidYear(int year, int era) {
-            return helper.IsValidYear(year, era);
-        }       
 
-        public override int TwoDigitYearMax {
-            get {
-                if (twoDigitYearMax == -1) {
+        internal override bool IsValidYear(int year, int era)
+        {
+            return helper.IsValidYear(year, era);
+        }
+
+        public override int TwoDigitYearMax
+        {
+            get
+            {
+                if (twoDigitYearMax == -1)
+                {
                     twoDigitYearMax = GetSystemTwoDigitYearSetting(ID, DEFAULT_TWO_DIGIT_YEAR_MAX);
                 }
                 return (twoDigitYearMax);
             }
 
-            set {
+            set
+            {
                 VerifyWritable();
                 if (value < 99 || value > helper.MaxYear)
                 {

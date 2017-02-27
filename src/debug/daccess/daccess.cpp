@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //*****************************************************************************
 // File: daccess.cpp
 // 
@@ -25,6 +24,9 @@
 #include "dwreport.h"
 #include "primitives.h"
 #include "dbgutil.h"
+#ifdef FEATURE_PAL            
+#include <dactablerva.h>
+#endif
 
 #include "dwbucketmanager.hpp"
 
@@ -36,15 +38,6 @@ ClrDataAccess* g_dacImpl;
 HINSTANCE g_thisModule;
 
 extern VOID STDMETHODCALLTYPE TLS_FreeMasterSlotIndex();
-
-#ifdef FEATURE_PAL
-
-VOID PALAPI HandleHardwareException(PAL_SEHException* ex)
-{
-    throw *ex;
-}
-
-#endif // FEATURE_PAL
 
 EXTERN_C BOOL WINAPI
 DllMain(HANDLE instance, DWORD reason, LPVOID reserved)
@@ -73,8 +66,6 @@ DllMain(HANDLE instance, DWORD reason, LPVOID reserved)
         {
             return FALSE;
         }
-        // Register handler of hardware exceptions like null reference in PAL
-        PAL_SetHardwareExceptionHandler(HandleHardwareException);
 #endif
         InitializeCriticalSection(&g_dacCritSec);
 
@@ -1345,7 +1336,7 @@ SplitName::CdNextField(ClrDataAccess* dac,
                                       fieldTypeHandle);
             if (!*fieldType && tokenScopeRet)
             {
-                delete *tokenScopeRet;
+                delete (ClrDataModule*)*tokenScopeRet;
             }
             return *fieldType ? S_OK : E_OUTOFMEMORY;
         }
@@ -2348,7 +2339,7 @@ namespace serialization { namespace bin {
     };
 
     template <typename _Ty>
-    class is_blittable<_Ty, typename std::enable_if<std::is_arithmetic<_Ty>::value>::type>
+    struct is_blittable<_Ty, typename std::enable_if<std::is_arithmetic<_Ty>::value>::type>
         : std::true_type
     { // determines whether _Ty is blittable
     };
@@ -2356,7 +2347,7 @@ namespace serialization { namespace bin {
     // allow types to declare themselves blittable by including a static bool 
     // member "is_blittable".
     template <typename _Ty>
-    class is_blittable<_Ty, typename std::enable_if<_Ty::is_blittable>::type>
+    struct is_blittable<_Ty, typename std::enable_if<_Ty::is_blittable>::type>
         : std::true_type
     { // determines whether _Ty is blittable
     };
@@ -3207,7 +3198,7 @@ ClrDataAccess::ClrDataAccess(ICorDebugDataTarget * pTarget, ICLRDataTarget * pLe
 
     // Verification asserts are disabled by default because some debuggers (cdb/windbg) probe likely locations
     // for DAC and having this assert pop up all the time can be annoying.  We let derived classes enable 
-    // this if they want.  It can also be overridden at run-time with COMPLUS_DbgDACAssertOnMismatch,
+    // this if they want.  It can also be overridden at run-time with COMPlus_DbgDACAssertOnMismatch,
     // see ClrDataAccess::VerifyDlls for details.
     m_fEnableDllVerificationAsserts = false;
 #endif
@@ -3274,6 +3265,14 @@ ClrDataAccess::QueryInterface(THIS_
     else if (IsEqualIID(interfaceId, __uuidof(ISOSDacInterface2)))
     {
         ifaceRet = static_cast<ISOSDacInterface2*>(this);
+    }
+    else if (IsEqualIID(interfaceId, __uuidof(ISOSDacInterface3)))
+    {
+        ifaceRet = static_cast<ISOSDacInterface3*>(this);
+    }
+    else if (IsEqualIID(interfaceId, __uuidof(ISOSDacInterface4)))
+    {
+        ifaceRet = static_cast<ISOSDacInterface4*>(this);
     }
     else
     {
@@ -5500,13 +5499,17 @@ ClrDataAccess::Initialize(void)
     // Determine our platform based on the pre-processor macros set when we were built
 
 #ifdef FEATURE_PAL
-     #if defined(DBG_TARGET_X86)
-         CorDebugPlatform hostPlatform = CORDB_PLATFORM_POSIX_X86;
-     #elif defined(DBG_TARGET_AMD64)
-         CorDebugPlatform hostPlatform = CORDB_PLATFORM_POSIX_AMD64;
-     #else
-         #error Unknown Processor.
-     #endif
+    #if defined(DBG_TARGET_X86)
+        CorDebugPlatform hostPlatform = CORDB_PLATFORM_POSIX_X86;
+    #elif defined(DBG_TARGET_AMD64)
+        CorDebugPlatform hostPlatform = CORDB_PLATFORM_POSIX_AMD64;
+    #elif defined(DBG_TARGET_ARM)
+        CorDebugPlatform hostPlatform = CORDB_PLATFORM_POSIX_ARM;
+    #elif defined(DBG_TARGET_ARM64)
+        CorDebugPlatform hostPlatform = CORDB_PLATFORM_POSIX_ARM64;
+    #else
+        #error Unknown Processor.
+    #endif
 #else
     #if defined(DBG_TARGET_X86)
         CorDebugPlatform hostPlatform = CORDB_PLATFORM_WINDOWS_X86;
@@ -5885,14 +5888,15 @@ ClrDataAccess::RawGetMethodName(
         LPCWSTR wszStubManagerName = pStubManager->GetStubManagerName(TO_TADDR(address));
         _ASSERTE(wszStubManagerName != NULL);
 
-        HRESULT hr = StringCchPrintfW(
+        int result = _snwprintf_s(
             symbolBuf, 
             bufLen, 
+            _TRUNCATE,
             s_wszFormatNameWithStubManager,
             wszStubManagerName,                                         // Arg 1 = stub name
             TO_TADDR(address));                                         // Arg 2 = stub hex address
 
-        if (hr == S_OK)
+        if (result != -1)
         {
             // Printf succeeded, so we have an exact char count to return
             if (symbolLen)
@@ -5948,13 +5952,14 @@ NameFromMethodDesc:
         // XXX Microsoft - Should this case have a more specific name?
         static WCHAR s_wszFormatNameAddressOnly[] = W("CLRStub@%I64x");
 
-        HRESULT hr = StringCchPrintfW(
+        int result = _snwprintf_s(
             symbolBuf, 
             bufLen,
+            _TRUNCATE,
             s_wszFormatNameAddressOnly,
             TO_TADDR(address));
 
-        if (hr == S_OK)
+        if (result != -1)
         {
             // Printf succeeded, so we have an exact char count to return
             if (symbolLen)
@@ -6009,7 +6014,7 @@ ClrDataAccess::GetMethodExtents(MethodDesc* methodDesc,
         EECodeInfo codeInfo(methodStart);
         _ASSERTE(codeInfo.IsValid());
 
-        TADDR codeSize = codeInfo.GetCodeManager()->GetFunctionSize(codeInfo.GetGCInfo());
+        TADDR codeSize = codeInfo.GetCodeManager()->GetFunctionSize(codeInfo.GetGCInfoToken());
 
         *extents = new (nothrow) METH_EXTENTS;
         if (!*extents)
@@ -6635,7 +6640,7 @@ ClrDataAccess::GetMetaDataFromHost(PEFile* peFile,
 {
     DWORD imageTimestamp, imageSize, dataSize;
     void* buffer = NULL;
-    WCHAR uniPath[MAX_PATH] = {0};
+    WCHAR uniPath[MAX_LONGPATH] = {0};
     bool isAlt = false;
     bool isNGEN = false;
     DAC_INSTANCE* inst = NULL;
@@ -6739,7 +6744,7 @@ ClrDataAccess::GetMetaDataFromHost(PEFile* peFile,
         
 #if defined(FEATURE_CORESYSTEM)
         const WCHAR* ilExtension[] = {W("dll"), W("winmd")};
-        WCHAR ngenImageName[MAX_PATH] = {0};
+        WCHAR ngenImageName[MAX_LONGPATH] = {0};
         if (wcscpy_s(ngenImageName, NumItems(ngenImageName), uniPath) != 0)
         {
             goto ErrExit;
@@ -6853,8 +6858,19 @@ ClrDataAccess::GetMDImport(const PEFile* peFile, const ReflectionModule* reflect
     {
         // Get the metadata
         PTR_SBuffer metadataBuffer = reflectionModule->GetDynamicMetadataBuffer();
-        mdBaseTarget = dac_cast<PTR_CVOID>((metadataBuffer->DacGetRawBuffer()).StartAddress());
-        mdSize = metadataBuffer->GetSize();
+        if (metadataBuffer != PTR_NULL)
+        {
+            mdBaseTarget = dac_cast<PTR_CVOID>((metadataBuffer->DacGetRawBuffer()).StartAddress());
+            mdSize = metadataBuffer->GetSize();
+        }
+        else
+        {
+            if (throwEx)
+            {
+                DacError(E_FAIL);
+            }
+            return NULL;
+        }
     }
     else
     {
@@ -6960,7 +6976,7 @@ void ClrDataAccess::SetTargetConsistencyChecks(bool fEnableAsserts)
 // Notes:
 //     The implementation of ASSERT accesses this via code:DacTargetConsistencyAssertsEnabled
 //     
-//     By default, this is disabled, unless COMPLUS_DbgDACEnableAssert is set (see code:ClrDataAccess::ClrDataAccess).
+//     By default, this is disabled, unless COMPlus_DbgDACEnableAssert is set (see code:ClrDataAccess::ClrDataAccess).
 //     This is necessary for compatibility.  For example, SOS expects to be able to scan for
 //     valid MethodTables etc. (which may cause ASSERTs), and also doesn't want ASSERTs when working
 //     with targets with corrupted memory.
@@ -7059,7 +7075,7 @@ HRESULT ClrDataAccess::VerifyDlls()
 
 #ifdef _DEBUG
         // Check if verbose asserts are enabled.  The default is up to the specific instantiation of
-        // ClrDataAccess, but can be overridden (in either direction) by a COMPLUS knob.
+        // ClrDataAccess, but can be overridden (in either direction) by a COMPlus_ knob.
         // Note that we check this knob every time because it may be handy to turn it on in 
         // the environment mid-flight.
         DWORD dwAssertDefault = m_fEnableDllVerificationAsserts ? 1 : 0;
@@ -7091,7 +7107,7 @@ HRESULT ClrDataAccess::VerifyDlls()
                 "Actual %s timestamp: %s\n"\
                 "DAC will now fail to initialize with a CORDBG_E_MISMATCHED_CORWKS_AND_DACWKS_DLLS\n"\
                 "error.  If you really want to try and use the mimatched DLLs, you can disable this\n"\
-                "check by setting COMPLUS_DbgDACSkipVerifyDlls=1.  However, using a mismatched DAC\n"\
+                "check by setting COMPlus_DbgDACSkipVerifyDlls=1.  However, using a mismatched DAC\n"\
                 "DLL will usually result in arbitrary debugger failures.\n",
                 MAIN_CLR_DLL_NAME_A,
                 MAIN_CLR_DLL_NAME_A,
@@ -7207,24 +7223,20 @@ HRESULT
 ClrDataAccess::GetDacGlobals()
 {
 #ifdef FEATURE_PAL
-    // TODO - 3/5/15 - the DAC side needs the debuggee pid
-    DWORD pid = 0;
-    PVOID dacTableAddress = nullptr;
-    ULONG dacTableSize = 0;
-    DWORD err = PAL_GetDacTableAddress(pid, &dacTableAddress, &dacTableSize);
-    if (err != ERROR_SUCCESS)
-    {
-        return CORDBG_E_MISSING_DEBUGGER_EXPORTS;
-    }
-
-    if (dacTableSize != sizeof(g_dacGlobals))
+#ifdef DAC_TABLE_SIZE
+    if (DAC_TABLE_SIZE != sizeof(g_dacGlobals))
     {
         return E_INVALIDARG;
     }
-
-    if (FAILED(ReadFromDataTarget(m_pTarget, (ULONG64)dacTableAddress, (BYTE*)&g_dacGlobals, dacTableSize)))
+#endif
+    ULONG64 dacTableAddress = m_globalBase + DAC_TABLE_RVA;
+    if (FAILED(ReadFromDataTarget(m_pTarget, dacTableAddress, (BYTE*)&g_dacGlobals, sizeof(g_dacGlobals))))
     {
         return CORDBG_E_MISSING_DEBUGGER_EXPORTS;
+    }
+    if (g_dacGlobals.ThreadStore__s_pThreadStore == NULL)
+    {
+        return CORDBG_E_UNSUPPORTED;
     }
     return S_OK;
 #else
@@ -7342,7 +7354,7 @@ Exit:
 
 //----------------------------------------------------------------------------
 // 
-// IsExceptionFromManagedCode - report if pExceptionRecord points to a exception belonging to the current runtime
+// IsExceptionFromManagedCode - report if pExceptionRecord points to an exception belonging to the current runtime
 // 
 // Arguments:
 //    pExceptionRecord - the exception record
@@ -7922,7 +7934,8 @@ STDAPI OutOfProcessExceptionEventDebuggerLaunchCallback(__in PDWORD pContext,
 
 // DacHandleEnum
 
-#include "handletablepriv.h"
+// TODO(Local GC) - The DAC should not include GC headers
+#include "../../gc/handletablepriv.h"
 #include "comcallablewrapper.h"
 
 DacHandleWalker::DacHandleWalker()
@@ -7964,7 +7977,7 @@ HRESULT DacHandleWalker::Init(ClrDataAccess *dac, UINT types[], UINT typeCount, 
 {
     SUPPORTS_DAC;
     
-    if (gen < 0 || gen > (int)GCHeap::GetMaxGeneration())
+    if (gen < 0 || gen > (int)*g_gcDacGlobals->max_gen)
         return E_INVALIDARG;
         
     mGenerationFilter = gen;
@@ -8023,7 +8036,7 @@ bool DacHandleWalker::FetchMoreHandles(HANDLESCANPROC callback)
     int max_slots = 1;
     
 #ifdef FEATURE_SVR_GC
-    if (GCHeap::IsServerHeap())
+    if (GCHeapUtilities::IsServerHeap())
         max_slots = GCHeapCount();
 #endif // FEATURE_SVR_GC
 
@@ -8079,7 +8092,7 @@ bool DacHandleWalker::FetchMoreHandles(HANDLESCANPROC callback)
                                 HndScanHandlesForGC(hTable, callback, 
                                                     (LPARAM)&param, 0, 
                                                      &handleType, 1, 
-                                                     mGenerationFilter, GCHeap::GetMaxGeneration(), 0);
+                                                     mGenerationFilter, *g_gcDacGlobals->max_gen, 0);
                             else
                                 HndEnumHandles(hTable, &handleType, 1, callback, (LPARAM)&param, 0, FALSE);
                         }
@@ -8157,7 +8170,7 @@ void DacHandleWalker::GetRefCountedHandleInfo(
         *pIsStrong = FALSE;
 }
 
-void CALLBACK DacHandleWalker::EnumCallbackSOS(PTR_UNCHECKED_OBJECTREF handle, LPARAM *pExtraInfo, LPARAM param1, LPARAM param2)
+void CALLBACK DacHandleWalker::EnumCallbackSOS(PTR_UNCHECKED_OBJECTREF handle, uintptr_t *pExtraInfo, uintptr_t param1, uintptr_t param2)
 {
     SUPPORTS_DAC;
     
@@ -8330,7 +8343,7 @@ CLRDATA_ADDRESS DacStackReferenceWalker::ReadPointer(TADDR addr)
 }
    
 
-void DacStackReferenceWalker::GCEnumCallbackSOS(LPVOID hCallback, OBJECTREF *pObject, DWORD flags, DacSlotLocation loc)
+void DacStackReferenceWalker::GCEnumCallbackSOS(LPVOID hCallback, OBJECTREF *pObject, uint32_t flags, DacSlotLocation loc)
 {
     GCCONTEXT *gcctx = (GCCONTEXT *)hCallback;
     DacScanContext *dsc = (DacScanContext*)gcctx->sc;
@@ -8389,7 +8402,7 @@ void DacStackReferenceWalker::GCEnumCallbackSOS(LPVOID hCallback, OBJECTREF *pOb
 }
 
 
-void DacStackReferenceWalker::GCReportCallbackSOS(PTR_PTR_Object ppObj, ScanContext *sc, DWORD flags)
+void DacStackReferenceWalker::GCReportCallbackSOS(PTR_PTR_Object ppObj, ScanContext *sc, uint32_t flags)
 {
     DacScanContext *dsc = (DacScanContext*)sc;
     CLRDATA_ADDRESS obj = dsc->pWalker->ReadPointer(ppObj.GetAddr());

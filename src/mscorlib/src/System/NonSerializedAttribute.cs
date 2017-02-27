@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*============================================================
 **
@@ -9,24 +10,24 @@
 **
 **
 ============================================================*/
-namespace System 
-{
-    using System.Reflection;
 
-    [AttributeUsage(AttributeTargets.Field, Inherited=false)]
-    [System.Runtime.InteropServices.ComVisible(true)]
-    public sealed class NonSerializedAttribute : Attribute 
+using System.Reflection;
+
+namespace System
+{
+    [AttributeUsage(AttributeTargets.Field, Inherited = false)]
+    public sealed class NonSerializedAttribute : Attribute
     {
-        internal static Attribute GetCustomAttribute(RuntimeFieldInfo field) 
-        { 
+        internal static Attribute GetCustomAttribute(RuntimeFieldInfo field)
+        {
             if ((field.Attributes & FieldAttributes.NotSerialized) == 0)
                 return null;
 
             return new NonSerializedAttribute();
         }
 
-        internal static bool IsDefined(RuntimeFieldInfo field) 
-        { 
+        internal static bool IsDefined(RuntimeFieldInfo field)
+        {
             return (field.Attributes & FieldAttributes.NotSerialized) != 0;
         }
 

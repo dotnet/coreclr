@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 
 // callbacks for diasymreader when using SymConverter
@@ -68,7 +67,7 @@ class SymbolInfo:  IMetaDataEmit,  IMetaDataImport
     ClassProps* FindClass(mdToken cls);
     SignatureProps* FindSignature(SBuffer& sig);
 
-    ~SymbolInfo(); // protected, b/c the lifetime is controlled by refcount
+    virtual ~SymbolInfo(); // protected, b/c the lifetime is controlled by refcount
     
 public:
     SymbolInfo();
@@ -117,7 +116,7 @@ public:
 
     STDMETHOD(GetTypeDefProps)(             // S_OK or error.
         mdTypeDef   td,                     // [IN] TypeDef token for inquiry.
-      __out_ecount_part_opt(cchTypeDef, pchTypeDef)
+      __out_ecount_part_opt(cchTypeDef, *pchTypeDef)
         LPWSTR      szTypeDef,              // [OUT] Put name here.
         ULONG       cchTypeDef,             // [IN] size of name buffer in wide chars.
         ULONG       *pchTypeDef,            // [OUT] put size of name (wide chars) here.

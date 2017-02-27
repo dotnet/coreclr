@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //
 
 //
@@ -71,12 +70,10 @@ EEPolicy::EEPolicy ()
     m_ActionOnFailure[FAIL_NonCriticalResource] = eThrowException;
     m_ActionOnFailure[FAIL_OrphanedLock] = eNoAction;
     m_ActionOnFailure[FAIL_FatalRuntime] = eRudeExitProcess;
-#ifdef FEATURE_CORECLR
     // For CoreCLR, initialize the default action for AV processing to all
     // all kind of code to catch AV exception. If the host wants, they can
     // specify a different action for this.
     m_ActionOnFailure[FAIL_AccessViolation] = eNoAction;
-#endif // FEATURE_CORECLR    
     m_ActionOnFailure[FAIL_StackOverflow] = eRudeExitProcess;
     m_ActionOnFailure[FAIL_CodeContract] = eThrowException;
     m_unhandledExceptionPolicy = eRuntimeDeterminedPolicy;
@@ -179,22 +176,10 @@ BOOL EEPolicy::IsValidActionForFailure(EClrFailure failure, EPolicyAction action
         return action >= eUnloadAppDomain &&
             action < MaxPolicyAction;
     case FAIL_AccessViolation:
-#ifdef FEATURE_CORECLR
         // Allowed actions on failure are:
         // 
         // eNoAction or eRudeExitProcess.
         return ((action == eNoAction) || (action == eRudeExitProcess));
-#else // !FEATURE_CORECLR
-        // FAIL_AccessViolation is defined for the desktop so that
-        // if any more definitions are added after it, their value
-        // should remain constant irrespective of whether its the
-        // desktop CLR or CoreCLR.
-        //
-        // That said, currently, Desktop CLR does not support
-        // FAIL_AccessViolation. Thus, any calls which use
-        // this failure are not allowed.
-        return FALSE;
-#endif // FEATURE_CORECLR         
     case FAIL_StackOverflow:
         return action >= eRudeUnloadAppDomain &&
             action < MaxPolicyAction;
@@ -425,22 +410,6 @@ EPolicyAction EEPolicy::GetActionOnFailure(EClrFailure failure)
     }
 
     EPolicyAction finalAction = GetActionOnFailureNoHostNotification(failure);
-#ifdef FEATURE_INCLUDE_ALL_INTERFACES
-    IHostPolicyManager *pHostPolicyManager = CorHost2::GetHostPolicyManager();
-    if (pHostPolicyManager)
-    {
-#ifdef _DEBUG
-        Thread* pThread = GetThread();
-        if (pThread)
-        {
-            pThread->AddFiberInfo(Thread::ThreadTrackInfo_Escalation);
-        }
-#endif
-        BEGIN_SO_TOLERANT_CODE_CALLING_HOST(GetThread());
-        pHostPolicyManager->OnFailure(failure, finalAction);
-        END_SO_TOLERANT_CODE_CALLING_HOST;
-    }
-#endif // FEATURE_INCLUDE_ALL_INTERFACES
     return finalAction;
 }
 
@@ -456,22 +425,6 @@ void EEPolicy::NotifyHostOnTimeout(EClrOperation operation, EPolicyAction action
     }
     CONTRACTL_END;
 
-#ifdef FEATURE_INCLUDE_ALL_INTERFACES
-    IHostPolicyManager *pHostPolicyManager = CorHost2::GetHostPolicyManager();
-    if (pHostPolicyManager)
-    {
-#ifdef _DEBUG
-        Thread* pThread = GetThread();
-        if (pThread)
-        {
-            pThread->AddFiberInfo(Thread::ThreadTrackInfo_Escalation);
-        }
-#endif
-        BEGIN_SO_TOLERANT_CODE_CALLING_HOST(GetThread());
-        pHostPolicyManager->OnTimeout(operation, action);
-        END_SO_TOLERANT_CODE_CALLING_HOST;
-    }
-#endif // FEATURE_INCLUDE_ALL_INTERFACES
 }
 
 
@@ -486,22 +439,6 @@ void EEPolicy::NotifyHostOnDefaultAction(EClrOperation operation, EPolicyAction 
     }
     CONTRACTL_END;
 
-#ifdef FEATURE_INCLUDE_ALL_INTERFACES
-    IHostPolicyManager *pHostPolicyManager = CorHost2::GetHostPolicyManager();
-    if (pHostPolicyManager)
-    {
-#ifdef _DEBUG
-        Thread* pThread = GetThread();
-        if (pThread)
-        {
-            pThread->AddFiberInfo(Thread::ThreadTrackInfo_Escalation);
-        }
-#endif
-        BEGIN_SO_TOLERANT_CODE_CALLING_HOST(GetThread());
-        pHostPolicyManager->OnDefaultAction(operation, action);
-        END_SO_TOLERANT_CODE_CALLING_HOST;
-    }
-#endif // FEATURE_INCLUDE_ALL_INTERFACES
 }
 
 void SafeExitProcess(UINT exitCode, BOOL fAbort = FALSE, ShutdownCompleteAction sca = SCA_ExitProcessWhenShutdownComplete)
@@ -531,11 +468,11 @@ void SafeExitProcess(UINT exitCode, BOOL fAbort = FALSE, ShutdownCompleteAction 
         if (CLRConfig::GetConfigValue(CLRConfig::UNSUPPORTED_BreakOnBadExit))
         {
             // Workaround for aspnet
-            WCHAR  wszFilename[_MAX_PATH];
+            PathString  wszFilename;
             bool bShouldAssert = true;
-            if (WszGetModuleFileName(NULL, wszFilename, _MAX_PATH))
+            if (WszGetModuleFileName(NULL, wszFilename))
             {
-                _wcslwr_s(wszFilename, COUNTOF(wszFilename));
+                wszFilename.LowerCase();
                 
                 if (wcsstr(wszFilename, W("aspnet_compiler"))) 
                 {
@@ -573,6 +510,14 @@ void SafeExitProcess(UINT exitCode, BOOL fAbort = FALSE, ShutdownCompleteAction 
         // disabled because if we fault in this code path we will trigger our
         // Watson code via EntryPointFilter which is THROWS (see Dev11 317016)
         CONTRACT_VIOLATION(ThrowsViolation);
+
+#ifdef FEATURE_PAL
+        if (fAbort)
+        {
+            TerminateProcess(GetCurrentProcess(), exitCode);
+        }
+#endif
+
         EEPolicy::ExitProcessViaShim(exitCode);
     }
 }
@@ -595,21 +540,6 @@ void EEPolicy::ExitProcessViaShim(UINT exitCode)
     // runtime in a process with many. We need to give the other runtimes a chance to exit
     // cleanly. If we can't make the call, or if the call fails for some reason, then we
     // simply exit the process here, which is rude to the others, but the best we can do.
-#if !defined(FEATURE_CORECLR)
-    {
-        ReleaseHolder<ICLRRuntimeHostInternal> pRuntimeHostInternal;
-
-        HRESULT hr = g_pCLRRuntime->GetInterface(CLSID_CLRRuntimeHostInternal,
-            IID_ICLRRuntimeHostInternal,
-            &pRuntimeHostInternal);
-
-        if (SUCCEEDED(hr))
-        {
-            pRuntimeHostInternal->ShutdownAllRuntimesThenExit(exitCode);
-            LOG((LF_EH, LL_INFO10, "ExitProcessViaShim: shim returned... exiting now.\n"));
-        }
-    }
-#endif // !FEATURE_CORECLR
 
     ExitProcess(exitCode);
 }
@@ -1326,7 +1256,6 @@ void EEPolicy::LogFatalError(UINT exitCode, UINT_PTR address, LPCWSTR pszMessage
             // (in SystemDomain::Init) finished.  See Dev10 Bug 677432 for the detail.
             if (ohException != NULL)
             {
-#ifdef FEATURE_WINDOWSPHONE
                 // for fail-fast, if there's a LTO available then use that as the inner exception object
                 // for the FEEE we'll be reporting.  this can help the Watson back-end to generate better
                 // buckets for apps that call Environment.FailFast() and supply an exception object.
@@ -1337,7 +1266,6 @@ void EEPolicy::LogFatalError(UINT exitCode, UINT_PTR address, LPCWSTR pszMessage
                     EXCEPTIONREF curEx = (EXCEPTIONREF)ObjectFromHandle(ohException);
                     curEx->SetInnerException(lto);
                 }
-#endif // FEATURE_WINDOWSPHONE
                 pThread->SetLastThrownObject(ObjectFromHandle(ohException), TRUE);
             }
 
@@ -1363,7 +1291,7 @@ void DisplayStackOverflowException()
     LIMITED_METHOD_CONTRACT;
     PrintToStdErrA("\n");
 
-    PrintToStdErrA("Process is terminated due to StackOverflowException.\n");
+    PrintToStdErrA("Process is terminating due to StackOverflowException.\n");
 }
 
 void DECLSPEC_NORETURN EEPolicy::HandleFatalStackOverflow(EXCEPTION_POINTERS *pExceptionInfo, BOOL fSkipDebugger)
@@ -1437,10 +1365,10 @@ void DECLSPEC_NORETURN EEPolicy::HandleFatalStackOverflow(EXCEPTION_POINTERS *pE
             param.pExceptionRecord = pExceptionInfo->ExceptionRecord;
             g_pDebugInterface->RequestFavor(ResetWatsonBucketsFavorWorker, reinterpret_cast<void *>(&param));
         }
+#endif // !FEATURE_PAL        
 
         WatsonLastChance(pThread, pExceptionInfo, 
             (fTreatAsNativeUnhandledException == FALSE)? TypeOfReportedError::UnhandledException: TypeOfReportedError::NativeThreadUnhandledException);
-#endif // !FEATURE_PAL        
     }
 
     TerminateProcess(GetCurrentProcess(), COR_E_STACKOVERFLOW);

@@ -1,7 +1,9 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System;
+using System.Collections.Generic;
 
 #if !ES_BUILD_AGAINST_DOTNET_V35
 using Contract = System.Diagnostics.Contracts.Contract;
@@ -28,18 +30,20 @@ namespace System.Diagnostics.Tracing
         private readonly EventOpcode opcode = (EventOpcode)(-1);
         private readonly EventTags tags;
         private readonly Type dataType;
+        private readonly Func<object, PropertyValue> propertyValueFactory;
 
         internal TraceLoggingTypeInfo(Type dataType)
         {
             if (dataType == null)
             {
-                throw new ArgumentNullException("dataType");
+                throw new ArgumentNullException(nameof(dataType));
             }
 
             Contract.EndContractBlock();
 
-            this.name = dataType.Name;
+            name = dataType.Name;
             this.dataType = dataType;
+            propertyValueFactory = PropertyValue.GetFactory(dataType);
         }
 
         internal TraceLoggingTypeInfo(
@@ -52,12 +56,12 @@ namespace System.Diagnostics.Tracing
         {
             if (dataType == null)
             {
-                throw new ArgumentNullException("dataType");
+                throw new ArgumentNullException(nameof(dataType));
             }
 
             if (name == null)
             {
-                throw new ArgumentNullException("eventName");
+                throw new ArgumentNullException(nameof(name));
             }
 
             Contract.EndContractBlock();
@@ -70,6 +74,7 @@ namespace System.Diagnostics.Tracing
             this.opcode = opcode;
             this.tags = tags;
             this.dataType = dataType;
+            propertyValueFactory = PropertyValue.GetFactory(dataType);
         }
 
         /// <summary>
@@ -79,7 +84,7 @@ namespace System.Diagnostics.Tracing
         /// </summary>
         public string Name
         {
-            get { return this.name; }
+            get { return name; }
         }
 
         /// <summary>
@@ -89,7 +94,7 @@ namespace System.Diagnostics.Tracing
         /// </summary>
         public EventLevel Level
         {
-            get { return this.level; }
+            get { return level; }
         }
 
         /// <summary>
@@ -99,7 +104,7 @@ namespace System.Diagnostics.Tracing
         /// </summary>
         public EventOpcode Opcode
         {
-            get { return this.opcode; }
+            get { return opcode; }
         }
 
         /// <summary>
@@ -107,7 +112,7 @@ namespace System.Diagnostics.Tracing
         /// </summary>
         public EventKeywords Keywords
         {
-            get { return this.keywords; }
+            get { return keywords; }
         }
 
         /// <summary>
@@ -115,12 +120,17 @@ namespace System.Diagnostics.Tracing
         /// </summary>
         public EventTags Tags
         {
-            get { return this.tags; }
+            get { return tags; }
         }
 
         internal Type DataType
         {
-            get { return this.dataType; }
+            get { return dataType; }
+        }
+
+        internal Func<object, PropertyValue> PropertyValueFactory
+        {
+            get { return propertyValueFactory; }
         }
 
         /// <summary>
@@ -162,9 +172,9 @@ namespace System.Diagnostics.Tracing
         /// Refer to TraceLoggingTypeInfo.WriteObjectData for information about this
         /// method.
         /// </param>
-        public abstract void WriteObjectData(
+        public abstract void WriteData(
             TraceLoggingDataCollector collector,
-            object value);
+            PropertyValue value);
 
         /// <summary>
         /// Fetches the event parameter data for internal serialization. 
@@ -174,6 +184,26 @@ namespace System.Diagnostics.Tracing
         public virtual object GetData(object value)
         {
             return value;
+        }
+
+        [ThreadStatic] // per-thread cache to avoid synchronization
+        private static Dictionary<Type, TraceLoggingTypeInfo> threadCache;
+
+        public static TraceLoggingTypeInfo GetInstance(Type type, List<Type> recursionCheck)
+        {
+            var cache = threadCache ?? (threadCache = new Dictionary<Type, TraceLoggingTypeInfo>());
+
+            TraceLoggingTypeInfo instance;
+            if (!cache.TryGetValue(type, out instance))
+            {
+                if (recursionCheck == null)
+                    recursionCheck = new List<Type>();
+                var recursionCheckCount = recursionCheck.Count;
+                instance = Statics.CreateDefaultTypeInfo(type, recursionCheck);
+                cache[type] = instance;
+                recursionCheck.RemoveRange(recursionCheckCount, recursionCheck.Count - recursionCheckCount);
+            }
+            return instance;
         }
     }
 }

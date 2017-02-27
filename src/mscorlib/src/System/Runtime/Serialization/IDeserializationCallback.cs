@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*============================================================
 **
@@ -11,15 +12,14 @@
 **
 **
 ===========================================================*/
-namespace System.Runtime.Serialization {
-    using System;
 
+using System;
+
+namespace System.Runtime.Serialization
+{
     // Interface does not need to be marked with the serializable attribute    
-    [System.Runtime.InteropServices.ComVisible(true)]
-    public interface IDeserializationCallback {
-#if FEATURE_SERIALIZATION
+    public interface IDeserializationCallback
+    {
         void OnDeserialization(Object sender);
-#endif
-    
     }
 }

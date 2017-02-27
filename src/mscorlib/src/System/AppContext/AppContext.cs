@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 
 using System.Collections.Generic;
@@ -16,28 +17,94 @@ namespace System
             HasLookedForOverride = 0x4,
             UnknownValue = 0x8 // Has no default and could not find an override
         }
-        private static Dictionary<string, SwitchValueState> s_switchMap = new Dictionary<string, SwitchValueState>();
-        private static readonly object s_syncLock = new object();
-
-        public static string BaseDirectory
-        {
-#if FEATURE_CORECLR
-            [System.Security.SecuritySafeCritical]
-#endif
-            get
-            {
-                return AppDomain.CurrentDomain.BaseDirectory;
-            }
-        }
-
-        #region Switch APIs
+        private static readonly Dictionary<string, SwitchValueState> s_switchMap = new Dictionary<string, SwitchValueState>();
 
         static AppContext()
         {
+            // Unloading event must happen before ProcessExit event
+            AppDomain.CurrentDomain.ProcessExit += OnUnloading;
+            AppDomain.CurrentDomain.ProcessExit += OnProcessExit;
+
             // populate the AppContext with the default set of values
             AppContextDefaultValues.PopulateDefaultValues();
         }
 
+        public static string BaseDirectory
+        {
+            get
+            {
+                // The value of APP_CONTEXT_BASE_DIRECTORY key has to be a string and it is not allowed to be any other type. 
+                // Otherwise the caller will get invalid cast exception
+                return (string)AppDomain.CurrentDomain.GetData("APP_CONTEXT_BASE_DIRECTORY") ?? AppDomain.CurrentDomain.BaseDirectory;
+            }
+        }
+
+        public static string TargetFrameworkName
+        {
+            get
+            {
+                // Forward the value that is set on the current domain.
+                return AppDomain.CurrentDomain.SetupInformation.TargetFrameworkName;
+            }
+        }
+
+        public static object GetData(string name)
+        {
+            return AppDomain.CurrentDomain.GetData(name);
+        }
+
+        public static void SetData(string name, object data)
+        {
+            AppDomain.CurrentDomain.SetData(name, data);
+        }
+
+        public static event UnhandledExceptionEventHandler UnhandledException
+        {
+            add
+            {
+                AppDomain.CurrentDomain.UnhandledException += value;
+            }
+
+            remove
+            {
+                AppDomain.CurrentDomain.UnhandledException -= value;
+            }
+        }
+
+        public static event System.EventHandler<System.Runtime.ExceptionServices.FirstChanceExceptionEventArgs> FirstChanceException
+        {
+            add
+            {
+                AppDomain.CurrentDomain.FirstChanceException += value;
+            }
+            remove
+            {
+                AppDomain.CurrentDomain.FirstChanceException -= value;
+            }
+        }
+
+        public static event System.EventHandler ProcessExit;
+        internal static event System.EventHandler Unloading;
+
+        private static void OnProcessExit(object sender, EventArgs e)
+        {
+            var processExit = ProcessExit;
+            if (processExit != null)
+            {
+                processExit(null, EventArgs.Empty);
+            }
+        }
+
+        private static void OnUnloading(object sender, EventArgs e)
+        {
+            var unloading = Unloading;
+            if (unloading != null)
+            {
+                unloading(null, EventArgs.Empty);
+            }
+        }
+
+        #region Switch APIs
         /// <summary>
         /// Try to get the value of the switch.
         /// </summary>
@@ -47,9 +114,9 @@ namespace System
         public static bool TryGetSwitch(string switchName, out bool isEnabled)
         {
             if (switchName == null)
-                throw new ArgumentNullException("switchName");
+                throw new ArgumentNullException(nameof(switchName));
             if (switchName.Length == 0)
-                throw new ArgumentException(Environment.GetResourceString("Argument_EmptyName"), "switchName");
+                throw new ArgumentException(Environment.GetResourceString("Argument_EmptyName"), nameof(switchName));
 
             // By default, the switch is not enabled.
             isEnabled = false;
@@ -77,7 +144,7 @@ namespace System
                     }
 
                     // We get the value of isEnabled from the value that we stored in the dictionary
-                    isEnabled = (switchValue & SwitchValueState.HasTrueValue) == SwitchValueState.HasTrueValue; 
+                    isEnabled = (switchValue & SwitchValueState.HasTrueValue) == SwitchValueState.HasTrueValue;
 
                     // 2. The switch has a valid value AND we have checked for overrides
                     if ((switchValue & SwitchValueState.HasLookedForOverride) == SwitchValueState.HasLookedForOverride)
@@ -143,15 +210,17 @@ namespace System
         public static void SetSwitch(string switchName, bool isEnabled)
         {
             if (switchName == null)
-                throw new ArgumentNullException("switchName");
+                throw new ArgumentNullException(nameof(switchName));
             if (switchName.Length == 0)
-                throw new ArgumentException(Environment.GetResourceString("Argument_EmptyName"), "switchName");
+                throw new ArgumentException(Environment.GetResourceString("Argument_EmptyName"), nameof(switchName));
 
-            lock (s_syncLock)
+            SwitchValueState switchValue = (isEnabled ? SwitchValueState.HasTrueValue : SwitchValueState.HasFalseValue)
+                                            | SwitchValueState.HasLookedForOverride;
+
+            lock (s_switchMap)
             {
                 // Store the new value and the fact that we checked in the dictionary
-                s_switchMap[switchName] = (isEnabled ? SwitchValueState.HasTrueValue : SwitchValueState.HasFalseValue)
-                                            | SwitchValueState.HasLookedForOverride;
+                s_switchMap[switchName] = switchValue;
             }
         }
 

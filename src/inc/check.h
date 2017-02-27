@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 // ---------------------------------------------------------------------------
 // Check.h
 //
@@ -102,6 +101,10 @@ public: // !!! NOTE: Called from macros only!!!
 
     static void ResetAssert();
 
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable:4702) // Disable bogus unreachable code warning
+#endif // _MSC_VER
     CHECK() : m_message(NULL)
 #ifdef _DEBUG
               , m_condition (NULL)
@@ -110,6 +113,9 @@ public: // !!! NOTE: Called from macros only!!!
               , m_pCount(NULL)
 #endif
     {}
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif // _MSC_VER
 
     // Fail records the result of a condition check.  Can take either a
     // boolean value or another check result

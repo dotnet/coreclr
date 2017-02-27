@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //--------------------------------------------------------------------------
 // securitymeta.h
 //
@@ -159,10 +158,6 @@ inline SecurityRuleSet GetSecurityRuleSet(TokenSecurityDescriptorFlags flags);
 // Encode a security rule set into token flags - this reverses GetSecurityRuleSet
 inline TokenSecurityDescriptorFlags EncodeSecurityRuleSet(SecurityRuleSet ruleSet);
 
-#ifdef FEATURE_APTCA
-TokenSecurityDescriptorFlags ParseAptcaAttribute(const BYTE *pbAptcaBlob,
-                                                 DWORD cbAptcaBlob);
-#endif // FEATURE_APTCA
 
 TokenSecurityDescriptorFlags ParseSecurityRulesAttribute(const BYTE *pbSecurityRulesBlob,
                                                          DWORD cbSecurityRulesBlob);
@@ -560,8 +555,6 @@ enum ModuleSecurityDescriptorFlags
     ModuleSecurityDescriptorFlags_IsOpportunisticallyCritical   = 0x0020,       // Ensure that the assembly follows all transparency rules by making all methods critical or safe critical as needed
     ModuleSecurityDescriptorFlags_SkipFullTrustVerification     = 0x0040,       // Fully trusted transparent code does not require verification
     ModuleSecurityDescriptorFlags_TransparentDueToPartialTrust  = 0x0080,       // Whether we made the assembly all transparent because it was partially-trusted
-    ModuleSecurityDescriptorFlags_IsMicrosoftPlatform           = 0x0100,       // Whether we made the assembly microsoft platform. Stored in ngen image to determine if the ngen 
-                                                                                // was generated as microsoft platform assembly (full trust) or not.
 };
 
 inline ModuleSecurityDescriptorFlags operator|(ModuleSecurityDescriptorFlags lhs,
@@ -578,9 +571,6 @@ inline ModuleSecurityDescriptorFlags operator&=(ModuleSecurityDescriptorFlags& l
 
 inline ModuleSecurityDescriptorFlags operator~(ModuleSecurityDescriptorFlags flags);
 
-#ifdef FEATURE_APTCA
-BOOL CheckAssemblyHasBeenKillBitted(LPASSEMBLYNAME pAssemblyName, ULARGE_INTEGER uliFileVersion);
-#endif
 
 // Module security descriptor, this class contains static security information about the module
 // this information will get persisted in the NGen image
@@ -616,9 +606,6 @@ public:
     inline ModuleSecurityDescriptorFlags GetRawFlags();
 #endif // DACCESS_COMPILE
 
-    // Is Microsoft Platform
-    inline BOOL IsMicrosoftPlatform();
-
     // Is every method and type in the assembly transparent
     inline BOOL IsAllTransparent();
 
@@ -642,19 +629,12 @@ public:
     // Get the rule set the assembly uses
     inline SecurityRuleSet GetSecurityRuleSet();
 
-#ifndef FEATURE_CORECLR
-    // Can fully trusted transparent code bypass verification
-    inline BOOL CanTransparentCodeSkipVerification();
-#endif // !FEATURE_CORECLR
 
-#if defined(FEATURE_APTCA) || defined(FEATURE_CORESYSTEM)
+#if defined(FEATURE_CORESYSTEM)
     // Does the assembly allow partially trusted callers
     inline BOOL IsAPTCA();
-#endif // defined(FEATURE_APTCA) || defined(FEATURE_CORESYSTEM)
+#endif // defined(FEATURE_CORESYSTEM)
 
-#ifndef FEATURE_CORECLR
-    BOOL AssemblyVersionRequiresLegacyTransparency();
-#endif // !FEATURE_CORECLR
 
 private:
     // Helper class which fires transparency calculation begin/end ETW events

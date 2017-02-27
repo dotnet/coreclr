@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 #include "stdafx.h"
 #include "sigparser.h"
 #include "sigbuilder.h"
@@ -89,6 +88,8 @@ HRESULT CheckIfWinMDAdapterNeeded(IMDCommon *pRawMDCommon)
     HRESULT hr;
     LPWSTR        wszCorVersion = NULL;
     WinMDAdapter* pNewAdapter = NULL;
+    ULONG numAssemblyRefs = 0;
+    const char *szClrPortion = NULL;
 
     *ppAdapter = NULL;
 
@@ -103,7 +104,7 @@ HRESULT CheckIfWinMDAdapterNeeded(IMDCommon *pRawMDCommon)
     //------------------------------------------------------------------------------------------------
     LPCSTR szVersion;
     IfFailGo(pRawMDCommon->GetVersionString(&szVersion));
-    const char *szClrPortion = strchr(szVersion, ';');
+    szClrPortion = strchr(szVersion, ';');
     if (szClrPortion)
     {
         pNewAdapter->m_scenario = kWinMDExp;
@@ -149,7 +150,7 @@ HRESULT CheckIfWinMDAdapterNeeded(IMDCommon *pRawMDCommon)
     //------------------------------------------------------------------------------------------------
     // Find an assemblyRef to mscorlib (required to exist in .winmd files precisely to make the adapter's job easier.
     //------------------------------------------------------------------------------------------------
-    ULONG numAssemblyRefs = pNewAdapter->m_pRawMetaModelCommonRO->CommonGetRowCount(mdtAssemblyRef);
+    numAssemblyRefs = pNewAdapter->m_pRawMetaModelCommonRO->CommonGetRowCount(mdtAssemblyRef);
     pNewAdapter->m_assemblyRefMscorlib = 0;
     pNewAdapter->m_fReferencesMscorlibV4 = FALSE;
     for (ULONG rid = 1; rid <= numAssemblyRefs; rid++)
@@ -158,7 +159,9 @@ HRESULT CheckIfWinMDAdapterNeeded(IMDCommon *pRawMDCommon)
         LPCSTR arefName;
         USHORT usMajorVersion;
         IfFailGo(pNewAdapter->m_pRawMetaModelCommonRO->CommonGetAssemblyRefProps(mdar, &usMajorVersion, NULL, NULL, NULL, NULL, NULL, NULL, &arefName, NULL, NULL, NULL));
-        if (0 == strcmp(arefName, "mscorlib"))
+        
+        // We check for legacy Core library name since Windows.winmd references mscorlib and not System.Private.CoreLib
+        if (0 == strcmp(arefName, LegacyCoreLibName_A))
         {
             pNewAdapter->m_assemblyRefMscorlib = mdar;
 
@@ -207,6 +210,7 @@ WinMDAdapter::WinMDAdapter(IMDCommon *pRawMDCommon)
   , m_redirectedTypeSpecSigMemoTable(pRawMDCommon->GetMetaModelCommonRO()->CommonGetRowCount(mdtTypeSpec), NULL)
   , m_redirectedMethodSpecSigMemoTable(pRawMDCommon->GetMetaModelCommonRO()->CommonGetRowCount(mdtMethodSpec), NULL)
   , m_mangledTypeNameTable(pRawMDCommon->GetMetaModelCommonRO()->CommonGetRowCount(mdtTypeDef), NULL)
+  , m_extraAssemblyRefCount(-1)
 {
     m_rawAssemblyRefCount = pRawMDCommon->GetMetaModelCommonRO()->CommonGetRowCount(mdtAssemblyRef);
     m_pRedirectedVersionString = NULL;
@@ -858,10 +862,11 @@ WinMDAdapter::GetTypeRefProps(
 
     HRESULT hr;
     ULONG   treatment;
+    ULONG treatmentClass;
     IfFailGo(GetTypeRefTreatment(tkTypeRef, &treatment));
     _ASSERTE(treatment != kTrNotYetInitialized);
 
-    ULONG treatmentClass = treatment & kTrClassMask;
+    treatmentClass = treatment & kTrClassMask;
     if (treatmentClass == kTrClassWellKnownRedirected)
     {
         ULONG nRewritePairIndex = treatment & ~kTrClassMask;
@@ -996,9 +1001,10 @@ WinMDAdapter::GetTypeRefRedirectedInfo(
     
     HRESULT hr;
     ULONG   treatment;
+    ULONG treatmentClass;
     IfFailGo(GetTypeRefTreatment(tkTypeRef, &treatment));
     
-    ULONG treatmentClass = treatment & kTrClassMask;
+    treatmentClass = treatment & kTrClassMask;
     if (treatmentClass == kTrClassWellKnownRedirected)
     {
         *pIndex = (RedirectedTypeIndex)(treatment & ~kTrClassMask);
@@ -1095,6 +1101,60 @@ HRESULT WinMDAdapter::ModifyExportedTypeName(
 
 //------------------------------------------------------------------------------
 
+// We must optionaly add an assembly ref for System.Numerics.Vectors.dll since this assembly is not available
+// on downlevel platforms. 
+//
+// This function assumes that System.Numerics.Vectors.dll is the last assembly that
+// we add so if we find a reference then we return ContractAssembly_Count otherwise we return 
+// ContractAssembly_Count - 1. 
+int WinMDAdapter::GetExtraAssemblyRefCount()
+{
+    HRESULT hr;
+
+    if (m_extraAssemblyRefCount == -1)
+    {
+        mdAssemblyRef tkSystemNumericsVectors = TokenFromRid(m_rawAssemblyRefCount + ContractAssembly_SystemNumericsVectors + 1, mdtAssemblyRef);
+        ULONG cTypeRefRecs = m_pRawMetaModelCommonRO->CommonGetRowCount(mdtTypeRef);
+        BOOL systemNumericsVectorsTypeFound = FALSE;
+
+        for (ULONG i = 1; i <= cTypeRefRecs; i++)
+        {
+            mdToken tkResolutionScope;
+            mdTypeRef tkTypeRef = TokenFromRid(i, mdtTypeRef);
+
+            // Get the resolution scope(AssemblyRef) token for the type. GetTypeRefProps does the type redirection.
+            IfFailGo(GetTypeRefProps(tkTypeRef, nullptr, nullptr, &tkResolutionScope));
+
+            if (tkResolutionScope == tkSystemNumericsVectors)
+            {
+                systemNumericsVectorsTypeFound = TRUE;
+                break;
+            }
+        }
+
+        if (systemNumericsVectorsTypeFound)
+        {
+            m_extraAssemblyRefCount = ContractAssembly_Count;
+        }
+        else
+        {
+            m_extraAssemblyRefCount = ContractAssembly_Count - 1;
+        }
+    }
+
+ErrExit:
+    if (m_extraAssemblyRefCount == -1)
+    {
+        // Setting m_extraAssemblyRefCount to ContractAssembly_Count so that this function returns a stable value and
+        // that if there is a System.Numerics type ref that it does not have a dangling assembly ref
+        m_extraAssemblyRefCount = ContractAssembly_Count; 
+    }
+
+    return m_extraAssemblyRefCount;
+}
+
+//------------------------------------------------------------------------------
+
 /*static*/
 void WinMDAdapter::GetExtraAssemblyRefProps(FrameworkAssemblyIndex index,
                                             LPCSTR* ppName,
@@ -1125,16 +1185,14 @@ void WinMDAdapter::GetExtraAssemblyRefProps(FrameworkAssemblyIndex index,
 
     if (ppPublicKeytoken)
     {
-#ifdef FEATURE_CORECLR
-        if (index == FrameworkAssembly_System || index == FrameworkAssembly_Mscorlib)
+        if (index == FrameworkAssembly_Mscorlib)
         {
             *ppPublicKeytoken = g_rbTheSilverlightPlatformKeyToken;
             *pTokenLength = sizeof(g_rbTheSilverlightPlatformKeyToken);
         }
         else
-#endif
         {
-            if (index == FrameworkAssembly_SystemNumericsVectors)
+            if (index == FrameworkAssembly_SystemNumericsVectors || index == FrameworkAssembly_SystemRuntime || index == FrameworkAssembly_SystemObjectModel)
             {
                 *ppPublicKeytoken = s_pbContractPublicKeyToken;
                 *pTokenLength = sizeof(s_pbContractPublicKeyToken);
@@ -1222,11 +1280,14 @@ HRESULT WinMDAdapter::ModifyMethodProps(mdMethodDef tkMethodDef, /*[in, out]*/ D
     _ASSERTE(TypeFromToken(tkMethodDef) == mdtMethodDef);
 
     ULONG mdTreatment;
+    DWORD dwAttr;
+    DWORD dwImplFlags;
+    ULONG ulRVA;
     IfFailGo(GetMethodDefTreatment(tkMethodDef, &mdTreatment));
 
-    DWORD dwAttr = pdwAttr ? *pdwAttr: 0;
-    DWORD dwImplFlags = pdwImplFlags ? *pdwImplFlags : 0;
-    ULONG ulRVA = pulRVA ? *pulRVA : 0; 
+    dwAttr = pdwAttr ? *pdwAttr: 0;
+    dwImplFlags = pdwImplFlags ? *pdwImplFlags : 0;
+    ulRVA = pulRVA ? *pulRVA : 0; 
 
     switch (mdTreatment & kMdTreatmentMask)
     {
@@ -2344,9 +2405,12 @@ HRESULT WinMDAdapter::TranslateWinMDAttributeUsageAttribute(mdTypeDef tkTypeDefO
     {
         IfFailGo(COR_E_BADIMAGEFORMAT);
     }
-    DWORD wfTargetValue = *(DWORD*)(pbWFUsageBlob + 2);
-    *pClrTargetValue = ConvertToClrAttributeTarget(wfTargetValue);
 
+    {
+        DWORD wfTargetValue = *(DWORD*)(pbWFUsageBlob + 2);
+        *pClrTargetValue = ConvertToClrAttributeTarget(wfTargetValue);
+    }
+    
     // add AttributeTargets.Method, AttributeTargets.Constructor , AttributeTargets.Property, and AttributeTargets.Event if this is the VersionAttribute
     LPCSTR  szNamespace;
     LPCSTR  szName;

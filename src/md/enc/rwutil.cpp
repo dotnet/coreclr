@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //*****************************************************************************
 // RWUtil.cpp
 // 
@@ -1002,12 +1001,29 @@ ULONG MergeTokenManager::Release()
 
 HRESULT MergeTokenManager::QueryInterface(REFIID riid, void **ppUnk)
 {
-    *ppUnk = 0;
+	if (ppUnk == NULL)
+		return E_INVALIDARG;
 
-    if (riid == IID_IMapToken)
-        *ppUnk = (IUnknown *) (IMapToken *) this;
-    else
-        return (E_NOINTERFACE);
+	if (IsEqualIID(riid, IID_IMapToken))
+	{
+		//*ppUnk = (IUnknown *) (IMapToken *) this;
+		// it should return the accurate type requested,
+		// if IUnknown is returned, it will finally converted to IMapToken*
+		*ppUnk = (IMapToken *) this;
+	}
+	else if (IsEqualIID(riid, IID_IUnknown))
+	{
+		// add query handling for IUnknown
+		// this upcasting (converting a derived-class 
+		// reference or pointer to a base-class) is safe
+		*ppUnk = (IUnknown *) this;
+	}
+	else
+	{
+		*ppUnk = NULL;
+		return (E_NOINTERFACE);
+	}
+
     AddRef();
     return (S_OK);
 }   // TokenManager::QueryInterface
@@ -1122,12 +1138,23 @@ ULONG CMapToken::Release()
 
 HRESULT CMapToken::QueryInterface(REFIID riid, void **ppUnk)
 {
-    *ppUnk = 0;
+	if (ppUnk == NULL)
+		return E_INVALIDARG;
 
-    if (riid == IID_IMapToken)
-        *ppUnk = (IUnknown *) (IMapToken *) this;
-    else
-        return (E_NOINTERFACE);
+	if (IsEqualIID(riid, IID_IMapToken))
+	{
+		*ppUnk = (IMapToken *) this;
+	}
+	else if (IsEqualIID(riid, IID_IUnknown))
+	{
+		*ppUnk = (IUnknown *) this;
+	}
+	else
+	{
+		*ppUnk = NULL;
+		return (E_NOINTERFACE);
+	}
+
     AddRef();
     return (S_OK);
 }   // CMapToken::QueryInterface

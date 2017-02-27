@@ -1,12 +1,8 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
-//
-
-//
-
-using System;
-using System.Text;
+using System.Diagnostics;
 using System.Diagnostics.Contracts;
 
 namespace System.Globalization
@@ -66,7 +62,7 @@ namespace System.Globalization
     // Gregorian to Hebrew Lunar from 1583 to 2239.
 
 
-    [System.Runtime.InteropServices.ComVisible(true)]
+    [Serializable]
     public class HebrewCalendar : Calendar
     {
         public static readonly int HebrewEra = 1;
@@ -142,7 +138,7 @@ namespace System.Globalization
         private const int MinHebrewYear = HebrewYearOf1AD + FirstGregorianTableYear;   // == 5343
         private const int MaxHebrewYear = HebrewYearOf1AD + LastGregorianTableYear;    // == 5999
 
-        private static readonly byte[] HebrewTable = {
+        private static readonly byte[] s_hebrewTable = {
             7,3,17,3,         // 1583-1584  (Hebrew year: 5343 - 5344)
             0,4,11,2,21,6,1,3,13,2,             // 1585-1589
             25,4,5,3,16,2,27,6,9,1,             // 1590-1594
@@ -278,13 +274,13 @@ namespace System.Globalization
             6,1    // 2240 (Hebrew year: 6000)
         };
 
-        const int MaxMonthPlusOne = 14;
+        private const int MaxMonthPlusOne = 14;
 
         //
         //  The lunar calendar has 6 different variations of month lengths
         //  within a year.
         //
-        private static readonly byte[] LunarMonthLen = {
+        private static readonly byte[] s_lunarMonthLen = {
             0,00,00,00,00,00,00,00,00,00,00,00,00,0,
             0,30,29,29,29,30,29,30,29,30,29,30,29,0,     // 3 common year variations
             0,30,29,30,29,30,29,30,29,30,29,30,29,0,
@@ -293,8 +289,6 @@ namespace System.Globalization
             0,30,29,30,29,30,30,29,30,29,30,29,30,29,
             0,30,30,30,29,30,30,29,30,29,30,29,30,29
         };
-
-        //internal static Calendar m_defaultInstance;
 
         internal static readonly DateTime calendarMinValue = new DateTime(1583, 1, 1);
         // Gregorian 2239/9/29 = Hebrew 5999/13/29 (last day in Hebrew year 5999).
@@ -321,25 +315,13 @@ namespace System.Globalization
             }
         }
 
-        /*=================================GetDefaultInstance==========================
-        **Action: Internal method to provide a default intance of HebrewCalendar.  Used by NLS+ implementation
-        **       and other calendars.
-        **Returns:
-        **Arguments:
-        **Exceptions:
-        ============================================================================*/
-
-        /*
-        internal static Calendar GetDefaultInstance() {
-            if (m_defaultInstance == null) {
-                m_defaultInstance = new HebrewCalendar();
+        public override CalendarAlgorithmType AlgorithmType
+        {
+            get
+            {
+                return CalendarAlgorithmType.LunisolarCalendar;
             }
-            return (m_defaultInstance);
         }
-        */
-
-
-        // Construct an instance of gregorian calendar.
 
         public HebrewCalendar()
         {
@@ -364,7 +346,7 @@ namespace System.Globalization
         **  We use a table for the Hebrew calendar calculation, so the year supported is limited.
         ============================================================================*/
 
-        static private void CheckHebrewYearValue(int y, int era, String varName)
+        private static void CheckHebrewYearValue(int y, int era, String varName)
         {
             CheckEraRange(era);
             if (y > MaxHebrewYear || y < MinHebrewYear)
@@ -395,7 +377,7 @@ namespace System.Globalization
             if (month < 1 || month > monthsInYear)
             {
                 throw new ArgumentOutOfRangeException(
-                            "month",
+                            nameof(month),
                             String.Format(
                                 CultureInfo.CurrentCulture,
                                 SR.ArgumentOutOfRange_Range,
@@ -421,7 +403,7 @@ namespace System.Globalization
             if (day < 1 || day > daysInMonth)
             {
                 throw new ArgumentOutOfRangeException(
-                            "day",
+                            nameof(day),
                             String.Format(
                                 CultureInfo.CurrentCulture,
                                 SR.ArgumentOutOfRange_Range,
@@ -430,15 +412,15 @@ namespace System.Globalization
             }
         }
 
-        static internal void CheckEraRange(int era)
+        internal static void CheckEraRange(int era)
         {
             if (era != CurrentEra && era != HebrewEra)
             {
-                throw new ArgumentOutOfRangeException("era", SR.ArgumentOutOfRange_InvalidEraValue);
+                throw new ArgumentOutOfRangeException(nameof(era), SR.ArgumentOutOfRange_InvalidEraValue);
             }
         }
 
-        static private void CheckTicksRange(long ticks)
+        private static void CheckTicksRange(long ticks)
         {
             if (ticks < calendarMinValue.Ticks || ticks > calendarMaxValue.Ticks)
             {
@@ -453,7 +435,7 @@ namespace System.Globalization
             }
         }
 
-        static internal int GetResult(__DateBuffer result, int part)
+        internal static int GetResult(__DateBuffer result, int part)
         {
             switch (part)
             {
@@ -485,7 +467,7 @@ namespace System.Globalization
         **Exceptions:
         ============================================================================*/
 
-        static internal int GetLunarMonthDay(int gregorianYear, __DateBuffer lunarDate)
+        internal static int GetLunarMonthDay(int gregorianYear, __DateBuffer lunarDate)
         {
             //
             //  Get the offset into the LunarMonthLen array and the lunar day
@@ -494,14 +476,14 @@ namespace System.Globalization
             int index = gregorianYear - FirstGregorianTableYear;
             if (index < 0 || index > TABLESIZE)
             {
-                throw new ArgumentOutOfRangeException("gregorianYear");
+                throw new ArgumentOutOfRangeException(nameof(gregorianYear));
             }
 
             index *= 2;
-            lunarDate.day = HebrewTable[index];
+            lunarDate.day = s_hebrewTable[index];
 
             // Get the type of the year. The value is from 1 to 6
-            int LunarYearType = HebrewTable[index + 1];
+            int LunarYearType = s_hebrewTable[index + 1];
 
             //
             //  Get the Lunar Month.
@@ -599,7 +581,7 @@ namespace System.Globalization
             //  If the requested date is within the current lunar month, then
             //  we're done.
             //
-            if ((NumDays + (long)lunarDate.day) <= (long)(LunarMonthLen[hebrewYearType * MaxMonthPlusOne + lunarDate.month]))
+            if ((NumDays + (long)lunarDate.day) <= (long)(s_lunarMonthLen[hebrewYearType * MaxMonthPlusOne + lunarDate.month]))
             {
                 result.day += (int)NumDays;
                 return (GetResult(result, part));
@@ -618,8 +600,8 @@ namespace System.Globalization
             //  Assumes Jan 1 can never translate to the last Lunar month, which
             //  is true.
             //
-            NumDays -= (long)(LunarMonthLen[hebrewYearType * MaxMonthPlusOne + lunarDate.month] - lunarDate.day);
-            Contract.Assert(NumDays >= 1, "NumDays >= 1");
+            NumDays -= (long)(s_lunarMonthLen[hebrewYearType * MaxMonthPlusOne + lunarDate.month] - lunarDate.day);
+            Debug.Assert(NumDays >= 1, "NumDays >= 1");
 
             // If NumDays is 1, then we are done.  Otherwise, find the correct Hebrew month
             // and day.
@@ -628,24 +610,24 @@ namespace System.Globalization
                 //
                 //  See if we're on the correct Lunar month.
                 //
-                while (NumDays > (long)(LunarMonthLen[hebrewYearType * MaxMonthPlusOne + result.month]))
+                while (NumDays > (long)(s_lunarMonthLen[hebrewYearType * MaxMonthPlusOne + result.month]))
                 {
                     //
                     //  Adjust the number of days and move to the next month.
                     //
-                    NumDays -= (long)(LunarMonthLen[hebrewYearType * MaxMonthPlusOne + result.month++]);
+                    NumDays -= (long)(s_lunarMonthLen[hebrewYearType * MaxMonthPlusOne + result.month++]);
 
                     //
                     //  See if we need to adjust the Year.
                     //  Must handle both 12 and 13 month years.
                     //
-                    if ((result.month > 13) || (LunarMonthLen[hebrewYearType * MaxMonthPlusOne + result.month] == 0))
+                    if ((result.month > 13) || (s_lunarMonthLen[hebrewYearType * MaxMonthPlusOne + result.month] == 0))
                     {
                         //
                         //  Adjust the Year.
                         //
                         result.year++;
-                        hebrewYearType = HebrewTable[(gregorianYear + 1 - FirstGregorianTableYear) * 2 + 1];
+                        hebrewYearType = s_hebrewTable[(gregorianYear + 1 - FirstGregorianTableYear) * 2 + 1];
 
                         //
                         //  Adjust the Month.
@@ -729,7 +711,7 @@ namespace System.Globalization
             catch (ArgumentException)
             {
                 throw new ArgumentOutOfRangeException(
-                            "months",
+                            nameof(months),
                             String.Format(
                                 CultureInfo.CurrentCulture,
                                 SR.ArgumentOutOfRange_AddValue));
@@ -752,7 +734,7 @@ namespace System.Globalization
             int d = GetDatePart(time.Ticks, DatePartDay);
 
             y += years;
-            CheckHebrewYearValue(y, Calendar.CurrentEra, "years");
+            CheckHebrewYearValue(y, Calendar.CurrentEra, nameof(years));
 
             int months = GetMonthsInYear(y, CurrentEra);
             if (m > months)
@@ -793,12 +775,12 @@ namespace System.Globalization
             return ((DayOfWeek)((int)(time.Ticks / TicksPerDay + 1) % 7));
         }
 
-        static internal int GetHebrewYearType(int year, int era)
+        internal static int GetHebrewYearType(int year, int era)
         {
-            CheckHebrewYearValue(year, era, "year");
+            CheckHebrewYearValue(year, era, nameof(year));
             // The HebrewTable is indexed by Gregorian year and starts from FirstGregorianYear.
             // So we need to convert year (Hebrew year value) to Gregorian Year below.
-            return (HebrewTable[(year - HebrewYearOf1AD - FirstGregorianTableYear) * 2 + 1]);
+            return (s_hebrewTable[(year - HebrewYearOf1AD - FirstGregorianTableYear) * 2 + 1]);
         }
 
         // Returns the day-of-year part of the specified DateTime. The returned value
@@ -843,12 +825,12 @@ namespace System.Globalization
             int hebrewYearType = GetHebrewYearType(year, era);
             CheckHebrewMonthValue(year, month, era);
 
-            Contract.Assert(hebrewYearType >= 1 && hebrewYearType <= 6,
+            Debug.Assert(hebrewYearType >= 1 && hebrewYearType <= 6,
                 "hebrewYearType should be from  1 to 6, but now hebrewYearType = " + hebrewYearType + " for hebrew year " + year);
-            int monthDays = LunarMonthLen[hebrewYearType * MaxMonthPlusOne + month];
+            int monthDays = s_lunarMonthLen[hebrewYearType * MaxMonthPlusOne + month];
             if (monthDays == 0)
             {
-                throw new ArgumentOutOfRangeException("month", SR.ArgumentOutOfRange_Month);
+                throw new ArgumentOutOfRangeException(nameof(month), SR.ArgumentOutOfRange_Month);
             }
             return (monthDays);
         }
@@ -980,12 +962,12 @@ namespace System.Globalization
 
         public override bool IsLeapYear(int year, int era)
         {
-            CheckHebrewYearValue(year, era, "year");
+            CheckHebrewYearValue(year, era, nameof(year));
             return (((7 * (long)year + 1) % 19) < 7);
         }
 
         // (month1, day1) - (month2, day2)
-        static int GetDayDifference(int lunarYearType, int month1, int day1, int month2, int day2)
+        private static int GetDayDifference(int lunarYearType, int month1, int day1, int month2, int day2)
         {
             if (month1 == month2)
             {
@@ -1005,7 +987,7 @@ namespace System.Globalization
             }
 
             // Get the number of days from (month1,day1) to (month1, end of month1)
-            int days = LunarMonthLen[lunarYearType * MaxMonthPlusOne + month1] - day1;
+            int days = s_lunarMonthLen[lunarYearType * MaxMonthPlusOne + month1] - day1;
 
             // Move to next month.
             month1++;
@@ -1013,7 +995,7 @@ namespace System.Globalization
             // Add up the days.
             while (month1 < month2)
             {
-                days += LunarMonthLen[lunarYearType * MaxMonthPlusOne + month1++];
+                days += s_lunarMonthLen[lunarYearType * MaxMonthPlusOne + month1++];
             }
             days += day2;
 
@@ -1045,7 +1027,7 @@ namespace System.Globalization
         ============================================================================*/
 
 
-        static DateTime HebrewToGregorian(int hebrewYear, int hebrewMonth, int hebrewDay, int hour, int minute, int second, int millisecond)
+        private static DateTime HebrewToGregorian(int hebrewYear, int hebrewMonth, int hebrewDay, int hour, int minute, int second, int millisecond)
         {
             // Get the rough Gregorian year for the specified hebrewYear.
             //
@@ -1071,7 +1053,7 @@ namespace System.Globalization
 
         public override DateTime ToDateTime(int year, int month, int day, int hour, int minute, int second, int millisecond, int era)
         {
-            CheckHebrewYearValue(year, era, "year");
+            CheckHebrewYearValue(year, era, nameof(year));
             CheckHebrewMonthValue(year, month, era);
             CheckHebrewDayValue(year, month, day, era);
             DateTime dt = HebrewToGregorian(year, month, day, hour, minute, second, millisecond);
@@ -1102,7 +1084,7 @@ namespace System.Globalization
                 }
                 else
                 {
-                    CheckHebrewYearValue(value, HebrewEra, "value");
+                    CheckHebrewYearValue(value, HebrewEra, nameof(value));
                 }
                 twoDigitYearMax = value;
             }
@@ -1113,7 +1095,7 @@ namespace System.Globalization
         {
             if (year < 0)
             {
-                throw new ArgumentOutOfRangeException("year",
+                throw new ArgumentOutOfRangeException(nameof(year),
                     SR.ArgumentOutOfRange_NeedNonNegNum);
             }
             Contract.EndContractBlock();
@@ -1126,7 +1108,7 @@ namespace System.Globalization
             if (year > MaxHebrewYear || year < MinHebrewYear)
             {
                 throw new ArgumentOutOfRangeException(
-                            "year",
+                            nameof(year),
                             String.Format(
                                 CultureInfo.CurrentCulture,
                                 SR.ArgumentOutOfRange_Range,

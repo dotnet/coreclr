@@ -52,6 +52,7 @@ function LocateCMake
 try {
   $cmakePath = LocateCMake
   [System.Console]::WriteLine("set CMakePath=" + $cmakePath)
+
 }
 catch {
   [System.Console]::Error.WriteLine($_.Exception.Message)

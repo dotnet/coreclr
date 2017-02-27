@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 //
 
@@ -16,20 +17,20 @@ namespace System.Runtime.InteropServices.WindowsRuntime
     internal enum PropertyType
     {
         // WARNING: These values have to match enum Windows.Foundation.PropertyType !!!
-        Empty = 0, 
-        UInt8 = 1, 
+        Empty = 0,
+        UInt8 = 1,
         Int16 = 2,
         UInt16 = 3,
-        Int32 = 4, 
-        UInt32 = 5, 
-        Int64 = 6, 
-        UInt64 = 7, 
-        Single = 8, 
-        Double = 9, 
-        Char16 = 10, 
-        Boolean = 11, 
-        String = 12, 
-        Inspectable = 13, 
+        Int32 = 4,
+        UInt32 = 5,
+        Int64 = 6,
+        UInt64 = 7,
+        Single = 8,
+        Double = 9,
+        Char16 = 10,
+        Boolean = 11,
+        String = 12,
+        Inspectable = 13,
         DateTime = 14,
         TimeSpan = 15,
         Guid = 16,

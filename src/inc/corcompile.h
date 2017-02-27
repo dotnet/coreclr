@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*****************************************************************************\
 *                                                                             *
@@ -23,21 +22,16 @@
 #error FEATURE_PREJIT is required for this file
 #endif // FEATURE_PREJIT
 
-#if !defined(_TARGET_X86_)
+#if !defined(_TARGET_X86_) || defined(FEATURE_PAL)
 #ifndef WIN64EXCEPTIONS
 #define WIN64EXCEPTIONS
 #endif
-#endif  // !_TARGET_X86_
+#endif  // !_TARGET_X86_ || FEATURE_PAL
 
 #include <cor.h>
 #include <corhdr.h>
 #include <corinfo.h>
 #include <corjit.h>
-#ifdef FEATURE_FUSION
-#include <fusion.h>
-#include <fusionpriv.h>
-#include <binderngen.h>
-#endif //FEATURE_FUSION
 #include <sstring.h>
 #include <shash.h>
 #include <daccess.h>
@@ -73,22 +67,14 @@ typedef DPTR(struct CORCOMPILE_IMPORT_SECTION)
     PTR_CORCOMPILE_IMPORT_SECTION;
 
 #ifdef _TARGET_X86_
-//
-// x86 ABI does not define RUNTIME_FUNCTION. Define our own to allow unification between x86 and other platforms.
-//
-typedef struct _RUNTIME_FUNCTION {
-    DWORD BeginAddress;
-    DWORD UnwindData;
-} RUNTIME_FUNCTION, *PRUNTIME_FUNCTION;
 
 typedef DPTR(RUNTIME_FUNCTION) PTR_RUNTIME_FUNCTION;
 
-#define RUNTIME_FUNCTION__BeginAddress(prf)             (prf)->BeginAddress
 
 // Chained unwind info. Used for cold methods.
 #define RUNTIME_FUNCTION_INDIRECT 0x80000000
 
-#endif
+#endif // _TARGET_X86_
 
 // The stride is choosen as maximum value that still gives good page locality of RUNTIME_FUNCTION table touches (only one page of 
 // RUNTIME_FUNCTION table is going to be touched during most IP2MD lookups).
@@ -198,7 +184,9 @@ enum CorCompileCodegen
 
     CORCOMPILE_CODEGEN_PROFILING            = 0x0004,   // supports profiling
     CORCOMPILE_CODEGEN_PROF_INSTRUMENTING   = 0x0008,   // code is instrumented to collect profile count info
+
 };
+
 
 // Used for INativeImageInstallInfo::GetConfigMask()
 // A bind will ask for the particular bits it needs set; if all bits are set, it is a match.  Additional
@@ -225,6 +213,8 @@ enum CorCompileHeaderFlags
                                                                 // Note it is useless to cache the actual directory contents
                                                                 // since it must be verified as part of the original image
     CORCOMPILE_HEADER_IS_IBC_OPTIMIZED          = 0x00000002,
+
+    CORCOMPILE_HEADER_IS_READY_TO_RUN           = 0x00000004,
 };
 
 // 
@@ -239,7 +229,9 @@ enum CorCompileHeaderFlags
 struct CORCOMPILE_HEADER
 {
     // For backward compatibility reasons, VersionInfo field must be at offset 40, ManifestMetaData
-    // must be at 88, size of CORCOMPILE_HEADER must be 164/168 bytes.  Be careful when you modify this struct.  See code:PEDecoder::GetMetaDataHelper.
+    // must be at 88, PEKind must be at 112/116 bytes, Machine must be at 120/124 bytes, and
+    // size of CORCOMPILE_HEADER must be 164/168 bytes.  Be careful when you modify this struct.
+    // See code:PEDecoder::GetMetaDataHelper.
     DWORD                   Signature;
     USHORT                  MajorVersion;
     USHORT                  MinorVersion;
@@ -264,7 +256,6 @@ struct CORCOMPILE_HEADER
                                                 // training data. They can also be used to have better nidump support for
                                                 // decoding virtual section information ( start - end ranges for each
                                                 // virtual section )
-    IMAGE_DATA_DIRECTORY    EEInfoTable;    // points to a code:CORCOMPILE_EE_INFO_TABLE
 
     TADDR                   ImageBase;      // Actual image base address (ASLR fakes the image base in PE header while applying relocations in kernel)
     DWORD                   Flags;          // Flags, see CorCompileHeaderFlags above
@@ -274,6 +265,8 @@ struct CORCOMPILE_HEADER
     ULONG                   COR20Flags;     // Cached value of code:IMAGE_COR20_HEADER.Flags from original IL image
     WORD                    Machine;        // Cached value of _IMAGE_FILE_HEADER.Machine from original IL image
     WORD                    Characteristics;// Cached value of _IMAGE_FILE_HEADER.Characteristics from original IL image
+
+    IMAGE_DATA_DIRECTORY    EEInfoTable;    // points to a code:CORCOMPILE_EE_INFO_TABLE
 
     // For backward compatibility (see above)
     IMAGE_DATA_DIRECTORY    Dummy1;
@@ -339,7 +332,6 @@ struct CORCOMPILE_VIRTUAL_SECTION_INFO
     CORCOMPILE_SECTION_TYPE(CompressedMaps)                   \
     CORCOMPILE_SECTION_TYPE(Debug)                            \
     CORCOMPILE_SECTION_TYPE(BaseRelocs)                       \
-    CORCOMPILE_SECTION_TYPE(MDILData)                         \
 
 // Hot: Items are frequently accessed ( Indicated by either IBC data, or
 //      statically known )
@@ -672,9 +664,15 @@ enum CORCOMPILE_GCREFMAP_TOKENS
 // Tags for fixup blobs
 enum CORCOMPILE_FIXUP_BLOB_KIND
 {
-    ENCODE_MODULE_OVERRIDE      = 0x80,             /* When the high bit is set, override of the module immediately follows */
+    ENCODE_NONE                         = 0,
+    
+    ENCODE_MODULE_OVERRIDE              = 0x80,     /* When the high bit is set, override of the module immediately follows */
 
-    ENCODE_TYPE_HANDLE          = 0x10,             /* Type handle */
+    ENCODE_DICTIONARY_LOOKUP_THISOBJ    = 0x07,
+    ENCODE_DICTIONARY_LOOKUP_TYPE       = 0x08,
+    ENCODE_DICTIONARY_LOOKUP_METHOD     = 0x09,
+
+    ENCODE_TYPE_HANDLE                  = 0x10,     /* Type handle */
     ENCODE_METHOD_HANDLE,                           /* Method handle */
     ENCODE_FIELD_HANDLE,                            /* Field handle */
 
@@ -715,7 +713,9 @@ enum CORCOMPILE_FIXUP_BLOB_KIND
 
     ENCODE_DELEGATE_CTOR,
 
-    ENCODE_MODULE_HANDLE      = 0x50,               /* Module token */
+    ENCODE_DECLARINGTYPE_HANDLE,
+
+    ENCODE_MODULE_HANDLE                = 0x50,     /* Module token */
     ENCODE_STATIC_FIELD_ADDRESS,                    /* For accessing a static field */
     ENCODE_MODULE_ID_FOR_STATICS,                   /* For accessing static fields */
     ENCODE_MODULE_ID_FOR_GENERIC_STATICS,           /* For accessing static fields */
@@ -727,6 +727,7 @@ enum CORCOMPILE_FIXUP_BLOB_KIND
     ENCODE_VARARGS_METHODREF,
     ENCODE_VARARGS_SIG,
     ENCODE_ACTIVE_DEPENDENCY,                       /* Conditional active dependency */
+    ENCODE_METHOD_NATIVE_ENTRY,                     /* NativeCallable method token */
 };
 
 enum EncodeMethodSigFlags
@@ -821,12 +822,8 @@ struct CORCOMPILE_ASSEMBLY_SIGNATURE
 
 typedef enum
 {
-#ifdef FEATURE_CORECLR
     CORECLR_INFO,
-#else
-    CLR_INFO,
-    NGEN_COMPILER_INFO,
-#endif
+    CROSSGEN_COMPILER_INFO,
     NUM_RUNTIME_DLLS
 } CorCompileRuntimeDlls;
 
@@ -881,18 +878,6 @@ struct CORCOMPILE_VERSION_INFO
 };
 
 
-#ifndef FEATURE_CORECLR
-enum CorCompileDependencyInfo
-{
-#ifdef FEATURE_APTCA
-    CORCOMPILE_DEPENDENCY_IS_APTCA          = 0x1,
-    CORCOMPILE_DEPENDENCY_IS_CAPTCA         = 0x2,
-#endif //FEATURE_APTCA
-
-    CORCOMPILE_DEPENDENCY_PEKIND_MASK       = 0xff00,
-    CORCOMPILE_DEPENDENCY_PEKIND_SHIFT      = 8,
-};
-#endif //!FEATURE_CORECLR
 
 
 struct CORCOMPILE_DEPENDENCY
@@ -906,22 +891,18 @@ struct CORCOMPILE_DEPENDENCY
 
     CORCOMPILE_NGEN_SIGNATURE       signNativeImage;    // INVALID_NGEN_SIGNATURE if this a soft-bound dependency
 
-#ifdef FEATURE_APTCA
-    // Win32 version info for tracking dependency references to strong-named assemblies with APTCA
-    ULARGE_INTEGER                  uliFileVersion; // OS file version ~ NOT assembly version
-#endif //FEATURE_APTCA
 
-#ifndef FEATURE_CORECLR
-    CorCompileDependencyInfo        dependencyInfo;  //Flags about the dependency
-#endif //!FEATURE_CORECLR
 };
 
 /*********************************************************************************/
 // Flags used to encode HelperTable
-
+#if defined(_TARGET_ARM64_)
+#define HELPER_TABLE_ENTRY_LEN      16
+#else
 #define HELPER_TABLE_ENTRY_LEN      8
-#define HELPER_TABLE_ALIGN          8
+#endif //defined(_TARGET_ARM64_)
 
+#define HELPER_TABLE_ALIGN          8
 #define CORCOMPILE_HELPER_PTR       0x80000000 // The entry is pointer to the helper (jump thunk otherwise)
 
 // The layout of this struct is required to be
@@ -1140,7 +1121,7 @@ enum CorCompileILRegion
 class ICorCompilePreloader
 {
  public:
-    typedef void (__stdcall *CORCOMPILE_CompileStubCallback)(LPVOID pContext, CORINFO_METHOD_HANDLE hStub, DWORD dwJitFlags);
+    typedef void (__stdcall *CORCOMPILE_CompileStubCallback)(LPVOID pContext, CORINFO_METHOD_HANDLE hStub, CORJIT_FLAGS jitFlags);
 
     //
     // Map methods are available after Serialize() is called
@@ -1224,10 +1205,6 @@ class ICorCompilePreloader
     virtual void MethodReferencedByCompiledCode(CORINFO_METHOD_HANDLE handle) = 0;
 
     virtual BOOL IsUncompiledMethod(CORINFO_METHOD_HANDLE handle) = 0;
-
-#ifdef MDIL
-    virtual void AddMDILCodeFlavorsToUncompiledMethods(CORINFO_METHOD_HANDLE handle) = 0;
-#endif
 
     // Return a method handle that was previously registered and
     // hasn't been compiled already, and remove it from the set
@@ -1326,6 +1303,12 @@ class ICorCompilePreloader
     virtual void NoteDeduplicatedCode(
             CORINFO_METHOD_HANDLE method, 
             CORINFO_METHOD_HANDLE duplicateMethod) = 0;
+
+    // Returns a compressed encoding of the inline tracking map 
+    // for this compilation
+    virtual void GetSerializedInlineTrackingMap(
+            IN OUT SBuffer    * pSerializedInlineTrackingMap
+            ) = 0;
 
     //
     // Release frees the preloader
@@ -1426,13 +1409,6 @@ class ICorCompilationDomain
             DWORD                   *cDependencies
             ) = 0;
 
-#ifdef FEATURE_FUSION
-    // Use to retrieve the IBindContext to be used by the native binder.
-    // This is typically passed into InstallNativeAssembly.
-    virtual HRESULT GetIBindContext(
-            IBindContext **ppBindCtx
-            ) = 0;
-#endif
 
 #ifdef CROSSGEN_COMPILE
     virtual HRESULT SetPlatformWinmdPaths(
@@ -1444,24 +1420,13 @@ class ICorCompilationDomain
 /*********************************************************************************
  * ICorCompileInfo is the interface for a compiler
  *********************************************************************************/
-
 // Define function pointer ENCODEMODULE_CALLBACK
-typedef DWORD (__stdcall *ENCODEMODULE_CALLBACK)(LPVOID pModuleContext, CORINFO_MODULE_HANDLE moduleHandle);
+typedef DWORD (*ENCODEMODULE_CALLBACK)(LPVOID pModuleContext, CORINFO_MODULE_HANDLE moduleHandle);
 
 // Define function pointer DEFINETOKEN_CALLBACK
-typedef void (__stdcall *DEFINETOKEN_CALLBACK)(LPVOID pModuleContext, CORINFO_MODULE_HANDLE moduleHandle, DWORD index, mdTypeRef* token);
+typedef void (*DEFINETOKEN_CALLBACK)(LPVOID pModuleContext, CORINFO_MODULE_HANDLE moduleHandle, DWORD index, mdTypeRef* token);
 
-typedef HRESULT (__stdcall *CROSS_DOMAIN_CALLBACK)(LPVOID pArgs);
-
-#ifdef MDIL
-enum MDILCompilationFlags
-{
-    MDILCompilationFlags_None = 0,
-    MDILCompilationFlags_CreateMDIL = 1,
-    MDILCompilationFlags_MinimalMDIL = 2,
-    MDILCompilationFlags_NoMDIL = 4,
-};
-#endif // MDIL
+typedef HRESULT (*CROSS_DOMAIN_CALLBACK)(LPVOID pArgs);
 
 class ICorCompileInfo
 {
@@ -1500,9 +1465,6 @@ class ICorCompileInfo
             BOOL fForceProfiling,
             BOOL fForceInstrument,
             BOOL fForceFulltrustDomain
-#ifdef MDIL
-          , MDILCompilationFlags mdilCompilationFlags
-#endif
             ) = 0;
 
     // calls pfnCallback in the specified domain
@@ -1525,34 +1487,6 @@ class ICorCompileInfo
             CORINFO_ASSEMBLY_HANDLE *pHandle
             ) = 0;
 
-#ifdef FEATURE_FUSION
-    // Loads an assembly via fusion into the EE
-    // and returns a handle to it.
-    virtual HRESULT LoadAssemblyByName(
-            LPCWSTR                  wzName,
-            CORINFO_ASSEMBLY_HANDLE *pHandle
-            ) = 0;
-
-    // Loads an assembly via ref into the EE
-    // and returns a handle to it. The last parameter
-    // optionally allows an IAssemblyName for the ref
-    // (pre-policy) to be returned
-    virtual HRESULT LoadAssemblyRef(
-            IMDInternalImport       *pAssemblyImport,
-            mdAssemblyRef           ref,
-            CORINFO_ASSEMBLY_HANDLE *pHandle,
-            IAssemblyName           **refAssemblyName = NULL
-            ) = 0;
-
-    // Loads an assembly via its IAssemblyName.  This is 
-    // used by NGEN createpdb when generating PDBs for AutoNGENd images (it reads the
-    // IAssemblyName from the AUX file).
-    virtual HRESULT LoadAssemblyByIAssemblyName(
-            IAssemblyName           *pAssemblyName,
-            CORINFO_ASSEMBLY_HANDLE *pHandle
-            ) = 0;
-
-#endif //FEATURE_FUSION
 
 #ifdef FEATURE_COMINTEROP
     // Loads a WinRT typeref into the EE and returns
@@ -1576,21 +1510,6 @@ class ICorCompileInfo
             CORINFO_MODULE_HANDLE   *pHandle
             ) = 0;
 
-#ifndef BINDER
-#ifndef FEATURE_CORECLR
-    // Check if the assembly supports automatic NGen
-    virtual BOOL SupportsAutoNGen(
-        CORINFO_ASSEMBLY_HANDLE assembly
-        ) = 0;
-
-    // Tell OS to set cached signing level of the native image based on input assemblies
-    virtual HRESULT SetCachedSigningLevel(
-        HANDLE hNI,
-        HANDLE *pModules,
-        COUNT_T nModules
-        ) = 0;
-#endif
-#endif
 
     // Checks to see if an up to date zap exists for the
     // assembly
@@ -1601,58 +1520,19 @@ class ICorCompileInfo
         LPDWORD                 cAssemblyManifestModulePath
         ) = 0;
 
-#ifdef MDIL
-    // Get details of trust assigned to image
-    virtual DWORD GetMdilModuleSecurityFlags(
-        CORINFO_ASSEMBLY_HANDLE assembly
-        ) = 0;
-
-    // Check to see if the no string interning optimization is permitted.
-    virtual BOOL CompilerRelaxationNoStringInterningPermitted(
-        CORINFO_ASSEMBLY_HANDLE assembly
-        ) = 0;
-
-    // Check to see if the non Exception derived exceptions should be wrapped.
-    virtual BOOL RuntimeCompatibilityWrapExceptions(
-        CORINFO_ASSEMBLY_HANDLE assembly
-        ) = 0;
-
-    virtual DWORD CERReliabilityContract(
-        CORINFO_ASSEMBLY_HANDLE assembly
-        ) = 0;
-#endif // MDIL
-
     // Sets up the compilation target in the EE
     virtual HRESULT SetCompilationTarget(
             CORINFO_ASSEMBLY_HANDLE     assembly,
             CORINFO_MODULE_HANDLE       module
             ) = 0;
 
-#ifdef FEATURE_FUSION
-    enum GetAssemblyNameFlags
-    {
-        GANF_Default    = 0,
-        GANF_Simple     = 1,
-    };
-
-    // Returns the fusion name of an assembly
-    virtual HRESULT GetAssemblyName(
-            CORINFO_ASSEMBLY_HANDLE hAssembly,
-            DWORD                   dwFlags,
-            __out_ecount(*cchAssemblyName)
-            __out_z LPWSTR          wzAssemblyName, 
-            LPDWORD                 cchAssemblyName
-            ) = 0;
-#endif //FEATURE_FUSION
 
     // Returns the dependency load setting for an assembly ref
     virtual HRESULT GetLoadHint(
             CORINFO_ASSEMBLY_HANDLE hAssembly,
             CORINFO_ASSEMBLY_HANDLE hAssemblyDependency,
             LoadHintEnum *loadHint,
-			// TritonTODO: should this be inside ifdef?
-            LoadHintEnum *defaultLoadHint = NULL // for MDIL we want to separate the default load hint on the assembly
-                                                 // from the load hint on the dependency
+            LoadHintEnum *defaultLoadHint = NULL
             ) = 0;
 
     // Returns information on how the assembly has been loaded
@@ -1783,7 +1663,8 @@ class ICorCompileInfo
             LPVOID encodeContext,
             ENCODEMODULE_CALLBACK pfnEncodeModule,
             CORINFO_RESOLVED_TOKEN * pResolvedToken = NULL,
-            CORINFO_RESOLVED_TOKEN * pConstrainedResolvedToken = NULL) = 0;
+            CORINFO_RESOLVED_TOKEN * pConstrainedResolvedToken = NULL,
+            BOOL fEncodeUsingResolvedTokenSpecStreams = FALSE) = 0;
 
     // Returns non-null methoddef or memberref token if it is sufficient to encode the method (no generic instantiations, etc.)
     virtual mdToken TryEncodeMethodAsToken(
@@ -1802,7 +1683,8 @@ class ICorCompileInfo
             SigBuilder * pSigBuilder,
             LPVOID encodeContext,
             ENCODEMODULE_CALLBACK pfnEncodeModule,
-            CORINFO_RESOLVED_TOKEN * pResolvedToken = NULL) = 0;
+            CORINFO_RESOLVED_TOKEN * pResolvedToken = NULL,
+            BOOL fEncodeUsingResolvedTokenSpecStreams = FALSE) = 0;
 
 
     // Encode generic dictionary signature
@@ -1827,13 +1709,6 @@ class ICorCompileInfo
             ICorCompileDataStore    *pData,
             CorProfileData          *profileData
             ) = 0;
-
-#ifdef MDIL
-    // Returns whether or not a method should be compiled. S_OK for yes, S_FALSE for no.
-    virtual HRESULT ShouldCompile(
-            CORINFO_METHOD_HANDLE   methodHandle
-            ) = 0;
-#endif // MDIL
 
     // Gets the codebase URL for the assembly
     virtual void GetAssemblyCodeBase(
@@ -1872,7 +1747,7 @@ class ICorCompileInfo
     // Get the compilation flags that are shared between JIT and NGen
     virtual HRESULT GetBaseJitFlags(
             IN  CORINFO_METHOD_HANDLE   hMethod,
-            OUT DWORD                  *pFlags) = 0;
+            OUT CORJIT_FLAGS           *pFlags) = 0;
 
     // needed for stubs to obtain the number of bytes to copy into the native image
     // return the beginning of the stub and the size to copy (in bytes)
@@ -1882,15 +1757,8 @@ class ICorCompileInfo
     // to 1 on the clone. The buffer has to be large enough to hold the stub object and the code
     virtual HRESULT GetStubClone(void *pStub, BYTE *pBuffer, DWORD dwBufferSize) = 0;
 
-#ifdef CLR_STANDALONE_BINDER
-    virtual HRESULT GetMetadataRvaInfo(
-            OUT DWORD   *pFirstMethodRvaOffset,
-            OUT DWORD   *pMethodDefRecordSize,
-            OUT DWORD   *pMethodDefCount,
-            OUT DWORD   *pFirstFieldRvaOffset,
-            OUT DWORD   *pFieldRvaRecordSize,
-            OUT DWORD   *pFieldRvaCount) = 0;
-#endif
+    // true if the method has [NativeCallableAttribute]
+    virtual BOOL IsNativeCallableMethod(CORINFO_METHOD_HANDLE handle) = 0;
 
     virtual BOOL GetIsGeneratingNgenPDB() = 0;
     virtual void SetIsGeneratingNgenPDB(BOOL fGeneratingNgenPDB) = 0;
@@ -1905,22 +1773,28 @@ class ICorCompileInfo
     virtual void EncodeTypeLayout(CORINFO_CLASS_HANDLE classHandle, SigBuilder * pSigBuilder) = 0;
 
     virtual BOOL AreAllClassesFullyLoaded(CORINFO_MODULE_HANDLE moduleHandle) = 0;
+
+    virtual int GetVersionResilientTypeHashCode(CORINFO_MODULE_HANDLE moduleHandle, mdToken token) = 0;
+
+    virtual int GetVersionResilientMethodHashCode(CORINFO_METHOD_HANDLE methodHandle) = 0;
 #endif
+
+    virtual BOOL HasCustomAttribute(CORINFO_METHOD_HANDLE method, LPCSTR customAttributeName) = 0;
 };
 
 /*****************************************************************************/
 // This function determines the compile flags to use for a generic intatiation
 // since only the open instantiation can be verified.
-// See the comment associated with CORJIT_FLG_SKIP_VERIFICATION for details.
+// See the comment associated with CORJIT_FLAG_SKIP_VERIFICATION for details.
 //
 // On return:
 // if *raiseVerificationException=TRUE, the caller should raise a VerificationException.
 // if *unverifiableGenericCode=TRUE, the method is a generic instantiation with
 // unverifiable code
 
-CorJitFlag GetCompileFlagsIfGenericInstantiation(
+CORJIT_FLAGS GetCompileFlagsIfGenericInstantiation(
         CORINFO_METHOD_HANDLE method,
-        CorJitFlag compileFlags,
+        CORJIT_FLAGS compileFlags,
         ICorJitInfo * pCorJitInfo,
         BOOL * raiseVerificationException,
         BOOL * unverifiableGenericCode);
@@ -1939,15 +1813,9 @@ extern "C" ICorCompileInfo * __stdcall GetCompileInfo();
 extern "C" unsigned __stdcall PartialNGenStressPercentage();
 
 // create a PDB dumping all functions in hAssembly into pdbPath
-extern "C" HRESULT __stdcall CreatePdb(CORINFO_ASSEMBLY_HANDLE hAssembly, BSTR pNativeImagePath, BSTR pPdbPath, BOOL pdbLines, BSTR pManagedPdbSearchPath);
+extern "C" HRESULT __stdcall CreatePdb(CORINFO_ASSEMBLY_HANDLE hAssembly, BSTR pNativeImagePath, BSTR pPdbPath, BOOL pdbLines, BSTR pManagedPdbSearchPath, LPCWSTR pDiasymreaderPath);
 
-#ifdef MDIL
-extern bool g_fIsNGenEmbedILProcess;
-#endif // MDIL
-
-#if defined(FEATURE_CORECLR) || defined(CROSSGEN_COMPILE)
 extern bool g_fNGenMissingDependenciesOk;
-#endif
 
 extern bool g_fNGenWinMDResilient;
 

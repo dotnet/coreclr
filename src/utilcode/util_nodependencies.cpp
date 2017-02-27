@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //*****************************************************************************
 // Util_NoDependencies.cpp
 // 
@@ -211,6 +210,9 @@ CHECK_SUPPORTED:
 // Returns TRUE if we are running on a 64-bit OS in WoW, FALSE otherwise.
 BOOL RunningInWow64()
 {
+    #ifdef PLATFORM_UNIX
+    return FALSE;
+    #else
     static int s_Wow64Process;
 
     if (s_Wow64Process == 0)
@@ -224,6 +226,7 @@ BOOL RunningInWow64()
     }
 
     return (s_Wow64Process == 1) ? TRUE : FALSE;
+    #endif
 }
 #endif
 
@@ -299,7 +302,6 @@ BOOL GetRegistryLongValue(HKEY    hKeyParent,
 // 
 // Arguments:
 //    pBuffer - output string buffer
-//    pcchBuffer - the number of characters of the string buffer
 //
 // Return Value:
 //    S_OK on success, else detailed error code.
@@ -307,39 +309,19 @@ BOOL GetRegistryLongValue(HKEY    hKeyParent,
 // Note:
 //
 //----------------------------------------------------------------------------
-HRESULT GetCurrentModuleFileName(__out_ecount(*pcchBuffer) LPWSTR pBuffer, __inout DWORD *pcchBuffer)
+HRESULT GetCurrentModuleFileName(SString& pBuffer)
 {
     LIMITED_METHOD_CONTRACT;
 
-    if ((pBuffer == NULL) || (pcchBuffer == NULL))
-    {
-        return E_INVALIDARG;
-    }
+   
+    DWORD ret = WszGetModuleFileName(NULL, pBuffer);
 
-    // Get the appname to look up in the exclusion or inclusion list.
-    WCHAR appPath[MAX_PATH + 2];
-
-    DWORD ret = WszGetModuleFileName(NULL, appPath, NumItems(appPath));
-
-    if ((ret == NumItems(appPath)) || (ret == 0))
+    if (ret == 0)
     {   
-        // The module file name exceeded maxpath, or GetModuleFileName failed.
         return E_UNEXPECTED;
     }
 
-    // Pick off the part after the path.
-    WCHAR* appName =  wcsrchr(appPath, W('\\'));
-
-    // If no backslash, use the whole name; if there is a backslash, skip it.
-    appName = appName ? appName+1 : appPath;
-
-    if (*pcchBuffer < wcslen(appName))
-    {
-        *pcchBuffer = static_cast<DWORD>(wcslen(appName)) + 1; 
-        return HRESULT_FROM_WIN32(ERROR_INSUFFICIENT_BUFFER);
-    }
-
-    wcscpy_s(pBuffer, *pcchBuffer, appName);
+    
     return S_OK;
 }
 
@@ -380,11 +362,10 @@ BOOL IsCurrentModuleFileNameInAutoExclusionList()
         return FALSE;
     }
 
-    WCHAR wszAppName[MAX_PATH];
-    DWORD cchAppName = NumItems(wszAppName);
-
+    PathString wszAppName;
+    
     // Get the appname to look up in the exclusion or inclusion list.
-    if (GetCurrentModuleFileName(wszAppName, &cchAppName) != S_OK)
+    if (GetCurrentModuleFileName(wszAppName) != S_OK)
     {
         // Assume it is not on the exclusion list if we cannot find the module's filename.
         return FALSE;
@@ -415,7 +396,7 @@ void GetDebuggerSettingInfo(SString &ssDebuggerString, BOOL *pfAuto)
 
     EX_TRY
     {
-        DWORD cchDebuggerString = MAX_PATH;
+        DWORD cchDebuggerString = MAX_LONGPATH;
         INDEBUG(DWORD cchOldDebuggerString = cchDebuggerString);
 
         WCHAR * buf = ssDebuggerString.OpenUnicodeBuffer(cchDebuggerString);   
@@ -512,7 +493,7 @@ HRESULT GetDebuggerSettingInfoWorker(__out_ecount_part_opt(*pcchDebuggerString, 
     }
 
     // Look in AeDebug key for "Debugger"; get the size of any value stored there.
-    DWORD valueType, valueSize;
+    DWORD valueType, valueSize = 0;
     ret = WszRegQueryValueEx(hKeyHolder, kUnmanagedDebuggerValue, 0, &valueType, 0, &valueSize);   
 
     _ASSERTE(pcchDebuggerString != NULL);
@@ -549,12 +530,11 @@ HRESULT GetDebuggerSettingInfoWorker(__out_ecount_part_opt(*pcchDebuggerString, 
             BOOL fAuto = FALSE;
 
             // Get the appname to look up in DebugApplications key.
-            WCHAR wzAppName[MAX_PATH];
-            DWORD cchAppName = NumItems(wzAppName);
+            PathString wzAppName;
             long iValue;
 
             // Check DebugApplications setting
-            if ((SUCCEEDED(GetCurrentModuleFileName(wzAppName, &cchAppName))) &&
+            if ((SUCCEEDED(GetCurrentModuleFileName(wzAppName))) &&
                 (
                     GetRegistryLongValue(HKEY_LOCAL_MACHINE, kDebugApplicationsPoliciesKey, wzAppName, &iValue, TRUE) ||
                     GetRegistryLongValue(HKEY_LOCAL_MACHINE, kDebugApplicationsKey, wzAppName, &iValue, TRUE) ||
@@ -569,9 +549,9 @@ HRESULT GetDebuggerSettingInfoWorker(__out_ecount_part_opt(*pcchDebuggerString, 
             {
                 // Look in AeDebug key for "Auto"; get the size of any value stored there.
                 ret = WszRegQueryValueEx(hKeyHolder, kUnmanagedDebuggerAutoValue, 0, &valueType, 0, &valueSize);
-                if ((ret == ERROR_SUCCESS) && (valueType == REG_SZ) && (valueSize / sizeof(WCHAR) < MAX_PATH))
+                if ((ret == ERROR_SUCCESS) && (valueType == REG_SZ) && (valueSize / sizeof(WCHAR) < MAX_LONGPATH))
                 {   
-                    WCHAR wzAutoKey[MAX_PATH];
+                    WCHAR wzAutoKey[MAX_LONGPATH];
                     valueSize = NumItems(wzAutoKey) * sizeof(WCHAR);
                     WszRegQueryValueEx(hKeyHolder, kUnmanagedDebuggerAutoValue, NULL, NULL, reinterpret_cast< LPBYTE >(wzAutoKey), &valueSize);
 
@@ -998,10 +978,18 @@ HighCharHelper::HighCharTable[]= {
     TRUE, /* 0x7, .*/
     TRUE, /* 0x8, .*/
     FALSE, /* 0x9,   */
+#ifdef PLATFORM_UNIX
+    TRUE, /* 0xA,  */
+#else    
     FALSE, /* 0xA,  */
+#endif // PLATFORM_UNIX
     FALSE, /* 0xB, .*/
     FALSE, /* 0xC, .*/
+#ifdef PLATFORM_UNIX
+    TRUE, /* 0xD,  */
+#else    
     FALSE, /* 0xD,  */
+#endif // PLATFORM_UNIX
     TRUE, /* 0xE, .*/
     TRUE, /* 0xF, .*/
     TRUE, /* 0x10, .*/

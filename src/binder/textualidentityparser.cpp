@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 // ============================================================
 //
 // TextualIdentityParser.cpp
@@ -189,19 +188,6 @@ namespace BINDER_SPACE
             return NULL;
         }
 
-        BOOL ValidateAndConvertContentType(
-                SString &             ssContentType, 
-                AssemblyContentType * pkContentType)
-        {
-            if (EqualsCaseInsensitive(ssContentType, W("WindowsRuntime")))
-            {
-                *pkContentType = AssemblyContentType_WindowsRuntime;
-                return TRUE;
-            }
-            
-            return FALSE;
-        }
-        
         LPCWSTR ContentTypeToString(AssemblyContentType kContentType)
         {
             _ASSERTE(kContentType != AssemblyContentType_Default);

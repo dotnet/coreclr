@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //
 
 //
@@ -117,16 +116,13 @@ public:
         // to start a funclet-skipping stackwalk in this time window.
         TEF_InconsistentExceptionState    = 0x00000001,
 
-#if defined(FEATURE_EXCEPTIONDISPATCHINFO)
         TEF_ForeignExceptionRaise         = 0x00000002,
-#endif // defined(FEATURE_EXCEPTIONDISPATCHINFO)
     };
 
     void SetThreadExceptionFlag(ThreadExceptionFlag flag);
     void ResetThreadExceptionFlag(ThreadExceptionFlag flag);
     BOOL HasThreadExceptionFlag(ThreadExceptionFlag flag);
 
-#if defined(FEATURE_EXCEPTIONDISPATCHINFO)
     inline void SetRaisingForeignException()
     {
         LIMITED_METHOD_CONTRACT;
@@ -144,7 +140,6 @@ public:
         LIMITED_METHOD_CONTRACT;
         ResetThreadExceptionFlag(TEF_ForeignExceptionRaise);
     }
-#endif // defined(FEATURE_EXCEPTIONDISPATCHINFO)
 
 #if defined(_DEBUG)
     void AssertStackTraceInfo(StackTraceInfo *pSTI);

@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //----------------------------------------------------------------------------
 //  spinlock.h , defines the spin lock class and a profiler class
 //
@@ -154,9 +153,6 @@ private:
     union {
         // m_lock has to be the fist data member in the class
         LONG                m_lock;     // LONG used in interlocked exchange
-#ifdef FEATURE_INCLUDE_ALL_INTERFACES
-        IHostCrst          *m_hostLock;
-#endif // FEATURE_INCLUDE_ALL_INTERFACES
     };
 
     enum SpinLockState
@@ -211,24 +207,14 @@ public:
     static void AcquireLock(SpinLock *s, Thread * pThread);
     static void ReleaseLock(SpinLock *s, Thread * pThread);
 
-#ifdef FEATURE_INCLUDE_ALL_INTERFACES
-#define SPINLOCK_THREAD_PARAM_ONLY_IN_SOME_BUILDS  m_pThread
-#else
 #define SPINLOCK_THREAD_PARAM_ONLY_IN_SOME_BUILDS   NULL
-#endif
 
     class Holder
     {
         SpinLock *  m_pSpinLock;
-#ifdef FEATURE_INCLUDE_ALL_INTERFACES
-        Thread *    m_pThread;
-#endif
     public:
         Holder(SpinLock * s) : 
           m_pSpinLock(s)
-#ifdef FEATURE_INCLUDE_ALL_INTERFACES
-          , m_pThread(GetThread())
-#endif
         {
             SCAN_SCOPE_BEGIN;
             STATIC_CONTRACT_GC_NOTRIGGER;

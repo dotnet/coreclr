@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //
 
 //
@@ -55,35 +54,40 @@ namespace clr
             }
 
             //-----------------------------------------------------------------------------------------
-            static inline bool
-            HasUncPrefix(LPCWSTR wzPath)
-            {
-                _ASSERTE(!clr::str::IsNullOrEmpty(wzPath)); // Must check this first.
-                return wzPath[0] != W('\0') && wzPath[0] == W('\\')
-                    && wzPath[1] != W('\0') && wzPath[1] == W('\\')
-                    && wzPath[2] != W('\0') && wzPath[2] != W('?');
-            }
-
-            //-----------------------------------------------------------------------------------------
-            static inline bool
-            HasDrivePrefix(LPCWSTR wzPath)
-            {
-                _ASSERTE(!clr::str::IsNullOrEmpty(wzPath)); // Must check this first.
-                return wzPath[0] != W('\0')
-                    && wzPath[1] != W('\0') && wzPath[1] == W(':')
-                    && ((wzPath[0] >= W('a') && wzPath[0] <= W('z')) ||
-                        (wzPath[0] >= W('A') && wzPath[0] <= W('Z')));
-            }
-
-            //-----------------------------------------------------------------------------------------
             // Returns true if wzPath represents a relative path.
             static inline bool
             IsRelative(LPCWSTR wzPath)
             {
-                _ASSERTE(!clr::str::IsNullOrEmpty(wzPath)); // Must check this first.
-                return !HasLongFormatPrefix(wzPath)
-                    && !HasUncPrefix(wzPath)
-                    && (!HasDrivePrefix(wzPath) || wzPath[2] != W('\\'));
+                _ASSERTE(wzPath != nullptr);
+
+                // Similar to System.IO.Path.IsRelative()
+#if PLATFORM_UNIX
+                if(wzPath[0] == VOLUME_SEPARATOR_CHAR_W)
+                {
+                    return false;
+                }
+#else
+                // Check for a paths like "C:\..." or "\\...". Additional notes:
+                // - "\\?\..." - long format paths are considered as absolute paths due to the "\\" prefix
+                // - "\..." - these paths are relative, as they depend on the current drive
+                // - "C:..." and not "C:\..." - these paths are relative, as they depend on the current directory for drive C
+                if (wzPath[0] != W('\0') &&
+                    wzPath[1] == VOLUME_SEPARATOR_CHAR_W &&
+                    wzPath[2] == DIRECTORY_SEPARATOR_CHAR_W &&
+                    (
+                        (wzPath[0] >= W('A') && wzPath[0] <= W('Z')) ||
+                        (wzPath[0] >= W('a') && wzPath[0] <= W('z'))
+                    ))
+                {
+                    return false;
+                }
+                if (wzPath[0] == DIRECTORY_SEPARATOR_CHAR_W && wzPath[1] == DIRECTORY_SEPARATOR_CHAR_W)
+                {
+                    return false;
+                }
+#endif
+
+                return true;
             }
 
             //-----------------------------------------------------------------------------------------
@@ -92,7 +96,7 @@ namespace clr
             // result is placed in wzBuffer and the number of chars written is placed in pcchBuffer on
             // success; otherwise an error HRESULT is returned.
             static HRESULT
-            Combine(LPCWSTR wzPathLeft, LPCWSTR wzPathRight, __out DWORD *pcchBuffer, __out_ecount(*pcchBuffer) LPWSTR wzBuffer)
+            Combine(LPCWSTR wzPathLeft, LPCWSTR wzPathRight, __in DWORD *pcchBuffer, __out_ecount(*pcchBuffer) LPWSTR wzBuffer)
             {
                 STATIC_CONTRACT_NOTHROW;
 
@@ -105,7 +109,7 @@ namespace clr
                 size_t cchBuf = *pcchBuffer;
 
                 IfFailRet(StringCchCopyExW(wzBuf, cchBuf, wzPathLeft, &wzBuf, &cchBuf, STRSAFE_NULL_ON_FAILURE));
-                IfFailRet(StringCchCatExW(wzBuf, cchBuf, wzBuf[-1] == W('\\') ? W("") : W("\\"), &wzBuf, &cchBuf, STRSAFE_NULL_ON_FAILURE));
+                IfFailRet(StringCchCatExW(wzBuf, cchBuf, wzBuf[-1] == DIRECTORY_SEPARATOR_CHAR_W ? W("") : DIRECTORY_SEPARATOR_STR_W, &wzBuf, &cchBuf, STRSAFE_NULL_ON_FAILURE));
                 IfFailRet(StringCchCatExW(wzBuf, cchBuf, wzPathRight, &wzBuf, &cchBuf, STRSAFE_NULL_ON_FAILURE));
 
                 return S_OK;

@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //
 //
 // Provides VM-specific AppX utility code.
@@ -149,48 +148,9 @@ namespace AppX
         }
         CONTRACTL_END
 
-#ifdef FEATURE_CORECLR
         // CoreCLR does not have proper support for AppX design mode. Once/if it has one, it should not need
         // any special casing like desktop. Avoid the expensive check completely.
         return false;
-#else
-        // DevMode does not change over the lifetime of a process and is expensive to compute
-        // Cache the first answer and return it once computed; idempotent so races are fine
-        static enum
-        {
-            CachedAppxMode_Unknown,
-            CachedAppxMode_Normal,
-            CachedAppxMode_Design
-        }
-        s_cachedAppxMode = CachedAppxMode_Unknown;
-
-        bool result = false;
-
-        switch (s_cachedAppxMode)
-        {
-            case CachedAppxMode_Unknown:
-                if (SUCCEEDED(IsAppXDesignModeWorker(&result)))
-                {   // Cache the result on success; otherwise use the default value of false.
-                    s_cachedAppxMode = result ? CachedAppxMode_Design : CachedAppxMode_Normal;
-                }
-                break;
-
-            case CachedAppxMode_Normal:
-                result = false;
-                break;
-
-            case CachedAppxMode_Design:
-                result = true;
-                break;
-        }
-
-#ifdef _DEBUG
-        bool dbg_result = false;
-        _ASSERTE(FAILED(IsAppXDesignModeWorker(&dbg_result)) || dbg_result == result);
-#endif
-
-        return result;
-#endif // FEATURE_CORECLR
     }
 
     HRESULT GetApplicationId(LPCWSTR& rString)

@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //*****************************************************************************
 // LoaderHeap.h
 //
@@ -486,16 +485,19 @@ public:
         m_fExplicitControl = FALSE;
     }
 
-    ~LoaderHeap()
+#endif // DACCESS_COMPILE
+
+    virtual ~LoaderHeap()
     {
         WRAPPER_NO_CONTRACT;
 
+#ifndef DACCESS_COMPILE
         if (m_CriticalSection != NULL)
         {
             ClrDeleteCriticalSection(m_CriticalSection);
         }
-    }
 #endif // DACCESS_COMPILE
+    }
 
 
 

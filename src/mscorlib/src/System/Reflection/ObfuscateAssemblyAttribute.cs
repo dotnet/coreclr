@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 // 
 
@@ -9,8 +10,7 @@ using System.Reflection;
 
 namespace System.Reflection
 {
-    [AttributeUsage (AttributeTargets.Assembly, AllowMultiple=false, Inherited=false)]
-[System.Runtime.InteropServices.ComVisible(true)]
+    [AttributeUsage(AttributeTargets.Assembly, AllowMultiple = false, Inherited = false)]
     public sealed class ObfuscateAssemblyAttribute : Attribute
     {
         private bool m_assemblyIsPrivate;

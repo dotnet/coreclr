@@ -1,5 +1,6 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System;
 using System.Collections;
@@ -10,7 +11,8 @@ using System.Runtime.InteropServices;
 using System.Runtime.InteropServices.WindowsRuntime;
 
 
-namespace System.Runtime.InteropServices.WindowsRuntime {
+namespace System.Runtime.InteropServices.WindowsRuntime
+{
     [Serializable]
     [DebuggerDisplay("Count = {Count}")]
     internal sealed class DictionaryValueCollection<TKey, TValue> : ICollection<TValue>
@@ -20,7 +22,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime {
         public DictionaryValueCollection(IDictionary<TKey, TValue> dictionary)
         {
             if (dictionary == null)
-                throw new ArgumentNullException("dictionary");
+                throw new ArgumentNullException(nameof(dictionary));
 
             this.dictionary = dictionary;
         }
@@ -28,9 +30,9 @@ namespace System.Runtime.InteropServices.WindowsRuntime {
         public void CopyTo(TValue[] array, int index)
         {
             if (array == null)
-                throw new ArgumentNullException("array");
+                throw new ArgumentNullException(nameof(array));
             if (index < 0)
-                throw new ArgumentOutOfRangeException("index");
+                throw new ArgumentOutOfRangeException(nameof(index));
             if (array.Length <= index && this.Count > 0)
                 throw new ArgumentException(Environment.GetResourceString("Arg_IndexOutOfRangeException"));
             if (array.Length - index < dictionary.Count)
@@ -43,11 +45,13 @@ namespace System.Runtime.InteropServices.WindowsRuntime {
             }
         }
 
-        public int Count {
+        public int Count
+        {
             get { return dictionary.Count; }
         }
 
-        bool ICollection<TValue>.IsReadOnly {
+        bool ICollection<TValue>.IsReadOnly
+        {
             get { return true; }
         }
 
@@ -96,10 +100,10 @@ namespace System.Runtime.InteropServices.WindowsRuntime {
         public DictionaryValueEnumerator(IDictionary<TKey, TValue> dictionary)
         {
             if (dictionary == null)
-                throw new ArgumentNullException("dictionary");
+                throw new ArgumentNullException(nameof(dictionary));
 
             this.dictionary = dictionary;
-            this.enumeration = dictionary.GetEnumerator();
+            enumeration = dictionary.GetEnumerator();
         }
 
         void IDisposable.Dispose()
@@ -112,11 +116,13 @@ namespace System.Runtime.InteropServices.WindowsRuntime {
             return enumeration.MoveNext();
         }
 
-        Object IEnumerator.Current {
+        Object IEnumerator.Current
+        {
             get { return ((IEnumerator<TValue>)this).Current; }
         }
 
-        public TValue Current {
+        public TValue Current
+        {
             get { return enumeration.Current.Value; }
         }
 

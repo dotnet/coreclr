@@ -1,5 +1,6 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 //
 
@@ -24,7 +25,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         internal ListToBindableVectorViewAdapter(IList list)
         {
             if (list == null)
-                throw new ArgumentNullException("list");
+                throw new ArgumentNullException(nameof(list));
 
             Contract.EndContractBlock();
 
@@ -37,7 +38,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             // that Size > Int32.MaxValue:
             if (((uint)Int32.MaxValue) <= index || index >= (uint)listCapacity)
             {
-                Exception e = new ArgumentOutOfRangeException("index", Environment.GetResourceString("ArgumentOutOfRange_IndexLargerThanMaxValue"));
+                Exception e = new ArgumentOutOfRangeException(nameof(index), Environment.GetResourceString("ArgumentOutOfRange_IndexLargerThanMaxValue"));
                 e.SetErrorCode(__HResults.E_BOUNDS);
                 throw e;
             }
@@ -60,7 +61,6 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             try
             {
                 return list[(int)index];
-
             }
             catch (ArgumentOutOfRangeException ex)
             {

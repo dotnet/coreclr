@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 // The TypeCode enum represents the type code of an object. To obtain the
 // TypeCode for a given object, use the Value.GetTypeCode() method. The
@@ -19,10 +20,12 @@
 // These types of values are instead represented as classes. When the type code
 // of an object is TypeCode.Object, a further instance-of check can be used to
 // determine if the object is one of these values.
-namespace System {
+
+namespace System
+{
     [Serializable]
-    [System.Runtime.InteropServices.ComVisible(true)]
-    public enum TypeCode {
+    public enum TypeCode
+    {
         Empty = 0,          // Null reference
         Object = 1,         // Instance that isn't a value
         DBNull = 2,         // Database null value
@@ -43,5 +46,3 @@ namespace System {
         String = 18,        // Unicode character string
     }
 }
-
-

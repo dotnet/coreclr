@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
@@ -12,30 +13,33 @@
 //  
 //  
 //
-namespace System.Reflection {
+
+namespace System.Reflection
+{
     using System;
     using SystemException = System.SystemException;
     using System.Runtime.Serialization;
     [Serializable]
-[System.Runtime.InteropServices.ComVisible(true)]
     public sealed class AmbiguousMatchException : SystemException
     {
-        
-        public AmbiguousMatchException() 
-            : base(Environment.GetResourceString("RFLCT.Ambiguous")) {
-            SetErrorCode(__HResults.COR_E_AMBIGUOUSMATCH);
-        }
-    
-        public AmbiguousMatchException(String message) : base(message) {
-            SetErrorCode(__HResults.COR_E_AMBIGUOUSMATCH);
-        }
-        
-        public AmbiguousMatchException(String message, Exception inner)  : base(message, inner) {
+        public AmbiguousMatchException()
+            : base(Environment.GetResourceString("RFLCT.Ambiguous"))
+        {
             SetErrorCode(__HResults.COR_E_AMBIGUOUSMATCH);
         }
 
-        internal AmbiguousMatchException(SerializationInfo info, StreamingContext context) : base(info, context) {
+        public AmbiguousMatchException(String message) : base(message)
+        {
+            SetErrorCode(__HResults.COR_E_AMBIGUOUSMATCH);
         }
 
+        public AmbiguousMatchException(String message, Exception inner) : base(message, inner)
+        {
+            SetErrorCode(__HResults.COR_E_AMBIGUOUSMATCH);
+        }
+
+        internal AmbiguousMatchException(SerializationInfo info, StreamingContext context) : base(info, context)
+        {
+        }
     }
 }

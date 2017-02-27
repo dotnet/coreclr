@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 // 
 
 // 
@@ -39,22 +38,12 @@ namespace SecurityAttributes
     // Creates a new permission set
     OBJECTREF CreatePermissionSet(BOOL fTrusted);
 
-#ifdef FEATURE_CAS_POLICY
-    // Takes two PermissionSets (referenced by index) and merges them (unions or intersects
-    // depending on fIntersect) and returns the index of the merged PermissionSet
-    PsetCacheEntry* MergePermissionSets(IN PsetCacheEntry *pPCE1, IN PsetCacheEntry *pPCE2, IN bool fIntersect, IN DWORD dwAction);
-#endif // FEATURE_CAS_POLICY
 
     // Uses new to create the byte array that is returned.
     void CopyByteArrayToEncoding(IN U1ARRAYREF* pArray,
                                         OUT PBYTE* pbData,
                                         OUT DWORD* cbData);
 
-#ifdef FEATURE_CAS_POLICY
-    void EncodePermissionSet(IN OBJECTREF* pRef,
-                                    OUT PBYTE* ppbData,
-                                    OUT DWORD* pcbData);
-#endif // FEATURE_CAS_POLICY
 
     // Generic routine, use with encoding calls that 
     // use the EncodePermission client data
@@ -126,16 +115,6 @@ namespace SecurityAttributes
     void AttrArrayToPermissionSet(OBJECTREF* attrArray, bool fSerialize, DWORD attrCount, BYTE **ppbOutput, DWORD *pcbOutput, BYTE **ppbNonCasOutput, DWORD *pcbNonCasOutput, bool fAllowEmptyPermissionSet, OBJECTREF* pPermSet);
     void AttrSetBlobToPermissionSets(IN BYTE* pbRawPermissions, IN DWORD cbRawPermissions, OUT OBJECTREF* pObj, IN DWORD dwAction);
 
-#ifdef FEATURE_CAS_POLICY
-    void XmlToPermissionSet(PBYTE pbXmlBlob,
-                                    DWORD cbXmlBlob,
-                                    OBJECTREF* pPermSet,
-                                    OBJECTREF* pEncoding,
-                                    PBYTE pbNonCasXmlBlob,
-                                    DWORD cbNonCasXmlBlob,
-                                    OBJECTREF* pNonCasPermSet,
-                                    OBJECTREF* pNonCasEncoding);
-#endif // FEATURE_CAS_POLICY
 
 
     bool ActionAllowsNullPermissionSet(CorDeclSecurity action);

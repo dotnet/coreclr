@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //
 // File: eventtracepriv.h
 // 
@@ -24,7 +23,10 @@
 #define _countof(_array) (sizeof(_array)/sizeof(_array[0]))
 #endif
 
-const UINT cbMaxEtwEvent = 64 * 1024;
+// ETW has a limitation of 64K for TOTAL event Size, however there is overhead associated with 
+// the event headers.   It is unclear exactly how much that is, but 1K should be sufficiently
+// far away to avoid problems without sacrificing the perf of bulk processing.  
+const UINT cbMaxEtwEvent = 63 * 1024;
 
 //---------------------------------------------------------------------------------------
 // C++ copies of ETW structures
@@ -292,6 +294,10 @@ private:
     // List of types we've batched.
     BulkTypeValue m_rgBulkTypeValues[kMaxCountTypeValues];
 
+#ifdef FEATURE_PAL
+    BYTE m_BulkTypeEventBuffer[65536];
+#endif
+
 #ifdef FEATURE_REDHAWK
     int LogSingleType(EEType * pEEType);
 #else
@@ -342,7 +348,7 @@ private:
     void FlushCcw();
 
     // Callback used during handle table enumeration.
-    static void HandleWalkCallback(PTR_UNCHECKED_OBJECTREF pref, LPARAM *pExtraInfo, LPARAM param1, LPARAM param2);
+    static void HandleWalkCallback(PTR_UNCHECKED_OBJECTREF pref, uintptr_t *pExtraInfo, uintptr_t param1, uintptr_t param2);
 
     // Used during CCW enumeration to keep track of all object handles which point to a CCW.
     void AddCcwHandle(Object **handle);
@@ -408,3 +414,4 @@ private:
 
 
 #endif // __EVENTTRACEPRIV_H__
+

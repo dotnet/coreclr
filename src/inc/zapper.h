@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 #ifndef ZAPPER_H_
 #define ZAPPER_H_
@@ -19,9 +18,6 @@
 #include "shash.h"
 #include "utilcode.h"
 #include "corjit.h"
-#ifdef FEATURE_FUSION
-#include "binderngen.h"
-#endif
 #include "corcompile.h"
 #include "corhlprpriv.h"
 #include "ngen.h"
@@ -103,7 +99,7 @@ class Zapper
     CORINFO_ASSEMBLY_HANDLE m_hAssembly;
     IMDInternalImport      *m_pAssemblyImport;
 
-    WCHAR                   m_outputPath[MAX_PATH]; // Temp folder for creating the output file
+    SString                 m_outputPath; // Temp folder for creating the output file
 
     IMetaDataAssemblyEmit  *m_pAssemblyEmit;
     IMetaDataAssemblyEmit  *CreateAssemblyEmitter();
@@ -116,7 +112,6 @@ class Zapper
     BOOL                    m_failed;
     CorInfoRegionKind       m_currentRegionKind;
 
-#if defined(FEATURE_CORECLR) || defined(CROSSGEN_COMPILE)
     SString                 m_platformAssembliesPaths;
     SString                 m_trustedPlatformAssemblies;
     SString                 m_platformResourceRoots;
@@ -124,20 +119,17 @@ class Zapper
     SString                 m_appNiPaths;
     SString                 m_platformWinmdPaths;
 
-#ifdef FEATURE_LEGACYNETCF
-    bool                    m_appCompatWP8;    // Whether we're using quirks mode for binding with NetCF semantics.
-#endif
-
-#endif // FEATURE_CORECLR || CROSSGEN_COMPILE
-
+#if !defined(FEATURE_MERGE_JIT_AND_ENGINE)
+    SString                 m_CLRJITPath;
+    bool                    m_fDontLoadJit;
+#endif // !defined(FEATURE_MERGE_JIT_AND_ENGINE)
+#if !defined(NO_NGENPDB)
+    SString                 m_DiasymreaderPath;
+#endif // !defined(NO_NGENPDB)
     bool                    m_fForceFullTrust;
 
-#ifdef MDIL
-    bool                    m_fEmbedMDIL;
-#endif
+    SString                 m_outputFilename;
 
-    SString                 m_outputFilename;  // output target when coregen is emitting a combined IL/MDIL file.
-                                                   // (an empty string here (temporarily) indicates the use of the depecrated /createmdil sitch.)
   public:
 
     struct assemblyDependencies
@@ -273,65 +265,6 @@ class Zapper
         }
     } m_assemblyDependencies;
 
-#ifndef FEATURE_CORECLR // No load lists on CoreCLR
-    struct loadLists
-    {
-        loadLists() :
-            m_loadAlwaysList(NULL),
-            m_loadSometimesList(NULL),
-            m_loadNeverList(NULL)
-        {
-        }
-
-        SAFEARRAY *m_loadAlwaysList;
-        SAFEARRAY *m_loadSometimesList;
-        SAFEARRAY *m_loadNeverList;
-
-        void SetLoadLists(SAFEARRAY *loadAlwaysList, SAFEARRAY *loadSometimesList, SAFEARRAY *loadNeverList)
-        {
-            m_loadAlwaysList    = loadAlwaysList;
-            m_loadSometimesList = loadSometimesList;
-            m_loadNeverList     = loadNeverList;
-        }
-
-    } m_loadLists;
-
-    void SetLoadLists(SAFEARRAY *loadAlwaysList, SAFEARRAY *loadSometimesList, SAFEARRAY *loadNeverList)
-    {
-        m_loadLists.SetLoadLists(loadAlwaysList, loadSometimesList, loadNeverList);
-    }
-
-    void SetAssemblyHardBindList()
-    {
-        SAFEARRAY *loadAlwaysList = m_loadLists.m_loadAlwaysList;
-        if (loadAlwaysList == NULL)
-        {
-            return;
-        }
-
-        LONG ubound = 0;
-        IfFailThrow(SafeArrayGetUBound(loadAlwaysList, 1, &ubound));
-
-        BSTR *pArrBstr = NULL;
-        IfFailThrow(SafeArrayAccessData(loadAlwaysList, reinterpret_cast<void **>(&pArrBstr)));
-
-        EX_TRY
-        {
-            _ASSERTE((ubound + 1) >= 0);
-            m_pEECompileInfo->SetAssemblyHardBindList(reinterpret_cast<LPWSTR *>(pArrBstr), ubound + 1);
-        }
-        EX_CATCH
-        {
-            // If something went wrong, try to unlock the OLE array
-            // Do not verify the outcome, as we can do nothing about it
-            SafeArrayUnaccessData(loadAlwaysList);
-            EX_RETHROW;
-        }
-        EX_END_CATCH_UNREACHABLE;
-
-        IfFailThrow(SafeArrayUnaccessData(loadAlwaysList));
-    }
-#endif // !FEATURE_CORECLR
 
   public:
 
@@ -355,37 +288,9 @@ class Zapper
 
     // The arguments control which native image of mscorlib to use.
     // This matters for hardbinding.
-#ifdef BINDER
-    void InitEE(BOOL fForceDebug, BOOL fForceProfile, BOOL fForceInstrument, ICorCompileInfo *compileInfo, ICorDynamicInfo *dynamicInfo);
-#else
     void InitEE(BOOL fForceDebug, BOOL fForceProfile, BOOL fForceInstrument);
     void LoadAndInitializeJITForNgen(LPCWSTR pwzJitName, OUT HINSTANCE* phJit, OUT ICorJitCompiler** ppICorJitCompiler);
-#endif
 
-#ifdef FEATURE_FUSION
-    HRESULT TryEnumerateFusionCache(LPCWSTR assemblyName, bool fPrint, bool fDelete);
-    int EnumerateFusionCache(LPCWSTR assemblyName, bool fPrint, bool fDelete,
-            CORCOMPILE_NGEN_SIGNATURE * pNativeImageSig = NULL);
-    void PrintFusionCacheEntry(CorSvcLogLevel logLevel, IAssemblyName *pZapAssemblyName);
-    void DeleteFusionCacheEntry(IAssemblyName *pZapAssemblyName);
-    void DeleteFusionCacheEntry(LPCWSTR assemblyName, CORCOMPILE_NGEN_SIGNATURE *pNativeImageSig);
-
-    void PrintDependencies(
-            IMetaDataAssemblyImport * pAssemblyImport,
-            CORCOMPILE_DEPENDENCY * pDependencies,
-            COUNT_T cDependencies,
-            SString &s);
-    BOOL VerifyDependencies(
-            IMDInternalImport * pAssemblyImport,
-            CORCOMPILE_DEPENDENCY * pDependencies,
-            COUNT_T cDependencies);
-
-    void PrintAssemblyVersionInfo(IAssemblyName *pZapAssemblyName, SString &s);
-
-    IAssemblyName *GetAssemblyFusionName(IMetaDataAssemblyImport *pImport);
-    IAssemblyName *GetAssemblyRefFusionName(IMetaDataAssemblyImport *pImport,
-                                            mdAssemblyRef ar);
-#endif //FEATURE_FUSION
 
     BOOL IsAssembly(LPCWSTR path);
 
@@ -405,14 +310,6 @@ class Zapper
     void CompileAssembly(CORCOMPILE_NGEN_SIGNATURE * pNativeImageSig);
     ZapImage * CompileModule(CORINFO_MODULE_HANDLE hModule,
                              IMetaDataAssemblyEmit *pEmit);
-#ifdef FEATURE_MULTIMODULE_ASSEMBLIES 
-    void CompileNonManifestModules(ULONG hashAlgId, SArray<HANDLE> &hFiles);
-    static void * GetMapViewOfFile(
-                                HANDLE hFile,
-                                DWORD * pdwFileLen);
-    static void ComputeHashValue(HANDLE hFile, int hashAlg,
-                                 BYTE **ppHashValue, DWORD *cbHashValue);
-#endif // FEATURE_MULTIMODULE_ASSEMBLIES 
     void InstallCompiledAssembly(LPCWSTR szAssemblyName, LPCWSTR szNativeImagePath, HANDLE hFile, SArray<HANDLE> &hFiles);
 
     HRESULT GetExceptionHR();
@@ -449,25 +346,22 @@ class Zapper
 
     void            GetOutputFolder();
 
-#if defined(FEATURE_CORECLR) || defined(CROSSGEN_COMPILE)
     void SetPlatformAssembliesPaths(LPCWSTR pwzPlatformAssembliesPaths);
     void SetTrustedPlatformAssemblies(LPCWSTR pwzTrustedPlatformAssemblies);
     void SetPlatformResourceRoots(LPCWSTR pwzPlatformResourceRoots);
     void SetAppPaths(LPCWSTR pwzAppPaths);
     void SetAppNiPaths(LPCWSTR pwzAppNiPaths);
     void SetPlatformWinmdPaths(LPCWSTR pwzPlatformWinmdPaths);
-
-#ifdef FEATURE_LEGACYNETCF
-    void SetAppCompatWP8(bool val);
-#endif
-
-#ifdef MDIL
-    void SetEmbedMDIL(bool val);
-    void SetCompilerFlag(DWORD val);
-#endif
-
     void SetForceFullTrust(bool val);
-#endif // FEATURE_CORECLR || CROSSGEN_COMPILE
+
+#if !defined(FEATURE_MERGE_JIT_AND_ENGINE)
+    void SetCLRJITPath(LPCWSTR pwszCLRJITPath);
+    void SetDontLoadJit();
+#endif // !defined(FEATURE_MERGE_JIT_AND_ENGINE)
+
+#if !defined(NO_NGENPDB)
+    void SetDiasymreaderPath(LPCWSTR pwzDiasymreaderPath);
+#endif // !defined(NO_NGENPDB)
 
     void SetOutputFilename(LPCWSTR pwszOutputFilename);
     SString GetOutputFileName();
@@ -548,13 +442,11 @@ class ZapperOptions
 
     bool        m_fNGenLastRetry;       // This is retry of the compilation
 
-    unsigned    m_compilerFlags;
+    CORJIT_FLAGS m_compilerFlags;
 
     bool       m_legacyMode;          // true if the zapper was invoked using legacy mode
 
-#ifdef FEATURE_CORECLR
     bool        m_fNoMetaData;          // Do not copy metadata and IL to native image
-#endif
 
     ZapperOptions();
     ~ZapperOptions();

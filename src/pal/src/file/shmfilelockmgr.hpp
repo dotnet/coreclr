@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information. 
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*++
 
@@ -74,17 +73,17 @@ namespace CorUnix
             DWORD dwShareMode,
             IFileLockController **ppLockController  // OUT
             );
+
         virtual
-	PAL_ERROR
-	GetFileShareModeForFile(
-            CPalThread *pThread,
+        PAL_ERROR
+        GetFileShareModeForFile(
             LPCSTR szFileName,
             DWORD* pdwShareMode);
     };
 
     class CSharedMemoryFileLockController : public IFileLockController
     {
-        template <class T> friend void InternalDelete(CorUnix::CPalThread *, T *p);
+        template <class T> friend void InternalDelete(T *p);
 
     private:
         DWORD m_dwAccessRights;
@@ -142,14 +141,12 @@ namespace CorUnix
 
         virtual
         void
-        ReleaseController(
-            CPalThread *pThread                 // IN, OPTIONAL
-            );
+        ReleaseController();
     };
 
     class CSharedMemoryFileTransactionLock : public IFileTransactionLock
     {
-        template <class T> friend void InternalDelete(CorUnix::CPalThread *, T *p);
+        template <class T> friend void InternalDelete(T *p);
           
     private:
 
@@ -180,9 +177,7 @@ namespace CorUnix
 
         virtual
         void
-        ReleaseLock(
-            CPalThread *pThread                 // IN, OPTIONAL
-            );
+        ReleaseLock();
     };
 }
 

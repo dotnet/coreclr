@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*=============================================================================
 **
@@ -11,28 +12,26 @@
 **
 =============================================================================*/
 
-namespace System.Runtime.InteropServices {
-    using System;
+using System;
 
+namespace System.Runtime.InteropServices
+{
     //====================================================================
     // The enum of the return value of IQuerable.GetInterface
     //====================================================================
     [Serializable]
-    [System.Runtime.InteropServices.ComVisible(false)]
     public enum CustomQueryInterfaceResult
     {
-        Handled                 = 0,
-        NotHandled              = 1,
-        Failed                  = 2,
+        Handled = 0,
+        NotHandled = 1,
+        Failed = 2,
     }
 
     //====================================================================
     // The interface for customizing IQueryInterface
     //====================================================================
-    [System.Runtime.InteropServices.ComVisible(false)]
     public interface ICustomQueryInterface
     {
-        [System.Security.SecurityCritical]
         CustomQueryInterfaceResult GetInterface([In]ref Guid iid, out IntPtr ppv);
     }
 }

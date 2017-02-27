@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //
 
 //
@@ -29,11 +28,9 @@ struct StackTraceElement
     UINT_PTR        ip;
     UINT_PTR        sp;
     PTR_MethodDesc  pFunc;
-#if defined(FEATURE_EXCEPTIONDISPATCHINFO)
     // TRUE if this element represents the last frame of the foreign
     // exception stack trace.
     BOOL			fIsLastFrameFromForeignStackTrace;
-#endif // defined(FEATURE_EXCEPTIONDISPATCHINFO)
 
     bool operator==(StackTraceElement const & rhs) const
     {
@@ -682,21 +679,13 @@ class EEFileLoadException : public EEException
     
   private:
     SString m_name;
-#ifdef FEATURE_FUSION	
-    IFusionBindLog *m_pFusionLog;
-#else
     void  *m_pFusionLog;
-#endif
     HRESULT m_hr;       
                         
 
   public:
 
-#ifdef FEATURE_FUSION	
-    EEFileLoadException(const SString &name, HRESULT hr, IFusionBindLog *pFusionLog = NULL, Exception *pInnerException = NULL);
-#else
     EEFileLoadException(const SString &name, HRESULT hr, void *pFusionLog = NULL,  Exception *pInnerException = NULL);
-#endif
     ~EEFileLoadException();
 
     // virtual overrides
@@ -710,10 +699,6 @@ class EEFileLoadException : public EEException
     OBJECTREF CreateThrowable();
 
     static RuntimeExceptionKind GetFileLoadKind(HRESULT hr);
-#ifdef FEATURE_FUSION	
-    static void DECLSPEC_NORETURN Throw(AssemblySpec *pSpec, IFusionBindLog *pFusionLog, HRESULT hr, Exception *pInnerException = NULL);
-    static void DECLSPEC_NORETURN Throw(IAssembly *pIAssembly, IHostAssembly *pIHostAssembly, HRESULT hr, Exception *pInnerException = NULL);
-#endif
     static void DECLSPEC_NORETURN Throw(AssemblySpec *pSpec, HRESULT hr, Exception *pInnerException = NULL);
     static void DECLSPEC_NORETURN Throw(PEFile *pFile, HRESULT hr, Exception *pInnerException = NULL);
     static void DECLSPEC_NORETURN Throw(LPCWSTR path, HRESULT hr, Exception *pInnerException = NULL);
@@ -822,6 +807,10 @@ class EEFileLoadException : public EEException
 #undef EX_TRY
 #define EX_TRY                                                                                     \
     EX_TRY_CUSTOM(CLRException::HandlerState, (::GetThreadNULLOk()), CLRLastThrownObjectException)
+
+#undef EX_TRY_CPP_ONLY
+#define EX_TRY_CPP_ONLY                                                                             \
+    EX_TRY_CUSTOM_CPP_ONLY(CLRException::HandlerState, (::GetThreadNULLOk()), CLRLastThrownObjectException)
 
 // Faster version with thread, skipping GetThread call
 #define EX_TRY_THREAD(pThread)                                                           \
@@ -1107,7 +1096,7 @@ inline EEMessageException::EEMessageException(HRESULT hr)
 }
 
 inline EEMessageException::EEMessageException(HRESULT hr, bool fUseCOMException)
-  : EEException(GetKindFromHR(hr, !fUseCOMException)),
+  : EEException(GetKindFromHR(hr, fUseCOMException)),
     m_hr(hr),
     m_resID(0)
 {

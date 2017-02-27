@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*
  * GCHELPERS.H
@@ -108,8 +107,10 @@ OBJECTREF AllocateObject(MethodTable *pMT
 #endif
     );
 
-extern void StompWriteBarrierEphemeral();
-extern void StompWriteBarrierResize(BOOL bReqUpperBoundsCheck);
+extern void StompWriteBarrierEphemeral(bool isRuntimeSuspended);
+extern void StompWriteBarrierResize(bool isRuntimeSuspended, bool bReqUpperBoundsCheck);
+extern void SwitchToWriteWatchBarrier(bool isRuntimeSuspended);
+extern void SwitchToNonWriteWatchBarrier(bool isRuntimeSuspended);
 
 extern void ThrowOutOfMemoryDimensionsExceeded();
 
@@ -120,5 +121,5 @@ extern void ThrowOutOfMemoryDimensionsExceeded();
 //========================================================================
 
 void ErectWriteBarrier(OBJECTREF* dst, OBJECTREF ref);
-
+void SetCardsAfterBulkCopy(Object **start, size_t len);
 #endif // _GCHELPERS_H_

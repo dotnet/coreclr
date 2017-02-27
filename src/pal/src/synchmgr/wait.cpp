@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information. 
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*++
 
@@ -38,7 +37,8 @@ static PalObjectTypeId sg_rgWaitObjectsIds[] =
         otiAutoResetEvent,
         otiManualResetEvent,
         otiMutex,
-        otiSemaphore,        
+        otiNamedMutex,
+        otiSemaphore,
         otiProcess,
         otiThread
     };
@@ -179,13 +179,12 @@ Sleep(IN DWORD dwMilliseconds)
 
     CPalThread * pThread = InternalGetCurrentThread();
 
-    PAL_ERROR palErr = InternalSleepEx(pThread, dwMilliseconds, FALSE);
+    DWORD internalSleepRet = InternalSleepEx(pThread, dwMilliseconds, FALSE);
 
-    if (NO_ERROR != palErr)
+    if (internalSleepRet != 0)
     {
-        ERROR("Sleep(dwMilliseconds=%u) failed [error=%u]\n", 
-              dwMilliseconds, palErr);
-        pThread->SetLastError(palErr);
+        ERROR("Sleep(dwMilliseconds=%u) failed [error=%u]\n", dwMilliseconds, internalSleepRet);
+        pThread->SetLastError(internalSleepRet);
     }
 
     LOGEXIT("Sleep returns VOID\n");
@@ -319,8 +318,8 @@ DWORD CorUnix::InternalWaitForMultipleObjectsEx(
         wtWaitType = fWAll ? MultipleObjectsWaitAll : MultipleObjectsWaitOne;
         if (nCount > MAXIMUM_STACK_WAITOBJ_ARRAY_SIZE)
         {
-            ppIPalObjs = InternalNewArray<IPalObject*>(pThread, nCount);
-            ppISyncWaitCtrlrs = InternalNewArray<ISynchWaitController*>(pThread, nCount);
+            ppIPalObjs = InternalNewArray<IPalObject*>(nCount);
+            ppISyncWaitCtrlrs = InternalNewArray<ISynchWaitController*>(nCount);
             if ((NULL == ppIPalObjs) || (NULL == ppISyncWaitCtrlrs))
             {
                 ERROR("Out of memory allocating internal structures\n");
@@ -345,6 +344,75 @@ DWORD CorUnix::InternalWaitForMultipleObjectsEx(
         else
             pThread->SetLastError(ERROR_INTERNAL_ERROR);
         goto WFMOExIntExit;
+    }
+
+    if (nCount > 1)
+    {
+        // Check for any cross-process sync objects. "Wait for any" and "wait for all" operations are not supported on
+        // cross-process sync objects in the PAL.
+        for (DWORD i = 0; i < nCount; ++i)
+        {
+            if (ppIPalObjs[i]->GetObjectType()->GetId() == otiNamedMutex)
+            {
+                ERROR("Attempt to wait for any or all handles including a cross-process sync object", ERROR_NOT_SUPPORTED);
+                pThread->SetLastError(ERROR_NOT_SUPPORTED);
+                goto WFMOExIntCleanup;
+            }
+        }
+    }
+    else if (ppIPalObjs[0]->GetObjectType()->GetId() == otiNamedMutex)
+    {
+        SharedMemoryProcessDataHeader *processDataHeader =
+            SharedMemoryProcessDataHeader::PalObject_GetProcessDataHeader(ppIPalObjs[0]);
+        _ASSERTE(processDataHeader != nullptr);
+        try
+        {
+            MutexTryAcquireLockResult tryAcquireLockResult =
+                static_cast<NamedMutexProcessData *>(processDataHeader->GetData())->TryAcquireLock(dwMilliseconds);
+            switch (tryAcquireLockResult)
+            {
+                case MutexTryAcquireLockResult::AcquiredLock:
+                    dwRet = WAIT_OBJECT_0;
+                    break;
+
+                case MutexTryAcquireLockResult::AcquiredLockButMutexWasAbandoned:
+                    dwRet = WAIT_ABANDONED_0;
+                    break;
+
+                case MutexTryAcquireLockResult::TimedOut:
+                    dwRet = WAIT_TIMEOUT;
+                    break;
+
+                default:
+                    _ASSERTE(false);
+                    break;
+            }
+        }
+        catch (SharedMemoryException ex)
+        {
+            pThread->SetLastError(ex.GetErrorCode());
+        }
+        goto WFMOExIntCleanup;
+    }
+
+    if (fWAll)
+    {
+        // For a wait-all operation, check for duplicate wait objects in the array. This just uses a brute-force O(n^2)
+        // algorithm, but since MAXIMUM_WAIT_OBJECTS is small, the worst case is not so bad, and the average case would involve
+        // significantly fewer items.
+        for (DWORD i = 0; i < nCount - 1; ++i)
+        {
+            IPalObject *const objectToCheck = ppIPalObjs[i];
+            for (DWORD j = i + 1; j < nCount; ++j)
+            {
+                if (ppIPalObjs[j] == objectToCheck)
+                {
+                    ERROR("Duplicate handle provided for a wait-all operation [error=%u]\n", ERROR_INVALID_PARAMETER);
+                    pThread->SetLastError(ERROR_INVALID_PARAMETER);
+                    goto WFMOExIntCleanup;
+                }
+            }
+        }
     }
 
     palErr = g_pSynchronizationManager->GetSynchWaitControllersForObjects(
@@ -563,14 +631,14 @@ WFMOExIntCleanup:
 WFMOExIntExit:
     if (nCount > MAXIMUM_STACK_WAITOBJ_ARRAY_SIZE)
     {
-        InternalDeleteArray(pThread, ppIPalObjs);
-        InternalDeleteArray(pThread, ppISyncWaitCtrlrs);
+        InternalDeleteArray(ppIPalObjs);
+        InternalDeleteArray(ppISyncWaitCtrlrs);
     }
     
-    return dwRet;    
+    return dwRet;
 }
 
-PAL_ERROR CorUnix::InternalSleepEx (
+DWORD CorUnix::InternalSleepEx (
     CPalThread * pThread,
     DWORD dwMilliseconds,
     BOOL bAlertable)
@@ -589,60 +657,48 @@ PAL_ERROR CorUnix::InternalSleepEx (
         palErr = g_pSynchronizationManager->DispatchPendingAPCs(pThread);
         if (NO_ERROR == palErr)
         {
-            dwRet = WAIT_IO_COMPLETION;
-            goto InternalSleepExExit;
+            return WAIT_IO_COMPLETION;
         }
-        else if (ERROR_NOT_FOUND == palErr)
-        {
-            // No APC was pending, just continue
-            palErr = NO_ERROR;
-        }
-    } 
+    }
 
     if (dwMilliseconds > 0)
     {
         ThreadWakeupReason twrWakeupReason;
-                
-        palErr = g_pSynchronizationManager->BlockThread(pThread, 
+        palErr = g_pSynchronizationManager->BlockThread(pThread,
                                                         dwMilliseconds,
-                                                        (TRUE == bAlertable), 
+                                                        (TRUE == bAlertable),
                                                         true,
-                                                        &twrWakeupReason, 
-                                                        (DWORD *)&iSignaledObjIndex);        
+                                                        &twrWakeupReason,
+                                                        (DWORD *)&iSignaledObjIndex);
         if (NO_ERROR != palErr)
-        {     
+        {
             ERROR("IPalSynchronizationManager::BlockThread failed for thread "
                   "pThread=%p [error=%u]\n", pThread, palErr);
-            goto InternalSleepExExit;
+            return dwRet;
         }
 
-        switch (twrWakeupReason)       
+        switch (twrWakeupReason)
         {
         case WaitSucceeded:
         case WaitTimeout:
-            dwRet = 0; 
-            break;                
+            dwRet = 0;
+            break;
         case Alerted:
-            _ASSERT_MSG(bAlertable, 
-                        "Awakened for APC from a non-alertable wait\n");
+            _ASSERT_MSG(bAlertable, "Awakened for APC from a non-alertable wait\n");
 
-            dwRet = WAIT_IO_COMPLETION;                
+            dwRet = WAIT_IO_COMPLETION;
             palErr = g_pSynchronizationManager->DispatchPendingAPCs(pThread);
+            _ASSERT_MSG(NO_ERROR == palErr, "Awakened for APC, but no APC is pending\n");
 
-            _ASSERT_MSG(NO_ERROR == palErr, 
-                        "Awakened for APC, but no APC is pending\n");            
             break;
         case MutexAbondoned:
-            ASSERT("Thread %p awakened with reason=MutexAbondoned from a "
-                   "SleepEx\n", pThread);
-            palErr = ERROR_INTERNAL_ERROR;
+            ASSERT("Thread %p awakened with reason=MutexAbondoned from a SleepEx\n", pThread);
             break;
         case WaitFailed:
         default:
             ERROR("Thread %p awakened with some failure\n", pThread);
-            palErr = ERROR_INTERNAL_ERROR;
             break;
-        }        
+        }
     }
     else
     {
@@ -650,8 +706,6 @@ PAL_ERROR CorUnix::InternalSleepEx (
     }
 
     TRACE("Done sleeping %u ms [bAlertable=%d]", dwMilliseconds, (int)bAlertable);
-
-InternalSleepExExit:
     return dwRet;
 }
 

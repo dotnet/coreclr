@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*============================================================
 **
@@ -8,9 +9,12 @@
 **
 **
 ============================================================*/
-namespace System.Globalization {
+
+namespace System.Globalization
+{
     [Serializable]
-    internal enum BidiCategory {
+    internal enum BidiCategory
+    {
         LeftToRight = 0,
         LeftToRightEmbedding = 1,
         LeftToRightOverride = 2,
@@ -31,7 +35,7 @@ namespace System.Globalization {
         Whitespace = 17,
         OtherNeutrals = 18,
         LeftToRightIsolate = 19,
-        RightToLeftIsolate = 20, 
+        RightToLeftIsolate = 20,
         FirstStrongIsolate = 21,
         PopDirectionIsolate = 22,
     }

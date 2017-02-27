@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information. 
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /***
 *   mbusafecrt_internal.h - internal declarations for SafeCRT functions
@@ -61,13 +60,6 @@ typedef struct miniFILE_struct
 #define _IOWRT 2
 #define _IOREAD 4
 #define _IOMYBUF 8
-
-typedef struct {
-        /*
-         * Assume there is a long double type
-         */
-        long double x;
-} _LONGDOUBLE;
 
 int _putc_nolock( char inChar, miniFILE* inStream );
 int _putwc_nolock( wchar_t inChar, miniFILE* inStream );

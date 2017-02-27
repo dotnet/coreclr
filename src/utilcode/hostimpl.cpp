@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information. 
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 // ==++==
 // 
@@ -32,14 +31,14 @@ static PTLS_CALLBACK_FUNCTION Callbacks[MAX_PREDEFINED_TLS_SLOT];
 HANDLE (*g_fnGetExecutableHeapHandle)();
 #endif
 
-extern LPVOID (*__ClrFlsGetBlock)();
+extern LPVOID* (*__ClrFlsGetBlock)();
 
 //
 // FLS getter to avoid unnecessary indirection via execution engine.
 //
-VOID * ClrFlsGetBlockDirect()
+LPVOID* ClrFlsGetBlockDirect()
 {
-    return UnsafeTlsGetValue(TlsIndex);
+    return (LPVOID*)UnsafeTlsGetValue(TlsIndex);
 }
 
 //
@@ -274,7 +273,7 @@ DWORD STDMETHODCALLTYPE UtilExecutionEngine::WaitForEvent(EVENT_COOKIE event, DW
 DWORD STDMETHODCALLTYPE UtilExecutionEngine::WaitForSingleObject(HANDLE handle, DWORD dwMilliseconds) 
 {
     _ASSERTE(handle);
-    return WaitForSingleObject(handle, dwMilliseconds);
+    return WaitForSingleObjectEx(handle, dwMilliseconds, FALSE);
 }
 
 SEMAPHORE_COOKIE STDMETHODCALLTYPE UtilExecutionEngine::ClrCreateSemaphore(DWORD dwInitial, DWORD dwMax) 

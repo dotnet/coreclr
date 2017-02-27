@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*=============================================================================
 **
@@ -10,31 +11,32 @@
 **
 =============================================================================*/
 
-namespace System {
-    
-    using System;
-    using System.Runtime.Serialization;
-[System.Runtime.InteropServices.ComVisible(true)]
-    [Serializable] public class EntryPointNotFoundException : TypeLoadException {
-        public EntryPointNotFoundException() 
-            : base(Environment.GetResourceString("Arg_EntryPointNotFoundException")) {
-            SetErrorCode(__HResults.COR_E_ENTRYPOINTNOTFOUND);
-        }
-    
-        public EntryPointNotFoundException(String message) 
-            : base(message) {
-            SetErrorCode(__HResults.COR_E_ENTRYPOINTNOTFOUND);
-        }
-    
-        public EntryPointNotFoundException(String message, Exception inner) 
-            : base(message, inner) {
-            SetErrorCode(__HResults.COR_E_ENTRYPOINTNOTFOUND);
+using System;
+using System.Runtime.Serialization;
+
+namespace System
+{
+    [Serializable]
+    public class EntryPointNotFoundException : TypeLoadException
+    {
+        public EntryPointNotFoundException()
+            : base(SR.Arg_EntryPointNotFoundException)
+        {
+            HResult = __HResults.COR_E_ENTRYPOINTNOTFOUND;
         }
 
-        protected EntryPointNotFoundException(SerializationInfo info, StreamingContext context) : base(info, context) {
+        public EntryPointNotFoundException(String message)
+            : base(message)
+        {
+            HResult = __HResults.COR_E_ENTRYPOINTNOTFOUND;
         }
-    
-    
+
+        public EntryPointNotFoundException(String message, Exception inner)
+            : base(message, inner)
+        {
+            HResult = __HResults.COR_E_ENTRYPOINTNOTFOUND;
+        }
+
+        protected EntryPointNotFoundException(SerializationInfo info, StreamingContext context) : base(info, context) { }
     }
-
 }

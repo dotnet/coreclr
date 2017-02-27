@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information. 
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*++
 
@@ -24,7 +23,7 @@ Revision History:
 #define _PAL_FILE_HPP_
 
 #include "corunix.hpp"
-
+#include "pal/stackstring.hpp"
 #include <sys/types.h>
 #include <sys/param.h>
 #include <dirent.h>
@@ -42,11 +41,11 @@ namespace CorUnix
 
         int  unix_fd;
         DWORD dwDesiredAccess; /* Unix assumes files are always opened for reading.
-                                  In Windows we can open a file for writing only */                             
+                                  In Windows we can open a file for writing only */
         int  open_flags;       /* stores Unix file creation flags */
         BOOL open_flags_deviceaccessonly;
         char unix_filename[MAXPATHLEN];
-        BOOL inheritable;        
+        BOOL inheritable;
     };
 
     PAL_ERROR
@@ -166,6 +165,8 @@ namespace CorUnix
         OUT LPFILETIME lpLastWriteTime
         );
 
+    BOOL
+    RealPathHelper(LPCSTR lpUnixPath, PathCharString& lpBuffer);
     /*++
       InternalCanonicalizeRealPath
       Wraps realpath() to hide platform differences. See the man page for
@@ -174,88 +175,28 @@ namespace CorUnix
       On systems on which realpath() allows the last path component to not
       exist, this is a straight thunk through to realpath(). On other
       systems, we remove the last path component, then call realpath().
-
-      cch is the size of lpBuffer and has to be atleast PATH_MAX (since 
-      realpath() requires the buffer to be atleast PATH_MAX).
       --*/
     PAL_ERROR
     InternalCanonicalizeRealPath(
-        CPalThread *pThread,
         LPCSTR lpUnixPath,
-        LPSTR lpBuffer,
-        DWORD cch
-        );  
-
-    /*++
-    InternalGetcwd     
-    Wraps getcwd so the thread calling it can't be suspended holding an internal lock.
-    --*/
-    char *
-    InternalGetcwd(
-        CPalThread *pthrCurrent,
-        char *szBuf,
-        size_t nSize
+        PathCharString& lpBuffer
         );
 
     /*++
-    InternalFflush    
-    Wraps fflush so the thread calling it can't be suspended holding an internal lock.
-    --*/
-    int
-    InternalFflush(
-        CPalThread *pthrCurrent,
-        FILE * stream
-        );
-
-    /*++
-    InternalMkstemp     
-    Wraps mkstemp so the thread calling it can't be suspended holding an internal lock.
+    InternalMkstemp
+    Wraps mkstemp
     --*/
     int 
     InternalMkstemp(
-        CPalThread *pthrCurrent,
         char *szNameTemplate
         );
 
     /*++
-    InternalUnlink
-    Wraps unlink so the thread calling it can't be suspended holding an internal lock.
-    --*/
-    int
-    InternalUnlink(
-        CPalThread *pthrCurrent,
-        const char *szPath
-        );
-
-
-    /*++
-    InternalDeleteFile
-    Wraps SYS_delete so the thread calling it can't be suspended holding an internal lock.
-    --*/
-    int 
-    InternalDeleteFile(
-        CPalThread *pthrCurrent,
-        const char *szPath
-        );
-
-    /*++
-    InternalRename
-    Wraps rename so the thread calling it can't be suspended holding an internal lock.
-    --*/
-    int 
-    InternalRename(
-        CPalThread *pthrCurrent, 
-        const char *szOldName, 
-        const char *szNewName
-        );
-
-    /*++
     InternalFgets
-    Wraps fgets so the thread calling it can't be suspended holding an internal lock.
+    Wraps fgets
     --*/
     char *
     InternalFgets(
-        CPalThread *pthrCurrent,
         char *sz,
         int nSize,
         FILE *f,
@@ -264,40 +205,26 @@ namespace CorUnix
 
     /*++
     InternalFwrite
-    Wraps fwrite so the thread calling it can't be suspended holding an internal lock.
+    Wraps fwrite
     --*/
     size_t
     InternalFwrite(
-        CPalThread *pthrCurrent,
-        const void *pvBuffer, 
-        size_t nSize, 
-        size_t nCount,     
+        const void *pvBuffer,
+        size_t nSize,
+        size_t nCount,
         FILE *f,
         INT *pnErrorCode
         );
 
     /*++
     InternalOpen
-    Wraps open so the thread calling it can't be suspended holding an internal lock.
+    Wraps open
     --*/
     int
     InternalOpen(
-        CPalThread *pthrCurrent,
         const char *szFilename,
         int nFlags,
         ...
-        );
-
-    /*++
-    InternalFseek
-    Wraps fseek so the thread calling it can't be suspended holding an internal lock.
-    --*/
-    int
-    InternalFseek(
-        CPalThread *pthrCurrent,
-        FILE *f,
-        long lOffset,
-        int nWhence
         );
 }
 
@@ -420,21 +347,6 @@ Close primary handles for stdin, stdout and stderr
 void FILECleanupStdHandles(void);
 
 /*++
-FILEGetFileNameFromSymLink
-
-Input paramters:
-
-source  = path to the file on input, path to the file with all 
-          symbolic links traversed on return
-
-Note: Assumes the maximum size of the source is MAX_PATH
-
-Return value:
-    TRUE on success, FALSE on failure
---*/
-BOOL FILEGetFileNameFromSymLink(char *source);
-
-/*++
 
 Function : 
     FILEGetProperNotFoundError
@@ -445,7 +357,7 @@ Windows behavoir.
     IN LPSTR lpPath - The path to check.
     LPDWORD lpErrorCode - The error to set.
 */
-void FILEGetProperNotFoundError( LPSTR lpPath, LPDWORD lpErrorCode );
+void FILEGetProperNotFoundError( LPCSTR lpPath, LPDWORD lpErrorCode );
 
 }
 

@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 // 
 
@@ -7,28 +8,22 @@ namespace System.Reflection
 {
     using System;
     using System.Collections.Generic;
+    using System.Diagnostics;
     using System.Diagnostics.Contracts;
     using System.Runtime.InteropServices;
     using System.Runtime.Serialization;
     using System.Runtime.CompilerServices;
-#if FEATURE_REMOTING
-    using System.Runtime.Remoting.Metadata;
-#endif //FEATURE_REMOTING
-    using System.Security.Permissions;
     using System.Threading;
     using MdToken = System.Reflection.MetadataToken;
 
     [Serializable]
-    [ClassInterface(ClassInterfaceType.None)]
-    [ComDefaultInterface(typeof(_ParameterInfo))]
-    [System.Runtime.InteropServices.ComVisible(true)]
-    public class ParameterInfo : _ParameterInfo, ICustomAttributeProvider, IObjectReference
+    public class ParameterInfo : ICustomAttributeProvider, IObjectReference
     {
         #region Legacy Protected Members
-        protected String NameImpl; 
-        protected Type ClassImpl; 
-        protected int PositionImpl; 
-        protected ParameterAttributes AttrsImpl; 
+        protected String NameImpl;
+        protected Type ClassImpl;
+        protected int PositionImpl;
+        protected ParameterAttributes AttrsImpl;
         protected Object DefaultValueImpl; // cannot cache this as it may be non agile user defined enum
         protected MemberInfo MemberImpl;
         #endregion
@@ -48,65 +43,65 @@ namespace System.Reflection
         #endregion
 
         #region Constructor
-        protected ParameterInfo() 
-        { 
-        }         
+        protected ParameterInfo()
+        {
+        }
         #endregion
 
         #region Internal Members
         // this is an internal api for DynamicMethod. A better solution is to change the relationship
         // between ParameterInfo and ParameterBuilder so that a ParameterBuilder can be seen as a writer
         // api over a ParameterInfo. However that is a possible breaking change so it needs to go through some process first
-        internal void SetName(String name) 
+        internal void SetName(String name)
         {
             NameImpl = name;
         }
-        
-        internal void SetAttributes(ParameterAttributes attributes) 
+
+        internal void SetAttributes(ParameterAttributes attributes)
         {
             AttrsImpl = attributes;
         }
         #endregion
 
         #region Public Methods
-        public virtual Type ParameterType 
-        { 
-            get 
+        public virtual Type ParameterType
+        {
+            get
             {
                 return ClassImpl;
-            } 
-        }            
-        
-        public virtual String Name 
-        { 
-            get 
-            {
-                return NameImpl;
-            } 
+            }
         }
 
-        public virtual bool HasDefaultValue { get { throw new NotImplementedException(); }  }
+        public virtual String Name
+        {
+            get
+            {
+                return NameImpl;
+            }
+        }
+
+        public virtual bool HasDefaultValue { get { throw new NotImplementedException(); } }
 
         public virtual Object DefaultValue { get { throw new NotImplementedException(); } }
-        public virtual Object RawDefaultValue  { get { throw new NotImplementedException(); } } 
+        public virtual Object RawDefaultValue { get { throw new NotImplementedException(); } }
 
-        public virtual int Position { get { return PositionImpl; } }                                    
+        public virtual int Position { get { return PositionImpl; } }
         public virtual ParameterAttributes Attributes { get { return AttrsImpl; } }
 
-        public virtual MemberInfo Member {
-            get {
+        public virtual MemberInfo Member
+        {
+            get
+            {
                 Contract.Ensures(Contract.Result<MemberInfo>() != null);
                 return MemberImpl;
             }
         }
 
-        public bool IsIn { get { return((Attributes & ParameterAttributes.In) != 0); } }        
-        public bool IsOut { get { return((Attributes & ParameterAttributes.Out) != 0); } }  
-#if FEATURE_USE_LCID        
-        public bool IsLcid { get { return((Attributes & ParameterAttributes.Lcid) != 0); } }        
-#endif
-        public bool IsRetval { get { return((Attributes & ParameterAttributes.Retval) != 0); } }        
-        public bool IsOptional { get { return((Attributes & ParameterAttributes.Optional) != 0); } }
+        public bool IsIn { get { return ((Attributes & ParameterAttributes.In) != 0); } }
+        public bool IsOut { get { return ((Attributes & ParameterAttributes.Out) != 0); } }
+        public bool IsLcid { get { return ((Attributes & ParameterAttributes.Lcid) != 0); } }
+        public bool IsRetval { get { return ((Attributes & ParameterAttributes.Retval) != 0); } }
+        public bool IsOptional { get { return ((Attributes & ParameterAttributes.Optional) != 0); } }
 
         public virtual int MetadataToken
         {
@@ -124,12 +119,12 @@ namespace System.Reflection
             }
         }
 
-        public virtual Type[] GetRequiredCustomModifiers() 
+        public virtual Type[] GetRequiredCustomModifiers()
         {
             return EmptyArray<Type>.Value;
         }
 
-        public virtual Type[] GetOptionalCustomModifiers() 
+        public virtual Type[] GetOptionalCustomModifiers()
         {
             return EmptyArray<Type>.Value;
         }
@@ -158,7 +153,7 @@ namespace System.Reflection
         public virtual Object[] GetCustomAttributes(Type attributeType, bool inherit)
         {
             if (attributeType == null)
-                throw new ArgumentNullException("attributeType");
+                throw new ArgumentNullException(nameof(attributeType));
             Contract.EndContractBlock();
 
             return EmptyArray<Object>.Value;
@@ -167,7 +162,7 @@ namespace System.Reflection
         public virtual bool IsDefined(Type attributeType, bool inherit)
         {
             if (attributeType == null)
-                throw new ArgumentNullException("attributeType");
+                throw new ArgumentNullException(nameof(attributeType));
             Contract.EndContractBlock();
 
             return false;
@@ -181,35 +176,12 @@ namespace System.Reflection
 
         #region _ParameterInfo implementation
 
-#if !FEATURE_CORECLR
-        void _ParameterInfo.GetTypeInfoCount(out uint pcTInfo)
-        {
-            throw new NotImplementedException();
-        }
-
-        void _ParameterInfo.GetTypeInfo(uint iTInfo, uint lcid, IntPtr ppTInfo)
-        {
-            throw new NotImplementedException();
-        }
-
-        void _ParameterInfo.GetIDsOfNames([In] ref Guid riid, IntPtr rgszNames, uint cNames, uint lcid, IntPtr rgDispId)
-        {
-            throw new NotImplementedException();
-        }
-
-        void _ParameterInfo.Invoke(uint dispIdMember, [In] ref Guid riid, uint lcid, short wFlags, IntPtr pDispParams, IntPtr pVarResult, IntPtr pExcepInfo, IntPtr puArgErr)
-        {
-            throw new NotImplementedException();
-        }
-#endif
-
         #endregion
 
         #region IObjectReference
         // In V4 RuntimeParameterInfo is introduced. 
         // To support deserializing ParameterInfo instances serialized in earlier versions
         // we need to implement IObjectReference.
-        [System.Security.SecurityCritical]
         public object GetRealObject(StreamingContext context)
         {
             Contract.Ensures(Contract.Result<Object>() != null);
@@ -262,26 +234,23 @@ namespace System.Reflection
     internal unsafe sealed class RuntimeParameterInfo : ParameterInfo, ISerializable
     {
         #region Static Members
-        [System.Security.SecurityCritical]  // auto-generated
         internal unsafe static ParameterInfo[] GetParameters(IRuntimeMethodInfo method, MemberInfo member, Signature sig)
         {
-            Contract.Assert(method is RuntimeMethodInfo || method is RuntimeConstructorInfo);
+            Debug.Assert(method is RuntimeMethodInfo || method is RuntimeConstructorInfo);
 
             ParameterInfo dummy;
             return GetParameters(method, member, sig, out dummy, false);
         }
 
-        [System.Security.SecurityCritical]  // auto-generated
         internal unsafe static ParameterInfo GetReturnParameter(IRuntimeMethodInfo method, MemberInfo member, Signature sig)
         {
-            Contract.Assert(method is RuntimeMethodInfo || method is RuntimeConstructorInfo);
+            Debug.Assert(method is RuntimeMethodInfo || method is RuntimeConstructorInfo);
 
             ParameterInfo returnParameter;
             GetParameters(method, member, sig, out returnParameter, true);
             return returnParameter;
         }
 
-        [System.Security.SecurityCritical]  // auto-generated
         internal unsafe static ParameterInfo[] GetParameters(
             IRuntimeMethodInfo methodHandle, MemberInfo member, Signature sig, out ParameterInfo returnParameter, bool fetchReturnParameter)
         {
@@ -393,18 +362,17 @@ namespace System.Reflection
             get
             {
                 MethodBase result = m_originalMember != null ? m_originalMember : MemberImpl as MethodBase;
-                Contract.Assert(result != null);
+                Debug.Assert(result != null);
                 return result;
             }
         }
         #endregion
 
         #region VTS magic to serialize/deserialized to/from pre-Whidbey endpoints.
-        [System.Security.SecurityCritical]
         public void GetObjectData(SerializationInfo info, StreamingContext context)
         {
             if (info == null)
-                throw new ArgumentNullException("info");
+                throw new ArgumentNullException(nameof(info));
             Contract.EndContractBlock();
 
             // We could be serializing for consumption by a pre-Whidbey
@@ -447,11 +415,11 @@ namespace System.Reflection
         {
             // Change ownership
             MemberImpl = member;
-            
+
             // The original owner should always be a method, because this method is only used to 
             // change the owner from a method to a property.
             m_originalMember = accessor.MemberImpl as MethodBase;
-            Contract.Assert(m_originalMember != null);
+            Debug.Assert(m_originalMember != null);
 
             // Populate all the caches -- we inherit this behavior from RTM
             NameImpl = accessor.Name;
@@ -471,8 +439,8 @@ namespace System.Reflection
             int position, ParameterAttributes attributes, MemberInfo member)
         {
             Contract.Requires(member != null);
-            Contract.Assert(MdToken.IsNullToken(tkParamDef) == scope.Equals(MetadataImport.EmptyImport));
-            Contract.Assert(MdToken.IsNullToken(tkParamDef) || MdToken.IsTokenOfType(tkParamDef, MetadataTokenType.ParamDef));
+            Debug.Assert(MdToken.IsNullToken(tkParamDef) == scope.Equals(MetadataImport.EmptyImport));
+            Debug.Assert(MdToken.IsNullToken(tkParamDef) || MdToken.IsTokenOfType(tkParamDef, MetadataTokenType.ParamDef));
 
             PositionImpl = position;
             MemberImpl = member;
@@ -514,7 +482,7 @@ namespace System.Reflection
                     else
                         parameterType = m_signature.Arguments[PositionImpl];
 
-                    Contract.Assert(parameterType != null);
+                    Debug.Assert(parameterType != null);
                     // different thread could only write ClassImpl to the same value, so a race condition is not a problem here
                     ClassImpl = parameterType;
                 }
@@ -525,7 +493,6 @@ namespace System.Reflection
 
         public override String Name
         {
-            [System.Security.SecuritySafeCritical]  // auto-generated
             get
             {
                 if (!m_nameIsCached)
@@ -577,11 +544,6 @@ namespace System.Reflection
             if (defaultValue == DBNull.Value)
             {
                 #region Handle case if no default value was found
-#if FEATURE_LEGACYNETCF
-                if (CompatibilitySwitches.IsAppEarlierThanWindowsPhone8)
-                    defaultValue = null;
-                else
-#endif
                 if (IsOptional)
                 {
                     // If the argument is marked as optional then the default value is Missing.Value.
@@ -594,10 +556,9 @@ namespace System.Reflection
         }
 
         // returns DBNull.Value if the parameter doesn't have a default value
-        [System.Security.SecuritySafeCritical]
         private Object GetDefaultValueInternal(bool raw)
         {
-            Contract.Assert(!m_noMetadata);
+            Debug.Assert(!m_noMetadata);
 
             if (m_noDefaultValue)
                 return DBNull.Value;
@@ -706,7 +667,7 @@ namespace System.Reflection
         {
             get
             {
-                return m_tkParamDef; 
+                return m_tkParamDef;
             }
         }
 
@@ -734,7 +695,7 @@ namespace System.Reflection
         public override Object[] GetCustomAttributes(Type attributeType, bool inherit)
         {
             if (attributeType == null)
-                throw new ArgumentNullException("attributeType");
+                throw new ArgumentNullException(nameof(attributeType));
             Contract.EndContractBlock();
 
             if (MdToken.IsNullToken(m_tkParamDef))
@@ -743,16 +704,15 @@ namespace System.Reflection
             RuntimeType attributeRuntimeType = attributeType.UnderlyingSystemType as RuntimeType;
 
             if (attributeRuntimeType == null)
-                throw new ArgumentException(Environment.GetResourceString("Arg_MustBeType"), "attributeType");
+                throw new ArgumentException(Environment.GetResourceString("Arg_MustBeType"), nameof(attributeType));
 
             return CustomAttribute.GetCustomAttributes(this, attributeRuntimeType);
         }
 
-        [System.Security.SecuritySafeCritical]  // auto-generated
         public override bool IsDefined(Type attributeType, bool inherit)
         {
             if (attributeType == null)
-                throw new ArgumentNullException("attributeType");
+                throw new ArgumentNullException(nameof(attributeType));
             Contract.EndContractBlock();
 
             if (MdToken.IsNullToken(m_tkParamDef))
@@ -761,7 +721,7 @@ namespace System.Reflection
             RuntimeType attributeRuntimeType = attributeType.UnderlyingSystemType as RuntimeType;
 
             if (attributeRuntimeType == null)
-                throw new ArgumentException(Environment.GetResourceString("Arg_MustBeType"), "attributeType");
+                throw new ArgumentException(Environment.GetResourceString("Arg_MustBeType"), nameof(attributeType));
 
             return CustomAttribute.IsDefined(this, attributeRuntimeType);
         }
@@ -771,31 +731,5 @@ namespace System.Reflection
             return CustomAttributeData.GetCustomAttributesInternal(this);
         }
         #endregion
-
-#if FEATURE_REMOTING
-        #region Remoting Cache
-        private RemotingParameterCachedData m_cachedData;
-
-        internal RemotingParameterCachedData RemotingCache
-        {
-            get
-            {
-                // This grabs an internal copy of m_cachedData and uses
-                // that instead of looking at m_cachedData directly because
-                // the cache may get cleared asynchronously.  This prevents
-                // us from having to take a lock.
-                RemotingParameterCachedData cache = m_cachedData;
-                if (cache == null)
-                {
-                    cache = new RemotingParameterCachedData(this);
-                    RemotingParameterCachedData ret = Interlocked.CompareExchange(ref m_cachedData, cache, null);
-                    if (ret != null)
-                        cache = ret;
-                }
-                return cache;
-            }
-        }
-        #endregion
-#endif //FEATURE_REMOTING
     }
 }

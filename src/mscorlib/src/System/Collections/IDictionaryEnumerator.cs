@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*============================================================
 **
@@ -12,10 +13,12 @@
 **
 ** 
 ===========================================================*/
-namespace System.Collections {
-    // Interfaces are not serializable
-    
-    using System;
+// Interfaces are not serializable
+
+using System;
+
+namespace System.Collections
+{
     // This interface represents an enumerator that allows sequential access to the
     // elements of a dictionary. Upon creation, an enumerator is conceptually
     // positioned before the first element of the enumeration. The first call to the
@@ -43,7 +46,6 @@ namespace System.Collections {
     // return the same DictionaryEntry and avoids boxing the DictionaryEntry (boxing
     // is somewhat expensive).
     // 
-[System.Runtime.InteropServices.ComVisible(true)]
     public interface IDictionaryEnumerator : IEnumerator
     {
         // Returns the key of the current element of the enumeration. The returned
@@ -52,27 +54,30 @@ namespace System.Collections {
         // GetKey with no intervening calls to GetNext will return
         // the same object.
         // 
-        Object Key {
-            get; 
+        Object Key
+        {
+            get;
         }
-        
+
         // Returns the value of the current element of the enumeration. The
         // returned value is undefined before the first call to GetNext and
         // following a call to GetNext that returned false. Multiple calls
         // to GetValue with no intervening calls to GetNext will
         // return the same object.
         // 
-        Object Value {
+        Object Value
+        {
             get;
         }
-        
+
         // GetBlock will copy dictionary values into the given Array.  It will either
         // fill up the array, or if there aren't enough elements, it will
         // copy as much as possible into the Array.  The number of elements
         // copied is returned.
         // 
-        DictionaryEntry Entry {
-            get; 
+        DictionaryEntry Entry
+        {
+            get;
         }
     }
 }

@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 // FCall.H
 //
 
@@ -212,7 +211,7 @@
 //
 
 
-#if !defined(__FCall_h__) && !defined(CLR_STANDALONE_BINDER)
+#ifndef __FCall_h__
 #define __FCall_h__
 
 #include "gms.h"
@@ -563,6 +562,7 @@ LPVOID __FCThrowArgument(LPVOID me, enum RuntimeExceptionKind reKind, LPCWSTR ar
             TESTHOOKCALL(AppDomainCanBeUnloaded(GET_THREAD()->GetDomain()->GetId().m_dwId,!allowGC)); \
             /* <TODO>TODO TURN THIS ON!!!   </TODO> */                    \
             /* gcpoll; */                                                       \
+            INSTALL_MANAGED_EXCEPTION_DISPATCHER;                               \
             INSTALL_UNWIND_AND_CONTINUE_HANDLER_FOR_HMF(&__helperframe);
 
 #define HELPER_METHOD_FRAME_BEGIN_EX_NOTHROW(ret, helperFrame, gcpoll, allowGC, probeFailExpr) \
@@ -595,6 +595,7 @@ LPVOID __FCThrowArgument(LPVOID me, enum RuntimeExceptionKind reKind, LPCWSTR ar
 
 #define HELPER_METHOD_FRAME_END_EX(gcpoll,allowGC)                          \
             UNINSTALL_UNWIND_AND_CONTINUE_HANDLER;                          \
+            UNINSTALL_MANAGED_EXCEPTION_DISPATCHER;                         \
             TESTHOOKCALL(AppDomainCanBeUnloaded(GET_THREAD()->GetDomain()->GetId().m_dwId,!allowGC)); \
         HELPER_METHOD_FRAME_END_EX_BODY(gcpoll,allowGC);
 
@@ -882,9 +883,9 @@ void HCallAssert(void*& cache, void* target);
 // 
 // see code:ObjectNative::GetClass for an example
 //
-#define FC_INNER_PROLOG(outterfuncname)                         \
+#define FC_INNER_PROLOG(outerfuncname)                          \
     LPVOID __me;                                                \
-    __me = GetEEFuncEntryPointMacro(outterfuncname);            \
+    __me = GetEEFuncEntryPointMacro(outerfuncname);             \
     FC_CAN_TRIGGER_GC();                                        \
     INCONTRACT(FCallCheck __fCallCheck(__FILE__, __LINE__));
 
@@ -1316,9 +1317,8 @@ typedef UINT16 FC_UINT16_RET;
 
 
 // FC_TypedByRef should be used for TypedReferences in FCall signatures
-#ifdef UNIX_AMD64_ABI
+#if defined(UNIX_AMD64_ABI) && !defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
 // Explicitly pass the TypedReferences by reference 
-// UNIXTODO: Remove once the proper managed calling convention for struct is in place
 #define FC_TypedByRef   TypedByRef&
 #define FC_DECIMAL      DECIMAL&
 #else

@@ -1,5 +1,6 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 //
 
@@ -138,27 +139,25 @@ namespace System.Runtime.InteropServices.WindowsRuntime
     }
 
     // Specify size directly instead of fields to avoid warnings
-    [StructLayoutAttribute(LayoutKind.Sequential, Size=8)]
+    [StructLayoutAttribute(LayoutKind.Sequential, Size = 8)]
     [WindowsRuntimeImport]
     internal struct Point
     {
-
         // float X;
         // float Y;        
     }
 
     // Specify size directly instead of fields to avoid warnings
-    [StructLayoutAttribute(LayoutKind.Sequential, Size=8)]
+    [StructLayoutAttribute(LayoutKind.Sequential, Size = 8)]
     [WindowsRuntimeImport]
     internal struct Size
     {
-
         // float Width;
         // float Height;   
     }
 
     // Specify size directly instead of fields to avoid warnings
-    [StructLayoutAttribute(LayoutKind.Sequential, Size=16)]
+    [StructLayoutAttribute(LayoutKind.Sequential, Size = 16)]
     [WindowsRuntimeImport]
     internal struct Rect
     {
@@ -166,5 +165,5 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         // float Y;
         // float Width;
         // float Height;        
-    }    
+    }
 }

@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //
 // vars.hpp
 //
@@ -63,29 +62,19 @@ typedef unsigned short wchar_t;
 #define _WCHAR_T_DEFINED
 #endif
 
-#ifndef CLR_STANDALONE_BINDER
 #include "util.hpp"
 #include <corpriv.h>
 #include <cordbpriv.h>
 
-#ifndef FEATURE_CORECLR
-#include <metahost.h>
-#endif // !FEATURE_CORECLR
 
 #include "eeprofinterfaces.h"
 #include "eehash.h"
-
-#ifdef FEATURE_CAS_POLICY
-#include "certificatecache.h"
-#endif
-
-#endif //CLR_STANDALONE_BINDER
 
 #include "profilepriv.h"
 
 class ClassLoader;
 class LoaderHeap;
-class GCHeap;
+class IGCHeap;
 class Object;
 class StringObject;
 class TransparentProxyObject;
@@ -188,12 +177,6 @@ class OBJECTREF {
         class TransparentProxyObject* m_asTP;
 
         class ReflectClassBaseObject* m_asReflectClass;
-#ifdef FEATURE_COMPRESSEDSTACK        
-        class CompressedStackObject* m_asCompressedStack;
-#endif // #ifdef FEATURE_COMPRESSEDSTACK
-#if defined(FEATURE_IMPERSONATION) || defined(FEATURE_COMPRESSEDSTACK)
-        class SecurityContextObject* m_asSecurityContext;
-#endif // #if defined(FEATURE_IMPERSONATION) || defined(FEATURE_COMPRESSEDSTACK)
         class ExecutionContextObject* m_asExecutionContext;
         class AppDomainBaseObject* m_asAppDomainBase;
         class PermissionSetObject* m_asPermissionSetObject;
@@ -341,8 +324,9 @@ class REF : public OBJECTREF
 
 };
 
-#define VALIDATEOBJECTREF(objref) ((objref).Validate())
-#define VALIDATEOBJECT(obj) obj->Validate()
+// the while (0) syntax below is to force a trailing semicolon on users of the macro
+#define VALIDATEOBJECTREF(objref) do {if ((objref) != NULL) (objref).Validate();} while (0)
+#define VALIDATEOBJECT(obj) do {if ((obj) != NULL) (obj)->Validate();} while (0)
 
 #define ObjectToOBJECTREF(obj)     (OBJECTREF(obj))
 #define OBJECTREFToObject(objref)  ((objref).operator-> ())
@@ -375,8 +359,6 @@ class ClassLoaderList;
 class Module;
 class ArrayTypeDesc;
 
-#ifndef BINDER
-
 #define EXTERN extern
 
 // For [<I1, etc. up to and including [Object
@@ -407,6 +389,7 @@ GPTR_DECL(MethodTable,      g_pStringClass);
 GPTR_DECL(MethodTable,      g_pArrayClass);
 GPTR_DECL(MethodTable,      g_pSZArrayHelperClass);
 GPTR_DECL(MethodTable,      g_pNullableClass);
+GPTR_DECL(MethodTable,      g_pByReferenceClass);
 GPTR_DECL(MethodTable,      g_pExceptionClass);
 GPTR_DECL(MethodTable,      g_pThreadAbortExceptionClass);
 GPTR_DECL(MethodTable,      g_pOutOfMemoryExceptionClass);
@@ -419,13 +402,11 @@ GPTR_DECL(MethodTable,      g_pFreeObjectMethodTable);
 GPTR_DECL(MethodTable,      g_pValueTypeClass);
 GPTR_DECL(MethodTable,      g_pEnumClass);
 GPTR_DECL(MethodTable,      g_pThreadClass);
-GPTR_DECL(MethodTable,      g_pCriticalFinalizerObjectClass);
-GPTR_DECL(MethodTable,      g_pAsyncFileStream_AsyncResultClass);
 GPTR_DECL(MethodTable,      g_pOverlappedDataClass);
 
-GPTR_DECL(MethodTable,      g_ArgumentHandleMT);
-GPTR_DECL(MethodTable,      g_ArgIteratorMT);
 GPTR_DECL(MethodTable,      g_TypedReferenceMT);
+
+GPTR_DECL(MethodTable,      g_pByteArrayMT);
 
 #ifdef FEATURE_COMINTEROP
 GPTR_DECL(MethodTable,      g_pBaseCOMObject);
@@ -436,7 +417,6 @@ GPTR_DECL(MethodTable,      g_pBaseRuntimeClass);
 GPTR_DECL(MethodTable,      g_pICastableInterface);
 #endif // FEATURE_ICASTABLE
 
-GPTR_DECL(MethodDesc,       g_pPrepareConstrainedRegionsMethod);
 GPTR_DECL(MethodDesc,       g_pExecuteBackoutCodeHelperMethod);
 
 GPTR_DECL(MethodDesc,       g_pObjectCtorMD);
@@ -445,9 +425,6 @@ GPTR_DECL(MethodDesc,       g_pObjectFinalizerMD);
 //<TODO> @TODO Remove eventually - determines whether the verifier throws an exception when something fails</TODO>
 EXTERN bool                 g_fVerifierOff;
 
-#ifndef FEATURE_CORECLR
-EXTERN IAssemblyUsageLog   *g_pIAssemblyUsageLogGac;
-#endif
 
 // Global System Information
 extern SYSTEM_INFO g_SystemInfo;
@@ -469,7 +446,6 @@ EXTERN OBJECTHANDLE         g_pPreallocatedSentinelObject;
 // We use this object to return a preallocated System.Exception instance when we have nothing
 // better to return.
 EXTERN OBJECTHANDLE         g_pPreallocatedBaseException;
-#endif // !BINDER
 
 GPTR_DECL(Thread,g_pFinalizerThread);
 GPTR_DECL(Thread,g_pSuspensionThread);
@@ -478,17 +454,17 @@ GPTR_DECL(Thread,g_pSuspensionThread);
 typedef DPTR(SyncTableEntry) PTR_SyncTableEntry;
 GPTR_DECL(SyncTableEntry, g_pSyncTable);
 
-#if !defined(BINDER)
+#if defined(ENABLE_PERF_COUNTERS) || defined(FEATURE_EVENT_TRACE)
+// Note this is not updated in a thread safe way so the value may not be accurate. We get
+// it accurately in full GCs if the handle count is requested.
+extern DWORD g_dwHandles;
+#endif // ENABLE_PERF_COUNTERS || FEATURE_EVENT_TRACE
 
 #ifdef FEATURE_COMINTEROP
 // Global RCW cleanup list
 typedef DPTR(RCWCleanupList) PTR_RCWCleanupList;
 GPTR_DECL(RCWCleanupList,g_pRCWCleanupList);
 #endif // FEATURE_COMINTEROP
-
-#ifdef FEATURE_CAS_POLICY
-EXTERN CertificateCache *g_pCertificateCache;
-#endif 
 
 #ifdef FEATURE_IPCMAN
 // support for IPCManager
@@ -568,12 +544,6 @@ EXTERN Volatile<BOOL> g_fEEStarted;
 EXTERN BOOL g_fComStarted;
 #endif
 
-#if !defined(FEATURE_CORECLR) && !defined(CROSSGEN_COMPILE)
-//
-// Pointer to the activated CLR interface provided by the shim.
-//
-EXTERN ICLRRuntimeInfo *g_pCLRRuntime;
-#endif
 
 //
 // Global state variables indicating which stage of shutdown we are in
@@ -585,7 +555,6 @@ EXTERN BOOL g_fSuspendOnShutdown;
 EXTERN BOOL g_fSuspendFinalizerOnShutdown;
 #endif // DACCESS_COMPILE
 EXTERN Volatile<LONG> g_fForbidEnterEE;
-EXTERN bool g_fFinalizerRunOnShutDown;
 GVAL_DECL(bool, g_fProcessDetach);
 EXTERN bool g_fManagedAttach;
 EXTERN bool g_fNoExceptions;
@@ -610,6 +579,10 @@ EXTERN DWORD g_FinalizerWaiterStatus;
 extern ULONGLONG g_ObjFinalizeStartTime;
 extern Volatile<BOOL> g_FinalizerIsRunning;
 extern Volatile<ULONG> g_FinalizerLoopCount;
+
+#if defined(FEATURE_PAL) && defined(FEATURE_EVENT_TRACE)
+extern Volatile<BOOL> g_TriggerHeapDump;
+#endif // FEATURE_PAL
 
 extern LONG GetProcessedExitProcessEventCount();
 
@@ -758,7 +731,6 @@ GVAL_DECL(SIZE_T, g_runtimeLoadedBaseAddress);
 GVAL_DECL(SIZE_T, g_runtimeVirtualSize);
 #endif // !FEATURE_PAL
 
-#endif /* !BINDER */
 
 #ifndef MAXULONG
 #define MAXULONG    0xffffffff
@@ -876,7 +848,6 @@ struct ModuleIndex
 
 typedef DPTR(GSCookie) PTR_GSCookie;
 
-#ifndef CLR_STANDALONE_BINDER
 #ifndef DACCESS_COMPILE
 // const is so that it gets placed in the .text section (which is read-only)
 // volatile is so that accesses to it do not get optimized away because of the const
@@ -924,4 +895,3 @@ enum HostCallPreference
 };
 
 #endif /* _VARS_HPP */
-#endif /* !CLR_STANDALONE_BINDER */

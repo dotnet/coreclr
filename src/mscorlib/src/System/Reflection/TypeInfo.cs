@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*=============================================================================
 **
@@ -12,38 +13,42 @@
 **
 =============================================================================*/
 
+using System;
+using System.Runtime.CompilerServices;
+using System.Collections.Generic;
+using System.Diagnostics.Contracts;
+
 namespace System.Reflection
 {
-    using System;
-    using System.Runtime.CompilerServices;
-    using System.Collections.Generic;
-    using System.Diagnostics.Contracts;
-
     //all today's runtime Type derivations derive now from TypeInfo
     //we make TypeInfo implement IRCT - simplifies work
-    [System.Runtime.InteropServices.ComVisible(true)]
     [Serializable]
-    public abstract class TypeInfo:Type,IReflectableType
+    public abstract class TypeInfo : Type, IReflectableType
     {
         [FriendAccessAllowed]
         internal TypeInfo() { }
 
-        TypeInfo IReflectableType.GetTypeInfo(){
+        TypeInfo IReflectableType.GetTypeInfo()
+        {
             return this;
         }
-        public virtual Type AsType(){
+        public virtual Type AsType()
+        {
             return (Type)this;
         }
 
-        public virtual Type[] GenericTypeParameters{
-            get{
-                if(IsGenericTypeDefinition){
+        public virtual Type[] GenericTypeParameters
+        {
+            get
+            {
+                if (IsGenericTypeDefinition)
+                {
                     return GetGenericArguments();
                 }
-                else{
+                else
+                {
                     return Type.EmptyTypes;
                 }
-
             }
         }
         //a re-implementation of ISAF from Type, skipping the use of UnderlyingType
@@ -76,8 +81,8 @@ namespace System.Reflection
 
             return false;
         }
-#region moved over from Type
-   // Fields
+        #region moved over from Type
+        // Fields
 
         public virtual EventInfo GetDeclaredEvent(String name)
         {
@@ -102,10 +107,13 @@ namespace System.Reflection
         }
         public virtual System.Reflection.TypeInfo GetDeclaredNestedType(String name)
         {
-            var nt=GetNestedType(name, Type.DeclaredOnlyLookup);
-            if(nt == null){
+            var nt = GetNestedType(name, Type.DeclaredOnlyLookup);
+            if (nt == null)
+            {
                 return null; //the extension method GetTypeInfo throws for null
-            }else{
+            }
+            else
+            {
                 return nt.GetTypeInfo();
             }
         }
@@ -118,7 +126,7 @@ namespace System.Reflection
 
 
 
-    // Properties
+        // Properties
 
         public virtual IEnumerable<ConstructorInfo> DeclaredConstructors
         {
@@ -163,9 +171,10 @@ namespace System.Reflection
         {
             get
             {
-                foreach (var t in GetNestedTypes(Type.DeclaredOnlyLookup)){
-	        		yield return t.GetTypeInfo();
-    		    }
+                foreach (var t in GetNestedTypes(Type.DeclaredOnlyLookup))
+                {
+                    yield return t.GetTypeInfo();
+                }
             }
         }
 
@@ -186,9 +195,7 @@ namespace System.Reflection
             }
         }
 
- 
-#endregion        
-
+        #endregion
     }
 }
 

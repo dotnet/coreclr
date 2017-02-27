@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information. 
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 // ==++==
 //
@@ -44,7 +43,6 @@ public:
     static const UINT16 INVALID_SLOT_INDEX = static_cast<UINT16>(-1);
     static const UINT16 MAX_SLOT_INDEX = static_cast<UINT16>(-1) - 10;
 
-#ifndef BINDER
     // Information gathered by the class loader relating to generics
     // Fields in this structure are initialized very early in class loading
     // See code:ClassLoader.CreateTypeHandleForTypeDefThrowing
@@ -86,10 +84,6 @@ public:
     // setting up a MethodTable
     struct bmtContextStaticInfo
     {
-#ifdef FEATURE_REMOTING        
-        // size of context statics
-        DWORD dwContextStaticsSize;
-#endif
     
         inline bmtContextStaticInfo() { LIMITED_METHOD_CONTRACT; memset((void *)this, NULL, sizeof(*this)); }
     };
@@ -221,17 +215,12 @@ private:
     void SetIsComClassInterface() { WRAPPER_NO_CONTRACT; GetHalfBakedClass()->SetIsComClassInterface(); } 
 #endif // FEATURE_COMINTEROP
     BOOL IsEnum() { WRAPPER_NO_CONTRACT; return bmtProp->fIsEnum; } 
-    BOOL ContainsStackPtr() { WRAPPER_NO_CONTRACT; return GetHalfBakedClass()->ContainsStackPtr(); } 
     BOOL HasNonPublicFields() { WRAPPER_NO_CONTRACT; return GetHalfBakedClass()->HasNonPublicFields(); }
     BOOL IsValueClass() { WRAPPER_NO_CONTRACT; return bmtProp->fIsValueClass; } 
     BOOL IsUnsafeValueClass() { WRAPPER_NO_CONTRACT; return GetHalfBakedClass()->IsUnsafeValueClass(); }
     BOOL IsAbstract() { WRAPPER_NO_CONTRACT; return GetHalfBakedClass()->IsAbstract(); } 
     BOOL HasLayout() { WRAPPER_NO_CONTRACT; return GetHalfBakedClass()->HasLayout(); } 
     BOOL IsDelegate() { WRAPPER_NO_CONTRACT; return GetHalfBakedClass()->IsDelegate(); } 
-#ifdef FEATURE_REMOTING
-    BOOL IsMarshaledByRef() { WRAPPER_NO_CONTRACT; return bmtProp->fMarshaledByRef; }
-    BOOL IsContextful() { WRAPPER_NO_CONTRACT; return bmtProp->fIsContextful; } 
-#endif
     BOOL IsNested() { WRAPPER_NO_CONTRACT; return GetHalfBakedClass()->IsNested(); } 
     BOOL HasFieldsWhichMustBeInited() { WRAPPER_NO_CONTRACT; return GetHalfBakedClass()->HasFieldsWhichMustBeInited(); } 
     BOOL HasRemotingProxyAttribute() { WRAPPER_NO_CONTRACT; return GetHalfBakedClass()->HasRemotingProxyAttribute(); } 
@@ -1331,10 +1320,6 @@ private:
         bool fIsEnum;
         bool fNoSanityChecks;
         bool fSparse;                           // Set to true if a sparse interface is being used.
-#ifdef FEATURE_REMOTING        
-        bool fMarshaledByRef;
-        bool fIsContextful;
-#endif
 
 #ifdef FEATURE_COMINTEROP
         // Com Interop, ComWrapper classes extend from ComObject
@@ -2027,44 +2012,6 @@ private:
         //-----------------------------------------------------------------------------------------
         FieldDesc **ppFieldDescList;        // FieldDesc pointer (or NULL if field not preserved) for each field
 
-#ifdef FEATURE_REMOTING
-        //-----------------------------------------------------------------------------------------
-        // Tracking info for VTS (Version Tolerant Serialization)
-        MethodDesc *pOnSerializingMethod;
-        MethodDesc *pOnSerializedMethod;
-        MethodDesc *pOnDeserializingMethod;
-        MethodDesc *pOnDeserializedMethod;
-        bool *prfNotSerializedFields;
-        bool *prfOptionallySerializedFields;
-        bool fNeedsRemotingVtsInfo;
-
-        //-----------------------------------------------------------------------------------------
-        inline void SetFieldNotSerialized(DWORD dwIndex, DWORD dwNumInstanceFields)
-        {
-            WRAPPER_NO_CONTRACT;
-            if (prfNotSerializedFields == NULL)
-            {
-                DWORD cbSize = sizeof(bool) * dwNumInstanceFields;
-                prfNotSerializedFields = new (&GetThread()->m_MarshalAlloc) bool[dwNumInstanceFields];
-                ZeroMemory(prfNotSerializedFields, cbSize);
-            }
-            prfNotSerializedFields[dwIndex] = true;
-            fNeedsRemotingVtsInfo = true;
-        }
-
-        //-----------------------------------------------------------------------------------------
-        inline void SetFieldOptionallySerialized(DWORD dwIndex, DWORD dwNumInstanceFields)
-        {
-            WRAPPER_NO_CONTRACT;
-            if (prfOptionallySerializedFields == NULL)
-            {
-                prfOptionallySerializedFields = new (&GetThread()->m_MarshalAlloc) bool[dwNumInstanceFields];                
-                ZeroMemory(prfOptionallySerializedFields, sizeof(bool) * dwNumInstanceFields);
-            }
-            prfOptionallySerializedFields[dwIndex] = true;
-            fNeedsRemotingVtsInfo = true;
-        }
-#endif // FEATURE_REMOTING
 
         //-----------------------------------------------------------------------------------------
         inline bmtMethAndFieldDescs() { LIMITED_METHOD_CONTRACT; memset((void *)this, NULL, sizeof(*this)); }
@@ -2084,6 +2031,7 @@ private:
         DWORD NumGCPointerSeries;
         DWORD NumInstanceFieldBytes;
 
+        bool  fIsByRefLikeType;
         bool  fHasFixedAddressValueTypes;
         bool  fHasSelfReferencingStaticValueTypeField_WithRVA;
 
@@ -2899,9 +2847,6 @@ private:
         LPCUTF8             szAttrName,
         MethodDesc        **ppMethodDesc);
 
-#ifdef FEATURE_REMOTING // affects only remoting-related info
-    VOID ScanTypeForVtsInfo();
-#endif // FEATURE_REMOTING
 
     VOID
     CheckForSystemTypes();
@@ -2980,6 +2925,15 @@ private:
 
     VOID    CheckForNativeHFA();
 
+#ifdef FEATURE_UNIX_AMD64_STRUCT_PASSING_ITF
+    // checks whether the struct is enregisterable.
+    void SystemVAmd64CheckForPassStructInRegister();
+    void SystemVAmd64CheckForPassNativeStructInRegister();
+    // Store the eightbyte classification into the EEClass
+    void StoreEightByteClassification(SystemVStructRegisterPassingHelper* helper);
+
+#endif // FEATURE_UNIX_AMD64_STRUCT_PASSING_ITF
+
     // this accesses the field size which is temporarily stored in m_pMTOfEnclosingClass
     // during class loading. Don't use any other time
     DWORD GetFieldSize(FieldDesc *pFD);
@@ -3009,8 +2963,6 @@ private:
         DWORD dwR8Fields,
         DWORD dwTotalFields);
 
-#endif // !BINDER
-
     MethodTable * AllocateNewMT(Module *pLoaderModule,
                                 DWORD dwVtableSlots, 
                                 DWORD dwVirtuals,
@@ -3019,14 +2971,8 @@ private:
                                 DWORD dwNumDicts, 
                                 DWORD dwNumTypeSlots, 
                                 MethodTable *pMTParent,
-#ifndef BINDER
                                 ClassLoader *pClassLoader,
                                 LoaderAllocator *pAllocator, 
-#else // BINDER
-                                MdilModule *declaringModule,
-                                MdilModule *containingModule,
-                                BOOL fHasDispatchMap,
-#endif // BINDER
                                 BOOL isIFace, 
                                 BOOL fDynamicStatics,
                                 BOOL fHasGenericsStaticsInfo,
@@ -3045,8 +2991,6 @@ private:
 
 };  // class MethodTableBuilder
 
-#ifndef BINDER
 #include "methodtablebuilder.inl"
-#endif // !BINDER
 
 #endif // !METHODTABLEBUILDER_H

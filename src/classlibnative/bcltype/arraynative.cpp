@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //
 // File: ArrayNative.cpp
 //
@@ -40,13 +39,15 @@ FCIMPL2(INT32, ArrayNative::GetLowerBound, ArrayBase* array, unsigned int dimens
 
     if (array == NULL)
         FCThrow(kNullReferenceException);
-
-    // What is this an array of?
-    MethodTable *pArrayMT = array->GetMethodTable();
-    DWORD Rank = pArrayMT->GetRank();
-
-    if (dimension >= Rank)
-        FCThrowRes(kIndexOutOfRangeException, W("IndexOutOfRange_ArrayRankIndex"));
+    
+    if (dimension != 0)
+    {
+        // Check the dimension is within our rank
+        unsigned int rank = array->GetRank();
+    
+        if (dimension >= rank)
+            FCThrowRes(kIndexOutOfRangeException, W("IndexOutOfRange_ArrayRankIndex"));
+    }
 
     return array->GetLowerBoundsPtr()[dimension];
 }
@@ -62,13 +63,15 @@ FCIMPL2(INT32, ArrayNative::GetUpperBound, ArrayBase* array, unsigned int dimens
 
     if (array == NULL)
         FCThrow(kNullReferenceException);
-
-    // What is this an array of?
-    MethodTable *pArrayMT = array->GetMethodTable();
-    DWORD Rank = pArrayMT->GetRank();
-
-    if (dimension >= Rank)
-        FCThrowRes(kIndexOutOfRangeException, W("IndexOutOfRange_ArrayRankIndex"));
+    
+    if (dimension != 0)
+    {
+        // Check the dimension is within our rank
+        unsigned int rank = array->GetRank();
+    
+        if (dimension >= rank)
+            FCThrowRes(kIndexOutOfRangeException, W("IndexOutOfRange_ArrayRankIndex"));
+    }
 
     return array->GetBoundsPtr()[dimension] + array->GetLowerBoundsPtr()[dimension] - 1;
 }
@@ -83,9 +86,15 @@ FCIMPL2(INT32, ArrayNative::GetLength, ArrayBase* array, unsigned int dimension)
 
     if (array==NULL)
         FCThrow(kNullReferenceException);
-    unsigned int rank = array->GetRank();
-    if (dimension >= rank)
-        FCThrow(kIndexOutOfRangeException);
+    
+    if (dimension != 0)
+    {
+        // Check the dimension is within our rank
+        unsigned int rank = array->GetRank();
+        if (dimension >= rank)
+            FCThrow(kIndexOutOfRangeException);
+    }
+    
     return array->GetBoundsPtr()[dimension];
 }
 FCIMPLEND
@@ -167,7 +176,6 @@ void ArrayInitializeWorker(ARRAYBASEREF * arrayRef,
 #ifdef _X86_
     BEGIN_CALL_TO_MANAGED();
 
-    typedef void (__fastcall * CtorFtnType)(BYTE*, BYTE*);
 
     for (SIZE_T i = 0; i < cElements; i++)
     {
@@ -188,6 +196,7 @@ void ArrayInitializeWorker(ARRAYBASEREF * arrayRef,
             nop                // Mark the fact that we can call managed code
         }
 #else // _DEBUG
+        typedef void (__fastcall * CtorFtnType)(BYTE*, BYTE*);
         (*(CtorFtnType)ctorFtn)(thisPtr, (BYTE*)pElemMT);
 #endif // _DEBUG
 
@@ -952,7 +961,7 @@ void memmoveGCRefs(void *dest, const void *src, size_t len)
         }
     }
 
-    GCHeap::GetGCHeap()->SetCardsAfterBulkCopy((Object**)dest, len);
+    SetCardsAfterBulkCopy((Object**)dest, len);
 }
 
 void ArrayNative::ArrayCopyNoTypeCheck(BASEARRAYREF pSrc, unsigned int srcIndex, BASEARRAYREF pDest, unsigned int destIndex, unsigned int length)
@@ -1012,7 +1021,7 @@ FCIMPL6(void, ArrayNative::ArrayCopy, ArrayBase* m_pSrc, INT32 m_iSrcIndex, Arra
 
     // cannot pass null for source or destination
     if (gc.pSrc == NULL || gc.pDst == NULL) {
-        FCThrowArgumentNullVoid(gc.pSrc==NULL ? W("source") : W("dest"));
+        FCThrowArgumentNullVoid(gc.pSrc==NULL ? W("sourceArray") : W("destinationArray"));
     }
 
     // source and destination must be arrays
@@ -1039,16 +1048,16 @@ FCIMPL6(void, ArrayNative::ArrayCopy, ArrayBase* m_pSrc, INT32 m_iSrcIndex, Arra
         FCThrowArgumentOutOfRangeVoid(W("length"), W("ArgumentOutOfRange_NeedNonNegNum"));
 
     if (m_iSrcIndex < srcLB || (m_iSrcIndex - srcLB < 0))
-        FCThrowArgumentOutOfRangeVoid(W("srcIndex"), W("ArgumentOutOfRange_ArrayLB"));
+        FCThrowArgumentOutOfRangeVoid(W("sourceIndex"), W("ArgumentOutOfRange_ArrayLB"));
         
     if (m_iDstIndex < destLB || (m_iDstIndex - destLB < 0))
-        FCThrowArgumentOutOfRangeVoid(W("dstIndex"), W("ArgumentOutOfRange_ArrayLB"));
+        FCThrowArgumentOutOfRangeVoid(W("destinationIndex"), W("ArgumentOutOfRange_ArrayLB"));
 
     if ((DWORD)(m_iSrcIndex - srcLB + m_iLength) > srcLen)
-        FCThrowResVoid(kArgumentException, W("Arg_LongerThanSrcArray"));
+        FCThrowArgumentVoid(W("sourceArray"), W("Arg_LongerThanSrcArray"));
         
     if ((DWORD)(m_iDstIndex - destLB + m_iLength) > destLen)
-        FCThrowResVoid(kArgumentException, W("Arg_LongerThanDestArray"));
+        FCThrowArgumentVoid(W("destinationArray"), W("Arg_LongerThanDestArray"));
 
     int r = 0;
 
@@ -1177,18 +1186,6 @@ void ArrayNative::CheckElementType(TypeHandle elementType)
         // TODO: We also should check for type/member visibility here. To do that we can replace
         // the following chunk of code with a simple InvokeUtil::CanAccessClass call.
         // But it's too late to make this change in Dev10 and we want SL4 to be compatible with Dev10.
-#ifndef FEATURE_CORECLR
-        // Make sure security allows us access to the array type - if it is critical, convert that to a
-        // demand for full trust
-        if (!SecurityStackWalk::HasFlagsOrFullyTrusted(0))
-        {
-            if (Security::TypeRequiresTransparencyCheck(pMT, true))
-            {
-                // If we're creating a critical type, convert the critical check into a demand for full trust
-                Security::SpecialDemand(SSWT_LATEBOUND_LINKDEMAND, SECURITY_FULL_TRUST);
-            }
-        }
-#else
         if (Security::TypeRequiresTransparencyCheck(pMT))
         {
             // The AccessCheckOptions flag doesn't matter because we just need to get the caller.
@@ -1201,11 +1198,10 @@ void ArrayNative::CheckElementType(TypeHandle elementType)
             
             accessCheckOptions.DemandMemberAccessOrFail(&sCtx, pMT, FALSE /*visibilityCheck*/);
         }        
-#endif // !FEATURE_CORECLR
 
-        // Check for TypedReference, ArgIterator and RuntimeArgument.
-        if (pMT->ContainsStackPtr())
-            COMPlusThrow(kNotSupportedException, W("NotSupported_ContainsStackPtr[]"));
+        // Check for byref-like types.
+        if (pMT->IsByRefLike())
+            COMPlusThrow(kNotSupportedException, W("NotSupported_ByRefLike[]"));
 
         // Check for open generic types.
         if (pMT->IsGenericTypeDefinition() || pMT->ContainsGenericVariables())
@@ -1228,7 +1224,7 @@ void ArrayNative::CheckElementType(TypeHandle elementType)
 
     // ByRefs and generic type variables are never allowed.
     if (elementType.IsByRef() || elementType.IsGenericVariable())
-        COMPlusThrow(kNotSupportedException, W("NotSupported_ContainsStackPtr[]"));
+        COMPlusThrow(kNotSupportedException, W("NotSupported_Type"));
 
     // We can create pointers and function pointers, but it requires skip verification permission.
     CorElementType etType = elementType.GetSignatureCorElementType();
@@ -1240,7 +1236,7 @@ void ArrayNative::CheckElementType(TypeHandle elementType)
 
     // We shouldn't get here (it means we've encountered a new type of typehandle if we do).
     _ASSERTE(!"Shouldn't get here, unknown type handle type");
-    COMPlusThrow(kNotSupportedException, W("NotSupported_ContainsStackPtr[]"));
+    COMPlusThrow(kNotSupportedException);
 }
 
 FCIMPL4(Object*, ArrayNative::CreateInstance, void* elementTypeHandle, INT32 rank, INT32* pLengths, INT32* pLowerBounds)

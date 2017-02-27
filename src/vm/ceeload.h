@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 // ===========================================================================
 // File: CEELOAD.H
 //
@@ -13,12 +12,7 @@
 #ifndef CEELOAD_H_
 #define CEELOAD_H_
 
-#ifndef CLR_STANDALONE_BINDER
-
 #include "common.h"
-#ifdef FEATURE_FUSION
-#include <fusion.h>
-#endif
 #include "vars.hpp" // for LPCUTF8
 #include "hash.h"
 #include "clsload.hpp"
@@ -52,37 +46,6 @@
 #ifdef FEATURE_READYTORUN
 #include "readytoruninfo.h"
 #endif
-
-#else // CLR_STANDALONE_BINDER
-
-#include "volatile.h"
-#include "crst.h"
-#include "bitmask.h"
-#include "arraylist.h"
-
-#define VPTR(type) type*
-typedef DPTR(class Assembly)            PTR_Assembly;
-typedef DPTR(class Binder)              PTR_Binder;
-typedef DPTR(class CGrowableStream)     PTR_CGrowableStream;
-typedef DPTR(struct DomainLocalModule)  PTR_DomainLocalModule;
-typedef DPTR(class EEClassHashTable)    PTR_EEClassHashTable;
-typedef DPTR(class EETypeHashTable)     PTR_EETypeHashTable;
-typedef DPTR(class FieldDesc)           PTR_FieldDesc;
-typedef DPTR(class InstMethodHashTable) PTR_InstMethodHashTable;
-typedef DPTR(class LoaderHeap)          PTR_LoaderHeap;
-typedef DPTR(class MethodDesc)          PTR_MethodDesc;
-typedef DPTR(class MethodTable)         PTR_MethodTable;
-typedef VPTR(class PEFile)              PTR_PEFile;
-typedef DPTR(class ProfilingBlobTable)  PTR_ProfilingBlobTable;
-typedef DPTR(class TypeVarTypeDesc)     PTR_TypeVarTypeDesc;
-template<typename PTR_TYPE> class FixupPointer;
-
-class EEPtrHashTable;
-class ISymUnmanagedReader;
-class NgenStats;
-
-#endif // CLR_STANDALONE_BINDER
-
 
 class PELoader;
 class Stub;
@@ -118,10 +81,31 @@ class TypeHandleList;
 class ProfileEmitter;
 class ReJitManager;
 class TrackingMap;
-class PersistentInlineTrackingMap;
+struct MethodInModule;
+class PersistentInlineTrackingMapNGen;
 
+// Hash table parameter of available classes (name -> module/class) hash
+#define AVAILABLE_CLASSES_HASH_BUCKETS 1024
+#define AVAILABLE_CLASSES_HASH_BUCKETS_COLLECTIBLE 128
+#define PARAMTYPES_HASH_BUCKETS 23
+#define PARAMMETHODS_HASH_BUCKETS 11
+#define METHOD_STUBS_HASH_BUCKETS 11
+#define GUID_TO_TYPE_HASH_BUCKETS 16
+            
+// The native symbol reader dll name
+#if defined(_AMD64_)
+#define NATIVE_SYMBOL_READER_DLL W("Microsoft.DiaSymReader.Native.amd64.dll")
+#elif defined(_X86_)
+#define NATIVE_SYMBOL_READER_DLL W("Microsoft.DiaSymReader.Native.x86.dll")
+#elif defined(_ARM_)
+#define NATIVE_SYMBOL_READER_DLL W("Microsoft.DiaSymReader.Native.arm.dll")
+#elif defined(_ARM64_)
+// Use diasymreader until the package has an arm64 version - issue #7360
+//#define NATIVE_SYMBOL_READER_DLL W("Microsoft.DiaSymReader.Native.arm64.dll")
+#define NATIVE_SYMBOL_READER_DLL W("diasymreader.dll")
+#endif
 
-typedef DPTR(PersistentInlineTrackingMap) PTR_PersistentInlineTrackingMap;
+typedef DPTR(PersistentInlineTrackingMapNGen) PTR_PersistentInlineTrackingMapNGen;
 
 extern VerboseLevel g_CorCompileVerboseLevel;
 #endif  // FEATURE_PREJIT
@@ -281,13 +265,11 @@ public:
     TADDR GetValueFromCompressedMap(DWORD rid);
 
 #ifndef DACCESS_COMPILE
-#ifndef CLR_STANDALONE_BINDER
     void CreateHotItemList(DataImage *image, CorProfileData *profileData, int table, BOOL fSkipNullEntries = FALSE);
     void Save(DataImage *image, DataImage::ItemKind kind, CorProfileData *profileData, int table, BOOL fCopyValues = FALSE);
     void SaveUncompressedMap(DataImage *image, DataImage::ItemKind kind, BOOL fCopyValues = FALSE);
     void ConvertSavedMapToUncompressed(DataImage *image, DataImage::ItemKind kind);
     void Fixup(DataImage *image, BOOL fFixupEntries = TRUE);
-#endif // !CLR_STANDALONE_BINDER
 #endif // !DACCESS_COMPILE
 
 #ifdef _DEBUG
@@ -508,23 +490,12 @@ public:
 
 // Place holder types for RID maps that store cross-module references
 
-#ifndef CLR_STANDALONE_BINDER
-
 class TypeRef { };
 typedef DPTR(class TypeRef) PTR_TypeRef;
 
 class MemberRef { };
 typedef DPTR(class MemberRef) PTR_MemberRef;
 
-#else // CLR_STANDALONE_BINDER
-
-struct TypeRef;
-typedef DPTR(struct TypeRef) PTR_TypeRef;
-
-struct MemberRef;
-typedef DPTR(struct MemberRef) PTR_MemberRef;
-
-#endif // CLR_STANDALONE_BINDER
 
 // flag used to mark member ref pointers to field descriptors in the member ref cache
 #define IS_FIELD_MEMBER_REF ((TADDR)0x00000002)
@@ -580,8 +551,6 @@ struct NGenLayoutInfo
     DWORD                   m_rvaFilterPersonalityRoutine;
 };
 
-#ifndef CLR_STANDALONE_BINDER
-
 //
 // VASigCookies are allocated to encapsulate a varargs call signature.
 // A reference to the cookie is embedded in the code stream.  Cookies
@@ -620,12 +589,6 @@ struct VASigCookieBlock
     UINT                 m_numcookies;
     VASigCookie          m_cookies[kVASigCookieBlockSize];
 };
-
-#else // CLR_STANDALONE_BINDER
-
-struct VASigCookieBlock;
-
-#endif // CLR_STANDALONE_BINDER
 
 // This lookup table persists the information about boxed statics into the ngen'ed image
 // which allows one to the type static initialization without touching expensive EEClasses. Note
@@ -698,7 +661,6 @@ struct ModuleCtorInfo
         return hashVal;
     };
 
-#ifndef CLR_STANDALONE_BINDER
     ArrayDPTR(FixupPointer<PTR_MethodTable>) GetGCStaticMTs(DWORD index);
 
 #ifdef FEATURE_PREJIT
@@ -756,12 +718,11 @@ struct ModuleCtorInfo
         }
     };
 #endif // FEATURE_PREJIT
-#endif // CLR_STANDALONE_BINDER
 };
 
 
 
-#if defined(FEATURE_PREJIT) && !defined(CLR_STANDALONE_BINDER)
+#ifdef FEATURE_PREJIT
 
 // For IBC Profiling we collect signature blobs for instantiated types.
 // For such instantiated types and methods we create our own ibc token
@@ -1060,7 +1021,7 @@ public:
 
     DWORD MethodTableRestoreNumReasons[TotalMethodTables + 1];
 };
-#endif // FEATURE_PREJIT && !CLR_STANDALONE_BINDER
+#endif // FEATURE_PREJIT
 
 //
 // A Module is the primary unit of code packaging in the runtime.  It
@@ -1120,8 +1081,6 @@ public:
 typedef SHash<DynamicILBlobTraits> DynamicILBlobTable;
 typedef DPTR(DynamicILBlobTable) PTR_DynamicILBlobTable;
 
-
-#ifndef CLR_STANDALONE_BINDER
 
 // declare an array type of COR_IL_MAP entries
 typedef ArrayDPTR(COR_IL_MAP) ARRAY_PTR_COR_IL_MAP;
@@ -1221,8 +1180,6 @@ public:
     static bool IsNull(const element_t &e) { LIMITED_METHOD_DAC_CONTRACT; return e.m_methodToken == mdMethodDefNil; }
 };
 
-#endif // CLR_STANDALONE_BINDER
-
 // ESymbolFormat specified the format used by a symbol stream
 typedef enum 
 {
@@ -1231,9 +1188,6 @@ typedef enum
     eSymbolFormatILDB       /* ILDB format from ildbsymbols.dll */
 }ESymbolFormat;
 
-#ifdef CLR_STANDALONE_BINDER
-class ILOffsetMappingTraits;
-#endif
 
 // Hash table of profiler-provided instrumented IL offset mapping, keyed by the MethodDef token
 typedef SHash<ILOffsetMappingTraits> ILOffsetMappingTable;
@@ -1454,16 +1408,6 @@ struct ThreadLocalModule;
 
 class Module
 {
-#ifdef CLR_STANDALONE_BINDER
-    friend class MdilModule;
-
-    // CLR's Module has some virtual methods, and therefore has a vtable.  The binder's version doesn't have
-    // any virtual methods, but for compatibility with CLR it must have a vtable.  So a dummy virtual method
-    // is defined here.  The vtable address is zeroed out in Module::Fixup before saved in native image,
-    // and reset to the correct value in Module ctor when the native image is loaded.
-    virtual void DummyVirtualMethod() {}
-#endif
-
 #ifdef DACCESS_COMPILE
     friend class ClrDataAccess;
     friend class NativeImageDumper;
@@ -1591,12 +1535,8 @@ private:
     ESymbolFormat           m_symbolFormat;
 
     // Active dependencies
-#ifndef CLR_STANDALONE_BINDER
     ArrayList               m_activeDependencies;
-#else
-    // Avoid calling ctor/dtor, since the binder only needs a placeholder.
-    ArrayListStatic         m_activeDependencies;
-#endif
+
     SynchronizedBitMask     m_unconditionalDependencies;
     ULONG                   m_dwNumberOfActivations;
 
@@ -1669,9 +1609,7 @@ private:
     // IL stub cache with fabricated MethodTable parented by this module.
     ILStubCache                *m_pILStubCache;
 
-#ifndef FEATURE_CORECLR
     ULONG m_DefaultDllImportSearchPathsAttributeValue;
-#endif
 
      LPCUTF8 m_pszCultureName;
      ULONG m_CultureNameLength;
@@ -1684,8 +1622,6 @@ private:
 #endif
 
 public:
-
-#ifndef CLR_STANDALONE_BINDER
     LookupMap<PTR_MethodTable>::Iterator EnumerateTypeDefs()
     {
         LIMITED_METHOD_CONTRACT;
@@ -1693,7 +1629,6 @@ public:
 
         return LookupMap<PTR_MethodTable>::Iterator(&m_TypeDefToMethodTableMap);
     }
-#endif
 
     // Hash of available types by name
     PTR_EEClassHashTable    m_pAvailableClasses;
@@ -1792,13 +1727,6 @@ private:
     CORCOMPILE_METHOD_PROFILE_LIST *m_methodProfileList;
 
 #if defined(FEATURE_COMINTEROP)
-
-    #if defined(CLR_STANDALONE_BINDER)
-
-        private: PTR_GuidToMethodTableHashTable m_AlwaysNull_pGuidToTypeHash;
-
-    #else // !defined(CLR_STANDALONE_BINDER)
-
         public:
 
         #ifndef DACCESS_COMPILE
@@ -1812,8 +1740,6 @@ private:
         private:
             PTR_GuidToMethodTableHashTable m_pGuidToTypeHash;   // A map from GUID to Type, for the "WinRT-interesting" types
 
-    #endif // !defined(CLR_STANDALONE_BINDER)
-
 #endif // defined(FEATURE_COMINTEROP)
 
 #endif // FEATURE_PREJIT
@@ -1824,8 +1750,6 @@ private:
 #ifdef FEATURE_PREJIT
     struct TokenProfileData
     {
-#ifndef CLR_STANDALONE_BINDER
-
         static TokenProfileData *CreateNoThrow(void);
 
         TokenProfileData()
@@ -1849,52 +1773,12 @@ private:
             RidBitmap                   tokenBitmaps[CORBBTPROF_TOKEN_MAX_NUM_FLAGS];
         } m_formats[SectionFormatCount];
 
-#endif // CLR_STANDALONE_BINDER
     } *m_tokenProfileData;
 
     // Stats for prejit log
     NgenStats                *m_pNgenStats;
 #endif // FEATURE_PREJIT
 
-#ifdef FEATURE_MIXEDMODE 
-    // LoaderHeap for storing thunks
-    PTR_LoaderHeap           m_pThunkHeap;
-
-    // Self-initializing accessor for thunk heap
-    LoaderHeap              *GetThunkHeap();
-    // Self-initializing accessor for domain-independent thunk heap
-    LoaderHeap              *GetDllThunkHeap();
-
-
-public:
-    UMEntryThunk*            GetADThunkTable();
-    void                     SetADThunkTable(UMEntryThunk* pTable);
-
-protected:
-    // Domain that the IJW fixups were applied in
-    ADID                    m_DomainIdOfIJWFixups;
-
-#ifndef CLR_STANDALONE_BINDER
-
-public:
-    ADID                    GetDomainIdOfIJWFixups()
-    {
-        LIMITED_METHOD_CONTRACT;
-        _ASSERT(m_DomainIdOfIJWFixups != ADID());
-        return m_DomainIdOfIJWFixups;
-    }
-
-    void                     SetDomainIdOfIJWFixups(ADID id)
-    {
-        LIMITED_METHOD_CONTRACT;
-        _ASSERT(id != ADID());
-        m_DomainIdOfIJWFixups = id;
-    }
-
-#endif // CLR_STANDALONE_BINDER
-#endif // FEATURE_MIXEDMODE
-
-#ifndef CLR_STANDALONE_BINDER
 
 protected:
 
@@ -1942,9 +1826,8 @@ protected:
 
     BOOL IsManifest();
 
-#ifdef FEATURE_MIXEDMODE
-    void FixupVTables();
-#endif 
+    void ApplyMetaData();
+
 
     void FreeClassTables();
 
@@ -2029,28 +1912,13 @@ protected:
         return (IsEditAndContinueCapable()) && ((m_dwTransientFlags & IS_EDIT_AND_CONTINUE) != 0); 
     }
 
-    BOOL IsEditAndContinueCapable(); 
+    BOOL IsEditAndContinueCapable();
     
     BOOL IsIStream() { LIMITED_METHOD_CONTRACT; return GetFile()->IsIStream(); }
 
     BOOL IsSystem() { WRAPPER_NO_CONTRACT; SUPPORTS_DAC; return m_file->IsSystem(); }
 
-    static BOOL IsEditAndContinueCapable(PEFile *file) 
-    { 
-        CONTRACTL
-        {
-            NOTHROW;
-            GC_NOTRIGGER;
-            SO_TOLERANT;
-            MODE_ANY;
-            SUPPORTS_DAC;
-        }
-        CONTRACTL_END;
-
-
-        // Some modules are never EnC-capable
-        return ! (file->IsSystem() || file->IsResource() || file->HasNativeImage() || file->IsDynamic());
-    }
+    static BOOL IsEditAndContinueCapable(Assembly *pAssembly, PEFile *file);
 
     void EnableEditAndContinue()
     {
@@ -2274,11 +2142,6 @@ protected:
 
     virtual void ReleaseILData();
 
-#ifdef FEATURE_FUSION
-    void FusionCopyPDBs(LPCWSTR moduleName);
-    // This function will return PDB stream if exist.
-    HRESULT GetHostPdbStream(IStream **ppStream);
-#endif // FEATURE_FUSION
 
 #endif // DACCESS_COMPILE
 
@@ -2741,13 +2604,9 @@ public:
 #endif
     BOOL MightContainMatchingProperty(mdProperty tkProperty, ULONG nameHash);
 
-#endif //CLR_STANDALONE_BINDER
-
 private:
     ArrayDPTR(BYTE)    m_propertyNameSet;
     DWORD              m_nPropertyNameSet;
-
-#ifndef CLR_STANDALONE_BINDER
 
 public:
 
@@ -2772,7 +2631,8 @@ public:
     void NotifyProfilerLoadFinished(HRESULT hr);
 #endif // PROFILING_SUPPORTED
 
-    PTR_PersistentInlineTrackingMap GetNgenInlineTrackingMap();
+    BOOL HasInlineTrackingMap();
+    COUNT_T GetInliners(PTR_Module inlineeOwnerMod, mdMethodDef inlineeTkn, COUNT_T inlinersSize, MethodInModule inliners[], BOOL *incompleteData);
 
 public:
     void NotifyEtwLoadFinished(HRESULT hr);
@@ -2801,10 +2661,6 @@ public:
 
     BOOL CanExecuteCode();
 
-#ifdef FEATURE_MIXEDMODE
-    LPVOID GetUMThunk(LPVOID pManagedIp, PCCOR_SIGNATURE pSig, ULONG cSig);
-    LPVOID GetMUThunk(LPVOID pUnmanagedIp, PCCOR_SIGNATURE pSig, ULONG cSig);
-#endif // FEATURE_MIXEDMODE
 
     // This data is only valid for NGEN'd modules, and for modules we're creating at NGEN time.
     ModuleCtorInfo* GetZapModuleCtorInfo()
@@ -2814,15 +2670,8 @@ public:
         return &m_ModuleCtorInfo;
     }
 
-#endif // CLR_STANDALONE_BINDER
-
  private:
 
-#ifdef FEATURE_MIXEDMODE 
-    class MUThunkHash *m_pMUThunkHash;
-#endif // FEATURE_MIXEDMODE
-
-#ifndef CLR_STANDALONE_BINDER
 
  public:
 #ifndef DACCESS_COMPILE
@@ -3008,11 +2857,7 @@ public:
     // Turn triggers from this module into runtime checks
     void EnableModuleFailureTriggers(Module *pModule, AppDomain *pDomain);
 
-#endif // !CLR_STANDALONE_BINDER
-
 #ifdef FEATURE_PREJIT
-#ifndef CLR_STANDALONE_BINDER
-
     BOOL IsZappedCode(PCODE code);
     BOOL IsZappedPrecode(PCODE code);
 
@@ -3108,17 +2953,11 @@ public:
     // ExpandAll() depending on more information that may now be available
     // (after all the methods have been compiled)
 
-#else // CLR_STANDALONE_BINDER
-public:
-#endif // CLR_STANDALONE_BINDER
-
     void Save(DataImage *image);
     void Arrange(DataImage *image);
     void PlaceType(DataImage *image, TypeHandle th, DWORD profilingFlags);
     void PlaceMethod(DataImage *image, MethodDesc *pMD, DWORD profilingFlags);
     void Fixup(DataImage *image);
-
-#ifndef CLR_STANDALONE_BINDER
 
     bool AreAllClassesFullyLoaded();
 
@@ -3256,10 +3095,8 @@ public:
         FastInterlockOr(&m_dwTransientFlags, MODULE_SAVED);
     }
 
-#endif  // !CLR_STANDALONE_BINDER
 #endif  // FEATURE_PREJIT
 
-#ifndef CLR_STANDALONE_BINDER
 #ifdef _DEBUG
     //Similar to the ExpandAll we use for NGen, this forces jitting of all methods in a module.  This is
     //used for debug purposes though.
@@ -3281,10 +3118,7 @@ public:
     static DWORD EncodeModuleHelper(void* pModuleContext, Module *pReferencedModule);
     static void  TokenDefinitionHelper(void* pModuleContext, Module *pReferencedModule, DWORD index, mdToken* token);
 
-#endif // CLR_STANDALONE_BINDER
-
 public:
-#ifndef CLR_STANDALONE_BINDER
     MethodTable* MapZapType(UINT32 typeID);
 
     void SetDynamicIL(mdToken token, TADDR blobAddress, BOOL fTemporaryOverride);
@@ -3392,7 +3226,6 @@ public:
         LIMITED_METHOD_CONTRACT;
         return (SIZE_T*) &m_ModuleID;
     }
-#endif // !CLR_STANDALONE_BINDER
 
     static SIZE_T       GetOffsetOfModuleID()
     {
@@ -3400,7 +3233,6 @@ public:
         return offsetof(Module, m_ModuleID);
     }
 
-#ifndef CLR_STANDALONE_BINDER
     PTR_DomainLocalModule   GetDomainLocalModule(AppDomain *pDomain);
 
 #ifndef DACCESS_COMPILE
@@ -3416,8 +3248,6 @@ public:
 #endif // FEATURE_PREJIT
 
     void            EnumRegularStaticGCRefs        (AppDomain* pAppDomain, promote_func* fn, ScanContext* sc);
-   
-#endif // CLR_STANDALONE_BINDER
 
 protected:    
 
@@ -3483,7 +3313,6 @@ public:
     //-----------------------------------------------------------------------------------------
     BOOL                    IsRuntimeWrapExceptions();
 
-#ifndef FEATURE_CORECLR
     BOOL                    HasDefaultDllImportSearchPathsAttribute();
 
     BOOL IsDefaultDllImportSearchPathsAttributeCached()
@@ -3503,7 +3332,6 @@ public:
         LIMITED_METHOD_CONTRACT;
         return (m_DefaultDllImportSearchPathsAttributeValue & 0x2) != 0;
     }
-#endif // !FEATURE_CORECLR
 
     //-----------------------------------------------------------------------------------------
     // True iff metadata version string is 1.* or 2.*.
@@ -3512,10 +3340,6 @@ public:
     //-----------------------------------------------------------------------------------------
     BOOL                    IsPreV4Assembly();
 
-    //-----------------------------------------------------------------------------------------
-    // Get reliability contract info, see ConstrainedExecutionRegion.cpp for details.
-    //-----------------------------------------------------------------------------------------
-    DWORD                   GetReliabilityContract();
 
     //-----------------------------------------------------------------------------------------
     // Parse/Return NeutralResourcesLanguageAttribute if it exists (updates Module member variables at ngen time)
@@ -3524,48 +3348,13 @@ public:
 
 protected:
 
-    Volatile<DWORD>         m_dwReliabilityContract;
 
     // initialize Crst controlling the Dynamic IL hashtables
     void                    InitializeDynamicILCrst();
 
-#ifndef DACCESS_COMPILE
 public:
 
-    // Support for getting and creating information about Constrained Execution Regions rooted in this module.
-
-    // Access to CerPrepInfo, the structure used to track CERs prepared at runtime (as opposed to ngen time). GetCerPrepInfo will
-    // return the structure associated with the given method desc if it exists or NULL otherwise. CreateCerPrepInfo will get the
-    // structure if it exists or allocate and return a new struct otherwise. Creation of CerPrepInfo structures is automatically
-    // synchronized by the CerCrst (lazily allocated as needed).
-    CerPrepInfo *GetCerPrepInfo(MethodDesc *pMD);
-    CerPrepInfo *CreateCerPrepInfo(MethodDesc *pMD);
-
-#ifdef FEATURE_PREJIT
-    // Access to CerNgenRootTable which holds holds information for all the CERs rooted at a method in this module (that were
-    // discovered during an ngen).
-
-    // Add a list of MethodContextElements representing a CER to the root table keyed by the MethodDesc* of the root method. Creates
-    // or expands the root table as necessary.
-    void AddCerListToRootTable(MethodDesc *pRootMD, MethodContextElement *pList);
-
-    // Returns true if the given method is a CER root detected at ngen time.
-    bool IsNgenCerRootMethod(MethodDesc *pMD);
-
-    // Restores the CER rooted at this method (no-op if this method isn't a CER root).
-    void RestoreCer(MethodDesc *pMD);
-#endif // FEATURE_PREJIT
-
-    Crst *GetCerCrst()
-    {
-        LIMITED_METHOD_CONTRACT;
-        return m_pCerCrst;
-    }
-#endif // !DACCESS_COMPILE
-
-#ifdef FEATURE_CORECLR
     void VerifyAllMethods();
-#endif //FEATURE_CORECLR
 
     CrstBase *GetLookupTableCrst()
     {
@@ -3574,11 +3363,6 @@ public:
     }
 
 private:
-    EEPtrHashTable       *m_pCerPrepInfo;       // Root methods prepared for Constrained Execution Regions
-    Crst                 *m_pCerCrst;           // Mutex protecting update access to both of the above hashes
-#ifdef FEATURE_PREJIT
-    CerNgenRootTable     *m_pCerNgenRootTable;  // Root methods of CERs found during ngen and requiring runtime restoration
-#endif
 
     // This struct stores the data used by the managed debugging infrastructure.  If it turns out that 
     // the debugger is increasing the size of the Module class by too much, we can consider allocating
@@ -3610,7 +3394,7 @@ private:
     DebuggerSpecificData  m_debuggerSpecificData;
 
     // This is a compressed read only copy of m_inlineTrackingMap, which is being saved to NGEN image.
-    PTR_PersistentInlineTrackingMap m_persistentInlineTrackingMap;
+    PTR_PersistentInlineTrackingMapNGen m_pPersistentInlineTrackingMapNGen;
 
 
     LPCSTR               *m_AssemblyRefByNameTable;  // array that maps mdAssemblyRef tokens into their simple name
@@ -3626,12 +3410,12 @@ private:
     // is not called for each fixup
 
     PTR_Assembly           *m_NativeMetadataAssemblyRefMap; 
-#endif // !defined(CLR_STANDALONE_BINDER) && defined(FEATURE_PREJIT)
+#endif // defined(FEATURE_PREJIT)
 
 public:
     ModuleSecurityDescriptor* m_pModuleSecurityDescriptor;
 
-#if !defined(CLR_STANDALONE_BINDER) && !defined(DACCESS_COMPILE) && defined(FEATURE_PREJIT)
+#if !defined(DACCESS_COMPILE) && defined(FEATURE_PREJIT)
     PTR_Assembly GetNativeMetadataAssemblyRefFromCache(DWORD rid)
     {
         PTR_Assembly * NativeMetadataAssemblyRefMap = VolatileLoadWithoutBarrier(&m_NativeMetadataAssemblyRefMap);
@@ -3644,11 +3428,8 @@ public:
     }
 
     void SetNativeMetadataAssemblyRefInCache(DWORD rid, PTR_Assembly pAssembly);
-#endif // !defined(CLR_STANDALONE_BINDER) && !defined(DACCESS_COMPILE) && defined(FEATURE_PREJIT)
+#endif // !defined(DACCESS_COMPILE) && defined(FEATURE_PREJIT)
 };
-
-
-#ifndef CLR_STANDALONE_BINDER
 
 //
 // A ReflectionModule is a module created by reflection
@@ -3684,6 +3465,7 @@ private:
     // If true, then only other transient modules can depend on this module.
     bool m_fIsTransient;
 
+#if !defined DACCESS_COMPILE && !defined CROSSGEN_COMPILE
     // Returns true iff metadata capturing is suppressed
     bool IsMetadataCaptureSuppressed();
 
@@ -3703,8 +3485,8 @@ private:
         pModule->ResumeMetadataCapture();
     }
 
-
     ReflectionModule(Assembly *pAssembly, mdFile token, PEFile *pFile);
+#endif // !DACCESS_COMPILE && !CROSSGEN_COMPILE
 
 public:
 
@@ -3713,14 +3495,13 @@ public:
     PTR_SBuffer GetDynamicMetadataBuffer() const;
 #endif
 
+#if !defined DACCESS_COMPILE && !defined CROSSGEN_COMPILE
     static ReflectionModule *Create(Assembly *pAssembly, PEFile *pFile, AllocMemTracker *pamTracker, LPCWSTR szName, BOOL fIsTransient);
-
     void Initialize(AllocMemTracker *pamTracker, LPCWSTR szName);
-
     void Destruct();
-#ifndef DACCESS_COMPILE    
+
     void ReleaseILData();
-#endif
+#endif // !DACCESS_COMPILE && !CROSSGEN_COMPILE
 
     // Overides functions to access sections
     virtual TADDR GetIL(RVA target);
@@ -3784,17 +3565,14 @@ public:
     }
 
 #ifndef DACCESS_COMPILE
+#ifndef CROSSGEN_COMPILE
 
     typedef Wrapper<
         ReflectionModule*, 
         ReflectionModule::SuppressCaptureWrapper, 
         ReflectionModule::ResumeCaptureWrapper> SuppressMetadataCaptureHolder;
+#endif // !CROSSGEN_COMPILE
 
-
-
-    // Eagerly serialize the metadata to a buffer that the debugger can retrieve.
-    void CaptureModuleMetaDataToMemory();
-    
     HRESULT SetISymUnmanagedWriter(ISymUnmanagedWriter *pWriter)
     {
         CONTRACTL
@@ -3823,6 +3601,9 @@ public:
         return S_OK;
     }
 #endif // !DACCESS_COMPILE
+
+    // Eagerly serialize the metadata to a buffer that the debugger can retrieve.
+    void CaptureModuleMetaDataToMemory();
 };
 
 // Module holders
@@ -3860,7 +3641,5 @@ struct VASigCookieEx : public VASigCookie
 };
 
 bool IsSingleAppDomain();
-
-#endif // CLR_STANDALONE_BINDER
 
 #endif // !CEELOAD_H_

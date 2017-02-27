@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 // CGENSYS.H -
 //
 // Generic header for choosing system-dependent helpers
@@ -104,21 +103,23 @@ inline void GetSpecificCpuInfo(CORINFO_CPU * cpuInfo)
 
 #endif // !_TARGET_X86_
 
-#if defined(_TARGET_AMD64_) && !defined(CROSSGEN_COMPILE)
+#if (defined(_TARGET_X86_) || defined(_TARGET_AMD64_)) && !defined(CROSSGEN_COMPILE)
 extern "C" DWORD __stdcall getcpuid(DWORD arg, unsigned char result[16]);
-#endif // defined(_TARGET_AMD64_)
+extern "C" DWORD __stdcall getextcpuid(DWORD arg1, DWORD arg2, unsigned char result[16]);
+extern "C" DWORD __stdcall xmmYmmStateSupport();
+#endif
 
 inline bool TargetHasAVXSupport()
 {
-#if defined(_TARGET_AMD64_) && !defined(CROSSGEN_COMPILE)
+#if (defined(_TARGET_X86_) || defined(_TARGET_AMD64_)) && !defined(CROSSGEN_COMPILE)
     unsigned char buffer[16];
-    // All AMD64 targets support cpuid.
+    // All x86/AMD64 targets support cpuid.
     (void) getcpuid(1, buffer);
     // getcpuid executes cpuid with eax set to its first argument, and ecx cleared.
     // It returns the resulting eax, ebx, ecx and edx (in that order) in buffer[].
     // The AVX feature is ECX bit 28.
     return ((buffer[11] & 0x10) != 0);
-#endif // defined(_TARGET_AMD64_) && !defined(CROSSGEN_COMPILE)
+#endif // (defined(_TARGET_X86_) || defined(_TARGET_AMD64_)) && !defined(CROSSGEN_COMPILE)
     return false;
 }
 

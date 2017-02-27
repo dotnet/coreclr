@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*=============================================================================
 **
@@ -10,12 +11,13 @@
 **
 =============================================================================*/
 
-namespace System.Diagnostics {
-    
-    using System;
-    
+
+using System;
+
+namespace System.Diagnostics
+{
     [Serializable]
-    internal sealed class EditAndContinueHelper 
+    internal sealed class EditAndContinueHelper
     {
 #pragma warning disable 169
 #pragma warning disable 414  // Field is not used from managed.

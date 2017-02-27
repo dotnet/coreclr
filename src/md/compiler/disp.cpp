@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //*****************************************************************************
 // Disp.cpp
 // 
@@ -17,9 +16,6 @@
 #include <corerror.h>
 #include <mdlog.h>
 #include <mdcommon.h>
-#ifdef FEATURE_COMINTEROP_TLB_SUPPORT
-#include <imptlb.h>
-#endif 
 
 #ifdef EnC_SUPPORTED
 #define ENC_DELTA_HACK
@@ -79,7 +75,9 @@ Disp::DefineScope(
 {
 #ifdef FEATURE_METADATA_EMIT
     HRESULT     hr = S_OK;
-
+    PathString szFileName(PathString::Literal, W("file:"));
+    PathString szFileNameSuffix;
+    DWORD len;
     BEGIN_ENTRYPOINT_NOTHROW;
 
     RegMeta     *pMeta = 0;
@@ -94,11 +92,7 @@ Disp::DefineScope(
     // Figure out what version of the metadata to emit
     if (rclsid == CLSID_CLR_v1_MetaData)
     {
-#ifdef FEATURE_METADATA_STANDALONE_WINRT
-        IfFailGo(E_NOTIMPL);
-#else
         optionForNewScope.m_MetadataVersion = MDVersion1;
-#endif //!FEATURE_METADATA_STANDALONE_WINRT
     }
     else if (rclsid == CLSID_CLR_v2_MetaData)
     {
@@ -112,13 +106,13 @@ Disp::DefineScope(
 
 #ifdef ENC_DELTA_HACK
 // Testers need this flag for their tests.
-    const int prefixLen = 5;
-    WCHAR szFileName[256 + prefixLen];
-    wcscpy_s(szFileName, 256 + prefixLen, W("file:"));
-    WCHAR *szFileNamePrefix = szFileName + prefixLen;
-    DWORD cchFileNamePrefix = (DWORD) ((sizeof(szFileName)/sizeof(WCHAR))-prefixLen);
-    DWORD len = WszGetEnvironmentVariable(W("COMP_ENC_OPENSCOPE"), szFileNamePrefix, cchFileNamePrefix);
-    _ASSERTE(len < cchFileNamePrefix);
+    
+    EX_TRY{
+    len = WszGetEnvironmentVariable(W("COMP_ENC_OPENSCOPE"), szFileNameSuffix);
+    szFileName.Append(szFileNameSuffix);
+    }
+    EX_CATCH_HRESULT(hr);
+
     if (len > 0) 
     {
         // _ASSERTE(!"ENC override on DefineScope");
@@ -151,7 +145,7 @@ Disp::DefineScope(
         BOOL fResult = SUCCEEDED(hr);
         // print out a message so people know what's happening
         printf("Defining scope for EnC using %S %s\n", 
-                            szFileName+prefixLen, fResult ? "succeeded" : "failed");
+                            static_cast<LPCWSTR>(szFileNameSuffix), fResult ? "succeeded" : "failed");
 
         goto ErrExit;
     }
@@ -199,7 +193,7 @@ static HRESULT DeliverScope(IMDCommon *pMDCommon, REFIID riid, DWORD dwOpenFlags
     HRESULT     hr;
     BEGIN_ENTRYPOINT_NOTHROW;
 
-#if !defined(FEATURE_METADATA_STANDALONE_WINRT) && defined(FEATURE_COMINTEROP)
+#if defined(FEATURE_COMINTEROP)
     IfFailGo((dwOpenFlags & ofNoTransform) ? S_FALSE : CheckIfWinMDAdapterNeeded(pMDCommon));
     if (hr == S_OK)
     {
@@ -438,13 +432,6 @@ ErrExit:
     return hr;
 } // Disp::OpenScopeOnMemory
 
-#if defined(FEATURE_METADATA_IN_VM) && !defined(FEATURE_CORECLR) && !defined(CROSSGEN_COMPILE)
-
-#include <metahost.h>
-// Pointer to the activated CLR interface provided by the shim.
-extern ICLRRuntimeInfo * g_pCLRRuntime;
-
-#endif
 
 //*****************************************************************************
 // Get the directory where the CLR system resides.
@@ -457,27 +444,11 @@ Disp::GetCORSystemDirectory(
     DWORD                           cchBuffer,     // [in] Size of the buffer
     DWORD                          *pcchBuffer)    // [out] Number of characters returned
 {
-#if defined(FEATURE_METADATA_IN_VM) && !defined(FEATURE_CORECLR) && !defined(CROSSGEN_COMPILE)
-    HRESULT hr = S_OK;
-    BEGIN_ENTRYPOINT_NOTHROW;
-    
-    // This implies a machine-wide CLR install root, which may not exist for some CLR
-    // skus using standalone metadata.
-    *pcchBuffer = cchBuffer;
-    hr = g_pCLRRuntime->GetRuntimeDirectory(szBuffer, pcchBuffer);
 
-    END_ENTRYPOINT_NOTHROW;
-    
-    return hr;
-#else //!FEATURE_METADATA_IN_VM || FEATURE_CORECLR
-
-#ifdef FEATURE_CORECLR
     UNREACHABLE_MSG("Calling IMetaDataDispenser::GetCORSystemDirectory!  This code should not be "
                 "reachable or needs to be reimplemented for CoreCLR!");
-#endif //FEATURE_CORECLR
     
     return E_NOTIMPL;
-#endif //!FEATURE_METADATA_IN_VM || FEATURE_CORECLR
 } // Disp::GetCORSystemDirectory
 
 HRESULT Disp::FindAssembly(             // S_OK or error
@@ -911,7 +882,7 @@ ErrExit:
     return hr;
 } // Disp::GetOption
 
-#if defined(FEATURE_METADATA_IN_VM) || defined(FEATURE_METADATA_STANDALONE_WINRT)
+#if defined(FEATURE_METADATA_IN_VM)
 
 //---------------------------------------------------------------------------------------
 // 
@@ -923,7 +894,7 @@ void DeleteMetaData()
     LOADEDMODULES::DeleteStatics();
 }
 
-#endif //FEATURE_METADATA_IN_VM || FEATURE_METADATA_STANDALONE_WINRT
+#endif //FEATURE_METADATA_IN_VM 
 
 // 
 // This is the entrypoint for usages of MetaData that need to start with the dispenser (e.g.

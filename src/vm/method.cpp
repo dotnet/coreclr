@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 // ===========================================================================
 // File: Method.CPP
 //
@@ -13,9 +12,6 @@
 
 
 #include "common.h"
-#ifdef FEATURE_REMOTING
-#include "remoting.h"
-#endif
 #include "security.h"
 #include "verifier.hpp"
 #include "excep.h"
@@ -32,9 +28,6 @@
 #include "jitinterface.h"
 #include "runtimehandles.h"
 #include "eventtrace.h"
-#ifndef FEATURE_CORECLR
-#include "fxretarget.h"
-#endif
 #include "interoputil.h"
 #include "prettyprintsig.h"
 #include "formattype.h"
@@ -140,7 +133,6 @@ BOOL MethodDesc::IsIntrospectionOnly()
 }
 
 /*********************************************************************/
-#ifndef FEATURE_CORECLR
 #ifndef DACCESS_COMPILE
 BOOL NDirectMethodDesc::HasDefaultDllImportSearchPathsAttribute()
 {
@@ -173,7 +165,6 @@ BOOL NDirectMethodDesc::HasDefaultDllImportSearchPathsAttribute()
     return (ndirect.m_wFlags  & kDefaultDllImportSearchPathsStatus) != 0;
 }
 #endif //!DACCESS_COMPILE
-#endif // !FEATURE_CORECLR
 
 //*******************************************************************************
 #ifndef DACCESS_COMPILE
@@ -952,29 +943,6 @@ BOOL MethodDesc::IsTightlyBoundToMethodTable()
 
 #ifndef DACCESS_COMPILE
 
-#if defined(FEATURE_REMOTING) && !defined(HAS_REMOTING_PRECODE)
-//*******************************************************************************
-void MethodDesc::Destruct()
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_TRIGGERS;
-        FORBID_FAULT;
-    }
-    CONTRACTL_END
-
-    if (!IsRestored())
-        return;
-
-    MethodTable *pMT = GetMethodTable();
-    if(pMT->IsMarshaledByRef() || (pMT == g_pObjectClass))
-    {
-        // Destroy the thunk generated to intercept calls for remoting
-        CRemotingServices::DestroyThunk(this);
-    }
-}
-#endif // FEATURE_REMOTING && !HAS_REMOTING_PRECODE
 
 //*******************************************************************************
 HRESULT MethodDesc::Verify(COR_ILMETHOD_DECODER* ILHeader,
@@ -1081,7 +1049,7 @@ BOOL MethodDesc::IsVerifiable()
 #endif // _VER_EE_VERIFICATION_ENABLED
     }
 
-    UnsafeJitFunction(this, pHeader, CORJIT_FLG_IMPORT_ONLY, 0);
+    UnsafeJitFunction(this, pHeader, CORJIT_FLAGS(CORJIT_FLAGS::CORJIT_FLAG_IMPORT_ONLY));
     _ASSERTE(IsVerified());
 
     return (IsVerified() && (m_wFlags & mdcVerifiable));
@@ -1396,8 +1364,9 @@ COR_ILMETHOD* MethodDesc::GetILHeader(BOOL fAllowOverrides /*=FALSE*/)
 //*******************************************************************************
 MetaSig::RETURNTYPE MethodDesc::ReturnsObject(
 #ifdef _DEBUG
-    bool supportStringConstructors
+    bool supportStringConstructors,
 #endif
+    MethodTable** pMT
     )
 {
     CONTRACTL
@@ -1439,7 +1408,19 @@ MetaSig::RETURNTYPE MethodDesc::ReturnsObject(
                     if (!thValueType.IsTypeDesc())
                     {
                         MethodTable * pReturnTypeMT = thValueType.AsMethodTable();
-                        if(pReturnTypeMT->ContainsPointers())
+                        if (pMT != NULL)
+                        {
+                            *pMT = pReturnTypeMT;
+                        }
+
+#ifdef FEATURE_UNIX_AMD64_STRUCT_PASSING
+                        if (pReturnTypeMT->IsRegPassedStruct())
+                        {
+                            return MetaSig::RETVALUETYPE;
+                        }
+#endif // !FEATURE_UNIX_AMD64_STRUCT_PASSING
+
+                        if (pReturnTypeMT->ContainsPointers())
                         {
                             _ASSERTE(pReturnTypeMT->GetNumInstanceFieldBytes() == sizeof(void*));
                             return MetaSig::RETOBJ;
@@ -2136,13 +2117,6 @@ PCODE MethodDesc::GetSingleCallableAddrOfVirtualizedCode(OBJECTREF *orThis, Type
         // where we could end up bypassing the remoting system), but it serves
         // our purpose here (basically pushes our correctly instantiated,
         // resolved method desc on the stack and calls the remoting code).
-#ifdef FEATURE_REMOTING        
-        if (pObjMT->IsTransparentProxy())
-            if (IsInterface())
-                return CRemotingServices::GetStubForInterfaceMethod(pResultMD);
-            else
-                return CRemotingServices::GetNonVirtualEntryPointForVirtualMethod(pResultMD);
-#endif            
 
         return pResultMD->GetSingleCallableAddrOfCode();
     }
@@ -2194,13 +2168,6 @@ PCODE MethodDesc::GetMultiCallableAddrOfVirtualizedCode(OBJECTREF *orThis, TypeH
         // where we could end up bypassing the remoting system), but it serves
         // our purpose here (basically pushes our correctly instantiated,
         // resolved method desc on the stack and calls the remoting code).
-#ifdef FEATURE_REMOTING        
-        if (pObjMT->IsTransparentProxy())
-            if (pStaticMD->IsInterface())
-                RETURN(CRemotingServices::GetStubForInterfaceMethod(pTargetMD));
-            else
-                RETURN(CRemotingServices::GetNonVirtualEntryPointForVirtualMethod(pTargetMD));
-#endif
 
         RETURN(pTargetMD->GetMultiCallableAddrOfCode());
     }
@@ -2211,12 +2178,6 @@ PCODE MethodDesc::GetMultiCallableAddrOfVirtualizedCode(OBJECTREF *orThis, TypeH
         RETURN(pTargetMD->GetMultiCallableAddrOfCode());
     }
 
-#ifdef FEATURE_REMOTING
-    if (pObjMT->IsTransparentProxy())
-    {
-        RETURN(pObjMT->GetRestoredSlot(pStaticMD->GetSlot()));
-    }
-#endif // FEATURE_REMOTING
 
     pTargetMD = pObjMT->GetMethodDescForSlot(pStaticMD->GetSlot());
 
@@ -2312,10 +2273,6 @@ PCODE MethodDesc::TryGetMultiCallableAddrOfCode(CORINFO_ACCESS_FLAGS accessFlags
     if (IsWrapperStub() || IsEnCAddedMethod())
         return GetStableEntryPoint();
 
-#ifdef FEATURE_REMOTING
-    if (!(accessFlags & CORINFO_ACCESS_THIS) && IsRemotingInterceptedViaVirtualDispatch())
-        return CRemotingServices::GetNonVirtualEntryPointForVirtualMethod(this);
-#endif    
 
     // For EnC always just return the stable entrypoint so we can update the code
     if (IsEnCMethod())
@@ -2427,19 +2384,6 @@ MethodDesc* Entry2MethodDesc(PCODE entryPoint, MethodTable *pMT)
     if (pMD != NULL)
         RETURN(pMD);
 
-#ifdef FEATURE_REMOTING
-
-#ifndef HAS_REMOTING_PRECODE
-    pMD = CNonVirtualThunkMgr::Entry2MethodDesc(entryPoint, pMT);
-    if (pMD != NULL)
-        RETURN(pMD);
-#endif // HAS_REMOTING_PRECODE
-
-    pMD = CVirtualThunkMgr::Entry2MethodDesc(entryPoint, pMT);
-    if (pMD != NULL)
-        RETURN(pMD);
-
-#endif // FEATURE_REMOTING
 
     // Is it an FCALL?
     pMD = ECall::MapTargetBackToMethod(entryPoint);
@@ -2456,7 +2400,16 @@ MethodDesc* Entry2MethodDesc(PCODE entryPoint, MethodTable *pMT)
 BOOL MethodDesc::IsFCallOrIntrinsic()
 {
     WRAPPER_NO_CONTRACT;
-    return (IsFCall() || IsArray());
+
+    if (IsFCall() || IsArray())
+        return TRUE;
+
+    // Intrinsic methods on ByReference<T> or Span<T>
+    MethodTable * pMT = GetMethodTable();
+    if (pMT->IsByRefLike() && pMT->GetModule()->IsSystem())
+        return TRUE;
+
+    return FALSE;
 }
 
 //*******************************************************************************
@@ -2751,31 +2704,6 @@ BOOL MethodDesc::RequiresMethodDescCallingConvention(BOOL fEstimateForChunk /*=F
     if (IsNDirect() || IsComPlusCall() || IsGenericComPlusCall())
         return TRUE;
 
-#ifdef FEATURE_REMOTING
-    MethodTable * pMT = GetMethodTable();
-
-    if (fEstimateForChunk)
-    {
-        // Make a best guess based on the method table of the chunk.
-        if (pMT->IsInterface())
-            return TRUE;
-    }
-    else
-    {
-        // CRemotingServices::GetDispatchInterfaceHelper that needs method desc
-        if (pMT->IsInterface() && !IsStatic())
-            return TRUE;
-
-        // Asynchronous delegate methods are forwarded to shared TP stub
-        if (IsEEImpl())
-        {
-            DelegateEEClass *pClass = (DelegateEEClass*)(pMT->GetClass());
-
-            if (this != pClass->m_pInvokeMethod)
-                return TRUE;
-        }
-    }
-#endif // FEATURE_REMOTING
 
     return FALSE;
 }
@@ -2861,60 +2789,6 @@ BOOL MethodDesc::IsClassConstructorTriggeredViaPrestub()
 #endif // !DACCESS_COMPILE
 
 
-#ifdef FEATURE_REMOTING
-
-//*******************************************************************************
-BOOL MethodDesc::MayBeRemotingIntercepted()
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_NOTRIGGER;
-    }
-    CONTRACTL_END;
-
-    if (IsStatic())
-        return FALSE;
-
-    MethodTable *pMT = GetMethodTable();
-
-    if (pMT->IsMarshaledByRef())
-        return TRUE;
-
-    if (g_pObjectClass == pMT)
-    {
-        if ((this == g_pObjectCtorMD) || (this == g_pObjectFinalizerMD))
-            return FALSE;
-
-        // Make sure that the above check worked well
-        _ASSERTE(this->GetSlot() != g_pObjectCtorMD->GetSlot());
-        _ASSERTE(this->GetSlot() != g_pObjectFinalizerMD->GetSlot());
-
-        return TRUE;
-    }
-
-    return FALSE;
-}
-
-//*******************************************************************************
-BOOL MethodDesc::IsRemotingInterceptedViaPrestub()
-{
-    WRAPPER_NO_CONTRACT;
-    // We do not insert a remoting stub around the shared code method descriptor
-    // for instantiated generic methods, i.e. anything which requires a hidden
-    // instantiation argument.  Instead we insert it around the instantiating stubs
-    // and ensure that we call the instantiating stubs directly.
-    return MayBeRemotingIntercepted() && !IsVtableMethod() && !RequiresInstArg();
-}
-
-//*******************************************************************************
-BOOL MethodDesc::IsRemotingInterceptedViaVirtualDispatch()
-{
-    WRAPPER_NO_CONTRACT;
-    return MayBeRemotingIntercepted() && IsVtableMethod();
-}
-
-#endif // FEATURE_REMOTING
 
 //*******************************************************************************
 BOOL MethodDesc::MayHaveNativeCode()
@@ -3099,13 +2973,11 @@ void MethodDesc::Save(DataImage *image)
         // Make sure that the marshaling required flag is computed
         pNMD->MarshalingRequired();
         
-#ifndef FEATURE_CORECLR
         if (!pNMD->IsQCall())
         {
             //Cache DefaultImportDllImportSearchPaths attribute.
             pNMD->HasDefaultDllImportSearchPathsAttribute();
         }
-#endif
 
         image->StoreStructure(pNMD->GetWriteableData(),
                                 sizeof(NDirectWriteableData),
@@ -3241,13 +3113,6 @@ bool MethodDesc::CanSkipDoPrestub (
         return false;
     }
 
-    // Can't hard bind to a method which contains one or more Constrained Execution Region roots (we need to force the prestub to
-    // execute for such methods).
-    if (ContainsPrePreparableCerRoot(this))
-    {
-        *pReason = CORINFO_INDIRECT_CALL_CER;
-        return false;
-    }
 
     // Check whether our methoddesc needs restore
     if (NeedsRestore(GetAppDomain()->ToCompilationDomain()->GetTargetImage(), TRUE))
@@ -4456,9 +4321,7 @@ void MethodDesc::CheckRestore(ClassLoadLevel level)
                 pIMD->m_wFlags2 = pIMD->m_wFlags2 & ~InstantiatedMethodDesc::Unrestored;
             }
 
-#if defined(FEATURE_EVENT_TRACE)
-            if (MICROSOFT_WINDOWS_DOTNETRUNTIME_PROVIDER_Context.IsEnabled)
-#endif
+            if (ETW_PROVIDER_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PROVIDER))
             {
                 ETW::MethodLog::MethodRestored(this);
             }
@@ -4475,9 +4338,7 @@ void MethodDesc::CheckRestore(ClassLoadLevel level)
             PTR_DynamicMethodDesc pDynamicMD = AsDynamicMethodDesc();
             pDynamicMD->Restore();
 
-#if defined(FEATURE_EVENT_TRACE)
-            if (MICROSOFT_WINDOWS_DOTNETRUNTIME_PROVIDER_Context.IsEnabled)
-#endif
+            if (ETW_PROVIDER_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PROVIDER))
             {
                 ETW::MethodLog::MethodRestored(this);
             }
@@ -5185,7 +5046,7 @@ LPVOID NDirectMethodDesc::FindEntryPoint(HINSTANCE hMod) const
     if (GetEntrypointName()[0] == '#')
     {
         long ordinal = atol(GetEntrypointName()+1);
-        return GetProcAddress(hMod, (LPCSTR)(size_t)((UINT16)ordinal));
+        return reinterpret_cast<LPVOID>(GetProcAddress(hMod, (LPCSTR)(size_t)((UINT16)ordinal)));
     }
 
     // Just look for the unmangled name.  If it is unicode fcn, we are going
@@ -5210,36 +5071,6 @@ LPVOID NDirectMethodDesc::FindEntryPoint(HINSTANCE hMod) const
     DWORD nbytes = (DWORD)(strlen(GetEntrypointName()) + 1);
     szAnsiEntrypointName[nbytes] = '\0'; // Add an extra '\0'.
 
-#if !defined(FEATURE_CORECLR) && defined(_WIN64)
-    //
-    // Forward {Get|Set}{Window|Class}Long to their corresponding Ptr version
-    //
-
-    // LONG      SetWindowLong(   HWND hWnd, int nIndex, LONG     dwNewLong);
-    // LONG_PTR  SetWindowLongPtr(HWND hWnd, int nIndex, LONG_PTR dwNewLong);
-    // 
-    // LONG      GetWindowLong(   HWND hWnd, int nIndex);
-    // LONG_PTR  GetWindowLongPtr(HWND hWnd, int nIndex);
-    // 
-    // DWORD     GetClassLong(    HWND hWnd, int nIndex);
-    // ULONG_PTR GetClassLongPtr( HWND hWnd, int nIndex);
-    // 
-    // DWORD     SetClassLong(    HWND hWnd, int nIndex, LONG     dwNewLong);
-    // ULONG_PTR SetClassLongPtr( HWND hWnd, int nIndex, LONG_PTR dwNewLong);
-
-    if (!SString::_stricmp(GetEntrypointName(), "SetWindowLong") ||
-        !SString::_stricmp(GetEntrypointName(), "GetWindowLong") ||
-        !SString::_stricmp(GetEntrypointName(), "SetClassLong") ||
-        !SString::_stricmp(GetEntrypointName(), "GetClassLong"))
-    {
-        szAnsiEntrypointName[nbytes-1] = 'P';
-        szAnsiEntrypointName[nbytes+0] = 't';
-        szAnsiEntrypointName[nbytes+1] = 'r';
-        szAnsiEntrypointName[nbytes+2] = '\0';
-        szAnsiEntrypointName[nbytes+3] = '\0';
-        nbytes += 3;
-    }
-#endif // !FEATURE_CORECLR && _WIN64
 
     // If the program wants the ANSI api or if Unicode APIs are unavailable.
     if (IsNativeAnsi())
@@ -5262,25 +5093,6 @@ LPVOID NDirectMethodDesc::FindEntryPoint(HINSTANCE hMod) const
 
     if (!pFunc)
     {
-#if !defined(FEATURE_CORECLR)
-        if (hMod == CLRGetModuleHandle(W("kernel32.dll")))
-        {
-            szAnsiEntrypointName[nbytes-1] = '\0';
-            if (0==strcmp(szAnsiEntrypointName, "MoveMemory") ||
-                0==strcmp(szAnsiEntrypointName, "CopyMemory"))
-            {
-                pFunc = GetProcAddress(hMod, funcName = "RtlMoveMemory");
-            }
-            else if (0==strcmp(szAnsiEntrypointName, funcName = "FillMemory"))
-            {
-                pFunc = GetProcAddress(hMod, funcName = "RtlFillMemory");
-            }
-            else if (0==strcmp(szAnsiEntrypointName, funcName = "ZeroMemory"))
-            {
-                pFunc = GetProcAddress(hMod, funcName = "RtlZeroMemory");
-            }
-        }
-#endif // !FEATURE_CORECLR
 
 #if defined(_TARGET_X86_)
         /* try mangled names only for __stdcalls */
@@ -5305,37 +5117,6 @@ LPVOID NDirectMethodDesc::FindEntryPoint(HINSTANCE hMod) const
 }
 #endif // CROSSGEN_COMPILE
 
-#if defined(FEATURE_MIXEDMODE) && !defined(CROSSGEN_COMPILE)
-//*******************************************************************************
-void NDirectMethodDesc::InitEarlyBoundNDirectTarget()
-{
-    CONTRACTL
-    {
-        THROWS;
-        GC_TRIGGERS;
-        INJECT_FAULT(COMPlusThrowOM(););
-    }
-    CONTRACTL_END
-
-    _ASSERTE(IsEarlyBound());
-
-    if (IsClassConstructorTriggeredAtLinkTime())
-    {
-        GetMethodTable()->CheckRunClassInitThrowing();
-    }
-
-    const void *target = GetModule()->GetInternalPInvokeTarget(GetRVA());
-    _ASSERTE(target != 0);
-
-    if (HeuristicDoesThisLookLikeAGetLastErrorCall((LPBYTE)target))
-        target = (BYTE*) FalseGetLastError;
-
-    // As long as we've set the NDirect target field we don't need to backpatch the import thunk glue.
-    // All NDirect calls all through the NDirect target, so if it's updated, then we won't go into
-    // NDirectImportThunk().  In fact, backpatching the import thunk glue leads to race conditions.
-    SetNDirectTarget((LPVOID)target);
-}
-#endif // FEATURE_MIXEDMODE && !CROSSGEN_COMPILE
 
 //*******************************************************************************
 void MethodDesc::ComputeSuppressUnmanagedCodeAccessAttr(IMDInternalImport *pImport)
@@ -5348,29 +5129,30 @@ void MethodDesc::ComputeSuppressUnmanagedCodeAccessAttr(IMDInternalImport *pImpo
     }
     CONTRACTL_END;
 
-#ifndef FEATURE_CORECLR
-    // We only care about this bit for NDirect and ComPlusCall
-    if (!IsNDirect() && !IsComPlusCall())
-        return;
+}
 
-    BOOL hasAttr = FALSE;
-    HRESULT hr = pImport->GetCustomAttributeByName(GetMemberDef(),
-                                                    COR_SUPPRESS_UNMANAGED_CODE_CHECK_ATTRIBUTE_ANSI,
-                                                    NULL,
-                                                    NULL);
-    IfFailThrow(hr);
-    hasAttr = (hr == S_OK);
+//*******************************************************************************
+BOOL MethodDesc::HasNativeCallableAttribute()
+{
 
+    CONTRACTL
+    {
+        THROWS;
+        GC_NOTRIGGER;
+        FORBID_FAULT;
+    }
+    CONTRACTL_END;
 
-    if (IsNDirect())
-        ((NDirectMethodDesc*)this)->SetSuppressUnmanagedCodeAccessAttr(hasAttr);
+    HRESULT hr = GetMDImport()->GetCustomAttributeByName(GetMemberDef(),
+        g_NativeCallableAttribute,
+        NULL,
+        NULL);
+    if (hr == S_OK)
+    {
+        return TRUE;
+    }
 
-#ifdef FEATURE_COMINTEROP
-    if (IsComPlusCall())
-        ((ComPlusCallMethodDesc*)this)->SetSuppressUnmanagedCodeAccessAttr(hasAttr);
-#endif
-
-#endif // FEATURE_COMINTEROP
+    return FALSE;
 }
 
 //*******************************************************************************
@@ -5378,27 +5160,7 @@ BOOL MethodDesc::HasSuppressUnmanagedCodeAccessAttr()
 {
     LIMITED_METHOD_CONTRACT;
 
-#ifdef FEATURE_CORECLR
     return TRUE;
-#else // FEATURE_CORECLR
-
-    // In AppX processes, there is only one full trust AppDomain, so there is never any need to do a security
-    // callout on interop stubs
-    if (AppX::IsAppXProcess())
-    {
-        return TRUE;
-    }
-
-    if (IsNDirect())
-        return ((NDirectMethodDesc*)this)->HasSuppressUnmanagedCodeAccessAttr();
-#ifdef FEATURE_COMINTEROP
-    else if (IsComPlusCall())
-        return ((ComPlusCallMethodDesc*)this)->HasSuppressUnmanagedCodeAccessAttr();
-#endif  // FEATURE_COMINTEROP
-    else
-        return FALSE;
-
-#endif // FEATURE_CORECLR
 }
 
 #ifdef FEATURE_COMINTEROP

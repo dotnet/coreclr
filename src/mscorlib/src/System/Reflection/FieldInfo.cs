@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 // 
 
@@ -14,55 +15,43 @@ namespace System.Reflection
     using System.Runtime.CompilerServices;
     using System.Runtime.ConstrainedExecution;
     using System.Runtime.InteropServices;
-#if FEATURE_REMOTING
-    using System.Runtime.Remoting.Metadata;
-#endif //FEATURE_REMOTING
     using System.Runtime.Serialization;
-    using System.Security.Permissions;
     using System.Threading;
     using RuntimeTypeCache = System.RuntimeType.RuntimeTypeCache;
 
     [Serializable]
-    [ClassInterface(ClassInterfaceType.None)]
-    [ComDefaultInterface(typeof(_FieldInfo))]
-#pragma warning disable 618
-    [PermissionSetAttribute(SecurityAction.InheritanceDemand, Name = "FullTrust")]
-#pragma warning restore 618
-    [System.Runtime.InteropServices.ComVisible(true)]
-    public abstract class FieldInfo : MemberInfo, _FieldInfo
+    public abstract class FieldInfo : MemberInfo
     {
         #region Static Members
         public static FieldInfo GetFieldFromHandle(RuntimeFieldHandle handle)
         {
             if (handle.IsNullHandle())
-                throw new ArgumentException(Environment.GetResourceString("Argument_InvalidHandle"));
-                
+                throw new ArgumentException(Environment.GetResourceString("Argument_InvalidHandle"), nameof(handle));
+
             FieldInfo f = RuntimeType.GetFieldInfo(handle.GetRuntimeFieldInfo());
-                       
+
             Type declaringType = f.DeclaringType;
             if (declaringType != null && declaringType.IsGenericType)
                 throw new ArgumentException(String.Format(
-                    CultureInfo.CurrentCulture, Environment.GetResourceString("Argument_FieldDeclaringTypeGeneric"), 
+                    CultureInfo.CurrentCulture, Environment.GetResourceString("Argument_FieldDeclaringTypeGeneric"),
                     f.Name, declaringType.GetGenericTypeDefinition()));
 
-            return f;            
-        }           
-        
-        [System.Runtime.InteropServices.ComVisible(false)]
+            return f;
+        }
+
         public static FieldInfo GetFieldFromHandle(RuntimeFieldHandle handle, RuntimeTypeHandle declaringType)
         {
             if (handle.IsNullHandle())
                 throw new ArgumentException(Environment.GetResourceString("Argument_InvalidHandle"));
 
             return RuntimeType.GetFieldInfo(declaringType.GetRuntimeType(), handle.GetRuntimeFieldInfo());
-        }           
+        }
         #endregion
 
         #region Constructor
-        protected FieldInfo() { }       
+        protected FieldInfo() { }
         #endregion
 
-#if !FEATURE_CORECLR
         public static bool operator ==(FieldInfo left, FieldInfo right)
         {
             if (ReferenceEquals(left, right))
@@ -80,7 +69,6 @@ namespace System.Reflection
         {
             return !(left == right);
         }
-#endif // !FEATURE_CORECLR
 
         public override bool Equals(object obj)
         {
@@ -97,7 +85,7 @@ namespace System.Reflection
         #endregion
 
         #region Public Abstract\Virtual Members
-        
+
         public virtual Type[] GetRequiredCustomModifiers()
         {
             throw new NotImplementedException();
@@ -118,12 +106,12 @@ namespace System.Reflection
         public virtual Object GetValueDirect(TypedReference obj)
         {
             throw new NotSupportedException(Environment.GetResourceString("NotSupported_AbstractNonCLS"));
-        }    
+        }
 
         public abstract RuntimeFieldHandle FieldHandle { get; }
 
-        public abstract Type FieldType { get; }    
-     
+        public abstract Type FieldType { get; }
+
         public abstract Object GetValue(Object obj);
 
         public virtual Object GetRawConstantValue() { throw new NotSupportedException(Environment.GetResourceString("NotSupported_AbstractNonCLS")); }
@@ -147,29 +135,29 @@ namespace System.Reflection
             SetValue(obj, value, BindingFlags.Default, Type.DefaultBinder, null);
         }
 
-        public bool IsPublic { get { return(Attributes & FieldAttributes.FieldAccessMask) == FieldAttributes.Public; } }
+        public bool IsPublic { get { return (Attributes & FieldAttributes.FieldAccessMask) == FieldAttributes.Public; } }
 
-        public bool IsPrivate { get { return(Attributes & FieldAttributes.FieldAccessMask) == FieldAttributes.Private; } }
+        public bool IsPrivate { get { return (Attributes & FieldAttributes.FieldAccessMask) == FieldAttributes.Private; } }
 
-        public bool IsFamily { get { return(Attributes & FieldAttributes.FieldAccessMask) == FieldAttributes.Family; } }
+        public bool IsFamily { get { return (Attributes & FieldAttributes.FieldAccessMask) == FieldAttributes.Family; } }
 
-        public bool IsAssembly { get { return(Attributes & FieldAttributes.FieldAccessMask) == FieldAttributes.Assembly; } }
+        public bool IsAssembly { get { return (Attributes & FieldAttributes.FieldAccessMask) == FieldAttributes.Assembly; } }
 
-        public bool IsFamilyAndAssembly { get { return(Attributes & FieldAttributes.FieldAccessMask) == FieldAttributes.FamANDAssem; } }
+        public bool IsFamilyAndAssembly { get { return (Attributes & FieldAttributes.FieldAccessMask) == FieldAttributes.FamANDAssem; } }
 
-        public bool IsFamilyOrAssembly { get { return(Attributes & FieldAttributes.FieldAccessMask) == FieldAttributes.FamORAssem; } }
+        public bool IsFamilyOrAssembly { get { return (Attributes & FieldAttributes.FieldAccessMask) == FieldAttributes.FamORAssem; } }
 
-        public bool IsStatic { get { return(Attributes & FieldAttributes.Static) != 0; } }
+        public bool IsStatic { get { return (Attributes & FieldAttributes.Static) != 0; } }
 
-        public bool IsInitOnly { get { return(Attributes & FieldAttributes.InitOnly) != 0; } }
+        public bool IsInitOnly { get { return (Attributes & FieldAttributes.InitOnly) != 0; } }
 
-        public bool IsLiteral { get { return(Attributes & FieldAttributes.Literal) != 0; } }
+        public bool IsLiteral { get { return (Attributes & FieldAttributes.Literal) != 0; } }
 
-        public bool IsNotSerialized { get { return(Attributes & FieldAttributes.NotSerialized) != 0; } }
+        public bool IsNotSerialized { get { return (Attributes & FieldAttributes.NotSerialized) != 0; } }
 
-        public bool IsSpecialName  { get { return(Attributes & FieldAttributes.SpecialName) != 0; } }
+        public bool IsSpecialName { get { return (Attributes & FieldAttributes.SpecialName) != 0; } }
 
-        public bool IsPinvokeImpl { get { return(Attributes & FieldAttributes.PinvokeImpl) != 0; } }
+        public bool IsPinvokeImpl { get { return (Attributes & FieldAttributes.PinvokeImpl) != 0; } }
 
         public virtual bool IsSecurityCritical
         {
@@ -187,35 +175,6 @@ namespace System.Reflection
         }
 
         #endregion
-
-#if !FEATURE_CORECLR
-        Type _FieldInfo.GetType()
-        {
-            return base.GetType();
-        }
-
-        void _FieldInfo.GetTypeInfoCount(out uint pcTInfo)
-        {
-            throw new NotImplementedException();
-        }
-
-        void _FieldInfo.GetTypeInfo(uint iTInfo, uint lcid, IntPtr ppTInfo)
-        {
-            throw new NotImplementedException();
-        }
-
-        void _FieldInfo.GetIDsOfNames([In] ref Guid riid, IntPtr rgszNames, uint cNames, uint lcid, IntPtr rgDispId)
-        {
-            throw new NotImplementedException();
-        }
-
-        // If you implement this method, make sure to include _FieldInfo.Invoke in VM\DangerousAPIs.h and 
-        // include _FieldInfo in SystemDomain::IsReflectionInvocationMethod in AppDomain.cpp.
-        void _FieldInfo.Invoke(uint dispIdMember, [In] ref Guid riid, uint lcid, short wFlags, IntPtr pDispParams, IntPtr pVarResult, IntPtr pExcepInfo, IntPtr puArgErr)
-        {
-            throw new NotImplementedException();
-        }
-#endif
     }
 
     [Serializable]
@@ -224,7 +183,7 @@ namespace System.Reflection
         #region Private Data Members
         private BindingFlags m_bindingFlags;
         protected RuntimeTypeCache m_reflectedTypeCache;
-        protected RuntimeType m_declaringType;        
+        protected RuntimeType m_declaringType;
         #endregion
 
         #region Constructor
@@ -240,44 +199,14 @@ namespace System.Reflection
         }
         #endregion
 
-#if FEATURE_REMOTING
-        #region Legacy Remoting Cache
-        // The size of CachedData is accounted for by BaseObjectWithCachedData in object.h.
-        // This member is currently being used by Remoting for caching remoting data. If you
-        // need to cache data here, talk to the Remoting team to work out a mechanism, so that
-        // both caching systems can happily work together.
-        private RemotingFieldCachedData m_cachedData;
-
-        internal RemotingFieldCachedData RemotingCache
-        {
-            get
-            {
-                // This grabs an internal copy of m_cachedData and uses
-                // that instead of looking at m_cachedData directly because
-                // the cache may get cleared asynchronously.  This prevents
-                // us from having to take a lock.
-                RemotingFieldCachedData cache = m_cachedData;
-                if (cache == null)
-                {
-                    cache = new RemotingFieldCachedData(this);
-                    RemotingFieldCachedData ret = Interlocked.CompareExchange(ref m_cachedData, cache, null);
-                    if (ret != null)
-                        cache = ret;
-                }
-                return cache;
-            }
-        }
-        #endregion
-#endif //FEATURE_REMOTING
-
         #region NonPublic Members
         internal BindingFlags BindingFlags { get { return m_bindingFlags; } }
         private RuntimeType ReflectedTypeInternal
-        { 
-            get 
-            { 
-                return m_reflectedTypeCache.GetRuntimeType(); 
-            } 
+        {
+            get
+            {
+                return m_reflectedTypeCache.GetRuntimeType();
+            }
         }
 
         internal RuntimeType GetDeclaringTypeInternal()
@@ -298,25 +227,22 @@ namespace System.Reflection
                 return m_reflectedTypeCache.IsGlobal ? null : ReflectedTypeInternal;
             }
         }
-        
-        public override Type DeclaringType 
-        { 
-            get 
-            { 
-                return m_reflectedTypeCache.IsGlobal ? null : m_declaringType; 
-            } 
+
+        public override Type DeclaringType
+        {
+            get
+            {
+                return m_reflectedTypeCache.IsGlobal ? null : m_declaringType;
+            }
         }
-        
+
         public override Module Module { get { return GetRuntimeModule(); } }
         #endregion
 
         #region Object Overrides
-        public unsafe override String ToString() 
+        public unsafe override String ToString()
         {
-            if (CompatibilitySwitches.IsAppEarlierThanWindowsPhone8)
-                return FieldType.ToString() + " " + Name;
-            else
-                return FieldType.FormatTypeName() + " " + Name;
+            return FieldType.FormatTypeName() + " " + Name;
         }
         #endregion
 
@@ -329,28 +255,27 @@ namespace System.Reflection
         public override Object[] GetCustomAttributes(Type attributeType, bool inherit)
         {
             if (attributeType == null)
-                throw new ArgumentNullException("attributeType");
+                throw new ArgumentNullException(nameof(attributeType));
             Contract.EndContractBlock();
 
             RuntimeType attributeRuntimeType = attributeType.UnderlyingSystemType as RuntimeType;
 
-            if (attributeRuntimeType == null) 
-                throw new ArgumentException(Environment.GetResourceString("Arg_MustBeType"),"attributeType");
+            if (attributeRuntimeType == null)
+                throw new ArgumentException(Environment.GetResourceString("Arg_MustBeType"), nameof(attributeType));
 
             return CustomAttribute.GetCustomAttributes(this, attributeRuntimeType);
         }
 
-        [System.Security.SecuritySafeCritical]  // auto-generated
         public override bool IsDefined(Type attributeType, bool inherit)
         {
             if (attributeType == null)
-                throw new ArgumentNullException("attributeType");
+                throw new ArgumentNullException(nameof(attributeType));
             Contract.EndContractBlock();
 
             RuntimeType attributeRuntimeType = attributeType.UnderlyingSystemType as RuntimeType;
 
-            if (attributeRuntimeType == null) 
-                throw new ArgumentException(Environment.GetResourceString("Arg_MustBeType"),"attributeType");
+            if (attributeRuntimeType == null)
+                throw new ArgumentException(Environment.GetResourceString("Arg_MustBeType"), nameof(attributeType));
 
             return CustomAttribute.IsDefined(this, attributeRuntimeType);
         }
@@ -366,11 +291,10 @@ namespace System.Reflection
         #endregion
 
         #region ISerializable Implementation
-        [System.Security.SecurityCritical]  // auto-generated
         public void GetObjectData(SerializationInfo info, StreamingContext context)
         {
             if (info == null)
-                throw new ArgumentNullException("info");
+                throw new ArgumentNullException(nameof(info));
             Contract.EndContractBlock();
             MemberInfoSerializationHolder.GetSerializationInfo(
                 info,
@@ -386,7 +310,6 @@ namespace System.Reflection
     internal unsafe sealed class RtFieldInfo : RuntimeFieldInfo, IRuntimeFieldInfo
     {
         #region FCalls
-        [System.Security.SecurityCritical]  // auto-generated
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         static private extern void PerformVisibilityCheckOnField(IntPtr field, Object target, RuntimeType declaringType, FieldAttributes attr, uint invocationFlags);
         #endregion
@@ -484,9 +407,8 @@ namespace System.Reflection
         private RuntimeAssembly GetRuntimeAssembly() { return m_declaringType.GetRuntimeAssembly(); }
 
         #region Constructor
-        [System.Security.SecurityCritical]  // auto-generated
         internal RtFieldInfo(
-            RuntimeFieldHandleInternal handle, RuntimeType declaringType, RuntimeTypeCache reflectedTypeCache, BindingFlags bindingFlags) 
+            RuntimeFieldHandleInternal handle, RuntimeType declaringType, RuntimeTypeCache reflectedTypeCache, BindingFlags bindingFlags)
             : base(reflectedTypeCache, declaringType, bindingFlags)
         {
             m_fieldHandle = handle.Value;
@@ -497,7 +419,6 @@ namespace System.Reflection
         #region Private Members
         RuntimeFieldHandleInternal IRuntimeFieldInfo.Value
         {
-            [System.Security.SecuritySafeCritical]
             get
             {
                 return new RuntimeFieldHandleInternal(m_fieldHandle);
@@ -507,20 +428,15 @@ namespace System.Reflection
         #endregion
 
         #region Internal Members
-        internal void CheckConsistency(Object target) 
+        internal void CheckConsistency(Object target)
         {
             // only test instance fields
-            if ((m_fieldAttributes & FieldAttributes.Static) != FieldAttributes.Static) 
+            if ((m_fieldAttributes & FieldAttributes.Static) != FieldAttributes.Static)
             {
                 if (!m_declaringType.IsInstanceOfType(target))
                 {
                     if (target == null)
                     {
-#if FEATURE_LEGACYNETCF
-                        if (CompatibilitySwitches.IsAppEarlierThanWindowsPhone8)
-                            throw new ArgumentNullException(Environment.GetResourceString("RFLCT.Targ_StatFldReqTarg"));
-                        else
-#endif
                         throw new TargetException(Environment.GetResourceString("RFLCT.Targ_StatFldReqTarg"));
                     }
                     else
@@ -533,7 +449,6 @@ namespace System.Reflection
             }
         }
 
-        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
         internal override bool CacheEquals(object o)
         {
             RtFieldInfo m = o as RtFieldInfo;
@@ -544,7 +459,6 @@ namespace System.Reflection
             return m.m_fieldHandle == m_fieldHandle;
         }
 
-        [System.Security.SecurityCritical]
         [DebuggerStepThroughAttribute]
         [Diagnostics.DebuggerHidden]
         internal void InternalSetValue(Object obj, Object value, BindingFlags invokeAttr, Binder binder, CultureInfo culture, ref StackCrawlMark stackMark)
@@ -578,7 +492,7 @@ namespace System.Reflection
             }
 #endif
 
-            if ((invocationFlags & (INVOCATION_FLAGS.INVOCATION_FLAGS_SPECIAL_FIELD | INVOCATION_FLAGS.INVOCATION_FLAGS_NEED_SECURITY)) != 0) 
+            if ((invocationFlags & (INVOCATION_FLAGS.INVOCATION_FLAGS_SPECIAL_FIELD | INVOCATION_FLAGS.INVOCATION_FLAGS_NEED_SECURITY)) != 0)
                 PerformVisibilityCheckOnField(m_fieldHandle, obj, m_declaringType, m_fieldAttributes, (uint)m_invocationFlags);
             #endregion
 
@@ -601,7 +515,6 @@ namespace System.Reflection
         // InternalSetValue() instead. When the caller needs to perform 
         // consistency checks they should call CheckConsistency() before 
         // calling this method.
-        [System.Security.SecurityCritical]  // auto-generated
         [DebuggerStepThroughAttribute]
         [Diagnostics.DebuggerHidden]
         internal void UnsafeSetValue(Object obj, Object value, BindingFlags invokeAttr, Binder binder, CultureInfo culture)
@@ -623,7 +536,6 @@ namespace System.Reflection
             }
         }
 
-        [System.Security.SecuritySafeCritical]
         [DebuggerStepThroughAttribute]
         [Diagnostics.DebuggerHidden]
         internal Object InternalGetValue(Object obj, ref StackCrawlMark stackMark)
@@ -666,7 +578,6 @@ namespace System.Reflection
         // InternalGetValue() instead. When the caller needs to perform 
         // consistency checks they should call CheckConsistency() before 
         // calling this method.
-        [System.Security.SecurityCritical]
         [DebuggerStepThroughAttribute]
         [Diagnostics.DebuggerHidden]
         internal Object UnsafeGetValue(Object obj)
@@ -686,15 +597,14 @@ namespace System.Reflection
                 object retVal = RuntimeFieldHandle.GetValue(this, obj, fieldType, declaringType, ref domainInitialized);
                 declaringType.DomainInitialized = domainInitialized;
                 return retVal;
-            }               
-        } 
+            }
+        }
 
         #endregion
 
         #region MemberInfo Overrides
-        public override String Name 
+        public override String Name
         {
-            [System.Security.SecuritySafeCritical]  // auto-generated
             get
             {
                 if (m_name == null)
@@ -714,11 +624,9 @@ namespace System.Reflection
 
         public override int MetadataToken
         {
-            [System.Security.SecuritySafeCritical]  // auto-generated
             get { return RuntimeFieldHandle.GetToken(this); }
         }
 
-        [System.Security.SecuritySafeCritical]  // auto-generated
         internal override RuntimeModule GetRuntimeModule()
         {
             return RuntimeTypeHandle.GetModule(RuntimeFieldHandle.GetApproxDeclaringType(this));
@@ -731,11 +639,10 @@ namespace System.Reflection
         {
             StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
             return InternalGetValue(obj, ref stackMark);
-        } 
-        
+        }
+
         public override object GetRawConstantValue() { throw new InvalidOperationException(); }
 
-        [System.Security.SecuritySafeCritical]  // auto-generated
         [DebuggerStepThroughAttribute]
         [Diagnostics.DebuggerHidden]
         public override Object GetValueDirect(TypedReference obj)
@@ -751,7 +658,6 @@ namespace System.Reflection
             }
         }
 
-        [System.Security.SecuritySafeCritical]  // auto-generated
         [DebuggerStepThroughAttribute]
         [Diagnostics.DebuggerHidden]
         public override void SetValue(Object obj, Object value, BindingFlags invokeAttr, Binder binder, CultureInfo culture)
@@ -760,7 +666,6 @@ namespace System.Reflection
             InternalSetValue(obj, value, invokeAttr, binder, culture, ref stackMark);
         }
 
-        [System.Security.SecuritySafeCritical]  // auto-generated
         [DebuggerStepThroughAttribute]
         [Diagnostics.DebuggerHidden]
         public override void SetValueDirect(TypedReference obj, Object value)
@@ -776,7 +681,7 @@ namespace System.Reflection
             }
         }
 
-        public override RuntimeFieldHandle FieldHandle 
+        public override RuntimeFieldHandle FieldHandle
         {
             get
             {
@@ -787,12 +692,12 @@ namespace System.Reflection
             }
         }
 
-        internal IntPtr GetFieldHandle() 
+        internal IntPtr GetFieldHandle()
         {
             return m_fieldHandle;
         }
 
-        public override FieldAttributes Attributes 
+        public override FieldAttributes Attributes
         {
             get
             {
@@ -800,9 +705,8 @@ namespace System.Reflection
             }
         }
 
-        public override Type FieldType 
+        public override Type FieldType
         {
-            [System.Security.SecuritySafeCritical]  // auto-generated
             get
             {
                 if (m_fieldType == null)
@@ -810,15 +714,13 @@ namespace System.Reflection
 
                 return m_fieldType;
             }
-        }       
-        
-        [System.Security.SecuritySafeCritical]  // auto-generated
+        }
+
         public override Type[] GetRequiredCustomModifiers()
         {
             return new Signature(this, m_declaringType).GetCustomModifiers(1, true);
         }
 
-        [System.Security.SecuritySafeCritical]  // auto-generated
         public override Type[] GetOptionalCustomModifiers()
         {
             return new Signature(this, m_declaringType).GetCustomModifiers(1, false);
@@ -843,13 +745,12 @@ namespace System.Reflection
             : base(reflectedTypeCache, declaringTypeHandle.GetRuntimeType(), bindingFlags)
         {
             m_tkField = tkField;
-            m_name = null; 
+            m_name = null;
             m_fieldAttributes = fieldAttributes;
         }
         #endregion
 
         #region Internal Members
-        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
         internal override bool CacheEquals(object o)
         {
             MdFieldInfo m = o as MdFieldInfo;
@@ -857,16 +758,15 @@ namespace System.Reflection
             if ((object)m == null)
                 return false;
 
-            return m.m_tkField == m_tkField && 
+            return m.m_tkField == m_tkField &&
                 m_declaringType.GetTypeHandleInternal().GetModuleHandle().Equals(
                     m.m_declaringType.GetTypeHandleInternal().GetModuleHandle());
         }
         #endregion
 
         #region MemberInfo Overrides
-        public override String Name 
+        public override String Name
         {
-            [System.Security.SecuritySafeCritical]  // auto-generated
             get
             {
                 if (m_name == null)
@@ -897,7 +797,7 @@ namespace System.Reflection
 
         [DebuggerStepThroughAttribute]
         [Diagnostics.DebuggerHidden]
-        public override void SetValueDirect(TypedReference obj,Object value)
+        public override void SetValueDirect(TypedReference obj, Object value)
         {
             throw new FieldAccessException(Environment.GetResourceString("Acc_ReadOnly"));
         }
@@ -910,8 +810,7 @@ namespace System.Reflection
         }
 
         public unsafe override Object GetRawConstantValue() { return GetValue(true); }
-        
-        [System.Security.SecuritySafeCritical]  // auto-generated
+
         private unsafe Object GetValue(bool raw)
         {
             // Cannot cache these because they could be user defined non-agile enumerations
@@ -922,7 +821,7 @@ namespace System.Reflection
                 throw new NotSupportedException(Environment.GetResourceString("Arg_EnumLitValueNotFound"));
 
             return value;
-        } 
+        }
 
         [DebuggerStepThroughAttribute]
         [Diagnostics.DebuggerHidden]
@@ -931,23 +830,22 @@ namespace System.Reflection
             throw new FieldAccessException(Environment.GetResourceString("Acc_ReadOnly"));
         }
 
-        public override Type FieldType 
+        public override Type FieldType
         {
-            [System.Security.SecuritySafeCritical]  // auto-generated
             get
             {
                 if (m_fieldType == null)
                 {
                     ConstArray fieldMarshal = GetRuntimeModule().MetadataImport.GetSigOfFieldDef(m_tkField);
 
-                    m_fieldType = new Signature(fieldMarshal.Signature.ToPointer(), 
+                    m_fieldType = new Signature(fieldMarshal.Signature.ToPointer(),
                         (int)fieldMarshal.Length, m_declaringType).FieldType;
                 }
 
                 return m_fieldType;
             }
-        }       
-    
+        }
+
         public override Type[] GetRequiredCustomModifiers()
         {
             return EmptyArray<Type>.Value;
@@ -960,5 +858,4 @@ namespace System.Reflection
 
         #endregion
     }
-
 }

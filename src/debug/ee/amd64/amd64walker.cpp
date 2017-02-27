@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //*****************************************************************************
 // File: Amd64walker.cpp
 // 
@@ -132,10 +131,11 @@ void NativeWalker::Decode()
     {
         case 0xff:
         {
-
             BYTE modrm = *ip++;
 
-            _ASSERT(modrm != NULL);
+            // Ignore "inc dword ptr [reg]" instructions
+            if (modrm == 0)
+                break;
             
             BYTE mod = (modrm & 0xC0) >> 6;
             BYTE reg = (modrm & 0x38) >> 3;
@@ -205,7 +205,7 @@ void NativeWalker::Decode()
                     {
                         if ((base & 0x07) == 5) 
                         {
-                            result = result + *((UINT32*)ip);
+                            result = result + *((INT32*)ip);
                             displace = 7;
                         } 
                         else 
@@ -215,12 +215,12 @@ void NativeWalker::Decode()
                     } 
                     else if (mod == 1) 
                     {
-                        result = result + *((UINT8*)ip);
+                        result = result + *((INT8*)ip);
                         displace = 4;
                     } 
                     else // mod == 2
                     {
-                        result = result + *((UINT32*)ip);
+                        result = result + *((INT32*)ip);
                         displace = 7;
                     }
 
@@ -247,12 +247,12 @@ void NativeWalker::Decode()
                         } 
                         else if (mod == 1) 
                         {
-                            result = result + *((UINT8*)ip);
+                            result = result + *((INT8*)ip);
                             displace = 3;
                         } 
                         else // mod == 2
                         {
-                            result = result + *((UINT32*)ip);
+                            result = result + *((INT32*)ip);
                             displace = 6;
                         }
                     }
@@ -745,7 +745,7 @@ LLegacyPrefix:
             }
 
             // RET
-            if ((lowNibble == 0x2) && (lowNibble == 0x3))
+            if ((lowNibble == 0x2) || (lowNibble == 0x3))
             {
                 break;
             }

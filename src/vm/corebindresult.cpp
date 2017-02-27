@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 // ============================================================
 //
 // CoreBindResult.cpp
@@ -14,13 +13,8 @@
 
 #include "common.h"
 
-#ifdef CLR_STANDALONE_BINDER
-#include "coreclr\corebindresult.h"
-#endif // CLR_STANDALONE_BINDER
-
 #include "../binder/inc/assembly.hpp"
 
-#ifndef FEATURE_FUSION
 #ifndef DACCESS_COMPILE
 
 STDMETHODIMP CoreBindResult::QueryInterface(REFIID   riid,
@@ -68,4 +62,3 @@ STDMETHODIMP_(ULONG) CoreBindResult::Release()
 
 
 #endif  // DACCES_COMPILE
-#endif // FEATURE_FUSION

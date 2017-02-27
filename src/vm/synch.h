@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //
 
 // 
@@ -37,16 +36,20 @@ public:
     void CreateAutoEvent(BOOL bInitialState);
     void CreateManualEvent(BOOL bInitialState);
 
+    // Non-throwing variants of the functions above
+    BOOL CreateAutoEventNoThrow(BOOL bInitialState);
+    BOOL CreateManualEventNoThrow(BOOL bInitialState);
+
     void CreateMonitorEvent(SIZE_T Cookie); // robust against initialization races - for exclusive use by AwareLock
 
-#ifdef FEATURE_RWLOCK
-    void CreateRWLockReaderEvent(BOOL bInitialState, CRWLock* pRWLock);
-    void CreateRWLockWriterEvent(BOOL bInitialState, CRWLock* pRWLock);
-#endif
 
     // Create an Event that is not host aware
     void CreateOSAutoEvent (BOOL bInitialState);
     void CreateOSManualEvent (BOOL bInitialState);
+
+    // Non-throwing variants of the functions above
+    BOOL CreateOSAutoEventNoThrow (BOOL bInitialState);
+    BOOL CreateOSManualEventNoThrow (BOOL bInitialState);
 
     void CloseEvent();
 

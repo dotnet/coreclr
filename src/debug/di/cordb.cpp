@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //*****************************************************************************
 // CorDB.cpp
 // 
@@ -21,11 +20,10 @@
 #include "dbgtransportmanager.h"
 #endif // FEATURE_DBGIPC_TRANSPORT_DI
 
-// Helper function returns the instance handle of this module.
-HINSTANCE GetModuleInst();
-
 //********** Globals. *********************************************************
+#ifndef FEATURE_PAL
 HINSTANCE       g_hInst;                // Instance handle to this piece of code.
+#endif
 
 //-----------------------------------------------------------------------------
 // SxS Versioning story for Mscordbi (ICorDebug + friends)
@@ -88,7 +86,7 @@ HINSTANCE       g_hInst;                // Instance handle to this piece of code
 //*****************************************************************************
 STDAPI CreateCordbObject(int iDebuggerVersion, IUnknown ** ppCordb)
 {
-#if defined(FEATURE_CORECLR) && !defined(FEATURE_DBGIPC_TRANSPORT_DI) && !defined(FEATURE_CORESYSTEM)
+#if !defined(FEATURE_DBGIPC_TRANSPORT_DI) && !defined(FEATURE_CORESYSTEM)
     // This API should not be called for Windows CoreCLR unless we are doing interop-debugging
     // (which is only supported internally).  Use code:CoreCLRCreateCordbObject instead.
     if (CLRConfig::GetConfigValue(CLRConfig::INTERNAL_DbgEnableMixedModeDebugging) == 0)
@@ -96,7 +94,7 @@ STDAPI CreateCordbObject(int iDebuggerVersion, IUnknown ** ppCordb)
         _ASSERTE(!"Deprecated entry point CreateCordbObject() is called on Windows CoreCLR\n");
         return E_NOTIMPL;
     }
-#endif // FEATURE_CORECLR && !FEATURE_DBGIPC_TRANSPORT_DI
+#endif // !defined(FEATURE_DBGIPC_TRANSPORT_DI) && !defined(FEATURE_CORESYSTEM)
 
     if (ppCordb == NULL)
     {
@@ -110,7 +108,6 @@ STDAPI CreateCordbObject(int iDebuggerVersion, IUnknown ** ppCordb)
     return Cordb::CreateObject((CorDebugInterfaceVersion)iDebuggerVersion, IID_ICorDebug, (void **) ppCordb);
 }
 
-#if defined(FEATURE_CORECLR)
 //
 // Public API.  
 // Telesto Creation path - only way to debug multi-instance.  
@@ -163,7 +160,6 @@ STDAPI CoreCLRCreateCordbObject(int iDebuggerVersion, DWORD pid, HMODULE hmodTar
     return hr;
 }
 
-#endif // FEATURE_CORECLR
 
 
 
@@ -180,9 +176,9 @@ BOOL WINAPI DbgDllMain(HINSTANCE hInstance, DWORD dwReason, LPVOID lpReserved)
 
         case DLL_PROCESS_ATTACH:
         {
+#ifndef FEATURE_PAL
             g_hInst = hInstance;
-
-#ifdef FEATURE_PAL
+#else
             int err = PAL_InitializeDLL();
             if(err != 0)
             {
@@ -203,11 +199,11 @@ BOOL WINAPI DbgDllMain(HINSTANCE hInstance, DWORD dwReason, LPVOID lpReserved)
 
 #if defined(LOGGING)
             {
-                WCHAR   rcFile[_MAX_PATH];
-                WszGetModuleFileName(hInstance, rcFile, NumItems(rcFile));
+                PathString rcFile;
+                WszGetModuleFileName(hInstance, rcFile);
                 LOG((LF_CORDB, LL_INFO10000,
                     "DI::DbgDllMain: load right side support from file '%s'\n",
-                     rcFile));
+                     rcFile.GetUnicode()));
             }
 #endif
 
@@ -247,11 +243,6 @@ BOOL WINAPI DbgDllMain(HINSTANCE hInstance, DWORD dwReason, LPVOID lpReserved)
 
         case DLL_PROCESS_DETACH:
         {
-#ifdef RSCONTRACTS
-            TlsFree(DbgRSThread::s_TlsSlot);
-            DbgRSThread::s_TlsSlot = TLS_OUT_OF_INDEXES;
-#endif
-
 #if defined(FEATURE_DBGIPC_TRANSPORT_DI)
             if (g_pDbgTransportTarget != NULL)
             {
@@ -260,7 +251,11 @@ BOOL WINAPI DbgDllMain(HINSTANCE hInstance, DWORD dwReason, LPVOID lpReserved)
                 g_pDbgTransportTarget = NULL;
             }
 #endif // FEATURE_DBGIPC_TRANSPORT_DI
-
+            
+#ifdef RSCONTRACTS
+            TlsFree(DbgRSThread::s_TlsSlot);
+            DbgRSThread::s_TlsSlot = TLS_OUT_OF_INDEXES;
+#endif
         }
         break;
     }
@@ -430,16 +425,15 @@ HRESULT STDMETHODCALLTYPE CClassFactory::LockServer(
 }
 
 
-
-
-
 //*****************************************************************************
 // This helper provides access to the instance handle of the loaded image.
 //*****************************************************************************
+#ifndef FEATURE_PAL
 HINSTANCE GetModuleInst()
 {
     return g_hInst;
 }
+#endif
 
 
 //-----------------------------------------------------------------------------
@@ -487,7 +481,7 @@ CLRRuntimeHostInternal_GetImageVersionString(
     DWORD *pcchBuffer)
 {
     // Construct the cannoncial version string we're built as - eg. "v4.0.1234"
-    const WCHAR k_wszBuiltFor[] = W("v")VER_PRODUCTVERSION_NO_QFE_STR_L;
+    const WCHAR k_wszBuiltFor[] = W("v") VER_PRODUCTVERSION_NO_QFE_STR_L;
 
     // Copy our buffer in
     HRESULT hr = HRESULT_FROM_WIN32(wcscpy_s(wszBuffer, *pcchBuffer, k_wszBuiltFor));

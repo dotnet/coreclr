@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 
 /* This is a poor man's implementation of virtual methods. */
@@ -37,14 +36,14 @@ class AppDomain;
 //  on the stack.  The FEF is used for unwinding.  If not defined, the unwinding
 //  uses the exception context.
 #define USE_FEF // to mark where code needs to be changed to eliminate the FEF
-#if defined(_TARGET_X86_)
+#if defined(_TARGET_X86_) && !defined(FEATURE_PAL)
  #undef USE_FEF // Turn off the FEF use on x86.
  #define ELIMINATE_FEF
 #else
  #if defined(ELIMINATE_FEF)
   #undef ELIMINATE_FEF
  #endif 
-#endif // _86_
+#endif // _TARGET_X86_ && !FEATURE_PAL
 
 //************************************************************************
 // Enumerate all functions.
@@ -108,6 +107,7 @@ public:
 
     BOOL IsInCalleesFrames(LPVOID stackPointer);
 
+#ifndef DACCESS_COMPILE
     /* Returns address of the securityobject stored in the current function (method?)
        Returns NULL if
             - not a function OR
@@ -115,6 +115,7 @@ public:
               (which is an error)
      */
     OBJECTREF * GetAddrOfSecurityObject();
+#endif // DACCESS_COMPILE
 
     // Fetch the extra type argument passed in some cases
     PTR_VOID GetParamTypeArg();
@@ -325,6 +326,13 @@ public:
         return &codeInfo;
     }
 
+    GCInfoToken GetGCInfoToken()
+    {
+        LIMITED_METHOD_DAC_CONTRACT;
+        _ASSERTE(isFrameless);
+        return codeInfo.GetGCInfoToken();
+    }
+
     PTR_VOID GetGCInfo()
     {
         LIMITED_METHOD_DAC_CONTRACT;
@@ -405,6 +413,17 @@ public:
 
         return fShouldCrawlframeReportGCReferences;
     }
+    
+    bool ShouldParentToFuncletUseUnwindTargetLocationForGCReporting()
+    {
+        LIMITED_METHOD_CONTRACT;
+        return fShouldParentFrameUseUnwindTargetPCforGCReporting;
+    }
+
+    const EE_ILEXCEPTION_CLAUSE& GetEHClauseForCatch()
+    {
+        return ehClauseForCatch;
+    }
 
 #endif // WIN64EXCEPTIONS
 
@@ -452,6 +471,8 @@ private:
     bool              isFilterFuncletCached;
     bool              fShouldParentToFuncletSkipReportingGCReferences;
     bool              fShouldCrawlframeReportGCReferences;
+    bool              fShouldParentFrameUseUnwindTargetPCforGCReporting;
+    EE_ILEXCEPTION_CLAUSE ehClauseForCatch;
 #endif //WIN64EXCEPTIONS
     Thread*           pThread;
 
@@ -667,7 +688,6 @@ private:
     // the following fields are used to cache information about a managed stack frame 
     // when we need to stop for skipped explicit frames
     EECodeInfo     m_cachedCodeInfo;
-    PTR_VOID       m_pCachedGCInfo;
 
     GSCookie *     m_pCachedGSCookie;
 

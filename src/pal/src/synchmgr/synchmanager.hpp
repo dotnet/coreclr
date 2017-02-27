@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information. 
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*++
 
@@ -18,8 +17,8 @@ Abstract:
 
 
 --*/
-#ifndef _SINCHMANAGER_HPP_
-#define _SINCHMANAGER_HPP_
+#ifndef _SYNCHMANAGER_HPP_
+#define _SYNCHMANAGER_HPP_
 
 #include "pal/synchobjects.hpp"
 #include "pal/synchcache.hpp"
@@ -37,8 +36,6 @@ Abstract:
 #endif // HAVE_KQUEUE
 #include "pal/dbgmsg.h"
 
-SET_DEFAULT_DEBUG_CHANNEL(SYNC);
-
 #ifdef _DEBUG
 // #define SYNCH_OBJECT_VALIDATION
 // #define SYNCH_STATISTICS
@@ -49,17 +46,17 @@ SET_DEFAULT_DEBUG_CHANNEL(SYNC);
 #else
 #define VALIDATEOBJECT(obj)
 #endif
-    
+
 namespace CorUnix
-{          
+{
     const DWORD WTLN_FLAG_OWNER_OBJECT_IS_SHARED                 = 1<<0;
     const DWORD WTLN_FLAG_WAIT_ALL                               = 1<<1;
     const DWORD WTLN_FLAG_DELEGATED_OBJECT_SIGNALING_IN_PROGRESS = 1<<2;
-    
+
 #ifdef SYNCH_OBJECT_VALIDATION
     const DWORD HeadSignature  = 0x48454144;
     const DWORD TailSignature  = 0x5441494C;
-    const DWORD EmptySignature = 0xBAADF00D;    
+    const DWORD EmptySignature = 0xBAADF00D;
 #endif
 
     enum THREAD_WAIT_STATE
@@ -96,8 +93,8 @@ namespace CorUnix
 #endif
         WTLNodeGenrPtr ptrNext;
         WTLNodeGenrPtr ptrPrev;
-        SharedID shridSHRThis;        
-        
+        SharedID shridSHRThis;
+
         // Data
         DWORD dwThreadId;
         DWORD dwProcessId;
@@ -136,14 +133,14 @@ namespace CorUnix
     {
         struct _ThreadApcInfoNode * pNext;
         PAPCFUNC pfnAPC;
-        ULONG_PTR pAPCData;        
+        ULONG_PTR pAPCData;
     } ThreadApcInfoNode;
 
     class CPalSynchronizationManager; // fwd declaration
     class CProcProcessLocalData;      // fwd declaration
-    
+
     class CSynchData
-    {        
+    {
 #ifdef SYNCH_OBJECT_VALIDATION
         DWORD m_dwDebugHeadSignature;
 #endif
@@ -174,7 +171,6 @@ namespace CorUnix
 #endif
 
     public:
-                
         CSynchData() 
             : m_ulcWaitingThreads(0), m_shridThis(NULLSharedID), m_lRefCount(1),
               m_lSignalCount(0), m_lOwnershipCount(0), m_dwOwnerPid(0),
@@ -195,13 +191,13 @@ namespace CorUnix
 #endif
         }
 
-        LONG AddRef() 
-        { 
+        LONG AddRef()
+        {
             return InterlockedIncrement(&m_lRefCount); 
         }
-                 
+
         LONG Release(CPalThread * pthrCurrent);
-        
+
         bool CanWaiterWaitWithoutBlocking(
             CPalThread * pWaiterThread,
             bool * pfAbandoned);
@@ -209,46 +205,46 @@ namespace CorUnix
         PAL_ERROR ReleaseWaiterWithoutBlocking(
             CPalThread * pthrCurrent,
             CPalThread * pthrTarget);
-                   
+
         void WaiterEnqueue(WaitingThreadsListNode * pwtlnNewNode);
         void SharedWaiterEnqueue(SharedID shridNewNode);
- 
+
         // Object Domain accessor methods
-        ObjectDomain GetObjectDomain(void) 
-        { 
-            return m_odObjectDomain; 
-        }        
-        void SetObjectDomain(ObjectDomain odObjectDomain) 
-        { 
-            m_odObjectDomain = odObjectDomain; 
+        ObjectDomain GetObjectDomain(void)
+        {
+            return m_odObjectDomain;
+        }
+        void SetObjectDomain(ObjectDomain odObjectDomain)
+        {
+            m_odObjectDomain = odObjectDomain;
         }
 
         // Object Type accessor methods
-        CObjectType * GetObjectType(void) 
-        { 
+        CObjectType * GetObjectType(void)
+        {
             return CObjectType::GetObjectTypeById(m_otiObjectTypeId);
-        }        
-        PalObjectTypeId GetObjectTypeId(void) 
-        { 
-            return m_otiObjectTypeId;
-        }        
-        void SetObjectType(CObjectType * pot) 
-        { 
-            m_otiObjectTypeId = pot->GetId(); 
         }
-        void SetObjectType(PalObjectTypeId oti) 
-        { 
-            m_otiObjectTypeId = oti; 
+        PalObjectTypeId GetObjectTypeId(void)
+        {
+            return m_otiObjectTypeId;
+        }
+        void SetObjectType(CObjectType * pot)
+        {
+            m_otiObjectTypeId = pot->GetId();
+        }
+        void SetObjectType(PalObjectTypeId oti)
+        {
+            m_otiObjectTypeId = oti;
         }
 
         // Object shared 'this' pointer accessor methods
-        SharedID GetSharedThis (void) 
-        { 
-            return m_shridThis; 
+        SharedID GetSharedThis (void)
+        {
+            return m_shridThis;
         }
-        void SetSharedThis (SharedID shridThis) 
-        { 
-            m_shridThis = shridThis; 
+        void SetSharedThis (SharedID shridThis)
+        {
+            m_shridThis = shridThis;
         }
 
         void Signal(
@@ -269,15 +265,19 @@ namespace CorUnix
 
         // Object signal count accessor methods
         LONG GetSignalCount(void) 
-        { 
+        {
+            _ASSERTE(m_lSignalCount >= 0);
             return m_lSignalCount; 
         }
         void SetSignalCount(LONG lSignalCount) 
         { 
+            _ASSERTE(m_lSignalCount >= 0);
+            _ASSERTE(lSignalCount >= 0);
             m_lSignalCount = lSignalCount; 
         }
         LONG DecrementSignalCount(void) 
-        { 
+        {
+            _ASSERTE(m_lSignalCount > 0);
             return --m_lSignalCount; 
         }
 
@@ -445,10 +445,12 @@ namespace CorUnix
         // Per-object-type specific data
         //
         // Process (otiProcess)
+        IPalObject *m_pProcessObject; // process that owns m_pProcLocalData, this is stored without a reference
         CProcProcessLocalData * m_pProcLocalData;
         
     public:
-        CSynchWaitController() : m_pProcLocalData(NULL) {}
+        CSynchWaitController() : m_pProcessObject(NULL), m_pProcLocalData(NULL) {}
+        virtual ~CSynchWaitController() = default;
         
         //
         // ISynchWaitController methods
@@ -468,7 +470,7 @@ namespace CorUnix
 
         CProcProcessLocalData * GetProcessLocalData(void);
 
-        void SetProcessLocalData(CProcProcessLocalData * pProcLocalData);
+        void SetProcessData(IPalObject* pProcessObject, CProcProcessLocalData * pProcLocalData);
     };  
 
     class CSynchStateController : public CSynchControllerBase, 
@@ -476,15 +478,16 @@ namespace CorUnix
     {
     public:
         // NB: For perforformance purposes this class is supposed
-        //     to have no constructor or destructor
-        
+        //     to have no constructor
+        virtual ~CSynchStateController() = default;
+
         //
         // ISynchStateController methods
         //
-        virtual PAL_ERROR GetSignalCount(DWORD *pdwSignalCount);
-        virtual PAL_ERROR SetSignalCount(DWORD dwNewCount);
-        virtual PAL_ERROR IncrementSignalCount(DWORD dwAmountToIncrement);
-        virtual PAL_ERROR DecrementSignalCount(DWORD dwAmountToDecrement);
+        virtual PAL_ERROR GetSignalCount(LONG *plSignalCount);
+        virtual PAL_ERROR SetSignalCount(LONG lNewCount);
+        virtual PAL_ERROR IncrementSignalCount(LONG lAmountToIncrement);
+        virtual PAL_ERROR DecrementSignalCount(LONG lAmountToDecrement);
         virtual PAL_ERROR SetOwner(CPalThread *pNewOwningThread);
         virtual PAL_ERROR DecrementOwnershipCount(void);
         virtual void ReleaseController(void);
@@ -493,7 +496,7 @@ namespace CorUnix
     class CPalSynchronizationManager : public IPalSynchronizationManager
     {
         friend class CPalSynchMgrController;
-        template <class T> friend T *CorUnix::InternalNew(CorUnix::CPalThread *);
+        template <class T> friend T *CorUnix::InternalNew();
 
     public:
         // types
@@ -523,6 +526,7 @@ namespace CorUnix
             SynchWorkerCmdRemoteSignal,
             SynchWorkerCmdDelegatedObjectSignaling,
             SynchWorkerCmdShutdown,
+            SynchWorkerCmdTerminationRequest,
             SynchWorkerCmdLast
         };
 
@@ -534,6 +538,10 @@ namespace CorUnix
             DWORD dwPid;
             DWORD dwExitCode;
             bool fIsActualExitCode;
+
+            // Object that owns pProcLocalData. This is stored, with a reference, to 
+            // ensure that pProcLocalData is not deleted.
+            IPalObject *pProcessObject;
             CProcProcessLocalData * pProcLocalData;
         } MonitoredProcessesListNode;
 
@@ -583,7 +591,7 @@ namespace CorUnix
         COwnedObjectsListNodeCache      m_cacheOwnedObjectsListNodes;
 
         // static methods
-        static PAL_ERROR Initialize(CPalThread * pthrCurrent);
+        static PAL_ERROR Initialize();
         static DWORD PALAPI WorkerThread(LPVOID pArg);
 
     protected:
@@ -597,11 +605,9 @@ namespace CorUnix
             CSynchControllerBase::ControllerType ctCtrlrType);
 
     private:
-        static IPalSynchronizationManager * CreatePalSynchronizationManager(
-            CPalThread * pthrCurrent);
+        static IPalSynchronizationManager * CreatePalSynchronizationManager();
         static PAL_ERROR StartWorker(CPalThread * pthrCurrent);
         static PAL_ERROR PrepareForShutdown(void);
-        static PAL_ERROR Shutdown(CPalThread *pthrCurrent, bool fFullCleanup);
 
     public:
         virtual ~CPalSynchronizationManager();
@@ -613,7 +619,7 @@ namespace CorUnix
             // initialization code.
             return s_pObjSynchMgr; 
         }
-        
+
         //
         // Inline utility methods
         //
@@ -633,9 +639,9 @@ namespace CorUnix
             {
                 InternalLeaveCriticalSection(pthrCurrent, &s_csSynchProcessLock);
                 
-#if SYNCHMGR_SUSPENSION_SAFE_CONDITION_SIGNALING && !SYNCHMGR_PIPE_BASED_THREAD_BLOCKING
-                pthrCurrent->synchronizationInfo.RunDeferredThreadConditionSignalings(pthrCurrent);
-#endif // SYNCHMGR_SUSPENSION_SAFE_CONDITION_SIGNALING && !SYNCHMGR_PIPE_BASED_THREAD_BLOCKING
+#if SYNCHMGR_SUSPENSION_SAFE_CONDITION_SIGNALING
+                pthrCurrent->synchronizationInfo.RunDeferredThreadConditionSignalings();
+#endif // SYNCHMGR_SUSPENSION_SAFE_CONDITION_SIGNALING
             }
         }
         static LONG ResetLocalSynchLock(CPalThread * pthrCurrent) 
@@ -648,15 +654,15 @@ namespace CorUnix
                 pthrCurrent->synchronizationInfo.m_lLocalSynchLockCount = 0;
                 InternalLeaveCriticalSection(pthrCurrent, &s_csSynchProcessLock);
 
-#if SYNCHMGR_SUSPENSION_SAFE_CONDITION_SIGNALING && !SYNCHMGR_PIPE_BASED_THREAD_BLOCKING
-                pthrCurrent->synchronizationInfo.RunDeferredThreadConditionSignalings(pthrCurrent);
-#endif // SYNCHMGR_SUSPENSION_SAFE_CONDITION_SIGNALING && !SYNCHMGR_PIPE_BASED_THREAD_BLOCKING
-            }            
+#if SYNCHMGR_SUSPENSION_SAFE_CONDITION_SIGNALING
+                pthrCurrent->synchronizationInfo.RunDeferredThreadConditionSignalings();
+#endif // SYNCHMGR_SUSPENSION_SAFE_CONDITION_SIGNALING
+            }
             return lRet;
         }
         static LONG GetLocalSynchLockCount(CPalThread * pthrCurrent) 
         {
-            _ASSERTE(0 <= pthrCurrent->synchronizationInfo.m_lLocalSynchLockCount);            
+            _ASSERTE(0 <= pthrCurrent->synchronizationInfo.m_lLocalSynchLockCount);
             return pthrCurrent->synchronizationInfo.m_lLocalSynchLockCount;
         }
 
@@ -869,6 +875,8 @@ namespace CorUnix
             PAPCFUNC pfnAPC,
             ULONG_PTR uptrData);
 
+        virtual PAL_ERROR SendTerminationRequestToWorkerThread();
+
         virtual bool AreAPCsPending(CPalThread * pthrTarget);
 
         virtual PAL_ERROR DispatchPendingAPCs(CPalThread * pthrCurrent);
@@ -887,14 +895,12 @@ namespace CorUnix
             ThreadWakeupReason twrWakeupReason,
             DWORD dwObjectIndex);
 
-#if !SYNCHMGR_PIPE_BASED_THREAD_BLOCKING
         static PAL_ERROR SignalThreadCondition(
             ThreadNativeWaitData * ptnwdNativeWaitData);
 
         static PAL_ERROR DeferThreadConditionSignaling(
             CPalThread * pthrCurrent,
             CPalThread * pthrTarget);
-#endif // SYNCHMGR_PIPE_BASED_THREAD_BLOCKING
 
         static PAL_ERROR WakeUpRemoteThread(
             SharedID shridWLNode);
@@ -954,12 +960,11 @@ namespace CorUnix
 
         PAL_ERROR ReadCmdFromProcessPipe(
             int iPollTimeout,
-            SynchWorkerCmd * pswcWorkerCmd,            
+            SynchWorkerCmd * pswcWorkerCmd,
             SharedID * pshridMarshaledData,
             DWORD * pdwData);
 
         PAL_ERROR WakeUpLocalWorkerThread(
-            CPalThread * pthrCurrent,
             SynchWorkerCmd swcWorkerCmd);
 
         void DiscardAllPendingAPCs(
@@ -971,9 +976,9 @@ namespace CorUnix
             BYTE * pRecvBuf,
             LONG lBytes);
 
-        bool CreateProcessPipe(CPalThread * pthrCurrent);
+        bool CreateProcessPipe();
 
-        PAL_ERROR ShutdownProcessPipe(CPalThread * pthrCurrent);
+        PAL_ERROR ShutdownProcessPipe();
 
     public:
         //
@@ -988,6 +993,7 @@ namespace CorUnix
         PAL_ERROR RegisterProcessForMonitoring(
             CPalThread * pthrCurrent,
             CSynchData *psdSynchData,
+            IPalObject *pProcessObject,
             CProcProcessLocalData * pProcLocalData);
 
         PAL_ERROR UnRegisterProcessForMonitoring(
@@ -999,7 +1005,7 @@ namespace CorUnix
         // Utility static methods, no lock required
         //
         static bool HasProcessExited(
-            DWORD dwPid, 
+            DWORD dwPid,
             DWORD * pdwExitCode,
             bool * pfIsActualExitCode);
 
@@ -1008,17 +1014,9 @@ namespace CorUnix
             bool fAlertOnly);
 
         static PAL_ERROR GetAbsoluteTimeout(
-            DWORD dwTimeout, 
+            DWORD dwTimeout,
             struct timespec * ptsAbsTmo);
-
-#if SYNCHMGR_PIPE_BASED_THREAD_BLOCKING
-        static void UpdateTimeout(
-            DWORD * pdwOldTime, 
-            DWORD * pdwTimeout);
-#endif
-
     };
 }
 
-#endif // _SINCHMANAGER_HPP_
-
+#endif // _SYNCHMANAGER_HPP_

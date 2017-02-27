@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 
 /*
@@ -16,42 +15,68 @@
 #include "gc.h"
 
 #ifdef FEATURE_SVR_GC
-SVAL_IMPL_INIT(DWORD,GCHeap,gcHeapType,GCHeap::GC_HEAP_INVALID);
+SVAL_IMPL_INIT(uint32_t,IGCHeap,gcHeapType,IGCHeap::GC_HEAP_INVALID);
 #endif // FEATURE_SVR_GC
 
-GPTR_IMPL(GCHeap,g_pGCHeap);
+SVAL_IMPL_INIT(uint32_t,IGCHeap,maxGeneration,2);
 
-/* global versions of the card table and brick table */ 
-GPTR_IMPL(DWORD,g_card_table);
+IGCHeapInternal* g_theGCHeap;
 
-/* absolute bounds of the GC memory */
-GPTR_IMPL_INIT(BYTE,g_lowest_address,0);
-GPTR_IMPL_INIT(BYTE,g_highest_address,0);
+#ifdef FEATURE_STANDALONE_GC
+IGCToCLR* g_theGCToCLR;
+#endif // FEATURE_STANDALONE_GC
+
+#ifdef GC_CONFIG_DRIVEN
+size_t gc_global_mechanisms[MAX_GLOBAL_GC_MECHANISMS_COUNT];
+#endif //GC_CONFIG_DRIVEN
 
 #ifndef DACCESS_COMPILE
 
-BYTE* g_ephemeral_low = (BYTE*)1; 
-BYTE* g_ephemeral_high = (BYTE*)~0;
-
 #ifdef WRITE_BARRIER_CHECK
-BYTE* g_GCShadow;
-BYTE* g_GCShadowEnd;
-BYTE* g_shadow_lowest_address = NULL;
+uint8_t* g_GCShadow;
+uint8_t* g_GCShadowEnd;
+uint8_t* g_shadow_lowest_address = NULL;
 #endif
 
-VOLATILE(LONG) m_GCLock = -1;
+uint32_t* g_gc_card_table;
+uint8_t* g_gc_lowest_address  = 0;
+uint8_t* g_gc_highest_address = 0;
+bool g_fFinalizerRunOnShutDown = false;
 
-LONG g_bLowMemoryFromHost = 0;
+#ifdef FEATURE_SVR_GC
+bool g_built_with_svr_gc = true;
+#else
+bool g_built_with_svr_gc = false;
+#endif // FEATURE_SVR_GC
+
+#if defined(BUILDENV_DEBUG)
+uint8_t g_build_variant = 0;
+#elif defined(BUILDENV_CHECKED)
+uint8_t g_build_variant = 1;
+#else
+uint8_t g_build_variant = 2;
+#endif // defined(BUILDENV_DEBUG)
+
+VOLATILE(int32_t) m_GCLock = -1;
+
+#ifdef GC_CONFIG_DRIVEN
+void record_global_mechanism (int mech_index)
+{
+    (gc_global_mechanisms[mech_index])++;
+}
+#endif //GC_CONFIG_DRIVEN
+
+int32_t g_bLowMemoryFromHost = 0;
 
 #ifdef WRITE_BARRIER_CHECK
 
-#define INVALIDGCVALUE (LPVOID)((size_t)0xcccccccd)
+#define INVALIDGCVALUE (void *)((size_t)0xcccccccd)
 
     // called by the write barrier to update the shadow heap
 void updateGCShadow(Object** ptr, Object* val)
 {
-    Object** shadow = (Object**) &g_GCShadow[((BYTE*) ptr - g_lowest_address)];
-    if ((BYTE*) shadow < g_GCShadowEnd)
+    Object** shadow = (Object**) &g_GCShadow[((uint8_t*) ptr - g_lowest_address)];
+    if ((uint8_t*) shadow < g_GCShadowEnd)
     {
         *shadow = val;
 
@@ -69,8 +94,8 @@ void updateGCShadow(Object** ptr, Object* val)
 
 struct changed_seg
 {
-    BYTE              * start;
-    BYTE              * end;
+    uint8_t           * start;
+    uint8_t           * end;
     size_t              gc_index;
     bgc_state           bgc;
     changed_seg_state   changed;
@@ -82,8 +107,8 @@ const int max_saved_changed_segs = 128;
 changed_seg saved_changed_segs[max_saved_changed_segs];
 int saved_changed_segs_count = 0;
 
-void record_changed_seg (BYTE* start, BYTE* end, 
-                         size_t current_gc_index, 
+void record_changed_seg (uint8_t* start, uint8_t* end,
+                         size_t current_gc_index,
                          bgc_state current_bgc_state,
                          changed_seg_state changed_state)
 {
@@ -100,6 +125,82 @@ void record_changed_seg (BYTE* start, BYTE* end,
     {
         saved_changed_segs_count = 0;
     }
+}
+
+// The runtime needs to know whether we're using workstation or server GC 
+// long before the GCHeap is created.
+void InitializeHeapType(bool bServerHeap)
+{
+    LIMITED_METHOD_CONTRACT;
+#ifdef FEATURE_SVR_GC
+    IGCHeap::gcHeapType = bServerHeap ? IGCHeap::GC_HEAP_SVR : IGCHeap::GC_HEAP_WKS;
+#ifdef WRITE_BARRIER_CHECK
+    if (IGCHeap::gcHeapType == IGCHeap::GC_HEAP_SVR)
+    {
+        g_GCShadow = 0;
+        g_GCShadowEnd = 0;
+    }
+#endif // WRITE_BARRIER_CHECK
+#else // FEATURE_SVR_GC
+    UNREFERENCED_PARAMETER(bServerHeap);
+    CONSISTENCY_CHECK(bServerHeap == false);
+#endif // FEATURE_SVR_GC
+}
+
+namespace WKS 
+{
+    extern void PopulateDacVars(GcDacVars* dacVars);
+}
+
+namespace SVR
+{
+    extern void PopulateDacVars(GcDacVars* dacVars);
+}
+
+bool InitializeGarbageCollector(IGCToCLR* clrToGC, IGCHeap** gcHeap, GcDacVars* gcDacVars)
+{
+    LIMITED_METHOD_CONTRACT;
+
+    IGCHeapInternal* heap;
+
+    assert(gcDacVars != nullptr);
+    assert(gcHeap != nullptr);
+#ifdef FEATURE_SVR_GC
+    assert(IGCHeap::gcHeapType != IGCHeap::GC_HEAP_INVALID);
+
+    if (IGCHeap::gcHeapType == IGCHeap::GC_HEAP_SVR)
+    {
+        heap = SVR::CreateGCHeap();
+        SVR::PopulateDacVars(gcDacVars);
+    }
+    else
+    {
+        heap = WKS::CreateGCHeap();
+        WKS::PopulateDacVars(gcDacVars);
+    }
+#else
+    heap = WKS::CreateGCHeap();
+    WKS::PopulateDacVars(gcDacVars);
+
+#endif
+
+    if (heap == nullptr)
+    {
+        return false;
+    }
+
+    g_theGCHeap = heap;
+
+#ifdef FEATURE_STANDALONE_GC
+    assert(clrToGC != nullptr);
+    g_theGCToCLR = clrToGC;
+#else
+    UNREFERENCED_PARAMETER(clrToGC);
+    assert(clrToGC == nullptr);
+#endif
+
+    *gcHeap = heap;
+    return true;
 }
 
 #endif // !DACCESS_COMPILE

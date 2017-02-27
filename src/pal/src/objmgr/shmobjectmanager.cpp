@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information. 
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*++
 
@@ -166,11 +165,11 @@ CSharedMemoryObjectManager::AllocateObject(
 
     if (CObjectType::WaitableObject == pot->GetSynchronizationSupport())
     {
-        pshmobj = InternalNew<CSharedMemoryWaitableObject>(pthr, pot, &m_csListLock);
+        pshmobj = InternalNew<CSharedMemoryWaitableObject>(pot, &m_csListLock);
     }
     else
     {
-        pshmobj = InternalNew<CSharedMemoryObject>(pthr, pot, &m_csListLock);
+        pshmobj = InternalNew<CSharedMemoryObject>(pot, &m_csListLock);
     }
 
     if (NULL != pshmobj)
@@ -1113,8 +1112,7 @@ CSharedMemoryObjectManager::ImportSharedObjectIntoProcess(
     
     if (CObjectType::WaitableObject == pot->GetSynchronizationSupport())
     {
-        pshmobj = InternalNew<CSharedMemoryWaitableObject>(pthr,
-                                                           pot,
+        pshmobj = InternalNew<CSharedMemoryWaitableObject>(pot,
                                                            &m_csListLock,
                                                            shmSharedObjectData,
                                                            psmod,
@@ -1122,8 +1120,7 @@ CSharedMemoryObjectManager::ImportSharedObjectIntoProcess(
     }
     else
     {
-        pshmobj = InternalNew<CSharedMemoryObject>(pthr,
-                                                   pot,
+        pshmobj = InternalNew<CSharedMemoryObject>(pot,
                                                    &m_csListLock,
                                                    shmSharedObjectData,
                                                    psmod,

@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //*****************************************************************************
 // File: debugger.inl
 // 
@@ -236,14 +235,14 @@ inline void FuncEvalFrame::UpdateRegDisplay(const PREGDISPLAY pRD)
     // Update all registers in the reg display from the CONTEXT we stored when the thread was hijacked for this func
     // eval. We have to update all registers, not just the callee saved registers, because we can hijack a thread at any
     // point for a func eval, not just at a call site.
-    pRD->pEdi = &(pDE->m_context.Edi);
-    pRD->pEsi = &(pDE->m_context.Esi);
-    pRD->pEbx = &(pDE->m_context.Ebx);
-    pRD->pEdx = &(pDE->m_context.Edx);
-    pRD->pEcx = &(pDE->m_context.Ecx);
-    pRD->pEax = &(pDE->m_context.Eax);
-    pRD->pEbp = &(pDE->m_context.Ebp);
-    pRD->Esp  = (DWORD)GetSP(&pDE->m_context);
+    pRD->SetEdiLocation(&(pDE->m_context.Edi));
+    pRD->SetEsiLocation(&(pDE->m_context.Esi));
+    pRD->SetEbxLocation(&(pDE->m_context.Ebx));
+    pRD->SetEdxLocation(&(pDE->m_context.Edx));
+    pRD->SetEcxLocation(&(pDE->m_context.Ecx));
+    pRD->SetEaxLocation(&(pDE->m_context.Eax));
+    pRD->SetEbpLocation(&(pDE->m_context.Ebp));
+    pRD->SP   = (DWORD)GetSP(&pDE->m_context);
     pRD->PCTAddr = GetReturnAddressPtr();
     pRD->ControlPC = *PTR_PCODE(pRD->PCTAddr);
 

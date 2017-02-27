@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 // 
 
 
@@ -15,12 +14,8 @@
 #include "securityattributes.h"
 #include "securitydeclarativecache.h"
 #include "securitydeclarative.h"
-#include "securityimperative.h"
 #include "securitytransparentassembly.h"
 
-#ifdef FEATURE_APTCA
-#include "aptca.h"
-#endif
 
 class IAssemblySecurityDescriptor;
 class IApplicationSecurityDescriptor;
@@ -73,10 +68,6 @@ namespace Security
     inline void SaveCache();
 
     // Policy
-#ifdef FEATURE_CAS_POLICY
-    inline bool IsProcessWideLegacyCasPolicyEnabled();
-    inline bool CanLoadFromRemoteSources();
-#endif // FEATURE_CAS_POLICY
 
     BOOL IsTransparencyEnforcementEnabled();
 
@@ -127,7 +118,6 @@ namespace Security
 #endif // #ifndef DACCESS_COMPILE
     inline BOOL MethodIsVisibleOutsideItsAssembly(MethodDesc * pMD);
     inline BOOL MethodIsVisibleOutsideItsAssembly(DWORD dwMethodAttr, DWORD dwClassAttr, BOOL fIsGlobalClass);
-    inline void CheckBeforeAllocConsole(AppDomain* pDomain, Assembly* pAssembly);
 
     // ----------------------------------------
     // SecurityStackWalk
@@ -135,17 +125,8 @@ namespace Security
 
     // other CAS Actions
     inline void Demand(SecurityStackWalkType eType, OBJECTREF demand) ;
-#ifdef FEATURE_CAS_POLICY
-    inline void DemandGrantSet(IAssemblySecurityDescriptor *psdAssembly);
-#endif // FEATURE_CAS_POLICY
     inline void DemandSet(SecurityStackWalkType eType, OBJECTREF demand) ;
     inline void DemandSet(SecurityStackWalkType eType, PsetCacheEntry *pPCE, DWORD dwAction) ;
-#ifdef FEATURE_CAS_POLICY
-    inline void ReflectionTargetDemand(DWORD dwPermission, IAssemblySecurityDescriptor *psdTarget);
-    inline void ReflectionTargetDemand(DWORD dwPermission,
-                                       IAssemblySecurityDescriptor *psdTarget,
-                                       DynamicResolver * pAccessContext);
-#endif // FEATURE_CAS_POLICY
     inline void SpecialDemand(SecurityStackWalkType eType, DWORD whatPermission) ;
 
     inline void InheritanceLinkDemandCheck(Assembly *pTargetAssembly, MethodDesc * pMDLinkDemand);
@@ -154,10 +135,6 @@ namespace Security
     inline void FullTrustLinkDemand(Assembly *pTargetAssembly);
 
     // Compressed Stack
-#ifdef FEATURE_COMPRESSEDSTACK
-    inline COMPRESSEDSTACKREF GetCSFromContextTransitionFrame(Frame *pFrame) ;
-    inline BOOL IsContextTransitionFrameWithCS(Frame *pFrame);
-#endif // #ifdef FEATURE_COMPRESSEDSTACK
 
     // Misc - todo: put these in better categories
     
@@ -165,9 +142,7 @@ namespace Security
     IApplicationSecurityDescriptor* CreateApplicationSecurityDescriptor(AppDomain * pDomain);
     IAssemblySecurityDescriptor* CreateAssemblySecurityDescriptor(AppDomain *pDomain, DomainAssembly *pAssembly, LoaderAllocator *pLoaderAllocator);
     ISharedSecurityDescriptor* CreateSharedSecurityDescriptor(Assembly* pAssembly);
-#ifndef FEATURE_CORECLR
-    IPEFileSecurityDescriptor* CreatePEFileSecurityDescriptor(AppDomain* pDomain, PEFile *pPEFile);
-#endif
+    void DeleteSharedSecurityDescriptor(ISharedSecurityDescriptor *descriptor);
     inline void SetDefaultAppDomainProperty(IApplicationSecurityDescriptor* pASD);
     inline void SetDefaultAppDomainEvidenceProperty(IApplicationSecurityDescriptor* pASD);
 
@@ -226,19 +201,6 @@ namespace Security
     // security enforcement
     inline BOOL ContainsBuiltinCASPermsOnly(CORSEC_ATTRSET* pAttrSet);
 
-#ifdef FEATURE_APTCA
-    inline BOOL IsUntrustedCallerCheckNeeded(MethodDesc *pCalleeMD, Assembly *pCallerAssem = NULL) ;
-    inline void DoUntrustedCallerChecks(Assembly *pCaller, MethodDesc *pCalee, BOOL fFullStackWalk) ;
-
-    inline bool NativeImageHasValidAptcaDependencies(PEImage *pNativeImage, DomainAssembly *pDomainAssembly);
-
-    inline SString GetAptcaKillBitAccessExceptionContext(Assembly *pTargetAssembly);
-    inline SString GetConditionalAptcaAccessExceptionContext(Assembly *pTargetAssembly);
-#endif // FEATURE_APTCA
-
-#ifdef FEATURE_CORECLR
-	inline BOOL IsMicrosoftPlatform(IAssemblySecurityDescriptor *pSecDesc);
-#endif // FEATURE_CORECLR
 
     inline bool SecurityCalloutQuickCheck(MethodDesc *pCallerMD);
 
@@ -248,9 +210,8 @@ namespace Security
 class ISecurityDescriptor
 {
 public:
-#ifndef FEATURE_PAL
-    VPTR_BASE_VTABLE_CLASS(ISecurityDescriptor)
-#endif
+    VPTR_BASE_VTABLE_CLASS_AND_CTOR(ISecurityDescriptor)
+
     virtual ~ISecurityDescriptor() { LIMITED_METHOD_CONTRACT; }
 
     virtual BOOL IsFullyTrusted() = 0;
@@ -265,11 +226,6 @@ public:
     virtual void Resolve() = 0;
     virtual BOOL IsResolved() const = 0;
 
-#ifdef FEATURE_CAS_POLICY
-    virtual OBJECTREF GetEvidence() = 0;
-    virtual BOOL IsEvidenceComputed() const = 0;
-    virtual void SetEvidence(OBJECTREF evidence) = 0;
-#endif // FEATURE_CAS_POLICY
 
     virtual OBJECTREF GetGrantedPermissionSet(OBJECTREF* RefusedPermissions = NULL) = 0;
 #endif // !DACCESS_COMPILE
@@ -278,9 +234,7 @@ public:
 class IApplicationSecurityDescriptor : public ISecurityDescriptor
 {
 public:
-#ifndef FEATURE_PAL
-    VPTR_ABSTRACT_VTABLE_CLASS(IApplicationSecurityDescriptor, ISecurityDescriptor)
-#endif
+    VPTR_ABSTRACT_VTABLE_CLASS_AND_CTOR(IApplicationSecurityDescriptor, ISecurityDescriptor)
 
 #ifndef DACCESS_COMPILE
 public:
@@ -308,25 +262,14 @@ public:
     // or if unmanaged code access is allowed at this time
     virtual DWORD GetDomainWideSpecialFlag() const = 0;
 
-#ifdef FEATURE_CAS_POLICY
-    virtual void SetLegacyCasPolicyEnabled() = 0;
-    virtual BOOL IsLegacyCasPolicyEnabled() = 0;
-    virtual BOOL AllowsLoadsFromRemoteSources() = 0;
-#endif // FEATURE_CAS_POLICY
 
-#ifdef FEATURE_APTCA
-    virtual ConditionalAptcaCache *GetConditionalAptcaCache() = 0;
-    virtual void SetCanonicalConditionalAptcaList(LPCWSTR wszCanonicalConditionalAptcaList) = 0;
-#endif // FEATURE_APTCA
 #endif // !DACCESS_COMPILE
 };
 
 class IAssemblySecurityDescriptor : public ISecurityDescriptor
 {
 public:
-#ifndef FEATURE_PAL
-    VPTR_ABSTRACT_VTABLE_CLASS(IAssemblySecurityDescriptor, ISecurityDescriptor)
-#endif
+    VPTR_ABSTRACT_VTABLE_CLASS_AND_CTOR(IAssemblySecurityDescriptor, ISecurityDescriptor)
 
 #ifndef DACCESS_COMPILE
     virtual SharedSecurityDescriptor *GetSharedSecDesc() = 0;
@@ -342,22 +285,9 @@ public:
 
     virtual void ResolvePolicy(ISharedSecurityDescriptor *pSharedDesc, BOOL fShouldSkipPolicyResolution) = 0;
 
-#ifdef FEATURE_CAS_POLICY
-    virtual HRESULT LoadSignature( COR_TRUST **ppSignature = NULL) = 0;
-
-    virtual void SetRequestedPermissionSet(OBJECTREF RequiredPermissionSet, OBJECTREF OptionalPermissionSet, OBJECTREF DeniedPermissionSet) = 0;
-
-    virtual void SetAdditionalEvidence(OBJECTREF evidence) = 0;
-    virtual BOOL HasAdditionalEvidence() = 0;
-    virtual OBJECTREF GetAdditionalEvidence()  = 0;
-    virtual void SetEvidenceFromPEFile(IPEFileSecurityDescriptor *pPEFileSecDesc) = 0;
-#endif // FEATURE_CAS_POLICY
 
     virtual void PropagatePermissionSet(OBJECTREF GrantedPermissionSet, OBJECTREF DeniedPermissionSet, DWORD dwSpecialFlags) = 0;
 
-#ifndef FEATURE_CORECLR 
-    virtual BOOL AllowApplicationSpecifiedAppDomainManager() = 0;
-#endif
 
     // Check to make sure that security will allow this assembly to load.  Throw an exception if the
     // assembly should be forbidden from loading for security related purposes
@@ -374,13 +304,6 @@ public:
     virtual Assembly* GetAssembly() = 0;
 };
 
-#ifndef FEATURE_CORECLR
-class IPEFileSecurityDescriptor : public ISecurityDescriptor
-{
-public:
-    virtual BOOL AllowBindingRedirects() = 0;
-};
-#endif
 
 #include "security.inl"
 #include "securitydeclarative.inl"

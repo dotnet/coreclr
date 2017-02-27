@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*============================================================
 **
@@ -9,11 +10,12 @@
 **          operation
 **
 ===========================================================*/
-namespace System {
-    
-    using System;
-    using System.Threading;
-[System.Runtime.InteropServices.ComVisible(true)]
+
+using System;
+using System.Threading;
+
+namespace System
+{
     public interface IAsyncResult
     {
         bool IsCompleted { get; }
@@ -21,11 +23,8 @@ namespace System {
         WaitHandle AsyncWaitHandle { get; }
 
 
-        Object     AsyncState      { get; }
+        Object AsyncState { get; }
 
-        bool       CompletedSynchronously { get; }
-   
-    
+        bool CompletedSynchronously { get; }
     }
-
 }

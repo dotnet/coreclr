@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information. 
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 // ==++==
 //
@@ -117,7 +116,7 @@ public:
 
     pointer address(reference val);
     const_pointer address(const_reference val) const;
-    pointer allocate(size_type count, allocator<void>::const_pointer hint = 0);
+    pointer allocate(size_type count, allocator<void>::const_pointer hint = nullptr);
     void construct(pointer ptr, const_reference val);
     void deallocate(pointer ptr, size_type size);
     void destroy(pointer ptr);

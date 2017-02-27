@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //
 
 //
@@ -1226,7 +1225,7 @@ OBJECTREF EEException::CreateThrowable()
 #endif
 }
 
-RuntimeExceptionKind EEException::GetKindFromHR(HRESULT hr, bool fIsWinRtMode /*= false*/)
+RuntimeExceptionKind EEException::GetKindFromHR(HRESULT hr, bool fIsWinRtMode)
 {
     LIMITED_METHOD_CONTRACT;
 
@@ -1360,55 +1359,6 @@ BOOL EEResourceException::GetThrowableMessage(SString &result)
 #endif // CROSSGEN_COMPILE
 
     return EEException::GetThrowableMessage(result);
-}
-
-// ---------------------------------------------------------------------------
-// EEComException methods
-// ---------------------------------------------------------------------------
-
-static HRESULT Undefer(EXCEPINFO *pExcepInfo)
-{
-    CONTRACTL
-    {
-        GC_NOTRIGGER;
-        NOTHROW;
-        MODE_ANY;
-    }
-    CONTRACTL_END;
-
-    if (pExcepInfo->pfnDeferredFillIn)
-    {
-        EXCEPINFO FilledInExcepInfo; 
-
-        HRESULT hr = pExcepInfo->pfnDeferredFillIn(&FilledInExcepInfo);
-        if (SUCCEEDED(hr))
-        {
-            // Free the strings in the original EXCEPINFO.
-            if (pExcepInfo->bstrDescription)
-            {
-                SysFreeString(pExcepInfo->bstrDescription);
-                pExcepInfo->bstrDescription = NULL;
-            }
-            if (pExcepInfo->bstrSource)
-            {
-                SysFreeString(pExcepInfo->bstrSource);
-                pExcepInfo->bstrSource = NULL;
-            }
-            if (pExcepInfo->bstrHelpFile)
-            {
-                SysFreeString(pExcepInfo->bstrHelpFile);
-                pExcepInfo->bstrHelpFile = NULL;
-            }
-
-            // Fill in the new data
-            *pExcepInfo = FilledInExcepInfo;
-        }
-    }
-
-    if (pExcepInfo->scode != 0)
-        return pExcepInfo->scode;
-    else
-        return (HRESULT)pExcepInfo->wCode;
 }
 
 // ---------------------------------------------------------------------------
@@ -1767,11 +1717,7 @@ OBJECTREF EETypeLoadException::CreateThrowable()
 // EEFileLoadException is an EE exception subclass representing a file loading
 // error
 // ---------------------------------------------------------------------------
-#ifdef FEATURE_FUSION
-EEFileLoadException::EEFileLoadException(const SString &name, HRESULT hr, IFusionBindLog *pFusionLog, Exception *pInnerException/* = NULL*/)
-#else
 EEFileLoadException::EEFileLoadException(const SString &name, HRESULT hr, void *pFusionLog, Exception *pInnerException/* = NULL*/)
-#endif
   : EEException(GetFileLoadKind(hr)),
     m_name(name),
     m_pFusionLog(pFusionLog),
@@ -1803,10 +1749,6 @@ EEFileLoadException::EEFileLoadException(const SString &name, HRESULT hr, void *
 
         m_name.Set(wszTemplate);
     }
-#ifdef FEATURE_FUSION
-    if (m_pFusionLog != NULL)
-        m_pFusionLog->AddRef();
-#endif    
 }
 
 
@@ -1815,10 +1757,6 @@ EEFileLoadException::~EEFileLoadException()
     STATIC_CONTRACT_NOTHROW;
     STATIC_CONTRACT_GC_NOTRIGGER;
 
-#ifdef FEATURE_FUSION
-    if (m_pFusionLog)
-        m_pFusionLog->Release();
-#endif    
 }
 
 
@@ -1930,19 +1868,6 @@ OBJECTREF EEFileLoadException::CreateThrowable()
 
     // Fetch any log info from the fusion log
     SString logText;
-#ifdef FEATURE_FUSION    
-    if (m_pFusionLog != NULL)
-    {
-        DWORD dwSize = 0;
-        HRESULT hr = m_pFusionLog->GetBindLog(0,0,NULL,&dwSize);
-        if (hr==HRESULT_FROM_WIN32(ERROR_INSUFFICIENT_BUFFER)) 
-        {
-            WCHAR *buffer = logText.OpenUnicodeBuffer(dwSize);
-            hr=m_pFusionLog->GetBindLog(0,0,buffer, &dwSize);
-            logText.CloseBuffer();
-        }
-    }
-#endif
     struct _gc {
         OBJECTREF pNewException;
         STRINGREF pNewFileString;
@@ -2008,33 +1933,6 @@ BOOL EEFileLoadException::CheckType(Exception* ex)
 // <TODO>@todo: ideally we would use inner exceptions with these routines</TODO>
 
 /* static */
-#ifdef FEATURE_FUSION
-void DECLSPEC_NORETURN EEFileLoadException::Throw(AssemblySpec *pSpec, IFusionBindLog *pFusionLog, HRESULT hr, Exception *pInnerException/* = NULL*/)
-{
-    CONTRACTL
-    {
-        GC_TRIGGERS;
-        THROWS;
-        MODE_ANY;
-    }
-    CONTRACTL_END;
-    
-    if (hr == COR_E_THREADABORTED)
-        COMPlusThrow(kThreadAbortException);
-    if (hr == E_OUTOFMEMORY)
-        COMPlusThrowOM();
-#ifdef FEATURE_COMINTEROP
-    if ((hr == RO_E_METADATA_NAME_NOT_FOUND) || (hr == CLR_E_BIND_TYPE_NOT_FOUND))
-    {   // These error codes behave like FileNotFound, but are exposed as TypeLoadException
-        EX_THROW_WITH_INNER(EETypeLoadException, (pSpec->GetWinRtTypeNamespace(), pSpec->GetWinRtTypeClassName(), nullptr, nullptr, IDS_EE_WINRT_LOADFAILURE), pInnerException);
-    }
-#endif //FEATURE_COMINTEROP
-    
-    StackSString name;
-    pSpec->GetFileOrDisplayName(0, name);
-    EX_THROW_WITH_INNER(EEFileLoadException, (name, hr, pFusionLog), pInnerException);
-}
-#endif //FEATURE_FUSION
 
 /* static */
 void DECLSPEC_NORETURN EEFileLoadException::Throw(AssemblySpec  *pSpec, HRESULT hr, Exception *pInnerException/* = NULL*/)
@@ -2105,6 +2003,7 @@ void DECLSPEC_NORETURN EEFileLoadException::Throw(LPCWSTR path, HRESULT hr, Exce
     if (hr == E_OUTOFMEMORY)
         COMPlusThrowOM();
 
+#ifndef CROSSGEN_COMPILE
     // Remove path - location must be hidden for security purposes
 
     LPCWSTR pStart = wcsrchr(path, '\\');
@@ -2112,45 +2011,13 @@ void DECLSPEC_NORETURN EEFileLoadException::Throw(LPCWSTR path, HRESULT hr, Exce
         pStart++;
     else
         pStart = path;
+#else
+    LPCWSTR pStart = path;
+#endif
     EX_THROW_WITH_INNER(EEFileLoadException, (StackSString(pStart), hr), pInnerException);
 }
 
 /* static */
-#ifdef FEATURE_FUSION
-void DECLSPEC_NORETURN EEFileLoadException::Throw(IAssembly *pIAssembly, IHostAssembly *pIHostAssembly, HRESULT hr, Exception *pInnerException/* = NULL*/)
-{
-    CONTRACTL
-    {
-        GC_TRIGGERS;
-        THROWS;
-        MODE_ANY;
-    }
-    CONTRACTL_END;
-    
-    if (hr == COR_E_THREADABORTED)
-        COMPlusThrow(kThreadAbortException);
-    if (hr == E_OUTOFMEMORY || hr == HRESULT_FROM_WIN32(ERROR_NOT_ENOUGH_MEMORY))
-        COMPlusThrowOM();
-
-    StackSString name;
-
-    {
-        SafeComHolder<IAssemblyName> pName;
-    
-        HRESULT newHr;
-        
-        if (pIAssembly)
-            newHr = pIAssembly->GetAssemblyNameDef(&pName);
-        else
-            newHr = pIHostAssembly->GetAssemblyNameDef(&pName);
-
-        if (SUCCEEDED(newHr))
-            FusionBind::GetAssemblyNameDisplayName(pName, name, 0);
-    }
-        
-    EX_THROW_WITH_INNER(EEFileLoadException, (name, hr), pInnerException);
-}
-#endif
 /* static */
 void DECLSPEC_NORETURN EEFileLoadException::Throw(PEAssembly *parent, 
                                                   const void *memory, COUNT_T size, HRESULT hr, Exception *pInnerException/* = NULL*/)
@@ -2179,6 +2046,55 @@ void DECLSPEC_NORETURN EEFileLoadException::Throw(PEAssembly *parent,
 }
 
 #ifndef CROSSGEN_COMPILE
+// ---------------------------------------------------------------------------
+// EEComException methods
+// ---------------------------------------------------------------------------
+
+static HRESULT Undefer(EXCEPINFO *pExcepInfo)
+{
+    CONTRACTL
+    {
+        GC_NOTRIGGER;
+        NOTHROW;
+        MODE_ANY;
+    }
+    CONTRACTL_END;
+
+    if (pExcepInfo->pfnDeferredFillIn)
+    {
+        EXCEPINFO FilledInExcepInfo; 
+
+        HRESULT hr = pExcepInfo->pfnDeferredFillIn(&FilledInExcepInfo);
+        if (SUCCEEDED(hr))
+        {
+            // Free the strings in the original EXCEPINFO.
+            if (pExcepInfo->bstrDescription)
+            {
+                SysFreeString(pExcepInfo->bstrDescription);
+                pExcepInfo->bstrDescription = NULL;
+            }
+            if (pExcepInfo->bstrSource)
+            {
+                SysFreeString(pExcepInfo->bstrSource);
+                pExcepInfo->bstrSource = NULL;
+            }
+            if (pExcepInfo->bstrHelpFile)
+            {
+                SysFreeString(pExcepInfo->bstrHelpFile);
+                pExcepInfo->bstrHelpFile = NULL;
+            }
+
+            // Fill in the new data
+            *pExcepInfo = FilledInExcepInfo;
+        }
+    }
+
+    if (pExcepInfo->scode != 0)
+        return pExcepInfo->scode;
+    else
+        return (HRESULT)pExcepInfo->wCode;
+}
+
 EECOMException::EECOMException(EXCEPINFO *pExcepInfo)
   : EEException(GetKindFromHR(Undefer(pExcepInfo)))
 {
@@ -2666,7 +2582,7 @@ CLRLastThrownObjectException* CLRLastThrownObjectException::Validate()
                     "  Please get a good stack trace of the exception that was thrown first\n"
                     "  (by re-running the app & catching first chance exceptions), find\n"
                     "  the caller of Validate, and file a bug against the owner.\n\n"
-                    "To suppress this assert 'set COMPLUS_SuppressLostExceptionTypeAssert=1'");
+                    "To suppress this assert 'set COMPlus_SuppressLostExceptionTypeAssert=1'");
                 }
             }
         }

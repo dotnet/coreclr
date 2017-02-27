@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*=============================================================================
 **
@@ -10,31 +11,37 @@
 **
 =============================================================================*/
 
-namespace System.Runtime.InteropServices {
-    using System.Runtime.InteropServices;
-    using System;
-    using System.Runtime.Serialization;
+using System.Runtime.InteropServices;
+using System;
+using System.Runtime.Serialization;
+
+namespace System.Runtime.InteropServices
+{
     // Exception for Structured Exception Handler exceptions.
     // 
-[System.Runtime.InteropServices.ComVisible(true)]
     [Serializable]
-    public class SEHException : ExternalException {
-        public SEHException() 
-            : base() {
+    public class SEHException : ExternalException
+    {
+        public SEHException()
+            : base()
+        {
             SetErrorCode(__HResults.E_FAIL);
         }
-        
-        public SEHException(String message) 
-            : base(message) {
+
+        public SEHException(String message)
+            : base(message)
+        {
             SetErrorCode(__HResults.E_FAIL);
         }
-        
-        public SEHException(String message, Exception inner) 
-            : base(message, inner) {
+
+        public SEHException(String message, Exception inner)
+            : base(message, inner)
+        {
             SetErrorCode(__HResults.E_FAIL);
         }
-        
-        protected SEHException(SerializationInfo info, StreamingContext context) : base(info, context) {
+
+        protected SEHException(SerializationInfo info, StreamingContext context) : base(info, context)
+        {
         }
 
         // Exceptions can be resumable, meaning a filtered exception 
@@ -48,6 +55,6 @@ namespace System.Runtime.InteropServices {
         public virtual bool CanResume()
         {
             return false;
-        }    
+        }
     }
 }

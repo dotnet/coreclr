@@ -1,8 +1,6 @@
-; ==++==
-; 
-;   Copyright (c) Microsoft Corporation.  All rights reserved.
-; 
-; ==--==
+; Licensed to the .NET Foundation under one or more agreements.
+; The .NET Foundation licenses this file to you under the MIT license.
+; See the LICENSE file in the project root for more information.
 
 LIBRARY         mscordbi
 
@@ -20,9 +18,7 @@ EXPORTS
     OpenVirtualProcess private 
     OpenVirtualProcess2
 
-#ifdef FEATURE_CORECLR
     CoreCLRCreateCordbObject private
-#endif // FEATURE_CORECLR
 
 #if defined(FEATURE_DBGIPC_TRANSPORT_DI)
     DllGetClassObject private

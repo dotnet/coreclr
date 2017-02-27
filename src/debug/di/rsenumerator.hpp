@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //*****************************************************************************
 // 
 
@@ -100,8 +99,8 @@ CordbEnumerator<ElemType,
                                                 ElemType **items,
                                                 DWORD countItems) :
 CordbBase(pProcess, 0, enumCordbEnumerator),
-m_nextIndex(0),
-m_countItems(countItems)
+m_countItems(countItems),
+m_nextIndex(0)
 {
     _ASSERTE(items != NULL);
     m_items = *items;
@@ -109,7 +108,7 @@ m_countItems(countItems)
 }
 
 // Destructor
-template< typename ElemType, 
+template< typename ElemType,
           typename ElemPublicType,
           typename EnumInterfaceType,
           ElemPublicType (*GetPublicType)(ElemType)>

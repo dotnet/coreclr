@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //
 // File: methodtable.inl
 //
@@ -329,15 +328,6 @@ inline BOOL MethodTable::IsSerializable()
 }
 
 //==========================================================================================
-inline BOOL MethodTable::ContainsStackPtr()
-{
-    WRAPPER_NO_CONTRACT;
-    return (this == g_ArgumentHandleMT || 
-            this == g_ArgIteratorMT ||
-            this == g_TypedReferenceMT);
-}
-
-//==========================================================================================
 inline BOOL MethodTable::SupportsGenericInterop(TypeHandle::InteropKind interopKind,
                         MethodTable::Mode mode /*= modeAll*/)
 {
@@ -356,14 +346,6 @@ inline BOOL MethodTable::SupportsGenericInterop(TypeHandle::InteropKind interopK
 #endif // FEATURE_COMINTEROP
 }
 
-#ifdef FEATURE_REMOTING
-//==========================================================================================
-inline BOOL MethodTable::CannotBeBlittedByObjectCloner()
-{
-    WRAPPER_NO_CONTRACT;
-    return GetClass()->CannotBeBlittedByObjectCloner();
-}
-#endif
 
 //==========================================================================================
 inline BOOL MethodTable::IsNotTightlyPacked()
@@ -383,25 +365,17 @@ inline BOOL MethodTable::HasFieldsWhichMustBeInited()
 inline BOOL MethodTable::SupportsAutoNGen()
 {
     LIMITED_METHOD_CONTRACT;
-#ifndef FEATURE_CORECLR
-    return GetAssembly()->SupportsAutoNGen();
-#else
     return FALSE;
-#endif
 }
 
 //==========================================================================================
 inline BOOL MethodTable::RunCCTorAsIfNGenImageExists()
 {
     LIMITED_METHOD_CONTRACT;
-#ifndef FEATURE_CORECLR
-    return this->SupportsAutoNGen();
-#else
 #ifdef FEATURE_CORESYSTEM
     return TRUE; // On our coresystem builds we will always be using triton in the customer scenario.
 #else
     return FALSE;
-#endif
 #endif
 }
 
@@ -413,35 +387,6 @@ inline BOOL MethodTable::IsAbstract()
 }
 
 //==========================================================================================
-#ifdef FEATURE_REMOTING
-inline BOOL MethodTable::HasRemotableMethodInfo()
-{
-    WRAPPER_NO_CONTRACT;
-    return (IsMarshaledByRef() || IsInterface() || this == g_pObjectClass || g_pObjectClass == NULL) && IsCanonicalMethodTable();
-}
-
-//==========================================================================================
-inline void MethodTable::SetHasRemotingVtsInfo()
-{
-    LIMITED_METHOD_CONTRACT;
-    SetFlag(enum_flag_HasRemotingVtsInfo);
-}
-
-//==========================================================================================
-inline BOOL MethodTable::HasRemotingVtsInfo()
-{
-    LIMITED_METHOD_DAC_CONTRACT;
-    return GetFlag(enum_flag_HasRemotingVtsInfo);
-}
-
-//==========================================================================================
-inline PTR_RemotingVtsInfo MethodTable::GetRemotingVtsInfo()
-{
-    WRAPPER_NO_CONTRACT;
-    _ASSERTE(HasRemotingVtsInfo());
-    return *GetRemotingVtsInfoPtr();
-}
-#endif // FEATURE_REMOTING
 
 #ifdef FEATURE_COMINTEROP
 //==========================================================================================
@@ -547,14 +492,7 @@ inline BOOL MethodTable::IsFieldNotSerialized(DWORD dwFieldIndex)
 {
     LIMITED_METHOD_CONTRACT;
     _ASSERTE(IsSerializable());
-#ifdef FEATURE_REMOTING
-    if (!HasRemotingVtsInfo())
-        return FALSE;
-
-    return GetRemotingVtsInfo()->IsNotSerialized(dwFieldIndex);
-#else
     return FALSE;
-#endif
 }
 
 //==========================================================================================
@@ -562,14 +500,7 @@ inline BOOL MethodTable::IsFieldOptionallySerialized(DWORD dwFieldIndex)
 {
     LIMITED_METHOD_CONTRACT;
     _ASSERTE(IsSerializable());
-#ifdef FEATURE_REMOTING
-    if (!HasRemotingVtsInfo())
-        return FALSE;
-
-    return GetRemotingVtsInfo()->IsOptionallySerialized(dwFieldIndex);
-#else
     return FALSE;
-#endif
 }
 
 //==========================================================================================
@@ -1651,35 +1582,6 @@ inline OBJECTREF MethodTable::AllocateNoChecks()
     return AllocateObject(this);
 }
 
-#ifdef FEATURE_REMOTING
-//==========================================================================================
-inline BOOL MethodTable::HasContextStatics()
-{
-    LIMITED_METHOD_DAC_CONTRACT;
-    return GetFlag(enum_flag_ContextStatic);
-}
-
-//==========================================================================================
-inline void MethodTable::SetHasContextStatics()
-{
-    LIMITED_METHOD_CONTRACT;
-    SetFlag(enum_flag_ContextStatic);
-}
-
-//==========================================================================================
-inline DWORD MethodTable::GetContextStaticsOffset()
-{
-    LIMITED_METHOD_DAC_CONTRACT;
-    return GetContextStaticsBucket()->m_dwContextStaticsOffset;
-}
-
-//==========================================================================================
-inline WORD MethodTable::GetContextStaticsSize()
-{
-    LIMITED_METHOD_DAC_CONTRACT;
-    return GetContextStaticsBucket()->m_wContextStaticsSize;
-}
-#endif // FEATURE_REMOTING
 
 //==========================================================================================
 inline DWORD MethodTable::GetClassIndex()
@@ -1711,6 +1613,32 @@ inline BOOL MethodTable::UnBoxInto(void *dest, OBJECTREF src)
             return FALSE;
 
         CopyValueClass(dest, src->UnBox(), this, src->GetAppDomain());
+    }
+    return TRUE;
+}
+
+//==========================================================================================
+// unbox src into argument, making sure src is of the correct type.
+
+inline BOOL MethodTable::UnBoxIntoArg(ArgDestination *argDest, OBJECTREF src)
+{
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_NOTRIGGER;
+        SO_TOLERANT;
+        MODE_COOPERATIVE;
+    }
+    CONTRACTL_END;
+
+    if (Nullable::IsNullableType(TypeHandle(this)))
+        return Nullable::UnBoxIntoArgNoGC(argDest, src, this);
+    else  
+    {
+        if (src == NULL || src->GetMethodTable() != this)
+            return FALSE;
+
+        CopyValueClassArg(argDest, src->UnBox(), this, src->GetAppDomain(), 0);
     }
     return TRUE;
 }

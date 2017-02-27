@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information. 
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*++
 
@@ -23,6 +22,7 @@ Abstract:
 #define _PAL_MAP_H_
 
 #include "corunix.hpp"
+#include <sys/param.h>
 
 extern "C"
 {
@@ -144,7 +144,7 @@ namespace CorUnix
     class CFileMappingImmutableData
     {
     public:
-        CHAR szFileName[MAX_PATH + 1];
+        CHAR szFileName[MAXPATHLEN];
         UINT MaxSize;               // The max size of the file mapping object
         DWORD flProtect;            // Protection desired for the file view
         BOOL bPALCreatedTempFile;   // TRUE if it's a PAL created file

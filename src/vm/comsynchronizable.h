@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 
 /*============================================================
@@ -65,15 +64,11 @@ public:
     static LPVOID F_CALL_CONV FastGetCurrentThread();
     static LPVOID F_CALL_CONV FastGetDomain();
 
-    static void StartInner(ThreadBaseObject* pThisUNSAFE, Object* pPrincipalUNSAFE, StackCrawlMark* pStackMark);
+    static void StartInner(ThreadBaseObject* pThisUNSAFE, StackCrawlMark* pStackMark);
 
     static FCDECL1(void, Abort, ThreadBaseObject* pThis);
     static FCDECL1(void, ResetAbort, ThreadBaseObject* pThis);
-    static FCDECL3(void,    Start,             ThreadBaseObject* pThisUNSAFE, Object* pPrincipalUNSAFE, StackCrawlMark* pStackMark);
-#ifndef FEATURE_CORECLR
-    static FCDECL1(void,    Suspend,           ThreadBaseObject* pThisUNSAFE);
-    static FCDECL1(void,    Resume,            ThreadBaseObject* pThisUNSAFE);
-#endif // FEATURE_CORECLR
+    static FCDECL2(void,    Start,             ThreadBaseObject* pThisUNSAFE, StackCrawlMark* pStackMark);
     static FCDECL1(INT32,   GetPriority,       ThreadBaseObject* pThisUNSAFE);
     static FCDECL2(void,    SetPriority,       ThreadBaseObject* pThisUNSAFE, INT32 iPriority);
     static FCDECL1(void,    Interrupt,         ThreadBaseObject* pThisUNSAFE);
@@ -93,15 +88,7 @@ public:
     static FCDECL1(void,    StartupSetApartmentState, ThreadBaseObject* pThis);
 #endif // FEATURE_COMINTEROP_APARTMENT_SUPPORT
     static FCDECL0(Object*, GetDomain);
-#ifdef FEATURE_REMOTING
-    static FCDECL1(Object*, GetContextFromContextID,        LPVOID ContextID);
-    static FCDECL6(Object*, InternalCrossContextCallback, ThreadBaseObject* refThis, ContextBaseObject* refContext, LPVOID contextID, INT32 appDomainId, Object* oDelegateUNSAFE, PtrArray* oArgsUNSAFE);
-#endif    
-#ifdef FEATURE_LEAK_CULTURE_INFO
-    static FCDECL4(FC_BOOL_RET, nativeGetSafeCulture, ThreadBaseObject* threadUNSAFE, int appDomainId, CLR_BOOL isUI, OBJECTREF *safeCulture);
-#else
     static void QCALLTYPE nativeInitCultureAccessors();
-#endif
 
     static
     void QCALLTYPE InformThreadNameChange(QCall::ThreadHandle thread, LPCWSTR name, INT32 len);
@@ -110,10 +97,6 @@ public:
     UINT64 QCALLTYPE GetProcessDefaultStackSize();
 
     static FCDECL1(INT32,   GetManagedThreadId, ThreadBaseObject* th);
-    static FCDECL0(void,    BeginCriticalRegion);
-    static FCDECL0(void,    EndCriticalRegion);
-    static FCDECL0(void,    BeginThreadAffinity);
-    static FCDECL0(void,    EndThreadAffinity);
     static FCDECL1(void,    SpinWait,                       int iterations);
     static BOOL QCALLTYPE YieldThread();
     static FCDECL0(Object*, GetCurrentThread);
@@ -121,22 +104,12 @@ public:
 #ifdef FEATURE_COMINTEROP
     static FCDECL1(void,    DisableComObjectEagerCleanup,   ThreadBaseObject* pThis);
 #endif //FEATURE_COMINTEROP
-#ifdef FEATURE_LEAK_CULTURE_INFO
-    static FCDECL1(FC_BOOL_RET,SetThreadUILocale,              StringObject* localeNameUNSAFE);
-#endif // FEATURE_LEAK_CULTURE_INFO
     static FCDECL1(FC_BOOL_RET,IsThreadpoolThread,             ThreadBaseObject* thread);
-#ifdef FEATURE_COMPRESSEDSTACK    
-    static FCDECL2(void*,    SetAppDomainStack, ThreadBaseObject* pThis, SafeHandle* hcsUNSAFE);
-    static FCDECL2(void,    RestoreAppDomainStack, ThreadBaseObject* pThis, void* appDomainStack);
-#endif // #ifdef FEATURE_COMPRESSEDSTACK
 
     static FCDECL0(void, FCMemoryBarrier);
     static FCDECL1(void, SetIsThreadStaticsArray, Object* pObject);
 
     static FCDECL2(void,    SetAbortReason, ThreadBaseObject* pThisUNSAFE, Object* pObject);
-#ifndef FEATURE_CORECLR	
-    static FCDECL1(Object*, GetAbortReason, ThreadBaseObject* pThisUNSAFE);
-#endif
     static FCDECL1(void,    ClearAbortReason, ThreadBaseObject* pThisUNSAFE);
 
 private:

@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //****************************************************************************
 //  File: metadata.h
 //  
@@ -15,10 +14,8 @@
 #ifndef _METADATA_H_
 #define _METADATA_H_
 
-#ifndef BINDER
 #include "../md/inc/metamodelro.h"
 #include "../md/inc/liteweightstgdb.h"
-#endif
 
 class UTSemReadWrite;
 
@@ -1110,6 +1107,9 @@ EXTERN_GUID(IID_IMDInternalImportENC, 0xe03d7730, 0xd7e3, 0x11d2, 0x8c, 0xd, 0x0
 #define INTERFACE IMDInternalImportENC
 DECLARE_INTERFACE_(IMDInternalImportENC, IMDInternalImport)
 {
+private:
+    using IMDInternalImport::ApplyEditAndContinue;    
+public:
     // ENC only methods here.
     STDMETHOD(ApplyEditAndContinue)(        // S_OK or error.
         MDInternalRW *pDelta) PURE;         // Interface to MD with the ENC delta.

@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 // =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
 //
@@ -11,8 +12,8 @@
 
 using System;
 using System.Runtime.ConstrainedExecution;
-using System.Security.Permissions;
 using System.Threading;
+using System.Diagnostics;
 using System.Diagnostics.Contracts;
 using System.Diagnostics.CodeAnalysis;
 
@@ -68,10 +69,8 @@ namespace System.Threading
     /// threads must spin, each should use its own instance of SpinWait.
     /// </para>
     /// </remarks>
-    [HostProtection(Synchronization = true, ExternalThreading = true)]
     public struct SpinWait
     {
-
         // These constants determine the frequency of yields versus spinning. The
         // numbers may seem fairly arbitrary, but were derived with at least some
         // thought in the design document.  I fully expect they will need to change
@@ -131,10 +130,6 @@ namespace System.Threading
                 // remove the thread from the scheduler's queue for 10+ms, if the system is
                 // configured to use the (default) coarse-grained system timer.
                 //
-
-#if !FEATURE_CORECLR
-                CdsSyncEtwBCLProvider.Log.SpinWait_NextSpinWillYield();
-#endif
                 int yieldsSoFar = (m_count >= YIELD_THRESHOLD ? m_count - YIELD_THRESHOLD : m_count);
 
                 if ((yieldsSoFar % SLEEP_1_EVERY_HOW_MANY_TIMES) == (SLEEP_1_EVERY_HOW_MANY_TIMES - 1))
@@ -192,11 +187,11 @@ namespace System.Threading
         public static void SpinUntil(Func<bool> condition)
         {
 #if DEBUG
-            bool result = 
+            bool result =
 #endif
             SpinUntil(condition, Timeout.Infinite);
 #if DEBUG
-            Contract.Assert(result);
+            Debug.Assert(result);
 #endif
         }
 
@@ -219,7 +214,7 @@ namespace System.Threading
             if (totalMilliseconds < -1 || totalMilliseconds > Int32.MaxValue)
             {
                 throw new System.ArgumentOutOfRangeException(
-                    "timeout", timeout, Environment.GetResourceString("SpinWait_SpinUntil_TimeoutWrong"));
+                    nameof(timeout), timeout, Environment.GetResourceString("SpinWait_SpinUntil_TimeoutWrong"));
             }
 
             // Call wait with the timeout milliseconds
@@ -241,11 +236,11 @@ namespace System.Threading
             if (millisecondsTimeout < Timeout.Infinite)
             {
                 throw new ArgumentOutOfRangeException(
-                   "millisecondsTimeout", millisecondsTimeout, Environment.GetResourceString("SpinWait_SpinUntil_TimeoutWrong"));
+                   nameof(millisecondsTimeout), millisecondsTimeout, Environment.GetResourceString("SpinWait_SpinUntil_TimeoutWrong"));
             }
             if (condition == null)
             {
-                throw new ArgumentNullException("condition", Environment.GetResourceString("SpinWait_SpinUntil_ArgumentNull"));
+                throw new ArgumentNullException(nameof(condition), Environment.GetResourceString("SpinWait_SpinUntil_ArgumentNull"));
             }
             uint startTime = 0;
             if (millisecondsTimeout != 0 && millisecondsTimeout != Timeout.Infinite)
@@ -271,7 +266,6 @@ namespace System.Threading
                 }
             }
             return true;
-
         }
         #endregion
 
@@ -303,7 +297,7 @@ namespace System.Threading
                     s_lastProcessorCountRefreshTicks = now;
                 }
 
-                Contract.Assert(procCount > 0 && procCount <= 64,
+                Debug.Assert(procCount > 0 && procCount <= 64,
                     "Processor count not within the expected range (1 - 64).");
 
                 return procCount;
@@ -344,7 +338,7 @@ namespace System.Threading
         public static int UpdateTimeOut(uint startTime, int originalWaitMillisecondsTimeout)
         {
             // The function must be called in case the time out is not infinite
-            Contract.Assert(originalWaitMillisecondsTimeout != Timeout.Infinite);
+            Debug.Assert(originalWaitMillisecondsTimeout != Timeout.Infinite);
 
             uint elapsedMilliseconds = (GetTime() - startTime);
 
@@ -364,5 +358,4 @@ namespace System.Threading
             return currentWaitTimeout;
         }
     }
-
 }

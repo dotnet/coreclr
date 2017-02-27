@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 // --------------------------------------------------------------------------------
 // PEDecoder.cpp
 //
@@ -35,7 +34,7 @@ CHECK PEDecoder::CheckFormat() const
         {
             CHECK(CheckCorHeader());
 
-#if !defined(FEATURE_MIXEDMODE) && !defined(FEATURE_PREJIT)
+#if !defined(FEATURE_PREJIT)
             CHECK(IsILOnly());
 #endif
 
@@ -1174,12 +1173,6 @@ CHECK PEDecoder::CheckCorHeader() const
     CHECK_OK;
 }
 
-#if !defined(FEATURE_CORECLR)
-#define WHIDBEY_SP2_VERSION_MAJOR 2
-#define WHIDBEY_SP2_VERSION_MINOR 0
-#define WHIDBEY_SP2_VERSION_BUILD 50727
-#define WHIDBEY_SP2_VERSION_PRIVATE_BUILD 3053
-#endif // !defined(FEATURE_CORECLR)
 
 
 // This function exists to provide compatibility between two different native image
@@ -1226,79 +1219,21 @@ IMAGE_DATA_DIRECTORY *PEDecoder::GetMetaDataHelper(METADATA_SECTION_TYPE type) c
 
     // Visual Studio took dependency on crossgen /CreatePDB returning COR_E_NI_AND_RUNTIME_VERSION_MISMATCH
     // when crossgen and the native image come from different runtimes. In order to reach error path that returns
-    // COR_E_NI_AND_RUNTIME_VERSION_MISMATCH in this case, size of CORCOMPILE_HEADER has to remain constant to pass earlier 
+    // COR_E_NI_AND_RUNTIME_VERSION_MISMATCH in this case, size of CORCOMPILE_HEADER has to remain constant,
+    // and the offset of PEKind and Machine fields inside CORCOMPILE_HEADER also have to remain constant, to pass earlier
     // checks that lead to different error codes. See Windows Phone Blue Bug #45406 for details.
     _ASSERTE(sizeof(CORCOMPILE_HEADER) == 160 + sizeof(TADDR));
+    _ASSERTE(offsetof(CORCOMPILE_HEADER, PEKind) == 108 + sizeof(TADDR));
+    _ASSERTE(offsetof(CORCOMPILE_HEADER, Machine) == 116 + sizeof(TADDR));
 
     // Handle NGEN format; otherwise, there is only one MetaData section in the
     // COR_HEADER and so the value of pDirRet is correct
     if (HasNativeHeader())
     {
-#ifdef FEATURE_CORECLR
 
         if (type == METADATA_SECTION_MANIFEST)
             pDirRet = &GetNativeHeader()->ManifestMetaData;
 
-#else // FEATURE_CORECLR
-
-        IMAGE_DATA_DIRECTORY *pDirNativeHeader = &GetNativeHeader()->ManifestMetaData;
-
-        // This code leverages the fact that pre-Whidbey SP2 private build numbers can never
-        // be greater than Whidbey SP2 private build number, because otherwise major setup
-        // issues would arise. To prevent this, it is standard to bump the private build
-        // number up a significant amount for SPs, as was the case between Whidbey SP1 and
-        // Whidbey SP2.
-        // 
-        // Since we could be reading an older version of native image, we tell
-        // GetNativeVersionInfoMaybeNull to skip checking the native header.
-        CORCOMPILE_VERSION_INFO *pVerInfo = GetNativeVersionInfoMaybeNull(true);
-        bool fIsPreWhidbeySP2 = false;
-
-        // If pVerInfo is NULL, we assume that we're in an NGEN compilation domain and that
-        // the information has not yet been written. Since an NGEN compilation domain running
-        // in the v4.0 runtime can only complie v4.0 native images, we'll assume the default
-        // fIsPreWhidbeySP2 value (false) is correct.
-        if (pVerInfo != NULL && pVerInfo->wVersionMajor <= WHIDBEY_SP2_VERSION_MAJOR)
-        {
-            if (pVerInfo->wVersionMajor < WHIDBEY_SP2_VERSION_MAJOR)
-                fIsPreWhidbeySP2 = true;
-            else if (pVerInfo->wVersionMajor == WHIDBEY_SP2_VERSION_MAJOR)
-            {
-                // If the sp2 minor version isn't 0, we need this logic:
-                //     if (pVerInfo->wVersionMinor < WHIDBEY_SP2_VERSION_MINOR)
-                //         fIsPreWhidbeySP2 = true;
-                //     else
-                // However, if it is zero, with that logic we get a warning about the comparison
-                // of an unsigned variable to zero always being false.
-                _ASSERTE(WHIDBEY_SP2_VERSION_MINOR == 0);
-
-                if (pVerInfo->wVersionMinor == WHIDBEY_SP2_VERSION_MINOR)
-                {
-                    if (pVerInfo->wVersionBuildNumber < WHIDBEY_SP2_VERSION_BUILD)
-                        fIsPreWhidbeySP2 = true;
-                    else if (pVerInfo->wVersionBuildNumber == WHIDBEY_SP2_VERSION_BUILD)
-                    {
-                        if (pVerInfo->wVersionPrivateBuildNumber < WHIDBEY_SP2_VERSION_PRIVATE_BUILD)
-                            fIsPreWhidbeySP2 = true;
-                    }
-                }
-            }
-        }
-
-        // In pre-Whidbey SP2, pDirRet points to manifest and pDirNativeHeader points to full.
-        if (fIsPreWhidbeySP2)
-        {
-            if (type == METADATA_SECTION_FULL)
-                pDirRet = pDirNativeHeader;
-        }
-        // In Whidbey SP2 and later, pDirRet points to full and pDirNativeHeader points to manifest.
-        else
-        {
-            if (type == METADATA_SECTION_MANIFEST)
-                pDirRet = pDirNativeHeader;
-        }
-
-#endif // FEATURE_CORECLR
 
     }
 

@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 // asmconstants.h -
 //
 // This header defines field offsets and constants used by assembly code
@@ -12,7 +11,7 @@
 // #error this file should only be used on an ARM platform
 // #endif // _ARM64_
 
-#include "..\..\inc\switches.h"
+#include "../../inc/switches.h"
 
 //-----------------------------------------------------------------------------
 
@@ -23,6 +22,10 @@
 #ifndef ASMCONSTANTS_RUNTIME_ASSERT
 #define ASMCONSTANTS_RUNTIME_ASSERT(cond)
 #endif
+
+#define DynamicHelperFrameFlags_Default     0
+#define DynamicHelperFrameFlags_ObjectArg   1
+#define DynamicHelperFrameFlags_ObjectArg2  2
 
 #define               Thread__m_fPreemptiveGCDisabled   0x0C
 #define               Thread__m_pFrame                  0x10
@@ -45,7 +48,7 @@ ASMCONSTANTS_C_ASSERT(AppDomain__m_dwId == offsetof(AppDomain, m_dwId));
 
 #define METHODDESC_REGISTER            x12
 
-#define SIZEOF__ArgumentRegisters 0x40
+#define SIZEOF__ArgumentRegisters 0x48
 ASMCONSTANTS_C_ASSERT(SIZEOF__ArgumentRegisters == sizeof(ArgumentRegisters))
 
 #define SIZEOF__FloatArgumentRegisters 0x40
@@ -73,27 +76,24 @@ ASMCONSTANTS_C_ASSERT(   CORINFO_NullReferenceException_ASM
 
 
 // Offset of the array containing the address of captured registers in MachState
-#define MachState__captureX19_X28 0x0
-ASMCONSTANTS_C_ASSERT(MachState__captureX19_X28 == offsetof(MachState, captureX19_X28))
+#define MachState__captureX19_X29 0x0
+ASMCONSTANTS_C_ASSERT(MachState__captureX19_X29 == offsetof(MachState, captureX19_X29))
 
 // Offset of the array containing the address of preserved registers in MachState
-#define MachState__ptrX19_X28 0x50
-ASMCONSTANTS_C_ASSERT(MachState__ptrX19_X28 == offsetof(MachState, ptrX19_X28))
+#define MachState__ptrX19_X29 0x58
+ASMCONSTANTS_C_ASSERT(MachState__ptrX19_X29 == offsetof(MachState, ptrX19_X29))
 
-#define MachState__isValid 0xb8
+#define MachState__isValid 0xc0
 ASMCONSTANTS_C_ASSERT(MachState__isValid == offsetof(MachState, _isValid))
 
-#define LazyMachState_captureX19_X28 MachState__captureX19_X28
-ASMCONSTANTS_C_ASSERT(LazyMachState_captureX19_X28 == offsetof(LazyMachState, captureX19_X28))
+#define LazyMachState_captureX19_X29 MachState__captureX19_X29
+ASMCONSTANTS_C_ASSERT(LazyMachState_captureX19_X29 == offsetof(LazyMachState, captureX19_X29))
 
 #define LazyMachState_captureSp     (MachState__isValid+8) // padding for alignment
 ASMCONSTANTS_C_ASSERT(LazyMachState_captureSp == offsetof(LazyMachState, captureSp))
 
 #define LazyMachState_captureIp     (LazyMachState_captureSp+8)
 ASMCONSTANTS_C_ASSERT(LazyMachState_captureIp == offsetof(LazyMachState, captureIp))
-
-#define LazyMachState_captureFp     (LazyMachState_captureSp+16)
-ASMCONSTANTS_C_ASSERT(LazyMachState_captureFp == offsetof(LazyMachState, captureFp))
 
 #define VASigCookie__pNDirectILStub 0x8
 ASMCONSTANTS_C_ASSERT(VASigCookie__pNDirectILStub == offsetof(VASigCookie, pNDirectILStub))
@@ -116,7 +116,7 @@ ASMCONSTANTS_C_ASSERT(SIZEOF__CONTEXT == sizeof(T_CONTEXT));
 
 #ifdef FEATURE_COMINTEROP
 
-#define SIZEOF__ComMethodFrame 0x68
+#define SIZEOF__ComMethodFrame 0x70
 ASMCONSTANTS_C_ASSERT(SIZEOF__ComMethodFrame == sizeof(ComMethodFrame));
 
 #define UnmanagedToManagedFrame__m_pvDatum 0x10
@@ -146,6 +146,26 @@ ASMCONSTANTS_C_ASSERT(CONTEXT_Pc == offsetof(T_CONTEXT,Pc))
 #define FaultingExceptionFrame__m_fFilterExecuted       SIZEOF__Frame
 ASMCONSTANTS_C_ASSERT(SIZEOF__FaultingExceptionFrame        == sizeof(FaultingExceptionFrame));
 ASMCONSTANTS_C_ASSERT(FaultingExceptionFrame__m_fFilterExecuted == offsetof(FaultingExceptionFrame, m_fFilterExecuted));
+
+#define SIZEOF__FixupPrecode                 24
+#define Offset_PrecodeChunkIndex             15
+#define Offset_MethodDescChunkIndex          14
+#define MethodDesc_ALIGNMENT_SHIFT           3
+#define FixupPrecode_ALIGNMENT_SHIFT_1       3
+#define FixupPrecode_ALIGNMENT_SHIFT_2       4
+
+ASMCONSTANTS_C_ASSERT(SIZEOF__FixupPrecode == sizeof(FixupPrecode));
+ASMCONSTANTS_C_ASSERT(Offset_PrecodeChunkIndex == offsetof(FixupPrecode, m_PrecodeChunkIndex));
+ASMCONSTANTS_C_ASSERT(Offset_MethodDescChunkIndex == offsetof(FixupPrecode, m_MethodDescChunkIndex));
+ASMCONSTANTS_C_ASSERT(MethodDesc_ALIGNMENT_SHIFT == MethodDesc::ALIGNMENT_SHIFT);
+ASMCONSTANTS_C_ASSERT((1<<FixupPrecode_ALIGNMENT_SHIFT_1) + (1<<FixupPrecode_ALIGNMENT_SHIFT_2)  == sizeof(FixupPrecode));
+
+#ifndef CROSSGEN_COMPILE
+#define ResolveCacheElem__target      0x10
+#define ResolveCacheElem__pNext       0x18
+ASMCONSTANTS_C_ASSERT(ResolveCacheElem__target == offsetof(ResolveCacheElem, target));
+ASMCONSTANTS_C_ASSERT(ResolveCacheElem__pNext == offsetof(ResolveCacheElem, pNext));
+#endif // CROSSGEN_COMPILE
 
 #undef ASMCONSTANTS_RUNTIME_ASSERT
 #undef ASMCONSTANTS_C_ASSERT

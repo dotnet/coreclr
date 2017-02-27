@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 // IBClogger.H
 //
 
@@ -390,7 +389,7 @@ public:
 
 
 // IBCLogger is responsible for collecting profile data.  Logging is turned on by the
-// COMPLUS_ZapBBInstr environment variable, and the actual writing to the file 
+// COMPlus_ZapBBInstr environment variable, and the actual writing to the file 
 // occurs in code:Module.WriteMethodProfileDataLogFile
 class IBCLogger
 {

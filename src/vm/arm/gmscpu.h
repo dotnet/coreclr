@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /**************************************************************/
 /*                       gmscpu.h                             */
@@ -58,7 +57,7 @@ protected:
 
     PTR_DWORD     _R4_R11[8];  // Preserved registers
 
-    TADDR     _pc;
+    TADDR     _pc;        // program counter after the function returns
     TADDR     _sp;        // stack pointer after the function returns
 
     BOOL      _isValid;
@@ -69,7 +68,6 @@ protected:
    until later.  Note that we don't reuse slots, because we want
    this to be threadsafe without locks */
 
-typedef DPTR(LazyMachState) PTR_LazyMachState;
 struct LazyMachState : public MachState {
     // compute the machine state of the processor as it will exist just 
     // after the return after at most'funCallDepth' number of functions.
@@ -83,6 +81,7 @@ struct LazyMachState : public MachState {
     void setLazyStateFromUnwind(MachState* copy);
     static void unwindLazyState(LazyMachState* baseState,
                                 MachState* lazyState,
+                                DWORD threadId,
                                 int funCallDepth = 1,
                                 HostCallPreference hostCallPreference = AllowHostCalls);
 
@@ -158,6 +157,7 @@ inline void LazyMachState::setLazyStateFromUnwind(MachState* copy)
 #endif // !DACCESS_COMPILE
 
 }
+typedef DPTR(LazyMachState) PTR_LazyMachState;
 
 // Do the initial capture of the machine state.  This is meant to be 
 // as light weight as possible, as we may never need the state that 

@@ -1,12 +1,14 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
-namespace System.Globalization {
-    using System.Security.Permissions;
-    using System.Runtime.Serialization;
-    using System.Text;
-    using System;
-    using System.Diagnostics.Contracts;
+using System.Runtime.Serialization;
+using System.Text;
+using System;
+using System.Diagnostics.Contracts;
+
+namespace System.Globalization
+{
     //
     // Property             Default Description
     // PositiveSign           '+'   Character used to indicate positive values.
@@ -40,8 +42,7 @@ namespace System.Globalization {
     //
 
     [Serializable]
-[System.Runtime.InteropServices.ComVisible(true)]
-    sealed public class NumberFormatInfo : ICloneable, IFormatProvider
+    sealed public partial class NumberFormatInfo : ICloneable, IFormatProvider
     {
         // invariantInfo is constant irrespective of your current culture.
         private static volatile NumberFormatInfo invariantInfo;
@@ -51,9 +52,9 @@ namespace System.Globalization {
         // DO NOT UPDATE THIS WITHOUT UPDATING THAT STRUCTURE. IF YOU ADD BOOL, ADD THEM AT THE END.
         // ALSO MAKE SURE TO UPDATE mscorlib.h in the VM directory to check field offsets.
         // READTHIS READTHIS READTHIS
-        internal int[] numberGroupSizes = new int[] {3};
-        internal int[] currencyGroupSizes = new int[] {3};
-        internal int[] percentGroupSizes = new int[] {3};
+        internal int[] numberGroupSizes = new int[] { 3 };
+        internal int[] currencyGroupSizes = new int[] { 3 };
+        internal int[] percentGroupSizes = new int[] { 3 };
         internal String positiveSign = "+";
         internal String negativeSign = "-";
         internal String numberDecimalSeparator = ".";
@@ -74,7 +75,7 @@ namespace System.Globalization {
         internal String perMilleSymbol = "\u2030";
 
         [OptionalField(VersionAdded = 2)]
-        internal String[] nativeDigits = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9"};
+        internal String[] nativeDigits = { "0", "1", "2", "3", "4", "5", "6", "7", "8", "9" };
 
         // an index which points to a record in Culture Data Table.
         // We shouldn't be persisting dataItem (since its useless & we weren't using it),
@@ -91,26 +92,24 @@ namespace System.Globalization {
         internal int percentNegativePattern = 0;
         internal int percentDecimalDigits = 2;
 
-#if !FEATURE_CORECLR
         [OptionalField(VersionAdded = 2)]
         internal int digitSubstitution = 1; // DigitShapes.None
-#endif // !FEATURE_CORECLR        
 
-        internal bool isReadOnly=false;
+        internal bool isReadOnly = false;
         // We shouldn't be persisting m_useUserOverride (since its useless & we weren't using it),
         // but since COMNumber.cpp uses it and since serialization isn't implimented, its stuck for now.
         [OptionalField(VersionAdded = 1)]
-        internal bool m_useUserOverride=false;    // NEVER USED, DO NOT USE THIS! (Serialized in Everett)
+        internal bool m_useUserOverride = false;    // NEVER USED, DO NOT USE THIS! (Serialized in Everett)
 
         // Is this NumberFormatInfo for invariant culture?
         [OptionalField(VersionAdded = 2)]
-        internal bool m_isInvariant=false;
+        internal bool m_isInvariant = false;
 
-        public NumberFormatInfo() : this(null) {
+        public NumberFormatInfo() : this(null)
+        {
         }
 
-#region Serialization
-#if !FEATURE_CORECLR
+        #region Serialization
         // Check if NumberFormatInfo was not set up ambiguously for parsing as number and currency
         // eg. if the NumberDecimalSeparator and the NumberGroupSeparator were the same. This check
         // is solely for backwards compatibility / version tolerant serialization
@@ -118,32 +117,11 @@ namespace System.Globalization {
         internal bool validForParseAsNumber = true;     // NEVER USED, DO NOT USE THIS! (Serialized in Whidbey/Everett)
         [OptionalField(VersionAdded = 1)]
         internal bool validForParseAsCurrency = true;   // NEVER USED, DO NOT USE THIS! (Serialized in Whidbey/Everett)
-#endif // !FEATURE_CORECLR        
 
         [OnSerializing]
         private void OnSerializing(StreamingContext ctx)
         {
-#if !FEATURE_CORECLR
-            // Update these legacy flags, so that 1.1/2.0 versions of the framework
-            // can still throw while parsing; even when using a de-serialized
-            // NumberFormatInfo from a 4.0+ version of the framework
-            if (numberDecimalSeparator != numberGroupSeparator) {
-                validForParseAsNumber = true;
-            } else {
-                validForParseAsNumber = false;
-            }
-
-            if ((numberDecimalSeparator != numberGroupSeparator) &&
-                (numberDecimalSeparator != currencyGroupSeparator) &&
-                (currencyDecimalSeparator != numberGroupSeparator) &&
-                (currencyDecimalSeparator != currencyGroupSeparator)) {
-                validForParseAsCurrency = true;
-            } else {
-                validForParseAsCurrency = false;
-            }
-#endif // !FEATURE_CORECLR
         }
-
 
         [OnDeserializing]
         private void OnDeserializing(StreamingContext ctx)
@@ -154,32 +132,37 @@ namespace System.Globalization {
         private void OnDeserialized(StreamingContext ctx)
         {
         }
-#endregion Serialization
+        #endregion Serialization
 
-
-        static private void VerifyDecimalSeparator(String decSep, String propertyName) {
-            if (decSep==null) {
+        static private void VerifyDecimalSeparator(String decSep, String propertyName)
+        {
+            if (decSep == null)
+            {
                 throw new ArgumentNullException(propertyName,
                         Environment.GetResourceString("ArgumentNull_String"));
             }
 
-            if (decSep.Length==0) {
+            if (decSep.Length == 0)
+            {
                 throw new ArgumentException(Environment.GetResourceString("Argument_EmptyDecString"));
             }
             Contract.EndContractBlock();
-
         }
 
-        static private void VerifyGroupSeparator(String groupSep, String propertyName) {
-            if (groupSep==null) {
+        static private void VerifyGroupSeparator(String groupSep, String propertyName)
+        {
+            if (groupSep == null)
+            {
                 throw new ArgumentNullException(propertyName,
                         Environment.GetResourceString("ArgumentNull_String"));
             }
             Contract.EndContractBlock();
         }
 
-        static private void VerifyNativeDigits(String [] nativeDig, String propertyName) {
-            if (nativeDig==null) {
+        static private void VerifyNativeDigits(String[] nativeDig, String propertyName)
+        {
+            if (nativeDig == null)
+            {
                 throw new ArgumentNullException(propertyName,
                         Environment.GetResourceString("ArgumentNull_Array"));
             }
@@ -190,7 +173,7 @@ namespace System.Globalization {
             }
             Contract.EndContractBlock();
 
-            for(int i = 0; i < nativeDig.Length; i++)
+            for (int i = 0; i < nativeDig.Length; i++)
             {
                 if (nativeDig[i] == null)
                 {
@@ -198,19 +181,24 @@ namespace System.Globalization {
                             Environment.GetResourceString("ArgumentNull_ArrayValue"));
                 }
 
-            
-                if (nativeDig[i].Length != 1) {
-                    if(nativeDig[i].Length != 2) {
+
+                if (nativeDig[i].Length != 1)
+                {
+                    if (nativeDig[i].Length != 2)
+                    {
                         // Not 1 or 2 UTF-16 code points
                         throw new ArgumentException(Environment.GetResourceString("Argument_InvalidNativeDigitValue"), propertyName);
-                    } else if(!char.IsSurrogatePair(nativeDig[i][0], nativeDig[i][1])) {
+                    }
+                    else if (!char.IsSurrogatePair(nativeDig[i][0], nativeDig[i][1]))
+                    {
                         // 2 UTF-6 code points, but not a surrogate pair
                         throw new ArgumentException(Environment.GetResourceString("Argument_InvalidNativeDigitValue"), propertyName);
                     }
                 }
 
                 if (CharUnicodeInfo.GetDecimalDigitValue(nativeDig[i], 0) != i &&
-                    CharUnicodeInfo.GetUnicodeCategory(nativeDig[i], 0) != UnicodeCategory.PrivateUse) {
+                    CharUnicodeInfo.GetUnicodeCategory(nativeDig[i], 0) != UnicodeCategory.PrivateUse)
+                {
                     // Not the appropriate digit according to the Unicode data properties
                     // (Digit 0 must be a 0, etc.).
                     throw new ArgumentException(Environment.GetResourceString("Argument_InvalidNativeDigitValue"), propertyName);
@@ -218,9 +206,9 @@ namespace System.Globalization {
             }
         }
 
-#if !FEATURE_CORECLR
-         static private void VerifyDigitSubstitution(DigitShapes digitSub, String propertyName) {
-            switch(digitSub)
+        static private void VerifyDigitSubstitution(DigitShapes digitSub, String propertyName)
+        {
+            switch (digitSub)
             {
                 case DigitShapes.Context:
                 case DigitShapes.None:
@@ -232,11 +220,9 @@ namespace System.Globalization {
                     throw new ArgumentException(Environment.GetResourceString("Argument_InvalidDigitSubstitution"), propertyName);
             }
         }
-#endif // !FEATURE_CORECLR
 
         // We aren't persisting dataItem any more (since its useless & we weren't using it),
         // Ditto with m_useUserOverride.  Don't use them, we use a local copy of everything.
-        [System.Security.SecuritySafeCritical]  // auto-generated
         internal NumberFormatInfo(CultureData cultureData)
         {
             if (cultureData != null)
@@ -254,8 +240,10 @@ namespace System.Globalization {
         }
 
         [Pure]
-        private void VerifyWritable() {
-            if (isReadOnly) {
+        private void VerifyWritable()
+        {
+            if (isReadOnly)
+            {
                 throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_ReadOnly"));
             }
             Contract.EndContractBlock();
@@ -266,9 +254,12 @@ namespace System.Globalization {
         // Used by FromString methods.
         //
 
-        public static NumberFormatInfo InvariantInfo {
-            get {
-                if (invariantInfo == null) {
+        public static NumberFormatInfo InvariantInfo
+        {
+            get
+            {
+                if (invariantInfo == null)
+                {
                     // Lazy create the invariant info. This cannot be done in a .cctor because exceptions can
                     // be thrown out of a .cctor stack that will need this.
                     NumberFormatInfo nfi = new NumberFormatInfo();
@@ -280,27 +271,34 @@ namespace System.Globalization {
         }
 
 
-        public static NumberFormatInfo GetInstance(IFormatProvider formatProvider) {
+        public static NumberFormatInfo GetInstance(IFormatProvider formatProvider)
+        {
             // Fast case for a regular CultureInfo
             NumberFormatInfo info;
             CultureInfo cultureProvider = formatProvider as CultureInfo;
-            if (cultureProvider != null && !cultureProvider.m_isInherited) {
+            if (cultureProvider != null && !cultureProvider.m_isInherited)
+            {
                 info = cultureProvider.numInfo;
-                if (info != null) {
+                if (info != null)
+                {
                     return info;
                 }
-                else {
+                else
+                {
                     return cultureProvider.NumberFormat;
                 }
             }
             // Fast case for an NFI;
             info = formatProvider as NumberFormatInfo;
-            if (info != null) {
+            if (info != null)
+            {
                 return info;
             }
-            if (formatProvider != null) {
+            if (formatProvider != null)
+            {
                 info = formatProvider.GetFormat(typeof(NumberFormatInfo)) as NumberFormatInfo;
-                if (info != null) {
+                if (info != null)
+                {
                     return info;
                 }
             }
@@ -309,19 +307,23 @@ namespace System.Globalization {
 
 
 
-        public Object Clone() {
+        public Object Clone()
+        {
             NumberFormatInfo n = (NumberFormatInfo)MemberwiseClone();
             n.isReadOnly = false;
             return n;
         }
 
 
-         public int CurrencyDecimalDigits {
+        public int CurrencyDecimalDigits
+        {
             get { return currencyDecimalDigits; }
-            set {
-                if (value < 0 || value > 99) {
+            set
+            {
+                if (value < 0 || value > 99)
+                {
                     throw new ArgumentOutOfRangeException(
-                                "CurrencyDecimalDigits",
+                                nameof(CurrencyDecimalDigits),
                                 String.Format(
                                     CultureInfo.CurrentCulture,
                                     Environment.GetResourceString("ArgumentOutOfRange_Range"),
@@ -335,18 +337,22 @@ namespace System.Globalization {
         }
 
 
-         public String CurrencyDecimalSeparator {
+        public String CurrencyDecimalSeparator
+        {
             get { return currencyDecimalSeparator; }
-            set {
+            set
+            {
                 VerifyWritable();
-                VerifyDecimalSeparator(value, "CurrencyDecimalSeparator");
+                VerifyDecimalSeparator(value, nameof(CurrencyDecimalSeparator));
                 currencyDecimalSeparator = value;
             }
         }
 
 
-        public bool IsReadOnly {
-            get {
+        public bool IsReadOnly
+        {
+            get
+            {
                 return isReadOnly;
             }
         }
@@ -375,80 +381,95 @@ namespace System.Globalization {
         }
 
 
-         public int[] CurrencyGroupSizes {
-            get {
+        public int[] CurrencyGroupSizes
+        {
+            get
+            {
                 return ((int[])currencyGroupSizes.Clone());
             }
-            set {
-                if (value == null) {
-                    throw new ArgumentNullException("CurrencyGroupSizes",
-                        Environment.GetResourceString("ArgumentNull_Obj"));
-                }
-                Contract.EndContractBlock();
-                VerifyWritable();                
-                
-                Int32[] inputSizes = (Int32[])value.Clone();
-                CheckGroupSize("CurrencyGroupSizes", inputSizes);
-                currencyGroupSizes = inputSizes;
-            }
-
-        }
-
-
-
-         public int[] NumberGroupSizes {
-            get {
-                return ((int[])numberGroupSizes.Clone());
-            }
-            set {
-                if (value == null) {
-                    throw new ArgumentNullException("NumberGroupSizes",
+            set
+            {
+                if (value == null)
+                {
+                    throw new ArgumentNullException(nameof(CurrencyGroupSizes),
                         Environment.GetResourceString("ArgumentNull_Obj"));
                 }
                 Contract.EndContractBlock();
                 VerifyWritable();
-                
+
                 Int32[] inputSizes = (Int32[])value.Clone();
-                CheckGroupSize("NumberGroupSizes", inputSizes);
+                CheckGroupSize(nameof(CurrencyGroupSizes), inputSizes);
+                currencyGroupSizes = inputSizes;
+            }
+        }
+
+
+
+        public int[] NumberGroupSizes
+        {
+            get
+            {
+                return ((int[])numberGroupSizes.Clone());
+            }
+            set
+            {
+                if (value == null)
+                {
+                    throw new ArgumentNullException(nameof(NumberGroupSizes),
+                        Environment.GetResourceString("ArgumentNull_Obj"));
+                }
+                Contract.EndContractBlock();
+                VerifyWritable();
+
+                Int32[] inputSizes = (Int32[])value.Clone();
+                CheckGroupSize(nameof(NumberGroupSizes), inputSizes);
                 numberGroupSizes = inputSizes;
             }
         }
 
 
-         public int[] PercentGroupSizes {
-            get {
+        public int[] PercentGroupSizes
+        {
+            get
+            {
                 return ((int[])percentGroupSizes.Clone());
             }
-            set {
-                if (value == null) {
-                    throw new ArgumentNullException("PercentGroupSizes",
+            set
+            {
+                if (value == null)
+                {
+                    throw new ArgumentNullException(nameof(PercentGroupSizes),
                         Environment.GetResourceString("ArgumentNull_Obj"));
                 }
                 Contract.EndContractBlock();
                 VerifyWritable();
                 Int32[] inputSizes = (Int32[])value.Clone();
-                CheckGroupSize("PercentGroupSizes", inputSizes);
+                CheckGroupSize(nameof(PercentGroupSizes), inputSizes);
                 percentGroupSizes = inputSizes;
             }
-
         }
 
 
-         public String CurrencyGroupSeparator {
+        public String CurrencyGroupSeparator
+        {
             get { return currencyGroupSeparator; }
-            set {
+            set
+            {
                 VerifyWritable();
-                VerifyGroupSeparator(value, "CurrencyGroupSeparator");
+                VerifyGroupSeparator(value, nameof(CurrencyGroupSeparator));
                 currencyGroupSeparator = value;
             }
         }
 
 
-         public String CurrencySymbol {
+        public String CurrencySymbol
+        {
             get { return currencySymbol; }
-            set {
-                if (value == null) {
-                    throw new ArgumentNullException("CurrencySymbol",
+            set
+            {
+                if (value == null)
+                {
+                    throw new ArgumentNullException(nameof(CurrencySymbol),
                         Environment.GetResourceString("ArgumentNull_String"));
                 }
                 Contract.EndContractBlock();
@@ -460,12 +481,16 @@ namespace System.Globalization {
         // Returns the current culture's NumberFormatInfo.  Used by Parse methods.
         //
 
-        public static NumberFormatInfo CurrentInfo {
-            get {
+        public static NumberFormatInfo CurrentInfo
+        {
+            get
+            {
                 System.Globalization.CultureInfo culture = System.Threading.Thread.CurrentThread.CurrentCulture;
-                if (!culture.m_isInherited) {
+                if (!culture.m_isInherited)
+                {
                     NumberFormatInfo info = culture.numInfo;
-                    if (info != null) {
+                    if (info != null)
+                    {
                         return info;
                     }
                 }
@@ -474,13 +499,17 @@ namespace System.Globalization {
         }
 
 
-         public String NaNSymbol {
-            get {
+        public String NaNSymbol
+        {
+            get
+            {
                 return nanSymbol;
             }
-            set {
-                if (value == null) {
-                    throw new ArgumentNullException("NaNSymbol",
+            set
+            {
+                if (value == null)
+                {
+                    throw new ArgumentNullException(nameof(NaNSymbol),
                         Environment.GetResourceString("ArgumentNull_String"));
                 }
                 Contract.EndContractBlock();
@@ -491,12 +520,15 @@ namespace System.Globalization {
 
 
 
-         public int CurrencyNegativePattern {
+        public int CurrencyNegativePattern
+        {
             get { return currencyNegativePattern; }
-            set {
-                if (value < 0 || value > 15) {
+            set
+            {
+                if (value < 0 || value > 15)
+                {
                     throw new ArgumentOutOfRangeException(
-                                "CurrencyNegativePattern",
+                                nameof(CurrencyNegativePattern),
                                 String.Format(
                                     CultureInfo.CurrentCulture,
                                     Environment.GetResourceString("ArgumentOutOfRange_Range"),
@@ -510,15 +542,18 @@ namespace System.Globalization {
         }
 
 
-         public int NumberNegativePattern {
+        public int NumberNegativePattern
+        {
             get { return numberNegativePattern; }
-            set {
+            set
+            {
                 //
                 // NOTENOTE: the range of value should correspond to negNumberFormats[] in vm\COMNumber.cpp.
                 //
-                if (value < 0 || value > 4) {
+                if (value < 0 || value > 4)
+                {
                     throw new ArgumentOutOfRangeException(
-                                "NumberNegativePattern",
+                                nameof(NumberNegativePattern),
                                 String.Format(
                                     CultureInfo.CurrentCulture,
                                     Environment.GetResourceString("ArgumentOutOfRange_Range"),
@@ -532,15 +567,18 @@ namespace System.Globalization {
         }
 
 
-         public int PercentPositivePattern {
+        public int PercentPositivePattern
+        {
             get { return percentPositivePattern; }
-            set {
+            set
+            {
                 //
                 // NOTENOTE: the range of value should correspond to posPercentFormats[] in vm\COMNumber.cpp.
                 //
-                if (value < 0 || value > 3) {
+                if (value < 0 || value > 3)
+                {
                     throw new ArgumentOutOfRangeException(
-                                "PercentPositivePattern",
+                                nameof(PercentPositivePattern),
                                 String.Format(
                                     CultureInfo.CurrentCulture,
                                     Environment.GetResourceString("ArgumentOutOfRange_Range"),
@@ -554,15 +592,18 @@ namespace System.Globalization {
         }
 
 
-         public int PercentNegativePattern {
+        public int PercentNegativePattern
+        {
             get { return percentNegativePattern; }
-            set {
+            set
+            {
                 //
                 // NOTENOTE: the range of value should correspond to posPercentFormats[] in vm\COMNumber.cpp.
                 //
-                if (value < 0 || value > 11) {
+                if (value < 0 || value > 11)
+                {
                     throw new ArgumentOutOfRangeException(
-                                "PercentNegativePattern",
+                                nameof(PercentNegativePattern),
                                 String.Format(
                                     CultureInfo.CurrentCulture,
                                     Environment.GetResourceString("ArgumentOutOfRange_Range"),
@@ -576,13 +617,17 @@ namespace System.Globalization {
         }
 
 
-         public String NegativeInfinitySymbol {
-            get {
+        public String NegativeInfinitySymbol
+        {
+            get
+            {
                 return negativeInfinitySymbol;
             }
-            set {
-                if (value == null) {
-                    throw new ArgumentNullException("NegativeInfinitySymbol",
+            set
+            {
+                if (value == null)
+                {
+                    throw new ArgumentNullException(nameof(NegativeInfinitySymbol),
                         Environment.GetResourceString("ArgumentNull_String"));
                 }
                 Contract.EndContractBlock();
@@ -592,11 +637,14 @@ namespace System.Globalization {
         }
 
 
-         public String NegativeSign {
+        public String NegativeSign
+        {
             get { return negativeSign; }
-            set {
-                if (value == null) {
-                    throw new ArgumentNullException("NegativeSign",
+            set
+            {
+                if (value == null)
+                {
+                    throw new ArgumentNullException(nameof(NegativeSign),
                         Environment.GetResourceString("ArgumentNull_String"));
                 }
                 Contract.EndContractBlock();
@@ -606,12 +654,15 @@ namespace System.Globalization {
         }
 
 
-         public int NumberDecimalDigits {
+        public int NumberDecimalDigits
+        {
             get { return numberDecimalDigits; }
-            set {
-                if (value < 0 || value > 99) {
+            set
+            {
+                if (value < 0 || value > 99)
+                {
                     throw new ArgumentOutOfRangeException(
-                                "NumberDecimalDigits",
+                                nameof(NumberDecimalDigits),
                                 String.Format(
                                     CultureInfo.CurrentCulture,
                                     Environment.GetResourceString("ArgumentOutOfRange_Range"),
@@ -625,32 +676,39 @@ namespace System.Globalization {
         }
 
 
-         public String NumberDecimalSeparator {
+        public String NumberDecimalSeparator
+        {
             get { return numberDecimalSeparator; }
-            set {
+            set
+            {
                 VerifyWritable();
-                VerifyDecimalSeparator(value, "NumberDecimalSeparator");
+                VerifyDecimalSeparator(value, nameof(NumberDecimalSeparator));
                 numberDecimalSeparator = value;
             }
         }
 
 
-         public String NumberGroupSeparator {
+        public String NumberGroupSeparator
+        {
             get { return numberGroupSeparator; }
-            set {
+            set
+            {
                 VerifyWritable();
-                VerifyGroupSeparator(value, "NumberGroupSeparator");
+                VerifyGroupSeparator(value, nameof(NumberGroupSeparator));
                 numberGroupSeparator = value;
             }
         }
 
 
-         public int CurrencyPositivePattern {
+        public int CurrencyPositivePattern
+        {
             get { return currencyPositivePattern; }
-            set {
-                if (value < 0 || value > 3) {
+            set
+            {
+                if (value < 0 || value > 3)
+                {
                     throw new ArgumentOutOfRangeException(
-                                "CurrencyPositivePattern",
+                                nameof(CurrencyPositivePattern),
                                 String.Format(
                                     CultureInfo.CurrentCulture,
                                     Environment.GetResourceString("ArgumentOutOfRange_Range"),
@@ -664,13 +722,17 @@ namespace System.Globalization {
         }
 
 
-         public String PositiveInfinitySymbol {
-            get {
+        public String PositiveInfinitySymbol
+        {
+            get
+            {
                 return positiveInfinitySymbol;
             }
-            set {
-                if (value == null) {
-                    throw new ArgumentNullException("PositiveInfinitySymbol",
+            set
+            {
+                if (value == null)
+                {
+                    throw new ArgumentNullException(nameof(PositiveInfinitySymbol),
                         Environment.GetResourceString("ArgumentNull_String"));
                 }
                 Contract.EndContractBlock();
@@ -680,11 +742,14 @@ namespace System.Globalization {
         }
 
 
-         public String PositiveSign {
+        public String PositiveSign
+        {
             get { return positiveSign; }
-            set {
-                if (value == null) {
-                    throw new ArgumentNullException("PositiveSign",
+            set
+            {
+                if (value == null)
+                {
+                    throw new ArgumentNullException(nameof(PositiveSign),
                         Environment.GetResourceString("ArgumentNull_String"));
                 }
                 Contract.EndContractBlock();
@@ -694,12 +759,15 @@ namespace System.Globalization {
         }
 
 
-         public int PercentDecimalDigits {
+        public int PercentDecimalDigits
+        {
             get { return percentDecimalDigits; }
-            set {
-                if (value < 0 || value > 99) {
+            set
+            {
+                if (value < 0 || value > 99)
+                {
                     throw new ArgumentOutOfRangeException(
-                                "PercentDecimalDigits",
+                                nameof(PercentDecimalDigits),
                                 String.Format(
                                     CultureInfo.CurrentCulture,
                                     Environment.GetResourceString("ArgumentOutOfRange_Range"),
@@ -713,33 +781,41 @@ namespace System.Globalization {
         }
 
 
-         public String PercentDecimalSeparator {
+        public String PercentDecimalSeparator
+        {
             get { return percentDecimalSeparator; }
-            set {
+            set
+            {
                 VerifyWritable();
-                VerifyDecimalSeparator(value, "PercentDecimalSeparator");
+                VerifyDecimalSeparator(value, nameof(PercentDecimalSeparator));
                 percentDecimalSeparator = value;
             }
         }
 
 
-         public String PercentGroupSeparator {
+        public String PercentGroupSeparator
+        {
             get { return percentGroupSeparator; }
-            set {
+            set
+            {
                 VerifyWritable();
-                VerifyGroupSeparator(value, "PercentGroupSeparator");
+                VerifyGroupSeparator(value, nameof(PercentGroupSeparator));
                 percentGroupSeparator = value;
             }
         }
 
 
-         public String PercentSymbol {
-            get {
+        public String PercentSymbol
+        {
+            get
+            {
                 return percentSymbol;
             }
-            set {
-                if (value == null) {
-                    throw new ArgumentNullException("PercentSymbol",
+            set
+            {
+                if (value == null)
+                {
+                    throw new ArgumentNullException(nameof(PercentSymbol),
                         Environment.GetResourceString("ArgumentNull_String"));
                 }
                 Contract.EndContractBlock();
@@ -749,11 +825,14 @@ namespace System.Globalization {
         }
 
 
-         public String PerMilleSymbol {
+        public String PerMilleSymbol
+        {
             get { return perMilleSymbol; }
-            set {
-                if (value == null) {
-                    throw new ArgumentNullException("PerMilleSymbol",
+            set
+            {
+                if (value == null)
+                {
+                    throw new ArgumentNullException(nameof(PerMilleSymbol),
                         Environment.GetResourceString("ArgumentNull_String"));
                 }
                 Contract.EndContractBlock();
@@ -763,42 +842,42 @@ namespace System.Globalization {
         }
 
 
-        [System.Runtime.InteropServices.ComVisible(false)]
         public String[] NativeDigits
         {
             get { return (String[])nativeDigits.Clone(); }
             set
             {
                 VerifyWritable();
-                VerifyNativeDigits(value, "NativeDigits");
+                VerifyNativeDigits(value, nameof(NativeDigits));
                 nativeDigits = value;
             }
         }
 
-#if !FEATURE_CORECLR
-        [System.Runtime.InteropServices.ComVisible(false)]
         public DigitShapes DigitSubstitution
         {
             get { return (DigitShapes)digitSubstitution; }
             set
             {
                 VerifyWritable();
-                VerifyDigitSubstitution(value, "DigitSubstitution");
+                VerifyDigitSubstitution(value, nameof(DigitSubstitution));
                 digitSubstitution = (int)value;
             }
         }
-#endif // !FEATURE_CORECLR
 
-        public Object GetFormat(Type formatType) {
-            return formatType == typeof(NumberFormatInfo)? this: null;
+        public Object GetFormat(Type formatType)
+        {
+            return formatType == typeof(NumberFormatInfo) ? this : null;
         }
 
-        public static NumberFormatInfo ReadOnly(NumberFormatInfo nfi) {
-            if (nfi == null) {
-                throw new ArgumentNullException("nfi");
+        public static NumberFormatInfo ReadOnly(NumberFormatInfo nfi)
+        {
+            if (nfi == null)
+            {
+                throw new ArgumentNullException(nameof(nfi));
             }
             Contract.EndContractBlock();
-            if (nfi.IsReadOnly) {
+            if (nfi.IsReadOnly)
+            {
                 return (nfi);
             }
             NumberFormatInfo info = (NumberFormatInfo)(nfi.MemberwiseClone());
@@ -813,26 +892,33 @@ namespace System.Globalization {
                                                            | NumberStyles.AllowThousands | NumberStyles.AllowExponent
                                                            | NumberStyles.AllowCurrencySymbol | NumberStyles.AllowHexSpecifier);
 
-        internal static void ValidateParseStyleInteger(NumberStyles style) {
+        internal static void ValidateParseStyleInteger(NumberStyles style)
+        {
             // Check for undefined flags
-            if ((style & InvalidNumberStyles) != 0) {
-                throw new ArgumentException(Environment.GetResourceString("Argument_InvalidNumberStyles"), "style");
+            if ((style & InvalidNumberStyles) != 0)
+            {
+                throw new ArgumentException(Environment.GetResourceString("Argument_InvalidNumberStyles"), nameof(style));
             }
             Contract.EndContractBlock();
-            if ((style & NumberStyles.AllowHexSpecifier) != 0) { // Check for hex number
-                if ((style & ~NumberStyles.HexNumber) != 0) {
+            if ((style & NumberStyles.AllowHexSpecifier) != 0)
+            { // Check for hex number
+                if ((style & ~NumberStyles.HexNumber) != 0)
+                {
                     throw new ArgumentException(Environment.GetResourceString("Arg_InvalidHexStyle"));
                 }
             }
         }
 
-        internal static void ValidateParseStyleFloatingPoint(NumberStyles style) {
+        internal static void ValidateParseStyleFloatingPoint(NumberStyles style)
+        {
             // Check for undefined flags
-            if ((style & InvalidNumberStyles) != 0) {
-                throw new ArgumentException(Environment.GetResourceString("Argument_InvalidNumberStyles"), "style");
+            if ((style & InvalidNumberStyles) != 0)
+            {
+                throw new ArgumentException(Environment.GetResourceString("Argument_InvalidNumberStyles"), nameof(style));
             }
             Contract.EndContractBlock();
-            if ((style & NumberStyles.AllowHexSpecifier) != 0) { // Check for hex number
+            if ((style & NumberStyles.AllowHexSpecifier) != 0)
+            { // Check for hex number
                 throw new ArgumentException(Environment.GetResourceString("Arg_HexStyleNotSupported"));
             }
         }

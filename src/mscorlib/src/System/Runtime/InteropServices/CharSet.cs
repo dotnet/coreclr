@@ -1,18 +1,21 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
-namespace System.Runtime.InteropServices {
-    using System;
+
+using System;
+
+namespace System.Runtime.InteropServices
+{
     // Use this in P/Direct function prototypes to specify 
     // which character set to use when marshalling Strings.
     // Using Ansi will marshal the strings as 1 byte char*'s.
     // Using Unicode will marshal the strings as 2 byte wchar*'s.
     // Generally you probably want to use Auto, which does the
     // right thing 99% of the time.
-    [Serializable] 
-[System.Runtime.InteropServices.ComVisible(true)]
+    [Serializable]
     public enum CharSet
     {
         None = 1,        // User didn't specify how to marshal strings.

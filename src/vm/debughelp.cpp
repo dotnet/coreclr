@@ -1,15 +1,14 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 
 #include "common.h"
 
 /*******************************************************************/
-/* The folowing routines used to exist in all builds so they could called from the
+/* The following routines used to exist in all builds so they could called from the
  * debugger before we had strike.
- * Now most of them are only inclued in debug builds for diagnostics purposes.
+ * Now most of them are only included in debug builds for diagnostics purposes.
 */
 /*******************************************************************/
 
@@ -24,6 +23,12 @@ BOOL isMemoryReadable(const TADDR start, unsigned len)
         SO_TOLERANT;
     }
     CONTRACTL_END;
+
+#if !defined(DACCESS_COMPILE) && defined(FEATURE_PAL)
+
+    return PAL_ProbeMemory((PVOID)start, len, FALSE);
+
+#else // !DACCESS_COMPILE && FEATURE_PAL
 
     //
     // To accomplish this in a no-throw way, we have to touch each and every page
@@ -88,6 +93,7 @@ BOOL isMemoryReadable(const TADDR start, unsigned len)
     }
 
     return 1;
+#endif // !DACCESS_COMPILE && FEATURE_PAL
 }
 
 
@@ -203,7 +209,7 @@ void *DumpEnvironmentBlock(void)
     return WszGetEnvironmentStrings();
 }
 
-#if defined(_TARGET_X86_)
+#if defined(_TARGET_X86_) && !defined(FEATURE_PAL)
 /*******************************************************************/
 // Dump the SEH chain to stderr
 void PrintSEHChain(void)
@@ -1199,24 +1205,24 @@ void DumpGCInfo(MethodDesc* method)
     _ASSERTE(codeInfo.GetRelOffset() == 0);
 
     ICodeManager* codeMan = codeInfo.GetCodeManager();
-    BYTE* table = (BYTE*) codeInfo.GetGCInfo();
+    GCInfoToken gcInfoToken = codeInfo.GetGCInfoToken();
 
-    unsigned methodSize = (unsigned)codeMan->GetFunctionSize(table);
+    unsigned methodSize = (unsigned)codeMan->GetFunctionSize(gcInfoToken);
 
-    GCDump gcDump;
+    GCDump gcDump(gcInfoToken.Version);
+    PTR_CBYTE gcInfo = PTR_CBYTE(gcInfoToken.Info);
 
     gcDump.gcPrintf = printfToDbgOut;
 
     InfoHdr header;
 
     printfToDbgOut ("Method info block:\n");
-
-    table += gcDump.DumpInfoHdr(table, &header, &methodSize, 0);
+    gcInfo += gcDump.DumpInfoHdr(gcInfo, &header, &methodSize, 0);
 
     printfToDbgOut ("\n");
     printfToDbgOut ("Pointer table:\n");
 
-    table += gcDump.DumpGCTable(table, header, methodSize, 0);
+    gcInfo += gcDump.DumpGCTable(gcInfo, header, methodSize, 0);
 }
 
 void DumpGCInfoMD(size_t method)

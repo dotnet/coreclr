@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 //
 /*=============================================================================
@@ -12,13 +13,12 @@
 **
 =============================================================================*/
 
-namespace System.Threading {
-    using System.Security.Permissions;
-    using System.Threading;
+using System.Threading;
 
+namespace System.Threading
+{
     // Define the delegate
     // NOTE: If you change the signature here, there is code in COMSynchronization
     //  that invokes this delegate in native.
-[System.Runtime.InteropServices.ComVisible(true)]
     public delegate void ThreadStart();
 }

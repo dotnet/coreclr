@@ -1,35 +1,26 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 // 
 
+using System;
+using System.Collections.Generic;
+using System.Diagnostics.Contracts;
+using System.Runtime;
+using System.Runtime.InteropServices;
+
 namespace System.Reflection
 {
-    using System;
-    using System.Collections.Generic;
-    using System.Diagnostics.Contracts;
-    using System.Runtime;
-    using System.Runtime.InteropServices;
-    using System.Security.Permissions;
-
     [Serializable]
-    [ClassInterface(ClassInterfaceType.None)]
-    [ComDefaultInterface(typeof(_MemberInfo))]
-#pragma warning disable 618
-    [PermissionSetAttribute(SecurityAction.InheritanceDemand, Name = "FullTrust")]
-#pragma warning restore 618
-    [System.Runtime.InteropServices.ComVisible(true)]
-#if CONTRACTS_FULL
-    [ContractClass(typeof(MemberInfoContracts))]
-#endif
-    public abstract class MemberInfo : ICustomAttributeProvider, _MemberInfo
+    public abstract class MemberInfo : ICustomAttributeProvider
     {
         #region Constructor
         protected MemberInfo() { }
         #endregion
 
         #region Internal Methods
-        internal virtual bool CacheEquals(object o) { throw new NotImplementedException(); } 
+        internal virtual bool CacheEquals(object o) { throw new NotImplementedException(); }
         #endregion
 
         #region Public Abstract\Virtual Members
@@ -62,21 +53,20 @@ namespace System.Reflection
         public virtual int MetadataToken { get { throw new InvalidOperationException(); } }
 
         public virtual Module Module
-        { 
+        {
             get
             {
                 if (this is Type)
                     return ((Type)this).Module;
 
-                throw new NotImplementedException(); 
-            } 
+                throw new NotImplementedException();
+            }
         }
-        
-        
-        
+
+
+
         #endregion
 
-#if !FEATURE_CORECLR
         public static bool operator ==(MemberInfo left, MemberInfo right)
         {
             if (ReferenceEquals(left, right))
@@ -109,7 +99,6 @@ namespace System.Reflection
         {
             return !(left == right);
         }
-#endif // !FEATURE_CORECLR
 
         public override bool Equals(object obj)
         {
@@ -120,47 +109,5 @@ namespace System.Reflection
         {
             return base.GetHashCode();
         }
-
-#if !FEATURE_CORECLR
-        // this method is required so Object.GetType is not made final virtual by the compiler
-        Type _MemberInfo.GetType()
-        { 
-            return base.GetType();
-        }
-
-        void _MemberInfo.GetTypeInfoCount(out uint pcTInfo)
-        {
-            throw new NotImplementedException();
-        }
-
-        void _MemberInfo.GetTypeInfo(uint iTInfo, uint lcid, IntPtr ppTInfo)
-        {
-            throw new NotImplementedException();
-        }
-
-        void _MemberInfo.GetIDsOfNames([In] ref Guid riid, IntPtr rgszNames, uint cNames, uint lcid, IntPtr rgDispId)
-        {
-            throw new NotImplementedException();
-        }
-
-        void _MemberInfo.Invoke(uint dispIdMember, [In] ref Guid riid, uint lcid, short wFlags, IntPtr pDispParams, IntPtr pVarResult, IntPtr pExcepInfo, IntPtr puArgErr)
-        {
-            throw new NotImplementedException();
-        }
-#endif
     }
-
-#if CONTRACTS_FULL
-    [ContractClassFor(typeof(MemberInfo))]
-    internal abstract class MemberInfoContracts : MemberInfo
-    {
-        public override String Name {
-            get {
-                Contract.Ensures(Contract.Result<String>() != null);
-                return default(String);
-            }
-        }
-    }
-#endif // CONTRACTS_FULL
-
 }

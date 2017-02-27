@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information. 
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 // ==++==
 //
@@ -509,7 +508,7 @@ struct LegacyPrivateIPCControlBlock
 // Client blocks
     struct PerfCounterIPCControlBlock    m_perf;        // no longer used but kept for compat
     struct AppDomainEnumerationIPCBlock m_appdomain;
-    WCHAR                               m_instancePath[MAX_PATH];
+    WCHAR                               m_instancePath[MAX_LONGPATH];
 };
 
 typedef DPTR(LegacyPrivateIPCControlBlock) PTR_LegacyPrivateIPCControlBlock;

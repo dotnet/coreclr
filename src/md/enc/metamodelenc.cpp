@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //*****************************************************************************
 // MetaModelENC.cpp
 // 
@@ -264,14 +263,6 @@ CMiniMdRW::ApplyDelta(
         return E_INVALIDARG;
     }
     
-    // Verify that the delta is based on the base.
-    IfFailGo(mdDelta.getEncBaseIdOfModule(pModDelta, &GuidDelta));
-    IfFailGo(getEncBaseIdOfModule(pModBase,&GuidBase));
-    if (CLRConfig::GetConfigValue(CLRConfig::INTERNAL_MD_DeltaCheck) && (GuidDelta != GuidBase))
-    {
-        _ASSERTE(!"The Delta MetaData is based on a different generation than the current MetaData.");
-        return E_INVALIDARG;
-    }
     
     // Let the other md prepare for sparse records.
     IfFailGo(mdDelta.StartENCMap());
@@ -387,19 +378,6 @@ ErrExit:
     HRESULT hrReturn = hr;
     IfFailRet(mdDelta.EndENCMap());
     
-#ifndef FEATURE_CORECLR
-    if (SUCCEEDED(hrReturn) && 
-        CLRConfig::GetConfigValue(CLRConfig::INTERNAL_MD_DeltaCheck) && 
-        CLRConfig::GetConfigValue(CLRConfig::INTERNAL_MD_UseMinimalDeltas))
-    {
-        GUID GuidNewBase;
-        
-        // We'll use the delta's 'delta guid' for our new base guid
-        IfFailRet(mdDelta.getEncIdOfModule(pModDelta, &GuidNewBase));
-        
-        IfFailRet(PutGuid(TBL_Module, ModuleRec::COL_EncBaseId, pModBase, GuidNewBase));
-    }
-#endif //!FEATURE_CORECLR
     
     return hrReturn;
 } // CMiniMdRW::ApplyDelta

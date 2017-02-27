@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //
 
 //
@@ -10,7 +9,6 @@
 #ifndef __SECURITYDESCRIPTOR_H__
 #define __SECURITYDESCRIPTOR_H__
 
-#include "securityconfig.h"
 #include "securityattributes.h"
 #include "securitypolicy.h"
 
@@ -69,9 +67,6 @@ inline void StoreObjectInLazyHandle(LOADERHANDLE& handle, OBJECTREF ref, LoaderA
 class SecurityDescriptor
 {
 protected:
-#ifdef FEATURE_CAS_POLICY
-    LOADERHANDLE m_hAdditionalEvidence;     // Evidence Object
-#endif // FEATURE_CAS_POLICY
 
     // The unmanaged DomainAssembly object
     DomainAssembly     *m_pAssem;
@@ -83,17 +78,16 @@ protected:
     AppDomain*   m_pAppDomain;
 
     BOOL         m_fSDResolved;
-#ifdef FEATURE_CAS_POLICY
-    BOOL         m_fEvidenceComputed;
-#endif // FEATURE_CAS_POLICY
 
     DWORD        m_dwSpecialFlags;
     LoaderAllocator *m_pLoaderAllocator;
 
 private:
+#ifndef CROSSGEN_COMPILE
     LOADERHANDLE m_hGrantedPermissionSet;   // Granted Permission
     LOADERHANDLE m_hGrantDeniedPermissionSet;// Specifically Denied Permissions
-	
+#endif // CROSSGEN_COMPILE
+
 public:
     BOOL IsFullyTrusted();
     DWORD GetSpecialFlags() const;
@@ -101,15 +95,6 @@ public:
     AppDomain* GetDomain() const;
     BOOL CanCallUnmanagedCode() const;
 	
-#ifdef FEATURE_CAS_POLICY
-
-#ifndef DACCESS_COMPILE
-    void SetEvidence(OBJECTREF evidence);
-    BOOL CheckQuickCache(SecurityConfig::QuickCacheEntryType all, DWORD dwZone);
-#endif // FEATURE_CAS_POLICY
-    BOOL IsEvidenceComputed() const;
-    inline void SetEvidenceComputed();
-#endif // FEATURE_CAS_POLICY
 
 #ifndef DACCESS_COMPILE
     void SetGrantedPermissionSet(OBJECTREF GrantedPermissionSet,
@@ -132,16 +117,17 @@ protected:
     //--------------------
 #ifndef DACCESS_COMPILE
     inline SecurityDescriptor(AppDomain *pAppDomain, DomainAssembly *pAssembly, PEFile* pPEFile, LoaderAllocator *pLoaderAllocator);    
-#endif // #ifndef DACCESS_COMPILE
+#ifdef FEATURE_PAL
+    SecurityDescriptor() {}
+#endif // FEATURE_PAL
+#endif // !DACCESS_COMPILE
 };
 
 template<typename IT>
 class SecurityDescriptorBase : public IT, public SecurityDescriptor
 {
 public:
-#ifndef FEATURE_PAL
     VPTR_ABSTRACT_VTABLE_CLASS(SecurityDescriptorBase, IT) // needed for the DAC
-#endif
 
     inline SecurityDescriptorBase(AppDomain *pAppDomain, DomainAssembly *pAssembly, PEFile* pPEFile, LoaderAllocator *pLoaderAllocator);
 
@@ -154,44 +140,12 @@ public:
 
     virtual BOOL IsResolved() const { return SecurityDescriptor::IsResolved(); }
 
-#ifdef FEATURE_CAS_POLICY
-    virtual BOOL IsEvidenceComputed() const { return SecurityDescriptor::IsEvidenceComputed(); }
-#ifndef DACCESS_COMPILE
-    virtual void SetEvidence(OBJECTREF evidence) { SecurityDescriptor::SetEvidence(evidence); }
-#endif // DACCESS_COMPILE
-#endif // FEATURE_CAS_POLICY
 
 #ifndef DACCESS_COMPILE
     virtual OBJECTREF GetGrantedPermissionSet(OBJECTREF* RefusedPermissions = NULL) { return SecurityDescriptor::GetGrantedPermissionSet(RefusedPermissions); }
 #endif
 };
 
-#ifndef FEATURE_CORECLR
-class PEFileSecurityDescriptor : public SecurityDescriptorBase<IPEFileSecurityDescriptor>
-{
-public:
-	virtual BOOL AllowBindingRedirects();
-    BOOL QuickIsFullyTrusted();
-    virtual VOID Resolve();
-
-#ifndef DACCESS_COMPILE
-    inline PEFileSecurityDescriptor(AppDomain* pDomain, PEFile *pPEFile);
-#endif
-	
-#ifdef FEATURE_CAS_POLICY
-    virtual OBJECTREF GetEvidence();
-    DWORD GetZone();
-#endif // FEATURE_CAS_POLICY
-    
-
-#ifdef FEATURE_CAS_POLICY
-    static
-    OBJECTREF BuildEvidence(PEFile *pPEFile, const OBJECTREF& objHostSuppliedEvidence);
-#endif // FEATURE_CAS_POLICY
-private:
-	VOID ResolveWorker();
-};
-#endif // !FEATURE_CORECLR
 
 #include "securitydescriptor.inl"
 

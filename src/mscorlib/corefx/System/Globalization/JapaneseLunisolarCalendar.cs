@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System;
 using System.Diagnostics.Contracts;
@@ -19,6 +20,7 @@ namespace System.Globalization
     **      JapaneseLunisolar      1960/01/01          2049/12/29
     */
 
+    [Serializable]
     public class JapaneseLunisolarCalendar : EastAsianLunisolarCalendar
     {
         //
@@ -68,7 +70,7 @@ namespace System.Globalization
             }
         }
 
-        static readonly int[,] yinfo =
+        private static readonly int[,] s_yinfo =
         {
             /*Y            LM        Lmon    Lday        DaysPerMonth    D1    D2    D3    D4    D5    D6    D7    D8    D9    D10    D11    D12    D13    #Days
             1960    */
@@ -204,9 +206,9 @@ namespace System.Globalization
             }
         }
 
-        internal override int GetYearInfo(int LunarYear, int Index)
+        internal override int GetYearInfo(int lunarYear, int index)
         {
-            if ((LunarYear < MIN_LUNISOLAR_YEAR) || (LunarYear > MAX_LUNISOLAR_YEAR))
+            if ((lunarYear < MIN_LUNISOLAR_YEAR) || (lunarYear > MAX_LUNISOLAR_YEAR))
             {
                 throw new ArgumentOutOfRangeException(
                             "year",
@@ -218,7 +220,7 @@ namespace System.Globalization
             }
             Contract.EndContractBlock();
 
-            return yinfo[LunarYear - MIN_LUNISOLAR_YEAR, Index];
+            return s_yinfo[lunarYear - MIN_LUNISOLAR_YEAR, index];
         }
 
         internal override int GetYear(int year, DateTime time)

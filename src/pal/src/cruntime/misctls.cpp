@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information. 
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*++
 
@@ -60,7 +59,6 @@ PAL_localtime(const PAL_time_t *clock)
 
     PERF_ENTRY(localtime);
     ENTRY( "localtime( clock=%p )\n",clock );
-    THREADMarkDiagnostic("PAL_localtime");
 
     /* Get the per-thread buffer from the thread structure. */
     pThread = InternalGetCurrentThread();

@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 // DebugInfoStore
 
 
@@ -316,15 +315,6 @@ void DoNativeVarInfo(
         trans.DoEncodedStackOffset(pVar->loc.vlStk.vlsOffset);
         break;
 
-#ifdef MDIL
-    case ICorDebugInfo::VLT_STK | ICorDebugInfo::VLT_MDIL_SYMBOLIC:
-    case ICorDebugInfo::VLT_STK_BYREF | ICorDebugInfo::VLT_MDIL_SYMBOLIC:  // fall through
-        _ASSERTE(pVar->loc.vlStk.vlsOffset >= 0);
-        trans.DoEncodedRegIdx(pVar->loc.vlStk.vlsBaseReg);
-        trans.DoEncodedU32((DWORD&)pVar->loc.vlStk.vlsOffset);
-        break;
-#endif // MDIL
-
     case ICorDebugInfo::VLT_REG_REG:
         trans.DoEncodedRegIdx(pVar->loc.vlRegReg.vlrrReg1);
         trans.DoEncodedRegIdx(pVar->loc.vlRegReg.vlrrReg2);
@@ -336,42 +326,16 @@ void DoNativeVarInfo(
         trans.DoEncodedStackOffset(pVar->loc.vlRegStk.vlrsStk.vlrssOffset);
         break;
 
-#ifdef MDIL
-    case ICorDebugInfo::VLT_REG_STK | ICorDebugInfo::VLT_MDIL_SYMBOLIC:
-        _ASSERTE(pVar->loc.vlRegStk.vlrsStk.vlrssOffset >= 0);
-        trans.DoEncodedRegIdx(pVar->loc.vlRegStk.vlrsReg);
-        trans.DoEncodedRegIdx(pVar->loc.vlRegStk.vlrsStk.vlrssBaseReg);
-        trans.DoEncodedU32((DWORD&)pVar->loc.vlRegStk.vlrsStk.vlrssOffset);
-        break;
-#endif // MDIL
-
     case ICorDebugInfo::VLT_STK_REG:
         trans.DoEncodedStackOffset(pVar->loc.vlStkReg.vlsrStk.vlsrsOffset);
         trans.DoEncodedRegIdx(pVar->loc.vlStkReg.vlsrStk.vlsrsBaseReg);            
         trans.DoEncodedRegIdx(pVar->loc.vlStkReg.vlsrReg);
         break;
 
-#ifdef MDIL
-    case ICorDebugInfo::VLT_STK_REG | ICorDebugInfo::VLT_MDIL_SYMBOLIC:
-        _ASSERTE(pVar->loc.vlStkReg.vlsrStk.vlsrsOffset >= 0);
-        trans.DoEncodedU32((DWORD&)pVar->loc.vlStkReg.vlsrStk.vlsrsOffset);
-        trans.DoEncodedRegIdx(pVar->loc.vlStkReg.vlsrStk.vlsrsBaseReg);            
-        trans.DoEncodedRegIdx(pVar->loc.vlStkReg.vlsrReg);
-        break;
-#endif // MDIL
-
     case ICorDebugInfo::VLT_STK2:
         trans.DoEncodedRegIdx(pVar->loc.vlStk2.vls2BaseReg);
         trans.DoEncodedStackOffset(pVar->loc.vlStk2.vls2Offset);        
         break; 
-
-#ifdef MDIL
-    case ICorDebugInfo::VLT_STK2 | ICorDebugInfo::VLT_MDIL_SYMBOLIC:
-        _ASSERTE(pVar->loc.vlStk2.vls2Offset >= 0);
-        trans.DoEncodedRegIdx(pVar->loc.vlStk2.vls2BaseReg);
-        trans.DoEncodedU32((DWORD&)pVar->loc.vlStk2.vls2Offset);        
-        break; 
-#endif // MDIL
 
     case ICorDebugInfo::VLT_FPSTK:
         trans.DoEncodedUnsigned(pVar->loc.vlFPstk.vlfReg);
@@ -671,7 +635,6 @@ void CompressDebugInfo::EnumMemoryRegions(CLRDataEnumMemoryFlags flags, PTR_BYTE
 }
 #endif // DACCESS_COMPILE
 
-#ifndef BINDER
 // Init given a starting address from the start of code.
 void DebugInfoRequest::InitFromStartingAddr(MethodDesc * pMD, PCODE addrCode)
 {
@@ -746,5 +709,3 @@ void DebugInfoManager::EnumMemoryRegionsForMethodDebugInfo(CLRDataEnumMemoryFlag
     pJitMan->EnumMemoryRegionsForMethodDebugInfo(flags, pMD);
 }
 #endif
-
-#endif // BINDER

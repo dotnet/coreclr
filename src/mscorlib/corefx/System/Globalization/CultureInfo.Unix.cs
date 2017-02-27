@@ -1,26 +1,31 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 namespace System.Globalization
 {
     public partial class CultureInfo : IFormatProvider
     {
-        /// <summary>
-        /// Gets the default user culture from WinRT, if available.
-        /// </summary>
-        /// <remarks>
-        /// This method may return null, if there is no default user culture or if WinRT isn't available.
-        /// </remarks>
         private static CultureInfo GetUserDefaultCultureCacheOverride()
         {
-            // TODO: Implement this fully.
-            return null;
+            return null; // ICU doesn't provide a user override
         }
 
-        private static CultureInfo GetUserDefaultCulture()
+        internal static CultureInfo GetUserDefaultCulture()
         {
-            // TODO: Implement this fully.
-            return CultureInfo.InvariantCulture;
+            CultureInfo cultureInfo = null;
+            string localeName;
+            if (CultureData.GetDefaultLocaleName(out localeName))
+            {
+                cultureInfo = GetCultureByName(localeName, true);
+                cultureInfo.m_isReadOnly = true;
+            }
+            else
+            {
+                cultureInfo = CultureInfo.InvariantCulture;
+            }
+
+            return cultureInfo;
         }
     }
 }

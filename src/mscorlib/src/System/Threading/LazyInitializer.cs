@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 // =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
 //
@@ -10,11 +11,11 @@
 // =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
 
-using System.Security.Permissions;
+using System.Diagnostics;
 using System.Diagnostics.Contracts;
+
 namespace System.Threading
 {
-
     /// <summary>
     /// Specifies how a <see cref="T:System.Threading.Lazy{T}"/> instance should synchronize access among multiple threads.
     /// </summary>
@@ -53,7 +54,6 @@ namespace System.Threading
     /// These routines avoid needing to allocate a dedicated, lazy-initialization instance, instead using
     /// references to ensure targets have been initialized as they are accessed.
     /// </remarks>
-    [HostProtection(Synchronization = true, ExternalThreading = true)]
     public static class LazyInitializer
     {
         /// <summary>
@@ -148,7 +148,7 @@ namespace System.Threading
             }
 
             Interlocked.CompareExchange(ref target, value, null);
-            Contract.Assert(target != null);
+            Debug.Assert(target != null);
             return target;
         }
 
@@ -241,11 +241,10 @@ namespace System.Threading
 
             return target;
         }
-
     }
 
     // Caches the activation selector function to avoid delegate allocations.
-    static class LazyHelpers<T>
+    internal static class LazyHelpers<T>
     {
         internal static Func<T> s_activatorFactorySelector = new Func<T>(ActivatorFactorySelector);
 

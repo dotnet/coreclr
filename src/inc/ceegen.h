@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 // ===========================================================================
 // File: CEEGEN.H
 //
@@ -46,9 +45,6 @@ typedef DWORD StringRef;
                 Has a bunch of methods to emit signatures, tokens, methods,
                 etc which are not implemented. These are left over from before
 
-  CeeFileGenWriter, PEWriter and ICeeFileGen are implemented in mscorpe.dll.
-  The other types live in mscorwks.dll (src\md\CeeFileGen)
-  
                                                      +----------------------------+
                                                      |       ICeeGen              |
                                                      |                            |
@@ -215,6 +211,9 @@ class CCeeGen : public ICeeGen, ICeeGenInternal {
     CCeeGen();
 
   public:
+
+    virtual ~CCeeGen() {}
+
     static HRESULT CreateNewInstance(CCeeGen* & pCeeFileGen); // call this to instantiate
 
     virtual HRESULT Cleanup();

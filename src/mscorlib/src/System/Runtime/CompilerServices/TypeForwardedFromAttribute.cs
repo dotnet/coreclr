@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 
 namespace System.Runtime.CompilerServices
@@ -7,7 +8,7 @@ namespace System.Runtime.CompilerServices
     [AttributeUsage(AttributeTargets.Class | AttributeTargets.Struct | AttributeTargets.Enum | AttributeTargets.Interface | AttributeTargets.Delegate, Inherited = false, AllowMultiple = false)]
     public sealed class TypeForwardedFromAttribute : Attribute
     {
-        string assemblyFullName;
+        private string assemblyFullName;
 
         private TypeForwardedFromAttribute()
         {
@@ -19,15 +20,16 @@ namespace System.Runtime.CompilerServices
         {
             if (String.IsNullOrEmpty(assemblyFullName))
             {
-                throw new ArgumentNullException("assemblyFullName");
+                throw new ArgumentNullException(nameof(assemblyFullName));
             }
-            this.assemblyFullName = assemblyFullName;    
+            this.assemblyFullName = assemblyFullName;
         }
 
         public string AssemblyFullName
         {
-            get { 
-                return assemblyFullName; 
+            get
+            {
+                return assemblyFullName;
             }
         }
     }

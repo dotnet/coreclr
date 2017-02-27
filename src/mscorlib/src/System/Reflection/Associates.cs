@@ -1,23 +1,25 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 // 
 
+using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Diagnostics.Contracts;
+
 namespace System.Reflection
 {
-    using System;
-    using System.Collections.Generic;
-    using System.Diagnostics.Contracts;
-
     internal static class Associates
     {
         [Flags]
         internal enum Attributes
         {
             ComposedOfAllVirtualMethods = 0x1,
-            ComposedOfAllPrivateMethods = 0x2, 
-            ComposedOfNoPublicMembers   = 0x4,
-            ComposedOfNoStaticMembers   = 0x8,
+            ComposedOfAllPrivateMethods = 0x2,
+            ComposedOfNoPublicMembers = 0x4,
+            ComposedOfNoStaticMembers = 0x8,
         }
 
         internal static bool IncludeAccessor(MethodInfo associate, bool nonPublic)
@@ -34,7 +36,6 @@ namespace System.Reflection
             return false;
         }
 
-        [System.Security.SecurityCritical]  // auto-generated
         private static unsafe RuntimeMethodInfo AssignAssociates(
             int tkMethod,
             RuntimeType declaredType,
@@ -43,14 +44,14 @@ namespace System.Reflection
             if (MetadataToken.IsNullToken(tkMethod))
                 return null;
 
-            Contract.Assert(declaredType != null);
-            Contract.Assert(reflectedType != null);
+            Debug.Assert(declaredType != null);
+            Debug.Assert(reflectedType != null);
 
             bool isInherited = declaredType != reflectedType;
 
             IntPtr[] genericArgumentHandles = null;
             int genericArgumentCount = 0;
-            RuntimeType [] genericArguments = declaredType.GetTypeHandleInternal().GetInstantiationInternal();
+            RuntimeType[] genericArguments = declaredType.GetTypeHandleInternal().GetInstantiationInternal();
             if (genericArguments != null)
             {
                 genericArgumentCount = genericArguments.Length;
@@ -62,7 +63,7 @@ namespace System.Reflection
             }
 
             RuntimeMethodHandleInternal associateMethodHandle = ModuleHandle.ResolveMethodHandleInternalCore(RuntimeTypeHandle.GetModule(declaredType), tkMethod, genericArgumentHandles, genericArgumentCount, null, 0);
-            Contract.Assert(!associateMethodHandle.IsNullHandle(), "Failed to resolve associateRecord methodDef token");
+            Debug.Assert(!associateMethodHandle.IsNullHandle(), "Failed to resolve associateRecord methodDef token");
 
             if (isInherited)
             {
@@ -74,13 +75,8 @@ namespace System.Reflection
                 // the reflected type, the private methods should not be exposed. Note that this implies that the 
                 // identity of a property includes it's reflected type.
 
-                // NetCF actually includes private methods from parent classes in Reflection results
-                // We will mimic that in Mango Compat mode.
-                if (!CompatibilitySwitches.IsAppEarlierThanWindowsPhone8)
-                {
-                    if ((methAttr & MethodAttributes.MemberAccessMask) == MethodAttributes.Private)
-                        return null;
-                }
+                if ((methAttr & MethodAttributes.MemberAccessMask) == MethodAttributes.Private)
+                    return null;
 
                 // Note this is the first time the property was encountered walking from the most derived class 
                 // towards the base class. It would seem to follow that any associated methods would not
@@ -89,7 +85,7 @@ namespace System.Reflection
                 // the same or any property in the derived class. 
                 if ((methAttr & MethodAttributes.Virtual) != 0)
                 {
-                    bool declaringTypeIsClass = 
+                    bool declaringTypeIsClass =
                         (RuntimeTypeHandle.GetAttributes(declaredType) & TypeAttributes.ClassSemanticsMask) == TypeAttributes.Class;
 
                     // It makes no sense to search for a virtual override of a method declared on an interface.
@@ -103,7 +99,7 @@ namespace System.Reflection
                 }
             }
 
-            RuntimeMethodInfo associateMethod = 
+            RuntimeMethodInfo associateMethod =
                 RuntimeType.GetMethodBase(reflectedType, associateMethodHandle) as RuntimeMethodInfo;
 
             // suppose a property was mapped to a method not in the derivation hierarchy of the reflectedTypeHandle
@@ -113,7 +109,6 @@ namespace System.Reflection
             return associateMethod;
         }
 
-        [System.Security.SecurityCritical]  // auto-generated
         internal static unsafe void AssignAssociates(
             MetadataImport scope,
             int mdPropEvent,
@@ -130,13 +125,13 @@ namespace System.Reflection
         {
             addOn = removeOn = fireOn = getter = setter = null;
 
-            Attributes attributes = 
+            Attributes attributes =
                 Attributes.ComposedOfAllPrivateMethods |
                 Attributes.ComposedOfAllVirtualMethods |
                 Attributes.ComposedOfNoPublicMembers |
                 Attributes.ComposedOfNoStaticMembers;
 
-            while(RuntimeTypeHandle.IsGenericVariable(reflectedType))
+            while (RuntimeTypeHandle.IsGenericVariable(reflectedType))
                 reflectedType = (RuntimeType)reflectedType.BaseType;
 
             bool isInherited = declaringType != reflectedType;
@@ -161,12 +156,12 @@ namespace System.Reflection
                     continue;
 
                 MethodAttributes methAttr = associateMethod.Attributes;
-                bool isPrivate =(methAttr & MethodAttributes.MemberAccessMask) == MethodAttributes.Private;
-                bool isVirtual =(methAttr & MethodAttributes.Virtual) != 0;
+                bool isPrivate = (methAttr & MethodAttributes.MemberAccessMask) == MethodAttributes.Private;
+                bool isVirtual = (methAttr & MethodAttributes.Virtual) != 0;
 
                 MethodAttributes visibility = methAttr & MethodAttributes.MemberAccessMask;
                 bool isPublic = visibility == MethodAttributes.Public;
-                bool isStatic =(methAttr & MethodAttributes.Static) != 0;
+                bool isStatic = (methAttr & MethodAttributes.Static) != 0;
 
                 if (isPublic)
                 {
@@ -207,10 +202,9 @@ namespace System.Reflection
             bool isPseudoStatic = (attributes & Attributes.ComposedOfNoStaticMembers) == 0;
             bindingFlags = RuntimeType.FilterPreCalculate(isPseudoPublic, isInherited, isPseudoStatic);
 
-            composedOfAllPrivateMethods =(attributes & Attributes.ComposedOfAllPrivateMethods) != 0;
+            composedOfAllPrivateMethods = (attributes & Attributes.ComposedOfAllPrivateMethods) != 0;
 
             other = (otherList != null) ? otherList.ToArray() : null;
         }
     }
-
 }

@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 using System;
 using Encoding = System.Text.Encoding;
@@ -107,7 +108,7 @@ namespace System.Diagnostics.Tracing
             if (name == null)
             {
                 throw new ArgumentNullException(
-                    "name",
+                    nameof(name),
                     "This usually means that the object passed to Write is of a type that"
                     + " does not support being used as the top-level object in an event,"
                     + " e.g. a primitive or built-in type.");
@@ -116,9 +117,9 @@ namespace System.Diagnostics.Tracing
             Statics.CheckName(name);
             var coreType = (int)dataType & Statics.InTypeMask;
             this.name = name;
-            this.nameSize = Encoding.UTF8.GetByteCount(this.name) + 1;
-            this.inType = (byte)(coreType | countFlags);
-            this.outType = (byte)(((int)dataType >> 8) & Statics.OutTypeMask);
+            nameSize = Encoding.UTF8.GetByteCount(this.name) + 1;
+            inType = (byte)(coreType | countFlags);
+            outType = (byte)(((int)dataType >> 8) & Statics.OutTypeMask);
             this.tags = tags;
             this.fixedCount = fixedCount;
             this.custom = custom;
@@ -127,39 +128,39 @@ namespace System.Diagnostics.Tracing
             {
                 if (coreType == (int)TraceLoggingDataType.Nil)
                 {
-                    throw new NotSupportedException(Environment.GetResourceString("EventSource_NotSupportedArrayOfNil"));
+                    throw new NotSupportedException(Resources.GetResourceString("EventSource_NotSupportedArrayOfNil"));
                 }
                 if (coreType == (int)TraceLoggingDataType.Binary)
                 {
-                    throw new NotSupportedException(Environment.GetResourceString("EventSource_NotSupportedArrayOfBinary"));
+                    throw new NotSupportedException(Resources.GetResourceString("EventSource_NotSupportedArrayOfBinary"));
                 }
 #if !BROKEN_UNTIL_M3
                 if (coreType == (int)TraceLoggingDataType.Utf16String ||
                     coreType == (int)TraceLoggingDataType.MbcsString)
                 {
-                    throw new NotSupportedException(Environment.GetResourceString("EventSource_NotSupportedArrayOfNullTerminatedString"));
+                    throw new NotSupportedException(Resources.GetResourceString("EventSource_NotSupportedArrayOfNullTerminatedString"));
                 }
 #endif
             }
 
             if (((int)this.tags & 0xfffffff) != 0)
             {
-                this.outType |= Statics.OutTypeChainFlag;
+                outType |= Statics.OutTypeChainFlag;
             }
 
-            if (this.outType != 0)
+            if (outType != 0)
             {
-                this.inType |= Statics.InTypeChainFlag;
+                inType |= Statics.InTypeChainFlag;
             }
         }
 
         public void IncrementStructFieldCount()
         {
-            this.inType |= Statics.InTypeChainFlag;
-            this.outType++;
-            if ((this.outType & Statics.OutTypeMask) == 0)
+            inType |= Statics.InTypeChainFlag;
+            outType++;
+            if ((outType & Statics.OutTypeMask) == 0)
             {
-                throw new NotSupportedException(Environment.GetResourceString("EventSource_TooManyFields"));
+                throw new NotSupportedException(Resources.GetResourceString("EventSource_TooManyFields"));
             }
         }
 
@@ -177,52 +178,52 @@ namespace System.Diagnostics.Tracing
             // Write out the null terminated UTF8 encoded name
             if (metadata != null)
             {
-                Encoding.UTF8.GetBytes(this.name, 0, this.name.Length, metadata, pos);
+                Encoding.UTF8.GetBytes(name, 0, name.Length, metadata, pos);
             }
-            pos += this.nameSize;
+            pos += nameSize;
 
             // Write 1 byte for inType
             if (metadata != null)
             {
-                metadata[pos] = this.inType;
+                metadata[pos] = inType;
             }
             pos += 1;
 
             // If InTypeChainFlag set, then write out the outType
-            if (0 != (this.inType & Statics.InTypeChainFlag))
+            if (0 != (inType & Statics.InTypeChainFlag))
             {
                 if (metadata != null)
                 {
-                    metadata[pos] = this.outType;
+                    metadata[pos] = outType;
                 }
                 pos += 1;
 
                 // If OutTypeChainFlag set, then write out tags
-                if (0 != (this.outType & Statics.OutTypeChainFlag))
+                if (0 != (outType & Statics.OutTypeChainFlag))
                 {
-                    Statics.EncodeTags((int)this.tags, ref pos, metadata);
+                    Statics.EncodeTags((int)tags, ref pos, metadata);
                 }
             }
 
             // If InTypeFixedCountFlag set, write out the fixedCount (2 bytes little endian)
-            if (0 != (this.inType & Statics.InTypeFixedCountFlag))
+            if (0 != (inType & Statics.InTypeFixedCountFlag))
             {
                 if (metadata != null)
                 {
-                    metadata[pos + 0] = unchecked((byte)this.fixedCount);
-                    metadata[pos + 1] = (byte)(this.fixedCount >> 8);
+                    metadata[pos + 0] = unchecked((byte)fixedCount);
+                    metadata[pos + 1] = (byte)(fixedCount >> 8);
                 }
                 pos += 2;
 
                 // If InTypeCustomCountFlag set, write out the blob of custom meta-data.  
-                if (Statics.InTypeCustomCountFlag == (this.inType & Statics.InTypeCountMask) &&
-                    this.fixedCount != 0)
+                if (Statics.InTypeCustomCountFlag == (inType & Statics.InTypeCountMask) &&
+                    fixedCount != 0)
                 {
                     if (metadata != null)
                     {
-                        Buffer.BlockCopy(this.custom, 0, metadata, pos, this.fixedCount);
+                        Buffer.BlockCopy(custom, 0, metadata, pos, fixedCount);
                     }
-                    pos += this.fixedCount;
+                    pos += fixedCount;
                 }
             }
         }

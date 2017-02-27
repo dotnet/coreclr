@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //
 
 //
@@ -12,14 +11,10 @@
 #ifndef __VSASSERT_H__
 #define __VSASSERT_H__
 
-#ifndef FEATURE_PAL
-#error "FEATURE_PAL must be defined for this file"
-#else // FEATURE_PAL
-
 #define VSASSERT(e, szMsg)                                      \
 do {                                                            \
     if (!(e)) {                                                 \
-        fprintf (stderr,                                        \
+        PAL_fprintf (stderr,                                        \
                  "ASSERT FAILED:\n"                             \
                  "\tExpression: %s\n"                           \
                  "\tLocation:   line %d in %s\n"                \
@@ -95,5 +90,4 @@ do {                                                            \
 
 #define VsIgnoreAllocs(f)
 
-#endif // FEATURE_PAL
 #endif // __VSASSERT_H__

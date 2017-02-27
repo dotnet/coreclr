@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*=============================================================================
 **
@@ -12,11 +13,12 @@
 **
 =============================================================================*/
 
-namespace System.Reflection {
-    using System;
-    
-[System.Runtime.InteropServices.ComVisible(true)]
-    public class ManifestResourceInfo {
+using System;
+
+namespace System.Reflection
+{
+    public class ManifestResourceInfo
+    {
         private Assembly _containingAssembly;
         private String _containingFileName;
         private ResourceLocation _resourceLocation;
@@ -32,21 +34,24 @@ namespace System.Reflection {
 
         public virtual Assembly ReferencedAssembly
         {
-            get {
+            get
+            {
                 return _containingAssembly;
             }
         }
 
         public virtual String FileName
         {
-            get {
+            get
+            {
                 return _containingFileName;
             }
         }
 
         public virtual ResourceLocation ResourceLocation
         {
-            get {
+            get
+            {
                 return _resourceLocation;
             }
         }
@@ -54,9 +59,8 @@ namespace System.Reflection {
 
     // The ResourceLocation is a combination of these flags, set or not.
     // Linked means not Embedded.
-[Serializable]
+    [Serializable]
     [Flags]
-[System.Runtime.InteropServices.ComVisible(true)]
     public enum ResourceLocation
     {
         Embedded = 0x1,

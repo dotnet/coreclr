@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //
 // ProfilingHelper.h
 // 
@@ -28,7 +27,7 @@
 #define COM_METHOD HRESULT STDMETHODCALLTYPE
 
 #ifdef _DEBUG
-// On DEBUG builds, setting the COMPLUS_ProfAPIFault to a bitmask of the flags
+// On DEBUG builds, setting the COMPlus_ProfAPIFault to a bitmask of the flags
 // below forces the Profiling API to return failures at various points.
 // Useful for event log testing.  Also see code:ProfilingAPIUtility.ShouldInjectProfAPIFault
 enum ProfAPIFaultFlags
@@ -38,9 +37,7 @@ enum ProfAPIFaultFlags
 };
 #endif // _DEBUG
 
-#ifndef FEATURE_PAL
 class SidBuffer;
-#endif // !FEATURE_PAL
 
 //---------------------------------------------------------------------------------------
 // Static-only class to coordinate initialization of the various profiling API
@@ -83,11 +80,9 @@ private:
         kAttachLoad,
     };
 
-#ifndef FEATURE_PAL
     // Allocated lazily the first time it's needed, and then remains allocated until the
     // process exits.
     static SidBuffer * s_pSidBuffer;
-#endif // !FEATURE_PAL
 
     // See code:ProfilingAPIUtility::InitializeProfiling#LoadUnloadCallbackSynchronization
     static CRITSEC_COOKIE s_csStatus;
@@ -107,9 +102,7 @@ private:
     static HRESULT ProfilerCLSIDFromString(__inout_z LPWSTR wszClsid, CLSID * pClsid);
     static HRESULT AttemptLoadProfilerForStartup();
 
-#ifndef FEATURE_PAL
     static void AppendSupplementaryInformation(int iStringResource, SString * pString);
-#endif // !FEATURE_PAL
 
     static void LogProfEventVA(
         int iStringResourceID, 

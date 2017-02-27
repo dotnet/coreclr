@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //
 // File: System.cpp
 //
@@ -24,6 +23,7 @@
 #include "classnames.h"
 #include "system.h"
 #include "string.h"
+#include "sstring.h"
 #include "eeconfig.h"
 #include "assemblynative.hpp"
 #include "generics.h"
@@ -31,9 +31,6 @@
 #include "array.h"
 #include "eepolicy.h"
 
-#if !defined(FEATURE_CORECLR)
-#include "metahost.h"
-#endif // !FEATURE_CORECLR
 
 #ifdef FEATURE_WINDOWSPHONE
 Volatile<BOOL> g_fGetPhoneVersionInitialized;
@@ -44,20 +41,53 @@ typedef BOOL (*pfnGetPhoneVersion)(LPOSVERSIONINFO lpVersionInformation);
 pfnGetPhoneVersion g_pfnGetPhoneVersion = NULL;
 #endif
 
+typedef void(WINAPI *pfnGetSystemTimeAsFileTime)(LPFILETIME lpSystemTimeAsFileTime);
+extern pfnGetSystemTimeAsFileTime g_pfnGetSystemTimeAsFileTime;
+
+void WINAPI InitializeGetSystemTimeAsFileTime(LPFILETIME lpSystemTimeAsFileTime)
+{
+    pfnGetSystemTimeAsFileTime func = NULL;
+
+#ifndef FEATURE_PAL
+    HMODULE hKernel32 = WszLoadLibrary(W("kernel32.dll"));
+    if (hKernel32 != NULL)
+    {
+        func = (pfnGetSystemTimeAsFileTime)GetProcAddress(hKernel32, "GetSystemTimePreciseAsFileTime");
+    }
+    if (func == NULL)
+#endif
+    {
+        func = &::GetSystemTimeAsFileTime;
+    }
+    
+    g_pfnGetSystemTimeAsFileTime = func;
+    func(lpSystemTimeAsFileTime);
+}
+
+pfnGetSystemTimeAsFileTime g_pfnGetSystemTimeAsFileTime = &InitializeGetSystemTimeAsFileTime;
 
 FCIMPL0(INT64, SystemNative::__GetSystemTimeAsFileTime)
 {
     FCALL_CONTRACT;
 
     INT64 timestamp;
-
-    ::GetSystemTimeAsFileTime((FILETIME*)&timestamp);
+    g_pfnGetSystemTimeAsFileTime((FILETIME*)&timestamp);
 
 #if BIGENDIAN
     timestamp = (INT64)(((UINT64)timestamp >> 32) | ((UINT64)timestamp << 32));
 #endif
 
     return timestamp;
+}
+FCIMPLEND;
+
+
+
+FCIMPL0(UINT32, SystemNative::GetCurrentProcessorNumber)
+{
+    FCALL_CONTRACT;
+
+    return ::GetCurrentProcessorNumber();
 }
 FCIMPLEND;
 
@@ -73,20 +103,6 @@ FCIMPLEND;
 
 
 
-#ifndef FEATURE_CORECLR
-INT64 QCALLTYPE SystemNative::GetWorkingSet()
-{
-    QCALL_CONTRACT;
-
-    DWORD memUsage = 0;
-        
-    BEGIN_QCALL;
-    memUsage = WszGetWorkingSet();
-    END_QCALL;
-    
-    return memUsage;
-}
-#endif // !FEATURE_CORECLR
 
 VOID QCALLTYPE SystemNative::Exit(INT32 exitcode)
 {
@@ -218,34 +234,19 @@ FCIMPL1(Object*, SystemNative::_GetEnvironmentVariable, StringObject* strVarUNSA
 
     HELPER_METHOD_FRAME_BEGIN_RET_2(refRetVal, strVar);
 
-    // We loop round getting the length of the env var and then trying to copy
-    // the value into a managed string. Usually we'll go through this loop
-    // precisely once, but the caution is ncessary in case the variable mutates
-    // beneath us.
-    int len, newLen;
+    int len;
 
     // Get the length of the environment variable.
-    WCHAR dummy;    // prefix complains if pass a null ptr in, so rely on the final length parm instead
-    len = WszGetEnvironmentVariable(strVar->GetBuffer(), &dummy, 0);
+    PathString envPath;    // prefix complains if pass a null ptr in, so rely on the final length parm instead
+    len = WszGetEnvironmentVariable(strVar->GetBuffer(), envPath);
 
-    while (len != 0)
+    if (len != 0)
     {
         // Allocate the string.
         refRetVal = StringObject::NewString(len);
-
-        // Get the value.
-        newLen = WszGetEnvironmentVariable(strVar->GetBuffer(), refRetVal->GetBuffer(), len);
-        if (newLen != (len - 1))
-        {
-            // The envvar changed, need to do this again. Let GC collect the
-            // string we just allocated.
-            refRetVal = NULL;
-
-            // Go back and try again.
-            len = newLen;
-        }
-        else
-            break;
+ 
+        wcscpy_s(refRetVal->GetBuffer(), len + 1, envPath);
+        
     }
 
     HELPER_METHOD_FRAME_END();
@@ -288,58 +289,36 @@ FCIMPL0(StringObject*, SystemNative::_GetModuleFileName)
 {
     FCALL_CONTRACT;
 
-    WCHAR wszFile[MAX_PATH];
-    STRINGREF   refRetVal   = NULL;
-    LPCWSTR pFileName = NULL;
-    DWORD lgth = 0;
+    STRINGREF   refRetVal = NULL;
 
+    HELPER_METHOD_FRAME_BEGIN_RET_1(refRetVal);
     if (g_pCachedModuleFileName)
     {
-        pFileName = g_pCachedModuleFileName;
-        lgth = (DWORD)wcslen(pFileName);
+        refRetVal = StringObject::NewString(g_pCachedModuleFileName);
     }
     else
     {
-        HELPER_METHOD_FRAME_BEGIN_RET_1(refRetVal);
-        lgth = WszGetModuleFileName(NULL, wszFile, MAX_PATH);
+        PathString wszFilePathString;
+
+       
+        DWORD lgth = WszGetModuleFileName(NULL, wszFilePathString);
         if (!lgth)
         {
             COMPlusThrowWin32();
         }
-        HELPER_METHOD_FRAME_END();
-        pFileName = wszFile;
-    }
+       
 
-    if(lgth) 
-    {
-        HELPER_METHOD_FRAME_BEGIN_RET_1(refRetVal);       
-        refRetVal = StringObject::NewString(pFileName, lgth);
-        HELPER_METHOD_FRAME_END();
+        refRetVal = StringObject::NewString(wszFilePathString.GetUnicode());
     }
+    HELPER_METHOD_FRAME_END();
+
     return (StringObject*)OBJECTREFToObject(refRetVal);
 }
 FCIMPLEND
 
 FCIMPL0(StringObject*, SystemNative::GetDeveloperPath)
 {
-#ifdef FEATURE_FUSION
-    FCALL_CONTRACT;
-
-    STRINGREF   refDevPath  = NULL;
-    LPWSTR pPath = NULL;
-    DWORD lgth = 0;
-
-    HELPER_METHOD_FRAME_BEGIN_RET_1(refDevPath);
-
-    SystemDomain::System()->GetDevpathW(&pPath, &lgth);
-    if(lgth) 
-        refDevPath = StringObject::NewString(pPath, lgth);
-    
-    HELPER_METHOD_FRAME_END();
-    return (StringObject*)OBJECTREFToObject(refDevPath);
-#else
     return NULL;
-#endif
 }
 FCIMPLEND
 
@@ -347,14 +326,16 @@ FCIMPL0(StringObject*, SystemNative::GetRuntimeDirectory)
 {
     FCALL_CONTRACT;
 
-    wchar_t wszFile[MAX_PATH+1];
     STRINGREF   refRetVal   = NULL;
-    DWORD dwFile = MAX_PATH+1;
+    DWORD dwFile = MAX_LONGPATH+1;
 
     HELPER_METHOD_FRAME_BEGIN_RET_1(refRetVal);
+    SString wszFilePathString;
 
+    WCHAR * wszFile = wszFilePathString.OpenUnicodeBuffer(dwFile);
     HRESULT hr = GetInternalSystemDirectory(wszFile, &dwFile);
-
+    wszFilePathString.CloseBuffer(dwFile);
+    
     if(FAILED(hr))
         COMPlusThrowHR(hr);
 
@@ -385,24 +366,6 @@ FCIMPL0(StringObject*, SystemNative::GetHostBindingFile);
 }
 FCIMPLEND
 
-#ifndef FEATURE_CORECLR
-
-void QCALLTYPE SystemNative::_GetSystemVersion(QCall::StringHandleOnStack retVer)
-{
-    QCALL_CONTRACT;
-    BEGIN_QCALL;
-
-    WCHAR wszVersion[_MAX_PATH];
-    DWORD dwVersion = _MAX_PATH;
-
-    // Get the version
-    IfFailThrow(g_pCLRRuntime->GetVersionString(wszVersion, &dwVersion));
-    retVer.Set(wszVersion);
-
-    END_QCALL;
-}
-
-#endif
 
 INT32 QCALLTYPE SystemNative::GetProcessorCount()
 {
@@ -447,16 +410,7 @@ LPVOID QCALLTYPE SystemNative::GetRuntimeInterfaceImpl(
 
     BEGIN_QCALL;
 
-#ifdef FEATURE_CORECLR
     IfFailThrow(E_NOINTERFACE);
-#else
-    HRESULT hr = g_pCLRRuntime->GetInterface(clsid, riid, &pUnk);
-
-    if (FAILED(hr))
-        hr = g_pCLRRuntime->QueryInterface(riid, &pUnk);
-
-    IfFailThrow(hr);
-#endif
 
     END_QCALL;
 
@@ -568,11 +522,9 @@ void SystemNative::GenericFailFast(STRINGREF refMesgString, EXCEPTIONREF refExce
 #ifndef FEATURE_PAL    
     // If we have the exception object, then try to setup
     // the watson bucket if it has any details.
-#ifdef FEATURE_CORECLR
     // On CoreCLR, Watson may not be enabled. Thus, we should
     // skip this, if required.
     if (IsWatsonEnabled())
-#endif // FEATURE_CORECLR
     {
         BEGIN_SO_INTOLERANT_CODE(pThread);
         if ((gc.refExceptionForWatsonBucketing == NULL) || !SetupWatsonBucketsForFailFast(gc.refExceptionForWatsonBucketing))
@@ -590,12 +542,10 @@ void SystemNative::GenericFailFast(STRINGREF refMesgString, EXCEPTIONREF refExce
     }
 #endif // !FEATURE_PAL
 
-#ifdef FEATURE_WINDOWSPHONE
     // stash the user-provided exception object. this will be used as
     // the inner exception object to the FatalExecutionEngineException.
     if (gc.refExceptionForWatsonBucketing != NULL)
         pThread->SetLastThrownObject(gc.refExceptionForWatsonBucketing);
-#endif // FEATURE_WINDOWSPHONE
 
     EEPolicy::HandleFatalError(exitCode, retAddress, pszMessage);
 
@@ -660,40 +610,12 @@ FCIMPL2(VOID, SystemNative::FailFastWithException, StringObject* refMessageUNSAF
 FCIMPLEND
 
 
-#ifndef FEATURE_CORECLR
-BOOL QCALLTYPE SystemNative::IsCLRHosted()
-{
-    QCALL_CONTRACT;
-
-    BOOL retVal = false;
-    BEGIN_QCALL;
-    retVal = (CLRHosted() & CLRHOSTED) != 0;
-    END_QCALL;
-
-    return retVal;
-}
-
-void QCALLTYPE SystemNative::TriggerCodeContractFailure(ContractFailureKind failureKind, LPCWSTR pMessage, LPCWSTR pCondition, LPCWSTR exceptionAsString)
-{
-    QCALL_CONTRACT;
-
-    BEGIN_QCALL;
-    
-    GCX_COOP();
-
-    EEPolicy::HandleCodeContractFailure(pMessage, pCondition, exceptionAsString);
-    // Note: if the host chose to throw an exception, we've returned from this method and
-    // will throw that exception in managed code, because it's easier to pass the right parameters there.
-
-    END_QCALL;
-}
-#endif // !FEATURE_CORECLR
 
 FCIMPL0(FC_BOOL_RET, SystemNative::IsServerGC)
 {
     FCALL_CONTRACT;
 
-    FC_RETURN_BOOL(GCHeap::IsServerHeap());
+    FC_RETURN_BOOL(GCHeapUtilities::IsServerHeap());
 }
 FCIMPLEND
 
@@ -805,104 +727,7 @@ FCIMPL1(FC_BOOL_RET, SystemNative::GetOSVersionEx, OSVERSIONINFOEXObject *osVer)
 FCIMPLEND
 
 
-#ifndef FEATURE_CORECLR  
-//
-// SystemNative::LegacyFormatMode - Fcall implementation for System.TimeSpan.LegacyFormatMode
-// checks for the DWORD "TimeSpan_LegacyFormatMode" CLR config option
-//
-FCIMPL0(FC_BOOL_RET, SystemNative::LegacyFormatMode)
-{
-    FCALL_CONTRACT;
-
-    DWORD flag = 0;
-
-    BEGIN_SO_INTOLERANT_CODE_NOTHROW(GetThread(), FCThrow(kStackOverflowException));
-    flag = CLRConfig::GetConfigValue(CLRConfig::EXTERNAL_TimeSpan_LegacyFormatMode);
-    END_SO_INTOLERANT_CODE;
-
-    if (flag)
-        FC_RETURN_BOOL(TRUE);
-    else
-        FC_RETURN_BOOL(FALSE);
-}
-FCIMPLEND
-#endif // !FEATURE_CORECLR  
 
 	
-#ifndef FEATURE_CORECLR  
-//
-// SystemNative::CheckLegacyManagedDeflateStream - Fcall implementation for System.IO.Compression.DeflateStream
-// checks for the DWORD "NetFx45_LegacyManagedDeflateStream" CLR config option
-//
-// Move this into a separate CLRConfigQCallWrapper class once CLRConfig has been refactored!
-//
-FCIMPL0(FC_BOOL_RET, SystemNative::CheckLegacyManagedDeflateStream)
-{
-    FCALL_CONTRACT;
 
-    DWORD flag = 0;
-
-    BEGIN_SO_INTOLERANT_CODE_NOTHROW(GetThread(), FCThrow(kStackOverflowException));
-    flag = CLRConfig::GetConfigValue(CLRConfig::EXTERNAL_NetFx45_LegacyManagedDeflateStream);
-    END_SO_INTOLERANT_CODE;
-
-    if (flag)
-        FC_RETURN_BOOL(TRUE);
-    else
-        FC_RETURN_BOOL(FALSE);
-}
-FCIMPLEND
-#endif // !FEATURE_CORECLR  
-
-#ifndef FEATURE_CORECLR  
-//
-// SystemNative::CheckThrowUnobservedTaskExceptions - Fcall implementation for System.Threading.Tasks.TaskExceptionHolder
-// checks for the DWORD "ThrowUnobservedTaskExceptions" CLR config option
-//
-FCIMPL0(FC_BOOL_RET, SystemNative::CheckThrowUnobservedTaskExceptions)
-{
-    FCALL_CONTRACT;
-
-    DWORD flag = 0;
-
-    BEGIN_SO_INTOLERANT_CODE_NOTHROW(GetThread(), FCThrow(kStackOverflowException));
-    flag = CLRConfig::GetConfigValue(CLRConfig::EXTERNAL_ThrowUnobservedTaskExceptions);
-    END_SO_INTOLERANT_CODE;
-
-    if (flag)
-        FC_RETURN_BOOL(TRUE);
-    else
-        FC_RETURN_BOOL(FALSE);
-}
-FCIMPLEND
-
-BOOL QCALLTYPE SystemNative::LegacyDateTimeParseMode()
-{
-    QCALL_CONTRACT;
-
-    BOOL retVal = false;
-    BEGIN_QCALL;
-    retVal = (BOOL) CLRConfig::GetConfigValue(CLRConfig::EXTERNAL_DateTime_NetFX35ParseMode);
-    END_QCALL;
-
-    return retVal;
-}
-
-//
-// This method used with DateTimeParse to fix the parsing of AM/PM like "1/10 5 AM" case
-//
-BOOL QCALLTYPE SystemNative::EnableAmPmParseAdjustment()
-{
-    QCALL_CONTRACT;
-
-    BOOL retVal = false;
-    BEGIN_QCALL;
-    retVal = (BOOL) CLRConfig::GetConfigValue(CLRConfig::EXTERNAL_DateTime_NetFX40AmPmParseAdjustment);
-    END_QCALL;
-
-    return retVal;
-}
-
-
-#endif // !FEATURE_CORECLR  
 

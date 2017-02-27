@@ -1,8 +1,6 @@
 
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
-add_definitions(-DNO_CRT)
-
 set(PALRT_SOURCES
     bstr.cpp
     coguid.cpp
@@ -13,12 +11,16 @@ set(PALRT_SOURCES
     memorystream.cpp
     path.cpp
     urlpars.cpp
+    unicode.cpp
     variant.cpp
 )
 
 add_compile_options(-fPIC)
 
-add_library(palrt
+add_library_clr(palrt
     STATIC
     ${PALRT_SOURCES}
 )
+
+# Install the static PAL library for VS
+_install (TARGETS palrt DESTINATION lib)

@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information. 
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 .intel_syntax noprefix
 #include "unixasmmacros.inc"
@@ -46,7 +45,7 @@ LEAF_ENTRY JIT_WriteBarrier_Debug, _TEXT
         mov     rax, [r10]
         cmp     rax, r11
         je      DoneShadow
-        mov     r11, INVALIDGCVALUE
+        movabs  r11, INVALIDGCVALUE
         mov     [r10], r11
 
         jmp     DoneShadow
@@ -69,6 +68,21 @@ LEAF_ENTRY JIT_WriteBarrier_Debug, _TEXT
     DoneShadow:
 #endif
 
+#ifdef FEATURE_USE_SOFTWARE_WRITE_WATCH_FOR_GC_HEAP
+        // Update the write watch table if necessary
+        PREPARE_EXTERNAL_VAR g_sw_ww_enabled_for_gc_heap, r10
+        cmp     byte ptr [r10], 0h
+        je      CheckCardTable_Debug
+        mov     r10, rdi
+        shr     r10, 0Ch // SoftwareWriteWatch::AddressToTableByteIndexShift
+        PREPARE_EXTERNAL_VAR g_sw_ww_table, r11
+        add     r10, qword ptr [r11]
+        cmp     byte ptr [r10], 0h
+        jne     CheckCardTable_Debug
+        mov     byte ptr [r10], 0FFh
+#endif
+
+    CheckCardTable_Debug:
         // See if we can just quick out
         PREPARE_EXTERNAL_VAR g_ephemeral_low, r10
         cmp     rax, [r10]
@@ -79,7 +93,7 @@ LEAF_ENTRY JIT_WriteBarrier_Debug, _TEXT
 
         // Check if we need to update the card table
         // Calc pCardByte
-        shr     rdi, 0Bh
+        shr     rdi, 0x0B
         PREPARE_EXTERNAL_VAR g_card_table, r10
         add     rdi, [r10]
 
@@ -97,4 +111,3 @@ LEAF_ENTRY JIT_WriteBarrier_Debug, _TEXT
         REPRET
 LEAF_END_MARKED JIT_WriteBarrier_Debug, _TEXT
 #endif
-

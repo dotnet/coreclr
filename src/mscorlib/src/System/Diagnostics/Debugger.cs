@@ -1,22 +1,21 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 // The Debugger class is a part of the System.Diagnostics package
 // and is used for communicating with a debugger.
 
+using System;
+using System.IO;
+using System.Collections;
+using System.Reflection;
+using System.Runtime.CompilerServices;
+using System.Security;
+using System.Runtime.Versioning;
+
 namespace System.Diagnostics
 {
-    using System;
-    using System.IO;
-    using System.Collections;
-    using System.Reflection;
-    using System.Runtime.CompilerServices;
-    using System.Security;
-    using System.Security.Permissions;
-    using System.Runtime.Versioning;
-
     // No data, does not need to be marked with the serializable attribute
-    [System.Runtime.InteropServices.ComVisible(true)]
     public sealed class Debugger
     {
         // This should have been a static class, but wasn't as of v3.5.  Clearly, this is
@@ -31,80 +30,27 @@ namespace System.Diagnostics
         // Break causes a breakpoint to be signalled to an attached debugger.  If no debugger
         // is attached, the user is asked if he wants to attach a debugger. If yes, then the 
         // debugger is launched.
-        [System.Security.SecuritySafeCritical]  // auto-generated
         public static void Break()
         {
-            if (!Debugger.IsAttached)
-            {
-                // Try and demand UnmanagedCodePermission.  This is done in a try block because if this
-                // fails we want to be able to silently eat the exception and just return so
-                // that the call to Break does not possibly cause an unhandled exception.
-                // The idea here is that partially trusted code shouldn't be able to launch a debugger 
-                // without the user going through Watson.
-                try
-                {
-#pragma warning disable 618
-                    new SecurityPermission(SecurityPermissionFlag.UnmanagedCode).Demand();
-#pragma warning restore 618
-                }
-
-                // If we enter this block, we do not have permission to break into the debugger
-                // and so we just return.
-                catch (SecurityException)
-                {
-                    return;
-                }
-            }
-
             // Causing a break is now allowed.
             BreakInternal();
         }
 
-        [System.Security.SecuritySafeCritical]  // auto-generated
-        static void BreakCanThrow()
+        private static void BreakCanThrow()
         {
-            if (!Debugger.IsAttached)
-            {
-#pragma warning disable 618
-                new SecurityPermission(SecurityPermissionFlag.UnmanagedCode).Demand();
-#pragma warning restore 618
-            }
-
-            // Causing a break is now allowed.
             BreakInternal();
         }
 
-        [System.Security.SecurityCritical]  // auto-generated
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         private static extern void BreakInternal();
 
         // Launch launches & attaches a debugger to the process. If a debugger is already attached,
         // nothing happens.  
         //
-        [System.Security.SecuritySafeCritical]  // auto-generated
         public static bool Launch()
         {
             if (Debugger.IsAttached)
                 return (true);
-
-            // Try and demand UnmanagedCodePermission.  This is done in a try block because if this
-            // fails we want to be able to silently eat the exception and just return so
-            // that the call to Break does not possibly cause an unhandled exception.
-            // The idea here is that partially trusted code shouldn't be able to launch a debugger 
-            // without the user going through Watson.
-            try
-            {
-#pragma warning disable 618
-                new SecurityPermission(SecurityPermissionFlag.UnmanagedCode).Demand();
-#pragma warning restore 618
-            }
-
-            // If we enter this block, we do not have permission to break into the debugger
-            // and so we just return.
-            catch (SecurityException)
-            {
-                return (false);
-            }
 
             // Causing the debugger to launch is now allowed.
             return (LaunchInternal());
@@ -137,7 +83,6 @@ namespace System.Diagnostics
         // notification will apprise the debugger that it will need  to slip a thread or abort the funceval 
         // in such a situation. The notification is subject to collection after this function returns. 
         // 
-        [method:System.Runtime.InteropServices.ComVisible(false)]
         public static void NotifyOfCrossThreadDependency()
         {
             if (Debugger.IsAttached)
@@ -146,7 +91,6 @@ namespace System.Diagnostics
             }
         }
 
-        [System.Security.SecurityCritical]  // auto-generated
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         private static extern bool LaunchInternal();
 
@@ -154,7 +98,6 @@ namespace System.Diagnostics
         //
         public static extern bool IsAttached
         {
-            [System.Security.SecuritySafeCritical]  // auto-generated
             [MethodImplAttribute(MethodImplOptions.InternalCall)]
             get;
         }
@@ -172,23 +115,18 @@ namespace System.Diagnostics
         // Posts a message for the attached debugger.  If there is no
         // debugger attached, has no effect.  The debugger may or may not
         // report the message depending on its settings. 
-        [System.Security.SecuritySafeCritical]  // auto-generated
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         public static extern void Log(int level, String category, String message);
 
         // Checks to see if an attached debugger has logging enabled
         //  
-        [System.Security.SecuritySafeCritical]  // auto-generated
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         public static extern bool IsLogging();
 
         // Posts a custom notification for the attached debugger.  If there is no
         // debugger attached, has no effect.  The debugger may or may not
         // report the notification depending on its settings. 
-        [System.Security.SecuritySafeCritical]  // auto-generated
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         private static extern void CustomNotification(ICustomDebuggerNotification data);
-
     }
-
 }

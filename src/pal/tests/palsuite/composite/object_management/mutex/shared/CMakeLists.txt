@@ -3,19 +3,17 @@ cmake_minimum_required(VERSION 2.8.12.2)
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
 set(SOURCES
-  main.c
-  mutex.c
+  main.cpp
+  mutex.cpp
 )
 
 add_executable(paltest_mutex_shared
   ${SOURCES}
 )
 
-add_dependencies(paltest_mutex_shared CoreClrPal)
+add_dependencies(paltest_mutex_shared coreclrpal)
 
 target_link_libraries(paltest_mutex_shared
-  pthread
+  ${COMMON_TEST_LIBRARIES}
   rt
-  m
-  CoreClrPal
 )

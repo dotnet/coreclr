@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*============================================================
 **
@@ -65,24 +66,22 @@
 // assignments in a static class constructor are under a lock implicitly.
 
 
-namespace System.Runtime.InteropServices
-{
 using System;
-using System.Security.Permissions;
 using System.Runtime.InteropServices;
 using System.Runtime.CompilerServices;
 using System.Runtime.ConstrainedExecution;
 using System.Runtime.Versioning;
 using Microsoft.Win32.SafeHandles;
+using System.Diagnostics;
 using System.Diagnostics.Contracts;
 
-
-    [System.Security.SecurityCritical]
+namespace System.Runtime.InteropServices
+{
     public abstract unsafe class SafeBuffer : SafeHandleZeroOrMinusOneIsInvalid
     {
         // Steal UIntPtr.MaxValue as our uninitialized value.
-        private static readonly UIntPtr Uninitialized = (UIntPtr.Size == 4) ? 
-            ((UIntPtr) UInt32.MaxValue) : ((UIntPtr) UInt64.MaxValue);
+        private static readonly UIntPtr Uninitialized = (UIntPtr.Size == 4) ?
+            ((UIntPtr)UInt32.MaxValue) : ((UIntPtr)UInt64.MaxValue);
 
         private UIntPtr _numBytes;
 
@@ -100,15 +99,15 @@ using System.Diagnostics.Contracts;
         public void Initialize(ulong numBytes)
         {
             if (numBytes < 0)
-                throw new ArgumentOutOfRangeException("numBytes", Environment.GetResourceString("ArgumentOutOfRange_NeedNonNegNum"));
+                throw new ArgumentOutOfRangeException(nameof(numBytes), Environment.GetResourceString("ArgumentOutOfRange_NeedNonNegNum"));
             if (IntPtr.Size == 4 && numBytes > UInt32.MaxValue)
-                throw new ArgumentOutOfRangeException("numBytes", Environment.GetResourceString("ArgumentOutOfRange_AddressSpace"));
+                throw new ArgumentOutOfRangeException(nameof(numBytes), Environment.GetResourceString("ArgumentOutOfRange_AddressSpace"));
             Contract.EndContractBlock();
 
             if (numBytes >= (ulong)Uninitialized)
-                throw new ArgumentOutOfRangeException("numBytes", Environment.GetResourceString("ArgumentOutOfRange_UIntPtrMax-1"));
+                throw new ArgumentOutOfRangeException(nameof(numBytes), Environment.GetResourceString("ArgumentOutOfRange_UIntPtrMax-1"));
 
-            _numBytes = (UIntPtr) numBytes;
+            _numBytes = (UIntPtr)numBytes;
         }
 
         /// <summary>
@@ -119,18 +118,18 @@ using System.Diagnostics.Contracts;
         public void Initialize(uint numElements, uint sizeOfEachElement)
         {
             if (numElements < 0)
-                throw new ArgumentOutOfRangeException("numElements", Environment.GetResourceString("ArgumentOutOfRange_NeedNonNegNum"));
+                throw new ArgumentOutOfRangeException(nameof(numElements), Environment.GetResourceString("ArgumentOutOfRange_NeedNonNegNum"));
             if (sizeOfEachElement < 0)
-                throw new ArgumentOutOfRangeException("sizeOfEachElement", Environment.GetResourceString("ArgumentOutOfRange_NeedNonNegNum"));
+                throw new ArgumentOutOfRangeException(nameof(sizeOfEachElement), Environment.GetResourceString("ArgumentOutOfRange_NeedNonNegNum"));
 
             if (IntPtr.Size == 4 && numElements * sizeOfEachElement > UInt32.MaxValue)
                 throw new ArgumentOutOfRangeException("numBytes", Environment.GetResourceString("ArgumentOutOfRange_AddressSpace"));
             Contract.EndContractBlock();
 
             if (numElements * sizeOfEachElement >= (ulong)Uninitialized)
-                throw new ArgumentOutOfRangeException("numElements", Environment.GetResourceString("ArgumentOutOfRange_UIntPtrMax-1"));
+                throw new ArgumentOutOfRangeException(nameof(numElements), Environment.GetResourceString("ArgumentOutOfRange_UIntPtrMax-1"));
 
-            _numBytes = checked((UIntPtr) (numElements * sizeOfEachElement));
+            _numBytes = checked((UIntPtr)(numElements * sizeOfEachElement));
         }
 
         /// <summary>
@@ -174,7 +173,6 @@ using System.Diagnostics.Contracts;
         /// the pointer from within the SafeBuffer.  You must set
         /// pointer to null before calling this method.</param>
         [CLSCompliant(false)]
-        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]
         public void AcquirePointer(ref byte* pointer)
         {
             if (_numBytes == Uninitialized)
@@ -193,7 +191,6 @@ using System.Diagnostics.Contracts;
             }
         }
 
-        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
         public void ReleasePointer()
         {
             if (_numBytes == Uninitialized)
@@ -211,8 +208,8 @@ using System.Diagnostics.Contracts;
         /// may have to consider alignment.</param>
         /// <returns>An instance of T read from memory.</returns>
         [CLSCompliant(false)]
-        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]
-        public T Read<T>(ulong byteOffset) where T : struct {
+        public T Read<T>(ulong byteOffset) where T : struct
+        {
             if (_numBytes == Uninitialized)
                 throw NotInitialized();
 
@@ -239,16 +236,15 @@ using System.Diagnostics.Contracts;
         }
 
         [CLSCompliant(false)]
-        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]
         public void ReadArray<T>(ulong byteOffset, T[] array, int index, int count)
             where T : struct
         {
             if (array == null)
-                throw new ArgumentNullException("array", Environment.GetResourceString("ArgumentNull_Buffer"));
+                throw new ArgumentNullException(nameof(array), Environment.GetResourceString("ArgumentNull_Buffer"));
             if (index < 0)
-                throw new ArgumentOutOfRangeException("index", Environment.GetResourceString("ArgumentOutOfRange_NeedNonNegNum"));
+                throw new ArgumentOutOfRangeException(nameof(index), Environment.GetResourceString("ArgumentOutOfRange_NeedNonNegNum"));
             if (count < 0)
-                throw new ArgumentOutOfRangeException("count", Environment.GetResourceString("ArgumentOutOfRange_NeedNonNegNum"));
+                throw new ArgumentOutOfRangeException(nameof(count), Environment.GetResourceString("ArgumentOutOfRange_NeedNonNegNum"));
             if (array.Length - index < count)
                 throw new ArgumentException(Environment.GetResourceString("Argument_InvalidOffLen"));
             Contract.EndContractBlock();
@@ -286,8 +282,8 @@ using System.Diagnostics.Contracts;
         /// may have to consider alignment.</param>
         /// <param name="value">The value type to write to memory.</param>
         [CLSCompliant(false)]
-        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]
-        public void Write<T>(ulong byteOffset, T value) where T : struct {
+        public void Write<T>(ulong byteOffset, T value) where T : struct
+        {
             if (_numBytes == Uninitialized)
                 throw NotInitialized();
 
@@ -311,16 +307,15 @@ using System.Diagnostics.Contracts;
         }
 
         [CLSCompliant(false)]
-        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]
         public void WriteArray<T>(ulong byteOffset, T[] array, int index, int count)
             where T : struct
         {
             if (array == null)
-                throw new ArgumentNullException("array", Environment.GetResourceString("ArgumentNull_Buffer"));
+                throw new ArgumentNullException(nameof(array), Environment.GetResourceString("ArgumentNull_Buffer"));
             if (index < 0)
-                throw new ArgumentOutOfRangeException("index", Environment.GetResourceString("ArgumentOutOfRange_NeedNonNegNum"));
+                throw new ArgumentOutOfRangeException(nameof(index), Environment.GetResourceString("ArgumentOutOfRange_NeedNonNegNum"));
             if (count < 0)
-                throw new ArgumentOutOfRangeException("count", Environment.GetResourceString("ArgumentOutOfRange_NeedNonNegNum"));
+                throw new ArgumentOutOfRangeException(nameof(count), Environment.GetResourceString("ArgumentOutOfRange_NeedNonNegNum"));
             if (array.Length - index < count)
                 throw new ArgumentException(Environment.GetResourceString("Argument_InvalidOffLen"));
             Contract.EndContractBlock();
@@ -332,7 +327,7 @@ using System.Diagnostics.Contracts;
             uint alignedSizeofT = Marshal.AlignedSizeOf<T>();
             byte* ptr = (byte*)handle + byteOffset;
             SpaceCheck(ptr, checked((ulong)(alignedSizeofT * count)));
-            
+
             bool mustCallRelease = false;
             RuntimeHelpers.PrepareConstrainedRegions();
             try
@@ -353,44 +348,41 @@ using System.Diagnostics.Contracts;
         /// Returns the number of bytes in the memory region.
         /// </summary>
         [CLSCompliant(false)]
-        public ulong ByteLength {
-            [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
-            get {
+        public ulong ByteLength
+        {
+            get
+            {
                 if (_numBytes == Uninitialized)
                     throw NotInitialized();
 
-                return (ulong) _numBytes; 
+                return (ulong)_numBytes;
             }
         }
 
         /* No indexer.  The perf would be misleadingly bad.  People should use 
          * AcquirePointer and ReleasePointer instead.  */
-        
-        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
+
         private void SpaceCheck(byte* ptr, ulong sizeInBytes)
         {
             if ((ulong)_numBytes < sizeInBytes)
                 NotEnoughRoom();
-            if ((ulong)(ptr - (byte*) handle) > ((ulong)_numBytes) - sizeInBytes)
+            if ((ulong)(ptr - (byte*)handle) > ((ulong)_numBytes) - sizeInBytes)
                 NotEnoughRoom();
         }
 
-        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
         private static void NotEnoughRoom()
         {
             throw new ArgumentException(Environment.GetResourceString("Arg_BufferTooSmall"));
         }
 
-        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
         private static InvalidOperationException NotInitialized()
         {
-            Contract.Assert(false, "Uninitialized SafeBuffer!  Someone needs to call Initialize before using this instance!");
+            Debug.Assert(false, "Uninitialized SafeBuffer!  Someone needs to call Initialize before using this instance!");
             return new InvalidOperationException(Environment.GetResourceString("InvalidOperation_MustCallInitialize"));
         }
 
         // FCALL limitations mean we can't have generic FCALL methods.  However, we can pass 
         // TypedReferences to FCALL methods.
-        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
         internal static void GenericPtrToStructure<T>(byte* ptr, out T structure, uint sizeofT) where T : struct
         {
             structure = default(T);  // Dummy assignment to silence the compiler
@@ -398,17 +390,14 @@ using System.Diagnostics.Contracts;
         }
 
         [MethodImpl(MethodImplOptions.InternalCall)]
-        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
         private static extern void PtrToStructureNative(byte* ptr, /*out T*/ TypedReference structure, uint sizeofT);
 
-        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
         internal static void GenericStructureToPtr<T>(ref T structure, byte* ptr, uint sizeofT) where T : struct
         {
             StructureToPtrNative(__makeref(structure), ptr, sizeofT);
         }
 
         [MethodImpl(MethodImplOptions.InternalCall)]
-        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
         private static extern void StructureToPtrNative(/*ref T*/ TypedReference structure, byte* ptr, uint sizeofT);
     }
 }

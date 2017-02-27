@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 // 
 
 // 
@@ -76,66 +75,7 @@ OBJECTREF PsetCacheEntry::CreateManagedPsetObject(DWORD dwAction, bool createEmp
         MODE_COOPERATIVE;
     } CONTRACTL_END;
 
-    OBJECTREF orRet;
-
-    orRet = GetManagedPsetObject();
-    if (orRet != NULL) {
-        return orRet;
-    }
-
-    if (!createEmptySet && m_fEmptyPermissionSet) {
-        return NULL;
-    }
-
-    struct _gc {
-        OBJECTREF pset;
-        OBJECTREF encoding;
-        OBJECTREF nonCasPset;
-        OBJECTREF orNonCasPset;
-        OBJECTREF orNonCasEncoding;
-    } gc;
-    memset(&gc, 0, sizeof(gc));
-
-    GCPROTECT_BEGIN(gc);
-
-    if ( (m_pKey->m_cbPset > 0) && (m_pKey->m_pbPset[0] == LAZY_DECL_SEC_FLAG) ) {
-
-        SecurityAttributes::AttrSetBlobToPermissionSets(m_pKey->m_pbPset, 
-                                                        m_pKey->m_cbPset, 
-                                                        &gc.pset, 
-                                                        dwAction);
-        
-    } else {
-
-#ifdef FEATURE_CAS_POLICY
-        SecurityAttributes::XmlToPermissionSet(m_pKey->m_pbPset,
-                                               m_pKey->m_cbPset,  
-                                               &gc.pset, 
-                                               &gc.encoding, 
-                                               NULL, 
-                                               0, 
-                                               &gc.orNonCasPset, 
-                                               &gc.orNonCasEncoding);
-#else
-        // The v1.x serialized permission set format is not supported on CoreCLR
-        COMPlusThrowHR(CORSECATTR_E_BAD_ATTRIBUTE);
-#endif //FEATURE_CAS_POLICY
-    }
-
-    StoreFirstObjectInHandle(m_handle, gc.pset);
-
-    if (gc.pset == NULL)
-        m_fEmptyPermissionSet = true;
-
-    GCPROTECT_END();
-    
-    //
-    // Some other thread may have won the race, and stored away a different
-    // object in the handle.
-    //
-
-    orRet = GetManagedPsetObject();
-    return orRet;
+    return NULL;
 }
 #endif // CROSSGEN_COMPILE
 

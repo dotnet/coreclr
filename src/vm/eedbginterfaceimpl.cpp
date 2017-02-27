@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 
 /*
@@ -484,6 +483,7 @@ MethodDesc *EEDbgInterfaceImpl::GetNativeCodeMethodDesc(const PCODE address)
     RETURN ExecutionManager::GetCodeMethodDesc(address);
 }
 
+#ifndef USE_GC_INFO_DECODER
 // IsInPrologOrEpilog doesn't seem to be used for code that uses GC_INFO_DECODER
 BOOL EEDbgInterfaceImpl::IsInPrologOrEpilog(const BYTE *address,
                                             size_t* prologSize)
@@ -502,9 +502,9 @@ BOOL EEDbgInterfaceImpl::IsInPrologOrEpilog(const BYTE *address,
 
     if (codeInfo.IsValid())
     {
-        LPVOID methodInfo = codeInfo.GetGCInfo();
+        GCInfoToken gcInfoToken = codeInfo.GetGCInfoToken();
 
-        if (codeInfo.GetCodeManager()->IsInPrologOrEpilog(codeInfo.GetRelOffset(), methodInfo, prologSize))
+        if (codeInfo.GetCodeManager()->IsInPrologOrEpilog(codeInfo.GetRelOffset(), gcInfoToken, prologSize))
         {
             return TRUE;
         }
@@ -512,6 +512,7 @@ BOOL EEDbgInterfaceImpl::IsInPrologOrEpilog(const BYTE *address,
 
     return FALSE;
 }
+#endif // USE_GC_INFO_DECODER
 
 // 
 // Given a collection of native offsets of a certain function, determine if each falls
@@ -666,10 +667,8 @@ size_t EEDbgInterfaceImpl::GetFunctionSize(MethodDesc *pFD)
         return 0;
 
     EECodeInfo codeInfo(methodStart);
-
-    PTR_VOID methodInfo = codeInfo.GetGCInfo();
-
-    return codeInfo.GetCodeManager()->GetFunctionSize(methodInfo);
+    GCInfoToken gcInfoToken = codeInfo.GetGCInfoToken();
+    return codeInfo.GetCodeManager()->GetFunctionSize(gcInfoToken);
 }
 #endif //!DACCESS_COMPILE
 
@@ -1658,8 +1657,6 @@ BOOL EEDbgInterfaceImpl::ObjIsInstanceOf(Object *pElement, TypeHandle toTypeHnd)
 void EEDbgInterfaceImpl::ClearAllDebugInterfaceReferences()
 {
     LIMITED_METHOD_CONTRACT;
-
-    g_pDebugInterface = NULL;
 }
 
 #ifndef DACCESS_COMPILE

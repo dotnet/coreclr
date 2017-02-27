@@ -1,11 +1,14 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 //
+
 using System;
 using System.Security;
 using System.Threading;
 using System.Globalization;
+using System.Diagnostics;
 using System.Diagnostics.Contracts;
 
 namespace System.Text
@@ -13,7 +16,7 @@ namespace System.Text
     [Serializable]
     public abstract class DecoderFallback
     {
-        internal bool                  bIsMicrosoftBestFitFallback = false;
+        internal bool bIsMicrosoftBestFitFallback = false;
 
         private static volatile DecoderFallback replacementFallback; // Default fallback, uses no best fit & "?"
         private static volatile DecoderFallback exceptionFallback;
@@ -40,7 +43,7 @@ namespace System.Text
             get
             {
                 if (replacementFallback == null)
-                    lock(InternalSyncObject)
+                    lock (InternalSyncObject)
                         if (replacementFallback == null)
                             replacementFallback = new DecoderReplacementFallback();
 
@@ -54,7 +57,7 @@ namespace System.Text
             get
             {
                 if (exceptionFallback == null)
-                    lock(InternalSyncObject)
+                    lock (InternalSyncObject)
                         if (exceptionFallback == null)
                             exceptionFallback = new DecoderExceptionFallback();
 
@@ -73,14 +76,6 @@ namespace System.Text
         // Maximum number of characters that this instance of this fallback could return
 
         public abstract int MaxCharCount { get; }
-
-        internal bool IsMicrosoftBestFitFallback
-        {
-            get
-            {
-                return bIsMicrosoftBestFitFallback;
-            }
-        }
     }
 
 
@@ -109,18 +104,15 @@ namespace System.Text
 
         public virtual void Reset()
         {
-            while (GetNextChar() != (char)0);
+            while (GetNextChar() != (char)0) ;
         }
 
         // Internal items to help us figure out what we're doing as far as error messages, etc.
         // These help us with our performance and messages internally
-        [SecurityCritical]
-        internal     unsafe byte*    byteStart;
-        [SecurityCritical]
-        internal     unsafe char*    charEnd;
+        internal unsafe byte* byteStart;
+        internal unsafe char* charEnd;
 
         // Internal Reset
-        [System.Security.SecurityCritical]  // auto-generated
         internal unsafe void InternalReset()
         {
             byteStart = null;
@@ -129,7 +121,6 @@ namespace System.Text
 
         // Set the above values
         // This can't be part of the constructor because DecoderFallbacks would have to know how to impliment these.
-        [System.Security.SecurityCritical]  // auto-generated
         internal unsafe void InternalInitialize(byte* byteStart, char* charEnd)
         {
             this.byteStart = byteStart;
@@ -144,15 +135,14 @@ namespace System.Text
         // Right now this has both bytes and bytes[], since we might have extra bytes, hence the
         // array, and we might need the index, hence the byte*
         // Don't touch ref chars unless we succeed
-        [System.Security.SecurityCritical]  // auto-generated
         internal unsafe virtual bool InternalFallback(byte[] bytes, byte* pBytes, ref char* chars)
         {
             // Copy bytes to array (slow, but right now that's what we get to do.
-          //  byte[] bytesUnknown = new byte[count];
-//            for (int i = 0; i < count; i++)
-//                bytesUnknown[i] = *(bytes++);
+            //  byte[] bytesUnknown = new byte[count];
+            //            for (int i = 0; i < count; i++)
+            //                bytesUnknown[i] = *(bytes++);
 
-            Contract.Assert(byteStart != null, "[DecoderFallback.InternalFallback]Used InternalFallback without calling InternalInitialize");
+            Debug.Assert(byteStart != null, "[DecoderFallback.InternalFallback]Used InternalFallback without calling InternalInitialize");
 
             // See if there's a fallback character and we have an output buffer then copy our string.
             if (this.Fallback(bytes, (int)(pBytes - byteStart - bytes.Length)))
@@ -203,17 +193,16 @@ namespace System.Text
         }
 
         // This version just counts the fallback and doesn't actually copy anything.
-        [System.Security.SecurityCritical]  // auto-generated
         internal unsafe virtual int InternalFallback(byte[] bytes, byte* pBytes)
         // Right now this has both bytes and bytes[], since we might have extra bytes, hence the
         // array, and we might need the index, hence the byte*
         {
             // Copy bytes to array (slow, but right now that's what we get to do.
-//            byte[] bytesUnknown = new byte[count];
-//            for (int i = 0; i < count; i++)
-  //              bytesUnknown[i] = *(bytes++);
+            //            byte[] bytesUnknown = new byte[count];
+            //            for (int i = 0; i < count; i++)
+            //              bytesUnknown[i] = *(bytes++);
 
-            Contract.Assert(byteStart != null, "[DecoderFallback.InternalFallback]Used InternalFallback without calling InternalInitialize");
+            Debug.Assert(byteStart != null, "[DecoderFallback.InternalFallback]Used InternalFallback without calling InternalInitialize");
 
             // See if there's a fallback character and we have an output buffer then copy our string.
             if (this.Fallback(bytes, (int)(pBytes - byteStart - bytes.Length)))
@@ -276,8 +265,7 @@ namespace System.Text
             // Throw it, using our complete bytes
             throw new ArgumentException(
                 Environment.GetResourceString("Argument_RecursiveFallbackBytes",
-                    strBytes.ToString()), "bytesUnknown");
+                    strBytes.ToString()), nameof(bytesUnknown));
         }
-
     }
 }

@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 // 
 // Events that go both ways
@@ -91,9 +90,7 @@ IPC_EVENT_TYPE1(DB_IPCE_LEFTSIDE_STARTUP             ,0x015C)
 IPC_EVENT_TYPE1(DB_IPCE_METADATA_UPDATE              ,0x015D)
 IPC_EVENT_TYPE1(DB_IPCE_RESOLVE_UPDATE_METADATA_1_RESULT,0x015E)
 IPC_EVENT_TYPE1(DB_IPCE_RESOLVE_UPDATE_METADATA_2_RESULT,0x015F)
-IPC_EVENT_TYPE1(DB_IPCE_NETCF_HOST_CONTROL_PAUSE_RESULT,0x0160)
-IPC_EVENT_TYPE1(DB_IPCE_NETCF_HOST_CONTROL_RESUME_RESULT,0x0161)
-IPC_EVENT_TYPE0(DB_IPCE_RUNTIME_LAST                 ,0x0162)   // The last event from runtime
+IPC_EVENT_TYPE0(DB_IPCE_RUNTIME_LAST                 ,0x0160)   // The last event from runtime
 
 
 
@@ -142,7 +139,5 @@ IPC_EVENT_TYPE2(DB_IPCE_DEBUGGER_INVALID             ,0x0249)   // An invalid ev
 IPC_EVENT_TYPE2(DB_IPCE_GET_GCHANDLE_INFO            ,0x0251)
 IPC_EVENT_TYPE2(DB_IPCE_RESOLVE_UPDATE_METADATA_1    ,0x0256)
 IPC_EVENT_TYPE2(DB_IPCE_RESOLVE_UPDATE_METADATA_2    ,0x0257)
-IPC_EVENT_TYPE2(DB_IPCE_NETCF_HOST_CONTROL_PAUSE     ,0x0258)
-IPC_EVENT_TYPE2(DB_IPCE_NETCF_HOST_CONTROL_RESUME    ,0x0259)
-IPC_EVENT_TYPE0(DB_IPCE_DEBUGGER_LAST                ,0x025a)   // The last event from the debugger
+IPC_EVENT_TYPE0(DB_IPCE_DEBUGGER_LAST                ,0x0258)   // The last event from the debugger
 

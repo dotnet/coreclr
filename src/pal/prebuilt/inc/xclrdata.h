@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information. 
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 
 
@@ -1018,7 +1017,7 @@ EXTERN_C const IID IID_IXCLRDataDisplay;
     IXCLRDataDisplay : public IUnknown
     {
     public:
-        virtual HRESULT STDMETHODCALLTYPE ErrorPrintF( 
+        virtual HRESULT STDMETHODVCALLTYPE ErrorPrintF(
             const char *const fmt,
             ...) = 0;
         
@@ -1064,11 +1063,11 @@ EXTERN_C const IID IID_IXCLRDataDisplay;
         
         virtual HRESULT STDMETHODCALLTYPE EndTextElement( void) = 0;
         
-        virtual HRESULT STDMETHODCALLTYPE WriteXmlText( 
+        virtual HRESULT STDMETHODVCALLTYPE WriteXmlText(
             const char *const fmt,
             ...) = 0;
         
-        virtual HRESULT STDMETHODCALLTYPE WriteXmlTextBlock( 
+        virtual HRESULT STDMETHODVCALLTYPE WriteXmlTextBlock(
             const char *const fmt,
             ...) = 0;
         
@@ -1259,7 +1258,7 @@ EXTERN_C const IID IID_IXCLRDataDisplay;
         ULONG ( STDMETHODCALLTYPE *Release )( 
             IXCLRDataDisplay * This);
         
-        HRESULT ( STDMETHODCALLTYPE *ErrorPrintF )( 
+        HRESULT ( STDMETHODVCALLTYPE *ErrorPrintF )(
             IXCLRDataDisplay * This,
             const char *const fmt,
             ...);
@@ -1320,12 +1319,12 @@ EXTERN_C const IID IID_IXCLRDataDisplay;
         HRESULT ( STDMETHODCALLTYPE *EndTextElement )( 
             IXCLRDataDisplay * This);
         
-        HRESULT ( STDMETHODCALLTYPE *WriteXmlText )( 
+        HRESULT ( STDMETHODVCALLTYPE *WriteXmlText )(
             IXCLRDataDisplay * This,
             const char *const fmt,
             ...);
         
-        HRESULT ( STDMETHODCALLTYPE *WriteXmlTextBlock )( 
+        HRESULT ( STDMETHODVCALLTYPE *WriteXmlTextBlock )(
             IXCLRDataDisplay * This,
             const char *const fmt,
             ...);

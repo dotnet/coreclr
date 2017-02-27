@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //*****************************************************************************
 
 // 
@@ -806,7 +805,6 @@ DWORD DebuggerJitInfo::MapNativeOffsetToIL(SIZE_T nativeOffsetToMap,
                     {
                         // If the caller requested to skip prologs, we simply restart the walk
                         // with the offset set to the end of the prolog.
-                        m = GetSequenceMap();
                         nativeOffset = m->nativeEndOffset;
                         continue;
                     }
@@ -892,7 +890,6 @@ DebuggerJitInfo::~DebuggerJitInfo()
     LOG((LF_CORDB,LL_EVERYTHING, "DJI::~DJI : deleted at 0x%p\n", this));
 }
 
-
 // Lazy initialize the Debugger-Jit-Info
 void DebuggerJitInfo::LazyInitBounds()
 {
@@ -905,31 +902,28 @@ void DebuggerJitInfo::LazyInitBounds()
         PRECONDITION(!g_pDebugger->HasDebuggerDataLock());
     } CONTRACTL_END;
 
-    //@todo: this method is not synchronized. Mei-chin's recent work should cover this one
+    LOG((LF_CORDB, LL_EVERYTHING, "DJI::LazyInitBounds: this=0x%x m_fAttemptInit %s\n", this, m_fAttemptInit == true ? "true": "false"));
+
     // Only attempt lazy-init once
-    // new LOG message
-    LOG((LF_CORDB,LL_EVERYTHING, "DJI::LazyInitBounds: this=0x%x m_fAttemptInit %s\n", this, m_fAttemptInit == true? "true": "false"));
     if (m_fAttemptInit)
     {
         return;
     }
-    m_fAttemptInit = true;
 
     EX_TRY
     {
-        LOG((LF_CORDB,LL_EVERYTHING, "DJI::LazyInitBounds: this=0x%x Initing\n", this));
+        LOG((LF_CORDB, LL_EVERYTHING, "DJI::LazyInitBounds: this=0x%x Initing\n", this));
+
         // Should have already been jitted
         _ASSERTE(this->m_jitComplete);
 
         MethodDesc * mdesc = this->m_fd;
-
         DebugInfoRequest request;
 
         _ASSERTE(this->m_addrOfCode != NULL); // must have address to disambguate the Enc cases.
         // Caller already resolved generics when they craeted the DJI, so we don't need to repeat.
         // Note the MethodDesc may not yet have the jitted info, so we'll also use the starting address we got in the jit complete callback.
         request.InitFromStartingAddr(mdesc, (PCODE)this->m_addrOfCode);
-
 
         // Bounds info.
         ULONG32 cMap = 0;
@@ -942,12 +936,26 @@ void DebuggerJitInfo::LazyInitBounds()
             InteropSafeNew, NULL, // allocator
             &cMap, &pMap,
             &cVars, &pVars);
+
         LOG((LF_CORDB,LL_EVERYTHING, "DJI::LazyInitBounds: this=0x%x GetBoundariesAndVars success=0x%x\n", this, fSuccess));
-        if (fSuccess)
+
+        Debugger::DebuggerDataLockHolder debuggerDataLockHolder(g_pDebugger);
+
+        if (!m_fAttemptInit)
         {
-            this->SetBoundaries(cMap, pMap);
-            this->SetVars(cVars, pVars);
+            if (fSuccess)
+            {
+                this->SetBoundaries(cMap, pMap);
+                this->SetVars(cVars, pVars);
+            }
+            m_fAttemptInit = true;
         }
+        else
+        {
+            DeleteInteropSafe(pMap);
+            DeleteInteropSafe(pVars);
+        }
+        // DebuggerDataLockHolder out of scope - release implied
     }
     EX_CATCH
     {
@@ -965,10 +973,7 @@ void DebuggerJitInfo::SetVars(ULONG32 cVars, ICorDebugInfo::NativeVarInfo *pVars
 {
     LIMITED_METHOD_CONTRACT;
 
-    if (m_varNativeInfo)
-    {
-        return;
-    }
+    _ASSERTE(m_varNativeInfo == NULL);
 
     m_varNativeInfo = pVars;
     m_varNativeInfoCount = cVars;
@@ -1022,14 +1027,10 @@ void DebuggerJitInfo::SetBoundaries(ULONG32 cMap, ICorDebugInfo::OffsetMapping *
 
     LOG((LF_CORDB,LL_EVERYTHING, "DJI::SetBoundaries: this=0x%x cMap=0x%x pMap=0x%x\n", this, cMap, pMap));
     _ASSERTE((cMap == 0) == (pMap == NULL));
+    _ASSERTE(m_sequenceMap == NULL);
 
     if (cMap == 0)
         return;
-
-    if (m_sequenceMap)
-    {
-        return;
-    }
 
     ULONG ilLast = 0;
 #ifdef _DEBUG

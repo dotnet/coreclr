@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*============================================================
 **
@@ -36,16 +35,10 @@ class Object;
 #include "notifyexternals.h"
 #include "winrttypenameconverter.h"
 #include "../md/compiler/custattr.h"
-#ifdef FEATURE_REMOTING
-#include "remoting.h"
-#endif
 #include "mdaassistants.h"
 #include "olevariant.h"
 #include "interopconverter.h"
-#include "constrainedexecutionregion.h"
-#ifdef FEATURE_REMOTING
-#include "crossdomaincalls.h"
-#endif
+#include "typestring.h"
 #include "caparser.h"
 #include "classnames.h"
 #include "objectnative.h"
@@ -541,49 +534,9 @@ IClassFactory *ComClassFactory::GetIClassFactory()
             StackSString ssServer;
             if (FAILED(Clr::Util::Com::FindServerUsingCLSID(m_rclsid, ssServer)))
             {
-#ifndef FEATURE_CORECLR
-                // If there is no server entry, then that implies the CLSID could be implemented by CLR.DLL itself,
-                // if the CLSID is one of the special ones implemented by the CLR. We need to check against the
-                // specific list of CLSIDs here because CLR.DLL-implemented CLSIDs and managed class-implemented
-                // CLSIDs look the same until you start interating the subkeys. For now, the set of CLSIDs implemented
-                // by CLR.DLL is a short and tractable list, but at some point it might become worthwhile to move over
-                // to the more generalized solution of looking for the entries that identify when the CLSID is
-                // implemented by a managed type to avoid having to maintain the hardcoded list.
-                if (IsClrHostedLegacyComObject(m_rclsid))
-                {
-                    PDllGetClassObject pFN = NULL;
-                    hr = g_pCLRRuntime->GetProcAddress("DllGetClassObjectInternal", reinterpret_cast<void**>(&pFN));
-
-                    if (FAILED(hr))
-                        hr = g_pCLRRuntime->GetProcAddress("DllGetClassObject", reinterpret_cast<void**>(&pFN));
-
-                    if (SUCCEEDED(hr))
-                        hr = pFN(m_rclsid, IID_IClassFactory, (void**)&pClassFactory);
-                }
-#endif
             }
             else
             {   
-#ifndef FEATURE_CORECLR
-                // @CORESYSTODO: ?
-                
-                // There is a SxS DLL that implements this CLSID.
-                // NOTE: It is standard practise for RCWs and P/Invokes to leak their module handles,
-                //       as there is no automated mechanism for the runtime to call CanUnloadDllNow.
-                HMODULE hServer = NULL;
-                if (SUCCEEDED(hr = g_pCLRRuntime->LoadLibrary(ssServer.GetUnicode(), &hServer)))
-                {
-                    PDllGetClassObject pFN = reinterpret_cast<PDllGetClassObject>(GetProcAddress(hServer, "DllGetClassObject"));
-                    if (pFN != NULL)
-                    {
-                        hr = pFN(m_rclsid, IID_IClassFactory, (void**)&pClassFactory);
-                    }
-                    else
-                    {
-                        hr = HRESULT_FROM_GetLastError();
-                    }
-                }
-#endif
             }
         }
 #endif // FEATURE_CLASSIC_COMINTEROP
@@ -679,7 +632,7 @@ OBJECTREF ComClassFactory::CreateInstance(MethodTable* pMTClass, BOOL ForManaged
 
 //--------------------------------------------------------------
 // Init the ComClassFactory.
-void ComClassFactory::Init(__in_opt __in_z WCHAR* pwszProgID, __in_opt __in_z WCHAR* pwszServer, MethodTable* pClassMT)
+void ComClassFactory::Init(__in_opt WCHAR* pwszProgID, __in_opt WCHAR* pwszServer, MethodTable* pClassMT)
 {
     LIMITED_METHOD_CONTRACT;
 
@@ -1592,7 +1545,7 @@ public:
 
         if (pRCW->IsValid())
         {
-            if (!GCHeap::GetGCHeap()->IsPromoted(OBJECTREFToObject(pRCW->GetExposedObject())) &&
+            if (!GCHeapUtilities::GetGCHeap()->IsPromoted(OBJECTREFToObject(pRCW->GetExposedObject())) &&
                 !pRCW->IsDetached())
             {
                 // No need to use InterlockedOr here since every other place that modifies the flags
@@ -1613,7 +1566,7 @@ void RCWCache::DetachWrappersWorker()
         NOTHROW;
         GC_NOTRIGGER;
         MODE_ANY;
-        PRECONDITION(GCHeap::IsGCInProgress()); // GC is in progress and the runtime is suspended
+        PRECONDITION(GCHeapUtilities::IsGCInProgress()); // GC is in progress and the runtime is suspended
     }
     CONTRACTL_END;
 
@@ -1917,13 +1870,6 @@ HRESULT RCWCleanupList::ReleaseRCWListInCorrectCtx(LPVOID pData)
 
     ReleaseRCWList_Args* args = (ReleaseRCWList_Args*)pData;
 
-#ifdef FEATURE_REMOTING
-    if (InSendMessage())
-    {
-        args->ctxBusy = TRUE;
-        return S_OK;
-    }
-#endif
 
     RCW* pHead = (RCW *)args->pHead;
 
@@ -2450,9 +2396,6 @@ void RCW::Initialize(IUnknown* pUnk, DWORD dwSyncBlockIndex, MethodTable *pClass
     // calling Marshal.CleanupUnusedObjectsInCurrentContext periodically. The best place
     // to make that call is within their own message pump.
     if (!disableEagerCleanup 
-#ifdef FEATURE_REMOTING
-        && !InSendMessage()
-#endif
        )
     {
         _ASSERTE(g_pRCWCleanupList != NULL);
@@ -2809,7 +2752,7 @@ void RCW::MinorCleanup()
         NOTHROW;
         GC_NOTRIGGER;
         MODE_ANY;
-        PRECONDITION(GCHeap::IsGCInProgress() || ( (g_fEEShutDown & ShutDown_SyncBlock) && g_fProcessDetach ));
+        PRECONDITION(GCHeapUtilities::IsGCInProgress() || ( (g_fEEShutDown & ShutDown_SyncBlock) && g_fProcessDetach ));
     }
     CONTRACTL_END;
     
@@ -3109,12 +3052,10 @@ IUnknown *RCW::GetWellKnownInterface(REFIID riid)
 // make sure it is on the right thread
 IDispatch *RCW::GetIDispatch()
 {
-#ifdef FEATURE_CORECLR
     if (AppX::IsAppXProcess())
     { 
         COMPlusThrow(kPlatformNotSupportedException, IDS_EE_ERROR_IDISPATCH);
     }
-#endif // FEATURE_CORECLR
 
     WRAPPER_NO_CONTRACT;
     return (IDispatch *)GetWellKnownInterface(IID_IDispatch);
@@ -4576,9 +4517,7 @@ bool RCW::SupportsMngStdInterface(MethodTable *pItfMT)
         if (pItfMT == MscorlibBinder::GetExistingClass(CLASS__IENUMERABLE))
         {
             SafeComHolder<IDispatch> pDisp = NULL;
-#ifdef FEATURE_CORECLR
             if  (!AppX::IsAppXProcess())
-#endif // FEATURE_CORECLR
             {
                  // Get the IDispatch on the current thread.
                  pDisp = GetIDispatch();

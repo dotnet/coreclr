@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //
 //
 
@@ -47,5 +46,6 @@ PCODE GetAdjustedCallAddress(PCODE returnAddress)
 }
 
 BOOL AdjustContextForVirtualStub(EXCEPTION_RECORD *pExceptionRecord, T_CONTEXT *pContext);
+BOOL IsIPinVirtualStub(PCODE f_IP);
 
 #endif // __excepcpu_h__

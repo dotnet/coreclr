@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //
 // siginfo.cpp
 //
@@ -15,7 +14,7 @@
 #include "clsload.hpp"
 #include "vars.hpp"
 #include "excep.h"
-#include "gc.h"
+#include "gcheaputilities.h"
 #include "field.h"
 #include "eeconfig.h"
 #include "runtimehandles.h" // for SignatureNative
@@ -25,6 +24,7 @@
 #include "sigbuilder.h"
 #include "../md/compiler/custattr.h"
 #include <corhlprpriv.h>
+#include "argdestination.h"
 
 /*******************************************************************/
 const CorTypeInfo::CorTypeInfoEntry CorTypeInfo::info[ELEMENT_TYPE_MAX] = 
@@ -1121,7 +1121,7 @@ TypeHandle SigPointer::GetTypeHandleThrowing(
         ClassLoader::NotFoundAction  notFoundAction;
         CorInternalStates            tdTypes;
 
-        switch(typ) {
+        switch((DWORD)typ) {
         case ELEMENT_TYPE_TYPEDBYREF:
         {
             thRet = TypeHandle(g_TypedReferenceMT);
@@ -1517,7 +1517,7 @@ TypeHandle SigPointer::GetTypeHandleThrowing(
             // Check that the type that we loaded matches the signature
             //   with regards to ET_CLASS and ET_VALUETYPE
             // 
-            if ((fLoadTypes == ClassLoader::LoadTypes))
+            if (fLoadTypes == ClassLoader::LoadTypes)
             {
                 // Skip this check when using zap sigs; it should have been correctly computed at NGen time 
                 // and a change from one to the other would have invalidated the image. 
@@ -1811,7 +1811,7 @@ TypeHandle SigPointer::GetGenericInstType(Module *        pModule,
         }
 
 #ifndef DACCESS_COMPILE
-        if ((fLoadTypes == ClassLoader::LoadTypes))
+        if (fLoadTypes == ClassLoader::LoadTypes)
         {
             // Skip this check when using zap sigs; it should have been correctly computed at NGen time 
             // and a change from one to the other would have invalidated the image.  Leave in the code for debug so we can assert below.
@@ -2546,8 +2546,12 @@ mdTypeRef SigPointer::PeekValueTypeTokenClosed(Module *pModule, const SigTypeCon
             if (FAILED(sp.GetElemType(NULL)))
                 return mdTokenNil;
             
-            if (FAILED(sp.GetElemType(NULL)))
+            CorElementType subtype;
+            if (FAILED(sp.GetElemType(&subtype)))
                 return mdTokenNil;
+            if (subtype == ELEMENT_TYPE_INTERNAL)
+                return mdTokenNil;
+            _ASSERTE(subtype == ELEMENT_TYPE_VALUETYPE);
 
             if (FAILED(sp.GetToken(&token)))
                 return mdTokenNil;
@@ -3819,12 +3823,6 @@ MetaSig::CompareElementType(
                     return FALSE;
                 }
             }
-
-#ifdef _DEBUG
-            // Shouldn't get here.
-            _ASSERTE(FALSE);
-            return FALSE;
-#endif
         }
         else
         {
@@ -4816,9 +4814,9 @@ BOOL MetaSig::CompareVariableConstraints(const Substitution *pSubst1,
         // b) may be implicit (ie. absent) in the overriden variable's declaration
         if (!(CompareTypeDefOrRefOrSpec(pModule1, tkConstraintType1, NULL, 
                                        MscorlibBinder::GetModule(), g_pObjectClass->GetCl(), NULL, NULL) || 
-          ((specialConstraints1 & gpNotNullableValueTypeConstraint) != 0) && 
+          (((specialConstraints1 & gpNotNullableValueTypeConstraint) != 0) && 
            (CompareTypeDefOrRefOrSpec(pModule1, tkConstraintType1, NULL, 
-                      MscorlibBinder::GetModule(), g_pValueTypeClass->GetCl(), NULL, NULL))))
+                      MscorlibBinder::GetModule(), g_pValueTypeClass->GetCl(), NULL, NULL)))))
         {
             HENUMInternalHolder hEnum2(pInternalImport2);
             mdGenericParamConstraint tkConstraint2;
@@ -4917,7 +4915,7 @@ BOOL MetaSig::CompareMethodConstraints(const Substitution *pSubst1,
 void PromoteCarefully(promote_func   fn, 
                       PTR_PTR_Object ppObj, 
                       ScanContext*   sc, 
-                      DWORD          flags /* = GC_CALL_INTERIOR*/ )
+                      uint32_t       flags /* = GC_CALL_INTERIOR*/ )
 {
     LIMITED_METHOD_CONTRACT;
 
@@ -4932,21 +4930,75 @@ void PromoteCarefully(promote_func   fn,
     assert(flags & GC_CALL_INTERIOR);
 
 #if !defined(DACCESS_COMPILE)
+
+    //
+    // Sanity check the stack scan limit
+    //
+    assert(sc->stack_limit != 0);
+
     // Note that the base is at a higher address than the limit, since the stack
     // grows downwards.
-    if (sc->thread_under_crawl->IsAddressInStack(*ppObj))
+    // To check whether the object is in the stack or not, we also need to check the sc->stack_limit.
+    // The reason is that on Unix, the stack size can be unlimited. In such case, the system can
+    // shrink the current reserved stack space. That causes the real limit of the stack to move up and 
+    // the range can be reused for other purposes. But the sc->stack_limit is stable during the scan.
+    // Even on Windows, we care just about the stack above the stack_limit.
+    if ((sc->thread_under_crawl->IsAddressInStack(*ppObj)) && (PTR_TO_TADDR(*ppObj) >= sc->stack_limit))
     {
         return;
     }
+
 #endif // !defined(DACCESS_COMPILE)
 
     (*fn) (ppObj, sc, flags);
 }
 
+void ReportByRefPointersFromByRefLikeObject(promote_func *fn, ScanContext *sc, PTR_MethodTable pMT, PTR_VOID pSrc)
+{
+    WRAPPER_NO_CONTRACT;
+
+    _ASSERTE(pMT->IsByRefLike());
+
+    // TODO: TypedReference should ideally be implemented as a by-ref-like struct containing a ByReference<T> field,
+    // in which case the check for g_TypedReferenceMT below would not be necessary
+    if (pMT == g_TypedReferenceMT || pMT->HasSameTypeDefAs(g_pByReferenceClass))
+    {
+        (*fn)(dac_cast<PTR_PTR_Object>(pSrc), sc, GC_CALL_INTERIOR);
+        return;
+    }
+
+    ApproxFieldDescIterator fieldIterator(pMT, ApproxFieldDescIterator::INSTANCE_FIELDS);
+    for (FieldDesc *pFD = fieldIterator.Next(); pFD != NULL; pFD = fieldIterator.Next())
+    {
+        if (pFD->GetFieldType() != ELEMENT_TYPE_VALUETYPE)
+        {
+            continue;
+        }
+
+        // TODO: GetApproxFieldTypeHandleThrowing may throw. This is a potential stress problem for fragile NGen of non-CoreLib
+        // assemblies. It won’t ever throw for CoreCLR with R2R. Figure out if anything needs to be done to deal with the
+        // exception.
+        PTR_MethodTable pFieldMT = pFD->GetApproxFieldTypeHandleThrowing().AsMethodTable();
+        if (!pFieldMT->IsByRefLike())
+        {
+            continue;
+        }
+
+        int fieldStartIndex = pFD->GetOffset() / sizeof(void *);
+        PTR_PTR_Object fieldRef = dac_cast<PTR_PTR_Object>(PTR_BYTE(pSrc) + fieldStartIndex);
+        ReportByRefPointersFromByRefLikeObject(fn, sc, pFieldMT, fieldRef);
+    }
+}
+
 void ReportPointersFromValueType(promote_func *fn, ScanContext *sc, PTR_MethodTable pMT, PTR_VOID pSrc)
 {
     WRAPPER_NO_CONTRACT;
-    
+
+    if (pMT->IsByRefLike())
+    {
+        ReportByRefPointersFromByRefLikeObject(fn, sc, pMT, pSrc);
+    }
+
     if (!pMT->ContainsPointers())
         return;
     
@@ -4972,11 +5024,31 @@ void ReportPointersFromValueType(promote_func *fn, ScanContext *sc, PTR_MethodTa
     } while (cur >= last);
 }
 
+void ReportPointersFromValueTypeArg(promote_func *fn, ScanContext *sc, PTR_MethodTable pMT, ArgDestination *pSrc)
+{
+    WRAPPER_NO_CONTRACT;
+
+    if (!pMT->ContainsPointers() && !pMT->IsByRefLike())
+    {
+        return;
+    }
+
+#if defined(UNIX_AMD64_ABI) && defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)    
+    if (pSrc->IsStructPassedInRegs())
+    {
+        pSrc->ReportPointersFromStructInRegisters(fn, sc, pMT->GetNumInstanceFieldBytes());
+        return;
+    }
+#endif // UNIX_AMD64_ABI && FEATURE_UNIX_AMD64_STRUCT_PASSING
+
+    ReportPointersFromValueType(fn, sc, pMT, pSrc->GetDestinationAddress());
+}
+
 //------------------------------------------------------------------
 // Perform type-specific GC promotion on the value (based upon the
 // last type retrieved by NextArg()).
 //------------------------------------------------------------------
-VOID MetaSig::GcScanRoots(PTR_VOID pValue,
+VOID MetaSig::GcScanRoots(ArgDestination *pValue,
                           promote_func *fn,
                           ScanContext* sc,
                           promote_carefully_func *fnc)
@@ -4993,7 +5065,7 @@ VOID MetaSig::GcScanRoots(PTR_VOID pValue,
     CONTRACTL_END
 
 
-    PTR_PTR_Object pArgPtr = (PTR_PTR_Object)pValue;
+    PTR_PTR_Object pArgPtr = (PTR_PTR_Object)pValue->GetDestinationAddress();
     if (fnc == NULL)
         fnc = &PromoteCarefully;
 
@@ -5079,7 +5151,7 @@ VOID MetaSig::GcScanRoots(PTR_VOID pValue,
                 }
 #endif // ENREGISTERED_PARAMTYPE_MAXSIZE
 
-                ReportPointersFromValueType(fn, sc, pMT, pArgPtr);
+                ReportPointersFromValueTypeArg(fn, sc, pMT, pValue);
             }
             break;
 

@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //{{NO_DEPENDENCIES}}
 // Used by mscorrc.rc
 //
@@ -813,16 +812,12 @@
 #define IDS_E_TRANSPARENT_CALL_NATIVE           0x2120
 #define IDS_E_TRANSPARENT_REFLECTION            0x2121
 
-#ifdef FEATURE_CORECLR
 #define IDS_E_DELEGATE_BINDING_TRANSPARENCY     0x2122
-#endif
 
 #define IDS_E_ACCESSING_PRIVATE_FRAMEWORK_CODE  0x2123
 
-#ifdef FEATURE_CORECLR
 #define IDS_E_DELEGATE_FULLTRUST_ARPIC_1          0x2124
 #define IDS_E_DELEGATE_FULLTRUST_ARPIC_2          0x2125
-#endif
 
 #define IDS_ACCESS_EXCEPTION_CONTEXT_LEVEL2_APTCA       0x2200
 #define IDS_ACCESS_EXCEPTION_CONTEXT_APTCA_KILLBIT      0x2201
@@ -871,10 +866,8 @@
 #define IDS_E_PROF_TIMEOUT_WAITING_FOR_CONCURRENT_GC    0x251D
 
 
-#ifdef FEATURE_CORECLR
 #define IDS_EE_LINK_FOR_ERROR_MESSAGES          0x2600
 #define IDS_EE_LINK_FOR_DEBUGGING_MESSAGES      0x2601          
-#endif
 
 #define IDS_DIALOG_BOX_ABORT_BUTTON             0x2602
 #define IDS_DIALOG_BOX_DEBUG_BUTTON             0x2603
@@ -921,15 +914,11 @@
 #define IDS_EE_INTEROP_DLL_IMPORT_ON_USER_METHOD 0x262b
 #endif
 
-#ifndef FEATURE_CORECLR
-#define IDS_EE_ASSEMBLY_ON_DENY_LIST            0x262c
-#endif
 
 #ifdef FEATURE_COMINTEROP
 #define IDS_EE_WINRT_WEAKREF_BAD_TYPE           0x262e
 #endif // FEATURE_COMINTEROP
 
-#ifdef FEATURE_CORECLR
 #define IDS_EE_BADMARSHAL_TYPE_ANSIBSTR         0x262f
 #define IDS_EE_BADMARSHAL_TYPE_VBBYVALSTR       0x2630
 #define IDS_EE_BADMARSHAL_TYPE_REFERENCECUSTOMMARSHALER  0x2631
@@ -937,12 +926,13 @@
 #define IDS_EE_BADMARSHAL_TYPE_ASANYA           0x2633
 #define IDS_EE_BADMARSHAL_TYPE_IDISPATCH        0x2634
 #define IDS_EE_ERROR_IDISPATCH                  0x2635
-#endif // FEATURE_CORECLR
 
-#ifdef FEATURE_HOST_ASSEMBLY_RESOLVER
 #define IDS_HOST_ASSEMBLY_RESOLVER_ASSEMBLY_ALREADY_LOADED_IN_CONTEXT                  0x2636
 #define IDS_HOST_ASSEMBLY_RESOLVER_DYNAMICALLY_EMITTED_ASSEMBLIES_UNSUPPORTED          0x2637
 #define IDS_HOST_ASSEMBLY_RESOLVER_INCOMPATIBLE_BINDING_CONTEXT                        0x2638
-#endif // FEATURE_HOST_ASSEMBLY_RESOLVER
+#define IDS_HOST_ASSEMBLY_RESOLVER_INCOMPATIBLE_TPA_BINDING_CONTEXT                    0x2639
 
-#define IDS_NATIVE_IMAGE_CANNOT_BE_LOADED_MULTIPLE_TIMES                               0x2639
+#define IDS_NATIVE_IMAGE_CANNOT_BE_LOADED_MULTIPLE_TIMES                               0x263a
+
+#define IDS_CLASSLOAD_BYREFLIKE_STATICFIELD        0x263b
+#define IDS_CLASSLOAD_BYREFLIKE_NOTVALUECLASSFIELD 0x263c

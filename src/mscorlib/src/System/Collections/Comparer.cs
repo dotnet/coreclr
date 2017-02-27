@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*============================================================
 **
@@ -11,48 +12,53 @@
 **
 ** 
 ===========================================================*/
-namespace System.Collections {
-    
-    using System;
-    using System.Globalization;
-    using System.Runtime.Serialization;
-    using System.Security.Permissions;
-    using System.Diagnostics.Contracts;
-    
+
+using System;
+using System.Globalization;
+using System.Runtime.Serialization;
+using System.Diagnostics.Contracts;
+
+namespace System.Collections
+{
     [Serializable]
-[System.Runtime.InteropServices.ComVisible(true)]
-    public sealed class Comparer : IComparer , ISerializable
+    internal sealed class Comparer : IComparer, ISerializable
     {
-        private CompareInfo m_compareInfo;   
+        private CompareInfo m_compareInfo;
         public static readonly Comparer Default = new Comparer(CultureInfo.CurrentCulture);
         public static readonly Comparer DefaultInvariant = new Comparer(CultureInfo.InvariantCulture);
-        
+
         private const String CompareInfoName = "CompareInfo";
 
-        private Comparer() {
+        private Comparer()
+        {
             m_compareInfo = null;
         }
 
-        public Comparer(CultureInfo culture) {
-            if (culture==null) {
-                throw new ArgumentNullException("culture");
+        public Comparer(CultureInfo culture)
+        {
+            if (culture == null)
+            {
+                throw new ArgumentNullException(nameof(culture));
             }
             Contract.EndContractBlock();
             m_compareInfo = culture.CompareInfo;
         }
-        
-        private Comparer(SerializationInfo info, StreamingContext context) {            
+
+        private Comparer(SerializationInfo info, StreamingContext context)
+        {
             m_compareInfo = null;
-            SerializationInfoEnumerator enumerator = info.GetEnumerator();                        
-            while( enumerator.MoveNext()) {
-                switch( enumerator.Name) {
+            SerializationInfoEnumerator enumerator = info.GetEnumerator();
+            while (enumerator.MoveNext())
+            {
+                switch (enumerator.Name)
+                {
                     case CompareInfoName:
-                        m_compareInfo = (CompareInfo) info.GetValue(CompareInfoName, typeof(CompareInfo));
+                        m_compareInfo = (CompareInfo)info.GetValue(CompareInfoName, typeof(CompareInfo));
                         break;
                 }
             }
         }
-    
+
         // Compares two Objects by calling CompareTo.  If a == 
         // b,0 is returned.  If a implements 
         // IComparable, a.CompareTo(b) is returned.  If a 
@@ -60,11 +66,13 @@ namespace System.Collections {
         // -(b.CompareTo(a)) is returned, otherwise an 
         // exception is thrown.
         // 
-        public int Compare(Object a, Object b) {
+        public int Compare(Object a, Object b)
+        {
             if (a == b) return 0;
             if (a == null) return -1;
             if (b == null) return 1;
-            if (m_compareInfo != null) {
+            if (m_compareInfo != null)
+            {
                 String sa = a as String;
                 String sb = b as String;
                 if (sa != null && sb != null)
@@ -82,16 +90,18 @@ namespace System.Collections {
             throw new ArgumentException(Environment.GetResourceString("Argument_ImplementIComparable"));
         }
 
-        [System.Security.SecurityCritical]  // auto-generated_required
-        public void GetObjectData(SerializationInfo info, StreamingContext context) {
-            if (info==null) {
-                throw new ArgumentNullException("info");
+        public void GetObjectData(SerializationInfo info, StreamingContext context)
+        {
+            if (info == null)
+            {
+                throw new ArgumentNullException(nameof(info));
             }
             Contract.EndContractBlock();
 
-            if( m_compareInfo != null) {
+            if (m_compareInfo != null)
+            {
                 info.AddValue(CompareInfoName, m_compareInfo);
             }
-        }        
+        }
     }
 }

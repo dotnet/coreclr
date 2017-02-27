@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //*****************************************************************************
 // StgIO.h
 // 
@@ -47,10 +46,8 @@ enum DBPROPMODE
     {   DBPROP_TMODEF_READ  = 0x1,
     DBPROP_TMODEF_WRITE = 0x2,
     DBPROP_TMODEF_EXCLUSIVE = 0x4,
-#ifndef FEATURE_METADATA_STANDALONE_WINRT_RO
     // Shared memory uses ole32.dll - we cannot depend on it in the standalone WinRT Read-Only DLL
     DBPROP_TMODEF_SHAREDMEM = 0x8,
-#endif
     DBPROP_TMODEF_CREATE    = 0x10,
     DBPROP_TMODEF_FAILIFTHERE = 0x20,
     DBPROP_TMODEF_SLOWSAVE  = 0x100,
@@ -78,10 +75,8 @@ enum STGIOTYPE
     STGIO_HMODULE   = 2,                    // The file was loaded via LoadLibrary as module.
     STGIO_STREAM    = 3,                    // Stream pointer has data.
     STGIO_MEM       = 4,                    // In memory pointer has data.
-#ifndef FEATURE_METADATA_STANDALONE_WINRT_RO
     // Shared memory uses ole32.dll - we cannot depend on it in the standalone WinRT Read-Only DLL
     STGIO_SHAREDMEM = 5,                    // Shared memory handle.
-#endif
     STGIO_HFILEMEM  = 6                     // Handle open, but memory allocated.
 };
 
@@ -261,7 +256,6 @@ private:
     
     // Flags and state data.
     FILETYPE    m_FileType;             // Cached type of the file (based on extension).
-    WCHAR       m_rcShared[MAXSHMEM];   // Name of shared memory segment.
     LONG        m_cRef;                 // Ref count on this object.
     bool        m_bWriteThrough : 1;    // true for write through mode.
     bool        m_bRewrite : 1;         // State check for rewrite mode.

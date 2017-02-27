@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 // ============================================================
 //
 // ApplicationContext.cpp
@@ -32,88 +31,6 @@
 
 namespace BINDER_SPACE
 {
-    namespace
-    {
-        void CopyIntoBuffer(/* in */ SBuffer *pPropertyValue,
-                            /* in */ LPVOID   pvValue,
-                            /* in */ DWORD    cbValue)
-        {
-            _ASSERTE(pPropertyValue != NULL);
-
-            BYTE *pRawBuffer = pPropertyValue->OpenRawBuffer(cbValue);
-
-            memcpy(pRawBuffer, pvValue, cbValue);
-            pPropertyValue->CloseRawBuffer();
-         }
-
-        const void *GetRawBuffer(SBuffer *pPropertyValue)
-        {
-            _ASSERTE(pPropertyValue != NULL);
-
-            // SBuffer provides const void *() operator
-            const void *pPropertyRawBuffer = *pPropertyValue;
-            
-            _ASSERTE(pPropertyRawBuffer != NULL);
-            _ASSERTE(pPropertyRawBuffer != pPropertyValue);
-
-            return pPropertyRawBuffer;
-        }
-
-        HRESULT CheckRequiredBufferSize(/* in */      SBuffer *pPropertyValue,
-                                        /* in */      LPVOID   pvValue,
-                                        /* in, out */ LPDWORD  pcbValue)
-        {
-            _ASSERTE(pPropertyValue != NULL);
-
-            HRESULT hr = HRESULT_FROM_WIN32(ERROR_INSUFFICIENT_BUFFER);
-            DWORD cbPropertySize = static_cast<DWORD>(pPropertyValue->GetSize());
-
-            if (pcbValue == NULL)
-            {
-                hr = E_INVALIDARG;
-            }
-            else if ((cbPropertySize <= *pcbValue) && (pvValue != NULL))
-            {
-                *pcbValue = cbPropertySize;
-                hr = S_OK;
-            }
-            else
-            {
-                *pcbValue = cbPropertySize;
-            }
-
-            return hr;
-        }
-
-        HRESULT CopyTextPropertyIntoBuffer(/* in */      SBuffer *pPropertyValue,
-                                           /* out */     LPWSTR   wzPropertyBuffer,
-                                           /* in, out */ DWORD   *pdwPropertyBufferSize)
-        {
-            HRESULT hr = S_OK;
-            void *pvValue = static_cast<void *>(wzPropertyBuffer);
-            DWORD cbValue = *pdwPropertyBufferSize * sizeof(WCHAR);
-
-            if ((hr = CheckRequiredBufferSize(pPropertyValue, pvValue, &cbValue)) == S_OK)
-            {
-                memcpy(pvValue, GetRawBuffer(pPropertyValue), cbValue);
-            }
-
-            // Adjust byte size to character count
-            _ASSERTE(cbValue % sizeof(WCHAR) == 0);
-            *pdwPropertyBufferSize = cbValue / sizeof(WCHAR);
-
-            return hr;
-        }
-
-        BOOL EndsWithPathSeparator(/* in */ PathString &path)
-        {
-            SString winDirSeparor(SString::Literal, W("\\"));
-            SString unixDirSeparor(SString::Literal, W("/"));
-
-            return (path.EndsWith(winDirSeparor) || path.EndsWith(unixDirSeparor));
-        }
-    };
-
     STDMETHODIMP ApplicationContext::QueryInterface(REFIID   riid,
                                                     void   **ppv)
     {
@@ -226,9 +143,7 @@ namespace BINDER_SPACE
             m_pFailureCache = pFailureCache;
         }
 
-#if defined(FEATURE_HOST_ASSEMBLY_RESOLVER)      
         m_fCanExplicitlyBindToNativeImages = false;
-#endif // defined(FEATURE_HOST_ASSEMBLY_RESOLVER)
         
     Exit:
         BINDER_LOG_LEAVE_HR(W("ApplicationContext::Init"), hr);
@@ -348,8 +263,17 @@ namespace BINDER_SPACE
             
             if (!fileName.FindBack(iSimpleNameStart, DIRECTORY_SEPARATOR_CHAR_W))
             {
+#ifdef CROSSGEN_COMPILE
+                iSimpleNameStart = fileName.Begin();
+#else
                 // Couldn't find a directory separator.  File must have been specified as a relative path.  Not allowed.
                 GO_WITH_HRESULT(E_INVALIDARG);
+#endif
+            }
+            else
+            {
+                // Advance past the directory separator to the first character of the file name
+                iSimpleNameStart++;
             }
 
             if (iSimpleNameStart == fileName.End())
@@ -357,9 +281,6 @@ namespace BINDER_SPACE
                 GO_WITH_HRESULT(E_INVALIDARG);
             }
 
-            // Advance past the directory separator to the first character of the file name
-            iSimpleNameStart++;
-            
             SString simpleName;
             bool isNativeImage = false;
 
@@ -407,8 +328,8 @@ namespace BINDER_SPACE
                 // we encounter a native image.  Since we don't touch IL in the presence of
                 // native images, we replace the IL entry with the NI.
                 //
-                if (pExistingEntry->m_wszILFileName != nullptr && !isNativeImage ||
-                    pExistingEntry->m_wszNIFileName != nullptr && isNativeImage)
+                if ((pExistingEntry->m_wszILFileName != nullptr && !isNativeImage) ||
+                    (pExistingEntry->m_wszNIFileName != nullptr && isNativeImage))
                 {
                     BINDER_LOG_STRING(W("ApplicationContext::SetupBindingPaths: Skipping TPA entry because of already existing IL/NI entry for short name "), fileName.GetUnicode());
                     continue;
@@ -542,13 +463,7 @@ namespace BINDER_SPACE
             SAFE_NEW(pNewAssemblyIdentity, AssemblyIdentityUTF8);
             sTextualIdentity.SetUTF8(szTextualIdentity);
 
-
-            BOOL fWindowsPhone7 = false;
-#ifdef FEATURE_LEGACYNETCF
-            fWindowsPhone7 = RuntimeIsLegacyNetCF(GetAppDomainId());
-#endif // FEATURE_LEGACYNETCF
-
-            IF_FAIL_GO(TextualIdentityParser::Parse(sTextualIdentity, pNewAssemblyIdentity, fWindowsPhone7));
+            IF_FAIL_GO(TextualIdentityParser::Parse(sTextualIdentity, pNewAssemblyIdentity));
             IF_FAIL_GO(m_assemblyIdentityCache.Add(szTextualIdentity, pNewAssemblyIdentity));
 
             pNewAssemblyIdentity->PopulateUTF8Fields();

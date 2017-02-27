@@ -1,4 +1,7 @@
-// Copyright (c) Microsoft. All rights reserved.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
+
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 //
 
@@ -10,15 +13,15 @@ namespace PinStress
 {
     internal class Node
     {
-        byte[] b;
-        GCHandle gch;
-        bool freed = true;
+        private byte[] _b;
+        private GCHandle _gch;
+        private bool _freed = true;
 
         public Node()
         {
-            b = new byte[84900];
-            gch = GCHandle.Alloc(b, GCHandleType.Pinned);
-            freed = false;
+            _b = new byte[84900];
+            _gch = GCHandle.Alloc(_b, GCHandleType.Pinned);
+            _freed = false;
         }
 
 
@@ -32,10 +35,10 @@ namespace PinStress
         public void Free()
         {
             // this check is necessary to avoid possibly double-freeing the handle
-            if (!freed)
+            if (!_freed)
             {
-                gch.Free();
-                freed = true;
+                _gch.Free();
+                _freed = true;
                 GC.SuppressFinalize(this);
             }
         }
@@ -45,10 +48,9 @@ namespace PinStress
         {
             get
             {
-                return freed;
+                return _freed;
             }
         }
-
     }
 
 
@@ -57,7 +59,6 @@ namespace PinStress
     {
         public static int Main(string[] args)
         {
-
             Random r;
             int randomSeed = 0;
             float percentDelete = 0.0F;
@@ -121,7 +122,6 @@ namespace PinStress
                     Console.WriteLine("Invalid numPasses");
                     return 0;
                 }
-
             }
             else
             {
@@ -136,7 +136,6 @@ namespace PinStress
             // loop
             for (int j = 0; j != numPasses; j++)
             {
-
                 // repopulate the list
                 while (list.Count < numNodes)
                 {
@@ -169,7 +168,6 @@ namespace PinStress
                 list.TrimExcess();
 
                 Console.WriteLine("Pass {0}", j);
-
             }
 
             Console.WriteLine("Test Passed");

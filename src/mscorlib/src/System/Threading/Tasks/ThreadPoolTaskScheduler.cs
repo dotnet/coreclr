@@ -1,5 +1,6 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 // =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
 //
@@ -12,6 +13,7 @@
 
 using System;
 using System.Security;
+using System.Diagnostics;
 using System.Diagnostics.Contracts;
 using System.Collections.Generic;
 using System.Text;
@@ -21,31 +23,23 @@ namespace System.Threading.Tasks
     /// <summary>
     /// An implementation of TaskScheduler that uses the ThreadPool scheduler
     /// </summary>
-    internal sealed class ThreadPoolTaskScheduler: TaskScheduler
+    internal sealed class ThreadPoolTaskScheduler : TaskScheduler
     {
         /// <summary>
         /// Constructs a new ThreadPool task scheduler object
         /// </summary>
         internal ThreadPoolTaskScheduler()
         {
+            int id = base.Id; // force ID creation of the default scheduler
         }
 
         // static delegate for threads allocated to handle LongRunning tasks.
-        private static readonly ParameterizedThreadStart s_longRunningThreadWork = new ParameterizedThreadStart(LongRunningThreadWork);
-
-        private static void LongRunningThreadWork(object obj)
-        {
-            Contract.Requires(obj != null, "TaskScheduler.LongRunningThreadWork: obj is null");
-            Task t = obj as Task;
-            Contract.Assert(t != null, "TaskScheduler.LongRunningThreadWork: t is null");
-            t.ExecuteEntry(false);
-        }
+        private static readonly ParameterizedThreadStart s_longRunningThreadWork = s => ((Task)s).ExecuteEntryUnsafe();
 
         /// <summary>
         /// Schedules a task to the ThreadPool.
         /// </summary>
         /// <param name="task">The task to schedule.</param>
-        [SecurityCritical]
         protected internal override void QueueTask(Task task)
         {
             if ((task.Options & TaskCreationOptions.LongRunning) != 0)
@@ -62,45 +56,40 @@ namespace System.Threading.Tasks
                 ThreadPool.UnsafeQueueCustomWorkItem(task, forceToGlobalQueue);
             }
         }
-        
+
         /// <summary>
         /// This internal function will do this:
         ///   (1) If the task had previously been queued, attempt to pop it and return false if that fails.
-        ///   (2) Propagate the return value from Task.ExecuteEntry() back to the caller.
+        ///   (2) Return whether the task is executed
         /// 
         /// IMPORTANT NOTE: TryExecuteTaskInline will NOT throw task exceptions itself. Any wait code path using this function needs
         /// to account for exceptions that need to be propagated, and throw themselves accordingly.
         /// </summary>
-        [SecurityCritical]
         protected override bool TryExecuteTaskInline(Task task, bool taskWasPreviouslyQueued)
         {
             // If the task was previously scheduled, and we can't pop it, then return false.
             if (taskWasPreviouslyQueued && !ThreadPool.TryPopCustomWorkItem(task))
                 return false;
 
-            // Propagate the return value of Task.ExecuteEntry()
-            bool rval = false;
             try
             {
-                rval = task.ExecuteEntry(false); // handles switching Task.Current etc.
+                task.ExecuteEntryUnsafe(); // handles switching Task.Current etc.
             }
             finally
             {
                 //   Only call NWIP() if task was previously queued
-                if(taskWasPreviouslyQueued) NotifyWorkItemProgress();
+                if (taskWasPreviouslyQueued) NotifyWorkItemProgress();
             }
 
-            return rval;
+            return true;
         }
 
-        [SecurityCritical]
         protected internal override bool TryDequeue(Task task)
         {
             // just delegate to TP
             return ThreadPool.TryPopCustomWorkItem(task);
         }
 
-        [SecurityCritical]
         protected override IEnumerable<Task> GetScheduledTasks()
         {
             return FilterTasksFromWorkItems(ThreadPool.GetQueuedWorkItems());

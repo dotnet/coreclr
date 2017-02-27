@@ -1,8 +1,11 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-namespace System.Collections {
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
-    public interface IStructuralEquatable {
+namespace System.Collections
+{
+    public interface IStructuralEquatable
+    {
         Boolean Equals(Object other, IEqualityComparer comparer);
         int GetHashCode(IEqualityComparer comparer);
     }

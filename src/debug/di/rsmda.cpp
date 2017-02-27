@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //*****************************************************************************
 // File: RsMda.cpp
 // 
@@ -151,11 +150,7 @@ HRESULT CordbMDA::GetName(ULONG32 cchName, ULONG32 * pcchName, __out_ecount_part
     HRESULT hr = S_OK;
     PUBLIC_API_BEGIN(this)
     {    
-#if defined(FEATURE_CORECLR)
         hr = E_NOTIMPL;
-#else  // !FEATURE_CORECLR
-        hr = CopyOutString(m_szName, cchName, pcchName, szName);
-#endif // FEATURE_CORECLR
     }
     PUBLIC_API_END(hr);
     return hr;
@@ -170,11 +165,7 @@ HRESULT CordbMDA::GetDescription(ULONG32 cchName, ULONG32 * pcchName, __out_ecou
     HRESULT hr = S_OK;
     PUBLIC_API_BEGIN(this)
     {        
-#if defined(FEATURE_CORECLR)
         hr = E_NOTIMPL;
-#else  // !FEATURE_CORECLR
-        hr = CopyOutString(m_szDescription, cchName, pcchName, szName);
-#endif // FEATURE_CORECLR
     }
     PUBLIC_API_END(hr);
     return hr;
@@ -191,11 +182,7 @@ HRESULT CordbMDA::GetXML(ULONG32 cchName, ULONG32 * pcchName, __out_ecount_part_
     HRESULT hr = S_OK;
     PUBLIC_API_BEGIN(this)
     {        
-#if defined(FEATURE_CORECLR)
         hr = E_NOTIMPL;
-#else  // !FEATURE_CORECLR
-        hr = CopyOutString(m_szXml, cchName, pcchName, szName);
-#endif // FEATURE_CORECLR
     }
     PUBLIC_API_END(hr);
     return hr;
@@ -209,12 +196,7 @@ HRESULT CordbMDA::GetFlags(CorDebugMDAFlags * pFlags)
     HRESULT hr = S_OK;
     PUBLIC_API_BEGIN(this)
     {        
-#if defined(FEATURE_CORECLR)
         hr = E_NOTIMPL;
-#else  // !FEATURE_CORECLR
-        ValidateOrThrow(pFlags);
-        *pFlags = this->m_flags;
-#endif // FEATURE_CORECLR
     }
     PUBLIC_API_END(hr);
     return hr;
@@ -230,13 +212,7 @@ HRESULT CordbMDA::GetOSThreadId(DWORD * pOsTid)
     HRESULT hr = S_OK;
     PUBLIC_API_BEGIN(this)
     {        
-#if defined(FEATURE_CORECLR)
         hr = E_NOTIMPL;
-#else  // !FEATURE_CORECLR
-        ValidateOrThrow(pOsTid);
-        
-        *pOsTid = this->m_dwOSTID;
-#endif // FEATURE_CORECLR
     }
     PUBLIC_API_END(hr);
     return hr;

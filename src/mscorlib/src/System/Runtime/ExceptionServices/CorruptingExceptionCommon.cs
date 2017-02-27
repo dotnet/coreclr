@@ -1,6 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-#if FEATURE_CORRUPTING_EXCEPTIONS
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*=============================================================================
 **
@@ -14,9 +14,10 @@
 ** 
 =============================================================================*/
 
-namespace System.Runtime.ExceptionServices {
-    using System;
-    
+using System;
+
+namespace System.Runtime.ExceptionServices
+{
     // This attribute can be applied to methods to indicate that ProcessCorruptedState
     // Exceptions should be delivered to them.
     [AttributeUsage(AttributeTargets.Method, AllowMultiple = false, Inherited = false)]
@@ -27,4 +28,3 @@ namespace System.Runtime.ExceptionServices {
         }
     }
 }
-#endif // FEATURE_CORRUPTING_EXCEPTIONS

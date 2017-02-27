@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 // 
 // File: DataBlob.inl
 // 
@@ -106,6 +105,7 @@ DataBlob::Init(
 // See code:#PeekUx_Functions above.
 // 
 __checkReturn 
+_Success_(return)
 inline 
 BOOL 
 DataBlob::PeekU1(__out BYTE *pnValue) const
@@ -123,6 +123,7 @@ DataBlob::PeekU1(__out BYTE *pnValue) const
 // See code:#PeekUx_Functions above.
 // 
 __checkReturn 
+_Success_(return)
 inline 
 BOOL 
 DataBlob::PeekU2(__out UINT16 *pnValue) const
@@ -140,6 +141,7 @@ DataBlob::PeekU2(__out UINT16 *pnValue) const
 // See code:#PeekUx_Functions above.
 // 
 __checkReturn 
+_Success_(return)
 inline 
 BOOL 
 DataBlob::PeekU4(__out UINT32 *pnValue) const
@@ -157,6 +159,7 @@ DataBlob::PeekU4(__out UINT32 *pnValue) const
 // See code:#PeekUx_Functions above.
 // 
 __checkReturn 
+_Success_(return)
 inline 
 BOOL 
 DataBlob::PeekU8(__out UINT64 *pnValue) const
@@ -183,6 +186,7 @@ DataBlob::PeekU8(__out UINT64 *pnValue) const
 // See code:#GetUx_Functions above.
 // 
 __checkReturn 
+_Success_(return)
 inline 
 BOOL 
 DataBlob::GetU1(__out BYTE *pnValue)
@@ -201,6 +205,7 @@ DataBlob::GetU1(__out BYTE *pnValue)
 // See code:#GetUx_Functions above.
 // 
 __checkReturn 
+_Success_(return)
 inline 
 BOOL 
 DataBlob::GetU2(__out UINT16 *pnValue)
@@ -219,6 +224,7 @@ DataBlob::GetU2(__out UINT16 *pnValue)
 // See code:#GetUx_Functions above.
 // 
 __checkReturn 
+_Success_(return)
 inline 
 BOOL 
 DataBlob::GetU4(__out UINT32 *pnValue)
@@ -237,6 +243,7 @@ DataBlob::GetU4(__out UINT32 *pnValue)
 // See code:#GetUx_Functions above.
 // 
 __checkReturn 
+_Success_(return)
 inline 
 BOOL 
 DataBlob::GetU8(__out UINT64 *pnValue)
@@ -278,6 +285,7 @@ DataBlob::GetCompressedU(__out UINT32 *pnValue)
 // doesn't move the memory block (doesn't skip the read data).
 // 
 __checkReturn 
+_Success_(return)
 inline 
 BOOL 
 DataBlob::PeekCompressedU(

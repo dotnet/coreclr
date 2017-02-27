@@ -1,15 +1,19 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
-using  System.Runtime.InteropServices;
+using System.Runtime.InteropServices;
 
 namespace System.Security
 {
     // DynamicSecurityMethodAttribute:
-    //  Indicates that calling the target method requires space for a security
-    //  object to be allocated on the callers stack. This attribute is only ever
-    //  set on certain security methods defined within mscorlib.
-    [AttributeUsage(AttributeTargets.Method, AllowMultiple = true, Inherited = false )] 
+    //  All methods that use StackCrawlMark should be marked with this attribute. This attribute
+    //  disables inlining of the calling method to allow stackwalking to find the exact caller.
+    //
+    //  This attribute used to indicate that the target method requires space for a security object 
+    //  to be allocated on the callers stack. It is not used for this purpose anymore because of security 
+    //  stackwalks are not ever done in CoreCLR.
+    [AttributeUsage(AttributeTargets.Method | AttributeTargets.Constructor, AllowMultiple = true, Inherited = false)]
     sealed internal class DynamicSecurityMethodAttribute : System.Attribute
     {
     }
@@ -17,16 +21,14 @@ namespace System.Security
     // SuppressUnmanagedCodeSecurityAttribute:
     //  Indicates that the target P/Invoke method(s) should skip the per-call
     //  security checked for unmanaged code permission.
-    [AttributeUsage(AttributeTargets.Method | AttributeTargets.Class | AttributeTargets.Interface | AttributeTargets.Delegate, AllowMultiple = true, Inherited = false )] 
-    [System.Runtime.InteropServices.ComVisible(true)]
+    [AttributeUsage(AttributeTargets.Method | AttributeTargets.Class | AttributeTargets.Interface | AttributeTargets.Delegate, AllowMultiple = true, Inherited = false)]
     sealed public class SuppressUnmanagedCodeSecurityAttribute : System.Attribute
     {
     }
 
     // UnverifiableCodeAttribute:
     //  Indicates that the target module contains unverifiable code.
-    [AttributeUsage(AttributeTargets.Module, AllowMultiple = true, Inherited = false )] 
-[System.Runtime.InteropServices.ComVisible(true)]
+    [AttributeUsage(AttributeTargets.Module, AllowMultiple = true, Inherited = false)]
     sealed public class UnverifiableCodeAttribute : System.Attribute
     {
     }
@@ -36,12 +38,11 @@ namespace System.Security
     //  and semitrusted clients
     //  For v.1, this is valid only on Assemblies, but could be expanded to 
     //  include Module, Method, class
-    [AttributeUsage(AttributeTargets.Assembly, AllowMultiple = false, Inherited = false )] 
-    [System.Runtime.InteropServices.ComVisible(true)]
+    [AttributeUsage(AttributeTargets.Assembly, AllowMultiple = false, Inherited = false)]
     sealed public class AllowPartiallyTrustedCallersAttribute : System.Attribute
     {
         private PartialTrustVisibilityLevel _visibilityLevel;
-        public AllowPartiallyTrustedCallersAttribute () { }
+        public AllowPartiallyTrustedCallersAttribute() { }
 
         public PartialTrustVisibilityLevel PartialTrustVisibilityLevel
         {
@@ -56,51 +57,48 @@ namespace System.Security
         NotVisibleByDefault = 1
     }
 
-#if !FEATURE_CORECLR
     [Obsolete("SecurityCriticalScope is only used for .NET 2.0 transparency compatibility.")]
     public enum SecurityCriticalScope
     {
         Explicit = 0,
         Everything = 0x1
     }
-#endif // FEATURE_CORECLR
 
     // SecurityCriticalAttribute
     //  Indicates that the decorated code or assembly performs security critical operations (e.g. Assert, "unsafe", LinkDemand, etc.)
     //  The attribute can be placed on most targets, except on arguments/return values.
-    [AttributeUsage(AttributeTargets.Assembly | 
+    [AttributeUsage(AttributeTargets.Assembly |
                     AttributeTargets.Class |
                     AttributeTargets.Struct |
                     AttributeTargets.Enum |
                     AttributeTargets.Constructor |
                     AttributeTargets.Method |
                     AttributeTargets.Field |
-                    AttributeTargets.Interface  |
+                    AttributeTargets.Interface |
                     AttributeTargets.Delegate,
         AllowMultiple = false,
-        Inherited = false )]
-    sealed public class SecurityCriticalAttribute     : System.Attribute
+        Inherited = false)]
+    sealed public class SecurityCriticalAttribute : System.Attribute
     {
 #pragma warning disable 618    // We still use SecurityCriticalScope for v2 compat
 
-#if !FEATURE_CORECLR        
-         private SecurityCriticalScope  _val;
-#endif // FEATURE_CORECLR
-        public SecurityCriticalAttribute () {}
+        private SecurityCriticalScope _val;
 
-#if !FEATURE_CORECLR
+        public SecurityCriticalAttribute() { }
+
         public SecurityCriticalAttribute(SecurityCriticalScope scope)
         {
             _val = scope;
         }
 
         [Obsolete("SecurityCriticalScope is only used for .NET 2.0 transparency compatibility.")]
-        public SecurityCriticalScope Scope {
-            get {
+        public SecurityCriticalScope Scope
+        {
+            get
+            {
                 return _val;
             }
         }
-#endif // FEATURE_CORECLR
 
 #pragma warning restore 618
     }
@@ -123,11 +121,11 @@ namespace System.Security
                     AttributeTargets.Interface |
                     AttributeTargets.Delegate,
         AllowMultiple = false,
-        Inherited = false )]
+        Inherited = false)]
     [Obsolete("SecurityTreatAsSafe is only used for .NET 2.0 transparency compatibility.  Please use the SecuritySafeCriticalAttribute instead.")]
     sealed public class SecurityTreatAsSafeAttribute : System.Attribute
     {
-        public SecurityTreatAsSafeAttribute () { }
+        public SecurityTreatAsSafeAttribute() { }
     }
 
     // SecuritySafeCriticalAttribute: 
@@ -148,10 +146,10 @@ namespace System.Security
                     AttributeTargets.Interface |
                     AttributeTargets.Delegate,
         AllowMultiple = false,
-        Inherited = false )]
+        Inherited = false)]
     sealed public class SecuritySafeCriticalAttribute : System.Attribute
     {
-        public SecuritySafeCriticalAttribute () { }
+        public SecuritySafeCriticalAttribute() { }
     }
 
     // SecurityTransparentAttribute:
@@ -160,18 +158,17 @@ namespace System.Security
     // Assert will be restricted, SuppressUnmanagedCode, LinkDemand, unsafe, and unverifiable code will be converted
     // into Full-Demands.
 
-    [AttributeUsage(AttributeTargets.Assembly, AllowMultiple = false, Inherited = false )] 
+    [AttributeUsage(AttributeTargets.Assembly, AllowMultiple = false, Inherited = false)]
     sealed public class SecurityTransparentAttribute : System.Attribute
     {
-        public SecurityTransparentAttribute () {}
+        public SecurityTransparentAttribute() { }
     }
 
-#if !FEATURE_CORECLR
     public enum SecurityRuleSet : byte
     {
-        None    = 0,
-        Level1  = 1,    // v2.0 transparency model
-        Level2  = 2,    // v4.0 transparency model
+        None = 0,
+        Level1 = 1,    // v2.0 transparency model
+        Level2 = 2,    // v4.0 transparency model
     }
 
     // SecurityRulesAttribute
@@ -204,5 +201,4 @@ namespace System.Security
             get { return m_ruleSet; }
         }
     }
-#endif // !FEATURE_CORECLR
 }

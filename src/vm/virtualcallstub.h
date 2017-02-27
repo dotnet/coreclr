@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //
 // File: VirtualCallStub.h
 //
@@ -15,6 +14,8 @@
 
 #ifndef _VIRTUAL_CALL_STUB_H 
 #define _VIRTUAL_CALL_STUB_H
+
+#ifndef CROSSGEN_COMPILE
 
 #define CHAIN_LOOKUP
 
@@ -55,13 +56,6 @@ extern "C" PCODE STDCALL VSD_ResolveWorker(TransitionBlock * pTransitionBlock,
 #endif                               
                                            );
 
-#ifdef FEATURE_REMOTING
-// This is used by TransparentProxyWorkerStub to take a stub address (token), and
-// MethodTable and return the target. It will look in the cache first, and if not found
-// will call the resolver and then put the result into the cache.
-extern "C" PCODE STDCALL VSD_GetTargetForTPWorkerQuick(TransparentProxyObject * orTP, size_t token);
-extern "C" PCODE STDCALL VSD_GetTargetForTPWorker(TransitionBlock * pTransitionBlock, size_t token);
-#endif
 
 /////////////////////////////////////////////////////////////////////////////////////
 #if defined(_TARGET_X86_) || defined(_TARGET_AMD64_)
@@ -324,6 +318,11 @@ public:
     {
         WRAPPER_NO_CONTRACT;
         SUPPORTS_DAC;
+
+        // This method can called with stubStartAddress==NULL, e.g. when handling null reference exceptions
+        // caused by IP=0. Early out for this case to avoid confusing handled access violations inside predictStubKind.
+        if (PCODEToPINSTR(stubStartAddress) == NULL)
+            return SK_UNKNOWN;
 
         // Rather than calling IsInRange(stubStartAddress) for each possible stub kind
         // we can peek at the assembly code and predict which kind of a stub we have
@@ -1614,5 +1613,6 @@ private:
     static FastTable* dead;             //linked list head of to be deleted (abandoned) buckets
 };
 
-#endif // !_VIRTUAL_CALL_STUB_H
+#endif // !CROSSGEN_COMPILE
 
+#endif // !_VIRTUAL_CALL_STUB_H

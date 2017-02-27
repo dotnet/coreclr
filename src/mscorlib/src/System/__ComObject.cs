@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*============================================================
 **
@@ -11,17 +12,17 @@
 **
 ** 
 ===========================================================*/
-namespace System {
-    
-    using System;
-    using System.Collections;
-    using System.Threading;
-    using System.Runtime.InteropServices;
-    using System.Runtime.InteropServices.WindowsRuntime;
-    using System.Runtime.CompilerServices;
-    using System.Reflection;
-    using System.Security.Permissions;
 
+using System;
+using System.Collections;
+using System.Threading;
+using System.Runtime.InteropServices;
+using System.Runtime.InteropServices.WindowsRuntime;
+using System.Runtime.CompilerServices;
+using System.Reflection;
+
+namespace System
+{
     internal class __ComObject : MarshalByRefObject
     {
         private Hashtable m_ObjectToDataMap;
@@ -30,7 +31,7 @@ namespace System {
         ** default constructor
         ** can't instantiate this directly
         =============================================================*/
-        protected __ComObject ()
+        protected __ComObject()
         {
         }
 
@@ -52,17 +53,10 @@ namespace System {
                 if (stringableType != null)
                 {
                     return stringableType.ToString();
-                }                   
+                }
             }
-                
+
             return base.ToString();
-        }
-        
-        [System.Security.SecurityCritical]  // auto-generated
-        internal IntPtr GetIUnknown(out bool fIsURTAggregated)
-        {
-            fIsURTAggregated = !GetType().IsDefined(typeof(ComImportAttribute), false);
-            return System.Runtime.InteropServices.Marshal.GetIUnknownForObject(this);
         }
 
         //====================================================================
@@ -74,7 +68,7 @@ namespace System {
             Object data = null;
 
             // Synchronize access to the map.
-            lock(this)
+            lock (this)
             {
                 // If the map hasn't been allocated, then there can be no data for the specified key.
                 if (m_ObjectToDataMap != null)
@@ -86,7 +80,7 @@ namespace System {
 
             return data;
         }
-        
+
         //====================================================================
         // This method sets the data for the specified key on the current 
         // __ComObject.
@@ -96,7 +90,7 @@ namespace System {
             bool bAdded = false;
 
             // Synchronize access to the map.
-            lock(this)
+            lock (this)
             {
                 // If the map hasn't been allocated yet, allocate it.
                 if (m_ObjectToDataMap == null)
@@ -117,13 +111,11 @@ namespace System {
         // This method is called from within the EE and releases all the 
         // cached data for the __ComObject.
         //====================================================================
-        [System.Security.SecurityCritical]  // auto-generated
         internal void ReleaseAllData()
         {
             // Synchronize access to the map.
-            lock(this)
+            lock (this)
             {
-
                 // If the map hasn't been allocated, then there is nothing to do.
                 if (m_ObjectToDataMap != null)
                 {
@@ -131,7 +123,7 @@ namespace System {
                     {
                         // Note: the value could be an object[]
                         // We are fine for now as object[] doesn't implement IDisposable nor derive from __ComObject
-                        
+
                         // If the object implements IDisposable, then call Dispose on it.
                         IDisposable DisposableObj = o as IDisposable;
                         if (DisposableObj != null)
@@ -153,7 +145,6 @@ namespace System {
         // This method is called from within the EE and is used to handle
         // calls on methods of event interfaces.
         //====================================================================
-        [System.Security.SecurityCritical]  // auto-generated
         internal Object GetEventProvider(RuntimeType t)
         {
             // Check to see if we already have a cached event provider for this type.
@@ -166,26 +157,20 @@ namespace System {
             return EvProvider;
         }
 
-        [System.Security.SecurityCritical]  // auto-generated
         internal int ReleaseSelf()
         {
             return Marshal.InternalReleaseComObject(this);
         }
 
-        [System.Security.SecurityCritical]  // auto-generated
         internal void FinalReleaseSelf()
         {
             Marshal.InternalFinalReleaseComObject(this);
         }
 
-        [System.Security.SecurityCritical]  // auto-generated
-#if !FEATURE_CORECLR
-        [ReflectionPermissionAttribute(SecurityAction.Assert, MemberAccess=true)]
-#endif
         private Object CreateEventProvider(RuntimeType t)
         {
             // Create the event provider for the specified type.
-            Object EvProvider = Activator.CreateInstance(t, Activator.ConstructorDefault | BindingFlags.NonPublic, null, new Object[]{this}, null);
+            Object EvProvider = Activator.CreateInstance(t, Activator.ConstructorDefault | BindingFlags.NonPublic, null, new Object[] { this }, null);
 
             // Attempt to cache the wrapper on the object.
             if (!SetData(t, EvProvider))

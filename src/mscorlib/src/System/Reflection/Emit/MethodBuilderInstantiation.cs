@@ -1,16 +1,17 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 // 
 
+using System;
+using System.Reflection;
+using System.Collections;
+using System.Globalization;
+using System.Diagnostics.Contracts;
+
 namespace System.Reflection.Emit
 {
-    using System;
-    using System.Reflection;
-    using System.Collections;
-    using System.Globalization;
-    using System.Diagnostics.Contracts;
-
     internal sealed class MethodBuilderInstantiation : MethodInfo
     {
         #region Static Members
@@ -37,27 +38,26 @@ namespace System.Reflection.Emit
             m_inst = inst;
         }
         #endregion
-        
+
         internal override Type[] GetParameterTypes()
         {
             return m_method.GetParameterTypes();
         }
 
         #region MemberBase
-        public override MemberTypes MemberType { get { return m_method.MemberType;  } }
+        public override MemberTypes MemberType { get { return m_method.MemberType; } }
         public override String Name { get { return m_method.Name; } }
-        public override Type DeclaringType { get { return m_method.DeclaringType;  } }
+        public override Type DeclaringType { get { return m_method.DeclaringType; } }
         public override Type ReflectedType { get { return m_method.ReflectedType; } }
-        public override Object[] GetCustomAttributes(bool inherit) { return m_method.GetCustomAttributes(inherit); } 
+        public override Object[] GetCustomAttributes(bool inherit) { return m_method.GetCustomAttributes(inherit); }
         public override Object[] GetCustomAttributes(Type attributeType, bool inherit) { return m_method.GetCustomAttributes(attributeType, inherit); }
         public override bool IsDefined(Type attributeType, bool inherit) { return m_method.IsDefined(attributeType, inherit); }
         public override Module Module { get { return m_method.Module; } }
-        public new Type GetType() { return base.GetType(); }
         #endregion
 
         #region MethodBase Members
         [Pure]
-        public override ParameterInfo[] GetParameters() { throw new NotSupportedException(); }        
+        public override ParameterInfo[] GetParameters() { throw new NotSupportedException(); }
         public override MethodImplAttributes GetMethodImplementationFlags() { return m_method.GetMethodImplementationFlags(); }
         public override RuntimeMethodHandle MethodHandle { get { throw new NotSupportedException(Environment.GetResourceString("NotSupported_DynamicModule")); } }
         public override MethodAttributes Attributes { get { return m_method.Attributes; } }
@@ -88,11 +88,11 @@ namespace System.Reflection.Emit
 
         public override MethodInfo MakeGenericMethod(params Type[] arguments)
         {
-           throw new InvalidOperationException(Environment.GetResourceString("Arg_NotGenericMethodDefinition"));
+            throw new InvalidOperationException(Environment.GetResourceString("Arg_NotGenericMethodDefinition"));
         }
 
         public override bool IsGenericMethod { get { return true; } }
-       
+
         #endregion
 
         #region Public Abstract\Virtual Members

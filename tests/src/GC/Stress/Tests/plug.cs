@@ -1,4 +1,7 @@
-// Copyright (c) Microsoft. All rights reserved.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
+
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 //
 
@@ -9,7 +12,6 @@ using System.Security;
 
 public class Test
 {
-
     public static void Usage()
     {
         Console.WriteLine("USAGE:");
@@ -19,7 +21,6 @@ public class Test
     [SecuritySafeCritical]
     public static int Main(string[] args)
     {
-
         int size = 10000;
         int power = 20;
         int numIterations = 0;
@@ -46,13 +47,13 @@ public class Test
 
         Console.WriteLine("Running {0} iterations", numIterations);
 
-        for (int j=0; j<numIterations; j++)
+        for (int j = 0; j < numIterations; j++)
         {
-            for (int i=0; i<size; i++)
+            for (int i = 0; i < size; i++)
             {
                 GCHandleType type = GCHandleType.Normal;
 
-                if (i%5==0)
+                if (i % 5 == 0)
                 {
                     // pin every 5th handle
                     type = GCHandleType.Pinned;
@@ -62,14 +63,14 @@ public class Test
                 {
                     try
                     {
-                        byte[] b = new byte[(int)Math.Pow(2,(i%power))];
+                        byte[] b = new byte[(int)Math.Pow(2, (i % power))];
                         list[i] = (GCHandle.Alloc(b, type));
                     }
                     catch (OutOfMemoryException)
                     {
                         Console.WriteLine("OOM");
                         Console.WriteLine("Heap size: {0}", GC.GetTotalMemory(false));
-                        Console.WriteLine("Trying to allocate array of size: {0}", Math.Pow(2,(i%power)));
+                        Console.WriteLine("Trying to allocate array of size: {0}", Math.Pow(2, (i % power)));
                     }
                 }
                 else
@@ -77,7 +78,6 @@ public class Test
                     list[i].Free();
                 }
             }
-
         }
 
         return 100;

@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 
 /*++---------------------------------------------------------------------------------------
@@ -137,6 +136,11 @@ public:
 
         _ASSERTE(ptr != NULL);
         m_ptr = ptr;
+    }
+
+    virtual ~Compare()
+    {
+        LIMITED_METHOD_CONTRACT;
     }
 
     virtual UPTR CompareHelper(UPTR val1, UPTR storedval)
@@ -491,7 +495,7 @@ public:
         {
             LIMITED_METHOD_DAC_CONTRACT;
 
-            for (m_pBucket = m_pBucket;m_pBucket < m_pSentinel; m_pBucket++)
+            for (;m_pBucket < m_pSentinel; m_pBucket++)
             {   //loop thru all buckets
                 for (m_id = m_id+1; m_id < 4; m_id++)
                 {   //loop through all slots

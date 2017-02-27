@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 // ============================================================
 //
 // Assembly.cpp
@@ -16,10 +15,6 @@
 #include "clrprivbinderutil.h"
 #include "assembly.hpp"
 #include "utils.hpp"
-
-#ifdef FEATURE_LEGACYNETCF
-extern BOOL RuntimeIsLegacyNetCF(DWORD adid);
-#endif
 
 namespace BINDER_SPACE
 {
@@ -287,11 +282,6 @@ Exit:
         if (!IsPlatformArchicture(kArchitecture))
             return TRUE;
 
-#ifdef FEATURE_LEGACYNETCF
-        if (kArchitecture == peI386 && RuntimeIsLegacyNetCF(0))
-            return TRUE;
-#endif
-
         return (kArchitecture == GetSystemArchitecture());
     }
     
@@ -395,6 +385,12 @@ Exit:
             AddRef();
             *ppv = this;
         }
+		else if (IsEqualIID(riid, __uuidof(ICLRPrivResource)))
+		{
+			AddRef();
+			// upcasting is safe
+			*ppv = static_cast<ICLRPrivResource *>(this);
+		}
         else if (IsEqualIID(riid, __uuidof(ICLRPrivResourceAssembly)))
         {
             AddRef();

@@ -1,4 +1,12 @@
-// Copyright (c) Microsoft. All rights reserved.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
+
+
+using System;
+using System.Collections;
+
+
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 //
 
@@ -14,15 +22,14 @@
 /****************************************************************************/
 
 
-namespace DefaultNamespace {
-    using System;
-    using System.Collections;
+namespace DefaultNamespace
+{
     internal class BitArrayNode
     {
         public BitArrayNode(int num)
         {
             int[] temp = new int[num];
-            for(int i=0; i<num; i++)
+            for (int i = 0; i < num; i++)
             {
                 temp[i] = i;
             }
@@ -33,40 +40,40 @@ namespace DefaultNamespace {
     internal class GCQueue
     {
         internal static Queue G_Queue;
-        public static int Main(String [] Args)
+        public static int Main(String[] Args)
         {
             int iRep = 0;
             int iObj = 0;
             Console.Out.WriteLine("Test should return with ExitCode 100 ...");
 
-            switch( Args.Length )
+            switch (Args.Length)
             {
                 case 1:
-                    if (!Int32.TryParse( Args[0], out iRep ))
+                    if (!Int32.TryParse(Args[0], out iRep))
                     {
                         iRep = 5;
                     }
-                break;
+                    break;
                 case 2:
-                    if (!Int32.TryParse( Args[0], out iRep ))
+                    if (!Int32.TryParse(Args[0], out iRep))
                     {
                         iRep = 5;
                     }
-                    if (!Int32.TryParse( Args[1], out iObj ))
+                    if (!Int32.TryParse(Args[1], out iObj))
                     {
                         iObj = 5000;
                     }
-                break;
+                    break;
                 default:
                     iRep = 5;
                     iObj = 5000;
-                break;
+                    break;
             }
 
-            Console.Out.WriteLine("iRep= "+iRep+ " ; iObj= "+iObj);
+            Console.Out.WriteLine("iRep= " + iRep + " ; iObj= " + iObj);
             GCQueue Mv_Obj = new GCQueue();
 
-            if(Mv_Obj.runTest(iRep, iObj ))
+            if (Mv_Obj.runTest(iRep, iObj))
             {
                 Console.WriteLine("Test Passed");
                 return 100;
@@ -81,14 +88,14 @@ namespace DefaultNamespace {
         {
             try
             {
-                for(int i=0; i<iRep; i++)
+                for (int i = 0; i < iRep; i++)
                 {
                     G_Queue = new Queue(0);
-                    for(int j=0; j<iObj;j++)
+                    for (int j = 0; j < iObj; j++)
                     {
                         G_Queue.Enqueue(new BitArray(new int[j]));
                     }
-                    Console.Out.WriteLine("i= "+i);
+                    Console.Out.WriteLine("i= " + i);
                     MakeLeak(iRep, iObj);
                     GC.Collect();
                 }
@@ -113,10 +120,10 @@ namespace DefaultNamespace {
             BitArrayNode l_obj2;
             int[] l_obj3;
 
-            for(int i=0; i<iRep; i++)
+            for (int i = 0; i < iRep; i++)
             {
                 L_Queue1 = new Queue();
-                for(int j=1; j<iObj; j++)
+                for (int j = 1; j < iObj; j++)
                 {
                     l_obj1 = new byte[j];
                     l_obj2 = new BitArrayNode(j);
@@ -124,9 +131,9 @@ namespace DefaultNamespace {
                     l_obj1[0] = (byte)1;
                     l_obj3[0] = 1;
 
-                    if(j>1)
+                    if (j > 1)
                     {
-                        l_obj1[j-1] = (byte)2;
+                        l_obj1[j - 1] = (byte)2;
                     }
 
                     L_Queue1.Enqueue(new BitArray(l_obj1));
@@ -135,12 +142,11 @@ namespace DefaultNamespace {
                 }
 
                 L_Queue2.Clear();
-                while(L_Queue3.Count>0)
+                while (L_Queue3.Count > 0)
                 {
                     L_Queue3.Dequeue();
                 }
             }
-
         }
     }
 }

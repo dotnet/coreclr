@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 // 
 // File: HotHeap.h
 // 
@@ -52,7 +51,7 @@ public:
     __checkReturn 
     HRESULT GetData(
              UINT32    nDataIndex, 
-        __in DataBlob *pData);
+        __out DataBlob *pData);
     
     inline BOOL IsEmpty() const
         { return m_pHotHeapHeader == NULL; }

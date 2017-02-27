@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //
 // RtlFunctions.CPP
 //
@@ -77,26 +76,42 @@ VOID InstallEEFunctionTable (
     CONTRACTL_END;
 
     static LPWSTR wszModuleName = NULL;
-    static WCHAR  rgwModuleName[MAX_PATH] = {0};
+    static WCHAR  rgwModuleName[MAX_LONGPATH] = { 0 };
 
     if (wszModuleName == NULL)        
     {
-        WCHAR rgwTempName[MAX_PATH] = {0};
-        DWORD dwTempNameSize = MAX_PATH;
+        StackSString ssTempName;
+        DWORD dwTempNameSize;
 
         // Leaves trailing backslash on path, producing something like "c:\windows\microsoft.net\framework\v4.0.x86dbg\"
-        HRESULT hr = GetInternalSystemDirectory(rgwTempName, &dwTempNameSize);
+        LPCWSTR pszSysDir = GetInternalSystemDirectory(&dwTempNameSize);
 
         //finish creating complete path and copy to buffer if we can
-        if (FAILED(hr) ||
-            (wcscat_s(rgwTempName, MAX_PATH, MAIN_DAC_MODULE_DLL_NAME_W) != 0) ||
-            (wcscpy_s(rgwModuleName, MAX_PATH, rgwTempName) != 0))
+        if (pszSysDir == NULL)
         {   // The CLR should become unavailable in this case.
             EEPOLICY_HANDLE_FATAL_ERROR(COR_E_EXECUTIONENGINE);
         }
 
-        // publish result
-        InterlockedExchangeT(&wszModuleName, rgwModuleName);
+        ssTempName.Set(pszSysDir);
+        ssTempName.Append(MAIN_DAC_MODULE_DLL_NAME_W);
+
+        if (ssTempName.GetCount() < MAX_LONGPATH)
+        {
+            wcscpy_s(rgwModuleName, MAX_LONGPATH, ssTempName.GetUnicode());
+
+            // publish result
+            InterlockedExchangeT(&wszModuleName, rgwModuleName);
+        }
+        else
+        {
+            NewArrayHolder<WCHAR> wzTempName(DuplicateStringThrowing(ssTempName.GetUnicode()));
+
+            // publish result
+            if (InterlockedCompareExchangeT(&wszModuleName, (LPWSTR)wzTempName, nullptr) == nullptr)
+            {
+                wzTempName.SuppressRelease();
+            }
+        }
     }
 
     if (!RtlInstallFunctionTableCallback(

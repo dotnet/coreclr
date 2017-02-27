@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 // ---------------------------------------------------------------------------
 // APIThreadStress.h  (API thread stresser)
 // ---------------------------------------------------------------------------
@@ -47,6 +46,8 @@
 
 #include "utilcode.h"
 
+#ifdef STRESS_THREAD
+
 class APIThreadStress
 {
  public:
@@ -73,5 +74,17 @@ class APIThreadStress
     HANDLE    m_syncEvent;
 
 };
+
+#else // STRESS_THREAD
+
+class APIThreadStress
+{
+ public:
+    BOOL DoThreadStress() { return FALSE; }
+    static void SyncThreadStress() { }
+    static void SetThreadStressCount(int count) { }
+};
+
+#endif // STRESS_THREAD
 
 #endif  // _APITHREADSTRESS_H_

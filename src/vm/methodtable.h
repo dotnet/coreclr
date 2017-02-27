@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 //
 // File: methodtable.h
 //
@@ -18,7 +17,6 @@
 /*
  *  Include Files 
  */
-#ifndef BINDER
 #include "vars.hpp"
 #include "cor.h"
 #include "hash.h"
@@ -36,9 +34,6 @@
 #include "contractimpl.h"
 #include "generics.h"
 #include "fixuppointer.h"
-#else
-#include "classloadlevel.h"
-#endif // !BINDER
 
 /*
  * Forward Declarations
@@ -53,7 +48,6 @@ class FCallMethodDesc;
 class    EEClass;
 class    EnCFieldDesc;
 class FieldDesc;
-class    FieldMarshaler;
 class JIT_TrialAlloc;
 struct LayoutRawFieldInfo;
 class MetaSig;
@@ -65,10 +59,6 @@ class    Object;
 class    Stub;
 class    Substitution;
 class    TypeHandle;
-#ifdef FEATURE_REMOTING
-class   CrossDomainOptimizationInfo;
-typedef DPTR(CrossDomainOptimizationInfo) PTR_CrossDomainOptimizationInfo;
-#endif
 class   Dictionary;
 class   AllocMemTracker;
 class   SimpleRWLock;
@@ -80,6 +70,7 @@ class   ComCallWrapperTemplate;
 #ifdef FEATURE_COMINTEROP_UNMANAGED_ACTIVATION
 class ClassFactoryBase;
 #endif // FEATURE_COMINTEROP_UNMANAGED_ACTIVATION
+class ArgDestination;
 
 //============================================================================
 // This is the in-memory structure of a class and it will evolve.
@@ -625,6 +616,112 @@ public:
 typedef DPTR(MethodTableWriteableData) PTR_MethodTableWriteableData;
 typedef DPTR(MethodTableWriteableData const) PTR_Const_MethodTableWriteableData;
 
+#ifdef FEATURE_UNIX_AMD64_STRUCT_PASSING_ITF
+inline
+SystemVClassificationType CorInfoType2UnixAmd64Classification(CorElementType eeType)
+{
+    static const SystemVClassificationType toSystemVAmd64ClassificationTypeMap[] = {
+        SystemVClassificationTypeUnknown,               // ELEMENT_TYPE_END
+        SystemVClassificationTypeUnknown,               // ELEMENT_TYPE_VOID
+        SystemVClassificationTypeInteger,               // ELEMENT_TYPE_BOOLEAN
+        SystemVClassificationTypeInteger,               // ELEMENT_TYPE_CHAR
+        SystemVClassificationTypeInteger,               // ELEMENT_TYPE_I1
+        SystemVClassificationTypeInteger,               // ELEMENT_TYPE_U1
+        SystemVClassificationTypeInteger,               // ELEMENT_TYPE_I2
+        SystemVClassificationTypeInteger,               // ELEMENT_TYPE_U2
+        SystemVClassificationTypeInteger,               // ELEMENT_TYPE_I4
+        SystemVClassificationTypeInteger,               // ELEMENT_TYPE_U4
+        SystemVClassificationTypeInteger,               // ELEMENT_TYPE_I8
+        SystemVClassificationTypeInteger,               // ELEMENT_TYPE_U8
+        SystemVClassificationTypeSSE,                   // ELEMENT_TYPE_R4
+        SystemVClassificationTypeSSE,                   // ELEMENT_TYPE_R8
+        SystemVClassificationTypeIntegerReference,      // ELEMENT_TYPE_STRING
+        SystemVClassificationTypeInteger,               // ELEMENT_TYPE_PTR
+        SystemVClassificationTypeIntegerByRef,          // ELEMENT_TYPE_BYREF
+        SystemVClassificationTypeStruct,                // ELEMENT_TYPE_VALUETYPE
+        SystemVClassificationTypeIntegerReference,      // ELEMENT_TYPE_CLASS
+        SystemVClassificationTypeIntegerReference,      // ELEMENT_TYPE_VAR (type variable)
+        SystemVClassificationTypeIntegerReference,      // ELEMENT_TYPE_ARRAY
+        SystemVClassificationTypeIntegerReference,      // ELEMENT_TYPE_GENERICINST
+        SystemVClassificationTypeTypedReference,        // ELEMENT_TYPE_TYPEDBYREF
+        SystemVClassificationTypeUnknown,               // ELEMENT_TYPE_VALUEARRAY_UNSUPPORTED
+        SystemVClassificationTypeInteger,               // ELEMENT_TYPE_I
+        SystemVClassificationTypeInteger,               // ELEMENT_TYPE_U
+        SystemVClassificationTypeUnknown,               // ELEMENT_TYPE_R_UNSUPPORTED
+
+        // put the correct type when we know our implementation
+        SystemVClassificationTypeInteger,               // ELEMENT_TYPE_FNPTR
+        SystemVClassificationTypeIntegerReference,      // ELEMENT_TYPE_OBJECT
+        SystemVClassificationTypeIntegerReference,      // ELEMENT_TYPE_SZARRAY
+        SystemVClassificationTypeIntegerReference,      // ELEMENT_TYPE_MVAR
+
+        SystemVClassificationTypeUnknown,               // ELEMENT_TYPE_CMOD_REQD
+        SystemVClassificationTypeUnknown,               // ELEMENT_TYPE_CMOD_OPT
+        SystemVClassificationTypeUnknown,               // ELEMENT_TYPE_INTERNAL
+    };
+
+    _ASSERTE(sizeof(toSystemVAmd64ClassificationTypeMap) == ELEMENT_TYPE_MAX);
+    _ASSERTE(eeType < (CorElementType) sizeof(toSystemVAmd64ClassificationTypeMap));
+    // spot check of the map
+    _ASSERTE((SystemVClassificationType)toSystemVAmd64ClassificationTypeMap[ELEMENT_TYPE_I4] == SystemVClassificationTypeInteger);
+    _ASSERTE((SystemVClassificationType)toSystemVAmd64ClassificationTypeMap[ELEMENT_TYPE_PTR] == SystemVClassificationTypeInteger);
+    _ASSERTE((SystemVClassificationType)toSystemVAmd64ClassificationTypeMap[ELEMENT_TYPE_VALUETYPE] == SystemVClassificationTypeStruct);
+    _ASSERTE((SystemVClassificationType)toSystemVAmd64ClassificationTypeMap[ELEMENT_TYPE_TYPEDBYREF] == SystemVClassificationTypeTypedReference);
+    _ASSERTE((SystemVClassificationType)toSystemVAmd64ClassificationTypeMap[ELEMENT_TYPE_BYREF] == SystemVClassificationTypeIntegerByRef);
+
+    return (((int)eeType) < ELEMENT_TYPE_MAX) ? (toSystemVAmd64ClassificationTypeMap[eeType]) : SystemVClassificationTypeUnknown;
+};
+
+#define SYSTEMV_EIGHT_BYTE_SIZE_IN_BYTES                    8 // Size of an eightbyte in bytes.
+#define SYSTEMV_MAX_NUM_FIELDS_IN_REGISTER_PASSED_STRUCT    16 // Maximum number of fields in struct passed in registers
+
+struct SystemVStructRegisterPassingHelper
+{
+    SystemVStructRegisterPassingHelper(unsigned int totalStructSize) :
+        structSize(totalStructSize),
+        eightByteCount(0),
+        inEmbeddedStruct(false),
+        currentUniqueOffsetField(0),
+        largestFieldOffset(-1)
+    {
+        for (int i = 0; i < CLR_SYSTEMV_MAX_EIGHTBYTES_COUNT_TO_PASS_IN_REGISTERS; i++)
+        {
+            eightByteClassifications[i] = SystemVClassificationTypeNoClass;
+            eightByteSizes[i] = 0;
+            eightByteOffsets[i] = 0;
+        }
+
+        // Initialize the work arrays
+        for (int i = 0; i < SYSTEMV_MAX_NUM_FIELDS_IN_REGISTER_PASSED_STRUCT; i++)
+        {
+            fieldClassifications[i] = SystemVClassificationTypeNoClass;
+            fieldSizes[i] = 0;
+            fieldOffsets[i] = 0;
+        }
+    }
+
+    // Input state.
+    unsigned int                    structSize;
+
+    // These fields are the output; these are what is computed by the classification algorithm.
+    unsigned int                    eightByteCount;
+    SystemVClassificationType       eightByteClassifications[CLR_SYSTEMV_MAX_EIGHTBYTES_COUNT_TO_PASS_IN_REGISTERS];
+    unsigned int                    eightByteSizes[CLR_SYSTEMV_MAX_EIGHTBYTES_COUNT_TO_PASS_IN_REGISTERS];
+    unsigned int                    eightByteOffsets[CLR_SYSTEMV_MAX_EIGHTBYTES_COUNT_TO_PASS_IN_REGISTERS];
+
+    // Helper members to track state.
+    bool                            inEmbeddedStruct;
+    unsigned int                    currentUniqueOffsetField; // A virtual field that could encompass many overlapping fields.
+    int                             largestFieldOffset;
+    SystemVClassificationType       fieldClassifications[SYSTEMV_MAX_NUM_FIELDS_IN_REGISTER_PASSED_STRUCT];
+    unsigned int                    fieldSizes[SYSTEMV_MAX_NUM_FIELDS_IN_REGISTER_PASSED_STRUCT];
+    unsigned int                    fieldOffsets[SYSTEMV_MAX_NUM_FIELDS_IN_REGISTER_PASSED_STRUCT];
+};
+
+typedef DPTR(SystemVStructRegisterPassingHelper) SystemVStructRegisterPassingHelperPtr;
+
+#endif // FEATURE_UNIX_AMD64_STRUCT_PASSING_ITF
+
 //===============================================================================================
 //
 // GC data appears before the beginning of the MethodTable
@@ -668,12 +765,7 @@ class MethodTable
     // Special access for setting up String object method table correctly
     friend class ClassLoader;
     friend class JIT_TrialAlloc;
-#ifndef BINDER
     friend class Module;
-#else
-    friend class MdilModule;
-    friend class CompactTypeBuilder;
-#endif
     friend class EEClass;
     friend class MethodTableBuilder;
     friend class CheckAsmOffsets;
@@ -721,11 +813,7 @@ public:
     PTR_Module GetLoaderModule();
     PTR_LoaderAllocator GetLoaderAllocator();
 
-#ifndef BINDER
     void SetLoaderModule(Module* pModule);
-#else
-    void SetLoaderModule(MdilModule* pModule);
-#endif
     void SetLoaderAllocator(LoaderAllocator* pAllocator);
 
     // Get the domain local module - useful for static init checks
@@ -786,7 +874,7 @@ public:
     // mark the class type as COM object class
     void SetComObjectType();
 
-#if defined(FEATURE_TYPEEQUIVALENCE) || defined(FEATURE_REMOTING)
+#if defined(FEATURE_TYPEEQUIVALENCE)
     // mark the type as opted into type equivalence
     void SetHasTypeEquivalence();
 #endif
@@ -941,6 +1029,11 @@ public:
     // during object construction.
     void CheckRunClassInitAsIfConstructingThrowing();
 
+#if defined(FEATURE_UNIX_AMD64_STRUCT_PASSING_ITF)
+    // Builds the internal data structures and classifies struct eightbytes for Amd System V calling convention.
+    bool ClassifyEightBytes(SystemVStructRegisterPassingHelperPtr helperPtr, unsigned int nestingLevel, unsigned int startOffsetOfStruct, bool isNativeStruct);
+#endif // defined(FEATURE_UNIX_AMD64_STRUCT_PASSING_ITF)
+
     // Copy m_dwFlags from another method table
     void CopyFlags(MethodTable * pOldMT)
     {
@@ -975,6 +1068,13 @@ public:
     bool ClassRequiresUnmanagedCodeCheck();
 
 private:
+
+#if defined(FEATURE_UNIX_AMD64_STRUCT_PASSING_ITF)
+    void AssignClassifiedEightByteTypes(SystemVStructRegisterPassingHelperPtr helperPtr, unsigned int nestingLevel);
+    // Builds the internal data structures and classifies struct eightbytes for Amd System V calling convention.
+    bool ClassifyEightBytesWithManagedLayout(SystemVStructRegisterPassingHelperPtr helperPtr, unsigned int nestingLevel, unsigned int startOffsetOfStruct, bool isNativeStruct);
+    bool ClassifyEightBytesWithNativeLayout(SystemVStructRegisterPassingHelperPtr helperPtr, unsigned int nestingLevel, unsigned int startOffsetOfStruct, bool isNativeStruct);
+#endif // defined(FEATURE_UNIX_AMD64_STRUCT_PASSING_ITF)
 
     DWORD   GetClassIndexFromToken(mdTypeDef typeToken)
     {
@@ -1320,8 +1420,17 @@ public:
             return GetFlag(enum_flag_ContainsGenericVariables);
     }
 
+    BOOL IsByRefLike()
+    {
+        LIMITED_METHOD_DAC_CONTRACT;;
+        return GetFlag(enum_flag_IsByRefLike);
+    }
 
-    inline BOOL ContainsStackPtr();
+    void SetIsByRefLike()
+    {
+        LIMITED_METHOD_CONTRACT;
+        SetFlag(enum_flag_IsByRefLike);
+    }
 
     // class is a com object class
     Module* GetDefiningModuleForOpenType();
@@ -1374,7 +1483,6 @@ public:
         NO_SLOT = 0xffff // a unique slot number used to indicate "empty" for fields that record slot numbers
     };
 
-#ifndef BINDER // the binder works with a slightly different representation, so remove these
     PCODE GetSlot(UINT32 slotNumber)
     {
         WRAPPER_NO_CONTRACT;
@@ -1439,7 +1547,6 @@ public:
     }
 
     void SetSlot(UINT32 slotNum, PCODE slotVal);
-#endif
 
     //-------------------------------------------------------------------
     // The VTABLE
@@ -1852,43 +1959,6 @@ public:
     // The following service adjusts a MethodTable based on the supplied instance.  As
     // we add new thunking layers, we just need to teach this service how to navigate
     // through them.
-#ifdef FEATURE_REMOTING
-    inline BOOL IsTransparentProxy()
-    { 
-        LIMITED_METHOD_DAC_CONTRACT;
-        return GetFlag(enum_flag_Category_Mask) == enum_flag_Category_TransparentProxy;
-    }
-    inline void SetTransparentProxy()
-    {
-        LIMITED_METHOD_CONTRACT;
-        _ASSERTE(GetFlag(enum_flag_Category_Mask) == 0);
-        SetFlag(enum_flag_Category_TransparentProxy);
-    }
-
-    inline BOOL IsMarshaledByRef()
-    {
-        LIMITED_METHOD_DAC_CONTRACT;
-        return GetFlag(enum_flag_Category_MarshalByRef_Mask) == enum_flag_Category_MarshalByRef;
-    }
-    inline void SetMarshaledByRef()
-    {
-        LIMITED_METHOD_CONTRACT;
-        _ASSERTE(GetFlag(enum_flag_Category_Mask) == 0);
-        SetFlag(enum_flag_Category_MarshalByRef);
-    }
-
-    inline BOOL IsContextful()
-    {
-        LIMITED_METHOD_DAC_CONTRACT;
-        return GetFlag(enum_flag_Category_Mask) == enum_flag_Category_Contextful;
-    }
-    inline void SetIsContextful()
-    {
-        LIMITED_METHOD_CONTRACT;
-        _ASSERTE(GetFlag(enum_flag_Category_Mask) == 0);
-        SetFlag(enum_flag_Category_Contextful);
-    }
-#else // FEATURE_REMOTING
     inline BOOL IsTransparentProxy()
     {
         return FALSE;
@@ -1903,7 +1973,6 @@ public:
     {
         return FALSE;
     }
-#endif // FEATURE_REMOTING
     
     inline bool RequiresFatDispatchTokens()
     {
@@ -1929,7 +1998,7 @@ public:
         SetFlag(enum_flag_HasPreciseInitCctors);
     }
 
-#ifdef FEATURE_HFA
+#if defined(FEATURE_HFA)
     inline bool IsHFA()
     {
         LIMITED_METHOD_CONTRACT;
@@ -1941,6 +2010,23 @@ public:
         LIMITED_METHOD_CONTRACT;
         SetFlag(enum_flag_IsHFA);
     }
+#endif // FEATURE_HFA
+
+#if defined(FEATURE_UNIX_AMD64_STRUCT_PASSING_ITF)
+    inline bool IsRegPassedStruct()
+    {
+        LIMITED_METHOD_CONTRACT;
+        return !!GetFlag(enum_flag_IsRegStructPassed);
+    }
+
+    inline void SetRegPassedStruct()
+    {
+        LIMITED_METHOD_CONTRACT;
+        SetFlag(enum_flag_IsRegStructPassed);
+    }
+#endif // defined(FEATURE_UNIX_AMD64_STRUCT_PASSING_ITF)
+
+#ifdef FEATURE_HFA
 
     CorElementType GetHFAType();
 
@@ -2158,15 +2244,6 @@ public:
     //
 
     inline PTR_InterfaceInfo GetInterfaceMap();
-
-#ifdef BINDER
-    void SetNumInterfaces(DWORD dwNumInterfaces)
-    {
-        LIMITED_METHOD_DAC_CONTRACT;
-        m_wNumInterfaces = (WORD)dwNumInterfaces;
-        _ASSERTE(m_wNumInterfaces == dwNumInterfaces);
-    }
-#endif
 
 #ifndef DACCESS_COMPILE
     void SetInterfaceMap(WORD wNumInterfaces, InterfaceInfo_t* iMap);
@@ -2588,11 +2665,8 @@ public:
 
     // Used for generics and reflection emit in memory
     DWORD GetModuleDynamicEntryID();
-#ifndef BINDER
     Module* GetModuleForStatics();
-#else // BINDER
-    MdilModule* GetModuleForStatics();
-#endif
+
     //-------------------------------------------------------------------
     // GENERICS DICT INFO
     //
@@ -2600,9 +2674,6 @@ public:
     // Number of generic arguments, whether this is a method table for 
     // a generic type instantiation, e.g. List<string> or the "generic" MethodTable
     // e.g. for List.
-#ifdef BINDER
-    DWORD GetNumGenericArgs();
-#else
     inline DWORD GetNumGenericArgs()
     {
         LIMITED_METHOD_DAC_CONTRACT;
@@ -2611,7 +2682,6 @@ public:
         else
             return 0;
     }
-#endif
 
     inline DWORD GetNumDicts()
     {
@@ -2642,6 +2712,7 @@ public:
     OBJECTREF FastBox(void** data);
 #ifndef DACCESS_COMPILE
     BOOL UnBoxInto(void *dest, OBJECTREF src);
+    BOOL UnBoxIntoArg(ArgDestination *argDest, OBJECTREF src);
     void UnBoxIntoUnchecked(void *dest, OBJECTREF src);
 #endif
 
@@ -2689,7 +2760,7 @@ public:
     // A true primitive is one who's GetVerifierCorElementType() == 
     //      ELEMENT_TYPE_I, 
     //      ELEMENT_TYPE_I4, 
-    //      ELEMENT_TYPE_TYPEDREF etc.
+    //      ELEMENT_TYPE_TYPEDBYREF etc.
     // Note that GetIntenalCorElementType might return these same values for some additional
     // types such as Enums and some structs.
     BOOL IsTruePrimitive();
@@ -2711,7 +2782,7 @@ public:
         _ASSERTE(g_pObjectClass);
         return (this == g_pObjectClass);
     }
-#ifndef BINDER
+
     // Is this System.ValueType?
     inline DWORD IsValueTypeClass()
     {
@@ -2719,13 +2790,6 @@ public:
         _ASSERTE(g_pValueTypeClass);
         return (this == g_pValueTypeClass);
     }
-#else // BINDER
-    // Is this System.ValueType?
-    bool IsValueTypeClass();
-
-    // Is this System.Enum?
-    bool IsEnumClass();
-#endif // BINDER
 
     // Is this value type? Returns false for System.ValueType and System.Enum.
     inline BOOL IsValueType();
@@ -2868,39 +2932,6 @@ public:
     //-------------------------------------------------------------------
     // REMOTEABLE METHOD INFO
     //
-#ifdef FEATURE_REMOTING
-    BOOL    HasRemotableMethodInfo();
-
-    PTR_CrossDomainOptimizationInfo GetRemotableMethodInfo()
-    {
-        CONTRACTL
-        {
-            NOTHROW;
-            GC_NOTRIGGER;
-            SO_TOLERANT;
-            MODE_ANY;
-        }
-        CONTRACTL_END;
-        _ASSERTE(HasRemotableMethodInfo());
-        return *GetRemotableMethodInfoPtr();
-    }
-    void SetupRemotableMethodInfo(AllocMemTracker *pamTracker);
-
-    //-------------------------------------------------------------------
-    // REMOTING VTS INFO
-    //
-    // This optional addition to MethodTables allows us to locate VTS (Version
-    // Tolerant Serialization) event callback methods and optionally
-    // serializable fields quickly. We also store the NotSerialized field
-    // information in here so remoting can avoid one more touch of the metadata
-    // during cross appdomain cloning.
-    //
-
-    void SetHasRemotingVtsInfo();
-    BOOL HasRemotingVtsInfo();
-    PTR_RemotingVtsInfo GetRemotingVtsInfo();
-    PTR_RemotingVtsInfo AllocateRemotingVtsInfo( AllocMemTracker *pamTracker, DWORD dwNumFields);
-#endif // FEATURE_REMOTING
 
 #ifdef FEATURE_COMINTEROP
     void SetHasGuidInfo();
@@ -3044,9 +3075,6 @@ public:
     inline DWORD GetAttrClass();
 
     inline BOOL IsSerializable();
-#ifdef FEATURE_REMOTING
-    inline BOOL CannotBeBlittedByObjectCloner();
-#endif
     inline BOOL HasFieldsWhichMustBeInited();
     inline BOOL SupportsAutoNGen();
     inline BOOL RunCCTorAsIfNGenImageExists();
@@ -3765,9 +3793,6 @@ private:
         enum_flag_GenericsMask_SharedInst   = 0x00000020,   // shared instantiation, e.g. List<__Canon> or List<MyValueType<__Canon>>
         enum_flag_GenericsMask_TypicalInst  = 0x00000030,   // the type instantiated at its formal parameters, e.g. List<T>
 
-#ifdef FEATURE_REMOTING
-        enum_flag_ContextStatic             = 0x00000040,
-#endif
         enum_flag_HasRemotingVtsInfo        = 0x00000080,   // Optional data present indicating VTS methods and optional fields
 
         enum_flag_HasVariance               = 0x00000100,   // This is an instantiated type some of whose type parameters are co or contra-variant
@@ -3775,11 +3800,24 @@ private:
         enum_flag_HasDefaultCtor            = 0x00000200,
         enum_flag_HasPreciseInitCctors      = 0x00000400,   // Do we need to run class constructors at allocation time? (Not perf important, could be moved to EEClass
 
+#if defined(FEATURE_HFA)
+#if defined(FEATURE_UNIX_AMD64_STRUCT_PASSING_ITF)
+#error Can't define both FEATURE_HFA and FEATURE_UNIX_AMD64_STRUCT_PASSING_ITF
+#endif
         enum_flag_IsHFA                     = 0x00000800,   // This type is an HFA (Homogenous Floating-point Aggregate)
+#endif // FEATURE_HFA
+
+#if defined(FEATURE_UNIX_AMD64_STRUCT_PASSING_ITF)
+#if defined(FEATURE_HFA)
+#error Can't define both FEATURE_HFA and FEATURE_UNIX_AMD64_STRUCT_PASSING_ITF
+#endif
+        enum_flag_IsRegStructPassed         = 0x00000800,   // This type is a System V register passed struct.
+#endif // FEATURE_UNIX_AMD64_STRUCT_PASSING_ITF
+
+        enum_flag_IsByRefLike               = 0x00001000,
 
         // In a perfect world we would fill these flags using other flags that we already have
         // which have a constant value for something which has a component size.
-        enum_flag_UNUSED_ComponentSize_4    = 0x00001000,
         enum_flag_UNUSED_ComponentSize_5    = 0x00002000,
         enum_flag_UNUSED_ComponentSize_6    = 0x00004000,
         enum_flag_UNUSED_ComponentSize_7    = 0x00008000,
@@ -3795,9 +3833,6 @@ private:
         enum_flag_StringArrayValues = SET_TRUE(enum_flag_StaticsMask_NonDynamic) |
                                       SET_FALSE(enum_flag_NotInPZM) |
                                       SET_TRUE(enum_flag_GenericsMask_NonGeneric) |
-#ifdef FEATURE_REMOTING
-                                      SET_FALSE(enum_flag_ContextStatic) |
-#endif
                                       SET_FALSE(enum_flag_HasVariance) |
                                       SET_FALSE(enum_flag_HasDefaultCtor) |
                                       SET_FALSE(enum_flag_HasPreciseInitCctors),
@@ -4130,14 +4165,7 @@ private:
 #define METHODTABLE_COMINTEROP_OPTIONAL_MEMBERS()
 #endif
 
-#ifdef FEATURE_REMOTING
-#define METHODTABLE_REMOTING_OPTIONAL_MEMBERS() \
-    METHODTABLE_OPTIONAL_MEMBER(RemotingVtsInfo,        PTR_RemotingVtsInfo,            GetRemotingVtsInfoPtr       ) \
-    METHODTABLE_OPTIONAL_MEMBER(RemotableMethodInfo,    PTR_CrossDomainOptimizationInfo,GetRemotableMethodInfoPtr   ) \
-    METHODTABLE_OPTIONAL_MEMBER(ContextStatics,         PTR_ContextStaticsBucket,       GetContextStaticsBucketPtr  )
-#else
 #define METHODTABLE_REMOTING_OPTIONAL_MEMBERS()
-#endif
 
     enum OptionalMemberId
     {
@@ -4240,11 +4268,7 @@ private:
         return dac_cast<DPTR(RelativeFixupPointer<PTR_Module>)>(GetMultipurposeSlotPtr(enum_flag_HasModuleOverride, c_ModuleOverrideOffsets));
     }
 
-#ifdef BINDER
-    void SetModule(PTR_Module pModule);
-#else
     void SetModule(Module * pModule);
-#endif
 
     /************************************
     //
@@ -4253,25 +4277,6 @@ private:
     ************************************/
 
 public:
-#ifdef FEATURE_REMOTING
-    inline BOOL HasContextStatics();
-    inline void SetHasContextStatics();
-
-    inline PTR_ContextStaticsBucket GetContextStaticsBucket()
-    {
-        LIMITED_METHOD_DAC_CONTRACT;
-        _ASSERTE(HasContextStatics());
-        PTR_ContextStaticsBucket pBucket = *GetContextStaticsBucketPtr();
-        _ASSERTE(pBucket != NULL);
-        return pBucket;
-    }
-
-    inline DWORD GetContextStaticsOffset();
-    inline WORD GetContextStaticsSize();
-
-    void SetupContextStatics(AllocMemTracker *pamTracker, WORD dwContextStaticsSize);
-    DWORD AllocateContextStaticsOffset();
-#endif
 
     BOOL Validate ();
 

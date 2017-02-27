@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information. 
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 /*++
 
@@ -69,15 +68,6 @@ struct _CP_MAPPING
 #else
 #error Insufficient platform support for text encodings
 #endif
-
-#if !HAVE_COREFOUNDATION || ENABLE_DOWNLEVEL_FOR_NLS
-BOOL CODEPAGEInit(void);
-void CODEPAGECleanup(void);
-BOOL CODEPAGEAcquireReadLock(void);
-BOOL CODEPAGEAcquireWriteLock(void);
-BOOL CODEPAGEReleaseLock(void);
-#endif /* !HAVE_COREFOUNDATION || ENABLE_DOWNLEVEL_FOR_NLS */
-
 #ifdef __cplusplus
 }
 #endif // __cplusplus

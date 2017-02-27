@@ -1,7 +1,6 @@
-//
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-//
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 // 
 // --------------------------------------------------------------------------------------------------
 // CLRConfig.h
@@ -34,7 +33,7 @@ public:
 
     // Setting each option results in some change to the config value lookup method. Default behavior is (in
     // the following order):
-    // * Look at environment variables (prepending COMPLUS_ to the name)
+    // * Look at environment variables (prepending COMPlus to the name)
     // * Look at the framework registry keys (HKCU\Software\Microsoft\.NETFramework then
     //     HKLM\Software\Microsoft\.NETFramework)
     // * Look at the available config files (system, application, host and user). For details see TODO:
@@ -42,8 +41,8 @@ public:
     enum LookupOptions {
         // If set, don't look in environment variables.
         IgnoreEnv = 0x1, 
-        // If set, do not prepend "COMPLUS_" when doing environment variable lookup.
-        DontPrependCOMPLUS_ = 0x2, 
+        // If set, do not prepend "COMPlus_" when doing environment variable lookup.
+        DontPrependCOMPlus_ = 0x2, 
         // If set, don't look in HKLM in the registry.
         IgnoreHKLM = 0x4, 
         // If set, don't look in HKCU in the registry.
@@ -165,14 +164,14 @@ public:
     // 
     // Methods to do config value (DWORD and String) lookups.
     // 
-#ifdef FEATURE_WIN_DB_APPCOMPAT    
-    static HRESULT getQuirkEnabledAndValueFromWinDB(LPCWSTR wszQuirkName, BOOL* isEnabled, CPT_QUIRK_DATA* quirkData);
-#endif
     static BOOL IsConfigEnabled(const ConfigDWORDInfo & info);
 
     // Look up a DWORD config value.
     static DWORD GetConfigValue(const ConfigDWORDInfo & info);
-    
+
+    // Look up a DWORD config value.
+    static DWORD GetConfigValue(const ConfigDWORDInfo & info, bool acceptExplicitDefaultFromRegutil, /* [Out] */ bool *isDefault);
+
     // Look up a string config value.
     // You own the string that's returned.
     static LPWSTR GetConfigValue(const ConfigStringInfo & info);
@@ -184,9 +183,9 @@ public:
 
     //
     // Check whether an option is specified (e.g. explicitly listed) in any of the CLRConfig
-    // locations: environment or registry (with or without COMPLUS_) or any config file.
+    // locations: environment or registry (with or without COMPlus_) or any config file.
     // The result is therefore a conservative approximation (some settings do not actually
-    // take effect everywhere and no setting is valid both with and without COMPLUS_)
+    // take effect everywhere and no setting is valid both with and without COMPlus_)
     //
     static BOOL IsConfigOptionSpecified(LPCWSTR name);
 
@@ -199,9 +198,6 @@ public:
     // Register PerformanceDefaults' LookupConfigValue so CLRConfig can support 'MayHavePerformanceDefault' values
     static void RegisterGetPerformanceDefaultValueCallback(GetPerformanceDefaultValueFunction func);
 
-#ifdef FEATURE_WIN_DB_APPCOMPAT
-    static void RegisterWinDbQuirkApis(PFN_CptQuirkIsEnabled3 func1, PFN_CptQuirkGetData2 func2);
-#endif // FEATURE_WIN_DB_APPCOMPAT
 
     
 private:
@@ -211,10 +207,6 @@ private:
     // Function pointer to PerformanceDefaults' LookupConfigValue function (can't static bind from utilcode to VM)
     static GetPerformanceDefaultValueFunction s_GetPerformanceDefaultValueCallback;
 
-#ifdef FEATURE_WIN_DB_APPCOMPAT
-    static PFN_CptQuirkIsEnabled3 s_IsQuirkEnabledCallback;
-    static PFN_CptQuirkGetData2 s_GetQuirkValueCallback;
-#endif // FEATURE_WIN_DB_APPCOMPAT
     
     // Helper method to translate LookupOptions to REGUTIL::CORConfigLevel
     static REGUTIL::CORConfigLevel GetConfigLevel(LookupOptions options);

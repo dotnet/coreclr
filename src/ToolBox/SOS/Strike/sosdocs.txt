@@ -835,7 +835,7 @@ exceptions by switching to the thread in question, and running
 \\
 
 COMMAND: clrstack.
-!CLRStack [-a] [-l] [-p] [-n]
+!CLRStack [-a] [-l] [-p] [-n] [-f]
 !CLRStack [-a] [-l] [-p] [-i] [variable name] [frame]
 
 CLRStack attempts to provide a true stack trace for managed code only. It is
@@ -845,6 +845,10 @@ programs. The -p parameter will show arguments to the managed function. The
 SOS can't retrieve local names at this time, so the output for locals is in
 the format <local address> = <value>. The -a (all) parameter is a short-cut
 for -l and -p combined. 
+
+The -f option (full mode) displays the native frames intermixing them with
+the managed frames and the assembly name and function offset for the managed
+frames.
 
 If the debugger has the option SYMOPT_LOAD_LINES specified (either by the
 .lines or .symopt commands), SOS will look up the symbols for every managed 
@@ -2006,7 +2010,7 @@ The percentage column contains a breakout of free or unrooted bytes to total byt
 COMMAND: analyzeoom.
 !AnalyzeOOM
 
-!AnalyzeOOM displays the info of the last OOM occured on an allocation request to
+!AnalyzeOOM displays the info of the last OOM occurred on an allocation request to
 the GC heap (in Server GC it displays OOM, if any, on each GC heap). 
 
 To see the managed exception(s) use the !Threads command which will show you 
@@ -2050,12 +2054,12 @@ Sample output:
 
 0:011> !ao
 ---------Heap 2 ---------
-Managed OOM occured after GC #28 (Requested to allocate 1234 bytes)
+Managed OOM occurred after GC #28 (Requested to allocate 1234 bytes)
 Reason: Didn't have enough memory to commit
 Detail: SOH: Didn't have enough memory to grow the internal GC datastructures (800000 bytes) - 
         on GC entry available commit space was 500 MB
 ---------Heap 4 ---------
-Managed OOM occured after GC #12 (Requested to allocate 100000 bytes)
+Managed OOM occurred after GC #12 (Requested to allocate 100000 bytes)
 Reason: Didn't have enough memory to allocate an LOH segment
 Detail: LOH: Failed to reserve memory (16777216 bytes)
 
