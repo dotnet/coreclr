@@ -1294,12 +1294,14 @@ void ExceptionTracker::InitializeCurrentContextForCrawlFrame(CrawlFrame* pcfThis
         pRD->SP = sfEstablisherFrame.SP;
         pRD->ControlPC = pDispatcherContext->ControlPc;
 
-#ifdef USE_CALLER_SP_IN_FUNCLET
+#ifdef ESTABLISHER_FRAME_POINTER_IS_CALLER_SP
         pcfThisFrame->pRD->IsCallerSPValid = TRUE;
         
+#ifdef USE_CALLER_SP_IN_FUNCLET
         // Assert our first pass assumptions for the Arm/Arm64
         _ASSERTE(sfEstablisherFrame.SP == GetSP(pDispatcherContext->ContextRecord));
 #endif // USE_CALLER_SP_IN_FUNCLET
+#endif // ESTABLISHER_FRAME_POINTER_IS_CALLER_SP
 
     }
 
