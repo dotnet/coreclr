@@ -16294,8 +16294,7 @@ GenTreePtr Compiler::fgInitThisClass()
 
             // We are in a shared method body, but maybe we don't need a runtime lookup after all.
             // This covers the case of a generic method on a non-generic type.
-            DWORD classAttribs = info.compCompHnd->getClassAttribs(info.compClassHnd);
-            if (!(classAttribs & CORINFO_FLG_SHAREDINST))
+            if (!(info.compClassAttr & CORINFO_FLG_SHAREDINST))
             {
                 resolvedToken.hClass = info.compClassHnd;
                 return impReadyToRunHelperToTree(&resolvedToken, CORINFO_HELP_READYTORUN_STATIC_BASE, TYP_BYREF);
