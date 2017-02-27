@@ -1458,6 +1458,7 @@ def static addTriggers(def job, def branch, def isPR, def architecture, def os, 
             def jit = 'compatjit'
             switch (scenario) {
                 case 'default':
+                    break
                     if (configuration == 'Checked') {
                         Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${arch} ${jit} ${configuration} Build and Test",
                             "(?i).*test\\W+${os}\\W+${arch}\\W+${jit}\\W+${configuration}.*")
@@ -1678,6 +1679,7 @@ def static addTriggers(def job, def branch, def isPR, def architecture, def os, 
             def jit = 'legacy_backend'
             switch (scenario) {
                 case 'default':
+                    break
                     if (configuration == 'Checked') {
                         Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${arch} ${jit} ${configuration} Build and Test",
                             "(?i).*test\\W+${os}\\W+${arch}\\W+${jit}\\W+${configuration}.*")
