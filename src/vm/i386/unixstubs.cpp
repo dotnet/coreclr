@@ -46,11 +46,6 @@ extern "C"
     }
 };
 
-VOID __cdecl PopSEHRecords(LPVOID pTargetSP)
-{
-    PORTABILITY_ASSERT("Implement for PAL");
-}
-
 EXTERN_C VOID JIT_TailCall()
 {
   PORTABILITY_ASSERT("JIT_TailCall");
