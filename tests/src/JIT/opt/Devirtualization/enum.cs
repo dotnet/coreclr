@@ -6,13 +6,15 @@ using System;
 
 enum MyEnum { One, Two, Three, Four, Five, Six, Seven, Eight, Nine, Ten };
 
-// ToString should be devirtualizable
-
 public class Test
 {
     public static int Main()
     {
+        // Call to ToString should be devirtualize since boxed enums
+        // are sealed classes. This doesn't happen yet.
         string s = (MyEnum.Seven).ToString();
-        return (s.Length == "Seven".Length ? 100 : -1);
+
+        // Call to Equals will devirtualize since string is sealed
+        return (s.Equals((object)"Seven") ? 100 : -1);
     }
 }

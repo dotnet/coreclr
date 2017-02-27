@@ -15,7 +15,8 @@ public class Base
 
 sealed class BaseSealed : Base {}
 
-// The jit ought to be able to devirtualize the call to b.Foo below.
+// The jit can devirtualize the call to Foo when initializing y,
+// but not when initializing x.
 
 public class Test
 {
@@ -23,6 +24,7 @@ public class Test
     {
         Base b = Base.Default;
         int x = b.Foo();
-        return (x == 33 ? 100 : -1);
+        int y = Base.Default.Foo();
+        return (x == 33 && y == 33 ? 100 : -1);
     }
 }
