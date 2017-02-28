@@ -20,7 +20,7 @@ namespace System.Globalization
 
         internal CompareInfo(CultureInfo culture)
         {
-            _name = culture.m_name;
+            _name = culture._name;
             InitSort(culture);
         }
 
