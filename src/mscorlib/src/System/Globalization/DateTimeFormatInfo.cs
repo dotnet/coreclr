@@ -2723,7 +2723,7 @@ namespace System.Globalization
         ////////////////////////////////////////////////////////////////////////
 
         private static bool TryParseHebrewNumber(
-#if INSIDE_CLR
+#if CORECLR
             ref __DTString str,
 #else
             ref FormatProvider.__DTString str,
@@ -2782,7 +2782,7 @@ namespace System.Globalization
         }
 
         internal bool Tokenize(TokenType TokenMask, out TokenType tokenType, out int tokenValue,
-#if INSIDE_CLR 
+#if CORECLR 
                                ref __DTString str)
 #else
                                ref FormatProvider.__DTString str)
@@ -3034,7 +3034,7 @@ namespace System.Globalization
         }
     }
 
-#if !INSIDE_CLR
+#if !CORECLR
     //
     // The type of token that will be returned by DateTimeFormatInfo.Tokenize().
     //

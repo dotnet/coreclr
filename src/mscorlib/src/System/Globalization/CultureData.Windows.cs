@@ -11,12 +11,6 @@ using System.Text;
 using Internal.Runtime.Augments;
 #endif
 
-#if INSIDE_CLR
-using Kernel32 = Interop.Kernel32;
-#else
-using Kernel32 = Interop.mincore;
-#endif 
-
 namespace System.Globalization
 {
     internal partial class CultureData
@@ -114,7 +108,7 @@ namespace System.Globalization
 
                 // Specific locale name is whatever ResolveLocaleName (win7+) returns.
                 // (Buffer has our name in it, and we can recycle that because windows resolves it before writing to the buffer)
-                result = Kernel32.ResolveLocaleName(realNameBuffer, pBuffer, LOCALE_NAME_MAX_LENGTH);
+                result = Interop.Kernel32.ResolveLocaleName(realNameBuffer, pBuffer, LOCALE_NAME_MAX_LENGTH);
 
                 // 0 is failure, 1 is invariant (""), which we expect
                 if (result < 1)
@@ -193,7 +187,7 @@ namespace System.Globalization
 
         internal static unsafe int GetLocaleInfoEx(string lpLocaleName, uint lcType, char* lpLCData, int cchData)
         {
-            return Kernel32.GetLocaleInfoEx(lpLocaleName, lcType, (IntPtr)lpLCData, cchData);
+            return Interop.Kernel32.GetLocaleInfoEx(lpLocaleName, lcType, (IntPtr)lpLCData, cchData);
         }
 
         private string GetLocaleInfo(LocaleStringData type)
@@ -285,11 +279,11 @@ namespace System.Globalization
             GCHandle contextHandle = GCHandle.Alloc(context);
             try
             {
-#if INSIDE_CLR
-                Kernel32.EnumSystemLocalesEx(EnumSystemLocalesProc, LOCALE_SPECIFICDATA | LOCALE_SUPPLEMENTAL, (IntPtr)contextHandle, IntPtr.Zero);
+#if CORECLR
+                Interop.Kernel32.EnumSystemLocalesEx(EnumSystemLocalesProc, LOCALE_SPECIFICDATA | LOCALE_SUPPLEMENTAL, (IntPtr)contextHandle, IntPtr.Zero);
 #else
                 IntPtr callback = AddrofIntrinsics.AddrOf<Func<IntPtr, uint, IntPtr, Interop.BOOL>>(EnumSystemLocalesProc);
-                Kernel32.EnumSystemLocalesEx(callback, LOCALE_SPECIFICDATA | LOCALE_SUPPLEMENTAL, (IntPtr)contextHandle, IntPtr.Zero);
+                Interop.Kernel32.EnumSystemLocalesEx(callback, LOCALE_SPECIFICDATA | LOCALE_SUPPLEMENTAL, (IntPtr)contextHandle, IntPtr.Zero);
 #endif
             }
             finally
@@ -541,7 +535,7 @@ namespace System.Globalization
         }
 
         // EnumSystemLocaleEx callback.
-#if !INSIDE_CLR
+#if !CORECLR
         [NativeCallable(CallingConvention = CallingConvention.StdCall)]
 #endif
         private static unsafe Interop.BOOL EnumSystemLocalesProc(IntPtr lpLocaleString, uint flags, IntPtr contextHandle)
@@ -566,7 +560,7 @@ namespace System.Globalization
         }
 
         // EnumSystemLocaleEx callback.
-#if !INSIDE_CLR
+#if !CORECLR
         [NativeCallable(CallingConvention = CallingConvention.StdCall)]
 #endif
         private static unsafe Interop.BOOL EnumAllSystemLocalesProc(IntPtr lpLocaleString, uint flags, IntPtr contextHandle)
@@ -586,7 +580,7 @@ namespace System.Globalization
         // Context for EnumTimeFormatsEx callback.
         private class EnumData
         {
-#if INSIDE_CLR
+#if CORECLR
             public List<string> strings;
 #else
             public LowLevelList<string> strings;
@@ -594,7 +588,7 @@ namespace System.Globalization
         }
 
         // EnumTimeFormatsEx callback itself.
-#if !INSIDE_CLR
+#if !CORECLR
         [NativeCallable(CallingConvention = CallingConvention.StdCall)]
 #endif
         private static unsafe Interop.BOOL EnumTimeCallback(IntPtr lpTimeFormatString, IntPtr lParam)
@@ -618,7 +612,7 @@ namespace System.Globalization
             const uint LOCALE_STIMEFORMAT = 0x00001003;
 
             EnumData data = new EnumData();
-#if INSIDE_CLR
+#if CORECLR
             data.strings = new List<string>();
 #else
             data.strings = new LowLevelList<string>();
@@ -626,12 +620,12 @@ namespace System.Globalization
             GCHandle dataHandle = GCHandle.Alloc(data);
             try
             {
-#if INSIDE_CLR
-                Kernel32.EnumTimeFormatsEx(EnumTimeCallback, localeName, (uint)dwFlags, (IntPtr)dataHandle);
+#if CORECLR
+                Interop.Kernel32.EnumTimeFormatsEx(EnumTimeCallback, localeName, (uint)dwFlags, (IntPtr)dataHandle);
 #else
                 // Now call the enumeration API. Work is done by our callback function
                 IntPtr callback = AddrofIntrinsics.AddrOf<Func<IntPtr, IntPtr, Interop.BOOL>>(EnumTimeCallback);
-                Kernel32.EnumTimeFormatsEx(callback, localeName, (uint)dwFlags, (IntPtr)dataHandle);
+                Interop.Kernel32.EnumTimeFormatsEx(callback, localeName, (uint)dwFlags, (IntPtr)dataHandle);
 #endif
             }
             finally
@@ -673,13 +667,13 @@ namespace System.Globalization
 
         private static int LocaleNameToLCID(string cultureName)
         {
-            return Kernel32.LocaleNameToLCID(cultureName, Kernel32.LOCALE_ALLOW_NEUTRAL_NAMES);
+            return Interop.Kernel32.LocaleNameToLCID(cultureName, Interop.Kernel32.LOCALE_ALLOW_NEUTRAL_NAMES);
         }
 
         private static unsafe string LCIDToLocaleName(int culture)
         {
-            char *pBuffer = stackalloc char[Kernel32.LOCALE_NAME_MAX_LENGTH + 1]; // +1 for the null termination
-            int length = Kernel32.LCIDToLocaleName(culture, pBuffer, Kernel32.LOCALE_NAME_MAX_LENGTH + 1, Kernel32.LOCALE_ALLOW_NEUTRAL_NAMES);
+            char *pBuffer = stackalloc char[Interop.Kernel32.LOCALE_NAME_MAX_LENGTH + 1]; // +1 for the null termination
+            int length = Interop.Kernel32.LCIDToLocaleName(culture, pBuffer, Interop.Kernel32.LOCALE_NAME_MAX_LENGTH + 1, Interop.Kernel32.LOCALE_ALLOW_NEUTRAL_NAMES);
 
             if (length > 0)
             {
@@ -731,32 +725,32 @@ namespace System.Globalization
 #pragma warning disable 618
             if ((types & (CultureTypes.FrameworkCultures | CultureTypes.InstalledWin32Cultures | CultureTypes.ReplacementCultures)) != 0)
             {
-                flags |= Kernel32.LOCALE_NEUTRALDATA | Kernel32.LOCALE_SPECIFICDATA;
+                flags |= Interop.Kernel32.LOCALE_NEUTRALDATA | Interop.Kernel32.LOCALE_SPECIFICDATA;
             }
 #pragma warning restore 618
 
             if ((types & CultureTypes.NeutralCultures) != 0)
             {
-                flags |= Kernel32.LOCALE_NEUTRALDATA;
+                flags |= Interop.Kernel32.LOCALE_NEUTRALDATA;
             }
 
             if ((types & CultureTypes.SpecificCultures) != 0)
             {
-                flags |= Kernel32.LOCALE_SPECIFICDATA;
+                flags |= Interop.Kernel32.LOCALE_SPECIFICDATA;
             }
 
             if ((types & CultureTypes.UserCustomCulture) != 0)
             {
-                flags |= Kernel32.LOCALE_SUPPLEMENTAL;
+                flags |= Interop.Kernel32.LOCALE_SUPPLEMENTAL;
             }
 
             if ((types & CultureTypes.ReplacementCultures) != 0)
             {
-                flags |= Kernel32.LOCALE_SUPPLEMENTAL;
+                flags |= Interop.Kernel32.LOCALE_SUPPLEMENTAL;
             }
 
             EnumData context = new EnumData();
-#if INSIDE_CLR
+#if CORECLR
             context.strings = new List<string>();
 #else
             context.strings = new LowLevelList<string>();
@@ -764,11 +758,11 @@ namespace System.Globalization
             GCHandle contextHandle = GCHandle.Alloc(context);
             try
             {
-#if INSIDE_CLR
-                Kernel32.EnumSystemLocalesEx(EnumAllSystemLocalesProc, flags, (IntPtr)contextHandle, IntPtr.Zero);
+#if CORECLR
+                Interop.Kernel32.EnumSystemLocalesEx(EnumAllSystemLocalesProc, flags, (IntPtr)contextHandle, IntPtr.Zero);
 #else
                 IntPtr callback = AddrofIntrinsics.AddrOf<Func<IntPtr, uint, IntPtr, Interop.BOOL>>(EnumAllSystemLocalesProc);
-                Kernel32.EnumSystemLocalesEx(callback, flags, (IntPtr)contextHandle, IntPtr.Zero);
+                Interop.Kernel32.EnumSystemLocalesEx(callback, flags, (IntPtr)contextHandle, IntPtr.Zero);
 #endif
             }
             finally
@@ -805,7 +799,7 @@ namespace System.Globalization
             get
             {
                 EnumData context = new EnumData();
-#if INSIDE_CLR
+#if CORECLR
                 context.strings = new List<string>();
 #else
                 context.strings = new LowLevelList<string>();
@@ -813,11 +807,11 @@ namespace System.Globalization
                 GCHandle contextHandle = GCHandle.Alloc(context);
                 try
                 {
-#if INSIDE_CLR
-                    Kernel32.EnumSystemLocalesEx(EnumAllSystemLocalesProc, Kernel32.LOCALE_REPLACEMENT, (IntPtr)contextHandle, IntPtr.Zero);
+#if CORECLR
+                    Interop.Kernel32.EnumSystemLocalesEx(EnumAllSystemLocalesProc, Interop.Kernel32.LOCALE_REPLACEMENT, (IntPtr)contextHandle, IntPtr.Zero);
 #else
                     IntPtr callback = AddrofIntrinsics.AddrOf<Func<IntPtr, uint, IntPtr, Interop.BOOL>>(EnumAllSystemLocalesProc);
-                    Kernel32.EnumSystemLocalesEx(callback, Kernel32.LOCALE_REPLACEMENT, (IntPtr)contextHandle, IntPtr.Zero);
+                    Interop.Kernel32.EnumSystemLocalesEx(callback, Interop.Kernel32.LOCALE_REPLACEMENT, (IntPtr)contextHandle, IntPtr.Zero);
 #endif
                 }
                 finally

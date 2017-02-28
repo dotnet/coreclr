@@ -4,12 +4,6 @@
 
 using System.Diagnostics;
 
-#if INSIDE_CLR
-using Kernel32 = Interop.Kernel32;
-#else
-using Kernel32 = Interop.mincore;
-#endif 
-
 namespace System.Globalization
 {
     public partial class TextInfo
@@ -35,7 +29,7 @@ namespace System.Globalization
             const uint LCMAP_SORTHANDLE = 0x20000000;
 
             long handle;
-            int ret = Kernel32.LCMapStringEx(_textInfoName, LCMAP_SORTHANDLE, null, 0, &handle, IntPtr.Size, null, null, IntPtr.Zero);
+            int ret = Interop.Kernel32.LCMapStringEx(_textInfoName, LCMAP_SORTHANDLE, null, 0, &handle, IntPtr.Size, null, null, IntPtr.Zero);
             _sortHandle = ret > 0 ? (IntPtr)handle : IntPtr.Zero;
         }
 
@@ -70,7 +64,7 @@ namespace System.Globalization
                 fixed (char* pSource = s)
                 fixed (char* pResult = result)
                 {
-                    ret = Kernel32.LCMapStringEx(_sortHandle != IntPtr.Zero ? null : _textInfoName,
+                    ret = Interop.Kernel32.LCMapStringEx(_sortHandle != IntPtr.Zero ? null : _textInfoName,
                                                         toUpper ? LCMAP_UPPERCASE | linguisticCasing : LCMAP_LOWERCASE | linguisticCasing,
                                                         pSource,
                                                         nLengthInput,
@@ -98,7 +92,7 @@ namespace System.Globalization
             // Check for Invariant to avoid A/V in LCMapStringEx
             uint linguisticCasing = IsInvariantLocale(_textInfoName) ? 0 : LCMAP_LINGUISTIC_CASING;
 
-            Kernel32.LCMapStringEx(_sortHandle != IntPtr.Zero ? null : _textInfoName,
+            Interop.Kernel32.LCMapStringEx(_sortHandle != IntPtr.Zero ? null : _textInfoName,
                                           toUpper ? LCMAP_UPPERCASE | linguisticCasing : LCMAP_LOWERCASE | linguisticCasing,
                                           &c,
                                           1,

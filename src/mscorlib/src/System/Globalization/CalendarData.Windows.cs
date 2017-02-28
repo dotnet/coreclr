@@ -8,12 +8,6 @@ using System.Runtime.CompilerServices;
 using System.Diagnostics.Contracts;
 using System.Collections.Generic;
 
-#if INSIDE_CLR
-using Kernel32 = Interop.Kernel32;
-#else
-using Kernel32 = Interop.mincore;
-#endif 
-
 namespace System.Globalization
 {
     internal partial class CalendarData
@@ -129,7 +123,7 @@ namespace System.Globalization
         {
             EnumCalendarsData data = new EnumCalendarsData();
             data.userOverride = 0;
-#if INSIDE_CLR
+#if CORECLR
             data.calendars = new List<int>();
 #else
             data.calendars = new LowLevelList<int>();
@@ -153,11 +147,11 @@ namespace System.Globalization
             try
             {
                 // Now call the enumeration API. Work is done by our callback function
-#if INSIDE_CLR
-                Kernel32.EnumCalendarInfoExEx(EnumCalendarsCallback, localeName, ENUM_ALL_CALENDARS, null, CAL_ICALINTVALUE, (IntPtr)contextHandle);
+#if CORECLR
+                Interop.Kernel32.EnumCalendarInfoExEx(EnumCalendarsCallback, localeName, ENUM_ALL_CALENDARS, null, CAL_ICALINTVALUE, (IntPtr)contextHandle);
 #else
                 IntPtr callback = AddrofIntrinsics.AddrOf<Func<IntPtr, uint, IntPtr, IntPtr, Interop.BOOL>>(EnumCalendarsCallback);
-                Kernel32.mincore.EnumCalendarInfoExEx(callback, localeName, ENUM_ALL_CALENDARS, null, CAL_ICALINTVALUE, (IntPtr)contextHandle);
+                Interop.Kernel32.EnumCalendarInfoExEx(callback, localeName, ENUM_ALL_CALENDARS, null, CAL_ICALINTVALUE, (IntPtr)contextHandle);
 #endif
             }
             finally
@@ -258,7 +252,7 @@ namespace System.Globalization
 
         private static bool CallGetCalendarInfoEx(string localeName, CalendarId calendar, uint calType, out int data)
         {
-            return (Kernel32.GetCalendarInfoEx(localeName, (uint)calendar, IntPtr.Zero, calType | CAL_RETURN_NUMBER, IntPtr.Zero, 0, out data) != 0);
+            return (Interop.Kernel32.GetCalendarInfoEx(localeName, (uint)calendar, IntPtr.Zero, calType | CAL_RETURN_NUMBER, IntPtr.Zero, 0, out data) != 0);
         }
 
         private static unsafe bool CallGetCalendarInfoEx(string localeName, CalendarId calendar, uint calType, out string data)
@@ -268,7 +262,7 @@ namespace System.Globalization
             // The maximum size for values returned from GetCalendarInfoEx is 80 characters.
             char* buffer = stackalloc char[BUFFER_LENGTH];
 
-            int ret = Kernel32.GetCalendarInfoEx(localeName, (uint)calendar, IntPtr.Zero, calType, (IntPtr)buffer, BUFFER_LENGTH, IntPtr.Zero);
+            int ret = Interop.Kernel32.GetCalendarInfoEx(localeName, (uint)calendar, IntPtr.Zero, calType, (IntPtr)buffer, BUFFER_LENGTH, IntPtr.Zero);
             if (ret > 0)
             {
                 if (buffer[ret - 1] == '\0')
@@ -286,7 +280,7 @@ namespace System.Globalization
         private class EnumData
         {
             public string userOverride;
-#if INSIDE_CLR
+#if CORECLR
             public List<string> strings;
 #else
             public LowLevelList<string> strings;
@@ -294,7 +288,7 @@ namespace System.Globalization
         }
 
         // EnumCalendarInfoExEx callback itself.
-#if !INSIDE_CLR
+#if !CORECLR
         [NativeCallable(CallingConvention = CallingConvention.StdCall)]
 #endif
         private static unsafe Interop.BOOL EnumCalendarInfoCallback(IntPtr lpCalendarInfoString, uint calendar, IntPtr pReserved, IntPtr lParam)
@@ -320,7 +314,7 @@ namespace System.Globalization
         {
             EnumData context = new EnumData();
             context.userOverride = null;
-#if INSIDE_CLR
+#if CORECLR
             context.strings = new List<string>();
 #else
             context.strings = new LowLevelList<string>();
@@ -355,13 +349,13 @@ namespace System.Globalization
             GCHandle contextHandle = GCHandle.Alloc(context);
             try
             {
-#if INSIDE_CLR
-                Kernel32.EnumCalendarInfoExEx(EnumCalendarInfoCallback, localeName, (uint)calendar, null, calType, (IntPtr)contextHandle);
+#if CORECLR
+                Interop.Kernel32.EnumCalendarInfoExEx(EnumCalendarInfoCallback, localeName, (uint)calendar, null, calType, (IntPtr)contextHandle);
 #else
                 // Now call the enumeration API. Work is done by our callback function
                 IntPtr callback = AddrofIntrinsics.AddrOf<Func<IntPtr, uint, IntPtr, IntPtr, Interop.BOOL>>(EnumCalendarInfoCallback);
-                Kernel32.EnumCalendarInfoExEx(callback, localeName, (uint)calendar, null, calType, (IntPtr)contextHandle);
-#endif // INSIDE_CLR
+                Interop.Kernel32.EnumCalendarInfoExEx(callback, localeName, (uint)calendar, null, calType, (IntPtr)contextHandle);
+#endif // CORECLR
             }
             finally
             {
@@ -459,14 +453,14 @@ namespace System.Globalization
         private class EnumCalendarsData
         {
             public int userOverride;   // user override value (if found)
-#if INSIDE_CLR
+#if CORECLR
             public List<int> calendars;      // list of calendars found so far
 #else
             public LowLevelList<int> calendars;      // list of calendars found so far
 #endif
         }
 
-#if !INSIDE_CLR
+#if !CORECLR
         [NativeCallable(CallingConvention = CallingConvention.StdCall)]
 #endif
         private static Interop.BOOL EnumCalendarsCallback(IntPtr lpCalendarInfoString, uint calendar, IntPtr reserved, IntPtr lParam)

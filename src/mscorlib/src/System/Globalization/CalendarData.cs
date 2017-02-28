@@ -327,7 +327,7 @@ namespace System.Globalization
             String culture = CalendarIdToCultureName(calendarId);
 
             // Return our calendar
-            return CultureInfo.GetCultureInfo(culture).m_cultureData.GetCalendar(calendarId);
+            return CultureInfo.GetCultureInfo(culture)._cultureData.GetCalendar(calendarId);
         }
 
         private static String CalendarIdToCultureName(CalendarId calendarId)

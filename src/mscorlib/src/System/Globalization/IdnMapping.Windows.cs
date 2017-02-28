@@ -5,12 +5,6 @@
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 
-#if INSIDE_CLR
-using Normaliz = Interop.Normaliz;
-#else
-using Normaliz = Interop.mincore;
-#endif 
-
 namespace System.Globalization
 {
     public sealed partial class IdnMapping
@@ -20,7 +14,7 @@ namespace System.Globalization
             uint flags = Flags;
 
             // Determine the required length
-            int length = Normaliz.IdnToAscii(flags, new IntPtr(unicode), count, IntPtr.Zero, 0);
+            int length = Interop.Normaliz.IdnToAscii(flags, new IntPtr(unicode), count, IntPtr.Zero, 0);
             if (length == 0)
             {
                 ThrowForZeroLength(nameof(unicode), SR.Argument_IdnIllegalName, SR.Argument_InvalidCharSequenceNoIndex);
@@ -45,7 +39,7 @@ namespace System.Globalization
 
         private unsafe string GetAsciiCore(char* unicode, int count, uint flags, char* output, int outputLength)
         {
-            int length = Normaliz.IdnToAscii(flags, new IntPtr(unicode), count, new IntPtr(output), outputLength);
+            int length = Interop.Normaliz.IdnToAscii(flags, new IntPtr(unicode), count, new IntPtr(output), outputLength);
             if (length == 0)
             {
                 ThrowForZeroLength(nameof(unicode), SR.Argument_IdnIllegalName, SR.Argument_InvalidCharSequenceNoIndex);
@@ -59,7 +53,7 @@ namespace System.Globalization
             uint flags = Flags;
 
             // Determine the required length
-            int length = Normaliz.IdnToUnicode(flags, new IntPtr(ascii), count, IntPtr.Zero, 0);
+            int length = Interop.Normaliz.IdnToUnicode(flags, new IntPtr(ascii), count, IntPtr.Zero, 0);
             if (length == 0)
             {
                 ThrowForZeroLength(nameof(ascii), SR.Argument_IdnIllegalName, SR.Argument_IdnBadPunycode);
@@ -84,7 +78,7 @@ namespace System.Globalization
 
         private unsafe string GetUnicodeCore(char* ascii, int count, uint flags, char* output, int outputLength)
         {
-            int length = Normaliz.IdnToUnicode(flags, new IntPtr(ascii), count, new IntPtr(output), outputLength);
+            int length = Interop.Normaliz.IdnToUnicode(flags, new IntPtr(ascii), count, new IntPtr(output), outputLength);
             if (length == 0)
             {
                 ThrowForZeroLength(nameof(ascii), SR.Argument_IdnIllegalName, SR.Argument_IdnBadPunycode);
@@ -102,8 +96,8 @@ namespace System.Globalization
             get
             {
                 int flags =
-                    (AllowUnassigned ? Normaliz.IDN_ALLOW_UNASSIGNED : 0) |
-                    (UseStd3AsciiRules ? Normaliz.IDN_USE_STD3_ASCII_RULES : 0);
+                    (AllowUnassigned ? Interop.Normaliz.IDN_ALLOW_UNASSIGNED : 0) |
+                    (UseStd3AsciiRules ? Interop.Normaliz.IDN_USE_STD3_ASCII_RULES : 0);
                 return (uint)flags;
             }
         }
@@ -111,7 +105,7 @@ namespace System.Globalization
         private static void ThrowForZeroLength(string paramName, string invalidNameString, string otherString)
         {
             throw new ArgumentException(
-                Marshal.GetLastWin32Error() == Normaliz.ERROR_INVALID_NAME ? invalidNameString : otherString,
+                Marshal.GetLastWin32Error() == Interop.Normaliz.ERROR_INVALID_NAME ? invalidNameString : otherString,
                 paramName);
         }
     }

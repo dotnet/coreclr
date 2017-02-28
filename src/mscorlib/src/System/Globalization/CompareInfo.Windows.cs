@@ -5,12 +5,6 @@
 using System.Diagnostics;
 using System.Diagnostics.Contracts;
 
-#if INSIDE_CLR
-using Kernel32 = Interop.Kernel32;
-#else
-using Kernel32 = Interop.mincore;
-#endif 
-
 namespace System.Globalization
 {
     public partial class CompareInfo
@@ -31,7 +25,7 @@ namespace System.Globalization
             _sortName = culture.SortName;
 
             IntPtr handle;
-            int ret = Kernel32.LCMapStringEx(_sortName, LCMAP_SORTHANDLE, null, 0, &handle, IntPtr.Size, null, null, IntPtr.Zero);
+            int ret = Interop.Kernel32.LCMapStringEx(_sortName, LCMAP_SORTHANDLE, null, 0, &handle, IntPtr.Size, null, null, IntPtr.Zero);
             _sortHandle = ret > 0 ? handle : IntPtr.Zero;
         }
 
@@ -47,7 +41,7 @@ namespace System.Globalization
             fixed (char* pSource = stringSource)
             fixed (char* pValue = value)
             {
-                int ret = Kernel32.FindStringOrdinal(
+                int ret = Interop.Kernel32.FindStringOrdinal(
                             dwFindStringOrdinalFlags,
                             pSource + offset,
                             cchSource,
@@ -88,7 +82,7 @@ namespace System.Globalization
 
             fixed (char* pSource = source)
             {
-                if (Kernel32.LCMapStringEx(_sortHandle != IntPtr.Zero ? null : _sortName,
+                if (Interop.Kernel32.LCMapStringEx(_sortHandle != IntPtr.Zero ? null : _sortName,
                                                   LCMAP_HASH | (uint)GetNativeCompareFlags(options),
                                                   pSource, source.Length,
                                                   &tmpHash, sizeof(int),
@@ -104,7 +98,7 @@ namespace System.Globalization
         private static unsafe int CompareStringOrdinalIgnoreCase(char* string1, int count1, char* string2, int count2)
         {
             // Use the OS to compare and then convert the result to expected value by subtracting 2 
-            return Kernel32.CompareStringOrdinal(string1, count1, string2, count2, true) - 2;
+            return Interop.Kernel32.CompareStringOrdinal(string1, count1, string2, count2, true) - 2;
         }
 
         private unsafe int CompareString(string string1, int offset1, int length1, string string2, int offset2, int length2, CompareOptions options)
@@ -119,7 +113,7 @@ namespace System.Globalization
             fixed (char* pString1 = string1)
             fixed (char* pString2 = string2)
             {
-                int result = Kernel32.CompareStringEx(
+                int result = Interop.Kernel32.CompareStringEx(
                                     pLocaleName,
                                     (uint)GetNativeCompareFlags(options),
                                     pString1 + offset1,
@@ -159,7 +153,7 @@ namespace System.Globalization
                 char* pS = pSource + startSource;
                 char* pV = pValue + startValue;
 
-                return Kernel32.FindNLSStringEx(
+                return Interop.Kernel32.FindNLSStringEx(
                                     pLocaleName,
                                     dwFindNLSStringFlags,
                                     pS,
@@ -369,7 +363,7 @@ namespace System.Globalization
             {
                 fixed (char *pSource = source)
                 {
-                    int result = Kernel32.LCMapStringEx(_sortHandle != IntPtr.Zero ? null : _sortName,
+                    int result = Interop.Kernel32.LCMapStringEx(_sortHandle != IntPtr.Zero ? null : _sortName,
                                                 LCMAP_SORTKEY | (uint) GetNativeCompareFlags(options),
                                                 pSource, source.Length,
                                                 null, 0,
@@ -383,7 +377,7 @@ namespace System.Globalization
 
                     fixed (byte* pBytes =  keyData)
                     {
-                        result = Kernel32.LCMapStringEx(_sortHandle != IntPtr.Zero ? null : _sortName,
+                        result = Interop.Kernel32.LCMapStringEx(_sortHandle != IntPtr.Zero ? null : _sortName,
                                                 LCMAP_SORTKEY | (uint) GetNativeCompareFlags(options),
                                                 pSource, source.Length,
                                                 pBytes, keyData.Length,
@@ -397,7 +391,7 @@ namespace System.Globalization
 
         private static unsafe bool IsSortable(char* text, int length)
         {
-            return Kernel32.IsNLSDefinedString(Kernel32.COMPARE_STRING, 0, IntPtr.Zero, text, length);
+            return Interop.Kernel32.IsNLSDefinedString(Interop.Kernel32.COMPARE_STRING, 0, IntPtr.Zero, text, length);
         }
 
         private const int COMPARE_OPTIONS_ORDINAL = 0x40000000;       // Ordinal
@@ -440,8 +434,8 @@ namespace System.Globalization
 
         private unsafe SortVersion GetSortVersion()
         {
-            Kernel32.NlsVersionInfoEx nlsVersion = new Kernel32.NlsVersionInfoEx();
-            Kernel32.GetNLSVersionEx(Kernel32.COMPARE_STRING, _sortName, &nlsVersion);
+            Interop.Kernel32.NlsVersionInfoEx nlsVersion = new Interop.Kernel32.NlsVersionInfoEx();
+            Interop.Kernel32.GetNLSVersionEx(Interop.Kernel32.COMPARE_STRING, _sortName, &nlsVersion);
             return new SortVersion(
                         nlsVersion.dwNLSVersion,
                         nlsVersion.dwEffectiveId == 0 ? LCID : nlsVersion.dwEffectiveId,
