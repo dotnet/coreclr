@@ -551,9 +551,9 @@ private:
 #endif                            
                                    );
 
-#ifdef _TARGET_X86_
+#if defined(_TARGET_X86_) && defined(FEATURE_PAL)
     friend void BackPatchWorkerStaticStub(PCODE returnAddr, TADDR siteAddrForRegisterIndirect);
-#endif // _TARGET_X86_
+#endif
 
     //These are the entrypoints that the stubs actually end up calling via the
     // xxxAsmStub methods above
