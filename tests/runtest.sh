@@ -443,6 +443,10 @@ function copy_test_native_bin_to_test_root {
             echo "ZZZZZ copying $filePath to $destinationDirPath."
             cp -f "$filePath" "$destinationDirPath/"
         done
+
+    date
+    echo "Sleeping for 80 min..."
+    sleep 80m
 }
 
 # Variables for unsupported and failing tests
