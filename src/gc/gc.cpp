@@ -5338,7 +5338,7 @@ void gc_heap::gc_thread_function ()
 
 bool virtual_alloc_commit_for_heap(void* addr, size_t size, int h_number)
 {
-#if defined(MULTIPLE_HEAPS) && !defined(FEATURE_REDHAWK) && !defined(FEATURE_PAL)
+#if defined(MULTIPLE_HEAPS) && !defined(FEATURE_REDHAWK) && !defined(FEATURE_PAL) && !defined(FEATURE_CORECLR)
     // Currently there is no way for us to specific the numa node to allocate on via hosting interfaces to
     // a host. This will need to be added later.
     if (!CLRMemoryHosted())

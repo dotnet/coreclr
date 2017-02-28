@@ -8767,7 +8767,6 @@ BOOL Thread::HaveExtraWorkForFinalizer()
         || ExecutionManager::IsCacheCleanupRequired()
         || Thread::CleanupNeededForFinalizedThread()
         || (m_DetachCount > 0)
-        || CExecutionEngine::HasDetachedTlsInfo()
         || AppDomain::HasWorkForFinalizerThread()
         || SystemDomain::System()->RequireAppDomainCleanup();
 }
@@ -8811,8 +8810,6 @@ void Thread::DoExtraWorkForFinalizer()
     {
         SystemDomain::System()->ProcessDelayedUnloadDomains();
     }
-
-    CExecutionEngine::CleanupDetachedTlsInfo();
 
     if(m_DetachCount > 0 || Thread::CleanupNeededForFinalizedThread())
     {

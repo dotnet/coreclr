@@ -690,12 +690,6 @@ inline BOOL CLRHosted()
     return g_fHostConfig;
 }
 
-inline BOOL CLRMemoryHosted()
-{
-    LIMITED_METHOD_CONTRACT;
-    return FALSE;
-}
-
 inline BOOL CLRTaskHosted()
 {
     LIMITED_METHOD_DAC_CONTRACT;
@@ -900,8 +894,6 @@ typedef Wrapper<HMODULE, DoNothing<HMODULE>, VoidFreeLibrary, NULL> ModuleHandle
 FORCEINLINE void VoidFreeWinAllocatedBlock(LPVOID pv)
 {
     LIMITED_METHOD_CONTRACT;
-
-    _ASSERTE(!CLRMemoryHosted());
 
 #pragma push_macro("GetProcessHeap")
 #pragma push_macro("HeapFree")
