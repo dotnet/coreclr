@@ -16,7 +16,7 @@
 #include "dbgtransportpipeline.cpp"
 #include "shimremotedatatarget.cpp"
 #include "remoteeventchannel.cpp"
-#elif __WIN32__
+#elif WIN32
 #include "WindowsPipeline.cpp"
 #include "EventRedirectionPipeline.cpp"
 #include "ShimLocalDataTarget.cpp"
