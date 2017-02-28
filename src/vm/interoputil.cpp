@@ -1479,15 +1479,8 @@ ULONG SafeReleasePreemp(IUnknown * pUnk, RCW * pRCW)
         // down the Runtime. Mark that an AV is alright, and handled, in this scope using this holder.
         AVInRuntimeImplOkayHolder AVOkay(pThread);
 
-        if (CLRTaskHosted())    // Check hoisted out of LeaveRuntimeHolder to 
-        {                       // keep LeaveRuntimeHolder off of common path.
-            LeaveRuntimeHolder lrh(*((*(size_t**)pUnk)+2));
-            res = pUnk->Release();
-        }
-        else
-        {
-            res = pUnk->Release();
-        }
+        res = pUnk->Release();
+
         SCAN_EHMARKER_END_TRY();
     }
     PAL_CPP_CATCH_ALL
@@ -1569,15 +1562,8 @@ ULONG SafeRelease(IUnknown* pUnk, RCW* pRCW)
         // down the Runtime. Mark that an AV is alright, and handled, in this scope using this holder.
         AVInRuntimeImplOkayHolder AVOkay(pThread);
 
-        if (CLRTaskHosted())    // Check hoisted out of LeaveRuntimeHolder to 
-        {                       // keep LeaveRuntimeHolder off of common path.
-            LeaveRuntimeHolder lrh(*((*(size_t**)pUnk)+2));
-            res = pUnk->Release();
-        }
-        else
-        {
-            res = pUnk->Release();
-        }
+        res = pUnk->Release();
+
         SCAN_EHMARKER_END_TRY();
     }
     PAL_CPP_CATCH_ALL
@@ -1901,22 +1887,6 @@ HRESULT SafeGetErrorInfo(IErrorInfo **ppIErrInfo)
 #endif
 }
 
-HRESULT SafeQueryInterfaceHosted(IUnknown* pUnk, REFIID riid, IUnknown** pResUnk)
-{
-    CONTRACTL
-    {
-        THROWS; // message pump could happen, so arbitrary managed code could run
-        GC_TRIGGERS;
-        DISABLED(MODE_PREEMPTIVE);  // disabled because I couldn't figure out how to tell SCAN about my
-                                    // manual mode change in SafeQueryInterface
-        SO_TOLERANT;
-    }
-    CONTRACTL_END;
-
-    LeaveRuntimeHolder lrh(*((*(size_t**)pUnk)+0));
-    return pUnk->QueryInterface(riid, (void**) pResUnk);
-}
-
 
 #include <optsmallperfcritical.h>
 //--------------------------------------------------------------------------------
@@ -1945,14 +1915,7 @@ HRESULT SafeQueryInterface(IUnknown* pUnk, REFIID riid, IUnknown** pResUnk)
 #define PAL_TRY_REFARG(argName) (pParam->argName)
     PAL_TRY(Param * const, pParam, &param)
     {
-        if (CLRTaskHosted())
-        {
-            PAL_TRY_ARG(hr) = SafeQueryInterfaceHosted(PAL_TRY_ARG(pUnk), PAL_TRY_REFARG(riid), PAL_TRY_ARG(pResUnk));
-        }
-        else
-        {
-            PAL_TRY_ARG(hr) = PAL_TRY_ARG(pUnk)->QueryInterface(PAL_TRY_REFARG(riid), (void**) PAL_TRY_ARG(pResUnk));
-        }
+        PAL_TRY_ARG(hr) = PAL_TRY_ARG(pUnk)->QueryInterface(PAL_TRY_REFARG(riid), (void**) PAL_TRY_ARG(pResUnk));
     }
     PAL_EXCEPT(EXCEPTION_EXECUTE_HANDLER)
     {
@@ -2011,14 +1974,7 @@ HRESULT SafeQueryInterfacePreemp(IUnknown* pUnk, REFIID riid, IUnknown** pResUnk
 #define PAL_TRY_REFARG(argName) (pParam->argName)
     PAL_TRY(Param * const, pParam, &param)
     {
-        if (CLRTaskHosted())
-        {
-            PAL_TRY_ARG(hr) = SafeQueryInterfaceHosted(PAL_TRY_ARG(pUnk), PAL_TRY_REFARG(riid), PAL_TRY_ARG(pResUnk));
-        }
-        else
-        {
-            PAL_TRY_ARG(hr) = PAL_TRY_ARG(pUnk)->QueryInterface(PAL_TRY_REFARG(riid), (void**) PAL_TRY_ARG(pResUnk));
-        }
+        PAL_TRY_ARG(hr) = PAL_TRY_ARG(pUnk)->QueryInterface(PAL_TRY_REFARG(riid), (void**) PAL_TRY_ARG(pResUnk));
     }
     PAL_EXCEPT(EXCEPTION_EXECUTE_HANDLER)
     {
@@ -2490,24 +2446,6 @@ HRESULT GetCLSIDFromProgID(__in_z WCHAR *strProgId, GUID *pGuid)
 }
 #endif // FEATURE_CLASSIC_COMINTEROP
 
-NOINLINE ULONG SafeAddRefHosted(IUnknown* pUnk)
-{
-    CONTRACTL
-    {
-        THROWS;         // arbitrary managed code could run
-        GC_TRIGGERS;
-        MODE_PREEMPTIVE;
-        SO_TOLERANT;
-    }
-    CONTRACTL_END;
-
-    LeaveRuntimeHolderNoThrow lrh(*((*(size_t**)pUnk)+1));
-    if (FAILED(lrh.GetHR()))
-        return ~0;
-
-    return pUnk->AddRef();
-}
-
 #include <optsmallperfcritical.h>
 //--------------------------------------------------------------------------------
 // AddRef helper, enables and disables GC during call-outs
@@ -2533,14 +2471,7 @@ ULONG SafeAddRef(IUnknown* pUnk)
 
     CONTRACT_VIOLATION(ThrowsViolation); // arbitrary managed code could run
 
-    if (CLRTaskHosted())    // Check hoisted out of LeaveRuntimeHolder to 
-    {                       // keep LeaveRuntimeHolder off of common path.
-        res = SafeAddRefHosted(pUnk);
-    }
-    else
-    {
-        res = pUnk->AddRef();
-    }
+    res = pUnk->AddRef();
 
     GCX_PREEMP_NO_DTOR_END();
 
@@ -2570,14 +2501,7 @@ ULONG SafeAddRefPreemp(IUnknown* pUnk)
 
     CONTRACT_VIOLATION(ThrowsViolation); // arbitrary managed code could run
 
-    if (CLRTaskHosted())    // Check hoisted out of LeaveRuntimeHolder to 
-    {                       // keep LeaveRuntimeHolder off of common path.
-        res = SafeAddRefHosted(pUnk);
-    }
-    else
-    {
-        res = pUnk->AddRef();
-    }
+    res = pUnk->AddRef();
 
     return res;
 }

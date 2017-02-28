@@ -4009,7 +4009,6 @@ private:
     DWORD           m_OSThreadId;
 
     BOOL CreateNewOSThread(SIZE_T stackSize, LPTHREAD_START_ROUTINE start, void *args);
-    BOOL CreateNewHostTask(SIZE_T stackSize, LPTHREAD_START_ROUTINE start, void *args);
 
     OBJECTHANDLE    m_ExposedObject;
     OBJECTHANDLE    m_StrongHndToExposedObject;
@@ -5073,10 +5072,6 @@ public:
     static BOOL GetProcessDefaultStackSize(SIZE_T* reserveSize, SIZE_T* commitSize);
 
 private:
-    // YieldTask, ThreadAbort, GC all change thread context.  ThreadAbort and GC uses ThreadStore lock to synchronize.  But YieldTask can
-    // not block.  We use a counter to allow one thread to change thread context.
-
-    Volatile<PVOID> m_WorkingOnThreadContext;
 
     // Although this is a pointer, it is used as a flag to indicate the current context is unsafe 
     // to inspect. When NULL the context is safe to use, otherwise it points to the active patch skipper
@@ -5117,26 +5112,12 @@ private:
         {
             return FALSE;
         }
-        if (CLRTaskHosted())
-        {
-            PVOID myID = ClrTeb::GetFiberPtrId();
-            PVOID id = FastInterlockCompareExchangePointer(pThread->m_WorkingOnThreadContext.GetPointer(), myID, NULL);
-            return id == NULL || id == myID;
-        }
-        else
-        {
-            return TRUE;
-        }
+        return TRUE;
     }
 
     static void LeaveWorkingOnThreadContext(Thread *pThread)
     {
         LIMITED_METHOD_CONTRACT;
-
-        if (pThread->m_WorkingOnThreadContext == ClrTeb::GetFiberPtrId())
-        {
-            pThread->m_WorkingOnThreadContext = NULL;
-        }
     }
 
     typedef ConditionalStateHolder<Thread *, Thread::EnterWorkingOnThreadContext, Thread::LeaveWorkingOnThreadContext> WorkingOnThreadContextHolder;
@@ -5145,7 +5126,7 @@ private:
     {
         LIMITED_METHOD_CONTRACT;
 
-        return !CLRTaskHosted() || m_WorkingOnThreadContext == ClrTeb::GetFiberPtrId();
+        return TRUE;
     }
 
 public:
@@ -5479,20 +5460,12 @@ public:
     template <typename T>
     LeaveRuntimeHolder(T target)
     {
-        STATIC_CONTRACT_WRAPPER;
-        if (!CLRTaskHosted())
-            return;
-
-        Thread::LeaveRuntime((size_t)target);
+        LIMITED_METHOD_CONTRACT;
     }
 
     ~LeaveRuntimeHolder()
     {
-        STATIC_CONTRACT_WRAPPER;
-        if (!CLRTaskHosted())
-            return;
-
-        Thread::EnterRuntime();
+        LIMITED_METHOD_CONTRACT;
     }
 };
 
@@ -5502,26 +5475,14 @@ public:
     template <typename T>
     LeaveRuntimeHolderNoThrow(T target)
     {
-        STATIC_CONTRACT_WRAPPER;
-        if (!CLRTaskHosted())
-        {
-            hr = S_OK;
-            return;
-        }
-
-        hr = Thread::LeaveRuntimeNoThrow((size_t)target);
+        LIMITED_METHOD_CONTRACT;
+        hr = S_OK;
     }
 
     ~LeaveRuntimeHolderNoThrow()
     {
-        STATIC_CONTRACT_WRAPPER;
-        if (!CLRTaskHosted())
-        {
-            hr = S_OK;
-            return;
-        }
-
-        hr = Thread::EnterRuntimeNoThrow();
+        LIMITED_METHOD_CONTRACT;
+        hr = S_OK;
     }
 
     HRESULT GetHR() const

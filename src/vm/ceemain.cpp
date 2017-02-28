@@ -781,9 +781,8 @@ void EEStartupHelper(COINITIEE fFlags)
 
 
 #ifdef FEATURE_PREJIT
-        // Initialize the sweeper thread.  THis is violating our rules with hosting
-        // so we only do it in the non-hosted case
-        if (g_pConfig->GetZapBBInstr() != NULL && !CLRTaskHosted())
+        // Initialize the sweeper thread.
+        if (g_pConfig->GetZapBBInstr() != NULL)
         {
             DWORD threadID;
             HANDLE hBBSweepThread = ::CreateThread(NULL,

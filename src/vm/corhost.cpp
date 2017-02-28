@@ -3386,7 +3386,7 @@ void **CExecutionEngine::CheckThreadState(DWORD slot, BOOL force)
         // If we have a thread object or are on a non-fiber thread, we are safe for fiber switching.
         if (!fHasFlsSupport ||
             GetThread() ||
-            ((g_fEEStarted || g_fEEInit) && !CLRTaskHosted()) ||
+            (g_fEEStarted || g_fEEInit) ||
             (((size_t)pTlsInfo->data[TlsIdx_ThreadType]) & (ThreadType_GC | ThreadType_Gate | ThreadType_Timer | ThreadType_DbgHelper)))
         {
 #ifdef _DEBUG

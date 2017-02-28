@@ -690,12 +690,6 @@ inline BOOL CLRHosted()
     return g_fHostConfig;
 }
 
-inline BOOL CLRTaskHosted()
-{
-    LIMITED_METHOD_DAC_CONTRACT;
-    return FALSE;
-}
-
 inline BOOL CLRAssemblyHosted()
 {
     LIMITED_METHOD_CONTRACT;
@@ -786,16 +780,7 @@ if (CheckCanRunManagedCode && !CanRunManagedCode())     \
     return CannotEnterRetVal;                           \
 SO_INTOLERANT_CODE_NOTHROW(CURRENT_THREAD, return SORetVal)  \
 
-#define ComCallHostNotificationHR()                                         \
-ReverseEnterRuntimeHolderNoThrow REHolder;                                  \
-if (CLRTaskHosted())                                                        \
-{                                                                           \
-    HRESULT hr = REHolder.AcquireNoThrow();                                 \
-    if (FAILED(hr))                                                         \
-    {                                                                       \
-        return hr;                                                          \
-    }                                                                       \
-}
+#define ComCallHostNotificationHR() ReverseEnterRuntimeHolderNoThrow REHolder;
 
 #define SetupForComCallHRNoHostNotif() InternalSetupForComCall(HOST_E_CLRNOTAVAILABLE, E_OUTOFMEMORY, COR_E_STACKOVERFLOW, true)
 #define SetupForComCallHRNoHostNotifNoCheckCanRunManagedCode() InternalSetupForComCall(HOST_E_CLRNOTAVAILABLE, E_OUTOFMEMORY, COR_E_STACKOVERFLOW, false)
@@ -823,10 +808,6 @@ BEGIN_SO_INTOLERANT_CODE_NOTHROW(CURRENT_THREAD, SORetVal)                  \
 HRESULT __hr = S_OK;                                                        \
 InternalSetupForComCallWithEscapingCorruptingExceptions(HOST_E_CLRNOTAVAILABLE, E_OUTOFMEMORY, COR_E_STACKOVERFLOW, true)              \
 ReverseEnterRuntimeHolderNoThrow REHolder;                                  \
-if (CLRTaskHosted())                                                        \
-{                                                                           \
-    __hr = REHolder.AcquireNoThrow();                                       \
-}                                                                           \
                                                                             \
 if (SUCCEEDED(__hr))                                                        \
 {                                                                           \
@@ -844,27 +825,13 @@ if (FAILED(__hr))                                                           \
 
 #define SetupForComCallDWORD()                                              \
 InternalSetupForComCall(-1, -1, -1, true)                                   \
-ReverseEnterRuntimeHolderNoThrow REHolder;                                  \
-if (CLRTaskHosted())                                                        \
-{                                                                           \
-    if (FAILED(REHolder.AcquireNoThrow()))                                  \
-    {                                                                       \
-        return -1;                                                          \
-    }                                                                       \
-}
+ReverseEnterRuntimeHolderNoThrow REHolder;
 
 // Special version of SetupForComCallDWORD that doesn't call
 // CanRunManagedCode() to avoid firing LoaderLock MDA
 #define SetupForComCallDWORDNoCheckCanRunManagedCode()                      \
 InternalSetupForComCall(-1, -1, -1, false)                                  \
-ReverseEnterRuntimeHolderNoThrow REHolder;                                  \
-if (CLRTaskHosted())                                                        \
-{                                                                           \
-    if (FAILED(REHolder.AcquireNoThrow()))                                  \
-    {                                                                       \
-        return -1;                                                          \
-    }                                                                       \
-}
+ReverseEnterRuntimeHolderNoThrow REHolder;
 
 #include "unsafe.h"
 

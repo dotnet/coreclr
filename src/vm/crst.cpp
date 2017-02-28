@@ -310,16 +310,7 @@ void CrstBase::Enter(INDEBUG(NoLevelCheckFlag noLevelCheckFlag/* = CRST_LEVEL_CH
         }
     }
 
-    {
-        if (CLRTaskHosted()) 
-        {
-            Thread::BeginThreadAffinity();
-        }
-
-        UnsafeEnterCriticalSection(&m_criticalsection);
-
-    }
-
+    UnsafeEnterCriticalSection(&m_criticalsection);
 
 #ifdef _DEBUG
     PostEnter();
@@ -352,14 +343,7 @@ void CrstBase::Leave()
     Thread * pThread = GetThread();
 #endif
 
-    {
-        UnsafeLeaveCriticalSection(&m_criticalsection);
-
-
-        if (CLRTaskHosted()) {
-            Thread::EndThreadAffinity();
-        }
-    }
+    UnsafeLeaveCriticalSection(&m_criticalsection);
 
     // Check for both rare case using one if-check
     if (m_dwFlags & (CRST_TAKEN_DURING_SHUTDOWN | CRST_DEBUGGER_THREAD))

@@ -716,13 +716,6 @@ Thread* SetupThread(BOOL fInternal)
     EnsurePreemptiveModeIfException ensurePreemptive;
 
 #ifdef _DEBUG
-    // Verify that for fiber mode, we do not have a thread that matches the current StackBase.
-    if (CLRTaskHosted()) {
-
-        }
-#endif
-
-#ifdef _DEBUG
     CHECK chk;
     if (g_pConfig->SuppressChecks())
     {
@@ -1910,7 +1903,7 @@ Thread::Thread()
     DWORD_PTR *ttInfo = NULL;
     size_t nBytes = MaxThreadRecord *
                   (sizeof(FiberSwitchInfo)-sizeof(size_t)+MaxStackDepth*sizeof(size_t));
-    if (CLRTaskHosted() || g_pConfig->SaveThreadInfo()) {
+    if (g_pConfig->SaveThreadInfo()) {
         ttInfo = new DWORD_PTR[(nBytes/sizeof(DWORD_PTR))*ThreadTrackInfo_Max];
         memset(ttInfo,0,nBytes*ThreadTrackInfo_Max);
     }
@@ -1925,14 +1918,7 @@ Thread::Thread()
     m_OSContext = new CONTEXT();
     NewHolder<CONTEXT> contextHolder(m_OSContext);
 
-    if (CLRTaskHosted())
-    {
-        m_pSavedRedirectContext = new CONTEXT();
-    }
-    else
-    {
-        m_pSavedRedirectContext = NULL;
-    }
+    m_pSavedRedirectContext = NULL;
     NewHolder<CONTEXT> savedRedirectContextHolder(m_pSavedRedirectContext);
 
 #ifdef FEATURE_COMINTEROP
@@ -1975,7 +1961,6 @@ Thread::Thread()
 
     m_fCompletionPortDrained = FALSE;
 
-    m_WorkingOnThreadContext = NULL;
     m_debuggerActivePatchSkipper = NULL;
     m_dwThreadHandleBeingUsed = 0;
     SetProfilerCallbacksAllowed(TRUE);
@@ -2609,12 +2594,7 @@ BOOL Thread::CreateNewThread(SIZE_T stackSize, LPTHREAD_START_ROUTINE start, voi
 #endif // !FEATURE_PAL
 
     m_StateNC = (ThreadStateNoConcurrency)((ULONG)m_StateNC | TSNC_CLRCreatedThread);
-    if (!CLRTaskHosted()) {
-        bRet = CreateNewOSThread(stackSize, start, args);
-    }
-    else {
-        bRet = CreateNewHostTask(stackSize, start, args);
-    }
+    bRet = CreateNewOSThread(stackSize, start, args);
 #ifndef FEATURE_PAL
     UndoRevert(bReverted, token);
 #endif // !FEATURE_PAL
@@ -2806,27 +2786,6 @@ BOOL Thread::CreateNewOSThread(SIZE_T sizeToCommitOrReserve, LPTHREAD_START_ROUT
 #endif
 
     return TRUE;
-}
-
-
-
-BOOL Thread::CreateNewHostTask(SIZE_T stackSize, LPTHREAD_START_ROUTINE start, void *args)
-{
-    CONTRACTL {
-        NOTHROW;
-        GC_TRIGGERS;
-    }
-    CONTRACTL_END;
-
-    // Make sure we have all our handles, in case someone tries to suspend us
-    // as we are starting up.
-
-    if (!AllocHandles())
-    {
-        return FALSE;
-    }
-
-    return FALSE;
 }
 
 // 
@@ -10260,11 +10219,6 @@ HRESULT Thread::SwitchIn(HANDLE threadHandle)
 
     EnsureTlsData ensure(this);
 
-#ifdef _DEBUG
-    if (CLRTaskHosted()) {
-    }
-#endif
-
     if (SetThread(this))
     {
         Thread *pThread = GetThread();
@@ -10654,9 +10608,6 @@ HRESULT Thread::Reset(BOOL fFull)
     BEGIN_SO_INTOLERANT_CODE_NOPROBE;
 
 #ifdef _DEBUG
-    if (CLRTaskHosted()) {
-    }
-
     _ASSERTE (GetThread() == this);
 #ifdef _TARGET_X86_
     _ASSERTE (GetExceptionState()->GetContextRecord() == NULL);
@@ -10950,23 +10901,6 @@ HRESULT Thread::QueryInterface(REFIID riid, void **ppUnk)
 
 }
 
-BOOL IsHostedThread()
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_NOTRIGGER;
-        SO_TOLERANT;
-    }
-    CONTRACTL_END;
-
-    if (!CLRTaskHosted())
-    {
-        return FALSE;
-    }
-    return FALSE;
-}
-
 
 void __stdcall Thread::LeaveRuntime(size_t target)
 {
@@ -10985,143 +10919,33 @@ void __stdcall Thread::LeaveRuntime(size_t target)
 
 HRESULT Thread::LeaveRuntimeNoThrow(size_t target)
 {
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_NOTRIGGER;
-        SO_TOLERANT;
-    }
-    CONTRACTL_END;
+    LIMITED_METHOD_CONTRACT;
 
-    if (!CLRTaskHosted())
-    {
-        return S_OK;
-    }
-
-    if (!IsHostedThread())
-    {
-        return S_OK;
-    }
-
-    HRESULT hr = S_OK;
- 
-
-    return hr;
+    return S_OK;
 }
 
 void __stdcall Thread::LeaveRuntimeThrowComplus(size_t target)
 {
-
-    CONTRACTL {
-        THROWS;
-        GC_TRIGGERS;
-        ENTRY_POINT;
-    }
-    CONTRACTL_END;
-
-    HRESULT hr = S_OK;
-
-    if (!CLRTaskHosted())
-    {
-        goto Exit;
-    }
-
-    if (!IsHostedThread())
-    {
-        goto Exit;
-    }
-
-
-    if (FAILED(hr))
-    {
-        INSTALL_UNWIND_AND_CONTINUE_HANDLER;
-        ThrowHR(hr);
-        UNINSTALL_UNWIND_AND_CONTINUE_HANDLER;
-    }
-
-
-Exit:
-;
-
+    LIMITED_METHOD_CONTRACT;
 }
 
 void __stdcall Thread::EnterRuntime()
 {
-    if (!CLRTaskHosted())
-    {
-        // optimize for the most common case
-        return;
-    }
-
-    DWORD dwLastError = GetLastError();
-
-    CONTRACTL {
-        THROWS;
-        ENTRY_POINT;
-        GC_NOTRIGGER;
-    }
-    CONTRACTL_END;
-
-    //BEGIN_ENTRYPOINT_THROWS;
-
-    HRESULT hr = EnterRuntimeNoThrowWorker();
-    if (FAILED(hr))
-        ThrowHR(hr);
-
-    SetLastError(dwLastError);
-    //END_ENTRYPOINT_THROWS;
-
+    LIMITED_METHOD_CONTRACT;
 }
 
 HRESULT Thread::EnterRuntimeNoThrow()
 {
-    if (!CLRTaskHosted())
-    {
-        // optimize for the most common case
-        return S_OK;
-    }
+    LIMITED_METHOD_CONTRACT;
 
-    DWORD dwLastError = GetLastError();
-
-    // This function can be called during a hard SO when managed code has called out to native
-    // which has SOd, so we can't probe here.  We already probe in LeaveRuntime, which will be
-    // called at roughly the same stack level as LeaveRuntime, so we assume that the probe for
-    // LeaveRuntime will cover us here.
-
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_NOTRIGGER;
-        SO_TOLERANT;
-    }
-    CONTRACTL_END;
-
-    HRESULT hr = EnterRuntimeNoThrowWorker();
-
-    SetLastError(dwLastError);
-
-    return hr;
+    return S_OK;
 }
 
 HRESULT Thread::EnterRuntimeNoThrowWorker()
 {
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_NOTRIGGER;
-        SO_TOLERANT;
-    }
-    CONTRACTL_END;
-    
-    if (!IsHostedThread())
-    {
-        return S_OK;
-    }
+    LIMITED_METHOD_CONTRACT;
 
-    HRESULT hr = S_OK;
-
-
-    return hr;
+    return S_OK;
 }
 
 void Thread::ReverseEnterRuntime()
@@ -11179,61 +11003,13 @@ void Thread::ReverseEnterRuntimeThrowComplus()
 
 HRESULT Thread::ReverseEnterRuntimeNoThrow()
 {
-    CONTRACTL {
-        NOTHROW;
-        GC_NOTRIGGER;
-        SO_TOLERANT;
-    }
-    CONTRACTL_END;
-
-    if (!CLRTaskHosted())
-    {
-        return S_OK;
-    }
-
-    if (!IsHostedThread())
-    {
-        return S_OK;
-    }
-
-    HRESULT hr = S_OK;
-
-
-    return hr;
+    LIMITED_METHOD_CONTRACT;
+    return S_OK;
 }
 
 void Thread::ReverseLeaveRuntime()
 {
-    // This function can be called during a hard SO so we can't probe here.  We already probe in
-    // ReverseEnterRuntime, which will be called at roughly the same stack level as ReverseLeaveRuntime,
-    // so we assume that the probe for ReverseEnterRuntime will cover us here.
-
-    CONTRACTL {
-        NOTHROW;
-        GC_NOTRIGGER;
-        SO_TOLERANT;
-    }
-    CONTRACTL_END;
-
-    // SetupForComCallHR calls this inside a CATCH, but it triggers a THROWs violation
-    CONTRACT_VIOLATION(ThrowsViolation);
-
-    if (!CLRTaskHosted())
-    {
-        return;
-    }
-
-    if (!IsHostedThread())
-    {
-        return;
-    }
-
-    HRESULT hr = S_OK;
-
-
-    if (hr != S_OK)
-        ThrowHR(hr);
-
+    LIMITED_METHOD_CONTRACT;
 }
 
 // For OS EnterCriticalSection, call host to enable ThreadAffinity

@@ -732,18 +732,6 @@ DWORD __stdcall FinalizerThread::FinalizerThreadStart(void *args)
     _ASSERTE(s_FinalizerThreadOK);
     _ASSERTE(GetThread() == GetFinalizerThread());
 
-    // workaround wwl: avoid oom problem for finalizer thread startup.
-    if (CLRTaskHosted())
-    {
-        SignalFinalizationDone(TRUE);
-        // SQL's scheduler may give finalizer thread a very small slice of CPU if finalizer thread
-        // shares a scheduler with other tasks.  This can cause severe problem for finalizer thread.
-        // To reduce pain here, we move finalizer thread off SQL's scheduler.
-        // But SQL's scheduler does not support IHostTask::Alert on a task off scheduler, so we need
-        // to return finalizer thread back to scheduler when we wait alertably.
-        // GetFinalizerThread()->LeaveRuntime((size_t)SetupThreadNoThrow);
-    }
-
     // finalizer should always park in default domain
 
     if (s_FinalizerThreadOK)
@@ -938,16 +926,6 @@ void FinalizerThread::FinalizerThreadCreate()
         // debugger may have been detached between the time it got the notification
         // and the moment we execute the test below.
         _ASSERTE(dwRet == 1 || dwRet == 2);
-        
-        // workaround wwl: make sure finalizer is ready.  This avoids OOM problem on finalizer
-        // thread startup.
-        if (CLRTaskHosted()) {
-            FinalizerThreadWait(INFINITE);
-            if (!s_FinalizerThreadOK)
-            {
-                ThrowOutOfMemory();
-            }
-        }
     }
 }
 

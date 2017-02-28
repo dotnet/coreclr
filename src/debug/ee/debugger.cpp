@@ -12717,27 +12717,13 @@ CorDebugUserState Debugger::GetFullUserState(Thread *pThread)
 /******************************************************************************
  *
  * Helper for debugger to get an unique thread id
- * If we are not in Fiber mode, we can safely use OSThreadId
- * Otherwise, we will use our own unique ID.
- *
- * We will return our unique ID when our host is hosting Thread.
- *
  *
  ******************************************************************************/
 DWORD Debugger::GetThreadIdHelper(Thread *pThread)
 {
     WRAPPER_NO_CONTRACT;
 
-    if (!CLRTaskHosted())
-    {
-        // use the plain old OS Thread ID
-        return pThread->GetOSThreadId();
-    }
-    else
-    {
-        // use our unique thread ID
-        return pThread->GetThreadId();
-    }
+    return pThread->GetOSThreadId();
 }
 
 //-----------------------------------------------------------------------------
