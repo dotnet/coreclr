@@ -375,6 +375,8 @@ function create_core_overlay {
         # Test dependencies come from a Windows build, and System.Private.CoreLib.ni.dll would be the one from Windows
         rm -f "$coreOverlayDir/System.Private.CoreLib.ni.dll"
     fi
+
+    echo "BBBBBBB ABOUT TO CALL copy_test_native_bin_to_test_root"
     copy_test_native_bin_to_test_root
 }
 
@@ -427,6 +429,8 @@ function copy_test_native_bin_to_test_root {
         exit_with_error "$errorSource" "Directory specified by --testNativeBinDir does not exist: $testNativeBinDir"
     fi
 
+    echo "AAAAA got here"
+
     # Copy native test components from the native test build into the respective test directory in the test root directory
     find "$testNativeBinDir" -type f -iname "*.$libExtension" |
         while IFS='' read -r filePath || [ -n "$filePath" ]; do
@@ -435,6 +439,8 @@ function copy_test_native_bin_to_test_root {
             if [ ! -d "$destinationDirPath" ]; then
                 exit_with_error "$errorSource" "Cannot copy native test bin '$filePath' to '$destinationDirPath/', as the destination directory does not exist."
             fi
+
+            echo "ZZZZZ copying $filePath to $destinationDirPath."
             cp -f "$filePath" "$destinationDirPath/"
         done
 }
@@ -1200,7 +1206,7 @@ if [ -z "$testDirectories" ]
 then
     # No test directories were specified, so run everything in the current
     # directory and its subdirectories.
-    run_tests_in_directory "."
+    run_tests_in_directory "./Interop"
 else
     # Otherwise, run all the tests in each specified test directory.
     for testDir in "${testDirectories[@]}"
