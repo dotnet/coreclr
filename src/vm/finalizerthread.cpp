@@ -343,7 +343,6 @@ void FinalizerThread::ProcessProfilerAttachIfNecessary(ULONGLONG * pui64Timestam
     STATIC_CONTRACT_MODE_ANY;
 
     if (CLRMemoryHosted() ||
-        CLRSyncHosted() ||
         (MHandles[kProfilingAPIAttach] == NULL))
     {
         return;
@@ -398,7 +397,7 @@ void FinalizerThread::ProcessProfilerAttachIfNecessary(ULONGLONG * pui64Timestam
 void FinalizerThread::WaitForFinalizerEvent (CLREvent *event)
 {
     // TODO wwl: merge the following two blocks
-    if (!CLRMemoryHosted() && !CLRSyncHosted()) {
+    if (!CLRMemoryHosted()) {
         // Non-host environment
 
         // We don't want kLowMemoryNotification to starve out kFinalizer

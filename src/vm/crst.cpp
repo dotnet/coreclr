@@ -33,25 +33,7 @@ VOID CrstBase::InitWorker(INDEBUG_COMMA(CrstType crstType) CrstFlags flags)
     CONTRACTL {
         THROWS;
         WRAPPER(GC_TRIGGERS);
-    } CONTRACTL_END;    
-
-    // Disallow creation of Crst before EE starts.  But only complain if we end up
-    // being hosted, since such Crsts have escaped the hosting net and will cause
-    // AVs on next use.
-#ifdef _DEBUG
-    static bool fEarlyInit; // = false
-
-    if (!g_fEEStarted)
-    {
-        if (!CLRSyncHosted())
-            fEarlyInit = true;
-    }
-
-    // If we are now hosted, we better not have *ever* created some Crsts that are
-    // not known to our host.
-    _ASSERTE(!fEarlyInit || !CLRSyncHosted());
-
-#endif
+    } CONTRACTL_END;
 
     _ASSERTE((flags & CRST_INITIALIZED) == 0);
     

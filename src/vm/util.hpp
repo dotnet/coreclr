@@ -702,12 +702,6 @@ inline BOOL CLRTaskHosted()
     return FALSE;
 }
 
-inline BOOL CLRSyncHosted()
-{
-    LIMITED_METHOD_CONTRACT;
-    return FALSE;
-}
-
 inline BOOL CLRAssemblyHosted()
 {
     LIMITED_METHOD_CONTRACT;

@@ -512,9 +512,7 @@ void CLRSemaphore::Close()
     LIMITED_METHOD_CONTRACT;
 
     if (m_handle != INVALID_HANDLE_VALUE) {
-        if (!CLRSyncHosted()) {
-            CloseHandle(m_handle);
-        }
+        CloseHandle(m_handle);
         m_handle = INVALID_HANDLE_VALUE;
     }
 }

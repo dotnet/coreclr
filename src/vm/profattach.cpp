@@ -713,7 +713,7 @@ HRESULT ProfilingAPIAttachDetach::Initialize()
 
     // If the CLR is being memory- or sync-hosted, then attach is not supported
     // (see comments above)
-    if (CLRMemoryHosted() || CLRSyncHosted())
+    if (CLRMemoryHosted())
     {
         LOG((
             LF_CORPROF, 
