@@ -5047,7 +5047,7 @@ BOOL IsSafeToHandleHardwareException(PCONTEXT contextRecord, PEXCEPTION_RECORD e
         exceptionRecord->ExceptionCode == STATUS_BREAKPOINT || 
         exceptionRecord->ExceptionCode == STATUS_SINGLE_STEP ||
         (IsSafeToCallExecutionManager() && ExecutionManager::IsManagedCode(controlPc)) ||
-#ifdef _TARGET_ARM_
+#if defined(_TARGET_ARM_) || (defined(_TARGET_X86_) && defined(FEATURE_PAL))
         IsIPinVirtualStub(controlPc) ||  // access violation comes from DispatchStub of Interface call
 #endif
         IsIPInMarkedJitHelper(controlPc));
@@ -5098,7 +5098,7 @@ BOOL HandleHardwareException(PAL_SEHException* ex)
                 PAL_VirtualUnwind(ex->GetContextRecord(), NULL);
                 ex->GetExceptionRecord()->ExceptionAddress = (PVOID)GetIP(ex->GetContextRecord());
             }
-#ifdef _TARGET_ARM_
+#if defined(_TARGET_ARM_) || (defined(_TARGET_X86_) && defined(FEATURE_PAL))
             else if (IsIPinVirtualStub(controlPc)) 
             {
                 AdjustContextForVirtualStub(ex->GetExceptionRecord(), ex->GetContextRecord());
