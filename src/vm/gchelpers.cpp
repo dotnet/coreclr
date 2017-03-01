@@ -54,7 +54,7 @@ inline gc_alloc_context* GetThreadAllocContext()
 {
     WRAPPER_NO_CONTRACT;
 
-    assert(GCHeapUtilities::UseAllocationContexts());
+    assert(GCHeapUtilities::GetGCHeap()->UseThreadAllocationContexts());
 
     return & GetThread()->m_alloc_context;
 }
@@ -102,12 +102,12 @@ inline void CheckObjectSize(size_t alloc_size)
 //     * Call code:Alloc - When the jit helpers fall back, or we do allocations within the runtime code
 //         itself, we ultimately call here.
 //     * Call code:AllocLHeap - Used very rarely to force allocation to be on the large object heap.
-//     
+//
 // While this is a choke point into allocating an object, it is primitive (it does not want to know about
 // MethodTable and thus does not initialize that poitner. It also does not know if the object is finalizable
 // or contains pointers. Thus we quickly wrap this function in more user-friendly ones that know about
 // MethodTables etc. (see code:FastAllocatePrimitiveArray code:AllocateArrayEx code:AllocateObject)
-// 
+//
 // You can get an exhaustive list of code sites that allocate GC objects by finding all calls to
 // code:ProfilerObjectAllocatedCallback (since the profiler has to hook them all).
 inline Object* Alloc(size_t size, BOOL bFinalize, BOOL bContainsPointers )
@@ -137,7 +137,7 @@ inline Object* Alloc(size_t size, BOOL bFinalize, BOOL bContainsPointers )
     // We don't want to throw an SO during the GC, so make sure we have plenty
     // of stack before calling in.
     INTERIOR_STACK_PROBE_FOR(GetThread(), static_cast<unsigned>(DEFAULT_ENTRY_PROBE_AMOUNT * 1.5));
-    if (GCHeapUtilities::UseAllocationContexts())
+    if (GCHeapUtilities::GetGCHeap()->UseThreadAllocationContexts())
         retVal = GCHeapUtilities::GetGCHeap()->Alloc(GetThreadAllocContext(), size, flags);
     else
         retVal = GCHeapUtilities::GetGCHeap()->Alloc(size, flags);
@@ -172,7 +172,7 @@ inline Object* AllocAlign8(size_t size, BOOL bFinalize, BOOL bContainsPointers, 
     // We don't want to throw an SO during the GC, so make sure we have plenty
     // of stack before calling in.
     INTERIOR_STACK_PROBE_FOR(GetThread(), static_cast<unsigned>(DEFAULT_ENTRY_PROBE_AMOUNT * 1.5));
-    if (GCHeapUtilities::UseAllocationContexts())
+    if (GCHeapUtilities::GetGCHeap()->UseThreadAllocationContexts())
         retVal = GCHeapUtilities::GetGCHeap()->AllocAlign8(GetThreadAllocContext(), size, flags);
     else
         retVal = GCHeapUtilities::GetGCHeap()->AllocAlign8(size, flags);

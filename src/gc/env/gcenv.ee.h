@@ -68,6 +68,9 @@ public:
     static void StompWriteBarrier(WriteBarrierParameters* args);
 
     static void EnableFinalization(bool foundFinalizers);
+
+    // Global alloc context retrieval
+    static gc_alloc_context *GetGlobalAllocContext();
 };
 
 #endif // __GCENV_EE_H__

@@ -965,6 +965,10 @@ void EEStartupHelper(COINITIEE fFlags)
         StubHelpers::Init();
         NDirect::Init();
 
+        // Initialize the GC before the JIT (the JIT needs to know details about how the GC
+        // intends to operate, particularly around allocation contexts)
+        InitializeGarbageCollector();
+
         // Before setting up the execution manager initialize the first part
         // of the JIT helpers.
         InitJITHelpers1();
@@ -989,8 +993,6 @@ void EEStartupHelper(COINITIEE fFlags)
             InitStackProbes();
         }
 #endif
-
-        InitializeGarbageCollector();
 
         InitializePinHandleTable();
 

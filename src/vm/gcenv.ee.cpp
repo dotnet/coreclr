@@ -1330,3 +1330,8 @@ void GCToEEInterface::EnableFinalization(bool foundFinalizers)
         FinalizerThread::EnableFinalization();
     }
 }
+
+gc_alloc_context *GCToEEInterface::GetGlobalAllocContext()
+{
+    return &g_global_alloc_context;
+}

@@ -612,19 +612,23 @@ public:
     // Allocates an object on the given allocation context with the given size and flags.
     virtual Object* Alloc(gc_alloc_context* acontext, size_t size, uint32_t flags) = 0;
 
-    // Allocates an object on the default allocation context with the given size and flags.
+    // Allocates an object on the EE's global allocation context. Only usable when not
+    // using thread alloc contexts (see UseThreadAllocationContexts).
     virtual Object* Alloc(size_t size, uint32_t flags) = 0;
 
     // Allocates an object on the large object heap with the given size and flags.
     virtual Object* AllocLHeap(size_t size, uint32_t flags) = 0;
 
-    // Allocates an object on the default allocation context, aligned to 64 bits,
-    // with the given size and flags.
-    virtual Object* AllocAlign8 (size_t size, uint32_t flags) = 0;
+    // Allocates an object on the EE's global allocation context, aligned to 64 bits. Only
+    // usable when not using thread alloc contexts (see UseThreadAllocationContexts).
+    virtual Object* AllocAlign8(size_t size, uint32_t flags) = 0;
 
     // Allocates an object on the given allocation context, aligned to 64 bits,
     // with the given size and flags.
-    virtual Object* AllocAlign8 (gc_alloc_context* acontext, size_t size, uint32_t flags) = 0;
+    virtual Object* AllocAlign8(gc_alloc_context* acontext, size_t size, uint32_t flags) = 0;
+
+    // Whether or not the EE should use per-thread allocation contexts when allocating.
+    virtual bool UseThreadAllocationContexts() = 0;
 
     // This is for the allocator to indicate it's done allocating a large object during a 
     // background GC as the BGC threads also need to walk LOH.

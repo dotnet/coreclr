@@ -207,6 +207,12 @@ ALWAYS_INLINE void GCToEEInterface::EnableFinalization(bool foundFinalizers)
     g_theGCToCLR->EnableFinalization(foundFinalizers);
 }
 
+ALWAYS_INLINE gc_alloc_context *GCToEEInterface::GetGlobalAllocContext()
+{
+    assert(g_theGCToCLR != nullptr);
+    return g_theGCToCLR->GetGlobalAllocContext();
+}
+
 #undef ALWAYS_INLINE
 
 #endif // __GCTOENV_EE_STANDALONE_INL__

@@ -99,6 +99,7 @@ private:
 public:
     Object*  AllocLHeap (size_t size, uint32_t flags);
     Object* Alloc (gc_alloc_context* acontext, size_t size, uint32_t flags);
+    bool UseThreadAllocationContexts();
 
     void FixAllocContext (gc_alloc_context* acontext,
                                             BOOL lockp, void* arg, void *heap);

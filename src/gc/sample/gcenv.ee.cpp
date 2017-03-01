@@ -15,6 +15,8 @@ int32_t g_TrapReturningThreads;
 
 EEConfig * g_pConfig;
 
+gc_alloc_context g_global_alloc_context;
+
 bool CLREventStatic::CreateManualEventNoThrow(bool bInitialState)
 {
     m_hEvent = CreateEventW(NULL, TRUE, bInitialState, NULL);
@@ -261,6 +263,11 @@ void GCToEEInterface::EnableFinalization(bool foundFinalizers)
 {
     // Signal to finalizer thread that there are objects to finalize
     // TODO: Implement for finalization
+}
+
+gc_alloc_context *GCToEEInterface::GetGlobalAllocContext()
+{
+    return &g_global_alloc_context;
 }
 
 bool IsGCSpecialThread()

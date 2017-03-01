@@ -133,6 +133,11 @@ public:
     // be finalized.
     virtual
     void EnableFinalization(bool foundFinalizers) = 0;
+
+    // Retrieves a pointer to the global allocation context which, on single-proc
+    // systems, is used for all SOH allocations.
+    virtual
+    gc_alloc_context *GetGlobalAllocContext() = 0;
 };
 
 #endif // _GCINTERFACE_EE_H_
