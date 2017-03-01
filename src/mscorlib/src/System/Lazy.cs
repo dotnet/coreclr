@@ -138,17 +138,7 @@ namespace System
             return state.GetMode();
         }
 
-        private bool GetIsValueFaulted()
-        {
-            return _exceptionDispatch != null;
-        }
-
-        internal static bool GetIsValueFaulted(LazyHelper state)
-        {
-            if (state == null)
-                return false;
-            return state.GetIsValueFaulted();
-        }
+        internal static bool GetIsValueFaulted() => state?._exceptionDispatch != null;
 
         internal static LazyHelper Create(LazyThreadSafetyMode mode, bool useDefaultConstructor)
         {
@@ -494,18 +484,12 @@ namespace System
         /// <summary>
         /// Gets a value indicating whether this instance may be used concurrently from multiple threads.
         /// </summary>
-        internal LazyThreadSafetyMode? Mode
-        {
-            get { return LazyHelper.GetMode(_state); }
-        }
+        internal LazyThreadSafetyMode? Mode => LazyHelper.GetMode(_state);
 
         /// <summary>
         /// Gets whether the value creation is faulted or not
         /// </summary>
-        internal bool IsValueFaulted
-        {
-            get { return LazyHelper.GetIsValueFaulted(_state); }
-        }
+        internal bool IsValueFaulted => LazyHelper.GetIsValueFaulted(_state);
 
         /// <summary>Gets a value indicating whether the <see cref="T:System.Lazy{T}"/> has been initialized.
         /// </summary>
@@ -516,10 +500,7 @@ namespace System
         /// a value being produced or an exception being thrown.  If an exception goes unhandled during initialization, 
         /// <see cref="IsValueCreated"/> will return false.
         /// </remarks>
-        public bool IsValueCreated
-        {
-            get { return _state == null; }
-        }
+        public bool IsValueCreated => _state == null;
 
         /// <summary>Gets the lazily initialized value of the current <see
         /// cref="T:System.Threading.Lazy{T}"/>.</summary>
