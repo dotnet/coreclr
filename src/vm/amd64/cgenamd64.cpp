@@ -731,7 +731,7 @@ INT32 rel32UsingPreallocatedJumpStub(INT32 UNALIGNED * pRel32, PCODE target, PCO
 {
     CONTRACTL
     {
-        THROWS; // emptBackToBackJump may throw (see emitJump)
+        THROWS; // emitBackToBackJump may throw (see emitJump)
         GC_NOTRIGGER;
     }
     CONTRACTL_END;
