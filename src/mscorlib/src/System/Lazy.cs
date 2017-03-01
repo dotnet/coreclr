@@ -43,6 +43,14 @@ namespace System
         ExecutionAndPublicationException      = 9,
     }
 
+    /// <summary>
+    /// LazyHelper serves multiples purposes
+    /// - minimizing code size of Lazy&lt;T&gt; by implementing as much of the code that is not generic
+    ///   this reduces generic code bloat, making faster class initialization
+    /// - contains singleton objects that are used to handle threading primitives for PublicationOnly mode
+    /// - allows for instantiation for ExecutionAndPublication so as to create an object for locking on
+    /// - holds exception information.
+    /// </summary>
     internal class LazyHelper
     {
         internal readonly static LazyHelper NoneViaConstructor            = new LazyHelper(LazyState.NoneViaConstructor);
