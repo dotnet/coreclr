@@ -211,14 +211,14 @@ private:
                                             // On non-x86, the managed entrypoint for no-delegate no-marshal signatures
     UINT32            m_cbActualArgSize;    // caches m_pSig.SizeOfFrameArgumentArray()
 #if defined(_TARGET_X86_)
+#if defined(FEATURE_STUBS_AS_IL)
     UINT16            m_cbRetPop;           // stack bytes popped by callee (for UpdateRegDisplay)
     UINT32            m_ecxArgOffset;
     UINT32            m_edxArgOffset;
-
-#if !defined(FEATURE_STUBS_AS_IL)
+#else
     Stub*             m_pExecStub;          // UMEntryThunk jumps directly here
     UINT16            m_callConv;           // unmanaged calling convention and flags (CorPinvokeMap)
-#endif // !FEATURE_STUBS_AS_IL
+#endif // FEATURE_STUBS_AS_IL
 #endif // _TARGET_X86_
 
     MethodDesc *      m_pMD;                // maybe null
