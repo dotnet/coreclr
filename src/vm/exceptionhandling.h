@@ -825,10 +825,6 @@ private:
     Crst* m_pCrst;
 };
 
-#if defined(_TARGET_ARM_) || defined(_TARGET_X86_)
-BOOL IsIPinVirtualStub(PCODE f_IP);
-#endif
-
 #endif // WIN64EXCEPTIONS
 
 #endif  // __EXCEPTION_HANDLING_h__
