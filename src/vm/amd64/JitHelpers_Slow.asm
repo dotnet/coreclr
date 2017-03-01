@@ -473,7 +473,7 @@ NESTED_END JIT_NewArr1OBJ_MP, _TEXT
 
 M_GCLOCK equ ?m_GCLock@@3HC
 extern M_GCLOCK:dword
-extern generation_table:qword
+extern g_generation_table:qword
 
 LEAF_ENTRY JIT_TrialAllocSFastSP, _TEXT
 
@@ -484,15 +484,15 @@ LEAF_ENTRY JIT_TrialAllocSFastSP, _TEXT
         inc     [M_GCLOCK]
         jnz     JIT_NEW
 
-        mov     rax, [generation_table + 0]     ; alloc_ptr
-        mov     r10, [generation_table + 8]     ; limit_ptr
+        mov     rax, [g_generation_table + 0]     ; alloc_ptr
+        mov     r10, [g_generation_table + 8]     ; limit_ptr
 
         add     r8, rax
 
         cmp     r8, r10
         ja      AllocFailed
 
-        mov     qword ptr [generation_table + 0], r8     ; update the alloc ptr
+        mov     qword ptr [g_generation_table + 0], r8     ; update the alloc ptr
         mov     [rax], rcx
         mov     [M_GCLOCK], -1
 
@@ -523,8 +523,8 @@ NESTED_ENTRY JIT_BoxFastUP, _TEXT
         inc     [M_GCLOCK]
         jnz     JIT_Box
 
-        mov     rax, [generation_table + 0]     ; alloc_ptr
-        mov     r10, [generation_table + 8]     ; limit_ptr
+        mov     rax, [g_generation_table + 0]     ; alloc_ptr
+        mov     r10, [g_generation_table + 8]     ; limit_ptr
 
         add     r8, rax
 
@@ -532,7 +532,7 @@ NESTED_ENTRY JIT_BoxFastUP, _TEXT
         ja      NoAlloc
 
 
-        mov     qword ptr [generation_table + 0], r8     ; update the alloc ptr
+        mov     qword ptr [g_generation_table + 0], r8     ; update the alloc ptr
         mov     [rax], rcx
         mov     [M_GCLOCK], -1
 
@@ -605,15 +605,15 @@ LEAF_ENTRY AllocateStringFastUP, _TEXT
         inc     [M_GCLOCK]
         jnz     FramedAllocateString
 
-        mov     rax, [generation_table + 0]     ; alloc_ptr
-        mov     r10, [generation_table + 8]     ; limit_ptr
+        mov     rax, [g_generation_table + 0]     ; alloc_ptr
+        mov     r10, [g_generation_table + 8]     ; limit_ptr
 
         add     r8, rax
 
         cmp     r8, r10
         ja      AllocFailed
 
-        mov     qword ptr [generation_table + 0], r8     ; update the alloc ptr
+        mov     qword ptr [g_generation_table + 0], r8     ; update the alloc ptr
         mov     [rax], r11
         mov     [M_GCLOCK], -1
 
@@ -671,8 +671,8 @@ LEAF_ENTRY JIT_NewArr1VC_UP, _TEXT
         inc     [M_GCLOCK]
         jnz     JIT_NewArr1
 
-        mov     rax, [generation_table + 0]     ; alloc_ptr
-        mov     r10, [generation_table + 8]     ; limit_ptr
+        mov     rax, [g_generation_table + 0]     ; alloc_ptr
+        mov     r10, [g_generation_table + 8]     ; limit_ptr
 
         add     r8, rax
         jc      AllocFailed
@@ -680,7 +680,7 @@ LEAF_ENTRY JIT_NewArr1VC_UP, _TEXT
         cmp     r8, r10
         ja      AllocFailed
 
-        mov     qword ptr [generation_table + 0], r8     ; update the alloc ptr
+        mov     qword ptr [g_generation_table + 0], r8     ; update the alloc ptr
         mov     [rax], r9
         mov     [M_GCLOCK], -1
 
@@ -734,15 +734,15 @@ LEAF_ENTRY JIT_NewArr1OBJ_UP, _TEXT
         inc     [M_GCLOCK]
         jnz     JIT_NewArr1
 
-        mov     rax, [generation_table + 0]     ; alloc_ptr
-        mov     r10, [generation_table + 8]     ; limit_ptr
+        mov     rax, [g_generation_table + 0]     ; alloc_ptr
+        mov     r10, [g_generation_table + 8]     ; limit_ptr
 
         add     r8, rax
 
         cmp     r8, r10
         ja      AllocFailed
 
-        mov     qword ptr [generation_table + 0], r8     ; update the alloc ptr
+        mov     qword ptr [g_generation_table + 0], r8     ; update the alloc ptr
         mov     [rax], r9
         mov     [M_GCLOCK], -1
 

@@ -1219,12 +1219,12 @@ void GCToEEInterface::DiagWalkBGCSurvivors(void* gcContext)
 #endif //GC_PROFILING || FEATURE_EVENT_TRACE
 }
 
-void GCToEEInterface::StompWriteBarrier(WriteBarrierParameters* args)
+void GCToEEInterface::UpdateEEGlobals(UpdateEEGlobalsParameters* args)
 {
     assert(args != nullptr);
     switch (args->operation)
     {
-    case WriteBarrierOp::StompResize:
+    case UpdateEEGlobalsOp::StompResize:
         // StompResize requires a new card table, a new lowest address, and
         // a new highest address
         assert(args->card_table != nullptr);
@@ -1252,7 +1252,7 @@ void GCToEEInterface::StompWriteBarrier(WriteBarrierParameters* args)
         g_lowest_address = args->lowest_address;
         VolatileStore(&g_highest_address, args->highest_address);
         return;
-    case WriteBarrierOp::StompEphemeral:
+    case UpdateEEGlobalsOp::StompEphemeral:
         // StompEphemeral requires a new ephemeral low and a new ephemeral high
         assert(args->ephemeral_low != nullptr);
         assert(args->ephemeral_high != nullptr);
@@ -1260,7 +1260,7 @@ void GCToEEInterface::StompWriteBarrier(WriteBarrierParameters* args)
         g_ephemeral_high = args->ephemeral_high;
         ::StompWriteBarrierEphemeral(args->is_runtime_suspended);
         return;
-    case WriteBarrierOp::Initialize:
+    case UpdateEEGlobalsOp::Initialize:
         // This operation should only be invoked once, upon initialization.
         assert(g_card_table == nullptr);
         assert(g_lowest_address == nullptr);
@@ -1272,6 +1272,10 @@ void GCToEEInterface::StompWriteBarrier(WriteBarrierParameters* args)
         assert(args->ephemeral_high != nullptr);
         assert(args->is_runtime_suspended && "the runtime must be suspended here!");
         assert(!args->requires_upper_bounds_check && "the ephemeral generation must be at the top of the heap!");
+        if (!GCHeapUtilities::UseAllocationContexts())
+        {
+            assert(args->generation_table != nullptr);
+        }
 
         g_card_table = args->card_table;
         FlushProcessWriteBuffers();
@@ -1283,8 +1287,12 @@ void GCToEEInterface::StompWriteBarrier(WriteBarrierParameters* args)
         // are needed in other places.
         g_ephemeral_low = args->ephemeral_low;
         g_ephemeral_high = args->ephemeral_high;
+
+        // g_generation_table is used in allocation helpers when not
+        // using allocation contexts
+        g_generation_table = args->generation_table;
         return;
-    case WriteBarrierOp::SwitchToWriteWatch:
+    case UpdateEEGlobalsOp::SwitchToWriteWatch:
 #ifdef FEATURE_USE_SOFTWARE_WRITE_WATCH_FOR_GC_HEAP
         assert(args->write_watch_table != nullptr);
         assert(args->is_runtime_suspended && "the runtime must be suspended here!");
@@ -1295,7 +1303,7 @@ void GCToEEInterface::StompWriteBarrier(WriteBarrierParameters* args)
         assert(!"should never be called without FEATURE_USE_SOFTWARE_WRITE_WATCH_FOR_GC_HEAP");
 #endif // FEATURE_USE_SOFTWARE_WRITE_WATCH_FOR_GC_HEAP
         return;
-    case WriteBarrierOp::SwitchToNonWriteWatch:
+    case UpdateEEGlobalsOp::SwitchToNonWriteWatch:
 #ifdef FEATURE_USE_SOFTWARE_WRITE_WATCH_FOR_GC_HEAP
         assert(args->is_runtime_suspended && "the runtime must be suspended here!");
         g_sw_ww_enabled_for_gc_heap = false;
@@ -1305,7 +1313,7 @@ void GCToEEInterface::StompWriteBarrier(WriteBarrierParameters* args)
 #endif // FEATURE_USE_SOFTWARE_WRITE_WATCH_FOR_GC_HEAP
         return;
     default:
-        assert(!"unknown WriteBarrierOp enum");
+        assert(!"unknown UpdateEEGlobalsOp enum");
     }
 }
 

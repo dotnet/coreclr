@@ -65,7 +65,9 @@ public:
     static void DiagWalkSurvivors(void* gcContext);
     static void DiagWalkLOHSurvivors(void* gcContext);
     static void DiagWalkBGCSurvivors(void* gcContext);
-    static void StompWriteBarrier(WriteBarrierParameters* args);
+
+    // Inform the EE of changes to GC global variables.
+    static void UpdateEEGlobals(UpdateEEGlobalsParameters* args);
 
     static void EnableFinalization(bool foundFinalizers);
 };

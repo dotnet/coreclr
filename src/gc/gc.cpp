@@ -2165,8 +2165,8 @@ size_t logcount (size_t word)
 
 void stomp_write_barrier_resize(bool is_runtime_suspended, bool requires_upper_bounds_check)
 {
-    WriteBarrierParameters args = {};
-    args.operation = WriteBarrierOp::StompResize;
+    UpdateEEGlobalsParameters args = {};
+    args.operation = UpdateEEGlobalsOp::StompResize;
     args.is_runtime_suspended = is_runtime_suspended;
     args.requires_upper_bounds_check = requires_upper_bounds_check;
     args.card_table = g_gc_card_table;
@@ -2178,23 +2178,23 @@ void stomp_write_barrier_resize(bool is_runtime_suspended, bool requires_upper_b
         args.write_watch_table = g_gc_sw_ww_table;
     }
 #endif // FEATURE_USE_SOFTWARE_WRITE_WATCH_FOR_GC_HEAP
-    GCToEEInterface::StompWriteBarrier(&args);
+    GCToEEInterface::UpdateEEGlobals(&args);
 }
 
 void stomp_write_barrier_ephemeral(uint8_t* ephemeral_low, uint8_t* ephemeral_high)
 {
-    WriteBarrierParameters args = {};
-    args.operation = WriteBarrierOp::StompEphemeral;
+    UpdateEEGlobalsParameters args = {};
+    args.operation = UpdateEEGlobalsOp::StompEphemeral;
     args.is_runtime_suspended = true;
     args.ephemeral_low = ephemeral_low;
     args.ephemeral_high = ephemeral_high;
-    GCToEEInterface::StompWriteBarrier(&args);
+    GCToEEInterface::UpdateEEGlobals(&args);
 }
 
-void stomp_write_barrier_initialize()
+void stomp_write_barrier_initialize(uint8_t* generation_table)
 {
-    WriteBarrierParameters args = {};
-    args.operation = WriteBarrierOp::Initialize;
+    UpdateEEGlobalsParameters args = {};
+    args.operation = UpdateEEGlobalsOp::Initialize;
     args.is_runtime_suspended = true;
     args.requires_upper_bounds_check = false;
     args.card_table = g_gc_card_table;
@@ -2202,7 +2202,8 @@ void stomp_write_barrier_initialize()
     args.highest_address = g_gc_highest_address;
     args.ephemeral_low = reinterpret_cast<uint8_t*>(1);
     args.ephemeral_high = reinterpret_cast<uint8_t*>(~0);
-    GCToEEInterface::StompWriteBarrier(&args);
+    args.generation_table = generation_table;
+    GCToEEInterface::UpdateEEGlobals(&args);
 }
 
 #endif // DACCESS_COMPILE
@@ -2669,10 +2670,6 @@ BOOL        gc_heap::heap_analyze_enabled = FALSE;
 
 #ifndef MULTIPLE_HEAPS
 
-extern "C" {
-    generation generation_table[NUMBERGENERATIONS + 1];
-}
-
 alloc_list gc_heap::loh_alloc_list [NUM_LOH_ALIST-1];
 alloc_list gc_heap::gen2_alloc_list[NUM_GEN2_ALIST-1];
 
@@ -2714,9 +2711,7 @@ int         gc_heap::gen0_must_clear_bricks = 0;
 CFinalize*  gc_heap::finalize_queue = 0;
 #endif // FEATURE_PREMORTEM_FINALIZATION
 
-#ifdef MULTIPLE_HEAPS
 generation gc_heap::generation_table [NUMBERGENERATIONS + 1];
-#endif // MULTIPLE_HEAPS
 
 size_t     gc_heap::interesting_data_per_heap[max_idp_count];
 
@@ -33428,7 +33423,12 @@ HRESULT GCHeap::Initialize ()
         return E_FAIL;
     }
 
-    stomp_write_barrier_initialize();
+#ifndef MULTIPLE_HEAPS
+    uint8_t* generation_table = reinterpret_cast<uint8_t*>(&gc_heap::generation_table[0]);
+#else
+    uint8_t* generation_table = nullptr;
+#endif // MULTIPLE_HEAPS
+    stomp_write_barrier_initialize(generation_table);
 
 #ifndef FEATURE_REDHAWK // Redhawk forces relocation a different way
 #if defined (STRESS_HEAP) && !defined (MULTIPLE_HEAPS)
@@ -36799,7 +36799,7 @@ void PopulateDacVars(GcDacVars *gcDacVars)
     gcDacVars->next_sweep_obj = &gc_heap::next_sweep_obj;
     gcDacVars->oom_info = &gc_heap::oom_info;
     gcDacVars->finalize_queue = reinterpret_cast<dac_finalize_queue**>(&gc_heap::finalize_queue);
-    gcDacVars->generation_table = reinterpret_cast<dac_generation**>(&generation_table);
+    gcDacVars->generation_table = reinterpret_cast<dac_generation**>(&gc_heap::generation_table);
 #ifdef GC_CONFIG_DRIVEN
     gcDacVars->gc_global_mechanisms = reinterpret_cast<size_t**>(&gc_global_mechanisms);
     gcDacVars->interesting_data_per_heap = reinterpret_cast<size_t**>(&gc_heap::interesting_data_per_heap);

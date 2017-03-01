@@ -2801,11 +2801,9 @@ public:
     PER_HEAP
     BOOL heap_analyze_success;
 
-#ifdef MULTIPLE_HEAPS
     // The generation table. Must always be last.
     PER_HEAP
     generation generation_table [NUMBERGENERATIONS + 1];
-#endif // MULTIPLE_HEAPS
 
     // End DAC zone
 
