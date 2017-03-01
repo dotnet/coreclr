@@ -4990,22 +4990,22 @@ GenTreePtr Compiler::impImportLdvirtftn(GenTreePtr              thisPtr,
     }
 
 #if COR_JIT_EE_VERSION > 460
-	// CoreRT generic virtual method
-	if (((pCallInfo->sig.callConv & CORINFO_CALLCONV_GENERIC) != 0) && IsTargetAbi(CORINFO_CORERT_ABI))
-	{
-		GenTreePtr runtimeMethodHandle = nullptr;
-		if (pCallInfo->exactContextNeedsRuntimeLookup)
-		{
-			runtimeMethodHandle = impRuntimeLookupToTree(pResolvedToken, &pCallInfo->codePointerLookup, 
-															pCallInfo->hMethod);
-		}
-		else
-		{
-			runtimeMethodHandle = gtNewIconEmbMethHndNode(pResolvedToken->hMethod);
-		}
-		return gtNewHelperCallNode(CORINFO_HELP_GVMLOOKUP_FOR_SLOT, TYP_I_IMPL, GTF_EXCEPT, 
-									gtNewArgList(thisPtr, runtimeMethodHandle));
-	}
+    // CoreRT generic virtual method
+    if (((pCallInfo->sig.callConv & CORINFO_CALLCONV_GENERIC) != 0) && IsTargetAbi(CORINFO_CORERT_ABI))
+    {
+        GenTreePtr runtimeMethodHandle = nullptr;
+        if (pCallInfo->exactContextNeedsRuntimeLookup)
+        {
+            runtimeMethodHandle = impRuntimeLookupToTree(pResolvedToken, &pCallInfo->codePointerLookup, 
+                                                         pCallInfo->hMethod);
+        }
+        else
+        {
+            runtimeMethodHandle = gtNewIconEmbMethHndNode(pResolvedToken->hMethod);
+        }
+        return gtNewHelperCallNode(CORINFO_HELP_GVMLOOKUP_FOR_SLOT, TYP_I_IMPL, GTF_EXCEPT, 
+                                   gtNewArgList(thisPtr, runtimeMethodHandle));
+    }
 #endif // COR_JIT_EE_VERSION
 
 #ifdef FEATURE_READYTORUN_COMPILER
@@ -6791,8 +6791,8 @@ var_types Compiler::impImportCall(OPCODE                  opcode,
                 GenTreePtr thisPtrCopy;
                 thisPtr = impCloneExpr(thisPtr, &thisPtrCopy, NO_CLASS_HANDLE, (unsigned)CHECK_SPILL_ALL,
                                        nullptr DEBUGARG("LDVIRTFTN this pointer"));
-
-				GenTreePtr fptr = impImportLdvirtftn(thisPtr, pResolvedToken, callInfo);
+                
+                GenTreePtr fptr = impImportLdvirtftn(thisPtr, pResolvedToken, callInfo);
 
                 if (compDonotInline())
                 {
@@ -6815,7 +6815,7 @@ var_types Compiler::impImportCall(OPCODE                  opcode,
 
                 if (((sig->callConv & CORINFO_CALLCONV_GENERIC) != 0) && IsTargetAbi(CORINFO_CORERT_ABI))
                 {
-					// CoreRT generic virtual method: need to handle potential fat function pointers
+                    // CoreRT generic virtual method: need to handle potential fat function pointers
                     addFatPointerCandidate(call->AsCall());
                 }
 #ifdef FEATURE_READYTORUN_COMPILER
