@@ -500,7 +500,7 @@ namespace Span
         #endregion
 
         #region TestSpanDangerousGetPinnableReference<T>
-        [Benchmark(InnerIterationCount = BaseIterations)]
+        /*[Benchmark(InnerIterationCount = BaseIterations)]
         [InlineData(1)]
         [InlineData(10)]
         [InlineData(100)]
@@ -570,7 +570,7 @@ namespace Span
                     {
                         ref TestStruct temp = ref span.DangerousGetPinnableReference();
                     }
-        }
+        }*/
         #endregion
 
         #region TestSpanIndex<T>
