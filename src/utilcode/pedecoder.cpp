@@ -1829,7 +1829,7 @@ BOOL PEDecoder::HasNativeHeader() const
 
 #ifdef FEATURE_PREJIT
     // Pretend that ready-to-run images do not have native header
-    RETURN (((GetCorHeader()->Flags & VAL32(COMIMAGE_FLAGS_IL_LIBRARY)) != 0) && !HasReadyToRunHeader());
+    RETURN (GetCorHeader() && ((GetCorHeader()->Flags & VAL32(COMIMAGE_FLAGS_IL_LIBRARY)) != 0) && !HasReadyToRunHeader());
 #else
     RETURN FALSE;
 #endif
