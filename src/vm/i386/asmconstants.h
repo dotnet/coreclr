@@ -438,6 +438,7 @@ ASMCONSTANTS_C_ASSERT(UMThunkMarshInfo__m_pILStub == offsetof(UMThunkMarshInfo, 
 #define               UMThunkMarshInfo__m_cbActualArgSize   0x04
 ASMCONSTANTS_C_ASSERT(UMThunkMarshInfo__m_cbActualArgSize == offsetof(UMThunkMarshInfo, m_cbActualArgSize))
 
+#ifdef FEATURE_PAL
 #define               UMThunkMarshInfo__m_cbRetPop   0x08
 ASMCONSTANTS_C_ASSERT(UMThunkMarshInfo__m_cbRetPop == offsetof(UMThunkMarshInfo, m_cbRetPop))
 
@@ -446,7 +447,7 @@ ASMCONSTANTS_C_ASSERT(UMThunkMarshInfo__m_ecxArgOffset == offsetof(UMThunkMarshI
 
 #define               UMThunkMarshInfo__m_edxArgOffset  0x10
 ASMCONSTANTS_C_ASSERT(UMThunkMarshInfo__m_edxArgOffset == offsetof(UMThunkMarshInfo, m_edxArgOffset))
-
+#endif //FEATURE_PAL
 
 #ifndef CROSSGEN_COMPILE
 #define               Thread__m_pDomain                     0x14
