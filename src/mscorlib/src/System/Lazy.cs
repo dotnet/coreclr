@@ -100,7 +100,7 @@ namespace System
 
         internal void ThrowException()
         {
-            Debug.Assert((_exceptionDispatch != null, "execution path is invalid");
+            Debug.Assert(_exceptionDispatch != null, "execution path is invalid");
 
             _exceptionDispatch.Throw();
         }
@@ -138,7 +138,7 @@ namespace System
             return state.GetMode();
         }
 
-        internal static bool GetIsValueFaulted() => state?._exceptionDispatch != null;
+        internal static bool GetIsValueFaulted(LazyHelper state) => state?._exceptionDispatch != null;
 
         internal static LazyHelper Create(LazyThreadSafetyMode mode, bool useDefaultConstructor)
         {
@@ -525,14 +525,17 @@ namespace System
         /// </remarks>
         [DebuggerBrowsable(DebuggerBrowsableState.Never)]
         public T Value
-         {
-            while (true)
+        {
+            get
             {
-                if (_state == null)
-                    return  _value;
+                while (true)
+                {
+                    if (_state == null)
+                        return _value;
 
-                CreateValue();
-                Debug.Assert(_state == null);
+                    CreateValue();
+                    Debug.Assert(_state == null);
+                }
             }
         } 
     }
