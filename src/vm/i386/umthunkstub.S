@@ -173,25 +173,20 @@ LOCAL_LABEL(UMThunkStub_CopyStackArgs):
 LOCAL_LABEL(InitCopyStack):
     push    ecx
     push    edx
-    mov     eax, 0  // Offset in edi
-    mov     ebx, 0  // Offset in esi
-LOCAL_LABEL(CopyStack):
     mov     edx, dword ptr [ebp - UMThunkStub_UMENTRYTHUNK_OFFSET]
     mov     edx, dword ptr [edx + UMEntryThunk__m_pUMThunkMarshInfo]
-    mov     ecx, dword ptr [edx + UMThunkMarshInfo__m_ecxArgOffset]
-    cmp     ecx, ebx
+    mov     ebx, [edx + UMThunkMarshInfo__m_cbActualArgSize]
+LOCAL_LABEL(CopyStack):
+    cmp     ebx, dword ptr [edx + UMThunkMarshInfo__m_ecxArgOffset]
     je      LOCAL_LABEL(IncreaseOffset)
-    mov     ecx, dword ptr [edx + UMThunkMarshInfo__m_edxArgOffset]
-    cmp     ecx, ebx
+    cmp     ebx, dword ptr [edx + UMThunkMarshInfo__m_edxArgOffset]
     je      LOCAL_LABEL(IncreaseOffset)
-    mov     ecx, dword ptr [esi + ebx]
-    mov     dword ptr [edi + eax], ecx
-    add     eax, 4
+    mov     ecx, dword ptr [esi + ebx - 4]
+    mov     dword ptr [edi + eax - 4], ecx
+    add     eax, -4
 LOCAL_LABEL(IncreaseOffset):
-    add     ebx, 4
-    mov     ecx, [edx + UMThunkMarshInfo__m_cbActualArgSize]
-    cmp     ecx, ebx
-    jne     LOCAL_LABEL(CopyStack)
+    add     ebx, -4
+    jnz     LOCAL_LABEL(CopyStack)
 
     pop     edx
     pop     ecx
