@@ -341,17 +341,6 @@ INT32 COMNlsInfo::CallGetUserDefaultUILanguage()
     return s_lcid;
 }
 
-INT_PTR COMNlsInfo::EnsureValidSortHandle(INT_PTR handle, INT_PTR handleOrigin, LPCWSTR localeName)
-{
-    LIMITED_METHOD_CONTRACT;
-
-    // For CoreCLR, on Windows 8 and up the handle will be valid. on downlevels the handle will be null
-    return handle;
-}
-
-
-
-
 
 FCIMPL2(Object*, COMNlsInfo::nativeGetLocaleInfoEx, StringObject* localeNameUNSAFE, INT32 lcType)
 {
@@ -1402,8 +1391,6 @@ INT32 QCALLTYPE COMNlsInfo::InternalCompareString(
     INT32 result = 1;
     BEGIN_QCALL;
 
-    handle = EnsureValidSortHandle(handle, handleOrigin, localeName);
-
     {
         result = NewApis::CompareStringEx(handle != NULL ? NULL : localeName, flags, &string1[offset1], length1, &string2[offset2], length2,NULL,NULL, (LPARAM) handle);
     }
@@ -1479,7 +1466,7 @@ BOOL UseConstantSpaceHashAlgorithm()
 //  InternalGetGlobalizedHashCode
 //
 ////////////////////////////////////////////////////////////////////////////
-INT32 QCALLTYPE COMNlsInfo::InternalGetGlobalizedHashCode(INT_PTR handle, INT_PTR handleOrigin, LPCWSTR localeName, LPCWSTR string, INT32 length, INT32 dwFlagsIn, BOOL bForceRandomizedHashing, INT64 additionalEntropy)
+INT32 QCALLTYPE COMNlsInfo::InternalGetGlobalizedHashCode(INT_PTR handle, LPCWSTR localeName, LPCWSTR string, INT32 length, INT32 dwFlagsIn, INT64 additionalEntropy)
 {
     CONTRACTL
     {
@@ -1491,7 +1478,6 @@ INT32 QCALLTYPE COMNlsInfo::InternalGetGlobalizedHashCode(INT_PTR handle, INT_PT
     INT32  iReturnHash  = 0;
     BEGIN_QCALL;
 
-    handle = EnsureValidSortHandle(handle, handleOrigin, localeName);
     int byteCount = 0;
 
     //
@@ -1501,61 +1487,35 @@ INT32 QCALLTYPE COMNlsInfo::InternalGetGlobalizedHashCode(INT_PTR handle, INT_PT
         COMPlusThrowArgumentNull(W("string"),W("ArgumentNull_String"));
     }
 
+    DWORD dwFlags = (LCMAP_SORTKEY | dwFlagsIn);
 
-    if(length > 0 && UseConstantSpaceHashAlgorithm() 
-    // Note that we can't simply do the hash without the entropy and then try to add it after the fact we need the hash function itself to pass entropy to its inputs.
-#ifdef FEATURE_RANDOMIZED_STRING_HASHING
-         && !bForceRandomizedHashing
-         && !COMNlsHashProvider::s_NlsHashProvider.GetUseRandomHashing()
-#endif // FEATURE_RANDOMIZED_STRING_HASHING
-       )
+    //
+    // Caller has already verified that the string is not of zero length
+    //
+    // Assert if we might hit an AV in LCMapStringEx for the invariant culture.
+    _ASSERTE(length > 0 || (dwFlags & LCMAP_LINGUISTIC_CASING) == 0);
     {
-        {
-            int iRes = 0;
-            int iHashValue = 0;
-
-            {
-                iRes = NewApis::LCMapStringEx(localeName, dwFlagsIn | LCMAP_HASH, string, length, (LPWSTR) &iHashValue, sizeof(INT32), NULL, NULL, 0);
-            }
-
-            if(iRes != 0)
-            {
-                iReturnHash = iHashValue;
-            }
-        }
+        byteCount=NewApis::LCMapStringEx(handle != NULL ? NULL : localeName, dwFlags, string, length, NULL, 0, NULL, NULL, (LPARAM) handle);
     }
 
-    if(iReturnHash == 0)
+    //A count of 0 indicates that we either had an error or had a zero length string originally.
+    if (byteCount==0)
     {
-        DWORD dwFlags = (LCMAP_SORTKEY | dwFlagsIn);
+        COMPlusThrow(kArgumentException, W("Arg_MustBeString"));
+    }
 
-        //
-        // Caller has already verified that the string is not of zero length
-        //
-        // Assert if we might hit an AV in LCMapStringEx for the invariant culture.
-        _ASSERTE(length > 0 || (dwFlags & LCMAP_LINGUISTIC_CASING) == 0);
+    // We used to use a NewArrayHolder here, but it turns out that hurts our large # process
+    // scalability in ASP.Net hosting scenarios, using the quick bytes instead mostly stack
+    // allocates and ups throughput by 8% in 100 process case, 5% in 1000 process case
+    {
+        CQuickBytesSpecifySize<MAX_STRING_VALUE * sizeof(WCHAR)> qbBuffer;
+        BYTE* pByte = (BYTE*)qbBuffer.AllocThrows(byteCount);
+
         {
-            byteCount=NewApis::LCMapStringEx(handle != NULL ? NULL : localeName, dwFlags, string, length, NULL, 0, NULL, NULL, (LPARAM) handle);
+            NewApis::LCMapStringEx(handle != NULL ? NULL : localeName, dwFlags, string, length, (LPWSTR)pByte, byteCount, NULL,NULL, (LPARAM) handle);
         }
 
-        //A count of 0 indicates that we either had an error or had a zero length string originally.
-        if (byteCount==0) {
-            COMPlusThrow(kArgumentException, W("Arg_MustBeString"));
-        }
-
-        // We used to use a NewArrayHolder here, but it turns out that hurts our large # process
-        // scalability in ASP.Net hosting scenarios, using the quick bytes instead mostly stack
-        // allocates and ups throughput by 8% in 100 process case, 5% in 1000 process case
-        {
-            CQuickBytesSpecifySize<MAX_STRING_VALUE * sizeof(WCHAR)> qbBuffer;
-            BYTE* pByte = (BYTE*)qbBuffer.AllocThrows(byteCount);
-
-            {
-                NewApis::LCMapStringEx(handle != NULL ? NULL : localeName, dwFlags, string, length, (LPWSTR)pByte, byteCount, NULL,NULL, (LPARAM) handle);
-            }
-
-            iReturnHash = COMNlsHashProvider::s_NlsHashProvider.HashSortKey(pByte, byteCount, bForceRandomizedHashing, additionalEntropy);
-        }
+        iReturnHash = COMNlsHashProvider::s_NlsHashProvider.HashSortKey(pByte, byteCount, true, additionalEntropy);
     }
     END_QCALL;
     return(iReturnHash);
@@ -1591,8 +1551,6 @@ FCIMPL5(FC_CHAR_RET, COMNlsInfo::InternalChangeCaseChar,
     BOOL isInvariantLocale = IsInvariantLocale(localeName);
     // Check for Invariant to avoid A/V in LCMapStringEx
     DWORD linguisticCasing = (isInvariantLocale) ? 0 : LCMAP_LINGUISTIC_CASING;
-
-    handle = EnsureValidSortHandle(handle, handleOrigin, localeName->GetBuffer());
 
     {
         ret_LCMapStringEx = NewApis::LCMapStringEx(handle != NULL ? NULL : localeName->GetBuffer(),
@@ -1649,8 +1607,6 @@ FCIMPL5(Object*, COMNlsInfo::InternalChangeCaseString,
     gc.pLocale = ObjectToSTRINGREF(localeNameUNSAFE);
 
     HELPER_METHOD_FRAME_BEGIN_RET_PROTECT(gc)
-
-    handle = EnsureValidSortHandle(handle, handleOrigin, gc.pLocale->GetBuffer());
 
     //
     //  Get the length of the string.
@@ -1804,8 +1760,6 @@ FCIMPL6(INT32, COMNlsInfo::InternalGetCaseInsHash,
     }
     else
     {
-        handle = EnsureValidSortHandle(handle, handleOrigin, localeName->GetBuffer());
-
         // Make it upper case
         CQuickBytes newBuffer;
         INT32 length = strA->GetStringLength();
@@ -2169,8 +2123,6 @@ FCIMPL0(INT32, COMNlsInfo::nativeGetNumEncodingItems)
     return (m_nEncodingDataTableItems);
 }
 FCIMPLEND
-
-typedef CultureDataBaseObject* CULTUREDATAREF;
 
 // Return true if we're on Windows 7 (ie: if we have neutral native support)
 BOOL COMNlsInfo::IsWindows7()

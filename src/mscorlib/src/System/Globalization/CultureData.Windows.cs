@@ -13,6 +13,12 @@ using Internal.Runtime.Augments;
 
 namespace System.Globalization
 {
+#if CORECLR
+    using StringList = List<string>;
+#else
+    using StringList = LowLevelList<string>;
+#endif 
+
     internal partial class CultureData
     {
         private const uint LOCALE_NOUSEROVERRIDE = 0x80000000;
@@ -580,11 +586,7 @@ namespace System.Globalization
         // Context for EnumTimeFormatsEx callback.
         private class EnumData
         {
-#if CORECLR
-            public List<string> strings;
-#else
-            public LowLevelList<string> strings;
-#endif
+            public StringList strings;
         }
 
         // EnumTimeFormatsEx callback itself.
@@ -612,11 +614,7 @@ namespace System.Globalization
             const uint LOCALE_STIMEFORMAT = 0x00001003;
 
             EnumData data = new EnumData();
-#if CORECLR
-            data.strings = new List<string>();
-#else
-            data.strings = new LowLevelList<string>();
-#endif
+            data.strings = new StringList();
             GCHandle dataHandle = GCHandle.Alloc(data);
             try
             {
@@ -750,11 +748,7 @@ namespace System.Globalization
             }
 
             EnumData context = new EnumData();
-#if CORECLR
-            context.strings = new List<string>();
-#else
-            context.strings = new LowLevelList<string>();
-#endif
+            context.strings = new StringList();
             GCHandle contextHandle = GCHandle.Alloc(context);
             try
             {
@@ -799,11 +793,7 @@ namespace System.Globalization
             get
             {
                 EnumData context = new EnumData();
-#if CORECLR
-                context.strings = new List<string>();
-#else
-                context.strings = new LowLevelList<string>();
-#endif
+                context.strings = new StringList();
                 GCHandle contextHandle = GCHandle.Alloc(context);
                 try
                 {

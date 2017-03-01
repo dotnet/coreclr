@@ -31,9 +31,6 @@ using System.Diagnostics;
 using System.Diagnostics.Contracts;
 using System.Runtime.Serialization;
 using System.Threading;
-#if FEATURE_APPX && !FEATURE_COREFX_GLOBALIZATION
-using System.Resources;
-#endif
 
 namespace System.Globalization
 {
@@ -136,13 +133,6 @@ namespace System.Globalization
         private static volatile CultureInfo s_DefaultThreadCurrentUICulture;
         private static volatile CultureInfo s_DefaultThreadCurrentCulture;
 
-#if FEATURE_APPX && !FEATURE_COREFX_GLOBALIZATION
-        // When running under AppX, we use this to get some information about the language list
-        private static volatile WindowsRuntimeResourceManagerBase s_WindowsRuntimeResourceManager;
-
-        [ThreadStatic]
-        private static bool ts_IsDoingAppXCultureInfoLookup;
-#endif
         internal static AsyncLocal<CultureInfo> s_asyncLocalCurrentCulture; 
         internal static AsyncLocal<CultureInfo> s_asyncLocalCurrentUICulture;
 
@@ -430,74 +420,6 @@ namespace System.Globalization
             Debug.Assert(_name != null, "[CultureInfo.OnDeserialized] _name != null");
             InitializeFromName(_name, _useUserOverride);
         }
-
-#if FEATURE_APPX && !FEATURE_COREFX_GLOBALIZATION
-        internal static CultureInfo GetCultureInfoForUserPreferredLanguageInAppX()
-        {
-            // If a call to GetCultureInfoForUserPreferredLanguageInAppX() generated a recursive
-            // call to itself, return null, since we don't want to stack overflow.  For example, 
-            // this can happen if some code in this method ends up calling CultureInfo.CurrentCulture
-            // (which is common on check'd build because of BCLDebug logging which calls Int32.ToString()).  
-            // In this case, returning null will mean CultureInfo.CurrentCulture gets the default Win32 
-            // value, which should be fine. 
-            if (ts_IsDoingAppXCultureInfoLookup)
-            {
-                return null;
-            }
-
-            // If running within a compilation process (mscorsvw.exe, for example), it is illegal to
-            // load any non-mscorlib assembly for execution. Since WindowsRuntimeResourceManager lives
-            // in System.Runtime.WindowsRuntime, caller will need to fall back to default Win32 value,
-            // which should be fine because we should only ever need to access FX resources during NGEN.
-            // FX resources are always loaded from satellite assemblies - even in AppX processes (see the
-            // comments in code:System.Resources.ResourceManager.SetAppXConfiguration for more details).
-            if (AppDomain.IsAppXNGen)
-            {
-                return null;
-            }
-
-            CultureInfo toReturn = null;
-
-            try 
-            {
-                ts_IsDoingAppXCultureInfoLookup = true;
-
-                if (s_WindowsRuntimeResourceManager == null)
-                {
-                    s_WindowsRuntimeResourceManager = ResourceManager.GetWinRTResourceManager();
-                }
-
-                toReturn = s_WindowsRuntimeResourceManager.GlobalResourceContextBestFitCultureInfo;
-            } 
-            finally 
-            {
-               ts_IsDoingAppXCultureInfoLookup = false;
-            }
- 
-            return toReturn;
-        }
-
-        internal static bool SetCultureInfoForUserPreferredLanguageInAppX(CultureInfo ci)
-        {
-            // If running within a compilation process (mscorsvw.exe, for example), it is illegal to
-            // load any non-mscorlib assembly for execution. Since WindowsRuntimeResourceManager lives
-            // in System.Runtime.WindowsRuntime, caller will need to fall back to default Win32 value,
-            // which should be fine because we should only ever need to access FX resources during NGEN.
-            // FX resources are always loaded from satellite assemblies - even in AppX processes (see the
-            // comments in code:System.Resources.ResourceManager.SetAppXConfiguration for more details).
-            if (AppDomain.IsAppXNGen)
-            {
-                return false;
-            }
-
-            if (s_WindowsRuntimeResourceManager == null)
-            {
-                s_WindowsRuntimeResourceManager = ResourceManager.GetWinRTResourceManager();
-            }
-
-            return s_WindowsRuntimeResourceManager.SetGlobalResourceContextDefaultCulture(ci);
-        }
-#endif
         
         internal static CultureInfo GetCurrentUICultureNoAppX()
         {
@@ -527,134 +449,6 @@ namespace System.Globalization
 
             Debug.Assert(s_userDefaultUICulture != null);
             return s_userDefaultUICulture;
-        }
-
-        ////////////////////////////////////////////////////////////////////////
-        //
-        //  CurrentCulture
-        //
-        //  This instance provides methods based on the current user settings.
-        //  These settings are volatile and may change over the lifetime of the
-        //  thread.
-        //
-        ////////////////////////////////////////////////////////////////////////
-
-        //
-        // We use the following order to return CurrentCulture and CurrentUICulture
-        //      o   Use WinRT to return the current user profile language
-        //      o   use current thread culture if the user already set one using CurrentCulture/CurrentUICulture
-        //      o   use thread culture if the user already set one using DefaultThreadCurrentCulture
-        //          or DefaultThreadCurrentUICulture
-        //      o   Use NLS default user culture
-        //      o   Use NLS default system culture
-        //      o   Use Invariant culture
-        //
-        public static CultureInfo CurrentCulture
-        {
-            get
-            {
-#if FEATURE_APPX && !FEATURE_COREFX_GLOBALIZATION
-                if (AppDomain.IsAppXModel())
-                {
-                    CultureInfo culture = GetCultureInfoForUserPreferredLanguageInAppX();
-                    if (culture != null)
-                        return culture;
-                }
-#endif
-                CultureInfo ci = GetUserDefaultCultureCacheOverride();
-                if (ci != null)
-                {
-                    return ci;
-                }
-
-                if (Thread.m_CurrentCulture != null)
-                {
-                    return Thread.m_CurrentCulture;
-                }
-
-                ci = s_DefaultThreadCurrentCulture;
-                if (ci != null)
-                {
-                    return ci;
-                }
-
-                // if s_userDefaultCulture == null means CultureInfo statics didn't get initialized yet. this can happen if there early static 
-                // method get executed which eventually hit the cultureInfo code while CultureInfo statics didn’t get chance to initialize
-                if (s_userDefaultCulture == null)
-                {
-                    Init();
-                }
-
-                Debug.Assert(s_userDefaultCulture != null);
-                return s_userDefaultCulture;
-            }
-
-            set
-            {
-                if (value == null)
-                {
-                    throw new ArgumentNullException(nameof(value));
-                }
-                
-#if FEATURE_APPX && !FEATURE_COREFX_GLOBALIZATION
-                if (AppDomain.IsAppXModel())
-                {
-                    if (SetCultureInfoForUserPreferredLanguageInAppX(value))
-                    {
-                        // successfully set the culture, otherwise fallback to legacy path
-                        return; 
-                    }
-                }
-#endif
-                if (s_asyncLocalCurrentCulture == null)
-                {
-                    Interlocked.CompareExchange(ref s_asyncLocalCurrentCulture, new AsyncLocal<CultureInfo>(AsyncLocalSetCurrentCulture), null);
-                }
-                s_asyncLocalCurrentCulture.Value = value;
-            }
-        }
-
-        public static CultureInfo CurrentUICulture
-        {
-            get
-            {
-#if FEATURE_APPX && !FEATURE_COREFX_GLOBALIZATION
-                if (AppDomain.IsAppXModel())
-                {
-                    CultureInfo culture = GetCultureInfoForUserPreferredLanguageInAppX();
-                    if (culture != null)
-                        return culture;
-                }
-#endif
-                return GetCurrentUICultureNoAppX();
-            }
-
-            set
-            {
-                if (value == null)
-                {
-                    throw new ArgumentNullException(nameof(value));
-                }
-
-                CultureInfo.VerifyCultureName(value, true);
-#if FEATURE_APPX && !FEATURE_COREFX_GLOBALIZATION
-                if (AppDomain.IsAppXModel())
-                {
-                    if (SetCultureInfoForUserPreferredLanguageInAppX(value))
-                    {
-                        // successfully set the culture, otherwise fallback to legacy path
-                        return; 
-                    }
-                }
-#endif
-                if (s_asyncLocalCurrentUICulture == null)
-                {
-                    Interlocked.CompareExchange(ref s_asyncLocalCurrentUICulture, new AsyncLocal<CultureInfo>(AsyncLocalSetCurrentUICulture), null);
-                }
-
-                // this one will set s_currentThreadUICulture too
-                s_asyncLocalCurrentUICulture.Value = value;               
-            }
         }
 
         public static CultureInfo InstalledUICulture

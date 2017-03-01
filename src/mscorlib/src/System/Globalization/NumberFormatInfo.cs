@@ -61,11 +61,7 @@ namespace System.Globalization
         internal String numberGroupSeparator = ",";
         internal String currencyGroupSeparator = ",";
         internal String currencyDecimalSeparator = ".";
-#if FEATURE_COREFX_GLOBALIZATION
-        internal String currencySymbol = "$"; // TODO: CoreFX #846 Restore to the original value "\x00a4";  // U+00a4 is the symbol for International Monetary Fund.
-#else
         internal String currencySymbol = "\x00a4";  // U+00a4 is the symbol for International Monetary Fund.
-#endif // FEATURE_COREFX_GLOBALIZATION
         internal String nanSymbol = "NaN";
         internal String positiveInfinitySymbol = "Infinity";
         internal String negativeInfinitySymbol = "-Infinity";

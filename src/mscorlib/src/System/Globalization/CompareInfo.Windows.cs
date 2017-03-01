@@ -2,8 +2,11 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+using System.Security;
 using System.Diagnostics;
 using System.Diagnostics.Contracts;
+using System.Runtime.InteropServices;
+using System.Runtime.CompilerServices;
 
 namespace System.Globalization
 {
@@ -78,12 +81,15 @@ namespace System.Globalization
                 return 0;
             }
 
+            int flags = GetNativeCompareFlags(options);
             int tmpHash = 0;
-
+#if CORECLR
+            tmpHash = InternalGetGlobalizedHashCode(_sortHandle, _sortName, source, source.Length, flags, 0);
+#else
             fixed (char* pSource = source)
             {
                 if (Interop.Kernel32.LCMapStringEx(_sortHandle != IntPtr.Zero ? null : _sortName,
-                                                  LCMAP_HASH | (uint)GetNativeCompareFlags(options),
+                                                  LCMAP_HASH | (uint)flags,
                                                   pSource, source.Length,
                                                   &tmpHash, sizeof(int),
                                                   null, null, _sortHandle) == 0)
@@ -91,7 +97,7 @@ namespace System.Globalization
                     Environment.FailFast("LCMapStringEx failed!");
                 }
             }
-
+#endif
             return tmpHash;
         }
 
@@ -357,7 +363,7 @@ namespace System.Globalization
             byte [] keyData = null;
             if (source.Length == 0)
             { 
-                keyData = EmptyArray<Byte>.Value;
+                keyData = Array.Empty<byte>();
             }
             else
             {
@@ -441,5 +447,12 @@ namespace System.Globalization
                         nlsVersion.dwEffectiveId == 0 ? LCID : nlsVersion.dwEffectiveId,
                         nlsVersion.guidCustomVersion);
         }
+
+#if CORECLR
+        // Get a locale sensitive sort hash code from native code -- COMNlsInfo::InternalGetGlobalizedHashCode
+        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
+        [SuppressUnmanagedCodeSecurity]
+        private static extern int InternalGetGlobalizedHashCode(IntPtr handle, string localeName, string source, int length, int dwFlags, long additionalEntropy);
+#endif
     }
 }

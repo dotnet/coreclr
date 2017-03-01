@@ -10,6 +10,14 @@ using System.Collections.Generic;
 
 namespace System.Globalization
 {
+#if CORECLR
+    using IntList = List<int>;
+    using StringList = List<string>;
+#else
+    using IntList = LowLevelList<int>;
+    using StringList = LowLevelList<string>;
+#endif 
+    
     internal partial class CalendarData
     {
         private bool LoadCalendarDataFromSystem(String localeName, CalendarId calendarId)
@@ -123,11 +131,7 @@ namespace System.Globalization
         {
             EnumCalendarsData data = new EnumCalendarsData();
             data.userOverride = 0;
-#if CORECLR
-            data.calendars = new List<int>();
-#else
-            data.calendars = new LowLevelList<int>();
-#endif
+            data.calendars = new IntList();
 
             // First call GetLocaleInfo if necessary
             if (useUserOverride)
@@ -280,11 +284,7 @@ namespace System.Globalization
         private class EnumData
         {
             public string userOverride;
-#if CORECLR
-            public List<string> strings;
-#else
-            public LowLevelList<string> strings;
-#endif
+            public StringList strings;
         }
 
         // EnumCalendarInfoExEx callback itself.
@@ -314,11 +314,7 @@ namespace System.Globalization
         {
             EnumData context = new EnumData();
             context.userOverride = null;
-#if CORECLR
-            context.strings = new List<string>();
-#else
-            context.strings = new LowLevelList<string>();
-#endif
+            context.strings = new StringList();
             // First call GetLocaleInfo if necessary
             if (((lcType != 0) && ((lcType & CAL_NOUSEROVERRIDE) == 0)) &&
                 // Get user locale, see if it matches localeName.
@@ -453,11 +449,7 @@ namespace System.Globalization
         private class EnumCalendarsData
         {
             public int userOverride;   // user override value (if found)
-#if CORECLR
-            public List<int> calendars;      // list of calendars found so far
-#else
-            public LowLevelList<int> calendars;      // list of calendars found so far
-#endif
+            public IntList calendars;      // list of calendars found so far
         }
 
 #if !CORECLR
