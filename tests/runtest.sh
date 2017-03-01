@@ -437,7 +437,7 @@ function copy_test_native_bin_to_test_root {
             local dirPath=$(dirname "$filePath")
             local destinationDirPath=${testRootDir}${dirPath:${#testNativeBinDir}}
             if [ ! -d "$destinationDirPath" ]; then
-                exit_with_error "$errorSource" "Cannot copy native test bin '$filePath' to '$destinationDirPath/', as the destination directory does not exist."
+                echo "ERROR: Cannot copy native test bin '$filePath' to '$destinationDirPath/', as the destination directory does not exist."
             fi
 
             echo "ZZZZZ copying $filePath to $destinationDirPath."
