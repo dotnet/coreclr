@@ -40,7 +40,6 @@ NESTED_ENTRY UMThunkStub, _TEXT, UnhandledExceptionHandlerUnix
 // dummy 4 byte for 16 byte stack alignment
 // {optional stack args passed to callee}   <-- new esp
 
-
     PROLOG_BEG
     PROLOG_PUSH ebx
     PROLOG_PUSH esi
@@ -154,34 +153,48 @@ LOCAL_LABEL(UMThunkStub_CopyStackArgs):
     and     esp, -16    // align with 16 byte
     lea     edi, [esp]
 
+    // First, we copy arguments to ecx and edx registers (if needed).
     mov     edx, dword ptr [ebp - UMThunkStub_UMENTRYTHUNK_OFFSET]
     mov     edx, dword ptr [edx + UMEntryThunk__m_pUMThunkMarshInfo]
     mov     ebx, dword ptr [edx + UMThunkMarshInfo__m_ecxArgOffset]
     cmp     ebx, -1
-    je      LOCAL_LABEL(CopyStack)
+    je      LOCAL_LABEL(InitCopyStack)
     mov     ecx, dword ptr [esi + ebx]
     add     eax, -4
     jz      LOCAL_LABEL(UMThunkStub_ArgumentsSetup)
 
     mov     ebx, dword ptr [edx + UMThunkMarshInfo__m_edxArgOffset]
     cmp     ebx, -1
-    je      LOCAL_LABEL(CopyStack)
+    je      LOCAL_LABEL(InitCopyStack)
     mov     edx, dword ptr [esi + ebx]
     add     eax, -4
     jz      LOCAL_LABEL(UMThunkStub_ArgumentsSetup)
 
-
-LOCAL_LABEL(CopyStack):
+LOCAL_LABEL(InitCopyStack):
     push    ecx
-    mov     ebx, dword ptr [ebp - UMThunkStub_UMENTRYTHUNK_OFFSET]
-    mov     ebx, dword ptr [ebx + UMEntryThunk__m_pUMThunkMarshInfo]
-    mov     ebx, [ebx + UMThunkMarshInfo__m_cbActualArgSize]
-    sub     ebx, eax
+    push    edx
+    mov     eax, 0  // Offset in edi
+    mov     ebx, 0  // Offset in esi
+LOCAL_LABEL(CopyStack):
+    mov     edx, dword ptr [ebp - UMThunkStub_UMENTRYTHUNK_OFFSET]
+    mov     edx, dword ptr [edx + UMEntryThunk__m_pUMThunkMarshInfo]
+    mov     ecx, dword ptr [edx + UMThunkMarshInfo__m_ecxArgOffset]
+    cmp     ecx, ebx
+    je      LOCAL_LABEL(IncreaseOffset)
+    mov     ecx, dword ptr [edx + UMThunkMarshInfo__m_edxArgOffset]
+    cmp     ecx, ebx
+    je      LOCAL_LABEL(IncreaseOffset)
     mov     ecx, dword ptr [esi + ebx]
-    mov     dword ptr [edi + ebx], ecx
+    mov     dword ptr [edi + eax], ecx
+    add     eax, 4
+LOCAL_LABEL(IncreaseOffset):
+    add     ebx, 4
+    mov     ecx, [edx + UMThunkMarshInfo__m_cbActualArgSize]
+    cmp     ecx, ebx
+    jne     LOCAL_LABEL(CopyStack)
+
+    pop     edx
     pop     ecx
-    add     eax, -4
-    jnz     LOCAL_LABEL(CopyStack)
     jmp     LOCAL_LABEL(UMThunkStub_ArgumentsSetup)
 
 #if _DEBUG

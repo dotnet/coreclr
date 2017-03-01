@@ -1431,11 +1431,14 @@ VOID UMThunkMarshInfo::RunTimeInit()
         {
             if (numRegistersUsed == 1)
                 m_ecxArgOffset = offs;
-            else  if (numRegistersUsed == 2)
+            else if (numRegistersUsed == 2)
                 m_edxArgOffset = offs;
-            offs+= STACK_ELEM_SIZE;
-        } else
-            offs+=StackElemSize(cbSize);
+            offs += STACK_ELEM_SIZE;
+        }
+        else
+        {
+            offs += StackElemSize(cbSize);
+        }
     }
     //
     // m_cbActualArgSize gets the number of arg bytes for the NATIVE signature
