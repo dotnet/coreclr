@@ -8,6 +8,6 @@ add_library (MarshalBoolArrayNative SHARED ${SOURCES})
 target_link_libraries(MarshalBoolArrayNative ${LINK_LIBRARIES_ADDITIONAL}) 
 
 # add the install targets
-install (TARGETS MarshalBoolArrayNative DESTINATION bin)
+install (TARGETS MarshalBoolArrayNative DESTINATION bin/MarshalBoolArrayTest)
 
 
