@@ -366,12 +366,9 @@ namespace Span
         #region TestSpanConstructor<T>
         [Benchmark(InnerIterationCount = BaseIterations)]
         [InlineData(1)]
-        [InlineData(5)]
         [InlineData(10)]
         [InlineData(100)]
-        [InlineData(500)]
         [InlineData(1000)]
-        [InlineData(10000)]
         [InlineData(10000000)]
         public static void TestSpanConstructorByte(int length)
         {
@@ -385,12 +382,9 @@ namespace Span
 
         [Benchmark(InnerIterationCount = BaseIterations)]
         [InlineData(1)]
-        [InlineData(5)]
         [InlineData(10)]
         [InlineData(100)]
-        [InlineData(500)]
         [InlineData(1000)]
-        [InlineData(10000)]
         [InlineData(10000000)]
         public static void TestSpanConstructorInt(int length)
         {
@@ -404,12 +398,9 @@ namespace Span
 
         [Benchmark(InnerIterationCount = BaseIterations)]
         [InlineData(1)]
-        [InlineData(5)]
         [InlineData(10)]
         [InlineData(100)]
-        [InlineData(500)]
         [InlineData(1000)]
-        [InlineData(10000)]
         [InlineData(10000000)]
         public static void TestSpanConstructorString(int length)
         {
@@ -423,12 +414,9 @@ namespace Span
 
         [Benchmark(InnerIterationCount = BaseIterations)]
         [InlineData(1)]
-        [InlineData(5)]
         [InlineData(10)]
         [InlineData(100)]
-        [InlineData(500)]
         [InlineData(1000)]
-        [InlineData(10000)]
         [InlineData(10000000)]
         public static void TestSpanConstructorTestStruct(int length)
         {
@@ -444,12 +432,9 @@ namespace Span
         #region TestSpanDangerousCreate<T>
         [Benchmark(InnerIterationCount = BaseIterations)]
         [InlineData(1)]
-        [InlineData(5)]
         [InlineData(10)]
         [InlineData(100)]
-        [InlineData(500)]
         [InlineData(1000)]
-        [InlineData(10000)]
         [InlineData(10000000)]
         public static void TestSpanDangerousCreateByte(int length)
         {
@@ -464,12 +449,9 @@ namespace Span
 
         [Benchmark(InnerIterationCount = BaseIterations)]
         [InlineData(1)]
-        [InlineData(5)]
         [InlineData(10)]
         [InlineData(100)]
-        [InlineData(500)]
         [InlineData(1000)]
-        [InlineData(10000)]
         [InlineData(10000000)]
         public static void TestSpanDangerousCreateInt(int length)
         {
@@ -484,12 +466,9 @@ namespace Span
 
         [Benchmark(InnerIterationCount = BaseIterations)]
         [InlineData(1)]
-        [InlineData(5)]
         [InlineData(10)]
         [InlineData(100)]
-        [InlineData(500)]
         [InlineData(1000)]
-        [InlineData(10000)]
         [InlineData(10000000)]
         public static void TestSpanDangerousCreateString(int length)
         {
@@ -504,12 +483,9 @@ namespace Span
 
         [Benchmark(InnerIterationCount = BaseIterations)]
         [InlineData(1)]
-        [InlineData(5)]
         [InlineData(10)]
         [InlineData(100)]
-        [InlineData(500)]
         [InlineData(1000)]
-        [InlineData(10000)]
         [InlineData(10000000)]
         public static void TestSpanDangerousCreateTestStruct(int length)
         {
@@ -526,12 +502,9 @@ namespace Span
         #region TestSpanDangerousGetPinnableReference<T>
         [Benchmark(InnerIterationCount = BaseIterations)]
         [InlineData(1)]
-        [InlineData(5)]
         [InlineData(10)]
         [InlineData(100)]
-        [InlineData(500)]
         [InlineData(1000)]
-        [InlineData(10000)]
         [InlineData(10000000)]
         public static void TestSpanDangerousGetPinnableReferenceByte(int length)
         {
@@ -547,12 +520,9 @@ namespace Span
 
         [Benchmark(InnerIterationCount = BaseIterations)]
         [InlineData(1)]
-        [InlineData(5)]
         [InlineData(10)]
         [InlineData(100)]
-        [InlineData(500)]
         [InlineData(1000)]
-        [InlineData(10000)]
         [InlineData(10000000)]
         public static void TestSpanDangerousGetPinnableReferenceInt(int length)
         {
@@ -568,12 +538,9 @@ namespace Span
 
         [Benchmark(InnerIterationCount = BaseIterations)]
         [InlineData(1)]
-        [InlineData(5)]
         [InlineData(10)]
         [InlineData(100)]
-        [InlineData(500)]
         [InlineData(1000)]
-        [InlineData(10000)]
         [InlineData(10000000)]
         public static void TestSpanDangerousGetPinnableReferenceString(int length)
         {
@@ -589,12 +556,9 @@ namespace Span
 
         [Benchmark(InnerIterationCount = BaseIterations)]
         [InlineData(1)]
-        [InlineData(5)]
         [InlineData(10)]
         [InlineData(100)]
-        [InlineData(500)]
         [InlineData(1000)]
-        [InlineData(10000)]
         [InlineData(10000000)]
         public static void TestSpanDangerousGetPinnableReferenceTestStruct(int length)
         {
@@ -612,12 +576,9 @@ namespace Span
         #region TestSpanIndex<T>
         [Benchmark(InnerIterationCount = BaseIterations)]
         [InlineData(1)]
-        [InlineData(5)]
         [InlineData(10)]
         [InlineData(100)]
-        [InlineData(500)]
         [InlineData(1000)]
-        [InlineData(10000)]
         [InlineData(10000000)]
         public static void TestSpanIndexByte(int length)
         {
@@ -633,12 +594,9 @@ namespace Span
 
         [Benchmark(InnerIterationCount = BaseIterations)]
         [InlineData(1)]
-        [InlineData(5)]
         [InlineData(10)]
         [InlineData(100)]
-        [InlineData(500)]
         [InlineData(1000)]
-        [InlineData(10000)]
         [InlineData(10000000)]
         public static void TestSpanIndexInt(int length)
         {
@@ -653,12 +611,9 @@ namespace Span
 
         [Benchmark(InnerIterationCount = BaseIterations)]
         [InlineData(1)]
-        [InlineData(5)]
         [InlineData(10)]
         [InlineData(100)]
-        [InlineData(500)]
         [InlineData(1000)]
-        [InlineData(10000)]
         [InlineData(10000000)]
         public static void TestSpanIndexString(int length)
         {
@@ -673,12 +628,9 @@ namespace Span
 
         [Benchmark(InnerIterationCount = BaseIterations)]
         [InlineData(1)]
-        [InlineData(5)]
         [InlineData(10)]
         [InlineData(100)]
-        [InlineData(500)]
         [InlineData(1000)]
-        [InlineData(10000)]
         [InlineData(10000000)]
         public static void TestSpanIndexTestStruct(int length)
         {
@@ -695,12 +647,9 @@ namespace Span
         #region TestArrayIndex<T>
         [Benchmark(InnerIterationCount = BaseIterations)]
         [InlineData(1)]
-        [InlineData(5)]
         [InlineData(10)]
         [InlineData(100)]
-        [InlineData(500)]
         [InlineData(1000)]
-        [InlineData(10000)]
         [InlineData(10000000)]
         public static void TestArrayIndexByte(int length)
         {
@@ -715,12 +664,9 @@ namespace Span
 
         [Benchmark(InnerIterationCount = BaseIterations)]
         [InlineData(1)]
-        [InlineData(5)]
         [InlineData(10)]
         [InlineData(100)]
-        [InlineData(500)]
         [InlineData(1000)]
-        [InlineData(10000)]
         [InlineData(10000000)]
         public static void TestArrayIndexInt(int length)
         {
@@ -734,12 +680,9 @@ namespace Span
 
         [Benchmark(InnerIterationCount = BaseIterations)]
         [InlineData(1)]
-        [InlineData(5)]
         [InlineData(10)]
         [InlineData(100)]
-        [InlineData(500)]
         [InlineData(1000)]
-        [InlineData(10000)]
         [InlineData(10000000)]
         public static void TestArrayIndexString(int length)
         {
@@ -753,12 +696,9 @@ namespace Span
 
         [Benchmark(InnerIterationCount = BaseIterations)]
         [InlineData(1)]
-        [InlineData(5)]
         [InlineData(10)]
         [InlineData(100)]
-        [InlineData(500)]
         [InlineData(1000)]
-        [InlineData(10000)]
         [InlineData(10000000)]
         public static void TestArrayIndexTestStruct(int length)
         {
@@ -774,12 +714,9 @@ namespace Span
         #region TestSpanSlice<T>
         [Benchmark(InnerIterationCount = BaseIterations)]
         [InlineData(1)]
-        [InlineData(5)]
         [InlineData(10)]
         [InlineData(100)]
-        [InlineData(500)]
         [InlineData(1000)]
-        [InlineData(10000)]
         [InlineData(10000000)]
         public static void TestSpanSliceByte(int length)
         {
@@ -794,12 +731,9 @@ namespace Span
 
         [Benchmark(InnerIterationCount = BaseIterations)]
         [InlineData(1)]
-        [InlineData(5)]
         [InlineData(10)]
         [InlineData(100)]
-        [InlineData(500)]
         [InlineData(1000)]
-        [InlineData(10000)]
         [InlineData(10000000)]
         public static void TestSpanSliceInt(int length)
         {
@@ -814,12 +748,9 @@ namespace Span
 
         [Benchmark(InnerIterationCount = BaseIterations)]
         [InlineData(1)]
-        [InlineData(5)]
         [InlineData(10)]
         [InlineData(100)]
-        [InlineData(500)]
         [InlineData(1000)]
-        [InlineData(10000)]
         [InlineData(10000000)]
         public static void TestSpanSliceString(int length)
         {
@@ -834,12 +765,9 @@ namespace Span
 
         [Benchmark(InnerIterationCount = BaseIterations)]
         [InlineData(1)]
-        [InlineData(5)]
         [InlineData(10)]
         [InlineData(100)]
-        [InlineData(500)]
         [InlineData(1000)]
-        [InlineData(10000)]
         [InlineData(10000000)]
         public static void TestSpanSliceTestStruct(int length)
         {
@@ -857,12 +785,9 @@ namespace Span
         #region TestSpanToArray<T>
         [Benchmark(InnerIterationCount = BaseIterations)]
         [InlineData(1)]
-        [InlineData(5)]
         [InlineData(10)]
         [InlineData(100)]
-        [InlineData(500)]
         [InlineData(1000)]
-        [InlineData(10000)]
         [InlineData(100000)]
         public static void TestSpanToArrayByte(int length)
         {
@@ -877,12 +802,9 @@ namespace Span
 
         [Benchmark(InnerIterationCount = BaseIterations)]
         [InlineData(1)]
-        [InlineData(5)]
         [InlineData(10)]
         [InlineData(100)]
-        [InlineData(500)]
         [InlineData(1000)]
-        [InlineData(10000)]
         [InlineData(100000)]
         public static void TestSpanToArrayInt(int length)
         {
@@ -897,12 +819,9 @@ namespace Span
 
         [Benchmark(InnerIterationCount = BaseIterations)]
         [InlineData(1)]
-        [InlineData(5)]
         [InlineData(10)]
         [InlineData(100)]
-        [InlineData(500)]
         [InlineData(1000)]
-        [InlineData(10000)]
         [InlineData(100000)]
         public static void TestSpanToArrayString(int length)
         {
@@ -917,12 +836,9 @@ namespace Span
 
         [Benchmark(InnerIterationCount = BaseIterations)]
         [InlineData(1)]
-        [InlineData(5)]
         [InlineData(10)]
         [InlineData(100)]
-        [InlineData(500)]
         [InlineData(1000)]
-        [InlineData(10000)]
         [InlineData(100000)]
         public static void TestSpanToArrayTestStruct(int length)
         {
@@ -939,12 +855,9 @@ namespace Span
         #region TestSpanCopyTo<T>
         [Benchmark(InnerIterationCount = BaseIterations)]
         [InlineData(1)]
-        [InlineData(5)]
         [InlineData(10)]
         [InlineData(100)]
-        [InlineData(500)]
         [InlineData(1000)]
-        [InlineData(10000)]
         [InlineData(100000)]
         public static void TestSpanCopyToByte(int length)
         {
@@ -960,12 +873,9 @@ namespace Span
 
         [Benchmark(InnerIterationCount = BaseIterations)]
         [InlineData(1)]
-        [InlineData(5)]
         [InlineData(10)]
         [InlineData(100)]
-        [InlineData(500)]
         [InlineData(1000)]
-        [InlineData(10000)]
         [InlineData(100000)]
         public static void TestSpanCopyToInt(int length)
         {
@@ -981,12 +891,9 @@ namespace Span
 
         [Benchmark(InnerIterationCount = BaseIterations)]
         [InlineData(1)]
-        [InlineData(5)]
         [InlineData(10)]
         [InlineData(100)]
-        [InlineData(500)]
         [InlineData(1000)]
-        [InlineData(10000)]
         [InlineData(100000)]
         public static void TestSpanCopyToString(int length)
         {
@@ -1002,12 +909,9 @@ namespace Span
 
         [Benchmark(InnerIterationCount = BaseIterations)]
         [InlineData(1)]
-        [InlineData(5)]
         [InlineData(10)]
         [InlineData(100)]
-        [InlineData(500)]
         [InlineData(1000)]
-        [InlineData(10000)]
         [InlineData(100000)]
         public static void TestSpanCopyToTestStruct(int length)
         {
@@ -1025,12 +929,9 @@ namespace Span
         #region TestArrayCopyTo<T>
         [Benchmark(InnerIterationCount = BaseIterations)]
         [InlineData(1)]
-        [InlineData(5)]
         [InlineData(10)]
         [InlineData(100)]
-        [InlineData(500)]
         [InlineData(1000)]
-        [InlineData(10000)]
         [InlineData(100000)]
         public static void TestArrayCopyToByte(int length)
         {
@@ -1044,12 +945,9 @@ namespace Span
 
         [Benchmark(InnerIterationCount = BaseIterations)]
         [InlineData(1)]
-        [InlineData(5)]
         [InlineData(10)]
         [InlineData(100)]
-        [InlineData(500)]
         [InlineData(1000)]
-        [InlineData(10000)]
         [InlineData(100000)]
         public static void TestArrayCopyToInt(int length)
         {
@@ -1063,12 +961,9 @@ namespace Span
 
         [Benchmark(InnerIterationCount = BaseIterations)]
         [InlineData(1)]
-        [InlineData(5)]
         [InlineData(10)]
         [InlineData(100)]
-        [InlineData(500)]
         [InlineData(1000)]
-        [InlineData(10000)]
         [InlineData(100000)]
         public static void TestArrayCopyToString(int length)
         {
@@ -1082,12 +977,9 @@ namespace Span
 
         [Benchmark(InnerIterationCount = BaseIterations)]
         [InlineData(1)]
-        [InlineData(5)]
         [InlineData(10)]
         [InlineData(100)]
-        [InlineData(500)]
         [InlineData(1000)]
-        [InlineData(10000)]
         [InlineData(100000)]
         public static void TestArrayCopyToTestStruct(int length)
         {
@@ -1103,12 +995,9 @@ namespace Span
         #region TestSpanFill<T>
         [Benchmark(InnerIterationCount = BaseIterations)]
         [InlineData(1)]
-        [InlineData(5)]
         [InlineData(10)]
         [InlineData(100)]
-        [InlineData(500)]
         [InlineData(1000)]
-        [InlineData(10000)]
         [InlineData(100000)]
         public static void TestSpanFillByte(int length)
         {
@@ -1122,12 +1011,9 @@ namespace Span
 
         [Benchmark(InnerIterationCount = BaseIterations)]
         [InlineData(1)]
-        [InlineData(5)]
         [InlineData(10)]
         [InlineData(100)]
-        [InlineData(500)]
         [InlineData(1000)]
-        [InlineData(10000)]
         [InlineData(100000)]
         public static void TestSpanFillInt(int length)
         {
@@ -1141,12 +1027,9 @@ namespace Span
 
         [Benchmark(InnerIterationCount = BaseIterations)]
         [InlineData(1)]
-        [InlineData(5)]
         [InlineData(10)]
         [InlineData(100)]
-        [InlineData(500)]
         [InlineData(1000)]
-        [InlineData(10000)]
         [InlineData(100000)]
         public static void TestSpanFillString(int length)
         {
@@ -1160,12 +1043,9 @@ namespace Span
 
         [Benchmark(InnerIterationCount = BaseIterations)]
         [InlineData(1)]
-        [InlineData(5)]
         [InlineData(10)]
         [InlineData(100)]
-        [InlineData(500)]
         [InlineData(1000)]
-        [InlineData(10000)]
         [InlineData(100000)]
         public static void TestSpanFillTestStruct(int length)
         {
@@ -1181,12 +1061,9 @@ namespace Span
         #region TestSpanClear<T>
         [Benchmark(InnerIterationCount = BaseIterations)]
         [InlineData(1)]
-        [InlineData(5)]
         [InlineData(10)]
         [InlineData(100)]
-        [InlineData(500)]
         [InlineData(1000)]
-        [InlineData(10000)]
         [InlineData(100000)]
         public static void TestSpanClearByte(int length)
         {
@@ -1200,12 +1077,9 @@ namespace Span
 
         [Benchmark(InnerIterationCount = BaseIterations)]
         [InlineData(1)]
-        [InlineData(5)]
         [InlineData(10)]
         [InlineData(100)]
-        [InlineData(500)]
         [InlineData(1000)]
-        [InlineData(10000)]
         [InlineData(100000)]
         public static void TestSpanClearInt(int length)
         {
@@ -1219,12 +1093,9 @@ namespace Span
 
         [Benchmark(InnerIterationCount = BaseIterations)]
         [InlineData(1)]
-        [InlineData(5)]
         [InlineData(10)]
         [InlineData(100)]
-        [InlineData(500)]
         [InlineData(1000)]
-        [InlineData(10000)]
         [InlineData(100000)]
         public static void TestSpanClearString(int length)
         {
@@ -1238,12 +1109,9 @@ namespace Span
 
         [Benchmark(InnerIterationCount = BaseIterations)]
         [InlineData(1)]
-        [InlineData(5)]
         [InlineData(10)]
         [InlineData(100)]
-        [InlineData(500)]
         [InlineData(1000)]
-        [InlineData(10000)]
         [InlineData(100000)]
         public static void TestSpanClearTestStruct(int length)
         {
@@ -1259,12 +1127,9 @@ namespace Span
         #region TestArrayClear<T>
         [Benchmark(InnerIterationCount = BaseIterations)]
         [InlineData(1)]
-        [InlineData(5)]
         [InlineData(10)]
         [InlineData(100)]
-        [InlineData(500)]
         [InlineData(1000)]
-        [InlineData(10000)]
         [InlineData(100000)]
         public static void TestArrayClear<T>(int length)
         {
@@ -1277,12 +1142,9 @@ namespace Span
 
         [Benchmark(InnerIterationCount = BaseIterations)]
         [InlineData(1)]
-        [InlineData(5)]
         [InlineData(10)]
         [InlineData(100)]
-        [InlineData(500)]
         [InlineData(1000)]
-        [InlineData(10000)]
         [InlineData(100000)]
         public static void TestArrayClearInt(int length)
         {
@@ -1295,12 +1157,9 @@ namespace Span
 
         [Benchmark(InnerIterationCount = BaseIterations)]
         [InlineData(1)]
-        [InlineData(5)]
         [InlineData(10)]
         [InlineData(100)]
-        [InlineData(500)]
         [InlineData(1000)]
-        [InlineData(10000)]
         [InlineData(100000)]
         public static void TestArrayClearString(int length)
         {
@@ -1313,12 +1172,9 @@ namespace Span
 
         [Benchmark(InnerIterationCount = BaseIterations)]
         [InlineData(1)]
-        [InlineData(5)]
         [InlineData(10)]
         [InlineData(100)]
-        [InlineData(500)]
         [InlineData(1000)]
-        [InlineData(10000)]
         [InlineData(100000)]
         public static void TestArrayClearTestStruct(int length)
         {
@@ -1333,12 +1189,9 @@ namespace Span
         #region TestSpanAsBytes<T>
         [Benchmark(InnerIterationCount = BaseIterations)]
         [InlineData(1)]
-        [InlineData(5)]
         [InlineData(10)]
         [InlineData(100)]
-        [InlineData(500)]
         [InlineData(1000)]
-        [InlineData(10000)]
         [InlineData(10000000)]
         public static void TestSpanAsBytesByte(int length)
         {
@@ -1354,12 +1207,9 @@ namespace Span
 
         [Benchmark(InnerIterationCount = BaseIterations)]
         [InlineData(1)]
-        [InlineData(5)]
         [InlineData(10)]
         [InlineData(100)]
-        [InlineData(500)]
         [InlineData(1000)]
-        [InlineData(10000)]
         [InlineData(10000000)]
         public static void TestSpanAsBytesInt(int length)
         {
@@ -1377,12 +1227,9 @@ namespace Span
         #region TestSpanNonPortableCast<T>
         [Benchmark(InnerIterationCount = BaseIterations)]
         [InlineData(1)]
-        [InlineData(5)]
         [InlineData(10)]
         [InlineData(100)]
-        [InlineData(500)]
         [InlineData(1000)]
-        [InlineData(10000)]
         [InlineData(10000000)]
         public static void TestSpanNonPortableCastFromByteToInt(int length)
         {
@@ -1398,12 +1245,9 @@ namespace Span
 
         [Benchmark(InnerIterationCount = BaseIterations)]
         [InlineData(1)]
-        [InlineData(5)]
         [InlineData(10)]
         [InlineData(100)]
-        [InlineData(500)]
         [InlineData(1000)]
-        [InlineData(10000)]
         [InlineData(10000000)]
         public static void TestSpanNonPortableCastFromIntToByte(int length)
         {
@@ -1421,12 +1265,9 @@ namespace Span
         #region TestSpanSliceStringChar<T>
         [Benchmark(InnerIterationCount = BaseIterations)]
         [InlineData(1)]
-        [InlineData(5)]
         [InlineData(10)]
         [InlineData(100)]
-        [InlineData(500)]
         [InlineData(1000)]
-        [InlineData(10000)]
         [InlineData(10000000)]
         public static void TestSpanSliceStringChar(int length)
         {
