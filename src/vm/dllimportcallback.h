@@ -211,8 +211,8 @@ private:
                                             // On non-x86, the managed entrypoint for no-delegate no-marshal signatures
     UINT32            m_cbActualArgSize;    // caches m_pSig.SizeOfFrameArgumentArray()
 #if defined(_TARGET_X86_)
-#if defined(FEATURE_STUBS_AS_IL)
     UINT16            m_cbRetPop;           // stack bytes popped by callee (for UpdateRegDisplay)
+#if defined(FEATURE_STUBS_AS_IL)
     UINT32            m_ecxArgOffset;
     UINT32            m_edxArgOffset;
 #else
