@@ -92,10 +92,7 @@ namespace System
 
         internal void ThrowException()
         {
-            if (_exceptionDispatch == null)
-            {
-                Debug.Assert(false, "execution path is invalid");
-            }
+            Debug.Assert((_exceptionDispatch != null, "execution path is invalid");
 
             _exceptionDispatch.Throw();
         }
@@ -122,7 +119,7 @@ namespace System
 
                 default:
                     Debug.Assert(false, "Invalid logic; State should always have a valid value");
-                    throw new ArgumentOutOfRangeException();
+                    return default(LazyThreadSafetyMode);
             }
         }
 
@@ -443,7 +440,7 @@ namespace System
 
                 default:
                     state.ThrowException();
-                    return default(T);
+                    break;
             }
 
             return Value;
