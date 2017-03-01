@@ -63,7 +63,7 @@ namespace System.Globalization
                     return Thread.m_CurrentCulture;
                 }
 
-                ci = s_DefaultThreadCurrentCulture;
+                CultureInfo ci = s_DefaultThreadCurrentCulture;
                 if (ci != null)
                 {
                     return ci;
