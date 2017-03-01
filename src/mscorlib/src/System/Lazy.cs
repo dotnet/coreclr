@@ -405,9 +405,15 @@ namespace System
             }
         }
 
-        private T LazyGetValue()
+        private void CreateValue()
         {
+            // we have to create a copy of state here, and use the copy exclusively from here on in
+            // so as to ensure thread safety.
             var state = _state;
+
+            if (state == null) 
+                return;
+
             switch (state.State)
             {
                 case LazyState.NoneViaConstructor:
@@ -442,8 +448,6 @@ namespace System
                     state.ThrowException();
                     break;
             }
-
-            return Value;
         }
 
         /// <summary>Forces initialization during serialization.</summary>
@@ -531,7 +535,17 @@ namespace System
         /// from initialization delegate.
         /// </remarks>
         [DebuggerBrowsable(DebuggerBrowsableState.Never)]
-        public T Value => _state == null ? _value : LazyGetValue();
+        public T Value
+         {
+            while (true)
+            {
+                if (_state == null)
+                    return  _value;
+
+                CreateValue();
+                Debug.Assert(_state == null);
+            }
+        } 
     }
 
     /// <summary>A debugger view of the Lazy&lt;T&gt; to surface additional debugging properties and 
