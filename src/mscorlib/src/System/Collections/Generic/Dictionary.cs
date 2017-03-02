@@ -406,7 +406,7 @@ namespace System.Collections.Generic
             freeList = -1;
         }
 
-        private void Insert(TKey key, TValue value, bool add)
+        private bool TryInsert(TKey key, TValue value, bool add)
         {
             if (key == null)
             {
