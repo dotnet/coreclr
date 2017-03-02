@@ -76,6 +76,10 @@ public:
     //
     // Native helper function for methods in Normalization
     //
+    // On Windows 7 we use the normalization data embedded inside the corelib to get better results.
+    // On Windows 8 and up we use the OS for normalization. 
+    // That is why we need to keep these fcalls and not doing it through pinvokes.
+
     static FCDECL6(int, nativeNormalizationNormalizeString,
         int NormForm, int& iError,
         StringObject* inString, int inLength,
