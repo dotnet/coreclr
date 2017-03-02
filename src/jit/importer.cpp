@@ -4996,14 +4996,14 @@ GenTreePtr Compiler::impImportLdvirtftn(GenTreePtr              thisPtr,
         GenTreePtr runtimeMethodHandle = nullptr;
         if (pCallInfo->exactContextNeedsRuntimeLookup)
         {
-            runtimeMethodHandle = impRuntimeLookupToTree(pResolvedToken, &pCallInfo->codePointerLookup, 
-                                                         pCallInfo->hMethod);
+            runtimeMethodHandle =
+                impRuntimeLookupToTree(pResolvedToken, &pCallInfo->codePointerLookup, pCallInfo->hMethod);
         }
         else
         {
             runtimeMethodHandle = gtNewIconEmbMethHndNode(pResolvedToken->hMethod);
         }
-        return gtNewHelperCallNode(CORINFO_HELP_GVMLOOKUP_FOR_SLOT, TYP_I_IMPL, GTF_EXCEPT, 
+        return gtNewHelperCallNode(CORINFO_HELP_GVMLOOKUP_FOR_SLOT, TYP_I_IMPL, GTF_EXCEPT,
                                    gtNewArgList(thisPtr, runtimeMethodHandle));
     }
 #endif // COR_JIT_EE_VERSION
@@ -6791,7 +6791,7 @@ var_types Compiler::impImportCall(OPCODE                  opcode,
                 GenTreePtr thisPtrCopy;
                 thisPtr = impCloneExpr(thisPtr, &thisPtrCopy, NO_CLASS_HANDLE, (unsigned)CHECK_SPILL_ALL,
                                        nullptr DEBUGARG("LDVIRTFTN this pointer"));
-                
+
                 GenTreePtr fptr = impImportLdvirtftn(thisPtr, pResolvedToken, callInfo);
 
                 if (compDonotInline())
