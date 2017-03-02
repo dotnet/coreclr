@@ -177,20 +177,6 @@ private:
     TypeKey typeKey;
 };
 
-class PrimitiveTypeInfo: public TypeInfoBase
-{
-public:
-    PrimitiveTypeInfo(TypeHandle typeHandle, int encoding)
-        : TypeInfoBase(typeHandle),
-          m_type_encoding(encoding)
-    {
-    }
-
-    void DumpDebugInfo(char* ptr, int& offset) override;
-
-    int m_type_encoding;
-};
-
 class TypeDefInfo : public DwarfDumpable
 {
 public:
@@ -211,20 +197,23 @@ public:
     int m_typedef_name_offset;
 };
 
-class ByteTypeInfo : public PrimitiveTypeInfo
+class PrimitiveTypeInfo: public TypeInfoBase
 {
 public:
-    ByteTypeInfo(TypeHandle typeHandle, int encoding) : PrimitiveTypeInfo(typeHandle, encoding)
+    PrimitiveTypeInfo(TypeHandle typeHandle, int encoding)
+        : TypeInfoBase(typeHandle),
+          m_type_encoding(encoding),
+          m_typedef_info(new (nothrow) TypeDefInfo(nullptr, 0))
     {
-        m_typedef_info = new (nothrow) TypeDefInfo(nullptr, 0);
     }
-    virtual ~ByteTypeInfo()
+    virtual ~PrimitiveTypeInfo()
     {
         delete m_typedef_info;
     }
     void DumpDebugInfo(char* ptr, int& offset) override;
     void DumpStrings(char* ptr, int& offset) override;
 
+    int m_type_encoding;
     TypeDefInfo* m_typedef_info;
 };
 

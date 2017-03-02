@@ -47,7 +47,7 @@ GetTypeInfoFromTypeHandle(TypeHandle typeHandle,
         case ELEMENT_TYPE_R8:
         case ELEMENT_TYPE_U:
         case ELEMENT_TYPE_I:
-            typeInfo = new (nothrow) ByteTypeInfo(typeHandle, CorElementTypeToDWEncoding[corType]);
+            typeInfo = new (nothrow) PrimitiveTypeInfo(typeHandle, CorElementTypeToDWEncoding[corType]);
             if (typeInfo == nullptr)
                 return nullptr;
 
@@ -1111,9 +1111,9 @@ static const char *GetCSharpTypeName(TypeInfoBase *typeInfo)
     }
 }
 
-void ByteTypeInfo::DumpStrings(char* ptr, int& offset)
+void PrimitiveTypeInfo::DumpStrings(char* ptr, int& offset)
 {
-    PrimitiveTypeInfo::DumpStrings(ptr, offset);
+    TypeInfoBase::DumpStrings(ptr, offset);
     if (!m_typedef_info->m_typedef_name)
     {
         const char *typeName = GetCSharpTypeName(this);
@@ -1123,21 +1123,13 @@ void ByteTypeInfo::DumpStrings(char* ptr, int& offset)
     m_typedef_info->DumpStrings(ptr, offset);
 }
 
-void ByteTypeInfo::DumpDebugInfo(char *ptr, int &offset)
-{
-    m_typedef_info->DumpDebugInfo(ptr, offset);
-    PrimitiveTypeInfo::DumpDebugInfo(ptr, offset);
-    // Replace offset from real type to typedef
-    if (ptr != nullptr)
-        m_type_offset = m_typedef_info->m_typedef_type_offset;
-}
-
-void PrimitiveTypeInfo::DumpDebugInfo(char* ptr, int& offset)
+void PrimitiveTypeInfo::DumpDebugInfo(char *ptr, int &offset)
 {
     if (m_type_offset != 0)
     {
         return;
     }
+    m_typedef_info->DumpDebugInfo(ptr, offset);
 
     if (ptr != nullptr)
     {
@@ -1154,6 +1146,9 @@ void PrimitiveTypeInfo::DumpDebugInfo(char* ptr, int& offset)
     }
 
     offset += sizeof(DebugInfoType);
+    // Replace offset from real type to typedef
+    if (ptr != nullptr)
+        m_type_offset = m_typedef_info->m_typedef_type_offset;
 }
 
 ClassTypeInfo::ClassTypeInfo(TypeHandle typeHandle, int num_members, FunctionMemberPtrArrayHolder &method)
