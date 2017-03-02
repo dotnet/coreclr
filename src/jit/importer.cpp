@@ -6432,7 +6432,6 @@ var_types Compiler::impImportCall(OPCODE                  opcode,
         eeGetSig(pResolvedToken->token, info.compScopeHnd, impTokenLookupContextHandle, &calliSig);
 
         callRetTyp = JITtype2varType(calliSig.retType);
-        clsHnd     = calliSig.retTypeClass;
 
         call = impImportIndirectCall(&calliSig, ilOffset);
 
