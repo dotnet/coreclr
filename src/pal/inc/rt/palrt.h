@@ -1502,7 +1502,7 @@ typedef struct _DISPATCHER_CONTEXT {
     PRUNTIME_FUNCTION FunctionEntry;
     DWORD EstablisherFrame;
     DWORD TargetIp;
-    PKNONVOLATILE_CONTEXT CurrentRecord;
+    PKNONVOLATILE_CONTEXT CurrentNonVolatileContextRecord;
     PCONTEXT ContextRecord;
     PEXCEPTION_ROUTINE LanguageHandler;
     PVOID HandlerData;

@@ -1306,7 +1306,7 @@ void ExceptionTracker::InitializeCurrentContextForCrawlFrame(CrawlFrame* pcfThis
         // Ensure that clients can tell the current context isn't valid.
         SetIP(pRD->pCurrentContext, 0);
 #else // !USE_CURRENT_CONTEXT_IN_FILTER
-        RestoreNonvolatileRegisters(pRD->pCurrentContext, pDispatcherContext->CurrentRecord);
+        RestoreNonvolatileRegisters(pRD->pCurrentContext, pDispatcherContext->CurrentNonVolatileContextRecord);
 #endif // USE_CURRENT_CONTEXT_IN_FILTER
 
         *(pRD->pCallerContext)      = *(pDispatcherContext->ContextRecord);
@@ -4540,8 +4540,8 @@ VOID DECLSPEC_NORETURN UnwindManagedExceptionPass1(PAL_SEHException& ex, CONTEXT
         if (dispatcherContext.FunctionEntry != NULL)
         {
 #ifdef USE_CURRENT_CONTEXT_IN_FILTER
-            KNONVOLATILE_CONTEXT currentContext;
-            CaptureNonvolatileRegisters(&currentContext, frameContext);
+            KNONVOLATILE_CONTEXT currentNonVolatileContext;
+            CaptureNonvolatileRegisters(&currentNonVolatileContext, frameContext);
 #endif // USE_CURRENT_CONTEXT_IN_FILTER
 
             RtlVirtualUnwind(UNW_FLAG_EHANDLER,
@@ -4563,7 +4563,7 @@ VOID DECLSPEC_NORETURN UnwindManagedExceptionPass1(PAL_SEHException& ex, CONTEXT
 
             dispatcherContext.EstablisherFrame = establisherFrame;
 #ifdef USE_CURRENT_CONTEXT_IN_FILTER
-            dispatcherContext.CurrentRecord = &currentContext;
+            dispatcherContext.CurrentNonVolatileContextRecord = &currentNonVolatileContext;
 #endif // USE_CURRENT_CONTEXT_IN_FILTER
             dispatcherContext.ContextRecord = frameContext;
 
