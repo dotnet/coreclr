@@ -719,6 +719,7 @@
     <MscorlibSources Condition="'$(FeatureCominterop)' == 'true'" Include="$(BclSourcesRoot)\System\Threading\Tasks\IAsyncCausalityTracerStatics.cs" />
   </ItemGroup>
   <ItemGroup>
+    <MscorlibSources Include="$(CoreFxSourcesRoot)\System\Buffers\ArrayPoolEventSource.cs" />
     <MscorlibSources Include="$(CoreFxSourcesRoot)\System\Threading\ClrThreadPoolBoundHandle.cs" />
     <MscorlibSources Include="$(CoreFxSourcesRoot)\System\Threading\ClrThreadPoolBoundHandleOverlapped.cs" />
     <MscorlibSources Include="$(CoreFxSourcesRoot)\System\Threading\ClrThreadPoolPreAllocatedOverlapped.cs" />
@@ -961,10 +962,8 @@
   </ItemGroup>
   <ItemGroup Condition="'$(TargetsUnix)' != 'true'">
     <MscorlibSources Include="$(CoreFxSourcesRoot)\System\HResults.cs" />
-    <MscorlibSources Include="$(CoreFxSourcesRoot)\Interop\Windows\kernel32\Interop.CreateFile.cs" />
     <MscorlibSources Include="$(CoreFxSourcesRoot)\Interop\Windows\kernel32\Interop.Globalization.cs" />
     <MscorlibSources Include="$(CoreFxSourcesRoot)\Interop\Windows\Normaliz\Interop.Idna.cs" />
-    <MscorlibSources Include="$(CoreFxSourcesRoot)\Interop\Windows\kernel32\Interop.SetFileInformationByHandle.cs" />
   </ItemGroup>
   <ItemGroup>
     <MscorlibSources Include="$(CoreFxSourcesRoot)\System\Security\SecureString.cs" />
@@ -973,6 +972,7 @@
     <MscorlibSources Include="$(CoreFxSourcesRoot)\System\Security\SafeBSTRHandle.cs" />
     <MscorlibSources Include="$(CoreFxSourcesRoot)\System\Security\SecureString.Windows.cs" />
     <!-- Interop sources -->
+    <MscorlibSources Include="$(CoreFxSourcesRoot)\Interop\Windows\BCrypt\Interop.BCryptGenRandom.cs" />
     <MscorlibSources Include="$(CoreFxSourcesRoot)\Interop\Windows\Crypt32\Interop.CryptProtectMemory.cs" />
     <MscorlibSources Include="$(CoreFxSourcesRoot)\Interop\Windows\NtDll\Interop.ZeroMemory.cs" />
     <MscorlibSources Include="$(CoreFxSourcesRoot)\Interop\Windows\kernel32\Interop.WideCharToMultiByte.cs" />
@@ -984,6 +984,7 @@
   </ItemGroup>
   <ItemGroup Condition="'$(TargetsUnix)' == 'true'">
     <MscorlibSources Include="$(CoreFxSourcesRoot)\System\HResults.cs" />
+    <MscorlibSources Include="$(CoreFxSourcesRoot)\Interop\Unix\System.Native\Interop.GetRandomBytes.cs" />
     <MscorlibSources Include="$(CoreFxSourcesRoot)\Interop\Unix\System.Native\Interop.MksTemps.cs" />
   </ItemGroup>
   <ItemGroup>
