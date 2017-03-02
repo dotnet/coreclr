@@ -28,9 +28,9 @@ namespace Span
         const int BaseIterations = 1;
 #else
         const int BubbleSortIterations = 100;
-        const int QuickSortIterations = 100;
-        const int FillAllIterations = 100;
-        const int BaseIterations = 100;
+        const int QuickSortIterations = 1000;
+        const int FillAllIterations = 100000;
+        const int BaseIterations = 10000000;
 #endif
 
         const int Size = 1024;
@@ -42,13 +42,6 @@ namespace Span
         {
             private double _d;
             public T[] C0;
-        }
-
-        [StructLayout(LayoutKind.Sequential)]
-        private struct TestStruct
-        {
-            public int I;
-            public string S;
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]
@@ -369,7 +362,6 @@ namespace Span
         [InlineData(10)]
         [InlineData(100)]
         [InlineData(1000)]
-        [InlineData(10000000)]
         public static void TestSpanConstructorByte(int length)
         {
             var array = new byte[length];
@@ -380,28 +372,11 @@ namespace Span
                         span = new Span<byte>(array);
         }
 
-        [Benchmark(InnerIterationCount = BaseIterations)]
+        [Benchmark(InnerIterationCount = BaseIterations / 100)]
         [InlineData(1)]
         [InlineData(10)]
         [InlineData(100)]
         [InlineData(1000)]
-        [InlineData(10000000)]
-        public static void TestSpanConstructorInt(int length)
-        {
-            var array = new int[length];
-            Span<int> span;
-            foreach (var iteration in Benchmark.Iterations)
-                using (iteration.StartMeasurement())
-                    for (int i = 0; i < Benchmark.InnerIterationCount; i++)
-                        span = new Span<int>(array);
-        }
-
-        [Benchmark(InnerIterationCount = BaseIterations)]
-        [InlineData(1)]
-        [InlineData(10)]
-        [InlineData(100)]
-        [InlineData(1000)]
-        [InlineData(10000000)]
         public static void TestSpanConstructorString(int length)
         {
             var array = new string[length];
@@ -411,22 +386,6 @@ namespace Span
                     for (int i = 0; i < Benchmark.InnerIterationCount; i++)
                         span = new Span<string>(array);
         }
-
-        [Benchmark(InnerIterationCount = BaseIterations)]
-        [InlineData(1)]
-        [InlineData(10)]
-        [InlineData(100)]
-        [InlineData(1000)]
-        [InlineData(10000000)]
-        public static void TestSpanConstructorTestStruct(int length)
-        {
-            var array = new TestStruct[length];
-            Span<TestStruct> span;
-            foreach (var iteration in Benchmark.Iterations)
-                using (iteration.StartMeasurement())
-                    for (int i = 0; i < Benchmark.InnerIterationCount; i++)
-                        span = new Span<TestStruct>(array);
-        }
         #endregion
         
         #region TestSpanDangerousCreate<T>
@@ -435,7 +394,6 @@ namespace Span
         [InlineData(10)]
         [InlineData(100)]
         [InlineData(1000)]
-        [InlineData(10000000)]
         public static void TestSpanDangerousCreateByte(int length)
         {
             TestClass<byte> testClass = new TestClass<byte>();
@@ -452,24 +410,6 @@ namespace Span
         [InlineData(10)]
         [InlineData(100)]
         [InlineData(1000)]
-        [InlineData(10000000)]
-        public static void TestSpanDangerousCreateInt(int length)
-        {
-            TestClass<int> testClass = new TestClass<int>();
-            testClass.C0 = new int[length];
-            Span<int> span;
-            foreach (var iteration in Benchmark.Iterations)
-                using (iteration.StartMeasurement())
-                    for (int i = 0; i < Benchmark.InnerIterationCount; i++)
-                        span = Span<int>.DangerousCreate(testClass, ref testClass.C0[0], testClass.C0.Length);
-        }
-
-        [Benchmark(InnerIterationCount = BaseIterations)]
-        [InlineData(1)]
-        [InlineData(10)]
-        [InlineData(100)]
-        [InlineData(1000)]
-        [InlineData(10000000)]
         public static void TestSpanDangerousCreateString(int length)
         {
             TestClass<string> testClass = new TestClass<string>();
@@ -480,23 +420,6 @@ namespace Span
                     for (int i = 0; i < Benchmark.InnerIterationCount; i++)
                         span = Span<string>.DangerousCreate(testClass, ref testClass.C0[0], testClass.C0.Length);
         }
-
-        [Benchmark(InnerIterationCount = BaseIterations)]
-        [InlineData(1)]
-        [InlineData(10)]
-        [InlineData(100)]
-        [InlineData(1000)]
-        [InlineData(10000000)]
-        public static void TestSpanDangerousCreateTestStruct(int length)
-        {
-            TestClass<TestStruct> testClass = new TestClass<TestStruct>();
-            testClass.C0 = new TestStruct[length];
-            Span<TestStruct> span;
-            foreach (var iteration in Benchmark.Iterations)
-                using (iteration.StartMeasurement())
-                    for (int i = 0; i < Benchmark.InnerIterationCount; i++)
-                        span = Span<TestStruct>.DangerousCreate(testClass, ref testClass.C0[0], testClass.C0.Length);
-        }
         #endregion
 
         #region TestSpanDangerousGetPinnableReference<T>
@@ -505,7 +428,6 @@ namespace Span
         [InlineData(10)]
         [InlineData(100)]
         [InlineData(1000)]
-        [InlineData(10000000)]
         public static void TestSpanDangerousGetPinnableReferenceByte(int length)
         {
             var array = new byte[length];
@@ -523,25 +445,6 @@ namespace Span
         [InlineData(10)]
         [InlineData(100)]
         [InlineData(1000)]
-        [InlineData(10000000)]
-        public static void TestSpanDangerousGetPinnableReferenceInt(int length)
-        {
-            var array = new int[length];
-            var span = new Span<int>(array);
-            foreach (var iteration in Benchmark.Iterations)
-                using (iteration.StartMeasurement())
-                    for (int i = 0; i < Benchmark.InnerIterationCount; i++)
-                    {
-                        ref int temp = ref span.DangerousGetPinnableReference();
-                    }
-        }
-
-        [Benchmark(InnerIterationCount = BaseIterations)]
-        [InlineData(1)]
-        [InlineData(10)]
-        [InlineData(100)]
-        [InlineData(1000)]
-        [InlineData(10000000)]
         public static void TestSpanDangerousGetPinnableReferenceString(int length)
         {
             var array = new string[length];
@@ -553,24 +456,6 @@ namespace Span
                         ref string temp = ref span.DangerousGetPinnableReference();
                     }
         }
-
-        [Benchmark(InnerIterationCount = BaseIterations)]
-        [InlineData(1)]
-        [InlineData(10)]
-        [InlineData(100)]
-        [InlineData(1000)]
-        [InlineData(10000000)]
-        public static void TestSpanDangerousGetPinnableReferenceTestStruct(int length)
-        {
-            var array = new TestStruct[length];
-            var span = new Span<TestStruct>(array);
-            foreach (var iteration in Benchmark.Iterations)
-                using (iteration.StartMeasurement())
-                    for (int i = 0; i < Benchmark.InnerIterationCount; i++)
-                    {
-                        ref TestStruct temp = ref span.DangerousGetPinnableReference();
-                    }
-        }
         #endregion
 
         #region TestSpanIndex<T>
@@ -579,7 +464,6 @@ namespace Span
         [InlineData(10)]
         [InlineData(100)]
         [InlineData(1000)]
-        [InlineData(10000000)]
         public static void TestSpanIndexByte(int length)
         {
             var array = new byte[length];
@@ -597,46 +481,11 @@ namespace Span
         [InlineData(10)]
         [InlineData(100)]
         [InlineData(1000)]
-        [InlineData(10000000)]
-        public static void TestSpanIndexInt(int length)
-        {
-            var array = new int[length];
-            var span = new Span<int>(array);
-            int temp;
-            foreach (var iteration in Benchmark.Iterations)
-                using (iteration.StartMeasurement())
-                    for (int i = 0; i < Benchmark.InnerIterationCount; i++)
-                        temp = span[length / 2];
-        }
-
-        [Benchmark(InnerIterationCount = BaseIterations)]
-        [InlineData(1)]
-        [InlineData(10)]
-        [InlineData(100)]
-        [InlineData(1000)]
-        [InlineData(10000000)]
         public static void TestSpanIndexString(int length)
         {
             var array = new string[length];
             var span = new Span<string>(array);
             string temp;
-            foreach (var iteration in Benchmark.Iterations)
-                using (iteration.StartMeasurement())
-                    for (int i = 0; i < Benchmark.InnerIterationCount; i++)
-                        temp = span[length / 2];
-        }
-
-        [Benchmark(InnerIterationCount = BaseIterations)]
-        [InlineData(1)]
-        [InlineData(10)]
-        [InlineData(100)]
-        [InlineData(1000)]
-        [InlineData(10000000)]
-        public static void TestSpanIndexTestStruct(int length)
-        {
-            var array = new TestStruct[length];
-            var span = new Span<TestStruct>(array);
-            TestStruct temp;
             foreach (var iteration in Benchmark.Iterations)
                 using (iteration.StartMeasurement())
                     for (int i = 0; i < Benchmark.InnerIterationCount; i++)
@@ -650,7 +499,6 @@ namespace Span
         [InlineData(10)]
         [InlineData(100)]
         [InlineData(1000)]
-        [InlineData(10000000)]
         public static void TestArrayIndexByte(int length)
         {
             var array = new byte[length];
@@ -667,43 +515,10 @@ namespace Span
         [InlineData(10)]
         [InlineData(100)]
         [InlineData(1000)]
-        [InlineData(10000000)]
-        public static void TestArrayIndexInt(int length)
-        {
-            var array = new int[length];
-            int temp;
-            foreach (var iteration in Benchmark.Iterations)
-                using (iteration.StartMeasurement())
-                    for (int i = 0; i < Benchmark.InnerIterationCount; i++)
-                        temp = array[length / 2];
-        }
-
-        [Benchmark(InnerIterationCount = BaseIterations)]
-        [InlineData(1)]
-        [InlineData(10)]
-        [InlineData(100)]
-        [InlineData(1000)]
-        [InlineData(10000000)]
         public static void TestArrayIndexString(int length)
         {
             var array = new string[length];
             string temp;
-            foreach (var iteration in Benchmark.Iterations)
-                using (iteration.StartMeasurement())
-                    for (int i = 0; i < Benchmark.InnerIterationCount; i++)
-                        temp = array[length / 2];
-        }
-
-        [Benchmark(InnerIterationCount = BaseIterations)]
-        [InlineData(1)]
-        [InlineData(10)]
-        [InlineData(100)]
-        [InlineData(1000)]
-        [InlineData(10000000)]
-        public static void TestArrayIndexTestStruct(int length)
-        {
-            var array = new TestStruct[length];
-            TestStruct temp;
             foreach (var iteration in Benchmark.Iterations)
                 using (iteration.StartMeasurement())
                     for (int i = 0; i < Benchmark.InnerIterationCount; i++)
@@ -717,7 +532,6 @@ namespace Span
         [InlineData(10)]
         [InlineData(100)]
         [InlineData(1000)]
-        [InlineData(10000000)]
         public static void TestSpanSliceByte(int length)
         {
             var array = new byte[length];
@@ -734,24 +548,6 @@ namespace Span
         [InlineData(10)]
         [InlineData(100)]
         [InlineData(1000)]
-        [InlineData(10000000)]
-        public static void TestSpanSliceInt(int length)
-        {
-            var array = new int[length];
-            var span = new Span<int>(array);
-            Span<int> temp;
-            foreach (var iteration in Benchmark.Iterations)
-                using (iteration.StartMeasurement())
-                    for (int i = 0; i < Benchmark.InnerIterationCount; i++)
-                        temp = span.Slice(length / 2);
-        }
-
-        [Benchmark(InnerIterationCount = BaseIterations)]
-        [InlineData(1)]
-        [InlineData(10)]
-        [InlineData(100)]
-        [InlineData(1000)]
-        [InlineData(10000000)]
         public static void TestSpanSliceString(int length)
         {
             var array = new string[length];
@@ -762,33 +558,14 @@ namespace Span
                     for (int i = 0; i < Benchmark.InnerIterationCount; i++)
                         temp = span.Slice(length / 2);
         }
-
-        [Benchmark(InnerIterationCount = BaseIterations)]
-        [InlineData(1)]
-        [InlineData(10)]
-        [InlineData(100)]
-        [InlineData(1000)]
-        [InlineData(10000000)]
-        public static void TestSpanSliceTestStruct(int length)
-        {
-            var array = new TestStruct[length];
-            var span = new Span<TestStruct>(array);
-            Span<TestStruct> temp;
-            foreach (var iteration in Benchmark.Iterations)
-                using (iteration.StartMeasurement())
-                    for (int i = 0; i < Benchmark.InnerIterationCount; i++)
-                        temp = span.Slice(length / 2);
-
-        }
         #endregion
         
         #region TestSpanToArray<T>
-        [Benchmark(InnerIterationCount = BaseIterations)]
+        [Benchmark(InnerIterationCount = BaseIterations / 100)]
         [InlineData(1)]
         [InlineData(10)]
         [InlineData(100)]
         [InlineData(1000)]
-        [InlineData(100000)]
         public static void TestSpanToArrayByte(int length)
         {
             var array = new byte[length];
@@ -800,29 +577,11 @@ namespace Span
                         temp = span.ToArray();
         }
 
-        [Benchmark(InnerIterationCount = BaseIterations)]
+        [Benchmark(InnerIterationCount = BaseIterations / 100)]
         [InlineData(1)]
         [InlineData(10)]
         [InlineData(100)]
         [InlineData(1000)]
-        [InlineData(100000)]
-        public static void TestSpanToArrayInt(int length)
-        {
-            var array = new int[length];
-            var span = new Span<int>(array);
-            int[] temp;
-            foreach (var iteration in Benchmark.Iterations)
-                using (iteration.StartMeasurement())
-                    for (int i = 0; i < Benchmark.InnerIterationCount; i++)
-                        temp = span.ToArray();
-        }
-
-        [Benchmark(InnerIterationCount = BaseIterations)]
-        [InlineData(1)]
-        [InlineData(10)]
-        [InlineData(100)]
-        [InlineData(1000)]
-        [InlineData(100000)]
         public static void TestSpanToArrayString(int length)
         {
             var array = new string[length];
@@ -833,32 +592,14 @@ namespace Span
                     for (int i = 0; i < Benchmark.InnerIterationCount; i++)
                         temp = span.ToArray();
         }
-
-        [Benchmark(InnerIterationCount = BaseIterations)]
-        [InlineData(1)]
-        [InlineData(10)]
-        [InlineData(100)]
-        [InlineData(1000)]
-        [InlineData(100000)]
-        public static void TestSpanToArrayTestStruct(int length)
-        {
-            var array = new TestStruct[length];
-            var span = new Span<TestStruct>(array);
-            TestStruct[] temp;
-            foreach (var iteration in Benchmark.Iterations)
-                using (iteration.StartMeasurement())
-                    for (int i = 0; i < Benchmark.InnerIterationCount; i++)
-                        temp = span.ToArray();
-        }
         #endregion
         
         #region TestSpanCopyTo<T>
-        [Benchmark(InnerIterationCount = BaseIterations)]
+        [Benchmark(InnerIterationCount = BaseIterations / 10)]
         [InlineData(1)]
         [InlineData(10)]
         [InlineData(100)]
         [InlineData(1000)]
-        [InlineData(100000)]
         public static void TestSpanCopyToByte(int length)
         {
             var array = new byte[length];
@@ -871,30 +612,11 @@ namespace Span
                         span.CopyTo(destination);
         }
 
-        [Benchmark(InnerIterationCount = BaseIterations)]
+        [Benchmark(InnerIterationCount = BaseIterations / 100)]
         [InlineData(1)]
         [InlineData(10)]
         [InlineData(100)]
         [InlineData(1000)]
-        [InlineData(100000)]
-        public static void TestSpanCopyToInt(int length)
-        {
-            var array = new int[length];
-            var span = new Span<int>(array);
-            var destArray = new int[array.Length];
-            var destination = new Span<int>(destArray);
-            foreach (var iteration in Benchmark.Iterations)
-                using (iteration.StartMeasurement())
-                    for (int i = 0; i < Benchmark.InnerIterationCount; i++)
-                        span.CopyTo(destination);
-        }
-
-        [Benchmark(InnerIterationCount = BaseIterations)]
-        [InlineData(1)]
-        [InlineData(10)]
-        [InlineData(100)]
-        [InlineData(1000)]
-        [InlineData(100000)]
         public static void TestSpanCopyToString(int length)
         {
             var array = new string[length];
@@ -906,33 +628,14 @@ namespace Span
                     for (int i = 0; i < Benchmark.InnerIterationCount; i++)
                         span.CopyTo(destination);
         }
-
-        [Benchmark(InnerIterationCount = BaseIterations)]
-        [InlineData(1)]
-        [InlineData(10)]
-        [InlineData(100)]
-        [InlineData(1000)]
-        [InlineData(100000)]
-        public static void TestSpanCopyToTestStruct(int length)
-        {
-            var array = new TestStruct[length];
-            var span = new Span<TestStruct>(array);
-            var destArray = new TestStruct[array.Length];
-            var destination = new Span<TestStruct>(destArray);
-            foreach (var iteration in Benchmark.Iterations)
-                using (iteration.StartMeasurement())
-                    for (int i = 0; i < Benchmark.InnerIterationCount; i++)
-                        span.CopyTo(destination);
-        }
         #endregion
 
         #region TestArrayCopyTo<T>
-        [Benchmark(InnerIterationCount = BaseIterations)]
+        [Benchmark(InnerIterationCount = BaseIterations / 10)]
         [InlineData(1)]
         [InlineData(10)]
         [InlineData(100)]
         [InlineData(1000)]
-        [InlineData(100000)]
         public static void TestArrayCopyToByte(int length)
         {
             var array = new byte[length];
@@ -943,28 +646,11 @@ namespace Span
                         array.CopyTo(destination, 0);
         }
 
-        [Benchmark(InnerIterationCount = BaseIterations)]
+        [Benchmark(InnerIterationCount = BaseIterations / 100)]
         [InlineData(1)]
         [InlineData(10)]
         [InlineData(100)]
         [InlineData(1000)]
-        [InlineData(100000)]
-        public static void TestArrayCopyToInt(int length)
-        {
-            var array = new int[length];
-            var destination = new int[array.Length];
-            foreach (var iteration in Benchmark.Iterations)
-                using (iteration.StartMeasurement())
-                    for (int i = 0; i < Benchmark.InnerIterationCount; i++)
-                        array.CopyTo(destination, 0);
-        }
-
-        [Benchmark(InnerIterationCount = BaseIterations)]
-        [InlineData(1)]
-        [InlineData(10)]
-        [InlineData(100)]
-        [InlineData(1000)]
-        [InlineData(100000)]
         public static void TestArrayCopyToString(int length)
         {
             var array = new string[length];
@@ -974,31 +660,14 @@ namespace Span
                     for (int i = 0; i < Benchmark.InnerIterationCount; i++)
                         array.CopyTo(destination, 0);
         }
-
-        [Benchmark(InnerIterationCount = BaseIterations)]
-        [InlineData(1)]
-        [InlineData(10)]
-        [InlineData(100)]
-        [InlineData(1000)]
-        [InlineData(100000)]
-        public static void TestArrayCopyToTestStruct(int length)
-        {
-            var array = new TestStruct[length];
-            var destination = new TestStruct[array.Length];
-            foreach (var iteration in Benchmark.Iterations)
-                using (iteration.StartMeasurement())
-                    for (int i = 0; i < Benchmark.InnerIterationCount; i++)
-                        array.CopyTo(destination, 0);
-        }
         #endregion
 
         #region TestSpanFill<T>
-        [Benchmark(InnerIterationCount = BaseIterations)]
+        [Benchmark(InnerIterationCount = BaseIterations * 10)]
         [InlineData(1)]
         [InlineData(10)]
         [InlineData(100)]
         [InlineData(1000)]
-        [InlineData(100000)]
         public static void TestSpanFillByte(int length)
         {
             var array = new byte[length];
@@ -1009,28 +678,11 @@ namespace Span
                         span.Fill(default(byte));
         }
 
-        [Benchmark(InnerIterationCount = BaseIterations)]
+        [Benchmark(InnerIterationCount = BaseIterations / 100)]
         [InlineData(1)]
         [InlineData(10)]
         [InlineData(100)]
         [InlineData(1000)]
-        [InlineData(100000)]
-        public static void TestSpanFillInt(int length)
-        {
-            var array = new int[length];
-            var span = new Span<int>(array);
-            foreach (var iteration in Benchmark.Iterations)
-                using (iteration.StartMeasurement())
-                    for (int i = 0; i < Benchmark.InnerIterationCount; i++)
-                        span.Fill(default(int));
-        }
-
-        [Benchmark(InnerIterationCount = BaseIterations)]
-        [InlineData(1)]
-        [InlineData(10)]
-        [InlineData(100)]
-        [InlineData(1000)]
-        [InlineData(100000)]
         public static void TestSpanFillString(int length)
         {
             var array = new string[length];
@@ -1040,31 +692,14 @@ namespace Span
                     for (int i = 0; i < Benchmark.InnerIterationCount; i++)
                         span.Fill(default(string));
         }
-
-        [Benchmark(InnerIterationCount = BaseIterations)]
-        [InlineData(1)]
-        [InlineData(10)]
-        [InlineData(100)]
-        [InlineData(1000)]
-        [InlineData(100000)]
-        public static void TestSpanFillTestStruct(int length)
-        {
-            var array = new TestStruct[length];
-            var span = new Span<TestStruct>(array);
-            foreach (var iteration in Benchmark.Iterations)
-                using (iteration.StartMeasurement())
-                    for (int i = 0; i < Benchmark.InnerIterationCount; i++)
-                        span.Fill(default(TestStruct));
-        }
         #endregion
 
         #region TestSpanClear<T>
-        [Benchmark(InnerIterationCount = BaseIterations)]
+        [Benchmark(InnerIterationCount = BaseIterations / 10)]
         [InlineData(1)]
         [InlineData(10)]
         [InlineData(100)]
         [InlineData(1000)]
-        [InlineData(100000)]
         public static void TestSpanClearByte(int length)
         {
             var array = new byte[length];
@@ -1075,28 +710,11 @@ namespace Span
                         span.Clear();
         }
 
-        [Benchmark(InnerIterationCount = BaseIterations)]
+        [Benchmark(InnerIterationCount = BaseIterations / 10)]
         [InlineData(1)]
         [InlineData(10)]
         [InlineData(100)]
         [InlineData(1000)]
-        [InlineData(100000)]
-        public static void TestSpanClearInt(int length)
-        {
-            var array = new int[length];
-            var span = new Span<int>(array);
-            foreach (var iteration in Benchmark.Iterations)
-                using (iteration.StartMeasurement())
-                    for (int i = 0; i < Benchmark.InnerIterationCount; i++)
-                        span.Clear();
-        }
-
-        [Benchmark(InnerIterationCount = BaseIterations)]
-        [InlineData(1)]
-        [InlineData(10)]
-        [InlineData(100)]
-        [InlineData(1000)]
-        [InlineData(100000)]
         public static void TestSpanClearString(int length)
         {
             var array = new string[length];
@@ -1106,32 +724,15 @@ namespace Span
                     for (int i = 0; i < Benchmark.InnerIterationCount; i++)
                         span.Clear();
         }
-
-        [Benchmark(InnerIterationCount = BaseIterations)]
-        [InlineData(1)]
-        [InlineData(10)]
-        [InlineData(100)]
-        [InlineData(1000)]
-        [InlineData(100000)]
-        public static void TestSpanClearTestStruct(int length)
-        {
-            var array = new TestStruct[length];
-            var span = new Span<TestStruct>(array);
-            foreach (var iteration in Benchmark.Iterations)
-                using (iteration.StartMeasurement())
-                    for (int i = 0; i < Benchmark.InnerIterationCount; i++)
-                        span.Clear();
-        }
         #endregion
 
         #region TestArrayClear<T>
-        [Benchmark(InnerIterationCount = BaseIterations)]
+        [Benchmark(InnerIterationCount = BaseIterations / 10)]
         [InlineData(1)]
         [InlineData(10)]
         [InlineData(100)]
         [InlineData(1000)]
-        [InlineData(100000)]
-        public static void TestArrayClear<T>(int length)
+        public static void TestArrayClearByte(int length)
         {
             var array = new byte[length];
             foreach (var iteration in Benchmark.Iterations)
@@ -1140,45 +741,14 @@ namespace Span
                         Array.Clear(array, 0, length);
         }
 
-        [Benchmark(InnerIterationCount = BaseIterations)]
+        [Benchmark(InnerIterationCount = BaseIterations / 10)]
         [InlineData(1)]
         [InlineData(10)]
         [InlineData(100)]
         [InlineData(1000)]
-        [InlineData(100000)]
-        public static void TestArrayClearInt(int length)
-        {
-            var array = new int[length];
-            foreach (var iteration in Benchmark.Iterations)
-                using (iteration.StartMeasurement())
-                    for (int i = 0; i < Benchmark.InnerIterationCount; i++)
-                        Array.Clear(array, 0, length);
-        }
-
-        [Benchmark(InnerIterationCount = BaseIterations)]
-        [InlineData(1)]
-        [InlineData(10)]
-        [InlineData(100)]
-        [InlineData(1000)]
-        [InlineData(100000)]
         public static void TestArrayClearString(int length)
         {
             var array = new string[length];
-            foreach (var iteration in Benchmark.Iterations)
-                using (iteration.StartMeasurement())
-                    for (int i = 0; i < Benchmark.InnerIterationCount; i++)
-                        Array.Clear(array, 0, length);
-        }
-
-        [Benchmark(InnerIterationCount = BaseIterations)]
-        [InlineData(1)]
-        [InlineData(10)]
-        [InlineData(100)]
-        [InlineData(1000)]
-        [InlineData(100000)]
-        public static void TestArrayClearTestStruct(int length)
-        {
-            var array = new TestStruct[length];
             foreach (var iteration in Benchmark.Iterations)
                 using (iteration.StartMeasurement())
                     for (int i = 0; i < Benchmark.InnerIterationCount; i++)
@@ -1192,7 +762,6 @@ namespace Span
         [InlineData(10)]
         [InlineData(100)]
         [InlineData(1000)]
-        [InlineData(10000000)]
         public static void TestSpanAsBytesByte(int length)
         {
             var array = new byte[length];
@@ -1210,7 +779,6 @@ namespace Span
         [InlineData(10)]
         [InlineData(100)]
         [InlineData(1000)]
-        [InlineData(10000000)]
         public static void TestSpanAsBytesInt(int length)
         {
             var array = new int[length];
@@ -1230,7 +798,6 @@ namespace Span
         [InlineData(10)]
         [InlineData(100)]
         [InlineData(1000)]
-        [InlineData(10000000)]
         public static void TestSpanNonPortableCastFromByteToInt(int length)
         {
             var array = new byte[length];
@@ -1248,7 +815,6 @@ namespace Span
         [InlineData(10)]
         [InlineData(100)]
         [InlineData(1000)]
-        [InlineData(10000000)]
         public static void TestSpanNonPortableCastFromIntToByte(int length)
         {
             var array = new int[length];
@@ -1268,7 +834,6 @@ namespace Span
         [InlineData(10)]
         [InlineData(100)]
         [InlineData(1000)]
-        [InlineData(10000000)]
         public static void TestSpanSliceStringChar(int length)
         {
             StringBuilder sb = new StringBuilder();
