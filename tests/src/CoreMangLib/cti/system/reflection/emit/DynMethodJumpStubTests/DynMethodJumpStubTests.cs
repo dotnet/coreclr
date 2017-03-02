@@ -82,13 +82,20 @@ public static class DynamicMethodJumpStubTests
             high = ulong.MaxValue;
         }
 
-        for (ulong address = low; address <= high; address += AllocationGranularity)
+        ulong address = low;
+        while (address <= high)
         {
             VirtualAlloc(
                 new UIntPtr(address),
                 new UIntPtr(AllocationGranularity),
                 AllocationType.RESERVE,
                 MemoryProtection.NOACCESS);
+
+            if (address + AllocationGranularity < address)
+            {
+                break;
+            }
+            address += AllocationGranularity;
         }
     }
 
