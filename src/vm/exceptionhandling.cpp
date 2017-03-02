@@ -28,6 +28,21 @@
 #define USE_CALLER_SP_IN_FUNCLET
 #endif // _TARGET_ARM_ || _TARGET_ARM64_ || _TARGET_X86_
 
+#ifdef USE_CURRENT_CONTEXT_IN_FILTER
+inline void CaptureNonvolatileRegisters(PKNONVOLATILE_CONTEXT pNonvolatileContext, PCONTEXT pContext)
+{
+#define CALLEE_SAVED_REGISTER(reg) pNonvolatileContext->reg = pContext->reg;
+    ENUM_CALLEE_SAVED_REGISTERS();
+#undef CALLEE_SAVED_REGISTER
+}
+
+inline void RestoreNonvolatileRegisters(PCONTEXT pContext, PKNONVOLATILE_CONTEXT pNonvolatileContext)
+{
+#define CALLEE_SAVED_REGISTER(reg) pContext->reg = pNonvolatileContext->reg;
+    ENUM_CALLEE_SAVED_REGISTERS();
+#undef CALLEE_SAVED_REGISTER
+}
+#endif
 #ifndef DACCESS_COMPILE
 
 // o Functions and funclets are tightly associated.  In fact, they are laid out in contiguous memory.
@@ -1291,7 +1306,7 @@ void ExceptionTracker::InitializeCurrentContextForCrawlFrame(CrawlFrame* pcfThis
         // Ensure that clients can tell the current context isn't valid.
         SetIP(pRD->pCurrentContext, 0);
 #else // !USE_CURRENT_CONTEXT_IN_FILTER
-        *(pRD->pCurrentContext)     = *(pDispatcherContext->CurrentRecord);
+        RestoreNonvolatileRegisters(pRD->pCurrentContext, pDispatcherContext->CurrentRecord);
 #endif // USE_CURRENT_CONTEXT_IN_FILTER
 
         *(pRD->pCallerContext)      = *(pDispatcherContext->ContextRecord);
@@ -4525,7 +4540,8 @@ VOID DECLSPEC_NORETURN UnwindManagedExceptionPass1(PAL_SEHException& ex, CONTEXT
         if (dispatcherContext.FunctionEntry != NULL)
         {
 #ifdef USE_CURRENT_CONTEXT_IN_FILTER
-            CONTEXT currentContext = *frameContext;
+            KNONVOLATILE_CONTEXT currentContext;
+            CaptureNonvolatileRegisters(&currentContext, frameContext);
 #endif // USE_CURRENT_CONTEXT_IN_FILTER
 
             RtlVirtualUnwind(UNW_FLAG_EHANDLER,
