@@ -986,7 +986,7 @@ void CodeGen::genCodeForTreeNode(GenTreePtr treeNode)
         case GT_LABEL:
             genPendingCallLabel       = genCreateTempLabel();
             treeNode->gtLabel.gtLabBB = genPendingCallLabel;
-            emit->emitIns_R_L(INS_lea, EA_PTRSIZE, genPendingCallLabel, treeNode->gtRegNum);
+            emit->emitIns_J_R(INS_adr, EA_PTRSIZE, genPendingCallLabel, treeNode->gtRegNum);
             break;
 
         case GT_CLS_VAR_ADDR:
@@ -1404,6 +1404,8 @@ void CodeGen::genCallInstruction(GenTreePtr node)
         // For ARM a call target can not be a contained indirection
         assert(!target->isContainedIndir());
 
+        genConsumeReg(target);
+
         // We have already generated code for gtControlExpr evaluating it into a register.
         // We just need to emit "call reg" in this case.
         //
@@ -1511,7 +1513,13 @@ void CodeGen::genCallInstruction(GenTreePtr node)
         }
         else
         {
-            if (varTypeIsFloating(returnType))
+            if (call->IsHelperCall(compiler, CORINFO_HELP_INIT_PINVOKE_FRAME))
+            {
+                // The CORINFO_HELP_INIT_PINVOKE_FRAME helper uses a custom calling convention that returns with
+                // TCB in REG_PINVOKE_TCB. fgMorphCall() sets the correct argument registers.
+                returnReg = REG_PINVOKE_TCB;
+            }
+            else if (varTypeIsFloating(returnType))
             {
                 returnReg = REG_FLOATRET;
             }
@@ -1916,12 +1924,14 @@ void CodeGen::genCreateAndStoreGCInfo(unsigned codeSize,
     // Follow the code pattern of the x86 gc info encoder (genCreateAndStoreGCInfoJIT32).
     gcInfo.gcInfoBlockHdrSave(gcInfoEncoder, codeSize, prologSize);
 
+    // We keep the call count for the second call to gcMakeRegPtrTable() below.
+    unsigned callCnt = 0;
     // First we figure out the encoder ID's for the stack slots and registers.
-    gcInfo.gcMakeRegPtrTable(gcInfoEncoder, codeSize, prologSize, GCInfo::MAKE_REG_PTR_MODE_ASSIGN_SLOTS);
+    gcInfo.gcMakeRegPtrTable(gcInfoEncoder, codeSize, prologSize, GCInfo::MAKE_REG_PTR_MODE_ASSIGN_SLOTS, &callCnt);
     // Now we've requested all the slots we'll need; "finalize" these (make more compact data structures for them).
     gcInfoEncoder->FinalizeSlotIds();
     // Now we can actually use those slot ID's to declare live ranges.
-    gcInfo.gcMakeRegPtrTable(gcInfoEncoder, codeSize, prologSize, GCInfo::MAKE_REG_PTR_MODE_DO_WORK);
+    gcInfo.gcMakeRegPtrTable(gcInfoEncoder, codeSize, prologSize, GCInfo::MAKE_REG_PTR_MODE_DO_WORK, &callCnt);
 
     gcInfoEncoder->Build();
 

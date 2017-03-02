@@ -330,6 +330,41 @@ void Lowering::TreeNodeInfoInitReturn(GenTree* tree)
 }
 
 //------------------------------------------------------------------------
+// TreeNodeInfoInitPutArgReg: Set the NodeInfo for a PUTARG_REG.
+//
+// Arguments:
+//    node                - The PUTARG_REG node.
+//    argReg              - The register in which to pass the argument.
+//    info                - The info for the node's using call.
+//    isVarArgs           - True if the call uses a varargs calling convention.
+//    callHasFloatRegArgs - Set to true if this PUTARG_REG uses an FP register.
+//
+// Return Value:
+//    None.
+//
+void Lowering::TreeNodeInfoInitPutArgReg(
+    GenTreeUnOp* node, regNumber argReg, TreeNodeInfo& info, bool isVarArgs, bool* callHasFloatRegArgs)
+{
+    assert(node != nullptr);
+    assert(node->OperIsPutArgReg());
+    assert(argReg != REG_NA);
+
+    // Each register argument corresponds to one source.
+    info.srcCount++;
+
+    // Set the register requirements for the node.
+    const regMaskTP argMask = genRegMask(argReg);
+    node->gtLsraInfo.setDstCandidates(m_lsra, argMask);
+    node->gtLsraInfo.setSrcCandidates(m_lsra, argMask);
+
+    // To avoid redundant moves, have the argument operand computed in the
+    // register in which the argument is passed to the call.
+    node->gtOp.gtOp1->gtLsraInfo.setSrcCandidates(m_lsra, m_lsra->getUseCandidates(node));
+
+    *callHasFloatRegArgs |= varTypeIsFloating(node->TypeGet());
+}
+
+//------------------------------------------------------------------------
 // TreeNodeInfoInitCall: Set the NodeInfo for a call.
 //
 // Arguments:
@@ -398,7 +433,13 @@ void Lowering::TreeNodeInfoInitCall(GenTreeCall* call)
     RegisterType registerType = call->TypeGet();
 
     // Set destination candidates for return value of the call.
-    if (hasMultiRegRetVal)
+    if (call->IsHelperCall(compiler, CORINFO_HELP_INIT_PINVOKE_FRAME))
+    {
+        // The ARM CORINFO_HELP_INIT_PINVOKE_FRAME helper uses a custom calling convention that returns with
+        // TCB in REG_PINVOKE_TCB. fgMorphCall() sets the correct argument registers.
+        info->setDstCandidates(l, RBM_PINVOKE_TCB);
+    }
+    else if (hasMultiRegRetVal)
     {
         assert(retTypeDesc != nullptr);
         info->setDstCandidates(l, retTypeDesc->GetABIReturnRegs());
@@ -454,103 +495,22 @@ void Lowering::TreeNodeInfoInitCall(GenTreeCall* call)
             continue;
         }
 
-        var_types argType    = argNode->TypeGet();
-        bool      argIsFloat = varTypeIsFloating(argType);
-        callHasFloatRegArgs |= argIsFloat;
-
-        regNumber argReg = curArgTabEntry->regNum;
-        // We will setup argMask to the set of all registers that compose this argument
-        regMaskTP argMask = 0;
-
-        argNode = argNode->gtEffectiveVal();
-
         // A GT_FIELD_LIST has a TYP_VOID, but is used to represent a multireg struct
-        if (varTypeIsStruct(argNode) || (argNode->gtOper == GT_FIELD_LIST))
+        if (argNode->OperGet() == GT_FIELD_LIST)
         {
-            GenTreePtr actualArgNode = argNode;
-            unsigned   originalSize  = 0;
-
-            if (argNode->gtOper == GT_FIELD_LIST)
+            // There could be up to 2-4 PUTARG_REGs in the list (3 or 4 can only occur for HFAs)
+            regNumber argReg = curArgTabEntry->regNum;
+            for (GenTreeFieldList* entry = argNode->AsFieldList(); entry != nullptr; entry = entry->Rest())
             {
-                // There could be up to 2-4 PUTARG_REGs in the list (3 or 4 can only occur for HFAs)
-                GenTreeFieldList* fieldListPtr = argNode->AsFieldList();
+                TreeNodeInfoInitPutArgReg(entry->Current()->AsUnOp(), argReg, *info, false, &callHasFloatRegArgs);
 
-                // Initailize the first register and the first regmask in our list
-                regNumber targetReg    = argReg;
-                regMaskTP targetMask   = genRegMask(targetReg);
-                unsigned  iterationNum = 0;
-                originalSize           = 0;
-
-                for (; fieldListPtr; fieldListPtr = fieldListPtr->Rest())
-                {
-                    GenTreePtr putArgRegNode = fieldListPtr->Current();
-                    assert(putArgRegNode->gtOper == GT_PUTARG_REG);
-                    GenTreePtr putArgChild = putArgRegNode->gtOp.gtOp1;
-
-                    originalSize += REGSIZE_BYTES; // 8 bytes
-
-                    // Record the register requirements for the GT_PUTARG_REG node
-                    putArgRegNode->gtLsraInfo.setDstCandidates(l, targetMask);
-                    putArgRegNode->gtLsraInfo.setSrcCandidates(l, targetMask);
-
-                    // To avoid redundant moves, request that the argument child tree be
-                    // computed in the register in which the argument is passed to the call.
-                    putArgChild->gtLsraInfo.setSrcCandidates(l, targetMask);
-
-                    // We consume one source for each item in this list
-                    info->srcCount++;
-                    iterationNum++;
-
-                    // Update targetReg and targetMask for the next putarg_reg (if any)
-                    targetReg  = genRegArgNext(targetReg);
-                    targetMask = genRegMask(targetReg);
-                }
+                // Update argReg for the next putarg_reg (if any)
+                argReg = genRegArgNext(argReg);
             }
-            else
-            {
-#ifdef DEBUG
-                compiler->gtDispTreeRange(BlockRange(), argNode);
-#endif
-                noway_assert(!"Unsupported TYP_STRUCT arg kind");
-            }
-
-            unsigned  slots          = ((unsigned)(roundUp(originalSize, REGSIZE_BYTES))) / REGSIZE_BYTES;
-            regNumber curReg         = argReg;
-            regNumber lastReg        = argIsFloat ? REG_ARG_FP_LAST : REG_ARG_LAST;
-            unsigned  remainingSlots = slots;
-
-            while (remainingSlots > 0)
-            {
-                argMask |= genRegMask(curReg);
-                remainingSlots--;
-
-                if (curReg == lastReg)
-                    break;
-
-                curReg = genRegArgNext(curReg);
-            }
-
-            // Struct typed arguments must be fully passed in registers (Reg/Stk split not allowed)
-            noway_assert(remainingSlots == 0);
-            argNode->gtLsraInfo.internalIntCount = 0;
         }
-        else // A scalar argument (not a struct)
+        else
         {
-            // We consume one source
-            info->srcCount++;
-
-            argMask |= genRegMask(argReg);
-            argNode->gtLsraInfo.setDstCandidates(l, argMask);
-            argNode->gtLsraInfo.setSrcCandidates(l, argMask);
-
-            if (argNode->gtOper == GT_PUTARG_REG)
-            {
-                GenTreePtr putArgChild = argNode->gtOp.gtOp1;
-
-                // To avoid redundant moves, request that the argument child tree be
-                // computed in the register in which the argument is passed to the call.
-                putArgChild->gtLsraInfo.setSrcCandidates(l, argMask);
-            }
+            TreeNodeInfoInitPutArgReg(argNode->AsUnOp(), curArgTabEntry->regNum, *info, false, &callHasFloatRegArgs);
         }
     }
 
@@ -850,6 +810,13 @@ void Lowering::TreeNodeInfoInit(GenTree* tree)
             CheckImmedAndMakeContained(tree, tree->gtOp.gtOp2);
             break;
 
+        case GT_RETURNTRAP:
+            // this just turns into a compare of its child with an int
+            // + a conditional call
+            info->srcCount = 1;
+            info->dstCount = 0;
+            break;
+
         case GT_MUL:
             if (tree->gtOverflow())
             {
@@ -1073,6 +1040,8 @@ void Lowering::TreeNodeInfoInit(GenTree* tree)
         case GT_CNS_INT:
         case GT_PUTARG_REG:
         case GT_PUTARG_STK:
+        case GT_LABEL:
+        case GT_PINVOKE_PROLOG:
             info->dstCount = tree->IsValue() ? 1 : 0;
             if (kind & (GTK_CONST | GTK_LEAF))
             {

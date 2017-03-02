@@ -3029,6 +3029,7 @@ void ZapInfo::getFieldInfo (CORINFO_RESOLVED_TOKEN * pResolvedToken,
 
         case CORINFO_FIELD_INTRINSIC_ZERO:
         case CORINFO_FIELD_INTRINSIC_EMPTY_STRING:
+        case CORINFO_FIELD_INTRINSIC_ISLITTLEENDIAN:
             break;
 
         default:
@@ -3724,6 +3725,14 @@ void ZapInfo::getMethodVTableOffset(CORINFO_METHOD_HANDLE method,
                                                   unsigned * pOffsetAfterIndirection)
 {
     m_pEEJitInfo->getMethodVTableOffset(method, pOffsetOfIndirection, pOffsetAfterIndirection);
+}
+
+CORINFO_METHOD_HANDLE ZapInfo::resolveVirtualMethod(
+        CORINFO_METHOD_HANDLE virtualMethod,
+        CORINFO_CLASS_HANDLE implementingClass
+        )
+{
+    return m_pEEJitInfo->resolveVirtualMethod(virtualMethod, implementingClass);
 }
 
 CorInfoIntrinsics ZapInfo::getIntrinsicID(CORINFO_METHOD_HANDLE method,

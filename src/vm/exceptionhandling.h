@@ -26,11 +26,13 @@ ProcessCLRException(IN     PEXCEPTION_RECORD     pExceptionRecord
                     IN OUT PT_DISPATCHER_CONTEXT pDispatcherContext);
 
 
+#ifndef FEATURE_PAL
 void __declspec(noinline)
 ClrUnwindEx(EXCEPTION_RECORD* pExceptionRecord,
                  UINT_PTR          ReturnValue,
                  UINT_PTR          TargetIP,
                  UINT_PTR          TargetFrameSp);
+#endif // !FEATURE_PAL
 
 typedef DWORD_PTR   (HandlerFn)(UINT_PTR uStackFrame, Object* pExceptionObj);
 
@@ -402,6 +404,7 @@ private:
                     EE_ILEXCEPTION_CLAUSE*  pEHClause,
                     MethodDesc*             pMD,
                     EHFuncletType funcletType
+                    X86_ARG(PT_CONTEXT pContextRecord)
                     ARM_ARG(PT_CONTEXT pContextRecord)
                     ARM64_ARG(PT_CONTEXT pContextRecord)
                     );
@@ -650,6 +653,11 @@ public:
     {
         return !m_ExceptionFlags.UnwindHasStarted();
     }
+
+    EHClauseInfo* GetEHClauseInfo()
+    {
+        return &m_EHClauseInfo;
+    }
     
 private: ;
 
@@ -769,9 +777,7 @@ private: ;
     EnclosingClauseInfo     m_EnclosingClauseInfoOfCollapsedTracker;
 };
 
-#if defined(WIN64EXCEPTIONS)
 PTR_ExceptionTracker GetEHTrackerForPreallocatedException(OBJECTREF oPreAllocThrowable, PTR_ExceptionTracker pStartingEHTracker);
-#endif // WIN64EXCEPTIONS
 
 class TrackerAllocator
 {

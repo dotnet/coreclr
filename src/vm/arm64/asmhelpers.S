@@ -909,7 +909,13 @@ NESTED_ENTRY CallEHFunclet, _TEXT, NoHandler
     // X3 = address of the location where the SP of funclet's caller (i.e. this helper) should be saved.
     //
 
-    PROLOG_SAVE_REG_PAIR_INDEXED   fp, lr, -96
+    // Using below prolog instead of PROLOG_SAVE_REG_PAIR_INDEXED fp,lr, -96
+    // is intentional. Above statement would also emit instruction to save
+    // sp in fp. If sp is saved in fp in prolog then it is not expected that fp can change in the body
+    // of method. However, this method needs to be able to change fp before calling funclet.
+    // This is required to access locals in funclet.
+    PROLOG_SAVE_REG_PAIR_INDEXED   x29, lr, -96
+
     // Spill callee saved registers
     PROLOG_SAVE_REG_PAIR   x19, x20, 16
     PROLOG_SAVE_REG_PAIR   x21, x22, 32
@@ -1010,27 +1016,6 @@ NESTED_END CallEHFilterFunclet, _TEXT
 
 .endmacro
 
-
-// ------------------------------------------------------------------
-//
-// Helpers for async (NullRef, AccessViolation) exceptions
-//
-
-NESTED_ENTRY NakedThrowHelper2, _TEXT ,FixContextHandler
-    PROLOG_SAVE_REG_PAIR_INDEXED fp,lr, -16
-
-    // On entry:
-    //
-    // X0 = Address of FaultingExceptionFrame
-    bl C_FUNC(LinkFrameAndThrow)
-
-    // Target should not return.
-    EMIT_BREAKPOINT
-
-NESTED_END NakedThrowHelper2, _TEXT
-
-
-GenerateRedirectedStubWithFrame NakedThrowHelper, NakedThrowHelper2
 
 // ------------------------------------------------------------------
 // ResolveWorkerChainLookupAsmStub

@@ -77,13 +77,17 @@ add_definitions(-D_FILE_OFFSET_BITS=64)
 if(PAL_CMAKE_PLATFORM_ARCH_AMD64)
   add_definitions(-DBIT64=1)
   add_definitions(-D_WIN64=1)
+  set(PAL_ARCH_SOURCES_DIR amd64)
 elseif(PAL_CMAKE_PLATFORM_ARCH_ARM)
   add_definitions(-DBIT32=1)
+  set(PAL_ARCH_SOURCES_DIR arm)
 elseif(PAL_CMAKE_PLATFORM_ARCH_ARM64)
   add_definitions(-DBIT64=1)
   add_definitions(-D_WIN64=1)
+  set(PAL_ARCH_SOURCES_DIR arm64)
 elseif(PAL_CMAKE_PLATFORM_ARCH_I386)
   add_definitions(-DBIT32=1)
+  set(PAL_ARCH_SOURCES_DIR i386)
 endif()
 
 if(CMAKE_SYSTEM_NAME STREQUAL Linux AND NOT CLR_CMAKE_PLATFORM_ALPINE_LINUX)
@@ -101,35 +105,19 @@ set(CMAKE_SHARED_LINKER_FLAGS_DEBUG "${CMAKE_SHARED_LINKER_FLAGS_DEBUG} -Wl,--no
 
 add_compile_options(-fPIC)
 
-if(PAL_CMAKE_PLATFORM_ARCH_AMD64)
-  set(ARCH_SOURCES
-    arch/amd64/context2.S
-    arch/amd64/debugbreak.S
-    arch/amd64/exceptionhelper.S
-    arch/amd64/processor.cpp
+set(ARCH_SOURCES
+  arch/${PAL_ARCH_SOURCES_DIR}/context2.S
+  arch/${PAL_ARCH_SOURCES_DIR}/debugbreak.S
+  arch/${PAL_ARCH_SOURCES_DIR}/exceptionhelper.S
+  arch/${PAL_ARCH_SOURCES_DIR}/processor.cpp
+)
+
+if(NOT CMAKE_SYSTEM_NAME STREQUAL Darwin)
+  list(APPEND PLATFORM_SOURCES
+    arch/${PAL_ARCH_SOURCES_DIR}/callsignalhandlerwrapper.S
+    arch/${PAL_ARCH_SOURCES_DIR}/signalhandlerhelper.cpp
   )
-elseif(PAL_CMAKE_PLATFORM_ARCH_ARM)
-  set(ARCH_SOURCES
-    arch/arm/context2.S
-    arch/arm/debugbreak.S
-    arch/arm/exceptionhelper.S
-    arch/arm/processor.cpp
-  )
-elseif(PAL_CMAKE_PLATFORM_ARCH_ARM64)
-  set(ARCH_SOURCES
-    arch/arm64/context2.S
-    arch/arm64/debugbreak.S
-    arch/arm64/exceptionhelper.S
-    arch/arm64/processor.cpp
-  )
-elseif(PAL_CMAKE_PLATFORM_ARCH_I386)
-  set(ARCH_SOURCES
-    arch/i386/context2.S
-    arch/i386/debugbreak.S
-    arch/i386/exceptionhelper.S
-    arch/i386/processor.cpp
-  )
-endif()
+endif(NOT CMAKE_SYSTEM_NAME STREQUAL Darwin)
 
 if(PAL_CMAKE_PLATFORM_ARCH_ARM)
   set_source_files_properties(exception/seh.cpp PROPERTIES COMPILE_FLAGS -Wno-error=inline-asm)

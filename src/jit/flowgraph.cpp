@@ -7479,7 +7479,7 @@ GenTreePtr Compiler::fgGetCritSectOfStaticMethod()
         // Collectible types requires that for shared generic code, if we use the generic context paramter
         // that we report it. (This is a conservative approach, we could detect some cases particularly when the
         // context parameter is this that we don't need the eager reporting logic.)
-        lvaGenericsContextUsed = true;
+        lvaGenericsContextUseCount++;
 
         switch (kind.runtimeLookupKind)
         {
@@ -8938,12 +8938,29 @@ void Compiler::fgFindOperOrder()
     }
 }
 
-/*****************************************************************************/
+//------------------------------------------------------------------------
+// fgSimpleLowering: do full walk of all IR, lowering selected operations
+// and computing lvaOutgoingArgumentAreaSize.
+//
+// Notes:
+//    Lowers GT_ARR_LENGTH, GT_ARR_BOUNDS_CHECK, and GT_SIMD_CHK.
+//
+//    For target ABIs with fixed out args area, computes upper bound on
+//    the size of this area from the calls in the IR.
+//
+//    Outgoing arg area size is computed here because we want to run it
+//    after optimization (in case calls are removed) and need to look at
+//    all possible calls in the method.
+
 void Compiler::fgSimpleLowering()
 {
+#if FEATURE_FIXED_OUT_ARGS
+    unsigned outgoingArgSpaceSize = 0;
+#endif // FEATURE_FIXED_OUT_ARGS
+
     for (BasicBlock* block = fgFirstBB; block; block = block->bbNext)
     {
-        // Walk the statement trees in this basic block, converting ArrLength nodes.
+        // Walk the statement trees in this basic block.
         compCurBB = block; // Used in fgRngChkTarget.
 
 #ifdef LEGACY_BACKEND
@@ -8957,73 +8974,154 @@ void Compiler::fgSimpleLowering()
         {
             {
 #endif
-                if (tree->gtOper == GT_ARR_LENGTH)
+
+                switch (tree->OperGet())
                 {
-                    GenTreeArrLen* arrLen = tree->AsArrLen();
-                    GenTreePtr     arr    = arrLen->gtArrLen.ArrRef();
-                    GenTreePtr     add;
-                    GenTreePtr     con;
-
-                    /* Create the expression "*(array_addr + ArrLenOffs)" */
-
-                    noway_assert(arr->gtNext == tree);
-
-                    noway_assert(arrLen->ArrLenOffset() == offsetof(CORINFO_Array, length) ||
-                                 arrLen->ArrLenOffset() == offsetof(CORINFO_String, stringLen));
-
-                    if ((arr->gtOper == GT_CNS_INT) && (arr->gtIntCon.gtIconVal == 0))
+                    case GT_ARR_LENGTH:
                     {
-                        // If the array is NULL, then we should get a NULL reference
-                        // exception when computing its length.  We need to maintain
-                        // an invariant where there is no sum of two constants node, so
-                        // let's simply return an indirection of NULL.
+                        GenTreeArrLen* arrLen = tree->AsArrLen();
+                        GenTreePtr     arr    = arrLen->gtArrLen.ArrRef();
+                        GenTreePtr     add;
+                        GenTreePtr     con;
 
-                        add = arr;
-                    }
-                    else
-                    {
-                        con             = gtNewIconNode(arrLen->ArrLenOffset(), TYP_I_IMPL);
-                        con->gtRsvdRegs = 0;
+                        /* Create the expression "*(array_addr + ArrLenOffs)" */
 
-                        add             = gtNewOperNode(GT_ADD, TYP_REF, arr, con);
-                        add->gtRsvdRegs = arr->gtRsvdRegs;
+                        noway_assert(arr->gtNext == tree);
+
+                        noway_assert(arrLen->ArrLenOffset() == offsetof(CORINFO_Array, length) ||
+                                     arrLen->ArrLenOffset() == offsetof(CORINFO_String, stringLen));
+
+                        if ((arr->gtOper == GT_CNS_INT) && (arr->gtIntCon.gtIconVal == 0))
+                        {
+                            // If the array is NULL, then we should get a NULL reference
+                            // exception when computing its length.  We need to maintain
+                            // an invariant where there is no sum of two constants node, so
+                            // let's simply return an indirection of NULL.
+
+                            add = arr;
+                        }
+                        else
+                        {
+                            con             = gtNewIconNode(arrLen->ArrLenOffset(), TYP_I_IMPL);
+                            con->gtRsvdRegs = 0;
+
+                            add             = gtNewOperNode(GT_ADD, TYP_REF, arr, con);
+                            add->gtRsvdRegs = arr->gtRsvdRegs;
 
 #ifdef LEGACY_BACKEND
-                        con->gtCopyFPlvl(arr);
+                            con->gtCopyFPlvl(arr);
 
-                        add->gtCopyFPlvl(arr);
-                        add->CopyCosts(arr);
+                            add->gtCopyFPlvl(arr);
+                            add->CopyCosts(arr);
 
-                        arr->gtNext = con;
-                        con->gtPrev = arr;
+                            arr->gtNext = con;
+                            con->gtPrev = arr;
 
-                        con->gtNext = add;
-                        add->gtPrev = con;
+                            con->gtNext = add;
+                            add->gtPrev = con;
 
-                        add->gtNext  = tree;
-                        tree->gtPrev = add;
+                            add->gtNext  = tree;
+                            tree->gtPrev = add;
 #else
-                        range.InsertAfter(arr, con, add);
+                            range.InsertAfter(arr, con, add);
 #endif
+                        }
+
+                        // Change to a GT_IND.
+                        tree->ChangeOperUnchecked(GT_IND);
+
+                        tree->gtOp.gtOp1 = add;
+                        break;
                     }
 
-                    // Change to a GT_IND.
-                    tree->ChangeOperUnchecked(GT_IND);
-
-                    tree->gtOp.gtOp1 = add;
-                }
-                else if (tree->OperGet() == GT_ARR_BOUNDS_CHECK
+                    case GT_ARR_BOUNDS_CHECK:
 #ifdef FEATURE_SIMD
-                         || tree->OperGet() == GT_SIMD_CHK
+                    case GT_SIMD_CHK:
 #endif // FEATURE_SIMD
-                         )
-                {
-                    // Add in a call to an error routine.
-                    fgSetRngChkTarget(tree, false);
+                    {
+                        // Add in a call to an error routine.
+                        fgSetRngChkTarget(tree, false);
+                        break;
+                    }
+
+#if FEATURE_FIXED_OUT_ARGS
+                    case GT_CALL:
+                    {
+                        GenTreeCall* call = tree->AsCall();
+                        // Fast tail calls use the caller-supplied scratch
+                        // space so have no impact on this method's outgoing arg size.
+                        if (!call->IsFastTailCall())
+                        {
+                            // Update outgoing arg size to handle this call
+                            const unsigned thisCallOutAreaSize = call->fgArgInfo->GetOutArgSize();
+                            assert(thisCallOutAreaSize >= MIN_ARG_AREA_FOR_CALL);
+
+                            if (thisCallOutAreaSize > outgoingArgSpaceSize)
+                            {
+                                outgoingArgSpaceSize = thisCallOutAreaSize;
+                                JITDUMP("Bumping outgoingArgSpaceSize to %u for call [%06d]\n", outgoingArgSpaceSize,
+                                        dspTreeID(tree));
+                            }
+                            else
+                            {
+                                JITDUMP("outgoingArgSpaceSize %u sufficient for call [%06d], which needs %u\n",
+                                        outgoingArgSpaceSize, dspTreeID(tree), thisCallOutAreaSize);
+                            }
+                        }
+                        else
+                        {
+                            JITDUMP("outgoingArgSpaceSize not impacted by fast tail call [%06d]\n", dspTreeID(tree));
+                        }
+                        break;
+                    }
+#endif // FEATURE_FIXED_OUT_ARGS
+
+                    default:
+                    {
+                        // No other operators need processing.
+                        break;
+                    }
                 }
-            }
+            } // foreach gtNext
+        }     // foreach Stmt
+    }         // foreach BB
+
+#if FEATURE_FIXED_OUT_ARGS
+    // Finish computing the outgoing args area size
+    //
+    // Need to make sure the MIN_ARG_AREA_FOR_CALL space is added to the frame if:
+    // 1. there are calls to THROW_HEPLPER methods.
+    // 2. we are generating profiling Enter/Leave/TailCall hooks. This will ensure
+    //    that even methods without any calls will have outgoing arg area space allocated.
+    //
+    // An example for these two cases is Windows Amd64, where the ABI requires to have 4 slots for
+    // the outgoing arg space if the method makes any calls.
+    if (outgoingArgSpaceSize < MIN_ARG_AREA_FOR_CALL)
+    {
+        if (compUsesThrowHelper || compIsProfilerHookNeeded())
+        {
+            outgoingArgSpaceSize = MIN_ARG_AREA_FOR_CALL;
+            JITDUMP("Bumping outgoingArgSpaceSize to %u for throw helper or profile hook", outgoingArgSpaceSize);
         }
     }
+
+    // If a function has localloc, we will need to move the outgoing arg space when the
+    // localloc happens. When we do this, we need to maintain stack alignment. To avoid
+    // leaving alignment-related holes when doing this move, make sure the outgoing
+    // argument space size is a multiple of the stack alignment by aligning up to the next
+    // stack alignment boundary.
+    if (compLocallocUsed)
+    {
+        outgoingArgSpaceSize = (unsigned)roundUp(outgoingArgSpaceSize, STACK_ALIGN);
+        JITDUMP("Bumping outgoingArgSpaceSize to %u for localloc", outgoingArgSpaceSize);
+    }
+
+    // Publish the final value and mark it as read only so any update
+    // attempt later will cause an assert.
+    lvaOutgoingArgSpaceSize = outgoingArgSpaceSize;
+    lvaOutgoingArgSpaceSize.MarkAsReadOnly();
+
+#endif // FEATURE_FIXED_OUT_ARGS
 
 #ifdef DEBUG
     if (verbose && fgRngChkThrowAdded)
@@ -12127,7 +12225,8 @@ bool Compiler::fgRelocateEHRegions()
                 }
 
                 // Currently it is not good to move the rarely run handler regions to the end of the method
-                // because fgDetermineFirstColdBlock() must put the start of any handler region in the hot section.
+                // because fgDetermineFirstColdBlock() must put the start of any handler region in the hot
+                // section.
                 CLANG_FORMAT_COMMENT_ANCHOR;
 
 #if 0
@@ -21049,6 +21148,7 @@ void Compiler::fgInline()
             }
 
             // See if we need to replace the return value place holder.
+            // Also, see if this update enables further devirtualization.
             fgWalkTreePre(&stmt->gtStmtExpr, fgUpdateInlineReturnExpressionPlaceHolder, (void*)this);
 
             // See if stmt is of the form GT_COMMA(call, nop)
@@ -21320,11 +21420,46 @@ void Compiler::fgAttachStructInlineeToAsg(GenTreePtr tree, GenTreePtr child, COR
 
 #endif // FEATURE_MULTIREG_RET
 
-/*****************************************************************************
- * Callback to replace the inline return expression place holder (GT_RET_EXPR)
- */
+//------------------------------------------------------------------------
+// fgUpdateInlineReturnExpressionPlaceHolder: callback to replace the
+// inline return expression placeholder.
+//
+// Arguments:
+//    pTree -- pointer to tree to examine for updates
+//    data  -- context data for the tree walk
+//
+// Returns:
+//    fgWalkResult indicating the walk should continue; that
+//    is we wish to fully explore the tree.
+//
+// Notes:
+//    Looks for GT_RET_EXPR nodes that arose from tree splitting done
+//    during importation for inline candidates, and replaces them.
+//
+//    For successful inlines, substitutes the return value expression
+//    from the inline body for the GT_RET_EXPR.
+//
+//    For failed inlines, rejoins the original call into the tree from
+//    whence it was split during importation.
+//
+//    The code doesn't actually know if the corresponding inline
+//    succeeded or not; it relies on the fact that gtInlineCandidate
+//    initially points back at the call and is modified in place to
+//    the inlinee return expression if the inline is successful (see
+//    tail end of fgInsertInlineeBlocks for the update of iciCall).
+//
+//    If the parent of the GT_RET_EXPR is a virtual call,
+//    devirtualization is attempted. This should only succeed in the
+//    successful inline case, when the inlinee's return value
+//    expression provides a better type than the return type of the
+//    method. Note for failed inlines, the devirtualizer can only go
+//    by the return type, and any devirtualization that type enabled
+//    would have already happened during importation.
+//
+//    If the return type is a struct type and we're on a platform
+//    where structs can be returned in multiple registers, ensure the
+//    call has a suitable parent.
 
-/* static */
 Compiler::fgWalkResult Compiler::fgUpdateInlineReturnExpressionPlaceHolder(GenTreePtr* pTree, fgWalkData* data)
 {
     GenTreePtr           tree      = *pTree;
@@ -21370,6 +21505,41 @@ Compiler::fgWalkResult Compiler::fgUpdateInlineReturnExpressionPlaceHolder(GenTr
             }
 #endif // DEBUG
         } while (tree->gtOper == GT_RET_EXPR);
+
+        // Now see if this return value expression feeds the 'this'
+        // object at a virtual call site.
+        //
+        // Note for void returns where the inline failed, the
+        // GT_RET_EXPR may be top-level.
+        //
+        // May miss cases where there are intermediaries between call
+        // and this, eg commas.
+        GenTreePtr parentTree = data->parent;
+
+        if ((parentTree != nullptr) && (parentTree->gtOper == GT_CALL))
+        {
+            GenTreeCall* call          = parentTree->AsCall();
+            bool         tryLateDevirt = call->IsVirtual() && (call->gtCallObjp == tree);
+
+#ifdef DEBUG
+            tryLateDevirt = tryLateDevirt && (JitConfig.JitEnableLateDevirtualization() == 1);
+#endif // DEBUG
+
+            if (tryLateDevirt)
+            {
+#ifdef DEBUG
+                if (comp->verbose)
+                {
+                    printf("**** Late devirt opportunity\n");
+                    comp->gtDispTree(call);
+                }
+#endif // DEBUG
+
+                CORINFO_CALL_INFO x = {};
+                x.hMethod           = call->gtCallMethHnd;
+                comp->impDevirtualizeCall(call, tree, &x, nullptr);
+            }
+        }
     }
 
 #if FEATURE_MULTIREG_RET
@@ -22345,6 +22515,38 @@ GenTreePtr Compiler::fgInlinePrependStatements(InlineInfo* inlineInfo)
 
 void Compiler::fgInlineAppendStatements(InlineInfo* inlineInfo, BasicBlock* block, GenTreePtr stmtAfter)
 {
+    // If this inlinee was passed a runtime lookup generic context and
+    // ignores it, we can decrement the "generic context was used" ref
+    // count, because we created a new lookup tree and incremented the
+    // count when we imported the type parameter argument to pass to
+    // the inlinee. See corresponding logic in impImportCall that
+    // checks the sig for CORINFO_CALLCONV_PARAMTYPE.
+    //
+    // Does this method require a context (type) parameter?
+    if ((inlineInfo->inlineCandidateInfo->methInfo.args.callConv & CORINFO_CALLCONV_PARAMTYPE) != 0)
+    {
+        // Did the computation of that parameter require the
+        // caller to perform a runtime lookup?
+        if (inlineInfo->inlineCandidateInfo->exactContextNeedsRuntimeLookup)
+        {
+            // Fetch the temp for the generic context as it would
+            // appear in the inlinee's body.
+            const unsigned typeCtxtArg = inlineInfo->typeContextArg;
+            const unsigned tmpNum      = inlineInfo->lclTmpNum[typeCtxtArg];
+
+            // Was it used in the inline body?
+            if (tmpNum == BAD_VAR_NUM)
+            {
+                // No -- so the associated runtime lookup is not needed
+                // and also no longer provides evidence that the generic
+                // context should be kept alive.
+                JITDUMP("Inlinee ignores runtime lookup generics context\n");
+                assert(lvaGenericsContextUseCount > 0);
+                lvaGenericsContextUseCount--;
+            }
+        }
+    }
+
     // Null out any gc ref locals
     if (!inlineInfo->HasGcRefLocals())
     {
@@ -23286,7 +23488,7 @@ void Compiler::fgCloneFinally()
         BasicBlock* const firstTryBlock = HBtab->ebdTryBeg;
         BasicBlock* const lastTryBlock  = HBtab->ebdTryLast;
         assert(firstTryBlock->getTryIndex() == XTnum);
-        assert(lastTryBlock->getTryIndex() == XTnum);
+        assert(bbInTryRegions(XTnum, lastTryBlock));
         BasicBlock* const beforeTryBlock = firstTryBlock->bbPrev;
 
         BasicBlock* normalCallFinallyBlock   = nullptr;
@@ -24114,20 +24316,31 @@ void Compiler::fgMergeFinallyChains()
     }
     else
     {
-        assert(didMerge);
-        JITDUMP("Method had try-finallys and some callfinally merges were performed.\n");
+        if (didMerge)
+        {
+            JITDUMP("Method had mergeable try-finallys and some callfinally merges were performed.\n");
 
 #if DEBUG
-
-        if (verbose)
-        {
-            printf("\n*************** After fgMergeFinallyChains()\n");
-            fgDispBasicBlocks();
-            fgDispHandlerTab();
-            printf("\n");
-        }
+            if (verbose)
+            {
+                printf("\n*************** After fgMergeFinallyChains()\n");
+                fgDispBasicBlocks();
+                fgDispHandlerTab();
+                printf("\n");
+            }
 
 #endif // DEBUG
+        }
+        else
+        {
+            // We may not end up doing any merges, because we are only
+            // merging continuations for callfinallys that can
+            // actually be invoked, and the importer may leave
+            // unreachable callfinallys around (for instance, if it
+            // is forced to re-import a leave).
+            JITDUMP("Method had mergeable try-finallys but no callfinally merges were performed,\n"
+                    "likely the non-canonical callfinallys were unreachable\n");
+        }
     }
 }
 
@@ -24183,6 +24396,7 @@ bool Compiler::fgRetargetBranchesToCanonicalCallFinally(BasicBlock*      block,
     // If the block already jumps to the canoncial call finally, no work needed.
     if (block->bbJumpDest == canonicalCallFinally)
     {
+        JITDUMP("BB%02u already canonical\n", block->bbNum);
         return false;
     }
 
@@ -24457,7 +24671,7 @@ private:
         //    fixedFptrAddress - pointer to the tuple <methodPointer, instantiationArgumentPointer>
         //
         // Return Value:
-        //    loaded hidden argument.
+        //    generic context hidden argument.
         GenTreePtr GetHiddenArgument(GenTreePtr fixedFptrAddress)
         {
             GenTreePtr fixedFptrAddressCopy = compiler->gtCloneExpr(fixedFptrAddress);
@@ -24473,7 +24687,7 @@ private:
         //
         // Arguments:
         //    actualCallAddress - fixed call address
-        //    hiddenArgument - loaded hidden argument
+        //    hiddenArgument - generic context hidden argument
         //
         // Return Value:
         //    created call node.
@@ -24483,10 +24697,55 @@ private:
             GenTreePtr   fatTree = fatStmt->gtStmtExpr;
             GenTreeCall* fatCall = GetCall(fatStmt);
             fatCall->gtCallAddr  = actualCallAddress;
-            GenTreeArgList* args = fatCall->gtCallArgs;
-            args                 = compiler->gtNewListNode(hiddenArgument, args);
-            fatCall->gtCallArgs  = args;
+            AddHiddenArgument(fatCall, hiddenArgument);
             return fatStmt;
+        }
+
+        //------------------------------------------------------------------------
+        // AddHiddenArgument: add hidden argument to the call argument list.
+        //
+        // Arguments:
+        //    fatCall - fat call node
+        //    hiddenArgument - generic context hidden argument
+        //
+        void AddHiddenArgument(GenTreeCall* fatCall, GenTreePtr hiddenArgument)
+        {
+            GenTreeArgList* oldArgs = fatCall->gtCallArgs;
+            GenTreeArgList* newArgs;
+#if USER_ARGS_COME_LAST
+            if (fatCall->HasRetBufArg())
+            {
+                GenTreePtr      retBuffer = oldArgs->Current();
+                GenTreeArgList* rest      = oldArgs->Rest();
+                newArgs                   = compiler->gtNewListNode(hiddenArgument, rest);
+                newArgs                   = compiler->gtNewListNode(retBuffer, newArgs);
+            }
+            else
+            {
+                newArgs = compiler->gtNewListNode(hiddenArgument, oldArgs);
+            }
+#else
+            newArgs = oldArgs;
+            AddArgumentToTail(newArgs, hiddenArgument);
+#endif
+            fatCall->gtCallArgs = newArgs;
+        }
+
+        //------------------------------------------------------------------------
+        // AddArgumentToTail: add hidden argument to the tail of the call argument list.
+        //
+        // Arguments:
+        //    argList - fat call node
+        //    hiddenArgument - generic context hidden argument
+        //
+        void AddArgumentToTail(GenTreeArgList* argList, GenTreePtr hiddenArgument)
+        {
+            GenTreeArgList* iterator = argList;
+            while (iterator->Rest() != nullptr)
+            {
+                iterator = iterator->Rest();
+            }
+            iterator->Rest() = compiler->gtNewArgList(hiddenArgument);
         }
 
         //------------------------------------------------------------------------

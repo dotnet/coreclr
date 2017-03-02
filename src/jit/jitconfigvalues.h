@@ -48,6 +48,9 @@ CONFIG_INTEGER(JitDumpToDebugger, W("JitDumpToDebugger"), 0)     // Output JitDu
 CONFIG_INTEGER(JitDumpVerboseSsa, W("JitDumpVerboseSsa"), 0)     // Produce especially verbose dump output for SSA
 CONFIG_INTEGER(JitDumpVerboseTrees, W("JitDumpVerboseTrees"), 0) // Enable more verbose tree dumps
 CONFIG_INTEGER(JitEmitPrintRefRegs, W("JitEmitPrintRefRegs"), 0)
+CONFIG_INTEGER(JitEnableDevirtualization, W("JitEnableDevirtualization"), 1) // Enable devirtualization in importer
+CONFIG_INTEGER(JitEnableLateDevirtualization, W("JitEnableLateDevirtualization"), 1) // Enable devirtualization after
+                                                                                     // inlining
 CONFIG_INTEGER(JitExpensiveDebugCheckLevel, W("JitExpensiveDebugCheckLevel"), 0) // Level indicates how much checking
                                                                                  // beyond the default to do in debug
                                                                                  // builds (currently 1-2)
@@ -94,6 +97,7 @@ CONFIG_INTEGER(JitOrder, W("JitOrder"), 0)
 CONFIG_INTEGER(JitPInvokeCheckEnabled, W("JITPInvokeCheckEnabled"), 0)
 CONFIG_INTEGER(JitPInvokeEnabled, W("JITPInvokeEnabled"), 1)
 CONFIG_INTEGER(JitPrintInlinedMethods, W("JitPrintInlinedMethods"), 0)
+CONFIG_INTEGER(JitPrintDevirtualizedMethods, W("JitPrintDevirtualizedMethods"), 0)
 CONFIG_INTEGER(JitRequired, W("JITRequired"), -1)
 CONFIG_INTEGER(JitRoundFloat, W("JITRoundFloat"), DEFAULT_ROUND_LEVEL)
 CONFIG_INTEGER(JitSkipArrayBoundCheck, W("JitSkipArrayBoundCheck"), 0)
@@ -213,6 +217,15 @@ CONFIG_INTEGER(JitEnableNoWayAssert, W("JitEnableNoWayAssert"), 0)
 #else  // defined(DEBUG) || defined(_DEBUG)
 CONFIG_INTEGER(JitEnableNoWayAssert, W("JitEnableNoWayAssert"), 1)
 #endif // !defined(DEBUG) && !defined(_DEBUG)
+
+#if !defined(JIT32_GCENCODER)
+#if defined(_TARGET_AMD64_) && defined(FEATURE_CORECLR)
+#define JitMinOptsTrackGCrefs_Default 0 // Not tracking GC refs in MinOpts is new behavior
+#else
+#define JitMinOptsTrackGCrefs_Default 1
+#endif
+CONFIG_INTEGER(JitMinOptsTrackGCrefs, W("JitMinOptsTrackGCrefs"), JitMinOptsTrackGCrefs_Default) // Track GC roots
+#endif // !defined(JIT32_GCENCODER)
 
 // The following should be wrapped inside "#if MEASURE_MEM_ALLOC / #endif", but
 // some files include this one without bringing in the definitions from "jit.h"

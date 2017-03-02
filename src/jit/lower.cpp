@@ -42,9 +42,12 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 void Lowering::MakeSrcContained(GenTreePtr parentNode, GenTreePtr childNode)
 {
     assert(!parentNode->OperIsLeaf());
+    assert(childNode->canBeContained());
+
     int srcCount = childNode->gtLsraInfo.srcCount;
     assert(srcCount >= 0);
     m_lsra->clearOperandCounts(childNode);
+
     assert(parentNode->gtLsraInfo.srcCount > 0);
     parentNode->gtLsraInfo.srcCount += srcCount - 1;
 }
@@ -982,15 +985,16 @@ GenTreePtr Lowering::NewPutArg(GenTreeCall* call, GenTreePtr arg, fgArgTabEntryP
                 // when it is a field of another struct.  That is VM doesn't lie about
                 // the type of Foo.Bar
                 //
-                // Promotion of structs containing structs of single field can promote
-                // such a struct.  Say Foo.Bar field is getting passed as a parameter
-                // to a call, Since it is a TYP_STRUCT, as per x86 ABI it should always
-                // be passed on stack.  Therefore GenTree node under a PUTARG_STK could
-                // be GT_OBJ(GT_LCL_VAR_ADDR(v1)), where local v1 could be a promoted
-                // field standing for Foo.Bar.  Note that the type of v1 will be the
-                // type of field of Foo.Bar.f when Foo is promoted.  That is v1
-                // will be a scalar type.  In this case we need to pass v1 on stack
-                // instead of in a register.
+                // We now support the promotion of fields that are of type struct.
+                // However we only support a limited case where the struct field has a
+                // single field and that single field must be a scalar type. Say Foo.Bar
+                // field is getting passed as a parameter to a call, Since it is a TYP_STRUCT,
+                // as per x86 ABI it should always be passed on stack.  Therefore GenTree
+                // node under a PUTARG_STK could be GT_OBJ(GT_LCL_VAR_ADDR(v1)), where
+                // local v1 could be a promoted field standing for Foo.Bar.  Note that
+                // the type of v1 will be the type of field of Foo.Bar.f when Foo is
+                // promoted.  That is v1 will be a scalar type.  In this case we need to
+                // pass v1 on stack instead of in a register.
                 //
                 // TODO-PERF: replace GT_OBJ(GT_LCL_VAR_ADDR(v1)) with v1 if v1 is
                 // a scalar type and the width of GT_OBJ matches the type size of v1.
@@ -1097,6 +1101,15 @@ void Lowering::LowerArg(GenTreeCall* call, GenTreePtr* ppArg)
             unsigned   varNum = arg->AsLclVarCommon()->GetLclNum();
             LclVarDsc* varDsc = &comp->lvaTable[varNum];
             type              = varDsc->lvType;
+        }
+        else if (arg->OperGet() == GT_SIMD)
+        {
+            assert((arg->AsSIMD()->gtSIMDSize == 16) || (arg->AsSIMD()->gtSIMDSize == 12));
+
+            if (arg->AsSIMD()->gtSIMDSize == 12)
+            {
+                type = TYP_SIMD12;
+            }
         }
     }
 #endif // defined(FEATURE_SIMD) && defined(_TARGET_X86_)
@@ -2827,11 +2840,11 @@ void Lowering::InsertPInvokeMethodProlog()
     // for x86, don't pass the secretArg.
     CLANG_FORMAT_COMMENT_ANCHOR;
 
-#ifdef _TARGET_X86_
+#if defined(_TARGET_X86_) || defined(_TARGET_ARM_)
     GenTreeArgList* argList = comp->gtNewArgList(frameAddr);
-#else  // !_TARGET_X86_
+#else
     GenTreeArgList*    argList = comp->gtNewArgList(frameAddr, PhysReg(REG_SECRET_STUB_PARAM));
-#endif // !_TARGET_X86_
+#endif
 
     GenTree* call = comp->gtNewHelperCallNode(CORINFO_HELP_INIT_PINVOKE_FRAME, TYP_I_IMPL, 0, argList);
 
@@ -2852,8 +2865,9 @@ void Lowering::InsertPInvokeMethodProlog()
     firstBlockRange.InsertBefore(insertionPoint, LIR::SeqTree(comp, store));
     DISPTREERANGE(firstBlockRange, store);
 
-#ifndef _TARGET_X86_ // For x86, this step is done at the call site (due to stack pointer not being static in the
-                     // function).
+#if !defined(_TARGET_X86_) && !defined(_TARGET_ARM_)
+    // For x86, this step is done at the call site (due to stack pointer not being static in the function).
+    // For arm32, CallSiteSP is set up by the call to CORINFO_HELP_INIT_PINVOKE_FRAME.
 
     // --------------------------------------------------------
     // InlinedCallFrame.m_pCallSiteSP = @RSP;
@@ -2865,7 +2879,10 @@ void Lowering::InsertPInvokeMethodProlog()
     firstBlockRange.InsertBefore(insertionPoint, LIR::SeqTree(comp, storeSP));
     DISPTREERANGE(firstBlockRange, storeSP);
 
-#endif // !_TARGET_X86_
+#endif // !defined(_TARGET_X86_) && !defined(_TARGET_ARM_)
+
+#if !defined(_TARGET_ARM_)
+    // For arm32, CalleeSavedFP is set up by the call to CORINFO_HELP_INIT_PINVOKE_FRAME.
 
     // --------------------------------------------------------
     // InlinedCallFrame.m_pCalleeSavedEBP = @RBP;
@@ -2877,6 +2894,7 @@ void Lowering::InsertPInvokeMethodProlog()
 
     firstBlockRange.InsertBefore(insertionPoint, LIR::SeqTree(comp, storeFP));
     DISPTREERANGE(firstBlockRange, storeFP);
+#endif // !defined(_TARGET_ARM_)
 
     // --------------------------------------------------------
     // On 32-bit targets, CORINFO_HELP_INIT_PINVOKE_FRAME initializes the PInvoke frame and then pushes it onto
@@ -4413,6 +4431,14 @@ void Lowering::DoPhase()
 #endif
 #endif
 
+    // If we have any PInvoke calls, insert the one-time prolog code. We'll inserted the epilog code in the
+    // appropriate spots later. NOTE: there is a minor optimization opportunity here, as we still create p/invoke
+    // data structures and setup/teardown even if we've eliminated all p/invoke calls due to dead code elimination.
+    if (comp->info.compCallUnmanaged)
+    {
+        InsertPInvokeMethodProlog();
+    }
+
 #if !defined(_TARGET_64BIT_)
     DecomposeLongs decomp(comp); // Initialize the long decomposition class.
     decomp.PrepareForDecomposition();
@@ -4428,14 +4454,6 @@ void Lowering::DoPhase()
 #endif //!_TARGET_64BIT_
 
         LowerBlock(block);
-    }
-
-    // If we have any PInvoke calls, insert the one-time prolog code. We've already inserted the epilog code in the
-    // appropriate spots. NOTE: there is a minor optimization opportunity here, as we still create p/invoke data
-    // structures and setup/teardown even if we've eliminated all p/invoke calls due to dead code elimination.
-    if (comp->info.compCallUnmanaged)
-    {
-        InsertPInvokeMethodProlog();
     }
 
 #ifdef DEBUG
@@ -4590,13 +4608,6 @@ void Lowering::CheckCallArg(GenTree* arg)
 
     switch (arg->OperGet())
     {
-#if !defined(_TARGET_64BIT_)
-        case GT_LONG:
-            assert(arg->gtGetOp1()->OperIsPutArg());
-            assert(arg->gtGetOp2()->OperIsPutArg());
-            break;
-#endif
-
         case GT_FIELD_LIST:
         {
             GenTreeFieldList* list = arg->AsFieldList();

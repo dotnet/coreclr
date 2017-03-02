@@ -2025,6 +2025,7 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                     break
                 case 'arm64':
                     assert (scenario == 'default') || (scenario == 'pri1r2r') || (scenario == 'gcstress0x3') || (scenario == 'gcstress0xc')
+                   
                     // Set time out
                     setTestJobTimeOut(newJob, scenario)
 
@@ -2033,8 +2034,12 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                        buildCommands += "set __TestIntermediateDir=int&&build.cmd ${lowerConfiguration} ${architecture} toolset_dir C:\\ats2"
                     }
                     else {
-                       // Up the timeout for arm64 testing.
-                       Utilities.setJobTimeout(newJob, 240)
+                       if ((scenario != 'gcstress0x3') && (scenario != 'gcstress0xc'))
+                       {
+                           // Up the timeout for arm64 checked testing only.
+                           // Keep the longer timeout for gcstress.
+                           Utilities.setJobTimeout(newJob, 240)
+                       }
 
                        buildCommands += "set __TestIntermediateDir=int&&build.cmd skiptests ${lowerConfiguration} ${architecture} toolset_dir C:\\ats2"
                        // Test build and run are launched together.
@@ -2164,7 +2169,8 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                         buildCommands += "unzip -q -o ./bin/tests/tests.zip -d ./bin/tests/Windows_NT.x64.${configuration} || exit 0"
 
                         // Unpack the corefx binaries
-                        buildCommands += "tar -xf ./bin/build.tar.gz"
+                        buildCommands += "mkdir ./bin/CoreFxBinDir"
+                        buildCommands += "tar -xf ./bin/build.tar.gz -C ./bin/CoreFxBinDir"
 
                         // Call the ARM emulator build script to cross build and test using the ARM emulator rootfs
                         buildCommands += """./tests/scripts/arm32_ci_script.sh \\
@@ -2502,7 +2508,7 @@ combinedScenarios.each { scenario ->
                                             latestSuccessful(true)
                                         }
                                     }
-                                    copyArtifacts("${corefxFolder}/linuxarmemulator_softfp_cross_${lowerConfiguration}") {
+                                    copyArtifacts("${corefxFolder}/tizen_armel_cross_${lowerConfiguration}") {
                                         includePatterns('bin/build.tar.gz')
                                         buildSelector {
                                             latestSuccessful(true)

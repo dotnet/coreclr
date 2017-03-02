@@ -1491,17 +1491,13 @@ typedef struct _DISPATCHER_CONTEXT {
 
 #elif defined(_X86_)
 
-typedef struct _EXCEPTION_REGISTRATION_RECORD {
-    struct _EXCEPTION_REGISTRATION_RECORD *Next;
-    PEXCEPTION_ROUTINE Handler;
-} EXCEPTION_REGISTRATION_RECORD;
-
 typedef struct _DISPATCHER_CONTEXT {
     DWORD ControlPc;
     DWORD ImageBase;
     PRUNTIME_FUNCTION FunctionEntry;
     DWORD EstablisherFrame;
     DWORD TargetIp;
+    PKNONVOLATILE_CONTEXT CurrentNonVolatileContextRecord;
     PCONTEXT ContextRecord;
     PEXCEPTION_ROUTINE LanguageHandler;
     PVOID HandlerData;

@@ -322,6 +322,8 @@ public:
 #endif                                       // FEATURE_SIMD
     unsigned char lvRegStruct : 1;           // This is a reg-sized non-field-addressed struct.
 
+    unsigned char lvClassIsExact : 1; // lvClassHandle is the exact type
+
     union {
         unsigned lvFieldLclStart; // The index of the local var representing the first field in the promoted struct
                                   // local.
@@ -703,6 +705,8 @@ public:
     unsigned lvSlotNum; // original slot # (if remapped)
 
     typeInfo lvVerTypeInfo; // type info needed for verification
+
+    CORINFO_CLASS_HANDLE lvClassHnd; // class handle for the local, or null if not known
 
     BYTE* lvGcLayout; // GC layout info for structs
 
@@ -1277,6 +1281,10 @@ class fgArgInfo
                           // stack pointer before it was adjusted after each Call
 #endif
 
+#if FEATURE_FIXED_OUT_ARGS
+    unsigned outArgSize; // Size of the out arg area for the call, will be at least MIN_ARG_AREA_FOR_CALL
+#endif
+
     unsigned          argTableSize; // size of argTable array (equal to the argCount when done with fgMorphArgs)
     bool              hasRegArgs;   // true if we have one or more register arguments
     bool              hasStackArgs; // true if we have one or more stack arguments
@@ -1366,7 +1374,16 @@ public:
     {
         return argsComplete;
     }
-
+#if FEATURE_FIXED_OUT_ARGS
+    unsigned GetOutArgSize() const
+    {
+        return outArgSize;
+    }
+    void SetOutArgSize(unsigned newVal)
+    {
+        outArgSize = newVal;
+    }
+#endif // FEATURE_FIXED_OUT_ARGS
     // Get the late arg for arg at position argIndex.  Caller must ensure this position has a late arg.
     GenTreePtr GetLateArg(unsigned argIndex);
 };
@@ -2404,9 +2421,9 @@ public:
                                         // in case there are multiple BBJ_RETURN blocks in the inlinee.
 
 #if FEATURE_FIXED_OUT_ARGS
-    unsigned lvaOutgoingArgSpaceVar;  // dummy TYP_LCLBLK var for fixed outgoing argument space
-    unsigned lvaOutgoingArgSpaceSize; // size of fixed outgoing argument space
-#endif                                // FEATURE_FIXED_OUT_ARGS
+    unsigned            lvaOutgoingArgSpaceVar;  // dummy TYP_LCLBLK var for fixed outgoing argument space
+    PhasedVar<unsigned> lvaOutgoingArgSpaceSize; // size of fixed outgoing argument space
+#endif                                           // FEATURE_FIXED_OUT_ARGS
 
 #ifdef _TARGET_ARM_
     // On architectures whose ABIs allow structs to be passed in registers, struct promotion will sometimes
@@ -2422,7 +2439,7 @@ public:
     unsigned lvaCallEspCheck;   // confirms ESP not corrupted after a call
 #endif
 
-    bool lvaGenericsContextUsed;
+    unsigned lvaGenericsContextUseCount;
 
     bool lvaKeepAliveAndReportThis(); // Synchronized instance method of a reference type, or
                                       // CORINFO_GENERICS_CTXT_FROM_THIS?
@@ -2569,7 +2586,7 @@ public:
 
     void lvaMarkLocalVars(); // Local variable ref-counting
 
-    void lvaAllocOutgoingArgSpace(); // 'Commit' lvaOutgoingArgSpaceSize and lvaOutgoingArgSpaceVar
+    void lvaAllocOutgoingArgSpaceVar(); // Set up lvaOutgoingArgSpaceVar
 
     VARSET_VALRET_TP lvaStmtLclMask(GenTreePtr stmt);
 
@@ -2861,6 +2878,11 @@ protected:
                             int                prefixFlags,
                             CORINFO_CALL_INFO* callInfo,
                             IL_OFFSET          rawILOffset);
+
+    void impDevirtualizeCall(GenTreeCall*            call,
+                             GenTreePtr              obj,
+                             CORINFO_CALL_INFO*      callInfo,
+                             CORINFO_CONTEXT_HANDLE* exactContextHnd);
 
     bool impMethodInfo_hasRetBuffArg(CORINFO_METHOD_INFO* methInfo);
 
@@ -3309,7 +3331,10 @@ private:
                                                             GenTreePtr  variableBeingDereferenced,
                                                             InlArgInfo* inlArgInfo);
 
-    void impMarkInlineCandidate(GenTreePtr call, CORINFO_CONTEXT_HANDLE exactContextHnd, CORINFO_CALL_INFO* callInfo);
+    void impMarkInlineCandidate(GenTreePtr             call,
+                                CORINFO_CONTEXT_HANDLE exactContextHnd,
+                                bool                   exactContextNeedsRuntimeLookup,
+                                CORINFO_CALL_INFO*     callInfo);
 
     bool impTailCallRetTypeCompatible(var_types            callerRetType,
                                       CORINFO_CLASS_HANDLE callerRetTypeClass,

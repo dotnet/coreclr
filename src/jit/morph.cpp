@@ -861,6 +861,10 @@ fgArgInfo::fgArgInfo(Compiler* comp, GenTreePtr call, unsigned numArgs)
 #if defined(UNIX_X86_ABI)
     padStkAlign = 0;
 #endif
+#if FEATURE_FIXED_OUT_ARGS
+    outArgSize = 0;
+#endif
+
     argTableSize = numArgs; // the allocated table size
 
     hasRegArgs   = false;
@@ -905,6 +909,9 @@ fgArgInfo::fgArgInfo(GenTreePtr newCall, GenTreePtr oldCall)
     stkLevel    = oldArgInfo->stkLevel;
 #if defined(UNIX_X86_ABI)
     padStkAlign = oldArgInfo->padStkAlign;
+#endif
+#if FEATURE_FIXED_OUT_ARGS
+    outArgSize = oldArgInfo->outArgSize;
 #endif
     argTableSize = oldArgInfo->argTableSize;
     argsComplete = false;
@@ -2874,9 +2881,9 @@ GenTreeCall* Compiler::fgMorphArgs(GenTreeCall* callNode)
         CLANG_FORMAT_COMMENT_ANCHOR;
 
 #if !defined(LEGACY_BACKEND)
-#if defined(_TARGET_X86_)
-        // The x86 CORINFO_HELP_INIT_PINVOKE_FRAME helper has a custom calling convention. Set the argument registers
-        // correctly here.
+#if defined(_TARGET_X86_) || defined(_TARGET_ARM_)
+        // The x86 and arm32 CORINFO_HELP_INIT_PINVOKE_FRAME helpers has a custom calling convention.
+        // Set the argument registers correctly here.
         if (call->IsHelperCall(this, CORINFO_HELP_INIT_PINVOKE_FRAME))
         {
             GenTreeArgList* args = call->gtCallArgs;
@@ -2884,6 +2891,8 @@ GenTreeCall* Compiler::fgMorphArgs(GenTreeCall* callNode)
             assert(arg1 != nullptr);
             nonStandardArgs.Add(arg1, REG_PINVOKE_FRAME);
         }
+#endif // defined(_TARGET_X86_) || defined(_TARGET_ARM_)
+#if defined(_TARGET_X86_)
         // The x86 shift helpers have custom calling conventions and expect the lo part of the long to be in EAX and the
         // hi part to be in EDX. This sets the argument registers up correctly.
         else if (call->IsHelperCall(this, CORINFO_HELP_LLSH) || call->IsHelperCall(this, CORINFO_HELP_LRSH) ||
@@ -4336,10 +4345,10 @@ GenTreeCall* Compiler::fgMorphArgs(GenTreeCall* callNode)
 
 #if FEATURE_FIXED_OUT_ARGS
 
-    // Update the outgoing argument size.
-    // If the call is a fast tail call, it will setup its arguments in incoming arg
-    // area instead of the out-going arg area.  Therefore, don't consider fast tail
-    // calls to update lvaOutgoingArgSpaceSize.
+    // Record the outgoing argument size.  If the call is a fast tail
+    // call, it will setup its arguments in incoming arg area instead
+    // of the out-going arg area, so we don't need to track the
+    // outgoing arg size.
     if (!call->IsFastTailCall())
     {
         unsigned preallocatedArgCount = call->fgArgInfo->GetNextSlotNum();
@@ -4359,26 +4368,14 @@ GenTreeCall* Compiler::fgMorphArgs(GenTreeCall* callNode)
         }
 #endif // UNIX_AMD64_ABI
 
-        // Check if we need to increase the size of our Outgoing Arg Space
-        if (preallocatedArgCount * REGSIZE_BYTES > lvaOutgoingArgSpaceSize)
-        {
-            lvaOutgoingArgSpaceSize = preallocatedArgCount * REGSIZE_BYTES;
+        const unsigned outgoingArgSpaceSize = preallocatedArgCount * REGSIZE_BYTES;
+        call->fgArgInfo->SetOutArgSize(max(outgoingArgSpaceSize, MIN_ARG_AREA_FOR_CALL));
 
-            // If a function has localloc, we will need to move the outgoing arg space when the
-            // localloc happens. When we do this, we need to maintain stack alignment. To avoid
-            // leaving alignment-related holes when doing this move, make sure the outgoing
-            // argument space size is a multiple of the stack alignment by aligning up to the next
-            // stack alignment boundary.
-            if (compLocallocUsed)
-            {
-                lvaOutgoingArgSpaceSize = (unsigned)roundUp(lvaOutgoingArgSpaceSize, STACK_ALIGN);
-            }
-        }
 #ifdef DEBUG
         if (verbose)
         {
-            printf("argSlots=%d, preallocatedArgCount=%d, nextSlotNum=%d, lvaOutgoingArgSpaceSize=%d\n", argSlots,
-                   preallocatedArgCount, call->fgArgInfo->GetNextSlotNum(), lvaOutgoingArgSpaceSize);
+            printf("argSlots=%d, preallocatedArgCount=%d, nextSlotNum=%d, outgoingArgSpaceSize=%d\n", argSlots,
+                   preallocatedArgCount, call->fgArgInfo->GetNextSlotNum(), outgoingArgSpaceSize);
         }
 #endif
     }
@@ -5047,7 +5044,7 @@ GenTreePtr Compiler::fgMorphMultiregStructArg(GenTreePtr arg, fgArgTabEntryPtr f
             //    replace the existing LDOBJ(ADDR(LCLVAR))
             //    with a FIELD_LIST(LCLFLD-LO, FIELD_LIST(LCLFLD-HI, nullptr) ...)
             //
-            unsigned          offset    = 0;
+            unsigned          offset    = baseOffset;
             GenTreeFieldList* listEntry = nullptr;
             for (unsigned inx = 0; inx < elemCount; inx++)
             {
@@ -7875,6 +7872,9 @@ GenTreePtr Compiler::fgMorphCall(GenTreeCall* call)
         //    Either a call stmt or
         //    GT_RETURN(GT_CALL(..)) or GT_RETURN(GT_CAST(GT_CALL(..)))
         //    var = GT_CALL(..) or var = (GT_CAST(GT_CALL(..)))
+        //    GT_COMMA(GT_CALL(..), GT_NOP) or GT_COMMA(GT_CAST(GT_CALL(..)), GT_NOP)
+        // In the above,
+        //    GT_CASTS may be nested.
         genTreeOps stmtOper = stmtExpr->gtOper;
         if (stmtOper == GT_CALL)
         {
@@ -7882,10 +7882,16 @@ GenTreePtr Compiler::fgMorphCall(GenTreeCall* call)
         }
         else
         {
-            noway_assert(stmtOper == GT_RETURN || stmtOper == GT_ASG);
+            noway_assert(stmtOper == GT_RETURN || stmtOper == GT_ASG || stmtOper == GT_COMMA);
             GenTreePtr treeWithCall;
             if (stmtOper == GT_RETURN)
             {
+                treeWithCall = stmtExpr->gtGetOp1();
+            }
+            else if (stmtOper == GT_COMMA)
+            {
+                // Second operation must be nop.
+                noway_assert(stmtExpr->gtGetOp2()->IsNothingNode());
                 treeWithCall = stmtExpr->gtGetOp1();
             }
             else
@@ -7920,10 +7926,11 @@ GenTreePtr Compiler::fgMorphCall(GenTreeCall* call)
         //  2) tail.call, nop*, pop, nop*, ret
         //  3) var=tail.call, nop*, ret(var)
         //  4) var=tail.call, nop*, pop, ret
+        //  5) comma(tail.call, nop), nop*, ret
         //
         // See impIsTailCallILPattern() for details on tail call IL patterns
         // that are supported.
-        if ((stmtExpr->gtOper == GT_CALL) || (stmtExpr->gtOper == GT_ASG))
+        if (stmtExpr->gtOper != GT_RETURN)
         {
             // First delete all GT_NOPs after the call
             GenTreeStmt* morphStmtToRemove = nullptr;
@@ -12264,6 +12271,23 @@ GenTreePtr Compiler::fgMorphSmpOp(GenTreePtr tree, MorphAddrContext* mac)
                         }
                     }
                 }
+                else // we have an unsigned comparison
+                {
+                    if (op2->IsIntegralConst(0))
+                    {
+                        if ((oper == GT_GT) || (oper == GT_LE))
+                        {
+                            // IL doesn't have a cne instruction so compilers use cgt.un instead. The JIT
+                            // recognizes certain patterns that involve GT_NE (e.g (x & 4) != 0) and fails
+                            // if GT_GT is used instead. Transform (x GT_GT.unsigned 0) into (x GT_NE 0)
+                            // and (x GT_LE.unsigned 0) into (x GT_EQ 0). The later case is rare, it sometimes
+                            // occurs as a result of branch inversion.
+                            oper = (oper == GT_LE) ? GT_EQ : GT_NE;
+                            tree->SetOper(oper, GenTree::PRESERVE_VN);
+                            tree->gtFlags &= ~GTF_UNSIGNED;
+                        }
+                    }
+                }
 
             COMPARE:
 
@@ -16270,6 +16294,15 @@ GenTreePtr Compiler::fgInitThisClass()
             CORINFO_RESOLVED_TOKEN resolvedToken;
             memset(&resolvedToken, 0, sizeof(resolvedToken));
 
+            // We are in a shared method body, but maybe we don't need a runtime lookup after all.
+            // This covers the case of a generic method on a non-generic type.
+            if (!(info.compClassAttr & CORINFO_FLG_SHAREDINST))
+            {
+                resolvedToken.hClass = info.compClassHnd;
+                return impReadyToRunHelperToTree(&resolvedToken, CORINFO_HELP_READYTORUN_STATIC_BASE, TYP_BYREF);
+            }
+
+            // We need a runtime lookup.
             GenTreePtr ctxTree = getRuntimeContextTree(kind.runtimeLookupKind);
 
             // CORINFO_HELP_READYTORUN_GENERIC_STATIC_BASE with a zeroed out resolvedToken means "get the static
@@ -16283,7 +16316,7 @@ GenTreePtr Compiler::fgInitThisClass()
         // Collectible types requires that for shared generic code, if we use the generic context paramter
         // that we report it. (This is a conservative approach, we could detect some cases particularly when the
         // context parameter is this that we don't need the eager reporting logic.)
-        lvaGenericsContextUsed = true;
+        lvaGenericsContextUseCount++;
 
         switch (kind.runtimeLookupKind)
         {

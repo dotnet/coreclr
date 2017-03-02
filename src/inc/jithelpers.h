@@ -38,15 +38,15 @@
 
     // CORINFO_HELP_DBL2INT, CORINFO_HELP_DBL2UINT, and CORINFO_HELP_DBL2LONG get
     // patched for CPUs that support SSE2 (P4 and above).
-#if !defined(_WIN64)
+#ifndef BIT64
     JITHELPER(CORINFO_HELP_LLSH,                JIT_LLsh,           CORINFO_HELP_SIG_REG_ONLY)
     JITHELPER(CORINFO_HELP_LRSH,                JIT_LRsh,           CORINFO_HELP_SIG_REG_ONLY)
     JITHELPER(CORINFO_HELP_LRSZ,                JIT_LRsz,           CORINFO_HELP_SIG_REG_ONLY)
-#else
+#else // !BIT64
     JITHELPER(CORINFO_HELP_LLSH,                NULL,               CORINFO_HELP_SIG_CANNOT_USE_ALIGN_STUB)
     JITHELPER(CORINFO_HELP_LRSH,                NULL,               CORINFO_HELP_SIG_CANNOT_USE_ALIGN_STUB)
     JITHELPER(CORINFO_HELP_LRSZ,                NULL,               CORINFO_HELP_SIG_CANNOT_USE_ALIGN_STUB)
-#endif
+#endif // BIT64
     JITHELPER(CORINFO_HELP_LMUL,                JIT_LMul,           CORINFO_HELP_SIG_16_STACK)
     JITHELPER(CORINFO_HELP_LMUL_OVF,            JIT_LMulOvf,        CORINFO_HELP_SIG_16_STACK)
     JITHELPER(CORINFO_HELP_ULMUL_OVF,           JIT_ULMulOvf,       CORINFO_HELP_SIG_16_STACK)
@@ -320,13 +320,13 @@
 // We do not need this to be saved in ngen images on Mac64 since the exception dispatch
 // is not done via the OS and thus, there wont be any need to know this information
 // by anyone.
-#if !defined(_TARGET_X86_)
+#ifdef WIN64EXCEPTIONS
     JITHELPER(CORINFO_HELP_EE_PERSONALITY_ROUTINE, ProcessCLRException,               CORINFO_HELP_SIG_UNDEF)
     JITHELPER(CORINFO_HELP_EE_PERSONALITY_ROUTINE_FILTER_FUNCLET, ProcessCLRException,CORINFO_HELP_SIG_UNDEF)
-#else
+#else // WIN64EXCEPTIONS
     JITHELPER(CORINFO_HELP_EE_PERSONALITY_ROUTINE, NULL,                              CORINFO_HELP_SIG_UNDEF)
     JITHELPER(CORINFO_HELP_EE_PERSONALITY_ROUTINE_FILTER_FUNCLET, NULL,               CORINFO_HELP_SIG_UNDEF)
-#endif
+#endif // !WIN64EXCEPTIONS
 
 #ifdef _TARGET_X86_
     JITHELPER(CORINFO_HELP_ASSIGN_REF_EAX, JIT_WriteBarrierEAX, CORINFO_HELP_SIG_NO_ALIGN_STUB)

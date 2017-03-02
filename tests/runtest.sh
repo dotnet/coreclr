@@ -60,6 +60,7 @@ function print_usage {
     echo '  --build-overlay-only             : Exit after overlay directory is populated'
     echo '  --limitedDumpGeneration          : Enables the generation of a limited number of core dumps if test(s) crash, even if ulimit'
     echo '                                     is zero when launching this script. This option is intended for use in CI.'
+    echo '  --xunitOutputPath=<path>         : Create xUnit XML report at the specifed path (default: <test root>/coreclrtests.xml)'
     echo ''
     echo 'Runtime Code Coverage options:'
     echo '  --coreclr-coverage               : Optional argument to get coreclr code coverage reports'
@@ -367,7 +368,8 @@ function create_core_overlay {
     if [ -d "$mscorlibDir/bin" ]; then
         cp -f -v "$mscorlibDir/bin/"* "$coreOverlayDir/" 2>/dev/null
     fi
-    cp -n -v "$testDependenciesDir"/* "$coreOverlayDir/" 2>/dev/null
+    cp -f -v "$testDependenciesDir/"xunit* "$coreOverlayDir/" 2>/dev/null
+    cp -n -v "$testDependenciesDir/"* "$coreOverlayDir/" 2>/dev/null
     if [ -f "$coreOverlayDir/mscorlib.ni.dll" ]; then
         # Test dependencies come from a Windows build, and mscorlib.ni.dll would be the one from Windows
         rm -f "$coreOverlayDir/mscorlib.ni.dll"
@@ -1075,6 +1077,9 @@ do
         --limitedDumpGeneration)
             limitedCoreDumps=ON
             ;;
+        --xunitOutputPath=*)
+            xunitOutputPath=${i#*=}
+            ;;
         *)
             echo "Unknown switch: $i"
             print_usage
@@ -1214,7 +1219,6 @@ finish_remaining_tests
 
 print_results
 
-echo "constructing $dumplingsListPath"
 find . -type f -name "local_dumplings.txt" -exec cat {} \; > $dumplingsListPath
 
 if [ -s $dumplingsListPath ]; then
