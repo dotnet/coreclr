@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup>
     <MSBuildAllProjects>$(MSBuildAllProjects);$(MSBuildThisFileFullPath)</MSBuildAllProjects>
@@ -17,6 +17,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)Interop\Windows\Interop.BOOL.cs"/>
     <Compile Include="$(MSBuildThisFileDirectory)Interop\Windows\Interop.Errors.cs"/>
     <Compile Include="$(MSBuildThisFileDirectory)Interop\Windows\Interop.Libraries.cs"/>
+    <Compile Include="$(MSBuildThisFileDirectory)Interop\Windows\BCrypt\Interop.BCryptGenRandom.cs"/>
     <Compile Include="$(MSBuildThisFileDirectory)Interop\Windows\Kernel32\Interop.CancelIoEx.cs"/>
     <Compile Include="$(MSBuildThisFileDirectory)Interop\Windows\Kernel32\Interop.CloseHandle.cs"/>
     <Compile Include="$(MSBuildThisFileDirectory)Interop\Windows\Kernel32\Interop.CreateFile.cs" Condition="'$(IsProjectNLibrary)' != 'true'"/>
