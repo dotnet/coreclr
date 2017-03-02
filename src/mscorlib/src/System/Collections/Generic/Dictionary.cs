@@ -211,12 +211,17 @@ namespace System.Collections.Generic {
                 return default(TValue);
             }
             set {
-                Insert(key, value, false);
+                bool modified = TryInsert(key, value, add: false);
+                Debug.Assert(modified);
             }
         }
 
-        public void Add(TKey key, TValue value) {
-            Insert(key, value, true);
+        public void Add(TKey key, TValue value)
+        {
+            if (!TryAdd(key, value))
+            {
+                ThrowHelper.ThrowAddingDuplicateWithKeyArgumentException(key);
+            }
         }
 
         void ICollection<KeyValuePair<TKey, TValue>>.Add(KeyValuePair<TKey, TValue> keyValuePair) {
@@ -342,8 +347,8 @@ namespace System.Collections.Generic {
             freeList = -1;
         }
 
-        private void Insert(TKey key, TValue value, bool add) {
-        
+        private bool TryInsert(TKey key, TValue value, bool add)
+        {
             if( key == null ) {
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.key);
             }
@@ -358,12 +363,12 @@ namespace System.Collections.Generic {
 
             for (int i = buckets[targetBucket]; i >= 0; i = entries[i].next) {
                 if (entries[i].hashCode == hashCode && comparer.Equals(entries[i].key, key)) {
-                    if (add) { 
-                        ThrowHelper.ThrowAddingDuplicateWithKeyArgumentException(key);
+                    if (add) {
+                        return false;
                     }
                     entries[i].value = value;
                     version++;
-                    return;
+                    return true;
                 } 
 
 #if FEATURE_RANDOMIZED_STRING_HASHING
@@ -406,6 +411,7 @@ namespace System.Collections.Generic {
             }
 #endif
 
+            return true;
         }
 
         public virtual void OnDeserialization(Object sender) {
@@ -441,7 +447,7 @@ namespace System.Collections.Generic {
                     if ( array[i].Key == null) {
                         ThrowHelper.ThrowSerializationException(ExceptionResource.Serialization_NullKey);
                     }
-                    Insert(array[i].Key, array[i].Value, true);
+                    Add(array[i].Key, array[i].Value);
                 }
             }
             else {
@@ -535,6 +541,8 @@ namespace System.Collections.Generic {
             }
             return defaultValue;
         }
+
+        public bool TryAdd(TKey key, TValue value) => TryInsert(key, value, add: true);
 
         bool ICollection<KeyValuePair<TKey,TValue>>.IsReadOnly {
             get { return false; }
