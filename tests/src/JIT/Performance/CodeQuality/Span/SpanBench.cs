@@ -14,17 +14,23 @@ using Xunit;
 [assembly: OptimizeForBenchmarks]
 [assembly: MeasureInstructionsRetired]
 
-class Tests
+namespace Span
+{
+
+public class SpanBench
 {
 
 #if DEBUG
-    const int Iterations = 1;
+    const int BubbleSortIterations = 1;
+    const int QuickSortIterations = 1;
+    const int FillAllIterations = 1;
 #else
-    const int Iterations = 10000;
+    const int BubbleSortIterations = 1000;
+    const int QuickSortIterations = 10000;
+    const int FillAllIterations = 1000000;
 #endif
 
     const int Size = 1024;
-
 
     [MethodImpl(MethodImplOptions.NoInlining)]
     static void TestFillAllSpan(Span<byte> span)
@@ -198,7 +204,7 @@ class Tests
         {
             using (iteration.StartMeasurement())
             {
-                for (int i = 0; i < Iterations; i++)
+                for (int i = 0; i < FillAllIterations; i++)
                 {
                     TestFillAllSpan(s);
                 }
@@ -214,7 +220,7 @@ class Tests
         {
             using (iteration.StartMeasurement())
             {
-                for (int i = 0; i < Iterations; i++)
+                for (int i = 0; i < FillAllIterations; i++)
                 {
                     TestFillAllArray(a);
                 }
@@ -231,7 +237,7 @@ class Tests
         {
             using (iteration.StartMeasurement())
             {
-                for (int i = 0; i < Iterations; i++)
+                for (int i = 0; i < FillAllIterations; i++)
                 {
                     TestFillAllReverseSpan(s);
                 }
@@ -247,7 +253,7 @@ class Tests
         {
             using (iteration.StartMeasurement())
             {
-                for (int i = 0; i < Iterations; i++)
+                for (int i = 0; i < FillAllIterations; i++)
                 {
                     TestFillAllReverseArray(a);
                 }
@@ -266,7 +272,7 @@ class Tests
         {
             using (iteration.StartMeasurement())
             {
-                for (int i = 0; i < Iterations; i++)
+                for (int i = 0; i < QuickSortIterations; i++)
                 {
                     Array.Copy(unsortedData, data, Size);
                     TestQuickSortSpan(span);
@@ -286,7 +292,7 @@ class Tests
         {
             using (iteration.StartMeasurement())
             {
-                for (int i = 0; i < Iterations; i++)
+                for (int i = 0; i < BubbleSortIterations; i++)
                 {
                     Array.Copy(unsortedData, data, Size);
                     TestBubbleSortSpan(span);
@@ -305,7 +311,7 @@ class Tests
         {
             using (iteration.StartMeasurement())
             {
-                for (int i = 0; i < Iterations; i++)
+                for (int i = 0; i < QuickSortIterations; i++)
                 {
                     Array.Copy(unsortedData, data, Size);
                     TestQuickSortArray(data);
@@ -324,7 +330,7 @@ class Tests
         {
             using (iteration.StartMeasurement())
             {
-                for (int i = 0; i < Iterations; i++)
+                for (int i = 0; i < BubbleSortIterations; i++)
                 {
                     Array.Copy(unsortedData, data, Size);
                     TestBubbleSortArray(data);
@@ -339,7 +345,7 @@ class Tests
     {
         byte[] a = new byte[Size];
         Span<byte> s = new Span<byte>(a);
-        for (int i = 0; i < Iterations; i++)
+        for (int i = 0; i < FillAllIterations; i++)
         {
             TestFillAllSpan(s);
         }
@@ -348,7 +354,7 @@ class Tests
     static void FillAllArrayBase()
     {
         byte[] a = new byte[Size];
-        for (int i = 0; i < Iterations; i++)
+        for (int i = 0; i < FillAllIterations; i++)
         {
             TestFillAllArray(a);
         }
@@ -358,7 +364,7 @@ class Tests
     {
         byte[] a = new byte[Size];
         Span<byte> s = new Span<byte>(a);
-        for (int i = 0; i < Iterations; i++)
+        for (int i = 0; i < FillAllIterations; i++)
         {
             TestFillAllReverseSpan(s);
         }
@@ -367,7 +373,7 @@ class Tests
     static void FillAllReverseArrayBase()
     {
         byte[] a = new byte[Size];
-        for (int i = 0; i < Iterations; i++)
+        for (int i = 0; i < FillAllIterations; i++)
         {
             TestFillAllReverseArray(a);
         }
@@ -379,7 +385,7 @@ class Tests
         int[] unsortedData = GetUnsortedData();
         Span<int> span = new Span<int>(data);
 
-        for (int i = 0; i < Iterations; i++)
+        for (int i = 0; i < QuickSortIterations; i++)
         {
             Array.Copy(unsortedData, data, Size);
             TestQuickSortSpan(span);
@@ -392,7 +398,7 @@ class Tests
         int[] unsortedData = GetUnsortedData();
         Span<int> span = new Span<int>(data);
 
-        for (int i = 0; i < Iterations; i++)
+        for (int i = 0; i < BubbleSortIterations; i++)
         {
             Array.Copy(unsortedData, data, Size);
             TestBubbleSortSpan(span);
@@ -404,7 +410,7 @@ class Tests
         int[] data = new int[Size];
         int[] unsortedData = GetUnsortedData();
 
-        for (int i = 0; i < Iterations; i++)
+        for (int i = 0; i < QuickSortIterations; i++)
         {
             Array.Copy(unsortedData, data, Size);
             TestQuickSortArray(data);
@@ -416,7 +422,7 @@ class Tests
         int[] data = new int[Size];
         int[] unsortedData = GetUnsortedData();
 
-        for (int i = 0; i < Iterations; i++)
+        for (int i = 0; i < BubbleSortIterations; i++)
         {
             Array.Copy(unsortedData, data, Size);
             TestBubbleSortArray(data);
@@ -445,7 +451,7 @@ class Tests
 
     static Action LookupFunc(object o)
     {
-        TypeInfo t = typeof(Tests).GetTypeInfo();
+        TypeInfo t = typeof(SpanBench).GetTypeInfo();
         MethodInfo m = t.GetDeclaredMethod((string) o);
         return m.CreateDelegate(typeof(Action)) as Action;
     }
@@ -466,3 +472,4 @@ class Tests
     }
 }
 
+}
