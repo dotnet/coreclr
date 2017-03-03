@@ -359,12 +359,28 @@ LEAF_ENTRY HelperMethodFrameRestoreState, _TEXT
 
 #ifdef _DEBUG
     jnz         LOCAL_LABEL(noConfirm)
-    push        ebp
+
+    mov         eax, ebp
+
+    // Create a minimal EBP-frame (for clean stack trace under debugger)
+    PROLOG_BEG
+    PROLOG_END
+
+    // Call HelperMethodFrameConfirmState
+    sub         esp, 4
+    push        eax     // eax = ebp
     push        ebx
     push        edi
     push        esi
     push        ecx     // HelperFrame*
+    CHECK_STACK_ALIGNMENT
     call        C_FUNC(HelperMethodFrameConfirmState)
+    add         esp, 4
+
+    // Restore EBP
+    EPILOG_BEG
+    EPILOG_END
+
     // on return, eax = MachState*
     cmp         DWORD PTR [eax + MachState__pRetAddr], 0
 LOCAL_LABEL(noConfirm):
