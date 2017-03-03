@@ -836,14 +836,12 @@ NESTED_ENTRY VirtualMethodFixupStub, _TEXT, NoHandler
     // Set frame pointer
     PROLOG_END
 
-    push    eax
-    sub     esp, 4
+    sub     esp, 8
     push    eax         // address of the thunk
     push    ecx         // this ptr
     CHECK_STACK_ALIGNMENT
     call    C_FUNC(VirtualMethodFixupWorker)
-    add     esp, 4
-    pop     eax
+    add     esp, 8
 
     // Restore stack pointer
     EPILOG_BEG
