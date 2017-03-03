@@ -46,8 +46,7 @@
       <!-- On Windows, trim ".dll" before adding ".pdb". -->
       <WindowsNativeFile Include="@(NativeWithSymbolFile)"
                          Condition="'%(NativeWithSymbolFile.Extension)'=='.dll' OR '%(NativeWithSymbolFile.Extension)'=='.exe'" />
-      <NativeDllFileWithoutExtension Include="@(WindowsNativeFile -> '%(RootDir)%(Directory)PDB\%(Filename)')" />
-      <WindowsSymbolFile Include="@(NativeDllFileWithoutExtension -> '%(Identity).pdb')" />
+      <WindowsSymbolFile Include="@(WindowsNativeFile -> '%(RootDir)%(Directory)PDB\%(Filename).pdb')" />
 
       <!--
         Search for all xplat symbol file extensions on every xplat native binary. Some binaries have
