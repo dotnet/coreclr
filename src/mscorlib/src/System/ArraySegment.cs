@@ -27,6 +27,12 @@ namespace System
     [Serializable]
     public struct ArraySegment<T> : IList<T>, IReadOnlyList<T>
     {
+        // Do not replace this with Array.Empty. We don't want to have the overhead of instantiating
+        // another generic type in addition to ArraySegment<T> for new type parameters.
+        private static readonly T[] s_emptyArray = new T[0];
+
+        public static ArraySegment<T> Empty { get; } = new ArraySegment<T>(s_emptyArray);
+
         private readonly T[] _array;
         private readonly int _offset;
         private readonly int _count;
@@ -106,12 +112,11 @@ namespace System
             }
         }
 
+        public ref T this[int index] => ref _array[_offset + index];
+
         public Enumerator GetEnumerator()
         {
-            if (_array == null)
-                ThrowHelper.ThrowInvalidOperationException(ExceptionResource.InvalidOperation_NullArray);
-            Contract.EndContractBlock();
-
+            ThrowInvalidOperationIfDefault();
             return new Enumerator(this);
         }
 
@@ -132,6 +137,21 @@ namespace System
             return hash;
         }
 
+        public void CopyTo(T[] destination) => CopyTo(destination, 0);
+
+        public void CopyTo(T[] destination, int destinationIndex)
+        {
+            ThrowInvalidOperationIfDefault();
+            System.Array.Copy(_array, _offset, destination, destinationIndex, _count);
+        }
+
+        public void CopyTo(ArraySegment<T> destination)
+        {
+            ThrowInvalidOperationIfDefault();
+            destination.ThrowInvalidOperationIfDefault();
+            System.Array.Copy(_array, _offset, destination._array, destination._offset, _count);
+        }
+
         public override bool Equals(Object obj)
         {
             if (obj is ArraySegment<T>)
@@ -145,6 +165,32 @@ namespace System
             return obj._array == _array && obj._offset == _offset && obj._count == _count;
         }
 
+        public ArraySegment<T> Slice(int index)
+        {
+            ThrowInvalidOperationIfDefault();
+            return default(ArraySegment<T>);
+        }
+
+        public ArraySegment<T> Slice(int index, int count)
+        {
+            ThrowInvalidOperationIfDefault();
+            return default(ArraySegment<T>);
+        }
+
+        public T[] ToArray()
+        {
+            ThrowInvalidOperationIfDefault();
+
+            if (_count == 0)
+            {
+                return s_emptyArray;
+            }
+
+            var array = new T[_count];
+            System.Array.Copy(_array, _offset, array, 0, _count);
+            return array;
+        }
+
         public static bool operator ==(ArraySegment<T> a, ArraySegment<T> b)
         {
             return a.Equals(b);
@@ -155,13 +201,14 @@ namespace System
             return !(a == b);
         }
 
+        public static implicit operator ArraySegment<T>(T[] array) => new ArraySegment<T>(array);
+
         #region IList<T>
         T IList<T>.this[int index]
         {
             get
             {
-                if (_array == null)
-                    ThrowHelper.ThrowInvalidOperationException(ExceptionResource.InvalidOperation_NullArray);
+                ThrowInvalidOperationIfDefault();
                 if (index < 0 || index >= _count)
                     ThrowHelper.ThrowArgumentOutOfRange_IndexException();
                 Contract.EndContractBlock();
@@ -171,8 +218,7 @@ namespace System
 
             set
             {
-                if (_array == null)
-                    ThrowHelper.ThrowInvalidOperationException(ExceptionResource.InvalidOperation_NullArray);
+                ThrowInvalidOperationIfDefault();
                 if (index < 0 || index >= _count)
                     ThrowHelper.ThrowArgumentOutOfRange_IndexException();
                 Contract.EndContractBlock();
@@ -183,9 +229,7 @@ namespace System
 
         int IList<T>.IndexOf(T item)
         {
-            if (_array == null)
-                ThrowHelper.ThrowInvalidOperationException(ExceptionResource.InvalidOperation_NullArray);
-            Contract.EndContractBlock();
+            ThrowInvalidOperationIfDefault();
 
             int index = System.Array.IndexOf<T>(_array, item, _offset, _count);
 
@@ -211,8 +255,7 @@ namespace System
         {
             get
             {
-                if (_array == null)
-                    ThrowHelper.ThrowInvalidOperationException(ExceptionResource.InvalidOperation_NullArray);
+                ThrowInvalidOperationIfDefault();
                 if (index < 0 || index >= _count)
                     ThrowHelper.ThrowArgumentOutOfRange_IndexException();
                 Contract.EndContractBlock();
@@ -245,9 +288,7 @@ namespace System
 
         bool ICollection<T>.Contains(T item)
         {
-            if (_array == null)
-                ThrowHelper.ThrowInvalidOperationException(ExceptionResource.InvalidOperation_NullArray);
-            Contract.EndContractBlock();
+            ThrowInvalidOperationIfDefault();
 
             int index = System.Array.IndexOf<T>(_array, item, _offset, _count);
 
@@ -257,14 +298,7 @@ namespace System
             return index >= 0;
         }
 
-        void ICollection<T>.CopyTo(T[] array, int arrayIndex)
-        {
-            if (_array == null)
-                ThrowHelper.ThrowInvalidOperationException(ExceptionResource.InvalidOperation_NullArray);
-            Contract.EndContractBlock();
-
-            System.Array.Copy(_array, _offset, array, arrayIndex, _count);
-        }
+        void ICollection<T>.CopyTo(T[] array, int arrayIndex) => CopyTo(array, arrayIndex);
 
         bool ICollection<T>.Remove(T item)
         {
@@ -282,6 +316,14 @@ namespace System
 
         IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
         #endregion
+
+        private void ThrowInvalidOperationIfDefault()
+        {
+            if (_array == null)
+            {
+                ThrowHelper.ThrowInvalidOperationException(ExceptionResource.InvalidOperation_NullArray);
+            }
+        }
 
         [Serializable]
         public struct Enumerator : IEnumerator<T>
