@@ -821,10 +821,10 @@ NESTED_END DelayLoad_MethodCall, _TEXT
 //  to optionally patch the target of the jump so that we do not take this slow path again.
 //
 NESTED_ENTRY VirtualMethodFixupStub, _TEXT, NoHandler
-    // Pop the return address. It points right after the call instruction in the thunk.
-    pop     eax
+    // Get the return address. It points right after the call instruction in the thunk.
+    mov     ebx, esp
     // Calculate the address of the thunk
-    sub     eax, 5
+    sub     ebx, 5
 
     // Push ebp frame to get good callstack under debugger
     PROLOG_BEG
@@ -836,9 +836,13 @@ NESTED_ENTRY VirtualMethodFixupStub, _TEXT, NoHandler
     // Set frame pointer
     PROLOG_END
 
-    push    eax         // address of the thunk
+    sub     esp, 8
+    push    ebx         // address of the thunk
     push    ecx         // this ptr
+
+    CHECK_STACK_ALIGNMENT
     call    C_FUNC(VirtualMethodFixupWorker)
+    add     esp, 8
 
     // Restore stack pointer
     EPILOG_BEG
@@ -849,6 +853,10 @@ NESTED_ENTRY VirtualMethodFixupStub, _TEXT, NoHandler
 
     // Pop ebp frame
     EPILOG_END
+
+    // Pop return address
+    add   esp, 4
+    mov   eax, ebx
 
 PATCH_LABEL VirtualMethodFixupPatchLabel
     // Proceed to execute the actual method.
