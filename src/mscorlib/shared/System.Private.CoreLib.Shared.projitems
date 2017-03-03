@@ -53,7 +53,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)Interop\Unix\System.Native\Interop.GetCwd.cs"/>
     <Compile Include="$(MSBuildThisFileDirectory)Interop\Unix\System.Native\Interop.LockFileRegion.cs"/>
     <Compile Include="$(MSBuildThisFileDirectory)Interop\Unix\System.Native\Interop.LSeek.cs"/>
-    <Compile Include="$(MSBuildThisFileDirectory)Interop\Unix\System.Native\Interop.MksTemp.cs"/>
+    <Compile Include="$(MSBuildThisFileDirectory)Interop\Unix\System.Native\Interop.MksTemps.cs"/>
     <Compile Include="$(MSBuildThisFileDirectory)Interop\Unix\System.Native\Interop.Open.cs"/>
     <Compile Include="$(MSBuildThisFileDirectory)Interop\Unix\System.Native\Interop.OpenFlags.cs"/>
     <Compile Include="$(MSBuildThisFileDirectory)Interop\Unix\System.Native\Interop.PathConf.cs"/>
