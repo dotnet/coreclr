@@ -483,9 +483,7 @@ instruction CodeGen::getOpForSIMDIntrinsic(SIMDIntrinsicID intrinsicId, var_type
                     }
                     else
                     {
-                        // !!! TODO
-                        assert(!"Invalid baseType for SIMDIntrinsicNarrow");
-                        result = INS_invalid;
+                        result = INS_packssdw;
                     }
                     break;
                 case TYP_SHORT:
@@ -1526,9 +1524,23 @@ void CodeGen::genSIMDIntrinsicNarrow(GenTreeSIMD* simdNode)
             inst_RV_RV(ins_Copy(simdType), targetReg, op1Reg, simdType, emitSize);
             inst_RV_RV(ins_Copy(simdType), tmpReg, op2Reg, simdType, emitSize);
             getEmitter()->emitIns_R_I(shiftLeftIns, emitSize, targetReg, shiftCount);
-            getEmitter()->emitIns_R_I(shiftRightIns, emitSize, targetReg, shiftCount);
+            if((baseType == TYP_INT || baseType == TYP_UINT) && iset == InstructionSet_SSE2)
+            {
+                getEmitter()->emitIns_R_I(INS_psrad, emitSize, targetReg, shiftCount);
+            }
+            else
+            {
+               getEmitter()->emitIns_R_I(shiftRightIns, emitSize, targetReg, shiftCount);
+            }
             getEmitter()->emitIns_R_I(shiftLeftIns, emitSize, tmpReg, shiftCount);
-            getEmitter()->emitIns_R_I(shiftRightIns, emitSize, tmpReg, shiftCount);
+            if((baseType == TYP_INT || baseType == TYP_UINT) && iset == InstructionSet_SSE2)
+            {
+                getEmitter()->emitIns_R_I(INS_psrad, emitSize, tmpReg, shiftCount);
+            }
+            else
+            {
+                getEmitter()->emitIns_R_I(shiftRightIns, emitSize, tmpReg, shiftCount);
+            }
             inst_RV_RV(ins, targetReg, tmpReg, simdType);
         }
     }

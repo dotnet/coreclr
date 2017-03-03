@@ -2630,13 +2630,6 @@ GenTreePtr Compiler::impSIMDIntrinsic(OPCODE                opcode,
 
         case SIMDIntrinsicNarrow:
         {
-            // The following intrinsics are not yet supported. They are here to make it clearer what work remains,
-            // rather than omitting them from the list of supported base types in simdintrinsiclist.h.
-            if ((getSIMDInstructionSet() == InstructionSet_SSE2) && (baseType == TYP_INT || baseType == TYP_UINT))
-            {
-                JITDUMP("SIMD Narrow is not yet supported for SSE2 on base type %s\n", varTypeName(baseType));
-                return nullptr;
-            }
             assert(!instMethod);
             op2 = impSIMDPopStack(simdType);
             op1 = impSIMDPopStack(simdType);

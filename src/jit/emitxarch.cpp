@@ -9632,6 +9632,9 @@ BYTE* emitter::emitOutputRI(BYTE* dst, instrDesc* id)
             case INS_psllq:
                 regOpcode = (regNumber)6;
                 break;
+            case INS_psrad:
+                regOpcode = (regNumber)4;
+                break;
             default:
                 assert(!"Invalid instruction for SSE2 instruction of the form: opcode reg, immed8");
                 regOpcode = REG_NA;
