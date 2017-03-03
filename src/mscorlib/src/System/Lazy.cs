@@ -18,7 +18,6 @@
 using System.Runtime;
 using System.Runtime.InteropServices;
 using System.Security;
-using System.Security.Permissions;
 using System.Diagnostics;
 using System.Runtime.Serialization;
 using System.Threading;
@@ -403,49 +402,49 @@ namespace System
             }
         }
 
-        private void CreateValue()
+        private T CreateValue()
         {
             // we have to create a copy of state here, and use the copy exclusively from here on in
             // so as to ensure thread safety.
             var state = _state;
-
-            if (state == null) 
-                return;
-
-            switch (state.State)
+            if (state != null) 
             {
-                case LazyState.NoneViaConstructor:
-                    ViaConstructor();
-                    break;
+                switch (state.State)
+                {
+                    case LazyState.NoneViaConstructor:
+                        ViaConstructor();
+                        break;
 
-                case LazyState.NoneViaFactory:
-                    ViaFactory(LazyThreadSafetyMode.None);
-                    break;
+                    case LazyState.NoneViaFactory:
+                        ViaFactory(LazyThreadSafetyMode.None);
+                        break;
 
-                case LazyState.PublicationOnlyViaConstructor:
-                    PublicationOnlyViaConstructor(state);
-                    break;
+                    case LazyState.PublicationOnlyViaConstructor:
+                        PublicationOnlyViaConstructor(state);
+                        break;
 
-                case LazyState.PublicationOnlyViaFactory:
-                    PublicationOnlyViaFactory(state);
-                    break;
+                    case LazyState.PublicationOnlyViaFactory:
+                        PublicationOnlyViaFactory(state);
+                        break;
 
-                case LazyState.PublicationOnlyWait:
-                    PublicationOnlyWaitForOtherThreadToPublish();
-                    break;
+                    case LazyState.PublicationOnlyWait:
+                        PublicationOnlyWaitForOtherThreadToPublish();
+                        break;
 
-                case LazyState.ExecutionAndPublicationViaConstructor:
-                    ExecutionAndPublication(state, useDefaultConstructor:true);
-                    break;
+                    case LazyState.ExecutionAndPublicationViaConstructor:
+                        ExecutionAndPublication(state, useDefaultConstructor:true);
+                        break;
 
-                case LazyState.ExecutionAndPublicationViaFactory:
-                    ExecutionAndPublication(state, useDefaultConstructor:false);
-                    break;
+                    case LazyState.ExecutionAndPublicationViaFactory:
+                        ExecutionAndPublication(state, useDefaultConstructor:false);
+                        break;
 
-                default:
-                    state.ThrowException();
-                    break;
+                    default:
+                        state.ThrowException();
+                        break;
+                }
             }
+            return Value;
         }
 
         /// <summary>Forces initialization during serialization.</summary>
@@ -524,20 +523,7 @@ namespace System
         /// from initialization delegate.
         /// </remarks>
         [DebuggerBrowsable(DebuggerBrowsableState.Never)]
-        public T Value
-        {
-            get
-            {
-                while (true)
-                {
-                    if (_state == null)
-                        return _value;
-
-                    CreateValue();
-                    Debug.Assert(_state == null);
-                }
-            }
-        } 
+        public T Value => _state == null ? _value : CreateValue();
     }
 
     /// <summary>A debugger view of the Lazy&lt;T&gt; to surface additional debugging properties and 
