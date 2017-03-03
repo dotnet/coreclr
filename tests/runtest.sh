@@ -404,7 +404,7 @@ function precompile_overlay_assemblies {
                     echo Unable to generate dasm for $filename
                 fi
             else
-                if [[ -v skipCrossGenFiles[$(basename $filename)] ]]; then
+                if [[ ${skipCrossGenFiles[$(basename $filename)]:-0} == 0 ]]; then
                     continue
                 fi
                 echo Precompiling $filename
