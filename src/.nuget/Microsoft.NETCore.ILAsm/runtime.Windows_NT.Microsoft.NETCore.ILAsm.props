@@ -4,6 +4,6 @@
     <PackageTargetRuntime>$(MinOSForArch)-$(PackagePlatform)</PackageTargetRuntime>
   </PropertyGroup>
   <ItemGroup>
-    <ArchitectureSpecificNativeFile Include="$(BinDir)ilasm.exe" />
+    <NativeBinary Include="$(BinDir)ilasm.exe" />
   </ItemGroup>
 </Project>

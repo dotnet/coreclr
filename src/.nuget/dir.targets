@@ -14,9 +14,7 @@
     </ItemGroup>
 
     <ItemGroup>
-      <NativeWithSymbolFile Include="@(NativeBinary);
-                                     @(ArchitectureSpecificNativeFile);
-                                     @(ArchitectureSpecificNativeFileAndSymbol)">
+      <NativeWithSymbolFile Include="@(NativeBinary)">
         <TargetPath>runtimes/$(PackageTargetRuntime)/native</TargetPath>
       </NativeWithSymbolFile>
       <!-- Using lib/netstandard1.0 here.  There is no TFM for this since it is a runtime itself. -->

@@ -4,6 +4,6 @@
     <PackageTargetRuntime>$(MinOSForArch)-$(PackagePlatform)</PackageTargetRuntime>
   </PropertyGroup>
   <ItemGroup>
-    <ArchitectureSpecificNativeFile Include="$(BinDir)CoreRun.exe" />
+    <NativeBinary Include="$(BinDir)CoreRun.exe" />
   </ItemGroup>
 </Project>

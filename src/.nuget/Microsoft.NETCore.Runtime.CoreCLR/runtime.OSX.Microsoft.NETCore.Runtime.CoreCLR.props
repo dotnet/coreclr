@@ -7,9 +7,9 @@
     <NativeBinary Include="$(BinDir)libmscordbi.dylib" />
     <NativeBinary Include="$(BinDir)libsos.dylib" />
     <NativeBinary Include="$(BinDir)System.Globalization.Native.dylib" />
-    <ArchitectureSpecificNativeFile Include="$(BinDir)sosdocsunix.txt" />
-    <ArchitectureSpecificNativeFile Include="$(BinDir)mscorlib.ni.dll" />
-    <ArchitectureSpecificNativeFile Include="$(BinDir)System.Private.CoreLib.ni.dll" />
+    <NativeBinary Include="$(BinDir)sosdocsunix.txt" />
+    <NativeBinary Include="$(BinDir)mscorlib.ni.dll" />
+    <NativeBinary Include="$(BinDir)System.Private.CoreLib.ni.dll" />
     <ArchitectureSpecificLibFile Include="$(BinDir)mscorlib.dll" />
     <ArchitectureSpecificLibFile Include="$(BinDir)System.Private.CoreLib.dll" />
     <ArchitectureSpecificLibFile Include="$(BinDir)SOS.NETCore.dll" />

@@ -4,7 +4,7 @@
     <PackageTargetRuntime>$(MinOSForArch)-$(PackagePlatform)</PackageTargetRuntime>
   </PropertyGroup>
   <ItemGroup>
-    <ArchitectureSpecificNativeFile Include="$(BinDir)ildasm.exe" />
-    <ArchitectureSpecificNativeFile Include="$(BinDir)ildasmrc.dll" />
+    <NativeBinary Include="$(BinDir)ildasm.exe" />
+    <NativeBinary Include="$(BinDir)ildasmrc.dll" />
   </ItemGroup>
 </Project>

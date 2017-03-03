@@ -11,16 +11,16 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ArchitectureSpecificNativeFileAndSymbol Include="$(BinDir)clretwrc.dll" />
-    <ArchitectureSpecificNativeFileAndSymbol Include="$(BinDir)coreclr.dll" />
-    <ArchitectureSpecificNativeFileAndSymbol Include="$(BinDir)dbgshim.dll" />
-    <ArchitectureSpecificNativeFileAndSymbol Include="$(BinDir)mscordaccore.dll" />
-    <ArchitectureSpecificNativeFileAndSymbol Include="$(BinDir)mscordbi.dll" />
-    <ArchitectureSpecificNativeFileAndSymbol Include="$(BinDir)mscorrc.debug.dll" />
-    <ArchitectureSpecificNativeFileAndSymbol Include="$(BinDir)mscorrc.dll" />
-    <ArchitectureSpecificNativeFileAndSymbol Include="$(BinDir)sos.dll" />
-    <ArchitectureSpecificNativeFile Include="$(BinDir)mscorlib.ni.dll" />
-    <ArchitectureSpecificNativeFileAndSymbol Include="$(BinDir)System.Private.CoreLib.ni.dll" />
+    <NativeBinary Include="$(BinDir)clretwrc.dll" />
+    <NativeBinary Include="$(BinDir)coreclr.dll" />
+    <NativeBinary Include="$(BinDir)dbgshim.dll" />
+    <NativeBinary Include="$(BinDir)mscordaccore.dll" />
+    <NativeBinary Include="$(BinDir)mscordbi.dll" />
+    <NativeBinary Include="$(BinDir)mscorrc.debug.dll" />
+    <NativeBinary Include="$(BinDir)mscorrc.dll" />
+    <NativeBinary Include="$(BinDir)sos.dll" />
+    <NativeBinary Include="$(BinDir)mscorlib.ni.dll" />
+    <NativeBinary Include="$(BinDir)System.Private.CoreLib.ni.dll" />
     <ArchitectureSpecificLibFile Include="$(BinDir)System.Private.CoreLib.dll" />
     <ArchitectureSpecificLibFile Include="$(BinDir)mscorlib.dll" />
     <ArchitectureSpecificLibFile Include="$(BinDir)SOS.NETCore.dll" />
