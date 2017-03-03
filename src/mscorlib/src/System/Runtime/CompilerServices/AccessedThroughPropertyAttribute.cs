@@ -4,12 +4,12 @@
 
 //------------------------------------------------------------------------------
 //------------------------------------------------------------------------------
-namespace System.Runtime.CompilerServices 
-{
-    using System;
 
+using System;
+
+namespace System.Runtime.CompilerServices
+{
     [AttributeUsage(AttributeTargets.Field)]
-[System.Runtime.InteropServices.ComVisible(true)]
     public sealed class AccessedThroughPropertyAttribute : Attribute
     {
         private readonly string propertyName;
@@ -19,9 +19,9 @@ namespace System.Runtime.CompilerServices
             this.propertyName = propertyName;
         }
 
-        public string PropertyName 
+        public string PropertyName
         {
-            get 
+            get
             {
                 return propertyName;
             }

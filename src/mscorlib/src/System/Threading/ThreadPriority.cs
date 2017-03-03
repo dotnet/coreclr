@@ -12,13 +12,13 @@
 **
 =============================================================================*/
 
-namespace System.Threading {
-    using System.Threading;
+using System.Threading;
 
+namespace System.Threading
+{
     [Serializable]
-[System.Runtime.InteropServices.ComVisible(true)]
     public enum ThreadPriority
-    {   
+    {
         /*=========================================================================
         ** Constants for thread priorities.
         =========================================================================*/
@@ -27,6 +27,5 @@ namespace System.Threading {
         Normal = 2,
         AboveNormal = 3,
         Highest = 4
-    
     }
 }

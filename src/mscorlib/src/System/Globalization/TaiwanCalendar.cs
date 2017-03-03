@@ -2,12 +2,12 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-namespace System.Globalization {
+using System;
+using System.Diagnostics.CodeAnalysis;
+using System.Diagnostics.Contracts;
 
-    using System;
-    using System.Diagnostics.CodeAnalysis;
-    using System.Diagnostics.Contracts;
-    /* SSS_DROP_BEGIN */ /* SSS_WARNINGS_OFF */
+namespace System.Globalization
+{
     /*=================================TaiwanCalendar==========================
     **
     ** Taiwan calendar is based on the Gregorian calendar.  And the year is an offset to Gregorian calendar.
@@ -20,10 +20,10 @@ namespace System.Globalization {
     **      Gregorian   1912/01/01  9999/12/31
     **      Taiwan      01/01/01    8088/12/31
     ============================================================================*/
-    /* SSS_WARNINGS_ON */ /* SSS_DROP_END */  
 
-    [System.Runtime.InteropServices.ComVisible(true)]
-    [Serializable] public class TaiwanCalendar: Calendar {
+    [Serializable]
+    public class TaiwanCalendar : Calendar
+    {
         //
         // The era value for the current era.
         //
@@ -36,7 +36,7 @@ namespace System.Globalization {
         //m_EraInfo[0] = new EraInfo(1, new DateTime(1912, 1, 1).Ticks, 1911, 1, GregorianCalendar.MaxYear - 1911);
 
         // Initialize our era info.
-        static internal EraInfo[] taiwanEraInfo = new EraInfo[] {
+        internal static EraInfo[] taiwanEraInfo = new EraInfo[] {
             new EraInfo( 1, 1912, 1, 1, 1911, 1, GregorianCalendar.MaxYear - 1911)    // era #, start year/month/day, yearOffset, minEraYear 
         };
 
@@ -52,8 +52,10 @@ namespace System.Globalization {
         **Exceptions:
         ============================================================================*/
 
-        internal static Calendar GetDefaultInstance() {
-            if (s_defaultInstance == null) {
+        internal static Calendar GetDefaultInstance()
+        {
+            if (s_defaultInstance == null)
+            {
                 s_defaultInstance = new TaiwanCalendar();
             }
             return (s_defaultInstance);
@@ -62,7 +64,6 @@ namespace System.Globalization {
         internal static readonly DateTime calendarMinValue = new DateTime(1912, 1, 1);
 
 
-        [System.Runtime.InteropServices.ComVisible(false)]
         public override DateTime MinSupportedDateTime
         {
             get
@@ -71,7 +72,6 @@ namespace System.Globalization {
             }
         }
 
-        [System.Runtime.InteropServices.ComVisible(false)]
         public override DateTime MaxSupportedDateTime
         {
             get
@@ -80,10 +80,6 @@ namespace System.Globalization {
             }
         }
 
-        // Return the type of the Taiwan calendar.
-        //
-
-        [System.Runtime.InteropServices.ComVisible(false)]
         public override CalendarAlgorithmType AlgorithmType
         {
             get
@@ -92,49 +88,63 @@ namespace System.Globalization {
             }
         }
 
+        // Return the type of the Taiwan calendar.
+        //
 
-        public TaiwanCalendar() {
-            try {
+        public TaiwanCalendar()
+        {
+            try
+            {
                 new CultureInfo("zh-TW");
-            } catch (ArgumentException e) {
-                throw new TypeInitializationException(this.GetType().FullName, e);
+            }
+            catch (ArgumentException e)
+            {
+                throw new TypeInitializationException(this.GetType().ToString(), e);
             }
             helper = new GregorianCalendarHelper(this, taiwanEraInfo);
         }
 
-        internal override int ID {
-            get {
-                return (CAL_TAIWAN);
+        internal override CalendarId ID
+        {
+            get
+            {
+                return CalendarId.TAIWAN;
             }
         }
 
 
-        public override DateTime AddMonths(DateTime time, int months) {
+        public override DateTime AddMonths(DateTime time, int months)
+        {
             return (helper.AddMonths(time, months));
         }
 
 
-        public override DateTime AddYears(DateTime time, int years) {
+        public override DateTime AddYears(DateTime time, int years)
+        {
             return (helper.AddYears(time, years));
         }
 
 
-        public override int GetDaysInMonth(int year, int month, int era) {
+        public override int GetDaysInMonth(int year, int month, int era)
+        {
             return (helper.GetDaysInMonth(year, month, era));
         }
 
 
-        public override int GetDaysInYear(int year, int era) {
+        public override int GetDaysInYear(int year, int era)
+        {
             return (helper.GetDaysInYear(year, era));
         }
 
 
-        public override int GetDayOfMonth(DateTime time) {
+        public override int GetDayOfMonth(DateTime time)
+        {
             return (helper.GetDayOfMonth(time));
         }
 
 
-        public override DayOfWeek GetDayOfWeek(DateTime time)  {
+        public override DayOfWeek GetDayOfWeek(DateTime time)
+        {
             return (helper.GetDayOfWeek(time));
         }
 
@@ -145,29 +155,32 @@ namespace System.Globalization {
         }
 
 
-        public override int GetMonthsInYear(int year, int era) {
+        public override int GetMonthsInYear(int year, int era)
+        {
             return (helper.GetMonthsInYear(year, era));
         }
 
 
         [SuppressMessage("Microsoft.Contracts", "CC1055")]  // Skip extra error checking to avoid *potential* AppCompat problems.
-        [System.Runtime.InteropServices.ComVisible(false)]
         public override int GetWeekOfYear(DateTime time, CalendarWeekRule rule, DayOfWeek firstDayOfWeek)
         {
             return (helper.GetWeekOfYear(time, rule, firstDayOfWeek));
         }
 
 
-        public override int GetEra(DateTime time) {
+        public override int GetEra(DateTime time)
+        {
             return (helper.GetEra(time));
         }
 
-        public override int GetMonth(DateTime time) {
+        public override int GetMonth(DateTime time)
+        {
             return (helper.GetMonth(time));
         }
 
 
-        public override int GetYear(DateTime time) {
+        public override int GetYear(DateTime time)
+        {
             return (helper.GetYear(time));
         }
 
@@ -178,7 +191,8 @@ namespace System.Globalization {
         }
 
 
-        public override bool IsLeapYear(int year, int era) {
+        public override bool IsLeapYear(int year, int era)
+        {
             return (helper.IsLeapYear(year, era));
         }
 
@@ -186,40 +200,47 @@ namespace System.Globalization {
         // if this calendar does not have leap month, or this year is not a leap year.
         //
 
-        [System.Runtime.InteropServices.ComVisible(false)]
         public override int GetLeapMonth(int year, int era)
         {
             return (helper.GetLeapMonth(year, era));
         }
 
 
-        public override bool IsLeapMonth(int year, int month, int era) {
+        public override bool IsLeapMonth(int year, int month, int era)
+        {
             return (helper.IsLeapMonth(year, month, era));
         }
 
 
-        public override DateTime ToDateTime(int year, int month, int day, int hour, int minute, int second, int millisecond, int era) {
+        public override DateTime ToDateTime(int year, int month, int day, int hour, int minute, int second, int millisecond, int era)
+        {
             return (helper.ToDateTime(year, month, day, hour, minute, second, millisecond, era));
         }
 
 
-        public override int[] Eras {
-            get {
+        public override int[] Eras
+        {
+            get
+            {
                 return (helper.Eras);
             }
         }
 
         private const int DEFAULT_TWO_DIGIT_YEAR_MAX = 99;
 
-        public override int TwoDigitYearMax {
-            get {
-                if (twoDigitYearMax == -1) {
+        public override int TwoDigitYearMax
+        {
+            get
+            {
+                if (twoDigitYearMax == -1)
+                {
                     twoDigitYearMax = GetSystemTwoDigitYearSetting(ID, DEFAULT_TWO_DIGIT_YEAR_MAX);
                 }
                 return (twoDigitYearMax);
             }
 
-            set {
+            set
+            {
                 VerifyWritable();
                 if (value < 99 || value > helper.MaxYear)
                 {
@@ -227,10 +248,9 @@ namespace System.Globalization {
                                 "year",
                                 String.Format(
                                     CultureInfo.CurrentCulture,
-                                    Environment.GetResourceString("ArgumentOutOfRange_Range"),
+                                    SR.ArgumentOutOfRange_Range,
                                     99,
                                     helper.MaxYear));
-
                 }
                 twoDigitYearMax = value;
             }
@@ -239,19 +259,22 @@ namespace System.Globalization {
         // For Taiwan calendar, four digit year is not used.
         // Therefore, for any two digit number, we just return the original number.
 
-        public override int ToFourDigitYear(int year) {
-            if (year <= 0) {
+        public override int ToFourDigitYear(int year)
+        {
+            if (year <= 0)
+            {
                 throw new ArgumentOutOfRangeException(nameof(year),
-                    Environment.GetResourceString("ArgumentOutOfRange_NeedPosNum"));
+                    SR.ArgumentOutOfRange_NeedPosNum);
             }
             Contract.EndContractBlock();
 
-            if (year > helper.MaxYear) {
+            if (year > helper.MaxYear)
+            {
                 throw new ArgumentOutOfRangeException(
                             nameof(year),
                             String.Format(
                                 CultureInfo.CurrentCulture,
-                                Environment.GetResourceString("ArgumentOutOfRange_Range"),
+                                SR.ArgumentOutOfRange_Range,
                                 1,
                                 helper.MaxYear));
             }

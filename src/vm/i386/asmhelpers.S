@@ -127,110 +127,6 @@ LEAF_ENTRY RestoreFPUContext, _TEXT
     ret     4
 LEAF_END RestoreFPUContext, _TEXT
 
-LEAF_ENTRY ResumeAtJitEHHelper, _TEXT
-    mov     edx, [esp + 4]     // edx = pContext (EHContext*)
-
-    mov     ebx, [edx + EHContext_Ebx]
-    mov     esi, [edx + EHContext_Esi]
-    mov     edi, [edx + EHContext_Edi]
-    mov     ebp, [edx + EHContext_Ebp]
-    mov     ecx, [edx + EHContext_Esp]
-    mov     eax, [edx + EHContext_Eip]
-    mov     [ecx - 4], eax
-    mov     eax, [edx + EHContext_Eax]
-    mov     [ecx - 8], eax
-    mov     eax, [edx + EHContext_Ecx]
-    mov     [ecx - 0Ch], eax
-    mov     eax, [edx + EHContext_Edx]
-    mov     [ecx - 10h], eax
-    lea     esp, [ecx - 10h]
-    pop     edx
-    pop     ecx
-    pop     eax
-    ret
-LEAF_END ResumeAtJitEHHelper, _TEXT
-
-// int __stdcall CallJitEHFilterHelper(size_t *pShadowSP, EHContext *pContext);
-//   on entry, only the pContext->Esp, Ebx, Esi, Edi, Ebp, and Eip are initialized
-NESTED_ENTRY CallJitEHFilterHelper, _TEXT, NoHandler
-    push    ebp
-    mov     ebp, esp
-    push    ebx
-    push    esi
-    push    edi
-
-    // Write esp-4 to the shadowSP slot
-    mov     eax, [ebp + 8] // pShadowSP = [ebp+8]
-    test    eax, eax
-    jz      LOCAL_LABEL(DONE_SHADOWSP_FILTER)
-    mov     ebx, esp
-    sub     ebx, 4
-    or      ebx, SHADOW_SP_IN_FILTER_ASM
-    mov     [eax], ebx
-
-LOCAL_LABEL(DONE_SHADOWSP_FILTER):
-    mov     edx, [ebp + 12]       // pContext = [ebp+12]
-    mov     eax, [edx + EHContext_Eax]
-    mov     ebx, [edx + EHContext_Ebx]
-    mov     esi, [edx + EHContext_Esi]
-    mov     edi, [edx + EHContext_Edi]
-    mov     ebp, [edx + EHContext_Ebp]
-
-    call    DWORD PTR [edx + EHContext_Eip]
-#ifdef _DEBUG
-    nop  // Indicate that it is OK to call managed code directly from here
-#endif // _DEBUG
-
-    pop     edi
-    pop     esi
-    pop     ebx
-    pop     ebp // don't use 'leave' here, as ebp as been trashed
-    ret     8
-NESTED_END CallJitEHFilterHelper, _TEXT
-
-// void __stdcall CallJITEHFinallyHelper(size_t *pShadowSP, EHContext *pContext);
-//   on entry, only the pContext->Esp, Ebx, Esi, Edi, Ebp, and Eip are initialized
-NESTED_ENTRY CallJitEHFinallyHelper, _TEXT, NoHandler
-    push    ebp
-    mov     ebp, esp
-    push    ebx
-    push    esi
-    push    edi
-
-    // Write esp-4 to the shadowSP slot
-    mov     eax, [ebp + 8]  // pShadowSP = [ebp+8]
-    test    eax, eax
-    jz      LOCAL_LABEL(DONE_SHADOWSP_FINALLY)
-    mov     ebx, esp
-    sub     ebx, 4
-    mov     [eax], ebx
-
-LOCAL_LABEL(DONE_SHADOWSP_FINALLY):
-    mov     edx, [ebp + 12] // pContext = [ebp+12]
-    mov     eax, [edx + EHContext_Eax]
-    mov     ebx, [edx + EHContext_Ebx]
-    mov     esi, [edx + EHContext_Esi]
-    mov     edi, [edx + EHContext_Edi]
-    mov     ebp, [edx + EHContext_Ebp]
-    call    DWORD PTR [edx + EHContext_Eip]
-#ifdef _DEBUG
-    nop  // Indicate that it is OK to call managed code directly from here
-#endif // _DEBUG
-
-    // Reflect the changes to the context and only update non-volatile registers.
-    // This will be used later to update REGDISPLAY
-    mov     edx, [esp + 12 + 12]
-    mov     [edx + EHContext_Ebx], ebx
-    mov     [edx + EHContext_Esi], esi
-    mov     [edx + EHContext_Edi], edi
-    mov     [edx + EHContext_Ebp], ebp
-
-    pop     edi
-    pop     esi
-    pop     ebx
-    pop     ebp // don't use 'leave' here, as ebp as been trashed
-    ret     8
-NESTED_END CallJitEHFinallyHelper, _TEXT
 
 LEAF_ENTRY GetSpecificCpuTypeAsm, _TEXT
     push    ebx         // ebx is trashed by the cpuid calls
@@ -352,46 +248,6 @@ NESTED_ENTRY StubRareDisableTHROW, _TEXT, NoHandler
     pop     eax
     ret
 NESTED_END StubRareDisableTHROW, _TEXT
-
-LEAF_ENTRY InternalExceptionWorker, _TEXT
-    pop     edx             // recover RETADDR
-    add     esp, eax        // release caller's args
-    push    edx             // restore RETADDR
-    jmp     C_FUNC(JIT_InternalThrow)
-LEAF_END InternalExceptionWorker, _TEXT
-
-// EAX -> number of caller arg bytes on the stack that we must remove before going
-// to the throw helper, which assumes the stack is clean.
-LEAF_ENTRY ArrayOpStubNullException, _TEXT
-    // kFactorReg and kTotalReg could not have been modified, but let's pop
-    // them anyway for consistency and to avoid future bugs.
-    pop     esi
-    pop     edi
-    mov     ecx, CORINFO_NullReferenceException_ASM
-    jmp     C_FUNC(InternalExceptionWorker)
-LEAF_END ArrayOpStubNullException, _TEXT
-
-// EAX -> number of caller arg bytes on the stack that we must remove before going
-// to the throw helper, which assumes the stack is clean.
-LEAF_ENTRY ArrayOpStubRangeException, _TEXT
-    // kFactorReg and kTotalReg could not have been modified, but let's pop
-    // them anyway for consistency and to avoid future bugs.
-    pop     esi
-    pop     edi
-    mov     ecx, CORINFO_IndexOutOfRangeException_ASM
-    jmp     C_FUNC(InternalExceptionWorker)
-LEAF_END ArrayOpStubRangeException, _TEXT
-
-// EAX -> number of caller arg bytes on the stack that we must remove before going
-// to the throw helper, which assumes the stack is clean.
-LEAF_ENTRY ArrayOpStubTypeMismatchException, _TEXT
-    // kFactorReg and kTotalReg could not have been modified, but let's pop
-    // them anyway for consistency and to avoid future bugs.
-    pop     esi
-    pop     edi
-    mov     ecx, CORINFO_ArrayTypeMismatchException_ASM
-    jmp     C_FUNC(InternalExceptionWorker)
-LEAF_END ArrayOpStubTypeMismatchException, _TEXT
 
 // ------------------------------------------------------------------------------
 //  This helper routine enregisters the appropriate arguments and makes the
@@ -718,6 +574,7 @@ LEAF_END GetCurrentIP, _TEXT
 // LPVOID __stdcall GetCurrentSP(void);
 LEAF_ENTRY GetCurrentSP, _TEXT
     mov     eax, esp
+    add     eax, 4
     ret
 LEAF_END GetCurrentSP, _TEXT
 
@@ -1247,3 +1104,26 @@ LOCAL_LABEL(fail):
 
 NESTED_END ResolveWorkerChainLookupAsmStub, _TEXT
 #endif // CROSSGEN_COMPILE
+
+// backpatch a call site to point to a different stub
+NESTED_ENTRY BackPatchWorkerAsmStub, _TEXT, NoHandler
+    PROLOG_BEG
+    PROLOG_PUSH eax // it may contain siteAddrForRegisterIndirect
+    PROLOG_PUSH ecx
+    PROLOG_PUSH edx
+    PROLOG_END
+
+    sub     esp, 4     //  for 16 bytes align
+    push    eax        //  push any indirect call address as the second arg to BackPatchWorker
+    push    [ebp+8]    //  and push return address as the first arg to BackPatchWorker
+
+    call    C_FUNC(BackPatchWorkerStaticStub)
+    add     esp, 12
+
+    EPILOG_BEG
+    EPILOG_POP edx
+    EPILOG_POP ecx
+    EPILOG_POP eax
+    EPILOG_END
+    ret
+NESTED_END BackPatchWorkerAsmStub, _TEXT

@@ -556,12 +556,6 @@ public:
 
     inline static BOOL IsThreadPoolHosted()
     {
-#ifdef FEATURE_INCLUDE_ALL_INTERFACES
-        IHostThreadpoolManager *provider = CorHost2::GetHostThreadpoolManager();
-        if (provider)
-            return TRUE;
-        else
-#endif
             return FALSE;
     }
 
@@ -1128,19 +1122,13 @@ public:
     static void NotifyWorkItemCompleted()
     {
         WRAPPER_NO_CONTRACT;
-        if (!CLRThreadpoolHosted())
-        {
-            Thread::IncrementThreadPoolCompletionCount();
-            UpdateLastDequeueTime();
-        }
+        Thread::IncrementThreadPoolCompletionCount();
+        UpdateLastDequeueTime();
     }
 
     static bool ShouldAdjustMaxWorkersActive()
     {
         WRAPPER_NO_CONTRACT;
-
-        if (CLRThreadpoolHosted())
-            return false;
 
         DWORD priorTime = PriorCompletedWorkRequestsTime;
         MemoryBarrier(); // read fresh value for NextCompletedWorkRequestsTime below

@@ -56,7 +56,7 @@
 extern CoreCLRLoader *g_loader;
 extern char *g_pszExeFile;
 #endif
-typedef int(*MetaDataGetDispenserFunc) (
+typedef int(STDAPICALLTYPE *MetaDataGetDispenserFunc) (
     REFCLSID    rclsid,                 // The class to desired.
     REFIID      riid,                   // Interface wanted on class factory.
     LPVOID FAR  *ppv);                  // Return interface pointer here.
@@ -1049,11 +1049,9 @@ public:
     void EmitSecurityInfo(mdToken           token,
                           PermissionDecl*   pPermissions,
                           PermissionSetDecl*pPermissionSets);
-#ifndef FEATURE_CORECLR
-    HRESULT AllocateStrongNameSignature();
-    HRESULT StrongNameSign();
-#endif
     BinStr* EncodeSecAttr(__in __nullterminated char* szReflName, BinStr* pbsSecAttrBlob, unsigned nProps);
+
+    HRESULT AllocateStrongNameSignature();
 
     // Custom values paraphernalia:
 public:
@@ -1189,9 +1187,6 @@ public:
     unsigned NumTypeDefs() {return m_TypeDefDList.COUNT();};
 private:
     HRESULT GetCAName(mdToken tkCA, __out LPWSTR *ppszName);
-#ifndef FEATURE_CORECLR
-    HRESULT GetSignatureKey();
-#endif
 };
 
 #endif  // Assember_h

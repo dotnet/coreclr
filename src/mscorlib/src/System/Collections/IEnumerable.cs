@@ -13,15 +13,16 @@
 **
 ** 
 ===========================================================*/
-namespace System.Collections {
-    using System;
-    using System.Diagnostics.Contracts;
-    using System.Runtime.InteropServices;
 
+using System;
+using System.Diagnostics.Contracts;
+using System.Runtime.InteropServices;
+
+namespace System.Collections
+{
     // Implement this interface if you need to support VB's foreach semantics.
     // Also, COM classes that support an enumerator will also implement this interface.
     [Guid("496B0ABE-CDEE-11d3-88E8-00902754C43A")]
-    [System.Runtime.InteropServices.ComVisible(true)]
     public interface IEnumerable
     {
         // Interfaces are not serializable

@@ -57,6 +57,10 @@ void genCompareInt(GenTreePtr treeNode);
 
 #if !defined(_TARGET_64BIT_)
 void genCompareLong(GenTreePtr treeNode);
+#if defined(_TARGET_ARM_)
+void genJccLongHi(genTreeOps cmp, BasicBlock* jumpTrue, BasicBlock* jumpFalse, bool isUnsigned = false);
+void genJccLongLo(genTreeOps cmp, BasicBlock* jumpTrue, BasicBlock* jumpFalse);
+#endif // defined(_TARGET_ARM_)
 #endif
 
 #ifdef FEATURE_SIMD
@@ -93,10 +97,11 @@ void genSIMDCheck(GenTree* treeNode);
 // their size rounded to TARGET_POINTER_SIZE (which is 8 bytes on 64-bit targets) and hence
 // Vector3 locals could be treated as TYP_SIMD16 while reading/writing.
 void genStoreIndTypeSIMD12(GenTree* treeNode);
-void genStoreLclFldTypeSIMD12(GenTree* treeNode);
 void genLoadIndTypeSIMD12(GenTree* treeNode);
+void genStoreLclTypeSIMD12(GenTree* treeNode);
 void genLoadLclTypeSIMD12(GenTree* treeNode);
 #ifdef _TARGET_X86_
+void genStoreSIMD12ToStack(regNumber operandReg, regNumber tmpReg);
 void genPutArgStkSIMD12(GenTree* treeNode);
 #endif // _TARGET_X86_
 #endif // FEATURE_SIMD
@@ -217,7 +222,7 @@ void genCallInstruction(GenTreePtr call);
 
 void genJmpMethod(GenTreePtr jmp);
 
-BasicBlock* genCallFinally(BasicBlock* block, BasicBlock* lblk);
+BasicBlock* genCallFinally(BasicBlock* block);
 
 #if FEATURE_EH_FUNCLETS
 void genEHCatchRet(BasicBlock* block);

@@ -15,26 +15,23 @@
 // 
 // 
 //
-namespace System.Reflection {
-    
-    using System;
-    using System.Runtime.Serialization;
-    using System.Security.Permissions;
-    using System.Diagnostics.Contracts;
+
+using System;
+using System.Runtime.Serialization;
+using System.Diagnostics.Contracts;
+
+namespace System.Reflection
+{
     [Serializable]
-    [System.Runtime.InteropServices.ComVisible(true)]
-    public sealed class ReflectionTypeLoadException : SystemException, ISerializable {
+    public sealed class ReflectionTypeLoadException : SystemException, ISerializable
+    {
         private Type[] _classes;
         private Exception[] _exceptions;
 
         // private constructor.  This is not called.
         private ReflectionTypeLoadException()
-            : base(Environment.GetResourceString("ReflectionTypeLoad_LoadFailed")) {
-            SetErrorCode(__HResults.COR_E_REFLECTIONTYPELOAD);
-        }
-
-        // private constructor.  This is called from inside the runtime.
-        private ReflectionTypeLoadException(String message) : base(message) {
+            : base(Environment.GetResourceString("ReflectionTypeLoad_LoadFailed"))
+        {
             SetErrorCode(__HResults.COR_E_REFLECTIONTYPELOAD);
         }
 
@@ -52,21 +49,26 @@ namespace System.Reflection {
             SetErrorCode(__HResults.COR_E_REFLECTIONTYPELOAD);
         }
 
-        internal ReflectionTypeLoadException(SerializationInfo info, StreamingContext context) : base (info, context) {
+        internal ReflectionTypeLoadException(SerializationInfo info, StreamingContext context) : base(info, context)
+        {
             _classes = (Type[])(info.GetValue("Types", typeof(Type[])));
             _exceptions = (Exception[])(info.GetValue("Exceptions", typeof(Exception[])));
         }
-    
-        public Type[] Types {
-            get {return _classes;}
-        }
-        
-        public Exception[] LoaderExceptions {
-            get {return _exceptions;}
-        }    
 
-        public override void GetObjectData(SerializationInfo info, StreamingContext context) {
-            if (info==null) {
+        public Type[] Types
+        {
+            get { return _classes; }
+        }
+
+        public Exception[] LoaderExceptions
+        {
+            get { return _exceptions; }
+        }
+
+        public override void GetObjectData(SerializationInfo info, StreamingContext context)
+        {
+            if (info == null)
+            {
                 throw new ArgumentNullException(nameof(info));
             }
             Contract.EndContractBlock();
@@ -74,6 +76,5 @@ namespace System.Reflection {
             info.AddValue("Types", _classes, typeof(Type[]));
             info.AddValue("Exceptions", _exceptions, typeof(Exception[]));
         }
-
     }
 }

@@ -14,7 +14,9 @@
 #define INSTRFMT_K64
 #include <stublink.h>
 
+#ifndef FEATURE_PAL
 #define USE_REDIRECT_FOR_GCSTRESS
+#endif // FEATURE_PAL
 
 EXTERN_C void getFPReturn(int fpSize, INT64 *pRetVal);
 EXTERN_C void setFPReturn(int fpSize, INT64 retVal);
@@ -511,6 +513,16 @@ struct HijackArgs
              DWORD64 X1;  
          }; 
         size_t ReturnValue[2];
+    };
+    union
+    {
+        struct {  
+             DWORD64 D0;  
+             DWORD64 D1;  
+             DWORD64 D2;  
+             DWORD64 D3;  
+         }; 
+        size_t FPReturnValue[4];
     };
 };
 

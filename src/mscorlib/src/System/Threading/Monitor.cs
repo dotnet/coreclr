@@ -14,21 +14,20 @@
 =============================================================================*/
 
 
-namespace System.Threading {
 
-    using System;
-    using System.Security.Permissions;
-    using System.Runtime;
-    using System.Runtime.Remoting;
-    using System.Threading;
-    using System.Runtime.CompilerServices;
-    using System.Runtime.ConstrainedExecution;
-    using System.Runtime.Versioning;
-    using System.Diagnostics;
-    using System.Diagnostics.Contracts;
+using System;
+using System.Runtime;
+using System.Runtime.Remoting;
+using System.Threading;
+using System.Runtime.CompilerServices;
+using System.Runtime.ConstrainedExecution;
+using System.Runtime.Versioning;
+using System.Diagnostics;
+using System.Diagnostics.Contracts;
 
-    [System.Runtime.InteropServices.ComVisible(true)]
-    public static class Monitor 
+namespace System.Threading
+{
+    public static class Monitor
     {
         /*=========================================================================
         ** Obtain the monitor lock of obj. Will block if another thread holds the lock
@@ -76,9 +75,8 @@ namespace System.Threading {
         **             own the lock.
         =========================================================================*/
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
         public static extern void Exit(Object obj);
-    
+
         /*=========================================================================
         ** Similar to Enter, but will never block. That is, if the current thread can
         ** acquire the monitor lock without blocking, it will do so and TRUE will
@@ -102,7 +100,7 @@ namespace System.Threading {
 
             ReliableEnterTimeout(obj, 0, ref lockTaken);
         }
-    
+
         /*=========================================================================
         ** Version of TryEnter that will block, but only up to a timeout period
         ** expressed in milliseconds. If timeout == Timeout.Infinite the method

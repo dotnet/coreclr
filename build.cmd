@@ -388,14 +388,16 @@ if %__BuildNativeCoreLib% EQU 1 (
     "%__CrossgenExe%" /Platform_Assemblies_Paths "%__BinDir%" /out "%__BinDir%\System.Private.CoreLib.ni.dll" "%__BinDir%\System.Private.CoreLib.dll" > "%__CrossGenCoreLibLog%" 2>&1
     if NOT !errorlevel! == 0 (
         echo %__MsgPrefix%Error: CrossGen System.Private.CoreLib build failed. Refer to %__CrossGenCoreLibLog%
-        echo     %__CrossGenCoreLibLog%
-        exit /b 1
+        :: Put it in the same log, helpful for Jenkins
+        type %__CrossGenCoreLibLog%
+        goto CrossgenFailure
     )
     "%__CrossgenExe%" /Platform_Assemblies_Paths "%__BinDir%" /CreatePdb "%__BinDir%\PDB" "%__BinDir%\System.Private.CoreLib.ni.dll" >> "%__CrossGenCoreLibLog%" 2>&1
     if NOT !errorlevel! == 0 (
         echo %__MsgPrefix%Error: CrossGen /CreatePdb System.Private.CoreLib build failed. Refer to %__CrossGenCoreLibLog%
-        echo     %__CrossGenCoreLibLog%
-        exit /b 1
+        :: Put it in the same log, helpful for Jenkins
+        type %__CrossGenCoreLibLog%
+        goto CrossgenFailure
     )
 
     echo %__MsgPrefix%Generating native image of MScorlib facade for %__BuildOS%.%__BuildArch%.%__BuildType%
@@ -417,9 +419,10 @@ if %__BuildNativeCoreLib% EQU 1 (
     )
 
     if NOT !err! == 0 (
-        echo %__MsgPrefix%Error: CrossGen mscorlib facade build failed. Refer to the build log file for details:
-        echo     !__CrossGenCoreLibLog!
-        exit /b 1
+        echo %__MsgPrefix%Error: CrossGen mscorlib facade build failed. Refer to !__CrossGenCoreLibLog!
+        :: Put it in the same log, helpful for Jenkins
+        type %__CrossGenCoreLibLog%        
+        goto CrossgenFailure
     )
 )
 
@@ -558,6 +561,9 @@ REM === Helper routines
 REM ===
 REM =========================================================================================
 
+:CrossgenFailure
+exit /b 1
+
 :Usage
 echo.
 echo Build the CoreCLR repo.
@@ -587,6 +593,7 @@ echo skipmscorlib: skip building System.Private.CoreLib ^(default: System.Privat
 echo skipnative: skip building native components ^(default: native components are built^).
 echo skiptests: skip building tests ^(default: tests are built^).
 echo skipbuildpackages: skip building nuget packages ^(default: packages are built^).
+echo buildstandalonegc: builds the GC in a standalone mode.
 echo -skiprestore: skip restoring packages ^(default: packages are restored during build^).
 echo -disableoss: Disable Open Source Signing for System.Private.CoreLib.
 echo -priority=^<N^> : specify a set of test that will be built and run, with priority N.

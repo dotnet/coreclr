@@ -12,40 +12,37 @@
 **
 ** 
 ===========================================================*/
-namespace System.Reflection.Emit {
-    
-    
-    using System;
-    using System.Reflection;
-    using System.IO;
-    using System.Text;
-    using System.Security.Permissions;
-    using System.Runtime.InteropServices;
-    using System.Globalization;
-    using System.Diagnostics;
-    using System.Diagnostics.Contracts;
-    
-    [ClassInterface(ClassInterfaceType.None)]
-    [ComDefaultInterface(typeof(_CustomAttributeBuilder))]
-    [System.Runtime.InteropServices.ComVisible(true)]
-    public class CustomAttributeBuilder : _CustomAttributeBuilder
+
+
+using System;
+using System.Reflection;
+using System.IO;
+using System.Text;
+using System.Runtime.InteropServices;
+using System.Globalization;
+using System.Diagnostics;
+using System.Diagnostics.Contracts;
+
+namespace System.Reflection.Emit
+{
+    public class CustomAttributeBuilder
     {
         // public constructor to form the custom attribute with constructor and constructor
         // parameters.
         public CustomAttributeBuilder(ConstructorInfo con, Object[] constructorArgs)
         {
             InitCustomAttributeBuilder(con, constructorArgs,
-                                       new PropertyInfo[]{}, new Object[]{},
-                                       new FieldInfo[]{}, new Object[]{});
+                                       new PropertyInfo[] { }, new Object[] { },
+                                       new FieldInfo[] { }, new Object[] { });
         }
-    
+
         // public constructor to form the custom attribute with constructor, constructor
         // parameters and named properties.
         public CustomAttributeBuilder(ConstructorInfo con, Object[] constructorArgs,
                                       PropertyInfo[] namedProperties, Object[] propertyValues)
         {
             InitCustomAttributeBuilder(con, constructorArgs, namedProperties,
-                                       propertyValues, new FieldInfo[]{}, new Object[]{});
+                                       propertyValues, new FieldInfo[] { }, new Object[] { });
         }
 
         // public constructor to form the custom attribute with constructor and constructor
@@ -53,8 +50,8 @@ namespace System.Reflection.Emit {
         public CustomAttributeBuilder(ConstructorInfo con, Object[] constructorArgs,
                                       FieldInfo[] namedFields, Object[] fieldValues)
         {
-            InitCustomAttributeBuilder(con, constructorArgs, new PropertyInfo[]{},
-                                       new Object[]{}, namedFields, fieldValues);
+            InitCustomAttributeBuilder(con, constructorArgs, new PropertyInfo[] { },
+                                       new Object[] { }, namedFields, fieldValues);
         }
 
         // public constructor to form the custom attribute with constructor and constructor
@@ -284,7 +281,7 @@ namespace System.Reflection.Emit {
                 {
                     VerifyTypeAndPassedObjectType(fldType, fieldValue.GetType(), $"{nameof(fieldValues)}[{i}]");
                 }
-                
+
                 // First a byte indicating that this is a field.
                 writer.Write((byte)CustomAttributeEncoding.Field);
 
@@ -531,7 +528,7 @@ namespace System.Reflection.Emit {
                 // If we allow this we will get into an infinite recursion
                 if (ot == typeof(object))
                     throw new ArgumentException(Environment.GetResourceString("Argument_BadParameterTypeForCAB", ot.ToString()));
-                
+
                 EmitType(writer, ot);
                 EmitValue(writer, ot, value);
             }
@@ -541,13 +538,13 @@ namespace System.Reflection.Emit {
 
                 if (value != null)
                     typename = value.GetType().ToString();
-                
+
                 throw new ArgumentException(Environment.GetResourceString("Argument_BadParameterTypeForCAB", typename));
             }
         }
 
-          
-         
+
+
 
         // return the byte interpretation of the custom attribute
         internal void CreateCustomAttribute(ModuleBuilder mod, int tkOwner)
@@ -556,28 +553,16 @@ namespace System.Reflection.Emit {
         }
 
         //*************************************************
-        // Upon saving to disk, we need to create the memberRef token for the custom attribute's type
-        // first of all. So when we snap the in-memory module for on disk, this token will be there.
-        // We also need to enforce the use of MemberRef. Because MemberDef token might move. 
-        // This function has to be called before we snap the in-memory module for on disk (i.e. Presave on
-        // ModuleBuilder.
-        //*************************************************
-        internal int PrepareCreateCustomAttributeToDisk(ModuleBuilder mod)
-        {
-            return mod.InternalGetConstructorToken(m_con, true).Token;
-        }
-
-        //*************************************************
         // Call this function with toDisk=1, after on disk module has been snapped.
         //*************************************************
         internal void CreateCustomAttribute(ModuleBuilder mod, int tkOwner, int tkAttrib, bool toDisk)
         {
-            TypeBuilder.DefineCustomAttribute(mod, tkOwner, tkAttrib, m_blob, toDisk, 
+            TypeBuilder.DefineCustomAttribute(mod, tkOwner, tkAttrib, m_blob, toDisk,
                                                       typeof(System.Diagnostics.DebuggableAttribute) == m_con.DeclaringType);
         }
 
-        internal ConstructorInfo    m_con;
-        internal Object[]           m_constructorArgs;
-        internal byte[]             m_blob;
+        internal ConstructorInfo m_con;
+        internal Object[] m_constructorArgs;
+        internal byte[] m_blob;
     }
 }

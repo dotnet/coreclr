@@ -4,15 +4,12 @@
 
 /*=============================================================================
 **
-** Class: AppDomainSetup
 ** 
 ** Purpose: Defines the settings that the loader uses to find assemblies in an
 **          AppDomain
 **
-** Date: Dec 22, 2000
 **
 =============================================================================*/
-
 namespace System
 {
     using System.Text;
@@ -26,10 +23,7 @@ namespace System
     using System.Collections.Generic;
 
     [Serializable]
-    [ClassInterface(ClassInterfaceType.None)]
-    [System.Runtime.InteropServices.ComVisible(true)]
-    public sealed class AppDomainSetup :
-        IAppDomainSetup
+    internal sealed class AppDomainSetup
     {
         [Serializable]
         internal enum LoaderInformation
@@ -37,49 +31,30 @@ namespace System
             // If you add a new value, add the corresponding property
             // to AppDomain.GetData() and SetData()'s switch statements,
             // as well as fusionsetup.h.
-            ApplicationBaseValue          = 0,  // LOADER_APPLICATION_BASE
-            ConfigurationFileValue        = 1,  // LOADER_CONFIGURATION_BASE
-            DynamicBaseValue              = 2,  // LOADER_DYNAMIC_BASE
-            DevPathValue                  = 3,  // LOADER_DEVPATH
-            ApplicationNameValue          = 4,  // LOADER_APPLICATION_NAME
-            PrivateBinPathValue           = 5,  // LOADER_PRIVATE_PATH
-            PrivateBinPathProbeValue      = 6,  // LOADER_PRIVATE_BIN_PATH_PROBE
-            ShadowCopyDirectoriesValue    = 7,  // LOADER_SHADOW_COPY_DIRECTORIES
-            ShadowCopyFilesValue          = 8,  // LOADER_SHADOW_COPY_FILES
-            CachePathValue                = 9,  // LOADER_CACHE_PATH
-            LicenseFileValue              = 10, // LOADER_LICENSE_FILE
-            DisallowPublisherPolicyValue  = 11, // LOADER_DISALLOW_PUBLISHER_POLICY
-            DisallowCodeDownloadValue     = 12, // LOADER_DISALLOW_CODE_DOWNLOAD
+            ApplicationBaseValue = 0,  // LOADER_APPLICATION_BASE
+            ConfigurationFileValue = 1,  // LOADER_CONFIGURATION_BASE
+            DynamicBaseValue = 2,  // LOADER_DYNAMIC_BASE
+            DevPathValue = 3,  // LOADER_DEVPATH
+            ApplicationNameValue = 4,  // LOADER_APPLICATION_NAME
+            PrivateBinPathValue = 5,  // LOADER_PRIVATE_PATH
+            PrivateBinPathProbeValue = 6,  // LOADER_PRIVATE_BIN_PATH_PROBE
+            ShadowCopyDirectoriesValue = 7,  // LOADER_SHADOW_COPY_DIRECTORIES
+            ShadowCopyFilesValue = 8,  // LOADER_SHADOW_COPY_FILES
+            CachePathValue = 9,  // LOADER_CACHE_PATH
+            LicenseFileValue = 10, // LOADER_LICENSE_FILE
+            DisallowPublisherPolicyValue = 11, // LOADER_DISALLOW_PUBLISHER_POLICY
+            DisallowCodeDownloadValue = 12, // LOADER_DISALLOW_CODE_DOWNLOAD
             DisallowBindingRedirectsValue = 13, // LOADER_DISALLOW_BINDING_REDIRECTS
-            DisallowAppBaseProbingValue   = 14, // LOADER_DISALLOW_APPBASE_PROBING
-            ConfigurationBytesValue       = 15, // LOADER_CONFIGURATION_BYTES
-            LoaderMaximum                 = 18  // LOADER_MAXIMUM
+            DisallowAppBaseProbingValue = 14, // LOADER_DISALLOW_APPBASE_PROBING
+            ConfigurationBytesValue = 15, // LOADER_CONFIGURATION_BYTES
+            LoaderMaximum = 18  // LOADER_MAXIMUM
         }
 
         // Constants from fusionsetup.h.
         private const string LOADER_OPTIMIZATION = "LOADER_OPTIMIZATION";
         private const string CONFIGURATION_EXTENSION = ".config";
-        private const string APPENV_RELATIVEPATH = "RELPATH";
-        private const string MACHINE_CONFIGURATION_FILE = "config\\machine.config";
-        private const string ACTAG_HOST_CONFIG_FILE = "HOST_CONFIG";
 
-        // Constants from fusionpriv.h
-        private const string ACTAG_APP_CONFIG_FILE = "APP_CONFIG_FILE";
-        private const string ACTAG_MACHINE_CONFIG = "MACHINE_CONFIG";
         private const string ACTAG_APP_BASE_URL = "APPBASE";
-        private const string ACTAG_APP_NAME = "APP_NAME";
-        private const string ACTAG_BINPATH_PROBE_ONLY = "BINPATH_PROBE_ONLY";
-        private const string ACTAG_APP_CACHE_BASE = "CACHE_BASE";
-        private const string ACTAG_DEV_PATH = "DEV_PATH";
-        private const string ACTAG_APP_DYNAMIC_BASE = "DYNAMIC_BASE";
-        private const string ACTAG_FORCE_CACHE_INSTALL = "FORCE_CACHE_INSTALL";
-        private const string ACTAG_APP_PRIVATE_BINPATH = "PRIVATE_BINPATH";
-        private const string ACTAG_APP_SHADOW_COPY_DIRS = "SHADOW_COPY_DIRS";
-        private const string ACTAG_DISALLOW_APPLYPUBLISHERPOLICY = "DISALLOW_APP";
-        private const string ACTAG_CODE_DOWNLOAD_DISABLED = "CODE_DOWNLOAD_DISABLED";
-        private const string ACTAG_DISALLOW_APP_BINDING_REDIRECTS = "DISALLOW_APP_REDIRECTS";
-        private const string ACTAG_DISALLOW_APP_BASE_PROBING = "DISALLOW_APP_BASE_PROBING";
-        private const string ACTAG_APP_CONFIG_BLOB = "APP_CONFIG_BLOB";
 
         // This class has an unmanaged representation so be aware you will need to make edits in vm\object.h if you change the order
         // of these fields or add new ones.
@@ -90,7 +65,7 @@ namespace System
         private String _AppBase; // for compat with v1.1
 #pragma warning restore 169
         [OptionalField(VersionAdded = 2)]
-        private AppDomainInitializer  _AppDomainInitializer;
+        private AppDomainInitializer _AppDomainInitializer;
         [OptionalField(VersionAdded = 2)]
         private string[] _AppDomainInitializerArguments;
 
@@ -128,7 +103,8 @@ namespace System
         internal AppDomainSetup(AppDomainSetup copy, bool copyDomainBoundData)
         {
             string[] mine = Value;
-            if(copy != null) {
+            if (copy != null)
+            {
                 string[] other = copy.Value;
                 int mineSize = _Entries.Length;
                 int otherSize = other.Length;
@@ -174,7 +150,7 @@ namespace System
 #endif
 
             }
-            else 
+            else
                 _LoaderOptimization = LoaderOptimization.NotSpecified;
         }
 
@@ -183,20 +159,23 @@ namespace System
             _LoaderOptimization = LoaderOptimization.NotSpecified;
         }
 
-        internal void SetupDefaults(string imageLocation, bool imageLocationAlreadyNormalized = false) {
-            char[] sep = {'\\', '/'};
+        internal void SetupDefaults(string imageLocation, bool imageLocationAlreadyNormalized = false)
+        {
+            char[] sep = { '\\', '/' };
             int i = imageLocation.LastIndexOfAny(sep);
 
-            if (i == -1) {
+            if (i == -1)
+            {
                 ApplicationName = imageLocation;
             }
-            else {
-                ApplicationName = imageLocation.Substring(i+1);
-                string appBase = imageLocation.Substring(0, i+1);
+            else
+            {
+                ApplicationName = imageLocation.Substring(i + 1);
+                string appBase = imageLocation.Substring(0, i + 1);
 
                 if (imageLocationAlreadyNormalized)
-                    Value[(int) LoaderInformation.ApplicationBaseValue] = appBase;
-                else 
+                    Value[(int)LoaderInformation.ApplicationBaseValue] = appBase;
+                else
                     ApplicationBase = appBase;
             }
             ConfigurationFile = ApplicationName + AppDomainSetup.ConfigurationExtension;
@@ -204,8 +183,9 @@ namespace System
 
         internal string[] Value
         {
-            get {
-                if( _Entries == null)
+            get
+            {
+                if (_Entries == null)
                     _Entries = new String[(int)LoaderInformation.LoaderMaximum];
                 return _Entries;
             }
@@ -213,7 +193,7 @@ namespace System
 
         internal String GetUnsecureApplicationBase()
         {
-            return Value[(int) LoaderInformation.ApplicationBaseValue];
+            return Value[(int)LoaderInformation.ApplicationBaseValue];
         }
 
         public string AppDomainManagerAssembly
@@ -231,18 +211,20 @@ namespace System
         public String ApplicationBase
         {
             [Pure]
-            get {
+            get
+            {
                 return VerifyDir(GetUnsecureApplicationBase(), false);
             }
 
-            set {
-                Value[(int) LoaderInformation.ApplicationBaseValue] = NormalizePath(value, false);
+            set
+            {
+                Value[(int)LoaderInformation.ApplicationBaseValue] = NormalizePath(value, false);
             }
         }
 
         private String NormalizePath(String path, bool useAppBase)
         {
-            if(path == null)
+            if (path == null)
                 return null;
 
             // If we add very long file name support ("\\?\") to the Path class then this is unnecesary,
@@ -267,18 +249,20 @@ namespace System
 #endif // !PLATFORM_UNIX
 
             if ((len > 7) &&
-                (String.Compare( path, 0, "file:", 0, 5, StringComparison.OrdinalIgnoreCase) == 0)) {
+                (String.Compare(path, 0, "file:", 0, 5, StringComparison.OrdinalIgnoreCase) == 0))
+            {
                 int trim;
-                
-                if (path[6] == '\\') {
-                    if ((path[7] == '\\') || (path[7] == '/')) {
 
+                if (path[6] == '\\')
+                {
+                    if ((path[7] == '\\') || (path[7] == '/'))
+                    {
                         // Don't allow "file:\\\\", because we can't tell the difference
                         // with it for "file:\\" + "\\server" and "file:\\\" + "\localpath"
-                        if ( (len > 8) && 
-                             ((path[8] == '\\') || (path[8] == '/')) )
+                        if ((len > 8) &&
+                             ((path[8] == '\\') || (path[8] == '/')))
                             throw new ArgumentException(Environment.GetResourceString("Argument_InvalidPathChars"));
-                        
+
                         // file:\\\ means local path
                         else
 #if !PLATFORM_UNIX
@@ -293,7 +277,8 @@ namespace System
                     }
 
                     // file:\\ means remote server
-                    else {
+                    else
+                    {
                         trim = 5;
 #if !PLATFORM_UNIX
                         UNCpath = true;
@@ -314,18 +299,21 @@ namespace System
 #endif // !PLATFORM_UNIX
 
                 // remote
-                else {
+                else
+                {
                     // file://\\remote
-                    if ( (len > 8) && (path[7] == '\\') && (path[8] == '\\') )
+                    if ((len > 8) && (path[7] == '\\') && (path[8] == '\\'))
                         trim = 7;
-                    else { // file://remote
+                    else
+                    { // file://remote
                         trim = 5;
 #if !PLATFORM_UNIX
                         // Create valid UNC path by changing
                         // all occurences of '/' to '\\' in path
                         System.Text.StringBuilder winPathBuilder =
                             new System.Text.StringBuilder(len);
-                        for (int i = 0; i < len; i++) {
+                        for (int i = 0; i < len; i++)
+                        {
                             char c = path[i];
                             if (c == '/')
                                 winPathBuilder.Append('\\');
@@ -349,35 +337,36 @@ namespace System
 
             // UNC
             if (UNCpath ||
-                ( (len > 1) &&
-                  ( (path[0] == '/') || (path[0] == '\\') ) &&
-                  ( (path[1] == '/') || (path[1] == '\\') ) ))
+                ((len > 1) &&
+                  ((path[0] == '/') || (path[0] == '\\')) &&
+                  ((path[1] == '/') || (path[1] == '\\'))))
                 localPath = false;
 
-            else {
+            else
+            {
                 int colon = path.IndexOf(':') + 1;
 
                 // protocol other than file:
                 if ((colon != 0) &&
-                    (len > colon+1) &&
-                    ( (path[colon] == '/') || (path[colon] == '\\') ) &&
-                    ( (path[colon+1] == '/') || (path[colon+1] == '\\') ))
+                    (len > colon + 1) &&
+                    ((path[colon] == '/') || (path[colon] == '\\')) &&
+                    ((path[colon + 1] == '/') || (path[colon + 1] == '\\')))
                     localPath = false;
 
                 else
                     localPath = true;
             }
 
-            if (localPath) 
+            if (localPath)
 #else
             if ( (len == 1) ||
                  ( (path[0] != '/') && (path[0] != '\\') ) ) 
 #endif // !PLATFORM_UNIX
             {
-
                 if (useAppBase &&
-                    ( (len == 1) || (path[1] != ':') )) {
-                    String appBase = Value[(int) LoaderInformation.ApplicationBaseValue];
+                    ((len == 1) || (path[1] != ':')))
+                {
+                    String appBase = Value[(int)LoaderInformation.ApplicationBaseValue];
 
                     if ((appBase == null) || (appBase.Length == 0))
                         throw new MemberAccessException(Environment.GetResourceString("AppDomain_AppBaseNotSet"));
@@ -385,11 +374,13 @@ namespace System
                     StringBuilder result = StringBuilderCache.Acquire();
 
                     bool slash = false;
-                    if ((path[0] == '/') || (path[0] == '\\')) {
+                    if ((path[0] == '/') || (path[0] == '\\'))
+                    {
                         string pathRoot = AppDomain.NormalizePath(appBase, fullCheck: false);
                         pathRoot = pathRoot.Substring(0, IO.PathInternal.GetRootLength(pathRoot));
 
-                        if (pathRoot.Length == 0) { // URL
+                        if (pathRoot.Length == 0)
+                        { // URL
                             int index = appBase.IndexOf(":/", StringComparison.Ordinal);
                             if (index == -1)
                                 index = appBase.IndexOf(":\\", StringComparison.Ordinal);
@@ -398,11 +389,11 @@ namespace System
                             int urlLen = appBase.Length;
                             for (index += 1;
                                  (index < urlLen) && ((appBase[index] == '/') || (appBase[index] == '\\'));
-                                 index++);
+                                 index++) ;
 
                             // Now find the next slash to get domain name
-                            for(; (index < urlLen) && (appBase[index] != '/') && (appBase[index] != '\\');
-                                index++);
+                            for (; (index < urlLen) && (appBase[index] != '/') && (appBase[index] != '\\');
+                                index++) ;
 
                             pathRoot = appBase.Substring(0, index);
                         }
@@ -416,8 +407,10 @@ namespace System
                     // Make sure there's a slash separator (and only one)
                     int aLen = result.Length - 1;
                     if ((result[aLen] != '/') &&
-                        (result[aLen] != '\\')) {
-                        if (!slash) {
+                        (result[aLen] != '\\'))
+                    {
+                        if (!slash)
+                        {
 #if !PLATFORM_UNIX
                             if (appBase.IndexOf(":/", StringComparison.Ordinal) == -1)
                                 result.Append('\\');
@@ -439,46 +432,16 @@ namespace System
             return path;
         }
 
-        private bool IsFilePath(String path)
-        {
-#if !PLATFORM_UNIX
-            return (path[1] == ':') || ( (path[0] == '\\') && (path[1] == '\\') );
-#else
-            return (path[0] == '/');
-#endif // !PLATFORM_UNIX
-        }
-
-        internal static String ApplicationBaseKey
-        {
-            get {
-                return ACTAG_APP_BASE_URL;
-            }
-        }
-
         public String ConfigurationFile
         {
-            get {
-                return VerifyDir(Value[(int) LoaderInformation.ConfigurationFileValue], true);
+            get
+            {
+                return VerifyDir(Value[(int)LoaderInformation.ConfigurationFileValue], true);
             }
 
-            set {
-                Value[(int) LoaderInformation.ConfigurationFileValue] = value;
-            }
-        }
-
-        // Used by the ResourceManager internally.  This must not do any 
-        // security checks to avoid infinite loops.
-        internal String ConfigurationFileInternal
-        {
-            get {
-                return NormalizePath(Value[(int) LoaderInformation.ConfigurationFileValue], true);
-            }
-        }
-
-        internal static String ConfigurationFileKey
-        {
-            get {
-                return ACTAG_APP_CONFIG_FILE;
+            set
+            {
+                Value[(int)LoaderInformation.ConfigurationFileValue] = value;
             }
         }
 
@@ -487,19 +450,7 @@ namespace System
             if (_ConfigurationBytes == null)
                 return null;
 
-            return (byte[]) _ConfigurationBytes.Clone();
-        }
-
-        public void SetConfigurationBytes(byte[] value)
-        {
-            _ConfigurationBytes = value;
-        }
-
-        private static String ConfigurationBytesKey
-        {
-            get {
-                return ACTAG_APP_CONFIG_BLOB;
-            }
+            return (byte[])_ConfigurationBytes.Clone();
         }
 
         // only needed by AppDomain.Setup(). Not really needed by users. 
@@ -516,10 +467,11 @@ namespace System
             if (switches != null)
             {
                 _CompatFlags = new Dictionary<string, object>();
-                foreach (String str in switches) 
+                foreach (String str in switches)
                 {
 #if FEATURE_RANDOMIZED_STRING_HASHING
-                    if(StringComparer.OrdinalIgnoreCase.Equals("UseRandomizedStringHashAlgorithm", str)) {
+                    if (StringComparer.OrdinalIgnoreCase.Equals("UseRandomizedStringHashAlgorithm", str))
+                    {
                         _UseRandomizedStringHashing = true;
                     }
 #endif
@@ -530,124 +482,29 @@ namespace System
             {
                 _CompatFlags = null;
             }
-
         }
 
         // A target Framework moniker, in a format parsible by the FrameworkName class.
-        public String TargetFrameworkName {
-            get {
+        public String TargetFrameworkName
+        {
+            get
+            {
                 return _TargetFrameworkName;
             }
-            set {
+            set
+            {
                 _TargetFrameworkName = value;
-            }
-        }
-
-        internal bool CheckedForTargetFrameworkName
-        {
-            get { return _CheckedForTargetFrameworkName; }
-            set { _CheckedForTargetFrameworkName = value; }
-        }
-
-        public String DynamicBase
-        {
-            get {
-                return VerifyDir(Value[(int) LoaderInformation.DynamicBaseValue], true);
-            }
-
-            set {
-                if (value == null)
-                    Value[(int) LoaderInformation.DynamicBaseValue] = null;
-                else {
-                    if(ApplicationName == null)
-                        throw new MemberAccessException(Environment.GetResourceString("AppDomain_RequireApplicationName"));
-                    
-                    StringBuilder s = new StringBuilder( NormalizePath(value, false) );
-                    s.Append('\\');
-                    string h = ParseNumbers.IntToString(ApplicationName.GetLegacyNonRandomizedHashCode(),
-                                                        16, 8, '0', ParseNumbers.PrintAsI4);
-                    s.Append(h);
-                    
-                    Value[(int) LoaderInformation.DynamicBaseValue] = s.ToString();
-                }
-            }
-        }
-
-        internal static String DynamicBaseKey
-        {
-            get {
-                return ACTAG_APP_DYNAMIC_BASE;
-            }
-        }
-
-        public bool DisallowPublisherPolicy
-        {
-            get 
-            {
-                return (Value[(int) LoaderInformation.DisallowPublisherPolicyValue] != null);
-            }
-            set
-            {
-                if (value)
-                    Value[(int) LoaderInformation.DisallowPublisherPolicyValue]="true";
-                else
-                    Value[(int) LoaderInformation.DisallowPublisherPolicyValue]=null;
-            }
-        }
-
-
-        public bool DisallowBindingRedirects
-        {
-            get 
-            {
-                return (Value[(int) LoaderInformation.DisallowBindingRedirectsValue] != null);
-            }
-            set
-            {
-                if (value)
-                    Value[(int) LoaderInformation.DisallowBindingRedirectsValue] = "true";
-                else
-                    Value[(int) LoaderInformation.DisallowBindingRedirectsValue] = null;
-            }
-        }
-
-        public bool DisallowCodeDownload
-        {
-            get 
-            {
-                return (Value[(int) LoaderInformation.DisallowCodeDownloadValue] != null);
-            }
-            set
-            {
-                if (value)
-                    Value[(int) LoaderInformation.DisallowCodeDownloadValue] = "true";
-                else
-                    Value[(int) LoaderInformation.DisallowCodeDownloadValue] = null;
-            }
-        }
-
-
-        public bool DisallowApplicationBaseProbing
-        {
-            get 
-            {
-                return (Value[(int) LoaderInformation.DisallowAppBaseProbingValue] != null);
-            }
-            set
-            {
-                if (value)
-                    Value[(int) LoaderInformation.DisallowAppBaseProbingValue] = "true";
-                else
-                    Value[(int) LoaderInformation.DisallowAppBaseProbingValue] = null;
             }
         }
 
         private String VerifyDir(String dir, bool normalize)
         {
-            if (dir != null) {
+            if (dir != null)
+            {
                 if (dir.Length == 0)
                     dir = null;
-                else {
+                else
+                {
                     if (normalize)
                         dir = NormalizePath(dir, true);
                 }
@@ -656,129 +513,41 @@ namespace System
             return dir;
         }
 
-        private void VerifyDirList(String dirs)
-        {
-            if (dirs != null) {
-                String[] dirArray = dirs.Split(';');
-                int len = dirArray.Length;
-                
-                for (int i = 0; i < len; i++)
-                    VerifyDir(dirArray[i], true);
-            }
-        }
-
-        internal String DeveloperPath
-        {
-            get {
-                String dirs = Value[(int) LoaderInformation.DevPathValue];
-                VerifyDirList(dirs);
-                return dirs;
-            }
-
-            set {
-                if(value == null)
-                    Value[(int) LoaderInformation.DevPathValue] = null;
-                else {
-                    String[] directories = value.Split(';');
-                    int size = directories.Length;
-                    StringBuilder newPath = StringBuilderCache.Acquire();
-                    bool fDelimiter = false;
-                        
-                    for(int i = 0; i < size; i++) {
-                        if(directories[i].Length != 0) {
-                            if(fDelimiter) 
-                                newPath.Append(";");
-                            else
-                                fDelimiter = true;
-                            
-                            newPath.Append(Path.GetFullPath(directories[i]));
-                        }
-                    }
-                    
-                    String newString = StringBuilderCache.GetStringAndRelease(newPath);
-                    if (newString.Length == 0)
-                        Value[(int) LoaderInformation.DevPathValue] = null;
-                    else
-                        Value[(int) LoaderInformation.DevPathValue] = newString;
-                }
-            }
-        }
-        
-        internal static String DisallowPublisherPolicyKey
-        {
-            get
-            {
-                return ACTAG_DISALLOW_APPLYPUBLISHERPOLICY;
-            }
-        }
-
-        internal static String DisallowCodeDownloadKey
-        {
-            get
-            {
-                return ACTAG_CODE_DOWNLOAD_DISABLED;
-            }
-        }
-
-        internal static String DisallowBindingRedirectsKey
-        {
-            get
-            {
-                return ACTAG_DISALLOW_APP_BINDING_REDIRECTS;
-            }
-        }
-
-        internal static String DeveloperPathKey
-        {
-            get {
-                return ACTAG_DEV_PATH;
-            }
-        }
-
-        internal static String DisallowAppBaseProbingKey
-        {
-            get
-            {
-                return ACTAG_DISALLOW_APP_BASE_PROBING;
-            }
-        }
-
         public String ApplicationName
         {
-            get {
-                return Value[(int) LoaderInformation.ApplicationNameValue];
+            get
+            {
+                return Value[(int)LoaderInformation.ApplicationNameValue];
             }
 
-            set {
-                Value[(int) LoaderInformation.ApplicationNameValue] = value;
-            }
-        }
-
-        internal static String ApplicationNameKey
-        {
-            get {
-                return ACTAG_APP_NAME;
+            set
+            {
+                Value[(int)LoaderInformation.ApplicationNameValue] = value;
             }
         }
 
         [XmlIgnoreMember]
         public AppDomainInitializer AppDomainInitializer
         {
-            get {
+            get
+            {
                 return _AppDomainInitializer;
             }
 
-            set {
+            set
+            {
                 _AppDomainInitializer = value;
             }
         }
         public string[] AppDomainInitializerArguments
         {
-            get {
+            get
+            {
                 return _AppDomainInitializerArguments;
             }
 
-            set {
+            set
+            {
                 _AppDomainInitializerArguments = value;
             }
         }
@@ -786,7 +555,7 @@ namespace System
         internal ApplicationTrust InternalGetApplicationTrust()
         {
             if (_ApplicationTrust == null) return null;
-            ApplicationTrust grantSet = new ApplicationTrust(NamedPermissionSet.GetBuiltInSet(_ApplicationTrust));
+            ApplicationTrust grantSet = new ApplicationTrust();
             return grantSet;
         }
 
@@ -804,175 +573,42 @@ namespace System
             }
         }
 
-        public String PrivateBinPath
-        {
-            get {
-                String dirs = Value[(int) LoaderInformation.PrivateBinPathValue];
-                VerifyDirList(dirs);
-                return dirs;
-            }
-
-            set {
-                Value[(int) LoaderInformation.PrivateBinPathValue] = value;
-            }
-        }
-
-        internal static String PrivateBinPathKey
-        {
-            get {
-                return ACTAG_APP_PRIVATE_BINPATH;
-            }
-        }
-
-        public String PrivateBinPathProbe
-        {
-            get {
-                return Value[(int) LoaderInformation.PrivateBinPathProbeValue];
-            }
-
-            set {
-                Value[(int) LoaderInformation.PrivateBinPathProbeValue] = value;
-            }
-        }
-
-        internal static String PrivateBinPathProbeKey
-        {
-            get {
-                return ACTAG_BINPATH_PROBE_ONLY;
-            }
-        }
-
-        public String ShadowCopyDirectories
-        {
-            get {
-                String dirs = Value[(int) LoaderInformation.ShadowCopyDirectoriesValue];
-                VerifyDirList(dirs);
-                return dirs;
-            }
-
-            set {
-                Value[(int) LoaderInformation.ShadowCopyDirectoriesValue] = value;
-            }
-        }
-
-        internal static String ShadowCopyDirectoriesKey
-        {
-            get {
-                return ACTAG_APP_SHADOW_COPY_DIRS;
-            }
-        }
-
-        public String ShadowCopyFiles
-        {
-            get {
-                return Value[(int) LoaderInformation.ShadowCopyFilesValue];
-            }
-
-            set {
-                if((value != null) && 
-                   (String.Compare(value, "true", StringComparison.OrdinalIgnoreCase) == 0))
-                    Value[(int) LoaderInformation.ShadowCopyFilesValue] = value;
-                else
-                    Value[(int) LoaderInformation.ShadowCopyFilesValue] = null;
-            }
-        }
-
-        internal static String ShadowCopyFilesKey
-        {
-            get {
-                return ACTAG_FORCE_CACHE_INSTALL;
-            }
-        }
-
-        public String CachePath
-        {
-            get {
-                return VerifyDir(Value[(int) LoaderInformation.CachePathValue], false);
-            }
-
-            set {
-                Value[(int) LoaderInformation.CachePathValue] = NormalizePath(value, false);
-            }
-        }
-
-        internal static String CachePathKey
-        {
-            get {
-                return ACTAG_APP_CACHE_BASE;
-            }
-        }
-
-        public String LicenseFile
-        {
-            get {
-                return VerifyDir(Value[(int) LoaderInformation.LicenseFileValue], true);
-            }
-
-            set {
-                Value[(int) LoaderInformation.LicenseFileValue] = value;
-            }
-        }
-
         public LoaderOptimization LoaderOptimization
         {
-            get {
+            get
+            {
                 return _LoaderOptimization;
             }
 
-            set {
+            set
+            {
                 _LoaderOptimization = value;
             }
         }
 
         internal static string LoaderOptimizationKey
         {
-            get {
+            get
+            {
                 return LOADER_OPTIMIZATION;
             }
         }
 
         internal static string ConfigurationExtension
         {
-            get {
+            get
+            {
                 return CONFIGURATION_EXTENSION;
-            }
-        }
-
-        internal static String PrivateBinPathEnvironmentVariable
-        {
-            get {
-                return APPENV_RELATIVEPATH;
-            }
-        }
-
-        internal static string RuntimeConfigurationFile
-        {
-            get {
-                return MACHINE_CONFIGURATION_FILE;
-            }
-        }
-
-        internal static string MachineConfigKey
-        {
-            get {
-                return ACTAG_MACHINE_CONFIG;
-            }
-        }
-
-        internal static string HostBindingKey
-        {
-            get {
-                return ACTAG_HOST_CONFIG_FILE;
             }
         }
 
         static internal int Locate(String s)
         {
-            if(String.IsNullOrEmpty(s))
+            if (String.IsNullOrEmpty(s))
                 return -1;
 
-            Debug.Assert('A' == ACTAG_APP_BASE_URL[0]        , "Assumption violated");
-            if (s[0]=='A' && s == ACTAG_APP_BASE_URL)        
+            Debug.Assert('A' == ACTAG_APP_BASE_URL[0], "Assumption violated");
+            if (s[0] == 'A' && s == ACTAG_APP_BASE_URL)
                 return (int)LoaderInformation.ApplicationBaseValue;
 
             return -1;

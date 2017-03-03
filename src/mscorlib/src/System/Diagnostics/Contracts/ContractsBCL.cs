@@ -20,7 +20,6 @@
 #else // CLR
 #define FEATURE_UNTRUSTED_CALLERS
 #define FEATURE_RELIABILITY_CONTRACTS
-#define FEATURE_SERIALIZATION
 #endif
 
 using System;
@@ -35,11 +34,10 @@ using System.Runtime.ConstrainedExecution;
 #endif
 #if FEATURE_UNTRUSTED_CALLERS
 using System.Security;
-using System.Security.Permissions;
 #endif
 
-namespace System.Diagnostics.Contracts {
-
+namespace System.Diagnostics.Contracts
+{
     public static partial class Contract
     {
         #region Private Methods
@@ -93,7 +91,6 @@ namespace System.Diagnostics.Contracts {
         [SuppressMessage("Microsoft.Portability", "CA1903:UseOnlyApiFromTargetedFramework", MessageId = "System.Security.SecuritySafeCriticalAttribute")]
         [System.Diagnostics.DebuggerNonUserCode]
 #if FEATURE_RELIABILITY_CONTRACTS
-        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]
 #endif
         static partial void ReportFailure(ContractFailureKind failureKind, String userMessage, String conditionText, Exception innerException)
         {
@@ -118,19 +115,18 @@ namespace System.Diagnostics.Contracts {
         /// full trust, because it will inform you of bugs in the appdomain and because the event handler
         /// could allow you to continue execution.
         /// </summary>
-        public static event EventHandler<ContractFailedEventArgs> ContractFailed {
+        public static event EventHandler<ContractFailedEventArgs> ContractFailed
+        {
 #if FEATURE_UNTRUSTED_CALLERS
-#if FEATURE_LINK_DEMAND
 #endif
-#endif
-            add {
+            add
+            {
                 System.Runtime.CompilerServices.ContractHelper.InternalContractFailed += value;
             }
 #if FEATURE_UNTRUSTED_CALLERS
-#if FEATURE_LINK_DEMAND
 #endif
-#endif
-            remove {
+            remove
+            {
                 System.Runtime.CompilerServices.ContractHelper.InternalContractFailed -= value;
             }
         }
@@ -149,7 +145,6 @@ namespace System.Diagnostics.Contracts {
         internal Exception thrownDuringHandler;
 
 #if FEATURE_RELIABILITY_CONTRACTS
-        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]
 #endif
         public ContractFailedEventArgs(ContractFailureKind failureKind, String message, String condition, Exception originalException)
         {
@@ -166,26 +161,24 @@ namespace System.Diagnostics.Contracts {
         public Exception OriginalException { get { return _originalException; } }
 
         // Whether the event handler "handles" this contract failure, or to fail via escalation policy.
-        public bool Handled {
+        public bool Handled
+        {
             get { return _handled; }
         }
 
 #if FEATURE_UNTRUSTED_CALLERS
-#if FEATURE_LINK_DEMAND
-#endif
 #endif
         public void SetHandled()
         {
             _handled = true;
         }
 
-        public bool Unwind {
+        public bool Unwind
+        {
             get { return _unwind; }
         }
 
 #if FEATURE_UNTRUSTED_CALLERS
-#if FEATURE_LINK_DEMAND
-#endif
 #endif
         public void SetUnwind()
         {
@@ -197,9 +190,9 @@ namespace System.Diagnostics.Contracts {
     [SuppressMessage("Microsoft.Design", "CA1064:ExceptionsShouldBePublic")]
     internal sealed class ContractException : Exception
     {
-        readonly ContractFailureKind _Kind;
-        readonly string _UserMessage;
-        readonly string _Condition;
+        private readonly ContractFailureKind _Kind;
+        private readonly string _UserMessage;
+        private readonly string _Condition;
 
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1811:AvoidUncalledPrivateCode")]
         public ContractFailureKind Kind { get { return _Kind; } }
@@ -220,9 +213,9 @@ namespace System.Diagnostics.Contracts {
             : base(failure, innerException)
         {
             HResult = System.Runtime.CompilerServices.ContractHelper.COR_E_CODECONTRACTFAILED;
-            this._Kind = kind;
-            this._UserMessage = userMessage;
-            this._Condition = condition;
+            _Kind = kind;
+            _UserMessage = userMessage;
+            _Condition = condition;
         }
 
         private ContractException(System.Runtime.Serialization.SerializationInfo info, System.Runtime.Serialization.StreamingContext context)
@@ -233,10 +226,6 @@ namespace System.Diagnostics.Contracts {
             _Condition = info.GetString("Condition");
         }
 
-#if FEATURE_UNTRUSTED_CALLERS && FEATURE_SERIALIZATION
-#if FEATURE_LINK_DEMAND && FEATURE_SERIALIZATION
-#endif // FEATURE_LINK_DEMAND
-#endif // FEATURE_UNTRUSTED_CALLERS
         public override void GetObjectData(System.Runtime.Serialization.SerializationInfo info, System.Runtime.Serialization.StreamingContext context)
         {
             base.GetObjectData(info, context);
@@ -274,7 +263,8 @@ namespace System.Runtime.CompilerServices
         {
 #if FEATURE_UNTRUSTED_CALLERS
 #endif
-            add {
+            add
+            {
                 // Eagerly prepare each event handler _marked with a reliability contract_, to 
                 // attempt to reduce out of memory exceptions while reporting contract violations.
                 // This only works if the new handler obeys the constraints placed on 
@@ -290,7 +280,8 @@ namespace System.Runtime.CompilerServices
             }
 #if FEATURE_UNTRUSTED_CALLERS
 #endif
-            remove {
+            remove
+            {
                 lock (lockObject)
                 {
                     contractFailedEvent -= value;
@@ -384,7 +375,8 @@ namespace System.Runtime.CompilerServices
             // "Assert On Failure" but used in a process that can't pop up asserts, like an 
             // NT Service).
 
-            if (!Environment.UserInteractive) {
+            if (!Environment.UserInteractive)
+            {
                 throw new ContractException(kind, displayMessage, userMessage, conditionText, innerException);
             }
 
@@ -434,7 +426,6 @@ namespace System.Runtime.CompilerServices
         }
 
 #if FEATURE_RELIABILITY_CONTRACTS
-        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]
 #endif
         private static String GetDisplayMessage(ContractFailureKind failureKind, String userMessage, String conditionText)
         {
@@ -446,11 +437,13 @@ namespace System.Runtime.CompilerServices
             // on Silverlight we may not be able to look up a friendly string for the
             // error message.  Let's leverage Silverlight's default error message there.
             String failureMessage;
-            if (!String.IsNullOrEmpty(conditionText)) {
+            if (!String.IsNullOrEmpty(conditionText))
+            {
                 resourceName += "_Cnd";
                 failureMessage = Environment.GetResourceString(resourceName, conditionText);
             }
-            else {
+            else
+            {
                 failureMessage = Environment.GetResourceString(resourceName);
             }
 

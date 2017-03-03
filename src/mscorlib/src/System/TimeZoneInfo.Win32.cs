@@ -784,7 +784,7 @@ namespace System
             // filePath   = "C:\Windows\System32\tzres.dll"
             // resourceId = -100
             //
-            string[] resources = resource.Split(',', StringSplitOptions.None);
+            string[] resources = resource.Split(',');
             if (resources.Length != 2)
             {
                 return string.Empty;
@@ -794,7 +794,7 @@ namespace System
             int resourceId;
 
             // get the path to Windows\System32
-            string system32 = Environment.UnsafeGetFolderPath(Environment.SpecialFolder.System);
+            string system32 = Environment.SystemDirectory;
 
             // trim the string "@tzres.dll" => "tzres.dll"
             string tzresDll = resources[0].TrimStart('@');
@@ -1016,7 +1016,6 @@ namespace System
                     e = ex;
                     return TimeZoneInfoResult.InvalidTimeZoneException;
                 }
-
             }
         }
     }

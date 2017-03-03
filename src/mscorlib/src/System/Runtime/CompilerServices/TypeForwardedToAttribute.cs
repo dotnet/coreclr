@@ -8,8 +8,7 @@ using System.Reflection;
 
 namespace System.Runtime.CompilerServices
 {
-    using System;
-    [AttributeUsage(AttributeTargets.Assembly, AllowMultiple=true, Inherited=false)]
+    [AttributeUsage(AttributeTargets.Assembly, AllowMultiple = true, Inherited = false)]
     public sealed class TypeForwardedToAttribute : Attribute
     {
         private Type _destination;
@@ -21,26 +20,14 @@ namespace System.Runtime.CompilerServices
 
         public Type Destination
         {
-            get {
+            get
+            {
                 return _destination;
             }
         }
-
-        internal static TypeForwardedToAttribute[] GetCustomAttribute(RuntimeAssembly assembly)
-        {
-            Type[] types = null;
-            RuntimeAssembly.GetForwardedTypes(assembly.GetNativeHandle(), JitHelpers.GetObjectHandleOnStack(ref types));
-
-            TypeForwardedToAttribute[] attributes = new TypeForwardedToAttribute[types.Length];
-            for (int i = 0; i < types.Length; ++i)
-                attributes[i] = new TypeForwardedToAttribute(types[i]);
-
-            return attributes;
-        }
-
     }
 }
 
 
- 
+
 

@@ -38,7 +38,6 @@ namespace System.Reflection.Emit
     using System.Runtime.Serialization;
     using System.Runtime.Versioning;
     using System.Security;
-    using System.Security.Permissions;
     using System.Security.Policy;
     using System.Threading;
 
@@ -49,11 +48,11 @@ namespace System.Reflection.Emit
         None = 0x00000000,
 
         // Security attributes which affect the module security descriptor
-        AllCritical             = 0x00000001,
-        Aptca                   = 0x00000002,
-        Critical                = 0x00000004,
-        Transparent             = 0x00000008,
-        TreatAsSafe             = 0x00000010,
+        AllCritical = 0x00000001,
+        Aptca = 0x00000002,
+        Critical = 0x00000004,
+        Transparent = 0x00000008,
+        TreatAsSafe = 0x00000010,
     }
 
     // When the user calls AppDomain.DefineDynamicAssembly the loader creates a new InternalAssemblyBuilder. 
@@ -62,7 +61,7 @@ namespace System.Reflection.Emit
     // Assembly to an AssemblyBuilder and emit code with the elevated permissions of the trusted code which 
     // origionally created the AssemblyBuilder via DefineDynamicAssembly. Today, this can no longer happen
     // because the Assembly returned via AssemblyGetAssemblies() will be an InternalAssemblyBuilder.
-    
+
     // Only the caller of DefineDynamicAssembly will get an AssemblyBuilder. 
     // There is a 1-1 relationship between InternalAssemblyBuilder and AssemblyBuilder. 
     // AssemblyBuilder is composed of its InternalAssemblyBuilder.
@@ -156,10 +155,7 @@ namespace System.Reflection.Emit
 
     // AssemblyBuilder class.
     // deliberately not [serializable]
-    [ClassInterface(ClassInterfaceType.None)]
-    [ComDefaultInterface(typeof(_AssemblyBuilder))]
-    [ComVisible(true)]
-    public sealed class AssemblyBuilder : Assembly, _AssemblyBuilder
+    public sealed class AssemblyBuilder : Assembly
     {
         #region FCALL
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
@@ -190,7 +186,7 @@ namespace System.Reflection.Emit
             Contract.Requires(module != null);
             Debug.Assert(this.InternalAssembly == module.Assembly);
 
-            lock(SyncRoot)
+            lock (SyncRoot)
             {
                 // in CoreCLR there is only one module in each dynamic assembly, the manifest module
                 if (m_manifestModuleBuilder.InternalModule == module)
@@ -221,11 +217,6 @@ namespace System.Reflection.Emit
             return InternalAssembly.GetNativeHandle();
         }
 
-        internal Version GetVersion()
-        {
-            return InternalAssembly.GetVersion();
-        }
-
 #if FEATURE_APPX
         internal bool ProfileAPICheck
         {
@@ -243,9 +234,6 @@ namespace System.Reflection.Emit
                                  AssemblyBuilderAccess access,
                                  String dir,
                                  Evidence evidence,
-                                 PermissionSet requiredPermissions,
-                                 PermissionSet optionalPermissions,
-                                 PermissionSet refusedPermissions,
                                  ref StackCrawlMark stackMark,
                                  IEnumerable<CustomAttributeBuilder> unsafeAssemblyAttributes,
                                  SecurityContextSource securityContextSource)
@@ -254,12 +242,7 @@ namespace System.Reflection.Emit
                 throw new ArgumentNullException(nameof(name));
 
             if (access != AssemblyBuilderAccess.Run
-#if FEATURE_REFLECTION_ONLY_LOAD
-                && access != AssemblyBuilderAccess.ReflectionOnly
-#endif // FEATURE_REFLECTION_ONLY_LOAD
-#if FEATURE_COLLECTIBLE_TYPES
                 && access != AssemblyBuilderAccess.RunAndCollect
-#endif // FEATURE_COLLECTIBLE_TYPES
                 )
             {
                 throw new ArgumentException(Environment.GetResourceString("Arg_EnumIllegalVal", (int)access), nameof(access));
@@ -273,18 +256,6 @@ namespace System.Reflection.Emit
 
             // Clone the name in case the caller modifies it underneath us.
             name = (AssemblyName)name.Clone();
-
-            // If the caller is trusted they can supply identity
-            // evidence for the new assembly. Otherwise we copy the
-            // current grant and deny sets from the caller's assembly,
-            // inject them into the new assembly and mark policy as
-            // resolved. If/when the assembly is persisted and
-            // reloaded, the normal rules for gathering evidence will
-            // be used.
-            if (evidence != null)
-#pragma warning disable 618
-                new SecurityPermission(SecurityPermissionFlag.ControlEvidence).Demand();
-#pragma warning restore 618
 
             // Scan the assembly level attributes for any attributes which modify how we create the
             // assembly. Currently, we look for any attribute which modifies the security transparency
@@ -320,9 +291,6 @@ namespace System.Reflection.Emit
                                                                                         name,
                                                                                         evidence,
                                                                                         ref stackMark,
-                                                                                        requiredPermissions,
-                                                                                        optionalPermissions,
-                                                                                        refusedPermissions,
                                                                                         securityRulesBlob,
                                                                                         aptcaBlob,
                                                                                         access,
@@ -333,10 +301,6 @@ namespace System.Reflection.Emit
                                                      name.Name,
                                                      access,
                                                      dir);
-            m_assemblyData.AddPermissionRequests(requiredPermissions,
-                                                 optionalPermissions,
-                                                 refusedPermissions);
-
 #if FEATURE_APPX
             if (AppDomain.ProfileAPICheck)
             {
@@ -364,7 +328,7 @@ namespace System.Reflection.Emit
             // because it hasn't been initialized.
             // However, it can be used to set the custom attribute on the Assembly
             m_manifestModuleBuilder = new ModuleBuilder(this, modBuilder);
-            
+
             // We are only setting the name in the managed ModuleBuilderData here.
             // The name in the underlying metadata will be set when the
             // manifest module is created during nCreateDynamicAssembly.
@@ -384,7 +348,7 @@ namespace System.Reflection.Emit
         * to have a strong name and a hash will be computed when the assembly
         * is saved.
         **********************************************/
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [System.Security.DynamicSecurityMethod] // Methods containing StackCrawlMark local var has to be marked DynamicSecurityMethod
         public static AssemblyBuilder DefineDynamicAssembly(
             AssemblyName name,
             AssemblyBuilderAccess access)
@@ -393,10 +357,10 @@ namespace System.Reflection.Emit
 
             StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
             return InternalDefineDynamicAssembly(name, access, null,
-                                                 null, null, null, null, ref stackMark, null, SecurityContextSource.CurrentAssembly);
+                                                 null, ref stackMark, null, SecurityContextSource.CurrentAssembly);
         }
 
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [System.Security.DynamicSecurityMethod] // Methods containing StackCrawlMark local var has to be marked DynamicSecurityMethod
         public static AssemblyBuilder DefineDynamicAssembly(
             AssemblyName name,
             AssemblyBuilderAccess access,
@@ -407,7 +371,7 @@ namespace System.Reflection.Emit
             StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
             return InternalDefineDynamicAssembly(name,
                                                  access,
-                                                 null, null, null, null, null,
+                                                 null, null,
                                                  ref stackMark,
                                                  assemblyAttributes, SecurityContextSource.CurrentAssembly);
         }
@@ -418,9 +382,6 @@ namespace System.Reflection.Emit
                                                               AssemblyName name,
                                                               Evidence identity,
                                                               ref StackCrawlMark stackMark,
-                                                              PermissionSet requiredPermissions,
-                                                              PermissionSet optionalPermissions,
-                                                              PermissionSet refusedPermissions,
                                                               byte[] securityRulesBlob,
                                                               byte[] aptcaBlob,
                                                               AssemblyBuilderAccess access,
@@ -434,9 +395,6 @@ namespace System.Reflection.Emit
             AssemblyBuilderAccess access,
             String dir,
             Evidence evidence,
-            PermissionSet requiredPermissions,
-            PermissionSet optionalPermissions,
-            PermissionSet refusedPermissions,
             ref StackCrawlMark stackMark,
             IEnumerable<CustomAttributeBuilder> unsafeAssemblyAttributes,
             SecurityContextSource securityContextSource)
@@ -449,9 +407,6 @@ namespace System.Reflection.Emit
                                            access,
                                            dir,
                                            evidence,
-                                           requiredPermissions,
-                                           optionalPermissions,
-                                           refusedPermissions,
                                            ref stackMark,
                                            unsafeAssemblyAttributes,
                                            securityContextSource);
@@ -467,9 +422,9 @@ namespace System.Reflection.Emit
         * a transient module.
         * 
         **********************************************/
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [System.Security.DynamicSecurityMethod] // Methods containing StackCrawlMark local var has to be marked DynamicSecurityMethod
         public ModuleBuilder DefineDynamicModule(
-            String      name)
+            String name)
         {
             Contract.Ensures(Contract.Result<ModuleBuilder>() != null);
 
@@ -477,31 +432,31 @@ namespace System.Reflection.Emit
             return DefineDynamicModuleInternal(name, false, ref stackMark);
         }
 
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [System.Security.DynamicSecurityMethod] // Methods containing StackCrawlMark local var has to be marked DynamicSecurityMethod
         public ModuleBuilder DefineDynamicModule(
-            String      name,
-            bool        emitSymbolInfo)         // specify if emit symbol info or not
+            String name,
+            bool emitSymbolInfo)         // specify if emit symbol info or not
         {
             Contract.Ensures(Contract.Result<ModuleBuilder>() != null);
 
             StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
-            return DefineDynamicModuleInternal( name, emitSymbolInfo, ref stackMark );
+            return DefineDynamicModuleInternal(name, emitSymbolInfo, ref stackMark);
         }
 
         private ModuleBuilder DefineDynamicModuleInternal(
-            String      name,
-            bool        emitSymbolInfo,         // specify if emit symbol info or not
+            String name,
+            bool emitSymbolInfo,         // specify if emit symbol info or not
             ref StackCrawlMark stackMark)
         {
-            lock(SyncRoot)
+            lock (SyncRoot)
             {
                 return DefineDynamicModuleInternalNoLock(name, emitSymbolInfo, ref stackMark);
             }
         }
 
         private ModuleBuilder DefineDynamicModuleInternalNoLock(
-            String      name,
-            bool        emitSymbolInfo,         // specify if emit symbol info or not
+            String name,
+            bool emitSymbolInfo,         // specify if emit symbol info or not
             ref StackCrawlMark stackMark)
         {
             if (name == null)
@@ -532,15 +487,9 @@ namespace System.Reflection.Emit
             if (emitSymbolInfo)
             {
                 writer = SymWrapperCore.SymWriter.CreateSymWriter();
-                // Set the underlying writer for the managed writer
-                // that we're using.  Note that this function requires
-                // unmanaged code access.
-#pragma warning disable 618
-                new SecurityPermission(SecurityPermissionFlag.UnmanagedCode).Assert();
-#pragma warning restore 618
 
                 String fileName = "Unused"; // this symfile is never written to disk so filename does not matter.
-                
+
                 // Pass the "real" module to the VM
                 pInternalSymWriter = ModuleBuilder.nCreateISymWriterForDynamicModule(dynModule.InternalModule, fileName);
 
@@ -559,26 +508,15 @@ namespace System.Reflection.Emit
 
             return dynModule;
         } // DefineDynamicModuleInternalNoLock
+
         #endregion
-
-        private Assembly LoadISymWrapper()
-        {
-            if (m_assemblyData.m_ISymWrapperAssembly != null)
-                return m_assemblyData.m_ISymWrapperAssembly;
-
-            Assembly assem = Assembly.Load("ISymWrapper, Version=" + ThisAssembly.Version +
-                ", Culture=neutral, PublicKeyToken=" + AssemblyRef.MicrosoftPublicKeyToken);
-
-            m_assemblyData.m_ISymWrapperAssembly = assem;
-            return assem;
-        }
 
         internal void CheckContext(params Type[][] typess)
         {
             if (typess == null)
                 return;
-            
-            foreach(Type[] types in typess)
+
+            foreach (Type[] types in typess)
                 if (types != null)
                     CheckContext(types);
         }
@@ -587,7 +525,7 @@ namespace System.Reflection.Emit
         {
             if (types == null)
                 return;
-        
+
             foreach (Type type in types)
             {
                 if (type == null)
@@ -644,27 +582,27 @@ namespace System.Reflection.Emit
         {
             return InternalAssembly.GetManifestResourceNames();
         }
-        
+
         public override FileStream GetFile(String name)
         {
             return InternalAssembly.GetFile(name);
         }
-        
+
         public override FileStream[] GetFiles(bool getResourceModules)
         {
             return InternalAssembly.GetFiles(getResourceModules);
         }
-        
+
         public override Stream GetManifestResourceStream(Type type, String name)
         {
             return InternalAssembly.GetManifestResourceStream(type, name);
         }
-        
+
         public override Stream GetManifestResourceStream(String name)
         {
             return InternalAssembly.GetManifestResourceStream(name);
         }
-                      
+
         public override ManifestResourceInfo GetManifestResourceInfo(String resourceName)
         {
             return InternalAssembly.GetManifestResourceInfo(resourceName);
@@ -685,7 +623,7 @@ namespace System.Reflection.Emit
                 return InternalAssembly.ImageRuntimeVersion;
             }
         }
-        
+
         public override String CodeBase
         {
             get
@@ -696,9 +634,9 @@ namespace System.Reflection.Emit
 
         // Override the EntryPoint method on Assembly.
         // This doesn't need to be synchronized because it is simple enough
-        public override MethodInfo EntryPoint 
+        public override MethodInfo EntryPoint
         {
-            get 
+            get
             {
                 return m_assemblyData.m_entryPointMethod;
             }
@@ -780,7 +718,7 @@ namespace System.Reflection.Emit
             return InternalAssembly.GetLoadedModules(getResourceModules);
         }
 
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [System.Security.DynamicSecurityMethod] // Methods containing StackCrawlMark local var has to be marked DynamicSecurityMethod
         public override Assembly GetSatelliteAssembly(CultureInfo culture)
         {
             StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
@@ -788,7 +726,7 @@ namespace System.Reflection.Emit
         }
 
         // Useful for binding to a very specific version of a satellite assembly
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [System.Security.DynamicSecurityMethod] // Methods containing StackCrawlMark local var has to be marked DynamicSecurityMethod
         public override Assembly GetSatelliteAssembly(CultureInfo culture, Version version)
         {
             StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
@@ -797,7 +735,8 @@ namespace System.Reflection.Emit
 
         public override bool IsDynamic
         {
-            get {
+            get
+            {
                 return true;
             }
         }
@@ -810,16 +749,16 @@ namespace System.Reflection.Emit
         *
         **********************************************/
         public ModuleBuilder GetDynamicModule(
-            String      name)                   // the name of module for the look up
+            String name)                   // the name of module for the look up
         {
-            lock(SyncRoot)
+            lock (SyncRoot)
             {
                 return GetDynamicModuleNoLock(name);
             }
         }
 
         private ModuleBuilder GetDynamicModuleNoLock(
-            String      name)                   // the name of module for the look up
+            String name)                   // the name of module for the look up
         {
             if (name == null)
                 throw new ArgumentNullException(nameof(name));
@@ -831,7 +770,7 @@ namespace System.Reflection.Emit
             int size = m_assemblyData.m_moduleBuilderList.Count;
             for (int i = 0; i < size; i++)
             {
-                ModuleBuilder moduleBuilder = (ModuleBuilder) m_assemblyData.m_moduleBuilderList[i];
+                ModuleBuilder moduleBuilder = (ModuleBuilder)m_assemblyData.m_moduleBuilderList[i];
                 if (moduleBuilder.m_moduleData.m_strModuleName.Equals(name))
                 {
                     return moduleBuilder;
@@ -839,52 +778,11 @@ namespace System.Reflection.Emit
             }
             return null;
         }
-    
-        /**********************************************
-        *
-        * Setting the entry point if the assembly builder is building
-        * an exe.
-        *
-        **********************************************/
-        public void SetEntryPoint(
-            MethodInfo  entryMethod) 
-        {
-            SetEntryPoint(entryMethod, PEFileKinds.ConsoleApplication);
-        }
-        public void SetEntryPoint(
-            MethodInfo  entryMethod,        // entry method for the assembly. We use this to determine the entry module
-            PEFileKinds fileKind)           // file kind for the assembly.
-        {
-            lock(SyncRoot)
-            {
-                SetEntryPointNoLock(entryMethod, fileKind);
-            }
-        }
-
-        private void SetEntryPointNoLock(
-            MethodInfo  entryMethod,        // entry method for the assembly. We use this to determine the entry module
-            PEFileKinds fileKind)           // file kind for the assembly.
-        {
-
-            if (entryMethod == null)
-                throw new ArgumentNullException(nameof(entryMethod));
-            Contract.EndContractBlock();
-
-            BCLDebug.Log("DYNIL", "## DYNIL LOGGING: AssemblyBuilder.SetEntryPoint");
-
-            Module tmpModule = entryMethod.Module;
-            if (tmpModule == null || !InternalAssembly.Equals(tmpModule.Assembly))
-                throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_EntryMethodNotDefinedInAssembly"));
-
-            m_assemblyData.m_entryPointMethod = entryMethod;
-            m_assemblyData.m_peFileKind = fileKind;
-        }
 
 
         /**********************************************
         * Use this function if client decides to form the custom attribute blob themselves
         **********************************************/
-        [System.Runtime.InteropServices.ComVisible(true)]
         public void SetCustomAttribute(ConstructorInfo con, byte[] binaryAttribute)
         {
             if (con == null)
@@ -892,8 +790,8 @@ namespace System.Reflection.Emit
             if (binaryAttribute == null)
                 throw new ArgumentNullException(nameof(binaryAttribute));
             Contract.EndContractBlock();
-    
-            lock(SyncRoot)
+
+            lock (SyncRoot)
             {
                 SetCustomAttributeNoLock(con, binaryAttribute);
             }
@@ -928,7 +826,7 @@ namespace System.Reflection.Emit
             }
             Contract.EndContractBlock();
 
-            lock(SyncRoot)
+            lock (SyncRoot)
             {
                 SetCustomAttributeNoLock(customBuilder);
             }
@@ -937,7 +835,7 @@ namespace System.Reflection.Emit
         private void SetCustomAttributeNoLock(CustomAttributeBuilder customBuilder)
         {
             customBuilder.CreateCustomAttribute(
-                m_manifestModuleBuilder, 
+                m_manifestModuleBuilder,
                 AssemblyBuilderData.m_tkAssembly);          // This is the AssemblyDef token 
 
             // Track the CA for persistence
@@ -947,188 +845,16 @@ namespace System.Reflection.Emit
             }
         }
 
-
-        /**********************************************
-        *
-        * Saves the assembly to disk. Also saves all dynamic modules defined
-        * in this dynamic assembly. Assembly file name can be the same as one of 
-        * the module's name. If so, assembly info is stored within that module.
-        * Assembly file name can be different from all of the modules underneath. In
-        * this case, assembly is stored stand alone. 
-        *
-        **********************************************/
-
-        public void Save(String assemblyFileName)       // assembly file name
-        {
-            Save(assemblyFileName, System.Reflection.PortableExecutableKinds.ILOnly, System.Reflection.ImageFileMachine.I386);
-        }
-            
-        public void Save(String assemblyFileName, 
-            PortableExecutableKinds portableExecutableKind, ImageFileMachine imageFileMachine)
-        {
-            lock(SyncRoot)
-            {
-                SaveNoLock(assemblyFileName, portableExecutableKind, imageFileMachine);
-            }
-        }
-
-        private void SaveNoLock(String assemblyFileName, 
-            PortableExecutableKinds portableExecutableKind, ImageFileMachine imageFileMachine)
-        {
-            // AssemblyBuilderAccess.Save can never be set in CoreCLR
-            throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_CantSaveTransientAssembly"));
-        }
-
-        internal bool IsPersistable()
-        {
-            {
-                return false;
-            }
-        }
-    
-        /**********************************************
-        *
-        * Internal helper to walk the nested type hierachy
-        *
-        **********************************************/
-        private int DefineNestedComType(Type type, int tkResolutionScope, int tkTypeDef)
-        {
-            Type        enclosingType = type.DeclaringType;
-            if (enclosingType == null)
-            {
-                // Use full type name for non-nested types.
-                return AddExportedTypeOnDisk(GetNativeHandle(), type.FullName, tkResolutionScope, tkTypeDef, type.Attributes);
-            }
-
-            tkResolutionScope = DefineNestedComType(enclosingType, tkResolutionScope, tkTypeDef);
-            // Use simple name for nested types.
-            return AddExportedTypeOnDisk(GetNativeHandle(), type.Name, tkResolutionScope, tkTypeDef, type.Attributes);
-        }
-
-        internal int DefineExportedTypeInMemory(Type type, int tkResolutionScope, int tkTypeDef)
-        {
-            Type enclosingType = type.DeclaringType;
-            if (enclosingType == null)
-            {
-                // Use full type name for non-nested types.
-                return AddExportedTypeInMemory(GetNativeHandle(), type.FullName, tkResolutionScope, tkTypeDef, type.Attributes);
-            }
-
-            tkResolutionScope = DefineExportedTypeInMemory(enclosingType, tkResolutionScope, tkTypeDef);
-            // Use simple name for nested types.
-            return AddExportedTypeInMemory(GetNativeHandle(), type.Name, tkResolutionScope, tkTypeDef, type.Attributes);
-        }
-
         /**********************************************
          * 
          * Private methods
          * 
          **********************************************/
-    
+
         /**********************************************
          * Make a private constructor so these cannot be constructed externally.
          * @internonly
          **********************************************/
-        private AssemblyBuilder() {}
-
-        // Create a new module in which to emit code. This module will not contain the manifest.
-        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        [SuppressUnmanagedCodeSecurity]
-        static private extern void DefineDynamicModule(RuntimeAssembly containingAssembly,
-                                                       bool emitSymbolInfo,
-                                                       String name,
-                                                       String filename,
-                                                       StackCrawlMarkHandle stackMark,
-                                                       ref IntPtr pInternalSymWriter,
-                                                       ObjectHandleOnStack retModule,
-                                                       bool fIsTransient,
-                                                       out int tkFile);
-
-        private static Module DefineDynamicModule(RuntimeAssembly containingAssembly, 
-                                           bool emitSymbolInfo,
-                                           String name,
-                                           String filename,
-                                           ref StackCrawlMark stackMark,
-                                           ref IntPtr pInternalSymWriter,
-                                           bool fIsTransient,
-                                           out int tkFile)
-        {
-            RuntimeModule retModule = null;
-
-            DefineDynamicModule(containingAssembly.GetNativeHandle(),
-                                emitSymbolInfo,
-                                name,
-                                filename,
-                                JitHelpers.GetStackCrawlMarkHandle(ref stackMark),
-                                ref pInternalSymWriter,
-                                JitHelpers.GetObjectHandleOnStack(ref retModule),
-                                fIsTransient,
-                                out tkFile);
-
-            return retModule;
-        }
-
-        // The following functions are native helpers for creating on-disk manifest
-        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        [SuppressUnmanagedCodeSecurity]
-        static private extern void PrepareForSavingManifestToDisk(RuntimeAssembly assembly, RuntimeModule assemblyModule);  // module to contain assembly information if assembly is embedded
-
-        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        [SuppressUnmanagedCodeSecurity]
-        static private extern void SaveManifestToDisk(RuntimeAssembly assembly,
-                                                String strFileName, 
-                                                int entryPoint,
-                                                int fileKind,
-                                                int portableExecutableKind, 
-                                                int ImageFileMachine);
-
-        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        [SuppressUnmanagedCodeSecurity]
-        static private extern int AddFile(RuntimeAssembly assembly, String strFileName);
-
-        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        [SuppressUnmanagedCodeSecurity]
-        static private extern void SetFileHashValue(RuntimeAssembly assembly,
-                                                    int tkFile, 
-                                                    String strFullFileName);
-
-        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        [SuppressUnmanagedCodeSecurity]
-        static private extern int AddExportedTypeInMemory(RuntimeAssembly assembly,
-                                                          String strComTypeName,
-                                                          int tkAssemblyRef,
-                                                          int tkTypeDef,
-                                                          TypeAttributes flags);
-
-        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        [SuppressUnmanagedCodeSecurity]
-        static private extern int AddExportedTypeOnDisk(RuntimeAssembly assembly, 
-                                                        String strComTypeName, 
-                                                        int tkAssemblyRef, 
-                                                        int tkTypeDef, 
-                                                        TypeAttributes flags);
-
-        // Add an entry to assembly's manifestResource table for a stand alone resource.
-        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        [SuppressUnmanagedCodeSecurity]
-        static private extern void AddStandAloneResource(RuntimeAssembly assembly,
-                                                         String strName,
-                                                         String strFileName,
-                                                         String strFullFileName,
-                                                         int attribute);
-
-        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        [SuppressUnmanagedCodeSecurity]
-#pragma warning disable 618
-        static private extern void AddDeclarativeSecurity(RuntimeAssembly assembly, SecurityAction action, byte[] blob, int length);
-#pragma warning restore 618
-
-        // Functions for defining unmanaged resources.
-        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        [SuppressUnmanagedCodeSecurity]
-        static private extern void CreateVersionInfoResource(String filename, String title, String iconFilename, String description,
-                                                             String copyright, String trademark, String company, String product,
-                                                             String productVersion, String fileVersion, int lcid, bool isDll,
-                                                             StringHandleOnStack retFileName);
+        private AssemblyBuilder() { }
     }
 }

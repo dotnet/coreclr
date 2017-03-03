@@ -80,10 +80,8 @@
 #define __field_ecount(EHCount)
 #endif
 
-#ifdef FEATURE_CORECLR
 #undef _Ret_bytecap_
 #define _Ret_bytecap_(_Size) 
-#endif
 
 #ifndef NT_SUCCESS
 #define NT_SUCCESS(Status) (((NTSTATUS)(Status)) >= 0)
@@ -855,24 +853,24 @@ typedef struct _DISPATCHER_CONTEXT {
 #define RUNTIME_FUNCTION__SetBeginAddress(prf,addr)     ((prf)->BeginAddress = (addr))
 
 #ifdef WIN64EXCEPTIONS
-EXTERN_C ULONG
+#include "win64unwind.h"
+
+FORCEINLINE
+DWORD
 RtlpGetFunctionEndAddress (
     __in PT_RUNTIME_FUNCTION FunctionEntry,
-    __in ULONG ImageBase
-    );
+    __in TADDR ImageBase
+    )
+{
+    PUNWIND_INFO pUnwindInfo = (PUNWIND_INFO)(ImageBase + FunctionEntry->UnwindData);
+
+    return FunctionEntry->BeginAddress + pUnwindInfo->FunctionLength;
+}
 
 #define RUNTIME_FUNCTION__EndAddress(prf, ImageBase)   RtlpGetFunctionEndAddress(prf, ImageBase)
 
 #define RUNTIME_FUNCTION__GetUnwindInfoAddress(prf)    (prf)->UnwindData
 #define RUNTIME_FUNCTION__SetUnwindInfoAddress(prf, addr) do { (prf)->UnwindData = (addr); } while(0)
-
-#define UNW_FLAG_NHANDLER               0x0             /* any handler */
-#define UNW_FLAG_EHANDLER               0x1             /* filter handler */
-#define UNW_FLAG_UHANDLER               0x2             /* unwind handler */
-
-typedef struct _UNWIND_INFO {
-    // dummy
-} UNWIND_INFO, *PUNWIND_INFO;
 
 EXTERN_C
 NTSYSAPI

@@ -11,7 +11,6 @@ namespace System.Reflection
     using System.Globalization;
     using System.Runtime.CompilerServices;
     using System.Runtime.InteropServices;
-    using System.Security.Permissions;
     using System.Text;
     using System.Threading;
 
@@ -48,10 +47,7 @@ namespace System.Reflection
     }
 
     [Serializable]
-    [ClassInterface(ClassInterfaceType.None)]
-    [ComDefaultInterface(typeof(_MethodBase))]
-    [System.Runtime.InteropServices.ComVisible(true)]
-    public abstract class MethodBase : MemberInfo, _MethodBase
+    public abstract class MethodBase : MemberInfo
     {
         #region Static Members
         public static MethodBase GetMethodFromHandle(RuntimeMethodHandle handle)
@@ -64,13 +60,12 @@ namespace System.Reflection
             Type declaringType = m.DeclaringType;
             if (declaringType != null && declaringType.IsGenericType)
                 throw new ArgumentException(String.Format(
-                    CultureInfo.CurrentCulture, Environment.GetResourceString("Argument_MethodDeclaringTypeGeneric"), 
+                    CultureInfo.CurrentCulture, Environment.GetResourceString("Argument_MethodDeclaringTypeGeneric"),
                     m, declaringType.GetGenericTypeDefinition()));
- 
+
             return m;
         }
 
-        [System.Runtime.InteropServices.ComVisible(false)]
         public static MethodBase GetMethodFromHandle(RuntimeMethodHandle handle, RuntimeTypeHandle declaringType)
         {
             if (handle.IsNullHandle())
@@ -79,8 +74,7 @@ namespace System.Reflection
             return RuntimeType.GetMethodBase(declaringType.GetRuntimeType(), handle.GetMethodInfo());
         }
 
-        [System.Security.DynamicSecurityMethod] // Specify DynamicSecurityMethod attribute to prevent inlining of the caller.
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
+        [System.Security.DynamicSecurityMethod] // Methods containing StackCrawlMark local var has to be marked DynamicSecurityMethod
         public static MethodBase GetCurrentMethod()
         {
             StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
@@ -131,25 +125,11 @@ namespace System.Reflection
         private IntPtr GetMethodDesc() { return MethodHandle.Value; }
 
 #if FEATURE_APPX
-
-        // The C# dynamic and VB late bound binders need to call this API. Since we don't have time to make this
-        // public in Dev11, the C# and VB binders currently call this through a delegate. 
-        // When we make this API public (hopefully) in Dev12 we need to change the C# and VB binders to call this
-        // probably statically. The code is located in:
-        // C#: ndp\fx\src\CSharp\Microsoft\CSharp\SymbolTable.cs - Microsoft.CSharp.RuntimeBinder.SymbolTable..cctor
-        // VB: vb\runtime\msvbalib\helpers\Symbols.vb - Microsoft.VisualBasic.CompilerServices.Symbols..cctor
-        internal virtual bool IsDynamicallyInvokable
-        {
-            get
-            {
-                return true;
-            }
-        }
 #endif
         #endregion
 
         #region Public Abstract\Virtual Members
-        internal virtual ParameterInfo[] GetParametersNoCopy() { return GetParameters (); }
+        internal virtual ParameterInfo[] GetParametersNoCopy() { return GetParameters(); }
 
         [System.Diagnostics.Contracts.Pure]
         public abstract ParameterInfo[] GetParameters();
@@ -164,17 +144,16 @@ namespace System.Reflection
 
         public abstract MethodImplAttributes GetMethodImplementationFlags();
 
-        public abstract RuntimeMethodHandle MethodHandle { get; }   
+        public abstract RuntimeMethodHandle MethodHandle { get; }
 
-        public abstract MethodAttributes Attributes  { get; }    
+        public abstract MethodAttributes Attributes { get; }
 
         public abstract Object Invoke(Object obj, BindingFlags invokeAttr, Binder binder, Object[] parameters, CultureInfo culture);
 
         public virtual CallingConventions CallingConvention { get { return CallingConventions.Standard; } }
 
-        [System.Runtime.InteropServices.ComVisible(true)]
         public virtual Type[] GetGenericArguments() { throw new NotSupportedException(Environment.GetResourceString("NotSupported_SubclassOverride")); }
-        
+
         public virtual bool IsGenericMethodDefinition { get { return false; } }
 
         public virtual bool ContainsGenericParameters { get { return false; } }
@@ -203,34 +182,37 @@ namespace System.Reflection
             return Invoke(obj, BindingFlags.Default, null, parameters, null);
         }
 
-        public bool IsPublic  { get { return(Attributes & MethodAttributes.MemberAccessMask) == MethodAttributes.Public; } }
+        public bool IsPublic { get { return (Attributes & MethodAttributes.MemberAccessMask) == MethodAttributes.Public; } }
 
-        public bool IsPrivate { get { return(Attributes & MethodAttributes.MemberAccessMask) == MethodAttributes.Private; } }
+        public bool IsPrivate { get { return (Attributes & MethodAttributes.MemberAccessMask) == MethodAttributes.Private; } }
 
-        public bool IsFamily { get { return(Attributes & MethodAttributes.MemberAccessMask) == MethodAttributes.Family; } }
+        public bool IsFamily { get { return (Attributes & MethodAttributes.MemberAccessMask) == MethodAttributes.Family; } }
 
-        public bool IsAssembly { get { return(Attributes & MethodAttributes.MemberAccessMask) == MethodAttributes.Assembly; } }
+        public bool IsAssembly { get { return (Attributes & MethodAttributes.MemberAccessMask) == MethodAttributes.Assembly; } }
 
-        public bool IsFamilyAndAssembly { get { return(Attributes & MethodAttributes.MemberAccessMask) == MethodAttributes.FamANDAssem; } }
+        public bool IsFamilyAndAssembly { get { return (Attributes & MethodAttributes.MemberAccessMask) == MethodAttributes.FamANDAssem; } }
 
-        public bool IsFamilyOrAssembly { get {return(Attributes & MethodAttributes.MemberAccessMask) == MethodAttributes.FamORAssem; } }
+        public bool IsFamilyOrAssembly { get { return (Attributes & MethodAttributes.MemberAccessMask) == MethodAttributes.FamORAssem; } }
 
-        public bool IsStatic { get { return(Attributes & MethodAttributes.Static) != 0; } }
+        public bool IsStatic { get { return (Attributes & MethodAttributes.Static) != 0; } }
 
-        public bool IsFinal { get { return(Attributes & MethodAttributes.Final) != 0; }
-        }
-        public bool IsVirtual { get { return(Attributes & MethodAttributes.Virtual) != 0; }
-        }   
-        public bool IsHideBySig { get { return(Attributes & MethodAttributes.HideBySig) != 0; } }  
-
-        public bool IsAbstract { get { return(Attributes & MethodAttributes.Abstract) != 0; } }
-
-        public bool IsSpecialName { get { return(Attributes & MethodAttributes.SpecialName) != 0; } }
-
-        [System.Runtime.InteropServices.ComVisible(true)]
-        public bool IsConstructor 
+        public bool IsFinal
         {
-            get 
+            get { return (Attributes & MethodAttributes.Final) != 0; }
+        }
+        public bool IsVirtual
+        {
+            get { return (Attributes & MethodAttributes.Virtual) != 0; }
+        }
+        public bool IsHideBySig { get { return (Attributes & MethodAttributes.HideBySig) != 0; } }
+
+        public bool IsAbstract { get { return (Attributes & MethodAttributes.Abstract) != 0; } }
+
+        public bool IsSpecialName { get { return (Attributes & MethodAttributes.SpecialName) != 0; } }
+
+        public bool IsConstructor
+        {
+            get
             {
                 // To be backward compatible we only return true for instance RTSpecialName ctors.
                 return (this is ConstructorInfo &&
@@ -239,15 +221,12 @@ namespace System.Reflection
             }
         }
 
-#pragma warning disable 618
-        [ReflectionPermissionAttribute(SecurityAction.Demand, Flags=ReflectionPermissionFlag.MemberAccess)]            
-#pragma warning restore 618
         public virtual MethodBody GetMethodBody()
         {
             throw new InvalidOperationException();
-        }        
+        }
         #endregion
-        
+
         #region Internal Methods
         // helper method to construct the string representation of the parameter list
 
@@ -269,7 +248,7 @@ namespace System.Reflection
                 // Why don't we just use "&"?
                 if (t.IsByRef && !serialization)
                 {
-                    sbParamList.Append(typeName.TrimEnd(new char[] { '&' }));
+                    sbParamList.Append(typeName.TrimEnd('&'));
                     sbParamList.Append(" ByRef");
                 }
                 else
@@ -324,24 +303,24 @@ namespace System.Reflection
             return parameterTypes;
         }
 
-        internal Object[] CheckArguments(Object[] parameters, Binder binder, 
+        internal Object[] CheckArguments(Object[] parameters, Binder binder,
             BindingFlags invokeAttr, CultureInfo culture, Signature sig)
         {
             // copy the arguments in a different array so we detach from any user changes 
             Object[] copyOfParameters = new Object[parameters.Length];
-            
+
             ParameterInfo[] p = null;
             for (int i = 0; i < parameters.Length; i++)
             {
                 Object arg = parameters[i];
                 RuntimeType argRT = sig.Arguments[i];
-                
+
                 if (arg == Type.Missing)
                 {
-                    if (p == null) 
+                    if (p == null)
                         p = GetParametersNoCopy();
                     if (p[i].DefaultValue == System.DBNull.Value)
-                        throw new ArgumentException(Environment.GetResourceString("Arg_VarMissNull"),nameof(parameters));
+                        throw new ArgumentException(Environment.GetResourceString("Arg_VarMissNull"), nameof(parameters));
                     arg = p[i].DefaultValue;
                 }
                 copyOfParameters[i] = argRT.CheckValue(arg, binder, culture, invokeAttr);

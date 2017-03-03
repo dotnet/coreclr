@@ -11,16 +11,15 @@
 **
 **
 =============================================================================*/
-namespace System.Threading {
-    
-    using System;
-    using System.Security.Permissions;
-    using System.Runtime.InteropServices;
 
-    [System.Runtime.InteropServices.ComVisible(true)]
+using System;
+using System.Runtime.InteropServices;
+
+namespace System.Threading
+{
     public sealed class AutoResetEvent : EventWaitHandle
     {
-        public AutoResetEvent(bool initialState) : base(initialState,EventResetMode.AutoReset){ }
+        public AutoResetEvent(bool initialState) : base(initialState, EventResetMode.AutoReset) { }
     }
 }
-    
+

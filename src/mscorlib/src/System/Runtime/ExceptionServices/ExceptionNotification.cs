@@ -3,21 +3,19 @@
 // See the LICENSE file in the project root for more information.
 /*=============================================================================
 **
-** File: ExceptionNotification.cs
 **
 **
 ** Purpose: Contains definitions for supporting Exception Notifications.
 **
 ** Created: 10/07/2008
 ** 
-** <owner>gkhanna</owner>
 ** 
 =============================================================================*/
-#if FEATURE_EXCEPTION_NOTIFICATIONS
-namespace System.Runtime.ExceptionServices {
-    using System;
-    using System.Runtime.ConstrainedExecution;
-    
+using System;
+using System.Runtime.ConstrainedExecution;
+
+namespace System.Runtime.ExceptionServices
+{
     // Definition of the argument-type passed to the FirstChanceException event handler
     public class FirstChanceExceptionEventArgs : EventArgs
     {
@@ -30,7 +28,6 @@ namespace System.Runtime.ExceptionServices {
         // Returns the exception object pertaining to the first chance exception
         public Exception Exception
         {
-            [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
             get { return m_Exception; }
         }
 
@@ -38,4 +35,3 @@ namespace System.Runtime.ExceptionServices {
         private Exception m_Exception;
     }
 }
-#endif // FEATURE_EXCEPTION_NOTIFICATIONS

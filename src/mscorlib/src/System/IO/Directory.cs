@@ -17,7 +17,6 @@
 
 using System.Collections.Generic;
 using System.Security;
-using System.Security.Permissions;
 using Microsoft.Win32;
 using Microsoft.Win32.SafeHandles;
 using System.Runtime.InteropServices;
@@ -26,9 +25,8 @@ using System.Diagnostics.Contracts;
 
 namespace System.IO
 {
-    [ComVisible(true)]
-    public static class Directory {
-
+    internal static class Directory
+    {
         // Private class that holds search data that is passed around 
         // in the heap based stack recursion
         internal sealed class SearchData
@@ -49,6 +47,7 @@ namespace System.IO
             public readonly SearchOption searchOption;
         }
 
+#if PLATFORM_UNIX
         public static IEnumerable<String> EnumerateFiles(String path, String searchPattern, SearchOption searchOption)
         {
             if (path == null)
@@ -84,13 +83,15 @@ namespace System.IO
             return FileSystemEnumerableFactory.CreateFileNameIterator(path, path, searchPattern,
                                                                         includeFiles, includeDirs, searchOption, true);
         }
+#endif // PLATFORM_UNIX        
 
-        internal static String InternalGetDirectoryRoot(String path) {
-              if (path == null) return null;
+        internal static String InternalGetDirectoryRoot(String path)
+        {
+            if (path == null) return null;
             return path.Substring(0, PathInternal.GetRootLength(path));
         }
 
-         /*===============================CurrentDirectory===============================
+        /*===============================CurrentDirectory===============================
         **Action:  Provides a getter and setter for the current directory.  The original
         **         current DirectoryInfo is the one from which the process was started.  
         **Returns: The current DirectoryInfo (from the getter).  Void from the setter.
@@ -131,16 +132,17 @@ namespace System.IO
 
         public static void SetCurrentDirectory(String path)
         {
-            if (path==null)
+            if (path == null)
                 throw new ArgumentNullException(nameof(path));
-            if (path.Length==0)
+            if (path.Length == 0)
                 throw new ArgumentException(Environment.GetResourceString("Argument_PathEmpty"));
             if (path.Length >= Path.MaxPath)
                 throw new PathTooLongException(Environment.GetResourceString("IO.PathTooLong"));
 
             String fulldestDirName = Path.GetFullPath(path);
-            
-            if (!Win32Native.SetCurrentDirectory(fulldestDirName)) {
+
+            if (!Win32Native.SetCurrentDirectory(fulldestDirName))
+            {
                 // If path doesn't exist, this sets last error to 2 (File 
                 // not Found).  LEGACY: This may potentially have worked correctly
                 // on Win9x, maybe.

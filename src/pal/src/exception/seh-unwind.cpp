@@ -155,6 +155,7 @@ static void UnwindContextToWinContext(unw_cursor_t *cursor, CONTEXT *winContext)
 #elif defined(_X86_)
     unw_get_reg(cursor, UNW_REG_IP, (unw_word_t *) &winContext->Eip);
     unw_get_reg(cursor, UNW_REG_SP, (unw_word_t *) &winContext->Esp);
+    unw_get_reg(cursor, UNW_REG_SP, (unw_word_t *) &winContext->ResumeEsp);
     unw_get_reg(cursor, UNW_X86_EBP, (unw_word_t *) &winContext->Ebp);
     unw_get_reg(cursor, UNW_X86_EBX, (unw_word_t *) &winContext->Ebx);
     unw_get_reg(cursor, UNW_X86_ESI, (unw_word_t *) &winContext->Esi);
@@ -243,6 +244,7 @@ static void GetContextPointers(unw_cursor_t *cursor, unw_context_t *unwContext, 
     GetContextPointer(cursor, unwContext, UNW_AARCH64_X26, &contextPointers->X26);
     GetContextPointer(cursor, unwContext, UNW_AARCH64_X27, &contextPointers->X27);
     GetContextPointer(cursor, unwContext, UNW_AARCH64_X28, &contextPointers->X28);
+    GetContextPointer(cursor, unwContext, UNW_AARCH64_X29, &contextPointers->Fp);
 #else
 #error unsupported architecture
 #endif
@@ -322,14 +324,14 @@ BOOL PAL_VirtualUnwind(CONTEXT *context, KNONVOLATILE_CONTEXT_POINTERS *contextP
     if (unw_is_signal_frame(&cursor) > 0)
     {
         context->ContextFlags |= CONTEXT_EXCEPTION_ACTIVE;
-#if defined(_ARM_) || defined(_ARM64_)
+#if defined(_ARM_) || defined(_ARM64_) || defined(_X86_)
         context->ContextFlags &= ~CONTEXT_UNWOUND_TO_CALL;
 #endif // _ARM_ || _ARM64_
     }
     else
     {
         context->ContextFlags &= ~CONTEXT_EXCEPTION_ACTIVE;
-#if defined(_ARM_) || defined(_ARM64_)
+#if defined(_ARM_) || defined(_ARM64_) || defined(_X86_)
         context->ContextFlags |= CONTEXT_UNWOUND_TO_CALL;
 #endif // _ARM_ || _ARM64_
     }

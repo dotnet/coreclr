@@ -17,13 +17,6 @@ PEImageLayout* PEImageLayout::CreateFlat(const void *flat, COUNT_T size,PEImage*
     return new RawImageLayout(flat,size,pOwner);
 }
 
-#ifdef FEATURE_FUSION
-PEImageLayout* PEImageLayout::CreateFromStream(IStream* pIStream,PEImage* pOwner)
-{
-    STANDARD_VM_CONTRACT;
-    return new StreamImageLayout(pIStream,pOwner);
-}
-#endif
 
 PEImageLayout* PEImageLayout::CreateFromHMODULE(HMODULE hModule,PEImage* pOwner, BOOL bTakeOwnership)
 {
@@ -258,47 +251,6 @@ void PEImageLayout::ApplyBaseRelocations()
 }
 #endif // FEATURE_PREJIT
 
-#ifndef FEATURE_CORECLR
-// Event Tracing for Windows is used to log data for performance and functional testing purposes.
-// The events in this structure are used to measure the time taken by PE image mapping. This is useful to reliably measure the
-// performance of the assembly loader by subtracting the time taken by the possibly I/O-intensive work of PE image mapping.
-struct ETWLoaderMappingPhaseHolder { // Special-purpose holder structure to ensure the LoaderMappingPhaseEnd ETW event is fired when returning from a function.
-    StackSString ETWCodeBase;
-    DWORD _dwAppDomainId;
-    BOOL initialized;
-
-    ETWLoaderMappingPhaseHolder(){
-        LIMITED_METHOD_CONTRACT;
-        _dwAppDomainId = ETWAppDomainIdNotAvailable;
-        initialized = FALSE;
-        }
-
-    void Init(DWORD dwAppDomainId, SString wszCodeBase) {
-        _dwAppDomainId = dwAppDomainId;
-
-        EX_TRY
-        {
-            ETWCodeBase.Append(wszCodeBase);
-            ETWCodeBase.Normalize(); // Ensures that the later cast to LPCWSTR does not throw.
-        }
-        EX_CATCH
-        {
-            ETWCodeBase.Clear();
-        }
-        EX_END_CATCH(RethrowTransientExceptions)            
-
-        FireEtwLoaderMappingPhaseStart(_dwAppDomainId, ETWLoadContextNotAvailable, ETWFieldUnused, ETWLoaderLoadTypeNotAvailable, ETWCodeBase.IsEmpty() ? NULL : (LPCWSTR)ETWCodeBase, NULL, GetClrInstanceId());
-
-        initialized = TRUE;
-    }
-
-    ~ETWLoaderMappingPhaseHolder() {
-        if (initialized) {
-            FireEtwLoaderMappingPhaseEnd(_dwAppDomainId, ETWLoadContextNotAvailable, ETWFieldUnused, ETWLoaderLoadTypeNotAvailable, ETWCodeBase.IsEmpty() ? NULL : (LPCWSTR)ETWCodeBase, NULL, GetClrInstanceId());
-        }
-    }
-};
-#endif // FEATURE_CORECLR
 
 RawImageLayout::RawImageLayout(const void *flat, COUNT_T size,PEImage* pOwner)
 {
@@ -316,12 +268,6 @@ RawImageLayout::RawImageLayout(const void *flat, COUNT_T size,PEImage* pOwner)
 
     PEFingerprintVerificationHolder verifyHolder(pOwner);  // Do not remove: This holder ensures the IL file hasn't changed since the runtime started making assumptions about it.
 
-#ifndef FEATURE_CORECLR
-    ETWLoaderMappingPhaseHolder loaderMappingPhaseHolder;
-    if (ETW_TRACING_CATEGORY_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PRIVATE_PROVIDER_Context, TRACE_LEVEL_INFORMATION, CLR_PRIVATEBINDING_KEYWORD)) {
-        loaderMappingPhaseHolder.Init(GetAppDomain() ? GetAppDomain()->GetId().m_dwId : ETWAppDomainIdNotAvailable, GetPath());
-    }
-#endif // FEATURE_CORECLR
 
     if (size)
     {
@@ -355,12 +301,6 @@ RawImageLayout::RawImageLayout(const void *mapped, PEImage* pOwner, BOOL bTakeOw
 
     PEFingerprintVerificationHolder verifyHolder(pOwner);  // Do not remove: This holder ensures the IL file hasn't changed since the runtime started making assumptions about it.
 
-#ifndef FEATURE_CORECLR
-    ETWLoaderMappingPhaseHolder loaderMappingPhaseHolder;
-    if (ETW_TRACING_CATEGORY_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PRIVATE_PROVIDER_Context, TRACE_LEVEL_INFORMATION, CLR_PRIVATEBINDING_KEYWORD)) {
-        loaderMappingPhaseHolder.Init(GetAppDomain() ? GetAppDomain()->GetId().m_dwId : ETWAppDomainIdNotAvailable, GetPath());
-    }
-#endif // FEATURE_CORECLR
 
     if (bTakeOwnership)
     {
@@ -392,12 +332,6 @@ ConvertedImageLayout::ConvertedImageLayout(PEImageLayout* source)
 
     PEFingerprintVerificationHolder verifyHolder(source->m_pOwner);  // Do not remove: This holder ensures the IL file hasn't changed since the runtime started making assumptions about it.
 
-#ifndef FEATURE_CORECLR
-    ETWLoaderMappingPhaseHolder loaderMappingPhaseHolder;
-    if (ETW_TRACING_CATEGORY_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PRIVATE_PROVIDER_Context, TRACE_LEVEL_INFORMATION, CLR_PRIVATEBINDING_KEYWORD)) {
-        loaderMappingPhaseHolder.Init(GetAppDomain() ? GetAppDomain()->GetId().m_dwId : ETWAppDomainIdNotAvailable, GetPath());
-    }
-#endif // FEATURE_CORECLR
     
     if (!source->HasNTHeaders())
         EEFileLoadException::Throw(GetPath(), COR_E_BADIMAGEFORMAT);
@@ -447,12 +381,6 @@ MappedImageLayout::MappedImageLayout(HANDLE hFile, PEImage* pOwner)
 
 #ifndef FEATURE_PAL
 
-#ifndef FEATURE_CORECLR
-    ETWLoaderMappingPhaseHolder loaderMappingPhaseHolder;
-    if (ETW_TRACING_CATEGORY_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PRIVATE_PROVIDER_Context, TRACE_LEVEL_INFORMATION, CLR_PRIVATEBINDING_KEYWORD)) {
-        loaderMappingPhaseHolder.Init(GetAppDomain() ? GetAppDomain()->GetId().m_dwId : ETWAppDomainIdNotAvailable, GetPath());
-    }
-#endif // FEATURE_CORECLR
 
     // Let OS map file for us
 
@@ -461,23 +389,12 @@ MappedImageLayout::MappedImageLayout(HANDLE hFile, PEImage* pOwner)
     if (m_FileMap == NULL)
     {
 #ifndef CROSSGEN_COMPILE
-#ifdef FEATURE_CORECLR
 
         // There is no reflection-only load on CoreCLR and so we can always throw an error here.
         // It is important on Windows Phone. All assemblies that we load must have SEC_IMAGE set
         // so that the OS can perform signature verification.
         ThrowLastError();
 
-#else // FEATURE_CORECLR
-
-        // We need to ensure any signature validation errors are caught if Extended Secure Boot (ESB) is on.
-        // Also, we have to always throw here during NGen to ensure that the signature validation is never skipped.
-        if (GetLastError() != ERROR_BAD_EXE_FORMAT || IsCompilationProcess())
-        {
-            ThrowLastError();
-        }
-
-#endif // FEATURE_CORECLR
 #endif // CROSSGEN_COMPILE
 
         return;
@@ -492,34 +409,6 @@ MappedImageLayout::MappedImageLayout(HANDLE hFile, PEImage* pOwner)
     }
 #endif // _DEBUG
 
-#ifdef FEATURE_MIXEDMODE
-    //
-    // For our preliminary loads, we don't want to take the preferred base address. We want to leave
-    // that open for a LoadLibrary.  So, we first a phony MapViewOfFile to occupy the base
-    // address temporarily. 
-    //
-    // Note that this is bad if we are racing another thread which is doing a LoadLibrary.  We
-    // may want to tweak this logic, but it's pretty difficult to tell MapViewOfFileEx to map
-    // a file NOT at its preferred base address.  Hopefully the ulimate solution here will be
-    // just mapping the file once.
-    //
-    // There are two distinct cases that this code takes care of:
-    //
-    // * NGened IL-only assembly: The IL image will get mapped here and LoadLibrary will be called
-    //   on the NGen image later. If we need to, we can avoid creating the fake view on VISTA in this 
-    //   case. ASLR will map the IL image and NGen image at different addresses for free.
-    //
-    // * Mixed-mode assembly (either NGened or not): The mixed-mode image will get mapped here and
-    //   LoadLibrary will be called on the same image again later. Note that ASLR does not help 
-    //   in this case. The fake view has to be created even on VISTA in this case to avoid relocations.
-    //    
-    CLRMapViewHolder temp;
-
-    // We don't want to map at the prefered address, so have the temporary view take it. 
-    temp.Assign(CLRMapViewOfFile(m_FileMap, 0, 0, 0, 0));
-    if (temp == NULL)
-        ThrowLastError();
-#endif // FEATURE_MIXEDMODE
     m_FileView.Assign(CLRMapViewOfFile(m_FileMap, 0, 0, 0, 0));
     if (m_FileView == NULL)
         ThrowLastError();
@@ -624,12 +513,6 @@ LoadedImageLayout::LoadedImageLayout(PEImage* pOwner, BOOL bNTSafeLoad, BOOL bTh
 
     PEFingerprintVerificationHolder verifyHolder(pOwner);  // Do not remove: This holder ensures the IL file hasn't changed since the runtime started making assumptions about it.
 
-#ifndef FEATURE_CORECLR
-    ETWLoaderMappingPhaseHolder loaderMappingPhaseHolder;
-    if (ETW_TRACING_CATEGORY_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PRIVATE_PROVIDER_Context, TRACE_LEVEL_INFORMATION, CLR_PRIVATEBINDING_KEYWORD)) {
-        loaderMappingPhaseHolder.Init(GetAppDomain() ? GetAppDomain()->GetId().m_dwId : ETWAppDomainIdNotAvailable, GetPath());
-    }
-#endif // FEATURE_CORECLR
 
     DWORD dwFlags = GetLoadWithAlteredSearchPathFlag();
     if (bNTSafeLoad)
@@ -667,12 +550,6 @@ FlatImageLayout::FlatImageLayout(HANDLE hFile, PEImage* pOwner)
 
     PEFingerprintVerificationHolder verifyHolder(pOwner);  // Do not remove: This holder ensures the IL file hasn't changed since the runtime started making assumptions about it.
 
-#ifndef FEATURE_CORECLR
-    ETWLoaderMappingPhaseHolder loaderMappingPhaseHolder;
-    if (ETW_TRACING_CATEGORY_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PRIVATE_PROVIDER_Context, TRACE_LEVEL_INFORMATION, CLR_PRIVATEBINDING_KEYWORD)) {
-        loaderMappingPhaseHolder.Init(GetAppDomain() ? GetAppDomain()->GetId().m_dwId : ETWAppDomainIdNotAvailable, GetPath());
-    }
-#endif // FEATURE_CORECLR
 
     COUNT_T size = SafeGetFileSize(hFile, NULL);
     if (size == 0xffffffff && GetLastError() != NOERROR)
@@ -695,57 +572,6 @@ FlatImageLayout::FlatImageLayout(HANDLE hFile, PEImage* pOwner)
     Init(m_FileView, size);
 }
 
-#ifdef FEATURE_FUSION
-StreamImageLayout::StreamImageLayout(IStream* pIStream,PEImage* pOwner)
-{
-    CONTRACTL
-    {
-        CONSTRUCTOR_CHECK;
-        STANDARD_VM_CHECK;
-    }
-    CONTRACTL_END;
-    
-    m_Layout=LAYOUT_FLAT;
-    m_pOwner=pOwner;
-
-    PEFingerprintVerificationHolder verifyHolder(pOwner);  // Do not remove: This holder ensures the IL file hasn't changed since the runtime started making assumptions about it.
-
-#ifndef FEATURE_CORECLR
-    ETWLoaderMappingPhaseHolder loaderMappingPhaseHolder;
-    if (ETW_TRACING_CATEGORY_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PRIVATE_PROVIDER_Context, TRACE_LEVEL_INFORMATION, CLR_PRIVATEBINDING_KEYWORD)) {
-        loaderMappingPhaseHolder.Init(GetAppDomain() ? GetAppDomain()->GetId().m_dwId : ETWAppDomainIdNotAvailable, GetPath());
-    }
-#endif // FEATURE_CORECLR
-    
-    STATSTG statStg;
-    IfFailThrow(pIStream->Stat(&statStg, STATFLAG_NONAME));
-    if (statStg.cbSize.u.HighPart > 0)
-        ThrowHR(COR_E_FILELOAD);
-
-    DWORD cbRead = 0;
-
-    // Resources files may have zero length (and would be mapped as FLAT)
-    if (statStg.cbSize.u.LowPart) {
-         m_FileMap.Assign(WszCreateFileMapping(INVALID_HANDLE_VALUE, NULL, PAGE_READWRITE, 0, 
-                                                   statStg.cbSize.u.LowPart, NULL));
-        if (m_FileMap == NULL)
-            ThrowWin32(GetLastError());
-
-        m_FileView.Assign(CLRMapViewOfFile(m_FileMap, FILE_MAP_ALL_ACCESS, 0, 0, 0));
-        
-        if (m_FileView == NULL)
-            ThrowWin32(GetLastError());
-        
-        HRESULT hr = pIStream->Read(m_FileView, statStg.cbSize.u.LowPart, &cbRead);
-        if (hr == S_FALSE)
-            hr = COR_E_FILELOAD;
-
-        IfFailThrow(hr);
-    }
-    TESTHOOKCALL(ImageMapped(GetPath(),m_FileView,IM_FLAT));        
-    Init(m_FileView,(COUNT_T)cbRead);
-}
-#endif // FEATURE_FUSION
 
 #endif // !DACESS_COMPILE
 

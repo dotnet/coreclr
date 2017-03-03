@@ -11,14 +11,13 @@
 **
 =============================================================================*/
 
-namespace System.Runtime.InteropServices {
-   
-    using System;
-    using System.Security;
-    using System.Security.Permissions;
 
+using System;
+using System.Security;
+
+namespace System.Runtime.InteropServices
+{
     [Serializable]
-[System.Runtime.InteropServices.ComVisible(true)]
     public sealed class BStrWrapper
     {
         public BStrWrapper(String value)
@@ -31,9 +30,9 @@ namespace System.Runtime.InteropServices {
             m_WrappedObject = (String)value;
         }
 
-        public String WrappedObject 
+        public String WrappedObject
         {
-            get 
+            get
             {
                 return m_WrappedObject;
             }

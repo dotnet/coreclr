@@ -16,7 +16,6 @@
 #include "dllimport.h"
 #include "dllimportcallback.h"
 #include "fieldmarshaler.h"
-#include "constrainedexecutionregion.h"
 #include "customattribute.h"
 #include "encee.h"
 #include "typestring.h"
@@ -185,15 +184,6 @@ void EEClass::Destruct(MethodTable * pOwningMT)
     // default appdomain and mscorlib.dll module during shutdown
     _ASSERTE(!pOwningMT->IsTransparentProxy());
 
-#if defined(FEATURE_REMOTING) && !defined(HAS_REMOTING_PRECODE)
-    // Destruct the method descs by walking the chunks.
-    MethodTable::IntroducedMethodIterator it(pOwningMT);
-    for (; it.IsValid(); it.Next())
-    {
-        MethodDesc * pMD = it.GetMethodDesc();
-        pMD->Destruct();
-    }
-#endif
   
 #ifdef FEATURE_COMINTEROP 
     if (GetSparseCOMInteropVTableMap() != NULL && !pOwningMT->IsZapped())
@@ -2491,14 +2481,6 @@ MethodTable::GetSubstitutionForParent(
 
 #endif //!DACCESS_COMPILE
 
-#ifdef FEATURE_CER
-//*******************************************************************************
-DWORD EEClass::GetReliabilityContract()
-{
-    LIMITED_METHOD_CONTRACT;
-    return HasOptionalFields() ? GetOptionalFields()->m_dwReliabilityContract : RC_NULL;
-}
-#endif // FEATURE_CER
 
 //*******************************************************************************
 #ifdef FEATURE_PREJIT

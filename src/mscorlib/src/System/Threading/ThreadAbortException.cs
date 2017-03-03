@@ -15,31 +15,25 @@
 **
 =============================================================================*/
 
-namespace System.Threading 
-{
-    using System;
-    using System.Runtime.Serialization;
-    using System.Runtime.CompilerServices;
+using System;
+using System.Runtime.Serialization;
+using System.Runtime.CompilerServices;
 
-    [System.Runtime.InteropServices.ComVisible(true)]
+namespace System.Threading
+{
     [Serializable]
-    public sealed class ThreadAbortException : SystemException 
+    public sealed class ThreadAbortException : SystemException
     {
-        private ThreadAbortException() 
+        private ThreadAbortException()
             : base(GetMessageFromNativeResources(ExceptionMessageKind.ThreadAbort))
         {
             SetErrorCode(__HResults.COR_E_THREADABORTED);
         }
 
         //required for serialization
-        internal ThreadAbortException(SerializationInfo info, StreamingContext context) 
-            : base(info, context) 
+        internal ThreadAbortException(SerializationInfo info, StreamingContext context)
+            : base(info, context)
         {
-        }
-   
-        public Object ExceptionState 
-        {
-            get {return Thread.CurrentThread.AbortReason;}
         }
     }
 }

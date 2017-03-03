@@ -16,12 +16,12 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Security;
-using System.Security.Permissions;
 using System.Runtime.InteropServices;
 using System.Diagnostics.Contracts;
 using System.Threading.Tasks;
 
 // The class will be part of the current System.Threading namespace
+
 namespace System.Threading
 {
     /// <summary>
@@ -39,7 +39,6 @@ namespace System.Threading
     /// completed.
     /// </para>
     /// </remarks>
-    [ComVisible(false)]
     [DebuggerDisplay("Current Count = {m_currentCount}")]
     public class SemaphoreSlim : IDisposable
     {
@@ -86,7 +85,7 @@ namespace System.Threading
         private sealed class TaskNode : Task<bool>, IThreadPoolWorkItem
         {
             internal TaskNode Prev, Next;
-            internal TaskNode() : base() {}
+            internal TaskNode() : base() { }
 
             void IThreadPoolWorkItem.ExecuteWorkItem()
             {
@@ -372,7 +371,7 @@ namespace System.Threading
                     Debug.Assert(m_asyncTail != null, "tail should not be null if head isn't");
                     asyncWaitTask = WaitAsync(millisecondsTimeout, cancellationToken);
                 }
-                    // There are no async waiters, so we can proceed with normal synchronous waiting.
+                // There are no async waiters, so we can proceed with normal synchronous waiting.
                 else
                 {
                     // If the count > 0 we are good to move on.
@@ -401,7 +400,7 @@ namespace System.Threading
                     // defer to synchronous waiters in priority, which means that if it's possible an asynchronous
                     // waiter didn't get released because a synchronous waiter was present, we need to ensure
                     // that synchronous waiter succeeds so that they have a chance to release.
-                    Debug.Assert(!waitSuccessful || m_currentCount > 0, 
+                    Debug.Assert(!waitSuccessful || m_currentCount > 0,
                         "If the wait was successful, there should be count available.");
                     if (m_currentCount > 0)
                     {
@@ -630,9 +629,9 @@ namespace System.Threading
                     // No counts, if timeout is zero fail fast
                     return s_falseTask;
                 }
-                    // If there aren't, create and return a task to the caller.
-                    // The task will be completed either when they've successfully acquired
-                    // the semaphore or when the timeout expired or cancellation was requested.
+                // If there aren't, create and return a task to the caller.
+                // The task will be completed either when they've successfully acquired
+                // the semaphore or when the timeout expired or cancellation was requested.
                 else
                 {
                     Debug.Assert(m_currentCount == 0, "m_currentCount should never be negative");
@@ -884,7 +883,7 @@ namespace System.Threading
         }
 
 
-        
+
         /// <summary>
         /// Private helper method to wake up waiters when a cancellationToken gets canceled.
         /// </summary>

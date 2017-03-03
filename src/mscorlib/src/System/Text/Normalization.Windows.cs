@@ -2,18 +2,18 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+using System;
+using System.Security;
+using System.Globalization;
+using System.Text;
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
+using System.Runtime.Versioning;
+using System.Diagnostics;
+using System.Diagnostics.Contracts;
+
 namespace System.Text
 {
-    using System;
-    using System.Security;
-    using System.Globalization;
-    using System.Text;
-    using System.Runtime.CompilerServices;
-    using System.Runtime.InteropServices;
-    using System.Runtime.Versioning;
-    using System.Diagnostics;
-    using System.Diagnostics.Contracts;
-
     // This internal class wraps up our normalization behavior
 
     internal class Normalization
@@ -21,19 +21,15 @@ namespace System.Text
         //
         // Flags that track whether given normalization form was initialized
         //
-#if !FEATURE_NORM_IDNA_ONLY
         private static volatile bool NFC;
         private static volatile bool NFD;
         private static volatile bool NFKC;
         private static volatile bool NFKD;
-#endif // !FEATURE_NORM_IDNA_ONLY                
         private static volatile bool IDNA;
-#if !FEATURE_NORM_IDNA_ONLY        
         private static volatile bool NFCDisallowUnassigned;
         private static volatile bool NFDDisallowUnassigned;
         private static volatile bool NFKCDisallowUnassigned;
         private static volatile bool NFKDDisallowUnassigned;
-#endif // !FEATURE_NORM_IDNA_ONLY    
         private static volatile bool IDNADisallowUnassigned;
         private static volatile bool Other;
 
@@ -77,7 +73,6 @@ namespace System.Text
         {
             switch ((ExtendedNormalizationForms)form)
             {
-#if !FEATURE_NORM_IDNA_ONLY
                 case ExtendedNormalizationForms.FormC:
                     if (NFC) return;
                     InitializeForm(form, "normnfc.nlp");
@@ -101,7 +96,6 @@ namespace System.Text
                     InitializeForm(form, "normnfkd.nlp");
                     NFKD = true;
                     break;
-#endif // !FEATURE_NORM_IDNA_ONLY
 
                 case ExtendedNormalizationForms.FormIdna:
                     if (IDNA) return;
@@ -109,7 +103,6 @@ namespace System.Text
                     IDNA = true;
                     break;
 
-#if !FEATURE_NORM_IDNA_ONLY
                 case ExtendedNormalizationForms.FormCDisallowUnassigned:
                     if (NFCDisallowUnassigned) return;
                     InitializeForm(form, "normnfc.nlp");
@@ -133,7 +126,6 @@ namespace System.Text
                     InitializeForm(form, "normnfkd.nlp");
                     NFKDDisallowUnassigned = true;
                     break;
-#endif // !FEATURE_NORM_IDNA_ONLY
 
                 case ExtendedNormalizationForms.FormIdnaDisallowUnassigned:
                     if (IDNADisallowUnassigned) return;
@@ -157,12 +149,12 @@ namespace System.Text
 
             int iError = ERROR_SUCCESS;
             bool result = nativeNormalizationIsNormalizedString(
-                                normForm, 
-                                ref iError, 
-                                strInput, 
+                                normForm,
+                                ref iError,
+                                strInput,
                                 strInput.Length);
 
-            switch(iError)
+            switch (iError)
             {
                 // Success doesn't need to do anything
                 case ERROR_SUCCESS:
@@ -172,7 +164,7 @@ namespace System.Text
                 case ERROR_INVALID_PARAMETER:
                 case ERROR_NO_UNICODE_TRANSLATION:
                     throw new ArgumentException(
-                        Environment.GetResourceString("Argument_InvalidCharSequenceNoIndex" ),
+                        Environment.GetResourceString("Argument_InvalidCharSequenceNoIndex"),
                         nameof(strInput));
                 case ERROR_NOT_ENOUGH_MEMORY:
                     throw new OutOfMemoryException(
@@ -201,7 +193,7 @@ namespace System.Text
             {
                 if (iError == ERROR_INVALID_PARAMETER)
                     throw new ArgumentException(
-                        Environment.GetResourceString("Argument_InvalidCharSequenceNoIndex" ),
+                        Environment.GetResourceString("Argument_InvalidCharSequenceNoIndex"),
                         nameof(strInput));
 
                 // We shouldn't really be able to get here..., guessing length is
@@ -228,18 +220,18 @@ namespace System.Text
                 cBuffer = new char[iLength];
 
                 iLength = nativeNormalizationNormalizeString(
-                                    normForm, 
+                                    normForm,
                                     ref iError,
-                                    strInput, 
-                                    strInput.Length, 
-                                    cBuffer, 
+                                    strInput,
+                                    strInput.Length,
+                                    cBuffer,
                                     cBuffer.Length);
-                
+
                 if (iError == ERROR_SUCCESS)
                     break;
 
                 // Could have an error (actually it'd be quite hard to have an error here)
-                switch(iError)
+                switch (iError)
                 {
                     // Do appropriate stuff for the individual errors:
                     case ERROR_INSUFFICIENT_BUFFER:
@@ -250,7 +242,7 @@ namespace System.Text
                     case ERROR_NO_UNICODE_TRANSLATION:
                         // Illegal code point or order found.  Ie: FFFE or D800 D800, etc.
                         throw new ArgumentException(
-                            Environment.GetResourceString("Argument_InvalidCharSequence", iLength ),
+                            Environment.GetResourceString("Argument_InvalidCharSequence", iLength),
                             nameof(strInput));
                     case ERROR_NOT_ENOUGH_MEMORY:
                         throw new OutOfMemoryException(

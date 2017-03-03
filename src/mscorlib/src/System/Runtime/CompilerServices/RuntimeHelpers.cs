@@ -9,8 +9,9 @@
 //    This class defines a set of static methods that provide support for compilers.
 //
 //
-namespace System.Runtime.CompilerServices {
 
+namespace System.Runtime.CompilerServices
+{
     using System;
     using System.Security;
     using System.Runtime;
@@ -18,7 +19,6 @@ namespace System.Runtime.CompilerServices {
     using System.Runtime.InteropServices;
     using System.Runtime.ConstrainedExecution;
     using System.Runtime.Serialization;
-    using System.Security.Permissions;
     using System.Threading;
     using System.Runtime.Versioning;
     using System.Diagnostics.Contracts;
@@ -33,7 +33,7 @@ namespace System.Runtime.CompilerServices {
         }
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public static extern void InitializeArray(Array array,RuntimeFieldHandle fldHandle);
+        public static extern void InitializeArray(Array array, RuntimeFieldHandle fldHandle);
 
         // GetObjectValue is intended to allow value classes to be manipulated as 'Object'
         // but have aliasing behavior of a value class.  The intent is that you would use
@@ -62,7 +62,7 @@ namespace System.Runtime.CompilerServices {
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         private static extern void _RunClassConstructor(RuntimeType type);
 
-        public static void RunClassConstructor(RuntimeTypeHandle type) 
+        public static void RunClassConstructor(RuntimeTypeHandle type)
         {
             _RunClassConstructor(type.GetRuntimeType());
         }
@@ -78,24 +78,24 @@ namespace System.Runtime.CompilerServices {
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         private static extern void _RunModuleConstructor(System.Reflection.RuntimeModule module);
 
-        public static void RunModuleConstructor(ModuleHandle module) 
+        public static void RunModuleConstructor(ModuleHandle module)
         {
-           _RunModuleConstructor(module.GetRuntimeModule());
+            _RunModuleConstructor(module.GetRuntimeModule());
         }
 
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode), SuppressUnmanagedCodeSecurity]
         internal static extern void _CompileMethod(IRuntimeMethodInfo method);
 
-        public static void PrepareMethod(RuntimeMethodHandle method){}
-        public static void PrepareMethod(RuntimeMethodHandle method, RuntimeTypeHandle[] instantiation){}
-        public static void PrepareContractedDelegate(Delegate d){}
-        
+        public static void PrepareMethod(RuntimeMethodHandle method) { }
+        public static void PrepareMethod(RuntimeMethodHandle method, RuntimeTypeHandle[] instantiation) { }
+        public static void PrepareContractedDelegate(Delegate d) { }
+
         public static void PrepareDelegate(Delegate d)
         {
             if (d == null)
             {
-                throw new ArgumentNullException ("d");
+                throw new ArgumentNullException("d");
             }
         }
 
@@ -109,8 +109,9 @@ namespace System.Runtime.CompilerServices {
         {
             // This offset is baked in by string indexer intrinsic, so there is no harm
             // in getting it baked in here as well.
-            [System.Runtime.Versioning.NonVersionable] 
-            get {
+            [System.Runtime.Versioning.NonVersionable]
+            get
+            {
                 // Number of bytes from the address pointed to by a reference to
                 // a String to the first 16-bit character in the String.  Skip 
                 // over the MethodTable pointer, & String 
@@ -131,7 +132,6 @@ namespace System.Runtime.CompilerServices {
         // Note: this method is not part of the CER support, and is not to be confused with ProbeForSufficientStack
         // below.
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
         public static extern void EnsureSufficientExecutionStack();
 
         // This method ensures that there is sufficient stack to execute the average Framework function.
@@ -139,7 +139,6 @@ namespace System.Runtime.CompilerServices {
         // Note: this method is not part of the CER support, and is not to be confused with ProbeForSufficientStack
         // below.
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
         public static extern bool TryEnsureSufficientExecutionStack();
 
         public static void ProbeForSufficientStack()
@@ -148,7 +147,6 @@ namespace System.Runtime.CompilerServices {
 
         // This method is a marker placed immediately before a try clause to mark the corresponding catch and finally blocks as
         // constrained. There's no code here other than the probe because most of the work is done at JIT time when we spot a call to this routine.
-        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]
         public static void PrepareConstrainedRegions()
         {
             ProbeForSufficientStack();
@@ -156,7 +154,6 @@ namespace System.Runtime.CompilerServices {
 
         // When we detect a CER with no calls, we can point the JIT to this non-probing version instead
         // as we don't need to probe.
-        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]
         public static void PrepareConstrainedRegionsNoOP()
         {
         }
@@ -168,10 +165,17 @@ namespace System.Runtime.CompilerServices {
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         public static extern void ExecuteCodeWithGuaranteedCleanup(TryCode code, CleanupCode backoutCode, Object userData);
 
-        [PrePrepareMethod]
         internal static void ExecuteBackoutCodeHelper(Object backoutCode, Object userData, bool exceptionThrown)
         {
             ((CleanupCode)backoutCode)(userData, exceptionThrown);
+        }
+
+        /// <returns>true if given type is reference type or value type that contains references</returns>
+        static public bool IsReferenceOrContainsReferences<T>()
+        {
+            // The body of this function will be replaced by the EE with unsafe code!!!
+            // See getILIntrinsicImplementation for how this happens.
+            throw new InvalidOperationException();
         }
     }
 }

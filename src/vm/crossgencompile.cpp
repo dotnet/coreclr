@@ -16,13 +16,9 @@
 
 #include "comdelegate.h"
 #include "compile.h"
-#include "constrainedexecutionregion.h"
 #include "security.h"
 #include "invokeutil.h"
 #include "comcallablewrapper.h"
-#ifdef FEATURE_REMOTING
-#include "remoting.h"
-#endif
 
 //---------------------------------------------------------------------------------------
 //
@@ -296,14 +292,14 @@ INT32 rel32UsingJumpStub(INT32 UNALIGNED * pRel32, PCODE target, MethodDesc *pMe
     // crossgen does not have jump stubs
     return 0;
 }
-#endif
 
-#if defined(FEATURE_REMOTING) && !defined(HAS_REMOTING_PRECODE)
-void CRemotingServices::DestroyThunk(MethodDesc* pMD)
+INT32 rel32UsingPreallocatedJumpStub(INT32 UNALIGNED * pRel32, PCODE target, PCODE jumpStubAddr)
 {
-    UNREACHABLE();
+    // crossgen does not have jump stubs
+    return 0;
 }
 #endif
+
 
 CORINFO_GENERIC_HANDLE JIT_GenericHandleWorker(MethodDesc *  pMD, MethodTable * pMT, LPVOID signature, DWORD dictionaryIndexAndSlot, Module* pModule)
 {
@@ -461,12 +457,10 @@ void AppDomain::RaiseLoadingAssemblyEvent(DomainAssembly *pAssembly)
 {
 }
 
-#ifdef FEATURE_CORECLR
 BOOL AppDomain::BindingByManifestFile()
 {
     return FALSE;
 }
-#endif
 
 ReJitManager::ReJitManager()
 { 

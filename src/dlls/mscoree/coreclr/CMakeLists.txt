@@ -125,6 +125,12 @@ else()
     )
 endif(WIN32)
 
+if(CLR_CMAKE_PLATFORM_UNIX AND FEATURE_STANDALONE_GC)
+    list(APPEND CORECLR_LIBRARIES
+        gc_unix
+    )
+endif(CLR_CMAKE_PLATFORM_UNIX AND FEATURE_STANDALONE_GC)
+
 if(CLR_CMAKE_PLATFORM_UNIX AND FEATURE_EVENT_TRACE)
     list(APPEND CORECLR_LIBRARIES
         eventprovider
@@ -161,14 +167,6 @@ if(WIN32)
         COMMAND ${BuildToolsDir}/GenClrDebugResource.exe /dac:$<TARGET_FILE:mscordaccore> /dbi:$<TARGET_FILE:mscordbi> /sku:onecoreclr /out:${CMAKE_CURRENT_BINARY_DIR}/clrDebugResource.bin
         COMMAND ${BuildToolsDir}/InjectResource.exe /bin:${CMAKE_CURRENT_BINARY_DIR}/clrDebugResource.bin /dll:$<TARGET_FILE:coreclr> /name:CLRDEBUGINFO
         COMMENT Add dactable & debug resources to coreclr
-    )
-else()
-    add_custom_command(
-        TARGET coreclr
-        POST_BUILD
-        VERBATIM 
-        COMMAND sh ${CLR_DIR}/src/pal/tools/gen-dactable-rva.sh $<TARGET_FILE:coreclr> ${GENERATED_INCLUDE_DIR}/dactablerva.h
-        COMMENT Generating ${GENERATED_INCLUDE_DIR}/dactablerva.h
     )
 endif(WIN32)
 

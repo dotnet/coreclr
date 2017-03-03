@@ -4,12 +4,12 @@
 
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
-namespace System.Runtime.CompilerServices {
 
-    using System;
+using System;
 
+namespace System.Runtime.CompilerServices
+{
     // Custom attribute to indicating a TypeDef is a discardable attribute
-[System.Runtime.InteropServices.ComVisible(true)]
     public class DiscardableAttribute : Attribute
     {
         public DiscardableAttribute()

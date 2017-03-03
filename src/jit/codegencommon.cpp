@@ -2475,6 +2475,10 @@ emitJumpKind CodeGen::genJumpKindForOper(genTreeOps cmp, CompareKind compareKind
         EJ_jle, // GT_LE
         EJ_jge, // GT_GE
         EJ_jg,  // GT_GT
+#ifndef LEGACY_BACKEND
+        EJ_je,  // GT_TEST_EQ
+        EJ_jne, // GT_TEST_NE
+#endif
 #elif defined(_TARGET_ARMARCH_)
         EJ_eq,   // GT_EQ
         EJ_ne,   // GT_NE
@@ -2494,6 +2498,10 @@ emitJumpKind CodeGen::genJumpKindForOper(genTreeOps cmp, CompareKind compareKind
         EJ_jbe, // GT_LE
         EJ_jae, // GT_GE
         EJ_ja,  // GT_GT
+#ifndef LEGACY_BACKEND
+        EJ_je,  // GT_TEST_EQ
+        EJ_jne, // GT_TEST_NE
+#endif
 #elif defined(_TARGET_ARMARCH_)
         EJ_eq,   // GT_EQ
         EJ_ne,   // GT_NE
@@ -2513,6 +2521,10 @@ emitJumpKind CodeGen::genJumpKindForOper(genTreeOps cmp, CompareKind compareKind
         EJ_NONE, // GT_LE
         EJ_jns,  // GT_GE   (S == 0)
         EJ_NONE, // GT_GT
+#ifndef LEGACY_BACKEND
+        EJ_NONE, // GT_TEST_EQ
+        EJ_NONE, // GT_TEST_NE
+#endif
 #elif defined(_TARGET_ARMARCH_)
         EJ_eq,   // GT_EQ   (Z == 1)
         EJ_ne,   // GT_NE   (Z == 0)
@@ -2530,6 +2542,10 @@ emitJumpKind CodeGen::genJumpKindForOper(genTreeOps cmp, CompareKind compareKind
     assert(genJCCinsSigned[GT_LE - GT_EQ] == EJ_jle);
     assert(genJCCinsSigned[GT_GE - GT_EQ] == EJ_jge);
     assert(genJCCinsSigned[GT_GT - GT_EQ] == EJ_jg);
+#ifndef LEGACY_BACKEND
+    assert(genJCCinsSigned[GT_TEST_EQ - GT_EQ] == EJ_je);
+    assert(genJCCinsSigned[GT_TEST_NE - GT_EQ] == EJ_jne);
+#endif
 
     assert(genJCCinsUnsigned[GT_EQ - GT_EQ] == EJ_je);
     assert(genJCCinsUnsigned[GT_NE - GT_EQ] == EJ_jne);
@@ -2537,6 +2553,10 @@ emitJumpKind CodeGen::genJumpKindForOper(genTreeOps cmp, CompareKind compareKind
     assert(genJCCinsUnsigned[GT_LE - GT_EQ] == EJ_jbe);
     assert(genJCCinsUnsigned[GT_GE - GT_EQ] == EJ_jae);
     assert(genJCCinsUnsigned[GT_GT - GT_EQ] == EJ_ja);
+#ifndef LEGACY_BACKEND
+    assert(genJCCinsUnsigned[GT_TEST_EQ - GT_EQ] == EJ_je);
+    assert(genJCCinsUnsigned[GT_TEST_NE - GT_EQ] == EJ_jne);
+#endif
 
     assert(genJCCinsLogical[GT_EQ - GT_EQ] == EJ_je);
     assert(genJCCinsLogical[GT_NE - GT_EQ] == EJ_jne);
@@ -2794,6 +2814,37 @@ void CodeGen::genUpdateCurrentFunclet(BasicBlock* block)
         }
     }
 }
+
+#if defined(_TARGET_ARM_)
+void CodeGen::genInsertNopForUnwinder(BasicBlock* block)
+{
+    // If this block is the target of a finally return, we need to add a preceding NOP, in the same EH region,
+    // so the unwinder doesn't get confused by our "movw lr, xxx; movt lr, xxx; b Lyyy" calling convention that
+    // calls the funclet during non-exceptional control flow.
+    if (block->bbFlags & BBF_FINALLY_TARGET)
+    {
+        assert(block->bbFlags & BBF_JMP_TARGET);
+
+#ifdef DEBUG
+        if (compiler->verbose)
+        {
+            printf("\nEmitting finally target NOP predecessor for BB%02u\n", block->bbNum);
+        }
+#endif
+        // Create a label that we'll use for computing the start of an EH region, if this block is
+        // at the beginning of such a region. If we used the existing bbEmitCookie as is for
+        // determining the EH regions, then this NOP would end up outside of the region, if this
+        // block starts an EH region. If we pointed the existing bbEmitCookie here, then the NOP
+        // would be executed, which we would prefer not to do.
+
+        block->bbUnwindNopEmitCookie =
+            getEmitter()->emitAddLabel(gcInfo.gcVarPtrSetCur, gcInfo.gcRegGCrefSetCur, gcInfo.gcRegByrefSetCur);
+
+        instGen(INS_nop);
+    }
+}
+#endif
+
 #endif // FEATURE_EH_FUNCLETS
 
 /*****************************************************************************
@@ -3145,12 +3196,17 @@ void CodeGen::genGenerateCode(void** codePtr, ULONG* nativeSizeOfCode)
     /* Check our max stack level. Needed for fgAddCodeRef().
        We need to relax the assert as our estimation won't include code-gen
        stack changes (which we know don't affect fgAddCodeRef()) */
-    noway_assert(getEmitter()->emitMaxStackDepth <=
-                 (compiler->fgPtrArgCntMax +              // Max number of pointer-sized stack arguments.
-                  compiler->compHndBBtabCount +           // Return address for locally-called finallys
-                  genTypeStSz(TYP_LONG) +                 // longs/doubles may be transferred via stack, etc
-                  (compiler->compTailCallUsed ? 4 : 0))); // CORINFO_HELP_TAILCALL args
+    {
+        unsigned maxAllowedStackDepth = compiler->fgPtrArgCntMax +    // Max number of pointer-sized stack arguments.
+                                        compiler->compHndBBtabCount + // Return address for locally-called finallys
+                                        genTypeStSz(TYP_LONG) +       // longs/doubles may be transferred via stack, etc
+                                        (compiler->compTailCallUsed ? 4 : 0); // CORINFO_HELP_TAILCALL args
+#if defined(UNIX_X86_ABI)
+        maxAllowedStackDepth += genTypeStSz(TYP_INT) * 3; // stack align for x86 - allow up to 3 INT's for padding
 #endif
+        noway_assert(getEmitter()->emitMaxStackDepth <= maxAllowedStackDepth);
+    }
+#endif // EMIT_TRACK_STACK_DEPTH
 
     *nativeSizeOfCode                 = codeSize;
     compiler->info.compNativeCodeSize = (UNATIVE_OFFSET)codeSize;
@@ -9394,6 +9450,20 @@ void CodeGen::genFnEpilog(BasicBlock* block)
     genRestoreCalleeSavedFltRegs(compiler->compLclFrameSize);
 #endif // !FEATURE_STACK_FP_X87
 
+#ifdef JIT32_GCENCODER
+    // When using the JIT32 GC encoder, we do not start the OS-reported portion of the epilog until after
+    // the above call to `genRestoreCalleeSavedFltRegs` because that function
+    //   a) does not actually restore any registers: there are none when targeting the Windows x86 ABI,
+    //      which is the only target that uses the JIT32 GC encoder
+    //   b) may issue a `vzeroupper` instruction to eliminate AVX -> SSE transition penalties.
+    // Because the `vzeroupper` instruction is not recognized by the VM's unwinder and there are no
+    // callee-save FP restores that the unwinder would need to see, we can avoid the need to change the
+    // unwinder (and break binary compat with older versions of the runtime) by starting the epilog
+    // after any `vzeroupper` instruction has been emitted. If either of the above conditions changes,
+    // we will need to rethink this.
+    getEmitter()->emitStartEpilog();
+#endif
+
     /* Compute the size in bytes we've pushed/popped */
 
     if (!doubleAlignOrFramePointerUsed())
@@ -10240,6 +10310,86 @@ void CodeGen::genCaptureFuncletPrologEpilogInfo()
 #elif defined(_TARGET_ARM64_)
 
 // Look in CodeGenArm64.cpp
+
+#elif defined(_TARGET_X86_)
+
+/*****************************************************************************
+ *
+ *  Generates code for an EH funclet prolog.
+ *
+ *
+ *  Funclets have the following incoming arguments:
+ *
+ *      catch/filter-handler: eax = the exception object that was caught (see GT_CATCH_ARG)
+ *      filter:               eax = the exception object that was caught (see GT_CATCH_ARG)
+ *      finally/fault:        none
+ *
+ *  Funclets set the following registers on exit:
+ *
+ *      catch/filter-handler: eax = the address at which execution should resume (see BBJ_EHCATCHRET)
+ *      filter:               eax = non-zero if the handler should handle the exception, zero otherwise (see GT_RETFILT)
+ *      finally/fault:        none
+ *
+ *  Funclet prolog/epilog sequence and funclet frame layout are TBD.
+ *
+ */
+
+void CodeGen::genFuncletProlog(BasicBlock* block)
+{
+#ifdef DEBUG
+    if (verbose)
+    {
+        printf("*************** In genFuncletProlog()\n");
+    }
+#endif
+
+    ScopedSetVariable<bool> _setGeneratingProlog(&compiler->compGeneratingProlog, true);
+
+    compiler->unwindBegProlog();
+
+    // This is the end of the OS-reported prolog for purposes of unwinding
+    compiler->unwindEndProlog();
+
+    // TODO We may need EBP restore sequence here if we introduce PSPSym
+
+    // Add a padding for 16-byte alignment
+    inst_RV_IV(INS_sub, REG_SPBASE, 12, EA_PTRSIZE);
+}
+
+/*****************************************************************************
+ *
+ *  Generates code for an EH funclet epilog.
+ */
+
+void CodeGen::genFuncletEpilog()
+{
+#ifdef DEBUG
+    if (verbose)
+    {
+        printf("*************** In genFuncletEpilog()\n");
+    }
+#endif
+
+    ScopedSetVariable<bool> _setGeneratingEpilog(&compiler->compGeneratingEpilog, true);
+
+    // Revert a padding that was added for 16-byte alignment
+    inst_RV_IV(INS_add, REG_SPBASE, 12, EA_PTRSIZE);
+
+    instGen_Return(0);
+}
+
+/*****************************************************************************
+ *
+ *  Capture the information used to generate the funclet prologs and epilogs.
+ */
+
+void CodeGen::genCaptureFuncletPrologEpilogInfo()
+{
+    if (!compiler->ehAnyFunclets())
+    {
+        return;
+    }
+}
 
 #else // _TARGET_*
 

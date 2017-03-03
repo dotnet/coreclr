@@ -15,8 +15,6 @@
 
 using System.Collections;
 using System.Collections.Generic;
-using System.Runtime.InteropServices;
-using System.Diagnostics;
 using System.Diagnostics.Contracts;
 
 namespace System
@@ -46,14 +44,11 @@ namespace System
 
         public ArraySegment(T[] array, int offset, int count)
         {
-            if (array == null)
-                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
-            if (offset < 0)
-                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.offset, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
-            if (count < 0)
-                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.count, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
-            if (array.Length - offset < count)
-                ThrowHelper.ThrowArgumentException(ExceptionResource.Argument_InvalidOffLen);
+            // Validate arguments, check is minimal instructions with reduced branching for inlinable fast-path
+            // Negative values discovered though conversion to high values when converted to unsigned
+            // Failure should be rare and location determination and message is delegated to failure functions
+            if (array == null || (uint)offset > (uint)array.Length || (uint)count > (uint)(array.Length - offset))
+                ThrowHelper.ThrowArraySegmentCtorValidationFailedExceptions(array, offset, count);
             Contract.EndContractBlock();
 
             _array = array;
@@ -65,7 +60,7 @@ namespace System
         {
             get
             {
-                Debug.Assert(    (null == _array && 0 == _offset && 0 == _count)
+                Debug.Assert((null == _array && 0 == _offset && 0 == _count)
                                  || (null != _array && _offset >= 0 && _count >= 0 && _offset + _count <= _array.Length),
                                 "ArraySegment is invalid");
 
@@ -84,7 +79,7 @@ namespace System
                 // after reading each field out of an ArraySegment into their stack.
                 Contract.Ensures(Contract.Result<int>() >= 0);
 
-                Debug.Assert(    (null == _array && 0 == _offset && 0 == _count)
+                Debug.Assert((null == _array && 0 == _offset && 0 == _count)
                                  || (null != _array && _offset >= 0 && _count >= 0 && _offset + _count <= _array.Length),
                                 "ArraySegment is invalid");
 
@@ -103,7 +98,7 @@ namespace System
                 // after reading each field out of an ArraySegment into their stack.
                 Contract.Ensures(Contract.Result<int>() >= 0);
 
-                Debug.Assert(     (null == _array && 0 == _offset && 0 == _count)
+                Debug.Assert((null == _array && 0 == _offset && 0 == _count)
                                   || (null != _array && _offset >= 0 && _count >= 0 && _offset + _count <= _array.Length),
                                 "ArraySegment is invalid");
 
@@ -126,11 +121,11 @@ namespace System
             {
                 return 0;
             }
-            
+
             int hash = 5381;
             hash = System.Numerics.Hashing.HashHelpers.Combine(hash, _offset);
             hash = System.Numerics.Hashing.HashHelpers.Combine(hash, _count);
-            
+
             // The array hash is expected to be an evenly-distributed mixture of bits,
             // so rather than adding the cost of another rotation we just xor it.
             hash ^= _array.GetHashCode();
@@ -144,17 +139,17 @@ namespace System
             else
                 return false;
         }
-    
+
         public bool Equals(ArraySegment<T> obj)
         {
             return obj._array == _array && obj._offset == _offset && obj._count == _count;
         }
-    
+
         public static bool operator ==(ArraySegment<T> a, ArraySegment<T> b)
         {
             return a.Equals(b);
         }
-        
+
         public static bool operator !=(ArraySegment<T> a, ArraySegment<T> b)
         {
             return !(a == b);
@@ -167,7 +162,7 @@ namespace System
             {
                 if (_array == null)
                     ThrowHelper.ThrowInvalidOperationException(ExceptionResource.InvalidOperation_NullArray);
-                if (index < 0 || index >=  _count)
+                if (index < 0 || index >= _count)
                     ThrowHelper.ThrowArgumentOutOfRange_IndexException();
                 Contract.EndContractBlock();
 

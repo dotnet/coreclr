@@ -12,12 +12,13 @@
 **
 ** 
 ===========================================================*/
-namespace System.Resources {
+
+namespace System.Resources
+{
     using System;
     using System.Collections;
     using System.IO;
     using System.Globalization;
-    using System.Security.Permissions;
     using System.Runtime.InteropServices;
     using System.Reflection;
     using System.Runtime.Serialization;
@@ -31,7 +32,6 @@ namespace System.Resources {
     // stores them in a hash table.  Custom IResourceReaders can be used.
     // 
     [Serializable]
-    [System.Runtime.InteropServices.ComVisible(true)]
     public class ResourceSet : IDisposable, IEnumerable
     {
         [NonSerialized] protected IResourceReader Reader;
@@ -77,7 +77,7 @@ namespace System.Resources {
             ReadResources();
         }
 #endif // LOOSELY_LINKED_RESOURCE_REFERENCE
-    
+
         // Creates a ResourceSet using the system default ResourceReader
         // implementation.  Use this constructor to read from an open stream 
         // of data.
@@ -121,7 +121,7 @@ namespace System.Resources {
             ReadResources();
         }
 #endif // LOOSELY_LINKED_RESOURCE_REFERENCE
-    
+
         private void CommonInit()
         {
             Table = new Hashtable();
@@ -135,10 +135,11 @@ namespace System.Resources {
         {
             Dispose(true);
         }
-        
+
         protected virtual void Dispose(bool disposing)
         {
-            if (disposing) {
+            if (disposing)
+            {
                 // Close the Reader in a thread-safe way.
                 IResourceReader copyOfReader = Reader;
                 Reader = null;
@@ -158,7 +159,6 @@ namespace System.Resources {
 #if LOOSELY_LINKED_RESOURCE_REFERENCE
         // Optional - used for resolving assembly manifest resource references.
         // This can safely be null.
-        [ComVisible(false)]
         public Assembly Assembly {
             get { return _assembly; }
             /*protected*/ set { _assembly = value; }
@@ -172,7 +172,7 @@ namespace System.Resources {
         {
             return typeof(ResourceReader);
         }
-    
+
         // Returns the preferred IResourceWriter class for this kind of ResourceSet.
         // Subclasses of ResourceSet using their own Readers &; should override
         // GetDefaultReader and GetDefaultWriter.
@@ -181,7 +181,6 @@ namespace System.Resources {
             return Type.GetType("System.Resources.ResourceWriter, System.Resources.Writer, Version=4.0.1.0, Culture=neutral, PublicKeyToken=" + AssemblyRef.MicrosoftPublicKeyToken, throwOnError: true);
         }
 
-        [ComVisible(false)]
         public virtual IDictionaryEnumerator GetEnumerator()
         {
             return GetEnumeratorHelper();
@@ -206,10 +205,12 @@ namespace System.Resources {
         public virtual String GetString(String name)
         {
             Object obj = GetObjectInternal(name);
-            try {
+            try
+            {
                 return (String)obj;
             }
-            catch (InvalidCastException) {
+            catch (InvalidCastException)
+            {
                 throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_ResourceNotString_Name", name));
             }
         }
@@ -221,28 +222,33 @@ namespace System.Resources {
 
             // Case-sensitive lookup
             obj = GetObjectInternal(name);
-            try {
+            try
+            {
                 s = (String)obj;
             }
-            catch (InvalidCastException) {
+            catch (InvalidCastException)
+            {
                 throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_ResourceNotString_Name", name));
             }
 
             // case-sensitive lookup succeeded
-            if (s != null || !ignoreCase) {
+            if (s != null || !ignoreCase)
+            {
                 return s;
-                }
+            }
 
             // Try doing a case-insensitive lookup
             obj = GetCaseInsensitiveObjectInternal(name);
-            try {
+            try
+            {
                 return (String)obj;
             }
-            catch (InvalidCastException) {
+            catch (InvalidCastException)
+            {
                 throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_ResourceNotString_Name", name));
             }
         }
-        
+
         // Look up an object value for a resource given its name.
         // 
         public virtual Object GetObject(String name)
@@ -253,17 +259,18 @@ namespace System.Resources {
         public virtual Object GetObject(String name, bool ignoreCase)
         {
             Object obj = GetObjectInternal(name);
-            
+
             if (obj != null || !ignoreCase)
                 return obj;
 
             return GetCaseInsensitiveObjectInternal(name);
         }
-    
+
         protected virtual void ReadResources()
         {
             IDictionaryEnumerator en = Reader.GetEnumerator();
-            while (en.MoveNext()) {
+            while (en.MoveNext())
+            {
                 Object value = en.Value;
 #if LOOSELY_LINKED_RESOURCE_REFERENCE
                 if (Assembly != null && value is LooselyLinkedResourceReference) {
@@ -304,7 +311,7 @@ namespace System.Resources {
                 caseTable = new Hashtable(StringComparer.OrdinalIgnoreCase);
 #if _DEBUG
                 //Console.WriteLine("ResourceSet::GetObject loading up case-insensitive data");
-                BCLDebug.Perf(false, "Using case-insensitive lookups is bad perf-wise.  Consider capitalizing "+name+" correctly in your source");
+                BCLDebug.Perf(false, "Using case-insensitive lookups is bad perf-wise.  Consider capitalizing " + name + " correctly in your source");
 #endif
 
                 IDictionaryEnumerator en = copyOfTable.GetEnumerator();

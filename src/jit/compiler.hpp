@@ -500,6 +500,52 @@ inline regNumber genRegNumFromMask(regMaskTP mask)
     return regNum;
 }
 
+//------------------------------------------------------------------------------
+// genTypeCanRepresentValue: Checks if a value can be represented by a given type.
+//
+// Arguments:
+//    value - the value to check
+//    type  - the type
+//
+// Return Value:
+//    True if the value is representable, false otherwise.
+//
+// Notes:
+//    If the type is not integral or ref like (ref/byref/array) then false is
+//    always returned.
+
+template <typename TValue>
+inline bool genTypeCanRepresentValue(var_types type, TValue value)
+{
+    switch (type)
+    {
+        case TYP_UBYTE:
+        case TYP_BOOL:
+            return FitsIn<UINT8>(value);
+        case TYP_BYTE:
+            return FitsIn<INT8>(value);
+        case TYP_USHORT:
+        case TYP_CHAR:
+            return FitsIn<UINT16>(value);
+        case TYP_SHORT:
+            return FitsIn<INT16>(value);
+        case TYP_UINT:
+            return FitsIn<UINT32>(value);
+        case TYP_INT:
+            return FitsIn<INT32>(value);
+        case TYP_ULONG:
+            return FitsIn<UINT64>(value);
+        case TYP_LONG:
+            return FitsIn<INT64>(value);
+        case TYP_REF:
+        case TYP_BYREF:
+        case TYP_ARRAY:
+            return FitsIn<UINT_PTR>(value);
+        default:
+            return false;
+    }
+}
+
 /*****************************************************************************
  *
  *  Return the size in bytes of the given type.
@@ -1137,7 +1183,6 @@ inline GenTreePtr Compiler::gtNewFieldRef(
     tree->gtField.gtFldObj    = obj;
     tree->gtField.gtFldHnd    = fldHnd;
     tree->gtField.gtFldOffset = offset;
-    tree->gtFlags |= GTF_GLOB_REF;
 
 #ifdef FEATURE_READYTORUN_COMPILER
     tree->gtField.gtFieldLookup.addr = nullptr;
@@ -1154,6 +1199,18 @@ inline GenTreePtr Compiler::gtNewFieldRef(
     {
         unsigned lclNum                  = obj->gtOp.gtOp1->gtLclVarCommon.gtLclNum;
         lvaTable[lclNum].lvFieldAccessed = 1;
+#if defined(_TARGET_AMD64_) || defined(_TARGET_ARM64_)
+        // These structs are passed by reference; we should probably be able to treat these
+        // as non-global refs, but downstream logic expects these to be marked this way.
+        if (lvaTable[lclNum].lvIsParam)
+        {
+            tree->gtFlags |= GTF_GLOB_REF;
+        }
+#endif // defined(_TARGET_AMD64_) || defined(_TARGET_ARM64_)
+    }
+    else
+    {
+        tree->gtFlags |= GTF_GLOB_REF;
     }
 
     return tree;
@@ -2142,11 +2199,14 @@ inline bool Compiler::lvaKeepAliveAndReportThis()
         return false;
     }
 
+    const bool genericsContextIsThis = (info.compMethodInfo->options & CORINFO_GENERICS_CTXT_FROM_THIS) != 0;
+
 #ifdef JIT32_GCENCODER
+
     if (info.compFlags & CORINFO_FLG_SYNCH)
         return true;
 
-    if (info.compMethodInfo->options & CORINFO_GENERICS_CTXT_FROM_THIS)
+    if (genericsContextIsThis)
     {
         // TODO: Check if any of the exception clauses are
         // typed using a generic type. Else, we do not need to report this.
@@ -2156,18 +2216,29 @@ inline bool Compiler::lvaKeepAliveAndReportThis()
         if (opts.compDbgCode)
             return true;
 
-        if (lvaGenericsContextUsed)
+        if (lvaGenericsContextUseCount > 0)
+        {
+            JITDUMP("Reporting this as generic context: %u refs\n", lvaGenericsContextUseCount);
             return true;
+        }
     }
 #else // !JIT32_GCENCODER
     // If the generics context is the this pointer we need to report it if either
     // the VM requires us to keep the generics context alive or it is used in a look-up.
-    // We keep it alive in the lookup scenario, even when the VM didn't ask us too
+    // We keep it alive in the lookup scenario, even when the VM didn't ask us to,
     // because collectible types need the generics context when gc-ing.
-    if ((info.compMethodInfo->options & CORINFO_GENERICS_CTXT_FROM_THIS) &&
-        (lvaGenericsContextUsed || (info.compMethodInfo->options & CORINFO_GENERICS_CTXT_KEEP_ALIVE)))
+    if (genericsContextIsThis)
     {
-        return true;
+        const bool isUsed   = lvaGenericsContextUseCount > 0;
+        const bool mustKeep = (info.compMethodInfo->options & CORINFO_GENERICS_CTXT_KEEP_ALIVE) != 0;
+
+        if (isUsed || mustKeep)
+        {
+            JITDUMP("Reporting this as generic context: %u refs%s\n", lvaGenericsContextUseCount,
+                    mustKeep ? ", must keep" : "");
+
+            return true;
+        }
     }
 #endif
 
@@ -2193,7 +2264,7 @@ inline bool Compiler::lvaReportParamTypeArg()
 
         // Otherwise, if an exact type parameter is needed in the body, report the generics context.
         // We do this because collectible types needs the generics context when gc-ing.
-        if (lvaGenericsContextUsed)
+        if (lvaGenericsContextUseCount > 0)
         {
             return true;
         }
@@ -4393,7 +4464,7 @@ inline void Compiler::EndPhase(Phases phase)
 #if defined(FEATURE_JIT_METHOD_PERF)
     if (pCompJitTimer != nullptr)
     {
-        pCompJitTimer->EndPhase(phase);
+        pCompJitTimer->EndPhase(this, phase);
     }
 #endif
 #if DUMP_FLOWGRAPHS
@@ -4630,10 +4701,10 @@ inline void BasicBlock::InitVarSets(Compiler* comp)
     VarSetOps::AssignNoCopy(comp, bbLiveOut, VarSetOps::MakeEmpty(comp));
     VarSetOps::AssignNoCopy(comp, bbScope, VarSetOps::MakeEmpty(comp));
 
-    bbHeapUse     = false;
-    bbHeapDef     = false;
-    bbHeapLiveIn  = false;
-    bbHeapLiveOut = false;
+    bbMemoryUse     = emptyMemoryKindSet;
+    bbMemoryDef     = emptyMemoryKindSet;
+    bbMemoryLiveIn  = emptyMemoryKindSet;
+    bbMemoryLiveOut = emptyMemoryKindSet;
 }
 
 // Returns true if the basic block ends with GT_JMP

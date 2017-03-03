@@ -12,7 +12,6 @@
 
 using System;
 using System.Runtime.ConstrainedExecution;
-using System.Security.Permissions;
 using System.Threading;
 using System.Diagnostics;
 using System.Diagnostics.Contracts;
@@ -72,7 +71,6 @@ namespace System.Threading
     /// </remarks>
     public struct SpinWait
     {
-
         // These constants determine the frequency of yields versus spinning. The
         // numbers may seem fairly arbitrary, but were derived with at least some
         // thought in the design document.  I fully expect they will need to change
@@ -189,7 +187,7 @@ namespace System.Threading
         public static void SpinUntil(Func<bool> condition)
         {
 #if DEBUG
-            bool result = 
+            bool result =
 #endif
             SpinUntil(condition, Timeout.Infinite);
 #if DEBUG
@@ -268,7 +266,6 @@ namespace System.Threading
                 }
             }
             return true;
-
         }
         #endregion
 
@@ -361,5 +358,4 @@ namespace System.Threading
             return currentWaitTimeout;
         }
     }
-
 }

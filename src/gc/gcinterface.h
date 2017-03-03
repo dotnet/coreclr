@@ -77,6 +77,10 @@ struct WriteBarrierParameters
     // card table. Used for WriteBarrierOp::Initialize and WriteBarrierOp::StompResize.
     uint32_t* card_table;
 
+    // The new card bundle table location. May or may not be the same as the previous
+    // card bundle table. Used for WriteBarrierOp::Initialize and WriteBarrierOp::StompResize.
+    uint32_t* card_bundle_table;
+
     // The heap's new low boundary. May or may not be the same as the previous
     // value. Used for WriteBarrierOp::Initialize and WriteBarrierOp::StompResize.
     uint8_t* lowest_address;
@@ -129,6 +133,8 @@ public:
     }
 };
 
+#include "gcinterface.dac.h"
+
 // stub type to abstract a heap segment
 struct gc_heap_segment_stub;
 typedef gc_heap_segment_stub *segment_handle;
@@ -162,8 +168,9 @@ class Object;
 class IGCHeap;
 
 // Initializes the garbage collector. Should only be called
-// once, during EE startup.
-IGCHeap* InitializeGarbageCollector(IGCToCLR* clrToGC);
+// once, during EE startup. Returns true if the initialization
+// was successful, false otherwise.
+bool InitializeGarbageCollector(IGCToCLR* clrToGC, IGCHeap **gcHeap, GcDacVars* gcDacVars);
 
 // The runtime needs to know whether we're using workstation or server GC 
 // long before the GCHeap is created. This function sets the type of
@@ -312,6 +319,10 @@ public:
 
     // Gets the next finalizable object.
     virtual Object* GetNextFinalizable() = 0;
+
+    // Sets whether or not the GC should report all finalizable objects as
+    // ready to be finalized, instead of only collectable objects.
+    virtual void SetFinalizeRunOnShutdown(bool value) = 0;
 
     /*
     ===========================================================================

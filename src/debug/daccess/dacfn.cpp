@@ -16,12 +16,12 @@
 #ifdef FEATURE_PREJIT
 #include "compile.h"
 #endif // FEATURE_PREJIT
-#ifdef FEATURE_REMOTING
-#include <remoting.h>
-#include "objectclone.h"
-#endif
 #include <virtualcallstub.h>
 #include "peimagelayout.inl"
+
+#include "gcinterface.h"
+#include "gcinterface.dac.h"
+
 
 DacTableInfo g_dacTableInfo;
 DacGlobals g_dacGlobals;

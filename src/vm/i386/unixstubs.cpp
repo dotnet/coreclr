@@ -11,21 +11,6 @@ extern "C"
         PORTABILITY_ASSERT("Implement for PAL");
     }
 
-    void NakedThrowHelper()
-    {
-        PORTABILITY_ASSERT("Implement for PAL");
-    }
-
-    void PInvokeStubForHost()
-    {
-        PORTABILITY_ASSERT("Implement for PAL");
-    }
-
-    void PInvokeStubForHostInner(DWORD dwStackSize, LPVOID pStackFrame, LPVOID pTarget)
-    {
-        PORTABILITY_ASSERT("Implement for PAL");
-    }
-
     void ProfileEnterNaked(FunctionIDOrClientID functionIDOrClientID)    
     {
         PORTABILITY_ASSERT("Implement for PAL");
@@ -44,23 +29,7 @@ extern "C"
     void STDCALL JIT_ProfilerEnterLeaveTailcallStub(UINT_PTR ProfilerHandle)
     {
     }
-
-    BOOL CallRtlUnwind()
-    {
-        PORTABILITY_ASSERT("CallRtlUnwind");
-        return FALSE;
-    }
 };
-
-VOID __cdecl PopSEHRecords(LPVOID pTargetSP)
-{
-    PORTABILITY_ASSERT("Implement for PAL");
-}
-
-EXTERN_C VOID BackPatchWorkerAsmStub()
-{
-    PORTABILITY_ASSERT("BackPatchWorkerAsmStub");
-}
 
 EXTERN_C VOID JIT_TailCall()
 {
@@ -91,34 +60,5 @@ PTR_CONTEXT GetCONTEXTFromRedirectedStubStackFrame(T_DISPATCHER_CONTEXT * pDispa
 FaultingExceptionFrame *GetFrameFromRedirectedStubStackFrame(DISPATCHER_CONTEXT *pDispatcherContext)
 {
     PORTABILITY_ASSERT("GetFrameFromRedirectedStubStackFrame");
-    return NULL;
-}
-
-EXTERN_C ULONG
-RtlpGetFunctionEndAddress (
-    __in PT_RUNTIME_FUNCTION FunctionEntry,
-    __in ULONG ImageBase
-    )
-{
-    PORTABILITY_ASSERT("RtlpGetFunctionEndAddress");
-    return 0;
-}
-
-EXTERN_C
-NTSYSAPI
-PEXCEPTION_ROUTINE
-NTAPI
-RtlVirtualUnwind (
-    __in DWORD HandlerType,
-    __in DWORD ImageBase,
-    __in DWORD ControlPc,
-    __in PRUNTIME_FUNCTION FunctionEntry,
-    __inout PT_CONTEXT ContextRecord,
-    __out PVOID *HandlerData,
-    __out PDWORD EstablisherFrame,
-    __inout_opt PT_KNONVOLATILE_CONTEXT_POINTERS ContextPointers
-    )
-{
-    PORTABILITY_ASSERT("RtlVirtualUnwind");
     return NULL;
 }

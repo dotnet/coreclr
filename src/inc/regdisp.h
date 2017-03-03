@@ -8,22 +8,20 @@
 
 #ifdef DEBUG_REGDISPLAY
 class Thread;
+struct REGDISPLAY;
+void CheckRegDisplaySP (REGDISPLAY *pRD);
 #endif // DEBUG_REGDISPLAY
 
+struct REGDISPLAY_BASE {
+    PT_CONTEXT pContext;    // This is the context of the active call frame;
+                            // either returned by GetContext or provided at
+                            // exception time.
+                            //
+                            // This will be used to resume execution, so
+                            // do NOT trash it! But DO update any static
+                            // registers here.
 
-#if defined(_TARGET_X86_)
-
-struct REGDISPLAY {
-    PCONTEXT pContext;    // points to current Context; either
-                          // returned by GetContext or provided
-                          // at exception time.
-
-#ifndef WIN64EXCEPTIONS
-    // TODO: Unify with pCurrentContext / pCallerContext used on 64-bit
-    PCONTEXT pContextForUnwind; // scratch context for unwinding
-                                // used to preserve context saved in the frame that 
-                                // could be otherwise wiped by the unwinding
-#else // !WIN64EXCEPTIONS
+#ifdef WIN64EXCEPTIONS
     PT_CONTEXT pCurrentContext;   // [trashed] points to current Context of stackwalk
     PT_CONTEXT pCallerContext;    // [trashed] points to the Context of the caller during stackwalk -- used for GC crawls
 
@@ -40,11 +38,42 @@ struct REGDISPLAY {
 
     T_KNONVOLATILE_CONTEXT_POINTERS ctxPtrsOne;  // used by stackwalk
     T_KNONVOLATILE_CONTEXT_POINTERS ctxPtrsTwo;  // used by stackwalk
+#endif // WIN64EXCEPTIONS
 
 #ifdef DEBUG_REGDISPLAY
     Thread *_pThread;
 #endif // DEBUG_REGDISPLAY
-#endif // !WIN64EXCEPTIONS
+
+    TADDR SP;
+    TADDR ControlPC;
+};
+
+inline PCODE GetControlPC(REGDISPLAY_BASE *pRD) {
+    LIMITED_METHOD_DAC_CONTRACT;
+    return (PCODE)(pRD->ControlPC);
+}
+
+inline TADDR GetRegdisplaySP(REGDISPLAY_BASE *pRD) {
+    LIMITED_METHOD_DAC_CONTRACT;
+
+    return pRD->SP;
+}
+
+inline void SetRegdisplaySP(REGDISPLAY_BASE *pRD, LPVOID sp) {
+    LIMITED_METHOD_DAC_CONTRACT;
+
+    pRD->SP = (TADDR)sp;
+}
+
+#if defined(_TARGET_X86_)
+
+struct REGDISPLAY : public REGDISPLAY_BASE {
+
+#ifndef WIN64EXCEPTIONS
+    // TODO: Unify with pCurrentContext / pCallerContext used on 64-bit
+    PCONTEXT pContextForUnwind; // scratch context for unwinding
+                                // used to preserve context saved in the frame that
+                                // could be otherwise wiped by the unwinding
 
     DWORD * pEdi;
     DWORD * pEsi;
@@ -54,52 +83,68 @@ struct REGDISPLAY {
     DWORD * pEax;
 
     DWORD * pEbp;
-    DWORD   Esp;                // (Esp) Stack Pointer
-    PCODE   ControlPC;
+#endif // !WIN64EXCEPTIONS
+
+#ifndef WIN64EXCEPTIONS
+
+#define REG_METHODS(reg) \
+    inline PDWORD Get##reg##Location(void) { return p##reg;  } \
+    inline void   Set##reg##Location(PDWORD p##reg) { this->p##reg = p##reg; }
+
+#else // !WIN64EXCEPTIONS
+
+#define REG_METHODS(reg) \
+    inline PDWORD Get##reg##Location(void) { return pCurrentContextPointers->reg; } \
+    inline void   Set##reg##Location(PDWORD p##reg) { pCurrentContextPointers->reg = p##reg; }
+
+#endif // WIN64EXCEPTIONS
+
+    REG_METHODS(Eax)
+    REG_METHODS(Ecx)
+    REG_METHODS(Edx)
+
+    REG_METHODS(Ebx)
+    REG_METHODS(Esi)
+    REG_METHODS(Edi)
+    REG_METHODS(Ebp)
+
+#undef REG_METHODS
+
     TADDR   PCTAddr;
-
 };
-
-inline TADDR GetRegdisplaySP(REGDISPLAY *display) {
-    LIMITED_METHOD_DAC_CONTRACT;
-
-    return (TADDR)display->Esp;
-}
-
-inline void SetRegdisplaySP(REGDISPLAY *display, LPVOID sp ) {
-    LIMITED_METHOD_DAC_CONTRACT;
-
-    (display->Esp) = (DWORD)(size_t)sp;
-}
 
 inline TADDR GetRegdisplayFP(REGDISPLAY *display) {
     LIMITED_METHOD_DAC_CONTRACT;
 
-    return (TADDR)*(display->pEbp);
+    return (TADDR)*display->GetEbpLocation();
 }
 
 inline LPVOID GetRegdisplayFPAddress(REGDISPLAY *display) {
     LIMITED_METHOD_CONTRACT;
     
-    return (LPVOID)display->pEbp;
+    return (LPVOID)display->GetEbpLocation();
 }
 
-inline PCODE GetControlPC(REGDISPLAY *display) {
-    LIMITED_METHOD_DAC_CONTRACT;
-
-    return display->ControlPC;
-}
 
 // This function tells us if the given stack pointer is in one of the frames of the functions called by the given frame
 inline BOOL IsInCalleesFrames(REGDISPLAY *display, LPVOID stackPointer) {
     LIMITED_METHOD_CONTRACT;
 
+#ifdef WIN64EXCEPTIONS
+    return stackPointer < ((LPVOID)(display->SP));
+#else
     return (TADDR)stackPointer < display->PCTAddr;
+#endif
 }
 inline TADDR GetRegdisplayStackMark(REGDISPLAY *display) {
     LIMITED_METHOD_DAC_CONTRACT;
 
+#ifdef WIN64EXCEPTIONS
+    _ASSERTE(GetRegdisplaySP(display) == GetSP(display->pCurrentContext));
+    return GetRegdisplaySP(display);
+#else
     return display->PCTAddr;
+#endif
 }
 
 #elif defined(_WIN64)
@@ -133,42 +178,18 @@ typedef struct _Arm64VolatileContextPointer
     };
 } Arm64VolatileContextPointer;
 #endif //_TARGET_ARM64_
-struct REGDISPLAY {
-    PT_CONTEXT pContext;          // This is the context of the active call frame.  This
-                                // will be used to resume execution, so do not use trash it!
-                                // But DO update any static registers here.
-
-    PT_CONTEXT pCurrentContext;   // [trashed] points to current Context of stackwalk
-    PT_CONTEXT pCallerContext;    // [trashed] points to the Context of the caller during stackwalk -- used for GC crawls
-
-    size_t  ControlPC;
-
-    size_t  SP;
-
-    T_KNONVOLATILE_CONTEXT_POINTERS *pCurrentContextPointers;  // [trashed] points to current context pointers of stackwalk
-    T_KNONVOLATILE_CONTEXT_POINTERS *pCallerContextPointers;   // [trashed] points to the context pointers of the caller during stackwalk -- used for GC crawls
+struct REGDISPLAY : public REGDISPLAY_BASE {
 #ifdef _TARGET_ARM64_
     Arm64VolatileContextPointer     volatileCurrContextPointers;
 #endif
 
-    BOOL IsCallerContextValid;  // TRUE if pCallerContext really contains the caller's context
-    BOOL IsCallerSPValid;       // Don't add usage of this field.  This is only temporary.
-
-    T_CONTEXT  ctxOne;    // used by stackwalk
-    T_CONTEXT  ctxTwo;    // used by stackwalk
-
-    T_KNONVOLATILE_CONTEXT_POINTERS ctxPtrsOne;  // used by stackwalk
-    T_KNONVOLATILE_CONTEXT_POINTERS ctxPtrsTwo;  // used by stackwalk
-
-#ifdef DEBUG_REGDISPLAY
-    Thread *_pThread;
-#endif // DEBUG_REGDISPLAY
+    REGDISPLAY()
+    {
+        // Initialize
+        memset(this, 0, sizeof(REGDISPLAY));
+    }
 };
 
-inline TADDR GetRegdisplaySP(REGDISPLAY *display) {
-    LIMITED_METHOD_DAC_CONTRACT;
-    return (TADDR)display->SP;
-}
 
 inline TADDR GetRegdisplayFP(REGDISPLAY *display) {
     LIMITED_METHOD_CONTRACT;
@@ -179,16 +200,6 @@ inline TADDR GetRegdisplayFPAddress(REGDISPLAY *display) {
     LIMITED_METHOD_CONTRACT;
     return NULL; 
 }
-
-inline PCODE GetControlPC(REGDISPLAY *display) {
-    LIMITED_METHOD_DAC_CONTRACT;
-    return (PCODE)(display->ControlPC);
-}
-
-#ifdef DEBUG_REGDISPLAY
-void CheckRegDisplaySP (REGDISPLAY *pRD);
-#endif // DEBUG_REGDISPLAY
-
 
 // This function tells us if the given stack pointer is in one of the frames of the functions called by the given frame
 inline BOOL IsInCalleesFrames(REGDISPLAY *display, LPVOID stackPointer)
@@ -215,7 +226,6 @@ inline TADDR GetRegdisplayStackMark(REGDISPLAY *display)
 #endif // _TARGET_AMD64_
 }
 
-
 #elif defined(_TARGET_ARM_)
 
 // ResumableFrame is pushed on the stack before
@@ -236,30 +246,10 @@ typedef struct _ArmVolatileContextPointer
     PDWORD R12;
 } ArmVolatileContextPointer;
 
-struct REGDISPLAY {
-    PT_CONTEXT pContext;          // points to current Context; either
-                                // returned by GetContext or provided
-                                // at exception time.
-
-    PT_CONTEXT pCurrentContext;   // [trashed] points to current Context of stackwalk
-    PT_CONTEXT pCallerContext;    // [trashed] points to the Context of the caller during stackwalk -- used for GC crawls
-
-    T_KNONVOLATILE_CONTEXT_POINTERS ctxPtrsOne;  // used by stackwalk
-    T_KNONVOLATILE_CONTEXT_POINTERS ctxPtrsTwo;  // used by stackwalk
-
-    PT_KNONVOLATILE_CONTEXT_POINTERS pCurrentContextPointers;
-    PT_KNONVOLATILE_CONTEXT_POINTERS pCallerContextPointers;
+struct REGDISPLAY : public REGDISPLAY_BASE {
     ArmVolatileContextPointer     volatileCurrContextPointers;
 
-    BOOL IsCallerContextValid;  // TRUE if pCallerContext really contains the caller's context
-    BOOL IsCallerSPValid;       // Don't add usage of this field.  This is only temporary.
-
-    DWORD     SP;
-    DWORD     ControlPC; 
     DWORD *  pPC;                // processor neutral name
-
-    T_CONTEXT  ctxOne;    // used by stackwalk
-    T_CONTEXT  ctxTwo;    // used in ExceptionTracker::InitializeCrawlFrame
 
     REGDISPLAY()
     {
@@ -269,27 +259,7 @@ struct REGDISPLAY {
         // Setup the pointer to ControlPC field
         pPC = &ControlPC;
     }
-
-#ifdef DEBUG_REGDISPLAY
-    Thread *_pThread;
-#endif // DEBUG_REGDISPLAY
-
 };
-
-#ifdef DEBUG_REGDISPLAY
-void CheckRegDisplaySP (REGDISPLAY *pRD);
-#endif // DEBUG_REGDISPLAY
-
-inline TADDR GetRegdisplaySP(REGDISPLAY *display) {
-    LIMITED_METHOD_DAC_CONTRACT;
-    return (TADDR)(size_t)display->SP;
-}
-
-inline PCODE GetControlPC(REGDISPLAY *display) {
-    LIMITED_METHOD_DAC_CONTRACT;
-    return (PCODE)(display->ControlPC);
-}
-
 
 // This function tells us if the given stack pointer is in one of the frames of the functions called by the given frame
 inline BOOL IsInCalleesFrames(REGDISPLAY *display, LPVOID stackPointer) {
@@ -304,43 +274,8 @@ inline TADDR GetRegdisplayStackMark(REGDISPLAY *display) {
     return GetSP(display->pCallerContext);
 }
 
-
-
 #else // none of the above processors
-
-PORTABILITY_WARNING("RegDisplay functions are not implemented on this platform.")
-
-struct REGDISPLAY {
-    PCONTEXT pContext;          // points to current Context
-    size_t   SP;
-    size_t * FramePtr;
-    SLOT   * pPC;
-};
-
-inline PCODE GetControlPC(REGDISPLAY *display) {
-    LIMITED_METHOD_CONTRACT;
-    return (PCODE) NULL;
-}
-
-inline LPVOID GetRegdisplaySP(REGDISPLAY *display) {
-    LIMITED_METHOD_DAC_CONTRACT;
-    return (LPVOID)display->SP;
-}
-
-inline TADDR GetRegdisplayFP(REGDISPLAY *display) {
-    LIMITED_METHOD_CONTRACT;
-    return (TADDR)*(display->FramePtr);
-}
-
-inline BOOL IsInCalleesFrames(REGDISPLAY *display, LPVOID stackPointer) {
-    LIMITED_METHOD_CONTRACT;
-    return FALSE;
-}
-inline LPVOID GetRegdisplayStackMark(REGDISPLAY *display) {
-    LIMITED_METHOD_CONTRACT;
-    return (LPVOID)display->SP;
-}
-
+#error "RegDisplay functions are not implemented on this platform."
 #endif
 
 #if defined(_WIN64) || defined(_TARGET_ARM_) || (defined(_TARGET_X86_) && defined(WIN64EXCEPTIONS))
@@ -369,21 +304,20 @@ inline void SyncRegDisplayToCurrentContext(REGDISPLAY* pRD)
 
 #if defined(_WIN64)
     pRD->SP         = (INT_PTR)GetSP(pRD->pCurrentContext);
-
-#ifdef DEBUG_REGDISPLAY
-    CheckRegDisplaySP(pRD);
-#endif // DEBUG_REGDISPLAY
-
     pRD->ControlPC  = INT_PTR(GetIP(pRD->pCurrentContext));
 #elif defined(_TARGET_ARM_) // _WIN64
     pRD->SP         = (DWORD)GetSP(pRD->pCurrentContext);
     pRD->ControlPC  = (DWORD)GetIP(pRD->pCurrentContext);
 #elif defined(_TARGET_X86_) // _TARGET_ARM_
-    pRD->Esp        = (DWORD)GetSP(pRD->pCurrentContext);
+    pRD->SP         = (DWORD)GetSP(pRD->pCurrentContext);
     pRD->ControlPC  = (DWORD)GetIP(pRD->pCurrentContext);
 #else // _TARGET_X86_
     PORTABILITY_ASSERT("SyncRegDisplayToCurrentContext");
 #endif // _TARGET_ARM_ || _TARGET_X86_
+
+#ifdef DEBUG_REGDISPLAY
+    CheckRegDisplaySP(pRD);
+#endif // DEBUG_REGDISPLAY
 }
 #endif // _WIN64 || _TARGET_ARM_ || (_TARGET_X86_ && WIN64EXCEPTIONS)
 
@@ -407,7 +341,7 @@ inline void FillRegDisplay(const PREGDISPLAY pRD, PT_CONTEXT pctx, PT_CONTEXT pC
     pRD->pEax = &(pctx->Eax);
     pRD->pEcx = &(pctx->Ecx);
     pRD->pEdx = &(pctx->Edx);
-    pRD->Esp  = pctx->Esp;
+    pRD->SP   = pctx->Esp;
     pRD->ControlPC = (PCODE)(pctx->Eip);
     pRD->PCTAddr = (UINT_PTR)&(pctx->Eip);
 #else // _TARGET_X86_
@@ -416,6 +350,30 @@ inline void FillRegDisplay(const PREGDISPLAY pRD, PT_CONTEXT pctx, PT_CONTEXT pC
 
 #else // !WIN64EXCEPTIONS
     pRD->pContext   = pctx;
+
+    // Setup the references
+    pRD->pCurrentContextPointers = &pRD->ctxPtrsOne;
+    pRD->pCallerContextPointers = &pRD->ctxPtrsTwo;
+
+    pRD->pCurrentContext = &(pRD->ctxOne);
+    pRD->pCallerContext  = &(pRD->ctxTwo);
+
+    // copy the active context to initialize our stackwalk
+    *(pRD->pCurrentContext)     = *(pctx);
+
+    // copy the caller context as well if it's specified
+    if (pCallerCtx == NULL)
+    {
+        pRD->IsCallerContextValid = FALSE;
+        pRD->IsCallerSPValid      = FALSE;        // Don't add usage of this field.  This is only temporary.
+    }
+    else
+    {
+        *(pRD->pCallerContext)    = *(pCallerCtx);
+        pRD->IsCallerContextValid = TRUE;
+        pRD->IsCallerSPValid      = TRUE;        // Don't add usage of this field.  This is only temporary.
+    }
+
 #ifdef _TARGET_AMD64_
     for (int i = 0; i < 16; i++)
     {
@@ -434,41 +392,15 @@ inline void FillRegDisplay(const PREGDISPLAY pRD, PT_CONTEXT pctx, PT_CONTEXT pC
     }
 
     pRD->ctxPtrsOne.Lr = &pctx->Lr;
+    pRD->pPC = &pRD->pCurrentContext->Pc;
 #elif defined(_TARGET_X86_) // _TARGET_ARM_
-    for (int i = 0; i < 4; ++i)
+    for (int i = 0; i < 7; i++)
     {
-        *(&pRD->ctxPtrsOne.Ebx + i) = (&pctx->Ebx + i);
+        *(&pRD->ctxPtrsOne.Esi + i) = (&pctx->Esi + i);
     }
 #else // _TARGET_X86_
     PORTABILITY_ASSERT("FillRegDisplay");
 #endif // _TARGET_???_ (ELSE)
-
-    // Setup the references
-    pRD->pCurrentContextPointers = &pRD->ctxPtrsOne;
-    pRD->pCallerContextPointers = &pRD->ctxPtrsTwo;
-
-    pRD->pCurrentContext = &(pRD->ctxOne);
-    pRD->pCallerContext  = &(pRD->ctxTwo);
-
-    // copy the active context to initialize our stackwalk
-    *(pRD->pCurrentContext)     = *(pctx);
-    
-    // copy the caller context as well if it's specified
-    if (pCallerCtx == NULL)
-    {
-        pRD->IsCallerContextValid = FALSE;
-        pRD->IsCallerSPValid      = FALSE;        // Don't add usage of this field.  This is only temporary.
-    }
-    else
-    {
-        *(pRD->pCallerContext)    = *(pCallerCtx);
-        pRD->IsCallerContextValid = TRUE;
-        pRD->IsCallerSPValid      = TRUE;        // Don't add usage of this field.  This is only temporary.
-    }
-
-#ifdef _TARGET_ARM_
-    pRD->pPC = &pRD->pCurrentContext->Pc;
-#endif
 
 #ifdef DEBUG_REGDISPLAY
     pRD->_pThread = NULL;
@@ -489,7 +421,9 @@ inline void CopyRegDisplay(const PREGDISPLAY pInRD, PREGDISPLAY pOutRD, T_CONTEX
 
     T_CONTEXT* pOutCallerCtx = NULL;
 
-#ifdef _TARGET_X86_
+#ifndef WIN64EXCEPTIONS
+
+#if defined(_TARGET_X86_)
     if (pInRD->pEdi != NULL) {pOutCtx->Edi = *pInRD->pEdi;} else {pInRD->pEdi = NULL;}
     if (pInRD->pEsi != NULL) {pOutCtx->Esi = *pInRD->pEsi;} else {pInRD->pEsi = NULL;}
     if (pInRD->pEbx != NULL) {pOutCtx->Ebx = *pInRD->pEbx;} else {pInRD->pEbx = NULL;}
@@ -497,15 +431,21 @@ inline void CopyRegDisplay(const PREGDISPLAY pInRD, PREGDISPLAY pOutRD, T_CONTEX
     if (pInRD->pEax != NULL) {pOutCtx->Eax = *pInRD->pEax;} else {pInRD->pEax = NULL;}
     if (pInRD->pEcx != NULL) {pOutCtx->Ecx = *pInRD->pEcx;} else {pInRD->pEcx = NULL;}
     if (pInRD->pEdx != NULL) {pOutCtx->Edx = *pInRD->pEdx;} else {pInRD->pEdx = NULL;}
-    pOutCtx->Esp = pInRD->Esp;
+    pOutCtx->Esp = pInRD->SP;
     pOutCtx->Eip = pInRD->ControlPC;
-#else
+#else // _TARGET_X86_
+    PORTABILITY_ASSERT("CopyRegDisplay");
+#endif // _TARGET_???_
+
+#else // WIN64EXCEPTIONS
+
     *pOutCtx = *(pInRD->pCurrentContext);
     if (pInRD->IsCallerContextValid)
     {
         pOutCallerCtx = pInRD->pCallerContext;
     }
-#endif
+
+#endif // WIN64EXCEPTIONS
 
     if (pOutRD)
         FillRegDisplay(pOutRD, pOutCtx, pOutCallerCtx);
@@ -516,35 +456,21 @@ inline void CopyRegDisplay(const PREGDISPLAY pInRD, PREGDISPLAY pOutRD, T_CONTEX
 inline size_t * getRegAddr (unsigned regNum, PTR_CONTEXT regs)
 {
 #ifdef _TARGET_X86_
-    switch (regNum)
+    _ASSERTE(regNum < 8);
+
+    static const SIZE_T OFFSET_OF_REGISTERS[] =
     {
-    case 0:
-        return (size_t *)&regs->Eax;
-        break;
-    case 1:
-        return (size_t *)&regs->Ecx;
-        break;
-    case 2:
-        return (size_t *)&regs->Edx;
-        break;
-    case 3:
-        return (size_t *)&regs->Ebx;
-        break;
-    case 4:
-        return (size_t *)&regs->Esp;
-        break;
-    case 5:
-        return (size_t *)&regs->Ebp;
-        break;
-    case 6:
-        return (size_t *)&regs->Esi;
-        break;
-    case 7:
-        return (size_t *)&regs->Edi;
-        break;
-    default:
-        _ASSERTE (!"unknown regNum");
-    }
+        offsetof(CONTEXT, Eax),
+        offsetof(CONTEXT, Ecx),
+        offsetof(CONTEXT, Edx),
+        offsetof(CONTEXT, Ebx),
+        offsetof(CONTEXT, Esp),
+        offsetof(CONTEXT, Ebp),
+        offsetof(CONTEXT, Esi),
+        offsetof(CONTEXT, Edi),
+    };
+
+    return (PTR_size_t)(PTR_BYTE(regs) + OFFSET_OF_REGISTERS[regNum]);
 #elif defined(_TARGET_AMD64_)
     _ASSERTE(regNum < 16);
     return &regs->Rax + regNum;
@@ -572,6 +498,8 @@ inline void UpdateContextFromRegDisp(PREGDISPLAY pRegDisp, PT_CONTEXT pContext)
 {
     _ASSERTE((pRegDisp != NULL) && (pContext != NULL));
 
+#ifndef WIN64EXCEPTIONS
+
 #if defined(_TARGET_X86_)
     pContext->ContextFlags = (CONTEXT_INTEGER | CONTEXT_CONTROL);
     pContext->Edi = *pRegDisp->pEdi;
@@ -581,11 +509,17 @@ inline void UpdateContextFromRegDisp(PREGDISPLAY pRegDisp, PT_CONTEXT pContext)
     pContext->Eax = *pRegDisp->pEax;
     pContext->Ecx = *pRegDisp->pEcx;
     pContext->Edx = *pRegDisp->pEdx;
-    pContext->Esp = pRegDisp->Esp;
+    pContext->Esp = pRegDisp->SP;
     pContext->Eip = pRegDisp->ControlPC;
-#else
+#else // _TARGET_X86_
+    PORTABILITY_ASSERT("UpdateContextFromRegDisp");
+#endif // _TARGET_???_
+
+#else // WIN64EXCEPTIONS
+
     *pContext = *pRegDisp->pCurrentContext;
-#endif
+
+#endif // WIN64EXCEPTIONS
 }
 
 
