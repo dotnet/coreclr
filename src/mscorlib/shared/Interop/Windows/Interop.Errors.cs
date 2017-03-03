@@ -28,6 +28,7 @@ internal partial class Interop
         internal const int ERROR_FILENAME_EXCED_RANGE = 0xCE;
         internal const int ERROR_NO_DATA = 0xE8;
         internal const int ERROR_MORE_DATA = 0xEA;
+        internal const int ERROR_NO_MORE_ITEMS = 0x103;
         internal const int ERROR_NOT_OWNER = 0x120;
         internal const int ERROR_TOO_MANY_POSTS = 0x12A;
         internal const int ERROR_ARITHMETIC_OVERFLOW = 0x216;

@@ -988,7 +988,6 @@
   <ItemGroup Condition="'$(TargetsUnix)' == 'true'">
     <Compile Include="$(BclSourcesRoot)\System\HResults.cs" />
     <Compile Include="$(BclSourcesRoot)\Interop\Unix\System.Native\Interop.GetRandomBytes.cs" />
-    <Compile Include="$(BclSourcesRoot)\Interop\Unix\System.Native\Interop.MksTemps.cs" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="$(BclSourcesRoot)\Debug.cs" />
