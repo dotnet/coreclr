@@ -23,7 +23,8 @@ namespace System.Text
             Debug.Assert(strInput != null);
 
             // The only way to know if IsNormalizedString failed is through checking the Win32 last error
-            Interop.Kernel32.SetLastError(Interop.Errors.ERROR_SUCCESS);
+            // IsNormalizedString pinvoke has SetLastError attribute property which will set the last error 
+            // to 0 (ERROR_SUCCESS) before executing the calls.
             bool result = Interop.Normaliz.IsNormalizedString((int)normForm, strInput, strInput.Length);
 
             int lastError = Marshal.GetLastWin32Error();
@@ -51,7 +52,8 @@ namespace System.Text
             Debug.Assert(strInput != null);
 
             // we depend on Win32 last error when calling NormalizeString
-            Interop.Kernel32.SetLastError(Interop.Errors.ERROR_SUCCESS);
+            // NormalizeString pinvoke has SetLastError attribute property which will set the last error 
+            // to 0 (ERROR_SUCCESS) before executing the calls.
 
             // Guess our buffer size first
             int iLength = Interop.Normaliz.NormalizeString((int)normForm, strInput, strInput.Length, null, 0);
@@ -84,8 +86,8 @@ namespace System.Text
                 // (re)allocation buffer and normalize string
                 cBuffer = new char[iLength];
 
-                // Reset last error
-                Interop.Kernel32.SetLastError(Interop.Errors.ERROR_SUCCESS);
+                // NormalizeString pinvoke has SetLastError attribute property which will set the last error 
+                // to 0 (ERROR_SUCCESS) before executing the calls.
                 iLength = Interop.Normaliz.NormalizeString((int)normForm, strInput, strInput.Length, cBuffer, cBuffer.Length);
                 lastError = Marshal.GetLastWin32Error();
 
