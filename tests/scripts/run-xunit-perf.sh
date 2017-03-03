@@ -8,14 +8,12 @@ function print_usage {
     echo ''
     echo 'coreclr/tests/scripts/run-xunit-perf.sh'
     echo '    --testRootDir="temp/Windows_NT.x64.Debug"'
-    echo '    --testNativeBinDir="coreclr/bin/obj/Linux.x64.Debug/tests"'
     echo '    --coreClrBinDir="coreclr/bin/Product/Linux.x64.Debug"'
     echo '    --mscorlibDir="windows/coreclr/bin/Product/Linux.x64.Debug"'
-    echo '    --coreFxBinDir="corefx/bin/Linux.AnyCPU.Debug"'
+    echo '    --coreFxBinDir="corefx/bin/runtime/netcoreapp-Linux-Debug-x64"'
     echo ''
     echo 'Required arguments:'
     echo '  --testRootDir=<path>             : Root directory of the test build (e.g. coreclr/bin/tests/Windows_NT.x64.Debug).'
-    echo '  --testNativeBinDir=<path>        : Directory of the native CoreCLR test build (e.g. coreclr/bin/obj/Linux.x64.Debug/tests).'
     echo '  (Also required: Either --coreOverlayDir, or all of the switches --coreOverlayDir overrides)'
     echo ''
     echo 'Optional arguments:'
@@ -36,28 +34,6 @@ function print_usage {
 # Variables for xUnit-style XML output. XML format: https://xunit.github.io/docs/format-xml-v2.html
 xunitOutputPath=
 xunitTestOutputPath=
-
-# libExtension determines extension for dynamic library files
-OSName=$(uname -s)
-libExtension=
-case $OSName in
-    Darwin)
-        libExtension="dylib"
-        ;;
-
-    Linux)
-        libExtension="so"
-        ;;
-
-    NetBSD)
-        libExtension="so"
-        ;;
-
-    *)
-        echo "Unsupported OS $OSName detected, configuring as if for Linux"
-        libExtension="so"
-        ;;
-esac
 
 function xunit_output_end {
     local errorSource=$1
@@ -191,6 +167,7 @@ function create_core_overlay {
     # Check inputs to make sure we have enough information to create the core layout. $testRootDir/Tests/Core_Root should
     # already exist and contain test dependencies that are not built.
     local testDependenciesDir=$testRootDir/Tests/Core_Root
+    local testNativeBinDir=$coreClrBinDir/bin
     if [ ! -d "$testDependenciesDir" ]; then
         exit_with_error "$errorSource" "Did not find the test dependencies directory: $testDependenciesDir"
     fi
@@ -202,6 +179,9 @@ function create_core_overlay {
     fi
     if [ ! -f "$mscorlibDir/mscorlib.dll" ]; then
         exit_with_error "$errorSource" "mscorlib.dll was not found in: $mscorlibDir"
+    fi
+    if [ ! -d "$testNativeBinDir" ]; then
+        exit_with_error "$errorSource" "Directory, contains test native libraries: $testNativeBinDir does not exist."
     fi
     if [ -z "$coreFxBinDir" ]; then
         exit_with_error "$errorSource" "One of --coreOverlayDir or --coreFxBinDir must be specified." "$printUsage"
@@ -218,6 +198,7 @@ function create_core_overlay {
 	cp -f -v "$coreFxBinDir"/* "$coreOverlayDir/" 2>/dev/null
     cp -f -v "$coreClrBinDir/"* "$coreOverlayDir/" 2>/dev/null
     cp -f -v "$mscorlibDir/mscorlib.dll" "$coreOverlayDir/"
+    cp -f -v "$testNativeBinDir/"* "$coreOverlayDir/" 2>/dev/null
     cp -n -v "$testDependenciesDir"/* "$coreOverlayDir/" 2>/dev/null
     if [ -f "$coreOverlayDir/mscorlib.ni.dll" ]; then
         # Test dependencies come from a Windows build, and mscorlib.ni.dll would be the one from Windows
@@ -256,29 +237,6 @@ function precompile_overlay_assemblies {
     fi
 }
 
-function copy_test_native_bin_to_test_root {
-    local errorSource='copy_test_native_bin_to_test_root'
-
-    if [ -z "$testNativeBinDir" ]; then
-        exit_with_error "$errorSource" "--testNativeBinDir is required."
-    fi
-    testNativeBinDir=$testNativeBinDir/src
-    if [ ! -d "$testNativeBinDir" ]; then
-        exit_with_error "$errorSource" "Directory specified by --testNativeBinDir does not exist: $testNativeBinDir"
-    fi
-
-    # Copy native test components from the native test build into the respective test directory in the test root directory
-    find "$testNativeBinDir" -type f -iname '*.$libExtension' |
-        while IFS='' read -r filePath || [ -n "$filePath" ]; do
-            local dirPath=$(dirname "$filePath")
-            local destinationDirPath=${testRootDir}${dirPath:${#testNativeBinDir}}
-            if [ ! -d "$destinationDirPath" ]; then
-                exit_with_error "$errorSource" "Cannot copy native test bin '$filePath' to '$destinationDirPath/', as the destination directory does not exist."
-            fi
-            cp -f "$filePath" "$destinationDirPath/"
-        done
-}
-
 # Exit code constants
 readonly EXIT_CODE_SUCCESS=0       # Script ran normally.
 readonly EXIT_CODE_EXCEPTION=1     # Script exited because something exceptional happened (e.g. bad arguments, Ctrl-C interrupt).
@@ -286,7 +244,6 @@ readonly EXIT_CODE_TEST_FAILURE=2  # Script completed successfully, but one or m
 
 # Argument variables
 testRootDir=
-testNativeBinDir=
 coreOverlayDir=
 coreClrBinDir=
 mscorlibDir=
@@ -304,9 +261,6 @@ do
             ;;
         --testRootDir=*)
             testRootDir=${i#*=}
-            ;;
-        --testNativeBinDir=*)
-            testNativeBinDir=${i#*=}
             ;;
         --coreOverlayDir=*)
             coreOverlayDir=${i#*=}
@@ -347,27 +301,21 @@ if [ ! -d "$testRootDir" ]; then
     exit $EXIT_CODE_EXCEPTION
 fi
 
-# Copy native interop test libraries over to the mscorlib path in
-# order for interop tests to run on linux.
 if [ -z "$mscorlibDir" ]; then
     mscorlibDir=$coreClrBinDir
 fi
-if [ -d "$mscorlibDir" ] && [ -d "$mscorlibDir/bin" ]; then
-    cp $mscorlibDir/bin/* $mscorlibDir
-fi
 
 # Install xunit performance packages
-export NUGET_PACKAGES=$testNativeBinDir/../../../../packages
+export NUGET_PACKAGES=$coreClrBinDir/../../../packages
 echo "NUGET_PACKAGES = $NUGET_PACKAGES"
 
-pushd $testNativeBinDir/../../../../tests/scripts
-$testNativeBinDir/../../../../Tools/dotnetcli/dotnet restore --fallbacksource https://dotnet.myget.org/F/dotnet-buildtools/ --fallbacksource https://dotnet.myget.org/F/dotnet-core/
+pushd $coreClrBinDir/../../../tests/scripts
+$coreClrBinDir/../../../Tools/dotnetcli/dotnet restore --fallbacksource https://dotnet.myget.org/F/dotnet-buildtools/ --fallbacksource https://dotnet.myget.org/F/dotnet-core/
 popd
 
 # Creat coreoverlay dir which contains all dependent binaries
 create_core_overlay
 precompile_overlay_assemblies
-copy_test_native_bin_to_test_root
 
 # Deploy xunit performance packages
 cd $CORE_ROOT
@@ -376,9 +324,9 @@ echo "CORE_ROOT dir = $CORE_ROOT"
 DO_SETUP=TRUE
 
 if [ ${DO_SETUP} == "TRUE" ]; then
-cp  $testNativeBinDir/../../../../../packages/Microsoft.DotNet.xunit.performance.runner.cli/1.0.0-alpha-build0040/lib/netstandard1.3/Microsoft.DotNet.xunit.performance.runner.cli.dll .
-cp  $testNativeBinDir/../../../../../packages/Microsoft.DotNet.xunit.performance.analysis.cli/1.0.0-alpha-build0040/lib/netstandard1.3/Microsoft.DotNet.xunit.performance.analysis.cli.dll .
-cp  $testNativeBinDir/../../../../../packages/Microsoft.DotNet.xunit.performance.run.core/1.0.0-alpha-build0040/lib/dotnet/*.dll .
+cp  $coreClrBinDir/../../../packages/Microsoft.DotNet.xunit.performance.runner.cli/1.0.0-alpha-build0040/lib/netstandard1.3/Microsoft.DotNet.xunit.performance.runner.cli.dll .
+cp  $coreClrBinDir/../../../packages/Microsoft.DotNet.xunit.performance.analysis.cli/1.0.0-alpha-build0040/lib/netstandard1.3/Microsoft.DotNet.xunit.performance.analysis.cli.dll .
+cp  $coreClrBinDir/../../../packages/Microsoft.DotNet.xunit.performance.run.core/1.0.0-alpha-build0040/lib/dotnet/*.dll .
 fi
 
 # Run coreclr performance tests
