@@ -553,11 +553,6 @@ public:
 
     static BOOL HaveTimerInfosToFlush() { return TimerInfosToBeRecycled != NULL; }
 
-    inline static BOOL IsThreadPoolHosted()
-    {
-            return FALSE;
-    }
-
 #ifndef FEATURE_PAL    
     static LPOVERLAPPED CompletionPortDispatchWorkWithinAppDomain(Thread* pThread, DWORD* pErrorCode, DWORD* pNumBytes, size_t* pKey, DWORD adid);
     static void StoreOverlappedInfoInThread(Thread* pThread, DWORD dwErrorCode, DWORD dwNumBytes, size_t key, LPOVERLAPPED lpOverlapped);

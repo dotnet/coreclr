@@ -1626,18 +1626,6 @@ void ThreadpoolMgr::ExecuteWorkRequest(bool* foundWork, bool* wasNotRecalled)
         return;
     }
 
-    if(IsThreadPoolHosted()) 
-    {
-        //Only managed callBacks go this route under hosts.
-        //Also, since if we came here, atleast one managed requests was 
-        //created, and that means atleast one app domain exists.
-
-        if (index == -1) 
-        {
-            index = 1;
-        }
-    }
-
     if (index == -1) 
     {
         pAdCount = PerAppDomainTPCountList::GetUnmanagedTPCount(); 
