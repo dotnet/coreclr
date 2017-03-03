@@ -690,24 +690,6 @@ inline BOOL CLRHosted()
     return g_fHostConfig;
 }
 
-inline BOOL CLRAssemblyHosted()
-{
-    LIMITED_METHOD_CONTRACT;
-    return FALSE;
-}
-
-inline BOOL CLRGCHosted()
-{
-    LIMITED_METHOD_CONTRACT;
-    return FALSE;
-}
-
-inline BOOL CLRSecurityHosted()
-{
-    LIMITED_METHOD_CONTRACT;
-    return FALSE;
-}
-
 #ifndef FEATURE_PAL
 HMODULE CLRGetModuleHandle(LPCWSTR lpModuleFileName);
 
