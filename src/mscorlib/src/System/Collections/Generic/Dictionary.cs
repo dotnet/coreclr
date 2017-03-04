@@ -63,7 +63,7 @@ namespace System.Collections.Generic
         /// <summary>
         /// Specifies that an existing entry with the same key should be overwritten if encountered.
         /// </summary>
-        Overwrite = 1,
+        OverwriteExisting = 1,
 
         /// <summary>
         /// Specifies that if an existing entry with the same key is encountered, an exception should be thrown.
@@ -262,7 +262,7 @@ namespace System.Collections.Generic
             }
             set
             {
-                bool modified = TryInsert(key, value, InsertionBehavior.Overwrite);
+                bool modified = TryInsert(key, value, InsertionBehavior.OverwriteExisting);
                 Debug.Assert(modified);
             }
         }
@@ -425,9 +425,9 @@ namespace System.Collections.Generic
             freeList = -1;
         }
 
-        private bool TryInsert(TKey key, TValue value, InsertionBehavior flags)
+        private bool TryInsert(TKey key, TValue value, InsertionBehavior behavior)
         {
-            Debug.Assert(Enum.IsDefined(typeof(InsertionBehavior), flags));
+            Debug.Assert(Enum.IsDefined(typeof(InsertionBehavior), behavior));
 
             if (key == null)
             {
@@ -446,11 +446,11 @@ namespace System.Collections.Generic
             {
                 if (entries[i].hashCode == hashCode && comparer.Equals(entries[i].key, key))
                 {
-                    switch (flags)
+                    switch (behavior)
                     {
                         case InsertionBehavior.None:
                             break;
-                        case InsertionBehavior.Overwrite:
+                        case InsertionBehavior.OverwriteExisting:
                             entries[i].value = value;
                             version++;
                             return true;
