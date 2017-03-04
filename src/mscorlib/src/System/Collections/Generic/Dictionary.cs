@@ -444,19 +444,18 @@ namespace System.Collections.Generic
             {
                 if (entries[i].hashCode == hashCode && comparer.Equals(entries[i].key, key))
                 {
-                    switch (behavior)
+                    if (behavior == InsertionBehavior.OverwriteExisting)
                     {
-                        case InsertionBehavior.None:
-                            break;
-                        case InsertionBehavior.OverwriteExisting:
-                            entries[i].value = value;
-                            version++;
-                            return true;
-                        case InsertionBehavior.ThrowOnExisting:
-                            ThrowHelper.ThrowAddingDuplicateWithKeyArgumentException(key);
-                            break;
+                        entries[i].value = value;
+                        version++;
+                        return true;
                     }
-                    
+
+                    if (behavior == InsertionBehavior.ThrowOnExisting)
+                    {
+                        ThrowHelper.ThrowAddingDuplicateWithKeyArgumentException(key);
+                    }
+
                     return false;
                 }
 
