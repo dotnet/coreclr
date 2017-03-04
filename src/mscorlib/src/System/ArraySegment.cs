@@ -27,11 +27,9 @@ namespace System
     [Serializable]
     public struct ArraySegment<T> : IList<T>, IReadOnlyList<T>
     {
-        // Do not replace this with Array.Empty. We don't want to have the overhead of instantiating
-        // another generic type in addition to ArraySegment<T> for new type parameters.
-        private static readonly T[] s_emptyArray = new T[0];
-
-        public static ArraySegment<T> Empty { get; } = new ArraySegment<T>(s_emptyArray);
+        // Do not replace the array allocation with Array.Empty. We don't want to have the overhead of
+        // instantiating another generic type in addition to ArraySegment<T> for new type parameters.
+        public static ArraySegment<T> Empty { get; } = new ArraySegment<T>(new T[0]);
 
         private readonly T[] _array;
         private readonly int _offset;
@@ -112,7 +110,11 @@ namespace System
             }
         }
 
-        public ref T this[int index] => ref _array[_offset + index];
+        public T this[int index]
+        {
+            get { return _array[_offset + index]; }
+            set { _array[_offset + index] = value; }
+        }
 
         public Enumerator GetEnumerator()
         {
@@ -185,7 +187,7 @@ namespace System
 
             if (_count == 0)
             {
-                return s_emptyArray;
+                return Empty._array;
             }
 
             var array = new T[_count];
