@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+__NDK_Version=r14
 
 usage()
 {
@@ -12,7 +13,7 @@ usage()
     echo "By default, the toolchain and sysroot will be generated in cross/android-rootfs/toolchain/[BuildArch]. You can change this behavior"
     echo "by setting the TOOLCHAIN_DIR environment variable"
     echo.
-    echo "By default, the NDK will be downloaded into the cross/android-rootfs/android-ndk-r13b directory. If you already have an NDK installation,"
+    echo "By default, the NDK will be downloaded into the cross/android-rootfs/android-ndk-$__NDK_Version directory. If you already have an NDK installation,"
     echo "you can set the NDK_DIR environment variable to have this script use that installation of the NDK."
     exit 1
 }
@@ -53,7 +54,7 @@ done
 __CrossDir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 __Android_Cross_Dir="$__CrossDir/android-rootfs"
-__NDK_Dir="$__Android_Cross_Dir/android-ndk-r13b"
+__NDK_Dir="$__Android_Cross_Dir/android-ndk-$__NDK_Version"
 __libunwind_Dir="$__Android_Cross_Dir/libunwind"
 __lldb_Dir="$__Android_Cross_Dir/lldb"
 __ToolchainDir="$__Android_Cross_Dir/toolchain/$__BuildArch"
@@ -75,8 +76,8 @@ echo "Target Toolchain location: $__ToolchainDir"
 if [ ! -d $__NDK_Dir ]; then
     echo Downloading the NDK into $__NDK_Dir
     mkdir -p $__NDK_Dir
-    wget -nv -nc --show-progress https://dl.google.com/android/repository/android-ndk-r13b-linux-x86_64.zip -O $__Android_Cross_Dir/android-ndk-r13b-linux-x86_64.zip
-    unzip -q $__Android_Cross_Dir/android-ndk-r13b-linux-x86_64.zip -d $__Android_Cross_Dir
+    wget -nv -nc --show-progress https://dl.google.com/android/repository/android-ndk-$__NDK_Version-linux-x86_64.zip -O $__Android_Cross_Dir/android-ndk-$__NDK_Version-linux-x86_64.zip
+    unzip -q $__Android_Cross_Dir/android-ndk-$__NDK_Version-linux-x86_64.zip -d $__Android_Cross_Dir
 fi
 
 if [ ! -d $__lldb_Dir ]; then
