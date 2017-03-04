@@ -4,7 +4,7 @@ set(CLR_CMAKE_PLATFORM_ANDROID "Android")
 
 set(CMAKE_SYSTEM_NAME Linux)
 set(CMAKE_SYSTEM_VERSION 1)
-set(CMAKE_SYSTEM_PROCESSOR armv7l)
+set(CMAKE_SYSTEM_PROCESSOR arm)
 
 ## Specify the toolchain
 set(TOOLCHAIN "arm-linux-androideabi")
@@ -21,6 +21,9 @@ find_program(CMAKE_OBJDUMP ${TOOLCHAIN_PREFIX}objdump)
 
 add_compile_options(--sysroot=${CROSS_ROOTFS})
 add_compile_options(-fPIE)
+add_compile_options(-mfloat-abi=soft)
+include_directories(SYSTEM ${CROSS_NDK_TOOLCHAIN}/include/c++/4.9.x/)
+include_directories(SYSTEM ${CROSS_NDK_TOOLCHAIN}/include/c++/4.9.x/arm-linux-androideabi/)
 
 set(CROSS_LINK_FLAGS "${CROSS_LINK_FLAGS} -B ${CROSS_ROOTFS}/usr/lib/gcc/${TOOLCHAIN}")
 set(CROSS_LINK_FLAGS "${CROSS_LINK_FLAGS} -L${CROSS_ROOTFS}/lib/${TOOLCHAIN}")
