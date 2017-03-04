@@ -760,21 +760,17 @@ BOOL IsHostRegisteredForEvent(EClrEvent event);
 SetupThreadForComCall(OOMRetVal);                       \
 if (CheckCanRunManagedCode && !CanRunManagedCode())     \
     return CannotEnterRetVal;                           \
-SO_INTOLERANT_CODE_NOTHROW(CURRENT_THREAD, return SORetVal)  \
-
-#define ComCallHostNotificationHR() ReverseEnterRuntimeHolderNoThrow REHolder;
+SO_INTOLERANT_CODE_NOTHROW(CURRENT_THREAD, return SORetVal)
 
 #define SetupForComCallHRNoHostNotif() InternalSetupForComCall(HOST_E_CLRNOTAVAILABLE, E_OUTOFMEMORY, COR_E_STACKOVERFLOW, true)
 #define SetupForComCallHRNoHostNotifNoCheckCanRunManagedCode() InternalSetupForComCall(HOST_E_CLRNOTAVAILABLE, E_OUTOFMEMORY, COR_E_STACKOVERFLOW, false)
 #define SetupForComCallDWORDNoHostNotif() InternalSetupForComCall(-1, -1, -1, true)
 
 #define SetupForComCallHR()                                                                \
-InternalSetupForComCall(HOST_E_CLRNOTAVAILABLE, E_OUTOFMEMORY, COR_E_STACKOVERFLOW, true)  \
-ComCallHostNotificationHR()
+InternalSetupForComCall(HOST_E_CLRNOTAVAILABLE, E_OUTOFMEMORY, COR_E_STACKOVERFLOW, true)
 
 #define SetupForComCallHRNoCheckCanRunManagedCode()                                        \
-InternalSetupForComCall(HOST_E_CLRNOTAVAILABLE, E_OUTOFMEMORY, COR_E_STACKOVERFLOW, false) \
-ComCallHostNotificationHR()
+InternalSetupForComCall(HOST_E_CLRNOTAVAILABLE, E_OUTOFMEMORY, COR_E_STACKOVERFLOW, false)
 
 #ifdef FEATURE_CORRUPTING_EXCEPTIONS
 
@@ -789,7 +785,6 @@ BEGIN_SO_INTOLERANT_CODE_NOTHROW(CURRENT_THREAD, SORetVal)                  \
 #define BeginSetupForComCallHRWithEscapingCorruptingExceptions()            \
 HRESULT __hr = S_OK;                                                        \
 InternalSetupForComCallWithEscapingCorruptingExceptions(HOST_E_CLRNOTAVAILABLE, E_OUTOFMEMORY, COR_E_STACKOVERFLOW, true)              \
-ReverseEnterRuntimeHolderNoThrow REHolder;                                  \
                                                                             \
 if (SUCCEEDED(__hr))                                                        \
 {                                                                           \
@@ -806,14 +801,12 @@ if (FAILED(__hr))                                                           \
 #endif // FEATURE_CORRUPTING_EXCEPTIONS
 
 #define SetupForComCallDWORD()                                              \
-InternalSetupForComCall(-1, -1, -1, true)                                   \
-ReverseEnterRuntimeHolderNoThrow REHolder;
+InternalSetupForComCall(-1, -1, -1, true)
 
 // Special version of SetupForComCallDWORD that doesn't call
 // CanRunManagedCode() to avoid firing LoaderLock MDA
 #define SetupForComCallDWORDNoCheckCanRunManagedCode()                      \
-InternalSetupForComCall(-1, -1, -1, false)                                  \
-ReverseEnterRuntimeHolderNoThrow REHolder;
+InternalSetupForComCall(-1, -1, -1, false)
 
 #include "unsafe.h"
 

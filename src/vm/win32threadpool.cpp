@@ -1902,10 +1902,8 @@ Thread* ThreadpoolMgr::CreateUnimpersonatedThread(LPTHREAD_START_ROUTINE lpStart
     }
     else {
 #ifndef FEATURE_PAL
-        ThreadAffinityHolder affinityHolder(FALSE);
         HandleHolder token;
         BOOL bReverted = FALSE;
-        bOK = RevertIfImpersonated(&bReverted, &token, &affinityHolder);
         if (bOK != TRUE)
             return NULL;
 #endif // !FEATURE_PAL 
@@ -3508,8 +3506,6 @@ Top:
             {
                 _ASSERTE (context == NULL || context->lpOverlapped == NULL);
 
-                LeaveRuntimeHolder holder((size_t)GetQueuedCompletionStatus);
-
                 BOOL status = GetQueuedCompletionStatus(
                     GlobalCompletionPort,
                     &numBytes,
@@ -3810,8 +3806,6 @@ LPOVERLAPPED ThreadpoolMgr::CompletionPortDispatchWorkWithinAppDomain(
     BOOL ManagedCallback=FALSE;
 
     *pErrorCode = S_OK;
-
-    LeaveRuntimeHolder holder((size_t)GetQueuedCompletionStatus);
 
 
     //Very Very Important!

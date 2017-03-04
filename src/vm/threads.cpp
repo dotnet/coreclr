@@ -392,23 +392,6 @@ BOOL Thread::Alert ()
     return fRetVal;
 }
 
-struct HostJoinOnThreadArgs
-{
-    WaitMode mode;
-};
-
-DWORD HostJoinOnThread (void *args, DWORD timeout, DWORD option)
-{
-    CONTRACTL {
-        THROWS;
-        if (GetThread()) {GC_TRIGGERS;} else {DISABLED(GC_NOTRIGGER);}
-    }
-    CONTRACTL_END;
-
-    _ASSERTE (!"Unknown host join status\n");
-    return E_FAIL;
-}
-
 
 DWORD Thread::Join(DWORD timeout, BOOL alertable)
 {
@@ -577,11 +560,11 @@ DWORD Thread::StartThread()
     _ASSERTE (m_Creater.IsCurrentThread());
     m_Creater.Clear();
 #endif
-    {
-        _ASSERTE (GetThreadHandle() != INVALID_HANDLE_VALUE &&
-                  GetThreadHandle() != SWITCHOUT_HANDLE_VALUE);
-        dwRetVal = ::ResumeThread(GetThreadHandle());
-    }
+
+    _ASSERTE (GetThreadHandle() != INVALID_HANDLE_VALUE &&
+                GetThreadHandle() != SWITCHOUT_HANDLE_VALUE);
+    dwRetVal = ::ResumeThread(GetThreadHandle());
+
 
     return dwRetVal;
 }
@@ -2068,7 +2051,6 @@ BOOL Thread::InitThread(BOOL fInternal)
 
 #ifndef FEATURE_PAL
     // workaround: Remove this when we flow impersonation token to host.
-    ThreadAffinityHolder affinityHolder(FALSE);
     BOOL    reverted = FALSE;
     HANDLE  threadToken = INVALID_HANDLE_VALUE;
 #endif // !FEATURE_PAL
@@ -2096,7 +2078,7 @@ BOOL Thread::InitThread(BOOL fInternal)
         // THREAD_SUSPEND_RESUME nor THREAD_GET_CONTEXT. We need to be able to suspend the thread, and we need to be
         // able to get its context. Therefore, if we're impersonating, we revert to self, dup the handle, then
         // re-impersonate before we leave this routine.
-        if (!RevertIfImpersonated(&reverted, &threadToken, &affinityHolder))
+        if (!RevertIfImpersonated(&reverted, &threadToken))
         {
             COMPlusThrowWin32();
         }
@@ -2532,17 +2514,16 @@ void Thread::HandleThreadStartupFailure()
 }
 
 #ifndef FEATURE_PAL
-BOOL RevertIfImpersonated(BOOL *bReverted, HANDLE *phToken, ThreadAffinityHolder *pTAHolder)
+BOOL RevertIfImpersonated(BOOL *bReverted, HANDLE *phToken)
 {
     WRAPPER_NO_CONTRACT;
 
     BOOL bImpersonated = OpenThreadToken(GetCurrentThread(),    // we are assuming that if this call fails,
-                                                                        TOKEN_IMPERSONATE,     // we are not impersonating. There is no win32
-                                                                        TRUE,                  // api to figure this out. The only alternative
+                                         TOKEN_IMPERSONATE,     // we are not impersonating. There is no win32
+                                         TRUE,                  // api to figure this out. The only alternative
                                          phToken);              // is to use NtCurrentTeb->IsImpersonating().
     if (bImpersonated)
     {
-        pTAHolder->Acquire();
         *bReverted = RevertToSelf();
         return *bReverted;
 
@@ -2585,10 +2566,9 @@ BOOL Thread::CreateNewThread(SIZE_T stackSize, LPTHREAD_START_ROUTINE start, voi
     _ASSERTE(stackSize <= 0xFFFFFFFF);
 
 #ifndef FEATURE_PAL
-    ThreadAffinityHolder affinityHolder(FALSE);
     HandleHolder token;
     BOOL bReverted = FALSE;
-    bRet = RevertIfImpersonated(&bReverted, &token, &affinityHolder);
+    bRet = RevertIfImpersonated(&bReverted, &token);
     if (bRet != TRUE)
         return bRet;
 #endif // !FEATURE_PAL
@@ -3996,7 +3976,6 @@ DWORD Thread::DoAppropriateWaitWorker(int countHandles, HANDLE *handles, BOOL wa
         DoAppropriateWaitWorkerAlertableHelper(mode);
     }
 
-    LeaveRuntimeHolder holder((size_t)WaitForMultipleObjectsEx);
     StateHolder<MarkOSAlertableWait,UnMarkOSAlertableWait> OSAlertableWait(alertable);
 
     ThreadStateHolder tsh(alertable, TS_Interruptible | TS_Interrupted);
@@ -4317,7 +4296,6 @@ DWORD Thread::DoSignalAndWaitWorker(HANDLE* pHandles, DWORD millis,BOOL alertabl
         DoAppropriateWaitWorkerAlertableHelper(WaitMode_None);
     }
 
-    LeaveRuntimeHolder holder((size_t)WaitForMultipleObjectsEx);
     StateHolder<MarkOSAlertableWait,UnMarkOSAlertableWait> OSAlertableWait(alertable);
 
     ThreadStateHolder tsh(alertable, TS_Interruptible | TS_Interrupted);
@@ -10898,132 +10876,6 @@ HRESULT Thread::QueryInterface(REFIID riid, void **ppUnk)
     LIMITED_METHOD_CONTRACT;
 
         return E_NOINTERFACE;
-
-}
-
-
-void __stdcall Thread::LeaveRuntime(size_t target)
-{
-    CONTRACTL
-    {
-        THROWS;
-        GC_NOTRIGGER;
-        SO_TOLERANT;
-    }
-    CONTRACTL_END;
-
-    HRESULT hr = LeaveRuntimeNoThrow(target);
-    if (FAILED(hr))
-        ThrowHR(hr);
-}
-
-HRESULT Thread::LeaveRuntimeNoThrow(size_t target)
-{
-    LIMITED_METHOD_CONTRACT;
-
-    return S_OK;
-}
-
-void __stdcall Thread::LeaveRuntimeThrowComplus(size_t target)
-{
-    LIMITED_METHOD_CONTRACT;
-}
-
-void __stdcall Thread::EnterRuntime()
-{
-    LIMITED_METHOD_CONTRACT;
-}
-
-HRESULT Thread::EnterRuntimeNoThrow()
-{
-    LIMITED_METHOD_CONTRACT;
-
-    return S_OK;
-}
-
-HRESULT Thread::EnterRuntimeNoThrowWorker()
-{
-    LIMITED_METHOD_CONTRACT;
-
-    return S_OK;
-}
-
-void Thread::ReverseEnterRuntime()
-{
-    CONTRACTL
-    {
-        THROWS;
-        GC_NOTRIGGER;
-        SO_TOLERANT;
-        MODE_ANY;
-    }
-    CONTRACTL_END;
-
-    HRESULT hr = ReverseEnterRuntimeNoThrow();
-
-    if (hr != S_OK)
-        ThrowHR(hr);
-}
-
-__declspec(noinline) void Thread::ReverseEnterRuntimeThrowComplusHelper(HRESULT hr)
-{
-    CONTRACTL
-    {
-        THROWS;
-        GC_TRIGGERS;
-        SO_TOLERANT;
-        MODE_ANY;
-    }
-    CONTRACTL_END;
-
-    INSTALL_UNWIND_AND_CONTINUE_HANDLER;
-    ThrowHR(hr);
-    UNINSTALL_UNWIND_AND_CONTINUE_HANDLER;
-}
-
-void Thread::ReverseEnterRuntimeThrowComplus()
-{
-    CONTRACTL
-    {
-        THROWS;
-        GC_TRIGGERS;
-        SO_TOLERANT;
-        MODE_ANY;
-    }
-    CONTRACTL_END;
-
-    HRESULT hr = ReverseEnterRuntimeNoThrow();
-
-    if (hr != S_OK)
-    {
-        ReverseEnterRuntimeThrowComplusHelper(hr);
-    }
-}
-
-
-HRESULT Thread::ReverseEnterRuntimeNoThrow()
-{
-    LIMITED_METHOD_CONTRACT;
-    return S_OK;
-}
-
-void Thread::ReverseLeaveRuntime()
-{
-    LIMITED_METHOD_CONTRACT;
-}
-
-// For OS EnterCriticalSection, call host to enable ThreadAffinity
-void Thread::BeginThreadAffinity()
-{
-    LIMITED_METHOD_CONTRACT;
-
-}
-
-
-// For OS EnterCriticalSection, call host to enable ThreadAffinity
-void Thread::EndThreadAffinity()
-{
-    LIMITED_METHOD_CONTRACT;
 
 }
 

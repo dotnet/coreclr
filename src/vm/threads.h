@@ -244,12 +244,6 @@ public:
     static void ObjectRefProtected(const OBJECTREF* ref) { }
     static void ObjectRefNew(const OBJECTREF* ref) { }
 
-    static void ReverseLeaveRuntime();
-    static void __stdcall EnterRuntime();
-
-    static void BeginThreadAffinity() { }
-    static void EndThreadAffinity() { }
-
     void EnablePreemptiveGC() { }
     void DisablePreemptiveGC() { }
 
@@ -416,32 +410,6 @@ public:
     ~AVInRuntimeImplOkayHolder()
     {
         LIMITED_METHOD_CONTRACT;
-    }
-};
-
-class LeaveRuntimeHolder
-{
-public:
-    template <typename T>
-    LeaveRuntimeHolder(T target)
-    {
-        STATIC_CONTRACT_LIMITED_METHOD;
-    }
-};
-
-class LeaveRuntimeHolderNoThrow
-{
-public:
-    template <typename T>
-    LeaveRuntimeHolderNoThrow(T target)
-    {
-        STATIC_CONTRACT_LIMITED_METHOD;
-    }
-
-    HRESULT GetHR() const
-    {
-        STATIC_CONTRACT_LIMITED_METHOD;
-        return S_OK;
     }
 };
 
@@ -1905,24 +1873,6 @@ public:
 #endif
 
 public:
-    static void __stdcall LeaveRuntime(size_t target);
-    static HRESULT LeaveRuntimeNoThrow(size_t target);
-    static void __stdcall LeaveRuntimeThrowComplus(size_t target);
-    static void __stdcall EnterRuntime();
-    static HRESULT EnterRuntimeNoThrow();
-    static HRESULT EnterRuntimeNoThrowWorker();
-
-    // Reverse PInvoke hook for host
-    static void ReverseEnterRuntime();
-    static HRESULT ReverseEnterRuntimeNoThrow();
-    static void ReverseEnterRuntimeThrowComplusHelper(HRESULT hr);
-    static void ReverseEnterRuntimeThrowComplus();
-    static void ReverseLeaveRuntime();
-
-    // Hook for OS Critical Section, Mutex, and others that require thread affinity
-    static void BeginThreadAffinity();
-    static void EndThreadAffinity();
-
 
     BOOL HasThreadAffinity()
     {
@@ -5122,13 +5072,6 @@ private:
 
     typedef ConditionalStateHolder<Thread *, Thread::EnterWorkingOnThreadContext, Thread::LeaveWorkingOnThreadContext> WorkingOnThreadContextHolder;
 
-    BOOL WorkingOnThreadContext()
-    {
-        LIMITED_METHOD_CONTRACT;
-
-        return TRUE;
-    }
-
 public:
     void PrepareThreadForSOWork()
     {
@@ -5410,12 +5353,9 @@ public:
 
 LCID GetThreadCultureIdNoThrow(Thread *pThread, BOOL bUICulture);
 
-typedef StateHolder<Thread::BeginThreadAffinity, Thread::EndThreadAffinity> ThreadAffinityHolder;
-
 typedef Thread::ForbidSuspendThreadHolder ForbidSuspendThreadHolder;
 typedef Thread::ThreadPreventAsyncHolder ThreadPreventAsyncHolder;
 typedef Thread::ThreadPreventAbortHolder ThreadPreventAbortHolder;
-typedef StateHolder<Thread::ReverseEnterRuntime, Thread::ReverseLeaveRuntime> ReverseEnterRuntimeHolder;
 
 // Combines ForBindSuspendThreadHolder and CrstHolder into one.
 class ForbidSuspendThreadCrstHolder
@@ -5432,74 +5372,13 @@ private:
     CrstHolder                  m_lock_holder;
 };
 
-// Non-throwing flavor of ReverseEnterRuntimeHolder that requires explicit call to AcquireNoThrow to acquire
-class ReverseEnterRuntimeHolderNoThrow : StateHolder<DoNothing, Thread::ReverseLeaveRuntime>
-{
-public:
-    ReverseEnterRuntimeHolderNoThrow()
-        : StateHolder<DoNothing, Thread::ReverseLeaveRuntime>(FALSE)
-    {
-    }
-
-    HRESULT AcquireNoThrow()
-    {
-        WRAPPER_NO_CONTRACT;
-
-        HRESULT hr = Thread::ReverseEnterRuntimeNoThrow();
-        if (SUCCEEDED(hr))
-            Acquire();
-        return hr;
-    }
-};
-
 ETaskType GetCurrentTaskType();
-
-class LeaveRuntimeHolder
-{
-public:
-    template <typename T>
-    LeaveRuntimeHolder(T target)
-    {
-        LIMITED_METHOD_CONTRACT;
-    }
-
-    ~LeaveRuntimeHolder()
-    {
-        LIMITED_METHOD_CONTRACT;
-    }
-};
-
-class LeaveRuntimeHolderNoThrow
-{
-public:
-    template <typename T>
-    LeaveRuntimeHolderNoThrow(T target)
-    {
-        LIMITED_METHOD_CONTRACT;
-        hr = S_OK;
-    }
-
-    ~LeaveRuntimeHolderNoThrow()
-    {
-        LIMITED_METHOD_CONTRACT;
-        hr = S_OK;
-    }
-
-    HRESULT GetHR() const
-    {
-        LIMITED_METHOD_CONTRACT;
-        return hr;
-    }
-
-private:
-    HRESULT hr;
-};
 
 
 
 typedef Thread::AVInRuntimeImplOkayHolder AVInRuntimeImplOkayHolder;
 
-BOOL RevertIfImpersonated(BOOL *bReverted, HANDLE *phToken, ThreadAffinityHolder *pTAHolder);
+BOOL RevertIfImpersonated(BOOL *bReverted, HANDLE *phToken);
 void UndoRevert(BOOL bReverted, HANDLE hToken);
 
 // ---------------------------------------------------------------------------

@@ -784,7 +784,6 @@ HRESULT SetupErrorInfo(OBJECTREF pThrownObject, BOOL bIsWinRTScenario /* = FALSE
                         pErr = (IErrorInfo *)GetComIPFromObjectRef(&pThrownObject, IID_IErrorInfo);
                         {
                             GCX_PREEMP();
-                            LeaveRuntimeHolder lrh((size_t)SetErrorInfo);
                             SetErrorInfo(0, pErr);
                         }
                     }
@@ -1458,9 +1457,6 @@ ULONG SafeReleasePreemp(IUnknown * pUnk, RCW * pRCW)
     MdaReportAvOnComRelease* pProbe = MDA_GET_ASSISTANT_EX(ReportAvOnComRelease);
     if (pProbe && pProbe->AllowAV())
     {
-        LeaveRuntimeHolderNoThrow lrh(*((*(size_t**)pUnk)+2));
-        if (FAILED(lrh.GetHR()))
-            return -1;
         return pUnk->Release();
     }   
 #endif // MDA_SUPPORTED    
@@ -1541,9 +1537,6 @@ ULONG SafeRelease(IUnknown* pUnk, RCW* pRCW)
     MdaReportAvOnComRelease* pProbe = MDA_GET_ASSISTANT_EX(ReportAvOnComRelease);
     if (pProbe && pProbe->AllowAV())
     {
-        LeaveRuntimeHolderNoThrow lrh(*((*(size_t**)pUnk)+2));
-        if (FAILED(lrh.GetHR()))
-            return -1;
         return pUnk->Release();
     }   
 #endif // MDA_SUPPORTED    
@@ -1871,7 +1864,6 @@ HRESULT SafeGetErrorInfo(IErrorInfo **ppIErrInfo)
     HRESULT hr = S_OK;
     EX_TRY
     {
-        LeaveRuntimeHolder lrh((size_t)GetErrorInfo);
         hr = GetErrorInfo(0, ppIErrInfo);
     }
     EX_CATCH
@@ -2275,7 +2267,6 @@ HRESULT LoadRegTypeLibWithFlags(REFGUID guid,
 
     EX_TRY
     {
-        LeaveRuntimeHolder lrh((size_t)QueryPathOfRegTypeLib);
         hr = QueryPathOfRegTypeLib(guid, wVerMajor, wVerMinor, LOCALE_USER_DEFAULT, &wzPath);
     }
     EX_CATCH
@@ -2430,15 +2421,6 @@ HRESULT GetCLSIDFromProgID(__in_z WCHAR *strProgId, GUID *pGuid)
     HRESULT     hr = S_OK;
 
 #ifdef FEATURE_CORESYSTEM
-    LeaveRuntimeHolderNoThrow lrh((size_t)CLSIDFromProgID);
-#else
-    LeaveRuntimeHolderNoThrow lrh((size_t)CLSIDFromProgIDEx);
-#endif
-    hr = lrh.GetHR();
-    if (FAILED(hr))
-        return hr;
-
-#ifdef FEATURE_CORESYSTEM
     return CLSIDFromProgID(strProgId, pGuid);
 #else
     return CLSIDFromProgIDEx(strProgId, pGuid);
@@ -2587,11 +2569,7 @@ HRESULT SafeVariantChangeType(_Inout_ VARIANT* pVarRes, _In_ VARIANT* pVarSrc,
         GCX_PREEMP();
         EX_TRY
         {
-            LeaveRuntimeHolderNoThrow lrh((size_t)VariantChangeType);
-            hr = lrh.GetHR();
-    
-            if (!FAILED(hr))
-                hr = VariantChangeType(pVarRes, pVarSrc, wFlags, vt);
+            hr = VariantChangeType(pVarRes, pVarSrc, wFlags, vt);
         }
         EX_CATCH
         {
@@ -2621,12 +2599,7 @@ HRESULT SafeVariantChangeTypeEx(_Inout_ VARIANT* pVarRes, _In_ VARIANT* pVarSrc,
     _ASSERTE(GetModuleHandleA("oleaut32.dll") != NULL);
     CONTRACT_VIOLATION(ThrowsViolation);
 
-    HRESULT hr = S_OK;
-    LeaveRuntimeHolderNoThrow lrh((size_t)VariantChangeTypeEx);
-    hr = lrh.GetHR();
-
-    if (!FAILED(hr))
-        hr = VariantChangeTypeEx (pVarRes, pVarSrc,lcid,wFlags,vt);
+    HRESULT hr = VariantChangeTypeEx (pVarRes, pVarSrc,lcid,wFlags,vt);
     
     return hr;
 }
@@ -2663,14 +2636,7 @@ void SafeReleaseStream(IStream *pStream)
     GCX_PREEMP();
 
     {
-        HRESULT hr = S_OK;
-        
-        LeaveRuntimeHolderNoThrow lrh((size_t)CoReleaseMarshalData);
-        hr = lrh.GetHR();
-
-        if (!FAILED(hr))
-        {
-            hr = CoReleaseMarshalData(pStream);
+        HRESULT hr = CoReleaseMarshalData(pStream);
     
 #ifdef _DEBUG          
         wchar_t      logStr[200];
@@ -2688,7 +2654,6 @@ void SafeReleaseStream(IStream *pStream)
             LogInterop(logStr);
         }
 #endif
-        }
     }
 
     ULONG cbRef = SafeReleasePreemp(pStream);
@@ -4266,13 +4231,11 @@ static void DoIUInvokeDispMethod(IDispatchEx* pDispEx, IDispatch* pDisp, DISPID 
 
                 if (pDispEx)
                 {
-                    LeaveRuntimeHolder holder(**(size_t**)pDispEx);
                     hr = InvokeExHelper(pDispEx, MemberID, lcid, flags, pDispParams,
                                         pVarResult, &ExcepInfo, NULL);
                 }
                 else
                 {
-                    LeaveRuntimeHolder holder(**(size_t**)pDisp);
                     hr = InvokeHelper(  pDisp, MemberID, IID_NULL, lcid, flags,
                                         pDispParams, pVarResult, &ExcepInfo, &iArgErr);
                 }
@@ -4625,13 +4588,11 @@ void IUInvokeDispMethod(REFLECTCLASSBASEREF* pRefClassObj, OBJECTREF* pTarget, O
                         if (!bstrTmpName)
                             COMPlusThrowOM();
 
-                        LeaveRuntimeHolder lrh(**(size_t**)(IUnknown*)pDispEx);
                         hr = pDispEx->GetDispID(bstrTmpName, fdexNameCaseSensitive, aDispID);
                     }
                     else
                     {
                         // Call GetIdsOfNames() to retrieve the DISPID's of the method and of the arguments.
-                        LeaveRuntimeHolder lrh(**(size_t**)(IUnknown*)pDisp);
                         hr = pDisp->GetIDsOfNames(
                                                     IID_NULL,
                                                     aNamesToConvert,
@@ -6712,7 +6673,6 @@ MethodTable* GetClassFromIProvideClassInfo(IUnknown* pUnk)
         {
             GCX_PREEMP();
 
-            LeaveRuntimeHolder lrh(**(size_t**)(IUnknown*)pclsInfo);
             hr = pclsInfo->GetClassInfo(&pTypeInfo);
         }
 
@@ -6722,7 +6682,6 @@ MethodTable* GetClassFromIProvideClassInfo(IUnknown* pUnk)
         {
             {
             GCX_PREEMP();
-                LeaveRuntimeHolder lrh(**(size_t**)(IUnknown*)pTypeInfo);
             hr = pTypeInfo->GetTypeAttr(&ptattr);
             }
         
@@ -6796,7 +6755,6 @@ TypeHandle GetClassFromIInspectable(IUnknown* pUnk, bool *pfSupportsIInspectable
     WinRtString winrtClassName;
     {
         GCX_PREEMP();
-        LeaveRuntimeHolder lrh(**(size_t**)(IUnknown*)pInsp);
         if (FAILED(pInsp->GetRuntimeClassName(winrtClassName.Address())))
         {
             RETURN TypeHandle();
@@ -6949,7 +6907,6 @@ ABI::Windows::Foundation::IUriRuntimeClass *CreateWinRTUri(LPCWSTR wszUri, INT32
     ABI::Windows::Foundation::IUriRuntimeClassFactory* pFactory = marshalingInfo->GetUriFactory();
 
     SafeComHolder<ABI::Windows::Foundation::IUriRuntimeClass> pIUriRC;
-    LeaveRuntimeHolder lrh(**(size_t**)(IUnknown*)pFactory);
     HRESULT hrCreate = pFactory->CreateUri(WinRtStringRef(wszUri, cchUri), &pIUriRC);
     if (FAILED(hrCreate))
     {

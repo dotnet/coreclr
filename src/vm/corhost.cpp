@@ -2896,7 +2896,6 @@ HRESULT CCLRSecurityAttributeManager::GetDACL(PACL *ppacl)
             BOOL bDaclPresent;
             BOOL bDaclDefault;
 
-            LeaveRuntimeHolder holder((size_t)(::GetSecurityDescriptorDacl));
             ::GetSecurityDescriptorDacl(pSA->lpSecurityDescriptor, &bDaclPresent, &pDefaultACL, &bDaclDefault);
         }
         EX_CATCH
@@ -3927,7 +3926,6 @@ DWORD STDMETHODCALLTYPE CExecutionEngine::WaitForSingleObject(HANDLE handle,
 {
     STATIC_CONTRACT_WRAPPER;
     STATIC_CONTRACT_SO_TOLERANT;
-    LeaveRuntimeHolder holder((size_t)(::WaitForSingleObject));
     return ::WaitForSingleObject(handle,dwMilliseconds);
 }
 

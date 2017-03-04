@@ -1083,8 +1083,6 @@ static void FieldCallWorkerBody(Thread *pThread, ComMethodFrame* pFrame)
     }
     CONTRACTL_END;
     
-    ReverseEnterRuntimeHolder REHolder(TRUE);
-    
     IUnknown** pip = (IUnknown **)pFrame->GetPointerToArguments();
     IUnknown* pUnk = (IUnknown *)*pip; 
     _ASSERTE(pUnk != NULL);

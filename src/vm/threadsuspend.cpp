@@ -1666,7 +1666,6 @@ Thread::UserAbort(ThreadAbortRequester requester,
     DWORD elapsed_time = 0;
 #endif
 
-    ThreadAffinityHolder affinity;
     // We do not want this thread to be alerted.
     ThreadPreventAsyncHolder preventAsync(pCurThread != NULL);
 
@@ -2905,11 +2904,6 @@ void ThreadSuspend::LockThreadStore(ThreadSuspend::SUSPEND_REASON reason)
             }
         }
 
-        // ThreadStoreLock is a critical lock used by GC, ThreadAbort, AD unload, Yield.
-        // If a task is switched out while it owns ThreadStoreLock, it may not be able to
-        // release it because the scheduler may be running managed code without yielding.
-        Thread::BeginThreadAffinity();
-
         // This is shutdown aware. If we're in shutdown, and not helper/finalizer/shutdown
         // then this will not take the lock and just block forever.
         ThreadStore::s_pThreadStore->Enter();
@@ -2968,8 +2962,6 @@ void ThreadSuspend::UnlockThreadStore(BOOL bThreadDestroyed, ThreadSuspend::SUSP
         ThreadStore::s_pThreadStore->m_HoldingThread = NULL;
         ThreadStore::s_pThreadStore->m_holderthreadid.Clear();
         ThreadStore::s_pThreadStore->Leave();
-
-        Thread::EndThreadAffinity();
 
         // We're out of the critical area for managed/unmanaged debugging.
         if (!bThreadDestroyed && pCurThread)
@@ -6990,8 +6982,6 @@ BOOL Thread::HandledJITCase(BOOL ForTaskSwitchIn)
     BOOL            ret = FALSE;
     ExecutionState  esb;
     StackWalkAction action;
-
-    _ASSERTE(WorkingOnThreadContext());
 
     CONTEXT ctx;
     REGDISPLAY rd;

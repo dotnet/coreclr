@@ -1993,7 +1993,6 @@ private:
         if (!CanRunManagedCode())
             return;
         SO_INTOLERANT_CODE_NOTHROW(GetThread(), return; );
-        ReverseEnterRuntimeHolderNoThrow REHolder;
 
         m_pWrap->Cleanup();
     }
