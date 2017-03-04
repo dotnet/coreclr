@@ -2649,66 +2649,6 @@ struct GenTreeLclFld : public GenTreeLclVarCommon
 #endif
 };
 
-struct GenTreeRegVar : public GenTreeLclVarCommon
-{
-    // TODO-Cleanup: Note that the base class GenTree already has a gtRegNum field.
-    // It's not clear exactly why a GT_REG_VAR has a separate field. When
-    // GT_REG_VAR is created, the two are identical. It appears that they may
-    // or may not remain so. In particular, there is a comment in stackfp.cpp
-    // that states:
-    //
-    //      There used to be an assertion: assert(src->gtRegNum == src->gtRegVar.gtRegNum, ...)
-    //      here, but there's actually no reason to assume that.  AFAICT, for FP vars under stack FP,
-    //      src->gtRegVar.gtRegNum is the allocated stack pseudo-register, but src->gtRegNum is the
-    //      FP stack position into which that is loaded to represent a particular use of the variable.
-    //
-    // It might be the case that only for stackfp do they ever differ.
-    //
-    // The following might be possible: the GT_REG_VAR node has a last use prior to a complex
-    // subtree being evaluated. It could then be spilled from the register. Later,
-    // it could be unspilled into a different register, which would be recorded at
-    // the unspill time in the GenTree::gtRegNum, whereas GenTreeRegVar::gtRegNum
-    // is left alone. It's not clear why that is useful.
-    //
-    // Assuming there is a particular use, like stack fp, that requires it, maybe we
-    // can get rid of GT_REG_VAR and just leave it as GT_LCL_VAR, using the base class gtRegNum field.
-    // If we need it for stackfp, we could add a GenTreeStackFPRegVar type, which carries both the
-    // pieces of information, in a clearer and more specific way (in particular, with
-    // a different member name).
-    //
-
-private:
-    regNumberSmall _gtRegNum;
-
-public:
-    GenTreeRegVar(var_types type, unsigned lclNum, regNumber regNum) : GenTreeLclVarCommon(GT_REG_VAR, type, lclNum)
-    {
-        gtRegNum = regNum;
-    }
-
-    // The register number is stored in a small format (8 bits), but the getters return and the setters take
-    // a full-size (unsigned) format, to localize the casts here.
-
-    __declspec(property(get = GetRegNum, put = SetRegNum)) regNumber gtRegNum;
-
-    regNumber GetRegNum() const
-    {
-        return (regNumber)_gtRegNum;
-    }
-
-    void SetRegNum(regNumber reg)
-    {
-        _gtRegNum = (regNumberSmall)reg;
-        assert(_gtRegNum == reg);
-    }
-
-#if DEBUGGABLE_GENTREE
-    GenTreeRegVar() : GenTreeLclVarCommon()
-    {
-    }
-#endif
-};
-
 /* gtCast -- conversion to a different type  (GT_CAST) */
 
 struct GenTreeCast : public GenTreeOp
