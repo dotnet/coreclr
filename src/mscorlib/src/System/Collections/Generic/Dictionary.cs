@@ -427,8 +427,6 @@ namespace System.Collections.Generic
 
         private bool TryInsert(TKey key, TValue value, InsertionBehavior behavior)
         {
-            Debug.Assert(Enum.IsDefined(typeof(InsertionBehavior), behavior));
-
             if (key == null)
             {
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.key);
