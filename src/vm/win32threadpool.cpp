@@ -1904,6 +1904,7 @@ Thread* ThreadpoolMgr::CreateUnimpersonatedThread(LPTHREAD_START_ROUTINE lpStart
 #ifndef FEATURE_PAL
         HandleHolder token;
         BOOL bReverted = FALSE;
+        bOK = RevertIfImpersonated(&bReverted, &token);
         if (bOK != TRUE)
             return NULL;
 #endif // !FEATURE_PAL 

@@ -30,6 +30,7 @@ namespace clr
             __deref_out ItfT** ppItf)
         {
             LIMITED_METHOD_CONTRACT;
+            GCX_PREEMP();
             return GetActivationFactory(wzActivatableClassId.Get(), ppItf);
         }
 
@@ -39,6 +40,7 @@ namespace clr
             __in typename ReleaseHolder<ItfT>& hItf)
         {
             LIMITED_METHOD_CONTRACT;
+            GCX_PREEMP();
             return GetActivationFactory(wzActivatableClassId.Get(), (ItfT**)&hItf);
         }
     } // namespace winrt
