@@ -117,7 +117,7 @@ typedef enum {
 } CrstFlags;
 
 // Callback function for cleaning up TLS
-typedef VOID (WINAPI *PTLS_CALLBACK_FUNCTION)(PVOID);
+typedef VOID (__stdcall *PTLS_CALLBACK_FUNCTION)(PVOID);
 
 
 [
