@@ -554,6 +554,8 @@ GetDebugInfoFromPDB(MethodDesc* MethodDescPtr, SymbolsInfo** symInfo, unsigned i
         }
     }
 
+    for (ULONG32 i = 0; i < methodDebugInfo.size; i++)
+        CoTaskMemFree(methodDebugInfo.points[i].fileName);
     CoTaskMemFree(methodDebugInfo.points);
     return S_OK;
 }
@@ -1890,6 +1892,8 @@ void NotifyGdb::MethodCompiled(MethodDesc* MethodDescPtr)
     {
         delete[] locals.localsName[i];
     }
+    delete[] locals.localsName;
+
     /* Build .debug_pubname section */
     if (!BuildDebugPub(dbgPubname, methodName, dbgInfo.MemSize, 0x28))
     {
