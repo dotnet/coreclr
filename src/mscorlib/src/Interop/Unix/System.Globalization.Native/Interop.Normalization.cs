@@ -10,10 +10,10 @@ internal static partial class Interop
 {
     internal static partial class GlobalizationInterop
     {
-        [DllImport(Libraries.GlobalizationInterop, CharSet = CharSet.Unicode, EntryPoint = "GlobalizationNative_IsNormalized")]
+        [DllImport(Libraries.GlobalizationInterop, CallingConvention=CallingConvention.Cdecl, CharSet = CharSet.Unicode, EntryPoint = "GlobalizationNative_IsNormalized")]
         internal static extern int IsNormalized(NormalizationForm normalizationForm, string src, int srcLen);
 
-        [DllImport(Libraries.GlobalizationInterop, CharSet = CharSet.Unicode, EntryPoint = "GlobalizationNative_NormalizeString")]
+        [DllImport(Libraries.GlobalizationInterop, CallingConvention=CallingConvention.Cdecl, CharSet = CharSet.Unicode, EntryPoint = "GlobalizationNative_NormalizeString")]
         internal static extern int NormalizeString(NormalizationForm normalizationForm, string src, int srcLen, [Out] char[] dstBuffer, int dstBufferCapacity);
     }
 }

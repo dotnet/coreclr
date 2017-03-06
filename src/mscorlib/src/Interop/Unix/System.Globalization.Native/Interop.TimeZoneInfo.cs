@@ -9,7 +9,7 @@ internal static partial class Interop
 {
     internal static partial class GlobalizationInterop
     {
-        [DllImport(Libraries.GlobalizationInterop, CharSet = CharSet.Ansi, EntryPoint = "GlobalizationNative_ReadLink")] // readlink requires char*
+        [DllImport(Libraries.GlobalizationInterop, CallingConvention=CallingConvention.Cdecl, CharSet = CharSet.Ansi, EntryPoint = "GlobalizationNative_ReadLink")] // readlink requires char*
         internal static extern bool ReadLink(string filePath, [Out] StringBuilder result, uint resultCapacity);
 
         // needs to be kept in sync with TimeZoneDisplayNameType in System.Globalization.Native
@@ -20,7 +20,7 @@ internal static partial class Interop
             DaylightSavings = 2,
         }
 
-        [DllImport(Libraries.GlobalizationInterop, CharSet = CharSet.Unicode, EntryPoint = "GlobalizationNative_GetTimeZoneDisplayName")]
+        [DllImport(Libraries.GlobalizationInterop, CallingConvention=CallingConvention.Cdecl, CharSet = CharSet.Unicode, EntryPoint = "GlobalizationNative_GetTimeZoneDisplayName")]
         internal static extern ResultCode GetTimeZoneDisplayName(
             string localeName, 
             string timeZoneId, 
