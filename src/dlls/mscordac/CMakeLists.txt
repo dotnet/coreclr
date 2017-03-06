@@ -102,7 +102,7 @@ if(WIN32)
 
     # Generate export file
     add_custom_command(
-        DEPENDS ${CURRENT_BINARY_DIR_FOR_CONFIG}/mscordac.def ${MSCORDAC_OBJ_PATH} "$<TARGET_FILE:daccess>"
+        DEPENDS mscordaccore_def mscordacobj daccess
         OUTPUT ${CURRENT_BINARY_DIR_FOR_CONFIG}/mscordaccore.exp
         COMMAND lib.exe /OUT:"${CURRENT_BINARY_DIR_FOR_CONFIG}/mscordaccore.lib" /DEF:"${CURRENT_BINARY_DIR_FOR_CONFIG}/mscordac.def" "$<TARGET_FILE:daccess>" $<$<OR:$<CONFIG:Release>,$<CONFIG:Relwithdebinfo>>:/LTCG> ${STATIC_LIBRARY_FLAGS} ${MSCORDAC_OBJ_PATH}
         COMMENT "Generating mscordaccore.exp export file"
