@@ -32,9 +32,9 @@ function LocateCMake
   if ($inPathPath -ne $null) {
     # Resolve the first version of CMake if multiple commands are found
     if ($inPathPath.Length -gt 1) {
-      return $inPathPath = $inPathPath[0].Path
+      return $inPathPath[0].Path
     }
-    return $inPathPath = $inPathPath.Path
+    return $inPathPath.Path
   }
   # Let us hope that CMake keep using their current version scheme
   $validVersions = @()
