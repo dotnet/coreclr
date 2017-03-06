@@ -7,7 +7,6 @@ if(CLR_CMAKE_PLATFORM_UNIX)
 endif(CLR_CMAKE_PLATFORM_UNIX)
 
 set(CLR_DAC_SOURCES
-    mscordac.cpp
 )
 
 add_definitions(-DFX_VER_INTERNALNAME_STR=mscordaccore.dll)
@@ -20,11 +19,13 @@ if(WIN32)
         mscordac.src
     )
 
+    set(CURRENT_BINARY_DIR_FOR_CONFIG ${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_CFG_INTDIR})
+
     #Preprocess exports definition file
-    preprocess_def_file(${CMAKE_CURRENT_SOURCE_DIR}/${DEF_SOURCES} ${CMAKE_CURRENT_BINARY_DIR}/mscordac.def)
+    preprocess_def_file(${CMAKE_CURRENT_SOURCE_DIR}/${DEF_SOURCES} ${CURRENT_BINARY_DIR_FOR_CONFIG}/mscordac.def)
 
     #create target to add file dependency on mscordac.def
-    add_custom_target(mscordaccore_def DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/mscordac.def)
+    add_custom_target(mscordaccore_def DEPENDS ${CURRENT_BINARY_DIR_FOR_CONFIG}/mscordac.def)
 
     # No library groups for Win32
     set(START_LIBRARY_GROUP)
@@ -58,7 +59,11 @@ if(CLR_CMAKE_PLATFORM_DARWIN)
     set(EXPORTS_LINKER_OPTION -Wl,-exported_symbols_list,${EXPORTS_FILE})
 endif(CLR_CMAKE_PLATFORM_DARWIN)
 
-add_library_clr(mscordaccore SHARED ${CLR_DAC_SOURCES})
+# Create object library to enable creation of proper dependency of mscordaccore.exp on mscordac.obj and
+# mscordaccore on both the mscordaccore.exp and mscordac.obj.
+add_library(mscordacobj OBJECT mscordac.cpp)
+
+add_library_clr(mscordaccore SHARED ${CLR_DAC_SOURCES} $<TARGET_OBJECTS:mscordacobj>)
 
 if(CLR_CMAKE_PLATFORM_UNIX)
     add_custom_target(mscordaccore_exports DEPENDS ${EXPORTS_FILE})
@@ -93,15 +98,21 @@ if(WIN32)
     # mscordac.def should be generated before mscordaccore.dll is built
     add_dependencies(mscordaccore mscordaccore_def)
 
+    set(MSCORDAC_OBJ_PATH "${CMAKE_CURRENT_BINARY_DIR}/mscordacobj.dir/${CMAKE_CFG_INTDIR}/mscordac.obj")
+
     # Generate export file
-    add_custom_command(TARGET mscordaccore
-        PRE_LINK
-        COMMAND lib.exe /OUT:"${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>/mscordaccore.lib" /DEF:"${CMAKE_CURRENT_BINARY_DIR}/mscordac.def" "$<TARGET_FILE:daccess>" $<$<OR:$<CONFIG:Release>,$<CONFIG:Relwithdebinfo>>:/LTCG> ${STATIC_LIBRARY_FLAGS} "${CMAKE_CURRENT_BINARY_DIR}/mscordaccore.dir/$<CONFIG>/mscordac.obj"
+    add_custom_command(
+        DEPENDS ${CURRENT_BINARY_DIR_FOR_CONFIG}/mscordac.def ${MSCORDAC_OBJ_PATH} "$<TARGET_FILE:daccess>"
+        OUTPUT ${CURRENT_BINARY_DIR_FOR_CONFIG}/mscordaccore.exp
+        COMMAND lib.exe /OUT:"${CURRENT_BINARY_DIR_FOR_CONFIG}/mscordaccore.lib" /DEF:"${CURRENT_BINARY_DIR_FOR_CONFIG}/mscordac.def" "$<TARGET_FILE:daccess>" $<$<OR:$<CONFIG:Release>,$<CONFIG:Relwithdebinfo>>:/LTCG> ${STATIC_LIBRARY_FLAGS} ${MSCORDAC_OBJ_PATH}
         COMMENT "Generating mscordaccore.exp export file"
     )
 
+    add_custom_target(mscordaccore_exp DEPENDS ${CURRENT_BINARY_DIR_FOR_CONFIG}/mscordaccore.exp)
+    add_dependencies(mscordaccore mscordaccore_exp)
+
     set(COREDAC_LIBRARIES
-        ${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>/mscordaccore.exp # export file
+        ${CURRENT_BINARY_DIR_FOR_CONFIG}/mscordaccore.exp # export file
         ${COREDAC_LIBRARIES}
         mdwinmd_dac
         kernel32.lib
