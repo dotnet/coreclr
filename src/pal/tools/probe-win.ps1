@@ -33,7 +33,7 @@ function LocateCMake
   if ($inPathPath.Length -gt 1) {
     $inPathPath = $inPathPath[0].Path
   } else {
-    $inPathPath = $inPathPathPath
+    $inPathPath = $inPathPath.Path
   }
   # Let us hope that CMake keep using their current version scheme
   $validVersions = @()
