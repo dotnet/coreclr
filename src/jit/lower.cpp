@@ -42,9 +42,12 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 void Lowering::MakeSrcContained(GenTreePtr parentNode, GenTreePtr childNode)
 {
     assert(!parentNode->OperIsLeaf());
+    assert(childNode->canBeContained());
+
     int srcCount = childNode->gtLsraInfo.srcCount;
     assert(srcCount >= 0);
     m_lsra->clearOperandCounts(childNode);
+
     assert(parentNode->gtLsraInfo.srcCount > 0);
     parentNode->gtLsraInfo.srcCount += srcCount - 1;
 }
@@ -465,7 +468,7 @@ GenTree* Lowering::LowerSwitch(GenTree* node)
     // both GT_SWITCH lowering code paths.
     // This condition is of the form: if (temp > jumpTableLength - 2){ goto jumpTable[jumpTableLength - 1]; }
     GenTreePtr gtDefaultCaseCond = comp->gtNewOperNode(GT_GT, TYP_INT, comp->gtNewLclvNode(tempLclNum, tempLclType),
-                                                       comp->gtNewIconNode(jumpCnt - 2, TYP_INT));
+                                                       comp->gtNewIconNode(jumpCnt - 2, tempLclType));
 
     // Make sure we perform an unsigned comparison, just in case the switch index in 'temp'
     // is now less than zero 0 (that would also hit the default case).
@@ -678,9 +681,16 @@ GenTree* Lowering::LowerSwitch(GenTree* node)
 
         JITDUMP("Lowering switch BB%02u: using jump table expansion\n", originalSwitchBB->bbNum);
 
+        GenTree* switchValue = comp->gtNewLclvNode(tempLclNum, tempLclType);
+#ifdef _TARGET_64BIT_
+        if (tempLclType != TYP_I_IMPL)
+        {
+            // Note that the switch value is unsigned so the cast should be unsigned as well.
+            switchValue = comp->gtNewCastNode(TYP_I_IMPL, switchValue, TYP_U_IMPL);
+        }
+#endif
         GenTreePtr gtTableSwitch =
-            comp->gtNewOperNode(GT_SWITCH_TABLE, TYP_VOID, comp->gtNewLclvNode(tempLclNum, tempLclType),
-                                comp->gtNewJmpTableNode());
+            comp->gtNewOperNode(GT_SWITCH_TABLE, TYP_VOID, switchValue, comp->gtNewJmpTableNode());
         /* Increment the lvRefCnt and lvRefCntWtd for temp */
         tempVarDsc->incRefCnts(blockWeight, comp);
 
@@ -971,6 +981,43 @@ GenTreePtr Lowering::NewPutArg(GenTreeCall* call, GenTreePtr arg, fgArgTabEntryP
                 assert(!varTypeIsSIMD(arg));
                 numRefs = comp->info.compCompHnd->getClassGClayout(arg->gtObj.gtClass, gcLayout);
                 putArg->AsPutArgStk()->setGcPointers(numRefs, gcLayout);
+
+#ifdef _TARGET_X86_
+                // On x86 VM lies about the type of a struct containing a pointer sized
+                // integer field by returning the type of its field as the type of struct.
+                // Such struct can be passed in a register depending its position in
+                // parameter list.  VM does this unwrapping only one level and therefore
+                // a type like Struct Foo { Struct Bar { int f}} awlays needs to be
+                // passed on stack.  Also, VM doesn't lie about type of such a struct
+                // when it is a field of another struct.  That is VM doesn't lie about
+                // the type of Foo.Bar
+                //
+                // We now support the promotion of fields that are of type struct.
+                // However we only support a limited case where the struct field has a
+                // single field and that single field must be a scalar type. Say Foo.Bar
+                // field is getting passed as a parameter to a call, Since it is a TYP_STRUCT,
+                // as per x86 ABI it should always be passed on stack.  Therefore GenTree
+                // node under a PUTARG_STK could be GT_OBJ(GT_LCL_VAR_ADDR(v1)), where
+                // local v1 could be a promoted field standing for Foo.Bar.  Note that
+                // the type of v1 will be the type of field of Foo.Bar.f when Foo is
+                // promoted.  That is v1 will be a scalar type.  In this case we need to
+                // pass v1 on stack instead of in a register.
+                //
+                // TODO-PERF: replace GT_OBJ(GT_LCL_VAR_ADDR(v1)) with v1 if v1 is
+                // a scalar type and the width of GT_OBJ matches the type size of v1.
+                // Note that this cannot be done till call node arguments are morphed
+                // because we should not lose the fact that the type of argument is
+                // a struct so that the arg gets correctly marked to be passed on stack.
+                GenTree* objOp1 = arg->gtGetOp1();
+                if (objOp1->OperGet() == GT_LCL_VAR_ADDR)
+                {
+                    unsigned lclNum = objOp1->AsLclVarCommon()->GetLclNum();
+                    if (comp->lvaTable[lclNum].lvType != TYP_STRUCT)
+                    {
+                        comp->lvaSetVarDoNotEnregister(lclNum DEBUGARG(Compiler::DNER_VMNeedsStackAddr));
+                    }
+                }
+#endif // _TARGET_X86_
             }
         }
 #endif // FEATURE_PUT_STRUCT_ARG_STK
@@ -1062,6 +1109,15 @@ void Lowering::LowerArg(GenTreeCall* call, GenTreePtr* ppArg)
             LclVarDsc* varDsc = &comp->lvaTable[varNum];
             type              = varDsc->lvType;
         }
+        else if (arg->OperGet() == GT_SIMD)
+        {
+            assert((arg->AsSIMD()->gtSIMDSize == 16) || (arg->AsSIMD()->gtSIMDSize == 12));
+
+            if (arg->AsSIMD()->gtSIMDSize == 12)
+            {
+                type = TYP_SIMD12;
+            }
+        }
     }
 #endif // defined(FEATURE_SIMD) && defined(_TARGET_X86_)
 
@@ -1075,25 +1131,41 @@ void Lowering::LowerArg(GenTreeCall* call, GenTreePtr* ppArg)
     {
         if (isReg)
         {
-            NYI("Lowering of long register argument");
+            noway_assert(arg->OperGet() == GT_LONG);
+            assert(info->numRegs == 2);
+
+            GenTreePtr argLo = arg->gtGetOp1();
+            GenTreePtr argHi = arg->gtGetOp2();
+
+            GenTreeFieldList* fieldList = new (comp, GT_FIELD_LIST) GenTreeFieldList(argLo, 0, TYP_INT, nullptr);
+            (void)new (comp, GT_FIELD_LIST) GenTreeFieldList(argHi, 4, TYP_INT, fieldList);
+
+            putArg = NewPutArg(call, fieldList, info, TYP_VOID);
+
+            BlockRange().InsertBefore(arg, putArg);
+            BlockRange().Remove(arg);
+            *ppArg     = fieldList;
+            info->node = fieldList;
         }
+        else
+        {
+            // For longs, we will replace the GT_LONG with a GT_FIELD_LIST, and put that under a PUTARG_STK.
+            // Although the hi argument needs to be pushed first, that will be handled by the general case,
+            // in which the fields will be reversed.
+            noway_assert(arg->OperGet() == GT_LONG);
+            assert(info->numSlots == 2);
+            GenTreePtr        argLo     = arg->gtGetOp1();
+            GenTreePtr        argHi     = arg->gtGetOp2();
+            GenTreeFieldList* fieldList = new (comp, GT_FIELD_LIST) GenTreeFieldList(argLo, 0, TYP_INT, nullptr);
+            // Only the first fieldList node (GTF_FIELD_LIST_HEAD) is in the instruction sequence.
+            (void)new (comp, GT_FIELD_LIST) GenTreeFieldList(argHi, 4, TYP_INT, fieldList);
+            putArg = NewPutArg(call, fieldList, info, TYP_VOID);
 
-        // For longs, we will replace the GT_LONG with a GT_FIELD_LIST, and put that under a PUTARG_STK.
-        // Although the hi argument needs to be pushed first, that will be handled by the general case,
-        // in which the fields will be reversed.
-        noway_assert(arg->OperGet() == GT_LONG);
-        assert(info->numSlots == 2);
-        GenTreePtr        argLo     = arg->gtGetOp1();
-        GenTreePtr        argHi     = arg->gtGetOp2();
-        GenTreeFieldList* fieldList = new (comp, GT_FIELD_LIST) GenTreeFieldList(argLo, 0, TYP_INT, nullptr);
-        // Only the first fieldList node (GTF_FIELD_LIST_HEAD) is in the instruction sequence.
-        (void)new (comp, GT_FIELD_LIST) GenTreeFieldList(argHi, 4, TYP_INT, fieldList);
-        putArg = NewPutArg(call, fieldList, info, TYP_VOID);
-
-        // We can't call ReplaceArgWithPutArgOrCopy here because it presumes that we are keeping the original arg.
-        BlockRange().InsertBefore(arg, fieldList, putArg);
-        BlockRange().Remove(arg);
-        *ppArg = putArg;
+            // We can't call ReplaceArgWithPutArgOrCopy here because it presumes that we are keeping the original arg.
+            BlockRange().InsertBefore(arg, fieldList, putArg);
+            BlockRange().Remove(arg);
+            *ppArg = putArg;
+        }
     }
     else
 #endif // !defined(_TARGET_64BIT_)
@@ -2192,7 +2264,6 @@ void Lowering::LowerCompare(GenTree* cmp)
             // automatically inserts a cast from int32 to long on 64 bit architectures. However, the JIT
             // accidentally generates int/long comparisons internally:
             //   - loop cloning compares int (and even small int) index limits against long constants
-            //   - switch lowering compares a 64 bit switch value against a int32 constant
             //
             // TODO-Cleanup: The above mentioned issues should be fixed and then the code below may be
             // replaced with an assert or at least simplified. The special casing of constants in code
@@ -2791,11 +2862,11 @@ void Lowering::InsertPInvokeMethodProlog()
     // for x86, don't pass the secretArg.
     CLANG_FORMAT_COMMENT_ANCHOR;
 
-#ifdef _TARGET_X86_
+#if defined(_TARGET_X86_) || defined(_TARGET_ARM_)
     GenTreeArgList* argList = comp->gtNewArgList(frameAddr);
-#else  // !_TARGET_X86_
+#else
     GenTreeArgList*    argList = comp->gtNewArgList(frameAddr, PhysReg(REG_SECRET_STUB_PARAM));
-#endif // !_TARGET_X86_
+#endif
 
     GenTree* call = comp->gtNewHelperCallNode(CORINFO_HELP_INIT_PINVOKE_FRAME, TYP_I_IMPL, 0, argList);
 
@@ -2816,8 +2887,9 @@ void Lowering::InsertPInvokeMethodProlog()
     firstBlockRange.InsertBefore(insertionPoint, LIR::SeqTree(comp, store));
     DISPTREERANGE(firstBlockRange, store);
 
-#ifndef _TARGET_X86_ // For x86, this step is done at the call site (due to stack pointer not being static in the
-                     // function).
+#if !defined(_TARGET_X86_) && !defined(_TARGET_ARM_)
+    // For x86, this step is done at the call site (due to stack pointer not being static in the function).
+    // For arm32, CallSiteSP is set up by the call to CORINFO_HELP_INIT_PINVOKE_FRAME.
 
     // --------------------------------------------------------
     // InlinedCallFrame.m_pCallSiteSP = @RSP;
@@ -2829,7 +2901,10 @@ void Lowering::InsertPInvokeMethodProlog()
     firstBlockRange.InsertBefore(insertionPoint, LIR::SeqTree(comp, storeSP));
     DISPTREERANGE(firstBlockRange, storeSP);
 
-#endif // !_TARGET_X86_
+#endif // !defined(_TARGET_X86_) && !defined(_TARGET_ARM_)
+
+#if !defined(_TARGET_ARM_)
+    // For arm32, CalleeSavedFP is set up by the call to CORINFO_HELP_INIT_PINVOKE_FRAME.
 
     // --------------------------------------------------------
     // InlinedCallFrame.m_pCalleeSavedEBP = @RBP;
@@ -2841,6 +2916,7 @@ void Lowering::InsertPInvokeMethodProlog()
 
     firstBlockRange.InsertBefore(insertionPoint, LIR::SeqTree(comp, storeFP));
     DISPTREERANGE(firstBlockRange, storeFP);
+#endif // !defined(_TARGET_ARM_)
 
     // --------------------------------------------------------
     // On 32-bit targets, CORINFO_HELP_INIT_PINVOKE_FRAME initializes the PInvoke frame and then pushes it onto
@@ -4377,6 +4453,14 @@ void Lowering::DoPhase()
 #endif
 #endif
 
+    // If we have any PInvoke calls, insert the one-time prolog code. We'll inserted the epilog code in the
+    // appropriate spots later. NOTE: there is a minor optimization opportunity here, as we still create p/invoke
+    // data structures and setup/teardown even if we've eliminated all p/invoke calls due to dead code elimination.
+    if (comp->info.compCallUnmanaged)
+    {
+        InsertPInvokeMethodProlog();
+    }
+
 #if !defined(_TARGET_64BIT_)
     DecomposeLongs decomp(comp); // Initialize the long decomposition class.
     decomp.PrepareForDecomposition();
@@ -4392,14 +4476,6 @@ void Lowering::DoPhase()
 #endif //!_TARGET_64BIT_
 
         LowerBlock(block);
-    }
-
-    // If we have any PInvoke calls, insert the one-time prolog code. We've already inserted the epilog code in the
-    // appropriate spots. NOTE: there is a minor optimization opportunity here, as we still create p/invoke data
-    // structures and setup/teardown even if we've eliminated all p/invoke calls due to dead code elimination.
-    if (comp->info.compCallUnmanaged)
-    {
-        InsertPInvokeMethodProlog();
     }
 
 #ifdef DEBUG
@@ -4554,13 +4630,6 @@ void Lowering::CheckCallArg(GenTree* arg)
 
     switch (arg->OperGet())
     {
-#if !defined(_TARGET_64BIT_)
-        case GT_LONG:
-            assert(arg->gtGetOp1()->OperIsPutArg());
-            assert(arg->gtGetOp2()->OperIsPutArg());
-            break;
-#endif
-
         case GT_FIELD_LIST:
         {
             GenTreeFieldList* list = arg->AsFieldList();

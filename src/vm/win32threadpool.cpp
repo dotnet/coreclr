@@ -945,8 +945,6 @@ BOOL ThreadpoolMgr::QueueUserWorkItem(LPTHREAD_START_ROUTINE Function,
 bool ThreadpoolMgr::ShouldWorkerKeepRunning()
 {
     WRAPPER_NO_CONTRACT;
-    if (CLRThreadpoolHosted())
-        return true;
 
     //
     // Maybe this thread should retire now.  Let's see.
@@ -1001,7 +999,6 @@ void ThreadpoolMgr::AdjustMaxWorkersActive()
     }
     CONTRACTL_END;
 
-    _ASSERTE(!CLRThreadpoolHosted());
     _ASSERTE(ThreadAdjustmentLock.IsHeld());
 
     DWORD currentTicks = GetTickCount();
@@ -1086,8 +1083,6 @@ void ThreadpoolMgr::MaybeAddWorkingWorker()
         MODE_ANY;
     }
     CONTRACTL_END;
-
-    _ASSERTE(!CLRThreadpoolHosted());
 
     // counts volatile read paired with CompareExchangeCounts loop set
     ThreadCounter::Counts counts = WorkerCounter.DangerousGetDirtyCounts();
@@ -1183,27 +1178,6 @@ BOOL ThreadpoolMgr::PostQueuedCompletionStatus(LPOVERLAPPED lpOverlapped,
 
 #ifndef FEATURE_PAL
     EnsureInitialized();
-
-    // if hosted then we need to queue to worker thread, since hosting API doesn't include this method
-    if (CLRIoCompletionHosted())
-    {
-        PostRequestHolder postRequest = MakePostRequest(Function, lpOverlapped);
-        if (postRequest)
-        {
-            // Will execute in the Default AppDomain
-            if (FALSE == QueueUserWorkItem(QUWIPostCompletion, postRequest, QUEUE_ONLY))
-            {
-                return FALSE;
-            }
-            else
-            {
-                postRequest.SuppressRelease();    
-                return TRUE;
-            }
-        }
-        else
-            return FALSE;
-    }
 
     _ASSERTE(GlobalCompletionPort != NULL);
 
@@ -1467,43 +1441,11 @@ BOOL ThreadpoolMgr::DrainCompletionPortQueue()
 }
 
 
-DWORD __stdcall ThreadpoolMgr::QUWIPostCompletion(PVOID pArgs)
-{
-    CONTRACTL
-    {
-        THROWS;
-        GC_TRIGGERS;
-        MODE_ANY;
-        SO_INTOLERANT;
-    }
-    CONTRACTL_END;
-
-    PostRequest* postRequest = (PostRequest*) pArgs;
-
-    EX_TRY
-    {
-        (postRequest->Function)(postRequest->errorCode, postRequest->numBytesTransferred, postRequest->lpOverlapped);
-    }
-    EX_CATCH
-    {
-        RecycleMemory( postRequest, MEMTYPE_PostRequest );
-        if (!SwallowUnhandledExceptions())
-            EX_RETHROW;
-    }
-    EX_END_CATCH(SwallowAllExceptions);
-    return ERROR_SUCCESS;
-
-}
-
-
 // This is either made by a worker thread or a CP thread
 // indicated by threadTypeStatus
 void ThreadpoolMgr::EnsureGateThreadRunning()
 {
     LIMITED_METHOD_CONTRACT;
-
-    // The gate thread is only needed if the CLR is providing part of the ThreadPool implementation.
-    _ASSERTE(!CLRThreadpoolHosted() || !CLRIoCompletionHosted());
 
     while (true)
     {
@@ -1554,9 +1496,6 @@ bool ThreadpoolMgr::ShouldGateThreadKeepRunning()
 {
     LIMITED_METHOD_CONTRACT;
 
-    // The gate thread is only needed if the CLR is providing part of the ThreadPool implementation.
-    _ASSERTE(!CLRThreadpoolHosted() || !CLRIoCompletionHosted());
-
     _ASSERTE(GateThreadStatus == GATE_THREAD_STATUS_WAITING_FOR_REQUEST ||
              GateThreadStatus == GATE_THREAD_STATUS_REQUESTED);
 
@@ -1584,8 +1523,7 @@ bool ThreadpoolMgr::ShouldGateThreadKeepRunning()
         // Are there any work requests in any worker queue?  If so, we need a gate thread.
         // This imples that whenever a work queue goes from empty to non-empty, we need to call EnsureGateThreadRunning().
         //
-        bool needGateThreadForWorkerThreads = 
-            !CLRThreadpoolHosted() &&
+        bool needGateThreadForWorkerThreads =
             PerAppDomainTPCountList::AreRequestsPendingInAnyAppDomains();
 
         //
@@ -1686,18 +1624,6 @@ void ThreadpoolMgr::ExecuteWorkRequest(bool* foundWork, bool* wasNotRecalled)
         *foundWork = false;
         *wasNotRecalled = true;
         return;
-    }
-
-    if(IsThreadPoolHosted()) 
-    {
-        //Only managed callBacks go this route under hosts.
-        //Also, since if we came here, atleast one managed requests was 
-        //created, and that means atleast one app domain exists.
-
-        if (index == -1) 
-        {
-            index = 1;
-        }
     }
 
     if (index == -1) 
@@ -1854,9 +1780,6 @@ LPVOID ThreadpoolMgr::GetRecycledMemory(enum MemType memType)
             case MEMTYPE_WorkRequest:
                 result =  new WorkRequest;
                 break;
-            case MEMTYPE_PostRequest:
-                result =  new PostRequest;
-                break;
             default:
                 _ASSERTE(!"Unknown Memtype");
                 result = NULL;
@@ -1900,9 +1823,6 @@ void ThreadpoolMgr::RecycleMemory(LPVOID mem, enum MemType memType)
             break;
         case MEMTYPE_WorkRequest:
             delete (WorkRequest*) mem;
-            break;
-        case MEMTYPE_PostRequest:
-            delete (PostRequest*) mem;
             break;
         default:
             _ASSERTE(!"Unknown Memtype");
@@ -1982,10 +1902,9 @@ Thread* ThreadpoolMgr::CreateUnimpersonatedThread(LPTHREAD_START_ROUTINE lpStart
     }
     else {
 #ifndef FEATURE_PAL
-        ThreadAffinityHolder affinityHolder(FALSE);
         HandleHolder token;
         BOOL bReverted = FALSE;
-        bOK = RevertIfImpersonated(&bReverted, &token, &affinityHolder);
+        bOK = RevertIfImpersonated(&bReverted, &token);
         if (bOK != TRUE)
             return NULL;
 #endif // !FEATURE_PAL 
@@ -2066,8 +1985,6 @@ DWORD __stdcall ThreadpoolMgr::WorkerThreadStart(LPVOID lpArgs)
         SO_INTOLERANT;
     }
     CONTRACTL_END;
-
-    _ASSERTE(!CLRThreadpoolHosted());
 
     Thread *pThread = NULL;
     DWORD dwSwitchCount = 0;
@@ -3333,9 +3250,6 @@ BOOL ThreadpoolMgr::CreateGateThread()
 {
     LIMITED_METHOD_CONTRACT;
 
-    // The gate thread is only needed if the CLR is providing part of the ThreadPool implementation.
-    _ASSERTE(!CLRThreadpoolHosted() || !CLRIoCompletionHosted());
-
     HANDLE threadHandle = Thread::CreateUtilityThread(Thread::StackSize_Small, GateThreadStart, NULL);
 
     if (threadHandle)
@@ -3448,8 +3362,6 @@ DWORD __stdcall ThreadpoolMgr::CompletionPortThreadStart(LPVOID lpArgs)
         SO_INTOLERANT;
     }
     CONTRACTL_END;
-
-    _ASSERTE (!CLRIoCompletionHosted());
 
     DWORD numBytes=0;
     size_t key=0;
@@ -3594,8 +3506,6 @@ Top:
             if((context == NULL) || (!fIsCompletionContext))
             {
                 _ASSERTE (context == NULL || context->lpOverlapped == NULL);
-
-                LeaveRuntimeHolder holder((size_t)GetQueuedCompletionStatus);
 
                 BOOL status = GetQueuedCompletionStatus(
                     GlobalCompletionPort,
@@ -3896,14 +3806,7 @@ LPOVERLAPPED ThreadpoolMgr::CompletionPortDispatchWorkWithinAppDomain(
     OVERLAPPEDDATAREF overlapped=NULL;
     BOOL ManagedCallback=FALSE;
 
-    if (CLRIoCompletionHosted()) 
-    {
-        return NULL;
-    }
-
     *pErrorCode = S_OK;
-
-    LeaveRuntimeHolder holder((size_t)GetQueuedCompletionStatus);
 
 
     //Very Very Important!
@@ -4304,9 +4207,6 @@ DWORD __stdcall ThreadpoolMgr::GateThreadStart(LPVOID lpArgs)
     }
     CONTRACTL_END;
 
-    // The gate thread is only needed if the CLR is providing part of the ThreadPool implementation.
-    _ASSERTE(!CLRThreadpoolHosted() || !CLRIoCompletionHosted());
-
     _ASSERTE(GateThreadStatus == GATE_THREAD_STATUS_REQUESTED);
 
     GateThreadTimer timer;
@@ -4441,8 +4341,6 @@ DWORD __stdcall ThreadpoolMgr::GateThreadStart(LPVOID lpArgs)
         // don't mess with CP thread pool settings if not initialized yet
         if (InitCompletionPortThreadpool)
         {
-            _ASSERTE (!CLRIoCompletionHosted());
-
             ThreadCounter::Counts oldCounts, newCounts;
             oldCounts = CPThreadCounter.GetCleanCounts();
 
@@ -4533,8 +4431,7 @@ DWORD __stdcall ThreadpoolMgr::GateThreadStart(LPVOID lpArgs)
         }
 #endif // !FEATURE_PAL
 
-        if (!CLRThreadpoolHosted() &&
-            (0 == CLRConfig::GetConfigValue(CLRConfig::INTERNAL_ThreadPool_DisableStarvationDetection)))
+        if (0 == CLRConfig::GetConfigValue(CLRConfig::INTERNAL_ThreadPool_DisableStarvationDetection))
         {
             if (PerAppDomainTPCountList::AreRequestsPendingInAnyAppDomains() && SufficientDelaySinceLastDequeue())
             {

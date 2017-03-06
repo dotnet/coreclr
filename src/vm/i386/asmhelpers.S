@@ -249,46 +249,6 @@ NESTED_ENTRY StubRareDisableTHROW, _TEXT, NoHandler
     ret
 NESTED_END StubRareDisableTHROW, _TEXT
 
-LEAF_ENTRY InternalExceptionWorker, _TEXT
-    pop     edx             // recover RETADDR
-    add     esp, eax        // release caller's args
-    push    edx             // restore RETADDR
-    jmp     C_FUNC(JIT_InternalThrow)
-LEAF_END InternalExceptionWorker, _TEXT
-
-// EAX -> number of caller arg bytes on the stack that we must remove before going
-// to the throw helper, which assumes the stack is clean.
-LEAF_ENTRY ArrayOpStubNullException, _TEXT
-    // kFactorReg and kTotalReg could not have been modified, but let's pop
-    // them anyway for consistency and to avoid future bugs.
-    pop     esi
-    pop     edi
-    mov     ecx, CORINFO_NullReferenceException_ASM
-    jmp     C_FUNC(InternalExceptionWorker)
-LEAF_END ArrayOpStubNullException, _TEXT
-
-// EAX -> number of caller arg bytes on the stack that we must remove before going
-// to the throw helper, which assumes the stack is clean.
-LEAF_ENTRY ArrayOpStubRangeException, _TEXT
-    // kFactorReg and kTotalReg could not have been modified, but let's pop
-    // them anyway for consistency and to avoid future bugs.
-    pop     esi
-    pop     edi
-    mov     ecx, CORINFO_IndexOutOfRangeException_ASM
-    jmp     C_FUNC(InternalExceptionWorker)
-LEAF_END ArrayOpStubRangeException, _TEXT
-
-// EAX -> number of caller arg bytes on the stack that we must remove before going
-// to the throw helper, which assumes the stack is clean.
-LEAF_ENTRY ArrayOpStubTypeMismatchException, _TEXT
-    // kFactorReg and kTotalReg could not have been modified, but let's pop
-    // them anyway for consistency and to avoid future bugs.
-    pop     esi
-    pop     edi
-    mov     ecx, CORINFO_ArrayTypeMismatchException_ASM
-    jmp     C_FUNC(InternalExceptionWorker)
-LEAF_END ArrayOpStubTypeMismatchException, _TEXT
-
 // ------------------------------------------------------------------------------
 //  This helper routine enregisters the appropriate arguments and makes the
 //  actual call.
@@ -614,6 +574,7 @@ LEAF_END GetCurrentIP, _TEXT
 // LPVOID __stdcall GetCurrentSP(void);
 LEAF_ENTRY GetCurrentSP, _TEXT
     mov     eax, esp
+    add     eax, 4
     ret
 LEAF_END GetCurrentSP, _TEXT
 
@@ -860,8 +821,8 @@ NESTED_END DelayLoad_MethodCall, _TEXT
 //  to optionally patch the target of the jump so that we do not take this slow path again.
 //
 NESTED_ENTRY VirtualMethodFixupStub, _TEXT, NoHandler
-    // Pop the return address. It points right after the call instruction in the thunk.
-    pop     eax
+    // Get the return address. It points right after the call instruction in the thunk.
+    mov     eax, [esp]
     // Calculate the address of the thunk
     sub     eax, 5
 
@@ -875,9 +836,12 @@ NESTED_ENTRY VirtualMethodFixupStub, _TEXT, NoHandler
     // Set frame pointer
     PROLOG_END
 
+    sub     esp, 8
     push    eax         // address of the thunk
     push    ecx         // this ptr
+    CHECK_STACK_ALIGNMENT
     call    C_FUNC(VirtualMethodFixupWorker)
+    add     esp, 8
 
     // Restore stack pointer
     EPILOG_BEG
@@ -888,6 +852,9 @@ NESTED_ENTRY VirtualMethodFixupStub, _TEXT, NoHandler
 
     // Pop ebp frame
     EPILOG_END
+
+    // Pop return address
+    add   esp, 4
 
 PATCH_LABEL VirtualMethodFixupPatchLabel
     // Proceed to execute the actual method.
@@ -1143,3 +1110,26 @@ LOCAL_LABEL(fail):
 
 NESTED_END ResolveWorkerChainLookupAsmStub, _TEXT
 #endif // CROSSGEN_COMPILE
+
+// backpatch a call site to point to a different stub
+NESTED_ENTRY BackPatchWorkerAsmStub, _TEXT, NoHandler
+    PROLOG_BEG
+    PROLOG_PUSH eax // it may contain siteAddrForRegisterIndirect
+    PROLOG_PUSH ecx
+    PROLOG_PUSH edx
+    PROLOG_END
+
+    sub     esp, 4     //  for 16 bytes align
+    push    eax        //  push any indirect call address as the second arg to BackPatchWorker
+    push    [ebp+8]    //  and push return address as the first arg to BackPatchWorker
+
+    call    C_FUNC(BackPatchWorkerStaticStub)
+    add     esp, 12
+
+    EPILOG_BEG
+    EPILOG_POP edx
+    EPILOG_POP ecx
+    EPILOG_POP eax
+    EPILOG_END
+    ret
+NESTED_END BackPatchWorkerAsmStub, _TEXT

@@ -2758,6 +2758,8 @@ regMaskTP LinearScan::getKillSetForNode(GenTree* tree)
                     needFloatTmpForFPCall = true;
                 }
             }
+#endif // _TARGET_X86_
+#if defined(_TARGET_X86_) || defined(_TARGET_ARM_)
             if (tree->IsHelperCall())
             {
                 GenTreeCall*    call     = tree->AsCall();
@@ -2765,7 +2767,7 @@ regMaskTP LinearScan::getKillSetForNode(GenTree* tree)
                 killMask                 = compiler->compHelperCallKillSet(helpFunc);
             }
             else
-#endif // _TARGET_X86_
+#endif // defined(_TARGET_X86_) || defined(_TARGET_ARM_)
             {
                 // if there is no FP used, we can ignore the FP kills
                 if (compiler->compFloatingPointUsed)
@@ -2782,9 +2784,6 @@ regMaskTP LinearScan::getKillSetForNode(GenTree* tree)
             if (compiler->codeGen->gcInfo.gcIsWriteBarrierAsgNode(tree))
             {
                 killMask = RBM_CALLEE_TRASH_NOGC;
-#if !NOGC_WRITE_BARRIERS && (defined(_TARGET_ARM_) || defined(_TARGET_AMD64_))
-                killMask |= (RBM_ARG_0 | RBM_ARG_1);
-#endif // !NOGC_WRITE_BARRIERS && (defined(_TARGET_ARM_) || defined(_TARGET_AMD64_))
             }
             break;
 
@@ -3566,6 +3565,39 @@ void LinearScan::buildRefPositionsForNode(GenTree*                  tree,
     }
 #endif // DEBUG
 
+    const bool isContainedNode = !info.isLocalDefUse && consume == 0 && produce == 0 && tree->canBeContained();
+    if (isContainedNode)
+    {
+        assert(info.internalIntCount == 0);
+        assert(info.internalFloatCount == 0);
+
+        // Contained nodes map to the concatenated lists of their operands.
+        LocationInfoList locationInfoList;
+        for (GenTree* op : tree->Operands())
+        {
+            if (!op->gtLsraInfo.definesAnyRegisters)
+            {
+                assert(ComputeOperandDstCount(op) == 0);
+                continue;
+            }
+
+            LocationInfoList operandList;
+            bool             removed = operandToLocationInfoMap.TryRemove(op, &operandList);
+            assert(removed);
+
+            locationInfoList.Append(operandList);
+        }
+
+        if (!locationInfoList.IsEmpty())
+        {
+            bool added = operandToLocationInfoMap.AddOrUpdate(tree, locationInfoList);
+            assert(added);
+            tree->gtLsraInfo.definesAnyRegisters = true;
+        }
+
+        return;
+    }
+
     // Handle the case of local variable assignment
     Interval* varDefInterval = nullptr;
     RefType   defRefType     = RefTypeDef;
@@ -3973,8 +4005,6 @@ void LinearScan::buildRefPositionsForNode(GenTree*                  tree,
 #if defined(_TARGET_AMD64_)
     // Multi-reg call node is the only node that could produce multi-reg value
     assert(produce <= 1 || (tree->IsMultiRegCall() && produce == MAX_RET_REG_COUNT));
-#elif defined(_TARGET_ARM_)
-    assert(!varTypeIsMultiReg(tree->TypeGet()));
 #endif // _TARGET_xxx_
 
     // Add kill positions before adding def positions
@@ -4073,27 +4103,6 @@ void LinearScan::buildRefPositionsForNode(GenTree*                  tree,
     // SaveDef position must be at the same location as Def position of call node.
     buildUpperVectorRestoreRefPositions(tree, defLocation, liveLargeVectors);
 #endif // FEATURE_PARTIAL_SIMD_CALLEE_SAVE
-
-    bool isContainedNode = !noAdd && consume == 0 && produce == 0 &&
-                           (tree->OperIsFieldListHead() || ((tree->TypeGet() != TYP_VOID) && !tree->OperIsStore()));
-    if (isContainedNode)
-    {
-        // Contained nodes map to the concatenated lists of their operands.
-        for (GenTree* op : tree->Operands())
-        {
-            if (!op->gtLsraInfo.definesAnyRegisters)
-            {
-                assert(ComputeOperandDstCount(op) == 0);
-                continue;
-            }
-
-            LocationInfoList operandList;
-            bool             removed = operandToLocationInfoMap.TryRemove(op, &operandList);
-            assert(removed);
-
-            locationInfoList.Append(operandList);
-        }
-    }
 
     if (!locationInfoList.IsEmpty())
     {

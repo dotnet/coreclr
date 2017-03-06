@@ -2,19 +2,11 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-/*============================================================
-**
-**
-**
-** Purpose: 
-**
-**
-============================================================*/
-namespace System.Globalization {
-
+namespace System.Globalization
+{
     [Serializable]
-    public enum UnicodeCategory {
-
+    public enum UnicodeCategory
+    {
         UppercaseLetter = 0,
 
         LowercaseLetter = 1,

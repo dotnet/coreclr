@@ -120,6 +120,8 @@ enum genTreeKinds
     GTK_NOVALUE = 0x0400, // node does not produce a value
     GTK_NOTLIR  = 0x0800, // node is not allowed in LIR
 
+    GTK_NOCONTAIN = 0x1000, // this node is a value, but may not be contained
+
     /* Define composite value(s) */
 
     GTK_SMPOP = (GTK_UNOP | GTK_BINOP | GTK_RELOP | GTK_LOGOP)
@@ -395,6 +397,7 @@ struct GenTree
 
 #if ASSERTION_PROP
     unsigned short gtAssertionNum; // 0 or Assertion table index
+                                   // possibly ORed with optAssertionEdge::OAE_NEXT_EDGE
                                    // valid only for non-GT_STMT nodes
 
     bool HasAssertion() const
@@ -554,6 +557,8 @@ public:
     // a full-size (unsigned) format, to localize the casts here.
 
     __declspec(property(get = GetRegNum, put = SetRegNum)) regNumber gtRegNum;
+
+    bool canBeContained() const;
 
     // for codegen purposes, is this node a subnode of its parent
     bool isContained() const;
@@ -3394,7 +3399,7 @@ struct GenTreeCall final : public GenTree
     //
     bool HasMultiRegRetVal() const
     {
-#if defined(_TARGET_X86_) && !defined(LEGACY_BACKEND)
+#if (defined(_TARGET_X86_) || defined(_TARGET_ARM_)) && !defined(LEGACY_BACKEND)
         // LEGACY_BACKEND does not use multi reg returns for calls with long return types
         return varTypeIsLong(gtType);
 #elif FEATURE_MULTIREG_RET

@@ -73,9 +73,9 @@ inline bool _our_GetThreadCycles(unsigned __int64* cycleOut)
 
 inline bool _our_GetThreadCycles(unsigned __int64* cycleOut)
 {
-    uint64_t cycles;
-    asm volatile("rdtsc" : "=A"(cycles));
-    *cycleOut = cycles;
+    uint32_t hi, lo;
+    __asm__ __volatile__("rdtsc" : "=a"(lo), "=d"(hi));
+    *cycleOut = (static_cast<unsigned __int64>(hi) << 32) | static_cast<unsigned __int64>(lo);
     return true;
 }
 
@@ -5662,12 +5662,6 @@ int Compiler::compCompileHelper(CORINFO_MODULE_HANDLE            classPtr,
 
     info.compCallUnmanaged   = 0;
     info.compLvFrameListRoot = BAD_VAR_NUM;
-
-#if FEATURE_FIXED_OUT_ARGS
-    lvaOutgoingArgSpaceSize = 0;
-#endif
-
-    lvaGenericsContextUsed = false;
 
     info.compInitMem = ((methodInfo->options & CORINFO_OPT_INIT_LOCALS) != 0);
 

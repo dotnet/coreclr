@@ -18,6 +18,7 @@ endif(WIN32)
 add_library_clr(legacyjit
    SHARED
    ${SHARED_LIB_SOURCES}
+   ${JIT_ARCH_SOURCES}
 )
 
 add_dependencies(legacyjit jit_exports)

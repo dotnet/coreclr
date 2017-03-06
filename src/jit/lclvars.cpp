@@ -38,6 +38,8 @@ void Compiler::lvaInit()
     lvaRefCountingStarted = false;
     lvaLocalVarRefCounted = false;
 
+    lvaGenericsContextUseCount = 0;
+
     lvaSortAgain    = false; // false: We don't need to call lvaSortOnly()
     lvaTrackedFixed = false; // false: We can still add new tracked variables
 
@@ -50,6 +52,7 @@ void Compiler::lvaInit()
 #if FEATURE_FIXED_OUT_ARGS
     lvaPInvokeFrameRegSaveVar = BAD_VAR_NUM;
     lvaOutgoingArgSpaceVar    = BAD_VAR_NUM;
+    lvaOutgoingArgSpaceSize   = PhasedVar<unsigned>();
 #endif // FEATURE_FIXED_OUT_ARGS
 #ifdef _TARGET_ARM_
     lvaPromotedStructAssemblyScratchVar = BAD_VAR_NUM;
@@ -246,10 +249,16 @@ void Compiler::lvaInitTypeRef()
         CORINFO_CLASS_HANDLE typeHnd;
         CorInfoTypeWithMod   corInfoType =
             info.compCompHnd->getArgType(&info.compMethodInfo->locals, localsSig, &typeHnd);
+
         lvaInitVarDsc(varDsc, varNum, strip(corInfoType), typeHnd, localsSig, &info.compMethodInfo->locals);
 
         varDsc->lvPinned  = ((corInfoType & CORINFO_TYPE_MOD_PINNED) != 0);
         varDsc->lvOnFrame = true; // The final home for this local variable might be our local stack frame
+
+        if (strip(corInfoType) == CORINFO_TYPE_CLASS)
+        {
+            varDsc->lvClassHnd = info.compCompHnd->getArgClass(&info.compMethodInfo->locals, localsSig);
+        }
     }
 
     if ( // If there already exist unsafe buffers, don't mark more structs as unsafe
@@ -411,6 +420,8 @@ void Compiler::lvaInitThisPtr(InitVarDscInfo* varDscInfo)
             varDsc->lvVerTypeInfo = typeInfo();
         }
 
+        varDsc->lvClassHnd = info.compClassHnd;
+
         // Mark the 'this' pointer for the method
         varDsc->lvVerTypeInfo.SetIsThisPtr();
 
@@ -548,6 +559,11 @@ void Compiler::lvaInitUserArgs(InitVarDscInfo* varDscInfo)
 #endif
 
         lvaInitVarDsc(varDsc, varDscInfo->varNum, strip(corInfoType), typeHnd, argLst, &info.compMethodInfo->args);
+
+        if (strip(corInfoType) == CORINFO_TYPE_CLASS)
+        {
+            varDsc->lvClassHnd = info.compCompHnd->getArgClass(&info.compMethodInfo->args, argLst);
+        }
 
         // For ARM, ARM64, and AMD64 varargs, all arguments go in integer registers
         var_types argType     = mangleVarArgsType(varDsc->TypeGet());
@@ -1543,8 +1559,60 @@ void Compiler::lvaCanPromoteStructType(CORINFO_CLASS_HANDLE    typeHnd,
 
             if (pFieldInfo->fldSize == 0)
             {
+                // Size of TYP_BLK, TYP_FUNC, TYP_VOID and TYP_STRUCT is zero.
+                // Early out if field type is other than TYP_STRUCT.
+                // This is a defensive check as we don't expect a struct to have
+                // fields of TYP_BLK, TYP_FUNC or TYP_VOID.
+                if (pFieldInfo->fldType != TYP_STRUCT)
+                {
+                    return;
+                }
+
                 // Non-primitive struct field.
-                return;
+                // Try to promote structs of single field of scalar types aligned at their
+                // natural boundary.
+
+                // Do Not promote if the struct field in turn has more than one field.
+                if (info.compCompHnd->getClassNumInstanceFields(pFieldInfo->fldTypeHnd) != 1)
+                {
+                    return;
+                }
+
+                // Do not promote if the single field is not aligned at its natural boundary within
+                // the struct field.
+                CORINFO_FIELD_HANDLE fHnd    = info.compCompHnd->getFieldInClass(pFieldInfo->fldTypeHnd, 0);
+                unsigned             fOffset = info.compCompHnd->getFieldOffset(fHnd);
+                if (fOffset != 0)
+                {
+                    return;
+                }
+
+                CORINFO_CLASS_HANDLE cHnd;
+                CorInfoType          fieldCorType = info.compCompHnd->getFieldType(fHnd, &cHnd);
+                var_types            fieldVarType = JITtype2varType(fieldCorType);
+                unsigned             fieldSize    = genTypeSize(fieldVarType);
+
+                // Do not promote if either not a primitive type or size equal to ptr size on
+                // target or a struct containing a single floating-point field.
+                //
+                // TODO-PERF: Structs containing a single floating-point field on Amd64
+                // needs to be passed in integer registers. Right now LSRA doesn't support
+                // passing of floating-point LCL_VARS in integer registers.  Enabling promotion
+                // of such structs results in an assert in lsra right now.
+                //
+                // TODO-PERF: Right now promotion is confined to struct containing a ptr sized
+                // field (int/uint/ref/byref on 32-bits and long/ulong/ref/byref on 64-bits).
+                // Though this would serve the purpose of promoting Span<T> containing ByReference<T>,
+                // this can be extended to other primitive types as long as they are aligned at their
+                // natural boundary.
+                if (fieldSize == 0 || fieldSize != TARGET_POINTER_SIZE || varTypeIsFloating(fieldVarType))
+                {
+                    return;
+                }
+
+                // Retype the field as the type of the single field of the struct
+                pFieldInfo->fldType = fieldVarType;
+                pFieldInfo->fldSize = fieldSize;
             }
 
             if ((pFieldInfo->fldOffset % pFieldInfo->fldSize) != 0)
@@ -2240,9 +2308,14 @@ BYTE* Compiler::lvaGetGcLayout(unsigned varNum)
     return lvaTable[varNum].lvGcLayout;
 }
 
-/*****************************************************************************
- * Return the number of bytes needed for a local variable
- */
+//------------------------------------------------------------------------
+// lvaLclSize: returns size of a local variable, in bytes
+//
+// Arguments:
+//    varNum -- variable to query
+//
+// Returns:
+//    Number of bytes needed on the frame for such a local.
 
 unsigned Compiler::lvaLclSize(unsigned varNum)
 {
@@ -2258,10 +2331,8 @@ unsigned Compiler::lvaLclSize(unsigned varNum)
 
         case TYP_LCLBLK:
 #if FEATURE_FIXED_OUT_ARGS
-            noway_assert(lvaOutgoingArgSpaceSize >= 0);
             noway_assert(varNum == lvaOutgoingArgSpaceVar);
             return lvaOutgoingArgSpaceSize;
-
 #else // FEATURE_FIXED_OUT_ARGS
             assert(!"Unknown size");
             NO_WAY("Target doesn't support TYP_LCLBLK");
@@ -2965,6 +3036,10 @@ void Compiler::lvaSortByRefCount()
             lvaSetVarDoNotEnregister(lclNum DEBUGARG(DNER_PinningRef));
 #endif
         }
+        else if (opts.MinOpts() && !JitConfig.JitMinOptsTrackGCrefs() && varTypeIsGC(varDsc->TypeGet()))
+        {
+            varDsc->lvTracked = 0;
+        }
 
         //  Are we not optimizing and we have exception handlers?
         //   if so mark all args and locals "do not enregister".
@@ -3487,7 +3562,7 @@ void Compiler::lvaMarkLocalVars()
         }
     }
 
-    lvaAllocOutgoingArgSpace();
+    lvaAllocOutgoingArgSpaceVar();
 
 #if !FEATURE_EH_FUNCLETS
 
@@ -3622,7 +3697,7 @@ void Compiler::lvaMarkLocalVars()
     lvaSortByRefCount();
 }
 
-void Compiler::lvaAllocOutgoingArgSpace()
+void Compiler::lvaAllocOutgoingArgSpaceVar()
 {
 #if FEATURE_FIXED_OUT_ARGS
 
@@ -3638,21 +3713,6 @@ void Compiler::lvaAllocOutgoingArgSpace()
 
         lvaTable[lvaOutgoingArgSpaceVar].lvRefCnt    = 1;
         lvaTable[lvaOutgoingArgSpaceVar].lvRefCntWtd = BB_UNITY_WEIGHT;
-
-        if (lvaOutgoingArgSpaceSize == 0)
-        {
-            if (compUsesThrowHelper || compIsProfilerHookNeeded())
-            {
-                // Need to make sure the MIN_ARG_AREA_FOR_CALL space is added to the frame if:
-                // 1. there are calls to THROW_HEPLPER methods.
-                // 2. we are generating profiling Enter/Leave/TailCall hooks. This will ensure
-                //    that even methods without any calls will have outgoing arg area space allocated.
-                //
-                // An example for these two cases is Windows Amd64, where the ABI requires to have 4 slots for
-                // the outgoing arg space if the method makes any calls.
-                lvaOutgoingArgSpaceSize = MIN_ARG_AREA_FOR_CALL;
-            }
-        }
     }
 
     noway_assert(lvaOutgoingArgSpaceVar >= info.compLocalsCount && lvaOutgoingArgSpaceVar < lvaCount);
@@ -5938,11 +5998,15 @@ void Compiler::lvaAssignFrameOffsetsToPromotedStructs()
         //
         if (varDsc->lvIsStructField
 #ifndef UNIX_AMD64_ABI
+#if !defined(_TARGET_ARM_) || defined(LEGACY_BACKEND)
+            // Non-legacy ARM: lo/hi parts of a promoted long arg need to be updated.
+
             // For System V platforms there is no outgoing args space.
             // A register passed struct arg is homed on the stack in a separate local var.
             // The offset of these structs is already calculated in lvaAssignVirtualFrameOffsetToArg methos.
             // Make sure the code below is not executed for these structs and the offset is not changed.
             && !varDsc->lvIsParam
+#endif // !defined(_TARGET_ARM_) || defined(LEGACY_BACKEND)
 #endif // UNIX_AMD64_ABI
             )
         {

@@ -241,7 +241,9 @@ BasicBlock* CodeGen::genCallFinally(BasicBlock* block)
     if ((compiler->lvaPSPSym == BAD_VAR_NUM) ||
         (!compiler->compLocallocUsed && (compiler->funCurrentFunc()->funKind == FUNC_ROOT)))
     {
+#ifndef UNIX_X86_ABI
         inst_RV_RV(INS_mov, REG_ARG_0, REG_SPBASE, TYP_I_IMPL);
+#endif // !UNIX_X86_ABI
     }
     else
     {
@@ -7372,11 +7374,16 @@ void CodeGen::genIntrinsic(GenTreePtr treeNode)
     switch (treeNode->gtIntrinsic.gtIntrinsicId)
     {
         case CORINFO_INTRINSIC_Sqrt:
-            noway_assert(treeNode->TypeGet() == TYP_DOUBLE);
+        {
+            // Both operand and its result must be of the same floating point type.
+            GenTreePtr srcNode = treeNode->gtOp.gtOp1;
+            assert(varTypeIsFloating(srcNode));
+            assert(srcNode->TypeGet() == treeNode->TypeGet());
+
             genConsumeOperands(treeNode->AsOp());
-            getEmitter()->emitInsBinary(ins_FloatSqrt(treeNode->TypeGet()), emitTypeSize(treeNode), treeNode,
-                                        treeNode->gtOp.gtOp1);
+            getEmitter()->emitInsBinary(ins_FloatSqrt(treeNode->TypeGet()), emitTypeSize(treeNode), treeNode, srcNode);
             break;
+        }
 
         case CORINFO_INTRINSIC_Abs:
             genSSE2BitwiseOp(treeNode);
@@ -8354,12 +8361,14 @@ void CodeGen::genCreateAndStoreGCInfoX64(unsigned codeSize, unsigned prologSize 
     // Follow the code pattern of the x86 gc info encoder (genCreateAndStoreGCInfoJIT32).
     gcInfo.gcInfoBlockHdrSave(gcInfoEncoder, codeSize, prologSize);
 
+    // We keep the call count for the second call to gcMakeRegPtrTable() below.
+    unsigned callCnt = 0;
     // First we figure out the encoder ID's for the stack slots and registers.
-    gcInfo.gcMakeRegPtrTable(gcInfoEncoder, codeSize, prologSize, GCInfo::MAKE_REG_PTR_MODE_ASSIGN_SLOTS);
+    gcInfo.gcMakeRegPtrTable(gcInfoEncoder, codeSize, prologSize, GCInfo::MAKE_REG_PTR_MODE_ASSIGN_SLOTS, &callCnt);
     // Now we've requested all the slots we'll need; "finalize" these (make more compact data structures for them).
     gcInfoEncoder->FinalizeSlotIds();
     // Now we can actually use those slot ID's to declare live ranges.
-    gcInfo.gcMakeRegPtrTable(gcInfoEncoder, codeSize, prologSize, GCInfo::MAKE_REG_PTR_MODE_DO_WORK);
+    gcInfo.gcMakeRegPtrTable(gcInfoEncoder, codeSize, prologSize, GCInfo::MAKE_REG_PTR_MODE_DO_WORK, &callCnt);
 
     if (compiler->opts.compDbgEnC)
     {

@@ -118,14 +118,6 @@ case $OSName in
         ;;
 esac
 
-# clean up any existing dumpling remnants from previous runs.
-dumplingsListPath="$PWD/dumplings.txt"
-if [ -f "$dumplingsListPath" ]; then
-    rm "$dumplingsListPath"
-fi
-
-find . -type f -name "local_dumplings.txt" -exec rm {} \;
-
 function xunit_output_begin {
     xunitOutputPath=$testRootDir/coreclrtests.xml
     xunitTestOutputPath=${xunitOutputPath}.test
@@ -368,7 +360,8 @@ function create_core_overlay {
     if [ -d "$mscorlibDir/bin" ]; then
         cp -f -v "$mscorlibDir/bin/"* "$coreOverlayDir/" 2>/dev/null
     fi
-    cp -n -v "$testDependenciesDir"/* "$coreOverlayDir/" 2>/dev/null
+    cp -f -v "$testDependenciesDir/"xunit* "$coreOverlayDir/" 2>/dev/null
+    cp -n -v "$testDependenciesDir/"* "$coreOverlayDir/" 2>/dev/null
     if [ -f "$coreOverlayDir/mscorlib.ni.dll" ]; then
         # Test dependencies come from a Windows build, and mscorlib.ni.dll would be the one from Windows
         rm -f "$coreOverlayDir/mscorlib.ni.dll"
@@ -1197,6 +1190,13 @@ fi
 export __TestEnv=$testEnv
 
 cd "$testRootDir"
+
+dumplingsListPath="$testRootDir/dumplings.txt"
+
+# clean up any existing dumpling remnants from previous runs.
+rm -f "$dumplingsListPath"
+find $testRootDir -type f -name "local_dumplings.txt" -exec rm {} \;
+
 time_start=$(date +"%s")
 if [ -z "$testDirectories" ]
 then
@@ -1218,8 +1218,7 @@ finish_remaining_tests
 
 print_results
 
-echo "constructing $dumplingsListPath"
-find . -type f -name "local_dumplings.txt" -exec cat {} \; > $dumplingsListPath
+find $testRootDir -type f -name "local_dumplings.txt" -exec cat {} \; > $dumplingsListPath
 
 if [ -s $dumplingsListPath ]; then
     cat $dumplingsListPath

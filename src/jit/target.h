@@ -1080,10 +1080,10 @@ typedef unsigned short regPairNoSmall; // arm: need 12 bits
   #define REG_ARG_4                REG_R8
   #define REG_ARG_5                REG_R9
 
-  SELECTANY const regNumber intArgRegs[] = { REG_EDI, REG_ESI, REG_EDX, REG_ECX, REG_R8, REG_R9 };
-  SELECTANY const regMaskTP intArgMasks[] = { REG_EDI, REG_ESI, REG_EDX, REG_ECX, REG_R8, REG_R9 };
-  SELECTANY const regNumber fltArgRegs[] = { REG_XMM0, REG_XMM1, REG_XMM2, REG_XMM3, REG_XMM4, REG_XMM5, REG_XMM6, REG_XMM7 };
-  SELECTANY const regMaskTP fltArgMasks[] = { REG_XMM0, REG_XMM1, REG_XMM2, REG_XMM3, REG_XMM4, REG_XMM5, REG_XMM6, REG_XMM7 };
+  SELECTANY const regNumber intArgRegs [] = { REG_EDI, REG_ESI, REG_EDX, REG_ECX, REG_R8, REG_R9 };
+  SELECTANY const regMaskTP intArgMasks[] = { RBM_EDI, RBM_ESI, RBM_EDX, RBM_ECX, RBM_R8, RBM_R9 };
+  SELECTANY const regNumber fltArgRegs [] = { REG_XMM0, REG_XMM1, REG_XMM2, REG_XMM3, REG_XMM4, REG_XMM5, REG_XMM6, REG_XMM7 };
+  SELECTANY const regMaskTP fltArgMasks[] = { RBM_XMM0, RBM_XMM1, RBM_XMM2, RBM_XMM3, RBM_XMM4, RBM_XMM5, RBM_XMM6, RBM_XMM7 };
 
   #define RBM_ARG_0                RBM_RDI
   #define RBM_ARG_1                RBM_RSI
@@ -1103,9 +1103,9 @@ typedef unsigned short regPairNoSmall; // arm: need 12 bits
   #define REG_ARG_2                REG_R8
   #define REG_ARG_3                REG_R9
 
-  SELECTANY const regNumber intArgRegs[] = { REG_ECX, REG_EDX, REG_R8, REG_R9 };
+  SELECTANY const regNumber intArgRegs [] = { REG_ECX, REG_EDX, REG_R8, REG_R9 };
   SELECTANY const regMaskTP intArgMasks[] = { RBM_ECX, RBM_EDX, RBM_R8, RBM_R9 };
-  SELECTANY const regNumber fltArgRegs[] = { REG_XMM0, REG_XMM1, REG_XMM2, REG_XMM3 };
+  SELECTANY const regNumber fltArgRegs [] = { REG_XMM0, REG_XMM1, REG_XMM2, REG_XMM3 };
   SELECTANY const regMaskTP fltArgMasks[] = { RBM_XMM0, RBM_XMM1, RBM_XMM2, RBM_XMM3 };
 
   #define RBM_ARG_0                RBM_ECX
@@ -1246,7 +1246,11 @@ typedef unsigned short regPairNoSmall; // arm: need 12 bits
 
   #define RBM_CALLEE_SAVED        (RBM_INT_CALLEE_SAVED | RBM_FLT_CALLEE_SAVED)
   #define RBM_CALLEE_TRASH        (RBM_INT_CALLEE_TRASH | RBM_FLT_CALLEE_TRASH)
+#ifdef LEGACY_BACKEND
   #define RBM_CALLEE_TRASH_NOGC   (RBM_R2|RBM_R3|RBM_LR)
+#else
+  #define RBM_CALLEE_TRASH_NOGC   RBM_CALLEE_TRASH
+#endif
   #define REG_DEFAULT_HELPER_CALL_TARGET REG_R12
 
   #define RBM_ALLINT              (RBM_INT_CALLEE_SAVED | RBM_INT_CALLEE_TRASH)
@@ -1442,7 +1446,7 @@ typedef unsigned short regPairNoSmall; // arm: need 12 bits
   #define RBM_STOP_FOR_GC_TRASH     (RBM_CALLEE_TRASH & ~(RBM_FLOATRET | RBM_INTRET))
 
   // The registers trashed by the CORINFO_HELP_INIT_PINVOKE_FRAME helper.
-  #define RBM_INIT_PINVOKE_FRAME_TRASH  RBM_CALLEE_TRASH
+  #define RBM_INIT_PINVOKE_FRAME_TRASH (RBM_CALLEE_TRASH | RBM_PINVOKE_TCB | RBM_PINVOKE_SCRATCH)
 
   #define REG_FPBASE               REG_R11
   #define RBM_FPBASE               RBM_R11
