@@ -217,6 +217,10 @@ build_native()
 
         echo "Restoring the OptimizationData package"
         "$__ProjectRoot/run.sh" sync -optdata
+        if [ $? != 0 ]; then
+            echo "Failed to restore the optimization data package."
+            exit 1
+        fi
 
         pushd "$intermediatesForBuild"
         # Regenerate the CMake solution

@@ -210,6 +210,10 @@ REM ============================================================================
 
 echo %__MsgPrefix%Restoring the OptimizationData Package
 @call %__ProjectDir%\run.cmd sync -optdata
+if not !errorlevel! == 0 (
+    echo %__MsgPrefix%Error: Failed to restore the optimization data package.
+    exit /b 1
+)
 
 REM =========================================================================================
 REM ===
