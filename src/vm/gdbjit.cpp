@@ -500,6 +500,17 @@ GetDebugInfoFromPDB(MethodDesc* MethodDescPtr, SymbolsInfo** symInfo, unsigned i
     if (methodDebugInfo.points == nullptr)
         return E_OUTOFMEMORY;
 
+    if (locals.countVars > 0)
+    {
+        methodDebugInfo.locals = (LocalVarInfo*) CoTaskMemAlloc(sizeof(LocalVarInfo) * locals.countVars);
+        if (methodDebugInfo.locals == nullptr)
+            return E_OUTOFMEMORY;
+    }
+    else
+    {
+        methodDebugInfo.locals = nullptr;
+    }
+
     methodDebugInfo.size = numMap;
 
     if (getInfoForMethodDelegate(szModName, MethodDescPtr->GetMemberDef(), methodDebugInfo) == FALSE)
@@ -513,14 +524,19 @@ GetDebugInfoFromPDB(MethodDesc* MethodDescPtr, SymbolsInfo** symInfo, unsigned i
     locals.localsName = new (nothrow) char *[locals.size];
     if (locals.localsName == nullptr)
         return E_FAIL;
+    locals.localsScope = new (nothrow) LocalsInfo::Scope [locals.size];
+    if (locals.localsScope == nullptr)
+        return E_FAIL;
 
     for (ULONG32 i = 0; i < locals.size; i++)
     {
-        size_t sizeRequired = WideCharToMultiByte(CP_UTF8, 0, methodDebugInfo.locals[i], -1, NULL, 0, NULL, NULL);
+        size_t sizeRequired = WideCharToMultiByte(CP_UTF8, 0, methodDebugInfo.locals[i].name, -1, NULL, 0, NULL, NULL);
         locals.localsName[i] = new (nothrow) char[sizeRequired];
 
         int len = WideCharToMultiByte(
-            CP_UTF8, 0, methodDebugInfo.locals[i], -1, locals.localsName[i], sizeRequired, NULL, NULL);
+            CP_UTF8, 0, methodDebugInfo.locals[i].name, -1, locals.localsName[i], sizeRequired, NULL, NULL);
+        locals.localsScope[i].ilStartOffset = methodDebugInfo.locals[i].startOffset;
+        locals.localsScope[i].ilEndOffset = methodDebugInfo.locals[i].endOffset;
     }
 
     for (ULONG32 j = 0; j < numMap; j++)
@@ -552,6 +568,13 @@ GetDebugInfoFromPDB(MethodDesc* MethodDescPtr, SymbolsInfo** symInfo, unsigned i
                 break;
             }
         }
+    }
+
+    if (methodDebugInfo.locals)
+    {
+        for (ULONG32 i = 0; i < methodDebugInfo.localsSize; i++)
+            CoTaskMemFree(methodDebugInfo.locals[i].name);
+        CoTaskMemFree(methodDebugInfo.locals);
     }
 
     for (ULONG32 i = 0; i < methodDebugInfo.size; i++)
@@ -1893,6 +1916,7 @@ void NotifyGdb::MethodCompiled(MethodDesc* MethodDescPtr)
         delete[] locals.localsName[i];
     }
     delete[] locals.localsName;
+    delete[] locals.localsScope;
 
     /* Build .debug_pubname section */
     if (!BuildDebugPub(dbgPubname, methodName, dbgInfo.MemSize, 0x28))

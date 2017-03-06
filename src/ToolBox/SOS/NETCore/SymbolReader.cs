@@ -23,6 +23,14 @@ namespace SOS
             public string fileName;
         }
 
+        [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+        internal struct LocalVarInfo
+        {
+            public int startOffset;
+            public int endOffset;
+            public string name;
+        }
+
         [StructLayout(LayoutKind.Sequential)]
         internal struct MethodDebugInfo
         {
@@ -394,7 +402,7 @@ namespace SOS
             }
             return false;
         }
-        internal static bool GetLocalsInfoForMethod(string assemblyPath, int methodToken, out List<string> locals)
+        internal static bool GetLocalsInfoForMethod(string assemblyPath, int methodToken, out List<LocalVarInfo> locals)
         {
             locals = null;
 
@@ -410,7 +418,7 @@ namespace SOS
                     if (handle.Kind != HandleKind.MethodDefinition)
                         return false;
 
-                    locals = new List<string>();
+                    locals = new List<LocalVarInfo>();
 
                     MethodDebugInformationHandle methodDebugHandle =
                         ((MethodDefinitionHandle)handle).ToDebugInformationHandle();
@@ -424,7 +432,11 @@ namespace SOS
                             LocalVariable localVar = openedReader.Reader.GetLocalVariable(varHandle);
                             if (localVar.Attributes == LocalVariableAttributes.DebuggerHidden)
                                 continue;
-                            locals.Add(openedReader.Reader.GetString(localVar.Name));
+                            LocalVarInfo info = new LocalVarInfo();
+                            info.startOffset = scope.StartOffset;
+                            info.endOffset = scope.EndOffset;
+                            info.name = openedReader.Reader.GetString(localVar.Name);
+                            locals.Add(info);
                         }
                     }
                 }
@@ -449,7 +461,7 @@ namespace SOS
             try
             {
                 List<DebugInfo> points = null;
-                List<string> locals = null;
+                List<LocalVarInfo> locals = null;
 
                 if (!GetDebugInfoForMethod(assemblyPath, methodToken, out points))
                 {
@@ -470,14 +482,18 @@ namespace SOS
                     Marshal.StructureToPtr(info, ptr, false);
                     ptr = (IntPtr)(ptr.ToInt64() + structSize);
                 }
+
+                structSize = Marshal.SizeOf<LocalVarInfo>();
+
                 debugInfo.localsSize = locals.Count;
-                debugInfo.locals = Marshal.AllocHGlobal(debugInfo.localsSize * Marshal.SizeOf<IntPtr>());
-                IntPtr ptrLocals = debugInfo.locals;
-                foreach (string s in locals)
+                ptr = debugInfo.locals;
+
+                foreach (var info in locals)
                 {
-                    Marshal.WriteIntPtr(ptrLocals, Marshal.StringToHGlobalUni(s));
-                    ptrLocals += Marshal.SizeOf<IntPtr>();
+                    Marshal.StructureToPtr(info, ptr, false);
+                    ptr = (IntPtr)(ptr.ToInt64() + structSize);
                 }
+
                 return true;
             }
             catch

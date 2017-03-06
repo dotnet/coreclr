@@ -125,11 +125,16 @@ public:
     virtual void DumpDebugInfo(char* ptr, int& offset) = 0;
 };
 
-class LocalsInfo 
+class LocalsInfo
 {
 public:
+    struct Scope {
+        int ilStartOffset;
+        int ilEndOffset;
+    };
     int size;
     char** localsName;
+    Scope *localsScope;
     ULONG32 countVars;
     ICorDebugInfo::NativeVarInfo *pVars;
 };
