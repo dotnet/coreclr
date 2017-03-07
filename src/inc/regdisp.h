@@ -396,7 +396,7 @@ inline void FillRegDisplay(const PREGDISPLAY pRD, PT_CONTEXT pctx, PT_CONTEXT pC
 #elif defined(_TARGET_X86_) // _TARGET_ARM_
     for (int i = 0; i < 7; i++)
     {
-        *(&pRD->ctxPtrsOne.Esi + i) = (&pRD->pCurrentContext->Esi + i);
+        *(&pRD->ctxPtrsOne.Esi + i) = (&pctx->Esi + i);
     }
 #else // _TARGET_X86_
     PORTABILITY_ASSERT("FillRegDisplay");
