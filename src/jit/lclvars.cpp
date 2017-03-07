@@ -5965,9 +5965,9 @@ void Compiler::lvaAlignFrame()
         }
 
         // Align the stack with STACK_ALIGN value.
-        int adjustFrameSize = compLclFrameSize;
+        int  adjustFrameSize = compLclFrameSize;
 #if defined(UNIX_X86_ABI)
-        bool isEbpPushed = codeGen->isFramePointerUsed();
+        bool isEbpPushed     = codeGen->isFramePointerUsed();
 #if DOUBLE_ALIGN
         isEbpPushed |= genDoubleAlign();
 #endif
