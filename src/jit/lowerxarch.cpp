@@ -1002,7 +1002,7 @@ bool Lowering::IsCallTargetInRange(void* addr)
 {
 #ifdef _TARGET_AMD64_
     return (comp->eeGetRelocTypeHint(addr) == IMAGE_REL_BASED_REL32);
-#else // _TARGET_X86_
+#else  // _TARGET_X86_
     return true;
 #endif // _TARGET_X86_
 }
