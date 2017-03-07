@@ -2091,9 +2091,10 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                     if (!enableCorefxTesting) {
                         // We run pal tests on all OS but generate mscorlib (and thus, nuget packages)
                         // only on supported OS platforms.
+                        // We also must skip restoring optdata where we can't run managed code yet.
                         if (os == 'FreeBSD')
                         {
-                            buildCommands += "./build.sh skipmscorlib verbose ${lowerConfiguration} ${arch} ${standaloneGc}"
+                            buildCommands += "./build.sh skipmscorlib skiprestoreoptdata verbose ${lowerConfiguration} ${arch} ${standaloneGc}"
                         }
                         else
                         {
