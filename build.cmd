@@ -40,6 +40,7 @@ set "__SourceDir=%__ProjectDir%\src"
 set "__PackagesDir=%__ProjectDir%\packages"
 set "__RootBinDir=%__ProjectDir%\bin"
 set "__LogsDir=%__RootBinDir%\Logs"
+set "__OptDataVersion="
 
 set __BuildAll=
 
@@ -210,6 +211,18 @@ REM === Restore optimization profile data
 REM ===
 REM =========================================================================================
 
+REM Parse the package version out of project.json so that we can pass it on to CMake
+where /q python || (
+    echo %__MsgPrefix%Error: Python not found on PATH, please make sure that it is installed.
+    exit /b 1
+)
+set OptDataProjectJsonPath=%__ProjectDir%\src\.nuget\optdata\project.json
+if EXIST "%OptDataProjectJsonPath%" (
+    for /f "tokens=*" %%s in ('python "%__ProjectDir%\extract-from-json.py" -rf "%OptDataProjectJsonPath%" dependencies optimization.PGO.CoreCLR') do @(
+        set __OptDataVersion=%%s
+    )
+)
+
 if %__RestoreOptData% EQU 1 (
     echo %__MsgPrefix%Restoring the OptimizationData Package
     @call %__ProjectDir%\run.cmd sync -optdata
@@ -268,7 +281,7 @@ if %__BuildNative% EQU 1 (
     echo %__MsgPrefix%Regenerating the Visual Studio solution
 
     pushd "%__IntermediatesDir%"
-    set __ExtraCmakeArgs=!___SDKVersion! "-DCLR_CMAKE_TARGET_OS=%__BuildOs%" "-DCLR_CMAKE_PACKAGES_DIR=%__PackagesDir%" "-DCLR_CMAKE_PGO_INSTRUMENT=%__PgoInstrument%"
+    set __ExtraCmakeArgs=!___SDKVersion! "-DCLR_CMAKE_TARGET_OS=%__BuildOs%" "-DCLR_CMAKE_PACKAGES_DIR=%__PackagesDir%" "-DCLR_CMAKE_PGO_INSTRUMENT=%__PgoInstrument%" "-DCLR_CMAKE_OPTDATA_VERSION=%__OptDataVersion%"
     call "%__SourceDir%\pal\tools\gen-buildsys-win.bat" "%__ProjectDir%" %__VSVersion% %__BuildArch% %__BuildJit32% %__BuildStandaloneGC% !__ExtraCmakeArgs!
 	@if defined _echo @echo on
     popd
@@ -322,7 +335,7 @@ if /i "%__DoCrossArchBuild%"=="1" (
     pushd "%__CrossCompIntermediatesDir%"
     set __CMakeBinDir=%__CrossComponentBinDir%
     set "__CMakeBinDir=!__CMakeBinDir:\=/!"
-    set __ExtraCmakeArgs="-DCLR_CROSS_COMPONENTS_BUILD=1" "-DCLR_CMAKE_TARGET_ARCH=%__BuildArch%" "-DCLR_CMAKE_TARGET_OS=%__BuildOs%" "-DCLR_CMAKE_PACKAGES_DIR=%__PackagesDir%" "-DCLR_CMAKE_PGO_INSTRUMENT=%__PgoInstrument%"
+    set __ExtraCmakeArgs="-DCLR_CROSS_COMPONENTS_BUILD=1" "-DCLR_CMAKE_TARGET_ARCH=%__BuildArch%" "-DCLR_CMAKE_TARGET_OS=%__BuildOs%" "-DCLR_CMAKE_PACKAGES_DIR=%__PackagesDir%" "-DCLR_CMAKE_PGO_INSTRUMENT=%__PgoInstrument%" "-DCLR_CMAKE_OPTDATA_VERSION=%__OptDataVersion%"
     call "%__SourceDir%\pal\tools\gen-buildsys-win.bat" "%__ProjectDir%" %__VSVersion% %__CrossArch% !__ExtraCmakeArgs!
     @if defined _echo @echo on
     popd
