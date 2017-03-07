@@ -1,5 +1,4 @@
 include(${CLR_DIR}/dac.cmake)
-
 add_definitions(-DFEATURE_NO_HOST)
 
 if(CLR_CMAKE_PLATFORM_UNIX)
@@ -102,17 +101,22 @@ if(WIN32)
 
     # Generate export file
     add_custom_command(
-        DEPENDS mscordaccore_def mscordacobj daccess
-        OUTPUT ${CURRENT_BINARY_DIR_FOR_CONFIG}/mscordaccore.exp
-        COMMAND lib.exe /OUT:"${CURRENT_BINARY_DIR_FOR_CONFIG}/mscordaccore.lib" /DEF:"${CURRENT_BINARY_DIR_FOR_CONFIG}/mscordac.def" "$<TARGET_FILE:daccess>" $<$<OR:$<CONFIG:Release>,$<CONFIG:Relwithdebinfo>>:/LTCG> ${STATIC_LIBRARY_FLAGS} ${MSCORDAC_OBJ_PATH}
+        DEPENDS mscordaccore_def "${CURRENT_BINARY_DIR_FOR_CONFIG}/mscordac.def" mscordacobj daccess
+        OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/mscordaccore.exp
+        COMMAND lib.exe /OUT:"${CMAKE_CURRENT_BINARY_DIR}/mscordaccore.lib" /DEF:"${CURRENT_BINARY_DIR_FOR_CONFIG}/mscordac.def" "$<TARGET_FILE:daccess>" $<$<OR:$<CONFIG:Release>,$<CONFIG:Relwithdebinfo>>:/LTCG> ${STATIC_LIBRARY_FLAGS} ${MSCORDAC_OBJ_PATH}
         COMMENT "Generating mscordaccore.exp export file"
     )
 
-    add_custom_target(mscordaccore_exp DEPENDS ${CURRENT_BINARY_DIR_FOR_CONFIG}/mscordaccore.exp)
+    set_source_files_properties(
+        ${CMAKE_CURRENT_BINARY_DIR}/mscordaccore.exp
+        PROPERTIES GENERATED TRUE
+    )
+
+    add_custom_target(mscordaccore_exp DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/mscordaccore.exp)
     add_dependencies(mscordaccore mscordaccore_exp)
 
     set(COREDAC_LIBRARIES
-        ${CURRENT_BINARY_DIR_FOR_CONFIG}/mscordaccore.exp # export file
+        ${CMAKE_CURRENT_BINARY_DIR}/mscordaccore.exp # export file
         ${COREDAC_LIBRARIES}
         mdwinmd_dac
         kernel32.lib
