@@ -114,7 +114,7 @@ class MemoryNative
 {
 public:
     static void QCALLTYPE Clear(void *dst, size_t length);
-    static bool QCALLTYPE CopyWithReferences(void *dst, void *src, size_t byteCount);
+    static FCDECL3(VOID, BulkMoveWithWriteBarrier, void *dst, void *src, size_t byteCount);
 };
 
 //

@@ -569,40 +569,35 @@ namespace System
     {
         internal static unsafe void CopyTo<T>(ref T destination, ref T source, int elementsCount)
         {
-            if (elementsCount == 0)
-                return;
-
             if (Unsafe.AreSame(ref destination, ref source))
                 return;
 
+            if (elementsCount <= 1)
+            {
+                if (elementsCount == 1)
+                {
+                    destination = source;
+                }
+                return;
+            }
+
+            nuint byteCount = (nuint)elementsCount * (nuint)Unsafe.SizeOf<T>();
             if (!RuntimeHelpers.IsReferenceOrContainsReferences<T>())
             {
                 fixed (byte* pDestination = &Unsafe.As<T, byte>(ref destination))
                 {
                     fixed (byte* pSource = &Unsafe.As<T, byte>(ref source))
                     {
-                        Buffer.Memmove(pDestination, pSource, (nuint)elementsCount * (nuint)Unsafe.SizeOf<T>());
+                        Buffer.Memmove(pDestination, pSource, byteCount);
                     }
                 }
             }
             else
             {
-                if ((nuint)elementsCount * (nuint)Unsafe.SizeOf<T>() >= 128 &&
-                    RuntimeImports.RhCopyMemoryWithReferences(ref destination, ref source, elementsCount))
-                {
-                    return;
-                }
-
-                if (JitHelpers.ByRefLessThan(ref destination, ref source)) // copy forward
-                {
-                    for (int i = 0; i < elementsCount; i++)
-                        Unsafe.Add(ref destination, i) = Unsafe.Add(ref source, i);
-                }
-                else // copy backward to avoid overlapping issues
-                {
-                    for (int i = elementsCount - 1; i >= 0; i--)
-                        Unsafe.Add(ref destination, i) = Unsafe.Add(ref source, i);
-                }
+                RuntimeImports.RhBulkMoveWithWriteBarrier(
+                    ref Unsafe.As<T, byte>(ref destination),
+                    ref Unsafe.As<T, byte>(ref source),
+                    byteCount);
             }
         }
 

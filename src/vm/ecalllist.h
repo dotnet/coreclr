@@ -1288,7 +1288,7 @@ FCFuncEnd()
 
 FCFuncStart(gRuntimeImportsFuncs)
     QCFuncElement("RhZeroMemory", MemoryNative::Clear)
-    QCFuncElement("RhCopyMemoryWithReferences", MemoryNative::CopyWithReferences)
+    FCFuncElement("RhBulkMoveWithWriteBarrier", MemoryNative::BulkMoveWithWriteBarrier)
 FCFuncEnd()
 
 FCFuncStart(gWeakReferenceFuncs)
