@@ -211,11 +211,11 @@ namespace System
         {
             if (RuntimeHelpers.IsReferenceOrContainsReferences<T>())
             {
-                SpanHelper.ClearWithReferences(ref Unsafe.As<T, IntPtr>(ref _pointer.Value), (nuint)(_length * (Unsafe.SizeOf<T>() / sizeof(nuint))));
+                SpanHelper.ClearWithReferences(ref Unsafe.As<T, IntPtr>(ref _pointer.Value), (nuint)_length * (nuint)(Unsafe.SizeOf<T>() / sizeof(nuint)));
             }
             else
             {
-                SpanHelper.ClearWithoutReferences(ref Unsafe.As<T, byte>(ref _pointer.Value), (nuint)(_length * Unsafe.SizeOf<T>()));
+                SpanHelper.ClearWithoutReferences(ref Unsafe.As<T, byte>(ref _pointer.Value), (nuint)_length * (nuint)Unsafe.SizeOf<T>());
             }
         }
 
@@ -581,16 +581,18 @@ namespace System
                 {
                     fixed (byte* pSource = &Unsafe.As<T, byte>(ref source))
                     {
-#if BIT64
-                        Buffer.Memmove(pDestination, pSource, (ulong)elementsCount * (ulong)Unsafe.SizeOf<T>());
-#else
-                        Buffer.Memmove(pDestination, pSource, (uint)elementsCount * (uint)Unsafe.SizeOf<T>());
-#endif
+                        Buffer.Memmove(pDestination, pSource, (nuint)elementsCount * (nuint)Unsafe.SizeOf<T>());
                     }
                 }
             }
             else
             {
+                if ((nuint)elementsCount * (nuint)Unsafe.SizeOf<T>() >= 128 &&
+                    RuntimeImports.RhCopyMemoryWithReferences(ref destination, ref source, elementsCount))
+                {
+                    return;
+                }
+
                 if (JitHelpers.ByRefLessThan(ref destination, ref source)) // copy forward
                 {
                     for (int i = 0; i < elementsCount; i++)

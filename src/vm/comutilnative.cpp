@@ -1494,11 +1494,24 @@ FCIMPL5(VOID, Buffer::InternalBlockCopy, ArrayBase *src, int srcOffset, ArrayBas
 }
 FCIMPLEND
 
-void QCALLTYPE SpanNative::SpanClear(void *dst, size_t length)
+void QCALLTYPE MemoryNative::Clear(void *dst, size_t length)
 {
     QCALL_CONTRACT;
 
     memset(dst, 0, length);
+}
+
+bool QCALLTYPE MemoryNative::CopyWithReferences(void *dst, void *src, size_t byteCount)
+{
+    QCALL_CONTRACT;
+
+    if (!IS_ALIGNED(dst, sizeof(dst)) || !IS_ALIGNED(src, sizeof(src)))
+    {
+        return false;
+    }
+
+    memmoveGCRefs(dst, src, byteCount);
+    return true;
 }
 
 void QCALLTYPE Buffer::MemMove(void *dst, void *src, size_t length)
