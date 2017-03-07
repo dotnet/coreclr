@@ -712,3 +712,16 @@ LEAF_END JIT_PatchedWriteBarrierGroup_End, _TEXT
 LEAF_ENTRY JIT_PatchedCodeLast, _TEXT
     ret
 LEAF_END JIT_PatchedCodeLast, _TEXT
+
+NESTED_ENTRY JIT_GetRuntimeType_Safe, _TEXT, NoHandler
+    PROLOG_BEG
+    PROLOG_END
+
+    and   esp, 0FFFFFFF0h
+    call  C_FUNC(JIT_GetRuntimeType)
+    mov   esp, ebp
+
+    EPILOG_BEG
+    EPILOG_END
+    ret
+NESTED_END JIT_GetRuntimeType_Safe, _TEXT
