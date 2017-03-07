@@ -36,6 +36,7 @@ usage()
     echo "skipmscorlib - do not build mscorlib.dll."
     echo "skiptests - skip the tests in the 'tests' subdirectory."
     echo "skipnuget - skip building nuget packages."
+    echo "skiprestoreoptdata - skip restoring optimization data used by profile-based optimizations."
     echo "portableLinux - build for Portable Linux Distribution"
     echo "verbose - optional argument to enable verbose build output."
     echo "-skiprestore: skip restoring packages ^(default: packages are restored during build^)."
@@ -215,11 +216,13 @@ build_native()
             fi
         fi
 
-        echo "Restoring the OptimizationData package"
-        "$__ProjectRoot/run.sh" sync -optdata
-        if [ $? != 0 ]; then
-            echo "Failed to restore the optimization data package."
-            exit 1
+        if [ $__SkipRestoreOptData == 0 ]; then
+            echo "Restoring the OptimizationData package"
+            "$__ProjectRoot/run.sh" sync -optdata
+            if [ $? != 0 ]; then
+                echo "Failed to restore the optimization data package."
+                exit 1
+            fi
         fi
 
         pushd "$intermediatesForBuild"
@@ -555,6 +558,7 @@ __SkipRestore=""
 __SkipNuget=0
 __SkipCoreCLR=0
 __SkipMSCorLib=0
+__SkipRestoreOptData=0
 __CrossBuild=0
 __ClangMajorVersion=0
 __ClangMinorVersion=0
@@ -699,6 +703,10 @@ while :; do
 
         skipgenerateversion)
             __SkipGenerateVersion=1
+            ;;
+
+        skiprestoreoptdata)
+            __SkipRestoreOptData=1
             ;;
 
         includetests)

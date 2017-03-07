@@ -71,6 +71,7 @@ set __BuildNative=1
 set __BuildTests=1
 set __BuildPackages=1
 set __BuildNativeCoreLib=1
+set __RestoreOptData=1
 
 :Arg_Loop
 if "%1" == "" goto ArgsDone
@@ -105,6 +106,7 @@ if /i "%1" == "skipmscorlib"        (set __BuildCoreLib=0&set __BuildNativeCoreL
 if /i "%1" == "skipnative"          (set __BuildNative=0&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
 if /i "%1" == "skiptests"           (set __BuildTests=0&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
 if /i "%1" == "skipbuildpackages"   (set __BuildPackages=0&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
+if /i "%1" == "skiprestoreoptdata"  (set __RestoreOptData=0&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
 if /i "%1" == "usenmakemakefiles"   (set __NMakeMakefiles=1&set __ConfigureOnly=1&set __BuildNative=1&set __BuildNativeCoreLib=0&set __BuildCoreLib=0&set __BuildTests=0&set __BuildPackages=0&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
 if /i "%1" == "buildjit32"          (set __BuildJit32="-DBUILD_JIT32=1"&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
 if /i "%1" == "pgoinstrument"       (set __PgoInstrument=1&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
@@ -208,11 +210,13 @@ REM === Restore optimization profile data
 REM ===
 REM =========================================================================================
 
-echo %__MsgPrefix%Restoring the OptimizationData Package
-@call %__ProjectDir%\run.cmd sync -optdata
-if not !errorlevel! == 0 (
-    echo %__MsgPrefix%Error: Failed to restore the optimization data package.
-    exit /b 1
+if %__RestoreOptData% EQU 1 (
+    echo %__MsgPrefix%Restoring the OptimizationData Package
+    @call %__ProjectDir%\run.cmd sync -optdata
+    if not !errorlevel! == 0 (
+        echo %__MsgPrefix%Error: Failed to restore the optimization data package.
+        exit /b 1
+    )
 )
 
 REM =========================================================================================
@@ -606,6 +610,7 @@ echo skipmscorlib: skip building System.Private.CoreLib ^(default: System.Privat
 echo skipnative: skip building native components ^(default: native components are built^).
 echo skiptests: skip building tests ^(default: tests are built^).
 echo skipbuildpackages: skip building nuget packages ^(default: packages are built^).
+echo skiprestoreoptdata: skip restoring optimization data used by profile-based optimizations.
 echo buildstandalonegc: builds the GC in a standalone mode.
 echo -skiprestore: skip restoring packages ^(default: packages are restored during build^).
 echo -disableoss: Disable Open Source Signing for System.Private.CoreLib.
