@@ -7,8 +7,9 @@ namespace System.Security
     // UnverifiableCodeAttribute:
     //  Indicates that the target module contains unverifiable code.
     [AttributeUsage(AttributeTargets.Module, AllowMultiple = true, Inherited = false)]
-    sealed public class UnverifiableCodeAttribute : System.Attribute
+    public sealed class UnverifiableCodeAttribute : Attribute
     {
+        public UnverifiableCodeAttribute() { }
     }
 }
 

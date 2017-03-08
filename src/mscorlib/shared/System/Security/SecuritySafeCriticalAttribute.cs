@@ -23,7 +23,7 @@ namespace System.Security
                     AttributeTargets.Delegate,
         AllowMultiple = false,
         Inherited = false)]
-    sealed public class SecuritySafeCriticalAttribute : System.Attribute
+    public sealed class SecuritySafeCriticalAttribute : Attribute
     {
         public SecuritySafeCriticalAttribute() { }
     }

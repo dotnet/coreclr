@@ -14,25 +14,15 @@ namespace System.Security
     [AttributeUsage(AttributeTargets.Assembly, AllowMultiple = false)]
     public sealed class SecurityRulesAttribute : Attribute
     {
-        private SecurityRuleSet m_ruleSet;
-        private bool m_skipVerificationInFullTrust = false;
-
         public SecurityRulesAttribute(SecurityRuleSet ruleSet)
         {
-            m_ruleSet = ruleSet;
+            RuleSet = ruleSet;
         }
 
         // Should fully trusted transparent code skip IL verification
-        public bool SkipVerificationInFullTrust
-        {
-            get { return m_skipVerificationInFullTrust; }
-            set { m_skipVerificationInFullTrust = value; }
-        }
+        public bool SkipVerificationInFullTrust { get; set; }
 
-        public SecurityRuleSet RuleSet
-        {
-            get { return m_ruleSet; }
-        }
+        public SecurityRuleSet RuleSet { get; }
     }
 }
 

@@ -14,7 +14,8 @@ namespace System.Security
     //  to be allocated on the callers stack. It is not used for this purpose anymore because of security 
     //  stackwalks are not ever done in CoreCLR.
     [AttributeUsage(AttributeTargets.Method | AttributeTargets.Constructor, AllowMultiple = true, Inherited = false)]
-    sealed internal class DynamicSecurityMethodAttribute : System.Attribute
+    internal sealed class DynamicSecurityMethodAttribute : Attribute
     {
+        public DynamicSecurityMethodAttribute() { }
     }
 }

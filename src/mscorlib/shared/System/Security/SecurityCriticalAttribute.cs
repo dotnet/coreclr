@@ -18,28 +18,18 @@ namespace System.Security
                     AttributeTargets.Delegate,
         AllowMultiple = false,
         Inherited = false)]
-    sealed public class SecurityCriticalAttribute : System.Attribute
+    public sealed class SecurityCriticalAttribute : Attribute
     {
 #pragma warning disable 618    // We still use SecurityCriticalScope for v2 compat
-
-        private SecurityCriticalScope _val;
-
         public SecurityCriticalAttribute() { }
 
         public SecurityCriticalAttribute(SecurityCriticalScope scope)
         {
-            _val = scope;
+            Scope = scope;
         }
 
         [Obsolete("SecurityCriticalScope is only used for .NET 2.0 transparency compatibility.")]
-        public SecurityCriticalScope Scope
-        {
-            get
-            {
-                return _val;
-            }
-        }
-
+        public SecurityCriticalScope Scope { get; }
 #pragma warning restore 618
     }
 }

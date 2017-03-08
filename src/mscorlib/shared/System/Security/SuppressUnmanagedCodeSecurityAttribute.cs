@@ -8,8 +8,9 @@ namespace System.Security
     //  Indicates that the target P/Invoke method(s) should skip the per-call
     //  security checked for unmanaged code permission.
     [AttributeUsage(AttributeTargets.Method | AttributeTargets.Class | AttributeTargets.Interface | AttributeTargets.Delegate, AllowMultiple = true, Inherited = false)]
-    sealed public class SuppressUnmanagedCodeSecurityAttribute : System.Attribute
+    public sealed class SuppressUnmanagedCodeSecurityAttribute : Attribute
     {
+        public SuppressUnmanagedCodeSecurityAttribute() { }
     }
 }
 

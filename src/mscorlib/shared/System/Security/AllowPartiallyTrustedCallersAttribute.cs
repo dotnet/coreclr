@@ -10,16 +10,11 @@ namespace System.Security
     //  For v.1, this is valid only on Assemblies, but could be expanded to 
     //  include Module, Method, class
     [AttributeUsage(AttributeTargets.Assembly, AllowMultiple = false, Inherited = false)]
-    sealed public class AllowPartiallyTrustedCallersAttribute : System.Attribute
+    public sealed class AllowPartiallyTrustedCallersAttribute : Attribute
     {
-        private PartialTrustVisibilityLevel _visibilityLevel;
         public AllowPartiallyTrustedCallersAttribute() { }
-
-        public PartialTrustVisibilityLevel PartialTrustVisibilityLevel
-        {
-            get { return _visibilityLevel; }
-            set { _visibilityLevel = value; }
-        }
+        public PartialTrustVisibilityLevel PartialTrustVisibilityLevel { get; set; }
     }
+
 }
 

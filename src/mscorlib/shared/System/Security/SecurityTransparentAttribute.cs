@@ -11,7 +11,7 @@ namespace System.Security
     // into Full-Demands.
 
     [AttributeUsage(AttributeTargets.Assembly, AllowMultiple = false, Inherited = false)]
-    sealed public class SecurityTransparentAttribute : System.Attribute
+    public sealed class SecurityTransparentAttribute : Attribute
     {
         public SecurityTransparentAttribute() { }
     }
