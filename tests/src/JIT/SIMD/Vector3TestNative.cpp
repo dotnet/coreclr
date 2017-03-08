@@ -25,11 +25,11 @@
 #define _countof(_array) (sizeof(_array)/sizeof(_array[0]))
 #endif
 
-#ifdef WIN32
+#ifdef _MSC_VER
 #define CALLBACK __stdcall
-#else // WIN32
+#else // _MSC_VER
 #define CALLBACK
-#endif // !WIN32
+#endif // !_MSC_VER
 
 typedef struct _Vector3 
 {
