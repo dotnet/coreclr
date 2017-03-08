@@ -14,13 +14,13 @@
 #endif  // !__i386__
 #endif // !defined(_MSC_VER)
 
-#ifdef WIN32
+#ifdef _MSC_VER
 #define CALLBACK  __stdcall
 #define NATIVEAPI __stdcall
-#else // WIN32
+#else // _MSC_VER
 #define CALLBACK
 #define NATIVEAPI
-#endif // !WIN32
+#endif // !_MSC_VER
 
 typedef unsigned char byte;
 
