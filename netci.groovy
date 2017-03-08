@@ -1555,7 +1555,7 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                         if (!Constants.jitStressModeScenarios.containsKey(scenario)) {
                             // For windows, pull full test results and test drops for x86/x64.
                             // No need to pull for stress mode scenarios (downstream builds use the default scenario)
-                            Utilities.addArchival(newJob, "bin/Product/**,bin/tests/tests.zip")
+                            Utilities.addArchival(newJob, "bin/Product/**,bin/tests/tests.zip", "bin/Product/.nuget/**")
                         }
 
                         if (scenario == 'jitdiff') {
@@ -1588,7 +1588,7 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                         buildCommands += "set __TestIntermediateDir=int&&build.cmd ${lowerConfiguration} ${architecture}"
                     }
                     // Add archival.
-                    Utilities.addArchival(newJob, "bin/Product/**")
+                    Utilities.addArchival(newJob, "bin/Product/**", "bin/Product/.nuget/**")
                     break
                 case 'arm64':
                     assert (scenario == 'default') || (scenario == 'pri1r2r') || (scenario == 'gcstress0x3') || (scenario == 'gcstress0xc')
@@ -1615,7 +1615,7 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                     }
 
                     // Add archival.
-                    Utilities.addArchival(newJob, "bin/Product/**")
+                    Utilities.addArchival(newJob, "bin/Product/**", "bin/Product/.nuget/**")
                     break
                 default:
                     println("Unknown architecture: ${architecture}");
@@ -1673,7 +1673,7 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                         // Set time out
                         setTestJobTimeOut(newJob, scenario)
                         // Basic archiving of the build
-                        Utilities.addArchival(newJob, "bin/Product/**,bin/obj/*/tests/**/*.dylib,bin/obj/*/tests/**/*.so")
+                        Utilities.addArchival(newJob, "bin/Product/**,bin/obj/*/tests/**/*.dylib,bin/obj/*/tests/**/*.so", "bin/Product/.nuget/**")
                         // And pal tests
                         Utilities.addXUnitDotNETResults(newJob, '**/pal_tests.xml')
                     }
@@ -1711,7 +1711,7 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                         ROOTFS_DIR=/opt/aarch64-linux-gnu-root ./build.sh skipmscorlib arm64 cross verbose ${lowerConfiguration}"""
 
                     // Basic archiving of the build, no pal tests
-                    Utilities.addArchival(newJob, "bin/Product/**")
+                    Utilities.addArchival(newJob, "bin/Product/**", "bin/Product/.nuget/**")
                     break
                 case 'arm':
                     if (isLinuxEmulatorBuild == false) {
@@ -1747,7 +1747,7 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                         --testDirFile=./tests/testsRunningInsideARM.txt"""
 
                         // Basic archiving of the build, no pal tests
-                        Utilities.addArchival(newJob, "bin/Product/**")
+                        Utilities.addArchival(newJob, "bin/Product/**", "bin/Product/.nuget/**")
                         break
                     }
                     else {
@@ -1778,7 +1778,7 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
 
 
                         // Basic archiving of the build
-                        Utilities.addArchival(newJob, "bin/Product/**")
+                        Utilities.addArchival(newJob, "bin/Product/**", "bin/Product/.nuget/**")
                         break
                     }
                 default:
