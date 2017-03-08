@@ -138,7 +138,7 @@ class Constants {
     def static configurationList = ['Debug', 'Checked', 'Release']
 
     // This is the set of architectures
-    def static architectureList = ['arm', 'arm64', 'x64', 'x86', 'x86compatjit', 'x86lb']
+    def static architectureList = ['arm', 'arm64', 'x64', 'x86', 'x86compatjit']
 }
 
 def static setMachineAffinity(def job, def os, def architecture) {
@@ -345,9 +345,6 @@ def static getJobName(def configuration, def architecture, def os, def scenario,
         case 'x86compatjit':
             baseName = 'x86_compatjit_' + configuration.toLowerCase() + '_' + os.toLowerCase()
             break
-        case 'x86lb':
-            baseName = 'x86_lb_' + configuration.toLowerCase() + '_' + os.toLowerCase()
-            break
         default:
             println("Unknown architecture: ${architecture}");
             assert false
@@ -365,7 +362,6 @@ def static addNonPRTriggers(def job, def branch, def isPR, def architecture, def
                 case 'x64':
                 case 'x86':
                 case 'x86compatjit':
-                case 'x86lb':
                     if (isFlowJob || os == 'Windows_NT' || !(os in Constants.crossList)) {
                         Utilities.addGithubPushTrigger(job)
                     }
@@ -425,7 +421,7 @@ def static addNonPRTriggers(def job, def branch, def isPR, def architecture, def
                     }
                 }
                 // For x86, only add per-commit jobs for Windows
-                else if (architecture == 'x86' || architecture == 'x86compatjit' || architecture == 'x86lb') {
+                else if (architecture == 'x86' || architecture == 'x86compatjit') {
                     if (os == 'Windows_NT') {
                         Utilities.addGithubPushTrigger(job)
                     }
@@ -471,7 +467,7 @@ def static addNonPRTriggers(def job, def branch, def isPR, def architecture, def
                     }
                 }
                 // For x86, only add per-commit jobs for Windows
-                else if (architecture == 'x86' || architecture == 'x86compatjit' || architecture == 'x86lb') {
+                else if (architecture == 'x86' || architecture == 'x86compatjit') {
                     if (os == 'Windows_NT') {
                         Utilities.addPeriodicTrigger(job, 'H H * * 3,6') // some time every Wednesday and Saturday
                     }
@@ -1371,85 +1367,6 @@ def static addTriggers(def job, def branch, def isPR, def architecture, def os, 
             }
             break
         // editor brace matching: }
-        case 'x86lb': // editor brace matching: {
-            assert (os == 'Windows_NT')
-            assert (scenario == 'default' ||
-                    scenario == 'r2r' ||
-                    scenario == 'pri1r2r' ||
-                    scenario == 'gcstress15_pri1r2r' ||
-                    scenario == 'longgc' ||
-                    scenario == 'gcsimulator' ||
-                    Constants.r2rJitStressScenarios.indexOf(scenario) != -1)
-
-            def arch = 'x86'
-            def jit = 'legacy_backend'
-            switch (scenario) {
-                case 'default':
-                    if (configuration == 'Checked') {
-                        Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${arch} ${jit} ${configuration} Build and Test",
-                            "(?i).*test\\W+${os}\\W+${arch}\\W+${jit}\\W+${configuration}.*")
-                    }
-                    break
-                case 'r2r':
-                    if (configuration == 'Release') {
-                        Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${arch} ${jit} ${configuration} R2R pri0 Build & Test",
-                            "(?i).*test\\W+${os}\\W+${arch}\\W+${jit}\\W+${configuration}\\W+${scenario}.*")
-                    }
-                    break
-                case 'pri1r2r':
-                    if (configuration == 'Release') {
-                        Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${arch} ${jit} ${configuration} R2R pri1 Build & Test",
-                            "(?i).*test\\W+${os}\\W+${arch}\\W+${jit}\\W+${configuration}\\W+${scenario}.*")
-                    }
-                    break
-                case 'gcstress15_pri1r2r':
-                    if (configuration == 'Release') {
-                        Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${arch} ${jit} ${configuration} GCStress 15 R2R pri1 Build & Test",
-                            "(?i).*test\\W+${os}\\W+${arch}\\W+${jit}\\W+${configuration}\\W+${scenario}.*")
-                    }
-                    break
-                case 'r2r_jitstress1':
-                case 'r2r_jitstress2':
-                case 'r2r_jitstressregs1':
-                case 'r2r_jitstressregs2':
-                case 'r2r_jitstressregs3':
-                case 'r2r_jitstressregs4':
-                case 'r2r_jitstressregs8':
-                case 'r2r_jitstressregs0x10':
-                case 'r2r_jitstressregs0x80':
-                case 'r2r_jitstressregs0x1000':
-                case 'r2r_jitminopts':
-                case 'r2r_jitforcerelocs':
-                    if (configuration == 'Release' || configuration == 'Checked') {
-                        def displayStr = getR2RStressModeDisplayName(scenario)
-                        Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${arch} ${jit} ${configuration} ${displayStr} R2R Build & Test",
-                            "(?i).*test\\W+${os}\\W+${arch}\\W+${jit}\\W+${configuration}\\W+${scenario}.*")
-                    }
-                    break
-                case 'longgc':
-                    if (configuration == 'Release') {
-                        Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${arch} ${jit} ${configuration} Long-Running GC Build & Test",
-                            "(?i).*test\\W+${os}\\W+${arch}\\W+${jit}\\W+${configuration}\\W+${scenario}.*")
-                    }
-                    break
-                case 'gcsimulator':
-                    if (configuration == 'Release') {
-                        Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${arch} ${jit} ${configuration} GC Simulator",
-                            "(?i).*test\\W+${os}\\W+${arch}\\W+${jit}\\W+${configuration}\\W+${scenario}.*")
-                    }
-                    break
-                case 'standalone_gc':
-                    if (configuration == 'Release' || configuration == 'Checked') {
-                        Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} ${configuration} Standalone GC", "(?i).*test\\W+${os}\\W+${configuration}\\W+${scenario}.*")
-                    }
-                    break
-                default:
-                    println("Unknown scenario: ${os} ${arch} ${jit} ${scenario}");
-                    assert false
-                    break
-            }
-            break
-        // editor brace matching: }
         default:
             println("Unknown architecture: ${architecture}");
             assert false
@@ -1469,18 +1386,13 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                 case 'x64':
                 case 'x86':
                 case 'x86compatjit':
-                case 'x86lb':
                     def arch = architecture
                     def buildOpts = ''
 
-                    // We need to explicitly run build-test.cmd with Exclude for x86compatjit and x86lb, so skip tests.
+                    // We need to explicitly run build-test.cmd with Exclude for x86compatjit, so skip tests.
                     if (architecture == 'x86compatjit') {
                         arch = 'x86'
                         buildOpts = 'compatjitcrossgen skiptests'
-                    }
-                    else if (architecture == 'x86lb') {
-                        arch = 'x86'
-                        buildOpts = 'legacyjitcrossgen skiptests'
                     }
 
                     if (Constants.jitStressModeScenarios.containsKey(scenario) ||
@@ -1624,14 +1536,7 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                         }
                         else if (architecture == 'x86compatjit') {
                             def testEnvLocation = "%WORKSPACE%\\tests\\x86\\compatjit_x86_testenv.cmd"
-                            def excludeLocation = "%WORKSPACE%\\tests\\x86_legacy_backend_issues.targets"
-                            buildCommands += "build-test.cmd ${runtestArguments} Exclude ${excludeLocation}"
-                            buildCommands += "tests\\runtest.cmd ${runtestArguments} TestEnv ${testEnvLocation}"
-                        }
-                        else if (architecture == 'x86lb') {
-                            def testEnvLocation = "%WORKSPACE%\\tests\\x86\\legacyjit_x86_testenv.cmd"
-                            def excludeLocation = "%WORKSPACE%\\tests\\x86_legacy_backend_issues.targets"
-                            buildCommands += "build-test.cmd ${runtestArguments} Exclude ${excludeLocation}"
+                            buildCommands += "build-test.cmd ${runtestArguments}"
                             buildCommands += "tests\\runtest.cmd ${runtestArguments} TestEnv ${testEnvLocation}"
                         }
                     }
@@ -1734,9 +1639,8 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                 case 'x64':
                 case 'x86':
                 case 'x86compatjit':
-                case 'x86lb':
                     def arch = architecture
-                    if (architecture == 'x86compatjit' || architecture == 'x86lb') {
+                    if (architecture == 'x86compatjit') {
                         arch = 'x86'
                     }
 
@@ -1954,7 +1858,6 @@ combinedScenarios.each { scenario ->
                             break
                         case 'x86':
                         case 'x86compatjit':
-                        case 'x86lb':
                             // Skip non-windows
                             if (os != 'Windows_NT') {
                                 return
@@ -1997,8 +1900,7 @@ combinedScenarios.each { scenario ->
                                 // Everything implemented
                                 break
                             case 'x86compatjit':
-                            case 'x86lb':
-                                // No stress modes for compatjit.dll, legacyjit.dll.
+                                // No stress modes for compatjit.dll.
                                 // (There's no technical reason we couldn't allow these.)
                                 return
                             default:
