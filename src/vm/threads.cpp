@@ -1797,10 +1797,6 @@ Thread::Thread()
 
     m_LastThrownObjectHandle = NULL;
     m_ltoIsUnhandled = FALSE;
-    #if HAS_TRACK_CXX_EXCEPTION_CODE_HACK // Is C++ exception code tracking turned on?vs 
-        m_LastCxxSEHExceptionCode = 0;
-    #endif // HAS_TRACK_CXX_EXCEPTION_CODE_HACK
-
 
     m_AbortReason = NULL;
 
