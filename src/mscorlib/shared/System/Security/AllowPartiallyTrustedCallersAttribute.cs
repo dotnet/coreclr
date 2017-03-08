@@ -15,6 +15,5 @@ namespace System.Security
         public AllowPartiallyTrustedCallersAttribute() { }
         public PartialTrustVisibilityLevel PartialTrustVisibilityLevel { get; set; }
     }
-
 }
 
