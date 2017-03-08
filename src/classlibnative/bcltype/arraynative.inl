@@ -60,17 +60,17 @@ FORCEINLINE void InlinedForwardGCSafeCopyHelper(void *dest, const void *src, siz
 
     if ((len & (2 * sizeof(SIZE_T))) != 0)
     {
-#ifdef _AMD64_
+#if defined(_AMD64_) && !defined(FEATURE_PAL) // TODO: Enable on Unix
         __m128 v = _mm_loadu_ps((float *)sptr);
         _mm_storeu_ps((float *)dptr, v);
-#else // !_AMD64_
+#else // !_AMD64_ || FEATURE_PAL
         // Read two values and write two values to hint the use of wide loads and stores
         SIZE_T p[2];
         p[0] = sptr[0];
         p[1] = sptr[1];
         dptr[0] = p[0];
         dptr[1] = p[1];
-#endif // _AMD64_
+#endif // _AMD64_ && !FEATURE_PAL
 
         len ^= 2 * sizeof(SIZE_T);
         if (len == 0)
@@ -84,12 +84,12 @@ FORCEINLINE void InlinedForwardGCSafeCopyHelper(void *dest, const void *src, siz
     // copy 16 (on 32-bit systems) or 32 (on 64-bit systems) bytes at a time
     while (true)
     {
-#ifdef _AMD64_
+#if defined(_AMD64_) && !defined(FEATURE_PAL) // TODO: Enable on Unix
         __m128 v = _mm_loadu_ps((float *)sptr);
         _mm_storeu_ps((float *)dptr, v);
         v = _mm_loadu_ps((float *)(sptr + 2));
         _mm_storeu_ps((float *)(dptr + 2), v);
-#else // !_AMD64_
+#else // !_AMD64_ || FEATURE_PAL
         // Read two values and write two values to hint the use of wide loads and stores
         SIZE_T p[2];
         p[0] = sptr[0];
@@ -100,7 +100,7 @@ FORCEINLINE void InlinedForwardGCSafeCopyHelper(void *dest, const void *src, siz
         p[1] = sptr[3];
         dptr[2] = p[0];
         dptr[3] = p[1];
-#endif // _AMD64_
+#endif // _AMD64_ && !FEATURE_PAL
 
         len -= 4 * sizeof(SIZE_T);
         if (len == 0)
@@ -159,17 +159,17 @@ FORCEINLINE void InlinedBackwardGCSafeCopyHelper(void *dest, const void *src, si
         sptr -= 2;
         dptr -= 2;
 
-#ifdef _AMD64_
+#if defined(_AMD64_) && !defined(FEATURE_PAL) // TODO: Enable on Unix
         __m128 v = _mm_loadu_ps((float *)sptr);
         _mm_storeu_ps((float *)dptr, v);
-#else // !_AMD64_
+#else // !_AMD64_ || FEATURE_PAL
         // Read two values and write two values to hint the use of wide loads and stores
         SIZE_T p[2];
         p[1] = sptr[1];
         p[0] = sptr[0];
         dptr[1] = p[1];
         dptr[0] = p[0];
-#endif // _AMD64_
+#endif // _AMD64_ && !FEATURE_PAL
 
         len ^= 2 * sizeof(SIZE_T);
         if (len == 0)
@@ -184,12 +184,12 @@ FORCEINLINE void InlinedBackwardGCSafeCopyHelper(void *dest, const void *src, si
         sptr -= 4;
         dptr -= 4;
 
-#ifdef _AMD64_
+#if defined(_AMD64_) && !defined(FEATURE_PAL) // TODO: Enable on Unix
         __m128 v = _mm_loadu_ps((float *)(sptr + 2));
         _mm_storeu_ps((float *)(dptr + 2), v);
         v = _mm_loadu_ps((float *)sptr);
         _mm_storeu_ps((float *)dptr, v);
-#else // !_AMD64_
+#else // !_AMD64_ || FEATURE_PAL
         // Read two values and write two values to hint the use of wide loads and stores
         SIZE_T p[2];
         p[0] = sptr[2];
@@ -200,7 +200,7 @@ FORCEINLINE void InlinedBackwardGCSafeCopyHelper(void *dest, const void *src, si
         p[1] = sptr[1];
         dptr[0] = p[0];
         dptr[1] = p[1];
-#endif // _AMD64_
+#endif // _AMD64_ && !FEATURE_PAL
 
         len -= 4 * sizeof(SIZE_T);
     } while (len != 0);
