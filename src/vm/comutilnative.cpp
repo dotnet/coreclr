@@ -1508,6 +1508,8 @@ FCIMPL3(VOID, MemoryNative::BulkMoveWithWriteBarrier, void *dst, void *src, size
     FCALL_CONTRACT;
 
     InlinedMemmoveGCRefsHelper(dst, src, byteCount);
+
+    FC_GC_POLL();
 }
 FCIMPLEND
 
