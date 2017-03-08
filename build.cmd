@@ -78,6 +78,7 @@ set __BuildJit32="-DBUILD_JIT32=0"
 set __BuildStandaloneGC="-DFEATURE_STANDALONE_GC=0"
 
 set __PgoInstrument=0
+set __IbcTuning=
 
 REM __PassThroughArgs is a set of things that will be passed through to nested calls to build.cmd
 REM when using "all".
@@ -133,6 +134,7 @@ if /i "%1" == "skiprestoreoptdata"  (set __RestoreOptData=0&set processedArgs=!p
 if /i "%1" == "usenmakemakefiles"   (set __NMakeMakefiles=1&set __ConfigureOnly=1&set __BuildNative=1&set __BuildNativeCoreLib=0&set __BuildCoreLib=0&set __BuildTests=0&set __BuildPackages=0&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
 if /i "%1" == "buildjit32"          (set __BuildJit32="-DBUILD_JIT32=1"&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
 if /i "%1" == "pgoinstrument"       (set __PgoInstrument=1&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
+if /i "%1" == "ibcinstrument"       (set __IbcTuning="/Tuning"&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
 if /i "%1" == "toolset_dir"         (set __ToolsetDir=%2&set __PassThroughArgs=%__PassThroughArgs% %2&set processedArgs=!processedArgs! %1 %2&shift&shift&goto Arg_Loop)
 if /i "%1" == "compatjitcrossgen"   (set __CompatJitCrossgen=1&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
 if /i "%1" == "buildstandalonegc"   (set __BuildStandaloneGC="-DFEATURE_STANDALONE_GC=1"&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
@@ -429,14 +431,15 @@ if %__BuildNativeCoreLib% EQU 1 (
         set COMPlus_UseWindowsX86CoreLegacyJit=1
     )
 
-    echo "%__CrossgenExe%" /Platform_Assemblies_Paths "%__BinDir%" /out "%__BinDir%\System.Private.CoreLib.ni.dll" "%__BinDir%\System.Private.CoreLib.dll"
-    "%__CrossgenExe%" /Platform_Assemblies_Paths "%__BinDir%" /out "%__BinDir%\System.Private.CoreLib.ni.dll" "%__BinDir%\System.Private.CoreLib.dll" > "%__CrossGenCoreLibLog%" 2>&1
+    echo "%__CrossgenExe%" %__IbcTuning% /Platform_Assemblies_Paths "%__BinDir%" /out "%__BinDir%\System.Private.CoreLib.ni.dll" "%__BinDir%\System.Private.CoreLib.dll"
+    "%__CrossgenExe%" %__IbcTuning% /Platform_Assemblies_Paths "%__BinDir%" /out "%__BinDir%\System.Private.CoreLib.ni.dll" "%__BinDir%\System.Private.CoreLib.dll" > "%__CrossGenCoreLibLog%" 2>&1
     if NOT !errorlevel! == 0 (
         echo %__MsgPrefix%Error: CrossGen System.Private.CoreLib build failed. Refer to %__CrossGenCoreLibLog%
         :: Put it in the same log, helpful for Jenkins
         type %__CrossGenCoreLibLog%
         goto CrossgenFailure
     )
+    :: @dapodd Do we need %__IbcTuning% below?
     "%__CrossgenExe%" /Platform_Assemblies_Paths "%__BinDir%" /CreatePdb "%__BinDir%\PDB" "%__BinDir%\System.Private.CoreLib.ni.dll" >> "%__CrossGenCoreLibLog%" 2>&1
     if NOT !errorlevel! == 0 (
         echo %__MsgPrefix%Error: CrossGen /CreatePdb System.Private.CoreLib build failed. Refer to %__CrossGenCoreLibLog%
@@ -450,7 +453,7 @@ if %__BuildNativeCoreLib% EQU 1 (
     set "__CrossGenCoreLibLog=%__LogsDir%\CrossgenMSCoreLib_%__BuildOS%__%__BuildArch%__%__BuildType%.log"
     set "__CrossgenExe=%__CrossComponentBinDir%\crossgen.exe"
 
-    "!__CrossgenExe!" /Platform_Assemblies_Paths "%__BinDir%" /out "%__BinDir%\mscorlib.ni.dll" "%__BinDir%\mscorlib.dll" > "!__CrossGenCoreLibLog!" 2>&1
+    "!__CrossgenExe!" %__IbcTuning% /Platform_Assemblies_Paths "%__BinDir%" /out "%__BinDir%\mscorlib.ni.dll" "%__BinDir%\mscorlib.dll" > "!__CrossGenCoreLibLog!" 2>&1
     set err=!errorlevel!
 
     if "%__CompatJitCrossgen%"=="1" (
@@ -626,6 +629,7 @@ echo     respectively^).
 echo     add nativemscorlib to go further and build the native image for designated mscorlib.
 echo toolset_dir ^<dir^> : set the toolset directory -- Arm64 use only. Required for Arm64 builds.
 echo pgoinstrument: generate instrumented code for profile guided optimization enabled binaries.
+echo ibcinstrument: generate IBC-tuning-enabled native images when invoking crossgen.
 echo configureonly: skip all builds; only run CMake ^(default: CMake and builds are run^)
 echo skipconfigure: skip CMake ^(default: CMake is run^)
 echo skipmscorlib: skip building System.Private.CoreLib ^(default: System.Private.CoreLib is built^).

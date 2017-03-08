@@ -30,6 +30,7 @@ usage()
     echo "crosscomponent - optional argument to build cross-architecture component,"
     echo "               - will use CAC_ROOTFS_DIR environment variable if set."
     echo "pgoinstrument - generate instrumented code for profile guided optimization enabled binaries."
+    echo "ibcinstrument - generate IBC-tuning-enabled native images when invoking crossgen."
     echo "configureonly - do not perform any builds; just configure the build."
     echo "skipconfigure - skip build configuration."
     echo "skipnative - do not build native components."
@@ -366,14 +367,14 @@ build_CoreLib_ni()
 {
     if [ $__SkipCoreCLR == 0 -a -e $__BinDir/crossgen ]; then
         echo "Generating native image for System.Private.CoreLib."
-        $__BinDir/crossgen $__BinDir/System.Private.CoreLib.dll
+        $__BinDir/crossgen $__IbcTuning $__BinDir/System.Private.CoreLib.dll
         if [ $? -ne 0 ]; then
             echo "Failed to generate native image for System.Private.CoreLib."
             exit 1
         fi
 
         echo "Generating native image for MScorlib Facade."
-        $__BinDir/crossgen $__BinDir/mscorlib.dll
+        $__BinDir/crossgen $__IbcTuning $__BinDir/mscorlib.dll
         if [ $? -ne 0 ]; then
             echo "Failed to generate native image for mscorlib facade."
             exit 1
@@ -381,6 +382,7 @@ build_CoreLib_ni()
 
         if [ "$__BuildOS" == "Linux" ]; then
             echo "Generating symbol file for System.Private.CoreLib."
+            # @dapodd do we need $__IbcTuning below?
             $__BinDir/crossgen /CreatePerfMap $__BinDir $__BinDir/System.Private.CoreLib.ni.dll
             if [ $? -ne 0 ]; then
                 echo "Failed to generate symbol file for System.Private.CoreLib."
@@ -557,6 +559,7 @@ __MSBCleanBuildArgs=
 __UseNinja=0
 __VerboseBuild=0
 __PgoInstrument=0
+__IbcTuning=""
 __ConfigureOnly=0
 __SkipConfigure=0
 __SkipRestore=""
@@ -677,6 +680,10 @@ while :; do
 
         pgoinstrument)
             __PgoInstrument=1
+            ;;
+
+        ibcinstrument)
+            __IbcTuning="/Tuning"
             ;;
 
         configureonly)
