@@ -194,8 +194,6 @@ extern uint8_t* g_shadow_lowest_address;
 // For low memory notification from host
 extern int32_t g_bLowMemoryFromHost;
 
-extern VOLATILE(int32_t) m_GCLock;
-
 // !!!!!!!!!!!!!!!!!!!!!!!
 // make sure you change the def in bcl\system\gc.cs 
 // if you change this!
@@ -610,21 +608,21 @@ public:
     */
 
     // Allocates an object on the given allocation context with the given size and flags.
+    // It is the responsibility of the caller to ensure that the passed-in alloc context is
+    // owned by the thread that is calling this function. If using per-thread alloc contexts,
+    // no lock is needed; callers not using per-thread alloc contexts will need to acquire
+    // a lock to ensure that the calling thread has unique ownership over this alloc context;
     virtual Object* Alloc(gc_alloc_context* acontext, size_t size, uint32_t flags) = 0;
-
-    // Allocates an object on the EE's global allocation context. Only usable when not
-    // using thread alloc contexts (see UseThreadAllocationContexts).
-    virtual Object* Alloc(size_t size, uint32_t flags) = 0;
 
     // Allocates an object on the large object heap with the given size and flags.
     virtual Object* AllocLHeap(size_t size, uint32_t flags) = 0;
 
-    // Allocates an object on the EE's global allocation context, aligned to 64 bits. Only
-    // usable when not using thread alloc contexts (see UseThreadAllocationContexts).
-    virtual Object* AllocAlign8(size_t size, uint32_t flags) = 0;
-
     // Allocates an object on the given allocation context, aligned to 64 bits,
     // with the given size and flags.
+    // It is the responsibility of the caller to ensure that the passed-in alloc context is
+    // owned by the thread that is calling this function. If using per-thread alloc contexts,
+    // no lock is needed; callers not using per-thread alloc contexts will need to acquire
+    // a lock to ensure that the calling thread has unique ownership over this alloc context.
     virtual Object* AllocAlign8(gc_alloc_context* acontext, size_t size, uint32_t flags) = 0;
 
     // Whether or not the EE should use per-thread allocation contexts when allocating.

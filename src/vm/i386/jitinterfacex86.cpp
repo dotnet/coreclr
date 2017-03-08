@@ -559,9 +559,9 @@ void JIT_TrialAlloc::EmitCore(CPUSTUBLINKER *psl, CodeLabel *noLock, CodeLabel *
     else
     {
         // Take the GC lock (there is no lock prefix required - we will use JIT_TrialAllocSFastMP on an MP System).
-        // inc             dword ptr [m_GCLock]
+        // inc             dword ptr [g_global_alloc_lock]
         psl->Emit16(0x05ff);
-        psl->Emit32((int)(size_t)&m_GCLock);
+        psl->Emit32((int)(size_t)&g_global_alloc_lock);
 
         // jnz             NoLock
         psl->X86EmitCondJump(noLock, X86CondCode::kJNZ);
@@ -606,9 +606,9 @@ void JIT_TrialAlloc::EmitCore(CPUSTUBLINKER *psl, CodeLabel *noLock, CodeLabel *
         // mov             dword ptr [eax], ecx
         psl->X86EmitIndexRegStore(kEAX, 0, kECX);
 
-        // mov             dword ptr [m_GCLock], 0FFFFFFFFh
+        // mov             dword ptr [g_global_alloc_lock], 0FFFFFFFFh
         psl->Emit16(0x05C7);
-        psl->Emit32((int)(size_t)&m_GCLock);
+        psl->Emit32((int)(size_t)&g_global_alloc_lock);
         psl->Emit32(0xFFFFFFFF);
     }
 
@@ -664,9 +664,9 @@ void JIT_TrialAlloc::EmitNoAllocCode(CPUSTUBLINKER *psl, Flags flags)
     }
     else
     {
-        // mov             dword ptr [m_GCLock], 0FFFFFFFFh
+        // mov             dword ptr [g_global_alloc_lock], 0FFFFFFFFh
         psl->Emit16(0x05c7);
-        psl->Emit32((int)(size_t)&m_GCLock);
+        psl->Emit32((int)(size_t)&g_global_alloc_lock);
         psl->Emit32(0xFFFFFFFF);
     }
 }

@@ -108,6 +108,7 @@ extern "C" uint8_t* g_gc_highest_address;
 extern "C" bool g_fFinalizerRunOnShutDown;
 extern "C" bool g_built_with_svr_gc;
 extern "C" uint8_t g_build_variant;
+extern "C" VOLATILE(int32_t) m_GCLock;
 
 namespace WKS {
     ::IGCHeapInternal* CreateGCHeap();

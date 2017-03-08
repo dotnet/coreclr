@@ -91,8 +91,6 @@ public:
     HRESULT Initialize ();
 
     //flags can be GC_ALLOC_CONTAINS_REF GC_ALLOC_FINALIZE
-    Object*  Alloc (size_t size, uint32_t flags);
-    Object*  AllocAlign8 (size_t size, uint32_t flags);
     Object*  AllocAlign8 (gc_alloc_context* acontext, size_t size, uint32_t flags);
 private:
     Object*  AllocAlign8Common (void* hp, alloc_context* acontext, size_t size, uint32_t flags);

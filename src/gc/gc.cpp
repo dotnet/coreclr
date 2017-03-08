@@ -14215,7 +14215,7 @@ uint8_t* gc_heap::allocate_in_condemned_generations (generation* gen,
         to_gen_number = from_gen_number + (settings.promotion ? 1 : 0);
     }
 
-    dprintf (2, ("aic gen%d: s: %Id, %d->%d, %Ix->%Ix", gen->gen_num, size, from_gen_number, 
+    dprintf (3, ("aic gen%d: s: %Id, %d->%d, %Ix->%Ix", gen->gen_num, size, from_gen_number, 
           to_gen_number, generation_allocation_pointer(gen), generation_allocation_limit(gen)));
 
     int pad_in_front = (old_loc != 0) ? USE_PADDING_FRONT : 0;
@@ -34357,31 +34357,7 @@ BOOL GCHeap::StressHeap(gc_alloc_context * context)
 // Small Object Allocator
 //
 //
-Object*
-GCHeap::Alloc(size_t size, uint32_t flags)
-{
-    assert(!UseThreadAllocationContexts());
-
-    gc_alloc_context *ctx = GCToEEInterface::GetGlobalAllocContext();
-    assert(ctx != nullptr);
-
-    AllocLockHolder lock;
-    return Alloc(ctx, size, flags);
-}
-
-Object*
-GCHeap::AllocAlign8(size_t size, uint32_t flags)
-{
-    assert(!UseThreadAllocationContexts());
-
-    gc_alloc_context *ctx = GCToEEInterface::GetGlobalAllocContext();
-    assert(ctx != nullptr);
-
-    AllocLockHolder lock;
-    return AllocAlign8(ctx, size, flags);
-}
-
-// Allocate small object with an alignment requirement of 8-bytes. Allocation context version.
+// Allocate small object with an alignment requirement of 8-bytes.
 Object*
 GCHeap::AllocAlign8(gc_alloc_context* ctx, size_t size, uint32_t flags )
 {
