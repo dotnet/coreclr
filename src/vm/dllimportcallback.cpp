@@ -1416,6 +1416,7 @@ VOID UMThunkMarshInfo::RunTimeInit()
     {
         // caller pop
         m_cbRetPop = 0;
+        m_cbActualArgSize += numRegistersUsed * STACK_ELEM_SIZE;
     }
     else
     {
