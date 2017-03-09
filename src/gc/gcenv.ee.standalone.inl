@@ -213,6 +213,12 @@ ALWAYS_INLINE gc_alloc_context *GCToEEInterface::GetGlobalAllocContext()
     return g_theGCToCLR->GetGlobalAllocContext();
 }
 
+ALWAYS_INLINE bool GCToEEInterface::UseThreadAllocationContexts()
+{
+    assert(g_theGCToCLR != nullptr);
+    return g_theGCToCLR->UseThreadAllocationContexts();
+}
+
 #undef ALWAYS_INLINE
 
 #endif // __GCTOENV_EE_STANDALONE_INL__

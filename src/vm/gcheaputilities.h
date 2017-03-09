@@ -119,6 +119,18 @@ public:
 #endif // FEATURE_SVR_GC
     }
 
+    static bool UseThreadAllocationContexts()
+    {
+        // When running on a single-proc system, it's more efficient to use a single global
+        // allocation context for SOH allocations than to use one for every thread.
+#if defined(_TARGET_ARM_) || defined(FEATURE_PAL) || defined(FEATURE_REDHAWK)
+        return true;
+#else
+        return IsServerHeap() || ::GetCurrentProcessCpuCount() != 1;
+#endif
+
+    }
+
 #ifdef FEATURE_USE_SOFTWARE_WRITE_WATCH_FOR_GC_HEAP
 
     // Returns True if software write watch is currently enabled for the GC Heap,

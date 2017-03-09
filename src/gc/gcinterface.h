@@ -625,9 +625,6 @@ public:
     // a lock to ensure that the calling thread has unique ownership over this alloc context.
     virtual Object* AllocAlign8(gc_alloc_context* acontext, size_t size, uint32_t flags) = 0;
 
-    // Whether or not the EE should use per-thread allocation contexts when allocating.
-    virtual bool UseThreadAllocationContexts() = 0;
-
     // This is for the allocator to indicate it's done allocating a large object during a 
     // background GC as the BGC threads also need to walk LOH.
     virtual void PublishObject(uint8_t* obj) = 0;

@@ -54,7 +54,7 @@ inline gc_alloc_context* GetThreadAllocContext()
 {
     WRAPPER_NO_CONTRACT;
 
-    assert(GCHeapUtilities::GetGCHeap()->UseThreadAllocationContexts());
+    assert(GCHeapUtilities::UseThreadAllocationContexts());
 
     return & GetThread()->m_alloc_context;
 }
@@ -137,7 +137,7 @@ inline Object* Alloc(size_t size, BOOL bFinalize, BOOL bContainsPointers )
     // We don't want to throw an SO during the GC, so make sure we have plenty
     // of stack before calling in.
     INTERIOR_STACK_PROBE_FOR(GetThread(), static_cast<unsigned>(DEFAULT_ENTRY_PROBE_AMOUNT * 1.5));
-    if (GCHeapUtilities::GetGCHeap()->UseThreadAllocationContexts())
+    if (GCHeapUtilities::UseThreadAllocationContexts())
     {
         retVal = GCHeapUtilities::GetGCHeap()->Alloc(GetThreadAllocContext(), size, flags);
     }
@@ -178,7 +178,7 @@ inline Object* AllocAlign8(size_t size, BOOL bFinalize, BOOL bContainsPointers, 
     // We don't want to throw an SO during the GC, so make sure we have plenty
     // of stack before calling in.
     INTERIOR_STACK_PROBE_FOR(GetThread(), static_cast<unsigned>(DEFAULT_ENTRY_PROBE_AMOUNT * 1.5));
-    if (GCHeapUtilities::GetGCHeap()->UseThreadAllocationContexts())
+    if (GCHeapUtilities::UseThreadAllocationContexts())
     {
         retVal = GCHeapUtilities::GetGCHeap()->AllocAlign8(GetThreadAllocContext(), size, flags);
     }

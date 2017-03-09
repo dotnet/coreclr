@@ -1424,7 +1424,7 @@ void InitJITHelpers1()
 
     _ASSERTE(g_SystemInfo.dwNumberOfProcessors != 0);
 
-    JIT_TrialAlloc::Flags flags = GCHeapUtilities::GetGCHeap()->UseThreadAllocationContexts() ?
+    JIT_TrialAlloc::Flags flags = GCHeapUtilities::UseThreadAllocationContexts() ?
         JIT_TrialAlloc::MP_ALLOCATOR : JIT_TrialAlloc::NORMAL;
 
     // Get CPU features and check for SSE2 support.

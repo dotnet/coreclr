@@ -1335,3 +1335,8 @@ gc_alloc_context *GCToEEInterface::GetGlobalAllocContext()
 {
     return &g_global_alloc_context;
 }
+
+bool GCToEEInterface::UseThreadAllocationContexts()
+{
+    return GCHeapUtilities::UseThreadAllocationContexts();
+}

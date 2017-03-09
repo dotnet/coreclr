@@ -270,6 +270,11 @@ gc_alloc_context *GCToEEInterface::GetGlobalAllocContext()
     return &g_global_alloc_context;
 }
 
+bool GCToEEInterface::UseThreadAllocationContexts()
+{
+    return true;
+}
+
 bool IsGCSpecialThread()
 {
     // TODO: Implement for background GC

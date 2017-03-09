@@ -10042,7 +10042,7 @@ HRESULT gc_heap::initialize_gc (size_t segment_size,
     }
 
 #ifndef MULTIPLE_HEAPS
-    if (!g_theGCHeap->UseThreadAllocationContexts())
+    if (!GCToEEInterface::UseThreadAllocationContexts())
     {
         dprintf (3, ("Not using allocation contexts b/c workstation GC and %d CPUs",
               GCToOSInterface::GetCurrentProcessCpuCount()));
@@ -34648,20 +34648,6 @@ GCHeap::Alloc(gc_alloc_context* context, size_t size, uint32_t flags REQD_ALIGN_
     AllocCount++;
 #endif //TRACE_GC
     return newAlloc;
-}
-
-bool
-GCHeap::UseThreadAllocationContexts()
-{
-    // When running on a single-proc system, it's more efficient to use a single global
-    // allocation context for SOH allocations than to use one for every thread.
-#if defined(MULTIPLE_HEAPS)
-    return true;
-#elif defined(_TARGET_ARM_) || defined(FEATURE_PAL) || defined(FEATURE_REDHAWK)
-    return true;
-#else
-    return GCToOSInterface::GetCurrentProcessCpuCount() != 1;
-#endif // MULTIPLE_HEAPS
 }
 
 void

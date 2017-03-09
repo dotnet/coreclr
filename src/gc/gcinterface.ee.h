@@ -138,6 +138,10 @@ public:
     // systems, is used for all SOH allocations.
     virtual
     gc_alloc_context *GetGlobalAllocContext() = 0;
+
+    // Whether the EE is using per-thread allocation contexts.
+    virtual
+    bool UseThreadAllocationContexts() = 0;
 };
 
 #endif // _GCINTERFACE_EE_H_
