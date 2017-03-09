@@ -683,7 +683,8 @@ while :; do
             ;;
 
         ibcinstrument)
-            __IbcTuning="/Tuning"
+            # @dapodd TODO - remove /FragileNonVersionable
+            __IbcTuning="/Tuning /FragileNonVersionable"
             ;;
 
         configureonly)
