@@ -1416,13 +1416,14 @@ VOID UMThunkMarshInfo::RunTimeInit()
     {
         // caller pop
         m_cbRetPop = 0;
-        m_cbActualArgSize += numRegistersUsed * STACK_ELEM_SIZE;
     }
     else
     {
         // callee pop
         m_cbRetPop = static_cast<UINT16>(m_cbActualArgSize);
     }
+    m_cbActualArgSize += numRegistersUsed * STACK_ELEM_SIZE;
+
 #endif // _TARGET_X86_
 
 #endif // _TARGET_X86_ && !FEATURE_STUBS_AS_IL
