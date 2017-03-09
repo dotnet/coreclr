@@ -21,8 +21,6 @@ FORCEINLINE void InlinedForwardGCSafeCopyHelper(void *dest, const void *src, siz
         NOTHROW;
         GC_NOTRIGGER;
         MODE_COOPERATIVE;
-        PRECONDITION(CheckPointer(dest));
-        PRECONDITION(CheckPointer(src));
         SO_TOLERANT;
     }
     CONTRACTL_END;
@@ -46,69 +44,112 @@ FORCEINLINE void InlinedForwardGCSafeCopyHelper(void *dest, const void *src, siz
     SIZE_T *dptr = (SIZE_T *)dest;
     SIZE_T *sptr = (SIZE_T *)src;
 
-    if ((len & sizeof(SIZE_T)) != 0)
-    {
-        *dptr = *sptr;
-        len ^= sizeof(SIZE_T);
-        if (len == 0)
-        {
-            return;
-        }
-        ++sptr;
-        ++dptr;
-    }
-
-    if ((len & (2 * sizeof(SIZE_T))) != 0)
-    {
-#if defined(_AMD64_) && !defined(FEATURE_PAL) // TODO: Enable on Unix
-        __m128 v = _mm_loadu_ps((float *)sptr);
-        _mm_storeu_ps((float *)dptr, v);
-#else // !_AMD64_ || FEATURE_PAL
-        // Read two values and write two values to hint the use of wide loads and stores
-        SIZE_T p[2];
-        p[0] = sptr[0];
-        p[1] = sptr[1];
-        dptr[0] = p[0];
-        dptr[1] = p[1];
-#endif // _AMD64_ && !FEATURE_PAL
-
-        len ^= 2 * sizeof(SIZE_T);
-        if (len == 0)
-        {
-            return;
-        }
-        sptr += 2;
-        dptr += 2;
-    }
-
-    // copy 16 (on 32-bit systems) or 32 (on 64-bit systems) bytes at a time
     while (true)
     {
-#if defined(_AMD64_) && !defined(FEATURE_PAL) // TODO: Enable on Unix
-        __m128 v = _mm_loadu_ps((float *)sptr);
-        _mm_storeu_ps((float *)dptr, v);
-        v = _mm_loadu_ps((float *)(sptr + 2));
-        _mm_storeu_ps((float *)(dptr + 2), v);
-#else // !_AMD64_ || FEATURE_PAL
-        // Read two values and write two values to hint the use of wide loads and stores
-        SIZE_T p[2];
-        p[0] = sptr[0];
-        p[1] = sptr[1];
-        dptr[0] = p[0];
-        dptr[1] = p[1];
-        p[0] = sptr[2];
-        p[1] = sptr[3];
-        dptr[2] = p[0];
-        dptr[3] = p[1];
-#endif // _AMD64_ && !FEATURE_PAL
+        if ((len & sizeof(SIZE_T)) != 0)
+        {
+            *dptr = *sptr;
 
-        len -= 4 * sizeof(SIZE_T);
+            len ^= sizeof(SIZE_T);
+            if (len == 0)
+            {
+                return;
+            }
+            ++sptr;
+            ++dptr;
+        }
+
+#if defined(_AMD64_) && !defined(FEATURE_PAL) // TODO: Enable on Unix
+        if ((len & (2 * sizeof(SIZE_T))) != 0)
+        {
+            __m128 v = _mm_loadu_ps((float *)sptr);
+            _mm_storeu_ps((float *)dptr, v);
+
+            len ^= 2 * sizeof(SIZE_T);
+            if (len == 0)
+            {
+                return;
+            }
+            sptr += 2;
+            dptr += 2;
+        }
+
+        // Align the destination pointer to 16 bytes for the next set of 16-byte copies
+        if (((SIZE_T)dptr & sizeof(SIZE_T)) != 0)
+        {
+            *dptr = *sptr;
+
+            ++sptr;
+            ++dptr;
+            len -= sizeof(SIZE_T);
+            if (len < 4 * sizeof(SIZE_T))
+            {
+                continue;
+            }
+        }
+
+        // Copy 32 bytes at a time
+        _ASSERTE(len >= 4 * sizeof(SIZE_T));
+        while (true)
+        {
+            __m128 v = _mm_loadu_ps((float *)sptr);
+            _mm_store_ps((float *)dptr, v);
+            v = _mm_loadu_ps((float *)(sptr + 2));
+            _mm_store_ps((float *)(dptr + 2), v);
+
+            len -= 4 * sizeof(SIZE_T);
+            if (len < 4 * sizeof(SIZE_T))
+            {
+                break;
+            }
+            sptr += 4;
+            dptr += 4;
+        }
         if (len == 0)
         {
             return;
         }
-        sptr += 4;
-        dptr += 4;
+#else // !_AMD64_ || FEATURE_PAL
+        if ((len & (2 * sizeof(SIZE_T))) != 0)
+        {
+            // Read two values and write two values to hint the use of wide loads and stores
+            SIZE_T p0 = sptr[0];
+            SIZE_T p1 = sptr[1];
+            dptr[0] = p0;
+            dptr[1] = p1;
+
+            len ^= 2 * sizeof(SIZE_T);
+            if (len == 0)
+            {
+                return;
+            }
+            sptr += 2;
+            dptr += 2;
+        }
+
+        // Copy 16 (on 32-bit systems) or 32 (on 64-bit systems) bytes at a time
+        _ASSERTE(len >= 4 * sizeof(SIZE_T));
+        while (true)
+        {
+            // Read two values and write two values to hint the use of wide loads and stores
+            SIZE_T p0 = sptr[0];
+            SIZE_T p1 = sptr[1];
+            dptr[0] = p0;
+            dptr[1] = p1;
+            p0 = sptr[2];
+            p1 = sptr[3];
+            dptr[2] = p0;
+            dptr[3] = p1;
+
+            len -= 4 * sizeof(SIZE_T);
+            if (len == 0)
+            {
+                return;
+            }
+            sptr += 4;
+            dptr += 4;
+        }
+#endif // _AMD64_ && !FEATURE_PAL
     }
 }
 
@@ -142,68 +183,112 @@ FORCEINLINE void InlinedBackwardGCSafeCopyHelper(void *dest, const void *src, si
     SIZE_T *dptr = (SIZE_T *)((BYTE *)dest + len);
     SIZE_T *sptr = (SIZE_T *)((BYTE *)src + len);
 
-    if ((len & sizeof(SIZE_T)) != 0)
+    while (true)
     {
-        --sptr;
-        --dptr;
-        *dptr = *sptr;
-        len ^= sizeof(SIZE_T);
+        if ((len & sizeof(SIZE_T)) != 0)
+        {
+            --sptr;
+            --dptr;
+
+            *dptr = *sptr;
+
+            len ^= sizeof(SIZE_T);
+            if (len == 0)
+            {
+                return;
+            }
+        }
+
+#if defined(_AMD64_) && !defined(FEATURE_PAL) // TODO: Enable on Unix
+        if ((len & (2 * sizeof(SIZE_T))) != 0)
+        {
+            sptr -= 2;
+            dptr -= 2;
+
+            __m128 v = _mm_loadu_ps((float *)sptr);
+            _mm_storeu_ps((float *)dptr, v);
+
+            len ^= 2 * sizeof(SIZE_T);
+            if (len == 0)
+            {
+                return;
+            }
+        }
+
+        // Align the destination pointer to 16 bytes for the next set of 16-byte copies
+        if (((SIZE_T)dptr & sizeof(SIZE_T)) != 0)
+        {
+            --sptr;
+            --dptr;
+
+            *dptr = *sptr;
+
+            len -= sizeof(SIZE_T);
+            if (len < 4 * sizeof(SIZE_T))
+            {
+                continue;
+            }
+        }
+
+        // Copy 32 bytes at a time
+        _ASSERTE(len >= 4 * sizeof(SIZE_T));
+        do
+        {
+            sptr -= 4;
+            dptr -= 4;
+
+            __m128 v = _mm_loadu_ps((float *)(sptr + 2));
+            _mm_store_ps((float *)(dptr + 2), v);
+            v = _mm_loadu_ps((float *)sptr);
+            _mm_store_ps((float *)dptr, v);
+
+            len -= 4 * sizeof(SIZE_T);
+        } while (len >= 4 * sizeof(SIZE_T));
         if (len == 0)
         {
             return;
         }
-    }
-
-    if ((len & (2 * sizeof(SIZE_T))) != 0)
-    {
-        sptr -= 2;
-        dptr -= 2;
-
-#if defined(_AMD64_) && !defined(FEATURE_PAL) // TODO: Enable on Unix
-        __m128 v = _mm_loadu_ps((float *)sptr);
-        _mm_storeu_ps((float *)dptr, v);
 #else // !_AMD64_ || FEATURE_PAL
-        // Read two values and write two values to hint the use of wide loads and stores
-        SIZE_T p[2];
-        p[1] = sptr[1];
-        p[0] = sptr[0];
-        dptr[1] = p[1];
-        dptr[0] = p[0];
-#endif // _AMD64_ && !FEATURE_PAL
-
-        len ^= 2 * sizeof(SIZE_T);
-        if (len == 0)
+        if ((len & (2 * sizeof(SIZE_T))) != 0)
         {
-            return;
+            sptr -= 2;
+            dptr -= 2;
+
+            // Read two values and write two values to hint the use of wide loads and stores
+            SIZE_T p1 = sptr[1];
+            SIZE_T p0 = sptr[0];
+            dptr[1] = p1;
+            dptr[0] = p0;
+
+            len ^= 2 * sizeof(SIZE_T);
+            if (len == 0)
+            {
+                return;
+            }
         }
-    }
 
-    // copy 16 (on 32-bit systems) or 32 (on 64-bit systems) bytes at a time
-    do
-    {
-        sptr -= 4;
-        dptr -= 4;
+        // Copy 16 (on 32-bit systems) or 32 (on 64-bit systems) bytes at a time
+        _ASSERTE(len >= 4 * sizeof(SIZE_T));
+        do
+        {
+            sptr -= 4;
+            dptr -= 4;
 
-#if defined(_AMD64_) && !defined(FEATURE_PAL) // TODO: Enable on Unix
-        __m128 v = _mm_loadu_ps((float *)(sptr + 2));
-        _mm_storeu_ps((float *)(dptr + 2), v);
-        v = _mm_loadu_ps((float *)sptr);
-        _mm_storeu_ps((float *)dptr, v);
-#else // !_AMD64_ || FEATURE_PAL
-        // Read two values and write two values to hint the use of wide loads and stores
-        SIZE_T p[2];
-        p[0] = sptr[2];
-        p[1] = sptr[3];
-        dptr[2] = p[0];
-        dptr[3] = p[1];
-        p[0] = sptr[0];
-        p[1] = sptr[1];
-        dptr[0] = p[0];
-        dptr[1] = p[1];
+            // Read two values and write two values to hint the use of wide loads and stores
+            SIZE_T p0 = sptr[2];
+            SIZE_T p1 = sptr[3];
+            dptr[2] = p0;
+            dptr[3] = p1;
+            p0 = sptr[0];
+            p1 = sptr[1];
+            dptr[0] = p0;
+            dptr[1] = p1;
+
+            len -= 4 * sizeof(SIZE_T);
+        } while (len != 0);
+        return;
 #endif // _AMD64_ && !FEATURE_PAL
-
-        len -= 4 * sizeof(SIZE_T);
-    } while (len != 0);
+    }
 }
 
 FORCEINLINE void InlinedMemmoveGCRefsHelper(void *dest, const void *src, size_t len)
