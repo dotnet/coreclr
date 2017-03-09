@@ -142,6 +142,8 @@
     <PackageLicenseFile>$(SourceDir).nuget/dotnet_library_license.txt</PackageLicenseFile>
     <PackageThirdPartyNoticesFile>$(SourceDir).nuget/ThirdPartyNotices.txt</PackageThirdPartyNoticesFile>
 
+    <PackageIndexFile>$(SourceDir).nuget/packageIndex.json</PackageIndexFile>
+
     <!-- This should be kept in sync with package details in src/.nuget/init/project.json -->
     <RuntimeIdGraphDefinitionFile>$(PackagesDir)/Microsoft.NETCore.Platforms/1.0.2-beta-24224-02/runtime.json</RuntimeIdGraphDefinitionFile>
 
@@ -160,7 +162,7 @@
     <!-- On Windows, MSbuild still runs against Desktop FX while it runs on .NET Core on non-Windows. this requires
          pulling in different packaging dependencies.
      -->
-    <PackagingTaskDir Condition="'$(TargetsWindows)' == 'true'">$(ToolsDir)net45/</PackagingTaskDir>
+    <PackagingTaskDir Condition="'$(TargetsWindows)' == 'true'">$(ToolsDir)net46/</PackagingTaskDir>
     <BuildNumberMajor Condition="'$(BuildNumberMajor)' == ''">00001</BuildNumberMajor>
     <!-- defined in buildtools packaging.targets, but we need this before targets are imported -->
     <PackagePlatform Condition="'$(PackagePlatform)' == ''">$(Platform)</PackagePlatform>
@@ -170,6 +172,8 @@
     <MinOSForArch Condition="'$(PackagePlatform)' == 'arm64'">win10</MinOSForArch>
         <!-- This property must be set to disable local package installation -->
     <SkipInstallLocallyBuiltPackages>true</SkipInstallLocallyBuiltPackages>
+        <!-- This property must be set to disable applying Meta-Packages -->
+    <SkipApplyMetaPackages>true</SkipApplyMetaPackages>
 
     <!-- Define packaging attributes for cross target components -->
     <HasCrossTargetComponents Condition="'$(TargetsWindows)' == 'true' and ('$(PackagePlatform)' =='arm64' or '$(PackagePlatform)' =='arm')">true</HasCrossTargetComponents>
@@ -179,6 +183,11 @@
     <PackageOutputPath>$(PackagesBinDir)/pkg/</PackageOutputPath>
     <SymbolPackageOutputPath>$(PackagesBinDir)/symbolpkg/</SymbolPackageOutputPath>
   </PropertyGroup>
+
+  <ItemGroup>
+    <PackageIndex Include="$(PackageIndexFile)" />
+  </ItemGroup>
+
 
   <!-- Add required legal files to packages -->
   <ItemGroup Condition="'$(MSBuildProjectExtension)' == '.pkgproj'">

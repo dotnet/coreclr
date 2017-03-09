@@ -29,7 +29,7 @@
     <PackagesDir>$(ProjectDir)..\packages\</PackagesDir>
     <ToolsDir Condition="'$(ToolsDir)'==''">$(ProjectDir)..\Tools\</ToolsDir>
     <DotnetCliPath Condition="'$(DotnetCliPath)'==''">$(ToolsDir)dotnetcli/</DotnetCliPath>
-    <BuildToolsTaskDir Condition="'$(BuildToolsTargets45)' == 'true'">$(ToolsDir)net45/</BuildToolsTaskDir>
+    <BuildToolsTaskDir Condition="'$(BuildToolsTargets45)' == 'true'">$(ToolsDir)net46/</BuildToolsTaskDir>
     <SkipImportILTargets>true</SkipImportILTargets>
   </PropertyGroup>
 
