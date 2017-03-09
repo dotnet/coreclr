@@ -90,21 +90,17 @@ FORCEINLINE void InlinedForwardGCSafeCopyHelper(void *dest, const void *src, siz
 
         // Copy 32 bytes at a time
         _ASSERTE(len >= 4 * sizeof(SIZE_T));
-        while (true)
+        do
         {
             __m128 v = _mm_loadu_ps((float *)sptr);
             _mm_store_ps((float *)dptr, v);
             v = _mm_loadu_ps((float *)(sptr + 2));
             _mm_store_ps((float *)(dptr + 2), v);
 
-            len -= 4 * sizeof(SIZE_T);
-            if (len < 4 * sizeof(SIZE_T))
-            {
-                break;
-            }
             sptr += 4;
             dptr += 4;
-        }
+            len -= 4 * sizeof(SIZE_T);
+        } while (len >= 4 * sizeof(SIZE_T));
         if (len == 0)
         {
             return;
