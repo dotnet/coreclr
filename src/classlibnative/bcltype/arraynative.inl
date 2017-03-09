@@ -59,7 +59,7 @@ FORCEINLINE void InlinedForwardGCSafeCopyHelper(void *dest, const void *src, siz
             ++dptr;
         }
 
-#if defined(_AMD64_) && !defined(FEATURE_PAL) // TODO: Enable on Unix
+#if defined(_AMD64_) && (defined(_MSC_VER) || defined(__clang__))
         if ((len & (2 * sizeof(SIZE_T))) != 0)
         {
             __m128 v = _mm_loadu_ps((float *)sptr);
@@ -109,7 +109,7 @@ FORCEINLINE void InlinedForwardGCSafeCopyHelper(void *dest, const void *src, siz
         {
             return;
         }
-#else // !_AMD64_ || FEATURE_PAL
+#else // !(defined(_AMD64_) && (defined(_MSC_VER) || defined(__clang__)))
         if ((len & (2 * sizeof(SIZE_T))) != 0)
         {
             // Read two values and write two values to hint the use of wide loads and stores
@@ -149,7 +149,7 @@ FORCEINLINE void InlinedForwardGCSafeCopyHelper(void *dest, const void *src, siz
             sptr += 4;
             dptr += 4;
         }
-#endif // _AMD64_ && !FEATURE_PAL
+#endif // defined(_AMD64_) && (defined(_MSC_VER) || defined(__clang__))
     }
 }
 
@@ -199,7 +199,7 @@ FORCEINLINE void InlinedBackwardGCSafeCopyHelper(void *dest, const void *src, si
             }
         }
 
-#if defined(_AMD64_) && !defined(FEATURE_PAL) // TODO: Enable on Unix
+#if defined(_AMD64_) && (defined(_MSC_VER) || defined(__clang__))
         if ((len & (2 * sizeof(SIZE_T))) != 0)
         {
             sptr -= 2;
@@ -248,7 +248,7 @@ FORCEINLINE void InlinedBackwardGCSafeCopyHelper(void *dest, const void *src, si
         {
             return;
         }
-#else // !_AMD64_ || FEATURE_PAL
+#else // !(defined(_AMD64_) && (defined(_MSC_VER) || defined(__clang__)))
         if ((len & (2 * sizeof(SIZE_T))) != 0)
         {
             sptr -= 2;
@@ -287,7 +287,7 @@ FORCEINLINE void InlinedBackwardGCSafeCopyHelper(void *dest, const void *src, si
             len -= 4 * sizeof(SIZE_T);
         } while (len != 0);
         return;
-#endif // _AMD64_ && !FEATURE_PAL
+#endif // defined(_AMD64_) && (defined(_MSC_VER) || defined(__clang__))
     }
 }
 
