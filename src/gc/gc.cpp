@@ -32465,36 +32465,18 @@ int                 GCHeap::m_CurStressObj          = 0;
 #endif // FEATURE_REDHAWK
 
 #endif //FEATURE_PREMORTEM_FINALIZATION
-inline
-static void spin_lock ()
-{
-    enter_spin_lock_noinstru (&m_GCLock);
-}
 
-inline
-void EnterAllocLock()
-{
-    spin_lock();
-}
-
-inline
-void LeaveAllocLock()
-{
-    // Trick this out
-    leave_spin_lock_noinstru (&m_GCLock);
-}
-
-class AllocLockHolder
+class NoGCRegionLockHolder
 {
 public:
-    AllocLockHolder()
+    NoGCRegionLockHolder()
     {
-        EnterAllocLock();
+        enter_spin_lock_noinstru(&g_no_gc_lock);
     }
 
-    ~AllocLockHolder()
+    ~NoGCRegionLockHolder()
     {
-        LeaveAllocLock();
+        leave_spin_lock_noinstru(&g_no_gc_lock);
     }
 };
 
@@ -33645,14 +33627,6 @@ HRESULT AllocateCFinalize(CFinalize **pCFinalize)
 HRESULT GCHeap::Init(size_t hn)
 {
     HRESULT hres = S_OK;
-
-    //Initialize all of the instance members.
-
-#ifdef MULTIPLE_HEAPS
-    m_GCLock                = -1;
-#endif //MULTIPLE_HEAPS
-
-    // Rest of the initialization
 
 #ifdef MULTIPLE_HEAPS
     if ((pGenGCHeap = gc_heap::make_gc_heap(this, (int)hn)) == 0)
@@ -35608,7 +35582,7 @@ int GCHeap::WaitForFullGCComplete(int millisecondsTimeout)
 
 int GCHeap::StartNoGCRegion(uint64_t totalSize, BOOL lohSizeKnown, uint64_t lohSize, BOOL disallowFullBlockingGC)
 {
-    AllocLockHolder lh;
+    NoGCRegionLockHolder lh;
 
     dprintf (1, ("begin no gc called"));
     start_no_gc_region_status status = gc_heap::prepare_for_no_gc_region (totalSize, lohSizeKnown, lohSize, disallowFullBlockingGC);
@@ -35626,7 +35600,7 @@ int GCHeap::StartNoGCRegion(uint64_t totalSize, BOOL lohSizeKnown, uint64_t lohS
 
 int GCHeap::EndNoGCRegion()
 {
-    AllocLockHolder lh;
+    NoGCRegionLockHolder lh;
     return (int)gc_heap::end_no_gc_region();
 }
 
