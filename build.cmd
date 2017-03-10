@@ -62,7 +62,8 @@ set "__SourceDir=%__ProjectDir%\src"
 set "__PackagesDir=%__ProjectDir%\packages"
 set "__RootBinDir=%__ProjectDir%\bin"
 set "__LogsDir=%__RootBinDir%\Logs"
-set "__OptDataVersion="
+set "__PgoOptDataVersion="
+set "__IbcOptDataVersion="
 
 set __BuildAll=
 
@@ -245,7 +246,10 @@ where /q python || (
 set OptDataProjectJsonPath=%__ProjectDir%\src\.nuget\optdata\project.json
 if EXIST "%OptDataProjectJsonPath%" (
     for /f "tokens=*" %%s in ('python "%__ProjectDir%\extract-from-json.py" -rf "%OptDataProjectJsonPath%" dependencies optimization.PGO.CoreCLR') do @(
-        set __OptDataVersion=%%s
+        set __PgoOptDataVersion=%%s
+    )
+    for /f "tokens=*" %%s in ('python "%__ProjectDir%\extract-from-json.py" -rf "%OptDataProjectJsonPath%" dependencies optimization.IBC.CoreCLR') do @(
+        set __IbcOptDataVersion=%%s
     )
 )
 
@@ -307,7 +311,7 @@ if %__BuildNative% EQU 1 (
     echo %__MsgPrefix%Regenerating the Visual Studio solution
 
     pushd "%__IntermediatesDir%"
-    set __ExtraCmakeArgs=!___SDKVersion! "-DCLR_CMAKE_TARGET_OS=%__BuildOs%" "-DCLR_CMAKE_PACKAGES_DIR=%__PackagesDir%" "-DCLR_CMAKE_PGO_INSTRUMENT=%__PgoInstrument%" "-DCLR_CMAKE_OPTDATA_VERSION=%__OptDataVersion%"
+    set __ExtraCmakeArgs=!___SDKVersion! "-DCLR_CMAKE_TARGET_OS=%__BuildOs%" "-DCLR_CMAKE_PACKAGES_DIR=%__PackagesDir%" "-DCLR_CMAKE_PGO_INSTRUMENT=%__PgoInstrument%" "-DCLR_CMAKE_OPTDATA_VERSION=%__PgoOptDataVersion%"
     call "%__SourceDir%\pal\tools\gen-buildsys-win.bat" "%__ProjectDir%" %__VSVersion% %__BuildArch% %__BuildJit32% %__BuildStandaloneGC% !__ExtraCmakeArgs!
 	@if defined _echo @echo on
     popd
@@ -361,7 +365,7 @@ if /i "%__DoCrossArchBuild%"=="1" (
     pushd "%__CrossCompIntermediatesDir%"
     set __CMakeBinDir=%__CrossComponentBinDir%
     set "__CMakeBinDir=!__CMakeBinDir:\=/!"
-    set __ExtraCmakeArgs="-DCLR_CROSS_COMPONENTS_BUILD=1" "-DCLR_CMAKE_TARGET_ARCH=%__BuildArch%" "-DCLR_CMAKE_TARGET_OS=%__BuildOs%" "-DCLR_CMAKE_PACKAGES_DIR=%__PackagesDir%" "-DCLR_CMAKE_PGO_INSTRUMENT=%__PgoInstrument%" "-DCLR_CMAKE_OPTDATA_VERSION=%__OptDataVersion%"
+    set __ExtraCmakeArgs="-DCLR_CROSS_COMPONENTS_BUILD=1" "-DCLR_CMAKE_TARGET_ARCH=%__BuildArch%" "-DCLR_CMAKE_TARGET_OS=%__BuildOs%" "-DCLR_CMAKE_PACKAGES_DIR=%__PackagesDir%" "-DCLR_CMAKE_PGO_INSTRUMENT=%__PgoInstrument%" "-DCLR_CMAKE_OPTDATA_VERSION=%__PgoOptDataVersion%"
     call "%__SourceDir%\pal\tools\gen-buildsys-win.bat" "%__ProjectDir%" %__VSVersion% %__CrossArch% !__ExtraCmakeArgs!
     @if defined _echo @echo on
     popd
@@ -406,6 +410,8 @@ if %__BuildCoreLib% EQU 1 (
     set __MsbuildWrn=/flp1:WarningsOnly;LogFile="%__LogsDir%\System.Private.CoreLib_%__BuildOS%__%__BuildArch%__%__BuildType%.wrn"
     set __MsbuildErr=/flp2:ErrorsOnly;LogFile="%__LogsDir%\System.Private.CoreLib_%__BuildOS%__%__BuildArch%__%__BuildType%.err"
 
+    set __ExtraMsbuildArgs=/p:OptimizationDataDir="%__PackagesDir%/optimization.%__BuildOS%-%__BuildArch%.IBC.CoreCLR/%__IbcOptDataVersion%/data/"
+
     if /i "%__BuildArch%" == "arm64" (
 		set __nugetBuildArgs=-buildNugetPackage=false
     ) else if "%__SkipNugetPackage%" == "1" (
@@ -414,7 +420,7 @@ if %__BuildCoreLib% EQU 1 (
 		set __nugetBuildArgs=-buildNugetPackage=true
 	)
 
-    @call %__ProjectDir%\run.cmd build -Project=%__ProjectDir%\build.proj -MsBuildLog=!__MsbuildLog! -MsBuildWrn=!__MsbuildWrn! -MsBuildErr=!__MsbuildErr! !__nugetBuildArgs! %__RunArgs% %__UnprocessedBuildArgs% 
+    @call %__ProjectDir%\run.cmd build -Project=%__ProjectDir%\build.proj -MsBuildLog=!__MsbuildLog! -MsBuildWrn=!__MsbuildWrn! -MsBuildErr=!__MsbuildErr! !__nugetBuildArgs! %__RunArgs% !__ExtraMsbuildArgs! %__UnprocessedBuildArgs% 
     if not !errorlevel! == 0 (
         echo %__MsgPrefix%Error: System.Private.CoreLib build failed. Refer to the build log files for details:
         echo     "%__LogsDir%\System.Private.CoreLib_%__BuildOS%__%__BuildArch%__%__BuildType%.log"
