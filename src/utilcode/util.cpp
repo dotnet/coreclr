@@ -879,6 +879,27 @@ BYTE * ClrVirtualAllocWithinRange(const BYTE *pMinAddr,
 #endif
 }
 
+#if !defined(FEATURE_REDHAWK) && defined(_TARGET_AMD64_) && !defined(FEATURE_PAL)
+// Calculate greatest common divisor
+DWORD GCD(DWORD u, DWORD v)
+{
+    while (v != 0)
+    {
+        DWORD dwTemp = v;
+        v = u % v;
+        u = dwTemp;
+    }
+
+    return u;
+}
+
+// Calculate least common multiple
+DWORD LCM(DWORD u, DWORD v)
+{
+    return u / GCD(u, v) * v;
+}
+#endif
+
 /*static*/ BOOL CPUGroupInfo::InitCPUGroupInfoArray()
 {
     CONTRACTL
@@ -940,7 +961,7 @@ BYTE * ClrVirtualAllocWithinRange(const BYTE *pMinAddr,
         m_CPUGroupInfoArray[i].nr_active   = (WORD)pRecord->Group.GroupInfo[i].ActiveProcessorCount;
         m_CPUGroupInfoArray[i].active_mask = pRecord->Group.GroupInfo[i].ActiveProcessorMask;
         m_nProcessors += m_CPUGroupInfoArray[i].nr_active;
-        dwWeight *= (DWORD)m_CPUGroupInfoArray[i].nr_active;
+        dwWeight = LCM(dwWeight, (DWORD)m_CPUGroupInfoArray[i].nr_active);
     }
 
     //NOTE: the weight setting should work fine with 4 CPU groups upto 64 LPs each. the minimum number of threads
