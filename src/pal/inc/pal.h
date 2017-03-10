@@ -2577,8 +2577,11 @@ PALIMPORT BOOL PALAPI PAL_VirtualUnwindOutOfProc(CONTEXT *context,
 #warning 
 #error  PAL_CS_NATIVE_DATA_SIZE is not defined for this architecture
 #endif
+#define CS_NATIVE_DATA_STRUCT_SIZE 128
     
-// 
+// CRITICAL_SECTION should pair with PAL_CRITICAL_SECTION because it is casted explicitly.
+// CRITICAL_SECTION uses same size of CNativeDataStorage (CS_NATIVE_DATA_STRUCT_SIZE) in all architecture
+//  using extra space for compativility of critical section in cross-architecture component.
 typedef struct _CRITICAL_SECTION {
     PVOID DebugInfo;
     LONG LockCount;
@@ -2589,10 +2592,10 @@ typedef struct _CRITICAL_SECTION {
 
     BOOL bInternal;
     volatile DWORD dwInitState;
-    union CSNativeDataStorage
+    struct CSNativeDataStorage
     {
         BYTE rgNativeDataStorage[PAL_CS_NATIVE_DATA_SIZE]; 
-        VOID * pvAlign; // make sure the storage is machine-pointer-size aligned
+        BYTE rgExtraStorage[CS_NATIVE_DATA_STRUCT_SIZE - PAL_CS_NATIVE_DATA_SIZE]; // make sure the storage is machine-pointer-size aligned
     } csnds;    
 } CRITICAL_SECTION, *PCRITICAL_SECTION, *LPCRITICAL_SECTION;
 
