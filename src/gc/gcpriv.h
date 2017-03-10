@@ -3608,10 +3608,6 @@ protected:
     PER_HEAP
     size_t total_ephemeral_size;
 
-    // True if we are using allocation contexts, false if we
-    // are not (i.e. we are running workstation GC on a single-proc machine)
-    PER_HEAP_ISOLATED
-    BOOL using_allocation_contexts;
 public:
 
 #ifdef HEAP_ANALYZE

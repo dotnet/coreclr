@@ -68,12 +68,6 @@ public:
     static void StompWriteBarrier(WriteBarrierParameters* args);
 
     static void EnableFinalization(bool foundFinalizers);
-
-    // Global alloc context retrieval
-    static gc_alloc_context *GetGlobalAllocContext();
-
-    // Whether the EE is using per-thread allocation contexts.
-    static bool UseThreadAllocationContexts();
 };
 
 #endif // __GCENV_EE_H__

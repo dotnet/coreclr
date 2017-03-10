@@ -725,10 +725,17 @@ void GCToEEInterface::GcEnumAllocContexts(enum_alloc_context_func* fn, void* par
     }
     CONTRACTL_END;
 
-    Thread * pThread = NULL;
-    while ((pThread = ThreadStore::GetThreadList(pThread)) != NULL)
+    if (GCHeapUtilities::UseThreadAllocationContexts())
     {
-        fn(pThread->GetAllocContext(), param);
+        Thread * pThread = NULL;
+        while ((pThread = ThreadStore::GetThreadList(pThread)) != NULL)
+        {
+            fn(pThread->GetAllocContext(), param);
+        }
+    }
+    else
+    {
+        fn(&g_global_alloc_context, param);
     }
 }
 
@@ -1331,12 +1338,3 @@ void GCToEEInterface::EnableFinalization(bool foundFinalizers)
     }
 }
 
-gc_alloc_context *GCToEEInterface::GetGlobalAllocContext()
-{
-    return &g_global_alloc_context;
-}
-
-bool GCToEEInterface::UseThreadAllocationContexts()
-{
-    return GCHeapUtilities::UseThreadAllocationContexts();
-}

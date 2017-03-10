@@ -2741,8 +2741,6 @@ size_t     gc_heap::interesting_mechanism_bits_per_heap[max_gc_mechanism_bits_co
 
 /* end of per heap static initialization */
 
-BOOL gc_heap::using_allocation_contexts = true;
-
 /* end of static initialization */
 
 #ifndef DACCESS_COMPILE
@@ -5712,29 +5710,12 @@ void gc_mechanisms::record (gc_history_global* history)
 //as opposed to concurrent heap verification
 void gc_heap::fix_youngest_allocation_area (BOOL for_gc_p)
 {
-    alloc_context *acontext;
+    UNREFERENCED_PARAMETER(for_gc_p);
 
-    if (!using_allocation_contexts)
-    {
-        acontext = static_cast<alloc_context*>(GCToEEInterface::GetGlobalAllocContext());
-        assert(acontext != nullptr);
-        dprintf (3, ("EE-owned gen 0 alloc context %Ix: ptr %Ix, limit: %Ix",
-              (size_t)acontext, (size_t)acontext->alloc_ptr, (size_t)acontext->alloc_limit));
-    }
-    else
-    {
-        acontext = generation_alloc_context (youngest_generation);
-        assert(acontext != nullptr);
-        dprintf (3, ("generation 0 alloc context: ptr: %Ix, limit %Ix",
-                 (size_t)acontext->alloc_ptr, (size_t)acontext->alloc_limit));
-    }
-
-    fix_allocation_context (acontext, for_gc_p, get_alignment_constant (TRUE));
+    // The gen 0 alloc context is never used for allocation.
+    assert (generation_allocation_pointer (youngest_generation) == nullptr);
+    assert (generation_allocation_limit (youngest_generation) == nullptr);
     heap_segment_allocated (ephemeral_heap_segment) = alloc_allocated;
-
-
-    dprintf (3, ("youngest allocation context fixed: ptr %Ix, limit %Ix",
-          (size_t)acontext->alloc_ptr, (size_t)acontext->alloc_limit));
 }
 
 void gc_heap::fix_large_allocation_area (BOOL for_gc_p)
@@ -5838,27 +5819,7 @@ void void_allocation (gc_alloc_context* acontext, void*)
 
 void gc_heap::repair_allocation_contexts (BOOL repair_p)
 {
-    alloc_context *acontext;
-    if (!using_allocation_contexts)
-    {
-        // no need to enumerate alloc contexts if we aren't using per-thread contexts
-        // there's only one alloc context used for allocation, and it's the global one
-        acontext = static_cast<alloc_context*>(GCToEEInterface::GetGlobalAllocContext());
-    }
-    else
-    {
-        GCToEEInterface::GcEnumAllocContexts (repair_p ? repair_allocation : void_allocation, NULL);
-        acontext = generation_alloc_context (youngest_generation);
-    }
-
-    if (repair_p)
-    {
-        repair_allocation (acontext, NULL);
-    }
-    else
-    {
-        void_allocation (acontext, NULL);
-    }
+    GCToEEInterface::GcEnumAllocContexts (repair_p ? repair_allocation : void_allocation, NULL);
 }
 
 struct fix_alloc_context_args
@@ -5878,11 +5839,8 @@ void gc_heap::fix_allocation_contexts(BOOL for_gc_p)
     fix_alloc_context_args args;
     args.for_gc_p = for_gc_p;
     args.heap = __this;
-    if (using_allocation_contexts)
-    {
-        GCToEEInterface::GcEnumAllocContexts(fix_alloc_context, &args);
-    }
 
+    GCToEEInterface::GcEnumAllocContexts(fix_alloc_context, &args);
     fix_youngest_allocation_area(for_gc_p);
     fix_large_allocation_area(for_gc_p);
 }
@@ -10040,15 +9998,6 @@ HRESULT gc_heap::initialize_gc (size_t segment_size,
     {
         hres = E_FAIL;
     }
-
-#ifndef MULTIPLE_HEAPS
-    if (!GCToEEInterface::UseThreadAllocationContexts())
-    {
-        dprintf (3, ("Not using allocation contexts b/c workstation GC and %d CPUs",
-              GCToOSInterface::GetCurrentProcessCpuCount()));
-        gc_heap::using_allocation_contexts = false;
-    }
-#endif // MULTIPLE_HEAPS
 
     return hres;
 }

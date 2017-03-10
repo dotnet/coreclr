@@ -44,8 +44,6 @@ public:
     void StompWriteBarrier(WriteBarrierParameters* args);
 
     void EnableFinalization(bool foundFinalizers);
-    gc_alloc_context *GetGlobalAllocContext();
-    bool UseThreadAllocationContexts();
 };
 
 #endif // FEATURE_STANDALONE_GC
