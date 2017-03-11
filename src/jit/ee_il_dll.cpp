@@ -68,7 +68,7 @@ extern "C" void __stdcall jitStartup(ICorJitHost* jitHost)
 
 #if defined(_HOST_UNIX_)
     jitstdout = procstdout();
-#else // !_HOST_UNIX_
+#else  // !_HOST_UNIX_
     if (jitstdout == nullptr)
     {
         int stdoutFd = _fileno(procstdout());
