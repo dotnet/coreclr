@@ -411,7 +411,10 @@ if %__BuildCoreLib% EQU 1 (
     set __MsbuildErr=/flp2:ErrorsOnly;LogFile="%__LogsDir%\System.Private.CoreLib_%__BuildOS%__%__BuildArch%__%__BuildType%.err"
 
     set __ExtraMsbuildArgs=
-    if not defined __IbcTuning set __ExtraMsbuildArgs=!__ExtraMsbuildArgs! /p:OptimizationDataDir="%__PackagesDir%/optimization.%__BuildOS%-%__BuildArch%.IBC.CoreCLR/%__IbcOptDataVersion%/data/"
+    if not defined __IbcTuning (
+      set __ExtraMsbuildArgs=!__ExtraMsbuildArgs! /p:OptimizationDataDir="%__PackagesDir%/optimization.%__BuildOS%-%__BuildArch%.IBC.CoreCLR/%__IbcOptDataVersion%/data/"
+      set __ExtraMsbuildArgs=!__ExtraMsbuildArgs! /p:EnableProfileGuidedOptimization=true
+    )
 
     if /i "%__BuildArch%" == "arm64" (
 		set __nugetBuildArgs=-buildNugetPackage=false
