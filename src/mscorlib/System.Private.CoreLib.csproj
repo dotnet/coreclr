@@ -1017,21 +1017,17 @@
     <UseWin32Apis>true</UseWin32Apis>
     <OSGroup>Windows_NT</OSGroup>
   </PropertyGroup>
-  <Import Project="$(ToolsDir)\codeAnalysis.targets" />
-  <Import Project="$(ToolsDir)\Microsoft.CSharp.Targets" />
   <PropertyGroup>
     <StrongNameSig>Silverlight</StrongNameSig>
-  </PropertyGroup>
-  <!-- Import signing tools -->
-  <Import Condition="Exists('$(ToolsDir)\sign.targets')" Project="$(ToolsDir)\sign.targets" />
-  <!-- Overwrite the key that we are going to use for signing -->
-  <PropertyGroup>
-    <AssemblyOriginatorKeyFile>$(MSBuildThisFileDirectory)Tools\Signing\mscorlib.snk</AssemblyOriginatorKeyFile>
+    <RootTargetsFile>$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.targets))\dir.targets</RootTargetsFile>
   </PropertyGroup>
   <Import Project="$(MSBuildThisFileDirectory)Tools\Versioning\GenerateVersionInfo.targets" />
+  <!-- Import common targets: codeAnalysis, Microsoft.CSharp, sign, versioning, codeOptimizations, etc. -->
   <!-- Override versioning targets -->
-  <Import Condition="Exists('$(ToolsDir)versioning.targets')" Project="$(ToolsDir)versioning.targets" />
+  <Import Project="$(RootTargetsFile)" Condition="Exists('$(RootTargetsFile)')" />
   <PropertyGroup>
+    <!-- Overwrite the key that we are going to use for signing -->
+    <AssemblyOriginatorKeyFile>$(MSBuildThisFileDirectory)Tools\Signing\mscorlib.snk</AssemblyOriginatorKeyFile>
     <!-- Use a different nativeresource file to avoid conflicts with mscorlib-->
     <Win32Resource Condition="'$(GenerateNativeVersionInfo)'=='true'">$(IntermediateOutputPath)\System.Private.CoreLib.res</Win32Resource>
   </PropertyGroup>
