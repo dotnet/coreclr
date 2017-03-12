@@ -5195,6 +5195,7 @@ void CodeGen::genCodeForTreeLeaf_GT_JMP(GenTreePtr tree)
         //
         if (compiler->fgPtrArgCntMax < 1)
         {
+            JITDUMP("Upping fgPtrArgCntMax from %d to 1\n", compiler->fgPtrArgCntMax);
             compiler->fgPtrArgCntMax = 1;
         }
 
@@ -18510,6 +18511,7 @@ regMaskTP CodeGen::genCodeForCall(GenTreePtr call, bool valUsed)
         //
         if (compiler->fgPtrArgCntMax < 1)
         {
+            JITDUMP("Upping fgPtrArgCntMax from %d to 1\n", compiler->fgPtrArgCntMax);
             compiler->fgPtrArgCntMax = 1;
         }
 
