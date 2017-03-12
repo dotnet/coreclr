@@ -339,9 +339,9 @@ BOOL Assembler::AddMethod(Method *pMethod)
     {
         char sz[1024];
         sz[0] = 0;
+        if(fIsInterface  && (!IsMdStatic(pMethod->m_Attr))) strcat_s(sz,1024," non-static declared in interface");
         if(fIsImport) strcat_s(sz,1024," imported");
-        // allow abstract method in interface to have body for default interface method support
-        if(IsMdAbstract(pMethod->m_Attr) && !fIsInterface) strcat_s(sz,1024," abstract");
+        if(IsMdAbstract(pMethod->m_Attr)) strcat_s(sz,1024," abstract");
         if(IsMdPinvokeImpl(pMethod->m_Attr)) strcat_s(sz,1024," pinvoke");
         if(!IsMiIL(pMethod->m_wImplAttr)) strcat_s(sz,1024," non-IL");
         if(IsMiRuntime(pMethod->m_wImplAttr)) strcat_s(sz,1024," runtime-supplied");
