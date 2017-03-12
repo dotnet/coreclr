@@ -699,13 +699,15 @@ void Assembler::StartMethod(__in __nullterminated char* name, BinStr* sig, CorMe
                 if(IsTdInterface(m_pCurClass->m_Attr))
                 {
                     if(!IsMdPublic(flags)) report->error("Non-public instance method in interface\n");
-                    if((!(IsMdVirtual(flags) && IsMdAbstract(flags))))
+
+                    // Allow both abstract and non-abstract virtual slots (for default interface method support)
+                    if(!IsMdVirtual(flags))
                     {
-                        if(OnErrGo) report->error("Non-virtual, non-abstract instance method in interface\n");
+                        if(OnErrGo) report->error("Non-virtual instance method in interface\n");
                         else
                         {
-                            report->warn("Non-virtual, non-abstract instance method in interface, set to such\n");
-                            flags = (CorMethodAttr)(flags |mdVirtual | mdAbstract);
+                            report->warn("Non-virtual instance method in interface, set to such\n");
+                            flags = (CorMethodAttr)(flags | mdVirtual);
                         }
                     }
     
