@@ -228,6 +228,11 @@ if ((CLR_CMAKE_PLATFORM_ARCH_I386 OR CLR_CMAKE_PLATFORM_ARCH_AMD64) AND WIN32)
 endif ()
 
 if (CLR_CMAKE_PLATFORM_ARCH_I386 AND WIN32)
+    # Build Linux/x86-running-on-Windows altjit.
+    add_subdirectory(linuxnonjit)
+endif ()
+
+if (CLR_CMAKE_PLATFORM_ARCH_I386 AND WIN32)
     if (NOT CLR_BUILD_JIT32)
         add_subdirectory(compatjit)
     endif ()
