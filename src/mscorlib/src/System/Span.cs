@@ -614,7 +614,7 @@ namespace System
                 return;
             
 #if AMD64
-            if (byteLength > uint.MaxValue) goto PInvoke;
+            if (byteLength > 4096) goto PInvoke;
             Unsafe.InitBlockUnaligned(ref b, 0, (uint)byteLength);
             return;
 #endif // AMD64
