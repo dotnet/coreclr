@@ -1989,7 +1989,7 @@ void NotifyGdb::MethodCompiled(MethodDesc* MethodDescPtr)
     }
     
     /* Build .debug_info section */
-    if (!BuildDebugInfo(dbgInfo, pTypeMap, symInfo, symInfoLen))
+    if (!BuildDebugInfo(dbgInfo, pTypeMap))
     {
         return;
     }
@@ -2561,7 +2561,7 @@ bool NotifyGdb::BuildDebugAbbrev(MemBuf& buf)
 }
 
 /* Build tge DWARF .debug_info section */
-bool NotifyGdb::BuildDebugInfo(MemBuf& buf, PTK_TypeInfoMap pTypeMap, SymbolsInfo* lines, unsigned nlines)
+bool NotifyGdb::BuildDebugInfo(MemBuf& buf, PTK_TypeInfoMap pTypeMap)
 {
     int totalTypeVarSubSize = 0;
     {
@@ -2576,22 +2576,8 @@ bool NotifyGdb::BuildDebugInfo(MemBuf& buf, PTK_TypeInfoMap pTypeMap, SymbolsInf
 
     for (int i = 0; i < method.GetCount(); ++i)
     {
-        method[i]->lines = lines;
-        method[i]->nlines = nlines;
         method[i]->DumpDebugInfo(nullptr, totalTypeVarSubSize);
     }
-    // Drop pointers to lines when exiting current scope
-    struct DropMethodLines
-    {
-        ~DropMethodLines()
-        {
-            for (int i = 0; i < method.GetCount(); ++i)
-            {
-                method[i]->lines = nullptr;
-                method[i]->nlines = 0;
-            }
-        }
-    } dropMethodLines;
 
     //int locSize = GetArgsAndLocalsLen(argsDebug, argsDebugSize, localsDebug, localsDebugSize);
     buf.MemSize = sizeof(DwarfCompUnit) + sizeof(DebugInfoCU) + totalTypeVarSubSize + 2;
