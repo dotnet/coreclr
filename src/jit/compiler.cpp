@@ -997,6 +997,7 @@ var_types Compiler::getReturnTypeForStruct(CORINFO_CLASS_HANDLE clsHnd,
 
 #else // not UNIX_AMD64
 
+#ifndef UNIX_X86_ABI
     // The largest primitive type is 8 bytes (TYP_DOUBLE)
     // so we can skip calling getPrimitiveTypeForStruct when we
     // have a struct that is larger than that.
@@ -1007,6 +1008,7 @@ var_types Compiler::getReturnTypeForStruct(CORINFO_CLASS_HANDLE clsHnd,
         // and also examine the clsHnd to see if it is an HFA of count one
         useType = getPrimitiveTypeForStruct(structSize, clsHnd);
     }
+#endif
 
 #endif // FEATURE_UNIX_AMD64_STRUCT_PASSING
 

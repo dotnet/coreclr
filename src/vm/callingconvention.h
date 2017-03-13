@@ -1415,8 +1415,11 @@ void ArgIteratorTemplate<ARGITERATOR_BASE>::ComputeReturnFlags()
             }
 #endif
 
+#ifndef UNIX_X86_ABI
             if  (size <= ENREGISTERED_RETURNTYPE_INTEGER_MAXSIZE)
                 break;
+#endif
+
 #endif // UNIX_AMD64_ABI && FEATURE_UNIX_AMD64_STRUCT_PASSING
         }
 #endif // ENREGISTERED_RETURNTYPE_INTEGER_MAXSIZE
