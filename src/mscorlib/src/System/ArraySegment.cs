@@ -112,8 +112,24 @@ namespace System
 
         public T this[int index]
         {
-            get { return _array[_offset + index]; }
-            set { _array[_offset + index] = value; }
+            get
+            {
+                if ((uint)index >= (uint)_count)
+                {
+                    ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.index);
+                }
+
+                return _array[_offset + index];
+            }
+            set
+            {
+                if ((uint)index >= (uint)_count)
+                {
+                    ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.index);
+                }
+
+                _array[_offset + index] = value;
+            }
         }
 
         public Enumerator GetEnumerator()
