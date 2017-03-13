@@ -329,7 +329,9 @@ public:
           m_var_name_offset(0),
           m_il_index(0),
           m_native_offset(0),
-          m_var_type(nullptr)
+          m_var_type(nullptr),
+          m_low_pc(0),
+          m_high_pc(0)
     {
     }
 
@@ -339,7 +341,9 @@ public:
           m_var_name_offset(0),
           m_il_index(0),
           m_native_offset(0),
-          m_var_type(nullptr)
+          m_var_type(nullptr),
+          m_low_pc(0),
+          m_high_pc(0)
     {
     }
 
@@ -357,6 +361,8 @@ public:
     int m_il_index;
     int m_native_offset;
     TypeInfoBase *m_var_type;
+    uintptr_t m_low_pc;
+    uintptr_t m_high_pc;
 };
 
 class NotifyGdb
