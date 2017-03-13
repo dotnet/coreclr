@@ -2883,11 +2883,12 @@ MethodTableBuilder::EnumerateClassMethods()
         }
         else if(fIsClassInterface)
         {
-            if (IsMdRTSpecialName(dwMemberAttrs) || IsMdVirtual(dwMemberAttrs))
+            if (IsMdRTSpecialName(dwMemberAttrs) && !IsMdVirtual(dwMemberAttrs))
             {
                 CONSISTENCY_CHECK(CheckPointer(strMethodName));
                 if (strcmp(strMethodName, COR_CCTOR_METHOD_NAME))
                 {
+                    // @TODO - Change error message
                     BuildMethodTableThrowException(BFA_NONAB_NONCCTOR_METHOD_ON_INT);
                 }
             }
@@ -2913,14 +2914,7 @@ MethodTableBuilder::EnumerateClassMethods()
         // Some interface checks.
         if (IsInterface())
         {
-            if (IsMdVirtual(dwMemberAttrs))
-            {
-                if (!IsMdAbstract(dwMemberAttrs))
-                {
-                    BuildMethodTableThrowException(BFA_VIRTUAL_NONAB_INT_METHOD);
-                }
-            }
-            else
+            if (!IsMdVirtual(dwMemberAttrs))
             {
                 // Instance field/method
                 if (!IsMdStatic(dwMemberAttrs))

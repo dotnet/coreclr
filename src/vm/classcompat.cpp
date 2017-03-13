@@ -2623,14 +2623,7 @@ VOID    MethodTableBuilder::EnumerateClassMethods()
         // Some interface checks.
         if (IsInterface())
         {
-            if (IsMdVirtual(dwMemberAttrs))
-            {
-                if (!IsMdAbstract(dwMemberAttrs))
-                {
-                    BuildMethodTableThrowException(BFA_VIRTUAL_NONAB_INT_METHOD);
-                }
-            }
-            else
+            if (!IsMdVirtual(dwMemberAttrs))
             {
                 // Instance field/method
                 if (!IsMdStatic(dwMemberAttrs))
