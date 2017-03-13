@@ -1412,6 +1412,8 @@ VOID UMThunkMarshInfo::RunTimeInit()
         new (&sigInfo) PInvokeStaticSigInfo(pMD);
     else
         new (&sigInfo) PInvokeStaticSigInfo(GetSignature(), GetModule());
+    if (pStubMD == NULL)
+        m_cbActualArgSize += numRegistersUsed * STACK_ELEM_SIZE;
     if (sigInfo.GetCallConv() == pmCallConvCdecl)
     {
         // caller pop
@@ -1422,7 +1424,6 @@ VOID UMThunkMarshInfo::RunTimeInit()
         // callee pop
         m_cbRetPop = static_cast<UINT16>(m_cbActualArgSize);
     }
-    m_cbActualArgSize += numRegistersUsed * STACK_ELEM_SIZE;
 
 #endif // _TARGET_X86_
 
