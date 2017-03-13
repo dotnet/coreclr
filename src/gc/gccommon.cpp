@@ -62,8 +62,6 @@ uint8_t g_build_variant = 1;
 uint8_t g_build_variant = 2;
 #endif // defined(BUILDENV_DEBUG)
 
-VOLATILE(int32_t) g_no_gc_lock = -1;
-
 #ifdef GC_CONFIG_DRIVEN
 void record_global_mechanism (int mech_index)
 {

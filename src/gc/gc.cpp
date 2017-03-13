@@ -150,6 +150,8 @@ size_t GetHighPrecisionTimeStamp()
 }
 #endif
 
+VOLATILE(int32_t) g_no_gc_lock = -1;
+
 #ifdef GC_STATS
 // There is a current and a prior copy of the statistics.  This allows us to display deltas per reporting
 // interval, as well as running totals.  The 'min' and 'max' values require special treatment.  They are
@@ -5712,7 +5714,8 @@ void gc_heap::fix_youngest_allocation_area (BOOL for_gc_p)
 {
     UNREFERENCED_PARAMETER(for_gc_p);
 
-    // The gen 0 alloc context is never used for allocation.
+    // The gen 0 alloc context is never used for allocation in the allocator path. It's
+    // still used in the allocation path during GCs.
     assert (generation_allocation_pointer (youngest_generation) == nullptr);
     assert (generation_allocation_limit (youngest_generation) == nullptr);
     heap_segment_allocated (ephemeral_heap_segment) = alloc_allocated;
