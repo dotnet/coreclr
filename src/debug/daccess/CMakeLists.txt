@@ -43,7 +43,7 @@ add_precompiled_header(stdafx.h stdafx.cpp DACCESS_SOURCES)
 
 add_library_clr(daccess ${DACCESS_SOURCES})
 
-if(CLR_CMAKE_PLATFORM_UNIX)
+if(CLR_CMAKE_PLATFORM_UNIX AND NOT CLR_CROSS_COMPONENTS_BUILD)
   add_custom_command(
     OUTPUT  ${GENERATED_INCLUDE_DIR}/dactablerva.h
     DEPENDS coreclr
@@ -63,4 +63,4 @@ if(CLR_CMAKE_PLATFORM_UNIX)
   )
 
   add_dependencies(daccess coreclr dactablerva_header)
-endif(CLR_CMAKE_PLATFORM_UNIX)
+endif(CLR_CMAKE_PLATFORM_UNIX AND NOT CLR_CROSS_COMPONENTS_BUILD)
