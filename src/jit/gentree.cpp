@@ -12002,16 +12002,22 @@ void Compiler::gtDispTreeRange(LIR::Range& containingRange, GenTree* tree)
 //
 // Arguments:
 //    node - the LIR node to dump.
+//    prefixMsg - an optional prefix for each line of output.
 //
-void Compiler::gtDispLIRNode(GenTree* node)
+void Compiler::gtDispLIRNode(GenTree* node, const char* prefixMsg /* = nullptr */)
 {
-    auto displayOperand = [](GenTree* operand, const char* message, IndentInfo operandArc, IndentStack& indentStack) {
+    auto displayOperand = [](GenTree* operand, const char* message, IndentInfo operandArc, IndentStack& indentStack, const char* prefixMsg = nullptr) {
         assert(operand != nullptr);
         assert(message != nullptr);
 
+        if (prefixMsg != nullptr)
+        {
+            printf("%s", prefixMsg);
+        }
+
         // 49 spaces for alignment
         printf("%-49s", "");
-#ifdef FEATURE_SET_FLAGS
+#if FEATURE_SET_FLAGS
         // additional flag enlarges the flag field by one character
         printf(" ");
 #endif
@@ -12022,7 +12028,6 @@ void Compiler::gtDispLIRNode(GenTree* node)
         operandArc = IIArc;
 
         printf("  t%-5d %-6s %s\n", operand->gtTreeID, varTypeName(operand->TypeGet()), message);
-
     };
 
     IndentStack indentStack(this);
@@ -12048,19 +12053,19 @@ void Compiler::gtDispLIRNode(GenTree* node)
             if (operand == call->gtCallObjp)
             {
                 sprintf_s(buf, sizeof(buf), "this in %s", compRegVarName(REG_ARG_0));
-                displayOperand(operand, buf, operandArc, indentStack);
+                displayOperand(operand, buf, operandArc, indentStack, prefixMsg);
             }
             else if (operand == call->gtCallAddr)
             {
-                displayOperand(operand, "calli tgt", operandArc, indentStack);
+                displayOperand(operand, "calli tgt", operandArc, indentStack, prefixMsg);
             }
             else if (operand == call->gtControlExpr)
             {
-                displayOperand(operand, "control expr", operandArc, indentStack);
+                displayOperand(operand, "control expr", operandArc, indentStack, prefixMsg);
             }
             else if (operand == call->gtCallCookie)
             {
-                displayOperand(operand, "cookie", operandArc, indentStack);
+                displayOperand(operand, "cookie", operandArc, indentStack, prefixMsg);
             }
             else
             {
@@ -12082,7 +12087,7 @@ void Compiler::gtDispLIRNode(GenTree* node)
                             gtGetLateArgMsg(call, operand, curArgTabEntry->lateArgInx, listIndex, buf, sizeof(buf));
                         }
 
-                        displayOperand(operand, buf, operandArc, indentStack);
+                        displayOperand(operand, buf, operandArc, indentStack, prefixMsg);
                         operandArc = IIArc;
                     }
                 }
@@ -12097,7 +12102,7 @@ void Compiler::gtDispLIRNode(GenTree* node)
                         gtGetLateArgMsg(call, operand, curArgTabEntry->lateArgInx, -1, buf, sizeof(buf));
                     }
 
-                    displayOperand(operand, buf, operandArc, indentStack);
+                    displayOperand(operand, buf, operandArc, indentStack, prefixMsg);
                 }
             }
         }
@@ -12105,55 +12110,59 @@ void Compiler::gtDispLIRNode(GenTree* node)
         {
             if (operand == node->AsBlk()->Addr())
             {
-                displayOperand(operand, "lhs", operandArc, indentStack);
+                displayOperand(operand, "lhs", operandArc, indentStack, prefixMsg);
             }
             else if (operand == node->AsBlk()->Data())
             {
-                displayOperand(operand, "rhs", operandArc, indentStack);
+                displayOperand(operand, "rhs", operandArc, indentStack, prefixMsg);
             }
             else
             {
                 assert(operand == node->AsDynBlk()->gtDynamicSize);
-                displayOperand(operand, "size", operandArc, indentStack);
+                displayOperand(operand, "size", operandArc, indentStack, prefixMsg);
             }
         }
         else if (node->OperGet() == GT_DYN_BLK)
         {
             if (operand == node->AsBlk()->Addr())
             {
-                displayOperand(operand, "lhs", operandArc, indentStack);
+                displayOperand(operand, "lhs", operandArc, indentStack, prefixMsg);
             }
             else
             {
                 assert(operand == node->AsDynBlk()->gtDynamicSize);
-                displayOperand(operand, "size", operandArc, indentStack);
+                displayOperand(operand, "size", operandArc, indentStack, prefixMsg);
             }
         }
         else if (node->OperIsAssignment())
         {
             if (operand == node->gtGetOp1())
             {
-                displayOperand(operand, "lhs", operandArc, indentStack);
+                displayOperand(operand, "lhs", operandArc, indentStack, prefixMsg);
             }
             else
             {
-                displayOperand(operand, "rhs", operandArc, indentStack);
+                displayOperand(operand, "rhs", operandArc, indentStack, prefixMsg);
             }
         }
         else
         {
-            displayOperand(operand, "", operandArc, indentStack);
+            displayOperand(operand, "", operandArc, indentStack, prefixMsg);
         }
 
         operandArc = IIArc;
     }
 
     // Visit the operator
+
+    if (prefixMsg != nullptr)
+    {
+        printf("%s", prefixMsg);
+    }
+
     const bool topOnly = true;
     const bool isLIR   = true;
     gtDispTree(node, &indentStack, nullptr, topOnly, isLIR);
-
-    printf("\n");
 }
 
 /*****************************************************************************/
