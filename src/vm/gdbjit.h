@@ -538,6 +538,7 @@ private:
     void DumpLinkageName(char* ptr, int& offset);
     bool GetBlockInNativeCode(int blockILOffset, int blockILLen, TADDR *startOffset, TADDR *endOffset);
     void DumpTryCatchBlock(char* ptr, int& offset, int ilOffset, int ilLen, int abbrev);
+    void DumpVarsWithScopes(char* ptr, int& offset);
     BOOL dumped;
 };
 #endif // #ifndef __GDBJIT_H__

@@ -792,6 +792,10 @@ const unsigned char AbbrevTable[] = {
     19, DW_TAG_subrange_type, DW_CHILDREN_no,
         DW_AT_upper_bound, DW_FORM_udata, 0, 0,
 
+    20, DW_TAG_lexical_block, DW_CHILDREN_yes,
+        DW_AT_low_pc, DW_FORM_addr, DW_AT_high_pc, DW_FORM_size,
+        0, 0,
+
     0
 };
 
@@ -839,6 +843,12 @@ struct __attribute__((packed)) DebugInfoSubMember
 {
     DebugInfoSub sub;
     uint32_t m_obj_ptr;
+};
+
+struct __attribute__((packed)) DebugInfoLexicalBlock
+{
+    uint8_t m_abbrev;
+    uintptr_t m_low_pc, m_high_pc;
 };
 
 // Holder for array of pointers to FunctionMember objects
@@ -1382,6 +1392,70 @@ void FunctionMember::DumpTryCatchDebugInfo(char* ptr, int& offset)
     }
 }
 
+void FunctionMember::DumpVarsWithScopes(char *ptr, int &offset)
+{
+    NewArrayHolder<DebugInfoLexicalBlock> scopeStack = new (nothrow) DebugInfoLexicalBlock[m_num_vars];
+    if (scopeStack == nullptr)
+        return;
+
+    int scopeStackSize = 0;
+    for (int i = 0; i < m_num_vars; ++i)
+    {
+        if (vars[i].m_high_pc == 0) // no scope info
+        {
+            vars[i].DumpDebugInfo(ptr, offset);
+            continue;
+        }
+
+        // Try to step out to enclosing scope, finilizing scopes on the way
+        while (scopeStackSize > 0 &&
+               vars[i].m_low_pc >= (scopeStack[scopeStackSize - 1].m_low_pc +
+                                    scopeStack[scopeStackSize - 1].m_high_pc))
+        {
+            // Finalize scope
+            if (ptr != nullptr)
+            {
+                memset(ptr + offset, 0, 1);
+            }
+            offset += 1;
+
+            scopeStackSize--;
+        }
+        // Continue adding to prev scope?
+        if (scopeStackSize > 0 &&
+            scopeStack[scopeStackSize - 1].m_low_pc == vars[i].m_low_pc &&
+            scopeStack[scopeStackSize - 1].m_high_pc == vars[i].m_high_pc)
+        {
+            vars[i].DumpDebugInfo(ptr, offset);
+            continue;
+        }
+        // Start new scope
+        scopeStackSize++;
+        scopeStack[scopeStackSize - 1].m_abbrev = 20;
+        scopeStack[scopeStackSize - 1].m_low_pc = vars[i].m_low_pc;
+        scopeStack[scopeStackSize - 1].m_high_pc = vars[i].m_high_pc;
+
+        if (ptr != nullptr)
+        {
+            memcpy(ptr + offset, scopeStack + (scopeStackSize - 1), sizeof(DebugInfoLexicalBlock));
+        }
+        offset += sizeof(DebugInfoLexicalBlock);
+
+        vars[i].DumpDebugInfo(ptr, offset);
+    }
+    // Finalize any remaining scopes
+    while (scopeStackSize > 0)
+    {
+        if (ptr != nullptr)
+        {
+            memset(ptr + offset, 0, 1);
+        }
+        offset += 1;
+
+        scopeStackSize--;
+    }
+}
+
 void FunctionMember::DumpDebugInfo(char* ptr, int& offset)
 {
     if (ptr != nullptr)
@@ -1423,10 +1497,8 @@ void FunctionMember::DumpDebugInfo(char* ptr, int& offset)
     {
         offset += sizeof(DebugInfoSub);
     }
-    for (int i = 0; i < m_num_vars; ++i)
-    {
-        vars[i].DumpDebugInfo(ptr, offset);
-    }
+
+    DumpVarsWithScopes(ptr, offset);
 
     DumpTryCatchDebugInfo(ptr, offset);
 
