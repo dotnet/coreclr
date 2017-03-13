@@ -68,6 +68,24 @@ int compact_ratio = 0;
 // See comments in reset_memory.
 BOOL reset_mm_p = TRUE;
 
+bool g_fFinalizerRunOnShutDown = false;
+
+#ifdef FEATURE_SVR_GC
+bool g_built_with_svr_gc = true;
+#else
+bool g_built_with_svr_gc = false;
+#endif // FEATURE_SVR_GC
+
+#if defined(BUILDENV_DEBUG)
+uint8_t g_build_variant = 0;
+#elif defined(BUILDENV_CHECKED)
+uint8_t g_build_variant = 1;
+#else
+uint8_t g_build_variant = 2;
+#endif // defined(BUILDENV_DEBUG)
+
+VOLATILE(int32_t) g_no_gc_lock = -1;
+
 #if defined (TRACE_GC) && !defined (DACCESS_COMPILE)
 const char * const allocation_state_str[] = {
     "start",
@@ -92,7 +110,6 @@ const char * const allocation_state_str[] = {
     "check_retry_seg"
 };
 #endif //TRACE_GC && !DACCESS_COMPILE
-
 
 // Keep this in sync with the definition of gc_reason
 #if (defined(DT_LOG) || defined(TRACE_GC)) && !defined (DACCESS_COMPILE)
@@ -150,7 +167,6 @@ size_t GetHighPrecisionTimeStamp()
 }
 #endif
 
-VOLATILE(int32_t) g_no_gc_lock = -1;
 
 #ifdef GC_STATS
 // There is a current and a prior copy of the statistics.  This allows us to display deltas per reporting
@@ -36897,6 +36913,11 @@ BOOL GCHeap::IsConcurrentGCEnabled()
 #else
     return FALSE;
 #endif //BACKGROUND_GC
+}
+
+void GCHeap::SetFinalizeRunOnShutdown(bool value)
+{
+    g_fFinalizerRunOnShutDown = value;
 }
 
 void PopulateDacVars(GcDacVars *gcDacVars)

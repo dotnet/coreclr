@@ -39,6 +39,11 @@ void GCProfileWalkHeap();
 class gc_heap;
 class CFinalize;
 
+extern bool g_fFinalizerRunOnShutDown;
+extern bool g_built_with_svr_gc;
+extern uint8_t g_build_variant;
+extern VOLATILE(int32_t) g_no_gc_lock;
+
 class GCHeap : public IGCHeapInternal
 {
 protected:
@@ -197,6 +202,7 @@ public:
     BOOL ShouldRestartFinalizerWatchDog();
 
     void DiagWalkObject (Object* obj, walk_fn fn, void* context);
+    void SetFinalizeRunOnShutdown(bool value);
 
 public:	// FIX 
 

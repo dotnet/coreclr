@@ -105,10 +105,6 @@ extern "C" uint32_t* g_gc_card_bundle_table;
 extern "C" uint32_t* g_gc_card_table;
 extern "C" uint8_t* g_gc_lowest_address;
 extern "C" uint8_t* g_gc_highest_address;
-extern "C" bool g_fFinalizerRunOnShutDown;
-extern "C" bool g_built_with_svr_gc;
-extern "C" uint8_t g_build_variant;
-extern "C" VOLATILE(int32_t) g_no_gc_lock;
 
 namespace WKS {
     ::IGCHeapInternal* CreateGCHeap();
@@ -235,11 +231,6 @@ public:
         WRAPPER_NO_CONTRACT;
 
         return mt->GetBaseSize() >= LARGE_OBJECT_SIZE;
-    }
-
-    void SetFinalizeRunOnShutdown(bool value)
-    {
-        g_fFinalizerRunOnShutDown = value;
     }
 
 protected: 
