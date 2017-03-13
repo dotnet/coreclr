@@ -964,8 +964,10 @@ DWORD LCM(DWORD u, DWORD v)
         dwWeight = LCM(dwWeight, (DWORD)m_CPUGroupInfoArray[i].nr_active);
     }
 
-    //NOTE: the weight setting should work fine with 4 CPU groups upto 64 LPs each. the minimum number of threads
-    //     per group before the weight overflow is 2^32/(2^6x2^6x2^6) = 2^14 (i.e. 16K threads)
+    // The number of threads per group that can be supported will depend on the number of CPU groups
+    // and the number of LPs within each processor group. For example, when the number of LPs within
+    // CPU groups are the same and are 64, the number of threads per group before weight overflow
+    // would be 2^32/2^6 = 2^26 (64M threads)
     for (DWORD i = 0; i < m_nGroups; i++)
     {
         m_CPUGroupInfoArray[i].groupWeight = dwWeight / (DWORD)m_CPUGroupInfoArray[i].nr_active;
