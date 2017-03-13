@@ -211,6 +211,8 @@ namespace System.Text
             // For fallback we may need a fallback buffer.
             // We wait to initialize it though in case we don't have any broken input unicode
             EncoderFallbackBuffer fallbackBuffer = null;
+            char* pSrcForFallback;
+
             char* pSrc = chars;
             char* pEnd = pSrc + count;
 
@@ -376,7 +378,9 @@ namespace System.Text
 
                     // Do our fallback.  Actually we already know its a mixed up surrogate,
                     // so the ref pSrc isn't gonna do anything.
-                    fallbackBuffer.InternalFallback(unchecked((char)ch), ref pSrc);
+                    pSrcForFallback = pSrc; // Avoid passing pSrc by reference to allow it to be enregistered
+                    fallbackBuffer.InternalFallback(unchecked((char)ch), ref pSrcForFallback);
+                    pSrc = pSrcForFallback;
 
                     // Ignore it if we don't throw (we had preallocated this ch)
                     byteCount--;
@@ -622,6 +626,8 @@ namespace System.Text
             // For fallback we may need a fallback buffer.
             // We wait to initialize it though in case we don't have any broken input unicode
             EncoderFallbackBuffer fallbackBuffer = null;
+            char* pSrcForFallback;
+
             char* pSrc = chars;
             byte* pTarget = bytes;
 
@@ -771,7 +777,9 @@ namespace System.Text
 
                     // Do our fallback.  Actually we already know its a mixed up surrogate,
                     // so the ref pSrc isn't gonna do anything.
-                    fallbackBuffer.InternalFallback(unchecked((char)ch), ref pSrc);
+                    pSrcForFallback = pSrc; // Avoid passing pSrc by reference to allow it to be enregistered
+                    fallbackBuffer.InternalFallback(unchecked((char)ch), ref pSrcForFallback);
+                    pSrc = pSrcForFallback;
 
                     // Ignore it if we don't throw
                     ch = 0;
@@ -1535,6 +1543,8 @@ namespace System.Text
             int ch = 0;
 
             DecoderFallbackBuffer fallback = null;
+            byte* pSrcForFallback;
+            char* pTargetForFallback;
             if (baseDecoder != null)
             {
                 UTF8Decoder decoder = (UTF8Decoder)baseDecoder;
@@ -1646,7 +1656,13 @@ namespace System.Text
                     fallback.InternalInitialize(bytes, pAllocatedBufferEnd);
                 }
                 // This'll back us up the appropriate # of bytes if we didn't get anywhere
-                if (!FallbackInvalidByteSequence(ref pSrc, ch, fallback, ref pTarget))
+                pSrcForFallback = pSrc; // Avoid passing pSrc by reference to allow it to be enregistered
+                pTargetForFallback = pTarget; // Avoid passing pTarget by reference to allow it to be enregistered
+                bool fallbackResult = FallbackInvalidByteSequence(ref pSrcForFallback, ch, fallback, ref pTargetForFallback);
+                pSrc = pSrcForFallback;
+                pTarget = pTargetForFallback;
+
+                if (!fallbackResult)
                 {
                     // Ran out of buffer space
                     // Need to throw an exception?
@@ -2048,7 +2064,13 @@ namespace System.Text
                 }
 
                 // This'll back us up the appropriate # of bytes if we didn't get anywhere
-                if (!FallbackInvalidByteSequence(ref pSrc, ch, fallback, ref pTarget))
+                pSrcForFallback = pSrc; // Avoid passing pSrc by reference to allow it to be enregistered
+                pTargetForFallback = pTarget; // Avoid passing pTarget by reference to allow it to be enregistered
+                bool fallbackResult = FallbackInvalidByteSequence(ref pSrcForFallback, ch, fallback, ref pTargetForFallback);
+                pSrc = pSrcForFallback;
+                pTarget = pTargetForFallback;
+
+                if (!fallbackResult)
                 {
                     Debug.Assert(pSrc >= bytes || pTarget == chars,
                         "[UTF8Encoding.GetChars]Expected to throw or remain in byte buffer while flushing");
