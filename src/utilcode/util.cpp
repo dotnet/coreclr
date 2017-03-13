@@ -965,8 +965,8 @@ DWORD LCM(DWORD u, DWORD v)
     }
 
     // The number of threads per group that can be supported will depend on the number of CPU groups
-    // and the number of LPs within each processor group. For example, when the number of LPs within
-    // CPU groups are the same and are 64, the number of threads per group before weight overflow
+    // and the number of LPs within each processor group. For example, when the number of LPs in
+    // CPU groups is the same and is 64, the number of threads per group before weight overflow
     // would be 2^32/2^6 = 2^26 (64M threads)
     for (DWORD i = 0; i < m_nGroups; i++)
     {
