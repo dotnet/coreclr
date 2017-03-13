@@ -462,12 +462,21 @@ HRESULT FunctionMember::GetLocalsDebugInfo(NotifyGdb::PTK_TypeInfoMap pTypeMap,
         if (FindNativeInfoInILVariable(
                 i, startNativeOffset, &locals.pVars, locals.countVars, &nativeVar) == S_OK)
         {
-            vars[i].m_var_type = GetLocalTypeInfo(md, pTypeMap, i - m_num_args);
-            vars[i].m_var_name = new char[strlen(locals.localsName[i - m_num_args]) + 1];
-            strcpy(vars[i].m_var_name, locals.localsName[i - m_num_args]);
-            vars[i].m_il_index = i - m_num_args;
+            int ilIndex = i - m_num_args;
+            vars[i].m_var_type = GetLocalTypeInfo(md, pTypeMap, ilIndex);
+            vars[i].m_var_name = new char[strlen(locals.localsName[ilIndex]) + 1];
+            strcpy(vars[i].m_var_name, locals.localsName[ilIndex]);
+            vars[i].m_il_index = ilIndex;
             vars[i].m_native_offset = nativeVar->loc.vlStk.vlsOffset;
             vars[i].m_var_abbrev = 5;
+            TADDR nativeStart;
+            TADDR nativeEnd;
+            int ilLen = locals.localsScope[ilIndex].ilEndOffset - locals.localsScope[ilIndex].ilStartOffset;
+            if (GetBlockInNativeCode(locals.localsScope[ilIndex].ilStartOffset, ilLen, &nativeStart, &nativeEnd))
+            {
+                vars[i].m_low_pc = md->GetNativeCode() + nativeStart;
+                vars[i].m_high_pc = nativeEnd - nativeStart;
+            }
         }
     }
     return S_OK;
@@ -1938,9 +1947,11 @@ void NotifyGdb::MethodCompiled(MethodDesc* MethodDescPtr)
 
         // method return type
         method[method_index]->m_member_type = GetArgTypeInfo(MethodDescPtr, pTypeMap, 0);
-        method[method_index]->GetLocalsDebugInfo(pTypeMap, locals, symInfo[firstLineIndex].nativeOffset);
         method[method_index]->m_sub_low_pc = pCode + method_start;
         method[method_index]->m_sub_high_pc = method_size;
+        method[method_index]->lines = symInfo;
+        method[method_index]->nlines = symInfoLen;
+        method[method_index]->GetLocalsDebugInfo(pTypeMap, locals, symInfo[firstLineIndex].nativeOffset);
         size_t methodNameSize = strlen(methodName) + 10;
         method[method_index]->m_member_name = new char[methodNameSize];
         if (method_index == 0)
@@ -1981,6 +1992,12 @@ void NotifyGdb::MethodCompiled(MethodDesc* MethodDescPtr)
     if (!BuildDebugInfo(dbgInfo, pTypeMap, symInfo, symInfoLen))
     {
         return;
+    }
+
+    for (int i = 0; i < method.GetCount(); ++i)
+    {
+        method[i]->lines = nullptr;
+        method[i]->nlines = 0;
     }
 
     for (int i = 0; i < locals.size; i++)
