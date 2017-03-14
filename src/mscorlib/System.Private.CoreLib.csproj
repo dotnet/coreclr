@@ -1016,8 +1016,10 @@
     <StrongNameSig>Silverlight</StrongNameSig>
   </PropertyGroup>
   <Import Project="$(MSBuildThisFileDirectory)Tools\Versioning\GenerateVersionInfo.targets" />
-  <!-- Import common targets: codeAnalysis, Microsoft.CSharp, sign, versioning, codeOptimizations, etc. -->
-  <!-- Override versioning targets -->
+  <!--
+    Import common targets: codeAnalysis, Microsoft.CSharp, sign, versioning, codeOptimizations, etc.
+    In doing so, override versioning targets.
+  -->
   <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.targets))\dir.targets" />
   <PropertyGroup>
     <!-- Overwrite the key that we are going to use for signing -->
