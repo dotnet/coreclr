@@ -128,7 +128,7 @@ namespace System
                 return Array.Empty<AdjustmentRule>();
             }
 
-            // The rules we use in Unix cares mostly about the start and end dates but doesn't fill the transition start and end info.
+            // The rules we use in Unix care mostly about the start and end dates but don't fill the transition start and end info.
             // as the rules now is public, we should fill it properly so the caller doesn't have to know how we use it internally
             // and can use it as it is used in Windows
 
@@ -138,9 +138,13 @@ namespace System
             {
                 var rule = _adjustmentRules[i];
                 var start = rule.DateStart.Kind == DateTimeKind.Utc ?
+                            // At the daylight start we didn't start the daylight saving yet then we convert to Local time
+                            // by adding the _baseUtcOffset to the UTC time
                             new DateTime(rule.DateStart.Ticks + _baseUtcOffset.Ticks, DateTimeKind.Unspecified) :
                             rule.DateStart;
                 var end = rule.DateEnd.Kind == DateTimeKind.Utc ?
+                            // At the daylight saving end, the UTC time is mapped to local time which is already shifted by the daylight delta
+                            // we calculate the local time by adding _baseUtcOffset + DaylightDelta to the UTC time
                             new DateTime(rule.DateEnd.Ticks + _baseUtcOffset.Ticks + rule.DaylightDelta.Ticks, DateTimeKind.Unspecified) :
                             rule.DateEnd;
 
