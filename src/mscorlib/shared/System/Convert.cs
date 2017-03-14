@@ -2762,7 +2762,7 @@ namespace System
 
             // Convert Base64 chars into bytes:
             Int32 actualResultLength;
-            fixed (Byte* decodedBytesPtr = &decodedBytes[0])
+            fixed (Byte* decodedBytesPtr = decodedBytes)
                 actualResultLength = FromBase64_Decode(inputPtr, inputLength, decodedBytesPtr, resultLength);
 
             // Note that actualResultLength can differ from resultLength if the caller is modifying the array
