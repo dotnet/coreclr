@@ -229,12 +229,12 @@ IF NOT DEFINED DoLink (
   )
 )
       ]]></BatchCLRTestLaunchCmds>
+      <ReflectionRootsXml>$(MSBuildProjectName).reflect.xml</ReflectionRootsXml>
       <BatchCLRTestLaunchCmds Condition="'$(CLRTestKind)' == 'BuildAndRun'"><![CDATA[
 
 set ExePath=$(InputAssemblyName)
 set LinkBin=__Link
 set Assemblies=-a System.Private.CoreLib
-set ReflectionRoots=
 
 IF defined DoLink ( 
     IF NOT EXIST !ILLINK! (
@@ -248,8 +248,8 @@ IF defined DoLink (
     REM Remove Native images, since the goal is to run from Linked binaries
     del /q /f *.ni.* 2> nul
 
-    REM Use hints for reflection roots, if provided in _reflect.xml
-    IF EXIST _reflect.xml set ReflectionRoots=-x _reflect.xml
+    REM Use hints for reflection roots, if provided in $(ReflectionRootsXml)
+    IF EXIST $(ReflectionRootsXml) set ReflectionRoots=-x $(ReflectionRootsXml)
 
     REM Include all .exe files in this directory as entry points (some tests had multiple .exe file modules)
     FOR /F "delims=" %%E IN ('dir /b *.exe *.dll') DO SET Assemblies=!Assemblies! -a %%~nE

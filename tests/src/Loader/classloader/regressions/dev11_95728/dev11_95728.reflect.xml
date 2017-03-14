@@ -1,0 +1,8 @@
+<linker>
+    <assembly fullname="dev11_95728">
+        <type fullname="*" required="true" />
+    </assembly>
+    <assembly fullname="System.Linq.Expressions">
+        <type fullname="*" required="true" />
+    </assembly>
+</linker>
