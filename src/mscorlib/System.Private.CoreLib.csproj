@@ -1014,12 +1014,11 @@
   </PropertyGroup>
   <PropertyGroup>
     <StrongNameSig>Silverlight</StrongNameSig>
-    <RootTargetsFile>$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.targets))\dir.targets</RootTargetsFile>
   </PropertyGroup>
   <Import Project="$(MSBuildThisFileDirectory)Tools\Versioning\GenerateVersionInfo.targets" />
   <!-- Import common targets: codeAnalysis, Microsoft.CSharp, sign, versioning, codeOptimizations, etc. -->
   <!-- Override versioning targets -->
-  <Import Project="$(RootTargetsFile)" Condition="Exists('$(RootTargetsFile)')" />
+  <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.targets))\dir.targets" />
   <PropertyGroup>
     <!-- Overwrite the key that we are going to use for signing -->
     <AssemblyOriginatorKeyFile>$(MSBuildThisFileDirectory)Tools\Signing\mscorlib.snk</AssemblyOriginatorKeyFile>
