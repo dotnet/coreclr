@@ -468,7 +468,7 @@ NESTED_END JIT_NewArr1OBJ_MP, _TEXT
 
 
 
-extern g_global_alloc_lock:qword
+extern g_global_alloc_lock:dword
 extern g_global_alloc_context:qword
 
 LEAF_ENTRY JIT_TrialAllocSFastSP, _TEXT
