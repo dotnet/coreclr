@@ -6762,8 +6762,14 @@ VOID MethodTableBuilder::ValidateInterfaceMethodConstraints()
             // If pTargetMT is null, this indicates that the target MethodDesc belongs
             // to the current type. Otherwise, the MethodDesc MUST be owned by a parent
             // of the type we're building.
-            BOOL              fTargetIsOwnedByParent = !pTargetMD->GetMethodTablePtr()->IsNull();
+            RelativeFixupPointer<PTR_MethodTable> *pParentMT = pTargetMD->GetMethodTablePtr();
 
+            BOOL              fTargetIsOwnedByParent = !pParentMT->IsNull();
+
+            // Skip if it is implemented by the interface as a default interface method
+            if (fTargetIsOwnedByParent && pTargetMD->GetMethodTable()->IsInterface())
+                continue;            
+            
             // If the method is owned by a parent, we need to use the parent's module,
             // and we must construct the substitution chain all the way up to the parent.
             const Substitution *pSubstTgt = NULL;
@@ -7661,6 +7667,21 @@ MethodTableBuilder::PlaceInterfaceMethods()
                 PlaceMethodFromParentEquivalentInterfaceIntoInterfaceSlot(itfSlotIt, pCurItfEntry, &rgInterfaceDispatchMapTypeIDs, dwCurInterface);
             }
 #endif
+
+            if (!fFoundMatchInBuildingClass && curItfSlot.Impl() == INVALID_SLOT_INDEX)
+            {
+                MethodDesc *pInterfaceMD = pCurItfMT->GetMethodDescForSlot(itfSlotIt->Decl().GetSlotIndex());
+                if (pInterfaceMD->GetRVA() != 0)
+                {
+                    DispatchMapTypeID dispatchMapTypeID =
+                        DispatchMapTypeID::InterfaceClassID(dwCurInterface);
+                    bmtVT->pDispatchMapBuilder->InsertMDMapping(
+                        dispatchMapTypeID,
+                        static_cast<UINT32>(itfSlotIt.CurrentIndex()),
+                        pInterfaceMD,
+                        FALSE);
+                }
+            }
         }
     }
 } // MethodTableBuilder::PlaceInterfaceMethods
