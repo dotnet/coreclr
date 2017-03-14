@@ -207,32 +207,11 @@ Exit /b 0
       </BatchCLRTestExecutionScriptArgument>
     </ItemGroup>
 
-    <PropertyGroup> 
-      <_CLRTestRunFile Condition="'$(CLRTestIsHosted)'=='true'">"%CORE_ROOT%\corerun.exe"</_CLRTestRunFile>
-      <BatchCLRTestLaunchCmds><![CDATA[
-IF NOT "%CLRCustomTestLauncher%"=="" (
-  set LAUNCHER=call %CLRCustomTestLauncher% %~dp0
-) ELSE (
-  set LAUNCHER=%_DebuggerFullPath% $(_CLRTestRunFile)
-)
-      ]]></BatchCLRTestLaunchCmds>
-      <BatchCLRTestLaunchCmds Condition=" '$(IlasmRoundTrip)'=='true' "><![CDATA[
-  $(BatchCLRTestLaunchCmds)
-IF NOT DEFINED DoLink ( 
-  ECHO %LAUNCHER% $(TargetAssemblyName) %CLRTestExecutionArguments% %Host_Args%
-  %LAUNCHER% $(TargetAssemblyName) %CLRTestExecutionArguments% %Host_Args%
+      <PropertyGroup>
+          <ReflectionRootsXml>$(MSBuildProjectName).reflect.xml</ReflectionRootsXml>
+          <BatchLinkerTestLaunchCmds><![CDATA[
+REM Linker commands
 
-  IF NOT "!ERRORLEVEL!"=="%CLRTestExpectedExitCode%" (
-    ECHO END EXECUTION OF IL{D}ASM BINARY - FAILED !ERRORLEVEL! vs %CLRTestExpectedExitCode%
-    ECHO FAILED
-    Exit /b 1
-  )
-)
-      ]]></BatchCLRTestLaunchCmds>
-      <ReflectionRootsXml>$(MSBuildProjectName).reflect.xml</ReflectionRootsXml>
-      <BatchCLRTestLaunchCmds Condition="'$(CLRTestKind)' == 'BuildAndRun'"><![CDATA[
-
-set ExePath=$(InputAssemblyName)
 set LinkBin=__Link
 set Assemblies=-a System.Private.CoreLib
 
@@ -278,13 +257,10 @@ IF defined DoLink (
     set ExePath=%LinkBin%\$(InputAssemblyName)
     set CORE_ROOT=%~dp0%LinkBin%
 )
-
-$(BatchCLRTestLaunchCmds)
-
-ECHO %LAUNCHER% %ExePath% %CLRTestExecutionArguments%
-%LAUNCHER% %ExePath% %CLRTestExecutionArguments%
-set CLRTestExitCode=!ERRORLEVEL!
-
+]]>
+          </BatchLinkerTestLaunchCmds>
+          <BatchLinkerTestCleanupCmds>
+              <![CDATA[
 REM Clean up the LinkBin directories after test execution.
 REM Otherwise, RunTests may run out of disk space.
 
@@ -292,8 +268,42 @@ if defined DoLink (
     if not defined KeepLinkedBinaries (
         IF EXIST %LinkBin% rmdir /s /q %LinkBin%
     )
+)              
+]]>
+          </BatchLinkerTestCleanupCmds>
+      </PropertyGroup>      
+      <PropertyGroup>      
+      <_CLRTestRunFile Condition="'$(CLRTestIsHosted)'=='true'">"%CORE_ROOT%\corerun.exe"</_CLRTestRunFile>
+      <BatchCLRTestLaunchCmds><![CDATA[
+IF NOT "%CLRCustomTestLauncher%"=="" (
+  set LAUNCHER=call %CLRCustomTestLauncher% %~dp0
+) ELSE (
+  set LAUNCHER=%_DebuggerFullPath% $(_CLRTestRunFile)
 )
-        
+      ]]></BatchCLRTestLaunchCmds>
+      <BatchCLRTestLaunchCmds Condition=" '$(IlasmRoundTrip)'=='true' "><![CDATA[
+  $(BatchCLRTestLaunchCmds)
+IF NOT DEFINED DoLink ( 
+  ECHO %LAUNCHER% $(TargetAssemblyName) %CLRTestExecutionArguments% %Host_Args%
+  %LAUNCHER% $(TargetAssemblyName) %CLRTestExecutionArguments% %Host_Args%
+
+  IF NOT "!ERRORLEVEL!"=="%CLRTestExpectedExitCode%" (
+    ECHO END EXECUTION OF IL{D}ASM BINARY - FAILED !ERRORLEVEL! vs %CLRTestExpectedExitCode%
+    ECHO FAILED
+    Exit /b 1
+  )
+)
+      ]]></BatchCLRTestLaunchCmds>
+      <BatchCLRTestLaunchCmds Condition="'$(CLRTestKind)' == 'BuildAndRun'">
+    <![CDATA[
+set ExePath=$(InputAssemblyName)
+$(BatchLinkerTestLaunchCmds)
+$(BatchCLRTestLaunchCmds)
+
+ECHO %LAUNCHER% %ExePath% %CLRTestExecutionArguments%
+%LAUNCHER% %ExePath% %CLRTestExecutionArguments%
+set CLRTestExitCode=!ERRORLEVEL!
+$(BatchLinkerTestCleanupCmds)
       ]]></BatchCLRTestLaunchCmds>
 
       <BatchCLRTestLaunchCmds Condition="'$(CLRTestKind)' == 'RunOnly'"><![CDATA[

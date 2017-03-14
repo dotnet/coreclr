@@ -3,6 +3,7 @@
         <type fullname="*" required="true" />
     </assembly>
     <assembly fullname="System.Linq.Expressions">
-        <type fullname="*" required="true" />
+     <!-- - Called by System.Linq.Expressions.Expression:CreateLambda --> 
+     <type fullname="System.Linq.Expressions.Expression`1" required="true" /> 
     </assembly>
 </linker>
