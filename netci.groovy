@@ -18,7 +18,7 @@ def static getOSGroup(def os) {
         'Ubuntu16.10': 'Linux',
         'Debian8.4':'Linux',
         'Fedora23':'Linux',
-        'OSX':'OSX',
+        'OSX10.12':'OSX',
         'Windows_NT':'Windows_NT',
         'FreeBSD':'FreeBSD',
         'CentOS7.1': 'Linux',
@@ -2560,7 +2560,17 @@ combinedScenarios.each { scenario ->
                                 def corefxFolder = Utilities.getFolderName('dotnet/corefx') + '/' + Utilities.getFolderName(branch)
 
                                 // Corefx components.  We now have full stack builds on all distros we test here, so we can copy straight from CoreFX jobs.
-                                def osJobName = (os == 'Ubuntu') ? 'ubuntu14.04' : os.toLowerCase()
+                                def osJobName
+                                if (os == 'Ubuntu') {
+                                    osJobName = 'ubuntu14.04'
+                                }
+                                else if (os == 'OSX') {
+                                    // Temporary until we move all of coreclr to 10.12
+                                    osJobName = 'osx10.12'
+                                }
+                                else {
+                                    osJobName = os.toLowerCase()
+                                }
                                 copyArtifacts("${corefxFolder}/${osJobName}_release") {
                                     includePatterns('bin/build.tar.gz')
                                     buildSelector {
