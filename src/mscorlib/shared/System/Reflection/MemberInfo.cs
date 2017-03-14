@@ -2,13 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-// 
-
-using System;
 using System.Collections.Generic;
-using System.Diagnostics.Contracts;
-using System.Runtime;
-using System.Runtime.InteropServices;
 
 namespace System.Reflection
 {
@@ -17,24 +11,9 @@ namespace System.Reflection
         protected MemberInfo() { }
 
         public abstract MemberTypes MemberType { get; }
-
         public abstract string Name { get; }
-
         public abstract Type DeclaringType { get; }
-
         public abstract Type ReflectedType { get; }
-
-        public virtual IEnumerable<CustomAttributeData> CustomAttributes => GetCustomAttributesData();
-
-        public abstract object[] GetCustomAttributes(bool inherit);
-
-        public abstract object[] GetCustomAttributes(Type attributeType, bool inherit);
-
-        public abstract bool IsDefined(Type attributeType, bool inherit);
-
-        public virtual IList<CustomAttributeData> GetCustomAttributesData() { throw NotImplemented.ByDesign; }
-
-        public virtual int MetadataToken { get { throw new InvalidOperationException(); } }
 
         public virtual Module Module
         {
@@ -50,6 +29,18 @@ namespace System.Reflection
                 throw NotImplemented.ByDesign;
             }
         }
+
+        public abstract bool IsDefined(Type attributeType, bool inherit);
+        public abstract object[] GetCustomAttributes(bool inherit);
+        public abstract object[] GetCustomAttributes(Type attributeType, bool inherit);
+
+        public virtual IEnumerable<CustomAttributeData> CustomAttributes => GetCustomAttributesData();
+        public virtual IList<CustomAttributeData> GetCustomAttributesData() { throw NotImplemented.ByDesign; }
+
+        public virtual int MetadataToken { get { throw new InvalidOperationException(); } }
+
+        public override bool Equals(object obj) => base.Equals(obj);
+        public override int GetHashCode() => base.GetHashCode();
 
         public static bool operator ==(MemberInfo left, MemberInfo right)
         {
@@ -80,9 +71,5 @@ namespace System.Reflection
         }
 
         public static bool operator !=(MemberInfo left, MemberInfo right) => !(left == right);
-
-        public override bool Equals(object obj) => base.Equals(obj);
-
-        public override int GetHashCode() => base.GetHashCode();
     }
 }
