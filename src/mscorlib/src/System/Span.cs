@@ -211,11 +211,11 @@ namespace System
         {
             if (RuntimeHelpers.IsReferenceOrContainsReferences<T>())
             {
-                SpanHelper.ClearWithReferences(ref Unsafe.As<T, IntPtr>(ref _pointer.Value), (nuint)(_length * (Unsafe.SizeOf<T>() / sizeof(nuint))));
+                SpanHelper.ClearWithReferences(ref Unsafe.As<T, IntPtr>(ref _pointer.Value), (nuint)_length * (nuint)(Unsafe.SizeOf<T>() / sizeof(nuint)));
             }
             else
             {
-                SpanHelper.ClearWithoutReferences(ref Unsafe.As<T, byte>(ref _pointer.Value), (nuint)(_length * Unsafe.SizeOf<T>()));
+                SpanHelper.ClearWithoutReferences(ref Unsafe.As<T, byte>(ref _pointer.Value), (nuint)_length * (nuint)Unsafe.SizeOf<T>());
             }
         }
 
@@ -224,47 +224,50 @@ namespace System
         /// </summary>
         public void Fill(T value)
         {
-            int length = _length;
-
-            if (length == 0)
-                return;
-
             if (Unsafe.SizeOf<T>() == 1)
             {
-                byte fill = Unsafe.As<T, byte>(ref value);
-                ref byte r = ref Unsafe.As<T, byte>(ref _pointer.Value);
-                Unsafe.InitBlockUnaligned(ref r, fill, (uint)length);
+                uint length = (uint)_length;
+                if (length == 0)
+                    return;
+
+                T tmp = value; // Avoid taking address of the "value" argument. It would regress performance of the loop below.
+                Unsafe.InitBlockUnaligned(ref Unsafe.As<T, byte>(ref _pointer.Value), Unsafe.As<T, byte>(ref tmp), length);
             }
             else
             {
+                // Do all math as nuint to avoid unnecessary 64->32->64 bit integer truncations
+                nuint length = (uint)_length;
+                if (length == 0)
+                    return;
+
                 ref T r = ref DangerousGetPinnableReference();
 
                 // TODO: Create block fill for value types of power of two sizes e.g. 2,4,8,16
 
-                // Simple loop unrolling
-                int i = 0;
-                for (; i < (length & ~7); i += 8)
+                nuint elementSize = (uint)Unsafe.SizeOf<T>();
+                nuint i = 0;
+                for (; i < (length & ~(nuint)7); i += 8)
                 {
-                    Unsafe.Add<T>(ref r, i + 0) = value;
-                    Unsafe.Add<T>(ref r, i + 1) = value;
-                    Unsafe.Add<T>(ref r, i + 2) = value;
-                    Unsafe.Add<T>(ref r, i + 3) = value;
-                    Unsafe.Add<T>(ref r, i + 4) = value;
-                    Unsafe.Add<T>(ref r, i + 5) = value;
-                    Unsafe.Add<T>(ref r, i + 6) = value;
-                    Unsafe.Add<T>(ref r, i + 7) = value;
+                    Unsafe.AddByteOffset<T>(ref r, (i + 0) * elementSize) = value;
+                    Unsafe.AddByteOffset<T>(ref r, (i + 1) * elementSize) = value;
+                    Unsafe.AddByteOffset<T>(ref r, (i + 2) * elementSize) = value;
+                    Unsafe.AddByteOffset<T>(ref r, (i + 3) * elementSize) = value;
+                    Unsafe.AddByteOffset<T>(ref r, (i + 4) * elementSize) = value;
+                    Unsafe.AddByteOffset<T>(ref r, (i + 5) * elementSize) = value;
+                    Unsafe.AddByteOffset<T>(ref r, (i + 6) * elementSize) = value;
+                    Unsafe.AddByteOffset<T>(ref r, (i + 7) * elementSize) = value;
                 }
-                if (i < (length & ~3))
+                if (i < (length & ~(nuint)3))
                 {
-                    Unsafe.Add<T>(ref r, i + 0) = value;
-                    Unsafe.Add<T>(ref r, i + 1) = value;
-                    Unsafe.Add<T>(ref r, i + 2) = value;
-                    Unsafe.Add<T>(ref r, i + 3) = value;
+                    Unsafe.AddByteOffset<T>(ref r, (i + 0) * elementSize) = value;
+                    Unsafe.AddByteOffset<T>(ref r, (i + 1) * elementSize) = value;
+                    Unsafe.AddByteOffset<T>(ref r, (i + 2) * elementSize) = value;
+                    Unsafe.AddByteOffset<T>(ref r, (i + 3) * elementSize) = value;
                     i += 4;
                 }
                 for (; i < length; i++)
                 {
-                    Unsafe.Add<T>(ref r, i) = value;
+                    Unsafe.AddByteOffset<T>(ref r, i * elementSize) = value;
                 }
             }
         }
@@ -426,6 +429,7 @@ namespace System
         /// <exception cref="System.ArgumentException">
         /// Thrown when <typeparamref name="T"/> contains pointers.
         /// </exception>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Span<byte> AsBytes<T>(this Span<T> source)
             where T : struct
         {
@@ -445,6 +449,7 @@ namespace System
         /// <exception cref="System.ArgumentException">
         /// Thrown when <typeparamref name="T"/> contains pointers.
         /// </exception>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static ReadOnlySpan<byte> AsBytes<T>(this ReadOnlySpan<T> source)
             where T : struct
         {
@@ -467,6 +472,7 @@ namespace System
         /// <exception cref="System.ArgumentException">
         /// Thrown when <typeparamref name="TFrom"/> or <typeparamref name="TTo"/> contains pointers.
         /// </exception>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Span<TTo> NonPortableCast<TFrom, TTo>(this Span<TFrom> source)
             where TFrom : struct
             where TTo : struct
@@ -492,6 +498,7 @@ namespace System
         /// <exception cref="System.ArgumentException">
         /// Thrown when <typeparamref name="TFrom"/> or <typeparamref name="TTo"/> contains pointers.
         /// </exception>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static ReadOnlySpan<TTo> NonPortableCast<TFrom, TTo>(this ReadOnlySpan<TFrom> source)
             where TFrom : struct
             where TTo : struct
@@ -569,38 +576,35 @@ namespace System
     {
         internal static unsafe void CopyTo<T>(ref T destination, ref T source, int elementsCount)
         {
-            if (elementsCount == 0)
-                return;
-
             if (Unsafe.AreSame(ref destination, ref source))
                 return;
 
+            if (elementsCount <= 1)
+            {
+                if (elementsCount == 1)
+                {
+                    destination = source;
+                }
+                return;
+            }
+
+            nuint byteCount = (nuint)elementsCount * (nuint)Unsafe.SizeOf<T>();
             if (!RuntimeHelpers.IsReferenceOrContainsReferences<T>())
             {
                 fixed (byte* pDestination = &Unsafe.As<T, byte>(ref destination))
                 {
                     fixed (byte* pSource = &Unsafe.As<T, byte>(ref source))
                     {
-#if BIT64
-                        Buffer.Memmove(pDestination, pSource, (ulong)elementsCount * (ulong)Unsafe.SizeOf<T>());
-#else
-                        Buffer.Memmove(pDestination, pSource, (uint)elementsCount * (uint)Unsafe.SizeOf<T>());
-#endif
+                        Buffer.Memmove(pDestination, pSource, byteCount);
                     }
                 }
             }
             else
             {
-                if (JitHelpers.ByRefLessThan(ref destination, ref source)) // copy forward
-                {
-                    for (int i = 0; i < elementsCount; i++)
-                        Unsafe.Add(ref destination, i) = Unsafe.Add(ref source, i);
-                }
-                else // copy backward to avoid overlapping issues
-                {
-                    for (int i = elementsCount - 1; i >= 0; i--)
-                        Unsafe.Add(ref destination, i) = Unsafe.Add(ref source, i);
-                }
+                RuntimeImports.RhBulkMoveWithWriteBarrier(
+                    ref Unsafe.As<T, byte>(ref destination),
+                    ref Unsafe.As<T, byte>(ref source),
+                    byteCount);
             }
         }
 
@@ -608,7 +612,13 @@ namespace System
         {
             if (byteLength == 0)
                 return;
-
+            
+#if AMD64
+            if (byteLength > 4096) goto PInvoke;
+            Unsafe.InitBlockUnaligned(ref b, 0, (uint)byteLength);
+            return;
+#endif // AMD64
+            // TODO: Optimize this method on X86 machine
             // Note: It's important that this switch handles lengths at least up to 22.
             // See notes below near the main loop for why.
 

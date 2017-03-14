@@ -742,7 +742,10 @@ void emitter::emitMarkStackLvl(unsigned stackLevel)
     emitCurStackLvl = emitCurIG->igStkLvl = stackLevel;
 
     if (emitMaxStackDepth < emitCurStackLvl)
+    {
+        JITDUMP("Upping emitMaxStackDepth from %d to %d\n", emitMaxStackDepth, emitCurStackLvl);
         emitMaxStackDepth = emitCurStackLvl;
+    }
 }
 #endif
 
@@ -1665,7 +1668,7 @@ inline UNATIVE_OFFSET emitter::emitInsSizeSV(code_t code, int var, int dsp)
 
             if (EBPbased)
             {
-#if defined(_TARGET_AMD64_) && !defined(PLATFORM_UNIX)
+#if defined(_TARGET_AMD64_) && !defined(UNIX_AMD64_ABI)
                 // If localloc is not used, then ebp chaining is done and hence
                 // offset of locals will be at negative offsets, Otherwise offsets
                 // will be positive.  In future, when RBP gets positioned in the
@@ -5137,7 +5140,10 @@ void emitter::emitAdjustStackDepthPushPop(instruction ins)
         emitCurStackLvl += emitCntStackDepth;
 
         if (emitMaxStackDepth < emitCurStackLvl)
+        {
+            JITDUMP("Upping emitMaxStackDepth from %d to %d\n", emitMaxStackDepth, emitCurStackLvl);
             emitMaxStackDepth = emitCurStackLvl;
+        }
     }
     else if (ins == INS_pop)
     {
@@ -5173,7 +5179,10 @@ void emitter::emitAdjustStackDepth(instruction ins, ssize_t val)
         emitCurStackLvl = newStackLvl.Value();
 
         if (emitMaxStackDepth < emitCurStackLvl)
+        {
+            JITDUMP("Upping emitMaxStackDepth from %d to %d\n", emitMaxStackDepth, emitCurStackLvl);
             emitMaxStackDepth = emitCurStackLvl;
+        }
     }
     else if (ins == INS_add)
     {

@@ -680,6 +680,147 @@ void Lowering::TreeNodeInfoInitPutArgStk(GenTreePutArgStk* argNode, fgArgTabEntr
 }
 
 //------------------------------------------------------------------------
+// TreeNodeInfoInitBlockStore: Set the NodeInfo for a block store.
+//
+// Arguments:
+//    blkNode       - The block store node of interest
+//
+// Return Value:
+//    None.
+void Lowering::TreeNodeInfoInitBlockStore(GenTreeBlk* blkNode)
+{
+    GenTree*    dstAddr  = blkNode->Addr();
+    unsigned    size     = blkNode->gtBlkSize;
+    GenTree*    source   = blkNode->Data();
+    LinearScan* l        = m_lsra;
+    Compiler*   compiler = comp;
+
+    // Sources are dest address and initVal or source.
+    // We may require an additional source or temp register for the size.
+    blkNode->gtLsraInfo.srcCount = 2;
+    blkNode->gtLsraInfo.dstCount = 0;
+    GenTreePtr srcAddrOrFill     = nullptr;
+    bool       isInitBlk         = blkNode->OperIsInitBlkOp();
+
+    if (!isInitBlk)
+    {
+        // CopyObj or CopyBlk
+        if (source->gtOper == GT_IND)
+        {
+            srcAddrOrFill = blkNode->Data()->gtGetOp1();
+            // We're effectively setting source as contained, but can't call MakeSrcContained, because the
+            // "inheritance" of the srcCount is to a child not a parent - it would "just work" but could be misleading.
+            // If srcAddr is already non-contained, we don't need to change it.
+            if (srcAddrOrFill->gtLsraInfo.getDstCount() == 0)
+            {
+                srcAddrOrFill->gtLsraInfo.setDstCount(1);
+                srcAddrOrFill->gtLsraInfo.setSrcCount(source->gtLsraInfo.srcCount);
+            }
+            m_lsra->clearOperandCounts(source);
+        }
+        else if (!source->IsMultiRegCall() && !source->OperIsSIMD())
+        {
+            assert(source->IsLocal());
+            MakeSrcContained(blkNode, source);
+        }
+    }
+
+    if (isInitBlk)
+    {
+        GenTreePtr initVal = source;
+        if (initVal->OperIsInitVal())
+        {
+            initVal = initVal->gtGetOp1();
+        }
+        srcAddrOrFill = initVal;
+
+        if (blkNode->gtBlkOpKind == GenTreeBlk::BlkOpKindUnroll)
+        {
+            // TODO-ARM-CQ: Currently we generate a helper call for every
+            // initblk we encounter.  Later on we should implement loop unrolling
+            // code sequences to improve CQ.
+            // For reference see the code in lsraxarch.cpp.
+            NYI_ARM("initblk loop unrolling is currently not implemented.");
+        }
+        else
+        {
+            assert(blkNode->gtBlkOpKind == GenTreeBlk::BlkOpKindHelper);
+            // The helper follows the regular ABI.
+            dstAddr->gtLsraInfo.setSrcCandidates(l, RBM_ARG_0);
+            initVal->gtLsraInfo.setSrcCandidates(l, RBM_ARG_1);
+            if (size != 0)
+            {
+                // Reserve a temp register for the block size argument.
+                blkNode->gtLsraInfo.setInternalCandidates(l, RBM_ARG_2);
+                blkNode->gtLsraInfo.internalIntCount = 1;
+            }
+            else
+            {
+                // The block size argument is a third argument to GT_STORE_DYN_BLK
+                noway_assert(blkNode->gtOper == GT_STORE_DYN_BLK);
+                blkNode->gtLsraInfo.setSrcCount(3);
+                GenTree* sizeNode = blkNode->AsDynBlk()->gtDynamicSize;
+                sizeNode->gtLsraInfo.setSrcCandidates(l, RBM_ARG_2);
+            }
+        }
+    }
+    else
+    {
+        // CopyObj or CopyBlk
+        // Sources are src and dest and size if not constant.
+        if (blkNode->OperGet() == GT_STORE_OBJ)
+        {
+            // CopyObj
+            NYI_ARM("GT_STORE_OBJ is needed of write barriers implementation");
+        }
+        else
+        {
+            // CopyBlk
+            short     internalIntCount      = 0;
+            regMaskTP internalIntCandidates = RBM_NONE;
+
+            if (blkNode->gtBlkOpKind == GenTreeBlk::BlkOpKindUnroll)
+            {
+                // TODO-ARM-CQ: cpblk loop unrolling is currently not implemented.
+                // In case of a CpBlk with a constant size and less than CPBLK_UNROLL_LIMIT size
+                // we should unroll the loop to improve CQ.
+                // For reference see the code in lsraxarch.cpp.
+                NYI_ARM("cpblk loop unrolling is currently not implemented.");
+            }
+            else
+            {
+                assert(blkNode->gtBlkOpKind == GenTreeBlk::BlkOpKindHelper);
+                dstAddr->gtLsraInfo.setSrcCandidates(l, RBM_ARG_0);
+                // The srcAddr goes in arg1.
+                if (srcAddrOrFill != nullptr)
+                {
+                    srcAddrOrFill->gtLsraInfo.setSrcCandidates(l, RBM_ARG_1);
+                }
+                if (size != 0)
+                {
+                    // Reserve a temp register for the block size argument.
+                    internalIntCandidates |= RBM_ARG_2;
+                    internalIntCount++;
+                }
+                else
+                {
+                    // The block size argument is a third argument to GT_STORE_DYN_BLK
+                    noway_assert(blkNode->gtOper == GT_STORE_DYN_BLK);
+                    blkNode->gtLsraInfo.setSrcCount(3);
+                    GenTree* blockSize = blkNode->AsDynBlk()->gtDynamicSize;
+                    blockSize->gtLsraInfo.setSrcCandidates(l, RBM_ARG_2);
+                }
+            }
+            if (internalIntCount != 0)
+            {
+                blkNode->gtLsraInfo.internalIntCount = internalIntCount;
+                blkNode->gtLsraInfo.setInternalCandidates(l, internalIntCandidates);
+            }
+        }
+    }
+}
+
+//------------------------------------------------------------------------
 // TreeNodeInfoInit: Set the register requirements for RA.
 //
 // Notes:
@@ -845,6 +986,10 @@ void Lowering::TreeNodeInfoInit(GenTree* tree)
             info->dstCount = 0;
             break;
 
+        case GT_ADD_LO:
+        case GT_ADD_HI:
+        case GT_SUB_LO:
+        case GT_SUB_HI:
         case GT_ADD:
         case GT_SUB:
             if (varTypeIsFloating(tree->TypeGet()))
@@ -963,9 +1108,51 @@ void Lowering::TreeNodeInfoInit(GenTree* tree)
             break;
 
         case GT_ARR_BOUNDS_CHECK:
-            // Consumes arrLen and index. Has no result.
+#ifdef FEATURE_SIMD
+        case GT_SIMD_CHK:
+#endif // FEATURE_SIMD
+        {
+            // Consumes arrLen & index - has no result
             info->srcCount = 2;
             info->dstCount = 0;
+        }
+        break;
+
+        case GT_ARR_ELEM:
+            // These must have been lowered to GT_ARR_INDEX
+            noway_assert(!"We should never see a GT_ARR_ELEM in lowering");
+            info->srcCount = 0;
+            info->dstCount = 0;
+            break;
+
+        case GT_ARR_INDEX:
+            info->srcCount = 2;
+            info->dstCount = 1;
+
+            // We need one internal register when generating code for GT_ARR_INDEX, however the
+            // register allocator always may just give us the same one as it gives us for the 'dst'
+            // as a workaround we will just ask for two internal registers.
+            //
+            info->internalIntCount = 2;
+
+            // For GT_ARR_INDEX, the lifetime of the arrObj must be extended because it is actually used multiple
+            // times while the result is being computed.
+            tree->AsArrIndex()->ArrObj()->gtLsraInfo.isDelayFree = true;
+            info->hasDelayFreeSrc                                = true;
+            break;
+
+        case GT_ARR_OFFSET:
+            // This consumes the offset, if any, the arrObj and the effective index,
+            // and produces the flattened offset for this dimension.
+            info->srcCount         = 3;
+            info->dstCount         = 1;
+            info->internalIntCount = 1;
+
+            // we don't want to generate code for this
+            if (tree->gtArrOffs.gtOffset->IsIntegralConst(0))
+            {
+                MakeSrcContained(tree, tree->gtArrOffs.gtOffset);
+            }
             break;
 
         case GT_LEA:
@@ -1043,6 +1230,13 @@ void Lowering::TreeNodeInfoInit(GenTree* tree)
 
         case GT_CALL:
             TreeNodeInfoInitCall(tree->AsCall());
+            break;
+
+        case GT_STORE_BLK:
+        case GT_STORE_OBJ:
+        case GT_STORE_DYN_BLK:
+            LowerBlockStore(tree->AsBlk());
+            TreeNodeInfoInitBlockStore(tree->AsBlk());
             break;
 
         case GT_STOREIND:
