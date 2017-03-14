@@ -18427,16 +18427,9 @@ void Compiler::impDevirtualizeCall(GenTreeCall*            call,
     {
         assert(call->IsVirtualStub());
         assert(opts.IsReadyToRun());
-        JITDUMP("--- [R2R] base method not virtual, sorry\n");
+        JITDUMP("\nimpDevirtualizeCall: [R2R] base method not virtual, sorry\n");
         return;
     }
-
-    // Fetch information about the class that introduced the virtual method.
-    CORINFO_CLASS_HANDLE baseClass        = info.compCompHnd->getMethodClass(baseMethod);
-    const DWORD          baseClassAttribs = info.compCompHnd->getClassAttribs(baseClass);
-
-    // Is the call an interface call?
-    const bool isInterface = (baseClassAttribs & CORINFO_FLG_INTERFACE) != 0;
 
     // See what we know about the type of 'this' in the call.
     bool                 isExact      = false;
@@ -18446,11 +18439,16 @@ void Compiler::impDevirtualizeCall(GenTreeCall*            call,
     // Bail if we know nothing.
     if (objClass == nullptr)
     {
-        JITDUMP("impDevirtualizeCall: no type available (op=%s)\n", GenTree::OpName(thisObj->OperGet()));
+        JITDUMP("\nimpDevirtualizeCall: no type available (op=%s)\n", GenTree::OpName(thisObj->OperGet()));
         return;
     }
 
-    JITDUMP("impDevirtualizeCall: type available, attempting devirt\n");
+    // Fetch information about the class that introduced the virtual method.
+    CORINFO_CLASS_HANDLE baseClass        = info.compCompHnd->getMethodClass(baseMethod);
+    const DWORD          baseClassAttribs = info.compCompHnd->getClassAttribs(baseClass);
+
+    // Is the call an interface call?
+    const bool isInterface = (baseClassAttribs & CORINFO_FLG_INTERFACE) != 0;
 
     // If the objClass is sealed (final), then we may be able to devirtualize.
     const DWORD objClassAttribs = info.compCompHnd->getClassAttribs(objClass);
@@ -18475,8 +18473,7 @@ void Compiler::impDevirtualizeCall(GenTreeCall*            call,
             printf("\nimpDevirtualizeCall: Trying to devirtualize %s call:\n"
                    "    class for 'this' is %s%s (attrib %08x)\n"
                    "    base method is %s::%s\n",
-                   callKind, info.compFullName, objClassName, objClassNote, objClassAttribs, baseClassName,
-                   baseMethodName);
+                   callKind, objClassName, objClassNote, objClassAttribs, baseClassName, baseMethodName);
         }
     }
 #endif // defined(DEBUG)

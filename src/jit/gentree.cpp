@@ -16347,7 +16347,7 @@ CORINFO_CLASS_HANDLE Compiler::gtGetStructHandle(GenTree* tree)
 //        otherwise the class handle.
 //    isExact set true if tree type is known to be exactly the handle type,
 //        otherwise actual type may be a subtype.
-//    isNonNull set truee if tree value is known not to be null,
+//    isNonNull set true if tree value is known not to be null,
 //        otherwise a null value is possible.
 
 CORINFO_CLASS_HANDLE Compiler::gtGetClassHandle(GenTreePtr tree, bool* isExact, bool* isNonNull)
