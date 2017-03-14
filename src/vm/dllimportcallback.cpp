@@ -1378,7 +1378,6 @@ VOID UMThunkMarshInfo::RunTimeInit()
 
 #if defined(_TARGET_X86_)
     MetaSig sig(pMD);
-    ArgIterator argit(&sig);
     int numRegistersUsed = 0;
     m_ecxArgOffset = -1;
     m_edxArgOffset = -1;
@@ -1402,14 +1401,14 @@ VOID UMThunkMarshInfo::RunTimeInit()
             offs += StackElemSize(cbSize);
         }
     }
+    m_cbActualArgSize = (pStubMD != NULL) ? pStubMD->AsDynamicMethodDesc()->GetNativeStackArgSize() : offs;
+
     PInvokeStaticSigInfo sigInfo;
     if (pMD != NULL)
         new (&sigInfo) PInvokeStaticSigInfo(pMD);
     else
         new (&sigInfo) PInvokeStaticSigInfo(GetSignature(), GetModule());
 
-    m_cbActualArgSize = (pStubMD != NULL) ? pStubMD->AsDynamicMethodDesc()->GetNativeStackArgSize()
-                                          : (pMD->SizeOfArgStack() + numRegistersUsed * STACK_ELEM_SIZE);
     if (sigInfo.GetCallConv() == pmCallConvCdecl)
     {
         // caller pop
@@ -1428,7 +1427,6 @@ VOID UMThunkMarshInfo::RunTimeInit()
         (pStubMD != NULL) ? pStubMD->AsDynamicMethodDesc()->GetNativeStackArgSize() : pMD->SizeOfArgStack();
 
 #endif // _TARGET_X86_
-
 
 #endif // _TARGET_X86_ && !FEATURE_STUBS_AS_IL
 
