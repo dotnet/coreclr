@@ -12,43 +12,27 @@ using System.Runtime.InteropServices;
 
 namespace System.Reflection
 {
-    [Serializable]
-    public abstract class MemberInfo : ICustomAttributeProvider
+    public abstract partial class MemberInfo : ICustomAttributeProvider
     {
-        #region Constructor
         protected MemberInfo() { }
-        #endregion
 
-        #region Internal Methods
-        internal virtual bool CacheEquals(object o) { throw new NotImplementedException(); }
-        #endregion
-
-        #region Public Abstract\Virtual Members
         public abstract MemberTypes MemberType { get; }
 
-        public abstract String Name { get; }
+        public abstract string Name { get; }
 
         public abstract Type DeclaringType { get; }
 
         public abstract Type ReflectedType { get; }
 
-        public virtual IEnumerable<CustomAttributeData> CustomAttributes
-        {
-            get
-            {
-                return GetCustomAttributesData();
-            }
-        }
-        public abstract Object[] GetCustomAttributes(bool inherit);
+        public virtual IEnumerable<CustomAttributeData> CustomAttributes => GetCustomAttributesData();
 
-        public abstract Object[] GetCustomAttributes(Type attributeType, bool inherit);
+        public abstract object[] GetCustomAttributes(bool inherit);
+
+        public abstract object[] GetCustomAttributes(Type attributeType, bool inherit);
 
         public abstract bool IsDefined(Type attributeType, bool inherit);
 
-        public virtual IList<CustomAttributeData> GetCustomAttributesData()
-        {
-            throw new NotImplementedException();
-        }
+        public virtual IList<CustomAttributeData> GetCustomAttributesData() { throw NotImplemented.ByDesign; }
 
         public virtual int MetadataToken { get { throw new InvalidOperationException(); } }
 
@@ -56,20 +40,20 @@ namespace System.Reflection
         {
             get
             {
-                if (this is Type)
-                    return ((Type)this).Module;
+                // This check is necessary because for some reason, Type adds a new "Module" property that hides the inherited one instead 
+                // of overriding.
 
-                throw new NotImplementedException();
+                Type type = this as Type;
+                if (type != null)
+                    return type.Module;
+
+                throw NotImplemented.ByDesign;
             }
         }
 
-
-
-        #endregion
-
         public static bool operator ==(MemberInfo left, MemberInfo right)
         {
-            if (ReferenceEquals(left, right))
+            if (object.ReferenceEquals(left, right))
                 return true;
 
             if ((object)left == null || (object)right == null)
@@ -95,19 +79,10 @@ namespace System.Reflection
             return false;
         }
 
-        public static bool operator !=(MemberInfo left, MemberInfo right)
-        {
-            return !(left == right);
-        }
+        public static bool operator !=(MemberInfo left, MemberInfo right) => !(left == right);
 
-        public override bool Equals(object obj)
-        {
-            return base.Equals(obj);
-        }
+        public override bool Equals(object obj) => base.Equals(obj);
 
-        public override int GetHashCode()
-        {
-            return base.GetHashCode();
-        }
+        public override int GetHashCode() => base.GetHashCode();
     }
 }
