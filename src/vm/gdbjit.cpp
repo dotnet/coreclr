@@ -530,7 +530,7 @@ GetDebugInfoFromPDB(MethodDesc* MethodDescPtr, SymbolsInfo** symInfo, unsigned i
     if (*symInfo == nullptr)
         return E_FAIL;
     locals.size = methodDebugInfo.localsSize;
-    locals.localsName = new (nothrow) char *[locals.size];
+    locals.localsName = new (nothrow) NewArrayHolder<char>[locals.size];
     if (locals.localsName == nullptr)
         return E_FAIL;
     locals.localsScope = new (nothrow) LocalsInfo::Scope [locals.size];
@@ -1999,13 +1999,6 @@ void NotifyGdb::MethodCompiled(MethodDesc* MethodDescPtr)
         method[i]->lines = nullptr;
         method[i]->nlines = 0;
     }
-
-    for (int i = 0; i < locals.size; i++)
-    {
-        delete[] locals.localsName[i];
-    }
-    delete[] locals.localsName;
-    delete[] locals.localsScope;
 
     /* Build .debug_pubname section */
     if (!BuildDebugPub(dbgPubname, methodName, dbgInfo.MemSize, 0x28))

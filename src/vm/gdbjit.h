@@ -133,8 +133,8 @@ public:
         int ilEndOffset;
     };
     int size;
-    char** localsName;
-    Scope *localsScope;
+    NewArrayHolder< NewArrayHolder<char> > localsName;
+    NewArrayHolder<Scope> localsScope;
     ULONG32 countVars;
     ICorDebugInfo::NativeVarInfo *pVars;
 };
