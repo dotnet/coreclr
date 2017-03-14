@@ -128,8 +128,8 @@ namespace System
                 return Array.Empty<AdjustmentRule>();
             }
 
-            // The rules we use in Unix cares mostly about the start and end dates but doesn�t fill the transition start and end info.
-            // as the rules now is public, we should fill it properly so the caller doesn�t have to know how we use it internally
+            // The rules we use in Unix cares mostly about the start and end dates but doesn't fill the transition start and end info.
+            // as the rules now is public, we should fill it properly so the caller doesn't have to know how we use it internally
             // and can use it as it is used in Windows
 
             AdjustmentRule[] rules = new AdjustmentRule[_adjustmentRules.Length];
