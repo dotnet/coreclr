@@ -368,6 +368,8 @@ public:
     uintptr_t m_high_pc;
 };
 
+struct Elf_Symbol;
+
 class NotifyGdb
 {
 public:
@@ -450,9 +452,11 @@ private:
 
     static int GetSectionIndex(const char *sectName);
     static bool BuildELFHeader(MemBuf& buf);
-    static bool BuildSectionTables(MemBuf& sectBuf, MemBuf& strBuf, FunctionMemberPtrArrayHolder &method);
-    static bool BuildSymbolTableSection(MemBuf& buf, PCODE addr, TADDR codeSize, FunctionMemberPtrArrayHolder &method);
-    static bool BuildStringTableSection(MemBuf& strTab);
+    static bool BuildSectionTables(MemBuf& sectBuf, MemBuf& strBuf, FunctionMemberPtrArrayHolder &method,
+                                   int SymbolCount);
+    static bool BuildSymbolTableSection(MemBuf& buf, PCODE addr, TADDR codeSize, FunctionMemberPtrArrayHolder &method,
+                                        NewArrayHolder<Elf_Symbol> &SymbolNames, int SymbolCount);
+    static bool BuildStringTableSection(MemBuf& strTab, NewArrayHolder<Elf_Symbol> &SymbolNames, int SymbolCount);
     static bool BuildDebugStrings(MemBuf& buf, PTK_TypeInfoMap pTypeMap, FunctionMemberPtrArrayHolder &method);
     static bool BuildDebugAbbrev(MemBuf& buf);
     static bool BuildDebugInfo(MemBuf& buf, PTK_TypeInfoMap pTypeMap, FunctionMemberPtrArrayHolder &method);
@@ -465,7 +469,8 @@ private:
     static void IssueSimpleCommand(char*& ptr, uint8_t command);
     static void IssueParamCommand(char*& ptr, uint8_t command, char* param, int param_len);
     static void SplitPathname(const char* path, const char*& pathName, const char*& fileName);
-    static bool CollectCalledMethods(CalledMethod* pCM, TADDR nativeCode, FunctionMemberPtrArrayHolder &method);
+    static bool CollectCalledMethods(CalledMethod* pCM, TADDR nativeCode, FunctionMemberPtrArrayHolder &method,
+                                     NewArrayHolder<Elf_Symbol> &SymbolNames, int &SymbolCount);
 #ifdef _DEBUG
     static void DumpElf(const char* methodName, const MemBuf& buf);
 #endif
