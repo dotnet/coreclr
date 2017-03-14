@@ -251,10 +251,12 @@ public:
     void DumpDebugInfo(char* ptr, int& offset) override;
 };
 
+class FunctionMemberPtrArrayHolder;
+
 class ClassTypeInfo: public TypeInfoBase
 {
 public:
-    ClassTypeInfo(TypeHandle typeHandle, int num_members);
+    ClassTypeInfo(TypeHandle typeHandle, int num_members, FunctionMemberPtrArrayHolder &method);
     ~ClassTypeInfo();
 
     void DumpStrings(char* ptr, int& offset) override;
@@ -263,6 +265,7 @@ public:
     int m_num_members;
     TypeMember* members;
     TypeInfoBase* m_parent;
+    FunctionMemberPtrArrayHolder &m_method;
 };
 
 class TypeMember: public DwarfDumpable
@@ -447,12 +450,12 @@ private:
 
     static int GetSectionIndex(const char *sectName);
     static bool BuildELFHeader(MemBuf& buf);
-    static bool BuildSectionTables(MemBuf& sectBuf, MemBuf& strBuf);
-    static bool BuildSymbolTableSection(MemBuf& buf, PCODE addr, TADDR codeSize);
+    static bool BuildSectionTables(MemBuf& sectBuf, MemBuf& strBuf, FunctionMemberPtrArrayHolder &method);
+    static bool BuildSymbolTableSection(MemBuf& buf, PCODE addr, TADDR codeSize, FunctionMemberPtrArrayHolder &method);
     static bool BuildStringTableSection(MemBuf& strTab);
-    static bool BuildDebugStrings(MemBuf& buf, PTK_TypeInfoMap pTypeMap);
+    static bool BuildDebugStrings(MemBuf& buf, PTK_TypeInfoMap pTypeMap, FunctionMemberPtrArrayHolder &method);
     static bool BuildDebugAbbrev(MemBuf& buf);
-    static bool BuildDebugInfo(MemBuf& buf, PTK_TypeInfoMap pTypeMap);
+    static bool BuildDebugInfo(MemBuf& buf, PTK_TypeInfoMap pTypeMap, FunctionMemberPtrArrayHolder &method);
     static bool BuildDebugPub(MemBuf& buf, const char* name, uint32_t size, uint32_t dieOffset);
     static bool BuildLineTable(MemBuf& buf, PCODE startAddr, TADDR codeSize, SymbolsInfo* lines, unsigned nlines);
     static bool BuildFileTable(MemBuf& buf, SymbolsInfo* lines, unsigned nlines);
@@ -462,7 +465,7 @@ private:
     static void IssueSimpleCommand(char*& ptr, uint8_t command);
     static void IssueParamCommand(char*& ptr, uint8_t command, char* param, int param_len);
     static void SplitPathname(const char* path, const char*& pathName, const char*& fileName);
-    static bool CollectCalledMethods(CalledMethod* pCM, TADDR nativeCode);
+    static bool CollectCalledMethods(CalledMethod* pCM, TADDR nativeCode, FunctionMemberPtrArrayHolder &method);
 #ifdef _DEBUG
     static void DumpElf(const char* methodName, const MemBuf& buf);
 #endif
@@ -513,7 +516,8 @@ public:
     void DumpTryCatchDebugInfo(char* ptr, int& offset);
     HRESULT GetLocalsDebugInfo(NotifyGdb::PTK_TypeInfoMap pTypeMap,
                            LocalsInfo& locals,
-                           int startNativeOffset);
+                           int startNativeOffset,
+                           FunctionMemberPtrArrayHolder &method);
     BOOL IsDumped()
     {
         return dumped;
