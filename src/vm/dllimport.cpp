@@ -3685,7 +3685,12 @@ static void CreateNDirectStubWorker(StubState*         pss,
         // The return structure secret arg comes first, however byvalue return is processed at
         // the end because it could be the HRESULT-swapped argument which always comes last.
         fMarshalReturnValueFirst = HasRetBuffArg(&msig);
-#endif
+
+#ifdef UNIX_X86_ABI
+        fMarshalReturnValueFirst |= HasRetBuffArgUnmanagedFixup(&msig);
+#endif // UNIX_X86_ABI
+
+#endif // defined(_TARGET_X86_) || defined(_TARGET_ARM_)
 
     }
     

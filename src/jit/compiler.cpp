@@ -1007,6 +1007,7 @@ var_types Compiler::getReturnTypeForStruct(CORINFO_CLASS_HANDLE clsHnd,
         // and also examine the clsHnd to see if it is an HFA of count one
         useType = getPrimitiveTypeForStruct(structSize, clsHnd);
     }
+
 #endif // FEATURE_UNIX_AMD64_STRUCT_PASSING
 
 #ifdef _TARGET_64BIT_

@@ -1415,11 +1415,8 @@ void ArgIteratorTemplate<ARGITERATOR_BASE>::ComputeReturnFlags()
             }
 #endif
 
-#ifndef UNIX_X86_ABI
             if  (size <= ENREGISTERED_RETURNTYPE_INTEGER_MAXSIZE)
                 break;
-#endif
-
 #endif // UNIX_AMD64_ABI && FEATURE_UNIX_AMD64_STRUCT_PASSING
         }
 #endif // ENREGISTERED_RETURNTYPE_INTEGER_MAXSIZE
@@ -1703,6 +1700,17 @@ inline BOOL HasRetBuffArg(MetaSig * pSig)
     ArgIterator argit(pSig);
     return argit.HasRetBuffArg();
 }
+
+#ifdef UNIX_X86_ABI
+inline BOOL HasRetBuffArgUnmanagedFixup(MetaSig * pSig)
+{
+    WRAPPER_NO_CONTRACT;
+    CorElementType type = pSig->GetReturnTypeNormalized();
+
+    // For UNIX_X86_ABI and unmanaged function, we always need RetBuf if the return type is VALUETYPE
+    return type == ELEMENT_TYPE_VALUETYPE;
+}
+#endif
 
 inline BOOL IsRetBuffPassedAsFirstArg()
 {
