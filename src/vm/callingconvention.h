@@ -1702,12 +1702,12 @@ inline BOOL HasRetBuffArg(MetaSig * pSig)
 }
 
 #ifdef UNIX_X86_ABI
+// For UNIX_X86_ABI and unmanaged function, we always need RetBuf if the return type is VALUETYPE
 inline BOOL HasRetBuffArgUnmanagedFixup(MetaSig * pSig)
 {
     WRAPPER_NO_CONTRACT;
-    CorElementType type = pSig->GetReturnTypeNormalized();
-
-    // For UNIX_X86_ABI and unmanaged function, we always need RetBuf if the return type is VALUETYPE
+    // We cannot just pSig->GetReturnType() here since it will return ELEMENT_TYPE_VALUETYPE for enums
+    CorElementType type = pSig->GetRetTypeHandleThrowing().GetVerifierCorElementType();
     return type == ELEMENT_TYPE_VALUETYPE;
 }
 #endif
