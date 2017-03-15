@@ -18,7 +18,7 @@ def static getOSGroup(def os) {
         'Ubuntu16.10': 'Linux',
         'Debian8.4':'Linux',
         'Fedora23':'Linux',
-        'OSX10.12':'OSX10.12',
+        'OSX10.12':'OSX',
         'Windows_NT':'Windows_NT',
         'FreeBSD':'FreeBSD',
         'CentOS7.1': 'Linux',
