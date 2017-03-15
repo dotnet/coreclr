@@ -58,6 +58,8 @@ namespace System.Reflection
 
         public virtual bool IsGenericMethod => false;
 
+        public virtual bool IsConstructedGenericMethod => IsGenericMethod && !IsGenericMethodDefinition;
+
         public virtual bool IsSecurityCritical { get { throw NotImplemented.ByDesign; } }
 
         public virtual bool IsSecuritySafeCritical { get { throw NotImplemented.ByDesign; } }
