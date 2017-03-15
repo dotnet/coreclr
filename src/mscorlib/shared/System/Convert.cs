@@ -265,49 +265,49 @@ namespace System
             }
             Contract.EndContractBlock();
 
-            if (value.GetType() == targetType)
+            if (ReferenceEquals(value.GetType(), targetType))
             {
                 return value;
             }
 
-            if (targetType == ConvertTypes[(int)TypeCode.Boolean])
+            if (ReferenceEquals(targetType, ConvertTypes[(int)TypeCode.Boolean]))
                 return value.ToBoolean(provider);
-            if (targetType == ConvertTypes[(int)TypeCode.Char])
+            if (ReferenceEquals(targetType, ConvertTypes[(int)TypeCode.Char]))
                 return value.ToChar(provider);
-            if (targetType == ConvertTypes[(int)TypeCode.SByte])
+            if (ReferenceEquals(targetType, ConvertTypes[(int)TypeCode.SByte]))
                 return value.ToSByte(provider);
-            if (targetType == ConvertTypes[(int)TypeCode.Byte])
+            if (ReferenceEquals(targetType, ConvertTypes[(int)TypeCode.Byte]))
                 return value.ToByte(provider);
-            if (targetType == ConvertTypes[(int)TypeCode.Int16])
+            if (ReferenceEquals(targetType, ConvertTypes[(int)TypeCode.Int16]))
                 return value.ToInt16(provider);
-            if (targetType == ConvertTypes[(int)TypeCode.UInt16])
+            if (ReferenceEquals(targetType, ConvertTypes[(int)TypeCode.UInt16]))
                 return value.ToUInt16(provider);
-            if (targetType == ConvertTypes[(int)TypeCode.Int32])
+            if (ReferenceEquals(targetType, ConvertTypes[(int)TypeCode.Int32]))
                 return value.ToInt32(provider);
-            if (targetType == ConvertTypes[(int)TypeCode.UInt32])
+            if (ReferenceEquals(targetType, ConvertTypes[(int)TypeCode.UInt32]))
                 return value.ToUInt32(provider);
-            if (targetType == ConvertTypes[(int)TypeCode.Int64])
+            if (ReferenceEquals(targetType, ConvertTypes[(int)TypeCode.Int64]))
                 return value.ToInt64(provider);
-            if (targetType == ConvertTypes[(int)TypeCode.UInt64])
+            if (ReferenceEquals(targetType, ConvertTypes[(int)TypeCode.UInt64]))
                 return value.ToUInt64(provider);
-            if (targetType == ConvertTypes[(int)TypeCode.Single])
+            if (ReferenceEquals(targetType, ConvertTypes[(int)TypeCode.Single]))
                 return value.ToSingle(provider);
-            if (targetType == ConvertTypes[(int)TypeCode.Double])
+            if (ReferenceEquals(targetType, ConvertTypes[(int)TypeCode.Double]))
                 return value.ToDouble(provider);
-            if (targetType == ConvertTypes[(int)TypeCode.Decimal])
+            if (ReferenceEquals(targetType, ConvertTypes[(int)TypeCode.Decimal]))
                 return value.ToDecimal(provider);
-            if (targetType == ConvertTypes[(int)TypeCode.DateTime])
+            if (ReferenceEquals(targetType, ConvertTypes[(int)TypeCode.DateTime]))
                 return value.ToDateTime(provider);
-            if (targetType == ConvertTypes[(int)TypeCode.String])
+            if (ReferenceEquals(targetType, ConvertTypes[(int)TypeCode.String]))
                 return value.ToString(provider);
-            if (targetType == ConvertTypes[(int)TypeCode.Object])
+            if (ReferenceEquals(targetType, ConvertTypes[(int)TypeCode.Object]))
                 return (Object)value;
             //  Need to special case Enum because typecode will be underlying type, e.g. Int32
-            if (targetType == EnumType)
+            if (ReferenceEquals(targetType, EnumType))
                 return (Enum)value;
-            if (targetType == ConvertTypes[(int)TypeCode.DBNull])
+            if (ReferenceEquals(targetType, ConvertTypes[(int)TypeCode.DBNull]))
                 throw new InvalidCastException(SR.InvalidCast_DBNull);
-            if (targetType == ConvertTypes[(int)TypeCode.Empty])
+            if (ReferenceEquals(targetType, ConvertTypes[(int)TypeCode.Empty]))
                 throw new InvalidCastException(SR.InvalidCast_Empty);
 
             throw new InvalidCastException(string.Format(SR.InvalidCast_FromTo, value.GetType().FullName, targetType.FullName));
@@ -320,7 +320,7 @@ namespace System
 
         public static Object ChangeType(Object value, Type conversionType, IFormatProvider provider)
         {
-            if (conversionType == null)
+            if (ReferenceEquals(conversionType, null))
             {
                 throw new ArgumentNullException(nameof(conversionType));
             }
@@ -345,37 +345,37 @@ namespace System
                 throw new InvalidCastException(SR.InvalidCast_IConvertible);
             }
 
-            if (conversionType == ConvertTypes[(int)TypeCode.Boolean])
+            if (ReferenceEquals(conversionType, ConvertTypes[(int)TypeCode.Boolean]))
                 return ic.ToBoolean(provider);
-            if (conversionType == ConvertTypes[(int)TypeCode.Char])
+            if (ReferenceEquals(conversionType, ConvertTypes[(int)TypeCode.Char]))
                 return ic.ToChar(provider);
-            if (conversionType == ConvertTypes[(int)TypeCode.SByte])
+            if (ReferenceEquals(conversionType, ConvertTypes[(int)TypeCode.SByte]))
                 return ic.ToSByte(provider);
-            if (conversionType == ConvertTypes[(int)TypeCode.Byte])
+            if (ReferenceEquals(conversionType, ConvertTypes[(int)TypeCode.Byte]))
                 return ic.ToByte(provider);
-            if (conversionType == ConvertTypes[(int)TypeCode.Int16])
+            if (ReferenceEquals(conversionType, ConvertTypes[(int)TypeCode.Int16]))
                 return ic.ToInt16(provider);
-            if (conversionType == ConvertTypes[(int)TypeCode.UInt16])
+            if (ReferenceEquals(conversionType, ConvertTypes[(int)TypeCode.UInt16]))
                 return ic.ToUInt16(provider);
-            if (conversionType == ConvertTypes[(int)TypeCode.Int32])
+            if (ReferenceEquals(conversionType, ConvertTypes[(int)TypeCode.Int32]))
                 return ic.ToInt32(provider);
-            if (conversionType == ConvertTypes[(int)TypeCode.UInt32])
+            if (ReferenceEquals(conversionType, ConvertTypes[(int)TypeCode.UInt32]))
                 return ic.ToUInt32(provider);
-            if (conversionType == ConvertTypes[(int)TypeCode.Int64])
+            if (ReferenceEquals(conversionType, ConvertTypes[(int)TypeCode.Int64]))
                 return ic.ToInt64(provider);
-            if (conversionType == ConvertTypes[(int)TypeCode.UInt64])
+            if (ReferenceEquals(conversionType, ConvertTypes[(int)TypeCode.UInt64]))
                 return ic.ToUInt64(provider);
-            if (conversionType == ConvertTypes[(int)TypeCode.Single])
+            if (ReferenceEquals(conversionType, ConvertTypes[(int)TypeCode.Single]))
                 return ic.ToSingle(provider);
-            if (conversionType == ConvertTypes[(int)TypeCode.Double])
+            if (ReferenceEquals(conversionType, ConvertTypes[(int)TypeCode.Double]))
                 return ic.ToDouble(provider);
-            if (conversionType == ConvertTypes[(int)TypeCode.Decimal])
+            if (ReferenceEquals(conversionType, ConvertTypes[(int)TypeCode.Decimal]))
                 return ic.ToDecimal(provider);
-            if (conversionType == ConvertTypes[(int)TypeCode.DateTime])
+            if (ReferenceEquals(conversionType, ConvertTypes[(int)TypeCode.DateTime]))
                 return ic.ToDateTime(provider);
-            if (conversionType == ConvertTypes[(int)TypeCode.String])
+            if (ReferenceEquals(conversionType, ConvertTypes[(int)TypeCode.String]))
                 return ic.ToString(provider);
-            if (conversionType == ConvertTypes[(int)TypeCode.Object])
+            if (ReferenceEquals(conversionType, ConvertTypes[(int)TypeCode.Object]))
                 return (Object)value;
 
             return ic.ToType(conversionType, provider);
