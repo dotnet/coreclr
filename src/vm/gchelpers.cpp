@@ -59,6 +59,105 @@ inline gc_alloc_context* GetThreadAllocContext()
     return & GetThread()->m_alloc_context;
 }
 
+// When not using per-thread allocation contexts, we (the EE) need to take care that
+// no two threads are concurrently modifying the global allocation context. This lock
+// must be acquired before any sort of operations involving the global allocation context
+// can occur.
+//
+// This lock is acquired by all allocations when not using per-thread allocation contexts.
+// It is acquired in two kinds of places:
+//   1) JIT_TrialAllocFastSP (and related assembly alloc helpers), which attempt to
+//      acquire it but move into an alloc slow path if acquiring fails
+//      (but does not decrement the lock variable when doing so)
+//   2) Alloc and AllocAlign8 in gchelpers.cpp, which acquire the lock using
+//      the Acquire and Release methods below.
+class GlobalAllocLock {
+    friend struct AsmOffsets;
+private:
+    // The lock variable. This field must always be first.
+    LONG m_lock;
+
+public:
+    // Creates a new GlobalAllocLock in the unlocked state.
+    GlobalAllocLock() : m_lock(-1) {}
+
+    // Copy and copy-assignment operators should never be invoked
+    // for this type
+    GlobalAllocLock(const GlobalAllocLock&) = delete;
+    GlobalAllocLock& operator=(const GlobalAllocLock&) = delete;
+
+    // Acquires the lock, spinning if necessary to do so. When this method
+    // returns, m_lock will be zero and the lock will be acquired.
+    void Acquire()
+    {
+        CONTRACTL {
+            NOTHROW;
+            GC_TRIGGERS; // switch to preemptive mode
+            MODE_COOPERATIVE;
+        } CONTRACTL_END;
+
+        DWORD spinCount = 0;
+        while(FastInterlockExchange(&m_lock, 0) != -1)
+        {
+            GCX_PREEMP();
+            __SwitchToThread(0, spinCount++);
+        }
+
+        assert(m_lock == 0);
+    }
+
+    // Releases the lock.
+    void Release()
+    {
+        LIMITED_METHOD_CONTRACT;
+
+        // the lock may not be exactly 0. This is because the
+        // assembly alloc routines increment the lock variable and
+        // jump if not zero to the slow alloc path, which eventually
+        // will try to acquire the lock again. At that point, it will
+        // spin in Acquire (since m_lock is some number that's not zero).
+        // When the thread that /does/ hold the lock releases it, the spinning
+        // thread will continue.
+        MemoryBarrier();
+        assert(m_lock >= 0);
+        m_lock = -1;
+    }
+
+    // Static helper to acquire a lock, for use with the Holder template.
+    static void AcquireLock(GlobalAllocLock *lock)
+    {
+        WRAPPER_NO_CONTRACT;
+        lock->Acquire();
+    }
+
+    // Static helper to release a lock, for use with the Holder template
+    static void ReleaseLock(GlobalAllocLock *lock)
+    {
+        WRAPPER_NO_CONTRACT;
+        lock->Release();
+    }
+
+    typedef Holder<GlobalAllocLock *, GlobalAllocLock::AcquireLock, GlobalAllocLock::ReleaseLock> Holder;
+};
+
+typedef GlobalAllocLock::Holder GlobalAllocLockHolder;
+
+struct AsmOffsets {
+    static_assert(offsetof(GlobalAllocLock, m_lock) == 0, "ASM code relies on this property");
+};
+
+// For single-proc machines, the global allocation context is protected
+// from concurrent modification by this lock.
+//
+// When not using per-thread allocation contexts, certain methods on IGCHeap
+// require that this lock be held before calling. These methods are documented
+// on the IGCHeap interface.
+extern "C"
+{
+    GlobalAllocLock g_global_alloc_lock;
+}
+
+
 // Checks to see if the given allocation size exceeds the
 // largest object size allowed - if it does, it throws
 // an OutOfMemoryException with a message indicating that

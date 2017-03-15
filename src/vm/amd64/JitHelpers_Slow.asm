@@ -477,7 +477,7 @@ LEAF_ENTRY JIT_TrialAllocSFastSP, _TEXT
 
         ; m_BaseSize is guaranteed to be a multiple of 8.
 
-        inc     [g_global_alloc_lock + OFFSETOF__GlobalAllocLock__m_lock]
+        inc     [g_global_alloc_lock]
         jnz     JIT_NEW
 
         mov     rax, [g_global_alloc_context + OFFSETOF__gc_alloc_context__alloc_ptr]       ; alloc_ptr
@@ -490,7 +490,7 @@ LEAF_ENTRY JIT_TrialAllocSFastSP, _TEXT
 
         mov     qword ptr [g_global_alloc_context + OFFSETOF__gc_alloc_context__alloc_ptr], r8     ; update the alloc ptr
         mov     [rax], rcx
-        mov     [g_global_alloc_lock + OFFSETOF__GlobalAllocLock__m_lock], -1
+        mov     [g_global_alloc_lock], -1
 
 ifdef _DEBUG
         call    DEBUG_TrialAllocSetAppDomain_NoScratchArea
@@ -499,7 +499,7 @@ endif ; _DEBUG
         ret
 
     AllocFailed:
-        mov     [g_global_alloc_lock + OFFSETOF__GlobalAllocLock__m_lock], -1
+        mov     [g_global_alloc_lock], -1
         jmp     JIT_NEW
 LEAF_END JIT_TrialAllocSFastSP, _TEXT
 
@@ -516,7 +516,7 @@ NESTED_ENTRY JIT_BoxFastUP, _TEXT
 
         ; m_BaseSize is guaranteed to be a multiple of 8.
 
-        inc     [g_global_alloc_lock + OFFSETOF__GlobalAllocLock__m_lock]
+        inc     [g_global_alloc_lock]
         jnz     JIT_Box
 
         mov     rax, [g_global_alloc_context + OFFSETOF__gc_alloc_context__alloc_ptr]       ; alloc_ptr
@@ -530,7 +530,7 @@ NESTED_ENTRY JIT_BoxFastUP, _TEXT
 
         mov     qword ptr [g_global_alloc_context + OFFSETOF__gc_alloc_context__alloc_ptr], r8     ; update the alloc ptr
         mov     [rax], rcx
-        mov     [g_global_alloc_lock + OFFSETOF__GlobalAllocLock__m_lock], -1
+        mov     [g_global_alloc_lock], -1
 
 ifdef _DEBUG
         call    DEBUG_TrialAllocSetAppDomain_NoScratchArea
@@ -570,7 +570,7 @@ endif ; _DEBUG
         ret
 
     NoAlloc:
-        mov     [g_global_alloc_lock + OFFSETOF__GlobalAllocLock__m_lock], -1
+        mov     [g_global_alloc_lock], -1
         jmp     JIT_Box
 NESTED_END JIT_BoxFastUP, _TEXT
 
@@ -598,7 +598,7 @@ LEAF_ENTRY AllocateStringFastUP, _TEXT
         lea     r8d, [r8d + ecx*2 + 7]
         and     r8d, -8
 
-        inc     [g_global_alloc_lock + OFFSETOF__GlobalAllocLock__m_lock]
+        inc     [g_global_alloc_lock]
         jnz     FramedAllocateString
 
         mov     rax, [g_global_alloc_context + OFFSETOF__gc_alloc_context__alloc_ptr]       ; alloc_ptr
@@ -611,7 +611,7 @@ LEAF_ENTRY AllocateStringFastUP, _TEXT
 
         mov     qword ptr [g_global_alloc_context + OFFSETOF__gc_alloc_context__alloc_ptr], r8     ; update the alloc ptr
         mov     [rax], r11
-        mov     [g_global_alloc_lock + OFFSETOF__GlobalAllocLock__m_lock], -1
+        mov     [g_global_alloc_lock], -1
 
         mov     [rax + OFFSETOF__StringObject__m_StringLength], ecx
 
@@ -622,7 +622,7 @@ endif ; _DEBUG
         ret
 
     AllocFailed:
-        mov     [g_global_alloc_lock + OFFSETOF__GlobalAllocLock__m_lock], -1
+        mov     [g_global_alloc_lock], -1
         jmp     FramedAllocateString
 LEAF_END AllocateStringFastUP, _TEXT
 
@@ -664,7 +664,7 @@ LEAF_ENTRY JIT_NewArr1VC_UP, _TEXT
         add     r8d, 7
         and     r8d, -8
 
-        inc     [g_global_alloc_lock + OFFSETOF__GlobalAllocLock__m_lock]
+        inc     [g_global_alloc_lock]
         jnz     JIT_NewArr1
 
         mov     rax, [g_global_alloc_context + OFFSETOF__gc_alloc_context__alloc_ptr]       ; alloc_ptr
@@ -678,7 +678,7 @@ LEAF_ENTRY JIT_NewArr1VC_UP, _TEXT
 
         mov     qword ptr [g_global_alloc_context + OFFSETOF__gc_alloc_context__alloc_ptr], r8     ; update the alloc ptr
         mov     [rax], r9
-        mov     [g_global_alloc_lock + OFFSETOF__GlobalAllocLock__m_lock], -1
+        mov     [g_global_alloc_lock], -1
 
         mov     dword ptr [rax + OFFSETOF__ArrayBase__m_NumComponents], edx
 
@@ -689,7 +689,7 @@ endif ; _DEBUG
         ret
 
     AllocFailed:
-        mov     [g_global_alloc_lock + OFFSETOF__GlobalAllocLock__m_lock], -1
+        mov     [g_global_alloc_lock], -1
         jmp     JIT_NewArr1
 LEAF_END JIT_NewArr1VC_UP, _TEXT
 
@@ -727,7 +727,7 @@ LEAF_ENTRY JIT_NewArr1OBJ_UP, _TEXT
         ; No need for rounding in this case - element size is 8, and m_BaseSize is guaranteed
         ; to be a multiple of 8.
 
-        inc     [g_global_alloc_lock + OFFSETOF__GlobalAllocLock__m_lock]
+        inc     [g_global_alloc_lock]
         jnz     JIT_NewArr1
 
         mov     rax, [g_global_alloc_context + OFFSETOF__gc_alloc_context__alloc_ptr]       ; alloc_ptr
@@ -740,7 +740,7 @@ LEAF_ENTRY JIT_NewArr1OBJ_UP, _TEXT
 
         mov     qword ptr [g_global_alloc_context + OFFSETOF__gc_alloc_context__alloc_ptr], r8     ; update the alloc ptr
         mov     [rax], r9
-        mov     [g_global_alloc_lock + OFFSETOF__GlobalAllocLock__m_lock], -1
+        mov     [g_global_alloc_lock], -1
 
         mov     dword ptr [rax + OFFSETOF__ArrayBase__m_NumComponents], edx
 
@@ -751,7 +751,7 @@ endif ; _DEBUG
         ret
 
     AllocFailed:
-        mov     [g_global_alloc_lock + OFFSETOF__GlobalAllocLock__m_lock], -1
+        mov     [g_global_alloc_lock], -1
 
     OversizedArray:
         jmp     JIT_NewArr1

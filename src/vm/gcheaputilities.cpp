@@ -34,4 +34,3 @@ bool g_sw_ww_enabled_for_gc_heap = false;
 
 gc_alloc_context g_global_alloc_context = {};
 
-GlobalAllocLock g_global_alloc_lock;
