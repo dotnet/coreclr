@@ -2,8 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-// 
-
 using System.Diagnostics;
 using System.Globalization;
 using System.Text;
@@ -50,8 +48,6 @@ namespace System.Reflection
         // used by EE
         private IntPtr GetMethodDesc() { return MethodHandle.Value; }
 
-#if FEATURE_APPX
-#endif
         internal virtual ParameterInfo[] GetParametersNoCopy() { return GetParameters(); }
         #endregion
 

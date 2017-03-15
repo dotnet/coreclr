@@ -485,7 +485,7 @@
     <Compile Include="$(BclSourcesRoot)\System\Reflection\MemberTypes.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Reflection\MethodAttributes.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Reflection\MethodBase.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Reflection\MethodBase.Unsharable.cs" />
+    <Compile Include="$(BclSourcesRoot)\System\Reflection\MethodBase.CoreCLR.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Reflection\MethodImplAttributes.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Reflection\MethodInfo.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Reflection\Missing.cs" />
