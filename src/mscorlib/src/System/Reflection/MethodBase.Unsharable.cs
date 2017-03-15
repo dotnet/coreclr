@@ -14,40 +14,7 @@ namespace System.Reflection
     using System.Text;
     using System.Threading;
 
-    //
-    // Invocation cached flags. Those are used in unmanaged code as well
-    // so be careful if you change them
-    //
-    [Flags]
-    internal enum INVOCATION_FLAGS : uint
-    {
-        INVOCATION_FLAGS_UNKNOWN = 0x00000000,
-        INVOCATION_FLAGS_INITIALIZED = 0x00000001,
-        // it's used for both method and field to signify that no access is allowed
-        INVOCATION_FLAGS_NO_INVOKE = 0x00000002,
-        INVOCATION_FLAGS_NEED_SECURITY = 0x00000004,
-        // Set for static ctors and ctors on abstract types, which
-        // can be invoked only if the "this" object is provided (even if it's null).
-        INVOCATION_FLAGS_NO_CTOR_INVOKE = 0x00000008,
-        // because field and method are different we can reuse the same bits
-        // method
-        INVOCATION_FLAGS_IS_CTOR = 0x00000010,
-        INVOCATION_FLAGS_RISKY_METHOD = 0x00000020,
-        /* unused 0x00000040 */
-        INVOCATION_FLAGS_IS_DELEGATE_CTOR = 0x00000080,
-        INVOCATION_FLAGS_CONTAINS_STACK_POINTERS = 0x00000100,
-        // field
-        INVOCATION_FLAGS_SPECIAL_FIELD = 0x00000010,
-        INVOCATION_FLAGS_FIELD_SPECIAL_CAST = 0x00000020,
-
-        // temporary flag used for flagging invocation of method vs ctor
-        // this flag never appears on the instance m_invocationFlag and is simply
-        // passed down from within ConstructorInfo.Invoke()
-        INVOCATION_FLAGS_CONSTRUCTOR_INVOKE = 0x10000000,
-    }
-
-    [Serializable]
-    public abstract class MethodBase : MemberInfo
+    public abstract partial class MethodBase : MemberInfo
     {
         #region Static Members
         public static MethodBase GetMethodFromHandle(RuntimeMethodHandle handle)
@@ -82,149 +49,13 @@ namespace System.Reflection
         }
         #endregion
 
-        #region Constructor
-        protected MethodBase() { }
-        #endregion
-
-        public static bool operator ==(MethodBase left, MethodBase right)
-        {
-            if (ReferenceEquals(left, right))
-                return true;
-
-            if ((object)left == null || (object)right == null)
-                return false;
-
-            MethodInfo method1, method2;
-            ConstructorInfo constructor1, constructor2;
-
-            if ((method1 = left as MethodInfo) != null && (method2 = right as MethodInfo) != null)
-                return method1 == method2;
-            else if ((constructor1 = left as ConstructorInfo) != null && (constructor2 = right as ConstructorInfo) != null)
-                return constructor1 == constructor2;
-
-            return false;
-        }
-
-        public static bool operator !=(MethodBase left, MethodBase right)
-        {
-            return !(left == right);
-        }
-
-        public override bool Equals(object obj)
-        {
-            return base.Equals(obj);
-        }
-
-        public override int GetHashCode()
-        {
-            return base.GetHashCode();
-        }
-
         #region Internal Members
         // used by EE
         private IntPtr GetMethodDesc() { return MethodHandle.Value; }
 
 #if FEATURE_APPX
 #endif
-        #endregion
-
-        #region Public Abstract\Virtual Members
         internal virtual ParameterInfo[] GetParametersNoCopy() { return GetParameters(); }
-
-        [System.Diagnostics.Contracts.Pure]
-        public abstract ParameterInfo[] GetParameters();
-
-        public virtual MethodImplAttributes MethodImplementationFlags
-        {
-            get
-            {
-                return GetMethodImplementationFlags();
-            }
-        }
-
-        public abstract MethodImplAttributes GetMethodImplementationFlags();
-
-        public abstract RuntimeMethodHandle MethodHandle { get; }
-
-        public abstract MethodAttributes Attributes { get; }
-
-        public abstract Object Invoke(Object obj, BindingFlags invokeAttr, Binder binder, Object[] parameters, CultureInfo culture);
-
-        public virtual CallingConventions CallingConvention { get { return CallingConventions.Standard; } }
-
-        public virtual Type[] GetGenericArguments() { throw new NotSupportedException(Environment.GetResourceString("NotSupported_SubclassOverride")); }
-
-        public virtual bool IsGenericMethodDefinition { get { return false; } }
-
-        public virtual bool ContainsGenericParameters { get { return false; } }
-
-        public virtual bool IsGenericMethod { get { return false; } }
-
-        public virtual bool IsSecurityCritical { get { throw new NotImplementedException(); } }
-
-        public virtual bool IsSecuritySafeCritical { get { throw new NotImplementedException(); } }
-
-        public virtual bool IsSecurityTransparent { get { throw new NotImplementedException(); } }
-
-        #endregion
-
-        #region Public Members
-        [DebuggerStepThroughAttribute]
-        [Diagnostics.DebuggerHidden]
-        public Object Invoke(Object obj, Object[] parameters)
-        {
-            // Theoretically we should set up a LookForMyCaller stack mark here and pass that along.
-            // But to maintain backward compatibility we can't switch to calling an 
-            // internal overload that takes a stack mark.
-            // Fortunately the stack walker skips all the reflection invocation frames including this one.
-            // So this method will never be returned by the stack walker as the caller.
-            // See SystemDomain::CallersMethodCallbackWithStackMark in AppDomain.cpp.
-            return Invoke(obj, BindingFlags.Default, null, parameters, null);
-        }
-
-        public bool IsPublic { get { return (Attributes & MethodAttributes.MemberAccessMask) == MethodAttributes.Public; } }
-
-        public bool IsPrivate { get { return (Attributes & MethodAttributes.MemberAccessMask) == MethodAttributes.Private; } }
-
-        public bool IsFamily { get { return (Attributes & MethodAttributes.MemberAccessMask) == MethodAttributes.Family; } }
-
-        public bool IsAssembly { get { return (Attributes & MethodAttributes.MemberAccessMask) == MethodAttributes.Assembly; } }
-
-        public bool IsFamilyAndAssembly { get { return (Attributes & MethodAttributes.MemberAccessMask) == MethodAttributes.FamANDAssem; } }
-
-        public bool IsFamilyOrAssembly { get { return (Attributes & MethodAttributes.MemberAccessMask) == MethodAttributes.FamORAssem; } }
-
-        public bool IsStatic { get { return (Attributes & MethodAttributes.Static) != 0; } }
-
-        public bool IsFinal
-        {
-            get { return (Attributes & MethodAttributes.Final) != 0; }
-        }
-        public bool IsVirtual
-        {
-            get { return (Attributes & MethodAttributes.Virtual) != 0; }
-        }
-        public bool IsHideBySig { get { return (Attributes & MethodAttributes.HideBySig) != 0; } }
-
-        public bool IsAbstract { get { return (Attributes & MethodAttributes.Abstract) != 0; } }
-
-        public bool IsSpecialName { get { return (Attributes & MethodAttributes.SpecialName) != 0; } }
-
-        public bool IsConstructor
-        {
-            get
-            {
-                // To be backward compatible we only return true for instance RTSpecialName ctors.
-                return (this is ConstructorInfo &&
-                        !IsStatic &&
-                        ((Attributes & MethodAttributes.RTSpecialName) == MethodAttributes.RTSpecialName));
-            }
-        }
-
-        public virtual MethodBody GetMethodBody()
-        {
-            throw new InvalidOperationException();
-        }
         #endregion
 
         #region Internal Methods
