@@ -474,7 +474,7 @@ namespace System.Globalization
             StringBuilder result = new StringBuilder();
             string lowercaseData = null;
             // Store if the current culture is Dutch (special case)
-            bool isDutchCulture = IsDutchCulture(str);
+            bool isDutchCulture = CultureName.StartsWith("nl-",StringComparison.OrdinalIgnoreCase);
 
             for (int i = 0; i < str.Length; i++)
             {
@@ -484,17 +484,18 @@ namespace System.Globalization
                 charType = CharUnicodeInfo.InternalGetUnicodeCategory(str, i, out charLen);
                 if (Char.CheckLetter(charType))
                 {
-                    // Special case to check for Dutch specific titlecasing with
-                    // "IJ" characters at the beginning of word
-                    if (isDutchCulture && IsIjAtCurrentPosition(str, i))
+                    // Special case to check for Dutch specific titlecasing with "IJ" characters 
+                    // at the beginning of a word
+                    if (isDutchCulture && i < str.Length - 1 && (str[i] == 'i' || str[i] == 'I') && (str[i+1] == 'j' || str[i+1] == 'J'))
                     {
-                        // Increment the charLen to treat the "IJ" as a surrogate
-                        // pair and capitalize both letters
-                        charLen++;
+                        result.Append("IJ");
+                        i += 2;
                     }
-
-                    // Do the titlecasing for the first character of the word.
-                    i = AddTitlecaseLetter(ref result, ref str, i, charLen) + 1;
+                    else
+                    {
+                        // Do the titlecasing for the first character of the word.
+                        i = AddTitlecaseLetter(ref result, ref str, i, charLen) + 1;
+                    }
 
                     //
                     // Convert the characters until the end of the this word
@@ -693,40 +694,6 @@ namespace System.Globalization
                  || uc == UnicodeCategory.TitlecaseLetter
                  || uc == UnicodeCategory.ModifierLetter
                  || uc == UnicodeCategory.OtherLetter);
-        }
-
-
-        /// 
-        ///  Checks if the current culture is Dutch (i.e. "nl-BE" or "nl-NL") to
-        ///  determine if special casing rules should be applied. (Dutch Titlecasing)
-        ///
-        private bool IsDutchCulture(String str)
-        {
-            // Validate inputs
-            if (str == null)
-            {
-                throw new ArgumentNullException("string");
-            }
-
-            // Ignore if not Dutch
-            return IndexOfStringOrdinalIgnoreCase("nl-BE,nl-NL", _cultureName, 0, 11) != -1;
-        }
-
-
-        /// 
-        ///  Performs a case-insensitive check for the characters "ij" at the current
-        ///  position within a string. (Dutch Titlecasing)
-        ///
-        private bool IsIjAtCurrentPosition(String str, int position)
-        {
-            // Validate inputs
-            if (str == null)
-            {
-                throw new ArgumentNullException("string");
-            }
-
-            // Determine if "ij" is at the current position in the string
-            return IndexOfStringOrdinalIgnoreCase(str, "ij", position, 2) != -1;
         }
 
         //
