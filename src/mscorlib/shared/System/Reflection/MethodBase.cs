@@ -60,7 +60,7 @@ namespace System.Reflection
         public virtual bool IsSecurityTransparent { get { throw NotImplemented.ByDesign; } }
 
         public override bool Equals(object obj) => base.Equals(obj);
-        public override int GetHashCode() => GetHashCode();
+        public override int GetHashCode() => base.GetHashCode();
 
         public static bool operator ==(MethodBase left, MethodBase right)
         {
