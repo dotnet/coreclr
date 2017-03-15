@@ -877,6 +877,7 @@ internal static class SR
         get { return Environment.GetResourceString("Serialization_NonSerType"); }
     }
 
+
     internal static string NotSupported_SubclassOverride
     {
         get { return Environment.GetResourceString("NotSupported_SubclassOverride"); }
