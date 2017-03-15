@@ -4249,6 +4249,18 @@ bool EECodeManager::EnumGcRefs( PREGDISPLAY     pContext,
 
 #endif // _DEBUG
 
+#ifdef WIN64EXCEPTIONS   // funclets
+    //
+    // If we're in a funclet, we do not want to report the incoming varargs.  This is
+    // taken care of by the parent method and the funclet should access those arguments
+    // by way of the parent method's stack frame.
+    //
+    if(pCodeInfo->IsFunclet())
+    {
+        return true;
+    }
+#endif // WIN64EXCEPTIONS
+
     /* What kind of a frame is this ? */
 
     FrameType   frameType = FR_NORMAL;
