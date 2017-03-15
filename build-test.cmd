@@ -45,6 +45,7 @@ set "__SourceDir=%__ProjectDir%\src"
 set "__PackagesDir=%__ProjectDir%\packages"
 set "__RootBinDir=%__ProjectDir%\bin"
 set "__LogsDir=%__RootBinDir%\Logs"
+set "__dotNetCli=%__ProjectDir%\tools\dotnetcli"
 
 :: Default __Exclude to issues.targets
 set __Exclude=%__TestDir%\issues.targets
@@ -145,7 +146,6 @@ call "%__TestDir%\setup-runtime-dependencies.cmd" /arch %__BuildArch% /outputdir
 if defined __UpdateInvalidPackagesArg (
   goto skipnative
 )
-
 REM =========================================================================================
 REM ===
 REM === Native test build section
@@ -206,6 +206,7 @@ if errorlevel 1 (
     echo     %__BuildErr%
     exit /b 1
 )
+
 
 :skipnative
 
@@ -294,6 +295,7 @@ if errorlevel 1 (
     exit /b 1
 )
 
+
 REM Prepare the Test Drop
 REM Cleans any NI from the last run
 powershell "Get-ChildItem -path %__TestWorkingDir% -Include '*.ni.*' -Recurse -Force | Remove-Item -force"
@@ -304,6 +306,18 @@ set CORE_ROOT=%__TestBinDir%\Tests\Core_Root
 if exist "%CORE_ROOT%" rd /s /q "%CORE_ROOT%"
 md "%CORE_ROOT%"
 xcopy /s "%__BinDir%" "%CORE_ROOT%"
+
+
+REM =========================================================================================
+REM ===
+REM === Debugger tests build section
+REM ===
+REM =========================================================================================
+
+REM TODO: add skipping debugger tests
+echo Building debugger tests: /outputDir !__TestBinDir! /coreclrBinDir %__BinDir% /nugetCacheDir %__PackagesDir% /cliPath %__dotNetCli% /os %__BuildOS% /arch %__BuildArch%
+call %__TestDir%\debugger_tests\setup-debuggertests.cmd /outputDir !__TestBinDir! /coreclrBinDir %__BinDir% /nugetCacheDir %__PackagesDir% /cliPath %__dotNetCli% /os %__BuildOS% /arch %__BuildArch%
+
 
 echo %__MsgPrefix%Creating test wrappers...
 
@@ -355,6 +369,7 @@ set __BuildErr=%__LogsDir%\%__BuildLogRootName%_%__BuildOS%__%__BuildArch%__%__B
 set __msbuildLog=/flp:Verbosity=normal;LogFile="%__BuildLog%"
 set __msbuildWrn=/flp1:WarningsOnly;LogFile="%__BuildWrn%"
 set __msbuildErr=/flp2:ErrorsOnly;LogFile="%__BuildErr%"
+
 
 REM =========================================================================================
 REM ===

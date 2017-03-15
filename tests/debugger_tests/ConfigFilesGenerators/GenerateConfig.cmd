@@ -6,7 +6,7 @@ set __RuntimeRoot=`$(TestRoot)\Runtimes\Coreclr1
 set __NugetCacheDir=`$(WorkingDir)\packages
 set __CliPath=
 set __ConfigFileName=Debugger.Tests.Config.txt
-set __TemplateFileName=%~dp0\ConfigTemplate.txt
+set __TemplateFileName=%~dp0\ConfigTemplate.%__OS%.%__Arch%.txt
 
 :Arg_Loop
 if "%1" == "" goto ArgsDone
@@ -15,11 +15,14 @@ if /i "%1" == "/?" goto Usage
 if /i "%1" == "rt"      (set "__RuntimeRoot=%2"&shift&shift&goto Arg_Loop)
 if /i "%1" == "nc"      (set "__NugetCacheDir=%2"&shift&shift&goto Arg_Loop)
 if /i "%1" == "cli"     (set "__CliPath=%2"&shift&shift&goto Arg_Loop)
+if /i "%1" == "arch"    (set "__Arch=%2"&shift&shift&goto Arg_Loop)
+if /i "%1" == "os"      (set "__OS=%2"&shift&shift&goto Arg_Loop)
 
 echo Invalid commandline argument: %1
 goto Usage
 
 :ArgsDone
+
 
 if not exist %__TemplateFileName% (
     echo Template file %__TemplateFileName% doesn't exist.

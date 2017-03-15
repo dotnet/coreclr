@@ -1731,5 +1731,25 @@
             <Issue>needs triage</Issue>
         </ExcludeList>
     </ItemGroup>
+	
+	<!-- This are debugger tests that are currently failng. -->
+	<ItemGroup Condition="'$(XunitTestBinBase)' != ''">
+        <ExcludeList Include="$(XunitTestBinBase)\debuggertests\tests\MRV.*\*.cmd">
+            <Issue>Investigation needed.</Issue>
+        </ExcludeList>
+		
+        <ExcludeList Include="$(XunitTestBinBase)\debuggertests\tests\SOS.StackTests\*.cmd">
+            <Issue>Investigation needed.</Issue>
+        </ExcludeList>
+
+        <ExcludeList Include="$(XunitTestBinBase)\debuggertests\tests\SOS.StackAndOtherTests\*.cmd">
+            <Issue>Investigation needed.</Issue>
+        </ExcludeList>
+		
+		<ExcludeList Include="$(XunitTestBinBase)\debuggertests\tests\Exceptions.TaskCancelTest\*.cmd">
+            <Issue>Investigation needed.</Issue>
+        </ExcludeList>
+		
+	</ItemGroup>
     
 </Project>
