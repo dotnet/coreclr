@@ -473,6 +473,8 @@ namespace System.Globalization
 
             StringBuilder result = new StringBuilder();
             string lowercaseData = null;
+            // Store if the current culture is Dutch (special case)
+            bool isDutchCulture = IsDutchCulture(str);
 
             for (int i = 0; i < str.Length; i++)
             {
@@ -484,7 +486,7 @@ namespace System.Globalization
                 {
                     // Special case to check for Dutch specific titlecasing with
                     // "IJ" characters at the beginning of word
-                    if (IsDutchCulture(str) && IsIjAtCurrentPosition(str, i))
+                    if (isDutchCulture && IsIjAtCurrentPosition(str, i))
                     {
                         // Increment the charLen to treat the "IJ" as a surrogate
                         // pair and capitalize both letters
