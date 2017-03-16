@@ -342,6 +342,24 @@
       "values": [],
       "defaultValue": ""
     },
+    "OptionalToolSource": {
+      "description": "URL of the nuget feed used by 'optional-tools'",
+      "valueType": "property",
+      "values": [],
+      "defaultValue": ""
+    },
+    "OptionalToolSourceUser": {
+      "description": "User name for authenticating to the optional tools feed",
+      "valueType": "property",
+      "values": [],
+      "defaultValue": ""
+    },
+    "OptionalToolSourcePassword": {
+      "description": "VSTS token for authenticating to the optional tools feed; requires 'package(READ)' permission",
+      "valueType": "property",
+      "values": [],
+      "defaultValue": ""
+    },
     "ExtraParameters": {
       "description": "Extra parameters will be passed to the selected command.",
       "valueType": "passThrough",
