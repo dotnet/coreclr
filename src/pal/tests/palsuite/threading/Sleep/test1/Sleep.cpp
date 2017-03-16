@@ -19,7 +19,7 @@
 
 #include <palsuite.h>
 
-DWORD SleepTimes[] =
+int SleepTimes[] =
 {
     0,
     50,
@@ -29,14 +29,13 @@ DWORD SleepTimes[] =
 };
 
 /* Milliseconds of error which are acceptable Function execution time, etc. */
-DWORD AcceptableTimeError = 150;
+const int AcceptableEarlyDiff = -300;
 
 int __cdecl main( int argc, char **argv ) 
 {
     UINT64 OldTimeStamp;
     UINT64 NewTimeStamp;
-    DWORD MaxDelta;
-    DWORD TimeDelta;
+    int TimeDelta;
     DWORD i;
 
     if(0 != (PAL_Initialize(argc, argv)))
@@ -50,29 +49,27 @@ int __cdecl main( int argc, char **argv )
         return FAIL;
     }
 
-    for( i = 0; i < sizeof(SleepTimes) / sizeof(DWORD); i++)
+    for( i = 0; i < sizeof(SleepTimes) / sizeof(SleepTimes[0]); i++)
     {
         OldTimeStamp = GetHighPrecisionTimeStamp(performanceFrequency);
         Sleep(SleepTimes[i]);
         NewTimeStamp = GetHighPrecisionTimeStamp(performanceFrequency);
 
-        TimeDelta = NewTimeStamp - OldTimeStamp;
+        TimeDelta = static_cast<int>(NewTimeStamp - OldTimeStamp);
 
         /* For longer intervals use a 10 percent tolerance */
-        if ((SleepTimes[i] * 0.1) > AcceptableTimeError)
+        int AcceptableLateDiff = 300;
+        if ((SleepTimes[i] * 0.1) > AcceptableLateDiff)
         {
-            MaxDelta = SleepTimes[i] + (DWORD)(SleepTimes[i] * 0.1);
-        }
-        else
-        {
-            MaxDelta = SleepTimes[i] + AcceptableTimeError;
+            AcceptableLateDiff = (int)(SleepTimes[i] * 0.1);
         }
 
-        if ( TimeDelta<SleepTimes[i] || TimeDelta>MaxDelta )
+        int diff = TimeDelta - SleepTimes[i];
+        if (diff < AcceptableEarlyDiff || diff > AcceptableLateDiff)
         {
             Fail("The sleep function slept for %d ms when it should have "
              "slept for %d ms\n", TimeDelta, SleepTimes[i]);
-       }
+        }
     }
     PAL_Terminate();
     return ( PASS );

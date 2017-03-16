@@ -21,7 +21,7 @@
  * times in 10^(-3) seconds
  */
 
-DWORD SleepTimes[] =
+int SleepTimes[] =
 {
     60000,
     300000,
@@ -30,14 +30,14 @@ DWORD SleepTimes[] =
 };
 
 /* Milliseconds of error which are acceptable Function execution time, etc. */
-DWORD AcceptableTimeError = 150;
+const int AcceptableEarlyDiff = -300;
 
 int __cdecl main( int argc, char **argv ) 
 {
     UINT64 OldTimeStamp;
     UINT64 NewTimeStamp;
-    DWORD MaxDelta;
-    DWORD TimeDelta;
+    int MaxDelta;
+    int TimeDelta;
     DWORD i;
 
     if(0 != (PAL_Initialize(argc, argv)))
@@ -51,21 +51,27 @@ int __cdecl main( int argc, char **argv )
         return FAIL;
     }
 
-    for( i = 0; i < sizeof(SleepTimes) / sizeof(DWORD); i++)
+    for( i = 0; i < sizeof(SleepTimes) / sizeof(SleepTimes[0]); i++)
     {
         OldTimeStamp = GetHighPrecisionTimeStamp(performanceFrequency);
         Sleep(SleepTimes[i]);
         NewTimeStamp = GetHighPrecisionTimeStamp(performanceFrequency);
 
-        TimeDelta = NewTimeStamp - OldTimeStamp;
+        TimeDelta = static_cast<int>(NewTimeStamp - OldTimeStamp);
 
-        MaxDelta = SleepTimes[i] + AcceptableTimeError;
+        /* For longer intervals use a 10 percent tolerance */
+        int AcceptableLateDiff = 300;
+        if ((SleepTimes[i] * 0.1) > AcceptableLateDiff)
+        {
+            AcceptableLateDiff = (int)(SleepTimes[i] * 0.1);
+        }
 
-        if ( TimeDelta<SleepTimes[i] || TimeDelta>MaxDelta )
+        int diff = TimeDelta - SleepTimes[i];
+        if (diff < AcceptableEarlyDiff || diff > AcceptableLateDiff)
         {
             Fail("The sleep function slept for %u ms when it should have "
              "slept for %u ms\n", TimeDelta, SleepTimes[i]);
-       }
+        }
     }
     PAL_Terminate();
     return ( PASS );
