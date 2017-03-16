@@ -1178,6 +1178,9 @@ else
     fi
 fi
 
+chmod u+x ${scriptPath}/setup-debuggertests.sh
+${scriptPath}/setup-debuggertests.sh --coreclrBinDir=$coreClrBinDir --mscorlibDir=$mscorlibDir --outputDir=$testRootDir
+
 export __TestEnv=$testEnv
 
 cd "$testRootDir"
