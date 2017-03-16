@@ -30,6 +30,8 @@ def static getOSGroup(def os) {
     return osGroupMap[os]
 }
 
+//Don't merge me
+
 // We use this class (vs variables) so that the static functions can access data here.
 class Constants {
 
