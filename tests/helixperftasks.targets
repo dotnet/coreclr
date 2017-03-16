@@ -56,6 +56,10 @@
      <DnuSourceList Include="$(CORE_ROOT)\.nuget\pkg" />
     </ItemGroup>
 
+    <ItemGroup>
+     <DnuSourceList Include="$(CORE_ROOT)\.nuget\pkg" />
+    </ItemGroup>
+
     <!-- Restore the runtime dependencies -->
     <Exec Command="$(DnuRestoreCommand) &quot;$(TestRuntimeProjectJson)&quot;"
            StandardOutputImportance="Low"
