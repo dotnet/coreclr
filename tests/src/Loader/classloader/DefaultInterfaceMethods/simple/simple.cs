@@ -1,5 +1,10 @@
 using System;
 
+interface IBlah
+{
+    int Blah(int c);    
+}
+
 interface IFoo
 {
     int Foo(int a);
@@ -10,7 +15,16 @@ interface IBar
     int Bar(int b);
 }
 
-class FooBar : IFoo, IBar
+class Base : IBlah
+{
+    public int Blah(int c)
+    {
+        Console.WriteLine("Calling IBlah.Blah");
+        return c+20;
+    }
+}
+
+class FooBar : Base, IFoo, IBar
 {
     public int Foo(int a)
     {
@@ -20,7 +34,7 @@ class FooBar : IFoo, IBar
 
     public int Bar(int b)
     {
-        Console.WriteLine("Calling IBar.Foo");
+        Console.WriteLine("Calling IBar.Bar");
         return b+10;
     }
 }
@@ -32,9 +46,11 @@ class Program
         FooBar fooBar = new FooBar();
         IFoo foo = (IFoo) fooBar;
         IBar bar = (IBar) fooBar;
+        IBlah blah = (IBlah) fooBar;
 
-        Test.Assert(foo.Foo(10) == 11, "Calling IFoo.Foo on Foo");
-        Test.Assert(bar.Bar(10) == 20, "Calling IBar.Bar on Foo");
+        Test.Assert(foo.Foo(10) == 11, "Calling IFoo.Foo on FooBar");
+        Test.Assert(bar.Bar(10) == 20, "Calling IBar.Bar on FooBar");
+        Test.Assert(blah.Blah(10) == 30, "Calling IBlah.Blah on FooBar");
 
         return Test.Ret();
     }
