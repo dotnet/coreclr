@@ -7,59 +7,36 @@ using System.Globalization;
 
 namespace System.Reflection
 {
-    [Serializable]
     public abstract class PropertyInfo : MemberInfo
     {
-        #region Constructor
-        protected PropertyInfo() { }
-        #endregion
+        protected PropertyInfo() {}
 
         public static bool operator ==(PropertyInfo left, PropertyInfo right)
         {
-            if (ReferenceEquals(left, right))
+            if (object.ReferenceEquals(left, right))
                 return true;
 
-            if ((object)left == null || (object)right == null ||
-                left is RuntimePropertyInfo || right is RuntimePropertyInfo)
-            {
+            if ((object)left == null || (object)right == null)
                 return false;
-            }
+
             return left.Equals(right);
         }
 
-        public static bool operator !=(PropertyInfo left, PropertyInfo right)
-        {
-            return !(left == right);
-        }
+        public static bool operator !=(PropertyInfo left, PropertyInfo right) => !(left == right);
 
-        public override bool Equals(object obj)
-        {
-            return base.Equals(obj);
-        }
+        public override bool Equals(object obj) => base.Equals(obj);
 
-        public override int GetHashCode()
-        {
-            return base.GetHashCode();
-        }
+        public override int GetHashCode() => base.GetHashCode();
 
-        #region MemberInfo Overrides
-        public override MemberTypes MemberType { get { return System.Reflection.MemberTypes.Property; } }
-        #endregion
+        public override MemberTypes MemberType => MemberTypes.Property;
 
-        #region Public Abstract\Virtual Members
-        public virtual object GetConstantValue()
-        {
-            throw new NotImplementedException();
-        }
+        public virtual object GetConstantValue() { throw NotImplemented.ByDesign; }
 
-        public virtual object GetRawConstantValue()
-        {
-            throw new NotImplementedException();
-        }
+        public virtual object GetRawConstantValue() { throw NotImplemented.ByDesign; }
 
         public abstract Type PropertyType { get; }
 
-        public abstract void SetValue(Object obj, Object value, BindingFlags invokeAttr, Binder binder, Object[] index, CultureInfo culture);
+        public abstract void SetValue(object obj, object value, BindingFlags invokeAttr, Binder binder, object[] index, CultureInfo culture);
 
         public abstract MethodInfo[] GetAccessors(bool nonPublic);
 
@@ -75,65 +52,38 @@ namespace System.Reflection
 
         public abstract bool CanWrite { get; }
 
-        [DebuggerStepThroughAttribute]
-        [Diagnostics.DebuggerHidden]
-        public Object GetValue(Object obj)
-        {
-            return GetValue(obj, null);
-        }
+        [DebuggerHidden]
+        [DebuggerStepThrough]
+        public object GetValue(object obj) => GetValue(obj, index: null);
 
-        [DebuggerStepThroughAttribute]
-        [Diagnostics.DebuggerHidden]
-        public virtual Object GetValue(Object obj, Object[] index)
-        {
-            return GetValue(obj, BindingFlags.Default, null, index, null);
-        }
+        [DebuggerHidden]
+        [DebuggerStepThrough]
+        public virtual object GetValue(object obj, object[] index) => GetValue(obj, BindingFlags.Default, binder: null, index: index, culture: null);
 
-        public abstract Object GetValue(Object obj, BindingFlags invokeAttr, Binder binder, Object[] index, CultureInfo culture);
+        public abstract object GetValue(object obj, BindingFlags invokeAttr, Binder binder, object[] index, CultureInfo culture);
 
-        [DebuggerStepThroughAttribute]
-        [Diagnostics.DebuggerHidden]
-        public void SetValue(Object obj, Object value)
-        {
-            SetValue(obj, value, null);
-        }
+        [DebuggerHidden]
+        [DebuggerStepThrough]
+        public void SetValue(object obj, object value) => SetValue(obj, value, index: null);
 
-        [DebuggerStepThroughAttribute]
-        [Diagnostics.DebuggerHidden]
-        public virtual void SetValue(Object obj, Object value, Object[] index)
-        {
-            SetValue(obj, value, BindingFlags.Default, null, index, null);
-        }
-        #endregion
+        [DebuggerHidden]
+        [DebuggerStepThrough]
+        public virtual void SetValue(object obj, object value, object[] index) => SetValue(obj, value, BindingFlags.Default, binder: null, index: index, culture: null);
 
-        #region Public Members
-        public virtual Type[] GetRequiredCustomModifiers() { return EmptyArray<Type>.Value; }
+        public virtual Type[] GetRequiredCustomModifiers() => Array.Empty<Type>();
 
-        public virtual Type[] GetOptionalCustomModifiers() { return EmptyArray<Type>.Value; }
+        public virtual Type[] GetOptionalCustomModifiers() => Array.Empty<Type>();
 
-        public MethodInfo[] GetAccessors() { return GetAccessors(false); }
+        public MethodInfo[] GetAccessors() => GetAccessors(nonPublic: false);
 
-        public virtual MethodInfo GetMethod
-        {
-            get
-            {
-                return GetGetMethod(true);
-            }
-        }
+        public virtual MethodInfo GetMethod => GetGetMethod(nonPublic: true);
 
-        public virtual MethodInfo SetMethod
-        {
-            get
-            {
-                return GetSetMethod(true);
-            }
-        }
+        public virtual MethodInfo SetMethod => GetSetMethod(nonPublic: true);
 
-        public MethodInfo GetGetMethod() { return GetGetMethod(false); }
+        public MethodInfo GetGetMethod() => GetGetMethod(nonPublic: false);
 
-        public MethodInfo GetSetMethod() { return GetSetMethod(false); }
+        public MethodInfo GetSetMethod() => GetSetMethod(nonPublic: false);
 
-        public bool IsSpecialName { get { return (Attributes & PropertyAttributes.SpecialName) != 0; } }
-        #endregion
+        public bool IsSpecialName => (Attributes & PropertyAttributes.SpecialName) != 0;
     }
 }

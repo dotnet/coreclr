@@ -4,62 +4,44 @@
 
 namespace System.Reflection
 {
-    [Serializable]
     public abstract class MethodInfo : MethodBase
     {
-        #region Constructor
         protected MethodInfo() { }
-        #endregion
 
         public static bool operator ==(MethodInfo left, MethodInfo right)
         {
-            if (ReferenceEquals(left, right))
+            if (object.ReferenceEquals(left, right))
                 return true;
 
-            if ((object)left == null || (object)right == null ||
-                left is RuntimeMethodInfo || right is RuntimeMethodInfo)
-            {
+            if ((object)left == null || (object)right == null)
                 return false;
-            }
+
             return left.Equals(right);
         }
 
-        public static bool operator !=(MethodInfo left, MethodInfo right)
-        {
-            return !(left == right);
-        }
+        public static bool operator !=(MethodInfo left, MethodInfo right) => !(left == right);
 
-        public override bool Equals(object obj)
-        {
-            return base.Equals(obj);
-        }
+        public override bool Equals(object obj) => base.Equals(obj);
 
-        public override int GetHashCode()
-        {
-            return base.GetHashCode();
-        }
+        public override int GetHashCode() => base.GetHashCode();
 
-        #region MemberInfo Overrides
-        public override MemberTypes MemberType { get { return System.Reflection.MemberTypes.Method; } }
-        #endregion
+        public override MemberTypes MemberType => MemberTypes.Method;
 
-        #region Public Abstract\Virtual Members
-        public virtual Type ReturnType { get { throw new NotImplementedException(); } }
+        public virtual Type ReturnType { get { throw NotImplemented.ByDesign; } }
 
-        public virtual ParameterInfo ReturnParameter { get { throw new NotImplementedException(); } }
+        public virtual ParameterInfo ReturnParameter { get { throw NotImplemented.ByDesign; } }
 
         public abstract ICustomAttributeProvider ReturnTypeCustomAttributes { get; }
 
         public abstract MethodInfo GetBaseDefinition();
 
-        public override Type[] GetGenericArguments() { throw new NotSupportedException(Environment.GetResourceString("NotSupported_SubclassOverride")); }
+        public override Type[] GetGenericArguments() { throw new NotSupportedException(SR.NotSupported_SubclassOverride); }
 
-        public virtual MethodInfo GetGenericMethodDefinition() { throw new NotSupportedException(Environment.GetResourceString("NotSupported_SubclassOverride")); }
+        public virtual MethodInfo GetGenericMethodDefinition() { throw new NotSupportedException(SR.NotSupported_SubclassOverride); }
 
-        public virtual MethodInfo MakeGenericMethod(params Type[] typeArguments) { throw new NotSupportedException(Environment.GetResourceString("NotSupported_SubclassOverride")); }
+        public virtual MethodInfo MakeGenericMethod(params Type[] typeArguments) { throw new NotSupportedException(SR.NotSupported_SubclassOverride); }
 
-        public virtual Delegate CreateDelegate(Type delegateType) { throw new NotSupportedException(Environment.GetResourceString("NotSupported_SubclassOverride")); }
-        public virtual Delegate CreateDelegate(Type delegateType, Object target) { throw new NotSupportedException(Environment.GetResourceString("NotSupported_SubclassOverride")); }
-        #endregion
+        public virtual Delegate CreateDelegate(Type delegateType) { throw new NotSupportedException(SR.NotSupported_SubclassOverride); }
+        public virtual Delegate CreateDelegate(Type delegateType, object target) { throw new NotSupportedException(SR.NotSupported_SubclassOverride); }
     }
 }

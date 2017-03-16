@@ -3,53 +3,33 @@
 // See the LICENSE file in the project root for more information.
 
 using System.Diagnostics;
+using EventRegistrationToken = System.Runtime.InteropServices.WindowsRuntime.EventRegistrationToken;
 
 namespace System.Reflection
 {
-    [Serializable]
     public abstract class EventInfo : MemberInfo
     {
-        #region Constructor
         protected EventInfo() { }
-        #endregion
 
         public static bool operator ==(EventInfo left, EventInfo right)
         {
-            if (ReferenceEquals(left, right))
+            if (object.ReferenceEquals(left, right))
                 return true;
 
-            if ((object)left == null || (object)right == null ||
-                left is RuntimeEventInfo || right is RuntimeEventInfo)
-            {
+            if ((object)left == null || (object)right == null)
                 return false;
-            }
+
             return left.Equals(right);
         }
 
-        public static bool operator !=(EventInfo left, EventInfo right)
-        {
-            return !(left == right);
-        }
+        public static bool operator !=(EventInfo left, EventInfo right) => !(left == right);
 
-        public override bool Equals(object obj)
-        {
-            return base.Equals(obj);
-        }
+        public override bool Equals(object obj) => base.Equals(obj);
+        public override int GetHashCode() => base.GetHashCode();
 
-        public override int GetHashCode()
-        {
-            return base.GetHashCode();
-        }
+        public override MemberTypes MemberType => MemberTypes.Event;
 
-        #region MemberInfo Overrides
-        public override MemberTypes MemberType { get { return MemberTypes.Event; } }
-        #endregion
-
-        #region Public Abstract\Virtual Members
-        public virtual MethodInfo[] GetOtherMethods(bool nonPublic)
-        {
-            throw new NotImplementedException();
-        }
+        public virtual MethodInfo[] GetOtherMethods(bool nonPublic) { throw NotImplemented.ByDesign; }
 
         public abstract MethodInfo GetAddMethod(bool nonPublic);
 
@@ -58,80 +38,46 @@ namespace System.Reflection
         public abstract MethodInfo GetRaiseMethod(bool nonPublic);
 
         public abstract EventAttributes Attributes { get; }
-        #endregion
 
-        #region Public Members
-        public virtual MethodInfo AddMethod
+        public virtual MethodInfo AddMethod => GetAddMethod(nonPublic: true);
+        public virtual MethodInfo RemoveMethod => GetRemoveMethod(nonPublic: true);
+        public virtual MethodInfo RaiseMethod => GetRaiseMethod(nonPublic: true);
+
+        public MethodInfo[] GetOtherMethods() => GetOtherMethods(nonPublic: false);
+
+        public MethodInfo GetAddMethod() => GetAddMethod(nonPublic: false);
+
+        public MethodInfo GetRemoveMethod() => GetRemoveMethod(nonPublic: false);
+
+        public MethodInfo GetRaiseMethod() => GetRaiseMethod(nonPublic: false);
+
+        [DebuggerHidden]
+        [DebuggerStepThrough]
+        public virtual void AddEventHandler(object target, Delegate handler)
         {
-            get
-            {
-                return GetAddMethod(true);
-            }
-        }
-
-        public virtual MethodInfo RemoveMethod
-        {
-            get
-            {
-                return GetRemoveMethod(true);
-            }
-        }
-
-        public virtual MethodInfo RaiseMethod
-        {
-            get
-            {
-                return GetRaiseMethod(true);
-            }
-        }
-
-        public MethodInfo[] GetOtherMethods() { return GetOtherMethods(false); }
-
-        public MethodInfo GetAddMethod() { return GetAddMethod(false); }
-
-        public MethodInfo GetRemoveMethod() { return GetRemoveMethod(false); }
-
-        public MethodInfo GetRaiseMethod() { return GetRaiseMethod(false); }
-
-        [DebuggerStepThroughAttribute]
-        [Diagnostics.DebuggerHidden]
-        public virtual void AddEventHandler(Object target, Delegate handler)
-        {
-            MethodInfo addMethod = GetAddMethod();
+            MethodInfo addMethod = GetAddMethod(nonPublic: false);
 
             if (addMethod == null)
-                throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_NoPublicAddMethod"));
+                throw new InvalidOperationException(SR.InvalidOperation_NoPublicAddMethod);
 
-#if FEATURE_COMINTEROP
-            if (addMethod.ReturnType == typeof(System.Runtime.InteropServices.WindowsRuntime.EventRegistrationToken))
-                throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_NotSupportedOnWinRTEvent"));
-
-            // Must be a normal non-WinRT event
-            Debug.Assert(addMethod.ReturnType == typeof(void));
-#endif // FEATURE_COMINTEROP
+            if (addMethod.ReturnType == typeof(EventRegistrationToken))
+                throw new InvalidOperationException(SR.InvalidOperation_NotSupportedOnWinRTEvent);
 
             addMethod.Invoke(target, new object[] { handler });
         }
 
-        [DebuggerStepThroughAttribute]
-        [Diagnostics.DebuggerHidden]
-        public virtual void RemoveEventHandler(Object target, Delegate handler)
+        [DebuggerHidden]
+        [DebuggerStepThrough]
+        public virtual void RemoveEventHandler(object target, Delegate handler)
         {
-            MethodInfo removeMethod = GetRemoveMethod();
+            MethodInfo removeMethod = GetRemoveMethod(nonPublic: false);
 
             if (removeMethod == null)
-                throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_NoPublicRemoveMethod"));
+                throw new InvalidOperationException(SR.InvalidOperation_NoPublicRemoveMethod);
 
-#if FEATURE_COMINTEROP
             ParameterInfo[] parameters = removeMethod.GetParametersNoCopy();
-            Debug.Assert(parameters != null && parameters.Length == 1);
-
-            if (parameters[0].ParameterType == typeof(System.Runtime.InteropServices.WindowsRuntime.EventRegistrationToken))
-                throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_NotSupportedOnWinRTEvent"));
-
-            // Must be a normal non-WinRT event
-            Debug.Assert(parameters[0].ParameterType.BaseType == typeof(MulticastDelegate));
-#endif // FEATURE_COMINTEROP
+            if (parameters[0].ParameterType == typeof(EventRegistrationToken))
+                throw new InvalidOperationException(SR.InvalidOperation_NotSupportedOnWinRTEvent);
 
             removeMethod.Invoke(target, new object[] { handler });
         }
@@ -141,28 +87,19 @@ namespace System.Reflection
             get
             {
                 MethodInfo m = GetAddMethod(true);
-
                 ParameterInfo[] p = m.GetParametersNoCopy();
-
                 Type del = typeof(Delegate);
-
                 for (int i = 0; i < p.Length; i++)
                 {
                     Type c = p[i].ParameterType;
-
                     if (c.IsSubclassOf(del))
                         return c;
                 }
                 return null;
             }
         }
-        public bool IsSpecialName
-        {
-            get
-            {
-                return (Attributes & EventAttributes.SpecialName) != 0;
-            }
-        }
+
+        public bool IsSpecialName => (Attributes & EventAttributes.SpecialName) != 0;
 
         public virtual bool IsMulticast
         {
@@ -173,6 +110,5 @@ namespace System.Reflection
                 return mc.IsAssignableFrom(cl);
             }
         }
-        #endregion
     }
 }
