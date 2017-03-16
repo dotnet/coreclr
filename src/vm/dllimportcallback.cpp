@@ -1379,8 +1379,7 @@ VOID UMThunkMarshInfo::RunTimeInit()
 #if defined(_TARGET_X86_)
     MetaSig sig(pMD);
     int numRegistersUsed = 0;
-
-    m_cbRetPop = 0;
+    int cbRetPop = 0;
 
     //
     // m_cbStackArgSize represents the number of arg bytes for the MANAGED signature
@@ -1389,15 +1388,15 @@ VOID UMThunkMarshInfo::RunTimeInit()
 
     int offs = 0;
 
-#ifdef PLATFORM_UNIX
+#ifdef UNIX_X86_ABI
     if (HasRetBuffArgUnmanagedFixup(&sig))
     {
         // callee should pop retbuf
         numRegistersUsed += 1;
         offs += STACK_ELEM_SIZE;
-        m_cbRetPop += STACK_ELEM_SIZE;
+        cbRetPop += STACK_ELEM_SIZE;
     }
-#endif // PLATFORM_UNIX
+#endif // UNIX_X86_ABI
 
     for (UINT i = 0 ; i < sig.NumFixedArgs(); i++)
     {
@@ -1421,10 +1420,14 @@ VOID UMThunkMarshInfo::RunTimeInit()
         new (&sigInfo) PInvokeStaticSigInfo(pMD);
     else
         new (&sigInfo) PInvokeStaticSigInfo(GetSignature(), GetModule());
-    if (sigInfo.GetCallConv() != pmCallConvCdecl)
+    if (sigInfo.GetCallConv() == pmCallConvCdecl)
+    {
+        m_cbRetPop = cbRetPop;
+    }
+    else
     {
         // For all the other calling convention except cdecl, callee pops the stack arguments
-        m_cbRetPop += static_cast<UINT16>(m_cbActualArgSize);
+        m_cbRetPop = cbRetPop + static_cast<UINT16>(m_cbActualArgSize);
     }
 #else // _TARGET_X86_
     //
@@ -1474,7 +1477,7 @@ VOID UMThunkMarshInfo::SetupArguments(char *pSrc, ArgumentRegisters *pArgRegs, c
 
     int numRegistersUsed = 0;
 
-#ifdef PLATFORM_UNIX
+#ifdef UNIX_X86_ABI
     if (HasRetBuffArgUnmanagedFixup(&sig))
     {
         // Pass retbuf via Ecx
@@ -1482,7 +1485,7 @@ VOID UMThunkMarshInfo::SetupArguments(char *pSrc, ArgumentRegisters *pArgRegs, c
         pArgRegs->Ecx = *((UINT32 *)pCurSrc);
         pCurSrc += STACK_ELEM_SIZE;
     }
-#endif // PLATFORM_UNIX
+#endif // UNIX_X86_ABI
 
     for (UINT i = 0 ; i < sig.NumFixedArgs(); i++)
     {
