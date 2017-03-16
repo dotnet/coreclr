@@ -4,8 +4,8 @@
 
 namespace System.Reflection
 {
-    [Serializable]
     [Flags]
+    [Serializable]
     public enum PortableExecutableKinds
     {
         NotAPortableExecutableImage = 0x0,

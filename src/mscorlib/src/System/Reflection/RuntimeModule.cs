@@ -2,23 +2,16 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+using System.Runtime.InteropServices;
+using System.Runtime.Serialization;
+using System.Collections.Generic;
+using System.Runtime.CompilerServices;
+using System.Security;
+using System.Globalization;
+using System.Diagnostics.Contracts;
+
 namespace System.Reflection
 {
-    using System;
-    using System.Diagnostics.SymbolStore;
-    using System.Runtime.Remoting;
-    using System.Runtime.InteropServices;
-    using System.Runtime.Serialization;
-    using System.Collections;
-    using System.Collections.Generic;
-    using System.Threading;
-    using System.Runtime.CompilerServices;
-    using System.Security;
-    using System.IO;
-    using System.Globalization;
-    using System.Runtime.Versioning;
-    using System.Diagnostics.Contracts;
-
     [Serializable]
     internal class RuntimeModule : Module
     {

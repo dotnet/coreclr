@@ -2,20 +2,14 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-// 
+using System.Collections.Generic;
+using System.Diagnostics.Contracts;
+using System.Runtime.Serialization;
+using System.Runtime.CompilerServices;
+using MdToken = System.Reflection.MetadataToken;
 
 namespace System.Reflection
 {
-    using System;
-    using System.Collections.Generic;
-    using System.Diagnostics;
-    using System.Diagnostics.Contracts;
-    using System.Runtime.InteropServices;
-    using System.Runtime.Serialization;
-    using System.Runtime.CompilerServices;
-    using System.Threading;
-    using MdToken = System.Reflection.MetadataToken;
-
     [Serializable]
     internal unsafe sealed class RuntimeParameterInfo : ParameterInfo, ISerializable
     {
