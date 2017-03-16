@@ -11,6 +11,7 @@ namespace VectorMathTests
     {
         static int Main(string[] args)
         {
+            System.Runtime.InteropServices.Marshal.ReadInt32(IntPtr.Zero);
             {
                 var a = new System.Numerics.Vector<int>(1);
                 object b = a;
