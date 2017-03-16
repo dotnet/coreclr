@@ -460,7 +460,7 @@
     <Compile Include="$(BclSourcesRoot)\System\Reflection\EventInfo.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Reflection\FieldAttributes.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Reflection\FieldInfo.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Reflection\FieldInfo.CoreClr.cs" />
+    <Compile Include="$(BclSourcesRoot)\System\Reflection\FieldInfo.CoreCLR.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Reflection\GenericParameterAttributes.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Reflection\ICustomAttributeProvider.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Reflection\IReflectableType.cs" />
