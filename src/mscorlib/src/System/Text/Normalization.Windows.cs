@@ -20,6 +20,12 @@ namespace System.Text
     {
         internal static bool IsNormalized(String strInput, NormalizationForm normForm)
         {
+            if (CultureData.InvariantMode)
+            {
+                // work ordinal, then all charcaters are normalized in this mode
+                return true;
+            }
+
             Debug.Assert(strInput != null);
 
             // The only way to know if IsNormalizedString failed is through checking the Win32 last error
@@ -49,6 +55,12 @@ namespace System.Text
 
         internal static String Normalize(String strInput, NormalizationForm normForm)
         {
+            if (CultureData.InvariantMode)
+            {
+                // work ordinal, then all charcaters are normalized in this mode
+                return strInput;
+            }
+
             Debug.Assert(strInput != null);
 
             // we depend on Win32 last error when calling NormalizeString

@@ -18,30 +18,35 @@ namespace System.Globalization
         [NonSerialized]
         private bool _isAsciiEqualityOrdinal;
 
-        internal CompareInfo(CultureInfo culture)
-        {
-            _name = culture._name;
-            InitSort(culture);
-        }
-
         private void InitSort(CultureInfo culture)
         {
             _sortName = culture.SortName;
-            Interop.GlobalizationInterop.ResultCode resultCode = Interop.GlobalizationInterop.GetSortHandle(GetNullTerminatedUtf8String(_sortName), out _sortHandle); 
-            if (resultCode != Interop.GlobalizationInterop.ResultCode.Success)
+
+            if (CultureData.InvariantMode)
             {
-                _sortHandle.Dispose();
-                
-                if (resultCode == Interop.GlobalizationInterop.ResultCode.OutOfMemory)
-                    throw new OutOfMemoryException();
-                
-                throw new ExternalException(SR.Arg_ExternalException);
+                _isAsciiEqualityOrdinal = true;
             }
-            _isAsciiEqualityOrdinal = (_sortName == "en-US" || _sortName == "");
+            else
+            {
+                Interop.GlobalizationInterop.ResultCode resultCode = Interop.GlobalizationInterop.GetSortHandle(GetNullTerminatedUtf8String(_sortName), out _sortHandle); 
+                if (resultCode != Interop.GlobalizationInterop.ResultCode.Success)
+                {
+                    _sortHandle.Dispose();
+                    
+                    if (resultCode == Interop.GlobalizationInterop.ResultCode.OutOfMemory)
+                        throw new OutOfMemoryException();
+                    
+                    throw new ExternalException(SR.Arg_ExternalException);
+                }
+                _isAsciiEqualityOrdinal = (_sortName == "en-US" || _sortName == "");
+            }
         }
 
-        internal static unsafe int IndexOfOrdinal(string source, string value, int startIndex, int count, bool ignoreCase)
+        internal static unsafe int IndexOfOrdinalCore(string source, string value, int startIndex, int count, bool ignoreCase)
         {
+            if (CultureData.InvariantMode)
+                throw new Exception(" ********************* Convert this exception to assert ********************* ");
+            
             Debug.Assert(source != null);
             Debug.Assert(value != null);
 
@@ -84,8 +89,11 @@ namespace System.Globalization
             return -1;
         }
 
-        internal static unsafe int LastIndexOfOrdinal(string source, string value, int startIndex, int count, bool ignoreCase)
+        internal static unsafe int LastIndexOfOrdinalCore(string source, string value, int startIndex, int count, bool ignoreCase)
         {
+            if (CultureData.InvariantMode)
+                throw new Exception(" ********************* Convert this exception to assert ********************* ");
+            
             Debug.Assert(source != null);
             Debug.Assert(value != null);
 
@@ -141,11 +149,17 @@ namespace System.Globalization
 
         private static unsafe int CompareStringOrdinalIgnoreCase(char* string1, int count1, char* string2, int count2)
         {
+            if (CultureData.InvariantMode)
+                throw new Exception(" ********************* Convert this exception to assert ********************* ");
+
             return Interop.GlobalizationInterop.CompareStringOrdinalIgnoreCase(string1, count1, string2, count2);
         }
 
         private unsafe int CompareString(string string1, int offset1, int length1, string string2, int offset2, int length2, CompareOptions options)
         {
+            if (CultureData.InvariantMode)
+                throw new Exception(" ********************* Convert this exception to assert ********************* ");
+
             Debug.Assert(string1 != null);
             Debug.Assert(string2 != null);
             Debug.Assert((options & (CompareOptions.Ordinal | CompareOptions.OrdinalIgnoreCase)) == 0);
@@ -161,6 +175,9 @@ namespace System.Globalization
 
         internal unsafe int IndexOfCore(string source, string target, int startIndex, int count, CompareOptions options, int* matchLengthPtr)
         {
+            if (CultureData.InvariantMode)
+                throw new Exception(" ********************* Convert this exception to assert ********************* ");
+            
             Debug.Assert(!string.IsNullOrEmpty(source));
             Debug.Assert(target != null);
             Debug.Assert((options & CompareOptions.OrdinalIgnoreCase) == 0);
@@ -206,6 +223,9 @@ namespace System.Globalization
 
         private unsafe int LastIndexOfCore(string source, string target, int startIndex, int count, CompareOptions options)
         {
+            if (CultureData.InvariantMode)
+                throw new Exception(" ********************* Convert this exception to assert ********************* ");
+
             Debug.Assert(!string.IsNullOrEmpty(source));
             Debug.Assert(target != null);
             Debug.Assert((options & CompareOptions.OrdinalIgnoreCase) == 0);
@@ -217,7 +237,7 @@ namespace System.Globalization
 
             if (options == CompareOptions.Ordinal)
             {
-                return LastIndexOfOrdinal(source, target, startIndex, count, ignoreCase: false);
+                return LastIndexOfOrdinalCore(source, target, startIndex, count, ignoreCase: false);
             }
 
             if (_isAsciiEqualityOrdinal && CanUseAsciiOrdinalForOptions(options) && source.IsFastSort() && target.IsFastSort())
@@ -239,6 +259,9 @@ namespace System.Globalization
 
         private bool StartsWith(string source, string prefix, CompareOptions options)
         {
+            if (CultureData.InvariantMode)
+                throw new Exception(" ********************* Convert this exception to assert ********************* ");
+
             Debug.Assert(!string.IsNullOrEmpty(source));
             Debug.Assert(!string.IsNullOrEmpty(prefix));
             Debug.Assert((options & (CompareOptions.Ordinal | CompareOptions.OrdinalIgnoreCase)) == 0);
@@ -253,6 +276,9 @@ namespace System.Globalization
 
         private bool EndsWith(string source, string suffix, CompareOptions options)
         {
+            if (CultureData.InvariantMode)
+                throw new Exception(" ********************* Convert this exception to assert ********************* ");
+
             Debug.Assert(!string.IsNullOrEmpty(source));
             Debug.Assert(!string.IsNullOrEmpty(suffix));
             Debug.Assert((options & (CompareOptions.Ordinal | CompareOptions.OrdinalIgnoreCase)) == 0);
@@ -267,6 +293,9 @@ namespace System.Globalization
         
         private unsafe SortKey CreateSortKey(String source, CompareOptions options)
         {
+            if (CultureData.InvariantMode)
+                throw new Exception(" ********************* Convert this exception to assert ********************* ");
+
             if (source==null) { throw new ArgumentNullException(nameof(source)); }
             Contract.EndContractBlock();
 
@@ -296,6 +325,9 @@ namespace System.Globalization
 
         private unsafe static bool IsSortable(char *text, int length)
         {
+            if (CultureData.InvariantMode)
+                throw new Exception(" ********************* Convert this exception to assert ********************* ");
+
             int index = 0;
             UnicodeCategory uc;
 
@@ -337,6 +369,9 @@ namespace System.Globalization
 
         internal unsafe int GetHashCodeOfStringCore(string source, CompareOptions options, bool forceRandomizedHashing, long additionalEntropy)
         {
+            if (CultureData.InvariantMode)
+                throw new Exception(" ********************* Convert this exception to assert ********************* ");
+
             Debug.Assert(source != null);
             Debug.Assert((options & (CompareOptions.Ordinal | CompareOptions.OrdinalIgnoreCase)) == 0);
 
@@ -402,6 +437,9 @@ namespace System.Globalization
         
         private SortVersion GetSortVersion()
         {
+            if (CultureData.InvariantMode)
+                throw new Exception(" ********************* Convert this exception to assert ********************* ");
+
             int sortVersion = Interop.GlobalizationInterop.GetSortVersion();
             return new SortVersion(sortVersion, LCID, new Guid(sortVersion, 0, 0, 0, 0, 0, 0,
                                                              (byte) (LCID >> 24),

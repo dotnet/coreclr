@@ -170,6 +170,13 @@ bool FindLibWithMajorMinorSubVersion(int* majorVer, int* minorVer, int* subVer)
     return false;
 }
 
+static int32_t g_icuPresent = 1;
+
+extern "C" int32_t GlobalizationNative_ICUPresent()
+{
+    return g_icuPresent;
+}
+
 // This function is ran at the end of dlopen for the current shared library
 __attribute__((constructor))
 void InitializeICUShim()
@@ -185,8 +192,8 @@ void InitializeICUShim()
         !FindLibWithMajorVersion(&majorVer))
     {
         // No usable ICU version found
-        fprintf(stderr, "No usable version of the ICU libraries was found\n");
-        abort();
+        g_icuPresent = 0;
+        return;
     }
 
     char symbolName[128];

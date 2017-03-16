@@ -4,6 +4,7 @@
 
 using System.Security;
 using System.Text;
+using System.Globalization;
 
 namespace System.Text
 {
@@ -11,6 +12,12 @@ namespace System.Text
     {
         public static bool IsNormalized(this string strInput, NormalizationForm normalizationForm)
         {
+            if (CultureData.InvariantMode)
+            {
+                // work ordinal, then all charcaters are normalized in this mode
+                return true;
+            }
+
             ValidateArguments(strInput, normalizationForm);
 
             int ret = Interop.GlobalizationInterop.IsNormalized(normalizationForm, strInput, strInput.Length);
@@ -25,6 +32,12 @@ namespace System.Text
 
         public static string Normalize(this string strInput, NormalizationForm normalizationForm)
         {
+            if (CultureData.InvariantMode)
+            {
+                // work ordinal, then all charcaters are normalized in this mode
+                return strInput;
+            }
+
             ValidateArguments(strInput, normalizationForm);
 
             char[] buf = new char[strInput.Length];

@@ -11,6 +11,9 @@ namespace System.Globalization
     {
         private unsafe string GetAsciiCore(char* unicode, int count)
         {
+            if (CultureData.InvariantMode)
+                throw new Exception(" ********************* Convert this exception to assert ********************* ");
+
             uint flags = Flags;
 
             // Determine the required length
@@ -39,6 +42,9 @@ namespace System.Globalization
 
         private unsafe string GetAsciiCore(char* unicode, int count, uint flags, char* output, int outputLength)
         {
+            if (CultureData.InvariantMode)
+                throw new Exception(" ********************* Convert this exception to assert ********************* ");
+
             int length = Interop.Normaliz.IdnToAscii(flags, new IntPtr(unicode), count, new IntPtr(output), outputLength);
             if (length == 0)
             {
@@ -50,6 +56,9 @@ namespace System.Globalization
 
         private unsafe string GetUnicodeCore(char* ascii, int count)
         {
+            if (CultureData.InvariantMode)
+                throw new Exception(" ********************* Convert this exception to assert ********************* ");
+
             uint flags = Flags;
 
             // Determine the required length
@@ -78,6 +87,9 @@ namespace System.Globalization
 
         private unsafe string GetUnicodeCore(char* ascii, int count, uint flags, char* output, int outputLength)
         {
+            if (CultureData.InvariantMode)
+                throw new Exception(" ********************* Convert this exception to assert ********************* ");
+
             int length = Interop.Normaliz.IdnToUnicode(flags, new IntPtr(ascii), count, new IntPtr(output), outputLength);
             if (length == 0)
             {

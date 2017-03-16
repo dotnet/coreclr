@@ -1,0 +1,301 @@
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
+
+using System.Diagnostics;
+using System.Diagnostics.Contracts;
+
+namespace System.Globalization
+{
+    public partial class CompareInfo
+    {
+        internal static unsafe int InvariantIndexOfOrdinal(string source, string value, int startIndex, int count, bool ignoreCase)
+        {
+            fixed (char* pSource = source) fixed (char* pValue = value)
+            {
+                char* pSrc = &pSource[startIndex];
+                int index = InvariantFindStringOrdinal(pSrc, count, pValue, value.Length, true, ignoreCase);
+                if (index >= 0)
+                {
+                    return index + startIndex;
+                }
+                return -1;
+            }
+        }
+
+        internal static unsafe int InvariantLastIndexOfOrdinal(string source, string value, int startIndex, int count, bool ignoreCase)
+        {
+            fixed (char* pSource = source) fixed (char* pValue = value)
+            {
+                char* pSrc = &pSource[startIndex - count + 1];
+                int index = InvariantFindStringOrdinal(pSrc, count, pValue, value.Length, false, ignoreCase);
+                if (index >= 0)
+                {
+                    return index + startIndex - count + 1;
+                }
+                return -1;
+            }
+        }
+
+/*
+        private unsafe int GetHashCodeOfStringCore(string source, CompareOptions options)
+        {
+            bool ignoreCase = (options & (CompareOptions.IgnoreCase | CompareOptions.OrdinalIgnoreCase)) != 0;
+
+            if (ignoreCase)
+            {
+                return source.ToUpper().GetHashCode();
+            }
+
+            return source.GetHashCode();
+        }
+
+        private unsafe int CompareString(string string1, int offset1, int length1, string string2, int offset2, int length2, CompareOptions options)
+        {
+            fixed (char* pStr1 = string1) fixed (char* pStr2 = string2)
+            {
+                char* pString1 = &pStr1[offset1];
+                char* pString2 = &pStr2[offset2];
+
+                return CompareString(pString1, length1, pString2, length2, options);
+            }
+        }
+
+        private static unsafe int CompareStringOrdinalIgnoreCase(char* string1, int count1, char* string2, int count2)
+        {
+            return CompareString(string1, count1, string2, count2, 0);
+        }
+
+        private static unsafe int CompareString(char* pString1, int length1, char* pString2, int length2, CompareOptions options)
+        {
+            bool ignoreCase = (options & (CompareOptions.IgnoreCase | CompareOptions.OrdinalIgnoreCase)) != 0;
+            int index = 0;
+
+            if (ignoreCase)
+            {
+                while (index < length1 &&
+                        index < length2 &&
+                        InvariantToUpper(pString1[index]) == InvariantToUpper(pString2[index]))
+                {
+                    index++;
+                }
+            }
+            else
+            {
+                while (index < length1 &&
+                        index < length2 &&
+                        pString1[index] == pString2[index])
+                {
+                    index++;
+                }
+            }
+
+            if (index >= length1)
+            {
+                if (index >= length2)
+                {
+                    return 0;
+                }
+                return -1;
+            }
+
+            if (index >= length2)
+            {
+                return 1;
+            }
+
+            return ignoreCase ? InvariantToUpper(pString1[index]) - InvariantToUpper(pString2[index]) : pString1[index] - pString2[index];
+        }
+
+*/
+        private static unsafe int InvariantFindStringOrdinal(char* source, int sourceCount, char* value, int valueCount, bool start, bool ignoreCase)
+        {
+            int ctrSource = 0;  // index value into source
+            int ctrValue = 0;   // index value into value
+            char sourceChar;    // Character for case lookup in source
+            char valueChar;     // Character for case lookup in value
+            int lastSourceStart;
+
+            Debug.Assert(source != null);
+            Debug.Assert(value != null);
+            Debug.Assert(sourceCount >= 0);
+            Debug.Assert(valueCount >= 0);
+
+            if (valueCount == 0)
+            {
+                return start ? 0 : sourceCount - 1;
+            }
+
+            if (sourceCount < valueCount)
+            {
+                return -1;
+            }
+
+            if (start)
+            {
+                lastSourceStart = sourceCount - valueCount;
+                if (ignoreCase)
+                {
+                    char firstValueChar = InvariantToUpper(value[0]);
+                    for (ctrSource = 0; ctrSource <= lastSourceStart; ctrSource++)
+                    {
+                        sourceChar = InvariantToUpper(source[ctrSource]);
+                        if (sourceChar != firstValueChar)
+                        {
+                            continue;
+                        }
+
+                        for (ctrValue = 1; ctrValue < valueCount; ctrValue++)
+                        {
+                            sourceChar = InvariantToUpper(source[ctrSource + ctrValue]);
+                            valueChar = InvariantToUpper(value[ctrValue]);
+
+                            if (sourceChar != valueChar)
+                            {
+                                break;
+                            }
+                        }
+
+                        if (ctrValue == valueCount)
+                        {
+                            return ctrSource;
+                        }
+                    }
+                }
+                else
+                {
+                    char firstValueChar = value[0];
+                    for (ctrSource = 0; ctrSource <= lastSourceStart; ctrSource++)
+                    {
+                        sourceChar = source[ctrSource];
+                        if (sourceChar != firstValueChar)
+                        {
+                            continue;
+                        }
+
+                        for (ctrValue = 1; ctrValue < valueCount; ctrValue++)
+                        {
+                            sourceChar = source[ctrSource + ctrValue];
+                            valueChar = value[ctrValue];
+
+                            if (sourceChar != valueChar)
+                            {
+                                break;
+                            }
+                        }
+
+                        if (ctrValue == valueCount)
+                        {
+                            return ctrSource;
+                        }
+                    }
+                }
+            }
+            else
+            {
+                lastSourceStart = sourceCount - valueCount;
+                if (ignoreCase)
+                {
+                    char firstValueChar = InvariantToUpper(value[0]);
+                    for (ctrSource = lastSourceStart; ctrSource >= 0; ctrSource--)
+                    {
+                        sourceChar = InvariantToUpper(source[ctrSource]);
+                        if (sourceChar != firstValueChar)
+                        {
+                            continue;
+                        }
+                        for (ctrValue = 1; ctrValue < valueCount; ctrValue++)
+                        {
+                            sourceChar = InvariantToUpper(source[ctrSource + ctrValue]);
+                            valueChar = InvariantToUpper(value[ctrValue]);
+
+                            if (sourceChar != valueChar)
+                            {
+                                break;
+                            }
+                        }
+
+                        if (ctrValue == valueCount)
+                        {
+                            return ctrSource;
+                        }
+                    }
+                }
+                else
+                {
+                    char firstValueChar = value[0];
+                    for (ctrSource = lastSourceStart; ctrSource >= 0; ctrSource--)
+                    {
+                        sourceChar = source[ctrSource];
+                        if (sourceChar != firstValueChar)
+                        {
+                            continue;
+                        }
+
+                        for (ctrValue = 1; ctrValue < valueCount; ctrValue++)
+                        {
+                            sourceChar = source[ctrSource + ctrValue];
+                            valueChar = value[ctrValue];
+
+                            if (sourceChar != valueChar)
+                            {
+                                break;
+                            }
+                        }
+
+                        if (ctrValue == valueCount)
+                        {
+                            return ctrSource;
+                        }
+                    }
+                }
+            }
+
+            return -1;
+        }
+
+        private static char InvariantToUpper(char c)
+        {
+            return ('a' <= c && c <= 'z') ? (char)(c - 0x20) : c;
+        }
+
+        private unsafe SortKey InvariantCreateSortKey(string source, CompareOptions options)
+        {
+            if (source == null) { throw new ArgumentNullException(nameof(source)); }
+            Contract.EndContractBlock();
+
+            if ((options & ValidSortkeyCtorMaskOffFlags) != 0)
+            {
+                throw new ArgumentException(SR.Argument_InvalidFlag, nameof(options));
+            }
+
+            byte [] keyData;
+            if (source.Length == 0)
+            { 
+                keyData = EmptyArray<Byte>.Value;
+            }
+            else
+            {
+                // As we word as ordinal, then generate the sort key as the codepoint ordinal values
+                keyData = new byte[source.Length * sizeof(char)];
+
+                fixed (char* pChar = source) fixed (byte* pByte = keyData)
+                {
+                    if ((options & (CompareOptions.IgnoreCase | CompareOptions.OrdinalIgnoreCase)) != 0)
+                    {
+                        short *pShort = (short *) pByte;
+                        for (int i=0; i<source.Length; i++)
+                        {
+                            pShort[i] = (short) InvariantToUpper(source[i]);
+                        }
+                    } 
+                    else
+                    {
+                        Buffer.MemoryCopy(pChar, pByte, keyData.Length, keyData.Length);
+                    }
+                }
+            }
+            return new SortKey(Name, source, options, keyData);
+        }
+    }
+}

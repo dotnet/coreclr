@@ -14,6 +14,20 @@ namespace System.Globalization
 {
     internal partial class CultureData
     {
+        private static bool s_invariantGlobalizationMode = InitGlobalizationInvariantMode();
+        
+        private static bool InitGlobalizationInvariantMode()
+        {
+            bool invariantEnabled = CLRConfig.GetBoolValue("System.Globalization.Invariant");
+            if (!invariantEnabled && Interop.GlobalizationInterop.ICUPresent() == 0)
+            {
+                string message = "Couldn't find a valid ICU package installed on the system. " + 
+                                 "Set the configuration flag System.Globalization.Invariant to true if want to run with no globalization support.";
+                Environment.FailFast(message);
+            }
+            return invariantEnabled;
+        }
+        
         // ICU constants
         const int ICU_ULOC_KEYWORD_AND_VALUES_CAPACITY = 100; // max size of keyword or value
         const int ICU_ULOC_FULLNAME_CAPACITY = 157;           // max size of locale name
@@ -27,7 +41,10 @@ namespace System.Globalization
         private unsafe bool InitCultureData()
         {
             Debug.Assert(_sRealName != null);
-            
+
+            if (CultureData.InvariantMode)
+                throw new Exception(" ********************* Convert this exception to assert ********************* ");
+
             string alternateSortName = string.Empty;
             string realNameBuffer = _sRealName;
 
@@ -120,6 +137,9 @@ namespace System.Globalization
         
         private string GetLocaleInfo(LocaleStringData type)
         {
+            if (InvariantMode)
+                throw new Exception(" ********************* Convert this exception to assert ********************* ");
+            
             Debug.Assert(_sWindowsName != null, "[CultureData.GetLocaleInfo] Expected _sWindowsName to be populated already");
             return GetLocaleInfo(_sWindowsName, type);
         }
@@ -153,6 +173,9 @@ namespace System.Globalization
 
         private int GetLocaleInfo(LocaleNumberData type)
         {
+            if (InvariantMode)
+                throw new Exception(" ********************* Convert this exception to assert ********************* ");
+
             Debug.Assert(_sWindowsName != null, "[CultureData.GetLocaleInfo(LocaleNumberData)] Expected _sWindowsName to be populated already");
 
             switch (type)
@@ -296,11 +319,17 @@ namespace System.Globalization
         
         private static string LCIDToLocaleName(int culture)
         {
+            if (InvariantMode)
+                throw new Exception(" ********************* Convert this exception to assert ********************* ");
+
             return LocaleData.LCIDToLocaleName(culture);
         }
 
         private static int LocaleNameToLCID(string cultureName)
         {
+            if (InvariantMode)
+                throw new Exception(" ********************* Convert this exception to assert ********************* ");
+            
             int lcid = LocaleData.GetLocaleDataNumericPart(cultureName, LocaleDataParts.Lcid);
             return lcid == -1 ? CultureInfo.LOCALE_CUSTOM_UNSPECIFIED : lcid; 
         }
@@ -349,6 +378,9 @@ namespace System.Globalization
 
         private static CultureInfo[] EnumCultures(CultureTypes types)
         {
+            if (InvariantMode)
+                throw new Exception(" ********************* Convert this exception to assert ********************* ");
+            
             if ((types & (CultureTypes.NeutralCultures | CultureTypes.SpecificCultures)) == 0)
             {
                 return Array.Empty<CultureInfo>();

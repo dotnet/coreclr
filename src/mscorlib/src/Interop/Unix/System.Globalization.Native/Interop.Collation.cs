@@ -60,6 +60,10 @@ internal static partial class Interop
 
             protected override bool ReleaseHandle()
             {
+                if (CultureData.InvariantMode)
+                {
+                    return true;
+                }
                 CloseSortHandle(handle);
                 SetHandle(IntPtr.Zero);
                 return true;

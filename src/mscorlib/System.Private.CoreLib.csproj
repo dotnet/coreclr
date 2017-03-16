@@ -568,6 +568,7 @@
     <Compile Include="$(BclSourcesRoot)\System\Globalization\CharUnicodeInfoData.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Globalization\ChineseLunisolarCalendar.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Globalization\CompareInfo.cs" />
+    <Compile Include="$(BclSourcesRoot)\System\Globalization\CompareInfo.Invariant.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Globalization\CultureData.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Globalization\CultureInfo.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Globalization\CultureNotFoundException.cs" />
@@ -643,6 +644,7 @@
     <Compile Include="$(BclSourcesRoot)\Interop\Unix\System.Globalization.Native\Interop.Calendar.cs" />
     <Compile Include="$(BclSourcesRoot)\Interop\Unix\System.Globalization.Native\Interop.Casing.cs" />
     <Compile Include="$(BclSourcesRoot)\Interop\Unix\System.Globalization.Native\Interop.Collation.cs" />
+    <Compile Include="$(BclSourcesRoot)\Interop\Unix\System.Globalization.Native\Interop.ICU.cs" />
     <Compile Include="$(BclSourcesRoot)\Interop\Unix\System.Globalization.Native\Interop.Idna.cs" />
     <Compile Include="$(BclSourcesRoot)\Interop\Unix\System.Globalization.Native\Interop.Locale.cs" />
     <Compile Include="$(BclSourcesRoot)\Interop\Unix\System.Globalization.Native\Interop.Normalization.cs" />

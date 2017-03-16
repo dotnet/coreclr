@@ -162,6 +162,7 @@
 #ifdef FEATURE_USE_LCID
 #include "nlsinfo.h"
 #endif 
+#include "clrconfiguration.h"
 #include "util.hpp"
 #include "shimload.h"
 #include "comthreadpool.h"

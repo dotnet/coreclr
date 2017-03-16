@@ -71,6 +71,12 @@ namespace System.Globalization
         [OptionalField(VersionAdded = 3)]
         private SortVersion _sortVersion;
 
+        internal CompareInfo(CultureInfo culture)
+        {
+            _name = culture._name;
+            InitSort(culture);
+        }
+
         /*=================================GetCompareInfo==========================
         **Action: Get the CompareInfo constructed from the data table in the specified assembly for the specified culture.
         **       Warning: The assembly versioning mechanism is dead!
@@ -170,12 +176,20 @@ namespace System.Globalization
 
         public static unsafe bool IsSortable(char ch)
         {
+            if (CultureData.InvariantMode)
+            {
+                return true;
+            }
             char *pChar = &ch;
             return IsSortable(pChar, 1);
         }
 
         public static unsafe bool IsSortable(string text)
         {
+            if (CultureData.InvariantMode)
+            {
+                return true;
+            }
             if (text == null) 
             {
                 // A null param is invalid here.
@@ -280,6 +294,7 @@ namespace System.Globalization
                 {
                     throw new ArgumentException(SR.Argument_CompareOptionOrdinal, nameof(options));
                 }
+
                 return String.CompareOrdinal(string1, string2);
             }
 
@@ -301,6 +316,14 @@ namespace System.Globalization
             if (string2 == null)
             {
                 return (1);     // non-null > null
+            }
+
+            if (CultureData.InvariantMode)
+            {
+                if ((options & CompareOptions.IgnoreCase) != 0)
+                    return CompareOrdinalIgnoreCase(string1, 0, string1.Length, string2, 0, string2.Length);
+
+                return String.CompareOrdinal(string1, string2);
             }
 
             return CompareString(string1, 0, string1.Length, string2, 0, string2.Length, options);
@@ -400,6 +423,15 @@ namespace System.Globalization
                 return CompareOrdinal(string1, offset1, length1,
                                       string2, offset2, length2);
             }
+
+            if (CultureData.InvariantMode)
+            {
+                if ((options & CompareOptions.IgnoreCase) != 0)
+                    return CompareOrdinalIgnoreCase(string1, offset1, length1, string2, offset2, length2);
+
+                return CompareOrdinal(string1, offset1, length1, string2, offset2, length2);
+            }
+            
             return CompareString(string1, offset1, length1,
                                  string2, offset2, length2,
                                  options);
@@ -417,7 +449,7 @@ namespace System.Globalization
         }
 
         //
-        // CompareOrdinalIgnoreCase compare two string oridnally with ignoring the case.
+        // CompareOrdinalIgnoreCase compare two string ordinally with ignoring the case.
         // it assumes the strings are Ascii string till we hit non Ascii character in strA or strB and then we continue the comparison by
         // calling the OS.
         //
@@ -450,13 +482,41 @@ namespace System.Globalization
                     if ((uint)(charA - 'a') <= (uint)('z' - 'a')) charA -= 0x20;
                     if ((uint)(charB - 'a') <= (uint)('z' - 'a')) charB -= 0x20;
 
-                    //Return the (case-insensitive) difference between them.
+                    // Return the (case-insensitive) difference between them.
                     if (charA != charB)
                         return charA - charB;
 
                     // Next char
                     a++; b++;
                     length--;
+                }
+
+                if (CultureData.InvariantMode)
+                {
+                    while (length != 0)
+                    {
+                        int charA = *a;
+                        int charB = *b;
+
+                        if (charA == charB)
+                        {
+                            a++; b++;
+                            length--;
+                            continue;
+                        }
+
+                        // uppercase both chars - notice that we need just one compare per char
+                        if ((uint)(charA - 'a') <= (uint)('z' - 'a')) charA -= 0x20;
+                        if ((uint)(charB - 'a') <= (uint)('z' - 'a')) charB -= 0x20;
+
+                        // Return the (case-insensitive) difference between them.
+                        if (charA != charB)
+                            return charA - charB;
+
+                        // Next char
+                        a++; b++;
+                        length--;
+                    }
                 }
 
                 if (length == 0)
@@ -510,6 +570,11 @@ namespace System.Globalization
                 throw new ArgumentException(SR.Argument_InvalidFlag, nameof(options));
             }
 
+            if (CultureData.InvariantMode)
+            {
+                return source.StartsWith(prefix, (options & CompareOptions.IgnoreCase) != 0 ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal);
+            }
+
             return StartsWith(source, prefix, options);
         }
 
@@ -558,6 +623,11 @@ namespace System.Globalization
             if ((options & ValidIndexMaskOffFlags) != 0)
             {
                 throw new ArgumentException(SR.Argument_InvalidFlag, nameof(options));
+            }
+
+            if (CultureData.InvariantMode)
+            {
+                return source.EndsWith(suffix, (options & CompareOptions.IgnoreCase) != 0 ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal);
             }
 
             return EndsWith(source, suffix, options);
@@ -693,6 +763,9 @@ namespace System.Globalization
             // Ordinal can't be selected with other flags
             if ((options & ValidIndexMaskOffFlags) != 0 && (options != CompareOptions.Ordinal))
                 throw new ArgumentException(SR.Argument_InvalidFlag, nameof(options));
+            
+            if (CultureData.InvariantMode)
+                return IndexOfOrdinal(source, new string(value, 1), startIndex, count, ignoreCase: (options & (CompareOptions.IgnoreCase | CompareOptions.OrdinalIgnoreCase)) != 0);
 
             return IndexOfCore(source, new string(value, 1), startIndex, count, options, null);
         }
@@ -741,7 +814,20 @@ namespace System.Globalization
             if ((options & ValidIndexMaskOffFlags) != 0 && (options != CompareOptions.Ordinal))
                 throw new ArgumentException(SR.Argument_InvalidFlag, nameof(options));
 
+            if (CultureData.InvariantMode)
+                return IndexOfOrdinal(source, value, startIndex, count, ignoreCase: (options & (CompareOptions.IgnoreCase | CompareOptions.OrdinalIgnoreCase)) != 0);
+
             return IndexOfCore(source, value, startIndex, count, options, null);
+        }
+
+        internal static unsafe int IndexOfOrdinal(string source, string value, int startIndex, int count, bool ignoreCase)
+        {
+            if (CultureData.InvariantMode)
+            {
+                return InvariantIndexOfOrdinal(source, value, startIndex, count, ignoreCase);
+            }
+
+            return IndexOfOrdinalCore(source, value, startIndex, count, ignoreCase);
         }
 
         ////////////////////////////////////////////////////////////////////////
@@ -878,6 +964,9 @@ namespace System.Globalization
                 return source.LastIndexOf(value.ToString(), startIndex, count, StringComparison.OrdinalIgnoreCase);
             }
 
+            if (CultureData.InvariantMode)
+                return InvariantLastIndexOfOrdinal(source, new string(value, 1), startIndex, count, (options & (CompareOptions.IgnoreCase | CompareOptions.OrdinalIgnoreCase)) != 0);
+
             return LastIndexOfCore(source, value.ToString(), startIndex, count, options);
         }
 
@@ -927,7 +1016,20 @@ namespace System.Globalization
                 return LastIndexOfOrdinal(source, value, startIndex, count, ignoreCase: true);
             }
 
+            if (CultureData.InvariantMode)
+                return InvariantLastIndexOfOrdinal(source, value, startIndex, count, (options & (CompareOptions.IgnoreCase | CompareOptions.OrdinalIgnoreCase)) != 0);
+
             return LastIndexOfCore(source, value, startIndex, count, options);
+        }
+
+        internal static unsafe int LastIndexOfOrdinal(string source, string value, int startIndex, int count, bool ignoreCase)
+        {
+            if (CultureData.InvariantMode)
+            {
+                return InvariantLastIndexOfOrdinal(source, value, startIndex, count, ignoreCase);
+            }
+
+            return LastIndexOfOrdinalCore(source, value, startIndex, count, ignoreCase);
         }
 
         ////////////////////////////////////////////////////////////////////////
@@ -939,12 +1041,18 @@ namespace System.Globalization
         ////////////////////////////////////////////////////////////////////////
         public unsafe virtual SortKey GetSortKey(String source, CompareOptions options)
         {
+            if (CultureData.InvariantMode)
+                return InvariantCreateSortKey(source, options);
+
             return CreateSortKey(source, options);
         }
 
 
         public unsafe virtual SortKey GetSortKey(String source)
         {
+            if (CultureData.InvariantMode)
+                return InvariantCreateSortKey(source, CompareOptions.None);
+
             return CreateSortKey(source, CompareOptions.None);
         }
 
@@ -1076,7 +1184,18 @@ namespace System.Globalization
             {
                 if (_sortVersion == null)
                 {
-                    _sortVersion = GetSortVersion();
+                    if (CultureData.InvariantMode)
+                    {
+                        _sortVersion = new SortVersion(0, CultureInfo.LOCALE_INVARIANT, new Guid(0, 0, 0, 0, 0, 0, 0,
+                                                                        (byte) (CultureInfo.LOCALE_INVARIANT >> 24),
+                                                                        (byte) ((CultureInfo.LOCALE_INVARIANT  & 0x00FF0000) >> 16),
+                                                                        (byte) ((CultureInfo.LOCALE_INVARIANT  & 0x0000FF00) >> 8),
+                                                                        (byte) (CultureInfo.LOCALE_INVARIANT  & 0xFF)));
+                    }
+                    else
+                    {
+                        _sortVersion = GetSortVersion();
+                    }
                 }
 
                 return _sortVersion;

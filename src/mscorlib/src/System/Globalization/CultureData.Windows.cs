@@ -21,6 +21,8 @@ namespace System.Globalization
 
     internal partial class CultureData
     {
+        private static bool s_invariantGlobalizationMode = CLRConfig.GetBoolValue("System.Globalization.Invariant");
+        
         private const uint LOCALE_NOUSEROVERRIDE = 0x80000000;
         private const uint LOCALE_RETURN_NUMBER = 0x20000000;
         private const uint LOCALE_SISO3166CTRYNAME = 0x0000005A;
@@ -62,8 +64,8 @@ namespace System.Globalization
         /// </summary>
         private unsafe bool InitCultureData()
         {
-            const int LOCALE_NAME_MAX_LENGTH = 85;
-
+            if (CultureData.InvariantMode)
+                throw new Exception(" ********************* Convert this exception to assert ********************* ");
             const uint LOCALE_ILANGUAGE = 0x00000001;
             const uint LOCALE_INEUTRAL = 0x00000071;
             const uint LOCALE_SNAME = 0x0000005c;
@@ -193,6 +195,9 @@ namespace System.Globalization
 
         internal static unsafe int GetLocaleInfoEx(string lpLocaleName, uint lcType, char* lpLCData, int cchData)
         {
+            if (InvariantMode)
+                throw new Exception(" ********************* Convert this exception to assert ********************* ");
+
             return Interop.Kernel32.GetLocaleInfoEx(lpLocaleName, lcType, (IntPtr)lpLCData, cchData);
         }
 
@@ -665,11 +670,17 @@ namespace System.Globalization
 
         private static int LocaleNameToLCID(string cultureName)
         {
+            if (InvariantMode)
+                throw new Exception(" ********************* Convert this exception to assert ********************* ");
+
             return Interop.Kernel32.LocaleNameToLCID(cultureName, Interop.Kernel32.LOCALE_ALLOW_NEUTRAL_NAMES);
         }
 
         private static unsafe string LCIDToLocaleName(int culture)
         {
+            if (InvariantMode)
+                throw new Exception(" ********************* Convert this exception to assert ********************* ");
+
             char *pBuffer = stackalloc char[Interop.Kernel32.LOCALE_NAME_MAX_LENGTH + 1]; // +1 for the null termination
             int length = Interop.Kernel32.LCIDToLocaleName(culture, pBuffer, Interop.Kernel32.LOCALE_NAME_MAX_LENGTH + 1, Interop.Kernel32.LOCALE_ALLOW_NEUTRAL_NAMES);
 
@@ -718,6 +729,9 @@ namespace System.Globalization
 
         private static CultureInfo[] EnumCultures(CultureTypes types)
         {
+            if (InvariantMode)
+                throw new Exception(" ********************* Convert this exception to assert ********************* ");
+            
             uint flags = 0;
 
 #pragma warning disable 618

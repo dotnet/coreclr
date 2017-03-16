@@ -22,6 +22,9 @@ namespace System.Globalization
     {
         private bool LoadCalendarDataFromSystem(String localeName, CalendarId calendarId)
         {
+            if (CultureData.InvariantMode)
+                throw new Exception(" ********************* Convert this exception to assert ********************* ");
+
             bool ret = true;
 
             uint useOverrides = this.bUseUserOverrides ? 0 : CAL_NOUSEROVERRIDE;
@@ -116,6 +119,11 @@ namespace System.Globalization
         // Get native two digit year max
         internal static int GetTwoDigitYearMax(CalendarId calendarId)
         {
+            if (CultureData.InvariantMode)
+            {
+                return Invariant.iTwoDigitYearMax;
+            }
+
             int twoDigitYearMax = -1;
 
             if (!CallGetCalendarInfoEx(null, calendarId, (uint)CAL_ITWODIGITYEARMAX, out twoDigitYearMax))
@@ -129,6 +137,9 @@ namespace System.Globalization
         // Call native side to figure out which calendars are allowed
         internal static int GetCalendars(String localeName, bool useUserOverride, CalendarId[] calendars)
         {
+            if (CultureData.InvariantMode)
+                throw new Exception(" ********************* Convert this exception to assert ********************* ");
+
             EnumCalendarsData data = new EnumCalendarsData();
             data.userOverride = 0;
             data.calendars = new IntList();
@@ -173,6 +184,9 @@ namespace System.Globalization
 
         private static bool SystemSupportsTaiwaneseCalendar()
         {
+            if (CultureData.InvariantMode)
+                throw new Exception(" ********************* Convert this exception to assert ********************* ");
+
             string data;
             // Taiwanese calendar get listed as one of the optional zh-TW calendars only when having zh-TW UI 
             return CallGetCalendarInfoEx("zh-TW", CalendarId.TAIWAN, CAL_SCALNAME, out data);
@@ -474,6 +488,9 @@ namespace System.Globalization
 
         private static unsafe String GetUserDefaultLocaleName()
         {
+            if (CultureData.InvariantMode)
+                throw new Exception(" ********************* Convert this exception to assert ********************* ");
+
             const int LOCALE_NAME_MAX_LENGTH = 85;
             const uint LOCALE_SNAME = 0x0000005c;
             const string LOCALE_NAME_USER_DEFAULT = null;

@@ -66,6 +66,9 @@ namespace System.Globalization
         // Call native side to figure out which calendars are allowed
         internal static int GetCalendars(string localeName, bool useUserOverride, CalendarId[] calendars)
         {
+            if (CultureData.InvariantMode)
+                throw new Exception(" ********************* Convert this exception to assert ********************* ");
+
             // NOTE: there are no 'user overrides' on Linux
             int count = Interop.GlobalizationInterop.GetCalendars(localeName, calendars, calendars.Length);
 
@@ -88,6 +91,9 @@ namespace System.Globalization
 
         private static bool GetCalendarInfo(string localeName, CalendarId calendarId, CalendarDataType dataType, out string calendarString)
         {
+            if (CultureData.InvariantMode)
+                throw new Exception(" ********************* Convert this exception to assert ********************* ");
+
             return Interop.CallStringMethod(
                 (locale, calId, type, stringBuilder) =>
                     Interop.GlobalizationInterop.GetCalendarInfo(

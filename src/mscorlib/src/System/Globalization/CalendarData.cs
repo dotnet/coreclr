@@ -101,6 +101,9 @@ namespace System.Globalization
         {
             this.bUseUserOverrides = bUseUserOverrides;
 
+            if (CultureData.InvariantMode)
+                throw new Exception(" ********************* Convert this exception to assert ********************* ");
+
             if (!LoadCalendarDataFromSystem(localeName, calendarId))
             {
                 Debug.Assert(false, "[CalendarData] LoadCalendarDataFromSystem call isn't expected to fail for calendar " + calendarId + " locale " + localeName);
