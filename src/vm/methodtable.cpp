@@ -6834,6 +6834,12 @@ MethodTable::FindDispatchImpl(
         DispatchMapEntry e;
         if (!FindDispatchEntry(typeID, slotNumber, &e))
         {
+            // Figure out the interface being called
+            MethodTable *pIfcMT = GetThread()->GetDomain()->LookupType(typeID);
+
+            // Figure out which method of the interface the caller requested.
+            MethodDesc * pIfcMD = pIfcMT->GetMethodDescForSlot(slotNumber);
+
             // A call to an array thru IList<T> (or IEnumerable<T> or ICollection<T>) has to be handled specially.
             // These interfaces are "magic" (mostly due to working set concerned - they are created on demand internally
             // even though semantically, these are static interfaces.)
@@ -6847,7 +6853,7 @@ MethodTable::FindDispatchImpl(
                 // IList<T> call thru an array.
 
                 // Get the MT of IList<T> or IReadOnlyList<T>
-                MethodTable *pIfcMT = GetThread()->GetDomain()->LookupType(typeID);
+
 
                 // Quick sanity check
                 if (!(pIfcMT->HasInstantiation()))
@@ -6858,9 +6864,6 @@ MethodTable::FindDispatchImpl(
 
                 // Get the type of T (as in IList<T>)
                 TypeHandle theT = pIfcMT->GetInstantiation()[0];
-
-                // Figure out which method of IList<T> the caller requested.
-                MethodDesc * pIfcMD = pIfcMT->GetMethodDescForSlot(slotNumber);
 
                 // Retrieve the corresponding method of SZArrayHelper. This is the guy that will actually execute.
                 // This method will be an instantiation of a generic method. I.e. if the caller requested
@@ -6878,10 +6881,33 @@ MethodTable::FindDispatchImpl(
                 RETURN(TRUE);
 
             }
+            else
+            {
+                //
+                // See if we can find a default method from one of the implemented interfaces 
+                //
+                MethodDesc *pDefaultMethod = NULL;
+                if (this->FindDefaultMethod(
+                    pIfcMD,     // the interface method being resolved
+                    pIfcMT,     // the interface being resolved
+                    &pDefaultMethod))
+                {
+                    // Now, construct a DispatchSlot to return in *pImplSlot
+                    DispatchSlot ds(pDefaultMethod->GetMethodEntryPoint());
+
+                    if (pImplSlot != NULL)
+                    {
+                        *pImplSlot = ds;
+                    }
+
+                    RETURN(TRUE);
+                }
+            }
 
             // This contract is not implemented by this class or any parent class.
             RETURN(FALSE);
         }
+
 
         /////////////////////////////////
         // 1.1. Update the typeID and slotNumber so that the full search can commense below
@@ -6899,6 +6925,208 @@ MethodTable::FindDispatchImpl(
     // Successfully determined the target for the given target
     RETURN (TRUE);
 }
+
+#ifndef DACCESS_COMPILE
+BOOL MethodTable::FindDefaultMethod(
+    MethodDesc *pInterfaceMD,
+    MethodTable *pInterfaceMT,
+    MethodDesc **ppDefaultMethod
+)
+{
+    CONTRACT(BOOL) {
+        INSTANCE_CHECK;
+        MODE_ANY;
+        THROWS;
+        GC_TRIGGERS;
+        PRECONDITION(CheckPointer(pInterfaceMD));
+        PRECONDITION(CheckPointer(pInterfaceMT));
+        PRECONDITION(CheckPointer(ppDefaultMethod));
+        POSTCONDITION(!RETVAL || (*ppDefaultMethod) != nullptr);
+    } CONTRACT_END;
+
+    //
+    // Find best candidate
+    //
+    InterfaceMapIterator it = this->IterateInterfaceMap();
+    MethodTable *pBestCandidateMT = NULL;
+    MethodDesc  *pBestCandidateMD = NULL;
+
+    while (it.Next())
+    {
+        MethodTable *pCurMT = it.GetInterface();
+        if (pCurMT->ImplementsInterface(pInterfaceMT) ||
+            pCurMT == pInterfaceMT)
+        {
+            //
+            // We found a potential candidate
+            // See if we can find a method that matches
+            //
+            MethodDesc *pCurMD = NULL;
+            if (pCurMT == pInterfaceMT && !pInterfaceMD->IsAbstract())
+            {
+                // Note that this object needs to actually implement this interface
+                // @DESIGN - What if it is not implemented by any interface/base class
+                pCurMD = pInterfaceMD;
+            }
+            else
+            {
+                MethodIterator methodIt(pCurMT);
+                while (methodIt.Next())
+                {
+                    MethodDesc *pMD = methodIt.GetMethodDesc();
+                    if (pMD->IsVirtual() && !pMD->IsAbstract() /* && !pMD->IsNewSlot() */)
+                    {
+                        MetaSig sig1(pMD);
+                        MetaSig sig2(pInterfaceMD);
+                        if (MetaSig::CompareMethodSigs(sig1, sig2, /* ignoreCallConv = */TRUE))
+                        {
+                            // Found a match
+                            // @TODO - Compare constraints?
+                            pCurMD = pMD;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            if (pCurMD != NULL)
+            {
+                //
+                // Found a potential candidate
+                //
+                if (pBestCandidateMT == NULL ||                         // first time
+                    pCurMT->ImplementsInterface(pBestCandidateMT))      // Prefer super interface (IList over IEnumerable)
+                {
+                    pBestCandidateMT = pCurMT;
+                    pBestCandidateMD = pCurMD;
+                }
+            }
+        }
+    }
+
+    if (pBestCandidateMD != NULL)
+    {
+        *ppDefaultMethod = pBestCandidateMD;
+        RETURN(TRUE);
+    }
+
+/*
+    const BYTE *        pVal;
+    ULONG               cbVal;
+    HRESULT hr = GetMDImport()->GetCustomAttributeByName(GetCl(), g_DefaultImplementationAttribute, (const void **)&pVal, &cbVal);
+    if (hr == S_OK)
+    {
+        CustomAttributeParser cap(pVal, cbVal);
+        IfFailThrow(cap.SkipProlog());
+        UINT32 defaultImplementationsCount = 0;
+        IfFailThrow(cap.GetU4(&defaultImplementationsCount));
+        if (defaultImplementationsCount == 0xFFFFFFFFU)
+        {
+            // string array parameter was null. Treat it as if it was empty
+        }
+        else
+        {
+            HashedTypeEntry foundEntry;
+
+            Module* pTypeDefModule = NULL;
+            {
+                NameHandle thisTypeNameHandle(this->GetModule(), this->GetCl());
+                LPCUTF8 pszNamespace;
+                LPCUTF8 pszName = this->GetFullyQualifiedNameInfo(&pszNamespace);
+                thisTypeNameHandle.SetName(pszNamespace, pszName);
+                thisTypeNameHandle.SetTokenNotToLoad(tdAllTypes);
+
+                mdToken tkTypeDefInterface = mdTokenNil;
+                BOOL fUsesTypeForwarder = FALSE;
+                TypeHandle foundType;
+                mdToken mdFoundExportedType;
+
+//                BOOL foundInterfaceTypeViaNamesearch = this->GetModule()->GetClassLoader()->ResolveNameToTypeDefThrowing(this->GetModule(), &thisTypeNameHandle, &pTypeDefModule, &tkTypeDefInterface, Loader::DontLoad, NULL);
+                BOOL foundInterfaceTypeViaNamesearch = this->GetModule()->GetClassLoader()->FindClassModuleThrowing(&thisTypeNameHandle, &foundType, &tkTypeDefInterface, &pTypeDefModule, &mdFoundExportedType, &foundEntry, this->GetModule(), Loader::DontLoad);
+                ASSERT(foundInterfaceTypeViaNamesearch);
+                ASSERT(pTypeDefModule = this->GetModule());
+                ASSERT(tkTypeDefInterface == this->GetCl());
+            }
+
+            LPCUTF8 interfaceMethodName = pInterfaceMD->GetName();
+
+            for (UINT32 iDefaultImplementation = 0; iDefaultImplementation < defaultImplementationsCount; iDefaultImplementation++)
+            {
+                NameHandle nameHandle(GetModule(), mdtBaseType);
+                nameHandle.SetBucket(foundEntry);
+
+                LPCUTF8 defaultImplementationTypeNameNotNullTerminated;
+                ULONG cbdefaultImplementationTypeName;
+                IfFailThrow(cap.GetString(&defaultImplementationTypeNameNotNullTerminated, &cbdefaultImplementationTypeName));
+
+                SString ssDefaultImplementationTypeName(SString::Utf8, defaultImplementationTypeNameNotNullTerminated, cbdefaultImplementationTypeName);
+
+                nameHandle.SetName(ssDefaultImplementationTypeName.GetUTF8NoConvert());
+                mdToken tkTypeDefDefaultImplementation;
+                if (this->GetModule()->GetClassLoader()->ResolveNameToTypeDefThrowing(this->GetModule(), &nameHandle, &pTypeDefModule, &tkTypeDefDefaultImplementation, Loader::Load, NULL))
+                {
+                    ASSERT(pTypeDefModule = this->GetModule());
+
+                    Instantiation typeInstantiation = pMTInterface->GetInstantiation();
+
+                    MethodTable *pDefaultImplementationTypeCandidate = nullptr;
+                    
+                    pDefaultImplementationTypeCandidate = pMTInterface->GetModule()->GetClassLoader()->LoadTypeDefThrowing(
+                        pTypeDefModule,
+                        tkTypeDefDefaultImplementation,
+                        ClassLoader::ThrowIfNotFound,
+                        ClassLoader::PermitUninstDefOrRef,
+                        mdTokenNil,
+                        CLASS_LOADED,
+                        &typeInstantiation).AsMethodTable();
+
+                    if (pDefaultImplementationTypeCandidate->IsGenericTypeDefinition())
+                    {
+                        // TODO! We may need to adjust the instantiation for specialization or other purposes.
+                        pDefaultImplementationTypeCandidate = ClassLoader::LoadGenericInstantiationThrowing(
+                            pMTInterface->GetModule(),
+                            tkTypeDefDefaultImplementation,
+                            pMTInterface->GetInstantiation()).AsMethodTable();
+                    }
+
+                    IntroducedMethodIterator methIt(pDefaultImplementationTypeCandidate, FALSE);
+                    for (; methIt.IsValid(); methIt.Next())
+                    {
+                        MethodDesc * pCurMD = methIt.GetMethodDesc();
+                        if (!pCurMD->IsStatic())
+                            continue;
+
+                        LPCUTF8 defaultMethodCandidateName = pCurMD->GetName();
+                        if (defaultMethodCandidateName == NULL)
+                            continue;
+
+                        if (strcmp(defaultMethodCandidateName, interfaceMethodName) == 0)
+                        {
+                            // TODO! Add proper signature check here!
+                            // TODO! Add call to FindOrCreateAssociatedMethodDesc for the instantiating stub here
+                            MethodDesc *pResultMethod = MethodDesc::FindOrCreateAssociatedMethodDesc(
+                                pCurMD,
+                                pDefaultImplementationTypeCandidate,
+                                FALSE,
+                                pCurMD->HasMethodInstantiation() ? pCurMD->AsInstantiatedMethodDesc()->IMD_GetMethodInstantiation() : Instantiation(),
+                                FALSE,
+                                FALSE,
+                                TRUE);
+
+                            if (ppDefaultMethod != nullptr)
+                                *ppDefaultMethod = pResultMethod;
+                            RETURN(TRUE);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    */
+
+    RETURN(FALSE);
+}
+#endif // DACCESS_COMPILE
 
 //==========================================================================================
 DispatchSlot MethodTable::FindDispatchSlot(UINT32 typeID, UINT32 slotNumber)

@@ -3146,7 +3146,7 @@ MethodTableBuilder::EnumerateClassMethods()
                 type = METHOD_TYPE_NORMAL;
             }
             else if (bmtGenerics->GetNumGenericArgs() != 0 &&
-                    (bmtGenerics->fSharedByGenericInstantiations || (!bmtProp->fIsRedirectedInterface && !GetHalfBakedClass()->IsProjectedFromWinRT())))
+                (bmtGenerics->fSharedByGenericInstantiations || (!bmtProp->fIsRedirectedInterface && !GetHalfBakedClass()->IsProjectedFromWinRT())))
             {
                 // Methods in instantiated interfaces need nothing special - they are not visible from COM etc.
                 // mcComInterop is only useful for unshared instantiated WinRT interfaces. If the interface is
@@ -3158,7 +3158,7 @@ MethodTableBuilder::EnumerateClassMethods()
                 // If the interface is a standard managed interface then allocate space for an FCall method desc.
                 type = METHOD_TYPE_FCALL;
             }
-            else
+            else if (IsMdAbstract(dwMemberAttrs))
             {
                 // If COM interop is supported then all other interface MDs may be
                 // accessed via COM interop. mcComInterop MDs have an additional
@@ -3166,10 +3166,12 @@ MethodTableBuilder::EnumerateClassMethods()
                 // allocated lazily when/if the MD actually gets used for interop.
                 type = METHOD_TYPE_COMINTEROP;
             }
-#else // !FEATURE_COMINTEROP
-            // This codepath is used by remoting
-            type = METHOD_TYPE_NORMAL;
+            else
 #endif // !FEATURE_COMINTEROP
+            {
+                // This codepath is used by remoting
+                type = METHOD_TYPE_NORMAL;
+            }
         }
         else
         {
@@ -7668,6 +7670,7 @@ MethodTableBuilder::PlaceInterfaceMethods()
             }
 #endif
 
+            /*
             if (!fFoundMatchInBuildingClass && curItfSlot.Impl() == INVALID_SLOT_INDEX)
             {
                 MethodDesc *pInterfaceMD = pCurItfMT->GetMethodDescForSlot(itfSlotIt->Decl().GetSlotIndex());
@@ -7682,6 +7685,7 @@ MethodTableBuilder::PlaceInterfaceMethods()
                         FALSE);
                 }
             }
+            */
         }
     }
 } // MethodTableBuilder::PlaceInterfaceMethods
@@ -11039,11 +11043,13 @@ void MethodTableBuilder::VerifyVirtualMethodsImplemented(MethodTable::MethodData
             MethodTable::MethodIterator it(hData);
             for (; it.IsValid() && it.IsVirtual(); it.Next())
             {
-                if (it.GetTarget().IsNull())
-                {
-                    MethodDesc *pMD = it.GetDeclMethodDesc();
-                    BuildMethodTableThrowException(IDS_CLASSLOAD_NOTIMPLEMENTED, pMD->GetNameOnNonArrayClass());
-                }
+                // @DESIGN - What is the right level of check if the interface itself does not have default implementation
+                // but a derived interface do
+                // if (it.GetTarget().IsNull())
+                // {
+                //    MethodDesc *pMD = it.GetDeclMethodDesc();
+                //    BuildMethodTableThrowException(IDS_CLASSLOAD_NOTIMPLEMENTED, pMD->GetNameOnNonArrayClass());
+                // }
             }
         }
     }

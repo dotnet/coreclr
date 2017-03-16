@@ -10,30 +10,17 @@ interface IBar
     int Bar(int b);
 }
 
-abstract class AbstractFoo : IFoo, IBar
-{
-    abstract public int Foo(int a);
-
-    protected virtual void FooVirtual()
-    {
-
-    }
-
-    public int Bar(int b)
-    {
-        return b+10;
-    }  
-}
-
 class FooBar : IFoo, IBar
 {
     public int Foo(int a)
     {
+        Console.WriteLine("Calling IFoo.Foo");
         return a+1;            
     }
 
     public int Bar(int b)
     {
+        Console.WriteLine("Calling IBar.Foo");
         return b+10;
     }
 }
@@ -42,8 +29,7 @@ class Program
 {
     public static int Main()
     {
-        AbstractFoo foo1 = null;
-        FooBar fooBar = new FooBar();        
+        FooBar fooBar = new FooBar();
         IFoo foo = (IFoo) fooBar;
         IBar bar = (IBar) fooBar;
 

@@ -2734,7 +2734,7 @@ BOOL MethodDesc::RequiresStableEntryPoint(BOOL fEstimateForChunk /*=FALSE*/)
             return TRUE;
 
         // TODO: Can we avoid early allocation of precodes for interfaces and cominterop?
-        if ((IsInterface() && !IsStatic()) || IsComPlusCall())
+        if ((IsInterface() && IsAbstract()) || IsComPlusCall())
             return TRUE;
     }
 
@@ -2830,7 +2830,7 @@ BOOL MethodDesc::MayHaveNativeCode()
 
     _ASSERTE(IsIL());
 
-    if ((IsInterface() && !IsStatic()) || IsWrapperStub() || ContainsGenericVariables() || IsAbstract())
+    if (IsWrapperStub() || ContainsGenericVariables() || IsAbstract())
     {
         return FALSE;
     }

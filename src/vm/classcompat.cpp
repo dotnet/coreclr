@@ -2798,17 +2798,19 @@ VOID    MethodTableBuilder::EnumerateClassMethods()
                 // If the interface is a standard managed interface then allocate space for an FCall method desc.
                 Classification = mcFCall;
             }
-            else
+            else if (IsMdAbstract(dwMemberAttrs))
             {
                 // If COM interop is supported then all other interface MDs may be
                 // accessed via COM interop <TODO> mcComInterop MDs are BIG -
                 // this is very often a waste of space </TODO>
                 Classification = mcComInterop;
             }
-#else // !FEATURE_COMINTEROP
-            // This codepath is used by remoting
-            Classification = mcIL;
+            else
 #endif // !FEATURE_COMINTEROP
+            {
+                // This codepath is used by remoting and default interface methods
+                Classification = mcIL;
+            }
         }
         else
         {

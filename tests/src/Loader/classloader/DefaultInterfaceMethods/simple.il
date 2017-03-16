@@ -23,13 +23,13 @@
   .ver 0:0:0:0
 }
 .module simple.exe
-// MVID: {2A52614E-49B2-44E4-B877-4AA862F7660B}
+// MVID: {87137111-FF09-4297-A1BA-2E16B5ADC506}
 .imagebase 0x00400000
 .file alignment 0x00000200
 .stackreserve 0x00100000
 .subsystem 0x0003       // WINDOWS_CUI
 .corflags 0x00000001    //  ILONLY
-// Image base: 0x00E00000
+// Image base: 0x01110000
 
 
 // =============== CLASS MEMBERS DECLARATION ===================
@@ -39,18 +39,21 @@
   .method public hidebysig newslot /* abstract */ virtual 
           instance int32  Foo(int32 a) cil managed
   {
-    // Code size       9 (0x9)
+    // Code size       20 (0x14)
     .maxstack  2
     .locals init (int32 V_0)
     IL_0000:  nop
-    IL_0001:  ldarg.1
-    IL_0002:  ldc.i4.1
-    IL_0003:  add
-    IL_0004:  stloc.0
-    IL_0005:  br.s       IL_0007
+    IL_0001:  ldstr      "Calling IFoo.Foo"
+    IL_0006:  call       void [mscorlib]System.Console::WriteLine(string)
+    IL_000b:  nop
+    IL_000c:  ldarg.1
+    IL_000d:  ldc.i4.1
+    IL_000e:  add
+    IL_000f:  stloc.0
+    IL_0010:  br.s       IL_0012
 
-    IL_0007:  ldloc.0
-    IL_0008:  ret                  
+    IL_0012:  ldloc.0
+    IL_0013:  ret 
   } // end of method IFoo::Foo
 
 } // end of class IFoo
@@ -60,18 +63,21 @@
   .method public hidebysig newslot /* abstract */ virtual 
           instance int32  Bar(int32 b) cil managed
   {
-    // Code size       10 (0xa)
+    // Code size       21 (0x15)
     .maxstack  2
     .locals init (int32 V_0)
     IL_0000:  nop
-    IL_0001:  ldarg.1
-    IL_0002:  ldc.i4.s   1
-    IL_0004:  add
-    IL_0005:  stloc.0
-    IL_0006:  br.s       IL_0008
+    IL_0001:  ldstr      "Calling IBar.Bar"
+    IL_0006:  call       void [mscorlib]System.Console::WriteLine(string)
+    IL_000b:  nop
+    IL_000c:  ldarg.1
+    IL_000d:  ldc.i4.s   10
+    IL_000f:  add
+    IL_0010:  stloc.0
+    IL_0011:  br.s       IL_0013
 
-    IL_0008:  ldloc.0
-    IL_0009:  ret                      
+    IL_0013:  ldloc.0
+    IL_0014:  ret   
   } // end of method IBar::Bar
 
 } // end of class IBar
@@ -84,18 +90,21 @@
   .method public hidebysig newslot virtual final 
           instance int32  Bar(int32 b) cil managed
   {
-    // Code size       10 (0xa)
+    // Code size       21 (0x15)
     .maxstack  2
     .locals init (int32 V_0)
     IL_0000:  nop
-    IL_0001:  ldarg.1
-    IL_0002:  ldc.i4.s   10
-    IL_0004:  add
-    IL_0005:  stloc.0
-    IL_0006:  br.s       IL_0008
+    IL_0001:  ldstr      "Calling FooBar.Bar"
+    IL_0006:  call       void [mscorlib]System.Console::WriteLine(string)
+    IL_000b:  nop
+    IL_000c:  ldarg.1
+    IL_000d:  ldc.i4.s   10
+    IL_000f:  add
+    IL_0010:  stloc.0
+    IL_0011:  br.s       IL_0013
 
-    IL_0008:  ldloc.0
-    IL_0009:  ret          
+    IL_0013:  ldloc.0
+    IL_0014:  ret
   } // end of method FooBar::Bar
 
   .method public hidebysig specialname rtspecialname 
@@ -135,7 +144,7 @@
     IL_000e:  callvirt   instance int32 IFoo::Foo(int32)
     IL_0013:  ldc.i4.s   11
     IL_0015:  ceq
-    IL_0017:  ldstr      "Calling IFoo.Foo on FooBar => expecting IFoo.Foo"
+    IL_0017:  ldstr      "Calling IFoo.Foo on Foo"
     IL_001c:  call       void Test::Assert(bool,
                                            string)
     IL_0021:  nop
@@ -144,7 +153,7 @@
     IL_0025:  callvirt   instance int32 IBar::Bar(int32)
     IL_002a:  ldc.i4.s   20
     IL_002c:  ceq
-    IL_002e:  ldstr      "Calling IBar.Bar on FooBar => expecting FooBar.Bar"
+    IL_002e:  ldstr      "Calling IBar.Bar on Foo"
     IL_0033:  call       void Test::Assert(bool,
                                            string)
     IL_0038:  nop
@@ -252,4 +261,4 @@
 // =============================================================
 
 // *********** DISASSEMBLY COMPLETE ***********************
-// WARNING: Created Win32 resource file simple_cs.res
+// WARNING: Created Win32 resource file simple.res
