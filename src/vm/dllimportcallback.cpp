@@ -1379,7 +1379,7 @@ VOID UMThunkMarshInfo::RunTimeInit()
 #if defined(_TARGET_X86_)
     MetaSig sig(pMD);
     int numRegistersUsed = 0;
-    int cbRetPop = 0;
+    UINT16 cbRetPop = 0;
 
     //
     // m_cbStackArgSize represents the number of arg bytes for the MANAGED signature
