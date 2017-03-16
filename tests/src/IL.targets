@@ -11,14 +11,16 @@
           Returns=""
           DependsOnTargets="$(CoreCompileDependsOn)">
     <PropertyGroup>
+      <!-- When ilasm/CoreCLR supports PDB, delete this -->
+      <IlasmDebugFlag>false</IlasmDebugFlag>
       <_OutputTypeArgument Condition="'$(OutputType)' == 'Library'">/DLL</_OutputTypeArgument>
       <_OutputTypeArgument Condition="'$(OutputType)' == 'Exe'">/EXE</_OutputTypeArgument>
       <_IlasmSwitches>-QUIET -NOLOGO</_IlasmSwitches>
       <_IlasmSwitches Condition="'$(FoldIdenticalMethods)' == 'True'">$(_IlasmSwitches) -FOLD</_IlasmSwitches>
       <_IlasmSwitches Condition="'$(SizeOfStackReserve)' != ''">$(_IlasmSwitches) -STACK=$(SizeOfStackReserve)</_IlasmSwitches>
-      <_IlasmSwitches Condition="'$(DebugType)' == 'Full'">$(_IlasmSwitches) -DEBUG</_IlasmSwitches>
-      <_IlasmSwitches Condition="'$(DebugType)' == 'Impl'">$(_IlasmSwitches) -DEBUG=IMPL</_IlasmSwitches>
-      <_IlasmSwitches Condition="'$(DebugType)' == 'PdbOnly'">$(_IlasmSwitches) -DEBUG=OPT</_IlasmSwitches>
+      <_IlasmSwitches Condition="'$(DebugType)' == 'Full' and '$(IlasmDebugFlag)' != 'false'">$(_IlasmSwitches) -DEBUG</_IlasmSwitches>
+      <_IlasmSwitches Condition="'$(DebugType)' == 'Impl' and '$(IlasmDebugFlag)' != 'false'">$(_IlasmSwitches) -DEBUG=IMPL</_IlasmSwitches>
+      <_IlasmSwitches Condition="'$(DebugType)' == 'PdbOnly' and '$(IlasmDebugFlag)' != 'false'">$(_IlasmSwitches) -DEBUG=OPT</_IlasmSwitches>
       <_IlasmSwitches Condition="'$(Optimize)' == 'True'">$(_IlasmSwitches) -OPTIMIZE</_IlasmSwitches>
     </PropertyGroup>
 
