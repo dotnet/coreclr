@@ -292,8 +292,8 @@ NESTED_ENTRY AllocateStringFastMP, _TEXT
         ; Calculate the final size to allocate.
         ; We need to calculate baseSize + cnt*2, then round that up by adding 7 and anding ~7.
 
-        lea     r8d, [r8d + ecx*2 + 7]
-        and     r8d, -8
+        lea     r8d, [r8d + ecx*2 + DATA_ALIGNMENT_CONSTANT]
+        and     r8d, NOT_DATA_ALIGNMENT_CONSTANT
 
         mov     r10, [r11 + OFFSET__Thread__m_alloc_context__alloc_limit]
         mov     rax, [r11 + OFFSET__Thread__m_alloc_context__alloc_ptr]
@@ -370,8 +370,8 @@ NESTED_ENTRY JIT_NewArr1VC_MP, _TEXT
 
         ; round the size to a multiple of 8
 
-        add     r8d, 7
-        and     r8d, -8
+        add     r8d, DATA_ALIGNMENT_CONSTANT
+        and     r8d, NOT_DATA_ALIGNMENT_CONSTANT
 
         mov     r10, [r11 + OFFSET__Thread__m_alloc_context__alloc_limit]
         mov     rax, [r11 + OFFSET__Thread__m_alloc_context__alloc_ptr]
