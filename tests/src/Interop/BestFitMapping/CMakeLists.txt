@@ -15,4 +15,4 @@ target_link_libraries(BestFitMappingNative ${LINK_LIBRARIES_ADDITIONAL})
 #SET(LIBRARY_OUTPUT_PATH ${PROJECT_BINARY_DIR}/lib)
 
 # add the install targets
-install (TARGETS BestFitMappingNative DESTINATION bin)
+install (TARGETS BestFitMappingNative DESTINATION bin/BestFitMapping)
