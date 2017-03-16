@@ -6951,6 +6951,7 @@ BOOL MethodTable::FindDefaultMethod(
     MethodTable *pBestCandidateMT = NULL;
     MethodDesc  *pBestCandidateMD = NULL;
 
+    // @TODO - Walk up the hierarchy and do topological sort
     while (it.Next())
     {
         MethodTable *pCurMT = it.GetInterface();
@@ -6971,7 +6972,7 @@ BOOL MethodTable::FindDefaultMethod(
             else
             {
                 MethodIterator methodIt(pCurMT);
-                while (methodIt.Next())
+                for (; methodIt.IsValid(); methodIt.Next())
                 {
                     MethodDesc *pMD = methodIt.GetMethodDesc();
                     if (pMD->IsVirtual() && !pMD->IsAbstract() /* && !pMD->IsNewSlot() */)
