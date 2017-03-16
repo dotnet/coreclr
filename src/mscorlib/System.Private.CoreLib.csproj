@@ -81,10 +81,9 @@
     <DebugType>pdbOnly</DebugType>
     <DefineConstants>TRACE;$(DefineConstants)</DefineConstants>
   </PropertyGroup>
-  <!-- Roslyn does not support writing PDBs on Unix -->
+  <!-- Make portable PDBs on Unix -->
   <PropertyGroup Condition="'$(OsEnvironment)' == 'Unix'">
-    <DebugSymbols>false</DebugSymbols>
-    <DebugType>none</DebugType>
+    <DebugType>portable</DebugType>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(TargetsOSX)' == 'true'">
@@ -144,10 +143,8 @@
     <Compile Include="$(BclSourcesRoot)\System\Runtime\CompilerServices\UnsafeValueTypeAttribute.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Runtime\CompilerServices\AssemblySettingAttributes.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Runtime\CompilerServices\TypeDependencyAttribute.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Runtime\CompilerServices\CompilerMarshalOverride.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Runtime\CompilerServices\jithelpers.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Runtime\CompilerServices\Unsafe.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Runtime\CompilerServices\SpecialNameAttribute.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Runtime\CompilerServices\SuppressMergeCheckAttribute.cs" />
     <Compile Condition="'$(FeatureICastable)' == 'true'" Include="$(BclSourcesRoot)\System\Runtime\CompilerServices\ICastable.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Runtime\CompilerServices\SuppressIldasmAttribute.cs" />
@@ -178,7 +175,6 @@
     <Compile Include="$(BclSourcesRoot)\System\Runtime\GcSettings.cs" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="$(BclSourcesRoot)\System\Collections\CollectionBase.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Collections\ArrayList.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Collections\Comparer.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Collections\CompatibleComparer.cs" />
@@ -186,7 +182,6 @@
     <Compile Include="$(BclSourcesRoot)\System\Collections\EmptyReadOnlyDictionaryInternal.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Collections\Hashtable.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Collections\IHashCodeProvider.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Collections\StructuralComparisons.cs" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="$(BclSourcesRoot)\System\Runtime\InteropServices\ArrayWithOffset.cs" />
@@ -363,8 +358,6 @@
     <Compile Include="$(BclSourcesRoot)\System\Char.cs" />
     <Compile Include="$(BclSourcesRoot)\System\TypeUnloadedException.cs" />
     <Compile Include="$(BclSourcesRoot)\System\CompatibilitySwitches.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\LowLevelConsole.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Convert.cs" />
     <Compile Include="$(BclSourcesRoot)\System\StringFreezingAttribute.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Currency.cs" />
     <Compile Include="$(BclSourcesRoot)\System\DBNull.cs" />
@@ -384,7 +377,6 @@
     <Compile Include="$(BclSourcesRoot)\System\Int64.cs" />
     <Compile Include="$(BclSourcesRoot)\System\IntPtr.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Internal.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\IServiceObjectProvider.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Math.cs" />
     <Compile Include="$(BclSourcesRoot)\System\MathF.cs" />
     <Compile Include="$(BclSourcesRoot)\System\mda.cs" />
@@ -445,6 +437,7 @@
   <ItemGroup>
     <Compile Include="$(BclSourcesRoot)\Internal\Runtime\Augments\EnvironmentAugments.cs" />
     <Compile Include="$(BclSourcesRoot)\Internal\Runtime\Augments\RuntimeThread.cs" />
+    <Compile Include="$(BclSourcesRoot)\Internal\Console.cs" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="$(BclSourcesRoot)\System\Reflection\__Filters.cs" />
@@ -470,20 +463,20 @@
     <Compile Include="$(BclSourcesRoot)\System\Reflection\ICustomAttributeProvider.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Reflection\IReflectableType.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Reflection\IntrospectionExtensions.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Reflection\RuntimeReflectionExtensions.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Reflection\InterfaceMapping.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Reflection\InvalidFilterCriteriaException.cs" />
+    <Compile Include="$(BclSourcesRoot)\System\Reflection\INVOCATION_FLAGS.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Reflection\IReflect.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Reflection\LoaderAllocator.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Reflection\ManifestResourceInfo.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Reflection\MdConstant.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Reflection\MdImport.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Reflection\MemberFilter.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Reflection\MemberInfo.cs" />
+    <Compile Include="$(BclSourcesRoot)\System\Reflection\MemberInfo.Internal.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Reflection\MemberInfoSerializationHolder.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Reflection\MemberTypes.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Reflection\MethodAttributes.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Reflection\MethodBase.cs" />
+    <Compile Include="$(BclSourcesRoot)\System\Reflection\MethodBase.CoreCLR.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Reflection\MethodImplAttributes.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Reflection\MethodInfo.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Reflection\Missing.cs" />
@@ -686,7 +679,6 @@
     <Compile Include="$(BclSourcesRoot)\System\Threading\ApartmentState.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Threading\SpinLock.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Threading\SpinWait.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Threading\CountdownEvent.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Threading\LazyInitializer.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Threading\ThreadLocal.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Threading\SemaphoreSlim.cs" />
@@ -926,7 +918,6 @@
     <Compile Include="$(BclSourcesRoot)\System\Collections\ObjectModel\Collection.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Collections\ObjectModel\ReadOnlyCollection.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Collections\ObjectModel\ReadOnlyDictionary.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Collections\ObjectModel\KeyedCollection.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Collections\Concurrent\ConcurrentStack.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Collections\Concurrent\IProducerConsumerCollection.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Collections\Concurrent\ConcurrentDictionary.cs" />
@@ -976,6 +967,7 @@
     <!-- These are files are preprocessed  -->
     <Compile Include="$(CommonPath)\Preprocessed\AssemblyRefs.g.cs" />
     <!-- These files are shared with other framework components and don't live the same folder as the rest of them-->
+    <Compile Include="$(CommonPath)\NotImplemented.cs" />
     <Compile Include="$(CommonPath)\PinnableBufferCache.cs" />
     <!-- Include Internals visible to file in the compilation -->
     <Compile Include="$(BclSourcesRoot)\mscorlib.Friends.cs" />

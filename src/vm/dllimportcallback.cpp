@@ -1375,18 +1375,15 @@ VOID UMThunkMarshInfo::RunTimeInit()
 
         }
     }
-    //
-    // m_cbActualArgSize gets the number of arg bytes for the NATIVE signature
-    //
-    m_cbActualArgSize =
-        (pStubMD != NULL) ? pStubMD->AsDynamicMethodDesc()->GetNativeStackArgSize() : pMD->SizeOfArgStack();
 
 #if defined(_TARGET_X86_)
     MetaSig sig(pMD);
-    ArgIterator argit(&sig);
     int numRegistersUsed = 0;
-    m_ecxArgOffset = -1;
-    m_edxArgOffset = -1;
+
+    //
+    // m_cbStackArgSize represents the number of arg bytes for the MANAGED signature
+    //
+    m_cbStackArgSize = 0;
 
     int offs = 0;
     for (UINT i = 0 ; i < sig.NumFixedArgs(); i++)
@@ -1396,22 +1393,22 @@ VOID UMThunkMarshInfo::RunTimeInit()
         int cbSize = sig.GetElemSize(type, thValueType);
         if (ArgIterator::IsArgumentInRegister(&numRegistersUsed, type))
         {
-            if (numRegistersUsed == 1)
-                m_ecxArgOffset = offs;
-            else if (numRegistersUsed == 2)
-                m_edxArgOffset = offs;
             offs += STACK_ELEM_SIZE;
         }
         else
         {
             offs += StackElemSize(cbSize);
+            m_cbStackArgSize += StackElemSize(cbSize);
         }
     }
+    m_cbActualArgSize = (pStubMD != NULL) ? pStubMD->AsDynamicMethodDesc()->GetNativeStackArgSize() : offs;
+
     PInvokeStaticSigInfo sigInfo;
     if (pMD != NULL)
         new (&sigInfo) PInvokeStaticSigInfo(pMD);
     else
         new (&sigInfo) PInvokeStaticSigInfo(GetSignature(), GetModule());
+
     if (sigInfo.GetCallConv() == pmCallConvCdecl)
     {
         // caller pop
@@ -1422,6 +1419,13 @@ VOID UMThunkMarshInfo::RunTimeInit()
         // callee pop
         m_cbRetPop = static_cast<UINT16>(m_cbActualArgSize);
     }
+#else // _TARGET_X86_
+    //
+    // m_cbActualArgSize gets the number of arg bytes for the NATIVE signature
+    //
+    m_cbActualArgSize =
+        (pStubMD != NULL) ? pStubMD->AsDynamicMethodDesc()->GetNativeStackArgSize() : pMD->SizeOfArgStack();
+
 #endif // _TARGET_X86_
 
 #endif // _TARGET_X86_ && !FEATURE_STUBS_AS_IL
@@ -1429,6 +1433,76 @@ VOID UMThunkMarshInfo::RunTimeInit()
     // Must be the last thing we set!
     InterlockedCompareExchangeT<PCODE>(&m_pILStub, pFinalILStub, (PCODE)1);
 }
+
+#if defined(_TARGET_X86_) && defined(FEATURE_STUBS_AS_IL)
+VOID UMThunkMarshInfo::SetupArguments(char *pSrc, ArgumentRegisters *pArgRegs, char *pDst)
+{
+    MethodDesc *pMD = GetMethod();
+
+    _ASSERTE(pMD);
+
+    //
+    // x86 native uses the following stack layout:
+    // | saved eip |
+    // | --------- | <- CFA
+    // | stkarg 0  |
+    // | stkarg 1  |
+    // | ...       |
+    // | stkarg N  |
+    //
+    // x86 managed, however, uses a bit different stack layout:
+    // | saved eip |
+    // | --------- | <- CFA
+    // | stkarg M  | (NATIVE/MANAGE may have different number of stack arguments)
+    // | ...       |
+    // | stkarg 1  |
+    // | stkarg 0  |
+    //
+    // This stub bridges the gap between them.
+    //
+    char *pCurSrc = pSrc;
+    char *pCurDst = pDst + m_cbStackArgSize;
+
+    MetaSig sig(pMD);
+
+    int numRegistersUsed = 0;
+
+    for (UINT i = 0 ; i < sig.NumFixedArgs(); i++)
+    {
+        TypeHandle thValueType;
+        CorElementType type = sig.NextArgNormalized(&thValueType);
+        int cbSize = sig.GetElemSize(type, thValueType);
+        int elemSize = StackElemSize(cbSize);
+
+        if (ArgIterator::IsArgumentInRegister(&numRegistersUsed, type))
+        {
+            _ASSERTE(elemSize == STACK_ELEM_SIZE);
+
+            if (numRegistersUsed == 1)
+                pArgRegs->Ecx = *((UINT32 *)pCurSrc);
+            else if (numRegistersUsed == 2)
+                pArgRegs->Edx = *((UINT32 *)pCurSrc);
+        }
+        else
+        {
+            pCurDst -= elemSize;
+            memcpy(pCurDst, pCurSrc, elemSize);
+        }
+
+        pCurSrc += elemSize;
+    }
+
+    _ASSERTE(pDst == pCurDst);
+}
+
+EXTERN_C VOID STDCALL UMThunkStubSetupArgumentsWorker(UMThunkMarshInfo *pMarshInfo,
+                                                      char *pSrc,
+                                                      UMThunkMarshInfo::ArgumentRegisters *pArgRegs,
+                                                      char *pDst)
+{
+    pMarshInfo->SetupArguments(pSrc, pArgRegs, pDst);
+}
+#endif // _TARGET_X86_ && FEATURE_STUBS_AS_IL
 
 #ifdef _DEBUG
 void STDCALL LogUMTransition(UMEntryThunk* thunk)
