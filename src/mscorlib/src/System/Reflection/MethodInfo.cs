@@ -8,6 +8,25 @@ namespace System.Reflection
     {
         protected MethodInfo() { }
 
+        public override MemberTypes MemberType => MemberTypes.Method;
+
+        public virtual ParameterInfo ReturnParameter { get { throw NotImplemented.ByDesign; } }
+        public virtual Type ReturnType { get { throw NotImplemented.ByDesign; } }
+
+        public override Type[] GetGenericArguments() { throw new NotSupportedException(SR.NotSupported_SubclassOverride); }
+        public virtual MethodInfo GetGenericMethodDefinition() { throw new NotSupportedException(SR.NotSupported_SubclassOverride); }
+        public virtual MethodInfo MakeGenericMethod(params Type[] typeArguments) { throw new NotSupportedException(SR.NotSupported_SubclassOverride); }
+
+        public abstract MethodInfo GetBaseDefinition();
+
+        public abstract ICustomAttributeProvider ReturnTypeCustomAttributes { get; }
+
+        public virtual Delegate CreateDelegate(Type delegateType) { throw new NotSupportedException(SR.NotSupported_SubclassOverride); }
+        public virtual Delegate CreateDelegate(Type delegateType, object target) { throw new NotSupportedException(SR.NotSupported_SubclassOverride); }
+
+        public override bool Equals(object obj) => base.Equals(obj);
+        public override int GetHashCode() => base.GetHashCode();
+
         public static bool operator ==(MethodInfo left, MethodInfo right)
         {
             if (object.ReferenceEquals(left, right))
@@ -20,28 +39,5 @@ namespace System.Reflection
         }
 
         public static bool operator !=(MethodInfo left, MethodInfo right) => !(left == right);
-
-        public override bool Equals(object obj) => base.Equals(obj);
-
-        public override int GetHashCode() => base.GetHashCode();
-
-        public override MemberTypes MemberType => MemberTypes.Method;
-
-        public virtual Type ReturnType { get { throw NotImplemented.ByDesign; } }
-
-        public virtual ParameterInfo ReturnParameter { get { throw NotImplemented.ByDesign; } }
-
-        public abstract ICustomAttributeProvider ReturnTypeCustomAttributes { get; }
-
-        public abstract MethodInfo GetBaseDefinition();
-
-        public override Type[] GetGenericArguments() { throw new NotSupportedException(SR.NotSupported_SubclassOverride); }
-
-        public virtual MethodInfo GetGenericMethodDefinition() { throw new NotSupportedException(SR.NotSupported_SubclassOverride); }
-
-        public virtual MethodInfo MakeGenericMethod(params Type[] typeArguments) { throw new NotSupportedException(SR.NotSupported_SubclassOverride); }
-
-        public virtual Delegate CreateDelegate(Type delegateType) { throw new NotSupportedException(SR.NotSupported_SubclassOverride); }
-        public virtual Delegate CreateDelegate(Type delegateType, object target) { throw new NotSupportedException(SR.NotSupported_SubclassOverride); }
     }
 }

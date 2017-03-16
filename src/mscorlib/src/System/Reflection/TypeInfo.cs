@@ -15,6 +15,40 @@ namespace System.Reflection
 
         public virtual Type[] GenericTypeParameters => IsGenericTypeDefinition ? GetGenericArguments() : Type.EmptyTypes;
 
+        public virtual EventInfo GetDeclaredEvent(string name) => GetEvent(name, TypeInfo.DeclaredOnlyLookup);
+        public virtual FieldInfo GetDeclaredField(string name) => GetField(name, TypeInfo.DeclaredOnlyLookup);
+        public virtual MethodInfo GetDeclaredMethod(string name) => GetMethod(name, TypeInfo.DeclaredOnlyLookup);
+        public virtual TypeInfo GetDeclaredNestedType(string name) => GetNestedType(name, TypeInfo.DeclaredOnlyLookup)?.GetTypeInfo();
+        public virtual PropertyInfo GetDeclaredProperty(string name) => GetProperty(name, TypeInfo.DeclaredOnlyLookup);
+
+        public virtual IEnumerable<MethodInfo> GetDeclaredMethods(string name)
+        {
+            foreach (MethodInfo method in GetMethods(TypeInfo.DeclaredOnlyLookup))
+            {
+                if (method.Name == name)
+                    yield return method;
+            }
+        }
+
+        public virtual IEnumerable<ConstructorInfo> DeclaredConstructors => GetConstructors(TypeInfo.DeclaredOnlyLookup);
+        public virtual IEnumerable<EventInfo> DeclaredEvents => GetEvents(TypeInfo.DeclaredOnlyLookup);
+        public virtual IEnumerable<FieldInfo> DeclaredFields => GetFields(TypeInfo.DeclaredOnlyLookup);
+        public virtual IEnumerable<MemberInfo> DeclaredMembers => GetMembers(TypeInfo.DeclaredOnlyLookup);
+        public virtual IEnumerable<MethodInfo> DeclaredMethods => GetMethods(TypeInfo.DeclaredOnlyLookup);
+        public virtual IEnumerable<System.Reflection.TypeInfo> DeclaredNestedTypes
+        {
+            get
+            {
+                foreach (Type t in GetNestedTypes(TypeInfo.DeclaredOnlyLookup))
+                {
+                    yield return t.GetTypeInfo();
+                }
+            }
+        }
+        public virtual IEnumerable<PropertyInfo> DeclaredProperties => GetProperties(TypeInfo.DeclaredOnlyLookup);
+
+        public virtual IEnumerable<Type> ImplementedInterfaces => GetInterfaces();
+
         //a re-implementation of ISAF from Type, skipping the use of UnderlyingType
         public virtual bool IsAssignableFrom(TypeInfo typeInfo)
         {
@@ -45,47 +79,6 @@ namespace System.Reflection
             return false;
         }
 
-
-        public virtual EventInfo GetDeclaredEvent(string name) => GetEvent(name, TypeInfo.DeclaredOnlyLookup);
-        public virtual FieldInfo GetDeclaredField(string name) => GetField(name, TypeInfo.DeclaredOnlyLookup);
-        public virtual MethodInfo GetDeclaredMethod(string name) => GetMethod(name, TypeInfo.DeclaredOnlyLookup);
-        public virtual IEnumerable<MethodInfo> GetDeclaredMethods(string name)
-        {
-            foreach (MethodInfo method in GetMethods(TypeInfo.DeclaredOnlyLookup))
-            {
-                if (method.Name == name)
-                    yield return method;
-            }
-        }
-        public virtual TypeInfo GetDeclaredNestedType(string name) => GetNestedType(name, TypeInfo.DeclaredOnlyLookup)?.GetTypeInfo();
-        public virtual PropertyInfo GetDeclaredProperty(string name) => GetProperty(name, TypeInfo.DeclaredOnlyLookup);
-
-
-
-
-
-        public virtual IEnumerable<ConstructorInfo> DeclaredConstructors => GetConstructors(TypeInfo.DeclaredOnlyLookup);
-        public virtual IEnumerable<EventInfo> DeclaredEvents => GetEvents(TypeInfo.DeclaredOnlyLookup);
-        public virtual IEnumerable<FieldInfo> DeclaredFields => GetFields(TypeInfo.DeclaredOnlyLookup);
-        public virtual IEnumerable<MemberInfo> DeclaredMembers => GetMembers(TypeInfo.DeclaredOnlyLookup);
-        public virtual IEnumerable<MethodInfo> DeclaredMethods => GetMethods(TypeInfo.DeclaredOnlyLookup);
-        public virtual IEnumerable<System.Reflection.TypeInfo> DeclaredNestedTypes
-        {
-            get
-            {
-                foreach (Type t in GetNestedTypes(TypeInfo.DeclaredOnlyLookup))
-                {
-                    yield return t.GetTypeInfo();
-                }
-            }
-        }
-
-        public virtual IEnumerable<PropertyInfo> DeclaredProperties => GetProperties(TypeInfo.DeclaredOnlyLookup);
-
-
-        public virtual IEnumerable<Type> ImplementedInterfaces => GetInterfaces();
-
         private const BindingFlags DeclaredOnlyLookup = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static | BindingFlags.DeclaredOnly;
     }
 }
-

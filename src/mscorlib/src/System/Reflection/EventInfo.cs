@@ -11,45 +11,52 @@ namespace System.Reflection
     {
         protected EventInfo() { }
 
-        public static bool operator ==(EventInfo left, EventInfo right)
-        {
-            if (object.ReferenceEquals(left, right))
-                return true;
-
-            if ((object)left == null || (object)right == null)
-                return false;
-
-            return left.Equals(right);
-        }
-
-        public static bool operator !=(EventInfo left, EventInfo right) => !(left == right);
-
-        public override bool Equals(object obj) => base.Equals(obj);
-        public override int GetHashCode() => base.GetHashCode();
-
         public override MemberTypes MemberType => MemberTypes.Event;
 
-        public virtual MethodInfo[] GetOtherMethods(bool nonPublic) { throw NotImplemented.ByDesign; }
-
-        public abstract MethodInfo GetAddMethod(bool nonPublic);
-
-        public abstract MethodInfo GetRemoveMethod(bool nonPublic);
-
-        public abstract MethodInfo GetRaiseMethod(bool nonPublic);
-
         public abstract EventAttributes Attributes { get; }
+        public bool IsSpecialName => (Attributes & EventAttributes.SpecialName) != 0;
+
+        public MethodInfo[] GetOtherMethods() => GetOtherMethods(nonPublic: false);
+        public virtual MethodInfo[] GetOtherMethods(bool nonPublic) { throw NotImplemented.ByDesign; }
 
         public virtual MethodInfo AddMethod => GetAddMethod(nonPublic: true);
         public virtual MethodInfo RemoveMethod => GetRemoveMethod(nonPublic: true);
         public virtual MethodInfo RaiseMethod => GetRaiseMethod(nonPublic: true);
 
-        public MethodInfo[] GetOtherMethods() => GetOtherMethods(nonPublic: false);
-
         public MethodInfo GetAddMethod() => GetAddMethod(nonPublic: false);
-
         public MethodInfo GetRemoveMethod() => GetRemoveMethod(nonPublic: false);
-
         public MethodInfo GetRaiseMethod() => GetRaiseMethod(nonPublic: false);
+
+        public abstract MethodInfo GetAddMethod(bool nonPublic);
+        public abstract MethodInfo GetRemoveMethod(bool nonPublic);
+        public abstract MethodInfo GetRaiseMethod(bool nonPublic);
+
+        public virtual bool IsMulticast
+        {
+            get
+            {
+                Type cl = EventHandlerType;
+                Type mc = typeof(MulticastDelegate);
+                return mc.IsAssignableFrom(cl);
+            }
+        }
+
+        public virtual Type EventHandlerType
+        {
+            get
+            {
+                MethodInfo m = GetAddMethod(true);
+                ParameterInfo[] p = m.GetParametersNoCopy();
+                Type del = typeof(Delegate);
+                for (int i = 0; i < p.Length; i++)
+                {
+                    Type c = p[i].ParameterType;
+                    if (c.IsSubclassOf(del))
+                        return c;
+                }
+                return null;
+            }
+        }
 
         [DebuggerHidden]
         [DebuggerStepThrough]
@@ -82,33 +89,20 @@ namespace System.Reflection
             removeMethod.Invoke(target, new object[] { handler });
         }
 
-        public virtual Type EventHandlerType
+        public override bool Equals(object obj) => base.Equals(obj);
+        public override int GetHashCode() => base.GetHashCode();
+
+        public static bool operator ==(EventInfo left, EventInfo right)
         {
-            get
-            {
-                MethodInfo m = GetAddMethod(true);
-                ParameterInfo[] p = m.GetParametersNoCopy();
-                Type del = typeof(Delegate);
-                for (int i = 0; i < p.Length; i++)
-                {
-                    Type c = p[i].ParameterType;
-                    if (c.IsSubclassOf(del))
-                        return c;
-                }
-                return null;
-            }
+            if (object.ReferenceEquals(left, right))
+                return true;
+
+            if ((object)left == null || (object)right == null)
+                return false;
+
+            return left.Equals(right);
         }
 
-        public bool IsSpecialName => (Attributes & EventAttributes.SpecialName) != 0;
-
-        public virtual bool IsMulticast
-        {
-            get
-            {
-                Type cl = EventHandlerType;
-                Type mc = typeof(MulticastDelegate);
-                return mc.IsAssignableFrom(cl);
-            }
-        }
+        public static bool operator !=(EventInfo left, EventInfo right) => !(left == right);
     }
 }
