@@ -22,7 +22,7 @@ namespace System.Text
         {
             if (CultureData.InvariantMode)
             {
-                // work ordinal, then all charcaters are normalized in this mode
+                // work ordinal, then all characters are normalized in this mode
                 return true;
             }
 
@@ -57,7 +57,7 @@ namespace System.Text
         {
             if (CultureData.InvariantMode)
             {
-                // work ordinal, then all charcaters are normalized in this mode
+                // work ordinal, then all characters are normalized in this mode
                 return strInput;
             }
 
