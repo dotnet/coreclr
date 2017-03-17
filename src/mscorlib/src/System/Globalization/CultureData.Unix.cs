@@ -42,8 +42,7 @@ namespace System.Globalization
         {
             Debug.Assert(_sRealName != null);
 
-            if (CultureData.InvariantMode)
-                throw new Exception(" ********************* Convert this exception to assert ********************* ");
+            Debug.Assert(!CultureData.InvariantMode);
 
             string alternateSortName = string.Empty;
             string realNameBuffer = _sRealName;
@@ -137,8 +136,7 @@ namespace System.Globalization
         
         private string GetLocaleInfo(LocaleStringData type)
         {
-            if (InvariantMode)
-                throw new Exception(" ********************* Convert this exception to assert ********************* ");
+            Debug.Assert(!CultureData.InvariantMode);
             
             Debug.Assert(_sWindowsName != null, "[CultureData.GetLocaleInfo] Expected _sWindowsName to be populated already");
             return GetLocaleInfo(_sWindowsName, type);
@@ -173,8 +171,7 @@ namespace System.Globalization
 
         private int GetLocaleInfo(LocaleNumberData type)
         {
-            if (InvariantMode)
-                throw new Exception(" ********************* Convert this exception to assert ********************* ");
+            Debug.Assert(!CultureData.InvariantMode);
 
             Debug.Assert(_sWindowsName != null, "[CultureData.GetLocaleInfo(LocaleNumberData)] Expected _sWindowsName to be populated already");
 
@@ -319,16 +316,14 @@ namespace System.Globalization
         
         private static string LCIDToLocaleName(int culture)
         {
-            if (InvariantMode)
-                throw new Exception(" ********************* Convert this exception to assert ********************* ");
+            Debug.Assert(!CultureData.InvariantMode);
 
             return LocaleData.LCIDToLocaleName(culture);
         }
 
         private static int LocaleNameToLCID(string cultureName)
         {
-            if (InvariantMode)
-                throw new Exception(" ********************* Convert this exception to assert ********************* ");
+            Debug.Assert(!CultureData.InvariantMode);
             
             int lcid = LocaleData.GetLocaleDataNumericPart(cultureName, LocaleDataParts.Lcid);
             return lcid == -1 ? CultureInfo.LOCALE_CUSTOM_UNSPECIFIED : lcid; 
@@ -378,8 +373,7 @@ namespace System.Globalization
 
         private static CultureInfo[] EnumCultures(CultureTypes types)
         {
-            if (InvariantMode)
-                throw new Exception(" ********************* Convert this exception to assert ********************* ");
+            Debug.Assert(!CultureData.InvariantMode);
             
             if ((types & (CultureTypes.NeutralCultures | CultureTypes.SpecificCultures)) == 0)
             {

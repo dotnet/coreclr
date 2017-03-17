@@ -41,8 +41,7 @@ namespace System.Globalization
             int cchValue,
             bool bIgnoreCase)
         {
-            if (CultureData.InvariantMode)
-                throw new Exception(" ********************* Convert this exception to assert ********************* ");
+            Debug.Assert(!CultureData.InvariantMode);
 
             fixed (char* pSource = stringSource)
             fixed (char* pValue = value)
@@ -60,8 +59,7 @@ namespace System.Globalization
 
         internal static int IndexOfOrdinalCore(string source, string value, int startIndex, int count, bool ignoreCase)
         {
-            if (CultureData.InvariantMode)
-                throw new Exception(" ********************* Convert this exception to assert ********************* ");
+            Debug.Assert(!CultureData.InvariantMode);
 
             Debug.Assert(source != null);
             Debug.Assert(value != null);
@@ -71,8 +69,7 @@ namespace System.Globalization
 
         internal static int LastIndexOfOrdinalCore(string source, string value, int startIndex, int count, bool ignoreCase)
         {
-            if (CultureData.InvariantMode)
-                throw new Exception(" ********************* Convert this exception to assert ********************* ");
+            Debug.Assert(!CultureData.InvariantMode);
 
             Debug.Assert(source != null);
             Debug.Assert(value != null);
@@ -82,8 +79,7 @@ namespace System.Globalization
 
         private unsafe int GetHashCodeOfStringCore(string source, CompareOptions options)
         {
-            if (CultureData.InvariantMode)
-                throw new Exception(" ********************* Convert this exception to assert ********************* ");
+            Debug.Assert(!CultureData.InvariantMode);
 
             Debug.Assert(source != null);
             Debug.Assert((options & (CompareOptions.Ordinal | CompareOptions.OrdinalIgnoreCase)) == 0);
@@ -115,8 +111,7 @@ namespace System.Globalization
 
         private static unsafe int CompareStringOrdinalIgnoreCase(char* string1, int count1, char* string2, int count2)
         {
-            if (CultureData.InvariantMode)
-                throw new Exception(" ********************* Convert this exception to assert ********************* ");
+            Debug.Assert(!CultureData.InvariantMode);
 
             // Use the OS to compare and then convert the result to expected value by subtracting 2 
             return Interop.Kernel32.CompareStringOrdinal(string1, count1, string2, count2, true) - 2;
@@ -124,8 +119,7 @@ namespace System.Globalization
 
         private unsafe int CompareString(string string1, int offset1, int length1, string string2, int offset2, int length2, CompareOptions options)
         {
-            if (CultureData.InvariantMode)
-                throw new Exception(" ********************* Convert this exception to assert ********************* ");
+            Debug.Assert(!CultureData.InvariantMode);
 
             Debug.Assert(string1 != null);
             Debug.Assert(string2 != null);
@@ -168,8 +162,7 @@ namespace System.Globalization
                     int cchValue,
                     int *pcchFound)
         {
-            if (CultureData.InvariantMode)
-                throw new Exception(" ********************* Convert this exception to assert ********************* ");
+            Debug.Assert(!CultureData.InvariantMode);
 
             string localeName = _sortHandle != IntPtr.Zero ? null : _sortName;
 
@@ -196,8 +189,7 @@ namespace System.Globalization
 
         internal unsafe int IndexOfCore(String source, String target, int startIndex, int count, CompareOptions options, int* matchLengthPtr)
         {
-            if (CultureData.InvariantMode)
-                throw new Exception(" ********************* Convert this exception to assert ********************* ");
+            Debug.Assert(!CultureData.InvariantMode);
 
             Debug.Assert(source != null);
             Debug.Assert(target != null);
@@ -240,8 +232,7 @@ namespace System.Globalization
 
         private unsafe int LastIndexOfCore(string source, string target, int startIndex, int count, CompareOptions options)
         {
-            if (CultureData.InvariantMode)
-                throw new Exception(" ********************* Convert this exception to assert ********************* ");
+            Debug.Assert(!CultureData.InvariantMode);
 
             Debug.Assert(!string.IsNullOrEmpty(source));
             Debug.Assert(target != null);
@@ -272,8 +263,7 @@ namespace System.Globalization
 
         private unsafe bool StartsWith(string source, string prefix, CompareOptions options)
         {
-            if (CultureData.InvariantMode)
-                throw new Exception(" ********************* Convert this exception to assert ********************* ");
+            Debug.Assert(!CultureData.InvariantMode);
 
             Debug.Assert(!string.IsNullOrEmpty(source));
             Debug.Assert(!string.IsNullOrEmpty(prefix));
@@ -285,8 +275,7 @@ namespace System.Globalization
 
         private unsafe bool EndsWith(string source, string suffix, CompareOptions options)
         {
-            if (CultureData.InvariantMode)
-                throw new Exception(" ********************* Convert this exception to assert ********************* ");
+            Debug.Assert(!CultureData.InvariantMode);
 
             Debug.Assert(!string.IsNullOrEmpty(source));
             Debug.Assert(!string.IsNullOrEmpty(suffix));
@@ -385,8 +374,7 @@ namespace System.Globalization
 
         private unsafe SortKey CreateSortKey(String source, CompareOptions options)
         {
-            if (CultureData.InvariantMode)
-                throw new Exception(" ********************* Convert this exception to assert ********************* ");
+            Debug.Assert(!CultureData.InvariantMode);
 
             if (source == null) { throw new ArgumentNullException(nameof(source)); }
             Contract.EndContractBlock();
@@ -433,8 +421,7 @@ namespace System.Globalization
 
         private static unsafe bool IsSortable(char* text, int length)
         {
-            if (CultureData.InvariantMode)
-                throw new Exception(" ********************* Convert this exception to assert ********************* ");
+            Debug.Assert(!CultureData.InvariantMode);
 
             return Interop.Kernel32.IsNLSDefinedString(Interop.Kernel32.COMPARE_STRING, 0, IntPtr.Zero, text, length);
         }
@@ -479,8 +466,7 @@ namespace System.Globalization
 
         private unsafe SortVersion GetSortVersion()
         {
-            if (CultureData.InvariantMode)
-                throw new Exception(" ********************* Convert this exception to assert ********************* ");
+            Debug.Assert(!CultureData.InvariantMode);
 
             Interop.Kernel32.NlsVersionInfoEx nlsVersion = new Interop.Kernel32.NlsVersionInfoEx();
             Interop.Kernel32.GetNLSVersionEx(Interop.Kernel32.COMPARE_STRING, _sortName, &nlsVersion);

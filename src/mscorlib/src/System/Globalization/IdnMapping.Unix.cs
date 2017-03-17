@@ -8,8 +8,7 @@ namespace System.Globalization
     {
         private unsafe string GetAsciiCore(char* unicode, int count)
         {
-            if (CultureData.InvariantMode)
-                throw new Exception(" ********************* Convert this exception to assert ********************* ");
+            Debug.Assert(!CultureData.InvariantMode);
 
             uint flags = Flags;
             CheckInvalidIdnCharacters(unicode, count, flags, nameof(unicode));
@@ -51,8 +50,8 @@ namespace System.Globalization
 
         private unsafe string GetUnicodeCore(char* ascii, int count)
         {
-            if (CultureData.InvariantMode)
-                throw new Exception(" ********************* Convert this exception to assert ********************* ");
+            Debug.Assert(!CultureData.InvariantMode);
+
             uint flags = Flags;
             CheckInvalidIdnCharacters(ascii, count, flags, nameof(ascii));
 
@@ -74,8 +73,8 @@ namespace System.Globalization
 
         private unsafe string GetUnicodeCore(char* ascii, int count, uint flags, char* output, int outputLength, bool reattempt)
         {
-            if (CultureData.InvariantMode)
-                throw new Exception(" ********************* Convert this exception to assert ********************* ");
+            Debug.Assert(!CultureData.InvariantMode);
+
             int realLen = Interop.GlobalizationInterop.ToUnicode(flags, ascii, count, output, outputLength);
 
             if (realLen == 0)

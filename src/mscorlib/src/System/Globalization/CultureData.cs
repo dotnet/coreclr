@@ -1504,8 +1504,7 @@ namespace System.Globalization
             {
                 if (_saLongTimes == null)
                 {
-                    if (InvariantMode)
-                        throw new Exception(" ********************* Convert this exception to assert ********************* ");
+                    Debug.Assert(!CultureData.InvariantMode);
 
                     String[] longTimes = GetTimeFormats();
                     if (longTimes == null || longTimes.Length == 0)
@@ -1530,8 +1529,7 @@ namespace System.Globalization
             {
                 if (_saShortTimes == null)
                 {
-                    if (CultureData.InvariantMode)
-                        throw new Exception(" ********************* Convert this exception to assert ********************* ");
+                    Debug.Assert(!CultureData.InvariantMode);
 
                     // Try to get the short times from the OS/culture.dll
                     String[] shortTimes = null;

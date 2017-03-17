@@ -25,8 +25,7 @@ namespace System.Globalization
 
         private unsafe string ChangeCase(string s, bool toUpper)
         {
-            if (CultureData.InvariantMode)
-                throw new Exception(" ********************* Convert this exception to assert ********************* ");
+            Debug.Assert(!CultureData.InvariantMode);
 
             Debug.Assert(s != null);
 
@@ -78,8 +77,7 @@ namespace System.Globalization
 
         private unsafe char ChangeCase(char c, bool toUpper)
         {
-            if (CultureData.InvariantMode)
-                throw new Exception(" ********************* Convert this exception to assert ********************* ");
+            Debug.Assert(!CultureData.InvariantMode);
 
             char retVal = '\0';
 

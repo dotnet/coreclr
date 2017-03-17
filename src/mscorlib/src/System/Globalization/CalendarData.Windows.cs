@@ -22,8 +22,7 @@ namespace System.Globalization
     {
         private bool LoadCalendarDataFromSystem(String localeName, CalendarId calendarId)
         {
-            if (CultureData.InvariantMode)
-                throw new Exception(" ********************* Convert this exception to assert ********************* ");
+            Debug.Assert(!CultureData.InvariantMode);
 
             bool ret = true;
 
@@ -137,8 +136,7 @@ namespace System.Globalization
         // Call native side to figure out which calendars are allowed
         internal static int GetCalendars(String localeName, bool useUserOverride, CalendarId[] calendars)
         {
-            if (CultureData.InvariantMode)
-                throw new Exception(" ********************* Convert this exception to assert ********************* ");
+            Debug.Assert(!CultureData.InvariantMode);
 
             EnumCalendarsData data = new EnumCalendarsData();
             data.userOverride = 0;
@@ -184,8 +182,7 @@ namespace System.Globalization
 
         private static bool SystemSupportsTaiwaneseCalendar()
         {
-            if (CultureData.InvariantMode)
-                throw new Exception(" ********************* Convert this exception to assert ********************* ");
+            Debug.Assert(!CultureData.InvariantMode);
 
             string data;
             // Taiwanese calendar get listed as one of the optional zh-TW calendars only when having zh-TW UI 
@@ -488,8 +485,7 @@ namespace System.Globalization
 
         private static unsafe String GetUserDefaultLocaleName()
         {
-            if (CultureData.InvariantMode)
-                throw new Exception(" ********************* Convert this exception to assert ********************* ");
+            Debug.Assert(!CultureData.InvariantMode);
 
             const int LOCALE_NAME_MAX_LENGTH = 85;
             const uint LOCALE_SNAME = 0x0000005c;

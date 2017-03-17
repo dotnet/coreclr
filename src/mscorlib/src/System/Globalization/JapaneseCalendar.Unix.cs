@@ -71,8 +71,7 @@ namespace System.Globalization
 
         private static bool GetJapaneseEraStartDate(int era, out DateTime dateTime)
         {
-            if (CultureData.InvariantMode)
-                throw new Exception(" ********************* Convert this exception to assert ********************* ");
+            Debug.Assert(!CultureData.InvariantMode);
 
             dateTime = default(DateTime);
 
