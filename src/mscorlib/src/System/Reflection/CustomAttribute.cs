@@ -1700,8 +1700,8 @@ namespace System.Reflection
                             if (property == null)
                             {
                                 throw new CustomAttributeFormatException(
-                                    String.Format(CultureInfo.CurrentUICulture, Environment.GetResourceString(
-                                        isProperty ? "RFLCT.InvalidPropFail" : "RFLCT.InvalidFieldFail"), name));
+                                    String.Format(CultureInfo.CurrentUICulture, 
+                                        isProperty ? SR.RFLCT_InvalidPropFail : SR.RFLCT_InvalidFieldFail, name));
                             }
 
                             RuntimeMethodInfo setMethod = property.GetSetMethod(true) as RuntimeMethodInfo;
@@ -1731,8 +1731,8 @@ namespace System.Reflection
                     catch (Exception e)
                     {
                         throw new CustomAttributeFormatException(
-                            String.Format(CultureInfo.CurrentUICulture, Environment.GetResourceString(
-                                isProperty ? "RFLCT.InvalidPropFail" : "RFLCT.InvalidFieldFail"), name), e);
+                            String.Format(CultureInfo.CurrentUICulture,
+                                isProperty ? SR.RFLCT_InvalidPropFail : SR.RFLCT_InvalidFieldFail, name), e);
                     }
                     #endregion
                 }

@@ -107,7 +107,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             MethodInfo accessor = getValue ? m_property.GetGetMethod(true) : m_property.GetSetMethod(true);
 
             if (accessor == null)
-                throw new ArgumentException(System.Environment.GetResourceString(getValue ? "Arg_GetMethNotFnd" : "Arg_SetMethNotFnd"));
+                throw new ArgumentException(getValue ? SR.Arg_GetMethNotFnd : SR.Arg_SetMethNotFnd);
 
             if (!accessor.IsPublic)
                 throw new MethodAccessException(

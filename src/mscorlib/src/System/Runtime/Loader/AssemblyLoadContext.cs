@@ -139,7 +139,7 @@ namespace System.Runtime.Loader
 
             if (assembly.Length <= 0)
             {
-                throw new BadImageFormatException(Environment.GetResourceString("BadImageFormat_BadILFormat"));
+                throw new BadImageFormatException(SR.BadImageFormat_BadILFormat);
             }
 
             int iAssemblyStreamLength = (int)assembly.Length;

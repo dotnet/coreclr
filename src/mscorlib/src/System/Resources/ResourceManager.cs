@@ -1120,7 +1120,7 @@ namespace System.Resources
                     // Always throw if we did not fully succeed in initializing the WinRT Resource Manager.
 
                     if (_PRIExceptionInfo != null && _PRIExceptionInfo._PackageSimpleName != null && _PRIExceptionInfo._ResWFile != null)
-                        throw new MissingManifestResourceException(Environment.GetResourceString("MissingManifestResource_ResWFileNotLoaded", _PRIExceptionInfo._ResWFile, _PRIExceptionInfo._PackageSimpleName));
+                        throw new MissingManifestResourceException(SR.Format(SR.MissingManifestResource_ResWFileNotLoaded, _PRIExceptionInfo._ResWFile, _PRIExceptionInfo._PackageSimpleName));
 
                     throw new MissingManifestResourceException(SR.MissingManifestResource_NoPRIresources);
                 }

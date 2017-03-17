@@ -73,7 +73,7 @@ namespace System.Diagnostics.Contracts
             if (probablyNotRewritten == null)
                 probablyNotRewritten = thisAssembly;
             String simpleName = probablyNotRewritten.GetName().Name;
-            System.Runtime.CompilerServices.ContractHelper.TriggerFailure(kind, Environment.GetResourceString("MustUseCCRewrite", contractKind, simpleName), null, null, null);
+            System.Runtime.CompilerServices.ContractHelper.TriggerFailure(kind, SR.Format(SR.MustUseCCRewrite, contractKind, simpleName), null, null, null);
 
             _assertingMustUseRewriter = false;
         }

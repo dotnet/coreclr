@@ -151,7 +151,7 @@ SR.Format(SR.Argument_InvalidToken, tk, this));
 
             if (!MetadataImport.IsValidToken(tk) || !tk.IsFieldDef)
                 throw new ArgumentOutOfRangeException(nameof(metadataToken),
-                    String.Format(CultureInfo.CurrentUICulture, Environment.GetResourceString("Argument_InvalidToken", tk, this)));
+                    String.Format(CultureInfo.CurrentUICulture, SR.Format(SR.Argument_InvalidToken, tk, this)));
 
             int tkDeclaringType;
             string fieldName;
@@ -315,7 +315,7 @@ SR.Format(SR.Argument_InvalidToken, tk, this));
 
             if (!MetadataImport.IsValidToken(tk))
                 throw new ArgumentOutOfRangeException(nameof(metadataToken),
-                    String.Format(CultureInfo.CurrentUICulture, Environment.GetResourceString("Argument_InvalidToken", tk, this)));
+                    String.Format(CultureInfo.CurrentUICulture, SR.Format(SR.Argument_InvalidToken, tk, this)));
 
             string str = MetadataImport.GetUserString(metadataToken);
 

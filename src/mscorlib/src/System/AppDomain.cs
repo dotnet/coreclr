@@ -501,7 +501,7 @@ namespace System
         {
 #if FEATURE_APPX
             if (IsAppXModel())
-                throw new NotSupportedException(Environment.GetResourceString("NotSupported_AppX", "Assembly.LoadFrom"));
+                throw new NotSupportedException(SR.Format(SR.NotSupported_AppX, "Assembly.LoadFrom"));
 #endif
         }
 
@@ -513,7 +513,7 @@ namespace System
         {
 #if FEATURE_APPX
             if (IsAppXModel())
-                throw new NotSupportedException(Environment.GetResourceString("NotSupported_AppX", "Assembly.LoadFile"));
+                throw new NotSupportedException(SR.Format(SR.NotSupported_AppX, "Assembly.LoadFile"));
 #endif
         }
 
@@ -525,7 +525,7 @@ namespace System
         {
 #if FEATURE_APPX
             if (IsAppXModel())
-                throw new NotSupportedException(Environment.GetResourceString("NotSupported_AppX", "Assembly.ReflectionOnlyLoad"));
+                throw new NotSupportedException(SR.Format(SR.NotSupported_AppX, "Assembly.ReflectionOnlyLoad"));
 #endif
         }
 
@@ -537,7 +537,7 @@ namespace System
         {
 #if FEATURE_APPX
             if (IsAppXModel())
-                throw new NotSupportedException(Environment.GetResourceString("NotSupported_AppX", "Assembly.Load(byte[], ...)"));
+                throw new NotSupportedException(SR.Format(SR.NotSupported_AppX, "Assembly.Load(byte[], ...)"));
 #endif
         }
 
