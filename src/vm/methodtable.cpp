@@ -6955,8 +6955,8 @@ BOOL MethodTable::FindDefaultMethod(
     while (it.Next())
     {
         MethodTable *pCurMT = it.GetInterface();
-        if (pCurMT->ImplementsInterface(pInterfaceMT) ||
-            pCurMT == pInterfaceMT)
+        if (pCurMT == pInterfaceMT || 
+            pCurMT->CanCastToInterface(pInterfaceMT))
         {
             //
             // We found a potential candidate
