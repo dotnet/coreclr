@@ -316,13 +316,13 @@ namespace System
                 switch (m_failure)
                 {
                     case ParseFailureKind.Argument:
-                        return new ArgumentException(Environment.GetResourceString(m_failureMessageID));
+                        return new ArgumentException(SR.GetResourceString(m_failureMessageID));
 
                     case ParseFailureKind.ArgumentNull:
                         return new ArgumentNullException(m_failureParameter);
 
                     case ParseFailureKind.ArgumentWithParameter:
-                        return new ArgumentException(Environment.GetResourceString(m_failureMessageID, m_failureMessageFormatArgument));
+                        return new ArgumentException(SR.Format(SR.GetResourceString(m_failureMessageID), m_failureMessageFormatArgument));
 
                     case ParseFailureKind.UnhandledException:
                         return m_innerException;

@@ -552,7 +552,7 @@ namespace System.Collections
             {
                 if (version != list._version)
                 {
-                    throw new InvalidOperationException(Environment.GetResourceString(ResId.InvalidOperation_EnumFailedVersion));
+                    throw new InvalidOperationException(SR.GetResourceString(ResId.InvalidOperation_EnumFailedVersion));
                 }
 
                 if (isArrayList)
@@ -594,11 +594,11 @@ namespace System.Collections
                     { // check if enumeration has not started or has terminated
                         if (index == -1)
                         {
-                            throw new InvalidOperationException(Environment.GetResourceString(ResId.InvalidOperation_EnumNotStarted));
+                            throw new InvalidOperationException(SR.GetResourceString(ResId.InvalidOperation_EnumNotStarted));
                         }
                         else
                         {
-                            throw new InvalidOperationException(Environment.GetResourceString(ResId.InvalidOperation_EnumEnded));
+                            throw new InvalidOperationException(SR.GetResourceString(ResId.InvalidOperation_EnumEnded));
                         }
                     }
 
@@ -610,7 +610,7 @@ namespace System.Collections
             {
                 if (version != list._version)
                 {
-                    throw new InvalidOperationException(Environment.GetResourceString(ResId.InvalidOperation_EnumFailedVersion));
+                    throw new InvalidOperationException(SR.GetResourceString(ResId.InvalidOperation_EnumFailedVersion));
                 }
 
                 currentElement = dummyObject;

@@ -916,7 +916,7 @@ namespace System.Threading
         /// <param name="str">The key string</param>
         private static string GetResourceString(string str)
         {
-            return Environment.GetResourceString(str);
+            return SR.GetResourceString(str);
         }
         #endregion
     }

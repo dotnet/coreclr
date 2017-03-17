@@ -382,7 +382,7 @@ namespace System.Runtime.CompilerServices
 
             // May need to rethink Assert.Fail w/ TaskDialogIndirect as a model.  Window title.  Main instruction.  Content.  Expanded info.
             // Optional info like string for collapsed text vs. expanded text.
-            String windowTitle = Environment.GetResourceString(GetResourceNameForFailure(kind));
+            String windowTitle = SR.GetResourceString(GetResourceNameForFailure(kind));
             const int numStackFramesToSkip = 2;  // To make stack traces easier to read
             System.Diagnostics.Assert.Fail(conditionText, displayMessage, windowTitle, COR_E_CODECONTRACTFAILED, StackTrace.TraceFormat.Normal, numStackFramesToSkip);
             // If we got here, the user selected Ignore.  Continue.
@@ -440,11 +440,11 @@ namespace System.Runtime.CompilerServices
             if (!String.IsNullOrEmpty(conditionText))
             {
                 resourceName += "_Cnd";
-                failureMessage = Environment.GetResourceString(resourceName, conditionText);
+                failureMessage = SR.Format(SR.GetResourceString(resourceName), conditionText);
             }
             else
             {
-                failureMessage = Environment.GetResourceString(resourceName);
+                failureMessage = SR.GetResourceString(resourceName);
             }
 
             // Now add in the user message, if present.

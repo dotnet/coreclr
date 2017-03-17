@@ -544,16 +544,16 @@ namespace System.Globalization
                 switch (m_failure)
                 {
                     case ParseFailureKind.ArgumentNull:
-                        return new ArgumentNullException(m_failureArgumentName, Environment.GetResourceString(m_failureMessageID));
+                        return new ArgumentNullException(m_failureArgumentName, SR.GetResourceString(m_failureMessageID));
 
                     case ParseFailureKind.FormatWithParameter:
-                        return new FormatException(Environment.GetResourceString(m_failureMessageID, m_failureMessageFormatArgument));
+                        return new FormatException(SR.Format(SR.GetResourceString(m_failureMessageID), m_failureMessageFormatArgument));
 
                     case ParseFailureKind.Format:
-                        return new FormatException(Environment.GetResourceString(m_failureMessageID));
+                        return new FormatException(SR.GetResourceString(m_failureMessageID));
 
                     case ParseFailureKind.Overflow:
-                        return new OverflowException(Environment.GetResourceString(m_failureMessageID));
+                        return new OverflowException(SR.GetResourceString(m_failureMessageID));
 
                     default:
                         Debug.Assert(false, "Unknown TimeSpanParseFailure: " + m_failure);

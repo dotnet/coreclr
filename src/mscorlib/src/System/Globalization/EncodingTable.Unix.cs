@@ -21,7 +21,7 @@ namespace System.Globalization
                 CodePageDataItem dataItem = s_encodingDataTableItems[i];
 
                 arrayEncodingInfo[i] = new EncodingInfo(dataItem.CodePage, dataItem.WebName,
-                    Environment.GetResourceString(dataItem.DisplayNameResourceKey));
+SR.GetResourceString(dataItem.DisplayNameResourceKey));
             }
 
             return arrayEncodingInfo;

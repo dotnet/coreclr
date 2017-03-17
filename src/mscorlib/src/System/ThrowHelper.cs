@@ -341,7 +341,7 @@ namespace System
             Debug.Assert(Enum.IsDefined(typeof(ExceptionResource), resource),
                 "The enum value is not defined, please check the ExceptionResource Enum.");
 
-            return Environment.GetResourceString(resource.ToString());
+            return SR.GetResourceString(resource.ToString());
         }
     }
 

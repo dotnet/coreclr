@@ -212,16 +212,16 @@ namespace System
                 switch (m_failure)
                 {
                     case ParseFailureKind.ArgumentNull:
-                        return new ArgumentNullException(m_failureArgumentName, Environment.GetResourceString(m_failureMessageID));
+                        return new ArgumentNullException(m_failureArgumentName, SR.GetResourceString(m_failureMessageID));
 
                     case ParseFailureKind.FormatWithInnerException:
-                        return new FormatException(Environment.GetResourceString(m_failureMessageID), m_innerException);
+                        return new FormatException(SR.GetResourceString(m_failureMessageID), m_innerException);
 
                     case ParseFailureKind.FormatWithParameter:
-                        return new FormatException(Environment.GetResourceString(m_failureMessageID, m_failureMessageFormatArgument));
+                        return new FormatException(SR.Format(SR.GetResourceString(m_failureMessageID), m_failureMessageFormatArgument));
 
                     case ParseFailureKind.Format:
-                        return new FormatException(Environment.GetResourceString(m_failureMessageID));
+                        return new FormatException(SR.GetResourceString(m_failureMessageID));
 
                     case ParseFailureKind.NativeException:
                         return m_innerException;

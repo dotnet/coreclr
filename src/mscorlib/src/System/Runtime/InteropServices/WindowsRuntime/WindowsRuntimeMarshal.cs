@@ -1054,13 +1054,13 @@ namespace System.Runtime.InteropServices.WindowsRuntime
                 string message = innerException.Message;
                 if (message == null && messageResource != null)
                 {
-                    message = Environment.GetResourceString(messageResource);
+                    message = SR.GetResourceString(messageResource);
                 }
                 e = new Exception(message, innerException);
             }
             else
             {
-                string message = (messageResource != null ? Environment.GetResourceString(messageResource) : null);
+                string message = (messageResource != null ? SR.GetResourceString(messageResource): null);
                 e = new Exception(message);
             }
 

@@ -538,7 +538,7 @@ SR.Format(SR.NotSupported_NoCodepageData, m_codePage));
         {
             get
             {
-                return Environment.GetResourceString("Globalization.cp_" + m_codePage.ToString());
+                return SR.GetResourceString("Globalization.cp_" + m_codePage.ToString());
             }
         }
 

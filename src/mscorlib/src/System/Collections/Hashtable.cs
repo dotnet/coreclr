@@ -975,7 +975,7 @@ namespace System.Collections
                 // Explicitly check to see if anyone changed the Hashtable while we 
                 // were serializing it.  That's a race condition in their code.
                 if (version != oldVersion)
-                    throw new InvalidOperationException(Environment.GetResourceString(ResId.InvalidOperation_EnumFailedVersion));
+                    throw new InvalidOperationException(SR.GetResourceString(ResId.InvalidOperation_EnumFailedVersion));
             }
         }
 
@@ -1386,14 +1386,14 @@ namespace System.Collections
             {
                 get
                 {
-                    if (current == false) throw new InvalidOperationException(Environment.GetResourceString(ResId.InvalidOperation_EnumNotStarted));
+                    if (current == false) throw new InvalidOperationException(SR.GetResourceString(ResId.InvalidOperation_EnumNotStarted));
                     return currentKey;
                 }
             }
 
             public virtual bool MoveNext()
             {
-                if (version != hashtable.version) throw new InvalidOperationException(Environment.GetResourceString(ResId.InvalidOperation_EnumFailedVersion));
+                if (version != hashtable.version) throw new InvalidOperationException(SR.GetResourceString(ResId.InvalidOperation_EnumFailedVersion));
                 while (bucket > 0)
                 {
                     bucket--;
@@ -1414,7 +1414,7 @@ namespace System.Collections
             {
                 get
                 {
-                    if (current == false) throw new InvalidOperationException(Environment.GetResourceString(ResId.InvalidOperation_EnumOpCantHappen));
+                    if (current == false) throw new InvalidOperationException(SR.GetResourceString(ResId.InvalidOperation_EnumOpCantHappen));
                     return new DictionaryEntry(currentKey, currentValue);
                 }
             }
@@ -1424,7 +1424,7 @@ namespace System.Collections
             {
                 get
                 {
-                    if (current == false) throw new InvalidOperationException(Environment.GetResourceString(ResId.InvalidOperation_EnumOpCantHappen));
+                    if (current == false) throw new InvalidOperationException(SR.GetResourceString(ResId.InvalidOperation_EnumOpCantHappen));
 
                     if (getObjectRetType == Keys)
                         return currentKey;
@@ -1439,14 +1439,14 @@ namespace System.Collections
             {
                 get
                 {
-                    if (current == false) throw new InvalidOperationException(Environment.GetResourceString(ResId.InvalidOperation_EnumOpCantHappen));
+                    if (current == false) throw new InvalidOperationException(SR.GetResourceString(ResId.InvalidOperation_EnumOpCantHappen));
                     return currentValue;
                 }
             }
 
             public virtual void Reset()
             {
-                if (version != hashtable.version) throw new InvalidOperationException(Environment.GetResourceString(ResId.InvalidOperation_EnumFailedVersion));
+                if (version != hashtable.version) throw new InvalidOperationException(SR.GetResourceString(ResId.InvalidOperation_EnumFailedVersion));
                 current = false;
                 bucket = hashtable.buckets.Length;
                 currentKey = null;

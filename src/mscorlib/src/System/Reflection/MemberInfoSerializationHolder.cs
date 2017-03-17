@@ -88,7 +88,7 @@ namespace System.Reflection
         #region ISerializable
         public virtual void GetObjectData(SerializationInfo info, StreamingContext context)
         {
-            throw new NotSupportedException(Environment.GetResourceString(ResId.NotSupported_Method));
+            throw new NotSupportedException(SR.GetResourceString(ResId.NotSupported_Method));
         }
         #endregion
 
@@ -96,7 +96,7 @@ namespace System.Reflection
         public virtual Object GetRealObject(StreamingContext context)
         {
             if (m_memberName == null || m_reflectedType == null || m_memberType == 0)
-                throw new SerializationException(Environment.GetResourceString(ResId.Serialization_InsufficientState));
+                throw new SerializationException(SR.GetResourceString(ResId.Serialization_InsufficientState));
 
             BindingFlags bindingFlags =
                 BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic |
@@ -156,7 +156,7 @@ namespace System.Reflection
                             }
                         }
 
-                        throw new SerializationException(Environment.GetResourceString(ResId.Serialization_UnknownMember, m_memberName));
+                        throw new SerializationException(SR.Format(SR.GetResourceString(ResId.Serialization_UnknownMember), m_memberName));
                     }
                 #endregion
 
@@ -164,7 +164,7 @@ namespace System.Reflection
                 case MemberTypes.Constructor:
                     {
                         if (m_signature == null)
-                            throw new SerializationException(Environment.GetResourceString(ResId.Serialization_NullSignature));
+                            throw new SerializationException(SR.GetResourceString(ResId.Serialization_NullSignature));
 
                         ConstructorInfo[] constructors = m_reflectedType.GetMember(m_memberName, MemberTypes.Constructor, bindingFlags) as ConstructorInfo[];
 
@@ -188,7 +188,7 @@ namespace System.Reflection
                             }
                         }
 
-                        throw new SerializationException(Environment.GetResourceString(ResId.Serialization_UnknownMember, m_memberName));
+                        throw new SerializationException(SR.Format(SR.GetResourceString(ResId.Serialization_UnknownMember), m_memberName));
                     }
                 #endregion
 
@@ -198,7 +198,7 @@ namespace System.Reflection
                         MethodInfo methodInfo = null;
 
                         if (m_signature == null)
-                            throw new SerializationException(Environment.GetResourceString(ResId.Serialization_NullSignature));
+                            throw new SerializationException(SR.GetResourceString(ResId.Serialization_NullSignature));
 
                         Type[] genericArguments = m_info.GetValueNoThrow("GenericArguments", typeof(Type[])) as Type[];
 
@@ -258,7 +258,7 @@ namespace System.Reflection
                         }
 
                         if (methodInfo == null)
-                            throw new SerializationException(Environment.GetResourceString(ResId.Serialization_UnknownMember, m_memberName));
+                            throw new SerializationException(SR.Format(SR.GetResourceString(ResId.Serialization_UnknownMember), m_memberName));
 
                         if (!methodInfo.IsGenericMethodDefinition)
                             return methodInfo;
