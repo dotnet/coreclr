@@ -4,26 +4,21 @@
 
 
 // Metadata version: v4.0.30319
-.assembly extern System.Runtime
+.assembly extern mscorlib
 {
-  .publickeytoken = (B0 3F 5F 7F 11 D5 0A 3A )                         // .?_....:
-  .ver 4:1:0:0
-}
-.assembly extern System.Console
-{
-  .publickeytoken = (B0 3F 5F 7F 11 D5 0A 3A )                         // .?_....:
+  .publickeytoken = (B7 7A 5C 56 19 34 E0 89 )                         // .z\V.4..
   .ver 4:0:0:0
 }
 .assembly 'methodimpl'
 {
-  .custom instance void [System.Runtime]System.Runtime.CompilerServices.CompilationRelaxationsAttribute::.ctor(int32) = ( 01 00 08 00 00 00 00 00 ) 
-  .custom instance void [System.Runtime]System.Runtime.CompilerServices.RuntimeCompatibilityAttribute::.ctor() = ( 01 00 01 00 54 02 16 57 72 61 70 4E 6F 6E 45 78   // ....T..WrapNonEx
+  .custom instance void [mscorlib]System.Runtime.CompilerServices.CompilationRelaxationsAttribute::.ctor(int32) = ( 01 00 08 00 00 00 00 00 ) 
+  .custom instance void [mscorlib]System.Runtime.CompilerServices.RuntimeCompatibilityAttribute::.ctor() = ( 01 00 01 00 54 02 16 57 72 61 70 4E 6F 6E 45 78   // ....T..WrapNonEx
                                                                                                                    63 65 70 74 69 6F 6E 54 68 72 6F 77 73 01 )       // ceptionThrows.
 
   .hash algorithm 0x00008004
   .ver 1:0:0:0
 }
-.module 'methodimpl.dll'
+.module 'methodimpl.exe'
 // MVID: {3f76c151-c6d0-4f43-9a33-cab5291cef9e}
 .imagebase 0x00400000
 .file alignment 0x00000200
@@ -45,7 +40,7 @@
     .locals init (int32 V_0)
     IL_0000:  nop
     IL_0001:  ldstr      "Calling IFoo.Foo"
-    IL_0006:  call       void [System.Console]System.Console::WriteLine(string)
+    IL_0006:  call       void [mscorlib]System.Console::WriteLine(string)
     IL_000b:  nop
     IL_000c:  ldarg.1
     IL_000d:  ldc.i4.s   10
@@ -69,7 +64,7 @@
     .locals init (int32 V_0)
     IL_0000:  nop
     IL_0001:  ldstr      "Calling IBar.Bar"
-    IL_0006:  call       void [System.Console]System.Console::WriteLine(string)
+    IL_0006:  call       void [mscorlib]System.Console::WriteLine(string)
     IL_000b:  nop
     IL_000c:  ldarg.1
     IL_000d:  ldc.i4.s   20
@@ -95,8 +90,8 @@
     .maxstack  2
     .locals init (int32 V_0)
     IL_0000:  nop
-    IL_0001:  ldstr      "Calling IDerivedFoo.Foo"
-    IL_0006:  call       void [System.Console]System.Console::WriteLine(string)
+    IL_0001:  ldstr      "Calling IFooBar.Foo"
+    IL_0006:  call       void [mscorlib]System.Console::WriteLine(string)
     IL_000b:  nop
     IL_000c:  ldarg.1
     IL_000d:  ldc.i4.s   30
@@ -111,7 +106,7 @@
 } // end of class IFooBar
 
 .class private auto ansi beforefieldinit FooBar
-       extends [System.Runtime]System.Object
+       extends [mscorlib]System.Object
        implements IFooBar,
                   IFoo,
                   IBar
@@ -124,8 +119,8 @@
     .maxstack  2
     .locals init (int32 V_0)
     IL_0000:  nop
-    IL_0001:  ldstr      "Calling IDerivedFoo.Foo"
-    IL_0006:  call       void [System.Console]System.Console::WriteLine(string)
+    IL_0001:  ldstr      "Calling FooBar.Bar"
+    IL_0006:  call       void [mscorlib]System.Console::WriteLine(string)
     IL_000b:  nop
     IL_000c:  ldarg.1
     IL_000d:  ldc.i4.s   40
@@ -143,7 +138,7 @@
     // Code size       8 (0x8)
     .maxstack  8
     IL_0000:  ldarg.0
-    IL_0001:  call       instance void [System.Runtime]System.Object::.ctor()
+    IL_0001:  call       instance void [mscorlib]System.Object::.ctor()
     IL_0006:  nop
     IL_0007:  ret
   } // end of method FooBar::.ctor
@@ -151,7 +146,7 @@
 } // end of class FooBar
 
 .class private auto ansi beforefieldinit Program
-       extends [System.Runtime]System.Object
+       extends [mscorlib]System.Object
 {
   .method public hidebysig static int32  Main() cil managed
   {
@@ -201,7 +196,7 @@
     // Code size       8 (0x8)
     .maxstack  8
     IL_0000:  ldarg.0
-    IL_0001:  call       instance void [System.Runtime]System.Object::.ctor()
+    IL_0001:  call       instance void [mscorlib]System.Object::.ctor()
     IL_0006:  nop
     IL_0007:  ret
   } // end of method Program::.ctor
@@ -209,7 +204,7 @@
 } // end of class Program
 
 .class private auto ansi beforefieldinit Test
-       extends [System.Runtime]System.Object
+       extends [mscorlib]System.Object
 {
   .field private static bool Pass
   .method public hidebysig static int32  Ret() cil managed
@@ -246,7 +241,7 @@
 
     IL_0006:  nop
     IL_0007:  ldstr      "PASS"
-    IL_000c:  call       void [System.Console]System.Console::WriteLine(string)
+    IL_000c:  call       void [mscorlib]System.Console::WriteLine(string)
     IL_0011:  nop
     IL_0012:  nop
     IL_0013:  br.s       IL_002e
@@ -254,9 +249,9 @@
     IL_0015:  nop
     IL_0016:  ldstr      "FAIL: "
     IL_001b:  ldarg.1
-    IL_001c:  call       string [System.Runtime]System.String::Concat(string,
+    IL_001c:  call       string [mscorlib]System.String::Concat(string,
                                                                       string)
-    IL_0021:  call       void [System.Console]System.Console::WriteLine(string)
+    IL_0021:  call       void [mscorlib]System.Console::WriteLine(string)
     IL_0026:  nop
     IL_0027:  ldc.i4.0
     IL_0028:  stsfld     bool Test::Pass
@@ -270,7 +265,7 @@
     // Code size       8 (0x8)
     .maxstack  8
     IL_0000:  ldarg.0
-    IL_0001:  call       instance void [System.Runtime]System.Object::.ctor()
+    IL_0001:  call       instance void [mscorlib]System.Object::.ctor()
     IL_0006:  nop
     IL_0007:  ret
   } // end of method Test::.ctor
