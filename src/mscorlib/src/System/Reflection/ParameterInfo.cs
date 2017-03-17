@@ -8,54 +8,19 @@ using System.Runtime.Serialization;
 
 namespace System.Reflection
 {
-    [Serializable]
-    public class ParameterInfo : ICustomAttributeProvider, IObjectReference
+    public partial class ParameterInfo : ICustomAttributeProvider, IObjectReference
     {
-        #region Legacy Protected Members
         protected String NameImpl;
         protected Type ClassImpl;
         protected int PositionImpl;
         protected ParameterAttributes AttrsImpl;
         protected Object DefaultValueImpl; // cannot cache this as it may be non agile user defined enum
         protected MemberInfo MemberImpl;
-        #endregion
 
-        #region Legacy Private Members
-        // These are here only for backwards compatibility -- they are not set
-        // until this instance is serialized, so don't rely on their values from
-        // arbitrary code.
-#pragma warning disable 169
-        [OptionalField]
-        private IntPtr _importer;
-        [OptionalField]
-        private int _token;
-        [OptionalField]
-        private bool bExtraConstChecked;
-#pragma warning restore 169
-        #endregion
-
-        #region Constructor
         protected ParameterInfo()
         {
         }
-        #endregion
 
-        #region Internal Members
-        // this is an internal api for DynamicMethod. A better solution is to change the relationship
-        // between ParameterInfo and ParameterBuilder so that a ParameterBuilder can be seen as a writer
-        // api over a ParameterInfo. However that is a possible breaking change so it needs to go through some process first
-        internal void SetName(String name)
-        {
-            NameImpl = name;
-        }
-
-        internal void SetAttributes(ParameterAttributes attributes)
-        {
-            AttrsImpl = attributes;
-        }
-        #endregion
-
-        #region Public Methods
         public virtual Type ParameterType
         {
             get
@@ -120,14 +85,11 @@ namespace System.Reflection
         {
             return EmptyArray<Type>.Value;
         }
-        #endregion
 
-        #region Object Overrides
         public override String ToString()
         {
             return ParameterType.FormatTypeName() + " " + Name;
         }
-        #endregion
 
         public virtual IEnumerable<CustomAttributeData> CustomAttributes
         {
@@ -136,7 +98,7 @@ namespace System.Reflection
                 return GetCustomAttributesData();
             }
         }
-        #region ICustomAttributeProvider
+
         public virtual Object[] GetCustomAttributes(bool inherit)
         {
             return EmptyArray<Object>.Value;
@@ -164,14 +126,8 @@ namespace System.Reflection
         {
             throw new NotImplementedException();
         }
-        #endregion
 
-        #region _ParameterInfo implementation
-
-        #endregion
-
-        #region IObjectReference
-        // In V4 RuntimeParameterInfo is introduced. 
+        // In V4 RuntimeParameterInfo is introduced.
         // To support deserializing ParameterInfo instances serialized in earlier versions
         // we need to implement IObjectReference.
         public object GetRealObject(StreamingContext context)
@@ -219,6 +175,5 @@ namespace System.Reflection
                     throw new SerializationException(Environment.GetResourceString(ResId.Serialization_NoParameterInfo));
             }
         }
-        #endregion
     }
 }

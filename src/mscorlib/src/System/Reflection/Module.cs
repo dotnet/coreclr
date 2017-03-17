@@ -8,26 +8,12 @@ using System.Diagnostics.Contracts;
 
 namespace System.Reflection
 {
-    [Serializable]
-    public abstract class Module : ISerializable, ICustomAttributeProvider
+    public abstract partial class Module : ISerializable, ICustomAttributeProvider
     {
-        #region Static Constructor
-        static Module()
-        {
-            __Filters _fltObj;
-            _fltObj = new __Filters();
-            FilterTypeName = new TypeFilter(_fltObj.FilterTypeName);
-            FilterTypeNameIgnoreCase = new TypeFilter(_fltObj.FilterTypeNameIgnoreCase);
-        }
-        #endregion
-
-        #region Constructor
         protected Module()
         {
         }
-        #endregion
 
-        #region Public Statics
         public static readonly TypeFilter FilterTypeName;
         public static readonly TypeFilter FilterTypeNameIgnoreCase;
 
@@ -59,18 +45,13 @@ namespace System.Reflection
         {
             return base.GetHashCode();
         }
-        #endregion
 
-        #region Literals
         private const BindingFlags DefaultLookup = BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public;
-        #endregion
 
-        #region object overrides
         public override String ToString()
         {
             return ScopeName;
         }
-        #endregion
 
         public virtual IEnumerable<CustomAttributeData> CustomAttributes
         {
@@ -79,7 +60,7 @@ namespace System.Reflection
                 return GetCustomAttributesData();
             }
         }
-        #region ICustomAttributeProvider Members
+
         public virtual Object[] GetCustomAttributes(bool inherit)
         {
             throw new NotImplementedException();
@@ -99,9 +80,7 @@ namespace System.Reflection
         {
             throw new NotImplementedException();
         }
-        #endregion
 
-        #region public instances members
         public MethodBase ResolveMethod(int metadataToken)
         {
             return ResolveMethod(metadataToken, null, null);
@@ -479,13 +458,5 @@ namespace System.Reflection
                 return GetModuleHandle();
             }
         }
-
-        // Used to provide implementation and overriding point for ModuleHandle.
-        // To get a module handle inside mscorlib, use GetNativeHandle instead.
-        internal virtual ModuleHandle GetModuleHandle()
-        {
-            return ModuleHandle.EmptyHandle;
-        }
-        #endregion
     }
 }
