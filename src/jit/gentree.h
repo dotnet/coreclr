@@ -4646,7 +4646,7 @@ struct GenTreePutArgStk : public GenTreeUnOp
         , gtNumberReferenceSlots(0)
         , gtGcPtrs(nullptr)
 #endif // FEATURE_PUT_STRUCT_ARG_STK
-#ifdef DEBUG
+#if defined(DEBUG) || defined(UNIX_X86_ABI)
         , gtCall(callNode)
 #endif
     {
@@ -4742,7 +4742,7 @@ struct GenTreePutArgStk : public GenTreeUnOp
 
 #endif // FEATURE_PUT_STRUCT_ARG_STK
 
-#if defined(DEBUG)
+#if defined(DEBUG) || defined(UNIX_X86_ABI)
     GenTreeCall* gtCall; // the call node to which this argument belongs
 #endif
 

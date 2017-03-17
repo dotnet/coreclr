@@ -174,6 +174,10 @@ void genCodeForCpBlkRepMovs(GenTreeBlk* cpBlkNode);
 
 void genCodeForCpBlkUnroll(GenTreeBlk* cpBlkNode);
 
+void genAlignStackBeforeCall(GenTreePutArgStk* putArgStk);
+void genAlignStackBeforeCall(GenTreeCall* call);
+void genRemoveAlignmentAfterCall(GenTreeCall* call);
+
 #ifdef FEATURE_PUT_STRUCT_ARG_STK
 #ifdef _TARGET_X86_
 bool genAdjustStackForPutArgStk(GenTreePutArgStk* putArgStk);
