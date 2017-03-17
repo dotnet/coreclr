@@ -3272,9 +3272,9 @@ GenTreePtr Compiler::impIntrinsic(GenTreePtr            newobjThis,
                                   bool                  tailCall,
                                   CorInfoIntrinsics*    pIntrinsicID)
 {
-    bool mustExpand = false;
+    bool              mustExpand  = false;
     CorInfoIntrinsics intrinsicID = info.compCompHnd->getIntrinsicID(method, &mustExpand);
-    *pIntrinsicID = intrinsicID;
+    *pIntrinsicID                 = intrinsicID;
 
 #ifndef _TARGET_ARM_
     genTreeOps interlockedOperator;
@@ -13164,7 +13164,7 @@ void Compiler::impImportBlockCode(BasicBlock* block)
 #if BIGENDIAN
                         op1 = gtNewIconNode(0, lclTyp);
 #else
-                        op1 = gtNewIconNode(1, lclTyp);
+                        op1                     = gtNewIconNode(1, lclTyp);
 #endif
                         goto FIELD_DONE;
                     }
