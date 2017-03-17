@@ -4592,34 +4592,34 @@ struct GenTreePutArgStk : public GenTreeUnOp
     // Don't let clang-format mess with the GenTreePutArgStk constructor.
     // clang-format off
 
-    GenTreePutArgStk(genTreeOps oper,
-                     var_types  type,
-                     GenTreePtr op1,
-                     unsigned   slotNum
-                     PUT_STRUCT_ARG_STK_ONLY_ARG(unsigned numSlots)
-                     , bool putInIncomingArgArea = false
-                     , GenTreeCall* callNode = nullptr)
+    GenTreePutArgStk(genTreeOps   oper,
+                     var_types    type,
+                     GenTreePtr   op1,
+                     unsigned     slotNum
+                     PUT_STRUCT_ARG_STK_ONLY_ARG(unsigned numSlots),
+                     bool         putInIncomingArgArea = false,
+                     GenTreeCall* callNode = nullptr)
         : GenTreeUnOp(oper, type, op1 DEBUGARG(/*largeNode*/ false))
         , gtSlotNum(slotNum)
 #if defined(UNIX_X86_ABI)
         , gtPadAlign(0)
 #endif
+#if FEATURE_FASTTAILCALL
+        , gtPutInIncomingArgArea(putInIncomingArgArea)
+#endif // FEATURE_FASTTAILCALL
 #ifdef FEATURE_PUT_STRUCT_ARG_STK
         , gtPutArgStkKind(Kind::Invalid)
         , gtNumSlots(numSlots)
         , gtNumberReferenceSlots(0)
         , gtGcPtrs(nullptr)
 #endif // FEATURE_PUT_STRUCT_ARG_STK
-    {
-#if FEATURE_FASTTAILCALL
-        gtPutInIncomingArgArea = putInIncomingArgArea;
-#endif // FEATURE_FASTTAILCALL
 #ifdef DEBUG
-        gtCall = callNode;
+        , gtCall(callNode)
 #endif
+    {
     }
 
-    // clang-format on
+// clang-format on
 
 #if FEATURE_FASTTAILCALL
 
