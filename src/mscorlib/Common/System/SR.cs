@@ -17,14 +17,6 @@ namespace System
         {
             get;
             set;
-            // get
-            // {
-            //     if (SR.s_resourceManager == null)
-            //     {
-            //         SR.s_resourceManager = new ResourceManager(SR.ResourceType);
-            //     }
-            //     return SR.s_resourceManager;
-            // }
         }
 
         // This method is used to decide if we need to append the exception message parameters to the message when calling SR.Format. 
