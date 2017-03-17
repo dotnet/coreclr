@@ -698,7 +698,8 @@ void Assembler::StartMethod(__in __nullterminated char* name, BinStr* sig, CorMe
             {
                 if(IsTdInterface(m_pCurClass->m_Attr))
                 {
-                    if(!IsMdPublic(flags)) report->error("Non-public instance method in interface\n");
+                    // Allow explicit method implementation
+                    // if(!IsMdPublic(flags)) report->error("Non-public instance method in interface\n");
 
                     // Allow both abstract and non-abstract virtual slots (for default interface method support)
                     if(!IsMdVirtual(flags))
