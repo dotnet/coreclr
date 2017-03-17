@@ -969,4 +969,10 @@ internal static class SR
 
     internal static string InvalidFilterCriteriaException_CritString =>
         Environment.GetResourceString("InvalidFilterCriteriaException_CritString");
+
+    internal static string NotSupported_NoTypeInfo =>
+        Environment.GetResourceString("NotSupported_NoTypeInfo");
+
+    internal static string PlatformNotSupported_ReflectionOnly =>
+        Environment.GetResourceString("PlatformNotSupported_ReflectionOnly");
 }
