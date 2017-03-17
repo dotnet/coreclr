@@ -9,55 +9,23 @@ namespace System.Reflection
 {
     public partial class ParameterInfo : ICustomAttributeProvider, IObjectReference
     {
-        protected string NameImpl;
-        protected Type ClassImpl;
-        protected int PositionImpl;
-        protected ParameterAttributes AttrsImpl;
-        protected object DefaultValueImpl;
-        protected MemberInfo MemberImpl;
-
         protected ParameterInfo() { }
 
-        public virtual Type ParameterType => ClassImpl;
-
+        public virtual ParameterAttributes Attributes => AttrsImpl;
+        public virtual MemberInfo Member => MemberImpl;
         public virtual string Name => NameImpl;
+        public virtual Type ParameterType => ClassImpl;
+        public virtual int Position => PositionImpl;
 
-        public virtual bool HasDefaultValue { get { throw NotImplemented.ByDesign; } }
+        public bool IsIn => (Attributes & ParameterAttributes.In) != 0;
+        public bool IsLcid => (Attributes & ParameterAttributes.Lcid) != 0;
+        public bool IsOptional => (Attributes & ParameterAttributes.Optional) != 0;
+        public bool IsOut => (Attributes & ParameterAttributes.Out) != 0;
+        public bool IsRetval => (Attributes & ParameterAttributes.Retval) != 0;
 
         public virtual object DefaultValue { get { throw NotImplemented.ByDesign; } }
         public virtual object RawDefaultValue { get { throw NotImplemented.ByDesign; } }
-
-        public virtual int Position => PositionImpl;
-        public virtual ParameterAttributes Attributes => AttrsImpl;
-
-        public virtual MemberInfo Member => MemberImpl;
-
-        public bool IsIn => (Attributes & ParameterAttributes.In) != 0;
-        public bool IsOut => (Attributes & ParameterAttributes.Out) != 0;
-        public bool IsLcid => (Attributes & ParameterAttributes.Lcid) != 0;
-        public bool IsRetval => (Attributes & ParameterAttributes.Retval) != 0;
-        public bool IsOptional => (Attributes & ParameterAttributes.Optional) != 0;
-
-        public virtual int MetadataToken => MetadataToken_ParamDef;
-
-        public virtual Type[] GetRequiredCustomModifiers() => Array.Empty<Type>();
-
-        public virtual Type[] GetOptionalCustomModifiers() => Array.Empty<Type>();
-
-        public override string ToString() => ParameterType.FormatTypeName() + " " + Name;
-
-        public virtual IEnumerable<CustomAttributeData> CustomAttributes => GetCustomAttributesData();
-
-        public virtual object[] GetCustomAttributes(bool inherit) => Array.Empty<object>();
-
-        public virtual object[] GetCustomAttributes(Type attributeType, bool inherit)
-        {
-            if (attributeType == null)
-                throw new ArgumentNullException(nameof(attributeType));
-
-            return Array.Empty<object>();
-        }
-
+        public virtual bool HasDefaultValue { get { throw NotImplemented.ByDesign; } }
 
         public virtual bool IsDefined(Type attributeType, bool inherit)
         {
@@ -67,7 +35,22 @@ namespace System.Reflection
             return false;
         }
 
+        public virtual IEnumerable<CustomAttributeData> CustomAttributes => GetCustomAttributesData();
         public virtual IList<CustomAttributeData> GetCustomAttributesData() { throw NotImplemented.ByDesign; }
+
+        public virtual object[] GetCustomAttributes(bool inherit) => Array.Empty<object>();
+        public virtual object[] GetCustomAttributes(Type attributeType, bool inherit)
+        {
+            if (attributeType == null)
+                throw new ArgumentNullException(nameof(attributeType));
+
+            return Array.Empty<object>();
+        }
+
+        public virtual Type[] GetOptionalCustomModifiers() => Array.Empty<Type>();
+        public virtual Type[] GetRequiredCustomModifiers() => Array.Empty<Type>();
+
+        public virtual int MetadataToken => MetadataToken_ParamDef;
 
         public object GetRealObject(StreamingContext context)
         {
@@ -112,6 +95,15 @@ namespace System.Reflection
                     throw new SerializationException(SR.Serialization_NoParameterInfo);
             }
         }
+
+        public override string ToString() => ParameterType.FormatTypeName() + " " + Name;
+
+        protected ParameterAttributes AttrsImpl;
+        protected Type ClassImpl;
+        protected object DefaultValueImpl;
+        protected MemberInfo MemberImpl;
+        protected string NameImpl;
+        protected int PositionImpl;
 
         private const int MetadataToken_ParamDef = 0x08000000;
     }
