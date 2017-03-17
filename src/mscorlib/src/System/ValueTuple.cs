@@ -1956,7 +1956,7 @@ namespace System
         {
             if (!(rest is IValueTupleInternal))
             {
-                throw new ArgumentException(SR.ArgumentException_ValueTupleLastArgumentNotATuple);
+                throw new ArgumentException(SR.ArgumentException_ValueTupleLastArgumentNotAValueTuple);
             }
 
             Item1 = item1;
