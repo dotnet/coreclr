@@ -10,14 +10,6 @@ namespace System.Reflection
 {
     public abstract partial class Module : ISerializable, ICustomAttributeProvider
     {
-        static Module()
-        {
-            __Filters _fltObj;
-            _fltObj = new __Filters();
-            FilterTypeName = new TypeFilter(_fltObj.FilterTypeName);
-            FilterTypeNameIgnoreCase = new TypeFilter(_fltObj.FilterTypeNameIgnoreCase);
-        }
-
         // Used to provide implementation and overriding point for ModuleHandle.
         // To get a module handle inside mscorlib, use GetNativeHandle instead.
         internal virtual ModuleHandle GetModuleHandle()

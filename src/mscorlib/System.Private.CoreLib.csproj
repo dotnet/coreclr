@@ -440,7 +440,6 @@
     <Compile Include="$(BclSourcesRoot)\Internal\Console.cs" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="$(BclSourcesRoot)\System\Reflection\__Filters.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Reflection\AmbiguousMatchException.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Reflection\Assembly.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Reflection\Assembly.CoreCLR.cs" />
