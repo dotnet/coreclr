@@ -966,4 +966,7 @@ internal static class SR
 
     internal static string Serialization_NoParameterInfo =>
         Environment.GetResourceString("Serialization_NoParameterInfo");
+
+    internal static string InvalidFilterCriteriaException_CritString =>
+        Environment.GetResourceString("InvalidFilterCriteriaException_CritString");
 }
