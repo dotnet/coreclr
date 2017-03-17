@@ -4628,14 +4628,14 @@ struct GenTreePutArgStk : public GenTreeUnOp
                                  // Fast tail calls set this to true.
                                  // In future if we need to add more such bool fields consider bit fields.
 
-    bool putInIncomingArgArea()
+    bool putInIncomingArgArea() const
     {
         return gtPutInIncomingArgArea;
     }
 
 #else // !FEATURE_FASTTAILCALL
 
-    static bool putInIncomingArgArea()
+    bool putInIncomingArgArea() const
     {
         return false;
     }
