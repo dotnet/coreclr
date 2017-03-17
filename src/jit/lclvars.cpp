@@ -249,10 +249,16 @@ void Compiler::lvaInitTypeRef()
         CORINFO_CLASS_HANDLE typeHnd;
         CorInfoTypeWithMod   corInfoType =
             info.compCompHnd->getArgType(&info.compMethodInfo->locals, localsSig, &typeHnd);
+
         lvaInitVarDsc(varDsc, varNum, strip(corInfoType), typeHnd, localsSig, &info.compMethodInfo->locals);
 
         varDsc->lvPinned  = ((corInfoType & CORINFO_TYPE_MOD_PINNED) != 0);
         varDsc->lvOnFrame = true; // The final home for this local variable might be our local stack frame
+
+        if (strip(corInfoType) == CORINFO_TYPE_CLASS)
+        {
+            varDsc->lvClassHnd = info.compCompHnd->getArgClass(&info.compMethodInfo->locals, localsSig);
+        }
     }
 
     if ( // If there already exist unsafe buffers, don't mark more structs as unsafe
@@ -414,6 +420,8 @@ void Compiler::lvaInitThisPtr(InitVarDscInfo* varDscInfo)
             varDsc->lvVerTypeInfo = typeInfo();
         }
 
+        varDsc->lvClassHnd = info.compClassHnd;
+
         // Mark the 'this' pointer for the method
         varDsc->lvVerTypeInfo.SetIsThisPtr();
 
@@ -551,6 +559,11 @@ void Compiler::lvaInitUserArgs(InitVarDscInfo* varDscInfo)
 #endif
 
         lvaInitVarDsc(varDsc, varDscInfo->varNum, strip(corInfoType), typeHnd, argLst, &info.compMethodInfo->args);
+
+        if (strip(corInfoType) == CORINFO_TYPE_CLASS)
+        {
+            varDsc->lvClassHnd = info.compCompHnd->getArgClass(&info.compMethodInfo->args, argLst);
+        }
 
         // For ARM, ARM64, and AMD64 varargs, all arguments go in integer registers
         var_types argType     = mangleVarArgsType(varDsc->TypeGet());
@@ -5952,10 +5965,14 @@ void Compiler::lvaAlignFrame()
         }
 
         // Align the stack with STACK_ALIGN value.
-        int adjustFrameSize = compLclFrameSize;
+        int  adjustFrameSize = compLclFrameSize;
 #if defined(UNIX_X86_ABI)
+        bool isEbpPushed     = codeGen->isFramePointerUsed();
+#if DOUBLE_ALIGN
+        isEbpPushed |= genDoubleAlign();
+#endif
         // we need to consider spilled register(s) plus return address and/or EBP
-        int adjustCount = compCalleeRegsPushed + 1 + (codeGen->isFramePointerUsed() ? 1 : 0);
+        int adjustCount = compCalleeRegsPushed + 1 + (isEbpPushed ? 1 : 0);
         adjustFrameSize += (adjustCount * REGSIZE_BYTES) % STACK_ALIGN;
 #endif
         if ((adjustFrameSize % STACK_ALIGN) != 0)
@@ -5985,11 +6002,15 @@ void Compiler::lvaAssignFrameOffsetsToPromotedStructs()
         //
         if (varDsc->lvIsStructField
 #ifndef UNIX_AMD64_ABI
+#if !defined(_TARGET_ARM_) || defined(LEGACY_BACKEND)
+            // Non-legacy ARM: lo/hi parts of a promoted long arg need to be updated.
+
             // For System V platforms there is no outgoing args space.
             // A register passed struct arg is homed on the stack in a separate local var.
             // The offset of these structs is already calculated in lvaAssignVirtualFrameOffsetToArg methos.
             // Make sure the code below is not executed for these structs and the offset is not changed.
             && !varDsc->lvIsParam
+#endif // !defined(_TARGET_ARM_) || defined(LEGACY_BACKEND)
 #endif // UNIX_AMD64_ABI
             )
         {

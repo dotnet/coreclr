@@ -128,8 +128,8 @@ namespace System
                 return Array.Empty<AdjustmentRule>();
             }
 
-            // The rules we use in Unix cares mostly about the start and end dates but doesn’t fill the transition start and end info.
-            // as the rules now is public, we should fill it properly so the caller doesn’t have to know how we use it internally
+            // The rules we use in Unix care mostly about the start and end dates but don't fill the transition start and end info.
+            // as the rules now is public, we should fill it properly so the caller doesn't have to know how we use it internally
             // and can use it as it is used in Windows
 
             AdjustmentRule[] rules = new AdjustmentRule[_adjustmentRules.Length];
@@ -138,10 +138,14 @@ namespace System
             {
                 var rule = _adjustmentRules[i];
                 var start = rule.DateStart.Kind == DateTimeKind.Utc ?
-                            new DateTime(TimeZoneInfo.ConvertTime(rule.DateStart, this).Ticks, DateTimeKind.Unspecified) :
+                            // At the daylight start we didn't start the daylight saving yet then we convert to Local time
+                            // by adding the _baseUtcOffset to the UTC time
+                            new DateTime(rule.DateStart.Ticks + _baseUtcOffset.Ticks, DateTimeKind.Unspecified) :
                             rule.DateStart;
                 var end = rule.DateEnd.Kind == DateTimeKind.Utc ?
-                            new DateTime(TimeZoneInfo.ConvertTime(rule.DateEnd, this).Ticks - 1, DateTimeKind.Unspecified) :
+                            // At the daylight saving end, the UTC time is mapped to local time which is already shifted by the daylight delta
+                            // we calculate the local time by adding _baseUtcOffset + DaylightDelta to the UTC time
+                            new DateTime(rule.DateEnd.Ticks + _baseUtcOffset.Ticks + rule.DaylightDelta.Ticks, DateTimeKind.Unspecified) :
                             rule.DateEnd;
 
                 var startTransition = TimeZoneInfo.TransitionTime.CreateFixedDateRule(new DateTime(1, 1, 1, start.Hour, start.Minute, start.Second), start.Month, start.Day);
@@ -923,7 +927,7 @@ namespace System
         /// Creates an AdjustmentRule given the POSIX TZ environment variable string.
         /// </summary>
         /// <remarks>
-        /// See http://www.gnu.org/software/libc/manual/html_node/TZ-Variable.html for the format and semantics of this POSX string.
+        /// See http://man7.org/linux/man-pages/man3/tzset.3.html for the format and semantics of this POSX string.
         /// </remarks>
         private static AdjustmentRule TZif_CreateAdjustmentRuleForPosixFormat(string posixFormat, DateTime startTransitionDate, TimeSpan timeZoneBaseUtcOffset)
         {
@@ -1185,8 +1189,32 @@ namespace System
             return !string.IsNullOrEmpty(standardName) && !string.IsNullOrEmpty(standardOffset);
         }
 
-        private static string TZif_ParsePosixName(string posixFormat, ref int index) =>
-            TZif_ParsePosixString(posixFormat, ref index, c => char.IsDigit(c) || c == '+' || c == '-' || c == ',');
+        private static string TZif_ParsePosixName(string posixFormat, ref int index)
+        {
+            bool isBracketEnclosed = index < posixFormat.Length && posixFormat[index] == '<';
+            if (isBracketEnclosed)
+            {
+                // move past the opening bracket
+                index++;
+
+                string result = TZif_ParsePosixString(posixFormat, ref index, c => c == '>');
+
+                // move past the closing bracket
+                if (index < posixFormat.Length && posixFormat[index] == '>')
+                {
+                    index++;
+                }
+
+                return result;
+            }
+            else
+            {
+                return TZif_ParsePosixString(
+                    posixFormat,
+                    ref index,
+                    c => char.IsDigit(c) || c == '+' || c == '-' || c == ',');
+            }
+        }
 
         private static string TZif_ParsePosixOffset(string posixFormat, ref int index) =>
             TZif_ParsePosixString(posixFormat, ref index, c => !char.IsDigit(c) && c != '+' && c != '-' && c != ':');

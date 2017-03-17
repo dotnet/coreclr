@@ -1179,27 +1179,6 @@ BOOL ThreadpoolMgr::PostQueuedCompletionStatus(LPOVERLAPPED lpOverlapped,
 #ifndef FEATURE_PAL
     EnsureInitialized();
 
-    // if hosted then we need to queue to worker thread, since hosting API doesn't include this method
-    if (CLRIoCompletionHosted())
-    {
-        PostRequestHolder postRequest = MakePostRequest(Function, lpOverlapped);
-        if (postRequest)
-        {
-            // Will execute in the Default AppDomain
-            if (FALSE == QueueUserWorkItem(QUWIPostCompletion, postRequest, QUEUE_ONLY))
-            {
-                return FALSE;
-            }
-            else
-            {
-                postRequest.SuppressRelease();    
-                return TRUE;
-            }
-        }
-        else
-            return FALSE;
-    }
-
     _ASSERTE(GlobalCompletionPort != NULL);
 
     if (!InitCompletionPortThreadpool)
@@ -1462,43 +1441,11 @@ BOOL ThreadpoolMgr::DrainCompletionPortQueue()
 }
 
 
-DWORD __stdcall ThreadpoolMgr::QUWIPostCompletion(PVOID pArgs)
-{
-    CONTRACTL
-    {
-        THROWS;
-        GC_TRIGGERS;
-        MODE_ANY;
-        SO_INTOLERANT;
-    }
-    CONTRACTL_END;
-
-    PostRequest* postRequest = (PostRequest*) pArgs;
-
-    EX_TRY
-    {
-        (postRequest->Function)(postRequest->errorCode, postRequest->numBytesTransferred, postRequest->lpOverlapped);
-    }
-    EX_CATCH
-    {
-        RecycleMemory( postRequest, MEMTYPE_PostRequest );
-        if (!SwallowUnhandledExceptions())
-            EX_RETHROW;
-    }
-    EX_END_CATCH(SwallowAllExceptions);
-    return ERROR_SUCCESS;
-
-}
-
-
 // This is either made by a worker thread or a CP thread
 // indicated by threadTypeStatus
 void ThreadpoolMgr::EnsureGateThreadRunning()
 {
     LIMITED_METHOD_CONTRACT;
-
-    // The gate thread is only needed if the CLR is providing part of the ThreadPool implementation.
-    _ASSERTE(!CLRIoCompletionHosted());
 
     while (true)
     {
@@ -1548,9 +1495,6 @@ void ThreadpoolMgr::EnsureGateThreadRunning()
 bool ThreadpoolMgr::ShouldGateThreadKeepRunning()
 {
     LIMITED_METHOD_CONTRACT;
-
-    // The gate thread is only needed if the CLR is providing part of the ThreadPool implementation.
-    _ASSERTE(!CLRIoCompletionHosted());
 
     _ASSERTE(GateThreadStatus == GATE_THREAD_STATUS_WAITING_FOR_REQUEST ||
              GateThreadStatus == GATE_THREAD_STATUS_REQUESTED);
@@ -1680,18 +1624,6 @@ void ThreadpoolMgr::ExecuteWorkRequest(bool* foundWork, bool* wasNotRecalled)
         *foundWork = false;
         *wasNotRecalled = true;
         return;
-    }
-
-    if(IsThreadPoolHosted()) 
-    {
-        //Only managed callBacks go this route under hosts.
-        //Also, since if we came here, atleast one managed requests was 
-        //created, and that means atleast one app domain exists.
-
-        if (index == -1) 
-        {
-            index = 1;
-        }
     }
 
     if (index == -1) 
@@ -1848,9 +1780,6 @@ LPVOID ThreadpoolMgr::GetRecycledMemory(enum MemType memType)
             case MEMTYPE_WorkRequest:
                 result =  new WorkRequest;
                 break;
-            case MEMTYPE_PostRequest:
-                result =  new PostRequest;
-                break;
             default:
                 _ASSERTE(!"Unknown Memtype");
                 result = NULL;
@@ -1895,9 +1824,6 @@ void ThreadpoolMgr::RecycleMemory(LPVOID mem, enum MemType memType)
         case MEMTYPE_WorkRequest:
             delete (WorkRequest*) mem;
             break;
-        case MEMTYPE_PostRequest:
-            delete (PostRequest*) mem;
-            break;
         default:
             _ASSERTE(!"Unknown Memtype");
 
@@ -1908,7 +1834,7 @@ void ThreadpoolMgr::RecycleMemory(LPVOID mem, enum MemType memType)
 
 // This is to avoid the 64KB/1MB aliasing problem present on Pentium 4 processors,
 // which can significantly impact performance with HyperThreading enabled
-DWORD __stdcall ThreadpoolMgr::intermediateThreadProc(PVOID arg)
+DWORD WINAPI ThreadpoolMgr::intermediateThreadProc(PVOID arg)
 {
     WRAPPER_NO_CONTRACT;
     STATIC_CONTRACT_SO_INTOLERANT;
@@ -1976,10 +1902,9 @@ Thread* ThreadpoolMgr::CreateUnimpersonatedThread(LPTHREAD_START_ROUTINE lpStart
     }
     else {
 #ifndef FEATURE_PAL
-        ThreadAffinityHolder affinityHolder(FALSE);
         HandleHolder token;
         BOOL bReverted = FALSE;
-        bOK = RevertIfImpersonated(&bReverted, &token, &affinityHolder);
+        bOK = RevertIfImpersonated(&bReverted, &token);
         if (bOK != TRUE)
             return NULL;
 #endif // !FEATURE_PAL 
@@ -2048,7 +1973,7 @@ BOOL ThreadpoolMgr::CreateWorkerThread()
 }
 
 
-DWORD __stdcall ThreadpoolMgr::WorkerThreadStart(LPVOID lpArgs)
+DWORD WINAPI ThreadpoolMgr::WorkerThreadStart(LPVOID lpArgs)
 {
     ClrFlsSetThreadType (ThreadType_Threadpool_Worker);
 
@@ -2745,7 +2670,7 @@ DWORD ThreadpoolMgr::MinimumRemainingWait(LIST_ENTRY* waitInfo, unsigned int num
 #pragma warning(disable:22008) // "Prefast integer overflow check on (0 + lval) is bogus.  Tried local disable without luck, doing whole method."
 #endif
 
-DWORD __stdcall ThreadpoolMgr::WaitThreadStart(LPVOID lpArgs)
+DWORD WINAPI ThreadpoolMgr::WaitThreadStart(LPVOID lpArgs)
 {
     CONTRACTL
     {
@@ -3012,7 +2937,7 @@ void ThreadpoolMgr::ProcessWaitCompletion(WaitInfo* waitInfo,
 }
 
 
-DWORD __stdcall ThreadpoolMgr::AsyncCallbackCompletion(PVOID pArgs)
+DWORD WINAPI ThreadpoolMgr::AsyncCallbackCompletion(PVOID pArgs)
 {
     CONTRACTL
     {
@@ -3325,9 +3250,6 @@ BOOL ThreadpoolMgr::CreateGateThread()
 {
     LIMITED_METHOD_CONTRACT;
 
-    // The gate thread is only needed if the CLR is providing part of the ThreadPool implementation.
-    _ASSERTE(!CLRIoCompletionHosted());
-
     HANDLE threadHandle = Thread::CreateUtilityThread(Thread::StackSize_Small, GateThreadStart, NULL);
 
     if (threadHandle)
@@ -3428,7 +3350,7 @@ BOOL ThreadpoolMgr::CreateCompletionPortThread(LPVOID lpArgs)
     return FALSE;
 }
 
-DWORD __stdcall ThreadpoolMgr::CompletionPortThreadStart(LPVOID lpArgs)
+DWORD WINAPI ThreadpoolMgr::CompletionPortThreadStart(LPVOID lpArgs)
 {
     ClrFlsSetThreadType (ThreadType_Threadpool_IOCompletion);
 
@@ -3440,8 +3362,6 @@ DWORD __stdcall ThreadpoolMgr::CompletionPortThreadStart(LPVOID lpArgs)
         SO_INTOLERANT;
     }
     CONTRACTL_END;
-
-    _ASSERTE (!CLRIoCompletionHosted());
 
     DWORD numBytes=0;
     size_t key=0;
@@ -3586,8 +3506,6 @@ Top:
             if((context == NULL) || (!fIsCompletionContext))
             {
                 _ASSERTE (context == NULL || context->lpOverlapped == NULL);
-
-                LeaveRuntimeHolder holder((size_t)GetQueuedCompletionStatus);
 
                 BOOL status = GetQueuedCompletionStatus(
                     GlobalCompletionPort,
@@ -3888,14 +3806,7 @@ LPOVERLAPPED ThreadpoolMgr::CompletionPortDispatchWorkWithinAppDomain(
     OVERLAPPEDDATAREF overlapped=NULL;
     BOOL ManagedCallback=FALSE;
 
-    if (CLRIoCompletionHosted()) 
-    {
-        return NULL;
-    }
-
     *pErrorCode = S_OK;
-
-    LeaveRuntimeHolder holder((size_t)GetQueuedCompletionStatus);
 
 
     //Very Very Important!
@@ -4283,7 +4194,7 @@ public:
 };
 
 
-DWORD __stdcall ThreadpoolMgr::GateThreadStart(LPVOID lpArgs)
+DWORD WINAPI ThreadpoolMgr::GateThreadStart(LPVOID lpArgs)
 {
     ClrFlsSetThreadType (ThreadType_Gate);
 
@@ -4295,9 +4206,6 @@ DWORD __stdcall ThreadpoolMgr::GateThreadStart(LPVOID lpArgs)
         SO_INTOLERANT;
     }
     CONTRACTL_END;
-
-    // The gate thread is only needed if the CLR is providing part of the ThreadPool implementation.
-    _ASSERTE(!CLRIoCompletionHosted());
 
     _ASSERTE(GateThreadStatus == GATE_THREAD_STATUS_REQUESTED);
 
@@ -4433,8 +4341,6 @@ DWORD __stdcall ThreadpoolMgr::GateThreadStart(LPVOID lpArgs)
         // don't mess with CP thread pool settings if not initialized yet
         if (InitCompletionPortThreadpool)
         {
-            _ASSERTE (!CLRIoCompletionHosted());
-
             ThreadCounter::Counts oldCounts, newCounts;
             oldCounts = CPThreadCounter.GetCleanCounts();
 
@@ -4739,7 +4645,7 @@ BOOL ThreadpoolMgr::CreateTimerQueueTimer(PHANDLE phNewTimer,
 #pragma warning (disable : 4715)
 #endif
 #endif
-DWORD __stdcall ThreadpoolMgr::TimerThreadStart(LPVOID p)
+DWORD WINAPI ThreadpoolMgr::TimerThreadStart(LPVOID p)
 {
     ClrFlsSetThreadType (ThreadType_Timer);
 
@@ -4966,7 +4872,7 @@ DWORD ThreadpoolMgr::FireTimers()
     return nextFiringInterval;
 }
 
-DWORD __stdcall ThreadpoolMgr::AsyncTimerCallbackCompletion(PVOID pArgs)
+DWORD WINAPI ThreadpoolMgr::AsyncTimerCallbackCompletion(PVOID pArgs)
 {
     CONTRACTL
     {
@@ -5022,7 +4928,7 @@ void ThreadpoolMgr::DeactivateTimer(TimerInfo* timerInfo)
     timerInfo->state = timerInfo->state & ~TIMER_ACTIVE;
 }
 
-DWORD __stdcall ThreadpoolMgr::AsyncDeleteTimer(PVOID pArgs)
+DWORD WINAPI ThreadpoolMgr::AsyncDeleteTimer(PVOID pArgs)
 {
     CONTRACTL
     {

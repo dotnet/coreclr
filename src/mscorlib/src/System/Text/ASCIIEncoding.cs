@@ -23,9 +23,13 @@ namespace System.Text
     [Serializable]
     public class ASCIIEncoding : Encoding
     {
+        // Allow for devirtualization (see https://github.com/dotnet/coreclr/pull/9230)
+        [Serializable]
+        internal sealed class ASCIIEncodingSealed : ASCIIEncoding { }
+
         // Used by Encoding.ASCII for lazy initialization
         // The initialization code will not be run until a static member of the class is referenced
-        internal static readonly ASCIIEncoding s_default = new ASCIIEncoding();
+        internal static readonly ASCIIEncodingSealed s_default = new ASCIIEncodingSealed();
 
         public ASCIIEncoding() : base(Encoding.CodePageASCII)
         {
@@ -158,6 +162,7 @@ namespace System.Text
 
             // For fallback we may need a fallback buffer, we know we aren't default fallback.
             EncoderFallbackBuffer fallbackBuffer = null;
+            char* charsForFallback;
 
             if (encoder != null)
             {
@@ -227,7 +232,9 @@ namespace System.Text
                 fallbackBuffer.InternalInitialize(chars, charEnd, encoder, false);
 
                 // This will fallback a pair if *chars is a low surrogate
-                fallbackBuffer.InternalFallback(charLeftOver, ref chars);
+                charsForFallback = chars; // Avoid passing chars by reference to allow it to be enregistered
+                fallbackBuffer.InternalFallback(charLeftOver, ref charsForFallback);
+                chars = charsForFallback;
             }
 
             // Now we may have fallback char[] already from the encoder
@@ -260,7 +267,9 @@ namespace System.Text
                     }
 
                     // Get Fallback
-                    fallbackBuffer.InternalFallback(ch, ref chars);
+                    charsForFallback = chars; // Avoid passing chars by reference to allow it to be enregistered
+                    fallbackBuffer.InternalFallback(ch, ref charsForFallback);
+                    chars = charsForFallback;
                     continue;
                 }
 
@@ -292,6 +301,7 @@ namespace System.Text
 
             // For fallback we may need a fallback buffer, we know we aren't default fallback.
             EncoderFallbackBuffer fallbackBuffer = null;
+            char* charsForFallback;
 
             // prepare our end
             char* charEnd = chars + charCount;
@@ -407,7 +417,9 @@ namespace System.Text
                 // Since left over char was a surrogate, it'll have to be fallen back.
                 // Get Fallback
                 // This will fallback a pair if *chars is a low surrogate
-                fallbackBuffer.InternalFallback(charLeftOver, ref chars);
+                charsForFallback = chars; // Avoid passing chars by reference to allow it to be enregistered
+                fallbackBuffer.InternalFallback(charLeftOver, ref charsForFallback);
+                chars = charsForFallback;
             }
 
             // Now we may have fallback char[] already from the encoder
@@ -440,7 +452,9 @@ namespace System.Text
                     }
 
                     // Get Fallback
-                    fallbackBuffer.InternalFallback(ch, ref chars);
+                    charsForFallback = chars; // Avoid passing chars by reference to allow it to be enregistered
+                    fallbackBuffer.InternalFallback(ch, ref charsForFallback);
+                    chars = charsForFallback;
 
                     // Go ahead & continue (& do the fallback)
                     continue;
@@ -580,6 +594,7 @@ namespace System.Text
             // Only need decoder fallback buffer if not using ? fallback.
             // ASCII doesn't do best fit, so don't have to check for it, find out which decoder fallback we're using
             DecoderReplacementFallback fallback = null;
+            char* charsForFallback;
 
             if (decoder == null)
                 fallback = this.DecoderFallback as DecoderReplacementFallback;
@@ -651,7 +666,11 @@ namespace System.Text
                     byteBuffer[0] = b;
 
                     // Note that chars won't get updated unless this succeeds
-                    if (!fallbackBuffer.InternalFallback(byteBuffer, bytes, ref chars))
+                    charsForFallback = chars; // Avoid passing chars by reference to allow it to be enregistered
+                    bool fallbackResult = fallbackBuffer.InternalFallback(byteBuffer, bytes, ref charsForFallback);
+                    chars = charsForFallback;
+
+                    if (!fallbackResult)
                     {
                         // May or may not throw, but we didn't get this byte
                         Debug.Assert(bytes > byteStart || chars == charStart,

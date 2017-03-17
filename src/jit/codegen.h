@@ -162,6 +162,36 @@ private:
     //
     unsigned genStackLevel;
 
+    void SubtractStackLevel(unsigned adjustment)
+    {
+        assert(genStackLevel >= adjustment);
+        unsigned newStackLevel = genStackLevel - adjustment;
+        if (genStackLevel != newStackLevel)
+        {
+            JITDUMP("Adjusting stack level from %d to %d\n", genStackLevel, newStackLevel);
+        }
+        genStackLevel = newStackLevel;
+    }
+
+    void AddStackLevel(unsigned adjustment)
+    {
+        unsigned newStackLevel = genStackLevel + adjustment;
+        if (genStackLevel != newStackLevel)
+        {
+            JITDUMP("Adjusting stack level from %d to %d\n", genStackLevel, newStackLevel);
+        }
+        genStackLevel = newStackLevel;
+    }
+
+    void SetStackLevel(unsigned newStackLevel)
+    {
+        if (genStackLevel != newStackLevel)
+        {
+            JITDUMP("Setting stack level from %d to %d\n", genStackLevel, newStackLevel);
+        }
+        genStackLevel = newStackLevel;
+    }
+
 #if STACK_PROBES
     // Stack Probes
     bool genNeedPrologStackProbe;
@@ -416,20 +446,30 @@ protected:
 
     void genPrologPadForReJit();
 
+    // clang-format off
     void genEmitCall(int                   callType,
                      CORINFO_METHOD_HANDLE methHnd,
-                     INDEBUG_LDISASM_COMMA(CORINFO_SIG_INFO* sigInfo) void* addr X86_ARG(ssize_t argSize),
-                     emitAttr retSize MULTIREG_HAS_SECOND_GC_RET_ONLY_ARG(emitAttr secondRetSize),
-                     IL_OFFSETX ilOffset,
-                     regNumber  base   = REG_NA,
-                     bool       isJump = false,
-                     bool       isNoGC = false);
+                     INDEBUG_LDISASM_COMMA(CORINFO_SIG_INFO* sigInfo)
+                     void*                 addr
+                     X86_ARG(ssize_t argSize),
+                     emitAttr              retSize
+                     MULTIREG_HAS_SECOND_GC_RET_ONLY_ARG(emitAttr secondRetSize),
+                     IL_OFFSETX            ilOffset,
+                     regNumber             base   = REG_NA,
+                     bool                  isJump = false,
+                     bool                  isNoGC = false);
+    // clang-format on
 
+    // clang-format off
     void genEmitCall(int                   callType,
                      CORINFO_METHOD_HANDLE methHnd,
-                     INDEBUG_LDISASM_COMMA(CORINFO_SIG_INFO* sigInfo) GenTreeIndir* indir X86_ARG(ssize_t argSize),
-                     emitAttr retSize MULTIREG_HAS_SECOND_GC_RET_ONLY_ARG(emitAttr secondRetSize),
-                     IL_OFFSETX ilOffset);
+                     INDEBUG_LDISASM_COMMA(CORINFO_SIG_INFO* sigInfo)
+                     GenTreeIndir*         indir
+                     X86_ARG(ssize_t argSize),
+                     emitAttr              retSize
+                     MULTIREG_HAS_SECOND_GC_RET_ONLY_ARG(emitAttr secondRetSize),
+                     IL_OFFSETX            ilOffset);
+    // clang-format on
 
     //
     // Epilog functions
@@ -820,8 +860,8 @@ public:
         instruction ins, regNumber reg, TempDsc* tmp, unsigned ofs, var_types type, emitAttr size = EA_UNKNOWN);
     void inst_FS_ST(instruction ins, emitAttr size, TempDsc* tmp, unsigned ofs);
 
-    void instEmit_indCall(GenTreePtr call,
-                          size_t     argSize,
+    void instEmit_indCall(GenTreeCall* call,
+                          size_t       argSize,
                           emitAttr retSize MULTIREG_HAS_SECOND_GC_RET_ONLY_ARG(emitAttr secondRetSize));
 
     void instEmit_RM(instruction ins, GenTreePtr tree, GenTreePtr addr, unsigned offs);

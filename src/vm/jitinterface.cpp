@@ -2448,15 +2448,28 @@ bool CEEInfo::getSystemVAmd64PassStructInRegisterDescriptor(
         }
         _ASSERTE(methodTablePtr != nullptr);
 
+        // If we have full support for FEATURE_UNIX_AMD64_STRUCT_PASSING, and not just the interface,
+        // then we've cached whether this is a reg passed struct in the MethodTable, computed during
+        // MethodTable construction. Otherwise, we are just building in the interface, and we haven't
+        // computed or cached anything, so we need to compute it now.
+#if defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
         bool canPassInRegisters = useNativeLayout ? methodTablePtr->GetLayoutInfo()->IsNativeStructPassedInRegisters()
-                                                : methodTablePtr->IsRegPassedStruct();
+                                                  : methodTablePtr->IsRegPassedStruct();
+#else // !defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+        SystemVStructRegisterPassingHelper helper((unsigned int)th.GetSize());
+        bool canPassInRegisters = methodTablePtr->ClassifyEightBytes(&helper, 0, 0, useNativeLayout);
+#endif // !defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+
         if (canPassInRegisters)
         {
+#if defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
             SystemVStructRegisterPassingHelper helper((unsigned int)th.GetSize());
             bool result = methodTablePtr->ClassifyEightBytes(&helper, 0, 0, useNativeLayout);
 
             // The answer must be true at this point.
             _ASSERTE(result);
+#endif // FEATURE_UNIX_AMD64_STRUCT_PASSING
+
             structPassInRegDescPtr->passedInRegisters = true;
 
             structPassInRegDescPtr->eightByteCount = helper.eightByteCount;
@@ -8701,6 +8714,106 @@ void CEEInfo::getMethodVTableOffset (CORINFO_METHOD_HANDLE methodHnd,
 }
 
 /*********************************************************************/
+static CORINFO_METHOD_HANDLE resolveVirtualMethodHelper(MethodDesc* callerMethod,
+                                                        CORINFO_METHOD_HANDLE baseMethod,
+                                                        CORINFO_CLASS_HANDLE derivedClass)
+{
+    STANDARD_VM_CONTRACT;
+
+    MethodDesc* pBaseMD = GetMethod(baseMethod);
+    MethodTable* pBaseMT = pBaseMD->GetMethodTable();
+
+    // Method better be from a fully loaded class
+    _ASSERTE(pBaseMD->IsRestored() && pBaseMT->IsFullyLoaded());
+
+    //@GENERICS: shouldn't be doing this for instantiated methods as they live elsewhere
+    _ASSERTE(!pBaseMD->HasMethodInstantiation());
+
+    // Interface call devirtualization is not yet supported.
+    if (pBaseMT->IsInterface())
+    {
+        return nullptr;
+    }
+
+    // Method better be virtual
+    _ASSERTE(pBaseMD->IsVirtual());
+
+    TypeHandle DerivedClsHnd(derivedClass);
+    MethodTable* pDerivedMT = DerivedClsHnd.GetMethodTable();
+    _ASSERTE(pDerivedMT->IsRestored() && pDerivedMT->IsFullyLoaded());
+
+    // Can't devirtualize from __Canon.
+    if (DerivedClsHnd == TypeHandle(g_pCanonMethodTableClass))
+    {
+        return nullptr;
+    }
+
+    // The derived class should be a subclass of the the base class.
+    MethodTable* pCheckMT = pDerivedMT;
+
+    while (pCheckMT != nullptr)
+    {
+        if (pCheckMT->HasSameTypeDefAs(pBaseMT))
+        {
+            break;
+        }
+
+        pCheckMT = pCheckMT->GetParentMethodTable();
+    }
+
+    if (pCheckMT == nullptr)
+    {
+        return nullptr;
+    }
+
+    // The base method should be in the base vtable
+    WORD slot = pBaseMD->GetSlot();
+    _ASSERTE(slot < pBaseMT->GetNumVirtuals());
+    _ASSERTE(pBaseMD == pBaseMT->GetMethodDescForSlot(slot));
+
+    // Fetch the method that would be invoked if the class were
+    // exactly derived class. It is up to the jit to determine whether
+    // directly calling this method is correct.
+    MethodDesc* pDevirtMD = pDerivedMT->GetMethodDescForSlot(slot);
+    _ASSERTE(pDevirtMD->IsRestored());
+
+#ifdef FEATURE_READYTORUN_COMPILER
+    // Check if devirtualization is dependent upon cross-version
+    // bubble information and if so, disallow it.
+    if (IsReadyToRunCompilation())
+    {
+        Assembly* pCallerAssembly = callerMethod->GetModule()->GetAssembly();
+        bool allowDevirt =
+            IsInSameVersionBubble(pCallerAssembly , pDevirtMD->GetModule()->GetAssembly())
+            && IsInSameVersionBubble(pCallerAssembly , pDerivedMT->GetAssembly());
+
+        if (!allowDevirt)
+        {
+            return nullptr;
+        }
+    }
+#endif
+
+    return (CORINFO_METHOD_HANDLE) pDevirtMD;
+}
+
+CORINFO_METHOD_HANDLE CEEInfo::resolveVirtualMethod(CORINFO_METHOD_HANDLE methodHnd,
+                                                    CORINFO_CLASS_HANDLE derivedClass)
+{
+    STANDARD_VM_CONTRACT;
+
+    CORINFO_METHOD_HANDLE result = nullptr;
+
+    JIT_TO_EE_TRANSITION();
+
+    result = resolveVirtualMethodHelper(m_pMethodBeingCompiled, methodHnd, derivedClass);
+
+    EE_TO_JIT_TRANSITION();
+
+    return result;
+}
+
+/*********************************************************************/
 void CEEInfo::getFunctionEntryPoint(CORINFO_METHOD_HANDLE  ftnHnd,
                                     CORINFO_CONST_LOOKUP * pResult,
                                     CORINFO_ACCESS_FLAGS   accessFlags)
@@ -10436,14 +10549,6 @@ BOOL CEEInfo::logMsg(unsigned level, const char* fmt, va_list args)
 void CEEInfo::yieldExecution()
 {
     WRAPPER_NO_CONTRACT;
-    // DDR: 17066 - Performance degrade 
-    // The JIT should not give up it's time slice when we are not hosted
-    if (CLRTaskHosted())
-    {
-        // SwitchToTask forces the current thread to give up quantum, while a host can decide what
-        // to do with Sleep if the current thread has not run out of quantum yet.
-        ClrSleepEx(0, FALSE);
-    }
 }
 
 

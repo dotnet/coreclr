@@ -1075,8 +1075,8 @@ CHECK PEDecoder::CheckCorHeader() const
     if (IsStrongNameSigned())
         CHECK(HasStrongNameSignature());
 
-    // IL library files (really a misnomer - these are native images) only
-    // may have a native image header
+    // IL library files (really a misnomer - these are native images or ReadyToRun images)
+    // only they can have a native image header
     if ((pCor->Flags&VAL32(COMIMAGE_FLAGS_IL_LIBRARY)) == 0)
     {
         CHECK(VAL32(pCor->ManagedNativeHeader.Size) == 0);

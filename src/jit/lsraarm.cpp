@@ -81,6 +81,24 @@ void Lowering::TreeNodeInfoInitCmp(GenTreePtr tree)
 
     info->srcCount = 2;
     info->dstCount = 1;
+
+    GenTreePtr op1     = tree->gtOp.gtOp1;
+    GenTreePtr op2     = tree->gtOp.gtOp2;
+    var_types  op1Type = op1->TypeGet();
+    var_types  op2Type = op2->TypeGet();
+
+    // Long compares will consume GT_LONG nodes, each of which produces two results.
+    // Thus for each long operand there will be an additional source.
+    // TODO-ARM-CQ: Mark hiOp2 and loOp2 as contained if it is a constant.
+    if (varTypeIsLong(op1Type))
+    {
+        info->srcCount++;
+    }
+    if (varTypeIsLong(op2Type))
+    {
+        info->srcCount++;
+    }
+
     CheckImmedAndMakeContained(tree, tree->gtOp.gtOp2);
 }
 
@@ -290,42 +308,125 @@ void Lowering::TreeNodeInfoInitReturn(GenTree* tree)
     LinearScan*   l        = m_lsra;
     Compiler*     compiler = comp;
 
-    GenTree*  op1           = tree->gtGetOp1();
-    regMaskTP useCandidates = RBM_NONE;
-
-    info->srcCount = (tree->TypeGet() == TYP_VOID) ? 0 : 1;
-    info->dstCount = 0;
-
-    if (varTypeIsStruct(tree))
+    if (tree->TypeGet() == TYP_LONG)
     {
-        NYI_ARM("struct return");
+        GenTree* op1 = tree->gtGetOp1();
+        noway_assert(op1->OperGet() == GT_LONG);
+        GenTree* loVal = op1->gtGetOp1();
+        GenTree* hiVal = op1->gtGetOp2();
+        info->srcCount = 2;
+        loVal->gtLsraInfo.setSrcCandidates(l, RBM_LNGRET_LO);
+        hiVal->gtLsraInfo.setSrcCandidates(l, RBM_LNGRET_HI);
+        info->dstCount = 0;
     }
     else
     {
-        // Non-struct type return - determine useCandidates
-        switch (tree->TypeGet())
+        GenTree*  op1           = tree->gtGetOp1();
+        regMaskTP useCandidates = RBM_NONE;
+
+        info->srcCount = (tree->TypeGet() == TYP_VOID) ? 0 : 1;
+        info->dstCount = 0;
+
+        if (varTypeIsStruct(tree))
         {
-            case TYP_VOID:
-                useCandidates = RBM_NONE;
-                break;
-            case TYP_FLOAT:
-                useCandidates = RBM_FLOATRET;
-                break;
-            case TYP_DOUBLE:
-                useCandidates = RBM_DOUBLERET;
-                break;
-            case TYP_LONG:
-                useCandidates = RBM_LNGRET;
-                break;
-            default:
-                useCandidates = RBM_INTRET;
-                break;
+            // op1 has to be either an lclvar or a multi-reg returning call
+            if (op1->OperGet() == GT_LCL_VAR)
+            {
+                GenTreeLclVarCommon* lclVarCommon = op1->AsLclVarCommon();
+                LclVarDsc*           varDsc       = &(compiler->lvaTable[lclVarCommon->gtLclNum]);
+                assert(varDsc->lvIsMultiRegRet);
+
+                // Mark var as contained if not enregistrable.
+                if (!varTypeIsEnregisterableStruct(op1))
+                {
+                    MakeSrcContained(tree, op1);
+                }
+            }
+            else
+            {
+                noway_assert(op1->IsMultiRegCall());
+
+                ReturnTypeDesc* retTypeDesc = op1->AsCall()->GetReturnTypeDesc();
+                info->srcCount              = retTypeDesc->GetReturnRegCount();
+                useCandidates               = retTypeDesc->GetABIReturnRegs();
+            }
+        }
+        else
+        {
+            // Non-struct type return - determine useCandidates
+            switch (tree->TypeGet())
+            {
+                case TYP_VOID:
+                    useCandidates = RBM_NONE;
+                    break;
+                case TYP_FLOAT:
+                    useCandidates = RBM_FLOATRET;
+                    break;
+                case TYP_DOUBLE:
+                    useCandidates = RBM_DOUBLERET;
+                    break;
+                case TYP_LONG:
+                    useCandidates = RBM_LNGRET;
+                    break;
+                default:
+                    useCandidates = RBM_INTRET;
+                    break;
+            }
+        }
+
+        if (useCandidates != RBM_NONE)
+        {
+            tree->gtOp.gtOp1->gtLsraInfo.setSrcCandidates(l, useCandidates);
         }
     }
+}
 
-    if (useCandidates != RBM_NONE)
+//------------------------------------------------------------------------
+// TreeNodeInfoInitShiftRotate: Set the NodeInfo for a shift or rotate.
+//
+// Arguments:
+//    tree      - The node of interest
+//
+// Return Value:
+//    None.
+//
+void Lowering::TreeNodeInfoInitShiftRotate(GenTree* tree)
+{
+    TreeNodeInfo* info = &(tree->gtLsraInfo);
+    LinearScan*   l    = m_lsra;
+
+    info->srcCount = 2;
+    info->dstCount = 1;
+
+    GenTreePtr shiftBy = tree->gtOp.gtOp2;
+    GenTreePtr source  = tree->gtOp.gtOp1;
+    if (shiftBy->IsCnsIntOrI())
     {
-        tree->gtOp.gtOp1->gtLsraInfo.setSrcCandidates(l, useCandidates);
+        l->clearDstCount(shiftBy);
+        info->srcCount--;
+    }
+
+    // The first operand of a GT_LSH_HI and GT_RSH_LO oper is a GT_LONG so that
+    // we can have a three operand form. Increment the srcCount.
+    if (tree->OperGet() == GT_LSH_HI || tree->OperGet() == GT_RSH_LO)
+    {
+        assert(source->OperGet() == GT_LONG);
+
+        info->srcCount++;
+
+        if (tree->OperGet() == GT_LSH_HI)
+        {
+            GenTreePtr sourceLo              = source->gtOp.gtOp1;
+            sourceLo->gtLsraInfo.isDelayFree = true;
+        }
+        else
+        {
+            GenTreePtr sourceHi              = source->gtOp.gtOp2;
+            sourceHi->gtLsraInfo.isDelayFree = true;
+        }
+
+        source->gtLsraInfo.hasDelayFreeSrc = true;
+        info->hasDelayFreeSrc              = true;
     }
 }
 
@@ -628,6 +729,147 @@ void Lowering::TreeNodeInfoInitPutArgStk(GenTreePutArgStk* argNode, fgArgTabEntr
 }
 
 //------------------------------------------------------------------------
+// TreeNodeInfoInitBlockStore: Set the NodeInfo for a block store.
+//
+// Arguments:
+//    blkNode       - The block store node of interest
+//
+// Return Value:
+//    None.
+void Lowering::TreeNodeInfoInitBlockStore(GenTreeBlk* blkNode)
+{
+    GenTree*    dstAddr  = blkNode->Addr();
+    unsigned    size     = blkNode->gtBlkSize;
+    GenTree*    source   = blkNode->Data();
+    LinearScan* l        = m_lsra;
+    Compiler*   compiler = comp;
+
+    // Sources are dest address and initVal or source.
+    // We may require an additional source or temp register for the size.
+    blkNode->gtLsraInfo.srcCount = 2;
+    blkNode->gtLsraInfo.dstCount = 0;
+    GenTreePtr srcAddrOrFill     = nullptr;
+    bool       isInitBlk         = blkNode->OperIsInitBlkOp();
+
+    if (!isInitBlk)
+    {
+        // CopyObj or CopyBlk
+        if (source->gtOper == GT_IND)
+        {
+            srcAddrOrFill = blkNode->Data()->gtGetOp1();
+            // We're effectively setting source as contained, but can't call MakeSrcContained, because the
+            // "inheritance" of the srcCount is to a child not a parent - it would "just work" but could be misleading.
+            // If srcAddr is already non-contained, we don't need to change it.
+            if (srcAddrOrFill->gtLsraInfo.getDstCount() == 0)
+            {
+                srcAddrOrFill->gtLsraInfo.setDstCount(1);
+                srcAddrOrFill->gtLsraInfo.setSrcCount(source->gtLsraInfo.srcCount);
+            }
+            m_lsra->clearOperandCounts(source);
+        }
+        else if (!source->IsMultiRegCall() && !source->OperIsSIMD())
+        {
+            assert(source->IsLocal());
+            MakeSrcContained(blkNode, source);
+        }
+    }
+
+    if (isInitBlk)
+    {
+        GenTreePtr initVal = source;
+        if (initVal->OperIsInitVal())
+        {
+            initVal = initVal->gtGetOp1();
+        }
+        srcAddrOrFill = initVal;
+
+        if (blkNode->gtBlkOpKind == GenTreeBlk::BlkOpKindUnroll)
+        {
+            // TODO-ARM-CQ: Currently we generate a helper call for every
+            // initblk we encounter.  Later on we should implement loop unrolling
+            // code sequences to improve CQ.
+            // For reference see the code in lsraxarch.cpp.
+            NYI_ARM("initblk loop unrolling is currently not implemented.");
+        }
+        else
+        {
+            assert(blkNode->gtBlkOpKind == GenTreeBlk::BlkOpKindHelper);
+            // The helper follows the regular ABI.
+            dstAddr->gtLsraInfo.setSrcCandidates(l, RBM_ARG_0);
+            initVal->gtLsraInfo.setSrcCandidates(l, RBM_ARG_1);
+            if (size != 0)
+            {
+                // Reserve a temp register for the block size argument.
+                blkNode->gtLsraInfo.setInternalCandidates(l, RBM_ARG_2);
+                blkNode->gtLsraInfo.internalIntCount = 1;
+            }
+            else
+            {
+                // The block size argument is a third argument to GT_STORE_DYN_BLK
+                noway_assert(blkNode->gtOper == GT_STORE_DYN_BLK);
+                blkNode->gtLsraInfo.setSrcCount(3);
+                GenTree* sizeNode = blkNode->AsDynBlk()->gtDynamicSize;
+                sizeNode->gtLsraInfo.setSrcCandidates(l, RBM_ARG_2);
+            }
+        }
+    }
+    else
+    {
+        // CopyObj or CopyBlk
+        // Sources are src and dest and size if not constant.
+        if (blkNode->OperGet() == GT_STORE_OBJ)
+        {
+            // CopyObj
+            NYI_ARM("GT_STORE_OBJ is needed of write barriers implementation");
+        }
+        else
+        {
+            // CopyBlk
+            short     internalIntCount      = 0;
+            regMaskTP internalIntCandidates = RBM_NONE;
+
+            if (blkNode->gtBlkOpKind == GenTreeBlk::BlkOpKindUnroll)
+            {
+                // TODO-ARM-CQ: cpblk loop unrolling is currently not implemented.
+                // In case of a CpBlk with a constant size and less than CPBLK_UNROLL_LIMIT size
+                // we should unroll the loop to improve CQ.
+                // For reference see the code in lsraxarch.cpp.
+                NYI_ARM("cpblk loop unrolling is currently not implemented.");
+            }
+            else
+            {
+                assert(blkNode->gtBlkOpKind == GenTreeBlk::BlkOpKindHelper);
+                dstAddr->gtLsraInfo.setSrcCandidates(l, RBM_ARG_0);
+                // The srcAddr goes in arg1.
+                if (srcAddrOrFill != nullptr)
+                {
+                    srcAddrOrFill->gtLsraInfo.setSrcCandidates(l, RBM_ARG_1);
+                }
+                if (size != 0)
+                {
+                    // Reserve a temp register for the block size argument.
+                    internalIntCandidates |= RBM_ARG_2;
+                    internalIntCount++;
+                }
+                else
+                {
+                    // The block size argument is a third argument to GT_STORE_DYN_BLK
+                    noway_assert(blkNode->gtOper == GT_STORE_DYN_BLK);
+                    blkNode->gtLsraInfo.setSrcCount(3);
+                    GenTree* blockSize = blkNode->AsDynBlk()->gtDynamicSize;
+                    blockSize->gtLsraInfo.setSrcCandidates(l, RBM_ARG_2);
+                }
+            }
+            if (internalIntCount != 0)
+            {
+                blkNode->gtLsraInfo.internalIntCount = internalIntCount;
+                blkNode->gtLsraInfo.setInternalCandidates(l, internalIntCandidates);
+            }
+        }
+    }
+}
+
+//------------------------------------------------------------------------
 // TreeNodeInfoInit: Set the register requirements for RA.
 //
 // Notes:
@@ -656,7 +898,6 @@ void Lowering::TreeNodeInfoInit(GenTree* tree)
     DISPNODE(tree);
 
     NYI_IF(tree->TypeGet() == TYP_STRUCT, "lowering struct");
-    NYI_IF(tree->TypeGet() == TYP_LONG, "lowering long");
     NYI_IF(tree->TypeGet() == TYP_DOUBLE, "lowering double");
 
     switch (tree->OperGet())
@@ -666,7 +907,14 @@ void Lowering::TreeNodeInfoInit(GenTree* tree)
 
         case GT_STORE_LCL_FLD:
         case GT_STORE_LCL_VAR:
-            info->srcCount = 1;
+            if (tree->gtGetOp1()->OperGet() == GT_LONG)
+            {
+                info->srcCount = 2;
+            }
+            else
+            {
+                info->srcCount = 1;
+            }
             info->dstCount = 0;
             LowerStoreLoc(tree->AsLclVarCommon());
             TreeNodeInfoInitStoreLoc(tree->AsLclVarCommon());
@@ -737,6 +985,12 @@ void Lowering::TreeNodeInfoInit(GenTree* tree)
             }
 #endif // DEBUG
 
+            if (varTypeIsLong(castOpType))
+            {
+                noway_assert(castOp->OperGet() == GT_LONG);
+                info->srcCount = 2;
+            }
+
             if (tree->gtOverflow())
             {
                 NYI_ARM("overflow checks");
@@ -769,9 +1023,8 @@ void Lowering::TreeNodeInfoInit(GenTree* tree)
             break;
 
         case GT_SWITCH_TABLE:
-            info->srcCount         = 2;
-            info->internalIntCount = 1;
-            info->dstCount         = 0;
+            info->srcCount = 2;
+            info->dstCount = 0;
             break;
 
         case GT_ASG:
@@ -782,6 +1035,10 @@ void Lowering::TreeNodeInfoInit(GenTree* tree)
             info->dstCount = 0;
             break;
 
+        case GT_ADD_LO:
+        case GT_ADD_HI:
+        case GT_SUB_LO:
+        case GT_SUB_HI:
         case GT_ADD:
         case GT_SUB:
             if (varTypeIsFloating(tree->TypeGet()))
@@ -844,6 +1101,21 @@ void Lowering::TreeNodeInfoInit(GenTree* tree)
             info->dstCount = 0;
             break;
 
+        case GT_LONG:
+            if ((tree->gtLIRFlags & LIR::Flags::IsUnusedValue) != 0)
+            {
+                // An unused GT_LONG node needs to consume its sources.
+                info->srcCount = 2;
+            }
+            else
+            {
+                // Passthrough
+                info->srcCount = 0;
+            }
+
+            info->dstCount = 0;
+            break;
+
         case GT_CNS_DBL:
             info->srcCount = 0;
             info->dstCount = 1;
@@ -885,9 +1157,51 @@ void Lowering::TreeNodeInfoInit(GenTree* tree)
             break;
 
         case GT_ARR_BOUNDS_CHECK:
-            // Consumes arrLen and index. Has no result.
+#ifdef FEATURE_SIMD
+        case GT_SIMD_CHK:
+#endif // FEATURE_SIMD
+        {
+            // Consumes arrLen & index - has no result
             info->srcCount = 2;
             info->dstCount = 0;
+        }
+        break;
+
+        case GT_ARR_ELEM:
+            // These must have been lowered to GT_ARR_INDEX
+            noway_assert(!"We should never see a GT_ARR_ELEM in lowering");
+            info->srcCount = 0;
+            info->dstCount = 0;
+            break;
+
+        case GT_ARR_INDEX:
+            info->srcCount = 2;
+            info->dstCount = 1;
+
+            // We need one internal register when generating code for GT_ARR_INDEX, however the
+            // register allocator always may just give us the same one as it gives us for the 'dst'
+            // as a workaround we will just ask for two internal registers.
+            //
+            info->internalIntCount = 2;
+
+            // For GT_ARR_INDEX, the lifetime of the arrObj must be extended because it is actually used multiple
+            // times while the result is being computed.
+            tree->AsArrIndex()->ArrObj()->gtLsraInfo.isDelayFree = true;
+            info->hasDelayFreeSrc                                = true;
+            break;
+
+        case GT_ARR_OFFSET:
+            // This consumes the offset, if any, the arrObj and the effective index,
+            // and produces the flattened offset for this dimension.
+            info->srcCount         = 3;
+            info->dstCount         = 1;
+            info->internalIntCount = 1;
+
+            // we don't want to generate code for this
+            if (tree->gtArrOffs.gtOffset->IsIntegralConst(0))
+            {
+                MakeSrcContained(tree, tree->gtArrOffs.gtOffset);
+            }
             break;
 
         case GT_LEA:
@@ -940,19 +1254,10 @@ void Lowering::TreeNodeInfoInit(GenTree* tree)
         case GT_RSH:
         case GT_RSZ:
         case GT_ROR:
-        {
-            info->srcCount = 2;
-            info->dstCount = 1;
-
-            GenTreePtr shiftBy = tree->gtOp.gtOp2;
-            GenTreePtr source  = tree->gtOp.gtOp1;
-            if (shiftBy->IsCnsIntOrI())
-            {
-                l->clearDstCount(shiftBy);
-                info->srcCount--;
-            }
-        }
-        break;
+        case GT_LSH_HI:
+        case GT_RSH_LO:
+            TreeNodeInfoInitShiftRotate(tree);
+            break;
 
         case GT_EQ:
         case GT_NE:
@@ -965,6 +1270,13 @@ void Lowering::TreeNodeInfoInit(GenTree* tree)
 
         case GT_CALL:
             TreeNodeInfoInitCall(tree->AsCall());
+            break;
+
+        case GT_STORE_BLK:
+        case GT_STORE_OBJ:
+        case GT_STORE_DYN_BLK:
+            LowerBlockStore(tree->AsBlk());
+            TreeNodeInfoInitBlockStore(tree->AsBlk());
             break;
 
         case GT_STOREIND:
@@ -1032,7 +1344,6 @@ void Lowering::TreeNodeInfoInit(GenTree* tree)
             unsigned   varNum = tree->gtLclVarCommon.gtLclNum;
             LclVarDsc* varDsc = comp->lvaTable + varNum;
             NYI_IF(varTypeIsStruct(varDsc), "lowering struct var");
-            NYI_IF(varTypeIsLong(varDsc), "lowering long var");
         }
         case GT_PHYSREG:
         case GT_CLS_VAR_ADDR:
@@ -1042,6 +1353,7 @@ void Lowering::TreeNodeInfoInit(GenTree* tree)
         case GT_PUTARG_STK:
         case GT_LABEL:
         case GT_PINVOKE_PROLOG:
+        case GT_JCC:
             info->dstCount = tree->IsValue() ? 1 : 0;
             if (kind & (GTK_CONST | GTK_LEAF))
             {

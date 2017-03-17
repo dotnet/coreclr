@@ -119,14 +119,6 @@ case $OSName in
         ;;
 esac
 
-# clean up any existing dumpling remnants from previous runs.
-dumplingsListPath="$PWD/dumplings.txt"
-if [ -f "$dumplingsListPath" ]; then
-    rm "$dumplingsListPath"
-fi
-
-find . -type f -name "local_dumplings.txt" -exec rm {} \;
-
 function xunit_output_begin {
     xunitOutputPath=$testRootDir/coreclrtests.xml
     xunitTestOutputPath=${xunitOutputPath}.test
@@ -348,9 +340,6 @@ function create_core_overlay {
     if [ ! -d "$coreClrBinDir" ]; then
         exit_with_error "$errorSource" "Directory specified by --coreClrBinDir does not exist: $coreClrBinDir"
     fi
-    if [ ! -f "$mscorlibDir/mscorlib.dll" ]; then
-        exit_with_error "$errorSource" "mscorlib.dll was not found in: $mscorlibDir"
-    fi
     if [ -z "$coreFxBinDir" ]; then
         exit_with_error "$errorSource" "One of --coreOverlayDir or --coreFxBinDir must be specified." "$printUsage"
     fi
@@ -365,7 +354,6 @@ function create_core_overlay {
 
     cp -f -v "$coreFxBinDir/"* "$coreOverlayDir/" 2>/dev/null
     cp -f -v "$coreClrBinDir/"* "$coreOverlayDir/" 2>/dev/null
-    cp -f -v "$mscorlibDir/mscorlib.dll" "$coreOverlayDir/" 2>/dev/null
     if [ -d "$mscorlibDir/bin" ]; then
         cp -f -v "$mscorlibDir/bin/"* "$coreOverlayDir/" 2>/dev/null
     fi
@@ -1208,6 +1196,13 @@ fi
 export __TestEnv=$testEnv
 
 cd "$testRootDir"
+
+dumplingsListPath="$testRootDir/dumplings.txt"
+
+# clean up any existing dumpling remnants from previous runs.
+rm -f "$dumplingsListPath"
+find $testRootDir -type f -name "local_dumplings.txt" -exec rm {} \;
+
 time_start=$(date +"%s")
 if [ -z "$testDirectories" ]
 then
@@ -1229,7 +1224,7 @@ finish_remaining_tests
 
 print_results
 
-find . -type f -name "local_dumplings.txt" -exec cat {} \; > $dumplingsListPath
+find $testRootDir -type f -name "local_dumplings.txt" -exec cat {} \; > $dumplingsListPath
 
 if [ -s $dumplingsListPath ]; then
     cat $dumplingsListPath

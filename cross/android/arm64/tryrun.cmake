@@ -1,4 +1,3 @@
-# Need to verify this
 SET( HAVE_COMPATIBLE_EXP_EXITCODE 
      1
      CACHE STRING "Result from TRY_RUN" FORCE)

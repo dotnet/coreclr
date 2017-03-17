@@ -1,6 +1,6 @@
 <Project ToolsVersion="12.0" DefaultTargets="ArchiveAll" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
 
-  <UsingTask TaskName="ZipFileCreateFromDirectory" AssemblyFile="$(ToolsDir)\net45\Microsoft.DotNet.Build.Tasks.dll"/>
+  <UsingTask TaskName="ZipFileCreateFromDirectory" AssemblyFile="$(ToolsDir)\net46\Microsoft.DotNet.Build.Tasks.dll"/>
   
   <Import Project="dir.props" />
   <Import Project="..\dir.props" />
@@ -15,7 +15,7 @@
 
   <ItemGroup>
     <TestCmds Include="$(DiscoveryDirectory)\**\*.cmd" ></TestCmds>
-    <XunitDlls Include="$(DiscoveryDirectory)\*\*.XUnitWrapper.dll" ></XunitDlls>
+    <XunitDlls Include="$(DiscoveryDirectory)\**\*.XUnitWrapper.dll" ></XunitDlls>
     <RequiresSigningFilesToDelete Include="$(DiscoveryDirectory)\**\*.requires_signing" />
   </ItemGroup>
 
@@ -47,6 +47,7 @@
     <Delete Files="@(RequiresSigningFilesToDelete)" />
     <MSBuild Projects="helixprep.proj"
              Properties="BuildPath=%(XunitDlls.RootDir)%(XunitDlls.Directory);ProjectName=%(XunitDlls.Filename);BuildArchiveDir=$(TestWorkingDir)archive\tests\"
+             BuildInParallel="true"
              Targets="ArchiveBuild" />
   </Target>
 

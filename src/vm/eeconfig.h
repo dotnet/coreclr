@@ -708,12 +708,6 @@ public:
                                                                                     && pSkipGCCoverageList->IsInList(assemblyName));}
 #endif
 
-
-    // thread stress: number of threads to run
-#ifdef STRESS_THREAD
-    DWORD GetStressThreadCount ()           const {LIMITED_METHOD_CONTRACT; return dwStressThreadCount;}
-#endif
-
 #ifdef _DEBUG
     inline DWORD FastGCStressLevel() const
     {LIMITED_METHOD_CONTRACT;  return iFastGCStress;}
@@ -1091,10 +1085,6 @@ private: //----------------------------------------------------------------
 
     bool fGCBreakOnOOM;
 
-#ifdef  STRESS_THREAD
-    DWORD dwStressThreadCount;
-#endif
-
 #ifdef _DEBUG
     DWORD iFastGCStress;
     LPUTF8 pszGcCoverageOnMethod;
@@ -1262,14 +1252,6 @@ private:
 public:
     DWORD GetSleepOnExit()
     { return dwSleepOnExit; }
-
-#if FEATURE_APPX
-private:
-    DWORD dwWindows8ProfileAPICheckFlag;
-
-public:
-    DWORD GetWindows8ProfileAPICheckFlag() { return dwWindows8ProfileAPICheckFlag; }
-#endif
 };
 
 

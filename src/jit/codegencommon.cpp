@@ -1406,9 +1406,8 @@ void CodeGenInterface::reloadFloatReg(var_types type, TempDsc* tmp, regNumber re
 #endif // LEGACY_BACKEND
 
 // inline
-regNumber CodeGenInterface::genGetThisArgReg(GenTreePtr call)
+regNumber CodeGenInterface::genGetThisArgReg(GenTreeCall* call) const
 {
-    noway_assert(call->IsCall());
     return REG_ARG_0;
 }
 
@@ -1663,14 +1662,14 @@ void CodeGen::genAdjustStackLevel(BasicBlock* block)
     {
         noway_assert(block->bbFlags & BBF_JMP_TARGET);
 
-        genStackLevel = compiler->fgThrowHlpBlkStkLevel(block) * sizeof(int);
+        SetStackLevel(compiler->fgThrowHlpBlkStkLevel(block) * sizeof(int));
 
         if (genStackLevel != 0)
         {
 #ifdef _TARGET_X86_
             getEmitter()->emitMarkStackLvl(genStackLevel);
             inst_RV_IV(INS_add, REG_SPBASE, genStackLevel, EA_PTRSIZE);
-            genStackLevel = 0;
+            SetStackLevel(0);
 #else  // _TARGET_X86_
             NYI("Need emitMarkStackLvl()");
 #endif // _TARGET_X86_
@@ -3927,12 +3926,12 @@ void CodeGen::genGCWriteBarrier(GenTreePtr tgt, GCInfo::WriteBarrierForm wbf)
         }
 #endif // DEBUG
 #endif // 0
-        genStackLevel += 4;
+        AddStackLevel(4);
         inst_IV(INS_push, wbKind);
         genEmitHelperCall(helper,
                           4,           // argSize
                           EA_PTRSIZE); // retSize
-        genStackLevel -= 4;
+        SubtractStackLevel(4);
     }
     else
     {
@@ -7551,6 +7550,7 @@ void CodeGen::genProfilingEnterCallback(regNumber initReg, bool* pInitRegZeroed)
     //
     if (compiler->fgPtrArgCntMax < 1)
     {
+        JITDUMP("Upping fgPtrArgCntMax from %d to 1\n", compiler->fgPtrArgCntMax);
         compiler->fgPtrArgCntMax = 1;
     }
 #elif defined(_TARGET_ARM_)
@@ -7567,7 +7567,7 @@ void CodeGen::genProfilingEnterCallback(regNumber initReg, bool* pInitRegZeroed)
 
     /* Restore the stack level */
 
-    genStackLevel = saveStackLvl2;
+    SetStackLevel(saveStackLvl2);
 
 #else  // target
     NYI("Emit Profiler Enter callback");
@@ -7710,6 +7710,7 @@ void CodeGen::genProfilingLeaveCallback(unsigned helper /*= CORINFO_HELP_PROF_FC
     //
     if (compiler->fgPtrArgCntMax < 1)
     {
+        JITDUMP("Upping fgPtrArgCntMax from %d to 1\n", compiler->fgPtrArgCntMax);
         compiler->fgPtrArgCntMax = 1;
     }
 
@@ -7796,7 +7797,7 @@ void CodeGen::genProfilingLeaveCallback(unsigned helper /*= CORINFO_HELP_PROF_FC
 #endif // target
 
     /* Restore the stack level */
-    genStackLevel = saveStackLvl2;
+    SetStackLevel(saveStackLvl2);
 }
 
 #endif // PROFILING_SUPPORTED
@@ -9270,16 +9271,23 @@ void CodeGen::genFnEpilog(BasicBlock* block)
          * the same descriptor with some minor adjustments.
          */
 
-        getEmitter()->emitIns_Call(callType, methHnd, INDEBUG_LDISASM_COMMA(nullptr) addr,
+        // clang-format off
+        getEmitter()->emitIns_Call(callType,
+                                   methHnd,
+                                   INDEBUG_LDISASM_COMMA(nullptr)
+                                   addr,
                                    0,          // argSize
                                    EA_UNKNOWN, // retSize
-                                   gcInfo.gcVarPtrSetCur, gcInfo.gcRegGCrefSetCur, gcInfo.gcRegByrefSetCur,
+                                   gcInfo.gcVarPtrSetCur,
+                                   gcInfo.gcRegGCrefSetCur,
+                                   gcInfo.gcRegByrefSetCur,
                                    BAD_IL_OFFSET, // IL offset
                                    indCallReg,    // ireg
                                    REG_NA,        // xreg
                                    0,             // xmul
                                    0,             // disp
                                    true);         // isJump
+        // clang-format on
     }
     else
     {
@@ -9372,13 +9380,21 @@ void CodeGen::genFnEpilog(BasicBlock* block)
 
             // Simply emit a jump to the methodHnd. This is similar to a call so we can use
             // the same descriptor with some minor adjustments.
-            getEmitter()->emitIns_Call(callType, methHnd, INDEBUG_LDISASM_COMMA(nullptr) addrInfo.addr,
+
+            // clang-format off
+            getEmitter()->emitIns_Call(callType,
+                                       methHnd,
+                                       INDEBUG_LDISASM_COMMA(nullptr)
+                                       addrInfo.addr,
                                        0,          // argSize
                                        EA_UNKNOWN, // retSize
                                        EA_UNKNOWN, // secondRetSize
-                                       gcInfo.gcVarPtrSetCur, gcInfo.gcRegGCrefSetCur, gcInfo.gcRegByrefSetCur,
+                                       gcInfo.gcVarPtrSetCur,
+                                       gcInfo.gcRegGCrefSetCur,
+                                       gcInfo.gcRegByrefSetCur,
                                        BAD_IL_OFFSET, REG_NA, REG_NA, 0, 0, /* iloffset, ireg, xreg, xmul, disp */
                                        true);                               /* isJump */
+            // clang-format on
         }
 #if FEATURE_FASTTAILCALL
         else
@@ -9660,14 +9676,21 @@ void CodeGen::genFnEpilog(BasicBlock* block)
 
             // Simply emit a jump to the methodHnd. This is similar to a call so we can use
             // the same descriptor with some minor adjustments.
-            getEmitter()->emitIns_Call(callType, methHnd, INDEBUG_LDISASM_COMMA(nullptr) addrInfo.addr,
+
+            // clang-format off
+            getEmitter()->emitIns_Call(callType,
+                                       methHnd,
+                                       INDEBUG_LDISASM_COMMA(nullptr)
+                                       addrInfo.addr,
                                        0,                                                      // argSize
                                        EA_UNKNOWN                                              // retSize
-                                       FEATURE_UNIX_AMD64_STRUCT_PASSING_ONLY_ARG(EA_UNKNOWN), // secondRetSize
+                                       MULTIREG_HAS_SECOND_GC_RET_ONLY_ARG(EA_UNKNOWN),        // secondRetSize
                                        gcInfo.gcVarPtrSetCur,
-                                       gcInfo.gcRegGCrefSetCur, gcInfo.gcRegByrefSetCur, BAD_IL_OFFSET, REG_NA, REG_NA,
-                                       0, 0,  /* iloffset, ireg, xreg, xmul, disp */
+                                       gcInfo.gcRegGCrefSetCur,
+                                       gcInfo.gcRegByrefSetCur,
+                                       BAD_IL_OFFSET, REG_NA, REG_NA, 0, 0,  /* iloffset, ireg, xreg, xmul, disp */
                                        true); /* isJump */
+            // clang-format on
         }
 #if FEATURE_FASTTAILCALL
         else
@@ -11126,7 +11149,7 @@ unsigned CodeGen::getFirstArgWithStackSlot()
 //
 void CodeGen::genSinglePush()
 {
-    genStackLevel += sizeof(void*);
+    AddStackLevel(REGSIZE_BYTES);
 }
 
 //------------------------------------------------------------------------
@@ -11134,7 +11157,7 @@ void CodeGen::genSinglePush()
 //
 void CodeGen::genSinglePop()
 {
-    genStackLevel -= sizeof(void*);
+    SubtractStackLevel(REGSIZE_BYTES);
 }
 
 //------------------------------------------------------------------------

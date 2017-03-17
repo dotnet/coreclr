@@ -21,6 +21,10 @@
 #define USE_CURRENT_CONTEXT_IN_FILTER
 #endif // _TARGET_X86_
 
+#if defined(_TARGET_ARM_) || defined(__TARGET_X86_)
+#define VSD_STUB_CAN_THROW_AV
+#endif // _TARGET_ARM_ || _TARGET_X86_
+
 #if defined(_TARGET_ARM_) || defined(_TARGET_ARM64_) || defined(_TARGET_X86_)
 #define ADJUST_PC_UNWOUND_TO_CALL
 #define STACK_RANGE_BOUNDS_ARE_CALLER_SP
@@ -44,6 +48,13 @@ inline void CaptureNonvolatileRegisters(PKNONVOLATILE_CONTEXT pNonvolatileContex
 inline void RestoreNonvolatileRegisters(PCONTEXT pContext, PKNONVOLATILE_CONTEXT pNonvolatileContext)
 {
 #define CALLEE_SAVED_REGISTER(reg) pContext->reg = pNonvolatileContext->reg;
+    ENUM_CALLEE_SAVED_REGISTERS();
+#undef CALLEE_SAVED_REGISTER
+}
+
+inline void RestoreNonvolatileRegisterPointers(PT_KNONVOLATILE_CONTEXT_POINTERS pContextPointers, PKNONVOLATILE_CONTEXT pNonvolatileContext)
+{
+#define CALLEE_SAVED_REGISTER(reg) pContextPointers->reg = &pNonvolatileContext->reg;
     ENUM_CALLEE_SAVED_REGISTERS();
 #undef CALLEE_SAVED_REGISTER
 }
@@ -1312,6 +1323,7 @@ void ExceptionTracker::InitializeCurrentContextForCrawlFrame(CrawlFrame* pcfThis
         SetIP(pRD->pCurrentContext, 0);
 #else // !USE_CURRENT_CONTEXT_IN_FILTER
         RestoreNonvolatileRegisters(pRD->pCurrentContext, pDispatcherContext->CurrentNonVolatileContextRecord);
+        RestoreNonvolatileRegisterPointers(pRD->pCurrentContextPointers, pDispatcherContext->CurrentNonVolatileContextRecord);
 #endif // USE_CURRENT_CONTEXT_IN_FILTER
 
         *(pRD->pCallerContext)      = *(pDispatcherContext->ContextRecord);
@@ -5079,7 +5091,7 @@ BOOL IsSafeToCallExecutionManager()
            GCStress<cfg_instr_ngen>::IsEnabled();
 }
 
-#if defined(_TARGET_ARM_) || defined(_TARGET_X86_)
+#ifdef VSD_STUB_CAN_THROW_AV
 //Return TRUE if pContext->Pc is in VirtualStub
 static BOOL IsIPinVirtualStub(PCODE f_IP)
 {
@@ -5110,7 +5122,7 @@ static BOOL IsIPinVirtualStub(PCODE f_IP)
         return FALSE;
     }
 }
-#endif
+#endif // VSD_STUB_CAN_THROW_AV
 
 BOOL IsSafeToHandleHardwareException(PCONTEXT contextRecord, PEXCEPTION_RECORD exceptionRecord)
 {
@@ -5119,9 +5131,9 @@ BOOL IsSafeToHandleHardwareException(PCONTEXT contextRecord, PEXCEPTION_RECORD e
         exceptionRecord->ExceptionCode == STATUS_BREAKPOINT || 
         exceptionRecord->ExceptionCode == STATUS_SINGLE_STEP ||
         (IsSafeToCallExecutionManager() && ExecutionManager::IsManagedCode(controlPc)) ||
-#if defined(_TARGET_ARM_) || defined(_TARGET_X86_)
+#ifdef VSD_STUB_CAN_THROW_AV
         IsIPinVirtualStub(controlPc) ||  // access violation comes from DispatchStub of Interface call
-#endif
+#endif // VSD_STUB_CAN_THROW_AV
         IsIPInMarkedJitHelper(controlPc));
 }
 
@@ -5170,12 +5182,12 @@ BOOL HandleHardwareException(PAL_SEHException* ex)
                 PAL_VirtualUnwind(ex->GetContextRecord(), NULL);
                 ex->GetExceptionRecord()->ExceptionAddress = (PVOID)GetIP(ex->GetContextRecord());
             }
-#if defined(_TARGET_ARM_) || defined(_TARGET_X86_)
+#ifdef VSD_STUB_CAN_THROW_AV
             else if (IsIPinVirtualStub(controlPc)) 
             {
                 AdjustContextForVirtualStub(ex->GetExceptionRecord(), ex->GetContextRecord());
             }
-#endif
+#endif // VSD_STUB_CAN_THROW_AV
             fef.InitAndLink(ex->GetContextRecord());
         }
 
@@ -5862,30 +5874,6 @@ NOT_WIN64_ARG(IN     ULONG               MemoryStackFp),
             );
     }
 #endif // _DEBUG
-
-    // We need to ReverseLeaveRuntime if we are unwinding (since there is no
-    // frame to do this for us...
-    if (IS_UNWINDING(pExceptionRecord->ExceptionFlags))
-    {
-        BYTE bFlag;
-
-#ifdef _TARGET_AMD64_
-        bFlag = *(BYTE*)(pDispatcherContext->ContextRecord->Rbp + UMTHUNKSTUB_HOST_NOTIFY_FLAG_RBPOFFSET);
-#elif defined(_TARGET_ARM_) || defined(_TARGET_ARM64_)
-        // On ARM, we do not need to do anything here. If required, ReverseEnterRuntime should happen
-        // in the VM in UMThunkStubWorker via a holder so that during an exceptional case, we will
-        // automatically perform the ReverseLeaveRuntime.
-        bFlag = 0;
-#else
-        bFlag = 0;
-        PORTABILITY_ASSERT("NYI -- UMThunkStubUnwindFrameChainHandler notify host of ReverseLeaveRuntime");
-#endif // _TARGET_AMD64_
-
-        if (0 != bFlag)
-        {
-            GetThread()->ReverseLeaveRuntime();
-        }
-    }
 
     EXCEPTION_DISPOSITION disposition = UMThunkUnwindFrameChainHandler(
                 pExceptionRecord,

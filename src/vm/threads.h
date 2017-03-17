@@ -244,12 +244,6 @@ public:
     static void ObjectRefProtected(const OBJECTREF* ref) { }
     static void ObjectRefNew(const OBJECTREF* ref) { }
 
-    static void ReverseLeaveRuntime();
-    static void __stdcall EnterRuntime();
-
-    static void BeginThreadAffinity() { }
-    static void EndThreadAffinity() { }
-
     void EnablePreemptiveGC() { }
     void DisablePreemptiveGC() { }
 
@@ -419,32 +413,6 @@ public:
     }
 };
 
-class LeaveRuntimeHolder
-{
-public:
-    template <typename T>
-    LeaveRuntimeHolder(T target)
-    {
-        STATIC_CONTRACT_LIMITED_METHOD;
-    }
-};
-
-class LeaveRuntimeHolderNoThrow
-{
-public:
-    template <typename T>
-    LeaveRuntimeHolderNoThrow(T target)
-    {
-        STATIC_CONTRACT_LIMITED_METHOD;
-    }
-
-    HRESULT GetHR() const
-    {
-        STATIC_CONTRACT_LIMITED_METHOD;
-        return S_OK;
-    }
-};
-
 inline BOOL dbgOnly_IsSpecialEEThread() { return FALSE; }
 
 #define INCTHREADLOCKCOUNT() { }
@@ -584,9 +552,6 @@ inline Thread* GetThreadNULLOk()
 #define GetThreadNULLOk() GetThread()
 #endif
 
-//***************************************************************************
- #define HAS_TRACK_CXX_EXCEPTION_CODE_HACK 0
-
 // manifest constant for waiting in the exposed classlibs
 const INT32 INFINITE_TIMEOUT = -1;
 
@@ -670,7 +635,7 @@ DWORD GetAppDomainTLSIndex();
 
 DWORD GetRuntimeId();
 
-EXTERN_C Thread* __stdcall CreateThreadBlockThrow();
+EXTERN_C Thread* WINAPI CreateThreadBlockThrow();
 
 //---------------------------------------------------------------------------
 // One-time initialization. Called during Dll initialization.
@@ -683,9 +648,9 @@ void InitThreadManager();
 
 #ifdef FEATURE_HIJACK
 
-EXTERN_C void __stdcall OnHijackTripThread();
+EXTERN_C void WINAPI OnHijackTripThread();
 #ifdef _TARGET_X86_
-EXTERN_C void __stdcall OnHijackFPTripThread();  // hijacked JIT code is returning an FP value
+EXTERN_C void WINAPI OnHijackFPTripThread();  // hijacked JIT code is returning an FP value
 #endif // _TARGET_X86_
 
 #endif // FEATURE_HIJACK
@@ -1905,24 +1870,6 @@ public:
 #endif
 
 public:
-    static void __stdcall LeaveRuntime(size_t target);
-    static HRESULT LeaveRuntimeNoThrow(size_t target);
-    static void __stdcall LeaveRuntimeThrowComplus(size_t target);
-    static void __stdcall EnterRuntime();
-    static HRESULT EnterRuntimeNoThrow();
-    static HRESULT EnterRuntimeNoThrowWorker();
-
-    // Reverse PInvoke hook for host
-    static void ReverseEnterRuntime();
-    static HRESULT ReverseEnterRuntimeNoThrow();
-    static void ReverseEnterRuntimeThrowComplusHelper(HRESULT hr);
-    static void ReverseEnterRuntimeThrowComplus();
-    static void ReverseLeaveRuntime();
-
-    // Hook for OS Critical Section, Mutex, and others that require thread affinity
-    static void BeginThreadAffinity();
-    static void EndThreadAffinity();
-
 
     BOOL HasThreadAffinity()
     {
@@ -3902,7 +3849,7 @@ private:
     void        HandleThreadInterrupt(BOOL fWaitForADUnload);
 
 public:
-    static void __stdcall UserInterruptAPC(ULONG_PTR ignore);
+    static void WINAPI UserInterruptAPC(ULONG_PTR ignore);
 
 #if defined(_DEBUG) && defined(TRACK_SYNC)
 
@@ -4009,7 +3956,6 @@ private:
     DWORD           m_OSThreadId;
 
     BOOL CreateNewOSThread(SIZE_T stackSize, LPTHREAD_START_ROUTINE start, void *args);
-    BOOL CreateNewHostTask(SIZE_T stackSize, LPTHREAD_START_ROUTINE start, void *args);
 
     OBJECTHANDLE    m_ExposedObject;
     OBJECTHANDLE    m_StrongHndToExposedObject;
@@ -4733,12 +4679,6 @@ public:
     size_t *m_pCleanedStackBase;
 #endif
 
-#ifdef STRESS_THREAD
-public:
-    LONG  m_stressThreadCount;
-#endif
-
-
 private:
     PVOID      m_pFiberData;
 
@@ -4811,7 +4751,7 @@ public:
 private:
     // used to pad stack on thread creation to avoid aliasing penalty in P4 HyperThread scenarios
 
-    static DWORD __stdcall intermediateThreadProc(PVOID arg);
+    static DWORD WINAPI intermediateThreadProc(PVOID arg);
     static int m_offset_counter;
     static const int offset_multiplier = 128;
 
@@ -5073,10 +5013,6 @@ public:
     static BOOL GetProcessDefaultStackSize(SIZE_T* reserveSize, SIZE_T* commitSize);
 
 private:
-    // YieldTask, ThreadAbort, GC all change thread context.  ThreadAbort and GC uses ThreadStore lock to synchronize.  But YieldTask can
-    // not block.  We use a counter to allow one thread to change thread context.
-
-    Volatile<PVOID> m_WorkingOnThreadContext;
 
     // Although this is a pointer, it is used as a flag to indicate the current context is unsafe 
     // to inspect. When NULL the context is safe to use, otherwise it points to the active patch skipper
@@ -5117,36 +5053,15 @@ private:
         {
             return FALSE;
         }
-        if (CLRTaskHosted())
-        {
-            PVOID myID = ClrTeb::GetFiberPtrId();
-            PVOID id = FastInterlockCompareExchangePointer(pThread->m_WorkingOnThreadContext.GetPointer(), myID, NULL);
-            return id == NULL || id == myID;
-        }
-        else
-        {
-            return TRUE;
-        }
+        return TRUE;
     }
 
     static void LeaveWorkingOnThreadContext(Thread *pThread)
     {
         LIMITED_METHOD_CONTRACT;
-
-        if (pThread->m_WorkingOnThreadContext == ClrTeb::GetFiberPtrId())
-        {
-            pThread->m_WorkingOnThreadContext = NULL;
-        }
     }
 
     typedef ConditionalStateHolder<Thread *, Thread::EnterWorkingOnThreadContext, Thread::LeaveWorkingOnThreadContext> WorkingOnThreadContextHolder;
-
-    BOOL WorkingOnThreadContext()
-    {
-        LIMITED_METHOD_CONTRACT;
-
-        return !CLRTaskHosted() || m_WorkingOnThreadContext == ClrTeb::GetFiberPtrId();
-    }
 
 public:
     void PrepareThreadForSOWork()
@@ -5429,12 +5344,9 @@ public:
 
 LCID GetThreadCultureIdNoThrow(Thread *pThread, BOOL bUICulture);
 
-typedef StateHolder<Thread::BeginThreadAffinity, Thread::EndThreadAffinity> ThreadAffinityHolder;
-
 typedef Thread::ForbidSuspendThreadHolder ForbidSuspendThreadHolder;
 typedef Thread::ThreadPreventAsyncHolder ThreadPreventAsyncHolder;
 typedef Thread::ThreadPreventAbortHolder ThreadPreventAbortHolder;
-typedef StateHolder<Thread::ReverseEnterRuntime, Thread::ReverseLeaveRuntime> ReverseEnterRuntimeHolder;
 
 // Combines ForBindSuspendThreadHolder and CrstHolder into one.
 class ForbidSuspendThreadCrstHolder
@@ -5451,94 +5363,13 @@ private:
     CrstHolder                  m_lock_holder;
 };
 
-// Non-throwing flavor of ReverseEnterRuntimeHolder that requires explicit call to AcquireNoThrow to acquire
-class ReverseEnterRuntimeHolderNoThrow : StateHolder<DoNothing, Thread::ReverseLeaveRuntime>
-{
-public:
-    ReverseEnterRuntimeHolderNoThrow()
-        : StateHolder<DoNothing, Thread::ReverseLeaveRuntime>(FALSE)
-    {
-    }
-
-    HRESULT AcquireNoThrow()
-    {
-        WRAPPER_NO_CONTRACT;
-
-        HRESULT hr = Thread::ReverseEnterRuntimeNoThrow();
-        if (SUCCEEDED(hr))
-            Acquire();
-        return hr;
-    }
-};
-
 ETaskType GetCurrentTaskType();
-
-class LeaveRuntimeHolder
-{
-public:
-    template <typename T>
-    LeaveRuntimeHolder(T target)
-    {
-        STATIC_CONTRACT_WRAPPER;
-        if (!CLRTaskHosted())
-            return;
-
-        Thread::LeaveRuntime((size_t)target);
-    }
-
-    ~LeaveRuntimeHolder()
-    {
-        STATIC_CONTRACT_WRAPPER;
-        if (!CLRTaskHosted())
-            return;
-
-        Thread::EnterRuntime();
-    }
-};
-
-class LeaveRuntimeHolderNoThrow
-{
-public:
-    template <typename T>
-    LeaveRuntimeHolderNoThrow(T target)
-    {
-        STATIC_CONTRACT_WRAPPER;
-        if (!CLRTaskHosted())
-        {
-            hr = S_OK;
-            return;
-        }
-
-        hr = Thread::LeaveRuntimeNoThrow((size_t)target);
-    }
-
-    ~LeaveRuntimeHolderNoThrow()
-    {
-        STATIC_CONTRACT_WRAPPER;
-        if (!CLRTaskHosted())
-        {
-            hr = S_OK;
-            return;
-        }
-
-        hr = Thread::EnterRuntimeNoThrow();
-    }
-
-    HRESULT GetHR() const
-    {
-        LIMITED_METHOD_CONTRACT;
-        return hr;
-    }
-
-private:
-    HRESULT hr;
-};
 
 
 
 typedef Thread::AVInRuntimeImplOkayHolder AVInRuntimeImplOkayHolder;
 
-BOOL RevertIfImpersonated(BOOL *bReverted, HANDLE *phToken, ThreadAffinityHolder *pTAHolder);
+BOOL RevertIfImpersonated(BOOL *bReverted, HANDLE *phToken);
 void UndoRevert(BOOL bReverted, HANDLE hToken);
 
 // ---------------------------------------------------------------------------

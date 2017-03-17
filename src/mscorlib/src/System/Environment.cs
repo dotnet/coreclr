@@ -39,7 +39,7 @@ namespace System
         Machine = 2,
     }
 
-    public static partial class Environment
+    internal static partial class Environment
     {
         // Assume the following constants include the terminating '\0' - use <, not <=
         private const int MaxEnvVariableValueLength = 32767;  // maximum length for environment variable name and value
@@ -576,11 +576,11 @@ namespace System
         ==============================================================================*/
         public static String StackTrace
         {
+            [MethodImpl(MethodImplOptions.NoInlining)] // Prevent inlining from affecting where the stacktrace starts
             get
             {
                 Contract.Ensures(Contract.Result<String>() != null);
-
-                return GetStackTrace(null, true);
+                return Internal.Runtime.Augments.EnvironmentAugments.StackTrace;
             }
         }
 

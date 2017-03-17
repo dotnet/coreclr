@@ -40,7 +40,7 @@
       "description": "MsBuild logging options.",
       "valueType": "passThrough",
       "values": [],
-      "defaultValue": "/l:BinClashLogger,Tools/net45/Microsoft.DotNet.Build.Tasks.dll;LogFile=binclash.log"
+      "defaultValue": "/l:BinClashLogger,Tools/net46/Microsoft.DotNet.Build.Tasks.dll;LogFile=binclash.log"
     },
     "FilterToOSGroup": {
       "description": "Specifies the OSGroup.",
@@ -50,6 +50,12 @@
     },
     "RestoreNETCorePlatforms": {
       "description": "MsBuild target that restores the NETCore packages.",
+      "valueType": "target",
+      "values": [],
+      "defaultValue": ""
+    },
+    "RestoreOptData": {
+      "description": "MsBuild target that restores optimization profile data.",
       "valueType": "target",
       "values": [],
       "defaultValue": ""
@@ -179,6 +185,18 @@
       "valueType": "property",
       "values": [ "debug", "release", "checked" ],
       "defaultValue": "debug"
+    },
+    "EnableProfileGuidedOptimization": {
+      "description": "Enables IBC profile optimizations if profile data are available.",
+      "valueType": "property",
+      "values": [ true, false ],
+      "defaultValue": false
+    },
+    "OptimizationDataDir": {
+      "description": "Sets the path where the build should look for IBC profile data.",
+      "valueType": "property",
+      "values": [],
+      "defaultValue": ""
     },
     "UseEnv": {
       "description": "Set when building for arm64.",
@@ -336,6 +354,24 @@
       "values": [],
       "defaultValue": ""
     },
+    "OptionalToolSource": {
+      "description": "URL of the nuget feed used by 'optional-tools'",
+      "valueType": "property",
+      "values": [],
+      "defaultValue": ""
+    },
+    "OptionalToolSourceUser": {
+      "description": "User name for authenticating to the optional tools feed",
+      "valueType": "property",
+      "values": [],
+      "defaultValue": ""
+    },
+    "OptionalToolSourcePassword": {
+      "description": "VSTS token for authenticating to the optional tools feed; requires 'package(READ)' permission",
+      "valueType": "property",
+      "values": [],
+      "defaultValue": ""
+    },
     "ExtraParameters": {
       "description": "Extra parameters will be passed to the selected command.",
       "valueType": "passThrough",
@@ -433,6 +469,14 @@
             "Project": "./build.proj",
             "RestoreDuringBuild": true,
             "RestoreNETCorePlatforms": "default"
+          }
+        },
+        "optdata": {
+          "description": "Restores optimization profile data for the repository.",
+          "settings": {
+            "Project": "./build.proj",
+            "RestoreDuringBuild": true,
+            "RestoreOptData": "default"
           }
         },
         "ab": {

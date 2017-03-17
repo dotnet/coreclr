@@ -537,6 +537,17 @@ public:
     // Returns true iff the VN represents an integeral constant.
     bool IsVNInt32Constant(ValueNum vn);
 
+    struct ArrLenUnsignedBoundInfo
+    {
+        unsigned cmpOper;
+        ValueNum vnIdx;
+        ValueNum vnLen;
+
+        ArrLenUnsignedBoundInfo() : cmpOper(GT_NONE), vnIdx(NoVN), vnLen(NoVN)
+        {
+        }
+    };
+
     struct ArrLenArithBoundInfo
     {
         // (vnArr.len - 1) > vnOp
@@ -607,6 +618,9 @@ public:
     // If "vn" is constant bound, then populate the "info" fields for constVal, cmpOp, cmpOper.
     void GetConstantBoundInfo(ValueNum vn, ConstantBoundInfo* info);
 
+    // If "vn" is of the form "(uint)var < (uint)a.len" (or equivalent) return true.
+    bool IsVNArrLenUnsignedBound(ValueNum vn, ArrLenUnsignedBoundInfo* info);
+
     // If "vn" is of the form "var < a.len" or "a.len <= var" return true.
     bool IsVNArrLenBound(ValueNum vn);
 
@@ -664,9 +678,13 @@ private:
                 __fallthrough;
 
             case TYP_BYREF:
-#ifndef PLATFORM_UNIX
+
+#ifdef _MSC_VER
+
                 assert(&typeid(T) == &typeid(size_t)); // We represent ref/byref constants as size_t's.
-#endif                                                 // PLATFORM_UNIX
+
+#endif // _MSC_VER
+
                 __fallthrough;
 
             case TYP_INT:

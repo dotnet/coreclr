@@ -330,14 +330,37 @@ void Compiler::fgInstrumentMethod()
 
         // Add the method entry callback node
 
-        GenTreeArgList* args = gtNewArgList(gtNewIconEmbMethHndNode(info.compMethodHnd));
+        GenTreePtr arg;
+
+#ifdef FEATURE_READYTORUN_COMPILER
+        if (opts.IsReadyToRun())
+        {
+            mdMethodDef currentMethodToken = info.compCompHnd->getMethodDefFromMethod(info.compMethodHnd);
+
+            CORINFO_RESOLVED_TOKEN resolvedToken;
+            resolvedToken.tokenContext = MAKE_METHODCONTEXT(info.compMethodHnd);
+            resolvedToken.tokenScope   = info.compScopeHnd;
+            resolvedToken.token        = currentMethodToken;
+            resolvedToken.tokenType    = CORINFO_TOKENKIND_Method;
+
+            info.compCompHnd->resolveToken(&resolvedToken);
+
+            arg = impTokenToHandle(&resolvedToken);
+        }
+        else
+#endif
+        {
+            arg = gtNewIconEmbMethHndNode(info.compMethodHnd);
+        }
+
+        GenTreeArgList* args = gtNewArgList(arg);
         GenTreePtr      call = gtNewHelperCallNode(CORINFO_HELP_BBT_FCN_ENTER, TYP_VOID, 0, args);
 
         GenTreePtr handle =
             gtNewIconEmbHndNode((void*)&bbProfileBufferStart->ExecutionCount, nullptr, GTF_ICON_BBC_PTR);
         GenTreePtr value = gtNewOperNode(GT_IND, TYP_INT, handle);
         GenTreePtr relop = gtNewOperNode(GT_NE, TYP_INT, value, gtNewIconNode(0, TYP_INT));
-        relop->gtFlags |= GTF_RELOP_QMARK;
+        relop->gtFlags |= GTF_RELOP_QMARK; // TODO-Cleanup: [Simple]  Move this to gtNewQmarkNode
         GenTreePtr colon = new (this, GT_COLON) GenTreeColon(TYP_VOID, gtNewNothingNode(), call);
         GenTreePtr cond  = gtNewQmarkNode(TYP_VOID, relop, colon);
         stmt             = gtNewStmt(cond);
@@ -3826,19 +3849,19 @@ bool Compiler::fgCreateGCPoll(GCPollType pollType, BasicBlock* block)
     if (GCPOLL_CALL == pollType)
     {
         createdPollBlocks = false;
-        GenTreePtr tree   = gtNewHelperCallNode(CORINFO_HELP_POLL_GC, TYP_VOID);
+        GenTreeCall* call = gtNewHelperCallNode(CORINFO_HELP_POLL_GC, TYP_VOID);
 #if GTF_CALL_REG_SAVE
-        tree->gtCall.gtCallMoreFlags |= GTF_CALL_REG_SAVE;
+        call->gtCallMoreFlags |= GTF_CALL_REG_SAVE;
 #endif // GTF_CALL_REG_SAVE
 
         // for BBJ_ALWAYS I don't need to insert it before the condition.  Just append it.
         if (block->bbJumpKind == BBJ_ALWAYS)
         {
-            fgInsertStmtAtEnd(block, tree);
+            fgInsertStmtAtEnd(block, call);
         }
         else
         {
-            GenTreeStmt* newStmt = fgInsertStmtNearEnd(block, tree);
+            GenTreeStmt* newStmt = fgInsertStmtNearEnd(block, call);
             // For DDB156656, we need to associate the GC Poll with the IL offset (and therefore sequence
             // point) of the tree before which we inserted the poll.  One example of when this is a
             // problem:
@@ -3907,11 +3930,11 @@ bool Compiler::fgCreateGCPoll(GCPollType pollType, BasicBlock* block)
         bottom->bbJumpDest = top->bbJumpDest;
 
         //  2) Add a GC_CALL node to Poll.
-        GenTreePtr tree = gtNewHelperCallNode(CORINFO_HELP_POLL_GC, TYP_VOID);
+        GenTreeCall* call = gtNewHelperCallNode(CORINFO_HELP_POLL_GC, TYP_VOID);
 #if GTF_CALL_REG_SAVE
-        tree->gtCall.gtCallMoreFlags |= GTF_CALL_REG_SAVE;
+        call->gtCallMoreFlags |= GTF_CALL_REG_SAVE;
 #endif // GTF_CALL_REG_SAVE
-        fgInsertStmtAtEnd(poll, tree);
+        fgInsertStmtAtEnd(poll, call);
 
         //  3) Remove the last statement from Top and add it to Bottom.
         if (oldJumpKind != BBJ_ALWAYS)
@@ -6825,7 +6848,7 @@ GenTreePtr Compiler::fgIsIndirOfAddrOfLocal(GenTreePtr tree)
     return res;
 }
 
-GenTreePtr Compiler::fgGetStaticsCCtorHelper(CORINFO_CLASS_HANDLE cls, CorInfoHelpFunc helper)
+GenTreeCall* Compiler::fgGetStaticsCCtorHelper(CORINFO_CLASS_HANDLE cls, CorInfoHelpFunc helper)
 {
     bool     bNeedClassID = true;
     unsigned callFlags    = 0;
@@ -6935,7 +6958,7 @@ GenTreePtr Compiler::fgGetStaticsCCtorHelper(CORINFO_CLASS_HANDLE cls, CorInfoHe
     return gtNewHelperCallNode(helper, type, callFlags, argList);
 }
 
-GenTreePtr Compiler::fgGetSharedCCtor(CORINFO_CLASS_HANDLE cls)
+GenTreeCall* Compiler::fgGetSharedCCtor(CORINFO_CLASS_HANDLE cls)
 {
 #ifdef FEATURE_READYTORUN_COMPILER
     if (opts.IsReadyToRun())
@@ -7033,15 +7056,13 @@ bool Compiler::fgAddrCouldBeNull(GenTreePtr addr)
  *  Optimize the call to the delegate constructor.
  */
 
-GenTreePtr Compiler::fgOptimizeDelegateConstructor(GenTreePtr call, CORINFO_CONTEXT_HANDLE* ExactContextHnd)
+GenTreePtr Compiler::fgOptimizeDelegateConstructor(GenTreeCall* call, CORINFO_CONTEXT_HANDLE* ExactContextHnd)
 {
-    noway_assert(call->gtOper == GT_CALL);
-
-    noway_assert(call->gtCall.gtCallType == CT_USER_FUNC);
-    CORINFO_METHOD_HANDLE methHnd = call->gtCall.gtCallMethHnd;
+    noway_assert(call->gtCallType == CT_USER_FUNC);
+    CORINFO_METHOD_HANDLE methHnd = call->gtCallMethHnd;
     CORINFO_CLASS_HANDLE  clsHnd  = info.compCompHnd->getMethodClass(methHnd);
 
-    GenTreePtr targetMethod = call->gtCall.gtCallArgs->gtOp.gtOp2->gtOp.gtOp1;
+    GenTreePtr targetMethod = call->gtCallArgs->gtOp.gtOp2->gtOp.gtOp1;
     noway_assert(targetMethod->TypeGet() == TYP_I_IMPL);
     genTreeOps oper = targetMethod->OperGet();
     if (oper == GT_FTN_ADDR || oper == GT_CALL || oper == GT_QMARK)
@@ -7090,10 +7111,10 @@ GenTreePtr Compiler::fgOptimizeDelegateConstructor(GenTreePtr call, CORINFO_CONT
             // handle.
             noway_assert(qmarkNode->gtOp.gtOp2->OperGet() == GT_COLON);
             noway_assert(qmarkNode->gtOp.gtOp2->gtOp.gtOp1->OperGet() == GT_CALL);
-            GenTreePtr runtimeLookupCall = qmarkNode->gtOp.gtOp2->gtOp.gtOp1;
+            GenTreeCall* runtimeLookupCall = qmarkNode->gtOp.gtOp2->gtOp.gtOp1->AsCall();
 
             // This could be any of CORINFO_HELP_RUNTIMEHANDLE_(METHOD|CLASS)(_LOG?)
-            GenTreePtr tokenNode = runtimeLookupCall->gtCall.gtCallArgs->gtOp.gtOp2->gtOp.gtOp1;
+            GenTreePtr tokenNode = runtimeLookupCall->gtCallArgs->gtOp.gtOp2->gtOp.gtOp1;
             noway_assert(tokenNode->OperGet() == GT_CNS_INT);
             targetMethodHnd = CORINFO_METHOD_HANDLE(tokenNode->gtIntCon.gtCompileTimeHandle);
         }
@@ -7105,11 +7126,11 @@ GenTreePtr Compiler::fgOptimizeDelegateConstructor(GenTreePtr call, CORINFO_CONT
             if (oper == GT_FTN_ADDR)
             {
                 // The first argument of the helper is delegate this pointer
-                GenTreeArgList*      helperArgs = gtNewArgList(call->gtCall.gtCallObjp);
+                GenTreeArgList*      helperArgs = gtNewArgList(call->gtCallObjp);
                 CORINFO_CONST_LOOKUP entryPoint;
 
                 // The second argument of the helper is the target object pointers
-                helperArgs->gtOp.gtOp2 = gtNewArgList(call->gtCall.gtCallArgs->gtOp.gtOp1);
+                helperArgs->gtOp.gtOp2 = gtNewArgList(call->gtCallArgs->gtOp.gtOp1);
 
                 call = gtNewHelperCallNode(CORINFO_HELP_READYTORUN_DELEGATE_CTOR, TYP_VOID, GTF_EXCEPT, helperArgs);
 #if COR_JIT_EE_VERSION > 460
@@ -7119,7 +7140,7 @@ GenTreePtr Compiler::fgOptimizeDelegateConstructor(GenTreePtr call, CORINFO_CONT
                 info.compCompHnd->getReadyToRunHelper(targetMethod->gtFptrVal.gtLdftnResolvedToken,
                                                       CORINFO_HELP_READYTORUN_DELEGATE_CTOR, &entryPoint);
 #endif
-                call->gtCall.setEntryPoint(entryPoint);
+                call->setEntryPoint(entryPoint);
             }
         }
         else
@@ -7140,22 +7161,22 @@ GenTreePtr Compiler::fgOptimizeDelegateConstructor(GenTreePtr call, CORINFO_CONT
                 // and in fact it will pass the wrong info to the inliner code
                 *ExactContextHnd = nullptr;
 
-                call->gtCall.gtCallMethHnd = alternateCtor;
+                call->gtCallMethHnd = alternateCtor;
 
-                noway_assert(call->gtCall.gtCallArgs->gtOp.gtOp2->gtOp.gtOp2 == nullptr);
+                noway_assert(call->gtCallArgs->gtOp.gtOp2->gtOp.gtOp2 == nullptr);
                 if (ctorData.pArg3)
                 {
-                    call->gtCall.gtCallArgs->gtOp.gtOp2->gtOp.gtOp2 =
+                    call->gtCallArgs->gtOp.gtOp2->gtOp.gtOp2 =
                         gtNewArgList(gtNewIconHandleNode(size_t(ctorData.pArg3), GTF_ICON_FTN_ADDR));
 
                     if (ctorData.pArg4)
                     {
-                        call->gtCall.gtCallArgs->gtOp.gtOp2->gtOp.gtOp2->gtOp.gtOp2 =
+                        call->gtCallArgs->gtOp.gtOp2->gtOp.gtOp2->gtOp.gtOp2 =
                             gtNewArgList(gtNewIconHandleNode(size_t(ctorData.pArg4), GTF_ICON_FTN_ADDR));
 
                         if (ctorData.pArg5)
                         {
-                            call->gtCall.gtCallArgs->gtOp.gtOp2->gtOp.gtOp2->gtOp.gtOp2->gtOp.gtOp2 =
+                            call->gtCallArgs->gtOp.gtOp2->gtOp.gtOp2->gtOp.gtOp2->gtOp.gtOp2 =
                                 gtNewArgList(gtNewIconHandleNode(size_t(ctorData.pArg5), GTF_ICON_FTN_ADDR));
                         }
                     }
@@ -20596,7 +20617,7 @@ void Compiler::fgDebugCheckFlags(GenTreePtr tree)
 
                 if ((treeFlags & GTF_EXCEPT) && !(chkFlags & GTF_EXCEPT))
                 {
-                    switch (eeGetHelperNum(tree->gtCall.gtCallMethHnd))
+                    switch (eeGetHelperNum(call->gtCallMethHnd))
                     {
                         // Is this a helper call that can throw an exception ?
                         case CORINFO_HELP_LDIV:
@@ -21148,6 +21169,7 @@ void Compiler::fgInline()
             }
 
             // See if we need to replace the return value place holder.
+            // Also, see if this update enables further devirtualization.
             fgWalkTreePre(&stmt->gtStmtExpr, fgUpdateInlineReturnExpressionPlaceHolder, (void*)this);
 
             // See if stmt is of the form GT_COMMA(call, nop)
@@ -21419,11 +21441,46 @@ void Compiler::fgAttachStructInlineeToAsg(GenTreePtr tree, GenTreePtr child, COR
 
 #endif // FEATURE_MULTIREG_RET
 
-/*****************************************************************************
- * Callback to replace the inline return expression place holder (GT_RET_EXPR)
- */
+//------------------------------------------------------------------------
+// fgUpdateInlineReturnExpressionPlaceHolder: callback to replace the
+// inline return expression placeholder.
+//
+// Arguments:
+//    pTree -- pointer to tree to examine for updates
+//    data  -- context data for the tree walk
+//
+// Returns:
+//    fgWalkResult indicating the walk should continue; that
+//    is we wish to fully explore the tree.
+//
+// Notes:
+//    Looks for GT_RET_EXPR nodes that arose from tree splitting done
+//    during importation for inline candidates, and replaces them.
+//
+//    For successful inlines, substitutes the return value expression
+//    from the inline body for the GT_RET_EXPR.
+//
+//    For failed inlines, rejoins the original call into the tree from
+//    whence it was split during importation.
+//
+//    The code doesn't actually know if the corresponding inline
+//    succeeded or not; it relies on the fact that gtInlineCandidate
+//    initially points back at the call and is modified in place to
+//    the inlinee return expression if the inline is successful (see
+//    tail end of fgInsertInlineeBlocks for the update of iciCall).
+//
+//    If the parent of the GT_RET_EXPR is a virtual call,
+//    devirtualization is attempted. This should only succeed in the
+//    successful inline case, when the inlinee's return value
+//    expression provides a better type than the return type of the
+//    method. Note for failed inlines, the devirtualizer can only go
+//    by the return type, and any devirtualization that type enabled
+//    would have already happened during importation.
+//
+//    If the return type is a struct type and we're on a platform
+//    where structs can be returned in multiple registers, ensure the
+//    call has a suitable parent.
 
-/* static */
 Compiler::fgWalkResult Compiler::fgUpdateInlineReturnExpressionPlaceHolder(GenTreePtr* pTree, fgWalkData* data)
 {
     GenTreePtr           tree      = *pTree;
@@ -21469,6 +21526,41 @@ Compiler::fgWalkResult Compiler::fgUpdateInlineReturnExpressionPlaceHolder(GenTr
             }
 #endif // DEBUG
         } while (tree->gtOper == GT_RET_EXPR);
+
+        // Now see if this return value expression feeds the 'this'
+        // object at a virtual call site.
+        //
+        // Note for void returns where the inline failed, the
+        // GT_RET_EXPR may be top-level.
+        //
+        // May miss cases where there are intermediaries between call
+        // and this, eg commas.
+        GenTreePtr parentTree = data->parent;
+
+        if ((parentTree != nullptr) && (parentTree->gtOper == GT_CALL))
+        {
+            GenTreeCall* call          = parentTree->AsCall();
+            bool         tryLateDevirt = call->IsVirtual() && (call->gtCallObjp == tree);
+
+#ifdef DEBUG
+            tryLateDevirt = tryLateDevirt && (JitConfig.JitEnableLateDevirtualization() == 1);
+#endif // DEBUG
+
+            if (tryLateDevirt)
+            {
+#ifdef DEBUG
+                if (comp->verbose)
+                {
+                    printf("**** Late devirt opportunity\n");
+                    comp->gtDispTree(call);
+                }
+#endif // DEBUG
+
+                CORINFO_CALL_INFO x = {};
+                x.hMethod           = call->gtCallMethHnd;
+                comp->impDevirtualizeCall(call, tree, &x, nullptr);
+            }
+        }
     }
 
 #if FEATURE_MULTIREG_RET
@@ -22109,7 +22201,7 @@ _Done:
 
     // If there is non-NULL return, replace the GT_CALL with its return value expression,
     // so later it will be picked up by the GT_RET_EXPR node.
-    if ((pInlineInfo->inlineCandidateInfo->fncRetType != TYP_VOID) || (iciCall->gtCall.gtReturnType == TYP_STRUCT))
+    if ((pInlineInfo->inlineCandidateInfo->fncRetType != TYP_VOID) || (iciCall->gtReturnType == TYP_STRUCT))
     {
         noway_assert(pInlineInfo->retExpr);
 #ifdef DEBUG
@@ -22162,7 +22254,7 @@ GenTreePtr Compiler::fgInlinePrependStatements(InlineInfo* inlineInfo)
     GenTreeStmt* postStmt     = callStmt->gtNextStmt;
     GenTreePtr   afterStmt    = callStmt; // afterStmt is the place where the new statements should be inserted after.
     GenTreePtr   newStmt      = nullptr;
-    GenTreePtr   call         = inlineInfo->iciCall;
+    GenTreeCall* call         = inlineInfo->iciCall->AsCall();
 
     noway_assert(call->gtOper == GT_CALL);
 
@@ -22245,6 +22337,39 @@ GenTreePtr Compiler::fgInlinePrependStatements(InlineInfo* inlineInfo)
                 }
                 else
                 {
+                    // We're going to assign the argument value to the
+                    // temp we use for it in the inline body.
+                    //
+                    // If we know the argument's value can't be
+                    // changed within the method body, try and improve
+                    // the type of the temp.
+                    if (!inlArgInfo[argNum].argHasLdargaOp && !inlArgInfo[argNum].argHasStargOp)
+                    {
+                        GenTree*             argNode        = inlArgInfo[argNum].argNode;
+                        bool                 isExact        = false;
+                        bool                 isNonNull      = false;
+                        CORINFO_CLASS_HANDLE refClassHandle = gtGetClassHandle(argNode, &isExact, &isNonNull);
+
+                        if (refClassHandle != nullptr)
+                        {
+                            const unsigned tmpNum = inlArgInfo[argNum].argTmpNum;
+
+                            // If we already had an exact type for
+                            // this temp, this new information had
+                            // better agree with what we knew before.
+                            if (lvaTable[tmpNum].lvClassIsExact)
+                            {
+                                assert(isExact);
+                                assert(refClassHandle == lvaTable[tmpNum].lvClassHnd);
+                            }
+                            else
+                            {
+                                lvaTable[tmpNum].lvClassHnd     = refClassHandle;
+                                lvaTable[tmpNum].lvClassIsExact = isExact;
+                            }
+                        }
+                    }
+
                     /* Create the temp assignment for this argument */
 
                     CORINFO_CLASS_HANDLE structHnd = DUMMY_INIT(0);

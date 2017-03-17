@@ -205,16 +205,26 @@ public:
     Stub *CompileNExportThunk(LoaderHeap *pLoaderHeap, PInvokeStaticSigInfo* pSigInfo, MetaSig *pMetaSig, BOOL fNoStub);
 #endif // _TARGET_X86_ && !FEATURE_STUBS_AS_IL
 
+#if defined(_TARGET_X86_) && defined(FEATURE_STUBS_AS_IL)
+    struct ArgumentRegisters
+    {
+        UINT32 Ecx;
+        UINT32 Edx;
+    };
+
+    VOID SetupArguments(char *pSrc, ArgumentRegisters *pArgRegs, char *pDst);
+#endif // _TARGET_X86_ && FEATURE_STUBS_AS_IL
+
 private:
     PCODE             m_pILStub;            // IL stub for marshaling 
                                             // On x86, NULL for no-marshal signatures
                                             // On non-x86, the managed entrypoint for no-delegate no-marshal signatures
     UINT32            m_cbActualArgSize;    // caches m_pSig.SizeOfFrameArgumentArray()
+                                            // On x86/Linux we have to augment with numRegistersUsed * STACK_ELEM_SIZE
 #if defined(_TARGET_X86_)
     UINT16            m_cbRetPop;           // stack bytes popped by callee (for UpdateRegDisplay)
 #if defined(FEATURE_STUBS_AS_IL)
-    UINT32            m_ecxArgOffset;
-    UINT32            m_edxArgOffset;
+    UINT32            m_cbStackArgSize;     // stack bytes pushed for managed code
 #else
     Stub*             m_pExecStub;          // UMEntryThunk jumps directly here
     UINT16            m_callConv;           // unmanaged calling convention and flags (CorPinvokeMap)

@@ -1251,9 +1251,12 @@ void CodeGen::sched_AM(instruction ins,
  *  Emit a "call [r/m]" instruction (the r/m operand given by a tree).
  */
 
-void CodeGen::instEmit_indCall(GenTreePtr call,
+// clang-format off
+void CodeGen::instEmit_indCall(GenTreeCall* call,
                                size_t     argSize,
-                               emitAttr retSize MULTIREG_HAS_SECOND_GC_RET_ONLY_ARG(emitAttr secondRetSize))
+                               emitAttr   retSize
+                               MULTIREG_HAS_SECOND_GC_RET_ONLY_ARG(emitAttr secondRetSize))
+// clang-format on
 {
     GenTreePtr addr;
 
@@ -1266,18 +1269,16 @@ void CodeGen::instEmit_indCall(GenTreePtr call,
 
     CORINFO_SIG_INFO* sigInfo = nullptr;
 
-    assert(call->gtOper == GT_CALL);
-
     /* Get hold of the function address */
 
-    assert(call->gtCall.gtCallType == CT_INDIRECT);
-    addr = call->gtCall.gtCallAddr;
+    assert(call->gtCallType == CT_INDIRECT);
+    addr = call->gtCallAddr;
     assert(addr);
 
 #ifdef DEBUG
     // Pass the call signature information from the GenTree node so the emitter can associate
     // native call sites with the signatures they were generated from.
-    sigInfo = call->gtCall.callSig;
+    sigInfo = call->callSig;
 #endif // DEBUG
 
 #if CPU_LOAD_STORE_ARCH
@@ -1290,11 +1291,19 @@ void CodeGen::instEmit_indCall(GenTreePtr call,
         {
             ssize_t funcPtr = addr->gtIntCon.gtIconVal;
 
+            // clang-format off
             getEmitter()->emitIns_Call(emitter::EC_FUNC_ADDR,
                                        NULL, // methHnd
-                                       INDEBUG_LDISASM_COMMA(sigInfo)(void*) funcPtr, argSize,
-                                       retSize MULTIREG_HAS_SECOND_GC_RET_ONLY_ARG(secondRetSize),
-                                       gcInfo.gcVarPtrSetCur, gcInfo.gcRegGCrefSetCur, gcInfo.gcRegByrefSetCur);
+                                       INDEBUG_LDISASM_COMMA(sigInfo)
+                                       (void*) funcPtr,
+                                       argSize,
+                                       retSize
+                                       MULTIREG_HAS_SECOND_GC_RET_ONLY_ARG(secondRetSize),
+                                       gcInfo.gcVarPtrSetCur,
+                                       gcInfo.gcRegGCrefSetCur,
+                                       gcInfo.gcRegByrefSetCur);
+            // clang-format on
+
             return;
         }
     }
@@ -1347,11 +1356,19 @@ void CodeGen::instEmit_indCall(GenTreePtr call,
             {
                 ssize_t funcPtr = addr->gtIntCon.gtIconVal;
 
+                // clang-format off
                 getEmitter()->emitIns_Call(emitter::EC_FUNC_ADDR,
                                            nullptr, // methHnd
-                                           INDEBUG_LDISASM_COMMA(sigInfo)(void*) funcPtr, argSize,
-                                           retSize MULTIREG_HAS_SECOND_GC_RET_ONLY_ARG(secondRetSize),
-                                           gcInfo.gcVarPtrSetCur, gcInfo.gcRegGCrefSetCur, gcInfo.gcRegByrefSetCur);
+                                           INDEBUG_LDISASM_COMMA(sigInfo)
+                                           (void*) funcPtr,
+                                           argSize,
+                                           retSize
+                                           MULTIREG_HAS_SECOND_GC_RET_ONLY_ARG(secondRetSize),
+                                           gcInfo.gcVarPtrSetCur,
+                                           gcInfo.gcRegGCrefSetCur,
+                                           gcInfo.gcRegByrefSetCur);
+                // clang-format on
+
                 return;
             }
         }
@@ -1386,7 +1403,7 @@ void CodeGen::instEmit_indCall(GenTreePtr call,
             INDEBUG(bool yes =)
             genCreateAddrMode(addr, -1, true, RBM_NONE, &rev, &rv1, &rv2, &mul, &cns);
 
-            INDEBUG(PREFIX_ASSUME(yes)); // since we have called genMakeAddressable() on call->gtCall.gtCallAddr
+            INDEBUG(PREFIX_ASSUME(yes)); // since we have called genMakeAddressable() on call->gtCallAddr
 
             /* Get the additional operands if any */
 
@@ -1409,14 +1426,23 @@ void CodeGen::instEmit_indCall(GenTreePtr call,
 
 #endif // CPU_LOAD_STORE_ARCH
 
+    // clang-format off
     getEmitter()->emitIns_Call(emitCallType,
                                nullptr,                                // methHnd
-                               INDEBUG_LDISASM_COMMA(sigInfo) nullptr, // addr
-                               argSize, retSize MULTIREG_HAS_SECOND_GC_RET_ONLY_ARG(secondRetSize),
-                               gcInfo.gcVarPtrSetCur, gcInfo.gcRegGCrefSetCur, gcInfo.gcRegByrefSetCur,
+                               INDEBUG_LDISASM_COMMA(sigInfo)
+                               nullptr, // addr
+                               argSize,
+                               retSize
+                               MULTIREG_HAS_SECOND_GC_RET_ONLY_ARG(secondRetSize),
+                               gcInfo.gcVarPtrSetCur,
+                               gcInfo.gcRegGCrefSetCur,
+                               gcInfo.gcRegByrefSetCur,
                                BAD_IL_OFFSET, // ilOffset
-                               brg, xrg, mul,
+                               brg,
+                               xrg,
+                               mul,
                                cns); // addressing mode values
+    // clang-format on
 }
 
 #ifdef LEGACY_BACKEND

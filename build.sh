@@ -19,7 +19,7 @@ fi
 
 usage()
 {
-    echo "Usage: $0 [BuildArch] [BuildType] [verbose] [coverage] [cross] [clangx.y] [ninja] [configureonly] [skipconfigure] [skipnative] [skipmscorlib] [skiptests] [cmakeargs] [bindir]"
+    echo "Usage: $0 [BuildArch] [BuildType] [verbose] [coverage] [cross] [clangx.y] [ninja] [configureonly] [skipconfigure] [skipnative] [skipmscorlib] [skiptests] [stripsymbols] [cmakeargs] [bindir]"
     echo "BuildArch can be: x64, x86, arm, armel, arm64"
     echo "BuildType can be: debug, checked, release"
     echo "coverage - optional argument to enable code coverage build (currently supported only for Linux and OSX)."
@@ -30,12 +30,14 @@ usage()
     echo "crosscomponent - optional argument to build cross-architecture component,"
     echo "               - will use CAC_ROOTFS_DIR environment variable if set."
     echo "pgoinstrument - generate instrumented code for profile guided optimization enabled binaries."
+    echo "ibcinstrument - generate IBC-tuning-enabled native images when invoking crossgen."
     echo "configureonly - do not perform any builds; just configure the build."
     echo "skipconfigure - skip build configuration."
     echo "skipnative - do not build native components."
     echo "skipmscorlib - do not build mscorlib.dll."
     echo "skiptests - skip the tests in the 'tests' subdirectory."
     echo "skipnuget - skip building nuget packages."
+    echo "skiprestoreoptdata - skip restoring optimization data used by profile-based optimizations."
     echo "portableLinux - build for Portable Linux Distribution"
     echo "verbose - optional argument to enable verbose build output."
     echo "-skiprestore: skip restoring packages ^(default: packages are restored during build^)."
@@ -44,6 +46,7 @@ usage()
 	echo "   using all processors^)."
 	echo "-officialbuildid=^<ID^>: specify the official build ID to be used by this build."
 	echo "-Rebuild: passes /t:rebuild to the build projects."
+    echo "stripSymbols - Optional argument to strip native symbols during the build."
     echo "skipgenerateversion - disable version generation even if MSBuild is supported."
     echo "cmakeargs - user-settable additional arguments passed to CMake."
     echo "bindir - output directory (defaults to $__ProjectRoot/bin)"
@@ -116,6 +119,19 @@ check_prereqs()
 
 }
 
+restore_optdata()
+{
+    # if msbuild is not supported, then set __SkipRestoreOptData to 1
+    if [ $__isMSBuildOnNETCoreSupported == 0 ]; then __SkipRestoreOptData=1; fi
+    if [ $__SkipRestoreOptData == 0 ]; then
+        echo "Restoring the OptimizationData package"
+        "$__ProjectRoot/run.sh" sync -optdata
+        if [ $? != 0 ]; then
+            echo "Failed to restore the optimization data package."
+            exit 1
+        fi
+    fi
+}
 
 generate_event_logging_sources()
 {
@@ -214,6 +230,7 @@ build_native()
             fi
         fi
 
+
         pushd "$intermediatesForBuild"
         # Regenerate the CMake solution
         echo "Invoking \"$__ProjectRoot/src/pal/tools/gen-buildsys-clang.sh\" \"$__ProjectRoot\" $__ClangMajorVersion $__ClangMinorVersion $platformArch $__BuildType $__CodeCoverage $__IncludeTests $generator $extraCmakeArguments $__cmakeargs"
@@ -288,7 +305,7 @@ build_cross_arch_component()
         fi
     fi
 
-    __ExtraCmakeArgs="-DCLR_CMAKE_TARGET_ARCH=$__BuildArch -DCLR_CMAKE_TARGET_OS=$__BuildOS -DCLR_CMAKE_PACKAGES_DIR=$__PackagesDir -DCLR_CMAKE_PGO_INSTRUMENT=$__PgoInstrument"
+    __ExtraCmakeArgs="-DCLR_CMAKE_TARGET_ARCH=$__BuildArch -DCLR_CMAKE_TARGET_OS=$__BuildOS -DCLR_CMAKE_PACKAGES_DIR=$__PackagesDir -DCLR_CMAKE_PGO_INSTRUMENT=$__PgoInstrument -DCLR_CMAKE_OPTDATA_VERSION=$__PgoOptDataVersion"
     build_native $__SkipCrossArchBuild "$__CrossArch" "$__CrossCompIntermediatesDir" "$__ExtraCmakeArgs" "cross-architecture component"
    
     # restore ROOTFS_DIR, CROSSCOMPONENT, and CROSSCOMPILE 
@@ -350,16 +367,9 @@ build_CoreLib_ni()
 {
     if [ $__SkipCoreCLR == 0 -a -e $__BinDir/crossgen ]; then
         echo "Generating native image for System.Private.CoreLib."
-        $__BinDir/crossgen $__BinDir/System.Private.CoreLib.dll
+        $__BinDir/crossgen $__IbcTuning $__BinDir/System.Private.CoreLib.dll
         if [ $? -ne 0 ]; then
             echo "Failed to generate native image for System.Private.CoreLib."
-            exit 1
-        fi
-
-        echo "Generating native image for MScorlib Facade."
-        $__BinDir/crossgen $__BinDir/mscorlib.dll
-        if [ $? -ne 0 ]; then
-            echo "Failed to generate native image for mscorlib facade."
             exit 1
         fi
 
@@ -390,7 +400,12 @@ build_CoreLib()
     echo "Commencing build of managed components for $__BuildOS.$__BuildArch.$__BuildType"
 
     # Invoke MSBuild
-    $__ProjectRoot/run.sh build -Project=$__ProjectDir/build.proj -MsBuildLog="/flp:Verbosity=normal;LogFile=$__LogsDir/System.Private.CoreLib_$__BuildOS__$__BuildArch__$__BuildType.log" -BuildTarget -__IntermediatesDir=$__IntermediatesDir -__RootBinDir=$__RootBinDir -BuildNugetPackage=false -UseSharedCompilation=false $__RunArgs $__UnprocessedBuildArgs
+    __ExtraBuildArgs=""
+    if [ "$__IbcTuning" -eq "" ]; then
+        __ExtraBuildArgs="$__ExtraBuildArgs -OptimizationDataDir=\"$__PackagesDir/optimization.$__BuildOS-$__BuildArch.IBC.CoreCLR/$__IbcOptDataVersion/data/\""
+        __ExtraBuildArgs="$__ExtraBuildArgs -EnableProfileGuidedOptimization=true"
+    fi
+    $__ProjectRoot/run.sh build -Project=$__ProjectDir/build.proj -MsBuildLog="/flp:Verbosity=normal;LogFile=$__LogsDir/System.Private.CoreLib_$__BuildOS__$__BuildArch__$__BuildType.log" -BuildTarget -__IntermediatesDir=$__IntermediatesDir -__RootBinDir=$__RootBinDir -BuildNugetPackage=false -UseSharedCompilation=false $__RunArgs $__ExtraBuildArgs $__UnprocessedBuildArgs
 
     if [ $? -ne 0 ]; then
         echo "Failed to build managed components."
@@ -541,12 +556,14 @@ __MSBCleanBuildArgs=
 __UseNinja=0
 __VerboseBuild=0
 __PgoInstrument=0
+__IbcTuning=""
 __ConfigureOnly=0
 __SkipConfigure=0
 __SkipRestore=""
 __SkipNuget=0
 __SkipCoreCLR=0
 __SkipMSCorLib=0
+__SkipRestoreOptData=0
 __CrossBuild=0
 __ClangMajorVersion=0
 __ClangMinorVersion=0
@@ -558,6 +575,8 @@ __SkipGenerateVersion=0
 __DoCrossArchBuild=0
 __PortableLinux=0
 __msbuildonunsupportedplatform=0
+__PgoOptDataVersion=""
+__IbcOptDataVersion=""
 
 while :; do
     if [ $# -le 0 ]; then
@@ -611,7 +630,7 @@ while :; do
             __CrossBuild=1
             ;;
             
-		portablelinux)
+        portablelinux)
             if [ "$__BuildOS" == "Linux" ]; then
                 __PortableLinux=1
             else
@@ -621,8 +640,12 @@ while :; do
             ;;
             
         verbose)
-        __VerboseBuild=1
-        ;;
+            __VerboseBuild=1
+            ;;
+
+        stripsymbols)
+            __cmakeargs="$__cmakeargs -DSTRIP_SYMBOLS=true"
+            ;;
 
         clang3.5)
             __ClangMajorVersion=3
@@ -657,6 +680,10 @@ while :; do
             __PgoInstrument=1
             ;;
 
+        ibcinstrument)
+            __IbcTuning="/Tuning"
+            ;;
+
         configureonly)
             __ConfigureOnly=1
             __SkipMSCorLib=1
@@ -687,6 +714,10 @@ while :; do
 
         skipgenerateversion)
             __SkipGenerateVersion=1
+            ;;
+
+        skiprestoreoptdata)
+            __SkipRestoreOptData=1
             ;;
 
         includetests)
@@ -810,6 +841,13 @@ if [ $__CrossBuild == 1 ]; then
     fi
 fi
 
+# Parse the optdata package version from its project.json file
+optDataProjectJsonPath="$__ProjectRoot/src/.nuget/optdata/project.json"
+if [ -f $optDataProjectJsonPath ]; then
+    __PgoOptDataVersion=$("$__ProjectRoot/extract-from-json.py" -rf $optDataProjectJsonPath dependencies optimization.PGO.CoreCLR)
+    __IbcOptDataVersion=$("$__ProjectRoot/extract-from-json.py" -rf $optDataProjectJsonPath dependencies optimization.IBC.CoreCLR)
+fi
+
 # init the target distro name
 initTargetDistroRid
 
@@ -819,11 +857,14 @@ setup_dirs
 # Check prereqs.
 check_prereqs
 
+# Restore the package containing profile counts for profile-guided optimizations
+restore_optdata
+
 # Generate event logging infrastructure sources
 generate_event_logging_sources
 
 # Build the coreclr (native) components.
-__ExtraCmakeArgs="-DCLR_CMAKE_TARGET_OS=$__BuildOS -DCLR_CMAKE_PACKAGES_DIR=$__PackagesDir -DCLR_CMAKE_PGO_INSTRUMENT=$__PgoInstrument"
+__ExtraCmakeArgs="-DCLR_CMAKE_TARGET_OS=$__BuildOS -DCLR_CMAKE_PACKAGES_DIR=$__PackagesDir -DCLR_CMAKE_PGO_INSTRUMENT=$__PgoInstrument -DCLR_CMAKE_OPTDATA_VERSION=$__PgoOptDataVersion"
 build_native $__SkipCoreCLR "$__BuildArch" "$__IntermediatesDir" "$__ExtraCmakeArgs" "CoreCLR component"
 
 # Build cross-architecture components

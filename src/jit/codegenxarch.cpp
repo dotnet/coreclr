@@ -1266,8 +1266,7 @@ void CodeGen::genCodeForTreeNode(GenTreePtr treeNode)
     if (compiler->verbose)
     {
         unsigned seqNum = treeNode->gtSeqNum; // Useful for setting a conditional break in Visual Studio
-        printf("Generating: ");
-        compiler->gtDispTree(treeNode, nullptr, nullptr, true);
+        compiler->gtDispLIRNode(treeNode, "Generating: ");
     }
 #endif // DEBUG
 
@@ -2010,7 +2009,7 @@ void CodeGen::genCodeForTreeNode(GenTreePtr treeNode)
         break;
 
         case GT_CALL:
-            genCallInstruction(treeNode);
+            genCallInstruction(treeNode->AsCall());
             break;
 
         case GT_JMP:
@@ -3225,7 +3224,7 @@ void CodeGen::genCodeForCpBlkRepMovs(GenTreeBlk* cpBlkNode)
 //    On x86, longTmpReg must be an xmm reg; on x64 it must be an integer register.
 //    This is checked by genStoreRegToStackArg.
 //
-int CodeGen::genMove8IfNeeded(unsigned size, regNumber longTmpReg, GenTree* srcAddr, unsigned offset)
+unsigned CodeGen::genMove8IfNeeded(unsigned size, regNumber longTmpReg, GenTree* srcAddr, unsigned offset)
 {
 #ifdef _TARGET_X86_
     instruction longMovIns = INS_movq;
@@ -3259,7 +3258,7 @@ int CodeGen::genMove8IfNeeded(unsigned size, regNumber longTmpReg, GenTree* srcA
 //    intTmpReg must be an integer register.
 //    This is checked by genStoreRegToStackArg.
 //
-int CodeGen::genMove4IfNeeded(unsigned size, regNumber intTmpReg, GenTree* srcAddr, unsigned offset)
+unsigned CodeGen::genMove4IfNeeded(unsigned size, regNumber intTmpReg, GenTree* srcAddr, unsigned offset)
 {
     if ((size & 4) != 0)
     {
@@ -3288,7 +3287,7 @@ int CodeGen::genMove4IfNeeded(unsigned size, regNumber intTmpReg, GenTree* srcAd
 //    intTmpReg must be an integer register.
 //    This is checked by genStoreRegToStackArg.
 //
-int CodeGen::genMove2IfNeeded(unsigned size, regNumber intTmpReg, GenTree* srcAddr, unsigned offset)
+unsigned CodeGen::genMove2IfNeeded(unsigned size, regNumber intTmpReg, GenTree* srcAddr, unsigned offset)
 {
     if ((size & 2) != 0)
     {
@@ -3317,7 +3316,7 @@ int CodeGen::genMove2IfNeeded(unsigned size, regNumber intTmpReg, GenTree* srcAd
 //    intTmpReg must be an integer register.
 //    This is checked by genStoreRegToStackArg.
 //
-int CodeGen::genMove1IfNeeded(unsigned size, regNumber intTmpReg, GenTree* srcAddr, unsigned offset)
+unsigned CodeGen::genMove1IfNeeded(unsigned size, regNumber intTmpReg, GenTree* srcAddr, unsigned offset)
 {
 
     if ((size & 1) != 0)
@@ -3354,7 +3353,7 @@ void CodeGen::genStructPutArgUnroll(GenTreePutArgStk* putArgNode)
     GenTreePtr dstAddr = putArgNode;
     GenTreePtr src     = putArgNode->gtOp.gtOp1;
 
-    size_t size = putArgNode->getArgSize();
+    unsigned size = putArgNode->getArgSize();
     assert(size <= CPBLK_UNROLL_LIMIT);
 
     emitter* emit         = getEmitter();
@@ -4751,11 +4750,8 @@ bool CodeGen::genEmitOptimizedGCWriteBarrier(GCInfo::WriteBarrierForm writeBarri
 }
 
 // Produce code for a GT_CALL node
-void CodeGen::genCallInstruction(GenTreePtr node)
+void CodeGen::genCallInstruction(GenTreeCall* call)
 {
-    GenTreeCall* call = node->AsCall();
-    assert(call->gtOper == GT_CALL);
-
     gtCallTypes callType = (gtCallTypes)call->gtCallType;
 
     IL_OFFSETX ilOffset = BAD_IL_OFFSET;
@@ -4915,7 +4911,7 @@ void CodeGen::genCallInstruction(GenTreePtr node)
     if (callType == CT_INDIRECT)
     {
         assert(target == nullptr);
-        target  = call->gtCall.gtCallAddr;
+        target  = call->gtCallAddr;
         methHnd = nullptr;
     }
     else
@@ -5046,11 +5042,20 @@ void CodeGen::genCallInstruction(GenTreePtr node)
             genCopyRegIfNeeded(addr, REG_VIRTUAL_STUB_TARGET);
 
             getEmitter()->emitIns_Nop(3);
-            getEmitter()->emitIns_Call(emitter::EmitCallType(emitter::EC_INDIR_ARD), methHnd,
-                                       INDEBUG_LDISASM_COMMA(sigInfo) nullptr, argSizeForEmitter,
-                                       retSize MULTIREG_HAS_SECOND_GC_RET_ONLY_ARG(secondRetSize),
-                                       gcInfo.gcVarPtrSetCur, gcInfo.gcRegGCrefSetCur, gcInfo.gcRegByrefSetCur,
+
+            // clang-format off
+            getEmitter()->emitIns_Call(emitter::EmitCallType(emitter::EC_INDIR_ARD),
+                                       methHnd,
+                                       INDEBUG_LDISASM_COMMA(sigInfo)
+                                       nullptr,
+                                       argSizeForEmitter,
+                                       retSize
+                                       MULTIREG_HAS_SECOND_GC_RET_ONLY_ARG(secondRetSize),
+                                       gcInfo.gcVarPtrSetCur,
+                                       gcInfo.gcRegGCrefSetCur,
+                                       gcInfo.gcRegByrefSetCur,
                                        ilOffset, REG_VIRTUAL_STUB_TARGET, REG_NA, 1, 0);
+            // clang-format on
         }
         else
 #endif
@@ -5062,18 +5067,29 @@ void CodeGen::genCallInstruction(GenTreePtr node)
                 // contained only if it can be encoded as PC-relative offset.
                 assert(target->AsIndir()->Base()->AsIntConCommon()->FitsInAddrBase(compiler));
 
-                genEmitCall(emitter::EC_FUNC_TOKEN_INDIR, methHnd,
-                            INDEBUG_LDISASM_COMMA(sigInfo)(void*) target->AsIndir()
-                                ->Base()
-                                ->AsIntConCommon()
-                                ->IconValue() X86_ARG(argSizeForEmitter),
-                            retSize MULTIREG_HAS_SECOND_GC_RET_ONLY_ARG(secondRetSize), ilOffset);
+                // clang-format off
+                genEmitCall(emitter::EC_FUNC_TOKEN_INDIR,
+                            methHnd,
+                            INDEBUG_LDISASM_COMMA(sigInfo)
+                            (void*) target->AsIndir()->Base()->AsIntConCommon()->IconValue()
+                            X86_ARG(argSizeForEmitter),
+                            retSize
+                            MULTIREG_HAS_SECOND_GC_RET_ONLY_ARG(secondRetSize),
+                            ilOffset);
+                // clang-format on
             }
             else
             {
-                genEmitCall(emitter::EC_INDIR_ARD, methHnd,
-                            INDEBUG_LDISASM_COMMA(sigInfo) target->AsIndir() X86_ARG(argSizeForEmitter),
-                            retSize MULTIREG_HAS_SECOND_GC_RET_ONLY_ARG(secondRetSize), ilOffset);
+                // clang-format off
+                genEmitCall(emitter::EC_INDIR_ARD,
+                            methHnd,
+                            INDEBUG_LDISASM_COMMA(sigInfo)
+                            target->AsIndir()
+                            X86_ARG(argSizeForEmitter),
+                            retSize
+                            MULTIREG_HAS_SECOND_GC_RET_ONLY_ARG(secondRetSize),
+                            ilOffset);
+                // clang-format on
             }
         }
         else
@@ -5081,19 +5097,34 @@ void CodeGen::genCallInstruction(GenTreePtr node)
             // We have already generated code for gtControlExpr evaluating it into a register.
             // We just need to emit "call reg" in this case.
             assert(genIsValidIntReg(target->gtRegNum));
-            genEmitCall(emitter::EC_INDIR_R, methHnd,
-                        INDEBUG_LDISASM_COMMA(sigInfo) nullptr // addr
+
+            // clang-format off
+            genEmitCall(emitter::EC_INDIR_R,
+                        methHnd,
+                        INDEBUG_LDISASM_COMMA(sigInfo)
+                        nullptr // addr
                         X86_ARG(argSizeForEmitter),
-                        retSize MULTIREG_HAS_SECOND_GC_RET_ONLY_ARG(secondRetSize), ilOffset, genConsumeReg(target));
+                        retSize
+                        MULTIREG_HAS_SECOND_GC_RET_ONLY_ARG(secondRetSize),
+                        ilOffset,
+                        genConsumeReg(target));
+            // clang-format on
         }
     }
 #ifdef FEATURE_READYTORUN_COMPILER
     else if (call->gtEntryPoint.addr != nullptr)
     {
+        // clang-format off
         genEmitCall((call->gtEntryPoint.accessType == IAT_VALUE) ? emitter::EC_FUNC_TOKEN
                                                                  : emitter::EC_FUNC_TOKEN_INDIR,
-                    methHnd, INDEBUG_LDISASM_COMMA(sigInfo)(void*) call->gtEntryPoint.addr X86_ARG(argSizeForEmitter),
-                    retSize MULTIREG_HAS_SECOND_GC_RET_ONLY_ARG(secondRetSize), ilOffset);
+                    methHnd,
+                    INDEBUG_LDISASM_COMMA(sigInfo)
+                    (void*) call->gtEntryPoint.addr
+                    X86_ARG(argSizeForEmitter),
+                    retSize
+                    MULTIREG_HAS_SECOND_GC_RET_ONLY_ARG(secondRetSize),
+                    ilOffset);
+        // clang-format on
     }
 #endif
     else
@@ -5129,8 +5160,17 @@ void CodeGen::genCallInstruction(GenTreePtr node)
         }
 
         // Non-virtual direct calls to known addresses
-        genEmitCall(emitter::EC_FUNC_TOKEN, methHnd, INDEBUG_LDISASM_COMMA(sigInfo) addr X86_ARG(argSizeForEmitter),
-                    retSize MULTIREG_HAS_SECOND_GC_RET_ONLY_ARG(secondRetSize), ilOffset);
+
+        // clang-format off
+        genEmitCall(emitter::EC_FUNC_TOKEN,
+                    methHnd,
+                    INDEBUG_LDISASM_COMMA(sigInfo)
+                    addr
+                    X86_ARG(argSizeForEmitter),
+                    retSize
+                    MULTIREG_HAS_SECOND_GC_RET_ONLY_ARG(secondRetSize),
+                    ilOffset);
+        // clang-format on
     }
 
 #if defined(UNIX_X86_ABI)
@@ -5152,7 +5192,7 @@ void CodeGen::genCallInstruction(GenTreePtr node)
 
 #if defined(_TARGET_X86_)
     // The call will pop its arguments.
-    genStackLevel -= stackArgBytes;
+    SubtractStackLevel(stackArgBytes);
 #endif // defined(_TARGET_X86_)
 
     // Update GC info:
@@ -7139,7 +7179,7 @@ int CodeGenInterface::genSPtoFPdelta()
 {
     int delta;
 
-#ifdef PLATFORM_UNIX
+#ifdef UNIX_AMD64_ABI
 
     // We require frame chaining on Unix to support native tool unwinding (such as
     // unwinding by the native debugger). We have a CLR-only extension to the
@@ -7147,7 +7187,7 @@ int CodeGenInterface::genSPtoFPdelta()
     // If Unix ever supports EnC, the RSP == RBP assumption will have to be reevaluated.
     delta = genTotalFrameSize();
 
-#else // !PLATFORM_UNIX
+#else // !UNIX_AMD64_ABI
 
     // As per Amd64 ABI, RBP offset from initial RSP can be between 0 and 240 if
     // RBP needs to be reported in unwind codes.  This case would arise for methods
@@ -7173,7 +7213,7 @@ int CodeGenInterface::genSPtoFPdelta()
         delta = genTotalFrameSize();
     }
 
-#endif // !PLATFORM_UNIX
+#endif // !UNIX_AMD64_ABI
 
     return delta;
 }
@@ -7491,7 +7531,7 @@ bool CodeGen::genAdjustStackForPutArgStk(GenTreePutArgStk* putArgStk)
     {
         const unsigned argSize = genTypeSize(putArgStk);
         inst_RV_IV(INS_sub, REG_SPBASE, argSize, EA_PTRSIZE);
-        genStackLevel += argSize;
+        AddStackLevel(argSize);
         m_pushStkArg = false;
         return true;
     }
@@ -7535,7 +7575,7 @@ bool CodeGen::genAdjustStackForPutArgStk(GenTreePutArgStk* putArgStk)
     {
         m_pushStkArg = false;
         inst_RV_IV(INS_sub, REG_SPBASE, argSize, EA_PTRSIZE);
-        genStackLevel += argSize;
+        AddStackLevel(argSize);
         return true;
     }
 }
@@ -7623,7 +7663,7 @@ void CodeGen::genPutArgStkFieldList(GenTreePutArgStk* putArgStk)
             {
                 inst_IV(INS_push, 0);
                 currentOffset -= pushSize;
-                genStackLevel += pushSize;
+                AddStackLevel(pushSize);
                 adjustment -= pushSize;
             }
             m_pushStkArg = true;
@@ -7645,7 +7685,7 @@ void CodeGen::genPutArgStkFieldList(GenTreePutArgStk* putArgStk)
                 // Adjust the stack pointer to the next slot boundary.
                 inst_RV_IV(INS_sub, REG_SPBASE, adjustment, EA_PTRSIZE);
                 currentOffset -= adjustment;
-                genStackLevel += adjustment;
+                AddStackLevel(adjustment);
             }
 
             // Does it need to be in a byte register?
@@ -7698,7 +7738,7 @@ void CodeGen::genPutArgStkFieldList(GenTreePutArgStk* putArgStk)
                     }
                 }
                 currentOffset -= TARGET_POINTER_SIZE;
-                genStackLevel += TARGET_POINTER_SIZE;
+                AddStackLevel(TARGET_POINTER_SIZE);
             }
             else
             {
@@ -7744,7 +7784,7 @@ void CodeGen::genPutArgStkFieldList(GenTreePutArgStk* putArgStk)
     {
         // We don't expect padding at the beginning of a struct, but it could happen with explicit layout.
         inst_RV_IV(INS_sub, REG_SPBASE, currentOffset, EA_PTRSIZE);
-        genStackLevel += currentOffset;
+        AddStackLevel(currentOffset);
     }
 }
 #endif // _TARGET_X86_
@@ -7804,7 +7844,7 @@ void CodeGen::genPutArgStk(GenTreePutArgStk* putArgStk)
         {
             inst_IV(INS_push, data->gtIntCon.gtIconVal);
         }
-        genStackLevel += argSize;
+        AddStackLevel(argSize);
     }
     else if (data->OperGet() == GT_FIELD_LIST)
     {
@@ -7903,7 +7943,7 @@ void CodeGen::genPushReg(var_types type, regNumber srcReg)
         inst_RV_IV(INS_sub, REG_SPBASE, size, EA_PTRSIZE);
         getEmitter()->emitIns_AR_R(ins, attr, srcReg, REG_SPBASE, 0);
     }
-    genStackLevel += size;
+    AddStackLevel(size);
 }
 #endif // _TARGET_X86_
 
@@ -8101,7 +8141,7 @@ void CodeGen::genPutStructArgStk(GenTreePutArgStk* putArgStk)
             {
                 getEmitter()->emitIns_S(INS_push, slotAttr, srcLclNum, srcLclOffset + offset);
             }
-            genStackLevel += TARGET_POINTER_SIZE;
+            AddStackLevel(TARGET_POINTER_SIZE);
         }
 #else // !defined(_TARGET_X86_)
 
@@ -8475,14 +8515,22 @@ void CodeGen::genEmitHelperCall(unsigned helper, int argSize, emitAttr retSize, 
         }
     }
 
-    getEmitter()->emitIns_Call(callType, compiler->eeFindHelper(helper), INDEBUG_LDISASM_COMMA(nullptr) addr, argSize,
-                               retSize FEATURE_UNIX_AMD64_STRUCT_PASSING_ONLY_ARG(EA_UNKNOWN), gcInfo.gcVarPtrSetCur,
-                               gcInfo.gcRegGCrefSetCur, gcInfo.gcRegByrefSetCur,
+    // clang-format off
+    getEmitter()->emitIns_Call(callType,
+                               compiler->eeFindHelper(helper),
+                               INDEBUG_LDISASM_COMMA(nullptr) addr,
+                               argSize,
+                               retSize
+                               MULTIREG_HAS_SECOND_GC_RET_ONLY_ARG(EA_UNKNOWN),
+                               gcInfo.gcVarPtrSetCur,
+                               gcInfo.gcRegGCrefSetCur,
+                               gcInfo.gcRegByrefSetCur,
                                BAD_IL_OFFSET, // IL offset
                                callTarget,    // ireg
                                REG_NA, 0, 0,  // xreg, xmul, disp
                                false,         // isJump
                                emitter::emitNoGChelper(helper));
+    // clang-format on
 
     regTracker.rsTrashRegSet(killMask);
     regTracker.rsTrashRegsForGCInterruptability();

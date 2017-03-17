@@ -57,6 +57,10 @@ void genCompareInt(GenTreePtr treeNode);
 
 #if !defined(_TARGET_64BIT_)
 void genCompareLong(GenTreePtr treeNode);
+#if defined(_TARGET_ARM_)
+void genJccLongHi(genTreeOps cmp, BasicBlock* jumpTrue, BasicBlock* jumpFalse, bool isUnsigned = false);
+void genJccLongLo(genTreeOps cmp, BasicBlock* jumpTrue, BasicBlock* jumpFalse);
+#endif // defined(_TARGET_ARM_)
 #endif
 
 #ifdef FEATURE_SIMD
@@ -154,7 +158,7 @@ void genSetRegToIcon(regNumber reg, ssize_t val, var_types type = TYP_INT, insFl
 
 void genCodeForShift(GenTreePtr tree);
 
-#if defined(_TARGET_X86_)
+#if defined(_TARGET_X86_) || defined(_TARGET_ARM_)
 void genCodeForShiftLong(GenTreePtr tree);
 #endif
 
@@ -179,10 +183,10 @@ void genPutArgStkFieldList(GenTreePutArgStk* putArgStk);
 
 void genPutStructArgStk(GenTreePutArgStk* treeNode);
 
-int genMove8IfNeeded(unsigned size, regNumber tmpReg, GenTree* srcAddr, unsigned offset);
-int genMove4IfNeeded(unsigned size, regNumber tmpReg, GenTree* srcAddr, unsigned offset);
-int genMove2IfNeeded(unsigned size, regNumber tmpReg, GenTree* srcAddr, unsigned offset);
-int genMove1IfNeeded(unsigned size, regNumber tmpReg, GenTree* srcAddr, unsigned offset);
+unsigned genMove8IfNeeded(unsigned size, regNumber tmpReg, GenTree* srcAddr, unsigned offset);
+unsigned genMove4IfNeeded(unsigned size, regNumber tmpReg, GenTree* srcAddr, unsigned offset);
+unsigned genMove2IfNeeded(unsigned size, regNumber tmpReg, GenTree* srcAddr, unsigned offset);
+unsigned genMove1IfNeeded(unsigned size, regNumber tmpReg, GenTree* srcAddr, unsigned offset);
 void genStructPutArgRepMovs(GenTreePutArgStk* putArgStkNode);
 void genStructPutArgUnroll(GenTreePutArgStk* putArgStkNode);
 void genStoreRegToStackArg(var_types type, regNumber reg, int offset);
@@ -214,7 +218,7 @@ void genStoreInd(GenTreePtr node);
 
 bool genEmitOptimizedGCWriteBarrier(GCInfo::WriteBarrierForm writeBarrierForm, GenTree* addr, GenTree* data);
 
-void genCallInstruction(GenTreePtr call);
+void genCallInstruction(GenTreeCall* call);
 
 void genJmpMethod(GenTreePtr jmp);
 

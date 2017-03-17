@@ -11,19 +11,46 @@ You must install several components to build the CoreCLR and CoreFX repos. These
 ## Visual Studio
 
 Visual Studio must be installed. Supported versions:
-- [Visual Studio 2015](https://www.visualstudio.com/downloads/visual-studio-2015-downloads-vs) (Community, Professional, Enterprise).  The community version is completely free.  
+- [Visual Studio 2015](https://www.visualstudio.com/vs/older-downloads/) (Community, Professional, Enterprise).  The community version is completely free.  
+- [Visual Studio 2017](https://www.visualstudio.com/downloads/) (Community, Professional, Enterprise).  The community version is completely free.  
 
-To debug managed code, ensure you have installed at least [Visual Studio 2015 Update 3](https://www.visualstudio.com/en-us/news/releasenotes/vs2015-update3-vs).
+For Visual Studio 2015:
+* To debug managed code, ensure you have installed at least [Visual Studio 2015 Update 3](https://www.visualstudio.com/en-us/news/releasenotes/vs2015-update3-vs).
+* Make sure that you install "VC++ Tools". By default, they will not be installed.
+* To build for Arm32, Make sure that you have the Windows SDK for Windows 10 installed (or selected to be installed as part of VS installation). To explicitly install Windows SDK, download it from here: [Windows SDK for Windows 10](https://developer.microsoft.com/en-us/windows/downloads)
 
-Make sure that you install "VC++ Tools". By default, they will not be installed.
-
-To build for Arm32, you need to have [Windows SDK for Windows 10](https://developer.microsoft.com/en-us/windows/downloads) installed. 
+For Visual Studio 2017:
+* When doing a 'Workloads' based install, the following are the minimum requirements:
+  * .NET Desktop Development
+    * All Required Components
+    * .NET Framework 4-4.6 Development Tools
+  * Desktop Development with C++
+    * All Required Components
+    * VC++ 2017 v141 Toolset (x86, x64)
+    * Windows 8.1 SDK and UCRT SDK
+    * VC++ 2015.3 v140 Toolset (x86, x64)
+* When doing an 'Individual Components' based install, the following are the minimum requirements:
+  * C# and Visual Basic Roslyn Compilers
+  * Static Analysis Tools
+  * .NET Portable Library Targeting Pack
+  * Windows 10 SDK or Windows 8.1 SDK
+  * Visual Studio C++ Core Features
+  * VC++ 2017 v141 Toolset (x86, x64)
+  * MSBuild
+  * .NET Framework 4.6 Targeting Pack
+  * Windows Universal CRT SDK
+  * VC++ 2015.3 v140 Toolset (x86, x64)
+* To build for Arm32, Make sure that you have the Windows 10 SDK installed (or selected to be installed as part of VS installation). To explicitly install Windows SDK, download it from here: [Windows SDK for Windows 10](https://developer.microsoft.com/en-us/windows/downloads)
+* **Important:** You must have the `msdia120.dll` COM Library registered in order to build the repository.
+  * This binary is registered by default when installing the "VC++ Tools" with Visual Studio 2015
+  * You can also manually register the binary by launching the "Developer Command Prompt for VS2017" with Administrative privileges and running `regsvr32.exe %VSINSTALLDIR%\Common7\IDE\msdia120.dll`
+* **Important:** By default, the build will attempt to use VS2015 as the toolset for the build. To build using VS2017 as your toolset, you must use the "Developer Command Prompt for VS2017".
 
 Visual Studio Express is not supported.
 
 ##CMake
 
-The CoreCLR repo build has been validated using CMake 3.5.2. 
+The CoreCLR repo build has been validated using CMake 3.7.2 
 
 - Install [CMake](http://www.cmake.org/download) for Windows.
 - Add its location (e.g. C:\Program Files (x86)\CMake\bin) to the PATH environment variable.  
@@ -117,4 +144,3 @@ Build has a number of options that you can learn about using build -?.   Some of
 See [Using Your Build](../workflow/UsingYourBuild.md) for instructions on running code with your build.  
 
 See [Running Tests](../workflow/RunningTests.md) for instructions on running the tests.  
-

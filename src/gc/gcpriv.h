@@ -1395,6 +1395,9 @@ protected:
     void thread_no_gc_loh_segments();
 
     PER_HEAP
+    void check_and_set_no_gc_oom();
+
+    PER_HEAP
     void allocate_for_no_gc_after_gc();
 
     PER_HEAP
@@ -2807,11 +2810,9 @@ public:
     PER_HEAP
     BOOL heap_analyze_success;
 
-#ifdef MULTIPLE_HEAPS
     // The generation table. Must always be last.
     PER_HEAP
     generation generation_table [NUMBERGENERATIONS + 1];
-#endif // MULTIPLE_HEAPS
 
     // End DAC zone
 
@@ -3350,6 +3351,9 @@ protected:
 
     PER_HEAP
     size_t loh_allocation_no_gc;
+
+    PER_HEAP
+    bool no_gc_oom_p;
 
     PER_HEAP
     heap_segment* saved_loh_segment_no_gc;
@@ -4284,12 +4288,6 @@ gc_heap*& heap_segment_heap (heap_segment* inst)
     return inst->heap;
 }
 #endif //MULTIPLE_HEAPS
-
-#ifndef MULTIPLE_HEAPS
-extern "C" {
-    extern generation generation_table[NUMBERGENERATIONS + 1];
-}
-#endif // MULTIPLE_HEAPS
 
 inline
 generation* gc_heap::generation_of (int  n)

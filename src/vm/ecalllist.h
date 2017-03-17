@@ -225,14 +225,6 @@ FCFuncStart(gSafeBufferFuncs)
     FCFuncElement("StructureToPtrNative", SafeBuffer::StructureToPtr)
 FCFuncEnd()
 
-#ifndef FEATURE_COREFX_GLOBALIZATION
-FCFuncStart(gNormalizationFuncs)
-    FCFuncElement("nativeNormalizationIsNormalizedString", COMNlsInfo::nativeNormalizationIsNormalizedString)
-    FCFuncElement("nativeNormalizationNormalizeString", COMNlsInfo::nativeNormalizationNormalizeString)
-    QCFuncElement("nativeNormalizationInitNormalization", COMNlsInfo::nativeNormalizationInitNormalization)
-FCFuncEnd()
-#endif // FEATURE_COREFX_GLOBALIZATION
-
 FCFuncStart(gTypedReferenceFuncs)
     FCFuncElement("InternalToObject", ReflectionInvocation::TypedReferenceToObject)
     FCFuncElement("InternalSetTypedReference", ReflectionInvocation::SetTypedReference)
@@ -787,7 +779,6 @@ FCFuncStart(gThreadPoolFuncs)
     FCFuncElement("GetMaxThreadsNative", ThreadPoolNative::CorGetMaxThreads)
     FCFuncElement("NotifyWorkItemComplete", ThreadPoolNative::NotifyRequestComplete)
     FCFuncElement("NotifyWorkItemProgressNative", ThreadPoolNative::NotifyRequestProgress)
-    FCFuncElement("IsThreadPoolHosted", ThreadPoolNative::IsThreadPoolHosted)   
     QCFuncElement("InitializeVMTp", ThreadPoolNative::InitializeVMTp)
     FCFuncElement("ReportThreadStatus", ThreadPoolNative::ReportThreadStatus)   
     QCFuncElement("RequestWorkerThread", ThreadPoolNative::RequestWorkerThread)
@@ -1296,7 +1287,8 @@ FCFuncEnd()
 #endif // ifdef FEATURE_COMINTEROP
 
 FCFuncStart(gRuntimeImportsFuncs)
-    QCFuncElement("RhZeroMemory", SpanNative::SpanClear)
+    QCFuncElement("RhZeroMemory", MemoryNative::Clear)
+    FCFuncElement("RhBulkMoveWithWriteBarrier", MemoryNative::BulkMoveWithWriteBarrier)
 FCFuncEnd()
 
 FCFuncStart(gWeakReferenceFuncs)
@@ -1427,9 +1419,6 @@ FCClassElement("MngdSafeArrayMarshaler", "System.StubHelpers", gMngdSafeArrayMar
 FCClassElement("ModuleBuilder", "System.Reflection.Emit", gCOMModuleBuilderFuncs)
 FCClassElement("ModuleHandle", "System", gCOMModuleHandleFuncs)
 FCClassElement("Monitor", "System.Threading", gMonitorFuncs)
-#ifndef FEATURE_COREFX_GLOBALIZATION
-FCClassElement("Normalization", "System.Text", gNormalizationFuncs)
-#endif // FEATURE_COREFX_GLOBALIZATION
 FCClassElement("Number", "System", gNumberFuncs)
 #ifdef FEATURE_COMINTEROP
 FCClassElement("OAVariantLib", "Microsoft.Win32", gOAVariantFuncs)

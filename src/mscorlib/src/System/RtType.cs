@@ -1012,7 +1012,7 @@ namespace System
                             }
                         }
 
-                        if (ReflectedType.IsSzArray)
+                        if (ReflectedType.IsSZArray)
                         {
                             RuntimeType arrayType = (RuntimeType)ReflectedType.GetElementType();
 
@@ -2431,65 +2431,6 @@ namespace System
         private IntPtr m_cache;
         internal IntPtr m_handle;
 
-#if FEATURE_APPX
-        private INVOCATION_FLAGS m_invocationFlags;
-
-        internal bool IsNonW8PFrameworkAPI()
-        {
-            if (IsGenericParameter)
-                return false;
-
-            if (HasElementType)
-                return ((RuntimeType)GetElementType()).IsNonW8PFrameworkAPI();
-
-            if (IsSimpleTypeNonW8PFrameworkAPI())
-                return true;
-
-            if (IsGenericType && !IsGenericTypeDefinition)
-            {
-                foreach (Type t in GetGenericArguments())
-                {
-                    if (((RuntimeType)t).IsNonW8PFrameworkAPI())
-                        return true;
-                }
-            }
-
-            return false;
-        }
-
-        private bool IsSimpleTypeNonW8PFrameworkAPI()
-        {
-            RuntimeAssembly rtAssembly = GetRuntimeAssembly();
-            if (rtAssembly.IsFrameworkAssembly())
-            {
-                int ctorToken = rtAssembly.InvocableAttributeCtorToken;
-                if (System.Reflection.MetadataToken.IsNullToken(ctorToken) ||
-                    !CustomAttribute.IsAttributeDefined(GetRuntimeModule(), MetadataToken, ctorToken))
-                    return true;
-            }
-
-            return false;
-        }
-
-        internal INVOCATION_FLAGS InvocationFlags
-        {
-            get
-            {
-                if ((m_invocationFlags & INVOCATION_FLAGS.INVOCATION_FLAGS_INITIALIZED) == 0)
-                {
-                    INVOCATION_FLAGS invocationFlags = INVOCATION_FLAGS.INVOCATION_FLAGS_UNKNOWN;
-
-                    if (AppDomain.ProfileAPICheck && IsNonW8PFrameworkAPI())
-                        invocationFlags |= INVOCATION_FLAGS.INVOCATION_FLAGS_NON_W8P_FX_API;
-
-                    m_invocationFlags = invocationFlags | INVOCATION_FLAGS.INVOCATION_FLAGS_INITIALIZED;
-                }
-
-                return m_invocationFlags;
-            }
-        }
-#endif // FEATURE_APPX
-
         internal static readonly RuntimeType ValueType = (RuntimeType)typeof(System.ValueType);
         internal static readonly RuntimeType EnumType = (RuntimeType)typeof(System.Enum);
 
@@ -2809,7 +2750,7 @@ namespace System
 
             // SZArrays implement the methods on IList`1, IEnumerable`1, and ICollection`1 with
             // SZArrayHelper and some runtime magic. We don't have accurate interface maps for them.
-            if (IsSzArray && ifaceType.IsGenericType)
+            if (IsSZArray && ifaceType.IsGenericType)
                 throw new ArgumentException(Environment.GetResourceString("Argument_ArrayGetInterfaceMap"));
 
             int ifaceInstanceMethodCount = RuntimeTypeHandle.GetNumVirtuals(ifaceRtType);
@@ -3601,11 +3542,11 @@ namespace System
         #endregion
 
         #region Arrays
-        internal override bool IsSzArray
+        public sealed override bool IsSZArray
         {
             get
             {
-                return RuntimeTypeHandle.IsSzArray(this);
+                return RuntimeTypeHandle.IsSZArray(this);
             }
         }
 
@@ -4859,28 +4800,11 @@ namespace System
             RuntimeMethodHandleInternal runtime_ctor = default(RuntimeMethodHandleInternal);
             bool bNeedSecurityCheck = true;
             bool bCanBeCached = false;
-            bool bSecurityCheckOff = false;
+            bool bSecurityCheckOff;
 
             if (!skipCheckThis)
                 CreateInstanceCheckThis();
 
-            if (!fillCache)
-                bSecurityCheckOff = true;
-
-#if FEATURE_APPX
-            INVOCATION_FLAGS invocationFlags = InvocationFlags;
-            if ((invocationFlags & INVOCATION_FLAGS.INVOCATION_FLAGS_NON_W8P_FX_API) != 0)
-            {
-                RuntimeAssembly caller = RuntimeAssembly.GetExecutingAssembly(ref stackMark);
-                if (caller != null && !caller.IsSafeForReflection())
-                    throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_APIInvalidForCurrentContext", this.FullName));
-
-                // Allow it because the caller is framework code, but don't cache the result
-                // because we need to do the stack walk every time this type is instantiated.
-                bSecurityCheckOff = false;
-                bCanBeCached = false;
-            }
-#endif
             bSecurityCheckOff = true;       // CoreCLR does not use security at all.   
 
             Object instance = RuntimeTypeHandle.CreateInstance(this, publicOnly, bSecurityCheckOff, ref bCanBeCached, ref runtime_ctor, ref bNeedSecurityCheck);

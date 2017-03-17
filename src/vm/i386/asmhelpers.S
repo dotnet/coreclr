@@ -230,6 +230,8 @@ NESTED_ENTRY StubRareEnable, _TEXT, NoHandler
     push    edx
 
     push    ebx
+
+    CHECK_STACK_ALIGNMENT
     call    C_FUNC(StubRareEnableWorker)
 
     pop     edx
@@ -242,6 +244,8 @@ NESTED_ENTRY StubRareDisableTHROW, _TEXT, NoHandler
     push    edx
 
     push    ebx     // Thread
+
+    CHECK_STACK_ALIGNMENT
     call    C_FUNC(StubRareDisableTHROWWorker)
 
     pop     edx
@@ -542,7 +546,11 @@ NESTED_ENTRY UM2MThunk_WrapperHelper, _TEXT, NoHandler
     mov     eax, [esp + 20] // pEntryThunk
     mov     ecx, [esp + 24] // pThread
     mov     ebx, [esp + 8]  // pThunkArgs
-    call    [esp + 16]      // pAddr
+
+    sub     esp, 8
+    CHECK_STACK_ALIGNMENT
+    call    [esp + 16 + 8]      // pAddr
+    add     esp, 8
 
     pop     ebx
 
@@ -553,9 +561,12 @@ NESTED_ENTRY UMThunkStubRareDisable, _TEXT, NoHandler
     push    eax
     push    ecx
 
+    sub     esp, 12
     push    eax          // Push the UMEntryThunk
     push    ecx          // Push thread
+    CHECK_STACK_ALIGNMENT
     call    C_FUNC(UMThunkStubRareDisableWorker)
+    add     esp, 12
 
     pop     ecx
     pop     eax
@@ -821,8 +832,8 @@ NESTED_END DelayLoad_MethodCall, _TEXT
 //  to optionally patch the target of the jump so that we do not take this slow path again.
 //
 NESTED_ENTRY VirtualMethodFixupStub, _TEXT, NoHandler
-    // Pop the return address. It points right after the call instruction in the thunk.
-    pop     eax
+    // Get the return address. It points right after the call instruction in the thunk.
+    mov     eax, [esp]
     // Calculate the address of the thunk
     sub     eax, 5
 
@@ -836,9 +847,12 @@ NESTED_ENTRY VirtualMethodFixupStub, _TEXT, NoHandler
     // Set frame pointer
     PROLOG_END
 
+    sub     esp, 8
     push    eax         // address of the thunk
     push    ecx         // this ptr
+    CHECK_STACK_ALIGNMENT
     call    C_FUNC(VirtualMethodFixupWorker)
+    add     esp, 8
 
     // Restore stack pointer
     EPILOG_BEG
@@ -849,6 +863,9 @@ NESTED_ENTRY VirtualMethodFixupStub, _TEXT, NoHandler
 
     // Pop ebp frame
     EPILOG_END
+
+    // Pop return address
+    add   esp, 4
 
 PATCH_LABEL VirtualMethodFixupPatchLabel
     // Proceed to execute the actual method.

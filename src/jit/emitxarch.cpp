@@ -742,7 +742,10 @@ void emitter::emitMarkStackLvl(unsigned stackLevel)
     emitCurStackLvl = emitCurIG->igStkLvl = stackLevel;
 
     if (emitMaxStackDepth < emitCurStackLvl)
+    {
+        JITDUMP("Upping emitMaxStackDepth from %d to %d\n", emitMaxStackDepth, emitCurStackLvl);
         emitMaxStackDepth = emitCurStackLvl;
+    }
 }
 #endif
 
@@ -1665,7 +1668,7 @@ inline UNATIVE_OFFSET emitter::emitInsSizeSV(code_t code, int var, int dsp)
 
             if (EBPbased)
             {
-#if defined(_TARGET_AMD64_) && !defined(PLATFORM_UNIX)
+#if defined(_TARGET_AMD64_) && !defined(UNIX_AMD64_ABI)
                 // If localloc is not used, then ebp chaining is done and hence
                 // offset of locals will be at negative offsets, Otherwise offsets
                 // will be positive.  In future, when RBP gets positioned in the
@@ -5137,7 +5140,10 @@ void emitter::emitAdjustStackDepthPushPop(instruction ins)
         emitCurStackLvl += emitCntStackDepth;
 
         if (emitMaxStackDepth < emitCurStackLvl)
+        {
+            JITDUMP("Upping emitMaxStackDepth from %d to %d\n", emitMaxStackDepth, emitCurStackLvl);
             emitMaxStackDepth = emitCurStackLvl;
+        }
     }
     else if (ins == INS_pop)
     {
@@ -5173,7 +5179,10 @@ void emitter::emitAdjustStackDepth(instruction ins, ssize_t val)
         emitCurStackLvl = newStackLvl.Value();
 
         if (emitMaxStackDepth < emitCurStackLvl)
+        {
+            JITDUMP("Upping emitMaxStackDepth from %d to %d\n", emitMaxStackDepth, emitCurStackLvl);
             emitMaxStackDepth = emitCurStackLvl;
+        }
     }
     else if (ins == INS_add)
     {
@@ -5207,22 +5216,25 @@ void emitter::emitAdjustStackDepth(instruction ins, ssize_t val)
  *
  */
 
+// clang-format off
 void emitter::emitIns_Call(EmitCallType          callType,
                            CORINFO_METHOD_HANDLE methHnd,
                            INDEBUG_LDISASM_COMMA(CORINFO_SIG_INFO* sigInfo) // used to report call sites to the EE
-                           void*    addr,
-                           ssize_t  argSize,
-                           emitAttr retSize MULTIREG_HAS_SECOND_GC_RET_ONLY_ARG(emitAttr secondRetSize),
-                           VARSET_VALARG_TP ptrVars,
-                           regMaskTP        gcrefRegs,
-                           regMaskTP        byrefRegs,
-                           IL_OFFSETX       ilOffset, // = BAD_IL_OFFSET
-                           regNumber        ireg,     // = REG_NA
-                           regNumber        xreg,     // = REG_NA
-                           unsigned         xmul,     // = 0
-                           ssize_t          disp,     // = 0
-                           bool             isJump,   // = false
-                           bool             isNoGC)   // = false
+                           void*                 addr,
+                           ssize_t               argSize,
+                           emitAttr              retSize
+                           MULTIREG_HAS_SECOND_GC_RET_ONLY_ARG(emitAttr secondRetSize),
+                           VARSET_VALARG_TP      ptrVars,
+                           regMaskTP             gcrefRegs,
+                           regMaskTP             byrefRegs,
+                           IL_OFFSETX            ilOffset, // = BAD_IL_OFFSET
+                           regNumber             ireg,     // = REG_NA
+                           regNumber             xreg,     // = REG_NA
+                           unsigned              xmul,     // = 0
+                           ssize_t               disp,     // = 0
+                           bool                  isJump,   // = false
+                           bool                  isNoGC)   // = false
+// clang-format on
 {
     /* Sanity check the arguments depending on callType */
 

@@ -322,6 +322,8 @@ public:
 #endif                                       // FEATURE_SIMD
     unsigned char lvRegStruct : 1;           // This is a reg-sized non-field-addressed struct.
 
+    unsigned char lvClassIsExact : 1; // lvClassHandle is the exact type
+
     union {
         unsigned lvFieldLclStart; // The index of the local var representing the first field in the promoted struct
                                   // local.
@@ -703,6 +705,8 @@ public:
     unsigned lvSlotNum; // original slot # (if remapped)
 
     typeInfo lvVerTypeInfo; // type info needed for verification
+
+    CORINFO_CLASS_HANDLE lvClassHnd; // class handle for the local, or null if not known
 
     BYTE* lvGcLayout; // GC layout info for structs
 
@@ -1267,11 +1271,11 @@ typedef struct fgArgTabEntry* fgArgTabEntryPtr;
 
 class fgArgInfo
 {
-    Compiler*  compiler;    // Back pointer to the compiler instance so that we can allocate memory
-    GenTreePtr callTree;    // Back pointer to the GT_CALL node for this fgArgInfo
-    unsigned   argCount;    // Updatable arg count value
-    unsigned   nextSlotNum; // Updatable slot count value
-    unsigned   stkLevel;    // Stack depth when we make this call (for x86)
+    Compiler*    compiler;    // Back pointer to the compiler instance so that we can allocate memory
+    GenTreeCall* callTree;    // Back pointer to the GT_CALL node for this fgArgInfo
+    unsigned     argCount;    // Updatable arg count value
+    unsigned     nextSlotNum; // Updatable slot count value
+    unsigned     stkLevel;    // Stack depth when we make this call (for x86)
 #if defined(UNIX_X86_ABI)
     unsigned padStkAlign; // Count of number of padding slots for stack alignment. This value is used to turn back
                           // stack pointer before it was adjusted after each Call
@@ -1292,8 +1296,8 @@ private:
     void AddArg(fgArgTabEntryPtr curArgTabEntry);
 
 public:
-    fgArgInfo(Compiler* comp, GenTreePtr call, unsigned argCount);
-    fgArgInfo(GenTreePtr newCall, GenTreePtr oldCall);
+    fgArgInfo(Compiler* comp, GenTreeCall* call, unsigned argCount);
+    fgArgInfo(GenTreeCall* newCall, GenTreeCall* oldCall);
 
     fgArgTabEntryPtr AddRegArg(
         unsigned argNum, GenTreePtr node, GenTreePtr parent, regNumber regNum, unsigned numRegs, unsigned alignment);
@@ -2038,9 +2042,9 @@ public:
     GenTreeArgList* gtNewArgList(GenTreePtr op1, GenTreePtr op2);
     GenTreeArgList* gtNewArgList(GenTreePtr op1, GenTreePtr op2, GenTreePtr op3);
 
-    static fgArgTabEntryPtr gtArgEntryByArgNum(GenTreePtr call, unsigned argNum);
-    static fgArgTabEntryPtr gtArgEntryByNode(GenTreePtr call, GenTreePtr node);
-    fgArgTabEntryPtr gtArgEntryByLateArgIndex(GenTreePtr call, unsigned lateArgInx);
+    static fgArgTabEntryPtr gtArgEntryByArgNum(GenTreeCall* call, unsigned argNum);
+    static fgArgTabEntryPtr gtArgEntryByNode(GenTreeCall* call, GenTreePtr node);
+    fgArgTabEntryPtr gtArgEntryByLateArgIndex(GenTreeCall* call, unsigned lateArgInx);
     bool gtArgIsThisPtr(fgArgTabEntryPtr argEntry);
 
     GenTreePtr gtNewAssignNode(GenTreePtr dst, GenTreePtr src);
@@ -2146,7 +2150,7 @@ public:
                               unsigned    flags      = GTF_SIDE_EFFECT,
                               bool        ignoreRoot = false);
 
-    GenTreePtr gtGetThisArg(GenTreePtr call);
+    GenTreePtr gtGetThisArg(GenTreeCall* call);
 
     // Static fields of struct types (and sometimes the types that those are reduced to) are represented by having the
     // static field contain an object pointer to the boxed struct.  This simplifies the GC implementation...but
@@ -2184,6 +2188,8 @@ public:
     CORINFO_CLASS_HANDLE gtGetStructHandleIfPresent(GenTreePtr tree);
     // Get the handle, and assert if not found.
     CORINFO_CLASS_HANDLE gtGetStructHandle(GenTreePtr tree);
+    // Get the handle for a ref type.
+    CORINFO_CLASS_HANDLE gtGetClassHandle(GenTreePtr tree, bool* isExact, bool* isNonNull);
 
 //-------------------------------------------------------------------------
 // Functions to display the trees
@@ -2222,16 +2228,16 @@ public:
     char* gtGetLclVarName(unsigned lclNum);
     void gtDispLclVar(unsigned varNum, bool padForBiggestDisp = true);
     void gtDispTreeList(GenTreePtr tree, IndentStack* indentStack = nullptr);
-    void gtGetArgMsg(GenTreePtr call, GenTreePtr arg, unsigned argNum, int listCount, char* bufp, unsigned bufLength);
-    void gtGetLateArgMsg(GenTreePtr call, GenTreePtr arg, int argNum, int listCount, char* bufp, unsigned bufLength);
-    void gtDispArgList(GenTreePtr tree, IndentStack* indentStack);
+    void gtGetArgMsg(GenTreeCall* call, GenTreePtr arg, unsigned argNum, int listCount, char* bufp, unsigned bufLength);
+    void gtGetLateArgMsg(GenTreeCall* call, GenTreePtr arg, int argNum, int listCount, char* bufp, unsigned bufLength);
+    void gtDispArgList(GenTreeCall* call, IndentStack* indentStack);
     void gtDispFieldSeq(FieldSeqNode* pfsn);
 
     void gtDispRange(LIR::ReadOnlyRange const& range);
 
     void gtDispTreeRange(LIR::Range& containingRange, GenTree* tree);
 
-    void gtDispLIRNode(GenTree* node);
+    void gtDispLIRNode(GenTree* node, const char* prefixMsg = nullptr);
 #endif
 
     // For tree walks
@@ -2854,8 +2860,8 @@ protected:
     bool impCanPInvokeInline();
     bool impCanPInvokeInlineCallSite(BasicBlock* block);
     void impCheckForPInvokeCall(
-        GenTreePtr call, CORINFO_METHOD_HANDLE methHnd, CORINFO_SIG_INFO* sig, unsigned mflags, BasicBlock* block);
-    GenTreePtr impImportIndirectCall(CORINFO_SIG_INFO* sig, IL_OFFSETX ilOffset = BAD_IL_OFFSET);
+        GenTreeCall* call, CORINFO_METHOD_HANDLE methHnd, CORINFO_SIG_INFO* sig, unsigned mflags, BasicBlock* block);
+    GenTreeCall* impImportIndirectCall(CORINFO_SIG_INFO* sig, IL_OFFSETX ilOffset = BAD_IL_OFFSET);
     void impPopArgsForUnmanagedCall(GenTreePtr call, CORINFO_SIG_INFO* sig);
 
     void impInsertHelperCall(CORINFO_HELPER_DESC* helperCall);
@@ -2875,9 +2881,14 @@ protected:
                             CORINFO_CALL_INFO* callInfo,
                             IL_OFFSET          rawILOffset);
 
+    void impDevirtualizeCall(GenTreeCall*            call,
+                             GenTreePtr              obj,
+                             CORINFO_CALL_INFO*      callInfo,
+                             CORINFO_CONTEXT_HANDLE* exactContextHnd);
+
     bool impMethodInfo_hasRetBuffArg(CORINFO_METHOD_INFO* methInfo);
 
-    GenTreePtr impFixupCallStructReturn(GenTreePtr call, CORINFO_CLASS_HANDLE retClsHnd);
+    GenTreePtr impFixupCallStructReturn(GenTreeCall* call, CORINFO_CLASS_HANDLE retClsHnd);
 
     GenTreePtr impFixupStructReturnType(GenTreePtr op, CORINFO_CLASS_HANDLE retClsHnd);
 
@@ -3014,11 +3025,11 @@ public:
 
     GenTreePtr impReadyToRunLookupToTree(CORINFO_CONST_LOOKUP* pLookup, unsigned flags, void* compileTimeHandle);
 
-    GenTreePtr impReadyToRunHelperToTree(CORINFO_RESOLVED_TOKEN* pResolvedToken,
-                                         CorInfoHelpFunc         helper,
-                                         var_types               type,
-                                         GenTreeArgList*         arg                = nullptr,
-                                         CORINFO_LOOKUP_KIND*    pGenericLookupKind = nullptr);
+    GenTreeCall* impReadyToRunHelperToTree(CORINFO_RESOLVED_TOKEN* pResolvedToken,
+                                           CorInfoHelpFunc         helper,
+                                           var_types               type,
+                                           GenTreeArgList*         arg                = nullptr,
+                                           CORINFO_LOOKUP_KIND*    pGenericLookupKind = nullptr);
 
     GenTreePtr impCastClassOrIsInstToTree(GenTreePtr              op1,
                                           GenTreePtr              op2,
@@ -3657,9 +3668,9 @@ public:
 
     GenTreePtr fgInitThisClass();
 
-    GenTreePtr fgGetStaticsCCtorHelper(CORINFO_CLASS_HANDLE cls, CorInfoHelpFunc helper);
+    GenTreeCall* fgGetStaticsCCtorHelper(CORINFO_CLASS_HANDLE cls, CorInfoHelpFunc helper);
 
-    GenTreePtr fgGetSharedCCtor(CORINFO_CLASS_HANDLE cls);
+    GenTreeCall* fgGetSharedCCtor(CORINFO_CLASS_HANDLE cls);
 
     void fgLocalVarLiveness();
 
@@ -4677,7 +4688,7 @@ private:
     void fgNoteNonInlineCandidate(GenTreeStmt* stmt, GenTreeCall* call);
     static fgWalkPreFn fgFindNonInlineCandidate;
 #endif
-    GenTreePtr fgOptimizeDelegateConstructor(GenTreePtr call, CORINFO_CONTEXT_HANDLE* ExactContextHnd);
+    GenTreePtr fgOptimizeDelegateConstructor(GenTreeCall* call, CORINFO_CONTEXT_HANDLE* ExactContextHnd);
     GenTreePtr fgMorphLeaf(GenTreePtr tree);
     void fgAssignSetVarDef(GenTreePtr tree);
     GenTreePtr fgMorphOneAsgBlockOp(GenTreePtr tree);
@@ -4819,7 +4830,7 @@ private:
 
     static fgWalkPreFn gtHasLocalsWithAddrOpCB;
     bool gtCanOptimizeTypeEquality(GenTreePtr tree);
-    bool gtIsTypeHandleToRuntimeTypeHelper(GenTreePtr tree);
+    bool gtIsTypeHandleToRuntimeTypeHelper(GenTreeCall* call);
     bool gtIsActiveCSE_Candidate(GenTreePtr tree);
 
 #ifdef DEBUG
@@ -5542,7 +5553,7 @@ protected:
         callInterf   ivaMaskCall;       // What kind of calls are there?
     };
 
-    static callInterf optCallInterf(GenTreePtr call);
+    static callInterf optCallInterf(GenTreeCall* call);
 
 public:
     // VN based copy propagation.
@@ -5817,8 +5828,20 @@ public:
 
         bool HasSameOp1(AssertionDsc* that, bool vnBased)
         {
-            return (op1.kind == that->op1.kind) &&
-                   ((vnBased && (op1.vn == that->op1.vn)) || (!vnBased && (op1.lcl.lclNum == that->op1.lcl.lclNum)));
+            if (op1.kind != that->op1.kind)
+            {
+                return false;
+            }
+            else if (op1.kind == O1K_ARR_BND)
+            {
+                assert(vnBased);
+                return (op1.bnd.vnIdx == that->op1.bnd.vnIdx) && (op1.bnd.vnLen == that->op1.bnd.vnLen);
+            }
+            else
+            {
+                return ((vnBased && (op1.vn == that->op1.vn)) ||
+                        (!vnBased && (op1.lcl.lclNum == that->op1.lcl.lclNum)));
+            }
         }
 
         bool HasSameOp2(AssertionDsc* that, bool vnBased)
@@ -5867,11 +5890,36 @@ public:
 
         bool Equals(AssertionDsc* that, bool vnBased)
         {
-            return (assertionKind == that->assertionKind) && HasSameOp1(that, vnBased) && HasSameOp2(that, vnBased);
+            if (assertionKind != that->assertionKind)
+            {
+                return false;
+            }
+            else if (assertionKind == OAK_NO_THROW)
+            {
+                assert(op2.kind == O2K_INVALID);
+                return HasSameOp1(that, vnBased);
+            }
+            else
+            {
+                return HasSameOp1(that, vnBased) && HasSameOp2(that, vnBased);
+            }
         }
     };
 
     typedef unsigned short AssertionIndex;
+
+    // By default the assertion generated by a GT_JTRUE node holds on the true (bbJumpDest) edge.
+    // If the OAE_NEXT_EDGE bit of the assertion index is set then the assertion holds on the false (bbNext) edge
+    // and the OAE_NEXT_EDGE bit needs to be masked to obtain the real assertion index.
+    // Currently this is used by OAK_NO_THROW assertions but it may also be useful for other kinds of assertions
+    // by removing the need to create unnecessary complementary assertions. However, this bit twiddling mechanism
+    // is fragile and should be replaced with something cleaner (e.g. struct + bitfield).
+    enum optAssertionEdge : AssertionIndex
+    {
+        // OAE_JUMP_EDGE  = 0x0000, // assertion holds for bbJumpDest (default)
+        OAE_NEXT_EDGE  = 0x8000, // assertion holds for bbNext
+        OAE_INDEX_MASK = 0x7fff
+    };
 
 protected:
     static fgWalkPreFn optAddCopiesCallback;
@@ -5980,14 +6028,14 @@ public:
     GenTreePtr optAssertionProp_LclVar(ASSERT_VALARG_TP assertions, const GenTreePtr tree, const GenTreePtr stmt);
     GenTreePtr optAssertionProp_Ind(ASSERT_VALARG_TP assertions, const GenTreePtr tree, const GenTreePtr stmt);
     GenTreePtr optAssertionProp_Cast(ASSERT_VALARG_TP assertions, const GenTreePtr tree, const GenTreePtr stmt);
-    GenTreePtr optAssertionProp_Call(ASSERT_VALARG_TP assertions, const GenTreePtr tree, const GenTreePtr stmt);
+    GenTreePtr optAssertionProp_Call(ASSERT_VALARG_TP assertions, GenTreeCall* call, const GenTreePtr stmt);
     GenTreePtr optAssertionProp_RelOp(ASSERT_VALARG_TP assertions, const GenTreePtr tree, const GenTreePtr stmt);
     GenTreePtr optAssertionProp_Comma(ASSERT_VALARG_TP assertions, const GenTreePtr tree, const GenTreePtr stmt);
     GenTreePtr optAssertionProp_BndsChk(ASSERT_VALARG_TP assertions, const GenTreePtr tree, const GenTreePtr stmt);
     GenTreePtr optAssertionPropGlobal_RelOp(ASSERT_VALARG_TP assertions, const GenTreePtr tree, const GenTreePtr stmt);
     GenTreePtr optAssertionPropLocal_RelOp(ASSERT_VALARG_TP assertions, const GenTreePtr tree, const GenTreePtr stmt);
     GenTreePtr optAssertionProp_Update(const GenTreePtr newTree, const GenTreePtr tree, const GenTreePtr stmt);
-    GenTreePtr optNonNullAssertionProp_Call(ASSERT_VALARG_TP assertions, const GenTreePtr tree, const GenTreePtr stmt);
+    GenTreePtr optNonNullAssertionProp_Call(ASSERT_VALARG_TP assertions, GenTreeCall* call, const GenTreePtr stmt);
 
     // Implied assertion functions.
     void optImpliedAssertions(AssertionIndex assertionIndex, ASSERT_TP& activeAssertions);

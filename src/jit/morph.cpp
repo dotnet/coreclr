@@ -92,7 +92,7 @@ GenTreePtr Compiler::fgMorphIntoHelperCall(GenTreePtr tree, int helper, GenTreeA
     tree->gtCall.gtEntryPoint.addr = nullptr;
 #endif
 
-#if defined(_TARGET_X86_) && !defined(LEGACY_BACKEND)
+#if (defined(_TARGET_X86_) || defined(_TARGET_ARM_)) && !defined(LEGACY_BACKEND)
     if (varTypeIsLong(tree))
     {
         GenTreeCall*    callNode    = tree->AsCall();
@@ -101,7 +101,7 @@ GenTreePtr Compiler::fgMorphIntoHelperCall(GenTreePtr tree, int helper, GenTreeA
         retTypeDesc->InitializeLongReturnType(this);
         callNode->ClearOtherRegs();
     }
-#endif
+#endif // _TARGET_XXX_
 
     /* Perform the morphing */
 
@@ -850,11 +850,10 @@ void fgArgTabEntry::Dump()
 }
 #endif
 
-fgArgInfo::fgArgInfo(Compiler* comp, GenTreePtr call, unsigned numArgs)
+fgArgInfo::fgArgInfo(Compiler* comp, GenTreeCall* call, unsigned numArgs)
 {
-    compiler = comp;
-    callTree = call;
-    assert(call->IsCall());
+    compiler    = comp;
+    callTree    = call;
     argCount    = 0; // filled in arg count, starts at zero
     nextSlotNum = INIT_ARG_STACK_SLOT;
     stkLevel    = 0;
@@ -893,17 +892,12 @@ fgArgInfo::fgArgInfo(Compiler* comp, GenTreePtr call, unsigned numArgs)
  *  in the argTable contains pointers that must point to the
  *  new arguments and not the old arguments.
  */
-fgArgInfo::fgArgInfo(GenTreePtr newCall, GenTreePtr oldCall)
+fgArgInfo::fgArgInfo(GenTreeCall* newCall, GenTreeCall* oldCall)
 {
-    assert(oldCall->IsCall());
-    assert(newCall->IsCall());
-
     fgArgInfoPtr oldArgInfo = oldCall->gtCall.fgArgInfo;
 
-    compiler = oldArgInfo->compiler;
-    ;
-    callTree = newCall;
-    assert(newCall->IsCall());
+    compiler    = oldArgInfo->compiler;
+    callTree    = newCall;
     argCount    = 0; // filled in arg count, starts at zero
     nextSlotNum = INIT_ARG_STACK_SLOT;
     stkLevel    = oldArgInfo->stkLevel;
@@ -931,22 +925,22 @@ fgArgInfo::fgArgInfo(GenTreePtr newCall, GenTreePtr oldCall)
     // so we can iterate over these argument lists more uniformly.
     // Need to provide a temporary non-null first arguments to these constructors: if we use them, we'll replace them
     GenTreeArgList* newArgs;
-    GenTreeArgList  newArgObjp(newCall, newCall->gtCall.gtCallArgs);
+    GenTreeArgList  newArgObjp(newCall, newCall->gtCallArgs);
     GenTreeArgList* oldArgs;
-    GenTreeArgList  oldArgObjp(oldCall, oldCall->gtCall.gtCallArgs);
+    GenTreeArgList  oldArgObjp(oldCall, oldCall->gtCallArgs);
 
-    if (newCall->gtCall.gtCallObjp == nullptr)
+    if (newCall->gtCallObjp == nullptr)
     {
-        assert(oldCall->gtCall.gtCallObjp == nullptr);
-        newArgs = newCall->gtCall.gtCallArgs;
-        oldArgs = oldCall->gtCall.gtCallArgs;
+        assert(oldCall->gtCallObjp == nullptr);
+        newArgs = newCall->gtCallArgs;
+        oldArgs = oldCall->gtCallArgs;
     }
     else
     {
-        assert(oldCall->gtCall.gtCallObjp != nullptr);
-        newArgObjp.Current() = newCall->gtCall.gtCallArgs;
+        assert(oldCall->gtCallObjp != nullptr);
+        newArgObjp.Current() = newCall->gtCallArgs;
         newArgs              = &newArgObjp;
-        oldArgObjp.Current() = oldCall->gtCall.gtCallObjp;
+        oldArgObjp.Current() = oldCall->gtCallObjp;
         oldArgs              = &oldArgObjp;
     }
 
@@ -1030,8 +1024,8 @@ fgArgInfo::fgArgInfo(GenTreePtr newCall, GenTreePtr oldCall)
 
     if (scanRegArgs)
     {
-        newArgs = newCall->gtCall.gtCallLateArgs;
-        oldArgs = oldCall->gtCall.gtCallLateArgs;
+        newArgs = newCall->gtCallLateArgs;
+        oldArgs = oldCall->gtCallLateArgs;
 
         while (newArgs)
         {
@@ -2672,10 +2666,8 @@ GenTree* Compiler::fgInsertCommaFormTemp(GenTree** ppTree, CORINFO_CLASS_HANDLE 
 #pragma warning(push)
 #pragma warning(disable : 21000) // Suppress PREFast warning about overly large function
 #endif
-GenTreeCall* Compiler::fgMorphArgs(GenTreeCall* callNode)
+GenTreeCall* Compiler::fgMorphArgs(GenTreeCall* call)
 {
-    GenTreeCall* call = callNode->AsCall();
-
     GenTreePtr args;
     GenTreePtr argx;
 
@@ -4336,6 +4328,7 @@ GenTreeCall* Compiler::fgMorphArgs(GenTreeCall* callNode)
 
     if (fgPtrArgCntMax < fgPtrArgCntCur)
     {
+        JITDUMP("Upping fgPtrArgCntMax from %d to %d\n", fgPtrArgCntMax, fgPtrArgCntCur);
         fgPtrArgCntMax = fgPtrArgCntCur;
     }
 
@@ -11205,11 +11198,13 @@ GenTreePtr Compiler::fgMorphSmpOp(GenTreePtr tree, MorphAddrContext* mac)
                     GenTreePtr pGetType;
 
 #ifdef LEGACY_BACKEND
-                    bool bOp1ClassFromHandle = gtIsTypeHandleToRuntimeTypeHelper(op1);
-                    bool bOp2ClassFromHandle = gtIsTypeHandleToRuntimeTypeHelper(op2);
+                    bool bOp1ClassFromHandle = gtIsTypeHandleToRuntimeTypeHelper(op1->AsCall());
+                    bool bOp2ClassFromHandle = gtIsTypeHandleToRuntimeTypeHelper(op2->AsCall());
 #else
-                    bool bOp1ClassFromHandle = op1->gtOper == GT_CALL ? gtIsTypeHandleToRuntimeTypeHelper(op1) : false;
-                    bool bOp2ClassFromHandle = op2->gtOper == GT_CALL ? gtIsTypeHandleToRuntimeTypeHelper(op2) : false;
+                    bool bOp1ClassFromHandle =
+                        op1->gtOper == GT_CALL ? gtIsTypeHandleToRuntimeTypeHelper(op1->AsCall()) : false;
+                    bool bOp2ClassFromHandle =
+                        op2->gtOper == GT_CALL ? gtIsTypeHandleToRuntimeTypeHelper(op2->AsCall()) : false;
 #endif
 
                     // Optimize typeof(...) == typeof(...)
@@ -14578,7 +14573,10 @@ GenTreePtr Compiler::fgMorphToEmulatedFP(GenTreePtr tree)
         tree = fgMorphIntoHelperCall(tree, helper, args);
 
         if (fgPtrArgCntMax < fgPtrArgCntCur)
+        {
+            JITDUMP("Upping fgPtrArgCntMax from %d to %d\n", fgPtrArgCntMax, fgPtrArgCntCur);
             fgPtrArgCntMax = fgPtrArgCntCur;
+        }
 
         fgPtrArgCntCur -= argc;
         return tree;
@@ -17251,10 +17249,30 @@ Compiler::fgWalkResult Compiler::fgMorphStructField(GenTreePtr tree, fgWalkData*
                 tree->gtFlags &= ~GTF_GLOB_REF;
 
                 GenTreePtr parent = fgWalkPre->parentStack->Index(1);
-                if ((parent->gtOper == GT_ASG) && (parent->gtOp.gtOp1 == tree))
+                if (parent->gtOper == GT_ASG)
                 {
-                    tree->gtFlags |= GTF_VAR_DEF;
-                    tree->gtFlags |= GTF_DONT_CSE;
+                    if (parent->gtOp.gtOp1 == tree)
+                    {
+                        tree->gtFlags |= GTF_VAR_DEF;
+                        tree->gtFlags |= GTF_DONT_CSE;
+                    }
+
+                    // Promotion of struct containing struct fields where the field
+                    // is a struct with a single pointer sized scalar type field: in
+                    // this case struct promotion uses the type  of the underlying
+                    // scalar field as the type of struct field instead of recursively
+                    // promoting. This can lead to a case where we have a block-asgn
+                    // with its RHS replaced with a scalar type.  Mark RHS value as
+                    // DONT_CSE so that assertion prop will not do const propagation.
+                    // The reason this is required is that if RHS of a block-asg is a
+                    // constant, then it is interpreted as init-block incorrectly.
+                    //
+                    // TODO - This can also be avoided if we implement recursive struct
+                    // promotion.
+                    if (varTypeIsStruct(parent) && parent->gtOp.gtOp2 == tree && !varTypeIsStruct(tree))
+                    {
+                        tree->gtFlags |= GTF_DONT_CSE;
+                    }
                 }
 #ifdef DEBUG
                 if (verbose)
