@@ -65,7 +65,7 @@ namespace System.Globalization
         internal static void ValidateStyles(TimeSpanStyles style, String parameterName)
         {
             if (style != TimeSpanStyles.None && style != TimeSpanStyles.AssumeNegative)
-                throw new ArgumentException(Environment.GetResourceString("Argument_InvalidTimeSpanStyles"), parameterName);
+                throw new ArgumentException(SR.Argument_InvalidTimeSpanStyles, parameterName);
         }
 
         internal const int unlimitedDigits = -1;
@@ -557,7 +557,7 @@ namespace System.Globalization
 
                     default:
                         Debug.Assert(false, "Unknown TimeSpanParseFailure: " + m_failure);
-                        return new FormatException(Environment.GetResourceString("Format_InvalidString"));
+                        return new FormatException(SR.Format_InvalidString);
                 }
             }
         }

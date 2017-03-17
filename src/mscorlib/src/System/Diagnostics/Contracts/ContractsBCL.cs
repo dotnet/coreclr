@@ -95,7 +95,7 @@ namespace System.Diagnostics.Contracts
         static partial void ReportFailure(ContractFailureKind failureKind, String userMessage, String conditionText, Exception innerException)
         {
             if (failureKind < ContractFailureKind.Precondition || failureKind > ContractFailureKind.Assume)
-                throw new ArgumentException(Environment.GetResourceString("Arg_EnumIllegalVal", failureKind), nameof(failureKind));
+                throw new ArgumentException(SR.Format(SR.Arg_EnumIllegalVal, failureKind), nameof(failureKind));
             Contract.EndContractBlock();
 
             // displayMessage == null means: yes we handled it. Otherwise it is the localized failure message
@@ -308,7 +308,7 @@ namespace System.Runtime.CompilerServices
         static partial void RaiseContractFailedEventImplementation(ContractFailureKind failureKind, String userMessage, String conditionText, Exception innerException, ref string resultFailureMessage)
         {
             if (failureKind < ContractFailureKind.Precondition || failureKind > ContractFailureKind.Assume)
-                throw new ArgumentException(Environment.GetResourceString("Arg_EnumIllegalVal", failureKind), nameof(failureKind));
+                throw new ArgumentException(SR.Format(SR.Arg_EnumIllegalVal, failureKind), nameof(failureKind));
             Contract.EndContractBlock();
 
             string returnValue;

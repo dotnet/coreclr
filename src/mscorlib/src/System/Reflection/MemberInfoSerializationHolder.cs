@@ -72,7 +72,7 @@ namespace System.Reflection
             String typeName = info.GetString("ClassName");
 
             if (assemblyName == null || typeName == null)
-                throw new SerializationException(Environment.GetResourceString("Serialization_InsufficientState"));
+                throw new SerializationException(SR.Serialization_InsufficientState);
 
             Assembly assem = FormatterServices.LoadAssemblyFromString(assemblyName);
             m_reflectedType = assem.GetType(typeName, true, false) as RuntimeType;
@@ -110,7 +110,7 @@ namespace System.Reflection
                         FieldInfo[] fields = m_reflectedType.GetMember(m_memberName, MemberTypes.Field, bindingFlags) as FieldInfo[];
 
                         if (fields.Length == 0)
-                            throw new SerializationException(Environment.GetResourceString("Serialization_UnknownMember", m_memberName));
+                            throw new SerializationException(SR.Format(SR.Serialization_UnknownMember, m_memberName));
 
                         return fields[0];
                     }
@@ -122,7 +122,7 @@ namespace System.Reflection
                         EventInfo[] events = m_reflectedType.GetMember(m_memberName, MemberTypes.Event, bindingFlags) as EventInfo[];
 
                         if (events.Length == 0)
-                            throw new SerializationException(Environment.GetResourceString("Serialization_UnknownMember", m_memberName));
+                            throw new SerializationException(SR.Format(SR.Serialization_UnknownMember, m_memberName));
 
                         return events[0];
                     }
@@ -134,7 +134,7 @@ namespace System.Reflection
                         PropertyInfo[] properties = m_reflectedType.GetMember(m_memberName, MemberTypes.Property, bindingFlags) as PropertyInfo[];
 
                         if (properties.Length == 0)
-                            throw new SerializationException(Environment.GetResourceString("Serialization_UnknownMember", m_memberName));
+                            throw new SerializationException(SR.Format(SR.Serialization_UnknownMember, m_memberName));
 
                         if (properties.Length == 1)
                             return properties[0];
@@ -274,7 +274,7 @@ namespace System.Reflection
                 #endregion
 
                 default:
-                    throw new ArgumentException(Environment.GetResourceString("Serialization_MemberTypeNotRecognized"));
+                    throw new ArgumentException(SR.Serialization_MemberTypeNotRecognized);
             }
         }
         #endregion

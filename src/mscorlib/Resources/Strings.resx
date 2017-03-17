@@ -1218,6 +1218,9 @@
   <data name="Argument_DateTimeIsNotAmbiguous" xml:space="preserve">
     <value>The supplied DateTime is not in an ambiguous time range.</value>
   </data>
+  <data name="Argument_DateTimeKindMustBeUnspecified" xml:space="preserve">
+    <value>The supplied DateTime must have the Kind property set to DateTimeKind.Unspecified.</value>
+  </data>
   <data name="Argument_DateTimeKindMustBeUnspecifiedOrUtc" xml:space="preserve">
     <value>The supplied DateTime must have the Kind property set to DateTimeKind.Unspecified or DateTimeKind.Utc.</value>
   </data>
@@ -4097,6 +4100,9 @@
   <data name="NotSupported_NotDynamicModule" xml:space="preserve">
     <value>The MethodRental.SwapMethodBody method can only be called to swap the method body of a method in a dynamic module.</value>
   </data>
+  <data name="NotSupported_NoTypeInfo" xml:space="preserve">
+    <value>Cannot resolve {0} to a TypeInfo object.</value>
+  </data>
   <data name="NotSupported_NYI" xml:space="preserve">
     <value>This feature is not currently implemented.</value>
   </data>
@@ -4562,6 +4568,9 @@
   </data>
   <data name="Serialization_InvalidPtrValue" xml:space="preserve">
     <value>An IntPtr or UIntPtr with an eight byte value cannot be deserialized on a machine with a four byte word size.</value>
+  </data>
+  <data name="Serialization_InvalidType" xml:space="preserve">
+    <value>Only system-provided types can be passed to the GetUninitializedObject method. '{0}' is not a valid instance of a type.</value>
   </data>
   <data name="Serialization_KeyValueDifferentSizes" xml:space="preserve">
     <value>The keys and values arrays have different sizes.</value>

@@ -363,7 +363,7 @@ namespace System
                 StringBuilder buf = new StringBuilder(MaxMachineNameLength);
                 int len = MaxMachineNameLength;
                 if (Win32Native.GetComputerName(buf, ref len) == 0)
-                    throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_ComputerName"));
+                    throw new InvalidOperationException(SR.InvalidOperation_ComputerName);
                 return buf.ToString();
             }
         }
@@ -520,12 +520,12 @@ namespace System
                     Microsoft.Win32.Win32Native.OSVERSIONINFO osvi = new Microsoft.Win32.Win32Native.OSVERSIONINFO();
                     if (!GetVersion(osvi))
                     {
-                        throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_GetVersion"));
+                        throw new InvalidOperationException(SR.InvalidOperation_GetVersion);
                     }
 
                     Microsoft.Win32.Win32Native.OSVERSIONINFOEX osviEx = new Microsoft.Win32.Win32Native.OSVERSIONINFOEX();
                     if (!GetVersionEx(osviEx))
-                        throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_GetVersion"));
+                        throw new InvalidOperationException(SR.InvalidOperation_GetVersion);
 
 #if PLATFORM_UNIX
                     PlatformID id = PlatformID.Unix;

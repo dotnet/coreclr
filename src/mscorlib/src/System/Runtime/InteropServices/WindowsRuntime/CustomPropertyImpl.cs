@@ -113,13 +113,13 @@ namespace System.Runtime.InteropServices.WindowsRuntime
                 throw new MethodAccessException(
                     String.Format(
                         CultureInfo.CurrentCulture,
-                        Environment.GetResourceString("Arg_MethodAccessException_WithMethodName"),
+                        SR.Arg_MethodAccessException_WithMethodName,
                         accessor.ToString(),
                         accessor.DeclaringType.FullName));
 
             RuntimeMethodInfo rtMethod = accessor as RuntimeMethodInfo;
             if (rtMethod == null)
-                throw new ArgumentException(Environment.GetResourceString("Argument_MustBeRuntimeMethodInfo"));
+                throw new ArgumentException(SR.Argument_MustBeRuntimeMethodInfo);
 
             // We can safely skip access check because this is only used in full trust scenarios.
             // And we have already verified that the property accessor is public.

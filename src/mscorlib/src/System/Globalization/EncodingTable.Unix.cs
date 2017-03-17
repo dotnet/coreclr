@@ -45,7 +45,7 @@ namespace System.Globalization
             throw new ArgumentException(
                 string.Format(
                     CultureInfo.CurrentCulture,
-                    Environment.GetResourceString("Argument_EncodingNotSupported"), name), nameof(name));
+                    SR.Argument_EncodingNotSupported, name), nameof(name));
         }
 
         internal static CodePageDataItem GetCodePageDataItem(int codepage)
