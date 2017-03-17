@@ -3,8 +3,6 @@
 // See the LICENSE file in the project root for more information.
 
 using System.Collections.Generic;
-using CultureInfo = System.Globalization.CultureInfo;
-using System.Security;
 using System.Security.Policy;
 using System.IO;
 using System.Configuration.Assemblies;
