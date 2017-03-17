@@ -441,7 +441,6 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="$(BclSourcesRoot)\System\Reflection\AmbiguousMatchException.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Reflection\Assembly.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Reflection\Assembly.CoreCLR.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Reflection\AssemblyAttributes.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Reflection\AssemblyName.cs" />
@@ -486,7 +485,6 @@
     <Compile Include="$(BclSourcesRoot)\System\Reflection\ModuleResolveEventHandler.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Reflection\MethodBody.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Reflection\ParameterAttributes.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Reflection\ParameterInfo.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Reflection\ParameterInfo.CoreCLR.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Reflection\ParameterModifier.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Reflection\Pointer.cs" />
