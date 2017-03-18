@@ -43,6 +43,7 @@ If the *Default LoadContext* fallback also did not resolve the load (or was not 
 
 ## Constraints
 
+* **System.Private.CoreLib.dll** is only loaded once, and into the **Default LoadContext**, during the .NET Core Runtime startup as it is a logical extension of the same. It cannot be loaded into **Custom LoadContext**.
 * Currently, custom **LoadContext** cannot be unloaded once created. This is a feature we are looking into for a future release.
 * If an attempt is made to load a R2R image from the same location in multiple load context's, then precompiled code can only be used from the first image that got loaded. The subsequent images will have their code JITted. This happens because subsequent loading binaries from the same location results in OS mapping them to the same memory as the previous one was mapped to and thus, could corrupt internal state information required for use precompiled code.
 
@@ -52,7 +53,7 @@ Tests are present [here](https://github.com/dotnet/corefx/tree/master/src/System
 
 ## API Surface
 
-Most of the **LoadContex** [API surface](https://github.com/dotnet/corefx/blob/master/src/System.Runtime.Loader/ref/System.Runtime.Loader.cs) is self-explanatory. Key APIs/Properties, though, are described below:
+Most of the **AssemblyLoadContext** [API surface](https://github.com/dotnet/corefx/blob/master/src/System.Runtime.Loader/ref/System.Runtime.Loader.cs) is self-explanatory. Key APIs/Properties, though, are described below:
 
 ### Default
 
@@ -60,4 +61,13 @@ This property will return a reference to the *Default LoadContext*.
 
 ### LoadFromAssemblyName
 
-This method can be used to load an assembly into a load context different from the current one.
+This method can be used to load an assembly into a load context different from the load context of the currently executing assembly.
+
+## Assembly Load APIs and LoadContext
+
+As part of .NET Standard 2.0 effort, certain assembly load APIs off the **AppDomain** type, which were present in Desktop .NET Framework, have been brought back. The following maps the APIs to the load context in which they will load the assembly:
+
+* Assembly.Load - loads the assembly into the *Default LoadContext*
+* Assemby.LoadFrom - loads the assembly into the *Default LoadContext*
+* Assembly.LoadFile - creates a new (anonymous) load context to load the assembly into.
+* Assembly.Load(byte[]) - creates a new (anonymous) load context to load the assembly into.
