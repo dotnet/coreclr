@@ -6977,14 +6977,17 @@ BOOL MethodTable::FindDefaultMethod(
                     MethodDesc *pMD = methodIt.GetMethodDesc();
                     if (pMD->IsVirtual() && !pMD->IsAbstract() /* && !pMD->IsNewSlot() */)
                     {
-                        MetaSig sig1(pMD);
-                        MetaSig sig2(pInterfaceMD);
-                        if (MetaSig::CompareMethodSigs(sig1, sig2, /* ignoreCallConv = */TRUE))
+                        if (strcmp(pMD->GetName(), pInterfaceMD->GetName()) == 0)
                         {
-                            // Found a match
-                            // @TODO - Compare constraints?
-                            pCurMD = pMD;
-                            break;
+                            MetaSig sig1(pMD);
+                            MetaSig sig2(pInterfaceMD);
+                            if (MetaSig::CompareMethodSigs(sig1, sig2, /* ignoreCallConv = */TRUE))
+                            {
+                                // Found a match
+                                // @TODO - Compare constraints?
+                                pCurMD = pMD;
+                                break;
+                            }
                         }
                     }
                 }
@@ -6993,23 +6996,30 @@ BOOL MethodTable::FindDefaultMethod(
             if (pCurMD != NULL)
             {
                 //
-                // Found a potential candidate
+                // Found a match. But is it a more specific match (we want most specific interfaces)
                 //
+
                 if (pCurMD->HasClassOrMethodInstantiation())
                 {
+                    // Instantiate the MethodDesc
+                    // We don't want generic dictionary from this pointer - we need pass secret type argument
+                    // from instantiating stubs
                     pCurMD = MethodDesc::FindOrCreateAssociatedMethodDesc(
                                 pCurMD,
                                 pCurMT,
-                                FALSE, // forceBoxedEntryPoint
-                                Instantiation(),
-                                FALSE, // allowInstParam
-                                TRUE // forceRemoteableMethod
+                                FALSE,                  // forceBoxedEntryPoint
+                                pCurMD->HasMethodInstantiation() ? 
+                                    pCurMD->AsInstantiatedMethodDesc()->IMD_GetMethodInstantiation():
+                                    Instantiation(),
+                                FALSE,                  // allowInstParam
+                                TRUE                    // forceRemoteableMethod
                             );
                 }
-
+                
                 if (pBestCandidateMT == NULL ||                         // first time
                     pCurMT->CanCastToInterface(pBestCandidateMT))       // Prefer super interface (IList over IEnumerable)
                 {
+                    // This is a better match
                     pBestCandidateMT = pCurMT;
                     pBestCandidateMD = pCurMD;
                 }
@@ -7022,120 +7032,6 @@ BOOL MethodTable::FindDefaultMethod(
         *ppDefaultMethod = pBestCandidateMD;
         RETURN(TRUE);
     }
-
-/*
-    const BYTE *        pVal;
-    ULONG               cbVal;
-    HRESULT hr = GetMDImport()->GetCustomAttributeByName(GetCl(), g_DefaultImplementationAttribute, (const void **)&pVal, &cbVal);
-    if (hr == S_OK)
-    {
-        CustomAttributeParser cap(pVal, cbVal);
-        IfFailThrow(cap.SkipProlog());
-        UINT32 defaultImplementationsCount = 0;
-        IfFailThrow(cap.GetU4(&defaultImplementationsCount));
-        if (defaultImplementationsCount == 0xFFFFFFFFU)
-        {
-            // string array parameter was null. Treat it as if it was empty
-        }
-        else
-        {
-            HashedTypeEntry foundEntry;
-
-            Module* pTypeDefModule = NULL;
-            {
-                NameHandle thisTypeNameHandle(this->GetModule(), this->GetCl());
-                LPCUTF8 pszNamespace;
-                LPCUTF8 pszName = this->GetFullyQualifiedNameInfo(&pszNamespace);
-                thisTypeNameHandle.SetName(pszNamespace, pszName);
-                thisTypeNameHandle.SetTokenNotToLoad(tdAllTypes);
-
-                mdToken tkTypeDefInterface = mdTokenNil;
-                BOOL fUsesTypeForwarder = FALSE;
-                TypeHandle foundType;
-                mdToken mdFoundExportedType;
-
-//                BOOL foundInterfaceTypeViaNamesearch = this->GetModule()->GetClassLoader()->ResolveNameToTypeDefThrowing(this->GetModule(), &thisTypeNameHandle, &pTypeDefModule, &tkTypeDefInterface, Loader::DontLoad, NULL);
-                BOOL foundInterfaceTypeViaNamesearch = this->GetModule()->GetClassLoader()->FindClassModuleThrowing(&thisTypeNameHandle, &foundType, &tkTypeDefInterface, &pTypeDefModule, &mdFoundExportedType, &foundEntry, this->GetModule(), Loader::DontLoad);
-                ASSERT(foundInterfaceTypeViaNamesearch);
-                ASSERT(pTypeDefModule = this->GetModule());
-                ASSERT(tkTypeDefInterface == this->GetCl());
-            }
-
-            LPCUTF8 interfaceMethodName = pInterfaceMD->GetName();
-
-            for (UINT32 iDefaultImplementation = 0; iDefaultImplementation < defaultImplementationsCount; iDefaultImplementation++)
-            {
-                NameHandle nameHandle(GetModule(), mdtBaseType);
-                nameHandle.SetBucket(foundEntry);
-
-                LPCUTF8 defaultImplementationTypeNameNotNullTerminated;
-                ULONG cbdefaultImplementationTypeName;
-                IfFailThrow(cap.GetString(&defaultImplementationTypeNameNotNullTerminated, &cbdefaultImplementationTypeName));
-
-                SString ssDefaultImplementationTypeName(SString::Utf8, defaultImplementationTypeNameNotNullTerminated, cbdefaultImplementationTypeName);
-
-                nameHandle.SetName(ssDefaultImplementationTypeName.GetUTF8NoConvert());
-                mdToken tkTypeDefDefaultImplementation;
-                if (this->GetModule()->GetClassLoader()->ResolveNameToTypeDefThrowing(this->GetModule(), &nameHandle, &pTypeDefModule, &tkTypeDefDefaultImplementation, Loader::Load, NULL))
-                {
-                    ASSERT(pTypeDefModule = this->GetModule());
-
-                    Instantiation typeInstantiation = pMTInterface->GetInstantiation();
-
-                    MethodTable *pDefaultImplementationTypeCandidate = nullptr;
-                    
-                    pDefaultImplementationTypeCandidate = pMTInterface->GetModule()->GetClassLoader()->LoadTypeDefThrowing(
-                        pTypeDefModule,
-                        tkTypeDefDefaultImplementation,
-                        ClassLoader::ThrowIfNotFound,
-                        ClassLoader::PermitUninstDefOrRef,
-                        mdTokenNil,
-                        CLASS_LOADED,
-                        &typeInstantiation).AsMethodTable();
-
-                    if (pDefaultImplementationTypeCandidate->IsGenericTypeDefinition())
-                    {
-                        // TODO! We may need to adjust the instantiation for specialization or other purposes.
-                        pDefaultImplementationTypeCandidate = ClassLoader::LoadGenericInstantiationThrowing(
-                            pMTInterface->GetModule(),
-                            tkTypeDefDefaultImplementation,
-                            pMTInterface->GetInstantiation()).AsMethodTable();
-                    }
-
-                    IntroducedMethodIterator methIt(pDefaultImplementationTypeCandidate, FALSE);
-                    for (; methIt.IsValid(); methIt.Next())
-                    {
-                        MethodDesc * pCurMD = methIt.GetMethodDesc();
-                        if (!pCurMD->IsStatic())
-                            continue;
-
-                        LPCUTF8 defaultMethodCandidateName = pCurMD->GetName();
-                        if (defaultMethodCandidateName == NULL)
-                            continue;
-
-                        if (strcmp(defaultMethodCandidateName, interfaceMethodName) == 0)
-                        {
-                            // TODO! Add proper signature check here!
-                            // TODO! Add call to FindOrCreateAssociatedMethodDesc for the instantiating stub here
-                            MethodDesc *pResultMethod = MethodDesc::FindOrCreateAssociatedMethodDesc(
-                                pCurMD,
-                                pDefaultImplementationTypeCandidate,
-                                FALSE,
-                                pCurMD->HasMethodInstantiation() ? pCurMD->AsInstantiatedMethodDesc()->IMD_GetMethodInstantiation() : Instantiation(),
-                                FALSE,
-                                FALSE,
-                                TRUE);
-
-                            if (ppDefaultMethod != nullptr)
-                                *ppDefaultMethod = pResultMethod;
-                            RETURN(TRUE);
-                        }
-                    }
-                }
-            }
-        }
-    }
-    */
 
     RETURN(FALSE);
 }
