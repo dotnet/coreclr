@@ -994,6 +994,17 @@ namespace System
         [Pure]
         abstract protected bool HasElementTypeImpl();
 
+        // We don't support GetEnumValues in the default implementation because we cannot create an array of
+        // a non-runtime type. If there is strong need we can consider returning an object or int64 array.
+        public virtual Array GetEnumValues()
+        {
+            if (!IsEnum)
+                throw new ArgumentException(SR.Arg_MustBeEnum, "enumType");
+            Contract.Ensures(Contract.Result<Array>() != null);
+
+            throw new NotImplementedException();
+        }
+
         public virtual Type GetEnumUnderlyingType()
         {
             if (!IsEnum)
