@@ -230,5 +230,9 @@ namespace System
         [Pure]
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         public static extern bool operator !=(Type left, Type right);
+
+        // Exists to faciliate code sharing between CoreCLR and CoreRT.
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal bool IsRuntimeImplemented() => this is RuntimeType;
     }
 }
