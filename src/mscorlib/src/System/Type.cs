@@ -28,7 +28,7 @@ namespace System
     using DebuggerStepThroughAttribute = System.Diagnostics.DebuggerStepThroughAttribute;
 
     [Serializable]
-    public abstract class Type : MemberInfo, IReflect
+    public abstract partial class Type : MemberInfo, IReflect
     {
         //
         // System.Type is appdomain agile type. Appdomain agile types cannot have precise static constructors. Make
@@ -44,10 +44,6 @@ namespace System
 
         // EmptyTypes is used to indicate that we are looking for someting without any parameters.
         public readonly static Type[] EmptyTypes = EmptyArray<Type>.Value;
-
-        // The Default binder.  We create a single one and expose that.
-        private static Binder defaultBinder;
-
 
         protected Type() { }
 
@@ -71,66 +67,6 @@ namespace System
         public override Type ReflectedType
         {
             get { return null; }
-        }
-
-        ////////////////////////////////////////////////////////////////////////////////
-        // This is a static method that returns a Class based upon the name of the class
-        // (this name needs to be fully qualified with the package name and is
-        // case-sensitive by default).
-        ////  
-
-        [System.Security.DynamicSecurityMethod] // Methods containing StackCrawlMark local var has to be marked DynamicSecurityMethod
-        public static Type GetType(String typeName, bool throwOnError, bool ignoreCase)
-        {
-            StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
-            return RuntimeType.GetType(typeName, throwOnError, ignoreCase, false, ref stackMark);
-        }
-
-        [System.Security.DynamicSecurityMethod] // Methods containing StackCrawlMark local var has to be marked DynamicSecurityMethod
-        public static Type GetType(String typeName, bool throwOnError)
-        {
-            StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
-            return RuntimeType.GetType(typeName, throwOnError, false, false, ref stackMark);
-        }
-
-        [System.Security.DynamicSecurityMethod] // Methods containing StackCrawlMark local var has to be marked DynamicSecurityMethod
-        public static Type GetType(String typeName)
-        {
-            StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
-            return RuntimeType.GetType(typeName, false, false, false, ref stackMark);
-        }
-
-        [System.Security.DynamicSecurityMethod] // Methods containing StackCrawlMark local var has to be marked DynamicSecurityMethod
-        public static Type GetType(
-            string typeName,
-            Func<AssemblyName, Assembly> assemblyResolver,
-            Func<Assembly, string, bool, Type> typeResolver)
-        {
-            StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
-            return TypeNameParser.GetType(typeName, assemblyResolver, typeResolver, false, false, ref stackMark);
-        }
-
-        [System.Security.DynamicSecurityMethod] // Methods containing StackCrawlMark local var has to be marked DynamicSecurityMethod
-        public static Type GetType(
-            string typeName,
-            Func<AssemblyName, Assembly> assemblyResolver,
-            Func<Assembly, string, bool, Type> typeResolver,
-            bool throwOnError)
-        {
-            StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
-            return TypeNameParser.GetType(typeName, assemblyResolver, typeResolver, throwOnError, false, ref stackMark);
-        }
-
-        [System.Security.DynamicSecurityMethod] // Methods containing StackCrawlMark local var has to be marked DynamicSecurityMethod
-        public static Type GetType(
-            string typeName,
-            Func<AssemblyName, Assembly> assemblyResolver,
-            Func<Assembly, string, bool, Type> typeResolver,
-            bool throwOnError,
-            bool ignoreCase)
-        {
-            StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
-            return TypeNameParser.GetType(typeName, assemblyResolver, typeResolver, throwOnError, ignoreCase, ref stackMark);
         }
 
         [System.Security.DynamicSecurityMethod] // Methods containing StackCrawlMark local var has to be marked DynamicSecurityMethod
@@ -182,11 +118,6 @@ namespace System
             return RuntimeType.GetTypeFromProgIDImpl(progID, server, false);
         }
 
-        public static Type GetTypeFromProgID(String progID, String server, bool throwOnError)
-        {
-            return RuntimeType.GetTypeFromProgIDImpl(progID, server, throwOnError);
-        }
-
         ////////////////////////////////////////////////////////////////////////////////
         // This will return a class based upon the CLSID.  This is provided for 
         // COM classic support.  
@@ -207,11 +138,6 @@ namespace System
         public static Type GetTypeFromCLSID(Guid clsid, String server)
         {
             return RuntimeType.GetTypeFromCLSIDImpl(clsid, server, false);
-        }
-
-        public static Type GetTypeFromCLSID(Guid clsid, String server, bool throwOnError)
-        {
-            return RuntimeType.GetTypeFromCLSIDImpl(clsid, server, throwOnError);
         }
 
         // GetTypeCode
@@ -240,27 +166,6 @@ namespace System
         public abstract Guid GUID
         {
             get;
-        }
-
-        // Return the Default binder used by the system.
-        static public Binder DefaultBinder
-        {
-            get
-            {
-                // Allocate the default binder if it hasn't been allocated yet.
-                if (defaultBinder == null)
-                    CreateBinder();
-                return defaultBinder;
-            }
-        }
-
-        static private void CreateBinder()
-        {
-            if (defaultBinder == null)
-            {
-                DefaultBinder binder = new DefaultBinder();
-                Interlocked.CompareExchange<Binder>(ref defaultBinder, binder, null);
-            }
         }
 
         // Description of the Binding Process.
@@ -325,26 +230,12 @@ namespace System
             }
         }
 
-        internal virtual RuntimeTypeHandle GetTypeHandleInternal()
-        {
-            return TypeHandle;
-        }
-
         public static RuntimeTypeHandle GetTypeHandle(Object o)
         {
             if (o == null)
                 throw new ArgumentNullException(null, Environment.GetResourceString("Arg_InvalidHandle"));
             return new RuntimeTypeHandle((RuntimeType)o.GetType());
         }
-
-        // Given a class handle, this will return the class for that handle.
-        [MethodImpl(MethodImplOptions.InternalCall)]
-        internal static extern RuntimeType GetTypeFromHandleUnsafe(IntPtr handle);
-
-        [Pure]
-        [MethodImpl(MethodImplOptions.InternalCall)]
-        public static extern Type GetTypeFromHandle(RuntimeTypeHandle handle);
-
 
         // Return the fully qualified name.  The name does contain the namespace.
         public abstract String FullName
@@ -583,35 +474,6 @@ namespace System
         // This method will return all of the interfaces implemented by a class
         abstract public Type[] GetInterfaces();
 
-        // FindInterfaces
-        // This method will filter the interfaces supported the class
-        public virtual Type[] FindInterfaces(TypeFilter filter, Object filterCriteria)
-        {
-            if (filter == null)
-                throw new ArgumentNullException(nameof(filter));
-            Contract.EndContractBlock();
-            Type[] c = GetInterfaces();
-            int cnt = 0;
-            for (int i = 0; i < c.Length; i++)
-            {
-                if (!filter(c[i], filterCriteria))
-                    c[i] = null;
-                else
-                    cnt++;
-            }
-            if (cnt == c.Length)
-                return c;
-
-            Type[] ret = new Type[cnt];
-            cnt = 0;
-            for (int i = 0; i < c.Length; i++)
-            {
-                if (c[i] != null)
-                    ret[cnt++] = c[i];
-            }
-            return ret;
-        }
-
         // GetEvent
         // This method will return a event by name if it is found.
         //  null is returned if the event is not found
@@ -767,184 +629,6 @@ namespace System
             throw new NotImplementedException();
         }
 
-        // FindMembers
-        // This will return a filtered version of the member information
-        public virtual MemberInfo[] FindMembers(MemberTypes memberType, BindingFlags bindingAttr, MemberFilter filter, Object filterCriteria)
-        {
-            // Define the work arrays
-            MethodInfo[] m = null;
-            ConstructorInfo[] c = null;
-            FieldInfo[] f = null;
-            PropertyInfo[] p = null;
-            EventInfo[] e = null;
-            Type[] t = null;
-
-            int i = 0;
-            int cnt = 0;            // Total Matchs
-
-            // Check the methods
-            if ((memberType & System.Reflection.MemberTypes.Method) != 0)
-            {
-                m = GetMethods(bindingAttr);
-                if (filter != null)
-                {
-                    for (i = 0; i < m.Length; i++)
-                        if (!filter(m[i], filterCriteria))
-                            m[i] = null;
-                        else
-                            cnt++;
-                }
-                else
-                {
-                    cnt += m.Length;
-                }
-            }
-
-            // Check the constructors
-            if ((memberType & System.Reflection.MemberTypes.Constructor) != 0)
-            {
-                c = GetConstructors(bindingAttr);
-                if (filter != null)
-                {
-                    for (i = 0; i < c.Length; i++)
-                        if (!filter(c[i], filterCriteria))
-                            c[i] = null;
-                        else
-                            cnt++;
-                }
-                else
-                {
-                    cnt += c.Length;
-                }
-            }
-
-            // Check the fields
-            if ((memberType & System.Reflection.MemberTypes.Field) != 0)
-            {
-                f = GetFields(bindingAttr);
-                if (filter != null)
-                {
-                    for (i = 0; i < f.Length; i++)
-                        if (!filter(f[i], filterCriteria))
-                            f[i] = null;
-                        else
-                            cnt++;
-                }
-                else
-                {
-                    cnt += f.Length;
-                }
-            }
-
-            // Check the Properties
-            if ((memberType & System.Reflection.MemberTypes.Property) != 0)
-            {
-                p = GetProperties(bindingAttr);
-                if (filter != null)
-                {
-                    for (i = 0; i < p.Length; i++)
-                        if (!filter(p[i], filterCriteria))
-                            p[i] = null;
-                        else
-                            cnt++;
-                }
-                else
-                {
-                    cnt += p.Length;
-                }
-            }
-
-            // Check the Events
-            if ((memberType & System.Reflection.MemberTypes.Event) != 0)
-            {
-                e = GetEvents(bindingAttr);
-                if (filter != null)
-                {
-                    for (i = 0; i < e.Length; i++)
-                        if (!filter(e[i], filterCriteria))
-                            e[i] = null;
-                        else
-                            cnt++;
-                }
-                else
-                {
-                    cnt += e.Length;
-                }
-            }
-
-            // Check the Types
-            if ((memberType & System.Reflection.MemberTypes.NestedType) != 0)
-            {
-                t = GetNestedTypes(bindingAttr);
-                if (filter != null)
-                {
-                    for (i = 0; i < t.Length; i++)
-                        if (!filter(t[i], filterCriteria))
-                            t[i] = null;
-                        else
-                            cnt++;
-                }
-                else
-                {
-                    cnt += t.Length;
-                }
-            }
-
-            // Allocate the Member Info
-            MemberInfo[] ret = new MemberInfo[cnt];
-
-            // Copy the Methods
-            cnt = 0;
-            if (m != null)
-            {
-                for (i = 0; i < m.Length; i++)
-                    if (m[i] != null)
-                        ret[cnt++] = m[i];
-            }
-
-            // Copy the Constructors
-            if (c != null)
-            {
-                for (i = 0; i < c.Length; i++)
-                    if (c[i] != null)
-                        ret[cnt++] = c[i];
-            }
-
-            // Copy the Fields
-            if (f != null)
-            {
-                for (i = 0; i < f.Length; i++)
-                    if (f[i] != null)
-                        ret[cnt++] = f[i];
-            }
-
-            // Copy the Properties
-            if (p != null)
-            {
-                for (i = 0; i < p.Length; i++)
-                    if (p[i] != null)
-                        ret[cnt++] = p[i];
-            }
-
-            // Copy the Events
-            if (e != null)
-            {
-                for (i = 0; i < e.Length; i++)
-                    if (e[i] != null)
-                        ret[cnt++] = e[i];
-            }
-
-            // Copy the Types
-            if (t != null)
-            {
-                for (i = 0; i < t.Length; i++)
-                    if (t[i] != null)
-                        ret[cnt++] = t[i];
-            }
-
-            return ret;
-        }
-
         ////////////////////////////////////////////////////////////////////////////////
         //
         // Attributes
@@ -976,48 +660,6 @@ namespace System
         public virtual GenericParameterAttributes GenericParameterAttributes
         {
             get { throw new NotSupportedException(); }
-        }
-
-        public bool IsVisible
-        {
-            [Pure]
-            get
-            {
-                RuntimeType rt = this as RuntimeType;
-                if (rt != null)
-                    return RuntimeTypeHandle.IsVisible(rt);
-
-                if (IsGenericParameter)
-                    return true;
-
-                if (HasElementType)
-                    return GetElementType().IsVisible;
-
-                Type type = this;
-                while (type.IsNested)
-                {
-                    if (!type.IsNestedPublic)
-                        return false;
-
-                    // this should be null for non-nested types.
-                    type = type.DeclaringType;
-                }
-
-                // Now "type" should be a top level type
-                if (!type.IsPublic)
-                    return false;
-
-                if (IsGenericType && !IsGenericTypeDefinition)
-                {
-                    foreach (Type t in GetGenericArguments())
-                    {
-                        if (!t.IsVisible)
-                            return false;
-                    }
-                }
-
-                return true;
-            }
         }
 
         public bool IsNotPublic
@@ -1218,31 +860,6 @@ namespace System
             get { throw new InvalidOperationException(Environment.GetResourceString("Arg_NotGenericParameter")); }
         }
 
-        public virtual bool ContainsGenericParameters
-        {
-            [Pure]
-            get
-            {
-                if (HasElementType)
-                    return GetRootElementType().ContainsGenericParameters;
-
-                if (IsGenericParameter)
-                    return true;
-
-                if (!IsGenericType)
-                    return false;
-
-                Type[] genericArguments = GetGenericArguments();
-                for (int i = 0; i < genericArguments.Length; i++)
-                {
-                    if (genericArguments[i].ContainsGenericParameters)
-                        return true;
-                }
-
-                return false;
-            }
-        }
-
         [Pure]
         public virtual Type[] GetGenericParameterConstraints()
         {
@@ -1273,20 +890,6 @@ namespace System
             [Pure]
             get { return IsCOMObjectImpl(); }
         }
-
-#if FEATURE_COMINTEROP
-        internal bool IsWindowsRuntimeObject
-        {
-            [Pure]
-            get { return IsWindowsRuntimeObjectImpl(); }
-        }
-
-        internal bool IsExportedToWindowsRuntime
-        {
-            [Pure]
-            get { return IsExportedToWindowsRuntimeImpl(); }
-        }
-#endif // FEATURE_COMINTEROP
 
         public bool HasElementType
         {
@@ -1337,20 +940,6 @@ namespace System
 
         // Protected routine to determine if this class represents a COM object
         abstract protected bool IsCOMObjectImpl();
-
-#if FEATURE_COMINTEROP
-        // Protected routine to determine if this class represents a Windows Runtime object
-        virtual internal bool IsWindowsRuntimeObjectImpl()
-        {
-            throw new NotImplementedException();
-        }
-
-        // Determines if this type is exported to WinRT (i.e. is an activatable class in a managed .winmd)
-        virtual internal bool IsExportedToWindowsRuntimeImpl()
-        {
-            throw new NotImplementedException();
-        }
-#endif // FEATURE_COMINTEROP
 
         public virtual Type MakeGenericType(params Type[] typeArguments)
         {
@@ -1405,103 +994,6 @@ namespace System
         [Pure]
         abstract protected bool HasElementTypeImpl();
 
-        internal Type GetRootElementType()
-        {
-            Type rootElementType = this;
-
-            while (rootElementType.HasElementType)
-                rootElementType = rootElementType.GetElementType();
-
-            return rootElementType;
-        }
-
-        #region Enum methods
-
-        // Default implementations of GetEnumNames, GetEnumValues, and GetEnumUnderlyingType
-        // Subclass of types can override these methods.
-
-        public virtual string[] GetEnumNames()
-        {
-            if (!IsEnum)
-                throw new ArgumentException(Environment.GetResourceString("Arg_MustBeEnum"), "enumType");
-            Contract.Ensures(Contract.Result<String[]>() != null);
-
-            string[] names;
-            Array values;
-            GetEnumData(out names, out values);
-            return names;
-        }
-
-        // We don't support GetEnumValues in the default implementation because we cannot create an array of
-        // a non-runtime type. If there is strong need we can consider returning an object or int64 array.
-        public virtual Array GetEnumValues()
-        {
-            if (!IsEnum)
-                throw new ArgumentException(Environment.GetResourceString("Arg_MustBeEnum"), "enumType");
-            Contract.Ensures(Contract.Result<Array>() != null);
-
-            throw new NotImplementedException();
-        }
-
-        // Returns the enum values as an object array.
-        private Array GetEnumRawConstantValues()
-        {
-            string[] names;
-            Array values;
-            GetEnumData(out names, out values);
-            return values;
-        }
-
-        // This will return enumValues and enumNames sorted by the values.
-        private void GetEnumData(out string[] enumNames, out Array enumValues)
-        {
-            Contract.Ensures(Contract.ValueAtReturn<String[]>(out enumNames) != null);
-            Contract.Ensures(Contract.ValueAtReturn<Array>(out enumValues) != null);
-
-            FieldInfo[] flds = GetFields(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static);
-
-            object[] values = new object[flds.Length];
-            string[] names = new string[flds.Length];
-
-            for (int i = 0; i < flds.Length; i++)
-            {
-                names[i] = flds[i].Name;
-                values[i] = flds[i].GetRawConstantValue();
-            }
-
-            // Insertion Sort these values in ascending order.
-            // We use this O(n^2) algorithm, but it turns out that most of the time the elements are already in sorted order and
-            // the common case performance will be faster than quick sorting this.
-            IComparer comparer = Comparer.Default;
-            for (int i = 1; i < values.Length; i++)
-            {
-                int j = i;
-                string tempStr = names[i];
-                object val = values[i];
-                bool exchanged = false;
-
-                // Since the elements are sorted we only need to do one comparision, we keep the check for j inside the loop.
-                while (comparer.Compare(values[j - 1], val) > 0)
-                {
-                    names[j] = names[j - 1];
-                    values[j] = values[j - 1];
-                    j--;
-                    exchanged = true;
-                    if (j == 0)
-                        break;
-                }
-
-                if (exchanged)
-                {
-                    names[j] = tempStr;
-                    values[j] = val;
-                }
-            }
-
-            enumNames = names;
-            enumValues = values;
-        }
-
         public virtual Type GetEnumUnderlyingType()
         {
             if (!IsEnum)
@@ -1515,147 +1007,11 @@ namespace System
             return fields[0].FieldType;
         }
 
-        public virtual bool IsEnumDefined(object value)
-        {
-            if (value == null)
-                throw new ArgumentNullException(nameof(value));
-
-            if (!IsEnum)
-                throw new ArgumentException(Environment.GetResourceString("Arg_MustBeEnum"), "enumType");
-            Contract.EndContractBlock();
-
-            // Check if both of them are of the same type
-            Type valueType = value.GetType();
-
-            // If the value is an Enum then we need to extract the underlying value from it
-            if (valueType.IsEnum)
-            {
-                if (!valueType.IsEquivalentTo(this))
-                    throw new ArgumentException(Environment.GetResourceString("Arg_EnumAndObjectMustBeSameType", valueType.ToString(), this.ToString()));
-
-                valueType = valueType.GetEnumUnderlyingType();
-            }
-
-            // If a string is passed in
-            if (valueType == typeof(string))
-            {
-                string[] names = GetEnumNames();
-                if (Array.IndexOf(names, value) >= 0)
-                    return true;
-                else
-                    return false;
-            }
-
-            // If an enum or integer value is passed in
-            if (Type.IsIntegerType(valueType))
-            {
-                Type underlyingType = GetEnumUnderlyingType();
-                // We cannot compare the types directly because valueType is always a runtime type but underlyingType might not be.
-                if (underlyingType.GetTypeCodeImpl() != valueType.GetTypeCodeImpl())
-                    throw new ArgumentException(Environment.GetResourceString("Arg_EnumUnderlyingTypeAndObjectMustBeSameType", valueType.ToString(), underlyingType.ToString()));
-
-                Array values = GetEnumRawConstantValues();
-                return (BinarySearch(values, value) >= 0);
-            }
-            else
-            {
-                throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_UnknownEnumType"));
-            }
-        }
-
-        public virtual string GetEnumName(object value)
-        {
-            if (value == null)
-                throw new ArgumentNullException(nameof(value));
-
-            if (!IsEnum)
-                throw new ArgumentException(Environment.GetResourceString("Arg_MustBeEnum"), "enumType");
-            Contract.EndContractBlock();
-
-            Type valueType = value.GetType();
-
-            if (!(valueType.IsEnum || Type.IsIntegerType(valueType)))
-                throw new ArgumentException(Environment.GetResourceString("Arg_MustBeEnumBaseTypeOrEnum"), nameof(value));
-
-            Array values = GetEnumRawConstantValues();
-            int index = BinarySearch(values, value);
-
-            if (index >= 0)
-            {
-                string[] names = GetEnumNames();
-                return names[index];
-            }
-
-            return null;
-        }
-
-        // Convert everything to ulong then perform a binary search.
-        private static int BinarySearch(Array array, object value)
-        {
-            ulong[] ulArray = new ulong[array.Length];
-            for (int i = 0; i < array.Length; ++i)
-                ulArray[i] = Enum.ToUInt64(array.GetValue(i));
-
-            ulong ulValue = Enum.ToUInt64(value);
-
-            return Array.BinarySearch(ulArray, ulValue);
-        }
-
-        internal static bool IsIntegerType(Type t)
-        {
-            return (t == typeof(int) ||
-                    t == typeof(short) ||
-                    t == typeof(ushort) ||
-                    t == typeof(byte) ||
-                    t == typeof(sbyte) ||
-                    t == typeof(uint) ||
-                    t == typeof(long) ||
-                    t == typeof(ulong) ||
-                    t == typeof(char) ||
-                    t == typeof(bool));
-        }
-        #endregion
-
         public virtual bool IsSecurityCritical { [Pure] get { throw new NotImplementedException(); } }
 
         public virtual bool IsSecuritySafeCritical { [Pure] get { throw new NotImplementedException(); } }
 
         public virtual bool IsSecurityTransparent { [Pure] get { throw new NotImplementedException(); } }
-
-        internal bool NeedsReflectionSecurityCheck
-        {
-            get
-            {
-                if (!IsVisible)
-                {
-                    // Types which are not externally visible require security checks
-                    return true;
-                }
-                else if (IsSecurityCritical && !IsSecuritySafeCritical)
-                {
-                    // Critical types require security checks
-                    return true;
-                }
-                else if (IsGenericType)
-                {
-                    // If any of the generic arguments to this type require a security check, then this type
-                    // also requires one.
-                    foreach (Type genericArgument in GetGenericArguments())
-                    {
-                        if (genericArgument.NeedsReflectionSecurityCheck)
-                        {
-                            return true;
-                        }
-                    }
-                }
-                else if (IsArray || IsPointer)
-                {
-                    return GetElementType().NeedsReflectionSecurityCheck;
-                }
-
-                return false;
-            }
-        }
 
         // The behavior of UnderlyingSystemType varies from type to type.
         // For IReflect objects: Return the underlying Type that represents the IReflect Object.
@@ -1665,25 +1021,6 @@ namespace System
         public abstract Type UnderlyingSystemType
         {
             get;
-        }
-
-        // Returns true of this class is a true subclass of c.  Everything 
-        // else returns false.  If this class and c are the same class false is
-        // returned.
-        // 
-        [Pure]
-        public virtual bool IsSubclassOf(Type c)
-        {
-            Type p = this;
-            if (p == c)
-                return false;
-            while (p != null)
-            {
-                if (p == c)
-                    return true;
-                p = p.BaseType;
-            }
-            return false;
         }
 
         // Returns true if the object passed is assignable to an instance of this class.
@@ -1701,88 +1038,11 @@ namespace System
             return IsAssignableFrom(o.GetType());
         }
 
-        // Returns true if an instance of Type c may be assigned
-        // to an instance of this class.  Return false otherwise.
-        // 
-        [Pure]
-        public virtual bool IsAssignableFrom(Type c)
-        {
-            if (c == null)
-                return false;
-
-            if (this == c)
-                return true;
-
-            // For backward-compatibility, we need to special case for the types
-            // whose UnderlyingSystemType are RuntimeType objects. 
-            RuntimeType toType = this.UnderlyingSystemType as RuntimeType;
-            if (toType != null)
-                return toType.IsAssignableFrom(c);
-
-            // If c is a subclass of this class, then c can be cast to this type.
-            if (c.IsSubclassOf(this))
-                return true;
-
-            if (this.IsInterface)
-            {
-                return c.ImplementInterface(this);
-            }
-            else if (IsGenericParameter)
-            {
-                Type[] constraints = GetGenericParameterConstraints();
-                for (int i = 0; i < constraints.Length; i++)
-                    if (!constraints[i].IsAssignableFrom(c))
-                        return false;
-
-                return true;
-            }
-
-            return false;
-        }
-
         // Base implementation that does only ==.
         [Pure]
         public virtual bool IsEquivalentTo(Type other)
         {
             return (this == other);
-        }
-
-        internal bool ImplementInterface(Type ifaceType)
-        {
-            Contract.Requires(ifaceType != null);
-            Contract.Requires(ifaceType.IsInterface, "ifaceType must be an interface type");
-
-            Type t = this;
-            while (t != null)
-            {
-                Type[] interfaces = t.GetInterfaces();
-                if (interfaces != null)
-                {
-                    for (int i = 0; i < interfaces.Length; i++)
-                    {
-                        // Interfaces don't derive from other interfaces, they implement them.
-                        // So instead of IsSubclassOf, we should use ImplementInterface instead.
-                        if (interfaces[i] == ifaceType ||
-                            (interfaces[i] != null && interfaces[i].ImplementInterface(ifaceType)))
-                            return true;
-                    }
-                }
-
-                t = t.BaseType;
-            }
-
-            return false;
-        }
-
-        // This is only ever called on RuntimeType objects.
-        internal string FormatTypeName()
-        {
-            return FormatTypeName(false);
-        }
-
-        internal virtual string FormatTypeName(bool serialization)
-        {
-            throw new NotImplementedException();
         }
 
         // ToString
@@ -1827,14 +1087,6 @@ namespace System
 
             return (Object.ReferenceEquals(this.UnderlyingSystemType, o.UnderlyingSystemType));
         }
-
-        [Pure]
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public static extern bool operator ==(Type left, Type right);
-
-        [Pure]
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public static extern bool operator !=(Type left, Type right);
 
         public override int GetHashCode()
         {
