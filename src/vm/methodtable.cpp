@@ -6995,8 +6995,20 @@ BOOL MethodTable::FindDefaultMethod(
                 //
                 // Found a potential candidate
                 //
+                if (pCurMD->HasClassOrMethodInstantiation())
+                {
+                    pCurMD = MethodDesc::FindOrCreateAssociatedMethodDesc(
+                                pCurMD,
+                                pCurMT,
+                                FALSE, // forceBoxedEntryPoint
+                                Instantiation(),
+                                FALSE, // allowInstParam
+                                TRUE // forceRemoteableMethod
+                            );
+                }
+
                 if (pBestCandidateMT == NULL ||                         // first time
-                    pCurMT->ImplementsInterface(pBestCandidateMT))      // Prefer super interface (IList over IEnumerable)
+                    pCurMT->CanCastToInterface(pBestCandidateMT))       // Prefer super interface (IList over IEnumerable)
                 {
                     pBestCandidateMT = pCurMT;
                     pBestCandidateMD = pCurMD;

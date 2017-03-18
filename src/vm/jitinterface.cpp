@@ -5710,6 +5710,17 @@ void CEEInfo::getCallInfo(
     pResult->methodFlags = getMethodAttribsInternal(pResult->hMethod);
     getMethodSigInternal(pResult->hMethod, &pResult->sig, (pResult->hMethod == pResolvedToken->hMethod) ? pResolvedToken->hClass : NULL);
 
+    if (pTargetMD->IsSharedByGenericInstantiations() && pTargetMD->GetMethodTable()->IsInterface() && !pTargetMD->IsAbstract())
+    {
+        //
+        // We are calling into a interface method that potentially can be a default interface method that is also shared generics
+        // We would make sure the target is always directly callable (has correct generic dictionary through instantiation stubs)
+        // When JITting the code, JIT needs to be aware of the CORINFO_CALLCONV_PARAMTYPE to generate correct shared generics aware code
+        // but at the call site, it should not generate such code and we need to lie to the JIT
+        //
+        pResult->sig.callConv = (CorInfoCallConv)(pResult->sig.callConv & ~CORINFO_CALLCONV_PARAMTYPE);
+    }
+
     if (flags & CORINFO_CALLINFO_VERIFICATION)
     {
         if (pResult->hMethod != pResolvedToken->hMethod)

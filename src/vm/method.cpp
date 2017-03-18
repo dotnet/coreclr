@@ -1771,7 +1771,7 @@ BOOL MethodDesc::RequiresInstMethodTableArg()
     return
         IsSharedByGenericInstantiations() &&
         !HasMethodInstantiation() &&
-        (IsStatic() || GetMethodTable()->IsValueType());
+        (IsStatic() || GetMethodTable()->IsValueType() || (GetMethodTable()->IsInterface() && !IsAbstract()));
 }
 
 //*******************************************************************************
@@ -1793,7 +1793,7 @@ BOOL MethodDesc::RequiresInstArg()
     LIMITED_METHOD_DAC_CONTRACT;
 
     BOOL fRet = IsSharedByGenericInstantiations() &&
-        (HasMethodInstantiation() || IsStatic() || GetMethodTable()->IsValueType());
+        (HasMethodInstantiation() || IsStatic() || GetMethodTable()->IsValueType() || (GetMethodTable()->IsInterface() && !IsAbstract()));
 
     _ASSERT(fRet == (RequiresInstMethodTableArg() || RequiresInstMethodDescArg()));
     return fRet;
@@ -1869,7 +1869,8 @@ BOOL MethodDesc::AcquiresInstMethodTableFromThis() {
         IsSharedByGenericInstantiations()  &&
         !HasMethodInstantiation() &&
         !IsStatic() &&
-        !GetMethodTable()->IsValueType();
+        !GetMethodTable()->IsValueType() &&
+        !(GetMethodTable()->IsInterface() && !IsAbstract());
 }
 
 //*******************************************************************************
