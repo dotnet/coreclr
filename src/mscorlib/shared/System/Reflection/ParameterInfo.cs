@@ -7,7 +7,7 @@ using System.Runtime.Serialization;
 
 namespace System.Reflection
 {
-    public partial class ParameterInfo : ICustomAttributeProvider, IObjectReference
+    public class ParameterInfo : ICustomAttributeProvider, IObjectReference
     {
         protected ParameterInfo() { }
 
