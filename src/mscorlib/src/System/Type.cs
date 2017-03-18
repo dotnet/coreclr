@@ -34,9 +34,9 @@ namespace System
         // System.Type is appdomain agile type. Appdomain agile types cannot have precise static constructors. Make
         // sure to never introduce one here!
         //
-        public static readonly MemberFilter FilterAttribute = new MemberFilter(__Filters.Instance.FilterAttribute);
-        public static readonly MemberFilter FilterName = new MemberFilter(__Filters.Instance.FilterName);
-        public static readonly MemberFilter FilterNameIgnoreCase = new MemberFilter(__Filters.Instance.FilterIgnoreCase);
+        public static readonly MemberFilter FilterAttribute;
+        public static readonly MemberFilter FilterName;
+        public static readonly MemberFilter FilterNameIgnoreCase;
 
         public static readonly object Missing = System.Reflection.Missing.Value;
 
