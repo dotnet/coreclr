@@ -56,7 +56,7 @@ namespace System.Globalization
             fixed (char* pResult = result)
             {
                 ret = Interop.Kernel32.LCMapStringEx(_sortHandle != IntPtr.Zero ? null : _textInfoName,
-                                                    toUpper ? LCMAP_UPPERCASE | linguisticCasing : LCMAP_LOWERCASE | linguisticCasing,
+                                                    linguisticCasing | (toUpper ? LCMAP_UPPERCASE : LCMAP_LOWERCASE),
                                                     pSource,
                                                     nLengthInput,
                                                     pResult,

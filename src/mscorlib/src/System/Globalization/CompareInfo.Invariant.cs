@@ -213,7 +213,7 @@ namespace System.Globalization
             }
             else
             {
-                // As we word as ordinal, then generate the sort key as the codepoint ordinal values
+                // In the invariant mode, all string comparisons are done as ordinal so when generating the sort keys we generate it according to this fact
                 keyData = new byte[source.Length * sizeof(char)];
 
                 fixed (char* pChar = source) fixed (byte* pByte = keyData)

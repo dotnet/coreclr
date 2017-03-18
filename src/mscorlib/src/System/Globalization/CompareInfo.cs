@@ -449,49 +449,6 @@ namespace System.Globalization
             return (result);
         }
 
-        // InvariantCompareIgnoreCase is similar to CompareOrdinalIgnoreCase but it is not restricted to the ascii letters only
-        internal static unsafe int InvariantCompareIgnoreCase(string strA, int indexA, int lengthA, string strB, int indexB, int lengthB)
-        {
-            Debug.Assert(indexA + lengthA <= strA.Length);
-            Debug.Assert(indexB + lengthB <= strB.Length);
-
-            int length = Math.Min(lengthA, lengthB);
-            int range = length;
-
-            fixed (char* ap = strA) fixed (char* bp = strB)
-            {
-                char* a = ap + indexA;
-                char* b = bp + indexB;
-
-                while (length != 0)
-                {
-                    int charA = *a;
-                    int charB = *b;
-
-                    if (charA == charB)
-                    {
-                        a++; b++;
-                        length--;
-                        continue;
-                    }
-
-                    // uppercase both chars - notice that we need just one compare per char
-                    if ((uint)(charA - 'a') <= (uint)('z' - 'a')) charA -= 0x20;
-                    if ((uint)(charB - 'a') <= (uint)('z' - 'a')) charB -= 0x20;
-
-                    // Return the (case-insensitive) difference between them.
-                    if (charA != charB)
-                        return charA - charB;
-
-                    // Next char
-                    a++; b++;
-                    length--;
-                }
-
-                return lengthA - lengthB;
-            }
-        }
-
         //
         // CompareOrdinalIgnoreCase compare two string ordinally with ignoring the case.
         // it assumes the strings are Ascii string till we hit non Ascii character in strA or strB and then we continue the comparison by
@@ -499,11 +456,6 @@ namespace System.Globalization
         //
         internal static unsafe int CompareOrdinalIgnoreCase(string strA, int indexA, int lengthA, string strB, int indexB, int lengthB)
         {
-            if (CultureData.InvariantMode)
-            {
-                return InvariantCompareIgnoreCase(strA, indexA, lengthA, strB, indexB, lengthB);
-            }
-
             Debug.Assert(indexA + lengthA <= strA.Length);
             Debug.Assert(indexB + lengthB <= strB.Length);
 
@@ -515,7 +467,10 @@ namespace System.Globalization
                 char* a = ap + indexA;
                 char* b = bp + indexB;
 
-                while (length != 0 && (*a <= 0x80) && (*b <= 0x80))
+                // in InvariantMode we support all range and not only the ascii characters.
+                char maxChar = (char) (CultureData.InvariantMode ? 0xFFFF : 0x80);
+
+                while (length != 0 && (*a <= maxChar) && (*b <= maxChar))
                 {
                     int charA = *a;
                     int charB = *b;
@@ -542,6 +497,8 @@ namespace System.Globalization
 
                 if (length == 0)
                     return lengthA - lengthB;
+
+                Debug.Assert(!CultureData.InvariantMode);
 
                 range -= length;
 
