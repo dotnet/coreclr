@@ -155,6 +155,7 @@ GTNODE(GT               , ">"            ,GenTreeOp          ,0,GTK_BINOP|GTK_RE
 // Because of this there is no need to also add GT_TEST_LT/LE/GE/GT opers.
 GTNODE(TEST_EQ          , "testEQ"       ,GenTreeOp          ,0,GTK_BINOP|GTK_RELOP)
 GTNODE(TEST_NE          , "testNE"       ,GenTreeOp          ,0,GTK_BINOP|GTK_RELOP)
+GTNODE(CMP              , "cmp"          ,GenTreeOp          ,0,GTK_BINOP|GTK_NOVALUE)
 #endif
 
 GTNODE(COMMA            , "comma"        ,GenTreeOp          ,0,GTK_BINOP|GTK_NOTLIR)
@@ -213,7 +214,8 @@ GTNODE(SIMD             , "simd"         ,GenTreeSIMD        ,0,GTK_BINOP|GTK_EX
 //-----------------------------------------------------------------------------
 
 GTNODE(JTRUE            , "jmpTrue"      ,GenTreeOp          ,0,GTK_UNOP|GTK_NOVALUE)
-GTNODE(JCC              , "jcc"          ,GenTreeJumpCC      ,0,GTK_LEAF|GTK_NOVALUE)
+GTNODE(JCC              , "jcc"          ,GenTreeCC          ,0,GTK_LEAF|GTK_NOVALUE)
+GTNODE(SETCC            , "setcc"        ,GenTreeCC          ,0,GTK_LEAF) 
 
 GTNODE(LIST             , "<list>"       ,GenTreeArgList     ,0,GTK_BINOP|GTK_NOVALUE)
 GTNODE(FIELD_LIST       , "<fldList>"    ,GenTreeFieldList   ,0,GTK_BINOP) // List of fields of a struct, when passed as an argument

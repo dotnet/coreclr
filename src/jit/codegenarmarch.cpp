@@ -235,7 +235,7 @@ void CodeGen::genCodeForTreeNode(GenTreePtr treeNode)
 #ifdef _TARGET_ARM_
 
         case GT_JCC:
-            genCodeForJcc(treeNode->AsJumpCC());
+            genCodeForJcc(treeNode->AsCC());
             break;
 
 #endif // _TARGET_ARM_

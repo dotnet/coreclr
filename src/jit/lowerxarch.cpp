@@ -968,7 +968,7 @@ bool Lowering::isRMWRegOper(GenTreePtr tree)
     // For now, We assume that most binary operators are of the RMW form.
     assert(tree->OperIsBinary());
 
-    if (tree->OperIsCompare())
+    if (tree->OperIsCompare() || tree->OperIs(GT_CMP))
     {
         return false;
     }
@@ -1042,7 +1042,7 @@ bool Lowering::IsContainableImmed(GenTree* parentNode, GenTree* childNode)
 GenTree* Lowering::PreferredRegOptionalOperand(GenTree* tree)
 {
     assert(GenTree::OperIsBinary(tree->OperGet()));
-    assert(tree->OperIsCommutative() || tree->OperIsCompare());
+    assert(tree->OperIsCommutative() || tree->OperIsCompare() || tree->OperIs(GT_CMP));
 
     GenTree* op1         = tree->gtGetOp1();
     GenTree* op2         = tree->gtGetOp2();
@@ -1117,7 +1117,6 @@ GenTree* Lowering::PreferredRegOptionalOperand(GenTree* tree)
         else
         {
             preferredOp = op1;
-            ;
         }
     }
     else if (op1->OperGet() == GT_LCL_VAR)

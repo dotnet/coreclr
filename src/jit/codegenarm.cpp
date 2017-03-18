@@ -1315,7 +1315,7 @@ void CodeGen::genCodeForCompare(GenTreeOp* tree)
 // Arguments:
 //    tree - the node
 //
-void CodeGen::genCodeForJcc(GenTreeJumpCC* tree)
+void CodeGen::genCodeForJcc(GenTreeCC* tree)
 {
     assert(compiler->compCurBB->bbJumpKind == BBJ_COND);
 

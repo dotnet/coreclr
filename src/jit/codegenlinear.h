@@ -156,7 +156,7 @@ void genCodeForLclFld(GenTreeLclFld* tree);
 void genCodeForStoreLclFld(GenTreeLclFld* tree);
 void genCodeForStoreLclVar(GenTreeLclVar* tree);
 void genCodeForReturnTrap(GenTreeOp* tree);
-void genCodeForJcc(GenTreeJumpCC* tree);
+void genCodeForJcc(GenTreeCC* tree);
 void genCodeForStoreInd(GenTreeStoreInd* tree);
 void genCodeForSwap(GenTreeOp* tree);
 void genCodeForCpObj(GenTreeObj* cpObjNode);

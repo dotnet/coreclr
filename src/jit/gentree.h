@@ -4960,18 +4960,18 @@ struct GenTreeAllocObj final : public GenTreeUnOp
 #endif
 };
 
-struct GenTreeJumpCC final : public GenTree
+struct GenTreeCC final : public GenTree
 {
     genTreeOps gtCondition; // any relop
 
-    GenTreeJumpCC(genTreeOps condition)
-        : GenTree(GT_JCC, TYP_VOID DEBUGARG(/*largeNode*/ FALSE)), gtCondition(condition)
+    GenTreeCC(genTreeOps oper, genTreeOps condition, var_types type = TYP_VOID)
+        : GenTree(oper, type DEBUGARG(/*largeNode*/ FALSE)), gtCondition(condition)
     {
         assert(OperIsCompare(condition));
     }
 
 #if DEBUGGABLE_GENTREE
-    GenTreeJumpCC() : GenTree()
+    GenTreeCC() : GenTree()
     {
     }
 #endif // DEBUGGABLE_GENTREE

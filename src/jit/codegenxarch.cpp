@@ -1868,6 +1868,7 @@ void CodeGen::genCodeForTreeNode(GenTreePtr treeNode)
         case GT_GT:
         case GT_TEST_EQ:
         case GT_TEST_NE:
+        case GT_CMP:
         {
             // TODO-XArch-CQ: Check if we can use the currently set flags.
             // TODO-XArch-CQ: Check for the case where we can simply transfer the carry bit to a register
@@ -1911,7 +1912,7 @@ void CodeGen::genCodeForTreeNode(GenTreePtr treeNode)
 
         case GT_JCC:
         {
-            GenTreeJumpCC* jcc = treeNode->AsJumpCC();
+            GenTreeCC* jcc = treeNode->AsCC();
 
             assert(compiler->compCurBB->bbJumpKind == BBJ_COND);
 
@@ -1919,6 +1920,21 @@ void CodeGen::genCodeForTreeNode(GenTreePtr treeNode)
             emitJumpKind jumpKind    = genJumpKindForOper(jcc->gtCondition, compareKind);
 
             inst_JMP(jumpKind, compiler->compCurBB->bbJumpDest);
+        }
+        break;
+
+        case GT_SETCC:
+        {
+            GenTreeCC*   setcc       = treeNode->AsCC();
+            regNumber    dstReg      = setcc->gtRegNum;
+            CompareKind  compareKind = setcc->IsUnsigned() ? CK_UNSIGNED : CK_SIGNED;
+            emitJumpKind jumpKind    = genJumpKindForOper(setcc->gtCondition, compareKind);
+
+            assert(genIsValidIntReg(dstReg) && isByteReg(dstReg));
+
+            inst_SET(jumpKind, dstReg);
+            inst_RV_RV(ins_Move_Extend(TYP_UBYTE, true), dstReg, dstReg, TYP_UBYTE, emitTypeSize(TYP_UBYTE));
+            genProduceReg(setcc);
         }
         break;
 
@@ -6137,7 +6153,7 @@ void CodeGen::genCompareFloat(GenTreePtr treeNode)
 //    None.
 void CodeGen::genCompareInt(GenTreePtr treeNode)
 {
-    assert(treeNode->OperIsCompare());
+    assert(treeNode->OperIsCompare() || treeNode->OperIs(GT_CMP));
 
     GenTreeOp* tree      = treeNode->AsOp();
     GenTreePtr op1       = tree->gtOp1;
