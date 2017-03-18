@@ -9,29 +9,44 @@
 //
 // ======================================================================================
 
+using System.Reflection;
+using System.Threading;
+using System.Runtime.CompilerServices;
+using System.Diagnostics.Contracts;
+using StackCrawlMark = System.Threading.StackCrawlMark;
+
 namespace System
 {
-    using System;
-    using System.Reflection;
-    using System.Threading;
-    using System.Runtime;
-    using System.Runtime.Remoting;
-    using System.Runtime.InteropServices;
-    using System.Runtime.CompilerServices;
-    using System.Security;
-    using System.Collections;
-    using System.Collections.Generic;
-    using System.Runtime.Versioning;
-    using System.Diagnostics.Contracts;
-    using CultureInfo = System.Globalization.CultureInfo;
-    using StackCrawlMark = System.Threading.StackCrawlMark;
-    using DebuggerStepThroughAttribute = System.Diagnostics.DebuggerStepThroughAttribute;
-
     public abstract partial class Type : MemberInfo, IReflect
     {
         // The Default binder.  We create a single one and expose that.
         private static Binder defaultBinder;
 
+        public bool IsInterface
+        {
+            get
+            {
+                RuntimeType rt = this as RuntimeType;
+                if (rt != null)
+                    return RuntimeTypeHandle.IsInterface(rt);
+                return ((GetAttributeFlagsImpl() & TypeAttributes.ClassSemanticsMask) == TypeAttributes.Interface);
+            }
+        }
+
+        public virtual bool IsSerializable
+        {
+            get
+            {
+                if ((GetAttributeFlagsImpl() & TypeAttributes.Serializable) != 0)
+                    return true;
+
+                RuntimeType rt = this.UnderlyingSystemType as RuntimeType;
+                if (rt != null)
+                    return rt.IsSpecialSerializableType();
+
+                return false;
+            }
+        }
 
         [System.Security.DynamicSecurityMethod] // Methods containing StackCrawlMark local var has to be marked DynamicSecurityMethod
         public static Type GetType(String typeName, bool throwOnError, bool ignoreCase)

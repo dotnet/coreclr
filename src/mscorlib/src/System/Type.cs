@@ -275,19 +275,6 @@ namespace System
 
         public bool IsClass => (GetAttributeFlagsImpl() & TypeAttributes.ClassSemanticsMask) == TypeAttributes.Class && !IsValueType;
 
-        public bool IsInterface
-        {
-            get
-            {
-#if CORECLR
-                RuntimeType rt = this as RuntimeType;
-                if (rt != null)
-                    return RuntimeTypeHandle.IsInterface(rt);
-#endif
-                return ((GetAttributeFlagsImpl() & TypeAttributes.ClassSemanticsMask) == TypeAttributes.Interface);
-            }
-        }
-
         public bool IsValueType => IsValueTypeImpl();
 
         public bool IsAbstract => (GetAttributeFlagsImpl() & TypeAttributes.Abstract) != 0;
@@ -299,22 +286,6 @@ namespace System
         public bool IsSpecialName => (GetAttributeFlagsImpl() & TypeAttributes.SpecialName) != 0;
 
         public bool IsImport => (GetAttributeFlagsImpl() & TypeAttributes.Import) != 0;
-
-        public virtual bool IsSerializable
-        {
-            get
-            {
-                if ((GetAttributeFlagsImpl() & TypeAttributes.Serializable) != 0)
-                    return true;
-#if CORECLR
-                RuntimeType rt = this.UnderlyingSystemType as RuntimeType;
-
-                if (rt != null)
-                    return rt.IsSpecialSerializableType();
-#endif
-                return false;
-            }
-        }
 
         public bool IsAnsiClass => (GetAttributeFlagsImpl() & TypeAttributes.StringFormatMask) == TypeAttributes.AnsiClass;
 
