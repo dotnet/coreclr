@@ -2,40 +2,18 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-//
-//
-//
-// Implements System.Type
-//
-// ======================================================================================
+using System.Reflection;
 
 namespace System
 {
-    using System;
-    using System.Reflection;
-    using System.Threading;
-    using System.Runtime;
-    using System.Runtime.Remoting;
-    using System.Runtime.InteropServices;
-    using System.Runtime.CompilerServices;
-    using System.Security;
-    using System.Collections;
-    using System.Collections.Generic;
-    using System.Runtime.Versioning;
-    using System.Diagnostics.Contracts;
-    using CultureInfo = System.Globalization.CultureInfo;
-    using StackCrawlMark = System.Threading.StackCrawlMark;
-    using DebuggerStepThroughAttribute = System.Diagnostics.DebuggerStepThroughAttribute;
-
+    // This file collects the longer methods of Type to make the main Type class more readable.
     public abstract partial class Type : MemberInfo, IReflect
     {
-        // FindInterfaces
-        // This method will filter the interfaces supported the class
         public virtual Type[] FindInterfaces(TypeFilter filter, object filterCriteria)
         {
             if (filter == null)
                 throw new ArgumentNullException(nameof(filter));
-            Contract.EndContractBlock();
+
             Type[] c = GetInterfaces();
             int cnt = 0;
             for (int i = 0; i < c.Length; i++)
@@ -58,8 +36,6 @@ namespace System
             return ret;
         }
 
-        // FindMembers
-        // This will return a filtered version of the member information
         public virtual MemberInfo[] FindMembers(MemberTypes memberType, BindingFlags bindingAttr, MemberFilter filter, object filterCriteria)
         {
             // Define the work arrays
@@ -74,7 +50,7 @@ namespace System
             int cnt = 0;            // Total Matchs
 
             // Check the methods
-            if ((memberType & System.Reflection.MemberTypes.Method) != 0)
+            if ((memberType & MemberTypes.Method) != 0)
             {
                 m = GetMethods(bindingAttr);
                 if (filter != null)
@@ -92,7 +68,7 @@ namespace System
             }
 
             // Check the constructors
-            if ((memberType & System.Reflection.MemberTypes.Constructor) != 0)
+            if ((memberType & MemberTypes.Constructor) != 0)
             {
                 c = GetConstructors(bindingAttr);
                 if (filter != null)
@@ -110,7 +86,7 @@ namespace System
             }
 
             // Check the fields
-            if ((memberType & System.Reflection.MemberTypes.Field) != 0)
+            if ((memberType & MemberTypes.Field) != 0)
             {
                 f = GetFields(bindingAttr);
                 if (filter != null)
@@ -128,7 +104,7 @@ namespace System
             }
 
             // Check the Properties
-            if ((memberType & System.Reflection.MemberTypes.Property) != 0)
+            if ((memberType & MemberTypes.Property) != 0)
             {
                 p = GetProperties(bindingAttr);
                 if (filter != null)
@@ -146,7 +122,7 @@ namespace System
             }
 
             // Check the Events
-            if ((memberType & System.Reflection.MemberTypes.Event) != 0)
+            if ((memberType & MemberTypes.Event) != 0)
             {
                 e = GetEvents(bindingAttr);
                 if (filter != null)
@@ -164,7 +140,7 @@ namespace System
             }
 
             // Check the Types
-            if ((memberType & System.Reflection.MemberTypes.NestedType) != 0)
+            if ((memberType & MemberTypes.NestedType) != 0)
             {
                 t = GetNestedTypes(bindingAttr);
                 if (filter != null)
@@ -238,12 +214,13 @@ namespace System
 
         public bool IsVisible
         {
-            [Pure]
             get
             {
+#if CORECLR
                 RuntimeType rt = this as RuntimeType;
                 if (rt != null)
                     return RuntimeTypeHandle.IsVisible(rt);
+#endif //CORECLR
 
                 if (IsGenericParameter)
                     return true;
@@ -280,7 +257,6 @@ namespace System
 
         public virtual bool ContainsGenericParameters
         {
-            [Pure]
             get
             {
                 if (HasElementType)
@@ -305,15 +281,14 @@ namespace System
 
         internal Type GetRootElementType()
         {
-           Type rootElementType = this;
+            Type rootElementType = this;
 
-           while (rootElementType.HasElementType)
-               rootElementType = rootElementType.GetElementType();
+            while (rootElementType.HasElementType)
+                rootElementType = rootElementType.GetElementType();
 
-           return rootElementType;
+            return rootElementType;
         }
 
-        [Pure]
         public virtual bool IsSubclassOf(Type c)
         {
             Type p = this;
@@ -328,10 +303,6 @@ namespace System
             return false;
         }
 
-        // Returns true if an instance of Type c may be assigned
-        // to an instance of this class.  Return false otherwise.
-        // 
-        [Pure]
         public virtual bool IsAssignableFrom(Type c)
         {
             if (c == null)
@@ -341,9 +312,9 @@ namespace System
                 return true;
 
             // For backward-compatibility, we need to special case for the types
-            // whose UnderlyingSystemType are RuntimeType objects. 
-            RuntimeType toType = this.UnderlyingSystemType as RuntimeType;
-            if (toType != null)
+            // whose UnderlyingSystemType are runtime implemented. 
+            Type toType = this.UnderlyingSystemType;
+            if (toType.IsRuntimeImplemented())
                 return toType.IsAssignableFrom(c);
 
             // If c is a subclass of this class, then c can be cast to this type.
@@ -369,9 +340,6 @@ namespace System
 
         internal bool ImplementInterface(Type ifaceType)
         {
-            Contract.Requires(ifaceType != null);
-            Contract.Requires(ifaceType.IsInterface, "ifaceType must be an interface type");
-
             Type t = this;
             while (t != null)
             {
