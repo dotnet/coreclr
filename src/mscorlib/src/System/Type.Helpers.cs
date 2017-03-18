@@ -31,7 +31,7 @@ namespace System
     {
         // FindInterfaces
         // This method will filter the interfaces supported the class
-        public virtual Type[] FindInterfaces(TypeFilter filter, Object filterCriteria)
+        public virtual Type[] FindInterfaces(TypeFilter filter, object filterCriteria)
         {
             if (filter == null)
                 throw new ArgumentNullException(nameof(filter));
@@ -60,7 +60,7 @@ namespace System
 
         // FindMembers
         // This will return a filtered version of the member information
-        public virtual MemberInfo[] FindMembers(MemberTypes memberType, BindingFlags bindingAttr, MemberFilter filter, Object filterCriteria)
+        public virtual MemberInfo[] FindMembers(MemberTypes memberType, BindingFlags bindingAttr, MemberFilter filter, object filterCriteria)
         {
             // Define the work arrays
             MethodInfo[] m = null;

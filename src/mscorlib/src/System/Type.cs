@@ -38,7 +38,7 @@ namespace System
         public static readonly MemberFilter FilterName = new MemberFilter(__Filters.Instance.FilterName);
         public static readonly MemberFilter FilterNameIgnoreCase = new MemberFilter(__Filters.Instance.FilterIgnoreCase);
 
-        public static readonly Object Missing = System.Reflection.Missing.Value;
+        public static readonly object Missing = System.Reflection.Missing.Value;
 
         public static readonly char Delimiter = '.';
 
@@ -70,7 +70,7 @@ namespace System
         }
 
         [System.Security.DynamicSecurityMethod] // Methods containing StackCrawlMark local var has to be marked DynamicSecurityMethod
-        public static Type ReflectionOnlyGetType(String typeName, bool throwIfNotFound, bool ignoreCase)
+        public static Type ReflectionOnlyGetType(string typeName, bool throwIfNotFound, bool ignoreCase)
         {
             if (typeName == null)
                 throw new ArgumentNullException(nameof(typeName));
@@ -94,7 +94,7 @@ namespace System
         //   param progID:     the progID of the class to retrieve
         //   returns:          the class object associated to the progID
         ////
-        public static Type GetTypeFromProgID(String progID)
+        public static Type GetTypeFromProgID(string progID)
         {
             return RuntimeType.GetTypeFromProgIDImpl(progID, null, false);
         }
@@ -108,12 +108,12 @@ namespace System
         //   param progID:     the progID of the class to retrieve
         //   returns:          the class object associated to the progID
         ////
-        public static Type GetTypeFromProgID(String progID, bool throwOnError)
+        public static Type GetTypeFromProgID(string progID, bool throwOnError)
         {
             return RuntimeType.GetTypeFromProgIDImpl(progID, null, throwOnError);
         }
 
-        public static Type GetTypeFromProgID(String progID, String server)
+        public static Type GetTypeFromProgID(string progID, string server)
         {
             return RuntimeType.GetTypeFromProgIDImpl(progID, server, false);
         }
@@ -135,7 +135,7 @@ namespace System
             return RuntimeType.GetTypeFromCLSIDImpl(clsid, null, throwOnError);
         }
 
-        public static Type GetTypeFromCLSID(Guid clsid, String server)
+        public static Type GetTypeFromCLSID(Guid clsid, string server)
         {
             return RuntimeType.GetTypeFromCLSIDImpl(clsid, server, false);
         }
@@ -190,19 +190,19 @@ namespace System
         // 
         // This will invoke a specific member...
 
-        abstract public Object InvokeMember(String name, BindingFlags invokeAttr, Binder binder, Object target,
-                                    Object[] args, ParameterModifier[] modifiers, CultureInfo culture, String[] namedParameters);
+        abstract public object InvokeMember(string name, BindingFlags invokeAttr, Binder binder, object target,
+                                    object[] args, ParameterModifier[] modifiers, CultureInfo culture, string[] namedParameters);
 
         [DebuggerStepThroughAttribute]
         [Diagnostics.DebuggerHidden]
-        public Object InvokeMember(String name, BindingFlags invokeAttr, Binder binder, Object target, Object[] args, CultureInfo culture)
+        public object InvokeMember(string name, BindingFlags invokeAttr, Binder binder, object target, object[] args, CultureInfo culture)
         {
             return InvokeMember(name, invokeAttr, binder, target, args, null, culture, null);
         }
 
         [DebuggerStepThroughAttribute]
         [Diagnostics.DebuggerHidden]
-        public Object InvokeMember(String name, BindingFlags invokeAttr, Binder binder, Object target, Object[] args)
+        public object InvokeMember(string name, BindingFlags invokeAttr, Binder binder, object target, object[] args)
         {
             return InvokeMember(name, invokeAttr, binder, target, args, null, null, null);
         }
@@ -230,29 +230,29 @@ namespace System
             }
         }
 
-        public static RuntimeTypeHandle GetTypeHandle(Object o)
+        public static RuntimeTypeHandle GetTypeHandle(object o)
         {
             if (o == null)
-                throw new ArgumentNullException(null, Environment.GetResourceString("Arg_InvalidHandle"));
+                throw new ArgumentNullException(null, SR.Arg_InvalidHandle);
             return new RuntimeTypeHandle((RuntimeType)o.GetType());
         }
 
         // Return the fully qualified name.  The name does contain the namespace.
-        public abstract String FullName
+        public abstract string FullName
         {
             [Pure]
             get;
         }
 
         // Return the name space of the class.  
-        public abstract String Namespace
+        public abstract string Namespace
         {
             [Pure]
             get;
         }
 
 
-        public abstract String AssemblyQualifiedName
+        public abstract string AssemblyQualifiedName
         {
             [Pure]
             get;
@@ -263,7 +263,7 @@ namespace System
         public virtual int GetArrayRank()
         {
             Contract.Ensures(Contract.Result<int>() >= 0);
-            throw new NotSupportedException(Environment.GetResourceString("NotSupported_SubclassOverride"));
+            throw new NotSupportedException(SR.NotSupported_SubclassOverride);
         }
 
         // Returns the base class for a class.  If this is an interface or has
@@ -347,7 +347,7 @@ namespace System
         // must be provided, and exception is thrown if it is not.  The bindingAttr
         // parameter indicates if non-public methods should be searched.  The types
         // array indicates the types of the parameters being looked for.
-        public MethodInfo GetMethod(String name,
+        public MethodInfo GetMethod(string name,
                                     BindingFlags bindingAttr,
                                     Binder binder,
                                     CallingConventions callConvention,
@@ -365,7 +365,7 @@ namespace System
             return GetMethodImpl(name, bindingAttr, binder, callConvention, types, modifiers);
         }
 
-        public MethodInfo GetMethod(String name,
+        public MethodInfo GetMethod(string name,
                                     BindingFlags bindingAttr,
                                     Binder binder,
                                     Type[] types,
@@ -382,7 +382,7 @@ namespace System
             return GetMethodImpl(name, bindingAttr, binder, CallingConventions.Any, types, modifiers);
         }
 
-        public MethodInfo GetMethod(String name, Type[] types, ParameterModifier[] modifiers)
+        public MethodInfo GetMethod(string name, Type[] types, ParameterModifier[] modifiers)
         {
             if (name == null)
                 throw new ArgumentNullException(nameof(name));
@@ -395,7 +395,7 @@ namespace System
             return GetMethodImpl(name, Type.DefaultLookup, null, CallingConventions.Any, types, modifiers);
         }
 
-        public MethodInfo GetMethod(String name, Type[] types)
+        public MethodInfo GetMethod(string name, Type[] types)
         {
             if (name == null)
                 throw new ArgumentNullException(nameof(name));
@@ -408,7 +408,7 @@ namespace System
             return GetMethodImpl(name, Type.DefaultLookup, null, CallingConventions.Any, types, null);
         }
 
-        public MethodInfo GetMethod(String name, BindingFlags bindingAttr)
+        public MethodInfo GetMethod(string name, BindingFlags bindingAttr)
         {
             if (name == null)
                 throw new ArgumentNullException(nameof(name));
@@ -416,7 +416,7 @@ namespace System
             return GetMethodImpl(name, bindingAttr, null, CallingConventions.Any, null, null);
         }
 
-        public MethodInfo GetMethod(String name)
+        public MethodInfo GetMethod(string name)
         {
             if (name == null)
                 throw new ArgumentNullException(nameof(name));
@@ -424,7 +424,7 @@ namespace System
             return GetMethodImpl(name, Type.DefaultLookup, null, CallingConventions.Any, null, null);
         }
 
-        abstract protected MethodInfo GetMethodImpl(String name,
+        abstract protected MethodInfo GetMethodImpl(string name,
                                                     BindingFlags bindingAttr,
                                                     Binder binder,
                                                     CallingConventions callConvention,
@@ -443,10 +443,10 @@ namespace System
 
         // GetField
         // Get Field will return a specific field based upon name
-        abstract public FieldInfo GetField(String name, BindingFlags bindingAttr);
+        abstract public FieldInfo GetField(string name, BindingFlags bindingAttr);
 
 
-        public FieldInfo GetField(String name)
+        public FieldInfo GetField(string name)
         {
             return GetField(name, Type.DefaultLookup);
         }
@@ -463,11 +463,11 @@ namespace System
         // GetInterface
         // This method will return an interface (as a class) based upon
         //  the passed in name.
-        public Type GetInterface(String name)
+        public Type GetInterface(string name)
         {
             return GetInterface(name, false);
         }
-        abstract public Type GetInterface(String name, bool ignoreCase);
+        abstract public Type GetInterface(string name, bool ignoreCase);
 
 
         // GetInterfaces
@@ -479,11 +479,11 @@ namespace System
         //  null is returned if the event is not found
 
 
-        public EventInfo GetEvent(String name)
+        public EventInfo GetEvent(string name)
         {
             return GetEvent(name, Type.DefaultLookup);
         }
-        abstract public EventInfo GetEvent(String name, BindingFlags bindingAttr);
+        abstract public EventInfo GetEvent(string name, BindingFlags bindingAttr);
 
         // GetEvents
         // This method will return an array of EventInfo.  If there are not Events
@@ -497,7 +497,7 @@ namespace System
 
         // Return a property based upon the passed criteria.  The nameof the
         // parameter must be provided.  
-        public PropertyInfo GetProperty(String name, BindingFlags bindingAttr, Binder binder,
+        public PropertyInfo GetProperty(string name, BindingFlags bindingAttr, Binder binder,
                         Type returnType, Type[] types, ParameterModifier[] modifiers)
         {
             if (name == null)
@@ -508,7 +508,7 @@ namespace System
             return GetPropertyImpl(name, bindingAttr, binder, returnType, types, modifiers);
         }
 
-        public PropertyInfo GetProperty(String name, Type returnType, Type[] types, ParameterModifier[] modifiers)
+        public PropertyInfo GetProperty(string name, Type returnType, Type[] types, ParameterModifier[] modifiers)
         {
             if (name == null)
                 throw new ArgumentNullException(nameof(name));
@@ -518,7 +518,7 @@ namespace System
             return GetPropertyImpl(name, Type.DefaultLookup, null, returnType, types, modifiers);
         }
 
-        public PropertyInfo GetProperty(String name, BindingFlags bindingAttr)
+        public PropertyInfo GetProperty(string name, BindingFlags bindingAttr)
         {
             if (name == null)
                 throw new ArgumentNullException(nameof(name));
@@ -526,7 +526,7 @@ namespace System
             return GetPropertyImpl(name, bindingAttr, null, null, null, null);
         }
 
-        public PropertyInfo GetProperty(String name, Type returnType, Type[] types)
+        public PropertyInfo GetProperty(string name, Type returnType, Type[] types)
         {
             if (name == null)
                 throw new ArgumentNullException(nameof(name));
@@ -536,7 +536,7 @@ namespace System
             return GetPropertyImpl(name, Type.DefaultLookup, null, returnType, types, null);
         }
 
-        public PropertyInfo GetProperty(String name, Type[] types)
+        public PropertyInfo GetProperty(string name, Type[] types)
         {
             if (name == null)
                 throw new ArgumentNullException(nameof(name));
@@ -546,7 +546,7 @@ namespace System
             return GetPropertyImpl(name, Type.DefaultLookup, null, null, types, null);
         }
 
-        public PropertyInfo GetProperty(String name, Type returnType)
+        public PropertyInfo GetProperty(string name, Type returnType)
         {
             if (name == null)
                 throw new ArgumentNullException(nameof(name));
@@ -556,7 +556,7 @@ namespace System
             return GetPropertyImpl(name, Type.DefaultLookup, null, returnType, null, null);
         }
 
-        public PropertyInfo GetProperty(String name)
+        public PropertyInfo GetProperty(string name)
         {
             if (name == null)
                 throw new ArgumentNullException(nameof(name));
@@ -564,7 +564,7 @@ namespace System
             return GetPropertyImpl(name, Type.DefaultLookup, null, null, null, null);
         }
 
-        protected abstract PropertyInfo GetPropertyImpl(String name, BindingFlags bindingAttr, Binder binder,
+        protected abstract PropertyInfo GetPropertyImpl(string name, BindingFlags bindingAttr, Binder binder,
                         Type returnType, Type[] types, ParameterModifier[] modifiers);
 
 
@@ -587,29 +587,29 @@ namespace System
 
         abstract public Type[] GetNestedTypes(BindingFlags bindingAttr);
 
-        public Type GetNestedType(String name)
+        public Type GetNestedType(string name)
         {
             return GetNestedType(name, Type.DefaultLookup);
         }
 
-        abstract public Type GetNestedType(String name, BindingFlags bindingAttr);
+        abstract public Type GetNestedType(string name, BindingFlags bindingAttr);
 
         // GetMember
         // This method will return all of the members which match the specified string
         // passed into the method
-        public MemberInfo[] GetMember(String name)
+        public MemberInfo[] GetMember(string name)
         {
             return GetMember(name, Type.DefaultLookup);
         }
 
-        virtual public MemberInfo[] GetMember(String name, BindingFlags bindingAttr)
+        virtual public MemberInfo[] GetMember(string name, BindingFlags bindingAttr)
         {
             return GetMember(name, MemberTypes.All, bindingAttr);
         }
 
-        virtual public MemberInfo[] GetMember(String name, MemberTypes type, BindingFlags bindingAttr)
+        virtual public MemberInfo[] GetMember(string name, MemberTypes type, BindingFlags bindingAttr)
         {
-            throw new NotSupportedException(Environment.GetResourceString("NotSupported_SubclassOverride"));
+            throw new NotSupportedException(SR.NotSupported_SubclassOverride);
         }
 
 
@@ -857,14 +857,14 @@ namespace System
         public virtual int GenericParameterPosition
         {
             [Pure]
-            get { throw new InvalidOperationException(Environment.GetResourceString("Arg_NotGenericParameter")); }
+            get { throw new InvalidOperationException(SR.Arg_NotGenericParameter); }
         }
 
         [Pure]
         public virtual Type[] GetGenericParameterConstraints()
         {
             if (!IsGenericParameter)
-                throw new InvalidOperationException(Environment.GetResourceString("Arg_NotGenericParameter"));
+                throw new InvalidOperationException(SR.Arg_NotGenericParameter);
             Contract.EndContractBlock();
 
             throw new InvalidOperationException();
@@ -944,7 +944,7 @@ namespace System
         public virtual Type MakeGenericType(params Type[] typeArguments)
         {
             Contract.Ensures(Contract.Result<Type>() != null);
-            throw new NotSupportedException(Environment.GetResourceString("NotSupported_SubclassOverride"));
+            throw new NotSupportedException(SR.NotSupported_SubclassOverride);
         }
 
 
@@ -966,7 +966,7 @@ namespace System
         [Pure]
         public virtual Type[] GetGenericArguments()
         {
-            throw new NotSupportedException(Environment.GetResourceString("NotSupported_SubclassOverride"));
+            throw new NotSupportedException(SR.NotSupported_SubclassOverride);
         }
 
         public virtual Type[] GenericTypeArguments
@@ -988,7 +988,7 @@ namespace System
         public virtual Type GetGenericTypeDefinition()
         {
             Contract.Ensures(Contract.Result<Type>() != null);
-            throw new NotSupportedException(Environment.GetResourceString("NotSupported_SubclassOverride"));
+            throw new NotSupportedException(SR.NotSupported_SubclassOverride);
         }
 
         [Pure]
@@ -997,12 +997,12 @@ namespace System
         public virtual Type GetEnumUnderlyingType()
         {
             if (!IsEnum)
-                throw new ArgumentException(Environment.GetResourceString("Arg_MustBeEnum"), "enumType");
+                throw new ArgumentException(SR.Arg_MustBeEnum, "enumType");
             Contract.Ensures(Contract.Result<Type>() != null);
 
             FieldInfo[] fields = GetFields(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
             if (fields == null || fields.Length != 1)
-                throw new ArgumentException(Environment.GetResourceString("Argument_InvalidEnum"), "enumType");
+                throw new ArgumentException(SR.Argument_InvalidEnum, "enumType");
 
             return fields[0].FieldType;
         }
@@ -1027,7 +1027,7 @@ namespace System
         // Everything else returns false. 
         // 
         [Pure]
-        public virtual bool IsInstanceOfType(Object o)
+        public virtual bool IsInstanceOfType(object o)
         {
             if (o == null)
                 return false;
@@ -1046,8 +1046,8 @@ namespace System
         }
 
         // ToString
-        // Print the String Representation of the Type
-        public override String ToString()
+        // Print the string Representation of the Type
+        public override string ToString()
         {
             // Why do we add the "Type: " prefix? RuntimeType.ToString() doesn't include it.
             return "Type: " + Name;
@@ -1055,7 +1055,7 @@ namespace System
 
         // This method will return an array of classes based upon the array of 
         // types.
-        public static Type[] GetTypeArray(Object[] args)
+        public static Type[] GetTypeArray(object[] args)
         {
             if (args == null)
                 throw new ArgumentNullException(nameof(args));
@@ -1071,7 +1071,7 @@ namespace System
         }
 
         [Pure]
-        public override bool Equals(Object o)
+        public override bool Equals(object o)
         {
             if (o == null)
                 return false;
@@ -1085,13 +1085,13 @@ namespace System
             if ((object)o == null)
                 return false;
 
-            return (Object.ReferenceEquals(this.UnderlyingSystemType, o.UnderlyingSystemType));
+            return (object.ReferenceEquals(this.UnderlyingSystemType, o.UnderlyingSystemType));
         }
 
         public override int GetHashCode()
         {
             Type SystemType = UnderlyingSystemType;
-            if (!Object.ReferenceEquals(SystemType, this))
+            if (!object.ReferenceEquals(SystemType, this))
                 return SystemType.GetHashCode();
             return base.GetHashCode();
         }
@@ -1103,7 +1103,7 @@ namespace System
         //  implemenet the interface.
         public virtual InterfaceMapping GetInterfaceMap(Type interfaceType)
         {
-            throw new NotSupportedException(Environment.GetResourceString("NotSupported_SubclassOverride"));
+            throw new NotSupportedException(SR.NotSupported_SubclassOverride);
         }
 
         // this method is required so Object.GetType is not made virtual by the compiler 

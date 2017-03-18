@@ -35,8 +35,8 @@ namespace System
         public virtual string[] GetEnumNames()
         {
             if (!IsEnum)
-                throw new ArgumentException(Environment.GetResourceString("Arg_MustBeEnum"), "enumType");
-            Contract.Ensures(Contract.Result<String[]>() != null);
+                throw new ArgumentException(SR.Arg_MustBeEnum, "enumType");
+            Contract.Ensures(Contract.Result<string[]>() != null);
 
             string[] names;
             Array values;
@@ -49,7 +49,7 @@ namespace System
         public virtual Array GetEnumValues()
         {
             if (!IsEnum)
-                throw new ArgumentException(Environment.GetResourceString("Arg_MustBeEnum"), "enumType");
+                throw new ArgumentException(SR.Arg_MustBeEnum, "enumType");
             Contract.Ensures(Contract.Result<Array>() != null);
 
             throw new NotImplementedException();
@@ -67,7 +67,7 @@ namespace System
         // This will return enumValues and enumNames sorted by the values.
         private void GetEnumData(out string[] enumNames, out Array enumValues)
         {
-            Contract.Ensures(Contract.ValueAtReturn<String[]>(out enumNames) != null);
+            Contract.Ensures(Contract.ValueAtReturn<string[]>(out enumNames) != null);
             Contract.Ensures(Contract.ValueAtReturn<Array>(out enumValues) != null);
 
             FieldInfo[] flds = GetFields(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static);
@@ -120,7 +120,7 @@ namespace System
                 throw new ArgumentNullException(nameof(value));
 
             if (!IsEnum)
-                throw new ArgumentException(Environment.GetResourceString("Arg_MustBeEnum"), "enumType");
+                throw new ArgumentException(SR.Arg_MustBeEnum, "enumType");
             Contract.EndContractBlock();
 
             // Check if both of them are of the same type
@@ -130,7 +130,7 @@ namespace System
             if (valueType.IsEnum)
             {
                 if (!valueType.IsEquivalentTo(this))
-                    throw new ArgumentException(Environment.GetResourceString("Arg_EnumAndObjectMustBeSameType", valueType.ToString(), this.ToString()));
+                    throw new ArgumentException(SR.Format(SR.Arg_EnumAndObjectMustBeSameType, valueType.ToString(), this.ToString()));
 
                 valueType = valueType.GetEnumUnderlyingType();
             }
@@ -151,14 +151,14 @@ namespace System
                 Type underlyingType = GetEnumUnderlyingType();
                 // We cannot compare the types directly because valueType is always a runtime type but underlyingType might not be.
                 if (underlyingType.GetTypeCodeImpl() != valueType.GetTypeCodeImpl())
-                    throw new ArgumentException(Environment.GetResourceString("Arg_EnumUnderlyingTypeAndObjectMustBeSameType", valueType.ToString(), underlyingType.ToString()));
+                    throw new ArgumentException(SR.Format(SR.Arg_EnumUnderlyingTypeAndObjectMustBeSameType, valueType.ToString(), underlyingType.ToString()));
 
                 Array values = GetEnumRawConstantValues();
                 return (BinarySearch(values, value) >= 0);
             }
             else
             {
-                throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_UnknownEnumType"));
+                throw new InvalidOperationException(SR.InvalidOperation_UnknownEnumType);
             }
         }
 
@@ -168,13 +168,13 @@ namespace System
                 throw new ArgumentNullException(nameof(value));
 
             if (!IsEnum)
-                throw new ArgumentException(Environment.GetResourceString("Arg_MustBeEnum"), "enumType");
+                throw new ArgumentException(SR.Arg_MustBeEnum, "enumType");
             Contract.EndContractBlock();
 
             Type valueType = value.GetType();
 
             if (!(valueType.IsEnum || Type.IsIntegerType(valueType)))
-                throw new ArgumentException(Environment.GetResourceString("Arg_MustBeEnumBaseTypeOrEnum"), nameof(value));
+                throw new ArgumentException(SR.Arg_MustBeEnumBaseTypeOrEnum, nameof(value));
 
             Array values = GetEnumRawConstantValues();
             int index = BinarySearch(values, value);
