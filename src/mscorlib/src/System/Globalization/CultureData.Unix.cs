@@ -14,18 +14,16 @@ namespace System.Globalization
 {
     internal partial class CultureData
     {
-        private static bool s_invariantGlobalizationMode = InitGlobalizationInvariantMode();
-        
-        private static bool InitGlobalizationInvariantMode()
+        internal static void InitGlobalizationInvariantMode()
         {
-            bool invariantEnabled = CLRConfig.GetBoolValue("System.Globalization.Invariant");
+            bool invariantEnabled = CLRConfig.GetBoolValue(c_InvariantModeConfigSwitch);
             if (!invariantEnabled && Interop.GlobalizationInterop.ICUPresent() == 0)
             {
                 string message = "Couldn't find a valid ICU package installed on the system. " + 
-                                 "Set the configuration flag System.Globalization.Invariant to true if want to run with no globalization support.";
+                                 "Set the configuration flag System.Globalization.Invariant to true if you want to run with no globalization support.";
                 Environment.FailFast(message);
             }
-            return invariantEnabled;
+            s_invariantGlobalizationMode = invariantEnabled;
         }
         
         // ICU constants

@@ -15,8 +15,6 @@ namespace System
     // In general AppContext should be used instead of CLRConfig if there is no reason prevent that.
     internal class CLRConfig
     {
-
-#if CORECLR
         internal static bool GetBoolValue(string switchName)
         {
             return GetConfigBoolValue(switchName);
@@ -25,13 +23,6 @@ namespace System
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         [SuppressUnmanagedCodeSecurity]
         private extern static bool GetConfigBoolValue(string configSwitchName);
-#else
-        // need to be implemented when supporting the functionality on non coreclr platforms
-        internal static bool GetBoolValue(string switchName)
-        {
-            return false;
-        }
-#endif
     }
 }  // namespace System
 

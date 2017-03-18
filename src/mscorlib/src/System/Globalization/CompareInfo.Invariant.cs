@@ -9,12 +9,16 @@ namespace System.Globalization
 {
     public partial class CompareInfo
     {
-        internal static unsafe int InvariantIndexOfOrdinal(string source, string value, int startIndex, int count, bool ignoreCase)
+        internal static unsafe int InvariantIndexOf(string source, string value, int startIndex, int count, bool ignoreCase)
         {
+            Debug.Assert(source != null);
+            Debug.Assert(value != null);
+            Debug.Assert(startIndex >= 0 && startIndex < source.Length);
+
             fixed (char* pSource = source) fixed (char* pValue = value)
             {
                 char* pSrc = &pSource[startIndex];
-                int index = InvariantFindStringOrdinal(pSrc, count, pValue, value.Length, true, ignoreCase);
+                int index = InvariantFindString(pSrc, count, pValue, value.Length, ignoreCase, start : true);
                 if (index >= 0)
                 {
                     return index + startIndex;
@@ -23,12 +27,16 @@ namespace System.Globalization
             }
         }
 
-        internal static unsafe int InvariantLastIndexOfOrdinal(string source, string value, int startIndex, int count, bool ignoreCase)
+        internal static unsafe int InvariantLastIndexOf(string source, string value, int startIndex, int count, bool ignoreCase)
         {
+            Debug.Assert(source != null);
+            Debug.Assert(value != null);
+            Debug.Assert(startIndex >= 0 && startIndex < source.Length);
+
             fixed (char* pSource = source) fixed (char* pValue = value)
             {
                 char* pSrc = &pSource[startIndex - count + 1];
-                int index = InvariantFindStringOrdinal(pSrc, count, pValue, value.Length, false, ignoreCase);
+                int index = InvariantFindString(pSrc, count, pValue, value.Length, ignoreCase, start : false);
                 if (index >= 0)
                 {
                     return index + startIndex - count + 1;
@@ -37,7 +45,7 @@ namespace System.Globalization
             }
         }
 
-        private static unsafe int InvariantFindStringOrdinal(char* source, int sourceCount, char* value, int valueCount, bool start, bool ignoreCase)
+        private static unsafe int InvariantFindString(char* source, int sourceCount, char* value, int valueCount, bool ignoreCase, bool start)
         {
             int ctrSource = 0;  // index value into source
             int ctrValue = 0;   // index value into value

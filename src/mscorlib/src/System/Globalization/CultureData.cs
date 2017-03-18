@@ -309,6 +309,8 @@ namespace System.Globalization
         private static volatile StringCultureDataDictionary s_cachedRegions;
         private static volatile StringStringDictionary s_RegionNames;
 
+        private const string c_InvariantModeConfigSwitch = "System.Globalization.Invariant";
+        private static bool s_invariantGlobalizationMode;
         internal static bool InvariantMode { get { return s_invariantGlobalizationMode; } }
 
         internal static CultureData GetCultureDataForRegion(String cultureName, bool useUserOverride)

@@ -21,7 +21,10 @@ namespace System.Globalization
 
     internal partial class CultureData
     {
-        private static bool s_invariantGlobalizationMode = CLRConfig.GetBoolValue("System.Globalization.Invariant");
+        internal static void InitGlobalizationInvariantMode()
+        {
+            s_invariantGlobalizationMode = CLRConfig.GetBoolValue(c_InvariantModeConfigSwitch);
+        }
         
         private const uint LOCALE_NOUSEROVERRIDE = 0x80000000;
         private const uint LOCALE_RETURN_NUMBER = 0x20000000;

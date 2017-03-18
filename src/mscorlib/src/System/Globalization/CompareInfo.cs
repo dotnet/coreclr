@@ -186,14 +186,15 @@ namespace System.Globalization
 
         public static unsafe bool IsSortable(string text)
         {
-            if (CultureData.InvariantMode)
-            {
-                return true;
-            }
             if (text == null) 
             {
                 // A null param is invalid here.
                 throw new ArgumentNullException(nameof(text));
+            }
+
+            if (CultureData.InvariantMode)
+            {
+                return true;
             }
 
             if (0 == text.Length)
@@ -448,6 +449,49 @@ namespace System.Globalization
             return (result);
         }
 
+        // InvariantCompareIgnoreCase is similar to CompareOrdinalIgnoreCase but it is not restricted to the ascii letters only
+        internal static unsafe int InvariantCompareIgnoreCase(string strA, int indexA, int lengthA, string strB, int indexB, int lengthB)
+        {
+            Debug.Assert(indexA + lengthA <= strA.Length);
+            Debug.Assert(indexB + lengthB <= strB.Length);
+
+            int length = Math.Min(lengthA, lengthB);
+            int range = length;
+
+            fixed (char* ap = strA) fixed (char* bp = strB)
+            {
+                char* a = ap + indexA;
+                char* b = bp + indexB;
+
+                while (length != 0)
+                {
+                    int charA = *a;
+                    int charB = *b;
+
+                    if (charA == charB)
+                    {
+                        a++; b++;
+                        length--;
+                        continue;
+                    }
+
+                    // uppercase both chars - notice that we need just one compare per char
+                    if ((uint)(charA - 'a') <= (uint)('z' - 'a')) charA -= 0x20;
+                    if ((uint)(charB - 'a') <= (uint)('z' - 'a')) charB -= 0x20;
+
+                    // Return the (case-insensitive) difference between them.
+                    if (charA != charB)
+                        return charA - charB;
+
+                    // Next char
+                    a++; b++;
+                    length--;
+                }
+
+                return lengthA - lengthB;
+            }
+        }
+
         //
         // CompareOrdinalIgnoreCase compare two string ordinally with ignoring the case.
         // it assumes the strings are Ascii string till we hit non Ascii character in strA or strB and then we continue the comparison by
@@ -455,6 +499,11 @@ namespace System.Globalization
         //
         internal static unsafe int CompareOrdinalIgnoreCase(string strA, int indexA, int lengthA, string strB, int indexB, int lengthB)
         {
+            if (CultureData.InvariantMode)
+            {
+                return InvariantCompareIgnoreCase(strA, indexA, lengthA, strB, indexB, lengthB);
+            }
+
             Debug.Assert(indexA + lengthA <= strA.Length);
             Debug.Assert(indexB + lengthB <= strB.Length);
 
@@ -489,34 +538,6 @@ namespace System.Globalization
                     // Next char
                     a++; b++;
                     length--;
-                }
-
-                if (CultureData.InvariantMode)
-                {
-                    while (length != 0)
-                    {
-                        int charA = *a;
-                        int charB = *b;
-
-                        if (charA == charB)
-                        {
-                            a++; b++;
-                            length--;
-                            continue;
-                        }
-
-                        // uppercase both chars - notice that we need just one compare per char
-                        if ((uint)(charA - 'a') <= (uint)('z' - 'a')) charA -= 0x20;
-                        if ((uint)(charB - 'a') <= (uint)('z' - 'a')) charB -= 0x20;
-
-                        // Return the (case-insensitive) difference between them.
-                        if (charA != charB)
-                            return charA - charB;
-
-                        // Next char
-                        a++; b++;
-                        length--;
-                    }
                 }
 
                 if (length == 0)
@@ -824,7 +845,7 @@ namespace System.Globalization
         {
             if (CultureData.InvariantMode)
             {
-                return InvariantIndexOfOrdinal(source, value, startIndex, count, ignoreCase);
+                return InvariantIndexOf(source, value, startIndex, count, ignoreCase);
             }
 
             return IndexOfOrdinalCore(source, value, startIndex, count, ignoreCase);
@@ -965,7 +986,7 @@ namespace System.Globalization
             }
 
             if (CultureData.InvariantMode)
-                return InvariantLastIndexOfOrdinal(source, new string(value, 1), startIndex, count, (options & (CompareOptions.IgnoreCase | CompareOptions.OrdinalIgnoreCase)) != 0);
+                return InvariantLastIndexOf(source, new string(value, 1), startIndex, count, (options & (CompareOptions.IgnoreCase | CompareOptions.OrdinalIgnoreCase)) != 0);
 
             return LastIndexOfCore(source, value.ToString(), startIndex, count, options);
         }
@@ -1017,7 +1038,7 @@ namespace System.Globalization
             }
 
             if (CultureData.InvariantMode)
-                return InvariantLastIndexOfOrdinal(source, value, startIndex, count, (options & (CompareOptions.IgnoreCase | CompareOptions.OrdinalIgnoreCase)) != 0);
+                return InvariantLastIndexOf(source, value, startIndex, count, (options & (CompareOptions.IgnoreCase | CompareOptions.OrdinalIgnoreCase)) != 0);
 
             return LastIndexOfCore(source, value, startIndex, count, options);
         }
@@ -1026,7 +1047,7 @@ namespace System.Globalization
         {
             if (CultureData.InvariantMode)
             {
-                return InvariantLastIndexOfOrdinal(source, value, startIndex, count, ignoreCase);
+                return InvariantLastIndexOf(source, value, startIndex, count, ignoreCase);
             }
 
             return LastIndexOfOrdinalCore(source, value, startIndex, count, ignoreCase);

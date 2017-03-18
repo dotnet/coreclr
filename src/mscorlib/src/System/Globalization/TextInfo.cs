@@ -425,7 +425,7 @@ namespace System.Globalization
                         pResult[j] = pSource[j];
                     }
                     
-                    pResult[i] = (Char)(pSource[i] & ~0x20);
+                    pResult[i] = (char)(pSource[i] & ~0x20);
                     i++;
 
                     while (i < s.Length)

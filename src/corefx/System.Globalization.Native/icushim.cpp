@@ -170,7 +170,7 @@ bool FindLibWithMajorMinorSubVersion(int* majorVer, int* minorVer, int* subVer)
     return false;
 }
 
-static int32_t g_icuPresent = 1;
+static int32_t g_icuPresent = 0;
 
 extern "C" int32_t GlobalizationNative_ICUPresent()
 {
@@ -192,7 +192,6 @@ void InitializeICUShim()
         !FindLibWithMajorVersion(&majorVer))
     {
         // No usable ICU version found
-        g_icuPresent = 0;
         return;
     }
 
@@ -218,12 +217,13 @@ void InitializeICUShim()
                 sprintf(symbolName, "u_strlen%s", symbolVersion);
                 if (dlsym(libicuuc, symbolName) == nullptr)
                 {
-                    fprintf(stderr, "ICU libraries use unknown symbol versioning\n");
-                    abort();
+                    return;
                 }
             }
         }
     }
+
+    g_icuPresent = 1;
 
     // Get pointers to all the ICU functions that are needed
 #define PER_FUNCTION_BLOCK(fn, lib) \

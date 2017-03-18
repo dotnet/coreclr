@@ -171,6 +171,8 @@ namespace System.Globalization
         private static readonly bool init = Init();
         private static bool Init()
         {
+            CultureData.InitGlobalizationInvariantMode();
+
             if (s_InvariantCultureInfo == null)
             {
                 CultureInfo temp = new CultureInfo("", false);

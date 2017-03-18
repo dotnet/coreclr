@@ -66,7 +66,7 @@ namespace System.Globalization
                                                     _sortHandle);
             }
 
-            if (0 == ret)
+            if (ret == 0)
             {
                 throw new InvalidOperationException(SR.InvalidOperation_ReadOnly);
             }
