@@ -2,41 +2,25 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-//
-//
-//
-// Implements System.Type
-//
-// ======================================================================================
+using System.Reflection;
+using System.Collections;
+using System.Collections.Generic;
 
 namespace System
 {
-    using System;
-    using System.Reflection;
-    using System.Threading;
-    using System.Runtime;
-    using System.Runtime.Remoting;
-    using System.Runtime.InteropServices;
-    using System.Runtime.CompilerServices;
-    using System.Security;
-    using System.Collections;
-    using System.Collections.Generic;
-    using System.Runtime.Versioning;
-    using System.Diagnostics.Contracts;
-    using CultureInfo = System.Globalization.CultureInfo;
-    using StackCrawlMark = System.Threading.StackCrawlMark;
-    using DebuggerStepThroughAttribute = System.Diagnostics.DebuggerStepThroughAttribute;
-
-    public abstract partial class Type : MemberInfo, IReflect
+    //
+    // This file collects a set of Enum-related apis that run when the Type is subclassed by an application.
+    // None of it runs on normal Type objects supplied by the runtime (as those types override these methods.)
+    //
+    // Since app-subclassed Types are "untrusted classes" that may or may not implement the complete surface area correctly,
+    // this code should be considered brittle and not changed lightly.
+    //
+    public abstract partial class Type
     {
-        // Default implementations of GetEnumNames, GetEnumValues, and GetEnumUnderlyingType
-        // Subclass of types can override these methods.
-
         public virtual string[] GetEnumNames()
         {
             if (!IsEnum)
                 throw new ArgumentException(SR.Arg_MustBeEnum, "enumType");
-            Contract.Ensures(Contract.Result<string[]>() != null);
 
             string[] names;
             Array values;
@@ -56,9 +40,6 @@ namespace System
         // This will return enumValues and enumNames sorted by the values.
         private void GetEnumData(out string[] enumNames, out Array enumValues)
         {
-            Contract.Ensures(Contract.ValueAtReturn<string[]>(out enumNames) != null);
-            Contract.Ensures(Contract.ValueAtReturn<Array>(out enumValues) != null);
-
             FieldInfo[] flds = GetFields(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static);
 
             object[] values = new object[flds.Length];
@@ -73,7 +54,7 @@ namespace System
             // Insertion Sort these values in ascending order.
             // We use this O(n^2) algorithm, but it turns out that most of the time the elements are already in sorted order and
             // the common case performance will be faster than quick sorting this.
-            IComparer comparer = Comparer.Default;
+            IComparer comparer = Comparer<object>.Default;
             for (int i = 1; i < values.Length; i++)
             {
                 int j = i;
@@ -110,7 +91,6 @@ namespace System
 
             if (!IsEnum)
                 throw new ArgumentException(SR.Arg_MustBeEnum, "enumType");
-            Contract.EndContractBlock();
 
             // Check if both of them are of the same type
             Type valueType = value.GetType();
@@ -158,7 +138,6 @@ namespace System
 
             if (!IsEnum)
                 throw new ArgumentException(SR.Arg_MustBeEnum, "enumType");
-            Contract.EndContractBlock();
 
             Type valueType = value.GetType();
 
