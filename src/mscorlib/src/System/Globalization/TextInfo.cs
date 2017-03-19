@@ -61,6 +61,10 @@ namespace System.Globalization
         [NonSerialized]
         private Tristate _isAsciiCasingSameAsInvariant = Tristate.NotInitialized;
 
+        // _invariantMode is defined for the perf reason as accessing the instance field is faster than access the static property GlobalizationMode.Invariant
+        [NonSerialized] 
+        private readonly bool _invariantMode = GlobalizationMode.Invariant;
+
         // Invariant text info
         internal static TextInfo Invariant
         {
@@ -327,7 +331,7 @@ namespace System.Globalization
         ////////////////////////////////////////////////////////////////////////
         public unsafe virtual char ToLower(char c)
         {
-            if (CultureData.InvariantMode || (IsAscii(c) && IsAsciiCasingSameAsInvariant))
+            if (_invariantMode || (IsAscii(c) && IsAsciiCasingSameAsInvariant))
             {
                 return ToLowerAsciiInvariant(c);
             }
@@ -339,7 +343,7 @@ namespace System.Globalization
         {
             if (str == null) { throw new ArgumentNullException(nameof(str)); }
 
-            if (CultureData.InvariantMode)
+            if (_invariantMode)
             {
                 return ToLowerAsciiInvariant(str);
             }
@@ -458,7 +462,7 @@ namespace System.Globalization
         ////////////////////////////////////////////////////////////////////////
         public unsafe virtual char ToUpper(char c)
         {
-            if (CultureData.InvariantMode || (IsAscii(c) && IsAsciiCasingSameAsInvariant))
+            if (_invariantMode || (IsAscii(c) && IsAsciiCasingSameAsInvariant))
             {
                 return ToUpperAsciiInvariant(c);
             }
@@ -470,7 +474,7 @@ namespace System.Globalization
         {
             if (str == null) { throw new ArgumentNullException(nameof(str)); }
 
-            if (CultureData.InvariantMode)
+            if (_invariantMode)
             {
                 return ToUpperAsciiInvariant(str);
             }

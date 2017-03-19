@@ -10,7 +10,7 @@ namespace System.Globalization
     {
         private unsafe void FinishInitialization(string textInfoName)
         {
-            if (CultureData.InvariantMode)
+            if (_invariantMode)
             {
                 _sortHandle = IntPtr.Zero;
                 return;
@@ -25,7 +25,7 @@ namespace System.Globalization
 
         private unsafe string ChangeCase(string s, bool toUpper)
         {
-            Debug.Assert(!CultureData.InvariantMode);
+            Debug.Assert(!_invariantMode);
 
             Debug.Assert(s != null);
 
@@ -77,7 +77,7 @@ namespace System.Globalization
 
         private unsafe char ChangeCase(char c, bool toUpper)
         {
-            Debug.Assert(!CultureData.InvariantMode);
+            Debug.Assert(!_invariantMode);
 
             char retVal = '\0';
 

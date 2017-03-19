@@ -10,7 +10,7 @@ internal static partial class Interop
 {
     internal static partial class GlobalizationInterop
     {
-        [DllImport(Libraries.GlobalizationInterop, EntryPoint = "GlobalizationNative_ICUPresent")]
-        internal static extern int ICUPresent();
+        [DllImport(Libraries.GlobalizationInterop, EntryPoint = "GlobalizationNative_LoadICU")]
+        internal static extern int LoadICU();
     }
 }

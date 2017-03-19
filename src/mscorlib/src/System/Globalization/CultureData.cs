@@ -309,10 +309,6 @@ namespace System.Globalization
         private static volatile StringCultureDataDictionary s_cachedRegions;
         private static volatile StringStringDictionary s_RegionNames;
 
-        private const string c_InvariantModeConfigSwitch = "System.Globalization.Invariant";
-        private static bool s_invariantGlobalizationMode;
-        internal static bool InvariantMode { get { return s_invariantGlobalizationMode; } }
-
         internal static CultureData GetCultureDataForRegion(String cultureName, bool useUserOverride)
         {
             // First do a shortcut for Invariant
@@ -434,7 +430,7 @@ namespace System.Globalization
                 types &= (~CultureTypes.WindowsOnlyCultures);
             }
             
-            if (InvariantMode)
+            if (GlobalizationMode.Invariant)
             {
                 // in invariant mode we always return invariant culture only from the enumeration
                 return new CultureInfo[1] { new CultureInfo("") };
@@ -544,7 +540,7 @@ namespace System.Globalization
             invariant._iDefaultMacCodePage = 10000;         // default macintosh code page
             invariant._iDefaultEbcdicCodePage = 037;        // default EBCDIC code page
             
-            if (InvariantMode)
+            if (GlobalizationMode.Invariant)
             {
                 invariant._sLocalizedDisplayName = invariant._sNativeDisplayName;
                 invariant._sLocalizedCountry = invariant._sNativeCountry;
@@ -683,7 +679,7 @@ namespace System.Globalization
 
         private static CultureData CreateCultureData(string cultureName, bool useUserOverride)
         {
-            if (InvariantMode)
+            if (GlobalizationMode.Invariant)
             {
                 CultureInfo.VerifyCultureName(cultureName, true);
                 CultureData cd = CreateCultureWithInvariantData();
@@ -754,7 +750,7 @@ namespace System.Globalization
             if (culture == CultureInfo.LOCALE_INVARIANT)
                 return Invariant;
             
-            if (InvariantMode)
+            if (GlobalizationMode.Invariant)
             {
                 // LCID is not supported in the InvariantMode
                 throw new CultureNotFoundException(nameof(culture), culture, SR.Argument_CultureNotSupported);
@@ -1506,7 +1502,7 @@ namespace System.Globalization
             {
                 if (_saLongTimes == null)
                 {
-                    Debug.Assert(!CultureData.InvariantMode);
+                    Debug.Assert(!GlobalizationMode.Invariant);
 
                     String[] longTimes = GetTimeFormats();
                     if (longTimes == null || longTimes.Length == 0)
@@ -1531,7 +1527,7 @@ namespace System.Globalization
             {
                 if (_saShortTimes == null)
                 {
-                    Debug.Assert(!CultureData.InvariantMode);
+                    Debug.Assert(!GlobalizationMode.Invariant);
 
                     // Try to get the short times from the OS/culture.dll
                     String[] shortTimes = null;
@@ -2065,7 +2061,7 @@ namespace System.Globalization
         {
             get
             {
-                if (InvariantMode)
+                if (GlobalizationMode.Invariant)
                 {
                     return CultureInfo.GetCalendarInstance(CalendarIds[0]);
                 }
@@ -2301,7 +2297,7 @@ namespace System.Globalization
 
         internal void GetNFIValues(NumberFormatInfo nfi)
         {
-            if (this.IsInvariantCulture || InvariantMode)
+            if (GlobalizationMode.Invariant || this.IsInvariantCulture)
             {
                 // FUTURE: NumberFormatInfo already has default values for many of these fields.  Can we not do this?
                 nfi.positiveSign = _sPositiveSign;

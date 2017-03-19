@@ -5,17 +5,13 @@
 // File: clrconfiguration.cpp
 //
 
-#include <common.h>
-
+#include "common.h"
 #include "clrconfiguration.h"
 #include <configuration.h>
 
 BOOL QCALLTYPE ClrConfiguration::GetConfigBoolValue(LPCWSTR name)
 {
-    CONTRACTL
-    {
-        QCALL_CHECK;
-    } CONTRACTL_END;
+    QCALL_CONTRACT;
 
     BOOL retValue = FALSE;
     BEGIN_QCALL;

@@ -97,7 +97,7 @@ namespace System
 
         private void GetDisplayName(Interop.GlobalizationInterop.TimeZoneDisplayNameType nameType, ref string displayName)
         {
-            if (CultureData.InvariantMode)
+            if (GlobalizationMode.Invariant)
             {
                 displayName = _standardDisplayName;
                 return;

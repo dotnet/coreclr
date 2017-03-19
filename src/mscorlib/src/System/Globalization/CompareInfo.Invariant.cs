@@ -193,7 +193,7 @@ namespace System.Globalization
 
         private static char InvariantToUpper(char c)
         {
-            return ('a' <= c && c <= 'z') ? (char)(c - 0x20) : c;
+            return (uint)(c - 'a') <= (uint)('z' - 'a') ? (char)(c - 0x20) : c;
         }
 
         private unsafe SortKey InvariantCreateSortKey(string source, CompareOptions options)
@@ -209,7 +209,7 @@ namespace System.Globalization
             byte [] keyData;
             if (source.Length == 0)
             { 
-                keyData = EmptyArray<Byte>.Value;
+                keyData = Array.Empty<byte>();
             }
             else
             {

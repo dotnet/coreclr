@@ -86,7 +86,7 @@ namespace System.Globalization
                 throw new ArgumentException(SR.Format(SR.Argument_InvalidCharSequence, index + count - 1), nameof(unicode));
             }
 
-            if (CultureData.InvariantMode)
+            if (GlobalizationMode.Invariant)
             {
                 return GetAsciiInvariant(unicode, index, count);
             }
@@ -132,7 +132,7 @@ namespace System.Globalization
                 throw new ArgumentException(SR.Argument_IdnBadPunycode, nameof(ascii));
             Contract.EndContractBlock();
 
-            if (CultureData.InvariantMode)
+            if (GlobalizationMode.Invariant)
             {
                 return GetUnicodeInvariant(ascii, index, count);
             }

@@ -11,7 +11,7 @@ namespace System.Globalization
     {
         private unsafe string GetAsciiCore(char* unicode, int count)
         {
-            Debug.Assert(!CultureData.InvariantMode);
+            Debug.Assert(!GlobalizationMode.Invariant);
 
             uint flags = Flags;
 
@@ -41,7 +41,7 @@ namespace System.Globalization
 
         private unsafe string GetAsciiCore(char* unicode, int count, uint flags, char* output, int outputLength)
         {
-            Debug.Assert(!CultureData.InvariantMode);
+            Debug.Assert(!GlobalizationMode.Invariant);
 
             int length = Interop.Normaliz.IdnToAscii(flags, new IntPtr(unicode), count, new IntPtr(output), outputLength);
             if (length == 0)
@@ -54,7 +54,7 @@ namespace System.Globalization
 
         private unsafe string GetUnicodeCore(char* ascii, int count)
         {
-            Debug.Assert(!CultureData.InvariantMode);
+            Debug.Assert(!GlobalizationMode.Invariant);
 
             uint flags = Flags;
 
@@ -84,7 +84,7 @@ namespace System.Globalization
 
         private unsafe string GetUnicodeCore(char* ascii, int count, uint flags, char* output, int outputLength)
         {
-            Debug.Assert(!CultureData.InvariantMode);
+            Debug.Assert(!GlobalizationMode.Invariant);
 
             int length = Interop.Normaliz.IdnToUnicode(flags, new IntPtr(ascii), count, new IntPtr(output), outputLength);
             if (length == 0)

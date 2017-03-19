@@ -101,7 +101,7 @@ namespace System.Globalization
         {
             this.bUseUserOverrides = bUseUserOverrides;
 
-            Debug.Assert(!CultureData.InvariantMode);
+            Debug.Assert(!GlobalizationMode.Invariant);
 
             if (!LoadCalendarDataFromSystem(localeName, calendarId))
             {

@@ -60,7 +60,7 @@ internal static partial class Interop
 
             protected override bool ReleaseHandle()
             {
-                Debug.Assert(!CultureData.InvariantMode);
+                Debug.Assert(!GlobalizationMode.Invariant);
 
                 CloseSortHandle(handle);
                 SetHandle(IntPtr.Zero);

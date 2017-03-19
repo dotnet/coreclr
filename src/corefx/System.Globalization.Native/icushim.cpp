@@ -170,16 +170,11 @@ bool FindLibWithMajorMinorSubVersion(int* majorVer, int* minorVer, int* subVer)
     return false;
 }
 
-static int32_t g_icuPresent = 0;
-
-extern "C" int32_t GlobalizationNative_ICUPresent()
-{
-    return g_icuPresent;
-}
-
-// This function is ran at the end of dlopen for the current shared library
-__attribute__((constructor))
-void InitializeICUShim()
+// GlobalizationNative_LoadICU
+// This method get called from the managed side during the globalization initialization. 
+// This method shouldn't get called at all if we are running in globalization invariant mode
+// return 0 if failed to load ICU and 1 otherwise
+extern "C" int32_t GlobalizationNative_LoadICU()
 {
     int majorVer = -1;
     int minorVer = -1;
@@ -192,7 +187,7 @@ void InitializeICUShim()
         !FindLibWithMajorVersion(&majorVer))
     {
         // No usable ICU version found
-        return;
+        return 0;
     }
 
     char symbolName[128];
@@ -217,13 +212,11 @@ void InitializeICUShim()
                 sprintf(symbolName, "u_strlen%s", symbolVersion);
                 if (dlsym(libicuuc, symbolName) == nullptr)
                 {
-                    return;
+                    return 0;
                 }
             }
         }
     }
-
-    g_icuPresent = 1;
 
     // Get pointers to all the ICU functions that are needed
 #define PER_FUNCTION_BLOCK(fn, lib) \
@@ -234,6 +227,8 @@ void InitializeICUShim()
 
     FOR_ALL_ICU_FUNCTIONS
 #undef PER_FUNCTION_BLOCK
+
+    return 1;
 }
 
 __attribute__((destructor))

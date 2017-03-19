@@ -14,9 +14,10 @@ namespace System.Text
         {
             ValidateArguments(strInput, normalizationForm);
 
-            if (CultureData.InvariantMode)
+            if (GlobalizationMode.Invariant)
             {
-                // work ordinal, then all characters are normalized in this mode
+                // In Invariant mode we assume all characters are normalized. 
+                // This is because we don't support any linguistic operation on the strings
                 return true;
             }
 
@@ -34,9 +35,10 @@ namespace System.Text
         {
             ValidateArguments(strInput, normalizationForm);
 
-            if (CultureData.InvariantMode)
+            if (GlobalizationMode.Invariant)
             {
-                // work ordinal, then all characters are normalized in this mode
+                // In Invariant mode we assume all characters are normalized. 
+                // This is because we don't support any linguistic operation on the strings
                 return strInput;
             }
 

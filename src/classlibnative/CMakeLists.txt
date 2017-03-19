@@ -6,7 +6,6 @@ include_directories("../debug/inc/dump")
 
 add_subdirectory(bcltype)
 add_subdirectory(float)
-add_subdirectory(config)
 
 if(WIN32)
   add_subdirectory(nls)

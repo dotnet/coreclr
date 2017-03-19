@@ -20,7 +20,7 @@ namespace System.Globalization
 
         private unsafe string ChangeCase(string s, bool toUpper)
         {
-            Debug.Assert(!CultureData.InvariantMode);
+            Debug.Assert(!_invariantMode);
 
             Debug.Assert(s != null);
 
@@ -66,7 +66,7 @@ namespace System.Globalization
 
         private unsafe char ChangeCase(char c, bool toUpper)
         {
-            Debug.Assert(!CultureData.InvariantMode);
+            Debug.Assert(!_invariantMode);
 
             char dst = default(char);
 
@@ -90,7 +90,7 @@ namespace System.Globalization
 
         internal unsafe void ChangeCase(char* src, int srcLen, char* dstBuffer, int dstBufferCapacity, bool bToUpper)
         {
-            Debug.Assert(!CultureData.InvariantMode);
+            Debug.Assert(!_invariantMode);
 
             if (IsInvariant)
             {

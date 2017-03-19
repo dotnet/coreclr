@@ -10,7 +10,7 @@ namespace System.Globalization
     {
         private static EraInfo[] GetJapaneseEras()
         {
-            if (CultureData.InvariantMode)
+            if (GlobalizationMode.Invariant)
             {
                 return null;
             }
@@ -71,7 +71,7 @@ namespace System.Globalization
 
         private static bool GetJapaneseEraStartDate(int era, out DateTime dateTime)
         {
-            Debug.Assert(!CultureData.InvariantMode);
+            Debug.Assert(!GlobalizationMode.Invariant);
 
             dateTime = default(DateTime);
 

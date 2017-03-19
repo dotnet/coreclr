@@ -14,18 +14,6 @@ namespace System.Globalization
 {
     internal partial class CultureData
     {
-        internal static void InitGlobalizationInvariantMode()
-        {
-            bool invariantEnabled = CLRConfig.GetBoolValue(c_InvariantModeConfigSwitch);
-            if (!invariantEnabled && Interop.GlobalizationInterop.ICUPresent() == 0)
-            {
-                string message = "Couldn't find a valid ICU package installed on the system. " + 
-                                 "Set the configuration flag System.Globalization.Invariant to true if you want to run with no globalization support.";
-                Environment.FailFast(message);
-            }
-            s_invariantGlobalizationMode = invariantEnabled;
-        }
-        
         // ICU constants
         const int ICU_ULOC_KEYWORD_AND_VALUES_CAPACITY = 100; // max size of keyword or value
         const int ICU_ULOC_FULLNAME_CAPACITY = 157;           // max size of locale name
@@ -40,7 +28,7 @@ namespace System.Globalization
         {
             Debug.Assert(_sRealName != null);
 
-            Debug.Assert(!CultureData.InvariantMode);
+            Debug.Assert(!GlobalizationMode.Invariant);
 
             string alternateSortName = string.Empty;
             string realNameBuffer = _sRealName;
@@ -134,7 +122,7 @@ namespace System.Globalization
         
         private string GetLocaleInfo(LocaleStringData type)
         {
-            Debug.Assert(!CultureData.InvariantMode);
+            Debug.Assert(!GlobalizationMode.Invariant);
             
             Debug.Assert(_sWindowsName != null, "[CultureData.GetLocaleInfo] Expected _sWindowsName to be populated already");
             return GetLocaleInfo(_sWindowsName, type);
@@ -169,7 +157,7 @@ namespace System.Globalization
 
         private int GetLocaleInfo(LocaleNumberData type)
         {
-            Debug.Assert(!CultureData.InvariantMode);
+            Debug.Assert(!GlobalizationMode.Invariant);
 
             Debug.Assert(_sWindowsName != null, "[CultureData.GetLocaleInfo(LocaleNumberData)] Expected _sWindowsName to be populated already");
 
@@ -314,14 +302,14 @@ namespace System.Globalization
         
         private static string LCIDToLocaleName(int culture)
         {
-            Debug.Assert(!CultureData.InvariantMode);
+            Debug.Assert(!GlobalizationMode.Invariant);
 
             return LocaleData.LCIDToLocaleName(culture);
         }
 
         private static int LocaleNameToLCID(string cultureName)
         {
-            Debug.Assert(!CultureData.InvariantMode);
+            Debug.Assert(!GlobalizationMode.Invariant);
             
             int lcid = LocaleData.GetLocaleDataNumericPart(cultureName, LocaleDataParts.Lcid);
             return lcid == -1 ? CultureInfo.LOCALE_CUSTOM_UNSPECIFIED : lcid; 
@@ -371,7 +359,7 @@ namespace System.Globalization
 
         private static CultureInfo[] EnumCultures(CultureTypes types)
         {
-            Debug.Assert(!CultureData.InvariantMode);
+            Debug.Assert(!GlobalizationMode.Invariant);
             
             if ((types & (CultureTypes.NeutralCultures | CultureTypes.SpecificCultures)) == 0)
             {

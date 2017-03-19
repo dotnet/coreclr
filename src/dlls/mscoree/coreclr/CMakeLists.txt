@@ -89,7 +89,6 @@ set(CORECLR_LIBRARIES
     ceefgen
     ${CLRJIT_STATIC}
     comfloat_wks
-    config_wks
     corguids
     gcinfo # Condition="'$(TargetCpu)'=='amd64' or '$(TargetCpu)' == 'arm' or '$(TargetCpu)' == 'arm64'"
     ildbsymlib

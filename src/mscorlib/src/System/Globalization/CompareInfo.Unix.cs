@@ -22,7 +22,7 @@ namespace System.Globalization
         {
             _sortName = culture.SortName;
 
-            if (CultureData.InvariantMode)
+            if (_invariantMode)
             {
                 _isAsciiEqualityOrdinal = true;
             }
@@ -44,7 +44,7 @@ namespace System.Globalization
 
         internal static unsafe int IndexOfOrdinalCore(string source, string value, int startIndex, int count, bool ignoreCase)
         {
-            Debug.Assert(!CultureData.InvariantMode);
+            Debug.Assert(!GlobalizationMode.Invariant);
             
             Debug.Assert(source != null);
             Debug.Assert(value != null);
@@ -90,7 +90,7 @@ namespace System.Globalization
 
         internal static unsafe int LastIndexOfOrdinalCore(string source, string value, int startIndex, int count, bool ignoreCase)
         {
-            Debug.Assert(!CultureData.InvariantMode);
+            Debug.Assert(!GlobalizationMode.Invariant);
             
             Debug.Assert(source != null);
             Debug.Assert(value != null);
@@ -147,14 +147,14 @@ namespace System.Globalization
 
         private static unsafe int CompareStringOrdinalIgnoreCase(char* string1, int count1, char* string2, int count2)
         {
-            Debug.Assert(!CultureData.InvariantMode);
+            Debug.Assert(!GlobalizationMode.Invariant);
 
             return Interop.GlobalizationInterop.CompareStringOrdinalIgnoreCase(string1, count1, string2, count2);
         }
 
         private unsafe int CompareString(string string1, int offset1, int length1, string string2, int offset2, int length2, CompareOptions options)
         {
-            Debug.Assert(!CultureData.InvariantMode);
+            Debug.Assert(!_invariantMode);
 
             Debug.Assert(string1 != null);
             Debug.Assert(string2 != null);
@@ -171,7 +171,7 @@ namespace System.Globalization
 
         internal unsafe int IndexOfCore(string source, string target, int startIndex, int count, CompareOptions options, int* matchLengthPtr)
         {
-            Debug.Assert(!CultureData.InvariantMode);
+            Debug.Assert(!_invariantMode);
             
             Debug.Assert(!string.IsNullOrEmpty(source));
             Debug.Assert(target != null);
@@ -218,7 +218,7 @@ namespace System.Globalization
 
         private unsafe int LastIndexOfCore(string source, string target, int startIndex, int count, CompareOptions options)
         {
-            Debug.Assert(!CultureData.InvariantMode);
+            Debug.Assert(!_invariantMode);
 
             Debug.Assert(!string.IsNullOrEmpty(source));
             Debug.Assert(target != null);
@@ -253,7 +253,7 @@ namespace System.Globalization
 
         private bool StartsWith(string source, string prefix, CompareOptions options)
         {
-            Debug.Assert(!CultureData.InvariantMode);
+            Debug.Assert(!_invariantMode);
 
             Debug.Assert(!string.IsNullOrEmpty(source));
             Debug.Assert(!string.IsNullOrEmpty(prefix));
@@ -269,7 +269,7 @@ namespace System.Globalization
 
         private bool EndsWith(string source, string suffix, CompareOptions options)
         {
-            Debug.Assert(!CultureData.InvariantMode);
+            Debug.Assert(!_invariantMode);
 
             Debug.Assert(!string.IsNullOrEmpty(source));
             Debug.Assert(!string.IsNullOrEmpty(suffix));
@@ -285,7 +285,7 @@ namespace System.Globalization
         
         private unsafe SortKey CreateSortKey(String source, CompareOptions options)
         {
-            Debug.Assert(!CultureData.InvariantMode);
+            Debug.Assert(!_invariantMode);
 
             if (source==null) { throw new ArgumentNullException(nameof(source)); }
             Contract.EndContractBlock();
@@ -316,7 +316,7 @@ namespace System.Globalization
 
         private unsafe static bool IsSortable(char *text, int length)
         {
-            Debug.Assert(!CultureData.InvariantMode);
+            Debug.Assert(!GlobalizationMode.Invariant);
 
             int index = 0;
             UnicodeCategory uc;
@@ -359,7 +359,7 @@ namespace System.Globalization
 
         internal unsafe int GetHashCodeOfStringCore(string source, CompareOptions options, bool forceRandomizedHashing, long additionalEntropy)
         {
-            Debug.Assert(!CultureData.InvariantMode);
+            Debug.Assert(!_invariantMode);
 
             Debug.Assert(source != null);
             Debug.Assert((options & (CompareOptions.Ordinal | CompareOptions.OrdinalIgnoreCase)) == 0);
@@ -426,7 +426,7 @@ namespace System.Globalization
         
         private SortVersion GetSortVersion()
         {
-            Debug.Assert(!CultureData.InvariantMode);
+            Debug.Assert(!_invariantMode);
 
             int sortVersion = Interop.GlobalizationInterop.GetSortVersion();
             return new SortVersion(sortVersion, LCID, new Guid(sortVersion, 0, 0, 0, 0, 0, 0,
