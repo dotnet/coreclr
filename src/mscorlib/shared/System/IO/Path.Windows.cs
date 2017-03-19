@@ -67,11 +67,14 @@ namespace System.IO
                 startIndex += 2;
 
                 if ((path.Length > 0 && path[0] == PathInternal.VolumeSeparatorChar)
-                    || (path.Length >= startIndex && path[startIndex - 1] == PathInternal.VolumeSeparatorChar && !PathInternal.IsValidDriveChar(path[startIndex - 2]))
-                    || (path.Length > startIndex && path.IndexOf(PathInternal.VolumeSeparatorChar, startIndex) != -1))
+                    || (path.Length >= startIndex && path[startIndex - 1] == PathInternal.VolumeSeparatorChar && !PathInternal.IsValidDriveChar(path[startIndex - 2])))
                 {
                     throw new NotSupportedException(SR.Argument_PathFormatNotSupported);
                 }
+
+                // Only one VolumeSeperator char is allowed in a path on Windows.
+                if (path.Length > startIndex && path.IndexOf(PathInternal.VolumeSeparatorChar, startIndex) != -1)
+                    throw new ArgumentException(SR.Arg_PathIllegal);
             }
 
             // Technically this doesn't matter but we used to throw for this case
