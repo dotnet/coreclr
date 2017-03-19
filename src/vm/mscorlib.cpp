@@ -34,7 +34,7 @@
 #include "excep.h"
 #include "fcall.h"
 #include "nlsinfo.h"
-#include "clrconfiguration.h"
+#include "clrconfignative.h"
 #include "commodule.h"
 #include "marshalnative.h"
 #include "system.h"

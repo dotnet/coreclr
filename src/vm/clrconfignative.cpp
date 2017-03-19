@@ -6,10 +6,10 @@
 //
 
 #include "common.h"
-#include "clrconfiguration.h"
+#include "clrconfignative.h"
 #include <configuration.h>
 
-BOOL QCALLTYPE ClrConfiguration::GetConfigBoolValue(LPCWSTR name)
+BOOL QCALLTYPE ClrConfigNative::GetConfigBoolValue(LPCWSTR name)
 {
     QCALL_CONTRACT;
 

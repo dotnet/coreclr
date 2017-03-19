@@ -802,9 +802,9 @@ namespace System.Globalization
             return IndexOfCore(source, value, startIndex, count, options, null);
         }
 
-        internal static unsafe int IndexOfOrdinal(string source, string value, int startIndex, int count, bool ignoreCase)
+        internal unsafe int IndexOfOrdinal(string source, string value, int startIndex, int count, bool ignoreCase)
         {
-            if (GlobalizationMode.Invariant)
+            if (_invariantMode)
             {
                 return InvariantIndexOf(source, value, startIndex, count, ignoreCase);
             }
@@ -1004,9 +1004,9 @@ namespace System.Globalization
             return LastIndexOfCore(source, value, startIndex, count, options);
         }
 
-        internal static unsafe int LastIndexOfOrdinal(string source, string value, int startIndex, int count, bool ignoreCase)
+        internal unsafe int LastIndexOfOrdinal(string source, string value, int startIndex, int count, bool ignoreCase)
         {
-            if (GlobalizationMode.Invariant)
+            if (_invariantMode)
             {
                 return InvariantLastIndexOf(source, value, startIndex, count, ignoreCase);
             }

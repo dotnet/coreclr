@@ -855,7 +855,7 @@ FCFuncStart(gCurrencyFuncs)
 FCFuncEnd()
 
 FCFuncStart(gClrConfig)
-    QCFuncElement("GetConfigBoolValue", ClrConfiguration::GetConfigBoolValue)
+    QCFuncElement("GetConfigBoolValue", ClrConfigNative::GetConfigBoolValue)
 FCFuncEnd()
 
 #if !defined(FEATURE_COREFX_GLOBALIZATION)
