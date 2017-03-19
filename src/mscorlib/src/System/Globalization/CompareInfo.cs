@@ -64,9 +64,9 @@ namespace System.Globalization
         // locale, which is what SCOMPAREINFO does.
 
         [OptionalField(VersionAdded = 2)]
-        private String _name;  // The name used to construct this CompareInfo
+        private string _name;  // The name used to construct this CompareInfo
         [NonSerialized] 
-        private String _sortName; // The name that defines our behavior
+        private string _sortName; // The name that defines our behavior
 
         [OptionalField(VersionAdded = 3)]
         private SortVersion _sortVersion;
@@ -121,7 +121,7 @@ namespace System.Globalization
         **  ArgumentException if name is invalid.
         ============================================================================*/
         // Assembly constructor should be deprecated, we don't act on the assembly information any more
-        public static CompareInfo GetCompareInfo(String name, Assembly assembly)
+        public static CompareInfo GetCompareInfo(string name, Assembly assembly)
         {
             if (name == null || assembly == null)
             {
@@ -167,7 +167,7 @@ namespace System.Globalization
         **  ArgumentException if name is invalid.
         ============================================================================*/
 
-        public static CompareInfo GetCompareInfo(String name)
+        public static CompareInfo GetCompareInfo(string name)
         {
             if (name == null)
             {
@@ -255,7 +255,7 @@ namespace System.Globalization
         //
         ////////////////////////////////////////////////////////////////////////
 
-        public virtual String Name
+        public virtual string Name
         {
             get
             {
@@ -280,12 +280,12 @@ namespace System.Globalization
         //
         ////////////////////////////////////////////////////////////////////////
 
-        public virtual int Compare(String string1, String string2)
+        public virtual int Compare(string string1, string string2)
         {
             return (Compare(string1, string2, CompareOptions.None));
         }
 
-        public unsafe virtual int Compare(String string1, String string2, CompareOptions options)
+        public unsafe virtual int Compare(string string1, string string2, CompareOptions options)
         {
             if (options == CompareOptions.OrdinalIgnoreCase)
             {
@@ -348,26 +348,26 @@ namespace System.Globalization
         ////////////////////////////////////////////////////////////////////////
 
 
-        public unsafe virtual int Compare(String string1, int offset1, int length1, String string2, int offset2, int length2)
+        public unsafe virtual int Compare(string string1, int offset1, int length1, string string2, int offset2, int length2)
         {
             return Compare(string1, offset1, length1, string2, offset2, length2, 0);
         }
 
 
-        public unsafe virtual int Compare(String string1, int offset1, String string2, int offset2, CompareOptions options)
+        public virtual int Compare(string string1, int offset1, string string2, int offset2, CompareOptions options)
         {
             return Compare(string1, offset1, string1 == null ? 0 : string1.Length - offset1,
                            string2, offset2, string2 == null ? 0 : string2.Length - offset2, options);
         }
 
 
-        public unsafe virtual int Compare(String string1, int offset1, String string2, int offset2)
+        public virtual int Compare(string string1, int offset1, string string2, int offset2)
         {
             return Compare(string1, offset1, string2, offset2, 0);
         }
 
 
-        public unsafe virtual int Compare(String string1, int offset1, int length1, String string2, int offset2, int length2, CompareOptions options)
+        public virtual int Compare(string string1, int offset1, int length1, string string2, int offset2, int length2, CompareOptions options)
         {
             if (options == CompareOptions.OrdinalIgnoreCase)
             {
@@ -518,7 +518,7 @@ namespace System.Globalization
         //  String.Empty, true is returned.
         //
         ////////////////////////////////////////////////////////////////////////
-        public unsafe virtual bool IsPrefix(String source, String prefix, CompareOptions options)
+        public virtual bool IsPrefix(string source, string prefix, CompareOptions options)
         {
             if (source == null || prefix == null)
             {
@@ -560,7 +560,7 @@ namespace System.Globalization
             return StartsWith(source, prefix, options);
         }
 
-        public virtual bool IsPrefix(String source, String prefix)
+        public virtual bool IsPrefix(string source, string prefix)
         {
             return (IsPrefix(source, prefix, 0));
         }
@@ -573,7 +573,7 @@ namespace System.Globalization
         //  String.Empty, true is returned.
         //
         ////////////////////////////////////////////////////////////////////////
-        public unsafe virtual bool IsSuffix(String source, String suffix, CompareOptions options)
+        public virtual bool IsSuffix(string source, string suffix, CompareOptions options)
         {
             if (source == null || suffix == null)
             {
@@ -616,7 +616,7 @@ namespace System.Globalization
         }
 
 
-        public virtual bool IsSuffix(String source, String suffix)
+        public virtual bool IsSuffix(string source, string suffix)
         {
             return (IsSuffix(source, suffix, 0));
         }
@@ -635,7 +635,7 @@ namespace System.Globalization
         ////////////////////////////////////////////////////////////////////////
 
 
-        public unsafe virtual int IndexOf(String source, char value)
+        public virtual int IndexOf(string source, char value)
         {
             if (source == null)
                 throw new ArgumentNullException(nameof(source));
@@ -645,7 +645,7 @@ namespace System.Globalization
         }
 
 
-        public unsafe virtual int IndexOf(String source, String value)
+        public virtual int IndexOf(string source, string value)
         {
             if (source == null)
                 throw new ArgumentNullException(nameof(source));
@@ -655,7 +655,7 @@ namespace System.Globalization
         }
 
 
-        public unsafe virtual int IndexOf(String source, char value, CompareOptions options)
+        public virtual int IndexOf(string source, char value, CompareOptions options)
         {
             if (source == null)
                 throw new ArgumentNullException(nameof(source));
@@ -665,7 +665,7 @@ namespace System.Globalization
         }
 
 
-        public unsafe virtual int IndexOf(String source, String value, CompareOptions options)
+        public virtual int IndexOf(string source, string value, CompareOptions options)
         {
             if (source == null)
                 throw new ArgumentNullException(nameof(source));
@@ -674,7 +674,7 @@ namespace System.Globalization
             return IndexOf(source, value, 0, source.Length, options);
         }
 
-        public unsafe virtual int IndexOf(String source, char value, int startIndex)
+        public virtual int IndexOf(string source, char value, int startIndex)
         {
             if (source == null)
                 throw new ArgumentNullException(nameof(source));
@@ -683,7 +683,7 @@ namespace System.Globalization
             return IndexOf(source, value, startIndex, source.Length - startIndex, CompareOptions.None);
         }
 
-        public unsafe virtual int IndexOf(String source, String value, int startIndex)
+        public virtual int IndexOf(string source, string value, int startIndex)
         {
             if (source == null)
                 throw new ArgumentNullException(nameof(source));
@@ -692,7 +692,7 @@ namespace System.Globalization
             return IndexOf(source, value, startIndex, source.Length - startIndex, CompareOptions.None);
         }
 
-        public unsafe virtual int IndexOf(String source, char value, int startIndex, CompareOptions options)
+        public virtual int IndexOf(string source, char value, int startIndex, CompareOptions options)
         {
             if (source == null)
                 throw new ArgumentNullException(nameof(source));
@@ -702,7 +702,7 @@ namespace System.Globalization
         }
 
 
-        public unsafe virtual int IndexOf(String source, String value, int startIndex, CompareOptions options)
+        public virtual int IndexOf(string source, string value, int startIndex, CompareOptions options)
         {
             if (source == null)
                 throw new ArgumentNullException(nameof(source));
@@ -712,18 +712,18 @@ namespace System.Globalization
         }
 
 
-        public unsafe virtual int IndexOf(String source, char value, int startIndex, int count)
+        public virtual int IndexOf(string source, char value, int startIndex, int count)
         {
             return IndexOf(source, value, startIndex, count, CompareOptions.None);
         }
 
 
-        public unsafe virtual int IndexOf(String source, String value, int startIndex, int count)
+        public virtual int IndexOf(string source, string value, int startIndex, int count)
         {
             return IndexOf(source, value, startIndex, count, CompareOptions.None);
         }
 
-        public unsafe virtual int IndexOf(String source, char value, int startIndex, int count, CompareOptions options)
+        public unsafe virtual int IndexOf(string source, char value, int startIndex, int count, CompareOptions options)
         {
             // Validate inputs
             if (source == null)
@@ -753,7 +753,7 @@ namespace System.Globalization
         }
 
 
-        public unsafe virtual int IndexOf(String source, String value, int startIndex, int count, CompareOptions options)
+        public unsafe virtual int IndexOf(string source, string value, int startIndex, int count, CompareOptions options)
         {
             // Validate inputs
             if (source == null)
@@ -802,7 +802,7 @@ namespace System.Globalization
             return IndexOfCore(source, value, startIndex, count, options, null);
         }
 
-        internal unsafe int IndexOfOrdinal(string source, string value, int startIndex, int count, bool ignoreCase)
+        internal int IndexOfOrdinal(string source, string value, int startIndex, int count, bool ignoreCase)
         {
             if (_invariantMode)
             {
@@ -826,7 +826,18 @@ namespace System.Globalization
         ////////////////////////////////////////////////////////////////////////
 
 
-        public unsafe virtual int LastIndexOf(String source, char value)
+        public virtual int LastIndexOf(String source, char value)
+        {
+            if (source == null)
+                throw new ArgumentNullException(nameof(source));
+            Contract.EndContractBlock();
+
+            // Can't start at negative index, so make sure we check for the length == 0 case.
+            return LastIndexOf(source, value, source.Length - 1, source.Length, CompareOptions.None);
+        }
+
+
+        public virtual int LastIndexOf(string source, string value)
         {
             if (source == null)
                 throw new ArgumentNullException(nameof(source));
@@ -838,19 +849,7 @@ namespace System.Globalization
         }
 
 
-        public virtual int LastIndexOf(String source, String value)
-        {
-            if (source == null)
-                throw new ArgumentNullException(nameof(source));
-            Contract.EndContractBlock();
-
-            // Can't start at negative index, so make sure we check for the length == 0 case.
-            return LastIndexOf(source, value, source.Length - 1,
-                source.Length, CompareOptions.None);
-        }
-
-
-        public virtual int LastIndexOf(String source, char value, CompareOptions options)
+        public virtual int LastIndexOf(string source, char value, CompareOptions options)
         {
             if (source == null)
                 throw new ArgumentNullException(nameof(source));
@@ -861,53 +860,52 @@ namespace System.Globalization
                 source.Length, options);
         }
 
-        public unsafe virtual int LastIndexOf(String source, String value, CompareOptions options)
+        public virtual int LastIndexOf(string source, string value, CompareOptions options)
         {
             if (source == null)
                 throw new ArgumentNullException(nameof(source));
             Contract.EndContractBlock();
 
             // Can't start at negative index, so make sure we check for the length == 0 case.
-            return LastIndexOf(source, value, source.Length - 1,
-                source.Length, options);
+            return LastIndexOf(source, value, source.Length - 1, source.Length, options);
         }
 
-        public unsafe virtual int LastIndexOf(String source, char value, int startIndex)
+        public virtual int LastIndexOf(string source, char value, int startIndex)
         {
             return LastIndexOf(source, value, startIndex, startIndex + 1, CompareOptions.None);
         }
 
 
-        public unsafe virtual int LastIndexOf(String source, String value, int startIndex)
+        public virtual int LastIndexOf(string source, string value, int startIndex)
         {
             return LastIndexOf(source, value, startIndex, startIndex + 1, CompareOptions.None);
         }
 
-        public unsafe virtual int LastIndexOf(String source, char value, int startIndex, CompareOptions options)
+        public virtual int LastIndexOf(string source, char value, int startIndex, CompareOptions options)
         {
             return LastIndexOf(source, value, startIndex, startIndex + 1, options);
         }
 
 
-        public unsafe virtual int LastIndexOf(String source, String value, int startIndex, CompareOptions options)
+        public virtual int LastIndexOf(string source, string value, int startIndex, CompareOptions options)
         {
             return LastIndexOf(source, value, startIndex, startIndex + 1, options);
         }
 
 
-        public unsafe virtual int LastIndexOf(String source, char value, int startIndex, int count)
+        public virtual int LastIndexOf(string source, char value, int startIndex, int count)
         {
             return LastIndexOf(source, value, startIndex, count, CompareOptions.None);
         }
 
 
-        public unsafe virtual int LastIndexOf(String source, String value, int startIndex, int count)
+        public virtual int LastIndexOf(string source, string value, int startIndex, int count)
         {
             return LastIndexOf(source, value, startIndex, count, CompareOptions.None);
         }
 
 
-        public unsafe virtual int LastIndexOf(String source, char value, int startIndex, int count, CompareOptions options)
+        public virtual int LastIndexOf(string source, char value, int startIndex, int count, CompareOptions options)
         {
             // Verify Arguments
             if (source == null)
@@ -953,7 +951,7 @@ namespace System.Globalization
         }
 
 
-        public unsafe virtual int LastIndexOf(String source, String value, int startIndex, int count, CompareOptions options)
+        public virtual int LastIndexOf(string source, string value, int startIndex, int count, CompareOptions options)
         {
             // Verify Arguments
             if (source == null)
@@ -1004,7 +1002,7 @@ namespace System.Globalization
             return LastIndexOfCore(source, value, startIndex, count, options);
         }
 
-        internal unsafe int LastIndexOfOrdinal(string source, string value, int startIndex, int count, bool ignoreCase)
+        internal int LastIndexOfOrdinal(string source, string value, int startIndex, int count, bool ignoreCase)
         {
             if (_invariantMode)
             {
@@ -1021,7 +1019,7 @@ namespace System.Globalization
         //  Gets the SortKey for the given string with the given options.
         //
         ////////////////////////////////////////////////////////////////////////
-        public unsafe virtual SortKey GetSortKey(String source, CompareOptions options)
+        public virtual SortKey GetSortKey(string source, CompareOptions options)
         {
             if (_invariantMode)
                 return InvariantCreateSortKey(source, options);
@@ -1030,7 +1028,7 @@ namespace System.Globalization
         }
 
 
-        public unsafe virtual SortKey GetSortKey(String source)
+        public virtual SortKey GetSortKey(string source)
         {
             if (_invariantMode)
                 return InvariantCreateSortKey(source, CompareOptions.None);
@@ -1155,7 +1153,7 @@ namespace System.Globalization
         //  CompareInfo.
         //
         ////////////////////////////////////////////////////////////////////////
-        public override String ToString()
+        public override string ToString()
         {
             return ("CompareInfo - " + this.Name);
         }

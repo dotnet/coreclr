@@ -6,7 +6,7 @@ namespace System.Globalization
 {
     internal sealed partial class GlobalizationMode
     {
-        internal static bool GetGlobalizationInvariantMode()
+        private static bool GetGlobalizationInvariantMode()
         {
             return CLRConfig.GetBoolValue(c_InvariantModeConfigSwitch);
         }
