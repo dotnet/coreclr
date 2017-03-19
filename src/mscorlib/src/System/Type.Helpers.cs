@@ -9,6 +9,83 @@ namespace System
     // This file collects the longer methods of Type to make the main Type class more readable.
     public abstract partial class Type : MemberInfo, IReflect
     {
+        public virtual bool ContainsGenericParameters
+        {
+            get
+            {
+                if (HasElementType)
+                    return GetRootElementType().ContainsGenericParameters;
+
+                if (IsGenericParameter)
+                    return true;
+
+                if (!IsGenericType)
+                    return false;
+
+                Type[] genericArguments = GetGenericArguments();
+                for (int i = 0; i < genericArguments.Length; i++)
+                {
+                    if (genericArguments[i].ContainsGenericParameters)
+                        return true;
+                }
+
+                return false;
+            }
+        }
+
+        internal Type GetRootElementType()
+        {
+            Type rootElementType = this;
+
+            while (rootElementType.HasElementType)
+                rootElementType = rootElementType.GetElementType();
+
+            return rootElementType;
+        }
+
+        public bool IsVisible
+        {
+            get
+            {
+#if CORECLR
+                RuntimeType rt = this as RuntimeType;
+                if (rt != null)
+                    return RuntimeTypeHandle.IsVisible(rt);
+#endif //CORECLR
+
+                if (IsGenericParameter)
+                    return true;
+
+                if (HasElementType)
+                    return GetElementType().IsVisible;
+
+                Type type = this;
+                while (type.IsNested)
+                {
+                    if (!type.IsNestedPublic)
+                        return false;
+
+                    // this should be null for non-nested types.
+                    type = type.DeclaringType;
+                }
+
+                // Now "type" should be a top level type
+                if (!type.IsPublic)
+                    return false;
+
+                if (IsGenericType && !IsGenericTypeDefinition)
+                {
+                    foreach (Type t in GetGenericArguments())
+                    {
+                        if (!t.IsVisible)
+                            return false;
+                    }
+                }
+
+                return true;
+            }
+        }
+
         public virtual Type[] FindInterfaces(TypeFilter filter, object filterCriteria)
         {
             if (filter == null)
@@ -210,83 +287,6 @@ namespace System
             }
 
             return ret;
-        }
-
-        public bool IsVisible
-        {
-            get
-            {
-#if CORECLR
-                RuntimeType rt = this as RuntimeType;
-                if (rt != null)
-                    return RuntimeTypeHandle.IsVisible(rt);
-#endif //CORECLR
-
-                if (IsGenericParameter)
-                    return true;
-
-                if (HasElementType)
-                    return GetElementType().IsVisible;
-
-                Type type = this;
-                while (type.IsNested)
-                {
-                    if (!type.IsNestedPublic)
-                        return false;
-
-                    // this should be null for non-nested types.
-                    type = type.DeclaringType;
-                }
-
-                // Now "type" should be a top level type
-                if (!type.IsPublic)
-                    return false;
-
-                if (IsGenericType && !IsGenericTypeDefinition)
-                {
-                    foreach (Type t in GetGenericArguments())
-                    {
-                        if (!t.IsVisible)
-                            return false;
-                    }
-                }
-
-                return true;
-            }
-        }
-
-        public virtual bool ContainsGenericParameters
-        {
-            get
-            {
-                if (HasElementType)
-                    return GetRootElementType().ContainsGenericParameters;
-
-                if (IsGenericParameter)
-                    return true;
-
-                if (!IsGenericType)
-                    return false;
-
-                Type[] genericArguments = GetGenericArguments();
-                for (int i = 0; i < genericArguments.Length; i++)
-                {
-                    if (genericArguments[i].ContainsGenericParameters)
-                        return true;
-                }
-
-                return false;
-            }
-        }
-
-        internal Type GetRootElementType()
-        {
-            Type rootElementType = this;
-
-            while (rootElementType.HasElementType)
-                rootElementType = rootElementType.GetElementType();
-
-            return rootElementType;
         }
 
         public virtual bool IsSubclassOf(Type c)
@@ -496,3 +496,4 @@ namespace System
         }
     }
 }
+
