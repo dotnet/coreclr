@@ -6,12 +6,12 @@ namespace System.Globalization
 {
     internal sealed partial class GlobalizationMode
     {
-        internal static void GetGlobalizationInvariantMode()
+        internal static bool GetGlobalizationInvariantMode()
         {
             bool invariantEnabled = CLRConfig.GetBoolValue(c_InvariantModeConfigSwitch);
             if (!invariantEnabled)
             {
-                if (Interop.GlobalizationInterop.LocadICU() == 0)
+                if (Interop.GlobalizationInterop.LoadICU() == 0)
                 {
                     string message = "Couldn't find a valid ICU package installed on the system. " + 
                                     "Set the configuration flag System.Globalization.Invariant to true if you want to run with no globalization support.";
