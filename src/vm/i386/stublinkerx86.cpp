@@ -3379,8 +3379,7 @@ VOID StubLinkerCPU::EmitInstantiatingMethodStub(MethodDesc* pMD, void* extra)
     CONTRACTL
     {
         STANDARD_VM_CHECK;
-        // @TODO - Fix this PRECONDITION
-        // PRECONDITION(pMD->RequiresInstArg());
+        PRECONDITION(pMD->RequiresInstArg());
     }
     CONTRACTL_END;
 

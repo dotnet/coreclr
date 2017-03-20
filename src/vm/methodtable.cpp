@@ -1983,7 +1983,7 @@ MethodTable::Debug_DumpInterfaceMap(
     HRESULT hr;
     EX_TRY
     {
-        InterfaceMapIterator it(this, false);
+        InterfaceMapIterator it(this);
         while (it.Next())
         {
             MethodTable *pInterfaceMT = it.GetInterface();
