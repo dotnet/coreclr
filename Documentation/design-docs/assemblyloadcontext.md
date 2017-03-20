@@ -1,4 +1,4 @@
-**LoadContext** can be viewed as a container for assemblies, their code and data. Whenever an assembly is loaded, it is loaded within a load context - independent of whether the load was triggered explicitly (e.g. via *Assembly.Load*), implicitly (e.g. resolving static assembly references from the manifest) or dynamically (by emitting code on the fly).
+**LoadContext** can be viewed as a container for assemblies, their code and data (e.g. statics). Whenever an assembly is loaded, it is loaded within a load context - independent of whether the load was triggered explicitly (e.g. via *Assembly.Load*), implicitly (e.g. resolving static assembly references from the manifest) or dynamically (by emitting code on the fly).
 
 This concept is not new to .NET Core but has existed since the days of .NET Framework (see [this](https://blogs.msdn.microsoft.com/suzcook/2003/05/29/choosing-a-binding-context/) for details) where it operated behind the scenes and not exposed for the developer to interact with, aside from loading your assembly in one based upon the API used to perform the load.
 
@@ -7,6 +7,7 @@ In .NET Core, we have exposed a [managed API surface](https://github.com/dotnet/
 * Ability to load multiple versions of the same assembly within a given process (e.g. for plugin frameworks)
 * Ability to load assemblies explicitly in a context isolated from that of the application.
 * Ability to override assemblies being resolved from application context.
+* Ability to have isolation of statics (as they are tied to the **LoadContext**)
 * Expose LoadContext as a first class concept for developers to interface with and not be a magic.
 
 ## Types of LoadContext
@@ -17,19 +18,21 @@ Every .NET Core app has a **LoadContext** instance created during .NET Core Runt
 ### Custom LoadContext
 For scenarios that wish to have isolation between loaded assemblies, applications can create their own **LoadContext** instance by deriving from **System.Runtime.Loader.AssemblyLoadContext** type and loading the assemblies within that instance.
 
+Multiple assemblies with the same simple name cannot be loaded into a single load context (*Default* or *Custom*). Also, .Net Core ignores strong name token for assembly binding process.
 
 ## How Load is attempted
 
 ### Basics
 If an assembly *A1* triggers the load of an assembly *C1*, the latter's load is attempted within the **LoadContext** instance of the former (which is also known as the *RequestingAssembly* or *ParentAssembly*). 
 
-Dynamically generates assemblies add a slight twist since they do not have a *ParentAssembly/RequestingAssembly* per-se. Thus, they are associated with the load context of their *Creator Assembly* and any subsequent loads (static or dynamic) will use that load context.
+Dynamically generated assemblies add a slight twist since they do not have a *ParentAssembly/RequestingAssembly* per-se. Thus, they are associated with the load context of their *Creator Assembly* and any subsequent loads (static or dynamic) will use that load context.
 
 ### Resolution Process
-If the assembly was already present in *A1's* context, either because we had successfully loaded it earlier or because we failed to load it for some reason, we return the corresponding status (and assembly reference for the success case).
+If the assembly was already present in *A1's* context, either because we had successfully loaded it earlier, or because we failed to load it for some reason, we return the corresponding status (and assembly reference for the success case).
+
 However, if *C1* was not found in *A1's* context, the *Load* method override in *A1's* context is invoked. 
 
-* For *Custom LoadContext*, this override is an oppurtunity to load an assembly **before** the fallback (see below) to *Default LoadContext* is attempted to resolve the load. 
+* For *Custom LoadContext*, this override is an opportunity to load an assembly **before** the fallback (see below) to *Default LoadContext* is attempted to resolve the load. 
 
 * For *Default LoadContext*, this override always returns *null* since *Default Context* cannot override itself.
 
@@ -45,7 +48,7 @@ If the *Default LoadContext* fallback also did not resolve the load (or was not 
 
 * **System.Private.CoreLib.dll** is only loaded once, and into the **Default LoadContext**, during the .NET Core Runtime startup as it is a logical extension of the same. It cannot be loaded into **Custom LoadContext**.
 * Currently, custom **LoadContext** cannot be unloaded once created. This is a feature we are looking into for a future release.
-* If an attempt is made to load a R2R image from the same location in multiple load context's, then precompiled code can only be used from the first image that got loaded. The subsequent images will have their code JITted. This happens because subsequent loading binaries from the same location results in OS mapping them to the same memory as the previous one was mapped to and thus, could corrupt internal state information required for use precompiled code.
+* If an attempt is made to load a [Ready-To-Run (R2R)](https://github.com/dotnet/coreclr/blob/master/Documentation/botr/readytorun-overview.md) image from the same location in multiple load context's, then precompiled code can only be used from the first image that got loaded. The subsequent images will have their code JITted. This happens because subsequent loading binaries from the same location results in OS mapping them to the same memory as the previous one was mapped to and thus, could corrupt internal state information required for use precompiled code.
 
 ## Tests
 
@@ -59,15 +62,25 @@ Most of the **AssemblyLoadContext** [API surface](https://github.com/dotnet/core
 
 This property will return a reference to the *Default LoadContext*.
 
+### Load
+
+This method should be overriden in a *Custom LoadContext* if the intent is to override the assembly resolution that would be done during fallback to *Defaut LoadContext*
+
 ### LoadFromAssemblyName
 
 This method can be used to load an assembly into a load context different from the load context of the currently executing assembly.
 
+### Resolving
+
+This event is raised to give the last oppurtunity to a *LoadContext* instance to attempt to resolve a requested assembly that has neither been resolved by **Load** method, nor by fallback to **Default LoadContext**.
+
 ## Assembly Load APIs and LoadContext
 
-As part of .NET Standard 2.0 effort, certain assembly load APIs off the **AppDomain** type, which were present in Desktop .NET Framework, have been brought back. The following maps the APIs to the load context in which they will load the assembly:
+As part of .NET Standard 2.0 effort, certain assembly load APIs off the **Assembly** type, which were present in Desktop .NET Framework, have been brought back. The following maps the APIs to the load context in which they will load the assembly:
 
-* Assembly.Load - loads the assembly into the *Default LoadContext*
-* Assemby.LoadFrom - loads the assembly into the *Default LoadContext*
+* Assembly.Load - loads the assembly into the context of the assembly that triggers the load.
+* Assembly.LoadFrom - loads the assembly into the *Default LoadContext*
 * Assembly.LoadFile - creates a new (anonymous) load context to load the assembly into.
 * Assembly.Load(byte[]) - creates a new (anonymous) load context to load the assembly into.
+
+If you need to influence the load process or the load context in which assemblies are loaded, please look at the various Load* APIs exposed by **AssemblyLoadContext** [API surface](https://github.com/dotnet/corefx/blob/master/src/System.Runtime.Loader/ref/System.Runtime.Loader.cs).
