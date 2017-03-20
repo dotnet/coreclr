@@ -4249,18 +4249,6 @@ bool EECodeManager::EnumGcRefs( PREGDISPLAY     pContext,
 
 #endif // _DEBUG
 
-#ifdef WIN64EXCEPTIONS   // funclets
-    //
-    // If we're in a funclet, we do not want to report the incoming varargs.  This is
-    // taken care of by the parent method and the funclet should access those arguments
-    // by way of the parent method's stack frame.
-    //
-    if(pCodeInfo->IsFunclet())
-    {
-        return true;
-    }
-#endif // WIN64EXCEPTIONS
-
     /* What kind of a frame is this ? */
 
     FrameType   frameType = FR_NORMAL;
@@ -4598,6 +4586,10 @@ bool EECodeManager::EnumGcRefs( PREGDISPLAY     pContext,
     unsigned ptrAddr;
     unsigned lowBits;
 
+#ifdef WIN64EXCEPTIONS
+    if (!pCodeInfo->IsFunclet())
+#endif
+    {
 
     /* Process the untracked frame variable table */
 
@@ -4655,6 +4647,8 @@ bool EECodeManager::EnumGcRefs( PREGDISPLAY     pContext,
                   DAC_ARG(DacSlotLocation(info.ebpFrame ? REGI_EBP : REGI_ESP,
                                           info.ebpFrame ? EBP - ptrAddr : ptrAddr - ESP,
                                           true)));
+    }
+
     }
 
 #if VERIFY_GC_TABLES
@@ -4763,6 +4757,18 @@ bool EECodeManager::EnumGcRefs( PREGDISPLAY     pContext,
 #if VERIFY_GC_TABLES
     _ASSERTE(*castto(table, unsigned short *)++ == 0xBABE);
 #endif
+
+#ifdef WIN64EXCEPTIONS   // funclets
+    //
+    // If we're in a funclet, we do not want to report the incoming varargs.  This is
+    // taken care of by the parent method and the funclet should access those arguments
+    // by way of the parent method's stack frame.
+    //
+    if(pCodeInfo->IsFunclet())
+    {
+        return true;
+    }
+#endif // WIN64EXCEPTIONS
 
     /* Are we a varargs function, if so we have to report all args
        except 'this' (note that the GC tables created by the x86 jit
