@@ -7539,6 +7539,7 @@ void CodeGen::genAlignStackBeforeCall(GenTreeCall* call)
             // Now generate the alignment
             inst_RV_IV(INS_sub, REG_SPBASE, padStkAlign, EA_PTRSIZE);
             AddStackLevel(padStkAlign);
+            AddNestedAlignment(padStkAlign);
         }
 
         call->fgArgInfo->SetStkAlignmentDone();
@@ -7563,6 +7564,7 @@ void CodeGen::genRemoveAlignmentAfterCall(GenTreeCall* call)
     {
         inst_RV_IV(INS_add, REG_SPBASE, padStkAlign, EA_PTRSIZE);
         SubtractStackLevel(padStkAlign);
+        SubtractNestedAlignment(padStkAlign);
     }
 #endif // UNIX_X86_ABI
 }
