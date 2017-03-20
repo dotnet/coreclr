@@ -64,7 +64,7 @@ namespace System.Resources {
 
             Stream data = assembly.GetManifestResourceStream(_manifestResourceName);
             if (data == null)
-                throw new MissingManifestResourceException(Environment.GetResourceString("MissingManifestResource_LooselyLinked", _manifestResourceName, assembly.FullName));
+                throw new MissingManifestResourceException(SR.Format(SR.MissingManifestResource_LooselyLinked, _manifestResourceName, assembly.FullName));
 
             Type type = Type.GetType(_typeName, true);
             
