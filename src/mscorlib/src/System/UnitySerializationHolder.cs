@@ -199,7 +199,7 @@ namespace System
         private void ThrowInsufficientInformation(string field)
         {
             throw new SerializationException(
-SR.Format(SR.Serialization_InsufficientDeserializationState, field));
+                SR.Format(SR.Serialization_InsufficientDeserializationState, field));
         }
         #endregion
 
@@ -292,7 +292,7 @@ SR.Format(SR.Serialization_InsufficientDeserializationState, field));
 
                         if (namedModule == null)
                             throw new SerializationException(
-SR.Format(SR.Serialization_UnableToFindModule, m_data, m_assemblyName));
+                                SR.Format(SR.Serialization_UnableToFindModule, m_data, m_assemblyName));
 
                         return namedModule;
                     }

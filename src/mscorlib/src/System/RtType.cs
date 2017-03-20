@@ -1984,7 +1984,7 @@ namespace System
         {
             if (type.IsPointer || type.IsByRef || type == typeof(void))
                 throw new ArgumentException(
-SR.Format(SR.Argument_NeverValidGenericArgument, type.ToString()));
+                    SR.Format(SR.Argument_NeverValidGenericArgument, type.ToString()));
         }
 
 
@@ -2004,7 +2004,7 @@ SR.Format(SR.Argument_NeverValidGenericArgument, type.ToString()));
 
             if (genericArguments.Length != genericParamters.Length)
                 throw new ArgumentException(
-SR.Format(SR.Argument_NotEnoughGenArguments, genericArguments.Length, genericParamters.Length));
+                    SR.Format(SR.Argument_NotEnoughGenArguments, genericArguments.Length, genericParamters.Length));
         }
 
         internal static void ValidateGenericArguments(MemberInfo definition, RuntimeType[] genericArguments, Exception e)
@@ -2041,7 +2041,7 @@ SR.Format(SR.Argument_NotEnoughGenArguments, genericArguments.Length, genericPar
                     typeContext, methodContext, genericArgument.GetTypeHandleInternal().GetTypeChecked()))
                 {
                     throw new ArgumentException(
-SR.Format(SR.Argument_GenConstraintViolation, i.ToString(CultureInfo.CurrentCulture), genericArgument.ToString(), definition.ToString(), genericParameter.ToString()), e);
+                        SR.Format(SR.Argument_GenConstraintViolation, i.ToString(CultureInfo.CurrentCulture), genericArgument.ToString(), definition.ToString(), genericParameter.ToString()), e);
                 }
             }
         }
@@ -3705,7 +3705,7 @@ SR.Format(SR.Argument_GenConstraintViolation, i.ToString(CultureInfo.CurrentCult
 
             if (!IsGenericTypeDefinition)
                 throw new InvalidOperationException(
-SR.Format(SR.Arg_NotGenericTypeDefinition, this));
+                    SR.Format(SR.Arg_NotGenericTypeDefinition, this));
 
             if (GetGenericArguments().Length != instantiation.Length)
                 throw new ArgumentException(SR.Argument_GenericArgsCount, nameof(instantiation));
@@ -4606,7 +4606,7 @@ SR.Format(SR.Arg_NotGenericTypeDefinition, this));
 
             if (ContainsGenericParameters)
                 throw new ArgumentException(
-SR.Format(SR.Acc_CreateGenericEx, this));
+                    SR.Format(SR.Acc_CreateGenericEx, this));
             Contract.EndContractBlock();
 
             Type elementType = this.GetRootElementType();

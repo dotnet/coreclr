@@ -669,7 +669,7 @@ namespace System.Reflection
 
             if (!IsGenericMethodDefinition)
                 throw new InvalidOperationException(
-SR.Format(SR.Arg_NotGenericMethodDefinition, this));
+                    SR.Format(SR.Arg_NotGenericMethodDefinition, this));
 
             for (int i = 0; i < methodInstantiation.Length; i++)
             {

@@ -120,7 +120,7 @@ namespace System
             if ((4 == IntPtr.Size) && (bytesAllocated > Int32.MaxValue))
             {
                 throw new ArgumentOutOfRangeException("pressure",
-SR.ArgumentOutOfRange_MustBeNonNegInt32);
+                    SR.ArgumentOutOfRange_MustBeNonNegInt32);
             }
             Contract.EndContractBlock();
 
@@ -132,13 +132,13 @@ SR.ArgumentOutOfRange_MustBeNonNegInt32);
             if (bytesAllocated <= 0)
             {
                 throw new ArgumentOutOfRangeException(nameof(bytesAllocated),
-                        SR.ArgumentOutOfRange_NeedPosNum);
+                    SR.ArgumentOutOfRange_NeedPosNum);
             }
 
             if ((4 == IntPtr.Size) && (bytesAllocated > Int32.MaxValue))
             {
                 throw new ArgumentOutOfRangeException(nameof(bytesAllocated),
-SR.ArgumentOutOfRange_MustBeNonNegInt32);
+                    SR.ArgumentOutOfRange_MustBeNonNegInt32);
             }
             Contract.EndContractBlock();
 

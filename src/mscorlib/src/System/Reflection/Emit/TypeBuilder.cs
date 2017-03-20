@@ -2053,7 +2053,7 @@ namespace System.Reflection.Emit
 
                     if ((body == null || body.Length == 0) && !meth.m_canBeRuntimeImpl)
                         throw new InvalidOperationException(
-SR.Format(SR.InvalidOperation_BadEmptyMethodBody, meth.Name));
+                            SR.Format(SR.InvalidOperation_BadEmptyMethodBody, meth.Name));
                 }
 
                 int maxStack = meth.GetMaxStack();

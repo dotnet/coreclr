@@ -245,8 +245,8 @@ namespace System
                 if (type == null && throwOnError)
                 {
                     string errorString = assembly == null ?
-SR.Format(SR.TypeLoad_ResolveType, OuterMostTypeName):
-SR.Format(SR.TypeLoad_ResolveTypeFromAssembly, OuterMostTypeName, assembly.FullName);
+                        SR.Format(SR.TypeLoad_ResolveType, OuterMostTypeName):
+                        SR.Format(SR.TypeLoad_ResolveTypeFromAssembly, OuterMostTypeName, assembly.FullName);
 
                     throw new TypeLoadException(errorString);
                 }

@@ -75,7 +75,7 @@ namespace System.Reflection
 
             if (!MetadataImport.IsValidToken(tk))
                 throw new ArgumentOutOfRangeException(nameof(metadataToken),
-SR.Format(SR.Argument_InvalidToken, tk, this));
+                    SR.Format(SR.Argument_InvalidToken, tk, this));
 
             if (!tk.IsMemberRef && !tk.IsMethodDef && !tk.IsTypeSpec && !tk.IsSignature && !tk.IsFieldDef)
                 throw new ArgumentException(SR.Format(SR.Argument_InvalidToken, tk, this),
@@ -101,7 +101,7 @@ SR.Format(SR.Argument_InvalidToken, tk, this));
 
             if (!MetadataImport.IsValidToken(tk))
                 throw new ArgumentOutOfRangeException(nameof(metadataToken),
-SR.Format(SR.Argument_InvalidToken, tk, this));
+                    SR.Format(SR.Argument_InvalidToken, tk, this));
 
             RuntimeTypeHandle[] typeArgs = ConvertToTypeHandleArray(genericTypeArguments);
             RuntimeTypeHandle[] methodArgs = ConvertToTypeHandleArray(genericMethodArguments);
@@ -182,7 +182,7 @@ SR.Format(SR.Argument_InvalidToken, tk, this));
 
             if (!MetadataImport.IsValidToken(tk))
                 throw new ArgumentOutOfRangeException(nameof(metadataToken),
-SR.Format(SR.Argument_InvalidToken, tk, this));
+                    SR.Format(SR.Argument_InvalidToken, tk, this));
 
             RuntimeTypeHandle[] typeArgs = ConvertToTypeHandleArray(genericTypeArguments);
             RuntimeTypeHandle[] methodArgs = ConvertToTypeHandleArray(genericMethodArguments);
@@ -239,7 +239,7 @@ SR.Format(SR.Argument_InvalidToken, tk, this));
 
             if (!MetadataImport.IsValidToken(tk))
                 throw new ArgumentOutOfRangeException(nameof(metadataToken),
-SR.Format(SR.Argument_InvalidToken, tk, this));
+                    SR.Format(SR.Argument_InvalidToken, tk, this));
 
             if (!tk.IsTypeDef && !tk.IsTypeSpec && !tk.IsTypeRef)
                 throw new ArgumentException(SR.Format(SR.Argument_ResolveType, tk, this), nameof(metadataToken));
@@ -285,7 +285,7 @@ SR.Format(SR.Argument_InvalidToken, tk, this));
             {
                 if (!MetadataImport.IsValidToken(tk))
                     throw new ArgumentOutOfRangeException(nameof(metadataToken),
-SR.Format(SR.Argument_InvalidToken, tk, this));
+                        SR.Format(SR.Argument_InvalidToken, tk, this));
 
                 ConstArray sig = MetadataImport.GetMemberRefProps(tk);
 

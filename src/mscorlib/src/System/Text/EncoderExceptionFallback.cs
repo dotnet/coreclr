@@ -54,7 +54,7 @@ namespace System.Text
         {
             // Fall back our char
             throw new EncoderFallbackException(
-SR.Format(SR.Argument_InvalidCodePageConversionIndex, (int)charUnknown, index), charUnknown, index);
+                SR.Format(SR.Argument_InvalidCodePageConversionIndex, (int)charUnknown, index), charUnknown, index);
         }
 
         public override bool Fallback(char charUnknownHigh, char charUnknownLow, int index)
@@ -62,12 +62,12 @@ SR.Format(SR.Argument_InvalidCodePageConversionIndex, (int)charUnknown, index), 
             if (!Char.IsHighSurrogate(charUnknownHigh))
             {
                 throw new ArgumentOutOfRangeException(nameof(charUnknownHigh),
-SR.Format(SR.ArgumentOutOfRange_Range, 0xD800, 0xDBFF));
+                    SR.Format(SR.ArgumentOutOfRange_Range, 0xD800, 0xDBFF));
             }
             if (!Char.IsLowSurrogate(charUnknownLow))
             {
                 throw new ArgumentOutOfRangeException(nameof(charUnknownLow),
-SR.Format(SR.ArgumentOutOfRange_Range, 0xDC00, 0xDFFF));
+                    SR.Format(SR.ArgumentOutOfRange_Range, 0xDC00, 0xDFFF));
             }
             Contract.EndContractBlock();
 
@@ -75,7 +75,7 @@ SR.Format(SR.ArgumentOutOfRange_Range, 0xDC00, 0xDFFF));
 
             // Fall back our char
             throw new EncoderFallbackException(
-SR.Format(SR.Argument_InvalidCodePageConversionIndex, iTemp, index), charUnknownHigh, charUnknownLow, index);
+                SR.Format(SR.Argument_InvalidCodePageConversionIndex, iTemp, index), charUnknownHigh, charUnknownLow, index);
         }
 
         public override char GetNextChar()
@@ -142,12 +142,12 @@ SR.Format(SR.Argument_InvalidCodePageConversionIndex, iTemp, index), charUnknown
             if (!Char.IsHighSurrogate(charUnknownHigh))
             {
                 throw new ArgumentOutOfRangeException(nameof(charUnknownHigh),
-SR.Format(SR.ArgumentOutOfRange_Range, 0xD800, 0xDBFF));
+                    SR.Format(SR.ArgumentOutOfRange_Range, 0xD800, 0xDBFF));
             }
             if (!Char.IsLowSurrogate(charUnknownLow))
             {
                 throw new ArgumentOutOfRangeException(nameof(CharUnknownLow),
-SR.Format(SR.ArgumentOutOfRange_Range, 0xDC00, 0xDFFF));
+                    SR.Format(SR.ArgumentOutOfRange_Range, 0xDC00, 0xDFFF));
             }
             Contract.EndContractBlock();
 

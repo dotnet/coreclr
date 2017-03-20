@@ -431,7 +431,7 @@ namespace System
                 return AttributeUsageAttribute.Default;
 
             throw new FormatException(
-SR.Format(SR.Format_AttributeUsage, type));
+                SR.Format(SR.Format_AttributeUsage, type));
         }
 
         private static Attribute[] CreateAttributeArrayHelper(Type elementType, int elementCount)

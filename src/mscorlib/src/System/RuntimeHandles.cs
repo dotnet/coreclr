@@ -1418,7 +1418,7 @@ namespace System
             ValidateModulePointer(module);
             if (!ModuleHandle.GetMetadataImport(module).IsValidToken(typeToken))
                 throw new ArgumentOutOfRangeException(nameof(typeToken),
-SR.Format(SR.Argument_InvalidToken, typeToken, new ModuleHandle(module)));
+                    SR.Format(SR.Argument_InvalidToken, typeToken, new ModuleHandle(module)));
 
             int typeInstCount, methodInstCount;
             IntPtr[] typeInstantiationContextHandles = RuntimeTypeHandle.CopyRuntimeTypeHandles(typeInstantiationContext, out typeInstCount);
@@ -1472,7 +1472,7 @@ SR.Format(SR.Argument_InvalidToken, typeToken, new ModuleHandle(module)));
             ValidateModulePointer(module);
             if (!ModuleHandle.GetMetadataImport(module.GetNativeHandle()).IsValidToken(methodToken))
                 throw new ArgumentOutOfRangeException(nameof(methodToken),
-SR.Format(SR.Argument_InvalidToken, methodToken, new ModuleHandle(module)));
+                    SR.Format(SR.Argument_InvalidToken, methodToken, new ModuleHandle(module)));
 
             fixed (IntPtr* typeInstArgs = typeInstantiationContext, methodInstArgs = methodInstantiationContext)
             {
@@ -1500,7 +1500,7 @@ SR.Format(SR.Argument_InvalidToken, methodToken, new ModuleHandle(module)));
             ValidateModulePointer(module);
             if (!ModuleHandle.GetMetadataImport(module.GetNativeHandle()).IsValidToken(fieldToken))
                 throw new ArgumentOutOfRangeException(nameof(fieldToken),
-SR.Format(SR.Argument_InvalidToken, fieldToken, new ModuleHandle(module)));
+                    SR.Format(SR.Argument_InvalidToken, fieldToken, new ModuleHandle(module)));
 
             // defensive copy to be sure array is not mutated from the outside during processing
             int typeInstCount, methodInstCount;

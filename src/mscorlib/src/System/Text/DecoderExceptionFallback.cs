@@ -94,7 +94,7 @@ namespace System.Text
 
             // Known index
             throw new DecoderFallbackException(
-SR.Format(SR.Argument_InvalidCodePageBytesIndex, strBytes, index), bytesUnknown, index);
+                SR.Format(SR.Argument_InvalidCodePageBytesIndex, strBytes, index), bytesUnknown, index);
         }
     }
 

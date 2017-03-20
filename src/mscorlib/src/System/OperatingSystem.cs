@@ -35,7 +35,7 @@ namespace System
             if (platform < PlatformID.Win32S || platform > PlatformID.MacOSX)
             {
                 throw new ArgumentException(
-SR.Format(SR.Arg_EnumIllegalVal, (int)platform),
+                    SR.Format(SR.Arg_EnumIllegalVal, (int)platform),
                     nameof(platform));
             }
 

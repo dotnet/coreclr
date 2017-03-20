@@ -429,7 +429,7 @@ namespace System.Text
             if (EncodingTable.GetCodePageDataItem(codepage) == null)
             {
                 throw new NotSupportedException(
-SR.Format(SR.NotSupported_NoCodepageData, codepage));
+                    SR.Format(SR.NotSupported_NoCodepageData, codepage));
             }
 
             return UTF8;
@@ -512,7 +512,7 @@ SR.Format(SR.NotSupported_NoCodepageData, codepage));
                 if (dataItem == null)
                 {
                     throw new NotSupportedException(
-SR.Format(SR.NotSupported_NoCodepageData, m_codePage));
+                        SR.Format(SR.NotSupported_NoCodepageData, m_codePage));
                 }
             }
         }
@@ -1383,7 +1383,7 @@ SR.Format(SR.NotSupported_NoCodepageData, m_codePage));
             // Special message to include fallback type in case fallback's GetMaxCharCount is broken
             // This happens if user has implimented an encoder fallback with a broken GetMaxCharCount
             throw new ArgumentException(
-SR.Format(SR.Argument_EncodingConversionOverflowBytes, EncodingName, EncoderFallback.GetType()), "bytes");
+                SR.Format(SR.Argument_EncodingConversionOverflowBytes, EncodingName, EncoderFallback.GetType()), "bytes");
         }
 
         internal void ThrowBytesOverflow(EncoderNLS encoder, bool nothingEncoded)
@@ -1406,7 +1406,7 @@ SR.Format(SR.Argument_EncodingConversionOverflowBytes, EncodingName, EncoderFall
             // Special message to include fallback type in case fallback's GetMaxCharCount is broken
             // This happens if user has implimented a decoder fallback with a broken GetMaxCharCount
             throw new ArgumentException(
-SR.Format(SR.Argument_EncodingConversionOverflowChars, EncodingName, DecoderFallback.GetType()), "chars");
+                SR.Format(SR.Argument_EncodingConversionOverflowChars, EncodingName, DecoderFallback.GetType()), "chars");
         }
 
         internal void ThrowCharsOverflow(DecoderNLS decoder, bool nothingDecoded)

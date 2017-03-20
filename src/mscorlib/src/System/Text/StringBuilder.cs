@@ -127,12 +127,12 @@ namespace System.Text
             if (capacity < 0)
             {
                 throw new ArgumentOutOfRangeException(nameof(capacity),
-SR.Format(SR.ArgumentOutOfRange_MustBePositive, nameof(capacity)));
+                    SR.Format(SR.ArgumentOutOfRange_MustBePositive, nameof(capacity)));
             }
             if (length < 0)
             {
                 throw new ArgumentOutOfRangeException(nameof(length),
-SR.Format(SR.ArgumentOutOfRange_MustBeNonNegNum, nameof(length)));
+                    SR.Format(SR.ArgumentOutOfRange_MustBeNonNegNum, nameof(length)));
             }
             if (startIndex < 0)
             {
@@ -181,7 +181,7 @@ SR.Format(SR.ArgumentOutOfRange_MustBeNonNegNum, nameof(length)));
             if (capacity < 0)
             {
                 throw new ArgumentOutOfRangeException(nameof(capacity),
-SR.Format(SR.ArgumentOutOfRange_MustBePositive, nameof(capacity)));
+                    SR.Format(SR.ArgumentOutOfRange_MustBePositive, nameof(capacity)));
             }
             Contract.EndContractBlock();
 
@@ -814,7 +814,7 @@ SR.Format(SR.ArgumentOutOfRange_MustBePositive, nameof(capacity)));
             if (destinationIndex < 0)
             {
                 throw new ArgumentOutOfRangeException(nameof(destinationIndex),
-SR.Format(SR.ArgumentOutOfRange_MustBeNonNegNum, nameof(destinationIndex)));
+                    SR.Format(SR.ArgumentOutOfRange_MustBeNonNegNum, nameof(destinationIndex)));
             }
 
             if (destinationIndex > destination.Length - count)

@@ -170,7 +170,7 @@ namespace System
         private void ThrowInsufficientState(string field)
         {
             throw new SerializationException(
-SR.Format(SR.Serialization_InsufficientDeserializationState, field));
+                SR.Format(SR.Serialization_InsufficientDeserializationState, field));
         }
 
         private DelegateEntry OldDelegateWireFormat(SerializationInfo info, StreamingContext context)

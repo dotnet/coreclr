@@ -442,7 +442,7 @@ namespace System.Text
                     {
                         // Throw it, using our complete character
                         throw new ArgumentException(
-SR.Format(SR.Argument_RecursiveFallback, charLeftOver), nameof(chars));
+                            SR.Format(SR.Argument_RecursiveFallback, charLeftOver), nameof(chars));
                     }
                     else
                     {
@@ -850,7 +850,7 @@ SR.Format(SR.Argument_RecursiveFallback, charLeftOver), nameof(chars));
                     {
                         // Throw it, using our complete character
                         throw new ArgumentException(
-SR.Format(SR.Argument_RecursiveFallback, charLeftOver), nameof(chars));
+                            SR.Format(SR.Argument_RecursiveFallback, charLeftOver), nameof(chars));
                     }
                     else
                     {

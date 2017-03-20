@@ -41,7 +41,7 @@ namespace System.Threading
 
                 if (null != name && 0 != name.Length && Win32Native.ERROR_INVALID_HANDLE == errorCode)
                     throw new WaitHandleCannotBeOpenedException(
-SR.Format(SR.Threading_WaitHandleCannotBeOpenedException_InvalidHandle, name));
+                        SR.Format(SR.Threading_WaitHandleCannotBeOpenedException_InvalidHandle, name));
 
                 __Error.WinIOError();
             }
@@ -72,7 +72,7 @@ SR.Format(SR.Threading_WaitHandleCannotBeOpenedException_InvalidHandle, name));
             {
                 if (null != name && 0 != name.Length && Win32Native.ERROR_INVALID_HANDLE == errorCode)
                     throw new WaitHandleCannotBeOpenedException(
-SR.Format(SR.Threading_WaitHandleCannotBeOpenedException_InvalidHandle, name));
+                        SR.Format(SR.Threading_WaitHandleCannotBeOpenedException_InvalidHandle, name));
                 __Error.WinIOError();
             }
             createdNew = errorCode != Win32Native.ERROR_ALREADY_EXISTS;
