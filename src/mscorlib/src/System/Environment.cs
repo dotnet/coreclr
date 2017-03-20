@@ -52,6 +52,16 @@ namespace System
         private const int MaxUserEnvVariableLength = 255;
         private const int MaxMachineNameLength = 256;
 
+        // Looks up the resource string value for key.
+        // 
+        // if you change this method's signature then you must change the code that calls it
+        // in excep.cpp and probably you will have to visit mscorlib.h to add the new signature
+        // as well as metasig.h to create the new signature type
+        internal static String GetResourceStringLocal(String key)
+        {
+            return SR.GetResourceString(key);
+        }
+
         // Private object for locking instead of locking on a public type for SQL reliability work.
         private static Object s_InternalSyncObject;
         private static Object InternalSyncObject
