@@ -4370,6 +4370,9 @@
   <data name="PlatformNotSupported_OSXFileLocking" xml:space="preserve">
     <value>Locking/unlocking file regions is not supported on this platform. Use FileShare on the entire file instead.</value>
   </data>
+  <data name="PlatformNotSupported_ReflectionOnly" xml:space="preserve">
+    <value>ReflectionOnly loading is not supported on this platform.</value>
+  </data>
   <data name="PlatformNotSupported_RequiresLonghorn" xml:space="preserve">
     <value>This operation is only supported on Windows Vista and above.</value>
   </data>
