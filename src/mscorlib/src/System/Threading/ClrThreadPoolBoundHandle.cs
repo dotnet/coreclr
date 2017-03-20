@@ -197,23 +197,14 @@ namespace System.Threading
 
             EnsureNotDisposed();
 
-            preAllocated.AddRef();
-            try
-            {
-                ThreadPoolBoundHandleOverlapped overlapped = preAllocated._overlapped;
+            ThreadPoolBoundHandleOverlapped overlapped = preAllocated._overlapped;
 
-                if (overlapped._boundHandle != null)
-                    throw new ArgumentException(SR.Argument_PreAllocatedAlreadyAllocated, nameof(preAllocated));
+            if (overlapped._boundHandle != null)
+                throw new ArgumentException(SR.Argument_PreAllocatedAlreadyAllocated, nameof(preAllocated));
 
-                overlapped._boundHandle = this;
+            overlapped._boundHandle = this;
 
-                return overlapped._nativeOverlapped;
-            }
-            catch
-            {
-                preAllocated.Release();
-                throw;
-            }
+            return overlapped._nativeOverlapped;
         }
 
         /// <summary>

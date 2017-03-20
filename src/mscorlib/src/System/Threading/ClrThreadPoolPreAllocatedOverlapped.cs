@@ -8,10 +8,9 @@ namespace System.Threading
     /// Represents pre-allocated state for native overlapped I/O operations.
     /// </summary>
     /// <seealso cref="ThreadPoolBoundHandle.AllocateNativeOverlapped(PreAllocatedOverlapped)"/>
-    public sealed class PreAllocatedOverlapped : IDisposable, IDeferredDisposable
+    public sealed class PreAllocatedOverlapped : IDisposable
     {
-        internal readonly ThreadPoolBoundHandleOverlapped _overlapped;
-        private DeferredDisposableLifetime<PreAllocatedOverlapped> _lifetime;
+        internal ThreadPoolBoundHandleOverlapped _overlapped;
 
         /// <summary>
         ///     Initializes a new instance of the <see cref="PreAllocatedOverlapped"/> class, specifying 
@@ -56,23 +55,26 @@ namespace System.Threading
             _overlapped = new ThreadPoolBoundHandleOverlapped(callback, state, pinData, this);
         }
 
-        internal bool AddRef()
+        internal unsafe void Release()
         {
-            return _lifetime.AddRef(this);
+            _overlapped._boundHandle = null;
+            _overlapped._completed = false;
+            *_overlapped._nativeOverlapped = default(NativeOverlapped);
         }
 
-        internal void Release()
+        public void Dispose()
         {
-            _lifetime.Release(this);
-        }
-
-        /// <summary>
-        /// Frees the resources associated with this <see cref="PreAllocatedOverlapped"/> instance. 
-        /// </summary>
-        public unsafe void Dispose()
-        {
-            _lifetime.Dispose(this);
+            Dispose(true);
             GC.SuppressFinalize(this);
+        }
+
+        unsafe void Dispose(bool disposing)
+        {
+            if (_overlapped != null)
+            {
+                Overlapped.Free(_overlapped._nativeOverlapped);
+                _overlapped = null;
+            }
         }
 
         ~PreAllocatedOverlapped()
@@ -82,24 +84,7 @@ namespace System.Threading
             // reachable/usable by other code.
             //
             if (!Environment.HasShutdownStarted)
-                Dispose();
-        }
-
-        unsafe void IDeferredDisposable.OnFinalRelease(bool disposed)
-        {
-            if (_overlapped != null)
-            {
-                if (disposed)
-                {
-                    Overlapped.Free(_overlapped._nativeOverlapped);
-                }
-                else
-                {
-                    _overlapped._boundHandle = null;
-                    _overlapped._completed = false;
-                    *_overlapped._nativeOverlapped = default(NativeOverlapped);
-                }
-            }
+                Dispose(false);
         }
     }
 }
