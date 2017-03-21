@@ -1772,10 +1772,10 @@ VOID Object::ValidateInner(BOOL bDeep, BOOL bVerifyNextHeader, BOOL bVerifySyncB
 
         lastTest = 7;
 
+        _ASSERTE(GCHeapUtilities::IsGCHeapInitialized());
         // try to validate next object's header
         if (bDeep 
             && bVerifyNextHeader 
-            && GCHeapUtilities::IsGCHeapInitialized()
             && GCHeapUtilities::GetGCHeap()->RuntimeStructuresValid()
             //NextObj could be very slow if concurrent GC is going on
             && !GCHeapUtilities::GetGCHeap ()->IsConcurrentGCInProgress ())
