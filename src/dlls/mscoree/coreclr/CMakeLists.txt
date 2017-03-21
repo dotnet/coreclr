@@ -170,7 +170,9 @@ if(WIN32)
         COMMENT Add dactable & debug resources to coreclr
     )
 
-    add_custom_target(inject_debug_resources ALL DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_CFG_INTDIR}/inject_debug_resources.timestamp)
+    if(NOT DEFINED CLR_CROSS_COMPONENTS_BUILD)
+        add_custom_target(inject_debug_resources ALL DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_CFG_INTDIR}/inject_debug_resources.timestamp)
+    endif()
 
 endif(WIN32)
 
