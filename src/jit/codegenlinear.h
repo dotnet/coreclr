@@ -180,35 +180,35 @@ void genRemoveAlignmentAfterCall(GenTreeCall* call);
 
 #if defined(UNIX_X86_ABI)
 
-    unsigned curNestedAlignment;    // Keep track of alignment adjustment required during codegen.
-    unsigned maxNestedAlignment;    // The maximum amount of alignment adjustment required.
+unsigned curNestedAlignment; // Keep track of alignment adjustment required during codegen.
+unsigned maxNestedAlignment; // The maximum amount of alignment adjustment required.
 
-    void SubtractNestedAlignment(unsigned adjustment)
+void SubtractNestedAlignment(unsigned adjustment)
+{
+    assert(curNestedAlignment >= adjustment);
+    unsigned newNestedAlignment = curNestedAlignment - adjustment;
+    if (curNestedAlignment != newNestedAlignment)
     {
-        assert(curNestedAlignment >= adjustment);
-        unsigned newNestedAlignment = curNestedAlignment - adjustment;
-        if (curNestedAlignment != newNestedAlignment)
-        {
-            JITDUMP("Adjusting stack nested alignment from %d to %d\n", curNestedAlignment, newNestedAlignment);
-        }
-        curNestedAlignment = newNestedAlignment;
+        JITDUMP("Adjusting stack nested alignment from %d to %d\n", curNestedAlignment, newNestedAlignment);
     }
+    curNestedAlignment = newNestedAlignment;
+}
 
-    void AddNestedAlignment(unsigned adjustment)
+void AddNestedAlignment(unsigned adjustment)
+{
+    unsigned newNestedAlignment = curNestedAlignment + adjustment;
+    if (curNestedAlignment != newNestedAlignment)
     {
-        unsigned newNestedAlignment = curNestedAlignment + adjustment;
-        if (curNestedAlignment != newNestedAlignment)
-        {
-            JITDUMP("Adjusting stack nested alignment from %d to %d\n", curNestedAlignment, newNestedAlignment);
-        }
-        curNestedAlignment = newNestedAlignment;
-
-        if (curNestedAlignment > maxNestedAlignment)
-        {
-            JITDUMP("Max stack nested alignment changed from %d to %d\n", maxNestedAlignment, curNestedAlignment);
-            maxNestedAlignment = curNestedAlignment;
-        }
+        JITDUMP("Adjusting stack nested alignment from %d to %d\n", curNestedAlignment, newNestedAlignment);
     }
+    curNestedAlignment = newNestedAlignment;
+
+    if (curNestedAlignment > maxNestedAlignment)
+    {
+        JITDUMP("Max stack nested alignment changed from %d to %d\n", maxNestedAlignment, curNestedAlignment);
+        maxNestedAlignment = curNestedAlignment;
+    }
+}
 
 #endif
 
