@@ -107,7 +107,7 @@ CodeGen::CodeGen(Compiler* theCompiler) : CodeGenInterface(theCompiler)
     m_stkArgVarNum = BAD_VAR_NUM;
 #endif
 
-#if defined(DEBUG) && defined(UNIX_X86_ABI)
+#if defined(UNIX_X86_ABI)
     curNestedAlignment = 0;
     maxNestedAlignment = 0;
 #endif

@@ -178,7 +178,7 @@ void genAlignStackBeforeCall(GenTreePutArgStk* putArgStk);
 void genAlignStackBeforeCall(GenTreeCall* call);
 void genRemoveAlignmentAfterCall(GenTreeCall* call);
 
-#if defined(DEBUG) && defined(UNIX_X86_ABI)
+#if defined(UNIX_X86_ABI)
 
     unsigned curNestedAlignment;    // Keep track of alignment adjustment required during codegen.
     unsigned maxNestedAlignment;    // The maximum amount of alignment adjustment required.
