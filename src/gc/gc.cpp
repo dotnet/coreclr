@@ -34494,10 +34494,6 @@ GCHeap::AllocLHeap( size_t size, uint32_t flags REQD_ALIGN_DCL)
 #endif //_PREFAST_
 #endif //MULTIPLE_HEAPS
 
-#ifndef FEATURE_REDHAWK
-    GCStress<gc_on_alloc>::MaybeTrigger(generation_alloc_context(hp->generation_of(0)));
-#endif // FEATURE_REDHAWK
-
     alloc_context* acontext = generation_alloc_context (hp->generation_of (max_generation+1));
 
     newAlloc = (Object*) hp->allocate_large_object (size + ComputeMaxStructAlignPadLarge(requiredAlignment), acontext->alloc_bytes_loh);
