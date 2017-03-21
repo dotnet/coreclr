@@ -151,6 +151,12 @@ namespace System
         {
             ThrowInvalidOperationIfDefault();
             destination.ThrowInvalidOperationIfDefault();
+
+            if (_count > destination._count)
+            {
+                ThrowHelper.ThrowArgumentException_DestinationTooShort();
+            }
+
             System.Array.Copy(_array, _offset, destination._array, destination._offset, _count);
         }
 
