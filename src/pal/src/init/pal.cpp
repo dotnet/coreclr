@@ -1171,43 +1171,40 @@ static LPWSTR INIT_FindEXEPath(LPCSTR exe_name)
             return NULL;
         }
 
-        if ( UTIL_IsExecuteBitsSet( &theStats ) )
+        if (!CorUnix::RealPathHelper(exe_name, real_path))
         {
-            if (!CorUnix::RealPathHelper(exe_name, real_path))
-            {
-                ERROR("realpath() failed!\n");
-                return NULL;
-            }
-
-            return_size=MultiByteToWideChar(CP_ACP,0,real_path,-1,NULL,0);
-            if ( 0 == return_size )
-            {
-                ASSERT("MultiByteToWideChar failure\n");
-                return NULL;
-            }
-
-            return_value = reinterpret_cast<LPWSTR>(InternalMalloc((return_size*sizeof(WCHAR))));
-            if ( NULL == return_value )
-            {
-                ERROR("Not enough memory to create full path\n");
-                return NULL;
-            }
-            else
-            {
-                if (!MultiByteToWideChar(CP_ACP, 0, real_path, -1, 
-                                        return_value, return_size))
-                {
-                    ASSERT("MultiByteToWideChar failure\n");
-                    free(return_value);
-                    return_value = NULL;
-                }
-                else
-                {
-                    TRACE("full path to executable is %s\n", real_path.GetString());
-                }
-            }
-            return return_value;
+          ERROR("realpath() failed!\n");
+          return NULL;
         }
+
+        return_size=MultiByteToWideChar(CP_ACP,0,real_path,-1,NULL,0);
+        if ( 0 == return_size )
+        {
+          ASSERT("MultiByteToWideChar failure\n");
+          return NULL;
+        }
+
+        return_value = reinterpret_cast<LPWSTR>(InternalMalloc((return_size*sizeof(WCHAR))));
+        if ( NULL == return_value )
+        {
+          ERROR("Not enough memory to create full path\n");
+          return NULL;
+        }
+        else
+        {
+          if (!MultiByteToWideChar(CP_ACP, 0, real_path, -1,
+                return_value, return_size))
+          {
+            ASSERT("MultiByteToWideChar failure\n");
+            free(return_value);
+            return_value = NULL;
+          }
+          else
+          {
+            TRACE("full path to executable is %s\n", real_path.GetString());
+          }
+        }
+        return return_value;
     }
 
     /* no path was specified : search $PATH */
