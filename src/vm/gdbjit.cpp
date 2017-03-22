@@ -47,13 +47,11 @@ GetTypeInfoFromTypeHandle(TypeHandle typeHandle,
         case ELEMENT_TYPE_R8:
         case ELEMENT_TYPE_U:
         case ELEMENT_TYPE_I:
-            typeInfo = new (nothrow) PrimitiveTypeInfo(typeHandle, CorElementTypeToDWEncoding[corType]);
+            typeInfo = new (nothrow) PrimitiveTypeInfo(typeHandle);
             if (typeInfo == nullptr)
                 return nullptr;
-
-            typeInfo->m_type_size = CorTypeInfo::Size(corType);
-
-            break;
+            pTypeMap->Add(typeInfo->GetTypeKey(), typeInfo);
+            return typeInfo;
         case ELEMENT_TYPE_VALUETYPE:
         case ELEMENT_TYPE_CLASS:
         {
@@ -163,7 +161,11 @@ GetTypeInfoFromTypeHandle(TypeHandle typeHandle,
                 return nullptr;
             typeInfo->m_type_size = sizeof(TADDR);
             typeInfo->m_type_offset = valTypeInfo->m_type_offset;
-            break;
+
+            typeInfo->CalculateName();
+
+            pTypeMap->Add(typeInfo->GetTypeKey(), typeInfo);
+            return typeInfo;
         }
         case ELEMENT_TYPE_ARRAY:
         case ELEMENT_TYPE_SZARRAY:
@@ -226,20 +228,8 @@ GetTypeInfoFromTypeHandle(TypeHandle typeHandle,
         }
         default:
             ASSERT(0 && "not implemented");
-            break;
+            return nullptr;
     }
-    // name the type
-    if (corType == ELEMENT_TYPE_CHAR)
-    {
-        typeInfo->m_type_name = new char[9];
-        strcpy(typeInfo->m_type_name, "char16_t");
-    }
-    else
-    {
-        typeInfo->CalculateName();
-    }
-    pTypeMap->Add(typeInfo->GetTypeKey(), typeInfo);
-    return typeInfo;
 }
 
 TypeInfoBase* GetArgTypeInfo(MethodDesc* MethodDescPtr,
@@ -1108,6 +1098,25 @@ static const char *GetCSharpTypeName(TypeInfoBase *typeInfo)
         case ELEMENT_TYPE_R4: return "float";
         case ELEMENT_TYPE_R8: return "double";
         default: return typeInfo->m_type_name;
+    }
+}
+
+PrimitiveTypeInfo::PrimitiveTypeInfo(TypeHandle typeHandle)
+    : TypeInfoBase(typeHandle),
+      m_typedef_info(new (nothrow) TypeDefInfo(nullptr, 0))
+{
+    CorElementType corType = typeHandle.GetSignatureCorElementType();
+    m_type_encoding = CorElementTypeToDWEncoding[corType];
+    m_type_size = CorTypeInfo::Size(corType);
+
+    if (corType == ELEMENT_TYPE_CHAR)
+    {
+        m_type_name = new char[9];
+        strcpy(m_type_name, "char16_t");
+    }
+    else
+    {
+        CalculateName();
     }
 }
 

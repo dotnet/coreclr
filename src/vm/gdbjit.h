@@ -200,21 +200,13 @@ public:
 class PrimitiveTypeInfo: public TypeInfoBase
 {
 public:
-    PrimitiveTypeInfo(TypeHandle typeHandle, int encoding)
-        : TypeInfoBase(typeHandle),
-          m_type_encoding(encoding),
-          m_typedef_info(new (nothrow) TypeDefInfo(nullptr, 0))
-    {
-    }
-    virtual ~PrimitiveTypeInfo()
-    {
-        delete m_typedef_info;
-    }
+    PrimitiveTypeInfo(TypeHandle typeHandle);
+
     void DumpDebugInfo(char* ptr, int& offset) override;
     void DumpStrings(char* ptr, int& offset) override;
 
     int m_type_encoding;
-    TypeDefInfo* m_typedef_info;
+    NewHolder<TypeDefInfo> m_typedef_info;
 };
 
 class RefTypeInfo: public TypeInfoBase
