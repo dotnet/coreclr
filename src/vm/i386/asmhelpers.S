@@ -937,7 +937,8 @@ NESTED_ENTRY DelayLoad_Helper\suffix, _TEXT, NoHandler
 
     mov         esi, esp
 
-    push        \frameFlags
+    sub         esp, 4
+    mov         DWORD PTR [esp], \frameFlags
     push        ecx             // module
     push        edx             // section index
 
