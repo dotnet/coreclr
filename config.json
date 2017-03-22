@@ -451,7 +451,7 @@
           }
         },
         "portable": {
-          "description": "Skips restoring packages during build.",
+          "description": "Triggers a portable build.",
           "settings": {
             "PortableBuild": "1"
           }

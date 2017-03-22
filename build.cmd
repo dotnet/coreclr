@@ -648,6 +648,7 @@ echo -sequential: force a non-parallel build ^(default is to build in parallel
 echo     using all processors^).
 echo -officialbuildid=^<ID^>: specify the official build ID to be used by this build.
 echo -Rebuild: passes /t:rebuild to the build projects.
+echo portable : build for portable RID.
 echo.
 echo If "all" is specified, then all build architectures and types are built. If, in addition,
 echo one or more build architectures or types is specified, then only those build architectures
