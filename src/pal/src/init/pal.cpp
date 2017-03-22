@@ -1161,7 +1161,7 @@ static LPWSTR INIT_EXEPath(LPCSTR exe_path)
 
     if (!strchr(exe_path, '/'))
     {
-        ERROR( "The fils path is not fully specified" );
+        ERROR( "The exe path is not fully specified\n" );
         return NULL;
     }
 
