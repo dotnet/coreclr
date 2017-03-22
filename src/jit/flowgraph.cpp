@@ -2409,7 +2409,7 @@ void Compiler::fgComputeDoms()
     bbRoot.bbNum    = 0;
     bbRoot.bbIDom   = &bbRoot;
     bbRoot.bbDfsNum = 0;
-    bbRoot.bbFlags = 0;
+    bbRoot.bbFlags  = 0;
     flRoot.flNext   = nullptr;
     flRoot.flBlock  = &bbRoot;
 
