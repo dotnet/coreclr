@@ -231,22 +231,22 @@ It would be useful to verify that the need for large data addresses
 doesn't happen much more frequently than large code addresses.
 3. An alternative is to have two separate overflow modes: "data rel32
 overflow" and "code rel32 overflow", as follows:
-  1. "data rel32 overflow" is entered by not being able to generate a
-rel32 offset for a data address. Restart the compile, and all subsequent
-data addresses will be large.
-  2. "code rel32 overflow" is entered by not being able to generate a
-rel32 offset or jump stub for a code address. Restart the compile, and
-all subsequent external call/jump sequences will be large.
-These could be independent, which would require distinguishing code and
-data rel32 to the VM (which might be useful for other reasons, such as
-enabling better stress modes). Or, we could layer them: "data rel32
-overflow" would be the current "rel32 overflow" we have today, which we
-must enter before attempting to generate a jump stub. If a jump stub
-fails to be created, we fail and retry the compilation again, enter
-"code rel32 overflow" mode, and all subsequent code (and data) addresses
-would be large. We would need to add the ability to communicate this new
-mode from the VM to the JIT, implement large call/jump generation in the
-JIT, and implement another type of retry in the VM.
+   1. "data rel32 overflow" is entered by not being able to generate a
+      rel32 offset for a data address. Restart the compile, and all subsequent
+      data addresses will be large.
+   2. "code rel32 overflow" is entered by not being able to generate a
+      rel32 offset or jump stub for a code address. Restart the compile, and
+      all subsequent external call/jump sequences will be large.
+      These could be independent, which would require distinguishing code and
+      data rel32 to the VM (which might be useful for other reasons, such as
+      enabling better stress modes). Or, we could layer them: "data rel32
+      overflow" would be the current "rel32 overflow" we have today, which we
+      must enter before attempting to generate a jump stub. If a jump stub
+      fails to be created, we fail and retry the compilation again, enter
+      "code rel32 overflow" mode, and all subsequent code (and data) addresses
+      would be large. We would need to add the ability to communicate this new
+      mode from the VM to the JIT, implement large call/jump generation in the
+      JIT, and implement another type of retry in the VM.
 4. Another alternative: The JIT could determine the total number of
 unique external call/jump targets from a function, and report that to
 the VM. Jump stub space for exactly this number would be allocated,
