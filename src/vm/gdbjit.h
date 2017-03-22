@@ -248,6 +248,10 @@ public:
         : RefTypeInfo(typeHandle, value_type)
     {
     }
+    virtual ~NamedRefTypeInfo()
+    {
+        delete m_value_type;
+    }
     void DumpDebugInfo(char* ptr, int& offset) override;
 };
 
