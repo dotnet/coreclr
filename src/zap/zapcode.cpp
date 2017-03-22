@@ -1202,6 +1202,49 @@ void ZapUnwindData::Save(ZapWriter * pZapWriter)
 #endif //REDHAWK
 }
 
+#elif defined(_TARGET_X86_)
+
+UINT ZapUnwindData::GetAlignment()
+{
+    return sizeof(ULONG);
+}
+
+DWORD ZapUnwindData::GetSize()
+{
+    DWORD dwSize = ZapBlob::GetSize();
+
+#ifndef REDHAWK
+    // Add space for personality routine, it must be 4-byte aligned.
+    // Everything in the UNWIND_INFO has already had its size included in size
+    dwSize = AlignUp(dwSize, sizeof(ULONG));
+
+    dwSize += sizeof(ULONG);
+#endif //REDHAWK
+
+    return dwSize;
+}
+
+void ZapUnwindData::Save(ZapWriter * pZapWriter)
+{
+    ZapImage * pImage = ZapImage::GetImage(pZapWriter);
+
+    PVOID pData = GetData();
+    DWORD dwSize = GetBlobSize();
+
+    UNWIND_INFO * pUnwindInfo = (UNWIND_INFO *)pData;
+
+    pZapWriter->Write(pData, dwSize);
+
+#ifndef REDHAWK
+    DWORD dwPad = AlignmentPad(dwSize, sizeof(DWORD));
+    if (dwPad != 0)
+        pZapWriter->WritePad(dwPad);
+
+    ULONG personalityRoutine = GetPersonalityRoutine(pImage)->GetRVA();
+    pZapWriter->Write(&personalityRoutine, sizeof(personalityRoutine));
+#endif //REDHAWK
+}
+
 #elif defined(_TARGET_ARM_) || defined(_TARGET_ARM64_)
 
 UINT ZapUnwindData::GetAlignment()
