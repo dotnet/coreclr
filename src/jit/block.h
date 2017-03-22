@@ -438,6 +438,8 @@ struct BasicBlock : private LIR::Range
 #define BBF_CLONED_FINALLY_BEGIN 0x100000000 // First block of a cloned finally region
 #define BBF_CLONED_FINALLY_END 0x200000000   // Last block of a cloned finally region
 
+#define BBF_DOMINATED_BY_NOT_NORMAL_ENTRY 0x400000000 // Full set of dominators contains not normal entry.
+
 // Flags that relate blocks to loop structure.
 
 #define BBF_LOOP_FLAGS (BBF_LOOP_PREHEADER | BBF_LOOP_HEAD | BBF_LOOP_CALL0 | BBF_LOOP_CALL1)
@@ -1171,6 +1173,16 @@ public:
 
     void MakeLIR(GenTree* firstNode, GenTree* lastNode);
     bool IsLIR();
+
+    void SetDominatedByNotNormalEntryFlag()
+    {
+        bbFlags |= BBF_DOMINATED_BY_NOT_NORMAL_ENTRY;
+    }
+
+    bool IsDominatedByNotNormalEntryFlag()
+    {
+        return (bbFlags & BBF_DOMINATED_BY_NOT_NORMAL_ENTRY) != 0;
+    }
 };
 
 template <>
