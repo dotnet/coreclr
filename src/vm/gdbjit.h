@@ -453,10 +453,10 @@ private:
     static int GetSectionIndex(const char *sectName);
     static bool BuildELFHeader(MemBuf& buf);
     static bool BuildSectionTables(MemBuf& sectBuf, MemBuf& strBuf, FunctionMemberPtrArrayHolder &method,
-                                   int SymbolCount);
+                                   int symbolCount);
     static bool BuildSymbolTableSection(MemBuf& buf, PCODE addr, TADDR codeSize, FunctionMemberPtrArrayHolder &method,
-                                        NewArrayHolder<Elf_Symbol> &SymbolNames, int SymbolCount);
-    static bool BuildStringTableSection(MemBuf& strTab, NewArrayHolder<Elf_Symbol> &SymbolNames, int SymbolCount);
+                                        NewArrayHolder<Elf_Symbol> &symbolNames, int symbolCount);
+    static bool BuildStringTableSection(MemBuf& strTab, NewArrayHolder<Elf_Symbol> &symbolNames, int symbolCount);
     static bool BuildDebugStrings(MemBuf& buf, PTK_TypeInfoMap pTypeMap, FunctionMemberPtrArrayHolder &method);
     static bool BuildDebugAbbrev(MemBuf& buf);
     static bool BuildDebugInfo(MemBuf& buf, PTK_TypeInfoMap pTypeMap, FunctionMemberPtrArrayHolder &method);
@@ -470,7 +470,7 @@ private:
     static void IssueParamCommand(char*& ptr, uint8_t command, char* param, int param_len);
     static void SplitPathname(const char* path, const char*& pathName, const char*& fileName);
     static bool CollectCalledMethods(CalledMethod* pCM, TADDR nativeCode, FunctionMemberPtrArrayHolder &method,
-                                     NewArrayHolder<Elf_Symbol> &SymbolNames, int &SymbolCount);
+                                     NewArrayHolder<Elf_Symbol> &symbolNames, int &symbolCount);
 #ifdef _DEBUG
     static void DumpElf(const char* methodName, const MemBuf& buf);
 #endif
