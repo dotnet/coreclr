@@ -486,6 +486,48 @@ HRESULT FunctionMember::GetLocalsDebugInfo(NotifyGdb::PTK_TypeInfoMap pTypeMap,
     }
     return S_OK;
 }
+
+MethodDebugInfo::MethodDebugInfo(int numPoints, int numLocals)
+{
+    points = (SequencePointInfo*) CoTaskMemAlloc(sizeof(SequencePointInfo) * numPoints);
+    if (points == nullptr)
+    {
+        COMPlusThrowOM();
+    }
+    memset(points, 0, sizeof(SequencePointInfo) * numPoints);
+    size = numPoints;
+
+    if (numLocals == 0)
+    {
+        locals = nullptr;
+        localsSize = 0;
+        return;
+    }
+
+    locals = (LocalVarInfo*) CoTaskMemAlloc(sizeof(LocalVarInfo) * numLocals);
+    if (locals == nullptr)
+    {
+        CoTaskMemFree(points);
+        COMPlusThrowOM();
+    }
+    memset(locals, 0, sizeof(LocalVarInfo) * numLocals);
+    localsSize = numLocals;
+}
+
+MethodDebugInfo::~MethodDebugInfo()
+{
+    if (locals)
+    {
+        for (int i = 0; i < localsSize; i++)
+            CoTaskMemFree(locals[i].name);
+        CoTaskMemFree(locals);
+    }
+
+    for (int i = 0; i < size; i++)
+        CoTaskMemFree(points[i].fileName);
+    CoTaskMemFree(points);
+}
+
 /* Get mapping of IL offsets to source line numbers */
 HRESULT
 GetDebugInfoFromPDB(MethodDesc* MethodDescPtr, SymbolsInfo** symInfo, unsigned int &symInfoLen,  LocalsInfo &locals)
@@ -508,24 +550,7 @@ GetDebugInfoFromPDB(MethodDesc* MethodDescPtr, SymbolsInfo** symInfo, unsigned i
     StackScratchBuffer scratch;
     const char* szModName = modName.GetUTF8(scratch);
 
-    MethodDebugInfo methodDebugInfo;
-
-    methodDebugInfo.points = (SequencePointInfo*) CoTaskMemAlloc(sizeof(SequencePointInfo) * numMap);
-    if (methodDebugInfo.points == nullptr)
-        return E_OUTOFMEMORY;
-
-    if (locals.countVars > 0)
-    {
-        methodDebugInfo.locals = (LocalVarInfo*) CoTaskMemAlloc(sizeof(LocalVarInfo) * locals.countVars);
-        if (methodDebugInfo.locals == nullptr)
-            return E_OUTOFMEMORY;
-    }
-    else
-    {
-        methodDebugInfo.locals = nullptr;
-    }
-
-    methodDebugInfo.size = numMap;
+    MethodDebugInfo methodDebugInfo(numMap, locals.countVars);
 
     if (getInfoForMethodDelegate(szModName, MethodDescPtr->GetMemberDef(), methodDebugInfo) == FALSE)
         return E_FAIL;
@@ -584,16 +609,6 @@ GetDebugInfoFromPDB(MethodDesc* MethodDescPtr, SymbolsInfo** symInfo, unsigned i
         }
     }
 
-    if (methodDebugInfo.locals)
-    {
-        for (ULONG32 i = 0; i < methodDebugInfo.localsSize; i++)
-            CoTaskMemFree(methodDebugInfo.locals[i].name);
-        CoTaskMemFree(methodDebugInfo.locals);
-    }
-
-    for (ULONG32 i = 0; i < methodDebugInfo.size; i++)
-        CoTaskMemFree(methodDebugInfo.points[i].fileName);
-    CoTaskMemFree(methodDebugInfo.points);
     return S_OK;
 }
 

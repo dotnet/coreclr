@@ -32,6 +32,9 @@ struct MethodDebugInfo
     int size;
     LocalVarInfo* locals;
     int localsSize;
+
+    MethodDebugInfo(int numPoints, int numLocals);
+    ~MethodDebugInfo();
 };
 
 typedef BOOL (STDCALL *GetInfoForMethodDelegate)(const char*, unsigned int, MethodDebugInfo& methodDebugInfo);
