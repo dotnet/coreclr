@@ -134,9 +134,10 @@ GetTypeInfoFromTypeHandle(TypeHandle typeHandle,
                 if (pMT->IsString() && i == 1)
                 {
                     TypeInfoBase* elemTypeInfo = info->members[1].m_member_type;
-                    TypeInfoBase* arrayTypeInfo = new (nothrow) ArrayTypeInfo(typeHandle.MakeSZArray(), 1, elemTypeInfo);
+                    ArrayTypeInfo* arrayTypeInfo = new (nothrow) ArrayTypeInfo(typeHandle.MakeSZArray(), 1, elemTypeInfo);
                     if (arrayTypeInfo == nullptr)
                         return nullptr;
+                    info->m_array_type = arrayTypeInfo;
                     info->members[1].m_member_type = arrayTypeInfo;
                 }
             }
@@ -188,11 +189,13 @@ GetTypeInfoFromTypeHandle(TypeHandle typeHandle,
                 TypeHandle(MscorlibBinder::GetElementType(ELEMENT_TYPE_I4)), pTypeMap, method);
 
             TypeInfoBase* valTypeInfo = GetTypeInfoFromTypeHandle(typeHandle.GetTypeParam(), pTypeMap, method);
-            TypeInfoBase* arrayTypeInfo = new (nothrow) ArrayTypeInfo(typeHandle, 1, valTypeInfo);
+            ArrayTypeInfo* arrayTypeInfo = new (nothrow) ArrayTypeInfo(typeHandle, 1, valTypeInfo);
             if (arrayTypeInfo == nullptr)
                 return nullptr;
 
             ClassTypeInfo *info = static_cast<ClassTypeInfo*>(typeInfo);
+
+            info->m_array_type = arrayTypeInfo;
 
             info->members[0].m_member_name = new (nothrow) char[16];
             strcpy(info->members[0].m_member_name, "m_NumComponents");
@@ -208,10 +211,10 @@ GetTypeInfoFromTypeHandle(TypeHandle typeHandle,
             if (pMT->GetRank() != 1)
             {
                 TypeHandle dwordArray(MscorlibBinder::GetElementType(ELEMENT_TYPE_I4));
-                TypeInfoBase* arrayTypeInfo = new (nothrow) ArrayTypeInfo(dwordArray.MakeSZArray(), pMT->GetRank(), lengthTypeInfo);
+                ArrayTypeInfo* arrayTypeInfo = new (nothrow) ArrayTypeInfo(dwordArray.MakeSZArray(), pMT->GetRank(), lengthTypeInfo);
                 if (arrayTypeInfo == nullptr)
                     return nullptr;
-
+                info->m_array_bounds_type = arrayTypeInfo;
                 info->members[2].m_member_name = new (nothrow) char[9];
                 strcpy(info->members[2].m_member_name, "m_Bounds");
                 info->members[2].m_member_offset = ArrayBase::GetBoundsOffset(pMT);
@@ -1158,7 +1161,8 @@ ClassTypeInfo::ClassTypeInfo(TypeHandle typeHandle, int num_members, FunctionMem
           m_num_members(num_members),
           members(new TypeMember[num_members]),
           m_parent(nullptr),
-          m_method(method)
+          m_method(method),
+          m_array_type(nullptr)
 {
 }
 

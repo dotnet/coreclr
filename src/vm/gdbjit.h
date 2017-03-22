@@ -256,6 +256,7 @@ public:
 };
 
 class FunctionMemberPtrArrayHolder;
+class ArrayTypeInfo;
 
 class ClassTypeInfo: public TypeInfoBase
 {
@@ -270,6 +271,8 @@ public:
     TypeMember* members;
     TypeInfoBase* m_parent;
     FunctionMemberPtrArrayHolder &m_method;
+    NewHolder<ArrayTypeInfo> m_array_type;
+    NewHolder<ArrayTypeInfo> m_array_bounds_type;
 };
 
 class TypeMember: public DwarfDumpable
