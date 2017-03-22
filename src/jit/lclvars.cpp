@@ -3530,24 +3530,7 @@ void Compiler::lvaMarkLclRefs(GenTreePtr tree)
 bool Compiler::IsDominatedByNotNormalEntry(BasicBlock* block)
 {
     assert(fgDomsComputed);
-
-    // If any entry block except the normal entry block dominates the block, then mark the local with the
-    // lvVolatileHint flag.
-
-    if (BlockSetOps::MayBeUninit(block->bbDoms))
-    {
-        // Lazy init (If a block is not dominated by any other block, we'll redo this every time, it is not fast).
-        BlockSetOps::AssignNoCopy(this, block->bbDoms, fgGetDominatorSet(block));
-        BlockSetOps::RemoveElemD(this, block->bbDoms, fgFirstBB->bbNum);
-    }
-    assert(fgEnterBlksSetValid);
-    if (!BlockSetOps::IsEmptyIntersection(this, block->bbDoms, fgEnterBlks))
-    {
-        assert(block->IsDominatedByNotNormalEntryFlag() == true);
-        return true;
-    }
-    assert(block->IsDominatedByNotNormalEntryFlag() == false);
-    return false;
+    return block->IsDominatedByNotNormalEntryFlag();
 }
 
 //------------------------------------------------------------------------
