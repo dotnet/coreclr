@@ -1132,8 +1132,11 @@ static LPWSTR INIT_FormatCommandLine (int argc, const char * const *argv)
 Function:
   INIT_ConvertEXEPath
 
+Abstract:
+    Check whether the executable path is valid, and convert its type (LPCSTR -> LPWSTR)
+
 Parameters:
-    LPCSTR exe_name : the full path of the current executable
+    LPCSTR exe_name : full path of the current executable
 
 Return:
     pointer to buffer containing the full path. This buffer must be released
@@ -1141,14 +1144,9 @@ Return:
 
 Notes :
     this function assumes that "exe_name" is in Unix style (no \)
-
-Notes 2:
-    This doesn't handle the case of directories with the desired name
-    (and directories are usually executable...)
 --*/
 static LPWSTR INIT_ConvertEXEPath(LPCSTR exe_path)
 {
-#ifndef __APPLE__
     PathCharString real_path;
     LPWSTR return_value;
     INT return_size;
@@ -1172,7 +1170,7 @@ static LPWSTR INIT_ConvertEXEPath(LPCSTR exe_path)
         return NULL;
     }
 
-    return_size = MultiByteToWideChar(CP_ACP,0,real_path,-1,NULL,0);
+    return_size = MultiByteToWideChar(CP_ACP, 0, real_path, -1, NULL, 0);
     if (0 == return_size)
     {
         ASSERT("MultiByteToWideChar failure\n");
@@ -1201,58 +1199,4 @@ static LPWSTR INIT_ConvertEXEPath(LPCSTR exe_path)
     }
 
     return return_value;
-#else // !__APPLE__
-    // On the Mac we can just directly ask the OS for the executable path.
-
-    LPWSTR return_value;
-    INT return_size;
-
-    PathCharString exec_pathPS;
-    LPSTR  exec_path = exec_pathPS.OpenStringBuffer(MAX_PATH);
-    uint32_t bufsize = exec_pathPS.GetCount();
-
-    if (-1 == _NSGetExecutablePath(exec_path, &bufsize))
-    {
-        exec_pathPS.CloseBuffer(exec_pathPS.GetCount());
-        exec_path = exec_pathPS.OpenStringBuffer(bufsize);
-    }
-
-    if (_NSGetExecutablePath(exec_path, &bufsize))
-    {
-        ASSERT("_NSGetExecutablePath failure\n");
-        return NULL;
-    }
-
-    exec_pathPS.CloseBuffer(bufsize);
-
-    return_size = MultiByteToWideChar(CP_ACP,0,exec_path,-1,NULL,0);
-    if (0 == return_size)
-    {
-        ASSERT("MultiByteToWideChar failure\n");
-        return NULL;
-    }
-
-    return_value = reinterpret_cast<LPWSTR>(InternalMalloc((return_size*sizeof(WCHAR))));
-    if (NULL == return_value)
-    {
-        ERROR("Not enough memory to create full path\n");
-        return NULL;
-    }
-    else
-    {
-        if (!MultiByteToWideChar(CP_ACP, 0, exec_path, -1, 
-                                return_value, return_size))
-        {
-            ASSERT("MultiByteToWideChar failure\n");
-            free(return_value);
-            return_value = NULL;
-        }
-        else
-        {
-            TRACE("full path to executable is %s\n", exec_path);
-        }
-    }
-
-    return return_value;
-#endif // !__APPLE__
 }
