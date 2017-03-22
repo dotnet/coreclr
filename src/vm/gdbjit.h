@@ -309,14 +309,6 @@ public:
     {
     }
 
-    ~ArrayTypeInfo()
-    {
-        if (m_elem_type != nullptr)
-        {
-            delete m_elem_type;
-        }
-    }
-
     void DumpDebugInfo(char* ptr, int& offset) override;
 
     int m_count;
