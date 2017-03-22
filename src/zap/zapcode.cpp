@@ -1077,10 +1077,10 @@ ZapGCInfo * ZapGCInfo::NewGCInfo(ZapWriter * pWriter, PVOID pGCInfo, SIZE_T cbGC
     memcpy(pZapGCInfo->GetGCInfo(), pGCInfo, cbGCInfo);
     memcpy(pZapGCInfo->GetUnwindInfo(), pUnwindInfo, cbUnwindInfo);
 
-#if !defined(_TARGET_X86_)
+#if !defined(_TARGET_X86_) || defined(FEATURE_PAL)
     // Make sure the personality routine thunk is created
     pZapGCInfo->GetPersonalityRoutine(ZapImage::GetImage(pWriter));
-#endif // !defined(_TARGET_X86_)
+#endif // !defined(_TARGET_X86_) || defined(FEATURE_PAL)
     return pZapGCInfo;
 }
 #else
