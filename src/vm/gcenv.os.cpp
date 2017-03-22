@@ -479,10 +479,11 @@ static size_t GetRestrictedPhysicalMemoryLimit()
 uint64_t GCToOSInterface::GetPhysicalMemoryLimit()
 {
     LIMITED_METHOD_CONTRACT;
-
+#ifndef FEATURE_PAL 
     size_t restricted_limit = GetRestrictedPhysicalMemoryLimit();
     if (restricted_limit != 0)
         return restricted_limit;
+#endif
 
     MEMORYSTATUSEX memStatus;
     ::GetProcessMemoryLoad(&memStatus);
@@ -501,8 +502,11 @@ uint64_t GCToOSInterface::GetPhysicalMemoryLimit()
 void GCToOSInterface::GetMemoryStatus(uint32_t* memory_load, uint64_t* available_physical, uint64_t* available_page_file)
 {
     LIMITED_METHOD_CONTRACT;
-
+#ifdef FEATURE_PAL
+    uint64_t restricted_limit = 0;
+#else
     uint64_t restricted_limit = GetRestrictedPhysicalMemoryLimit();
+#endif
     if (restricted_limit != 0)
     {
         size_t workingSetSize;
