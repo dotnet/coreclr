@@ -105,7 +105,7 @@ static PCRITICAL_SECTION init_critsec = NULL;
 static int Initialize(int argc, const char *const argv[], DWORD flags);
 static BOOL INIT_IncreaseDescriptorLimit(void);
 static LPWSTR INIT_FormatCommandLine (int argc, const char * const *argv);
-static LPWSTR INIT_EXEPath(LPCSTR exe_name);
+static LPWSTR INIT_ConvertEXEPath(LPCSTR exe_name);
 
 #ifdef _DEBUG
 extern void PROCDumpThreadList(void);
@@ -406,7 +406,7 @@ Initialize(
         }
 
         /* find out the application's full path */
-        exe_path = INIT_EXEPath(argv[0]);
+        exe_path = INIT_ConvertEXEPath(argv[0]);
         if (NULL == exe_path)
         {
             ERROR("Unable to find exe path\n");
@@ -1130,7 +1130,7 @@ static LPWSTR INIT_FormatCommandLine (int argc, const char * const *argv)
 
 /*++
 Function:
-  INIT_EXEPath
+  INIT_ConvertEXEPath
 
 Parameters:
     LPCSTR exe_name : the full path of the current executable
@@ -1146,15 +1146,10 @@ Notes 2:
     This doesn't handle the case of directories with the desired name
     (and directories are usually executable...)
 --*/
-static LPWSTR INIT_EXEPath(LPCSTR exe_path)
+static LPWSTR INIT_ConvertEXEPath(LPCSTR exe_path)
 {
 #ifndef __APPLE__
     PathCharString real_path;
-    LPSTR env_path;
-    LPSTR path_ptr;
-    LPSTR cur_dir;
-    INT exe_path_length;
-    BOOL need_slash;
     LPWSTR return_value;
     INT return_size;
     struct stat theStats;
@@ -1165,44 +1160,44 @@ static LPWSTR INIT_EXEPath(LPCSTR exe_path)
         return NULL;
     }
 
-    if ( -1 == stat( exe_path, &theStats ) )
+    if (-1 == stat(exe_path, &theStats))
     {
-      ERROR( "The file does not exist\n" );
-      return NULL;
+        ERROR( "The file does not exist\n" );
+        return NULL;
     }
 
     if (!CorUnix::RealPathHelper(exe_path, real_path))
     {
-      ERROR("realpath() failed!\n");
-      return NULL;
+        ERROR("realpath() failed!\n");
+        return NULL;
     }
 
-    return_size=MultiByteToWideChar(CP_ACP,0,real_path,-1,NULL,0);
-    if ( 0 == return_size )
+    return_size = MultiByteToWideChar(CP_ACP,0,real_path,-1,NULL,0);
+    if (0 == return_size)
     {
-      ASSERT("MultiByteToWideChar failure\n");
-      return NULL;
+        ASSERT("MultiByteToWideChar failure\n");
+        return NULL;
     }
 
     return_value = reinterpret_cast<LPWSTR>(InternalMalloc((return_size*sizeof(WCHAR))));
-    if ( NULL == return_value )
+    if (NULL == return_value)
     {
-      ERROR("Not enough memory to create full path\n");
-      return NULL;
+        ERROR("Not enough memory to create full path\n");
+        return NULL;
     }
     else
     {
-      if (!MultiByteToWideChar(CP_ACP, 0, real_path, -1,
-            return_value, return_size))
-      {
-        ASSERT("MultiByteToWideChar failure\n");
-        free(return_value);
-        return_value = NULL;
-      }
-      else
-      {
-        TRACE("full path to executable is %s\n", real_path.GetString());
-      }
+        if (!MultiByteToWideChar(CP_ACP, 0, real_path, -1,
+                                return_value, return_size))
+        {
+            ASSERT("MultiByteToWideChar failure\n");
+            free(return_value);
+            return_value = NULL;
+        }
+        else
+        {
+            TRACE("full path to executable is %s\n", real_path.GetString());
+        }
     }
 
     return return_value;
