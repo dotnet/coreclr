@@ -136,7 +136,7 @@ namespace System
         }
 
         public static void GetUnitySerializationInfo(
-            SerializationInfo info, int unityType, String data, Assembly assembly)
+            SerializationInfo info, int unityType, string data, Assembly assembly)
         {
             // A helper method that returns the SerializationInfo that a class utilizing 
             // UnitySerializationHelper should return from a call to GetObjectData.  It contains
@@ -144,14 +144,14 @@ namespace System
             // types.)
 
             info.SetType(typeof(UnitySerializationHolder));
-            info.AddValue("Data", data, typeof(String));
+            info.AddValue("Data", data, typeof(string));
             info.AddValue("UnityType", unityType);
 
-            String assemName;
+            string assemName;
 
             if (assembly == null)
             {
-                assemName = String.Empty;
+                assemName = string.Empty;
             }
             else
             {
@@ -168,8 +168,8 @@ namespace System
         private int m_genericParameterPosition;
         private Type m_declaringType;
         private MethodBase m_declaringMethod;
-        private String m_data;
-        private String m_assemblyName;
+        private string m_data;
+        private string m_assemblyName;
         private int m_unityType;
 #endregion
 
@@ -222,7 +222,7 @@ namespace System
 #endregion
 
 #region IObjectReference
-        public virtual Object GetRealObject(StreamingContext context)
+        public virtual object GetRealObject(StreamingContext context)
         {
             // GetRealObject uses the data we have in m_data and m_unityType to do a lookup on the correct 
             // object to return.  We have specific code here to handle the different types which we support.
