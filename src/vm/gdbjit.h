@@ -216,14 +216,13 @@ class NamedRefTypeInfo: public RefTypeInfo
 {
 public:
     NamedRefTypeInfo(TypeHandle typeHandle, TypeInfoBase *value_type)
-        : RefTypeInfo(typeHandle, value_type)
+        : RefTypeInfo(typeHandle, value_type), m_value_type_storage(value_type)
     {
     }
-    virtual ~NamedRefTypeInfo()
-    {
-        delete m_value_type;
-    }
+
     void DumpDebugInfo(char* ptr, int& offset) override;
+
+    NewHolder<TypeInfoBase> m_value_type_storage;
 };
 
 class FunctionMemberPtrArrayHolder;
