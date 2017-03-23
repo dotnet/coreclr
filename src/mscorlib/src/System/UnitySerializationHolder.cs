@@ -3,7 +3,6 @@
 // See the LICENSE file in the project root for more information.
 
 
-using System.Runtime.Remoting;
 using System.Runtime.Serialization;
 using System.Reflection;
 using System.Globalization;
@@ -15,15 +14,15 @@ namespace System
 {
     [Serializable]
     // Holds classes (Empty, Null, Missing) for which we guarantee that there is only ever one instance of.
-    internal class UnitySerializationHolder : ISerializable, IObjectReference
+    public class UnitySerializationHolder : ISerializable, IObjectReference
     {
         #region Internal Constants
         internal const int EmptyUnity = 0x0001;
         internal const int NullUnity = 0x0002;
         internal const int MissingUnity = 0x0003;
         internal const int RuntimeTypeUnity = 0x0004;
-        internal const int ModuleUnity = 0x0005;
-        internal const int AssemblyUnity = 0x0006;
+        public const int ModuleUnity = 0x0005;
+        public const int AssemblyUnity = 0x0006;
         internal const int GenericParameterTypeUnity = 0x0007;
         internal const int PartialInstantiationTypeUnity = 0x0008;
 
@@ -40,7 +39,7 @@ namespace System
             info.AddValue("UnityType", MissingUnity);
         }
 
-        internal static RuntimeType AddElementTypes(SerializationInfo info, RuntimeType type)
+        internal static Type AddElementTypes(SerializationInfo info, Type type)
         {
             List<int> elementTypes = new List<int>();
             while (type.HasElementType)
@@ -63,7 +62,7 @@ namespace System
                     elementTypes.Add(ByRef);
                 }
 
-                type = (RuntimeType)type.GetElementType();
+                type = type.GetElementType();
             }
 
             info.AddValue("ElementTypes", elementTypes.ToArray(), typeof(int[]));
@@ -96,9 +95,15 @@ namespace System
             return type;
         }
 
-        internal static void GetUnitySerializationInfo(SerializationInfo info, RuntimeType type)
+        public static void GetUnitySerializationInfo(SerializationInfo info, Type type)
         {
-            if (type.GetRootElementType().IsGenericParameter)
+            Type rootElementType = type;
+            while (rootElementType.HasElementType)
+            {
+                rootElementType = rootElementType.GetElementType();
+            }
+
+            if (rootElementType.IsGenericParameter)
             {
                 type = AddElementTypes(info, type);
                 info.SetType(typeof(UnitySerializationHolder));
@@ -118,14 +123,14 @@ namespace System
                 unityType = PartialInstantiationTypeUnity;
                 type = AddElementTypes(info, type);
                 info.AddValue("GenericArguments", type.GetGenericArguments(), typeof(Type[]));
-                type = (RuntimeType)type.GetGenericTypeDefinition();
+                type = type.GetGenericTypeDefinition();
             }
 
-            GetUnitySerializationInfo(info, unityType, type.FullName, type.GetRuntimeAssembly());
+            GetUnitySerializationInfo(info, unityType, type.FullName, type.Assembly);
         }
 
-        internal static void GetUnitySerializationInfo(
-            SerializationInfo info, int unityType, String data, RuntimeAssembly assembly)
+        public static void GetUnitySerializationInfo(
+            SerializationInfo info, int unityType, String data, Assembly assembly)
         {
             // A helper method that returns the SerializationInfo that a class utilizing 
             // UnitySerializationHelper should return from a call to GetObjectData.  It contains
@@ -163,7 +168,7 @@ namespace System
         #endregion  
 
         #region Constructor
-        internal UnitySerializationHolder(SerializationInfo info, StreamingContext context)
+        public UnitySerializationHolder(SerializationInfo info, StreamingContext context)
         {
             if (info == null)
                 throw new ArgumentNullException(nameof(info));
@@ -317,40 +322,3 @@ namespace System
         #endregion
     }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
