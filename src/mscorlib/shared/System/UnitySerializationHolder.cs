@@ -14,7 +14,6 @@ namespace System
 {
     [Serializable]
     // Holds classes (Empty, Null, Missing) for which we guarantee that there is only ever one instance of.
-
 #if CORECLR
     internal
 #else
