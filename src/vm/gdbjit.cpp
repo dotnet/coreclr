@@ -2021,10 +2021,7 @@ void NotifyGdb::MethodCompiled(MethodDesc* MethodDescPtr)
     }
 
     /* Build section headers table and section names table */
-    if (!BuildSectionTables(sectHeaders, sectStr, method, symbolCount))
-    {
-        return;
-    }
+    BuildSectionTables(sectHeaders, sectStr, method, symbolCount);
 
     /* Patch section offsets & sizes */
     long offset = sizeof(Elf_Ehdr);
@@ -2726,7 +2723,7 @@ int NotifyGdb::GetSectionIndex(const char *sectName)
 }
 
 /* Build the ELF section headers table and section names table */
-bool NotifyGdb::BuildSectionTables(MemBuf& sectBuf, MemBuf& strBuf, FunctionMemberPtrArrayHolder &method,
+void NotifyGdb::BuildSectionTables(MemBuf& sectBuf, MemBuf& strBuf, FunctionMemberPtrArrayHolder &method,
                                    int symbolCount)
 {
     static const int symtabSectionIndex = GetSectionIndex(".symtab");
@@ -2738,10 +2735,7 @@ bool NotifyGdb::BuildSectionTables(MemBuf& sectBuf, MemBuf& strBuf, FunctionMemb
     // Used only to reduce memory reallocations.
     static const int SECT_NAME_LENGTH = 11;
 
-    if (!strBuf.Resize(SECT_NAME_LENGTH * (SectionNamesCount + thunks_count)))
-    {
-        return false;
-    }
+    strBuf.Resize(SECT_NAME_LENGTH * (SectionNamesCount + thunks_count));
 
     Elf_Shdr* sectionHeaders = new Elf_Shdr[SectionNamesCount + thunks_count];
     sectBuf.MemPtr = reinterpret_cast<char*>(sectionHeaders);
@@ -2778,8 +2772,7 @@ bool NotifyGdb::BuildSectionTables(MemBuf& sectBuf, MemBuf& strBuf, FunctionMemb
         if (sectNameOffset > strBuf.MemSize)
         {
             // Allocate more memory for remaining section names
-            if (!strBuf.Resize(sectNameOffset + addSize))
-                return false;
+            strBuf.Resize(sectNameOffset + addSize);
             addSize *= 2;
         }
 
@@ -2801,7 +2794,6 @@ bool NotifyGdb::BuildSectionTables(MemBuf& sectBuf, MemBuf& strBuf, FunctionMemb
 
     // Set actual used size to avoid garbage in ELF section
     strBuf.MemSize = sectNameOffset;
-    return true;
 }
 
 /* Build the ELF header */
