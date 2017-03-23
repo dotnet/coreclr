@@ -464,8 +464,7 @@ static size_t GetRestrictedPhysicalMemoryLimit()
     if (g_RestrictedPhysicalMemoryLimit != (size_t)MAX_PTR)
         return g_RestrictedPhysicalMemoryLimit;
 
-    size_t memory_limit = 0;
-    //size_t memory_limit = PAL_GetRestrictedPhysicalMemoryLimit();
+    size_t memory_limit = PAL_GetRestrictedPhysicalMemoryLimit();
     
     VolatileStore(&g_RestrictedPhysicalMemoryLimit, memory_limit);
     return g_RestrictedPhysicalMemoryLimit;

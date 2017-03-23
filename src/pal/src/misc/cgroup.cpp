@@ -132,7 +132,7 @@ private:
                             goto done;
 
                         sscanfRet = sscanf_s(line,
-                                             "%*d %*d %*s %*s %s ",
+                                             "%*llu %*llu %*s %*s %s ",
                                              mountpath, lineLen+1);
                         if (sscanfRet != 1)
                         {
@@ -318,8 +318,13 @@ PAL_GetWorkingSetSize(size_t* val)
     FILE* file = fopen(PROC_STATM_FILENAME, "r");
     if (file != nullptr && getline(&line, &linelen, file) != -1)
     {
-        int x = sscanf_s(line, "%*s %llu %*s %*s %*s %*s %*s", val);
-        if(x == 1)
+        char* context = nullptr;
+        char* strTok = strtok_s(line, " ", &context); 
+        strTok = strtok_s(nullptr, " ", &context); 
+
+        errno = 0;
+        *val = strtoull(strTok, nullptr, 0); 
+        if (errno == 0)
         {
             *val = *val * VIRTUAL_PAGE_SIZE;
             result = true;
@@ -328,7 +333,6 @@ PAL_GetWorkingSetSize(size_t* val)
 
     if (file)
         fclose(file);
-        if(line)
     free(line);
     return result;
 }
