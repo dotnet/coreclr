@@ -69,7 +69,7 @@ public:
 
     static void EnableFinalization(bool foundFinalizers);
 
-    static void HandleFatalError(unsigned int exitCode, void* instructionPointer);
+    static void HandleFatalError(unsigned int exitCode);
 };
 
 #endif // __GCENV_EE_H__

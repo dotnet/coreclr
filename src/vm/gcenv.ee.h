@@ -44,7 +44,7 @@ public:
     void StompWriteBarrier(WriteBarrierParameters* args);
 
     void EnableFinalization(bool foundFinalizers);
-    void HandleFatalError(unsigned int exitCode, void* instructionPointer);
+    void HandleFatalError(unsigned int exitCode);
 };
 
 #endif // FEATURE_STANDALONE_GC

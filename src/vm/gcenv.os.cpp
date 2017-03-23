@@ -673,11 +673,6 @@ bool GCToOSInterface::CreateThread(GCThreadFunction function, void* param, GCThr
     return true;
 }
 
-void* GCToOSInterface::GetCurrentInstructionPointer()
-{
-    return _ReturnAddress();
-}
-
 // Initialize the critical section
 void CLRCriticalSection::Initialize()
 {

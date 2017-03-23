@@ -555,13 +555,6 @@ uint32_t GCToOSInterface::GetLowPrecisionTimeStamp()
     return retval;
 }
 
-__attribute__((noinline)) void* GCToOSInterface::GetCurrentInstructionPointer()
-{
-    // __builtin_return_address only works in the way it's intended here if this
-    // function is never inlined.
-    return __builtin_return_address(0);
-}
-
 // Parameters of the GC thread stub
 struct GCThreadStubParam
 {

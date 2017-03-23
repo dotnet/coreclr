@@ -207,10 +207,10 @@ ALWAYS_INLINE void GCToEEInterface::EnableFinalization(bool foundFinalizers)
     g_theGCToCLR->EnableFinalization(foundFinalizers);
 }
 
-ALWAYS_INLINE void GCToEEInterface::HandleFatalError(unsigned int exitCode, void* instructionPointer)
+ALWAYS_INLINE void GCToEEInterface::HandleFatalError(unsigned int exitCode)
 {
     assert(g_theGCToCLR != nullptr);
-    g_theGCToCLR->HandleFatalError(exitCode, instructionPointer);
+    g_theGCToCLR->HandleFatalError(exitCode);
 }
 
 #undef ALWAYS_INLINE

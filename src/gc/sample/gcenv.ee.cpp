@@ -265,7 +265,7 @@ void GCToEEInterface::EnableFinalization(bool foundFinalizers)
     // TODO: Implement for finalization
 }
 
-void GCToEEInterface::HandleFatalError(unsigned int exitCode, void* instructionPointer)
+void GCToEEInterface::HandleFatalError(unsigned int exitCode)
 {
     abort();
 }

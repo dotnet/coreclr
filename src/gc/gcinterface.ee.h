@@ -136,7 +136,7 @@ public:
 
     // Signals to the EE that the GC encountered a fatal error and can't recover.
     virtual
-    void HandleFatalError(unsigned int exitCode, void* instructionPointer) = 0;
+    void HandleFatalError(unsigned int exitCode) = 0;
 };
 
 #endif // _GCINTERFACE_EE_H_

@@ -17492,9 +17492,7 @@ void gc_heap::enque_pinned_plug (uint8_t* plug,
             // risks. This happens very rarely and fixing it in the
             // way so that we can continue is a bit involved and will
             // not be done in Dev10.
-            GCToEEInterface::HandleFatalError(
-                CORINFO_EXCEPTION_GC,
-                GCToOSInterface::GetCurrentInstructionPointer());
+            GCToEEInterface::HandleFatalError(CORINFO_EXCEPTION_GC);
         }
     }
 
@@ -25000,9 +24998,7 @@ void gc_heap::gc_thread_stub (void* arg)
 #else
         STRESS_LOG0(LF_GC, LL_ALWAYS, "Thread::CommitThreadStack failed.");
         _ASSERTE(!"Thread::CommitThreadStack failed.");
-        GCToEEInterface::HandleFatalError(
-            COR_E_STACKOVERFLOW,
-            GCToOSInterface::GetCurrentInstructionPointer());
+        GCToEEInterface::HandleFatalError(COR_E_STACKOVERFLOW);
 #endif //BACKGROUND_GC
     }
 #endif // FEATURE_REDHAWK
