@@ -233,13 +233,12 @@ class ClassTypeInfo: public TypeInfoBase
 {
 public:
     ClassTypeInfo(TypeHandle typeHandle, int num_members, FunctionMemberPtrArrayHolder &method);
-    ~ClassTypeInfo();
 
     void DumpStrings(char* ptr, int& offset) override;
     void DumpDebugInfo(char* ptr, int& offset) override;
 
     int m_num_members;
-    TypeMember* members;
+    NewArrayHolder<TypeMember> members;
     TypeInfoBase* m_parent;
     FunctionMemberPtrArrayHolder &m_method;
     NewHolder<ArrayTypeInfo> m_array_type;

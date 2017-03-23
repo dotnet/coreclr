@@ -1136,14 +1136,6 @@ ClassTypeInfo::ClassTypeInfo(TypeHandle typeHandle, int num_members, FunctionMem
     CalculateName();
 }
 
-ClassTypeInfo::~ClassTypeInfo()
-{
-    if (members != nullptr && m_num_members > 0)
-    {
-        delete[] members;
-    }
-}
-
 void TypeMember::DumpStrings(char* ptr, int& offset)
 {
     if (ptr != nullptr)
