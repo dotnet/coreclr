@@ -2122,25 +2122,6 @@ namespace System.Text
             }
         }
 
-        private static unsafe void ThreadSafeCopy(char[] source, int sourceIndex, char* destinationPtr, int destinationIndex, int count)
-        {
-            if (count > 0)
-            {
-                if ((uint)sourceIndex <= (uint)source.Length && (sourceIndex + count) <= source.Length)
-                {
-                    unsafe
-                    {
-                        fixed (char* sourcePtr = &source[sourceIndex])
-                            string.wstrcpy(destinationPtr + destinationIndex, sourcePtr, count);
-                    }
-                }
-                else
-                {
-                    throw new ArgumentOutOfRangeException(nameof(sourceIndex), SR.ArgumentOutOfRange_Index);
-                }
-            }
-        }
-
         private static void ThreadSafeCopy(char[] source, int sourceIndex, char[] destination, int destinationIndex, int count)
         {
             if (count > 0)
