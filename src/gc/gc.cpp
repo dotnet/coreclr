@@ -16734,8 +16734,7 @@ int gc_heap::garbage_collect (int n)
         // Call the EE for start of GC work
         // just one thread for MP GC
         GCToEEInterface::GcStartWork (settings.condemned_generation,
-                                 	  min_finalizing_generation,
-									  max_generation);
+                                 max_generation);            
 
         // TODO: we could fire an ETW event to say this GC as a concurrent GC but later on due to not being able to
         // create threads or whatever, this could be a non concurrent GC. Maybe for concurrent GC we should fire

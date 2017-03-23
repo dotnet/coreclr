@@ -590,7 +590,7 @@ void GCToEEInterface::GcScanRoots(promote_func* fn, int condemned, int max_gen, 
     }
 }
 
-void GCToEEInterface::GcStartWork (int condemned, int min_finalizing_gen, int max_gen)
+void GCToEEInterface::GcStartWork (int condemned, int max_gen)
 {
     CONTRACTL
     {
@@ -627,10 +627,7 @@ void GCToEEInterface::GcStartWork (int condemned, int min_finalizing_gen, int ma
     RCWWalker::OnGCStarted(condemned);
 #endif // FEATURE_COMINTEROP
 
-    if (condemned >= min_finalizing_gen)
-    {
-        ThreadStore::s_pThreadStore->OnFinalizingGCStarted();
-    }
+    ThreadStore::s_pThreadStore->OnGCStarted(condemned);
 }
 
 void GCToEEInterface::GcDone(int condemned)

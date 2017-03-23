@@ -3713,14 +3713,10 @@ private:
     {
         WRAPPER_NO_CONTRACT;
 
-#ifdef FEATURE_CORECLR
         // CoreCLR does not support user-requested thread suspension
         _ASSERTE(!(bit & TS_UserSuspendPending));
-#else // !FEATURE_CORECLR
-        if (bit & TS_UserSuspendPending) {
-            m_UserSuspendEvent.Reset();
-        }
-#endif // FEATURE_CORECLR
+
+
         if (bit & TS_DebugSuspendPending) {
             m_DebugSuspendEvent.Reset();
         }
@@ -3737,17 +3733,13 @@ private:
         //
         ThreadState oldState = m_State;
 
-#ifdef FEATURE_CORECLR
         // CoreCLR does not support user-requested thread suspension
         _ASSERTE(!(oldState & TS_UserSuspendPending));
-#endif // FEATURE_CORECLR
 
         while ((oldState & (TS_UserSuspendPending | TS_DebugSuspendPending)) == 0)
         {
-#ifdef FEATURE_CORECLR
             // CoreCLR does not support user-requested thread suspension
             _ASSERTE(!(oldState & TS_UserSuspendPending));
-#endif // FEATURE_CORECLR
 
             //
             // Construct the destination state we desire - all suspension bits turned off.
@@ -3767,26 +3759,14 @@ private:
             oldState = m_State;
         }
 
-#ifdef FEATURE_CORECLR
         // CoreCLR does not support user-requested thread suspension
         _ASSERTE(!(bit & TS_UserSuspendPending));
-#else // !FEATURE_CORECLR
-        if (bit & TS_UserSuspendPending) {
-            m_UserSuspendEvent.Set();
-        }
-#endif // FEATURE_CORECLR
 
         if (bit & TS_DebugSuspendPending) {
             m_DebugSuspendEvent.Set();
         }
 
     }
-
-#ifndef FEATURE_CORECLR // CoreCLR does not support user-requested thread suspension
-    // For getting a thread to a safe point.  A client waits on the event, which is
-    // set by the thread when it reaches a safe spot.
-    void    SetSafeEvent();
-#endif // !FEATURE_CORECLR
 
 public:
     FORCEINLINE void UnhijackThreadNoAlloc()
@@ -3908,10 +3888,6 @@ public:
 
 private:
     // For suspends:
-#ifndef FEATURE_CORECLR // CoreCLR does not support user-requested thread suspension
-    CLREvent        m_SafeEvent;
-    CLREvent        m_UserSuspendEvent;
-#endif // !FEATURE_CORECLR
     CLREvent        m_DebugSuspendEvent;
 
     // For Object::Wait, Notify and NotifyAll, we use an Event inside the
@@ -5542,7 +5518,7 @@ private:
 
     LONG        m_DeadThreadCount;
     LONG        m_DeadThreadCountForGCTrigger;
-    bool        m_TriggerFinalizingGC;
+    bool        m_TriggerGCForDeadThreads;
 
 private:
     // Space for the lazily-created GUID.
@@ -5637,9 +5613,9 @@ private:
     void IncrementDeadThreadCountForGCTrigger();
     void DecrementDeadThreadCountForGCTrigger();
 public:
-    void OnFinalizingGCStarted();
-    bool ShouldTriggerFinalizingGC();
-    void TriggerFinalizingGCIfNecessary();
+    void OnGCStarted(int generation);
+    bool ShouldTriggerGCForDeadThreads();
+    void TriggerGCForDeadThreadsIfNecessary();
 };
 
 struct TSSuspendHelper {

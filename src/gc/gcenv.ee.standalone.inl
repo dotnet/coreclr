@@ -62,10 +62,10 @@ ALWAYS_INLINE void GCToEEInterface::GcScanRoots(promote_func* fn, int condemned,
     g_theGCToCLR->GcScanRoots(fn, condemned, max_gen, sc);
 }
 
-ALWAYS_INLINE void GCToEEInterface::GcStartWork(int condemned, int min_finalizing_gen, int max_gen)
+ALWAYS_INLINE void GCToEEInterface::GcStartWork(int condemned, int max_gen)
 {
     assert(g_theGCToCLR != nullptr);
-    g_theGCToCLR->GcStartWork(condemned, int min_finalizing_gen, max_gen);
+    g_theGCToCLR->GcStartWork(condemned, max_gen);
 }
 
 ALWAYS_INLINE void GCToEEInterface::AfterGcScanRoots(int condemned, int max_gen, ScanContext* sc)
