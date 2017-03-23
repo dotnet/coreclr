@@ -123,6 +123,8 @@ public:
     virtual void DumpStrings(char* ptr, int& offset) = 0;
 
     virtual void DumpDebugInfo(char* ptr, int& offset) = 0;
+
+    virtual ~DwarfDumpable() {}
 };
 
 class LocalsInfo
@@ -154,21 +156,13 @@ public:
     {
     }
 
-    virtual ~TypeInfoBase()
-    {
-        if (m_type_name != nullptr)
-        {
-            delete[] m_type_name;
-        }
-    }
-
     virtual void DumpStrings(char* ptr, int& offset) override;
     void CalculateName();
     void SetTypeHandle(TypeHandle handle);
     TypeHandle GetTypeHandle();
     TypeKey* GetTypeKey();
 
-    char* m_type_name;
+    NewArrayHolder<char> m_type_name;
     int m_type_name_offset;
     ULONG m_type_size;
     int m_type_offset;
