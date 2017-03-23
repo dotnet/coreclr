@@ -456,7 +456,7 @@ exit:
 }
 
 #else
-
+/*
 static size_t GetRestrictedPhysicalMemoryLimit()
 {
     LIMITED_METHOD_CONTRACT;
@@ -469,7 +469,7 @@ static size_t GetRestrictedPhysicalMemoryLimit()
     
     VolatileStore(&g_RestrictedPhysicalMemoryLimit, memory_limit);
     return g_RestrictedPhysicalMemoryLimit;
-}
+}*/
 #endif // FEATURE_PAL
 
 
