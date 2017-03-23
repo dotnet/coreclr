@@ -270,7 +270,7 @@ public:
     {
     }
 
-    ~TypeMember()
+    virtual ~TypeMember()
     {
         if (m_member_name != nullptr)
         {
@@ -490,11 +490,6 @@ public:
 #endif
     }
 
-    virtual ~FunctionMember()
-    {
-        delete[] vars;
-    }
-
     void DumpStrings(char* ptr, int& offset) override;
     void DumpDebugInfo(char* ptr, int& offset) override;
     void DumpTryCatchDebugInfo(char* ptr, int& offset);
@@ -515,7 +510,7 @@ public:
     uint8_t m_num_locals;
     uint16_t m_num_vars;
     int m_entry_offset;
-    VarDebugInfo* vars;
+    NewArrayHolder<VarDebugInfo> vars;
     SymbolsInfo* lines;
     unsigned nlines;
     int m_linkage_name_offset;
