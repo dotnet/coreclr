@@ -53,9 +53,13 @@ BOOL bgc_heap_walk_for_etw_p = FALSE;
 #define LOH_PIN_QUEUE_LENGTH 100
 #define LOH_PIN_DECAY 10
 
+#ifdef BIT64
 // Right now we support maximum 1024 procs - meaning that we will create at most
 // that many GC threads and GC heaps. 
 #define MAX_SUPPORTED_CPUS 1024
+#else
+#define MAX_SUPPORTED_CPUS 64
+#endif // BIT64
 
 #ifdef GC_CONFIG_DRIVEN
 int compact_ratio = 0;
