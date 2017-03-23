@@ -332,11 +332,10 @@ public:
         if (IsShort(env))
         {
             assert(sizeof(BitSetShortLongRep) == sizeof(size_t));
-            IAllocator* alloc          = BitSetTraits::GetDebugOnlyAllocator(env);
             const int   CharsForSizeT  = sizeof(size_t) * 2;
             char*       res            = nullptr;
             const int   ShortAllocSize = CharsForSizeT + 4;
-            res                        = (char*)alloc->Alloc(ShortAllocSize);
+            res                        = (char*)BitSetTraits::DebugAlloc(env, ShortAllocSize);
             size_t   bits              = (size_t)bs;
             unsigned remaining         = ShortAllocSize;
             char*    ptr               = res;
@@ -629,7 +628,7 @@ BitSetShortLongRep BitSetOps</*BitSetType*/ BitSetShortLongRep,
     assert(!IsShort(env));
     unsigned len = BitSetTraits::GetArrSize(env, sizeof(size_t));
     assert(len > 1); // Or else would not require an array.
-    return (BitSetShortLongRep)(BitSetTraits::GetAllocator(env)->Alloc(len * sizeof(size_t)));
+    return (BitSetShortLongRep)(BitSetTraits::Alloc(env, len * sizeof(size_t)));
 }
 
 template <typename Env, typename BitSetTraits>
@@ -641,7 +640,7 @@ BitSetShortLongRep BitSetOps</*BitSetType*/ BitSetShortLongRep,
     assert(!IsShort(env));
     unsigned len = BitSetTraits::GetArrSize(env, sizeof(size_t));
     assert(len > 1); // Or else would not require an array.
-    BitSetShortLongRep res = (BitSetShortLongRep)(BitSetTraits::GetAllocator(env)->Alloc(len * sizeof(size_t)));
+    BitSetShortLongRep res = (BitSetShortLongRep)(BitSetTraits::Alloc(env, len * sizeof(size_t)));
     for (unsigned i = 0; i < len; i++)
     {
         res[i] = 0;
@@ -658,7 +657,7 @@ BitSetShortLongRep BitSetOps</*BitSetType*/ BitSetShortLongRep,
     assert(!IsShort(env));
     unsigned len = BitSetTraits::GetArrSize(env, sizeof(size_t));
     assert(len > 1); // Or else would not require an array.
-    BitSetShortLongRep res = (BitSetShortLongRep)(BitSetTraits::GetAllocator(env)->Alloc(len * sizeof(size_t)));
+    BitSetShortLongRep res = (BitSetShortLongRep)(BitSetTraits::Alloc(env, len * sizeof(size_t)));
     for (unsigned i = 0; i < len - 1; i++)
     {
         res[i] = size_t(-1);
@@ -766,8 +765,7 @@ const char* BitSetOps</*BitSetType*/ BitSetShortLongRep,
     const int   CharsForSizeT = sizeof(size_t) * 2;
     unsigned    allocSz       = len * CharsForSizeT + 4;
     unsigned    remaining     = allocSz;
-    IAllocator* alloc         = BitSetTraits::GetDebugOnlyAllocator(env);
-    char*       res           = (char*)alloc->Alloc(allocSz);
+    char*       res           = (char*)BitSetTraits::DebugAlloc(env, allocSz);
     char*       temp          = res;
     for (unsigned i = len; 0 < i; i--)
     {
