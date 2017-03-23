@@ -823,51 +823,21 @@ struct __attribute__((packed)) DebugInfoLexicalBlock
 };
 
 // Holder for array of pointers to FunctionMember objects
-class FunctionMemberPtrArrayHolder : public NewArrayHolder<FunctionMember*>
+class FunctionMemberPtrArrayHolder : public NewArrayHolder<NewHolder<FunctionMember>>
 {
 private:
     int m_cElements;
 
-    void DeleteElements()
-    {
-        for (int i = 0; i < m_cElements; i++)
-        {
-            delete this->m_value[i];
-        }
-    }
-
 public:
-    FunctionMemberPtrArrayHolder() :
-        NewArrayHolder<FunctionMember*>(),
-        m_cElements(0)
+    explicit FunctionMemberPtrArrayHolder(int cElements) :
+        NewArrayHolder<NewHolder<FunctionMember>>(new NewHolder<FunctionMember>[cElements]),
+        m_cElements(cElements)
     {
-    }
-
-    bool Alloc(int cElements)
-    {
-        FunctionMember** value = new FunctionMember*[cElements];
-
-        for (int i = 0; i < cElements; i++)
-        {
-            value[i] = nullptr;
-        }
-
-        // Clean previous elements
-        DeleteElements();
-
-        NewArrayHolder<FunctionMember*>::operator=(value);
-        m_cElements = cElements;
-        return true;
     }
 
     int GetCount() const
     {
         return m_cElements;
-    }
-
-    ~FunctionMemberPtrArrayHolder()
-    {
-        DeleteElements();
     }
 };
 
@@ -1780,8 +1750,6 @@ static NotifyGdb::AddrSet codeAddrs;
 /* Create ELF/DWARF debug info for jitted method */
 void NotifyGdb::MethodCompiled(MethodDesc* MethodDescPtr)
 {
-    FunctionMemberPtrArrayHolder method;
-
     int symbolCount = 0;
     NewArrayHolder<Elf_Symbol> symbolNames;
 
@@ -1881,9 +1849,7 @@ void NotifyGdb::MethodCompiled(MethodDesc* MethodDescPtr)
     }
 
     int method_count = countFuncs(symInfo, symInfoLen);
-    if (!method.Alloc(method_count)) {
-        return;
-    }
+    FunctionMemberPtrArrayHolder method(method_count);
 
     CodeHeader* pCH = (CodeHeader*)pCode - 1;
     CalledMethod* pCalledMethods = reinterpret_cast<CalledMethod*>(pCH->GetCalledMethods());
