@@ -258,19 +258,11 @@ public:
     {
     }
 
-    virtual ~TypeMember()
-    {
-        if (m_member_name != nullptr)
-        {
-            delete[] m_member_name;
-        }
-    }
-
     void DumpStrings(char* ptr, int& offset) override;
     void DumpDebugInfo(char* ptr, int& offset) override;
     void DumpStaticDebugInfo(char* ptr, int& offset);
 
-    char* m_member_name;
+    NewArrayHolder<char> m_member_name;
     int m_member_name_offset;
     int m_member_offset;
     TADDR m_static_member_address;
