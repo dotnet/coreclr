@@ -53,6 +53,11 @@ Testing and Debugging CoreCLR
 - [Performance Tracing on Linux](project-docs/linux-performance-tracing.md)
 - [Creating native images](building/crossgen.md)
 
+.NET Primer
+===========
+
+- [.NET Primer](dotnet-primer.md)
+
 Book of the Runtime
 ===================
 
