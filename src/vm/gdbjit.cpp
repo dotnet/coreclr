@@ -311,7 +311,7 @@ HRESULT FindNativeInfoInILVariable(DWORD dwIndex,
 
 BYTE* DebugInfoStoreNew(void * pData, size_t cBytes)
 {
-    return new (nothrow) BYTE[cBytes];
+    return new BYTE[cBytes];
 }
 
 /* Get IL to native offsets map */
@@ -476,7 +476,10 @@ MethodDebugInfo::~MethodDebugInfo()
 
 /* Get mapping of IL offsets to source line numbers */
 HRESULT
-GetDebugInfoFromPDB(MethodDesc* MethodDescPtr, SymbolsInfo** symInfo, unsigned int &symInfoLen,  LocalsInfo &locals)
+GetDebugInfoFromPDB(MethodDesc* MethodDescPtr,
+                    NewArrayHolder<SymbolsInfo> &symInfo,
+                    unsigned int &symInfoLen,
+                    LocalsInfo &locals)
 {
     DebuggerILToNativeMap* map = NULL;
 
@@ -502,21 +505,16 @@ GetDebugInfoFromPDB(MethodDesc* MethodDescPtr, SymbolsInfo** symInfo, unsigned i
         return E_FAIL;
 
     symInfoLen = numMap;
-    *symInfo = new (nothrow) SymbolsInfo[numMap];
-    if (*symInfo == nullptr)
-        return E_FAIL;
+    symInfo = new SymbolsInfo[numMap];
+
     locals.size = methodDebugInfo.localsSize;
-    locals.localsName = new (nothrow) NewArrayHolder<char>[locals.size];
-    if (locals.localsName == nullptr)
-        return E_FAIL;
-    locals.localsScope = new (nothrow) LocalsInfo::Scope [locals.size];
-    if (locals.localsScope == nullptr)
-        return E_FAIL;
+    locals.localsName = new NewArrayHolder<char>[locals.size];
+    locals.localsScope = new LocalsInfo::Scope [locals.size];
 
     for (ULONG32 i = 0; i < locals.size; i++)
     {
         size_t sizeRequired = WideCharToMultiByte(CP_UTF8, 0, methodDebugInfo.locals[i].name, -1, NULL, 0, NULL, NULL);
-        locals.localsName[i] = new (nothrow) char[sizeRequired];
+        locals.localsName[i] = new char[sizeRequired];
 
         int len = WideCharToMultiByte(
             CP_UTF8, 0, methodDebugInfo.locals[i].name, -1, locals.localsName[i], sizeRequired, NULL, NULL);
@@ -526,14 +524,14 @@ GetDebugInfoFromPDB(MethodDesc* MethodDescPtr, SymbolsInfo** symInfo, unsigned i
 
     for (ULONG32 j = 0; j < numMap; j++)
     {
-        SymbolsInfo& s = (*symInfo)[j];
+        SymbolsInfo& s = symInfo[j];
 
         if (j == 0) {
             s.fileName[0] = 0;
             s.lineNumber = 0;
             s.fileIndex = 0;
         } else {
-            s = (*symInfo)[j - 1];
+            s = symInfo[j - 1];
         }
         s.nativeOffset = map[j].nativeStartOffset;
         s.ilOffset = map[j].ilOffset;
@@ -1890,13 +1888,8 @@ void NotifyGdb::MethodCompiled(MethodDesc* MethodDescPtr)
 
     NewHolder<TK_TypeInfoMap> pTypeMap = new TK_TypeInfoMap();
 
-    if (pTypeMap == nullptr)
-    {
-        return;
-    }
-
     /* Get debug info for method from portable PDB */
-    HRESULT hr = GetDebugInfoFromPDB(MethodDescPtr, &symInfo, symInfoLen, locals);
+    HRESULT hr = GetDebugInfoFromPDB(MethodDescPtr, symInfo, symInfoLen, locals);
     if (FAILED(hr) || symInfoLen == 0)
     {
         return;
