@@ -2626,9 +2626,7 @@ bool NotifyGdb::CollectCalledMethods(CalledMethod* pCalledMethods,
             ++i;
             codeAddrs.Add(callAddr);
         }
-        CalledMethod* ptr = pList;
         pList = pList->GetNext();
-        delete ptr;
     }
     symbolCount = i;
     return true;
