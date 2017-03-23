@@ -20,13 +20,13 @@ GetTypeInfoFromTypeHandle(TypeHandle typeHandle,
                           NotifyGdb::PTK_TypeInfoMap pTypeMap,
                           FunctionMemberPtrArrayHolder &method)
 {
-    TypeInfoBase *typeInfo = nullptr;
+    TypeInfoBase *foundTypeInfo = nullptr;
     TypeKey key = typeHandle.GetTypeKey();
     PTR_MethodTable pMT = typeHandle.GetMethodTable();
 
-    if (pTypeMap->Lookup(&key, &typeInfo))
+    if (pTypeMap->Lookup(&key, &foundTypeInfo))
     {
-        return typeInfo;
+        return foundTypeInfo;
     }
 
     CorElementType corType = typeHandle.GetSignatureCorElementType();
@@ -47,11 +47,12 @@ GetTypeInfoFromTypeHandle(TypeHandle typeHandle,
         case ELEMENT_TYPE_R8:
         case ELEMENT_TYPE_U:
         case ELEMENT_TYPE_I:
-            typeInfo = new (nothrow) PrimitiveTypeInfo(typeHandle);
-            if (typeInfo == nullptr)
-                return nullptr;
+        {
+            NewHolder<PrimitiveTypeInfo> typeInfo = new PrimitiveTypeInfo(typeHandle);
             pTypeMap->Add(typeInfo->GetTypeKey(), typeInfo);
+            typeInfo.SuppressRelease();
             return typeInfo;
+        }
         case ELEMENT_TYPE_VALUETYPE:
         case ELEMENT_TYPE_CLASS:
         {
@@ -59,26 +60,21 @@ GetTypeInfoFromTypeHandle(TypeHandle typeHandle,
                 pMT->IsString() ? ApproxFieldDescIterator::INSTANCE_FIELDS : ApproxFieldDescIterator::ALL_FIELDS);
             ULONG cFields = fieldDescIterator.Count();
 
-            typeInfo = new (nothrow) ClassTypeInfo(typeHandle, cFields, method);
+            NewHolder<ClassTypeInfo> typeInfo = new ClassTypeInfo(typeHandle, cFields, method);
 
-            if (typeInfo == nullptr)
-                return nullptr;
-
-            RefTypeInfo* refTypeInfo = nullptr;
+            NewHolder<RefTypeInfo> refTypeInfo = nullptr;
             if (!typeHandle.IsValueType())
             {
-                // name the type
-                refTypeInfo = new (nothrow) NamedRefTypeInfo(typeHandle, typeInfo);
-                if (refTypeInfo == nullptr)
-                {
-                    return nullptr;
-                }
+                refTypeInfo = new NamedRefTypeInfo(typeHandle, typeInfo);
+                typeInfo.SuppressRelease();
 
                 pTypeMap->Add(refTypeInfo->GetTypeKey(), refTypeInfo);
+                refTypeInfo.SuppressRelease();
             }
             else
             {
                 pTypeMap->Add(typeInfo->GetTypeKey(), typeInfo);
+                typeInfo.SuppressRelease();
             }
 
             //
@@ -89,16 +85,15 @@ GetTypeInfoFromTypeHandle(TypeHandle typeHandle,
             for (ULONG i = 0; i < cFields; i++)
             {
                 pField = fieldDescIterator.Next();
-                ClassTypeInfo *info = static_cast<ClassTypeInfo*>(typeInfo);
 
                 LPCUTF8 szName = pField->GetName();
-                info->members[i].m_member_name = new char[strlen(szName) + 1];
-                strcpy(info->members[i].m_member_name, szName);
+                typeInfo->members[i].m_member_name = new char[strlen(szName) + 1];
+                strcpy(typeInfo->members[i].m_member_name, szName);
                 if (!pField->IsStatic())
                 {
-                    info->members[i].m_member_offset = (ULONG)pField->GetOffset();
+                    typeInfo->members[i].m_member_offset = (ULONG)pField->GetOffset();
                     if (!typeHandle.IsValueType())
-                        info->members[i].m_member_offset += Object::GetOffsetOfFirstField();
+                        typeInfo->members[i].m_member_offset += Object::GetOffsetOfFirstField();
                 }
                 else
                 {
@@ -110,31 +105,27 @@ GetTypeInfoFromTypeHandle(TypeHandle typeHandle,
                     if (pField->IsRVA() || !pMT->IsDynamicStatics())
                     {
                         PTR_VOID pAddress = pField->GetStaticAddressHandle((PTR_VOID)dac_cast<TADDR>(base));
-                        info->members[i].m_static_member_address = dac_cast<TADDR>(pAddress);
+                        typeInfo->members[i].m_static_member_address = dac_cast<TADDR>(pAddress);
                     }
                 }
 
-                info->members[i].m_member_type =
+                typeInfo->members[i].m_member_type =
                     GetTypeInfoFromTypeHandle(pField->GetExactFieldType(typeHandle), pTypeMap, method);
 
                 // handle the System.String case:
                 // coerce type of the second field into array type
                 if (pMT->IsString() && i == 1)
                 {
-                    TypeInfoBase* elemTypeInfo = info->members[1].m_member_type;
-                    ArrayTypeInfo* arrayTypeInfo = new (nothrow) ArrayTypeInfo(typeHandle.MakeSZArray(), 1, elemTypeInfo);
-                    if (arrayTypeInfo == nullptr)
-                        return nullptr;
-                    info->m_array_type = arrayTypeInfo;
-                    info->members[1].m_member_type = arrayTypeInfo;
+                    TypeInfoBase* elemTypeInfo = typeInfo->members[1].m_member_type;
+                    typeInfo->m_array_type = new ArrayTypeInfo(typeHandle.MakeSZArray(), 1, elemTypeInfo);
+                    typeInfo->members[1].m_member_type = typeInfo->m_array_type;
                 }
             }
             // Ignore inheritance from System.Object and System.ValueType classes.
             if (!typeHandle.IsValueType() &&
                 pMT->GetParentMethodTable() && pMT->GetParentMethodTable()->GetParentMethodTable())
             {
-                static_cast<ClassTypeInfo*>(typeInfo)->m_parent =
-                    GetTypeInfoFromTypeHandle(typeHandle.GetParent(), pTypeMap, method);
+                typeInfo->m_parent = GetTypeInfoFromTypeHandle(typeHandle.GetParent(), pTypeMap, method);
             }
 
             if (refTypeInfo)
@@ -146,65 +137,48 @@ GetTypeInfoFromTypeHandle(TypeHandle typeHandle,
         case ELEMENT_TYPE_BYREF:
         {
             TypeInfoBase* valTypeInfo = GetTypeInfoFromTypeHandle(typeHandle.GetTypeParam(), pTypeMap, method);
-            typeInfo = new (nothrow) RefTypeInfo(typeHandle, valTypeInfo);
-            if (typeInfo == nullptr)
-                return nullptr;
+            NewHolder<RefTypeInfo> typeInfo = new RefTypeInfo(typeHandle, valTypeInfo);
 
             typeInfo->m_type_offset = valTypeInfo->m_type_offset;
 
             pTypeMap->Add(typeInfo->GetTypeKey(), typeInfo);
+            typeInfo.SuppressRelease();
             return typeInfo;
         }
         case ELEMENT_TYPE_ARRAY:
         case ELEMENT_TYPE_SZARRAY:
         {
-            typeInfo = new (nothrow) ClassTypeInfo(typeHandle, pMT->GetRank() == 1 ? 2 : 3, method);
-            if (typeInfo == nullptr)
-                return nullptr;
-
-            RefTypeInfo *refTypeInfo = new (nothrow) NamedRefTypeInfo(typeHandle, typeInfo);
-            if (refTypeInfo == nullptr)
-            {
-                return nullptr;
-            }
+            NewHolder<ClassTypeInfo> info = new ClassTypeInfo(typeHandle, pMT->GetRank() == 1 ? 2 : 3, method);
+            NewHolder<RefTypeInfo> refTypeInfo = new NamedRefTypeInfo(typeHandle, info);
+            info.SuppressRelease();
 
             pTypeMap->Add(refTypeInfo->GetTypeKey(), refTypeInfo);
+            refTypeInfo.SuppressRelease();
 
             TypeInfoBase* lengthTypeInfo = GetTypeInfoFromTypeHandle(
                 TypeHandle(MscorlibBinder::GetElementType(ELEMENT_TYPE_I4)), pTypeMap, method);
 
             TypeInfoBase* valTypeInfo = GetTypeInfoFromTypeHandle(typeHandle.GetTypeParam(), pTypeMap, method);
-            ArrayTypeInfo* arrayTypeInfo = new (nothrow) ArrayTypeInfo(typeHandle, 1, valTypeInfo);
-            if (arrayTypeInfo == nullptr)
-                return nullptr;
+            info->m_array_type = new ArrayTypeInfo(typeHandle, 1, valTypeInfo);
 
-            ClassTypeInfo *info = static_cast<ClassTypeInfo*>(typeInfo);
-
-            info->m_array_type = arrayTypeInfo;
-
-            info->members[0].m_member_name = new (nothrow) char[16];
+            info->members[0].m_member_name = new char[16];
             strcpy(info->members[0].m_member_name, "m_NumComponents");
             info->members[0].m_member_offset = ArrayBase::GetOffsetOfNumComponents();
             info->members[0].m_member_type = lengthTypeInfo;
-            info->members[0].m_member_type->m_type_size = sizeof(DWORD);
 
-            info->members[1].m_member_name = new (nothrow) char[7];
+            info->members[1].m_member_name = new char[7];
             strcpy(info->members[1].m_member_name, "m_Data");
             info->members[1].m_member_offset = ArrayBase::GetDataPtrOffset(pMT);
-            info->members[1].m_member_type = arrayTypeInfo;
+            info->members[1].m_member_type = info->m_array_type;
 
             if (pMT->GetRank() != 1)
             {
                 TypeHandle dwordArray(MscorlibBinder::GetElementType(ELEMENT_TYPE_I4));
-                ArrayTypeInfo* arrayTypeInfo = new (nothrow) ArrayTypeInfo(dwordArray.MakeSZArray(), pMT->GetRank(), lengthTypeInfo);
-                if (arrayTypeInfo == nullptr)
-                    return nullptr;
-                info->m_array_bounds_type = arrayTypeInfo;
-                info->members[2].m_member_name = new (nothrow) char[9];
+                info->m_array_bounds_type = new ArrayTypeInfo(dwordArray.MakeSZArray(), pMT->GetRank(), lengthTypeInfo);
+                info->members[2].m_member_name = new char[9];
                 strcpy(info->members[2].m_member_name, "m_Bounds");
                 info->members[2].m_member_offset = ArrayBase::GetBoundsOffset(pMT);
-                info->members[2].m_member_type = arrayTypeInfo;
-                info->members[2].m_member_type->m_type_size = pMT->GetRank() * sizeof(DWORD);
+                info->members[2].m_member_type = info->m_array_bounds_type;
             }
 
             return refTypeInfo;
