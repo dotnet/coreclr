@@ -990,12 +990,9 @@ public:
     // At the end of the merge store results of the dataflow equations, in a postmerge state.
     bool EndMerge(BasicBlock* block)
     {
-        BitVecTraits* traits   = m_pCompiler->cseTraits;
-        EXPSET_TP     mergeOut = BitVecOps::MakeCopy(traits, block->bbCseIn);
-        BitVecOps::UnionD(traits, mergeOut, block->bbCseGen);
-        BitVecOps::IntersectionD(traits, mergeOut, block->bbCseOut);
-        BitVecOps::Assign(traits, block->bbCseOut, mergeOut);
-        return (!BitVecOps::Equal(traits, mergeOut, m_preMergeOut));
+        BitVecTraits* traits = m_pCompiler->cseTraits;
+        BitVecOps::DataFlowD(traits, block->bbCseOut, block->bbCseGen, block->bbCseIn);
+        return !BitVecOps::Equal(traits, block->bbCseOut, m_preMergeOut);
     }
 };
 

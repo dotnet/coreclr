@@ -4397,15 +4397,8 @@ public:
         JITDUMP("AssertionPropCallback::EndMerge  : BB%02d in -> %s\n\n", block->bbNum,
                 BitVecOps::ToString(apTraits, block->bbAssertionIn));
 
-        // PERF: eliminate this tmp by passing in a OperationTree (AST) to the bitset,
-        // so the expr tree is operated on a single bit level. See "expression templates."
-        ASSERT_TP tmp = BitVecOps::MakeCopy(apTraits, block->bbAssertionIn);
-        BitVecOps::UnionD(apTraits, tmp, block->bbAssertionGen);
-        BitVecOps::IntersectionD(apTraits, block->bbAssertionOut, tmp);
-
-        BitVecOps::Assign(apTraits, tmp, block->bbAssertionIn);
-        BitVecOps::UnionD(apTraits, tmp, mJumpDestGen[block->bbNum]);
-        BitVecOps::IntersectionD(apTraits, mJumpDestOut[block->bbNum], tmp);
+        BitVecOps::DataFlowD(apTraits, block->bbAssertionOut, block->bbAssertionGen, block->bbAssertionIn);
+        BitVecOps::DataFlowD(apTraits, mJumpDestOut[block->bbNum], mJumpDestGen[block->bbNum], block->bbAssertionIn);
 
         bool changed = (!BitVecOps::Equal(apTraits, preMergeOut, block->bbAssertionOut) ||
                         !BitVecOps::Equal(apTraits, preMergeJumpDestOut, mJumpDestOut[block->bbNum]));
