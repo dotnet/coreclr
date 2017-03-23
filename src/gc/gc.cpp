@@ -53,9 +53,9 @@ BOOL bgc_heap_walk_for_etw_p = FALSE;
 #define LOH_PIN_QUEUE_LENGTH 100
 #define LOH_PIN_DECAY 10
 
-// Right now we support maximum 256 procs - meaning that we will create at most
-// 256 GC threads and 256 GC heaps. 
-#define MAX_SUPPORTED_CPUS 256
+// Right now we support maximum 1024 procs - meaning that we will create at most
+// that many GC threads and GC heaps. 
+#define MAX_SUPPORTED_CPUS 1024
 
 #ifdef GC_CONFIG_DRIVEN
 int compact_ratio = 0;
@@ -4909,12 +4909,12 @@ class heap_select
     static unsigned n_sniff_buffers;
     static unsigned cur_sniff_index;
 
-    static uint8_t proc_no_to_heap_no[MAX_SUPPORTED_CPUS];
-    static uint8_t heap_no_to_proc_no[MAX_SUPPORTED_CPUS];
-    static uint8_t heap_no_to_numa_node[MAX_SUPPORTED_CPUS];
-    static uint8_t heap_no_to_cpu_group[MAX_SUPPORTED_CPUS];
-    static uint8_t heap_no_to_group_proc[MAX_SUPPORTED_CPUS];
-    static uint8_t numa_node_to_heap_map[MAX_SUPPORTED_CPUS+4];
+    static uint16_t proc_no_to_heap_no[MAX_SUPPORTED_CPUS];
+    static uint16_t heap_no_to_proc_no[MAX_SUPPORTED_CPUS];
+    static uint16_t heap_no_to_numa_node[MAX_SUPPORTED_CPUS];
+    static uint16_t heap_no_to_cpu_group[MAX_SUPPORTED_CPUS];
+    static uint16_t heap_no_to_group_proc[MAX_SUPPORTED_CPUS];
+    static uint16_t numa_node_to_heap_map[MAX_SUPPORTED_CPUS+4];
 
     static int access_time(uint8_t *sniff_buffer, int heap_number, unsigned sniff_index, unsigned n_sniff_buffers)
     {
@@ -4956,7 +4956,7 @@ public:
         //can not enable gc numa aware, force all heaps to be in
         //one numa node by filling the array with all 0s
         if (!NumaNodeInfo::CanEnableGCNumaAware())
-            memset(heap_no_to_numa_node, 0, MAX_SUPPORTED_CPUS); 
+            memset(heap_no_to_numa_node, 0, sizeof (heap_no_to_numa_node)); 
 
         return TRUE;
     }
@@ -4966,10 +4966,10 @@ public:
         if (GCToOSInterface::CanGetCurrentProcessorNumber())
         {
             uint32_t proc_no = GCToOSInterface::GetCurrentProcessorNumber() % gc_heap::n_heaps;
-            // We can safely cast heap_number to a BYTE 'cause GetCurrentProcessCpuCount
+            // We can safely cast heap_number to a uint16_t 'cause GetCurrentProcessCpuCount
             // only returns up to MAX_SUPPORTED_CPUS procs right now. We only ever create at most
             // MAX_SUPPORTED_CPUS GC threads.
-            proc_no_to_heap_no[proc_no] = (uint8_t)heap_number;
+            proc_no_to_heap_no[proc_no] = (uint16_t)heap_number;
         }
     }
 
@@ -5032,42 +5032,42 @@ public:
         return GCToOSInterface::CanGetCurrentProcessorNumber();
     }
 
-    static uint8_t find_proc_no_from_heap_no(int heap_number)
+    static uint16_t find_proc_no_from_heap_no(int heap_number)
     {
         return heap_no_to_proc_no[heap_number];
     }
 
-    static void set_proc_no_for_heap(int heap_number, uint8_t proc_no)
+    static void set_proc_no_for_heap(int heap_number, uint16_t proc_no)
     {
         heap_no_to_proc_no[heap_number] = proc_no;
     }
 
-    static uint8_t find_numa_node_from_heap_no(int heap_number)
+    static uint16_t find_numa_node_from_heap_no(int heap_number)
     {
         return heap_no_to_numa_node[heap_number];
     }
 
-    static void set_numa_node_for_heap(int heap_number, uint8_t numa_node)
+    static void set_numa_node_for_heap(int heap_number, uint16_t numa_node)
     {
         heap_no_to_numa_node[heap_number] = numa_node;
     }
 
-    static uint8_t find_cpu_group_from_heap_no(int heap_number)
+    static uint16_t find_cpu_group_from_heap_no(int heap_number)
     {
         return heap_no_to_cpu_group[heap_number];
     }
 
-    static void set_cpu_group_for_heap(int heap_number, uint8_t group_number)
+    static void set_cpu_group_for_heap(int heap_number, uint16_t group_number)
     {
         heap_no_to_cpu_group[heap_number] = group_number;
     }
 
-    static uint8_t find_group_proc_from_heap_no(int heap_number)
+    static uint16_t find_group_proc_from_heap_no(int heap_number)
     {
         return heap_no_to_group_proc[heap_number];
     }
 
-    static void set_group_proc_for_heap(int heap_number, uint8_t group_proc)
+    static void set_group_proc_for_heap(int heap_number, uint16_t group_proc)
     {
         heap_no_to_group_proc[heap_number] = group_proc;
     }
@@ -5082,15 +5082,15 @@ public:
         for (int i=1; i < nheaps; i++)
         {
             if (heap_no_to_numa_node[i] != heap_no_to_numa_node[i-1])
-                numa_node_to_heap_map[node_index++] = (uint8_t)i;
+                numa_node_to_heap_map[node_index++] = (uint16_t)i;
         }
-        numa_node_to_heap_map[node_index] = (uint8_t)nheaps; //mark the end with nheaps
+        numa_node_to_heap_map[node_index] = (uint16_t)nheaps; //mark the end with nheaps
     }
 
     static void get_heap_range_for_heap(int hn, int* start, int* end)
     {   // 1-tier/no numa case: heap_no_to_numa_node[] all zeros, 
         // and treated as in one node. thus: start=0, end=n_heaps
-        uint8_t numa_node = heap_no_to_numa_node[hn];
+        uint16_t numa_node = heap_no_to_numa_node[hn];
         *start = (int)numa_node_to_heap_map[numa_node];
         *end   = (int)(numa_node_to_heap_map[numa_node+1]);
     }
@@ -5098,12 +5098,12 @@ public:
 uint8_t* heap_select::sniff_buffer;
 unsigned heap_select::n_sniff_buffers;
 unsigned heap_select::cur_sniff_index;
-uint8_t heap_select::proc_no_to_heap_no[MAX_SUPPORTED_CPUS];
-uint8_t heap_select::heap_no_to_proc_no[MAX_SUPPORTED_CPUS];
-uint8_t heap_select::heap_no_to_numa_node[MAX_SUPPORTED_CPUS];
-uint8_t heap_select::heap_no_to_cpu_group[MAX_SUPPORTED_CPUS];
-uint8_t heap_select::heap_no_to_group_proc[MAX_SUPPORTED_CPUS];
-uint8_t heap_select::numa_node_to_heap_map[MAX_SUPPORTED_CPUS+4];
+uint16_t heap_select::proc_no_to_heap_no[MAX_SUPPORTED_CPUS];
+uint16_t heap_select::heap_no_to_proc_no[MAX_SUPPORTED_CPUS];
+uint16_t heap_select::heap_no_to_numa_node[MAX_SUPPORTED_CPUS];
+uint16_t heap_select::heap_no_to_cpu_group[MAX_SUPPORTED_CPUS];
+uint16_t heap_select::heap_no_to_group_proc[MAX_SUPPORTED_CPUS];
+uint16_t heap_select::numa_node_to_heap_map[MAX_SUPPORTED_CPUS+4];
 
 BOOL gc_heap::create_thread_support (unsigned number_of_heaps)
 {
@@ -5162,8 +5162,8 @@ void set_thread_group_affinity_for_heap(int heap_number, GCThreadAffinity* affin
             dprintf(3, ("using processor group %d, mask %Ix for heap %d\n", gn, mask, heap_number));
             affinity->Processor = gpn;
             affinity->Group = gn;
-            heap_select::set_cpu_group_for_heap(heap_number, (uint8_t)gn);
-            heap_select::set_group_proc_for_heap(heap_number, (uint8_t)gpn);
+            heap_select::set_cpu_group_for_heap(heap_number, gn);
+            heap_select::set_group_proc_for_heap(heap_number, gpn);
             if (NumaNodeInfo::CanEnableGCNumaAware())
             {  
                 PROCESSOR_NUMBER proc_no;
@@ -5173,11 +5173,11 @@ void set_thread_group_affinity_for_heap(int heap_number, GCThreadAffinity* affin
 
                 uint16_t node_no = 0;
                 if (NumaNodeInfo::GetNumaProcessorNodeEx(&proc_no, &node_no))
-                    heap_select::set_numa_node_for_heap(heap_number, (uint8_t)node_no);
+                    heap_select::set_numa_node_for_heap(heap_number, node_no);
             }
             else
             {   // no numa setting, each cpu group is treated as a node
-                heap_select::set_numa_node_for_heap(heap_number, (uint8_t)gn);
+                heap_select::set_numa_node_for_heap(heap_number, gn);
             }
             return;
         }
@@ -5214,7 +5214,7 @@ void set_thread_affinity_mask_for_heap(int heap_number, GCThreadAffinity* affini
                         proc_no.Reserved = 0;
                         if (NumaNodeInfo::GetNumaProcessorNodeEx(&proc_no, &node_no))
                         {
-                            heap_select::set_numa_node_for_heap(heap_number, (uint8_t)node_no);
+                            heap_select::set_numa_node_for_heap(heap_number, node_no);
                         }
                     }
                     return;
@@ -13342,11 +13342,11 @@ try_again:
                     if (CPUGroupInfo::CanEnableGCCPUGroups())
                     {   //only set ideal processor when max_hp and org_hp are in the same cpu
                         //group. DO NOT MOVE THREADS ACROSS CPU GROUPS
-                        uint8_t org_gn = heap_select::find_cpu_group_from_heap_no(org_hp->heap_number);
-                        uint8_t max_gn = heap_select::find_cpu_group_from_heap_no(max_hp->heap_number);
+                        uint16_t org_gn = heap_select::find_cpu_group_from_heap_no(org_hp->heap_number);
+                        uint16_t max_gn = heap_select::find_cpu_group_from_heap_no(max_hp->heap_number);
                         if (org_gn == max_gn) //only set within CPU group, so SetThreadIdealProcessor is enough
                         {   
-                            uint8_t group_proc_no = heap_select::find_group_proc_from_heap_no(max_hp->heap_number);
+                            uint16_t group_proc_no = heap_select::find_group_proc_from_heap_no(max_hp->heap_number);
 
                             GCThreadAffinity affinity;
                             affinity.Processor = group_proc_no;
@@ -13360,7 +13360,7 @@ try_again:
                     }
                     else 
                     {
-                        uint8_t proc_no = heap_select::find_proc_no_from_heap_no(max_hp->heap_number);
+                        uint16_t proc_no = heap_select::find_proc_no_from_heap_no(max_hp->heap_number);
 
                         GCThreadAffinity affinity;
                         affinity.Processor = proc_no;
@@ -33650,6 +33650,8 @@ HRESULT GCHeap::Initialize ()
 
     uint32_t nhp = ((nhp_from_config == 0) ? nhp_from_process :
                                              (min (nhp_from_config, nhp_from_process)));
+
+    nhp = min (nhp, MAX_SUPPORTED_CPUS);
 
     hr = gc_heap::initialize_gc (seg_size, large_seg_size /*LHEAP_ALLOC*/, nhp);
 #else
