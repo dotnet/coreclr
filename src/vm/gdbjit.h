@@ -178,14 +178,8 @@ public:
     m_typedef_name(typedef_name), m_typedef_type(typedef_type), m_typedef_type_offset(0) {}
     void DumpStrings(char* ptr, int& offset) override;
     void DumpDebugInfo(char* ptr, int& offset) override;
-    virtual ~TypeDefInfo()
-    {
-        if (m_typedef_name != nullptr)
-        {
-            delete [] m_typedef_name;
-        }
-    }
-    char *m_typedef_name;
+
+    NewArrayHolder<char> m_typedef_name;
     int m_typedef_type;
     int m_typedef_type_offset;
     int m_typedef_name_offset;
