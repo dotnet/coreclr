@@ -317,7 +317,7 @@ BYTE* DebugInfoStoreNew(void * pData, size_t cBytes)
 HRESULT
 GetMethodNativeMap(MethodDesc* methodDesc,
                    ULONG32* numMap,
-                   DebuggerILToNativeMap** map,
+                   NewArrayHolder<DebuggerILToNativeMap> &map,
                    ULONG32* pcVars,
                    ICorDebugInfo::NativeVarInfo** ppVars)
 {
@@ -348,22 +348,22 @@ GetMethodNativeMap(MethodDesc* methodDesc,
     // Need to convert map formats.
     *numMap = countMapCopy;
 
-    *map = new DebuggerILToNativeMap[countMapCopy];
+    map = new DebuggerILToNativeMap[countMapCopy];
 
     ULONG32 i;
     for (i = 0; i < *numMap; i++)
     {
-        (*map)[i].ilOffset = mapCopy[i].ilOffset;
-        (*map)[i].nativeStartOffset = mapCopy[i].nativeOffset;
+        map[i].ilOffset = mapCopy[i].ilOffset;
+        map[i].nativeStartOffset = mapCopy[i].nativeOffset;
         if (i > 0)
         {
-            (*map)[i - 1].nativeEndOffset = (*map)[i].nativeStartOffset;
+            map[i - 1].nativeEndOffset = map[i].nativeStartOffset;
         }
-        (*map)[i].source = mapCopy[i].source;
+        map[i].source = mapCopy[i].source;
     }
     if (*numMap >= 1)
     {
-        (*map)[i - 1].nativeEndOffset = 0;
+        map[i - 1].nativeEndOffset = 0;
     }
     return S_OK;
 }
@@ -480,14 +480,13 @@ GetDebugInfoFromPDB(MethodDesc* MethodDescPtr,
                     unsigned int &symInfoLen,
                     LocalsInfo &locals)
 {
-    DebuggerILToNativeMap* map = NULL;
-
+    NewArrayHolder<DebuggerILToNativeMap> map;
     ULONG32 numMap;
 
     if (!getInfoForMethodDelegate)
         return E_FAIL;
- 
-    if (GetMethodNativeMap(MethodDescPtr, &numMap, &map, &locals.countVars, &locals.pVars) != S_OK)
+
+    if (GetMethodNativeMap(MethodDescPtr, &numMap, map, &locals.countVars, &locals.pVars) != S_OK)
         return E_FAIL;
 
     const Module* mod = MethodDescPtr->GetMethodTable()->GetModule();
