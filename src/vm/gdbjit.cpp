@@ -73,9 +73,6 @@ GetTypeInfoFromTypeHandle(TypeHandle typeHandle,
                 {
                     return nullptr;
                 }
-                refTypeInfo->m_type_size = sizeof(TADDR);
-                refTypeInfo->m_value_type = typeInfo;
-                refTypeInfo->CalculateName();
 
                 pTypeMap->Add(refTypeInfo->GetTypeKey(), refTypeInfo);
             }
@@ -152,10 +149,8 @@ GetTypeInfoFromTypeHandle(TypeHandle typeHandle,
             typeInfo = new (nothrow) RefTypeInfo(typeHandle, valTypeInfo);
             if (typeInfo == nullptr)
                 return nullptr;
-            typeInfo->m_type_size = sizeof(TADDR);
-            typeInfo->m_type_offset = valTypeInfo->m_type_offset;
 
-            typeInfo->CalculateName();
+            typeInfo->m_type_offset = valTypeInfo->m_type_offset;
 
             pTypeMap->Add(typeInfo->GetTypeKey(), typeInfo);
             return typeInfo;
@@ -172,9 +167,6 @@ GetTypeInfoFromTypeHandle(TypeHandle typeHandle,
             {
                 return nullptr;
             }
-            refTypeInfo->m_type_size = sizeof(TADDR);
-            refTypeInfo->m_value_type = typeInfo;
-            refTypeInfo->CalculateName();
 
             pTypeMap->Add(refTypeInfo->GetTypeKey(), refTypeInfo);
 

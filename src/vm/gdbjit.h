@@ -216,6 +216,8 @@ public:
         : TypeInfoBase(typeHandle),
           m_value_type(value_type)
     {
+        m_type_size = sizeof(TADDR);
+        CalculateName();
     }
     void DumpStrings(char* ptr, int& offset) override;
     void DumpDebugInfo(char* ptr, int& offset) override;
