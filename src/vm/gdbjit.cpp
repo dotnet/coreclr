@@ -243,7 +243,7 @@ TypeInfoBase* GetLocalTypeInfo(MethodDesc *MethodDescPtr,
     return nullptr;
 }
 
-HRESULT GetArgNameByILIndex(MethodDesc* MethodDescPtr, unsigned index, LPSTR &paramName)
+HRESULT GetArgNameByILIndex(MethodDesc* MethodDescPtr, unsigned index, NewArrayHolder<char> &paramName)
 {
     IMDInternalImport* mdImport = MethodDescPtr->GetMDImport();
     mdParamDef paramToken;

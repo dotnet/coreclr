@@ -312,15 +312,10 @@ public:
     {
     }
 
-    virtual ~VarDebugInfo()
-    {
-        delete[] m_var_name;
-    }
-
     void DumpStrings(char* ptr, int& offset) override;
     void DumpDebugInfo(char* ptr, int& offset) override;
 
-    char* m_var_name;
+    NewArrayHolder<char> m_var_name;
     int m_var_abbrev;
     int m_var_name_offset;
     int m_il_index;
