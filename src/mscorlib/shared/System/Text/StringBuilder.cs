@@ -1831,7 +1831,7 @@ namespace System.Text
                         replacements = new int[5];
                     else if (replacementsCount >= replacements.Length)
                     {
-                        Array.Resize(ref replacements, replacements.Length * 3 / 2 + 4); // grow by 1.5X but more in the begining
+                        Array.Resize(ref replacements, replacements.Length * 3 / 2 + 4); // grow by 1.5X but more in the beginning
                     }
                     replacements[replacementsCount++] = indexInChunk;
                     indexInChunk += oldValue.Length;
@@ -2102,7 +2102,7 @@ namespace System.Text
         }
 
         /// <summary>
-        /// We have to prevent hackers from causing modification off the end of an array.
+        /// We have to prevent modification off the end of an array.
         /// The only way to do this is to copy all interesting variables out of the heap and then do the
         /// bounds check.  This is what we do here.   
         /// </summary>
@@ -2122,7 +2122,7 @@ namespace System.Text
             }
         }
 
-        unsafe private static void ThreadSafeCopy(char[] source, int sourceIndex, char* destinationPtr, int destinationIndex, int count)
+        private static unsafe void ThreadSafeCopy(char[] source, int sourceIndex, char* destinationPtr, int destinationIndex, int count)
         {
             if (count > 0)
             {
