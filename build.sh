@@ -84,7 +84,7 @@ initTargetDistroRid()
         export __DistroRid="$__HostDistroRid"
     fi
 
-    # Portable builds target the base RID only for Linux based platforms
+    # Portable builds target the base RID
     if [ $__PortableBuild == 1 ]; then
         if [ "$__BuildOS" == "Linux" ]; then
             export __DistroRid="linux-$__BuildArch"
@@ -634,7 +634,7 @@ while :; do
             __CrossBuild=1
             ;;
             
-        portable)
+        -portable)
             __PortableBuild=1
             ;;
 
