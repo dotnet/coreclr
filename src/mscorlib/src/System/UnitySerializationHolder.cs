@@ -14,9 +14,15 @@ namespace System
 {
     [Serializable]
     // Holds classes (Empty, Null, Missing) for which we guarantee that there is only ever one instance of.
-    public class UnitySerializationHolder : ISerializable, IObjectReference
+
+#if CORECLR
+    internal
+#else
+    public  // On CoreRT, this must be public because of the Reflection.Core/CoreLib divide and the need to whitelist past the ReflectionBlock.
+#endif
+    class UnitySerializationHolder : ISerializable, IObjectReference
     {
-        #region Internal Constants
+#region Internal Constants
         internal const int EmptyUnity = 0x0001;
         internal const int NullUnity = 0x0002;
         internal const int MissingUnity = 0x0003;
@@ -30,9 +36,9 @@ namespace System
         internal const int Array = 0x0002;
         internal const int SzArray = 0x0003;
         internal const int ByRef = 0x0004;
-        #endregion
+#endregion
 
-        #region Internal Static Members
+#region Internal Static Members
         internal static void GetUnitySerializationInfo(SerializationInfo info, Missing missing)
         {
             info.SetType(typeof(UnitySerializationHolder));
@@ -154,9 +160,9 @@ namespace System
 
             info.AddValue("AssemblyName", assemName);
         }
-        #endregion
+#endregion
 
-        #region Private Data Members
+#region Private Data Members
         private Type[] m_instantiation;
         private int[] m_elementTypes;
         private int m_genericParameterPosition;
@@ -165,9 +171,9 @@ namespace System
         private String m_data;
         private String m_assemblyName;
         private int m_unityType;
-        #endregion  
+#endregion
 
-        #region Constructor
+#region Constructor
         public UnitySerializationHolder(SerializationInfo info, StreamingContext context)
         {
             if (info == null)
@@ -198,24 +204,24 @@ namespace System
             m_data = info.GetString("Data");
             m_assemblyName = info.GetString("AssemblyName");
         }
-        #endregion
+#endregion
 
-        #region Private Methods
+#region Private Methods
         private void ThrowInsufficientInformation(string field)
         {
             throw new SerializationException(
                 SR.Format(SR.Serialization_InsufficientDeserializationState, field));
         }
-        #endregion
+#endregion
 
-        #region ISerializable
+#region ISerializable
         public virtual void GetObjectData(SerializationInfo info, StreamingContext context)
         {
             throw new NotSupportedException(SR.NotSupported_UnitySerHolder);
         }
-        #endregion
+#endregion
 
-        #region IObjectReference
+#region IObjectReference
         public virtual Object GetRealObject(StreamingContext context)
         {
             // GetRealObject uses the data we have in m_data and m_unityType to do a lookup on the correct 
@@ -319,6 +325,6 @@ namespace System
                     throw new ArgumentException(SR.Argument_InvalidUnity);
             }
         }
-        #endregion
+#endregion
     }
 }

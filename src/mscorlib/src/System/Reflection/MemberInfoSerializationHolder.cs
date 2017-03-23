@@ -9,9 +9,13 @@ using System.Diagnostics.Contracts;
 
 namespace System.Reflection
 {
-    // This class needs to be public both so it can whitelisted for Reflection and so that Reflection.Core can access it.
     [Serializable]
-    public class MemberInfoSerializationHolder : ISerializable, IObjectReference
+#if CORECLR
+    internal
+#else
+    public  // On CoreRT, this must be public because of the Reflection.Core/CoreLib divide and the need to whitelist past the ReflectionBlock.
+#endif
+    class MemberInfoSerializationHolder : ISerializable, IObjectReference
     {
         #region Staitc Public Members
         public static void GetSerializationInfo(SerializationInfo info, FieldInfo f)
