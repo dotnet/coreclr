@@ -12,6 +12,15 @@
 #include "env/gcenv.base.h"
 #include "env/gcenv.os.h"
 
+extern "C"
+{
+    // Returns the instruction pointer to which the calling function
+    // will return.
+    void* _ReturnAddress(void);
+}
+
+#pragma intrinsic(_ReturnAddress)
+
 GCSystemInfo g_SystemInfo;
 
 typedef BOOL (WINAPI *PGET_PROCESS_MEMORY_INFO)(HANDLE handle, PROCESS_MEMORY_COUNTERS* memCounters, uint32_t cb);
@@ -518,6 +527,15 @@ int64_t GCToOSInterface::QueryPerformanceFrequency()
 uint32_t GCToOSInterface::GetLowPrecisionTimeStamp()
 {
     return ::GetTickCount();
+}
+
+__declspec(noinline) void* GCToOSInterface::GetCurrentInstructionPointer()
+{
+    // This only works if this function is never inlined. Since this function is
+    // in a different compilation unit than the GC, it won't be except when performing
+    // link-time optimization. The noinline annotation is for that case. (No other
+    // function in this compilation unit will use this function.)
+    return _ReturnAddress();
 }
 
 // Parameters of the GC thread stub

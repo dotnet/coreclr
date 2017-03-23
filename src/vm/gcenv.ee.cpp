@@ -1338,3 +1338,7 @@ void GCToEEInterface::EnableFinalization(bool foundFinalizers)
     }
 }
 
+void GCToEEInterface::HandleFatalError(unsigned int exitCode, void* instructionPointer)
+{
+    EEPolicy::HandleFatalError(exitCode, (UINT_PTR)instructionPointer);
+}

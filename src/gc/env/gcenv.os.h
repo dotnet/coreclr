@@ -277,6 +277,12 @@ public:
     // Return:
     //  Time stamp in milliseconds
     static uint32_t GetLowPrecisionTimeStamp();
+
+    // Gets the current instruction pointer.
+    // Return:
+    //  The value of the instruction pointer immediately after
+    //  the call to this function.
+    static void* GetCurrentInstructionPointer();
 };
 
 #endif // __GCENV_OS_H__
