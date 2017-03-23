@@ -64,11 +64,6 @@ GetTypeInfoFromTypeHandle(TypeHandle typeHandle,
             if (typeInfo == nullptr)
                 return nullptr;
 
-            if (pMT->IsValueType())
-                typeInfo->m_type_size = typeHandle.GetSize();
-            else
-                typeInfo->m_type_size = typeHandle.AsMethodTable()->GetClass()->GetSize();
-
             RefTypeInfo* refTypeInfo = nullptr;
             if (!typeHandle.IsValueType())
             {
@@ -88,8 +83,6 @@ GetTypeInfoFromTypeHandle(TypeHandle typeHandle,
             {
                 pTypeMap->Add(typeInfo->GetTypeKey(), typeInfo);
             }
-
-            typeInfo->CalculateName();
 
             //
             // Now fill in the array
@@ -173,9 +166,7 @@ GetTypeInfoFromTypeHandle(TypeHandle typeHandle,
             typeInfo = new (nothrow) ClassTypeInfo(typeHandle, pMT->GetRank() == 1 ? 2 : 3, method);
             if (typeInfo == nullptr)
                 return nullptr;
-            typeInfo->m_type_size = pMT->GetClass()->GetSize();
 
-            typeInfo->CalculateName();
             RefTypeInfo *refTypeInfo = new (nothrow) NamedRefTypeInfo(typeHandle, typeInfo);
             if (refTypeInfo == nullptr)
             {
@@ -1168,6 +1159,24 @@ ClassTypeInfo::ClassTypeInfo(TypeHandle typeHandle, int num_members, FunctionMem
           m_method(method),
           m_array_type(nullptr)
 {
+    CorElementType corType = typeHandle.GetSignatureCorElementType();
+    PTR_MethodTable pMT = typeHandle.GetMethodTable();
+
+    switch (corType)
+    {
+        case ELEMENT_TYPE_VALUETYPE:
+        case ELEMENT_TYPE_CLASS:
+            m_type_size = pMT->IsValueType() ? typeHandle.GetSize() : typeHandle.AsMethodTable()->GetClass()->GetSize();
+            break;
+        case ELEMENT_TYPE_ARRAY:
+        case ELEMENT_TYPE_SZARRAY:
+            m_type_size = pMT->GetClass()->GetSize();
+            break;
+        default:
+            m_type_size = 0;
+    }
+
+    CalculateName();
 }
 
 ClassTypeInfo::~ClassTypeInfo()
