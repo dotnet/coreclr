@@ -184,8 +184,7 @@ GetTypeInfoFromTypeHandle(TypeHandle typeHandle,
             return refTypeInfo;
         }
         default:
-            ASSERT(0 && "not implemented");
-            return nullptr;
+            COMPlusThrowHR(COR_E_NOTSUPPORTED);
     }
 }
 
