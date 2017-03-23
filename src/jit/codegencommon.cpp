@@ -9716,7 +9716,7 @@ void CodeGen::genFnEpilog(BasicBlock* block)
     {
         unsigned stkArgSize = 0; // Zero on all platforms except x86
 
-#if defined(_TARGET_X86_)
+#if defined(_TARGET_X86_) && !defined(UNIX_X86_ABI)
 
         noway_assert(compiler->compArgSize >= intRegState.rsCalleeRegArgCount * sizeof(void*));
         stkArgSize = compiler->compArgSize - intRegState.rsCalleeRegArgCount * sizeof(void*);
@@ -9727,7 +9727,7 @@ void CodeGen::genFnEpilog(BasicBlock* block)
         if (compiler->info.compIsVarArgs)
             stkArgSize = 0;
 
-#endif // defined(_TARGET_X86_)
+#endif // _TARGET_X86_ && !UNIX_X86_ABI
 
         /* Return, popping our arguments (if any) */
         instGen_Return(stkArgSize);

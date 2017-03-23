@@ -279,6 +279,10 @@ VOID GenerateShuffleArray(MethodDesc* pInvoke, MethodDesc *pTargetMeth, SArray<S
 
     UINT stackSizeDelta = stackSizeSrc - stackSizeDst;
 
+#ifdef UNIX_X86_ABI
+    stackSizeDelta = 0;
+#endif
+
     INT ofsSrc, ofsDst;
 
     // if the function is non static we need to place the 'this' first

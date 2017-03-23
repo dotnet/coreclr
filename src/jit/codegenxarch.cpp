@@ -4998,11 +4998,14 @@ void CodeGen::genCallInstruction(GenTreeCall* call)
     // If the caller needs to explicitly pop its arguments, we must pass a negative value, and then do the
     // pop when we're done.
     ssize_t argSizeForEmitter = stackArgBytes;
+#if !defined(UNIX_X86_ABI)
     if ((call->gtFlags & GTF_CALL_POP_ARGS) != 0)
     {
         argSizeForEmitter = -stackArgBytes;
     }
-
+#else
+    argSizeForEmitter = -stackArgBytes;
+#endif
 #endif // defined(_TARGET_X86_)
 
 #ifdef FEATURE_AVX_SUPPORT
@@ -5175,8 +5178,6 @@ void CodeGen::genCallInstruction(GenTreeCall* call)
         // clang-format on
     }
 
-    genRemoveAlignmentAfterCall(call);
-
     // if it was a pinvoke we may have needed to get the address of a label
     if (genPendingCallLabel)
     {
@@ -5185,7 +5186,7 @@ void CodeGen::genCallInstruction(GenTreeCall* call)
         genPendingCallLabel = nullptr;
     }
 
-#if defined(_TARGET_X86_)
+#if defined(_TARGET_X86_) && !defined(UNIX_X86_ABI)
     // The call will pop its arguments.
     SubtractStackLevel(stackArgBytes);
 #endif // defined(_TARGET_X86_)
@@ -5319,12 +5320,22 @@ void CodeGen::genCallInstruction(GenTreeCall* call)
         }
     }
 
+#ifndef UNIX_X86_ABI
     // Is the caller supposed to pop the arguments?
     if (((call->gtFlags & GTF_CALL_POP_ARGS) != 0) && (stackArgBytes != 0))
     {
         genAdjustSP(stackArgBytes);
     }
+#else
+    if (stackArgBytes != 0)
+    {
+        genAdjustSP(stackArgBytes);
+        SubtractStackLevel(stackArgBytes);
+    }
+#endif
 #endif // _TARGET_X86_
+
+    genRemoveAlignmentAfterCall(call);
 }
 
 // Produce code for a GT_JMP node.
