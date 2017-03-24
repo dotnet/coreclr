@@ -112,8 +112,8 @@ fi
 
 wget -nv -nc http://termux.net/dists/stable/main/binary-$__AndroidArch/libandroid-glob-dev_0.3_$__AndroidArch.deb -O $__Android_Cross_Dir/deb/libandroid-glob-dev_0.3_$__AndroidArch.deb
 wget -nv -nc http://termux.net/dists/stable/main/binary-$__AndroidArch/libandroid-glob_0.3_$__AndroidArch.deb -O $__Android_Cross_Dir/deb/libandroid-glob_0.3_$__AndroidArch.deb
-wget -nv -nc http://termux.net/dists/stable/main/binary-$__AndroidArch/libandroid-support-dev_13.10_$__AndroidArch.deb -O $__Android_Cross_Dir/deb/libandroid-support-dev_13.10_$__AndroidArch.deb
-wget -nv -nc http://termux.net/dists/stable/main/binary-$__AndroidArch/libandroid-support_13.10_$__AndroidArch.deb -O $__Android_Cross_Dir/deb/libandroid-support_13.10_$__AndroidArch.deb
+wget -nv -nc http://termux.net/dists/stable/main/binary-$__AndroidArch/libandroid-support-dev_14_$__AndroidArch.deb -O $__Android_Cross_Dir/deb/libandroid-support-dev_14_$__AndroidArch.deb
+wget -nv -nc http://termux.net/dists/stable/main/binary-$__AndroidArch/libandroid-support_14_$__AndroidArch.deb -O $__Android_Cross_Dir/deb/libandroid-support_14_$__AndroidArch.deb
 wget -nv -nc http://termux.net/dists/stable/main/binary-$__AndroidArch/liblzma-dev_5.2.3_$__AndroidArch.deb  -O $__Android_Cross_Dir/deb/liblzma-dev_5.2.3_$__AndroidArch.deb
 wget -nv -nc http://termux.net/dists/stable/main/binary-$__AndroidArch/liblzma_5.2.3_$__AndroidArch.deb -O $__Android_Cross_Dir/deb/liblzma_5.2.3_$__AndroidArch.deb
 
@@ -124,8 +124,8 @@ dpkg -x $__Android_Cross_Dir/deb/libuuid-dev_1.0.3_$__AndroidArch.deb $__Android
 dpkg -x $__Android_Cross_Dir/deb/libuuid_1.0.3_$__AndroidArch.deb $__Android_Cross_Dir/tmp/$__AndroidArch/
 dpkg -x $__Android_Cross_Dir/deb/libandroid-glob-dev_0.3_$__AndroidArch.deb $__Android_Cross_Dir/tmp/$__AndroidArch/
 dpkg -x $__Android_Cross_Dir/deb/libandroid-glob_0.3_$__AndroidArch.deb $__Android_Cross_Dir/tmp/$__AndroidArch/
-dpkg -x $__Android_Cross_Dir/deb/libandroid-support-dev_13.10_$__AndroidArch.deb $__Android_Cross_Dir/tmp/$__AndroidArch/
-dpkg -x $__Android_Cross_Dir/deb/libandroid-support_13.10_$__AndroidArch.deb $__Android_Cross_Dir/tmp/$__AndroidArch/
+dpkg -x $__Android_Cross_Dir/deb/libandroid-support-dev_14_$__AndroidArch.deb $__Android_Cross_Dir/tmp/$__AndroidArch/
+dpkg -x $__Android_Cross_Dir/deb/libandroid-support_14_$__AndroidArch.deb $__Android_Cross_Dir/tmp/$__AndroidArch/
 dpkg -x $__Android_Cross_Dir/deb/liblzma-dev_5.2.3_$__AndroidArch.deb $__Android_Cross_Dir/tmp/$__AndroidArch/
 dpkg -x $__Android_Cross_Dir/deb/liblzma_5.2.3_$__AndroidArch.deb $__Android_Cross_Dir/tmp/$__AndroidArch/
 
