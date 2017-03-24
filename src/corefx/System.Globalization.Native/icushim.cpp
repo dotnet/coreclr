@@ -170,11 +170,25 @@ bool FindLibWithMajorMinorSubVersion(int* majorVer, int* minorVer, int* subVer)
     return false;
 }
 
-// GlobalizationNative_LoadICU
-// This method get called from the managed side during the globalization initialization. 
-// This method shouldn't get called at all if we are running in globalization invariant mode
-// return 0 if failed to load ICU and 1 otherwise
-extern "C" int32_t GlobalizationNative_LoadICU()
+#ifdef OSX_PLATFORM
+
+bool InitializeICULinks(char* symboleName, char* symbolVersion)
+{
+    libicuuc = dlopen("/usr/lib/libicucore.A.dylib", RTLD_LAZY);
+    if (libicuuc == nullptr)
+    {
+        return false;
+    }
+
+    // in OSC all ICU APIs exist in the same library libicucore.A.dylib 
+    libicui18n = libicuuc;
+
+    return true;
+}
+
+#else
+
+bool InitializeICULinks(char* symboleName, char* symbolVersion)
 {
     int majorVer = -1;
     int minorVer = -1;
@@ -187,12 +201,8 @@ extern "C" int32_t GlobalizationNative_LoadICU()
         !FindLibWithMajorVersion(&majorVer))
     {
         // No usable ICU version found
-        return 0;
+        return false;
     }
-
-    char symbolName[128];
-    char symbolVersion[MaxICUVersionStringLength + 1] = "";
-
     // Find out the format of the version string added to each symbol
     // First try just the unversioned symbol
     if (dlsym(libicuuc, "u_strlen") == nullptr)
@@ -212,11 +222,30 @@ extern "C" int32_t GlobalizationNative_LoadICU()
                 sprintf(symbolName, "u_strlen%s", symbolVersion);
                 if (dlsym(libicuuc, symbolName) == nullptr)
                 {
-                    return 0;
+                    return false;
                 }
             }
         }
     }
+
+    return true;
+
+}
+
+#endif // OSX_PLATFORM
+
+
+// GlobalizationNative_LoadICU
+// This method get called from the managed side during the globalization initialization. 
+// This method shouldn't get called at all if we are running in globalization invariant mode
+// return 0 if failed to load ICU and 1 otherwise
+extern "C" int32_t GlobalizationNative_LoadICU()
+{
+    char symbolName[128];
+    char symbolVersion[MaxICUVersionStringLength + 1] = "";
+
+    if (!InitializeICULinks(symbolName, symbolVersion))
+        return 0;
 
     // Get pointers to all the ICU functions that are needed
 #define PER_FUNCTION_BLOCK(fn, lib) \
@@ -227,6 +256,11 @@ extern "C" int32_t GlobalizationNative_LoadICU()
 
     FOR_ALL_ICU_FUNCTIONS
 #undef PER_FUNCTION_BLOCK
+
+#ifdef OSX_PLATFORM
+    // libicui18n initialized with libicuuc so we null it to avoid double closing same handle   
+    libicui18n = nullptr;
+#endif // OSX_PLATFORM
 
     return 1;
 }
