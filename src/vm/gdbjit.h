@@ -328,8 +328,8 @@ struct Elf_Symbol;
 class NotifyGdb
 {
 public:
-    static void MethodCompiled(MethodDesc* MethodDescPtr);
-    static void MethodDropped(MethodDesc* MethodDescPtr);
+    static void MethodCompiled(MethodDesc* methodDescPtr);
+    static void MethodDropped(MethodDesc* methodDescPtr);
     template <typename PARENT_TRAITS>
     class DeleteValuesOnDestructSHashTraits : public PARENT_TRAITS
     {
@@ -402,7 +402,7 @@ private:
         }
     };
 
-    static void OnMethodCompiled(MethodDesc* MethodDescPtr);
+    static void OnMethodCompiled(MethodDesc* methodDescPtr);
 
     static int GetSectionIndex(const char *sectName);
     static bool BuildELFHeader(MemBuf& buf);

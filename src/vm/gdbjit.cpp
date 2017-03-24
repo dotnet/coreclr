@@ -188,12 +188,12 @@ GetTypeInfoFromTypeHandle(TypeHandle typeHandle,
     }
 }
 
-TypeInfoBase* GetArgTypeInfo(MethodDesc* MethodDescPtr,
+TypeInfoBase* GetArgTypeInfo(MethodDesc* methodDescPtr,
                     NotifyGdb::PTK_TypeInfoMap pTypeMap,
                     unsigned ilIndex,
                     FunctionMemberPtrArrayHolder &method)
 {
-    MetaSig sig(MethodDescPtr);
+    MetaSig sig(methodDescPtr);
     TypeHandle th;
     if (ilIndex == 0)
     {
@@ -210,18 +210,18 @@ TypeInfoBase* GetArgTypeInfo(MethodDesc* MethodDescPtr,
     return GetTypeInfoFromTypeHandle(th, pTypeMap, method);
 }
 
-TypeInfoBase* GetLocalTypeInfo(MethodDesc *MethodDescPtr,
+TypeInfoBase* GetLocalTypeInfo(MethodDesc *methodDescPtr,
                       NotifyGdb::PTK_TypeInfoMap pTypeMap,
                       unsigned ilIndex,
                       FunctionMemberPtrArrayHolder &funcs)
 {
-    COR_ILMETHOD_DECODER method(MethodDescPtr->GetILHeader());
+    COR_ILMETHOD_DECODER method(methodDescPtr->GetILHeader());
     if (method.GetLocalVarSigTok())
     {
         DWORD cbSigLen;
         PCCOR_SIGNATURE pComSig;
 
-        if (FAILED(MethodDescPtr->GetMDImport()->GetSigFromToken(method.GetLocalVarSigTok(), &cbSigLen, &pComSig)))
+        if (FAILED(methodDescPtr->GetMDImport()->GetSigFromToken(method.GetLocalVarSigTok(), &cbSigLen, &pComSig)))
         {
             printf("\nInvalid record");
             return nullptr;
@@ -229,8 +229,8 @@ TypeInfoBase* GetLocalTypeInfo(MethodDesc *MethodDescPtr,
 
         _ASSERTE(*pComSig == IMAGE_CEE_CS_CALLCONV_LOCAL_SIG);
 
-        SigTypeContext typeContext(MethodDescPtr, TypeHandle());
-        MetaSig sig(pComSig, cbSigLen, MethodDescPtr->GetModule(), &typeContext, MetaSig::sigLocalVars);
+        SigTypeContext typeContext(methodDescPtr, TypeHandle());
+        MetaSig sig(pComSig, cbSigLen, methodDescPtr->GetModule(), &typeContext, MetaSig::sigLocalVars);
         if (ilIndex > 0)
         {
             while (ilIndex--)
@@ -243,9 +243,9 @@ TypeInfoBase* GetLocalTypeInfo(MethodDesc *MethodDescPtr,
     return nullptr;
 }
 
-HRESULT GetArgNameByILIndex(MethodDesc* MethodDescPtr, unsigned index, NewArrayHolder<char> &paramName)
+HRESULT GetArgNameByILIndex(MethodDesc* methodDescPtr, unsigned index, NewArrayHolder<char> &paramName)
 {
-    IMDInternalImport* mdImport = MethodDescPtr->GetMDImport();
+    IMDInternalImport* mdImport = methodDescPtr->GetMDImport();
     mdParamDef paramToken;
     USHORT seq;
     DWORD attr;
@@ -254,12 +254,12 @@ HRESULT GetArgNameByILIndex(MethodDesc* MethodDescPtr, unsigned index, NewArrayH
     // Param indexing is 1-based.
     ULONG32 mdIndex = index + 1;
 
-    MetaSig sig(MethodDescPtr);
+    MetaSig sig(methodDescPtr);
     if (sig.HasThis())
     {
         mdIndex--;
     }
-    status = mdImport->FindParamOfMethod(MethodDescPtr->GetMemberDef(), mdIndex, &paramToken);
+    status = mdImport->FindParamOfMethod(methodDescPtr->GetMemberDef(), mdIndex, &paramToken);
     if (status == S_OK)
     {
         LPCSTR name;
@@ -475,7 +475,7 @@ MethodDebugInfo::~MethodDebugInfo()
 
 /* Get mapping of IL offsets to source line numbers */
 HRESULT
-GetDebugInfoFromPDB(MethodDesc* MethodDescPtr,
+GetDebugInfoFromPDB(MethodDesc* methodDescPtr,
                     NewArrayHolder<SymbolsInfo> &symInfo,
                     unsigned int &symInfoLen,
                     LocalsInfo &locals)
@@ -486,10 +486,10 @@ GetDebugInfoFromPDB(MethodDesc* MethodDescPtr,
     if (!getInfoForMethodDelegate)
         return E_FAIL;
 
-    if (GetMethodNativeMap(MethodDescPtr, &numMap, map, &locals.countVars, &locals.pVars) != S_OK)
+    if (GetMethodNativeMap(methodDescPtr, &numMap, map, &locals.countVars, &locals.pVars) != S_OK)
         return E_FAIL;
 
-    const Module* mod = MethodDescPtr->GetMethodTable()->GetModule();
+    const Module* mod = methodDescPtr->GetMethodTable()->GetModule();
     SString modName = mod->GetFile()->GetPath();
     if (modName.IsEmpty())
         return E_FAIL;
@@ -499,7 +499,7 @@ GetDebugInfoFromPDB(MethodDesc* MethodDescPtr,
 
     MethodDebugInfo methodDebugInfo(numMap, locals.countVars);
 
-    if (getInfoForMethodDelegate(szModName, MethodDescPtr->GetMemberDef(), methodDebugInfo) == FALSE)
+    if (getInfoForMethodDelegate(szModName, methodDescPtr->GetMemberDef(), methodDebugInfo) == FALSE)
         return E_FAIL;
 
     symInfoLen = numMap;
@@ -1748,11 +1748,11 @@ static int getNextPrologueIndex(int from, const SymbolsInfo *lines, int nlines)
 static NotifyGdb::AddrSet codeAddrs;
 
 /* Create ELF/DWARF debug info for jitted method */
-void NotifyGdb::MethodCompiled(MethodDesc* MethodDescPtr)
+void NotifyGdb::MethodCompiled(MethodDesc* methodDescPtr)
 {
     EX_TRY
     {
-        NotifyGdb::OnMethodCompiled(MethodDescPtr);
+        NotifyGdb::OnMethodCompiled(methodDescPtr);
     }
     EX_CATCH
     {
@@ -1760,12 +1760,12 @@ void NotifyGdb::MethodCompiled(MethodDesc* MethodDescPtr)
     EX_END_CATCH(SwallowAllExceptions);
 }
 
-void NotifyGdb::OnMethodCompiled(MethodDesc* MethodDescPtr)
+void NotifyGdb::OnMethodCompiled(MethodDesc* methodDescPtr)
 {
     int symbolCount = 0;
     NewArrayHolder<Elf_Symbol> symbolNames;
 
-    PCODE pCode = MethodDescPtr->GetNativeCode();
+    PCODE pCode = methodDescPtr->GetNativeCode();
     if (pCode == NULL)
         return;
     unsigned int symInfoLen = 0;
@@ -1773,14 +1773,14 @@ void NotifyGdb::OnMethodCompiled(MethodDesc* MethodDescPtr)
     LocalsInfo locals;
 
     /* Get method name & size of jitted code */
-    LPCUTF8 methodName = MethodDescPtr->GetName();
+    LPCUTF8 methodName = methodDescPtr->GetName();
     EECodeInfo codeInfo(pCode);
     TADDR codeSize = codeInfo.GetCodeManager()->GetFunctionSize(codeInfo.GetGCInfoToken());
 
     pCode = PCODEToPINSTR(pCode);
 
     /* Get module name */
-    const Module* mod = MethodDescPtr->GetMethodTable()->GetModule();
+    const Module* mod = methodDescPtr->GetMethodTable()->GetModule();
     SString modName = mod->GetFile()->GetPath();
     StackScratchBuffer scratch;
     const char* szModName = modName.GetUTF8(scratch);
@@ -1854,7 +1854,7 @@ void NotifyGdb::OnMethodCompiled(MethodDesc* MethodDescPtr)
     NewHolder<TK_TypeInfoMap> pTypeMap = new TK_TypeInfoMap();
 
     /* Get debug info for method from portable PDB */
-    HRESULT hr = GetDebugInfoFromPDB(MethodDescPtr, symInfo, symInfoLen, locals);
+    HRESULT hr = GetDebugInfoFromPDB(methodDescPtr, symInfo, symInfoLen, locals);
     if (FAILED(hr) || symInfoLen == 0)
     {
         return;
@@ -1866,13 +1866,13 @@ void NotifyGdb::OnMethodCompiled(MethodDesc* MethodDescPtr)
     CodeHeader* pCH = (CodeHeader*)pCode - 1;
     CalledMethod* pCalledMethods = reinterpret_cast<CalledMethod*>(pCH->GetCalledMethods());
     /* Collect addresses of thunks called by method */
-    if (!CollectCalledMethods(pCalledMethods, (TADDR)MethodDescPtr->GetNativeCode(), method, symbolNames, symbolCount))
+    if (!CollectCalledMethods(pCalledMethods, (TADDR)methodDescPtr->GetNativeCode(), method, symbolNames, symbolCount))
     {
         return;
     }
     pCH->SetCalledMethods(NULL);
 
-    MetaSig sig(MethodDescPtr);
+    MetaSig sig(methodDescPtr);
     int nArgsCount = sig.NumFixedArgs();
     if (sig.HasThis())
         nArgsCount++;
@@ -1891,7 +1891,7 @@ void NotifyGdb::OnMethodCompiled(MethodDesc* MethodDescPtr)
 
     for (int method_index = 0; method_index < method.GetCount(); ++method_index)
     {
-        method[method_index] = new FunctionMember(MethodDescPtr, locals.size, nArgsCount);
+        method[method_index] = new FunctionMember(methodDescPtr, locals.size, nArgsCount);
 
         int end_index = getNextPrologueIndex(start_index + 1, symInfo, symInfoLen);
 
@@ -1899,7 +1899,7 @@ void NotifyGdb::OnMethodCompiled(MethodDesc* MethodDescPtr)
         TADDR method_size = end_index == -1 ? codeSize - method_start : symInfo[end_index].nativeOffset - method_start;
 
         // method return type
-        method[method_index]->m_member_type = GetArgTypeInfo(MethodDescPtr, pTypeMap, 0, method);
+        method[method_index]->m_member_type = GetArgTypeInfo(methodDescPtr, pTypeMap, 0, method);
         method[method_index]->m_sub_low_pc = pCode + method_start;
         method[method_index]->m_sub_high_pc = method_size;
         method[method_index]->lines = symInfo;
@@ -2121,14 +2121,14 @@ void NotifyGdb::OnMethodCompiled(MethodDesc* MethodDescPtr)
     __jit_debug_register_code();
 }
 
-void NotifyGdb::MethodDropped(MethodDesc* MethodDescPtr)
+void NotifyGdb::MethodDropped(MethodDesc* methodDescPtr)
 {
     static const int textSectionIndex = GetSectionIndex(".text");
 
     if (textSectionIndex < 0)
         return;
 
-    PCODE pCode = MethodDescPtr->GetNativeCode();
+    PCODE pCode = methodDescPtr->GetNativeCode();
 
     if (pCode == NULL)
         return;
