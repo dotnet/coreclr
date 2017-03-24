@@ -2870,6 +2870,9 @@
   <data name="NotSupported_ByRefLike" xml:space="preserve">
     <value>Cannot create boxed ByRef-like values.</value>
   </data>
+  <data name="NotSupported_ByRefLikeArray" xml:space="preserve">
+    <value>Cannot create arrays of ByRef-like values.</value>
+  </data>
   <data name="NotSupported_ByRefReturn" xml:space="preserve">
     <value>ByRef return value not supported in reflection invocation.</value>
   </data>
@@ -2944,6 +2947,9 @@
   </data>
   <data name="NotSupported_KeyCollectionSet" xml:space="preserve">
     <value>Mutating a key collection derived from a dictionary is not allowed.</value>
+  </data>
+  <data name="NotSupported_VoidArray" xml:space="preserve">
+    <value>Arrays of System.Void are not supported.</value>
   </data>
   <data name="NotSupported_ManagedActivation" xml:space="preserve">
     <value>Cannot create uninitialized instances of types requiring managed activation.</value>
