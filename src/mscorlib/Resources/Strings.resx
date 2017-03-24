@@ -58,14 +58,23 @@
   <resheader name="writer">
     <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </resheader>
+  <data name="Acc_CreateAbst" xml:space="preserve">
+    <value>Cannot create an abstract class.</value>
+  </data>
   <data name="Acc_CreateAbstEx" xml:space="preserve">
     <value>Cannot create an instance of {0} because it is an abstract class.</value>
   </data>
   <data name="Acc_CreateArgIterator" xml:space="preserve">
     <value>Cannot dynamically create an instance of ArgIterator.</value>
   </data>
+  <data name="Acc_CreateGeneric" xml:space="preserve">
+    <value>Cannot create a type for which Type.ContainsGenericParameters is true.</value>
+  </data>
   <data name="Acc_CreateGenericEx" xml:space="preserve">
     <value>Cannot create an instance of {0} because Type.ContainsGenericParameters is true.</value>
+  </data>
+  <data name="Acc_CreateInterface" xml:space="preserve">
+    <value>Cannot create an instance of an interface.</value>
   </data>
   <data name="Acc_CreateInterfaceEx" xml:space="preserve">
     <value>Cannot create an instance of {0} because it is an interface.</value>
@@ -150,6 +159,9 @@
   </data>
   <data name="Arg_CannotBeNaN" xml:space="preserve">
     <value>TimeSpan does not accept floating point Not-a-Number values.</value>
+  </data>
+  <data name="Arg_CannotHaveNegativeValue" xml:space="preserve">
+    <value>String cannot contain a minus sign if the base is not 10.</value>
   </data>
   <data name="Arg_CATypeResolutionFailed" xml:space="preserve">
     <value>Failed to resolve type from string "{0}" which was embedded in custom attribute blob.</value>
@@ -304,6 +316,9 @@
   <data name="Arg_InsufficientExecutionStackException" xml:space="preserve">
     <value>Insufficient stack to continue executing the program safely. This can happen from having too many functions on the call stack or function on the stack using too much stack space.</value>
   </data>
+  <data name="Arg_InvalidANSIString" xml:space="preserve">
+    <value>The ANSI string passed in could not be converted from the default ANSI code page to Unicode.</value>
+  </data>
   <data name="Arg_InvalidBase" xml:space="preserve">
     <value>Invalid Base.</value>
   </data>
@@ -342,6 +357,9 @@
   </data>
   <data name="Arg_InvalidTypeInSignature" xml:space="preserve">
     <value>The signature Type array contains some invalid type (i.e. null, void)</value>
+  </data>
+  <data name="Arg_InvalidUTF8String" xml:space="preserve">
+    <value>The UTF8 string passed in could not be converted to Unicode.</value>
   </data>
   <data name="Arg_IOException" xml:space="preserve">
     <value>I/O error occurred.</value>
@@ -430,6 +448,9 @@
   <data name="Arg_MustBeInt64" xml:space="preserve">
     <value>Object must be of type Int64.</value>
   </data>
+  <data name="Arg_MustBeInterface" xml:space="preserve">
+    <value>Type passed must be an interface.</value>
+  </data>
   <data name="Arg_MustBePointer" xml:space="preserve">
     <value>Type must be a Pointer.</value>
   </data>
@@ -502,6 +523,12 @@
   <data name="Arg_NoDefCTor" xml:space="preserve">
     <value>No parameterless constructor defined for this object.</value>
   </data>
+  <data name="Arg_NoITypeInfo" xml:space="preserve">
+    <value>Specified TypeInfo was invalid because it did not support the ITypeInfo interface.</value>
+  </data>
+  <data name="Arg_NoITypeLib" xml:space="preserve">
+    <value>Specified TypeLib was invalid because it did not support the ITypeLib interface.</value>
+  </data>
   <data name="Arg_NonZeroLowerBound" xml:space="preserve">
     <value>The lower bound of target array must be zero.</value>
   </data>
@@ -510,6 +537,9 @@
   </data>
   <data name="Arg_NotFiniteNumberException" xml:space="preserve">
     <value>Number encountered was not a finite quantity.</value>
+  </data>
+  <data name="Arg_NotFoundIFace" xml:space="preserve">
+    <value>Interface not found.</value>
   </data>
   <data name="Arg_NotGenericMethodDefinition" xml:space="preserve">
     <value>{0} is not a GenericMethodDefinition. MakeGenericMethod may only be called on a method for which MethodBase.IsGenericMethodDefinition is true.</value>
@@ -526,8 +556,14 @@
   <data name="Arg_NotSupportedException" xml:space="preserve">
     <value>Specified method is not supported.</value>
   </data>
+  <data name="Arg_NullIndex" xml:space="preserve">
+    <value>Arrays indexes must be set to an object instance.</value>
+  </data>
   <data name="Arg_NullReferenceException" xml:space="preserve">
     <value>Object reference not set to an instance of an object.</value>
+  </data>
+  <data name="Arg_ObjObj" xml:space="preserve">
+    <value>Object type cannot be converted to target type.</value>
   </data>
   <data name="Arg_ObjObjEx" xml:space="preserve">
     <value>Object of type '{0}' cannot be converted to type '{1}'.</value>
@@ -558,6 +594,9 @@
   </data>
   <data name="Arg_PlatformNotSupported" xml:space="preserve">
     <value>Operation is not supported on this platform.</value>
+  </data>
+  <data name="Arg_PrimWiden" xml:space="preserve">
+    <value>Cannot widen from source type to target type either because the source type is a not a primitive type or the conversion cannot be accomplished.</value>
   </data>
   <data name="Arg_PropSetGet" xml:space="preserve">
     <value>Cannot specify both Get and Set on a property.</value>
@@ -730,6 +769,9 @@
   <data name="Argument_AdjustmentRulesOutOfOrder" xml:space="preserve">
     <value>The elements of the AdjustmentRule array must be in chronological order and must not overlap.</value>
   </data>
+  <data name="Argument_AlreadyACCW" xml:space="preserve">
+    <value>The object already has a CCW associated with it.</value>
+  </data>
   <data name="Argument_AlreadyBoundOrSyncHandle" xml:space="preserve">
     <value>'handle' has already been bound to the thread pool, or was not opened for asynchronous I/O.</value>
   </data>
@@ -744,6 +786,9 @@
   </data>
   <data name="Argument_BadAttributeOnInterfaceMethod" xml:space="preserve">
     <value>Interface method must be abstract and virtual.</value>
+  </data>
+  <data name="Argument_BadConstantValue" xml:space="preserve">
+    <value>Bad default value.</value>
   </data>
   <data name="Argument_BadConstructor" xml:space="preserve">
     <value>Cannot have private or static constructor.</value>
@@ -916,6 +961,9 @@
   <data name="Argument_EmptyDecString" xml:space="preserve">
     <value>Decimal separator cannot be the empty string.</value>
   </data>
+  <data name="Argument_EmptyFileName" xml:space="preserve">
+    <value>Empty file name is not legal.</value>
+  </data>
   <data name="Argument_EmptyName" xml:space="preserve">
     <value>Empty name is not legal.</value>
   </data>
@@ -1000,6 +1048,9 @@
   <data name="Argument_InsufficientSpaceToCopyCollection" xml:space="preserve">
     <value>The specified space is not sufficient to copy the elements from this Collection.</value>
   </data>
+  <data name="Argument_InterfaceMap" xml:space="preserve">
+    <value>'this' type cannot be an interface itself.</value>
+  </data>
   <data name="Argument_InvalidAppendMode" xml:space="preserve">
     <value>Append access can be requested only in write-only mode.</value>
   </data>
@@ -1011,6 +1062,9 @@
   </data>
   <data name="Argument_InvalidArrayType" xml:space="preserve">
     <value>Target array type is not compatible with the type of items in the collection.</value>
+  </data>
+  <data name="Argument_InvalidAssemblyName" xml:space="preserve">
+    <value>Assembly names may not begin with whitespace or contain the characters '/', or '\\' or ':'.</value>
   </data>
   <data name="Argument_InvalidCalendar" xml:space="preserve">
     <value>Not a valid calendar for the given culture.</value>
@@ -1165,6 +1219,9 @@
   <data name="Argument_InvalidUnity" xml:space="preserve">
     <value>Invalid Unity type.</value>
   </data>
+  <data name="Argument_InvalidValue" xml:space="preserve">
+    <value>Value was invalid.</value>
+  </data>
   <data name="Argument_LargeInteger" xml:space="preserve">
     <value>Integer or token was too large to be encoded.</value>
   </data>
@@ -1228,6 +1285,9 @@
   <data name="Argument_NeedGenericMethodDefinition" xml:space="preserve">
     <value>Method must represent a generic method definition on a generic type definition.</value>
   </data>
+  <data name="Argument_NeedNonGenericObject" xml:space="preserve">
+    <value>The specified object must not be an instance of a generic type.</value>
+  </data>
   <data name="Argument_NeedNonGenericType" xml:space="preserve">
     <value>The specified Type must not be a generic type definition.</value>
   </data>
@@ -1248,6 +1308,9 @@
   </data>
   <data name="Argument_NoRegionInvariantCulture" xml:space="preserve">
     <value>There is no region associated with the Invariant Culture (Culture ID: 0x7F).</value>
+  </data>
+  <data name="Argument_NotATP" xml:space="preserve">
+    <value>Type must be a TransparentProxy</value>
   </data>
   <data name="Argument_NotAWritableProperty" xml:space="preserve">
     <value>Not a writable property.</value>
@@ -1272,6 +1335,12 @@
   </data>
   <data name="Argument_NotSerializable" xml:space="preserve">
     <value>Argument passed in is not serializable.</value>
+  </data>
+  <data name="Argument_NoUnderlyingCCW" xml:space="preserve">
+    <value>The object has no underlying COM data associated with it.</value>
+  </data>
+  <data name="Argument_NoUninitializedStrings" xml:space="preserve">
+    <value>Uninitialized Strings cannot be created.</value>
   </data>
   <data name="Argument_ObjIsWinRTObject" xml:space="preserve">
     <value>The object's type must not be a Windows Runtime type.</value>
@@ -1448,6 +1517,9 @@
   <data name="Argument_UTCOutOfRange" xml:space="preserve">
     <value>The UTC time represented when the offset is applied must be between year 0 and 10,000.</value>
   </data>
+  <data name="Argument_VerStringTooLong" xml:space="preserve">
+    <value>The unmanaged Version information is too large to persist.</value>
+  </data>
   <data name="Argument_WaitHandleNameTooLong" xml:space="preserve">
     <value>The name can be no more than {0} characters in length.</value>
   </data>
@@ -1487,14 +1559,26 @@
   <data name="ArgumentNull_Assembly" xml:space="preserve">
     <value>Assembly cannot be null.</value>
   </data>
+  <data name="ArgumentNull_AssemblyName" xml:space="preserve">
+    <value>AssemblyName cannot be null.</value>
+  </data>
+  <data name="ArgumentNull_AssemblyNameName" xml:space="preserve">
+    <value>AssemblyName.Name cannot be null or an empty string.</value>
+  </data>
   <data name="ArgumentNull_Buffer" xml:space="preserve">
     <value>Buffer cannot be null.</value>
   </data>
   <data name="ArgumentNull_Collection" xml:space="preserve">
     <value>Collection cannot be null.</value>
   </data>
+  <data name="ArgumentNull_FileName" xml:space="preserve">
+    <value>File name cannot be null.</value>
+  </data>
   <data name="ArgumentNull_Generic" xml:space="preserve">
     <value>Value cannot be null.</value>
+  </data>
+  <data name="ArgumentNull_GUID" xml:space="preserve">
+    <value>GUID cannot be null.</value>
   </data>
   <data name="ArgumentNull_Key" xml:space="preserve">
     <value>Key cannot be null.</value>
@@ -1537,6 +1621,9 @@
   </data>
   <data name="ArgumentOutOfRange_ArrayLB" xml:space="preserve">
     <value>Number was less than the array's lower bound in the first dimension.</value>
+  </data>
+  <data name="ArgumentOutOfRange_ArrayLBAndLength" xml:space="preserve">
+    <value>Higher indices will exceed Int32.MaxValue because of large lower bound and/or length.</value>
   </data>
   <data name="ArgumentOutOfRange_ArrayListInsert" xml:space="preserve">
     <value>Insertion index was out of range. Must be non-negative and less than or equal to size.</value>
@@ -2138,6 +2225,9 @@
   <data name="Format_Bad7BitInt32" xml:space="preserve">
     <value>Too many bytes in what should have been a 7 bit encoded Int32.</value>
   </data>
+  <data name="Format_BadBase" xml:space="preserve">
+    <value>Invalid digits for the specified base.</value>
+  </data>
   <data name="Format_BadBase64Char" xml:space="preserve">
     <value>The input is not a valid Base-64 string as it contains a non-base 64 character, more than two padding characters, or an illegal character among the padding characters.</value>
   </data>
@@ -2170,6 +2260,9 @@
   </data>
   <data name="Format_DateOutOfRange" xml:space="preserve">
     <value>The DateTime represented by the string is out of range.</value>
+  </data>
+  <data name="Format_EmptyInputString" xml:space="preserve">
+    <value>Input string was either empty or contained only whitespace.</value>
   </data>
   <data name="Format_ExtraJunkAtEnd" xml:space="preserve">
     <value>Additional non-parsable characters are at the end of the string.</value>
@@ -2218,6 +2311,9 @@
   </data>
   <data name="Format_NeedSingleChar" xml:space="preserve">
     <value>String must be exactly one character long.</value>
+  </data>
+  <data name="Format_NoParsibleDigits" xml:space="preserve">
+    <value>Could not find any recognizable digits.</value>
   </data>
   <data name="Format_OffsetOutOfRange" xml:space="preserve">
     <value>The time zone offset must be within plus or minus 14 hours.</value>
@@ -2366,6 +2462,12 @@
   <data name="InvalidOperation_CannotUseAFCOtherThread" xml:space="preserve">
     <value>AsyncFlowControl object must be used on the thread where it was created.</value>
   </data>
+  <data name="InvalidOperation_CantInstantiateAbstractClass" xml:space="preserve">
+    <value>Instances of abstract classes cannot be created.</value>
+  </data>
+  <data name="InvalidOperation_CantInstantiateFunctionPointer" xml:space="preserve">
+    <value>Instances of function pointers cannot be created.</value>
+  </data>
   <data name="InvalidOperation_CollectionBackingDictionaryTooLarge" xml:space="preserve">
     <value>The collection backing this Dictionary contains too many elements.</value>
   </data>
@@ -2377,6 +2479,9 @@
   </data>
   <data name="InvalidOperation_ConstructorNotAllowedOnInterface" xml:space="preserve">
     <value>Interface cannot have constructors.</value>
+  </data>
+  <data name="InvalidOperation_CriticalTransparentAreMutuallyExclusive" xml:space="preserve">
+    <value>SecurityTransparent and SecurityCritical attributes cannot be applied to the assembly scope at the same time.</value>
   </data>
   <data name="InvalidOperation_DateTimeParsing" xml:space="preserve">
     <value>Internal Error in DateTime and Calendar operations.</value>
@@ -2522,11 +2627,17 @@
   <data name="InvalidOperation_ShouldNotHaveMethodBody" xml:space="preserve">
     <value>Method body should not exist.</value>
   </data>
+  <data name="InvalidOperation_StrongNameKeyPairRequired" xml:space="preserve">
+    <value>A strong name key pair is required to emit a strong-named dynamic assembly.</value>
+  </data>
   <data name="InvalidOperation_ThreadWrongThreadStart" xml:space="preserve">
     <value>The thread was created with a ThreadStart delegate that does not accept a parameter.</value>
   </data>
   <data name="InvalidOperation_TimeoutsNotSupported" xml:space="preserve">
     <value>Timeouts are not supported on this stream.</value>
+  </data>
+  <data name="InvalidOperation_TypeCannotBeBoxed" xml:space="preserve">
+    <value>The given type cannot be boxed.</value>
   </data>
   <data name="InvalidOperation_TypeHasBeenCreated" xml:space="preserve">
     <value>Unable to change after type has been created.</value>
@@ -2756,6 +2867,9 @@
   <data name="NotSupported_AssemblyLoadFromHash" xml:space="preserve">
     <value>Assembly.LoadFrom with hashValue is not supported.</value>
   </data>
+  <data name="NotSupported_ByRefLike" xml:space="preserve">
+    <value>Cannot create boxed ByRef-like values.</value>
+  </data>
   <data name="NotSupported_ByRefReturn" xml:space="preserve">
     <value>ByRef return value not supported in reflection invocation.</value>
   </data>
@@ -2771,6 +2885,18 @@
   <data name="NotSupported_ChangeType" xml:space="preserve">
     <value>ChangeType operation is not supported.</value>
   </data>
+  <data name="NotSupported_CollectibleAssemblyResolve" xml:space="preserve">
+    <value>Resolving to a collectible assembly is not supported.</value>
+  </data>
+  <data name="NotSupported_CollectibleBoundNonCollectible" xml:space="preserve">
+    <value>A non-collectible assembly may not reference a collectible assembly.</value>
+  </data>
+  <data name="NotSupported_CollectibleCOM" xml:space="preserve">
+    <value>COM Interop is not supported for collectible types.</value>
+  </data>
+  <data name="NotSupported_CollectibleDelegateMarshal" xml:space="preserve">
+    <value>Delegate marshaling for types within collectible assemblies is not supported.</value>
+  </data>
   <data name="NotSupported_Constructor" xml:space="preserve">
     <value>Object cannot be created through this constructor.</value>
   </data>
@@ -2779,6 +2905,9 @@
   </data>
   <data name="NotSupported_DBNullSerial" xml:space="preserve">
     <value>Only one DBNull instance may exist, and calls to DBNull deserialization methods are not allowed.</value>
+  </data>
+  <data name="NotSupported_DelegateMarshalToWrongDomain" xml:space="preserve">
+    <value>Delegates cannot be marshaled from native code into a domain other than their home domain.</value>
   </data>
   <data name="NotSupported_DelegateSerHolderSerial" xml:space="preserve">
     <value>DelegateSerializationHolder objects are designed to represent a delegate during serialization and are not serializable themselves.</value>
@@ -2801,14 +2930,23 @@
   <data name="NotSupported_FixedSizeCollection" xml:space="preserve">
     <value>Collection was of a fixed size.</value>
   </data>
+  <data name="NotSupported_GenericMethod" xml:space="preserve">
+    <value>Generic methods with NativeCallableAttribute are not supported.</value>
+  </data>
   <data name="NotSupported_GlobalMethodSerialization" xml:space="preserve">
     <value>Serialization of global methods (including implicit serialization via the use of asynchronous delegates) is not supported.</value>
+  </data>
+  <data name="NotSupported_IDispInvokeDefaultMemberWithNamedArgs" xml:space="preserve">
+    <value>Invoking default method with named arguments is not supported.</value>
   </data>
   <data name="NotSupported_IllegalOneByteBranch" xml:space="preserve">
     <value>Illegal one-byte branch at position: {0}. Requested branch was: {1}.</value>
   </data>
   <data name="NotSupported_KeyCollectionSet" xml:space="preserve">
     <value>Mutating a key collection derived from a dictionary is not allowed.</value>
+  </data>
+  <data name="NotSupported_ManagedActivation" xml:space="preserve">
+    <value>Cannot create uninitialized instances of types requiring managed activation.</value>
   </data>
   <data name="NotSupported_MaxWaitHandles" xml:space="preserve">
     <value>The number of WaitHandles must be less than or equal to 64.</value>
@@ -2819,11 +2957,20 @@
   <data name="NotSupported_MustBeModuleBuilder" xml:space="preserve">
     <value>Module argument must be a ModuleBuilder.</value>
   </data>
+  <data name="NotSupported_NativeCallableTarget" xml:space="preserve">
+    <value>Methods with NativeCallableAttribute cannot be used as delegate target.</value>
+  </data>
   <data name="NotSupported_NoCodepageData" xml:space="preserve">
     <value>No data is available for encoding {0}. For information on defining a custom encoding, see the documentation for the Encoding.RegisterProvider method.</value>
   </data>
+  <data name="NotSupported_NonBlittableTypes" xml:space="preserve">
+    <value>Non-blittable parameter types are not supported for NativeCallable methods.</value>
+  </data>
   <data name="NotSupported_NonReflectedType" xml:space="preserve">
     <value>Not supported in a non-reflected type.</value>
+  </data>
+  <data name="NotSupported_NonStaticMethod" xml:space="preserve">
+    <value>Non-static methods with NativeCallableAttribute are not supported.</value>
   </data>
   <data name="NotSupported_NoParentDefaultConstructor" xml:space="preserve">
     <value>Parent does not have a default constructor. The default constructor must be explicitly defined.</value>
@@ -2846,6 +2993,9 @@
   <data name="NotSupported_OutputStreamUsingTypeBuilder" xml:space="preserve">
     <value>Output streams do not support TypeBuilders.</value>
   </data>
+  <data name="NotSupported_PIAInAppxProcess" xml:space="preserve">
+    <value>A Primary Interop Assembly is not supported in AppX.</value>
+  </data>
   <data name="NotSupported_Reading" xml:space="preserve">
     <value>Accessor does not support reading.</value>
   </data>
@@ -2855,6 +3005,9 @@
   <data name="NotSupported_ResourceObjectSerialization" xml:space="preserve">
     <value>Cannot read resources that depend on serialization.</value>
   </data>
+  <data name="NotSupported_SignalAndWaitSTAThread" xml:space="preserve">
+    <value>SignalAndWait on a STA thread is not supported.</value>
+  </data>
   <data name="NotSupported_StringComparison" xml:space="preserve">
     <value>The string comparison type passed in is currently not supported.</value>
   </data>
@@ -2863,6 +3016,9 @@
   </data>
   <data name="NotSupported_SymbolMethod" xml:space="preserve">
     <value>Not supported in an array method of a type definition that is not complete.</value>
+  </data>
+  <data name="NotSupported_TooManyArgs" xml:space="preserve">
+    <value>Stack size too deep. Possibly too many arguments.</value>
   </data>
   <data name="NotSupported_Type" xml:space="preserve">
     <value>Type is not supported.</value>
@@ -2891,8 +3047,14 @@
   <data name="NotSupported_UnwritableStream" xml:space="preserve">
     <value>Stream does not support writing.</value>
   </data>
+  <data name="NotSupported_ValueClassCM" xml:space="preserve">
+    <value>Custom marshalers for value types are not currently supported.</value>
+  </data>
   <data name="NotSupported_ValueCollectionSet" xml:space="preserve">
     <value>Mutating a value collection derived from a dictionary is not allowed.</value>
+  </data>
+  <data name="NotSupported_WinRT_PartialTrust" xml:space="preserve">
+    <value>Windows Runtime is not supported in partial trust.</value>
   </data>
   <data name="NotSupported_Writing" xml:space="preserve">
     <value>Accessor does not support writing.</value>
@@ -2963,6 +3125,9 @@
   <data name="Overflow_NegateTwosCompNum" xml:space="preserve">
     <value>Negating the minimum value of a twos complement number is invalid.</value>
   </data>
+  <data name="Overflow_NegativeUnsigned" xml:space="preserve">
+    <value>The string was being parsed as an unsigned number and could not have a negative sign.</value>
+  </data>
   <data name="Overflow_SByte" xml:space="preserve">
     <value>Value was either too large or too small for a signed byte.</value>
   </data>
@@ -2993,6 +3158,9 @@
   <data name="PlatformNotSupported_NamedSynchronizationPrimitives" xml:space="preserve">
     <value>The named version of this synchronization primitive is not supported on this platform.</value>
   </data>
+  <data name="PlatformNotSupported_NamedSyncObjectWaitAnyWaitAll" xml:space="preserve">
+    <value>Wait operations on multiple wait handles including a named synchronization primitive are not supported on this platform.</value>
+  </data>
   <data name="PlatformNotSupported_OSXFileLocking" xml:space="preserve">
     <value>Locking/unlocking file regions is not supported on this platform. Use FileShare on the entire file instead.</value>
   </data>
@@ -3010,6 +3178,9 @@
   </data>
   <data name="PlatformNotSupported_WinRT" xml:space="preserve">
     <value>Windows Runtime is not supported on this operating system.</value>
+  </data>
+  <data name="Policy_CannotLoadSemiTrustAssembliesDuringInit" xml:space="preserve">
+    <value>All assemblies loaded as part of AppDomain initialization must be fully trusted.</value>
   </data>
   <data name="PostconditionFailed" xml:space="preserve">
     <value>Postcondition failed.</value>
@@ -3034,6 +3205,9 @@
   </data>
   <data name="Rank_MustMatch" xml:space="preserve">
     <value>The specified arrays must have the same number of dimensions.</value>
+  </data>
+  <data name="Remoting_AppDomainUnloaded_ThreadUnwound" xml:space="preserve">
+    <value>The application domain in which the thread was running has been unloaded.</value>
   </data>
   <data name="ResourceReaderIsClosed" xml:space="preserve">
     <value>ResourceReader is closed.</value>
@@ -3358,6 +3532,9 @@
   </data>
   <data name="UnauthorizedAccess_RegistryNoWrite" xml:space="preserve">
     <value>Cannot write to the registry key.</value>
+  </data>
+  <data name="UnauthorizedAccess_SystemDomain" xml:space="preserve">
+    <value>Cannot execute an assembly in the system domain.</value>
   </data>
   <data name="UnknownError_Num" xml:space="preserve">
     <value>Unknown error "{0}".</value>
