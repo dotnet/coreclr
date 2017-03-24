@@ -180,13 +180,6 @@ namespace System
                 return name;
             }
 
-            if (AppDomain.IsAppXModel() && !AppDomain.IsAppXDesignMode())
-            {
-                // Environment variable accessors are not approved modern API.
-                // Behave as if no variables are defined in this case.
-                return name;
-            }
-
             int currentSize = 100;
             StringBuilder blob = new StringBuilder(currentSize); // A somewhat reasonable default size
 
@@ -680,13 +673,6 @@ namespace System
 
         private static string GetEnvironmentVariableCore(string variable)
         {
-            if (AppDomain.IsAppXModel() && !AppDomain.IsAppXDesignMode())
-            {
-                // Environment variable accessors are not approved modern API.
-                // Behave as if the variable was not found in this case.
-                return null;
-            }
-
             StringBuilder sb = StringBuilderCache.Acquire(128); // A somewhat reasonable default size
             int requiredSize = Win32Native.GetEnvironmentVariable(variable, sb, sb.Capacity);
 
@@ -742,13 +728,6 @@ namespace System
 
         private static IDictionary GetEnvironmentVariablesCore()
         {
-            if (AppDomain.IsAppXModel() && !AppDomain.IsAppXDesignMode())
-            {
-                // Environment variable accessors are not approved modern API.
-                // Behave as if no environment variables are defined in this case.
-                return new Dictionary<string, string>(0);
-            }
-
             return GetRawEnvironmentVariables();
         }
 
