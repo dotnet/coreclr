@@ -17496,7 +17496,7 @@ void gc_heap::enque_pinned_plug (uint8_t* plug,
             // risks. This happens very rarely and fixing it in the
             // way so that we can continue is a bit involved and will
             // not be done in Dev10.
-            EEPOLICY_HANDLE_FATAL_ERROR(CORINFO_EXCEPTION_GC);
+            GCToEEInterface::HandleFatalError(CORINFO_EXCEPTION_GC);
         }
     }
 
@@ -25002,7 +25002,7 @@ void gc_heap::gc_thread_stub (void* arg)
 #else
         STRESS_LOG0(LF_GC, LL_ALWAYS, "Thread::CommitThreadStack failed.");
         _ASSERTE(!"Thread::CommitThreadStack failed.");
-        EEPOLICY_HANDLE_FATAL_ERROR(COR_E_STACKOVERFLOW);
+        GCToEEInterface::HandleFatalError(COR_E_STACKOVERFLOW);
 #endif //BACKGROUND_GC
     }
 #endif // FEATURE_REDHAWK
@@ -34639,14 +34639,18 @@ GCHeap::FixAllocContext (gc_alloc_context* context, BOOL lockp, void* arg, void 
 }
 
 Object*
-GCHeap::GetContainingObject (void *pInteriorPtr)
+GCHeap::GetContainingObject (void *pInteriorPtr, bool fCollectedGenOnly)
 {
     uint8_t *o = (uint8_t*)pInteriorPtr;
 
     gc_heap* hp = gc_heap::heap_of (o);
-    if (o >= hp->lowest_address && o < hp->highest_address)
+
+    uint8_t* lowest = (fCollectedGenOnly ? hp->gc_low : hp->lowest_address);
+    uint8_t* highest = (fCollectedGenOnly ? hp->gc_high : hp->highest_address);
+
+    if (o >= lowest && o < highest)
     {
-        o = hp->find_object (o, hp->gc_low);
+        o = hp->find_object (o, lowest);
     }
     else
     {
