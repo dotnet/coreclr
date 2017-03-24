@@ -957,39 +957,31 @@ void Compiler::optValnumCSE_InitDataFlow()
  */
 class CSE_DataFlow
 {
-private:
-    EXPSET_TP m_preMergeOut;
-
-    Compiler* m_pCompiler;
+    BitVecTraits* m_pBitVecTraits;
+    EXPSET_TP     m_preMergeOut;
 
 public:
-    CSE_DataFlow(Compiler* pCompiler) : m_pCompiler(pCompiler)
+    CSE_DataFlow(Compiler* pCompiler) : m_pBitVecTraits(pCompiler->cseTraits), m_preMergeOut(BitVecOps::UninitVal())
     {
-    }
-
-    Compiler* getCompiler()
-    {
-        return m_pCompiler;
     }
 
     // At the start of the merge function of the dataflow equations, initialize premerge state (to detect changes.)
     void StartMerge(BasicBlock* block)
     {
-        m_preMergeOut = BitVecOps::MakeCopy(m_pCompiler->cseTraits, block->bbCseOut);
+        BitVecOps::Assign(m_pBitVecTraits, m_preMergeOut, block->bbCseOut);
     }
 
     // During merge, perform the actual merging of the predecessor's (since this is a forward analysis) dataflow flags.
     void Merge(BasicBlock* block, BasicBlock* predBlock, flowList* preds)
     {
-        BitVecOps::IntersectionD(m_pCompiler->cseTraits, block->bbCseIn, predBlock->bbCseOut);
+        BitVecOps::IntersectionD(m_pBitVecTraits, block->bbCseIn, predBlock->bbCseOut);
     }
 
     // At the end of the merge store results of the dataflow equations, in a postmerge state.
     bool EndMerge(BasicBlock* block)
     {
-        BitVecTraits* traits = m_pCompiler->cseTraits;
-        BitVecOps::DataFlowD(traits, block->bbCseOut, block->bbCseGen, block->bbCseIn);
-        return !BitVecOps::Equal(traits, block->bbCseOut, m_preMergeOut);
+        BitVecOps::DataFlowD(m_pBitVecTraits, block->bbCseOut, block->bbCseGen, block->bbCseIn);
+        return !BitVecOps::Equal(m_pBitVecTraits, block->bbCseOut, m_preMergeOut);
     }
 };
 
