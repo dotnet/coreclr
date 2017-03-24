@@ -4305,7 +4305,7 @@
   <data name="PlatformNotSupported_ArgIterator" xml:space="preserve">
     <value>ArgIterator is not supported on this platform.</value>
   </data>
-     <data name="PlatformNotSupported_ComInterop" xml:space="preserve">
+  <data name="PlatformNotSupported_ComInterop" xml:space="preserve">
     <value>COM Interop is not supported on this platform.</value>
   </data>
   <data name="PlatformNotSupported_NamedSynchronizationPrimitives" xml:space="preserve">
@@ -4331,6 +4331,9 @@
   </data>
   <data name="PlatformNotSupported_RequiresW2kSP3" xml:space="preserve">
     <value>This operation is only supported on Windows 2000 SP3 or later operating systems.</value>
+  </data>
+  <data name="PlatformNotSupported_SecureBinarySerialization" xml:space="preserve">
+    <value>Secure binary serialization is not supported on this platform.</value>
   </data>
   <data name="PlatformNotSupported_WinRT" xml:space="preserve">
     <value>Windows Runtime is not supported on this operating system.</value>

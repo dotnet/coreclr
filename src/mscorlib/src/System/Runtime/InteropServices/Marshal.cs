@@ -1772,7 +1772,7 @@ namespace System.Runtime.InteropServices
 #if FEATURE_COMINTEROP
             return s.MarshalToBSTR();
 #else
-            throw new PlatformNotSupportedException(SR.PlatformNotSupported_ComInterop);
+            throw new PlatformNotSupportedException(); // https://github.com/dotnet/coreclr/issues/10443
 #endif
         }
 
