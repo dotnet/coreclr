@@ -1450,6 +1450,24 @@ public:
     }
 #endif //FEATURE_COMINTEROP
 
+#ifndef DACCESS_COMPILE
+    bool HasDeadThreadBeenConsideredForGCTrigger()
+    {
+        LIMITED_METHOD_CONTRACT;
+        _ASSERTE(IsDead());
+
+        return m_fHasDeadThreadBeenConsideredForGCTrigger;
+    }
+
+    void SetHasDeadThreadBeenConsideredForGCTrigger()
+    {
+        LIMITED_METHOD_CONTRACT;
+        _ASSERTE(IsDead());
+
+        m_fHasDeadThreadBeenConsideredForGCTrigger = true;
+    }
+#endif // !DACCESS_COMPILE
+
     // returns if there is some extra work for the finalizer thread.
     BOOL HaveExtraWorkForFinalizer();
 
@@ -5231,6 +5249,9 @@ private:
     // Disables pumping and thread join in RCW creation
     bool m_fDisableComObjectEagerCleanup;
 
+    // See ThreadStore::TriggerGCForDeadThreadsIfNecessary()
+    bool m_fHasDeadThreadBeenConsideredForGCTrigger;
+
 private:
     CLRRandom m_random;
 
@@ -5518,7 +5539,7 @@ private:
 
     LONG        m_DeadThreadCount;
     LONG        m_DeadThreadCountForGCTrigger;
-    bool        m_TriggerGCForDeadThreads;
+    int         m_TriggerGCGenerationForDeadThreads;
 
 private:
     // Space for the lazily-created GUID.
@@ -5613,7 +5634,7 @@ private:
     void IncrementDeadThreadCountForGCTrigger();
     void DecrementDeadThreadCountForGCTrigger();
 public:
-    void OnGCStarted(int generation);
+    void OnMaxGenerationGCStarted();
     bool ShouldTriggerGCForDeadThreads();
     void TriggerGCForDeadThreadsIfNecessary();
 };

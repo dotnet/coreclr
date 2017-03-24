@@ -1825,6 +1825,7 @@ Thread::Thread()
 #ifdef FEATURE_COMINTEROP
     m_fDisableComObjectEagerCleanup = false;
 #endif //FEATURE_COMINTEROP
+    m_fHasDeadThreadBeenConsideredForGCTrigger = false;
     m_Context = NULL;
     m_TraceCallCount = 0;
     m_ThrewControlForThread = 0;
@@ -5700,7 +5701,7 @@ ThreadStore::ThreadStore()
              m_PendingThreadCount(0),
              m_DeadThreadCount(0),
              m_DeadThreadCountForGCTrigger(0),
-             m_TriggerGCForDeadThreads(false),
+             m_TriggerGCGenerationForDeadThreads(-1),
              m_GuidCreated(FALSE),
              m_HoldingThread(0)
 {
@@ -5988,9 +5989,15 @@ DWORD ThreadStore::s_DeadThreadGCTriggerPeriodMilliseconds = 0;
 
 void ThreadStore::IncrementDeadThreadCountForGCTrigger()
 {
+    CONTRACTL {
+        NOTHROW;
+        GC_NOTRIGGER;
+    }
+    CONTRACTL_END;
+
     // Although all increments and decrements are usually done inside a lock, that is not sufficient to synchronize with a
     // background GC thread resetting this value, hence the interlocked operation. Ignore overflow; overflow would likely never
-    // happen, the count is treated as unsigned, and nothing bad would happen if it were to overflow.
+    // occur, the count is treated as unsigned, and nothing bad would happen if it were to overflow.
     SIZE_T count = static_cast<SIZE_T>(FastInterlockIncrement(&m_DeadThreadCountForGCTrigger));
 
     SIZE_T countThreshold = static_cast<SIZE_T>(s_DeadThreadCountThresholdForGCTrigger);
@@ -6000,65 +6007,157 @@ void ThreadStore::IncrementDeadThreadCountForGCTrigger()
     }
 
     IGCHeap *gcHeap = GCHeapUtilities::GetGCHeap();
-    SIZE_T millisecondsSinceLastGC = gcHeap->GetNow() - gcHeap->GetLastGCStartTime(1);
-    if (millisecondsSinceLastGC < s_DeadThreadGCTriggerPeriodMilliseconds)
+    if (gcHeap == nullptr)
     {
         return;
     }
 
-    if (!g_fEEStarted)
+    int gcMaxGeneration = static_cast<int>(gcHeap->GetMaxGeneration());
+    SIZE_T gcLastMilliseconds = gcHeap->GetLastGCStartTime(gcMaxGeneration);
+    SIZE_T gcNowMilliseconds = gcHeap->GetNow();
+    if (gcNowMilliseconds - gcLastMilliseconds < s_DeadThreadGCTriggerPeriodMilliseconds)
     {
         return;
     }
 
-    // The dead thread count used for triggering a GC is tracked separately from the actual dead thread count so that a dead
-    // thread does not contribute to triggering a GC more than once. The count exceeds a certain threshold and a GC has not
-    // occurred in a certain duration, so reset the count and trigger a GC now to finalize unreachable dead threads. The GC is
-    // triggered on the finalizer thread since it's not safe to trigger it on DLL_THREAD_DETACH.
+    if (!g_fEEStarted) // required for FinalizerThread::EnableFinalization() below
+    {
+        return;
+    }
+
+    int gcGenerationToTrigger = 0;
+    SIZE_T newDeadThreadGenerationCounts[3] = {0};
+    int countedMaxGeneration = _countof(newDeadThreadGenerationCounts) - 1;
+    {
+        GCX_COOP();
+
+        // Determine the generation for which to trigger a GC. Iterate over all dead threads that have not yet been considered
+        // for triggering a GC and see how many are in which generations.
+        for (Thread *thread = ThreadStore::GetAllThreadList(NULL, Thread::TS_Dead, Thread::TS_Dead);
+            thread != nullptr;
+            thread = ThreadStore::GetAllThreadList(thread, Thread::TS_Dead, Thread::TS_Dead))
+        {
+            if (thread->HasDeadThreadBeenConsideredForGCTrigger())
+            {
+                continue;
+            }
+
+            Object *exposedObject = OBJECTREFToObject(thread->GetExposedObjectRaw());
+            if (exposedObject == nullptr)
+            {
+                continue;
+            }
+
+            int exposedObjectGeneration = min(countedMaxGeneration, static_cast<int>(gcHeap->WhichGeneration(exposedObject)));
+            SIZE_T newDeadThreadGenerationCount = ++newDeadThreadGenerationCounts[exposedObjectGeneration];
+            if (exposedObjectGeneration > gcGenerationToTrigger && newDeadThreadGenerationCount >= countThreshold / 2)
+            {
+                gcGenerationToTrigger = exposedObjectGeneration;
+                if (gcGenerationToTrigger >= countedMaxGeneration)
+                {
+                    break;
+                }
+            }
+        }
+
+        // Make sure that enough time has elapsed since the last GC of the desired generation. Otherwise, the memory pressure
+        // would be sufficient to trigger GCs automatically.
+        gcLastMilliseconds = gcHeap->GetLastGCStartTime(gcGenerationToTrigger);
+        gcNowMilliseconds = gcHeap->GetNow();
+        if (gcNowMilliseconds - gcLastMilliseconds < s_DeadThreadGCTriggerPeriodMilliseconds)
+        {
+            return;
+        }
+
+        // For threads whose exposed objects are in the generation of GC that will be triggered or in a lower GC generation,
+        // mark them as having contributed to a GC trigger to prevent redundant GC triggers
+        for (Thread *thread = ThreadStore::GetAllThreadList(NULL, Thread::TS_Dead, Thread::TS_Dead);
+            thread != nullptr;
+            thread = ThreadStore::GetAllThreadList(thread, Thread::TS_Dead, Thread::TS_Dead))
+        {
+            if (thread->HasDeadThreadBeenConsideredForGCTrigger())
+            {
+                continue;
+            }
+
+            Object *exposedObject = OBJECTREFToObject(thread->GetExposedObjectRaw());
+            if (exposedObject == nullptr)
+            {
+                continue;
+            }
+
+            if (gcGenerationToTrigger < countedMaxGeneration &&
+                static_cast<int>(gcHeap->WhichGeneration(exposedObject)) > gcGenerationToTrigger)
+            {
+                continue;
+            }
+
+            thread->SetHasDeadThreadBeenConsideredForGCTrigger();
+        }
+    } // GCX_COOP()
+
+    if (gcGenerationToTrigger >= countedMaxGeneration)
+    {
+        gcGenerationToTrigger = gcMaxGeneration;
+    }
+
+    // The GC is triggered on the finalizer thread since it's not safe to trigger it on DLL_THREAD_DETACH. Since there will be a
+    // delay before the dead thread count is updated, just clear the count and wait for it to reach the threshold again.
     m_DeadThreadCountForGCTrigger = 0;
-    m_TriggerGCForDeadThreads = true;
+    m_TriggerGCGenerationForDeadThreads = gcGenerationToTrigger;
     FinalizerThread::EnableFinalization();
 }
 
 void ThreadStore::DecrementDeadThreadCountForGCTrigger()
 {
+    CONTRACTL {
+        NOTHROW;
+        GC_NOTRIGGER;
+    }
+    CONTRACTL_END;
+
     // Although all increments and decrements are usually done inside a lock, that is not sufficient to synchronize with a
     // background GC thread resetting this value, hence the interlocked operation.
     if (FastInterlockDecrement(&m_DeadThreadCountForGCTrigger) < 0)
     {
-        FastInterlockExchange(&m_DeadThreadCountForGCTrigger, 0);
+        m_DeadThreadCountForGCTrigger = 0;
     }
 }
 
-void ThreadStore::OnGCStarted(int generation)
+void ThreadStore::OnMaxGenerationGCStarted()
 {
-    if (generation <= 0)
-    {
-        return;
-    }
+    LIMITED_METHOD_CONTRACT;
 
-    // A dead thread may contribute to triggering at most once. After a GC occurs, if some dead thread objects are still
-    // reachable due to references to the thread objects, they will not contribute to triggering a GC again. Synchronize the
-    // store with increment/decrement operations occurring on different threads, and make the change visible to other threads in
-    // order to prevent unnecessary GC triggers.
+    // A dead thread may contribute to triggering a GC at most once. After a max-generation GC occurs, if some dead thread
+    // objects are still reachable due to references to the thread objects, they will not contribute to triggering a GC again.
+    // Synchronize the store with increment/decrement operations occurring on different threads, and make the change visible to
+    // other threads in order to prevent unnecessary GC triggers.
     FastInterlockExchange(&m_DeadThreadCountForGCTrigger, 0);
 }
 
 bool ThreadStore::ShouldTriggerGCForDeadThreads()
 {
-    return m_TriggerGCForDeadThreads;
+    LIMITED_METHOD_CONTRACT;
+
+    return m_TriggerGCGenerationForDeadThreads >= 0;
 }
 
 void ThreadStore::TriggerGCForDeadThreadsIfNecessary()
 {
-    if (!m_TriggerGCForDeadThreads)
+    CONTRACTL {
+        NOTHROW;
+        GC_TRIGGERS;
+    }
+    CONTRACTL_END;
+
+    int gcGenerationToTrigger = m_TriggerGCGenerationForDeadThreads;
+    if (gcGenerationToTrigger < 0)
     {
         return;
     }
-    m_TriggerGCForDeadThreads = false;
+    m_TriggerGCGenerationForDeadThreads = -1;
 
-    IGCHeap *gcHeap = GCHeapUtilities::GetGCHeap();
-    gcHeap->GarbageCollect(1, FALSE, collection_non_blocking);
+    GCHeapUtilities::GetGCHeap()->GarbageCollect(gcGenerationToTrigger, FALSE, collection_non_blocking);
 }
 
 #endif // #ifndef DACCESS_COMPILE
