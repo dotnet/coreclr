@@ -2,20 +2,21 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+using System;
+using System.Threading;
+using System.Globalization;
+using System.Runtime;
+using System.Runtime.InteropServices;
+using System.Runtime.CompilerServices;
+using System.Runtime.Serialization;
+using System.Runtime.Versioning;
+using System.Security;
+using System.Diagnostics.Contracts;
+using CultureInfo = System.Globalization.CultureInfo;
+using Calendar = System.Globalization.Calendar;
+
 namespace System
 {
-    using System;
-    using System.Threading;
-    using System.Globalization;
-    using System.Runtime;
-    using System.Runtime.InteropServices;
-    using System.Runtime.CompilerServices;
-    using System.Runtime.Serialization;
-    using System.Runtime.Versioning;
-    using System.Security;
-    using System.Diagnostics.Contracts;
-    using CultureInfo = System.Globalization.CultureInfo;
-    using Calendar = System.Globalization.Calendar;
 
     // This value type represents a date and time.  Every DateTime 
     // object has a private field (Ticks) of type Int64 that stores the 
@@ -52,7 +53,7 @@ namespace System
     // 
     [StructLayout(LayoutKind.Auto)]
     [Serializable]
-    public struct DateTime : IComparable, IFormattable, IConvertible, IComparable<DateTime>, IEquatable<DateTime>, ISerializable
+    public partial struct DateTime : IComparable, IFormattable, IConvertible, IComparable<DateTime>, IEquatable<DateTime>, ISerializable
     {
         // Number of 100ns ticks per time unit
         private const long TicksPerMillisecond = 10000;
@@ -89,6 +90,7 @@ namespace System
         internal const long MaxTicks = DaysTo10000 * TicksPerDay - 1;
         private const long MaxMillis = (long)DaysTo10000 * MillisPerDay;
 
+        private const long TicksTo1970 = DaysTo1970 * TicksPerDay;
         private const long FileTimeOffset = DaysTo1601 * TicksPerDay;
         private const long DoubleDateOffset = DaysTo1899 * TicksPerDay;
         // The minimum OA date is 0100/01/01 (Note it's year 100).
@@ -1004,25 +1006,6 @@ namespace System
                 return new DateTime(tick, DateTimeKind.Local, isAmbiguousLocalDst);
             }
         }
-
-        public static DateTime UtcNow
-        {
-            get
-            {
-                Contract.Ensures(Contract.Result<DateTime>().Kind == DateTimeKind.Utc);
-                // following code is tuned for speed. Don't change it without running benchmark.
-                long ticks = 0;
-                ticks = GetSystemTimeAsFileTime();
-
-                return new DateTime(((UInt64)(ticks + FileTimeOffset)) | KindUtc);
-            }
-        }
-
-
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        internal static extern long GetSystemTimeAsFileTime();
-
-
 
         // Returns the second part of this DateTime. The returned value is
         // an integer between 0 and 59.
