@@ -645,7 +645,7 @@ VOID FinalizerThread::FinalizerThreadWorker(void *args)
             }
             else if (UnloadingAppDomain == NULL)
                 break;
-            else if (!GCHeapUtilities::GetGCHeap()->FinalizeAppDomain(UnloadingAppDomain, fRunFinalizersOnUnload))
+            else if (!GCHeapUtilities::GetGCHeap()->FinalizeAppDomain(UnloadingAppDomain, !!fRunFinalizersOnUnload))
             {
                 break;
             }

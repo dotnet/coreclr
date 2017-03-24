@@ -448,9 +448,9 @@ void GCHeap::WaitUntilConcurrentGCComplete()
 bool GCHeap::IsConcurrentGCInProgress()
 {
 #ifdef BACKGROUND_GC
-    return pGenGCHeap->settings.concurrent;
+    return !!pGenGCHeap->settings.concurrent;
 #else
-    return FALSE;
+    return false;
 #endif //BACKGROUND_GC
 }
 
