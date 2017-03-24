@@ -174,7 +174,13 @@ bool FindLibWithMajorMinorSubVersion(int* majorVer, int* minorVer, int* subVer)
 
 bool InitializeICULinks(char* symbolName, char* symbolVersion)
 {
-    libicuuc = dlopen("/usr/lib/libicucore.A.dylib", RTLD_LAZY);
+#ifndef OSX_ICU_LIBRARY_PATH
+    static_assert(false, "The ICU Library path is not defined");
+#endif // OSX_ICU_LIBRARY_PATH
+
+    // Usually OSX_ICU_LIBRARY_PATH be "/usr/lib/libicucore.dylib"
+    libicuuc = dlopen(OSX_ICU_LIBRARY_PATH, RTLD_LAZY);
+    
     if (libicuuc == nullptr)
     {
         return false;

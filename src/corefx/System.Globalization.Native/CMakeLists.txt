@@ -33,6 +33,7 @@ else()
         return()
     endif()
 
+    add_definitions(-DOSX_ICU_LIBRARY_PATH=\"${ICUCORE}\")
     add_definitions(-DOSX_PLATFORM)
 endif()
 
@@ -82,7 +83,7 @@ if(NOT CLR_CMAKE_PLATFORM_DARWIN)
     endif()
 else()
     target_link_libraries(System.Globalization.Native
-        ${ICUCORE}
+        dl
     )
 
     add_definitions(-DU_DISABLE_RENAMING=1)
