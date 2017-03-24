@@ -402,6 +402,8 @@ private:
         }
     };
 
+    static void OnMethodCompiled(MethodDesc* MethodDescPtr);
+
     static int GetSectionIndex(const char *sectName);
     static bool BuildELFHeader(MemBuf& buf);
     static void BuildSectionTables(MemBuf& sectBuf, MemBuf& strBuf, FunctionMemberPtrArrayHolder &method,

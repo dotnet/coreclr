@@ -1750,6 +1750,18 @@ static NotifyGdb::AddrSet codeAddrs;
 /* Create ELF/DWARF debug info for jitted method */
 void NotifyGdb::MethodCompiled(MethodDesc* MethodDescPtr)
 {
+    EX_TRY
+    {
+        NotifyGdb::OnMethodCompiled(MethodDescPtr);
+    }
+    EX_CATCH
+    {
+    }
+    EX_END_CATCH(SwallowAllExceptions);
+}
+
+void NotifyGdb::OnMethodCompiled(MethodDesc* MethodDescPtr)
+{
     int symbolCount = 0;
     NewArrayHolder<Elf_Symbol> symbolNames;
 
