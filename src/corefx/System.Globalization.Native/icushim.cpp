@@ -180,7 +180,7 @@ bool InitializeICULinks(char* symbolName, char* symbolVersion)
         return false;
     }
 
-    // in OSC all ICU APIs exist in the same library libicucore.A.dylib 
+    // in OSX all ICU APIs exist in the same library libicucore.A.dylib 
     libicui18n = libicuuc;
 
     return true;
