@@ -241,7 +241,7 @@ namespace System
                 if (AppDomain.IsAppXModel() && !AppDomain.IsAppXDesignMode())
                 {
                     // Getting Computer Name is not a supported scenario on Store apps.
-                    throw new PlatformNotSupportedException();
+                    throw new PlatformNotSupportedException(SR.Arg_PlatformNotSupported);
                 }
 
                 // In future release of operating systems, you might be able to rename a machine without
@@ -820,13 +820,6 @@ namespace System
             // explicitly null out value if is the empty string.
             if (string.IsNullOrEmpty(value) || value[0] == '\0')
                 value = null;
-
-            if (AppDomain.IsAppXModel() && !AppDomain.IsAppXDesignMode())
-            {
-                // Environment variable accessors are not approved modern API.
-                // so we throw PlatformNotSupportedException.
-                throw new PlatformNotSupportedException();
-            }
 
             if (!Win32Native.SetEnvironmentVariable(variable, value))
             {

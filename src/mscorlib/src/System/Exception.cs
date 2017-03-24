@@ -520,8 +520,8 @@ namespace System
 
         protected event EventHandler<SafeSerializationEventArgs> SerializeObjectState
         {
-            add { throw new PlatformNotSupportedException(); }
-            remove { throw new PlatformNotSupportedException(); }
+            add { throw new PlatformNotSupportedException(WHAT_TEXT_HERE); }
+            remove { throw new PlatformNotSupportedException(WHAT_TEXT_HERE); }
         }
 
         public virtual void GetObjectData(SerializationInfo info, StreamingContext context)

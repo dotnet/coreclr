@@ -448,7 +448,7 @@ namespace System.Threading
                                         WaitHandle toWaitOn)
         {
 #if PLATFORM_UNIX
-            throw new PlatformNotSupportedException();
+            throw new PlatformNotSupportedException(WHAT_TEXT_HERE);
 #else
             return SignalAndWait(toSignal, toWaitOn, -1, false);
 #endif
@@ -461,7 +461,7 @@ namespace System.Threading
                                         bool exitContext)
         {
 #if PLATFORM_UNIX
-            throw new PlatformNotSupportedException();
+            throw new PlatformNotSupportedException(WHAT_TEXT_HERE);
 #else
             long tm = (long)timeout.TotalMilliseconds;
             if (-1 > tm || (long)Int32.MaxValue < tm)
@@ -480,7 +480,7 @@ namespace System.Threading
                                         bool exitContext)
         {
 #if PLATFORM_UNIX
-            throw new PlatformNotSupportedException();
+            throw new PlatformNotSupportedException(WHAT_TEXT_HERE);
 #else
             if (null == toSignal)
             {
