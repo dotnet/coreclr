@@ -3174,7 +3174,7 @@
     <value>Secure binary serialization is not supported on this platform.</value>
   </data>
   <data name="PlatformNotSupported_StrongNameSigning" xml:space="preserve">
-    <value>Strong name signing is not supported on this platform.</value>
+    <value>Strong-name signing is not supported on this platform.</value>
   </data>
   <data name="PlatformNotSupported_WinRT" xml:space="preserve">
     <value>Windows Runtime is not supported on this operating system.</value>
