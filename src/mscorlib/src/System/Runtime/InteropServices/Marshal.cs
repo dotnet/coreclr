@@ -1172,7 +1172,7 @@ namespace System.Runtime.InteropServices
         //====================================================================
         public static IntPtr /* IDispatch */ GetIDispatchForObject(Object o)
         {
-            throw new PlatformNotSupportedException(WHAT_TEXT_HERE);
+            throw new PlatformNotSupportedException();
         }
 
 #if FEATURE_COMINTEROP
