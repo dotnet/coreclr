@@ -380,7 +380,7 @@ typedef enum
 
 typedef bool (* walk_fn)(Object*, void*);
 typedef void (* gen_walk_fn)(void* context, int generation, uint8_t* range_start, uint8_t* range_end, uint8_t* range_reserved);
-typedef void (* record_surv_fn)(uint8_t* begin, uint8_t* end, ptrdiff_t reloc, size_t context, bool compacting_p, bool bgc_p);
+typedef void (* record_surv_fn)(uint8_t* begin, uint8_t* end, ptrdiff_t reloc, void* context, bool compacting_p, bool bgc_p);
 typedef void (* fq_walk_fn)(bool, void*);
 typedef void (* fq_scan_fn)(Object** ppObject, ScanContext *pSC, uint32_t dwFlags);
 typedef void (* handle_scan_fn)(Object** pRef, Object* pSec, uint32_t flags, ScanContext* context, bool isDependent);
@@ -670,7 +670,7 @@ public:
     virtual void DiagWalkHeap(walk_fn fn, void* context, int gen_number, bool walk_large_object_heap_p) = 0;
     
     // Walks the survivors and get the relocation information if objects have moved.
-    virtual void DiagWalkSurvivorsWithType(void* gc_context, record_surv_fn fn, size_t diag_context, walk_surv_type type) = 0;
+    virtual void DiagWalkSurvivorsWithType(void* gc_context, record_surv_fn fn, void* diag_context, walk_surv_type type) = 0;
 
     // Walks the finalization queue.
     virtual void DiagWalkFinalizeQueue(void* gc_context, fq_walk_fn fn) = 0;

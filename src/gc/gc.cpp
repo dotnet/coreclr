@@ -21332,7 +21332,7 @@ void gc_heap::relocate_in_loh_compact()
         generation_free_obj_space (gen)));
 }
 
-void gc_heap::walk_relocation_for_loh (size_t profiling_context, record_surv_fn fn)
+void gc_heap::walk_relocation_for_loh (void* profiling_context, record_surv_fn fn)
 {
     generation* gen        = large_object_generation;
     heap_segment* seg      = heap_segment_rw (generation_start_segment (gen));
@@ -24245,7 +24245,7 @@ void gc_heap::walk_relocation_in_brick (uint8_t* tree, walk_relocate_args* args)
     }
 }
 
-void gc_heap::walk_relocation (size_t profiling_context, record_surv_fn fn)
+void gc_heap::walk_relocation (void* profiling_context, record_surv_fn fn)
 {
     generation* condemned_gen = generation_of (settings.condemned_generation);
     uint8_t*  start_address = generation_allocation_start (condemned_gen);
@@ -24301,7 +24301,7 @@ void gc_heap::walk_relocation (size_t profiling_context, record_surv_fn fn)
     }
 }
 
-void gc_heap::walk_survivors (record_surv_fn fn, size_t context, walk_surv_type type)
+void gc_heap::walk_survivors (record_surv_fn fn, void* context, walk_surv_type type)
 {
     if (type == walk_for_gc)
         walk_survivors_relocation (context, fn);
@@ -24316,7 +24316,7 @@ void gc_heap::walk_survivors (record_surv_fn fn, size_t context, walk_surv_type 
 }
 
 #if defined(BACKGROUND_GC) && defined(FEATURE_EVENT_TRACE)
-void gc_heap::walk_survivors_for_bgc (size_t profiling_context, record_surv_fn fn)
+void gc_heap::walk_survivors_for_bgc (void* profiling_context, record_surv_fn fn)
 {
     // This should only be called for BGCs
     assert(settings.concurrent);
@@ -30863,7 +30863,7 @@ BOOL gc_heap::large_object_marked (uint8_t* o, BOOL clearp)
     return m;
 }
 
-void gc_heap::walk_survivors_relocation (size_t profiling_context, record_surv_fn fn)
+void gc_heap::walk_survivors_relocation (void* profiling_context, record_surv_fn fn)
 {
     // Now walk the portion of memory that is actually being relocated.
     walk_relocation (profiling_context, fn);
@@ -30876,7 +30876,7 @@ void gc_heap::walk_survivors_relocation (size_t profiling_context, record_surv_f
 #endif //FEATURE_LOH_COMPACTION
 }
 
-void gc_heap::walk_survivors_for_loh (size_t profiling_context, record_surv_fn fn)
+void gc_heap::walk_survivors_for_loh (void* profiling_context, record_surv_fn fn)
 {
     generation* gen        = large_object_generation;
     heap_segment* seg      = heap_segment_rw (generation_start_segment (gen));;
@@ -36590,7 +36590,7 @@ void GCHeap::DiagWalkObject (Object* obj, walk_fn fn, void* context)
     }
 }
 
-void GCHeap::DiagWalkSurvivorsWithType (void* gc_context, record_surv_fn fn, size_t diag_context, walk_surv_type type)
+void GCHeap::DiagWalkSurvivorsWithType (void* gc_context, record_surv_fn fn, void* diag_context, walk_surv_type type)
 {
     gc_heap* hp = (gc_heap*)gc_context;
     hp->walk_survivors (fn, diag_context, type);
