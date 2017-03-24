@@ -1,4 +1,4 @@
-SET (CMAKE_C_FLAGS_INIT                "-Wall -std=c11")
+SET (CMAKE_C_FLAGS_INIT                "-Wall -std=gnu11")
 SET (CMAKE_C_FLAGS_DEBUG_INIT          "-g -O0")
 SET (CLR_C_FLAGS_CHECKED_INIT          "-g -O2")
 # Refer to the below instruction to support __thread with -O2/-O3 on Linux/ARM
