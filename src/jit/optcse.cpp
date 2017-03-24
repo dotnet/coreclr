@@ -321,8 +321,8 @@ Compiler::fgWalkResult Compiler::optCSE_MaskHelper(GenTreePtr* pTree, fgWalkData
 //
 void Compiler::optCSE_GetMaskData(GenTreePtr tree, optCSE_MaskData* pMaskData)
 {
-    pMaskData->CSE_defMask = BitVecOps::MakeCopy(cseTraits, cseEmpty);
-    pMaskData->CSE_useMask = BitVecOps::MakeCopy(cseTraits, cseEmpty);
+    pMaskData->CSE_defMask = BitVecOps::MakeEmpty(cseTraits);
+    pMaskData->CSE_useMask = BitVecOps::MakeEmpty(cseTraits);
     fgWalkTreePre(&tree, optCSE_MaskHelper, (void*)pMaskData);
 }
 
@@ -498,10 +498,7 @@ void Compiler::optValnumCSE_Init()
     // Init traits and full/empty bitvectors.  This will be used to track the
     // individual cse indexes.
     cseTraits = new (getAllocator()) BitVecTraits(EXPSET_SZ, this);
-    cseFull   = BitVecOps::UninitVal();
-    cseEmpty  = BitVecOps::UninitVal();
-    BitVecOps::AssignNoCopy(cseTraits, cseFull, BitVecOps::MakeFull(cseTraits));
-    BitVecOps::AssignNoCopy(cseTraits, cseEmpty, BitVecOps::MakeEmpty(cseTraits));
+    cseFull   = BitVecOps::MakeFull(cseTraits);
 
     /* Allocate and clear the hash bucket table */
 
@@ -895,7 +892,7 @@ void Compiler::optValnumCSE_InitDataFlow()
         if (init_to_zero)
         {
             /* Initialize to {ZERO} prior to dataflow */
-            block->bbCseIn = BitVecOps::MakeCopy(cseTraits, cseEmpty);
+            block->bbCseIn = BitVecOps::MakeEmpty(cseTraits);
         }
         else
         {
@@ -906,7 +903,7 @@ void Compiler::optValnumCSE_InitDataFlow()
         block->bbCseOut = BitVecOps::MakeCopy(cseTraits, cseFull);
 
         /* Initialize to {ZERO} prior to locating the CSE candidates */
-        block->bbCseGen = BitVecOps::MakeCopy(cseTraits, cseEmpty);
+        block->bbCseGen = BitVecOps::MakeEmpty(cseTraits);
     }
 
     // We walk the set of CSE candidates and set the bit corresponsing to the CSEindex
@@ -1058,6 +1055,8 @@ void Compiler::optValnumCSE_Availablity()
         printf("Labeling the CSEs with Use/Def information\n");
     }
 #endif
+    EXPSET_TP available_cses = BitVecOps::MakeEmpty(cseTraits);
+
     for (BasicBlock* block = fgFirstBB; block; block = block->bbNext)
     {
         GenTreePtr stmt;
@@ -1067,7 +1066,7 @@ void Compiler::optValnumCSE_Availablity()
 
         compCurBB = block;
 
-        EXPSET_TP available_cses = BitVecOps::MakeCopy(cseTraits, block->bbCseIn);
+        BitVecOps::Assign(cseTraits, available_cses, block->bbCseIn);
 
         optCSEweight = block->getBBWeight(this);
 
