@@ -220,13 +220,13 @@ public:
         return IGCHeap::maxGeneration;
     }
 
-    BOOL IsValidSegmentSize(size_t cbSize)
+    bool IsValidSegmentSize(size_t cbSize)
     {
         //Must be aligned on a Mb and greater than 4Mb
         return (((cbSize & (1024*1024-1)) ==0) && (cbSize >> 22));
     }
 
-    BOOL IsValidGen0MaxSize(size_t cbSize)
+    bool IsValidGen0MaxSize(size_t cbSize)
     {
         return (cbSize >= 64*1024);
     }

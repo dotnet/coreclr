@@ -33750,7 +33750,7 @@ HRESULT GCHeap::Initialize ()
 
 ////
 // GC callback functions
-BOOL GCHeap::IsPromoted(Object* object)
+bool GCHeap::IsPromoted(Object* object)
 {
 #ifdef _DEBUG
     ((CObjectHeader*)object)->Validate();
@@ -33810,7 +33810,7 @@ unsigned int GCHeap::WhichGeneration (Object* object)
     return g;
 }
 
-BOOL    GCHeap::IsEphemeral (Object* object)
+bool GCHeap::IsEphemeral (Object* object)
 {
     uint8_t* o = (uint8_t*)object;
     gc_heap* hp = gc_heap::heap_of (o);
@@ -33888,7 +33888,7 @@ BOOL GCHeap::IsInFrozenSegment (Object * object)
 #endif //VERIFY_HEAP
 
 // returns TRUE if the pointer is in one of the GC heaps.
-BOOL GCHeap::IsHeapPointer (void* vpObject, BOOL small_heap_only)
+bool GCHeap::IsHeapPointer (void* vpObject, bool small_heap_only)
 {
     STATIC_CONTRACT_SO_TOLERANT;
 
@@ -34059,7 +34059,7 @@ void GCHeap::Relocate (Object** ppObject, ScanContext* sc,
     STRESS_LOG_ROOT_RELOCATE(ppObject, object, pheader, ((!(flags & GC_CALL_INTERIOR)) ? ((Object*)object)->GetGCSafeMethodTable() : 0));
 }
 
-/*static*/ BOOL GCHeap::IsObjectInFixedHeap(Object *pObj)
+/*static*/ bool GCHeap::IsObjectInFixedHeap(Object *pObj)
 {
     // For now we simply look at the size of the object to determine if it in the
     // fixed heap or not. If the bit indicating this gets set at some point
@@ -34105,7 +34105,7 @@ int StressRNG(int iMaxValue)
 
 // free up object so that things will move and then do a GC
 //return TRUE if GC actually happens, otherwise FALSE
-BOOL GCHeap::StressHeap(gc_alloc_context * context)
+bool GCHeap::StressHeap(gc_alloc_context * context)
 {
 #if defined(STRESS_HEAP) && !defined(FEATURE_REDHAWK)
     alloc_context* acontext = static_cast<alloc_context*>(context);
@@ -34603,7 +34603,7 @@ GCHeap::Alloc(gc_alloc_context* context, size_t size, uint32_t flags REQD_ALIGN_
 }
 
 void
-GCHeap::FixAllocContext (gc_alloc_context* context, BOOL lockp, void* arg, void *heap)
+GCHeap::FixAllocContext (gc_alloc_context* context, bool lockp, void* arg, void *heap)
 {
     alloc_context* acontext = static_cast<alloc_context*>(context);
 #ifdef MULTIPLE_HEAPS
@@ -34677,7 +34677,7 @@ BOOL should_collect_optimized (dynamic_data* dd, BOOL low_memory_p)
 //  API to ensure that a complete new garbage collection takes place
 //
 HRESULT
-GCHeap::GarbageCollect (int generation, BOOL low_memory_p, int mode)
+GCHeap::GarbageCollect (int generation, bool low_memory_p, int mode)
 {
 #if defined(BIT64) 
     if (low_memory_p)
@@ -35508,7 +35508,7 @@ void GCHeap::SetLOHCompactionMode (int newLOHCompactionyMode)
 #endif //FEATURE_LOH_COMPACTION
 }
 
-BOOL GCHeap::RegisterForFullGCNotification(uint32_t gen2Percentage,
+bool GCHeap::RegisterForFullGCNotification(uint32_t gen2Percentage,
                                            uint32_t lohPercentage)
 {
 #ifdef MULTIPLE_HEAPS
@@ -35531,7 +35531,7 @@ BOOL GCHeap::RegisterForFullGCNotification(uint32_t gen2Percentage,
     return TRUE;
 }
 
-BOOL GCHeap::CancelFullGCNotification()
+bool GCHeap::CancelFullGCNotification()
 {
     pGenGCHeap->fgn_maxgen_percent = 0;
     pGenGCHeap->fgn_loh_percent = 0;
@@ -35558,7 +35558,7 @@ int GCHeap::WaitForFullGCComplete(int millisecondsTimeout)
     return result;
 }
 
-int GCHeap::StartNoGCRegion(uint64_t totalSize, BOOL lohSizeKnown, uint64_t lohSize, BOOL disallowFullBlockingGC)
+int GCHeap::StartNoGCRegion(uint64_t totalSize, bool lohSizeKnown, uint64_t lohSize, bool disallowFullBlockingGC)
 {
     NoGCRegionLockHolder lh;
 
@@ -35636,7 +35636,7 @@ HRESULT GCHeap::GetGcCounters(int gen, gc_counters* counters)
 }
 
 // Get the segment size to use, making sure it conforms.
-size_t GCHeap::GetValidSegmentSize(BOOL large_seg)
+size_t GCHeap::GetValidSegmentSize(bool large_seg)
 {
     return get_valid_segment_size (large_seg);
 }
@@ -35760,7 +35760,7 @@ size_t GCHeap::GetFinalizablePromotedCount()
 #endif //MULTIPLE_HEAPS
 }
 
-BOOL GCHeap::FinalizeAppDomain(AppDomain *pDomain, BOOL fRunFinalizers)
+bool GCHeap::FinalizeAppDomain(AppDomain *pDomain, bool fRunFinalizers)
 {
 #ifdef MULTIPLE_HEAPS
     BOOL foundp = FALSE;
@@ -35777,13 +35777,13 @@ BOOL GCHeap::FinalizeAppDomain(AppDomain *pDomain, BOOL fRunFinalizers)
 #endif //MULTIPLE_HEAPS
 }
 
-BOOL GCHeap::ShouldRestartFinalizerWatchDog()
+bool GCHeap::ShouldRestartFinalizerWatchDog()
 {
     // This condition was historically used as part of the condition to detect finalizer thread timeouts
     return gc_heap::gc_lock.lock != -1;
 }
 
-void GCHeap::SetFinalizeQueueForShutdown(BOOL fHasLock)
+void GCHeap::SetFinalizeQueueForShutdown(bool fHasLock)
 {
 #ifdef MULTIPLE_HEAPS
     for (int hn = 0; hn < gc_heap::n_heaps; hn++)
@@ -36596,7 +36596,7 @@ void GCHeap::DiagWalkSurvivorsWithType (void* gc_context, record_surv_fn fn, siz
     hp->walk_survivors (fn, diag_context, type);
 }
 
-void GCHeap::DiagWalkHeap (walk_fn fn, void* context, int gen_number, BOOL walk_large_object_heap_p)
+void GCHeap::DiagWalkHeap (walk_fn fn, void* context, int gen_number, bool walk_large_object_heap_p)
 {
     gc_heap::walk_heap (fn, context, gen_number, walk_large_object_heap_p);
 }
@@ -36916,7 +36916,7 @@ void GCHeap::TemporaryDisableConcurrentGC()
 #endif //BACKGROUND_GC
 }
 
-BOOL GCHeap::IsConcurrentGCEnabled()
+bool GCHeap::IsConcurrentGCEnabled()
 {
 #ifdef BACKGROUND_GC
     return (gc_heap::gc_can_use_concurrent && !(gc_heap::temp_disable_concurrent_p));

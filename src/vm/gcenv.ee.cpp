@@ -948,7 +948,7 @@ void GcScanRootsForProfilerAndETW(promote_func* fn, int condemned, int max_gen, 
     }
 }
 
-void ScanHandleForProfilerAndETW(Object** pRef, Object* pSec, uint32_t flags, ScanContext* context, BOOL isDependent)
+void ScanHandleForProfilerAndETW(Object** pRef, Object* pSec, uint32_t flags, ScanContext* context, bool isDependent)
 {
     ProfilingScanContext* pSC = (ProfilingScanContext*)context;
 
@@ -1111,7 +1111,7 @@ void GCProfileWalkHeap()
 #endif // defined(GC_PROFILING) || defined(FEATURE_EVENT_TRACE)
 }
 
-void WalkFReachableObjects(BOOL isCritical, void* objectID)
+void WalkFReachableObjects(bool isCritical, void* objectID)
 {
 	g_profControlBlock.pProfInterface->FinalizeableObjectQueued(isCritical, (ObjectID)objectID);
 }
@@ -1177,8 +1177,8 @@ void GCToEEInterface::DiagWalkFReachableObjects(void* gcContext)
 void WalkMovedReferences(uint8_t* begin, uint8_t* end, 
                          ptrdiff_t reloc,
                          size_t context, 
-                         BOOL fCompacting,
-                         BOOL fBGC)
+                         bool fCompacting,
+                         bool fBGC)
 {
     ETW::GCLog::MovedReference(begin, end,
                                (fCompacting ? reloc : 0),
