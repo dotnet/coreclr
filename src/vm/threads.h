@@ -5539,7 +5539,7 @@ private:
 
     LONG        m_DeadThreadCount;
     LONG        m_DeadThreadCountForGCTrigger;
-    int         m_TriggerGCGenerationForDeadThreads;
+    bool        m_TriggerGCForDeadThreads;
 
 private:
     // Space for the lazily-created GUID.
