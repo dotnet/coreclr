@@ -172,7 +172,7 @@ bool FindLibWithMajorMinorSubVersion(int* majorVer, int* minorVer, int* subVer)
 
 #ifdef OSX_PLATFORM
 
-bool InitializeICULinks(char* symboleName, char* symbolVersion)
+bool InitializeICULinks(char* symbolName, char* symbolVersion)
 {
     libicuuc = dlopen("/usr/lib/libicucore.A.dylib", RTLD_LAZY);
     if (libicuuc == nullptr)
@@ -188,7 +188,7 @@ bool InitializeICULinks(char* symboleName, char* symbolVersion)
 
 #else
 
-bool InitializeICULinks(char* symboleName, char* symbolVersion)
+bool InitializeICULinks(char* symbolName, char* symbolVersion)
 {
     int majorVer = -1;
     int minorVer = -1;
