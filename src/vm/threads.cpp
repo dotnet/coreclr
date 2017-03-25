@@ -6012,7 +6012,7 @@ void ThreadStore::IncrementDeadThreadCountForGCTrigger()
         return;
     }
 
-    SIZE_T gcLastMilliseconds = gcHeap->GetLastGCStartTime(gcHeap->GetMaxGeneration());
+    SIZE_T gcLastMilliseconds = gcHeap->GetLastGCStartTime(max_generation);
     SIZE_T gcNowMilliseconds = gcHeap->GetNow();
     if (gcNowMilliseconds - gcLastMilliseconds < s_DeadThreadGCTriggerPeriodMilliseconds)
     {
@@ -6092,8 +6092,7 @@ void ThreadStore::TriggerGCForDeadThreadsIfNecessary()
     IGCHeap *gcHeap = GCHeapUtilities::GetGCHeap();
     _ASSERTE(gcHeap != nullptr);
     SIZE_T generationCountThreshold = static_cast<SIZE_T>(s_DeadThreadCountThresholdForGCTrigger) / 2;
-    SIZE_T newDeadThreadGenerationCounts[3] = {0};
-    int countedMaxGeneration = _countof(newDeadThreadGenerationCounts) - 1;
+    SIZE_T newDeadThreadGenerationCounts[max_generation + 1] = {0};
     {
         ThreadStoreLockHolder threadStoreLockHolder;
         GCX_COOP();
@@ -6115,20 +6114,21 @@ void ThreadStore::TriggerGCForDeadThreadsIfNecessary()
                 continue;
             }
 
-            int exposedObjectGeneration = min(countedMaxGeneration, static_cast<int>(gcHeap->WhichGeneration(exposedObject)));
+            int exposedObjectGeneration = gcHeap->WhichGeneration(exposedObject);
             SIZE_T newDeadThreadGenerationCount = ++newDeadThreadGenerationCounts[exposedObjectGeneration];
             if (exposedObjectGeneration > gcGenerationToTrigger && newDeadThreadGenerationCount >= generationCountThreshold)
             {
                 gcGenerationToTrigger = exposedObjectGeneration;
-                if (gcGenerationToTrigger >= countedMaxGeneration)
+                if (gcGenerationToTrigger >= max_generation)
                 {
                     break;
                 }
             }
         }
 
-        // Make sure that enough time has elapsed since the last GC of the desired generation. Otherwise, the memory pressure
-        // would be sufficient to trigger GCs automatically.
+        // Make sure that enough time has elapsed since the last GC of the desired generation. We don't want to trigger GCs
+        // based on this heuristic too often. Give it some time to let the memory pressure trigger GCs automatically, and only
+        // if it doesn't in the given time, this heuristic may kick in to trigger a GC.
         SIZE_T gcLastMilliseconds = gcHeap->GetLastGCStartTime(gcGenerationToTrigger);
         SIZE_T gcNowMilliseconds = gcHeap->GetNow();
         if (gcNowMilliseconds - gcLastMilliseconds < s_DeadThreadGCTriggerPeriodMilliseconds)
@@ -6153,7 +6153,7 @@ void ThreadStore::TriggerGCForDeadThreadsIfNecessary()
                 continue;
             }
 
-            if (gcGenerationToTrigger < countedMaxGeneration &&
+            if (gcGenerationToTrigger < max_generation &&
                 static_cast<int>(gcHeap->WhichGeneration(exposedObject)) > gcGenerationToTrigger)
             {
                 continue;
@@ -6162,11 +6162,6 @@ void ThreadStore::TriggerGCForDeadThreadsIfNecessary()
             thread->SetHasDeadThreadBeenConsideredForGCTrigger();
         }
     } // ThreadStoreLockHolder, GCX_COOP()
-
-    if (gcGenerationToTrigger >= countedMaxGeneration)
-    {
-        gcGenerationToTrigger = gcHeap->GetMaxGeneration();
-    }
 
     GCHeapUtilities::GetGCHeap()->GarbageCollect(gcGenerationToTrigger, FALSE, collection_non_blocking);
 }
