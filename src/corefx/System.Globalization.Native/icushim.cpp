@@ -19,6 +19,33 @@ FOR_ALL_ICU_FUNCTIONS
 static void* libicuuc = nullptr;
 static void* libicui18n = nullptr;
 
+// .x.x.x, considering the max number of decimal digits for each component
+static const int MaxICUVersionStringLength = 33;
+
+#ifdef __APPLE__
+
+bool FindICULibs(char* symbolName, char* symbolVersion)
+{
+#ifndef OSX_ICU_LIBRARY_PATH
+    static_assert(false, "The ICU Library path is not defined");
+#endif // OSX_ICU_LIBRARY_PATH
+
+    // Usually OSX_ICU_LIBRARY_PATH is "/usr/lib/libicucore.dylib"
+    libicuuc = dlopen(OSX_ICU_LIBRARY_PATH, RTLD_LAZY);
+    
+    if (libicuuc == nullptr)
+    {
+        return false;
+    }
+
+    // in OSX all ICU APIs exist in the same library libicucore.A.dylib 
+    libicui18n = libicuuc;
+
+    return true;
+}
+
+#else // __APPLE__
+
 // Version ranges to search for each of the three version components
 // The rationale for major version range is that we support versions higher or
 // equal to the version we are built against and less or equal to that version
@@ -30,9 +57,6 @@ static const int MinMinorICUVersion = 1;
 static const int MaxMinorICUVersion = 5;
 static const int MinSubICUVersion = 1;
 static const int MaxSubICUVersion = 5;
-
-// .x.x.x, considering the max number of decimal digits for each component
-static const int MaxICUVersionStringLength = 33;
 
 // Get filename of an ICU library with the requested version in the name
 // There are three possible cases of the version components values:
@@ -170,31 +194,7 @@ bool FindLibWithMajorMinorSubVersion(int* majorVer, int* minorVer, int* subVer)
     return false;
 }
 
-#ifdef OSX_PLATFORM
-
-bool InitializeICULinks(char* symbolName, char* symbolVersion)
-{
-#ifndef OSX_ICU_LIBRARY_PATH
-    static_assert(false, "The ICU Library path is not defined");
-#endif // OSX_ICU_LIBRARY_PATH
-
-    // Usually OSX_ICU_LIBRARY_PATH be "/usr/lib/libicucore.dylib"
-    libicuuc = dlopen(OSX_ICU_LIBRARY_PATH, RTLD_LAZY);
-    
-    if (libicuuc == nullptr)
-    {
-        return false;
-    }
-
-    // in OSX all ICU APIs exist in the same library libicucore.A.dylib 
-    libicui18n = libicuuc;
-
-    return true;
-}
-
-#else
-
-bool InitializeICULinks(char* symbolName, char* symbolVersion)
+bool FindICULibs(char* symbolName, char* symbolVersion)
 {
     int majorVer = -1;
     int minorVer = -1;
@@ -238,8 +238,7 @@ bool InitializeICULinks(char* symbolName, char* symbolVersion)
 
 }
 
-#endif // OSX_PLATFORM
-
+#endif // __APPLE__
 
 // GlobalizationNative_LoadICU
 // This method get called from the managed side during the globalization initialization. 
@@ -250,7 +249,7 @@ extern "C" int32_t GlobalizationNative_LoadICU()
     char symbolName[128];
     char symbolVersion[MaxICUVersionStringLength + 1] = "";
 
-    if (!InitializeICULinks(symbolName, symbolVersion))
+    if (!FindICULibs(symbolName, symbolVersion))
         return 0;
 
     // Get pointers to all the ICU functions that are needed
@@ -263,10 +262,10 @@ extern "C" int32_t GlobalizationNative_LoadICU()
     FOR_ALL_ICU_FUNCTIONS
 #undef PER_FUNCTION_BLOCK
 
-#ifdef OSX_PLATFORM
+#ifdef __APPLE__
     // libicui18n initialized with libicuuc so we null it to avoid double closing same handle   
     libicui18n = nullptr;
-#endif // OSX_PLATFORM
+#endif // __APPLE__
 
     return 1;
 }

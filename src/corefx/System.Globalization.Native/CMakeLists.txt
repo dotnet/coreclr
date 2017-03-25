@@ -34,7 +34,6 @@ else()
     endif()
 
     add_definitions(-DOSX_ICU_LIBRARY_PATH=\"${ICUCORE}\")
-    add_definitions(-DOSX_PLATFORM)
 endif()
 
 include(configure.cmake)
