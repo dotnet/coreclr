@@ -137,22 +137,8 @@ namespace System
         /// <param name="obj">The managed object that contains the data to span over.</param>
         /// <param name="objectData">A reference to data within that object.</param>
         /// <param name="length">The number of <typeparamref name="T"/> elements the memory contains.</param>
-        /// <exception cref="System.ArgumentNullException">
-        /// Thrown when the specified object is null.
-        /// </exception>
-        /// <exception cref="System.ArgumentOutOfRangeException">
-        /// Thrown when the specified <paramref name="length"/> is negative.
-        /// </exception>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static Span<T> DangerousCreate(object obj, ref T objectData, int length)
-        {
-            if (obj == null)
-                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.obj);
-            if (length < 0)
-                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.length);
-
-            return new Span<T>(ref objectData, length);
-        }
+        public static Span<T> DangerousCreate(object obj, ref T objectData, int length) => new Span<T>(ref objectData, length);
 
         // Constructor for internal use only.
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -329,9 +315,7 @@ namespace System
         [EditorBrowsable(EditorBrowsableState.Never)]
         public override bool Equals(object obj)
         {
-            ThrowHelper.ThrowNotSupportedException_CannotCallEqualsOnSpan();
-            // Prevent compiler error CS0161: 'Span<T>.Equals(object)': not all code paths return a value
-            return default(bool);
+            throw new NotSupportedException(SR.NotSupported_CannotCallEqualsOnSpan);
         }
 
         /// <summary>
@@ -344,9 +328,7 @@ namespace System
         [EditorBrowsable(EditorBrowsableState.Never)]
         public override int GetHashCode()
         {
-            ThrowHelper.ThrowNotSupportedException_CannotCallGetHashCodeOnSpan();
-            // Prevent compiler error CS0161: 'Span<T>.GetHashCode()': not all code paths return a value
-            return default(int);
+            throw new NotSupportedException(SR.NotSupported_CannotCallGetHashCodeOnSpan);
         }
 
         /// <summary>

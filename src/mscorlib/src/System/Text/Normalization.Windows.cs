@@ -20,6 +20,13 @@ namespace System.Text
     {
         internal static bool IsNormalized(String strInput, NormalizationForm normForm)
         {
+            if (GlobalizationMode.Invariant)
+            {
+                // In Invariant mode we assume all characters are normalized. 
+                // This is because we don't support any linguistic operation on the strings
+                return true;
+            }
+
             Debug.Assert(strInput != null);
 
             // The only way to know if IsNormalizedString failed is through checking the Win32 last error
@@ -38,7 +45,7 @@ namespace System.Text
                     throw new ArgumentException(SR.Argument_InvalidCharSequenceNoIndex, nameof(strInput));
 
                 case Interop.Errors.ERROR_NOT_ENOUGH_MEMORY:
-                    throw new OutOfMemoryException(SR.Arg_OutOfMemoryException);
+                    throw new OutOfMemoryException();
 
                 default:
                     throw new InvalidOperationException(SR.Format(SR.UnknownError_Num, lastError));
@@ -49,6 +56,13 @@ namespace System.Text
 
         internal static String Normalize(String strInput, NormalizationForm normForm)
         {
+            if (GlobalizationMode.Invariant)
+            {
+                // In Invariant mode we assume all characters are normalized. 
+                // This is because we don't support any linguistic operation on the strings
+                return strInput;
+            }
+
             Debug.Assert(strInput != null);
 
             // we depend on Win32 last error when calling NormalizeString
@@ -69,7 +83,7 @@ namespace System.Text
                 // a trivial math function...
                 // Can't really be Out of Memory, but just in case:
                 if (lastError == Interop.Errors.ERROR_NOT_ENOUGH_MEMORY)
-                    throw new OutOfMemoryException(SR.Arg_OutOfMemoryException);
+                    throw new OutOfMemoryException();
 
                 // Who knows what happened?  Not us!
                 throw new InvalidOperationException(SR.Format(SR.UnknownError_Num, lastError));
@@ -109,7 +123,7 @@ namespace System.Text
                         throw new ArgumentException(SR.Argument_InvalidCharSequenceNoIndex, nameof(strInput));
 
                     case Interop.Errors.ERROR_NOT_ENOUGH_MEMORY:
-                        throw new OutOfMemoryException(SR.Arg_OutOfMemoryException);
+                        throw new OutOfMemoryException();
 
                     default:
                         // We shouldn't get here...

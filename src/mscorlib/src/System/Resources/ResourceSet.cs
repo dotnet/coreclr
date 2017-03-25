@@ -186,7 +186,6 @@ namespace System.Resources
             return GetEnumeratorHelper();
         }
 
-        /// <internalonly/>
         IEnumerator IEnumerable.GetEnumerator()
         {
             return GetEnumeratorHelper();
@@ -196,7 +195,7 @@ namespace System.Resources
         {
             Hashtable copyOfTable = Table;  // Avoid a race with Dispose
             if (copyOfTable == null)
-                throw new ObjectDisposedException(null, Environment.GetResourceString("ObjectDisposed_ResourceSet"));
+                throw new ObjectDisposedException(null, SR.ObjectDisposed_ResourceSet);
             return copyOfTable.GetEnumerator();
         }
 
@@ -211,7 +210,7 @@ namespace System.Resources
             }
             catch (InvalidCastException)
             {
-                throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_ResourceNotString_Name", name));
+                throw new InvalidOperationException(SR.Format(SR.InvalidOperation_ResourceNotString_Name, name));
             }
         }
 
@@ -228,7 +227,7 @@ namespace System.Resources
             }
             catch (InvalidCastException)
             {
-                throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_ResourceNotString_Name", name));
+                throw new InvalidOperationException(SR.Format(SR.InvalidOperation_ResourceNotString_Name, name));
             }
 
             // case-sensitive lookup succeeded
@@ -245,7 +244,7 @@ namespace System.Resources
             }
             catch (InvalidCastException)
             {
-                throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_ResourceNotString_Name", name));
+                throw new InvalidOperationException(SR.Format(SR.InvalidOperation_ResourceNotString_Name, name));
             }
         }
 
@@ -293,7 +292,7 @@ namespace System.Resources
             Hashtable copyOfTable = Table;  // Avoid a race with Dispose
 
             if (copyOfTable == null)
-                throw new ObjectDisposedException(null, Environment.GetResourceString("ObjectDisposed_ResourceSet"));
+                throw new ObjectDisposedException(null, SR.ObjectDisposed_ResourceSet);
 
             return copyOfTable[name];
         }
@@ -303,7 +302,7 @@ namespace System.Resources
             Hashtable copyOfTable = Table;  // Avoid a race with Dispose
 
             if (copyOfTable == null)
-                throw new ObjectDisposedException(null, Environment.GetResourceString("ObjectDisposed_ResourceSet"));
+                throw new ObjectDisposedException(null, SR.ObjectDisposed_ResourceSet);
 
             Hashtable caseTable = _caseInsensitiveTable;  // Avoid a race condition with Close
             if (caseTable == null)

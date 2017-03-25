@@ -600,7 +600,7 @@ namespace System.Threading
         // separation enables inlining of ThrowIfDisposed
         private static void ThrowObjectDisposedException()
         {
-            throw new ObjectDisposedException(null, Environment.GetResourceString("CancellationTokenSource_Disposed"));
+            throw new ObjectDisposedException(null, SR.CancellationTokenSource_Disposed);
         }
 
         /// <summary>
@@ -820,7 +820,7 @@ namespace System.Threading
             {
                 m_state = NOTIFYINGCOMPLETE;
                 m_executingCallback = null;
-                Thread.MemoryBarrier(); // for safety, prevent reorderings crossing this point and seeing inconsistent state.
+                Interlocked.MemoryBarrier(); // for safety, prevent reorderings crossing this point and seeing inconsistent state.
             }
 
             if (exceptionList != null)
@@ -891,7 +891,7 @@ namespace System.Threading
             switch (tokens.Length)
             {
                 case 0:
-                    throw new ArgumentException(Environment.GetResourceString("CancellationToken_CreateLinkedToken_TokensIsEmpty"));
+                    throw new ArgumentException(SR.CancellationToken_CreateLinkedToken_TokensIsEmpty);
                 case 1:
                     return CreateLinkedTokenSource(tokens[0]);
                 case 2:

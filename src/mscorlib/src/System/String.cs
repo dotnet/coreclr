@@ -118,13 +118,13 @@ namespace System
             if (destination == null)
                 throw new ArgumentNullException(nameof(destination));
             if (count < 0)
-                throw new ArgumentOutOfRangeException(nameof(count), Environment.GetResourceString("ArgumentOutOfRange_NegativeCount"));
+                throw new ArgumentOutOfRangeException(nameof(count), SR.ArgumentOutOfRange_NegativeCount);
             if (sourceIndex < 0)
-                throw new ArgumentOutOfRangeException(nameof(sourceIndex), Environment.GetResourceString("ArgumentOutOfRange_Index"));
+                throw new ArgumentOutOfRangeException(nameof(sourceIndex), SR.ArgumentOutOfRange_Index);
             if (count > Length - sourceIndex)
-                throw new ArgumentOutOfRangeException(nameof(sourceIndex), Environment.GetResourceString("ArgumentOutOfRange_IndexCount"));
+                throw new ArgumentOutOfRangeException(nameof(sourceIndex), SR.ArgumentOutOfRange_IndexCount);
             if (destinationIndex > destination.Length - count || destinationIndex < 0)
-                throw new ArgumentOutOfRangeException(nameof(destinationIndex), Environment.GetResourceString("ArgumentOutOfRange_IndexCount"));
+                throw new ArgumentOutOfRangeException(nameof(destinationIndex), SR.ArgumentOutOfRange_IndexCount);
             Contract.EndContractBlock();
 
             // Note: fixed does not like empty arrays
@@ -159,9 +159,9 @@ namespace System
         {
             // Range check everything.
             if (startIndex < 0 || startIndex > Length || startIndex > Length - length)
-                throw new ArgumentOutOfRangeException(nameof(startIndex), Environment.GetResourceString("ArgumentOutOfRange_Index"));
+                throw new ArgumentOutOfRangeException(nameof(startIndex), SR.ArgumentOutOfRange_Index);
             if (length < 0)
-                throw new ArgumentOutOfRangeException(nameof(length), Environment.GetResourceString("ArgumentOutOfRange_Index"));
+                throw new ArgumentOutOfRangeException(nameof(length), SR.ArgumentOutOfRange_Index);
             Contract.EndContractBlock();
 
             if (length > 0)
@@ -232,13 +232,13 @@ namespace System
                 return new String(value, startIndex, length); // default to ANSI
 
             if (length < 0)
-                throw new ArgumentOutOfRangeException(nameof(length), Environment.GetResourceString("ArgumentOutOfRange_NeedNonNegNum"));
+                throw new ArgumentOutOfRangeException(nameof(length), SR.ArgumentOutOfRange_NeedNonNegNum);
             if (startIndex < 0)
-                throw new ArgumentOutOfRangeException(nameof(startIndex), Environment.GetResourceString("ArgumentOutOfRange_StartIndex"));
+                throw new ArgumentOutOfRangeException(nameof(startIndex), SR.ArgumentOutOfRange_StartIndex);
             if ((value + startIndex) < value)
             {
                 // overflow check
-                throw new ArgumentOutOfRangeException(nameof(startIndex), Environment.GetResourceString("ArgumentOutOfRange_PartialWCHAR"));
+                throw new ArgumentOutOfRangeException(nameof(startIndex), SR.ArgumentOutOfRange_PartialWCHAR);
             }
 
             byte[] b = new byte[length];
@@ -252,7 +252,7 @@ namespace System
                 // If we got a NullReferencException. It means the pointer or 
                 // the index is out of range
                 throw new ArgumentOutOfRangeException(nameof(value),
-                        Environment.GetResourceString("ArgumentOutOfRange_PartialWCHAR"));
+                        SR.ArgumentOutOfRange_PartialWCHAR);
             }
 
             return enc.GetString(b);
@@ -332,7 +332,7 @@ namespace System
 
             if (0 != DefaultCharUsed)
             {
-                throw new ArgumentException(Environment.GetResourceString("Interop_Marshal_Unmappable_Char"));
+                throw new ArgumentException(SR.Interop_Marshal_Unmappable_Char);
             }
 
             pbNativeBuffer[nb] = 0;
@@ -428,13 +428,13 @@ namespace System
                 throw new ArgumentNullException(nameof(value));
 
             if (startIndex < 0)
-                throw new ArgumentOutOfRangeException(nameof(startIndex), Environment.GetResourceString("ArgumentOutOfRange_StartIndex"));
+                throw new ArgumentOutOfRangeException(nameof(startIndex), SR.ArgumentOutOfRange_StartIndex);
 
             if (length < 0)
-                throw new ArgumentOutOfRangeException(nameof(length), Environment.GetResourceString("ArgumentOutOfRange_NegativeLength"));
+                throw new ArgumentOutOfRangeException(nameof(length), SR.ArgumentOutOfRange_NegativeLength);
 
             if (startIndex > value.Length - length)
-                throw new ArgumentOutOfRangeException(nameof(startIndex), Environment.GetResourceString("ArgumentOutOfRange_Index"));
+                throw new ArgumentOutOfRangeException(nameof(startIndex), SR.ArgumentOutOfRange_Index);
             Contract.EndContractBlock();
 
             if (length > 0)
@@ -498,10 +498,10 @@ namespace System
             else if (count == 0)
                 return String.Empty;
             else
-                throw new ArgumentOutOfRangeException(nameof(count), Environment.GetResourceString("ArgumentOutOfRange_MustBeNonNegNum", nameof(count)));
+                throw new ArgumentOutOfRangeException(nameof(count), SR.Format(SR.ArgumentOutOfRange_MustBeNonNegNum, nameof(count)));
         }
 
-        private static unsafe int wcslen(char* ptr)
+        internal static unsafe int wcslen(char* ptr)
         {
             char* end = ptr;
 
@@ -602,7 +602,7 @@ namespace System
 
 #if !FEATURE_PAL
             if (ptr < (char*)64000)
-                throw new ArgumentException(Environment.GetResourceString("Arg_MustBeStringPtrNotAtom"));
+                throw new ArgumentException(SR.Arg_MustBeStringPtrNotAtom);
 #endif // FEATURE_PAL
 
             Debug.Assert(this == null, "this == null");        // this is the string constructor, we allocate it
@@ -620,7 +620,7 @@ namespace System
             }
             catch (NullReferenceException)
             {
-                throw new ArgumentOutOfRangeException(nameof(ptr), Environment.GetResourceString("ArgumentOutOfRange_PartialWCHAR"));
+                throw new ArgumentOutOfRangeException(nameof(ptr), SR.ArgumentOutOfRange_PartialWCHAR);
             }
         }
 
@@ -628,12 +628,12 @@ namespace System
         {
             if (length < 0)
             {
-                throw new ArgumentOutOfRangeException(nameof(length), Environment.GetResourceString("ArgumentOutOfRange_NegativeLength"));
+                throw new ArgumentOutOfRangeException(nameof(length), SR.ArgumentOutOfRange_NegativeLength);
             }
 
             if (startIndex < 0)
             {
-                throw new ArgumentOutOfRangeException(nameof(startIndex), Environment.GetResourceString("ArgumentOutOfRange_StartIndex"));
+                throw new ArgumentOutOfRangeException(nameof(startIndex), SR.ArgumentOutOfRange_StartIndex);
             }
             Contract.EndContractBlock();
             Debug.Assert(this == null, "this == null");        // this is the string constructor, we allocate it
@@ -642,7 +642,7 @@ namespace System
             if (pFrom < ptr)
             {
                 // This means that the pointer operation has had an overflow
-                throw new ArgumentOutOfRangeException(nameof(startIndex), Environment.GetResourceString("ArgumentOutOfRange_PartialWCHAR"));
+                throw new ArgumentOutOfRangeException(nameof(startIndex), SR.ArgumentOutOfRange_PartialWCHAR);
             }
 
             if (length == 0)
@@ -658,7 +658,7 @@ namespace System
             }
             catch (NullReferenceException)
             {
-                throw new ArgumentOutOfRangeException(nameof(ptr), Environment.GetResourceString("ArgumentOutOfRange_PartialWCHAR"));
+                throw new ArgumentOutOfRangeException(nameof(ptr), SR.ArgumentOutOfRange_PartialWCHAR);
             }
         }
 
@@ -747,91 +747,76 @@ namespace System
             return TypeCode.String;
         }
 
-        /// <internalonly/>
         bool IConvertible.ToBoolean(IFormatProvider provider)
         {
             return Convert.ToBoolean(this, provider);
         }
 
-        /// <internalonly/>
         char IConvertible.ToChar(IFormatProvider provider)
         {
             return Convert.ToChar(this, provider);
         }
 
-        /// <internalonly/>
         sbyte IConvertible.ToSByte(IFormatProvider provider)
         {
             return Convert.ToSByte(this, provider);
         }
 
-        /// <internalonly/>
         byte IConvertible.ToByte(IFormatProvider provider)
         {
             return Convert.ToByte(this, provider);
         }
 
-        /// <internalonly/>
         short IConvertible.ToInt16(IFormatProvider provider)
         {
             return Convert.ToInt16(this, provider);
         }
 
-        /// <internalonly/>
         ushort IConvertible.ToUInt16(IFormatProvider provider)
         {
             return Convert.ToUInt16(this, provider);
         }
 
-        /// <internalonly/>
         int IConvertible.ToInt32(IFormatProvider provider)
         {
             return Convert.ToInt32(this, provider);
         }
 
-        /// <internalonly/>
         uint IConvertible.ToUInt32(IFormatProvider provider)
         {
             return Convert.ToUInt32(this, provider);
         }
 
-        /// <internalonly/>
         long IConvertible.ToInt64(IFormatProvider provider)
         {
             return Convert.ToInt64(this, provider);
         }
 
-        /// <internalonly/>
         ulong IConvertible.ToUInt64(IFormatProvider provider)
         {
             return Convert.ToUInt64(this, provider);
         }
 
-        /// <internalonly/>
         float IConvertible.ToSingle(IFormatProvider provider)
         {
             return Convert.ToSingle(this, provider);
         }
 
-        /// <internalonly/>
         double IConvertible.ToDouble(IFormatProvider provider)
         {
             return Convert.ToDouble(this, provider);
         }
 
-        /// <internalonly/>
         Decimal IConvertible.ToDecimal(IFormatProvider provider)
         {
             return Convert.ToDecimal(this, provider);
         }
 
-        /// <internalonly/>
         DateTime IConvertible.ToDateTime(IFormatProvider provider)
         {
             return Convert.ToDateTime(this, provider);
         }
 
-        /// <internalonly/>
         Object IConvertible.ToType(Type type, IFormatProvider provider)
         {
             return Convert.DefaultToType((IConvertible)this, type, provider);
@@ -870,7 +855,6 @@ namespace System
             return new CharEnumerator(this);
         }
 
-        /// <internalonly/>
         IEnumerator IEnumerable.GetEnumerator()
         {
             Contract.Ensures(Contract.Result<IEnumerator>() != null);

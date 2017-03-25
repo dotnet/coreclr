@@ -765,7 +765,6 @@ FCFuncStart(gThreadFuncs)
 #ifdef FEATURE_COMINTEROP_APARTMENT_SUPPORT
     FCFuncElement("StartupSetApartmentStateInternal", ThreadNative::StartupSetApartmentState)
 #endif // FEATURE_COMINTEROP_APARTMENT_SUPPORT
-    FCIntrinsic("MemoryBarrier", ThreadNative::FCMemoryBarrier, CORINFO_INTRINSIC_MemoryBarrier)
 FCFuncEnd()
 
 FCFuncStart(gThreadPoolFuncs)
@@ -854,6 +853,9 @@ FCFuncStart(gCurrencyFuncs)
     FCFuncElement("FCallToDecimal", COMCurrency::DoToDecimal)
 FCFuncEnd()
 
+FCFuncStart(gClrConfig)
+    QCFuncElement("GetConfigBoolValue", ClrConfigNative::GetConfigBoolValue)
+FCFuncEnd()
 
 #if !defined(FEATURE_COREFX_GLOBALIZATION)
 FCFuncStart(gCompareInfoFuncs)
@@ -1044,7 +1046,9 @@ FCFuncStart(gInterlockedFuncs)
 
     FCFuncElement("_Exchange", COMInterlocked::ExchangeGeneric)
     FCFuncElement("_CompareExchange", COMInterlocked::CompareExchangeGeneric)
-    
+
+    FCIntrinsic("MemoryBarrier", COMInterlocked::FCMemoryBarrier, CORINFO_INTRINSIC_MemoryBarrier)
+    QCFuncElement("_MemoryBarrierProcessWide", COMInterlocked::MemoryBarrierProcessWide)
 FCFuncEnd()
 
 FCFuncStart(gVarArgFuncs)
@@ -1356,6 +1360,7 @@ FCClassElement("AssemblyName", "System.Reflection", gAssemblyNameFuncs)
 FCClassElement("Assert", "System.Diagnostics", gDiagnosticsAssert)
 FCClassElement("BCLDebug", "System", gBCLDebugFuncs)
 FCClassElement("Buffer", "System", gBufferFuncs)
+FCClassElement("CLRConfig", "System", gClrConfig)
 FCClassElement("CompareInfo", "System.Globalization", gCompareInfoFuncs)
 FCClassElement("CompatibilitySwitch", "System.Runtime.Versioning", gCompatibilitySwitchFuncs)
 FCClassElement("CriticalHandle", "System.Runtime.InteropServices", gCriticalHandleFuncs)

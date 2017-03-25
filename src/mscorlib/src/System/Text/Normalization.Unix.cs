@@ -4,6 +4,7 @@
 
 using System.Security;
 using System.Text;
+using System.Globalization;
 
 namespace System.Text
 {
@@ -13,11 +14,18 @@ namespace System.Text
         {
             ValidateArguments(strInput, normalizationForm);
 
+            if (GlobalizationMode.Invariant)
+            {
+                // In Invariant mode we assume all characters are normalized. 
+                // This is because we don't support any linguistic operation on the strings
+                return true;
+            }
+
             int ret = Interop.GlobalizationInterop.IsNormalized(normalizationForm, strInput, strInput.Length);
 
             if (ret == -1)
             {
-                throw new ArgumentException(Environment.GetResourceString("Argument_InvalidCharSequenceNoIndex"), nameof(strInput));
+                throw new ArgumentException(SR.Argument_InvalidCharSequenceNoIndex, nameof(strInput));
             }
 
             return ret == 1;
@@ -27,6 +35,13 @@ namespace System.Text
         {
             ValidateArguments(strInput, normalizationForm);
 
+            if (GlobalizationMode.Invariant)
+            {
+                // In Invariant mode we assume all characters are normalized. 
+                // This is because we don't support any linguistic operation on the strings
+                return strInput;
+            }
+
             char[] buf = new char[strInput.Length];
 
             for (int attempts = 2; attempts > 0; attempts--)
@@ -35,7 +50,7 @@ namespace System.Text
 
                 if (realLen == -1)
                 {
-                    throw new ArgumentException(Environment.GetResourceString("Argument_InvalidCharSequenceNoIndex"), nameof(strInput));
+                    throw new ArgumentException(SR.Argument_InvalidCharSequenceNoIndex, nameof(strInput));
                 }
 
                 if (realLen <= buf.Length)
@@ -46,7 +61,7 @@ namespace System.Text
                 buf = new char[realLen];
             }
 
-            throw new ArgumentException(Environment.GetResourceString("Argument_InvalidCharSequenceNoIndex"), nameof(strInput));
+            throw new ArgumentException(SR.Argument_InvalidCharSequenceNoIndex, nameof(strInput));
         }
 
         // -----------------------------
@@ -63,12 +78,12 @@ namespace System.Text
             if (normalizationForm != NormalizationForm.FormC && normalizationForm != NormalizationForm.FormD &&
                 normalizationForm != NormalizationForm.FormKC && normalizationForm != NormalizationForm.FormKD)
             {
-                throw new ArgumentException(Environment.GetResourceString("Argument_InvalidNormalizationForm"), nameof(normalizationForm));
+                throw new ArgumentException(SR.Argument_InvalidNormalizationForm, nameof(normalizationForm));
             }
 
             if (HasInvalidUnicodeSequence(strInput))
             {
-                throw new ArgumentException(Environment.GetResourceString("Argument_InvalidCharSequenceNoIndex"), nameof(strInput));
+                throw new ArgumentException(SR.Argument_InvalidCharSequenceNoIndex, nameof(strInput));
             }
         }
 

@@ -1194,11 +1194,6 @@ struct fgArgTabEntry
     unsigned alignment;  // 1 or 2 (slots/registers)
     unsigned lateArgInx; // index into gtCallLateArgs list
     unsigned tmpNum;     // the LclVar number if we had to force evaluation of this arg
-#if defined(UNIX_X86_ABI)
-    unsigned padStkAlign; // Count of number of padding slots for stack alignment. For each Call, only the first
-                          // argument may have a value to emit "sub esp, n" to adjust the stack before pushing
-                          // the argument.
-#endif
 
     bool isSplit : 1;       // True when this argument is split between the registers and OutArg area
     bool needTmp : 1;       // True when we force this argument's evaluation into a temp LclVar
@@ -1276,9 +1271,14 @@ class fgArgInfo
     unsigned     argCount;    // Updatable arg count value
     unsigned     nextSlotNum; // Updatable slot count value
     unsigned     stkLevel;    // Stack depth when we make this call (for x86)
+
 #if defined(UNIX_X86_ABI)
-    unsigned padStkAlign; // Count of number of padding slots for stack alignment. This value is used to turn back
-                          // stack pointer before it was adjusted after each Call
+    bool     alignmentDone; // Updateable flag, set to 'true' after we've done any required alignment.
+    unsigned stkSizeBytes;  // Size of stack used by this call, in bytes. Calculated during fgMorphArgs().
+    unsigned padStkAlign;   // Stack alignment in bytes required before arguments are pushed for this call.
+                            // Computed dynamically during codegen, based on stkSizeBytes and the current
+                            // stack level (genStackLevel) when the first stack adjustment is made for
+                            // this call.
 #endif
 
 #if FEATURE_FIXED_OUT_ARGS
@@ -1333,10 +1333,6 @@ public:
 
     void ArgsComplete();
 
-#if defined(UNIX_X86_ABI)
-    void ArgsAlignPadding();
-#endif
-
     void SortArgs();
 
     void EvalArgsToTemps();
@@ -1356,12 +1352,6 @@ public:
     {
         return nextSlotNum;
     }
-#if defined(UNIX_X86_ABI)
-    unsigned GetPadStackAlign()
-    {
-        return padStkAlign;
-    }
-#endif
     bool HasRegArgs()
     {
         return hasRegArgs;
@@ -1384,6 +1374,40 @@ public:
         outArgSize = newVal;
     }
 #endif // FEATURE_FIXED_OUT_ARGS
+
+    void ComputeStackAlignment(unsigned curStackLevelInBytes)
+    {
+#if defined(UNIX_X86_ABI)
+        padStkAlign = AlignmentPad(curStackLevelInBytes, STACK_ALIGN);
+#endif // defined(UNIX_X86_ABI)
+    }
+
+    void SetStkSizeBytes(unsigned newStkSizeBytes)
+    {
+#if defined(UNIX_X86_ABI)
+        stkSizeBytes = newStkSizeBytes;
+#endif // defined(UNIX_X86_ABI)
+    }
+
+#if defined(UNIX_X86_ABI)
+    unsigned GetStkAlign()
+    {
+        return padStkAlign;
+    }
+    unsigned GetStkSizeBytes() const
+    {
+        return stkSizeBytes;
+    }
+    bool IsStkAlignmentDone() const
+    {
+        return alignmentDone;
+    }
+    void SetStkAlignmentDone()
+    {
+        alignmentDone = true;
+    }
+#endif // defined(UNIX_X86_ABI)
+
     // Get the late arg for arg at position argIndex.  Caller must ensure this position has a late arg.
     GenTreePtr GetLateArg(unsigned argIndex);
 };
@@ -3552,7 +3576,7 @@ public:
     bool                 fgSlopUsedInEdgeWeights;  // true if their was some slop used when computing the edge weights
     bool                 fgRangeUsedInEdgeWeights; // true if some of the edgeWeight are expressed in Min..Max form
     bool                 fgNeedsUpdateFlowGraph;   // true if we need to run fgUpdateFlowGraph
-    BasicBlock::weight_t fgCalledWeight;           // count of the number of times this method was called
+    BasicBlock::weight_t fgCalledCount;            // count of the number of times this method was called
                                                    // This is derived from the profile data
                                                    // or is BB_UNITY_WEIGHT when we don't have profile data
 
@@ -4528,12 +4552,22 @@ protected:
 
     bool fgHaveProfileData();
     bool fgGetProfileWeightForBasicBlock(IL_OFFSET offset, unsigned* weight);
+    void fgInstrumentMethod();
 
+public:
+    // fgIsUsingProfileWeights - returns true if we have real profile data for this method
+    //                           or if we have some fake profile data for the stress mode
     bool fgIsUsingProfileWeights()
     {
         return (fgHaveProfileData() || fgStressBBProf());
     }
-    void fgInstrumentMethod();
+
+    // fgProfileRunsCount - returns total number of scenario runs for the profile data
+    //                      or BB_UNITY_WEIGHT when we aren't using profile data.
+    unsigned fgProfileRunsCount()
+    {
+        return fgIsUsingProfileWeights() ? fgNumProfileRuns : BB_UNITY_WEIGHT;
+    }
 
 //-------- Insert a statement at the start or end of a basic block --------
 
@@ -5384,7 +5418,6 @@ protected:
     // Keeps tracked cse indices
     BitVecTraits* cseTraits;
     EXPSET_TP     cseFull;
-    EXPSET_TP     cseEmpty;
 
     /* Generic list of nodes - used by the CSE logic */
 
@@ -5657,7 +5690,6 @@ public:
     // Data structures for assertion prop
     BitVecTraits* apTraits;
     ASSERT_TP     apFull;
-    ASSERT_TP     apEmpty;
 
     enum optAssertionKind
     {
@@ -5906,21 +5938,6 @@ public:
         }
     };
 
-    typedef unsigned short AssertionIndex;
-
-    // By default the assertion generated by a GT_JTRUE node holds on the true (bbJumpDest) edge.
-    // If the OAE_NEXT_EDGE bit of the assertion index is set then the assertion holds on the false (bbNext) edge
-    // and the OAE_NEXT_EDGE bit needs to be masked to obtain the real assertion index.
-    // Currently this is used by OAK_NO_THROW assertions but it may also be useful for other kinds of assertions
-    // by removing the need to create unnecessary complementary assertions. However, this bit twiddling mechanism
-    // is fragile and should be replaced with something cleaner (e.g. struct + bitfield).
-    enum optAssertionEdge : AssertionIndex
-    {
-        // OAE_JUMP_EDGE  = 0x0000, // assertion holds for bbJumpDest (default)
-        OAE_NEXT_EDGE  = 0x8000, // assertion holds for bbNext
-        OAE_INDEX_MASK = 0x7fff
-    };
-
 protected:
     static fgWalkPreFn optAddCopiesCallback;
     static fgWalkPreFn optVNAssertionPropCurStmtVisitor;
@@ -5957,8 +5974,6 @@ public:
                           ValueNumToAssertsMap;
     ValueNumToAssertsMap* optValueNumToAsserts;
 
-    static const AssertionIndex NO_ASSERTION_INDEX = 0;
-
     // Assertion prop helpers.
     ASSERT_TP& GetAssertionDep(unsigned lclNum);
     AssertionDsc* optGetAssertion(AssertionIndex assertIndex);
@@ -5979,8 +5994,8 @@ public:
     // Assertion Gen functions.
     void optAssertionGen(GenTreePtr tree);
     AssertionIndex optAssertionGenPhiDefn(GenTreePtr tree);
-    AssertionIndex optCreateJTrueBoundsAssertion(GenTreePtr tree);
-    AssertionIndex optAssertionGenJtrue(GenTreePtr tree);
+    AssertionInfo optCreateJTrueBoundsAssertion(GenTreePtr tree);
+    AssertionInfo optAssertionGenJtrue(GenTreePtr tree);
     AssertionIndex optCreateJtrueAssertions(GenTreePtr op1, GenTreePtr op2, Compiler::optAssertionKind assertionKind);
     AssertionIndex optFindComplementary(AssertionIndex assertionIndex);
     void optMapComplementary(AssertionIndex assertionIndex, AssertionIndex index);
@@ -6042,9 +6057,6 @@ public:
     void optImpliedByTypeOfAssertions(ASSERT_TP& activeAssertions);
     void optImpliedByCopyAssertion(AssertionDsc* copyAssertion, AssertionDsc* depAssertion, ASSERT_TP& result);
     void optImpliedByConstAssertion(AssertionDsc* curAssertion, ASSERT_TP& result);
-
-    ASSERT_VALRET_TP optNewFullAssertSet();
-    ASSERT_VALRET_TP optNewEmptyAssertSet();
 
 #ifdef DEBUG
     void optPrintAssertion(AssertionDsc* newAssertion, AssertionIndex assertionIndex = 0);

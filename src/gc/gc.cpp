@@ -53,9 +53,13 @@ BOOL bgc_heap_walk_for_etw_p = FALSE;
 #define LOH_PIN_QUEUE_LENGTH 100
 #define LOH_PIN_DECAY 10
 
-// Right now we support maximum 256 procs - meaning that we will create at most
-// 256 GC threads and 256 GC heaps. 
-#define MAX_SUPPORTED_CPUS 256
+#ifdef BIT64
+// Right now we support maximum 1024 procs - meaning that we will create at most
+// that many GC threads and GC heaps. 
+#define MAX_SUPPORTED_CPUS 1024
+#else
+#define MAX_SUPPORTED_CPUS 64
+#endif // BIT64
 
 #ifdef GC_CONFIG_DRIVEN
 int compact_ratio = 0;
@@ -208,8 +212,10 @@ void GCStatistics::AddGCStats(const gc_mechanisms& settings, size_t timeInMSec)
 
     if (is_induced (settings.reason))
         cntReasons[(int)reason_induced]++;
+#ifdef STRESS_HEAP
     else if (settings.stress_induced)
         cntReasons[(int)reason_gcstress]++;
+#endif // STRESS_HEAP
     else
         cntReasons[(int)settings.reason]++;
 
@@ -4909,12 +4915,12 @@ class heap_select
     static unsigned n_sniff_buffers;
     static unsigned cur_sniff_index;
 
-    static uint8_t proc_no_to_heap_no[MAX_SUPPORTED_CPUS];
-    static uint8_t heap_no_to_proc_no[MAX_SUPPORTED_CPUS];
-    static uint8_t heap_no_to_numa_node[MAX_SUPPORTED_CPUS];
-    static uint8_t heap_no_to_cpu_group[MAX_SUPPORTED_CPUS];
-    static uint8_t heap_no_to_group_proc[MAX_SUPPORTED_CPUS];
-    static uint8_t numa_node_to_heap_map[MAX_SUPPORTED_CPUS+4];
+    static uint16_t proc_no_to_heap_no[MAX_SUPPORTED_CPUS];
+    static uint16_t heap_no_to_proc_no[MAX_SUPPORTED_CPUS];
+    static uint16_t heap_no_to_numa_node[MAX_SUPPORTED_CPUS];
+    static uint16_t heap_no_to_cpu_group[MAX_SUPPORTED_CPUS];
+    static uint16_t heap_no_to_group_proc[MAX_SUPPORTED_CPUS];
+    static uint16_t numa_node_to_heap_map[MAX_SUPPORTED_CPUS+4];
 
     static int access_time(uint8_t *sniff_buffer, int heap_number, unsigned sniff_index, unsigned n_sniff_buffers)
     {
@@ -4956,7 +4962,7 @@ public:
         //can not enable gc numa aware, force all heaps to be in
         //one numa node by filling the array with all 0s
         if (!NumaNodeInfo::CanEnableGCNumaAware())
-            memset(heap_no_to_numa_node, 0, MAX_SUPPORTED_CPUS); 
+            memset(heap_no_to_numa_node, 0, sizeof (heap_no_to_numa_node)); 
 
         return TRUE;
     }
@@ -4966,10 +4972,10 @@ public:
         if (GCToOSInterface::CanGetCurrentProcessorNumber())
         {
             uint32_t proc_no = GCToOSInterface::GetCurrentProcessorNumber() % gc_heap::n_heaps;
-            // We can safely cast heap_number to a BYTE 'cause GetCurrentProcessCpuCount
+            // We can safely cast heap_number to a uint16_t 'cause GetCurrentProcessCpuCount
             // only returns up to MAX_SUPPORTED_CPUS procs right now. We only ever create at most
             // MAX_SUPPORTED_CPUS GC threads.
-            proc_no_to_heap_no[proc_no] = (uint8_t)heap_number;
+            proc_no_to_heap_no[proc_no] = (uint16_t)heap_number;
         }
     }
 
@@ -5032,42 +5038,42 @@ public:
         return GCToOSInterface::CanGetCurrentProcessorNumber();
     }
 
-    static uint8_t find_proc_no_from_heap_no(int heap_number)
+    static uint16_t find_proc_no_from_heap_no(int heap_number)
     {
         return heap_no_to_proc_no[heap_number];
     }
 
-    static void set_proc_no_for_heap(int heap_number, uint8_t proc_no)
+    static void set_proc_no_for_heap(int heap_number, uint16_t proc_no)
     {
         heap_no_to_proc_no[heap_number] = proc_no;
     }
 
-    static uint8_t find_numa_node_from_heap_no(int heap_number)
+    static uint16_t find_numa_node_from_heap_no(int heap_number)
     {
         return heap_no_to_numa_node[heap_number];
     }
 
-    static void set_numa_node_for_heap(int heap_number, uint8_t numa_node)
+    static void set_numa_node_for_heap(int heap_number, uint16_t numa_node)
     {
         heap_no_to_numa_node[heap_number] = numa_node;
     }
 
-    static uint8_t find_cpu_group_from_heap_no(int heap_number)
+    static uint16_t find_cpu_group_from_heap_no(int heap_number)
     {
         return heap_no_to_cpu_group[heap_number];
     }
 
-    static void set_cpu_group_for_heap(int heap_number, uint8_t group_number)
+    static void set_cpu_group_for_heap(int heap_number, uint16_t group_number)
     {
         heap_no_to_cpu_group[heap_number] = group_number;
     }
 
-    static uint8_t find_group_proc_from_heap_no(int heap_number)
+    static uint16_t find_group_proc_from_heap_no(int heap_number)
     {
         return heap_no_to_group_proc[heap_number];
     }
 
-    static void set_group_proc_for_heap(int heap_number, uint8_t group_proc)
+    static void set_group_proc_for_heap(int heap_number, uint16_t group_proc)
     {
         heap_no_to_group_proc[heap_number] = group_proc;
     }
@@ -5082,15 +5088,15 @@ public:
         for (int i=1; i < nheaps; i++)
         {
             if (heap_no_to_numa_node[i] != heap_no_to_numa_node[i-1])
-                numa_node_to_heap_map[node_index++] = (uint8_t)i;
+                numa_node_to_heap_map[node_index++] = (uint16_t)i;
         }
-        numa_node_to_heap_map[node_index] = (uint8_t)nheaps; //mark the end with nheaps
+        numa_node_to_heap_map[node_index] = (uint16_t)nheaps; //mark the end with nheaps
     }
 
     static void get_heap_range_for_heap(int hn, int* start, int* end)
     {   // 1-tier/no numa case: heap_no_to_numa_node[] all zeros, 
         // and treated as in one node. thus: start=0, end=n_heaps
-        uint8_t numa_node = heap_no_to_numa_node[hn];
+        uint16_t numa_node = heap_no_to_numa_node[hn];
         *start = (int)numa_node_to_heap_map[numa_node];
         *end   = (int)(numa_node_to_heap_map[numa_node+1]);
     }
@@ -5098,12 +5104,12 @@ public:
 uint8_t* heap_select::sniff_buffer;
 unsigned heap_select::n_sniff_buffers;
 unsigned heap_select::cur_sniff_index;
-uint8_t heap_select::proc_no_to_heap_no[MAX_SUPPORTED_CPUS];
-uint8_t heap_select::heap_no_to_proc_no[MAX_SUPPORTED_CPUS];
-uint8_t heap_select::heap_no_to_numa_node[MAX_SUPPORTED_CPUS];
-uint8_t heap_select::heap_no_to_cpu_group[MAX_SUPPORTED_CPUS];
-uint8_t heap_select::heap_no_to_group_proc[MAX_SUPPORTED_CPUS];
-uint8_t heap_select::numa_node_to_heap_map[MAX_SUPPORTED_CPUS+4];
+uint16_t heap_select::proc_no_to_heap_no[MAX_SUPPORTED_CPUS];
+uint16_t heap_select::heap_no_to_proc_no[MAX_SUPPORTED_CPUS];
+uint16_t heap_select::heap_no_to_numa_node[MAX_SUPPORTED_CPUS];
+uint16_t heap_select::heap_no_to_cpu_group[MAX_SUPPORTED_CPUS];
+uint16_t heap_select::heap_no_to_group_proc[MAX_SUPPORTED_CPUS];
+uint16_t heap_select::numa_node_to_heap_map[MAX_SUPPORTED_CPUS+4];
 
 BOOL gc_heap::create_thread_support (unsigned number_of_heaps)
 {
@@ -5162,8 +5168,8 @@ void set_thread_group_affinity_for_heap(int heap_number, GCThreadAffinity* affin
             dprintf(3, ("using processor group %d, mask %Ix for heap %d\n", gn, mask, heap_number));
             affinity->Processor = gpn;
             affinity->Group = gn;
-            heap_select::set_cpu_group_for_heap(heap_number, (uint8_t)gn);
-            heap_select::set_group_proc_for_heap(heap_number, (uint8_t)gpn);
+            heap_select::set_cpu_group_for_heap(heap_number, gn);
+            heap_select::set_group_proc_for_heap(heap_number, gpn);
             if (NumaNodeInfo::CanEnableGCNumaAware())
             {  
                 PROCESSOR_NUMBER proc_no;
@@ -5173,11 +5179,11 @@ void set_thread_group_affinity_for_heap(int heap_number, GCThreadAffinity* affin
 
                 uint16_t node_no = 0;
                 if (NumaNodeInfo::GetNumaProcessorNodeEx(&proc_no, &node_no))
-                    heap_select::set_numa_node_for_heap(heap_number, (uint8_t)node_no);
+                    heap_select::set_numa_node_for_heap(heap_number, node_no);
             }
             else
             {   // no numa setting, each cpu group is treated as a node
-                heap_select::set_numa_node_for_heap(heap_number, (uint8_t)gn);
+                heap_select::set_numa_node_for_heap(heap_number, gn);
             }
             return;
         }
@@ -5214,7 +5220,7 @@ void set_thread_affinity_mask_for_heap(int heap_number, GCThreadAffinity* affini
                         proc_no.Reserved = 0;
                         if (NumaNodeInfo::GetNumaProcessorNodeEx(&proc_no, &node_no))
                         {
-                            heap_select::set_numa_node_for_heap(heap_number, (uint8_t)node_no);
+                            heap_select::set_numa_node_for_heap(heap_number, node_no);
                         }
                     }
                     return;
@@ -13342,11 +13348,11 @@ try_again:
                     if (CPUGroupInfo::CanEnableGCCPUGroups())
                     {   //only set ideal processor when max_hp and org_hp are in the same cpu
                         //group. DO NOT MOVE THREADS ACROSS CPU GROUPS
-                        uint8_t org_gn = heap_select::find_cpu_group_from_heap_no(org_hp->heap_number);
-                        uint8_t max_gn = heap_select::find_cpu_group_from_heap_no(max_hp->heap_number);
+                        uint16_t org_gn = heap_select::find_cpu_group_from_heap_no(org_hp->heap_number);
+                        uint16_t max_gn = heap_select::find_cpu_group_from_heap_no(max_hp->heap_number);
                         if (org_gn == max_gn) //only set within CPU group, so SetThreadIdealProcessor is enough
                         {   
-                            uint8_t group_proc_no = heap_select::find_group_proc_from_heap_no(max_hp->heap_number);
+                            uint16_t group_proc_no = heap_select::find_group_proc_from_heap_no(max_hp->heap_number);
 
                             GCThreadAffinity affinity;
                             affinity.Processor = group_proc_no;
@@ -13360,7 +13366,7 @@ try_again:
                     }
                     else 
                     {
-                        uint8_t proc_no = heap_select::find_proc_no_from_heap_no(max_hp->heap_number);
+                        uint16_t proc_no = heap_select::find_proc_no_from_heap_no(max_hp->heap_number);
 
                         GCThreadAffinity affinity;
                         affinity.Processor = proc_no;
@@ -17490,7 +17496,7 @@ void gc_heap::enque_pinned_plug (uint8_t* plug,
             // risks. This happens very rarely and fixing it in the
             // way so that we can continue is a bit involved and will
             // not be done in Dev10.
-            EEPOLICY_HANDLE_FATAL_ERROR(CORINFO_EXCEPTION_GC);
+            GCToEEInterface::HandleFatalError(CORINFO_EXCEPTION_GC);
         }
     }
 
@@ -24996,7 +25002,7 @@ void gc_heap::gc_thread_stub (void* arg)
 #else
         STRESS_LOG0(LF_GC, LL_ALWAYS, "Thread::CommitThreadStack failed.");
         _ASSERTE(!"Thread::CommitThreadStack failed.");
-        EEPOLICY_HANDLE_FATAL_ERROR(COR_E_STACKOVERFLOW);
+        GCToEEInterface::HandleFatalError(COR_E_STACKOVERFLOW);
 #endif //BACKGROUND_GC
     }
 #endif // FEATURE_REDHAWK
@@ -30766,6 +30772,7 @@ CObjectHeader* gc_heap::allocate_large_object (size_t jsize, int64_t& alloc_byte
     uint8_t*  result = acontext.alloc_ptr;
 
     assert ((size_t)(acontext.alloc_limit - acontext.alloc_ptr) == size);
+    alloc_bytes += size;
 
     CObjectHeader* obj = (CObjectHeader*)result;
 
@@ -30802,7 +30809,6 @@ CObjectHeader* gc_heap::allocate_large_object (size_t jsize, int64_t& alloc_byte
     assert (obj != 0);
     assert ((size_t)obj == Align ((size_t)obj, align_const));
 
-    alloc_bytes += acontext.alloc_bytes;
     return obj;
 }
 
@@ -33651,6 +33657,8 @@ HRESULT GCHeap::Initialize ()
     uint32_t nhp = ((nhp_from_config == 0) ? nhp_from_process :
                                              (min (nhp_from_config, nhp_from_process)));
 
+    nhp = min (nhp, MAX_SUPPORTED_CPUS);
+
     hr = gc_heap::initialize_gc (seg_size, large_seg_size /*LHEAP_ALLOC*/, nhp);
 #else
     hr = gc_heap::initialize_gc (seg_size, large_seg_size /*LHEAP_ALLOC*/);
@@ -34101,6 +34109,7 @@ BOOL GCHeap::StressHeap(gc_alloc_context * context)
 {
 #if defined(STRESS_HEAP) && !defined(FEATURE_REDHAWK)
     alloc_context* acontext = static_cast<alloc_context*>(context);
+    assert(context != nullptr);
 
     // if GC stress was dynamically disabled during this run we return FALSE
     if (!GCStressPolicy::IsEnabled())
@@ -34181,9 +34190,6 @@ BOOL GCHeap::StressHeap(gc_alloc_context * context)
 
 #ifndef MULTIPLE_HEAPS
     static int32_t OneAtATime = -1;
-
-    if (acontext == 0)
-        acontext = generation_alloc_context (pGenGCHeap->generation_of(0));
 
     // Only bother with this if the stress level is big enough and if nobody else is
     // doing it right now.  Note that some callers are inside the AllocLock and are
@@ -34496,10 +34502,6 @@ GCHeap::AllocLHeap( size_t size, uint32_t flags REQD_ALIGN_DCL)
 #endif //_PREFAST_
 #endif //MULTIPLE_HEAPS
 
-#ifndef FEATURE_REDHAWK
-    GCStress<gc_on_alloc>::MaybeTrigger(generation_alloc_context(hp->generation_of(0)));
-#endif // FEATURE_REDHAWK
-
     alloc_context* acontext = generation_alloc_context (hp->generation_of (max_generation+1));
 
     newAlloc = (Object*) hp->allocate_large_object (size + ComputeMaxStructAlignPadLarge(requiredAlignment), acontext->alloc_bytes_loh);
@@ -34637,14 +34639,18 @@ GCHeap::FixAllocContext (gc_alloc_context* context, BOOL lockp, void* arg, void 
 }
 
 Object*
-GCHeap::GetContainingObject (void *pInteriorPtr)
+GCHeap::GetContainingObject (void *pInteriorPtr, bool fCollectedGenOnly)
 {
     uint8_t *o = (uint8_t*)pInteriorPtr;
 
     gc_heap* hp = gc_heap::heap_of (o);
-    if (o >= hp->lowest_address && o < hp->highest_address)
+
+    uint8_t* lowest = (fCollectedGenOnly ? hp->gc_low : hp->lowest_address);
+    uint8_t* highest = (fCollectedGenOnly ? hp->gc_high : hp->highest_address);
+
+    if (o >= lowest && o < highest)
     {
-        o = hp->find_object (o, hp->gc_low);
+        o = hp->find_object (o, lowest);
     }
     else
     {
@@ -36738,7 +36744,7 @@ inline void testGCShadow(Object** ptr)
     if (*ptr != 0 && (uint8_t*) shadow < g_GCShadowEnd && *ptr != *shadow)
     {
 
-        // If you get this assertion, someone updated a GC poitner in the heap without
+        // If you get this assertion, someone updated a GC pointer in the heap without
         // using the write barrier.  To find out who, check the value of 
         // dd_collection_count (dynamic_data_of (0)). Also
         // note the value of 'ptr'.  Rerun the App that the previous GC just occurred.

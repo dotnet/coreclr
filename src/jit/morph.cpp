@@ -858,7 +858,9 @@ fgArgInfo::fgArgInfo(Compiler* comp, GenTreeCall* call, unsigned numArgs)
     nextSlotNum = INIT_ARG_STACK_SLOT;
     stkLevel    = 0;
 #if defined(UNIX_X86_ABI)
-    padStkAlign = 0;
+    alignmentDone = false;
+    stkSizeBytes  = 0;
+    padStkAlign   = 0;
 #endif
 #if FEATURE_FIXED_OUT_ARGS
     outArgSize = 0;
@@ -902,7 +904,9 @@ fgArgInfo::fgArgInfo(GenTreeCall* newCall, GenTreeCall* oldCall)
     nextSlotNum = INIT_ARG_STACK_SLOT;
     stkLevel    = oldArgInfo->stkLevel;
 #if defined(UNIX_X86_ABI)
-    padStkAlign = oldArgInfo->padStkAlign;
+    alignmentDone = oldArgInfo->alignmentDone;
+    stkSizeBytes  = oldArgInfo->stkSizeBytes;
+    padStkAlign   = oldArgInfo->padStkAlign;
 #endif
 #if FEATURE_FIXED_OUT_ARGS
     outArgSize = oldArgInfo->outArgSize;
@@ -1086,19 +1090,16 @@ fgArgTabEntryPtr fgArgInfo::AddRegArg(
 {
     fgArgTabEntryPtr curArgTabEntry = new (compiler, CMK_fgArgInfo) fgArgTabEntry;
 
-    curArgTabEntry->argNum     = argNum;
-    curArgTabEntry->node       = node;
-    curArgTabEntry->parent     = parent;
-    curArgTabEntry->regNum     = regNum;
-    curArgTabEntry->slotNum    = 0;
-    curArgTabEntry->numRegs    = numRegs;
-    curArgTabEntry->numSlots   = 0;
-    curArgTabEntry->alignment  = alignment;
-    curArgTabEntry->lateArgInx = (unsigned)-1;
-    curArgTabEntry->tmpNum     = (unsigned)-1;
-#if defined(UNIX_X86_ABI)
-    curArgTabEntry->padStkAlign = 0;
-#endif
+    curArgTabEntry->argNum        = argNum;
+    curArgTabEntry->node          = node;
+    curArgTabEntry->parent        = parent;
+    curArgTabEntry->regNum        = regNum;
+    curArgTabEntry->slotNum       = 0;
+    curArgTabEntry->numRegs       = numRegs;
+    curArgTabEntry->numSlots      = 0;
+    curArgTabEntry->alignment     = alignment;
+    curArgTabEntry->lateArgInx    = (unsigned)-1;
+    curArgTabEntry->tmpNum        = (unsigned)-1;
     curArgTabEntry->isSplit       = false;
     curArgTabEntry->isTmp         = false;
     curArgTabEntry->needTmp       = false;
@@ -1164,19 +1165,16 @@ fgArgTabEntryPtr fgArgInfo::AddStkArg(unsigned   argNum,
     curArgTabEntry->isStruct = isStruct; // is this a struct arg
 #endif                                   // defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
 
-    curArgTabEntry->argNum     = argNum;
-    curArgTabEntry->node       = node;
-    curArgTabEntry->parent     = parent;
-    curArgTabEntry->regNum     = REG_STK;
-    curArgTabEntry->slotNum    = nextSlotNum;
-    curArgTabEntry->numRegs    = 0;
-    curArgTabEntry->numSlots   = numSlots;
-    curArgTabEntry->alignment  = alignment;
-    curArgTabEntry->lateArgInx = (unsigned)-1;
-    curArgTabEntry->tmpNum     = (unsigned)-1;
-#if defined(UNIX_X86_ABI)
-    curArgTabEntry->padStkAlign = 0;
-#endif
+    curArgTabEntry->argNum        = argNum;
+    curArgTabEntry->node          = node;
+    curArgTabEntry->parent        = parent;
+    curArgTabEntry->regNum        = REG_STK;
+    curArgTabEntry->slotNum       = nextSlotNum;
+    curArgTabEntry->numRegs       = 0;
+    curArgTabEntry->numSlots      = numSlots;
+    curArgTabEntry->alignment     = alignment;
+    curArgTabEntry->lateArgInx    = (unsigned)-1;
+    curArgTabEntry->tmpNum        = (unsigned)-1;
     curArgTabEntry->isSplit       = false;
     curArgTabEntry->isTmp         = false;
     curArgTabEntry->needTmp       = false;
@@ -1701,52 +1699,6 @@ void fgArgInfo::ArgsComplete()
 
     argsComplete = true;
 }
-
-#if defined(UNIX_X86_ABI)
-//  Get the stack alignment value for a Call holding this object
-//
-//  NOTE: This function will calculate number of padding slots, to align the
-//  stack before pushing arguments to the stack. Padding value is stored in
-//  the first argument in fgArgTabEntry structure padStkAlign member so that
-//  code (sub esp, n) can be emitted before generating argument push in
-//  fgArgTabEntry node. As of result stack will be aligned right before
-//  making a "Call".  After the Call, stack is re-adjusted to the value it
-//  was with fgArgInfo->padStkAlign value as we cann't use the one in fgArgTabEntry.
-//
-void fgArgInfo::ArgsAlignPadding()
-{
-    // To get the padding amount, sum up all the slots and get the remainder for padding
-    unsigned         curInx;
-    unsigned         numSlots         = 0;
-    fgArgTabEntryPtr firstArgTabEntry = nullptr;
-
-    for (curInx = 0; curInx < argCount; curInx++)
-    {
-        fgArgTabEntryPtr curArgTabEntry = argTable[curInx];
-        if (curArgTabEntry->numSlots > 0)
-        {
-            // The argument may be REG_STK or constant or register that goes to stack
-            assert(nextSlotNum >= curArgTabEntry->slotNum);
-
-            numSlots += curArgTabEntry->numSlots;
-            if (firstArgTabEntry == nullptr)
-            {
-                // First argument will be used to hold the padding amount
-                firstArgTabEntry = curArgTabEntry;
-            }
-        }
-    }
-
-    if (firstArgTabEntry != nullptr)
-    {
-        const int numSlotsAligned = STACK_ALIGN / TARGET_POINTER_SIZE;
-        // Set stack align pad for the first argument
-        firstArgTabEntry->padStkAlign = AlignmentPad(numSlots, numSlotsAligned);
-        // Set also for fgArgInfo that will be used to reset stack pointer after the Call
-        this->padStkAlign = firstArgTabEntry->padStkAlign;
-    }
-}
-#endif // UNIX_X86_ABI
 
 void fgArgInfo::SortArgs()
 {
@@ -4287,10 +4239,6 @@ GenTreeCall* Compiler::fgMorphArgs(GenTreeCall* call)
     {
         call->fgArgInfo->ArgsComplete();
 
-#if defined(UNIX_X86_ABI)
-        call->fgArgInfo->ArgsAlignPadding();
-#endif // UNIX_X86_ABI
-
 #ifdef LEGACY_BACKEND
         call->gtCallRegUsedMask = genIntAllRegArgMask(intArgRegNum);
 #if defined(_TARGET_ARM_)
@@ -4331,6 +4279,9 @@ GenTreeCall* Compiler::fgMorphArgs(GenTreeCall* call)
         JITDUMP("Upping fgPtrArgCntMax from %d to %d\n", fgPtrArgCntMax, fgPtrArgCntCur);
         fgPtrArgCntMax = fgPtrArgCntCur;
     }
+
+    assert(fgPtrArgCntCur >= genPtrArgCntSav);
+    call->fgArgInfo->SetStkSizeBytes((fgPtrArgCntCur - genPtrArgCntSav) * TARGET_POINTER_SIZE);
 
     /* The call will pop all the arguments we pushed */
 
@@ -9799,8 +9750,9 @@ GenTreePtr Compiler::fgMorphCopyBlock(GenTreePtr tree)
         // Check to see if we are required to do a copy block because the struct contains holes
         // and either the src or dest is externally visible
         //
-        bool requiresCopyBlock  = false;
-        bool srcSingleLclVarAsg = false;
+        bool requiresCopyBlock   = false;
+        bool srcSingleLclVarAsg  = false;
+        bool destSingleLclVarAsg = false;
 
         if ((destLclVar != nullptr) && (srcLclVar == destLclVar))
         {
@@ -9916,6 +9868,30 @@ GenTreePtr Compiler::fgMorphCopyBlock(GenTreePtr tree)
                     }
                 }
             }
+            else
+            {
+                assert(srcDoFldAsg);
+                // Check for the symmetric case (which happens for the _pointer field of promoted spans):
+                //
+                //               [000240] -----+------             /--*  lclVar    struct(P) V18 tmp9
+                //                                                  /--*    byref  V18._value (offs=0x00) -> V30 tmp21
+                //               [000245] -A------R---             *  =         struct (copy)
+                //               [000244] -----+------             \--*  obj(8)    struct
+                //               [000243] -----+------                \--*  addr      byref
+                //               [000242] D----+-N----                   \--*  lclVar    byref  V28 tmp19
+                //
+                if (blockWidthIsConst && (srcLclVar->lvFieldCnt == 1) && (destLclVar != nullptr) &&
+                    (blockWidth == genTypeSize(destLclVar->TypeGet())))
+                {
+                    // Check for type agreement
+                    unsigned  fieldLclNum = lvaTable[srcLclNum].lvFieldLclStart;
+                    var_types srcType     = lvaTable[fieldLclNum].TypeGet();
+                    if (destLclVar->TypeGet() == srcType)
+                    {
+                        destSingleLclVarAsg = true;
+                    }
+                }
+            }
         }
 
         // If we require a copy block the set both of the field assign bools to false
@@ -9932,7 +9908,7 @@ GenTreePtr Compiler::fgMorphCopyBlock(GenTreePtr tree)
         // when they are not reg-sized non-field-addressed structs and we are using a CopyBlock
         // or the struct is not promoted
         //
-        if (!destDoFldAsg && (destLclVar != nullptr))
+        if (!destDoFldAsg && (destLclVar != nullptr) && !destSingleLclVarAsg)
         {
             if (!destLclVar->lvRegStruct)
             {
@@ -10186,45 +10162,56 @@ GenTreePtr Compiler::fgMorphCopyBlock(GenTreePtr tree)
                 noway_assert(srcLclNum != BAD_VAR_NUM);
                 unsigned fieldLclNum = lvaTable[srcLclNum].lvFieldLclStart + i;
 
-                if (addrSpill)
+                if (destSingleLclVarAsg)
                 {
-                    assert(addrSpillTemp != BAD_VAR_NUM);
-                    dest = gtNewLclvNode(addrSpillTemp, TYP_BYREF);
+                    noway_assert(fieldCnt == 1);
+                    noway_assert(destLclVar != nullptr);
+                    noway_assert(addrSpill == nullptr);
+
+                    dest = gtNewLclvNode(destLclNum, destLclVar->TypeGet());
                 }
                 else
                 {
-                    dest = gtCloneExpr(destAddr);
-                    noway_assert(dest != nullptr);
-
-                    // Is the address of a local?
-                    GenTreeLclVarCommon* lclVarTree = nullptr;
-                    bool                 isEntire   = false;
-                    bool*                pIsEntire  = (blockWidthIsConst ? &isEntire : nullptr);
-                    if (dest->DefinesLocalAddr(this, blockWidth, &lclVarTree, pIsEntire))
+                    if (addrSpill)
                     {
-                        lclVarTree->gtFlags |= GTF_VAR_DEF;
-                        if (!isEntire)
+                        assert(addrSpillTemp != BAD_VAR_NUM);
+                        dest = gtNewLclvNode(addrSpillTemp, TYP_BYREF);
+                    }
+                    else
+                    {
+                        dest = gtCloneExpr(destAddr);
+                        noway_assert(dest != nullptr);
+
+                        // Is the address of a local?
+                        GenTreeLclVarCommon* lclVarTree = nullptr;
+                        bool                 isEntire   = false;
+                        bool*                pIsEntire  = (blockWidthIsConst ? &isEntire : nullptr);
+                        if (dest->DefinesLocalAddr(this, blockWidth, &lclVarTree, pIsEntire))
                         {
-                            lclVarTree->gtFlags |= GTF_VAR_USEASG;
+                            lclVarTree->gtFlags |= GTF_VAR_DEF;
+                            if (!isEntire)
+                            {
+                                lclVarTree->gtFlags |= GTF_VAR_USEASG;
+                            }
                         }
                     }
+
+                    GenTreePtr fieldOffsetNode = gtNewIconNode(lvaTable[fieldLclNum].lvFldOffset, TYP_I_IMPL);
+                    // Have to set the field sequence -- which means we need the field handle.
+                    CORINFO_CLASS_HANDLE classHnd = lvaTable[srcLclNum].lvVerTypeInfo.GetClassHandle();
+                    CORINFO_FIELD_HANDLE fieldHnd =
+                        info.compCompHnd->getFieldInClass(classHnd, lvaTable[fieldLclNum].lvFldOrdinal);
+                    curFieldSeq                          = GetFieldSeqStore()->CreateSingleton(fieldHnd);
+                    fieldOffsetNode->gtIntCon.gtFieldSeq = curFieldSeq;
+
+                    dest = gtNewOperNode(GT_ADD, TYP_BYREF, dest, fieldOffsetNode);
+
+                    dest = gtNewOperNode(GT_IND, lvaTable[fieldLclNum].TypeGet(), dest);
+
+                    // !!! The destination could be on stack. !!!
+                    // This flag will let us choose the correct write barrier.
+                    dest->gtFlags |= GTF_IND_TGTANYWHERE;
                 }
-
-                GenTreePtr fieldOffsetNode = gtNewIconNode(lvaTable[fieldLclNum].lvFldOffset, TYP_I_IMPL);
-                // Have to set the field sequence -- which means we need the field handle.
-                CORINFO_CLASS_HANDLE classHnd = lvaTable[srcLclNum].lvVerTypeInfo.GetClassHandle();
-                CORINFO_FIELD_HANDLE fieldHnd =
-                    info.compCompHnd->getFieldInClass(classHnd, lvaTable[fieldLclNum].lvFldOrdinal);
-                curFieldSeq                          = GetFieldSeqStore()->CreateSingleton(fieldHnd);
-                fieldOffsetNode->gtIntCon.gtFieldSeq = curFieldSeq;
-
-                dest = gtNewOperNode(GT_ADD, TYP_BYREF, dest, fieldOffsetNode);
-
-                dest = gtNewOperNode(GT_IND, lvaTable[fieldLclNum].TypeGet(), dest);
-
-                // !!! The destination could be on stack. !!!
-                // This flag will let us choose the correct write barrier.
-                dest->gtFlags |= GTF_IND_TGTANYWHERE;
             }
 
             if (srcDoFldAsg)
@@ -10869,7 +10856,6 @@ GenTreePtr Compiler::fgMorphSmpOp(GenTreePtr tree, MorphAddrContext* mac)
                             op1->gtOp.gtOp1 = gtNewOperNode(GT_NOP, TYP_INT, op1->gtCast.CastOp());
                             op1->gtFlags &= ~GTF_ALL_EFFECT;
                             op1->gtFlags |= (op1->gtCast.CastOp()->gtFlags & GTF_ALL_EFFECT);
-                            op1->gtFlags |= GTF_DONT_CSE;
                         }
 
                         if (op2->gtCast.CastOp()->OperGet() != GT_NOP)
@@ -10877,8 +10863,10 @@ GenTreePtr Compiler::fgMorphSmpOp(GenTreePtr tree, MorphAddrContext* mac)
                             op2->gtOp.gtOp1 = gtNewOperNode(GT_NOP, TYP_INT, op2->gtCast.CastOp());
                             op2->gtFlags &= ~GTF_ALL_EFFECT;
                             op2->gtFlags |= (op2->gtCast.CastOp()->gtFlags & GTF_ALL_EFFECT);
-                            op2->gtFlags |= GTF_DONT_CSE;
                         }
+
+                        op1->gtFlags |= GTF_DONT_CSE;
+                        op2->gtFlags |= GTF_DONT_CSE;
 
                         tree->gtFlags &= ~GTF_ALL_EFFECT;
                         tree->gtFlags |= ((op1->gtFlags | op2->gtFlags) & GTF_ALL_EFFECT);
