@@ -52,7 +52,6 @@
     <Compile Include="$(MSBuildThisFileDirectory)Interop\Unix\System.Native\Interop.FSync.cs"/>
     <Compile Include="$(MSBuildThisFileDirectory)Interop\Unix\System.Native\Interop.FTruncate.cs"/>
     <Compile Include="$(MSBuildThisFileDirectory)Interop\Unix\System.Native\Interop.GetCwd.cs"/>
-    <Compile Include="$(MSBuildThisFileDirectory)Interop\Unix\System.Native\Interop.GetSystemTimeAsTicks.cs"/>
     <Compile Include="$(MSBuildThisFileDirectory)Interop\Unix\System.Native\Interop.LockFileRegion.cs"/>
     <Compile Include="$(MSBuildThisFileDirectory)Interop\Unix\System.Native\Interop.LSeek.cs"/>
     <Compile Include="$(MSBuildThisFileDirectory)Interop\Unix\System.Native\Interop.MksTemps.cs"/>
@@ -247,7 +246,6 @@
     <Compile Include="$(MSBuildThisFileDirectory)Microsoft\Win32\SafeHandles\SafeFileHandle.Windows.cs" />
   </ItemGroup>
   <ItemGroup Condition="$(TargetsUnix)">
-    <Compile Include="$(MSBuildThisFileDirectory)System\DateTime.Unix.cs"/>
     <Compile Include="$(MSBuildThisFileDirectory)System\IO\FileStream.Unix.cs"/>
     <Compile Include="$(MSBuildThisFileDirectory)System\IO\Path.Unix.cs"/>
     <Compile Include="$(MSBuildThisFileDirectory)System\IO\PathInternal.Unix.cs"/>
