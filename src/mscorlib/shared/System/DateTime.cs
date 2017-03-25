@@ -125,7 +125,7 @@ namespace System
         private const Int32 KindShift = 62;
 
         private const String TicksField = "ticks";
-        private const String DateDataField = "dateData";
+        private const String DateDataField = "_dateData";
 
         // The data is stored as an unsigned 64-bit integeter
         //   Bits 01-62: The value of 100-nanosecond ticks where 0 represents 1/1/0001 12:00am, up until the value
@@ -135,7 +135,7 @@ namespace System
         //               savings time hour and it is in daylight savings time. This allows distinction of these
         //               otherwise ambiguous local times and prevents data loss when round tripping from Local to
         //               UTC time.
-        private UInt64 dateData;
+        private UInt64 _dateData;
 
         // Constructs a DateTime from a tick count. The ticks
         // argument specifies the date as the number of 100-nanosecond intervals
@@ -146,12 +146,12 @@ namespace System
             if (ticks < MinTicks || ticks > MaxTicks)
                 throw new ArgumentOutOfRangeException(nameof(ticks), SR.ArgumentOutOfRange_DateTimeBadTicks);
             Contract.EndContractBlock();
-            dateData = (UInt64)ticks;
+            _dateData = (UInt64)ticks;
         }
 
         private DateTime(UInt64 dateData)
         {
-            this.dateData = dateData;
+            this._dateData = dateData;
         }
 
         public DateTime(long ticks, DateTimeKind kind)
@@ -165,7 +165,7 @@ namespace System
                 throw new ArgumentException(SR.Argument_InvalidDateTimeKind, nameof(kind));
             }
             Contract.EndContractBlock();
-            dateData = ((UInt64)ticks | ((UInt64)kind << KindShift));
+            _dateData = ((UInt64)ticks | ((UInt64)kind << KindShift));
         }
 
         internal DateTime(long ticks, DateTimeKind kind, Boolean isAmbiguousDst)
@@ -174,9 +174,9 @@ namespace System
             {
                 throw new ArgumentOutOfRangeException(nameof(ticks), SR.ArgumentOutOfRange_DateTimeBadTicks);
             }
-            Contract.Requires(kind == DateTimeKind.Local, "Internal Constructor is for local times only");
+            Debug.Assert(kind == DateTimeKind.Local, "Internal Constructor is for local times only");
             Contract.EndContractBlock();
-            dateData = ((UInt64)ticks | (isAmbiguousDst ? KindLocalAmbiguousDst : KindLocal));
+            _dateData = ((UInt64)ticks | (isAmbiguousDst ? KindLocalAmbiguousDst : KindLocal));
         }
 
         // Constructs a DateTime from a given year, month, and day. The
@@ -184,7 +184,7 @@ namespace System
         //
         public DateTime(int year, int month, int day)
         {
-            dateData = (UInt64)DateToTicks(year, month, day);
+            _dateData = (UInt64)DateToTicks(year, month, day);
         }
 
         // Constructs a DateTime from a given year, month, and day for
@@ -201,7 +201,7 @@ namespace System
         //
         public DateTime(int year, int month, int day, int hour, int minute, int second)
         {
-            dateData = (UInt64)(DateToTicks(year, month, day) + TimeToTicks(hour, minute, second));
+            _dateData = (UInt64)(DateToTicks(year, month, day) + TimeToTicks(hour, minute, second));
         }
 
         public DateTime(int year, int month, int day, int hour, int minute, int second, DateTimeKind kind)
@@ -212,7 +212,7 @@ namespace System
             }
             Contract.EndContractBlock();
             Int64 ticks = DateToTicks(year, month, day) + TimeToTicks(hour, minute, second);
-            dateData = ((UInt64)ticks | ((UInt64)kind << KindShift));
+            _dateData = ((UInt64)ticks | ((UInt64)kind << KindShift));
         }
 
         // Constructs a DateTime from a given year, month, day, hour,
@@ -223,7 +223,7 @@ namespace System
             if (calendar == null)
                 throw new ArgumentNullException(nameof(calendar));
             Contract.EndContractBlock();
-            dateData = (UInt64)calendar.ToDateTime(year, month, day, hour, minute, second, 0).Ticks;
+            _dateData = (UInt64)calendar.ToDateTime(year, month, day, hour, minute, second, 0).Ticks;
         }
 
         // Constructs a DateTime from a given year, month, day, hour,
@@ -240,7 +240,7 @@ namespace System
             ticks += millisecond * TicksPerMillisecond;
             if (ticks < MinTicks || ticks > MaxTicks)
                 throw new ArgumentException(SR.Arg_DateTimeRange);
-            dateData = (UInt64)ticks;
+            _dateData = (UInt64)ticks;
         }
 
         public DateTime(int year, int month, int day, int hour, int minute, int second, int millisecond, DateTimeKind kind)
@@ -258,7 +258,7 @@ namespace System
             ticks += millisecond * TicksPerMillisecond;
             if (ticks < MinTicks || ticks > MaxTicks)
                 throw new ArgumentException(SR.Arg_DateTimeRange);
-            dateData = ((UInt64)ticks | ((UInt64)kind << KindShift));
+            _dateData = ((UInt64)ticks | ((UInt64)kind << KindShift));
         }
 
         // Constructs a DateTime from a given year, month, day, hour,
@@ -277,7 +277,7 @@ namespace System
             ticks += millisecond * TicksPerMillisecond;
             if (ticks < MinTicks || ticks > MaxTicks)
                 throw new ArgumentException(SR.Arg_DateTimeRange);
-            dateData = (UInt64)ticks;
+            _dateData = (UInt64)ticks;
         }
 
         public DateTime(int year, int month, int day, int hour, int minute, int second, int millisecond, Calendar calendar, DateTimeKind kind)
@@ -297,7 +297,7 @@ namespace System
             ticks += millisecond * TicksPerMillisecond;
             if (ticks < MinTicks || ticks > MaxTicks)
                 throw new ArgumentException(SR.Arg_DateTimeRange);
-            dateData = ((UInt64)ticks | ((UInt64)kind << KindShift));
+            _dateData = ((UInt64)ticks | ((UInt64)kind << KindShift));
         }
 
         private DateTime(SerializationInfo info, StreamingContext context)
@@ -333,11 +333,11 @@ namespace System
             }
             if (foundDateData)
             {
-                dateData = serializedDateData;
+                _dateData = serializedDateData;
             }
             else if (foundTicks)
             {
-                dateData = (UInt64)serializedTicks;
+                _dateData = (UInt64)serializedTicks;
             }
             else
             {
@@ -356,7 +356,7 @@ namespace System
         {
             get
             {
-                return (Int64)(dateData & TicksMask);
+                return (Int64)(_dateData & TicksMask);
             }
         }
 
@@ -364,7 +364,7 @@ namespace System
         {
             get
             {
-                return (dateData & FlagsMask);
+                return (_dateData & FlagsMask);
             }
         }
 
@@ -749,7 +749,7 @@ namespace System
 
             // Serialize both the old and the new format
             info.AddValue(TicksField, InternalTicks);
-            info.AddValue(DateDataField, dateData);
+            info.AddValue(DateDataField, _dateData);
         }
 
         public Boolean IsDaylightSavingTime()
@@ -791,7 +791,7 @@ namespace System
             }
             else
             {
-                return (Int64)dateData;
+                return (Int64)_dateData;
             }
         }
 
