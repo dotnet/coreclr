@@ -74,7 +74,8 @@ initTargetDistroRid()
         if [ "$__BuildOS" == "Linux" ]; then
             if [ ! -e $ROOTFS_DIR/etc/os-release ]; then
                 echo "WARNING: Can not determine runtime id for current distro."
-                export __DistroRid=""
+                #Test hack to generate __DistroRid for Android
+                export __DistroRid="android.21-arm64"
             else
                 source $ROOTFS_DIR/etc/os-release
                 export __DistroRid="$ID.$VERSION_ID-$__BuildArch"
