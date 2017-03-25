@@ -1870,7 +1870,7 @@ BOOL MethodDesc::AcquiresInstMethodTableFromThis() {
         !HasMethodInstantiation() &&
         !IsStatic() &&
         !GetMethodTable()->IsValueType() &&
-        !(GetMethodTable()->IsInterface() && !IsAbstract());
+        !IsDefaultInterfaceMethod();
 }
 
 //*******************************************************************************

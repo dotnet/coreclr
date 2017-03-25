@@ -632,7 +632,7 @@
 #define BFA_VIRTUAL_PINVOKE_METHOD              0x2011
 #define BFA_VIRTUAL_STATIC_METHOD               0x2012
 #define BFA_VIRTUAL_INSTANCE_CTOR               0x2013
-// #define BFA_VIRTUAL_NONAB_INT_METHOD            0x2014
+#define BFA_VIRTUAL_NONAB_INT_METHOD            0x2014
 #define BFA_NONVIRT_INST_INT_METHOD             0x2015
 #define BFA_SYNC_METHOD_IN_VT                   0x2016
 #define BFA_NONSTATIC_GLOBAL_METHOD             0x2017

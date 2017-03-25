@@ -2881,18 +2881,6 @@ MethodTableBuilder::EnumerateClassMethods()
                 BuildMethodTableThrowException(BFA_NONVIRT_AB_METHOD);
             }
         }
-        else if(fIsClassInterface)
-        {
-            if (IsMdRTSpecialName(dwMemberAttrs) && !IsMdVirtual(dwMemberAttrs))
-            {
-                CONSISTENCY_CHECK(CheckPointer(strMethodName));
-                if (strcmp(strMethodName, COR_CCTOR_METHOD_NAME))
-                {
-                    // @TODO - Change error message
-                    BuildMethodTableThrowException(BFA_NONAB_NONCCTOR_METHOD_ON_INT);
-                }
-            }
-        }
 
         // Virtual / not virtual
         if(IsMdVirtual(dwMemberAttrs))
@@ -6764,13 +6752,7 @@ VOID MethodTableBuilder::ValidateInterfaceMethodConstraints()
             // If pTargetMT is null, this indicates that the target MethodDesc belongs
             // to the current type. Otherwise, the MethodDesc MUST be owned by a parent
             // of the type we're building.
-            RelativeFixupPointer<PTR_MethodTable> *pParentMT = pTargetMD->GetMethodTablePtr();
-
-            BOOL              fTargetIsOwnedByParent = !pParentMT->IsNull();
-
-            // Skip if it is implemented by the interface as a default interface method
-            if (fTargetIsOwnedByParent && pTargetMD->GetMethodTable()->IsInterface())
-                continue;            
+            BOOL              fTargetIsOwnedByParent = !pTargetMD->GetMethodTablePtr()->IsNull();        
             
             // If the method is owned by a parent, we need to use the parent's module,
             // and we must construct the substitution chain all the way up to the parent.
