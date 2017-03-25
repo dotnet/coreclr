@@ -44,7 +44,7 @@ void Compiler::fgInit()
     fgSlopUsedInEdgeWeights  = false;
     fgRangeUsedInEdgeWeights = true;
     fgNeedsUpdateFlowGraph   = false;
-    fgCalledWeight           = BB_ZERO_WEIGHT;
+    fgCalledCount            = BB_ZERO_WEIGHT;
 
     /* We haven't yet computed the dominator sets */
     fgDomsComputed = false;
@@ -7634,7 +7634,14 @@ void Compiler::fgAddSyncMethodEnterExit()
     assert(fgFirstBB->bbFallsThrough());
 
     BasicBlock* tryBegBB  = fgNewBBafter(BBJ_NONE, fgFirstBB, false);
+    BasicBlock* tryNextBB = tryBegBB->bbNext;
     BasicBlock* tryLastBB = fgLastBB;
+
+    // If we have profile data the new block will inherit the next block's weight
+    if (tryNextBB->hasProfileWeight())
+    {
+        tryBegBB->inheritWeight(tryNextBB);
+    }
 
     // Create a block for the fault.
 
@@ -12471,7 +12478,7 @@ void Compiler::fgPrintEdgeWeights()
 
                 if (edge->flEdgeWeightMin < BB_MAX_WEIGHT)
                 {
-                    printf("(%s", refCntWtd2str(edge->flEdgeWeightMin));
+                    printf("(%u", edge->flEdgeWeightMin);
                 }
                 else
                 {
@@ -12481,7 +12488,7 @@ void Compiler::fgPrintEdgeWeights()
                 {
                     if (edge->flEdgeWeightMax < BB_MAX_WEIGHT)
                     {
-                        printf("..%s", refCntWtd2str(edge->flEdgeWeightMax));
+                        printf("..%u", edge->flEdgeWeightMax);
                     }
                     else
                     {
@@ -12544,7 +12551,7 @@ void Compiler::fgComputeEdgeWeights()
         }
 #endif // DEBUG
         fgHaveValidEdgeWeights = false;
-        fgCalledWeight         = BB_UNITY_WEIGHT;
+        fgCalledCount          = BB_UNITY_WEIGHT;
     }
 
 #if DEBUG
@@ -12682,25 +12689,57 @@ void Compiler::fgComputeEdgeWeights()
     }
 #endif
 
-    // When we are not using profile data we have already setup fgCalledWeight
+    // When we are not using profile data we have already setup fgCalledCount
     // only set it here if we are using profile data
     //
     if (fgIsUsingProfileWeights())
     {
-        // If the first block has one ref then it's weight is the fgCalledWeight
-        // otherwise we have backedge's into the first block so instead
-        // we use the sum of the return block weights.
-        // If the profile data has a 0 for the returnWeoght
-        // then just use the first block weight rather than the 0
-        //
-        if ((fgFirstBB->countOfInEdges() == 1) || (returnWeight == 0))
+        BasicBlock* firstILBlock = fgFirstBB; // The first block for IL code (i.e. for the IL code at offset 0)
+
+        // Do we have an internal block as our first Block?
+        if (firstILBlock->bbFlags & BBF_INTERNAL)
         {
-            fgCalledWeight = fgFirstBB->bbWeight;
+            // Skip past any/all BBF_INTERNAL blocks that may have been added before the first real IL block.
+            //
+            while (firstILBlock->bbFlags & BBF_INTERNAL)
+            {
+                firstILBlock = firstILBlock->bbNext;
+            }
+            // The 'firstILBlock' is now expected to have a profile-derived weight
+            assert(firstILBlock->hasProfileWeight());
+        }
+
+        // If the first block only has one ref then we use it's weight for fgCalledCount.
+        // Otherwise we have backedge's into the first block, so instead we use the sum
+        // of the return block weights for fgCalledCount.
+        //
+        // If the profile data has a 0 for the returnWeight
+        // (i.e. the function never returns because it always throws)
+        // then just use the first block weight rather than 0.
+        //
+        if ((firstILBlock->countOfInEdges() == 1) || (returnWeight == 0))
+        {
+            assert(firstILBlock->hasProfileWeight()); // This should always be a profile-derived weight
+            fgCalledCount = firstILBlock->bbWeight;
         }
         else
         {
-            fgCalledWeight = returnWeight;
+            fgCalledCount = returnWeight;
         }
+
+        // If we allocated a scratch block as the first BB then we need
+        // to set its profile-derived weight to be fgCalledCount
+        if (fgFirstBBisScratch())
+        {
+            fgFirstBB->setBBProfileWeight(fgCalledCount);
+        }
+
+#if DEBUG
+        if (verbose)
+        {
+            printf("We are using the Profile Weights and fgCalledCount is %d.\n", fgCalledCount);
+        }
+#endif
     }
 
     // Now we will compute the initial flEdgeWeightMin and flEdgeWeightMax values
@@ -12713,7 +12752,7 @@ void Compiler::fgComputeEdgeWeights()
         //
         if (bDst == fgFirstBB)
         {
-            bDstWeight -= fgCalledWeight;
+            bDstWeight -= fgCalledCount;
         }
 
         for (edge = bDst->bbPreds; edge != nullptr; edge = edge->flNext)
@@ -12878,7 +12917,7 @@ void Compiler::fgComputeEdgeWeights()
                 //
                 if (bDst == fgFirstBB)
                 {
-                    bDstWeight -= fgCalledWeight;
+                    bDstWeight -= fgCalledCount;
                 }
 
                 UINT64 minEdgeWeightSum = 0;
@@ -13832,10 +13871,9 @@ bool Compiler::fgOptimizeUncondBranchToSimpleCond(BasicBlock* block, BasicBlock*
     // add an unconditional block after this block to jump to the target block's fallthrough block
 
     BasicBlock* next = fgNewBBafter(BBJ_ALWAYS, block, true);
-    next->bbFlags    = block->bbFlags | BBF_INTERNAL;
-    next->bbFlags &= ~(BBF_TRY_BEG | BBF_LOOP_HEAD | BBF_LOOP_CALL0 | BBF_LOOP_CALL1 | BBF_HAS_LABEL | BBF_JMP_TARGET |
-                       BBF_FUNCLET_BEG | BBF_LOOP_PREHEADER | BBF_KEEP_BBJ_ALWAYS);
 
+    // The new block 'next' will inherit its weight from 'block'
+    next->inheritWeight(block);
     next->bbJumpDest = target->bbNext;
     target->bbNext->bbFlags |= BBF_JMP_TARGET;
     fgAddRefPred(next, block);
@@ -17583,10 +17621,28 @@ BasicBlock* Compiler::fgAddCodeRef(BasicBlock* srcBlk, unsigned refData, Special
         // this restriction could be removed with more careful code
         // generation for BBJ_THROW (i.e. range check failed).
         //
+        // For Linux/x86, we possibly need to insert stack alignment adjustment
+        // before the first stack argument pushed for every call. But we
+        // don't know what the stack alignment adjustment will be when
+        // we morph a tree that calls fgAddCodeRef(), so the stack depth
+        // number will be incorrect. For now, simply force all functions with
+        // these helpers to have EBP frames. It might be possible to make
+        // this less conservative. E.g., for top-level (not nested) calls
+        // without stack args, the stack pointer hasn't changed and stack
+        // depth will be known to be zero. Or, figure out a way to update
+        // or generate all required helpers after all stack alignment
+        // has been added, and the stack level at each call to fgAddCodeRef()
+        // is known, or can be recalculated.
+        CLANG_FORMAT_COMMENT_ANCHOR;
+
+#if defined(UNIX_X86_ABI)
+        codeGen->setFrameRequired(true);
+#else  // !defined(UNIX_X86_ABI)
         if (add->acdStkLvl != stkDepth)
         {
             codeGen->setFrameRequired(true);
         }
+#endif // !defined(UNIX_X86_ABI)
 #endif // _TARGET_X86_
 
         return add->acdDstBlk;
@@ -19116,7 +19172,7 @@ bool Compiler::fgDumpFlowGraph(Phases phase)
         return false;
     }
     bool        validWeights  = fgHaveValidEdgeWeights;
-    unsigned    calledCount   = max(fgCalledWeight, BB_UNITY_WEIGHT) / BB_UNITY_WEIGHT;
+    unsigned    calledCount   = max(fgCalledCount, BB_UNITY_WEIGHT) / BB_UNITY_WEIGHT;
     double      weightDivisor = (double)(calledCount * BB_UNITY_WEIGHT);
     const char* escapedString;
     const char* regionString = "NONE";
@@ -19504,8 +19560,28 @@ void Compiler::fgTableDispBasicBlock(BasicBlock* block, int ibcColWidth /* = 0 *
     }
     else
     {
-        printf("%6s", refCntWtd2str(block->getBBWeight(this)));
+        BasicBlock::weight_t weight = block->getBBWeight(this);
+
+        if (weight > 99999) // Is it going to be more than 6 characters?
+        {
+            if (weight <= 99999 * BB_UNITY_WEIGHT)
+            {
+                // print weight in this format ddddd.
+                printf("%5u.", (weight + (BB_UNITY_WEIGHT / 2)) / BB_UNITY_WEIGHT);
+            }
+            else // print weight in terms of k (i.e. 156k )
+            {
+                // print weight in this format dddddk
+                BasicBlock::weight_t weightK = weight / 1000;
+                printf("%5uk", (weightK + (BB_UNITY_WEIGHT / 2)) / BB_UNITY_WEIGHT);
+            }
+        }
+        else // print weight in this format ddd.dd
+        {
+            printf("%6s", refCntWtd2str(weight));
+        }
     }
+    printf(" ");
 
     //
     // Display optional IBC weight column.
@@ -19793,11 +19869,11 @@ void Compiler::fgDispBasicBlocks(BasicBlock* firstBlock, BasicBlock* lastBlock, 
     // clang-format off
 
     printf("\n");
-    printf("------%*s------------------------------------%*s-----------------------%*s----------------------------------------\n",
+    printf("------%*s-------------------------------------%*s-----------------------%*s----------------------------------------\n",
         padWidth, "------------",
         ibcColWidth, "------------",
         maxBlockNumWidth, "----");
-    printf("BBnum %*sdescAddr ref try hnd %s     weight  %*s%s [IL range]      [jump]%*s    [EH region]         [flags]\n",
+    printf("BBnum %*sdescAddr ref try hnd %s     weight  %*s%s  [IL range]     [jump]%*s    [EH region]         [flags]\n",
         padWidth, "",
         fgCheapPredsValid       ? "cheap preds" :
         (fgComputePredsDone     ? "preds      "
@@ -19807,7 +19883,7 @@ void Compiler::fgDispBasicBlocks(BasicBlock* firstBlock, BasicBlock* lastBlock, 
                                 : ""),
         maxBlockNumWidth, ""
         );
-    printf("------%*s------------------------------------%*s-----------------------%*s----------------------------------------\n",
+    printf("------%*s-------------------------------------%*s-----------------------%*s----------------------------------------\n",
         padWidth, "------------",
         ibcColWidth, "------------",
         maxBlockNumWidth, "----");
@@ -19831,16 +19907,16 @@ void Compiler::fgDispBasicBlocks(BasicBlock* firstBlock, BasicBlock* lastBlock, 
 
         if (block == fgFirstColdBlock)
         {
-            printf("~~~~~~%*s~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~%*s~~~~~~~~~~~~~~~~~~~~~~~%*s~~~~~~~~~~~~~~~~~~~~~~~~~"
-                   "~~~~~~~~~~~~~~~\n",
+            printf("~~~~~~%*s~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~%*s~~~~~~~~~~~~~~~~~~~~~~~%*s~~~~~~~~~~~~~~~~~~~~~~~~"
+                   "~~~~~~~~~~~~~~~~\n",
                    padWidth, "~~~~~~~~~~~~", ibcColWidth, "~~~~~~~~~~~~", maxBlockNumWidth, "~~~~");
         }
 
 #if FEATURE_EH_FUNCLETS
         if (block == fgFirstFuncletBB)
         {
-            printf("++++++%*s++++++++++++++++++++++++++++++++++++%*s+++++++++++++++++++++++%*s+++++++++++++++++++++++++"
-                   "+++++++++++++++ funclets follow\n",
+            printf("++++++%*s+++++++++++++++++++++++++++++++++++++%*s+++++++++++++++++++++++%*s++++++++++++++++++++++++"
+                   "++++++++++++++++ funclets follow\n",
                    padWidth, "++++++++++++", ibcColWidth, "++++++++++++", maxBlockNumWidth, "++++");
         }
 #endif // FEATURE_EH_FUNCLETS
@@ -19853,8 +19929,8 @@ void Compiler::fgDispBasicBlocks(BasicBlock* firstBlock, BasicBlock* lastBlock, 
         }
     }
 
-    printf("------%*s------------------------------------%*s-----------------------%*s---------------------------------"
-           "-------\n",
+    printf("------%*s-------------------------------------%*s-----------------------%*s--------------------------------"
+           "--------\n",
            padWidth, "------------", ibcColWidth, "------------", maxBlockNumWidth, "----");
 
     if (dumpTrees)

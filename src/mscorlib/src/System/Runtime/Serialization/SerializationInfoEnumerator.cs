@@ -109,14 +109,13 @@ namespace System.Runtime.Serialization
             return m_current;
         }
 
-        /// <internalonly/>
         Object IEnumerator.Current
         { //Actually returns a SerializationEntry
             get
             {
                 if (m_current == false)
                 {
-                    throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_EnumOpCantHappen"));
+                    throw new InvalidOperationException(SR.InvalidOperation_EnumOpCantHappen);
                 }
                 return (Object)(new SerializationEntry(m_members[m_currItem], m_data[m_currItem], m_types[m_currItem]));
             }
@@ -128,7 +127,7 @@ namespace System.Runtime.Serialization
             {
                 if (m_current == false)
                 {
-                    throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_EnumOpCantHappen"));
+                    throw new InvalidOperationException(SR.InvalidOperation_EnumOpCantHappen);
                 }
                 return (new SerializationEntry(m_members[m_currItem], m_data[m_currItem], m_types[m_currItem]));
             }
@@ -146,7 +145,7 @@ namespace System.Runtime.Serialization
             {
                 if (m_current == false)
                 {
-                    throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_EnumOpCantHappen"));
+                    throw new InvalidOperationException(SR.InvalidOperation_EnumOpCantHappen);
                 }
                 return m_members[m_currItem];
             }
@@ -157,7 +156,7 @@ namespace System.Runtime.Serialization
             {
                 if (m_current == false)
                 {
-                    throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_EnumOpCantHappen"));
+                    throw new InvalidOperationException(SR.InvalidOperation_EnumOpCantHappen);
                 }
                 return m_data[m_currItem];
             }
@@ -168,7 +167,7 @@ namespace System.Runtime.Serialization
             {
                 if (m_current == false)
                 {
-                    throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_EnumOpCantHappen"));
+                    throw new InvalidOperationException(SR.InvalidOperation_EnumOpCantHappen);
                 }
                 return m_types[m_currItem];
             }

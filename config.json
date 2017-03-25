@@ -210,6 +210,12 @@
       "values": [ "x86", "x64", "arm", "arm64" ],
       "defaultValue": "${CPUArch}"
     },
+    "PortableBuild": {
+      "description": "Indicates if this is a portable build.",
+      "valueType": "property",
+      "values": [ "0", "1"],
+      "defaultValue": "0"
+    },
     "Rebuild": {
       "description": "Specifies rebuild target.",
       "valueType": "target",
@@ -444,6 +450,12 @@
             "RestoreDuringBuild": false
           }
         },
+        "portable": {
+          "description": "Triggers a portable build.",
+          "settings": {
+            "PortableBuild": "1"
+          }
+        },
         "BuildTarget": {
           "description": "Runs the build target.",
           "settings": {
@@ -607,6 +619,12 @@
           "description": "Specifies architecture to publish, can be x64, x86, arm or arm64",
           "settings": {
             "__BuildArch": "default"
+          }
+        },
+        "portable": {
+          "description": "Triggers a portable build.",
+          "settings": {
+            "PortableBuild": "1"
           }
         },
         "buildType": {

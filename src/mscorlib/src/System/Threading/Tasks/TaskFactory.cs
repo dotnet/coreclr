@@ -1518,9 +1518,9 @@ namespace System.Threading.Tasks
             {
                 // Options detected here cause exceptions in FromAsync methods that take beginMethod as a parameter
                 if ((creationOptions & TaskCreationOptions.LongRunning) != 0)
-                    throw new ArgumentOutOfRangeException(nameof(creationOptions), Environment.GetResourceString("Task_FromAsync_LongRunning"));
+                    throw new ArgumentOutOfRangeException(nameof(creationOptions), SR.Task_FromAsync_LongRunning);
                 if ((creationOptions & TaskCreationOptions.PreferFairness) != 0)
-                    throw new ArgumentOutOfRangeException(nameof(creationOptions), Environment.GetResourceString("Task_FromAsync_PreferFairness"));
+                    throw new ArgumentOutOfRangeException(nameof(creationOptions), SR.Task_FromAsync_PreferFairness);
             }
 
             // Check for general validity of options
@@ -2372,7 +2372,8 @@ namespace System.Threading.Tasks
         {
             Contract.Requires(tasks != null);
 
-            // Create a promise task to be returned to the user
+            // Create a promise task to be returned to the user.
+            // (If this logic ever changes, also update CommonCWAnyLogicCleanup.)
             var promise = new CompleteOnInvokePromise(tasks);
 
             // At the completion of any of the tasks, complete the promise.
@@ -2382,7 +2383,7 @@ namespace System.Threading.Tasks
             for (int i = 0; i < numTasks; i++)
             {
                 var task = tasks[i];
-                if (task == null) throw new ArgumentException(Environment.GetResourceString("Task_MultiTaskContinuation_NullTask"), nameof(tasks));
+                if (task == null) throw new ArgumentException(SR.Task_MultiTaskContinuation_NullTask, nameof(tasks));
 
                 if (checkArgsOnly) continue;
 
@@ -2420,6 +2421,17 @@ namespace System.Threading.Tasks
             return promise;
         }
 
+        /// <summary>
+        /// Cleans up the operations performed by CommonCWAnyLogic in a case where
+        /// the created continuation task is being discarded.
+        /// </summary>
+        /// <param name="continuation">The task returned from CommonCWAnyLogic.</param>
+        internal static void CommonCWAnyLogicCleanup(Task<Task> continuation)
+        {
+            // Force cleanup of the promise (e.g. removing continuations from each
+            // constituent task), by completing the promise with any value.
+            ((CompleteOnInvokePromise)continuation).Invoke(null);
+        }
 
         /// <summary>
         /// Creates a continuation <see cref="T:System.Threading.Tasks.Task">Task</see>
@@ -3008,7 +3020,7 @@ namespace System.Threading.Tasks
             if (tasks == null)
                 throw new ArgumentNullException(nameof(tasks));
             if (tasks.Length == 0)
-                throw new ArgumentException(Environment.GetResourceString("Task_MultiTaskContinuation_EmptyTaskList"), nameof(tasks));
+                throw new ArgumentException(SR.Task_MultiTaskContinuation_EmptyTaskList, nameof(tasks));
             Contract.EndContractBlock();
 
             Task[] tasksCopy = new Task[tasks.Length];
@@ -3017,7 +3029,7 @@ namespace System.Threading.Tasks
                 tasksCopy[i] = tasks[i];
 
                 if (tasksCopy[i] == null)
-                    throw new ArgumentException(Environment.GetResourceString("Task_MultiTaskContinuation_NullTask"), nameof(tasks));
+                    throw new ArgumentException(SR.Task_MultiTaskContinuation_NullTask, nameof(tasks));
             }
 
             return tasksCopy;
@@ -3028,7 +3040,7 @@ namespace System.Threading.Tasks
             if (tasks == null)
                 throw new ArgumentNullException(nameof(tasks));
             if (tasks.Length == 0)
-                throw new ArgumentException(Environment.GetResourceString("Task_MultiTaskContinuation_EmptyTaskList"), nameof(tasks));
+                throw new ArgumentException(SR.Task_MultiTaskContinuation_EmptyTaskList, nameof(tasks));
             Contract.EndContractBlock();
 
             Task<TResult>[] tasksCopy = new Task<TResult>[tasks.Length];
@@ -3037,7 +3049,7 @@ namespace System.Threading.Tasks
                 tasksCopy[i] = tasks[i];
 
                 if (tasksCopy[i] == null)
-                    throw new ArgumentException(Environment.GetResourceString("Task_MultiTaskContinuation_NullTask"), nameof(tasks));
+                    throw new ArgumentException(SR.Task_MultiTaskContinuation_NullTask, nameof(tasks));
             }
 
             return tasksCopy;
@@ -3056,7 +3068,7 @@ namespace System.Threading.Tasks
             const TaskContinuationOptions illegalMask = TaskContinuationOptions.ExecuteSynchronously | TaskContinuationOptions.LongRunning;
             if ((continuationOptions & illegalMask) == illegalMask)
             {
-                throw new ArgumentOutOfRangeException(nameof(continuationOptions), Environment.GetResourceString("Task_ContinueWith_ESandLR"));
+                throw new ArgumentOutOfRangeException(nameof(continuationOptions), SR.Task_ContinueWith_ESandLR);
             }
 
             // Check that no nonsensical options are specified.
@@ -3075,7 +3087,7 @@ namespace System.Threading.Tasks
 
             // Check that no "fire" options are specified.
             if ((continuationOptions & NotOnAny) != 0)
-                throw new ArgumentOutOfRangeException(nameof(continuationOptions), Environment.GetResourceString("Task_MultiTaskContinuation_FireOptions"));
+                throw new ArgumentOutOfRangeException(nameof(continuationOptions), SR.Task_MultiTaskContinuation_FireOptions);
             Contract.EndContractBlock();
         }
     }

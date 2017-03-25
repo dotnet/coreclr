@@ -107,6 +107,11 @@ CodeGen::CodeGen(Compiler* theCompiler) : CodeGenInterface(theCompiler)
     m_stkArgVarNum = BAD_VAR_NUM;
 #endif
 
+#if defined(UNIX_X86_ABI)
+    curNestedAlignment = 0;
+    maxNestedAlignment = 0;
+#endif
+
     regTracker.rsTrackInit(compiler, &regSet);
     gcInfo.regSet        = &regSet;
     m_cgEmitter          = new (compiler->getAllocator()) emitter();
@@ -1095,9 +1100,9 @@ void Compiler::compChangeLife(VARSET_VALARG_TP newLife DEBUGARG(GenTreePtr tree)
     /* Can't simultaneously become live and dead at the same time */
 
     // (deadSet UNION bornSet) != EMPTY
-    noway_assert(!VarSetOps::IsEmpty(this, VarSetOps::Union(this, deadSet, bornSet)));
+    noway_assert(!VarSetOps::IsEmptyUnion(this, deadSet, bornSet));
     // (deadSet INTERSECTION bornSet) == EMPTY
-    noway_assert(VarSetOps::IsEmpty(this, VarSetOps::Intersection(this, deadSet, bornSet)));
+    noway_assert(VarSetOps::IsEmptyIntersection(this, deadSet, bornSet));
 
 #ifdef LEGACY_BACKEND
     // In the LEGACY_BACKEND case, we only consider variables that are fully enregisterd
@@ -2976,7 +2981,8 @@ void CodeGen::genGenerateCode(void** codePtr, ULONG* nativeSizeOfCode)
 
         if (compiler->fgHaveProfileData())
         {
-            printf("; with IBC profile data\n");
+            printf("; with IBC profile data, edge weights are %s, and fgCalledCount is %u\n",
+                   compiler->fgHaveValidEdgeWeights ? "valid" : "invalid", compiler->fgCalledCount);
         }
 
         if (compiler->fgProfileData_ILSizeMismatch)
@@ -3201,7 +3207,7 @@ void CodeGen::genGenerateCode(void** codePtr, ULONG* nativeSizeOfCode)
                                         genTypeStSz(TYP_LONG) +       // longs/doubles may be transferred via stack, etc
                                         (compiler->compTailCallUsed ? 4 : 0); // CORINFO_HELP_TAILCALL args
 #if defined(UNIX_X86_ABI)
-        maxAllowedStackDepth += genTypeStSz(TYP_INT) * 3; // stack align for x86 - allow up to 3 INT's for padding
+        maxAllowedStackDepth += maxNestedAlignment;
 #endif
         noway_assert(getEmitter()->emitMaxStackDepth <= maxAllowedStackDepth);
     }
@@ -10367,6 +10373,8 @@ void CodeGen::genFuncletProlog(BasicBlock* block)
 #endif
 
     ScopedSetVariable<bool> _setGeneratingProlog(&compiler->compGeneratingProlog, true);
+
+    gcInfo.gcResetForBB();
 
     compiler->unwindBegProlog();
 

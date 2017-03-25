@@ -21,7 +21,6 @@
 #include "comdatetime.h"
 #include "gcheaputilities.h"
 #include "interoputil.h"
-#include "gcscan.h"
 
 #ifdef FEATURE_COMINTEROP
 #include <oletls.h>
@@ -58,7 +57,7 @@ void StubHelpers::ValidateObjectInternal(Object *pObjUNSAFE, BOOL fValidateNextO
 }
 	CONTRACTL_END;
 
-	_ASSERTE(GCScan::GetGcRuntimeStructuresValid());
+	_ASSERTE(GCHeapUtilities::GetGCHeap()->RuntimeStructuresValid());
 
 	// validate the object - there's no need to validate next object's
 	// header since we validate the next object explicitly below
@@ -159,7 +158,7 @@ void StubHelpers::ProcessByrefValidationList()
         {
             entry = s_ByrefValidationEntries[i];
 
-            Object *pObjUNSAFE = GCHeapUtilities::GetGCHeap()->GetContainingObject(entry.pByref);
+            Object *pObjUNSAFE = GCHeapUtilities::GetGCHeap()->GetContainingObject(entry.pByref, false);
             ValidateObjectInternal(pObjUNSAFE, TRUE);
         }
     }

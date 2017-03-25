@@ -261,14 +261,14 @@ namespace System
                         // with it for "file:\\" + "\\server" and "file:\\\" + "\localpath"
                         if ((len > 8) &&
                              ((path[8] == '\\') || (path[8] == '/')))
-                            throw new ArgumentException(Environment.GetResourceString("Argument_InvalidPathChars"));
+                            throw new ArgumentException(SR.Argument_InvalidPathChars);
 
                         // file:\\\ means local path
                         else
 #if !PLATFORM_UNIX
                             trim = 8;
 #else
-                            // For Unix platform, trim the first 7 charcaters only.
+                            // For Unix platform, trim the first 7 characters only.
                             // Trimming the first 8 characters will cause
                             // the root path separator to be trimmed away,
                             // and the absolute local path becomes a relative local path.
@@ -369,7 +369,7 @@ namespace System
                     String appBase = Value[(int)LoaderInformation.ApplicationBaseValue];
 
                     if ((appBase == null) || (appBase.Length == 0))
-                        throw new MemberAccessException(Environment.GetResourceString("AppDomain_AppBaseNotSet"));
+                        throw new MemberAccessException(SR.AppDomain_AppBaseNotSet);
 
                     StringBuilder result = StringBuilderCache.Acquire();
 
