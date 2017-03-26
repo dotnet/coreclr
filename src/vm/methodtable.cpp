@@ -6951,80 +6951,113 @@ BOOL MethodTable::FindDefaultMethod(
     MethodTable *pBestCandidateMT = NULL;
     MethodDesc  *pBestCandidateMD = NULL;
 
-    // @TODO - Walk up the hierarchy and do topological sort
-    while (it.Next())
+    // @TODO - Do we need a real topological sort?
+
+    //
+    // Walk interface from derived class to parent class
+    //
+    MethodTable *pMT = this;
+    while (pMT != NULL)
     {
-        MethodTable *pCurMT = it.GetInterface();
-        if (pCurMT == pInterfaceMT || 
-            pCurMT->CanCastToInterface(pInterfaceMT))
-        {
-            //
-            // We found a potential candidate
-            // See if we can find a method that matches
-            //
-            MethodDesc *pCurMD = NULL;
-            if (pCurMT == pInterfaceMT && !pInterfaceMD->IsAbstract())
+        MethodTable *pParentMT = pMT->GetParentMethodTable();
+        unsigned dwParentInterfaces = 0;
+        if (pParentMT)
+            dwParentInterfaces = pParentMT->GetNumInterfaces();
+
+        DWORD dwFound = 0;
+
+        // Scanning only current class only if the current class have more interface than parent
+        if (pMT->GetNumInterfaces() > dwParentInterfaces)
+        {    
+            // Only iterate the interfaceimpls on current class
+            MethodTable::InterfaceMapIterator it = pMT->IterateInterfaceMapFrom(dwParentInterfaces);
+            while (!it.Finished())
             {
-                // Note that this object needs to actually implement this interface
-                // @DESIGN - What if it is not implemented by any interface/base class
-                pCurMD = pInterfaceMD;
-            }
-            else
-            {
-                MethodIterator methodIt(pCurMT);
-                for (; methodIt.IsValid(); methodIt.Next())
+                MethodTable *pCurMT = it.GetInterface();
+
+                MethodDesc *pCurMD = NULL;
+                if (pCurMT == pInterfaceMT)
                 {
-                    MethodDesc *pMD = methodIt.GetMethodDesc();
-                    if (pMD->IsVirtual() && !pMD->IsAbstract() /* && !pMD->IsNewSlot() */)
+                    if (!pInterfaceMD->IsAbstract())
                     {
-                        if (strcmp(pMD->GetName(), pInterfaceMD->GetName()) == 0)
+                        //
+                        // exact match
+                        //
+                        pCurMD = pInterfaceMD;
+                    }
+                }
+                else if (pCurMT->CanCastToInterface(pInterfaceMT))
+                {
+                    if (pCurMT->HasSameTypeDefAs(pInterfaceMT))
+                    {
+                        //
+                        // Generic variance
+                        //
+                        pCurMD = pInterfaceMD;
+                    }
+                    else
+                    {
+                        //
+                        // Parent interface - search for an methodimpl for explicit override
+                        // Implicit override in default interface methods are not allowed
+                        //
+                        MethodIterator methodIt(pCurMT);
+                        for (; methodIt.IsValid(); methodIt.Next())
                         {
-                            MetaSig sig1(pMD);
-                            MetaSig sig2(pInterfaceMD);
-                            if (MetaSig::CompareMethodSigs(sig1, sig2, /* ignoreCallConv = */TRUE))
+                            MethodDesc *pMD = methodIt.GetMethodDesc();
+                            if (pMD->IsVirtual() && !pMD->IsAbstract() && pMD->IsMethodImpl())
                             {
-                                // Found a match
-                                // @TODO - Compare constraints?
-                                pCurMD = pMD;
-                                break;
+                               MethodImpl *pImpl = pMD->GetMethodImpl();
+                                MethodDesc **pImplMDs = pImpl->GetImplementedMDs();
+                                for (DWORD i = 0; i < pImpl->GetSize(); ++i)
+                                {
+                                    if (pImplMDs[i] == pInterfaceMD)
+                                    {
+                                        pCurMD = pMD;
+                                        break;
+                                    }
+                                }
                             }
                         }
                     }
                 }
-            }
 
-            if (pCurMD != NULL)
-            {
-                //
-                // Found a match. But is it a more specific match (we want most specific interfaces)
-                //
+                if (pCurMD != NULL)
+                {
+                    //
+                    // Found a match. But is it a more specific match (we want most specific interfaces)
+                    //
+                    if (pCurMD->HasClassOrMethodInstantiation())
+                    {
+                        // Instantiate the MethodDesc
+                        // We don't want generic dictionary from this pointer - we need pass secret type argument
+                        // from instantiating stubs
+                        pCurMD = MethodDesc::FindOrCreateAssociatedMethodDesc(
+                            pCurMD,
+                            pCurMT,
+                            FALSE,                  // forceBoxedEntryPoint
+                            pCurMD->HasMethodInstantiation() ?
+                            pCurMD->AsInstantiatedMethodDesc()->IMD_GetMethodInstantiation() :
+                            Instantiation(),
+                            FALSE,                  // allowInstParam
+                            TRUE                    // forceRemoteableMethod
+                        );
+                    }
 
-                if (pCurMD->HasClassOrMethodInstantiation())
-                {
-                    // Instantiate the MethodDesc
-                    // We don't want generic dictionary from this pointer - we need pass secret type argument
-                    // from instantiating stubs
-                    pCurMD = MethodDesc::FindOrCreateAssociatedMethodDesc(
-                                pCurMD,
-                                pCurMT,
-                                FALSE,                  // forceBoxedEntryPoint
-                                pCurMD->HasMethodInstantiation() ? 
-                                    pCurMD->AsInstantiatedMethodDesc()->IMD_GetMethodInstantiation():
-                                    Instantiation(),
-                                FALSE,                  // allowInstParam
-                                TRUE                    // forceRemoteableMethod
-                            );
+                    if (pBestCandidateMT == NULL ||                         // first time
+                        pCurMT->CanCastToInterface(pBestCandidateMT))       // Prefer super interface (IList over IEnumerable)
+                    {
+                        // This is a better match
+                        pBestCandidateMT = pCurMT;
+                        pBestCandidateMD = pCurMD;
+                    }
                 }
-                
-                if (pBestCandidateMT == NULL ||                         // first time
-                    pCurMT->CanCastToInterface(pBestCandidateMT))       // Prefer super interface (IList over IEnumerable)
-                {
-                    // This is a better match
-                    pBestCandidateMT = pCurMT;
-                    pBestCandidateMD = pCurMD;
-                }
+
+                it.Next();
             }
         }
+
+        pMT = pParentMT;
     }
 
     if (pBestCandidateMD != NULL)
