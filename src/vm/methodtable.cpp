@@ -6887,7 +6887,7 @@ MethodTable::FindDispatchImpl(
                 // See if we can find a default method from one of the implemented interfaces 
                 //
                 MethodDesc *pDefaultMethod = NULL;
-                if (this->FindDefaultMethod(
+                if (FindDefaultMethod(
                     pIfcMD,     // the interface method being resolved
                     pIfcMT,     // the interface being resolved
                     &pDefaultMethod))
@@ -6951,10 +6951,13 @@ BOOL MethodTable::FindDefaultMethod(
     MethodTable *pBestCandidateMT = NULL;
     MethodDesc  *pBestCandidateMD = NULL;
 
-    // @TODO - Do we need a real topological sort?
 
     //
     // Walk interface from derived class to parent class
+    //
+    // @DIM_TODO - This is a first cut naive implementation for prototyping and flush out other 
+    // implementation issues without worrying too much about ordering/checks
+    // Once CLR/C# team has agreed on the right order, we'll replace this with the real deal
     //
     MethodTable *pMT = this;
     while (pMT != NULL)
@@ -6964,9 +6967,8 @@ BOOL MethodTable::FindDefaultMethod(
         if (pParentMT)
             dwParentInterfaces = pParentMT->GetNumInterfaces();
 
-        DWORD dwFound = 0;
-
         // Scanning only current class only if the current class have more interface than parent
+        // (parent interface are laid out first in interface map)
         if (pMT->GetNumInterfaces() > dwParentInterfaces)
         {    
             // Only iterate the interfaceimpls on current class
@@ -6980,9 +6982,7 @@ BOOL MethodTable::FindDefaultMethod(
                 {
                     if (!pInterfaceMD->IsAbstract())
                     {
-                        //
                         // exact match
-                        //
                         pCurMD = pInterfaceMD;
                     }
                 }
@@ -6990,9 +6990,7 @@ BOOL MethodTable::FindDefaultMethod(
                 {
                     if (pCurMT->HasSameTypeDefAs(pInterfaceMT))
                     {
-                        //
-                        // Generic variance
-                        //
+                        // Generic variance match
                         pCurMD = pInterfaceMD;
                     }
                     else
@@ -7007,7 +7005,7 @@ BOOL MethodTable::FindDefaultMethod(
                             MethodDesc *pMD = methodIt.GetMethodDesc();
                             if (pMD->IsVirtual() && !pMD->IsAbstract() && pMD->IsMethodImpl())
                             {
-                               MethodImpl *pImpl = pMD->GetMethodImpl();
+                                MethodImpl *pImpl = pMD->GetMethodImpl();
                                 MethodDesc **pImplMDs = pImpl->GetImplementedMDs();
                                 for (DWORD i = 0; i < pImpl->GetSize(); ++i)
                                 {
@@ -7031,21 +7029,21 @@ BOOL MethodTable::FindDefaultMethod(
                     {
                         // Instantiate the MethodDesc
                         // We don't want generic dictionary from this pointer - we need pass secret type argument
-                        // from instantiating stubs
+                        // from instantiating stubs to resolve ambiguity
                         pCurMD = MethodDesc::FindOrCreateAssociatedMethodDesc(
                             pCurMD,
                             pCurMT,
                             FALSE,                  // forceBoxedEntryPoint
                             pCurMD->HasMethodInstantiation() ?
-                            pCurMD->AsInstantiatedMethodDesc()->IMD_GetMethodInstantiation() :
-                            Instantiation(),
+                                pCurMD->AsInstantiatedMethodDesc()->IMD_GetMethodInstantiation() :
+                                Instantiation(),    // for method themselves that are generic
                             FALSE,                  // allowInstParam
                             TRUE                    // forceRemoteableMethod
                         );
                     }
 
                     if (pBestCandidateMT == NULL ||                         // first time
-                        pCurMT->CanCastToInterface(pBestCandidateMT))       // Prefer super interface (IList over IEnumerable)
+                        pCurMT->CanCastToInterface(pBestCandidateMT))       // Prefer "more specific"" interface
                     {
                         // This is a better match
                         pBestCandidateMT = pCurMT;

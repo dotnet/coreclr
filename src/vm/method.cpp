@@ -1763,7 +1763,11 @@ BOOL MethodDesc::IsSharedByGenericMethodInstantiations()
 // Does this method require an extra MethodTable argument for instantiation information?
 // This is the case for
 // * per-inst static methods in shared-code instantiated generic classes (e.g. static void MyClass<string>::m())
+//     - there is no this pointer providing generic dictionary info
 // * shared-code instance methods in instantiated generic structs (e.g. void MyValueType<string>::m())
+//     - unboxed 'this' pointer in value-type instance methods don't have MethodTable pointer by definition
+// * default interface method called via interface dispatch (e. g. IFoo<string>.Foo calling into IFoo<object>::Foo())
+//     - this pointer is ambiguous as it can implement more than one IFoo<T>
 BOOL MethodDesc::RequiresInstMethodTableArg() 
 {
     LIMITED_METHOD_DAC_CONTRACT;
@@ -2736,6 +2740,8 @@ BOOL MethodDesc::RequiresStableEntryPoint(BOOL fEstimateForChunk /*=FALSE*/)
 
         // TODO: Can we avoid early allocation of precodes for interfaces and cominterop?
         // Only abstract virtual interface method need precode
+        // @DIM_TODO - We need to decide what is the right approach for precode for default 
+        // interface methods
         if ((IsInterface() && IsAbstract() && IsVirtual() && !IsStatic()) || IsComPlusCall())
             return TRUE;
     }

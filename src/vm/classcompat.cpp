@@ -2803,7 +2803,7 @@ VOID    MethodTableBuilder::EnumerateClassMethods()
                 // If COM interop is supported then all other interface MDs may be
                 // accessed via COM interop <TODO> mcComInterop MDs are BIG -
                 // this is very often a waste of space </TODO>
-                // @TODO - What if default interface method is called through COM interop?
+                // @DIM_TODO - What if default interface method is called through COM interop?
                 Classification = mcComInterop;
             }
             else

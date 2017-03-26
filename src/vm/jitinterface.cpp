@@ -8501,8 +8501,8 @@ CEEInfo::getMethodSigInternal(
         //
         // If we are making an interface call that is a default interface method, we need to lie to the JIT.  
         // The reason being that we already made sure target is always directly callable (through instantiation stubs), 
-        // JIT should not generate shared generics aware code and insert the secret argument again when making the call. 
-        // Otherwise we would end up with two secret generic dictionary arguments.
+        // JIT should not generate shared generics aware call code and insert the secret argument again at the callsite.
+        // Otherwise we would end up with two secret generic dictionary arguments (since the stub also provides one).
         //
         BOOL isDefaultInterfaceMethodCallSite = isCallSite && ftn->IsDefaultInterfaceMethod();
         if (!isDefaultInterfaceMethodCallSite)

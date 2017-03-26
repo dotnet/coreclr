@@ -656,10 +656,10 @@ inline MethodDesc* MethodTable::GetMethodDescForSlot(DWORD slot)
     // and can be JITTed.
     if (IsInterface() && slot < GetNumVirtuals())
     {
-        // @TODO - Is this the best approach? Alternatively we could also set the precode's target
+        // @DIM_TODO - Is this a safe/fast approach? Alternatively we could also set the precode's target
         // to the JITTed code to keep the "every interface method has precode" promise, just like 
         // what we do for interop. apparently nobody does this for JITTing pure IL method and MakeJITWorker 
-        // doesn't handle any precode case and simply calls SetNativeCodeInterlocked to stomp over it 
+        // doesn't handle any precode case and simply calls SetNativeCodeInterlocked to stomp over it.
         MethodDesc *pMD = MethodDesc::GetMethodDescFromStubAddr(pCode, /* fSpeculative = */ TRUE);
         if (pMD != NULL) return pMD;
     }
