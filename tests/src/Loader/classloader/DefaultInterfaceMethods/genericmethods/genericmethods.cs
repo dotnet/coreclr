@@ -20,21 +20,25 @@ class FooBar<V> : IFoo, IBar<V>
 {
     public Type Foo<T>()
     {
+        Console.WriteLine("At IFoo<T>::Foo<T>: TypeOf(T) = {0}", typeof(T));
         return typeof(T);
     }
 
     public Type Bar1<P>()
     {
+        Console.WriteLine("At IBar<T>::Foo<P>: TypeOf(P) = {0}", typeof(P));
         return typeof(P);
     }
 
     public Type Bar2<K>()
     {
+        Console.WriteLine("At IBar<T>::Bar2<K>: TypeOf(K) = {0}", typeof(K));
         return typeof(K);
     }
 
     public void Bar3<P, K>(out Type t, out Type u)
     {
+        Console.WriteLine("At IBar<T>::Bar3<P, K>: TypeOf(P) = {0}, TypeOf(K) = {1}", typeof(P), typeof(K));
         t = typeof(P);
         u = typeof(K);
     }
@@ -49,19 +53,19 @@ class Program
         IFoo foo = (IFoo) fooBar;
         IBar<object> bar = (IBar<object>) fooBar;
 
-        Console.WriteLine("Calling IFoo.Foo<String>");
-        Test.Assert(foo.Foo<string>() == typeof(string), "Expecting foo.Foo<string>() returning typeof(string)");
+        Console.WriteLine("Calling IFoo.Foo<String> on FooBar<Object> - expecting IFoo::Foo<string>() returning typeof(string)");
+        Test.Assert(foo.Foo<string>() == typeof(string), "Calling IFoo.Foo<String> on FooBar<Object>");
 
-        Console.WriteLine("Calling IBar.Bar1<String>");
-        Test.Assert(bar.Bar1<string>() == typeof(string), "Expecting bar.Bar1<string>() returning typeof(string)");
+        Console.WriteLine("Calling IBar.Bar1<String> on FooBar<object> - expecting bar.Bar1<string>() returning typeof(string)");
+        Test.Assert(bar.Bar1<string>() == typeof(string), "Calling IBar.Bar1<String> on FooBar<object>");
 
-        Console.WriteLine("Calling IBar.Bar2<String[]>");
-        Test.Assert(bar.Bar2<string[]>() == typeof(string[]), "Expecting bar.Bar2<string[]>() returning typeof(string[])");
+        Console.WriteLine("Calling IBar.Bar2<String[]> on FooBar<object> - expecting bar.Bar2<string[]>() returning typeof(string[])");
+        Test.Assert(bar.Bar2<string[]>() == typeof(string[]), "Calling IBar.Bar2<String[]> on FooBar<object>");
 
         Type p, k;
-        Console.WriteLine("Calling IBar.Bar3<String, String[]>");
+        Console.WriteLine("Calling IBar.Bar3<String, String[]> - expecting bar.Bar3<string>() returning typeof(string), typeof(string[])");
         bar.Bar3<string, string[]>(out p, out k);
-        Test.Assert(p == typeof(string) && k == typeof(string[]), "Expecting bar.Bar3<string>() returning typeof(string)");
+        Test.Assert(p == typeof(string) && k == typeof(string[]), "Calling IBar.Bar3<String, String[]>");
 
         return Test.Ret();
     }

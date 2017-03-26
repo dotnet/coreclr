@@ -10,23 +10,33 @@ interface ISum
     int Sum();
 }
 
+// This class is only needed to spit out IL that assumes 'this' is an object (and therefore don't box)
+class FooBarStruct_
+{
+    public int Foo(int a)
+    {
+        Console.WriteLine("At ISum::Sum");
+        ISum sum = (ISum) this;
+        return sum.Sum() + a;
+    }
+}
+
 struct FooBarStruct : IFoo, ISum
 {
     public int a;
     public int b;
 
-    public int Foo(int a)
-    {
-        Console.WriteLine("Calling ISum.Sum");
-        ISum sum = (ISum) this;
-        return sum.Sum() + a;
-    }
-
     public int Sum()
     {
-        Console.WriteLine("Calling FooBarStruct.Sum");
+        Console.WriteLine("At FooBarStruct::Sum");
         return a+b;
     }
+
+    public int Foo(int a)
+    {
+        // Dummy code - real code is in FooBarStruct_
+        return 0;
+    }   
 }
 
 class Program
@@ -40,6 +50,7 @@ class Program
 
         IFoo foo = (IFoo) fooBar;
 
+        Console.WriteLine("Calling IFoo.Foo on FooBarStruct");
         Test.Assert(foo.Foo(10) == 40, "Calling default method IFoo.Foo on FooBarStruct failed");
 
         return Test.Ret();

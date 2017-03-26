@@ -19,7 +19,7 @@ class Base : IBlah
 {
     public int Blah(int c)
     {
-        Console.WriteLine("Calling IBlah.Blah");
+        Console.WriteLine("At IBlah.Blah");
         return c+20;
     }
 }
@@ -28,13 +28,13 @@ class FooBar : Base, IFoo, IBar
 {
     public int Foo(int a)
     {
-        Console.WriteLine("Calling IFoo.Foo");
+        Console.WriteLine("At IFoo.Foo");
         return a+1;            
     }
 
     public int Bar(int b)
     {
-        Console.WriteLine("Calling IBar.Bar");
+        Console.WriteLine("At IBar.Bar");
         return b+10;
     }
 }
@@ -48,8 +48,13 @@ class Program
         IBar bar = (IBar) fooBar;
         IBlah blah = (IBlah) fooBar;
 
+        Console.WriteLine("Calling IFoo.Foo on FooBar - expecting default method on IFoo.Foo. ");
         Test.Assert(foo.Foo(10) == 11, "Calling IFoo.Foo on FooBar");
+
+        Console.WriteLine("Calling IBar.Bar on FooBar - expecting default method on IBar.Bar. ");
         Test.Assert(bar.Bar(10) == 20, "Calling IBar.Bar on FooBar");
+
+        Console.WriteLine("Calling IBar.Bar on FooBar - expecting default method on IBlah.Blah from Base. ");
         Test.Assert(blah.Blah(10) == 30, "Calling IBlah.Blah on FooBar");
 
         return Test.Ret();

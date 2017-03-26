@@ -19,7 +19,7 @@ class Temp : IFoo
 {
     int IFoo.Foo(int a)
     {
-        Console.WriteLine("IFoo.Foo");
+        Console.WriteLine("At IFooBar::IFoo.Foo explicit methodimpl");
         return a + 30;
     }
 }
@@ -28,13 +28,13 @@ class FooBar : IFooBar
 {
     public int Foo(int a)
     {
-        Console.WriteLine("Calling IFoo.Foo");
+        Console.WriteLine("At IFoo::Foo");
         return a+10;            
     }
 
     public int Bar(int b)
     {
-        Console.WriteLine("Calling IBar.Bar");
+        Console.WriteLine("At IBar::Bar");
         return b+20;
     }
 }
@@ -47,8 +47,11 @@ class Program
         IFoo foo = (IFoo) fooBar;
         IBar bar = (IBar) fooBar;
 
-        Test.Assert(foo.Foo(10) == 30, "Calling IFoo.Foo on FooBar");
-        Test.Assert(bar.Bar(10) == 20, "Calling IBar.Bar on FooBar");
+        Console.WriteLine("Calling IFoo.Foo on FooBar - expecting IFooBar::IFoo.Bar");
+        Test.Assert(foo.Foo(10) == 40, "Calling IFoo.Foo on FooBar");
+
+        Console.WriteLine("Calling IBar.Bar on FooBar - expecting IBar::Bar");
+        Test.Assert(bar.Bar(10) == 30, "Calling IBar.Bar on FooBar");
 
         return Test.Ret();
     }

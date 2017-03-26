@@ -23,90 +23,118 @@
   .ver 0:0:0:0
 }
 .module genericmethods.exe
-// MVID: {D866A2F7-D37D-458C-BE40-217008C45079}
+// MVID: {62CAFB9A-4CDB-4A62-8A4F-DC7648609070}
 .imagebase 0x00400000
 .file alignment 0x00000200
 .stackreserve 0x00100000
 .subsystem 0x0003       // WINDOWS_CUI
 .corflags 0x00000001    //  ILONLY
-// Image base: 0x01B10000
+// Image base: 0x01790000
 
 
 // =============== CLASS MEMBERS DECLARATION ===================
 
 .class interface private abstract auto ansi IFoo
 {
-  .method public hidebysig newslot /* abstract */ virtual 
+  .method public hidebysig newslot virtual 
           instance class [mscorlib]System.Type 
           Foo<T>() cil managed
   {
-    // Code size       16 (0x10)
-    .maxstack  1
+    // Code size       37 (0x25)
+    .maxstack  2
     .locals init (class [mscorlib]System.Type V_0)
     IL_0000:  nop
-    IL_0001:  ldtoken    !!T
-    IL_0006:  call       class [mscorlib]System.Type [mscorlib]System.Type::GetTypeFromHandle(valuetype [mscorlib]System.RuntimeTypeHandle)
-    IL_000b:  stloc.0
-    IL_000c:  br.s       IL_000e
+    IL_0001:  ldstr      "At IFoo<T>::Foo<T>: TypeOf(T) = {0}"
+    IL_0006:  ldtoken    !!T
+    IL_000b:  call       class [mscorlib]System.Type [mscorlib]System.Type::GetTypeFromHandle(valuetype [mscorlib]System.RuntimeTypeHandle)
+    IL_0010:  call       void [mscorlib]System.Console::WriteLine(string,
+                                                                  object)
+    IL_0015:  nop
+    IL_0016:  ldtoken    !!T
+    IL_001b:  call       class [mscorlib]System.Type [mscorlib]System.Type::GetTypeFromHandle(valuetype [mscorlib]System.RuntimeTypeHandle)
+    IL_0020:  stloc.0
+    IL_0021:  br.s       IL_0023
 
-    IL_000e:  ldloc.0
-    IL_000f:  ret                     
+    IL_0023:  ldloc.0
+    IL_0024:  ret
   } // end of method IFoo::Foo
 
 } // end of class IFoo
 
 .class interface private abstract auto ansi IBar`1<T>
 {
-  .method public hidebysig newslot /* abstract */ virtual 
+  .method public hidebysig newslot virtual 
           instance class [mscorlib]System.Type 
           Bar1<P>() cil managed
   {
-    // Code size       16 (0x10)
-    .maxstack  1
+    // Code size       37 (0x25)
+    .maxstack  2
     .locals init (class [mscorlib]System.Type V_0)
     IL_0000:  nop
-    IL_0001:  ldtoken    !!P
-    IL_0006:  call       class [mscorlib]System.Type [mscorlib]System.Type::GetTypeFromHandle(valuetype [mscorlib]System.RuntimeTypeHandle)
-    IL_000b:  stloc.0
-    IL_000c:  br.s       IL_000e
+    IL_0001:  ldstr      "At IBar<T>::Foo<P>: TypeOf(P) = {0}"
+    IL_0006:  ldtoken    !!P
+    IL_000b:  call       class [mscorlib]System.Type [mscorlib]System.Type::GetTypeFromHandle(valuetype [mscorlib]System.RuntimeTypeHandle)
+    IL_0010:  call       void [mscorlib]System.Console::WriteLine(string,
+                                                                  object)
+    IL_0015:  nop
+    IL_0016:  ldtoken    !!P
+    IL_001b:  call       class [mscorlib]System.Type [mscorlib]System.Type::GetTypeFromHandle(valuetype [mscorlib]System.RuntimeTypeHandle)
+    IL_0020:  stloc.0
+    IL_0021:  br.s       IL_0023
 
-    IL_000e:  ldloc.0
-    IL_000f:  ret            
+    IL_0023:  ldloc.0
+    IL_0024:  ret    
   } // end of method IBar`1::Bar1
 
-  .method public hidebysig newslot /* abstract */ virtual 
+  .method public hidebysig newslot virtual 
           instance class [mscorlib]System.Type 
           Bar2<K>() cil managed
   {
-    // Code size       16 (0x10)
-    .maxstack  1
+    // Code size       37 (0x25)
+    .maxstack  2
     .locals init (class [mscorlib]System.Type V_0)
     IL_0000:  nop
-    IL_0001:  ldtoken    !!K
-    IL_0006:  call       class [mscorlib]System.Type [mscorlib]System.Type::GetTypeFromHandle(valuetype [mscorlib]System.RuntimeTypeHandle)
-    IL_000b:  stloc.0
-    IL_000c:  br.s       IL_000e
+    IL_0001:  ldstr      "At IBar<T>::Bar2<K>: TypeOf(K) = {0}"
+    IL_0006:  ldtoken    !!K
+    IL_000b:  call       class [mscorlib]System.Type [mscorlib]System.Type::GetTypeFromHandle(valuetype [mscorlib]System.RuntimeTypeHandle)
+    IL_0010:  call       void [mscorlib]System.Console::WriteLine(string,
+                                                                  object)
+    IL_0015:  nop
+    IL_0016:  ldtoken    !!K
+    IL_001b:  call       class [mscorlib]System.Type [mscorlib]System.Type::GetTypeFromHandle(valuetype [mscorlib]System.RuntimeTypeHandle)
+    IL_0020:  stloc.0
+    IL_0021:  br.s       IL_0023
 
-    IL_000e:  ldloc.0
-    IL_000f:  ret          
+    IL_0023:  ldloc.0
+    IL_0024:  ret  
   } // end of method IBar`1::Bar2
 
-  .method public hidebysig newslot /* abstract */ virtual 
+  .method public hidebysig newslot virtual 
           instance void  Bar3<P,K>([out] class [mscorlib]System.Type& t,
                                    [out] class [mscorlib]System.Type& u) cil managed
   {
-    // Code size       26 (0x1a)
+    // Code size       57 (0x39)
     .maxstack  8
     IL_0000:  nop
-    IL_0001:  ldarg.1
-    IL_0002:  ldtoken    !!P
-    IL_0007:  call       class [mscorlib]System.Type [mscorlib]System.Type::GetTypeFromHandle(valuetype [mscorlib]System.RuntimeTypeHandle)
-    IL_000c:  stind.ref
-    IL_000d:  ldarg.2
-    IL_000e:  ldtoken    !!K
-    IL_0013:  call       class [mscorlib]System.Type [mscorlib]System.Type::GetTypeFromHandle(valuetype [mscorlib]System.RuntimeTypeHandle)
-    IL_0018:  stind.ref
-    IL_0019:  ret                     
+    IL_0001:  ldstr      "At IBar<T>::Bar3<P, K>: TypeOf(P) = {0}, TypeOf(K)"
+    + " = {1}"
+    IL_0006:  ldtoken    !!P
+    IL_000b:  call       class [mscorlib]System.Type [mscorlib]System.Type::GetTypeFromHandle(valuetype [mscorlib]System.RuntimeTypeHandle)
+    IL_0010:  ldtoken    !!K
+    IL_0015:  call       class [mscorlib]System.Type [mscorlib]System.Type::GetTypeFromHandle(valuetype [mscorlib]System.RuntimeTypeHandle)
+    IL_001a:  call       void [mscorlib]System.Console::WriteLine(string,
+                                                                  object,
+                                                                  object)
+    IL_001f:  nop
+    IL_0020:  ldarg.1
+    IL_0021:  ldtoken    !!P
+    IL_0026:  call       class [mscorlib]System.Type [mscorlib]System.Type::GetTypeFromHandle(valuetype [mscorlib]System.RuntimeTypeHandle)
+    IL_002b:  stind.ref
+    IL_002c:  ldarg.2
+    IL_002d:  ldtoken    !!K
+    IL_0032:  call       class [mscorlib]System.Type [mscorlib]System.Type::GetTypeFromHandle(valuetype [mscorlib]System.RuntimeTypeHandle)
+    IL_0037:  stind.ref
+    IL_0038:  ret    
   } // end of method IBar`1::Bar3
 
 } // end of class IBar`1
@@ -151,7 +179,8 @@
     IL_0008:  stloc.1
     IL_0009:  ldloc.0
     IL_000a:  stloc.2
-    IL_000b:  ldstr      "Calling IFoo.Foo<String>"
+    IL_000b:  ldstr      "Calling IFoo.Foo<String> on FooBar<Object> - expec"
+    + "ting IFoo::Foo<string>() returning typeof(string)"
     IL_0010:  call       void [mscorlib]System.Console::WriteLine(string)
     IL_0015:  nop
     IL_0016:  ldloc.1
@@ -160,11 +189,12 @@
     IL_0021:  call       class [mscorlib]System.Type [mscorlib]System.Type::GetTypeFromHandle(valuetype [mscorlib]System.RuntimeTypeHandle)
     IL_0026:  call       bool [mscorlib]System.Type::op_Equality(class [mscorlib]System.Type,
                                                                  class [mscorlib]System.Type)
-    IL_002b:  ldstr      "Expecting foo.Foo<string>() returning typeof(string)"
+    IL_002b:  ldstr      "Calling IFoo.Foo<String> on FooBar<Object>"
     IL_0030:  call       void Test::Assert(bool,
                                            string)
     IL_0035:  nop
-    IL_0036:  ldstr      "Calling IBar.Bar1<String>"
+    IL_0036:  ldstr      "Calling IBar.Bar1<String> on FooBar<object> - expe"
+    + "cting bar.Bar1<string>() returning typeof(string)"
     IL_003b:  call       void [mscorlib]System.Console::WriteLine(string)
     IL_0040:  nop
     IL_0041:  ldloc.2
@@ -173,12 +203,12 @@
     IL_004c:  call       class [mscorlib]System.Type [mscorlib]System.Type::GetTypeFromHandle(valuetype [mscorlib]System.RuntimeTypeHandle)
     IL_0051:  call       bool [mscorlib]System.Type::op_Equality(class [mscorlib]System.Type,
                                                                  class [mscorlib]System.Type)
-    IL_0056:  ldstr      "Expecting bar.Bar1<string>() returning typeof(stri"
-    + "ng)"
+    IL_0056:  ldstr      "Calling IBar.Bar1<String> on FooBar<object>"
     IL_005b:  call       void Test::Assert(bool,
                                            string)
     IL_0060:  nop
-    IL_0061:  ldstr      "Calling IBar.Bar2<String[]>"
+    IL_0061:  ldstr      "Calling IBar.Bar2<String[]> on FooBar<object> - ex"
+    + "pecting bar.Bar2<string[]>() returning typeof(string[])"
     IL_0066:  call       void [mscorlib]System.Console::WriteLine(string)
     IL_006b:  nop
     IL_006c:  ldloc.2
@@ -187,12 +217,12 @@
     IL_0077:  call       class [mscorlib]System.Type [mscorlib]System.Type::GetTypeFromHandle(valuetype [mscorlib]System.RuntimeTypeHandle)
     IL_007c:  call       bool [mscorlib]System.Type::op_Equality(class [mscorlib]System.Type,
                                                                  class [mscorlib]System.Type)
-    IL_0081:  ldstr      "Expecting bar.Bar2<string[]>() returning typeof(st"
-    + "ring[])"
+    IL_0081:  ldstr      "Calling IBar.Bar2<String[]> on FooBar<object>"
     IL_0086:  call       void Test::Assert(bool,
                                            string)
     IL_008b:  nop
-    IL_008c:  ldstr      "Calling IBar.Bar3<String, String[]>"
+    IL_008c:  ldstr      "Calling IBar.Bar3<String, String[]> - expecting ba"
+    + "r.Bar3<string>() returning typeof(string), typeof(string[])"
     IL_0091:  call       void [mscorlib]System.Console::WriteLine(string)
     IL_0096:  nop
     IL_0097:  ldloc.2
@@ -216,8 +246,7 @@
     IL_00c5:  br.s       IL_00c8
 
     IL_00c7:  ldc.i4.0
-    IL_00c8:  ldstr      "Expecting bar.Bar3<string>() returning typeof(stri"
-    + "ng)"
+    IL_00c8:  ldstr      "Calling IBar.Bar3<String, String[]>"
     IL_00cd:  call       void Test::Assert(bool,
                                            string)
     IL_00d2:  nop
