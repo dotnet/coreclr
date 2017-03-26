@@ -3767,7 +3767,7 @@ public:
     void DiscardNonCriticalObjects();
 
     //Methods used by the app domain unloading call to finalize objects in an app domain
-    BOOL FinalizeAppDomain (AppDomain *pDomain, BOOL fRunFinalizers);
+    bool FinalizeAppDomain (AppDomain *pDomain, bool fRunFinalizers);
 
     void CheckFinalizerObjects();
 

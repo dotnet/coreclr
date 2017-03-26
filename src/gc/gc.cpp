@@ -35773,7 +35773,7 @@ bool GCHeap::FinalizeAppDomain(AppDomain *pDomain, bool fRunFinalizers)
     return foundp;
 
 #else //MULTIPLE_HEAPS
-    return !!pGenGCHeap->finalize_queue->FinalizeAppDomain (pDomain, fRunFinalizers);
+    return pGenGCHeap->finalize_queue->FinalizeAppDomain (pDomain, fRunFinalizers);
 #endif //MULTIPLE_HEAPS
 }
 
@@ -36169,8 +36169,8 @@ CFinalize::FinalizeSegForAppDomain (AppDomain *pDomain,
     return finalizedFound;
 }
 
-BOOL
-CFinalize::FinalizeAppDomain (AppDomain *pDomain, BOOL fRunFinalizers)
+bool
+CFinalize::FinalizeAppDomain (AppDomain *pDomain, bool fRunFinalizers)
 {
     BOOL finalizedFound = FALSE;
 
