@@ -2735,7 +2735,8 @@ BOOL MethodDesc::RequiresStableEntryPoint(BOOL fEstimateForChunk /*=FALSE*/)
             return TRUE;
 
         // TODO: Can we avoid early allocation of precodes for interfaces and cominterop?
-        if ((IsInterface() && IsAbstract()) || IsComPlusCall())
+        // Only abstract virtual interface method need precode
+        if ((IsInterface() && IsAbstract() && IsVirtual() && !IsStatic()) || IsComPlusCall())
             return TRUE;
     }
 
