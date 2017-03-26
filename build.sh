@@ -75,6 +75,7 @@ initTargetDistroRid()
             if [ ! -e $ROOTFS_DIR/etc/os-release ]; then
                 echo "WARNING: Can not determine runtime id for current distro."
                 #Test hack to generate __DistroRid for Android
+                #TODO Find reliable way to generate __DistroRid for Android.
                 export __DistroRid="android.21-arm64"
             else
                 source $ROOTFS_DIR/etc/os-release
