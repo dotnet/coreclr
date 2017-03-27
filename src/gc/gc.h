@@ -263,7 +263,7 @@ extern void FinalizeWeakReference(Object * obj);
 extern IGCHeapInternal* g_theGCHeap;
 
 #ifndef DACCESS_COMPILE
-inline BOOL IsGCInProgress(bool bConsiderGCStart = FALSE)
+inline bool IsGCInProgress(bool bConsiderGCStart = false)
 {
     WRAPPER_NO_CONTRACT;
 
@@ -271,7 +271,7 @@ inline BOOL IsGCInProgress(bool bConsiderGCStart = FALSE)
 }
 #endif // DACCESS_COMPILE
 
-inline BOOL IsServerHeap()
+inline bool IsServerHeap()
 {
     LIMITED_METHOD_CONTRACT;
 #ifdef FEATURE_SVR_GC
