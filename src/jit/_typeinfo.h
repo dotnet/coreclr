@@ -27,7 +27,7 @@ enum ti_types
 #define DEF_TI(ti, nm) ti,
 #include "titypes.h"
 #undef DEF_TI
-    TI_ONLY_ENUM = TI_METHOD, // Enum values with greater value are completely described by the enumeration.
+    TI_ONLY_ENUM = TI_TOKEN, // Enum values with greater value are completely described by the enumeration.
 };
 
 #if defined(_TARGET_64BIT_)
@@ -302,6 +302,8 @@ private:
         CORINFO_CLASS_HANDLE m_cls;
         // Valid only for type TI_METHOD
         CORINFO_METHOD_HANDLE m_method;
+        // Valid only for type TI_TOKEN
+        CORINFO_RESOLVED_TOKEN* m_token;
     };
 
     template <typename T>
@@ -363,6 +365,13 @@ public:
         assert(method != nullptr && !isInvalidHandle(method));
         m_flags  = TI_METHOD;
         m_method = method;
+    }
+
+    typeInfo(CORINFO_RESOLVED_TOKEN* token)
+    {
+        assert(token != nullptr && token->hMethod != nullptr && !isInvalidHandle(token->hMethod));
+        m_flags = TI_TOKEN;
+        m_token = token;
     }
 
 #ifdef DEBUG
@@ -552,8 +561,18 @@ public:
 
     CORINFO_METHOD_HANDLE GetMethod() const
     {
+        if (GetType() == TI_TOKEN)
+        {
+            return m_token->hMethod;
+        }
         assert(GetType() == TI_METHOD);
         return m_method;
+    }
+
+    CORINFO_RESOLVED_TOKEN* GetToken() const
+    {
+        assert(GetType() == TI_TOKEN);
+        return m_token;
     }
 
     // Get this item's type
@@ -616,7 +635,7 @@ public:
     // Returns whether this is a method desc
     BOOL IsMethod() const
     {
-        return (GetType() == TI_METHOD);
+        return (GetType() == TI_METHOD || GetType() == TI_TOKEN);
     }
 
     BOOL IsStruct() const
@@ -635,8 +654,8 @@ public:
     BOOL IsValueClassWithClsHnd() const
     {
         if ((GetType() == TI_STRUCT) ||
-            (m_cls && GetType() != TI_REF && GetType() != TI_METHOD &&
-             GetType() != TI_ERROR)) // necessary because if byref bit is set, we return TI_ERROR)
+            (m_cls && GetType() != TI_REF && !IsMethod() && GetType() != TI_ERROR)) // necessary because if byref bit is
+                                                                                    // set, we return TI_ERROR)
         {
             return TRUE;
         }

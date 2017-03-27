@@ -6378,6 +6378,8 @@ var_types Compiler::impImportCall(OPCODE                  opcode,
     int                    tailCall                       = prefixFlags & PREFIX_TAILCALL;
     bool                   readonlyCall                   = (prefixFlags & PREFIX_READONLY) != 0;
 
+    CORINFO_RESOLVED_TOKEN* ldftnToken = nullptr;
+
     // Synchronized methods need to call CORINFO_HELP_MON_EXIT at the end. We could
     // do that before tailcalls, but that is probably not the intended
     // semantic. So just disallow tailcalls from synchronized methods.
@@ -7289,6 +7291,13 @@ var_types Compiler::impImportCall(OPCODE                  opcode,
         exactContextHnd = nullptr;
     }
 
+    if (opcode == CEE_NEWOBJ && clsFlags & CORINFO_FLG_DELEGATE)
+    {
+        typeInfo delegateTypeInfo = impStackTop().seTypeInfo;
+        assert(delegateTypeInfo.IsType(TI_TOKEN));
+        ldftnToken = delegateTypeInfo.GetToken();
+    }
+
     //-------------------------------------------------------------------------
     // The main group of arguments
 
@@ -7369,7 +7378,8 @@ var_types Compiler::impImportCall(OPCODE                  opcode,
             {
                 // New inliner morph it in impImportCall.
                 // This will allow us to inline the call to the delegate constructor.
-                call = fgOptimizeDelegateConstructor(call->AsCall(), &exactContextHnd);
+                assert(ldftnToken);
+                call = fgOptimizeDelegateConstructor(call->AsCall(), &exactContextHnd, ldftnToken);
             }
 
             if (!bIntrinsicImported)
@@ -12272,7 +12282,8 @@ void Compiler::impImportBlockCode(BasicBlock* block)
                     return;
                 }
 
-                impPushOnStack(op1, typeInfo(resolvedToken.hMethod));
+                CORINFO_RESOLVED_TOKEN* heapToken = new CORINFO_RESOLVED_TOKEN(resolvedToken);
+                impPushOnStack(op1, typeInfo(heapToken));
 
                 break;
             }
@@ -12377,7 +12388,10 @@ void Compiler::impImportBlockCode(BasicBlock* block)
                     return;
                 }
 
-                impPushOnStack(fptr, typeInfo(resolvedToken.hMethod));
+                CORINFO_RESOLVED_TOKEN* heapToken = new CORINFO_RESOLVED_TOKEN(resolvedToken);
+                assert(heapToken->tokenType == CORINFO_TOKENKIND_Method);
+                heapToken->tokenType = CORINFO_TOKENKIND_LdvirtualToken;
+                impPushOnStack(fptr, typeInfo(heapToken));
 
                 break;
             }
