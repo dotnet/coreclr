@@ -26,6 +26,8 @@ namespace System.Reflection
         {
             _ptr = ((IntPtr)(info.GetValue("_ptr", typeof(IntPtr)))).ToPointer();
             _ptrType = (Type)info.GetValue("_ptrType", typeof(Type));
+            if (!_ptrType.IsRuntimeImplemented())
+                throw new SerializationException(SR.Arg_MustBeType);
         }
 
         public static object Box(void* ptr, Type type)
