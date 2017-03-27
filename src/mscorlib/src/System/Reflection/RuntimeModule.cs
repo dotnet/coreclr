@@ -464,7 +464,7 @@ namespace System.Reflection
 
             RuntimeType retType = null;
             Object keepAlive = null;
-            GetType(GetNativeHandle(), className, throwOnError, ignoreCase, JitHelpers.GetObjectHandleOnStack(ref retType), JitHelpers.GetObjectHandleOnStack(ref keepAlive));
+            GetType(GetNativeHandle(), className, ignoreCase, throwOnError, JitHelpers.GetObjectHandleOnStack(ref retType), JitHelpers.GetObjectHandleOnStack(ref keepAlive));
             GC.KeepAlive(keepAlive);
             return retType;
         }
