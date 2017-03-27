@@ -326,7 +326,7 @@
     <Compile Include="$(BclSourcesRoot)\System\Text\StringBuilder.CoreCLR.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Text\StringBuilderCache.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Exception.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\DateTime.cs" />
+    <Compile Include="$(BclSourcesRoot)\System\DateTime.CoreCLR.cs" />
     <Compile Include="$(BclSourcesRoot)\System\DateTimeOffset.cs" />
     <Compile Include="$(BclSourcesRoot)\System\OutOfMemoryException.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Delegate.cs" />
@@ -450,7 +450,6 @@
     <Compile Include="$(BclSourcesRoot)\System\Reflection\MemberSerializationStringGenerator.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Reflection\MethodBase.CoreCLR.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Reflection\MethodBody.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Reflection\Pointer.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Reflection\RtFieldInfo.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Reflection\RuntimeAssembly.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Reflection\RuntimeConstructorInfo.cs" />
@@ -533,8 +532,7 @@
     <Compile Include="$(BclSourcesRoot)\System\Globalization\DateTimeStyles.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Globalization\DigitShapes.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Globalization\EastAsianLunisolarCalendar.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Globalization\GlobalizationMode.cs"  Condition="'$(BuildOS)' != 'OSX'"/>
-    <Compile Include="$(BclSourcesRoot)\System\Globalization\GlobalizationMode.OSX.cs"  Condition="'$(BuildOS)' == 'OSX'"/>
+    <Compile Include="$(BclSourcesRoot)\System\Globalization\GlobalizationMode.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Globalization\GregorianCalendar.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Globalization\GregorianCalendarHelper.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Globalization\GregorianCalendarTypes.cs" />
@@ -576,7 +574,7 @@
     <Compile Include="$(BclSourcesRoot)\System\Globalization\CompareInfo.Unix.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Globalization\CultureData.Unix.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Globalization\CultureInfo.Unix.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Globalization\GlobalizationMode.Unix.cs" Condition="'$(BuildOS)' != 'OSX'"/>
+    <Compile Include="$(BclSourcesRoot)\System\Globalization\GlobalizationMode.Unix.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Globalization\TextInfo.Unix.cs" />
   </ItemGroup>
   <ItemGroup Condition="'$(TargetsUnix)' != 'true'">
@@ -976,7 +974,5 @@
     <!-- Use a different nativeresource file to avoid conflicts with mscorlib-->
     <Win32Resource Condition="'$(GenerateNativeVersionInfo)'=='true'">$(IntermediateOutputPath)\System.Private.CoreLib.res</Win32Resource>
   </PropertyGroup>
-  <!-- Import resources tools -->
-  <Import Condition="Exists('$(ToolsDir)\resources.targets')" Project="$(ToolsDir)\resources.targets" />
   <Import Project="GenerateCompilerResponseFile.targets" />
 </Project>

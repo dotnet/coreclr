@@ -1100,9 +1100,9 @@ void Compiler::compChangeLife(VARSET_VALARG_TP newLife DEBUGARG(GenTreePtr tree)
     /* Can't simultaneously become live and dead at the same time */
 
     // (deadSet UNION bornSet) != EMPTY
-    noway_assert(!VarSetOps::IsEmpty(this, VarSetOps::Union(this, deadSet, bornSet)));
+    noway_assert(!VarSetOps::IsEmptyUnion(this, deadSet, bornSet));
     // (deadSet INTERSECTION bornSet) == EMPTY
-    noway_assert(VarSetOps::IsEmpty(this, VarSetOps::Intersection(this, deadSet, bornSet)));
+    noway_assert(VarSetOps::IsEmptyIntersection(this, deadSet, bornSet));
 
 #ifdef LEGACY_BACKEND
     // In the LEGACY_BACKEND case, we only consider variables that are fully enregisterd
@@ -2981,7 +2981,8 @@ void CodeGen::genGenerateCode(void** codePtr, ULONG* nativeSizeOfCode)
 
         if (compiler->fgHaveProfileData())
         {
-            printf("; with IBC profile data\n");
+            printf("; with IBC profile data, edge weights are %s, and fgCalledCount is %u\n",
+                   compiler->fgHaveValidEdgeWeights ? "valid" : "invalid", compiler->fgCalledCount);
         }
 
         if (compiler->fgProfileData_ILSizeMismatch)
