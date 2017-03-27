@@ -5857,7 +5857,7 @@ struct fix_alloc_context_args
 void fix_alloc_context(gc_alloc_context* acontext, void* param)
 {
     fix_alloc_context_args* args = (fix_alloc_context_args*)param;
-    g_theGCHeap->FixAllocContext(acontext, FALSE, (void*)(size_t)(args->for_gc_p), args->heap);
+    g_theGCHeap->FixAllocContext(acontext, false, (void*)(size_t)(args->for_gc_p), args->heap);
 }
 
 void gc_heap::fix_allocation_contexts(BOOL for_gc_p)
@@ -24377,8 +24377,8 @@ void gc_heap::walk_survivors_for_bgc (void* profiling_context, record_surv_fn fn
                 plug_end,
                 0,              // Reloc distance == 0 as this is non-compacting
                 profiling_context,
-                FALSE,          // Non-compacting
-                TRUE);          // BGC
+                false,          // Non-compacting
+                true);          // BGC
         }
 
         seg = heap_segment_next (seg);
@@ -30914,7 +30914,7 @@ void gc_heap::walk_survivors_for_loh (void* profiling_context, record_surv_fn fn
 
             plug_end = o;
 
-            fn (plug_start, plug_end, 0, profiling_context, FALSE, FALSE);
+            fn (plug_start, plug_end, 0, profiling_context, false, false);
         }
         else
         {

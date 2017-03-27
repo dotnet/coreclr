@@ -158,7 +158,7 @@ public:
     unsigned WhichGeneration (Object* object);
     // returns TRUE is the object is ephemeral 
     bool IsEphemeral (Object* object);
-    bool IsHeapPointer (void* object, bool small_heap_only = FALSE);
+    bool IsHeapPointer (void* object, bool small_heap_only = false);
     
     void    ValidateObjectMember (Object *obj);
 
@@ -189,7 +189,7 @@ public:
 
     PER_HEAP_ISOLATED HRESULT GetGcCounters(int gen, gc_counters* counters);
 
-    size_t GetValidSegmentSize(bool large_seg = FALSE);
+    size_t GetValidSegmentSize(bool large_seg = false);
 
     static size_t GetValidGen0MaxSize(size_t seg_size);
 

@@ -1061,7 +1061,7 @@ void GCProfileWalkHeapWorker(BOOL fProfilerPinned, BOOL fShouldWalkHeapRootsForE
         // **** Walk objects on heap: only if profiling API wants them or ETW wants them.
         if (fProfilerPinned || fShouldWalkHeapObjectsForEtw)
         {
-            GCHeapUtilities::GetGCHeap()->DiagWalkHeap(&HeapWalkHelper, &profilerWalkHeapContext, max_generation, TRUE /* walk the large object heap */);
+            GCHeapUtilities::GetGCHeap()->DiagWalkHeap(&HeapWalkHelper, &profilerWalkHeapContext, max_generation, true /* walk the large object heap */);
         }
 
 #ifdef FEATURE_EVENT_TRACE
@@ -1129,7 +1129,7 @@ void GCToEEInterface::DiagGCStart(int gen, bool isInduced)
 
         // When we're walking objects allocated by class, then we don't want to walk the large
         // object heap because then it would count things that may have been around for a while.
-        GCHeapUtilities::GetGCHeap()->DiagWalkHeap(&AllocByClassHelper, (void *)&context, 0, FALSE);
+        GCHeapUtilities::GetGCHeap()->DiagWalkHeap(&AllocByClassHelper, (void *)&context, 0, false);
 
         // Notify that we've reached the end of the Gen 0 scan
         g_profControlBlock.pProfInterface->EndAllocByClass(&context);

@@ -1868,7 +1868,7 @@ void QCALLTYPE GCInterface::Collect(INT32 generation, INT32 mode)
     //We don't need to check the top end because the GC will take care of that.
 
     GCX_COOP();
-    GCHeapUtilities::GetGCHeap()->GarbageCollect(generation, FALSE, mode);
+    GCHeapUtilities::GetGCHeap()->GarbageCollect(generation, false, mode);
 
     END_QCALL;
 }
@@ -2331,7 +2331,7 @@ NOINLINE void GCInterface::GarbageCollectModeAny(int generation)
     CONTRACTL_END;
 
     GCX_COOP();
-    GCHeapUtilities::GetGCHeap()->GarbageCollect(generation, FALSE, collection_non_blocking);
+    GCHeapUtilities::GetGCHeap()->GarbageCollect(generation, false, collection_non_blocking);
 }
 
 //

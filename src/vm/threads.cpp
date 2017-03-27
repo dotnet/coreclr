@@ -3440,7 +3440,7 @@ void Thread::OnThreadTerminate(BOOL holdingLock)
         if (ThisThreadID == CurrentThreadID)
         {
             GCX_COOP();
-            GCHeapUtilities::GetGCHeap()->FixAllocContext(&m_alloc_context, FALSE, NULL, NULL);
+            GCHeapUtilities::GetGCHeap()->FixAllocContext(&m_alloc_context, false, NULL, NULL);
             m_alloc_context.init();
         }
     }
@@ -3497,7 +3497,7 @@ void Thread::OnThreadTerminate(BOOL holdingLock)
         {
             // We must be holding the ThreadStore lock in order to clean up alloc context.
             // We should never call FixAllocContext during GC.
-            GCHeapUtilities::GetGCHeap()->FixAllocContext(&m_alloc_context, FALSE, NULL, NULL);
+            GCHeapUtilities::GetGCHeap()->FixAllocContext(&m_alloc_context, false, NULL, NULL);
             m_alloc_context.init();
         }
 
