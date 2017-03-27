@@ -1637,7 +1637,7 @@ void CodeGen::genDefineTempLabel(BasicBlock* label)
 
 void CodeGen::genAdjustSP(ssize_t delta)
 {
-#ifdef _TARGET_X86_
+#if defined(_TARGET_X86_) && !defined(UNIX_X86_ABI)
     if (delta == sizeof(int))
         inst_RV(INS_pop, REG_ECX, TYP_INT);
     else
