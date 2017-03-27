@@ -752,6 +752,10 @@ DEFINE_CLASS(PARAMETER_MODIFIER,    Reflection,             ParameterModifier)
 
 DEFINE_CLASS(POINTER,               Reflection,             Pointer)
 
+DEFINE_CLASS_U(Reflection, Pointer, ReflectionPointer)
+DEFINE_FIELD_U(_ptr,                ReflectionPointer, _ptr)
+DEFINE_FIELD_U(_ptrType,            ReflectionPointer, _ptrType)
+
 DEFINE_CLASS(PROPERTY,              Reflection,             RuntimePropertyInfo)
 DEFINE_METHOD(PROPERTY,             SET_VALUE,              SetValue,                   IM_Obj_Obj_BindingFlags_Binder_ArrObj_CultureInfo_RetVoid)
 DEFINE_METHOD(PROPERTY,             GET_VALUE,              GetValue,                   IM_Obj_BindingFlags_Binder_ArrObj_CultureInfo_RetObj)
