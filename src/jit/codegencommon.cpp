@@ -9717,7 +9717,7 @@ void CodeGen::genFnEpilog(BasicBlock* block)
         unsigned stkArgSize = 0; // Zero on all platforms except x86
 
 #if defined(_TARGET_X86_)
-        bool fCalleePop = true;
+        bool     fCalleePop = true;
 
         // varargs has caller pop
         if (compiler->info.compIsVarArgs)
