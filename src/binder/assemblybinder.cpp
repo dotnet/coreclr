@@ -945,6 +945,7 @@ namespace BINDER_SPACE
        IF_FAIL_GO(BindLocked(pApplicationContext,
                               pAssemblyName,
                               dwBindFlags,
+							  false, /* Do not use explicit path */
                               excludeAppPaths,
                               pBindResult));
 
@@ -1023,10 +1024,11 @@ namespace BINDER_SPACE
         AssemblyName *pAssemblyName;
         pAssemblyName = pAssembly->GetAssemblyName();
 
-        if (!fNgenExplicitBind && !fUseExplicitFilePath)
+        if (!fNgenExplicitBind)
         {
             IF_FAIL_GO(BindLockedOrService(pApplicationContext,
                                            pAssemblyName,
+										   fUseExplicitFilePath,
                                            excludeAppPaths,
                                            &lockedBindResult));
             if (lockedBindResult.HaveResult())
@@ -1058,6 +1060,7 @@ namespace BINDER_SPACE
     HRESULT AssemblyBinder::BindLocked(ApplicationContext *pApplicationContext,
                                        AssemblyName       *pAssemblyName,
                                        DWORD               dwBindFlags,
+									   BOOL                fUseExplicitFilePath,
                                        bool                excludeAppPaths,
                                        BindResult         *pBindResult)
     {
@@ -1092,7 +1095,7 @@ namespace BINDER_SPACE
         }
         else
 #endif // !CROSSGEN_COMPILE
-        if (pApplicationContext->IsTpaListProvided())
+        if (!fUseExplicitFilePath && pApplicationContext->IsTpaListProvided())
         {
             IF_FAIL_GO(BindByTpaList(pApplicationContext,
                                      pAssemblyName,
@@ -1116,6 +1119,7 @@ namespace BINDER_SPACE
     /* static */
     HRESULT AssemblyBinder::BindLockedOrService(ApplicationContext *pApplicationContext,
                                                 AssemblyName       *pAssemblyName,
+												BOOL                fUseExplicitFilePath,
                                                 bool                excludeAppPaths,
                                                 BindResult         *pBindResult)
     {
@@ -1127,6 +1131,7 @@ namespace BINDER_SPACE
         IF_FAIL_GO(BindLocked(pApplicationContext,
                               pAssemblyName,
                               0 /*  Do not IgnoreDynamicBinds */,
+							  fUseExplicitFilePath,
                               excludeAppPaths,
                               &lockedBindResult));
 

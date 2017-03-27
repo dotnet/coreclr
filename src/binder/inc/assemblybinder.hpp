@@ -147,10 +147,12 @@ namespace BINDER_SPACE
         static HRESULT BindLocked(/* in */  ApplicationContext *pApplicationContext,
                                   /* in */  AssemblyName       *pAssemblyName,
                                   /* in */  DWORD               dwBindFlags,
+								  /* in */  BOOL                fUseExplicitFilePath,
                                   /* in */  bool                excludeAppPaths,
                                   /* out */ BindResult         *pBindResult);
         static HRESULT BindLockedOrService(/* in */  ApplicationContext *pApplicationContext,
                                            /* in */  AssemblyName       *pAssemblyName,
+										   /* in */  BOOL                fUseExplicitFilePath,
                                            /* in */  bool                excludeAppPaths,
                                            /* out */ BindResult         *pBindResult);
 
