@@ -1396,12 +1396,12 @@ DONE:
 
 /*****************************************************************************
  *
- *  emitins_valid_imm_for_cmp() returns true if this 'imm' 
+ *  emitins_valid_imm_for_cmp() returns true if this 'imm'
  *   can be encoded as a input operand to an non-add/sub alu instruction
  */
-/*static*/ bool emitter::emitIns_valid_imm_for_cmp(int imm, insFlags flags) 
+/*static*/ bool emitter::emitIns_valid_imm_for_cmp(int imm, insFlags flags)
 {
-	    return emitIns_valid_imm_for_add(imm, flags);
+    return emitIns_valid_imm_for_add(imm, flags);
 }
 
 /*****************************************************************************
