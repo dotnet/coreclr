@@ -2394,7 +2394,7 @@ public:
     virtual void getReadyToRunDelegateCtorHelper(
             CORINFO_RESOLVED_TOKEN * pTargetMethod,
             CORINFO_CLASS_HANDLE     delegateType,
-            CORINFO_CONST_LOOKUP *   pLookup
+            CORINFO_LOOKUP *   pLookup
             ) = 0;
 
     virtual const char* getHelperName(
