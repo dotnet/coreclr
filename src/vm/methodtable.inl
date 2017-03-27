@@ -652,14 +652,11 @@ inline MethodDesc* MethodTable::GetMethodDescForSlot(DWORD slot)
 
     // This is an optimization that we can take advantage of if we're trying to get the MethodDesc 
     // for an interface virtual, since their slots usually point to stub.
-    // Unless, the MethodDesc points to a default interface method which is non-abstract virtual
-    // and can be JITTed.
     if (IsInterface() && slot < GetNumVirtuals())
     {
-        // @DIM_TODO - Is this a safe/fast approach? Alternatively we could also set the precode's target
-        // to the JITTed code to keep the "every interface method has precode" promise, just like 
-        // what we do for interop. apparently nobody does this for JITTing pure IL method and MakeJITWorker 
-        // doesn't handle any precode case and simply calls SetNativeCodeInterlocked to stomp over it.
+        // @DIM_TODO - This is not a reliable approach. Need to change MakeJitWorker to not stomp 
+        // over slot and instead set the target of precode to the address. We may need the precode 
+        // there anyway to handle other cases too (such as interop). 
         MethodDesc *pMD = MethodDesc::GetMethodDescFromStubAddr(pCode, /* fSpeculative = */ TRUE);
         if (pMD != NULL) return pMD;
     }
