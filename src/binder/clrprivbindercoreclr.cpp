@@ -31,7 +31,8 @@ HRESULT CLRPrivBinderCoreCLR::BindAssemblyByNameWorker(BINDER_SPACE::AssemblyNam
                                       NULL,
                                       FALSE, //fNgenExplicitBind,
                                       FALSE, //fExplicitBindToNativeImage,
-                                      excludeAppPaths,
+                                      FALSE, //fUseExplicitFilePath
+									  excludeAppPaths,
                                       ppCoreCLRFoundAssembly);
     if (!FAILED(hr))
     {
@@ -252,7 +253,8 @@ HRESULT CLRPrivBinderCoreCLR::Bind(SString           &assemblyDisplayName,
                                    PEAssembly        *pParentAssembly,
                                    BOOL               fNgenExplicitBind,
                                    BOOL               fExplicitBindToNativeImage,
-                                   ICLRPrivAssembly **ppAssembly)
+								   BOOL               fUseExplicitFilePath,
+								   ICLRPrivAssembly **ppAssembly)
 {
     HRESULT hr = S_OK;
     VALIDATE_ARG_RET(ppAssembly != NULL);
@@ -277,6 +279,7 @@ HRESULT CLRPrivBinderCoreCLR::Bind(SString           &assemblyDisplayName,
                                           pParentAssembly,
                                           fNgenExplicitBind,
                                           fExplicitBindToNativeImage,
+										  fUseExplicitFilePath,
                                           false, // excludeAppPaths
                                           &pAsm);
         if(SUCCEEDED(hr))

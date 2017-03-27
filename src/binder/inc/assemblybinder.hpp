@@ -46,7 +46,8 @@ namespace BINDER_SPACE
                                     /* in */  PEAssembly          *pParentAssembly,
                                     /* in */  BOOL                 fNgenExplicitBind,
                                     /* in */  BOOL                 fExplicitBindToNativeImage,
-                                    /* in */  bool                 excludeAppPaths,
+                                    /* in */  BOOL                 fUseExplicitFilePath,
+									/* in */  bool                 excludeAppPaths,
                                     /* out */ Assembly           **ppAssembly);
 
         static HRESULT BindToSystem(/* in */ SString    &systemDirectory,
@@ -139,6 +140,7 @@ namespace BINDER_SPACE
                                     /* in */  PathString         &assemblyPath,
                                     /* in */  BOOL                fNgenExplicitBind,
                                     /* in */  BOOL                fExplicitBindToNativeImage,
+									/* in */  BOOL                fUseExplicitFilePath,
                                     /* in */  bool                excludeAppPaths,
                                     /* out */ BindResult         *pBindResult);
 

@@ -2470,7 +2470,8 @@ public:
         BOOL fRaisePrebindEvents,
         StackCrawlMark *pCallerStackMark = NULL,
         AssemblyLoadSecurity *pLoadSecurity = NULL,
-        BOOL fUseHostBinderIfAvailable = TRUE) DAC_EMPTY_RET(NULL);
+        BOOL fUseHostBinderIfAvailable = TRUE,
+		BOOL fUseExplicitFilePath = FALSE) DAC_EMPTY_RET(NULL);
 
     HRESULT BindAssemblySpecForHostedBinder(
         AssemblySpec *   pSpec, 

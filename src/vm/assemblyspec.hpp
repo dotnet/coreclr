@@ -72,7 +72,7 @@ class AssemblySpec  : public BaseAssemblySpec
         m_pParentAssembly = NULL;
 
         m_pFallbackLoadContextBinder = NULL;     
-        m_fPreferFallbackLoadContextBinder = false;   
+        m_fPreferFallbackLoadContextBinder = false;
 
     }
 #endif //!DACCESS_COMPILE
@@ -221,18 +221,21 @@ class AssemblySpec  : public BaseAssemblySpec
         CoreBindResult* pBindResult,
         BOOL fNgenExplicitBind = FALSE, 
         BOOL fExplicitBindToNativeImage = FALSE,
-        StackCrawlMark *pCallerStackMark  = NULL );
+        StackCrawlMark *pCallerStackMark  = NULL,
+		BOOL fUseExplicitFilePath = FALSE);
 
     Assembly *LoadAssembly(FileLoadLevel targetLevel, 
                            AssemblyLoadSecurity *pLoadSecurity = NULL,
                            BOOL fThrowOnFileNotFound = TRUE,
                            BOOL fRaisePrebindEvents = TRUE,
-                           StackCrawlMark *pCallerStackMark = NULL);
+                           StackCrawlMark *pCallerStackMark = NULL,
+						   BOOL fUseExplicitFilePath = FALSE);
     DomainAssembly *LoadDomainAssembly(FileLoadLevel targetLevel,
                                        AssemblyLoadSecurity *pLoadSecurity = NULL,
                                        BOOL fThrowOnFileNotFound = TRUE,
                                        BOOL fRaisePrebindEvents = TRUE,
-                                       StackCrawlMark *pCallerStackMark = NULL);
+                                       StackCrawlMark *pCallerStackMark = NULL,
+									   BOOL fUseExplicitFilePath = FALSE);
 
     //****************************************************************************************
     //

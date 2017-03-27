@@ -553,7 +553,8 @@ namespace BINDER_SPACE
                                          /* in */  PEAssembly          *pParentAssembly,
                                          /* in */  BOOL                 fNgenExplicitBind,
                                          /* in */  BOOL                 fExplicitBindToNativeImage,
-                                         /* in */  bool                 excludeAppPaths,
+                                         /* in */  BOOL                 fUseExplicitFilePath,
+										 /* in */  bool                 excludeAppPaths,
                                          /* out */ Assembly           **ppAssembly)
     {
         HRESULT hr = S_OK;
@@ -611,6 +612,7 @@ namespace BINDER_SPACE
                                         assemblyPath,
                                         fDoNgenExplicitBind,
                                         fExplicitBindToNativeImage,
+										fUseExplicitFilePath,
                                         excludeAppPaths,
                                         &bindResult));
             }
@@ -984,7 +986,8 @@ namespace BINDER_SPACE
                                          PathString         &assemblyPath,
                                          BOOL                fNgenExplicitBind,
                                          BOOL                fExplicitBindToNativeImage,
-                                         bool                excludeAppPaths,
+										 BOOL                fUseExplicitFilePath,
+										 bool                excludeAppPaths,
                                          BindResult         *pBindResult)
     {
         HRESULT hr = S_OK;
@@ -1020,7 +1023,7 @@ namespace BINDER_SPACE
         AssemblyName *pAssemblyName;
         pAssemblyName = pAssembly->GetAssemblyName();
 
-        if (!fNgenExplicitBind)
+        if (!fNgenExplicitBind && !fUseExplicitFilePath)
         {
             IF_FAIL_GO(BindLockedOrService(pApplicationContext,
                                            pAssemblyName,
