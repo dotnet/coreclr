@@ -1380,7 +1380,7 @@ DONE:
 
 /*****************************************************************************
  *
- *  emitIns_valid_imm_for_add() returns true when the immediate 'imm'
+ *  emitins_valid_imm_for_add() returns true when the immediate 'imm'
  *   can be encoded using a single add or sub instruction.
  */
 /*static*/ bool emitter::emitIns_valid_imm_for_add(int imm, insFlags flags)
@@ -1392,6 +1392,16 @@ DONE:
     if (isModImmConst(-imm)) // funky arm immediate via sub
         return true;
     return false;
+}
+
+/*****************************************************************************
+ *
+ *  emitins_valid_imm_for_cmp() returns true if this 'imm' 
+ *   can be encoded as a input operand to an non-add/sub alu instruction
+ */
+/*static*/ bool emitter::emitIns_valid_imm_for_cmp(int imm, insFlags flags) 
+{
+	    return emitIns_valid_imm_for_add(imm, flags);
 }
 
 /*****************************************************************************
