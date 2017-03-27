@@ -1640,7 +1640,7 @@ void CodeGen::genCodeForTreeNode(GenTreePtr treeNode)
             {
                 noway_assert(EA_ATTR(genTypeSize(treeNode->gtType)) == EA_PTRSIZE);
                 emit->emitIns_R_C(ins_Load(TYP_I_IMPL), EA_PTRSIZE, treeNode->gtRegNum, FLD_GLOBAL_FS,
-                    (int)addr->gtIntCon.gtIconVal);
+                                  (int)addr->gtIntCon.gtIconVal);
             }
             else
             {
@@ -1649,7 +1649,7 @@ void CodeGen::genCodeForTreeNode(GenTreePtr treeNode)
             }
             genProduceReg(treeNode);
         }
-            break;
+        break;
 
         case GT_MULHI:
 #ifdef _TARGET_X86_
