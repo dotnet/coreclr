@@ -36172,7 +36172,7 @@ CFinalize::FinalizeSegForAppDomain (AppDomain *pDomain,
 bool
 CFinalize::FinalizeAppDomain (AppDomain *pDomain, bool fRunFinalizers)
 {
-    BOOL finalizedFound = FALSE;
+    bool finalizedFound = false;
 
     unsigned int startSeg = gen_segment (max_generation);
 
@@ -36182,7 +36182,7 @@ CFinalize::FinalizeAppDomain (AppDomain *pDomain, bool fRunFinalizers)
     {
         if (FinalizeSegForAppDomain (pDomain, fRunFinalizers, Seg))
         {
-            finalizedFound = TRUE;
+            finalizedFound = true;
         }
     }
 
