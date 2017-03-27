@@ -1,13 +1,13 @@
 <Project ToolsVersion="12.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <!-- Source of truth for dependency tooling: the commit hash of the dotnet/versions master branch as of the last auto-upgrade. -->
   <PropertyGroup>
-    <CoreFxCurrentRef>157c0f67026931c68c4d669bd436d5449f9821e7</CoreFxCurrentRef>
+    <CoreFxCurrentRef>68188ca2bf628f269afd3bbee44aa4d0a7a3b2f8</CoreFxCurrentRef>
     <CoreClrCurrentRef>6bf7f4799f0ff7542f2d0c00c373c8c48407e118</CoreClrCurrentRef>
   </PropertyGroup>
 
   <!-- Auto-upgraded properties for each build info dependency. -->
   <PropertyGroup>
-    <CoreFxExpectedPrerelease>servicing-25123-01</CoreFxExpectedPrerelease>
+    <CoreFxExpectedPrerelease>servicing-25127-01</CoreFxExpectedPrerelease>
   </PropertyGroup>
 
   <!-- Full package version strings that are used in other parts of the build. -->
