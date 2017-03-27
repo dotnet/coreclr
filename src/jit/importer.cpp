@@ -9936,7 +9936,7 @@ void Compiler::impImportBlockCode(BasicBlock* block)
                 }
 
                 // We should have seen this arg write in the prescan
-                assert(lvaTable[lclNum].lvArgWrite == 1);
+                assert(lvaTable[lclNum].lvHasILStoreOp);
 
                 if (tiVerificationNeeded)
                 {
@@ -10076,14 +10076,14 @@ void Compiler::impImportBlockCode(BasicBlock* block)
                 if (isLocal && (lclTyp == TYP_REF))
                 {
                     // We should have seen a stloc in our IL prescan.
-                    assert(lvaTable[lclNum].lvArgWrite);
+                    assert(lvaTable[lclNum].lvHasILStoreOp);
 
-                    const bool isSingleDefLocal =
-                        !lvaTable[lclNum].lvMultipleArgWrite && !lvaTable[lclNum].lvHasLdAddrOp;
+                    const bool isSingleILStoreLocal =
+                        !lvaTable[lclNum].lvHasMultipleILStoreOp && !lvaTable[lclNum].lvHasLdAddrOp;
 
-                    if (isSingleDefLocal)
+                    if (isSingleILStoreLocal)
                     {
-                        lvaSetClass(lclNum, op1, clsHnd);
+                        lvaUpdateClass(lclNum, op1, clsHnd);
                     }
                 }
 
@@ -12659,7 +12659,7 @@ void Compiler::impImportBlockCode(BasicBlock* block)
                         // without exhaustive walk over all expressions.
 
                         impAssignTempGen(lclNum, op1, (unsigned)CHECK_SPILL_NONE);
-                        lvaSetClass(lclNum, resolvedToken.hClass, true);
+                        lvaSetClass(lclNum, resolvedToken.hClass, true /* is Exact */);
 
                         newObjThisPtr = gtNewLclvNode(lclNum, TYP_REF);
                     }
@@ -17741,14 +17741,15 @@ unsigned Compiler::impInlineFetchLocal(unsigned lclNum DEBUGARG(const char* reas
         impInlineInfo->lclTmpNum[lclNum] = tmpNum = lvaGrabTemp(false DEBUGARG(reason));
 
         // Copy over key info
-        lvaTable[tmpNum].lvType             = lclTyp;
-        lvaTable[tmpNum].lvHasLdAddrOp      = inlineeLocal.lclHasLdlocaOp;
-        lvaTable[tmpNum].lvPinned           = inlineeLocal.lclIsPinned;
-        lvaTable[tmpNum].lvArgWrite         = inlineeLocal.lclHasStlocOp;
-        lvaTable[tmpNum].lvMultipleArgWrite = inlineeLocal.lclHasMultipleStlocOp;
+        lvaTable[tmpNum].lvType                 = lclTyp;
+        lvaTable[tmpNum].lvHasLdAddrOp          = inlineeLocal.lclHasLdlocaOp;
+        lvaTable[tmpNum].lvPinned               = inlineeLocal.lclIsPinned;
+        lvaTable[tmpNum].lvHasILStoreOp         = inlineeLocal.lclHasStlocOp;
+        lvaTable[tmpNum].lvHasMultipleILStoreOp = inlineeLocal.lclHasMultipleStlocOp;
 
-        // Copy over class handle for ref types. Note this may be
-        // further improved if it is a shared type.
+        // Copy over class handle for ref types. Note this may be a
+        // shared type -- someday perhaps we can get the exact
+        // signature and pass in a more precise type.
         if (lclTyp == TYP_REF)
         {
             lvaSetClass(tmpNum, inlineeLocal.lclVerTypeInfo.GetClassHandleForObjRef());

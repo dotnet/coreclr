@@ -4271,7 +4271,7 @@ private:
 //    jumpTarget[N] is set to a JT_* value if IL offset N is a
 //    jump target in the method.
 //
-//    Also sets lvAddrExposed and lvArgWrite in lvaTable[].
+//    Also sets lvAddrExposed and lvHasILStoreOp, ilHasMultipleILStoreOp in lvaTable[].
 
 #ifdef _PREFAST_
 #pragma warning(push)
@@ -4553,7 +4553,7 @@ void Compiler::fgFindJumpTargets(const BYTE* codeAddr, IL_OFFSET codeSize, BYTE*
                     if (varNum < lvaTableCnt)
                     {
                         // In non-inline cases, note written-to arguments.
-                        lvaTable[varNum].lvArgWrite = 1;
+                        lvaTable[varNum].lvHasILStoreOp = 1;
                     }
                 }
             }
@@ -4601,13 +4601,13 @@ void Compiler::fgFindJumpTargets(const BYTE* codeAddr, IL_OFFSET codeSize, BYTE*
                     if (varNum < lvaTableCnt)
                     {
                         // In non-inline cases, note written-to locals.
-                        if (lvaTable[varNum].lvArgWrite)
+                        if (lvaTable[varNum].lvHasILStoreOp)
                         {
-                            lvaTable[varNum].lvMultipleArgWrite = 1;
+                            lvaTable[varNum].lvHasMultipleILStoreOp = 1;
                         }
                         else
                         {
-                            lvaTable[varNum].lvArgWrite = 1;
+                            lvaTable[varNum].lvHasILStoreOp = 1;
                         }
                     }
                 }
@@ -4930,11 +4930,11 @@ void Compiler::fgAdjustForAddressExposedOrWrittenThis()
     // Optionally enable adjustment during stress.
     if (!tiVerificationNeeded && compStressCompile(STRESS_GENERIC_VARN, 15))
     {
-        lvaTable[info.compThisArg].lvArgWrite = true;
+        lvaTable[info.compThisArg].lvHasILStoreOp = true;
     }
 
     // If this is exposed or written to, create a temp for the modifiable this
-    if (lvaTable[info.compThisArg].lvAddrExposed || lvaTable[info.compThisArg].lvArgWrite)
+    if (lvaTable[info.compThisArg].lvAddrExposed || lvaTable[info.compThisArg].lvHasILStoreOp)
     {
         // If there is a "ldarga 0" or "starg 0", grab and use the temp.
         lvaArg0Var = lvaGrabTemp(false DEBUGARG("Address-exposed, or written this pointer"));
@@ -4948,14 +4948,14 @@ void Compiler::fgAdjustForAddressExposedOrWrittenThis()
         lvaTable[lvaArg0Var].lvLclFieldExpr     = lvaTable[info.compThisArg].lvLclFieldExpr;
         lvaTable[lvaArg0Var].lvLiveAcrossUCall  = lvaTable[info.compThisArg].lvLiveAcrossUCall;
 #endif
-        lvaTable[lvaArg0Var].lvArgWrite    = lvaTable[info.compThisArg].lvArgWrite;
-        lvaTable[lvaArg0Var].lvVerTypeInfo = lvaTable[info.compThisArg].lvVerTypeInfo;
+        lvaTable[lvaArg0Var].lvHasILStoreOp = lvaTable[info.compThisArg].lvHasILStoreOp;
+        lvaTable[lvaArg0Var].lvVerTypeInfo  = lvaTable[info.compThisArg].lvVerTypeInfo;
 
         // Clear the TI_FLAG_THIS_PTR in the original 'this' pointer.
         noway_assert(lvaTable[lvaArg0Var].lvVerTypeInfo.IsThisPtr());
         lvaTable[info.compThisArg].lvVerTypeInfo.ClearThisPtr();
-        lvaTable[info.compThisArg].lvAddrExposed = false;
-        lvaTable[info.compThisArg].lvArgWrite    = false;
+        lvaTable[info.compThisArg].lvAddrExposed  = false;
+        lvaTable[info.compThisArg].lvHasILStoreOp = false;
     }
 }
 
@@ -8089,8 +8089,8 @@ void Compiler::fgAddInternal()
             lva0CopiedForGenericsCtxt = false;
 #endif // JIT32_GCENCODER
             noway_assert(lva0CopiedForGenericsCtxt || !lvaTable[info.compThisArg].lvAddrExposed);
-            noway_assert(!lvaTable[info.compThisArg].lvArgWrite);
-            noway_assert(lvaTable[lvaArg0Var].lvAddrExposed || lvaTable[lvaArg0Var].lvArgWrite ||
+            noway_assert(!lvaTable[info.compThisArg].lvHasILStoreOp);
+            noway_assert(lvaTable[lvaArg0Var].lvAddrExposed || lvaTable[lvaArg0Var].lvHasILStoreOp ||
                          lva0CopiedForGenericsCtxt);
 
             var_types thisType = lvaTable[info.compThisArg].TypeGet();
@@ -20483,10 +20483,11 @@ void Compiler::fgDebugCheckBBlist(bool checkBBNum /* = false */, bool checkBBRef
         // Should never expose the address of arg 0 or write to arg 0.
         // In addition, lvArg0Var should remain 0 if arg0 is not
         // written to or address-exposed.
-        noway_assert(compThisArgAddrExposedOK && !lvaTable[info.compThisArg].lvArgWrite &&
-                     (lvaArg0Var == info.compThisArg ||
-                      lvaArg0Var != info.compThisArg && (lvaTable[lvaArg0Var].lvAddrExposed ||
-                                                         lvaTable[lvaArg0Var].lvArgWrite || copiedForGenericsCtxt)));
+        noway_assert(
+            compThisArgAddrExposedOK && !lvaTable[info.compThisArg].lvHasILStoreOp &&
+            (lvaArg0Var == info.compThisArg ||
+             lvaArg0Var != info.compThisArg &&
+                 (lvaTable[lvaArg0Var].lvAddrExposed || lvaTable[lvaArg0Var].lvHasILStoreOp || copiedForGenericsCtxt)));
     }
 }
 
@@ -22444,7 +22445,7 @@ GenTreePtr Compiler::fgInlinePrependStatements(InlineInfo* inlineInfo)
                     // the type of the temp.
                     if (argIsSingleDef && (argType == TYP_REF))
                     {
-                        lvaSetClass(tmpNum, argNode);
+                        lvaUpdateClass(tmpNum, argNode);
                     }
 
 #ifdef DEBUG
@@ -22470,10 +22471,10 @@ GenTreePtr Compiler::fgInlinePrependStatements(InlineInfo* inlineInfo)
                    subsequent uses of the arg would have worked with the bashed value */
                 if (argInfo.argIsInvariant)
                 {
-                    assert(argInfo.argNode->OperIsConst() || argInfo.argNode->gtOper == GT_ADDR);
+                    assert(argNode->OperIsConst() || argNode->gtOper == GT_ADDR);
                 }
                 noway_assert((argInfo.argIsLclVar == 0) ==
-                             (argInfo.argNode->gtOper != GT_LCL_VAR || (argInfo.argNode->gtFlags & GTF_GLOB_REF)));
+                             (argNode->gtOper != GT_LCL_VAR || (argNode->gtFlags & GTF_GLOB_REF)));
 
                 /* If the argument has side effects, append it */
 
@@ -22481,16 +22482,16 @@ GenTreePtr Compiler::fgInlinePrependStatements(InlineInfo* inlineInfo)
                 {
                     noway_assert(argInfo.argIsUsed == false);
 
-                    if (argInfo.argNode->gtOper == GT_OBJ || argInfo.argNode->gtOper == GT_MKREFANY)
+                    if (argNode->gtOper == GT_OBJ || argNode->gtOper == GT_MKREFANY)
                     {
                         // Don't put GT_OBJ node under a GT_COMMA.
                         // Codegen can't deal with it.
                         // Just hang the address here in case there are side-effect.
-                        newStmt = gtNewStmt(gtUnusedValNode(argInfo.argNode->gtOp.gtOp1), callILOffset);
+                        newStmt = gtNewStmt(gtUnusedValNode(argNode->gtOp.gtOp1), callILOffset);
                     }
                     else
                     {
-                        newStmt = gtNewStmt(gtUnusedValNode(argInfo.argNode), callILOffset);
+                        newStmt = gtNewStmt(gtUnusedValNode(argNode), callILOffset);
                     }
                     afterStmt = fgInsertStmtAfter(block, afterStmt, newStmt);
 
