@@ -4993,19 +4993,30 @@ void CodeGen::genCallInstruction(GenTreeCall* call)
     }
 
 #if defined(_TARGET_X86_)
+    bool fCallerPop = (call->gtFlags & GTF_CALL_POP_ARGS) != 0;
+
+#ifdef UNIX_X86_ABI
+    {
+        CorInfoCallConv callConv = CORINFO_CALLCONV_DEFAULT;
+
+        if ((callType != CT_HELPER) && call->callSig)
+        {
+            callConv = call->callSig->callConv;
+        }
+
+        fCallerPop |= IsCallerPop(callConv);
+    }
+#endif // UNIX_X86_ABI
+
     // If the callee pops the arguments, we pass a positive value as the argSize, and the emitter will
     // adjust its stack level accordingly.
     // If the caller needs to explicitly pop its arguments, we must pass a negative value, and then do the
     // pop when we're done.
     ssize_t argSizeForEmitter = stackArgBytes;
-#if !defined(UNIX_X86_ABI)
-    if ((call->gtFlags & GTF_CALL_POP_ARGS) != 0)
+    if (fCallerPop)
     {
         argSizeForEmitter = -stackArgBytes;
     }
-#else
-    argSizeForEmitter = -stackArgBytes;
-#endif
 #endif // defined(_TARGET_X86_)
 
 #ifdef FEATURE_AVX_SUPPORT
@@ -5186,11 +5197,6 @@ void CodeGen::genCallInstruction(GenTreeCall* call)
         genPendingCallLabel = nullptr;
     }
 
-#if defined(_TARGET_X86_) && !defined(UNIX_X86_ABI)
-    // The call will pop its arguments.
-    SubtractStackLevel(stackArgBytes);
-#endif // defined(_TARGET_X86_)
-
     // Update GC info:
     // All Callee arg registers are trashed and no longer contain any GC pointers.
     // TODO-XArch-Bug?: As a matter of fact shouldn't we be killing all of callee trashed regs here?
@@ -5320,19 +5326,13 @@ void CodeGen::genCallInstruction(GenTreeCall* call)
         }
     }
 
-#ifndef UNIX_X86_ABI
     // Is the caller supposed to pop the arguments?
-    if (((call->gtFlags & GTF_CALL_POP_ARGS) != 0) && (stackArgBytes != 0))
+    if (fCallerPop && (stackArgBytes != 0))
     {
         genAdjustSP(stackArgBytes);
     }
-#else
-    if (stackArgBytes != 0)
-    {
-        genAdjustSP(stackArgBytes);
-        SubtractStackLevel(stackArgBytes);
-    }
-#endif
+
+    SubtractStackLevel(stackArgBytes);
 #endif // _TARGET_X86_
 
     genRemoveAlignmentAfterCall(call);
