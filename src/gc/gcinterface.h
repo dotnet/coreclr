@@ -376,7 +376,14 @@ typedef enum
     HNDTYPE_WEAK_WINRT   = 9
 } HandleType;
 
-typedef bool (* walk_fn)(Object*, void*);
+typedef enum
+{
+    GC_HEAP_INVALID = 0,
+    GC_HEAP_WKS     = 1,
+    GC_HEAP_SVR     = 2
+} GCHeapType;
+
+typedef BOOL (* walk_fn)(Object*, void*);
 typedef void (* gen_walk_fn)(void* context, int generation, uint8_t* range_start, uint8_t* range_end, uint8_t* range_reserved);
 typedef void (* record_surv_fn)(uint8_t* begin, uint8_t* end, ptrdiff_t reloc, void* context, bool compacting_p, bool bgc_p);
 typedef void (* fq_walk_fn)(bool, void*);
@@ -715,19 +722,6 @@ public:
 
     IGCHeap() {}
     virtual ~IGCHeap() {}
-
-    typedef enum
-    {
-        GC_HEAP_INVALID = 0,
-        GC_HEAP_WKS     = 1,
-        GC_HEAP_SVR     = 2
-    } GC_HEAP_TYPE;
-
-#ifdef FEATURE_SVR_GC
-    SVAL_DECL(uint32_t, gcHeapType);
-#endif
-
-    SVAL_DECL(uint32_t, maxGeneration);
 };
 
 #ifdef WRITE_BARRIER_CHECK
