@@ -37,7 +37,7 @@ namespace System.Reflection
             if (!type.IsPointer)
                 throw new ArgumentException(SR.Arg_MustBePointer, nameof(ptr));
             if (!type.IsRuntimeImplemented())
-                throw new ArgumentException(SR.Arg_MustBePointer, nameof(ptr));
+                throw new ArgumentException(SR.Arg_MustBeType, nameof(ptr));
 
             return new Pointer(ptr, type);
         }
