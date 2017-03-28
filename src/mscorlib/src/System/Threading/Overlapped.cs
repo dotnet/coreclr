@@ -166,7 +166,7 @@ namespace System.Threading
         {
             if (!m_pinSelf.IsNull())
             {
-                throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_Overlapped_Pack"));
+                throw new InvalidOperationException(SR.InvalidOperation_Overlapped_Pack);
             }
 
             if (iocb != null)
@@ -198,7 +198,7 @@ namespace System.Threading
         {
             if (!m_pinSelf.IsNull())
             {
-                throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_Overlapped_Pack"));
+                throw new InvalidOperationException(SR.InvalidOperation_Overlapped_Pack);
             }
             m_userObject = userData;
             if (m_userObject != null)
@@ -241,7 +241,6 @@ namespace System.Threading
 
     #region class Overlapped
 
-    /// <internalonly/>
     public class Overlapped
     {
         private OverlappedData m_overlappedData;

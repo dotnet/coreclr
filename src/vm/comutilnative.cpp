@@ -1777,9 +1777,9 @@ int QCALLTYPE GCInterface::StartNoGCRegion(INT64 totalSize, BOOL lohSizeKnown, I
     GCX_COOP();
 
     retVal = GCHeapUtilities::GetGCHeap()->StartNoGCRegion((ULONGLONG)totalSize, 
-                                                  lohSizeKnown,
+                                                  !!lohSizeKnown,
                                                   (ULONGLONG)lohSize,
-                                                  disallowFullBlockingGC);
+                                                  !!disallowFullBlockingGC);
 
     END_QCALL;
 
@@ -1868,7 +1868,7 @@ void QCALLTYPE GCInterface::Collect(INT32 generation, INT32 mode)
     //We don't need to check the top end because the GC will take care of that.
 
     GCX_COOP();
-    GCHeapUtilities::GetGCHeap()->GarbageCollect(generation, FALSE, mode);
+    GCHeapUtilities::GetGCHeap()->GarbageCollect(generation, false, mode);
 
     END_QCALL;
 }
@@ -2331,7 +2331,7 @@ NOINLINE void GCInterface::GarbageCollectModeAny(int generation)
     CONTRACTL_END;
 
     GCX_COOP();
-    GCHeapUtilities::GetGCHeap()->GarbageCollect(generation, FALSE, collection_non_blocking);
+    GCHeapUtilities::GetGCHeap()->GarbageCollect(generation, false, collection_non_blocking);
 }
 
 //
@@ -2584,9 +2584,23 @@ FCIMPL2_IV(INT64,COMInterlocked::ExchangeAdd64, INT64 *location, INT64 value)
 }
 FCIMPLEND
 
+FCIMPL0(void, COMInterlocked::FCMemoryBarrier)
+{
+    FCALL_CONTRACT;
+
+    MemoryBarrier();
+    FC_GC_POLL();
+}
+FCIMPLEND
+
 #include <optdefault.h>
 
+void QCALLTYPE COMInterlocked::MemoryBarrierProcessWide()
+{
+    QCALL_CONTRACT;
 
+    FlushProcessWriteBuffers();
+}
 
 FCIMPL6(INT32, ManagedLoggingHelper::GetRegistryLoggingValues, CLR_BOOL* bLoggingEnabled, CLR_BOOL* bLogToConsole, INT32 *iLogLevel, CLR_BOOL* bPerfWarnings, CLR_BOOL* bCorrectnessWarnings, CLR_BOOL* bSafeHandleStackTraces)
 {

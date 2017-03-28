@@ -1,4 +1,4 @@
-﻿// Licensed to the .NET Foundation under one or more agreements.
+// Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
@@ -178,13 +178,13 @@ namespace System.Threading
             if (initialCount < 0 || initialCount > maxCount)
             {
                 throw new ArgumentOutOfRangeException(
-                    nameof(initialCount), initialCount, GetResourceString("SemaphoreSlim_ctor_InitialCountWrong"));
+                    nameof(initialCount), initialCount, SR.SemaphoreSlim_ctor_InitialCountWrong);
             }
 
             //validate input
             if (maxCount <= 0)
             {
-                throw new ArgumentOutOfRangeException(nameof(maxCount), maxCount, GetResourceString("SemaphoreSlim_ctor_MaxCountWrong"));
+                throw new ArgumentOutOfRangeException(nameof(maxCount), maxCount, SR.SemaphoreSlim_ctor_MaxCountWrong);
             }
 
             m_maxCount = maxCount;
@@ -241,7 +241,7 @@ namespace System.Threading
             if (totalMilliseconds < -1 || totalMilliseconds > Int32.MaxValue)
             {
                 throw new System.ArgumentOutOfRangeException(
-                    nameof(timeout), timeout, GetResourceString("SemaphoreSlim_Wait_TimeoutWrong"));
+                    nameof(timeout), timeout, SR.SemaphoreSlim_Wait_TimeoutWrong);
             }
 
             // Call wait with the timeout milliseconds
@@ -271,7 +271,7 @@ namespace System.Threading
             if (totalMilliseconds < -1 || totalMilliseconds > Int32.MaxValue)
             {
                 throw new System.ArgumentOutOfRangeException(
-                    nameof(timeout), timeout, GetResourceString("SemaphoreSlim_Wait_TimeoutWrong"));
+                    nameof(timeout), timeout, SR.SemaphoreSlim_Wait_TimeoutWrong);
             }
 
             // Call wait with the timeout milliseconds
@@ -314,7 +314,7 @@ namespace System.Threading
             if (millisecondsTimeout < -1)
             {
                 throw new ArgumentOutOfRangeException(
-                    nameof(millisecondsTimeout), millisecondsTimeout, GetResourceString("SemaphoreSlim_Wait_TimeoutWrong"));
+                    nameof(millisecondsTimeout), millisecondsTimeout, SR.SemaphoreSlim_Wait_TimeoutWrong);
             }
 
             cancellationToken.ThrowIfCancellationRequested();
@@ -575,7 +575,7 @@ namespace System.Threading
             if (totalMilliseconds < -1 || totalMilliseconds > Int32.MaxValue)
             {
                 throw new System.ArgumentOutOfRangeException(
-                    nameof(timeout), timeout, GetResourceString("SemaphoreSlim_Wait_TimeoutWrong"));
+                    nameof(timeout), timeout, SR.SemaphoreSlim_Wait_TimeoutWrong);
             }
 
             // Call wait with the timeout milliseconds
@@ -608,7 +608,7 @@ namespace System.Threading
             if (millisecondsTimeout < -1)
             {
                 throw new ArgumentOutOfRangeException(
-                    nameof(millisecondsTimeout), millisecondsTimeout, GetResourceString("SemaphoreSlim_Wait_TimeoutWrong"));
+                    nameof(millisecondsTimeout), millisecondsTimeout, SR.SemaphoreSlim_Wait_TimeoutWrong);
             }
 
             // Bail early for cancellation
@@ -772,7 +772,7 @@ namespace System.Threading
             if (releaseCount < 1)
             {
                 throw new ArgumentOutOfRangeException(
-                    nameof(releaseCount), releaseCount, GetResourceString("SemaphoreSlim_Release_CountWrong"));
+                    nameof(releaseCount), releaseCount, SR.SemaphoreSlim_Release_CountWrong);
             }
             int returnCount;
 
@@ -906,7 +906,7 @@ namespace System.Threading
         {
             if (m_lockObj == null)
             {
-                throw new ObjectDisposedException(null, GetResourceString("SemaphoreSlim_Disposed"));
+                throw new ObjectDisposedException(null, SR.SemaphoreSlim_Disposed);
             }
         }
 
@@ -916,7 +916,7 @@ namespace System.Threading
         /// <param name="str">The key string</param>
         private static string GetResourceString(string str)
         {
-            return Environment.GetResourceString(str);
+            return SR.GetResourceString(str);
         }
         #endregion
     }

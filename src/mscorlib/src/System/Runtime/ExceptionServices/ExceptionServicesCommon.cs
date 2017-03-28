@@ -101,7 +101,7 @@ namespace System.Runtime.ExceptionServices
         {
             if (source == null)
             {
-                throw new ArgumentNullException(nameof(source), Environment.GetResourceString("ArgumentNull_Obj"));
+                throw new ArgumentNullException(nameof(source), SR.ArgumentNull_Obj);
             }
 
             return new ExceptionDispatchInfo(source);
@@ -129,5 +129,9 @@ namespace System.Runtime.ExceptionServices
             m_Exception.RestoreExceptionDispatchInfo(this);
             throw m_Exception;
         }
+
+        // Throws the source exception, maintaining the original bucketing details and augmenting
+        // rather than replacing the original stack trace.
+        public static void Throw(Exception source) => Capture(source).Throw();
     }
 }

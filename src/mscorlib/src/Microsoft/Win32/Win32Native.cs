@@ -296,7 +296,7 @@ namespace Microsoft.Win32
                 //
                 if (bytes == null || bytes.Length != 44)
                 {
-                    throw new ArgumentException(Environment.GetResourceString("Argument_InvalidREG_TZI_FORMAT"), nameof(bytes));
+                    throw new ArgumentException(SR.Argument_InvalidREG_TZI_FORMAT, nameof(bytes));
                 }
                 Bias = BitConverter.ToInt32(bytes, 0);
                 StandardBias = BitConverter.ToInt32(bytes, 4);
@@ -499,7 +499,7 @@ namespace Microsoft.Win32
             else
             {
                 StringBuilderCache.Release(sb);
-                return Environment.GetResourceString("UnknownError_Num", errorCode);
+                return SR.Format(SR.UnknownError_Num, errorCode);
             }
         }
 
@@ -814,9 +814,6 @@ namespace Microsoft.Win32
 
         [DllImport(KERNEL32, CharSet = CharSet.Auto, SetLastError = true)]
         internal static extern uint GetCurrentProcessId();
-
-        [DllImport(KERNEL32, CharSet = CharSet.Auto, BestFitMapping = false)]
-        internal extern static int GetComputerName([Out]StringBuilder nameBuffer, ref int bufferSize);
 
         [DllImport(OLE32)]
         internal extern static int CoCreateGuid(out Guid guid);

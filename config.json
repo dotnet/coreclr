@@ -210,6 +210,12 @@
       "values": [ "x86", "x64", "arm", "arm64" ],
       "defaultValue": "${CPUArch}"
     },
+    "PortableBuild": {
+      "description": "Indicates if this is a portable build.",
+      "valueType": "property",
+      "values": [ "0", "1"],
+      "defaultValue": "0"
+    },
     "Rebuild": {
       "description": "Specifies rebuild target.",
       "valueType": "target",
@@ -321,7 +327,7 @@
     "RuntimeId": {
       "description": "Specifies the OS to build Core_Root for",
       "valueType": "property",
-      "values": [ "debian.8-x64", "fedora.23-x64", "opensuse.42.1-x64", "osx.10.10-x64", "rhel.7-x64", "ubuntu.14.04-x64", "ubuntu.16.04-x64", "ubuntu.16.10-x64" ],
+      "values": [ "debian.8-x64", "fedora.23-x64", "opensuse.42.1-x64", "osx.10.12-x64", "rhel.7-x64", "ubuntu.14.04-x64", "ubuntu.16.04-x64", "ubuntu.16.10-x64" ],
       "defaultValue": "${__RuntimeId}"
     },
     "UpdateDependencies": {
@@ -442,6 +448,12 @@
           "description": "Skips restoring packages during build.",
           "settings": {
             "RestoreDuringBuild": false
+          }
+        },
+        "portable": {
+          "description": "Triggers a portable build.",
+          "settings": {
+            "PortableBuild": "1"
           }
         },
         "BuildTarget": {
@@ -607,6 +619,12 @@
           "description": "Specifies architecture to publish, can be x64, x86, arm or arm64",
           "settings": {
             "__BuildArch": "default"
+          }
+        },
+        "portable": {
+          "description": "Triggers a portable build.",
+          "settings": {
+            "PortableBuild": "1"
           }
         },
         "buildType": {
