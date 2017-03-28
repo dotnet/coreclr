@@ -6012,7 +6012,7 @@ void ThreadStore::IncrementDeadThreadCountForGCTrigger()
         return;
     }
 
-    SIZE_T gcLastMilliseconds = gcHeap->GetLastGCStartTime(max_generation);
+    SIZE_T gcLastMilliseconds = gcHeap->GetLastGCStartTime(gcHeap->GetMaxGeneration());
     SIZE_T gcNowMilliseconds = gcHeap->GetNow();
     if (gcNowMilliseconds - gcLastMilliseconds < s_DeadThreadGCTriggerPeriodMilliseconds)
     {
@@ -6088,11 +6088,12 @@ void ThreadStore::TriggerGCForDeadThreadsIfNecessary()
         return;
     }
 
-    int gcGenerationToTrigger = 0;
+    unsigned gcGenerationToTrigger = 0;
     IGCHeap *gcHeap = GCHeapUtilities::GetGCHeap();
     _ASSERTE(gcHeap != nullptr);
     SIZE_T generationCountThreshold = static_cast<SIZE_T>(s_DeadThreadCountThresholdForGCTrigger) / 2;
-    SIZE_T newDeadThreadGenerationCounts[max_generation + 1] = {0};
+    unsigned allocaSize = gcHeap->GetMaxGeneration() + 1;
+    SIZE_T *newDeadThreadGenerationCounts = static_cast<SIZE_T*>(alloca(allocaSize * sizeof(SIZE_T)));
     {
         ThreadStoreLockHolder threadStoreLockHolder;
         GCX_COOP();
@@ -6114,12 +6115,12 @@ void ThreadStore::TriggerGCForDeadThreadsIfNecessary()
                 continue;
             }
 
-            int exposedObjectGeneration = gcHeap->WhichGeneration(exposedObject);
+            unsigned exposedObjectGeneration = gcHeap->WhichGeneration(exposedObject);
             SIZE_T newDeadThreadGenerationCount = ++newDeadThreadGenerationCounts[exposedObjectGeneration];
             if (exposedObjectGeneration > gcGenerationToTrigger && newDeadThreadGenerationCount >= generationCountThreshold)
             {
                 gcGenerationToTrigger = exposedObjectGeneration;
-                if (gcGenerationToTrigger >= max_generation)
+                if (gcGenerationToTrigger >= gcHeap->GetMaxGeneration())
                 {
                     break;
                 }
@@ -6153,7 +6154,7 @@ void ThreadStore::TriggerGCForDeadThreadsIfNecessary()
                 continue;
             }
 
-            if (gcGenerationToTrigger < max_generation &&
+            if (gcGenerationToTrigger < gcHeap->GetMaxGeneration() &&
                 static_cast<int>(gcHeap->WhichGeneration(exposedObject)) > gcGenerationToTrigger)
             {
                 continue;
