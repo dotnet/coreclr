@@ -458,7 +458,7 @@ namespace System
             StringBuilder result = StringBuilderCache.Acquire();
             // This is a flag to indicate if we are format the dates using Hebrew calendar.
 
-            bool isHebrewCalendar = (cal.ID == Calendar.CAL_HEBREW);
+            bool isHebrewCalendar = (cal.ID == CalendarId.HEBREW);
             // This is a flag to indicate if we are formating hour/minute/second only.
             bool bTimeOnly = true;
 
@@ -650,7 +650,7 @@ namespace System
                         {
                             FormatDigits(result, year, tokenLen <= 2 ? tokenLen : 2);
                         }
-                        else if (cal.ID == Calendar.CAL_HEBREW)
+                        else if (cal.ID == CalendarId.HEBREW)
                         {
                             HebrewFormatDigits(result, year);
                         }
@@ -996,13 +996,13 @@ namespace System
                     // formatting as ISO 8601 format.
                     switch (dtfi.Calendar.ID)
                     {
-                        case Calendar.CAL_JAPAN:
-                        case Calendar.CAL_TAIWAN:
-                        case Calendar.CAL_HIJRI:
-                        case Calendar.CAL_HEBREW:
-                        case Calendar.CAL_JULIAN:
-                        case Calendar.CAL_UMALQURA:
-                        case Calendar.CAL_PERSIAN:
+                        case CalendarId.JAPAN:
+                        case CalendarId.TAIWAN:
+                        case CalendarId.HIJRI:
+                        case CalendarId.HEBREW:
+                        case CalendarId.JULIAN:
+                        case CalendarId.UMALQURA:
+                        case CalendarId.PERSIAN:
                             timeOnlySpecialCase = true;
                             dtfi = DateTimeFormatInfo.InvariantInfo;
                             break;

@@ -4489,7 +4489,7 @@ new DS[] { DS.ERROR, DS.TX_NNN,  DS.TX_NNN,  DS.TX_NNN,  DS.ERROR,   DS.ERROR,  
             bool bTimeOnly = false;
             result.calendar = parseInfo.calendar;
 
-            if (parseInfo.calendar.ID == Calendar.CAL_HEBREW)
+            if (parseInfo.calendar.ID == CalendarId.HEBREW)
             {
                 parseInfo.parseNumberDelegate = m_hebrewNumberParser;
                 parseInfo.fCustomNumberParser = true;
@@ -4868,7 +4868,7 @@ new DS[] { DS.ERROR, DS.TX_NNN,  DS.TX_NNN,  DS.TX_NNN,  DS.ERROR,   DS.ERROR,  
             }
             else
             {
-                m_info = Thread.CurrentThread.CurrentCulture.CompareInfo;
+                m_info = CultureInfo.CurrentCulture.CompareInfo;
                 m_checkDigitToken = false;
             }
         }
@@ -5508,9 +5508,6 @@ new DS[] { DS.ERROR, DS.TX_NNN,  DS.TX_NNN,  DS.TX_NNN,  DS.ERROR,   DS.ERROR,  
         internal DateTimeParse.TM timeMark;
         internal double fraction;
         internal bool hasSameDateAndTimeSeparators;
-        //
-
-        internal bool timeZone;
 
         internal void Init(int* numberBuffer)
         {
