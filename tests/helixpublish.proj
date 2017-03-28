@@ -38,7 +38,7 @@
     <BuildMoniker>$(CurrentDate)</BuildMoniker>
     <BuildMoniker Condition="'$(IsOfficial)'=='true'">$(OfficialBuildId)</BuildMoniker>
     <HelixArchLabel>$(Platform)</HelixArchLabel>
-    <HelixConfigLabel>$(ConfigurationGroup)</HelixConfigLabel>
+    <HelixConfigLabel>$(BuildType)</HelixConfigLabel>
   </PropertyGroup>
 
   <!-- Set Helix environment vars based on target platform -->
