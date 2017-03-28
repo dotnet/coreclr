@@ -3881,7 +3881,7 @@ public:
         RawSetMethodTable( GetMethodTable() );
         // Ensure nobody use the last but one bit
         // Should be removed after CI
-        _ASSERTE_ALL_BUILDS("clr/src/gc/gc.cpp", (((size_t)RawGetMethodTable()) & 3) == 0);
+        _ASSERTE((((size_t)RawGetMethodTable()) & 3) == 0);
     }
 
     CGCDesc *GetSlotMap ()
