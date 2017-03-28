@@ -163,8 +163,6 @@ struct segment_info
 // one for the object header, and one for the first field in the object.
 #define min_obj_size ((sizeof(uint8_t*) + sizeof(uintptr_t) + sizeof(size_t)))
 
-#define max_generation 2
-
 // The bit shift used to convert a memory address into an index into the
 // Software Write Watch table.
 #define SOFTWARE_WRITE_WATCH_AddressToTableByteIndexShift 0xc
