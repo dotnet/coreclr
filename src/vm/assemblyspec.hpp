@@ -222,20 +222,20 @@ class AssemblySpec  : public BaseAssemblySpec
         BOOL fNgenExplicitBind = FALSE, 
         BOOL fExplicitBindToNativeImage = FALSE,
         StackCrawlMark *pCallerStackMark  = NULL,
-		BOOL fUseExplicitFilePath = FALSE);
+        BOOL fUseExplicitFilePath = FALSE);
 
     Assembly *LoadAssembly(FileLoadLevel targetLevel, 
                            AssemblyLoadSecurity *pLoadSecurity = NULL,
                            BOOL fThrowOnFileNotFound = TRUE,
                            BOOL fRaisePrebindEvents = TRUE,
                            StackCrawlMark *pCallerStackMark = NULL,
-						   BOOL fUseExplicitFilePath = FALSE);
+                           BOOL fUseExplicitFilePath = FALSE);
     DomainAssembly *LoadDomainAssembly(FileLoadLevel targetLevel,
                                        AssemblyLoadSecurity *pLoadSecurity = NULL,
                                        BOOL fThrowOnFileNotFound = TRUE,
                                        BOOL fRaisePrebindEvents = TRUE,
                                        StackCrawlMark *pCallerStackMark = NULL,
-									   BOOL fUseExplicitFilePath = FALSE);
+                                       BOOL fUseExplicitFilePath = FALSE);
 
     //****************************************************************************************
     //

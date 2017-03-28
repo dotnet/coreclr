@@ -61,7 +61,7 @@ public:
                  PEAssembly  *pParentAssembly,
                  BOOL         fNgenExplicitBind,
                  BOOL         fExplicitBindToNativeImage,
-				 BOOL         fUseExplicitFilePath,
+                 BOOL         fUseExplicitFilePath,
                  ICLRPrivAssembly **ppAssembly);
 
 #ifndef CROSSGEN_COMPILE

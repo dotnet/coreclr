@@ -871,7 +871,7 @@ DomainAssembly *AssemblySpec::LoadDomainAssembly(FileLoadLevel targetLevel,
                                                  BOOL fThrowOnFileNotFound,
                                                  BOOL fRaisePrebindEvents,
                                                  StackCrawlMark *pCallerStackMark,
-												 BOOL fUseExplicitFilePath)
+                                                 BOOL fUseExplicitFilePath)
 {
     CONTRACT(DomainAssembly *)
     {

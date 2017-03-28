@@ -109,7 +109,7 @@ VOID  AssemblySpec::Bind(AppDomain      *pAppDomain,
                          BOOL fNgenExplicitBind /* = FALSE */,
                          BOOL fExplicitBindToNativeImage /* = FALSE */,
                          StackCrawlMark *pCallerStackMark /* = NULL */,
-						 BOOL fUseExplicitFilePath /* = FALSE */)
+                         BOOL fUseExplicitFilePath /* = FALSE */)
 {
     CONTRACTL
     {
@@ -179,7 +179,7 @@ VOID  AssemblySpec::Bind(AppDomain      *pAppDomain,
                            GetParentAssembly()? GetParentAssembly()->GetFile():NULL,
                            fNgenExplicitBind,
                            fExplicitBindToNativeImage,
-						   fUseExplicitFilePath,
+                           fUseExplicitFilePath,
                           &pPrivAsm);
     }
 

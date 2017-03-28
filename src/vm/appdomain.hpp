@@ -2471,7 +2471,7 @@ public:
         StackCrawlMark *pCallerStackMark = NULL,
         AssemblyLoadSecurity *pLoadSecurity = NULL,
         BOOL fUseHostBinderIfAvailable = TRUE,
-		BOOL fUseExplicitFilePath = FALSE) DAC_EMPTY_RET(NULL);
+        BOOL fUseExplicitFilePath = FALSE) DAC_EMPTY_RET(NULL);
 
     HRESULT BindAssemblySpecForHostedBinder(
         AssemblySpec *   pSpec, 

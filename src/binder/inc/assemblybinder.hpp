@@ -47,7 +47,7 @@ namespace BINDER_SPACE
                                     /* in */  BOOL                 fNgenExplicitBind,
                                     /* in */  BOOL                 fExplicitBindToNativeImage,
                                     /* in */  BOOL                 fUseExplicitFilePath,
-									/* in */  bool                 excludeAppPaths,
+                                    /* in */  bool                 excludeAppPaths,
                                     /* out */ Assembly           **ppAssembly);
 
         static HRESULT BindToSystem(/* in */ SString    &systemDirectory,
@@ -140,19 +140,19 @@ namespace BINDER_SPACE
                                     /* in */  PathString         &assemblyPath,
                                     /* in */  BOOL                fNgenExplicitBind,
                                     /* in */  BOOL                fExplicitBindToNativeImage,
-									/* in */  BOOL                fUseExplicitFilePath,
+                                    /* in */  BOOL                fUseExplicitFilePath,
                                     /* in */  bool                excludeAppPaths,
                                     /* out */ BindResult         *pBindResult);
 
         static HRESULT BindLocked(/* in */  ApplicationContext *pApplicationContext,
                                   /* in */  AssemblyName       *pAssemblyName,
                                   /* in */  DWORD               dwBindFlags,
-								  /* in */  BOOL                fUseExplicitFilePath,
+                                  /* in */  BOOL                fUseExplicitFilePath,
                                   /* in */  bool                excludeAppPaths,
                                   /* out */ BindResult         *pBindResult);
         static HRESULT BindLockedOrService(/* in */  ApplicationContext *pApplicationContext,
                                            /* in */  AssemblyName       *pAssemblyName,
-										   /* in */  BOOL                fUseExplicitFilePath,
+                                           /* in */  BOOL                fUseExplicitFilePath,
                                            /* in */  bool                excludeAppPaths,
                                            /* out */ BindResult         *pBindResult);
 

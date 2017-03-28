@@ -109,7 +109,7 @@ namespace BinderInterface
                                                         pParentAssembly,
                                                         fNgenExplicitBind,
                                                         fExplicitBindToNativeImage,
-														FALSE, // fUseExplicitFilePath
+                                                        FALSE, // fUseExplicitFilePath
                                                         false, // excludeAppPaths
                                                         ppAssembly));
             }

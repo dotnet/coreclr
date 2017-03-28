@@ -554,7 +554,7 @@ namespace BINDER_SPACE
                                          /* in */  BOOL                 fNgenExplicitBind,
                                          /* in */  BOOL                 fExplicitBindToNativeImage,
                                          /* in */  BOOL                 fUseExplicitFilePath,
-										 /* in */  bool                 excludeAppPaths,
+                                         /* in */  bool                 excludeAppPaths,
                                          /* out */ Assembly           **ppAssembly)
     {
         HRESULT hr = S_OK;
@@ -612,7 +612,7 @@ namespace BINDER_SPACE
                                         assemblyPath,
                                         fDoNgenExplicitBind,
                                         fExplicitBindToNativeImage,
-										fUseExplicitFilePath,
+                                        fUseExplicitFilePath,
                                         excludeAppPaths,
                                         &bindResult));
             }
@@ -945,7 +945,7 @@ namespace BINDER_SPACE
        IF_FAIL_GO(BindLocked(pApplicationContext,
                               pAssemblyName,
                               dwBindFlags,
-							  false, /* Do not use explicit path */
+                              false, /* Do not use explicit path */
                               excludeAppPaths,
                               pBindResult));
 
@@ -987,8 +987,8 @@ namespace BINDER_SPACE
                                          PathString         &assemblyPath,
                                          BOOL                fNgenExplicitBind,
                                          BOOL                fExplicitBindToNativeImage,
-										 BOOL                fUseExplicitFilePath,
-										 bool                excludeAppPaths,
+                                         BOOL                fUseExplicitFilePath,
+                                         bool                excludeAppPaths,
                                          BindResult         *pBindResult)
     {
         HRESULT hr = S_OK;
@@ -1021,26 +1021,35 @@ namespace BINDER_SPACE
         IF_FAIL_GO(LogAssemblyNameWhereRef(pApplicationContext, pAssembly));
 #endif // FEATURE_VERSIONING_LOG
 
-        AssemblyName *pAssemblyName;
-        pAssemblyName = pAssembly->GetAssemblyName();
-
-        if (!fNgenExplicitBind)
+        if (fUseExplicitFilePath)
         {
-            IF_FAIL_GO(BindLockedOrService(pApplicationContext,
-                                           pAssemblyName,
-										   fUseExplicitFilePath,
-                                           excludeAppPaths,
-                                           &lockedBindResult));
-            if (lockedBindResult.HaveResult())
-            {
-                pBindResult->SetResult(&lockedBindResult);
-                GO_WITH_HRESULT(S_OK);
-            }
+            // We're using explicit file path so we have already got the result.
+            pBindResult->SetResult(pAssembly);
+            GO_WITH_HRESULT(S_OK);
         }
+        else
+        {
+            AssemblyName *pAssemblyName;
+            pAssemblyName = pAssembly->GetAssemblyName();
 
-        hr = S_OK;
-        pAssembly->SetIsDynamicBind(TRUE);
-        pBindResult->SetResult(pAssembly);
+            if (!fNgenExplicitBind)
+            {
+                IF_FAIL_GO(BindLockedOrService(pApplicationContext,
+                                               pAssemblyName,
+                                               fUseExplicitFilePath,
+                                               excludeAppPaths,
+                                               &lockedBindResult));
+                if (lockedBindResult.HaveResult())
+                {
+                    pBindResult->SetResult(&lockedBindResult);
+                    GO_WITH_HRESULT(S_OK);
+                }
+            }
+
+            hr = S_OK;
+            pAssembly->SetIsDynamicBind(TRUE);
+            pBindResult->SetResult(pAssembly);
+        }
 
     Exit:
 
@@ -1060,7 +1069,7 @@ namespace BINDER_SPACE
     HRESULT AssemblyBinder::BindLocked(ApplicationContext *pApplicationContext,
                                        AssemblyName       *pAssemblyName,
                                        DWORD               dwBindFlags,
-									   BOOL                fUseExplicitFilePath,
+                                       BOOL                fUseExplicitFilePath,
                                        bool                excludeAppPaths,
                                        BindResult         *pBindResult)
     {
@@ -1095,7 +1104,7 @@ namespace BINDER_SPACE
         }
         else
 #endif // !CROSSGEN_COMPILE
-        if (!fUseExplicitFilePath && pApplicationContext->IsTpaListProvided())
+        if (pApplicationContext->IsTpaListProvided())
         {
             IF_FAIL_GO(BindByTpaList(pApplicationContext,
                                      pAssemblyName,
@@ -1119,7 +1128,7 @@ namespace BINDER_SPACE
     /* static */
     HRESULT AssemblyBinder::BindLockedOrService(ApplicationContext *pApplicationContext,
                                                 AssemblyName       *pAssemblyName,
-												BOOL                fUseExplicitFilePath,
+                                                BOOL                fUseExplicitFilePath,
                                                 bool                excludeAppPaths,
                                                 BindResult         *pBindResult)
     {
@@ -1131,7 +1140,7 @@ namespace BINDER_SPACE
         IF_FAIL_GO(BindLocked(pApplicationContext,
                               pAssemblyName,
                               0 /*  Do not IgnoreDynamicBinds */,
-							  fUseExplicitFilePath,
+                              fUseExplicitFilePath,
                               excludeAppPaths,
                               &lockedBindResult));
 

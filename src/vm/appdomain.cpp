@@ -7096,7 +7096,7 @@ PEAssembly * AppDomain::BindAssemblySpec(
     StackCrawlMark *       pCallerStackMark, 
     AssemblyLoadSecurity * pLoadSecurity,
     BOOL                   fUseHostBinderIfAvailable,
-	BOOL                   fUseExplicitFilePath)
+    BOOL                   fUseExplicitFilePath)
 {
     STATIC_CONTRACT_THROWS;
     STATIC_CONTRACT_GC_TRIGGERS;
