@@ -46,7 +46,8 @@ function(add_pgo TargetName)
         endif(UNIX)
     else(CLR_CMAKE_PGO_INSTRUMENT)
         # If we don't have profile data availble, gracefully fall back to a non-PGO opt build
-        if(EXISTS ${ProfilePath})
+        # Likewise, if PGO is not supported, gracefully fall back to a non-PGO opt build
+        if(CLR_CMAKE_HAVE_PGO AND EXISTS ${ProfilePath})
             # Unfortunately LINK_FLAGS_* don't support generator expressions, so we need to use a loop
             foreach(Config IN LISTS ConfigList)
                 if(WIN32)
@@ -59,9 +60,24 @@ function(add_pgo TargetName)
                 ## On Unix we need to pass PGO flags to the compiler as well as the linker
                 target_compile_options(${TargetName} PRIVATE $<${IsReleaseConfig}:-flto -fprofile-instr-use=${ProfilePath}>)
             endif(UNIX)
-        endif(EXISTS ${ProfilePath})
+        endif(CLR_CMAKE_HAVE_PGO AND EXISTS ${ProfilePath})
     endif(CLR_CMAKE_PGO_INSTRUMENT)
 endfunction(add_pgo)
+
+# Detect whether PGO is supported
+if(UNIX)
+  message(STATUS "Performing Test CLR_CMAKE_HAVE_PGO")
+  try_compile(CLR_CMAKE_HAVE_PGO
+    "${CMAKE_BINARY_DIR}/tests/cmake_tests/try_compile/pgo"
+    "${CMAKE_SOURCE_DIR}/tests/cmake_tests/try_compile.cpp"
+    CMAKE_FLAGS -flto -fprofile-instr-generate
+    LINK_LIBRARIES -flto -fuse-ld=gold -fprofile-instr-generate
+  )
+  message(STATUS "Performing Test CLR_CMAKE_HAVE_PGO - ${CLR_CMAKE_HAVE_PGO}")
+elseif(WIN32)
+  # VC++ guarantees PGO support
+  set(CLR_CMAKE_HAVE_PGO TRUE)
+endif(UNIX)
 
 if(WIN32)
   if(CLR_CMAKE_PGO_INSTRUMENT)
