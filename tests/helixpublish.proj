@@ -12,9 +12,7 @@
     <!-- Finally, these archives represent the zips of tests that are OSPlatform specific 
          This is used by CloudTest.Helix.Targets to generate relative blob paths for archives. -->
     <ArchivesRoot>$(TestWorkingDir)/archive/</ArchivesRoot>
-    <TestArchivesRoot>$(ArchivesRoot)tests</TestArchivesRoot>
-    <Message Text="TestWorkingDir: @(TestWorkingDir)." Importance="High" />	
-    <Message Text="TestArchivesRoot: @(TestArchivesRoot)." Importance="High" />		  
+    <TestArchivesRoot>$(ArchivesRoot)tests</TestArchivesRoot> 
 
     <RunnerScript Condition="'$(RunnerScript)' == ''">$(TestRunnerScript)</RunnerScript>
     <SupplementalPayloadDir Condition="'$(SupplementalPayloadDir)' == ''">$(TestWorkingDir)SupplementalPayload/</SupplementalPayloadDir>
@@ -65,7 +63,7 @@
     <ItemGroup>
       <HelixWorkItem Include="$(TestArchivesRoot)/*.zip" /> 
     </ItemGroup>
-    <Message Text="Full test archive collection : @(HelixWorkItem)" Importance="High" />
+    <Message Text="Full test archive collection : @(HelixWorkItem)" Importance="Low" />
 
     <!-- Verify the test archives exist.  
          NOTE: It may be better to make this an error, but in the past we chose not to as this causes a build break when triggered, versus just no tests run. -->
