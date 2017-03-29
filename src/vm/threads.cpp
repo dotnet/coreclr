@@ -6092,11 +6092,14 @@ void ThreadStore::TriggerGCForDeadThreadsIfNecessary()
     IGCHeap *gcHeap = GCHeapUtilities::GetGCHeap();
     _ASSERTE(gcHeap != nullptr);
     SIZE_T generationCountThreshold = static_cast<SIZE_T>(s_DeadThreadCountThresholdForGCTrigger) / 2;
-    unsigned allocaSize = gcHeap->GetMaxGeneration() + 1;
+    NewArrayHolder<SIZE_T> newDeadThreadGenerationCounts = new (nothrow) SIZE_T[gcHeap->GetMaxGeneration() + 1];
+    if (newDeadThreadGenerationCounts == nullptr)
+    {
+        // pretty unlikely that this would happen - this code path induces GCs when they otherwise
+        // wouldn't be happening, and they certainly will be happening if we are low on memory.
+        return;
+    }
 
-    // allocaSize will rarely be anything other than 3, but it's possible that a standalone GC could provide
-    // a GC that does not have three generations - hence the alloca here.
-    SIZE_T *newDeadThreadGenerationCounts = static_cast<SIZE_T*>(alloca(allocaSize * sizeof(SIZE_T)));
     {
         ThreadStoreLockHolder threadStoreLockHolder;
         GCX_COOP();
