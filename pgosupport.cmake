@@ -6,17 +6,11 @@ function(clr_pgo_unknown_arch)
     endif()
 endfunction(clr_pgo_unknown_arch)
 
-function(append_prop_strings TargetName PropertyName)
-    foreach(Flag IN LISTS ARGN)
-        set_property(TARGET ${TargetName} APPEND_STRING PROPERTY ${PropertyName} " ${Flag}")
-    endforeach(Flag)
-endfunction(append_prop_strings)
-
 # Adds Profile Guided Optimization (PGO) flags to the current target
 function(add_pgo TargetName)
     if(WIN32)
         set(ProfileFileName "${TargetName}.pgd")
-    elseif(UNIX)
+    else(WIN32)
         # Clang/LLVM uses one profdata file for the entire repo
         set(ProfileFileName "coreclr.profdata")
     endif(WIN32)
@@ -27,57 +21,33 @@ function(add_pgo TargetName)
         ProfilePath
     )
 
-    # Enable PGO only for optimized configs
-    set(ConfigList RELEASE RELWITHDEBINFO)
-    set(IsReleaseConfig "$<OR:$<CONFIG:RELEASE>,$<CONFIG:RELWITHDEBINFO>>")
-
     if(CLR_CMAKE_PGO_INSTRUMENT)
-        # Unfortunately LINK_FLAGS_* don't support generator expressions, so we need to use a loop
-        foreach(Config IN LISTS ConfigList)
-            if(WIN32)
-                append_prop_strings(${TargetName} LINK_FLAGS_${Config} /LTCG /GENPROFILE)
-            elseif(UNIX)
-                append_prop_strings(${TargetName} LINK_FLAGS_${Config} -flto -fuse-ld=gold -fprofile-instr-generate)
-            endif(WIN32)
-        endforeach(Config)
-        if(UNIX)
-            # On Unix we need to pass PGO flags to the compiler as well as the linker
-            target_compile_options(${TargetName} PRIVATE $<${IsReleaseConfig}:-flto -fprofile-instr-generate>)
-        endif(UNIX)
+        if(WIN32)
+            set_property(TARGET ${TargetName} APPEND_STRING PROPERTY LINK_FLAGS_RELEASE        " /LTCG /GENPROFILE")
+            set_property(TARGET ${TargetName} APPEND_STRING PROPERTY LINK_FLAGS_RELWITHDEBINFO " /LTCG /GENPROFILE")
+        else(WIN32)
+            if(UPPERCASE_CMAKE_BUILD_TYPE STREQUAL RELEASE OR UPPERCASE_CMAKE_BUILD_TYPE STREQUAL RELWITHDEBINFO)
+                target_compile_options(${TargetName} PRIVATE -flto -fprofile-instr-generate)
+                set_property(TARGET ${TargetName} APPEND_STRING PROPERTY LINK_FLAGS " -flto -fuse-ld=gold -fprofile-instr-generate")
+            endif(UPPERCASE_CMAKE_BUILD_TYPE STREQUAL RELEASE OR UPPERCASE_CMAKE_BUILD_TYPE STREQUAL RELWITHDEBINFO)
+        endif(WIN32)
     else(CLR_CMAKE_PGO_INSTRUMENT)
         # If we don't have profile data availble, gracefully fall back to a non-PGO opt build
-        # Likewise, if PGO is not supported, gracefully fall back to a non-PGO opt build
-        if(CLR_CMAKE_HAVE_PGO AND EXISTS ${ProfilePath})
-            # Unfortunately LINK_FLAGS_* don't support generator expressions, so we need to use a loop
-            foreach(Config IN LISTS ConfigList)
-                if(WIN32)
-                    append_prop_strings(${TargetName} LINK_FLAGS_${Config} /LTCG /USEPROFILE:PGD=${ProfilePath})
-                elseif(UNIX)
-                    append_prop_strings(${TargetName} LINK_FLAGS_${Config} -flto -fuse-ld=gold -fprofile-instr-use=${ProfilePath})
-                endif(WIN32)
-            endforeach(Config)
-            if(UNIX)
-                ## On Unix we need to pass PGO flags to the compiler as well as the linker
-                target_compile_options(${TargetName} PRIVATE $<${IsReleaseConfig}:-flto -fprofile-instr-use=${ProfilePath}>)
-            endif(UNIX)
-        endif(CLR_CMAKE_HAVE_PGO AND EXISTS ${ProfilePath})
+        if(EXISTS ${ProfilePath})
+            if(WIN32)
+                set_property(TARGET ${TargetName} APPEND_STRING PROPERTY LINK_FLAGS_RELEASE        " /LTCG /USEPROFILE:PGD=${ProfilePath}")
+                set_property(TARGET ${TargetName} APPEND_STRING PROPERTY LINK_FLAGS_RELWITHDEBINFO " /LTCG /USEPROFILE:PGD=${ProfilePath}")
+            else(WIN32)
+                if(UPPERCASE_CMAKE_BUILD_TYPE STREQUAL RELEASE OR UPPERCASE_CMAKE_BUILD_TYPE STREQUAL RELWITHDEBINFO)
+                    if(HAVE_LTO)
+                        target_compile_options(${TargetName} PRIVATE -flto -fprofile-instr-use=${ProfilePath})
+                        set_property(TARGET ${TargetName} APPEND_STRING PROPERTY LINK_FLAGS " -flto -fuse-ld=gold -fprofile-instr-use=${ProfilePath}")
+                    endif(HAVE_LTO)
+                endif(UPPERCASE_CMAKE_BUILD_TYPE STREQUAL RELEASE OR UPPERCASE_CMAKE_BUILD_TYPE STREQUAL RELWITHDEBINFO)
+            endif(WIN32)
+        endif(EXISTS ${ProfilePath})
     endif(CLR_CMAKE_PGO_INSTRUMENT)
 endfunction(add_pgo)
-
-# Detect whether PGO is supported
-if(UNIX)
-  message(STATUS "Performing Test CLR_CMAKE_HAVE_PGO")
-  try_compile(CLR_CMAKE_HAVE_PGO
-    "${CMAKE_BINARY_DIR}/tests/cmake_tests/try_compile/pgo"
-    "${CMAKE_SOURCE_DIR}/tests/cmake_tests/try_compile.cpp"
-    CMAKE_FLAGS -flto -fprofile-instr-generate
-    LINK_LIBRARIES -flto -fuse-ld=gold -fprofile-instr-generate
-  )
-  message(STATUS "Performing Test CLR_CMAKE_HAVE_PGO - ${CLR_CMAKE_HAVE_PGO}")
-elseif(WIN32)
-  # VC++ guarantees PGO support
-  set(CLR_CMAKE_HAVE_PGO TRUE)
-endif(UNIX)
 
 if(WIN32)
   if(CLR_CMAKE_PGO_INSTRUMENT)
