@@ -189,7 +189,7 @@ typedef struct _T_CRITICAL_SECTION {
     {
         // PAL_CS_NATIVE_DATA_SIZE for linux ARM: 80
         BYTE rgNativeDataStorage[80];
-        void * pvAlign; // make sure the storage is machine-pointer-size aligned
+        VOID * pvAlign; // make sure the storage is machine-pointer-size aligned
     } csnds;    
 } T_CRITICAL_SECTION, *PT_CRITICAL_SECTION, *LPT_CRITICAL_SECTION;
 #else
@@ -381,7 +381,7 @@ typedef struct _T_CRITICAL_SECTION {
     {
         // PAL_CS_NATIVE_DATA_SIZE for linux ARM64: 116
         BYTE rgNativeDataStorage[116];
-        void * pvAlign; // make sure the storage is machine-pointer-size aligned
+        VOID * pvAlign; // make sure the storage is machine-pointer-size aligned
     } csnds;    
 } T_CRITICAL_SECTION, *PT_CRITICAL_SECTION, *LPT_CRITICAL_SECTION;
 #else

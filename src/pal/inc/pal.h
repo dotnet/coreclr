@@ -2577,7 +2577,7 @@ PALIMPORT BOOL PALAPI PAL_VirtualUnwindOutOfProc(CONTEXT *context,
 #warning 
 #error  PAL_CS_NATIVE_DATA_SIZE is not defined for this architecture
 #endif
-    
+
 typedef struct _CRITICAL_SECTION {
     PVOID DebugInfo;
     LONG LockCount;
@@ -2591,7 +2591,7 @@ typedef struct _CRITICAL_SECTION {
     union CSNativeDataStorage
     {
         BYTE rgNativeDataStorage[PAL_CS_NATIVE_DATA_SIZE]; 
-        void * pvAlign; // make sure the storage is machine-pointer-size aligned
+        VOID * pvAlign; // make sure the storage is machine-pointer-size aligned
     } csnds;    
 } CRITICAL_SECTION, *PCRITICAL_SECTION, *LPCRITICAL_SECTION;
 
