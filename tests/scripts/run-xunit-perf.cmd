@@ -12,6 +12,7 @@ set TEST_FILE_EXT=exe
 set TEST_ARCH=x64
 set TEST_ARCHITECTURE=x64
 set TEST_CONFIG=Release
+set IS_SCENARIO_TEST=0
 
 goto :ARGLOOP
 
@@ -44,7 +45,7 @@ pushd sandbox
 @rem stage stuff we need
 
 @rem xunit and perf
-"%CORECLR_REPO%\Tools\dotnetcli\dotnet.exe" restore "%CORECLR_REPO%\tests\src\Common\PerfHarness\project.json"
+"%CORECLR_REPO%\Tools\dotnetcli\dotnet.exe" restore "%CORECLR_REPO%\tests\src\Common\PerfHarness\project.json" --fallbacksource C:\Users\t-guhuro\Source\Repos\xunit-performance\LocalPackages
 "%CORECLR_REPO%\Tools\dotnetcli\dotnet.exe" publish "%CORECLR_REPO%\tests\src\Common\PerfHarness\project.json" -c Release -o %CORECLR_REPO%\sandbox
 xcopy /sy %CORECLR_REPO%\packages\Microsoft.Diagnostics.Tracing.TraceEvent\1.0.0-alpha-experimental\lib\native\* . >> %RUNLOG%
 xcopy /sy %CORECLR_REPO%\bin\tests\Windows_NT.%TEST_ARCH%.%TEST_CONFIG%\Tests\Core_Root\* . >> %RUNLOG%
@@ -94,11 +95,20 @@ if DEFINED TEST_ENV (
     )
 )
 
-corerun.exe PerfHarness.dll %WORKSPACE%\sandbox\%BENCHNAME%.%TEST_FILE_EXT% --perf:runid Perf > %BENCHNAME%.out
+if [%IS_SCENARIO_TEST%] == [1] (
+  corerun.exe %WORKSPACE%\sandbox\%BENCHNAME%.%TEST_FILE_EXT% --perf:runid Perf > %BENCHNAME%.out
+) else (
+  corerun.exe PerfHarness.dll %WORKSPACE%\sandbox\%BENCHNAME%.%TEST_FILE_EXT% --perf:runid Perf > %BENCHNAME%.out
+)
 
 @rem optionally generate results for benchview
 if not [%BENCHVIEW_PATH%] == [] (
-  py "%BENCHVIEW_PATH%\measurement.py" xunit "Perf-%BENCHNAME%.xml" --better desc --drop-first-value --append
+  if [%IS_SCENARIO_TEST%] == [1] (
+    py "%BENCHVIEW_PATH%\measurement.py" perftest "Perf-%BENCHNAME%.xml" --better desc --drop-first-value --append
+    echo "SCENARIOTEST"
+  ) else (
+    py "%BENCHVIEW_PATH%\measurement.py" xunit "Perf-%BENCHNAME%.xml" --better desc --drop-first-value --append
+  )
   REM Save off the results to the root directory for recovery later in Jenkins
   xcopy Perf-%BENCHNAME%*.xml %CORECLR_REPO%\
   xcopy Perf-%BENCHNAME%*.etl %CORECLR_REPO%\
@@ -114,6 +124,11 @@ goto :EOF
 IF /I [%1] == [-testBinLoc] (
 set CORECLR_PERF=%CORECLR_REPO%\%2
 shift
+shift
+goto :ARGLOOP
+)
+IF /I [%1] == [-scenarioTest] (
+set IS_SCENARIO_TEST=1
 shift
 goto :ARGLOOP
 )
@@ -166,7 +181,7 @@ goto :USAGE
 goto :SETUP
 
 :USAGE
-echo run-xunit-perf.cmd -testBinLoc ^<path_to_tests^> [-library] [-arch] ^<x86^|x64^> [-configuration] ^<Release^|Debug^> [-uploadToBenchview] ^<path_to_benchview_tools^> [-runtype] ^<rolling^|private^>
+echo run-xunit-perf.cmd -testBinLoc ^<path_to_tests^> [-library] [-arch] ^<x86^|x64^> [-configuration] ^<Release^|Debug^> [-uploadToBenchview] ^<path_to_benchview_tools^> [-runtype] ^<rolling^|private^> [-scenarioTest]
 
 echo For the path to the tests you can pass a parent directory and the script will grovel for
 echo all tests in subdirectories and run them.
@@ -176,5 +191,6 @@ echo -uploadtoBenchview is used to specify a path to the Benchview tooling and w
 echo set we will upload the results of the tests to the coreclr container in benchviewupload.
 echo Runtype sets the runtype that we upload to Benchview, rolling for regular runs, and private for
 echo PRs.
+echo -scenarioTest should be included if you are running a scenario benchmark.
 
 goto :EOF
