@@ -610,10 +610,6 @@ void CodeGen::genCodeForTreeNode(GenTreePtr treeNode)
             // Cast is never contained (?)
             noway_assert(targetReg != REG_NA);
 
-            // Overflow conversions from float/double --> int types go through helper calls.
-            if (treeNode->gtOverflow() && !varTypeIsFloating(treeNode->gtOp.gtOp1))
-                NYI("Unimplmented GT_CAST:int <--> int with overflow");
-
             if (varTypeIsFloating(targetType) && varTypeIsFloating(treeNode->gtOp.gtOp1))
             {
                 // Casts float/double <--> double/float
@@ -2483,7 +2479,76 @@ void CodeGen::genIntToIntCast(GenTreePtr treeNode)
 
     if (castInfo.requiresOverflowCheck)
     {
-        NYI_ARM("CodeGen::genIntToIntCast for OverflowCheck");
+        emitAttr cmpSize = EA_ATTR(genTypeSize(srcType));
+
+        if (castInfo.signCheckOnly)
+        {
+            // We only need to check for a negative value in sourceReg
+            emit->emitIns_R_I(INS_cmp, cmpSize, sourceReg, 0);
+            emitJumpKind jmpLT = genJumpKindForOper(GT_LT, CK_SIGNED);
+            genJumpToThrowHlpBlk(jmpLT, SCK_OVERFLOW);
+            noway_assert(genTypeSize(srcType) == 4 || genTypeSize(srcType) == 8);
+            // This is only interesting case to ensure zero-upper bits.
+            if ((srcType == TYP_INT) && (dstType == TYP_ULONG))
+            {
+                // cast to TYP_ULONG:
+                // We use a mov with size=EA_4BYTE
+                // which will zero out the upper bits
+                movSize     = EA_4BYTE;
+                movRequired = true;
+            }
+        }
+        else if (castInfo.unsignedSource || castInfo.unsignedDest)
+        {
+            // When we are converting from/to unsigned,
+            // we only have to check for any bits set in 'typeMask'
+
+            noway_assert(castInfo.typeMask != 0);
+            emit->emitIns_R_I(INS_tst, cmpSize, sourceReg, castInfo.typeMask);
+            emitJumpKind jmpNotEqual = genJumpKindForOper(GT_NE, CK_SIGNED);
+            genJumpToThrowHlpBlk(jmpNotEqual, SCK_OVERFLOW);
+        }
+        else
+        {
+            // For a narrowing signed cast
+            //
+            // We must check the value is in a signed range.
+
+            // Compare with the MAX
+
+            noway_assert((castInfo.typeMin != 0) && (castInfo.typeMax != 0));
+
+            if (emitter::emitIns_valid_imm_for_cmp(castInfo.typeMax, INS_FLAGS_DONT_CARE))
+            {
+                emit->emitIns_R_I(INS_cmp, cmpSize, sourceReg, castInfo.typeMax);
+            }
+            else
+            {
+                noway_assert(tmpReg != REG_NA);
+                instGen_Set_Reg_To_Imm(cmpSize, tmpReg, castInfo.typeMax);
+                emit->emitIns_R_R(INS_cmp, cmpSize, sourceReg, tmpReg);
+            }
+
+            emitJumpKind jmpGT = genJumpKindForOper(GT_GT, CK_SIGNED);
+            genJumpToThrowHlpBlk(jmpGT, SCK_OVERFLOW);
+
+            // Compare with the MIN
+
+            if (emitter::emitIns_valid_imm_for_cmp(castInfo.typeMin, INS_FLAGS_DONT_CARE))
+            {
+                emit->emitIns_R_I(INS_cmp, cmpSize, sourceReg, castInfo.typeMin);
+            }
+            else
+            {
+                noway_assert(tmpReg != REG_NA);
+                instGen_Set_Reg_To_Imm(cmpSize, tmpReg, castInfo.typeMin);
+                emit->emitIns_R_R(INS_cmp, cmpSize, sourceReg, tmpReg);
+            }
+
+            emitJumpKind jmpLT = genJumpKindForOper(GT_LT, CK_SIGNED);
+            genJumpToThrowHlpBlk(jmpLT, SCK_OVERFLOW);
+        }
+        ins = INS_mov;
     }
     else // Non-overflow checking cast.
     {
