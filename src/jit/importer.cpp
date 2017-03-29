@@ -2175,9 +2175,12 @@ bool Compiler::impSpillStackEntry(unsigned level,
         }
     }
 
+    bool isNewTemp = false;
+
     if (tnum == BAD_VAR_NUM)
     {
-        tnum = lvaGrabTemp(true DEBUGARG(reason));
+        tnum      = lvaGrabTemp(true DEBUGARG(reason));
+        isNewTemp = true;
     }
     else if (tiVerificationNeeded && lvaTable[tnum].TypeGet() != TYP_UNDEF)
     {
@@ -2207,8 +2210,8 @@ bool Compiler::impSpillStackEntry(unsigned level,
     /* Assign the spilled entry to the temp */
     impAssignTempGen(tnum, tree, verCurrentState.esStack[level].seTypeInfo.GetClassHandle(), level);
 
-    // If temp is single def and a ref type, grab what type info we can.
-    if (lvaTable[tnum].lvIsTemp && (lvaTable[tnum].lvType == TYP_REF))
+    // If temp is newly introduced and a ref type, grab what type info we can.
+    if (isNewTemp && (lvaTable[tnum].lvType == TYP_REF))
     {
         CORINFO_CLASS_HANDLE stkHnd = verCurrentState.esStack[level].seTypeInfo.GetClassHandle();
         lvaSetClass(tnum, tree, stkHnd);
