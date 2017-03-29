@@ -6093,6 +6093,9 @@ void ThreadStore::TriggerGCForDeadThreadsIfNecessary()
     _ASSERTE(gcHeap != nullptr);
     SIZE_T generationCountThreshold = static_cast<SIZE_T>(s_DeadThreadCountThresholdForGCTrigger) / 2;
     unsigned allocaSize = gcHeap->GetMaxGeneration() + 1;
+
+    // allocaSize will rarely be anything other than 3, but it's possible that a standalone GC could provide
+    // a GC that does not have three generations - hence the alloca here.
     SIZE_T *newDeadThreadGenerationCounts = static_cast<SIZE_T*>(alloca(allocaSize * sizeof(SIZE_T)));
     {
         ThreadStoreLockHolder threadStoreLockHolder;

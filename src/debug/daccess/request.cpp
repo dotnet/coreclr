@@ -2929,7 +2929,7 @@ ClrDataAccess::GetGCHeapData(struct DacpGcHeapData *gcheapData)
 
     SOSDacEnter();
 
-    // for server GC-capable builds only, we need to check and see if g_heap_type
+    // we need to check and see if g_heap_type
     // is GC_HEAP_INVALID, in which case we fail.
     ULONG32 gcHeapValue = g_heap_type;
 
@@ -2949,9 +2949,13 @@ ClrDataAccess::GetGCHeapData(struct DacpGcHeapData *gcheapData)
     }
 
     // Now we can get other important information about the heap
+    // We can use GCHeapUtilities::IsServerHeap here because we have already validated
+    // that the heap is in a valid state. We couldn't use it above, because IsServerHeap
+    // asserts if the heap type is GC_HEAP_INVALID.
     gcheapData->g_max_generation = *g_gcDacGlobals->max_gen;
-    gcheapData->bServerMode = gcHeapValue == GC_HEAP_SVR;
+    gcheapData->bServerMode = GCHeapUtilities::IsServerHeap();
     gcheapData->bGcStructuresValid = *g_gcDacGlobals->gc_structures_invalid_cnt == 0;
+
     if (GCHeapUtilities::IsServerHeap())
     {
 #if !defined (FEATURE_SVR_GC)
@@ -2966,10 +2970,8 @@ ClrDataAccess::GetGCHeapData(struct DacpGcHeapData *gcheapData)
         gcheapData->HeapCount = 1;
     }
 
-#ifdef FEATURE_SVR_GC
 cleanup:
     ;
-#endif
 
     SOSDacLeave();
     return hr;
