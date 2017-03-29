@@ -1862,7 +1862,63 @@ void CodeGen::genCodeForShiftLong(GenTreePtr tree)
 //
 void CodeGen::genRegCopy(GenTree* treeNode)
 {
-    NYI("genRegCopy");
+    assert(treeNode->OperGet() == GT_COPY);
+
+    var_types targetType = treeNode->TypeGet();
+    regNumber targetReg  = treeNode->gtRegNum;
+    assert(targetReg != REG_NA);
+
+    GenTree* op1 = treeNode->gtOp.gtOp1;
+
+    // Check whether this node and the node from which we're copying the value have the same
+    // register type.
+
+    if (varTypeIsFloating(treeNode) != varTypeIsFloating(op1))
+    {
+        // TODO-ARM: Implemented and tested after LSRA support ARM FP registers.
+        NYI_ARM("genRegCopy");
+    }
+    else
+    {
+        inst_RV_RV(ins_Copy(targetType), targetReg, genConsumeReg(op1), targetType);
+    }
+
+    if (op1->IsLocal())
+    {
+        // The lclVar will never be a def.
+        // If it is a last use, the lclVar will be killed by genConsumeReg(), as usual, and genProduceReg will
+        // appropriately set the gcInfo for the copied value.
+        // If not, there are two cases we need to handle:
+        // - If this is a TEMPORARY copy (indicated by the GTF_VAR_DEATH flag) the variable
+        //   will remain live in its original register.
+        //   genProduceReg() will appropriately set the gcInfo for the copied value,
+        //   and genConsumeReg will reset it.
+        // - Otherwise, we need to update register info for the lclVar.
+
+        GenTreeLclVarCommon* lcl = op1->AsLclVarCommon();
+        assert((lcl->gtFlags & GTF_VAR_DEF) == 0);
+
+        if ((lcl->gtFlags & GTF_VAR_DEATH) == 0 && (treeNode->gtFlags & GTF_VAR_DEATH) == 0)
+        {
+            LclVarDsc* varDsc = &compiler->lvaTable[lcl->gtLclNum];
+
+            // If we didn't just spill it (in genConsumeReg, above), then update the register info
+            if (varDsc->lvRegNum != REG_STK)
+            {
+                // The old location is dying
+                genUpdateRegLife(varDsc, /*isBorn*/ false, /*isDying*/ true DEBUGARG(op1));
+
+                gcInfo.gcMarkRegSetNpt(genRegMask(op1->gtRegNum));
+
+                genUpdateVarReg(varDsc, treeNode);
+
+                // The new location is going live
+                genUpdateRegLife(varDsc, /*isBorn*/ true, /*isDying*/ false DEBUGARG(treeNode));
+            }
+        }
+    }
+
+    genProduceReg(treeNode);
 }
 
 //------------------------------------------------------------------------
