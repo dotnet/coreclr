@@ -1082,24 +1082,7 @@ void CodeGen::genCodeForTreeNode(GenTreePtr treeNode)
         break;
 
         case GT_COPY:
-        {
-            assert(treeNode->gtOp.gtOp1->IsLocal());
-            GenTreeLclVarCommon* lcl    = treeNode->gtOp.gtOp1->AsLclVarCommon();
-            LclVarDsc*           varDsc = &compiler->lvaTable[lcl->gtLclNum];
-            inst_RV_RV(ins_Move_Extend(targetType, true), targetReg, genConsumeReg(treeNode->gtOp.gtOp1), targetType,
-                       emitTypeSize(targetType));
-
-            // The old location is dying
-            genUpdateRegLife(varDsc, /*isBorn*/ false, /*isDying*/ true DEBUGARG(treeNode->gtOp.gtOp1));
-
-            gcInfo.gcMarkRegSetNpt(genRegMask(treeNode->gtOp.gtOp1->gtRegNum));
-
-            genUpdateVarReg(varDsc, treeNode);
-
-            // The new location is going live
-            genUpdateRegLife(varDsc, /*isBorn*/ true, /*isDying*/ false DEBUGARG(treeNode));
-        }
-            genProduceReg(treeNode);
+            // This is handled at the time we call genConsumeReg() on the GT_COPY
             break;
 
         case GT_LIST:
