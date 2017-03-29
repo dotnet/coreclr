@@ -179,13 +179,13 @@ internal static partial class Interop
             return Marshal.PtrToStringAnsi((IntPtr)message);
         }
 
-        [DllImport(Libraries.SystemNative, EntryPoint = "SystemNative_ConvertErrorPlatformToPal")]
+        [DllImport(Libraries.SystemNative, CallingConvention=CallingConvention.Cdecl, EntryPoint = "SystemNative_ConvertErrorPlatformToPal")]
         internal static extern Error ConvertErrorPlatformToPal(int platformErrno);
 
-        [DllImport(Libraries.SystemNative, EntryPoint = "SystemNative_ConvertErrorPalToPlatform")]
+        [DllImport(Libraries.SystemNative, CallingConvention=CallingConvention.Cdecl, EntryPoint = "SystemNative_ConvertErrorPalToPlatform")]
         internal static extern int ConvertErrorPalToPlatform(Error error);
 
-        [DllImport(Libraries.SystemNative, EntryPoint = "SystemNative_StrErrorR")]
+        [DllImport(Libraries.SystemNative, CallingConvention=CallingConvention.Cdecl, EntryPoint = "SystemNative_StrErrorR")]
         private static unsafe extern byte* StrErrorR(int platformErrno, byte* buffer, int bufferSize);
     }
 }

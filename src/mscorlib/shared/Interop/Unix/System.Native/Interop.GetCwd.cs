@@ -9,7 +9,7 @@ internal static partial class Interop
 {
     internal static partial class Sys
     {
-        [DllImport(Libraries.SystemNative, EntryPoint = "SystemNative_GetCwd", SetLastError = true)]
+        [DllImport(Libraries.SystemNative, CallingConvention=CallingConvention.Cdecl, EntryPoint = "SystemNative_GetCwd", SetLastError = true)]
         private static unsafe extern byte* GetCwd(byte* buffer, int bufferLength);
 
         internal static unsafe string GetCwd()

@@ -18,14 +18,14 @@ internal static partial class Interop
             LOCK_UN = 8,    /* unlock */
         }
 
-        [DllImport(Libraries.SystemNative, EntryPoint = "SystemNative_FLock", SetLastError = true)]
+        [DllImport(Libraries.SystemNative, CallingConvention=CallingConvention.Cdecl, EntryPoint = "SystemNative_FLock", SetLastError = true)]
         internal static extern int FLock(SafeFileHandle fd, LockOperations operation);
 
         /// <summary>
         /// Exposing this for SafeFileHandle.ReleaseHandle() to call.
         /// Normal callers should use FLock(SafeFileHandle fd).
         /// </summary>
-        [DllImport(Libraries.SystemNative, EntryPoint = "SystemNative_FLock", SetLastError = true)]
+        [DllImport(Libraries.SystemNative, CallingConvention=CallingConvention.Cdecl, EntryPoint = "SystemNative_FLock", SetLastError = true)]
         internal static extern int FLock(IntPtr fd, LockOperations operation);
     }
 }

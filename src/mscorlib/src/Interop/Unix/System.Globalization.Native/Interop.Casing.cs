@@ -11,13 +11,13 @@ internal static partial class Interop
 {
     internal static partial class GlobalizationInterop
     {
-        [DllImport(Libraries.GlobalizationInterop, CharSet = CharSet.Unicode, EntryPoint = "GlobalizationNative_ChangeCase")]
+        [DllImport(Libraries.GlobalizationInterop, CallingConvention=CallingConvention.Cdecl, CharSet = CharSet.Unicode, EntryPoint = "GlobalizationNative_ChangeCase")]
         internal unsafe static extern void ChangeCase(char* src, int srcLen, char* dstBuffer, int dstBufferCapacity, bool bToUpper);
 
-        [DllImport(Libraries.GlobalizationInterop, CharSet = CharSet.Unicode, EntryPoint = "GlobalizationNative_ChangeCaseInvariant")]
+        [DllImport(Libraries.GlobalizationInterop, CallingConvention=CallingConvention.Cdecl, CharSet = CharSet.Unicode, EntryPoint = "GlobalizationNative_ChangeCaseInvariant")]
         internal unsafe static extern void ChangeCaseInvariant(char* src, int srcLen, char* dstBuffer, int dstBufferCapacity, bool bToUpper);
 
-        [DllImport(Libraries.GlobalizationInterop, CharSet = CharSet.Unicode, EntryPoint = "GlobalizationNative_ChangeCaseTurkish")]
+        [DllImport(Libraries.GlobalizationInterop, CallingConvention=CallingConvention.Cdecl, CharSet = CharSet.Unicode, EntryPoint = "GlobalizationNative_ChangeCaseTurkish")]
         internal unsafe static extern void ChangeCaseTurkish(char* src, int srcLen, char* dstBuffer, int dstBufferCapacity, bool bToUpper);
     }
 }

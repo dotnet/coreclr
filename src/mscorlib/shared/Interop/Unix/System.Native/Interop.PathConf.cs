@@ -64,10 +64,10 @@ internal static partial class Interop
             }
         }
 
-        [DllImport(Libraries.SystemNative, EntryPoint = "SystemNative_PathConf", SetLastError = true)]
+        [DllImport(Libraries.SystemNative, CallingConvention=CallingConvention.Cdecl, EntryPoint = "SystemNative_PathConf", SetLastError = true)]
         private static extern int PathConf(string path, PathConfName name);
 
-        [DllImport(Libraries.SystemNative, EntryPoint = "SystemNative_GetMaximumPath")]
+        [DllImport(Libraries.SystemNative, CallingConvention=CallingConvention.Cdecl, EntryPoint = "SystemNative_GetMaximumPath")]
         private static extern long GetMaximumPath();
     }
 }

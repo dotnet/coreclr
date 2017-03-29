@@ -9,7 +9,7 @@ internal static partial class Interop
 {
     internal static partial class Sys
     {
-        [DllImport(Libraries.SystemNative, EntryPoint = "SystemNative_Close", SetLastError = true)]
+        [DllImport(Libraries.SystemNative, CallingConvention=CallingConvention.Cdecl, EntryPoint = "SystemNative_Close", SetLastError = true)]
         internal static extern int Close(IntPtr fd);
     }
 }
