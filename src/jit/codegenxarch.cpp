@@ -7590,7 +7590,7 @@ void CodeGen::genRemoveAlignmentAfterCall(GenTreeCall* call, unsigned bias)
 #else  // UNIX_X86_ABI
     if (bias != 0)
     {
-        inst_RV_IV(INS_add, REG_SPBASE, bias, EA_PTRSIZE);
+        genAdjustSP(bias);
     }
 #endif // !UNIX_X86_ABI_
 #else  // _TARGET_X86_
