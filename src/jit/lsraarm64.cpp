@@ -1207,7 +1207,7 @@ void Lowering::TreeNodeInfoInitBlockStore(GenTreeBlk* blkNode)
         else
 #endif // 0
         {
-            assert(blkNode->gtBlkOpKind == GenTreeBlk::BlkOpKindHelper);
+            blkNode->gtBlkOpKind = GenTreeBlk::BlkOpKindHelper;
             // The helper follows the regular ABI.
             dstAddr->gtLsraInfo.setSrcCandidates(l, RBM_ARG_0);
             initVal->gtLsraInfo.setSrcCandidates(l, RBM_ARG_1);
@@ -1266,7 +1266,7 @@ void Lowering::TreeNodeInfoInitBlockStore(GenTreeBlk* blkNode)
             else
 #endif // 0
             {
-                assert(blkNode->gtBlkOpKind == GenTreeBlk::BlkOpKindHelper);
+                blkNode->gtBlkOpKind = GenTreeBlk::BlkOpKindHelper;
                 dstAddr->gtLsraInfo.setSrcCandidates(l, RBM_ARG_0);
                 // The srcAddr goes in arg1.
                 if (srcAddrOrFill != nullptr)
