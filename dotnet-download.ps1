@@ -1,7 +1,7 @@
 param(
     [parameter(Mandatory=$true)]$DotnetRemotePath,
     [parameter(Mandatory=$true)]$DotnetLocalPath,
-    [parameter(Mandatory = $true)]$DotnetPath
+    [parameter(Mandatory=$true)]$DotnetPath
 )
 
 $retryCount = 0
