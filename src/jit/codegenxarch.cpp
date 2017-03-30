@@ -5297,6 +5297,8 @@ void CodeGen::genCallInstruction(GenTreeCall* call)
         gcInfo.gcMarkRegSetNpt(RBM_INTRET);
     }
 
+    unsigned stackAdjustBias = 0;
+
 #if defined(_TARGET_X86_)
     //-------------------------------------------------------------------------
     // Create a label for tracking of region protected by the monitor in synchronized methods.
@@ -5329,13 +5331,13 @@ void CodeGen::genCallInstruction(GenTreeCall* call)
     // Is the caller supposed to pop the arguments?
     if (fCallerPop && (stackArgBytes != 0))
     {
-        genAdjustSP(stackArgBytes);
+        stackAdjustBias = stackArgBytes;
     }
 
     SubtractStackLevel(stackArgBytes);
 #endif // _TARGET_X86_
 
-    genRemoveAlignmentAfterCall(call);
+    genRemoveAlignmentAfterCall(call, stackAdjustBias);
 }
 
 // Produce code for a GT_JMP node.
@@ -7565,19 +7567,28 @@ void CodeGen::genAlignStackBeforeCall(GenTreeCall* call)
 //
 // Arguments:
 //    call - the call node.
+//    bias - additional stack adjustment
 //
-void CodeGen::genRemoveAlignmentAfterCall(GenTreeCall* call)
+// Note:
+//    When bias > 0, caller should adjust stack level appropriately as 
+//    bias is not considered when adjusting stack level. 
+//
+void CodeGen::genRemoveAlignmentAfterCall(GenTreeCall* call, unsigned bias)
 {
 #if defined(UNIX_X86_ABI)
     // Put back the stack pointer if there was any padding for stack alignment
-    unsigned padStkAlign = call->fgArgInfo->GetStkAlign();
-    if (padStkAlign != 0)
+    unsigned padStkAlign  = call->fgArgInfo->GetStkAlign();
+    unsigned padStkAdjust = padStkAlign + bias;
+
+    if (padStkAdjust != 0)
     {
-        inst_RV_IV(INS_add, REG_SPBASE, padStkAlign, EA_PTRSIZE);
+        inst_RV_IV(INS_add, REG_SPBASE, padStkAdjust, EA_PTRSIZE);
         SubtractStackLevel(padStkAlign);
         SubtractNestedAlignment(padStkAlign);
     }
-#endif // UNIX_X86_ABI
+#else // _TARGET_X86_
+    assert(bias == 0);
+#endif // !_TARGET_X86_
 }
 
 #ifdef _TARGET_X86_
