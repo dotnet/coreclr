@@ -1206,7 +1206,7 @@ void ZapUnwindData::Save(ZapWriter * pZapWriter)
 
 UINT ZapUnwindData::GetAlignment()
 {
-    return sizeof(ULONG);
+    return sizeof(BYTE);
 }
 
 DWORD ZapUnwindData::GetSize()
@@ -1222,8 +1222,6 @@ void ZapUnwindData::Save(ZapWriter * pZapWriter)
 
     PVOID pData = GetData();
     DWORD dwSize = GetBlobSize();
-
-    UNWIND_INFO * pUnwindInfo = (UNWIND_INFO *)pData;
 
     pZapWriter->Write(pData, dwSize);
 }
