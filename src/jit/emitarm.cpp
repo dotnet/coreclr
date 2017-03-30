@@ -1397,11 +1397,15 @@ DONE:
 /*****************************************************************************
  *
  *  emitins_valid_imm_for_cmp() returns true if this 'imm'
- *   can be encoded as a input operand to an non-add/sub alu instruction
+ *   can be encoded as a input operand to an cmp instruction.
  */
 /*static*/ bool emitter::emitIns_valid_imm_for_cmp(int imm, insFlags flags)
 {
-    return emitIns_valid_imm_for_add(imm, flags);
+    if (isModImmConst(imm)) // funky arm immediate
+        return true;
+    if (isModImmConst(-imm)) // funky arm immediate via sub
+        return true;
+    return false;
 }
 
 /*****************************************************************************
