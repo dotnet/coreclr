@@ -438,6 +438,12 @@ void Compiler::fgEnsureFirstBBisScratch()
         {
             block->inheritWeight(fgFirstBB);
         }
+
+        // The first basic block will have a ref count of at least one. This corresponds to the virtual edge
+        // from the prolog to the entry block. We need to remove this virtual edge before adding the scratch
+        // block as a predecessor.
+        fgFirstBB->bbRefs--;
+        fgAddRefPred(fgFirstBB, block);
         fgInsertBBbefore(fgFirstBB, block);
     }
     else
