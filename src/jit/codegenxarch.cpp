@@ -7570,8 +7570,8 @@ void CodeGen::genAlignStackBeforeCall(GenTreeCall* call)
 //    bias - additional stack adjustment
 //
 // Note:
-//    When bias > 0, caller should adjust stack level appropriately as 
-//    bias is not considered when adjusting stack level. 
+//    When bias > 0, caller should adjust stack level appropriately as
+//    bias is not considered when adjusting stack level.
 //
 void CodeGen::genRemoveAlignmentAfterCall(GenTreeCall* call, unsigned bias)
 {
@@ -7586,9 +7586,9 @@ void CodeGen::genRemoveAlignmentAfterCall(GenTreeCall* call, unsigned bias)
         SubtractStackLevel(padStkAlign);
         SubtractNestedAlignment(padStkAlign);
     }
-#else // _TARGET_X86_
+#else  // UNIX_X86_ABI
     assert(bias == 0);
-#endif // !_TARGET_X86_
+#endif // !UNIX_X86_ABI_
 }
 
 #ifdef _TARGET_X86_
