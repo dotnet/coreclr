@@ -128,20 +128,11 @@ done:
     return retval;
 }
 
-unsigned int GetExponent(double d)
+UINT GetExponent(double d)
 {
-    return (*((unsigned int*)&d + 1) >> 20) & 0x000007ff;
+    return (*((UINT*)&d + 1) >> 20) & 0x000007ff;
 }
 
-unsigned long long GetMantissa(double d)
-{
-    return (unsigned long long)*((unsigned int*)&d) | ((unsigned long long)(*((unsigned int*)&d + 1) & 0x000fffff) << 32);
-}
-
-int GetSign(double d)
-{
-    return (int)(*((unsigned int*)&d + 1) >> 31);
-}
 /**
 Function:
 
@@ -177,22 +168,14 @@ _ecvt( double value, int count, int * dec, int * sign )
         count = ECVT_MAX_COUNT_SIZE;
     }
 
-    const int SCALE_NAN = (int)0x80000000;
-    const int SCALE_INF = 0x7FFFFFFF;
+    // the caller of _ecvt should already checked the Infinity and NAN values
+    _ASSERTE(GetExponent(value) != 0x7ff);
 
-    if (GetExponent(value) == 0x7ff)
-    {
-        *dec = GetMantissa(value) != 0 ? SCALE_NAN : SCALE_INF;
-        *sign = GetSign(value);
-        lpStartOfReturnBuffer[0] = '\0';
-        return lpStartOfReturnBuffer;
-    }
-
-#ifndef __APPLE__
-    // OSX doesn't support evct_r. it support evct but we cannot use it either as it is not thread safe
+#if !defined(__APPLE__) && !defined(__FreeBSD__)
+    // OSX and FreeBSD doesn't support evct_r. it support evct but we cannot use it either as it is not thread safe
     ecvt_r(value, count, dec, sign, lpStartOfReturnBuffer, ECVT_MAX_BUFFER_SIZE);
-    return lpStartOfReturnBuffer;
-#else // __APPLE__
+    goto done;
+#else // !__APPLE__ && !__FreeBSD__
 
     CHAR TempBuffer[ECVT_MAX_BUFFER_SIZE];
    
@@ -203,116 +186,119 @@ _ecvt( double value, int count, int * dec, int * sign )
         *sign = 1;
     }
     
-    if (value == 0.0)
     {
-        for (int j = 0; j < count; j++)
+        // we have issue #10290 tracking fixing the sign of 0.0 across the platforms
+        if (value == 0.0)
         {
-            lpStartOfReturnBuffer[j] = '0';
-        }
-        lpStartOfReturnBuffer[count] = '\0';
-        return lpStartOfReturnBuffer;
-    } 
-    
-    int tempBufferLength = snprintf(TempBuffer, ECVT_MAX_BUFFER_SIZE, "%.40e", value);
-    _ASSERTE(tempBufferLength > 0 && ECVT_MAX_BUFFER_SIZE > tempBufferLength);
-    
-    //
-    // Calculate the exponent value
-    //
+            for (int j = 0; j < count; j++)
+            {
+                lpStartOfReturnBuffer[j] = '0';
+            }
+            lpStartOfReturnBuffer[count] = '\0';
+            goto done;
+        } 
+        
+        int tempBufferLength = snprintf(TempBuffer, ECVT_MAX_BUFFER_SIZE, "%.40e", value);
+        _ASSERTE(tempBufferLength > 0 && ECVT_MAX_BUFFER_SIZE > tempBufferLength);
+        
+        //
+        // Calculate the exponent value
+        //
 
-    int exponentIndex = tempBufferLength - 1;
-    while (TempBuffer[exponentIndex] != 'e' && exponentIndex > 0)
-    {
-        exponentIndex--;
-    }
+        int exponentIndex = strrchr(TempBuffer, 'e') - TempBuffer; 
+        _ASSERTE(exponentIndex > 0 && (exponentIndex < tempBufferLength - 1));
 
-    _ASSERTE(exponentIndex > 0 && (exponentIndex < tempBufferLength - 1));
-
-    int i = exponentIndex + 1;
-    int exponentSign = 1;
-    if (TempBuffer[i] == '-')
-    {
-        exponentSign = -1;
-        i++;
-    }
-    else if (TempBuffer[i] == '+')
-    {
-        i++;
-    }
-
-    int exponentValue = 0;
-    while (i < tempBufferLength)
-    {
-        _ASSERTE(TempBuffer[i] >= '0' && TempBuffer[i] <= '9');
-        exponentValue = exponentValue * 10 + ((BYTE) TempBuffer[i] - (BYTE) '0');
-        i++;
-    }
-    exponentValue *= exponentSign;
-    
-    //
-    // Determine decimal location.
-    // 
-
-    if (exponentValue == 0)
-    {
-        *dec = 1;
-    }
-    else
-    {
-        *dec = exponentValue + 1;
-    }
-    
-    //
-    // Copy the string from the temp buffer upto precision characters, removing the sign, and decimal as required.
-    // 
-
-    i = 0;
-    int mantissaIndex = 0;
-    while (i < count && mantissaIndex < exponentIndex)
-    {
-        if (TempBuffer[mantissaIndex] >= '0' && TempBuffer[mantissaIndex] <= '9')
+        int i = exponentIndex + 1;
+        int exponentSign = 1;
+        if (TempBuffer[i] == '-')
         {
-            lpStartOfReturnBuffer[i] = TempBuffer[mantissaIndex];
+            exponentSign = -1;
             i++;
         }
-        mantissaIndex++;
-    }
+        else if (TempBuffer[i] == '+')
+        {
+            i++;
+        }
 
-    while (i < count)
-    {
-        lpStartOfReturnBuffer[i] = '0'; // append zeros as needed
-        i++;
-    }
+        int exponentValue = 0;
+        while (i < tempBufferLength)
+        {
+            _ASSERTE(TempBuffer[i] >= '0' && TempBuffer[i] <= '9');
+            exponentValue = exponentValue * 10 + ((BYTE) TempBuffer[i] - (BYTE) '0');
+            i++;
+        }
+        exponentValue *= exponentSign;
+        
+        //
+        // Determine decimal location.
+        // 
 
-    lpStartOfReturnBuffer[i] = '\0';
-    
-    //
-    // Round if needed
-    //
+        if (exponentValue == 0)
+        {
+            *dec = 1;
+        }
+        else
+        {
+            *dec = exponentValue + 1;
+        }
+        
+        //
+        // Copy the string from the temp buffer upto precision characters, removing the sign, and decimal as required.
+        // 
 
-    if (mantissaIndex >= exponentIndex || lpStartOfReturnBuffer[mantissaIndex] < '5')
-    {
-        return lpStartOfReturnBuffer; // rounding is not needed
-    }
+        i = 0;
+        int mantissaIndex = 0;
+        while (i < count && mantissaIndex < exponentIndex)
+        {
+            if (TempBuffer[mantissaIndex] >= '0' && TempBuffer[mantissaIndex] <= '9')
+            {
+                lpStartOfReturnBuffer[i] = TempBuffer[mantissaIndex];
+                i++;
+            }
+            mantissaIndex++;
+        }
 
-    i = count - 1;
-    while (lpStartOfReturnBuffer[i] == '9' && i > 0)
-    {
-        lpStartOfReturnBuffer[i] = '0';
-        i--;
-    }
+        while (i < count)
+        {
+            lpStartOfReturnBuffer[i] = '0'; // append zeros as needed
+            i++;
+        }
 
-    if (i == 0 && lpStartOfReturnBuffer[i] == '9')
-    {
-        lpStartOfReturnBuffer[i] = '1';
-        (*dec)++;
+        lpStartOfReturnBuffer[i] = '\0';
+        
+        //
+        // Round if needed
+        //
+
+        if (mantissaIndex >= exponentIndex || TempBuffer[mantissaIndex] < '5')
+        {
+            goto done;
+        }
+
+        i = count - 1;
+        while (lpStartOfReturnBuffer[i] == '9' && i > 0)
+        {
+            lpStartOfReturnBuffer[i] = '0';
+            i--;
+        }
+
+        if (i == 0 && lpStartOfReturnBuffer[i] == '9')
+        {
+            lpStartOfReturnBuffer[i] = '1';
+            (*dec)++;
+        }
+        else
+        {
+            lpStartOfReturnBuffer[i]++;
+        }    
     }
-    else
-    {
-        lpStartOfReturnBuffer[i]++;
-    }    
+#endif // !__APPLE__ && !__FreeBSD__ 
+
+done:
+
+    LOGEXIT( "_ecvt returning %p (%s)\n", lpStartOfReturnBuffer , lpStartOfReturnBuffer );
+    PERF_EXIT(_ecvt);
     
     return lpStartOfReturnBuffer;
-#endif // __APPLE__
 }
 
