@@ -7575,7 +7575,7 @@ void CodeGen::genAlignStackBeforeCall(GenTreeCall* call)
 //
 void CodeGen::genRemoveAlignmentAfterCall(GenTreeCall* call, unsigned bias)
 {
-#if definex(_TARGET_X86_)
+#if defined(_TARGET_X86_)
 #if defined(UNIX_X86_ABI)
     // Put back the stack pointer if there was any padding for stack alignment
     unsigned padStkAlign  = call->fgArgInfo->GetStkAlign();
