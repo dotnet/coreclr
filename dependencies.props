@@ -1,18 +1,18 @@
 <Project ToolsVersion="12.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <!-- Source of truth for dependency tooling: the commit hash of the dotnet/versions master branch as of the last auto-upgrade. -->
   <PropertyGroup>
-    <CoreFxCurrentRef>d5dcb6ad9f85aefe62dcebbf8e04f3afcf870ec6</CoreFxCurrentRef>
-    <CoreClrCurrentRef>d5dcb6ad9f85aefe62dcebbf8e04f3afcf870ec6</CoreClrCurrentRef>
+    <CoreFxCurrentRef>c23ba09f06a61dda63324a229f385d571b5f63e5</CoreFxCurrentRef>
+    <CoreClrCurrentRef>c23ba09f06a61dda63324a229f385d571b5f63e5</CoreClrCurrentRef>
   </PropertyGroup>
 
   <!-- Auto-upgraded properties for each build info dependency. -->
   <PropertyGroup>
-    <CoreFxExpectedPrerelease>servicing-25129-01</CoreFxExpectedPrerelease>
+    <CoreFxExpectedPrerelease>servicing-25130-01</CoreFxExpectedPrerelease>
   </PropertyGroup>
 
   <!-- Full package version strings that are used in other parts of the build. -->
   <PropertyGroup>
-    <CoreClrPackageVersion>1.1.2-servicing-25129-01</CoreClrPackageVersion>
+    <CoreClrPackageVersion>1.1.2-servicing-25130-01</CoreClrPackageVersion>
     <XunitPackageVersion>2.1.0</XunitPackageVersion>
 
     <!-- Runtime package versions from projectk-tfs/release/1.0.0 -->
