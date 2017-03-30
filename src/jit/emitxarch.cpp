@@ -725,6 +725,7 @@ unsigned emitter::emitGetPrefixSize(code_t code)
 }
 
 #ifdef _TARGET_X86_
+#if !FEATURE_FIXED_OUT_ARGS
 /*****************************************************************************
  *
  *  Record a non-empty stack
@@ -747,6 +748,7 @@ void emitter::emitMarkStackLvl(unsigned stackLevel)
         emitMaxStackDepth = emitCurStackLvl;
     }
 }
+#endif // !FEATURE_FIXED_OUT_ARGS
 #endif
 
 /*****************************************************************************
@@ -5248,9 +5250,11 @@ void emitter::emitIns_Call(EmitCallType          callType,
            (ireg == REG_NA && xreg == REG_NA && xmul == 0 && disp < (int)emitComp->lvaCount));
     assert(callType != EC_INDIR_C || (ireg == REG_NA && xreg == REG_NA && xmul == 0 && disp != 0));
 
+#if !FEATURE_FIXED_OUT_ARGS
     // Our stack level should be always greater than the bytes of arguments we push. Just
     // a sanity test.
     assert((unsigned)abs((signed)argSize) <= codeGen->genStackLevel);
+#endif // !FEATURE_FIXED_OUT_ARGS
 
 #if STACK_PROBES
     if (emitComp->opts.compNeedStackProbes)
@@ -10666,6 +10670,9 @@ size_t emitter::emitOutputInstr(insGroup* ig, instrDesc* id, BYTE** dp)
 
                 assert(callInstrSize != 0);
 
+#if defined(UNIX_X86_ABI) && FEATURE_FIXED_OUT_ARGS
+// TODO-FOA: Fix here
+#else
                 if (args >= 0)
                 {
                     emitStackPop(dst, /*isCall*/ true, callInstrSize, args);
@@ -10674,6 +10681,7 @@ size_t emitter::emitOutputInstr(insGroup* ig, instrDesc* id, BYTE** dp)
                 {
                     emitStackKillArgs(dst, -args, callInstrSize);
                 }
+#endif // UNIX_X86_ABI && FEATURE_FIXED_OUT_ARGS
             }
 
             // Do we need to record a call location for GC purposes?

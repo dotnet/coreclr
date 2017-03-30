@@ -3410,6 +3410,10 @@ void CodeGen::genStructPutArgUnroll(GenTreePutArgStk* putArgNode)
     }
 #endif // !_TARGET_X86_
 
+#if defined(UNIX_X86_ABI) && FEATURE_FIXED_OUT_ARGS
+    m_stkArgOffset = putArgOffset;
+#endif
+
     // If the size of this struct is larger than 16 bytes
     // let's use SSE2 to be able to do 16 byte at a time
     // loads and stores.
@@ -3443,6 +3447,7 @@ void CodeGen::genStructPutArgUnroll(GenTreePutArgStk* putArgNode)
     if ((size & 0xf) != 0)
     {
 #ifdef _TARGET_X86_
+#if !FEATURE_FIXED_OUT_ARGS
         if (m_pushStkArg)
         {
             // This case is currently supported only for the case where the total size is
@@ -3458,6 +3463,7 @@ void CodeGen::genStructPutArgUnroll(GenTreePutArgStk* putArgNode)
             pushedBytes += genMove8IfNeeded(size, longTmpReg, src->gtOp.gtOp1, 0);
         }
         else
+#endif // !FEATURE_FIXED_OUT_ARGS
 #endif // _TARGET_X86_
         {
             offset += genMove8IfNeeded(size, longTmpReg, src->gtOp.gtOp1, offset);
@@ -5341,6 +5347,13 @@ void CodeGen::genCallInstruction(GenTreeCall* call)
         }
     }
 
+#if FEATURE_FIXED_OUT_ARGS
+    // Put back the stack pointer for callee pop
+    if (!fCallerPop && (stackArgBytes != 0))
+    {
+        inst_RV_IV(INS_sub, REG_SPBASE, stackArgBytes, EA_PTRSIZE);
+    }
+#else
     // Is the caller supposed to pop the arguments?
     if (fCallerPop && (stackArgBytes != 0))
     {
@@ -5348,6 +5361,7 @@ void CodeGen::genCallInstruction(GenTreeCall* call)
     }
 
     SubtractStackLevel(stackArgBytes);
+#endif // FEATURE_FIXED_OUT_ARGS
 #endif // _TARGET_X86_
 
     genRemoveAlignmentAfterCall(call, stackAdjustBias);
@@ -7532,9 +7546,11 @@ unsigned CodeGen::getBaseVarForPutArgStk(GenTreePtr treeNode)
 void CodeGen::genAlignStackBeforeCall(GenTreePutArgStk* putArgStk)
 {
 #if defined(UNIX_X86_ABI)
+#if !FEATURE_FIXED_OUT_ARGS
 
     genAlignStackBeforeCall(putArgStk->gtCall);
 
+#endif // !FEATURE_FIXED_OUT_ARGS
 #endif // UNIX_X86_ABI
 }
 
@@ -7547,6 +7563,7 @@ void CodeGen::genAlignStackBeforeCall(GenTreePutArgStk* putArgStk)
 void CodeGen::genAlignStackBeforeCall(GenTreeCall* call)
 {
 #if defined(UNIX_X86_ABI)
+#if !FEATURE_FIXED_OUT_ARGS
 
     // Have we aligned the stack yet?
     if (!call->fgArgInfo->IsStkAlignmentDone())
@@ -7571,6 +7588,7 @@ void CodeGen::genAlignStackBeforeCall(GenTreeCall* call)
         call->fgArgInfo->SetStkAlignmentDone();
     }
 
+#endif // !FEATURE_FIXED_OUT_ARGS
 #endif // UNIX_X86_ABI
 }
 
@@ -7588,6 +7606,7 @@ void CodeGen::genAlignStackBeforeCall(GenTreeCall* call)
 //
 void CodeGen::genRemoveAlignmentAfterCall(GenTreeCall* call, unsigned bias)
 {
+#if !FEATURE_FIXED_OUT_ARGS
 #if defined(_TARGET_X86_)
 #if defined(UNIX_X86_ABI)
     // Put back the stack pointer if there was any padding for stack alignment
@@ -7609,6 +7628,7 @@ void CodeGen::genRemoveAlignmentAfterCall(GenTreeCall* call, unsigned bias)
 #else  // _TARGET_X86_
     assert(bias == 0);
 #endif // !_TARGET_X86
+#endif // !FEATURE_FIXED_OUT_ARGS
 }
 
 #ifdef _TARGET_X86_
@@ -7678,8 +7698,10 @@ bool CodeGen::genAdjustStackForPutArgStk(GenTreePutArgStk* putArgStk)
     else
     {
         m_pushStkArg = false;
+#if !FEATURE_FIXED_OUT_ARGS
         inst_RV_IV(INS_sub, REG_SPBASE, argSize, EA_PTRSIZE);
         AddStackLevel(argSize);
+#endif // !FEATURE_FIXED_OUT_ARGS
         return true;
     }
 }
@@ -7714,6 +7736,14 @@ void CodeGen::genPutArgStkFieldList(GenTreePutArgStk* putArgStk)
     unsigned  prevFieldOffset = currentOffset;
     regNumber intTmpReg       = REG_NA;
     regNumber simdTmpReg      = REG_NA;
+#if defined(UNIX_X86_ABI) && FEATURE_FIXED_OUT_ARGS
+    unsigned argOffsetOut = putArgStk->gtSlotNum * TARGET_POINTER_SIZE;
+    unsigned baseVarNum   = getBaseVarForPutArgStk(putArgStk);
+
+    currentOffset   = 0;
+    prevFieldOffset = currentOffset;
+#endif
+
     if (putArgStk->gtRsvdRegs != RBM_NONE)
     {
         regMaskTP rsvdRegs = putArgStk->gtRsvdRegs;
@@ -7739,7 +7769,9 @@ void CodeGen::genPutArgStkFieldList(GenTreePutArgStk* putArgStk)
         // Long-typed nodes should have been handled by the decomposition pass, and lowering should have sorted the
         // field list in descending order by offset.
         assert(!varTypeIsLong(fieldType));
+#if !FEATURE_FIXED_OUT_ARGS
         assert(fieldOffset <= prevFieldOffset);
+#endif
 
         // Consume the register, if any, for this field. Note that genConsumeRegs() will appropriately
         // update the liveness info for a lclVar that has been marked RegOptional, which hasn't been
@@ -7759,7 +7791,8 @@ void CodeGen::genPutArgStkFieldList(GenTreePutArgStk* putArgStk)
         int        adjustment  = roundUp(currentOffset - fieldOffset, 4);
         if (fieldIsSlot && !varTypeIsSIMD(fieldType))
         {
-            fieldType         = genActualType(fieldType);
+            fieldType = genActualType(fieldType);
+#if !FEATURE_FIXED_OUT_ARGS
             unsigned pushSize = genTypeSize(fieldType);
             assert((pushSize % 4) == 0);
             adjustment -= pushSize;
@@ -7770,6 +7803,7 @@ void CodeGen::genPutArgStkFieldList(GenTreePutArgStk* putArgStk)
                 AddStackLevel(pushSize);
                 adjustment -= pushSize;
             }
+#endif // !FEATURE_FIXED_OUT_ARGS
             m_pushStkArg = true;
         }
         else
@@ -7780,6 +7814,7 @@ void CodeGen::genPutArgStkFieldList(GenTreePutArgStk* putArgStk)
             // require special handling).
             assert(varTypeIsIntegralOrI(fieldNode) || varTypeIsSIMD(fieldNode));
 
+#if !FEATURE_FIXED_OUT_ARGS
             // If we can't push this field, it needs to be in a register so that we can store
             // it to the stack location.
             if (adjustment != 0)
@@ -7791,6 +7826,7 @@ void CodeGen::genPutArgStkFieldList(GenTreePutArgStk* putArgStk)
                 currentOffset -= adjustment;
                 AddStackLevel(adjustment);
             }
+#endif // !FEATURE_FIXED_OUT_ARGS
 
             // Does it need to be in a byte register?
             // If so, we'll use intTmpReg, which must have been allocated as a byte register.
@@ -7815,19 +7851,61 @@ void CodeGen::genPutArgStkFieldList(GenTreePutArgStk* putArgStk)
                 {
                     assert(!varTypeIsSIMD(fieldType)); // Q: can we get here with SIMD?
                     assert(fieldNode->IsRegOptional());
-                    TempDsc* tmp = getSpillTempDsc(fieldNode);
-                    getEmitter()->emitIns_S(INS_push, emitActualTypeSize(fieldNode->TypeGet()), tmp->tdTempNum(), 0);
+                    TempDsc* tmp      = getSpillTempDsc(fieldNode);
+                    emitAttr typeSize = emitActualTypeSize(fieldNode->TypeGet());
+
+#if FEATURE_FIXED_OUT_ARGS
+                    // mov      eax, gword ptr [ebp-N]
+                    // mov      gword ptr [esp+argOffset], eax
+                    getEmitter()->emitIns_R_S(ins_Store(fieldType), typeSize, REG_SCRATCH, tmp->tdTempNum(), 0);
+                    getEmitter()->emitIns_AR_R(ins_Store(fieldType), EA_4BYTE, REG_SCRATCH, REG_SPBASE, argOffsetOut);
+
+                    // remove this after we meet this block and it's tested
+                    instGen(INS_nop);
+                    instGen(INS_nop);
+                    instGen(INS_nop);
+                    assert(false);
+#else
+                    getEmitter()->emitIns_S(INS_push, typeSize, tmp->tdTempNum(), 0);
+#endif
                     compiler->tmpRlsTemp(tmp);
                 }
                 else
                 {
                     assert(varTypeIsIntegralOrI(fieldNode));
+                    emitAttr typeSize = emitActualTypeSize(fieldNode->TypeGet());
                     switch (fieldNode->OperGet())
                     {
                         case GT_LCL_VAR:
-                            inst_TT(INS_push, fieldNode, 0, 0, emitActualTypeSize(fieldNode->TypeGet()));
+#if FEATURE_FIXED_OUT_ARGS
+                            // mov      eax, gword ptr [ebp-n]
+                            // mov      gword ptr [esp+argOffset], eax
+                            {
+                                unsigned fieldLclNum = fieldNode->AsLclVarCommon()->gtLclNum;
+                                getEmitter()->emitIns_R_S(ins_Store(fieldType), typeSize, REG_SCRATCH, fieldLclNum, 0);
+                                getEmitter()->emitIns_AR_R(ins_Store(fieldType), EA_4BYTE, REG_SCRATCH, REG_SPBASE,
+                                                           fieldOffset + argOffsetOut);
+                            }
+#else
+                            // push     dword ptr [ebp-N]
+                            inst_TT(INS_push, fieldNode, 0, 0, typeSize);
+#endif // FEATURE_FIXED_OUT_ARGS
                             break;
                         case GT_CNS_INT:
+#if FEATURE_FIXED_OUT_ARGS
+                            if (fieldNode->IsIconHandle())
+                            {
+                                // mov dword ptr [esp+n], fieldNode->gtIntCon.gtIconVal
+                                getEmitter()->emitIns_S_I(ins_Store(fieldType), EA_HANDLE_CNS_RELOC, baseVarNum,
+                                                          fieldOffset + argOffsetOut, fieldNode->gtIntCon.gtIconVal);
+                            }
+                            else
+                            {
+                                // mov gword ptr [esp+n], fieldNode->gtIntCon.gtIconVal
+                                getEmitter()->emitIns_S_I(ins_Store(fieldType), typeSize, baseVarNum,
+                                                          fieldOffset + argOffsetOut, fieldNode->gtIntCon.gtIconVal);
+                            }
+#else
                             if (fieldNode->IsIconHandle())
                             {
                                 inst_IV_handle(INS_push, fieldNode->gtIntCon.gtIconVal);
@@ -7836,13 +7914,16 @@ void CodeGen::genPutArgStkFieldList(GenTreePutArgStk* putArgStk)
                             {
                                 inst_IV(INS_push, fieldNode->gtIntCon.gtIconVal);
                             }
+#endif // FEATURE_FIXED_OUT_ARGS
                             break;
                         default:
                             unreached();
                     }
                 }
+#if !FEATURE_FIXED_OUT_ARGS
                 currentOffset -= TARGET_POINTER_SIZE;
                 AddStackLevel(TARGET_POINTER_SIZE);
+#endif // !FEATURE_FIXED_OUT_ARGS
             }
             else
             {
@@ -7859,7 +7940,12 @@ void CodeGen::genPutArgStkFieldList(GenTreePutArgStk* putArgStk)
                     default:
                         unreached();
                 }
+#if defined(UNIX_X86_ABI) && FEATURE_FIXED_OUT_ARGS
+                m_stkArgOffset = 0;
+                genStoreRegToStackArg(fieldType, intTmpReg, fieldOffset + argOffsetOut);
+#else
                 genStoreRegToStackArg(fieldType, intTmpReg, fieldOffset - currentOffset);
+#endif
             }
         }
         else
@@ -7872,6 +7958,12 @@ void CodeGen::genPutArgStkFieldList(GenTreePutArgStk* putArgStk)
             }
             else
 #endif // defined(FEATURE_SIMD)
+#if FEATURE_FIXED_OUT_ARGS
+            {
+                m_stkArgOffset = 0;
+                genStoreRegToStackArg(fieldType, argReg, fieldOffset + argOffsetOut);
+            }
+#else
             {
                 genStoreRegToStackArg(fieldType, argReg, fieldOffset - currentOffset);
             }
@@ -7880,16 +7972,19 @@ void CodeGen::genPutArgStkFieldList(GenTreePutArgStk* putArgStk)
                 // We always push a slot-rounded size
                 currentOffset -= genTypeSize(fieldType);
             }
+#endif // FEATURE_FIXED_OUT_ARGS
         }
 
         prevFieldOffset = fieldOffset;
     }
+#if !FEATURE_FIXED_OUT_ARGS
     if (currentOffset != 0)
     {
         // We don't expect padding at the beginning of a struct, but it could happen with explicit layout.
         inst_RV_IV(INS_sub, REG_SPBASE, currentOffset, EA_PTRSIZE);
         AddStackLevel(currentOffset);
     }
+#endif // FEATURE_FIXED_OUT_ARGS
 }
 #endif // _TARGET_X86_
 
@@ -7930,8 +8025,27 @@ void CodeGen::genPutArgStk(GenTreePutArgStk* putArgStk)
     const unsigned argSize = putArgStk->getArgSize();
     assert((argSize % TARGET_POINTER_SIZE) == 0);
 
+#if FEATURE_FIXED_OUT_ARGS
+    unsigned baseVarNum = getBaseVarForPutArgStk(putArgStk);
+    unsigned argOffset  = putArgStk->getArgOffset();
+#endif // FEATURE_FIXED_OUT_ARGS
+
     if (data->isContainedIntOrIImmed())
     {
+#if FEATURE_FIXED_OUT_ARGS
+        if (data->IsIconHandle())
+        {
+            // mov dword ptr [esp+n], data->gtIntCon.gtIconVal
+            getEmitter()->emitIns_S_I(ins_Store(targetType), EA_HANDLE_CNS_RELOC, baseVarNum, argOffset,
+                                      data->gtIntCon.gtIconVal);
+        }
+        else
+        {
+            // mov gword ptr [esp+n], data->gtIntCon.gtIconVal
+            getEmitter()->emitIns_S_I(ins_Store(targetType), emitTypeSize(targetType), baseVarNum, argOffset,
+                                      data->gtIntCon.gtIconVal);
+        }
+#else
         if (data->IsIconHandle())
         {
             inst_IV_handle(INS_push, data->gtIntCon.gtIconVal);
@@ -7941,6 +8055,7 @@ void CodeGen::genPutArgStk(GenTreePutArgStk* putArgStk)
             inst_IV(INS_push, data->gtIntCon.gtIconVal);
         }
         AddStackLevel(argSize);
+#endif // FEATURE_FIXED_OUT_ARGS
     }
     else if (data->OperGet() == GT_FIELD_LIST)
     {
@@ -7951,7 +8066,12 @@ void CodeGen::genPutArgStk(GenTreePutArgStk* putArgStk)
         // We should not see any contained nodes that are not immediates.
         assert(data->isUsedFromReg());
         genConsumeReg(data);
+#if FEATURE_FIXED_OUT_ARGS
+        getEmitter()->emitIns_S_R(ins_Store(targetType), emitTypeSize(targetType), data->gtRegNum, baseVarNum,
+                                  argOffset);
+#else
         genPushReg(targetType, data->gtRegNum);
+#endif // FEATURE_FIXED_OUT_ARGS
     }
 #else // !_TARGET_X86_
     {
@@ -8002,6 +8122,7 @@ void CodeGen::genPutArgStk(GenTreePutArgStk* putArgStk)
 }
 
 #ifdef _TARGET_X86_
+#if !FEATURE_FIXED_OUT_ARGS
 // genPushReg: Push a register value onto the stack and adjust the stack level
 //
 // Arguments:
@@ -8041,6 +8162,7 @@ void CodeGen::genPushReg(var_types type, regNumber srcReg)
     }
     AddStackLevel(size);
 }
+#endif // !FEATURE_FIXED_OUT_ARGS
 #endif // _TARGET_X86_
 
 #if defined(FEATURE_PUT_STRUCT_ARG_STK)
@@ -8050,6 +8172,7 @@ void CodeGen::genPushReg(var_types type, regNumber srcReg)
 //    type   - the type of value to be stored
 //    reg    - the register containing the value
 //    offset - the offset from the base (see Assumptions below)
+// argOffset - additional argument offset from the base like m_stkArgOffset
 //
 // Notes:
 //    A type of TYP_STRUCT instructs this method to store a 16-byte chunk
@@ -8107,6 +8230,9 @@ void CodeGen::genStoreRegToStackArg(var_types type, regNumber srcReg, int offset
     }
 
 #ifdef _TARGET_X86_
+#if FEATURE_FIXED_OUT_ARGS
+    getEmitter()->emitIns_AR_R(ins, attr, srcReg, REG_SPBASE, m_stkArgOffset + offset);
+#else
     if (m_pushStkArg)
     {
         genPushReg(type, srcReg);
@@ -8115,6 +8241,7 @@ void CodeGen::genStoreRegToStackArg(var_types type, regNumber srcReg, int offset
     {
         getEmitter()->emitIns_AR_R(ins, attr, srcReg, REG_SPBASE, offset);
     }
+#endif // !FEATURE_FIXED_OUT_ARGS
 #else  // !_TARGET_X86_
     assert(m_stkArgVarNum != BAD_VAR_NUM);
     getEmitter()->emitIns_S_R(ins, attr, srcReg, m_stkArgVarNum, m_stkArgOffset + offset);
@@ -8150,6 +8277,9 @@ void CodeGen::genPutStructArgStk(GenTreePutArgStk* putArgStk)
     {
         regNumber srcReg = genConsumeReg(putArgStk->gtGetOp1());
         assert((srcReg != REG_NA) && (genIsValidFloatReg(srcReg)));
+#if defined(UNIX_X86_ABI) && FEATURE_FIXED_OUT_ARGS
+        m_stkArgOffset = 0;
+#endif
         genStoreRegToStackArg(targetType, srcReg, 0);
         return;
     }
@@ -8229,6 +8359,30 @@ void CodeGen::genPutStructArgStk(GenTreePutArgStk* putArgStk)
             }
 
             const unsigned offset = i * TARGET_POINTER_SIZE;
+#if FEATURE_FIXED_OUT_ARGS
+            const unsigned argOffset = putArgStk->getArgOffset();
+            if (srcAddrInReg)
+            {
+                if (REG_SCRATCH != srcRegNum)
+                {
+                    getEmitter()->emitIns_R_R(ins_Store(TYP_INT), slotAttr, REG_SCRATCH, srcRegNum);
+                }
+                getEmitter()->emitIns_AR_R(ins_Store(TYP_INT), EA_4BYTE, REG_SCRATCH, REG_SPBASE, argOffset + offset);
+
+                // remove this after we meet this block and it's tested
+                instGen(INS_nop);
+                instGen(INS_nop);
+                instGen(INS_nop);
+                assert(false);
+            }
+            else
+            {
+                // mov      eax, gword ptr [ebp-0CH]
+                // mov      gword ptr [esp+slotNum], eax
+                getEmitter()->emitIns_R_S(ins_Store(TYP_INT), slotAttr, REG_SCRATCH, srcLclNum, srcLclOffset + offset);
+                getEmitter()->emitIns_AR_R(ins_Store(TYP_INT), EA_4BYTE, REG_SCRATCH, REG_SPBASE, argOffset + offset);
+            }
+#else  // FEATURE_FIXED_OUT_ARGS
             if (srcAddrInReg)
             {
                 getEmitter()->emitIns_AR_R(INS_push, slotAttr, REG_NA, srcRegNum, offset);
@@ -8238,6 +8392,7 @@ void CodeGen::genPutStructArgStk(GenTreePutArgStk* putArgStk)
                 getEmitter()->emitIns_S(INS_push, slotAttr, srcLclNum, srcLclOffset + offset);
             }
             AddStackLevel(TARGET_POINTER_SIZE);
+#endif // FEATURE_FIXED_OUT_ARGS
         }
 #else // !defined(_TARGET_X86_)
 
@@ -8294,6 +8449,9 @@ void CodeGen::genPutStructArgStk(GenTreePutArgStk* putArgStk)
 
                 var_types memType = (gcPtrs[i] == TYPE_GC_REF) ? TYP_REF : TYP_BYREF;
                 getEmitter()->emitIns_R_AR(ins_Load(memType), emitTypeSize(memType), REG_RCX, REG_RSI, 0);
+#if defined(UNIX_X86_ABI) && FEATURE_FIXED_OUT_ARGS
+                m_stkArgOffset = 0;
+#endif
                 genStoreRegToStackArg(memType, REG_RCX, i * TARGET_POINTER_SIZE);
 
 #ifdef DEBUG

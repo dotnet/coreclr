@@ -2442,6 +2442,71 @@ void fgArgInfo::EvalArgsToTemps()
 #endif
 }
 
+#if defined(UNIX_X86_ABI) && FEATURE_FIXED_OUT_ARGS
+// Reverse slot number for each arguments so that arguments will be placed
+// in the same order when changed from 'push' to 'move' instruction.
+// It would be better not to do this if possible.
+void fgArgInfo::ReverseArgumentSlot()
+{
+    // To get the padding amount, sum up all the slots and get the remainder for padding
+    unsigned curInx;
+    unsigned numSlots     = 0;
+    unsigned numStackArgs = 0;
+
+    for (curInx = 0; curInx < argCount; curInx++)
+    {
+        fgArgTabEntryPtr curArgTabEntry = argTable[curInx];
+        if (curArgTabEntry->numSlots > 0)
+        {
+            // The argument may be REG_STK or constant or register that goes to stack
+            assert(nextSlotNum >= curArgTabEntry->slotNum);
+
+            numSlots += curArgTabEntry->numSlots;
+            numStackArgs++;
+        }
+    }
+
+    if (numStackArgs > 1)
+    {
+        for (curInx = 0; curInx < argCount; curInx++)
+        {
+            fgArgTabEntryPtr curArgTabEntry = argTable[curInx];
+            if (curArgTabEntry->numSlots > 0)
+            {
+                curArgTabEntry->slotNum = (nextSlotNum - 1) - curArgTabEntry->slotNum;
+                // Consider 2 or more slots used for the argument
+                // For example, if there is 4 arguments with numSlots value 1, 2, 1, 1 each
+                // nextSlotNum will be 5 and slot number will be like this
+                //     before: [O] [1][ ] [3] [4]
+                //      after: [4] [3] [2][ ] [0]
+                curArgTabEntry->slotNum -= (curArgTabEntry->numSlots - 1);
+            }
+        }
+    }
+}
+
+// Return number of slots to adjust ESP for callee pop
+unsigned fgArgInfo::GetCalleePop()
+{
+    unsigned curInx;
+    unsigned numSlots = 0;
+
+    for (curInx = 0; curInx < argCount; curInx++)
+    {
+        fgArgTabEntryPtr curArgTabEntry = argTable[curInx];
+        if (curArgTabEntry->numSlots > 0)
+        {
+            // The argument may be REG_STK or constant or register that goes to stack
+            assert(nextSlotNum >= curArgTabEntry->slotNum);
+
+            numSlots += curArgTabEntry->numSlots;
+        }
+    }
+
+    return numSlots;
+}
+#endif // UNIX_X86_ABI && FEATURE_FIXED_OUT_ARGS
+
 // Get the late arg for arg at position argIndex.
 // argIndex - 0-based position to get late arg for.
 //            Caller must ensure this position has a late arg.
@@ -2651,7 +2716,7 @@ GenTreeCall* Compiler::fgMorphArgs(GenTreeCall* call)
     bool callIsVararg = call->IsVarargs();
 #endif
 
-#ifdef FEATURE_UNIX_AMD64_STRUCT_PASSING
+#if defined(FEATURE_UNIX_AMD64_STRUCT_PASSING) || (defined(UNIX_X86_ABI) && FEATURE_FIXED_OUT_ARGS)
     // If fgMakeOutgoingStructArgCopy is called and copies are generated, hasStackArgCopy is set
     // to make sure to call EvalArgsToTemp. fgMakeOutgoingStructArgCopy just marks the argument
     // to need a temp variable, and EvalArgsToTemp actually creates the temp variable node.
@@ -3741,6 +3806,14 @@ GenTreeCall* Compiler::fgMorphArgs(GenTreeCall* call)
                             // the obj reading memory past the end of the valuetype
                             CLANG_FORMAT_COMMENT_ANCHOR;
 
+#if defined(UNIX_X86_ABI) && FEATURE_FIXED_OUT_ARGS
+                            // Structure argument in nested-call has issue when lowering as
+                            // there is no implementation to handle this yet.
+                            // Make a copy of structure so that to avoid this case.
+                            // We may need to add some condition for performance.
+                            // This will let "hasStackArgCopy = true" below and make a copy of the structure.
+                            copyBlkClass = objClass;
+#else
                             if (roundupSize > originalSize)
                             {
                                 copyBlkClass = objClass;
@@ -3753,6 +3826,7 @@ GenTreeCall* Compiler::fgMorphArgs(GenTreeCall* call)
                                     copyBlkClass = NO_CLASS_HANDLE;
                                 }
                             }
+#endif
 
                             size = roundupSize / TARGET_POINTER_SIZE; // Normalize size to number of pointer sized items
                         }
@@ -4134,7 +4208,7 @@ GenTreeCall* Compiler::fgMorphArgs(GenTreeCall* call)
             // i.e. assert(((call->gtFlags & GTF_EXCEPT) != 0) || ((args->Current()->gtFlags & GTF_EXCEPT) == 0)
             flagsSummary |= (args->Current()->gtFlags & GTF_EXCEPT);
 
-#ifdef FEATURE_UNIX_AMD64_STRUCT_PASSING
+#if defined(FEATURE_UNIX_AMD64_STRUCT_PASSING) || (defined(UNIX_X86_ABI) && FEATURE_FIXED_OUT_ARGS)
             hasStackArgCopy = true;
 #endif
         }
@@ -4239,6 +4313,10 @@ GenTreeCall* Compiler::fgMorphArgs(GenTreeCall* call)
     {
         call->fgArgInfo->ArgsComplete();
 
+#if defined(UNIX_X86_ABI) && FEATURE_FIXED_OUT_ARGS
+        call->fgArgInfo->ReverseArgumentSlot();
+#endif // UNIX_X86_ABI && FEATURE_FIXED_OUT_ARGS
+
 #ifdef LEGACY_BACKEND
         call->gtCallRegUsedMask = genIntAllRegArgMask(intArgRegNum);
 #if defined(_TARGET_ARM_)
@@ -4337,9 +4415,9 @@ GenTreeCall* Compiler::fgMorphArgs(GenTreeCall* call)
     // all cases of fgMakeOutgoingStructArgCopy() being called. hasStackArgCopy
     // is added to make sure to call EvalArgsToTemp.
     if (!reMorphing && (call->fgArgInfo->HasRegArgs()
-#ifdef FEATURE_UNIX_AMD64_STRUCT_PASSING
+#if defined(FEATURE_UNIX_AMD64_STRUCT_PASSING) || (defined(UNIX_X86_ABI) && FEATURE_FIXED_OUT_ARGS)
                         || hasStackArgCopy
-#endif // FEATURE_UNIX_AMD64_STRUCT_PASSING
+#endif // FEATURE_UNIX_AMD64_STRUCT_PASSING || (UNIX_X86_ABI && FEATURE_FIXED_OUT_ARGS)
                         ))
     {
         // This is the first time that we morph this call AND it has register arguments.

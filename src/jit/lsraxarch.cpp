@@ -1410,6 +1410,13 @@ void Lowering::TreeNodeInfoInitCall(GenTreeCall* call)
 
         if (curArgTabEntry->regNum == REG_STK)
         {
+#if defined(UNIX_X86_ABI) && FEATURE_FIXED_OUT_ARGS
+            // srcCount and dstCount are set to correct value in
+            // TreeNodeInfoInitPutArgStk(). Below code will set to '1'
+            // for case of LONG type where srcCount should be '2'
+            continue;
+#endif // UNIX_X86_ABI && FEATURE_FIXED_OUT_ARGS
+
             // late arg that is not passed in a register
             DISPNODE(argNode);
             assert(argNode->gtOper == GT_PUTARG_STK);

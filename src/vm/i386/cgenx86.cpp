@@ -331,7 +331,13 @@ void TransitionFrame::UpdateRegDisplayHelper(const PREGDISPLAY pRD, UINT cbStack
 
     pRD->pCurrentContext->Eip = *PTR_PCODE(pRD->PCTAddr);;
     pRD->pCurrentContext->Esp = CallerSP;
+#ifdef UNIX_X86_ABI_FOA
+    // We may remove 'UNIX_X86_ABI_FOA' and use 'UNIX_X86_ABI' when
+    // UNIX_X86_ABI and FEATURE_FIXED_OUT_ARGS are stable
+    pRD->pCurrentContext->ResumeEsp = CallerSP;
+#else
     pRD->pCurrentContext->ResumeEsp = CallerSP + cbStackPop;
+#endif
 
     UpdateRegDisplayFromCalleeSavedRegisters(pRD, regs);
     ClearRegDisplayArgumentAndScratchRegisters(pRD);
@@ -689,7 +695,13 @@ void InlinedCallFrame::UpdateRegDisplay(const PREGDISPLAY pRD)
 
     pRD->pCurrentContext->Eip = *PTR_PCODE(pRD->PCTAddr);
     pRD->pCurrentContext->Esp = (DWORD) dac_cast<TADDR>(m_pCallSiteSP);
+#ifdef UNIX_X86_ABI_FOA
+    // We may remove 'UNIX_X86_ABI_FOA' and use 'UNIX_X86_ABI' when
+    // UNIX_X86_ABI and FEATURE_FIXED_OUT_ARGS are stable
+    pRD->pCurrentContext->ResumeEsp = (DWORD) dac_cast<TADDR>(m_pCallSiteSP);
+#else
     pRD->pCurrentContext->ResumeEsp = (DWORD) dac_cast<TADDR>(m_pCallSiteSP) + stackArgSize;
+#endif
     pRD->pCurrentContext->Ebp = (DWORD) m_pCalleeSavedFP;
 
     ClearRegDisplayArgumentAndScratchRegisters(pRD);

@@ -5,6 +5,7 @@
 //
 
 #include "stdafx.h"
+#include "corabi.h"
 #include "unwinder_i386.h"
 
 #ifdef WIN64EXCEPTIONS
@@ -117,7 +118,13 @@ OOPStackUnwinderX86::VirtualUnwind(
 #endif // UNIX_X86_ABI
 
     ContextRecord->Esp = rd.SP - paramSize;
+#ifdef UNIX_X86_ABI_FOA
+    // We may remove 'UNIX_X86_ABI_FOA' and use 'UNIX_X86_ABI' when
+    // UNIX_X86_ABI and FEATURE_FIXED_OUT_ARGS are stable
+    ContextRecord->ResumeEsp = ContextRecord->Esp;
+#else
     ContextRecord->ResumeEsp = rd.SP + paddingSize;
+#endif
     ContextRecord->Eip = rd.ControlPC;
 
     // For x86, the value of Establisher Frame Pointer is Caller SP

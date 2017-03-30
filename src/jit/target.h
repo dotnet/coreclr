@@ -6,6 +6,8 @@
 #ifndef _TARGET_H_
 #define _TARGET_H_
 
+#include "corabi.h"
+
 #if defined(FEATURE_CORECLR) && defined(_TARGET_UNIX_)
 #define FEATURE_VARARG 0
 #else // !(defined(FEATURE_CORECLR) && defined(_TARGET_UNIX_))
@@ -358,7 +360,11 @@ typedef unsigned short regPairNoSmall; // arm: need 12 bits
 #endif // FEATURE_SIMD
 
   #define FEATURE_WRITE_BARRIER    1       // Generate the proper WriteBarrier calls for GC
+#ifdef UNIX_X86_ABI_FOA
+  #define FEATURE_FIXED_OUT_ARGS   1       // Preallocate the outgoing arg area in the prolog
+#else
   #define FEATURE_FIXED_OUT_ARGS   0       // X86 uses push instructions to pass args
+#endif
   #define FEATURE_STRUCTPROMOTE    1       // JIT Optimization to promote fields of structs into registers
   #define FEATURE_MULTIREG_STRUCT_PROMOTE  0  // True when we want to promote fields of a multireg struct into registers
   #define FEATURE_FASTTAILCALL     0       // Tail calls made as epilog+jmp
