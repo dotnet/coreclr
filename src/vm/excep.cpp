@@ -7192,7 +7192,8 @@ AdjustContextForWriteBarrier(
 #endif // ELSE
 }
 
-#if defined(USE_FEF) && !defined(FEATURE_PAL)
+#ifndef FEATURE_PAL
+#ifdef USE_FEF
 
 struct SavedExceptionInfo
 {
@@ -7325,13 +7326,14 @@ void HandleManagedFault(EXCEPTION_RECORD*               pExceptionRecord,
     SetIP(pContext, GetEEFuncEntryPoint(NakedThrowHelper));
 }
 
-#else // USE_FEF && !FEATURE_PAL
+#else // USE_FEF
 
 void InitSavedExceptionInfo()
 {
 }
 
-#endif // USE_FEF && !FEATURE_PAL
+#endif // !USE_FEF
+#endif // !FEATURE_PAL
 
 //
 // Init a new frame
@@ -8397,12 +8399,12 @@ LONG WINAPI CLRVectoredExceptionHandlerShim(PEXCEPTION_POINTERS pExceptionInfo)
 
 #endif // !FEATURE_PAL
 
+#ifndef FEATURE_PAL
 // Contains the handle to the registered VEH
 static PVOID g_hVectoredExceptionHandler = NULL;
 
 void CLRAddVectoredHandlers(void)
 {
-#ifndef FEATURE_PAL
 
     // We now install a vectored exception handler on all supporting Windows architectures.
     g_hVectoredExceptionHandler = AddVectoredExceptionHandler(TRUE, (PVECTORED_EXCEPTION_HANDLER)CLRVectoredExceptionHandlerShim);
@@ -8413,7 +8415,6 @@ void CLRAddVectoredHandlers(void)
     }
 
     LOG((LF_EH, LL_INFO100, "CLRAddVectoredHandlers: AddVectoredExceptionHandler() succeeded\n"));
-#endif // !FEATURE_PAL
 }
 
 // This function removes the vectored exception and continue handler registration
@@ -8427,7 +8428,6 @@ void CLRRemoveVectoredHandlers(void)
         MODE_ANY;
     }
     CONTRACTL_END;
-#ifndef FEATURE_PAL
 
     // Unregister the vectored exception handler if one is registered (and we can).
     if (g_hVectoredExceptionHandler != NULL)
@@ -8442,8 +8442,8 @@ void CLRRemoveVectoredHandlers(void)
             LOG((LF_EH, LL_INFO100, "CLRRemoveVectoredHandlers: RemoveVectoredExceptionHandler() succeeded.\n"));
         }
     }
-#endif // !FEATURE_PAL
 }
+#endif // !FEATURE_PAL
 
 //
 // This does the work of the Unwind and Continue Hanlder inside the catch clause of that handler. The stack has not
