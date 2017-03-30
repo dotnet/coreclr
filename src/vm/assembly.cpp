@@ -1772,7 +1772,7 @@ HRESULT RunMain(MethodDesc *pFD ,
     // entrypoint returns an 'int' we take that.  Otherwise we take a latched
     // process exit code.  This can be modified by the app via setting
     // Environment's ExitCode property.
-    //
+#ifndef FEATURE_CORECLR
     // When we're executing the default exe main in the default domain, set the latched exit code to 
     // zero as a default.  If it gets set to something else by user code then that value will be returned. 
     //
@@ -1780,7 +1780,10 @@ HRESULT RunMain(MethodDesc *pFD ,
     // or through creating a subsequent domain and running an exe within it.  In those cases we don't
     // want to reset the (global) latched exit code.
     if (stringArgs == NULL)
+    {
         SetLatchedExitCode(0);
+    }
+#endif
 
     if (!pFD) {
         _ASSERTE(!"Must have a function to call!");
@@ -1842,17 +1845,24 @@ HRESULT RunMain(MethodDesc *pFD ,
 
         if (pParam->pFD->IsVoid()) 
         {
-            // Set the return value to 0 instead of returning random junk
-            *pParam->piRetVal = 0;
             threadStart.Call(&stackVar);
+            *pParam->piRetVal =
+#ifndef FEATURE_CORECLR
+                // Set the return value to 0 instead of returning random junk
+                0;
+#else
+                GetLatchedExitCode();
+#endif
         }
         else 
         {
             *pParam->piRetVal = (INT32)threadStart.Call_RetArgSlot(&stackVar);
+#ifndef FEATURE_CORECLR
             if (pParam->stringArgs == NULL) 
             {
                 SetLatchedExitCode(*pParam->piRetVal);
             }
+#endif
         }
 
         GCPROTECT_END();
