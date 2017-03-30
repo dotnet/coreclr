@@ -2838,13 +2838,6 @@ void Lowering::InsertPInvokeMethodProlog()
     // The first BB must be a scratch BB in order for us to be able to safely insert the P/Invoke prolog.
     assert(comp->fgFirstBBisScratch());
 
-    // If the entry block has more than one incoming edge, insert a preceding scratch BB into which we can safely
-    // insert the P/Invoke method prolog.
-    if (comp->fgFirstBB->countOfInEdges() > 1)
-    {
-        comp->fgEnsureFirstBBisScratch();
-    }
-
     LIR::Range& firstBlockRange = LIR::AsRange(comp->fgFirstBB);
 
     const CORINFO_EE_INFO*                       pInfo         = comp->eeGetEEInfo();
