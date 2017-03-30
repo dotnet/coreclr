@@ -883,7 +883,6 @@ struct BasicBlock : private LIR::Range
 #if ASSERTION_PROP
     // A set of blocks which dominate this one *except* the normal entry block. This is lazily initialized
     // and used only by Assertion Prop, intersected with fgEnterBlks!
-    BlockSet bbDoms;
 #endif
 
     IL_OFFSET bbCodeOffs;    // IL offset of the beginning of the block
@@ -1081,10 +1080,6 @@ struct BasicBlock : private LIR::Range
 
     BasicBlock()
         :
-#if ASSERTION_PROP
-        BLOCKSET_INIT_NOCOPY(bbDoms, BlockSetOps::UninitVal())
-        ,
-#endif // ASSERTION_PROP
         VARSET_INIT_NOCOPY(bbLiveIn, VarSetOps::UninitVal())
         , VARSET_INIT_NOCOPY(bbLiveOut, VarSetOps::UninitVal())
     {
