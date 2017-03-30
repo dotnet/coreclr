@@ -3434,7 +3434,7 @@ void Compiler::lvaMarkLclRefs(GenTreePtr tree)
     }
 
 #if ASSERTION_PROP
-    if (fgDomsComputed && IsDominatedByNotNormalEntry(lvaMarkRefsCurBlock))
+    if (fgDomsComputed && IsDominatedByExceptionalEntry(lvaMarkRefsCurBlock))
     {
         SetVolatileHint(varDsc);
     }
@@ -3522,15 +3522,15 @@ void Compiler::lvaMarkLclRefs(GenTreePtr tree)
 }
 
 //------------------------------------------------------------------------
-// IsDominatedByNotNormalEntry: Check is the block dominated by an exception entry block.
+// IsDominatedByExceptionalEntry: Check is the block dominated by an exception entry block.
 //
 // Arguments:
 //    block - the checking block.
 //
-bool Compiler::IsDominatedByNotNormalEntry(BasicBlock* block)
+bool Compiler::IsDominatedByExceptionalEntry(BasicBlock* block)
 {
     assert(fgDomsComputed);
-    return block->IsDominatedByNotNormalEntryFlag();
+    return block->IsDominatedByExceptionalEntryFlag();
 }
 
 //------------------------------------------------------------------------

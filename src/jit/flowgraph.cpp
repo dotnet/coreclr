@@ -2532,7 +2532,7 @@ void Compiler::fgComputeDoms()
         }
     }
 
-    fgCompDominatedByNotNormalEntryBlocks();
+    fgCompDominatedByExceptionalEntryBlocks();
 
 #ifdef DEBUG
     if (verbose)
@@ -24936,10 +24936,10 @@ unsigned Compiler::fgMeasureIR()
 }
 
 //------------------------------------------------------------------------
-// fgCompDominatedByNotNormalEntryBlocks: compute blocks that are
+// fgCompDominatedByExceptionalEntryBlocks: compute blocks that are
 // dominated by not normal entry.
 //
-void Compiler::fgCompDominatedByNotNormalEntryBlocks()
+void Compiler::fgCompDominatedByExceptionalEntryBlocks()
 {
     for (unsigned i = 1; i <= fgBBNumMax; ++i)
     {
@@ -24948,12 +24948,12 @@ void Compiler::fgCompDominatedByNotNormalEntryBlocks()
         {
             if (fgFirstBB != block) // skip the normal entry.
             {
-                block->SetDominatedByNotNormalEntryFlag();
+                block->SetDominatedByExceptionalEntryFlag();
             }
         }
-        else if (block->bbIDom->IsDominatedByNotNormalEntryFlag())
+        else if (block->bbIDom->IsDominatedByExceptionalEntryFlag())
         {
-            block->SetDominatedByNotNormalEntryFlag();
+            block->SetDominatedByExceptionalEntryFlag();
         }
     }
 }

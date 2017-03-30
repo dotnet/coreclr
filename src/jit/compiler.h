@@ -2798,7 +2798,7 @@ protected:
     static fgWalkPreFn lvaMarkLclRefsCallback;
     void lvaMarkLclRefs(GenTreePtr tree);
 
-    bool IsDominatedByNotNormalEntry(BasicBlock* block);
+    bool IsDominatedByExceptionalEntry(BasicBlock* block);
     void SetVolatileHint(LclVarDsc* varDsc);
 
     // Keeps the mapping from SSA #'s to VN's for the implicit memory variables.
@@ -4078,7 +4078,7 @@ protected:
                           // Based on: A Simple, Fast Dominance Algorithm
                           // by Keith D. Cooper, Timothy J. Harvey, and Ken Kennedy
 
-    void fgCompDominatedByNotNormalEntryBlocks();
+    void fgCompDominatedByExceptionalEntryBlocks();
 
     BlockSet_ValRet_T fgGetDominatorSet(BasicBlock* block); // Returns a set of blocks that dominate the given block.
     // Note: this is relatively slow compared to calling fgDominate(),
