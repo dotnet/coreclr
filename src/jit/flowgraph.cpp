@@ -420,6 +420,9 @@ BasicBlock* Compiler::fgNewBasicBlock(BBjumpKinds jumpKind)
 
 void Compiler::fgEnsureFirstBBisScratch()
 {
+    // This method does not update predecessor lists and so must only be called before they are computed.
+    assert(!fgComputePredsDone);
+
     // Have we already allocated a scratch block?
 
     if (fgFirstBBisScratch())
@@ -439,11 +442,6 @@ void Compiler::fgEnsureFirstBBisScratch()
             block->inheritWeight(fgFirstBB);
         }
 
-        // The first basic block will have a ref count of at least one. This corresponds to the virtual edge
-        // from the prolog to the entry block. We need to remove this virtual edge before adding the scratch
-        // block as a predecessor.
-        fgFirstBB->bbRefs--;
-        fgAddRefPred(fgFirstBB, block);
         fgInsertBBbefore(fgFirstBB, block);
     }
     else
@@ -8069,6 +8067,16 @@ bool Compiler::fgMoreThanOneReturnBlock()
 void Compiler::fgAddInternal()
 {
     noway_assert(!compIsForInlining());
+
+#ifndef LEGACY_BACKEND
+    // The RyuJIT backend requires a scratch BB into which it can safely insert a P/Invoke method prolog if one is
+    // required. Create it here.
+    if (info.compCallUnmanaged != 0)
+    {
+        fgEnsureFirstBBisScratch();
+        fgFirstBB->bbFlags |= BBF_DONT_REMOVE;
+    }
+#endif // !LEGACY_BACKEND
 
     /*
         <BUGNUM> VSW441487 </BUGNUM>

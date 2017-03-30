@@ -2835,6 +2835,9 @@ void Lowering::InsertPInvokeMethodProlog()
 
     JITDUMP("======= Inserting PInvoke method prolog\n");
 
+    // The first BB must be a scratch BB in order for us to be able to safely insert the P/Invoke prolog.
+    assert(comp->fgFirstBBisScratch());
+
     // If the entry block has more than one incoming edge, insert a preceding scratch BB into which we can safely
     // insert the P/Invoke method prolog.
     if (comp->fgFirstBB->countOfInEdges() > 1)
@@ -2876,10 +2879,8 @@ void Lowering::InsertPInvokeMethodProlog()
     store->gtOp.gtOp1 = call;
     store->gtFlags |= GTF_VAR_DEF;
 
-    GenTree* insertionPoint = firstBlockRange.FirstNonPhiOrCatchArgNode();
-
     comp->fgMorphTree(store);
-    firstBlockRange.InsertBefore(insertionPoint, LIR::SeqTree(comp, store));
+    firstBlockRange.InsertAtEnd(LIR::SeqTree(comp, store));
     DISPTREERANGE(firstBlockRange, store);
 
 #if !defined(_TARGET_X86_) && !defined(_TARGET_ARM_)
@@ -2893,7 +2894,7 @@ void Lowering::InsertPInvokeMethodProlog()
         GenTreeLclFld(GT_STORE_LCL_FLD, TYP_I_IMPL, comp->lvaInlinedPInvokeFrameVar, callFrameInfo.offsetOfCallSiteSP);
     storeSP->gtOp1 = PhysReg(REG_SPBASE);
 
-    firstBlockRange.InsertBefore(insertionPoint, LIR::SeqTree(comp, storeSP));
+    firstBlockRange.InsertAtEnd(LIR::SeqTree(comp, storeSP));
     DISPTREERANGE(firstBlockRange, storeSP);
 
 #endif // !defined(_TARGET_X86_) && !defined(_TARGET_ARM_)
@@ -2909,7 +2910,7 @@ void Lowering::InsertPInvokeMethodProlog()
                                                    callFrameInfo.offsetOfCalleeSavedFP);
     storeFP->gtOp1 = PhysReg(REG_FPBASE);
 
-    firstBlockRange.InsertBefore(insertionPoint, LIR::SeqTree(comp, storeFP));
+    firstBlockRange.InsertAtEnd(LIR::SeqTree(comp, storeFP));
     DISPTREERANGE(firstBlockRange, storeFP);
 #endif // !defined(_TARGET_ARM_)
 
@@ -2924,7 +2925,7 @@ void Lowering::InsertPInvokeMethodProlog()
         // Push a frame - if we are NOT in an IL stub, this is done right before the call
         // The init routine sets InlinedCallFrame's m_pNext, so we just set the thead's top-of-stack
         GenTree* frameUpd = CreateFrameLinkUpdate(PushFrame);
-        firstBlockRange.InsertBefore(insertionPoint, LIR::SeqTree(comp, frameUpd));
+        firstBlockRange.InsertAtEnd(LIR::SeqTree(comp, frameUpd));
         DISPTREERANGE(firstBlockRange, frameUpd);
     }
 #endif // _TARGET_64BIT_
