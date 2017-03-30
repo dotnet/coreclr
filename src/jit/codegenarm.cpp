@@ -2417,7 +2417,50 @@ void CodeGen::genLongToIntCast(GenTree* cast)
 
     if (cast->gtOverflow())
     {
-        NYI("genLongToIntCast: overflow check");
+        //
+        // Generate an overflow check for [u]long to [u]int casts:
+        //
+        // long  -> int  - check if the upper 33 bits are all 0 or all 1
+        //
+        // ulong -> int  - check if the upper 33 bits are all 0
+        //
+        // long  -> uint - check if the upper 32 bits are all 0
+        // ulong -> uint - check if the upper 32 bits are all 0
+        //
+
+        if ((srcType == TYP_LONG) && (dstType == TYP_INT))
+        {
+            BasicBlock* allOne  = genCreateTempLabel();
+            BasicBlock* success = genCreateTempLabel();
+
+            inst_RV_RV(INS_tst, loSrcReg, loSrcReg, TYP_INT, EA_4BYTE);
+            emitJumpKind JmpNegative = genJumpKindForOper(GT_LT, CK_LOGICAL);
+            inst_JMP(JmpNegative, allOne);
+            inst_RV_RV(INS_tst, hiSrcReg, hiSrcReg, TYP_INT, EA_4BYTE);
+            emitJumpKind jmpNotEqualL = genJumpKindForOper(GT_NE, CK_LOGICAL);
+            genJumpToThrowHlpBlk(jmpNotEqualL, SCK_OVERFLOW);
+            inst_JMP(EJ_jmp, success);
+
+            genDefineTempLabel(allOne);
+            inst_RV_IV(INS_cmp, hiSrcReg, -1, EA_4BYTE);
+            emitJumpKind jmpNotEqualS = genJumpKindForOper(GT_NE, CK_SIGNED);
+            genJumpToThrowHlpBlk(jmpNotEqualS, SCK_OVERFLOW);
+
+            genDefineTempLabel(success);
+        }
+        else
+        {
+            if ((srcType == TYP_ULONG) && (dstType == TYP_INT))
+            {
+                inst_RV_RV(INS_tst, loSrcReg, loSrcReg, TYP_INT, EA_4BYTE);
+                emitJumpKind JmpNegative = genJumpKindForOper(GT_LT, CK_LOGICAL);
+                genJumpToThrowHlpBlk(JmpNegative, SCK_OVERFLOW);
+            }
+
+            inst_RV_RV(INS_tst, hiSrcReg, hiSrcReg, TYP_INT, EA_4BYTE);
+            emitJumpKind jmpNotEqual = genJumpKindForOper(GT_NE, CK_LOGICAL);
+            genJumpToThrowHlpBlk(jmpNotEqual, SCK_OVERFLOW);
+        }
     }
 
     if (dstReg != loSrcReg)
