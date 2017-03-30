@@ -33,7 +33,6 @@ HRESULT CLRPrivBinderAssemblyLoadContext::BindAssemblyByNameWorker(BINDER_SPACE:
                                       NULL,
                                       FALSE, //fNgenExplicitBind,
                                       FALSE, //fExplicitBindToNativeImage,
-                                      FALSE, //fUseExplicitFilePath,
                                       false, //excludeAppPaths,
                                       ppCoreCLRFoundAssembly);
     if (!FAILED(hr))

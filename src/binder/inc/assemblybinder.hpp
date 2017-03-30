@@ -46,7 +46,6 @@ namespace BINDER_SPACE
                                     /* in */  PEAssembly          *pParentAssembly,
                                     /* in */  BOOL                 fNgenExplicitBind,
                                     /* in */  BOOL                 fExplicitBindToNativeImage,
-                                    /* in */  BOOL                 fUseExplicitFilePath,
                                     /* in */  bool                 excludeAppPaths,
                                     /* out */ Assembly           **ppAssembly);
 
@@ -140,7 +139,6 @@ namespace BINDER_SPACE
                                     /* in */  PathString         &assemblyPath,
                                     /* in */  BOOL                fNgenExplicitBind,
                                     /* in */  BOOL                fExplicitBindToNativeImage,
-                                    /* in */  BOOL                fUseExplicitFilePath,
                                     /* in */  bool                excludeAppPaths,
                                     /* out */ BindResult         *pBindResult);
 
