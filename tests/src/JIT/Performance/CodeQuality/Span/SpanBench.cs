@@ -1009,7 +1009,7 @@ namespace Span
                 Array.Clear(array, 0, length);
         }
         #endregion
-
+#if false
         #region TestSpanAsBytes<T>
         [Benchmark(InnerIterationCount = BaseIterations)]
         [InlineData(1)]
@@ -1108,8 +1108,46 @@ namespace Span
         }
         #endregion
 
-       
+        #region TestSpanSliceStringChar<T>
+        
+        [Benchmark(InnerIterationCount = BaseIterations)]
+        [InlineData(1)]
+        [InlineData(10)]
+        [InlineData(100)]
+        [InlineData(1000)]
+        public static void TestSpanSliceStringCharWrapper(int length)
+        {
+            StringBuilder sb = new StringBuilder();
+            Random rand = new Random(42);
+            char[] c = new char[1];
+            for (int i = 0; i < length; i++)
+            {
+                c[0] = (char)rand.Next(32, 126);
+                sb.Append(new string(c));
+            }
+            string s = sb.ToString();
 
+            Invoke((int innerIterationCount) => TestSpanSliceStringChar(s, innerIterationCount, false),
+                "TestSpanSliceStringChar({0})", length);
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        static void TestSpanSliceStringChar(string s, int iterationCount, bool untrue)
+        {
+            var sink = Sink<char>.Instance;
+
+            for (int i = 0; i < iterationCount; i++)
+            {
+                var charSpan = s.AsSpan();
+                // Under a condition that we know is false but the jit doesn't,
+                // add a read from 'charSpan' to make sure it's not dead, and an assignment
+                // to 's' so the AsBytes call won't get hoisted.
+                if (untrue) { sink.Data = charSpan[0]; s = "block hoisting the call to Slice()"; }
+            }
+        }
+
+        #endregion      
+ #endif
         #endregion // TestSpanAPIs
 
 
