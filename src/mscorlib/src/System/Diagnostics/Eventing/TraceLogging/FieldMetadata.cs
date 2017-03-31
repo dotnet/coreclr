@@ -16,8 +16,7 @@ namespace System.Diagnostics.Tracing
     /// TraceLogging: Contains the information needed to generate tracelogging
     /// metadata for an event field.
     /// </summary>
-    internal class FieldMetadata
-    {
+    internal class FieldMetadata {
         /// <summary>
         /// Name of the field
         /// </summary>
@@ -54,8 +53,7 @@ namespace System.Diagnostics.Tracing
                 tags,
                 variableCount ? Statics.InTypeVariableCountFlag : (byte)0,
                 0,
-                null)
-        {
+                null) {
             return;
         }
 
@@ -73,8 +71,7 @@ namespace System.Diagnostics.Tracing
                 tags,
                 Statics.InTypeFixedCountFlag,
                 fixedCount,
-                null)
-        {
+                null) {
             return;
         }
 
@@ -92,8 +89,7 @@ namespace System.Diagnostics.Tracing
                 tags,
                 Statics.InTypeCustomCountFlag,
                 checked((ushort)(custom == null ? 0 : custom.Length)),
-                custom)
-        {
+                custom) {
             return;
         }
 
@@ -103,10 +99,8 @@ namespace System.Diagnostics.Tracing
             EventFieldTags tags,
             byte countFlags,
             ushort fixedCount = 0,
-            byte[] custom = null)
-        {
-            if (name == null)
-            {
+            byte[] custom = null) {
+            if (name == null) {
                 throw new ArgumentNullException(
                     nameof(name),
                     "This usually means that the object passed to Write is of a type that"
@@ -124,42 +118,34 @@ namespace System.Diagnostics.Tracing
             this.fixedCount = fixedCount;
             this.custom = custom;
 
-            if (countFlags != 0)
-            {
-                if (coreType == (int)TraceLoggingDataType.Nil)
-                {
+            if (countFlags != 0) {
+                if (coreType == (int)TraceLoggingDataType.Nil) {
                     throw new NotSupportedException(Resources.GetResourceString("EventSource_NotSupportedArrayOfNil"));
                 }
-                if (coreType == (int)TraceLoggingDataType.Binary)
-                {
+                if (coreType == (int)TraceLoggingDataType.Binary) {
                     throw new NotSupportedException(Resources.GetResourceString("EventSource_NotSupportedArrayOfBinary"));
                 }
 #if !BROKEN_UNTIL_M3
                 if (coreType == (int)TraceLoggingDataType.Utf16String ||
-                    coreType == (int)TraceLoggingDataType.MbcsString)
-                {
+                    coreType == (int)TraceLoggingDataType.MbcsString) {
                     throw new NotSupportedException(Resources.GetResourceString("EventSource_NotSupportedArrayOfNullTerminatedString"));
                 }
 #endif
             }
 
-            if (((int)this.tags & 0xfffffff) != 0)
-            {
+            if (((int)this.tags & 0xfffffff) != 0) {
                 outType |= Statics.OutTypeChainFlag;
             }
 
-            if (outType != 0)
-            {
+            if (outType != 0) {
                 inType |= Statics.InTypeChainFlag;
             }
         }
 
-        public void IncrementStructFieldCount()
-        {
+        public void IncrementStructFieldCount() {
             inType |= Statics.InTypeChainFlag;
             outType++;
-            if ((outType & Statics.OutTypeMask) == 0)
-            {
+            if ((outType & Statics.OutTypeMask) == 0) {
                 throw new NotSupportedException(Resources.GetResourceString("EventSource_TooManyFields"));
             }
         }
@@ -173,43 +159,35 @@ namespace System.Diagnostics.Tracing
         /// for a 'two pass' approach where you figure out how big to make the array, and then you
         /// fill it in.   
         /// </summary>
-        public void Encode(ref int pos, byte[] metadata)
-        {
+        public void Encode(ref int pos, byte[] metadata) {
             // Write out the null terminated UTF8 encoded name
-            if (metadata != null)
-            {
+            if (metadata != null) {
                 Encoding.UTF8.GetBytes(name, 0, name.Length, metadata, pos);
             }
             pos += nameSize;
 
             // Write 1 byte for inType
-            if (metadata != null)
-            {
+            if (metadata != null) {
                 metadata[pos] = inType;
             }
             pos += 1;
 
             // If InTypeChainFlag set, then write out the outType
-            if (0 != (inType & Statics.InTypeChainFlag))
-            {
-                if (metadata != null)
-                {
+            if (0 != (inType & Statics.InTypeChainFlag)) {
+                if (metadata != null) {
                     metadata[pos] = outType;
                 }
                 pos += 1;
 
                 // If OutTypeChainFlag set, then write out tags
-                if (0 != (outType & Statics.OutTypeChainFlag))
-                {
+                if (0 != (outType & Statics.OutTypeChainFlag)) {
                     Statics.EncodeTags((int)tags, ref pos, metadata);
                 }
             }
 
             // If InTypeFixedCountFlag set, write out the fixedCount (2 bytes little endian)
-            if (0 != (inType & Statics.InTypeFixedCountFlag))
-            {
-                if (metadata != null)
-                {
+            if (0 != (inType & Statics.InTypeFixedCountFlag)) {
+                if (metadata != null) {
                     metadata[pos + 0] = unchecked((byte)fixedCount);
                     metadata[pos + 1] = (byte)(fixedCount >> 8);
                 }
@@ -217,10 +195,8 @@ namespace System.Diagnostics.Tracing
 
                 // If InTypeCustomCountFlag set, write out the blob of custom meta-data.  
                 if (Statics.InTypeCustomCountFlag == (inType & Statics.InTypeCountMask) &&
-                    fixedCount != 0)
-                {
-                    if (metadata != null)
-                    {
+                    fixedCount != 0) {
+                    if (metadata != null) {
                         Buffer.BlockCopy(custom, 0, metadata, pos, fixedCount);
                     }
                     pos += fixedCount;

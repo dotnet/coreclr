@@ -2,8 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-namespace Microsoft.Win32
-{
+namespace Microsoft.Win32 {
     using Microsoft.Win32;
     using Microsoft.Win32.SafeHandles;
     using System;
@@ -17,8 +16,7 @@ namespace Microsoft.Win32
     using System.Diagnostics.Tracing;
 
     [SuppressUnmanagedCodeSecurityAttribute()]
-    internal static class UnsafeNativeMethods
-    {
+    internal static class UnsafeNativeMethods {
         [DllImport(Win32Native.KERNEL32, EntryPoint = "GetTimeZoneInformation", SetLastError = true, ExactSpelling = true)]
         internal static extern int GetTimeZoneInformation(out Win32Native.TimeZoneInformation lpTimeZoneInformation);
 
@@ -63,8 +61,7 @@ namespace Microsoft.Win32
 
 
         [SuppressUnmanagedCodeSecurityAttribute()]
-        internal static unsafe class ManifestEtw
-        {
+        internal static unsafe class ManifestEtw {
             //
             // Constants error coded returned by ETW APIs
             //
@@ -129,8 +126,7 @@ namespace Microsoft.Win32
                     );
 
             [StructLayout(LayoutKind.Sequential)]
-            unsafe internal struct EVENT_FILTER_DESCRIPTOR
-            {
+            unsafe internal struct EVENT_FILTER_DESCRIPTOR {
                 public long Ptr;
                 public int Size;
                 public int Type;
@@ -146,11 +142,9 @@ namespace Microsoft.Win32
                                                          Guid* activityId,
                                                          Guid* relatedActivityId,
                                                          int userDataCount,
-                                                         EventProvider.EventData* userData)
-            {
+                                                         EventProvider.EventData* userData) {
                 int HResult = EventWriteTransfer(registrationHandle, ref eventDescriptor, activityId, relatedActivityId, userDataCount, userData);
-                if (HResult == ERROR_INVALID_PARAMETER && relatedActivityId == null)
-                {
+                if (HResult == ERROR_INVALID_PARAMETER && relatedActivityId == null) {
                     Guid emptyGuid = Guid.Empty;
                     HResult = EventWriteTransfer(registrationHandle, ref eventDescriptor, activityId, &emptyGuid, userDataCount, userData);
                 }
@@ -170,8 +164,7 @@ namespace Microsoft.Win32
                     [In] EventProvider.EventData* userData
                     );
 
-            internal enum ActivityControl : uint
-            {
+            internal enum ActivityControl : uint {
                 EVENT_ACTIVITY_CTRL_GET_ID = 1,
                 EVENT_ACTIVITY_CTRL_SET_ID = 2,
                 EVENT_ACTIVITY_CTRL_CREATE_ID = 3,
@@ -184,8 +177,7 @@ namespace Microsoft.Win32
             [SuppressUnmanagedCodeSecurityAttribute]        // Don't do security checks 
             internal static extern int EventActivityIdControl([In] ActivityControl ControlCode, [In][Out] ref Guid ActivityId);
 
-            internal enum EVENT_INFO_CLASS
-            {
+            internal enum EVENT_INFO_CLASS {
                 BinaryTrackInfo,
                 SetEnableAllKeywords,
                 SetTraits,
@@ -201,8 +193,7 @@ namespace Microsoft.Win32
                 [In] int informationLength);
 
             // Support for EnumerateTraceGuidsEx
-            internal enum TRACE_QUERY_INFO_CLASS
-            {
+            internal enum TRACE_QUERY_INFO_CLASS {
                 TraceGuidQueryList,
                 TraceGuidQueryInfo,
                 TraceGuidQueryProcess,
@@ -210,22 +201,19 @@ namespace Microsoft.Win32
                 MaxTraceSetInfoClass
             };
 
-            internal struct TRACE_GUID_INFO
-            {
+            internal struct TRACE_GUID_INFO {
                 public int InstanceCount;
                 public int Reserved;
             };
 
-            internal struct TRACE_PROVIDER_INSTANCE_INFO
-            {
+            internal struct TRACE_PROVIDER_INSTANCE_INFO {
                 public int NextOffset;
                 public int EnableCount;
                 public int Pid;
                 public int Flags;
             };
 
-            internal struct TRACE_ENABLE_INFO
-            {
+            internal struct TRACE_ENABLE_INFO {
                 public int IsEnabled;
                 public byte Level;
                 public byte Reserved1;

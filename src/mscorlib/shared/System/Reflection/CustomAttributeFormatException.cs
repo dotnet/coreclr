@@ -4,30 +4,24 @@
 
 using System.Runtime.Serialization;
 
-namespace System.Reflection
-{
+namespace System.Reflection {
     [Serializable]
-    public class CustomAttributeFormatException : FormatException
-    {
+    public class CustomAttributeFormatException : FormatException {
         public CustomAttributeFormatException()
-            : this(SR.Arg_CustomAttributeFormatException)
-        {
+            : this(SR.Arg_CustomAttributeFormatException) {
         }
 
         public CustomAttributeFormatException(string message)
-            : this(message, null)
-        {
+            : this(message, null) {
         }
 
         public CustomAttributeFormatException(string message, Exception inner)
-            : base(message, inner)
-        {
+            : base(message, inner) {
             HResult = __HResults.COR_E_CUSTOMATTRIBUTEFORMAT;
         }
 
         protected CustomAttributeFormatException(SerializationInfo info, StreamingContext context)
-            : base(info, context)
-        {
+            : base(info, context) {
         }
     }
 }

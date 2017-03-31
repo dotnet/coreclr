@@ -15,8 +15,7 @@ namespace System.Diagnostics.Tracing
     /// Optional overrides for event settings such as Level, Keywords, or Opcode.
     /// If overrides are not provided for a setting, default values will be used.
     /// </summary>
-    public struct EventSourceOptions
-    {
+    public struct EventSourceOptions {
         internal EventKeywords keywords;
         internal EventTags tags;
         internal EventActivityOptions activityOptions;
@@ -34,15 +33,12 @@ namespace System.Diagnostics.Tracing
         /// Gets or sets the level to use for the specified event. If this property
         /// is unset, the event's level will be 5 (Verbose).
         /// </summary>
-        public EventLevel Level
-        {
-            get
-            {
+        public EventLevel Level {
+            get {
                 return (EventLevel)this.level;
             }
 
-            set
-            {
+            set {
                 this.level = checked((byte)value);
                 this.valuesSet |= levelSet;
             }
@@ -52,24 +48,19 @@ namespace System.Diagnostics.Tracing
         /// Gets or sets the opcode to use for the specified event. If this property
         /// is unset, the event's opcode will 0 (Info).
         /// </summary>
-        public EventOpcode Opcode
-        {
-            get
-            {
+        public EventOpcode Opcode {
+            get {
                 return (EventOpcode)this.opcode;
             }
 
-            set
-            {
+            set {
                 this.opcode = checked((byte)value);
                 this.valuesSet |= opcodeSet;
             }
         }
 
-        internal bool IsOpcodeSet
-        {
-            get
-            {
+        internal bool IsOpcodeSet {
+            get {
                 return (this.valuesSet & opcodeSet) != 0;
             }
         }
@@ -78,15 +69,12 @@ namespace System.Diagnostics.Tracing
         /// Gets or sets the keywords to use for the specified event. If this
         /// property is unset, the event's keywords will be 0.
         /// </summary>
-        public EventKeywords Keywords
-        {
-            get
-            {
+        public EventKeywords Keywords {
+            get {
                 return this.keywords;
             }
 
-            set
-            {
+            set {
                 this.keywords = value;
                 this.valuesSet |= keywordsSet;
             }
@@ -96,15 +84,12 @@ namespace System.Diagnostics.Tracing
         /// Gets or sets the tags to use for the specified event. If this property is
         /// unset, the event's tags will be 0.
         /// </summary>
-        public EventTags Tags
-        {
-            get
-            {
+        public EventTags Tags {
+            get {
                 return this.tags;
             }
 
-            set
-            {
+            set {
                 this.tags = value;
                 this.valuesSet |= tagsSet;
             }
@@ -114,14 +99,11 @@ namespace System.Diagnostics.Tracing
         /// Gets or sets the activity options for this specified events. If this property is
         /// unset, the event's activity options will be 0.
         /// </summary>
-        public EventActivityOptions ActivityOptions
-        {
-            get
-            {
+        public EventActivityOptions ActivityOptions {
+            get {
                 return this.activityOptions;
             }
-            set
-            {
+            set {
                 this.activityOptions = value;
                 this.valuesSet |= activityOptionsSet;
             }

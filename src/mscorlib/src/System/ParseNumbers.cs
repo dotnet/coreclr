@@ -18,10 +18,8 @@ using System;
 using System.Runtime.CompilerServices;
 using System.Runtime.Versioning;
 
-namespace System
-{
-    internal static class ParseNumbers
-    {
+namespace System {
+    internal static class ParseNumbers {
         internal const int PrintAsI1 = 0x40;
         internal const int PrintAsI2 = 0x80;
         internal const int PrintAsI4 = 0x100;
@@ -36,32 +34,26 @@ namespace System
         // NATIVE METHODS
         // For comments on these methods please see $\src\vm\COMUtilNative.cpp
         //
-        public unsafe static long StringToLong(System.String s, int radix, int flags)
-        {
+        public unsafe static long StringToLong(System.String s, int radix, int flags) {
             return StringToLong(s, radix, flags, null);
         }
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         public unsafe extern static long StringToLong(System.String s, int radix, int flags, int* currPos);
 
-        public unsafe static long StringToLong(System.String s, int radix, int flags, ref int currPos)
-        {
-            fixed (int* ppos = &currPos)
-            {
+        public unsafe static long StringToLong(System.String s, int radix, int flags, ref int currPos) {
+            fixed (int* ppos = &currPos) {
                 return StringToLong(s, radix, flags, ppos);
             }
         }
 
-        public unsafe static int StringToInt(System.String s, int radix, int flags)
-        {
+        public unsafe static int StringToInt(System.String s, int radix, int flags) {
             return StringToInt(s, radix, flags, null);
         }
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         public unsafe extern static int StringToInt(System.String s, int radix, int flags, int* currPos);
 
-        public unsafe static int StringToInt(System.String s, int radix, int flags, ref int currPos)
-        {
-            fixed (int* ppos = &currPos)
-            {
+        public unsafe static int StringToInt(System.String s, int radix, int flags, ref int currPos) {
+            fixed (int* ppos = &currPos) {
                 return StringToInt(s, radix, flags, ppos);
             }
         }

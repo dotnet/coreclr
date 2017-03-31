@@ -17,59 +17,48 @@
 using System.Globalization;
 using System.Runtime.Serialization;
 
-namespace System
-{
+namespace System {
     [Serializable]
-    public sealed class TypeInitializationException : SystemException
-    {
+    public sealed class TypeInitializationException : SystemException {
         private String _typeName;
 
         // This exception is not creatable without specifying the
         //    inner exception.
         private TypeInitializationException()
-            : base(SR.TypeInitialization_Default)
-        {
+            : base(SR.TypeInitialization_Default) {
             HResult = __HResults.COR_E_TYPEINITIALIZATION;
         }
 
 
         public TypeInitializationException(String fullTypeName, Exception innerException)
-            : this(fullTypeName, SR.Format(SR.TypeInitialization_Type, fullTypeName), innerException)
-        {
+            : this(fullTypeName, SR.Format(SR.TypeInitialization_Type, fullTypeName), innerException) {
         }
 
         // This is called from within the runtime.  I believe this is necessary
         // for Interop only, though it's not particularly useful.
-        internal TypeInitializationException(String message) : base(message)
-        {
+        internal TypeInitializationException(String message) : base(message) {
             HResult = __HResults.COR_E_TYPEINITIALIZATION;
         }
 
         internal TypeInitializationException(String fullTypeName, String message, Exception innerException)
-            : base(message, innerException)
-        {
+            : base(message, innerException) {
             _typeName = fullTypeName;
             HResult = __HResults.COR_E_TYPEINITIALIZATION;
         }
 
         internal TypeInitializationException(SerializationInfo info, StreamingContext context)
-            : base(info, context)
-        {
+            : base(info, context) {
             _typeName = info.GetString("TypeName");
         }
 
-        public override void GetObjectData(SerializationInfo info, StreamingContext context)
-        {
+        public override void GetObjectData(SerializationInfo info, StreamingContext context) {
             base.GetObjectData(info, context);
             info.AddValue("TypeName", TypeName, typeof(String));
         }
 
-        public String TypeName
-        {
-            get
-            {
-                if (_typeName == null)
-                {
+        public String TypeName {
+            get {
+                if (_typeName == null) {
                     return String.Empty;
                 }
                 return _typeName;

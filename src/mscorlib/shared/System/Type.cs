@@ -8,10 +8,8 @@ using System.Diagnostics;
 using System.Globalization;
 using System.Runtime.InteropServices;
 
-namespace System
-{
-    public abstract partial class Type : MemberInfo, IReflect
-    {
+namespace System {
+    public abstract partial class Type : MemberInfo, IReflect {
         protected Type() { }
 
         public override MemberTypes MemberType => MemberTypes.TypeInfo;
@@ -57,8 +55,7 @@ namespace System
 
         public virtual int GenericParameterPosition { get { throw new InvalidOperationException(SR.Arg_NotGenericParameter); } }
         public virtual GenericParameterAttributes GenericParameterAttributes { get { throw new NotSupportedException(); } }
-        public virtual Type[] GetGenericParameterConstraints()
-        {
+        public virtual Type[] GetGenericParameterConstraints() {
             if (!IsGenericParameter)
                 throw new InvalidOperationException(SR.Arg_NotGenericParameter);
             throw new InvalidOperationException();
@@ -113,12 +110,10 @@ namespace System
 
         public ConstructorInfo GetConstructor(Type[] types) => GetConstructor(BindingFlags.Public | BindingFlags.Instance, null, types, null);
         public ConstructorInfo GetConstructor(BindingFlags bindingAttr, Binder binder, Type[] types, ParameterModifier[] modifiers) => GetConstructor(bindingAttr, binder, CallingConventions.Any, types, modifiers);
-        public ConstructorInfo GetConstructor(BindingFlags bindingAttr, Binder binder, CallingConventions callConvention, Type[] types, ParameterModifier[] modifiers)
-        {
+        public ConstructorInfo GetConstructor(BindingFlags bindingAttr, Binder binder, CallingConventions callConvention, Type[] types, ParameterModifier[] modifiers) {
             if (types == null)
                 throw new ArgumentNullException(nameof(types));
-            for (int i = 0; i < types.Length; i++)
-            {
+            for (int i = 0; i < types.Length; i++) {
                 if (types[i] == null)
                     throw new ArgumentNullException(nameof(types));
             }
@@ -149,8 +144,7 @@ namespace System
         public abstract MemberInfo[] GetMembers(BindingFlags bindingAttr);
 
         public MethodInfo GetMethod(string name) => GetMethod(name, Type.DefaultLookup);
-        public MethodInfo GetMethod(string name, BindingFlags bindingAttr)
-        {
+        public MethodInfo GetMethod(string name, BindingFlags bindingAttr) {
             if (name == null)
                 throw new ArgumentNullException(nameof(name));
             return GetMethodImpl(name, bindingAttr, null, CallingConventions.Any, null, null);
@@ -159,14 +153,12 @@ namespace System
         public MethodInfo GetMethod(string name, Type[] types) => GetMethod(name, types, null);
         public MethodInfo GetMethod(string name, Type[] types, ParameterModifier[] modifiers) => GetMethod(name, Type.DefaultLookup, null, types, modifiers);
         public MethodInfo GetMethod(string name, BindingFlags bindingAttr, Binder binder, Type[] types, ParameterModifier[] modifiers) => GetMethod(name, bindingAttr, binder, CallingConventions.Any, types, modifiers);
-        public MethodInfo GetMethod(string name, BindingFlags bindingAttr, Binder binder, CallingConventions callConvention, Type[] types, ParameterModifier[] modifiers)
-        {
+        public MethodInfo GetMethod(string name, BindingFlags bindingAttr, Binder binder, CallingConventions callConvention, Type[] types, ParameterModifier[] modifiers) {
             if (name == null)
                 throw new ArgumentNullException(nameof(name));
             if (types == null)
                 throw new ArgumentNullException(nameof(types));
-            for (int i = 0; i < types.Length; i++)
-            {
+            for (int i = 0; i < types.Length; i++) {
                 if (types[i] == null)
                     throw new ArgumentNullException(nameof(types));
             }
@@ -185,15 +177,13 @@ namespace System
         public abstract Type[] GetNestedTypes(BindingFlags bindingAttr);
 
         public PropertyInfo GetProperty(string name) => GetProperty(name, Type.DefaultLookup);
-        public PropertyInfo GetProperty(string name, BindingFlags bindingAttr)
-        {
+        public PropertyInfo GetProperty(string name, BindingFlags bindingAttr) {
             if (name == null)
                 throw new ArgumentNullException(nameof(name));
             return GetPropertyImpl(name, bindingAttr, null, null, null, null);
         }
 
-        public PropertyInfo GetProperty(string name, Type returnType)
-        {
+        public PropertyInfo GetProperty(string name, Type returnType) {
             if (name == null)
                 throw new ArgumentNullException(nameof(name));
             if (returnType == null)
@@ -204,8 +194,7 @@ namespace System
         public PropertyInfo GetProperty(string name, Type[] types) => GetProperty(name, null, types);
         public PropertyInfo GetProperty(string name, Type returnType, Type[] types) => GetProperty(name, returnType, types, null);
         public PropertyInfo GetProperty(string name, Type returnType, Type[] types, ParameterModifier[] modifiers) => GetProperty(name, Type.DefaultLookup, null, returnType, types, modifiers);
-        public PropertyInfo GetProperty(string name, BindingFlags bindingAttr, Binder binder, Type returnType, Type[] types, ParameterModifier[] modifiers)
-        {
+        public PropertyInfo GetProperty(string name, BindingFlags bindingAttr, Binder binder, Type returnType, Type[] types, ParameterModifier[] modifiers) {
             if (name == null)
                 throw new ArgumentNullException(nameof(name));
             if (types == null)
@@ -221,22 +210,19 @@ namespace System
         public virtual MemberInfo[] GetDefaultMembers() { throw NotImplemented.ByDesign; }
 
         public virtual RuntimeTypeHandle TypeHandle { get { throw new NotSupportedException(); } }
-        public static RuntimeTypeHandle GetTypeHandle(object o)
-        {
+        public static RuntimeTypeHandle GetTypeHandle(object o) {
             if (o == null)
                 throw new ArgumentNullException(null, SR.Arg_InvalidHandle);
             Type type = o.GetType();
             return type.TypeHandle;
         }
 
-        public static Type[] GetTypeArray(object[] args)
-        {
+        public static Type[] GetTypeArray(object[] args) {
             if (args == null)
                 throw new ArgumentNullException(nameof(args));
 
             Type[] cls = new Type[args.Length];
-            for (int i = 0; i < cls.Length; i++)
-            {
+            for (int i = 0; i < cls.Length; i++) {
                 if (args[i] == null)
                     throw new ArgumentNullException();
                 cls[i] = args[i].GetType();
@@ -244,14 +230,12 @@ namespace System
             return cls;
         }
 
-        public static TypeCode GetTypeCode(Type type)
-        {
+        public static TypeCode GetTypeCode(Type type) {
             if (type == null)
                 return TypeCode.Empty;
             return type.GetTypeCodeImpl();
         }
-        protected virtual TypeCode GetTypeCodeImpl()
-        {
+        protected virtual TypeCode GetTypeCodeImpl() {
             if (this != UnderlyingSystemType && UnderlyingSystemType != null)
                 return Type.GetTypeCode(UnderlyingSystemType);
 
@@ -288,8 +272,7 @@ namespace System
         public virtual bool IsInstanceOfType(object o) => o == null ? false : IsAssignableFrom(o.GetType());
         public virtual bool IsEquivalentTo(Type other) => this == other;
 
-        public virtual Type GetEnumUnderlyingType()
-        {
+        public virtual Type GetEnumUnderlyingType() {
             if (!IsEnum)
                 throw new ArgumentException(SR.Arg_MustBeEnum, "enumType");
 
@@ -299,8 +282,7 @@ namespace System
 
             return fields[0].FieldType;
         }
-        public virtual Array GetEnumValues()
-        {
+        public virtual Array GetEnumValues() {
             if (!IsEnum)
                 throw new ArgumentException(SR.Arg_MustBeEnum, "enumType");
 
@@ -318,8 +300,7 @@ namespace System
         public override string ToString() => "Type: " + Name;  // Why do we add the "Type: " prefix?
 
         public override bool Equals(object o) => o == null ? false : Equals(o as Type);
-        public override int GetHashCode()
-        {
+        public override int GetHashCode() {
             Type systemType = UnderlyingSystemType;
             if (!object.ReferenceEquals(systemType, this))
                 return systemType.GetHashCode();
@@ -329,12 +310,9 @@ namespace System
 
         public static Type ReflectionOnlyGetType(string typeName, bool throwIfNotFound, bool ignoreCase) { throw new PlatformNotSupportedException(SR.PlatformNotSupported_ReflectionOnly); }
 
-        public static Binder DefaultBinder
-        {
-            get
-            {
-                if (s_defaultBinder == null)
-                {
+        public static Binder DefaultBinder {
+            get {
+                if (s_defaultBinder == null) {
                     DefaultBinder binder = new DefaultBinder();
                     Interlocked.CompareExchange<Binder>(ref s_defaultBinder, binder, null);
                 }

@@ -4,32 +4,26 @@
 
 using System.Runtime.Serialization;
 
-namespace System.Reflection
-{
+namespace System.Reflection {
     [Serializable]
-    public sealed class AmbiguousMatchException : SystemException
-    {
+    public sealed class AmbiguousMatchException : SystemException {
         public AmbiguousMatchException()
-            : base(SR.RFLCT_Ambiguous)
-        {
+            : base(SR.RFLCT_Ambiguous) {
             HResult = __HResults.COR_E_AMBIGUOUSMATCH;
         }
 
         public AmbiguousMatchException(string message)
-            : base(message)
-        {
+            : base(message) {
             HResult = __HResults.COR_E_AMBIGUOUSMATCH;
         }
 
         public AmbiguousMatchException(string message, Exception inner)
-            : base(message, inner)
-        {
+            : base(message, inner) {
             HResult = __HResults.COR_E_AMBIGUOUSMATCH;
         }
 
         internal AmbiguousMatchException(SerializationInfo info, StreamingContext context)
-            : base(info, context)
-        {
+            : base(info, context) {
         }
     }
 }

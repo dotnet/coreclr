@@ -6,22 +6,17 @@
 using System;
 using System.Reflection;
 
-namespace System.Runtime.CompilerServices
-{
+namespace System.Runtime.CompilerServices {
     [AttributeUsage(AttributeTargets.Assembly, AllowMultiple = true, Inherited = false)]
-    public sealed class TypeForwardedToAttribute : Attribute
-    {
+    public sealed class TypeForwardedToAttribute : Attribute {
         private Type _destination;
 
-        public TypeForwardedToAttribute(Type destination)
-        {
+        public TypeForwardedToAttribute(Type destination) {
             _destination = destination;
         }
 
-        public Type Destination
-        {
-            get
-            {
+        public Type Destination {
+            get {
                 return _destination;
             }
         }

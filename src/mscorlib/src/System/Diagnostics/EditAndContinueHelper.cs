@@ -14,11 +14,9 @@
 
 using System;
 
-namespace System.Diagnostics
-{
+namespace System.Diagnostics {
     [Serializable]
-    internal sealed class EditAndContinueHelper
-    {
+    internal sealed class EditAndContinueHelper {
 #pragma warning disable 169
 #pragma warning disable 414  // Field is not used from managed.
         private Object _objectReference;

@@ -2,8 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-namespace System.Text
-{
+namespace System.Text {
     using System;
     using System.Diagnostics.Contracts;
     using System.Collections;
@@ -15,10 +14,8 @@ namespace System.Text
     // This class overrides Encoding with the things we need for our NLS Encodings
 
     [Serializable]
-    internal abstract class EncodingNLS : Encoding
-    {
-        protected EncodingNLS(int codePage) : base(codePage)
-        {
+    internal abstract class EncodingNLS : Encoding {
+        protected EncodingNLS(int codePage) : base(codePage) {
         }
 
         // NOTE: Many methods in this class forward to EncodingForwarder for
@@ -38,24 +35,20 @@ namespace System.Text
         // Returns the number of bytes required to encode a range of characters in
         // a character array.
 
-        public override int GetByteCount(char[] chars, int index, int count)
-        {
+        public override int GetByteCount(char[] chars, int index, int count) {
             return EncodingForwarder.GetByteCount(this, chars, index, count);
         }
 
-        public override int GetByteCount(String s)
-        {
+        public override int GetByteCount(String s) {
             return EncodingForwarder.GetByteCount(this, s);
         }
 
-        public override unsafe int GetByteCount(char* chars, int count)
-        {
+        public override unsafe int GetByteCount(char* chars, int count) {
             return EncodingForwarder.GetByteCount(this, chars, count);
         }
 
         public override int GetBytes(String s, int charIndex, int charCount,
-                                              byte[] bytes, int byteIndex)
-        {
+                                              byte[] bytes, int byteIndex) {
             return EncodingForwarder.GetBytes(this, s, charIndex, charCount, bytes, byteIndex);
         }
 
@@ -69,55 +62,46 @@ namespace System.Text
         // number of characters, regardless of the actual character values.
 
         public override int GetBytes(char[] chars, int charIndex, int charCount,
-                                               byte[] bytes, int byteIndex)
-        {
+                                               byte[] bytes, int byteIndex) {
             return EncodingForwarder.GetBytes(this, chars, charIndex, charCount, bytes, byteIndex);
         }
 
-        public override unsafe int GetBytes(char* chars, int charCount, byte* bytes, int byteCount)
-        {
+        public override unsafe int GetBytes(char* chars, int charCount, byte* bytes, int byteCount) {
             return EncodingForwarder.GetBytes(this, chars, charCount, bytes, byteCount);
         }
 
         // Returns the number of characters produced by decoding a range of bytes
         // in a byte array.
 
-        public override int GetCharCount(byte[] bytes, int index, int count)
-        {
+        public override int GetCharCount(byte[] bytes, int index, int count) {
             return EncodingForwarder.GetCharCount(this, bytes, index, count);
         }
 
-        public override unsafe int GetCharCount(byte* bytes, int count)
-        {
+        public override unsafe int GetCharCount(byte* bytes, int count) {
             return EncodingForwarder.GetCharCount(this, bytes, count);
         }
 
         public override int GetChars(byte[] bytes, int byteIndex, int byteCount,
-                                              char[] chars, int charIndex)
-        {
+                                              char[] chars, int charIndex) {
             return EncodingForwarder.GetChars(this, bytes, byteIndex, byteCount, chars, charIndex);
         }
 
-        public unsafe override int GetChars(byte* bytes, int byteCount, char* chars, int charCount)
-        {
+        public unsafe override int GetChars(byte* bytes, int byteCount, char* chars, int charCount) {
             return EncodingForwarder.GetChars(this, bytes, byteCount, chars, charCount);
         }
 
         // Returns a string containing the decoded representation of a range of
         // bytes in a byte array.
 
-        public override String GetString(byte[] bytes, int index, int count)
-        {
+        public override String GetString(byte[] bytes, int index, int count) {
             return EncodingForwarder.GetString(this, bytes, index, count);
         }
 
-        public override Decoder GetDecoder()
-        {
+        public override Decoder GetDecoder() {
             return new DecoderNLS(this);
         }
 
-        public override Encoder GetEncoder()
-        {
+        public override Encoder GetEncoder() {
             return new EncoderNLS(this);
         }
     }

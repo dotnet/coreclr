@@ -19,53 +19,44 @@ namespace System.Threading
 namespace System
 #endif
 {
-    internal sealed class PinnableBufferCache
-    {
+    internal sealed class PinnableBufferCache {
         /// <summary>
         /// Create a PinnableBufferCache that works on any object (it is intended for OverlappedData)
         /// This is only used in mscorlib.
         /// </summary>
-        internal PinnableBufferCache(string cacheName, Func<object> factory)
-        {
+        internal PinnableBufferCache(string cacheName, Func<object> factory) {
             m_NotGen2 = new List<object>(DefaultNumberOfBuffers);
             m_factory = factory;
 #if ENABLE
             // Check to see if we should disable the cache.
             string envVarName = "PinnableBufferCache_" + cacheName + "_Disabled";
-            try
-            {
+            try {
                 string envVar = Environment.GetEnvironmentVariable(envVarName);
-                if (envVar != null)
-                {
+                if (envVar != null) {
                     PinnableBufferCacheEventSource.Log.DebugMessage("Creating " + cacheName + " PinnableBufferCacheDisabled=" + envVar);
                     int index = envVar.IndexOf(cacheName, StringComparison.OrdinalIgnoreCase);
-                    if (0 <= index)
-                    {
+                    if (0 <= index) {
                         // The cache is disabled because we haven't set the cache name.
                         PinnableBufferCacheEventSource.Log.DebugMessage("Disabling " + cacheName);
                         return;
                     }
                 }
             }
-            catch
-            {
+            catch {
                 // Ignore failures when reading the environment variable.
             }
 #endif
 #if MINBUFFERS
             // Allow the environment to specify a minimum buffer count.
             string minEnvVarName = "PinnableBufferCache_" + cacheName + "_MinCount";
-            try
-            {
+            try {
                 string minEnvVar = Environment.GetEnvironmentVariable(minEnvVarName);
-                if (minEnvVar != null)
-                {
+                if (minEnvVar != null) {
                     if (int.TryParse(minEnvVar, out m_minBufferCount))
                         CreateNewBuffers();
                 }
             }
-            catch
-            {
+            catch {
                 // Ignore failures when reading the environment variable.
             }
 #endif
@@ -77,8 +68,7 @@ namespace System
         /// <summary>
         /// Get a object from the buffer manager.  If no buffers exist, allocate a new one.
         /// </summary>
-        internal object Allocate()
-        {
+        internal object Allocate() {
 #if ENABLE
             // Check to see whether or not the cache is disabled.
             if (m_CacheName == null)
@@ -90,21 +80,15 @@ namespace System
                 Restock(out returnBuffer);
 
             // Computing free count is expensive enough that we don't want to compute it unless logging is on.
-            if (PinnableBufferCacheEventSource.Log.IsEnabled())
-            {
+            if (PinnableBufferCacheEventSource.Log.IsEnabled()) {
                 int numAllocCalls = Interlocked.Increment(ref m_numAllocCalls);
-                if (numAllocCalls >= 1024)
-                {
-                    lock (this)
-                    {
+                if (numAllocCalls >= 1024) {
+                    lock (this) {
                         int previousNumAllocCalls = Interlocked.Exchange(ref m_numAllocCalls, 0);
-                        if (previousNumAllocCalls >= 1024)
-                        {
+                        if (previousNumAllocCalls >= 1024) {
                             int nonGen2Count = 0;
-                            foreach (object o in m_FreeList)
-                            {
-                                if (GC.GetGeneration(o) < GC.MaxGeneration)
-                                {
+                            foreach (object o in m_FreeList) {
+                                if (GC.GetGeneration(o) < GC.MaxGeneration) {
                                     nonGen2Count++;
                                 }
                             }
@@ -122,8 +106,7 @@ namespace System
         /// <summary>
         /// Return a buffer back to the buffer manager.
         /// </summary>
-        internal void Free(object buffer)
-        {
+        internal void Free(object buffer) {
 #if ENABLE
             // Check to see whether or not the cache is disabled.
             if (m_CacheName == null)
@@ -134,12 +117,9 @@ namespace System
 
 
             // After we've done 3 gen1 GCs, assume that all buffers have aged into gen2 on the free path.
-            if ((m_gen1CountAtLastRestock + 3) > GC.CollectionCount(GC.MaxGeneration - 1))
-            {
-                lock (this)
-                {
-                    if (GC.GetGeneration(buffer) < GC.MaxGeneration)
-                    {
+            if ((m_gen1CountAtLastRestock + 3) > GC.CollectionCount(GC.MaxGeneration - 1)) {
+                lock (this) {
+                    if (GC.GetGeneration(buffer) < GC.MaxGeneration) {
                         // The buffer is not aged, so put it in the non-aged free list.
                         m_moreThanFreeListNeeded = true;
                         PinnableBufferCacheEventSource.Log.FreeBufferStillTooYoung(m_CacheName, m_NotGen2.Count);
@@ -160,10 +140,8 @@ namespace System
         /// Called when we don't have any buffers in our free list to give out.    
         /// </summary>
         /// <returns></returns>
-        private void Restock(out object returnBuffer)
-        {
-            lock (this)
-            {
+        private void Restock(out object returnBuffer) {
+            lock (this) {
                 // Try again after getting the lock as another thread could have just filled the free list.  If we don't check
                 // then we unnecessarily grab a new set of buffers because we think we are out.     
                 if (m_FreeList.TryPop(out returnBuffer))
@@ -190,18 +168,15 @@ namespace System
                 m_NotGen2.RemoveAt(idx);
 
                 // Remember any sub-optimial buffer so we don't put it on the free list when it gets freed.   
-                if (PinnableBufferCacheEventSource.Log.IsEnabled() && GC.GetGeneration(returnBuffer) < GC.MaxGeneration)
-                {
+                if (PinnableBufferCacheEventSource.Log.IsEnabled() && GC.GetGeneration(returnBuffer) < GC.MaxGeneration) {
                     PinnableBufferCacheEventSource.Log.AllocateBufferFromNotGen2(m_CacheName, m_NotGen2.Count);
                 }
 
                 // If we have a Gen1 collection, then everything on m_NotGen2 should have aged.  Move them to the m_Free list.  
-                if (!AgePendingBuffers())
-                {
+                if (!AgePendingBuffers()) {
                     // Before we could age at set of buffers, we have handed out half of them.
                     // This implies we should be proactive about allocating more (since we will trim them if we over-allocate).  
-                    if (m_NotGen2.Count == m_restockSize / 2)
-                    {
+                    if (m_NotGen2.Count == m_restockSize / 2) {
                         PinnableBufferCacheEventSource.Log.DebugMessage("Proactively adding more buffers to aging pool");
                         CreateNewBuffers();
                     }
@@ -212,26 +187,21 @@ namespace System
         /// <summary>
         /// See if we can promote the buffers to the free list.  Returns true if sucessful. 
         /// </summary>
-        private bool AgePendingBuffers()
-        {
-            if (m_gen1CountAtLastRestock < GC.CollectionCount(GC.MaxGeneration - 1))
-            {
+        private bool AgePendingBuffers() {
+            if (m_gen1CountAtLastRestock < GC.CollectionCount(GC.MaxGeneration - 1)) {
                 // Allocate a temp list of buffers that are not actually in gen2, and swap it in once
                 // we're done scanning all buffers.
                 int promotedCount = 0;
                 List<object> notInGen2 = new List<object>();
                 PinnableBufferCacheEventSource.Log.AllocateBufferAged(m_CacheName, m_NotGen2.Count);
-                for (int i = 0; i < m_NotGen2.Count; i++)
-                {
+                for (int i = 0; i < m_NotGen2.Count; i++) {
                     // We actually check every object to ensure that we aren't putting non-aged buffers into the free list.
                     object currentBuffer = m_NotGen2[i];
-                    if (GC.GetGeneration(currentBuffer) >= GC.MaxGeneration)
-                    {
+                    if (GC.GetGeneration(currentBuffer) >= GC.MaxGeneration) {
                         m_FreeList.Push(currentBuffer);
                         promotedCount++;
                     }
-                    else
-                    {
+                    else {
                         notInGen2.Add(currentBuffer);
                     }
                 }
@@ -246,8 +216,7 @@ namespace System
         /// <summary>
         /// Generates some buffers to age into Gen2.
         /// </summary>
-        private void CreateNewBuffers()
-        {
+        private void CreateNewBuffers() {
             // We choose a very modest number of buffers initially because for the client case.  This is often enough.
             if (m_restockSize == 0)
                 m_restockSize = 4;
@@ -265,8 +234,7 @@ namespace System
                 m_restockSize = Math.Max(m_restockSize, m_minBufferCount - m_buffersUnderManagement);
 
             PinnableBufferCacheEventSource.Log.AllocateBufferCreatingNewBuffers(m_CacheName, m_buffersUnderManagement, m_restockSize);
-            for (int i = 0; i < m_restockSize; i++)
-            {
+            for (int i = 0; i < m_restockSize; i++) {
                 // Make a new buffer.
                 object newBuffer = m_factory();
 
@@ -287,8 +255,7 @@ namespace System
         /// otherwise, we root the cache to the Gen2GcCallback object, and leak the cache even when
         /// the application no longer needs it.
         /// </summary>
-        private static bool Gen2GcCallbackFunc(object targetObj)
-        {
+        private static bool Gen2GcCallbackFunc(object targetObj) {
             return ((PinnableBufferCache)(targetObj)).TrimFreeListIfNeeded();
         }
 
@@ -297,16 +264,14 @@ namespace System
         /// NOTE: DO NOT CALL THIS DIRECTLY FROM THE GEN2GCCALLBACK.  INSTEAD CALL IT VIA A STATIC FUNCTION (SEE ABOVE).
         /// If you register a non-static function as a callback, then this object will be leaked.
         /// </summary>
-        private bool TrimFreeListIfNeeded()
-        {
+        private bool TrimFreeListIfNeeded() {
             int curMSec = Environment.TickCount;
             int deltaMSec = curMSec - m_msecNoUseBeyondFreeListSinceThisTime;
             PinnableBufferCacheEventSource.Log.TrimCheck(m_CacheName, m_buffersUnderManagement, m_moreThanFreeListNeeded, deltaMSec);
 
             // If we needed more than just the set of aged buffers since the last time we were called,
             // we obviously should not be trimming any memory, so do nothing except reset the flag 
-            if (m_moreThanFreeListNeeded)
-            {
+            if (m_moreThanFreeListNeeded) {
                 m_moreThanFreeListNeeded = false;
                 m_trimmingExperimentInProgress = false;
                 m_msecNoUseBeyondFreeListSinceThisTime = curMSec;
@@ -321,11 +286,9 @@ namespace System
             // If we got here we have spend the last few second without needing to lengthen the free list.   Thus
             // we have 'enough' buffers, but maybe we have too many. 
             // See if we can trim
-            lock (this)
-            {
+            lock (this) {
                 // Hit a race, try again later.  
-                if (m_moreThanFreeListNeeded)
-                {
+                if (m_moreThanFreeListNeeded) {
                     m_moreThanFreeListNeeded = false;
                     m_trimmingExperimentInProgress = false;
                     m_msecNoUseBeyondFreeListSinceThisTime = curMSec;
@@ -335,13 +298,11 @@ namespace System
                 var freeCount = m_FreeList.Count;   // This is expensive to fetch, do it once.
 
                 // If there is something in m_NotGen2 it was not used for the last few seconds, it is trimable.  
-                if (m_NotGen2.Count > 0)
-                {
+                if (m_NotGen2.Count > 0) {
                     // If we are not performing an experiment and we have stuff that is waiting to go into the
                     // free list but has not made it there, it could be becasue the 'slow path' of restocking
                     // has not happened, so force this (which should flush the list) and start over.  
-                    if (!m_trimmingExperimentInProgress)
-                    {
+                    if (!m_trimmingExperimentInProgress) {
                         PinnableBufferCacheEventSource.Log.TrimFlush(m_CacheName, m_buffersUnderManagement, freeCount, m_NotGen2.Count);
                         AgePendingBuffers();
                         m_trimmingExperimentInProgress = true;
@@ -366,8 +327,7 @@ namespace System
                 var trimSize = freeCount / 4 + 1;
 
                 // We are OK with a 15% overhead, do nothing in that case.  
-                if (freeCount * 15 <= m_buffersUnderManagement || m_buffersUnderManagement - trimSize <= m_minBufferCount)
-                {
+                if (freeCount * 15 <= m_buffersUnderManagement || m_buffersUnderManagement - trimSize <= m_minBufferCount) {
                     PinnableBufferCacheEventSource.Log.TrimFreeSizeOK(m_CacheName, m_buffersUnderManagement, freeCount);
                     return true;
                 }
@@ -375,8 +335,7 @@ namespace System
                 // Move buffers from the free list back to the non-aged list.  If we don't use them by next time, then we'll consider trimming them.
                 PinnableBufferCacheEventSource.Log.TrimExperiment(m_CacheName, m_buffersUnderManagement, freeCount, trimSize);
                 object buffer;
-                for (int i = 0; i < trimSize; i++)
-                {
+                for (int i = 0; i < trimSize; i++) {
                     if (m_FreeList.TryPop(out buffer))
                         m_NotGen2.Add(buffer);
                 }
@@ -447,11 +406,9 @@ namespace System
     /// Schedules a callback roughly every gen 2 GC (you may see a Gen 0 an Gen 1 but only once)
     /// (We can fix this by capturing the Gen 2 count at startup and testing, but I mostly don't care)
     /// </summary>
-    internal sealed class Gen2GcCallback : CriticalFinalizerObject
-    {
+    internal sealed class Gen2GcCallback : CriticalFinalizerObject {
         public Gen2GcCallback()
-            : base()
-        {
+            : base() {
         }
 
         /// <summary>
@@ -461,8 +418,7 @@ namespace System
         /// NOTE: This callback will be kept alive until either the callback function returns false,
         /// or the target object dies.
         /// </summary>
-        public static void Register(Func<object, bool> callback, object targetObj)
-        {
+        public static void Register(Func<object, bool> callback, object targetObj) {
             // Create a unreachable object that remembers the callback function and target object.
             Gen2GcCallback gcCallback = new Gen2GcCallback();
             gcCallback.Setup(callback, targetObj);
@@ -473,40 +429,33 @@ namespace System
         private Func<object, bool> m_callback;
         private GCHandle m_weakTargetObj;
 
-        private void Setup(Func<object, bool> callback, object targetObj)
-        {
+        private void Setup(Func<object, bool> callback, object targetObj) {
             m_callback = callback;
             m_weakTargetObj = GCHandle.Alloc(targetObj, GCHandleType.Weak);
         }
 
-        ~Gen2GcCallback()
-        {
+        ~Gen2GcCallback() {
             // Check to see if the target object is still alive.
             object targetObj = m_weakTargetObj.Target;
-            if (targetObj == null)
-            {
+            if (targetObj == null) {
                 // The target object is dead, so this callback object is no longer needed.
                 m_weakTargetObj.Free();
                 return;
             }
 
             // Execute the callback method.
-            try
-            {
-                if (!m_callback(targetObj))
-                {
+            try {
+                if (!m_callback(targetObj)) {
                     // If the callback returns false, this callback object is no longer needed.
                     return;
                 }
             }
-            catch
-            {
+            catch {
                 // Ensure that we still get a chance to resurrect this object, even if the callback throws an exception.
             }
 
             // Resurrect ourselves by re-registering for finalization.
-            if (!Environment.HasShutdownStarted && !AppDomain.CurrentDomain.IsFinalizingForUnload())
-            {
+            if (!Environment.HasShutdownStarted && !AppDomain.CurrentDomain.IsFinalizingForUnload()) {
                 GC.ReRegisterForFinalize(this);
             }
         }
@@ -514,8 +463,7 @@ namespace System
         #endregion
     }
 
-    internal sealed class PinnableBufferCacheEventSource
-    {
+    internal sealed class PinnableBufferCacheEventSource {
         public static readonly PinnableBufferCacheEventSource Log = new PinnableBufferCacheEventSource();
 
         public bool IsEnabled() { return false; }
@@ -536,8 +484,7 @@ namespace System
         public void AgePendingBuffersResults(string cacheName, int promotedToFreeListCount, int heldBackCount) { }
         public void WalkFreeListResult(string cacheName, int freeListCount, int gen0BuffersInFreeList) { }
 
-        static internal ulong AddressOf(object obj)
-        {
+        static internal ulong AddressOf(object obj) {
             return 0;
         }
     }

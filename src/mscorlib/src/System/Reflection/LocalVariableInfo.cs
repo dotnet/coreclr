@@ -2,10 +2,8 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-namespace System.Reflection
-{
-    public class LocalVariableInfo
-    {
+namespace System.Reflection {
+    public class LocalVariableInfo {
         #region Private Data Members
         private RuntimeType m_type;
         private int m_isPinned;
@@ -17,8 +15,7 @@ namespace System.Reflection
         #endregion
 
         #region Object Overrides
-        public override string ToString()
-        {
+        public override string ToString() {
             string toString = LocalType.ToString() + " (" + LocalIndex + ")";
 
             if (IsPinned)

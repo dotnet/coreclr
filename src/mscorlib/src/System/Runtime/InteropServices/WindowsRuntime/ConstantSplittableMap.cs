@@ -10,8 +10,7 @@ using System.Diagnostics.Contracts;
 using System.Runtime.InteropServices;
 
 
-namespace System.Runtime.InteropServices.WindowsRuntime
-{
+namespace System.Runtime.InteropServices.WindowsRuntime {
     /// <summary>
     /// This is a constant map aimed to efficiently support a Split operation (map decomposition).
     /// A Split operation returns two non-overlapping, non-empty views of the existing map (or both
@@ -23,14 +22,11 @@ namespace System.Runtime.InteropServices.WindowsRuntime
     /// <typeparam name="TValue">Type of objects that act as entries / values.</typeparam>
     [Serializable]
     [DebuggerDisplay("Count = {Count}")]
-    internal sealed class ConstantSplittableMap<TKey, TValue> : IMapView<TKey, TValue>
-    {
-        private class KeyValuePairComparator : IComparer<KeyValuePair<TKey, TValue>>
-        {
+    internal sealed class ConstantSplittableMap<TKey, TValue> : IMapView<TKey, TValue> {
+        private class KeyValuePairComparator : IComparer<KeyValuePair<TKey, TValue>> {
             private static readonly IComparer<TKey> keyComparator = Comparer<TKey>.Default;
 
-            public Int32 Compare(KeyValuePair<TKey, TValue> x, KeyValuePair<TKey, TValue> y)
-            {
+            public Int32 Compare(KeyValuePair<TKey, TValue> x, KeyValuePair<TKey, TValue> y) {
                 return keyComparator.Compare(x.Key, y.Key);
             }
         }  // private class KeyValuePairComparator
@@ -42,8 +38,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         private readonly int firstItemIndex;
         private readonly int lastItemIndex;
 
-        internal ConstantSplittableMap(IReadOnlyDictionary<TKey, TValue> data)
-        {
+        internal ConstantSplittableMap(IReadOnlyDictionary<TKey, TValue> data) {
             if (data == null)
                 throw new ArgumentNullException(nameof(data));
             Contract.EndContractBlock();
@@ -54,16 +49,14 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         }
 
 
-        private ConstantSplittableMap(KeyValuePair<TKey, TValue>[] items, Int32 firstItemIndex, Int32 lastItemIndex)
-        {
+        private ConstantSplittableMap(KeyValuePair<TKey, TValue>[] items, Int32 firstItemIndex, Int32 lastItemIndex) {
             this.items = items;
             this.firstItemIndex = firstItemIndex;
             this.lastItemIndex = lastItemIndex;
         }
 
 
-        private KeyValuePair<TKey, TValue>[] CreateKeyValueArray(Int32 count, IEnumerator<KeyValuePair<TKey, TValue>> data)
-        {
+        private KeyValuePair<TKey, TValue>[] CreateKeyValueArray(Int32 count, IEnumerator<KeyValuePair<TKey, TValue>> data) {
             KeyValuePair<TKey, TValue>[] kvArray = new KeyValuePair<TKey, TValue>[count];
 
             Int32 i = 0;
@@ -76,32 +69,26 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         }
 
 
-        public int Count
-        {
-            get
-            {
+        public int Count {
+            get {
                 return lastItemIndex - firstItemIndex + 1;
             }
         }
 
 
         // [CLSCompliant(false)]
-        public UInt32 Size
-        {
-            get
-            {
+        public UInt32 Size {
+            get {
                 return (UInt32)(lastItemIndex - firstItemIndex + 1);
             }
         }
 
 
-        public TValue Lookup(TKey key)
-        {
+        public TValue Lookup(TKey key) {
             TValue value;
             bool found = TryGetValue(key, out value);
 
-            if (!found)
-            {
+            if (!found) {
                 Exception e = new KeyNotFoundException(SR.Arg_KeyNotFound);
                 e.SetErrorCode(__HResults.E_BOUNDS);
                 throw e;
@@ -111,32 +98,26 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         }
 
 
-        public bool HasKey(TKey key)
-        {
+        public bool HasKey(TKey key) {
             TValue value;
             bool hasKey = TryGetValue(key, out value);
             return hasKey;
         }
 
-        IEnumerator IEnumerable.GetEnumerator()
-        {
+        IEnumerator IEnumerable.GetEnumerator() {
             return ((IEnumerable<IKeyValuePair<TKey, TValue>>)this).GetEnumerator();
         }
 
-        public IIterator<IKeyValuePair<TKey, TValue>> First()
-        {
+        public IIterator<IKeyValuePair<TKey, TValue>> First() {
             return new EnumeratorToIteratorAdapter<IKeyValuePair<TKey, TValue>>(GetEnumerator());
         }
 
-        public IEnumerator<IKeyValuePair<TKey, TValue>> GetEnumerator()
-        {
+        public IEnumerator<IKeyValuePair<TKey, TValue>> GetEnumerator() {
             return new IKeyValuePairEnumerator(items, firstItemIndex, lastItemIndex);
         }
 
-        public void Split(out IMapView<TKey, TValue> firstPartition, out IMapView<TKey, TValue> secondPartition)
-        {
-            if (Count < 2)
-            {
+        public void Split(out IMapView<TKey, TValue> firstPartition, out IMapView<TKey, TValue> secondPartition) {
+            if (Count < 2) {
                 firstPartition = null;
                 secondPartition = null;
                 return;
@@ -150,13 +131,11 @@ namespace System.Runtime.InteropServices.WindowsRuntime
 
         #region IReadOnlyDictionary members
 
-        public bool TryGetValue(TKey key, out TValue value)
-        {
+        public bool TryGetValue(TKey key, out TValue value) {
             KeyValuePair<TKey, TValue> searchKey = new KeyValuePair<TKey, TValue>(key, default(TValue));
             int index = Array.BinarySearch(items, firstItemIndex, Count, searchKey, keyValuePairComparator);
 
-            if (index < 0)
-            {
+            if (index < 0) {
                 value = default(TValue);
                 return false;
             }
@@ -170,15 +149,13 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         #region IKeyValuePair Enumerator
 
         [Serializable]
-        internal struct IKeyValuePairEnumerator : IEnumerator<IKeyValuePair<TKey, TValue>>
-        {
+        internal struct IKeyValuePairEnumerator : IEnumerator<IKeyValuePair<TKey, TValue>> {
             private KeyValuePair<TKey, TValue>[] _array;
             private int _start;
             private int _end;
             private int _current;
 
-            internal IKeyValuePairEnumerator(KeyValuePair<TKey, TValue>[] items, int first, int end)
-            {
+            internal IKeyValuePairEnumerator(KeyValuePair<TKey, TValue>[] items, int first, int end) {
                 Contract.Requires(items != null);
                 Contract.Requires(first >= 0);
                 Contract.Requires(end >= 0);
@@ -191,41 +168,33 @@ namespace System.Runtime.InteropServices.WindowsRuntime
                 _current = _start - 1;
             }
 
-            public bool MoveNext()
-            {
-                if (_current < _end)
-                {
+            public bool MoveNext() {
+                if (_current < _end) {
                     _current++;
                     return true;
                 }
                 return false;
             }
 
-            public IKeyValuePair<TKey, TValue> Current
-            {
-                get
-                {
+            public IKeyValuePair<TKey, TValue> Current {
+                get {
                     if (_current < _start) throw new InvalidOperationException(SR.GetResourceString(ResId.InvalidOperation_EnumNotStarted));
                     if (_current > _end) throw new InvalidOperationException(SR.GetResourceString(ResId.InvalidOperation_EnumEnded));
                     return new CLRIKeyValuePairImpl<TKey, TValue>(ref _array[_current]);
                 }
             }
 
-            Object IEnumerator.Current
-            {
-                get
-                {
+            Object IEnumerator.Current {
+                get {
                     return Current;
                 }
             }
 
-            void IEnumerator.Reset()
-            {
+            void IEnumerator.Reset() {
                 _current = _start - 1;
             }
 
-            public void Dispose()
-            {
+            public void Dispose() {
             }
         }
 

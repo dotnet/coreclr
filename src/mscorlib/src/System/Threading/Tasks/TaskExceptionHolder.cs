@@ -13,8 +13,7 @@
 // Disable the "reference to volatile field not treated as volatile" error.
 #pragma warning disable 0420
 
-namespace System.Threading.Tasks
-{
+namespace System.Threading.Tasks {
     using System;
     using System.Collections.Generic;
     using System.Collections.ObjectModel;
@@ -31,8 +30,7 @@ namespace System.Threading.Tasks
     /// contents ever having been requested (e.g. by a Task.Wait, Task.get_Exception, etc).
     /// This behavior is prominent in .NET 4 but is suppressed by default beyond that release.
     /// </summary>
-    internal class TaskExceptionHolder
-    {
+    internal class TaskExceptionHolder {
         /// <summary>Whether we should propagate exceptions on the finalizer.</summary>
         private readonly static bool s_failFastOnUnobservedException = ShouldFailFastOnUnobservedException();
         /// <summary>Whether the AppDomain has started to unload.</summary>
@@ -56,64 +54,53 @@ namespace System.Threading.Tasks
         /// Creates a new holder; it will be registered for finalization.
         /// </summary>
         /// <param name="task">The task this holder belongs to.</param>
-        internal TaskExceptionHolder(Task task)
-        {
+        internal TaskExceptionHolder(Task task) {
             Contract.Requires(task != null, "Expected a non-null task.");
             m_task = task;
             EnsureADUnloadCallbackRegistered();
         }
 
-        private static bool ShouldFailFastOnUnobservedException()
-        {
+        private static bool ShouldFailFastOnUnobservedException() {
             return false;
         }
 
-        private static void EnsureADUnloadCallbackRegistered()
-        {
+        private static void EnsureADUnloadCallbackRegistered() {
             if (s_adUnloadEventHandler == null &&
                 Interlocked.CompareExchange(ref s_adUnloadEventHandler,
                                              AppDomainUnloadCallback,
-                                             null) == null)
-            {
+                                             null) == null) {
                 AppDomain.CurrentDomain.DomainUnload += s_adUnloadEventHandler;
             }
         }
 
-        private static void AppDomainUnloadCallback(object sender, EventArgs e)
-        {
+        private static void AppDomainUnloadCallback(object sender, EventArgs e) {
             s_domainUnloadStarted = true;
         }
 
         /// <summary>
         /// A finalizer that repropagates unhandled exceptions.
         /// </summary>
-        ~TaskExceptionHolder()
-        {
+        ~TaskExceptionHolder() {
             // Raise unhandled exceptions only when we know that neither the process or nor the appdomain is being torn down.
             // We need to do this filtering because all TaskExceptionHolders will be finalized during shutdown or unload
             // regardles of reachability of the task (i.e. even if the user code was about to observe the task's exception),
             // which can otherwise lead to spurious crashes during shutdown.
             if (m_faultExceptions != null && !m_isHandled &&
-                !Environment.HasShutdownStarted && !AppDomain.CurrentDomain.IsFinalizingForUnload() && !s_domainUnloadStarted)
-            {
+                !Environment.HasShutdownStarted && !AppDomain.CurrentDomain.IsFinalizingForUnload() && !s_domainUnloadStarted) {
                 // We don't want to crash the finalizer thread if any ThreadAbortExceptions 
                 // occur in the list or in any nested AggregateExceptions.  
                 // (Don't rethrow ThreadAbortExceptions.)
-                foreach (ExceptionDispatchInfo edi in m_faultExceptions)
-                {
+                foreach (ExceptionDispatchInfo edi in m_faultExceptions) {
                     var exp = edi.SourceException;
                     AggregateException aggExp = exp as AggregateException;
-                    if (aggExp != null)
-                    {
+                    if (aggExp != null) {
                         AggregateException flattenedAggExp = aggExp.Flatten();
-                        foreach (Exception innerExp in flattenedAggExp.InnerExceptions)
-                        {
+                        foreach (Exception innerExp in flattenedAggExp.InnerExceptions) {
                             if (innerExp is ThreadAbortException)
                                 return;
                         }
                     }
-                    else if (exp is ThreadAbortException)
-                    {
+                    else if (exp is ThreadAbortException) {
                         return;
                     }
                 }
@@ -135,8 +122,7 @@ namespace System.Threading.Tasks
                 // Now, if we are still unobserved and we're configured to crash on unobserved, throw the exception.
                 // We need to publish the event above even if we're not going to crash, hence
                 // why this check doesn't come at the beginning of the method.
-                if (s_failFastOnUnobservedException && !ueea.m_observed)
-                {
+                if (s_failFastOnUnobservedException && !ueea.m_observed) {
                     throw exceptionToThrow;
                 }
             }
@@ -160,8 +146,7 @@ namespace System.Threading.Tasks
         /// <remarks>
         /// Must be called under lock.
         /// </remarks>
-        internal void Add(object exceptionObject, bool representsCancellation)
-        {
+        internal void Add(object exceptionObject, bool representsCancellation) {
             Contract.Requires(exceptionObject != null, "TaskExceptionHolder.Add(): Expected a non-null exceptionObject");
             Contract.Requires(
                 exceptionObject is Exception || exceptionObject is IEnumerable<Exception> ||
@@ -177,8 +162,7 @@ namespace System.Threading.Tasks
         /// <remarks>
         /// Must be called under lock.
         /// </remarks>
-        private void SetCancellationException(object exceptionObject)
-        {
+        private void SetCancellationException(object exceptionObject) {
             Contract.Requires(exceptionObject != null, "Expected exceptionObject to be non-null.");
 
             Debug.Assert(m_cancellationException == null,
@@ -193,12 +177,10 @@ namespace System.Threading.Tasks
 
             // Store the cancellation exception
             var oce = exceptionObject as OperationCanceledException;
-            if (oce != null)
-            {
+            if (oce != null) {
                 m_cancellationException = ExceptionDispatchInfo.Capture(oce);
             }
-            else
-            {
+            else {
                 var edi = exceptionObject as ExceptionDispatchInfo;
                 Debug.Assert(edi != null && edi.SourceException is OperationCanceledException,
                     "Expected an OCE or an EDI that contained an OCE");
@@ -214,8 +196,7 @@ namespace System.Threading.Tasks
         /// <remarks>
         /// Must be called under lock.
         /// </remarks>
-        private void AddFaultException(object exceptionObject)
-        {
+        private void AddFaultException(object exceptionObject) {
             Contract.Requires(exceptionObject != null, "AddFaultException(): Expected a non-null exceptionObject");
 
             // Initialize the exceptions list if necessary.  The list should be non-null iff it contains exceptions.
@@ -225,29 +206,23 @@ namespace System.Threading.Tasks
 
             // Handle Exception by capturing it into an ExceptionDispatchInfo and storing that
             var exception = exceptionObject as Exception;
-            if (exception != null)
-            {
+            if (exception != null) {
                 exceptions.Add(ExceptionDispatchInfo.Capture(exception));
             }
-            else
-            {
+            else {
                 // Handle ExceptionDispatchInfo by storing it into the list
                 var edi = exceptionObject as ExceptionDispatchInfo;
-                if (edi != null)
-                {
+                if (edi != null) {
                     exceptions.Add(edi);
                 }
-                else
-                {
+                else {
                     // Handle enumerables of exceptions by capturing each of the contained exceptions into an EDI and storing it
                     var exColl = exceptionObject as IEnumerable<Exception>;
-                    if (exColl != null)
-                    {
+                    if (exColl != null) {
 #if DEBUG
                         int numExceptions = 0;
 #endif
-                        foreach (var exc in exColl)
-                        {
+                        foreach (var exc in exColl) {
 #if DEBUG
                             Debug.Assert(exc != null, "No exceptions should be null");
                             numExceptions++;
@@ -258,24 +233,20 @@ namespace System.Threading.Tasks
                         Debug.Assert(numExceptions > 0, "Collection should contain at least one exception.");
 #endif
                     }
-                    else
-                    {
+                    else {
                         // Handle enumerables of EDIs by storing them directly
                         var ediColl = exceptionObject as IEnumerable<ExceptionDispatchInfo>;
-                        if (ediColl != null)
-                        {
+                        if (ediColl != null) {
                             exceptions.AddRange(ediColl);
 #if DEBUG
                             Debug.Assert(exceptions.Count > 0, "There should be at least one dispatch info.");
-                            foreach (var tmp in exceptions)
-                            {
+                            foreach (var tmp in exceptions) {
                                 Debug.Assert(tmp != null, "No dispatch infos should be null");
                             }
 #endif
                         }
                         // Anything else is a programming error
-                        else
-                        {
+                        else {
                             throw new ArgumentException(SR.TaskExceptionHolder_UnknownExceptionType, nameof(exceptionObject));
                         }
                     }
@@ -288,16 +259,13 @@ namespace System.Threading.Tasks
             // probe to propagate them, so we consider the holder to be
             // handled.  If a subsequent exception comes in of a different
             // kind, we will reactivate the holder.
-            for (int i = 0; i < exceptions.Count; i++)
-            {
+            for (int i = 0; i < exceptions.Count; i++) {
                 var t = exceptions[i].SourceException.GetType();
-                if (t != typeof(ThreadAbortException) && t != typeof(AppDomainUnloadedException))
-                {
+                if (t != typeof(ThreadAbortException) && t != typeof(AppDomainUnloadedException)) {
                     MarkAsUnhandled();
                     break;
                 }
-                else if (i == exceptions.Count - 1)
-                {
+                else if (i == exceptions.Count - 1) {
                     MarkAsHandled(false);
                 }
             }
@@ -307,14 +275,12 @@ namespace System.Threading.Tasks
         /// A private helper method that ensures the holder is considered
         /// unhandled, i.e. it is registered for finalization.
         /// </summary>
-        private void MarkAsUnhandled()
-        {
+        private void MarkAsUnhandled() {
             // If a thread partially observed this thread's exceptions, we
             // should revert back to "not handled" so that subsequent exceptions
             // must also be seen. Otherwise, some could go missing. We also need
             // to reregister for finalization.
-            if (m_isHandled)
-            {
+            if (m_isHandled) {
                 GC.ReRegisterForFinalize(this);
                 m_isHandled = false;
             }
@@ -325,12 +291,9 @@ namespace System.Threading.Tasks
         /// handled, i.e. it is not registered for finalization.
         /// </summary>
         /// <param name="calledFromFinalizer">Whether this is called from the finalizer thread.</param> 
-        internal void MarkAsHandled(bool calledFromFinalizer)
-        {
-            if (!m_isHandled)
-            {
-                if (!calledFromFinalizer)
-                {
+        internal void MarkAsHandled(bool calledFromFinalizer) {
+            if (!m_isHandled) {
+                if (!calledFromFinalizer) {
                     GC.SuppressFinalize(this);
                 }
 
@@ -346,8 +309,7 @@ namespace System.Threading.Tasks
         /// <param name="calledFromFinalizer">Whether this is being called from a finalizer.</param>
         /// <param name="includeThisException">An extra exception to be included (optionally).</param>
         /// <returns>The aggregate exception to throw.</returns>
-        internal AggregateException CreateExceptionObject(bool calledFromFinalizer, Exception includeThisException)
-        {
+        internal AggregateException CreateExceptionObject(bool calledFromFinalizer, Exception includeThisException) {
             var exceptions = m_faultExceptions;
             Debug.Assert(exceptions != null, "Expected an initialized list.");
             Debug.Assert(exceptions.Count > 0, "Expected at least one exception.");
@@ -363,8 +325,7 @@ namespace System.Threading.Tasks
             // Otherwise, the caller wants a specific exception to be included, 
             // so return an aggregate containing that exception and the rest.
             Exception[] combinedExceptions = new Exception[exceptions.Count + 1];
-            for (int i = 0; i < combinedExceptions.Length - 1; i++)
-            {
+            for (int i = 0; i < combinedExceptions.Length - 1; i++) {
                 combinedExceptions[i] = exceptions[i].SourceException;
             }
             combinedExceptions[combinedExceptions.Length - 1] = includeThisException;
@@ -376,8 +337,7 @@ namespace System.Threading.Tasks
         /// the holder assumes exceptions to have been "observed", such that the finalization 
         /// check will be subsequently skipped.
         /// </summary>
-        internal ReadOnlyCollection<ExceptionDispatchInfo> GetExceptionDispatchInfos()
-        {
+        internal ReadOnlyCollection<ExceptionDispatchInfo> GetExceptionDispatchInfos() {
             var exceptions = m_faultExceptions;
             Debug.Assert(exceptions != null, "Expected an initialized list.");
             Debug.Assert(exceptions.Count > 0, "Expected at least one exception.");
@@ -392,8 +352,7 @@ namespace System.Threading.Tasks
         /// <returns>
         /// The ExceptionDispatchInfo for the cancellation exception.  May be null.
         /// </returns>
-        internal ExceptionDispatchInfo GetCancellationExceptionDispatchInfo()
-        {
+        internal ExceptionDispatchInfo GetCancellationExceptionDispatchInfo() {
             var edi = m_cancellationException;
             Debug.Assert(edi == null || edi.SourceException is OperationCanceledException,
                 "Expected the EDI to be for an OperationCanceledException");

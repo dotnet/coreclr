@@ -16,51 +16,40 @@ using System.Runtime.Serialization;
 using System.Runtime.CompilerServices;
 using System.Globalization;
 
-namespace System
-{
+namespace System {
     [Serializable]
-    public class MissingFieldException : MissingMemberException, ISerializable
-    {
+    public class MissingFieldException : MissingMemberException, ISerializable {
         public MissingFieldException()
-            : base(SR.Arg_MissingFieldException)
-        {
+            : base(SR.Arg_MissingFieldException) {
             SetErrorCode(__HResults.COR_E_MISSINGFIELD);
         }
 
         public MissingFieldException(String message)
-            : base(message)
-        {
+            : base(message) {
             SetErrorCode(__HResults.COR_E_MISSINGFIELD);
         }
 
         public MissingFieldException(String message, Exception inner)
-            : base(message, inner)
-        {
+            : base(message, inner) {
             SetErrorCode(__HResults.COR_E_MISSINGFIELD);
         }
 
-        protected MissingFieldException(SerializationInfo info, StreamingContext context) : base(info, context)
-        {
+        protected MissingFieldException(SerializationInfo info, StreamingContext context) : base(info, context) {
         }
 
-        public override String Message
-        {
-            get
-            {
-                if (ClassName == null)
-                {
+        public override String Message {
+            get {
+                if (ClassName == null) {
                     return base.Message;
                 }
-                else
-                {
+                else {
                     // do any desired fixups to classname here.
                     return SR.Format(SR.MissingField_Name, (Signature != null ? FormatSignature(Signature) + " " : "") + ClassName + "." + MemberName);
                 }
             }
         }
 
-        public MissingFieldException(String className, String fieldName)
-        {
+        public MissingFieldException(String className, String fieldName) {
             ClassName = className;
             MemberName = fieldName;
         }

@@ -8,8 +8,7 @@ using System.Runtime.InteropServices;
 using System.Runtime.CompilerServices;
 using System.Diagnostics.SymbolStore;
 
-namespace System.Reflection.Emit
-{
+namespace System.Reflection.Emit {
     //-----------------------------------------------------------------------------------
     // On Telesto, we don't ship the ISymWrapper.dll assembly. However, ReflectionEmit
     // relies on that assembly to write out managed PDBs.
@@ -31,13 +30,11 @@ namespace System.Reflection.Emit
     // SymWrapperCore is never instantiated and is used as an encapsulation class.
     // It is our "ISymWrapper.dll" assembly within an assembly.
     //------------------------------------------------------------------------------
-    internal class SymWrapperCore
-    {
+    internal class SymWrapperCore {
         //------------------------------------------------------------------------------
         // Block instantiation
         //------------------------------------------------------------------------------
-        private SymWrapperCore()
-        {
+        private SymWrapperCore() {
         }
 
         //------------------------------------------------------------------------------
@@ -47,13 +44,11 @@ namespace System.Reflection.Emit
         // The only thing user code can do with this wrapper is to receive it from
         // SymWriter.DefineDocument and pass it back to SymWriter.DefineSequencePoints.
         //------------------------------------------------------------------------------
-        private unsafe class SymDocumentWriter : ISymbolDocumentWriter
-        {
+        private unsafe class SymDocumentWriter : ISymbolDocumentWriter {
             //------------------------------------------------------------------------------
             // Ctor
             //------------------------------------------------------------------------------
-            internal SymDocumentWriter(PunkSafeHandle pDocumentWriterSafeHandle)
-            {
+            internal SymDocumentWriter(PunkSafeHandle pDocumentWriterSafeHandle) {
                 m_pDocumentWriterSafeHandle = pDocumentWriterSafeHandle;
                 // The handle is actually a pointer to a native ISymUnmanagedDocumentWriter.
                 m_pDocWriter = (ISymUnmanagedDocumentWriter*)m_pDocumentWriterSafeHandle.DangerousGetHandle();
@@ -63,8 +58,7 @@ namespace System.Reflection.Emit
             //------------------------------------------------------------------------------
             // Returns the underlying ISymUnmanagedDocumentWriter* (as a safehandle.)
             //------------------------------------------------------------------------------
-            internal PunkSafeHandle GetUnmanaged()
-            {
+            internal PunkSafeHandle GetUnmanaged() {
                 return m_pDocumentWriterSafeHandle;
             }
 
@@ -77,19 +71,16 @@ namespace System.Reflection.Emit
             //------------------------------------------------------------------------------
             // SetSource() wrapper
             //------------------------------------------------------------------------------
-            void ISymbolDocumentWriter.SetSource(byte[] source)
-            {
+            void ISymbolDocumentWriter.SetSource(byte[] source) {
                 throw new NotSupportedException();   // Intentionally not supported to match desktop CLR
             }
 
             //------------------------------------------------------------------------------
             // SetCheckSum() wrapper
             //------------------------------------------------------------------------------
-            void ISymbolDocumentWriter.SetCheckSum(Guid algorithmId, byte[] checkSum)
-            {
+            void ISymbolDocumentWriter.SetCheckSum(Guid algorithmId, byte[] checkSum) {
                 int hr = m_vtable.SetCheckSum(m_pDocWriter, algorithmId, (uint)checkSum.Length, checkSum);
-                if (hr < 0)
-                {
+                if (hr < 0) {
                     throw Marshal.GetExceptionForHR(hr);
                 }
             }
@@ -102,8 +93,7 @@ namespace System.Reflection.Emit
             // we don't call that particular member.
             //------------------------------------------------------------------------------
             [StructLayout(LayoutKind.Sequential)]
-            private struct ISymUnmanagedDocumentWriterVTable
-            {
+            private struct ISymUnmanagedDocumentWriterVTable {
                 internal IntPtr QueryInterface;
                 internal IntPtr AddRef;
                 internal IntPtr Release;
@@ -117,8 +107,7 @@ namespace System.Reflection.Emit
             // COM object.
             //------------------------------------------------------------------------------
             [StructLayout(LayoutKind.Sequential)]
-            private struct ISymUnmanagedDocumentWriter
-            {
+            private struct ISymUnmanagedDocumentWriter {
                 internal IntPtr m_unmanagedVTable;
             }
 
@@ -141,14 +130,12 @@ namespace System.Reflection.Emit
         // Implements Telesto's version of SymWriter (in the desktop world,
         // this type is expored from ISymWrapper.dll.)
         //------------------------------------------------------------------------------
-        internal unsafe class SymWriter : ISymbolWriter
-        {
+        internal unsafe class SymWriter : ISymbolWriter {
             //------------------------------------------------------------------------------
             // Creates a SymWriter. The SymWriter is a managed wrapper around the unmanaged 
             // symbol writer provided by the runtime (ildbsymlib or diasymreader.dll).
             //------------------------------------------------------------------------------
-            internal static ISymbolWriter CreateSymWriter()
-            {
+            internal static ISymbolWriter CreateSymWriter() {
                 return new SymWriter();
             }
 
@@ -158,8 +145,7 @@ namespace System.Reflection.Emit
             // but to fit in with existing desktop code, the unmanaged writer is passed in 
             // through a subsequent call to InternalSetUnderlyingWriter
             //------------------------------------------------------------------------------
-            private SymWriter()
-            {
+            private SymWriter() {
             }
 
             //------------------------------------------------------------------------------
@@ -168,17 +154,14 @@ namespace System.Reflection.Emit
             ISymbolDocumentWriter ISymbolWriter.DefineDocument(String url,
                                                                Guid language,
                                                                Guid languageVendor,
-                                                               Guid documentType)
-            {
+                                                               Guid documentType) {
                 PunkSafeHandle psymUnmanagedDocumentWriter = new PunkSafeHandle();
 
                 int hr = m_vtable.DefineDocument(m_pWriter, url, ref language, ref languageVendor, ref documentType, out psymUnmanagedDocumentWriter);
-                if (hr < 0)
-                {
+                if (hr < 0) {
                     throw Marshal.GetExceptionForHR(hr);
                 }
-                if (psymUnmanagedDocumentWriter.IsInvalid)
-                {
+                if (psymUnmanagedDocumentWriter.IsInvalid) {
                     return null;
                 }
                 return new SymDocumentWriter(psymUnmanagedDocumentWriter);
@@ -187,11 +170,9 @@ namespace System.Reflection.Emit
             //------------------------------------------------------------------------------
             // OpenMethod() wrapper
             //------------------------------------------------------------------------------
-            void ISymbolWriter.OpenMethod(SymbolToken method)
-            {
+            void ISymbolWriter.OpenMethod(SymbolToken method) {
                 int hr = m_vtable.OpenMethod(m_pWriter, method.GetToken());
-                if (hr < 0)
-                {
+                if (hr < 0) {
                     throw Marshal.GetExceptionForHR(hr);
                 }
             }
@@ -199,11 +180,9 @@ namespace System.Reflection.Emit
             //------------------------------------------------------------------------------
             // CloseMethod() wrapper
             //------------------------------------------------------------------------------
-            void ISymbolWriter.CloseMethod()
-            {
+            void ISymbolWriter.CloseMethod() {
                 int hr = m_vtable.CloseMethod(m_pWriter);
-                if (hr < 0)
-                {
+                if (hr < 0) {
                     throw Marshal.GetExceptionForHR(hr);
                 }
             }
@@ -216,39 +195,31 @@ namespace System.Reflection.Emit
                                                     int[] lines,
                                                     int[] columns,
                                                     int[] endLines,
-                                                    int[] endColumns)
-            {
+                                                    int[] endColumns) {
                 int spCount = 0;
-                if (offsets != null)
-                {
+                if (offsets != null) {
                     spCount = offsets.Length;
                 }
-                else if (lines != null)
-                {
+                else if (lines != null) {
                     spCount = lines.Length;
                 }
-                else if (columns != null)
-                {
+                else if (columns != null) {
                     spCount = columns.Length;
                 }
-                else if (endLines != null)
-                {
+                else if (endLines != null) {
                     spCount = endLines.Length;
                 }
-                else if (endColumns != null)
-                {
+                else if (endColumns != null) {
                     spCount = endColumns.Length;
                 }
-                if (spCount == 0)
-                {
+                if (spCount == 0) {
                     return;
                 }
                 if ((offsets != null && offsets.Length != spCount) ||
                      (lines != null && lines.Length != spCount) ||
                      (columns != null && columns.Length != spCount) ||
                      (endLines != null && endLines.Length != spCount) ||
-                     (endColumns != null && endColumns.Length != spCount))
-                {
+                     (endColumns != null && endColumns.Length != spCount)) {
                     throw new ArgumentException();
                 }
 
@@ -260,8 +231,7 @@ namespace System.Reflection.Emit
                 // arbitrary instances of this interface.
                 SymDocumentWriter docwriter = (SymDocumentWriter)document;
                 int hr = m_vtable.DefineSequencePoints(m_pWriter, docwriter.GetUnmanaged(), spCount, offsets, lines, columns, endLines, endColumns);
-                if (hr < 0)
-                {
+                if (hr < 0) {
                     throw Marshal.GetExceptionForHR(hr);
                 }
             }
@@ -269,12 +239,10 @@ namespace System.Reflection.Emit
             //------------------------------------------------------------------------------
             // OpenScope() wrapper
             //------------------------------------------------------------------------------
-            int ISymbolWriter.OpenScope(int startOffset)
-            {
+            int ISymbolWriter.OpenScope(int startOffset) {
                 int ret;
                 int hr = m_vtable.OpenScope(m_pWriter, startOffset, out ret);
-                if (hr < 0)
-                {
+                if (hr < 0) {
                     throw Marshal.GetExceptionForHR(hr);
                 }
                 return ret;
@@ -283,11 +251,9 @@ namespace System.Reflection.Emit
             //------------------------------------------------------------------------------
             // CloseScope() wrapper
             //------------------------------------------------------------------------------
-            void ISymbolWriter.CloseScope(int endOffset)
-            {
+            void ISymbolWriter.CloseScope(int endOffset) {
                 int hr = m_vtable.CloseScope(m_pWriter, endOffset);
-                if (hr < 0)
-                {
+                if (hr < 0) {
                     throw Marshal.GetExceptionForHR(hr);
                 }
             }
@@ -303,8 +269,7 @@ namespace System.Reflection.Emit
                                                    int addr2,
                                                    int addr3,
                                                    int startOffset,
-                                                   int endOffset)
-            {
+                                                   int endOffset) {
                 int hr = m_vtable.DefineLocalVariable(m_pWriter,
                                                       name,
                                                       (int)attributes,
@@ -316,8 +281,7 @@ namespace System.Reflection.Emit
                                                       addr3,
                                                       startOffset,
                                                       endOffset);
-                if (hr < 0)
-                {
+                if (hr < 0) {
                     throw Marshal.GetExceptionForHR(hr);
                 }
             }
@@ -325,11 +289,9 @@ namespace System.Reflection.Emit
             //------------------------------------------------------------------------------
             // SetSymAttribute() wrapper
             //------------------------------------------------------------------------------
-            void ISymbolWriter.SetSymAttribute(SymbolToken parent, String name, byte[] data)
-            {
+            void ISymbolWriter.SetSymAttribute(SymbolToken parent, String name, byte[] data) {
                 int hr = m_vtable.SetSymAttribute(m_pWriter, parent.GetToken(), name, data.Length, data);
-                if (hr < 0)
-                {
+                if (hr < 0) {
                     throw Marshal.GetExceptionForHR(hr);
                 }
             }
@@ -337,11 +299,9 @@ namespace System.Reflection.Emit
             //------------------------------------------------------------------------------
             // UsingNamespace() wrapper
             //------------------------------------------------------------------------------
-            void ISymbolWriter.UsingNamespace(String name)
-            {
+            void ISymbolWriter.UsingNamespace(String name) {
                 int hr = m_vtable.UsingNamespace(m_pWriter, name);
-                if (hr < 0)
-                {
+                if (hr < 0) {
                     throw Marshal.GetExceptionForHR(hr);
                 }
             }
@@ -355,8 +315,7 @@ namespace System.Reflection.Emit
             // with the real ISymWrapper.dll, ISymWrapper performs *no* Release (or AddRef) on pointers
             // furnished through SetUnderlyingWriter. Lifetime management is entirely up to the caller.
             //------------------------------------------------------------------------------
-            internal void InternalSetUnderlyingWriter(IntPtr ppUnderlyingWriter)
-            {
+            internal void InternalSetUnderlyingWriter(IntPtr ppUnderlyingWriter) {
                 m_pWriter = *((ISymUnmanagedWriter**)ppUnderlyingWriter);
                 m_vtable = (ISymUnmanagedWriterVTable)(Marshal.PtrToStructure(m_pWriter->m_unmanagedVTable, typeof(ISymUnmanagedWriterVTable)));
             }
@@ -432,8 +391,7 @@ namespace System.Reflection.Emit
             // we don't call that particular member.
             //------------------------------------------------------------------------------
             [StructLayout(LayoutKind.Sequential)]
-            private struct ISymUnmanagedWriterVTable
-            {
+            private struct ISymUnmanagedWriterVTable {
                 internal IntPtr QueryInterface;
                 internal IntPtr AddRef;
                 internal IntPtr Release;
@@ -472,8 +430,7 @@ namespace System.Reflection.Emit
             // COM object.
             //------------------------------------------------------------------------------
             [StructLayout(LayoutKind.Sequential)]
-            private struct ISymUnmanagedWriter
-            {
+            private struct ISymUnmanagedWriter {
                 internal IntPtr m_unmanagedVTable;
             }
 
@@ -506,21 +463,17 @@ namespace System.Reflection.Emit
     //
     // Had to make this a non-nested class since FCall's don't like to bind to nested classes.
     //--------------------------------------------------------------------------------------
-    internal sealed class PunkSafeHandle : SafeHandle
-    {
+    internal sealed class PunkSafeHandle : SafeHandle {
         internal PunkSafeHandle()
-            : base((IntPtr)0, true)
-        {
+            : base((IntPtr)0, true) {
         }
 
-        override protected bool ReleaseHandle()
-        {
+        override protected bool ReleaseHandle() {
             m_Release(handle);
             return true;
         }
 
-        public override bool IsInvalid
-        {
+        public override bool IsInvalid {
             get { return handle == ((IntPtr)0); }
         }
 
@@ -530,8 +483,7 @@ namespace System.Reflection.Emit
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         private static extern IntPtr nGetDReleaseTarget();     // FCall gets us the native DRelease target (so we don't need named dllexport from coreclr.dll)
 
-        static PunkSafeHandle()
-        {
+        static PunkSafeHandle() {
             m_Release = (DRelease)(Marshal.GetDelegateForFunctionPointer(nGetDReleaseTarget(), typeof(DRelease)));
             m_Release((IntPtr)0); // make one call to make sure the delegate is fully prepped before we're in the critical finalizer situation.
         }

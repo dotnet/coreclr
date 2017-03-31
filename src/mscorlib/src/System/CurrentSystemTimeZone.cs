@@ -25,12 +25,10 @@ using System.Globalization;
 using System.Runtime.CompilerServices;
 using System.Runtime.Versioning;
 
-namespace System
-{
+namespace System {
     [Obsolete("System.CurrentSystemTimeZone has been deprecated.  Please investigate the use of System.TimeZoneInfo.Local instead.")]
     [Serializable]
-    internal partial class CurrentSystemTimeZone : TimeZone
-    {
+    internal partial class CurrentSystemTimeZone : TimeZone {
         // Standard offset in ticks to the Universal time if
         // no daylight saving is in used.
         // E.g. the offset for PST (Pacific Standard time) should be -8 * 60 * 60 * 1000 * 10000.
@@ -39,8 +37,7 @@ namespace System
         private String m_standardName;
         private String m_daylightName;
 
-        internal CurrentSystemTimeZone()
-        {
+        internal CurrentSystemTimeZone() {
             TimeZoneInfo local = TimeZoneInfo.Local;
 
             m_ticksOffset = local.BaseUtcOffset.Ticks;
@@ -48,31 +45,25 @@ namespace System
             m_daylightName = local.DaylightName;
         }
 
-        public override String StandardName
-        {
-            get
-            {
+        public override String StandardName {
+            get {
                 return m_standardName;
             }
         }
 
-        public override String DaylightName
-        {
-            get
-            {
+        public override String DaylightName {
+            get {
                 return m_daylightName;
             }
         }
 
-        internal long GetUtcOffsetFromUniversalTime(DateTime time, ref Boolean isAmbiguousLocalDst)
-        {
+        internal long GetUtcOffsetFromUniversalTime(DateTime time, ref Boolean isAmbiguousLocalDst) {
             // Get the daylight changes for the year of the specified time.
             TimeSpan offset = new TimeSpan(m_ticksOffset);
             DaylightTime daylightTime = GetDaylightChanges(time.Year);
             isAmbiguousLocalDst = false;
 
-            if (daylightTime == null || daylightTime.Delta.Ticks == 0)
-            {
+            if (daylightTime == null || daylightTime.Delta.Ticks == 0) {
                 return offset.Ticks;
             }
 
@@ -84,88 +75,72 @@ namespace System
             DateTime ambiguousStart;
             DateTime ambiguousEnd;
 
-            if (daylightTime.Delta.Ticks > 0)
-            {
+            if (daylightTime.Delta.Ticks > 0) {
                 ambiguousStart = endTime - daylightTime.Delta;
                 ambiguousEnd = endTime;
             }
-            else
-            {
+            else {
                 ambiguousStart = startTime;
                 ambiguousEnd = startTime - daylightTime.Delta;
             }
 
             Boolean isDst = false;
-            if (startTime > endTime)
-            {
+            if (startTime > endTime) {
                 // In southern hemisphere, the daylight saving time starts later in the year, and ends in the beginning of next year.
                 // Note, the summer in the southern hemisphere begins late in the year.
                 isDst = (time < endTime || time >= startTime);
             }
-            else
-            {
+            else {
                 // In northern hemisphere, the daylight saving time starts in the middle of the year.
                 isDst = (time >= startTime && time < endTime);
             }
 
-            if (isDst)
-            {
+            if (isDst) {
                 offset += daylightTime.Delta;
 
                 // See if the resulting local time becomes ambiguous. This must be captured here or the
                 // DateTime will not be able to round-trip back to UTC accurately.
-                if (time >= ambiguousStart && time < ambiguousEnd)
-                {
+                if (time >= ambiguousStart && time < ambiguousEnd) {
                     isAmbiguousLocalDst = true;
                 }
             }
             return offset.Ticks;
         }
 
-        public override DateTime ToLocalTime(DateTime time)
-        {
-            if (time.Kind == DateTimeKind.Local)
-            {
+        public override DateTime ToLocalTime(DateTime time) {
+            if (time.Kind == DateTimeKind.Local) {
                 return time;
             }
             Boolean isAmbiguousLocalDst = false;
             Int64 offset = GetUtcOffsetFromUniversalTime(time, ref isAmbiguousLocalDst);
             long tick = time.Ticks + offset;
-            if (tick > DateTime.MaxTicks)
-            {
+            if (tick > DateTime.MaxTicks) {
                 return new DateTime(DateTime.MaxTicks, DateTimeKind.Local);
             }
-            if (tick < DateTime.MinTicks)
-            {
+            if (tick < DateTime.MinTicks) {
                 return new DateTime(DateTime.MinTicks, DateTimeKind.Local);
             }
             return new DateTime(tick, DateTimeKind.Local, isAmbiguousLocalDst);
         }
 
-        public override DaylightTime GetDaylightChanges(int year)
-        {
-            if (year < 1 || year > 9999)
-            {
+        public override DaylightTime GetDaylightChanges(int year) {
+            if (year < 1 || year > 9999) {
                 throw new ArgumentOutOfRangeException(nameof(year), SR.Format(SR.ArgumentOutOfRange_Range, 1, 9999));
             }
 
             return GetCachedDaylightChanges(year);
         }
 
-        private static DaylightTime CreateDaylightChanges(int year)
-        {
+        private static DaylightTime CreateDaylightChanges(int year) {
             DaylightTime currentDaylightChanges = null;
 
-            if (TimeZoneInfo.Local.SupportsDaylightSavingTime)
-            {
+            if (TimeZoneInfo.Local.SupportsDaylightSavingTime) {
                 DateTime start;
                 DateTime end;
                 TimeSpan delta;
 
-                foreach (var rule in TimeZoneInfo.Local.GetAdjustmentRules())
-                {
-                    if (rule.DateStart.Year <= year && rule.DateEnd.Year >= year && rule.DaylightDelta != TimeSpan.Zero)
-                    {
+                foreach (var rule in TimeZoneInfo.Local.GetAdjustmentRules()) {
+                    if (rule.DateStart.Year <= year && rule.DateEnd.Year >= year && rule.DaylightDelta != TimeSpan.Zero) {
                         start = TimeZoneInfo.TransitionTimeToDateTime(year, rule.DaylightTransitionStart);
                         end = TimeZoneInfo.TransitionTimeToDateTime(year, rule.DaylightTransitionEnd);
                         delta = rule.DaylightDelta;
@@ -176,22 +151,18 @@ namespace System
                 }
             }
 
-            if (currentDaylightChanges == null)
-            {
+            if (currentDaylightChanges == null) {
                 currentDaylightChanges = new DaylightTime(DateTime.MinValue, DateTime.MinValue, TimeSpan.Zero);
             }
 
             return currentDaylightChanges;
         }
 
-        public override TimeSpan GetUtcOffset(DateTime time)
-        {
-            if (time.Kind == DateTimeKind.Utc)
-            {
+        public override TimeSpan GetUtcOffset(DateTime time) {
+            if (time.Kind == DateTimeKind.Utc) {
                 return TimeSpan.Zero;
             }
-            else
-            {
+            else {
                 return new TimeSpan(TimeZone.CalculateUtcOffset(time, GetDaylightChanges(time.Year)).Ticks + m_ticksOffset);
             }
         }

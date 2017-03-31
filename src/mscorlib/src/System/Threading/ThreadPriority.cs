@@ -14,11 +14,9 @@
 
 using System.Threading;
 
-namespace System.Threading
-{
+namespace System.Threading {
     [Serializable]
-    public enum ThreadPriority
-    {
+    public enum ThreadPriority {
         /*=========================================================================
         ** Constants for thread priorities.
         =========================================================================*/

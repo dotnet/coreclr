@@ -14,34 +14,26 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Security;
 
-namespace System.Runtime.InteropServices.WindowsRuntime
-{
-    internal static class WindowsRuntimeMetadata
-    {
+namespace System.Runtime.InteropServices.WindowsRuntime {
+    internal static class WindowsRuntimeMetadata {
         private static EventHandler<DesignerNamespaceResolveEventArgs> DesignerNamespaceResolve;
 
-        internal static string[] OnDesignerNamespaceResolveEvent(AppDomain appDomain, string namespaceName)
-        {
+        internal static string[] OnDesignerNamespaceResolveEvent(AppDomain appDomain, string namespaceName) {
             EventHandler<DesignerNamespaceResolveEventArgs> eventHandler = DesignerNamespaceResolve;
-            if (eventHandler != null)
-            {
+            if (eventHandler != null) {
                 Delegate[] ds = eventHandler.GetInvocationList();
                 int len = ds.Length;
-                for (int i = 0; i < len; i++)
-                {
+                for (int i = 0; i < len; i++) {
                     DesignerNamespaceResolveEventArgs eventArgs = new DesignerNamespaceResolveEventArgs(namespaceName);
 
                     ((EventHandler<DesignerNamespaceResolveEventArgs>)ds[i])(appDomain, eventArgs);
 
                     Collection<string> assemblyFilesCollection = eventArgs.ResolvedAssemblyFiles;
-                    if (assemblyFilesCollection.Count > 0)
-                    {
+                    if (assemblyFilesCollection.Count > 0) {
                         string[] retAssemblyFiles = new string[assemblyFilesCollection.Count];
                         int retIndex = 0;
-                        foreach (string assemblyFile in assemblyFilesCollection)
-                        {
-                            if (String.IsNullOrEmpty(assemblyFile))
-                            {   // DesignerNamespaceResolve event returned null or empty file name - that is not allowed
+                        foreach (string assemblyFile in assemblyFilesCollection) {
+                            if (String.IsNullOrEmpty(assemblyFile)) {   // DesignerNamespaceResolve event returned null or empty file name - that is not allowed
                                 throw new ArgumentException(SR.Arg_EmptyOrNullString, "DesignerNamespaceResolveEventArgs.ResolvedAssemblyFiles");
                             }
                             retAssemblyFiles[retIndex] = assemblyFile;
@@ -58,21 +50,17 @@ namespace System.Runtime.InteropServices.WindowsRuntime
     }
 
 
-    internal class DesignerNamespaceResolveEventArgs : EventArgs
-    {
+    internal class DesignerNamespaceResolveEventArgs : EventArgs {
         private string _NamespaceName;
         private Collection<string> _ResolvedAssemblyFiles;
 
-        public Collection<string> ResolvedAssemblyFiles
-        {
-            get
-            {
+        public Collection<string> ResolvedAssemblyFiles {
+            get {
                 return _ResolvedAssemblyFiles;
             }
         }
 
-        public DesignerNamespaceResolveEventArgs(string namespaceName)
-        {
+        public DesignerNamespaceResolveEventArgs(string namespaceName) {
             _NamespaceName = namespaceName;
             _ResolvedAssemblyFiles = new Collection<string>();
         }

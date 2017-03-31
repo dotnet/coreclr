@@ -13,13 +13,11 @@
 
 using System;
 
-namespace System.Runtime.InteropServices.ComTypes
-{
+namespace System.Runtime.InteropServices.ComTypes {
     [Guid("0000010b-0000-0000-C000-000000000046")]
     [InterfaceTypeAttribute(ComInterfaceType.InterfaceIsIUnknown)]
     [ComImport]
-    public interface IPersistFile
-    {
+    public interface IPersistFile {
         // IPersist portion
         void GetClassID(out Guid pClassID);
 

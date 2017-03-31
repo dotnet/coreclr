@@ -19,11 +19,9 @@ using System.Runtime.InteropServices;
 using System.Reflection;
 
 
-namespace System.Runtime.InteropServices
-{
+namespace System.Runtime.InteropServices {
     // see code:ComEventsHelper#ComEventsArchitecture
-    internal class ComEventsMethod
-    {
+    internal class ComEventsMethod {
         // This delegate wrapper class handles dynamic invocation of delegates. The reason for the wrapper's
         // existence is that under certain circumstances we need to coerce arguments to types expected by the
         // delegates signature. Normally, reflection (Delegate.DynamicInvoke) handles types coercion
@@ -31,21 +29,18 @@ namespace System.Runtime.InteropServices
         // reflection by design does not do the coercion. Since we need to be compatible with COM interop
         // handling of this scenario - we are pre-processing delegate's signature by looking for 'ref enums'
         // and cache the types required for such coercion.
-        internal class DelegateWrapper
-        {
+        internal class DelegateWrapper {
             private Delegate _d;
 
             private bool _once = false;
             private int _expectedParamsCount;
             private Type[] _cachedTargetTypes;
 
-            public DelegateWrapper(Delegate d)
-            {
+            public DelegateWrapper(Delegate d) {
                 _d = d;
             }
 
-            public Delegate Delegate
-            {
+            public Delegate Delegate {
                 get { return _d; }
                 set { _d = value; }
             }
@@ -68,8 +63,7 @@ namespace System.Runtime.InteropServices
 
         #region ctor
 
-        internal ComEventsMethod(int dispid)
-        {
+        internal ComEventsMethod(int dispid) {
             _delegateWrappers = null;
             _dispid = dispid;
         }
@@ -79,29 +73,23 @@ namespace System.Runtime.InteropServices
 
         #region static internal methods
 
-        internal static ComEventsMethod Find(ComEventsMethod methods, int dispid)
-        {
-            while (methods != null && methods._dispid != dispid)
-            {
+        internal static ComEventsMethod Find(ComEventsMethod methods, int dispid) {
+            while (methods != null && methods._dispid != dispid) {
                 methods = methods._next;
             }
             return methods;
         }
 
-        internal static ComEventsMethod Add(ComEventsMethod methods, ComEventsMethod method)
-        {
+        internal static ComEventsMethod Add(ComEventsMethod methods, ComEventsMethod method) {
             method._next = methods;
             return method;
         }
 
-        internal static ComEventsMethod Remove(ComEventsMethod methods, ComEventsMethod method)
-        {
-            if (methods == method)
-            {
+        internal static ComEventsMethod Remove(ComEventsMethod methods, ComEventsMethod method) {
+            if (methods == method) {
                 methods = methods._next;
             }
-            else
-            {
+            else {
                 ComEventsMethod current = methods;
                 while (current != null && current._next != method)
                     current = current._next;
@@ -115,31 +103,25 @@ namespace System.Runtime.InteropServices
         #endregion
         #region public properties / methods
 
-        internal bool Empty
-        {
+        internal bool Empty {
             get { return _delegateWrappers == null || _delegateWrappers.Length == 0; }
         }
 
-        internal void AddDelegate(Delegate d)
-        {
+        internal void AddDelegate(Delegate d) {
             int count = 0;
-            if (_delegateWrappers != null)
-            {
+            if (_delegateWrappers != null) {
                 count = _delegateWrappers.Length;
             }
 
-            for (int i = 0; i < count; i++)
-            {
-                if (_delegateWrappers[i].Delegate.GetType() == d.GetType())
-                {
+            for (int i = 0; i < count; i++) {
+                if (_delegateWrappers[i].Delegate.GetType() == d.GetType()) {
                     _delegateWrappers[i].Delegate = Delegate.Combine(_delegateWrappers[i].Delegate, d);
                     return;
                 }
             }
 
             DelegateWrapper[] newDelegateWrappers = new DelegateWrapper[count + 1];
-            if (count > 0)
-            {
+            if (count > 0) {
                 _delegateWrappers.CopyTo(newDelegateWrappers, 0);
             }
 
@@ -149,15 +131,12 @@ namespace System.Runtime.InteropServices
             _delegateWrappers = newDelegateWrappers;
         }
 
-        internal void RemoveDelegate(Delegate d)
-        {
+        internal void RemoveDelegate(Delegate d) {
             int count = _delegateWrappers.Length;
             int removeIdx = -1;
 
-            for (int i = 0; i < count; i++)
-            {
-                if (_delegateWrappers[i].Delegate.GetType() == d.GetType())
-                {
+            for (int i = 0; i < count; i++) {
+                if (_delegateWrappers[i].Delegate.GetType() == d.GetType()) {
                     removeIdx = i;
                     break;
                 }
@@ -167,29 +146,25 @@ namespace System.Runtime.InteropServices
                 return;
 
             Delegate newDelegate = Delegate.Remove(_delegateWrappers[removeIdx].Delegate, d);
-            if (newDelegate != null)
-            {
+            if (newDelegate != null) {
                 _delegateWrappers[removeIdx].Delegate = newDelegate;
                 return;
             }
 
             // now remove the found entry from the _delegates array
 
-            if (count == 1)
-            {
+            if (count == 1) {
                 _delegateWrappers = null;
                 return;
             }
 
             DelegateWrapper[] newDelegateWrappers = new DelegateWrapper[count - 1];
             int j = 0;
-            while (j < removeIdx)
-            {
+            while (j < removeIdx) {
                 newDelegateWrappers[j] = _delegateWrappers[j];
                 j++;
             }
-            while (j < count - 1)
-            {
+            while (j < count - 1) {
                 newDelegateWrappers[j] = _delegateWrappers[j + 1];
                 j++;
             }

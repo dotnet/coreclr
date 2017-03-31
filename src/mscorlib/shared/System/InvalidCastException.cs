@@ -10,32 +10,26 @@
 
 using System.Runtime.Serialization;
 
-namespace System
-{
+namespace System {
     [Serializable]
-    public class InvalidCastException : SystemException
-    {
+    public class InvalidCastException : SystemException {
         public InvalidCastException()
-            : base(SR.Arg_InvalidCastException)
-        {
+            : base(SR.Arg_InvalidCastException) {
             HResult = __HResults.COR_E_INVALIDCAST;
         }
 
         public InvalidCastException(String message)
-            : base(message)
-        {
+            : base(message) {
             HResult = __HResults.COR_E_INVALIDCAST;
         }
 
         public InvalidCastException(String message, Exception innerException)
-            : base(message, innerException)
-        {
+            : base(message, innerException) {
             HResult = __HResults.COR_E_INVALIDCAST;
         }
 
         public InvalidCastException(String message, int errorCode)
-            : base(message)
-        {
+            : base(message) {
             HResult = errorCode;
         }
 

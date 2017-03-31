@@ -13,13 +13,11 @@
 
 using System;
 
-namespace System.Runtime.InteropServices.ComTypes
-{
+namespace System.Runtime.InteropServices.ComTypes {
     [Guid("00000010-0000-0000-C000-000000000046")]
     [InterfaceTypeAttribute(ComInterfaceType.InterfaceIsIUnknown)]
     [ComImport]
-    public interface IRunningObjectTable
-    {
+    public interface IRunningObjectTable {
         int Register(int grfFlags, [MarshalAs(UnmanagedType.Interface)] Object punkObject, IMoniker pmkObjectName);
         void Revoke(int dwRegister);
         [PreserveSig]

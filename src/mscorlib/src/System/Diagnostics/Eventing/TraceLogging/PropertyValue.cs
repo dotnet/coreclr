@@ -8,22 +8,19 @@ using Contract = System.Diagnostics.Contracts.Contract;
 using Contract = Microsoft.Diagnostics.Contracts.Internal.Contract;
 #endif
 
-namespace System.Diagnostics.Tracing
-{
+namespace System.Diagnostics.Tracing {
     /// <summary>
     /// Holds property values of any type.  For common value types, we have inline storage so that we don't need
     /// to box the values.  For all other types, we store the value in a single object reference field.
     /// 
     /// To get the value of a property quickly, use a delegate produced by <see cref="PropertyValue.GetPropertyGetter(PropertyInfo)"/>.
     /// </summary>
-    internal unsafe struct PropertyValue
-    {
+    internal unsafe struct PropertyValue {
         /// <summary>
         /// Union of well-known value types, to avoid boxing those types.
         /// </summary>
         [StructLayout(LayoutKind.Explicit)]
-        public struct Scalar
-        {
+        public struct Scalar {
             [FieldOffset(0)]
             public Boolean AsBoolean;
             [FieldOffset(0)]
@@ -69,15 +66,13 @@ namespace System.Diagnostics.Tracing
         private readonly Scalar _scalar;
         private readonly int _scalarLength;
 
-        private PropertyValue(object value)
-        {
+        private PropertyValue(object value) {
             _reference = value;
             _scalar = default(Scalar);
             _scalarLength = 0;
         }
 
-        private PropertyValue(Scalar scalar, int scalarLength)
-        {
+        private PropertyValue(Scalar scalar, int scalarLength) {
             _reference = null;
             _scalar = scalar;
             _scalarLength = scalarLength;
@@ -103,8 +98,7 @@ namespace System.Diagnostics.Tracing
         private PropertyValue(TimeSpan value) : this(new Scalar() { AsTimeSpan = value }, sizeof(TimeSpan)) { }
         private PropertyValue(Decimal value) : this(new Scalar() { AsDecimal = value }, sizeof(Decimal)) { }
 
-        public static Func<object, PropertyValue> GetFactory(Type type)
-        {
+        public static Func<object, PropertyValue> GetFactory(Type type) {
             if (type == typeof(Boolean)) return value => new PropertyValue((Boolean)value);
             if (type == typeof(Byte)) return value => new PropertyValue((Byte)value);
             if (type == typeof(SByte)) return value => new PropertyValue((SByte)value);
@@ -129,28 +123,22 @@ namespace System.Diagnostics.Tracing
         }
 
 
-        public object ReferenceValue
-        {
-            get
-            {
+        public object ReferenceValue {
+            get {
                 Debug.Assert(_scalarLength == 0, "This ReflectedValue refers to an unboxed value type, not a reference type or boxed value type.");
                 return _reference;
             }
         }
 
-        public Scalar ScalarValue
-        {
-            get
-            {
+        public Scalar ScalarValue {
+            get {
                 Debug.Assert(_scalarLength > 0, "This ReflectedValue refers to a reference type or boxed value type, not an unboxed value type");
                 return _scalar;
             }
         }
 
-        public int ScalarLength
-        {
-            get
-            {
+        public int ScalarLength {
+            get {
                 Debug.Assert(_scalarLength > 0, "This ReflectedValue refers to a reference type or boxed value type, not an unboxed value type");
                 return _scalarLength;
             }
@@ -159,8 +147,7 @@ namespace System.Diagnostics.Tracing
         /// <summary>
         /// Gets a delegate that gets the value of a given property.
         /// </summary>
-        public static Func<PropertyValue, PropertyValue> GetPropertyGetter(PropertyInfo property)
-        {
+        public static Func<PropertyValue, PropertyValue> GetPropertyGetter(PropertyInfo property) {
             if (property.DeclaringType.GetTypeInfo().IsValueType)
                 return GetBoxedValueTypePropertyGetter(property);
             else
@@ -173,8 +160,7 @@ namespace System.Diagnostics.Tracing
         /// does not work correctly on .Net Native (we cannot express the needed instantiations in an rd.xml file).  We expect that user-defined
         /// value types will be rare, and in any case the boxing only happens for events that are actually enabled.
         /// </summary>
-        private static Func<PropertyValue, PropertyValue> GetBoxedValueTypePropertyGetter(PropertyInfo property)
-        {
+        private static Func<PropertyValue, PropertyValue> GetBoxedValueTypePropertyGetter(PropertyInfo property) {
             var type = property.PropertyType;
 
             if (type.GetTypeInfo().IsEnum)
@@ -192,35 +178,28 @@ namespace System.Diagnostics.Tracing
         /// </summary>
         /// <param name="property"></param>
         /// <returns></returns>
-        private static Func<PropertyValue, PropertyValue> GetReferenceTypePropertyGetter(PropertyInfo property)
-        {
+        private static Func<PropertyValue, PropertyValue> GetReferenceTypePropertyGetter(PropertyInfo property) {
             var helper = (TypeHelper)Activator.CreateInstance(typeof(ReferenceTypeHelper<>).MakeGenericType(property.DeclaringType));
             return helper.GetPropertyGetter(property);
         }
 
-        private abstract class TypeHelper
-        {
+        private abstract class TypeHelper {
             public abstract Func<PropertyValue, PropertyValue> GetPropertyGetter(PropertyInfo property);
 
-            protected Delegate GetGetMethod(PropertyInfo property, Type propertyType)
-            {
+            protected Delegate GetGetMethod(PropertyInfo property, Type propertyType) {
                 return property.GetMethod.CreateDelegate(typeof(Func<,>).MakeGenericType(property.DeclaringType, propertyType));
             }
         }
 
-        private sealed class ReferenceTypeHelper<TContainer> : TypeHelper where TContainer : class
-        {
-            public override Func<PropertyValue, PropertyValue> GetPropertyGetter(PropertyInfo property)
-            {
+        private sealed class ReferenceTypeHelper<TContainer> : TypeHelper where TContainer : class {
+            public override Func<PropertyValue, PropertyValue> GetPropertyGetter(PropertyInfo property) {
                 var type = property.PropertyType;
 
-                if (!Statics.IsValueType(type))
-                {
+                if (!Statics.IsValueType(type)) {
                     var getter = (Func<TContainer, object>)GetGetMethod(property, type);
                     return container => new PropertyValue(getter((TContainer)container.ReferenceValue));
                 }
-                else
-                {
+                else {
                     if (type.GetTypeInfo().IsEnum)
                         type = Enum.GetUnderlyingType(type);
 

@@ -6,14 +6,12 @@
 
 using System;
 
-namespace System.Runtime.InteropServices.WindowsRuntime
-{
+namespace System.Runtime.InteropServices.WindowsRuntime {
     [System.Runtime.CompilerServices.FriendAccessAllowed]
     [ComImport]
     [Guid("82BA7092-4C88-427D-A7BC-16DD93FEB67E")]
     [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
-    internal interface IRestrictedErrorInfo
-    {
+    internal interface IRestrictedErrorInfo {
         void GetErrorDetails([MarshalAs(UnmanagedType.BStr)] out string description,
                              out int error,
                              [MarshalAs(UnmanagedType.BStr)] out string restrictedDescription,

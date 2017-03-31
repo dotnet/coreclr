@@ -9,21 +9,17 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.Contracts;
 
-namespace System.Reflection
-{
-    internal static class Associates
-    {
+namespace System.Reflection {
+    internal static class Associates {
         [Flags]
-        internal enum Attributes
-        {
+        internal enum Attributes {
             ComposedOfAllVirtualMethods = 0x1,
             ComposedOfAllPrivateMethods = 0x2,
             ComposedOfNoPublicMembers = 0x4,
             ComposedOfNoStaticMembers = 0x8,
         }
 
-        internal static bool IncludeAccessor(MethodInfo associate, bool nonPublic)
-        {
+        internal static bool IncludeAccessor(MethodInfo associate, bool nonPublic) {
             if ((object)associate == null)
                 return false;
 
@@ -39,8 +35,7 @@ namespace System.Reflection
         private static unsafe RuntimeMethodInfo AssignAssociates(
             int tkMethod,
             RuntimeType declaredType,
-            RuntimeType reflectedType)
-        {
+            RuntimeType reflectedType) {
             if (MetadataToken.IsNullToken(tkMethod))
                 return null;
 
@@ -52,12 +47,10 @@ namespace System.Reflection
             IntPtr[] genericArgumentHandles = null;
             int genericArgumentCount = 0;
             RuntimeType[] genericArguments = declaredType.GetTypeHandleInternal().GetInstantiationInternal();
-            if (genericArguments != null)
-            {
+            if (genericArguments != null) {
                 genericArgumentCount = genericArguments.Length;
                 genericArgumentHandles = new IntPtr[genericArguments.Length];
-                for (int i = 0; i < genericArguments.Length; i++)
-                {
+                for (int i = 0; i < genericArguments.Length; i++) {
                     genericArgumentHandles[i] = genericArguments[i].GetTypeHandleInternal().Value;
                 }
             }
@@ -65,8 +58,7 @@ namespace System.Reflection
             RuntimeMethodHandleInternal associateMethodHandle = ModuleHandle.ResolveMethodHandleInternalCore(RuntimeTypeHandle.GetModule(declaredType), tkMethod, genericArgumentHandles, genericArgumentCount, null, 0);
             Debug.Assert(!associateMethodHandle.IsNullHandle(), "Failed to resolve associateRecord methodDef token");
 
-            if (isInherited)
-            {
+            if (isInherited) {
                 MethodAttributes methAttr = RuntimeMethodHandle.GetAttributes(associateMethodHandle);
 
                 // ECMA MethodSemantics: "All methods for a given Property or Event shall have the same accessibility 
@@ -83,14 +75,12 @@ namespace System.Reflection
                 // be overriden -- but this is not necessarily true. A more derived class may have overriden a
                 // virtual method associated with a property in a base class without associating the override with 
                 // the same or any property in the derived class. 
-                if ((methAttr & MethodAttributes.Virtual) != 0)
-                {
+                if ((methAttr & MethodAttributes.Virtual) != 0) {
                     bool declaringTypeIsClass =
                         (RuntimeTypeHandle.GetAttributes(declaredType) & TypeAttributes.ClassSemanticsMask) == TypeAttributes.Class;
 
                     // It makes no sense to search for a virtual override of a method declared on an interface.
-                    if (declaringTypeIsClass)
-                    {
+                    if (declaringTypeIsClass) {
                         int slot = RuntimeMethodHandle.GetSlot(associateMethodHandle);
 
                         // Find the override visible from the reflected type
@@ -121,8 +111,7 @@ namespace System.Reflection
             out RuntimeMethodInfo setter,
             out MethodInfo[] other,
             out bool composedOfAllPrivateMethods,
-            out BindingFlags bindingFlags)
-        {
+            out BindingFlags bindingFlags) {
             addOn = removeOn = fireOn = getter = setter = null;
 
             Attributes attributes =
@@ -143,8 +132,7 @@ namespace System.Reflection
 
             int cAssociates = associatesData.Length / 2;
 
-            for (int i = 0; i < cAssociates; i++)
-            {
+            for (int i = 0; i < cAssociates; i++) {
                 int methodDefToken = associatesData[i * 2];
                 MethodSemanticsAttributes semantics = (MethodSemanticsAttributes)associatesData[i * 2 + 1];
 
@@ -163,13 +151,11 @@ namespace System.Reflection
                 bool isPublic = visibility == MethodAttributes.Public;
                 bool isStatic = (methAttr & MethodAttributes.Static) != 0;
 
-                if (isPublic)
-                {
+                if (isPublic) {
                     attributes &= ~Attributes.ComposedOfNoPublicMembers;
                     attributes &= ~Attributes.ComposedOfAllPrivateMethods;
                 }
-                else if (!isPrivate)
-                {
+                else if (!isPrivate) {
                     attributes &= ~Attributes.ComposedOfAllPrivateMethods;
                 }
 
@@ -190,8 +176,7 @@ namespace System.Reflection
                     addOn = associateMethod;
                 else if (semantics == MethodSemanticsAttributes.RemoveOn)
                     removeOn = associateMethod;
-                else
-                {
+                else {
                     if (otherList == null)
                         otherList = new List<MethodInfo>(cAssociates);
                     otherList.Add(associateMethod);

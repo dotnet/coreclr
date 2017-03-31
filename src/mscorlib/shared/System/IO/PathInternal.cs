@@ -5,17 +5,14 @@
 using System.Diagnostics;
 using System.Text;
 
-namespace System.IO
-{
+namespace System.IO {
     /// <summary>Contains internal path helpers that are shared between many projects.</summary>
-    internal static partial class PathInternal
-    {
+    internal static partial class PathInternal {
         // Trim trailing white spaces, tabs etc but don't be aggressive in removing everything that has UnicodeCategory of trailing space.
         // string.WhitespaceChars will trim more aggressively than what the underlying FS does (for ex, NTFS, FAT).
         //
         // (This is for compatibility with old behavior.)
-        internal static readonly char[] s_trimEndChars =
-        {
+        internal static readonly char[] s_trimEndChars = {
             (char)0x9,          // Horizontal tab
             (char)0xA,          // Line feed
             (char)0xB,          // Vertical tab
@@ -32,8 +29,7 @@ namespace System.IO
         /// <exception cref="System.ArgumentNullException">Thrown if the path is null.</exception>
         /// <exception cref="System.ArgumentException">Thrown if the path has invalid characters.</exception>
         /// <param name="path">The path to check for invalid characters.</param>
-        internal static void CheckInvalidPathChars(string path)
-        {
+        internal static void CheckInvalidPathChars(string path) {
             if (path == null)
                 throw new ArgumentNullException(nameof(path));
 
@@ -53,13 +49,11 @@ namespace System.IO
         /// it is not safe for being used to index
         /// the string without additional verification.
         /// </remarks>
-        internal static int FindFileNameIndex(string path)
-        {
+        internal static int FindFileNameIndex(string path) {
             Debug.Assert(path != null);
             CheckInvalidPathChars(path);
 
-            for (int i = path.Length - 1; i >= 0; i--)
-            {
+            for (int i = path.Length - 1; i >= 0; i--) {
                 char ch = path[i];
                 if (IsDirectoryOrVolumeSeparator(ch))
                     return i + 1;
@@ -77,8 +71,7 @@ namespace System.IO
         /// <summary>
         /// Get the common path length from the start of the string.
         /// </summary>
-        internal static int GetCommonPathLength(string first, string second, bool ignoreCase)
-        {
+        internal static int GetCommonPathLength(string first, string second, bool ignoreCase) {
             int commonChars = EqualStartingCharacterCount(first, second, ignoreCase: ignoreCase);
 
             // If nothing matches
@@ -103,23 +96,20 @@ namespace System.IO
         /// <summary>
         /// Gets the count of common characters from the left optionally ignoring case
         /// </summary>
-        unsafe internal static int EqualStartingCharacterCount(string first, string second, bool ignoreCase)
-        {
+        unsafe internal static int EqualStartingCharacterCount(string first, string second, bool ignoreCase) {
             if (string.IsNullOrEmpty(first) || string.IsNullOrEmpty(second)) return 0;
 
             int commonChars = 0;
 
             fixed (char* f = first)
-            fixed (char* s = second)
-            {
+            fixed (char* s = second) {
                 char* l = f;
                 char* r = s;
                 char* leftEnd = l + first.Length;
                 char* rightEnd = r + second.Length;
 
                 while (l != leftEnd && r != rightEnd
-                    && (*l == *r || (ignoreCase && char.ToUpperInvariant((*l)) == char.ToUpperInvariant((*r)))))
-                {
+                    && (*l == *r || (ignoreCase && char.ToUpperInvariant((*l)) == char.ToUpperInvariant((*r))))) {
                     commonChars++;
                     l++;
                     r++;
@@ -132,8 +122,7 @@ namespace System.IO
         /// <summary>
         /// Returns true if the two paths have the same root
         /// </summary>
-        internal static bool AreRootsEqual(string first, string second, StringComparison comparisonType)
-        {
+        internal static bool AreRootsEqual(string first, string second, StringComparison comparisonType) {
             int firstRootLength = GetRootLength(first);
             int secondRootLength = GetRootLength(second);
 
@@ -154,11 +143,9 @@ namespace System.IO
         ///       Valid: a..b   abc..d
         ///     Invalid: ..ab   ab..   ..   abc..d\abc..
         /// </summary>
-        internal static void CheckSearchPattern(string searchPattern)
-        {
+        internal static void CheckSearchPattern(string searchPattern) {
             int index;
-            while ((index = searchPattern.IndexOf("..", StringComparison.Ordinal)) != -1)
-            {
+            while ((index = searchPattern.IndexOf("..", StringComparison.Ordinal)) != -1) {
                 // Terminal ".." . Files names cannot end in ".."
                 if (index + 2 == searchPattern.Length
                     || IsDirectorySeparator(searchPattern[index + 2]))

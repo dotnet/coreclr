@@ -17,13 +17,11 @@ using System.Globalization;
 using System.Runtime.InteropServices;
 using System.Diagnostics.Contracts;
 
-namespace System
-{
+namespace System {
     [Serializable]
     [System.Runtime.InteropServices.StructLayout(LayoutKind.Sequential)]
     public struct Int64 : IComparable, IFormattable, IConvertible
-            , IComparable<Int64>, IEquatable<Int64>
-    {
+            , IComparable<Int64>, IEquatable<Int64> {
         internal long m_value;
 
         public const long MaxValue = 0x7fffffffffffffffL;
@@ -35,14 +33,11 @@ namespace System
         // null is considered to be less than any instance.
         // If object is not of type Int64, this method throws an ArgumentException.
         // 
-        public int CompareTo(Object value)
-        {
-            if (value == null)
-            {
+        public int CompareTo(Object value) {
+            if (value == null) {
                 return 1;
             }
-            if (value is Int64)
-            {
+            if (value is Int64) {
                 // Need to use compare because subtraction will wrap
                 // to positive for very large neg numbers, etc.
                 long i = (long)value;
@@ -53,8 +48,7 @@ namespace System
             throw new ArgumentException(SR.Arg_MustBeInt64);
         }
 
-        public int CompareTo(Int64 value)
-        {
+        public int CompareTo(Int64 value) {
             // Need to use compare because subtraction will wrap
             // to positive for very large neg numbers, etc.
             if (m_value < value) return -1;
@@ -62,64 +56,53 @@ namespace System
             return 0;
         }
 
-        public override bool Equals(Object obj)
-        {
-            if (!(obj is Int64))
-            {
+        public override bool Equals(Object obj) {
+            if (!(obj is Int64)) {
                 return false;
             }
             return m_value == ((Int64)obj).m_value;
         }
 
         [System.Runtime.Versioning.NonVersionable]
-        public bool Equals(Int64 obj)
-        {
+        public bool Equals(Int64 obj) {
             return m_value == obj;
         }
 
         // The value of the lower 32 bits XORed with the uppper 32 bits.
-        public override int GetHashCode()
-        {
+        public override int GetHashCode() {
             return (unchecked((int)((long)m_value)) ^ (int)(m_value >> 32));
         }
 
-        public override String ToString()
-        {
+        public override String ToString() {
             Contract.Ensures(Contract.Result<String>() != null);
             return Number.FormatInt64(m_value, null, NumberFormatInfo.CurrentInfo);
         }
 
-        public String ToString(IFormatProvider provider)
-        {
+        public String ToString(IFormatProvider provider) {
             Contract.Ensures(Contract.Result<String>() != null);
             return Number.FormatInt64(m_value, null, NumberFormatInfo.GetInstance(provider));
         }
 
-        public String ToString(String format)
-        {
+        public String ToString(String format) {
             Contract.Ensures(Contract.Result<String>() != null);
             return Number.FormatInt64(m_value, format, NumberFormatInfo.CurrentInfo);
         }
 
-        public String ToString(String format, IFormatProvider provider)
-        {
+        public String ToString(String format, IFormatProvider provider) {
             Contract.Ensures(Contract.Result<String>() != null);
             return Number.FormatInt64(m_value, format, NumberFormatInfo.GetInstance(provider));
         }
 
-        public static long Parse(String s)
-        {
+        public static long Parse(String s) {
             return Number.ParseInt64(s, NumberStyles.Integer, NumberFormatInfo.CurrentInfo);
         }
 
-        public static long Parse(String s, NumberStyles style)
-        {
+        public static long Parse(String s, NumberStyles style) {
             NumberFormatInfo.ValidateParseStyleInteger(style);
             return Number.ParseInt64(s, style, NumberFormatInfo.CurrentInfo);
         }
 
-        public static long Parse(String s, IFormatProvider provider)
-        {
+        public static long Parse(String s, IFormatProvider provider) {
             return Number.ParseInt64(s, NumberStyles.Integer, NumberFormatInfo.GetInstance(provider));
         }
 
@@ -128,19 +111,16 @@ namespace System
         // a NumberFormatInfo isn't specified, the current culture's 
         // NumberFormatInfo is assumed.
         // 
-        public static long Parse(String s, NumberStyles style, IFormatProvider provider)
-        {
+        public static long Parse(String s, NumberStyles style, IFormatProvider provider) {
             NumberFormatInfo.ValidateParseStyleInteger(style);
             return Number.ParseInt64(s, style, NumberFormatInfo.GetInstance(provider));
         }
 
-        public static Boolean TryParse(String s, out Int64 result)
-        {
+        public static Boolean TryParse(String s, out Int64 result) {
             return Number.TryParseInt64(s, NumberStyles.Integer, NumberFormatInfo.CurrentInfo, out result);
         }
 
-        public static Boolean TryParse(String s, NumberStyles style, IFormatProvider provider, out Int64 result)
-        {
+        public static Boolean TryParse(String s, NumberStyles style, IFormatProvider provider, out Int64 result) {
             NumberFormatInfo.ValidateParseStyleInteger(style);
             return Number.TryParseInt64(s, style, NumberFormatInfo.GetInstance(provider), out result);
         }
@@ -149,83 +129,67 @@ namespace System
         // IConvertible implementation
         // 
 
-        public TypeCode GetTypeCode()
-        {
+        public TypeCode GetTypeCode() {
             return TypeCode.Int64;
         }
 
-        bool IConvertible.ToBoolean(IFormatProvider provider)
-        {
+        bool IConvertible.ToBoolean(IFormatProvider provider) {
             return Convert.ToBoolean(m_value);
         }
 
-        char IConvertible.ToChar(IFormatProvider provider)
-        {
+        char IConvertible.ToChar(IFormatProvider provider) {
             return Convert.ToChar(m_value);
         }
 
-        sbyte IConvertible.ToSByte(IFormatProvider provider)
-        {
+        sbyte IConvertible.ToSByte(IFormatProvider provider) {
             return Convert.ToSByte(m_value);
         }
 
-        byte IConvertible.ToByte(IFormatProvider provider)
-        {
+        byte IConvertible.ToByte(IFormatProvider provider) {
             return Convert.ToByte(m_value);
         }
 
-        short IConvertible.ToInt16(IFormatProvider provider)
-        {
+        short IConvertible.ToInt16(IFormatProvider provider) {
             return Convert.ToInt16(m_value);
         }
 
-        ushort IConvertible.ToUInt16(IFormatProvider provider)
-        {
+        ushort IConvertible.ToUInt16(IFormatProvider provider) {
             return Convert.ToUInt16(m_value);
         }
 
-        int IConvertible.ToInt32(IFormatProvider provider)
-        {
+        int IConvertible.ToInt32(IFormatProvider provider) {
             return Convert.ToInt32(m_value);
         }
 
-        uint IConvertible.ToUInt32(IFormatProvider provider)
-        {
+        uint IConvertible.ToUInt32(IFormatProvider provider) {
             return Convert.ToUInt32(m_value);
         }
 
-        long IConvertible.ToInt64(IFormatProvider provider)
-        {
+        long IConvertible.ToInt64(IFormatProvider provider) {
             return m_value;
         }
 
-        ulong IConvertible.ToUInt64(IFormatProvider provider)
-        {
+        ulong IConvertible.ToUInt64(IFormatProvider provider) {
             return Convert.ToUInt64(m_value);
         }
 
-        float IConvertible.ToSingle(IFormatProvider provider)
-        {
+        float IConvertible.ToSingle(IFormatProvider provider) {
             return Convert.ToSingle(m_value);
         }
 
-        double IConvertible.ToDouble(IFormatProvider provider)
-        {
+        double IConvertible.ToDouble(IFormatProvider provider) {
             return Convert.ToDouble(m_value);
         }
 
-        Decimal IConvertible.ToDecimal(IFormatProvider provider)
-        {
+        Decimal IConvertible.ToDecimal(IFormatProvider provider) {
             return Convert.ToDecimal(m_value);
         }
 
-        DateTime IConvertible.ToDateTime(IFormatProvider provider)
-        {
+        DateTime IConvertible.ToDateTime(IFormatProvider provider) {
             throw new InvalidCastException(SR.Format(SR.InvalidCast_FromTo, "Int64", "DateTime"));
         }
 
-        Object IConvertible.ToType(Type type, IFormatProvider provider)
-        {
+        Object IConvertible.ToType(Type type, IFormatProvider provider) {
             return Convert.DefaultToType((IConvertible)this, type, provider);
         }
     }

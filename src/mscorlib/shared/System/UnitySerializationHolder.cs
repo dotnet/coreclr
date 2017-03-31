@@ -10,8 +10,7 @@ using System.Runtime.Versioning;
 using System.Collections.Generic;
 using System.Diagnostics.Contracts;
 
-namespace System
-{
+namespace System {
     [Serializable]
     // Holds classes (Empty, Null, Missing) for which we guarantee that there is only ever one instance of.
 #if CORECLR
@@ -19,8 +18,7 @@ namespace System
 #else
     public  // On CoreRT, this must be public because of the Reflection.Core/CoreLib divide and the need to whitelist past the ReflectionBlock.
 #endif
-    class UnitySerializationHolder : ISerializable, IObjectReference
-    {
+    class UnitySerializationHolder : ISerializable, IObjectReference {
 #region Internal Constants
         internal const int EmptyUnity = 0x0001;
         internal const int NullUnity = 0x0002;
@@ -38,32 +36,25 @@ namespace System
 #endregion
 
 #region Internal Static Members
-        internal static void GetUnitySerializationInfo(SerializationInfo info, Missing missing)
-        {
+        internal static void GetUnitySerializationInfo(SerializationInfo info, Missing missing) {
             info.SetType(typeof(UnitySerializationHolder));
             info.AddValue("UnityType", MissingUnity);
         }
 
-        internal static Type AddElementTypes(SerializationInfo info, Type type)
-        {
+        internal static Type AddElementTypes(SerializationInfo info, Type type) {
             List<int> elementTypes = new List<int>();
-            while (type.HasElementType)
-            {
-                if (type.IsSZArray)
-                {
+            while (type.HasElementType) {
+                if (type.IsSZArray) {
                     elementTypes.Add(SzArray);
                 }
-                else if (type.IsArray)
-                {
+                else if (type.IsArray) {
                     elementTypes.Add(type.GetArrayRank());
                     elementTypes.Add(Array);
                 }
-                else if (type.IsPointer)
-                {
+                else if (type.IsPointer) {
                     elementTypes.Add(Pointer);
                 }
-                else if (type.IsByRef)
-                {
+                else if (type.IsByRef) {
                     elementTypes.Add(ByRef);
                 }
 
@@ -75,24 +66,18 @@ namespace System
             return type;
         }
 
-        internal Type MakeElementTypes(Type type)
-        {
-            for (int i = _elementTypes.Length - 1; i >= 0; i--)
-            {
-                if (_elementTypes[i] == SzArray)
-                {
+        internal Type MakeElementTypes(Type type) {
+            for (int i = _elementTypes.Length - 1; i >= 0; i--) {
+                if (_elementTypes[i] == SzArray) {
                     type = type.MakeArrayType();
                 }
-                else if (_elementTypes[i] == Array)
-                {
+                else if (_elementTypes[i] == Array) {
                     type = type.MakeArrayType(_elementTypes[--i]);
                 }
-                else if ((_elementTypes[i] == Pointer))
-                {
+                else if ((_elementTypes[i] == Pointer)) {
                     type = type.MakePointerType();
                 }
-                else if ((_elementTypes[i] == ByRef))
-                {
+                else if ((_elementTypes[i] == ByRef)) {
                     type = type.MakeByRefType();
                 }
             }
@@ -100,16 +85,13 @@ namespace System
             return type;
         }
 
-        public static void GetUnitySerializationInfo(SerializationInfo info, Type type)
-        {
+        public static void GetUnitySerializationInfo(SerializationInfo info, Type type) {
             Type rootElementType = type;
-            while (rootElementType.HasElementType)
-            {
+            while (rootElementType.HasElementType) {
                 rootElementType = rootElementType.GetElementType();
             }
 
-            if (rootElementType.IsGenericParameter)
-            {
+            if (rootElementType.IsGenericParameter) {
                 type = AddElementTypes(info, type);
                 info.SetType(typeof(UnitySerializationHolder));
                 info.AddValue("UnityType", GenericParameterTypeUnity);
@@ -122,8 +104,7 @@ namespace System
 
             int unityType = RuntimeTypeUnity;
 
-            if (!type.IsGenericTypeDefinition && type.ContainsGenericParameters)
-            {
+            if (!type.IsGenericTypeDefinition && type.ContainsGenericParameters) {
                 // Partial instantiation
                 unityType = PartialInstantiationTypeUnity;
                 type = AddElementTypes(info, type);
@@ -135,8 +116,7 @@ namespace System
         }
 
         public static void GetUnitySerializationInfo(
-            SerializationInfo info, int unityType, string data, Assembly assembly)
-        {
+            SerializationInfo info, int unityType, string data, Assembly assembly) {
             // A helper method that returns the SerializationInfo that a class utilizing 
             // UnitySerializationHelper should return from a call to GetObjectData.  It contains
             // the unityType (defined above) and any optional data (used only for the reflection
@@ -148,12 +128,10 @@ namespace System
 
             string assemName;
 
-            if (assembly == null)
-            {
+            if (assembly == null) {
                 assemName = string.Empty;
             }
-            else
-            {
+            else {
                 assemName = assembly.FullName;
             }
 
@@ -173,8 +151,7 @@ namespace System
 #endregion
 
 #region Constructor
-        public UnitySerializationHolder(SerializationInfo info, StreamingContext context)
-        {
+        public UnitySerializationHolder(SerializationInfo info, StreamingContext context) {
             if (info == null)
                 throw new ArgumentNullException(nameof(info));
             Contract.EndContractBlock();
@@ -184,8 +161,7 @@ namespace System
             if (_unityType == MissingUnity)
                 return;
 
-            if (_unityType == GenericParameterTypeUnity)
-            {
+            if (_unityType == GenericParameterTypeUnity) {
                 _declaringMethod = info.GetValue("DeclaringMethod", typeof(MethodBase)) as MethodBase;
                 _declaringType = info.GetValue("DeclaringType", typeof(Type)) as Type;
                 _genericParameterPosition = info.GetInt32("GenericParameterPosition");
@@ -194,8 +170,7 @@ namespace System
                 return;
             }
 
-            if (_unityType == PartialInstantiationTypeUnity)
-            {
+            if (_unityType == PartialInstantiationTypeUnity) {
                 _instantiation = info.GetValue("GenericArguments", typeof(Type[])) as Type[];
                 _elementTypes = info.GetValue("ElementTypes", typeof(int[])) as int[];
             }
@@ -206,23 +181,20 @@ namespace System
 #endregion
 
 #region Private Methods
-        private void ThrowInsufficientInformation(string field)
-        {
+        private void ThrowInsufficientInformation(string field) {
             throw new SerializationException(
                 SR.Format(SR.Serialization_InsufficientDeserializationState, field));
         }
 #endregion
 
 #region ISerializable
-        public virtual void GetObjectData(SerializationInfo info, StreamingContext context)
-        {
+        public virtual void GetObjectData(SerializationInfo info, StreamingContext context) {
             throw new NotSupportedException(SR.NotSupported_UnitySerHolder);
         }
 #endregion
 
 #region IObjectReference
-        public virtual object GetRealObject(StreamingContext context)
-        {
+        public virtual object GetRealObject(StreamingContext context) {
             // GetRealObject uses the data we have in _data and _unityType to do a lookup on the correct 
             // object to return.  We have specific code here to handle the different types which we support.
             // The reflection types (Assembly, Module, and Type) have to be looked up through their static
@@ -230,25 +202,20 @@ namespace System
 
             Assembly assembly;
 
-            switch (_unityType)
-            {
-                case EmptyUnity:
-                    {
+            switch (_unityType) {
+                case EmptyUnity: {
                         return Empty.Value;
                     }
 
-                case NullUnity:
-                    {
+                case NullUnity: {
                         return DBNull.Value;
                     }
 
-                case MissingUnity:
-                    {
+                case MissingUnity: {
                         return Missing.Value;
                     }
 
-                case PartialInstantiationTypeUnity:
-                    {
+                case PartialInstantiationTypeUnity: {
                         _unityType = RuntimeTypeUnity;
                         Type definition = GetRealObject(context) as Type;
                         _unityType = PartialInstantiationTypeUnity;
@@ -259,8 +226,7 @@ namespace System
                         return MakeElementTypes(definition.MakeGenericType(_instantiation));
                     }
 
-                case GenericParameterTypeUnity:
-                    {
+                case GenericParameterTypeUnity: {
                         if (_declaringMethod == null && _declaringType == null)
                             ThrowInsufficientInformation("DeclaringMember");
 
@@ -270,8 +236,7 @@ namespace System
                         return MakeElementTypes(_declaringType.GetGenericArguments()[_genericParameterPosition]);
                     }
 
-                case RuntimeTypeUnity:
-                    {
+                case RuntimeTypeUnity: {
                         if (_data == null || _data.Length == 0)
                             ThrowInsufficientInformation("Data");
 
@@ -288,8 +253,7 @@ namespace System
                         return t;
                     }
 
-                case ModuleUnity:
-                    {
+                case ModuleUnity: {
                         if (_data == null || _data.Length == 0)
                             ThrowInsufficientInformation("Data");
 
@@ -307,8 +271,7 @@ namespace System
                         return namedModule;
                     }
 
-                case AssemblyUnity:
-                    {
+                case AssemblyUnity: {
                         if (_data == null || _data.Length == 0)
                             ThrowInsufficientInformation("Data");
 

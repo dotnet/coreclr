@@ -16,8 +16,7 @@ using System.IO;
 using System.Diagnostics;
 using System.Diagnostics.Contracts;
 
-namespace System.Globalization
-{
+namespace System.Globalization {
     /*=================================GlobalizationAssembly==========================
     **
     ** This class provides the table loading wrapper that calls GetManifestResourceStream
@@ -25,25 +24,21 @@ namespace System.Globalization
     ** It used to provide an idea for sort versioning, but that proved to not work
     **
     ============================================================================*/
-    internal sealed class GlobalizationAssembly
-    {
+    internal sealed class GlobalizationAssembly {
         // ----------------------------------------------------------------------------------------------------
         //
         // Instance data members and instance methods.
         //
         // ----------------------------------------------------------------------------------------------------
-        internal unsafe static byte* GetGlobalizationResourceBytePtr(Assembly assembly, String tableName)
-        {
+        internal unsafe static byte* GetGlobalizationResourceBytePtr(Assembly assembly, String tableName) {
             Debug.Assert(assembly != null, "assembly can not be null.  This should be generally the " + System.CoreLib.Name + " assembly.");
             Debug.Assert(tableName != null, "table name can not be null");
 
             Stream stream = assembly.GetManifestResourceStream(tableName);
             UnmanagedMemoryStream bytesStream = stream as UnmanagedMemoryStream;
-            if (bytesStream != null)
-            {
+            if (bytesStream != null) {
                 byte* bytes = bytesStream.PositionPointer;
-                if (bytes != null)
-                {
+                if (bytes != null) {
                     return (bytes);
                 }
             }

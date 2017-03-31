@@ -5,12 +5,9 @@
 using System;
 using System.Collections.Generic;
 
-namespace System
-{
-    internal static partial class AppContextDefaultValues
-    {
-        public static void PopulateDefaultValues()
-        {
+namespace System {
+    internal static partial class AppContextDefaultValues {
+        public static void PopulateDefaultValues() {
             string platformIdentifier, profile;
             int version;
 
@@ -24,12 +21,10 @@ namespace System
         /// We have this separate method for getting the parsed elements out of the TargetFrameworkName so we can
         /// more easily support this on other platforms.
         /// </summary>
-        private static void ParseTargetFrameworkName(out string identifier, out string profile, out int version)
-        {
+        private static void ParseTargetFrameworkName(out string identifier, out string profile, out int version) {
             string targetFrameworkMoniker = AppDomain.CurrentDomain.SetupInformation.TargetFrameworkName;
 
-            if (!TryParseFrameworkName(targetFrameworkMoniker, out identifier, out version, out profile))
-            {
+            if (!TryParseFrameworkName(targetFrameworkMoniker, out identifier, out version, out profile)) {
                 // If we can't parse the TFM or we don't have a TFM, default to latest behavior for all 
                 // switches (ie. all of them false).
                 // If we want to use the latest behavior it is enough to set the value of the switch to string.Empty.
@@ -46,8 +41,7 @@ namespace System
         //  - The identifier and version is required, profile is optional
         //  - Only three components are allowed.
         //  - The version string must be in the System.Version format; an optional "v" or "V" prefix is allowed
-        private static bool TryParseFrameworkName(String frameworkName, out String identifier, out int version, out String profile)
-        {
+        private static bool TryParseFrameworkName(String frameworkName, out String identifier, out int version, out String profile) {
             // For parsing a target Framework moniker, from the FrameworkName class
             const char c_componentSeparator = ',';
             const char c_keyValueSeparator = '=';
@@ -58,8 +52,7 @@ namespace System
             identifier = profile = string.Empty;
             version = 0;
 
-            if (frameworkName == null || frameworkName.Length == 0)
-            {
+            if (frameworkName == null || frameworkName.Length == 0) {
                 return false;
             }
 
@@ -67,8 +60,7 @@ namespace System
             version = 0;
 
             // Identifer and Version are required, Profile is optional.
-            if (components.Length < 2 || components.Length > 3)
-            {
+            if (components.Length < 2 || components.Length > 3) {
                 return false;
             }
 
@@ -77,8 +69,7 @@ namespace System
             //
             identifier = components[0].Trim();
 
-            if (identifier.Length == 0)
-            {
+            if (identifier.Length == 0) {
                 return false;
             }
 
@@ -88,13 +79,11 @@ namespace System
             // 
             // The required "Version" and optional "Profile" component can be in any order
             //
-            for (int i = 1; i < components.Length; i++)
-            {
+            for (int i = 1; i < components.Length; i++) {
                 // Get the key/value pair separated by '='
                 string[] keyValuePair = components[i].Split(c_keyValueSeparator);
 
-                if (keyValuePair.Length != 2)
-                {
+                if (keyValuePair.Length != 2) {
                     return false;
                 }
 
@@ -105,13 +94,11 @@ namespace System
                 //
                 // 2) Parse the required "Version" key value
                 //
-                if (key.Equals(c_versionKey, StringComparison.OrdinalIgnoreCase))
-                {
+                if (key.Equals(c_versionKey, StringComparison.OrdinalIgnoreCase)) {
                     versionFound = true;
 
                     // Allow the version to include a 'v' or 'V' prefix...
-                    if (value.Length > 0 && (value[0] == c_versionValuePrefix || value[0] == 'V'))
-                    {
+                    if (value.Length > 0 && (value[0] == c_versionValuePrefix || value[0] == 'V')) {
                         value = value.Substring(1);
                     }
                     Version realVersion = new Version(value);
@@ -125,21 +112,17 @@ namespace System
                 //
                 // 3) Parse the optional "Profile" key value
                 //
-                else if (key.Equals(c_profileKey, StringComparison.OrdinalIgnoreCase))
-                {
-                    if (!String.IsNullOrEmpty(value))
-                    {
+                else if (key.Equals(c_profileKey, StringComparison.OrdinalIgnoreCase)) {
+                    if (!String.IsNullOrEmpty(value)) {
                         profile = value;
                     }
                 }
-                else
-                {
+                else {
                     return false;
                 }
             }
 
-            if (!versionFound)
-            {
+            if (!versionFound) {
                 return false;
             }
 

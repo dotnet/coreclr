@@ -5,90 +5,74 @@
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 
-namespace System.Globalization
-{
-    public sealed partial class IdnMapping
-    {
-        private unsafe string GetAsciiCore(char* unicode, int count)
-        {
+namespace System.Globalization {
+    public sealed partial class IdnMapping {
+        private unsafe string GetAsciiCore(char* unicode, int count) {
             Debug.Assert(!GlobalizationMode.Invariant);
 
             uint flags = Flags;
 
             // Determine the required length
             int length = Interop.Normaliz.IdnToAscii(flags, new IntPtr(unicode), count, IntPtr.Zero, 0);
-            if (length == 0)
-            {
+            if (length == 0) {
                 ThrowForZeroLength(nameof(unicode), SR.Argument_IdnIllegalName, SR.Argument_InvalidCharSequenceNoIndex);
             }
 
             // Do the conversion
             const int StackAllocThreshold = 512; // arbitrary limit to switch from stack to heap allocation
-            if (length < StackAllocThreshold)
-            {
+            if (length < StackAllocThreshold) {
                 char* output = stackalloc char[length];
                 return GetAsciiCore(unicode, count, flags, output, length);
             }
-            else
-            {
+            else {
                 char[] output = new char[length];
-                fixed (char* pOutput = output)
-                {
+                fixed (char* pOutput = output) {
                     return GetAsciiCore(unicode, count, flags, pOutput, length);
                 }
             }
         }
 
-        private unsafe string GetAsciiCore(char* unicode, int count, uint flags, char* output, int outputLength)
-        {
+        private unsafe string GetAsciiCore(char* unicode, int count, uint flags, char* output, int outputLength) {
             Debug.Assert(!GlobalizationMode.Invariant);
 
             int length = Interop.Normaliz.IdnToAscii(flags, new IntPtr(unicode), count, new IntPtr(output), outputLength);
-            if (length == 0)
-            {
+            if (length == 0) {
                 ThrowForZeroLength(nameof(unicode), SR.Argument_IdnIllegalName, SR.Argument_InvalidCharSequenceNoIndex);
             }
             Debug.Assert(length == outputLength);
             return new string(output, 0, length);
         }
 
-        private unsafe string GetUnicodeCore(char* ascii, int count)
-        {
+        private unsafe string GetUnicodeCore(char* ascii, int count) {
             Debug.Assert(!GlobalizationMode.Invariant);
 
             uint flags = Flags;
 
             // Determine the required length
             int length = Interop.Normaliz.IdnToUnicode(flags, new IntPtr(ascii), count, IntPtr.Zero, 0);
-            if (length == 0)
-            {
+            if (length == 0) {
                 ThrowForZeroLength(nameof(ascii), SR.Argument_IdnIllegalName, SR.Argument_IdnBadPunycode);
             }
 
             // Do the conversion
             const int StackAllocThreshold = 512; // arbitrary limit to switch from stack to heap allocation
-            if (length < StackAllocThreshold)
-            {
+            if (length < StackAllocThreshold) {
                 char* output = stackalloc char[length];
                 return GetUnicodeCore(ascii, count, flags, output, length);
             }
-            else
-            {
+            else {
                 char[] output = new char[length];
-                fixed (char* pOutput = output)
-                {
+                fixed (char* pOutput = output) {
                     return GetUnicodeCore(ascii, count, flags, pOutput, length);
                 }
             }
         }
 
-        private unsafe string GetUnicodeCore(char* ascii, int count, uint flags, char* output, int outputLength)
-        {
+        private unsafe string GetUnicodeCore(char* ascii, int count, uint flags, char* output, int outputLength) {
             Debug.Assert(!GlobalizationMode.Invariant);
 
             int length = Interop.Normaliz.IdnToUnicode(flags, new IntPtr(ascii), count, new IntPtr(output), outputLength);
-            if (length == 0)
-            {
+            if (length == 0) {
                 ThrowForZeroLength(nameof(ascii), SR.Argument_IdnIllegalName, SR.Argument_IdnBadPunycode);
             }
             Debug.Assert(length == outputLength);
@@ -99,10 +83,8 @@ namespace System.Globalization
         // ---- PAL layer ends here ----
         // -----------------------------
 
-        private uint Flags
-        {
-            get
-            {
+        private uint Flags {
+            get {
                 int flags =
                     (AllowUnassigned ? Interop.Normaliz.IDN_ALLOW_UNASSIGNED : 0) |
                     (UseStd3AsciiRules ? Interop.Normaliz.IDN_USE_STD3_ASCII_RULES : 0);
@@ -110,8 +92,7 @@ namespace System.Globalization
             }
         }
 
-        private static void ThrowForZeroLength(string paramName, string invalidNameString, string otherString)
-        {
+        private static void ThrowForZeroLength(string paramName, string invalidNameString, string otherString) {
             throw new ArgumentException(
                 Marshal.GetLastWin32Error() == Interop.Normaliz.ERROR_INVALID_NAME ? invalidNameString : otherString,
                 paramName);

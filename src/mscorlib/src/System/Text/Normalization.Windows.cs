@@ -12,16 +12,12 @@ using System.Runtime.Versioning;
 using System.Diagnostics;
 using System.Diagnostics.Contracts;
 
-namespace System.Text
-{
+namespace System.Text {
     // This internal class wraps up our normalization behavior
 
-    internal class Normalization
-    {
-        internal static bool IsNormalized(String strInput, NormalizationForm normForm)
-        {
-            if (GlobalizationMode.Invariant)
-            {
+    internal class Normalization {
+        internal static bool IsNormalized(String strInput, NormalizationForm normForm) {
+            if (GlobalizationMode.Invariant) {
                 // In Invariant mode we assume all characters are normalized. 
                 // This is because we don't support any linguistic operation on the strings
                 return true;
@@ -35,8 +31,7 @@ namespace System.Text
             bool result = Interop.Normaliz.IsNormalizedString((int)normForm, strInput, strInput.Length);
 
             int lastError = Marshal.GetLastWin32Error();
-            switch (lastError)
-            {
+            switch (lastError) {
                 case Interop.Errors.ERROR_SUCCESS:
                     break;
 
@@ -54,10 +49,8 @@ namespace System.Text
             return result;
         }
 
-        internal static String Normalize(String strInput, NormalizationForm normForm)
-        {
-            if (GlobalizationMode.Invariant)
-            {
+        internal static String Normalize(String strInput, NormalizationForm normForm) {
+            if (GlobalizationMode.Invariant) {
                 // In Invariant mode we assume all characters are normalized. 
                 // This is because we don't support any linguistic operation on the strings
                 return strInput;
@@ -74,8 +67,7 @@ namespace System.Text
 
             int lastError = Marshal.GetLastWin32Error();
             // Could have an error (actually it'd be quite hard to have an error here)
-            if ((lastError != Interop.Errors.ERROR_SUCCESS) || iLength < 0)
-            {
+            if ((lastError != Interop.Errors.ERROR_SUCCESS) || iLength < 0) {
                 if (lastError == Interop.Errors.ERROR_INVALID_PARAMETER)
                     throw new ArgumentException(SR.Argument_InvalidCharSequenceNoIndex, nameof(strInput));
 
@@ -95,8 +87,7 @@ namespace System.Text
             // Someplace to stick our buffer
             char[] cBuffer = null;
 
-            for (;;)
-            {
+            for (;;) {
                 // (re)allocation buffer and normalize string
                 cBuffer = new char[iLength];
 
@@ -109,8 +100,7 @@ namespace System.Text
                     break;
 
                 // Could have an error (actually it'd be quite hard to have an error here)
-                switch (lastError)
-                {
+                switch (lastError) {
                     // Do appropriate stuff for the individual errors:
                     case Interop.Errors.ERROR_INSUFFICIENT_BUFFER:
                         iLength = Math.Abs(iLength);

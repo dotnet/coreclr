@@ -23,12 +23,10 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.Contracts;
 
-namespace System.IO
-{
+namespace System.IO {
     // Class for creating FileStream objects, and some basic file management
     // routines such as Delete, etc.
-    internal static class File
-    {
+    internal static class File {
         private const int ERROR_INVALID_PARAMETER = 87;
         internal const int GENERIC_READ = unchecked((int)0x80000000);
 
@@ -38,15 +36,12 @@ namespace System.IO
         // given by the specified path exists; otherwise, the result is
         // false.  Note that if path describes a directory,
         // Exists will return true.
-        public static bool Exists(String path)
-        {
+        public static bool Exists(String path) {
             return InternalExistsHelper(path);
         }
 
-        private static bool InternalExistsHelper(String path)
-        {
-            try
-            {
+        private static bool InternalExistsHelper(String path) {
+            try {
                 if (path == null)
                     return false;
                 if (path.Length == 0)
@@ -58,8 +53,7 @@ namespace System.IO
                 // Otherwise, FillAttributeInfo removes it and we may return a false positive.
                 // GetFullPath should never return null
                 Debug.Assert(path != null, "File.Exists: GetFullPath returned null");
-                if (path.Length > 0 && PathInternal.IsDirectorySeparator(path[path.Length - 1]))
-                {
+                if (path.Length > 0 && PathInternal.IsDirectorySeparator(path[path.Length - 1])) {
                     return false;
                 }
 
@@ -74,8 +68,7 @@ namespace System.IO
             return false;
         }
 
-        internal static bool InternalExists(String path)
-        {
+        internal static bool InternalExists(String path) {
             Win32Native.WIN32_FILE_ATTRIBUTE_DATA data = new Win32Native.WIN32_FILE_ATTRIBUTE_DATA();
             int dataInitialised = FillAttributeInfo(path, ref data, false, true);
 
@@ -83,12 +76,10 @@ namespace System.IO
                     && ((data.fileAttributes & Win32Native.FILE_ATTRIBUTE_DIRECTORY) == 0);
         }
 
-        public static byte[] ReadAllBytes(String path)
-        {
+        public static byte[] ReadAllBytes(String path) {
             byte[] bytes;
             using (FileStream fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read,
-                FileStream.DefaultBufferSize, FileOptions.None))
-            {
+                FileStream.DefaultBufferSize, FileOptions.None)) {
                 // Do a blocking read
                 int index = 0;
                 long fileLength = fs.Length;
@@ -96,8 +87,7 @@ namespace System.IO
                     throw new IOException(SR.IO_FileTooLong2GB);
                 int count = (int)fileLength;
                 bytes = new byte[count];
-                while (count > 0)
-                {
+                while (count > 0) {
                     int n = fs.Read(bytes, index, count);
                     if (n == 0)
                         __Error.EndOfFile();
@@ -139,11 +129,10 @@ namespace System.IO
 
         // Returns 0 on success, otherwise a Win32 error code.  Note that
         // classes should use -1 as the uninitialized state for dataInitialized.
-        internal static int FillAttributeInfo(String path, ref Win32Native.WIN32_FILE_ATTRIBUTE_DATA data, bool tryagain, bool returnErrorOnNotFound)
-        {
+        internal static int FillAttributeInfo(String path, ref Win32Native.WIN32_FILE_ATTRIBUTE_DATA data, bool tryagain, bool returnErrorOnNotFound) {
             int dataInitialised = 0;
             if (tryagain) // someone has a handle to the file open, or other error
-            {
+{
                 Win32Native.WIN32_FIND_DATA findData;
                 findData = new Win32Native.WIN32_FIND_DATA();
 
@@ -155,23 +144,19 @@ namespace System.IO
                 // SetErrorMode will let us disable this, but we should set the error
                 // mode back, since this may have wide-ranging effects.
                 int oldMode = Win32Native.SetErrorMode(Win32Native.SEM_FAILCRITICALERRORS);
-                try
-                {
+                try {
                     bool error = false;
                     SafeFindHandle handle = Win32Native.FindFirstFile(tempPath, findData);
-                    try
-                    {
-                        if (handle.IsInvalid)
-                        {
+                    try {
+                        if (handle.IsInvalid) {
                             error = true;
                             dataInitialised = Marshal.GetLastWin32Error();
 
                             if (dataInitialised == Win32Native.ERROR_FILE_NOT_FOUND ||
                                 dataInitialised == Win32Native.ERROR_PATH_NOT_FOUND ||
                                 dataInitialised == Win32Native.ERROR_NOT_READY)  // floppy device not ready
-                            {
-                                if (!returnErrorOnNotFound)
-                                {
+{
+                                if (!returnErrorOnNotFound) {
                                     // Return default value for backward compatibility
                                     dataInitialised = 0;
                                     data.fileAttributes = -1;
@@ -180,63 +165,52 @@ namespace System.IO
                             return dataInitialised;
                         }
                     }
-                    finally
-                    {
+                    finally {
                         // Close the Win32 handle
-                        try
-                        {
+                        try {
                             handle.Close();
                         }
-                        catch
-                        {
+                        catch {
                             // if we're already returning an error, don't throw another one. 
-                            if (!error)
-                            {
+                            if (!error) {
                                 Debug.Assert(false, "File::FillAttributeInfo - FindClose failed!");
                                 __Error.WinIOError();
                             }
                         }
                     }
                 }
-                finally
-                {
+                finally {
                     Win32Native.SetErrorMode(oldMode);
                 }
 
                 // Copy the information to data
                 data.PopulateFrom(findData);
             }
-            else
-            {
+            else {
                 // For floppy drives, normally the OS will pop up a dialog saying
                 // there is no disk in drive A:, please insert one.  We don't want that.
                 // SetErrorMode will let us disable this, but we should set the error
                 // mode back, since this may have wide-ranging effects.
                 bool success = false;
                 int oldMode = Win32Native.SetErrorMode(Win32Native.SEM_FAILCRITICALERRORS);
-                try
-                {
+                try {
                     success = Win32Native.GetFileAttributesEx(path, GetFileExInfoStandard, ref data);
                 }
-                finally
-                {
+                finally {
                     Win32Native.SetErrorMode(oldMode);
                 }
 
-                if (!success)
-                {
+                if (!success) {
                     dataInitialised = Marshal.GetLastWin32Error();
                     if (dataInitialised != Win32Native.ERROR_FILE_NOT_FOUND &&
                         dataInitialised != Win32Native.ERROR_PATH_NOT_FOUND &&
                         dataInitialised != Win32Native.ERROR_NOT_READY)  // floppy device not ready
-                    {
+{
                         // In case someone latched onto the file. Take the perf hit only for failure
                         return FillAttributeInfo(path, ref data, true, returnErrorOnNotFound);
                     }
-                    else
-                    {
-                        if (!returnErrorOnNotFound)
-                        {
+                    else {
+                        if (!returnErrorOnNotFound) {
                             // Return default value for backward compbatibility
                             dataInitialised = 0;
                             data.fileAttributes = -1;

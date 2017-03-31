@@ -4,14 +4,10 @@
 
 using System.Diagnostics;
 
-namespace System.Globalization
-{
-    public partial class TextInfo
-    {
-        private unsafe void FinishInitialization(string textInfoName)
-        {
-            if (_invariantMode)
-            {
+namespace System.Globalization {
+    public partial class TextInfo {
+        private unsafe void FinishInitialization(string textInfoName) {
+            if (_invariantMode) {
                 _sortHandle = IntPtr.Zero;
                 return;
             }
@@ -23,8 +19,7 @@ namespace System.Globalization
             _sortHandle = ret > 0 ? (IntPtr)handle : IntPtr.Zero;
         }
 
-        private unsafe string ChangeCase(string s, bool toUpper)
-        {
+        private unsafe string ChangeCase(string s, bool toUpper) {
             Debug.Assert(!_invariantMode);
 
             Debug.Assert(s != null);
@@ -37,8 +32,7 @@ namespace System.Globalization
             //
             //  Check if we have the empty string.
             //
-            if (nLengthInput == 0)
-            {
+            if (nLengthInput == 0) {
                 return s;
             }
 
@@ -53,8 +47,7 @@ namespace System.Globalization
             string result = string.FastAllocateString(nLengthInput);
 
             fixed (char* pSource = s)
-            fixed (char* pResult = result)
-            {
+            fixed (char* pResult = result) {
                 ret = Interop.Kernel32.LCMapStringEx(_sortHandle != IntPtr.Zero ? null : _textInfoName,
                                                     linguisticCasing | (toUpper ? LCMAP_UPPERCASE : LCMAP_LOWERCASE),
                                                     pSource,
@@ -66,8 +59,7 @@ namespace System.Globalization
                                                     _sortHandle);
             }
 
-            if (ret == 0)
-            {
+            if (ret == 0) {
                 throw new InvalidOperationException(SR.InvalidOperation_ReadOnly);
             }
 
@@ -75,8 +67,7 @@ namespace System.Globalization
             return result;
         }
 
-        private unsafe char ChangeCase(char c, bool toUpper)
-        {
+        private unsafe char ChangeCase(char c, bool toUpper) {
             Debug.Assert(!_invariantMode);
 
             char retVal = '\0';
@@ -105,8 +96,7 @@ namespace System.Globalization
         private const uint LCMAP_LOWERCASE = 0x00000100;
         private const uint LCMAP_UPPERCASE = 0x00000200;
 
-        private static bool IsInvariantLocale(string localeName)
-        {
+        private static bool IsInvariantLocale(string localeName) {
             return localeName == "";
         }
     }

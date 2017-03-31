@@ -8,8 +8,7 @@ using System;
 using System.Diagnostics;
 using System.Diagnostics.Contracts;
 
-namespace System.Text
-{
+namespace System.Text {
     // An Encoder is used to encode a sequence of blocks of characters into
     // a sequence of blocks of bytes. Following instantiation of an encoder,
     // sequential blocks of characters are converted into blocks of bytes through
@@ -22,32 +21,26 @@ namespace System.Text
     // of Encoding objects.
     //
     [Serializable]
-    public abstract class Encoder
-    {
+    public abstract class Encoder {
         internal EncoderFallback m_fallback = null;
 
         [NonSerialized]
         internal EncoderFallbackBuffer m_fallbackBuffer = null;
 
-        internal void SerializeEncoder(SerializationInfo info)
-        {
+        internal void SerializeEncoder(SerializationInfo info) {
             info.AddValue("m_fallback", this.m_fallback);
         }
 
-        protected Encoder()
-        {
+        protected Encoder() {
             // We don't call default reset because default reset probably isn't good if we aren't initialized.
         }
 
-        public EncoderFallback Fallback
-        {
-            get
-            {
+        public EncoderFallback Fallback {
+            get {
                 return m_fallback;
             }
 
-            set
-            {
+            set {
                 if (value == null)
                     throw new ArgumentNullException(nameof(value));
                 Contract.EndContractBlock();
@@ -64,12 +57,9 @@ namespace System.Text
 
         // Note: we don't test for threading here because async access to Encoders and Decoders
         // doesn't work anyway.
-        public EncoderFallbackBuffer FallbackBuffer
-        {
-            get
-            {
-                if (m_fallbackBuffer == null)
-                {
+        public EncoderFallbackBuffer FallbackBuffer {
+            get {
+                if (m_fallbackBuffer == null) {
                     if (m_fallback != null)
                         m_fallbackBuffer = m_fallback.CreateFallbackBuffer();
                     else
@@ -80,10 +70,8 @@ namespace System.Text
             }
         }
 
-        internal bool InternalHasFallbackBuffer
-        {
-            get
-            {
+        internal bool InternalHasFallbackBuffer {
+            get {
                 return m_fallbackBuffer != null;
             }
         }
@@ -97,8 +85,7 @@ namespace System.Text
         //
         // Virtual implimentation has to call GetBytes with flush and a big enough buffer to clear a 0 char string
         // We avoid GetMaxByteCount() because a) we can't call the base encoder and b) it might be really big.
-        public virtual void Reset()
-        {
+        public virtual void Reset() {
             char[] charTemp = { };
             byte[] byteTemp = new byte[GetByteCount(charTemp, 0, 0, true)];
             GetBytes(charTemp, 0, 0, byteTemp, 0, true);
@@ -119,8 +106,7 @@ namespace System.Text
         // unfortunately for existing overrides, it has to call the [] version,
         // which is really slow, so avoid this method if you might be calling external encodings.
         [CLSCompliant(false)]
-        public virtual unsafe int GetByteCount(char* chars, int count, bool flush)
-        {
+        public virtual unsafe int GetByteCount(char* chars, int count, bool flush) {
             // Validate input parameters
             if (chars == null)
                 throw new ArgumentNullException(nameof(chars),
@@ -180,8 +166,7 @@ namespace System.Text
         // when we copy the buffer so that we don't overflow byteCount either.
         [CLSCompliant(false)]
         public virtual unsafe int GetBytes(char* chars, int charCount,
-                                              byte* bytes, int byteCount, bool flush)
-        {
+                                              byte* bytes, int byteCount, bool flush) {
             // Validate input parameters
             if (bytes == null || chars == null)
                 throw new ArgumentNullException(bytes == null ? nameof(bytes) : nameof(chars),
@@ -237,8 +222,7 @@ namespace System.Text
         // applications this could be slow.  (Like trying to exactly fill an output buffer from a bigger stream)
         public virtual void Convert(char[] chars, int charIndex, int charCount,
                                       byte[] bytes, int byteIndex, int byteCount, bool flush,
-                                      out int charsUsed, out int bytesUsed, out bool completed)
-        {
+                                      out int charsUsed, out int bytesUsed, out bool completed) {
             // Validate parameters
             if (chars == null || bytes == null)
                 throw new ArgumentNullException((chars == null ? nameof(chars) : nameof(bytes)),
@@ -266,10 +250,8 @@ namespace System.Text
             // Its easy to do if it won't overrun our buffer.
             // Note: We don't want to call unsafe version because that might be an untrusted version
             // which could be really unsafe and we don't want to mix it up.
-            while (charsUsed > 0)
-            {
-                if (GetByteCount(chars, charIndex, charsUsed, flush) <= byteCount)
-                {
+            while (charsUsed > 0) {
+                if (GetByteCount(chars, charIndex, charsUsed, flush) <= byteCount) {
                     bytesUsed = GetBytes(chars, charIndex, charsUsed, bytes, byteIndex, flush);
                     completed = (charsUsed == charCount &&
                         (m_fallbackBuffer == null || m_fallbackBuffer.Remaining == 0));
@@ -295,8 +277,7 @@ namespace System.Text
         [CLSCompliant(false)]
         public virtual unsafe void Convert(char* chars, int charCount,
                                              byte* bytes, int byteCount, bool flush,
-                                             out int charsUsed, out int bytesUsed, out bool completed)
-        {
+                                             out int charsUsed, out int bytesUsed, out bool completed) {
             // Validate input parameters
             if (bytes == null || chars == null)
                 throw new ArgumentNullException(bytes == null ? nameof(bytes) : nameof(chars),
@@ -310,10 +291,8 @@ namespace System.Text
             charsUsed = charCount;
 
             // Its easy to do if it won't overrun our buffer.
-            while (charsUsed > 0)
-            {
-                if (GetByteCount(chars, charsUsed, flush) <= byteCount)
-                {
+            while (charsUsed > 0) {
+                if (GetByteCount(chars, charsUsed, flush) <= byteCount) {
                     bytesUsed = GetBytes(chars, charsUsed, bytes, byteCount, flush);
                     completed = (charsUsed == charCount &&
                         (m_fallbackBuffer == null || m_fallbackBuffer.Remaining == 0));

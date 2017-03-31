@@ -4,10 +4,8 @@
 
 using System;
 
-namespace System
-{
-    public interface IEquatable<T>
-    {
+namespace System {
+    public interface IEquatable<T> {
         bool Equals(T other);
     }
 }

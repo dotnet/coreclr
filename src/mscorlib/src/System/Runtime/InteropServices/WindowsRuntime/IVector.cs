@@ -12,13 +12,11 @@ using System.Diagnostics.Contracts;
 // code because they're hidden by the metadata adapter. We redeclare the interfaces manually
 // to be able to talk to native WinRT objects.
 
-namespace System.Runtime.InteropServices.WindowsRuntime
-{
+namespace System.Runtime.InteropServices.WindowsRuntime {
     [ComImport]
     [Guid("913337e9-11a1-4345-a3a2-4e7f956e222d")]
     [WindowsRuntimeImport]
-    internal interface IVector<T> : IIterable<T>
-    {
+    internal interface IVector<T> : IIterable<T> {
         [Pure]
         T GetAt(uint index);
         [Pure]
@@ -42,8 +40,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
     [ComImport]
     [Guid("913337e9-11a1-4345-a3a2-4e7f956e222d")]
     [WindowsRuntimeImport]
-    internal interface IVector_Raw<T> : IIterable<T>
-    {
+    internal interface IVector_Raw<T> : IIterable<T> {
         [Pure]
         T GetAt(uint index);
         [Pure]
@@ -63,8 +60,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
     [ComImport]
     [Guid("bbe1fa4c-b0e3-4583-baef-1f1b2e483e56")]
     [WindowsRuntimeImport]
-    internal interface IVectorView<T> : IIterable<T>
-    {
+    internal interface IVectorView<T> : IIterable<T> {
         [Pure]
         T GetAt(uint index);
         [Pure]
@@ -78,8 +74,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
     [ComImport]
     [Guid("393de7de-6fd0-4c0d-bb71-47244a113e93")]
     [WindowsRuntimeImport]
-    internal interface IBindableVector : IBindableIterable
-    {
+    internal interface IBindableVector : IBindableIterable {
         [Pure]
         object GetAt(uint index);
         [Pure]
@@ -99,8 +94,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
     [ComImport]
     [Guid("346dd6e7-976e-4bc3-815d-ece243bc0f33")]
     [WindowsRuntimeImport]
-    internal interface IBindableVectorView : IBindableIterable
-    {
+    internal interface IBindableVectorView : IBindableIterable {
         [Pure]
         object GetAt(uint index);
         [Pure]

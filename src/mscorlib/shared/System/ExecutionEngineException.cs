@@ -18,27 +18,22 @@
 using System;
 using System.Runtime.Serialization;
 
-namespace System
-{
+namespace System {
     [Obsolete("This type previously indicated an unspecified fatal error in the runtime. The runtime no longer raises this exception so this type is obsolete.")]
     [Serializable]
-    public sealed class ExecutionEngineException : SystemException
-    {
+    public sealed class ExecutionEngineException : SystemException {
         public ExecutionEngineException()
-            : base(SR.Arg_ExecutionEngineException)
-        {
+            : base(SR.Arg_ExecutionEngineException) {
             HResult = __HResults.COR_E_EXECUTIONENGINE;
         }
 
         public ExecutionEngineException(String message)
-            : base(message)
-        {
+            : base(message) {
             HResult = __HResults.COR_E_EXECUTIONENGINE;
         }
 
         public ExecutionEngineException(String message, Exception innerException)
-            : base(message, innerException)
-        {
+            : base(message, innerException) {
             HResult = __HResults.COR_E_EXECUTIONENGINE;
         }
 

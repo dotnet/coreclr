@@ -21,12 +21,10 @@ using System.Runtime.Versioning;
 using System.Diagnostics;
 using System.Diagnostics.Contracts;
 
-namespace System
-{
+namespace System {
     [Serializable]
     [StructLayout(LayoutKind.Sequential)]
-    internal struct Variant
-    {
+    internal struct Variant {
         //Do Not change the order of these fields.
         //They are mapped to the native VariantData * data structure.
         private Object m_objref;
@@ -134,8 +132,7 @@ namespace System
         // Use this function instead of an ECALL - saves about 150 clock cycles
         // by avoiding the ecall transition and because the JIT inlines this.
         // Ends up only taking about 1/8 the time of the ECALL version.
-        internal long GetI8FromVar()
-        {
+        internal long GetI8FromVar() {
             return ((long)m_data2 << 32 | ((long)m_data1 & 0xFFFFFFFFL));
         }
 
@@ -143,24 +140,21 @@ namespace System
         // Constructors
         //
 
-        internal Variant(int flags, Object or, int data1, int data2)
-        {
+        internal Variant(int flags, Object or, int data1, int data2) {
             m_flags = flags;
             m_objref = or;
             m_data1 = data1;
             m_data2 = data2;
         }
 
-        public Variant(bool val)
-        {
+        public Variant(bool val) {
             m_objref = null;
             m_flags = CV_BOOLEAN;
             m_data1 = (val) ? Boolean.True : Boolean.False;
             m_data2 = 0;
         }
 
-        public Variant(sbyte val)
-        {
+        public Variant(sbyte val) {
             m_objref = null;
             m_flags = CV_I1;
             m_data1 = (int)val;
@@ -168,72 +162,63 @@ namespace System
         }
 
 
-        public Variant(byte val)
-        {
+        public Variant(byte val) {
             m_objref = null;
             m_flags = CV_U1;
             m_data1 = (int)val;
             m_data2 = 0;
         }
 
-        public Variant(short val)
-        {
+        public Variant(short val) {
             m_objref = null;
             m_flags = CV_I2;
             m_data1 = (int)val;
             m_data2 = (int)(((long)val) >> 32);
         }
 
-        public Variant(ushort val)
-        {
+        public Variant(ushort val) {
             m_objref = null;
             m_flags = CV_U2;
             m_data1 = (int)val;
             m_data2 = 0;
         }
 
-        public Variant(char val)
-        {
+        public Variant(char val) {
             m_objref = null;
             m_flags = CV_CHAR;
             m_data1 = (int)val;
             m_data2 = 0;
         }
 
-        public Variant(int val)
-        {
+        public Variant(int val) {
             m_objref = null;
             m_flags = CV_I4;
             m_data1 = val;
             m_data2 = val >> 31;
         }
 
-        public Variant(uint val)
-        {
+        public Variant(uint val) {
             m_objref = null;
             m_flags = CV_U4;
             m_data1 = (int)val;
             m_data2 = 0;
         }
 
-        public Variant(long val)
-        {
+        public Variant(long val) {
             m_objref = null;
             m_flags = CV_I8;
             m_data1 = (int)val;
             m_data2 = (int)(val >> 32);
         }
 
-        public Variant(ulong val)
-        {
+        public Variant(ulong val) {
             m_objref = null;
             m_flags = CV_U8;
             m_data1 = (int)val;
             m_data2 = (int)(val >> 32);
         }
 
-        public Variant(float val)
-        {
+        public Variant(float val) {
             m_objref = null;
             m_flags = CV_R4;
             m_data1 = 0;
@@ -241,8 +226,7 @@ namespace System
             SetFieldsR4(val);
         }
 
-        public Variant(double val)
-        {
+        public Variant(double val) {
             m_objref = null;
             m_flags = CV_R8;
             m_data1 = 0;
@@ -250,8 +234,7 @@ namespace System
             SetFieldsR8(val);
         }
 
-        public Variant(DateTime val)
-        {
+        public Variant(DateTime val) {
             m_objref = null;
             m_flags = CV_DATETIME;
             ulong ticks = (ulong)val.Ticks;
@@ -259,23 +242,20 @@ namespace System
             m_data2 = (int)(ticks >> 32);
         }
 
-        public Variant(Decimal val)
-        {
+        public Variant(Decimal val) {
             m_objref = (Object)val;
             m_flags = CV_DECIMAL;
             m_data1 = 0;
             m_data2 = 0;
         }
 
-        public Variant(Object obj)
-        {
+        public Variant(Object obj) {
             m_data1 = 0;
             m_data2 = 0;
 
             VarEnum vt = VarEnum.VT_EMPTY;
 
-            if (obj is DateTime)
-            {
+            if (obj is DateTime) {
                 m_objref = null;
                 m_flags = CV_DATETIME;
                 ulong ticks = (ulong)((DateTime)obj).Ticks;
@@ -284,31 +264,26 @@ namespace System
                 return;
             }
 
-            if (obj is String)
-            {
+            if (obj is String) {
                 m_flags = CV_STRING;
                 m_objref = obj;
                 return;
             }
 
-            if (obj == null)
-            {
+            if (obj == null) {
                 this = Empty;
                 return;
             }
-            if (obj == System.DBNull.Value)
-            {
+            if (obj == System.DBNull.Value) {
                 this = DBNull;
                 return;
             }
-            if (obj == Type.Missing)
-            {
+            if (obj == Type.Missing) {
                 this = Missing;
                 return;
             }
 
-            if (obj is Array)
-            {
+            if (obj is Array) {
                 m_flags = CV_OBJECT | ArrayBitMask;
                 m_objref = obj;
                 return;
@@ -319,36 +294,30 @@ namespace System
             m_objref = null;
 
             // Check to see if the object passed in is a wrapper object.
-            if (obj is UnknownWrapper)
-            {
+            if (obj is UnknownWrapper) {
                 vt = VarEnum.VT_UNKNOWN;
                 obj = ((UnknownWrapper)obj).WrappedObject;
             }
-            else if (obj is DispatchWrapper)
-            {
+            else if (obj is DispatchWrapper) {
                 vt = VarEnum.VT_DISPATCH;
                 obj = ((DispatchWrapper)obj).WrappedObject;
             }
-            else if (obj is ErrorWrapper)
-            {
+            else if (obj is ErrorWrapper) {
                 vt = VarEnum.VT_ERROR;
                 obj = (Object)(((ErrorWrapper)obj).ErrorCode);
                 Debug.Assert(obj != null, "obj != null");
             }
-            else if (obj is CurrencyWrapper)
-            {
+            else if (obj is CurrencyWrapper) {
                 vt = VarEnum.VT_CY;
                 obj = (Object)(((CurrencyWrapper)obj).WrappedObject);
                 Debug.Assert(obj != null, "obj != null");
             }
-            else if (obj is BStrWrapper)
-            {
+            else if (obj is BStrWrapper) {
                 vt = VarEnum.VT_BSTR;
                 obj = (Object)(((BStrWrapper)obj).WrappedObject);
             }
 
-            if (obj != null)
-            {
+            if (obj != null) {
                 SetFieldsObject(obj);
             }
 
@@ -359,18 +328,14 @@ namespace System
 
         //This is a family-only accessor for the CVType.
         //This is never to be exposed externally.
-        internal int CVType
-        {
-            get
-            {
+        internal int CVType {
+            get {
                 return (m_flags & TypeCodeBitMask);
             }
         }
 
-        public Object ToObject()
-        {
-            switch (CVType)
-            {
+        public Object ToObject() {
+            switch (CVType) {
                 case CV_EMPTY:
                     return null;
                 case CV_BOOLEAN:
@@ -422,26 +387,21 @@ namespace System
 
         // Helper code for marshaling managed objects to VARIANT's (we use
         // managed variants as an intermediate type.
-        internal static void MarshalHelperConvertObjectToVariant(Object o, ref Variant v)
-        {
+        internal static void MarshalHelperConvertObjectToVariant(Object o, ref Variant v) {
             IConvertible ic = o as IConvertible;
 
-            if (o == null)
-            {
+            if (o == null) {
                 v = Empty;
             }
-            else if (ic == null)
-            {
+            else if (ic == null) {
                 // This path should eventually go away. But until
                 // the work is done to have all of our wrapper types implement
                 // IConvertible, this is a cheapo way to get the work done.
                 v = new Variant(o);
             }
-            else
-            {
+            else {
                 IFormatProvider provider = CultureInfo.InvariantCulture;
-                switch (ic.GetTypeCode())
-                {
+                switch (ic.GetTypeCode()) {
                     case TypeCode.Empty:
                         v = Empty;
                         break;
@@ -522,21 +482,17 @@ namespace System
 
         // Helper code for marshaling VARIANTS to managed objects (we use
         // managed variants as an intermediate type.
-        internal static Object MarshalHelperConvertVariantToObject(ref Variant v)
-        {
+        internal static Object MarshalHelperConvertVariantToObject(ref Variant v) {
             return v.ToObject();
         }
 
         // Helper code: on the back propagation path where a VT_BYREF VARIANT*
         // is marshaled to a "ref Object", we use this helper to force the
         // updated object back to the original type.
-        internal static void MarshalHelperCastVariant(Object pValue, int vt, ref Variant v)
-        {
+        internal static void MarshalHelperCastVariant(Object pValue, int vt, ref Variant v) {
             IConvertible iv = pValue as IConvertible;
-            if (iv == null)
-            {
-                switch (vt)
-                {
+            if (iv == null) {
+                switch (vt) {
                     case 9: /*VT_DISPATCH*/
                         v = new Variant(new DispatchWrapper(pValue));
                         break;
@@ -554,13 +510,11 @@ namespace System
                         break;
 
                     case 8: /*VT_BSTR*/
-                        if (pValue == null)
-                        {
+                        if (pValue == null) {
                             v = new Variant(null);
                             v.m_flags = CV_STRING;
                         }
-                        else
-                        {
+                        else {
                             throw new InvalidCastException(SR.InvalidCast_CannotCoerceByRefVariant);
                         }
                         break;
@@ -569,11 +523,9 @@ namespace System
                         throw new InvalidCastException(SR.InvalidCast_CannotCoerceByRefVariant);
                 }
             }
-            else
-            {
+            else {
                 IFormatProvider provider = CultureInfo.InvariantCulture;
-                switch (vt)
-                {
+                switch (vt) {
                     case 0: /*VT_EMPTY*/
                         v = Empty;
                         break;

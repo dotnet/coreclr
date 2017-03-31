@@ -2,10 +2,8 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-namespace System.Reflection
-{
-    public abstract partial class ConstructorInfo : MethodBase
-    {
+namespace System.Reflection {
+    public abstract partial class ConstructorInfo : MethodBase {
         internal virtual Type GetReturnType() { throw new NotImplementedException(); }
     }
 }

@@ -13,8 +13,7 @@
 ** 
 ===========================================================*/
 
-namespace Microsoft.Win32
-{
+namespace Microsoft.Win32 {
     using System;
     using System.Diagnostics.Contracts;
     using System.Reflection;
@@ -22,8 +21,7 @@ namespace Microsoft.Win32
     using System.Runtime.Versioning;
     using CultureInfo = System.Globalization.CultureInfo;
 
-    internal static class OAVariantLib
-    {
+    internal static class OAVariantLib {
         #region Constants
 
         // Constants for VariantChangeType from OleAuto.h
@@ -74,8 +72,7 @@ namespace Microsoft.Win32
          * Variant and the types that CLR supports explicitly in the 
          * CLR Variant class.  
          */
-        internal static Variant ChangeType(Variant source, Type targetClass, short options, CultureInfo culture)
-        {
+        internal static Variant ChangeType(Variant source, Type targetClass, short options, CultureInfo culture) {
             if (targetClass == null)
                 throw new ArgumentNullException(nameof(targetClass));
             if (culture == null)
@@ -97,18 +94,15 @@ namespace Microsoft.Win32
 
         #region Private Helpers
 
-        private static int GetCVTypeFromClass(Type ctype)
-        {
+        private static int GetCVTypeFromClass(Type ctype) {
             Contract.Requires(ctype != null);
 #if _DEBUG
             BCLDebug.Assert(ClassTypes[CV_OBJECT] == typeof(Object), "OAVariantLib::ClassTypes[CV_OBJECT] == Object.class");
 #endif
 
             int cvtype = -1;
-            for (int i = 0; i < ClassTypes.Length; i++)
-            {
-                if (ctype.Equals(ClassTypes[i]))
-                {
+            for (int i = 0; i < ClassTypes.Length; i++) {
+                if (ctype.Equals(ClassTypes[i])) {
                     cvtype = i;
                     break;
                 }

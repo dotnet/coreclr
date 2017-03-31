@@ -16,11 +16,9 @@ using System.Runtime.InteropServices;
 
 using System;
 
-namespace System.Configuration.Assemblies
-{
+namespace System.Configuration.Assemblies {
     [Serializable]
-    public enum AssemblyHashAlgorithm
-    {
+    public enum AssemblyHashAlgorithm {
         None = 0,
         MD5 = 0x8003,
         SHA1 = 0x8004,

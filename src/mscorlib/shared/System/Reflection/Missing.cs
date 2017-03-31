@@ -4,17 +4,14 @@
 
 using System.Runtime.Serialization;
 
-namespace System.Reflection
-{
+namespace System.Reflection {
     [Serializable]
-    public sealed class Missing : ISerializable
-    {
+    public sealed class Missing : ISerializable {
         public static readonly Missing Value = new Missing();
 
         private Missing() { }
 
-        void ISerializable.GetObjectData(SerializationInfo info, StreamingContext context)
-        {
+        void ISerializable.GetObjectData(SerializationInfo info, StreamingContext context) {
             if (info == null)
                 throw new ArgumentNullException(nameof(info));
 

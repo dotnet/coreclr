@@ -12,13 +12,10 @@ using System.Globalization;
 using System.Diagnostics;
 using System.Diagnostics.Contracts;
 
-namespace System.Reflection.Emit
-{
-    internal sealed class MethodOnTypeBuilderInstantiation : MethodInfo
-    {
+namespace System.Reflection.Emit {
+    internal sealed class MethodOnTypeBuilderInstantiation : MethodInfo {
         #region Private Static Members
-        internal static MethodInfo GetMethod(MethodInfo method, TypeBuilderInstantiation type)
-        {
+        internal static MethodInfo GetMethod(MethodInfo method, TypeBuilderInstantiation type) {
             return new MethodOnTypeBuilderInstantiation(method, type);
         }
         #endregion
@@ -29,8 +26,7 @@ namespace System.Reflection.Emit
         #endregion
 
         #region Constructor
-        internal MethodOnTypeBuilderInstantiation(MethodInfo method, TypeBuilderInstantiation type)
-        {
+        internal MethodOnTypeBuilderInstantiation(MethodInfo method, TypeBuilderInstantiation type) {
             Debug.Assert(method is MethodBuilder || method is RuntimeMethodInfo);
 
             m_method = method;
@@ -38,8 +34,7 @@ namespace System.Reflection.Emit
         }
         #endregion
 
-        internal override Type[] GetParameterTypes()
-        {
+        internal override Type[] GetParameterTypes() {
             return m_method.GetParameterTypes();
         }
 
@@ -60,8 +55,7 @@ namespace System.Reflection.Emit
         public override MethodImplAttributes GetMethodImplementationFlags() { return m_method.GetMethodImplementationFlags(); }
         public override RuntimeMethodHandle MethodHandle { get { return m_method.MethodHandle; } }
         public override MethodAttributes Attributes { get { return m_method.Attributes; } }
-        public override Object Invoke(Object obj, BindingFlags invokeAttr, Binder binder, Object[] parameters, CultureInfo culture)
-        {
+        public override Object Invoke(Object obj, BindingFlags invokeAttr, Binder binder, Object[] parameters, CultureInfo culture) {
             throw new NotSupportedException();
         }
         public override CallingConventions CallingConvention { get { return m_method.CallingConvention; } }
@@ -69,8 +63,7 @@ namespace System.Reflection.Emit
         public override MethodInfo GetGenericMethodDefinition() { return m_method; }
         public override bool IsGenericMethodDefinition { get { return m_method.IsGenericMethodDefinition; } }
         public override bool ContainsGenericParameters { get { return m_method.ContainsGenericParameters; } }
-        public override MethodInfo MakeGenericMethod(params Type[] typeArgs)
-        {
+        public override MethodInfo MakeGenericMethod(params Type[] typeArgs) {
             if (!IsGenericMethodDefinition)
                 throw new InvalidOperationException(SR.Arg_NotGenericMethodDefinition);
             Contract.EndContractBlock();
@@ -90,11 +83,9 @@ namespace System.Reflection.Emit
         #endregion    
     }
 
-    internal sealed class ConstructorOnTypeBuilderInstantiation : ConstructorInfo
-    {
+    internal sealed class ConstructorOnTypeBuilderInstantiation : ConstructorInfo {
         #region Private Static Members
-        internal static ConstructorInfo GetConstructor(ConstructorInfo Constructor, TypeBuilderInstantiation type)
-        {
+        internal static ConstructorInfo GetConstructor(ConstructorInfo Constructor, TypeBuilderInstantiation type) {
             return new ConstructorOnTypeBuilderInstantiation(Constructor, type);
         }
         #endregion
@@ -105,8 +96,7 @@ namespace System.Reflection.Emit
         #endregion
 
         #region Constructor
-        internal ConstructorOnTypeBuilderInstantiation(ConstructorInfo constructor, TypeBuilderInstantiation type)
-        {
+        internal ConstructorOnTypeBuilderInstantiation(ConstructorInfo constructor, TypeBuilderInstantiation type) {
             Debug.Assert(constructor is ConstructorBuilder || constructor is RuntimeConstructorInfo);
 
             m_ctor = constructor;
@@ -114,13 +104,11 @@ namespace System.Reflection.Emit
         }
         #endregion
 
-        internal override Type[] GetParameterTypes()
-        {
+        internal override Type[] GetParameterTypes() {
             return m_ctor.GetParameterTypes();
         }
 
-        internal override Type GetReturnType()
-        {
+        internal override Type GetReturnType() {
             return DeclaringType;
         }
 
@@ -132,16 +120,13 @@ namespace System.Reflection.Emit
         public override Object[] GetCustomAttributes(bool inherit) { return m_ctor.GetCustomAttributes(inherit); }
         public override Object[] GetCustomAttributes(Type attributeType, bool inherit) { return m_ctor.GetCustomAttributes(attributeType, inherit); }
         public override bool IsDefined(Type attributeType, bool inherit) { return m_ctor.IsDefined(attributeType, inherit); }
-        internal int MetadataTokenInternal
-        {
-            get
-            {
+        internal int MetadataTokenInternal {
+            get {
                 ConstructorBuilder cb = m_ctor as ConstructorBuilder;
 
                 if (cb != null)
                     return cb.MetadataTokenInternal;
-                else
-                {
+                else {
                     Debug.Assert(m_ctor is RuntimeConstructorInfo);
                     return m_ctor.MetadataToken;
                 }
@@ -156,8 +141,7 @@ namespace System.Reflection.Emit
         public override MethodImplAttributes GetMethodImplementationFlags() { return m_ctor.GetMethodImplementationFlags(); }
         public override RuntimeMethodHandle MethodHandle { get { return m_ctor.MethodHandle; } }
         public override MethodAttributes Attributes { get { return m_ctor.Attributes; } }
-        public override Object Invoke(Object obj, BindingFlags invokeAttr, Binder binder, Object[] parameters, CultureInfo culture)
-        {
+        public override Object Invoke(Object obj, BindingFlags invokeAttr, Binder binder, Object[] parameters, CultureInfo culture) {
             throw new NotSupportedException();
         }
         public override CallingConventions CallingConvention { get { return m_ctor.CallingConvention; } }
@@ -169,18 +153,15 @@ namespace System.Reflection.Emit
         #endregion
 
         #region ConstructorInfo Members
-        public override Object Invoke(BindingFlags invokeAttr, Binder binder, Object[] parameters, CultureInfo culture)
-        {
+        public override Object Invoke(BindingFlags invokeAttr, Binder binder, Object[] parameters, CultureInfo culture) {
             throw new InvalidOperationException();
         }
         #endregion
     }
 
-    internal sealed class FieldOnTypeBuilderInstantiation : FieldInfo
-    {
+    internal sealed class FieldOnTypeBuilderInstantiation : FieldInfo {
         #region Private Static Members
-        internal static FieldInfo GetField(FieldInfo Field, TypeBuilderInstantiation type)
-        {
+        internal static FieldInfo GetField(FieldInfo Field, TypeBuilderInstantiation type) {
             FieldInfo m = null;
 
             // This ifdef was introduced when non-generic collections were pulled from
@@ -195,12 +176,10 @@ namespace System.Reflection.Emit
             // We're not entirely sure if this cache helps any specific scenarios, so 
             // long-term, one could investigate whether it's needed. In any case, this
             // method isn't expected to be on any critical paths for performance.
-            if (type.m_hashtable.Contains(Field))
-            {
+            if (type.m_hashtable.Contains(Field)) {
                 m = type.m_hashtable[Field] as FieldInfo;
             }
-            else
-            {
+            else {
                 m = new FieldOnTypeBuilderInstantiation(Field, type);
                 type.m_hashtable[Field] = m;
             }
@@ -215,8 +194,7 @@ namespace System.Reflection.Emit
         #endregion
 
         #region Constructor
-        internal FieldOnTypeBuilderInstantiation(FieldInfo field, TypeBuilderInstantiation type)
-        {
+        internal FieldOnTypeBuilderInstantiation(FieldInfo field, TypeBuilderInstantiation type) {
             Debug.Assert(field is FieldBuilder || field is RuntimeFieldInfo);
 
             m_field = field;
@@ -234,16 +212,13 @@ namespace System.Reflection.Emit
         public override Object[] GetCustomAttributes(bool inherit) { return m_field.GetCustomAttributes(inherit); }
         public override Object[] GetCustomAttributes(Type attributeType, bool inherit) { return m_field.GetCustomAttributes(attributeType, inherit); }
         public override bool IsDefined(Type attributeType, bool inherit) { return m_field.IsDefined(attributeType, inherit); }
-        internal int MetadataTokenInternal
-        {
-            get
-            {
+        internal int MetadataTokenInternal {
+            get {
                 FieldBuilder fb = m_field as FieldBuilder;
 
                 if (fb != null)
                     return fb.MetadataTokenInternal;
-                else
-                {
+                else {
                     Debug.Assert(m_field is RuntimeFieldInfo);
                     return m_field.MetadataToken;
                 }
@@ -255,16 +230,13 @@ namespace System.Reflection.Emit
         #region Public Abstract\Virtual Members
         public override Type[] GetRequiredCustomModifiers() { return m_field.GetRequiredCustomModifiers(); }
         public override Type[] GetOptionalCustomModifiers() { return m_field.GetOptionalCustomModifiers(); }
-        public override void SetValueDirect(TypedReference obj, Object value)
-        {
+        public override void SetValueDirect(TypedReference obj, Object value) {
             throw new NotImplementedException();
         }
-        public override Object GetValueDirect(TypedReference obj)
-        {
+        public override Object GetValueDirect(TypedReference obj) {
             throw new NotImplementedException();
         }
-        public override RuntimeFieldHandle FieldHandle
-        {
+        public override RuntimeFieldHandle FieldHandle {
             get { throw new NotImplementedException(); }
         }
         public override Type FieldType { get { throw new NotImplementedException(); } }

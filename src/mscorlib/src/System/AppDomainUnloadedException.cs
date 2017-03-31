@@ -14,22 +14,18 @@
 
 using System.Runtime.Serialization;
 
-namespace System
-{
+namespace System {
     [Serializable]
-    internal class AppDomainUnloadedException : SystemException
-    {
+    internal class AppDomainUnloadedException : SystemException {
         public AppDomainUnloadedException()
-            : base(SR.Arg_AppDomainUnloadedException)
-        {
+            : base(SR.Arg_AppDomainUnloadedException) {
             SetErrorCode(__HResults.COR_E_APPDOMAINUNLOADED);
         }
 
         //
         //This constructor is required for serialization.
         //
-        protected AppDomainUnloadedException(SerializationInfo info, StreamingContext context) : base(info, context)
-        {
+        protected AppDomainUnloadedException(SerializationInfo info, StreamingContext context) : base(info, context) {
         }
     }
 }

@@ -12,28 +12,24 @@ using System.Runtime;
 using System.Runtime.InteropServices;
 using System.Security;
 
-namespace System.Threading
-{
+namespace System.Threading {
     // After much discussion, we decided the Interlocked class doesn't need 
     // any HPA's for synchronization or external threading.  They hurt C#'s 
     // codegen for the yield keyword, and arguably they didn't protect much.  
     // Instead, they penalized people (and compilers) for writing threadsafe 
     // code.
-    public static class Interlocked
-    {
+    public static class Interlocked {
         /******************************
          * Increment
          *   Implemented: int
          *                        long
          *****************************/
 
-        public static int Increment(ref int location)
-        {
+        public static int Increment(ref int location) {
             return Add(ref location, 1);
         }
 
-        public static long Increment(ref long location)
-        {
+        public static long Increment(ref long location) {
             return Add(ref location, 1);
         }
 
@@ -43,13 +39,11 @@ namespace System.Threading
          *                        long
          *****************************/
 
-        public static int Decrement(ref int location)
-        {
+        public static int Decrement(ref int location) {
             return Add(ref location, -1);
         }
 
-        public static long Decrement(ref long location)
-        {
+        public static long Decrement(ref long location) {
             return Add(ref location, -1);
         }
 
@@ -81,8 +75,7 @@ namespace System.Threading
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         public static extern IntPtr Exchange(ref IntPtr location1, IntPtr value);
 
-        public static T Exchange<T>(ref T location1, T value) where T : class
-        {
+        public static T Exchange<T>(ref T location1, T value) where T : class {
             _Exchange(__makeref(location1), __makeref(value));
             //Since value is a local we use trash its data on return
             //  The Exchange replaces the data with new data
@@ -146,8 +139,7 @@ namespace System.Threading
          * for details.
          *****************************************************************/
 
-        public static T CompareExchange<T>(ref T location1, T value, T comparand) where T : class
-        {
+        public static T CompareExchange<T>(ref T location1, T value, T comparand) where T : class {
             // _CompareExchange() passes back the value read from location1 via local named 'value'
             _CompareExchange(__makeref(location1), __makeref(value), comparand);
             return value;
@@ -172,21 +164,18 @@ namespace System.Threading
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         internal static extern long ExchangeAdd(ref long location1, long value);
 
-        public static int Add(ref int location1, int value)
-        {
+        public static int Add(ref int location1, int value) {
             return ExchangeAdd(ref location1, value) + value;
         }
 
-        public static long Add(ref long location1, long value)
-        {
+        public static long Add(ref long location1, long value) {
             return ExchangeAdd(ref location1, value) + value;
         }
 
         /******************************
          * Read
          *****************************/
-        public static long Read(ref long location)
-        {
+        public static long Read(ref long location) {
             return Interlocked.CompareExchange(ref location, 0, 0);
         }
 
@@ -197,8 +186,7 @@ namespace System.Threading
         [SuppressUnmanagedCodeSecurity]
         private static extern void _MemoryBarrierProcessWide();
 
-        public static void MemoryBarrierProcessWide()
-        {
+        public static void MemoryBarrierProcessWide() {
             _MemoryBarrierProcessWide();
         }
     }

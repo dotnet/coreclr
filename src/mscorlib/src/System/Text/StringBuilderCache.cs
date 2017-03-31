@@ -34,10 +34,8 @@
 
 using System.Threading;
 
-namespace System.Text
-{
-    internal static class StringBuilderCache
-    {
+namespace System.Text {
+    internal static class StringBuilderCache {
         // The value 360 was chosen in discussion with performance experts as a compromise between using
         // as litle memory (per thread) as possible and still covering a large part of short-lived
         // StringBuilder creations on the startup path of VS designers.
@@ -46,17 +44,13 @@ namespace System.Text
         [ThreadStatic]
         private static StringBuilder CachedInstance;
 
-        public static StringBuilder Acquire(int capacity = StringBuilder.DefaultCapacity)
-        {
-            if (capacity <= MAX_BUILDER_SIZE)
-            {
+        public static StringBuilder Acquire(int capacity = StringBuilder.DefaultCapacity) {
+            if (capacity <= MAX_BUILDER_SIZE) {
                 StringBuilder sb = StringBuilderCache.CachedInstance;
-                if (sb != null)
-                {
+                if (sb != null) {
                     // Avoid stringbuilder block fragmentation by getting a new StringBuilder
                     // when the requested size is larger than the current capacity
-                    if (capacity <= sb.Capacity)
-                    {
+                    if (capacity <= sb.Capacity) {
                         StringBuilderCache.CachedInstance = null;
                         sb.Clear();
                         return sb;
@@ -66,16 +60,13 @@ namespace System.Text
             return new StringBuilder(capacity);
         }
 
-        public static void Release(StringBuilder sb)
-        {
-            if (sb.Capacity <= MAX_BUILDER_SIZE)
-            {
+        public static void Release(StringBuilder sb) {
+            if (sb.Capacity <= MAX_BUILDER_SIZE) {
                 StringBuilderCache.CachedInstance = sb;
             }
         }
 
-        public static string GetStringAndRelease(StringBuilder sb)
-        {
+        public static string GetStringAndRelease(StringBuilder sb) {
             string result = sb.ToString();
             Release(sb);
             return result;

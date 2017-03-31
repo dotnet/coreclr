@@ -7,12 +7,10 @@ using System;
 // This enumeration defines the access modes for a dynamic assembly.
 // EE uses these enum values..look for m_dwDynamicAssemblyAccess in Assembly.hpp
 
-namespace System.Reflection.Emit
-{
+namespace System.Reflection.Emit {
     [Serializable]
     [Flags]
-    public enum AssemblyBuilderAccess
-    {
+    public enum AssemblyBuilderAccess {
         Run = 1,
         RunAndCollect = 8 | Run
     }

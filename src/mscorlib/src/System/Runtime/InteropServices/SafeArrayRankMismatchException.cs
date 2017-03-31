@@ -14,31 +14,25 @@
 using System;
 using System.Runtime.Serialization;
 
-namespace System.Runtime.InteropServices
-{
+namespace System.Runtime.InteropServices {
     [Serializable]
-    public class SafeArrayRankMismatchException : SystemException
-    {
+    public class SafeArrayRankMismatchException : SystemException {
         public SafeArrayRankMismatchException()
-            : base(SR.Arg_SafeArrayRankMismatchException)
-        {
+            : base(SR.Arg_SafeArrayRankMismatchException) {
             SetErrorCode(__HResults.COR_E_SAFEARRAYRANKMISMATCH);
         }
 
         public SafeArrayRankMismatchException(String message)
-            : base(message)
-        {
+            : base(message) {
             SetErrorCode(__HResults.COR_E_SAFEARRAYRANKMISMATCH);
         }
 
         public SafeArrayRankMismatchException(String message, Exception inner)
-            : base(message, inner)
-        {
+            : base(message, inner) {
             SetErrorCode(__HResults.COR_E_SAFEARRAYRANKMISMATCH);
         }
 
-        protected SafeArrayRankMismatchException(SerializationInfo info, StreamingContext context) : base(info, context)
-        {
+        protected SafeArrayRankMismatchException(SerializationInfo info, StreamingContext context) : base(info, context) {
         }
     }
 }

@@ -11,10 +11,8 @@ using System.Threading;
 using System.Resources;
 #endif
 
-namespace System.Globalization
-{
-    public partial class CultureInfo : IFormatProvider
-    {
+namespace System.Globalization {
+    public partial class CultureInfo : IFormatProvider {
 #if FEATURE_APPX
         // When running under AppX, we use this to get some information about the language list
         private static volatile WindowsRuntimeResourceManagerBase s_WindowsRuntimeResourceManager;
@@ -29,8 +27,7 @@ namespace System.Globalization
         /// <remarks>
         /// This method may return null, if there is no default user culture or if WinRT isn't available.
         /// </remarks>
-        private static CultureInfo GetUserDefaultCultureCacheOverride()
-        {
+        private static CultureInfo GetUserDefaultCultureCacheOverride() {
 #if ENABLE_WINRT
             WinRTInteropCallbacks callbacks = WinRTInterop.UnsafeCallbacks;
             if (callbacks != null && callbacks.IsAppxModel())
@@ -42,8 +39,7 @@ namespace System.Globalization
             return null;
         }
 
-        internal static CultureInfo GetUserDefaultCulture()
-        {
+        internal static CultureInfo GetUserDefaultCulture() {
             if (GlobalizationMode.Invariant)
                 return CultureInfo.InvariantCulture;
             
@@ -52,12 +48,10 @@ namespace System.Globalization
             const string LOCALE_NAME_SYSTEM_DEFAULT = "!x-sys-default-locale";
 
             string strDefault = CultureData.GetLocaleInfoEx(LOCALE_NAME_USER_DEFAULT, LOCALE_SNAME);
-            if (strDefault == null)
-            {
+            if (strDefault == null) {
                 strDefault = CultureData.GetLocaleInfoEx(LOCALE_NAME_SYSTEM_DEFAULT, LOCALE_SNAME);
 
-                if (strDefault == null)
-                {
+                if (strDefault == null) {
                     // If system default doesn't work, use invariant
                     return CultureInfo.InvariantCulture;
                 }
@@ -70,8 +64,7 @@ namespace System.Globalization
             return temp;
         }
 
-        private static CultureInfo GetUserDefaultUILanguage()
-        {
+        private static CultureInfo GetUserDefaultUILanguage() {
             if (GlobalizationMode.Invariant)
                 return CultureInfo.InvariantCulture;
 
@@ -79,14 +72,11 @@ namespace System.Globalization
             uint langCount = 0;
             uint bufLen = 0;
 
-            if (Interop.Kernel32.GetUserPreferredUILanguages(MUI_LANGUAGE_NAME, out langCount, null, ref bufLen))
-            {
+            if (Interop.Kernel32.GetUserPreferredUILanguages(MUI_LANGUAGE_NAME, out langCount, null, ref bufLen)) {
                 char [] languages = new char[bufLen];
-                if (Interop.Kernel32.GetUserPreferredUILanguages(MUI_LANGUAGE_NAME, out langCount, languages, ref bufLen))
-                {
+                if (Interop.Kernel32.GetUserPreferredUILanguages(MUI_LANGUAGE_NAME, out langCount, languages, ref bufLen)) {
                     int index = 0;
-                    while (languages[index] != (char) 0 && index<languages.Length)
-                    {
+                    while (languages[index] != (char) 0 && index<languages.Length) {
                         index++;
                     }
 
@@ -119,39 +109,32 @@ namespace System.Globalization
         //      o   Use NLS default system culture
         //      o   Use Invariant culture
         //
-        public static CultureInfo CurrentCulture
-        {
-            get
-            {
+        public static CultureInfo CurrentCulture {
+            get {
 #if FEATURE_APPX
-                if (AppDomain.IsAppXModel())
-                {
+                if (AppDomain.IsAppXModel()) {
                     CultureInfo culture = GetCultureInfoForUserPreferredLanguageInAppX();
                     if (culture != null)
                         return culture;
                 }
 #endif
                 CultureInfo ci = GetUserDefaultCultureCacheOverride();
-                if (ci != null)
-                {
+                if (ci != null) {
                     return ci;
                 }
 
-                if (Thread.m_CurrentCulture != null)
-                {
+                if (Thread.m_CurrentCulture != null) {
                     return Thread.m_CurrentCulture;
                 }
 
                 ci = s_DefaultThreadCurrentCulture;
-                if (ci != null)
-                {
+                if (ci != null) {
                     return ci;
                 }
 
                 // if s_userDefaultCulture == null means CultureInfo statics didn't get initialized yet. this can happen if there early static 
                 // method get executed which eventually hit the cultureInfo code while CultureInfo statics didn’t get chance to initialize
-                if (s_userDefaultCulture == null)
-                {
+                if (s_userDefaultCulture == null) {
                     Init();
                 }
 
@@ -159,38 +142,30 @@ namespace System.Globalization
                 return s_userDefaultCulture;
             }
 
-            set
-            {
-                if (value == null)
-                {
+            set {
+                if (value == null) {
                     throw new ArgumentNullException(nameof(value));
                 }
                 
 #if FEATURE_APPX
-                if (AppDomain.IsAppXModel())
-                {
-                    if (SetCultureInfoForUserPreferredLanguageInAppX(value))
-                    {
+                if (AppDomain.IsAppXModel()) {
+                    if (SetCultureInfoForUserPreferredLanguageInAppX(value)) {
                         // successfully set the culture, otherwise fallback to legacy path
                         return; 
                     }
                 }
 #endif
-                if (s_asyncLocalCurrentCulture == null)
-                {
+                if (s_asyncLocalCurrentCulture == null) {
                     Interlocked.CompareExchange(ref s_asyncLocalCurrentCulture, new AsyncLocal<CultureInfo>(AsyncLocalSetCurrentCulture), null);
                 }
                 s_asyncLocalCurrentCulture.Value = value;
             }
         }
 
-        public static CultureInfo CurrentUICulture
-        {
-            get
-            {
+        public static CultureInfo CurrentUICulture {
+            get {
 #if FEATURE_APPX
-                if (AppDomain.IsAppXModel())
-                {
+                if (AppDomain.IsAppXModel()) {
                     CultureInfo culture = GetCultureInfoForUserPreferredLanguageInAppX();
                     if (culture != null)
                         return culture;
@@ -199,26 +174,21 @@ namespace System.Globalization
                 return GetCurrentUICultureNoAppX();
             }
 
-            set
-            {
-                if (value == null)
-                {
+            set {
+                if (value == null) {
                     throw new ArgumentNullException(nameof(value));
                 }
 
                 CultureInfo.VerifyCultureName(value, true);
 #if FEATURE_APPX
-                if (AppDomain.IsAppXModel())
-                {
-                    if (SetCultureInfoForUserPreferredLanguageInAppX(value))
-                    {
+                if (AppDomain.IsAppXModel()) {
+                    if (SetCultureInfoForUserPreferredLanguageInAppX(value)) {
                         // successfully set the culture, otherwise fallback to legacy path
                         return; 
                     }
                 }
 #endif
-                if (s_asyncLocalCurrentUICulture == null)
-                {
+                if (s_asyncLocalCurrentUICulture == null) {
                     Interlocked.CompareExchange(ref s_asyncLocalCurrentUICulture, new AsyncLocal<CultureInfo>(AsyncLocalSetCurrentUICulture), null);
                 }
 
@@ -228,44 +198,37 @@ namespace System.Globalization
         }
 
 #if FEATURE_APPX
-        internal static CultureInfo GetCultureInfoForUserPreferredLanguageInAppX()
-        {
+        internal static CultureInfo GetCultureInfoForUserPreferredLanguageInAppX() {
             // If a call to GetCultureInfoForUserPreferredLanguageInAppX() generated a recursive
             // call to itself, return null, since we don't want to stack overflow.  For example, 
             // this can happen if some code in this method ends up calling CultureInfo.CurrentCulture
             // (which is common on check'd build because of BCLDebug logging which calls Int32.ToString()).  
             // In this case, returning null will mean CultureInfo.CurrentCulture gets the default Win32 
             // value, which should be fine. 
-            if (ts_IsDoingAppXCultureInfoLookup)
-            {
+            if (ts_IsDoingAppXCultureInfoLookup) {
                 return null;
             }
 
             CultureInfo toReturn = null;
 
-            try 
-            {
+            try {
                 ts_IsDoingAppXCultureInfoLookup = true;
 
-                if (s_WindowsRuntimeResourceManager == null)
-                {
+                if (s_WindowsRuntimeResourceManager == null) {
                     s_WindowsRuntimeResourceManager = ResourceManager.GetWinRTResourceManager();
                 }
 
                 toReturn = s_WindowsRuntimeResourceManager.GlobalResourceContextBestFitCultureInfo;
             } 
-            finally 
-            {
+            finally {
                ts_IsDoingAppXCultureInfoLookup = false;
             }
  
             return toReturn;
         }
 
-        internal static bool SetCultureInfoForUserPreferredLanguageInAppX(CultureInfo ci)
-        {
-            if (s_WindowsRuntimeResourceManager == null)
-            {
+        internal static bool SetCultureInfoForUserPreferredLanguageInAppX(CultureInfo ci) {
+            if (s_WindowsRuntimeResourceManager == null) {
                 s_WindowsRuntimeResourceManager = ResourceManager.GetWinRTResourceManager();
             }
 

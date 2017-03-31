@@ -5,13 +5,10 @@
 using System.Diagnostics.Contracts;
 using System.Runtime.Serialization;
 
-namespace System
-{
-    public sealed partial class TimeZoneInfo
-    {
+namespace System {
+    public sealed partial class TimeZoneInfo {
         [Serializable]
-        public struct TransitionTime : IEquatable<TransitionTime>, ISerializable, IDeserializationCallback
-        {
+        public struct TransitionTime : IEquatable<TransitionTime>, ISerializable, IDeserializationCallback {
             private readonly DateTime _timeOfDay;
             private readonly byte _month;
             private readonly byte _week;
@@ -50,8 +47,7 @@ namespace System
 
             public override int GetHashCode() => (int)_month ^ (int)_week << 8;
 
-            private TransitionTime(DateTime timeOfDay, int month, int week, int day, DayOfWeek dayOfWeek, bool isFixedDateRule)
-            {
+            private TransitionTime(DateTime timeOfDay, int month, int week, int day, DayOfWeek dayOfWeek, bool isFixedDateRule) {
                 ValidateTransitionTime(timeOfDay, month, week, day, dayOfWeek);
 
                 _timeOfDay = timeOfDay;
@@ -71,63 +67,51 @@ namespace System
             /// <summary>
             /// Helper function that validates a TransitionTime instance.
             /// </summary>
-            private static void ValidateTransitionTime(DateTime timeOfDay, int month, int week, int day, DayOfWeek dayOfWeek)
-            {
-                if (timeOfDay.Kind != DateTimeKind.Unspecified)
-                {
+            private static void ValidateTransitionTime(DateTime timeOfDay, int month, int week, int day, DayOfWeek dayOfWeek) {
+                if (timeOfDay.Kind != DateTimeKind.Unspecified) {
                     throw new ArgumentException(SR.Argument_DateTimeKindMustBeUnspecified, nameof(timeOfDay));
                 }
 
                 // Month range 1-12
-                if (month < 1 || month > 12)
-                {
+                if (month < 1 || month > 12) {
                     throw new ArgumentOutOfRangeException(nameof(month), SR.ArgumentOutOfRange_MonthParam);
                 }
 
                 // Day range 1-31
-                if (day < 1 || day > 31)
-                {
+                if (day < 1 || day > 31) {
                     throw new ArgumentOutOfRangeException(nameof(day), SR.ArgumentOutOfRange_DayParam);
                 }
 
                 // Week range 1-5
-                if (week < 1 || week > 5)
-                {
+                if (week < 1 || week > 5) {
                     throw new ArgumentOutOfRangeException(nameof(week), SR.ArgumentOutOfRange_Week);
                 }
 
                 // DayOfWeek range 0-6
-                if ((int)dayOfWeek < 0 || (int)dayOfWeek > 6)
-                {
+                if ((int)dayOfWeek < 0 || (int)dayOfWeek > 6) {
                     throw new ArgumentOutOfRangeException(nameof(dayOfWeek), SR.ArgumentOutOfRange_DayOfWeek);
                 }
                 Contract.EndContractBlock();
 
-                if (timeOfDay.Year != 1 || timeOfDay.Month != 1 || timeOfDay.Day != 1 || (timeOfDay.Ticks % TimeSpan.TicksPerMillisecond != 0))
-                {
+                if (timeOfDay.Year != 1 || timeOfDay.Month != 1 || timeOfDay.Day != 1 || (timeOfDay.Ticks % TimeSpan.TicksPerMillisecond != 0)) {
                     throw new ArgumentException(SR.Argument_DateTimeHasTicks, nameof(timeOfDay));
                 }
             }
 
-            void IDeserializationCallback.OnDeserialization(object sender)
-            {
+            void IDeserializationCallback.OnDeserialization(object sender) {
                 // OnDeserialization is called after each instance of this class is deserialized.
                 // This callback method performs TransitionTime validation after being deserialized.
 
-                try
-                {
+                try {
                     ValidateTransitionTime(_timeOfDay, _month, _week, _day, _dayOfWeek);
                 }
-                catch (ArgumentException e)
-                {
+                catch (ArgumentException e) {
                     throw new SerializationException(SR.Serialization_InvalidData, e);
                 }
             }
 
-            void ISerializable.GetObjectData(SerializationInfo info, StreamingContext context)
-            {
-                if (info == null)
-                {
+            void ISerializable.GetObjectData(SerializationInfo info, StreamingContext context) {
+                if (info == null) {
                     throw new ArgumentNullException(nameof(info));
                 }
                 Contract.EndContractBlock();
@@ -140,10 +124,8 @@ namespace System
                 info.AddValue("IsFixedDateRule", _isFixedDateRule);
             }
 
-            private TransitionTime(SerializationInfo info, StreamingContext context)
-            {
-                if (info == null)
-                {
+            private TransitionTime(SerializationInfo info, StreamingContext context) {
+                if (info == null) {
                     throw new ArgumentNullException(nameof(info));
                 }
 

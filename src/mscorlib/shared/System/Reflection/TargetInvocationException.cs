@@ -4,26 +4,21 @@
 
 using System.Runtime.Serialization;
 
-namespace System.Reflection
-{
+namespace System.Reflection {
     [Serializable]
-    public sealed class TargetInvocationException : ApplicationException
-    {
+    public sealed class TargetInvocationException : ApplicationException {
         public TargetInvocationException(Exception inner)
-            : base(SR.Arg_TargetInvocationException, inner)
-        {
+            : base(SR.Arg_TargetInvocationException, inner) {
             HResult = __HResults.COR_E_TARGETINVOCATION;
         }
 
         public TargetInvocationException(string message, Exception inner)
-            : base(message, inner)
-        {
+            : base(message, inner) {
             HResult = __HResults.COR_E_TARGETINVOCATION;
         }
 
         internal TargetInvocationException(SerializationInfo info, StreamingContext context)
-            : base(info, context)
-        {
+            : base(info, context) {
         }
     }
 }

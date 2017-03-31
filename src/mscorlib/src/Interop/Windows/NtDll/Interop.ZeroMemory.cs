@@ -6,10 +6,8 @@ using System;
 using System.Runtime.InteropServices;
 using System.Security;
 
-internal partial class Interop
-{
-    internal partial class NtDll
-    {
+internal partial class Interop {
+    internal partial class NtDll {
         [DllImport(Libraries.NtDll, CharSet = CharSet.Unicode, EntryPoint = "RtlZeroMemory")]
         internal static extern void ZeroMemory(IntPtr address, UIntPtr length);
     }

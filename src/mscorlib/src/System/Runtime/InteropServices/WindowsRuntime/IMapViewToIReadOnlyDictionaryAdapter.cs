@@ -13,8 +13,7 @@ using System.Diagnostics.Contracts;
 using System.Runtime.InteropServices;
 using System.Runtime.CompilerServices;
 
-namespace System.Runtime.InteropServices.WindowsRuntime
-{
+namespace System.Runtime.InteropServices.WindowsRuntime {
     // This is a set of stub methods implementing the support for the IReadOnlyDictionary`2 interface on WinRT
     // objects that support IMapView`2. Used by the interop mashaling infrastructure.
     //
@@ -24,16 +23,13 @@ namespace System.Runtime.InteropServices.WindowsRuntime
     // IMapView<K, V>. No actual IMapViewToIReadOnlyDictionaryAdapter object is ever instantiated. Thus, you will see
     // a lot of expressions that cast "this" to "IMapView<K, V>".
     [DebuggerDisplay("Count = {Count}")]
-    internal sealed class IMapViewToIReadOnlyDictionaryAdapter
-    {
-        private IMapViewToIReadOnlyDictionaryAdapter()
-        {
+    internal sealed class IMapViewToIReadOnlyDictionaryAdapter {
+        private IMapViewToIReadOnlyDictionaryAdapter() {
             Debug.Assert(false, "This class is never instantiated");
         }
 
         // V this[K key] { get }
-        internal V Indexer_Get<K, V>(K key)
-        {
+        internal V Indexer_Get<K, V>(K key) {
             if (key == null)
                 throw new ArgumentNullException(nameof(key));
             Contract.EndContractBlock();
@@ -43,16 +39,14 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         }
 
         // IEnumerable<K> Keys { get }
-        internal IEnumerable<K> Keys<K, V>()
-        {
+        internal IEnumerable<K> Keys<K, V>() {
             IMapView<K, V> _this = JitHelpers.UnsafeCast<IMapView<K, V>>(this);
             IReadOnlyDictionary<K, V> roDictionary = (IReadOnlyDictionary<K, V>)_this;
             return new ReadOnlyDictionaryKeyCollection<K, V>(roDictionary);
         }
 
         // IEnumerable<V> Values { get }
-        internal IEnumerable<V> Values<K, V>()
-        {
+        internal IEnumerable<V> Values<K, V>() {
             IMapView<K, V> _this = JitHelpers.UnsafeCast<IMapView<K, V>>(this);
             IReadOnlyDictionary<K, V> roDictionary = (IReadOnlyDictionary<K, V>)_this;
             return new ReadOnlyDictionaryValueCollection<K, V>(roDictionary);
@@ -60,8 +54,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
 
         // bool ContainsKey(K key)
         [Pure]
-        internal bool ContainsKey<K, V>(K key)
-        {
+        internal bool ContainsKey<K, V>(K key) {
             if (key == null)
                 throw new ArgumentNullException(nameof(key));
 
@@ -70,8 +63,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         }
 
         // bool TryGetValue(TKey key, out TValue value)
-        internal bool TryGetValue<K, V>(K key, out V value)
-        {
+        internal bool TryGetValue<K, V>(K key, out V value) {
             if (key == null)
                 throw new ArgumentNullException(nameof(key));
 
@@ -79,21 +71,18 @@ namespace System.Runtime.InteropServices.WindowsRuntime
 
             // It may be faster to call HasKey then Lookup.  On failure, we would otherwise
             // throw an exception from Lookup.
-            if (!_this.HasKey(key))
-            {
+            if (!_this.HasKey(key)) {
                 value = default(V);
                 return false;
             }
 
-            try
-            {
+            try {
                 value = _this.Lookup(key);
                 return true;
             }
             catch (Exception ex)  // Still may hit this case due to a race condition
-            {
-                if (__HResults.E_BOUNDS == ex._HResult)
-                {
+{
+                if (__HResults.E_BOUNDS == ex._HResult) {
                     value = default(V);
                     return false;
                 }
@@ -103,16 +92,13 @@ namespace System.Runtime.InteropServices.WindowsRuntime
 
         #region Helpers
 
-        private static V Lookup<K, V>(IMapView<K, V> _this, K key)
-        {
+        private static V Lookup<K, V>(IMapView<K, V> _this, K key) {
             Contract.Requires(null != key);
 
-            try
-            {
+            try {
                 return _this.Lookup(key);
             }
-            catch (Exception ex)
-            {
+            catch (Exception ex) {
                 if (__HResults.E_BOUNDS == ex._HResult)
                     throw new KeyNotFoundException(SR.Arg_KeyNotFound);
                 throw;
@@ -125,12 +111,10 @@ namespace System.Runtime.InteropServices.WindowsRuntime
     // Note: One day we may make these return IReadOnlyCollection<T>
     [Serializable]
     [DebuggerDisplay("Count = {Count}")]
-    internal sealed class ReadOnlyDictionaryKeyCollection<TKey, TValue> : IEnumerable<TKey>
-    {
+    internal sealed class ReadOnlyDictionaryKeyCollection<TKey, TValue> : IEnumerable<TKey> {
         private readonly IReadOnlyDictionary<TKey, TValue> dictionary;
 
-        public ReadOnlyDictionaryKeyCollection(IReadOnlyDictionary<TKey, TValue> dictionary)
-        {
+        public ReadOnlyDictionaryKeyCollection(IReadOnlyDictionary<TKey, TValue> dictionary) {
             if (dictionary == null)
                 throw new ArgumentNullException(nameof(dictionary));
 
@@ -166,26 +150,22 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         }
         */
 
-        IEnumerator IEnumerable.GetEnumerator()
-        {
+        IEnumerator IEnumerable.GetEnumerator() {
             return ((IEnumerable<TKey>)this).GetEnumerator();
         }
 
-        public IEnumerator<TKey> GetEnumerator()
-        {
+        public IEnumerator<TKey> GetEnumerator() {
             return new ReadOnlyDictionaryKeyEnumerator<TKey, TValue>(dictionary);
         }
     }  // public class ReadOnlyDictionaryKeyCollection<TKey, TValue>
 
 
     [Serializable]
-    internal sealed class ReadOnlyDictionaryKeyEnumerator<TKey, TValue> : IEnumerator<TKey>
-    {
+    internal sealed class ReadOnlyDictionaryKeyEnumerator<TKey, TValue> : IEnumerator<TKey> {
         private readonly IReadOnlyDictionary<TKey, TValue> dictionary;
         private IEnumerator<KeyValuePair<TKey, TValue>> enumeration;
 
-        public ReadOnlyDictionaryKeyEnumerator(IReadOnlyDictionary<TKey, TValue> dictionary)
-        {
+        public ReadOnlyDictionaryKeyEnumerator(IReadOnlyDictionary<TKey, TValue> dictionary) {
             if (dictionary == null)
                 throw new ArgumentNullException(nameof(dictionary));
 
@@ -193,28 +173,23 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             enumeration = dictionary.GetEnumerator();
         }
 
-        void IDisposable.Dispose()
-        {
+        void IDisposable.Dispose() {
             enumeration.Dispose();
         }
 
-        public bool MoveNext()
-        {
+        public bool MoveNext() {
             return enumeration.MoveNext();
         }
 
-        Object IEnumerator.Current
-        {
+        Object IEnumerator.Current {
             get { return ((IEnumerator<TKey>)this).Current; }
         }
 
-        public TKey Current
-        {
+        public TKey Current {
             get { return enumeration.Current.Key; }
         }
 
-        public void Reset()
-        {
+        public void Reset() {
             enumeration = dictionary.GetEnumerator();
         }
     }  // class ReadOnlyDictionaryKeyEnumerator<TKey, TValue>
@@ -222,12 +197,10 @@ namespace System.Runtime.InteropServices.WindowsRuntime
 
     [Serializable]
     [DebuggerDisplay("Count = {Count}")]
-    internal sealed class ReadOnlyDictionaryValueCollection<TKey, TValue> : IEnumerable<TValue>
-    {
+    internal sealed class ReadOnlyDictionaryValueCollection<TKey, TValue> : IEnumerable<TValue> {
         private readonly IReadOnlyDictionary<TKey, TValue> dictionary;
 
-        public ReadOnlyDictionaryValueCollection(IReadOnlyDictionary<TKey, TValue> dictionary)
-        {
+        public ReadOnlyDictionaryValueCollection(IReadOnlyDictionary<TKey, TValue> dictionary) {
             if (dictionary == null)
                 throw new ArgumentNullException(nameof(dictionary));
 
@@ -267,26 +240,22 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         }
         */
 
-        IEnumerator IEnumerable.GetEnumerator()
-        {
+        IEnumerator IEnumerable.GetEnumerator() {
             return ((IEnumerable<TValue>)this).GetEnumerator();
         }
 
-        public IEnumerator<TValue> GetEnumerator()
-        {
+        public IEnumerator<TValue> GetEnumerator() {
             return new ReadOnlyDictionaryValueEnumerator<TKey, TValue>(dictionary);
         }
     }  // public class ReadOnlyDictionaryValueCollection<TKey, TValue>
 
 
     [Serializable]
-    internal sealed class ReadOnlyDictionaryValueEnumerator<TKey, TValue> : IEnumerator<TValue>
-    {
+    internal sealed class ReadOnlyDictionaryValueEnumerator<TKey, TValue> : IEnumerator<TValue> {
         private readonly IReadOnlyDictionary<TKey, TValue> dictionary;
         private IEnumerator<KeyValuePair<TKey, TValue>> enumeration;
 
-        public ReadOnlyDictionaryValueEnumerator(IReadOnlyDictionary<TKey, TValue> dictionary)
-        {
+        public ReadOnlyDictionaryValueEnumerator(IReadOnlyDictionary<TKey, TValue> dictionary) {
             if (dictionary == null)
                 throw new ArgumentNullException(nameof(dictionary));
 
@@ -294,28 +263,23 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             enumeration = dictionary.GetEnumerator();
         }
 
-        void IDisposable.Dispose()
-        {
+        void IDisposable.Dispose() {
             enumeration.Dispose();
         }
 
-        public bool MoveNext()
-        {
+        public bool MoveNext() {
             return enumeration.MoveNext();
         }
 
-        Object IEnumerator.Current
-        {
+        Object IEnumerator.Current {
             get { return ((IEnumerator<TValue>)this).Current; }
         }
 
-        public TValue Current
-        {
+        public TValue Current {
             get { return enumeration.Current.Value; }
         }
 
-        public void Reset()
-        {
+        public void Reset() {
             enumeration = dictionary.GetEnumerator();
         }
     }  // class ReadOnlyDictionaryValueEnumerator<TKey, TValue>

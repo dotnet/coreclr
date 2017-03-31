@@ -23,16 +23,12 @@ using System.Runtime.InteropServices;
 using System.Diagnostics;
 using System.Diagnostics.Contracts;
 
-namespace System.IO
-{
-    internal static class Directory
-    {
+namespace System.IO {
+    internal static class Directory {
         // Private class that holds search data that is passed around 
         // in the heap based stack recursion
-        internal sealed class SearchData
-        {
-            public SearchData(String fullPath, String userPath, SearchOption searchOption)
-            {
+        internal sealed class SearchData {
+            public SearchData(String fullPath, String userPath, SearchOption searchOption) {
                 Contract.Requires(fullPath != null && fullPath.Length > 0);
                 Contract.Requires(userPath != null && userPath.Length > 0);
                 Contract.Requires(searchOption == SearchOption.AllDirectories || searchOption == SearchOption.TopDirectoryOnly);
@@ -85,8 +81,7 @@ namespace System.IO
         }
 #endif // PLATFORM_UNIX        
 
-        internal static String InternalGetDirectoryRoot(String path)
-        {
+        internal static String InternalGetDirectoryRoot(String path) {
             if (path == null) return null;
             return path.Substring(0, PathInternal.GetRootLength(path));
         }
@@ -98,15 +93,12 @@ namespace System.IO
         **Arguments: The current DirectoryInfo to which to switch to the setter.
         **Exceptions: 
         ==============================================================================*/
-        public static String GetCurrentDirectory()
-        {
+        public static String GetCurrentDirectory() {
             // Start with a buffer the size of MAX_PATH
             StringBuffer buffer = new StringBuffer(260);
-            try
-            {
+            try {
                 uint result = 0;
-                while ((result = Win32Native.GetCurrentDirectoryW((uint)buffer.Capacity, buffer.UnderlyingArray)) > buffer.Capacity)
-                {
+                while ((result = Win32Native.GetCurrentDirectoryW((uint)buffer.Capacity, buffer.UnderlyingArray)) > buffer.Capacity) {
                     // Reported size is greater than the buffer size. Increase the capacity.
                     // The size returned includes the null only if more space is needed (this case).
                     buffer.EnsureCapacity(checked((int)result));
@@ -124,14 +116,12 @@ namespace System.IO
 
                 return buffer.ToString();
             }
-            finally
-            {
+            finally {
                 buffer.Free();
             }
         }
 
-        public static void SetCurrentDirectory(String path)
-        {
+        public static void SetCurrentDirectory(String path) {
             if (path == null)
                 throw new ArgumentNullException(nameof(path));
             if (path.Length == 0)
@@ -141,8 +131,7 @@ namespace System.IO
 
             String fulldestDirName = Path.GetFullPath(path);
 
-            if (!Win32Native.SetCurrentDirectory(fulldestDirName))
-            {
+            if (!Win32Native.SetCurrentDirectory(fulldestDirName)) {
                 // If path doesn't exist, this sets last error to 2 (File 
                 // not Found).  LEGACY: This may potentially have worked correctly
                 // on Win9x, maybe.

@@ -6,8 +6,7 @@
 using System.Runtime.CompilerServices;
 using System.Runtime.Versioning;
 
-namespace System
-{
+namespace System {
 #if MDA_SUPPORTED
     internal static class Mda
     {

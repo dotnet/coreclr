@@ -18,51 +18,40 @@ using System.Runtime.Serialization;
 using System.Runtime.CompilerServices;
 using System.Globalization;
 
-namespace System
-{
+namespace System {
     [Serializable]
-    public class MissingMethodException : MissingMemberException, ISerializable
-    {
+    public class MissingMethodException : MissingMemberException, ISerializable {
         public MissingMethodException()
-            : base(SR.Arg_MissingMethodException)
-        {
+            : base(SR.Arg_MissingMethodException) {
             SetErrorCode(__HResults.COR_E_MISSINGMETHOD);
         }
 
         public MissingMethodException(String message)
-            : base(message)
-        {
+            : base(message) {
             SetErrorCode(__HResults.COR_E_MISSINGMETHOD);
         }
 
         public MissingMethodException(String message, Exception inner)
-            : base(message, inner)
-        {
+            : base(message, inner) {
             SetErrorCode(__HResults.COR_E_MISSINGMETHOD);
         }
 
-        protected MissingMethodException(SerializationInfo info, StreamingContext context) : base(info, context)
-        {
+        protected MissingMethodException(SerializationInfo info, StreamingContext context) : base(info, context) {
         }
 
-        public override String Message
-        {
-            get
-            {
-                if (ClassName == null)
-                {
+        public override String Message {
+            get {
+                if (ClassName == null) {
                     return base.Message;
                 }
-                else
-                {
+                else {
                     // do any desired fixups to classname here.
                     return SR.Format(SR.MissingMethod_Name, ClassName + "." + MemberName + (Signature != null ? " " + FormatSignature(Signature) : ""));
                 }
             }
         }
 
-        public MissingMethodException(String className, String methodName)
-        {
+        public MissingMethodException(String className, String methodName) {
             ClassName = className;
             MemberName = methodName;
         }

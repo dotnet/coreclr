@@ -14,12 +14,10 @@
 
 using System;
 
-namespace System.Globalization
-{
+namespace System.Globalization {
     [Serializable]
     [Flags]
-    public enum NumberStyles
-    {
+    public enum NumberStyles {
         // Bit flag indicating that leading whitespace is allowed. Character values
         // 0x0009, 0x000A, 0x000B, 0x000C, 0x000D, and 0x0020 are considered to be
         // whitespace.

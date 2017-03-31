@@ -17,8 +17,7 @@
 using System.Threading;
 using System.Runtime.InteropServices;
 
-namespace System.Threading
-{
+namespace System.Threading {
     [ComVisibleAttribute(false)]
     public delegate void ParameterizedThreadStart(object obj);
 }

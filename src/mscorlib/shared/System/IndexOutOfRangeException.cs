@@ -13,26 +13,21 @@
 
 using System.Runtime.Serialization;
 
-namespace System
-{
+namespace System {
     [Serializable]
-    public sealed class IndexOutOfRangeException : SystemException
-    {
+    public sealed class IndexOutOfRangeException : SystemException {
         public IndexOutOfRangeException()
-            : base(SR.Arg_IndexOutOfRangeException)
-        {
+            : base(SR.Arg_IndexOutOfRangeException) {
             HResult = __HResults.COR_E_INDEXOUTOFRANGE;
         }
 
         public IndexOutOfRangeException(String message)
-            : base(message)
-        {
+            : base(message) {
             HResult = __HResults.COR_E_INDEXOUTOFRANGE;
         }
 
         public IndexOutOfRangeException(String message, Exception innerException)
-            : base(message, innerException)
-        {
+            : base(message, innerException) {
             HResult = __HResults.COR_E_INDEXOUTOFRANGE;
         }
 

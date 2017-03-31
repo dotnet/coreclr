@@ -6,11 +6,9 @@ using System;
 using System.Diagnostics.Contracts;
 using System.Runtime.CompilerServices;
 
-namespace System.Collections.Generic
-{
+namespace System.Collections.Generic {
     // Provides a read-only, covariant view of a generic list.
-    public interface IReadOnlyList<out T> : IReadOnlyCollection<T>
-    {
+    public interface IReadOnlyList<out T> : IReadOnlyCollection<T> {
         T this[int index] { get; }
     }
 }

@@ -12,8 +12,7 @@
 **
 ============================================================*/
 
-namespace System
-{
+namespace System {
     using System.IO;
     using System.Security;
     using System.Resources;
@@ -32,15 +31,13 @@ namespace System
     using System.Runtime.Versioning;
     using System.Diagnostics.Contracts;
 
-    public enum EnvironmentVariableTarget
-    {
+    public enum EnvironmentVariableTarget {
         Process = 0,
         User = 1,
         Machine = 2,
     }
 
-    internal static partial class Environment
-    {
+    internal static partial class Environment {
         // Assume the following constants include the terminating '\0' - use <, not <=
         private const int MaxEnvVariableValueLength = 32767;  // maximum length for environment variable name and value
         // System environment variables are stored in the registry, and have 
@@ -57,19 +54,15 @@ namespace System
         // if you change this method's signature then you must change the code that calls it
         // in excep.cpp and probably you will have to visit mscorlib.h to add the new signature
         // as well as metasig.h to create the new signature type
-        internal static String GetResourceStringLocal(String key)
-        {
+        internal static String GetResourceStringLocal(String key) {
             return SR.GetResourceString(key);
         }
 
         // Private object for locking instead of locking on a public type for SQL reliability work.
         private static Object s_InternalSyncObject;
-        private static Object InternalSyncObject
-        {
-            get
-            {
-                if (s_InternalSyncObject == null)
-                {
+        private static Object InternalSyncObject {
+            get {
+                if (s_InternalSyncObject == null) {
                     Object o = new Object();
                     Interlocked.CompareExchange<Object>(ref s_InternalSyncObject, o, null);
                 }
@@ -86,8 +79,7 @@ namespace System
         **Arguments: None
         **Exceptions: None
         ==============================================================================*/
-        public static extern int TickCount
-        {
+        public static extern int TickCount {
             [MethodImplAttribute(MethodImplOptions.InternalCall)]
             get;
         }
@@ -97,14 +89,12 @@ namespace System
         [SuppressUnmanagedCodeSecurity]
         internal static extern void _Exit(int exitCode);
 
-        public static void Exit(int exitCode)
-        {
+        public static void Exit(int exitCode) {
             _Exit(exitCode);
         }
 
 
-        public static extern int ExitCode
-        {
+        public static extern int ExitCode {
             [MethodImplAttribute(MethodImplOptions.InternalCall)]
             get;
 
@@ -141,24 +131,19 @@ namespace System
         **Arguments: The current directory to which to switch to the setter.
         **Exceptions: 
         ==============================================================================*/
-        internal static String CurrentDirectory
-        {
-            get
-            {
+        internal static String CurrentDirectory {
+            get {
                 return Directory.GetCurrentDirectory();
             }
 
-            set
-            {
+            set {
                 Directory.SetCurrentDirectory(value);
             }
         }
 
         // Returns the system directory (ie, C:\WinNT\System32).
-        internal static String SystemDirectory
-        {
-            get
-            {
+        internal static String SystemDirectory {
+            get {
                 StringBuilder sb = new StringBuilder(Path.MaxPath);
                 int r = Win32Native.GetSystemDirectory(sb, Path.MaxPath);
                 Debug.Assert(r < Path.MaxPath, "r < Path.MaxPath");
@@ -169,14 +154,12 @@ namespace System
             }
         }
 
-        public static String ExpandEnvironmentVariables(String name)
-        {
+        public static String ExpandEnvironmentVariables(String name) {
             if (name == null)
                 throw new ArgumentNullException(nameof(name));
             Contract.EndContractBlock();
 
-            if (name.Length == 0)
-            {
+            if (name.Length == 0) {
                 return name;
             }
 
@@ -211,8 +194,7 @@ namespace System
             if (size == 0)
                 Marshal.ThrowExceptionForHR(Marshal.GetHRForLastWin32Error());
 
-            while (size > currentSize)
-            {
+            while (size > currentSize) {
                 currentSize = size;
                 blob.Capacity = currentSize;
                 blob.Length = 0;
@@ -230,10 +212,8 @@ namespace System
         [SuppressUnmanagedCodeSecurity]
         private static extern Int32 GetProcessorCount();
 
-        public static int ProcessorCount
-        {
-            get
-            {
+        public static int ProcessorCount {
+            get {
                 return GetProcessorCount();
             }
         }
@@ -245,8 +225,7 @@ namespace System
         **Arguments: None
         **Exceptions: None.
         ==============================================================================*/
-        public static String[] GetCommandLineArgs()
-        {
+        public static String[] GetCommandLineArgs() {
             /*
              * There are multiple entry points to a hosted app.
              * The host could use ::ExecuteAssembly() or ::CreateDelegate option
@@ -270,29 +249,23 @@ namespace System
         private static extern String[] GetCommandLineArgsNative();
 
         private static string[] s_CommandLineArgs = null;
-        private static void SetCommandLineArgs(string[] cmdLineArgs)
-        {
+        private static void SetCommandLineArgs(string[] cmdLineArgs) {
             s_CommandLineArgs = cmdLineArgs;
         }
 
-        private unsafe static char[] GetEnvironmentCharArray()
-        {
+        private unsafe static char[] GetEnvironmentCharArray() {
             char[] block = null;
 
             // Make sure pStrings is not leaked with async exceptions
             RuntimeHelpers.PrepareConstrainedRegions();
-            try
-            {
+            try {
             }
-            finally
-            {
+            finally {
                 char* pStrings = null;
 
-                try
-                {
+                try {
                     pStrings = Win32Native.GetEnvironmentStrings();
-                    if (pStrings == null)
-                    {
+                    if (pStrings == null) {
                         throw new OutOfMemoryException();
                     }
 
@@ -312,8 +285,7 @@ namespace System
                     fixed (char* pBlock = block)
                         string.wstrcpy(pBlock, pStrings, len);
                 }
-                finally
-                {
+                finally {
                     if (pStrings != null)
                         Win32Native.FreeEnvironmentStrings(pStrings);
                 }
@@ -329,10 +301,8 @@ namespace System
         **Arguments: None.
         **Exceptions: None.
         ==============================================================================*/
-        public static String NewLine
-        {
-            get
-            {
+        public static String NewLine {
+            get {
                 Contract.Ensures(Contract.Result<String>() != null);
 #if !PLATFORM_UNIX
                 return "\r\n";
@@ -349,10 +319,8 @@ namespace System
         **Arguments:
         **Exceptions:
         ==============================================================================*/
-        public static Version Version
-        {
-            get
-            {
+        public static Version Version {
+            get {
                 // Previously this represented the File version of mscorlib.dll.  Many other libraries in the framework and outside took dependencies on the first three parts of this version 
                 // remaining constant throughout 4.x.  From 4.0 to 4.5.2 this was fine since the file version only incremented the last part.Starting with 4.6 we switched to a file versioning
                 // scheme that matched the product version.  In order to preserve compatibility with existing libraries, this needs to be hard-coded.
@@ -367,17 +335,13 @@ namespace System
         **Arguments:
         **Exceptions:
         ==============================================================================*/
-        internal static OperatingSystem OSVersion
-        {
-            get
-            {
+        internal static OperatingSystem OSVersion {
+            get {
                 Contract.Ensures(Contract.Result<OperatingSystem>() != null);
 
-                if (m_os == null)
-                { // We avoid the lock since we don't care if two threads will set this at the same time.
+                if (m_os == null) { // We avoid the lock since we don't care if two threads will set this at the same time.
                     Microsoft.Win32.Win32Native.OSVERSIONINFO osvi = new Microsoft.Win32.Win32Native.OSVERSIONINFO();
-                    if (!GetVersion(osvi))
-                    {
+                    if (!GetVersion(osvi)) {
                         throw new InvalidOperationException(SR.InvalidOperation_GetVersion);
                     }
 
@@ -400,19 +364,15 @@ namespace System
         }
 
 
-        internal static bool IsWindows8OrAbove
-        {
-            get
-            {
+        internal static bool IsWindows8OrAbove {
+            get {
                 return true;
             }
         }
 
 #if FEATURE_COMINTEROP
-        internal static bool IsWinRTSupported
-        {
-            get
-            {
+        internal static bool IsWinRTSupported {
+            get {
                 return true;
             }
         }
@@ -432,18 +392,15 @@ namespace System
         **Arguments:
         **Exceptions:
         ==============================================================================*/
-        public static String StackTrace
-        {
+        public static String StackTrace {
             [MethodImpl(MethodImplOptions.NoInlining)] // Prevent inlining from affecting where the stacktrace starts
-            get
-            {
+            get {
                 Contract.Ensures(Contract.Result<String>() != null);
                 return Internal.Runtime.Augments.EnvironmentAugments.StackTrace;
             }
         }
 
-        internal static String GetStackTrace(Exception e, bool needFileInfo)
-        {
+        internal static String GetStackTrace(Exception e, bool needFileInfo) {
             // Note: Setting needFileInfo to true will start up COM and set our
             // apartment state.  Try to not call this when passing "true" 
             // before the EE's ExecuteMainMethod has had a chance to set up the
@@ -458,29 +415,23 @@ namespace System
             return st.ToString(System.Diagnostics.StackTrace.TraceFormat.Normal);
         }
 
-        public static extern bool HasShutdownStarted
-        {
+        public static extern bool HasShutdownStarted {
             [MethodImplAttribute(MethodImplOptions.InternalCall)]
             get;
         }
 
-        internal static bool UserInteractive
-        {
-            get
-            {
+        internal static bool UserInteractive {
+            get {
                 return true;
             }
         }
-        public static int CurrentManagedThreadId
-        {
-            get
-            {
+        public static int CurrentManagedThreadId {
+            get {
                 return Thread.CurrentThread.ManagedThreadId;
             }
         }
 
-        internal static extern int CurrentProcessorNumber
-        {
+        internal static extern int CurrentProcessorNumber {
             [MethodImplAttribute(MethodImplOptions.InternalCall)]
             get;
         }
@@ -496,8 +447,7 @@ namespace System
         private const int ExecutionIdCacheCountDownMask = (1 << ExecutionIdCacheShift) - 1;
         private const int ExecutionIdRefreshRate = 5000;
 
-        private static int RefreshExecutionId()
-        {
+        private static int RefreshExecutionId() {
             int executionId = CurrentProcessorNumber;
 
             // On Unix, CurrentProcessorNumber is implemented in terms of sched_getcpu, which
@@ -516,11 +466,9 @@ namespace System
 
         // Cached processor number used as a hint for which per-core stack to access. It is periodically
         // refreshed to trail the actual thread core affinity.
-        internal static int CurrentExecutionId
-        {
+        internal static int CurrentExecutionId {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get
-            {
+            get {
                 int executionIdCache = t_executionIdCache--;
                 if ((executionIdCache & ExecutionIdCacheCountDownMask) == 0)
                     return RefreshExecutionId();
@@ -528,10 +476,8 @@ namespace System
             }
         }
 
-        public static string GetEnvironmentVariable(string variable)
-        {
-            if (variable == null)
-            {
+        public static string GetEnvironmentVariable(string variable) {
+            if (variable == null) {
                 throw new ArgumentNullException(nameof(variable));
             }
 
@@ -539,10 +485,8 @@ namespace System
             return GetEnvironmentVariableCore(variable);
         }
 
-        internal static string GetEnvironmentVariable(string variable, EnvironmentVariableTarget target)
-        {
-            if (variable == null)
-            {
+        internal static string GetEnvironmentVariable(string variable, EnvironmentVariableTarget target) {
+            if (variable == null) {
                 throw new ArgumentNullException(nameof(variable));
             }
 
@@ -551,83 +495,68 @@ namespace System
             return GetEnvironmentVariableCore(variable, target);
         }
 
-        public static IDictionary GetEnvironmentVariables()
-        {
+        public static IDictionary GetEnvironmentVariables() {
             // separated from the EnvironmentVariableTarget overload to help with tree shaking in common case
             return GetEnvironmentVariablesCore();
         }
 
-        internal static IDictionary GetEnvironmentVariables(EnvironmentVariableTarget target)
-        {
+        internal static IDictionary GetEnvironmentVariables(EnvironmentVariableTarget target) {
             ValidateTarget(target);
 
             return GetEnvironmentVariablesCore(target);
         }
 
-        public static void SetEnvironmentVariable(string variable, string value)
-        {
+        public static void SetEnvironmentVariable(string variable, string value) {
             ValidateVariableAndValue(variable, ref value);
 
             // separated from the EnvironmentVariableTarget overload to help with tree shaking in common case
             SetEnvironmentVariableCore(variable, value);
         }
 
-        internal static void SetEnvironmentVariable(string variable, string value, EnvironmentVariableTarget target)
-        {
+        internal static void SetEnvironmentVariable(string variable, string value, EnvironmentVariableTarget target) {
             ValidateVariableAndValue(variable, ref value);
             ValidateTarget(target);
 
             SetEnvironmentVariableCore(variable, value, target);
         }
 
-        private static void ValidateVariableAndValue(string variable, ref string value)
-        {
+        private static void ValidateVariableAndValue(string variable, ref string value) {
             const int MaxEnvVariableValueLength = 32767;
 
-            if (variable == null)
-            {
+            if (variable == null) {
                 throw new ArgumentNullException(nameof(variable));
             }
-            if (variable.Length == 0)
-            {
+            if (variable.Length == 0) {
                 throw new ArgumentException(SR.Argument_StringZeroLength, nameof(variable));
             }
-            if (variable[0] == '\0')
-            {
+            if (variable[0] == '\0') {
                 throw new ArgumentException(SR.Argument_StringFirstCharIsZero, nameof(variable));
             }
-            if (variable.Length >= MaxEnvVariableValueLength)
-            {
+            if (variable.Length >= MaxEnvVariableValueLength) {
                 throw new ArgumentException(SR.Argument_LongEnvVarValue, nameof(variable));
             }
-            if (variable.IndexOf('=') != -1)
-            {
+            if (variable.IndexOf('=') != -1) {
                 throw new ArgumentException(SR.Argument_IllegalEnvVarName, nameof(variable));
             }
 
-            if (string.IsNullOrEmpty(value) || value[0] == '\0')
-            {
+            if (string.IsNullOrEmpty(value) || value[0] == '\0') {
                 // Explicitly null out value if it's empty
                 value = null;
             }
-            else if (value.Length >= MaxEnvVariableValueLength)
-            {
+            else if (value.Length >= MaxEnvVariableValueLength) {
                 throw new ArgumentException(SR.Argument_LongEnvVarValue, nameof(value));
             }
         }
 
-        private static void ValidateTarget(EnvironmentVariableTarget target)
-        {
+        private static void ValidateTarget(EnvironmentVariableTarget target) {
             if (target != EnvironmentVariableTarget.Process &&
                 target != EnvironmentVariableTarget.Machine &&
-                target != EnvironmentVariableTarget.User)
-            {
+                target != EnvironmentVariableTarget.User) {
                 throw new ArgumentOutOfRangeException(nameof(target), target, SR.Format(SR.Arg_EnumIllegalVal, target));
             }
         }
 
-        private static Dictionary<string, string> GetRawEnvironmentVariables()
-        {
+        private static Dictionary<string, string> GetRawEnvironmentVariables() {
             // Format for GetEnvironmentStrings is:
             // (=HiddenVar=value\0 | Variable=value\0)* \0
             // See the description of Environment Blocks in MSDN's
@@ -643,8 +572,7 @@ namespace System
 
             var results = new Dictionary<string, string>();
             char[] block = GetEnvironmentCharArray();
-            for (int i = 0; i < block.Length; i++)
-            {
+            for (int i = 0; i < block.Length; i++) {
                 int startKey = i;
 
                 // Skip to key. On some old OS, the environment block can be corrupted.
@@ -653,8 +581,7 @@ namespace System
                 if (block[i] == '\0') continue;
 
                 // Skip over environment variables starting with '='
-                if (i - startKey == 0)
-                {
+                if (i - startKey == 0) {
                     while (block[i] != 0) i++;
                     continue;
                 }
@@ -671,19 +598,16 @@ namespace System
             return results;
         }
 
-        private static string GetEnvironmentVariableCore(string variable)
-        {
+        private static string GetEnvironmentVariableCore(string variable) {
             StringBuilder sb = StringBuilderCache.Acquire(128); // A somewhat reasonable default size
             int requiredSize = Win32Native.GetEnvironmentVariable(variable, sb, sb.Capacity);
 
-            if (requiredSize == 0 && Marshal.GetLastWin32Error() == Win32Native.ERROR_ENVVAR_NOT_FOUND)
-            {
+            if (requiredSize == 0 && Marshal.GetLastWin32Error() == Win32Native.ERROR_ENVVAR_NOT_FOUND) {
                 StringBuilderCache.Release(sb);
                 return null;
             }
 
-            while (requiredSize > sb.Capacity)
-            {
+            while (requiredSize > sb.Capacity) {
                 sb.Capacity = requiredSize;
                 sb.Length = 0;
                 requiredSize = Win32Native.GetEnvironmentVariable(variable, sb, sb.Capacity);
@@ -692,8 +616,7 @@ namespace System
             return StringBuilderCache.GetStringAndRelease(sb);
         }
 
-        private static string GetEnvironmentVariableCore(string variable, EnvironmentVariableTarget target)
-        {
+        private static string GetEnvironmentVariableCore(string variable, EnvironmentVariableTarget target) {
             if (target == EnvironmentVariableTarget.Process)
                 return GetEnvironmentVariableCore(variable);
 
@@ -703,36 +626,30 @@ namespace System
             RegistryKey baseKey;
             string keyName;
 
-            if (target == EnvironmentVariableTarget.Machine)
-            {
+            if (target == EnvironmentVariableTarget.Machine) {
                 baseKey = Registry.LocalMachine;
                 keyName = @"System\CurrentControlSet\Control\Session Manager\Environment";
             }
-            else if (target == EnvironmentVariableTarget.User)
-            {
+            else if (target == EnvironmentVariableTarget.User) {
                 Debug.Assert(target == EnvironmentVariableTarget.User);
                 baseKey = Registry.CurrentUser;
                 keyName = "Environment";
             }
-            else
-            {
+            else {
                 throw new ArgumentException(SR.Format(SR.Arg_EnumIllegalVal, (int)target));
             }
 
-            using (RegistryKey environmentKey = baseKey.OpenSubKey(keyName, writable: false))
-            {
+            using (RegistryKey environmentKey = baseKey.OpenSubKey(keyName, writable: false)) {
                 return environmentKey?.GetValue(variable) as string;
             }
 #endif
         }
 
-        private static IDictionary GetEnvironmentVariablesCore()
-        {
+        private static IDictionary GetEnvironmentVariablesCore() {
             return GetRawEnvironmentVariables();
         }
 
-        private static IDictionary GetEnvironmentVariablesCore(EnvironmentVariableTarget target)
-        {
+        private static IDictionary GetEnvironmentVariablesCore(EnvironmentVariableTarget target) {
             if (target == EnvironmentVariableTarget.Process)
                 return GetEnvironmentVariablesCore();
 
@@ -742,29 +659,23 @@ namespace System
 #else
             RegistryKey baseKey;
             string keyName;
-            if (target == EnvironmentVariableTarget.Machine)
-            {
+            if (target == EnvironmentVariableTarget.Machine) {
                 baseKey = Registry.LocalMachine;
                 keyName = @"System\CurrentControlSet\Control\Session Manager\Environment";
             }
-            else if (target == EnvironmentVariableTarget.User)
-            {
+            else if (target == EnvironmentVariableTarget.User) {
                 Debug.Assert(target == EnvironmentVariableTarget.User);
                 baseKey = Registry.CurrentUser;
                 keyName = @"Environment";
             }
-            else
-            {
+            else {
                 throw new ArgumentException(SR.Format(SR.Arg_EnumIllegalVal, (int)target));
             }
 
-            using (RegistryKey environmentKey = baseKey.OpenSubKey(keyName, writable: false))
-            {
+            using (RegistryKey environmentKey = baseKey.OpenSubKey(keyName, writable: false)) {
                 var table = new Dictionary<string, string>();
-                if (environmentKey != null)
-                {
-                    foreach (string name in environmentKey.GetValueNames())
-                    {
+                if (environmentKey != null) {
+                    foreach (string name in environmentKey.GetValueNames()) {
                         table.Add(name, environmentKey.GetValue(name, "").ToString());
                     }
                 }
@@ -773,18 +684,15 @@ namespace System
 #endif // FEATURE_WIN32_REGISTRY
         }
 
-        private static void SetEnvironmentVariableCore(string variable, string value)
-        {
+        private static void SetEnvironmentVariableCore(string variable, string value) {
             // explicitly null out value if is the empty string.
             if (string.IsNullOrEmpty(value) || value[0] == '\0')
                 value = null;
 
-            if (!Win32Native.SetEnvironmentVariable(variable, value))
-            {
+            if (!Win32Native.SetEnvironmentVariable(variable, value)) {
                 int errorCode = Marshal.GetLastWin32Error();
 
-                switch (errorCode)
-                {
+                switch (errorCode) {
                     case Win32Native.ERROR_ENVVAR_NOT_FOUND:
                         // Allow user to try to clear a environment variable
                         return;
@@ -798,10 +706,8 @@ namespace System
             }
         }
 
-        private static void SetEnvironmentVariableCore(string variable, string value, EnvironmentVariableTarget target)
-        {
-            if (target == EnvironmentVariableTarget.Process)
-            {
+        private static void SetEnvironmentVariableCore(string variable, string value, EnvironmentVariableTarget target) {
+            if (target == EnvironmentVariableTarget.Process) {
                 SetEnvironmentVariableCore(variable, value);
                 return;
             }
@@ -817,40 +723,32 @@ namespace System
             RegistryKey baseKey;
             string keyName;
 
-            if (target == EnvironmentVariableTarget.Machine)
-            {
+            if (target == EnvironmentVariableTarget.Machine) {
                 baseKey = Registry.LocalMachine;
                 keyName = @"System\CurrentControlSet\Control\Session Manager\Environment";
             }
-            else if (target == EnvironmentVariableTarget.User)
-            {
+            else if (target == EnvironmentVariableTarget.User) {
                 Debug.Assert(target == EnvironmentVariableTarget.User);
 
                 // User-wide environment variables stored in the registry are limited to 255 chars for the environment variable name.
                 const int MaxUserEnvVariableLength = 255;
-                if (variable.Length >= MaxUserEnvVariableLength)
-                {
+                if (variable.Length >= MaxUserEnvVariableLength) {
                     throw new ArgumentException(SR.Argument_LongEnvVarValue, nameof(variable));
                 }
 
                 baseKey = Registry.CurrentUser;
                 keyName = "Environment";
             }
-            else
-            {
+            else {
                 throw new ArgumentException(SR.Format(SR.Arg_EnumIllegalVal, (int)target));
             }
 
-            using (RegistryKey environmentKey = baseKey.OpenSubKey(keyName, writable: true))
-            {
-                if (environmentKey != null)
-                {
-                    if (value == null)
-                    {
+            using (RegistryKey environmentKey = baseKey.OpenSubKey(keyName, writable: true)) {
+                if (environmentKey != null) {
+                    if (value == null) {
                         environmentKey.DeleteValue(variable, throwOnMissingValue: false);
                     }
-                    else
-                    {
+                    else {
                         environmentKey.SetValue(variable, value);
                     }
                 }

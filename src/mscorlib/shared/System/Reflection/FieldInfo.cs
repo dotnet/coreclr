@@ -5,10 +5,8 @@
 using System.Diagnostics;
 using System.Globalization;
 
-namespace System.Reflection
-{
-    public abstract partial class FieldInfo : MemberInfo
-    {
+namespace System.Reflection {
+    public abstract partial class FieldInfo : MemberInfo {
         protected FieldInfo() { }
 
         public override MemberTypes MemberType => MemberTypes.Field;
@@ -39,8 +37,7 @@ namespace System.Reflection
         public override bool Equals(object obj) => base.Equals(obj);
         public override int GetHashCode() => base.GetHashCode();
 
-        public static bool operator ==(FieldInfo left, FieldInfo right)
-        {
+        public static bool operator ==(FieldInfo left, FieldInfo right) {
             if (object.ReferenceEquals(left, right))
                 return true;
 

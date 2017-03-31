@@ -21,17 +21,14 @@ using System.Threading;
 using System.Runtime.InteropServices.WindowsRuntime;
 #endif // FEATURE_COMINTEROP
 
-namespace System.Threading.Tasks
-{
+namespace System.Threading.Tasks {
     // Task type used to implement: Task ContinueWith(Action<Task,...>)
-    internal sealed class ContinuationTaskFromTask : Task
-    {
+    internal sealed class ContinuationTaskFromTask : Task {
         private Task m_antecedent;
 
         public ContinuationTaskFromTask(
             Task antecedent, Delegate action, object state, TaskCreationOptions creationOptions, InternalTaskOptions internalOptions) :
-            base(action, state, Task.InternalCurrentIfAttached(creationOptions), default(CancellationToken), creationOptions, internalOptions, null)
-        {
+            base(action, state, Task.InternalCurrentIfAttached(creationOptions), default(CancellationToken), creationOptions, internalOptions, null) {
             Contract.Requires(action is Action<Task> || action is Action<Task, object>,
                 "Invalid delegate type in ContinuationTaskFromTask");
             m_antecedent = antecedent;
@@ -40,8 +37,7 @@ namespace System.Threading.Tasks
         /// <summary>
         /// Evaluates the value selector of the Task which is passed in as an object and stores the result.
         /// </summary>        
-        internal override void InnerInvoke()
-        {
+        internal override void InnerInvoke() {
             // Get and null out the antecedent.  This is crucial to avoid a memory
             // leak with long chains of continuations.
             var antecedent = m_antecedent;
@@ -55,14 +51,12 @@ namespace System.Threading.Tasks
             // Invoke the delegate
             Debug.Assert(m_action != null);
             var action = m_action as Action<Task>;
-            if (action != null)
-            {
+            if (action != null) {
                 action(antecedent);
                 return;
             }
             var actionWithState = m_action as Action<Task, object>;
-            if (actionWithState != null)
-            {
+            if (actionWithState != null) {
                 actionWithState(antecedent, m_stateObject);
                 return;
             }
@@ -71,14 +65,12 @@ namespace System.Threading.Tasks
     }
 
     // Task type used to implement: Task<TResult> ContinueWith(Func<Task,...>)
-    internal sealed class ContinuationResultTaskFromTask<TResult> : Task<TResult>
-    {
+    internal sealed class ContinuationResultTaskFromTask<TResult> : Task<TResult> {
         private Task m_antecedent;
 
         public ContinuationResultTaskFromTask(
             Task antecedent, Delegate function, object state, TaskCreationOptions creationOptions, InternalTaskOptions internalOptions) :
-            base(function, state, Task.InternalCurrentIfAttached(creationOptions), default(CancellationToken), creationOptions, internalOptions, null)
-        {
+            base(function, state, Task.InternalCurrentIfAttached(creationOptions), default(CancellationToken), creationOptions, internalOptions, null) {
             Contract.Requires(function is Func<Task, TResult> || function is Func<Task, object, TResult>,
                 "Invalid delegate type in ContinuationResultTaskFromTask");
             m_antecedent = antecedent;
@@ -87,8 +79,7 @@ namespace System.Threading.Tasks
         /// <summary>
         /// Evaluates the value selector of the Task which is passed in as an object and stores the result.
         /// </summary>        
-        internal override void InnerInvoke()
-        {
+        internal override void InnerInvoke() {
             // Get and null out the antecedent.  This is crucial to avoid a memory
             // leak with long chains of continuations.
             var antecedent = m_antecedent;
@@ -102,14 +93,12 @@ namespace System.Threading.Tasks
             // Invoke the delegate
             Debug.Assert(m_action != null);
             var func = m_action as Func<Task, TResult>;
-            if (func != null)
-            {
+            if (func != null) {
                 m_result = func(antecedent);
                 return;
             }
             var funcWithState = m_action as Func<Task, object, TResult>;
-            if (funcWithState != null)
-            {
+            if (funcWithState != null) {
                 m_result = funcWithState(antecedent, m_stateObject);
                 return;
             }
@@ -118,14 +107,12 @@ namespace System.Threading.Tasks
     }
 
     // Task type used to implement: Task ContinueWith(Action<Task<TAntecedentResult>,...>)
-    internal sealed class ContinuationTaskFromResultTask<TAntecedentResult> : Task
-    {
+    internal sealed class ContinuationTaskFromResultTask<TAntecedentResult> : Task {
         private Task<TAntecedentResult> m_antecedent;
 
         public ContinuationTaskFromResultTask(
             Task<TAntecedentResult> antecedent, Delegate action, object state, TaskCreationOptions creationOptions, InternalTaskOptions internalOptions) :
-            base(action, state, Task.InternalCurrentIfAttached(creationOptions), default(CancellationToken), creationOptions, internalOptions, null)
-        {
+            base(action, state, Task.InternalCurrentIfAttached(creationOptions), default(CancellationToken), creationOptions, internalOptions, null) {
             Contract.Requires(action is Action<Task<TAntecedentResult>> || action is Action<Task<TAntecedentResult>, object>,
                 "Invalid delegate type in ContinuationTaskFromResultTask");
             m_antecedent = antecedent;
@@ -134,8 +121,7 @@ namespace System.Threading.Tasks
         /// <summary>
         /// Evaluates the value selector of the Task which is passed in as an object and stores the result.
         /// </summary>
-        internal override void InnerInvoke()
-        {
+        internal override void InnerInvoke() {
             // Get and null out the antecedent.  This is crucial to avoid a memory
             // leak with long chains of continuations.
             var antecedent = m_antecedent;
@@ -149,14 +135,12 @@ namespace System.Threading.Tasks
             // Invoke the delegate
             Debug.Assert(m_action != null);
             var action = m_action as Action<Task<TAntecedentResult>>;
-            if (action != null)
-            {
+            if (action != null) {
                 action(antecedent);
                 return;
             }
             var actionWithState = m_action as Action<Task<TAntecedentResult>, object>;
-            if (actionWithState != null)
-            {
+            if (actionWithState != null) {
                 actionWithState(antecedent, m_stateObject);
                 return;
             }
@@ -165,14 +149,12 @@ namespace System.Threading.Tasks
     }
 
     // Task type used to implement: Task<TResult> ContinueWith(Func<Task<TAntecedentResult>,...>)
-    internal sealed class ContinuationResultTaskFromResultTask<TAntecedentResult, TResult> : Task<TResult>
-    {
+    internal sealed class ContinuationResultTaskFromResultTask<TAntecedentResult, TResult> : Task<TResult> {
         private Task<TAntecedentResult> m_antecedent;
 
         public ContinuationResultTaskFromResultTask(
             Task<TAntecedentResult> antecedent, Delegate function, object state, TaskCreationOptions creationOptions, InternalTaskOptions internalOptions) :
-            base(function, state, Task.InternalCurrentIfAttached(creationOptions), default(CancellationToken), creationOptions, internalOptions, null)
-        {
+            base(function, state, Task.InternalCurrentIfAttached(creationOptions), default(CancellationToken), creationOptions, internalOptions, null) {
             Contract.Requires(function is Func<Task<TAntecedentResult>, TResult> || function is Func<Task<TAntecedentResult>, object, TResult>,
                 "Invalid delegate type in ContinuationResultTaskFromResultTask");
             m_antecedent = antecedent;
@@ -181,8 +163,7 @@ namespace System.Threading.Tasks
         /// <summary>
         /// Evaluates the value selector of the Task which is passed in as an object and stores the result.
         /// </summary>
-        internal override void InnerInvoke()
-        {
+        internal override void InnerInvoke() {
             // Get and null out the antecedent.  This is crucial to avoid a memory
             // leak with long chains of continuations.
             var antecedent = m_antecedent;
@@ -196,14 +177,12 @@ namespace System.Threading.Tasks
             // Invoke the delegate
             Debug.Assert(m_action != null);
             var func = m_action as Func<Task<TAntecedentResult>, TResult>;
-            if (func != null)
-            {
+            if (func != null) {
                 m_result = func(antecedent);
                 return;
             }
             var funcWithState = m_action as Func<Task<TAntecedentResult>, object, TResult>;
-            if (funcWithState != null)
-            {
+            if (funcWithState != null) {
                 m_result = funcWithState(antecedent, m_stateObject);
                 return;
             }
@@ -220,8 +199,7 @@ namespace System.Threading.Tasks
     //         - SynchronizationContextAwaitTaskContinuation: awaiting with a "current" sync ctx
 
     /// <summary>Represents a continuation.</summary>
-    internal abstract class TaskContinuation
-    {
+    internal abstract class TaskContinuation {
         /// <summary>Inlines or schedules the continuation.</summary>
         /// <param name="completedTask">The antecedent task that has completed.</param>
         /// <param name="canInlineContinuationTask">true if inlining is permitted; otherwise, false.</param>
@@ -232,40 +210,34 @@ namespace System.Threading.Tasks
         /// <param name="needsProtection">
         /// true if we need to protect against multiple threads racing to start/cancel the task; otherwise, false.
         /// </param>
-        protected static void InlineIfPossibleOrElseQueue(Task task, bool needsProtection)
-        {
+        protected static void InlineIfPossibleOrElseQueue(Task task, bool needsProtection) {
             Contract.Requires(task != null);
             Debug.Assert(task.m_taskScheduler != null);
 
             // Set the TASK_STATE_STARTED flag.  This only needs to be done
             // if the task may be canceled or if someone else has a reference to it
             // that may try to execute it.
-            if (needsProtection)
-            {
+            if (needsProtection) {
                 if (!task.MarkStarted())
                     return; // task has been previously started or canceled.  Stop processing.
             }
-            else
-            {
+            else {
                 task.m_stateFlags |= Task.TASK_STATE_STARTED;
             }
 
             // Try to inline it but queue if we can't
-            try
-            {
-                if (!task.m_taskScheduler.TryRunInline(task, taskWasPreviouslyQueued: false))
-                {
+            try {
+                if (!task.m_taskScheduler.TryRunInline(task, taskWasPreviouslyQueued: false)) {
                     task.m_taskScheduler.InternalQueueTask(task);
                 }
             }
-            catch (Exception e)
-            {
+            catch (Exception e) {
                 // Either TryRunInline() or QueueTask() threw an exception. Record the exception, marking the task as Faulted.
                 // However if it was a ThreadAbortException coming from TryRunInline we need to skip here, 
                 // because it would already have been handled in Task.Execute()
                 if (!(e is ThreadAbortException &&
                       (task.m_stateFlags & Task.TASK_STATE_THREAD_WAS_ABORTED) != 0))    // this ensures TAEs from QueueTask will be wrapped in TSE
-                {
+{
                     TaskSchedulerException tse = new TaskSchedulerException(e);
                     task.AddException(tse);
                     task.Finish(false);
@@ -279,8 +251,7 @@ namespace System.Threading.Tasks
     }
 
     /// <summary>Provides the standard implementation of a task continuation.</summary>
-    internal class StandardTaskContinuation : TaskContinuation
-    {
+    internal class StandardTaskContinuation : TaskContinuation {
         /// <summary>The unstarted continuation task.</summary>
         internal readonly Task m_task;
         /// <summary>The options to use with the continuation task.</summary>
@@ -292,8 +263,7 @@ namespace System.Threading.Tasks
         /// <param name="task">The task to be activated.</param>
         /// <param name="options">The continuation options.</param>
         /// <param name="scheduler">The scheduler to use for the continuation.</param>
-        internal StandardTaskContinuation(Task task, TaskContinuationOptions options, TaskScheduler scheduler)
-        {
+        internal StandardTaskContinuation(Task task, TaskContinuationOptions options, TaskScheduler scheduler) {
             Contract.Requires(task != null, "TaskContinuation ctor: task is null");
             Contract.Requires(scheduler != null, "TaskContinuation ctor: scheduler is null");
             m_task = task;
@@ -302,8 +272,7 @@ namespace System.Threading.Tasks
             if (AsyncCausalityTracer.LoggingOn)
                 AsyncCausalityTracer.TraceOperationCreation(CausalityTraceLevel.Required, m_task.Id, "Task.ContinueWith: " + task.m_action.Method.Name, 0);
 
-            if (Task.s_asyncDebuggingEnabled)
-            {
+            if (Task.s_asyncDebuggingEnabled) {
                 Task.AddToActiveTasks(m_task);
             }
         }
@@ -311,8 +280,7 @@ namespace System.Threading.Tasks
         /// <summary>Invokes the continuation for the target completion task.</summary>
         /// <param name="completedTask">The completed task.</param>
         /// <param name="bCanInlineContinuationTask">Whether the continuation can be inlined.</param>
-        internal override void Run(Task completedTask, bool bCanInlineContinuationTask)
-        {
+        internal override void Run(Task completedTask, bool bCanInlineContinuationTask) {
             Debug.Assert(completedTask != null);
             Debug.Assert(completedTask.IsCompleted, "ContinuationTask.Run(): completedTask not completed");
 
@@ -328,13 +296,11 @@ namespace System.Threading.Tasks
 
             // If the completion status is allowed, run the continuation.
             Task continuationTask = m_task;
-            if (isRightKind)
-            {
+            if (isRightKind) {
                 //If the task was cancel before running (e.g a ContinueWhenAll with a cancelled caancelation token)
                 //we will still flow it to ScheduleAndStart() were it will check the status before running
                 //We check here to avoid faulty logs that contain a join event to an operation that was already set as completed.
-                if (!continuationTask.IsCanceled && AsyncCausalityTracer.LoggingOn)
-                {
+                if (!continuationTask.IsCanceled && AsyncCausalityTracer.LoggingOn) {
                     // Log now that we are sure that this continuation is being ran
                     AsyncCausalityTracer.TraceOperationRelation(CausalityTraceLevel.Important, continuationTask.Id, CausalityRelation.AssignDelegate);
                 }
@@ -344,14 +310,12 @@ namespace System.Threading.Tasks
                 // on whether synchronous or asynchronous execution is wanted.
                 if (bCanInlineContinuationTask && // inlining is allowed by the caller
                     (options & TaskContinuationOptions.ExecuteSynchronously) != 0) // synchronous execution was requested by the continuation's creator
-                {
+{
                     InlineIfPossibleOrElseQueue(continuationTask, needsProtection: true);
                 }
-                else
-                {
+                else {
                     try { continuationTask.ScheduleAndStart(needsProtection: true); }
-                    catch (TaskSchedulerException)
-                    {
+                    catch (TaskSchedulerException) {
                         // No further action is necessary -- ScheduleAndStart() already transitioned the 
                         // task to faulted.  But we want to make sure that no exception is thrown from here.
                     }
@@ -362,10 +326,8 @@ namespace System.Threading.Tasks
             else continuationTask.InternalCancel(false);
         }
 
-        internal override Delegate[] GetDelegateContinuationsForDebugger()
-        {
-            if (m_task.m_action == null)
-            {
+        internal override Delegate[] GetDelegateContinuationsForDebugger() {
+            if (m_task.m_action == null) {
                 return m_task.GetDelegateContinuationsForDebugger();
             }
 
@@ -374,8 +336,7 @@ namespace System.Threading.Tasks
     }
 
     /// <summary>Task continuation for awaiting with a current synchronization context.</summary>
-    internal sealed class SynchronizationContextAwaitTaskContinuation : AwaitTaskContinuation
-    {
+    internal sealed class SynchronizationContextAwaitTaskContinuation : AwaitTaskContinuation {
         /// <summary>SendOrPostCallback delegate to invoke the action.</summary>
         private readonly static SendOrPostCallback s_postCallback = state => ((Action)state)(); // can't use InvokeAction as it's SecurityCritical
         /// <summary>Cached delegate for PostAction</summary>
@@ -389,8 +350,7 @@ namespace System.Threading.Tasks
         /// <param name="flowExecutionContext">Whether to capture and restore ExecutionContext.</param>
         internal SynchronizationContextAwaitTaskContinuation(
             SynchronizationContext context, Action action, bool flowExecutionContext) :
-            base(action, flowExecutionContext)
-        {
+            base(action, flowExecutionContext) {
             Debug.Assert(context != null);
             m_syncContext = context;
         }
@@ -398,20 +358,16 @@ namespace System.Threading.Tasks
         /// <summary>Inlines or schedules the continuation.</summary>
         /// <param name="ignored">The antecedent task, which is ignored.</param>
         /// <param name="canInlineContinuationTask">true if inlining is permitted; otherwise, false.</param>
-        internal sealed override void Run(Task task, bool canInlineContinuationTask)
-        {
+        internal sealed override void Run(Task task, bool canInlineContinuationTask) {
             // If we're allowed to inline, run the action on this thread.
             if (canInlineContinuationTask &&
-                m_syncContext == SynchronizationContext.CurrentNoFlow)
-            {
+                m_syncContext == SynchronizationContext.CurrentNoFlow) {
                 RunCallback(GetInvokeActionCallback(), m_action, ref Task.t_currentTask);
             }
             // Otherwise, Post the action back to the SynchronizationContext.
-            else
-            {
+            else {
                 TplEtwProvider etwLog = TplEtwProvider.Log;
-                if (etwLog.IsEnabled())
-                {
+                if (etwLog.IsEnabled()) {
                     m_continuationId = Task.NewId();
                     etwLog.AwaitTaskContinuationScheduled((task.ExecutingTaskScheduler ?? TaskScheduler.Default).Id, task.Id, m_continuationId);
                 }
@@ -422,25 +378,20 @@ namespace System.Threading.Tasks
 
         /// <summary>Calls InvokeOrPostAction(false) on the supplied SynchronizationContextAwaitTaskContinuation.</summary>
         /// <param name="state">The SynchronizationContextAwaitTaskContinuation.</param>
-        private static void PostAction(object state)
-        {
+        private static void PostAction(object state) {
             var c = (SynchronizationContextAwaitTaskContinuation)state;
 
             TplEtwProvider etwLog = TplEtwProvider.Log;
-            if (etwLog.TasksSetActivityIds && c.m_continuationId != 0)
-            {
+            if (etwLog.TasksSetActivityIds && c.m_continuationId != 0) {
                 c.m_syncContext.Post(s_postCallback, GetActionLogDelegate(c.m_continuationId, c.m_action));
             }
-            else
-            {
+            else {
                 c.m_syncContext.Post(s_postCallback, c.m_action); // s_postCallback is manually cached, as the compiler won't in a SecurityCritical method
             }
         }
 
-        private static Action GetActionLogDelegate(int continuationId, Action action)
-        {
-            return () =>
-                {
+        private static Action GetActionLogDelegate(int continuationId, Action action) {
+            return () => {
                     Guid savedActivityId;
                     Guid activityId = TplEtwProvider.CreateGuidForTaskID(continuationId);
                     System.Diagnostics.Tracing.EventSource.SetCurrentThreadActivityId(activityId, out savedActivityId);
@@ -455,8 +406,7 @@ namespace System.Threading.Tasks
         /// to be passed as state.
         /// </returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static ContextCallback GetPostActionCallback()
-        {
+        private static ContextCallback GetPostActionCallback() {
             ContextCallback callback = s_postActionCallback;
             if (callback == null) { s_postActionCallback = callback = PostAction; } // lazily initialize SecurityCritical delegate
             return callback;
@@ -464,8 +414,7 @@ namespace System.Threading.Tasks
     }
 
     /// <summary>Task continuation for awaiting with a task scheduler.</summary>
-    internal sealed class TaskSchedulerAwaitTaskContinuation : AwaitTaskContinuation
-    {
+    internal sealed class TaskSchedulerAwaitTaskContinuation : AwaitTaskContinuation {
         /// <summary>The scheduler on which to run the action.</summary>
         private readonly TaskScheduler m_scheduler;
 
@@ -475,8 +424,7 @@ namespace System.Threading.Tasks
         /// <param name="flowExecutionContext">Whether to capture and restore ExecutionContext.</param>
         internal TaskSchedulerAwaitTaskContinuation(
             TaskScheduler scheduler, Action action, bool flowExecutionContext) :
-            base(action, flowExecutionContext)
-        {
+            base(action, flowExecutionContext) {
             Debug.Assert(scheduler != null);
             m_scheduler = scheduler;
         }
@@ -484,15 +432,12 @@ namespace System.Threading.Tasks
         /// <summary>Inlines or schedules the continuation.</summary>
         /// <param name="ignored">The antecedent task, which is ignored.</param>
         /// <param name="canInlineContinuationTask">true if inlining is permitted; otherwise, false.</param>
-        internal sealed override void Run(Task ignored, bool canInlineContinuationTask)
-        {
+        internal sealed override void Run(Task ignored, bool canInlineContinuationTask) {
             // If we're targeting the default scheduler, we can use the faster path provided by the base class.
-            if (m_scheduler == TaskScheduler.Default)
-            {
+            if (m_scheduler == TaskScheduler.Default) {
                 base.Run(ignored, canInlineContinuationTask);
             }
-            else
-            {
+            else {
                 // We permit inlining if the caller allows us to, and 
                 // either we're on a thread pool thread (in which case we're fine running arbitrary code)
                 // or we're already on the target scheduler (in which case we'll just ask the scheduler
@@ -504,18 +449,15 @@ namespace System.Threading.Tasks
 
                 // Create the continuation task task. If we're allowed to inline, try to do so.  
                 // The target scheduler may still deny us from executing on this thread, in which case this'll be queued.
-                var task = CreateTask(state =>
-                {
+                var task = CreateTask(state => {
                     try { ((Action)state)(); }
                     catch (Exception exc) { ThrowAsyncIfNecessary(exc); }
                 }, m_action, m_scheduler);
 
-                if (inlineIfPossible)
-                {
+                if (inlineIfPossible) {
                     InlineIfPossibleOrElseQueue(task, needsProtection: false);
                 }
-                else
-                {
+                else {
                     // We need to run asynchronously, so just schedule the task.
                     try { task.ScheduleAndStart(needsProtection: false); }
                     catch (TaskSchedulerException) { } // No further action is necessary, as ScheduleAndStart already transitioned task to faulted
@@ -525,8 +467,7 @@ namespace System.Threading.Tasks
     }
 
     /// <summary>Base task continuation class used for await continuations.</summary>
-    internal class AwaitTaskContinuation : TaskContinuation, IThreadPoolWorkItem
-    {
+    internal class AwaitTaskContinuation : TaskContinuation, IThreadPoolWorkItem {
         /// <summary>The ExecutionContext with which to run the continuation.</summary>
         private readonly ExecutionContext m_capturedContext;
         /// <summary>The action to invoke.</summary>
@@ -537,12 +478,10 @@ namespace System.Threading.Tasks
         /// <summary>Initializes the continuation.</summary>
         /// <param name="action">The action to invoke. Must not be null.</param>
         /// <param name="flowExecutionContext">Whether to capture and restore ExecutionContext.</param>
-        internal AwaitTaskContinuation(Action action, bool flowExecutionContext)
-        {
+        internal AwaitTaskContinuation(Action action, bool flowExecutionContext) {
             Contract.Requires(action != null);
             m_action = action;
-            if (flowExecutionContext)
-            {
+            if (flowExecutionContext) {
                 m_capturedContext = ExecutionContext.Capture();
             }
         }
@@ -552,15 +491,13 @@ namespace System.Threading.Tasks
         /// <param name="state">The state to pass to the action. Must not be null.</param>
         /// <param name="scheduler">The scheduler to target.</param>
         /// <returns>The created task.</returns>
-        protected Task CreateTask(Action<object> action, object state, TaskScheduler scheduler)
-        {
+        protected Task CreateTask(Action<object> action, object state, TaskScheduler scheduler) {
             Contract.Requires(action != null);
             Contract.Requires(scheduler != null);
 
             return new Task(
                 action, state, null, default(CancellationToken),
-                TaskCreationOptions.None, InternalTaskOptions.QueuedByRuntime, scheduler)
-            {
+                TaskCreationOptions.None, InternalTaskOptions.QueuedByRuntime, scheduler) {
                 CapturedContext = m_capturedContext
             };
         }
@@ -568,22 +505,18 @@ namespace System.Threading.Tasks
         /// <summary>Inlines or schedules the continuation onto the default scheduler.</summary>
         /// <param name="ignored">The antecedent task, which is ignored.</param>
         /// <param name="canInlineContinuationTask">true if inlining is permitted; otherwise, false.</param>
-        internal override void Run(Task task, bool canInlineContinuationTask)
-        {
+        internal override void Run(Task task, bool canInlineContinuationTask) {
             // For the base AwaitTaskContinuation, we allow inlining if our caller allows it
             // and if we're in a "valid location" for it.  See the comments on 
             // IsValidLocationForInlining for more about what's valid.  For performance
             // reasons we would like to always inline, but we don't in some cases to avoid
             // running arbitrary amounts of work in suspected "bad locations", like UI threads.
-            if (canInlineContinuationTask && IsValidLocationForInlining)
-            {
+            if (canInlineContinuationTask && IsValidLocationForInlining) {
                 RunCallback(GetInvokeActionCallback(), m_action, ref Task.t_currentTask); // any exceptions from m_action will be handled by s_callbackRunAction
             }
-            else
-            {
+            else {
                 TplEtwProvider etwLog = TplEtwProvider.Log;
-                if (etwLog.IsEnabled())
-                {
+                if (etwLog.IsEnabled()) {
                     m_continuationId = Task.NewId();
                     etwLog.AwaitTaskContinuationScheduled((task.ExecutingTaskScheduler ?? TaskScheduler.Default).Id, task.Id, m_continuationId);
                 }
@@ -609,10 +542,8 @@ namespace System.Threading.Tasks
         /// that if the current thread has a non-null SynchronizationContext or a non-default
         /// scheduler, then we better not run arbitrary continuations here.
         /// </remarks>
-        internal static bool IsValidLocationForInlining
-        {
-            get
-            {
+        internal static bool IsValidLocationForInlining {
+            get {
                 // If there's a SynchronizationContext, we'll be conservative and say 
                 // this is a bad location to inline.
                 var ctx = SynchronizationContext.CurrentNoFlow;
@@ -626,49 +557,39 @@ namespace System.Threading.Tasks
         }
 
         /// <summary>IThreadPoolWorkItem override, which is the entry function for this when the ThreadPool scheduler decides to run it.</summary>
-        private void ExecuteWorkItemHelper()
-        {
+        private void ExecuteWorkItemHelper() {
             var etwLog = TplEtwProvider.Log;
             Guid savedActivityId = Guid.Empty;
-            if (etwLog.TasksSetActivityIds && m_continuationId != 0)
-            {
+            if (etwLog.TasksSetActivityIds && m_continuationId != 0) {
                 Guid activityId = TplEtwProvider.CreateGuidForTaskID(m_continuationId);
                 System.Diagnostics.Tracing.EventSource.SetCurrentThreadActivityId(activityId, out savedActivityId);
             }
-            try
-            {
+            try {
                 // We're not inside of a task, so t_currentTask doesn't need to be specially maintained.
                 // We're on a thread pool thread with no higher-level callers, so exceptions can just propagate.
 
                 // If there's no execution context, just invoke the delegate.
-                if (m_capturedContext == null)
-                {
+                if (m_capturedContext == null) {
                     m_action();
                 }
                 // If there is an execution context, get the cached delegate and run the action under the context.
-                else
-                {
+                else {
                     ExecutionContext.Run(m_capturedContext, GetInvokeActionCallback(), m_action);
                 }
             }
-            finally
-            {
-                if (etwLog.TasksSetActivityIds && m_continuationId != 0)
-                {
+            finally {
+                if (etwLog.TasksSetActivityIds && m_continuationId != 0) {
                     System.Diagnostics.Tracing.EventSource.SetCurrentThreadActivityId(savedActivityId);
                 }
             }
         }
 
-        void IThreadPoolWorkItem.ExecuteWorkItem()
-        {
+        void IThreadPoolWorkItem.ExecuteWorkItem() {
             // inline the fast path
-            if (m_capturedContext == null && !TplEtwProvider.Log.IsEnabled())
-            {
+            if (m_capturedContext == null && !TplEtwProvider.Log.IsEnabled()) {
                 m_action();
             }
-            else
-            {
+            else {
                 ExecuteWorkItemHelper();
             }
         }
@@ -686,8 +607,7 @@ namespace System.Threading.Tasks
         private static void InvokeAction(object state) { ((Action)state)(); }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        protected static ContextCallback GetInvokeActionCallback()
-        {
+        protected static ContextCallback GetInvokeActionCallback() {
             ContextCallback callback = s_invokeActionCallback;
             if (callback == null) { s_invokeActionCallback = callback = InvokeAction; } // lazily initialize SecurityCritical delegate
             return callback;
@@ -697,16 +617,14 @@ namespace System.Threading.Tasks
         /// <param name="callback">The callback to run.</param>
         /// <param name="state">The state to pass to the callback.</param>
         /// <param name="currentTask">A reference to Task.t_currentTask.</param>
-        protected void RunCallback(ContextCallback callback, object state, ref Task currentTask)
-        {
+        protected void RunCallback(ContextCallback callback, object state, ref Task currentTask) {
             Contract.Requires(callback != null);
             Debug.Assert(currentTask == Task.t_currentTask);
 
             // Pretend there's no current task, so that no task is seen as a parent
             // and TaskScheduler.Current does not reflect false information
             var prevCurrentTask = currentTask;
-            try
-            {
+            try {
                 if (prevCurrentTask != null) currentTask = null;
 
                 // If there's no captured context, just run the callback directly.
@@ -715,11 +633,10 @@ namespace System.Threading.Tasks
                 else ExecutionContext.Run(m_capturedContext, callback, state);
             }
             catch (Exception exc) // we explicitly do not request handling of dangerous exceptions like AVs
-            {
+{
                 ThrowAsyncIfNecessary(exc);
             }
-            finally
-            {
+            finally {
                 // Restore the current task information
                 if (prevCurrentTask != null) currentTask = prevCurrentTask;
             }
@@ -741,43 +658,36 @@ namespace System.Threading.Tasks
         /// only happens in Task.SetContinuationForAwait if execution context flow was disabled
         /// via using TaskAwaiter.UnsafeOnCompleted or a similar path.
         /// </remarks>
-        internal static void RunOrScheduleAction(Action action, bool allowInlining, ref Task currentTask)
-        {
+        internal static void RunOrScheduleAction(Action action, bool allowInlining, ref Task currentTask) {
             Debug.Assert(currentTask == Task.t_currentTask);
 
             // If we're not allowed to run here, schedule the action
-            if (!allowInlining || !IsValidLocationForInlining)
-            {
+            if (!allowInlining || !IsValidLocationForInlining) {
                 UnsafeScheduleAction(action, currentTask);
                 return;
             }
 
             // Otherwise, run it, making sure that t_currentTask is null'd out appropriately during the execution
             Task prevCurrentTask = currentTask;
-            try
-            {
+            try {
                 if (prevCurrentTask != null) currentTask = null;
                 action();
             }
-            catch (Exception exception)
-            {
+            catch (Exception exception) {
                 ThrowAsyncIfNecessary(exception);
             }
-            finally
-            {
+            finally {
                 if (prevCurrentTask != null) currentTask = prevCurrentTask;
             }
         }
 
         /// <summary>Schedules the action to be executed.  No ExecutionContext work is performed used.</summary>
         /// <param name="action">The action to invoke or queue.</param>
-        internal static void UnsafeScheduleAction(Action action, Task task)
-        {
+        internal static void UnsafeScheduleAction(Action action, Task task) {
             AwaitTaskContinuation atc = new AwaitTaskContinuation(action, flowExecutionContext: false);
 
             var etwLog = TplEtwProvider.Log;
-            if (etwLog.IsEnabled() && task != null)
-            {
+            if (etwLog.IsEnabled() && task != null) {
                 atc.m_continuationId = Task.NewId();
                 etwLog.AwaitTaskContinuationScheduled((task.ExecutingTaskScheduler ?? TaskScheduler.Default).Id, task.Id, atc.m_continuationId);
             }
@@ -787,8 +697,7 @@ namespace System.Threading.Tasks
 
         /// <summary>Throws the exception asynchronously on the ThreadPool.</summary>
         /// <param name="exc">The exception to throw.</param>
-        protected static void ThrowAsyncIfNecessary(Exception exc)
-        {
+        protected static void ThrowAsyncIfNecessary(Exception exc) {
             // Awaits should never experience an exception (other than an TAE or ADUE), 
             // unless a malicious user is explicitly passing a throwing action into the TaskAwaiter. 
             // We don't want to allow the exception to propagate on this stack, as it'll emerge in random places, 
@@ -797,8 +706,7 @@ namespace System.Threading.Tasks
             // If unhandled error reporting APIs are available use those, otherwise since this 
             // would have executed on the thread pool otherwise, let it propagate there.
 
-            if (!(exc is ThreadAbortException || exc is AppDomainUnloadedException))
-            {
+            if (!(exc is ThreadAbortException || exc is AppDomainUnloadedException)) {
 #if FEATURE_COMINTEROP
                 if (!WindowsRuntimeMarshal.ReportUnhandledError(exc))
 #endif // FEATURE_COMINTEROP
@@ -809,8 +717,7 @@ namespace System.Threading.Tasks
             }
         }
 
-        internal override Delegate[] GetDelegateContinuationsForDebugger()
-        {
+        internal override Delegate[] GetDelegateContinuationsForDebugger() {
             Debug.Assert(m_action != null);
             return new Delegate[] { AsyncMethodBuilderCore.TryGetStateMachineForDebugger(m_action) };
         }

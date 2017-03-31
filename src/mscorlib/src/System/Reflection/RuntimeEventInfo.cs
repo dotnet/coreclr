@@ -7,11 +7,9 @@ using System.Diagnostics.Contracts;
 using System.Runtime.Serialization;
 using RuntimeTypeCache = System.RuntimeType.RuntimeTypeCache;
 
-namespace System.Reflection
-{
+namespace System.Reflection {
     [Serializable]
-    internal unsafe sealed class RuntimeEventInfo : EventInfo, ISerializable
-    {
+    internal unsafe sealed class RuntimeEventInfo : EventInfo, ISerializable {
         #region Private Data Members
         private int m_token;
         private EventAttributes m_flags;
@@ -27,12 +25,10 @@ namespace System.Reflection
         #endregion
 
         #region Constructor
-        internal RuntimeEventInfo()
-        {
+        internal RuntimeEventInfo() {
             // Used for dummy head node during population
         }
-        internal RuntimeEventInfo(int tkEvent, RuntimeType declaredType, RuntimeTypeCache reflectedTypeCache, out bool isPrivate)
-        {
+        internal RuntimeEventInfo(int tkEvent, RuntimeType declaredType, RuntimeTypeCache reflectedTypeCache, out bool isPrivate) {
             Contract.Requires(declaredType != null);
             Contract.Requires(reflectedTypeCache != null);
             Debug.Assert(!reflectedTypeCache.IsGlobal);
@@ -56,8 +52,7 @@ namespace System.Reflection
         #endregion
 
         #region Internal Members
-        internal override bool CacheEquals(object o)
-        {
+        internal override bool CacheEquals(object o) {
             RuntimeEventInfo m = o as RuntimeEventInfo;
 
             if ((object)m == null)
@@ -72,8 +67,7 @@ namespace System.Reflection
         #endregion
 
         #region Object Overrides
-        public override String ToString()
-        {
+        public override String ToString() {
             if (m_addMethod == null || m_addMethod.GetParametersNoCopy().Length == 0)
                 throw new InvalidOperationException(SR.InvalidOperation_NoPublicAddMethod);
 
@@ -82,13 +76,11 @@ namespace System.Reflection
         #endregion
 
         #region ICustomAttributeProvider
-        public override Object[] GetCustomAttributes(bool inherit)
-        {
+        public override Object[] GetCustomAttributes(bool inherit) {
             return CustomAttribute.GetCustomAttributes(this, typeof(object) as RuntimeType);
         }
 
-        public override Object[] GetCustomAttributes(Type attributeType, bool inherit)
-        {
+        public override Object[] GetCustomAttributes(Type attributeType, bool inherit) {
             if (attributeType == null)
                 throw new ArgumentNullException(nameof(attributeType));
             Contract.EndContractBlock();
@@ -101,8 +93,7 @@ namespace System.Reflection
             return CustomAttribute.GetCustomAttributes(this, attributeRuntimeType);
         }
 
-        public override bool IsDefined(Type attributeType, bool inherit)
-        {
+        public override bool IsDefined(Type attributeType, bool inherit) {
             if (attributeType == null)
                 throw new ArgumentNullException(nameof(attributeType));
             Contract.EndContractBlock();
@@ -115,18 +106,15 @@ namespace System.Reflection
             return CustomAttribute.IsDefined(this, attributeRuntimeType);
         }
 
-        public override IList<CustomAttributeData> GetCustomAttributesData()
-        {
+        public override IList<CustomAttributeData> GetCustomAttributesData() {
             return CustomAttributeData.GetCustomAttributesInternal(this);
         }
         #endregion
 
         #region MemberInfo Overrides
         public override MemberTypes MemberType { get { return MemberTypes.Event; } }
-        public override String Name
-        {
-            get
-            {
+        public override String Name {
+            get {
                 if (m_name == null)
                     m_name = new Utf8String(m_utf8name).ToString();
 
@@ -134,18 +122,14 @@ namespace System.Reflection
             }
         }
         public override Type DeclaringType { get { return m_declaringType; } }
-        public override Type ReflectedType
-        {
-            get
-            {
+        public override Type ReflectedType {
+            get {
                 return ReflectedTypeInternal;
             }
         }
 
-        private RuntimeType ReflectedTypeInternal
-        {
-            get
-            {
+        private RuntimeType ReflectedTypeInternal {
+            get {
                 return m_reflectedTypeCache.GetRuntimeType();
             }
         }
@@ -156,8 +140,7 @@ namespace System.Reflection
         #endregion
 
         #region ISerializable
-        public void GetObjectData(SerializationInfo info, StreamingContext context)
-        {
+        public void GetObjectData(SerializationInfo info, StreamingContext context) {
             if (info == null)
                 throw new ArgumentNullException(nameof(info));
             Contract.EndContractBlock();
@@ -167,15 +150,13 @@ namespace System.Reflection
         #endregion
 
         #region EventInfo Overrides
-        public override MethodInfo[] GetOtherMethods(bool nonPublic)
-        {
+        public override MethodInfo[] GetOtherMethods(bool nonPublic) {
             List<MethodInfo> ret = new List<MethodInfo>();
 
             if ((object)m_otherMethod == null)
                 return new MethodInfo[0];
 
-            for (int i = 0; i < m_otherMethod.Length; i++)
-            {
+            for (int i = 0; i < m_otherMethod.Length; i++) {
                 if (Associates.IncludeAccessor((MethodInfo)m_otherMethod[i], nonPublic))
                     ret.Add(m_otherMethod[i]);
             }
@@ -183,34 +164,29 @@ namespace System.Reflection
             return ret.ToArray();
         }
 
-        public override MethodInfo GetAddMethod(bool nonPublic)
-        {
+        public override MethodInfo GetAddMethod(bool nonPublic) {
             if (!Associates.IncludeAccessor(m_addMethod, nonPublic))
                 return null;
 
             return m_addMethod;
         }
 
-        public override MethodInfo GetRemoveMethod(bool nonPublic)
-        {
+        public override MethodInfo GetRemoveMethod(bool nonPublic) {
             if (!Associates.IncludeAccessor(m_removeMethod, nonPublic))
                 return null;
 
             return m_removeMethod;
         }
 
-        public override MethodInfo GetRaiseMethod(bool nonPublic)
-        {
+        public override MethodInfo GetRaiseMethod(bool nonPublic) {
             if (!Associates.IncludeAccessor(m_raiseMethod, nonPublic))
                 return null;
 
             return m_raiseMethod;
         }
 
-        public override EventAttributes Attributes
-        {
-            get
-            {
+        public override EventAttributes Attributes {
+            get {
                 return m_flags;
             }
         }

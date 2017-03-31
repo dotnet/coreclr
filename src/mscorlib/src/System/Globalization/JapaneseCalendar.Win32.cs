@@ -6,10 +6,8 @@ using System.Diagnostics;
 
 using Microsoft.Win32;
 
-namespace System.Globalization
-{
-    public partial class JapaneseCalendar : Calendar
-    {
+namespace System.Globalization {
+    public partial class JapaneseCalendar : Calendar {
         private const string c_japaneseErasHive = @"System\CurrentControlSet\Control\Nls\Calendars\Japanese\Eras";
         private const string c_japaneseErasHivePermissionList = @"HKEY_LOCAL_MACHINE\" + c_japaneseErasHive;
 
@@ -28,14 +26,12 @@ namespace System.Globalization
         // . is a delimiter, but the value of . doesn't matter.
         // '_' marks the space between the japanese era name, japanese abbreviated era name
         //     english name, and abbreviated english names.
-        private static EraInfo[] GetJapaneseEras()
-        {
+        private static EraInfo[] GetJapaneseEras() {
             // Look in the registry key and see if we can find any ranges
             int iFoundEras = 0;
             EraInfo[] registryEraRanges = null;
 
-            try
-            {
+            try {
                 // Need to access registry
                 RegistryKey key = RegistryKey.GetBaseKey(RegistryKey.HKEY_LOCAL_MACHINE).OpenSubKey(c_japaneseErasHive, false);
 
@@ -44,13 +40,11 @@ namespace System.Globalization
 
                 // Look up the values in our reg key
                 String[] valueNames = key.GetValueNames();
-                if (valueNames != null && valueNames.Length > 0)
-                {
+                if (valueNames != null && valueNames.Length > 0) {
                     registryEraRanges = new EraInfo[valueNames.Length];
 
                     // Loop through the registry and read in all the values
-                    for (int i = 0; i < valueNames.Length; i++)
-                    {
+                    for (int i = 0; i < valueNames.Length; i++) {
                         // See if the era is a valid date
                         EraInfo era = GetEraFromValue(valueNames[i], key.GetValue(valueNames[i]).ToString());
 
@@ -63,18 +57,15 @@ namespace System.Globalization
                     }
                 }
             }
-            catch (System.Security.SecurityException)
-            {
+            catch (System.Security.SecurityException) {
                 // If we weren't allowed to read, then just ignore the error
                 return null;
             }
-            catch (System.IO.IOException)
-            {
+            catch (System.IO.IOException) {
                 // If key is being deleted just ignore the error
                 return null;
             }
-            catch (System.UnauthorizedAccessException)
-            {
+            catch (System.UnauthorizedAccessException) {
                 // Registry access rights permissions, just ignore the error
                 return null;
             }
@@ -95,19 +86,16 @@ namespace System.Globalization
             Array.Sort(registryEraRanges, CompareEraRanges);
 
             // Clean up era information
-            for (int i = 0; i < registryEraRanges.Length; i++)
-            {
+            for (int i = 0; i < registryEraRanges.Length; i++) {
                 // eras count backwards from length to 1 (and are 1 based indexes into string arrays)
                 registryEraRanges[i].era = registryEraRanges.Length - i;
 
                 // update max era year
-                if (i == 0)
-                {
+                if (i == 0) {
                     // First range is 'til the end of the calendar
                     registryEraRanges[0].maxEraYear = GregorianCalendar.MaxYear - registryEraRanges[0].yearOffset;
                 }
-                else
-                {
+                else {
                     // Rest are until the next era (remember most recent era is first in array)
                     registryEraRanges[i].maxEraYear = registryEraRanges[i - 1].yearOffset + 1 - registryEraRanges[i].yearOffset;
                 }
@@ -121,8 +109,7 @@ namespace System.Globalization
         // Compare two era ranges, eg just the ticks
         // Remember the era array is supposed to be in reverse chronological order
         //
-        private static int CompareEraRanges(EraInfo a, EraInfo b)
-        {
+        private static int CompareEraRanges(EraInfo a, EraInfo b) {
             return b.ticks.CompareTo(a.ticks);
         }
 
@@ -143,8 +130,7 @@ namespace System.Globalization
         // . is a delimiter, but the value of . doesn't matter.
         // '_' marks the space between the japanese era name, japanese abbreviated era name
         //     english name, and abbreviated english names.
-        private static EraInfo GetEraFromValue(String value, String data)
-        {
+        private static EraInfo GetEraFromValue(String value, String data) {
             // Need inputs
             if (value == null || data == null) return null;
 
@@ -161,8 +147,7 @@ namespace System.Globalization
 
             if (!Int32.TryParse(value.Substring(0, 4), NumberStyles.None, NumberFormatInfo.InvariantInfo, out year) ||
                 !Int32.TryParse(value.Substring(5, 2), NumberStyles.None, NumberFormatInfo.InvariantInfo, out month) ||
-                !Int32.TryParse(value.Substring(8, 2), NumberStyles.None, NumberFormatInfo.InvariantInfo, out day))
-            {
+                !Int32.TryParse(value.Substring(8, 2), NumberStyles.None, NumberFormatInfo.InvariantInfo, out day)) {
                 // Couldn't convert integer, fail
                 return null;
             }
@@ -200,8 +185,7 @@ namespace System.Globalization
 
         private static string[] s_japaneseErasEnglishNames = new String[] { "M", "T", "S", "H" };
 
-        private static string GetJapaneseEnglishEraName(int era)
-        {
+        private static string GetJapaneseEnglishEraName(int era) {
             Debug.Assert(era > 0);
             return era <= s_japaneseErasEnglishNames.Length ? s_japaneseErasEnglishNames[era - 1] : " ";
         }

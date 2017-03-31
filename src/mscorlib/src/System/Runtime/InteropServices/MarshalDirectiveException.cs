@@ -15,31 +15,25 @@
 using System;
 using System.Runtime.Serialization;
 
-namespace System.Runtime.InteropServices
-{
+namespace System.Runtime.InteropServices {
     [Serializable]
-    public class MarshalDirectiveException : SystemException
-    {
+    public class MarshalDirectiveException : SystemException {
         public MarshalDirectiveException()
-            : base(SR.Arg_MarshalDirectiveException)
-        {
+            : base(SR.Arg_MarshalDirectiveException) {
             SetErrorCode(__HResults.COR_E_MARSHALDIRECTIVE);
         }
 
         public MarshalDirectiveException(String message)
-            : base(message)
-        {
+            : base(message) {
             SetErrorCode(__HResults.COR_E_MARSHALDIRECTIVE);
         }
 
         public MarshalDirectiveException(String message, Exception inner)
-            : base(message, inner)
-        {
+            : base(message, inner) {
             SetErrorCode(__HResults.COR_E_MARSHALDIRECTIVE);
         }
 
-        protected MarshalDirectiveException(SerializationInfo info, StreamingContext context) : base(info, context)
-        {
+        protected MarshalDirectiveException(SerializationInfo info, StreamingContext context) : base(info, context) {
         }
     }
 }

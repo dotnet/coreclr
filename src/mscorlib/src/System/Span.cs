@@ -17,14 +17,12 @@ using nuint = System.UInt64;
 using nuint = System.UInt32;
 #endif
 
-namespace System
-{
+namespace System {
     /// <summary>
     /// Span represents a contiguous region of arbitrary memory. Unlike arrays, it can point to either managed
     /// or native memory, or to memory allocated on the stack. It is type- and memory-safe.
     /// </summary>
-    public struct Span<T>
-    {
+    public struct Span<T> {
         /// <summary>A byref or a native ptr.</summary>
         private readonly ByReference<T> _pointer;
         /// <summary>The number of elements this Span contains.</summary>
@@ -38,8 +36,7 @@ namespace System
         /// reference (Nothing in Visual Basic).</exception>
         /// <exception cref="System.ArrayTypeMismatchException">Thrown when <paramref name="array"/> is covariant and array's type is not exactly T[].</exception>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Span(T[] array)
-        {
+        public Span(T[] array) {
             if (array == null)
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
             if (default(T) == null && array.GetType() != typeof(T[]))
@@ -62,8 +59,7 @@ namespace System
         /// Thrown when the specified <paramref name="start"/> is not in the range (&lt;0 or &gt;=Length).
         /// </exception>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Span(T[] array, int start)
-        {
+        public Span(T[] array, int start) {
             if (array == null)
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
             if (default(T) == null && array.GetType() != typeof(T[]))
@@ -89,8 +85,7 @@ namespace System
         /// Thrown when the specified <paramref name="start"/> or end index is not in the range (&lt;0 or &gt;=Length).
         /// </exception>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Span(T[] array, int start, int length)
-        {
+        public Span(T[] array, int start, int length) {
             if (array == null)
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
             if (default(T) == null && array.GetType() != typeof(T[]))
@@ -118,8 +113,7 @@ namespace System
         /// </exception>
         [CLSCompliant(false)]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public unsafe Span(void* pointer, int length)
-        {
+        public unsafe Span(void* pointer, int length) {
             if (RuntimeHelpers.IsReferenceOrContainsReferences<T>())
                 ThrowHelper.ThrowInvalidTypeWithPointersNotSupported(typeof(T));
             if (length < 0)
@@ -143,8 +137,7 @@ namespace System
 
         // Constructor for internal use only.
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal Span(ref T ptr, int length)
-        {
+        internal Span(ref T ptr, int length) {
             Debug.Assert(length >= 0);
 
             _pointer = new ByReference<T>(ref ptr);
@@ -155,8 +148,7 @@ namespace System
         /// Returns a reference to the 0th element of the Span. If the Span is empty, returns a reference to the location where the 0th element
         /// would have been stored. Such a reference can be used for pinning but must never be dereferenced.
         /// </summary>
-        public ref T DangerousGetPinnableReference()
-        {
+        public ref T DangerousGetPinnableReference() {
             return ref _pointer.Value;
         }
 
@@ -178,11 +170,9 @@ namespace System
         /// <exception cref="System.IndexOutOfRangeException">
         /// Thrown when index less than 0 or index greater than or equal to Length
         /// </exception>
-        public ref T this[int index]
-        {
+        public ref T this[int index] {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get
-            {
+            get {
                 if ((uint)index >= (uint)_length)
                     ThrowHelper.ThrowIndexOutOfRangeException();
 
@@ -194,14 +184,11 @@ namespace System
         /// Clears the contents of this span.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Clear()
-        {
-            if (RuntimeHelpers.IsReferenceOrContainsReferences<T>())
-            {
+        public void Clear() {
+            if (RuntimeHelpers.IsReferenceOrContainsReferences<T>()) {
                 SpanHelper.ClearWithReferences(ref Unsafe.As<T, IntPtr>(ref _pointer.Value), (nuint)_length * (nuint)(Unsafe.SizeOf<T>() / sizeof(nuint)));
             }
-            else
-            {
+            else {
                 SpanHelper.ClearWithoutReferences(ref Unsafe.As<T, byte>(ref _pointer.Value), (nuint)_length * (nuint)Unsafe.SizeOf<T>());
             }
         }
@@ -209,10 +196,8 @@ namespace System
         /// <summary>
         /// Fills the contents of this span with the given value.
         /// </summary>
-        public void Fill(T value)
-        {
-            if (Unsafe.SizeOf<T>() == 1)
-            {
+        public void Fill(T value) {
+            if (Unsafe.SizeOf<T>() == 1) {
                 uint length = (uint)_length;
                 if (length == 0)
                     return;
@@ -220,8 +205,7 @@ namespace System
                 T tmp = value; // Avoid taking address of the "value" argument. It would regress performance of the loop below.
                 Unsafe.InitBlockUnaligned(ref Unsafe.As<T, byte>(ref _pointer.Value), Unsafe.As<T, byte>(ref tmp), length);
             }
-            else
-            {
+            else {
                 // Do all math as nuint to avoid unnecessary 64->32->64 bit integer truncations
                 nuint length = (uint)_length;
                 if (length == 0)
@@ -233,8 +217,7 @@ namespace System
 
                 nuint elementSize = (uint)Unsafe.SizeOf<T>();
                 nuint i = 0;
-                for (; i < (length & ~(nuint)7); i += 8)
-                {
+                for (; i < (length & ~(nuint)7); i += 8) {
                     Unsafe.AddByteOffset<T>(ref r, (i + 0) * elementSize) = value;
                     Unsafe.AddByteOffset<T>(ref r, (i + 1) * elementSize) = value;
                     Unsafe.AddByteOffset<T>(ref r, (i + 2) * elementSize) = value;
@@ -244,16 +227,14 @@ namespace System
                     Unsafe.AddByteOffset<T>(ref r, (i + 6) * elementSize) = value;
                     Unsafe.AddByteOffset<T>(ref r, (i + 7) * elementSize) = value;
                 }
-                if (i < (length & ~(nuint)3))
-                {
+                if (i < (length & ~(nuint)3)) {
                     Unsafe.AddByteOffset<T>(ref r, (i + 0) * elementSize) = value;
                     Unsafe.AddByteOffset<T>(ref r, (i + 1) * elementSize) = value;
                     Unsafe.AddByteOffset<T>(ref r, (i + 2) * elementSize) = value;
                     Unsafe.AddByteOffset<T>(ref r, (i + 3) * elementSize) = value;
                     i += 4;
                 }
-                for (; i < length; i++)
-                {
+                for (; i < length; i++) {
                     Unsafe.AddByteOffset<T>(ref r, i * elementSize) = value;
                 }
             }
@@ -268,8 +249,7 @@ namespace System
         /// <exception cref="System.ArgumentException">
         /// Thrown when the destination Span is shorter than the source Span.
         /// </exception>
-        public void CopyTo(Span<T> destination)
-        {
+        public void CopyTo(Span<T> destination) {
             if (!TryCopyTo(destination))
                 ThrowHelper.ThrowArgumentException_DestinationTooShort();
         }
@@ -282,8 +262,7 @@ namespace System
         /// <param name="destination">The span to copy items into.</param>
         /// <returns>If the destination span is shorter than the source span, this method
         /// return false and no data is written to the destination.</returns>        
-        public bool TryCopyTo(Span<T> destination)
-        {
+        public bool TryCopyTo(Span<T> destination) {
             if ((uint)_length > (uint)destination.Length)
                 return false;
 
@@ -295,8 +274,7 @@ namespace System
         /// Returns true if left and right point at the same memory and have the same length.  Note that
         /// this does *not* check to see if the *contents* are equal.
         /// </summary>
-        public static bool operator ==(Span<T> left, Span<T> right)
-        {
+        public static bool operator ==(Span<T> left, Span<T> right) {
             return left._length == right._length && Unsafe.AreSame<T>(ref left._pointer.Value, ref right._pointer.Value);
         }
 
@@ -314,8 +292,7 @@ namespace System
         /// </summary>
         [Obsolete("Equals() on Span will always throw an exception. Use == instead.")]
         [EditorBrowsable(EditorBrowsableState.Never)]
-        public override bool Equals(object obj)
-        {
+        public override bool Equals(object obj) {
             throw new NotSupportedException(SR.NotSupported_CannotCallEqualsOnSpan);
         }
 
@@ -327,8 +304,7 @@ namespace System
         /// </summary>
         [Obsolete("GetHashCode() on Span will always throw an exception.")]
         [EditorBrowsable(EditorBrowsableState.Never)]
-        public override int GetHashCode()
-        {
+        public override int GetHashCode() {
             throw new NotSupportedException(SR.NotSupported_CannotCallGetHashCodeOnSpan);
         }
 
@@ -355,8 +331,7 @@ namespace System
         /// Thrown when the specified <paramref name="start"/> index is not in range (&lt;0 or &gt;=Length).
         /// </exception>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Span<T> Slice(int start)
-        {
+        public Span<T> Slice(int start) {
             if ((uint)start > (uint)_length)
                 ThrowHelper.ThrowArgumentOutOfRangeException();
 
@@ -372,8 +347,7 @@ namespace System
         /// Thrown when the specified <paramref name="start"/> or end index is not in range (&lt;0 or &gt;=Length).
         /// </exception>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Span<T> Slice(int start, int length)
-        {
+        public Span<T> Slice(int start, int length) {
             if ((uint)start > (uint)_length || (uint)length > (uint)(_length - start))
                 ThrowHelper.ThrowArgumentOutOfRangeException();
 
@@ -386,8 +360,7 @@ namespace System
         /// necessary to bridge the gap with APIs written in terms of arrays.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public T[] ToArray()
-        {
+        public T[] ToArray() {
             if (_length == 0)
                 return Array.Empty<T>();
 
@@ -402,8 +375,7 @@ namespace System
         public static Span<T> Empty => default(Span<T>);
     }
 
-    public static class Span
-    {
+    public static class Span {
         /// <summary>
         /// Casts a Span of one primitive type <typeparamref name="T"/> to Span of bytes.
         /// That type may not contain pointers or references. This is checked at runtime in order to preserve type safety.
@@ -414,8 +386,7 @@ namespace System
         /// </exception>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Span<byte> AsBytes<T>(this Span<T> source)
-            where T : struct
-        {
+            where T : struct {
             if (RuntimeHelpers.IsReferenceOrContainsReferences<T>())
                 ThrowHelper.ThrowInvalidTypeWithPointersNotSupported(typeof(T));
 
@@ -434,8 +405,7 @@ namespace System
         /// </exception>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static ReadOnlySpan<byte> AsBytes<T>(this ReadOnlySpan<T> source)
-            where T : struct
-        {
+            where T : struct {
             if (RuntimeHelpers.IsReferenceOrContainsReferences<T>())
                 ThrowHelper.ThrowInvalidTypeWithPointersNotSupported(typeof(T));
 
@@ -458,8 +428,7 @@ namespace System
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Span<TTo> NonPortableCast<TFrom, TTo>(this Span<TFrom> source)
             where TFrom : struct
-            where TTo : struct
-        {
+            where TTo : struct {
             if (RuntimeHelpers.IsReferenceOrContainsReferences<TFrom>())
                 ThrowHelper.ThrowInvalidTypeWithPointersNotSupported(typeof(TFrom));
             if (RuntimeHelpers.IsReferenceOrContainsReferences<TTo>())
@@ -484,8 +453,7 @@ namespace System
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static ReadOnlySpan<TTo> NonPortableCast<TFrom, TTo>(this ReadOnlySpan<TFrom> source)
             where TFrom : struct
-            where TTo : struct
-        {
+            where TTo : struct {
             if (RuntimeHelpers.IsReferenceOrContainsReferences<TFrom>())
                 ThrowHelper.ThrowInvalidTypeWithPointersNotSupported(typeof(TFrom));
             if (RuntimeHelpers.IsReferenceOrContainsReferences<TTo>())
@@ -503,8 +471,7 @@ namespace System
         /// <exception cref="System.ArgumentNullException">Thrown when <paramref name="text"/> is a null
         /// reference (Nothing in Visual Basic).</exception>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static ReadOnlySpan<char> Slice(this string text)
-        {
+        public static ReadOnlySpan<char> Slice(this string text) {
             if (text == null)
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.text);
 
@@ -522,8 +489,7 @@ namespace System
         /// Thrown when the specified <paramref name="start"/> index is not in range (&lt;0 or &gt;Length).
         /// </exception>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static ReadOnlySpan<char> Slice(this string text, int start)
-        {
+        public static ReadOnlySpan<char> Slice(this string text, int start) {
             if (text == null)
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.text);
             if ((uint)start > (uint)text.Length)
@@ -544,8 +510,7 @@ namespace System
         /// Thrown when the specified <paramref name="start"/> or end index is not in range (&lt;0 or &gt;&eq;Length).
         /// </exception>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static ReadOnlySpan<char> Slice(this string text, int start, int length)
-        {
+        public static ReadOnlySpan<char> Slice(this string text, int start, int length) {
             if (text == null)
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.text);
             if ((uint)start > (uint)text.Length || (uint)length > (uint)(text.Length - start))
@@ -555,35 +520,27 @@ namespace System
         }
     }
 
-    internal static class SpanHelper
-    {
-        internal static unsafe void CopyTo<T>(ref T destination, ref T source, int elementsCount)
-        {
+    internal static class SpanHelper {
+        internal static unsafe void CopyTo<T>(ref T destination, ref T source, int elementsCount) {
             if (Unsafe.AreSame(ref destination, ref source))
                 return;
 
-            if (elementsCount <= 1)
-            {
-                if (elementsCount == 1)
-                {
+            if (elementsCount <= 1) {
+                if (elementsCount == 1) {
                     destination = source;
                 }
                 return;
             }
 
             nuint byteCount = (nuint)elementsCount * (nuint)Unsafe.SizeOf<T>();
-            if (!RuntimeHelpers.IsReferenceOrContainsReferences<T>())
-            {
-                fixed (byte* pDestination = &Unsafe.As<T, byte>(ref destination))
-                {
-                    fixed (byte* pSource = &Unsafe.As<T, byte>(ref source))
-                    {
+            if (!RuntimeHelpers.IsReferenceOrContainsReferences<T>()) {
+                fixed (byte* pDestination = &Unsafe.As<T, byte>(ref destination)) {
+                    fixed (byte* pSource = &Unsafe.As<T, byte>(ref source)) {
                         Buffer.Memmove(pDestination, pSource, byteCount);
                     }
                 }
             }
-            else
-            {
+            else {
                 RuntimeImports.RhBulkMoveWithWriteBarrier(
                     ref Unsafe.As<T, byte>(ref destination),
                     ref Unsafe.As<T, byte>(ref source),
@@ -591,8 +548,7 @@ namespace System
             }
         }
 
-        internal static unsafe void ClearWithoutReferences(ref byte b, nuint byteLength)
-        {
+        internal static unsafe void ClearWithoutReferences(ref byte b, nuint byteLength) {
             if (byteLength == 0)
                 return;
             
@@ -909,8 +865,7 @@ namespace System
             RuntimeImports.RhZeroMemory(ref b, byteLength);
         }
 
-        internal static unsafe void ClearWithReferences(ref IntPtr ip, nuint pointerSizeLength)
-        {
+        internal static unsafe void ClearWithReferences(ref IntPtr ip, nuint pointerSizeLength) {
             if (pointerSizeLength == 0)
                 return;
 
@@ -918,8 +873,7 @@ namespace System
 
             nuint i = 0;
             nuint n = 0;
-            while ((n = i + 8) <= (pointerSizeLength))
-            {
+            while ((n = i + 8) <= (pointerSizeLength)) {
                 Unsafe.AddByteOffset<IntPtr>(ref ip, (i + 0) * (nuint)sizeof(IntPtr)) = default(IntPtr);
                 Unsafe.AddByteOffset<IntPtr>(ref ip, (i + 1) * (nuint)sizeof(IntPtr)) = default(IntPtr);
                 Unsafe.AddByteOffset<IntPtr>(ref ip, (i + 2) * (nuint)sizeof(IntPtr)) = default(IntPtr);
@@ -930,22 +884,19 @@ namespace System
                 Unsafe.AddByteOffset<IntPtr>(ref ip, (i + 7) * (nuint)sizeof(IntPtr)) = default(IntPtr);
                 i = n;
             }
-            if ((n = i + 4) <= (pointerSizeLength))
-            {
+            if ((n = i + 4) <= (pointerSizeLength)) {
                 Unsafe.AddByteOffset<IntPtr>(ref ip, (i + 0) * (nuint)sizeof(IntPtr)) = default(IntPtr);
                 Unsafe.AddByteOffset<IntPtr>(ref ip, (i + 1) * (nuint)sizeof(IntPtr)) = default(IntPtr);
                 Unsafe.AddByteOffset<IntPtr>(ref ip, (i + 2) * (nuint)sizeof(IntPtr)) = default(IntPtr);
                 Unsafe.AddByteOffset<IntPtr>(ref ip, (i + 3) * (nuint)sizeof(IntPtr)) = default(IntPtr);
                 i = n;
             }
-            if ((n = i + 2) <= (pointerSizeLength))
-            {
+            if ((n = i + 2) <= (pointerSizeLength)) {
                 Unsafe.AddByteOffset<IntPtr>(ref ip, (i + 0) * (nuint)sizeof(IntPtr)) = default(IntPtr);
                 Unsafe.AddByteOffset<IntPtr>(ref ip, (i + 1) * (nuint)sizeof(IntPtr)) = default(IntPtr);
                 i = n;
             }
-            if ((i + 1) <= (pointerSizeLength))
-            {
+            if ((i + 1) <= (pointerSizeLength)) {
                 Unsafe.AddByteOffset<IntPtr>(ref ip, (i + 0) * (nuint)sizeof(IntPtr)) = default(IntPtr);
             }
         }

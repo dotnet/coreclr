@@ -22,8 +22,7 @@ namespace System.Diagnostics.Tracing
     /// TraceLogging: Used when calling EventSource.WriteMultiMerge.
     /// Stores the type information to use when writing the event fields.
     /// </summary>
-    public class TraceLoggingEventTypes
-    {
+    public class TraceLoggingEventTypes {
         internal readonly TraceLoggingTypeInfo[] typeInfos;
         internal readonly string name;
         internal readonly EventTags tags;
@@ -55,8 +54,7 @@ namespace System.Diagnostics.Tracing
             string name,
             EventTags tags,
             params Type[] types)
-            : this(tags, name, MakeArray(types))
-        {
+            : this(tags, name, MakeArray(types)) {
             return;
         }
 
@@ -82,18 +80,15 @@ namespace System.Diagnostics.Tracing
             string name,
             EventTags tags,
             params TraceLoggingTypeInfo[] typeInfos)
-            : this(tags, name, MakeArray(typeInfos))
-        {
+            : this(tags, name, MakeArray(typeInfos)) {
             return;
         }
 
         internal TraceLoggingEventTypes(
             string name,
             EventTags tags,
-            System.Reflection.ParameterInfo[] paramInfos)
-        {
-            if (name == null)
-            {
+            System.Reflection.ParameterInfo[] paramInfos) {
+            if (name == null) {
                 throw new ArgumentNullException(nameof(name));
             }
 
@@ -105,15 +100,13 @@ namespace System.Diagnostics.Tracing
             this.level = Statics.DefaultLevel;
 
             var collector = new TraceLoggingMetadataCollector();
-            for (int i = 0; i < typeInfos.Length; ++i)
-            {
+            for (int i = 0; i < typeInfos.Length; ++i) {
                 var typeInfo = typeInfos[i];
                 this.level = Statics.Combine((int)typeInfo.Level, this.level);
                 this.opcode = Statics.Combine((int)typeInfo.Opcode, this.opcode);
                 this.keywords |= typeInfo.Keywords;
                 var paramName = paramInfos[i].Name;
-                if (Statics.ShouldOverrideFieldName(paramName))
-                {
+                if (Statics.ShouldOverrideFieldName(paramName)) {
                     paramName = typeInfo.Name;
                 }
                 typeInfo.WriteMetadata(collector, paramName, EventFieldFormat.Default);
@@ -128,10 +121,8 @@ namespace System.Diagnostics.Tracing
         private TraceLoggingEventTypes(
             EventTags tags,
             string defaultName,
-            TraceLoggingTypeInfo[] typeInfos)
-        {
-            if (defaultName == null)
-            {
+            TraceLoggingTypeInfo[] typeInfos) {
+            if (defaultName == null) {
                 throw new ArgumentNullException(nameof(defaultName));
             }
 
@@ -143,8 +134,7 @@ namespace System.Diagnostics.Tracing
             this.level = Statics.DefaultLevel;
 
             var collector = new TraceLoggingMetadataCollector();
-            foreach (var typeInfo in typeInfos)
-            {
+            foreach (var typeInfo in typeInfos) {
                 this.level = Statics.Combine((int)typeInfo.Level, this.level);
                 this.opcode = Statics.Combine((int)typeInfo.Opcode, this.opcode);
                 this.keywords |= typeInfo.Keywords;
@@ -160,58 +150,49 @@ namespace System.Diagnostics.Tracing
         /// <summary>
         /// Gets the default name that will be used for events with this descriptor.
         /// </summary>
-        internal string Name
-        {
+        internal string Name {
             get { return this.name; }
         }
 
         /// <summary>
         /// Gets the default level that will be used for events with this descriptor.
         /// </summary>
-        internal EventLevel Level
-        {
+        internal EventLevel Level {
             get { return (EventLevel)this.level; }
         }
 
         /// <summary>
         /// Gets the default opcode that will be used for events with this descriptor.
         /// </summary>
-        internal EventOpcode Opcode
-        {
+        internal EventOpcode Opcode {
             get { return (EventOpcode)this.opcode; }
         }
 
         /// <summary>
         /// Gets the default set of keywords that will added to events with this descriptor.
         /// </summary>
-        internal EventKeywords Keywords
-        {
+        internal EventKeywords Keywords {
             get { return (EventKeywords)this.keywords; }
         }
 
         /// <summary>
         /// Gets the default tags that will be added events with this descriptor.
         /// </summary>
-        internal EventTags Tags
-        {
+        internal EventTags Tags {
             get { return this.tags; }
         }
 
-        internal NameInfo GetNameInfo(string name, EventTags tags)
-        {
+        internal NameInfo GetNameInfo(string name, EventTags tags) {
             var ret = nameInfos.TryGet(new KeyValuePair<string, EventTags>(name, tags));
-            if (ret == null)
-            {
+            if (ret == null) {
                 ret = nameInfos.GetOrAdd(new NameInfo(name, tags, this.typeMetadata.Length));
             }
 
             return ret;
         }
 
-        private TraceLoggingTypeInfo[] MakeArray(System.Reflection.ParameterInfo[] paramInfos)
-        {
-            if (paramInfos == null)
-            {
+        private TraceLoggingTypeInfo[] MakeArray(System.Reflection.ParameterInfo[] paramInfos) {
+            if (paramInfos == null) {
                 throw new ArgumentNullException(nameof(paramInfos));
             }
 
@@ -219,18 +200,15 @@ namespace System.Diagnostics.Tracing
 
             var recursionCheck = new List<Type>(paramInfos.Length);
             var result = new TraceLoggingTypeInfo[paramInfos.Length];
-            for (int i = 0; i < paramInfos.Length; ++i)
-            {
+            for (int i = 0; i < paramInfos.Length; ++i) {
                 result[i] = TraceLoggingTypeInfo.GetInstance(paramInfos[i].ParameterType, recursionCheck);
             }
 
             return result;
         }
 
-        private static TraceLoggingTypeInfo[] MakeArray(Type[] types)
-        {
-            if (types == null)
-            {
+        private static TraceLoggingTypeInfo[] MakeArray(Type[] types) {
+            if (types == null) {
                 throw new ArgumentNullException(nameof(types));
             }
 
@@ -238,8 +216,7 @@ namespace System.Diagnostics.Tracing
 
             var recursionCheck = new List<Type>(types.Length);
             var result = new TraceLoggingTypeInfo[types.Length];
-            for (int i = 0; i < types.Length; i++)
-            {
+            for (int i = 0; i < types.Length; i++) {
                 result[i] = TraceLoggingTypeInfo.GetInstance(types[i], recursionCheck);
             }
 
@@ -247,10 +224,8 @@ namespace System.Diagnostics.Tracing
         }
 
         private static TraceLoggingTypeInfo[] MakeArray(
-            TraceLoggingTypeInfo[] typeInfos)
-        {
-            if (typeInfos == null)
-            {
+            TraceLoggingTypeInfo[] typeInfos) {
+            if (typeInfos == null) {
                 throw new ArgumentNullException(nameof(typeInfos));
             }
 

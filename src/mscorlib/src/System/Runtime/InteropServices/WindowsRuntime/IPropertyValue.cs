@@ -7,21 +7,17 @@
 using System;
 using System.Diagnostics.Contracts;
 
-namespace System.Runtime.InteropServices.WindowsRuntime
-{
+namespace System.Runtime.InteropServices.WindowsRuntime {
     [ComImport]
     [Guid("4bd682dd-7554-40e9-9a9b-82654ede7e62")]
     [WindowsRuntimeImport]
-    internal interface IPropertyValue
-    {
-        PropertyType Type
-        {
+    internal interface IPropertyValue {
+        PropertyType Type {
             [Pure]
             get;
         }
 
-        bool IsNumericScalar
-        {
+        bool IsNumericScalar {
             [Pure]
             get;
         }
@@ -141,8 +137,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
     // Specify size directly instead of fields to avoid warnings
     [StructLayoutAttribute(LayoutKind.Sequential, Size = 8)]
     [WindowsRuntimeImport]
-    internal struct Point
-    {
+    internal struct Point {
         // float X;
         // float Y;        
     }
@@ -150,8 +145,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
     // Specify size directly instead of fields to avoid warnings
     [StructLayoutAttribute(LayoutKind.Sequential, Size = 8)]
     [WindowsRuntimeImport]
-    internal struct Size
-    {
+    internal struct Size {
         // float Width;
         // float Height;   
     }
@@ -159,8 +153,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
     // Specify size directly instead of fields to avoid warnings
     [StructLayoutAttribute(LayoutKind.Sequential, Size = 16)]
     [WindowsRuntimeImport]
-    internal struct Rect
-    {
+    internal struct Rect {
         // float X;
         // float Y;
         // float Width;

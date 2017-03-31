@@ -12,12 +12,10 @@ using System.Runtime;
 using System.Runtime.CompilerServices;
 using System.Diagnostics.Contracts;
 
-namespace System.Collections.Generic
-{
+namespace System.Collections.Generic {
     [Serializable]
     [TypeDependencyAttribute("System.Collections.Generic.ObjectEqualityComparer`1")]
-    public abstract class EqualityComparer<T> : IEqualityComparer, IEqualityComparer<T>
-    {
+    public abstract class EqualityComparer<T> : IEqualityComparer, IEqualityComparer<T> {
         // To minimize generic instantiation overhead of creating the comparer per type, we keep the generic portion of the code as small
         // as possible and define most of the creation logic in a non-generic class.
         public static EqualityComparer<T> Default { get; } = (EqualityComparer<T>)ComparerHelpers.CreateDefaultEqualityComparer(typeof(T));
@@ -27,36 +25,30 @@ namespace System.Collections.Generic
         [Pure]
         public abstract int GetHashCode(T obj);
 
-        internal virtual int IndexOf(T[] array, T value, int startIndex, int count)
-        {
+        internal virtual int IndexOf(T[] array, T value, int startIndex, int count) {
             int endIndex = startIndex + count;
-            for (int i = startIndex; i < endIndex; i++)
-            {
+            for (int i = startIndex; i < endIndex; i++) {
                 if (Equals(array[i], value)) return i;
             }
             return -1;
         }
 
-        internal virtual int LastIndexOf(T[] array, T value, int startIndex, int count)
-        {
+        internal virtual int LastIndexOf(T[] array, T value, int startIndex, int count) {
             int endIndex = startIndex - count + 1;
-            for (int i = startIndex; i >= endIndex; i--)
-            {
+            for (int i = startIndex; i >= endIndex; i--) {
                 if (Equals(array[i], value)) return i;
             }
             return -1;
         }
 
-        int IEqualityComparer.GetHashCode(object obj)
-        {
+        int IEqualityComparer.GetHashCode(object obj) {
             if (obj == null) return 0;
             if (obj is T) return GetHashCode((T)obj);
             ThrowHelper.ThrowArgumentException(ExceptionResource.Argument_InvalidArgumentForComparison);
             return 0;
         }
 
-        bool IEqualityComparer.Equals(object x, object y)
-        {
+        bool IEqualityComparer.Equals(object x, object y) {
             if (x == y) return true;
             if (x == null || y == null) return false;
             if ((x is T) && (y is T)) return Equals((T)x, (T)y);
@@ -68,13 +60,10 @@ namespace System.Collections.Generic
     // The methods in this class look identical to the inherited methods, but the calls
     // to Equal bind to IEquatable<T>.Equals(T) instead of Object.Equals(Object)
     [Serializable]
-    internal class GenericEqualityComparer<T> : EqualityComparer<T> where T : IEquatable<T>
-    {
+    internal class GenericEqualityComparer<T> : EqualityComparer<T> where T : IEquatable<T> {
         [Pure]
-        public override bool Equals(T x, T y)
-        {
-            if (x != null)
-            {
+        public override bool Equals(T x, T y) {
+            if (x != null) {
                 if (y != null) return x.Equals(y);
                 return false;
             }
@@ -85,40 +74,30 @@ namespace System.Collections.Generic
         [Pure]
         public override int GetHashCode(T obj) => obj?.GetHashCode() ?? 0;
 
-        internal override int IndexOf(T[] array, T value, int startIndex, int count)
-        {
+        internal override int IndexOf(T[] array, T value, int startIndex, int count) {
             int endIndex = startIndex + count;
-            if (value == null)
-            {
-                for (int i = startIndex; i < endIndex; i++)
-                {
+            if (value == null) {
+                for (int i = startIndex; i < endIndex; i++) {
                     if (array[i] == null) return i;
                 }
             }
-            else
-            {
-                for (int i = startIndex; i < endIndex; i++)
-                {
+            else {
+                for (int i = startIndex; i < endIndex; i++) {
                     if (array[i] != null && array[i].Equals(value)) return i;
                 }
             }
             return -1;
         }
 
-        internal override int LastIndexOf(T[] array, T value, int startIndex, int count)
-        {
+        internal override int LastIndexOf(T[] array, T value, int startIndex, int count) {
             int endIndex = startIndex - count + 1;
-            if (value == null)
-            {
-                for (int i = startIndex; i >= endIndex; i--)
-                {
+            if (value == null) {
+                for (int i = startIndex; i >= endIndex; i--) {
                     if (array[i] == null) return i;
                 }
             }
-            else
-            {
-                for (int i = startIndex; i >= endIndex; i--)
-                {
+            else {
+                for (int i = startIndex; i >= endIndex; i--) {
                     if (array[i] != null && array[i].Equals(value)) return i;
                 }
             }
@@ -136,13 +115,10 @@ namespace System.Collections.Generic
     }
 
     [Serializable]
-    internal sealed class NullableEqualityComparer<T> : EqualityComparer<T?> where T : struct, IEquatable<T>
-    {
+    internal sealed class NullableEqualityComparer<T> : EqualityComparer<T?> where T : struct, IEquatable<T> {
         [Pure]
-        public override bool Equals(T? x, T? y)
-        {
-            if (x.HasValue)
-            {
+        public override bool Equals(T? x, T? y) {
+            if (x.HasValue) {
                 if (y.HasValue) return x.value.Equals(y.value);
                 return false;
             }
@@ -153,40 +129,30 @@ namespace System.Collections.Generic
         [Pure]
         public override int GetHashCode(T? obj) => obj.GetHashCode();
 
-        internal override int IndexOf(T?[] array, T? value, int startIndex, int count)
-        {
+        internal override int IndexOf(T?[] array, T? value, int startIndex, int count) {
             int endIndex = startIndex + count;
-            if (!value.HasValue)
-            {
-                for (int i = startIndex; i < endIndex; i++)
-                {
+            if (!value.HasValue) {
+                for (int i = startIndex; i < endIndex; i++) {
                     if (!array[i].HasValue) return i;
                 }
             }
-            else
-            {
-                for (int i = startIndex; i < endIndex; i++)
-                {
+            else {
+                for (int i = startIndex; i < endIndex; i++) {
                     if (array[i].HasValue && array[i].value.Equals(value.value)) return i;
                 }
             }
             return -1;
         }
 
-        internal override int LastIndexOf(T?[] array, T? value, int startIndex, int count)
-        {
+        internal override int LastIndexOf(T?[] array, T? value, int startIndex, int count) {
             int endIndex = startIndex - count + 1;
-            if (!value.HasValue)
-            {
-                for (int i = startIndex; i >= endIndex; i--)
-                {
+            if (!value.HasValue) {
+                for (int i = startIndex; i >= endIndex; i--) {
                     if (!array[i].HasValue) return i;
                 }
             }
-            else
-            {
-                for (int i = startIndex; i >= endIndex; i--)
-                {
+            else {
+                for (int i = startIndex; i >= endIndex; i--) {
                     if (array[i].HasValue && array[i].value.Equals(value.value)) return i;
                 }
             }
@@ -202,13 +168,10 @@ namespace System.Collections.Generic
     }
 
     [Serializable]
-    internal sealed class ObjectEqualityComparer<T> : EqualityComparer<T>
-    {
+    internal sealed class ObjectEqualityComparer<T> : EqualityComparer<T> {
         [Pure]
-        public override bool Equals(T x, T y)
-        {
-            if (x != null)
-            {
+        public override bool Equals(T x, T y) {
+            if (x != null) {
                 if (y != null) return x.Equals(y);
                 return false;
             }
@@ -219,40 +182,30 @@ namespace System.Collections.Generic
         [Pure]
         public override int GetHashCode(T obj) => obj?.GetHashCode() ?? 0;
 
-        internal override int IndexOf(T[] array, T value, int startIndex, int count)
-        {
+        internal override int IndexOf(T[] array, T value, int startIndex, int count) {
             int endIndex = startIndex + count;
-            if (value == null)
-            {
-                for (int i = startIndex; i < endIndex; i++)
-                {
+            if (value == null) {
+                for (int i = startIndex; i < endIndex; i++) {
                     if (array[i] == null) return i;
                 }
             }
-            else
-            {
-                for (int i = startIndex; i < endIndex; i++)
-                {
+            else {
+                for (int i = startIndex; i < endIndex; i++) {
                     if (array[i] != null && array[i].Equals(value)) return i;
                 }
             }
             return -1;
         }
 
-        internal override int LastIndexOf(T[] array, T value, int startIndex, int count)
-        {
+        internal override int LastIndexOf(T[] array, T value, int startIndex, int count) {
             int endIndex = startIndex - count + 1;
-            if (value == null)
-            {
-                for (int i = startIndex; i >= endIndex; i--)
-                {
+            if (value == null) {
+                for (int i = startIndex; i >= endIndex; i--) {
                     if (array[i] == null) return i;
                 }
             }
-            else
-            {
-                for (int i = startIndex; i >= endIndex; i--)
-                {
+            else {
+                for (int i = startIndex; i >= endIndex; i--) {
                     if (array[i] != null && array[i].Equals(value)) return i;
                 }
             }
@@ -274,16 +227,12 @@ namespace System.Collections.Generic
     // keep the perofrmance not affected till we hit collision threshold and then we switch to the comparer which is using 
     // randomized string hashing GenericEqualityComparer<string>
     [Serializable]
-    internal class NonRandomizedStringEqualityComparer : GenericEqualityComparer<string>
-    {
+    internal class NonRandomizedStringEqualityComparer : GenericEqualityComparer<string> {
         private static IEqualityComparer<string> s_nonRandomizedComparer;
 
-        internal static new IEqualityComparer<string> Default
-        {
-            get
-            {
-                if (s_nonRandomizedComparer == null)
-                {
+        internal static new IEqualityComparer<string> Default {
+            get {
+                if (s_nonRandomizedComparer == null) {
                     s_nonRandomizedComparer = new NonRandomizedStringEqualityComparer();
                 }
                 return s_nonRandomizedComparer;
@@ -291,8 +240,7 @@ namespace System.Collections.Generic
         }
 
         [Pure]
-        public override int GetHashCode(string obj)
-        {
+        public override int GetHashCode(string obj) {
             if (obj == null) return 0;
             return obj.GetLegacyNonRandomizedHashCode();
         }
@@ -301,22 +249,18 @@ namespace System.Collections.Generic
     // Performance of IndexOf on byte array is very important for some scenarios.
     // We will call the C runtime function memchr, which is optimized.
     [Serializable]
-    internal sealed class ByteEqualityComparer : EqualityComparer<byte>
-    {
+    internal sealed class ByteEqualityComparer : EqualityComparer<byte> {
         [Pure]
-        public override bool Equals(byte x, byte y)
-        {
+        public override bool Equals(byte x, byte y) {
             return x == y;
         }
 
         [Pure]
-        public override int GetHashCode(byte b)
-        {
+        public override int GetHashCode(byte b) {
             return b.GetHashCode();
         }
 
-        internal unsafe override int IndexOf(byte[] array, byte value, int startIndex, int count)
-        {
+        internal unsafe override int IndexOf(byte[] array, byte value, int startIndex, int count) {
             if (array == null)
                 throw new ArgumentNullException(nameof(array));
             if (startIndex < 0)
@@ -327,17 +271,14 @@ namespace System.Collections.Generic
                 throw new ArgumentException(SR.Argument_InvalidOffLen);
             Contract.EndContractBlock();
             if (count == 0) return -1;
-            fixed (byte* pbytes = array)
-            {
+            fixed (byte* pbytes = array) {
                 return Buffer.IndexOfByte(pbytes, value, startIndex, count);
             }
         }
 
-        internal override int LastIndexOf(byte[] array, byte value, int startIndex, int count)
-        {
+        internal override int LastIndexOf(byte[] array, byte value, int startIndex, int count) {
             int endIndex = startIndex - count + 1;
-            for (int i = startIndex; i >= endIndex; i--)
-            {
+            for (int i = startIndex; i >= endIndex; i--) {
                 if (array[i] == value) return i;
             }
             return -1;
@@ -352,19 +293,16 @@ namespace System.Collections.Generic
     }
 
     [Serializable]
-    internal class EnumEqualityComparer<T> : EqualityComparer<T> where T : struct
-    {
+    internal class EnumEqualityComparer<T> : EqualityComparer<T> where T : struct {
         [Pure]
-        public override bool Equals(T x, T y)
-        {
+        public override bool Equals(T x, T y) {
             int x_final = System.Runtime.CompilerServices.JitHelpers.UnsafeEnumCast(x);
             int y_final = System.Runtime.CompilerServices.JitHelpers.UnsafeEnumCast(y);
             return x_final == y_final;
         }
 
         [Pure]
-        public override int GetHashCode(T obj)
-        {
+        public override int GetHashCode(T obj) {
             int x_final = System.Runtime.CompilerServices.JitHelpers.UnsafeEnumCast(obj);
             return x_final.GetHashCode();
         }
@@ -378,24 +316,20 @@ namespace System.Collections.Generic
         public override int GetHashCode() =>
             GetType().GetHashCode();
 
-        internal override int IndexOf(T[] array, T value, int startIndex, int count)
-        {
+        internal override int IndexOf(T[] array, T value, int startIndex, int count) {
             int toFind = JitHelpers.UnsafeEnumCast(value);
             int endIndex = startIndex + count;
-            for (int i = startIndex; i < endIndex; i++)
-            {
+            for (int i = startIndex; i < endIndex; i++) {
                 int current = JitHelpers.UnsafeEnumCast(array[i]);
                 if (toFind == current) return i;
             }
             return -1;
         }
 
-        internal override int LastIndexOf(T[] array, T value, int startIndex, int count)
-        {
+        internal override int LastIndexOf(T[] array, T value, int startIndex, int count) {
             int toFind = JitHelpers.UnsafeEnumCast(value);
             int endIndex = startIndex - count + 1;
-            for (int i = startIndex; i >= endIndex; i--)
-            {
+            for (int i = startIndex; i >= endIndex; i--) {
                 int current = JitHelpers.UnsafeEnumCast(array[i]);
                 if (toFind == current) return i;
             }
@@ -404,45 +338,38 @@ namespace System.Collections.Generic
     }
 
     [Serializable]
-    internal sealed class SByteEnumEqualityComparer<T> : EnumEqualityComparer<T> where T : struct
-    {
+    internal sealed class SByteEnumEqualityComparer<T> : EnumEqualityComparer<T> where T : struct {
         public SByteEnumEqualityComparer() { }
 
         [Pure]
-        public override int GetHashCode(T obj)
-        {
+        public override int GetHashCode(T obj) {
             int x_final = System.Runtime.CompilerServices.JitHelpers.UnsafeEnumCast(obj);
             return ((sbyte)x_final).GetHashCode();
         }
     }
 
     [Serializable]
-    internal sealed class ShortEnumEqualityComparer<T> : EnumEqualityComparer<T> where T : struct
-    {
+    internal sealed class ShortEnumEqualityComparer<T> : EnumEqualityComparer<T> where T : struct {
         public ShortEnumEqualityComparer() { }
 
         [Pure]
-        public override int GetHashCode(T obj)
-        {
+        public override int GetHashCode(T obj) {
             int x_final = System.Runtime.CompilerServices.JitHelpers.UnsafeEnumCast(obj);
             return ((short)x_final).GetHashCode();
         }
     }
 
     [Serializable]
-    internal sealed class LongEnumEqualityComparer<T> : EqualityComparer<T> where T : struct
-    {
+    internal sealed class LongEnumEqualityComparer<T> : EqualityComparer<T> where T : struct {
         [Pure]
-        public override bool Equals(T x, T y)
-        {
+        public override bool Equals(T x, T y) {
             long x_final = System.Runtime.CompilerServices.JitHelpers.UnsafeEnumCastLong(x);
             long y_final = System.Runtime.CompilerServices.JitHelpers.UnsafeEnumCastLong(y);
             return x_final == y_final;
         }
 
         [Pure]
-        public override int GetHashCode(T obj)
-        {
+        public override int GetHashCode(T obj) {
             long x_final = System.Runtime.CompilerServices.JitHelpers.UnsafeEnumCastLong(obj);
             return x_final.GetHashCode();
         }
@@ -456,24 +383,20 @@ namespace System.Collections.Generic
 
         public LongEnumEqualityComparer() { }
 
-        internal override int IndexOf(T[] array, T value, int startIndex, int count)
-        {
+        internal override int IndexOf(T[] array, T value, int startIndex, int count) {
             long toFind = JitHelpers.UnsafeEnumCastLong(value);
             int endIndex = startIndex + count;
-            for (int i = startIndex; i < endIndex; i++)
-            {
+            for (int i = startIndex; i < endIndex; i++) {
                 long current = JitHelpers.UnsafeEnumCastLong(array[i]);
                 if (toFind == current) return i;
             }
             return -1;
         }
 
-        internal override int LastIndexOf(T[] array, T value, int startIndex, int count)
-        {
+        internal override int LastIndexOf(T[] array, T value, int startIndex, int count) {
             long toFind = JitHelpers.UnsafeEnumCastLong(value);
             int endIndex = startIndex - count + 1;
-            for (int i = startIndex; i >= endIndex; i--)
-            {
+            for (int i = startIndex; i >= endIndex; i--) {
                 long current = JitHelpers.UnsafeEnumCastLong(array[i]);
                 if (toFind == current) return i;
             }

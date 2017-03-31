@@ -11,11 +11,9 @@
 **
 ============================================================*/
 
-namespace System
-{
+namespace System {
     [Serializable]
-    public enum DayOfWeek
-    {
+    public enum DayOfWeek {
         Sunday = 0,
         Monday = 1,
         Tuesday = 2,

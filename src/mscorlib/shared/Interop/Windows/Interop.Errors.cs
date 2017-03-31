@@ -2,10 +2,8 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-internal partial class Interop
-{
-    internal partial class Errors
-    {
+internal partial class Interop {
+    internal partial class Errors {
         internal const int ERROR_SUCCESS = 0x0;
         internal const int ERROR_FILE_NOT_FOUND = 0x2;
         internal const int ERROR_PATH_NOT_FOUND = 0x3;

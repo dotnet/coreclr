@@ -11,8 +11,7 @@
 //
 ////////////////////////////////////////////////////////////////////////////
 
-namespace System.Globalization
-{
+namespace System.Globalization {
     using System;
     using System.Runtime.CompilerServices;
     using System.Runtime.Serialization;
@@ -20,8 +19,7 @@ namespace System.Globalization
     using System.Diagnostics.Contracts;
 
     [Serializable]
-    public partial class SortKey
-    {
+    public partial class SortKey {
         //--------------------------------------------------------------------//
         //                        Internal Information                        //
         //--------------------------------------------------------------------//
@@ -41,8 +39,7 @@ namespace System.Globalization
         // The following constructor is designed to be called from CompareInfo to get the 
         // the sort key of specific string for synthetic culture
         //
-        internal SortKey(String localeName, String str, CompareOptions options, byte[] keyData)
-        {
+        internal SortKey(String localeName, String str, CompareOptions options, byte[] keyData) {
             _keyData = keyData;
             _localeName = localeName;
             _options    = options;
@@ -50,21 +47,17 @@ namespace System.Globalization
         }
 
         [OnSerializing]
-        private void OnSerializing(StreamingContext context)
-        {
+        private void OnSerializing(StreamingContext context) {
             //set LCID to proper value for Whidbey serialization (no other use)
-            if (_win32LCID == 0)
-            {
+            if (_win32LCID == 0) {
                 _win32LCID = CultureInfo.GetCultureInfo(_localeName).LCID;
             }
         }
 
         [OnDeserialized]
-        private void OnDeserialized(StreamingContext context)
-        {
+        private void OnDeserialized(StreamingContext context) {
             //set locale name to proper value after Whidbey deserialization
-            if (String.IsNullOrEmpty(_localeName) && _win32LCID != 0)
-            {
+            if (String.IsNullOrEmpty(_localeName) && _win32LCID != 0) {
                 _localeName = CultureInfo.GetCultureInfo(_win32LCID).Name;
             }
         }
@@ -77,10 +70,8 @@ namespace System.Globalization
         //  of SortKey.
         //
         ////////////////////////////////////////////////////////////////////////
-        public virtual String OriginalString
-        {
-            get
-            {
+        public virtual String OriginalString {
+            get {
                 return (_string);
             }
         }
@@ -93,10 +84,8 @@ namespace System.Globalization
         //  sort key.
         //
         ////////////////////////////////////////////////////////////////////////
-        public virtual byte[] KeyData
-        {
-            get
-            {
+        public virtual byte[] KeyData {
+            get {
                 return (byte[])(_keyData.Clone());
             }
         }
@@ -110,10 +99,8 @@ namespace System.Globalization
         //  and a number greater than 0 if sortkey1 is greater than sortkey2.
         //
         ////////////////////////////////////////////////////////////////////////
-        public static int Compare(SortKey sortkey1, SortKey sortkey2)
-        {
-            if (sortkey1==null || sortkey2==null)
-            {
+        public static int Compare(SortKey sortkey1, SortKey sortkey2) {
+            if (sortkey1==null || sortkey2==null) {
                 throw new ArgumentNullException((sortkey1 == null ? nameof(sortkey1) : nameof(sortkey2)));
             }
             Contract.EndContractBlock();
@@ -123,29 +110,23 @@ namespace System.Globalization
             Debug.Assert(key1Data != null, "key1Data != null");
             Debug.Assert(key2Data != null, "key2Data != null");
 
-            if (key1Data.Length == 0)
-            {
-                if (key2Data.Length == 0)
-                {
+            if (key1Data.Length == 0) {
+                if (key2Data.Length == 0) {
                     return (0);
                 }
                 return (-1);
             }
-            if (key2Data.Length == 0)
-            {
+            if (key2Data.Length == 0) {
                 return (1);
             }
 
             int compLen = (key1Data.Length < key2Data.Length) ? key1Data.Length : key2Data.Length;
 
-            for (int i=0; i<compLen; i++)
-            {
-                if (key1Data[i]>key2Data[i])
-                {
+            for (int i=0; i<compLen; i++) {
+                if (key1Data[i]>key2Data[i]) {
                     return (1);
                 }
-                if (key1Data[i]<key2Data[i])
-                {
+                if (key1Data[i]<key2Data[i]) {
                     return (-1);
                 }
             }
@@ -161,12 +142,10 @@ namespace System.Globalization
         //  or not object refers to the same SortKey as the current instance.
         //
         ////////////////////////////////////////////////////////////////////////
-        public override bool Equals(Object value)
-        {
+        public override bool Equals(Object value) {
             SortKey that = value as SortKey;
 
-            if (that != null)
-            {
+            if (that != null) {
                 return Compare(this, that) == 0;
             }
 
@@ -182,8 +161,7 @@ namespace System.Globalization
         //  SortKey A and B where A.Equals(B) is true.
         //
         ////////////////////////////////////////////////////////////////////////
-        public override int GetHashCode()
-        {
+        public override int GetHashCode() {
             return (CompareInfo.GetCompareInfo(_localeName).GetHashCodeOfString(_string, _options));
         }
 
@@ -195,8 +173,7 @@ namespace System.Globalization
         //  SortKey.
         //
         ////////////////////////////////////////////////////////////////////////
-        public override String ToString()
-        {
+        public override String ToString() {
             return ("SortKey - " + _localeName + ", " + _options + ", " + _string);
         }
     }

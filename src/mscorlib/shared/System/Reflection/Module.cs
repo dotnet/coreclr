@@ -5,10 +5,8 @@
 using System.Collections.Generic;
 using System.Runtime.Serialization;
 
-namespace System.Reflection
-{
-    public abstract class Module : ICustomAttributeProvider, ISerializable
-    {
+namespace System.Reflection {
+    public abstract class Module : ICustomAttributeProvider, ISerializable {
         protected Module() { }
 
         public virtual Assembly Assembly { get { throw NotImplemented.ByDesign; } }
@@ -29,8 +27,7 @@ namespace System.Reflection
         public virtual object[] GetCustomAttributes(bool inherit) { throw NotImplemented.ByDesign; }
         public virtual object[] GetCustomAttributes(Type attributeType, bool inherit) { throw NotImplemented.ByDesign; }
 
-        public MethodInfo GetMethod(string name)
-        {
+        public MethodInfo GetMethod(string name) {
             if (name == null)
                 throw new ArgumentNullException(nameof(name));
 
@@ -38,14 +35,12 @@ namespace System.Reflection
         }
 
         public MethodInfo GetMethod(string name, Type[] types) => GetMethod(name, Module.DefaultLookup, null, CallingConventions.Any, types, null);
-        public MethodInfo GetMethod(string name, BindingFlags bindingAttr, Binder binder, CallingConventions callConvention, Type[] types, ParameterModifier[] modifiers)
-        {
+        public MethodInfo GetMethod(string name, BindingFlags bindingAttr, Binder binder, CallingConventions callConvention, Type[] types, ParameterModifier[] modifiers) {
             if (name == null)
                 throw new ArgumentNullException(nameof(name));
             if (types == null)
                 throw new ArgumentNullException(nameof(types));
-            for (int i = 0; i < types.Length; i++)
-            {
+            for (int i = 0; i < types.Length; i++) {
                 if (types[i] == null)
                     throw new ArgumentNullException(nameof(types));
             }
@@ -69,12 +64,10 @@ namespace System.Reflection
         public virtual Type GetType(string className, bool ignoreCase) => GetType(className, throwOnError: false, ignoreCase: ignoreCase);
         public virtual Type GetType(string className, bool throwOnError, bool ignoreCase) { throw NotImplemented.ByDesign; }
 
-        public virtual Type[] FindTypes(TypeFilter filter, object filterCriteria)
-        {
+        public virtual Type[] FindTypes(TypeFilter filter, object filterCriteria) {
             Type[] c = GetTypes();
             int cnt = 0;
-            for (int i = 0; i < c.Length; i++)
-            {
+            for (int i = 0; i < c.Length; i++) {
                 if (filter != null && !filter(c[i], filterCriteria))
                     c[i] = null;
                 else
@@ -85,8 +78,7 @@ namespace System.Reflection
 
             Type[] ret = new Type[cnt];
             cnt = 0;
-            for (int i = 0; i < c.Length; i++)
-            {
+            for (int i = 0; i < c.Length; i++) {
                 if (c[i] != null)
                     ret[cnt++] = c[i];
             }
@@ -115,8 +107,7 @@ namespace System.Reflection
         public override bool Equals(object o) => base.Equals(o);
         public override int GetHashCode() => base.GetHashCode();
 
-        public static bool operator ==(Module left, Module right)
-        {
+        public static bool operator ==(Module left, Module right) {
             if (object.ReferenceEquals(left, right))
                 return true;
 
@@ -138,8 +129,7 @@ namespace System.Reflection
         // FilterTypeName 
         // This method will filter the class based upon the name.  It supports
         //    a trailing wild card.
-        private static bool FilterTypeNameImpl(Type cls, object filterCriteria)
-        {
+        private static bool FilterTypeNameImpl(Type cls, object filterCriteria) {
             // Check that the criteria object is a String object
             if (filterCriteria == null || !(filterCriteria is string))
                 throw new InvalidFilterCriteriaException(SR.InvalidFilterCriteriaException_CritString);
@@ -147,8 +137,7 @@ namespace System.Reflection
             string str = (string)filterCriteria;
 
             // Check to see if this is a prefix or exact match requirement
-            if (str.Length > 0 && str[str.Length - 1] == '*')
-            {
+            if (str.Length > 0 && str[str.Length - 1] == '*') {
                 str = str.Substring(0, str.Length - 1);
                 return cls.Name.StartsWith(str, StringComparison.Ordinal);
             }
@@ -158,8 +147,7 @@ namespace System.Reflection
 
         // FilterFieldNameIgnoreCase
         // This method filter the Type based upon name, it ignores case.
-        private static bool FilterTypeNameIgnoreCaseImpl(Type cls, object filterCriteria)
-        {
+        private static bool FilterTypeNameIgnoreCaseImpl(Type cls, object filterCriteria) {
             // Check that the criteria object is a String object
             if (filterCriteria == null || !(filterCriteria is string))
                 throw new InvalidFilterCriteriaException(SR.InvalidFilterCriteriaException_CritString);
@@ -167,8 +155,7 @@ namespace System.Reflection
             string str = (string)filterCriteria;
 
             // Check to see if this is a prefix or exact match requirement
-            if (str.Length > 0 && str[str.Length - 1] == '*')
-            {
+            if (str.Length > 0 && str[str.Length - 1] == '*') {
                 str = str.Substring(0, str.Length - 1);
                 string name = cls.Name;
                 if (name.Length >= str.Length)

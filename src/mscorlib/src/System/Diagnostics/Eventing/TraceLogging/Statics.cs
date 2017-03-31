@@ -20,8 +20,7 @@ namespace System.Diagnostics.Tracing
     /// <summary>
     /// TraceLogging: Constants and utility functions.
     /// </summary>
-    internal static class Statics
-    {
+    internal static class Statics {
         #region Constants
 
         public const byte DefaultLevel = 5;
@@ -89,8 +88,7 @@ namespace System.Diagnostics.Tracing
             string name,
             int prefixSize,
             int suffixSize,
-            int additionalSize)
-        {
+            int additionalSize) {
             Statics.CheckName(name);
             int metadataSize = Encoding.UTF8.GetByteCount(name) + 3 + prefixSize + suffixSize;
             var metadata = new byte[metadataSize];
@@ -111,20 +109,17 @@ namespace System.Diagnostics.Tracing
         /// This is useful for a two pass approach where you figure out how big to
         /// make the array, and then you fill it in.   
         /// </summary>
-        public static void EncodeTags(int tags, ref int pos, byte[] metadata)
-        {
+        public static void EncodeTags(int tags, ref int pos, byte[] metadata) {
             // We transmit the low 28 bits of tags, high bits first, 7 bits at a time.
             var tagsLeft = tags & 0xfffffff;
             bool more;
-            do
-            {
+            do {
                 byte current = (byte)((tagsLeft >> 21) & 0x7f);
                 more = (tagsLeft & 0x1fffff) != 0;
                 current |= (byte)(more ? 0x80 : 0x00);
                 tagsLeft = tagsLeft << 7;
 
-                if (metadata != null)
-                {
+                if (metadata != null) {
                     metadata[pos] = current;
                 }
                 pos += 1;
@@ -134,10 +129,8 @@ namespace System.Diagnostics.Tracing
 
         public static byte Combine(
             int settingValue,
-            byte defaultValue)
-        {
-            unchecked
-            {
+            byte defaultValue) {
+            unchecked {
                 return (byte)settingValue == settingValue
                     ? (byte)settingValue
                     : defaultValue;
@@ -147,10 +140,8 @@ namespace System.Diagnostics.Tracing
         public static byte Combine(
             int settingValue1,
             int settingValue2,
-            byte defaultValue)
-        {
-            unchecked
-            {
+            byte defaultValue) {
+            unchecked {
                 return (byte)settingValue1 == settingValue1
                     ? (byte)settingValue1
                     : (byte)settingValue2 == settingValue2
@@ -161,33 +152,27 @@ namespace System.Diagnostics.Tracing
 
         public static int Combine(
             int settingValue1,
-            int settingValue2)
-        {
-            unchecked
-            {
+            int settingValue2) {
+            unchecked {
                 return (byte)settingValue1 == settingValue1
                     ? settingValue1
                     : settingValue2;
             }
         }
 
-        public static void CheckName(string name)
-        {
-            if (name != null && 0 <= name.IndexOf('\0'))
-            {
+        public static void CheckName(string name) {
+            if (name != null && 0 <= name.IndexOf('\0')) {
                 throw new ArgumentOutOfRangeException(nameof(name));
             }
         }
 
-        public static bool ShouldOverrideFieldName(string fieldName)
-        {
+        public static bool ShouldOverrideFieldName(string fieldName) {
             return (fieldName.Length <= 2 && fieldName[0] == '_');
         }
 
         public static TraceLoggingDataType MakeDataType(
             TraceLoggingDataType baseType,
-            EventFieldFormat format)
-        {
+            EventFieldFormat format) {
             return (TraceLoggingDataType)(((int)baseType & 0x1f) | ((int)format << 8));
         }
 
@@ -199,10 +184,8 @@ namespace System.Diagnostics.Tracing
         /// </summary>
         public static TraceLoggingDataType Format8(
             EventFieldFormat format,
-            TraceLoggingDataType native)
-        {
-            switch (format)
-            {
+            TraceLoggingDataType native) {
+            switch (format) {
                 case EventFieldFormat.Default:
                     return native;
                 case EventFieldFormat.String:
@@ -230,10 +213,8 @@ namespace System.Diagnostics.Tracing
         /// </summary>
         public static TraceLoggingDataType Format16(
             EventFieldFormat format,
-            TraceLoggingDataType native)
-        {
-            switch (format)
-            {
+            TraceLoggingDataType native) {
+            switch (format) {
                 case EventFieldFormat.Default:
                     return native;
                 case EventFieldFormat.String:
@@ -261,10 +242,8 @@ namespace System.Diagnostics.Tracing
         /// </summary>
         public static TraceLoggingDataType Format32(
             EventFieldFormat format,
-            TraceLoggingDataType native)
-        {
-            switch (format)
-            {
+            TraceLoggingDataType native) {
+            switch (format) {
                 case EventFieldFormat.Default:
                     return native;
                 case EventFieldFormat.Boolean:
@@ -304,10 +283,8 @@ namespace System.Diagnostics.Tracing
         /// </summary>
         public static TraceLoggingDataType Format64(
             EventFieldFormat format,
-            TraceLoggingDataType native)
-        {
-            switch (format)
-            {
+            TraceLoggingDataType native) {
+            switch (format) {
                 case EventFieldFormat.Default:
                     return native;
                 case EventFieldFormat.Hexadecimal:
@@ -333,10 +310,8 @@ namespace System.Diagnostics.Tracing
         /// </summary>
         public static TraceLoggingDataType FormatPtr(
             EventFieldFormat format,
-            TraceLoggingDataType native)
-        {
-            switch (format)
-            {
+            TraceLoggingDataType native) {
+            switch (format) {
                 case EventFieldFormat.Default:
                     return native;
                 case EventFieldFormat.Hexadecimal:
@@ -362,37 +337,31 @@ namespace System.Diagnostics.Tracing
         kinds of reflection operations are being done.
         */
 
-        public static object CreateInstance(Type type, params object[] parameters)
-        {
+        public static object CreateInstance(Type type, params object[] parameters) {
             return Activator.CreateInstance(type, parameters);
         }
 
-        public static bool IsValueType(Type type)
-        {
+        public static bool IsValueType(Type type) {
             bool result = type.IsValueType();
             return result;
         }
 
-        public static bool IsEnum(Type type)
-        {
+        public static bool IsEnum(Type type) {
             bool result = type.IsEnum();
             return result;
         }
 
-        public static IEnumerable<PropertyInfo> GetProperties(Type type)
-        {
+        public static IEnumerable<PropertyInfo> GetProperties(Type type) {
             IEnumerable<PropertyInfo> result = type.GetProperties();
             return result;
         }
 
-        public static MethodInfo GetGetMethod(PropertyInfo propInfo)
-        {
+        public static MethodInfo GetGetMethod(PropertyInfo propInfo) {
             MethodInfo result = propInfo.GetGetMethod();
             return result;
         }
 
-        public static MethodInfo GetDeclaredStaticMethod(Type declaringType, string name)
-        {
+        public static MethodInfo GetDeclaredStaticMethod(Type declaringType, string name) {
             MethodInfo result;
 #if (ES_BUILD_PCL || PROJECTN)
             result = declaringType.GetTypeInfo().GetDeclaredMethod(name);
@@ -406,8 +375,7 @@ namespace System.Diagnostics.Tracing
 
         public static bool HasCustomAttribute(
             PropertyInfo propInfo,
-            Type attributeType)
-        {
+            Type attributeType) {
             bool result;
 #if (ES_BUILD_PCL || PROJECTN)
             result = propInfo.IsDefined(attributeType);
@@ -421,8 +389,7 @@ namespace System.Diagnostics.Tracing
         }
 
         public static AttributeType GetCustomAttribute<AttributeType>(PropertyInfo propInfo)
-            where AttributeType : Attribute
-        {
+            where AttributeType : Attribute {
             AttributeType result = null;
 #if (ES_BUILD_PCL || PROJECTN)
             foreach (var attrib in propInfo.GetCustomAttributes<AttributeType>(false))
@@ -432,8 +399,7 @@ namespace System.Diagnostics.Tracing
             }
 #else
             var attributes = propInfo.GetCustomAttributes(typeof(AttributeType), false);
-            if (attributes.Length != 0)
-            {
+            if (attributes.Length != 0) {
                 result = (AttributeType)attributes[0];
             }
 #endif
@@ -441,8 +407,7 @@ namespace System.Diagnostics.Tracing
         }
 
         public static AttributeType GetCustomAttribute<AttributeType>(Type type)
-            where AttributeType : Attribute
-        {
+            where AttributeType : Attribute {
             AttributeType result = null;
 #if (ES_BUILD_PCL || PROJECTN)
             foreach (var attrib in type.GetTypeInfo().GetCustomAttributes<AttributeType>(false))
@@ -452,37 +417,31 @@ namespace System.Diagnostics.Tracing
             }
 #else
             var attributes = type.GetCustomAttributes(typeof(AttributeType), false);
-            if (attributes.Length != 0)
-            {
+            if (attributes.Length != 0) {
                 result = (AttributeType)attributes[0];
             }
 #endif
             return result;
         }
 
-        public static Type[] GetGenericArguments(Type type)
-        {
+        public static Type[] GetGenericArguments(Type type) {
             return type.GetGenericArguments();
         }
 
-        public static Type FindEnumerableElementType(Type type)
-        {
+        public static Type FindEnumerableElementType(Type type) {
             Type elementType = null;
 
-            if (IsGenericMatch(type, typeof(IEnumerable<>)))
-            {
+            if (IsGenericMatch(type, typeof(IEnumerable<>))) {
                 elementType = GetGenericArguments(type)[0];
             }
-            else
-            {
+            else {
 #if (ES_BUILD_PCL || PROJECTN)
                 var ifaceTypes = type.GetTypeInfo().ImplementedInterfaces;
 #else
                 var ifaceTypes = type.FindInterfaces(IsGenericMatch, typeof(IEnumerable<>));
 #endif
 
-                foreach (var ifaceType in ifaceTypes)
-                {
+                foreach (var ifaceType in ifaceTypes) {
 #if (ES_BUILD_PCL || PROJECTN)
                     if (!IsGenericMatch(ifaceType, typeof(IEnumerable<>)))
                     {
@@ -490,8 +449,7 @@ namespace System.Diagnostics.Tracing
                     }
 #endif
 
-                    if (elementType != null)
-                    {
+                    if (elementType != null) {
                         // ambiguous match. report no match at all.
                         elementType = null;
                         break;
@@ -504,13 +462,11 @@ namespace System.Diagnostics.Tracing
             return elementType;
         }
 
-        public static bool IsGenericMatch(Type type, object openType)
-        {
+        public static bool IsGenericMatch(Type type, object openType) {
             return type.IsGenericType() && type.GetGenericTypeDefinition() == (Type)openType;
         }
 
-        public static Delegate CreateDelegate(Type delegateType, MethodInfo methodInfo)
-        {
+        public static Delegate CreateDelegate(Type delegateType, MethodInfo methodInfo) {
             Delegate result;
 #if (ES_BUILD_PCL || PROJECTN)
             result = methodInfo.CreateDelegate(
@@ -525,12 +481,10 @@ namespace System.Diagnostics.Tracing
 
         public static TraceLoggingTypeInfo CreateDefaultTypeInfo(
             Type dataType,
-            List<Type> recursionCheck)
-        {
+            List<Type> recursionCheck) {
             TraceLoggingTypeInfo result;
 
-            if (recursionCheck.Contains(dataType))
-            {
+            if (recursionCheck.Contains(dataType)) {
                 throw new NotSupportedException(Resources.GetResourceString("EventSource_RecursiveTypeDefinition"));
             }
 
@@ -539,181 +493,137 @@ namespace System.Diagnostics.Tracing
             var eventAttrib = Statics.GetCustomAttribute<EventDataAttribute>(dataType);
             if (eventAttrib != null ||
                 Statics.GetCustomAttribute<CompilerGeneratedAttribute>(dataType) != null ||
-                IsGenericMatch(dataType, typeof(KeyValuePair<,>)))
-            {
+                IsGenericMatch(dataType, typeof(KeyValuePair<,>))) {
                 var analysis = new TypeAnalysis(dataType, eventAttrib, recursionCheck);
                 result = new InvokeTypeInfo(dataType, analysis);
             }
-            else if (dataType.IsArray)
-            {
+            else if (dataType.IsArray) {
                 var elementType = dataType.GetElementType();
-                if (elementType == typeof(Boolean))
-                {
+                if (elementType == typeof(Boolean)) {
                     result = ScalarArrayTypeInfo.Boolean();
                 }
-                else if (elementType == typeof(Byte))
-                {
+                else if (elementType == typeof(Byte)) {
                     result = ScalarArrayTypeInfo.Byte();
                 }
-                else if (elementType == typeof(SByte))
-                {
+                else if (elementType == typeof(SByte)) {
                     result = ScalarArrayTypeInfo.SByte();
                 }
-                else if (elementType == typeof(Int16))
-                {
+                else if (elementType == typeof(Int16)) {
                     result = ScalarArrayTypeInfo.Int16();
                 }
-                else if (elementType == typeof(UInt16))
-                {
+                else if (elementType == typeof(UInt16)) {
                     result = ScalarArrayTypeInfo.UInt16();
                 }
-                else if (elementType == typeof(Int32))
-                {
+                else if (elementType == typeof(Int32)) {
                     result = ScalarArrayTypeInfo.Int32();
                 }
-                else if (elementType == typeof(UInt32))
-                {
+                else if (elementType == typeof(UInt32)) {
                     result = ScalarArrayTypeInfo.UInt32();
                 }
-                else if (elementType == typeof(Int64))
-                {
+                else if (elementType == typeof(Int64)) {
                     result = ScalarArrayTypeInfo.Int64();
                 }
-                else if (elementType == typeof(UInt64))
-                {
+                else if (elementType == typeof(UInt64)) {
                     result = ScalarArrayTypeInfo.UInt64();
                 }
-                else if (elementType == typeof(Char))
-                {
+                else if (elementType == typeof(Char)) {
                     result = ScalarArrayTypeInfo.Char();
                 }
-                else if (elementType == typeof(Double))
-                {
+                else if (elementType == typeof(Double)) {
                     result = ScalarArrayTypeInfo.Double();
                 }
-                else if (elementType == typeof(Single))
-                {
+                else if (elementType == typeof(Single)) {
                     result = ScalarArrayTypeInfo.Single();
                 }
-                else if (elementType == typeof(IntPtr))
-                {
+                else if (elementType == typeof(IntPtr)) {
                     result = ScalarArrayTypeInfo.IntPtr();
                 }
-                else if (elementType == typeof(UIntPtr))
-                {
+                else if (elementType == typeof(UIntPtr)) {
                     result = ScalarArrayTypeInfo.UIntPtr();
                 }
-                else if (elementType == typeof(Guid))
-                {
+                else if (elementType == typeof(Guid)) {
                     result = ScalarArrayTypeInfo.Guid();
                 }
-                else
-                {
+                else {
                     result = new ArrayTypeInfo(dataType, TraceLoggingTypeInfo.GetInstance(elementType, recursionCheck));
                 }
             }
-            else
-            {
+            else {
                 if (Statics.IsEnum(dataType))
                     dataType = Enum.GetUnderlyingType(dataType);
 
-                if (dataType == typeof(String))
-                {
+                if (dataType == typeof(String)) {
                     result = new StringTypeInfo();
                 }
-                else if (dataType == typeof(Boolean))
-                {
+                else if (dataType == typeof(Boolean)) {
                     result = ScalarTypeInfo.Boolean();
                 }
-                else if (dataType == typeof(Byte))
-                {
+                else if (dataType == typeof(Byte)) {
                     result = ScalarTypeInfo.Byte();
                 }
-                else if (dataType == typeof(SByte))
-                {
+                else if (dataType == typeof(SByte)) {
                     result = ScalarTypeInfo.SByte();
                 }
-                else if (dataType == typeof(Int16))
-                {
+                else if (dataType == typeof(Int16)) {
                     result = ScalarTypeInfo.Int16();
                 }
-                else if (dataType == typeof(UInt16))
-                {
+                else if (dataType == typeof(UInt16)) {
                     result = ScalarTypeInfo.UInt16();
                 }
-                else if (dataType == typeof(Int32))
-                {
+                else if (dataType == typeof(Int32)) {
                     result = ScalarTypeInfo.Int32();
                 }
-                else if (dataType == typeof(UInt32))
-                {
+                else if (dataType == typeof(UInt32)) {
                     result = ScalarTypeInfo.UInt32();
                 }
-                else if (dataType == typeof(Int64))
-                {
+                else if (dataType == typeof(Int64)) {
                     result = ScalarTypeInfo.Int64();
                 }
-                else if (dataType == typeof(UInt64))
-                {
+                else if (dataType == typeof(UInt64)) {
                     result = ScalarTypeInfo.UInt64();
                 }
-                else if (dataType == typeof(Char))
-                {
+                else if (dataType == typeof(Char)) {
                     result = ScalarTypeInfo.Char();
                 }
-                else if (dataType == typeof(Double))
-                {
+                else if (dataType == typeof(Double)) {
                     result = ScalarTypeInfo.Double();
                 }
-                else if (dataType == typeof(Single))
-                {
+                else if (dataType == typeof(Single)) {
                     result = ScalarTypeInfo.Single();
                 }
-                else if (dataType == typeof(DateTime))
-                {
+                else if (dataType == typeof(DateTime)) {
                     result = new DateTimeTypeInfo();
                 }
-                else if (dataType == typeof(Decimal))
-                {
+                else if (dataType == typeof(Decimal)) {
                     result = new DecimalTypeInfo();
                 }
-                else if (dataType == typeof(IntPtr))
-                {
+                else if (dataType == typeof(IntPtr)) {
                     result = ScalarTypeInfo.IntPtr();
                 }
-                else if (dataType == typeof(UIntPtr))
-                {
+                else if (dataType == typeof(UIntPtr)) {
                     result = ScalarTypeInfo.UIntPtr();
                 }
-                else if (dataType == typeof(Guid))
-                {
+                else if (dataType == typeof(Guid)) {
                     result = ScalarTypeInfo.Guid();
                 }
-                else if (dataType == typeof(TimeSpan))
-                {
+                else if (dataType == typeof(TimeSpan)) {
                     result = new TimeSpanTypeInfo();
                 }
-                else if (dataType == typeof(DateTimeOffset))
-                {
+                else if (dataType == typeof(DateTimeOffset)) {
                     result = new DateTimeOffsetTypeInfo();
                 }
-                else if (dataType == typeof(EmptyStruct))
-                {
+                else if (dataType == typeof(EmptyStruct)) {
                     result = new NullTypeInfo();
                 }
-                else if (IsGenericMatch(dataType, typeof(Nullable<>)))
-                {
+                else if (IsGenericMatch(dataType, typeof(Nullable<>))) {
                     result = new NullableTypeInfo(dataType, recursionCheck);
                 }
-                else
-                {
+                else {
                     var elementType = FindEnumerableElementType(dataType);
-                    if (elementType != null)
-                    {
+                    if (elementType != null) {
                         result = new EnumerableTypeInfo(dataType, TraceLoggingTypeInfo.GetInstance(elementType, recursionCheck));
                     }
-                    else
-                    {
+                    else {
                         throw new ArgumentException(Resources.GetResourceString("EventSource_NonCompliantTypeError", dataType.Name));
                     }
                 }

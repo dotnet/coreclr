@@ -15,31 +15,25 @@
 using System;
 using System.Runtime.Serialization;
 
-namespace System
-{
+namespace System {
     [Serializable]
-    public class DllNotFoundException : TypeLoadException
-    {
+    public class DllNotFoundException : TypeLoadException {
         public DllNotFoundException()
-            : base(SR.Arg_DllNotFoundException)
-        {
+            : base(SR.Arg_DllNotFoundException) {
             SetErrorCode(__HResults.COR_E_DLLNOTFOUND);
         }
 
         public DllNotFoundException(String message)
-            : base(message)
-        {
+            : base(message) {
             SetErrorCode(__HResults.COR_E_DLLNOTFOUND);
         }
 
         public DllNotFoundException(String message, Exception inner)
-            : base(message, inner)
-        {
+            : base(message, inner) {
             SetErrorCode(__HResults.COR_E_DLLNOTFOUND);
         }
 
-        protected DllNotFoundException(SerializationInfo info, StreamingContext context) : base(info, context)
-        {
+        protected DllNotFoundException(SerializationInfo info, StreamingContext context) : base(info, context) {
         }
     }
 }

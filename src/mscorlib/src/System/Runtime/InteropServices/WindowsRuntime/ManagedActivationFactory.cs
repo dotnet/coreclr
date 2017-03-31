@@ -11,13 +11,11 @@ using System.Runtime.InteropServices;
 using System.Security;
 using System.Runtime.CompilerServices;
 
-namespace System.Runtime.InteropServices.WindowsRuntime
-{
+namespace System.Runtime.InteropServices.WindowsRuntime {
     [ComImport]
     [Guid("60D27C8D-5F61-4CCE-B751-690FAE66AA53")]
     [WindowsRuntimeImport]
-    internal interface IManagedActivationFactory
-    {
+    internal interface IManagedActivationFactory {
         void RunClassConstructor();
     }
 
@@ -29,12 +27,10 @@ namespace System.Runtime.InteropServices.WindowsRuntime
     // ActivatableAttribute, or StaticAttribute.
     [ComVisible(true)]
     [ClassInterface(ClassInterfaceType.None)]
-    internal sealed class ManagedActivationFactory : IActivationFactory, IManagedActivationFactory
-    {
+    internal sealed class ManagedActivationFactory : IActivationFactory, IManagedActivationFactory {
         private Type m_type;
 
-        internal ManagedActivationFactory(Type type)
-        {
+        internal ManagedActivationFactory(Type type) {
             if (type == null)
                 throw new ArgumentNullException(nameof(type));
 
@@ -47,19 +43,15 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         }
 
         // Activate an instance of the managed type by using its default constructor.
-        public object ActivateInstance()
-        {
-            try
-            {
+        public object ActivateInstance() {
+            try {
                 return Activator.CreateInstance(m_type);
             }
-            catch (MissingMethodException)
-            {
+            catch (MissingMethodException) {
                 // If the type doesn't expose a default constructor, then we fail with E_NOTIMPL
                 throw new NotImplementedException();
             }
-            catch (TargetInvocationException e)
-            {
+            catch (TargetInvocationException e) {
                 throw e.InnerException;
             }
         }
@@ -67,8 +59,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         // Runs the class constructor
         // Currently only Jupiter use this to run class constructor in order to 
         // initialize DependencyProperty objects and do necessary work
-        void IManagedActivationFactory.RunClassConstructor()
-        {
+        void IManagedActivationFactory.RunClassConstructor() {
             RuntimeHelpers.RunClassConstructor(m_type.TypeHandle);
         }
     }

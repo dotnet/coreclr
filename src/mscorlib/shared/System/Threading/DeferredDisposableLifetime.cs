@@ -4,13 +4,11 @@
 
 using System.Diagnostics;
 
-namespace System.Threading
-{
+namespace System.Threading {
     /// <summary>
     /// Provides callbacks to objects whose lifetime is managed by <see cref="DeferredDisposableLifetime{T}"/>.
     /// </summary>
-    internal interface IDeferredDisposable
-    {
+    internal interface IDeferredDisposable {
         /// <summary>
         /// Called when the object's refcount reaches zero.
         /// </summary>
@@ -39,17 +37,14 @@ namespace System.Threading
     /// no more references can do so in <see cref="IDeferredDisposable.OnFinalRelease(bool)"/> when
     /// 'disposed' is true.
     /// </remarks>
-    internal struct DeferredDisposableLifetime<T> where T : class, IDeferredDisposable
-    {
+    internal struct DeferredDisposableLifetime<T> where T : class, IDeferredDisposable {
         //
         // _count is positive until Dispose is called, after which it's (-1 - refcount).
         //
         private int _count;
 
-        public bool AddRef(T obj)
-        {
-            while (true)
-            {
+        public bool AddRef(T obj) {
+            while (true) {
                 int oldCount = Volatile.Read(ref _count);
 
                 // Have we been disposed?
@@ -63,30 +58,24 @@ namespace System.Threading
             }
         }
 
-        public void Release(T obj)
-        {
-            while (true)
-            {
+        public void Release(T obj) {
+            while (true) {
                 int oldCount = Volatile.Read(ref _count);
-                if (oldCount > 0)
-                {
+                if (oldCount > 0) {
                     // We haven't been disposed.  Decrement _count.
                     int newCount = oldCount - 1;
-                    if (Interlocked.CompareExchange(ref _count, newCount, oldCount) == oldCount)
-                    {
+                    if (Interlocked.CompareExchange(ref _count, newCount, oldCount) == oldCount) {
                         if (newCount == 0)
                             obj.OnFinalRelease(disposed: false);
                         return;
                     }
                 }
-                else
-                {
+                else {
                     Debug.Assert(oldCount != 0 && oldCount != -1);
 
                     // We've been disposed.  Increment _count.
                     int newCount = oldCount + 1;
-                    if (Interlocked.CompareExchange(ref _count, newCount, oldCount) == oldCount)
-                    {
+                    if (Interlocked.CompareExchange(ref _count, newCount, oldCount) == oldCount) {
                         if (newCount == -1)
                             obj.OnFinalRelease(disposed: true);
                         return;
@@ -95,17 +84,14 @@ namespace System.Threading
             }
         }
 
-        public void Dispose(T obj)
-        {
-            while (true)
-            {
+        public void Dispose(T obj) {
+            while (true) {
                 int oldCount = Volatile.Read(ref _count);
                 if (oldCount < 0)
                     return; // already disposed
 
                 int newCount = -1 - oldCount;
-                if (Interlocked.CompareExchange(ref _count, newCount, oldCount) == oldCount)
-                {
+                if (Interlocked.CompareExchange(ref _count, newCount, oldCount) == oldCount) {
                     if (newCount == -1)
                         obj.OnFinalRelease(disposed: true);
                     return;

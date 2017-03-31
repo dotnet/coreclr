@@ -6,21 +6,17 @@
 
 using System;
 
-namespace System.Runtime.InteropServices.WindowsRuntime
-{
+namespace System.Runtime.InteropServices.WindowsRuntime {
     // DefaultInterfaceAttribute marks a WinRT class (or interface group) that has its default interface specified.
     [AttributeUsage(AttributeTargets.Class | AttributeTargets.Interface, AllowMultiple = false, Inherited = false)]
-    public sealed class DefaultInterfaceAttribute : Attribute
-    {
+    public sealed class DefaultInterfaceAttribute : Attribute {
         private Type m_defaultInterface;
 
-        public DefaultInterfaceAttribute(Type defaultInterface)
-        {
+        public DefaultInterfaceAttribute(Type defaultInterface) {
             m_defaultInterface = defaultInterface;
         }
 
-        public Type DefaultInterface
-        {
+        public Type DefaultInterface {
             get { return m_defaultInterface; }
         }
     }
@@ -33,20 +29,16 @@ namespace System.Runtime.InteropServices.WindowsRuntime
     // generally be done via winmdexp for user code.
     [AttributeUsage(AttributeTargets.Class | AttributeTargets.Interface | AttributeTargets.Enum | AttributeTargets.Struct | AttributeTargets.Delegate, Inherited = false)]
     [System.Runtime.CompilerServices.FriendAccessAllowed]
-    internal sealed class WindowsRuntimeImportAttribute : Attribute
-    {
-        internal WindowsRuntimeImportAttribute()
-        { }
+    internal sealed class WindowsRuntimeImportAttribute : Attribute {
+        internal WindowsRuntimeImportAttribute() { }
     }
 
     // This attribute is applied to class interfaces in a generated projection assembly.  It is used by Visual Studio
     // and other tools to find out what version of a component (eg. Windows) a WinRT class began to implement
     // a particular interfaces.
     [AttributeUsage(AttributeTargets.Class | AttributeTargets.Interface, Inherited = false, AllowMultiple = true)]
-    public sealed class InterfaceImplementedInVersionAttribute : Attribute
-    {
-        public InterfaceImplementedInVersionAttribute(Type interfaceType, byte majorVersion, byte minorVersion, byte buildVersion, byte revisionVersion)
-        {
+    public sealed class InterfaceImplementedInVersionAttribute : Attribute {
+        public InterfaceImplementedInVersionAttribute(Type interfaceType, byte majorVersion, byte minorVersion, byte buildVersion, byte revisionVersion) {
             m_interfaceType = interfaceType;
             m_majorVersion = majorVersion;
             m_minorVersion = minorVersion;
@@ -54,28 +46,23 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             m_revisionVersion = revisionVersion;
         }
 
-        public Type InterfaceType
-        {
+        public Type InterfaceType {
             get { return m_interfaceType; }
         }
 
-        public byte MajorVersion
-        {
+        public byte MajorVersion {
             get { return m_majorVersion; }
         }
 
-        public byte MinorVersion
-        {
+        public byte MinorVersion {
             get { return m_minorVersion; }
         }
 
-        public byte BuildVersion
-        {
+        public byte BuildVersion {
             get { return m_buildVersion; }
         }
 
-        public byte RevisionVersion
-        {
+        public byte RevisionVersion {
             get { return m_revisionVersion; }
         }
 
@@ -88,15 +75,13 @@ namespace System.Runtime.InteropServices.WindowsRuntime
 
     // Applies to read-only array parameters
     [AttributeUsage(AttributeTargets.Parameter, Inherited = false, AllowMultiple = false)]
-    public sealed class ReadOnlyArrayAttribute : Attribute
-    {
+    public sealed class ReadOnlyArrayAttribute : Attribute {
         public ReadOnlyArrayAttribute() { }
     }
 
     // Applies to write-only array parameters
     [AttributeUsage(AttributeTargets.Parameter, Inherited = false, AllowMultiple = false)]
-    public sealed class WriteOnlyArrayAttribute : Attribute
-    {
+    public sealed class WriteOnlyArrayAttribute : Attribute {
         public WriteOnlyArrayAttribute() { }
     }
 
@@ -106,16 +91,13 @@ namespace System.Runtime.InteropServices.WindowsRuntime
     // In WindowsRuntime all parameters including return value need to have unique names.
     // This is essential in JS as one of the ways to get at the results of a method in JavaScript is via a Dictionary object keyed by parameter name.
     [AttributeUsage(AttributeTargets.ReturnValue | AttributeTargets.Delegate, AllowMultiple = false, Inherited = false)]
-    public sealed class ReturnValueNameAttribute : Attribute
-    {
+    public sealed class ReturnValueNameAttribute : Attribute {
         private string m_Name;
-        public ReturnValueNameAttribute(string name)
-        {
+        public ReturnValueNameAttribute(string name) {
             m_Name = name;
         }
 
-        public string Name
-        {
+        public string Name {
             get { return m_Name; }
         }
     }

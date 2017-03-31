@@ -5,47 +5,39 @@
 using System.Reflection;
 using System.Runtime.Serialization;
 
-namespace System.Security
-{
+namespace System.Security {
     [Serializable]
-    public class SecurityException : SystemException
-    {
+    public class SecurityException : SystemException {
         public SecurityException()
-            : base(SR.Arg_SecurityException)
-        {
+            : base(SR.Arg_SecurityException) {
             HResult = __HResults.COR_E_SECURITY;
         }
 
         public SecurityException(string message)
-            : base(message)
-        {
+            : base(message) {
             HResult = __HResults.COR_E_SECURITY;
         }
 
         public SecurityException(string message, Exception inner)
-            : base(message, inner)
-        {
+            : base(message, inner) {
             HResult = __HResults.COR_E_SECURITY;
         }
 
         public SecurityException(string message, Type type)
-            : base(message)
-        {
+            : base(message) {
             HResult = __HResults.COR_E_SECURITY;
             PermissionType = type;
         }
 
         public SecurityException(string message, Type type, string state)
-            : base(message)
-        {
+            : base(message) {
             HResult = __HResults.COR_E_SECURITY;
             PermissionType = type;
             PermissionState = state;
         }
 
         protected SecurityException(SerializationInfo info, StreamingContext context)
-            : base(info, context)
-        {
+            : base(info, context) {
         }
 
         public override string ToString() => base.ToString();

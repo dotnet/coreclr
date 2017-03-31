@@ -2,8 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-namespace System.Runtime.InteropServices
-{
+namespace System.Runtime.InteropServices {
     using System;
     using System.Runtime.CompilerServices;
     using System.Threading;
@@ -19,8 +18,7 @@ namespace System.Runtime.InteropServices
     // IMPORTANT: If new values are added to the enum the GCHandle::MaxHandleType
     //            constant must be updated.
     [Serializable]
-    public enum GCHandleType
-    {
+    public enum GCHandleType {
         Weak = 0,
         WeakTrackResurrection = 1,
         Normal = 2,
@@ -42,8 +40,7 @@ namespace System.Runtime.InteropServices
     //
 
     [StructLayout(LayoutKind.Sequential)]
-    public struct GCHandle
-    {
+    public struct GCHandle {
         // IMPORTANT: This must be kept in sync with the GCHandleType enum.
         private const GCHandleType MaxHandleType = GCHandleType.Pinned;
 
@@ -57,8 +54,7 @@ namespace System.Runtime.InteropServices
 #endif
 
         // Allocate a handle storing the object and the type.
-        internal GCHandle(Object value, GCHandleType type)
-        {
+        internal GCHandle(Object value, GCHandleType type) {
             // Make sure the type parameter is within the valid range for the enum.
             if ((uint)type > (uint)MaxHandleType)
                 ThrowArgumentOutOfRangeException_ArgumentOutOfRange_Enum();
@@ -66,8 +62,7 @@ namespace System.Runtime.InteropServices
 
             IntPtr handle = InternalAlloc(value, type);
 
-            if (type == GCHandleType.Pinned)
-            {
+            if (type == GCHandleType.Pinned) {
                 // Record if the handle is pinned.
                 handle = (IntPtr)((nint)handle | 1);
             }
@@ -76,8 +71,7 @@ namespace System.Runtime.InteropServices
         }
 
         // Used in the conversion functions below.
-        internal GCHandle(IntPtr handle)
-        {
+        internal GCHandle(IntPtr handle) {
             m_handle = handle;
         }
 
@@ -87,19 +81,16 @@ namespace System.Runtime.InteropServices
         // type - The type of GC handle to create.
         // 
         // returns a new GC handle that protects the object.
-        public static GCHandle Alloc(Object value)
-        {
+        public static GCHandle Alloc(Object value) {
             return new GCHandle(value, GCHandleType.Normal);
         }
 
-        public static GCHandle Alloc(Object value, GCHandleType type)
-        {
+        public static GCHandle Alloc(Object value, GCHandleType type) {
             return new GCHandle(value, type);
         }
 
         // Frees a GC handle.
-        public void Free()
-        {
+        public void Free() {
             // Free the handle if it hasn't already been freed.
             IntPtr handle = Interlocked.Exchange(ref m_handle, IntPtr.Zero);
             ValidateHandle(handle);
@@ -115,16 +106,13 @@ namespace System.Runtime.InteropServices
         }
 
         // Target property - allows getting / updating of the handle's referent.
-        public Object Target
-        {
-            get
-            {
+        public Object Target {
+            get {
                 ValidateHandle();
                 return InternalGet(GetHandleValue());
             }
 
-            set
-            {
+            set {
                 ValidateHandle();
                 InternalSet(GetHandleValue(), value, IsPinned());
             }
@@ -132,11 +120,9 @@ namespace System.Runtime.InteropServices
 
         // Retrieve the address of an object in a Pinned handle.  This throws
         // an exception if the handle is any type other than Pinned.
-        public IntPtr AddrOfPinnedObject()
-        {
+        public IntPtr AddrOfPinnedObject() {
             // Check if the handle was not a pinned handle.
-            if (!IsPinned())
-            {
+            if (!IsPinned()) {
                 ValidateHandle();
 
                 // You can only get the address of pinned handles.
@@ -152,14 +138,12 @@ namespace System.Runtime.InteropServices
 
         // Used to create a GCHandle from an int.  This is intended to
         // be used with the reverse conversion.
-        public static explicit operator GCHandle(IntPtr value)
-        {
+        public static explicit operator GCHandle(IntPtr value) {
             ValidateHandle(value);
             return new GCHandle(value);
         }
 
-        public static GCHandle FromIntPtr(IntPtr value)
-        {
+        public static GCHandle FromIntPtr(IntPtr value) {
             ValidateHandle(value);
             Contract.EndContractBlock();
 
@@ -182,13 +166,11 @@ namespace System.Runtime.InteropServices
         }
 
         // Used to get the internal integer representation of the handle out.
-        public static explicit operator IntPtr(GCHandle value)
-        {
+        public static explicit operator IntPtr(GCHandle value) {
             return ToIntPtr(value);
         }
 
-        public static IntPtr ToIntPtr(GCHandle value)
-        {
+        public static IntPtr ToIntPtr(GCHandle value) {
 #if MDA_SUPPORTED
             if (s_probeIsActive)
             {
@@ -200,13 +182,11 @@ namespace System.Runtime.InteropServices
             return value.m_handle;
         }
 
-        public override int GetHashCode()
-        {
+        public override int GetHashCode() {
             return m_handle.GetHashCode();
         }
 
-        public override bool Equals(Object o)
-        {
+        public override bool Equals(Object o) {
             GCHandle hnd;
 
             // Check that o is a GCHandle first
@@ -218,29 +198,24 @@ namespace System.Runtime.InteropServices
             return m_handle == hnd.m_handle;
         }
 
-        public static bool operator ==(GCHandle a, GCHandle b)
-        {
+        public static bool operator ==(GCHandle a, GCHandle b) {
             return a.m_handle == b.m_handle;
         }
 
-        public static bool operator !=(GCHandle a, GCHandle b)
-        {
+        public static bool operator !=(GCHandle a, GCHandle b) {
             return a.m_handle != b.m_handle;
         }
 
-        internal IntPtr GetHandleValue()
-        {
+        internal IntPtr GetHandleValue() {
             return GetHandleValue(m_handle);
         }
 
-        private static IntPtr GetHandleValue(IntPtr handle)
-        {
+        private static IntPtr GetHandleValue(IntPtr handle) {
             // Remove Pin flag
             return new IntPtr((nint)handle & ~(nint)1);
         }
 
-        internal bool IsPinned()
-        {
+        internal bool IsPinned() {
             // Check Pin flag
             return ((nint)m_handle & 1) != 0;
         }
@@ -268,27 +243,23 @@ namespace System.Runtime.InteropServices
         static private volatile bool s_probeIsActive = false;
 #endif
 
-        private void ValidateHandle()
-        {
+        private void ValidateHandle() {
             // Check if the handle was never initialized or was freed.
             if (m_handle.IsNull())
                 ThrowInvalidOperationException_HandleIsNotInitialized();
         }
 
-        private static void ValidateHandle(IntPtr handle)
-        {
+        private static void ValidateHandle(IntPtr handle) {
             // Check if the handle was never initialized or was freed.
             if (handle.IsNull())
                 ThrowInvalidOperationException_HandleIsNotInitialized();
         }
 
-        private static void ThrowArgumentOutOfRangeException_ArgumentOutOfRange_Enum()
-        {
+        private static void ThrowArgumentOutOfRangeException_ArgumentOutOfRange_Enum() {
             throw ThrowHelper.GetArgumentOutOfRangeException(ExceptionArgument.type, ExceptionResource.ArgumentOutOfRange_Enum);
         }
 
-        private static void ThrowInvalidOperationException_HandleIsNotInitialized()
-        {
+        private static void ThrowInvalidOperationException_HandleIsNotInitialized() {
             throw ThrowHelper.GetInvalidOperationException(ExceptionResource.InvalidOperation_HandleIsNotInitialized);
         }
     }

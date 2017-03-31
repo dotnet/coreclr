@@ -19,8 +19,7 @@ namespace System.Diagnostics.Tracing
     /// <typeparam name="ContainerType">
     /// Type from which to read values.
     /// </typeparam>
-    internal sealed class InvokeTypeInfo : TraceLoggingTypeInfo
-    {
+    internal sealed class InvokeTypeInfo : TraceLoggingTypeInfo {
         private readonly PropertyAnalysis[] properties;
 
         public InvokeTypeInfo(
@@ -32,8 +31,7 @@ namespace System.Diagnostics.Tracing
                 typeAnalysis.level,
                 typeAnalysis.opcode,
                 typeAnalysis.keywords,
-                typeAnalysis.tags)
-        {
+                typeAnalysis.tags) {
             if (typeAnalysis.properties.Length != 0)
                 properties = typeAnalysis.properties;
         }
@@ -41,17 +39,13 @@ namespace System.Diagnostics.Tracing
         public override void WriteMetadata(
             TraceLoggingMetadataCollector collector,
             string name,
-            EventFieldFormat format)
-        {
+            EventFieldFormat format) {
             var groupCollector = collector.AddGroup(name);
-            if (properties != null)
-            {
-                foreach (var property in properties)
-                {
+            if (properties != null) {
+                foreach (var property in properties) {
                     var propertyFormat = EventFieldFormat.Default;
                     var propertyAttribute = property.fieldAttribute;
-                    if (propertyAttribute != null)
-                    {
+                    if (propertyAttribute != null) {
                         groupCollector.Tags = propertyAttribute.Tags;
                         propertyFormat = propertyAttribute.Format;
                     }
@@ -64,25 +58,19 @@ namespace System.Diagnostics.Tracing
             }
         }
 
-        public override void WriteData(TraceLoggingDataCollector collector, PropertyValue value)
-        {
-            if (properties != null)
-            {
-                foreach (var property in properties)
-                {
+        public override void WriteData(TraceLoggingDataCollector collector, PropertyValue value) {
+            if (properties != null) {
+                foreach (var property in properties) {
                     property.typeInfo.WriteData(collector, property.getter(value));
                 }
             }
         }
 
-        public override object GetData(object value)
-        {
-            if (properties != null)
-            {
+        public override object GetData(object value) {
+            if (properties != null) {
                 var membersNames = new List<string>();
                 var memebersValues = new List<object>();
-                for (int i = 0; i < properties.Length; i++)
-                {
+                for (int i = 0; i < properties.Length; i++) {
                     var propertyValue = properties[i].propertyInfo.GetValue(value);
                     membersNames.Add(properties[i].name);
                     memebersValues.Add(properties[i].typeInfo.GetData(propertyValue));

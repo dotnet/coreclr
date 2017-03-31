@@ -2,8 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-namespace System.Security
-{
+namespace System.Security {
     // SecurityTransparentAttribute:
     // Indicates the assembly contains only transparent code.
     // Security critical actions will be restricted or converted into less critical actions. For example,
@@ -11,8 +10,7 @@ namespace System.Security
     // into Full-Demands.
 
     [AttributeUsage(AttributeTargets.Assembly, AllowMultiple = false, Inherited = false)]
-    public sealed class SecurityTransparentAttribute : Attribute
-    {
+    public sealed class SecurityTransparentAttribute : Attribute {
         public SecurityTransparentAttribute() { }
     }
 }

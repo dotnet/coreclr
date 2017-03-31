@@ -13,14 +13,12 @@
 
 using System;
 
-namespace System.Reflection.Emit
-{
+namespace System.Reflection.Emit {
     //
     // Internal enums for opcode values. Note that the value names are used to construct
     // publicly visible ilasm-compatible opcode names, so their exact form is important!
     //
-    internal enum OpCodeValues
-    {
+    internal enum OpCodeValues {
         Nop = 0x00,
         Break = 0x01,
         Ldarg_0 = 0x02,
@@ -251,8 +249,7 @@ namespace System.Reflection.Emit
         // If you add more opcodes here, modify OpCode.Name to handle them correctly
     };
 
-    public class OpCodes
-    {
+    public class OpCodes {
         /// <summary>
         ///    <para>
         ///       The IL instruction opcodes supported by the
@@ -262,8 +259,7 @@ namespace System.Reflection.Emit
         /// </summary>
         /// <seealso topic='IL Instruction Set       Specification'/>
 
-        private OpCodes()
-        {
+        private OpCodes() {
         }
 
         public static readonly OpCode Nop = new OpCode(OpCodeValues.Nop,
@@ -2537,10 +2533,8 @@ namespace System.Reflection.Emit
         );
 
 
-        public static bool TakesSingleByteArgument(OpCode inst)
-        {
-            switch (inst.OperandType)
-            {
+        public static bool TakesSingleByteArgument(OpCode inst) {
+            switch (inst.OperandType) {
                 case OperandType.ShortInlineBrTarget:
                 case OperandType.ShortInlineI:
                 case OperandType.ShortInlineVar:

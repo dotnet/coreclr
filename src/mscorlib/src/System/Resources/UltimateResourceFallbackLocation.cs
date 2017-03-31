@@ -17,11 +17,9 @@
 
 using System;
 
-namespace System.Resources
-{
+namespace System.Resources {
     [Serializable]
-    public enum UltimateResourceFallbackLocation
-    {
+    public enum UltimateResourceFallbackLocation {
         MainAssembly,
         Satellite
     }

@@ -5,40 +5,32 @@
 using System.Globalization;
 using System.Runtime.Serialization;
 
-namespace System.Security.Cryptography
-{
+namespace System.Security.Cryptography {
     [Serializable]
-    public class CryptographicException : SystemException
-    {
+    public class CryptographicException : SystemException {
         public CryptographicException()
-            : base(SR.Arg_CryptographyException)
-        {
+            : base(SR.Arg_CryptographyException) {
         }
 
         public CryptographicException(int hr)
-            : base(SR.Arg_CryptographyException)
-        {
+            : base(SR.Arg_CryptographyException) {
             HResult = hr;
         }
 
         public CryptographicException(string message)
-            : base(message)
-        {
+            : base(message) {
         }
 
         public CryptographicException(string message, Exception inner)
-            : base(message, inner)
-        {
+            : base(message, inner) {
         }
 
         public CryptographicException(string format, string insert)
-            : base(string.Format(CultureInfo.CurrentCulture, format, insert))
-        {
+            : base(string.Format(CultureInfo.CurrentCulture, format, insert)) {
         }
 
         protected CryptographicException(SerializationInfo info, StreamingContext context)
-            : base(info, context)
-        {
+            : base(info, context) {
         }
     }
 }

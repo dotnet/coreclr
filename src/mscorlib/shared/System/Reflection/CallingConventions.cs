@@ -4,11 +4,9 @@
 
 // CallingConventions is a set of Bits representing the calling conventions in the system.
 
-namespace System.Reflection
-{
+namespace System.Reflection {
     [Flags]
-    public enum CallingConventions
-    {
+    public enum CallingConventions {
         //NOTE: If you change this please update COMMember.cpp.  These
         //    are defined there.
         Standard = 0x0001,

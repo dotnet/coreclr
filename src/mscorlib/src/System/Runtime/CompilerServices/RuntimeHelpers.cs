@@ -10,8 +10,7 @@
 //
 //
 
-namespace System.Runtime.CompilerServices
-{
+namespace System.Runtime.CompilerServices {
     using System;
     using System.Security;
     using System.Runtime;
@@ -23,12 +22,10 @@ namespace System.Runtime.CompilerServices
     using System.Runtime.Versioning;
     using System.Diagnostics.Contracts;
 
-    public static class RuntimeHelpers
-    {
+    public static class RuntimeHelpers {
         // Exposed here as a more appropriate place than on FormatterServices itself,
         // which is a high level reflection heavy type.
-        public static Object GetUninitializedObject(Type type)
-        {
+        public static Object GetUninitializedObject(Type type) {
             return FormatterServices.GetUninitializedObject(type);
         }
 
@@ -62,8 +59,7 @@ namespace System.Runtime.CompilerServices
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         private static extern void _RunClassConstructor(RuntimeType type);
 
-        public static void RunClassConstructor(RuntimeTypeHandle type)
-        {
+        public static void RunClassConstructor(RuntimeTypeHandle type) {
             _RunClassConstructor(type.GetRuntimeType());
         }
 
@@ -78,8 +74,7 @@ namespace System.Runtime.CompilerServices
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         private static extern void _RunModuleConstructor(System.Reflection.RuntimeModule module);
 
-        public static void RunModuleConstructor(ModuleHandle module)
-        {
+        public static void RunModuleConstructor(ModuleHandle module) {
             _RunModuleConstructor(module.GetRuntimeModule());
         }
 
@@ -91,10 +86,8 @@ namespace System.Runtime.CompilerServices
         public static void PrepareMethod(RuntimeMethodHandle method, RuntimeTypeHandle[] instantiation) { }
         public static void PrepareContractedDelegate(Delegate d) { }
 
-        public static void PrepareDelegate(Delegate d)
-        {
-            if (d == null)
-            {
+        public static void PrepareDelegate(Delegate d) {
+            if (d == null) {
                 throw new ArgumentNullException("d");
             }
         }
@@ -105,13 +98,11 @@ namespace System.Runtime.CompilerServices
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         public new static extern bool Equals(Object o1, Object o2);
 
-        public static int OffsetToStringData
-        {
+        public static int OffsetToStringData {
             // This offset is baked in by string indexer intrinsic, so there is no harm
             // in getting it baked in here as well.
             [System.Runtime.Versioning.NonVersionable]
-            get
-            {
+            get {
                 // Number of bytes from the address pointed to by a reference to
                 // a String to the first 16-bit character in the String.  Skip 
                 // over the MethodTable pointer, & String 
@@ -141,21 +132,18 @@ namespace System.Runtime.CompilerServices
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         public static extern bool TryEnsureSufficientExecutionStack();
 
-        public static void ProbeForSufficientStack()
-        {
+        public static void ProbeForSufficientStack() {
         }
 
         // This method is a marker placed immediately before a try clause to mark the corresponding catch and finally blocks as
         // constrained. There's no code here other than the probe because most of the work is done at JIT time when we spot a call to this routine.
-        public static void PrepareConstrainedRegions()
-        {
+        public static void PrepareConstrainedRegions() {
             ProbeForSufficientStack();
         }
 
         // When we detect a CER with no calls, we can point the JIT to this non-probing version instead
         // as we don't need to probe.
-        public static void PrepareConstrainedRegionsNoOP()
-        {
+        public static void PrepareConstrainedRegionsNoOP() {
         }
 
         public delegate void TryCode(Object userData);
@@ -165,14 +153,12 @@ namespace System.Runtime.CompilerServices
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         public static extern void ExecuteCodeWithGuaranteedCleanup(TryCode code, CleanupCode backoutCode, Object userData);
 
-        internal static void ExecuteBackoutCodeHelper(Object backoutCode, Object userData, bool exceptionThrown)
-        {
+        internal static void ExecuteBackoutCodeHelper(Object backoutCode, Object userData, bool exceptionThrown) {
             ((CleanupCode)backoutCode)(userData, exceptionThrown);
         }
 
         /// <returns>true if given type is reference type or value type that contains references</returns>
-        static public bool IsReferenceOrContainsReferences<T>()
-        {
+        static public bool IsReferenceOrContainsReferences<T>() {
             // The body of this function will be replaced by the EE with unsafe code!!!
             // See getILIntrinsicImplementation for how this happens.
             throw new InvalidOperationException();

@@ -6,8 +6,7 @@ using System;
 using System.Runtime.Versioning;
 using System.Diagnostics.Contracts;
 
-namespace System.Globalization
-{
+namespace System.Globalization {
     ////////////////////////////////////////////////////////////////////////////
     //
     //  Rules for the Hijri calendar:
@@ -45,8 +44,7 @@ namespace System.Globalization
     */
 
     [Serializable]
-    public partial class HijriCalendar : Calendar
-    {
+    public partial class HijriCalendar : Calendar {
         public static readonly int HijriEra = 1;
 
         internal const int DatePartYear = 0;
@@ -71,47 +69,36 @@ namespace System.Globalization
         internal static readonly DateTime calendarMaxValue = DateTime.MaxValue;
 
 
-        public override DateTime MinSupportedDateTime
-        {
-            get
-            {
+        public override DateTime MinSupportedDateTime {
+            get {
                 return (calendarMinValue);
             }
         }
 
 
-        public override DateTime MaxSupportedDateTime
-        {
-            get
-            {
+        public override DateTime MaxSupportedDateTime {
+            get {
                 return (calendarMaxValue);
             }
         }
 
-        public override CalendarAlgorithmType AlgorithmType
-        {
-            get
-            {
+        public override CalendarAlgorithmType AlgorithmType {
+            get {
                 return CalendarAlgorithmType.LunarCalendar;
             }
         }
 
-        public HijriCalendar()
-        {
+        public HijriCalendar() {
         }
 
-        internal override CalendarId ID
-        {
-            get
-            {
+        internal override CalendarId ID {
+            get {
                 return CalendarId.HIJRI;
             }
         }
 
-        protected override int DaysInYearBeforeMinSupportedYear
-        {
-            get
-            {
+        protected override int DaysInYearBeforeMinSupportedYear {
+            get {
                 // the year before the 1st year of the cycle would have been the 30th year
                 // of the previous cycle which is not a leap year. Common years have 354 days.
                 return 354;
@@ -128,8 +115,7 @@ namespace System.Globalization
         **Exceptions:
         ============================================================================*/
 
-        private long GetAbsoluteDateHijri(int y, int m, int d)
-        {
+        private long GetAbsoluteDateHijri(int y, int m, int d) {
             return (long)(DaysUpToHijriYear(y) + HijriMonthDays[m - 1] + d - 1 - HijriAdjustment);
         }
 
@@ -142,8 +128,7 @@ namespace System.Globalization
         **Notes:
         ============================================================================*/
 
-        private long DaysUpToHijriYear(int HijriYear)
-        {
+        private long DaysUpToHijriYear(int HijriYear) {
             long NumDays;           // number of absolute days
             int NumYear30;         // number of years up to current 30 year cycle
             int NumYearsLeft;      // number of years into 30 year cycle
@@ -163,8 +148,7 @@ namespace System.Globalization
             //  Compute the number of absolute days up to the given year.
             //
             NumDays = ((NumYear30 * 10631L) / 30L) + 227013L;
-            while (NumYearsLeft > 0)
-            {
+            while (NumYearsLeft > 0) {
                 // Common year is 354 days, and leap year is 355 days.
                 NumDays += 354 + (IsLeapYear(NumYearsLeft, CurrentEra) ? 1 : 0);
                 NumYearsLeft--;
@@ -176,23 +160,18 @@ namespace System.Globalization
             return (NumDays);
         }
 
-        public int HijriAdjustment
-        {
-            get
-            {
-                if (_hijriAdvance == Int32.MinValue)
-                {
+        public int HijriAdjustment {
+            get {
+                if (_hijriAdvance == Int32.MinValue) {
                     // Never been set before.  Use the system value from registry.
                     _hijriAdvance = GetHijriDateAdjustment();
                 }
                 return (_hijriAdvance);
             }
 
-            set
-            {
+            set {
                 // NOTE: Check the value of Min/MaxAdavncedHijri with Arabic speakers to see if the assumption is good.
-                if (value < MinAdvancedHijri || value > MaxAdvancedHijri)
-                {
+                if (value < MinAdvancedHijri || value > MaxAdvancedHijri) {
                     throw new ArgumentOutOfRangeException(
                                 "HijriAdjustment",
                                 String.Format(
@@ -208,10 +187,8 @@ namespace System.Globalization
             }
         }
 
-        internal static void CheckTicksRange(long ticks)
-        {
-            if (ticks < calendarMinValue.Ticks || ticks > calendarMaxValue.Ticks)
-            {
+        internal static void CheckTicksRange(long ticks) {
+            if (ticks < calendarMinValue.Ticks || ticks > calendarMaxValue.Ticks) {
                 throw new ArgumentOutOfRangeException(
                             "time",
                             String.Format(
@@ -222,19 +199,15 @@ namespace System.Globalization
             }
         }
 
-        internal static void CheckEraRange(int era)
-        {
-            if (era != CurrentEra && era != HijriEra)
-            {
+        internal static void CheckEraRange(int era) {
+            if (era != CurrentEra && era != HijriEra) {
                 throw new ArgumentOutOfRangeException(nameof(era), SR.ArgumentOutOfRange_InvalidEraValue);
             }
         }
 
-        internal static void CheckYearRange(int year, int era)
-        {
+        internal static void CheckYearRange(int year, int era) {
             CheckEraRange(era);
-            if (year < 1 || year > MaxCalendarYear)
-            {
+            if (year < 1 || year > MaxCalendarYear) {
                 throw new ArgumentOutOfRangeException(
                             nameof(year),
                             String.Format(
@@ -245,13 +218,10 @@ namespace System.Globalization
             }
         }
 
-        internal static void CheckYearMonthRange(int year, int month, int era)
-        {
+        internal static void CheckYearMonthRange(int year, int month, int era) {
             CheckYearRange(year, era);
-            if (year == MaxCalendarYear)
-            {
-                if (month > MaxCalendarMonth)
-                {
+            if (year == MaxCalendarYear) {
+                if (month > MaxCalendarMonth) {
                     throw new ArgumentOutOfRangeException(
                                 nameof(month),
                                 String.Format(
@@ -262,8 +232,7 @@ namespace System.Globalization
                 }
             }
 
-            if (month < 1 || month > 12)
-            {
+            if (month < 1 || month > 12) {
                 throw new ArgumentOutOfRangeException(nameof(month), SR.ArgumentOutOfRange_Month);
             }
         }
@@ -281,8 +250,7 @@ namespace System.Globalization
         **      From here, we can get the correct Hijri year.
         ============================================================================*/
 
-        internal virtual int GetDatePart(long ticks, int part)
-        {
+        internal virtual int GetDatePart(long ticks, int part) {
             int HijriYear;                   // Hijri year
             int HijriMonth;                  // Hijri month
             int HijriDay;                    // Hijri day
@@ -309,26 +277,21 @@ namespace System.Globalization
             long daysToHijriYear = DaysUpToHijriYear(HijriYear);            // The absoulte date for HijriYear
             long daysOfHijriYear = GetDaysInYear(HijriYear, CurrentEra);    // The number of days for (HijriYear+1) year.
 
-            if (NumDays < daysToHijriYear)
-            {
+            if (NumDays < daysToHijriYear) {
                 daysToHijriYear -= daysOfHijriYear;
                 HijriYear--;
             }
-            else if (NumDays == daysToHijriYear)
-            {
+            else if (NumDays == daysToHijriYear) {
                 HijriYear--;
                 daysToHijriYear -= GetDaysInYear(HijriYear, CurrentEra);
             }
-            else
-            {
-                if (NumDays > daysToHijriYear + daysOfHijriYear)
-                {
+            else {
+                if (NumDays > daysToHijriYear + daysOfHijriYear) {
                     daysToHijriYear += daysOfHijriYear;
                     HijriYear++;
                 }
             }
-            if (part == DatePartYear)
-            {
+            if (part == DatePartYear) {
                 return (HijriYear);
             }
 
@@ -339,19 +302,16 @@ namespace System.Globalization
             HijriMonth = 1;
             NumDays -= daysToHijriYear;
 
-            if (part == DatePartDayOfYear)
-            {
+            if (part == DatePartDayOfYear) {
                 return ((int)NumDays);
             }
 
-            while ((HijriMonth <= 12) && (NumDays > HijriMonthDays[HijriMonth - 1]))
-            {
+            while ((HijriMonth <= 12) && (NumDays > HijriMonthDays[HijriMonth - 1])) {
                 HijriMonth++;
             }
             HijriMonth--;
 
-            if (part == DatePartMonth)
-            {
+            if (part == DatePartMonth) {
                 return (HijriMonth);
             }
 
@@ -360,8 +320,7 @@ namespace System.Globalization
             //
             HijriDay = (int)(NumDays - HijriMonthDays[HijriMonth - 1]);
 
-            if (part == DatePartDay)
-            {
+            if (part == DatePartDay) {
                 return (HijriDay);
             }
             // Incorrect part value.
@@ -386,10 +345,8 @@ namespace System.Globalization
         // y1.
         //
 
-        public override DateTime AddMonths(DateTime time, int months)
-        {
-            if (months < -120000 || months > 120000)
-            {
+        public override DateTime AddMonths(DateTime time, int months) {
+            if (months < -120000 || months > 120000) {
                 throw new ArgumentOutOfRangeException(
                             nameof(months),
                             String.Format(
@@ -404,19 +361,16 @@ namespace System.Globalization
             int m = GetDatePart(time.Ticks, DatePartMonth);
             int d = GetDatePart(time.Ticks, DatePartDay);
             int i = m - 1 + months;
-            if (i >= 0)
-            {
+            if (i >= 0) {
                 m = i % 12 + 1;
                 y = y + i / 12;
             }
-            else
-            {
+            else {
                 m = 12 + (i + 1) % 12;
                 y = y + (i - 11) / 12;
             }
             int days = GetDaysInMonth(y, m);
-            if (d > days)
-            {
+            if (d > days) {
                 d = days;
             }
             long ticks = GetAbsoluteDateHijri(y, m, d) * TicksPerDay + (time.Ticks % TicksPerDay);
@@ -433,8 +387,7 @@ namespace System.Globalization
         // parts of the result are the same as those of the specified DateTime.
         //
 
-        public override DateTime AddYears(DateTime time, int years)
-        {
+        public override DateTime AddYears(DateTime time, int years) {
             return (AddMonths(time, years * 12));
         }
 
@@ -442,8 +395,7 @@ namespace System.Globalization
         // value is an integer between 1 and 31.
         //
 
-        public override int GetDayOfMonth(DateTime time)
-        {
+        public override int GetDayOfMonth(DateTime time) {
             return (GetDatePart(time.Ticks, DatePartDay));
         }
 
@@ -453,8 +405,7 @@ namespace System.Globalization
         // Thursday, 5 indicates Friday, and 6 indicates Saturday.
         //
 
-        public override DayOfWeek GetDayOfWeek(DateTime time)
-        {
+        public override DayOfWeek GetDayOfWeek(DateTime time) {
             return ((DayOfWeek)((int)(time.Ticks / TicksPerDay + 1) % 7));
         }
 
@@ -462,8 +413,7 @@ namespace System.Globalization
         // is an integer between 1 and 366.
         //
 
-        public override int GetDayOfYear(DateTime time)
-        {
+        public override int GetDayOfYear(DateTime time) {
             return (GetDatePart(time.Ticks, DatePartDayOfYear));
         }
 
@@ -471,11 +421,9 @@ namespace System.Globalization
         // month arguments.
         //
         [Pure]
-        public override int GetDaysInMonth(int year, int month, int era)
-        {
+        public override int GetDaysInMonth(int year, int month, int era) {
             CheckYearMonthRange(year, month, era);
-            if (month == 12)
-            {
+            if (month == 12) {
                 // For the 12th month, leap year has 30 days, and common year has 29 days.
                 return (IsLeapYear(year, CurrentEra) ? 30 : 29);
             }
@@ -486,8 +434,7 @@ namespace System.Globalization
         // Returns the number of days in the year given by the year argument for the current era.
         //
 
-        public override int GetDaysInYear(int year, int era)
-        {
+        public override int GetDaysInYear(int year, int era) {
             CheckYearRange(year, era);
             // Common years have 354 days.  Leap years have 355 days.
             return (IsLeapYear(year, CurrentEra) ? 355 : 354);
@@ -495,17 +442,14 @@ namespace System.Globalization
 
         // Returns the era for the specified DateTime value.
 
-        public override int GetEra(DateTime time)
-        {
+        public override int GetEra(DateTime time) {
             CheckTicksRange(time.Ticks);
             return (HijriEra);
         }
 
 
-        public override int[] Eras
-        {
-            get
-            {
+        public override int[] Eras {
+            get {
                 return (new int[] { HijriEra });
             }
         }
@@ -514,15 +458,13 @@ namespace System.Globalization
         // integer between 1 and 12.
         //
 
-        public override int GetMonth(DateTime time)
-        {
+        public override int GetMonth(DateTime time) {
             return (GetDatePart(time.Ticks, DatePartMonth));
         }
 
         // Returns the number of months in the specified year and era.
 
-        public override int GetMonthsInYear(int year, int era)
-        {
+        public override int GetMonthsInYear(int year, int era) {
             CheckYearRange(year, era);
             return (12);
         }
@@ -531,8 +473,7 @@ namespace System.Globalization
         // integer between 1 and MaxCalendarYear.
         //
 
-        public override int GetYear(DateTime time)
-        {
+        public override int GetYear(DateTime time) {
             return (GetDatePart(time.Ticks, DatePartYear));
         }
 
@@ -540,12 +481,10 @@ namespace System.Globalization
         // the date is a leap day, or false if not.
         //
 
-        public override bool IsLeapDay(int year, int month, int day, int era)
-        {
+        public override bool IsLeapDay(int year, int month, int day, int era) {
             // The year/month/era value checking is done in GetDaysInMonth().
             int daysInMonth = GetDaysInMonth(year, month, era);
-            if (day < 1 || day > daysInMonth)
-            {
+            if (day < 1 || day > daysInMonth) {
                 throw new ArgumentOutOfRangeException(
                             nameof(day),
                             String.Format(
@@ -561,8 +500,7 @@ namespace System.Globalization
         // if this calendar does not have leap month, or this year is not a leap year.
         //
 
-        public override int GetLeapMonth(int year, int era)
-        {
+        public override int GetLeapMonth(int year, int era) {
             CheckYearRange(year, era);
             return (0);
         }
@@ -571,8 +509,7 @@ namespace System.Globalization
         // month is a leap month, or false if not.
         //
 
-        public override bool IsLeapMonth(int year, int month, int era)
-        {
+        public override bool IsLeapMonth(int year, int month, int era) {
             CheckYearMonthRange(year, month, era);
             return (false);
         }
@@ -581,8 +518,7 @@ namespace System.Globalization
         // year is a leap year, or false if not.
         //
 
-        public override bool IsLeapYear(int year, int era)
-        {
+        public override bool IsLeapYear(int year, int era) {
             CheckYearRange(year, era);
             return ((((year * 11) + 14) % 30) < 11);
         }
@@ -590,12 +526,10 @@ namespace System.Globalization
         // Returns the date and time converted to a DateTime value.  Throws an exception if the n-tuple is invalid.
         //
 
-        public override DateTime ToDateTime(int year, int month, int day, int hour, int minute, int second, int millisecond, int era)
-        {
+        public override DateTime ToDateTime(int year, int month, int day, int hour, int minute, int second, int millisecond, int era) {
             // The year/month/era checking is done in GetDaysInMonth().
             int daysInMonth = GetDaysInMonth(year, month, era);
-            if (day < 1 || day > daysInMonth)
-            {
+            if (day < 1 || day > daysInMonth) {
                 throw new ArgumentOutOfRangeException(
                             nameof(day),
                             String.Format(
@@ -607,12 +541,10 @@ namespace System.Globalization
 
             long lDate = GetAbsoluteDateHijri(year, month, day);
 
-            if (lDate >= 0)
-            {
+            if (lDate >= 0) {
                 return (new DateTime(lDate * GregorianCalendar.TicksPerDay + TimeToTicks(hour, minute, second, millisecond)));
             }
-            else
-            {
+            else {
                 throw new ArgumentOutOfRangeException(null, SR.ArgumentOutOfRange_BadYearMonthDay);
             }
         }
@@ -620,22 +552,17 @@ namespace System.Globalization
         private const int DEFAULT_TWO_DIGIT_YEAR_MAX = 1451;
 
 
-        public override int TwoDigitYearMax
-        {
-            get
-            {
-                if (twoDigitYearMax == -1)
-                {
+        public override int TwoDigitYearMax {
+            get {
+                if (twoDigitYearMax == -1) {
                     twoDigitYearMax = GetSystemTwoDigitYearSetting(ID, DEFAULT_TWO_DIGIT_YEAR_MAX);
                 }
                 return (twoDigitYearMax);
             }
 
-            set
-            {
+            set {
                 VerifyWritable();
-                if (value < 99 || value > MaxCalendarYear)
-                {
+                if (value < 99 || value > MaxCalendarYear) {
                     throw new ArgumentOutOfRangeException(
                                 nameof(value),
                                 String.Format(
@@ -649,22 +576,18 @@ namespace System.Globalization
         }
 
 
-        public override int ToFourDigitYear(int year)
-        {
-            if (year < 0)
-            {
+        public override int ToFourDigitYear(int year) {
+            if (year < 0) {
                 throw new ArgumentOutOfRangeException(nameof(year),
                     SR.ArgumentOutOfRange_NeedNonNegNum);
             }
             Contract.EndContractBlock();
 
-            if (year < 100)
-            {
+            if (year < 100) {
                 return (base.ToFourDigitYear(year));
             }
 
-            if (year > MaxCalendarYear)
-            {
+            if (year > MaxCalendarYear) {
                 throw new ArgumentOutOfRangeException(
                             nameof(year),
                             String.Format(

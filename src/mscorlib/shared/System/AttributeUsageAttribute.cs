@@ -13,13 +13,11 @@
 
 using System.Reflection;
 
-namespace System
-{
+namespace System {
     /* By default, attributes are inherited and multiple attributes are not allowed */
     [Serializable]
     [AttributeUsage(AttributeTargets.Class, Inherited = true)]
-    public sealed class AttributeUsageAttribute : Attribute
-    {
+    public sealed class AttributeUsageAttribute : Attribute {
         private AttributeTargets _attributeTarget = AttributeTargets.All; // Defaults to all
         private bool _allowMultiple = false; // Defaults to false
         private bool _inherited = true; // Defaults to true
@@ -27,30 +25,25 @@ namespace System
         internal static AttributeUsageAttribute Default = new AttributeUsageAttribute(AttributeTargets.All);
 
         //Constructors 
-        public AttributeUsageAttribute(AttributeTargets validOn)
-        {
+        public AttributeUsageAttribute(AttributeTargets validOn) {
             _attributeTarget = validOn;
         }
-        internal AttributeUsageAttribute(AttributeTargets validOn, bool allowMultiple, bool inherited)
-        {
+        internal AttributeUsageAttribute(AttributeTargets validOn, bool allowMultiple, bool inherited) {
             _attributeTarget = validOn;
             _allowMultiple = allowMultiple;
             _inherited = inherited;
         }
 
-        public AttributeTargets ValidOn
-        {
+        public AttributeTargets ValidOn {
             get { return _attributeTarget; }
         }
 
-        public bool AllowMultiple
-        {
+        public bool AllowMultiple {
             get { return _allowMultiple; }
             set { _allowMultiple = value; }
         }
 
-        public bool Inherited
-        {
+        public bool Inherited {
             get { return _inherited; }
             set { _inherited = value; }
         }

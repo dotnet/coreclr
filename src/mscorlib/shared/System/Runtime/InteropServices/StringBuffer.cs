@@ -5,8 +5,7 @@
 using System.Buffers;
 using System.Runtime.CompilerServices;
 
-namespace System.Runtime.InteropServices
-{
+namespace System.Runtime.InteropServices {
     /// <summary>
     /// Buffer that deals in char size increments. Dispose to free memory. Always makes ordinal
     /// comparisons. Not thread safe.
@@ -19,8 +18,7 @@ namespace System.Runtime.InteropServices
     /// <remarks>
     /// Suggested use through P/Invoke: define DllImport arguments that take a character buffer as SafeHandle and pass StringBuffer.GetHandle().
     /// </remarks>
-    internal struct StringBuffer
-    {
+    internal struct StringBuffer {
         private char[] _buffer;
         private int _length;
 
@@ -28,8 +26,7 @@ namespace System.Runtime.InteropServices
         /// Instantiate the buffer with capacity for at least the specified number of characters. Capacity
         /// includes the trailing null character.
         /// </summary>
-        public StringBuffer(int initialCapacity)
-        {
+        public StringBuffer(int initialCapacity) {
             _buffer = ArrayPool<char>.Shared.Rent(initialCapacity);
             _length = 0;
         }
@@ -38,17 +35,14 @@ namespace System.Runtime.InteropServices
         /// Get/set the character at the given index.
         /// </summary>
         /// <exception cref="ArgumentOutOfRangeException">Thrown if attempting to index outside of the buffer length.</exception>
-        public char this[int index]
-        {
+        public char this[int index] {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get
-            {
+            get {
                 if (index >= _length) throw new ArgumentOutOfRangeException(nameof(index));
                 return _buffer[index];
             }
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            set
-            {
+            set {
                 if (index >= _length) throw new ArgumentOutOfRangeException(nameof(index));
                 _buffer[index] = value;
             }
@@ -68,10 +62,8 @@ namespace System.Runtime.InteropServices
         /// Ensure capacity in characters is at least the given minimum.
         /// </summary>
         /// <exception cref="OutOfMemoryException">Thrown if unable to allocate memory when setting.</exception>
-        public void EnsureCapacity(int minCapacity)
-        {
-            if (minCapacity > Capacity)
-            {
+        public void EnsureCapacity(int minCapacity) {
+            if (minCapacity > Capacity) {
                 char[] oldBuffer = _buffer;
                 _buffer = ArrayPool<char>.Shared.Rent(minCapacity);
                 Array.Copy(oldBuffer, 0, _buffer, 0, oldBuffer.Length);
@@ -85,11 +77,9 @@ namespace System.Runtime.InteropServices
         /// </summary>
         /// <exception cref="OutOfMemoryException">Thrown if unable to allocate memory when setting.</exception>
         /// <exception cref="ArgumentOutOfRangeException">Thrown if the set size in bytes is int.MaxValue (as space is implicitly reserved for the trailing null).</exception>
-        public int Length
-        {
+        public int Length {
             get { return _length; }
-            set
-            {
+            set {
                 // Null terminate
                 EnsureCapacity(checked(value + 1));
                 _buffer[value] = '\0';
@@ -101,13 +91,10 @@ namespace System.Runtime.InteropServices
         /// <summary>
         /// True if the buffer contains the given character.
         /// </summary>
-        public unsafe bool Contains(char value)
-        {
-            fixed (char* start = _buffer)
-            {
+        public unsafe bool Contains(char value) {
+            fixed (char* start = _buffer) {
                 int length = _length;
-                for (int i = 0; i < length; i++)
-                {
+                for (int i = 0; i < length; i++) {
                     if (start[i] == value) return true;
                 }
             }
@@ -118,8 +105,7 @@ namespace System.Runtime.InteropServices
         /// <summary>
         /// Returns true if the buffer starts with the given string.
         /// </summary>
-        public bool StartsWith(string value)
-        {
+        public bool StartsWith(string value) {
             if (value == null) throw new ArgumentNullException(nameof(value));
             if (_length < value.Length) return false;
             return SubstringEquals(value, startIndex: 0, count: value.Length);
@@ -135,8 +121,7 @@ namespace System.Runtime.InteropServices
         /// Thrown if <paramref name="startIndex"/> or <paramref name="count"/> are outside the range
         /// of the buffer's length.
         /// </exception>
-        public unsafe bool SubstringEquals(string value, int startIndex = 0, int count = -1)
-        {
+        public unsafe bool SubstringEquals(string value, int startIndex = 0, int count = -1) {
             if (value == null) return false;
             if (count < -1) throw new ArgumentOutOfRangeException(nameof(count));
             if (startIndex > _length) throw new ArgumentOutOfRangeException(nameof(startIndex));
@@ -150,12 +135,10 @@ namespace System.Runtime.InteropServices
             if (realCount != length) return false;
 
             fixed (char* valueStart = value)
-            fixed (char* bufferStart = _buffer)
-            {
+            fixed (char* bufferStart = _buffer) {
                 char* subStringStart = bufferStart + startIndex;
 
-                for (int i = 0; i < length; i++)
-                {
+                for (int i = 0; i < length; i++) {
                     if (subStringStart[i] != valueStart[i]) return false;
                 }
             }
@@ -174,8 +157,7 @@ namespace System.Runtime.InteropServices
         /// Thrown if <paramref name="startIndex"/> or <paramref name="count"/> are outside the range
         /// of <paramref name="value"/> characters.
         /// </exception>
-        public void Append(ref StringBuffer value, int startIndex = 0)
-        {
+        public void Append(ref StringBuffer value, int startIndex = 0) {
             if (value.Length == 0) return;
 
             value.CopyTo(
@@ -196,8 +178,7 @@ namespace System.Runtime.InteropServices
         /// Thrown if <paramref name="startIndex"/> or <paramref name="count"/> are outside the range
         /// of <paramref name="value"/> characters.
         /// </exception>
-        public void Append(ref StringBuffer value, int startIndex, int count)
-        {
+        public void Append(ref StringBuffer value, int startIndex, int count) {
             if (count == 0) return;
 
             value.CopyTo(
@@ -216,8 +197,7 @@ namespace System.Runtime.InteropServices
         /// of <paramref name="value"/> characters.
         /// </exception>
         /// <exception cref="ArgumentNullException">Thrown if <paramref name="destination"/> is null.</exception>
-        public void CopyTo(int bufferIndex, ref StringBuffer destination, int destinationIndex, int count)
-        {
+        public void CopyTo(int bufferIndex, ref StringBuffer destination, int destinationIndex, int count) {
             if (destinationIndex > destination._length) throw new ArgumentOutOfRangeException(nameof(destinationIndex));
             if (bufferIndex >= _length) throw new ArgumentOutOfRangeException(nameof(bufferIndex));
             if (_length < checked(bufferIndex + count)) throw new ArgumentOutOfRangeException(nameof(count));
@@ -233,8 +213,7 @@ namespace System.Runtime.InteropServices
         /// Copy contents from the specified string into the buffer at the given index. Start index must be within the current length of
         /// the buffer, will grow as necessary.
         /// </summary>
-        public void CopyFrom(int bufferIndex, string source, int sourceIndex = 0, int count = -1)
-        {
+        public void CopyFrom(int bufferIndex, string source, int sourceIndex = 0, int count = -1) {
             if (source == null) throw new ArgumentNullException(nameof(source));
             if (bufferIndex > _length) throw new ArgumentOutOfRangeException(nameof(bufferIndex));
             if (sourceIndex < 0 || sourceIndex > source.Length) throw new ArgumentOutOfRangeException(nameof(sourceIndex));
@@ -251,12 +230,10 @@ namespace System.Runtime.InteropServices
         /// <summary>
         /// Trim the specified values from the end of the buffer. If nothing is specified, nothing is trimmed.
         /// </summary>
-        public void TrimEnd(char[] values)
-        {
+        public void TrimEnd(char[] values) {
             if (values == null || values.Length == 0 || _length == 0) return;
 
-            while (_length > 0 && Array.IndexOf(values, _buffer[_length - 1]) >= 0)
-            {
+            while (_length > 0 && Array.IndexOf(values, _buffer[_length - 1]) >= 0) {
                 Length = _length - 1;
             }
         }
@@ -265,8 +242,7 @@ namespace System.Runtime.InteropServices
         /// String representation of the entire buffer. If the buffer is larger than the maximum size string (int.MaxValue) this will throw.
         /// </summary>
         /// <exception cref="InvalidOperationException">Thrown if the buffer is too big to fit into a string.</exception>
-        public override string ToString()
-        {
+        public override string ToString() {
             return new string(_buffer, startIndex: 0, length: _length);
         }
 
@@ -278,8 +254,7 @@ namespace System.Runtime.InteropServices
         /// Thrown if <paramref name="startIndex"/> or <paramref name="count"/> are outside the range of the buffer's length
         /// or count is greater than the maximum string size (int.MaxValue).
         /// </exception>
-        public string Substring(int startIndex, int count = -1)
-        {
+        public string Substring(int startIndex, int count = -1) {
             if (startIndex > (_length == 0 ? 0 : _length - 1)) throw new ArgumentOutOfRangeException(nameof(startIndex));
             if (count < -1) throw new ArgumentOutOfRangeException(nameof(count));
 
@@ -291,8 +266,7 @@ namespace System.Runtime.InteropServices
             return new string(_buffer, startIndex: startIndex, length: realCount);
         }
 
-        public void Free()
-        {
+        public void Free() {
             ArrayPool<char>.Shared.Return(_buffer);
             _buffer = null;
             _length = 0;

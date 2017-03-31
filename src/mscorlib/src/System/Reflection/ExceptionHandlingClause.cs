@@ -5,10 +5,8 @@
 using System.Globalization;
 using System.Diagnostics.Contracts;
 
-namespace System.Reflection
-{
-    public class ExceptionHandlingClause
-    {
+namespace System.Reflection {
+    public class ExceptionHandlingClause {
         #region costructor
         // This class can only be created from inside the EE.
         protected ExceptionHandlingClause() { }
@@ -33,10 +31,8 @@ namespace System.Reflection
         public virtual int HandlerOffset { get { return m_handlerOffset; } }
         public virtual int HandlerLength { get { return m_handlerLength; } }
 
-        public virtual int FilterOffset
-        {
-            get
-            {
+        public virtual int FilterOffset {
+            get {
                 if (m_flags != ExceptionHandlingClauseOptions.Filter)
                     throw new InvalidOperationException(SR.Arg_EHClauseNotFilter);
 
@@ -44,17 +40,14 @@ namespace System.Reflection
             }
         }
 
-        public virtual Type CatchType
-        {
-            get
-            {
+        public virtual Type CatchType {
+            get {
                 if (m_flags != ExceptionHandlingClauseOptions.Clause)
                     throw new InvalidOperationException(SR.Arg_EHClauseNotClause);
 
                 Type type = null;
 
-                if (!MetadataToken.IsNullToken(m_catchMetadataToken))
-                {
+                if (!MetadataToken.IsNullToken(m_catchMetadataToken)) {
                     Type declaringType = m_methodBody.m_methodBase.DeclaringType;
                     Module module = (declaringType == null) ? m_methodBody.m_methodBase.Module : declaringType.Module;
                     type = module.ResolveType(m_catchMetadataToken, (declaringType == null) ? null : declaringType.GetGenericArguments(),
@@ -67,17 +60,14 @@ namespace System.Reflection
         #endregion
 
         #region Object Overrides
-        public override string ToString()
-        {
-            if (Flags == ExceptionHandlingClauseOptions.Clause)
-            {
+        public override string ToString() {
+            if (Flags == ExceptionHandlingClauseOptions.Clause) {
                 return String.Format(CultureInfo.CurrentUICulture,
                     "Flags={0}, TryOffset={1}, TryLength={2}, HandlerOffset={3}, HandlerLength={4}, CatchType={5}",
                     Flags, TryOffset, TryLength, HandlerOffset, HandlerLength, CatchType);
             }
 
-            if (Flags == ExceptionHandlingClauseOptions.Filter)
-            {
+            if (Flags == ExceptionHandlingClauseOptions.Filter) {
                 return String.Format(CultureInfo.CurrentUICulture,
                     "Flags={0}, TryOffset={1}, TryLength={2}, HandlerOffset={3}, HandlerLength={4}, FilterOffset={5}",
                     Flags, TryOffset, TryLength, HandlerOffset, HandlerLength, FilterOffset);

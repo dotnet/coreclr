@@ -18,11 +18,9 @@
 
 using System;
 
-namespace System.IO
-{
+namespace System.IO {
     [Serializable]
-    internal enum SearchOption
-    {
+    internal enum SearchOption {
         // Include only the current directory in the search operation
         TopDirectoryOnly,
 

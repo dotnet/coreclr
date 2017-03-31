@@ -2,11 +2,9 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-namespace System.Reflection
-{
+namespace System.Reflection {
     [Flags]
-    public enum BindingFlags
-    {
+    public enum BindingFlags {
         // NOTES: We have lookup masks defined in RuntimeType and Activator.  If we
         //    change the lookup values then these masks may need to change also.
 

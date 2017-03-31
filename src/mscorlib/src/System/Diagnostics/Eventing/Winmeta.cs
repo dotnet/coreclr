@@ -25,8 +25,7 @@ namespace System.Diagnostics.Tracing
     /// <summary>
     /// WindowsEventLevel. Custom values must be in the range from 16 through 255
     /// </summary>
-    public enum EventLevel
-    {
+    public enum EventLevel {
         /// <summary>
         /// Log always
         /// </summary>
@@ -58,8 +57,7 @@ namespace System.Diagnostics.Tracing
 #if (!ES_BUILD_STANDALONE && !PROJECTN)
     [System.Runtime.CompilerServices.FriendAccessAllowed]
 #endif
-    public enum EventTask
-    {
+    public enum EventTask {
         /// <summary>
         /// Undefined task
         /// </summary>
@@ -71,8 +69,7 @@ namespace System.Diagnostics.Tracing
 #if (!ES_BUILD_STANDALONE && !PROJECTN)
     [System.Runtime.CompilerServices.FriendAccessAllowed]
 #endif
-    public enum EventOpcode
-    {
+    public enum EventOpcode {
         /// <summary>
         /// An informational event
         /// </summary>
@@ -127,8 +124,7 @@ namespace System.Diagnostics.Tracing
 #if (!ES_BUILD_STANDALONE && !PROJECTN)
     [System.Runtime.CompilerServices.FriendAccessAllowed]
 #endif
-    public enum EventChannel : byte
-    {
+    public enum EventChannel : byte {
         /// <summary>
         /// No channel
         /// </summary>
@@ -148,8 +144,7 @@ namespace System.Diagnostics.Tracing
     /// EventOpcode
     /// </summary>
     [Flags]
-    public enum EventKeywords : long
-    {
+    public enum EventKeywords : long {
         /// <summary>
         /// No events. 
         /// </summary>

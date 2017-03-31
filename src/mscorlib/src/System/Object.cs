@@ -12,8 +12,7 @@
 ** 
 ===========================================================*/
 
-namespace System
-{
+namespace System {
     using System;
     using System.Runtime;
     using System.Runtime.InteropServices;
@@ -34,19 +33,16 @@ namespace System
     [Serializable]
     [ClassInterface(ClassInterfaceType.AutoDual)]
     [System.Runtime.InteropServices.ComVisible(true)]
-    public class Object
-    {
+    public class Object {
         // Creates a new instance of an Object.
         [System.Runtime.Versioning.NonVersionable]
-        public Object()
-        {
+        public Object() {
         }
 
         // Returns a String which represents the object instance.  The default
         // for an object is to return the fully qualified name of the class.
         // 
-        public virtual String ToString()
-        {
+        public virtual String ToString() {
             return GetType().ToString();
         }
 
@@ -56,27 +52,22 @@ namespace System
         // replace Equals with EqualsValue for value types).
         // 
 
-        public virtual bool Equals(Object obj)
-        {
+        public virtual bool Equals(Object obj) {
             return RuntimeHelpers.Equals(this, obj);
         }
 
-        public static bool Equals(Object objA, Object objB)
-        {
-            if (objA == objB)
-            {
+        public static bool Equals(Object objA, Object objB) {
+            if (objA == objB) {
                 return true;
             }
-            if (objA == null || objB == null)
-            {
+            if (objA == null || objB == null) {
                 return false;
             }
             return objA.Equals(objB);
         }
 
         [System.Runtime.Versioning.NonVersionable]
-        public static bool ReferenceEquals(Object objA, Object objB)
-        {
+        public static bool ReferenceEquals(Object objA, Object objB) {
             return objA == objB;
         }
 
@@ -89,8 +80,7 @@ namespace System
         // it will technically meet the needs of a hash function, but it's less than ideal.
         // Objects (& especially value classes) should override this method.
         // 
-        public virtual int GetHashCode()
-        {
+        public virtual int GetHashCode() {
             return RuntimeHelpers.GetHashCode(this);
         }
 
@@ -103,8 +93,7 @@ namespace System
         // Allow an object to free resources before the object is reclaimed by the GC.
         // 
         [System.Runtime.Versioning.NonVersionable]
-        ~Object()
-        {
+        ~Object() {
         }
 
         // Returns a new object instance that is a memberwise copy of this 
@@ -118,8 +107,7 @@ namespace System
 
         // Sets the value specified in the variant on the field
         // 
-        private void FieldSetter(String typeName, String fieldName, Object val)
-        {
+        private void FieldSetter(String typeName, String fieldName, Object val) {
             Contract.Requires(typeName != null);
             Contract.Requires(fieldName != null);
 
@@ -132,13 +120,11 @@ namespace System
             // Make sure that the value is compatible with the type
             // of field
             Type pt = fldInfo.FieldType;
-            if (pt.IsByRef)
-            {
+            if (pt.IsByRef) {
                 pt = pt.GetElementType();
             }
 
-            if (!pt.IsInstanceOfType(val))
-            {
+            if (!pt.IsInstanceOfType(val)) {
                 val = Convert.ChangeType(val, pt, CultureInfo.InvariantCulture);
             }
 
@@ -148,8 +134,7 @@ namespace System
 
         // Gets the value specified in the variant on the field
         // 
-        private void FieldGetter(String typeName, String fieldName, ref Object val)
-        {
+        private void FieldGetter(String typeName, String fieldName, ref Object val) {
             Contract.Requires(typeName != null);
             Contract.Requires(fieldName != null);
 
@@ -162,33 +147,28 @@ namespace System
 
         // Gets the field info object given the type name and field name.
         // 
-        private FieldInfo GetFieldInfo(String typeName, String fieldName)
-        {
+        private FieldInfo GetFieldInfo(String typeName, String fieldName) {
             Contract.Requires(typeName != null);
             Contract.Requires(fieldName != null);
             Contract.Ensures(Contract.Result<FieldInfo>() != null);
 
             Type t = GetType();
-            while (null != t)
-            {
-                if (t.FullName.Equals(typeName))
-                {
+            while (null != t) {
+                if (t.FullName.Equals(typeName)) {
                     break;
                 }
 
                 t = t.BaseType;
             }
 
-            if (null == t)
-            {
+            if (null == t) {
                 throw new ArgumentException();
             }
 
             FieldInfo fldInfo = t.GetField(fieldName, BindingFlags.Public |
                                                       BindingFlags.Instance |
                                                       BindingFlags.IgnoreCase);
-            if (null == fldInfo)
-            {
+            if (null == fldInfo) {
                 throw new ArgumentException();
             }
 
@@ -204,19 +184,15 @@ namespace System
     [Serializable]
     [ClassInterface(ClassInterfaceType.AutoDual)]
     [System.Runtime.InteropServices.ComVisible(true)]
-    internal class __Canon
-    {
+    internal class __Canon {
     }
 
     // This class is used to define the name of the base class library
-    internal class CoreLib
-    {
+    internal class CoreLib {
         public const string Name = "System.Private.CoreLib";
 
-        public static string FixupCoreLibName(string strToFixup)
-        {
-            if (!String.IsNullOrEmpty(strToFixup))
-            {
+        public static string FixupCoreLibName(string strToFixup) {
+            if (!String.IsNullOrEmpty(strToFixup)) {
                 strToFixup = strToFixup.Replace("mscorlib", System.CoreLib.Name);
             }
 

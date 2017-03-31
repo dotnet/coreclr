@@ -21,48 +21,38 @@ using System.Runtime.Versioning;
 using System.Security;
 using System.Diagnostics.Contracts;
 
-namespace System
-{
+namespace System {
     [Serializable]
-    public class TypeLoadException : SystemException, ISerializable
-    {
+    public class TypeLoadException : SystemException, ISerializable {
         public TypeLoadException()
-            : base(SR.Arg_TypeLoadException)
-        {
+            : base(SR.Arg_TypeLoadException) {
             SetErrorCode(__HResults.COR_E_TYPELOAD);
         }
 
         public TypeLoadException(String message)
-            : base(message)
-        {
+            : base(message) {
             SetErrorCode(__HResults.COR_E_TYPELOAD);
         }
 
         public TypeLoadException(String message, Exception inner)
-            : base(message, inner)
-        {
+            : base(message, inner) {
             SetErrorCode(__HResults.COR_E_TYPELOAD);
         }
 
-        public override String Message
-        {
-            get
-            {
+        public override String Message {
+            get {
                 SetMessageField();
                 return _message;
             }
         }
 
-        private void SetMessageField()
-        {
-            if (_message == null)
-            {
+        private void SetMessageField() {
+            if (_message == null) {
                 if ((ClassName == null) &&
                     (ResourceId == 0))
                     _message = SR.Arg_TypeLoadException;
 
-                else
-                {
+                else {
                     if (AssemblyName == null)
                         AssemblyName = SR.IO_UnknownFileName;
                     if (ClassName == null)
@@ -75,10 +65,8 @@ namespace System
             }
         }
 
-        public String TypeName
-        {
-            get
-            {
+        public String TypeName {
+            get {
                 if (ClassName == null)
                     return String.Empty;
 
@@ -91,8 +79,7 @@ namespace System
                                   String assemblyName,
                                   String messageArg,
                                   int resourceId)
-        : base(null)
-        {
+        : base(null) {
             SetErrorCode(__HResults.COR_E_TYPELOAD);
             ClassName = className;
             AssemblyName = assemblyName;
@@ -104,8 +91,7 @@ namespace System
             SetMessageField();
         }
 
-        protected TypeLoadException(SerializationInfo info, StreamingContext context) : base(info, context)
-        {
+        protected TypeLoadException(SerializationInfo info, StreamingContext context) : base(info, context) {
             if (info == null)
                 throw new ArgumentNullException(nameof(info));
             Contract.EndContractBlock();
@@ -122,8 +108,7 @@ namespace System
 
         //We can rely on the serialization mechanism on Exception to handle most of our needs, but
         //we need to add a few fields of our own.
-        public override void GetObjectData(SerializationInfo info, StreamingContext context)
-        {
+        public override void GetObjectData(SerializationInfo info, StreamingContext context) {
             if (info == null)
                 throw new ArgumentNullException(nameof(info));
             Contract.EndContractBlock();

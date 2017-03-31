@@ -22,10 +22,8 @@ using System.Diagnostics.Contracts;
 using System.Security;
 using System.Runtime.CompilerServices;
 
-namespace System.Runtime.Serialization
-{
-    public sealed class SerializationInfo
-    {
+namespace System.Runtime.Serialization {
+    public sealed class SerializationInfo {
         private const int defaultSize = 4;
         private const string s_mscorlibAssemblySimpleName = System.CoreLib.Name;
         private const string s_mscorlibFileName = s_mscorlibAssemblySimpleName + ".dll";
@@ -47,20 +45,16 @@ namespace System.Runtime.Serialization
 
         [CLSCompliant(false)]
         public SerializationInfo(Type type, IFormatterConverter converter)
-            : this(type, converter, false)
-        {
+            : this(type, converter, false) {
         }
 
         [CLSCompliant(false)]
-        public SerializationInfo(Type type, IFormatterConverter converter, bool requireSameTokenInPartialTrust)
-        {
-            if ((object)type == null)
-            {
+        public SerializationInfo(Type type, IFormatterConverter converter, bool requireSameTokenInPartialTrust) {
+            if ((object)type == null) {
                 throw new ArgumentNullException(nameof(type));
             }
 
-            if (converter == null)
-            {
+            if (converter == null) {
                 throw new ArgumentNullException(nameof(converter));
             }
 
@@ -81,16 +75,12 @@ namespace System.Runtime.Serialization
             this.requireSameTokenInPartialTrust = requireSameTokenInPartialTrust;
         }
 
-        public String FullTypeName
-        {
-            get
-            {
+        public String FullTypeName {
+            get {
                 return m_fullTypeName;
             }
-            set
-            {
-                if (null == value)
-                {
+            set {
+                if (null == value) {
                     throw new ArgumentNullException(nameof(value));
                 }
                 Contract.EndContractBlock();
@@ -100,21 +90,16 @@ namespace System.Runtime.Serialization
             }
         }
 
-        public String AssemblyName
-        {
-            get
-            {
+        public String AssemblyName {
+            get {
                 return m_assemName;
             }
-            set
-            {
-                if (null == value)
-                {
+            set {
+                if (null == value) {
                     throw new ArgumentNullException(nameof(value));
                 }
                 Contract.EndContractBlock();
-                if (requireSameTokenInPartialTrust)
-                {
+                if (requireSameTokenInPartialTrust) {
                     DemandForUnsafeAssemblyNameAssignments(m_assemName, value);
                 }
                 m_assemName = value;
@@ -122,21 +107,17 @@ namespace System.Runtime.Serialization
             }
         }
 
-        public void SetType(Type type)
-        {
-            if ((object)type == null)
-            {
+        public void SetType(Type type) {
+            if ((object)type == null) {
                 throw new ArgumentNullException(nameof(type));
             }
             Contract.EndContractBlock();
 
-            if (requireSameTokenInPartialTrust)
-            {
+            if (requireSameTokenInPartialTrust) {
                 DemandForUnsafeAssemblyNameAssignments(this.ObjectType.Assembly.FullName, type.Assembly.FullName);
             }
 
-            if (!Object.ReferenceEquals(objectType, type))
-            {
+            if (!Object.ReferenceEquals(objectType, type)) {
                 objectType = type;
                 m_fullTypeName = type.FullName;
                 m_assemName = type.Module.Assembly.FullName;
@@ -145,49 +126,38 @@ namespace System.Runtime.Serialization
             }
         }
 
-        internal static void DemandForUnsafeAssemblyNameAssignments(string originalAssemblyName, string newAssemblyName)
-        {
+        internal static void DemandForUnsafeAssemblyNameAssignments(string originalAssemblyName, string newAssemblyName) {
         }
 
-        public int MemberCount
-        {
-            get
-            {
+        public int MemberCount {
+            get {
                 return m_currMember;
             }
         }
 
-        public Type ObjectType
-        {
-            get
-            {
+        public Type ObjectType {
+            get {
                 return objectType;
             }
         }
 
-        public bool IsFullTypeNameSetExplicit
-        {
-            get
-            {
+        public bool IsFullTypeNameSetExplicit {
+            get {
                 return isFullTypeNameSetExplicit;
             }
         }
 
-        public bool IsAssemblyNameSetExplicit
-        {
-            get
-            {
+        public bool IsAssemblyNameSetExplicit {
+            get {
                 return isAssemblyNameSetExplicit;
             }
         }
 
-        public SerializationInfoEnumerator GetEnumerator()
-        {
+        public SerializationInfoEnumerator GetEnumerator() {
             return new SerializationInfoEnumerator(m_members, m_data, m_types, m_currMember);
         }
 
-        private void ExpandArrays()
-        {
+        private void ExpandArrays() {
             int newSize;
             Debug.Assert(m_members.Length == m_currMember, "[SerializationInfo.ExpandArrays]m_members.Length == m_currMember");
 
@@ -196,10 +166,8 @@ namespace System.Runtime.Serialization
             //
             // In the pathological case, we may wrap
             //
-            if (newSize < m_currMember)
-            {
-                if (Int32.MaxValue > m_currMember)
-                {
+            if (newSize < m_currMember) {
+                if (Int32.MaxValue > m_currMember) {
                     newSize = Int32.MaxValue;
                 }
             }
@@ -223,15 +191,12 @@ namespace System.Runtime.Serialization
             m_types = newTypes;
         }
 
-        public void AddValue(String name, Object value, Type type)
-        {
-            if (null == name)
-            {
+        public void AddValue(String name, Object value, Type type) {
+            if (null == name) {
                 throw new ArgumentNullException(nameof(name));
             }
 
-            if ((object)type == null)
-            {
+            if ((object)type == null) {
                 throw new ArgumentNullException(nameof(type));
             }
             Contract.EndContractBlock();
@@ -239,97 +204,78 @@ namespace System.Runtime.Serialization
             AddValueInternal(name, value, type);
         }
 
-        public void AddValue(String name, Object value)
-        {
-            if (null == value)
-            {
+        public void AddValue(String name, Object value) {
+            if (null == value) {
                 AddValue(name, value, typeof(Object));
             }
-            else
-            {
+            else {
                 AddValue(name, value, value.GetType());
             }
         }
 
-        public void AddValue(String name, bool value)
-        {
+        public void AddValue(String name, bool value) {
             AddValue(name, (Object)value, typeof(bool));
         }
 
-        public void AddValue(String name, char value)
-        {
+        public void AddValue(String name, char value) {
             AddValue(name, (Object)value, typeof(char));
         }
 
 
         [CLSCompliant(false)]
-        public void AddValue(String name, sbyte value)
-        {
+        public void AddValue(String name, sbyte value) {
             AddValue(name, (Object)value, typeof(sbyte));
         }
 
-        public void AddValue(String name, byte value)
-        {
+        public void AddValue(String name, byte value) {
             AddValue(name, (Object)value, typeof(byte));
         }
 
-        public void AddValue(String name, short value)
-        {
+        public void AddValue(String name, short value) {
             AddValue(name, (Object)value, typeof(short));
         }
 
         [CLSCompliant(false)]
-        public void AddValue(String name, ushort value)
-        {
+        public void AddValue(String name, ushort value) {
             AddValue(name, (Object)value, typeof(ushort));
         }
 
-        public void AddValue(String name, int value)
-        {
+        public void AddValue(String name, int value) {
             AddValue(name, (Object)value, typeof(int));
         }
 
         [CLSCompliant(false)]
-        public void AddValue(String name, uint value)
-        {
+        public void AddValue(String name, uint value) {
             AddValue(name, (Object)value, typeof(uint));
         }
 
-        public void AddValue(String name, long value)
-        {
+        public void AddValue(String name, long value) {
             AddValue(name, (Object)value, typeof(long));
         }
 
         [CLSCompliant(false)]
-        public void AddValue(String name, ulong value)
-        {
+        public void AddValue(String name, ulong value) {
             AddValue(name, (Object)value, typeof(ulong));
         }
 
-        public void AddValue(String name, float value)
-        {
+        public void AddValue(String name, float value) {
             AddValue(name, (Object)value, typeof(float));
         }
 
-        public void AddValue(String name, double value)
-        {
+        public void AddValue(String name, double value) {
             AddValue(name, (Object)value, typeof(double));
         }
 
-        public void AddValue(String name, decimal value)
-        {
+        public void AddValue(String name, decimal value) {
             AddValue(name, (Object)value, typeof(decimal));
         }
 
-        public void AddValue(String name, DateTime value)
-        {
+        public void AddValue(String name, DateTime value) {
             AddValue(name, (Object)value, typeof(DateTime));
         }
 
-        internal void AddValueInternal(String name, Object value, Type type)
-        {
-            if (m_nameToIndex.ContainsKey(name))
-            {
+        internal void AddValueInternal(String name, Object value, Type type) {
+            if (m_nameToIndex.ContainsKey(name)) {
                 BCLDebug.Trace("SER", "[SerializationInfo.AddValue]Tried to add ", name, " twice to the SI.");
                 throw new SerializationException(SR.Serialization_SameNameTwice);
             }
@@ -338,8 +284,7 @@ namespace System.Runtime.Serialization
             //
             // If we need to expand the arrays, do so.
             //
-            if (m_currMember >= m_members.Length)
-            {
+            if (m_currMember >= m_members.Length) {
                 ExpandArrays();
             }
 
@@ -366,35 +311,29 @@ namespace System.Runtime.Serialization
         // This should not be used by clients: exposing out this functionality would allow children
         // to overwrite their parent's values. It is public in order to give corefx access to it for
         // its ObjectManager implementation, but it should not be exposed out of a contract.
-        public void UpdateValue(String name, Object value, Type type)
-        {
+        public void UpdateValue(String name, Object value, Type type) {
             Debug.Assert(null != name, "[SerializationInfo.UpdateValue]name!=null");
             Debug.Assert(null != value, "[SerializationInfo.UpdateValue]value!=null");
             Debug.Assert(null != (object)type, "[SerializationInfo.UpdateValue]type!=null");
 
             int index = FindElement(name);
-            if (index < 0)
-            {
+            if (index < 0) {
                 AddValueInternal(name, value, type);
             }
-            else
-            {
+            else {
                 m_data[index] = value;
                 m_types[index] = type;
             }
         }
 
-        private int FindElement(String name)
-        {
-            if (null == name)
-            {
+        private int FindElement(String name) {
+            if (null == name) {
                 throw new ArgumentNullException(nameof(name));
             }
             Contract.EndContractBlock();
             BCLDebug.Trace("SER", "[SerializationInfo.FindElement]Looking for ", name, " CurrMember is: ", m_currMember);
             int index;
-            if (m_nameToIndex.TryGetValue(name, out index))
-            {
+            if (m_nameToIndex.TryGetValue(name, out index)) {
                 return index;
             }
             return -1;
@@ -410,11 +349,9 @@ namespace System.Runtime.Serialization
         **Exceptions: None.  FindElement does null checking and throws for elements not 
         **            found.
         ==============================================================================*/
-        private Object GetElement(String name, out Type foundType)
-        {
+        private Object GetElement(String name, out Type foundType) {
             int index = FindElement(name);
-            if (index == -1)
-            {
+            if (index == -1) {
                 throw new SerializationException(SR.Format(SR.Serialization_NotFound, name));
             }
 
@@ -426,11 +363,9 @@ namespace System.Runtime.Serialization
             return m_data[index];
         }
 
-        private Object GetElementNoThrow(String name, out Type foundType)
-        {
+        private Object GetElementNoThrow(String name, out Type foundType) {
             int index = FindElement(name);
-            if (index == -1)
-            {
+            if (index == -1) {
                 foundType = null;
                 return null;
             }
@@ -448,10 +383,8 @@ namespace System.Runtime.Serialization
         // form requested.  
         //
 
-        public Object GetValue(String name, Type type)
-        {
-            if ((object)type == null)
-            {
+        public Object GetValue(String name, Type type) {
+            if ((object)type == null) {
                 throw new ArgumentNullException(nameof(type));
             }
             Contract.EndContractBlock();
@@ -465,8 +398,7 @@ namespace System.Runtime.Serialization
 
             value = GetElement(name, out foundType);
 
-            if (Object.ReferenceEquals(foundType, type) || type.IsAssignableFrom(foundType) || value == null)
-            {
+            if (Object.ReferenceEquals(foundType, type) || type.IsAssignableFrom(foundType) || value == null) {
                 return value;
             }
 
@@ -475,8 +407,7 @@ namespace System.Runtime.Serialization
             return m_converter.Convert(value, type);
         }
 
-        internal Object GetValueNoThrow(String name, Type type)
-        {
+        internal Object GetValueNoThrow(String name, Type type) {
             Type foundType;
             Object value;
 
@@ -487,8 +418,7 @@ namespace System.Runtime.Serialization
             if (value == null)
                 return null;
 
-            if (Object.ReferenceEquals(foundType, type) || type.IsAssignableFrom(foundType) || value == null)
-            {
+            if (Object.ReferenceEquals(foundType, type) || type.IsAssignableFrom(foundType) || value == null) {
                 return value;
             }
 
@@ -497,201 +427,171 @@ namespace System.Runtime.Serialization
             return m_converter.Convert(value, type);
         }
 
-        public bool GetBoolean(String name)
-        {
+        public bool GetBoolean(String name) {
             Type foundType;
             Object value;
 
             value = GetElement(name, out foundType);
-            if (Object.ReferenceEquals(foundType, typeof(bool)))
-            {
+            if (Object.ReferenceEquals(foundType, typeof(bool))) {
                 return (bool)value;
             }
             return m_converter.ToBoolean(value);
         }
 
-        public char GetChar(String name)
-        {
+        public char GetChar(String name) {
             Type foundType;
             Object value;
 
             value = GetElement(name, out foundType);
-            if (Object.ReferenceEquals(foundType, typeof(char)))
-            {
+            if (Object.ReferenceEquals(foundType, typeof(char))) {
                 return (char)value;
             }
             return m_converter.ToChar(value);
         }
 
         [CLSCompliant(false)]
-        public sbyte GetSByte(String name)
-        {
+        public sbyte GetSByte(String name) {
             Type foundType;
             Object value;
 
             value = GetElement(name, out foundType);
-            if (Object.ReferenceEquals(foundType, typeof(sbyte)))
-            {
+            if (Object.ReferenceEquals(foundType, typeof(sbyte))) {
                 return (sbyte)value;
             }
             return m_converter.ToSByte(value);
         }
 
-        public byte GetByte(String name)
-        {
+        public byte GetByte(String name) {
             Type foundType;
             Object value;
 
             value = GetElement(name, out foundType);
-            if (Object.ReferenceEquals(foundType, typeof(byte)))
-            {
+            if (Object.ReferenceEquals(foundType, typeof(byte))) {
                 return (byte)value;
             }
             return m_converter.ToByte(value);
         }
 
-        public short GetInt16(String name)
-        {
+        public short GetInt16(String name) {
             Type foundType;
             Object value;
 
             value = GetElement(name, out foundType);
-            if (Object.ReferenceEquals(foundType, typeof(short)))
-            {
+            if (Object.ReferenceEquals(foundType, typeof(short))) {
                 return (short)value;
             }
             return m_converter.ToInt16(value);
         }
 
         [CLSCompliant(false)]
-        public ushort GetUInt16(String name)
-        {
+        public ushort GetUInt16(String name) {
             Type foundType;
             Object value;
 
             value = GetElement(name, out foundType);
-            if (Object.ReferenceEquals(foundType, typeof(ushort)))
-            {
+            if (Object.ReferenceEquals(foundType, typeof(ushort))) {
                 return (ushort)value;
             }
             return m_converter.ToUInt16(value);
         }
 
-        public int GetInt32(String name)
-        {
+        public int GetInt32(String name) {
             Type foundType;
             Object value;
 
             value = GetElement(name, out foundType);
-            if (Object.ReferenceEquals(foundType, typeof(int)))
-            {
+            if (Object.ReferenceEquals(foundType, typeof(int))) {
                 return (int)value;
             }
             return m_converter.ToInt32(value);
         }
 
         [CLSCompliant(false)]
-        public uint GetUInt32(String name)
-        {
+        public uint GetUInt32(String name) {
             Type foundType;
             Object value;
 
             value = GetElement(name, out foundType);
-            if (Object.ReferenceEquals(foundType, typeof(uint)))
-            {
+            if (Object.ReferenceEquals(foundType, typeof(uint))) {
                 return (uint)value;
             }
             return m_converter.ToUInt32(value);
         }
 
-        public long GetInt64(String name)
-        {
+        public long GetInt64(String name) {
             Type foundType;
             Object value;
 
             value = GetElement(name, out foundType);
-            if (Object.ReferenceEquals(foundType, typeof(long)))
-            {
+            if (Object.ReferenceEquals(foundType, typeof(long))) {
                 return (long)value;
             }
             return m_converter.ToInt64(value);
         }
 
         [CLSCompliant(false)]
-        public ulong GetUInt64(String name)
-        {
+        public ulong GetUInt64(String name) {
             Type foundType;
             Object value;
 
             value = GetElement(name, out foundType);
-            if (Object.ReferenceEquals(foundType, typeof(ulong)))
-            {
+            if (Object.ReferenceEquals(foundType, typeof(ulong))) {
                 return (ulong)value;
             }
             return m_converter.ToUInt64(value);
         }
 
-        public float GetSingle(String name)
-        {
+        public float GetSingle(String name) {
             Type foundType;
             Object value;
 
             value = GetElement(name, out foundType);
-            if (Object.ReferenceEquals(foundType, typeof(float)))
-            {
+            if (Object.ReferenceEquals(foundType, typeof(float))) {
                 return (float)value;
             }
             return m_converter.ToSingle(value);
         }
 
 
-        public double GetDouble(String name)
-        {
+        public double GetDouble(String name) {
             Type foundType;
             Object value;
 
             value = GetElement(name, out foundType);
-            if (Object.ReferenceEquals(foundType, typeof(double)))
-            {
+            if (Object.ReferenceEquals(foundType, typeof(double))) {
                 return (double)value;
             }
             return m_converter.ToDouble(value);
         }
 
-        public decimal GetDecimal(String name)
-        {
+        public decimal GetDecimal(String name) {
             Type foundType;
             Object value;
 
             value = GetElement(name, out foundType);
-            if (Object.ReferenceEquals(foundType, typeof(decimal)))
-            {
+            if (Object.ReferenceEquals(foundType, typeof(decimal))) {
                 return (decimal)value;
             }
             return m_converter.ToDecimal(value);
         }
 
-        public DateTime GetDateTime(String name)
-        {
+        public DateTime GetDateTime(String name) {
             Type foundType;
             Object value;
 
             value = GetElement(name, out foundType);
-            if (Object.ReferenceEquals(foundType, typeof(DateTime)))
-            {
+            if (Object.ReferenceEquals(foundType, typeof(DateTime))) {
                 return (DateTime)value;
             }
             return m_converter.ToDateTime(value);
         }
 
-        public String GetString(String name)
-        {
+        public String GetString(String name) {
             Type foundType;
             Object value;
 
             value = GetElement(name, out foundType);
-            if (Object.ReferenceEquals(foundType, typeof(String)) || value == null)
-            {
+            if (Object.ReferenceEquals(foundType, typeof(String)) || value == null) {
                 return (String)value;
             }
             return m_converter.ToString(value);

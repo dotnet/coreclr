@@ -15,11 +15,9 @@
 
 using System;
 
-namespace System.Diagnostics.SymbolStore
-{
+namespace System.Diagnostics.SymbolStore {
     // Interface does not need to be marked with the serializable attribute
-    public interface ISymbolDocumentWriter
-    {
+    public interface ISymbolDocumentWriter {
         // SetSource will store the raw source for a document into the
         // symbol store. An array of unsigned bytes is used instead of
         // character data to accommodate a wider variety of "source".

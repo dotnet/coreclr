@@ -17,12 +17,10 @@ using System.Diagnostics;
 using System.Diagnostics.Contracts;
 using System.Runtime.Serialization;
 
-namespace System.Globalization
-{
+namespace System.Globalization {
     [Flags]
     [Serializable]
-    public enum CompareOptions
-    {
+    public enum CompareOptions {
         None = 0x00000000,
         IgnoreCase = 0x00000001,
         IgnoreNonSpace = 0x00000002,
@@ -35,8 +33,7 @@ namespace System.Globalization
     }
 
     [Serializable]
-    public partial class CompareInfo : IDeserializationCallback
-    {
+    public partial class CompareInfo : IDeserializationCallback {
         // Mask used to check if IndexOf()/LastIndexOf()/IsPrefix()/IsPostfix() has the right flags.
         private const CompareOptions ValidIndexMaskOffFlags =
             ~(CompareOptions.IgnoreCase | CompareOptions.IgnoreSymbols | CompareOptions.IgnoreNonSpace |
@@ -75,8 +72,7 @@ namespace System.Globalization
         [NonSerialized] 
         private readonly bool _invariantMode = GlobalizationMode.Invariant;
 
-        internal CompareInfo(CultureInfo culture)
-        {
+        internal CompareInfo(CultureInfo culture) {
             _name = culture._name;
             InitSort(culture);
         }
@@ -93,15 +89,12 @@ namespace System.Globalization
         **  ArgumentException if culture is invalid.
         ============================================================================*/
         // Assembly constructor should be deprecated, we don't act on the assembly information any more
-        public static CompareInfo GetCompareInfo(int culture, Assembly assembly)
-        {
+        public static CompareInfo GetCompareInfo(int culture, Assembly assembly) {
             // Parameter checking.
-            if (assembly == null)
-            {
+            if (assembly == null) {
                 throw new ArgumentNullException(nameof(assembly));
             }
-            if (assembly != typeof(Object).Module.Assembly) 
-            {
+            if (assembly != typeof(Object).Module.Assembly) {
                 throw new ArgumentException(SR.Argument_OnlyMscorlib);
             }
             Contract.EndContractBlock();
@@ -121,16 +114,13 @@ namespace System.Globalization
         **  ArgumentException if name is invalid.
         ============================================================================*/
         // Assembly constructor should be deprecated, we don't act on the assembly information any more
-        public static CompareInfo GetCompareInfo(string name, Assembly assembly)
-        {
-            if (name == null || assembly == null)
-            {
+        public static CompareInfo GetCompareInfo(string name, Assembly assembly) {
+            if (name == null || assembly == null) {
                 throw new ArgumentNullException(name == null ? nameof(name) : nameof(assembly));
             }
             Contract.EndContractBlock();
 
-            if (assembly != typeof(Object).Module.Assembly)
-            {
+            if (assembly != typeof(Object).Module.Assembly) {
                 throw new ArgumentException(SR.Argument_OnlyMscorlib);
             }
 
@@ -147,10 +137,8 @@ namespace System.Globalization
         **  ArgumentException if culture is invalid.
         ============================================================================*/
         // People really shouldn't be calling LCID versions, no custom support
-        public static CompareInfo GetCompareInfo(int culture)
-        {
-            if (CultureData.IsCustomCultureId(culture))
-            {
+        public static CompareInfo GetCompareInfo(int culture) {
+            if (CultureData.IsCustomCultureId(culture)) {
                 // Customized culture cannot be created by the LCID.
                 throw new ArgumentException(SR.Argument_CustomCultureCannotBePassedByNumber, nameof(culture));
             }
@@ -167,10 +155,8 @@ namespace System.Globalization
         **  ArgumentException if name is invalid.
         ============================================================================*/
 
-        public static CompareInfo GetCompareInfo(string name)
-        {
-            if (name == null)
-            {
+        public static CompareInfo GetCompareInfo(string name) {
+            if (name == null) {
                 throw new ArgumentNullException(nameof(name));
             }
             Contract.EndContractBlock();
@@ -178,63 +164,51 @@ namespace System.Globalization
             return CultureInfo.GetCultureInfo(name).CompareInfo;
         }
 
-        public static unsafe bool IsSortable(char ch)
-        {
-            if (GlobalizationMode.Invariant)
-            {
+        public static unsafe bool IsSortable(char ch) {
+            if (GlobalizationMode.Invariant) {
                 return true;
             }
             char *pChar = &ch;
             return IsSortable(pChar, 1);
         }
 
-        public static unsafe bool IsSortable(string text)
-        {
-            if (text == null) 
-            {
+        public static unsafe bool IsSortable(string text) {
+            if (text == null) {
                 // A null param is invalid here.
                 throw new ArgumentNullException(nameof(text));
             }
 
-            if (text.Length == 0)
-            {
+            if (text.Length == 0) {
                 // A zero length string is not invalid, but it is also not sortable.
                 return (false);
             }
 
-            if (GlobalizationMode.Invariant)
-            {
+            if (GlobalizationMode.Invariant) {
                 return true;
             }
             
-            fixed (char *pChar = text)
-            {
+            fixed (char *pChar = text) {
                 return IsSortable(pChar, text.Length);
             }
         }
 
 
         [OnDeserializing]
-        private void OnDeserializing(StreamingContext ctx)
-        {
+        private void OnDeserializing(StreamingContext ctx) {
             _name = null;
         }
 
-        void IDeserializationCallback.OnDeserialization(Object sender)
-        {
+        void IDeserializationCallback.OnDeserialization(Object sender) {
             OnDeserialized();
         }
 
         [OnDeserialized]
-        private void OnDeserialized(StreamingContext ctx)
-        {
+        private void OnDeserialized(StreamingContext ctx) {
             OnDeserialized();
         }
 
-        private void OnDeserialized()
-        {
-            if (_name != null)
-            {
+        private void OnDeserialized() {
+            if (_name != null) {
                 InitSort(CultureInfo.GetCultureInfo(_name));
             }
         }
@@ -255,13 +229,10 @@ namespace System.Globalization
         //
         ////////////////////////////////////////////////////////////////////////
 
-        public virtual string Name
-        {
-            get
-            {
+        public virtual string Name {
+            get {
                 Debug.Assert(_name != null, "CompareInfo.Name Expected _name to be set");
-                if (_name == "zh-CHT" || _name == "zh-CHS")
-                {
+                if (_name == "zh-CHT" || _name == "zh-CHS") {
                     return _name;
                 }
 
@@ -280,51 +251,41 @@ namespace System.Globalization
         //
         ////////////////////////////////////////////////////////////////////////
 
-        public virtual int Compare(string string1, string string2)
-        {
+        public virtual int Compare(string string1, string string2) {
             return (Compare(string1, string2, CompareOptions.None));
         }
 
-        public unsafe virtual int Compare(string string1, string string2, CompareOptions options)
-        {
-            if (options == CompareOptions.OrdinalIgnoreCase)
-            {
+        public unsafe virtual int Compare(string string1, string string2, CompareOptions options) {
+            if (options == CompareOptions.OrdinalIgnoreCase) {
                 return String.Compare(string1, string2, StringComparison.OrdinalIgnoreCase);
             }
 
             // Verify the options before we do any real comparison.
-            if ((options & CompareOptions.Ordinal) != 0)
-            {
-                if (options != CompareOptions.Ordinal)
-                {
+            if ((options & CompareOptions.Ordinal) != 0) {
+                if (options != CompareOptions.Ordinal) {
                     throw new ArgumentException(SR.Argument_CompareOptionOrdinal, nameof(options));
                 }
 
                 return String.CompareOrdinal(string1, string2);
             }
 
-            if ((options & ValidCompareMaskOffFlags) != 0)
-            {
+            if ((options & ValidCompareMaskOffFlags) != 0) {
                 throw new ArgumentException(SR.Argument_InvalidFlag, nameof(options));
             }
 
             //Our paradigm is that null sorts less than any other string and
             //that two nulls sort as equal.
-            if (string1 == null)
-            {
-                if (string2 == null)
-                {
+            if (string1 == null) {
+                if (string2 == null) {
                     return (0);     // Equal
                 }
                 return (-1);    // null < non-null
             }
-            if (string2 == null)
-            {
+            if (string2 == null) {
                 return (1);     // non-null > null
             }
 
-            if (_invariantMode)
-            {
+            if (_invariantMode) {
                 if ((options & CompareOptions.IgnoreCase) != 0)
                     return CompareOrdinalIgnoreCase(string1, 0, string1.Length, string2, 0, string2.Length);
 
@@ -348,29 +309,24 @@ namespace System.Globalization
         ////////////////////////////////////////////////////////////////////////
 
 
-        public unsafe virtual int Compare(string string1, int offset1, int length1, string string2, int offset2, int length2)
-        {
+        public unsafe virtual int Compare(string string1, int offset1, int length1, string string2, int offset2, int length2) {
             return Compare(string1, offset1, length1, string2, offset2, length2, 0);
         }
 
 
-        public virtual int Compare(string string1, int offset1, string string2, int offset2, CompareOptions options)
-        {
+        public virtual int Compare(string string1, int offset1, string string2, int offset2, CompareOptions options) {
             return Compare(string1, offset1, string1 == null ? 0 : string1.Length - offset1,
                            string2, offset2, string2 == null ? 0 : string2.Length - offset2, options);
         }
 
 
-        public virtual int Compare(string string1, int offset1, string string2, int offset2)
-        {
+        public virtual int Compare(string string1, int offset1, string string2, int offset2) {
             return Compare(string1, offset1, string2, offset2, 0);
         }
 
 
-        public virtual int Compare(string string1, int offset1, int length1, string string2, int offset2, int length2, CompareOptions options)
-        {
-            if (options == CompareOptions.OrdinalIgnoreCase)
-            {
+        public virtual int Compare(string string1, int offset1, int length1, string string2, int offset2, int length2, CompareOptions options) {
+            if (options == CompareOptions.OrdinalIgnoreCase) {
                 int result = String.Compare(string1, offset1, string2, offset2, length1 < length2 ? length1 : length2, StringComparison.OrdinalIgnoreCase);
                 if ((length1 != length2) && result == 0)
                     return (length1 > length2 ? 1 : -1);
@@ -378,59 +334,47 @@ namespace System.Globalization
             }
 
             // Verify inputs
-            if (length1 < 0 || length2 < 0)
-            {
+            if (length1 < 0 || length2 < 0) {
                 throw new ArgumentOutOfRangeException((length1 < 0) ? nameof(length1) : nameof(length2), SR.ArgumentOutOfRange_NeedPosNum);
             }
-            if (offset1 < 0 || offset2 < 0)
-            {
+            if (offset1 < 0 || offset2 < 0) {
                 throw new ArgumentOutOfRangeException((offset1 < 0) ? nameof(offset1) : nameof(offset2), SR.ArgumentOutOfRange_NeedPosNum);
             }
-            if (offset1 > (string1 == null ? 0 : string1.Length) - length1)
-            {
+            if (offset1 > (string1 == null ? 0 : string1.Length) - length1) {
                 throw new ArgumentOutOfRangeException(nameof(string1), SR.ArgumentOutOfRange_OffsetLength);
             }
-            if (offset2 > (string2 == null ? 0 : string2.Length) - length2)
-            {
+            if (offset2 > (string2 == null ? 0 : string2.Length) - length2) {
                 throw new ArgumentOutOfRangeException(nameof(string2), SR.ArgumentOutOfRange_OffsetLength);
             }
-            if ((options & CompareOptions.Ordinal) != 0)
-            {
-                if (options != CompareOptions.Ordinal)
-                {
+            if ((options & CompareOptions.Ordinal) != 0) {
+                if (options != CompareOptions.Ordinal) {
                     throw new ArgumentException(SR.Argument_CompareOptionOrdinal,
                                                 nameof(options));
                 }
             }
-            else if ((options & ValidCompareMaskOffFlags) != 0)
-            {
+            else if ((options & ValidCompareMaskOffFlags) != 0) {
                 throw new ArgumentException(SR.Argument_InvalidFlag, nameof(options));
             }
 
             //
             // Check for the null case.
             //
-            if (string1 == null)
-            {
-                if (string2 == null)
-                {
+            if (string1 == null) {
+                if (string2 == null) {
                     return (0);
                 }
                 return (-1);
             }
-            if (string2 == null)
-            {
+            if (string2 == null) {
                 return (1);
             }
 
-            if (options == CompareOptions.Ordinal)
-            {
+            if (options == CompareOptions.Ordinal) {
                 return CompareOrdinal(string1, offset1, length1,
                                       string2, offset2, length2);
             }
 
-            if (_invariantMode)
-            {
+            if (_invariantMode) {
                 if ((options & CompareOptions.IgnoreCase) != 0)
                     return CompareOrdinalIgnoreCase(string1, offset1, length1, string2, offset2, length2);
 
@@ -442,12 +386,10 @@ namespace System.Globalization
                                  options);
         }
 
-        private static int CompareOrdinal(string string1, int offset1, int length1, string string2, int offset2, int length2)
-        {
+        private static int CompareOrdinal(string string1, int offset1, int length1, string string2, int offset2, int length2) {
             int result = String.CompareOrdinal(string1, offset1, string2, offset2,
                                                        (length1 < length2 ? length1 : length2));
-            if ((length1 != length2) && result == 0)
-            {
+            if ((length1 != length2) && result == 0) {
                 return (length1 > length2 ? 1 : -1);
             }
             return (result);
@@ -458,29 +400,25 @@ namespace System.Globalization
         // it assumes the strings are Ascii string till we hit non Ascii character in strA or strB and then we continue the comparison by
         // calling the OS.
         //
-        internal static unsafe int CompareOrdinalIgnoreCase(string strA, int indexA, int lengthA, string strB, int indexB, int lengthB)
-        {
+        internal static unsafe int CompareOrdinalIgnoreCase(string strA, int indexA, int lengthA, string strB, int indexB, int lengthB) {
             Debug.Assert(indexA + lengthA <= strA.Length);
             Debug.Assert(indexB + lengthB <= strB.Length);
 
             int length = Math.Min(lengthA, lengthB);
             int range = length;
 
-            fixed (char* ap = strA) fixed (char* bp = strB)
-            {
+            fixed (char* ap = strA) fixed (char* bp = strB) {
                 char* a = ap + indexA;
                 char* b = bp + indexB;
 
                 // in InvariantMode we support all range and not only the ascii characters.
                 char maxChar = (char) (GlobalizationMode.Invariant ? 0xFFFF : 0x80);
 
-                while (length != 0 && (*a <= maxChar) && (*b <= maxChar))
-                {
+                while (length != 0 && (*a <= maxChar) && (*b <= maxChar)) {
                     int charA = *a;
                     int charB = *b;
 
-                    if (charA == charB)
-                    {
+                    if (charA == charB) {
                         a++; b++;
                         length--;
                         continue;
@@ -518,50 +456,41 @@ namespace System.Globalization
         //  String.Empty, true is returned.
         //
         ////////////////////////////////////////////////////////////////////////
-        public virtual bool IsPrefix(string source, string prefix, CompareOptions options)
-        {
-            if (source == null || prefix == null)
-            {
+        public virtual bool IsPrefix(string source, string prefix, CompareOptions options) {
+            if (source == null || prefix == null) {
                 throw new ArgumentNullException((source == null ? nameof(source) : nameof(prefix)),
                     SR.ArgumentNull_String);
             }
             Contract.EndContractBlock();
 
-            if (prefix.Length == 0)
-            {
+            if (prefix.Length == 0) {
                 return (true);
             }
 
-            if (source.Length == 0)
-            {
+            if (source.Length == 0) {
                 return false;
             }
 
-            if (options == CompareOptions.OrdinalIgnoreCase)
-            {
+            if (options == CompareOptions.OrdinalIgnoreCase) {
                 return source.StartsWith(prefix, StringComparison.OrdinalIgnoreCase);
             }
 
-            if (options == CompareOptions.Ordinal)
-            {
+            if (options == CompareOptions.Ordinal) {
                 return source.StartsWith(prefix, StringComparison.Ordinal);
             }
 
-            if ((options & ValidIndexMaskOffFlags) != 0)
-            {
+            if ((options & ValidIndexMaskOffFlags) != 0) {
                 throw new ArgumentException(SR.Argument_InvalidFlag, nameof(options));
             }
 
-            if (_invariantMode)
-            {
+            if (_invariantMode) {
                 return source.StartsWith(prefix, (options & CompareOptions.IgnoreCase) != 0 ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal);
             }
 
             return StartsWith(source, prefix, options);
         }
 
-        public virtual bool IsPrefix(string source, string prefix)
-        {
+        public virtual bool IsPrefix(string source, string prefix) {
             return (IsPrefix(source, prefix, 0));
         }
 
@@ -573,42 +502,34 @@ namespace System.Globalization
         //  String.Empty, true is returned.
         //
         ////////////////////////////////////////////////////////////////////////
-        public virtual bool IsSuffix(string source, string suffix, CompareOptions options)
-        {
-            if (source == null || suffix == null)
-            {
+        public virtual bool IsSuffix(string source, string suffix, CompareOptions options) {
+            if (source == null || suffix == null) {
                 throw new ArgumentNullException((source == null ? nameof(source) : nameof(suffix)),
                     SR.ArgumentNull_String);
             }
             Contract.EndContractBlock();
 
-            if (suffix.Length == 0)
-            {
+            if (suffix.Length == 0) {
                 return (true);
             }
 
-            if (source.Length == 0)
-            {
+            if (source.Length == 0) {
                 return false;
             }
 
-            if (options == CompareOptions.OrdinalIgnoreCase)
-            {
+            if (options == CompareOptions.OrdinalIgnoreCase) {
                 return source.EndsWith(suffix, StringComparison.OrdinalIgnoreCase);
             }
 
-            if (options == CompareOptions.Ordinal)
-            {
+            if (options == CompareOptions.Ordinal) {
                 return source.EndsWith(suffix, StringComparison.Ordinal);
             }
 
-            if ((options & ValidIndexMaskOffFlags) != 0)
-            {
+            if ((options & ValidIndexMaskOffFlags) != 0) {
                 throw new ArgumentException(SR.Argument_InvalidFlag, nameof(options));
             }
 
-            if (_invariantMode)
-            {
+            if (_invariantMode) {
                 return source.EndsWith(suffix, (options & CompareOptions.IgnoreCase) != 0 ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal);
             }
 
@@ -616,8 +537,7 @@ namespace System.Globalization
         }
 
 
-        public virtual bool IsSuffix(string source, string suffix)
-        {
+        public virtual bool IsSuffix(string source, string suffix) {
             return (IsSuffix(source, suffix, 0));
         }
 
@@ -635,8 +555,7 @@ namespace System.Globalization
         ////////////////////////////////////////////////////////////////////////
 
 
-        public virtual int IndexOf(string source, char value)
-        {
+        public virtual int IndexOf(string source, char value) {
             if (source == null)
                 throw new ArgumentNullException(nameof(source));
             Contract.EndContractBlock();
@@ -645,8 +564,7 @@ namespace System.Globalization
         }
 
 
-        public virtual int IndexOf(string source, string value)
-        {
+        public virtual int IndexOf(string source, string value) {
             if (source == null)
                 throw new ArgumentNullException(nameof(source));
             Contract.EndContractBlock();
@@ -655,8 +573,7 @@ namespace System.Globalization
         }
 
 
-        public virtual int IndexOf(string source, char value, CompareOptions options)
-        {
+        public virtual int IndexOf(string source, char value, CompareOptions options) {
             if (source == null)
                 throw new ArgumentNullException(nameof(source));
             Contract.EndContractBlock();
@@ -665,8 +582,7 @@ namespace System.Globalization
         }
 
 
-        public virtual int IndexOf(string source, string value, CompareOptions options)
-        {
+        public virtual int IndexOf(string source, string value, CompareOptions options) {
             if (source == null)
                 throw new ArgumentNullException(nameof(source));
             Contract.EndContractBlock();
@@ -674,8 +590,7 @@ namespace System.Globalization
             return IndexOf(source, value, 0, source.Length, options);
         }
 
-        public virtual int IndexOf(string source, char value, int startIndex)
-        {
+        public virtual int IndexOf(string source, char value, int startIndex) {
             if (source == null)
                 throw new ArgumentNullException(nameof(source));
             Contract.EndContractBlock();
@@ -683,8 +598,7 @@ namespace System.Globalization
             return IndexOf(source, value, startIndex, source.Length - startIndex, CompareOptions.None);
         }
 
-        public virtual int IndexOf(string source, string value, int startIndex)
-        {
+        public virtual int IndexOf(string source, string value, int startIndex) {
             if (source == null)
                 throw new ArgumentNullException(nameof(source));
             Contract.EndContractBlock();
@@ -692,8 +606,7 @@ namespace System.Globalization
             return IndexOf(source, value, startIndex, source.Length - startIndex, CompareOptions.None);
         }
 
-        public virtual int IndexOf(string source, char value, int startIndex, CompareOptions options)
-        {
+        public virtual int IndexOf(string source, char value, int startIndex, CompareOptions options) {
             if (source == null)
                 throw new ArgumentNullException(nameof(source));
             Contract.EndContractBlock();
@@ -702,8 +615,7 @@ namespace System.Globalization
         }
 
 
-        public virtual int IndexOf(string source, string value, int startIndex, CompareOptions options)
-        {
+        public virtual int IndexOf(string source, string value, int startIndex, CompareOptions options) {
             if (source == null)
                 throw new ArgumentNullException(nameof(source));
             Contract.EndContractBlock();
@@ -712,19 +624,16 @@ namespace System.Globalization
         }
 
 
-        public virtual int IndexOf(string source, char value, int startIndex, int count)
-        {
+        public virtual int IndexOf(string source, char value, int startIndex, int count) {
             return IndexOf(source, value, startIndex, count, CompareOptions.None);
         }
 
 
-        public virtual int IndexOf(string source, string value, int startIndex, int count)
-        {
+        public virtual int IndexOf(string source, string value, int startIndex, int count) {
             return IndexOf(source, value, startIndex, count, CompareOptions.None);
         }
 
-        public unsafe virtual int IndexOf(string source, char value, int startIndex, int count, CompareOptions options)
-        {
+        public unsafe virtual int IndexOf(string source, char value, int startIndex, int count, CompareOptions options) {
             // Validate inputs
             if (source == null)
                 throw new ArgumentNullException(nameof(source));
@@ -736,8 +645,7 @@ namespace System.Globalization
                 throw new ArgumentOutOfRangeException(nameof(count), SR.ArgumentOutOfRange_Count);
             Contract.EndContractBlock();
 
-            if (options == CompareOptions.OrdinalIgnoreCase)
-            {
+            if (options == CompareOptions.OrdinalIgnoreCase) {
                 return source.IndexOf(value.ToString(), startIndex, count, StringComparison.OrdinalIgnoreCase);
             }
 
@@ -753,41 +661,35 @@ namespace System.Globalization
         }
 
 
-        public unsafe virtual int IndexOf(string source, string value, int startIndex, int count, CompareOptions options)
-        {
+        public unsafe virtual int IndexOf(string source, string value, int startIndex, int count, CompareOptions options) {
             // Validate inputs
             if (source == null)
                 throw new ArgumentNullException(nameof(source));
             if (value == null)
                 throw new ArgumentNullException(nameof(value));
 
-            if (startIndex > source.Length)
-            {
+            if (startIndex > source.Length) {
                 throw new ArgumentOutOfRangeException(nameof(startIndex), SR.ArgumentOutOfRange_Index);
             }
             Contract.EndContractBlock();
 
             // In Everett we used to return -1 for empty string even if startIndex is negative number so we keeping same behavior here.
             // We return 0 if both source and value are empty strings for Everett compatibility too.
-            if (source.Length == 0)
-            {
-                if (value.Length == 0)
-                {
+            if (source.Length == 0) {
+                if (value.Length == 0) {
                     return 0;
                 }
                 return -1;
             }
 
-            if (startIndex < 0)
-            {
+            if (startIndex < 0) {
                 throw new ArgumentOutOfRangeException(nameof(startIndex), SR.ArgumentOutOfRange_Index);
             }
 
             if (count < 0 || startIndex > source.Length - count)
                 throw new ArgumentOutOfRangeException(nameof(count), SR.ArgumentOutOfRange_Count);
 
-            if (options == CompareOptions.OrdinalIgnoreCase)
-            {
+            if (options == CompareOptions.OrdinalIgnoreCase) {
                 return IndexOfOrdinal(source, value, startIndex, count, ignoreCase: true);
             }
 
@@ -802,10 +704,8 @@ namespace System.Globalization
             return IndexOfCore(source, value, startIndex, count, options, null);
         }
 
-        internal int IndexOfOrdinal(string source, string value, int startIndex, int count, bool ignoreCase)
-        {
-            if (_invariantMode)
-            {
+        internal int IndexOfOrdinal(string source, string value, int startIndex, int count, bool ignoreCase) {
+            if (_invariantMode) {
                 return InvariantIndexOf(source, value, startIndex, count, ignoreCase);
             }
 
@@ -826,8 +726,7 @@ namespace System.Globalization
         ////////////////////////////////////////////////////////////////////////
 
 
-        public virtual int LastIndexOf(String source, char value)
-        {
+        public virtual int LastIndexOf(String source, char value) {
             if (source == null)
                 throw new ArgumentNullException(nameof(source));
             Contract.EndContractBlock();
@@ -837,8 +736,7 @@ namespace System.Globalization
         }
 
 
-        public virtual int LastIndexOf(string source, string value)
-        {
+        public virtual int LastIndexOf(string source, string value) {
             if (source == null)
                 throw new ArgumentNullException(nameof(source));
             Contract.EndContractBlock();
@@ -849,8 +747,7 @@ namespace System.Globalization
         }
 
 
-        public virtual int LastIndexOf(string source, char value, CompareOptions options)
-        {
+        public virtual int LastIndexOf(string source, char value, CompareOptions options) {
             if (source == null)
                 throw new ArgumentNullException(nameof(source));
             Contract.EndContractBlock();
@@ -860,8 +757,7 @@ namespace System.Globalization
                 source.Length, options);
         }
 
-        public virtual int LastIndexOf(string source, string value, CompareOptions options)
-        {
+        public virtual int LastIndexOf(string source, string value, CompareOptions options) {
             if (source == null)
                 throw new ArgumentNullException(nameof(source));
             Contract.EndContractBlock();
@@ -870,43 +766,36 @@ namespace System.Globalization
             return LastIndexOf(source, value, source.Length - 1, source.Length, options);
         }
 
-        public virtual int LastIndexOf(string source, char value, int startIndex)
-        {
+        public virtual int LastIndexOf(string source, char value, int startIndex) {
             return LastIndexOf(source, value, startIndex, startIndex + 1, CompareOptions.None);
         }
 
 
-        public virtual int LastIndexOf(string source, string value, int startIndex)
-        {
+        public virtual int LastIndexOf(string source, string value, int startIndex) {
             return LastIndexOf(source, value, startIndex, startIndex + 1, CompareOptions.None);
         }
 
-        public virtual int LastIndexOf(string source, char value, int startIndex, CompareOptions options)
-        {
+        public virtual int LastIndexOf(string source, char value, int startIndex, CompareOptions options) {
             return LastIndexOf(source, value, startIndex, startIndex + 1, options);
         }
 
 
-        public virtual int LastIndexOf(string source, string value, int startIndex, CompareOptions options)
-        {
+        public virtual int LastIndexOf(string source, string value, int startIndex, CompareOptions options) {
             return LastIndexOf(source, value, startIndex, startIndex + 1, options);
         }
 
 
-        public virtual int LastIndexOf(string source, char value, int startIndex, int count)
-        {
+        public virtual int LastIndexOf(string source, char value, int startIndex, int count) {
             return LastIndexOf(source, value, startIndex, count, CompareOptions.None);
         }
 
 
-        public virtual int LastIndexOf(string source, string value, int startIndex, int count)
-        {
+        public virtual int LastIndexOf(string source, string value, int startIndex, int count) {
             return LastIndexOf(source, value, startIndex, count, CompareOptions.None);
         }
 
 
-        public virtual int LastIndexOf(string source, char value, int startIndex, int count, CompareOptions options)
-        {
+        public virtual int LastIndexOf(string source, char value, int startIndex, int count, CompareOptions options) {
             // Verify Arguments
             if (source == null)
                 throw new ArgumentNullException(nameof(source));
@@ -928,8 +817,7 @@ namespace System.Globalization
                 throw new ArgumentOutOfRangeException(nameof(startIndex), SR.ArgumentOutOfRange_Index);
 
             // Make sure that we allow startIndex == source.Length
-            if (startIndex == source.Length)
-            {
+            if (startIndex == source.Length) {
                 startIndex--;
                 if (count > 0)
                     count--;
@@ -939,8 +827,7 @@ namespace System.Globalization
             if (count < 0 || startIndex - count + 1 < 0)
                 throw new ArgumentOutOfRangeException(nameof(count), SR.ArgumentOutOfRange_Count);
 
-            if (options == CompareOptions.OrdinalIgnoreCase)
-            {
+            if (options == CompareOptions.OrdinalIgnoreCase) {
                 return source.LastIndexOf(value.ToString(), startIndex, count, StringComparison.OrdinalIgnoreCase);
             }
 
@@ -951,8 +838,7 @@ namespace System.Globalization
         }
 
 
-        public virtual int LastIndexOf(string source, string value, int startIndex, int count, CompareOptions options)
-        {
+        public virtual int LastIndexOf(string source, string value, int startIndex, int count, CompareOptions options) {
             // Verify Arguments
             if (source == null)
                 throw new ArgumentNullException(nameof(source));
@@ -976,8 +862,7 @@ namespace System.Globalization
                 throw new ArgumentOutOfRangeException(nameof(startIndex), SR.ArgumentOutOfRange_Index);
 
             // Make sure that we allow startIndex == source.Length
-            if (startIndex == source.Length)
-            {
+            if (startIndex == source.Length) {
                 startIndex--;
                 if (count > 0)
                     count--;
@@ -991,8 +876,7 @@ namespace System.Globalization
             if (count < 0 || startIndex - count + 1 < 0)
                 throw new ArgumentOutOfRangeException(nameof(count), SR.ArgumentOutOfRange_Count);
 
-            if (options == CompareOptions.OrdinalIgnoreCase)
-            {
+            if (options == CompareOptions.OrdinalIgnoreCase) {
                 return LastIndexOfOrdinal(source, value, startIndex, count, ignoreCase: true);
             }
 
@@ -1002,10 +886,8 @@ namespace System.Globalization
             return LastIndexOfCore(source, value, startIndex, count, options);
         }
 
-        internal int LastIndexOfOrdinal(string source, string value, int startIndex, int count, bool ignoreCase)
-        {
-            if (_invariantMode)
-            {
+        internal int LastIndexOfOrdinal(string source, string value, int startIndex, int count, bool ignoreCase) {
+            if (_invariantMode) {
                 return InvariantLastIndexOf(source, value, startIndex, count, ignoreCase);
             }
 
@@ -1019,8 +901,7 @@ namespace System.Globalization
         //  Gets the SortKey for the given string with the given options.
         //
         ////////////////////////////////////////////////////////////////////////
-        public virtual SortKey GetSortKey(string source, CompareOptions options)
-        {
+        public virtual SortKey GetSortKey(string source, CompareOptions options) {
             if (_invariantMode)
                 return InvariantCreateSortKey(source, options);
 
@@ -1028,8 +909,7 @@ namespace System.Globalization
         }
 
 
-        public virtual SortKey GetSortKey(string source)
-        {
+        public virtual SortKey GetSortKey(string source) {
             if (_invariantMode)
                 return InvariantCreateSortKey(source, CompareOptions.None);
 
@@ -1047,12 +927,10 @@ namespace System.Globalization
         ////////////////////////////////////////////////////////////////////////
 
 
-        public override bool Equals(Object value)
-        {
+        public override bool Equals(Object value) {
             CompareInfo that = value as CompareInfo;
 
-            if (that != null)
-            {
+            if (that != null) {
                 return this.Name == that.Name;
             }
 
@@ -1071,8 +949,7 @@ namespace System.Globalization
         ////////////////////////////////////////////////////////////////////////
 
 
-        public override int GetHashCode()
-        {
+        public override int GetHashCode() {
             return (this.Name.GetHashCode());
         }
 
@@ -1101,18 +978,15 @@ namespace System.Globalization
         //  (the methods above that take a CultureInfo would use CultureInfo.CompareInfo)
         //
         ////////////////////////////////////////////////////////////////////////
-        internal int GetHashCodeOfString(string source, CompareOptions options)
-        {
+        internal int GetHashCodeOfString(string source, CompareOptions options) {
             //
             //  Parameter validation
             //
-            if (null == source)
-            {
+            if (null == source) {
                 throw new ArgumentNullException(nameof(source));
             }
 
-            if ((options & ValidHashCodeOfStringMaskOffFlags) != 0)
-            {
+            if ((options & ValidHashCodeOfStringMaskOffFlags) != 0) {
                 throw new ArgumentException(SR.Argument_InvalidFlag, nameof(options));
             }
             Contract.EndContractBlock();
@@ -1120,20 +994,16 @@ namespace System.Globalization
             return GetHashCodeOfStringCore(source, options);
         }
 
-        public virtual int GetHashCode(string source, CompareOptions options)
-        {
-            if (source == null)
-            {
+        public virtual int GetHashCode(string source, CompareOptions options) {
+            if (source == null) {
                 throw new ArgumentNullException(nameof(source));
             }
 
-            if (options == CompareOptions.Ordinal)
-            {
+            if (options == CompareOptions.Ordinal) {
                 return source.GetHashCode();
             }
 
-            if (options == CompareOptions.OrdinalIgnoreCase)
-            {
+            if (options == CompareOptions.OrdinalIgnoreCase) {
                 return TextInfo.GetHashCodeOrdinalIgnoreCase(source);
             }
 
@@ -1153,27 +1023,21 @@ namespace System.Globalization
         //  CompareInfo.
         //
         ////////////////////////////////////////////////////////////////////////
-        public override string ToString()
-        {
+        public override string ToString() {
             return ("CompareInfo - " + this.Name);
         }
 
-        public SortVersion Version
-        {
-            get
-            {
-                if (_sortVersion == null)
-                {
-                    if (_invariantMode)
-                    {
+        public SortVersion Version {
+            get {
+                if (_sortVersion == null) {
+                    if (_invariantMode) {
                         _sortVersion = new SortVersion(0, CultureInfo.LOCALE_INVARIANT, new Guid(0, 0, 0, 0, 0, 0, 0,
                                                                         (byte) (CultureInfo.LOCALE_INVARIANT >> 24),
                                                                         (byte) ((CultureInfo.LOCALE_INVARIANT  & 0x00FF0000) >> 16),
                                                                         (byte) ((CultureInfo.LOCALE_INVARIANT  & 0x0000FF00) >> 8),
                                                                         (byte) (CultureInfo.LOCALE_INVARIANT  & 0xFF)));
                     }
-                    else
-                    {
+                    else {
                         _sortVersion = GetSortVersion();
                     }
                 }
@@ -1182,10 +1046,8 @@ namespace System.Globalization
             }
         }
 
-        public int LCID
-        {
-            get
-            {
+        public int LCID {
+            get {
                 return CultureInfo.GetCultureInfo(Name).LCID;
             }
         }

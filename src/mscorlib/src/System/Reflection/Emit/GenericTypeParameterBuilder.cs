@@ -11,12 +11,9 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Diagnostics.Contracts;
 
-namespace System.Reflection.Emit
-{
-    public sealed class GenericTypeParameterBuilder : TypeInfo
-    {
-        public override bool IsAssignableFrom(System.Reflection.TypeInfo typeInfo)
-        {
+namespace System.Reflection.Emit {
+    public sealed class GenericTypeParameterBuilder : TypeInfo {
+        public override bool IsAssignableFrom(System.Reflection.TypeInfo typeInfo) {
             if (typeInfo == null) return false;
             return IsAssignableFrom(typeInfo.AsType());
         }
@@ -26,19 +23,16 @@ namespace System.Reflection.Emit
         #endregion
 
         #region Constructor
-        internal GenericTypeParameterBuilder(TypeBuilder type)
-        {
+        internal GenericTypeParameterBuilder(TypeBuilder type) {
             m_type = type;
         }
         #endregion
 
         #region Object Overrides
-        public override String ToString()
-        {
+        public override String ToString() {
             return m_type.Name;
         }
-        public override bool Equals(object o)
-        {
+        public override bool Equals(object o) {
             GenericTypeParameterBuilder g = o as GenericTypeParameterBuilder;
 
             if (g == null)
@@ -63,34 +57,28 @@ namespace System.Reflection.Emit
 
         #region Type Overrides
 
-        public override Type MakePointerType()
-        {
+        public override Type MakePointerType() {
             return SymbolType.FormCompoundType("*", this, 0);
         }
 
-        public override Type MakeByRefType()
-        {
+        public override Type MakeByRefType() {
             return SymbolType.FormCompoundType("&", this, 0);
         }
 
-        public override Type MakeArrayType()
-        {
+        public override Type MakeArrayType() {
             return SymbolType.FormCompoundType("[]", this, 0);
         }
 
-        public override Type MakeArrayType(int rank)
-        {
+        public override Type MakeArrayType(int rank) {
             if (rank <= 0)
                 throw new IndexOutOfRangeException();
             Contract.EndContractBlock();
 
             string szrank = "";
-            if (rank == 1)
-            {
+            if (rank == 1) {
                 szrank = "*";
             }
-            else
-            {
+            else {
                 for (int i = 1; i < rank; i++)
                     szrank += ",";
             }
@@ -211,30 +199,25 @@ namespace System.Reflection.Emit
         #endregion
 
         #region Public Members
-        public void SetCustomAttribute(ConstructorInfo con, byte[] binaryAttribute)
-        {
+        public void SetCustomAttribute(ConstructorInfo con, byte[] binaryAttribute) {
             m_type.SetGenParamCustomAttribute(con, binaryAttribute);
         }
 
-        public void SetCustomAttribute(CustomAttributeBuilder customBuilder)
-        {
+        public void SetCustomAttribute(CustomAttributeBuilder customBuilder) {
             m_type.SetGenParamCustomAttribute(customBuilder);
         }
 
-        public void SetBaseTypeConstraint(Type baseTypeConstraint)
-        {
+        public void SetBaseTypeConstraint(Type baseTypeConstraint) {
             m_type.CheckContext(baseTypeConstraint);
             m_type.SetParent(baseTypeConstraint);
         }
 
-        public void SetInterfaceConstraints(params Type[] interfaceConstraints)
-        {
+        public void SetInterfaceConstraints(params Type[] interfaceConstraints) {
             m_type.CheckContext(interfaceConstraints);
             m_type.SetInterfaces(interfaceConstraints);
         }
 
-        public void SetGenericParameterAttributes(GenericParameterAttributes genericParameterAttributes)
-        {
+        public void SetGenericParameterAttributes(GenericParameterAttributes genericParameterAttributes) {
             m_type.SetGenParamAttributes(genericParameterAttributes);
         }
         #endregion

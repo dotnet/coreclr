@@ -13,11 +13,9 @@
 
 using System;
 
-namespace System.Runtime.InteropServices.ComTypes
-{
+namespace System.Runtime.InteropServices.ComTypes {
     [Serializable]
-    public enum DESCKIND
-    {
+    public enum DESCKIND {
         DESCKIND_NONE = 0,
         DESCKIND_FUNCDESC = DESCKIND_NONE + 1,
         DESCKIND_VARDESC = DESCKIND_FUNCDESC + 1,
@@ -28,8 +26,7 @@ namespace System.Runtime.InteropServices.ComTypes
 
     [StructLayout(LayoutKind.Explicit, CharSet = CharSet.Unicode)]
 
-    public struct BINDPTR
-    {
+    public struct BINDPTR {
         [FieldOffset(0)]
         public IntPtr lpfuncdesc;
         [FieldOffset(0)]
@@ -41,8 +38,7 @@ namespace System.Runtime.InteropServices.ComTypes
     [Guid("00020403-0000-0000-C000-000000000046")]
     [InterfaceTypeAttribute(ComInterfaceType.InterfaceIsIUnknown)]
     [ComImport]
-    public interface ITypeComp
-    {
+    public interface ITypeComp {
         void Bind([MarshalAs(UnmanagedType.LPWStr)] String szName, int lHashVal, Int16 wFlags, out ITypeInfo ppTInfo, out DESCKIND pDescKind, out BINDPTR pBindPtr);
         void BindType([MarshalAs(UnmanagedType.LPWStr)] String szName, int lHashVal, out ITypeInfo ppTInfo, out ITypeComp ppTComp);
     }

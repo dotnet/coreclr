@@ -4,13 +4,10 @@
 
 using System;
 
-namespace System.Runtime.CompilerServices
-{
+namespace System.Runtime.CompilerServices {
     [Serializable]
     [AttributeUsage(AttributeTargets.Property, Inherited = true)]
-    public sealed class IndexerNameAttribute : Attribute
-    {
-        public IndexerNameAttribute(String indexerName)
-        { }
+    public sealed class IndexerNameAttribute : Attribute {
+        public IndexerNameAttribute(String indexerName) { }
     }
 }

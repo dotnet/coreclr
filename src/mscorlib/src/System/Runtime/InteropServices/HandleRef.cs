@@ -5,10 +5,8 @@
 
 using System;
 
-namespace System.Runtime.InteropServices
-{
-    public struct HandleRef
-    {
+namespace System.Runtime.InteropServices {
+    public struct HandleRef {
         // ! Do not add or rearrange fields as the EE depends on this layout.
         //------------------------------------------------------------------
         internal Object m_wrapper;
@@ -16,36 +14,29 @@ namespace System.Runtime.InteropServices
         //------------------------------------------------------------------
 
 
-        public HandleRef(Object wrapper, IntPtr handle)
-        {
+        public HandleRef(Object wrapper, IntPtr handle) {
             m_wrapper = wrapper;
             m_handle = handle;
         }
 
-        public Object Wrapper
-        {
-            get
-            {
+        public Object Wrapper {
+            get {
                 return m_wrapper;
             }
         }
 
-        public IntPtr Handle
-        {
-            get
-            {
+        public IntPtr Handle {
+            get {
                 return m_handle;
             }
         }
 
 
-        public static explicit operator IntPtr(HandleRef value)
-        {
+        public static explicit operator IntPtr(HandleRef value) {
             return value.m_handle;
         }
 
-        public static IntPtr ToIntPtr(HandleRef value)
-        {
+        public static IntPtr ToIntPtr(HandleRef value) {
             return value.m_handle;
         }
     }

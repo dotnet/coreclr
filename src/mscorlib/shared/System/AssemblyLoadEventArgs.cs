@@ -4,12 +4,9 @@
 
 using System.Reflection;
 
-namespace System
-{
-    public class AssemblyLoadEventArgs : EventArgs
-    {
-        public AssemblyLoadEventArgs(Assembly loadedAssembly)
-        {
+namespace System {
+    public class AssemblyLoadEventArgs : EventArgs {
+        public AssemblyLoadEventArgs(Assembly loadedAssembly) {
             LoadedAssembly = loadedAssembly;
         }
 

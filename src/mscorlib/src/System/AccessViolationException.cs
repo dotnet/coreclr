@@ -14,26 +14,21 @@
 using System;
 using System.Runtime.Serialization;
 
-namespace System
-{
+namespace System {
     [Serializable]
-    public class AccessViolationException : SystemException
-    {
+    public class AccessViolationException : SystemException {
         public AccessViolationException()
-            : base(SR.Arg_AccessViolationException)
-        {
+            : base(SR.Arg_AccessViolationException) {
             HResult = __HResults.E_POINTER;
         }
 
         public AccessViolationException(String message)
-            : base(message)
-        {
+            : base(message) {
             HResult = __HResults.E_POINTER;
         }
 
         public AccessViolationException(String message, Exception innerException)
-            : base(message, innerException)
-        {
+            : base(message, innerException) {
             HResult = __HResults.E_POINTER;
         }
 

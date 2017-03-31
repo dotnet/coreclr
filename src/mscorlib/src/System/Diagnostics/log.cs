@@ -2,8 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-namespace System.Diagnostics
-{
+namespace System.Diagnostics {
     using System.Runtime.Remoting;
     using System;
     using System.IO;
@@ -24,8 +23,7 @@ namespace System.Diagnostics
     internal delegate void LogSwitchLevelHandler(LogSwitch ls, LoggingLevels newLevel);
 
 
-    internal static class Log
-    {
+    internal static class Log {
         // Switches allow relatively fine level control of which messages are
         // actually shown.  Normally most debugging messages are not shown - the
         // user will typically enable those which are relevant to what is being
@@ -44,8 +42,7 @@ namespace System.Diagnostics
         public static readonly LogSwitch GlobalSwitch;
 
 
-        static Log()
-        {
+        static Log() {
             m_Hashtable = new Hashtable();
             m_fConsoleDeviceEnabled = false;
             //pConsole = null;
@@ -59,8 +56,7 @@ namespace System.Diagnostics
             GlobalSwitch.MinimumLevel = LoggingLevels.ErrorLevel;
         }
 
-        internal static void InvokeLogSwitchLevelHandlers(LogSwitch ls, LoggingLevels newLevel)
-        {
+        internal static void InvokeLogSwitchLevelHandlers(LogSwitch ls, LoggingLevels newLevel) {
             LogSwitchLevelHandler handler = _LogSwitchLevelHandler;
             if (handler != null)
                 handler(ls, newLevel);
@@ -72,8 +68,7 @@ namespace System.Diagnostics
         // log messages which make it through filters to be written to the 
         // application console.  The console device is enabled by default if the 
         // ??? registry entry or ??? environment variable is set.
-        public static bool IsConsoleEnabled
-        {
+        public static bool IsConsoleEnabled {
             get { return m_fConsoleDeviceEnabled; }
             set { m_fConsoleDeviceEnabled = value; }
         }
@@ -82,8 +77,7 @@ namespace System.Diagnostics
         // level for the message, it is "broadcast" to all of the log
         // devices.
         // 
-        public static void LogMessage(LoggingLevels level, LogSwitch logswitch, String message)
-        {
+        public static void LogMessage(LoggingLevels level, LogSwitch logswitch, String message) {
             if (logswitch == null)
                 throw new ArgumentNullException("LogSwitch");
 
@@ -92,16 +86,14 @@ namespace System.Diagnostics
             Contract.EndContractBlock();
 
             // Is logging for this level for this switch enabled?
-            if (logswitch.CheckLevel(level) == true)
-            {
+            if (logswitch.CheckLevel(level) == true) {
                 // Send message for logging
 
                 // first send it to the debugger
                 Debugger.Log((int)level, logswitch.strName, message);
 
                 // Send to the console device
-                if (m_fConsoleDeviceEnabled)
-                {
+                if (m_fConsoleDeviceEnabled) {
                     Console.Write(message);
                 }
             }
@@ -112,13 +104,11 @@ namespace System.Diagnostics
         * Note that the (Switch switch, String message) variations 
         * are preferred.
         */
-        public static void Trace(LogSwitch logswitch, String message)
-        {
+        public static void Trace(LogSwitch logswitch, String message) {
             LogMessage(LoggingLevels.TraceLevel0, logswitch, message);
         }
 
-        public static void Trace(String message)
-        {
+        public static void Trace(String message) {
             LogMessage(LoggingLevels.TraceLevel0, GlobalSwitch, message);
         }
 

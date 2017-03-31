@@ -9,26 +9,21 @@
 
 using System.Runtime.Serialization;
 
-namespace System
-{
+namespace System {
     [Serializable]
-    public sealed class MulticastNotSupportedException : SystemException
-    {
+    public sealed class MulticastNotSupportedException : SystemException {
         public MulticastNotSupportedException()
-            : base(SR.Arg_MulticastNotSupportedException)
-        {
+            : base(SR.Arg_MulticastNotSupportedException) {
             HResult = __HResults.COR_E_MULTICASTNOTSUPPORTED;
         }
 
         public MulticastNotSupportedException(String message)
-            : base(message)
-        {
+            : base(message) {
             HResult = __HResults.COR_E_MULTICASTNOTSUPPORTED;
         }
 
         public MulticastNotSupportedException(String message, Exception inner)
-            : base(message, inner)
-        {
+            : base(message, inner) {
             HResult = __HResults.COR_E_MULTICASTNOTSUPPORTED;
         }
 

@@ -4,10 +4,8 @@
 
 using System.Collections.Generic;
 
-namespace System.Reflection
-{
-    public abstract partial class TypeInfo : Type, IReflectableType
-    {
+namespace System.Reflection {
+    public abstract partial class TypeInfo : Type, IReflectableType {
         protected TypeInfo() { }
 
         TypeInfo IReflectableType.GetTypeInfo() => this;
@@ -21,10 +19,8 @@ namespace System.Reflection
         public virtual TypeInfo GetDeclaredNestedType(string name) => GetNestedType(name, TypeInfo.DeclaredOnlyLookup)?.GetTypeInfo();
         public virtual PropertyInfo GetDeclaredProperty(string name) => GetProperty(name, TypeInfo.DeclaredOnlyLookup);
 
-        public virtual IEnumerable<MethodInfo> GetDeclaredMethods(string name)
-        {
-            foreach (MethodInfo method in GetMethods(TypeInfo.DeclaredOnlyLookup))
-            {
+        public virtual IEnumerable<MethodInfo> GetDeclaredMethods(string name) {
+            foreach (MethodInfo method in GetMethods(TypeInfo.DeclaredOnlyLookup)) {
                 if (method.Name == name)
                     yield return method;
             }
@@ -35,12 +31,9 @@ namespace System.Reflection
         public virtual IEnumerable<FieldInfo> DeclaredFields => GetFields(TypeInfo.DeclaredOnlyLookup);
         public virtual IEnumerable<MemberInfo> DeclaredMembers => GetMembers(TypeInfo.DeclaredOnlyLookup);
         public virtual IEnumerable<MethodInfo> DeclaredMethods => GetMethods(TypeInfo.DeclaredOnlyLookup);
-        public virtual IEnumerable<System.Reflection.TypeInfo> DeclaredNestedTypes
-        {
-            get
-            {
-                foreach (Type t in GetNestedTypes(TypeInfo.DeclaredOnlyLookup))
-                {
+        public virtual IEnumerable<System.Reflection.TypeInfo> DeclaredNestedTypes {
+            get {
+                foreach (Type t in GetNestedTypes(TypeInfo.DeclaredOnlyLookup)) {
                     yield return t.GetTypeInfo();
                 }
             }
@@ -50,8 +43,7 @@ namespace System.Reflection
         public virtual IEnumerable<Type> ImplementedInterfaces => GetInterfaces();
 
         //a re-implementation of ISAF from Type, skipping the use of UnderlyingType
-        public virtual bool IsAssignableFrom(TypeInfo typeInfo)
-        {
+        public virtual bool IsAssignableFrom(TypeInfo typeInfo) {
             if (typeInfo == null)
                 return false;
 
@@ -62,12 +54,10 @@ namespace System.Reflection
             if (typeInfo.IsSubclassOf(this))
                 return true;
 
-            if (this.IsInterface)
-            {
+            if (this.IsInterface) {
                 return typeInfo.ImplementInterface(this);
             }
-            else if (IsGenericParameter)
-            {
+            else if (IsGenericParameter) {
                 Type[] constraints = GetGenericParameterConstraints();
                 for (int i = 0; i < constraints.Length; i++)
                     if (!constraints[i].IsAssignableFrom(typeInfo))

@@ -6,10 +6,8 @@ using System;
 using System.Runtime.InteropServices;
 using System.Security;
 
-internal partial class Interop
-{
-    internal partial class Crypt32
-    {
+internal partial class Interop {
+    internal partial class Crypt32 {
         internal const uint CRYPTPROTECTMEMORY_BLOCK_SIZE = 16;
         internal const uint CRYPTPROTECTMEMORY_SAME_PROCESS = 0;
 

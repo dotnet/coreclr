@@ -4,23 +4,18 @@
 
 using System.Runtime.Serialization;
 
-namespace System
-{
+namespace System {
     [Serializable]
-    public class TimeZoneNotFoundException : Exception
-    {
-        public TimeZoneNotFoundException()
-        {
+    public class TimeZoneNotFoundException : Exception {
+        public TimeZoneNotFoundException() {
         }
 
         public TimeZoneNotFoundException(String message)
-            : base(message)
-        {
+            : base(message) {
         }
 
         public TimeZoneNotFoundException(String message, Exception innerException)
-            : base(message, innerException)
-        {
+            : base(message, innerException) {
         }
 
         protected TimeZoneNotFoundException(SerializationInfo info, StreamingContext context) : base(info, context) { }

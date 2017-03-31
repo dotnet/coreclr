@@ -26,11 +26,9 @@ using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 using System.Diagnostics.Contracts;
 
-namespace System
-{
+namespace System {
     [Serializable]
-    public enum GCCollectionMode
-    {
+    public enum GCCollectionMode {
         Default = 0,
         Forced = 1,
         Optimized = 2
@@ -40,8 +38,7 @@ namespace System
     // make sure you change the def in vm\gc.h 
     // if you change this!
     [Serializable]
-    internal enum InternalGCCollectionMode
-    {
+    internal enum InternalGCCollectionMode {
         NonBlocking = 0x00000001,
         Blocking = 0x00000002,
         Optimized = 0x00000004,
@@ -52,8 +49,7 @@ namespace System
     // make sure you change the def in vm\gc.h 
     // if you change this!
     [Serializable]
-    public enum GCNotificationStatus
-    {
+    public enum GCNotificationStatus {
         Succeeded = 0,
         Failed = 1,
         Canceled = 2,
@@ -61,8 +57,7 @@ namespace System
         NotApplicable = 4
     }
 
-    public static class GC
-    {
+    public static class GC {
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         internal static extern int GetGCLatencyMode();
 
@@ -109,16 +104,13 @@ namespace System
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode), SuppressUnmanagedCodeSecurity]
         private static extern void _RemoveMemoryPressure(UInt64 bytesAllocated);
 
-        public static void AddMemoryPressure(long bytesAllocated)
-        {
-            if (bytesAllocated <= 0)
-            {
+        public static void AddMemoryPressure(long bytesAllocated) {
+            if (bytesAllocated <= 0) {
                 throw new ArgumentOutOfRangeException(nameof(bytesAllocated),
                         SR.ArgumentOutOfRange_NeedPosNum);
             }
 
-            if ((4 == IntPtr.Size) && (bytesAllocated > Int32.MaxValue))
-            {
+            if ((4 == IntPtr.Size) && (bytesAllocated > Int32.MaxValue)) {
                 throw new ArgumentOutOfRangeException("pressure",
                     SR.ArgumentOutOfRange_MustBeNonNegInt32);
             }
@@ -127,16 +119,13 @@ namespace System
             _AddMemoryPressure((ulong)bytesAllocated);
         }
 
-        public static void RemoveMemoryPressure(long bytesAllocated)
-        {
-            if (bytesAllocated <= 0)
-            {
+        public static void RemoveMemoryPressure(long bytesAllocated) {
+            if (bytesAllocated <= 0) {
                 throw new ArgumentOutOfRangeException(nameof(bytesAllocated),
                     SR.ArgumentOutOfRange_NeedPosNum);
             }
 
-            if ((4 == IntPtr.Size) && (bytesAllocated > Int32.MaxValue))
-            {
+            if ((4 == IntPtr.Size) && (bytesAllocated > Int32.MaxValue)) {
                 throw new ArgumentOutOfRangeException(nameof(bytesAllocated),
                     SR.ArgumentOutOfRange_MustBeNonNegInt32);
             }
@@ -154,38 +143,31 @@ namespace System
 
         // Forces a collection of all generations from 0 through Generation.
         //
-        public static void Collect(int generation)
-        {
+        public static void Collect(int generation) {
             Collect(generation, GCCollectionMode.Default);
         }
 
         // Garbage Collect all generations.
         //
-        public static void Collect()
-        {
+        public static void Collect() {
             //-1 says to GC all generations.
             _Collect(-1, (int)InternalGCCollectionMode.Blocking);
         }
 
-        public static void Collect(int generation, GCCollectionMode mode)
-        {
+        public static void Collect(int generation, GCCollectionMode mode) {
             Collect(generation, mode, true);
         }
 
-        public static void Collect(int generation, GCCollectionMode mode, bool blocking)
-        {
+        public static void Collect(int generation, GCCollectionMode mode, bool blocking) {
             Collect(generation, mode, blocking, false);
         }
 
-        public static void Collect(int generation, GCCollectionMode mode, bool blocking, bool compacting)
-        {
-            if (generation < 0)
-            {
+        public static void Collect(int generation, GCCollectionMode mode, bool blocking, bool compacting) {
+            if (generation < 0) {
                 throw new ArgumentOutOfRangeException(nameof(generation), SR.ArgumentOutOfRange_GenericPositive);
             }
 
-            if ((mode < GCCollectionMode.Default) || (mode > GCCollectionMode.Optimized))
-            {
+            if ((mode < GCCollectionMode.Default) || (mode > GCCollectionMode.Optimized)) {
                 throw new ArgumentOutOfRangeException(nameof(mode), SR.ArgumentOutOfRange_Enum);
             }
 
@@ -193,30 +175,25 @@ namespace System
 
             int iInternalModes = 0;
 
-            if (mode == GCCollectionMode.Optimized)
-            {
+            if (mode == GCCollectionMode.Optimized) {
                 iInternalModes |= (int)InternalGCCollectionMode.Optimized;
             }
 
             if (compacting)
                 iInternalModes |= (int)InternalGCCollectionMode.Compacting;
 
-            if (blocking)
-            {
+            if (blocking) {
                 iInternalModes |= (int)InternalGCCollectionMode.Blocking;
             }
-            else if (!compacting)
-            {
+            else if (!compacting) {
                 iInternalModes |= (int)InternalGCCollectionMode.NonBlocking;
             }
 
             _Collect(generation, iInternalModes);
         }
 
-        public static int CollectionCount(int generation)
-        {
-            if (generation < 0)
-            {
+        public static int CollectionCount(int generation) {
+            if (generation < 0) {
                 throw new ArgumentOutOfRangeException(nameof(generation), SR.ArgumentOutOfRange_GenericPositive);
             }
             Contract.EndContractBlock();
@@ -259,14 +236,12 @@ namespace System
         // If we insert a call to GC.KeepAlive(this) at the end of Problem(), then
         // Foo doesn't get finalized and the stream stays open.
         [MethodImplAttribute(MethodImplOptions.NoInlining)] // disable optimizations
-        public static void KeepAlive(Object obj)
-        {
+        public static void KeepAlive(Object obj) {
         }
 
         // Returns the generation in which wo currently resides.
         //
-        public static int GetGeneration(WeakReference wo)
-        {
+        public static int GetGeneration(WeakReference wo) {
             int result = GetGenerationWR(wo.m_handle);
             KeepAlive(wo);
             return result;
@@ -274,8 +249,7 @@ namespace System
 
         // Returns the maximum GC generation.  Currently assumes only 1 heap.
         //
-        public static int MaxGeneration
-        {
+        public static int MaxGeneration {
             get { return GetMaxGeneration(); }
         }
 
@@ -283,8 +257,7 @@ namespace System
         [SuppressUnmanagedCodeSecurity]
         private static extern void _WaitForPendingFinalizers();
 
-        public static void WaitForPendingFinalizers()
-        {
+        public static void WaitForPendingFinalizers() {
             // QCalls can not be exposed from mscorlib directly, need to wrap it.
             _WaitForPendingFinalizers();
         }
@@ -294,8 +267,7 @@ namespace System
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         private static extern void _SuppressFinalize(Object o);
 
-        public static void SuppressFinalize(Object obj)
-        {
+        public static void SuppressFinalize(Object obj) {
             if (obj == null)
                 throw new ArgumentNullException(nameof(obj));
             Contract.EndContractBlock();
@@ -309,8 +281,7 @@ namespace System
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         private static extern void _ReRegisterForFinalize(Object o);
 
-        public static void ReRegisterForFinalize(Object obj)
-        {
+        public static void ReRegisterForFinalize(Object obj) {
             if (obj == null)
                 throw new ArgumentNullException(nameof(obj));
             Contract.EndContractBlock();
@@ -321,8 +292,7 @@ namespace System
         // the GC heap.  This does not return the total size of the GC heap, but
         // only the live objects in the GC heap.
         //
-        public static long GetTotalMemory(bool forceFullCollection)
-        {
+        public static long GetTotalMemory(bool forceFullCollection) {
             long size = GetTotalMemory();
             if (!forceFullCollection)
                 return size;
@@ -334,8 +304,7 @@ namespace System
             int reps = 20;  // Number of iterations
             long newSize = size;
             float diff;
-            do
-            {
+            do {
                 GC.WaitForPendingFinalizers();
                 GC.Collect();
                 size = newSize;
@@ -348,8 +317,7 @@ namespace System
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         private static extern long _GetAllocatedBytesForCurrentThread();
 
-        public static long GetAllocatedBytesForCurrentThread()
-        {
+        public static long GetAllocatedBytesForCurrentThread() {
             return _GetAllocatedBytesForCurrentThread();
         }
 
@@ -365,10 +333,8 @@ namespace System
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         private static extern int _WaitForFullGCComplete(int millisecondsTimeout);
 
-        public static void RegisterForFullGCNotification(int maxGenerationThreshold, int largeObjectHeapThreshold)
-        {
-            if ((maxGenerationThreshold <= 0) || (maxGenerationThreshold >= 100))
-            {
+        public static void RegisterForFullGCNotification(int maxGenerationThreshold, int largeObjectHeapThreshold) {
+            if ((maxGenerationThreshold <= 0) || (maxGenerationThreshold >= 100)) {
                 throw new ArgumentOutOfRangeException(nameof(maxGenerationThreshold),
                                                       String.Format(
                                                           CultureInfo.CurrentCulture,
@@ -377,8 +343,7 @@ namespace System
                                                           99));
             }
 
-            if ((largeObjectHeapThreshold <= 0) || (largeObjectHeapThreshold >= 100))
-            {
+            if ((largeObjectHeapThreshold <= 0) || (largeObjectHeapThreshold >= 100)) {
                 throw new ArgumentOutOfRangeException(nameof(largeObjectHeapThreshold),
                                                       String.Format(
                                                           CultureInfo.CurrentCulture,
@@ -387,63 +352,53 @@ namespace System
                                                           99));
             }
 
-            if (!_RegisterForFullGCNotification(maxGenerationThreshold, largeObjectHeapThreshold))
-            {
+            if (!_RegisterForFullGCNotification(maxGenerationThreshold, largeObjectHeapThreshold)) {
                 throw new InvalidOperationException(SR.InvalidOperation_NotWithConcurrentGC);
             }
         }
 
-        public static void CancelFullGCNotification()
-        {
-            if (!_CancelFullGCNotification())
-            {
+        public static void CancelFullGCNotification() {
+            if (!_CancelFullGCNotification()) {
                 throw new InvalidOperationException(SR.InvalidOperation_NotWithConcurrentGC);
             }
         }
 
-        public static GCNotificationStatus WaitForFullGCApproach()
-        {
+        public static GCNotificationStatus WaitForFullGCApproach() {
             return (GCNotificationStatus)_WaitForFullGCApproach(-1);
         }
 
-        public static GCNotificationStatus WaitForFullGCApproach(int millisecondsTimeout)
-        {
+        public static GCNotificationStatus WaitForFullGCApproach(int millisecondsTimeout) {
             if (millisecondsTimeout < -1)
                 throw new ArgumentOutOfRangeException(nameof(millisecondsTimeout), SR.ArgumentOutOfRange_NeedNonNegOrNegative1);
 
             return (GCNotificationStatus)_WaitForFullGCApproach(millisecondsTimeout);
         }
 
-        public static GCNotificationStatus WaitForFullGCComplete()
-        {
+        public static GCNotificationStatus WaitForFullGCComplete() {
             return (GCNotificationStatus)_WaitForFullGCComplete(-1);
         }
 
-        public static GCNotificationStatus WaitForFullGCComplete(int millisecondsTimeout)
-        {
+        public static GCNotificationStatus WaitForFullGCComplete(int millisecondsTimeout) {
             if (millisecondsTimeout < -1)
                 throw new ArgumentOutOfRangeException(nameof(millisecondsTimeout), SR.ArgumentOutOfRange_NeedNonNegOrNegative1);
             return (GCNotificationStatus)_WaitForFullGCComplete(millisecondsTimeout);
         }
 
-        private enum StartNoGCRegionStatus
-        {
+        private enum StartNoGCRegionStatus {
             Succeeded = 0,
             NotEnoughMemory = 1,
             AmountTooLarge = 2,
             AlreadyInProgress = 3
         }
 
-        private enum EndNoGCRegionStatus
-        {
+        private enum EndNoGCRegionStatus {
             Succeeded = 0,
             NotInProgress = 1,
             GCInduced = 2,
             AllocationExceeded = 3
         }
 
-        private static bool StartNoGCRegionWorker(long totalSize, bool hasLohSize, long lohSize, bool disallowFullBlockingGC)
-        {
+        private static bool StartNoGCRegionWorker(long totalSize, bool hasLohSize, long lohSize, bool disallowFullBlockingGC) {
             StartNoGCRegionStatus status = (StartNoGCRegionStatus)_StartNoGCRegion(totalSize, hasLohSize, lohSize, disallowFullBlockingGC);
             if (status == StartNoGCRegionStatus.AmountTooLarge)
                 throw new ArgumentOutOfRangeException(nameof(totalSize),
@@ -455,28 +410,23 @@ namespace System
             return true;
         }
 
-        public static bool TryStartNoGCRegion(long totalSize)
-        {
+        public static bool TryStartNoGCRegion(long totalSize) {
             return StartNoGCRegionWorker(totalSize, false, 0, false);
         }
 
-        public static bool TryStartNoGCRegion(long totalSize, long lohSize)
-        {
+        public static bool TryStartNoGCRegion(long totalSize, long lohSize) {
             return StartNoGCRegionWorker(totalSize, true, lohSize, false);
         }
 
-        public static bool TryStartNoGCRegion(long totalSize, bool disallowFullBlockingGC)
-        {
+        public static bool TryStartNoGCRegion(long totalSize, bool disallowFullBlockingGC) {
             return StartNoGCRegionWorker(totalSize, false, 0, disallowFullBlockingGC);
         }
 
-        public static bool TryStartNoGCRegion(long totalSize, long lohSize, bool disallowFullBlockingGC)
-        {
+        public static bool TryStartNoGCRegion(long totalSize, long lohSize, bool disallowFullBlockingGC) {
             return StartNoGCRegionWorker(totalSize, true, lohSize, disallowFullBlockingGC);
         }
 
-        private static EndNoGCRegionStatus EndNoGCRegionWorker()
-        {
+        private static EndNoGCRegionStatus EndNoGCRegionWorker() {
             EndNoGCRegionStatus status = (EndNoGCRegionStatus)_EndNoGCRegion();
             if (status == EndNoGCRegionStatus.NotInProgress)
                 throw new InvalidOperationException("NoGCRegion mode must be set");
@@ -488,8 +438,7 @@ namespace System
             return EndNoGCRegionStatus.Succeeded;
         }
 
-        public static void EndNoGCRegion()
-        {
+        public static void EndNoGCRegion() {
             EndNoGCRegionWorker();
         }
     }

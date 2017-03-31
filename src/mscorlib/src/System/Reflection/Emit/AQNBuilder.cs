@@ -9,13 +9,10 @@ using System.Runtime.Versioning;
 using System.Runtime.InteropServices;
 using System.Security;
 
-namespace System.Reflection.Emit
-{
+namespace System.Reflection.Emit {
     // TypeNameBuilder is NOT thread safe NOR reliable
-    internal class TypeNameBuilder
-    {
-        internal enum Format
-        {
+    internal class TypeNameBuilder {
+        internal enum Format {
             ToString,
             FullName,
             AssemblyQualifiedName,
@@ -69,10 +66,8 @@ namespace System.Reflection.Emit
         #region Static Members
 
         // TypeNameBuilder is NOT thread safe NOR reliable
-        internal static string ToString(Type type, Format format)
-        {
-            if (format == Format.FullName || format == Format.AssemblyQualifiedName)
-            {
+        internal static string ToString(Type type, Format format) {
+            if (format == Format.FullName || format == Format.AssemblyQualifiedName) {
                 if (!type.IsGenericTypeDefinition && type.ContainsGenericParameters)
                     return null;
             }
@@ -96,8 +91,7 @@ namespace System.Reflection.Emit
         #endregion
 
         #region private Members
-        private void AddElementType(Type elementType)
-        {
+        private void AddElementType(Type elementType) {
             if (elementType.HasElementType)
                 AddElementType(elementType.GetElementType());
 
@@ -114,8 +108,7 @@ namespace System.Reflection.Emit
                 AddArray(elementType.GetArrayRank());
         }
 
-        private void ConstructAssemblyQualifiedNameWorker(Type type, Format format)
-        {
+        private void ConstructAssemblyQualifiedNameWorker(Type type, Format format) {
             Type rootType = type;
 
             while (rootType.HasElementType)
@@ -126,8 +119,7 @@ namespace System.Reflection.Emit
             for (Type t = rootType; t != null; t = t.IsGenericParameter ? null : t.DeclaringType)
                 nestings.Add(t);
 
-            for (int i = nestings.Count - 1; i >= 0; i--)
-            {
+            for (int i = nestings.Count - 1; i >= 0; i--) {
                 Type enclosingType = nestings[i];
                 string name = enclosingType.Name;
 
@@ -138,13 +130,11 @@ namespace System.Reflection.Emit
             }
 
             // Append generic arguments
-            if (rootType.IsGenericType && (!rootType.IsGenericTypeDefinition || format == Format.ToString))
-            {
+            if (rootType.IsGenericType && (!rootType.IsGenericTypeDefinition || format == Format.ToString)) {
                 Type[] genericArguments = rootType.GetGenericArguments();
 
                 OpenGenericArguments();
-                for (int i = 0; i < genericArguments.Length; i++)
-                {
+                for (int i = 0; i < genericArguments.Length; i++) {
                     Format genericArgumentsFormat = format == Format.FullName ? Format.AssemblyQualifiedName : format;
 
                     OpenGenericArgument();

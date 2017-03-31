@@ -13,8 +13,7 @@ using System.Diagnostics.Contracts;
 using System.Runtime.InteropServices;
 using System.Runtime.CompilerServices;
 
-namespace System.Runtime.InteropServices.WindowsRuntime
-{
+namespace System.Runtime.InteropServices.WindowsRuntime {
     // This is a set of stub methods implementing the support for the IReadOnlyCollection<T> interface on WinRT
     // objects that support IVectorView<T>. Used by the interop mashaling infrastructure.
     //
@@ -23,21 +22,17 @@ namespace System.Runtime.InteropServices.WindowsRuntime
     // for all of these methods are not VectorViewToReadOnlyCollectionAdapter objects. Rather, they are of type
     // IVectorView<T>. No actual VectorViewToReadOnlyCollectionAdapter object is ever instantiated. Thus, you will see
     // a lot of expressions that cast "this" to "IVectorView<T>".
-    internal sealed class VectorViewToReadOnlyCollectionAdapter
-    {
-        private VectorViewToReadOnlyCollectionAdapter()
-        {
+    internal sealed class VectorViewToReadOnlyCollectionAdapter {
+        private VectorViewToReadOnlyCollectionAdapter() {
             Debug.Assert(false, "This class is never instantiated");
         }
 
         // int Count { get }
         [Pure]
-        internal int Count<T>()
-        {
+        internal int Count<T>() {
             IVectorView<T> _this = JitHelpers.UnsafeCast<IVectorView<T>>(this);
             uint size = _this.Size;
-            if (((uint)Int32.MaxValue) < size)
-            {
+            if (((uint)Int32.MaxValue) < size) {
                 throw new InvalidOperationException(SR.InvalidOperation_CollectionBackingListTooLarge);
             }
 

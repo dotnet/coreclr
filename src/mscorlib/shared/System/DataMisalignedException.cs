@@ -11,26 +11,21 @@
 
 using System.Runtime.Serialization;
 
-namespace System
-{
+namespace System {
     [Serializable]
-    public sealed class DataMisalignedException : SystemException
-    {
+    public sealed class DataMisalignedException : SystemException {
         public DataMisalignedException()
-            : base(SR.Arg_DataMisalignedException)
-        {
+            : base(SR.Arg_DataMisalignedException) {
             HResult = __HResults.COR_E_DATAMISALIGNED;
         }
 
         public DataMisalignedException(String message)
-            : base(message)
-        {
+            : base(message) {
             HResult = __HResults.COR_E_DATAMISALIGNED;
         }
 
         public DataMisalignedException(String message, Exception innerException)
-            : base(message, innerException)
-        {
+            : base(message, innerException) {
             HResult = __HResults.COR_E_DATAMISALIGNED;
         }
 

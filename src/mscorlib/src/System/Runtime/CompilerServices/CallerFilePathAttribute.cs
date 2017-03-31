@@ -5,13 +5,10 @@
 
 using System;
 
-namespace System.Runtime.CompilerServices
-{
+namespace System.Runtime.CompilerServices {
     [AttributeUsage(AttributeTargets.Parameter, Inherited = false)]
-    public sealed class CallerFilePathAttribute : Attribute
-    {
-        public CallerFilePathAttribute()
-        {
+    public sealed class CallerFilePathAttribute : Attribute {
+        public CallerFilePathAttribute() {
         }
     }
 }

@@ -5,10 +5,8 @@
 using System.Diagnostics;
 using System.Globalization;
 
-namespace System.Reflection
-{
-    public abstract class PropertyInfo : MemberInfo
-    {
+namespace System.Reflection {
+    public abstract class PropertyInfo : MemberInfo {
         protected PropertyInfo() { }
 
         public override MemberTypes MemberType => MemberTypes.Property;
@@ -58,8 +56,7 @@ namespace System.Reflection
         public override bool Equals(object obj) => base.Equals(obj);
         public override int GetHashCode() => base.GetHashCode();
 
-        public static bool operator ==(PropertyInfo left, PropertyInfo right)
-        {
+        public static bool operator ==(PropertyInfo left, PropertyInfo right) {
             if (object.ReferenceEquals(left, right))
                 return true;
 

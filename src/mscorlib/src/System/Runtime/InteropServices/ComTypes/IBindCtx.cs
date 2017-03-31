@@ -13,12 +13,10 @@
 
 using System;
 
-namespace System.Runtime.InteropServices.ComTypes
-{
+namespace System.Runtime.InteropServices.ComTypes {
     [StructLayout(LayoutKind.Sequential)]
 
-    public struct BIND_OPTS
-    {
+    public struct BIND_OPTS {
         public int cbStruct;
         public int grfFlags;
         public int grfMode;
@@ -28,8 +26,7 @@ namespace System.Runtime.InteropServices.ComTypes
     [Guid("0000000e-0000-0000-C000-000000000046")]
     [InterfaceTypeAttribute(ComInterfaceType.InterfaceIsIUnknown)]
     [ComImport]
-    public interface IBindCtx
-    {
+    public interface IBindCtx {
         void RegisterObjectBound([MarshalAs(UnmanagedType.Interface)] Object punk);
         void RevokeObjectBound([MarshalAs(UnmanagedType.Interface)] Object punk);
         void ReleaseBoundObjects();

@@ -21,6 +21,5 @@ using System;
 using System.Reflection;
 using System.Reflection.Emit;
 
-namespace System.Runtime.InteropServices
-{
+namespace System.Runtime.InteropServices {
 }

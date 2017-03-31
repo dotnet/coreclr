@@ -15,8 +15,7 @@ using System.Diagnostics.Contracts;
 using System.Runtime.InteropServices;
 using System.Runtime.CompilerServices;
 
-namespace System.Runtime.InteropServices.WindowsRuntime
-{
+namespace System.Runtime.InteropServices.WindowsRuntime {
     // This is a set of stub methods implementing the support for the IBindableVector interface on managed
     // objects that implement IList. Used by the interop mashaling infrastructure.
     //
@@ -25,51 +24,42 @@ namespace System.Runtime.InteropServices.WindowsRuntime
     // for all of these methods are not ListToBindableVectorAdapter objects. Rather, they are of type
     // IList. No actual ListToVectorBindableAdapter object is ever instantiated. Thus, you will
     // see a lot of expressions that cast "this" to "IList". 
-    internal sealed class ListToBindableVectorAdapter
-    {
-        private ListToBindableVectorAdapter()
-        {
+    internal sealed class ListToBindableVectorAdapter {
+        private ListToBindableVectorAdapter() {
             Debug.Assert(false, "This class is never instantiated");
         }
 
         // object GetAt(uint index)
-        internal object GetAt(uint index)
-        {
+        internal object GetAt(uint index) {
             IList _this = JitHelpers.UnsafeCast<IList>(this);
             EnsureIndexInt32(index, _this.Count);
 
-            try
-            {
+            try {
                 return _this[(Int32)index];
             }
-            catch (ArgumentOutOfRangeException ex)
-            {
+            catch (ArgumentOutOfRangeException ex) {
                 throw WindowsRuntimeMarshal.GetExceptionForHR(__HResults.E_BOUNDS, ex, "ArgumentOutOfRange_IndexOutOfRange");
             }
         }
 
         // uint Size { get }
-        internal uint Size()
-        {
+        internal uint Size() {
             IList _this = JitHelpers.UnsafeCast<IList>(this);
             return (uint)_this.Count;
         }
 
         // IBindableVectorView GetView()
-        internal IBindableVectorView GetView()
-        {
+        internal IBindableVectorView GetView() {
             IList _this = JitHelpers.UnsafeCast<IList>(this);
             return new ListToBindableVectorViewAdapter(_this);
         }
 
         // bool IndexOf(object value, out uint index)
-        internal bool IndexOf(object value, out uint index)
-        {
+        internal bool IndexOf(object value, out uint index) {
             IList _this = JitHelpers.UnsafeCast<IList>(this);
             int ind = _this.IndexOf(value);
 
-            if (-1 == ind)
-            {
+            if (-1 == ind) {
                 index = 0;
                 return false;
             }
@@ -79,36 +69,30 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         }
 
         // void SetAt(uint index, object value)
-        internal void SetAt(uint index, object value)
-        {
+        internal void SetAt(uint index, object value) {
             IList _this = JitHelpers.UnsafeCast<IList>(this);
             EnsureIndexInt32(index, _this.Count);
 
-            try
-            {
+            try {
                 _this[(int)index] = value;
             }
-            catch (ArgumentOutOfRangeException ex)
-            {
+            catch (ArgumentOutOfRangeException ex) {
                 throw WindowsRuntimeMarshal.GetExceptionForHR(__HResults.E_BOUNDS, ex, "ArgumentOutOfRange_IndexOutOfRange");
             }
         }
 
         // void InsertAt(uint index, object value)
-        internal void InsertAt(uint index, object value)
-        {
+        internal void InsertAt(uint index, object value) {
             IList _this = JitHelpers.UnsafeCast<IList>(this);
 
             // Inserting at an index one past the end of the list is equivalent to appending
             // so we need to ensure that we're within (0, count + 1).
             EnsureIndexInt32(index, _this.Count + 1);
 
-            try
-            {
+            try {
                 _this.Insert((int)index, value);
             }
-            catch (ArgumentOutOfRangeException ex)
-            {
+            catch (ArgumentOutOfRangeException ex) {
                 // Change error code to match what WinRT expects
                 ex.SetErrorCode(__HResults.E_BOUNDS);
                 throw;
@@ -116,17 +100,14 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         }
 
         // void RemoveAt(uint index)
-        internal void RemoveAt(uint index)
-        {
+        internal void RemoveAt(uint index) {
             IList _this = JitHelpers.UnsafeCast<IList>(this);
             EnsureIndexInt32(index, _this.Count);
 
-            try
-            {
+            try {
                 _this.RemoveAt((Int32)index);
             }
-            catch (ArgumentOutOfRangeException ex)
-            {
+            catch (ArgumentOutOfRangeException ex) {
                 // Change error code to match what WinRT expects
                 ex.SetErrorCode(__HResults.E_BOUNDS);
                 throw;
@@ -134,18 +115,15 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         }
 
         // void Append(object value)
-        internal void Append(object value)
-        {
+        internal void Append(object value) {
             IList _this = JitHelpers.UnsafeCast<IList>(this);
             _this.Add(value);
         }
 
         // void RemoveAtEnd()
-        internal void RemoveAtEnd()
-        {
+        internal void RemoveAtEnd() {
             IList _this = JitHelpers.UnsafeCast<IList>(this);
-            if (_this.Count == 0)
-            {
+            if (_this.Count == 0) {
                 Exception e = new InvalidOperationException(SR.InvalidOperation_CannotRemoveLastFromEmptyCollection);
                 e.SetErrorCode(__HResults.E_BOUNDS);
                 throw e;
@@ -156,20 +134,17 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         }
 
         // void Clear()
-        internal void Clear()
-        {
+        internal void Clear() {
             IList _this = JitHelpers.UnsafeCast<IList>(this);
             _this.Clear();
         }
 
         // Helpers:
 
-        private static void EnsureIndexInt32(uint index, int listCapacity)
-        {
+        private static void EnsureIndexInt32(uint index, int listCapacity) {
             // We use '<=' and not '<' becasue Int32.MaxValue == index would imply
             // that Size > Int32.MaxValue:
-            if (((uint)Int32.MaxValue) <= index || index >= (uint)listCapacity)
-            {
+            if (((uint)Int32.MaxValue) <= index || index >= (uint)listCapacity) {
                 Exception e = new ArgumentOutOfRangeException(nameof(index), SR.ArgumentOutOfRange_IndexLargerThanMaxValue);
                 e.SetErrorCode(__HResults.E_BOUNDS);
                 throw e;

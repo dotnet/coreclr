@@ -16,31 +16,25 @@
 using System;
 using System.Runtime.Serialization;
 
-namespace System.Threading
-{
+namespace System.Threading {
     [Serializable]
-    public class ThreadStateException : SystemException
-    {
+    public class ThreadStateException : SystemException {
         public ThreadStateException()
-            : base(SR.Arg_ThreadStateException)
-        {
+            : base(SR.Arg_ThreadStateException) {
             SetErrorCode(__HResults.COR_E_THREADSTATE);
         }
 
         public ThreadStateException(String message)
-            : base(message)
-        {
+            : base(message) {
             SetErrorCode(__HResults.COR_E_THREADSTATE);
         }
 
         public ThreadStateException(String message, Exception innerException)
-            : base(message, innerException)
-        {
+            : base(message, innerException) {
             SetErrorCode(__HResults.COR_E_THREADSTATE);
         }
 
-        protected ThreadStateException(SerializationInfo info, StreamingContext context) : base(info, context)
-        {
+        protected ThreadStateException(SerializationInfo info, StreamingContext context) : base(info, context) {
         }
     }
 }

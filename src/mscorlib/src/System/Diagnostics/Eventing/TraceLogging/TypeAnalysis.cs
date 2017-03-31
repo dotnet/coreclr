@@ -16,8 +16,7 @@ namespace System.Diagnostics.Tracing
     /// <summary>
     /// TraceLogging: stores the per-type information obtained by reflecting over a type.
     /// </summary>
-    internal sealed class TypeAnalysis
-    {
+    internal sealed class TypeAnalysis {
         internal readonly PropertyAnalysis[] properties;
         internal readonly string name;
         internal readonly EventKeywords keywords;
@@ -28,32 +27,26 @@ namespace System.Diagnostics.Tracing
         public TypeAnalysis(
             Type dataType,
             EventDataAttribute eventAttrib,
-            List<Type> recursionCheck)
-        {
+            List<Type> recursionCheck) {
             var propertyInfos = Statics.GetProperties(dataType);
             var propertyList = new List<PropertyAnalysis>();
 
-            foreach (var propertyInfo in propertyInfos)
-            {
-                if (Statics.HasCustomAttribute(propertyInfo, typeof(EventIgnoreAttribute)))
-                {
+            foreach (var propertyInfo in propertyInfos) {
+                if (Statics.HasCustomAttribute(propertyInfo, typeof(EventIgnoreAttribute))) {
                     continue;
                 }
 
                 if (!propertyInfo.CanRead ||
-                    propertyInfo.GetIndexParameters().Length != 0)
-                {
+                    propertyInfo.GetIndexParameters().Length != 0) {
                     continue;
                 }
 
                 MethodInfo getterInfo = Statics.GetGetMethod(propertyInfo);
-                if (getterInfo == null)
-                {
+                if (getterInfo == null) {
                     continue;
                 }
 
-                if (getterInfo.IsStatic || !getterInfo.IsPublic)
-                {
+                if (getterInfo.IsStatic || !getterInfo.IsPublic) {
                     continue;
                 }
 
@@ -76,8 +69,7 @@ namespace System.Diagnostics.Tracing
 
             this.properties = propertyList.ToArray();
 
-            foreach (var property in this.properties)
-            {
+            foreach (var property in this.properties) {
                 var typeInfo = property.typeInfo;
                 this.level = (EventLevel)Statics.Combine((int)typeInfo.Level, (int)this.level);
                 this.opcode = (EventOpcode)Statics.Combine((int)typeInfo.Opcode, (int)this.opcode);
@@ -85,8 +77,7 @@ namespace System.Diagnostics.Tracing
                 this.tags |= typeInfo.Tags;
             }
 
-            if (eventAttrib != null)
-            {
+            if (eventAttrib != null) {
                 this.level = (EventLevel)Statics.Combine((int)eventAttrib.Level, (int)this.level);
                 this.opcode = (EventOpcode)Statics.Combine((int)eventAttrib.Opcode, (int)this.opcode);
                 this.keywords |= eventAttrib.Keywords;
@@ -94,8 +85,7 @@ namespace System.Diagnostics.Tracing
                 this.name = eventAttrib.Name;
             }
 
-            if (this.name == null)
-            {
+            if (this.name == null) {
                 this.name = dataType.Name;
             }
         }

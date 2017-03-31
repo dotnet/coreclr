@@ -2,10 +2,8 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-namespace System.Reflection
-{
-    public abstract class MethodInfo : MethodBase
-    {
+namespace System.Reflection {
+    public abstract class MethodInfo : MethodBase {
         protected MethodInfo() { }
 
         public override MemberTypes MemberType => MemberTypes.Method;
@@ -27,8 +25,7 @@ namespace System.Reflection
         public override bool Equals(object obj) => base.Equals(obj);
         public override int GetHashCode() => base.GetHashCode();
 
-        public static bool operator ==(MethodInfo left, MethodInfo right)
-        {
+        public static bool operator ==(MethodInfo left, MethodInfo right) {
             if (object.ReferenceEquals(left, right))
                 return true;
 

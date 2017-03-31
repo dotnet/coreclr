@@ -5,14 +5,11 @@
 using System;
 using System.Runtime.InteropServices;
 
-namespace Microsoft.Win32.SafeHandles
-{
+namespace Microsoft.Win32.SafeHandles {
     // Class of critical handle which uses 0 or -1 as an invalid handle.
-    public abstract class CriticalHandleZeroOrMinusOneIsInvalid : CriticalHandle
-    {
+    public abstract class CriticalHandleZeroOrMinusOneIsInvalid : CriticalHandle {
         protected CriticalHandleZeroOrMinusOneIsInvalid()
-            : base(IntPtr.Zero)
-        {
+            : base(IntPtr.Zero) {
         }
 
         public override bool IsInvalid => handle.IsNull() || handle == new IntPtr(-1);

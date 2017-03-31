@@ -14,8 +14,7 @@
 ** 
 ===========================================================*/
 
-namespace System.Runtime.InteropServices
-{
+namespace System.Runtime.InteropServices {
     using System;
     using System.Reflection;
     using System.Threading;
@@ -133,8 +132,7 @@ namespace System.Runtime.InteropServices
     // we'll do this to ensure we've cut off all attack vectors.  Similarly, all
     // methods have a link demand to ensure untrusted code cannot directly edit
     // or alter a handle.
-    public abstract class SafeHandle : CriticalFinalizerObject, IDisposable
-    {
+    public abstract class SafeHandle : CriticalFinalizerObject, IDisposable {
         // ! Do not add or rearrange fields as the EE depends on this layout.
         //------------------------------------------------------------------
 #if DEBUG
@@ -153,8 +151,7 @@ namespace System.Runtime.InteropServices
         // Creates a SafeHandle class.  Users must then set the Handle property.
         // To prevent the SafeHandle from being freed, write a subclass that
         // doesn't define a finalizer.
-        protected SafeHandle(IntPtr invalidHandleValue, bool ownsHandle)
-        {
+        protected SafeHandle(IntPtr invalidHandleValue, bool ownsHandle) {
             handle = invalidHandleValue;
             _state = 4; // Ref count 1 and not closed or disposed.
             _ownsHandle = ownsHandle;
@@ -177,22 +174,19 @@ namespace System.Runtime.InteropServices
         }
 
         // Migrating InheritanceDemands requires this default ctor, so we can mark it critical
-        protected SafeHandle()
-        {
+        protected SafeHandle() {
             BCLDebug.Assert(false, "SafeHandle's protected default ctor should never be used!");
             throw new NotImplementedException();
         }
 
-        ~SafeHandle()
-        {
+        ~SafeHandle() {
             Dispose(false);
         }
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         private extern void InternalFinalize();
 
-        protected void SetHandle(IntPtr handle)
-        {
+        protected void SetHandle(IntPtr handle) {
             this.handle = handle;
         }
 
@@ -210,33 +204,27 @@ namespace System.Runtime.InteropServices
         //     any way, this can lead to a handle recycling security attack (i.e. an
         //     untrusted caller can query data on the handle you've just returned
         //     and get back information for an entirely unrelated resource).
-        public IntPtr DangerousGetHandle()
-        {
+        public IntPtr DangerousGetHandle() {
             return handle;
         }
 
-        public bool IsClosed
-        {
+        public bool IsClosed {
             get { return (_state & 1) == 1; }
         }
 
-        public abstract bool IsInvalid
-        {
+        public abstract bool IsInvalid {
             get;
         }
 
-        public void Close()
-        {
+        public void Close() {
             Dispose(true);
         }
 
-        public void Dispose()
-        {
+        public void Dispose() {
             Dispose(true);
         }
 
-        protected virtual void Dispose(bool disposing)
-        {
+        protected virtual void Dispose(bool disposing) {
             if (disposing)
                 InternalDispose();
             else

@@ -23,54 +23,43 @@ using System.Globalization;
 using System.Security;
 using System.Diagnostics.Contracts;
 
-namespace System.IO
-{
+namespace System.IO {
     [Pure]
-    internal static class __Error
-    {
-        internal static void EndOfFile()
-        {
+    internal static class __Error {
+        internal static void EndOfFile() {
             throw new EndOfStreamException(SR.IO_EOF_ReadBeyondEOF);
         }
 
-        internal static void FileNotOpen()
-        {
+        internal static void FileNotOpen() {
             throw new ObjectDisposedException(null, SR.ObjectDisposed_FileClosed);
         }
 
-        internal static void StreamIsClosed()
-        {
+        internal static void StreamIsClosed() {
             throw new ObjectDisposedException(null, SR.ObjectDisposed_StreamClosed);
         }
 
-        internal static void MemoryStreamNotExpandable()
-        {
+        internal static void MemoryStreamNotExpandable() {
             throw new NotSupportedException(SR.NotSupported_MemStreamNotExpandable);
         }
 
-        internal static void ReaderClosed()
-        {
+        internal static void ReaderClosed() {
             throw new ObjectDisposedException(null, SR.ObjectDisposed_ReaderClosed);
         }
 
-        internal static void ReadNotSupported()
-        {
+        internal static void ReadNotSupported() {
             throw new NotSupportedException(SR.NotSupported_UnreadableStream);
         }
 
-        internal static void WrongAsyncResult()
-        {
+        internal static void WrongAsyncResult() {
             throw new ArgumentException(SR.Arg_WrongAsyncResult);
         }
 
-        internal static void EndReadCalledTwice()
-        {
+        internal static void EndReadCalledTwice() {
             // Should ideally be InvalidOperationExc but we can't maitain parity with Stream and FileStream without some work
             throw new ArgumentException(SR.InvalidOperation_EndReadCalledMultiple);
         }
 
-        internal static void EndWriteCalledTwice()
-        {
+        internal static void EndWriteCalledTwice() {
             // Should ideally be InvalidOperationExc but we can't maintain parity with Stream and FileStream without some work
             throw new ArgumentException(SR.InvalidOperation_EndWriteCalledMultiple);
         }
@@ -79,8 +68,7 @@ namespace System.IO
         // discovery permission to that path.  If we do not, return just the 
         // file name.  If we know it is a directory, then don't return the 
         // directory name.
-        internal static String GetDisplayablePath(String path, bool isInvalidPath)
-        {
+        internal static String GetDisplayablePath(String path, bool isInvalidPath) {
             if (String.IsNullOrEmpty(path))
                 return String.Empty;
 
@@ -90,8 +78,7 @@ namespace System.IO
                 return path;
             if (PathInternal.IsDirectorySeparator(path[0]) && PathInternal.IsDirectorySeparator(path[1]))
                 isFullyQualified = true;
-            else if (path[1] == Path.VolumeSeparatorChar)
-            {
+            else if (path[1] == Path.VolumeSeparatorChar) {
                 isFullyQualified = true;
             }
 
@@ -99,30 +86,24 @@ namespace System.IO
                 return path;
 
             bool safeToReturn = false;
-            try
-            {
-                if (!isInvalidPath)
-                {
+            try {
+                if (!isInvalidPath) {
                     safeToReturn = true;
                 }
             }
-            catch (SecurityException)
-            {
+            catch (SecurityException) {
             }
-            catch (ArgumentException)
-            {
+            catch (ArgumentException) {
                 // ? and * characters cause ArgumentException to be thrown from HasIllegalCharacters
                 // inside FileIOPermission.AddPathList
             }
-            catch (NotSupportedException)
-            {
+            catch (NotSupportedException) {
                 // paths like "!Bogus\\dir:with/junk_.in it" can cause NotSupportedException to be thrown
                 // from Security.Util.StringExpressionSet.CanonicalizePath when ':' is found in the path
                 // beyond string index position 1.  
             }
 
-            if (!safeToReturn)
-            {
+            if (!safeToReturn) {
                 if (PathInternal.IsDirectorySeparator(path[path.Length - 1]))
                     path = SR.IO_NoPermissionToDirectoryName;
                 else
@@ -132,8 +113,7 @@ namespace System.IO
             return path;
         }
 
-        internal static void WinIOError()
-        {
+        internal static void WinIOError() {
             int errorCode = Marshal.GetLastWin32Error();
             WinIOError(errorCode, String.Empty);
         }
@@ -143,14 +123,12 @@ namespace System.IO
         // will determine the appropriate exception to throw dependent on your 
         // error, and depending on the error, insert a string into the message 
         // gotten from the ResourceManager.
-        internal static void WinIOError(int errorCode, String maybeFullPath)
-        {
+        internal static void WinIOError(int errorCode, String maybeFullPath) {
             // This doesn't have to be perfect, but is a perf optimization.
             bool isInvalidPath = errorCode == Win32Native.ERROR_INVALID_NAME || errorCode == Win32Native.ERROR_BAD_PATHNAME;
             String str = GetDisplayablePath(maybeFullPath, isInvalidPath);
 
-            switch (errorCode)
-            {
+            switch (errorCode) {
                 case Win32Native.ERROR_FILE_NOT_FOUND:
                     if (str.Length == 0)
                         throw new FileNotFoundException(SR.IO_FileNotFound);
@@ -202,8 +180,7 @@ namespace System.IO
             }
         }
 
-        internal static void WriteNotSupported()
-        {
+        internal static void WriteNotSupported() {
             throw new NotSupportedException(SR.NotSupported_UnwritableStream);
         }
 

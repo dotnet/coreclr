@@ -5,10 +5,8 @@
 using Microsoft.Win32.SafeHandles;
 using System.Runtime.InteropServices;
 
-internal partial class Interop
-{
-    internal partial class Kernel32
-    {
+internal partial class Interop {
+    internal partial class Kernel32 {
         [DllImport(Libraries.Kernel32, SetLastError = true)]
         internal extern static int GetFileType(SafeHandle hFile);
     }

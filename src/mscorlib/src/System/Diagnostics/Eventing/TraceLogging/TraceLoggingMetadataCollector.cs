@@ -16,8 +16,7 @@ namespace System.Diagnostics.Tracing
     /// TraceLogging: used when implementing a custom TraceLoggingTypeInfo.
     /// An instance of this type is provided to the TypeInfo.WriteMetadata method.
     /// </summary>
-    internal class TraceLoggingMetadataCollector
-    {
+    internal class TraceLoggingMetadataCollector {
         private readonly Impl impl;
         private readonly FieldMetadata currentGroup;
         private int bufferedArrayFieldCount = int.MinValue;
@@ -25,8 +24,7 @@ namespace System.Diagnostics.Tracing
         /// <summary>
         /// Creates a root-level collector.
         /// </summary>
-        internal TraceLoggingMetadataCollector()
-        {
+        internal TraceLoggingMetadataCollector() {
             impl = new Impl();
         }
 
@@ -37,8 +35,7 @@ namespace System.Diagnostics.Tracing
         /// <param name="group">The field that starts the group</param>
         private TraceLoggingMetadataCollector(
             TraceLoggingMetadataCollector other,
-            FieldMetadata group)
-        {
+            FieldMetadata group) {
             impl = other.impl;
             currentGroup = group;
         }
@@ -47,29 +44,24 @@ namespace System.Diagnostics.Tracing
         /// The field tags to be used for the next field.
         /// This will be reset to None each time a field is written.
         /// </summary>
-        internal EventFieldTags Tags
-        {
+        internal EventFieldTags Tags {
             get;
             set;
         }
 
-        internal int ScratchSize
-        {
+        internal int ScratchSize {
             get { return impl.scratchSize; }
         }
 
-        internal int DataCount
-        {
+        internal int DataCount {
             get { return impl.dataCount; }
         }
 
-        internal int PinCount
-        {
+        internal int PinCount {
             get { return impl.pinCount; }
         }
 
-        private bool BeginningBufferedArray
-        {
+        private bool BeginningBufferedArray {
             get { return bufferedArrayFieldCount == 0; }
         }
 
@@ -93,13 +85,12 @@ namespace System.Diagnostics.Tracing
         /// <returns>
         /// A new metadata collector that can be used to add fields to the group.
         /// </returns>
-        public TraceLoggingMetadataCollector AddGroup(string name)
-        {
+        public TraceLoggingMetadataCollector AddGroup(string name) {
             TraceLoggingMetadataCollector result = this;
 
             if (name != null || // Normal.
                 this.BeginningBufferedArray) // Error, FieldMetadata's constructor will throw the appropriate exception.
-            {
+{
                 var newGroup = new FieldMetadata(
                     name,
                     TraceLoggingDataType.Struct,
@@ -122,11 +113,9 @@ namespace System.Diagnostics.Tracing
         /// The type code for the added field. This must be a fixed-size type
         /// (e.g. string types are not supported).
         /// </param>
-        public void AddScalar(string name, TraceLoggingDataType type)
-        {
+        public void AddScalar(string name, TraceLoggingDataType type) {
             int size;
-            switch ((TraceLoggingDataType)((int)type & Statics.InTypeMask))
-            {
+            switch ((TraceLoggingDataType)((int)type & Statics.InTypeMask)) {
                 case TraceLoggingDataType.Int8:
                 case TraceLoggingDataType.UInt8:
                 case TraceLoggingDataType.Char8:
@@ -174,10 +163,8 @@ namespace System.Diagnostics.Tracing
         /// <param name="type">
         /// The type code for the added field. This must be a Binary or CountedString type.
         /// </param>
-        public void AddBinary(string name, TraceLoggingDataType type)
-        {
-            switch ((TraceLoggingDataType)((int)type & Statics.InTypeMask))
-            {
+        public void AddBinary(string name, TraceLoggingDataType type) {
+            switch ((TraceLoggingDataType)((int)type & Statics.InTypeMask)) {
                 case TraceLoggingDataType.Binary:
                 case TraceLoggingDataType.CountedMbcsString:
                 case TraceLoggingDataType.CountedUtf16String:
@@ -202,10 +189,8 @@ namespace System.Diagnostics.Tracing
         /// or a string type. In the case of a string type, this adds an array
         /// of characters, not an array of strings.
         /// </param>
-        public void AddArray(string name, TraceLoggingDataType type)
-        {
-            switch ((TraceLoggingDataType)((int)type & Statics.InTypeMask))
-            {
+        public void AddArray(string name, TraceLoggingDataType type) {
+            switch ((TraceLoggingDataType)((int)type & Statics.InTypeMask)) {
                 case TraceLoggingDataType.Utf16String:
                 case TraceLoggingDataType.MbcsString:
                 case TraceLoggingDataType.Int8:
@@ -230,8 +215,7 @@ namespace System.Diagnostics.Tracing
                     throw new ArgumentOutOfRangeException(nameof(type));
             }
 
-            if (this.BeginningBufferedArray)
-            {
+            if (this.BeginningBufferedArray) {
                 throw new NotSupportedException(Resources.GetResourceString("EventSource_NotSupportedNestedArraysEnums"));
             }
 
@@ -240,10 +224,8 @@ namespace System.Diagnostics.Tracing
             this.AddField(new FieldMetadata(name, type, this.Tags, true));
         }
 
-        public void BeginBufferedArray()
-        {
-            if (bufferedArrayFieldCount >= 0)
-            {
+        public void BeginBufferedArray() {
+            if (bufferedArrayFieldCount >= 0) {
                 throw new NotSupportedException(Resources.GetResourceString("EventSource_NotSupportedNestedArraysEnums"));
             }
 
@@ -251,10 +233,8 @@ namespace System.Diagnostics.Tracing
             impl.BeginBuffered();
         }
 
-        public void EndBufferedArray()
-        {
-            if (bufferedArrayFieldCount != 1)
-            {
+        public void EndBufferedArray() {
+            if (bufferedArrayFieldCount != 1) {
                 throw new InvalidOperationException(Resources.GetResourceString("EventSource_IncorrentlyAuthoredTypeInfo"));
             }
 
@@ -270,10 +250,8 @@ namespace System.Diagnostics.Tracing
         /// </param>
         /// <param name="type">The encoding type for the field.</param>
         /// <param name="metadata">Additional information needed to decode the field, if any.</param>
-        public void AddCustom(string name, TraceLoggingDataType type, byte[] metadata)
-        {
-            if (this.BeginningBufferedArray)
-            {
+        public void AddCustom(string name, TraceLoggingDataType type, byte[] metadata) {
+            if (this.BeginningBufferedArray) {
                 throw new NotSupportedException(Resources.GetResourceString("EventSource_NotSupportedCustomSerializedData"));
             }
 
@@ -286,28 +264,24 @@ namespace System.Diagnostics.Tracing
                 metadata));
         }
 
-        internal byte[] GetMetadata()
-        {
+        internal byte[] GetMetadata() {
             var size = impl.Encode(null);
             var metadata = new byte[size];
             impl.Encode(metadata);
             return metadata;
         }
 
-        private void AddField(FieldMetadata fieldMetadata)
-        {
+        private void AddField(FieldMetadata fieldMetadata) {
             this.Tags = EventFieldTags.None;
             bufferedArrayFieldCount++;
             impl.fields.Add(fieldMetadata);
 
-            if (currentGroup != null)
-            {
+            if (currentGroup != null) {
                 currentGroup.IncrementStructFieldCount();
             }
         }
 
-        private class Impl
-        {
+        private class Impl {
             internal readonly List<FieldMetadata> fields = new List<FieldMetadata>();
             internal short scratchSize;
             internal sbyte dataCount;
@@ -315,12 +289,9 @@ namespace System.Diagnostics.Tracing
             private int bufferNesting;
             private bool scalar;
 
-            public void AddScalar(int size)
-            {
-                if (bufferNesting == 0)
-                {
-                    if (!scalar)
-                    {
+            public void AddScalar(int size) {
+                if (bufferNesting == 0) {
+                    if (!scalar) {
                         this.dataCount = checked((sbyte)(this.dataCount + 1));
                     }
 
@@ -329,37 +300,30 @@ namespace System.Diagnostics.Tracing
                 }
             }
 
-            public void AddNonscalar()
-            {
-                if (bufferNesting == 0)
-                {
+            public void AddNonscalar() {
+                if (bufferNesting == 0) {
                     scalar = false;
                     this.pinCount = checked((sbyte)(this.pinCount + 1));
                     this.dataCount = checked((sbyte)(this.dataCount + 1));
                 }
             }
 
-            public void BeginBuffered()
-            {
-                if (bufferNesting == 0)
-                {
+            public void BeginBuffered() {
+                if (bufferNesting == 0) {
                     this.AddNonscalar();
                 }
 
                 bufferNesting++;
             }
 
-            public void EndBuffered()
-            {
+            public void EndBuffered() {
                 bufferNesting--;
             }
 
-            public int Encode(byte[] metadata)
-            {
+            public int Encode(byte[] metadata) {
                 int size = 0;
 
-                foreach (var field in this.fields)
-                {
+                foreach (var field in this.fields) {
                     field.Encode(ref size, metadata);
                 }
 

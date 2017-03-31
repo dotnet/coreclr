@@ -13,8 +13,7 @@ using System.Diagnostics.Contracts;
 using System.Runtime.InteropServices;
 using System.Runtime.CompilerServices;
 
-namespace System.Runtime.InteropServices.WindowsRuntime
-{
+namespace System.Runtime.InteropServices.WindowsRuntime {
     // This is a set of stub methods implementing the support for the IDictionary`2 interface on WinRT
     // objects that support IMap`2. Used by the interop mashaling infrastructure.
     //
@@ -23,16 +22,13 @@ namespace System.Runtime.InteropServices.WindowsRuntime
     // for all of these methods are not MapToDictionaryAdapter objects. Rather, they are of type
     // IMap<K, V>. No actual MapToDictionaryAdapter object is ever instantiated. Thus, you will see
     // a lot of expressions that cast "this" to "IMap<K, V>".
-    internal sealed class MapToDictionaryAdapter
-    {
-        private MapToDictionaryAdapter()
-        {
+    internal sealed class MapToDictionaryAdapter {
+        private MapToDictionaryAdapter() {
             Debug.Assert(false, "This class is never instantiated");
         }
 
         // V this[K key] { get }
-        internal V Indexer_Get<K, V>(K key)
-        {
+        internal V Indexer_Get<K, V>(K key) {
             if (key == null)
                 throw new ArgumentNullException(nameof(key));
 
@@ -43,8 +39,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         }
 
         // V this[K key] { set }
-        internal void Indexer_Set<K, V>(K key, V value)
-        {
+        internal void Indexer_Set<K, V>(K key, V value) {
             if (key == null)
                 throw new ArgumentNullException(nameof(key));
 
@@ -55,16 +50,14 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         }
 
         // ICollection<K> Keys { get }
-        internal ICollection<K> Keys<K, V>()
-        {
+        internal ICollection<K> Keys<K, V>() {
             IMap<K, V> _this = JitHelpers.UnsafeCast<IMap<K, V>>(this);
             IDictionary<K, V> dictionary = (IDictionary<K, V>)_this;
             return new DictionaryKeyCollection<K, V>(dictionary);
         }
 
         // ICollection<V> Values { get }
-        internal ICollection<V> Values<K, V>()
-        {
+        internal ICollection<V> Values<K, V>() {
             IMap<K, V> _this = JitHelpers.UnsafeCast<IMap<K, V>>(this);
             IDictionary<K, V> dictionary = (IDictionary<K, V>)_this;
             return new DictionaryValueCollection<K, V>(dictionary);
@@ -72,8 +65,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
 
         // bool ContainsKey(K key)
         [Pure]
-        internal bool ContainsKey<K, V>(K key)
-        {
+        internal bool ContainsKey<K, V>(K key) {
             if (key == null)
                 throw new ArgumentNullException(nameof(key));
 
@@ -82,8 +74,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         }
 
         // void Add(K key, V value)
-        internal void Add<K, V>(K key, V value)
-        {
+        internal void Add<K, V>(K key, V value) {
             if (key == null)
                 throw new ArgumentNullException(nameof(key));
 
@@ -97,8 +88,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         }
 
         // bool Remove(TKey key)
-        internal bool Remove<K, V>(K key)
-        {
+        internal bool Remove<K, V>(K key) {
             if (key == null)
                 throw new ArgumentNullException(nameof(key));
 
@@ -106,13 +96,11 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             if (!_this.HasKey(key))
                 return false;
 
-            try
-            {
+            try {
                 _this.Remove(key);
                 return true;
             }
-            catch (Exception ex)
-            {
+            catch (Exception ex) {
                 if (__HResults.E_BOUNDS == ex._HResult)
                     return false;
 
@@ -121,25 +109,21 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         }
 
         // bool TryGetValue(TKey key, out TValue value)
-        internal bool TryGetValue<K, V>(K key, out V value)
-        {
+        internal bool TryGetValue<K, V>(K key, out V value) {
             if (key == null)
                 throw new ArgumentNullException(nameof(key));
 
             IMap<K, V> _this = JitHelpers.UnsafeCast<IMap<K, V>>(this);
-            if (!_this.HasKey(key))
-            {
+            if (!_this.HasKey(key)) {
                 value = default(V);
                 return false;
             }
 
-            try
-            {
+            try {
                 value = Lookup(_this, key);
                 return true;
             }
-            catch (KeyNotFoundException)
-            {
+            catch (KeyNotFoundException) {
                 value = default(V);
                 return false;
             }
@@ -147,24 +131,20 @@ namespace System.Runtime.InteropServices.WindowsRuntime
 
         // Helpers:
 
-        private static V Lookup<K, V>(IMap<K, V> _this, K key)
-        {
+        private static V Lookup<K, V>(IMap<K, V> _this, K key) {
             Contract.Requires(null != key);
 
-            try
-            {
+            try {
                 return _this.Lookup(key);
             }
-            catch (Exception ex)
-            {
+            catch (Exception ex) {
                 if (__HResults.E_BOUNDS == ex._HResult)
                     throw new KeyNotFoundException(SR.Arg_KeyNotFound);
                 throw;
             }
         }
 
-        private static bool Insert<K, V>(IMap<K, V> _this, K key, V value)
-        {
+        private static bool Insert<K, V>(IMap<K, V> _this, K key, V value) {
             Contract.Requires(null != key);
 
             bool replaced = _this.Insert(key, value);

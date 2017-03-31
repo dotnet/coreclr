@@ -13,12 +13,10 @@
 
 using System;
 
-namespace System.Runtime.InteropServices.ComTypes
-{
+namespace System.Runtime.InteropServices.ComTypes {
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
 
-    public struct STATSTG
-    {
+    public struct STATSTG {
         public String pwcsName;
         public int type;
         public Int64 cbSize;
@@ -35,8 +33,7 @@ namespace System.Runtime.InteropServices.ComTypes
     [Guid("0000000c-0000-0000-C000-000000000046")]
     [InterfaceTypeAttribute(ComInterfaceType.InterfaceIsIUnknown)]
     [ComImport]
-    public interface IStream
-    {
+    public interface IStream {
         // ISequentialStream portion
         void Read([MarshalAs(UnmanagedType.LPArray, SizeParamIndex = 1), Out] Byte[] pv, int cb, IntPtr pcbRead);
         void Write([MarshalAs(UnmanagedType.LPArray, SizeParamIndex = 1)] Byte[] pv, int cb, IntPtr pcbWritten);

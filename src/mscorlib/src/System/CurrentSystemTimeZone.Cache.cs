@@ -5,21 +5,15 @@
 using System.Collections;
 using System.Globalization;
 
-namespace System
-{
-    internal partial class CurrentSystemTimeZone
-    {
-        private DaylightTime GetCachedDaylightChanges(int year)
-        {
+namespace System {
+    internal partial class CurrentSystemTimeZone {
+        private DaylightTime GetCachedDaylightChanges(int year) {
             Object objYear = (Object)year;
 
-            if (!m_CachedDaylightChanges.Contains(objYear))
-            {
+            if (!m_CachedDaylightChanges.Contains(objYear)) {
                 DaylightTime currentDaylightChanges = CreateDaylightChanges(year);
-                lock (m_CachedDaylightChanges)
-                {
-                    if (!m_CachedDaylightChanges.Contains(objYear))
-                    {
+                lock (m_CachedDaylightChanges) {
+                    if (!m_CachedDaylightChanges.Contains(objYear)) {
                         m_CachedDaylightChanges.Add(objYear, currentDaylightChanges);
                     }
                 }

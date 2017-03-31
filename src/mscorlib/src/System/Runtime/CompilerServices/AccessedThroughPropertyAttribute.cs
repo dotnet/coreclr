@@ -7,22 +7,17 @@
 
 using System;
 
-namespace System.Runtime.CompilerServices
-{
+namespace System.Runtime.CompilerServices {
     [AttributeUsage(AttributeTargets.Field)]
-    public sealed class AccessedThroughPropertyAttribute : Attribute
-    {
+    public sealed class AccessedThroughPropertyAttribute : Attribute {
         private readonly string propertyName;
 
-        public AccessedThroughPropertyAttribute(string propertyName)
-        {
+        public AccessedThroughPropertyAttribute(string propertyName) {
             this.propertyName = propertyName;
         }
 
-        public string PropertyName
-        {
-            get
-            {
+        public string PropertyName {
+            get {
                 return propertyName;
             }
         }

@@ -10,11 +10,9 @@ using System.Runtime.Serialization;
 using System.Text;
 using RuntimeTypeCache = System.RuntimeType.RuntimeTypeCache;
 
-namespace System.Reflection
-{
+namespace System.Reflection {
     [Serializable]
-    internal unsafe sealed class RuntimePropertyInfo : PropertyInfo, ISerializable
-    {
+    internal unsafe sealed class RuntimePropertyInfo : PropertyInfo, ISerializable {
         #region Private Data Members
         private int m_token;
         private string m_name;
@@ -32,8 +30,7 @@ namespace System.Reflection
 
         #region Constructor
         internal RuntimePropertyInfo(
-            int tkProperty, RuntimeType declaredType, RuntimeTypeCache reflectedTypeCache, out bool isPrivate)
-        {
+            int tkProperty, RuntimeType declaredType, RuntimeTypeCache reflectedTypeCache, out bool isPrivate) {
             Contract.Requires(declaredType != null);
             Contract.Requires(reflectedTypeCache != null);
             Debug.Assert(!reflectedTypeCache.IsGlobal);
@@ -56,8 +53,7 @@ namespace System.Reflection
         #endregion
 
         #region Internal Members
-        internal override bool CacheEquals(object o)
-        {
+        internal override bool CacheEquals(object o) {
             RuntimePropertyInfo m = o as RuntimePropertyInfo;
 
             if ((object)m == null)
@@ -68,12 +64,9 @@ namespace System.Reflection
                     RuntimeTypeHandle.GetModule(m.m_declaringType));
         }
 
-        internal Signature Signature
-        {
-            get
-            {
-                if (m_signature == null)
-                {
+        internal Signature Signature {
+            get {
+                if (m_signature == null) {
                     PropertyAttributes flags;
                     ConstArray sig;
 
@@ -87,8 +80,7 @@ namespace System.Reflection
                 return m_signature;
             }
         }
-        internal bool EqualsSig(RuntimePropertyInfo target)
-        {
+        internal bool EqualsSig(RuntimePropertyInfo target) {
             //@Asymmetry - Legacy policy is to remove duplicate properties, including hidden properties. 
             //             The comparison is done by name and by sig. The EqualsSig comparison is expensive 
             //             but forutnetly it is only called when an inherited property is hidden by name or
@@ -123,21 +115,18 @@ namespace System.Reflection
         #endregion
 
         #region Object Overrides
-        public override String ToString()
-        {
+        public override String ToString() {
             return FormatNameAndSig(false);
         }
 
-        private string FormatNameAndSig(bool serialization)
-        {
+        private string FormatNameAndSig(bool serialization) {
             StringBuilder sbName = new StringBuilder(PropertyType.FormatTypeName(serialization));
 
             sbName.Append(" ");
             sbName.Append(Name);
 
             RuntimeType[] arguments = Signature.Arguments;
-            if (arguments.Length > 0)
-            {
+            if (arguments.Length > 0) {
                 sbName.Append(" [");
                 sbName.Append(MethodBase.ConstructParameters(arguments, Signature.CallingConvention, serialization));
                 sbName.Append("]");
@@ -148,13 +137,11 @@ namespace System.Reflection
         #endregion
 
         #region ICustomAttributeProvider
-        public override Object[] GetCustomAttributes(bool inherit)
-        {
+        public override Object[] GetCustomAttributes(bool inherit) {
             return CustomAttribute.GetCustomAttributes(this, typeof(object) as RuntimeType);
         }
 
-        public override Object[] GetCustomAttributes(Type attributeType, bool inherit)
-        {
+        public override Object[] GetCustomAttributes(Type attributeType, bool inherit) {
             if (attributeType == null)
                 throw new ArgumentNullException(nameof(attributeType));
             Contract.EndContractBlock();
@@ -167,8 +154,7 @@ namespace System.Reflection
             return CustomAttribute.GetCustomAttributes(this, attributeRuntimeType);
         }
 
-        public override bool IsDefined(Type attributeType, bool inherit)
-        {
+        public override bool IsDefined(Type attributeType, bool inherit) {
             if (attributeType == null)
                 throw new ArgumentNullException(nameof(attributeType));
             Contract.EndContractBlock();
@@ -181,44 +167,35 @@ namespace System.Reflection
             return CustomAttribute.IsDefined(this, attributeRuntimeType);
         }
 
-        public override IList<CustomAttributeData> GetCustomAttributesData()
-        {
+        public override IList<CustomAttributeData> GetCustomAttributesData() {
             return CustomAttributeData.GetCustomAttributesInternal(this);
         }
         #endregion
 
         #region MemberInfo Overrides
         public override MemberTypes MemberType { get { return MemberTypes.Property; } }
-        public override String Name
-        {
-            get
-            {
+        public override String Name {
+            get {
                 if (m_name == null)
                     m_name = new Utf8String(m_utf8name).ToString();
 
                 return m_name;
             }
         }
-        public override Type DeclaringType
-        {
-            get
-            {
+        public override Type DeclaringType {
+            get {
                 return m_declaringType;
             }
         }
 
-        public override Type ReflectedType
-        {
-            get
-            {
+        public override Type ReflectedType {
+            get {
                 return ReflectedTypeInternal;
             }
         }
 
-        private RuntimeType ReflectedTypeInternal
-        {
-            get
-            {
+        private RuntimeType ReflectedTypeInternal {
+            get {
                 return m_reflectedTypeCache.GetRuntimeType();
             }
         }
@@ -233,18 +210,15 @@ namespace System.Reflection
 
         #region Non Dynamic
 
-        public override Type[] GetRequiredCustomModifiers()
-        {
+        public override Type[] GetRequiredCustomModifiers() {
             return Signature.GetCustomModifiers(0, true);
         }
 
-        public override Type[] GetOptionalCustomModifiers()
-        {
+        public override Type[] GetOptionalCustomModifiers() {
             return Signature.GetCustomModifiers(0, false);
         }
 
-        internal object GetConstantValue(bool raw)
-        {
+        internal object GetConstantValue(bool raw) {
             Object defaultValue = MdConstant.GetValue(GetRuntimeModule().MetadataImport, m_token, PropertyType.GetTypeHandleInternal(), raw);
 
             if (defaultValue == DBNull.Value)
@@ -258,8 +232,7 @@ namespace System.Reflection
 
         public override object GetRawConstantValue() { return GetConstantValue(true); }
 
-        public override MethodInfo[] GetAccessors(bool nonPublic)
-        {
+        public override MethodInfo[] GetAccessors(bool nonPublic) {
             List<MethodInfo> accessorList = new List<MethodInfo>();
 
             if (Associates.IncludeAccessor(m_getterMethod, nonPublic))
@@ -268,10 +241,8 @@ namespace System.Reflection
             if (Associates.IncludeAccessor(m_setterMethod, nonPublic))
                 accessorList.Add(m_setterMethod);
 
-            if ((object)m_otherMethod != null)
-            {
-                for (int i = 0; i < m_otherMethod.Length; i++)
-                {
+            if ((object)m_otherMethod != null) {
+                for (int i = 0; i < m_otherMethod.Length; i++) {
                     if (Associates.IncludeAccessor(m_otherMethod[i] as MethodInfo, nonPublic))
                         accessorList.Add(m_otherMethod[i]);
                 }
@@ -279,29 +250,25 @@ namespace System.Reflection
             return accessorList.ToArray();
         }
 
-        public override Type PropertyType
-        {
+        public override Type PropertyType {
             get { return Signature.ReturnType; }
         }
 
-        public override MethodInfo GetGetMethod(bool nonPublic)
-        {
+        public override MethodInfo GetGetMethod(bool nonPublic) {
             if (!Associates.IncludeAccessor(m_getterMethod, nonPublic))
                 return null;
 
             return m_getterMethod;
         }
 
-        public override MethodInfo GetSetMethod(bool nonPublic)
-        {
+        public override MethodInfo GetSetMethod(bool nonPublic) {
             if (!Associates.IncludeAccessor(m_setterMethod, nonPublic))
                 return null;
 
             return m_setterMethod;
         }
 
-        public override ParameterInfo[] GetIndexParameters()
-        {
+        public override ParameterInfo[] GetIndexParameters() {
             ParameterInfo[] indexParams = GetIndexParametersNoCopy();
 
             int numParams = indexParams.Length;
@@ -316,31 +283,26 @@ namespace System.Reflection
             return ret;
         }
 
-        internal ParameterInfo[] GetIndexParametersNoCopy()
-        {
+        internal ParameterInfo[] GetIndexParametersNoCopy() {
             // @History - Logic ported from RTM
 
             // No need to lock because we don't guarantee the uniqueness of ParameterInfo objects
-            if (m_parameters == null)
-            {
+            if (m_parameters == null) {
                 int numParams = 0;
                 ParameterInfo[] methParams = null;
 
                 // First try to get the Get method.
                 MethodInfo m = GetGetMethod(true);
-                if (m != null)
-                {
+                if (m != null) {
                     // There is a Get method so use it.
                     methParams = m.GetParametersNoCopy();
                     numParams = methParams.Length;
                 }
-                else
-                {
+                else {
                     // If there is no Get method then use the Set method.
                     m = GetSetMethod(true);
 
-                    if (m != null)
-                    {
+                    if (m != null) {
                         methParams = m.GetParametersNoCopy();
                         numParams = methParams.Length - 1;
                     }
@@ -360,26 +322,20 @@ namespace System.Reflection
             return m_parameters;
         }
 
-        public override PropertyAttributes Attributes
-        {
-            get
-            {
+        public override PropertyAttributes Attributes {
+            get {
                 return m_flags;
             }
         }
 
-        public override bool CanRead
-        {
-            get
-            {
+        public override bool CanRead {
+            get {
                 return m_getterMethod != null;
             }
         }
 
-        public override bool CanWrite
-        {
-            get
-            {
+        public override bool CanWrite {
+            get {
                 return m_setterMethod != null;
             }
         }
@@ -388,16 +344,14 @@ namespace System.Reflection
         #region Dynamic
         [DebuggerStepThroughAttribute]
         [Diagnostics.DebuggerHidden]
-        public override Object GetValue(Object obj, Object[] index)
-        {
+        public override Object GetValue(Object obj, Object[] index) {
             return GetValue(obj, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static,
                 null, index, null);
         }
 
         [DebuggerStepThroughAttribute]
         [Diagnostics.DebuggerHidden]
-        public override Object GetValue(Object obj, BindingFlags invokeAttr, Binder binder, Object[] index, CultureInfo culture)
-        {
+        public override Object GetValue(Object obj, BindingFlags invokeAttr, Binder binder, Object[] index, CultureInfo culture) {
             MethodInfo m = GetGetMethod(true);
             if (m == null)
                 throw new ArgumentException(System.SR.Arg_GetMethNotFnd);
@@ -406,8 +360,7 @@ namespace System.Reflection
 
         [DebuggerStepThroughAttribute]
         [Diagnostics.DebuggerHidden]
-        public override void SetValue(Object obj, Object value, Object[] index)
-        {
+        public override void SetValue(Object obj, Object value, Object[] index) {
             SetValue(obj,
                     value,
                     BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static,
@@ -418,8 +371,7 @@ namespace System.Reflection
 
         [DebuggerStepThroughAttribute]
         [Diagnostics.DebuggerHidden]
-        public override void SetValue(Object obj, Object value, BindingFlags invokeAttr, Binder binder, Object[] index, CultureInfo culture)
-        {
+        public override void SetValue(Object obj, Object value, BindingFlags invokeAttr, Binder binder, Object[] index, CultureInfo culture) {
             MethodInfo m = GetSetMethod(true);
 
             if (m == null)
@@ -427,8 +379,7 @@ namespace System.Reflection
 
             Object[] args = null;
 
-            if (index != null)
-            {
+            if (index != null) {
                 args = new Object[index.Length + 1];
 
                 for (int i = 0; i < index.Length; i++)
@@ -436,8 +387,7 @@ namespace System.Reflection
 
                 args[index.Length] = value;
             }
-            else
-            {
+            else {
                 args = new Object[1];
                 args[0] = value;
             }
@@ -449,8 +399,7 @@ namespace System.Reflection
         #endregion
 
         #region ISerializable Implementation
-        public void GetObjectData(SerializationInfo info, StreamingContext context)
-        {
+        public void GetObjectData(SerializationInfo info, StreamingContext context) {
             if (info == null)
                 throw new ArgumentNullException(nameof(info));
             Contract.EndContractBlock();
@@ -458,8 +407,7 @@ namespace System.Reflection
             MemberInfoSerializationHolder.GetSerializationInfo(info, this);
         }
 
-        internal string SerializationToString()
-        {
+        internal string SerializationToString() {
             return FormatNameAndSig(true);
         }
         #endregion

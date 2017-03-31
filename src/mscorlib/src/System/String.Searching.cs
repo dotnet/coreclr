@@ -6,13 +6,10 @@ using System.Diagnostics.Contracts;
 using System.Globalization;
 using System.Runtime.CompilerServices;
 
-namespace System
-{
-    public partial class String
-    {
+namespace System {
+    public partial class String {
         [Pure]
-        public bool Contains(string value)
-        {
+        public bool Contains(string value) {
             return (IndexOf(value, StringComparison.Ordinal) >= 0);
         }
 
@@ -20,32 +17,27 @@ namespace System
         // The search starts at startIndex and runs thorough the next count characters.
         //
         [Pure]
-        public int IndexOf(char value)
-        {
+        public int IndexOf(char value) {
             return IndexOf(value, 0, this.Length);
         }
 
         [Pure]
-        public int IndexOf(char value, int startIndex)
-        {
+        public int IndexOf(char value, int startIndex) {
             return IndexOf(value, startIndex, this.Length - startIndex);
         }
 
         [Pure]
-        public unsafe int IndexOf(char value, int startIndex, int count)
-        {
+        public unsafe int IndexOf(char value, int startIndex, int count) {
             if (startIndex < 0 || startIndex > Length)
                 throw new ArgumentOutOfRangeException(nameof(startIndex), SR.ArgumentOutOfRange_Index);
 
             if (count < 0 || count > Length - startIndex)
                 throw new ArgumentOutOfRangeException(nameof(count), SR.ArgumentOutOfRange_Count);
 
-            fixed (char* pChars = &m_firstChar)
-            {
+            fixed (char* pChars = &m_firstChar) {
                 char* pCh = pChars + startIndex;
 
-                while (count >= 4)
-                {
+                while (count >= 4) {
                     if (*pCh == value) goto ReturnIndex;
                     if (*(pCh + 1) == value) goto ReturnIndex1;
                     if (*(pCh + 2) == value) goto ReturnIndex2;
@@ -55,8 +47,7 @@ namespace System
                     pCh += 4;
                 }
 
-                while (count > 0)
-                {
+                while (count > 0) {
                     if (*pCh == value)
                         goto ReturnIndex;
 
@@ -78,14 +69,12 @@ namespace System
         // The search starts at startIndex and runs to startIndex + count -1.
         //
         [Pure]
-        public int IndexOfAny(char[] anyOf)
-        {
+        public int IndexOfAny(char[] anyOf) {
             return IndexOfAny(anyOf, 0, this.Length);
         }
 
         [Pure]
-        public int IndexOfAny(char[] anyOf, int startIndex)
-        {
+        public int IndexOfAny(char[] anyOf, int startIndex) {
             return IndexOfAny(anyOf, startIndex, this.Length - startIndex);
         }
 
@@ -100,8 +89,7 @@ namespace System
         // comparison is used.
         //
         [Pure]
-        public int IndexOf(String value)
-        {
+        public int IndexOf(String value) {
             return IndexOf(value, StringComparison.CurrentCulture);
         }
 
@@ -110,8 +98,7 @@ namespace System
         // startIndex, it is case-sensitive and the current culture comparison is used.
         //
         [Pure]
-        public int IndexOf(String value, int startIndex)
-        {
+        public int IndexOf(String value, int startIndex) {
             return IndexOf(value, startIndex, StringComparison.CurrentCulture);
         }
 
@@ -120,15 +107,12 @@ namespace System
         // startIndex, ends at endIndex and the current culture comparison is used.
         //
         [Pure]
-        public int IndexOf(String value, int startIndex, int count)
-        {
-            if (startIndex < 0 || startIndex > this.Length)
-            {
+        public int IndexOf(String value, int startIndex, int count) {
+            if (startIndex < 0 || startIndex > this.Length) {
                 throw new ArgumentOutOfRangeException(nameof(startIndex), SR.ArgumentOutOfRange_Index);
             }
 
-            if (count < 0 || count > this.Length - startIndex)
-            {
+            if (count < 0 || count > this.Length - startIndex) {
                 throw new ArgumentOutOfRangeException(nameof(count), SR.ArgumentOutOfRange_Count);
             }
             Contract.EndContractBlock();
@@ -137,20 +121,17 @@ namespace System
         }
 
         [Pure]
-        public int IndexOf(String value, StringComparison comparisonType)
-        {
+        public int IndexOf(String value, StringComparison comparisonType) {
             return IndexOf(value, 0, this.Length, comparisonType);
         }
 
         [Pure]
-        public int IndexOf(String value, int startIndex, StringComparison comparisonType)
-        {
+        public int IndexOf(String value, int startIndex, StringComparison comparisonType) {
             return IndexOf(value, startIndex, this.Length - startIndex, comparisonType);
         }
 
         [Pure]
-        public int IndexOf(String value, int startIndex, int count, StringComparison comparisonType)
-        {
+        public int IndexOf(String value, int startIndex, int count, StringComparison comparisonType) {
             // Validate inputs
             if (value == null)
                 throw new ArgumentNullException(nameof(value));
@@ -162,8 +143,7 @@ namespace System
                 throw new ArgumentOutOfRangeException(nameof(count), SR.ArgumentOutOfRange_Count);
             Contract.EndContractBlock();
 
-            switch (comparisonType)
-            {
+            switch (comparisonType) {
                 case StringComparison.CurrentCulture:
                     return CultureInfo.CurrentCulture.CompareInfo.IndexOf(this, value, startIndex, count, CompareOptions.None);
 
@@ -196,20 +176,17 @@ namespace System
         // index within the string.
         //
         [Pure]
-        public int LastIndexOf(char value)
-        {
+        public int LastIndexOf(char value) {
             return LastIndexOf(value, this.Length - 1, this.Length);
         }
 
         [Pure]
-        public int LastIndexOf(char value, int startIndex)
-        {
+        public int LastIndexOf(char value, int startIndex) {
             return LastIndexOf(value, startIndex, startIndex + 1);
         }
 
         [Pure]
-        public unsafe int LastIndexOf(char value, int startIndex, int count)
-        {
+        public unsafe int LastIndexOf(char value, int startIndex, int count) {
             if (Length == 0)
                 return -1;
 
@@ -219,13 +196,11 @@ namespace System
             if (count < 0 || count - 1 > startIndex)
                 throw new ArgumentOutOfRangeException(nameof(count), SR.ArgumentOutOfRange_Count);
 
-            fixed (char* pChars = &m_firstChar)
-            {
+            fixed (char* pChars = &m_firstChar) {
                 char* pCh = pChars + startIndex;
 
                 //We search [startIndex..EndIndex]
-                while (count >= 4)
-                {
+                while (count >= 4) {
                     if (*pCh == value) goto ReturnIndex;
                     if (*(pCh - 1) == value) goto ReturnIndex1;
                     if (*(pCh - 2) == value) goto ReturnIndex2;
@@ -235,8 +210,7 @@ namespace System
                     pCh -= 4;
                 }
 
-                while (count > 0)
-                {
+                while (count > 0) {
                     if (*pCh == value)
                         goto ReturnIndex;
 
@@ -262,14 +236,12 @@ namespace System
 
         //ForceInline ... Jit can't recognize String.get_Length to determine that this is "fluff"
         [Pure]
-        public int LastIndexOfAny(char[] anyOf)
-        {
+        public int LastIndexOfAny(char[] anyOf) {
             return LastIndexOfAny(anyOf, this.Length - 1, this.Length);
         }
 
         [Pure]
-        public int LastIndexOfAny(char[] anyOf, int startIndex)
-        {
+        public int LastIndexOfAny(char[] anyOf, int startIndex) {
             return LastIndexOfAny(anyOf, startIndex, startIndex + 1);
         }
 
@@ -284,22 +256,18 @@ namespace System
         // index within the string.
         //
         [Pure]
-        public int LastIndexOf(String value)
-        {
+        public int LastIndexOf(String value) {
             return LastIndexOf(value, this.Length - 1, this.Length, StringComparison.CurrentCulture);
         }
 
         [Pure]
-        public int LastIndexOf(String value, int startIndex)
-        {
+        public int LastIndexOf(String value, int startIndex) {
             return LastIndexOf(value, startIndex, startIndex + 1, StringComparison.CurrentCulture);
         }
 
         [Pure]
-        public int LastIndexOf(String value, int startIndex, int count)
-        {
-            if (count < 0)
-            {
+        public int LastIndexOf(String value, int startIndex, int count) {
+            if (count < 0) {
                 throw new ArgumentOutOfRangeException(nameof(count), SR.ArgumentOutOfRange_Count);
             }
             Contract.EndContractBlock();
@@ -308,20 +276,17 @@ namespace System
         }
 
         [Pure]
-        public int LastIndexOf(String value, StringComparison comparisonType)
-        {
+        public int LastIndexOf(String value, StringComparison comparisonType) {
             return LastIndexOf(value, this.Length - 1, this.Length, comparisonType);
         }
 
         [Pure]
-        public int LastIndexOf(String value, int startIndex, StringComparison comparisonType)
-        {
+        public int LastIndexOf(String value, int startIndex, StringComparison comparisonType) {
             return LastIndexOf(value, startIndex, startIndex + 1, comparisonType);
         }
 
         [Pure]
-        public int LastIndexOf(String value, int startIndex, int count, StringComparison comparisonType)
-        {
+        public int LastIndexOf(String value, int startIndex, int count, StringComparison comparisonType) {
             if (value == null)
                 throw new ArgumentNullException(nameof(value));
             Contract.EndContractBlock();
@@ -335,8 +300,7 @@ namespace System
                 throw new ArgumentOutOfRangeException(nameof(startIndex), SR.ArgumentOutOfRange_Index);
 
             // Make sure that we allow startIndex == this.Length
-            if (startIndex == this.Length)
-            {
+            if (startIndex == this.Length) {
                 startIndex--;
                 if (count > 0)
                     count--;
@@ -351,8 +315,7 @@ namespace System
                 throw new ArgumentOutOfRangeException(nameof(count), SR.ArgumentOutOfRange_Count);
 
 
-            switch (comparisonType)
-            {
+            switch (comparisonType) {
                 case StringComparison.CurrentCulture:
                     return CultureInfo.CurrentCulture.CompareInfo.LastIndexOf(this, value, startIndex, count, CompareOptions.None);
 

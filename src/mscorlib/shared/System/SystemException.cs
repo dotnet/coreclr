@@ -4,26 +4,21 @@
 
 using System.Runtime.Serialization;
 
-namespace System
-{
+namespace System {
     [Serializable]
-    public class SystemException : Exception
-    {
+    public class SystemException : Exception {
         public SystemException()
-            : base(SR.Arg_SystemException)
-        {
+            : base(SR.Arg_SystemException) {
             HResult = __HResults.COR_E_SYSTEM;
         }
 
         public SystemException(String message)
-            : base(message)
-        {
+            : base(message) {
             HResult = __HResults.COR_E_SYSTEM;
         }
 
         public SystemException(String message, Exception innerException)
-            : base(message, innerException)
-        {
+            : base(message, innerException) {
             HResult = __HResults.COR_E_SYSTEM;
         }
 

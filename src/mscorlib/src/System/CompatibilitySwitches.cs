@@ -4,23 +4,18 @@
 
 using System.Runtime.CompilerServices;
 
-namespace System
-{
+namespace System {
     [FriendAccessAllowed]
-    internal static class CompatibilitySwitches
-    {
+    internal static class CompatibilitySwitches {
         private static bool s_AreSwitchesSet;
 
-        public static bool IsCompatibilityBehaviorDefined
-        {
-            get
-            {
+        public static bool IsCompatibilityBehaviorDefined {
+            get {
                 return s_AreSwitchesSet;
             }
         }
 
-        internal static void InitializeSwitches()
-        {
+        internal static void InitializeSwitches() {
             s_AreSwitchesSet = true;
         }
     }

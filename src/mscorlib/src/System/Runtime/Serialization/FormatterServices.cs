@@ -27,10 +27,8 @@ using System.Globalization;
 using System.Diagnostics;
 using System.Diagnostics.Contracts;
 
-namespace System.Runtime.Serialization
-{
-    internal static class FormatterServices
-    {
+namespace System.Runtime.Serialization {
+    internal static class FormatterServices {
         // Gets a new instance of the object.  The entire object is initalized to 0 and no 
         // constructors have been run. **THIS MEANS THAT THE OBJECT MAY NOT BE IN A STATE
         // CONSISTENT WITH ITS INTERNAL REQUIREMENTS** This method should only be used for
@@ -38,16 +36,13 @@ namespace System.Runtime.Serialization
         // will not create an unitialized string because it is non-sensical to create an empty
         // instance of an immutable type.
         //
-        public static Object GetUninitializedObject(Type type)
-        {
-            if ((object)type == null)
-            {
+        public static Object GetUninitializedObject(Type type) {
+            if ((object)type == null) {
                 throw new ArgumentNullException(nameof(type));
             }
             Contract.EndContractBlock();
 
-            if (!(type is RuntimeType))
-            {
+            if (!(type is RuntimeType)) {
                 throw new SerializationException(SR.Format(SR.Serialization_InvalidType, type.ToString()));
             }
 
@@ -69,8 +64,7 @@ namespace System.Runtime.Serialization
         **Arguments: assemblyName -- The stringized assembly name.
         **Exceptions: None
         ==============================================================================*/
-        internal static Assembly LoadAssemblyFromString(String assemblyName)
-        {
+        internal static Assembly LoadAssemblyFromString(String assemblyName) {
             //
             // Try using the stringized assembly name to load from the fusion cache.
             //

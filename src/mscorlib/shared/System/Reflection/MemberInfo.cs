@@ -4,10 +4,8 @@
 
 using System.Collections.Generic;
 
-namespace System.Reflection
-{
-    public abstract partial class MemberInfo : ICustomAttributeProvider
-    {
+namespace System.Reflection {
+    public abstract partial class MemberInfo : ICustomAttributeProvider {
         protected MemberInfo() { }
 
         public abstract MemberTypes MemberType { get; }
@@ -15,10 +13,8 @@ namespace System.Reflection
         public abstract Type DeclaringType { get; }
         public abstract Type ReflectedType { get; }
 
-        public virtual Module Module
-        {
-            get
-            {
+        public virtual Module Module {
+            get {
                 // This check is necessary because for some reason, Type adds a new "Module" property that hides the inherited one instead 
                 // of overriding.
 
@@ -42,8 +38,7 @@ namespace System.Reflection
         public override bool Equals(object obj) => base.Equals(obj);
         public override int GetHashCode() => base.GetHashCode();
 
-        public static bool operator ==(MemberInfo left, MemberInfo right)
-        {
+        public static bool operator ==(MemberInfo left, MemberInfo right) {
             if (object.ReferenceEquals(left, right))
                 return true;
 

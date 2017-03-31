@@ -18,10 +18,8 @@ using System.Runtime.InteropServices;
 using System.Runtime.Serialization;
 using System.Threading;
 
-namespace System
-{
-    internal enum LazyState
-    {
+namespace System {
+    internal enum LazyState {
         NoneViaConstructor = 0,
         NoneViaFactory     = 1,
         NoneException      = 2,
@@ -44,8 +42,7 @@ namespace System
     /// - allows for instantiation for ExecutionAndPublication so as to create an object for locking on
     /// - holds exception information.
     /// </summary>
-    internal class LazyHelper
-    {
+    internal class LazyHelper {
         internal readonly static LazyHelper NoneViaConstructor            = new LazyHelper(LazyState.NoneViaConstructor);
         internal readonly static LazyHelper NoneViaFactory                = new LazyHelper(LazyState.NoneViaFactory);
         internal readonly static LazyHelper PublicationOnlyViaConstructor = new LazyHelper(LazyState.PublicationOnlyViaConstructor);
@@ -59,18 +56,15 @@ namespace System
         /// <summary>
         /// Constructor that defines the state
         /// </summary>
-        internal LazyHelper(LazyState state)
-        {
+        internal LazyHelper(LazyState state) {
             State = state;
         }
 
         /// <summary>
         /// Constructor used for exceptions
         /// </summary>
-        internal LazyHelper(LazyThreadSafetyMode mode, Exception exception)
-        {
-            switch(mode)
-            {
+        internal LazyHelper(LazyThreadSafetyMode mode, Exception exception) {
+            switch(mode) {
                 case LazyThreadSafetyMode.ExecutionAndPublication:
                     State = LazyState.ExecutionAndPublicationException;
                     break;
@@ -91,17 +85,14 @@ namespace System
             _exceptionDispatch = ExceptionDispatchInfo.Capture(exception);
         }
 
-        internal void ThrowException()
-        {
+        internal void ThrowException() {
             Debug.Assert(_exceptionDispatch != null, "execution path is invalid");
 
             _exceptionDispatch.Throw();
         }
 
-        private LazyThreadSafetyMode GetMode()
-        {
-            switch (State)
-            {
+        private LazyThreadSafetyMode GetMode() {
+            switch (State) {
                 case LazyState.NoneViaConstructor:
                 case LazyState.NoneViaFactory:
                 case LazyState.NoneException:
@@ -124,8 +115,7 @@ namespace System
             }
         }
 
-        internal static LazyThreadSafetyMode? GetMode(LazyHelper state)
-        {
+        internal static LazyThreadSafetyMode? GetMode(LazyHelper state) {
             if (state == null)
                 return null; // we don't know the mode anymore
             return state.GetMode();
@@ -133,10 +123,8 @@ namespace System
 
         internal static bool GetIsValueFaulted(LazyHelper state) => state?._exceptionDispatch != null;
 
-        internal static LazyHelper Create(LazyThreadSafetyMode mode, bool useDefaultConstructor)
-        {
-            switch (mode)
-            {
+        internal static LazyHelper Create(LazyThreadSafetyMode mode, bool useDefaultConstructor) {
+            switch (mode) {
                 case LazyThreadSafetyMode.None:
                     return useDefaultConstructor ? NoneViaConstructor : NoneViaFactory;
 
@@ -153,20 +141,16 @@ namespace System
             }
         }
 
-        internal static object CreateViaDefaultConstructor(Type type)
-        {
-            try
-            {
+        internal static object CreateViaDefaultConstructor(Type type) {
+            try {
                 return Activator.CreateInstance(type);
             }
-            catch (MissingMethodException)
-            {
+            catch (MissingMethodException) {
                 throw new MissingMemberException(SR.Lazy_CreateValue_NoParameterlessCtorForT);
             }
         }
 
-        internal static LazyThreadSafetyMode GetModeFromIsThreadSafe(bool isThreadSafe)
-        {
+        internal static LazyThreadSafetyMode GetModeFromIsThreadSafe(bool isThreadSafe) {
             return isThreadSafe ? LazyThreadSafetyMode.ExecutionAndPublication : LazyThreadSafetyMode.None;
         }
     }
@@ -185,10 +169,8 @@ namespace System
     [Serializable]
     [DebuggerTypeProxy(typeof(System_LazyDebugView<>))]
     [DebuggerDisplay("ThreadSafetyMode={Mode}, IsValueCreated={IsValueCreated}, IsValueFaulted={IsValueFaulted}, Value={ValueForDebugDisplay}")]
-    public class Lazy<T>
-    {
-        private static T CreateViaDefaultConstructor()
-        {
+    public class Lazy<T> {
+        private static T CreateViaDefaultConstructor() {
             return (T)LazyHelper.CreateViaDefaultConstructor(typeof(T));
         }
 
@@ -212,8 +194,7 @@ namespace System
         /// An instance created with this constructor may be used concurrently from multiple threads.
         /// </remarks>
         public Lazy()
-            : this(null, LazyThreadSafetyMode.ExecutionAndPublication, useDefaultConstructor:true)
-        {
+            : this(null, LazyThreadSafetyMode.ExecutionAndPublication, useDefaultConstructor:true) {
         }
 
         /// <summary>
@@ -224,8 +205,7 @@ namespace System
         /// An instance created with this constructor should be usable by multiple threads
         //  concurrently.
         /// </remarks>
-        public Lazy(T value)
-        {
+        public Lazy(T value) {
             _value = value;
         }
 
@@ -243,8 +223,7 @@ namespace System
         /// An instance created with this constructor may be used concurrently from multiple threads.
         /// </remarks>
         public Lazy(Func<T> valueFactory)
-            : this(valueFactory, LazyThreadSafetyMode.ExecutionAndPublication, useDefaultConstructor:false)
-        {
+            : this(valueFactory, LazyThreadSafetyMode.ExecutionAndPublication, useDefaultConstructor:false) {
         }
 
         /// <summary>
@@ -254,8 +233,7 @@ namespace System
         /// <param name="isThreadSafe">true if this instance should be usable by multiple threads concurrently; false if the instance will only be used by one thread at a time.
         /// </param>
         public Lazy(bool isThreadSafe) :
-            this(null, LazyHelper.GetModeFromIsThreadSafe(isThreadSafe), useDefaultConstructor:true)
-        {
+            this(null, LazyHelper.GetModeFromIsThreadSafe(isThreadSafe), useDefaultConstructor:true) {
         }
 
         /// <summary>
@@ -265,8 +243,7 @@ namespace System
         /// <param name="mode">The lazy thread-safety mode mode</param>
         /// <exception cref="System.ArgumentOutOfRangeException"><paramref name="mode"/> mode contains an invalid valuee</exception>
         public Lazy(LazyThreadSafetyMode mode) :
-            this(null, mode, useDefaultConstructor:true)
-        {
+            this(null, mode, useDefaultConstructor:true) {
         }
 
         /// <summary>
@@ -281,8 +258,7 @@ namespace System
         /// <exception cref="System.ArgumentNullException"><paramref name="valueFactory"/> is
         /// a null reference (Nothing in Visual Basic).</exception>
         public Lazy(Func<T> valueFactory, bool isThreadSafe) :
-            this(valueFactory, LazyHelper.GetModeFromIsThreadSafe(isThreadSafe), useDefaultConstructor:false)
-        {
+            this(valueFactory, LazyHelper.GetModeFromIsThreadSafe(isThreadSafe), useDefaultConstructor:false) {
         }
 
         /// <summary>
@@ -297,12 +273,10 @@ namespace System
         /// a null reference (Nothing in Visual Basic).</exception>
         /// <exception cref="System.ArgumentOutOfRangeException"><paramref name="mode"/> mode contains an invalid value.</exception>
         public Lazy(Func<T> valueFactory, LazyThreadSafetyMode mode)
-            : this(valueFactory, mode, useDefaultConstructor:false)
-        {
+            : this(valueFactory, mode, useDefaultConstructor:false) {
         }
 
-        private Lazy(Func<T> valueFactory, LazyThreadSafetyMode mode, bool useDefaultConstructor)
-        {
+        private Lazy(Func<T> valueFactory, LazyThreadSafetyMode mode, bool useDefaultConstructor) {
             if (valueFactory == null && !useDefaultConstructor)
                 throw new ArgumentNullException(nameof(valueFactory));
 
@@ -310,16 +284,13 @@ namespace System
             _state = LazyHelper.Create(mode, useDefaultConstructor);
         }
 
-        private void ViaConstructor()
-        {
+        private void ViaConstructor() {
             _value = CreateViaDefaultConstructor();
             _state = null; // volatile write, must occur after setting _value
         }
 
-        private void ViaFactory(LazyThreadSafetyMode mode)
-        {
-            try
-            {
+        private void ViaFactory(LazyThreadSafetyMode mode) {
+            try {
                 Func<T> factory = _factory;
                 if (factory == null)
                     throw new InvalidOperationException(SR.Lazy_Value_RecursiveCallsToValue);
@@ -328,82 +299,65 @@ namespace System
                 _value = factory();
                 _state = null; // volatile write, must occur after setting _value
             }
-            catch (Exception exception)
-            {
+            catch (Exception exception) {
                 _state = new LazyHelper(mode, exception);
                 throw;
             }
         }
 
-        private void ExecutionAndPublication(LazyHelper executionAndPublication, bool useDefaultConstructor)
-        {
-            lock (executionAndPublication)
-            {
+        private void ExecutionAndPublication(LazyHelper executionAndPublication, bool useDefaultConstructor) {
+            lock (executionAndPublication) {
                 // it's possible for multiple calls to have piled up behind the lock, so we need to check
                 // to see if the ExecutionAndPublication object is still the current implementation.
-                if (ReferenceEquals(_state, executionAndPublication))
-                {
-                    if (useDefaultConstructor)
-                    {
+                if (ReferenceEquals(_state, executionAndPublication)) {
+                    if (useDefaultConstructor) {
                         ViaConstructor();
                     }
-                    else
-                    {
+                    else {
                         ViaFactory(LazyThreadSafetyMode.ExecutionAndPublication);
                     }
                 }
             }
         }
 
-        private void PublicationOnly(LazyHelper publicationOnly, T possibleValue)
-        {
+        private void PublicationOnly(LazyHelper publicationOnly, T possibleValue) {
             LazyHelper previous = Interlocked.CompareExchange(ref _state, LazyHelper.PublicationOnlyWaitForOtherThreadToPublish, publicationOnly);
-            if (previous == publicationOnly)
-            {
+            if (previous == publicationOnly) {
                 _factory = null;
                 _value = possibleValue;
                 _state = null; // volatile write, must occur after setting _value
             }
         }
 
-        private void PublicationOnlyViaConstructor(LazyHelper initializer)
-        {
+        private void PublicationOnlyViaConstructor(LazyHelper initializer) {
             PublicationOnly(initializer, CreateViaDefaultConstructor());
         }
 
-        private void PublicationOnlyViaFactory(LazyHelper initializer)
-        {
+        private void PublicationOnlyViaFactory(LazyHelper initializer) {
             Func<T> factory = _factory;
-            if (factory == null)
-            {
+            if (factory == null) {
                 PublicationOnlyWaitForOtherThreadToPublish();
             }
-            else
-            {
+            else {
                 PublicationOnly(initializer, factory());
             }
         }
 
-        private void PublicationOnlyWaitForOtherThreadToPublish()
-        {
+        private void PublicationOnlyWaitForOtherThreadToPublish() {
             var spinWait = new SpinWait();
-            while (!ReferenceEquals(_state, null))
-            {
+            while (!ReferenceEquals(_state, null)) {
                 // We get here when PublicationOnly temporarily sets _state to LazyHelper.PublicationOnlyWaitForOtherThreadToPublish.
                 // This temporary state should be quickly followed by _state being set to null.
                 spinWait.SpinOnce();
             }
         }
 
-        private T CreateValue()
-        {
+        private T CreateValue() {
             // we have to create a copy of state here, and use the copy exclusively from here on in
             // so as to ensure thread safety.
             var state = _state;
-            if (state != null) 
-            {
-                switch (state.State)
-                {
+            if (state != null) {
+                switch (state.State) {
                     case LazyState.NoneViaConstructor:
                         ViaConstructor();
                         break;
@@ -443,8 +397,7 @@ namespace System
         /// <summary>Forces initialization during serialization.</summary>
         /// <param name="context">The StreamingContext for the serialization operation.</param>
         [OnSerializing]
-        private void OnSerializing(StreamingContext context)
-        {
+        private void OnSerializing(StreamingContext context) {
             // Force initialization
             T dummy = Value;
         }
@@ -455,18 +408,14 @@ namespace System
         /// <exception cref="T:System.NullReferenceException">
         /// The <see cref="Value"/> is null.
         /// </exception>
-        public override string ToString()
-        {
+        public override string ToString() {
             return IsValueCreated ? Value.ToString() : SR.Lazy_ToString_ValueNotCreated;
         }
 
         /// <summary>Gets the value of the Lazy&lt;T&gt; for debugging display purposes.</summary>
-        internal T ValueForDebugDisplay
-        {
-            get
-            {
-                if (!IsValueCreated)
-                {
+        internal T ValueForDebugDisplay {
+            get {
+                if (!IsValueCreated) {
                     return default(T);
                 }
                 return _value;
@@ -521,40 +470,33 @@ namespace System
 
     /// <summary>A debugger view of the Lazy&lt;T&gt; to surface additional debugging properties and 
     /// to ensure that the Lazy&lt;T&gt; does not become initialized if it was not already.</summary>
-    internal sealed class System_LazyDebugView<T>
-    {
+    internal sealed class System_LazyDebugView<T> {
         //The Lazy object being viewed.
         private readonly Lazy<T> _lazy;
 
         /// <summary>Constructs a new debugger view object for the provided Lazy object.</summary>
         /// <param name="lazy">A Lazy object to browse in the debugger.</param>
-        public System_LazyDebugView(Lazy<T> lazy)
-        {
+        public System_LazyDebugView(Lazy<T> lazy) {
             _lazy = lazy;
         }
 
         /// <summary>Returns whether the Lazy object is initialized or not.</summary>
-        public bool IsValueCreated
-        {
+        public bool IsValueCreated {
             get { return _lazy.IsValueCreated; }
         }
 
         /// <summary>Returns the value of the Lazy object.</summary>
-        public T Value
-        {
-            get
-            { return _lazy.ValueForDebugDisplay; }
+        public T Value {
+            get { return _lazy.ValueForDebugDisplay; }
         }
 
         /// <summary>Returns the execution mode of the Lazy object</summary>
-        public LazyThreadSafetyMode? Mode
-        {
+        public LazyThreadSafetyMode? Mode {
             get { return _lazy.Mode; }
         }
 
         /// <summary>Returns the execution mode of the Lazy object</summary>
-        public bool IsValueFaulted
-        {
+        public bool IsValueFaulted {
             get { return _lazy.IsValueFaulted; }
         }
     }

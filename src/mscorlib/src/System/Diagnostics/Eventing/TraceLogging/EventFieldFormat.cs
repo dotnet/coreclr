@@ -14,8 +14,7 @@ namespace System.Diagnostics.Tracing
     /// hint if it does not recognize a particular combination of type and format.
     /// Similar to TDH_OUTTYPE.
     /// </summary>
-    public enum EventFieldFormat
-    {
+    public enum EventFieldFormat {
         /// <summary>
         /// Field receives default formatting based on the field's underlying type.
         /// </summary>

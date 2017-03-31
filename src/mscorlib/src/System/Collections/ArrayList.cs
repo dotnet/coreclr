@@ -24,8 +24,7 @@ using System.Runtime.Serialization;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.Contracts;
 
-namespace System.Collections
-{
+namespace System.Collections {
     // Implements a variable-size List that uses an array of objects to store the
     // elements. A ArrayList has a capacity, which is the allocated length
     // of the internal array. As elements are added to a ArrayList, the capacity
@@ -36,8 +35,7 @@ namespace System.Collections
     [DebuggerTypeProxy(typeof(System.Collections.ArrayList.ArrayListDebugView))]
     [DebuggerDisplay("Count = {Count}")]
     [Serializable]
-    internal class ArrayList : IList, ICloneable
-    {
+    internal class ArrayList : IList, ICloneable {
         private Object[] _items;
         [ContractPublicPropertyName("Count")]
         private int _size;
@@ -51,8 +49,7 @@ namespace System.Collections
         // Constructs a ArrayList. The list is initially empty and has a capacity
         // of zero. Upon adding the first element to the list the capacity is
         // increased to _defaultCapacity, and then increased in multiples of two as required.
-        public ArrayList()
-        {
+        public ArrayList() {
             _items = emptyArray;
         }
 
@@ -60,8 +57,7 @@ namespace System.Collections
         // initially empty, but will have room for the given number of elements
         // before any reallocations are required.
         // 
-        public ArrayList(int capacity)
-        {
+        public ArrayList(int capacity) {
             if (capacity < 0) throw new ArgumentOutOfRangeException(nameof(capacity), SR.Format(SR.ArgumentOutOfRange_MustBeNonNegNum, nameof(capacity)));
             Contract.EndContractBlock();
 
@@ -75,19 +71,16 @@ namespace System.Collections
         // size and capacity of the new list will both be equal to the size of the
         // given collection.
         // 
-        public ArrayList(ICollection c)
-        {
+        public ArrayList(ICollection c) {
             if (c == null)
                 throw new ArgumentNullException(nameof(c), SR.ArgumentNull_Collection);
             Contract.EndContractBlock();
 
             int count = c.Count;
-            if (count == 0)
-            {
+            if (count == 0) {
                 _items = emptyArray;
             }
-            else
-            {
+            else {
                 _items = new Object[count];
                 AddRange(c);
             }
@@ -97,36 +90,28 @@ namespace System.Collections
         // the internal array used to hold items.  When set, the internal 
         // array of the list is reallocated to the given capacity.
         // 
-        public virtual int Capacity
-        {
-            get
-            {
+        public virtual int Capacity {
+            get {
                 Contract.Ensures(Contract.Result<int>() >= Count);
                 return _items.Length;
             }
-            set
-            {
-                if (value < _size)
-                {
+            set {
+                if (value < _size) {
                     throw new ArgumentOutOfRangeException(nameof(value), SR.ArgumentOutOfRange_SmallCapacity);
                 }
                 Contract.Ensures(Capacity >= 0);
                 Contract.EndContractBlock();
                 // We don't want to update the version number when we change the capacity.
                 // Some existing applications have dependency on this.
-                if (value != _items.Length)
-                {
-                    if (value > 0)
-                    {
+                if (value != _items.Length) {
+                    if (value > 0) {
                         Object[] newItems = new Object[value];
-                        if (_size > 0)
-                        {
+                        if (_size > 0) {
                             Array.Copy(_items, 0, newItems, 0, _size);
                         }
                         _items = newItems;
                     }
-                    else
-                    {
+                    else {
                         _items = new Object[_defaultCapacity];
                     }
                 }
@@ -134,40 +119,32 @@ namespace System.Collections
         }
 
         // Read-only property describing how many elements are in the List.
-        public virtual int Count
-        {
-            get
-            {
+        public virtual int Count {
+            get {
                 Contract.Ensures(Contract.Result<int>() >= 0);
                 return _size;
             }
         }
 
-        public virtual bool IsFixedSize
-        {
+        public virtual bool IsFixedSize {
             get { return false; }
         }
 
 
         // Is this ArrayList read-only?
-        public virtual bool IsReadOnly
-        {
+        public virtual bool IsReadOnly {
             get { return false; }
         }
 
         // Is this ArrayList synchronized (thread-safe)?
-        public virtual bool IsSynchronized
-        {
+        public virtual bool IsSynchronized {
             get { return false; }
         }
 
         // Synchronization root for this object.
-        public virtual Object SyncRoot
-        {
-            get
-            {
-                if (_syncRoot == null)
-                {
+        public virtual Object SyncRoot {
+            get {
+                if (_syncRoot == null) {
                     System.Threading.Interlocked.CompareExchange<Object>(ref _syncRoot, new Object(), null);
                 }
                 return _syncRoot;
@@ -176,16 +153,13 @@ namespace System.Collections
 
         // Sets or Gets the element at the given index.
         // 
-        public virtual Object this[int index]
-        {
-            get
-            {
+        public virtual Object this[int index] {
+            get {
                 if (index < 0 || index >= _size) throw new ArgumentOutOfRangeException(nameof(index), SR.ArgumentOutOfRange_Index);
                 Contract.EndContractBlock();
                 return _items[index];
             }
-            set
-            {
+            set {
                 if (index < 0 || index >= _size) throw new ArgumentOutOfRangeException(nameof(index), SR.ArgumentOutOfRange_Index);
                 Contract.EndContractBlock();
                 _items[index] = value;
@@ -197,8 +171,7 @@ namespace System.Collections
         // increased by one. If required, the capacity of the list is doubled
         // before adding the new element.
         //
-        public virtual int Add(Object value)
-        {
+        public virtual int Add(Object value) {
             Contract.Ensures(Contract.Result<int>() >= 0);
             if (_size == _items.Length) EnsureCapacity(_size + 1);
             _items[_size] = value;
@@ -210,17 +183,14 @@ namespace System.Collections
         // required, the capacity of the list is increased to twice the previous
         // capacity or the new size, whichever is larger.
         //
-        public virtual void AddRange(ICollection c)
-        {
+        public virtual void AddRange(ICollection c) {
             InsertRange(_size, c);
         }
 
 
         // Clears the contents of ArrayList.
-        public virtual void Clear()
-        {
-            if (_size > 0)
-            {
+        public virtual void Clear() {
+            if (_size > 0) {
                 Array.Clear(_items, 0, _size); // Don't need to doc this but we clear the elements so that the gc can reclaim the references.
                 _size = 0;
             }
@@ -230,8 +200,7 @@ namespace System.Collections
         // Clones this ArrayList, doing a shallow copy.  (A copy is made of all
         // Object references in the ArrayList, but the Objects pointed to 
         // are not cloned).
-        public virtual Object Clone()
-        {
+        public virtual Object Clone() {
             Contract.Ensures(Contract.Result<Object>() != null);
             ArrayList la = new ArrayList(_size);
             la._size = _size;
@@ -245,17 +214,14 @@ namespace System.Collections
         // It does a linear, O(n) search.  Equality is determined by calling
         // item.Equals().
         //
-        public virtual bool Contains(Object item)
-        {
-            if (item == null)
-            {
+        public virtual bool Contains(Object item) {
+            if (item == null) {
                 for (int i = 0; i < _size; i++)
                     if (_items[i] == null)
                         return true;
                 return false;
             }
-            else
-            {
+            else {
                 for (int i = 0; i < _size; i++)
                     if ((_items[i] != null) && (_items[i].Equals(item)))
                         return true;
@@ -266,8 +232,7 @@ namespace System.Collections
         // Copies this ArrayList into array, which must be of a 
         // compatible array type.  
         //
-        public virtual void CopyTo(Array array, int arrayIndex)
-        {
+        public virtual void CopyTo(Array array, int arrayIndex) {
             if ((array != null) && (array.Rank != 1))
                 throw new ArgumentException(SR.Arg_RankMultiDimNotSupported);
             Contract.EndContractBlock();
@@ -279,10 +244,8 @@ namespace System.Collections
         // value. If the currect capacity of the list is less than min, the
         // capacity is increased to twice the current capacity or to min,
         // whichever is larger.
-        private void EnsureCapacity(int min)
-        {
-            if (_items.Length < min)
-            {
+        private void EnsureCapacity(int min) {
+            if (_items.Length < min) {
                 int newCapacity = _items.Length == 0 ? _defaultCapacity : _items.Length * 2;
                 // Allow the list to grow to maximum possible capacity (~2G elements) before encountering overflow.
                 // Note that this check works even when _items.Length overflowed thanks to the (uint) cast
@@ -297,8 +260,7 @@ namespace System.Collections
         // while an enumeration is in progress, the MoveNext and 
         // GetObject methods of the enumerator will throw an exception.
         //
-        public virtual IEnumerator GetEnumerator()
-        {
+        public virtual IEnumerator GetEnumerator() {
             Contract.Ensures(Contract.Result<IEnumerator>() != null);
             return new ArrayListEnumeratorSimple(this);
         }
@@ -311,8 +273,7 @@ namespace System.Collections
         // This method uses the Array.IndexOf method to perform the
         // search.
         // 
-        public virtual int IndexOf(Object value)
-        {
+        public virtual int IndexOf(Object value) {
             Contract.Ensures(Contract.Result<int>() < Count);
             return Array.IndexOf((Array)_items, value, 0, _size);
         }
@@ -321,16 +282,14 @@ namespace System.Collections
         // is increased by one. If required, the capacity of the list is doubled
         // before inserting the new element.
         // 
-        public virtual void Insert(int index, Object value)
-        {
+        public virtual void Insert(int index, Object value) {
             // Note that insertions at the end are legal.
             if (index < 0 || index > _size) throw new ArgumentOutOfRangeException(nameof(index), SR.ArgumentOutOfRange_ArrayListInsert);
             //Contract.Ensures(Count == Contract.OldValue(Count) + 1);
             Contract.EndContractBlock();
 
             if (_size == _items.Length) EnsureCapacity(_size + 1);
-            if (index < _size)
-            {
+            if (index < _size) {
                 Array.Copy(_items, index, _items, index + 1, _size - index);
             }
             _items[index] = value;
@@ -343,8 +302,7 @@ namespace System.Collections
         // capacity or the new size, whichever is larger.  Ranges may be added
         // to the end of the list by setting index to the ArrayList's size.
         //
-        public virtual void InsertRange(int index, ICollection c)
-        {
+        public virtual void InsertRange(int index, ICollection c) {
             if (c == null)
                 throw new ArgumentNullException(nameof(c), SR.ArgumentNull_Collection);
             if (index < 0 || index > _size) throw new ArgumentOutOfRangeException(nameof(index), SR.ArgumentOutOfRange_Index);
@@ -352,12 +310,10 @@ namespace System.Collections
             Contract.EndContractBlock();
 
             int count = c.Count;
-            if (count > 0)
-            {
+            if (count > 0) {
                 EnsureCapacity(_size + count);
                 // shift existing items
-                if (index < _size)
-                {
+                if (index < _size) {
                     Array.Copy(_items, index, _items, index + count, _size - index);
                 }
 
@@ -372,8 +328,7 @@ namespace System.Collections
         // Returns a read-only IList wrapper for the given IList.
         //
         [FriendAccessAllowed]
-        public static IList ReadOnly(IList list)
-        {
+        public static IList ReadOnly(IList list) {
             if (list == null)
                 throw new ArgumentNullException(nameof(list));
             Contract.Ensures(Contract.Result<IList>() != null);
@@ -384,8 +339,7 @@ namespace System.Collections
         // Removes the element at the given index. The size of the list is
         // decreased by one.
         // 
-        public virtual void Remove(Object obj)
-        {
+        public virtual void Remove(Object obj) {
             Contract.Ensures(Count >= 0);
 
             int index = IndexOf(obj);
@@ -397,16 +351,14 @@ namespace System.Collections
         // Removes the element at the given index. The size of the list is
         // decreased by one.
         // 
-        public virtual void RemoveAt(int index)
-        {
+        public virtual void RemoveAt(int index) {
             if (index < 0 || index >= _size) throw new ArgumentOutOfRangeException(nameof(index), SR.ArgumentOutOfRange_Index);
             Contract.Ensures(Count >= 0);
             //Contract.Ensures(Count == Contract.OldValue(Count) - 1);
             Contract.EndContractBlock();
 
             _size--;
-            if (index < _size)
-            {
+            if (index < _size) {
                 Array.Copy(_items, index + 1, _items, index, _size - index);
             }
             _items[_size] = null;
@@ -418,8 +370,7 @@ namespace System.Collections
         // downcasting all elements.  This copy may fail and is an O(n) operation.
         // Internally, this implementation calls Array.Copy.
         //
-        public virtual Array ToArray(Type type)
-        {
+        public virtual Array ToArray(Type type) {
             if (type == null)
                 throw new ArgumentNullException(nameof(type));
             Contract.Ensures(Contract.Result<Array>() != null);
@@ -430,101 +381,81 @@ namespace System.Collections
         }
 
         [Serializable]
-        private class ReadOnlyList : IList
-        {
+        private class ReadOnlyList : IList {
             private IList _list;
 
-            internal ReadOnlyList(IList l)
-            {
+            internal ReadOnlyList(IList l) {
                 _list = l;
             }
 
-            public virtual int Count
-            {
+            public virtual int Count {
                 get { return _list.Count; }
             }
 
-            public virtual bool IsReadOnly
-            {
+            public virtual bool IsReadOnly {
                 get { return true; }
             }
 
-            public virtual bool IsFixedSize
-            {
+            public virtual bool IsFixedSize {
                 get { return true; }
             }
 
-            public virtual bool IsSynchronized
-            {
+            public virtual bool IsSynchronized {
                 get { return _list.IsSynchronized; }
             }
 
-            public virtual Object this[int index]
-            {
-                get
-                {
+            public virtual Object this[int index] {
+                get {
                     return _list[index];
                 }
-                set
-                {
+                set {
                     throw new NotSupportedException(SR.NotSupported_ReadOnlyCollection);
                 }
             }
 
-            public virtual Object SyncRoot
-            {
+            public virtual Object SyncRoot {
                 get { return _list.SyncRoot; }
             }
 
-            public virtual int Add(Object obj)
-            {
+            public virtual int Add(Object obj) {
                 throw new NotSupportedException(SR.NotSupported_ReadOnlyCollection);
             }
 
-            public virtual void Clear()
-            {
+            public virtual void Clear() {
                 throw new NotSupportedException(SR.NotSupported_ReadOnlyCollection);
             }
 
-            public virtual bool Contains(Object obj)
-            {
+            public virtual bool Contains(Object obj) {
                 return _list.Contains(obj);
             }
 
-            public virtual void CopyTo(Array array, int index)
-            {
+            public virtual void CopyTo(Array array, int index) {
                 _list.CopyTo(array, index);
             }
 
-            public virtual IEnumerator GetEnumerator()
-            {
+            public virtual IEnumerator GetEnumerator() {
                 return _list.GetEnumerator();
             }
 
-            public virtual int IndexOf(Object value)
-            {
+            public virtual int IndexOf(Object value) {
                 return _list.IndexOf(value);
             }
 
-            public virtual void Insert(int index, Object obj)
-            {
+            public virtual void Insert(int index, Object obj) {
                 throw new NotSupportedException(SR.NotSupported_ReadOnlyCollection);
             }
 
-            public virtual void Remove(Object value)
-            {
+            public virtual void Remove(Object value) {
                 throw new NotSupportedException(SR.NotSupported_ReadOnlyCollection);
             }
 
-            public virtual void RemoveAt(int index)
-            {
+            public virtual void RemoveAt(int index) {
                 throw new NotSupportedException(SR.NotSupported_ReadOnlyCollection);
             }
         }
 
         [Serializable]
-        private sealed class ArrayListEnumeratorSimple : IEnumerator, ICloneable
-        {
+        private sealed class ArrayListEnumeratorSimple : IEnumerator, ICloneable {
             private ArrayList list;
             private int index;
             private int version;
@@ -534,8 +465,7 @@ namespace System.Collections
             // this object is used to indicate enumeration has not started or has terminated
             private static Object dummyObject = new Object();
 
-            internal ArrayListEnumeratorSimple(ArrayList list)
-            {
+            internal ArrayListEnumeratorSimple(ArrayList list) {
                 this.list = list;
                 index = -1;
                 version = list._version;
@@ -543,41 +473,32 @@ namespace System.Collections
                 currentElement = dummyObject;
             }
 
-            public Object Clone()
-            {
+            public Object Clone() {
                 return MemberwiseClone();
             }
 
-            public bool MoveNext()
-            {
-                if (version != list._version)
-                {
+            public bool MoveNext() {
+                if (version != list._version) {
                     throw new InvalidOperationException(SR.GetResourceString(ResId.InvalidOperation_EnumFailedVersion));
                 }
 
-                if (isArrayList)
-                {  // avoid calling virtual methods if we are operating on ArrayList to improve performance
-                    if (index < list._size - 1)
-                    {
+                if (isArrayList) {  // avoid calling virtual methods if we are operating on ArrayList to improve performance
+                    if (index < list._size - 1) {
                         currentElement = list._items[++index];
                         return true;
                     }
-                    else
-                    {
+                    else {
                         currentElement = dummyObject;
                         index = list._size;
                         return false;
                     }
                 }
-                else
-                {
-                    if (index < list.Count - 1)
-                    {
+                else {
+                    if (index < list.Count - 1) {
                         currentElement = list[++index];
                         return true;
                     }
-                    else
-                    {
+                    else {
                         index = list.Count;
                         currentElement = dummyObject;
                         return false;
@@ -585,19 +506,14 @@ namespace System.Collections
                 }
             }
 
-            public Object Current
-            {
-                get
-                {
+            public Object Current {
+                get {
                     object temp = currentElement;
-                    if (dummyObject == temp)
-                    { // check if enumeration has not started or has terminated
-                        if (index == -1)
-                        {
+                    if (dummyObject == temp) { // check if enumeration has not started or has terminated
+                        if (index == -1) {
                             throw new InvalidOperationException(SR.GetResourceString(ResId.InvalidOperation_EnumNotStarted));
                         }
-                        else
-                        {
+                        else {
                             throw new InvalidOperationException(SR.GetResourceString(ResId.InvalidOperation_EnumEnded));
                         }
                     }
@@ -606,10 +522,8 @@ namespace System.Collections
                 }
             }
 
-            public void Reset()
-            {
-                if (version != list._version)
-                {
+            public void Reset() {
+                if (version != list._version) {
                     throw new InvalidOperationException(SR.GetResourceString(ResId.InvalidOperation_EnumFailedVersion));
                 }
 
@@ -618,8 +532,7 @@ namespace System.Collections
             }
         }
 
-        internal class ArrayListDebugView
-        {
+        internal class ArrayListDebugView {
             private ArrayList arrayList;
         }
     }

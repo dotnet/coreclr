@@ -11,13 +11,10 @@
 using System;
 using System.Runtime.CompilerServices;
 
-namespace System.Runtime.InteropServices
-{
+namespace System.Runtime.InteropServices {
     [AttributeUsage(AttributeTargets.Method)]
-    public sealed class NativeCallableAttribute : Attribute
-    {
-        public NativeCallableAttribute()
-        {
+    public sealed class NativeCallableAttribute : Attribute {
+        public NativeCallableAttribute() {
         }
         // Optional. If omitted , compiler will choose one for you.
         public CallingConvention CallingConvention;

@@ -10,8 +10,7 @@
 **
 **
 =============================================================================*/
-namespace System
-{
+namespace System {
     using System.Text;
     using System.Runtime.InteropServices;
     using System.Runtime.Serialization;
@@ -23,11 +22,9 @@ namespace System
     using System.Collections.Generic;
 
     [Serializable]
-    internal sealed class AppDomainSetup
-    {
+    internal sealed class AppDomainSetup {
         [Serializable]
-        internal enum LoaderInformation
-        {
+        internal enum LoaderInformation {
             // If you add a new value, add the corresponding property
             // to AppDomain.GetData() and SetData()'s switch statements,
             // as well as fusionsetup.h.
@@ -100,11 +97,9 @@ namespace System
         private bool _UseRandomizedStringHashing;
 #endif
 
-        internal AppDomainSetup(AppDomainSetup copy, bool copyDomainBoundData)
-        {
+        internal AppDomainSetup(AppDomainSetup copy, bool copyDomainBoundData) {
             string[] mine = Value;
-            if (copy != null)
-            {
+            if (copy != null) {
                 string[] other = copy.Value;
                 int mineSize = _Entries.Length;
                 int otherSize = other.Length;
@@ -113,8 +108,7 @@ namespace System
                 for (int i = 0; i < size; i++)
                     mine[i] = other[i];
 
-                if (size < mineSize)
-                {
+                if (size < mineSize) {
                     // This case can happen when the copy is a deserialized version of
                     // an AppDomainSetup object serialized by Everett.
                     for (int i = size; i < mineSize; i++)
@@ -138,8 +132,7 @@ namespace System
                 _AppDomainManagerAssembly = copy.AppDomainManagerAssembly;
                 _AppDomainManagerType = copy.AppDomainManagerType;
 
-                if (copy._CompatFlags != null)
-                {
+                if (copy._CompatFlags != null) {
                     SetCompatibilitySwitches(copy._CompatFlags.Keys);
                 }
 
@@ -154,22 +147,18 @@ namespace System
                 _LoaderOptimization = LoaderOptimization.NotSpecified;
         }
 
-        public AppDomainSetup()
-        {
+        public AppDomainSetup() {
             _LoaderOptimization = LoaderOptimization.NotSpecified;
         }
 
-        internal void SetupDefaults(string imageLocation, bool imageLocationAlreadyNormalized = false)
-        {
+        internal void SetupDefaults(string imageLocation, bool imageLocationAlreadyNormalized = false) {
             char[] sep = { '\\', '/' };
             int i = imageLocation.LastIndexOfAny(sep);
 
-            if (i == -1)
-            {
+            if (i == -1) {
                 ApplicationName = imageLocation;
             }
-            else
-            {
+            else {
                 ApplicationName = imageLocation.Substring(i + 1);
                 string appBase = imageLocation.Substring(0, i + 1);
 
@@ -181,49 +170,40 @@ namespace System
             ConfigurationFile = ApplicationName + AppDomainSetup.ConfigurationExtension;
         }
 
-        internal string[] Value
-        {
-            get
-            {
+        internal string[] Value {
+            get {
                 if (_Entries == null)
                     _Entries = new String[(int)LoaderInformation.LoaderMaximum];
                 return _Entries;
             }
         }
 
-        internal String GetUnsecureApplicationBase()
-        {
+        internal String GetUnsecureApplicationBase() {
             return Value[(int)LoaderInformation.ApplicationBaseValue];
         }
 
-        public string AppDomainManagerAssembly
-        {
+        public string AppDomainManagerAssembly {
             get { return _AppDomainManagerAssembly; }
             set { _AppDomainManagerAssembly = value; }
         }
 
-        public string AppDomainManagerType
-        {
+        public string AppDomainManagerType {
             get { return _AppDomainManagerType; }
             set { _AppDomainManagerType = value; }
         }
 
-        public String ApplicationBase
-        {
+        public String ApplicationBase {
             [Pure]
-            get
-            {
+            get {
                 return VerifyDir(GetUnsecureApplicationBase(), false);
             }
 
-            set
-            {
+            set {
                 Value[(int)LoaderInformation.ApplicationBaseValue] = NormalizePath(value, false);
             }
         }
 
-        private String NormalizePath(String path, bool useAppBase)
-        {
+        private String NormalizePath(String path, bool useAppBase) {
             if (path == null)
                 return null;
 
@@ -249,14 +229,11 @@ namespace System
 #endif // !PLATFORM_UNIX
 
             if ((len > 7) &&
-                (String.Compare(path, 0, "file:", 0, 5, StringComparison.OrdinalIgnoreCase) == 0))
-            {
+                (String.Compare(path, 0, "file:", 0, 5, StringComparison.OrdinalIgnoreCase) == 0)) {
                 int trim;
 
-                if (path[6] == '\\')
-                {
-                    if ((path[7] == '\\') || (path[7] == '/'))
-                    {
+                if (path[6] == '\\') {
+                    if ((path[7] == '\\') || (path[7] == '/')) {
                         // Don't allow "file:\\\\", because we can't tell the difference
                         // with it for "file:\\" + "\\server" and "file:\\\" + "\localpath"
                         if ((len > 8) &&
@@ -277,8 +254,7 @@ namespace System
                     }
 
                     // file:\\ means remote server
-                    else
-                    {
+                    else {
                         trim = 5;
 #if !PLATFORM_UNIX
                         UNCpath = true;
@@ -299,21 +275,18 @@ namespace System
 #endif // !PLATFORM_UNIX
 
                 // remote
-                else
-                {
+                else {
                     // file://\\remote
                     if ((len > 8) && (path[7] == '\\') && (path[8] == '\\'))
                         trim = 7;
-                    else
-                    { // file://remote
+                    else { // file://remote
                         trim = 5;
 #if !PLATFORM_UNIX
                         // Create valid UNC path by changing
                         // all occurences of '/' to '\\' in path
                         System.Text.StringBuilder winPathBuilder =
                             new System.Text.StringBuilder(len);
-                        for (int i = 0; i < len; i++)
-                        {
+                        for (int i = 0; i < len; i++) {
                             char c = path[i];
                             if (c == '/')
                                 winPathBuilder.Append('\\');
@@ -342,8 +315,7 @@ namespace System
                   ((path[1] == '/') || (path[1] == '\\'))))
                 localPath = false;
 
-            else
-            {
+            else {
                 int colon = path.IndexOf(':') + 1;
 
                 // protocol other than file:
@@ -364,8 +336,7 @@ namespace System
 #endif // !PLATFORM_UNIX
             {
                 if (useAppBase &&
-                    ((len == 1) || (path[1] != ':')))
-                {
+                    ((len == 1) || (path[1] != ':'))) {
                     String appBase = Value[(int)LoaderInformation.ApplicationBaseValue];
 
                     if ((appBase == null) || (appBase.Length == 0))
@@ -374,13 +345,11 @@ namespace System
                     StringBuilder result = StringBuilderCache.Acquire();
 
                     bool slash = false;
-                    if ((path[0] == '/') || (path[0] == '\\'))
-                    {
+                    if ((path[0] == '/') || (path[0] == '\\')) {
                         string pathRoot = AppDomain.NormalizePath(appBase, fullCheck: false);
                         pathRoot = pathRoot.Substring(0, IO.PathInternal.GetRootLength(pathRoot));
 
-                        if (pathRoot.Length == 0)
-                        { // URL
+                        if (pathRoot.Length == 0) { // URL
                             int index = appBase.IndexOf(":/", StringComparison.Ordinal);
                             if (index == -1)
                                 index = appBase.IndexOf(":\\", StringComparison.Ordinal);
@@ -407,10 +376,8 @@ namespace System
                     // Make sure there's a slash separator (and only one)
                     int aLen = result.Length - 1;
                     if ((result[aLen] != '/') &&
-                        (result[aLen] != '\\'))
-                    {
-                        if (!slash)
-                        {
+                        (result[aLen] != '\\')) {
+                        if (!slash) {
 #if !PLATFORM_UNIX
                             if (appBase.IndexOf(":/", StringComparison.Ordinal) == -1)
                                 result.Append('\\');
@@ -432,21 +399,17 @@ namespace System
             return path;
         }
 
-        public String ConfigurationFile
-        {
-            get
-            {
+        public String ConfigurationFile {
+            get {
                 return VerifyDir(Value[(int)LoaderInformation.ConfigurationFileValue], true);
             }
 
-            set
-            {
+            set {
                 Value[(int)LoaderInformation.ConfigurationFileValue] = value;
             }
         }
 
-        public byte[] GetConfigurationBytes()
-        {
+        public byte[] GetConfigurationBytes() {
             if (_ConfigurationBytes == null)
                 return null;
 
@@ -454,57 +417,45 @@ namespace System
         }
 
         // only needed by AppDomain.Setup(). Not really needed by users. 
-        internal Dictionary<string, object> GetCompatibilityFlags()
-        {
+        internal Dictionary<string, object> GetCompatibilityFlags() {
             return _CompatFlags;
         }
 
-        public void SetCompatibilitySwitches(IEnumerable<String> switches)
-        {
+        public void SetCompatibilitySwitches(IEnumerable<String> switches) {
 #if FEATURE_RANDOMIZED_STRING_HASHING
             _UseRandomizedStringHashing = false;
 #endif
-            if (switches != null)
-            {
+            if (switches != null) {
                 _CompatFlags = new Dictionary<string, object>();
-                foreach (String str in switches)
-                {
+                foreach (String str in switches) {
 #if FEATURE_RANDOMIZED_STRING_HASHING
-                    if (StringComparer.OrdinalIgnoreCase.Equals("UseRandomizedStringHashAlgorithm", str))
-                    {
+                    if (StringComparer.OrdinalIgnoreCase.Equals("UseRandomizedStringHashAlgorithm", str)) {
                         _UseRandomizedStringHashing = true;
                     }
 #endif
                     _CompatFlags.Add(str, null);
                 }
             }
-            else
-            {
+            else {
                 _CompatFlags = null;
             }
         }
 
         // A target Framework moniker, in a format parsible by the FrameworkName class.
-        public String TargetFrameworkName
-        {
-            get
-            {
+        public String TargetFrameworkName {
+            get {
                 return _TargetFrameworkName;
             }
-            set
-            {
+            set {
                 _TargetFrameworkName = value;
             }
         }
 
-        private String VerifyDir(String dir, bool normalize)
-        {
-            if (dir != null)
-            {
+        private String VerifyDir(String dir, bool normalize) {
+            if (dir != null) {
                 if (dir.Length == 0)
                     dir = null;
-                else
-                {
+                else {
                     if (normalize)
                         dir = NormalizePath(dir, true);
                 }
@@ -513,97 +464,76 @@ namespace System
             return dir;
         }
 
-        public String ApplicationName
-        {
-            get
-            {
+        public String ApplicationName {
+            get {
                 return Value[(int)LoaderInformation.ApplicationNameValue];
             }
 
-            set
-            {
+            set {
                 Value[(int)LoaderInformation.ApplicationNameValue] = value;
             }
         }
 
         [XmlIgnoreMember]
-        public AppDomainInitializer AppDomainInitializer
-        {
-            get
-            {
+        public AppDomainInitializer AppDomainInitializer {
+            get {
                 return _AppDomainInitializer;
             }
 
-            set
-            {
+            set {
                 _AppDomainInitializer = value;
             }
         }
-        public string[] AppDomainInitializerArguments
-        {
-            get
-            {
+        public string[] AppDomainInitializerArguments {
+            get {
                 return _AppDomainInitializerArguments;
             }
 
-            set
-            {
+            set {
                 _AppDomainInitializerArguments = value;
             }
         }
 
-        internal ApplicationTrust InternalGetApplicationTrust()
-        {
+        internal ApplicationTrust InternalGetApplicationTrust() {
             if (_ApplicationTrust == null) return null;
             ApplicationTrust grantSet = new ApplicationTrust();
             return grantSet;
         }
 
-        internal void InternalSetApplicationTrust(String permissionSetName)
-        {
+        internal void InternalSetApplicationTrust(String permissionSetName) {
             _ApplicationTrust = permissionSetName;
         }
 
         [XmlIgnoreMember]
-        internal ApplicationTrust ApplicationTrust
-        {
-            get
-            {
+        internal ApplicationTrust ApplicationTrust {
+            get {
                 return InternalGetApplicationTrust();
             }
         }
 
-        public LoaderOptimization LoaderOptimization
-        {
-            get
-            {
+        public LoaderOptimization LoaderOptimization {
+            get {
                 return _LoaderOptimization;
             }
 
-            set
-            {
+            set {
                 _LoaderOptimization = value;
             }
         }
 
-        internal static string LoaderOptimizationKey
-        {
-            get
-            {
+        internal static string LoaderOptimizationKey {
+            get {
                 return LOADER_OPTIMIZATION;
             }
         }
 
-        internal static string ConfigurationExtension
-        {
-            get
-            {
+        internal static string ConfigurationExtension {
+            get {
                 return CONFIGURATION_EXTENSION;
             }
         }
 
-        static internal int Locate(String s)
-        {
+        static internal int Locate(String s) {
             if (String.IsNullOrEmpty(s))
                 return -1;
 
@@ -615,14 +545,11 @@ namespace System
         }
 
 #if FEATURE_COMINTEROP
-        public bool SandboxInterop
-        {
-            get
-            {
+        public bool SandboxInterop {
+            get {
                 return _DisableInterfaceCache;
             }
-            set
-            {
+            set {
                 _DisableInterfaceCache = value;
             }
         }

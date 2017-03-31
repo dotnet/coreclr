@@ -7,10 +7,8 @@ using System;
 using System.IO;
 using System.Runtime.InteropServices;
 
-internal partial class Interop
-{
-    internal partial class Kernel32
-    {
+internal partial class Interop {
+    internal partial class Kernel32 {
         [DllImport(Libraries.Kernel32, SetLastError = true)]
         internal static extern bool LockFile(SafeFileHandle handle, int offsetLow, int offsetHigh, int countLow, int countHigh);
 

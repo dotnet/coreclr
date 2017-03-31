@@ -18,15 +18,13 @@ using System.Runtime.CompilerServices;
 
 using System.Diagnostics.Tracing;
 
-namespace System.Threading.Tasks
-{
+namespace System.Threading.Tasks {
     /// <summary>Provides an event source for tracing TPL information.</summary>
     [EventSource(
         Name = "System.Threading.Tasks.TplEventSource",
         Guid = "2e5dba47-a3d2-4d16-8ee0-6671ffdcd7b5",
         LocalizationResources = "FxResources.System.Private.CoreLib.SR")]
-    internal sealed class TplEtwProvider : EventSource
-    {
+    internal sealed class TplEtwProvider : EventSource {
         /// Used to determine if tasks should generate Activity IDs for themselves
         internal bool TasksSetActivityIds;        // This keyword is set
         internal bool Debug;
@@ -35,8 +33,7 @@ namespace System.Threading.Tasks
         /// <summary>
         /// Get callbacks when the ETW sends us commands`
         /// </summary>
-        protected override void OnEventCommand(EventCommandEventArgs command)
-        {
+        protected override void OnEventCommand(EventCommandEventArgs command) {
             // To get the AsyncCausality events, we need to inform the AsyncCausalityTracer
             if (command.Command == EventCommand.Enable)
                 AsyncCausalityTracer.EnableToETW(true);
@@ -61,8 +58,7 @@ namespace System.Threading.Tasks
         private TplEtwProvider() { }
 
         /// <summary>Configured behavior of a task wait operation.</summary>
-        public enum TaskWaitBehavior : int
-        {
+        public enum TaskWaitBehavior : int {
             /// <summary>A synchronous wait.</summary>
             Synchronous = 1,
             /// <summary>An asynchronous await.</summary>
@@ -71,7 +67,7 @@ namespace System.Threading.Tasks
 
         /// <summary>ETW tasks that have start/stop events.</summary>
         public class Tasks // this name is important for EventSource
-        {
+{
             /// <summary>A parallel loop.</summary>
             public const EventTask Loop = (EventTask)1;
             /// <summary>A parallel invoke.</summary>
@@ -93,7 +89,7 @@ namespace System.Threading.Tasks
         }
 
         public class Keywords // thisname is important for EventSource
-        {
+{
             /// <summary>
             /// Only the most basic information about the workings of the task library
             /// This sets activity IDS and logs when tasks are schedules (or waits begin)
@@ -212,13 +208,10 @@ namespace System.Threading.Tasks
          Level = EventLevel.Informational, Keywords = Keywords.TaskTransfer | Keywords.Tasks)]
         public void TaskScheduled(
             int OriginatingTaskSchedulerID, int OriginatingTaskID,  // PFX_COMMON_EVENT_HEADER
-            int TaskID, int CreatingTaskID, int TaskCreationOptions, int appDomain)
-        {
+            int TaskID, int CreatingTaskID, int TaskCreationOptions, int appDomain) {
             // IsEnabled() call is an inlined quick check that makes this very fast when provider is off 
-            if (IsEnabled() && IsEnabled(EventLevel.Informational, Keywords.TaskTransfer | Keywords.Tasks))
-            {
-                unsafe
-                {
+            if (IsEnabled() && IsEnabled(EventLevel.Informational, Keywords.TaskTransfer | Keywords.Tasks)) {
+                unsafe {
                     EventData* eventPayload = stackalloc EventData[6];
                     eventPayload[0].Size = sizeof(int);
                     eventPayload[0].DataPointer = ((IntPtr)(&OriginatingTaskSchedulerID));
@@ -232,8 +225,7 @@ namespace System.Threading.Tasks
                     eventPayload[4].DataPointer = ((IntPtr)(&TaskCreationOptions));
                     eventPayload[5].Size = sizeof(int);
                     eventPayload[5].DataPointer = ((IntPtr)(&appDomain));
-                    if (TasksSetActivityIds)
-                    {
+                    if (TasksSetActivityIds) {
                         Guid childActivityId = CreateGuidForTaskID(TaskID);
                         WriteEventWithRelatedActivityIdCore(TASKSCHEDULED_ID, &childActivityId, 6, eventPayload);
                     }
@@ -255,8 +247,7 @@ namespace System.Threading.Tasks
          Level = EventLevel.Informational, Keywords = Keywords.Tasks)]
         public void TaskStarted(
             int OriginatingTaskSchedulerID, int OriginatingTaskID,  // PFX_COMMON_EVENT_HEADER
-            int TaskID)
-        {
+            int TaskID) {
             if (IsEnabled(EventLevel.Informational, Keywords.Tasks))
                 WriteEvent(TASKSTARTED_ID, OriginatingTaskSchedulerID, OriginatingTaskID, TaskID);
         }
@@ -274,12 +265,9 @@ namespace System.Threading.Tasks
          Level = EventLevel.Informational, Keywords = Keywords.TaskStops)]
         public void TaskCompleted(
             int OriginatingTaskSchedulerID, int OriginatingTaskID,  // PFX_COMMON_EVENT_HEADER
-            int TaskID, bool IsExceptional)
-        {
-            if (IsEnabled(EventLevel.Informational, Keywords.Tasks))
-            {
-                unsafe
-                {
+            int TaskID, bool IsExceptional) {
+            if (IsEnabled(EventLevel.Informational, Keywords.Tasks)) {
+                unsafe {
                     EventData* eventPayload = stackalloc EventData[4];
                     Int32 isExceptionalInt = IsExceptional ? 1 : 0;
                     eventPayload[0].Size = sizeof(int);
@@ -311,12 +299,9 @@ namespace System.Threading.Tasks
          Level = EventLevel.Informational, Keywords = Keywords.TaskTransfer | Keywords.Tasks)]
         public void TaskWaitBegin(
             int OriginatingTaskSchedulerID, int OriginatingTaskID,  // PFX_COMMON_EVENT_HEADER
-            int TaskID, TaskWaitBehavior Behavior, int ContinueWithTaskID)
-        {
-            if (IsEnabled() && IsEnabled(EventLevel.Informational, Keywords.TaskTransfer | Keywords.Tasks))
-            {
-                unsafe
-                {
+            int TaskID, TaskWaitBehavior Behavior, int ContinueWithTaskID) {
+            if (IsEnabled() && IsEnabled(EventLevel.Informational, Keywords.TaskTransfer | Keywords.Tasks)) {
+                unsafe {
                     EventData* eventPayload = stackalloc EventData[5];
                     eventPayload[0].Size = sizeof(int);
                     eventPayload[0].DataPointer = ((IntPtr)(&OriginatingTaskSchedulerID));
@@ -328,13 +313,11 @@ namespace System.Threading.Tasks
                     eventPayload[3].DataPointer = ((IntPtr)(&Behavior));
                     eventPayload[4].Size = sizeof(int);
                     eventPayload[4].DataPointer = ((IntPtr)(&ContinueWithTaskID));
-                    if (TasksSetActivityIds)
-                    {
+                    if (TasksSetActivityIds) {
                         Guid childActivityId = CreateGuidForTaskID(TaskID);
                         WriteEventWithRelatedActivityIdCore(TASKWAITBEGIN_ID, &childActivityId, 5, eventPayload);
                     }
-                    else
-                    {
+                    else {
                         WriteEventCore(TASKWAITBEGIN_ID, 5, eventPayload);
                     }
                 }
@@ -352,8 +335,7 @@ namespace System.Threading.Tasks
          Level = EventLevel.Verbose, Keywords = Keywords.Tasks)]
         public void TaskWaitEnd(
             int OriginatingTaskSchedulerID, int OriginatingTaskID,  // PFX_COMMON_EVENT_HEADER
-            int TaskID)
-        {
+            int TaskID) {
             // Log an event if indicated.  
             if (IsEnabled() && IsEnabled(EventLevel.Verbose, Keywords.Tasks))
                 WriteEvent(TASKWAITEND_ID, OriginatingTaskSchedulerID, OriginatingTaskID, TaskID);
@@ -367,8 +349,7 @@ namespace System.Threading.Tasks
         /// <param name="TaskID">The task ID.</param>
         [Event(TASKWAITCONTINUATIONCOMPLETE_ID,
          Level = EventLevel.Verbose, Keywords = Keywords.TaskStops)]
-        public void TaskWaitContinuationComplete(int TaskID)
-        {
+        public void TaskWaitContinuationComplete(int TaskID) {
             // Log an event if indicated.  
             if (IsEnabled() && IsEnabled(EventLevel.Verbose, Keywords.Tasks))
                 WriteEvent(TASKWAITCONTINUATIONCOMPLETE_ID, TaskID);
@@ -382,8 +363,7 @@ namespace System.Threading.Tasks
         /// <param name="TaskID">The task ID.</param>
         [Event(TASKWAITCONTINUATIONSTARTED_ID,
          Level = EventLevel.Verbose, Keywords = Keywords.TaskStops)]
-        public void TaskWaitContinuationStarted(int TaskID)
-        {
+        public void TaskWaitContinuationStarted(int TaskID) {
             // Log an event if indicated.  
             if (IsEnabled() && IsEnabled(EventLevel.Verbose, Keywords.Tasks))
                 WriteEvent(TASKWAITCONTINUATIONSTARTED_ID, TaskID);
@@ -399,12 +379,9 @@ namespace System.Threading.Tasks
          Level = EventLevel.Informational, Keywords = Keywords.TaskTransfer | Keywords.Tasks)]
         public void AwaitTaskContinuationScheduled(
             int OriginatingTaskSchedulerID, int OriginatingTaskID,  // PFX_COMMON_EVENT_HEADER
-            int ContinuwWithTaskId)
-        {
-            if (IsEnabled() && IsEnabled(EventLevel.Informational, Keywords.TaskTransfer | Keywords.Tasks))
-            {
-                unsafe
-                {
+            int ContinuwWithTaskId) {
+            if (IsEnabled() && IsEnabled(EventLevel.Informational, Keywords.TaskTransfer | Keywords.Tasks)) {
+                unsafe {
                     EventData* eventPayload = stackalloc EventData[3];
                     eventPayload[0].Size = sizeof(int);
                     eventPayload[0].DataPointer = ((IntPtr)(&OriginatingTaskSchedulerID));
@@ -412,8 +389,7 @@ namespace System.Threading.Tasks
                     eventPayload[1].DataPointer = ((IntPtr)(&OriginatingTaskID));
                     eventPayload[2].Size = sizeof(int);
                     eventPayload[2].DataPointer = ((IntPtr)(&ContinuwWithTaskId));
-                    if (TasksSetActivityIds)
-                    {
+                    if (TasksSetActivityIds) {
                         Guid continuationActivityId = CreateGuidForTaskID(ContinuwWithTaskId);
                         WriteEventWithRelatedActivityIdCore(AWAITTASKCONTINUATIONSCHEDULED_ID, &continuationActivityId, 3, eventPayload);
                     }
@@ -425,14 +401,10 @@ namespace System.Threading.Tasks
 
         [Event(TRACEOPERATIONSTART_ID, Version = 1,
          Level = EventLevel.Informational, Keywords = Keywords.AsyncCausalityOperation)]
-        public void TraceOperationBegin(int TaskID, string OperationName, long RelatedContext)
-        {
-            if (IsEnabled() && IsEnabled(EventLevel.Informational, Keywords.AsyncCausalityOperation))
-            {
-                unsafe
-                {
-                    fixed (char* operationNamePtr = OperationName)
-                    {
+        public void TraceOperationBegin(int TaskID, string OperationName, long RelatedContext) {
+            if (IsEnabled() && IsEnabled(EventLevel.Informational, Keywords.AsyncCausalityOperation)) {
+                unsafe {
+                    fixed (char* operationNamePtr = OperationName) {
                         EventData* eventPayload = stackalloc EventData[3];
                         eventPayload[0].Size = sizeof(int);
                         eventPayload[0].DataPointer = ((IntPtr)(&TaskID));
@@ -450,36 +422,30 @@ namespace System.Threading.Tasks
 
         [Event(TRACEOPERATIONRELATION_ID, Version = 1,
          Level = EventLevel.Informational, Keywords = Keywords.AsyncCausalityRelation)]
-        public void TraceOperationRelation(int TaskID, CausalityRelation Relation)
-        {
+        public void TraceOperationRelation(int TaskID, CausalityRelation Relation) {
             if (IsEnabled() && IsEnabled(EventLevel.Informational, Keywords.AsyncCausalityRelation))
                 WriteEvent(TRACEOPERATIONRELATION_ID, TaskID, (int)Relation);                // optmized overload for this exists
         }
 
         [Event(TRACEOPERATIONSTOP_ID, Version = 1,
          Level = EventLevel.Informational, Keywords = Keywords.AsyncCausalityOperation)]
-        public void TraceOperationEnd(int TaskID, AsyncCausalityStatus Status)
-        {
+        public void TraceOperationEnd(int TaskID, AsyncCausalityStatus Status) {
             if (IsEnabled() && IsEnabled(EventLevel.Informational, Keywords.AsyncCausalityOperation))
                 WriteEvent(TRACEOPERATIONSTOP_ID, TaskID, (int)Status);                     // optmized overload for this exists
         }
 
         [Event(TRACESYNCHRONOUSWORKSTART_ID, Version = 1,
          Level = EventLevel.Informational, Keywords = Keywords.AsyncCausalitySynchronousWork)]
-        public void TraceSynchronousWorkBegin(int TaskID, CausalitySynchronousWork Work)
-        {
+        public void TraceSynchronousWorkBegin(int TaskID, CausalitySynchronousWork Work) {
             if (IsEnabled() && IsEnabled(EventLevel.Informational, Keywords.AsyncCausalitySynchronousWork))
                 WriteEvent(TRACESYNCHRONOUSWORKSTART_ID, TaskID, (int)Work);               // optmized overload for this exists
         }
 
         [Event(TRACESYNCHRONOUSWORKSTOP_ID, Version = 1,
          Level = EventLevel.Informational, Keywords = Keywords.AsyncCausalitySynchronousWork)]
-        public void TraceSynchronousWorkEnd(CausalitySynchronousWork Work)
-        {
-            if (IsEnabled() && IsEnabled(EventLevel.Informational, Keywords.AsyncCausalitySynchronousWork))
-            {
-                unsafe
-                {
+        public void TraceSynchronousWorkEnd(CausalitySynchronousWork Work) {
+            if (IsEnabled() && IsEnabled(EventLevel.Informational, Keywords.AsyncCausalitySynchronousWork)) {
+                unsafe {
                     EventData* eventPayload = stackalloc EventData[1];
                     eventPayload[0].Size = sizeof(int);
                     eventPayload[0].DataPointer = ((IntPtr)(&Work));
@@ -492,8 +458,7 @@ namespace System.Threading.Tasks
         [NonEvent]
         unsafe public void RunningContinuation(int TaskID, object Object) { RunningContinuation(TaskID, (long)*((void**)JitHelpers.UnsafeCastToStackPointer(ref Object))); }
         [Event(20, Keywords = Keywords.Debug)]
-        private void RunningContinuation(int TaskID, long Object)
-        {
+        private void RunningContinuation(int TaskID, long Object) {
             if (Debug)
                 WriteEvent(20, TaskID, Object);
         }
@@ -502,8 +467,7 @@ namespace System.Threading.Tasks
         unsafe public void RunningContinuationList(int TaskID, int Index, object Object) { RunningContinuationList(TaskID, Index, (long)*((void**)JitHelpers.UnsafeCastToStackPointer(ref Object))); }
 
         [Event(21, Keywords = Keywords.Debug)]
-        public void RunningContinuationList(int TaskID, int Index, long Object)
-        {
+        public void RunningContinuationList(int TaskID, int Index, long Object) {
             if (Debug)
                 WriteEvent(21, TaskID, Index, Object);
         }
@@ -515,15 +479,13 @@ namespace System.Threading.Tasks
         public void DebugFacilityMessage1(string Facility, string Message, string Value1) { WriteEvent(24, Facility, Message, Value1); }
 
         [Event(25, Keywords = Keywords.DebugActivityId)]
-        public void SetActivityId(Guid NewId)
-        {
+        public void SetActivityId(Guid NewId) {
             if (DebugActivityId)
                 WriteEvent(25, NewId);
         }
 
         [Event(26, Keywords = Keywords.Debug)]
-        public void NewID(int TaskID)
-        {
+        public void NewID(int TaskID) {
             if (Debug)
                 WriteEvent(26, TaskID);
         }
@@ -532,8 +494,7 @@ namespace System.Threading.Tasks
         /// Activity IDs are GUIDS but task IDS are integers (and are not unique across appdomains
         /// This routine creates a process wide unique GUID given a task ID
         /// </summary>
-        internal static Guid CreateGuidForTaskID(int taskID)
-        {
+        internal static Guid CreateGuidForTaskID(int taskID) {
             // The thread pool generated a process wide unique GUID from a task GUID by
             // using the taskGuid, the appdomain ID, and 8 bytes of 'randomization' chosen by
             // using the last 8 bytes  as the provider GUID for this provider.  

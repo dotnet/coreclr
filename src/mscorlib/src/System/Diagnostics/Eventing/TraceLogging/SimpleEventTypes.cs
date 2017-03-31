@@ -19,17 +19,14 @@ namespace System.Diagnostics.Tracing
     /// Type of the top-level payload object. Should be EmptyStruct if the
     /// event has no payload.
     /// </typeparam>
-    internal static class SimpleEventTypes<T>
-    {
+    internal static class SimpleEventTypes<T> {
         private static TraceLoggingEventTypes instance;
 
-        public static TraceLoggingEventTypes Instance
-        {
+        public static TraceLoggingEventTypes Instance {
             get { return instance ?? InitInstance(); }
         }
 
-        private static TraceLoggingEventTypes InitInstance()
-        {
+        private static TraceLoggingEventTypes InitInstance() {
             var info = TraceLoggingTypeInfo.GetInstance(typeof(T), null);
             var newInstance = new TraceLoggingEventTypes(info.Name, info.Tags, new TraceLoggingTypeInfo[] { info });
             Interlocked.CompareExchange(ref instance, newInstance, null);

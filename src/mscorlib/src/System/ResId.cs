@@ -16,10 +16,8 @@
 using System.Configuration.Assemblies;
 using System;
 
-namespace System
-{
-    internal static class ResId
-    {
+namespace System {
+    internal static class ResId {
         // Only statics, does not need to be marked with the serializable attribute
         internal const String Arg_ArrayLengthsDiffer = "Arg_ArrayLengthsDiffer";
         internal const String Argument_InvalidNumberOfMembers = "Argument_InvalidNumberOfMembers";

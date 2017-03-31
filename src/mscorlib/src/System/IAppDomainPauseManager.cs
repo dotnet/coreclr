@@ -18,30 +18,24 @@ using System.Diagnostics.Contracts;
 using System.Runtime.Versioning;
 using System.Runtime.CompilerServices;
 
-namespace System
-{
-    internal class AppDomainPauseManager
-    {
-        public AppDomainPauseManager()
-        {
+namespace System {
+    internal class AppDomainPauseManager {
+        public AppDomainPauseManager() {
             isPaused = false;
         }
 
-        static AppDomainPauseManager()
-        {
+        static AppDomainPauseManager() {
         }
 
         private static readonly AppDomainPauseManager instance = new AppDomainPauseManager();
 
         private static volatile bool isPaused;
 
-        internal static bool IsPaused
-        {
+        internal static bool IsPaused {
             get { return isPaused; }
         }
 
-        internal static ManualResetEvent ResumeEvent
-        {
+        internal static ManualResetEvent ResumeEvent {
             get;
             set;
         }

@@ -13,26 +13,21 @@
 
 using System.Runtime.Serialization;
 
-namespace System
-{
+namespace System {
     [Serializable]
-    public sealed class StackOverflowException : SystemException
-    {
+    public sealed class StackOverflowException : SystemException {
         public StackOverflowException()
-            : base(SR.Arg_StackOverflowException)
-        {
+            : base(SR.Arg_StackOverflowException) {
             HResult = __HResults.COR_E_STACKOVERFLOW;
         }
 
         public StackOverflowException(String message)
-            : base(message)
-        {
+            : base(message) {
             HResult = __HResults.COR_E_STACKOVERFLOW;
         }
 
         public StackOverflowException(String message, Exception innerException)
-            : base(message, innerException)
-        {
+            : base(message, innerException) {
             HResult = __HResults.COR_E_STACKOVERFLOW;
         }
 

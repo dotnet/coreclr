@@ -12,8 +12,7 @@ using System.Runtime.CompilerServices;
 using System.Runtime;
 using System.Security;
 
-namespace System.Threading
-{
+namespace System.Threading {
     //
     // Methods for accessing memory with volatile semantics.  These are preferred over Thread.VolatileRead
     // and Thread.VolatileWrite, as these are implemented more efficiently.
@@ -25,11 +24,9 @@ namespace System.Threading
     // not allow us to express a volatile read/write from/to a byref arg.
     // See getILIntrinsicImplementationForVolatile() in jitinterface.cpp.
     //
-    public static class Volatile
-    {
+    public static class Volatile {
         [System.Runtime.Versioning.NonVersionable]
-        public static bool Read(ref bool location)
-        {
+        public static bool Read(ref bool location) {
             // 
             // The VM will replace this with a more efficient implementation.
             //
@@ -40,8 +37,7 @@ namespace System.Threading
 
         [CLSCompliant(false)]
         [System.Runtime.Versioning.NonVersionable]
-        public static sbyte Read(ref sbyte location)
-        {
+        public static sbyte Read(ref sbyte location) {
             // 
             // The VM will replace this with a more efficient implementation.
             //
@@ -51,8 +47,7 @@ namespace System.Threading
         }
 
         [System.Runtime.Versioning.NonVersionable]
-        public static byte Read(ref byte location)
-        {
+        public static byte Read(ref byte location) {
             // 
             // The VM will replace this with a more efficient implementation.
             //
@@ -62,31 +57,7 @@ namespace System.Threading
         }
 
         [System.Runtime.Versioning.NonVersionable]
-        public static short Read(ref short location)
-        {
-            // 
-            // The VM will replace this with a more efficient implementation.
-            //
-            var value = location;
-            Interlocked.MemoryBarrier();
-            return value;
-        }
-
-        [CLSCompliant(false)]
-        [System.Runtime.Versioning.NonVersionable]
-        public static ushort Read(ref ushort location)
-        {
-            // 
-            // The VM will replace this with a more efficient implementation.
-            //
-            var value = location;
-            Interlocked.MemoryBarrier();
-            return value;
-        }
-
-        [System.Runtime.Versioning.NonVersionable]
-        public static int Read(ref int location)
-        {
+        public static short Read(ref short location) {
             // 
             // The VM will replace this with a more efficient implementation.
             //
@@ -97,8 +68,28 @@ namespace System.Threading
 
         [CLSCompliant(false)]
         [System.Runtime.Versioning.NonVersionable]
-        public static uint Read(ref uint location)
-        {
+        public static ushort Read(ref ushort location) {
+            // 
+            // The VM will replace this with a more efficient implementation.
+            //
+            var value = location;
+            Interlocked.MemoryBarrier();
+            return value;
+        }
+
+        [System.Runtime.Versioning.NonVersionable]
+        public static int Read(ref int location) {
+            // 
+            // The VM will replace this with a more efficient implementation.
+            //
+            var value = location;
+            Interlocked.MemoryBarrier();
+            return value;
+        }
+
+        [CLSCompliant(false)]
+        [System.Runtime.Versioning.NonVersionable]
+        public static uint Read(ref uint location) {
             // 
             // The VM will replace this with a more efficient implementation.
             //
@@ -109,8 +100,7 @@ namespace System.Threading
 
 #if BIT64
         [System.Runtime.Versioning.NonVersionable]
-        public static long Read(ref long location)
-        {
+        public static long Read(ref long location) {
             // 
             // The VM will replace this with a more efficient implementation.
             //
@@ -121,8 +111,7 @@ namespace System.Threading
 
         [CLSCompliant(false)]
         [System.Runtime.Versioning.NonVersionable]
-        public static ulong Read(ref ulong location)
-        {
+        public static ulong Read(ref ulong location) {
             // 
             // The VM will replace this with a more efficient implementation.
             //
@@ -160,8 +149,7 @@ namespace System.Threading
 #endif
 
         [System.Runtime.Versioning.NonVersionable]
-        public static IntPtr Read(ref IntPtr location)
-        {
+        public static IntPtr Read(ref IntPtr location) {
             // 
             // The VM will replace this with a more efficient implementation.
             //
@@ -172,8 +160,7 @@ namespace System.Threading
 
         [CLSCompliant(false)]
         [System.Runtime.Versioning.NonVersionable]
-        public static UIntPtr Read(ref UIntPtr location)
-        {
+        public static UIntPtr Read(ref UIntPtr location) {
             // 
             // The VM will replace this with a more efficient implementation.
             //
@@ -183,8 +170,7 @@ namespace System.Threading
         }
 
         [System.Runtime.Versioning.NonVersionable]
-        public static float Read(ref float location)
-        {
+        public static float Read(ref float location) {
             // 
             // The VM will replace this with a more efficient implementation.
             //
@@ -194,8 +180,7 @@ namespace System.Threading
         }
 
         [System.Runtime.Versioning.NonVersionable]
-        public static double Read(ref double location)
-        {
+        public static double Read(ref double location) {
             //
             // On 32-bit machines, we use this implementation, since an ordinary volatile read
             // would not be atomic.
@@ -206,8 +191,7 @@ namespace System.Threading
         }
 
         [System.Runtime.Versioning.NonVersionable]
-        public static T Read<T>(ref T location) where T : class
-        {
+        public static T Read<T>(ref T location) where T : class {
             // 
             // The VM will replace this with a more efficient implementation.
             //
@@ -220,8 +204,7 @@ namespace System.Threading
 
 
         [System.Runtime.Versioning.NonVersionable]
-        public static void Write(ref bool location, bool value)
-        {
+        public static void Write(ref bool location, bool value) {
             // 
             // The VM will replace this with a more efficient implementation.
             //
@@ -231,8 +214,7 @@ namespace System.Threading
 
         [CLSCompliant(false)]
         [System.Runtime.Versioning.NonVersionable]
-        public static void Write(ref sbyte location, sbyte value)
-        {
+        public static void Write(ref sbyte location, sbyte value) {
             // 
             // The VM will replace this with a more efficient implementation.
             //
@@ -241,8 +223,7 @@ namespace System.Threading
         }
 
         [System.Runtime.Versioning.NonVersionable]
-        public static void Write(ref byte location, byte value)
-        {
+        public static void Write(ref byte location, byte value) {
             // 
             // The VM will replace this with a more efficient implementation.
             //
@@ -251,29 +232,7 @@ namespace System.Threading
         }
 
         [System.Runtime.Versioning.NonVersionable]
-        public static void Write(ref short location, short value)
-        {
-            // 
-            // The VM will replace this with a more efficient implementation.
-            //
-            Interlocked.MemoryBarrier();
-            location = value;
-        }
-
-        [CLSCompliant(false)]
-        [System.Runtime.Versioning.NonVersionable]
-        public static void Write(ref ushort location, ushort value)
-        {
-            // 
-            // The VM will replace this with a more efficient implementation.
-            //
-            Interlocked.MemoryBarrier();
-            location = value;
-        }
-
-        [System.Runtime.Versioning.NonVersionable]
-        public static void Write(ref int location, int value)
-        {
+        public static void Write(ref short location, short value) {
             // 
             // The VM will replace this with a more efficient implementation.
             //
@@ -283,8 +242,26 @@ namespace System.Threading
 
         [CLSCompliant(false)]
         [System.Runtime.Versioning.NonVersionable]
-        public static void Write(ref uint location, uint value)
-        {
+        public static void Write(ref ushort location, ushort value) {
+            // 
+            // The VM will replace this with a more efficient implementation.
+            //
+            Interlocked.MemoryBarrier();
+            location = value;
+        }
+
+        [System.Runtime.Versioning.NonVersionable]
+        public static void Write(ref int location, int value) {
+            // 
+            // The VM will replace this with a more efficient implementation.
+            //
+            Interlocked.MemoryBarrier();
+            location = value;
+        }
+
+        [CLSCompliant(false)]
+        [System.Runtime.Versioning.NonVersionable]
+        public static void Write(ref uint location, uint value) {
             // 
             // The VM will replace this with a more efficient implementation.
             //
@@ -294,8 +271,7 @@ namespace System.Threading
 
 #if BIT64
         [System.Runtime.Versioning.NonVersionable]
-        public static void Write(ref long location, long value)
-        {
+        public static void Write(ref long location, long value) {
             // 
             // The VM will replace this with a more efficient implementation.
             //
@@ -305,8 +281,7 @@ namespace System.Threading
 
         [CLSCompliant(false)]
         [System.Runtime.Versioning.NonVersionable]
-        public static void Write(ref ulong location, ulong value)
-        {
+        public static void Write(ref ulong location, ulong value) {
             // 
             // The VM will replace this with a more efficient implementation.
             //
@@ -349,8 +324,7 @@ namespace System.Threading
 #endif
 
         [System.Runtime.Versioning.NonVersionable]
-        public static void Write(ref IntPtr location, IntPtr value)
-        {
+        public static void Write(ref IntPtr location, IntPtr value) {
             // 
             // The VM will replace this with a more efficient implementation.
             //
@@ -360,8 +334,7 @@ namespace System.Threading
 
         [CLSCompliant(false)]
         [System.Runtime.Versioning.NonVersionable]
-        public static void Write(ref UIntPtr location, UIntPtr value)
-        {
+        public static void Write(ref UIntPtr location, UIntPtr value) {
             // 
             // The VM will replace this with a more efficient implementation.
             //
@@ -370,8 +343,7 @@ namespace System.Threading
         }
 
         [System.Runtime.Versioning.NonVersionable]
-        public static void Write(ref float location, float value)
-        {
+        public static void Write(ref float location, float value) {
             // 
             // The VM will replace this with a more efficient implementation.
             //
@@ -380,8 +352,7 @@ namespace System.Threading
         }
 
         [System.Runtime.Versioning.NonVersionable]
-        public static void Write(ref double location, double value)
-        {
+        public static void Write(ref double location, double value) {
             //
             // On 32-bit machines, we use this implementation, since an ordinary volatile write 
             // would not be atomic.
@@ -392,8 +363,7 @@ namespace System.Threading
         }
 
         [System.Runtime.Versioning.NonVersionable]
-        public static void Write<T>(ref T location, T value) where T : class
-        {
+        public static void Write<T>(ref T location, T value) where T : class {
             // 
             // The VM will replace this with a more efficient implementation.
             //

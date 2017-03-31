@@ -9,11 +9,9 @@ using System.Runtime.Versioning;
 using System.Diagnostics.Contracts;
 using System.Diagnostics.CodeAnalysis;
 
-namespace System.Diagnostics
-{
+namespace System.Diagnostics {
     [Serializable]
-    internal class LogSwitch
-    {
+    internal class LogSwitch {
         // ! WARNING ! 
         // If any fields are added/deleted/modified, perform the 
         // same in the EE code (debugdebugger.cpp/debugdebugger.h)
@@ -26,22 +24,19 @@ namespace System.Diagnostics
         // ! END WARNING !
 
 
-        private LogSwitch()
-        {
+        private LogSwitch() {
         }
 
         // Constructs a LogSwitch.  A LogSwitch is used to categorize log messages.
         // 
         // All switches (except for the global LogSwitch) have a parent LogSwitch.
         //
-        public LogSwitch(String name, String description, LogSwitch parent)
-        {
+        public LogSwitch(String name, String description, LogSwitch parent) {
             if (name != null && name.Length == 0)
                 throw new ArgumentOutOfRangeException(nameof(Name), SR.Argument_StringZeroLength);
             Contract.EndContractBlock();
 
-            if ((name != null) && (parent != null))
-            {
+            if ((name != null) && (parent != null)) {
                 strName = name;
                 strDescription = description;
                 iLevel = LoggingLevels.ErrorLevel;
@@ -58,8 +53,7 @@ namespace System.Diagnostics
                 throw new ArgumentNullException((name == null ? nameof(name) : nameof(parent)));
         }
 
-        internal LogSwitch(String name, String description)
-        {
+        internal LogSwitch(String name, String description) {
             strName = name;
             strDescription = description;
             iLevel = LoggingLevels.ErrorLevel;
@@ -75,19 +69,16 @@ namespace System.Diagnostics
 
 
         // Get property returns the name of the switch
-        public virtual String Name
-        {
+        public virtual String Name {
             get { return strName; }
         }
 
 
         // Property to Get/Set the level of log messages which are "on" for the switch.  
         // 
-        public virtual LoggingLevels MinimumLevel
-        {
+        public virtual LoggingLevels MinimumLevel {
             get { return iLevel; }
-            set
-            {
+            set {
                 iLevel = value;
                 iOldLevel = value;
                 String strParentName = ParentSwitch != null ? ParentSwitch.Name : "";
@@ -101,10 +92,8 @@ namespace System.Diagnostics
 
         // Checks if the given level is "on" for this switch or one of its parents.
         //
-        public virtual bool CheckLevel(LoggingLevels level)
-        {
-            if (iLevel > level)
-            {
+        public virtual bool CheckLevel(LoggingLevels level) {
+            if (iLevel > level) {
                 // recurse through the list till parent is hit. 
                 if (ParentSwitch == null)
                     return false;
@@ -118,8 +107,7 @@ namespace System.Diagnostics
 
         // Returns a switch with the particular name, if any.  Returns null if no
         // such switch exists.
-        public static LogSwitch GetSwitch(String name)
-        {
+        public static LogSwitch GetSwitch(String name) {
             return (LogSwitch)Log.m_Hashtable[name];
         }
     }

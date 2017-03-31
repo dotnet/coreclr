@@ -25,10 +25,8 @@
 
 using System;
 
-namespace System
-{
-    internal static class __HResults
-    {
+namespace System {
+    internal static class __HResults {
         internal const int RO_E_CLOSED = unchecked((int)0x80000013);
         internal const int E_BOUNDS = unchecked((int)0x8000000B);
         internal const int E_CHANGED_STATE = unchecked((int)0x8000000C);

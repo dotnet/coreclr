@@ -17,22 +17,18 @@ namespace System.Diagnostics.Tracing.Internal
     using Microsoft.Reflection;
     using System.Reflection;
 
-    internal static class Environment
-    {
+    internal static class Environment {
         public static readonly string NewLine = System.Environment.NewLine;
 
-        public static int TickCount
-        { get { return System.Environment.TickCount; } }
+        public static int TickCount { get { return System.Environment.TickCount; } }
 
-        public static string GetResourceString(string key, params object[] args)
-        {
+        public static string GetResourceString(string key, params object[] args) {
             string fmt = rm.GetString(key);
             if (fmt != null)
                 return string.Format(fmt, args);
 
             string sargs = String.Empty;
-            foreach (var arg in args)
-            {
+            foreach (var arg in args) {
                 if (sargs != String.Empty)
                     sargs += ", ";
                 sargs += arg.ToString();
@@ -41,8 +37,7 @@ namespace System.Diagnostics.Tracing.Internal
             return key + " (" + sargs + ")";
         }
 
-        public static string GetRuntimeResourceString(string key, params object[] args)
-        {
+        public static string GetRuntimeResourceString(string key, params object[] args) {
             return GetResourceString(key, args);
         }
 
@@ -160,8 +155,7 @@ namespace Microsoft.Internal
 
 #endif
 
-namespace Microsoft.Reflection
-{
+namespace Microsoft.Reflection {
     using System.Reflection;
 
 #if (ES_BUILD_PCL || PROJECTN)
@@ -196,8 +190,7 @@ namespace Microsoft.Reflection
         String = 18,                // Unicode character string
     }
 #endif
-    internal static class ReflectionExtensions
-    {
+    internal static class ReflectionExtensions {
 #if (!ES_BUILD_PCL && !PROJECTN)
 
         //

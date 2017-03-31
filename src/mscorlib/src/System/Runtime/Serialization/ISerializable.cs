@@ -18,10 +18,8 @@ using System.Runtime.Serialization;
 using System;
 using System.Reflection;
 
-namespace System.Runtime.Serialization
-{
-    public interface ISerializable
-    {
+namespace System.Runtime.Serialization {
+    public interface ISerializable {
         void GetObjectData(SerializationInfo info, StreamingContext context);
     }
 }

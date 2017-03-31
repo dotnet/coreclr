@@ -2,8 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-namespace System.Security
-{
+namespace System.Security {
     // SecurityCriticalAttribute
     //  Indicates that the decorated code or assembly performs security critical operations (e.g. Assert, "unsafe", LinkDemand, etc.)
     //  The attribute can be placed on most targets, except on arguments/return values.
@@ -18,13 +17,11 @@ namespace System.Security
                     AttributeTargets.Delegate,
         AllowMultiple = false,
         Inherited = false)]
-    public sealed class SecurityCriticalAttribute : Attribute
-    {
+    public sealed class SecurityCriticalAttribute : Attribute {
 #pragma warning disable 618    // We still use SecurityCriticalScope for v2 compat
         public SecurityCriticalAttribute() { }
 
-        public SecurityCriticalAttribute(SecurityCriticalScope scope)
-        {
+        public SecurityCriticalAttribute(SecurityCriticalScope scope) {
             Scope = scope;
         }
 

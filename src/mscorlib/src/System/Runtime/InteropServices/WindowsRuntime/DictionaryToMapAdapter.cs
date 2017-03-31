@@ -15,8 +15,7 @@ using System.Diagnostics.Contracts;
 using System.Runtime.InteropServices;
 using System.Runtime.CompilerServices;
 
-namespace System.Runtime.InteropServices.WindowsRuntime
-{
+namespace System.Runtime.InteropServices.WindowsRuntime {
     // This is a set of stub methods implementing the support for the IMap`2 interface on managed
     // objects that implement IDictionary`2. Used by the interop mashaling infrastructure.
     //
@@ -25,22 +24,18 @@ namespace System.Runtime.InteropServices.WindowsRuntime
     // for all of these methods are not DictionaryToMapAdapter objects. Rather, they are of type
     // IDictionary<K, V>. No actual DictionaryToMapAdapter object is ever instantiated. Thus, you will
     // see a lot of expressions that cast "this" to "IDictionary<K, V>". 
-    internal sealed class DictionaryToMapAdapter
-    {
-        private DictionaryToMapAdapter()
-        {
+    internal sealed class DictionaryToMapAdapter {
+        private DictionaryToMapAdapter() {
             Debug.Assert(false, "This class is never instantiated");
         }
 
         // V Lookup(K key)
-        internal V Lookup<K, V>(K key)
-        {
+        internal V Lookup<K, V>(K key) {
             IDictionary<K, V> _this = JitHelpers.UnsafeCast<IDictionary<K, V>>(this);
             V value;
             bool keyFound = _this.TryGetValue(key, out value);
 
-            if (!keyFound)
-            {
+            if (!keyFound) {
                 Exception e = new KeyNotFoundException(SR.Arg_KeyNotFound);
                 e.SetErrorCode(__HResults.E_BOUNDS);
                 throw e;
@@ -50,38 +45,33 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         }
 
         // uint Size { get }
-        internal uint Size<K, V>()
-        {
+        internal uint Size<K, V>() {
             IDictionary<K, V> _this = JitHelpers.UnsafeCast<IDictionary<K, V>>(this);
             return (uint)_this.Count;
         }
 
         // bool HasKey(K key)
-        internal bool HasKey<K, V>(K key)
-        {
+        internal bool HasKey<K, V>(K key) {
             IDictionary<K, V> _this = JitHelpers.UnsafeCast<IDictionary<K, V>>(this);
             return _this.ContainsKey(key);
         }
 
         // IMapView<K, V> GetView()
-        internal IReadOnlyDictionary<K, V> GetView<K, V>()
-        {
+        internal IReadOnlyDictionary<K, V> GetView<K, V>() {
             IDictionary<K, V> _this = JitHelpers.UnsafeCast<IDictionary<K, V>>(this);
             Debug.Assert(_this != null);
 
             // Note: This dictionary is not really read-only - you could QI for a modifiable
             // dictionary.  We gain some perf by doing this.  We believe this is acceptable.
             IReadOnlyDictionary<K, V> roDictionary = _this as IReadOnlyDictionary<K, V>;
-            if (roDictionary == null)
-            {
+            if (roDictionary == null) {
                 roDictionary = new ReadOnlyDictionary<K, V>(_this);
             }
             return roDictionary;
         }
 
         // bool Insert(K key, V value)
-        internal bool Insert<K, V>(K key, V value)
-        {
+        internal bool Insert<K, V>(K key, V value) {
             IDictionary<K, V> _this = JitHelpers.UnsafeCast<IDictionary<K, V>>(this);
             bool replacing = _this.ContainsKey(key);
             _this[key] = value;
@@ -89,13 +79,11 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         }
 
         // void Remove(K key)
-        internal void Remove<K, V>(K key)
-        {
+        internal void Remove<K, V>(K key) {
             IDictionary<K, V> _this = JitHelpers.UnsafeCast<IDictionary<K, V>>(this);
             bool removed = _this.Remove(key);
 
-            if (!removed)
-            {
+            if (!removed) {
                 Exception e = new KeyNotFoundException(SR.Arg_KeyNotFound);
                 e.SetErrorCode(__HResults.E_BOUNDS);
                 throw e;
@@ -103,8 +91,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         }
 
         // void Clear()
-        internal void Clear<K, V>()
-        {
+        internal void Clear<K, V>() {
             IDictionary<K, V> _this = JitHelpers.UnsafeCast<IDictionary<K, V>>(this);
             _this.Clear();
         }

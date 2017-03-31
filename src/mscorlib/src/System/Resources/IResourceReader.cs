@@ -17,10 +17,8 @@ using System;
 using System.IO;
 using System.Collections;
 
-namespace System.Resources
-{
-    public interface IResourceReader : IEnumerable, IDisposable
-    {
+namespace System.Resources {
+    public interface IResourceReader : IEnumerable, IDisposable {
         // Interface does not need to be marked with the serializable attribute
         // Closes the ResourceReader, releasing any resources associated with it.
         // This could close a network connection, a file, or do nothing.

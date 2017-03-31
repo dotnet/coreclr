@@ -16,34 +16,28 @@
 using System;
 using System.Runtime.Serialization;
 
-namespace System.Runtime.Serialization
-{
+namespace System.Runtime.Serialization {
     [Serializable]
-    public class SerializationException : SystemException
-    {
+    public class SerializationException : SystemException {
         private static String _nullMessage = SR.Arg_SerializationException;
 
         // Creates a new SerializationException with its message 
         // string set to a default message.
         public SerializationException()
-            : base(_nullMessage)
-        {
+            : base(_nullMessage) {
             SetErrorCode(__HResults.COR_E_SERIALIZATION);
         }
 
         public SerializationException(String message)
-            : base(message)
-        {
+            : base(message) {
             SetErrorCode(__HResults.COR_E_SERIALIZATION);
         }
 
-        public SerializationException(String message, Exception innerException) : base(message, innerException)
-        {
+        public SerializationException(String message, Exception innerException) : base(message, innerException) {
             SetErrorCode(__HResults.COR_E_SERIALIZATION);
         }
 
-        protected SerializationException(SerializationInfo info, StreamingContext context) : base(info, context)
-        {
+        protected SerializationException(SerializationInfo info, StreamingContext context) : base(info, context) {
         }
     }
 }

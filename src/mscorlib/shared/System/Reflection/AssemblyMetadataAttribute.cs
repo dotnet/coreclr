@@ -2,13 +2,10 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-namespace System.Reflection
-{
+namespace System.Reflection {
     [AttributeUsage(AttributeTargets.Assembly, AllowMultiple = true, Inherited = false)]
-    public sealed class AssemblyMetadataAttribute : Attribute
-    {
-        public AssemblyMetadataAttribute(string key, string value)
-        {
+    public sealed class AssemblyMetadataAttribute : Attribute {
+        public AssemblyMetadataAttribute(string key, string value) {
             Key = key;
             Value = value;
         }

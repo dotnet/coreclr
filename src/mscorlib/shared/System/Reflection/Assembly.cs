@@ -9,20 +9,15 @@ using System.Configuration.Assemblies;
 using System.Runtime.Serialization;
 using System.Security;
 
-namespace System.Reflection
-{
-    public abstract partial class Assembly : ICustomAttributeProvider, ISerializable
-    {
+namespace System.Reflection {
+    public abstract partial class Assembly : ICustomAttributeProvider, ISerializable {
         protected Assembly() { }
 
-        public virtual IEnumerable<TypeInfo> DefinedTypes
-        {
-            get
-            {
+        public virtual IEnumerable<TypeInfo> DefinedTypes {
+            get {
                 Type[] types = GetTypes();
                 TypeInfo[] typeinfos = new TypeInfo[types.Length];
-                for (int i = 0; i < types.Length; i++)
-                {
+                for (int i = 0; i < types.Length; i++) {
                     TypeInfo typeinfo = types[i].GetTypeInfo();
                     if (typeinfo == null)
                         throw new NotSupportedException(SR.Format(SR.NotSupported_NoTypeInfo, types[i].FullName));
@@ -33,23 +28,20 @@ namespace System.Reflection
             }
         }
 
-        public virtual Type[] GetTypes()
-        {
+        public virtual Type[] GetTypes() {
             Module[] m = GetModules(false);
 
             int finalLength = 0;
             Type[][] moduleTypes = new Type[m.Length][];
 
-            for (int i = 0; i < moduleTypes.Length; i++)
-            {
+            for (int i = 0; i < moduleTypes.Length; i++) {
                 moduleTypes[i] = m[i].GetTypes();
                 finalLength += moduleTypes[i].Length;
             }
 
             int current = 0;
             Type[] ret = new Type[finalLength];
-            for (int i = 0; i < moduleTypes.Length; i++)
-            {
+            for (int i = 0; i < moduleTypes.Length; i++) {
                 int length = moduleTypes[i].Length;
                 Array.Copy(moduleTypes[i], 0, ret, current, length);
                 current += length;
@@ -95,8 +87,7 @@ namespace System.Reflection
 
         public object CreateInstance(string typeName) => CreateInstance(typeName, false, BindingFlags.Public | BindingFlags.Instance, binder: null, args: null, culture: null, activationAttributes: null);
         public object CreateInstance(string typeName, bool ignoreCase) => CreateInstance(typeName, ignoreCase, BindingFlags.Public | BindingFlags.Instance, binder: null, args: null, culture: null, activationAttributes: null);
-        public virtual object CreateInstance(string typeName, bool ignoreCase, BindingFlags bindingAttr, Binder binder, object[] args, CultureInfo culture, object[] activationAttributes)
-        {
+        public virtual object CreateInstance(string typeName, bool ignoreCase, BindingFlags bindingAttr, Binder binder, object[] args, CultureInfo culture, object[] activationAttributes) {
             Type t = GetType(typeName, throwOnError: false, ignoreCase: ignoreCase);
             if (t == null)
                 return null;
@@ -127,8 +118,7 @@ namespace System.Reflection
 
         public virtual void GetObjectData(SerializationInfo info, StreamingContext context) { throw NotImplemented.ByDesign; }
 
-        public override string ToString()
-        {
+        public override string ToString() {
             string displayName = FullName;
             if (displayName == null)
                 return base.ToString();
@@ -145,8 +135,7 @@ namespace System.Reflection
         public override bool Equals(object o) => base.Equals(o);
         public override int GetHashCode() => base.GetHashCode();
 
-        public static bool operator ==(Assembly left, Assembly right)
-        {
+        public static bool operator ==(Assembly left, Assembly right) {
             if (object.ReferenceEquals(left, right))
                 return true;
 
@@ -156,15 +145,13 @@ namespace System.Reflection
             return left.Equals(right);
         }
 
-        public static bool operator !=(Assembly left, Assembly right)
-        {
+        public static bool operator !=(Assembly left, Assembly right) {
             return !(left == right);
         }
 
         public static string CreateQualifiedName(string assemblyName, string typeName) => typeName + ", " + assemblyName;
 
-        public static Assembly GetAssembly(Type type)
-        {
+        public static Assembly GetAssembly(Type type) {
             if (type == null)
                 throw new ArgumentNullException(nameof(type));
 
@@ -178,8 +165,7 @@ namespace System.Reflection
         public static Assembly Load(byte[] rawAssembly) => Load(rawAssembly, rawSymbolStore: null);
 
         [Obsolete("This method has been deprecated. Please use Assembly.Load() instead. http://go.microsoft.com/fwlink/?linkid=14202")]
-        public static Assembly LoadWithPartialName(string partialName)
-        {
+        public static Assembly LoadWithPartialName(string partialName) {
             if (partialName == null)
                 throw new ArgumentNullException(nameof(partialName));
 

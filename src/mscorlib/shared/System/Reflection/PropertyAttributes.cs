@@ -5,12 +5,10 @@
 // PropertyAttributes is an enum which defines the attributes that may be associated
 // with a property.  The values here are defined in Corhdr.h.
 
-namespace System.Reflection
-{
+namespace System.Reflection {
     // This Enum matchs the CorPropertyAttr defined in CorHdr.h
     [Flags]
-    public enum PropertyAttributes
-    {
+    public enum PropertyAttributes {
         None = 0x0000,
         SpecialName = 0x0200,     // property is special.  Name describes how.
 

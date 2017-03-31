@@ -13,26 +13,21 @@
 
 using System.Runtime.Serialization;
 
-namespace System
-{
+namespace System {
     [Serializable]
-    public class FormatException : SystemException
-    {
+    public class FormatException : SystemException {
         public FormatException()
-            : base(SR.Arg_FormatException)
-        {
+            : base(SR.Arg_FormatException) {
             HResult = __HResults.COR_E_FORMAT;
         }
 
         public FormatException(String message)
-            : base(message)
-        {
+            : base(message) {
             HResult = __HResults.COR_E_FORMAT;
         }
 
         public FormatException(String message, Exception innerException)
-            : base(message, innerException)
-        {
+            : base(message, innerException) {
             HResult = __HResults.COR_E_FORMAT;
         }
 

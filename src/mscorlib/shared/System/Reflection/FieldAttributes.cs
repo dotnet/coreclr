@@ -2,12 +2,10 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-namespace System.Reflection
-{
+namespace System.Reflection {
     // This Enum matchs the CorFieldAttr defined in CorHdr.h
     [Flags]
-    public enum FieldAttributes
-    {
+    public enum FieldAttributes {
         // member access mask - Use this mask to retrieve accessibility information.
         FieldAccessMask = 0x0007,
         PrivateScope = 0x0000,    // Member not referenceable.

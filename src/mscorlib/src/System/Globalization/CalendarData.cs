@@ -4,8 +4,7 @@
 
 using System.Diagnostics;
 
-namespace System.Globalization
-{
+namespace System.Globalization {
     // List of calendar data
     // Note the we cache overrides.
     // Note that localized names (resource names) aren't available from here.
@@ -13,8 +12,7 @@ namespace System.Globalization
     //  NOTE: Calendars depend on the locale name that creates it.  Only a few
     //        properties are available without locales using CalendarData.GetCalendar(CalendarData)
 
-    internal partial class CalendarData
-    {
+    internal partial class CalendarData {
         // Max calendars
         internal const int MAX_CALENDARS = 23;
 
@@ -54,8 +52,7 @@ namespace System.Globalization
         private CalendarData() { }
 
         // Invariant factory
-        private static CalendarData CreateInvariant()
-        {
+        private static CalendarData CreateInvariant() {
             // Set our default/gregorian US calendar data
             // Calendar IDs are 1-based, arrays are 0 based.
             CalendarData invariant = new CalendarData();
@@ -97,14 +94,12 @@ namespace System.Globalization
         //
         // Get a bunch of data for a calendar
         //
-        internal CalendarData(String localeName, CalendarId calendarId, bool bUseUserOverrides)
-        {
+        internal CalendarData(String localeName, CalendarId calendarId, bool bUseUserOverrides) {
             this.bUseUserOverrides = bUseUserOverrides;
 
             Debug.Assert(!GlobalizationMode.Invariant);
 
-            if (!LoadCalendarDataFromSystem(localeName, calendarId))
-            {
+            if (!LoadCalendarDataFromSystem(localeName, calendarId)) {
                 Debug.Assert(false, "[CalendarData] LoadCalendarDataFromSystem call isn't expected to fail for calendar " + calendarId + " locale " + localeName);
 
                 // Something failed, try invariant for missing parts
@@ -129,15 +124,12 @@ namespace System.Globalization
                 // Genitive and Leap names can follow the fallback below
             }
 
-            if (calendarId == CalendarId.TAIWAN)
-            {
-                if (SystemSupportsTaiwaneseCalendar())
-                {
+            if (calendarId == CalendarId.TAIWAN) {
+                if (SystemSupportsTaiwaneseCalendar()) {
                     // We got the month/day names from the OS (same as gregorian), but the native name is wrong
                     this.sNativeName = "\x4e2d\x83ef\x6c11\x570b\x66c6";
                 }
-                else
-                {
+                else {
                     this.sNativeName = String.Empty;
                 }
             }
@@ -155,12 +147,10 @@ namespace System.Globalization
             InitializeAbbreviatedEraNames(localeName, calendarId);
 
             // Abbreviated English Era Names are only used for the Japanese calendar.
-            if (calendarId == CalendarId.JAPAN)
-            {
+            if (calendarId == CalendarId.JAPAN) {
                 this.saAbbrevEnglishEraNames = JapaneseCalendar.EnglishEraNames();
             }
-            else
-            {
+            else {
                 // For all others just use the an empty string (doesn't matter we'll never ask for it for other calendars)
                 this.saAbbrevEnglishEraNames = new String[] { "" };
             }
@@ -170,16 +160,13 @@ namespace System.Globalization
             this.iCurrentEra = this.saEraNames.Length;
         }
 
-        private void InitializeEraNames(string localeName, CalendarId calendarId)
-        {
+        private void InitializeEraNames(string localeName, CalendarId calendarId) {
             // Note that the saEraNames only include "A.D."  We don't have localized names for other calendars available from windows
-            switch (calendarId)
-            {
+            switch (calendarId) {
                 // For Localized Gregorian we really expect the data from the OS.
                 case CalendarId.GREGORIAN:
                     // Fallback for CoreCLR < Win7 or culture.dll missing            
-                    if (this.saEraNames == null || this.saEraNames.Length == 0 || String.IsNullOrEmpty(this.saEraNames[0]))
-                    {
+                    if (this.saEraNames == null || this.saEraNames.Length == 0 || String.IsNullOrEmpty(this.saEraNames[0])) {
                         this.saEraNames = new String[] { "A.D." };
                     }
                     break;
@@ -194,13 +181,11 @@ namespace System.Globalization
                     break;
                 case CalendarId.HIJRI:
                 case CalendarId.UMALQURA:
-                    if (localeName == "dv-MV")
-                    {
+                    if (localeName == "dv-MV") {
                         // Special case for Divehi
                         this.saEraNames = new String[] { "\x0780\x07a8\x0796\x07b0\x0783\x07a9" };
                     }
-                    else
-                    {
+                    else {
                         this.saEraNames = new String[] { "\x0628\x0639\x062F \x0627\x0644\x0647\x062C\x0631\x0629" };
                     }
                     break;
@@ -216,12 +201,10 @@ namespace System.Globalization
                     break;
 
                 case CalendarId.TAIWAN:
-                    if (SystemSupportsTaiwaneseCalendar())
-                    {
+                    if (SystemSupportsTaiwaneseCalendar()) {
                         this.saEraNames = new String[] { "\x4e2d\x83ef\x6c11\x570b" };
                     }
-                    else
-                    {
+                    else {
                         this.saEraNames = new String[] { String.Empty };
                     }
                     break;
@@ -240,8 +223,7 @@ namespace System.Globalization
                     break;
 
                 case CalendarId.PERSIAN:
-                    if (this.saEraNames == null || this.saEraNames.Length == 0 || String.IsNullOrEmpty(this.saEraNames[0]))
-                    {
+                    if (this.saEraNames == null || this.saEraNames.Length == 0 || String.IsNullOrEmpty(this.saEraNames[0])) {
                         this.saEraNames = new String[] { "\x0647\x002e\x0634" };
                     }
                     break;
@@ -253,16 +235,13 @@ namespace System.Globalization
             }
         }
 
-        private void InitializeAbbreviatedEraNames(string localeName, CalendarId calendarId)
-        {
+        private void InitializeAbbreviatedEraNames(string localeName, CalendarId calendarId) {
             // Note that the saAbbrevEraNames only include "AD"  We don't have localized names for other calendars available from windows
-            switch (calendarId)
-            {
+            switch (calendarId) {
                 // For Localized Gregorian we really expect the data from the OS.
                 case CalendarId.GREGORIAN:
                     // Fallback for CoreCLR < Win7 or culture.dll missing            
-                    if (this.saAbbrevEraNames == null || this.saAbbrevEraNames.Length == 0 || String.IsNullOrEmpty(this.saAbbrevEraNames[0]))
-                    {
+                    if (this.saAbbrevEraNames == null || this.saAbbrevEraNames.Length == 0 || String.IsNullOrEmpty(this.saAbbrevEraNames[0])) {
                         this.saAbbrevEraNames = new String[] { "AD" };
                     }
                     break;
@@ -278,32 +257,27 @@ namespace System.Globalization
                     break;
                 case CalendarId.HIJRI:
                 case CalendarId.UMALQURA:
-                    if (localeName == "dv-MV")
-                    {
+                    if (localeName == "dv-MV") {
                         // Special case for Divehi
                         this.saAbbrevEraNames = new String[] { "\x0780\x002e" };
                     }
-                    else
-                    {
+                    else {
                         this.saAbbrevEraNames = new String[] { "\x0647\x0640" };
                     }
                     break;
                 case CalendarId.TAIWAN:
                     // Get era name and abbreviate it
                     this.saAbbrevEraNames = new String[1];
-                    if (this.saEraNames[0].Length == 4)
-                    {
+                    if (this.saEraNames[0].Length == 4) {
                         this.saAbbrevEraNames[0] = this.saEraNames[0].Substring(2, 2);
                     }
-                    else
-                    {
+                    else {
                         this.saAbbrevEraNames[0] = this.saEraNames[0];
                     }
                     break;
 
                 case CalendarId.PERSIAN:
-                    if (this.saAbbrevEraNames == null || this.saAbbrevEraNames.Length == 0 || String.IsNullOrEmpty(this.saAbbrevEraNames[0]))
-                    {
+                    if (this.saAbbrevEraNames == null || this.saAbbrevEraNames.Length == 0 || String.IsNullOrEmpty(this.saAbbrevEraNames[0])) {
                         this.saAbbrevEraNames = this.saEraNames;
                     }
                     break;
@@ -315,8 +289,7 @@ namespace System.Globalization
             }
         }
 
-        internal static CalendarData GetCalendarData(CalendarId calendarId)
-        {
+        internal static CalendarData GetCalendarData(CalendarId calendarId) {
             //
             // Get a calendar.
             // Unfortunately we depend on the locale in the OS, so we need a locale
@@ -332,10 +305,8 @@ namespace System.Globalization
             return CultureInfo.GetCultureInfo(culture)._cultureData.GetCalendar(calendarId);
         }
 
-        private static String CalendarIdToCultureName(CalendarId calendarId)
-        {
-            switch (calendarId)
-            {
+        private static String CalendarIdToCultureName(CalendarId calendarId) {
+            switch (calendarId) {
                 case CalendarId.GREGORIAN_US:
                     return "fa-IR";             // "fa-IR" Iran
 

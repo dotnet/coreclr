@@ -9,12 +9,9 @@ using System.Resources;
 using System.Runtime.CompilerServices;
 using System.Threading;
 
-namespace System
-{
-    internal static partial class SR
-    {
-        private static ResourceManager ResourceManager
-        {
+namespace System {
+    internal static partial class SR {
+        private static ResourceManager ResourceManager {
             get;
             set;
         }
@@ -22,25 +19,21 @@ namespace System
         // This method is used to decide if we need to append the exception message parameters to the message when calling SR.Format. 
         // by default it returns false.
         [MethodImpl(MethodImplOptions.NoInlining)]
-        private static bool UsingResourceKeys()
-        {
+        private static bool UsingResourceKeys() {
             return false;
         }
 
         // Needed for debugger integration
-        internal static string GetResourceString(string resourceKey)
-        {
+        internal static string GetResourceString(string resourceKey) {
             return GetResourceString(resourceKey, String.Empty);
         }
 
-        internal static string GetResourceString(string resourceKey, string defaultString)
-        {
+        internal static string GetResourceString(string resourceKey, string defaultString) {
             string resourceString = null;
             try { resourceString = InternalGetResourceString(resourceKey); }
             catch (MissingManifestResourceException) { }
 
-            if (defaultString != null && resourceKey.Equals(resourceString, StringComparison.Ordinal))
-            {
+            if (defaultString != null && resourceKey.Equals(resourceString, StringComparison.Ordinal)) {
                 return defaultString;
             }
 
@@ -52,10 +45,8 @@ namespace System
         private static int _infinitelyRecursingCount;
         private static bool _resourceManagerInited = false;
 
-        private static string InternalGetResourceString(string key)
-        {
-            if (key == null || key.Length == 0)
-            {
+        private static string InternalGetResourceString(string key) {
+            if (key == null || key.Length == 0) {
                 Debug.Assert(false, "SR::GetResourceString with null or empty key.  Bug in caller, or weird recursive loading problem?");
                 return key;
             }
@@ -80,26 +71,23 @@ namespace System
             // return a bogus string.  
 
             bool lockTaken = false;
-            try
-            {
+            try {
                 Monitor.Enter(_lock, ref lockTaken);
 
                 // Are we recursively looking up the same resource?  Note - our backout code will set
                 // the ResourceHelper's currentlyLoading stack to null if an exception occurs.
-                if (_currentlyLoading != null && _currentlyLoading.Count > 0 && _currentlyLoading.LastIndexOf(key) != -1)
-                {
+                if (_currentlyLoading != null && _currentlyLoading.Count > 0 && _currentlyLoading.LastIndexOf(key) != -1) {
                     // We can start infinitely recursing for one resource lookup,
                     // then during our failure reporting, start infinitely recursing again.
                     // avoid that.
-                    if (_infinitelyRecursingCount > 0)
-                    {
+                    if (_infinitelyRecursingCount > 0) {
                         return key;
                     }
                     _infinitelyRecursingCount++;
 
                     // Note: our infrastructure for reporting this exception will again cause resource lookup.
                     // This is the most direct way of dealing with that problem.
-                    string message = $"Infinite recursion during resource lookup within {System.CoreLib.Name}.  This may be a bug in {System.CoreLib.Name}, or potentially in certain extensibility points such as assembly resolve events or CultureInfo names.  Resource name: {key}";
+                    string message = $"Infinite recursion during resource lookup within  {System.CoreLib.Name}.  This may be a bug in  {System.CoreLib.Name}, or potentially in certain extensibility points such as assembly resolve events or CultureInfo names.  Resource name:  {key}";
                     Assert.Fail("[Recursive resource lookup bug]", message, Assert.COR_E_FAILFAST, System.Diagnostics.StackTrace.TraceFormat.NoResourceLookup);
                     Environment.FailFast(message);
                 }
@@ -110,8 +98,7 @@ namespace System
                 // loop constructing a TypeInitializationException.  If this were omitted,
                 // we could get the Infinite recursion assert above by failing type initialization
                 // between the Push and Pop calls below.
-                if (!_resourceManagerInited)
-                {
+                if (!_resourceManagerInited) {
                     RuntimeHelpers.RunClassConstructor(typeof(ResourceManager).TypeHandle);
                     RuntimeHelpers.RunClassConstructor(typeof(ResourceReader).TypeHandle);
                     RuntimeHelpers.RunClassConstructor(typeof(RuntimeResourceSet).TypeHandle);
@@ -121,8 +108,7 @@ namespace System
 
                 _currentlyLoading.Add(key); // Push
 
-                if (ResourceManager == null)
-                {
+                if (ResourceManager == null) {
                     ResourceManager = new ResourceManager(SR.ResourceType);
                 }
                 string s = ResourceManager.GetString(key, null);
@@ -131,31 +117,24 @@ namespace System
                 Debug.Assert(s != null, "Managed resource string lookup failed.  Was your resource name misspelled?  Did you rebuild mscorlib after adding a resource to resources.txt?  Debug this w/ cordbg and bug whoever owns the code that called SR.GetResourceString.  Resource name was: \"" + key + "\"");
                 return s ?? key;
             }
-            catch
-            {
-                if (lockTaken)
-                {
+            catch {
+                if (lockTaken) {
                     // Backout code - throw away potentially corrupt state
                     ResourceManager = null;
                     _currentlyLoading = null;
                 }
                 throw;
             }
-            finally
-            {
-                if (lockTaken)
-                {
+            finally {
+                if (lockTaken) {
                     Monitor.Exit(_lock);
                 }
             }
         }
 
-        internal static string Format(string resourceFormat, params object[] args)
-        {
-            if (args != null)
-            {
-                if (UsingResourceKeys())
-                {
+        internal static string Format(string resourceFormat, params object[] args) {
+            if (args != null) {
+                if (UsingResourceKeys()) {
                     return resourceFormat + String.Join(", ", args);
                 }
 
@@ -165,30 +144,24 @@ namespace System
             return resourceFormat;
         }
 
-        internal static string Format(string resourceFormat, object p1)
-        {
-            if (UsingResourceKeys())
-            {
+        internal static string Format(string resourceFormat, object p1) {
+            if (UsingResourceKeys()) {
                 return String.Join(", ", resourceFormat, p1);
             }
 
             return String.Format(resourceFormat, p1);
         }
 
-        internal static string Format(string resourceFormat, object p1, object p2)
-        {
-            if (UsingResourceKeys())
-            {
+        internal static string Format(string resourceFormat, object p1, object p2) {
+            if (UsingResourceKeys()) {
                 return String.Join(", ", resourceFormat, p1, p2);
             }
 
             return String.Format(resourceFormat, p1, p2);
         }
 
-        internal static string Format(string resourceFormat, object p1, object p2, object p3)
-        {
-            if (UsingResourceKeys())
-            {
+        internal static string Format(string resourceFormat, object p1, object p2, object p3) {
+            if (UsingResourceKeys()) {
                 return String.Join(", ", resourceFormat, p1, p2, p3);
             }
             return String.Format(resourceFormat, p1, p2, p3);

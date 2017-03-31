@@ -18,18 +18,15 @@ using System.Diagnostics.Contracts;
 using System.Collections.Generic;
 using System.Text;
 
-namespace System.Threading.Tasks
-{
+namespace System.Threading.Tasks {
     /// <summary>
     /// An implementation of TaskScheduler that uses the ThreadPool scheduler
     /// </summary>
-    internal sealed class ThreadPoolTaskScheduler : TaskScheduler
-    {
+    internal sealed class ThreadPoolTaskScheduler : TaskScheduler {
         /// <summary>
         /// Constructs a new ThreadPool task scheduler object
         /// </summary>
-        internal ThreadPoolTaskScheduler()
-        {
+        internal ThreadPoolTaskScheduler() {
             int id = base.Id; // force ID creation of the default scheduler
         }
 
@@ -40,17 +37,14 @@ namespace System.Threading.Tasks
         /// Schedules a task to the ThreadPool.
         /// </summary>
         /// <param name="task">The task to schedule.</param>
-        protected internal override void QueueTask(Task task)
-        {
-            if ((task.Options & TaskCreationOptions.LongRunning) != 0)
-            {
+        protected internal override void QueueTask(Task task) {
+            if ((task.Options & TaskCreationOptions.LongRunning) != 0) {
                 // Run LongRunning tasks on their own dedicated thread.
                 Thread thread = new Thread(s_longRunningThreadWork);
                 thread.IsBackground = true; // Keep this thread from blocking process shutdown
                 thread.Start(task);
             }
-            else
-            {
+            else {
                 // Normal handling for non-LongRunning tasks.
                 bool forceToGlobalQueue = ((task.Options & TaskCreationOptions.PreferFairness) != 0);
                 ThreadPool.UnsafeQueueCustomWorkItem(task, forceToGlobalQueue);
@@ -65,18 +59,15 @@ namespace System.Threading.Tasks
         /// IMPORTANT NOTE: TryExecuteTaskInline will NOT throw task exceptions itself. Any wait code path using this function needs
         /// to account for exceptions that need to be propagated, and throw themselves accordingly.
         /// </summary>
-        protected override bool TryExecuteTaskInline(Task task, bool taskWasPreviouslyQueued)
-        {
+        protected override bool TryExecuteTaskInline(Task task, bool taskWasPreviouslyQueued) {
             // If the task was previously scheduled, and we can't pop it, then return false.
             if (taskWasPreviouslyQueued && !ThreadPool.TryPopCustomWorkItem(task))
                 return false;
 
-            try
-            {
+            try {
                 task.ExecuteEntryUnsafe(); // handles switching Task.Current etc.
             }
-            finally
-            {
+            finally {
                 //   Only call NWIP() if task was previously queued
                 if (taskWasPreviouslyQueued) NotifyWorkItemProgress();
             }
@@ -84,23 +75,18 @@ namespace System.Threading.Tasks
             return true;
         }
 
-        protected internal override bool TryDequeue(Task task)
-        {
+        protected internal override bool TryDequeue(Task task) {
             // just delegate to TP
             return ThreadPool.TryPopCustomWorkItem(task);
         }
 
-        protected override IEnumerable<Task> GetScheduledTasks()
-        {
+        protected override IEnumerable<Task> GetScheduledTasks() {
             return FilterTasksFromWorkItems(ThreadPool.GetQueuedWorkItems());
         }
 
-        private IEnumerable<Task> FilterTasksFromWorkItems(IEnumerable<IThreadPoolWorkItem> tpwItems)
-        {
-            foreach (IThreadPoolWorkItem tpwi in tpwItems)
-            {
-                if (tpwi is Task)
-                {
+        private IEnumerable<Task> FilterTasksFromWorkItems(IEnumerable<IThreadPoolWorkItem> tpwItems) {
+            foreach (IThreadPoolWorkItem tpwi in tpwItems) {
+                if (tpwi is Task) {
                     yield return (Task)tpwi;
                 }
             }
@@ -109,8 +95,7 @@ namespace System.Threading.Tasks
         /// <summary>
         /// Notifies the scheduler that work is progressing (no-op).
         /// </summary>
-        internal override void NotifyWorkItemProgress()
-        {
+        internal override void NotifyWorkItemProgress() {
             ThreadPool.NotifyWorkItemProgress();
         }
 
@@ -118,8 +103,7 @@ namespace System.Threading.Tasks
         /// This is the only scheduler that returns false for this property, indicating that the task entry codepath is unsafe (CAS free)
         /// since we know that the underlying scheduler already takes care of atomic transitions from queued to non-queued.
         /// </summary>
-        internal override bool RequiresAtomicStartTransition
-        {
+        internal override bool RequiresAtomicStartTransition {
             get { return false; }
         }
     }

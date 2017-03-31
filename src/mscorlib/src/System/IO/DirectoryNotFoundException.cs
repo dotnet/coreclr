@@ -16,8 +16,7 @@
 using System;
 using System.Runtime.Serialization;
 
-namespace System.IO
-{
+namespace System.IO {
     /*
      * Thrown when trying to access a directory that doesn't exist on disk.
      * From COM Interop, this exception is thrown for 2 HRESULTS: 
@@ -25,28 +24,23 @@ namespace System.IO
      * and STG_E_PATHNOTFOUND (0x80030003).
      */
     [Serializable]
-    public class DirectoryNotFoundException : IOException
-    {
+    public class DirectoryNotFoundException : IOException {
         public DirectoryNotFoundException()
-            : base(SR.Arg_DirectoryNotFoundException)
-        {
+            : base(SR.Arg_DirectoryNotFoundException) {
             SetErrorCode(__HResults.COR_E_DIRECTORYNOTFOUND);
         }
 
         public DirectoryNotFoundException(String message)
-            : base(message)
-        {
+            : base(message) {
             SetErrorCode(__HResults.COR_E_DIRECTORYNOTFOUND);
         }
 
         public DirectoryNotFoundException(String message, Exception innerException)
-            : base(message, innerException)
-        {
+            : base(message, innerException) {
             SetErrorCode(__HResults.COR_E_DIRECTORYNOTFOUND);
         }
 
-        protected DirectoryNotFoundException(SerializationInfo info, StreamingContext context) : base(info, context)
-        {
+        protected DirectoryNotFoundException(SerializationInfo info, StreamingContext context) : base(info, context) {
         }
     }
 }

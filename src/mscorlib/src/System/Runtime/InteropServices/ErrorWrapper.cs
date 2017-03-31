@@ -14,32 +14,25 @@
 
 using System;
 
-namespace System.Runtime.InteropServices
-{
+namespace System.Runtime.InteropServices {
     [Serializable]
-    public sealed class ErrorWrapper
-    {
-        public ErrorWrapper(int errorCode)
-        {
+    public sealed class ErrorWrapper {
+        public ErrorWrapper(int errorCode) {
             m_ErrorCode = errorCode;
         }
 
-        public ErrorWrapper(Object errorCode)
-        {
+        public ErrorWrapper(Object errorCode) {
             if (!(errorCode is int))
                 throw new ArgumentException(SR.Arg_MustBeInt32, nameof(errorCode));
             m_ErrorCode = (int)errorCode;
         }
 
-        public ErrorWrapper(Exception e)
-        {
+        public ErrorWrapper(Exception e) {
             m_ErrorCode = Marshal.GetHRForException(e);
         }
 
-        public int ErrorCode
-        {
-            get
-            {
+        public int ErrorCode {
+            get {
                 return m_ErrorCode;
             }
         }

@@ -18,42 +18,33 @@ using System.Runtime.InteropServices;
 using System.Runtime.CompilerServices;
 using System.Runtime.ConstrainedExecution;
 
-namespace Microsoft.Win32.SafeHandles
-{
+namespace Microsoft.Win32.SafeHandles {
     // Class of safe handle which uses 0 or -1 as an invalid handle.
-    public abstract class SafeHandleZeroOrMinusOneIsInvalid : SafeHandle
-    {
-        protected SafeHandleZeroOrMinusOneIsInvalid(bool ownsHandle) : base(IntPtr.Zero, ownsHandle)
-        {
+    public abstract class SafeHandleZeroOrMinusOneIsInvalid : SafeHandle {
+        protected SafeHandleZeroOrMinusOneIsInvalid(bool ownsHandle) : base(IntPtr.Zero, ownsHandle) {
         }
 
         // A default constructor is needed to satisfy CoreCLR inheritence rules. It should not be called at runtime
-        protected SafeHandleZeroOrMinusOneIsInvalid()
-        {
+        protected SafeHandleZeroOrMinusOneIsInvalid() {
             throw new NotImplementedException();
         }
 
-        public override bool IsInvalid
-        {
+        public override bool IsInvalid {
             get { return handle.IsNull() || handle == new IntPtr(-1); }
         }
     }
 
     // Class of safe handle which uses only -1 as an invalid handle.
-    public abstract class SafeHandleMinusOneIsInvalid : SafeHandle
-    {
-        protected SafeHandleMinusOneIsInvalid(bool ownsHandle) : base(new IntPtr(-1), ownsHandle)
-        {
+    public abstract class SafeHandleMinusOneIsInvalid : SafeHandle {
+        protected SafeHandleMinusOneIsInvalid(bool ownsHandle) : base(new IntPtr(-1), ownsHandle) {
         }
 
         // A default constructor is needed to satisfy CoreCLR inheritence rules. It should not be called at runtime
-        protected SafeHandleMinusOneIsInvalid()
-        {
+        protected SafeHandleMinusOneIsInvalid() {
             throw new NotImplementedException();
         }
 
-        public override bool IsInvalid
-        {
+        public override bool IsInvalid {
             get { return handle == new IntPtr(-1); }
         }
     }

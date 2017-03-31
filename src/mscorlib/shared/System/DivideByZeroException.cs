@@ -13,26 +13,21 @@
 
 using System.Runtime.Serialization;
 
-namespace System
-{
+namespace System {
     [Serializable]
-    public class DivideByZeroException : ArithmeticException
-    {
+    public class DivideByZeroException : ArithmeticException {
         public DivideByZeroException()
-            : base(SR.Arg_DivideByZero)
-        {
+            : base(SR.Arg_DivideByZero) {
             HResult = __HResults.COR_E_DIVIDEBYZERO;
         }
 
         public DivideByZeroException(String message)
-            : base(message)
-        {
+            : base(message) {
             HResult = __HResults.COR_E_DIVIDEBYZERO;
         }
 
         public DivideByZeroException(String message, Exception innerException)
-            : base(message, innerException)
-        {
+            : base(message, innerException) {
             HResult = __HResults.COR_E_DIVIDEBYZERO;
         }
 

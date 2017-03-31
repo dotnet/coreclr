@@ -17,29 +17,24 @@ using System.Runtime.InteropServices.WindowsRuntime;
 using System.Runtime.CompilerServices;
 using System.Security;
 
-namespace System.Runtime.InteropServices.WindowsRuntime
-{
+namespace System.Runtime.InteropServices.WindowsRuntime {
     // Local definition of Windows.Foundation.IStringable
     [ComImport]
     [Guid("96369f54-8eb6-48f0-abce-c1b211e627c3")]
     [WindowsRuntimeImport]
-    internal interface IStringable
-    {
+    internal interface IStringable {
         string ToString();
     }
 
-    internal class IStringableHelper
-    {
-        internal static string ToString(object obj)
-        {
+    internal class IStringableHelper {
+        internal static string ToString(object obj) {
             IGetProxyTarget proxy = obj as IGetProxyTarget;
             if (proxy != null)
                 obj = proxy.GetTarget();
 
             // Check whether the type implements IStringable.
             IStringable stringableType = obj as IStringable;
-            if (stringableType != null)
-            {
+            if (stringableType != null) {
                 return stringableType.ToString();
             }
 
@@ -52,8 +47,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
     // We'll make it a ComImport and WindowsRuntimeImport in the type loader
     // as C# compiler won't allow putting code in ComImport type
     //
-    internal abstract class RuntimeClass : __ComObject
-    {
+    internal abstract class RuntimeClass : __ComObject {
         //
         // Support for ToString/GetHashCode/Equals override
         //        
@@ -63,8 +57,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         [MethodImpl(MethodImplOptions.InternalCall)]
         internal extern int RedirectGetHashCode(IntPtr pMD);
 
-        public override int GetHashCode()
-        {
+        public override int GetHashCode() {
             IntPtr pMD = GetRedirectedGetHashCodeMD();
             if (pMD == IntPtr.Zero)
                 return base.GetHashCode();
@@ -77,16 +70,13 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         [MethodImpl(MethodImplOptions.InternalCall)]
         internal extern string RedirectToString(IntPtr pMD);
 
-        public override string ToString()
-        {
+        public override string ToString() {
             // Check whether the type implements IStringable.
             IStringable stringableType = this as IStringable;
-            if (stringableType != null)
-            {
+            if (stringableType != null) {
                 return stringableType.ToString();
             }
-            else
-            {
+            else {
                 IntPtr pMD = GetRedirectedToStringMD();
 
                 if (pMD == IntPtr.Zero)
@@ -102,8 +92,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         [MethodImpl(MethodImplOptions.InternalCall)]
         internal extern bool RedirectEquals(object obj, IntPtr pMD);
 
-        public override bool Equals(object obj)
-        {
+        public override bool Equals(object obj) {
             IntPtr pMD = GetRedirectedEqualsMD();
             if (pMD == IntPtr.Zero)
                 return base.Equals(obj);

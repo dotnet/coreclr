@@ -4,26 +4,21 @@
 
 using System.Runtime.Serialization;
 
-namespace System
-{
+namespace System {
     [Serializable]
-    public class TypeUnloadedException : SystemException
-    {
+    public class TypeUnloadedException : SystemException {
         public TypeUnloadedException()
-            : base(SR.Arg_TypeUnloadedException)
-        {
+            : base(SR.Arg_TypeUnloadedException) {
             SetErrorCode(__HResults.COR_E_TYPEUNLOADED);
         }
 
         public TypeUnloadedException(string message)
-            : base(message)
-        {
+            : base(message) {
             SetErrorCode(__HResults.COR_E_TYPEUNLOADED);
         }
 
         public TypeUnloadedException(string message, Exception innerException)
-            : base(message, innerException)
-        {
+            : base(message, innerException) {
             SetErrorCode(__HResults.COR_E_TYPEUNLOADED);
         }
 
@@ -31,8 +26,7 @@ namespace System
         // This constructor is required for serialization;
         //
         protected TypeUnloadedException(SerializationInfo info, StreamingContext context)
-            : base(info, context)
-        {
+            : base(info, context) {
         }
     }
 }

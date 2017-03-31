@@ -5,16 +5,13 @@
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 
-namespace System.IO
-{
+namespace System.IO {
     /// <summary>Contains internal path helpers that are shared between many projects.</summary>
-    internal static partial class PathInternal
-    {
+    internal static partial class PathInternal {
         /// <summary>
         /// Returns true if the path uses the extended syntax (\\?\)
         /// </summary>
-        internal static bool IsExtended(ref StringBuffer path)
-        {
+        internal static bool IsExtended(ref StringBuffer path) {
             // While paths like "//?/C:/" will work, they're treated the same as "\\.\" paths.
             // Skipping of normalization will *only* occur if back slashes ('\') are used.
             return path.Length >= DevicePrefixLength
@@ -27,12 +24,10 @@ namespace System.IO
         /// <summary>
         /// Gets the length of the root of the path (drive, share, etc.).
         /// </summary>
-        internal unsafe static int GetRootLength(ref StringBuffer path)
-        {
+        internal unsafe static int GetRootLength(ref StringBuffer path) {
             if (path.Length == 0) return 0;
 
-            fixed (char* value = path.UnderlyingArray)
-            {
+            fixed (char* value = path.UnderlyingArray) {
                 return GetRootLength(value, path.Length);
             }
         }
@@ -40,8 +35,7 @@ namespace System.IO
         /// <summary>
         /// Returns true if the path uses any of the DOS device path syntaxes. ("\\.\", "\\?\", or "\??\")
         /// </summary>
-        internal static bool IsDevice(ref StringBuffer path)
-        {
+        internal static bool IsDevice(ref StringBuffer path) {
             // If the path begins with any two separators is will be recognized and normalized and prepped with
             // "\??\" for internal usage correctly. "\??\" is recognized and handled, "/??/" is not.
             return IsExtended(ref path)
@@ -67,17 +61,14 @@ namespace System.IO
         /// for C: (rooted, but relative). "C:\a" is rooted and not relative (the current directory
         /// will not be used to modify the path).
         /// </remarks>
-        internal static bool IsPartiallyQualified(ref StringBuffer path)
-        {
-            if (path.Length < 2)
-            {
+        internal static bool IsPartiallyQualified(ref StringBuffer path) {
+            if (path.Length < 2) {
                 // It isn't fixed, it must be relative.  There is no way to specify a fixed
                 // path with one character (or less).
                 return true;
             }
 
-            if (IsDirectorySeparator(path[0]))
-            {
+            if (IsDirectorySeparator(path[0])) {
                 // There is no valid way to specify a relative path with two initial slashes or
                 // \? as ? isn't valid for drive relative paths and \??\ is equivalent to \\?\
                 return !(path[1] == '?' || IsDirectorySeparator(path[1]));

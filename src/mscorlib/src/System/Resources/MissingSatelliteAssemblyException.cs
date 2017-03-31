@@ -18,44 +18,36 @@
 using System;
 using System.Runtime.Serialization;
 
-namespace System.Resources
-{
+namespace System.Resources {
     [Serializable]
-    public class MissingSatelliteAssemblyException : SystemException
-    {
+    public class MissingSatelliteAssemblyException : SystemException {
         private String _cultureName;
 
         public MissingSatelliteAssemblyException()
-            : base(SR.MissingSatelliteAssembly_Default)
-        {
+            : base(SR.MissingSatelliteAssembly_Default) {
             SetErrorCode(System.__HResults.COR_E_MISSINGSATELLITEASSEMBLY);
         }
 
         public MissingSatelliteAssemblyException(String message)
-            : base(message)
-        {
+            : base(message) {
             SetErrorCode(System.__HResults.COR_E_MISSINGSATELLITEASSEMBLY);
         }
 
         public MissingSatelliteAssemblyException(String message, String cultureName)
-            : base(message)
-        {
+            : base(message) {
             SetErrorCode(System.__HResults.COR_E_MISSINGSATELLITEASSEMBLY);
             _cultureName = cultureName;
         }
 
         public MissingSatelliteAssemblyException(String message, Exception inner)
-            : base(message, inner)
-        {
+            : base(message, inner) {
             SetErrorCode(System.__HResults.COR_E_MISSINGSATELLITEASSEMBLY);
         }
 
-        protected MissingSatelliteAssemblyException(SerializationInfo info, StreamingContext context) : base(info, context)
-        {
+        protected MissingSatelliteAssemblyException(SerializationInfo info, StreamingContext context) : base(info, context) {
         }
 
-        public String CultureName
-        {
+        public String CultureName {
             get { return _cultureName; }
         }
     }

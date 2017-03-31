@@ -2,11 +2,9 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-namespace System.Reflection
-{
+namespace System.Reflection {
     [Flags]
-    public enum GenericParameterAttributes
-    {
+    public enum GenericParameterAttributes {
         None = 0x0000,
         VarianceMask = 0x0003,
         Covariant = 0x0001,

@@ -7,13 +7,10 @@ using System.Globalization;
 using System.Text;
 using System.Threading;
 
-namespace System.Reflection
-{
-    public abstract partial class MethodBase : MemberInfo
-    {
+namespace System.Reflection {
+    public abstract partial class MethodBase : MemberInfo {
         #region Static Members
-        public static MethodBase GetMethodFromHandle(RuntimeMethodHandle handle)
-        {
+        public static MethodBase GetMethodFromHandle(RuntimeMethodHandle handle) {
             if (handle.IsNullHandle())
                 throw new ArgumentException(SR.Argument_InvalidHandle);
 
@@ -28,8 +25,7 @@ namespace System.Reflection
             return m;
         }
 
-        public static MethodBase GetMethodFromHandle(RuntimeMethodHandle handle, RuntimeTypeHandle declaringType)
-        {
+        public static MethodBase GetMethodFromHandle(RuntimeMethodHandle handle, RuntimeTypeHandle declaringType) {
             if (handle.IsNullHandle())
                 throw new ArgumentException(SR.Argument_InvalidHandle);
 
@@ -37,8 +33,7 @@ namespace System.Reflection
         }
 
         [System.Security.DynamicSecurityMethod] // Methods containing StackCrawlMark local var has to be marked DynamicSecurityMethod
-        public static MethodBase GetCurrentMethod()
-        {
+        public static MethodBase GetCurrentMethod() {
             StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
             return RuntimeMethodInfo.InternalGetCurrentMethod(ref stackMark);
         }
@@ -54,13 +49,11 @@ namespace System.Reflection
         #region Internal Methods
         // helper method to construct the string representation of the parameter list
 
-        internal static string ConstructParameters(Type[] parameterTypes, CallingConventions callingConvention, bool serialization)
-        {
+        internal static string ConstructParameters(Type[] parameterTypes, CallingConventions callingConvention, bool serialization) {
             StringBuilder sbParamList = new StringBuilder();
             string comma = "";
 
-            for (int i = 0; i < parameterTypes.Length; i++)
-            {
+            for (int i = 0; i < parameterTypes.Length; i++) {
                 Type t = parameterTypes[i];
 
                 sbParamList.Append(comma);
@@ -70,21 +63,18 @@ namespace System.Reflection
                 // Legacy: Why use "ByRef" for by ref parameters? What language is this? 
                 // VB uses "ByRef" but it should precede (not follow) the parameter name.
                 // Why don't we just use "&"?
-                if (t.IsByRef && !serialization)
-                {
+                if (t.IsByRef && !serialization) {
                     sbParamList.Append(typeName.TrimEnd('&'));
                     sbParamList.Append(" ByRef");
                 }
-                else
-                {
+                else {
                     sbParamList.Append(typeName);
                 }
 
                 comma = ", ";
             }
 
-            if ((callingConvention & CallingConventions.VarArgs) == CallingConventions.VarArgs)
-            {
+            if ((callingConvention & CallingConventions.VarArgs) == CallingConventions.VarArgs) {
                 sbParamList.Append(comma);
                 sbParamList.Append("...");
             }
@@ -92,20 +82,16 @@ namespace System.Reflection
             return sbParamList.ToString();
         }
 
-        internal string FullName
-        {
-            get
-            {
+        internal string FullName {
+            get {
                 return String.Format("{0}.{1}", DeclaringType.FullName, FormatNameAndSig());
             }
         }
-        internal string FormatNameAndSig()
-        {
+        internal string FormatNameAndSig() {
             return FormatNameAndSig(false);
         }
 
-        internal virtual string FormatNameAndSig(bool serialization)
-        {
+        internal virtual string FormatNameAndSig(bool serialization) {
             // Serialization uses ToString to resolve MethodInfo overloads.
             StringBuilder sbName = new StringBuilder(Name);
 
@@ -116,8 +102,7 @@ namespace System.Reflection
             return sbName.ToString();
         }
 
-        internal virtual Type[] GetParameterTypes()
-        {
+        internal virtual Type[] GetParameterTypes() {
             ParameterInfo[] paramInfo = GetParametersNoCopy();
 
             Type[] parameterTypes = new Type[paramInfo.Length];
@@ -128,19 +113,16 @@ namespace System.Reflection
         }
 
         internal Object[] CheckArguments(Object[] parameters, Binder binder,
-            BindingFlags invokeAttr, CultureInfo culture, Signature sig)
-        {
+            BindingFlags invokeAttr, CultureInfo culture, Signature sig) {
             // copy the arguments in a different array so we detach from any user changes 
             Object[] copyOfParameters = new Object[parameters.Length];
 
             ParameterInfo[] p = null;
-            for (int i = 0; i < parameters.Length; i++)
-            {
+            for (int i = 0; i < parameters.Length; i++) {
                 Object arg = parameters[i];
                 RuntimeType argRT = sig.Arguments[i];
 
-                if (arg == Type.Missing)
-                {
+                if (arg == Type.Missing) {
                     if (p == null)
                         p = GetParametersNoCopy();
                     if (p[i].DefaultValue == System.DBNull.Value)

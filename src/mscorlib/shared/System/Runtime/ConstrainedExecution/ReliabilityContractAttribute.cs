@@ -16,13 +16,10 @@
 **
 ===========================================================*/
 
-namespace System.Runtime.ConstrainedExecution
-{
+namespace System.Runtime.ConstrainedExecution {
     [AttributeUsage(AttributeTargets.Assembly | AttributeTargets.Class | AttributeTargets.Struct | AttributeTargets.Constructor | AttributeTargets.Method | AttributeTargets.Interface /* | AttributeTargets.Delegate*/, Inherited = false)]
-    public sealed class ReliabilityContractAttribute : Attribute
-    {
-        public ReliabilityContractAttribute(Consistency consistencyGuarantee, Cer cer)
-        {
+    public sealed class ReliabilityContractAttribute : Attribute {
+        public ReliabilityContractAttribute(Consistency consistencyGuarantee, Cer cer) {
             ConsistencyGuarantee = consistencyGuarantee;
             Cer = cer;
         }

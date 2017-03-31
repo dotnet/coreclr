@@ -16,11 +16,9 @@ using System;
 using System.Runtime.Serialization;
 using System.Runtime.CompilerServices;
 
-namespace System.Threading
-{
+namespace System.Threading {
     [Serializable]
-    public class LockRecursionException : System.Exception
-    {
+    public class LockRecursionException : System.Exception {
         public LockRecursionException() { }
         public LockRecursionException(string message) : base(message) { }
         protected LockRecursionException(SerializationInfo info, StreamingContext context) : base(info, context) { }

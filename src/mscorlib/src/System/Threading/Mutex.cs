@@ -12,8 +12,7 @@
 **
 =============================================================================*/
 
-namespace System.Threading
-{
+namespace System.Threading {
     using System;
     using System.Threading;
     using System.Runtime.CompilerServices;
@@ -27,29 +26,23 @@ namespace System.Threading
     using System.Diagnostics;
     using System.Diagnostics.Contracts;
 
-    public sealed class Mutex : WaitHandle
-    {
+    public sealed class Mutex : WaitHandle {
         private static bool dummyBool;
 
-        internal class MutexSecurity
-        {
+        internal class MutexSecurity {
         }
 
         public Mutex(bool initiallyOwned, String name, out bool createdNew)
-            : this(initiallyOwned, name, out createdNew, (MutexSecurity)null)
-        {
+            : this(initiallyOwned, name, out createdNew, (MutexSecurity)null) {
         }
 
-        internal unsafe Mutex(bool initiallyOwned, String name, out bool createdNew, MutexSecurity mutexSecurity)
-        {
-            if (name == string.Empty)
-            {
+        internal unsafe Mutex(bool initiallyOwned, String name, out bool createdNew, MutexSecurity mutexSecurity) {
+            if (name == string.Empty) {
                 // Empty name is treated as an unnamed mutex. Set to null, and we will check for null from now on.
                 name = null;
             }
 #if !PLATFORM_UNIX
-            if (name != null && System.IO.Path.MaxPath < name.Length)
-            {
+            if (name != null && System.IO.Path.MaxPath < name.Length) {
                 throw new ArgumentException(SR.Format(SR.Argument_WaitHandleNameTooLong, Path.MaxPath), nameof(name));
             }
 #endif
@@ -59,8 +52,7 @@ namespace System.Threading
             CreateMutexWithGuaranteedCleanup(initiallyOwned, name, out createdNew, secAttrs);
         }
 
-        internal void CreateMutexWithGuaranteedCleanup(bool initiallyOwned, String name, out bool createdNew, Win32Native.SECURITY_ATTRIBUTES secAttrs)
-        {
+        internal void CreateMutexWithGuaranteedCleanup(bool initiallyOwned, String name, out bool createdNew, Win32Native.SECURITY_ATTRIBUTES secAttrs) {
             RuntimeHelpers.CleanupCode cleanupCode = new RuntimeHelpers.CleanupCode(MutexCleanupCode);
             MutexCleanupInfo cleanupInfo = new MutexCleanupInfo(null, false);
             MutexTryCodeHelper tryCodeHelper = new MutexTryCodeHelper(initiallyOwned, cleanupInfo, name, secAttrs, this);
@@ -72,8 +64,7 @@ namespace System.Threading
             createdNew = tryCodeHelper.m_newMutex;
         }
 
-        internal class MutexTryCodeHelper
-        {
+        internal class MutexTryCodeHelper {
             private bool m_initiallyOwned;
             private MutexCleanupInfo m_cleanupInfo;
             internal bool m_newMutex;
@@ -81,8 +72,7 @@ namespace System.Threading
             private Win32Native.SECURITY_ATTRIBUTES m_secAttrs;
             private Mutex m_mutex;
 
-            internal MutexTryCodeHelper(bool initiallyOwned, MutexCleanupInfo cleanupInfo, String name, Win32Native.SECURITY_ATTRIBUTES secAttrs, Mutex mutex)
-            {
+            internal MutexTryCodeHelper(bool initiallyOwned, MutexCleanupInfo cleanupInfo, String name, Win32Native.SECURITY_ATTRIBUTES secAttrs, Mutex mutex) {
                 Debug.Assert(name == null || name.Length != 0);
 
                 m_initiallyOwned = initiallyOwned;
@@ -92,39 +82,30 @@ namespace System.Threading
                 m_mutex = mutex;
             }
 
-            internal void MutexTryCode(object userData)
-            {
+            internal void MutexTryCode(object userData) {
                 SafeWaitHandle mutexHandle = null;
                 // try block                
                 RuntimeHelpers.PrepareConstrainedRegions();
-                try
-                {
+                try {
                 }
-                finally
-                {
-                    if (m_initiallyOwned)
-                    {
+                finally {
+                    if (m_initiallyOwned) {
                         m_cleanupInfo.inCriticalRegion = true;
                     }
                 }
 
                 int errorCode = 0;
                 RuntimeHelpers.PrepareConstrainedRegions();
-                try
-                {
+                try {
                 }
-                finally
-                {
+                finally {
                     errorCode = CreateMutexHandle(m_initiallyOwned, m_name, m_secAttrs, out mutexHandle);
                 }
 
-                if (mutexHandle.IsInvalid)
-                {
+                if (mutexHandle.IsInvalid) {
                     mutexHandle.SetHandleAsInvalid();
-                    if (m_name != null)
-                    {
-                        switch (errorCode)
-                        {
+                    if (m_name != null) {
+                        switch (errorCode) {
 #if PLATFORM_UNIX
                             case Win32Native.ERROR_FILENAME_EXCED_RANGE:
                                 // On Unix, length validation is done by CoreCLR's PAL after converting to utf-8
@@ -144,18 +125,14 @@ namespace System.Threading
             }
         }
 
-        private void MutexCleanupCode(Object userData, bool exceptionThrown)
-        {
+        private void MutexCleanupCode(Object userData, bool exceptionThrown) {
             MutexCleanupInfo cleanupInfo = (MutexCleanupInfo)userData;
 
             // If hasThreadAffinity isn't true, we've thrown an exception in the above try, and we must free the mutex 
             // on this OS thread before ending our thread affninity.
-            if (!hasThreadAffinity)
-            {
-                if (cleanupInfo.mutexHandle != null && !cleanupInfo.mutexHandle.IsInvalid)
-                {
-                    if (cleanupInfo.inCriticalRegion)
-                    {
+            if (!hasThreadAffinity) {
+                if (cleanupInfo.mutexHandle != null && !cleanupInfo.mutexHandle.IsInvalid) {
+                    if (cleanupInfo.inCriticalRegion) {
                         Win32Native.ReleaseMutex(cleanupInfo.mutexHandle);
                     }
                     cleanupInfo.mutexHandle.Dispose();
@@ -163,49 +140,39 @@ namespace System.Threading
             }
         }
 
-        internal class MutexCleanupInfo
-        {
+        internal class MutexCleanupInfo {
             internal SafeWaitHandle mutexHandle;
             internal bool inCriticalRegion;
-            internal MutexCleanupInfo(SafeWaitHandle mutexHandle, bool inCriticalRegion)
-            {
+            internal MutexCleanupInfo(SafeWaitHandle mutexHandle, bool inCriticalRegion) {
                 this.mutexHandle = mutexHandle;
                 this.inCriticalRegion = inCriticalRegion;
             }
         }
 
-        public Mutex(bool initiallyOwned, String name) : this(initiallyOwned, name, out dummyBool)
-        {
+        public Mutex(bool initiallyOwned, String name) : this(initiallyOwned, name, out dummyBool) {
         }
 
-        public Mutex(bool initiallyOwned) : this(initiallyOwned, null, out dummyBool)
-        {
+        public Mutex(bool initiallyOwned) : this(initiallyOwned, null, out dummyBool) {
         }
 
-        public Mutex() : this(false, null, out dummyBool)
-        {
+        public Mutex() : this(false, null, out dummyBool) {
         }
 
-        private Mutex(SafeWaitHandle handle)
-        {
+        private Mutex(SafeWaitHandle handle) {
             SetHandleInternal(handle);
             hasThreadAffinity = true;
         }
 
-        public static Mutex OpenExisting(string name)
-        {
+        public static Mutex OpenExisting(string name) {
             return OpenExisting(name, (MutexRights)0);
         }
 
-        internal enum MutexRights
-        {
+        internal enum MutexRights {
         }
 
-        internal static Mutex OpenExisting(string name, MutexRights rights)
-        {
+        internal static Mutex OpenExisting(string name, MutexRights rights) {
             Mutex result;
-            switch (OpenExistingWorker(name, rights, out result))
-            {
+            switch (OpenExistingWorker(name, rights, out result)) {
                 case OpenExistingResult.NameNotFound:
                     throw new WaitHandleCannotBeOpenedException();
 
@@ -221,25 +188,20 @@ namespace System.Threading
             }
         }
 
-        public static bool TryOpenExisting(string name, out Mutex result)
-        {
+        public static bool TryOpenExisting(string name, out Mutex result) {
             return OpenExistingWorker(name, (MutexRights)0, out result) == OpenExistingResult.Success;
         }
 
-        private static OpenExistingResult OpenExistingWorker(string name, MutexRights rights, out Mutex result)
-        {
-            if (name == null)
-            {
+        private static OpenExistingResult OpenExistingWorker(string name, MutexRights rights, out Mutex result) {
+            if (name == null) {
                 throw new ArgumentNullException(nameof(name), SR.ArgumentNull_WithParamName);
             }
 
-            if (name.Length == 0)
-            {
+            if (name.Length == 0) {
                 throw new ArgumentException(SR.Argument_EmptyName, nameof(name));
             }
 #if !PLATFORM_UNIX
-            if (System.IO.Path.MaxPath < name.Length)
-            {
+            if (System.IO.Path.MaxPath < name.Length) {
                 throw new ArgumentException(SR.Format(SR.Argument_WaitHandleNameTooLong, Path.MaxPath), nameof(name));
             }
 #endif
@@ -254,8 +216,7 @@ namespace System.Threading
             SafeWaitHandle myHandle = Win32Native.OpenMutex(Win32Native.MUTEX_MODIFY_STATE | Win32Native.SYNCHRONIZE, false, name);
 
             int errorCode = 0;
-            if (myHandle.IsInvalid)
-            {
+            if (myHandle.IsInvalid) {
                 errorCode = Marshal.GetLastWin32Error();
 
 #if PLATFORM_UNIX
@@ -284,23 +245,18 @@ namespace System.Threading
         // Note: To call ReleaseMutex, you must have an ACL granting you
         // MUTEX_MODIFY_STATE rights (0x0001).  The other interesting value
         // in a Mutex's ACL is MUTEX_ALL_ACCESS (0x1F0001).
-        public void ReleaseMutex()
-        {
-            if (Win32Native.ReleaseMutex(safeWaitHandle))
-            {
+        public void ReleaseMutex() {
+            if (Win32Native.ReleaseMutex(safeWaitHandle)) {
             }
-            else
-            {
+            else {
                 throw new ApplicationException(SR.Arg_SynchronizationLockException);
             }
         }
 
-        private static int CreateMutexHandle(bool initiallyOwned, String name, Win32Native.SECURITY_ATTRIBUTES securityAttribute, out SafeWaitHandle mutexHandle)
-        {
+        private static int CreateMutexHandle(bool initiallyOwned, String name, Win32Native.SECURITY_ATTRIBUTES securityAttribute, out SafeWaitHandle mutexHandle) {
             int errorCode;
 
-            while (true)
-            {
+            while (true) {
                 mutexHandle = Win32Native.CreateMutex(securityAttribute, initiallyOwned, name);
                 errorCode = Marshal.GetLastWin32Error();
                 if (!mutexHandle.IsInvalid) break;
@@ -320,8 +276,7 @@ namespace System.Threading
 
                 // There could be a race condition here, the other owner of the mutex can free the mutex,
                 // We need to retry creation in that case.
-                if (errorCode != Win32Native.ERROR_FILE_NOT_FOUND)
-                {
+                if (errorCode != Win32Native.ERROR_FILE_NOT_FOUND) {
                     if (errorCode == Win32Native.ERROR_SUCCESS) errorCode = Win32Native.ERROR_ALREADY_EXISTS;
                     break;
                 }

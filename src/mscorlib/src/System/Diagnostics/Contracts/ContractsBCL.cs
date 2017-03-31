@@ -36,10 +36,8 @@ using System.Runtime.ConstrainedExecution;
 using System.Security;
 #endif
 
-namespace System.Diagnostics.Contracts
-{
-    public static partial class Contract
-    {
+namespace System.Diagnostics.Contracts {
+    public static partial class Contract {
         #region Private Methods
 
         [ThreadStatic]
@@ -49,8 +47,7 @@ namespace System.Diagnostics.Contracts
         /// This method is used internally to trigger a failure indicating to the "programmer" that he is using the interface incorrectly.
         /// It is NEVER used to indicate failure of actual contracts at runtime.
         /// </summary>
-        static partial void AssertMustUseRewriter(ContractFailureKind kind, String contractKind)
-        {
+        static partial void AssertMustUseRewriter(ContractFailureKind kind, String contractKind) {
             if (_assertingMustUseRewriter)
                 System.Diagnostics.Assert.Fail("Asserting that we must use the rewriter went reentrant.", "Didn't rewrite this mscorlib?");
             _assertingMustUseRewriter = true;
@@ -60,11 +57,9 @@ namespace System.Diagnostics.Contracts
             Assembly thisAssembly = typeof(Contract).Assembly;  // In case we refactor mscorlib, use Contract class instead of Object.
             StackTrace stack = new StackTrace();
             Assembly probablyNotRewritten = null;
-            for (int i = 0; i < stack.FrameCount; i++)
-            {
+            for (int i = 0; i < stack.FrameCount; i++) {
                 Assembly caller = stack.GetFrame(i).GetMethod().DeclaringType.Assembly;
-                if (caller != thisAssembly)
-                {
+                if (caller != thisAssembly) {
                     probablyNotRewritten = caller;
                     break;
                 }
@@ -92,8 +87,7 @@ namespace System.Diagnostics.Contracts
         [System.Diagnostics.DebuggerNonUserCode]
 #if FEATURE_RELIABILITY_CONTRACTS
 #endif
-        static partial void ReportFailure(ContractFailureKind failureKind, String userMessage, String conditionText, Exception innerException)
-        {
+        static partial void ReportFailure(ContractFailureKind failureKind, String userMessage, String conditionText, Exception innerException) {
             if (failureKind < ContractFailureKind.Precondition || failureKind > ContractFailureKind.Assume)
                 throw new ArgumentException(SR.Format(SR.Arg_EnumIllegalVal, failureKind), nameof(failureKind));
             Contract.EndContractBlock();
@@ -115,26 +109,22 @@ namespace System.Diagnostics.Contracts
         /// full trust, because it will inform you of bugs in the appdomain and because the event handler
         /// could allow you to continue execution.
         /// </summary>
-        public static event EventHandler<ContractFailedEventArgs> ContractFailed
-        {
+        public static event EventHandler<ContractFailedEventArgs> ContractFailed {
 #if FEATURE_UNTRUSTED_CALLERS
 #endif
-            add
-            {
+            add {
                 System.Runtime.CompilerServices.ContractHelper.InternalContractFailed += value;
             }
 #if FEATURE_UNTRUSTED_CALLERS
 #endif
-            remove
-            {
+            remove {
                 System.Runtime.CompilerServices.ContractHelper.InternalContractFailed -= value;
             }
         }
         #endregion FailureBehavior
     }
 
-    public sealed class ContractFailedEventArgs : EventArgs
-    {
+    public sealed class ContractFailedEventArgs : EventArgs {
         private ContractFailureKind _failureKind;
         private String _message;
         private String _condition;
@@ -146,8 +136,7 @@ namespace System.Diagnostics.Contracts
 
 #if FEATURE_RELIABILITY_CONTRACTS
 #endif
-        public ContractFailedEventArgs(ContractFailureKind failureKind, String message, String condition, Exception originalException)
-        {
+        public ContractFailedEventArgs(ContractFailureKind failureKind, String message, String condition, Exception originalException) {
             Contract.Requires(originalException == null || failureKind == ContractFailureKind.PostconditionOnException);
             _failureKind = failureKind;
             _message = message;
@@ -161,35 +150,30 @@ namespace System.Diagnostics.Contracts
         public Exception OriginalException { get { return _originalException; } }
 
         // Whether the event handler "handles" this contract failure, or to fail via escalation policy.
-        public bool Handled
-        {
+        public bool Handled {
             get { return _handled; }
         }
 
 #if FEATURE_UNTRUSTED_CALLERS
 #endif
-        public void SetHandled()
-        {
+        public void SetHandled() {
             _handled = true;
         }
 
-        public bool Unwind
-        {
+        public bool Unwind {
             get { return _unwind; }
         }
 
 #if FEATURE_UNTRUSTED_CALLERS
 #endif
-        public void SetUnwind()
-        {
+        public void SetUnwind() {
             _unwind = true;
         }
     }
 
     [Serializable]
     [SuppressMessage("Microsoft.Design", "CA1064:ExceptionsShouldBePublic")]
-    internal sealed class ContractException : Exception
-    {
+    internal sealed class ContractException : Exception {
         private readonly ContractFailureKind _Kind;
         private readonly string _UserMessage;
         private readonly string _Condition;
@@ -204,14 +188,12 @@ namespace System.Diagnostics.Contracts
         public string Condition { get { return _Condition; } }
 
         // Called by COM Interop, if we see COR_E_CODECONTRACTFAILED as an HRESULT.
-        private ContractException()
-        {
+        private ContractException() {
             HResult = System.Runtime.CompilerServices.ContractHelper.COR_E_CODECONTRACTFAILED;
         }
 
         public ContractException(ContractFailureKind kind, string failure, string userMessage, string condition, Exception innerException)
-            : base(failure, innerException)
-        {
+            : base(failure, innerException) {
             HResult = System.Runtime.CompilerServices.ContractHelper.COR_E_CODECONTRACTFAILED;
             _Kind = kind;
             _UserMessage = userMessage;
@@ -219,15 +201,13 @@ namespace System.Diagnostics.Contracts
         }
 
         private ContractException(System.Runtime.Serialization.SerializationInfo info, System.Runtime.Serialization.StreamingContext context)
-            : base(info, context)
-        {
+            : base(info, context) {
             _Kind = (ContractFailureKind)info.GetInt32("Kind");
             _UserMessage = info.GetString("UserMessage");
             _Condition = info.GetString("Condition");
         }
 
-        public override void GetObjectData(System.Runtime.Serialization.SerializationInfo info, System.Runtime.Serialization.StreamingContext context)
-        {
+        public override void GetObjectData(System.Runtime.Serialization.SerializationInfo info, System.Runtime.Serialization.StreamingContext context) {
             base.GetObjectData(info, context);
 
             info.AddValue("Kind", _Kind);
@@ -238,10 +218,8 @@ namespace System.Diagnostics.Contracts
 }
 
 
-namespace System.Runtime.CompilerServices
-{
-    public static partial class ContractHelper
-    {
+namespace System.Runtime.CompilerServices {
+    public static partial class ContractHelper {
         #region Private fields
 
         private static volatile EventHandler<ContractFailedEventArgs> contractFailedEvent;
@@ -259,12 +237,10 @@ namespace System.Runtime.CompilerServices
         /// not pop up an assert dialog box or trigger escalation policy.  Hooking this event requires 
         /// full trust.
         /// </summary>
-        internal static event EventHandler<ContractFailedEventArgs> InternalContractFailed
-        {
+        internal static event EventHandler<ContractFailedEventArgs> InternalContractFailed {
 #if FEATURE_UNTRUSTED_CALLERS
 #endif
-            add
-            {
+            add {
                 // Eagerly prepare each event handler _marked with a reliability contract_, to 
                 // attempt to reduce out of memory exceptions while reporting contract violations.
                 // This only works if the new handler obeys the constraints placed on 
@@ -273,17 +249,14 @@ namespace System.Runtime.CompilerServices
                 // UE: Please mention reliable event handlers should also be marked with the 
                 // PrePrepareMethodAttribute to avoid CER eager preparation work when ngen'ed.
                 System.Runtime.CompilerServices.RuntimeHelpers.PrepareContractedDelegate(value);
-                lock (lockObject)
-                {
+                lock (lockObject) {
                     contractFailedEvent += value;
                 }
             }
 #if FEATURE_UNTRUSTED_CALLERS
 #endif
-            remove
-            {
-                lock (lockObject)
-                {
+            remove {
+                lock (lockObject) {
                     contractFailedEvent -= value;
                 }
             }
@@ -305,8 +278,7 @@ namespace System.Runtime.CompilerServices
         [System.Diagnostics.DebuggerNonUserCode]
 #if FEATURE_RELIABILITY_CONTRACTS
 #endif
-        static partial void RaiseContractFailedEventImplementation(ContractFailureKind failureKind, String userMessage, String conditionText, Exception innerException, ref string resultFailureMessage)
-        {
+        static partial void RaiseContractFailedEventImplementation(ContractFailureKind failureKind, String userMessage, String conditionText, Exception innerException, ref string resultFailureMessage) {
             if (failureKind < ContractFailureKind.Precondition || failureKind > ContractFailureKind.Assume)
                 throw new ArgumentException(SR.Format(SR.Arg_EnumIllegalVal, failureKind), nameof(failureKind));
             Contract.EndContractBlock();
@@ -317,41 +289,32 @@ namespace System.Runtime.CompilerServices
 #if FEATURE_RELIABILITY_CONTRACTS
             System.Runtime.CompilerServices.RuntimeHelpers.PrepareConstrainedRegions();
 #endif
-            try
-            {
+            try {
                 displayMessage = GetDisplayMessage(failureKind, userMessage, conditionText);
                 EventHandler<ContractFailedEventArgs> contractFailedEventLocal = contractFailedEvent;
-                if (contractFailedEventLocal != null)
-                {
+                if (contractFailedEventLocal != null) {
                     eventArgs = new ContractFailedEventArgs(failureKind, displayMessage, conditionText, innerException);
-                    foreach (EventHandler<ContractFailedEventArgs> handler in contractFailedEventLocal.GetInvocationList())
-                    {
-                        try
-                        {
+                    foreach (EventHandler<ContractFailedEventArgs> handler in contractFailedEventLocal.GetInvocationList()) {
+                        try {
                             handler(null, eventArgs);
                         }
-                        catch (Exception e)
-                        {
+                        catch (Exception e) {
                             eventArgs.thrownDuringHandler = e;
                             eventArgs.SetUnwind();
                         }
                     }
-                    if (eventArgs.Unwind)
-                    {
+                    if (eventArgs.Unwind) {
                         // unwind
                         if (innerException == null) { innerException = eventArgs.thrownDuringHandler; }
                         throw new ContractException(failureKind, displayMessage, userMessage, conditionText, innerException);
                     }
                 }
             }
-            finally
-            {
-                if (eventArgs != null && eventArgs.Handled)
-                {
+            finally {
+                if (eventArgs != null && eventArgs.Handled) {
                     returnValue = null; // handled
                 }
-                else
-                {
+                else {
                     returnValue = displayMessage;
                 }
             }
@@ -366,8 +329,7 @@ namespace System.Runtime.CompilerServices
         [SuppressMessage("Microsoft.Usage", "CA1801:ReviewUnusedParameters", MessageId = "kind")]
         [SuppressMessage("Microsoft.Usage", "CA1801:ReviewUnusedParameters", MessageId = "innerException")]
         [System.Diagnostics.DebuggerNonUserCode]
-        static partial void TriggerFailureImplementation(ContractFailureKind kind, String displayMessage, String userMessage, String conditionText, Exception innerException)
-        {
+        static partial void TriggerFailureImplementation(ContractFailureKind kind, String displayMessage, String userMessage, String conditionText, Exception innerException) {
             // If we're here, our intent is to pop up a dialog box (if we can).  For developers 
             // interacting live with a debugger, this is a good experience.  For Silverlight 
             // hosted in Internet Explorer, the assert window is great.  If we cannot
@@ -375,8 +337,7 @@ namespace System.Runtime.CompilerServices
             // "Assert On Failure" but used in a process that can't pop up asserts, like an 
             // NT Service).
 
-            if (!Environment.UserInteractive)
-            {
+            if (!Environment.UserInteractive) {
                 throw new ContractException(kind, displayMessage, userMessage, conditionText, innerException);
             }
 
@@ -388,11 +349,9 @@ namespace System.Runtime.CompilerServices
             // If we got here, the user selected Ignore.  Continue.
         }
 
-        private static String GetResourceNameForFailure(ContractFailureKind failureKind)
-        {
+        private static String GetResourceNameForFailure(ContractFailureKind failureKind) {
             String resourceName = null;
-            switch (failureKind)
-            {
+            switch (failureKind) {
                 case ContractFailureKind.Assert:
                     resourceName = "AssertionFailed";
                     break;
@@ -427,8 +386,7 @@ namespace System.Runtime.CompilerServices
 
 #if FEATURE_RELIABILITY_CONTRACTS
 #endif
-        private static String GetDisplayMessage(ContractFailureKind failureKind, String userMessage, String conditionText)
-        {
+        private static String GetDisplayMessage(ContractFailureKind failureKind, String userMessage, String conditionText) {
             String resourceName = GetResourceNameForFailure(failureKind);
             // Well-formatted English messages will take one of four forms.  A sentence ending in
             // either a period or a colon, the condition string, then the message tacked 
@@ -437,23 +395,19 @@ namespace System.Runtime.CompilerServices
             // on Silverlight we may not be able to look up a friendly string for the
             // error message.  Let's leverage Silverlight's default error message there.
             String failureMessage;
-            if (!String.IsNullOrEmpty(conditionText))
-            {
+            if (!String.IsNullOrEmpty(conditionText)) {
                 resourceName += "_Cnd";
                 failureMessage = SR.Format(SR.GetResourceString(resourceName), conditionText);
             }
-            else
-            {
+            else {
                 failureMessage = SR.GetResourceString(resourceName);
             }
 
             // Now add in the user message, if present.
-            if (!String.IsNullOrEmpty(userMessage))
-            {
+            if (!String.IsNullOrEmpty(userMessage)) {
                 return failureMessage + "  " + userMessage;
             }
-            else
-            {
+            else {
                 return failureMessage;
             }
         }

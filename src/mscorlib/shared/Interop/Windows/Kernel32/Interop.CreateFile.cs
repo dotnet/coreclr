@@ -7,10 +7,8 @@ using System;
 using System.IO;
 using System.Runtime.InteropServices;
 
-internal partial class Interop
-{
-    internal partial class Kernel32
-    {
+internal partial class Interop {
+    internal partial class Kernel32 {
         /// <summary>
         /// WARNING: This method does not implicitly handle long paths. Use CreateFile.
         /// </summary>
@@ -31,8 +29,7 @@ internal partial class Interop
             ref SECURITY_ATTRIBUTES securityAttrs,
             System.IO.FileMode dwCreationDisposition,
             int dwFlagsAndAttributes,
-            IntPtr hTemplateFile)
-        {
+            IntPtr hTemplateFile) {
             lpFileName = PathInternal.EnsureExtendedPrefixOverMaxPath(lpFileName);
             return CreateFilePrivate(lpFileName, dwDesiredAccess, dwShareMode, ref securityAttrs, dwCreationDisposition, dwFlagsAndAttributes, hTemplateFile);
         }

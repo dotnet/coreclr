@@ -12,29 +12,25 @@ using System.Collections;
 using System.Runtime.CompilerServices;
 using System.Runtime.Serialization;
 
-namespace System.Text
-{
+namespace System.Text {
     //
     // Latin1Encoding is a simple override to optimize the GetString version of Latin1Encoding.
     // because of the best fit cases we can't do this when encoding the string, only when decoding
     //
     [Serializable]
-    internal class Latin1Encoding : EncodingNLS, ISerializable
-    {
+    internal class Latin1Encoding : EncodingNLS, ISerializable {
         // Used by Encoding.Latin1 for lazy initialization
         // The initialization code will not be run until a static member of the class is referenced
         internal static readonly Latin1Encoding s_default = new Latin1Encoding();
 
         // We only use the best-fit table, of which ASCII is a superset for us.
-        public Latin1Encoding() : base(Encoding.ISO_8859_1)
-        {
+        public Latin1Encoding() : base(Encoding.ISO_8859_1) {
         }
 
         // Constructor called by serialization.
         // Note:  We use the base GetObjectData however
         internal Latin1Encoding(SerializationInfo info, StreamingContext context) :
-            base(Encoding.ISO_8859_1)
-        {
+            base(Encoding.ISO_8859_1) {
             // Set up our base, also throws if info was empty
             DeserializeEncoding(info, context);
 
@@ -42,8 +38,7 @@ namespace System.Text
         }
 
         // ISerializable implementation, serialize it as a CodePageEncoding
-        void ISerializable.GetObjectData(SerializationInfo info, StreamingContext context)
-        {
+        void ISerializable.GetObjectData(SerializationInfo info, StreamingContext context) {
             // Make sure to get the base stuff too This throws if info is null
             SerializeEncoding(info, context);
             Debug.Assert(info != null, "[Latin1Encoding.GetObjectData] Expected null info to throw");
@@ -59,8 +54,7 @@ namespace System.Text
         // GetByteCount
         // Note: We start by assuming that the output will be the same as count.  Having
         // an encoder or fallback may change that assumption
-        internal override unsafe int GetByteCount(char* chars, int charCount, EncoderNLS encoder)
-        {
+        internal override unsafe int GetByteCount(char* chars, int charCount, EncoderNLS encoder) {
             // Just need to ASSERT, this is called by something else internal that checked parameters already
             Debug.Assert(charCount >= 0, "[Latin1Encoding.GetByteCount]count is negative");
             Debug.Assert(chars != null, "[Latin1Encoding.GetByteCount]chars is null");
@@ -73,8 +67,7 @@ namespace System.Text
             // If we have an encoder AND we aren't using default fallback,
             // then we may have a complicated count.
             EncoderReplacementFallback fallback;
-            if (encoder != null)
-            {
+            if (encoder != null) {
                 charLeftOver = encoder.charLeftOver;
                 Debug.Assert(charLeftOver == 0 || Char.IsHighSurrogate(charLeftOver),
                     "[Latin1Encoding.GetByteCount]leftover character should be high surrogate");
@@ -89,8 +82,7 @@ namespace System.Text
             else
                 fallback = this.EncoderFallback as EncoderReplacementFallback;
 
-            if ((fallback != null && fallback.MaxCharCount == 1)/* || bIsBestFit*/)
-            {
+            if ((fallback != null && fallback.MaxCharCount == 1)/* || bIsBestFit*/) {
                 // Replacement fallback encodes surrogate pairs as two ?? (or two whatever), so return size is always
                 // same as input size.
                 // Note that no existing SBCS code pages map code points to supplimentary characters, so this is easy.
@@ -117,8 +109,7 @@ namespace System.Text
             char* charsForFallback;
 
             // We may have a left over character from last time, try and process it.
-            if (charLeftOver > 0)
-            {
+            if (charLeftOver > 0) {
                 // Initialize the buffer
                 Debug.Assert(encoder != null,
                     "[Latin1Encoding.GetByteCount]Expected encoder if we have charLeftOver");
@@ -138,11 +129,9 @@ namespace System.Text
             // Go ahead and do it, including the fallback.
             char ch;
             while ((ch = (fallbackBuffer == null) ? '\0' : fallbackBuffer.InternalGetNextChar()) != 0 ||
-                    chars < charEnd)
-            {
+                    chars < charEnd) {
                 // First unwind any fallback
-                if (ch == 0)
-                {
+                if (ch == 0) {
                     // No fallback, just get next char
                     ch = *chars;
                     chars++;
@@ -150,11 +139,9 @@ namespace System.Text
 
                 // Check for fallback, this'll catch surrogate pairs too.
                 // no chars >= 0x100 are allowed.
-                if (ch > 0xff)
-                {
+                if (ch > 0xff) {
                     // Initialize the buffer
-                    if (fallbackBuffer == null)
-                    {
+                    if (fallbackBuffer == null) {
                         if (encoder == null)
                             fallbackBuffer = this.encoderFallback.CreateFallbackBuffer();
                         else
@@ -180,8 +167,7 @@ namespace System.Text
         }
 
         internal override unsafe int GetBytes(char* chars, int charCount,
-                                                byte* bytes, int byteCount, EncoderNLS encoder)
-        {
+                                                byte* bytes, int byteCount, EncoderNLS encoder) {
             // Just need to ASSERT, this is called by something else internal that checked parameters already
             Debug.Assert(bytes != null, "[Latin1Encoding.GetBytes]bytes is null");
             Debug.Assert(byteCount >= 0, "[Latin1Encoding.GetBytes]byteCount is negative");
@@ -194,8 +180,7 @@ namespace System.Text
             // Get any left over characters & check fast or slower fallback type
             char charLeftOver = (char)0;
             EncoderReplacementFallback fallback = null;
-            if (encoder != null)
-            {
+            if (encoder != null) {
                 charLeftOver = encoder.charLeftOver;
                 fallback = encoder.Fallback as EncoderReplacementFallback;
                 Debug.Assert(charLeftOver == 0 || Char.IsHighSurrogate(charLeftOver),
@@ -206,8 +191,7 @@ namespace System.Text
                     encoder.FallbackBuffer.Remaining == 0,
                     "[Latin1CodePageEncoding.GetBytes]Expected empty fallback buffer");
             }
-            else
-            {
+            else {
                 fallback = this.EncoderFallback as EncoderReplacementFallback;
             }
 
@@ -217,22 +201,19 @@ namespace System.Text
             char* charStart = chars;
 
             // See if we do the fast default or slightly slower fallback
-            if (fallback != null && fallback.MaxCharCount == 1)
-            {
+            if (fallback != null && fallback.MaxCharCount == 1) {
                 // Fast version
                 char cReplacement = fallback.DefaultString[0];
 
                 // Check for replacements in range, otherwise fall back to slow version.
-                if (cReplacement <= (char)0xff)
-                {
+                if (cReplacement <= (char)0xff) {
                     // We should have exactly as many output bytes as input bytes, unless there's a left
                     // over character, in which case we may need one more.
 
                     // If we had a left over character will have to add a ?  (This happens if they had a funky
                     // fallback last time, but not this time.) (We can't spit any out though
                     // because with fallback encoder each surrogate is treated as a seperate code point)
-                    if (charLeftOver > 0)
-                    {
+                    if (charLeftOver > 0) {
                         // Have to have room
                         // Throw even if doing no throw version because this is just 1 char,
                         // so buffer will never be big enough
@@ -245,8 +226,7 @@ namespace System.Text
                     }
 
                     // This keeps us from overrunning our output buffer
-                    if (byteCount < charCount)
-                    {
+                    if (byteCount < charCount) {
                         // Throw or make buffer smaller?
                         ThrowBytesOverflow(encoder, byteCount < 1);
 
@@ -255,16 +235,14 @@ namespace System.Text
                     }
 
                     // We just do a quick copy
-                    while (chars < charEnd)
-                    {
+                    while (chars < charEnd) {
                         char ch2 = *(chars++);
                         if (ch2 > 0x00ff) *(bytes++) = (byte)cReplacement;
                         else *(bytes++) = (byte)ch2;
                     }
 
                     // Clear encoder
-                    if (encoder != null)
-                    {
+                    if (encoder != null) {
                         encoder.charLeftOver = (char)0;
                         encoder.m_charsUsed = (int)(chars - charStart);
                     }
@@ -282,8 +260,7 @@ namespace System.Text
             char* charsForFallback;
 
             // We may have a left over character from last time, try and process it.
-            if (charLeftOver > 0)
-            {
+            if (charLeftOver > 0) {
                 // Since left over char was a surrogate, it'll have to be fallen back.
                 // Get Fallback
                 Debug.Assert(encoder != null,
@@ -298,8 +275,7 @@ namespace System.Text
                 fallbackBuffer.InternalFallback(charLeftOver, ref charsForFallback);
                 chars = charsForFallback;
 
-                if (fallbackBuffer.Remaining > byteEnd - bytes)
-                {
+                if (fallbackBuffer.Remaining > byteEnd - bytes) {
                     // Throw it, if we don't have enough for this we never will
                     ThrowBytesOverflow(encoder, true);
                 }
@@ -310,11 +286,9 @@ namespace System.Text
             // Go ahead and do it, including the fallback.
             char ch;
             while ((ch = (fallbackBuffer == null) ? '\0' : fallbackBuffer.InternalGetNextChar()) != 0 ||
-                    chars < charEnd)
-            {
+                    chars < charEnd) {
                 // First unwind any fallback
-                if (ch == 0)
-                {
+                if (ch == 0) {
                     // No fallback, just get next char
                     ch = *chars;
                     chars++;
@@ -322,11 +296,9 @@ namespace System.Text
 
                 // Check for fallback, this'll catch surrogate pairs too.
                 // All characters >= 0x100 must fall back.
-                if (ch > 0xff)
-                {
+                if (ch > 0xff) {
                     // Initialize the buffer
-                    if (fallbackBuffer == null)
-                    {
+                    if (fallbackBuffer == null) {
                         if (encoder == null)
                             fallbackBuffer = this.encoderFallback.CreateFallbackBuffer();
                         else
@@ -341,8 +313,7 @@ namespace System.Text
 
                     // Make sure we have enough room.  Each fallback char will be 1 output char
                     // (or else cause a recursion exception)
-                    if (fallbackBuffer.Remaining > byteEnd - bytes)
-                    {
+                    if (fallbackBuffer.Remaining > byteEnd - bytes) {
                         // Didn't use this char, throw it.  Chars should've advanced by now
                         // If we had encoder fallback data it would've thrown before the loop
                         Debug.Assert(chars > charStart,
@@ -360,13 +331,11 @@ namespace System.Text
 
                 // We'll use this one
                 // Bounds check
-                if (bytes >= byteEnd)
-                {
+                if (bytes >= byteEnd) {
                     // didn't use this char, we'll throw or use buffer
                     Debug.Assert(fallbackBuffer == null || fallbackBuffer.bFallingBack == false,
                         "[Latin1Encoding.GetBytes]Expected fallback to have throw initially if insufficient space");
-                    if (fallbackBuffer == null || fallbackBuffer.bFallingBack == false)
-                    {
+                    if (fallbackBuffer == null || fallbackBuffer.bFallingBack == false) {
                         Debug.Assert(chars > charStart,
                             "[Latin1Encoding.GetBytes]Expected chars to have advanced (fallback case)");
                         chars--;                                        // don't use last char
@@ -381,8 +350,7 @@ namespace System.Text
             }
 
             // Need to do encoder stuff
-            if (encoder != null)
-            {
+            if (encoder != null) {
                 // Fallback stuck it in encoder if necessary, but we have to clear MustFlush cases
                 if (fallbackBuffer != null && !fallbackBuffer.bUsedEncoder)
                     // Clear it in case of MustFlush
@@ -399,8 +367,7 @@ namespace System.Text
         }
 
         // This is internal and called by something else,
-        internal override unsafe int GetCharCount(byte* bytes, int count, DecoderNLS decoder)
-        {
+        internal override unsafe int GetCharCount(byte* bytes, int count, DecoderNLS decoder) {
             // Just assert, we're called internally so these should be safe, checked already
             Debug.Assert(bytes != null, "[Latin1Encoding.GetCharCount]bytes is null");
             Debug.Assert(count >= 0, "[Latin1Encoding.GetCharCount]byteCount is negative");
@@ -411,8 +378,7 @@ namespace System.Text
         }
 
         internal override unsafe int GetChars(byte* bytes, int byteCount,
-                                                char* chars, int charCount, DecoderNLS decoder)
-        {
+                                                char* chars, int charCount, DecoderNLS decoder) {
             // Just need to ASSERT, this is called by something else internal that checked parameters already
             Debug.Assert(bytes != null, "[Latin1Encoding.GetChars]bytes is null");
             Debug.Assert(byteCount >= 0, "[Latin1Encoding.GetChars]byteCount is negative");
@@ -420,8 +386,7 @@ namespace System.Text
             Debug.Assert(charCount >= 0, "[Latin1Encoding.GetChars]charCount is negative");
 
             // Need byteCount chars, otherwise too small buffer
-            if (charCount < byteCount)
-            {
+            if (charCount < byteCount) {
                 // Buffer too small.  Do we throw?
                 ThrowCharsOverflow(decoder, charCount < 1);
 
@@ -433,8 +398,7 @@ namespace System.Text
             byte* byteEnd = bytes + byteCount;
 
             // Quick loop, all bytes are the same as chars, so no fallbacks for latin1
-            while (bytes < byteEnd)
-            {
+            while (bytes < byteEnd) {
                 *(chars) = unchecked((char)*(bytes));
                 chars++;
                 bytes++;
@@ -448,8 +412,7 @@ namespace System.Text
             return byteCount;
         }
 
-        public override int GetMaxByteCount(int charCount)
-        {
+        public override int GetMaxByteCount(int charCount) {
             if (charCount < 0)
                 throw new ArgumentOutOfRangeException(nameof(charCount),
                      SR.ArgumentOutOfRange_NeedNonNegNum);
@@ -468,8 +431,7 @@ namespace System.Text
             return (int)byteCount;
         }
 
-        public override int GetMaxCharCount(int byteCount)
-        {
+        public override int GetMaxCharCount(int byteCount) {
             if (byteCount < 0)
                 throw new ArgumentOutOfRangeException(nameof(byteCount),
                      SR.ArgumentOutOfRange_NeedNonNegNum);
@@ -489,16 +451,13 @@ namespace System.Text
         }
 
         // True if and only if the encoding only uses single byte code points.  (Ie, ASCII, 1252, etc)
-        public override bool IsSingleByte
-        {
-            get
-            {
+        public override bool IsSingleByte {
+            get {
                 return true;
             }
         }
 
-        public override bool IsAlwaysNormalized(NormalizationForm form)
-        {
+        public override bool IsAlwaysNormalized(NormalizationForm form) {
             // Latin-1 contains precomposed characters, so normal for Form C.
             // Since some are composed, not normal for D & KD.
             // Also some letters like 0x00A8 (spacing diarisis) have compatibility decompositions, so false for KD & KC.
@@ -507,15 +466,13 @@ namespace System.Text
             return (form == NormalizationForm.FormC);
         }
         // Since our best fit table is small we'll hard code it
-        internal override char[] GetBestFitUnicodeToBytesData()
-        {
+        internal override char[] GetBestFitUnicodeToBytesData() {
             // Get our best fit data
             return Latin1Encoding.arrayCharBestFit;
         }
 
         // Best fit for ASCII, and since it works for ASCII, we use it for latin1 as well.
-        private static readonly char[] arrayCharBestFit =
-        {
+        private static readonly char[] arrayCharBestFit = {
 // The first many are in case you wanted to use this for ASCIIEncoding, which we don't need to do any more.
 //          (char)0x00a0, (char)0x0020,    // No-Break Space -> Space
 //          (char)0x00a1, (char)0x0021,    // Inverted Exclamation Mark -> !

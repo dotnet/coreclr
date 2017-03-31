@@ -16,13 +16,11 @@
 
 using System;
 
-namespace System.Collections
-{
+namespace System.Collections {
     // Provides a mechanism for a hash table user to override the default
     // GetHashCode() function on Objects, providing their own hash function.
     [Obsolete("Please use IEqualityComparer instead.")]
-    internal interface IHashCodeProvider
-    {
+    internal interface IHashCodeProvider {
         // Interfaces are not serializable
         // Returns a hash code for the given object.  
         // 

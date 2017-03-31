@@ -2,11 +2,9 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-namespace System.Reflection
-{
+namespace System.Reflection {
     // This Enum matchs the CorMethodImpl defined in CorHdr.h
-    public enum MethodImplAttributes
-    {
+    public enum MethodImplAttributes {
         // code impl mask
         CodeTypeMask = 0x0003,   // Flags about code type.   
         IL = 0x0000,   // Method impl is IL.

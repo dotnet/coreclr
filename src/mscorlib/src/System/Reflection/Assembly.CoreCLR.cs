@@ -11,12 +11,9 @@ using System.Runtime.Serialization;
 using System.Diagnostics.Contracts;
 using System.Runtime.Loader;
 
-namespace System.Reflection
-{
-    public abstract partial class Assembly : ICustomAttributeProvider, ISerializable
-    {
-        public static Assembly LoadFrom(String assemblyFile)
-        {
+namespace System.Reflection {
+    public abstract partial class Assembly : ICustomAttributeProvider, ISerializable {
+        public static Assembly LoadFrom(String assemblyFile) {
             if (assemblyFile == null)
                 throw new ArgumentNullException(nameof(assemblyFile));
             string fullPath = Path.GetFullPath(assemblyFile);
@@ -27,8 +24,7 @@ namespace System.Reflection
         [Obsolete("This method is obsolete and will be removed in a future release of the .NET Framework. Please use an overload of LoadFrom which does not take an Evidence parameter. See http://go.microsoft.com/fwlink/?LinkID=155570 for more information.")]
         [System.Security.DynamicSecurityMethod] // Methods containing StackCrawlMark local var has to be marked DynamicSecurityMethod
         internal static Assembly LoadFrom(String assemblyFile,
-                                        Evidence securityEvidence)
-        {
+                                        Evidence securityEvidence) {
             Contract.Ensures(Contract.Result<Assembly>() != null);
 
             StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
@@ -45,16 +41,14 @@ namespace System.Reflection
         [System.Security.DynamicSecurityMethod] // Methods containing StackCrawlMark local var has to be marked DynamicSecurityMethod
         public static Assembly LoadFrom(String assemblyFile,
                                         byte[] hashValue,
-                                        AssemblyHashAlgorithm hashAlgorithm)
-        {
+                                        AssemblyHashAlgorithm hashAlgorithm) {
             throw new NotSupportedException(SR.NotSupported_AssemblyLoadFromHash);
         }
 
         // Locate an assembly by the long form of the assembly name. 
         // eg. "Toolbox.dll, version=1.1.10.1220, locale=en, publickey=1234567890123456789012345678901234567890"
         [System.Security.DynamicSecurityMethod] // Methods containing StackCrawlMark local var has to be marked DynamicSecurityMethod
-        public static Assembly Load(String assemblyString)
-        {
+        public static Assembly Load(String assemblyString) {
             Contract.Ensures(Contract.Result<Assembly>() != null);
             Contract.Ensures(!Contract.Result<Assembly>().ReflectionOnly);
 
@@ -67,8 +61,7 @@ namespace System.Reflection
         // Note: Type.GetType fails for assembly names that start with weird characters like '['. By calling it for managed types we would 
         // break AppCompat.
         [System.Security.DynamicSecurityMethod] // Methods containing StackCrawlMark local var has to be marked DynamicSecurityMethod
-        internal static Type GetType_Compat(String assemblyString, String typeName)
-        {
+        internal static Type GetType_Compat(String assemblyString, String typeName) {
             // Normally we would get the stackMark only in public APIs. This is internal API, but it is AppCompat replacement of public API 
             // call Assembly.Load(assemblyString).GetType(typeName), therefore we take the stackMark here as well, to be fully compatible with 
             // the call sequence.
@@ -80,10 +73,8 @@ namespace System.Reflection
                 false /*forIntrospection*/,
                 out assembly);
 
-            if (assembly == null)
-            {
-                if (assemblyName.ContentType == AssemblyContentType.WindowsRuntime)
-                {
+            if (assembly == null) {
+                if (assemblyName.ContentType == AssemblyContentType.WindowsRuntime) {
                     return Type.GetType(typeName + ", " + assemblyString, true /*throwOnError*/, false /*ignoreCase*/);
                 }
 
@@ -97,13 +88,11 @@ namespace System.Reflection
         // Locate an assembly by its name. The name can be strong or
         // weak. The assembly is loaded into the domain of the caller.
         [System.Security.DynamicSecurityMethod] // Methods containing StackCrawlMark local var has to be marked DynamicSecurityMethod
-        public static Assembly Load(AssemblyName assemblyRef)
-        {
+        public static Assembly Load(AssemblyName assemblyRef) {
             Contract.Ensures(Contract.Result<Assembly>() != null);
             Contract.Ensures(!Contract.Result<Assembly>().ReflectionOnly);
 
-            if (assemblyRef != null && assemblyRef.CodeBase != null)
-            {
+            if (assemblyRef != null && assemblyRef.CodeBase != null) {
                 throw new NotSupportedException(SR.NotSupported_AssemblyLoadCodeBase);
             }
 
@@ -114,13 +103,11 @@ namespace System.Reflection
         // Locate an assembly by its name. The name can be strong or
         // weak. The assembly is loaded into the domain of the caller.
         [System.Security.DynamicSecurityMethod] // Methods containing StackCrawlMark local var has to be marked DynamicSecurityMethod
-        internal static Assembly Load(AssemblyName assemblyRef, IntPtr ptrLoadContextBinder)
-        {
+        internal static Assembly Load(AssemblyName assemblyRef, IntPtr ptrLoadContextBinder) {
             Contract.Ensures(Contract.Result<Assembly>() != null);
             Contract.Ensures(!Contract.Result<Assembly>().ReflectionOnly);
 
-            if (assemblyRef != null && assemblyRef.CodeBase != null)
-            {
+            if (assemblyRef != null && assemblyRef.CodeBase != null) {
                 throw new NotSupportedException(SR.NotSupported_AssemblyLoadCodeBase);
             }
 
@@ -134,8 +121,7 @@ namespace System.Reflection
         // representing the symbol store that matches the assembly.
         [System.Security.DynamicSecurityMethod] // Methods containing StackCrawlMark local var has to be marked DynamicSecurityMethod
         public static Assembly Load(byte[] rawAssembly,
-                                    byte[] rawSymbolStore)
-        {
+                                    byte[] rawSymbolStore) {
             Contract.Ensures(Contract.Result<Assembly>() != null);
             Contract.Ensures(!Contract.Result<Assembly>().ReflectionOnly);
 
@@ -151,8 +137,7 @@ namespace System.Reflection
 
         private static Dictionary<string, Assembly> s_loadfile = new Dictionary<string, Assembly>();
 
-        public static Assembly LoadFile(String path)
-        {
+        public static Assembly LoadFile(String path) {
             Contract.Ensures(Contract.Result<Assembly>() != null);
             Contract.Ensures(!Contract.Result<Assembly>().ReflectionOnly);
 
@@ -162,15 +147,13 @@ namespace System.Reflection
             if (path == null)
                 throw new ArgumentNullException(nameof(path));
 
-            if (PathInternal.IsPartiallyQualified(path))
-            {
+            if (PathInternal.IsPartiallyQualified(path)) {
                 throw new ArgumentException(SR.Argument_AbsolutePathRequired, nameof(path));
             }
 
             string normalizedPath = Path.GetFullPath(path);
 
-            lock (s_loadfile)
-            {
+            lock (s_loadfile) {
                 if (s_loadfile.TryGetValue(normalizedPath, out result))
                     return result;
                 AssemblyLoadContext alc = new IndividualAssemblyLoadContext();
@@ -184,15 +167,13 @@ namespace System.Reflection
          * Get the assembly that the current code is running from.
          */
         [System.Security.DynamicSecurityMethod] // Methods containing StackCrawlMark local var has to be marked DynamicSecurityMethod 
-        public static Assembly GetExecutingAssembly()
-        {
+        public static Assembly GetExecutingAssembly() {
             StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
             return RuntimeAssembly.GetExecutingAssembly(ref stackMark);
         }
 
         [System.Security.DynamicSecurityMethod] // Methods containing StackCrawlMark local var has to be marked DynamicSecurityMethod
-        public static Assembly GetCallingAssembly()
-        {
+        public static Assembly GetCallingAssembly() {
             // LookForMyCallersCaller is not guarantee to return the correct stack frame
             // because of inlining, tail calls, etc. As a result GetCallingAssembly is not 
             // ganranteed to return the correct result. We should document it as such.
@@ -200,8 +181,7 @@ namespace System.Reflection
             return RuntimeAssembly.GetExecutingAssembly(ref stackMark);
         }
 
-        public static Assembly GetEntryAssembly()
-        {
+        public static Assembly GetEntryAssembly() {
             AppDomainManager domainManager = AppDomain.CurrentDomain.DomainManager;
             if (domainManager == null)
                 domainManager = new AppDomainManager();

@@ -22,8 +22,7 @@ namespace System.Diagnostics.Tracing
     /// EventWrite. The instance must be Disabled before the arrays referenced
     /// by the pointers are freed or unpinned.
     /// </summary>
-    internal unsafe struct DataCollector
-    {
+    internal unsafe struct DataCollector {
         [ThreadStatic]
         internal static DataCollector ThreadInstance;
 
@@ -45,8 +44,7 @@ namespace System.Diagnostics.Tracing
             EventSource.EventData* datas,
             int dataCount,
             GCHandle* pins,
-            int pinCount)
-        {
+            int pinCount) {
             datasStart = datas;
             scratchEnd = scratch + scratchSize;
             datasEnd = datas + dataCount;
@@ -57,8 +55,7 @@ namespace System.Diagnostics.Tracing
             writingScalars = false;
         }
 
-        internal void Disable()
-        {
+        internal void Disable() {
             this = new DataCollector();
         }
 
@@ -70,107 +67,86 @@ namespace System.Diagnostics.Tracing
         /// A pointer to the next unused data descriptor, or datasEnd if they were
         /// all used. (Descriptors may be unused if a string or array was null.)
         /// </returns>
-        internal EventSource.EventData* Finish()
-        {
+        internal EventSource.EventData* Finish() {
             this.ScalarsEnd();
             return datas;
         }
 
-        internal void AddScalar(void* value, int size)
-        {
+        internal void AddScalar(void* value, int size) {
             var pb = (byte*)value;
-            if (bufferNesting == 0)
-            {
+            if (bufferNesting == 0) {
                 var scratchOld = scratch;
                 var scratchNew = scratchOld + size;
-                if (scratchEnd < scratchNew)
-                {
+                if (scratchEnd < scratchNew) {
                     throw new IndexOutOfRangeException(Resources.GetResourceString("EventSource_AddScalarOutOfRange"));
                 }
 
                 this.ScalarsBegin();
                 scratch = scratchNew;
 
-                for (int i = 0; i != size; i++)
-                {
+                for (int i = 0; i != size; i++) {
                     scratchOld[i] = pb[i];
                 }
             }
-            else
-            {
+            else {
                 var oldPos = bufferPos;
                 bufferPos = checked(bufferPos + size);
                 this.EnsureBuffer();
-                for (int i = 0; i != size; i++, oldPos++)
-                {
+                for (int i = 0; i != size; i++, oldPos++) {
                     buffer[oldPos] = pb[i];
                 }
             }
         }
 
-        internal void AddBinary(string value, int size)
-        {
-            if (size > ushort.MaxValue)
-            {
+        internal void AddBinary(string value, int size) {
+            if (size > ushort.MaxValue) {
                 size = ushort.MaxValue - 1;
             }
 
-            if (bufferNesting != 0)
-            {
+            if (bufferNesting != 0) {
                 this.EnsureBuffer(size + 2);
             }
 
             this.AddScalar(&size, 2);
 
-            if (size != 0)
-            {
-                if (bufferNesting == 0)
-                {
+            if (size != 0) {
+                if (bufferNesting == 0) {
                     this.ScalarsEnd();
                     this.PinArray(value, size);
                 }
-                else
-                {
+                else {
                     var oldPos = bufferPos;
                     bufferPos = checked(bufferPos + size);
                     this.EnsureBuffer();
-                    fixed (void* p = value)
-                    {
+                    fixed (void* p = value) {
                         Marshal.Copy((IntPtr)p, buffer, oldPos, size);
                     }
                 }
             }
         }
 
-        internal void AddBinary(Array value, int size)
-        {
+        internal void AddBinary(Array value, int size) {
             this.AddArray(value, size, 1);
         }
 
-        internal void AddArray(Array value, int length, int itemSize)
-        {
-            if (length > ushort.MaxValue)
-            {
+        internal void AddArray(Array value, int length, int itemSize) {
+            if (length > ushort.MaxValue) {
                 length = ushort.MaxValue;
             }
 
             var size = length * itemSize;
-            if (bufferNesting != 0)
-            {
+            if (bufferNesting != 0) {
                 this.EnsureBuffer(size + 2);
             }
 
             this.AddScalar(&length, 2);
 
-            if (length != 0)
-            {
-                if (bufferNesting == 0)
-                {
+            if (length != 0) {
+                if (bufferNesting == 0) {
                     this.ScalarsEnd();
                     this.PinArray(value, size);
                 }
-                else
-                {
+                else {
                     var oldPos = bufferPos;
                     bufferPos = checked(bufferPos + size);
                     this.EnsureBuffer();
@@ -183,8 +159,7 @@ namespace System.Diagnostics.Tracing
         /// Marks the start of a non-blittable array or enumerable.
         /// </summary>
         /// <returns>Bookmark to be passed to EndBufferedArray.</returns>
-        internal int BeginBufferedArray()
-        {
+        internal int BeginBufferedArray() {
             this.BeginBuffered();
             bufferPos += 2; // Reserve space for the array length (filled in by EndEnumerable)
             return bufferPos;
@@ -195,8 +170,7 @@ namespace System.Diagnostics.Tracing
         /// </summary>
         /// <param name="bookmark">The value returned by BeginBufferedArray.</param>
         /// <param name="count">The number of items in the array.</param>
-        internal void EndBufferedArray(int bookmark, int count)
-        {
+        internal void EndBufferedArray(int bookmark, int count) {
             this.EnsureBuffer();
             buffer[bookmark - 2] = unchecked((byte)count);
             buffer[bookmark - 1] = unchecked((byte)(count >> 8));
@@ -206,8 +180,7 @@ namespace System.Diagnostics.Tracing
         /// <summary>
         /// Marks the start of dynamically-buffered data.
         /// </summary>
-        internal void BeginBuffered()
-        {
+        internal void BeginBuffered() {
             this.ScalarsEnd();
             bufferNesting += 1;
         }
@@ -215,12 +188,10 @@ namespace System.Diagnostics.Tracing
         /// <summary>
         /// Marks the end of dynamically-buffered data.
         /// </summary>
-        internal void EndBuffered()
-        {
+        internal void EndBuffered() {
             bufferNesting -= 1;
 
-            if (bufferNesting == 0)
-            {
+            if (bufferNesting == 0) {
                 /*
                 TODO (perf): consider coalescing adjacent buffered regions into a
                 single buffer, similar to what we're already doing for adjacent
@@ -236,30 +207,24 @@ namespace System.Diagnostics.Tracing
             }
         }
 
-        private void EnsureBuffer()
-        {
+        private void EnsureBuffer() {
             var required = bufferPos;
-            if (buffer == null || buffer.Length < required)
-            {
+            if (buffer == null || buffer.Length < required) {
                 this.GrowBuffer(required);
             }
         }
 
-        private void EnsureBuffer(int additionalSize)
-        {
+        private void EnsureBuffer(int additionalSize) {
             var required = bufferPos + additionalSize;
-            if (buffer == null || buffer.Length < required)
-            {
+            if (buffer == null || buffer.Length < required) {
                 this.GrowBuffer(required);
             }
         }
 
-        private void GrowBuffer(int required)
-        {
+        private void GrowBuffer(int required) {
             var newSize = buffer == null ? 64 : buffer.Length;
 
-            do
-            {
+            do {
                 newSize *= 2;
             }
             while (newSize < required);
@@ -267,17 +232,14 @@ namespace System.Diagnostics.Tracing
             Array.Resize(ref buffer, newSize);
         }
 
-        private void PinArray(object value, int size)
-        {
+        private void PinArray(object value, int size) {
             var pinsTemp = pins;
-            if (pinsEnd <= pinsTemp)
-            {
+            if (pinsEnd <= pinsTemp) {
                 throw new IndexOutOfRangeException(Resources.GetResourceString("EventSource_PinArrayOutOfRange"));
             }
 
             var datasTemp = datas;
-            if (datasEnd <= datasTemp)
-            {
+            if (datasEnd <= datasTemp) {
                 throw new IndexOutOfRangeException(Resources.GetResourceString("EventSource_DataDescriptorsOutOfRange"));
             }
 
@@ -289,13 +251,10 @@ namespace System.Diagnostics.Tracing
             datasTemp->m_Size = size;
         }
 
-        private void ScalarsBegin()
-        {
-            if (!writingScalars)
-            {
+        private void ScalarsBegin() {
+            if (!writingScalars) {
                 var datasTemp = datas;
-                if (datasEnd <= datasTemp)
-                {
+                if (datasEnd <= datasTemp) {
                     throw new IndexOutOfRangeException(Resources.GetResourceString("EventSource_DataDescriptorsOutOfRange"));
                 }
 
@@ -304,10 +263,8 @@ namespace System.Diagnostics.Tracing
             }
         }
 
-        private void ScalarsEnd()
-        {
-            if (writingScalars)
-            {
+        private void ScalarsEnd() {
+            if (writingScalars) {
                 var datasTemp = datas;
                 datasTemp->m_Size = checked((int)(scratch - (byte*)datasTemp->m_Ptr));
                 datas = datasTemp + 1;

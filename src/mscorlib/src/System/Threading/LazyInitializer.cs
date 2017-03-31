@@ -14,13 +14,11 @@
 using System.Diagnostics;
 using System.Diagnostics.Contracts;
 
-namespace System.Threading
-{
+namespace System.Threading {
     /// <summary>
     /// Specifies how a <see cref="T:System.Threading.Lazy{T}"/> instance should synchronize access among multiple threads.
     /// </summary>
-    public enum LazyThreadSafetyMode
-    {
+    public enum LazyThreadSafetyMode {
         /// <summary>
         /// This mode makes no guarantees around the thread-safety of the <see cref="T:System.Threading.Lazy{T}"/> instance.  If used from multiple threads, the behavior of the <see cref="T:System.Threading.Lazy{T}"/> is undefined.
         /// This mode should be used when a <see cref="T:System.Threading.Lazy{T}"/> is guaranteed to never be initialized from more than one thread simultaneously and high performance is crucial. 
@@ -54,8 +52,7 @@ namespace System.Threading
     /// These routines avoid needing to allocate a dedicated, lazy-initialization instance, instead using
     /// references to ensure targets have been initialized as they are accessed.
     /// </remarks>
-    public static class LazyInitializer
-    {
+    public static class LazyInitializer {
         /// <summary>
         /// Initializes a target reference type with the type's default constructor if the target has not
         /// already been initialized.
@@ -123,11 +120,9 @@ namespace System.Threading
         /// <param name="target">The variable that need to be initialized</param>
         /// <param name="valueFactory">The delegate that will be executed to initialize the target</param>
         /// <returns>The initialized variable</returns>
-        private static T EnsureInitializedCore<T>(ref T target, Func<T> valueFactory) where T : class
-        {
+        private static T EnsureInitializedCore<T>(ref T target, Func<T> valueFactory) where T : class {
             T value = valueFactory();
-            if (value == null)
-            {
+            if (value == null) {
                 throw new InvalidOperationException(SR.Lazy_StaticInit_InvalidOperation);
             }
 
@@ -148,11 +143,9 @@ namespace System.Threading
         /// <param name="syncLock">A reference to an object used as the mutually exclusive lock for initializing
         /// <paramref name="target"/>. If <paramref name="syncLock"/> is null, a new object will be instantiated.</param>
         /// <returns>The initialized value of type <typeparamref name="T"/>.</returns>
-        public static T EnsureInitialized<T>(ref T target, ref bool initialized, ref object syncLock)
-        {
+        public static T EnsureInitialized<T>(ref T target, ref bool initialized, ref object syncLock) {
             // Fast path.
-            if (Volatile.Read(ref initialized))
-            {
+            if (Volatile.Read(ref initialized)) {
                 return target;
             }
 
@@ -173,11 +166,9 @@ namespace System.Threading
         /// <param name="valueFactory">The <see cref="T:System.Func{T}"/> invoked to initialize the
         /// reference or value.</param>
         /// <returns>The initialized value of type <typeparamref name="T"/>.</returns>
-        public static T EnsureInitialized<T>(ref T target, ref bool initialized, ref object syncLock, Func<T> valueFactory)
-        {
+        public static T EnsureInitialized<T>(ref T target, ref bool initialized, ref object syncLock, Func<T> valueFactory) {
             // Fast path.
-            if (Volatile.Read(ref initialized))
-            {
+            if (Volatile.Read(ref initialized)) {
                 return target;
             }
 
@@ -220,13 +211,10 @@ namespace System.Threading
         /// The <see cref="T:System.Func{T}"/> to invoke in order to produce the lazily-initialized value.
         /// </param>
         /// <returns>The initialized object.</returns>
-        private static T EnsureInitializedCore<T>(ref T target, ref bool initialized, ref object syncLock, Func<T> valueFactory)
-        {
+        private static T EnsureInitializedCore<T>(ref T target, ref bool initialized, ref object syncLock, Func<T> valueFactory) {
             // Lazily initialize the lock if necessary and,  then double check if initialization is still required.
-            lock (EnsureLockInitialized(ref syncLock))
-            {
-                if (!Volatile.Read(ref initialized))
-                {
+            lock (EnsureLockInitialized(ref syncLock)) {
+                if (!Volatile.Read(ref initialized)) {
                     target = valueFactory();
                     Volatile.Write(ref initialized, true);
                 }
@@ -247,16 +235,12 @@ namespace System.Threading
         /// The <see cref="T:System.Func{T}"/> to invoke in order to produce the lazily-initialized value.
         /// </param>
         /// <returns>The initialized object.</returns>
-        private static T EnsureInitializedCore<T>(ref T target, ref object syncLock, Func<T> valueFactory) where T : class
-        {
+        private static T EnsureInitializedCore<T>(ref T target, ref object syncLock, Func<T> valueFactory) where T : class {
             // Lazily initialize the lock if necessary and,  then double check if initialization is still required.
-            lock (EnsureLockInitialized(ref syncLock))
-            {
-                if (Volatile.Read(ref target) == null)
-                {
+            lock (EnsureLockInitialized(ref syncLock)) {
+                if (Volatile.Read(ref target) == null) {
                     Volatile.Write(ref target, valueFactory());
-                    if (target == null)
-                    {
+                    if (target == null) {
                         throw new InvalidOperationException(SR.Lazy_StaticInit_InvalidOperation);
                     }
                 }
@@ -267,18 +251,14 @@ namespace System.Threading
     }
 
     // Caches the activation selector function to avoid delegate allocations.
-    internal static class LazyHelpers<T>
-    {
+    internal static class LazyHelpers<T> {
         internal static Func<T> s_activatorFactorySelector = new Func<T>(ActivatorFactorySelector);
 
-        private static T ActivatorFactorySelector()
-        {
-            try
-            {
+        private static T ActivatorFactorySelector() {
+            try {
                 return (T)Activator.CreateInstance(typeof(T));
             }
-            catch (MissingMethodException)
-            {
+            catch (MissingMethodException) {
                 throw new MissingMemberException(SR.Lazy_CreateValue_NoParameterlessCtorForT);
             }
         }

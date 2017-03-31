@@ -10,12 +10,9 @@ using System.Threading.Tasks;
 using Microsoft.Win32.SafeHandles;
 using System.Runtime.CompilerServices;
 
-namespace System.IO
-{
-    public partial class FileStream : Stream
-    {
-        private SafeFileHandle OpenHandle(FileMode mode, FileShare share, FileOptions options)
-        {
+namespace System.IO {
+    public partial class FileStream : Stream {
+        private SafeFileHandle OpenHandle(FileMode mode, FileShare share, FileOptions options) {
             Interop.Kernel32.SECURITY_ATTRIBUTES secAttrs = GetSecAttrs(share);
 
             int fAccess =
@@ -39,13 +36,11 @@ namespace System.IO
 
             // Don't pop up a dialog for reading from an empty floppy drive
             uint oldMode = Interop.Kernel32.SetErrorMode(Interop.Kernel32.SEM_FAILCRITICALERRORS);
-            try
-            {
+            try {
                 SafeFileHandle fileHandle = Interop.Kernel32.CreateFile(_path, fAccess, share, ref secAttrs, mode, flagsAndAttributes, IntPtr.Zero);
                 fileHandle.IsAsync = _useAsyncIO;
 
-                if (fileHandle.IsInvalid)
-                {
+                if (fileHandle.IsInvalid) {
                     // Return a meaningful exception with the full path.
 
                     // NT5 oddity - when trying to open "C:\" as a Win32FileStream,
@@ -60,16 +55,14 @@ namespace System.IO
                 }
                 
                 int fileType = Interop.Kernel32.GetFileType(fileHandle);
-                if (fileType != Interop.Kernel32.FileTypes.FILE_TYPE_DISK)
-                {
+                if (fileType != Interop.Kernel32.FileTypes.FILE_TYPE_DISK) {
                     fileHandle.Dispose();
                     throw new NotSupportedException(SR.NotSupported_FileStreamOnNonFiles);
                 }
 
                 return fileHandle;
             }
-            finally
-            {
+            finally {
                 Interop.Kernel32.SetErrorMode(oldMode);
             }
         }

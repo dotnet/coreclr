@@ -17,11 +17,9 @@ using System.Runtime.CompilerServices;
 using System.Globalization;
 using System.Diagnostics.Contracts;
 
-namespace System
-{
+namespace System {
     [Serializable]
-    public class Random
-    {
+    public class Random {
         //
         // Private Constants 
         //
@@ -53,15 +51,13 @@ namespace System
         **Action: Initializes a new instance of the Random class, using a default seed value
         ===========================================================================================*/
         public Random()
-          : this(GenerateSeed())
-        {
+          : this(GenerateSeed()) {
         }
 
         /*=========================================================================================
         **Action: Initializes a new instance of the Random class, using a specified seed value
         ===========================================================================================*/
-        public Random(int Seed)
-        {
+        public Random(int Seed) {
             int ii = 0;
             int mj, mk;
 
@@ -70,18 +66,15 @@ namespace System
             mj = MSEED - subtraction;
             SeedArray[55] = mj;
             mk = 1;
-            for (int i = 1; i < 55; i++)
-            {  //Apparently the range [1..55] is special (Knuth) and so we're wasting the 0'th position.
+            for (int i = 1; i < 55; i++) {  //Apparently the range [1..55] is special (Knuth) and so we're wasting the 0'th position.
                 if ((ii += 21) >= 55) ii -= 55;
                 SeedArray[ii] = mk;
                 mk = mj - mk;
                 if (mk < 0) mk += MBIG;
                 mj = SeedArray[ii];
             }
-            for (int k = 1; k < 5; k++)
-            {
-                for (int i = 1; i < 56; i++)
-                {
+            for (int k = 1; k < 5; k++) {
+                for (int i = 1; i < 56; i++) {
                     int n = i + 30;
                     if (n >= 55) n -= 55;
                     SeedArray[i] -= SeedArray[1 + n];
@@ -103,15 +96,13 @@ namespace System
         **Arguments: None
         **Exceptions: None
         ==============================================================================*/
-        protected virtual double Sample()
-        {
+        protected virtual double Sample() {
             //Including this division at the end gives us significantly improved
             //random number distribution.
             return (InternalSample() * (1.0 / MBIG));
         }
 
-        private int InternalSample()
-        {
+        private int InternalSample() {
             int retVal;
             int locINext = inext;
             int locINextp = inextp;
@@ -141,14 +132,11 @@ namespace System
         **Returns: An integer that can be used as seed values for consecutively
                    creating lots of instances on the same thread within a short period of time.
         ========================================================================================*/
-        private static int GenerateSeed()
-        {
+        private static int GenerateSeed() {
             Random rnd = t_threadRandom;
-            if (rnd == null)
-            {
+            if (rnd == null) {
                 int seed;
-                lock (s_globalRandom)
-                {
+                lock (s_globalRandom) {
                     seed = s_globalRandom.Next();
                 }
                 rnd = new Random(seed);
@@ -161,8 +149,7 @@ namespace System
         **Action:  Creates a number to use as global seed.
         **Returns: An integer that is safe to use as seed values for thread-local seed generators.
         ==========================================================================================*/
-        private static int GenerateGlobalSeed()
-        {
+        private static int GenerateGlobalSeed() {
             return Guid.NewGuid().GetHashCode();
         }
 
@@ -176,13 +163,11 @@ namespace System
         **Arguments: None
         **Exceptions: None.
         ==============================================================================*/
-        public virtual int Next()
-        {
+        public virtual int Next() {
             return InternalSample();
         }
 
-        private double GetSampleForLargeRange()
-        {
+        private double GetSampleForLargeRange() {
             // The distribution of double value returned by Sample 
             // is not distributed well enough for a large range.
             // If we use Sample for a range [Int32.MinValue..Int32.MaxValue)
@@ -191,8 +176,7 @@ namespace System
             int result = InternalSample();
             // Note we can't use addition here. The distribution will be bad if we do that.
             bool negative = (InternalSample() % 2 == 0) ? true : false;  // decide the sign based on second sample
-            if (negative)
-            {
+            if (negative) {
                 result = -result;
             }
             double d = result;
@@ -208,21 +192,17 @@ namespace System
         **           maxValue -- One greater than the greatest legal return value.
         **Exceptions: None.
         ==============================================================================*/
-        public virtual int Next(int minValue, int maxValue)
-        {
-            if (minValue > maxValue)
-            {
+        public virtual int Next(int minValue, int maxValue) {
+            if (minValue > maxValue) {
                 throw new ArgumentOutOfRangeException(nameof(minValue), SR.Format(SR.Argument_MinMaxValue, nameof(minValue), nameof(maxValue)));
             }
             Contract.EndContractBlock();
 
             long range = (long)maxValue - minValue;
-            if (range <= (long)Int32.MaxValue)
-            {
+            if (range <= (long)Int32.MaxValue) {
                 return ((int)(Sample() * range) + minValue);
             }
-            else
-            {
+            else {
                 return (int)((long)(GetSampleForLargeRange() * range) + minValue);
             }
         }
@@ -233,10 +213,8 @@ namespace System
         **Arguments: maxValue -- One more than the greatest legal return value.
         **Exceptions: None.
         ==============================================================================*/
-        public virtual int Next(int maxValue)
-        {
-            if (maxValue < 0)
-            {
+        public virtual int Next(int maxValue) {
+            if (maxValue < 0) {
                 throw new ArgumentOutOfRangeException(nameof(maxValue), SR.Format(SR.ArgumentOutOfRange_MustBePositive, nameof(maxValue)));
             }
             Contract.EndContractBlock();
@@ -249,8 +227,7 @@ namespace System
         **Arguments: None
         **Exceptions: None
         ==============================================================================*/
-        public virtual double NextDouble()
-        {
+        public virtual double NextDouble() {
             return Sample();
         }
 
@@ -261,12 +238,10 @@ namespace System
         **Arugments:  buffer -- the array to be filled.
         **Exceptions: None
         ==============================================================================*/
-        public virtual void NextBytes(byte[] buffer)
-        {
+        public virtual void NextBytes(byte[] buffer) {
             if (buffer == null) throw new ArgumentNullException(nameof(buffer));
             Contract.EndContractBlock();
-            for (int i = 0; i < buffer.Length; i++)
-            {
+            for (int i = 0; i < buffer.Length; i++) {
                 buffer[i] = (byte)(InternalSample() % (Byte.MaxValue + 1));
             }
         }

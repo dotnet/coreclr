@@ -16,37 +16,30 @@ using System.Diagnostics.Contracts;
 using System.Runtime.InteropServices;
 using System.Security;
 
-namespace System.Runtime.CompilerServices
-{
+namespace System.Runtime.CompilerServices {
     // Wrapper for address of a string variable on stack
-    internal struct StringHandleOnStack
-    {
+    internal struct StringHandleOnStack {
         private IntPtr m_ptr;
 
-        internal StringHandleOnStack(IntPtr pString)
-        {
+        internal StringHandleOnStack(IntPtr pString) {
             m_ptr = pString;
         }
     }
 
     // Wrapper for address of a object variable on stack
-    internal struct ObjectHandleOnStack
-    {
+    internal struct ObjectHandleOnStack {
         private IntPtr m_ptr;
 
-        internal ObjectHandleOnStack(IntPtr pObject)
-        {
+        internal ObjectHandleOnStack(IntPtr pObject) {
             m_ptr = pObject;
         }
     }
 
     // Wrapper for StackCrawlMark
-    internal struct StackCrawlMarkHandle
-    {
+    internal struct StackCrawlMarkHandle {
         private IntPtr m_ptr;
 
-        internal StackCrawlMarkHandle(IntPtr stackMark)
-        {
+        internal StackCrawlMarkHandle(IntPtr stackMark) {
             m_ptr = stackMark;
         }
     }
@@ -56,48 +49,41 @@ namespace System.Runtime.CompilerServices
     // {
     //    ... pData is what Object::GetData() returns in VM ...
     // }
-    internal class PinningHelper
-    {
+    internal class PinningHelper {
         public byte m_data;
     }
 
-    internal class ArrayPinningHelper
-    {
+    internal class ArrayPinningHelper {
         public IntPtr m_lengthAndPadding;
         public byte m_arrayData;
     }
 
     [FriendAccessAllowed]
-    internal static class JitHelpers
-    {
+    internal static class JitHelpers {
         // The special dll name to be used for DllImport of QCalls
         internal const string QCall = "QCall";
 
         // Wraps object variable into a handle. Used to return managed strings from QCalls.
         // s has to be a local variable on the stack.
-        static internal StringHandleOnStack GetStringHandleOnStack(ref string s)
-        {
+        static internal StringHandleOnStack GetStringHandleOnStack(ref string s) {
             return new StringHandleOnStack(UnsafeCastToStackPointer(ref s));
         }
 
         // Wraps object variable into a handle. Used to pass managed object references in and out of QCalls.
         // o has to be a local variable on the stack.
-        static internal ObjectHandleOnStack GetObjectHandleOnStack<T>(ref T o) where T : class
-        {
+        static internal ObjectHandleOnStack GetObjectHandleOnStack<T>(ref T o) where T : class {
             return new ObjectHandleOnStack(UnsafeCastToStackPointer(ref o));
         }
 
         // Wraps StackCrawlMark into a handle. Used to pass StackCrawlMark to QCalls.
         // stackMark has to be a local variable on the stack.
-        static internal StackCrawlMarkHandle GetStackCrawlMarkHandle(ref StackCrawlMark stackMark)
-        {
+        static internal StackCrawlMarkHandle GetStackCrawlMarkHandle(ref StackCrawlMark stackMark) {
             return new StackCrawlMarkHandle(UnsafeCastToStackPointer(ref stackMark));
         }
 
 #if _DEBUG
         [FriendAccessAllowed]
-        static internal T UnsafeCast<T>(Object o) where T : class
-        {
+        static internal T UnsafeCast<T>(Object o) where T : class {
             T ret = UnsafeCastInternal<T>(o);
             Debug.Assert(ret == (o as T), "Invalid use of JitHelpers.UnsafeCast!");
             return ret;
@@ -105,15 +91,14 @@ namespace System.Runtime.CompilerServices
 
         // The IL body of this method is not critical, but its body will be replaced with unsafe code, so
         // this method is effectively critical
-        static private T UnsafeCastInternal<T>(Object o) where T : class
-        {
+        static private T UnsafeCastInternal<T>(Object o) where T : class {
             // The body of this function will be replaced by the EE with unsafe code that just returns o!!!
             // See getILIntrinsicImplementation for how this happens.  
             throw new InvalidOperationException();
         }
 
         static internal int UnsafeEnumCast<T>(T val) where T : struct		// Actually T must be 4 byte (or less) enum
-        {
+{
             Debug.Assert(typeof(T).IsEnum
                               && (Enum.GetUnderlyingType(typeof(T)) == typeof(int)
                                   || Enum.GetUnderlyingType(typeof(T)) == typeof(uint)
@@ -126,14 +111,14 @@ namespace System.Runtime.CompilerServices
         }
 
         static private int UnsafeEnumCastInternal<T>(T val) where T : struct		// Actually T must be 4 (or less) byte enum
-        {
+{
             // should be return (int) val; but C# does not allow, runtime does this magically
             // See getILIntrinsicImplementation for how this happens.  
             throw new InvalidOperationException();
         }
 
         static internal long UnsafeEnumCastLong<T>(T val) where T : struct		// Actually T must be 8 byte enum
-        {
+{
             Debug.Assert(typeof(T).IsEnum
                               && (Enum.GetUnderlyingType(typeof(T)) == typeof(long)
                                   || Enum.GetUnderlyingType(typeof(T)) == typeof(ulong)),
@@ -142,7 +127,7 @@ namespace System.Runtime.CompilerServices
         }
 
         static private long UnsafeEnumCastLongInternal<T>(T val) where T : struct	// Actually T must be 8 byte enum
-        {
+{
             // should be return (int) val; but C# does not allow, runtime does this magically
             // See getILIntrinsicImplementation for how this happens.  
             throw new InvalidOperationException();
@@ -150,15 +135,13 @@ namespace System.Runtime.CompilerServices
 
         // Internal method for getting a raw pointer for handles in JitHelpers.
         // The reference has to point into a local stack variable in order so it can not be moved by the GC.
-        static internal IntPtr UnsafeCastToStackPointer<T>(ref T val)
-        {
+        static internal IntPtr UnsafeCastToStackPointer<T>(ref T val) {
             IntPtr p = UnsafeCastToStackPointerInternal<T>(ref val);
             Debug.Assert(IsAddressInStack(p), "Pointer not in the stack!");
             return p;
         }
 
-        static private IntPtr UnsafeCastToStackPointerInternal<T>(ref T val)
-        {
+        static private IntPtr UnsafeCastToStackPointerInternal<T>(ref T val) {
             // The body of this function will be replaced by the EE with unsafe code that just returns val!!!
             // See getILIntrinsicImplementation for how this happens.  
             throw new InvalidOperationException();
@@ -201,8 +184,7 @@ namespace System.Runtime.CompilerServices
         extern static internal void UnsafeSetArrayElement(Object[] target, int index, Object element);
 
         // Used for unsafe pinning of arbitrary objects.
-        static internal PinningHelper GetPinningHelper(Object o)
-        {
+        static internal PinningHelper GetPinningHelper(Object o) {
             // This cast is really unsafe - call the private version that does not assert in debug
 #if _DEBUG
             return UnsafeCastInternal<PinningHelper>(o);
@@ -216,15 +198,13 @@ namespace System.Runtime.CompilerServices
         private extern static bool IsAddressInStack(IntPtr ptr);
 #endif
 
-        static internal bool ByRefLessThan<T>(ref T refA, ref T refB)
-        {
+        static internal bool ByRefLessThan<T>(ref T refA, ref T refB) {
             // The body of this function will be replaced by the EE with unsafe code!!!
             // See getILIntrinsicImplementation for how this happens.
             throw new InvalidOperationException();
         }
 
-        static internal ref T GetArrayData<T>(T[] array)
-        {
+        static internal ref T GetArrayData<T>(T[] array) {
             // The body of this function will be replaced by the EE with unsafe code!!!
             // See getILIntrinsicImplementation for how this happens.
             typeof(ArrayPinningHelper).ToString(); // Type used by the actual method body

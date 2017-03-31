@@ -5,10 +5,8 @@
 using System.Diagnostics;
 using System.Globalization;
 
-namespace System.Reflection
-{
-    public abstract partial class ConstructorInfo : MethodBase
-    {
+namespace System.Reflection {
+    public abstract partial class ConstructorInfo : MethodBase {
         protected ConstructorInfo() { }
 
         public override MemberTypes MemberType => MemberTypes.Constructor;
@@ -21,8 +19,7 @@ namespace System.Reflection
         public override bool Equals(object obj) => base.Equals(obj);
         public override int GetHashCode() => base.GetHashCode();
 
-        public static bool operator ==(ConstructorInfo left, ConstructorInfo right)
-        {
+        public static bool operator ==(ConstructorInfo left, ConstructorInfo right) {
             if (object.ReferenceEquals(left, right))
                 return true;
 

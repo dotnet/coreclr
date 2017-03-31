@@ -64,13 +64,11 @@ using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Threading;
 
-namespace System.Runtime.CompilerServices
-{
+namespace System.Runtime.CompilerServices {
     #region ConditionalWeakTable
     public sealed class ConditionalWeakTable<TKey, TValue> : IEnumerable<KeyValuePair<TKey, TValue>>
         where TKey : class
-        where TValue : class
-    {
+        where TValue : class {
         #region Fields
         private const int InitialCapacity = 8;  // Initial length of the table. Must be a power of two.
         private readonly object _lock;          // This lock protects all mutation of data in the table.  Readers do not take this lock.
@@ -79,8 +77,7 @@ namespace System.Runtime.CompilerServices
         #endregion
 
         #region Constructors
-        public ConditionalWeakTable()
-        {
+        public ConditionalWeakTable() {
             _lock = new object();
             _container = new Container(this);
         }
@@ -97,10 +94,8 @@ namespace System.Runtime.CompilerServices
         // Note: The key may get garbaged collected during the TryGetValue operation. If so, TryGetValue
         // may at its discretion, return "false" and set "value" to the default (as if the key was not present.)
         //--------------------------------------------------------------------------------------------
-        public bool TryGetValue(TKey key, out TValue value)
-        {
-            if (key == null)
-            {
+        public bool TryGetValue(TKey key, out TValue value) {
+            if (key == null) {
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.key);
             }
 
@@ -117,19 +112,15 @@ namespace System.Runtime.CompilerServices
         // has the right to consider any prior entries successfully removed and add a new entry without
         // throwing an exception.
         //--------------------------------------------------------------------------------------------
-        public void Add(TKey key, TValue value)
-        {
-            if (key == null)
-            {
+        public void Add(TKey key, TValue value) {
+            if (key == null) {
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.key);
             }
 
-            lock (_lock)
-            {
+            lock (_lock) {
                 object otherValue;
                 int entryIndex = _container.FindEntry(key, out otherValue);
-                if (entryIndex != -1)
-                {
+                if (entryIndex != -1) {
                     ThrowHelper.ThrowArgumentException(ExceptionResource.Argument_AddingDuplicate);
                 }
 
@@ -143,25 +134,20 @@ namespace System.Runtime.CompilerServices
         //
         // If the key is already entered into the dictionary, this method will update the value associated with key.
         //--------------------------------------------------------------------------------------------
-        public void AddOrUpdate(TKey key, TValue value)
-        {
-            if (key == null)
-            {
+        public void AddOrUpdate(TKey key, TValue value) {
+            if (key == null) {
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.key);
             }
 
-            lock (_lock)
-            {
+            lock (_lock) {
                 object otherValue;
                 int entryIndex = _container.FindEntry(key, out otherValue);
 
                 // if we found a key we should just update, if no we should create a new entry.
-                if (entryIndex != -1)
-                {
+                if (entryIndex != -1) {
                     _container.UpdateValue(entryIndex, value);
                 }
-                else
-                {
+                else {
                     CreateEntry(key, value);
                 }
             }
@@ -176,15 +162,12 @@ namespace System.Runtime.CompilerServices
         // Remove() will not fail or throw, however, the return value can be either true or false
         // depending on who wins the race.
         //--------------------------------------------------------------------------------------------
-        public bool Remove(TKey key)
-        {
-            if (key == null)
-            {
+        public bool Remove(TKey key) {
+            if (key == null) {
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.key);
             }
 
-            lock (_lock)
-            {
+            lock (_lock) {
                 return _container.Remove(key);
             }
         }
@@ -192,10 +175,8 @@ namespace System.Runtime.CompilerServices
         //--------------------------------------------------------------------------------------------
         // Clear all the key/value pairs
         //--------------------------------------------------------------------------------------------
-        public void Clear()
-        {
-            lock (_lock)
-            {
+        public void Clear() {
+            lock (_lock) {
                 // To clear, we would prefer to simply drop the existing container
                 // and replace it with an empty one, as that's overall more efficient.
                 // However, if there are any active enumerators, we don't want to do
@@ -207,12 +188,10 @@ namespace System.Runtime.CompilerServices
                 // we simply use the container's removal functionality to remove all of the
                 // keys; then when the table is resized, if there are still active enumerators,
                 // these empty slots will be maintained.
-                if (_activeEnumeratorRefCount > 0)
-                {
+                if (_activeEnumeratorRefCount > 0) {
                     _container.RemoveAllKeys();
                 }
-                else
-                {
+                else {
                     _container = new Container(this);
                 }
             }
@@ -233,12 +212,10 @@ namespace System.Runtime.CompilerServices
         // This rule permits the table to invoke createValueCallback outside the internal table lock
         // to prevent deadlocks.
         //--------------------------------------------------------------------------------------------
-        public TValue GetValue(TKey key, CreateValueCallback createValueCallback)
-        {
+        public TValue GetValue(TKey key, CreateValueCallback createValueCallback) {
             // key is validated by TryGetValue
 
-            if (createValueCallback == null)
-            {
+            if (createValueCallback == null) {
                 throw new ArgumentNullException(nameof(createValueCallback));
             }
 
@@ -248,22 +225,18 @@ namespace System.Runtime.CompilerServices
                 GetValueLocked(key, createValueCallback);
         }
 
-        private TValue GetValueLocked(TKey key, CreateValueCallback createValueCallback)
-        {
+        private TValue GetValueLocked(TKey key, CreateValueCallback createValueCallback) {
             // If we got here, the key was not in the table. Invoke the callback (outside the lock)
             // to generate the new value for the key. 
             TValue newValue = createValueCallback(key);
 
-            lock (_lock)
-            {
+            lock (_lock) {
                 // Now that we've taken the lock, must recheck in case we lost a race to add the key.
                 TValue existingValue;
-                if (_container.TryGetValueWorker(key, out existingValue))
-                {
+                if (_container.TryGetValueWorker(key, out existingValue)) {
                     return existingValue;
                 }
-                else
-                {
+                else {
                     // Verified in-lock that we won the race to add the key. Add it now.
                     CreateEntry(key, newValue);
                     return newValue;
@@ -291,10 +264,8 @@ namespace System.Runtime.CompilerServices
         // however, such as not returning entries that were collected or removed after the enumerator
         // was retrieved but before they were enumerated.
         //--------------------------------------------------------------------------------------------
-        IEnumerator<KeyValuePair<TKey, TValue>> IEnumerable<KeyValuePair<TKey, TValue>>.GetEnumerator()
-        {
-            lock (_lock)
-            {
+        IEnumerator<KeyValuePair<TKey, TValue>> IEnumerable<KeyValuePair<TKey, TValue>>.GetEnumerator() {
+            lock (_lock) {
                 Container c = _container;
                 return c == null || c.FirstFreeEntry == 0 ?
                     ((IEnumerable<KeyValuePair<TKey, TValue>>)Array.Empty<KeyValuePair<TKey, TValue>>()).GetEnumerator() :
@@ -305,8 +276,7 @@ namespace System.Runtime.CompilerServices
         IEnumerator IEnumerable.GetEnumerator() => ((IEnumerable<KeyValuePair<TKey, TValue>>)this).GetEnumerator();
 
         /// <summary>Provides an enumerator for the table.</summary>
-        private sealed class Enumerator : IEnumerator<KeyValuePair<TKey, TValue>>
-        {
+        private sealed class Enumerator : IEnumerator<KeyValuePair<TKey, TValue>> {
             // The enumerator would ideally hold a reference to the Container and the end index within that
             // container.  However, the safety of the CWT depends on the only reference to the Container being
             // from the CWT itself; the Container then employs a two-phase finalization scheme, where the first
@@ -328,8 +298,7 @@ namespace System.Runtime.CompilerServices
             private int _currentIndex = -1;                    // the current index into the container
             private KeyValuePair<TKey, TValue> _current;       // the current entry set by MoveNext and returned from Current
 
-            public Enumerator(ConditionalWeakTable<TKey, TValue> table)
-            {
+            public Enumerator(ConditionalWeakTable<TKey, TValue> table) {
                 Debug.Assert(table != null, "Must provide a valid table");
                 Debug.Assert(Monitor.IsEntered(table._lock), "Must hold the _lock lock to construct the enumerator");
                 Debug.Assert(table._container != null, "Should not be used on a finalized table");
@@ -347,19 +316,16 @@ namespace System.Runtime.CompilerServices
 
             ~Enumerator() { Dispose(); }
 
-            public void Dispose()
-            {
+            public void Dispose() {
                 // Use an interlocked operation to ensure that only one thread can get access to
                 // the _table for disposal and thus only decrement the ref count once.
                 ConditionalWeakTable<TKey, TValue> table = Interlocked.Exchange(ref _table, null);
-                if (table != null)
-                {
+                if (table != null) {
                     // Ensure we don't keep the last current alive unnecessarily
                     _current = default(KeyValuePair<TKey, TValue>);
 
                     // Decrement the ref count that was incremented when constructed
-                    lock (table._lock)
-                    {
+                    lock (table._lock) {
                         table._activeEnumeratorRefCount--;
                         Debug.Assert(table._activeEnumeratorRefCount >= 0, "Should never have a negative ref count after decrementing");
                     }
@@ -369,33 +335,27 @@ namespace System.Runtime.CompilerServices
                 }
             }
 
-            public bool MoveNext()
-            {
+            public bool MoveNext() {
                 // Start by getting the current table.  If it's already been disposed, it will be null.
                 ConditionalWeakTable<TKey, TValue> table = _table;
-                if (table != null)
-                {
+                if (table != null) {
                     // Once have the table, we need to lock to synchronize with other operations on
                     // the table, like adding.
-                    lock (table._lock)
-                    {
+                    lock (table._lock) {
                         // From the table, we have to get the current container.  This could have changed
                         // since we grabbed the enumerator, but the index-to-pair mapping should not have
                         // due to there being at least one active enumerator.  If the table (or rather its
                         // container at the time) has already been finalized, this will be null.
                         Container c = table._container;
-                        if (c != null)
-                        {
+                        if (c != null) {
                             // We have the container.  Find the next entry to return, if there is one.
                             // We need to loop as we may try to get an entry that's already been removed
                             // or collected, in which case we try again.
-                            while (_currentIndex < _maxIndexInclusive)
-                            {
+                            while (_currentIndex < _maxIndexInclusive) {
                                 _currentIndex++;
                                 TKey key;
                                 TValue value;
-                                if (c.TryGetEntry(_currentIndex, out key, out value))
-                                {
+                                if (c.TryGetEntry(_currentIndex, out key, out value)) {
                                     _current = new KeyValuePair<TKey, TValue>(key, value);
                                     return true;
                                 }
@@ -408,12 +368,9 @@ namespace System.Runtime.CompilerServices
                 return false;
             }
 
-            public KeyValuePair<TKey, TValue> Current
-            {
-                get
-                {
-                    if (_currentIndex < 0)
-                    {
+            public KeyValuePair<TKey, TValue> Current {
+                get {
+                    if (_currentIndex < 0) {
                         ThrowHelper.ThrowInvalidOperationException_InvalidOperation_EnumOpCantHappen();
                     }
                     return _current;
@@ -438,10 +395,8 @@ namespace System.Runtime.CompilerServices
         // possiblity
         //--------------------------------------------------------------------------------------------
         [FriendAccessAllowed]
-        internal TKey FindEquivalentKeyUnsafe(TKey key, out TValue value)
-        {
-            lock (_lock)
-            {
+        internal TKey FindEquivalentKeyUnsafe(TKey key, out TValue value) {
+            lock (_lock) {
                 return _container.FindEquivalentKeyUnsafe(key, out value);
             }
         }
@@ -449,12 +404,9 @@ namespace System.Runtime.CompilerServices
         //--------------------------------------------------------------------------------------------
         // Returns a collection of keys - don't use in perf critical path
         //--------------------------------------------------------------------------------------------
-        internal ICollection<TKey> Keys
-        {
-            get
-            {
-                lock (_lock)
-                {
+        internal ICollection<TKey> Keys {
+            get {
+                lock (_lock) {
                     return _container.Keys;
                 }
             }
@@ -463,12 +415,9 @@ namespace System.Runtime.CompilerServices
         //--------------------------------------------------------------------------------------------
         // Returns a collection of values - don't use in perf critical path
         //--------------------------------------------------------------------------------------------
-        internal ICollection<TValue> Values
-        {
-            get
-            {
-                lock (_lock)
-                {
+        internal ICollection<TValue> Values {
+            get {
+                lock (_lock) {
                     return _container.Values;
                 }
             }
@@ -486,13 +435,11 @@ namespace System.Runtime.CompilerServices
         //     Must hold _lock.
         //     Key already validated as non-null and not already in table.
         //----------------------------------------------------------------------------------------
-        private void CreateEntry(TKey key, TValue value)
-        {
+        private void CreateEntry(TKey key, TValue value) {
             Debug.Assert(Monitor.IsEntered(_lock));
 
             Container c = _container;
-            if (!c.HasCapacity)
-            {
+            if (!c.HasCapacity) {
                 _container = c = c.Resize();
             }
             c.CreateEntryNoResize(key, value);
@@ -534,8 +481,7 @@ namespace System.Runtime.CompilerServices
         // When the dictionary grows the _entries table, it scours it for expired keys and does not
         // add those to the new container.
         //--------------------------------------------------------------------------------------------
-        private struct Entry
-        {
+        private struct Entry {
             public DependentHandle depHnd;      // Holds key and value using a weak reference for the key and a strong reference
                                                 // for the value that is traversed only if the key is reachable without going through the value.
             public int HashCode;    // Cached copy of key's hashcode
@@ -547,8 +493,7 @@ namespace System.Runtime.CompilerServices
         // more capacity, we create a new Container, copy the old one into the new one, and discard the old one.  This helps enable lock-free
         // reads from the table, as readers never need to deal with motion of entries due to rehashing.
         //
-        private sealed class Container
-        {
+        private sealed class Container {
             private readonly ConditionalWeakTable<TKey, TValue> _parent;  // the ConditionalWeakTable with which this container is associated
             private int[] _buckets;                // _buckets[hashcode & (_buckets.Length - 1)] contains index of the first entry in bucket (-1 if empty)
             private Entry[] _entries;              // the table entries containing the stored dependency handles
@@ -557,15 +502,13 @@ namespace System.Runtime.CompilerServices
             private bool _finalized;               // set to true when initially finalized
             private volatile object _oldKeepAlive; // used to ensure the next allocated container isn't finalized until this one is GC'd
 
-            internal Container(ConditionalWeakTable<TKey, TValue> parent)
-            {
+            internal Container(ConditionalWeakTable<TKey, TValue> parent) {
                 Debug.Assert(parent != null);
                 Debug.Assert(IsPowerOfTwo(InitialCapacity));
 
                 int size = InitialCapacity;
                 _buckets = new int[size];
-                for (int i = 0; i < _buckets.Length; i++)
-                {
+                for (int i = 0; i < _buckets.Length; i++) {
                     _buckets[i] = -1;
                 }
                 _entries = new Entry[size];
@@ -577,8 +520,7 @@ namespace System.Runtime.CompilerServices
                 _parent = parent;
             }
 
-            private Container(ConditionalWeakTable<TKey, TValue> parent, int[] buckets, Entry[] entries, int firstFreeEntry)
-            {
+            private Container(ConditionalWeakTable<TKey, TValue> parent, int[] buckets, Entry[] entries, int firstFreeEntry) {
                 Debug.Assert(parent != null);
                 Debug.Assert(buckets != null);
                 Debug.Assert(entries != null);
@@ -600,8 +542,7 @@ namespace System.Runtime.CompilerServices
             // Preconditions:
             //     Container must NOT be full
             //----------------------------------------------------------------------------------------
-            internal void CreateEntryNoResize(TKey key, TValue value)
-            {
+            internal void CreateEntryNoResize(TKey key, TValue value) {
                 Debug.Assert(HasCapacity);
 
                 VerifyIntegrity();
@@ -629,8 +570,7 @@ namespace System.Runtime.CompilerServices
             //     Must hold _lock.
             //     Key already validated as non-null
             //----------------------------------------------------------------------------------------
-            internal bool TryGetValueWorker(TKey key, out TValue value)
-            {
+            internal bool TryGetValueWorker(TKey key, out TValue value) {
                 object secondary;
                 int entryIndex = FindEntry(key, out secondary);
                 value = JitHelpers.UnsafeCast<TValue>(secondary);
@@ -644,18 +584,14 @@ namespace System.Runtime.CompilerServices
             //     Must hold _lock, or be prepared to retry the search while holding _lock.
             //     Key already validated as non-null.
             //----------------------------------------------------------------------------------------
-            internal int FindEntry(TKey key, out object value)
-            {
+            internal int FindEntry(TKey key, out object value) {
                 int hashCode = RuntimeHelpers.GetHashCode(key) & int.MaxValue;
                 int bucket = hashCode & (_buckets.Length - 1);
-                for (int entriesIndex = Volatile.Read(ref _buckets[bucket]); entriesIndex != -1; entriesIndex = _entries[entriesIndex].Next)
-                {
-                    if (_entries[entriesIndex].HashCode == hashCode)
-                    {
+                for (int entriesIndex = Volatile.Read(ref _buckets[bucket]); entriesIndex != -1; entriesIndex = _entries[entriesIndex].Next) {
+                    if (_entries[entriesIndex].HashCode == hashCode) {
                         object primary, secondary;
                         _entries[entriesIndex].depHnd.GetPrimaryAndSecondary(out primary, out secondary);
-                        if (primary == key)
-                        {
+                        if (primary == key) {
                             GC.KeepAlive(this); // ensure we don't get finalized while accessing DependentHandles.
                             value = secondary;
                             return entriesIndex;
@@ -671,16 +607,13 @@ namespace System.Runtime.CompilerServices
             //----------------------------------------------------------------------------------------
             // Gets the entry at the specified entry index.
             //----------------------------------------------------------------------------------------
-            internal bool TryGetEntry(int index, out TKey key, out TValue value)
-            {
-                if (index < _entries.Length)
-                {
+            internal bool TryGetEntry(int index, out TKey key, out TValue value) {
+                if (index < _entries.Length) {
                     object oKey, oValue;
                     _entries[index].depHnd.GetPrimaryAndSecondary(out oKey, out oValue);
                     GC.KeepAlive(this); // ensure we don't get finalized while accessing DependentHandles.
 
-                    if (oKey != null)
-                    {
+                    if (oKey != null) {
                         key = JitHelpers.UnsafeCast<TKey>(oKey);
                         value = JitHelpers.UnsafeCast<TValue>(oValue);
                         return true;
@@ -695,10 +628,8 @@ namespace System.Runtime.CompilerServices
             //----------------------------------------------------------------------------------------
             // Removes all of the keys in the table.
             //----------------------------------------------------------------------------------------
-            internal void RemoveAllKeys()
-            {
-                for (int i = 0; i < _firstFreeEntry; i++)
-                {
+            internal void RemoveAllKeys() {
+                for (int i = 0; i < _firstFreeEntry; i++) {
                     RemoveIndex(i);
                 }
             }
@@ -706,14 +637,12 @@ namespace System.Runtime.CompilerServices
             //----------------------------------------------------------------------------------------
             // Removes the specified key from the table, if it exists.
             //----------------------------------------------------------------------------------------
-            internal bool Remove(TKey key)
-            {
+            internal bool Remove(TKey key) {
                 VerifyIntegrity();
 
                 object value;
                 int entryIndex = FindEntry(key, out value);
-                if (entryIndex != -1)
-                {
+                if (entryIndex != -1) {
                     RemoveIndex(entryIndex);
                     return true;
                 }
@@ -721,8 +650,7 @@ namespace System.Runtime.CompilerServices
                 return false;
             }
 
-            private void RemoveIndex(int entryIndex)
-            {
+            private void RemoveIndex(int entryIndex) {
                 Debug.Assert(entryIndex >= 0 && entryIndex < _firstFreeEntry);
 
                 ref Entry entry = ref _entries[entryIndex];
@@ -736,8 +664,7 @@ namespace System.Runtime.CompilerServices
                 entry.depHnd.SetPrimary(null);
             }
 
-            internal void UpdateValue(int entryIndex, TValue newValue)
-            {
+            internal void UpdateValue(int entryIndex, TValue newValue) {
                 Debug.Assert(entryIndex != -1);
 
                 VerifyIntegrity();
@@ -757,31 +684,26 @@ namespace System.Runtime.CompilerServices
             // Postcondition:
             //      _firstEntry is less than _entries.Length on exit, that is, the table has at least one free entry.
             //----------------------------------------------------------------------------------------
-            internal Container Resize()
-            {
+            internal Container Resize() {
                 Debug.Assert(!HasCapacity);
 
                 bool hasExpiredEntries = false;
                 int newSize = _buckets.Length;
 
-                if (_parent == null || _parent._activeEnumeratorRefCount == 0)
-                {
+                if (_parent == null || _parent._activeEnumeratorRefCount == 0) {
                     // If any expired or removed keys exist, we won't resize.
                     // If there any active enumerators, though, we don't want
                     // to compact and thus have no expired entries.
-                    for (int entriesIndex = 0; entriesIndex < _entries.Length; entriesIndex++)
-                    {
+                    for (int entriesIndex = 0; entriesIndex < _entries.Length; entriesIndex++) {
                         ref Entry entry = ref _entries[entriesIndex];
 
-                        if (entry.HashCode == -1)
-                        {
+                        if (entry.HashCode == -1) {
                             // the entry was removed
                             hasExpiredEntries = true;
                             break;
                         }
 
-                        if (entry.depHnd.IsAllocated && entry.depHnd.GetPrimary() == null)
-                        {
+                        if (entry.depHnd.IsAllocated && entry.depHnd.GetPrimary() == null) {
                             // the entry has expired
                             hasExpiredEntries = true;
                             break;
@@ -789,8 +711,7 @@ namespace System.Runtime.CompilerServices
                     }
                 }
 
-                if (!hasExpiredEntries)
-                {
+                if (!hasExpiredEntries) {
                     // Not necessary to check for overflow here, the attempt to allocate new arrays will throw
                     newSize = _buckets.Length * 2;
                 }
@@ -798,16 +719,14 @@ namespace System.Runtime.CompilerServices
                 return Resize(newSize);
             }
 
-            internal Container Resize(int newSize)
-            {
+            internal Container Resize(int newSize) {
                 Debug.Assert(newSize >= _buckets.Length);
                 Debug.Assert(IsPowerOfTwo(newSize));
 
                 // Reallocate both buckets and entries and rebuild the bucket and entries from scratch.
                 // This serves both to scrub entries with expired keys and to put the new entries in the proper bucket.
                 int[] newBuckets = new int[newSize];
-                for (int bucketIndex = 0; bucketIndex < newBuckets.Length; bucketIndex++)
-                {
+                for (int bucketIndex = 0; bucketIndex < newBuckets.Length; bucketIndex++) {
                     newBuckets[bucketIndex] = -1;
                 }
                 Entry[] newEntries = new Entry[newSize];
@@ -815,14 +734,12 @@ namespace System.Runtime.CompilerServices
                 bool activeEnumerators = _parent != null && _parent._activeEnumeratorRefCount > 0;
 
                 // Migrate existing entries to the new table.
-                if (activeEnumerators)
-                {
+                if (activeEnumerators) {
                     // There's at least one active enumerator, which means we don't want to
                     // remove any expired/removed entries, in order to not affect existing
                     // entries indices.  Copy over the entries while rebuilding the buckets list,
                     // as the buckets are dependent on the buckets list length, which is changing.
-                    for (; newEntriesIndex < _entries.Length; newEntriesIndex++)
-                    {
+                    for (; newEntriesIndex < _entries.Length; newEntriesIndex++) {
                         ref Entry oldEntry = ref _entries[newEntriesIndex];
                         ref Entry newEntry = ref newEntries[newEntriesIndex];
                         int hashCode = oldEntry.HashCode;
@@ -834,19 +751,15 @@ namespace System.Runtime.CompilerServices
                         newBuckets[bucket] = newEntriesIndex;
                     }
                 }
-                else
-                {
+                else {
                     // There are no active enumerators, which means we want to compact by
                     // removing expired/removed entries.
-                    for (int entriesIndex = 0; entriesIndex < _entries.Length; entriesIndex++)
-                    {
+                    for (int entriesIndex = 0; entriesIndex < _entries.Length; entriesIndex++) {
                         ref Entry oldEntry = ref _entries[entriesIndex];
                         int hashCode = oldEntry.HashCode;
                         DependentHandle depHnd = oldEntry.depHnd;
-                        if (hashCode != -1 && depHnd.IsAllocated)
-                        {
-                            if (depHnd.GetPrimary() != null)
-                            {
+                        if (hashCode != -1 && depHnd.IsAllocated) {
+                            if (depHnd.GetPrimary() != null) {
                                 ref Entry newEntry = ref newEntries[newEntriesIndex];
 
                                 // Entry is used and has not expired. Link it into the appropriate bucket list.
@@ -857,8 +770,7 @@ namespace System.Runtime.CompilerServices
                                 newBuckets[bucket] = newEntriesIndex;
                                 newEntriesIndex++;
                             }
-                            else
-                            {
+                            else {
                                 // Pretend the item was removed, so that this container's finalizer
                                 // will clean up this dependent handle.
                                 Volatile.Write(ref oldEntry.HashCode, -1);
@@ -872,8 +784,7 @@ namespace System.Runtime.CompilerServices
                 // while the old container may still be in use.  As such, we store a reference from the old container
                 // to the new one, which will keep the new container alive as long as the old one is.
                 var newContainer = new Container(_parent, newBuckets, newEntries, newEntriesIndex);
-                if (activeEnumerators)
-                {
+                if (activeEnumerators) {
                     // If there are active enumerators, both the old container and the new container may be storing
                     // the same entries with -1 hash codes, which the finalizer will clean up even if the container
                     // is not the active container for the table.  To prevent that, we want to stop the old container
@@ -887,19 +798,14 @@ namespace System.Runtime.CompilerServices
                 return newContainer;
             }
 
-            internal ICollection<TKey> Keys
-            {
-                get
-                {
+            internal ICollection<TKey> Keys {
+                get {
                     var list = new List<TKey>();
 
-                    for (int bucket = 0; bucket < _buckets.Length; ++bucket)
-                    {
-                        for (int entriesIndex = _buckets[bucket]; entriesIndex != -1; entriesIndex = _entries[entriesIndex].Next)
-                        {
+                    for (int bucket = 0; bucket < _buckets.Length; ++bucket) {
+                        for (int entriesIndex = _buckets[bucket]; entriesIndex != -1; entriesIndex = _entries[entriesIndex].Next) {
                             TKey thisKey = JitHelpers.UnsafeCast<TKey>(_entries[entriesIndex].depHnd.GetPrimary());
-                            if (thisKey != null)
-                            {
+                            if (thisKey != null) {
                                 list.Add(thisKey);
                             }
                         }
@@ -910,24 +816,19 @@ namespace System.Runtime.CompilerServices
                 }
             }
 
-            internal ICollection<TValue> Values
-            {
-                get
-                {
+            internal ICollection<TValue> Values {
+                get {
                     var list = new List<TValue>();
 
-                    for (int bucket = 0; bucket < _buckets.Length; ++bucket)
-                    {
-                        for (int entriesIndex = _buckets[bucket]; entriesIndex != -1; entriesIndex = _entries[entriesIndex].Next)
-                        {
+                    for (int bucket = 0; bucket < _buckets.Length; ++bucket) {
+                        for (int entriesIndex = _buckets[bucket]; entriesIndex != -1; entriesIndex = _entries[entriesIndex].Next) {
                             object primary = null, secondary = null;
                             _entries[entriesIndex].depHnd.GetPrimaryAndSecondary(out primary, out secondary);
 
                             // Now that we've secured a strong reference to the secondary, must check the primary again
                             // to ensure it didn't expire (otherwise, we open a race where TryGetValue misreports an
                             // expired key as a live key with a null value.)
-                            if (primary != null)
-                            {
+                            if (primary != null) {
                                 list.Add(JitHelpers.UnsafeCast<TValue>(secondary));
                             }
                         }
@@ -938,21 +839,16 @@ namespace System.Runtime.CompilerServices
                 }
             }
 
-            internal TKey FindEquivalentKeyUnsafe(TKey key, out TValue value)
-            {
-                for (int bucket = 0; bucket < _buckets.Length; ++bucket)
-                {
-                    for (int entriesIndex = _buckets[bucket]; entriesIndex != -1; entriesIndex = _entries[entriesIndex].Next)
-                    {
-                        if (_entries[entriesIndex].HashCode == -1)
-                        {
+            internal TKey FindEquivalentKeyUnsafe(TKey key, out TValue value) {
+                for (int bucket = 0; bucket < _buckets.Length; ++bucket) {
+                    for (int entriesIndex = _buckets[bucket]; entriesIndex != -1; entriesIndex = _entries[entriesIndex].Next) {
+                        if (_entries[entriesIndex].HashCode == -1) {
                             continue;   // removed entry whose handle is awaiting condemnation by the finalizer.
                         }
 
                         object thisKey, thisValue;
                         _entries[entriesIndex].depHnd.GetPrimaryAndSecondary(out thisKey, out thisValue);
-                        if (Equals(thisKey, key))
-                        {
+                        if (Equals(thisKey, key)) {
                             GC.KeepAlive(this); // ensure we don't get finalized while accessing DependentHandles.
                             value = JitHelpers.UnsafeCast<TValue>(thisValue);
                             return JitHelpers.UnsafeCast<TKey>(thisKey);
@@ -969,10 +865,8 @@ namespace System.Runtime.CompilerServices
             // Precondition:
             //     Must hold _lock.
             //----------------------------------------------------------------------------------------
-            private void VerifyIntegrity()
-            {
-                if (_invalid)
-                {
+            private void VerifyIntegrity() {
+                if (_invalid) {
                     throw new InvalidOperationException(SR.InvalidOperation_CollectionCorrupted);
                 }
             }
@@ -980,14 +874,12 @@ namespace System.Runtime.CompilerServices
             //----------------------------------------------------------------------------------------
             // Finalizer.
             //----------------------------------------------------------------------------------------
-            ~Container()
-            {
+            ~Container() {
                 // We're just freeing per-appdomain unmanaged handles here. If we're already shutting down the AD,
                 // don't bother. (Despite its name, Environment.HasShutdownStart also returns true if the current
                 // AD is finalizing.)  We also skip doing anything if the container is invalid, including if someone
                 // the container object was allocated but its associated table never set.
-                if (Environment.HasShutdownStarted || _invalid || _parent == null)
-                {
+                if (Environment.HasShutdownStarted || _invalid || _parent == null) {
                     return;
                 }
 
@@ -998,13 +890,10 @@ namespace System.Runtime.CompilerServices
                 // reference to this container via the CWT, we remove such a reference and then re-register for
                 // finalization: the next time around, we can be sure that no references remain to this and we can
                 // clean up the dependency handles without fear of corruption.
-                if (!_finalized)
-                {
+                if (!_finalized) {
                     _finalized = true;
-                    lock (_parent._lock)
-                    {
-                        if (_parent._container == this)
-                        {
+                    lock (_parent._lock) {
+                        if (_parent._container == this) {
                             _parent._container = null;
                         }
                     }
@@ -1017,17 +906,14 @@ namespace System.Runtime.CompilerServices
                 _entries = null;
                 _buckets = null;
 
-                if (entries != null)
-                {
-                    for (int entriesIndex = 0; entriesIndex < entries.Length; entriesIndex++)
-                    {
+                if (entries != null) {
+                    for (int entriesIndex = 0; entriesIndex < entries.Length; entriesIndex++) {
                         // We need to free handles in two cases:
                         // - If this container still owns the dependency handle (meaning ownership hasn't been transferred
                         //   to another container that replaced this one), then it should be freed.
                         // - If this container had the entry removed, then even if in general ownership was transferred to
                         //   another container, removed entries are not, therefore this container must free them.
-                        if (_oldKeepAlive == null || entries[entriesIndex].HashCode == -1)
-                        {
+                        if (_oldKeepAlive == null || entries[entriesIndex].HashCode == -1) {
                             entries[entriesIndex].depHnd.Free();
                         }
                     }
@@ -1063,11 +949,9 @@ namespace System.Runtime.CompilerServices
     // This struct intentionally does no self-synchronization. It's up to the caller to
     // to use DependentHandles in a thread-safe way.
     //=========================================================================================
-    internal struct DependentHandle
-    {
+    internal struct DependentHandle {
         #region Constructors
-        public DependentHandle(object primary, object secondary)
-        {
+        public DependentHandle(object primary, object secondary) {
             IntPtr handle = (IntPtr)0;
             nInitialize(primary, secondary, out handle);
             // no need to check for null result: nInitialize expected to throw OOM.
@@ -1081,25 +965,21 @@ namespace System.Runtime.CompilerServices
         // Getting the secondary object is more expensive than getting the first so
         // we provide a separate primary-only accessor for those times we only want the
         // primary.
-        public object GetPrimary()
-        {
+        public object GetPrimary() {
             object primary;
             nGetPrimary(_handle, out primary);
             return primary;
         }
 
-        public void GetPrimaryAndSecondary(out object primary, out object secondary)
-        {
+        public void GetPrimaryAndSecondary(out object primary, out object secondary) {
             nGetPrimaryAndSecondary(_handle, out primary, out secondary);
         }
 
-        public void SetPrimary(object primary)
-        {
+        public void SetPrimary(object primary) {
             nSetPrimary(_handle, primary);
         }
 
-        public void SetSecondary(object secondary)
-        {
+        public void SetSecondary(object secondary) {
             nSetSecondary(_handle, secondary);
         }
 
@@ -1107,10 +987,8 @@ namespace System.Runtime.CompilerServices
         // Forces dependentHandle back to non-allocated state (if not already there)
         // and frees the handle if needed.
         //----------------------------------------------------------------------
-        public void Free()
-        {
-            if (_handle != (IntPtr)0)
-            {
+        public void Free() {
+            if (_handle != (IntPtr)0) {
                 IntPtr handle = _handle;
                 _handle = (IntPtr)0;
                 nFree(handle);

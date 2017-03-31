@@ -12,36 +12,30 @@ namespace Microsoft.Diagnostics.Tracing
 namespace System.Diagnostics.Tracing
 #endif
 {
-    internal sealed class EnumerableTypeInfo : TraceLoggingTypeInfo
-    {
+    internal sealed class EnumerableTypeInfo : TraceLoggingTypeInfo {
         private readonly TraceLoggingTypeInfo elementInfo;
 
         public EnumerableTypeInfo(Type type, TraceLoggingTypeInfo elementInfo)
-            : base(type)
-        {
+            : base(type) {
             this.elementInfo = elementInfo;
         }
 
         public override void WriteMetadata(
             TraceLoggingMetadataCollector collector,
             string name,
-            EventFieldFormat format)
-        {
+            EventFieldFormat format) {
             collector.BeginBufferedArray();
             elementInfo.WriteMetadata(collector, name, format);
             collector.EndBufferedArray();
         }
 
-        public override void WriteData(TraceLoggingDataCollector collector, PropertyValue value)
-        {
+        public override void WriteData(TraceLoggingDataCollector collector, PropertyValue value) {
             var bookmark = collector.BeginBufferedArray();
 
             var count = 0;
             IEnumerable enumerable = (IEnumerable)value.ReferenceValue;
-            if (enumerable != null)
-            {
-                foreach (var element in enumerable)
-                {
+            if (enumerable != null) {
+                foreach (var element in enumerable) {
                     elementInfo.WriteData(collector, elementInfo.PropertyValueFactory(element));
                     count++;
                 }
@@ -50,12 +44,10 @@ namespace System.Diagnostics.Tracing
             collector.EndBufferedArray(bookmark, count);
         }
 
-        public override object GetData(object value)
-        {
+        public override object GetData(object value) {
             var iterType = (IEnumerable)value;
             List<object> serializedEnumerable = new List<object>();
-            foreach (var element in iterType)
-            {
+            foreach (var element in iterType) {
                 serializedEnumerable.Add(elementInfo.GetData(element));
             }
             return serializedEnumerable.ToArray();

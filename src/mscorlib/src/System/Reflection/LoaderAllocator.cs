@@ -12,8 +12,7 @@ using System.Security;
 using System.Collections.Generic;
 
 
-namespace System.Reflection
-{
+namespace System.Reflection {
     //
     // We can destroy the unmanaged part of collectible type only after the managed part is definitely gone and thus
     // nobody can call/allocate/reference anything related to the collectible assembly anymore. A call to finalizer 
@@ -28,8 +27,7 @@ namespace System.Reflection
     // The finalization does not have to be done using CriticalFinalizerObject. We have to go over all LoaderAllocators 
     // during AppDomain shutdown anyway to avoid leaks e.g. if somebody stores reference to LoaderAllocator in a static.
     //
-    internal sealed class LoaderAllocatorScout
-    {
+    internal sealed class LoaderAllocatorScout {
         // This field is set by the VM to atomically transfer the ownership to the managed loader allocator
         internal IntPtr m_nativeLoaderAllocator;
 
@@ -37,8 +35,7 @@ namespace System.Reflection
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         private static extern bool Destroy(IntPtr nativeLoaderAllocator);
 
-        ~LoaderAllocatorScout()
-        {
+        ~LoaderAllocatorScout() {
             if (m_nativeLoaderAllocator.IsNull())
                 return;
 
@@ -47,11 +44,9 @@ namespace System.Reflection
             // So it is ok to skip reregistration and cleanup for finalization during appdomain shutdown.
             // We also avoid early finalization of LoaderAllocatorScout due to AD unload when the object was inside DelayedFinalizationList.
             if (!Environment.HasShutdownStarted &&
-                !AppDomain.CurrentDomain.IsFinalizingForUnload())
-            {
+                !AppDomain.CurrentDomain.IsFinalizingForUnload()) {
                 // Destroy returns false if the managed LoaderAllocator is still alive.
-                if (!Destroy(m_nativeLoaderAllocator))
-                {
+                if (!Destroy(m_nativeLoaderAllocator)) {
                     // Somebody might have been holding a reference on us via weak handle.
                     // We will keep trying. It will be hopefully released eventually.
                     GC.ReRegisterForFinalize(this);
@@ -60,10 +55,8 @@ namespace System.Reflection
         }
     }
 
-    internal sealed class LoaderAllocator
-    {
-        private LoaderAllocator()
-        {
+    internal sealed class LoaderAllocator {
+        private LoaderAllocator() {
             m_slots = new object[5];
             // m_slotsUsed = 0;
 

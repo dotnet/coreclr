@@ -14,16 +14,13 @@ using System.Diagnostics.Contracts;
 using System.Runtime.InteropServices;
 using System.Runtime.CompilerServices;
 
-namespace System.Runtime.InteropServices.WindowsRuntime
-{
+namespace System.Runtime.InteropServices.WindowsRuntime {
     /// A Windows Runtime IBindableVectorView implementation that wraps around a managed IList exposing
     /// it to Windows runtime interop.
-    internal sealed class ListToBindableVectorViewAdapter : IBindableVectorView
-    {
+    internal sealed class ListToBindableVectorViewAdapter : IBindableVectorView {
         private readonly IList list;
 
-        internal ListToBindableVectorViewAdapter(IList list)
-        {
+        internal ListToBindableVectorViewAdapter(IList list) {
             if (list == null)
                 throw new ArgumentNullException(nameof(list));
 
@@ -32,12 +29,10 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             this.list = list;
         }
 
-        private static void EnsureIndexInt32(uint index, int listCapacity)
-        {
+        private static void EnsureIndexInt32(uint index, int listCapacity) {
             // We use '<=' and not '<' becasue Int32.MaxValue == index would imply
             // that Size > Int32.MaxValue:
-            if (((uint)Int32.MaxValue) <= index || index >= (uint)listCapacity)
-            {
+            if (((uint)Int32.MaxValue) <= index || index >= (uint)listCapacity) {
                 Exception e = new ArgumentOutOfRangeException(nameof(index), SR.ArgumentOutOfRange_IndexLargerThanMaxValue);
                 e.SetErrorCode(__HResults.E_BOUNDS);
                 throw e;
@@ -46,42 +41,34 @@ namespace System.Runtime.InteropServices.WindowsRuntime
 
         // IBindableIterable implementation:
 
-        public IBindableIterator First()
-        {
+        public IBindableIterator First() {
             IEnumerator enumerator = list.GetEnumerator();
             return new EnumeratorToIteratorAdapter<object>(new EnumerableToBindableIterableAdapter.NonGenericToGenericEnumerator(enumerator));
         }
 
         // IBindableVectorView implementation:
 
-        public object GetAt(uint index)
-        {
+        public object GetAt(uint index) {
             EnsureIndexInt32(index, list.Count);
 
-            try
-            {
+            try {
                 return list[(int)index];
             }
-            catch (ArgumentOutOfRangeException ex)
-            {
+            catch (ArgumentOutOfRangeException ex) {
                 throw WindowsRuntimeMarshal.GetExceptionForHR(__HResults.E_BOUNDS, ex, "ArgumentOutOfRange_IndexOutOfRange");
             }
         }
 
-        public uint Size
-        {
-            get
-            {
+        public uint Size {
+            get {
                 return (uint)list.Count;
             }
         }
 
-        public bool IndexOf(object value, out uint index)
-        {
+        public bool IndexOf(object value, out uint index) {
             int ind = list.IndexOf(value);
 
-            if (-1 == ind)
-            {
+            if (-1 == ind) {
                 index = 0;
                 return false;
             }

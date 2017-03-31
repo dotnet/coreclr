@@ -4,26 +4,21 @@
 
 using System.Runtime.Serialization;
 
-namespace System
-{
+namespace System {
     [Serializable]
-    public sealed class InsufficientExecutionStackException : SystemException
-    {
+    public sealed class InsufficientExecutionStackException : SystemException {
         public InsufficientExecutionStackException()
-            : base(SR.Arg_InsufficientExecutionStackException)
-        {
+            : base(SR.Arg_InsufficientExecutionStackException) {
             HResult = __HResults.COR_E_INSUFFICIENTEXECUTIONSTACK;
         }
 
         public InsufficientExecutionStackException(String message)
-            : base(message)
-        {
+            : base(message) {
             HResult = __HResults.COR_E_INSUFFICIENTEXECUTIONSTACK;
         }
 
         public InsufficientExecutionStackException(String message, Exception innerException)
-            : base(message, innerException)
-        {
+            : base(message, innerException) {
             HResult = __HResults.COR_E_INSUFFICIENTEXECUTIONSTACK;
         }
 

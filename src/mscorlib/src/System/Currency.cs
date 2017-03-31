@@ -8,17 +8,14 @@ using System.Globalization;
 using System.Runtime.CompilerServices;
 using System.Runtime.Versioning;
 
-namespace System
-{
+namespace System {
     [Serializable]
-    internal struct Currency
-    {
+    internal struct Currency {
         internal long m_value;
 
         // Constructs a Currency from a Decimal value.
         //
-        public Currency(Decimal value)
-        {
+        public Currency(Decimal value) {
             m_value = Decimal.ToCurrency(value).m_value;
         }
 
@@ -26,8 +23,7 @@ namespace System
         // ignored parameter exists only to distinguish this constructor
         // from the constructor that takes a long.  Used only in the System 
         // package, especially in Variant.
-        internal Currency(long value, int ignored)
-        {
+        internal Currency(long value, int ignored) {
             m_value = value;
         }
 
@@ -35,8 +31,7 @@ namespace System
         // applies no scaling to the Currency value, essentially doing a bitwise
         // copy.
         // 
-        public static Currency FromOACurrency(long cy)
-        {
+        public static Currency FromOACurrency(long cy) {
             return new Currency(cy, 0);
         }
 
@@ -44,15 +39,13 @@ namespace System
         // method applies no scaling to the Currency value, essentially doing 
         // a bitwise copy.
         // 
-        public long ToOACurrency()
-        {
+        public long ToOACurrency() {
             return m_value;
         }
 
         // Converts a Currency to a Decimal.
         //
-        public static Decimal ToDecimal(Currency c)
-        {
+        public static Decimal ToDecimal(Currency c) {
             Decimal result = new Decimal();
             FCallToDecimal(ref result, c);
             return result;

@@ -2,10 +2,8 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-namespace System
-{
-    internal struct ParamsArray
-    {
+namespace System {
+    internal struct ParamsArray {
         // Sentinel fixed-length arrays eliminate the need for a "count" field keeping this
         // struct down to just 4 fields. These are only used for their "Length" property,
         // that is, their elements are never set or referenced.
@@ -21,8 +19,7 @@ namespace System
         // because the indexer will retrieve those values from arg0, arg1, and arg2.
         private readonly object[] args;
 
-        public ParamsArray(object arg0)
-        {
+        public ParamsArray(object arg0) {
             this.arg0 = arg0;
             arg1 = null;
             arg2 = null;
@@ -31,8 +28,7 @@ namespace System
             args = oneArgArray;
         }
 
-        public ParamsArray(object arg0, object arg1)
-        {
+        public ParamsArray(object arg0, object arg1) {
             this.arg0 = arg0;
             this.arg1 = arg1;
             arg2 = null;
@@ -41,8 +37,7 @@ namespace System
             args = twoArgArray;
         }
 
-        public ParamsArray(object arg0, object arg1, object arg2)
-        {
+        public ParamsArray(object arg0, object arg1, object arg2) {
             this.arg0 = arg0;
             this.arg1 = arg1;
             this.arg2 = arg2;
@@ -51,8 +46,7 @@ namespace System
             args = threeArgArray;
         }
 
-        public ParamsArray(object[] args)
-        {
+        public ParamsArray(object[] args) {
             int len = args.Length;
             arg0 = len > 0 ? args[0] : null;
             arg1 = len > 1 ? args[1] : null;
@@ -60,18 +54,15 @@ namespace System
             this.args = args;
         }
 
-        public int Length
-        {
+        public int Length {
             get { return args.Length; }
         }
 
-        public object this[int index]
-        {
+        public object this[int index] {
             get { return index == 0 ? arg0 : GetAtSlow(index); }
         }
 
-        private object GetAtSlow(int index)
-        {
+        private object GetAtSlow(int index) {
             if (index == 1)
                 return arg1;
             if (index == 2)

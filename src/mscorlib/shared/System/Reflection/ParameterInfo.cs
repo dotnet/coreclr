@@ -5,10 +5,8 @@
 using System.Collections.Generic;
 using System.Runtime.Serialization;
 
-namespace System.Reflection
-{
-    public class ParameterInfo : ICustomAttributeProvider, IObjectReference
-    {
+namespace System.Reflection {
+    public class ParameterInfo : ICustomAttributeProvider, IObjectReference {
         protected ParameterInfo() { }
 
         public virtual ParameterAttributes Attributes => AttrsImpl;
@@ -27,8 +25,7 @@ namespace System.Reflection
         public virtual object RawDefaultValue { get { throw NotImplemented.ByDesign; } }
         public virtual bool HasDefaultValue { get { throw NotImplemented.ByDesign; } }
 
-        public virtual bool IsDefined(Type attributeType, bool inherit)
-        {
+        public virtual bool IsDefined(Type attributeType, bool inherit) {
             if (attributeType == null)
                 throw new ArgumentNullException(nameof(attributeType));
 
@@ -39,8 +36,7 @@ namespace System.Reflection
         public virtual IList<CustomAttributeData> GetCustomAttributesData() { throw NotImplemented.ByDesign; }
 
         public virtual object[] GetCustomAttributes(bool inherit) => Array.Empty<object>();
-        public virtual object[] GetCustomAttributes(Type attributeType, bool inherit)
-        {
+        public virtual object[] GetCustomAttributes(Type attributeType, bool inherit) {
             if (attributeType == null)
                 throw new ArgumentNullException(nameof(attributeType));
 
@@ -52,8 +48,7 @@ namespace System.Reflection
 
         public virtual int MetadataToken => MetadataToken_ParamDef;
 
-        public object GetRealObject(StreamingContext context)
-        {
+        public object GetRealObject(StreamingContext context) {
             // Once all the serializable fields have come in we can set up the real
             // instance based on just two of them (MemberImpl and PositionImpl).
 
@@ -62,19 +57,16 @@ namespace System.Reflection
 
             ParameterInfo[] args = null;
 
-            switch (MemberImpl.MemberType)
-            {
+            switch (MemberImpl.MemberType) {
                 case MemberTypes.Constructor:
                 case MemberTypes.Method:
-                    if (PositionImpl == -1)
-                    {
+                    if (PositionImpl == -1) {
                         if (MemberImpl.MemberType == MemberTypes.Method)
                             return ((MethodInfo)MemberImpl).ReturnParameter;
                         else
                             throw new SerializationException(SR.Serialization_BadParameterInfo);
                     }
-                    else
-                    {
+                    else {
                         args = ((MethodBase)MemberImpl).GetParametersNoCopy();
 
                         if (args != null && PositionImpl < args.Length)

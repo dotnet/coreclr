@@ -18,8 +18,7 @@
 
 using System;
 
-namespace System.IO
-{
+namespace System.IO {
     // Contains constants for controlling file sharing options while
     // opening files.  You can specify what access other processes trying
     // to open the same file concurrently can have.
@@ -29,8 +28,7 @@ namespace System.IO
     // 
     [Serializable]
     [Flags]
-    public enum FileShare
-    {
+    public enum FileShare {
         // No sharing. Any request to open the file (by this process or another
         // process) will fail until the file is closed.
         None = 0,

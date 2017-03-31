@@ -12,13 +12,11 @@
 using System;
 using System.Security;
 
-namespace System.Runtime.CompilerServices
-{
+namespace System.Runtime.CompilerServices {
     /// <summary>
     /// Represents an operation that will schedule continuations when the operation completes.
     /// </summary>
-    public interface INotifyCompletion
-    {
+    public interface INotifyCompletion {
         /// <summary>Schedules the continuation action to be invoked when the instance completes.</summary>
         /// <param name="continuation">The action to invoke when the operation completes.</param>
         /// <exception cref="System.ArgumentNullException">The <paramref name="continuation"/> argument is null (Nothing in Visual Basic).</exception>
@@ -28,8 +26,7 @@ namespace System.Runtime.CompilerServices
     /// <summary>
     /// Represents an awaiter used to schedule continuations when an await operation completes.
     /// </summary>
-    public interface ICriticalNotifyCompletion : INotifyCompletion
-    {
+    public interface ICriticalNotifyCompletion : INotifyCompletion {
         /// <summary>Schedules the continuation action to be invoked when the instance completes.</summary>
         /// <param name="continuation">The action to invoke when the operation completes.</param>
         /// <exception cref="System.ArgumentNullException">The <paramref name="continuation"/> argument is null (Nothing in Visual Basic).</exception>

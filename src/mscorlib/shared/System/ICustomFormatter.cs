@@ -14,10 +14,8 @@
 
 using System;
 
-namespace System
-{
-    public interface ICustomFormatter
-    {
+namespace System {
+    public interface ICustomFormatter {
         // Interface does not need to be marked with the serializable attribute
         String Format(String format, Object arg, IFormatProvider formatProvider);
     }

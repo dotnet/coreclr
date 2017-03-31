@@ -7,11 +7,9 @@
 //    This class represents the void return type
 ////////////////////////////////////////////////////////////////////////////////
 
-namespace System
-{
+namespace System {
     // This class represents the void return type
     [Serializable]
-    public struct Void
-    {
+    public struct Void {
     }
 }

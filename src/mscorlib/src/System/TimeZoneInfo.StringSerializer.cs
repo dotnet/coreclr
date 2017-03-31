@@ -7,17 +7,13 @@ using System.Globalization;
 using System.Runtime.Serialization;
 using System.Text;
 
-namespace System
-{
-    public sealed partial class TimeZoneInfo
-    {
+namespace System {
+    public sealed partial class TimeZoneInfo {
         /// <summary>
         /// Used to serialize and deserialize TimeZoneInfo objects based on the custom string serialization format.
         /// </summary>
-        private struct StringSerializer
-        {
-            private enum State
-            {
+        private struct StringSerializer {
+            private enum State {
                 Escaped = 0,
                 NotEscaped = 1,
                 StartOfToken = 2,
@@ -40,8 +36,7 @@ namespace System
             /// <summary>
             /// Creates the custom serialized string representation of a TimeZoneInfo instance.
             /// </summary>
-            public static string GetSerializedString(TimeZoneInfo zone)
-            {
+            public static string GetSerializedString(TimeZoneInfo zone) {
                 StringBuilder serializedText = StringBuilderCache.Acquire();
 
                 //
@@ -59,8 +54,7 @@ namespace System
                 serializedText.Append(Sep);
 
                 AdjustmentRule[] rules = zone.GetAdjustmentRules();
-                foreach (AdjustmentRule rule in rules)
-                {
+                foreach (AdjustmentRule rule in rules) {
                     serializedText.Append(Lhs);
                     serializedText.Append(rule.DateStart.ToString(DateTimeFormat, DateTimeFormatInfo.InvariantInfo));
                     serializedText.Append(Sep);
@@ -73,14 +67,12 @@ namespace System
                     serializedText.Append(Sep);
                     SerializeTransitionTime(rule.DaylightTransitionEnd, serializedText);
                     serializedText.Append(Sep);
-                    if (rule.BaseUtcOffsetDelta != TimeSpan.Zero)
-                    {
+                    if (rule.BaseUtcOffsetDelta != TimeSpan.Zero) {
                         // Serialize it only when BaseUtcOffsetDelta has a value to reduce the impact of adding rule.BaseUtcOffsetDelta
                         serializedText.Append(rule.BaseUtcOffsetDelta.TotalMinutes.ToString(CultureInfo.InvariantCulture));
                         serializedText.Append(Sep);
                     }
-                    if (rule.NoDaylightTransitions)
-                    {
+                    if (rule.NoDaylightTransitions) {
                         // Serialize it only when NoDaylightTransitions is true to reduce the impact of adding rule.NoDaylightTransitions
                         serializedText.Append('1');
                         serializedText.Append(Sep);
@@ -95,8 +87,7 @@ namespace System
             /// <summary>
             /// Instantiates a TimeZoneInfo from a custom serialized string.
             /// </summary>
-            public static TimeZoneInfo GetDeserializedTimeZoneInfo(string source)
-            {
+            public static TimeZoneInfo GetDeserializedTimeZoneInfo(string source) {
                 StringSerializer s = new StringSerializer(source);
 
                 string id = s.GetNextStringValue();
@@ -106,22 +97,18 @@ namespace System
                 string daylightName = s.GetNextStringValue();
                 AdjustmentRule[] rules = s.GetNextAdjustmentRuleArrayValue();
 
-                try
-                {
+                try {
                     return new TimeZoneInfo(id, baseUtcOffset, displayName, standardName, daylightName, rules, disableDaylightSavingTime: false);
                 }
-                catch (ArgumentException ex)
-                {
+                catch (ArgumentException ex) {
                     throw new SerializationException(SR.Serialization_InvalidData, ex);
                 }
-                catch (InvalidTimeZoneException ex)
-                {
+                catch (InvalidTimeZoneException ex) {
                     throw new SerializationException(SR.Serialization_InvalidData, ex);
                 }
             }
 
-            private StringSerializer(string str)
-            {
+            private StringSerializer(string str) {
                 _serializedText = str;
                 _currentTokenStartIndex = 0;
                 _state = State.StartOfToken;
@@ -135,12 +122,9 @@ namespace System
             /// "]" -> "\]"
             /// "\" -> "\\"
             /// </summary>
-            private static void SerializeSubstitute(string text, StringBuilder serializedText)
-            {
-                foreach (char c in text)
-                {
-                    if (c == Esc || c == Lhs || c == Rhs || c == Sep)
-                    {
+            private static void SerializeSubstitute(string text, StringBuilder serializedText) {
+                foreach (char c in text) {
+                    if (c == Esc || c == Lhs || c == Rhs || c == Sep) {
                         serializedText.Append('\\');
                     }
                     serializedText.Append(c);
@@ -150,8 +134,7 @@ namespace System
             /// <summary>
             /// Helper method to serialize a TimeZoneInfo.TransitionTime object.
             /// </summary>
-            private static void SerializeTransitionTime(TransitionTime time, StringBuilder serializedText)
-            {
+            private static void SerializeTransitionTime(TransitionTime time, StringBuilder serializedText) {
                 serializedText.Append(Lhs);
                 serializedText.Append(time.IsFixedDateRule ? '1' : '0');
                 serializedText.Append(Sep);
@@ -159,13 +142,11 @@ namespace System
                 serializedText.Append(Sep);
                 serializedText.Append(time.Month.ToString(CultureInfo.InvariantCulture));
                 serializedText.Append(Sep);
-                if (time.IsFixedDateRule)
-                {
+                if (time.IsFixedDateRule) {
                     serializedText.Append(time.Day.ToString(CultureInfo.InvariantCulture));
                     serializedText.Append(Sep);
                 }
-                else
-                {
+                else {
                     serializedText.Append(time.Week.ToString(CultureInfo.InvariantCulture));
                     serializedText.Append(Sep);
                     serializedText.Append(((int)time.DayOfWeek).ToString(CultureInfo.InvariantCulture));
@@ -177,10 +158,8 @@ namespace System
             /// <summary>
             /// Helper function to determine if the passed in string token is allowed to be preceeded by an escape sequence token.
             /// </summary>
-            private static void VerifyIsEscapableCharacter(char c)
-            {
-                if (c != Esc && c != Sep && c != Lhs && c != Rhs)
-                {
+            private static void VerifyIsEscapableCharacter(char c) {
+                if (c != Esc && c != Sep && c != Lhs && c != Rhs) {
                     throw new SerializationException(SR.Format(SR.Serialization_InvalidEscapeSequence, c));
                 }
             }
@@ -190,26 +169,20 @@ namespace System
             /// current relative nested bracket depth that _currentTokenStartIndex is at. The function ends
             /// successfully when "depth" returns to zero (0).
             /// </summary>
-            private void SkipVersionNextDataFields(int depth /* starting depth in the nested brackets ('[', ']')*/)
-            {
-                if (_currentTokenStartIndex < 0 || _currentTokenStartIndex >= _serializedText.Length)
-                {
+            private void SkipVersionNextDataFields(int depth /* starting depth in the nested brackets ('[', ']')*/) {
+                if (_currentTokenStartIndex < 0 || _currentTokenStartIndex >= _serializedText.Length) {
                     throw new SerializationException(SR.Serialization_InvalidData);
                 }
                 State tokenState = State.NotEscaped;
 
                 // walk the serialized text, building up the token as we go...
-                for (int i = _currentTokenStartIndex; i < _serializedText.Length; i++)
-                {
-                    if (tokenState == State.Escaped)
-                    {
+                for (int i = _currentTokenStartIndex; i < _serializedText.Length; i++) {
+                    if (tokenState == State.Escaped) {
                         VerifyIsEscapableCharacter(_serializedText[i]);
                         tokenState = State.NotEscaped;
                     }
-                    else if (tokenState == State.NotEscaped)
-                    {
-                        switch (_serializedText[i])
-                        {
+                    else if (tokenState == State.NotEscaped) {
+                        switch (_serializedText[i]) {
                             case Esc:
                                 tokenState = State.Escaped;
                                 break;
@@ -219,15 +192,12 @@ namespace System
                                 break;
                             case Rhs:
                                 depth--;
-                                if (depth == 0)
-                                {
+                                if (depth == 0) {
                                     _currentTokenStartIndex = i + 1;
-                                    if (_currentTokenStartIndex >= _serializedText.Length)
-                                    {
+                                    if (_currentTokenStartIndex >= _serializedText.Length) {
                                         _state = State.EndOfLine;
                                     }
-                                    else
-                                    {
+                                    else {
                                         _state = State.StartOfToken;
                                     }
                                     return;
@@ -253,33 +223,26 @@ namespace System
             /// Also <see cref="_state"/> is set to either <see cref="State.StartOfToken"/> or
             /// <see cref="State.EndOfLine"/> on exit.
             /// </summary>
-            private string GetNextStringValue()
-            {
+            private string GetNextStringValue() {
                 // first verify the internal state of the object
-                if (_state == State.EndOfLine)
-                {
+                if (_state == State.EndOfLine) {
                     throw new SerializationException(SR.Serialization_InvalidData);
                 }
-                if (_currentTokenStartIndex < 0 || _currentTokenStartIndex >= _serializedText.Length)
-                {
+                if (_currentTokenStartIndex < 0 || _currentTokenStartIndex >= _serializedText.Length) {
                     throw new SerializationException(SR.Serialization_InvalidData);
                 }
                 State tokenState = State.NotEscaped;
                 StringBuilder token = StringBuilderCache.Acquire(InitialCapacityForString);
 
                 // walk the serialized text, building up the token as we go...
-                for (int i = _currentTokenStartIndex; i < _serializedText.Length; i++)
-                {
-                    if (tokenState == State.Escaped)
-                    {
+                for (int i = _currentTokenStartIndex; i < _serializedText.Length; i++) {
+                    if (tokenState == State.Escaped) {
                         VerifyIsEscapableCharacter(_serializedText[i]);
                         token.Append(_serializedText[i]);
                         tokenState = State.NotEscaped;
                     }
-                    else if (tokenState == State.NotEscaped)
-                    {
-                        switch (_serializedText[i])
-                        {
+                    else if (tokenState == State.NotEscaped) {
+                        switch (_serializedText[i]) {
                             case Esc:
                                 tokenState = State.Escaped;
                                 break;
@@ -294,12 +257,10 @@ namespace System
 
                             case Sep:
                                 _currentTokenStartIndex = i + 1;
-                                if (_currentTokenStartIndex >= _serializedText.Length)
-                                {
+                                if (_currentTokenStartIndex >= _serializedText.Length) {
                                     _state = State.EndOfLine;
                                 }
-                                else
-                                {
+                                else {
                                     _state = State.StartOfToken;
                                 }
                                 return StringBuilderCache.GetStringAndRelease(token);
@@ -317,8 +278,7 @@ namespace System
                 //
                 // we are at the end of the line
                 //
-                if (tokenState == State.Escaped)
-                {
+                if (tokenState == State.Escaped) {
                     // we are at the end of the serialized text but we are in an escaped state
                     throw new SerializationException(SR.Format(SR.Serialization_InvalidEscapeSequence, string.Empty));
                 }
@@ -329,12 +289,10 @@ namespace System
             /// <summary>
             /// Helper function to read a DateTime token.
             /// </summary>
-            private DateTime GetNextDateTimeValue(string format)
-            {
+            private DateTime GetNextDateTimeValue(string format) {
                 string token = GetNextStringValue();
                 DateTime time;
-                if (!DateTime.TryParseExact(token, format, DateTimeFormatInfo.InvariantInfo, DateTimeStyles.None, out time))
-                {
+                if (!DateTime.TryParseExact(token, format, DateTimeFormatInfo.InvariantInfo, DateTimeStyles.None, out time)) {
                     throw new SerializationException(SR.Serialization_InvalidData);
                 }
                 return time;
@@ -343,15 +301,12 @@ namespace System
             /// <summary>
             /// Helper function to read a TimeSpan token.
             /// </summary>
-            private TimeSpan GetNextTimeSpanValue()
-            {
+            private TimeSpan GetNextTimeSpanValue() {
                 int token = GetNextInt32Value();
-                try
-                {
+                try {
                     return new TimeSpan(hours: 0, minutes: token, seconds: 0);
                 }
-                catch (ArgumentOutOfRangeException e)
-                {
+                catch (ArgumentOutOfRangeException e) {
                     throw new SerializationException(SR.Serialization_InvalidData, e);
                 }
             }
@@ -359,12 +314,10 @@ namespace System
             /// <summary>
             /// Helper function to read an Int32 token.
             /// </summary>
-            private int GetNextInt32Value()
-            {
+            private int GetNextInt32Value() {
                 string token = GetNextStringValue();
                 int value;
-                if (!int.TryParse(token, NumberStyles.AllowLeadingSign /* "[sign]digits" */, CultureInfo.InvariantCulture, out value))
-                {
+                if (!int.TryParse(token, NumberStyles.AllowLeadingSign /* "[sign]digits" */, CultureInfo.InvariantCulture, out value)) {
                     throw new SerializationException(SR.Serialization_InvalidData);
                 }
                 return value;
@@ -373,15 +326,13 @@ namespace System
             /// <summary>
             /// Helper function to read an AdjustmentRule[] token.
             /// </summary>
-            private AdjustmentRule[] GetNextAdjustmentRuleArrayValue()
-            {
+            private AdjustmentRule[] GetNextAdjustmentRuleArrayValue() {
                 List<AdjustmentRule> rules = new List<AdjustmentRule>(1);
                 int count = 0;
 
                 // individual AdjustmentRule array elements do not require semicolons
                 AdjustmentRule rule = GetNextAdjustmentRuleValue();
-                while (rule != null)
-                {
+                while (rule != null) {
                     rules.Add(rule);
                     count++;
 
@@ -389,12 +340,10 @@ namespace System
                 }
 
                 // the AdjustmentRule array must end with a separator
-                if (_state == State.EndOfLine)
-                {
+                if (_state == State.EndOfLine) {
                     throw new SerializationException(SR.Serialization_InvalidData);
                 }
-                if (_currentTokenStartIndex < 0 || _currentTokenStartIndex >= _serializedText.Length)
-                {
+                if (_currentTokenStartIndex < 0 || _currentTokenStartIndex >= _serializedText.Length) {
                     throw new SerializationException(SR.Serialization_InvalidData);
                 }
 
@@ -404,28 +353,23 @@ namespace System
             /// <summary>
             /// Helper function to read an AdjustmentRule token.
             /// </summary>
-            private AdjustmentRule GetNextAdjustmentRuleValue()
-            {
+            private AdjustmentRule GetNextAdjustmentRuleValue() {
                 // first verify the internal state of the object
-                if (_state == State.EndOfLine)
-                {
+                if (_state == State.EndOfLine) {
                     return null;
                 }
 
-                if (_currentTokenStartIndex < 0 || _currentTokenStartIndex >= _serializedText.Length)
-                {
+                if (_currentTokenStartIndex < 0 || _currentTokenStartIndex >= _serializedText.Length) {
                     throw new SerializationException(SR.Serialization_InvalidData);
                 }
 
                 // check to see if the very first token we see is the separator
-                if (_serializedText[_currentTokenStartIndex] == Sep)
-                {
+                if (_serializedText[_currentTokenStartIndex] == Sep) {
                     return null;
                 }
 
                 // verify the current token is a left-hand-side marker ("[")
-                if (_serializedText[_currentTokenStartIndex] != Lhs)
-                {
+                if (_serializedText[_currentTokenStartIndex] != Lhs) {
                     throw new SerializationException(SR.Serialization_InvalidData);
                 }
                 _currentTokenStartIndex++;
@@ -440,31 +384,26 @@ namespace System
 
                 // verify that the string is now at the right-hand-side marker ("]") ...
 
-                if (_state == State.EndOfLine || _currentTokenStartIndex >= _serializedText.Length)
-                {
+                if (_state == State.EndOfLine || _currentTokenStartIndex >= _serializedText.Length) {
                     throw new SerializationException(SR.Serialization_InvalidData);
                 }
 
                 // Check if we have baseUtcOffsetDelta in the serialized string and then deserialize it
                 if ((_serializedText[_currentTokenStartIndex] >= '0' && _serializedText[_currentTokenStartIndex] <= '9') ||
-                    _serializedText[_currentTokenStartIndex] == '-' || _serializedText[_currentTokenStartIndex] == '+')
-                {
+                    _serializedText[_currentTokenStartIndex] == '-' || _serializedText[_currentTokenStartIndex] == '+') {
                     baseUtcOffsetDelta = GetNextTimeSpanValue();
                 }
 
                 // Check if we have NoDaylightTransitions in the serialized string and then deserialize it
-                if ((_serializedText[_currentTokenStartIndex] >= '0' && _serializedText[_currentTokenStartIndex] <= '1'))
-                {
+                if ((_serializedText[_currentTokenStartIndex] >= '0' && _serializedText[_currentTokenStartIndex] <= '1')) {
                     noDaylightTransitions = GetNextInt32Value();
                 }
 
-                if (_state == State.EndOfLine || _currentTokenStartIndex >= _serializedText.Length)
-                {
+                if (_state == State.EndOfLine || _currentTokenStartIndex >= _serializedText.Length) {
                     throw new SerializationException(SR.Serialization_InvalidData);
                 }
 
-                if (_serializedText[_currentTokenStartIndex] != Rhs)
-                {
+                if (_serializedText[_currentTokenStartIndex] != Rhs) {
                     // skip ahead of any "v.Next" data at the end of the AdjustmentRule
                     //
                     // FUTURE: if the serialization format is extended in the future then this
@@ -472,30 +411,25 @@ namespace System
                     // than just skipping the data at the end of the [AdjustmentRule].
                     SkipVersionNextDataFields(1);
                 }
-                else
-                {
+                else {
                     _currentTokenStartIndex++;
                 }
 
                 // create the AdjustmentRule from the deserialized fields ...
 
                 AdjustmentRule rule;
-                try
-                {
+                try {
                     rule = AdjustmentRule.CreateAdjustmentRule(dateStart, dateEnd, daylightDelta, daylightStart, daylightEnd, baseUtcOffsetDelta, noDaylightTransitions > 0);
                 }
-                catch (ArgumentException e)
-                {
+                catch (ArgumentException e) {
                     throw new SerializationException(SR.Serialization_InvalidData, e);
                 }
 
                 // finally set the state to either EndOfLine or StartOfToken for the next caller
-                if (_currentTokenStartIndex >= _serializedText.Length)
-                {
+                if (_currentTokenStartIndex >= _serializedText.Length) {
                     _state = State.EndOfLine;
                 }
-                else
-                {
+                else {
                     _state = State.StartOfToken;
                 }
                 return rule;
@@ -504,36 +438,31 @@ namespace System
             /// <summary>
             /// Helper function to read a TransitionTime token.
             /// </summary>
-            private TransitionTime GetNextTransitionTimeValue()
-            {
+            private TransitionTime GetNextTransitionTimeValue() {
                 // first verify the internal state of the object
 
                 if (_state == State.EndOfLine ||
-                    (_currentTokenStartIndex < _serializedText.Length && _serializedText[_currentTokenStartIndex] == Rhs))
-                {
+                    (_currentTokenStartIndex < _serializedText.Length && _serializedText[_currentTokenStartIndex] == Rhs)) {
                     //
                     // we are at the end of the line or we are starting at a "]" character
                     //
                     throw new SerializationException(SR.Serialization_InvalidData);
                 }
 
-                if (_currentTokenStartIndex < 0 || _currentTokenStartIndex >= _serializedText.Length)
-                {
+                if (_currentTokenStartIndex < 0 || _currentTokenStartIndex >= _serializedText.Length) {
                     throw new SerializationException(SR.Serialization_InvalidData);
                 }
 
                 // verify the current token is a left-hand-side marker ("[")
 
-                if (_serializedText[_currentTokenStartIndex] != Lhs)
-                {
+                if (_serializedText[_currentTokenStartIndex] != Lhs) {
                     throw new SerializationException(SR.Serialization_InvalidData);
                 }
                 _currentTokenStartIndex++;
 
                 int isFixedDate = GetNextInt32Value();
 
-                if (isFixedDate != 0 && isFixedDate != 1)
-                {
+                if (isFixedDate != 0 && isFixedDate != 1) {
                     throw new SerializationException(SR.Serialization_InvalidData);
                 }
 
@@ -544,43 +473,35 @@ namespace System
 
                 int month = GetNextInt32Value();
 
-                if (isFixedDate == 1)
-                {
+                if (isFixedDate == 1) {
                     int day = GetNextInt32Value();
 
-                    try
-                    {
+                    try {
                         transition = TransitionTime.CreateFixedDateRule(timeOfDay, month, day);
                     }
-                    catch (ArgumentException e)
-                    {
+                    catch (ArgumentException e) {
                         throw new SerializationException(SR.Serialization_InvalidData, e);
                     }
                 }
-                else
-                {
+                else {
                     int week = GetNextInt32Value();
                     int dayOfWeek = GetNextInt32Value();
 
-                    try
-                    {
+                    try {
                         transition = TransitionTime.CreateFloatingDateRule(timeOfDay, month, week, (DayOfWeek)dayOfWeek);
                     }
-                    catch (ArgumentException e)
-                    {
+                    catch (ArgumentException e) {
                         throw new SerializationException(SR.Serialization_InvalidData, e);
                     }
                 }
 
                 // verify that the string is now at the right-hand-side marker ("]") ...
 
-                if (_state == State.EndOfLine || _currentTokenStartIndex >= _serializedText.Length)
-                {
+                if (_state == State.EndOfLine || _currentTokenStartIndex >= _serializedText.Length) {
                     throw new SerializationException(SR.Serialization_InvalidData);
                 }
 
-                if (_serializedText[_currentTokenStartIndex] != Rhs)
-                {
+                if (_serializedText[_currentTokenStartIndex] != Rhs) {
                     // skip ahead of any "v.Next" data at the end of the AdjustmentRule
                     //
                     // FUTURE: if the serialization format is extended in the future then this
@@ -588,34 +509,29 @@ namespace System
                     // than just skipping the data at the end of the [TransitionTime].
                     SkipVersionNextDataFields(1);
                 }
-                else
-                {
+                else {
                     _currentTokenStartIndex++;
                 }
 
                 // check to see if the string is now at the separator (";") ...
                 bool sepFound = false;
                 if (_currentTokenStartIndex < _serializedText.Length &&
-                    _serializedText[_currentTokenStartIndex] == Sep)
-                {
+                    _serializedText[_currentTokenStartIndex] == Sep) {
                     // handle the case where we ended on a ";"
                     _currentTokenStartIndex++;
                     sepFound = true;
                 }
 
-                if (!sepFound)
-                {
+                if (!sepFound) {
                     // we MUST end on a separator
                     throw new SerializationException(SR.Serialization_InvalidData);
                 }
 
                 // finally set the state to either EndOfLine or StartOfToken for the next caller
-                if (_currentTokenStartIndex >= _serializedText.Length)
-                {
+                if (_currentTokenStartIndex >= _serializedText.Length) {
                     _state = State.EndOfLine;
                 }
-                else
-                {
+                else {
                     _state = State.StartOfToken;
                 }
                 return transition;

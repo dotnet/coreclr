@@ -15,8 +15,7 @@ namespace System.Diagnostics.Tracing
     /// to the EventListener. The EventListener determines the semantics of the flags.
     /// </summary>
     [Flags]
-    public enum EventFieldTags
-    {
+    public enum EventFieldTags {
         /// <summary>
         /// No special traits are added to the field.
         /// </summary>
@@ -40,14 +39,12 @@ namespace System.Diagnostics.Tracing
     /// </summary>
     [AttributeUsage(AttributeTargets.Property)]
     public class EventFieldAttribute
-        : Attribute
-    {
+        : Attribute {
         /// <summary>
         /// User defined options for the field. These are not interpreted by the EventSource
         /// but are available to the Listener. See EventFieldSettings for details
         /// </summary>
-        public EventFieldTags Tags
-        {
+        public EventFieldTags Tags {
             get;
             set;
         }
@@ -58,8 +55,7 @@ namespace System.Diagnostics.Tracing
         /// as the event field's name.
         /// TODO REMOVE
         /// </summary>
-        internal string Name
-        {
+        internal string Name {
             get;
             set;
         }
@@ -67,8 +63,7 @@ namespace System.Diagnostics.Tracing
         /// <summary>
         /// Gets or sets a field formatting hint.
         /// </summary>
-        public EventFieldFormat Format
-        {
+        public EventFieldFormat Format {
             get;
             set;
         }

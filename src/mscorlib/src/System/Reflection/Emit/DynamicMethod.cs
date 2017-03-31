@@ -4,8 +4,7 @@
 
 // 
 
-namespace System.Reflection.Emit
-{
+namespace System.Reflection.Emit {
     using System;
     using System.Collections.Generic;
     using CultureInfo = System.Globalization.CultureInfo;
@@ -18,8 +17,7 @@ namespace System.Reflection.Emit
     using System.Diagnostics.Contracts;
     using System.Runtime.InteropServices;
 
-    public sealed class DynamicMethod : MethodInfo
-    {
+    public sealed class DynamicMethod : MethodInfo {
         private RuntimeType[] m_parameterTypes;
         internal IRuntimeMethodInfo m_methodHandle;
         private RuntimeType m_returnType;
@@ -60,8 +58,7 @@ namespace System.Reflection.Emit
 
         public DynamicMethod(string name,
                              Type returnType,
-                             Type[] parameterTypes)
-        {
+                             Type[] parameterTypes) {
             Init(name,
                 MethodAttributes.Public | MethodAttributes.Static,
                 CallingConventions.Standard,
@@ -76,8 +73,7 @@ namespace System.Reflection.Emit
         public DynamicMethod(string name,
                              Type returnType,
                              Type[] parameterTypes,
-                             bool restrictedSkipVisibility)
-        {
+                             bool restrictedSkipVisibility) {
             Init(name,
                 MethodAttributes.Public | MethodAttributes.Static,
                 CallingConventions.Standard,
@@ -92,8 +88,7 @@ namespace System.Reflection.Emit
         public DynamicMethod(string name,
                              Type returnType,
                              Type[] parameterTypes,
-                             Module m)
-        {
+                             Module m) {
             if (m == null)
                 throw new ArgumentNullException(nameof(m));
 
@@ -112,8 +107,7 @@ namespace System.Reflection.Emit
                              Type returnType,
                              Type[] parameterTypes,
                              Module m,
-                             bool skipVisibility)
-        {
+                             bool skipVisibility) {
             if (m == null)
                 throw new ArgumentNullException(nameof(m));
 
@@ -134,8 +128,7 @@ namespace System.Reflection.Emit
                              Type returnType,
                              Type[] parameterTypes,
                              Module m,
-                             bool skipVisibility)
-        {
+                             bool skipVisibility) {
             if (m == null)
                 throw new ArgumentNullException(nameof(m));
 
@@ -153,8 +146,7 @@ namespace System.Reflection.Emit
         public DynamicMethod(string name,
                              Type returnType,
                              Type[] parameterTypes,
-                             Type owner)
-        {
+                             Type owner) {
             if (owner == null)
                 throw new ArgumentNullException(nameof(owner));
 
@@ -173,8 +165,7 @@ namespace System.Reflection.Emit
                              Type returnType,
                              Type[] parameterTypes,
                              Type owner,
-                             bool skipVisibility)
-        {
+                             bool skipVisibility) {
             if (owner == null)
                 throw new ArgumentNullException(nameof(owner));
 
@@ -195,8 +186,7 @@ namespace System.Reflection.Emit
                              Type returnType,
                              Type[] parameterTypes,
                              Type owner,
-                             bool skipVisibility)
-        {
+                             bool skipVisibility) {
             if (owner == null)
                 throw new ArgumentNullException(nameof(owner));
 
@@ -213,8 +203,7 @@ namespace System.Reflection.Emit
 
         // helpers for intialization
 
-        static private void CheckConsistency(MethodAttributes attributes, CallingConventions callingConvention)
-        {
+        static private void CheckConsistency(MethodAttributes attributes, CallingConventions callingConvention) {
             // only static public for method attributes
             if ((attributes & ~MethodAttributes.MemberAccessMask) != MethodAttributes.Static)
                 throw new NotSupportedException(SR.NotSupported_DynamicMethodFlags);
@@ -234,13 +223,11 @@ namespace System.Reflection.Emit
         // We create a transparent assembly to host DynamicMethods. Since the assembly does not have any
         // non-public fields (or any fields at all), it is a safe anonymous assembly to host DynamicMethods
         [System.Security.DynamicSecurityMethod] // Methods containing StackCrawlMark local var has to be marked DynamicSecurityMethod
-        private static RuntimeModule GetDynamicMethodsModule()
-        {
+        private static RuntimeModule GetDynamicMethodsModule() {
             if (s_anonymouslyHostedDynamicMethodsModule != null)
                 return s_anonymouslyHostedDynamicMethodsModule;
 
-            lock (s_anonymouslyHostedDynamicMethodsModuleLock)
-            {
+            lock (s_anonymouslyHostedDynamicMethodsModuleLock) {
                 if (s_anonymouslyHostedDynamicMethodsModule != null)
                     return s_anonymouslyHostedDynamicMethodsModule;
 
@@ -277,16 +264,13 @@ namespace System.Reflection.Emit
                                  Type owner,
                                  Module m,
                                  bool skipVisibility,
-                                 bool transparentMethod)
-        {
+                                 bool transparentMethod) {
             DynamicMethod.CheckConsistency(attributes, callingConvention);
 
             // check and store the signature
-            if (signature != null)
-            {
+            if (signature != null) {
                 m_parameterTypes = new RuntimeType[signature.Length];
-                for (int i = 0; i < signature.Length; i++)
-                {
+                for (int i = 0; i < signature.Length; i++) {
                     if (signature[i] == null)
                         throw new ArgumentException(SR.Arg_InvalidTypeInSignature);
                     m_parameterTypes[i] = signature[i].UnderlyingSystemType as RuntimeType;
@@ -294,8 +278,7 @@ namespace System.Reflection.Emit
                         throw new ArgumentException(SR.Arg_InvalidTypeInSignature);
                 }
             }
-            else
-            {
+            else {
                 m_parameterTypes = Array.Empty<RuntimeType>();
             }
 
@@ -304,31 +287,26 @@ namespace System.Reflection.Emit
             if ((m_returnType == null) || !(m_returnType is RuntimeType) || m_returnType.IsByRef)
                 throw new NotSupportedException(SR.Arg_InvalidTypeInRetType);
 
-            if (transparentMethod)
-            {
+            if (transparentMethod) {
                 Debug.Assert(owner == null && m == null, "owner and m cannot be set for transparent methods");
                 m_module = GetDynamicMethodsModule();
-                if (skipVisibility)
-                {
+                if (skipVisibility) {
                     m_restrictedSkipVisibility = true;
                 }
             }
-            else
-            {
+            else {
                 Debug.Assert(m != null || owner != null, "Constructor should ensure that either m or owner is set");
                 Debug.Assert(m == null || !m.Equals(s_anonymouslyHostedDynamicMethodsModule), "The user cannot explicitly use this assembly");
                 Debug.Assert(m == null || owner == null, "m and owner cannot both be set");
 
                 if (m != null)
                     m_module = m.ModuleHandle.GetRuntimeModule(); // this returns the underlying module for all RuntimeModule and ModuleBuilder objects.
-                else
-                {
+                else {
                     RuntimeType rtOwner = null;
                     if (owner != null)
                         rtOwner = owner.UnderlyingSystemType as RuntimeType;
 
-                    if (rtOwner != null)
-                    {
+                    if (rtOwner != null) {
                         if (rtOwner.HasElementType || rtOwner.ContainsGenericParameters
                             || rtOwner.IsGenericParameter || rtOwner.IsInterface)
                             throw new ArgumentException(SR.Argument_InvalidTypeForDynamicMethod);
@@ -356,10 +334,8 @@ namespace System.Reflection.Emit
         // Delegate and method creation
         //
 
-        public sealed override Delegate CreateDelegate(Type delegateType)
-        {
-            if (m_restrictedSkipVisibility)
-            {
+        public sealed override Delegate CreateDelegate(Type delegateType) {
+            if (m_restrictedSkipVisibility) {
                 // Compile the method since accessibility checks are done as part of compilation.
                 GetMethodDescriptor();
                 System.Runtime.CompilerServices.RuntimeHelpers._CompileMethod(m_methodHandle);
@@ -371,10 +347,8 @@ namespace System.Reflection.Emit
             return d;
         }
 
-        public sealed override Delegate CreateDelegate(Type delegateType, Object target)
-        {
-            if (m_restrictedSkipVisibility)
-            {
+        public sealed override Delegate CreateDelegate(Type delegateType, Object target) {
+            if (m_restrictedSkipVisibility) {
                 // Compile the method since accessibility checks are done as part of compilation
                 GetMethodDescriptor();
                 System.Runtime.CompilerServices.RuntimeHelpers._CompileMethod(m_methodHandle);
@@ -387,18 +361,13 @@ namespace System.Reflection.Emit
         }
 
         // This is guaranteed to return a valid handle
-        internal unsafe RuntimeMethodHandle GetMethodDescriptor()
-        {
-            if (m_methodHandle == null)
-            {
-                lock (this)
-                {
-                    if (m_methodHandle == null)
-                    {
+        internal unsafe RuntimeMethodHandle GetMethodDescriptor() {
+            if (m_methodHandle == null) {
+                lock (this) {
+                    if (m_methodHandle == null) {
                         if (m_DynamicILInfo != null)
                             m_DynamicILInfo.GetCallableMethod(m_module, this);
-                        else
-                        {
+                        else {
                             if (m_ilGenerator == null || m_ilGenerator.ILOffset == 0)
                                 throw new InvalidOperationException(SR.Format(SR.InvalidOperation_BadEmptyMethodBody, Name));
 
@@ -447,23 +416,19 @@ namespace System.Reflection.Emit
         // until we get a JITed version, since dynamic methods cannot have attributes of their own.
         //
 
-        public override bool IsSecurityCritical
-        {
+        public override bool IsSecurityCritical {
             get { return true; }
         }
 
-        public override bool IsSecuritySafeCritical
-        {
+        public override bool IsSecuritySafeCritical {
             get { return false; }
         }
 
-        public override bool IsSecurityTransparent
-        {
+        public override bool IsSecurityTransparent {
             get { return false; }
         }
 
-        public override Object Invoke(Object obj, BindingFlags invokeAttr, Binder binder, Object[] parameters, CultureInfo culture)
-        {
+        public override Object Invoke(Object obj, BindingFlags invokeAttr, Binder binder, Object[] parameters, CultureInfo culture) {
             if ((CallingConvention & CallingConventions.VarArgs) == CallingConventions.VarArgs)
                 throw new NotSupportedException(SR.NotSupported_CallToVarArg);
             Contract.EndContractBlock();
@@ -490,16 +455,14 @@ namespace System.Reflection.Emit
 
             // if we are here we passed all the previous checks. Time to look at the arguments
             Object retValue = null;
-            if (actualCount > 0)
-            {
+            if (actualCount > 0) {
                 Object[] arguments = CheckArguments(parameters, binder, invokeAttr, culture, sig);
                 retValue = RuntimeMethodHandle.InvokeMethod(null, arguments, sig, false);
                 // copy out. This should be made only if ByRef are present.
                 for (int index = 0; index < arguments.Length; index++)
                     parameters[index] = arguments[index];
             }
-            else
-            {
+            else {
                 retValue = RuntimeMethodHandle.InvokeMethod(null, null, sig, false);
             }
 
@@ -507,8 +470,7 @@ namespace System.Reflection.Emit
             return retValue;
         }
 
-        public override Object[] GetCustomAttributes(Type attributeType, bool inherit)
-        {
+        public override Object[] GetCustomAttributes(Type attributeType, bool inherit) {
             return m_dynMethod.GetCustomAttributes(attributeType, inherit);
         }
 
@@ -526,14 +488,12 @@ namespace System.Reflection.Emit
         // DynamicMethod specific methods
         //
 
-        public ParameterBuilder DefineParameter(int position, ParameterAttributes attributes, String parameterName)
-        {
+        public ParameterBuilder DefineParameter(int position, ParameterAttributes attributes, String parameterName) {
             if (position < 0 || position > m_parameterTypes.Length)
                 throw new ArgumentOutOfRangeException(SR.ArgumentOutOfRange_ParamSequence);
             position--; // it's 1 based. 0 is the return value
 
-            if (position >= 0)
-            {
+            if (position >= 0) {
                 RuntimeParameterInfo[] parameters = m_dynMethod.LoadParameters();
                 parameters[position].SetName(parameterName);
                 parameters[position].SetAttributes(attributes);
@@ -541,15 +501,12 @@ namespace System.Reflection.Emit
             return null;
         }
 
-        public ILGenerator GetILGenerator()
-        {
+        public ILGenerator GetILGenerator() {
             return GetILGenerator(64);
         }
 
-        public ILGenerator GetILGenerator(int streamSize)
-        {
-            if (m_ilGenerator == null)
-            {
+        public ILGenerator GetILGenerator(int streamSize) {
+            if (m_ilGenerator == null) {
                 byte[] methodSignature = SignatureHelper.GetMethodSigHelper(
                     null, CallingConvention, ReturnType, null, null, m_parameterTypes, null, null).GetSignature(true);
                 m_ilGenerator = new DynamicILGenerator(this, methodSignature, streamSize);
@@ -557,8 +514,7 @@ namespace System.Reflection.Emit
             return m_ilGenerator;
         }
 
-        public bool InitLocals
-        {
+        public bool InitLocals {
             get { return m_fInitLocals; }
             set { m_fInitLocals = value; }
         }
@@ -567,8 +523,7 @@ namespace System.Reflection.Emit
         // Internal API
         //
 
-        internal MethodInfo GetMethodInfo()
-        {
+        internal MethodInfo GetMethodInfo() {
             return m_dynMethod;
         }
 
@@ -580,8 +535,7 @@ namespace System.Reflection.Emit
         // This way the DynamicMethod creator is the only one responsible for DynamicMethod access,
         // and can control exactly who gets access to it.
         //
-        internal class RTDynamicMethod : MethodInfo
-        {
+        internal class RTDynamicMethod : MethodInfo {
             internal DynamicMethod m_owner;
             private RuntimeParameterInfo[] m_parameters;
             private String m_name;
@@ -593,8 +547,7 @@ namespace System.Reflection.Emit
             //
             private RTDynamicMethod() { }
 
-            internal RTDynamicMethod(DynamicMethod owner, String name, MethodAttributes attributes, CallingConventions callingConvention)
-            {
+            internal RTDynamicMethod(DynamicMethod owner, String name, MethodAttributes attributes, CallingConventions callingConvention) {
                 m_owner = owner;
                 m_name = name;
                 m_attributes = attributes;
@@ -604,67 +557,55 @@ namespace System.Reflection.Emit
             //
             // MethodInfo api
             //
-            public override String ToString()
-            {
+            public override String ToString() {
                 return ReturnType.FormatTypeName() + " " + FormatNameAndSig();
             }
 
-            public override String Name
-            {
+            public override String Name {
                 get { return m_name; }
             }
 
-            public override Type DeclaringType
-            {
+            public override Type DeclaringType {
                 get { return null; }
             }
 
-            public override Type ReflectedType
-            {
+            public override Type ReflectedType {
                 get { return null; }
             }
 
-            public override Module Module
-            {
+            public override Module Module {
                 get { return m_owner.m_module; }
             }
 
-            public override RuntimeMethodHandle MethodHandle
-            {
+            public override RuntimeMethodHandle MethodHandle {
                 get { throw new InvalidOperationException(SR.InvalidOperation_NotAllowedInDynamicMethod); }
             }
 
-            public override MethodAttributes Attributes
-            {
+            public override MethodAttributes Attributes {
                 get { return m_attributes; }
             }
 
-            public override CallingConventions CallingConvention
-            {
+            public override CallingConventions CallingConvention {
                 get { return m_callingConvention; }
             }
 
-            public override MethodInfo GetBaseDefinition()
-            {
+            public override MethodInfo GetBaseDefinition() {
                 return this;
             }
 
             [Pure]
-            public override ParameterInfo[] GetParameters()
-            {
+            public override ParameterInfo[] GetParameters() {
                 ParameterInfo[] privateParameters = LoadParameters();
                 ParameterInfo[] parameters = new ParameterInfo[privateParameters.Length];
                 Array.Copy(privateParameters, 0, parameters, 0, privateParameters.Length);
                 return parameters;
             }
 
-            public override MethodImplAttributes GetMethodImplementationFlags()
-            {
+            public override MethodImplAttributes GetMethodImplementationFlags() {
                 return MethodImplAttributes.IL | MethodImplAttributes.NoInlining;
             }
 
-            public override Object Invoke(Object obj, BindingFlags invokeAttr, Binder binder, Object[] parameters, CultureInfo culture)
-            {
+            public override Object Invoke(Object obj, BindingFlags invokeAttr, Binder binder, Object[] parameters, CultureInfo culture) {
                 // We want the creator of the DynamicMethod to control who has access to the
                 // DynamicMethod (just like we do for delegates). However, a user can get to
                 // the corresponding RTDynamicMethod using Exception.TargetSite, StackFrame.GetMethod, etc.
@@ -674,8 +615,7 @@ namespace System.Reflection.Emit
                 throw new ArgumentException(SR.Argument_MustBeRuntimeMethodInfo, "this");
             }
 
-            public override Object[] GetCustomAttributes(Type attributeType, bool inherit)
-            {
+            public override Object[] GetCustomAttributes(Type attributeType, bool inherit) {
                 if (attributeType == null)
                     throw new ArgumentNullException(nameof(attributeType));
                 Contract.EndContractBlock();
@@ -686,14 +626,12 @@ namespace System.Reflection.Emit
                     return EmptyArray<Object>.Value;
             }
 
-            public override Object[] GetCustomAttributes(bool inherit)
-            {
+            public override Object[] GetCustomAttributes(bool inherit) {
                 // support for MethodImplAttribute PCA
                 return new Object[] { new MethodImplAttribute(GetMethodImplementationFlags()) };
             }
 
-            public override bool IsDefined(Type attributeType, bool inherit)
-            {
+            public override bool IsDefined(Type attributeType, bool inherit) {
                 if (attributeType == null)
                     throw new ArgumentNullException(nameof(attributeType));
                 Contract.EndContractBlock();
@@ -704,36 +642,29 @@ namespace System.Reflection.Emit
                     return false;
             }
 
-            public override bool IsSecurityCritical
-            {
+            public override bool IsSecurityCritical {
                 get { return m_owner.IsSecurityCritical; }
             }
 
-            public override bool IsSecuritySafeCritical
-            {
+            public override bool IsSecuritySafeCritical {
                 get { return m_owner.IsSecuritySafeCritical; }
             }
 
-            public override bool IsSecurityTransparent
-            {
+            public override bool IsSecurityTransparent {
                 get { return m_owner.IsSecurityTransparent; }
             }
 
-            public override Type ReturnType
-            {
-                get
-                {
+            public override Type ReturnType {
+                get {
                     return m_owner.m_returnType;
                 }
             }
 
-            public override ParameterInfo ReturnParameter
-            {
+            public override ParameterInfo ReturnParameter {
                 get { return null; }
             }
 
-            public override ICustomAttributeProvider ReturnTypeCustomAttributes
-            {
+            public override ICustomAttributeProvider ReturnTypeCustomAttributes {
                 get { return GetEmptyCAHolder(); }
             }
 
@@ -741,10 +672,8 @@ namespace System.Reflection.Emit
             // private implementation
             //
 
-            internal RuntimeParameterInfo[] LoadParameters()
-            {
-                if (m_parameters == null)
-                {
+            internal RuntimeParameterInfo[] LoadParameters() {
+                if (m_parameters == null) {
                     Type[] parameterTypes = m_owner.m_parameterTypes;
                     RuntimeParameterInfo[] parameters = new RuntimeParameterInfo[parameterTypes.Length];
                     for (int i = 0; i < parameterTypes.Length; i++)
@@ -757,29 +686,24 @@ namespace System.Reflection.Emit
             }
 
             // private implementation of CA for the return type
-            private ICustomAttributeProvider GetEmptyCAHolder()
-            {
+            private ICustomAttributeProvider GetEmptyCAHolder() {
                 return new EmptyCAHolder();
             }
 
             ///////////////////////////////////////////////////
             // EmptyCAHolder
-            private class EmptyCAHolder : ICustomAttributeProvider
-            {
+            private class EmptyCAHolder : ICustomAttributeProvider {
                 internal EmptyCAHolder() { }
 
-                Object[] ICustomAttributeProvider.GetCustomAttributes(Type attributeType, bool inherit)
-                {
+                Object[] ICustomAttributeProvider.GetCustomAttributes(Type attributeType, bool inherit) {
                     return EmptyArray<Object>.Value;
                 }
 
-                Object[] ICustomAttributeProvider.GetCustomAttributes(bool inherit)
-                {
+                Object[] ICustomAttributeProvider.GetCustomAttributes(bool inherit) {
                     return EmptyArray<Object>.Value;
                 }
 
-                bool ICustomAttributeProvider.IsDefined(Type attributeType, bool inherit)
-                {
+                bool ICustomAttributeProvider.IsDefined(Type attributeType, bool inherit) {
                     return false;
                 }
             }

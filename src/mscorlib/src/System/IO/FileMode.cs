@@ -17,8 +17,7 @@
 
 using System;
 
-namespace System.IO
-{
+namespace System.IO {
     // Contains constants for specifying how the OS should open a file.
     // These will control whether you overwrite a file, open an existing
     // file, or some combination thereof.
@@ -28,8 +27,7 @@ namespace System.IO
     // exist, use Create.
     // 
     [Serializable]
-    public enum FileMode
-    {
+    public enum FileMode {
         // Creates a new file. An exception is raised if the file already exists.
         CreateNew = 1,
 

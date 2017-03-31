@@ -6,8 +6,7 @@
 ////////////////////////////////////////////////////////////////////////////////
 // 
 
-namespace System.Reflection.Emit
-{
+namespace System.Reflection.Emit {
     using System;
     using IList = System.Collections.IList;
     using System.Collections.Generic;
@@ -23,14 +22,12 @@ namespace System.Reflection.Emit
     // This is a package private class. This class hold all of the managed
     // data member for AssemblyBuilder. Note that what ever data members added to
     // this class cannot be accessed from the EE.
-    internal class AssemblyBuilderData
-    {
+    internal class AssemblyBuilderData {
         internal AssemblyBuilderData(
             InternalAssemblyBuilder assembly,
             String strAssemblyName,
             AssemblyBuilderAccess access,
-            String dir)
-        {
+            String dir) {
             m_assembly = assembly;
             m_strAssemblyName = strAssemblyName;
             m_access = access;
@@ -48,22 +45,18 @@ namespace System.Reflection.Emit
         }
 
         // Helper to add a dynamic module into the tracking list
-        internal void AddModule(ModuleBuilder dynModule)
-        {
+        internal void AddModule(ModuleBuilder dynModule) {
             m_moduleBuilderList.Add(dynModule);
         }
 
 
         // Helper to track CAs to persist onto disk
-        internal void AddCustomAttribute(CustomAttributeBuilder customBuilder)
-        {
+        internal void AddCustomAttribute(CustomAttributeBuilder customBuilder) {
             // make sure we have room for this CA
-            if (m_CABuilders == null)
-            {
+            if (m_CABuilders == null) {
                 m_CABuilders = new CustomAttributeBuilder[m_iInitialSize];
             }
-            if (m_iCABuilder == m_CABuilders.Length)
-            {
+            if (m_iCABuilder == m_CABuilders.Length) {
                 CustomAttributeBuilder[] tempCABuilders = new CustomAttributeBuilder[m_iCABuilder * 2];
                 Array.Copy(m_CABuilders, 0, tempCABuilders, 0, m_iCABuilder);
                 m_CABuilders = tempCABuilders;
@@ -74,21 +67,17 @@ namespace System.Reflection.Emit
         }
 
         // Helper to track CAs to persist onto disk
-        internal void AddCustomAttribute(ConstructorInfo con, byte[] binaryAttribute)
-        {
+        internal void AddCustomAttribute(ConstructorInfo con, byte[] binaryAttribute) {
             // make sure we have room for this CA
-            if (m_CABytes == null)
-            {
+            if (m_CABytes == null) {
                 m_CABytes = new byte[m_iInitialSize][];
                 m_CACons = new ConstructorInfo[m_iInitialSize];
             }
-            if (m_iCAs == m_CABytes.Length)
-            {
+            if (m_iCAs == m_CABytes.Length) {
                 // enlarge the arrays
                 byte[][] temp = new byte[m_iCAs * 2][];
                 ConstructorInfo[] tempCon = new ConstructorInfo[m_iCAs * 2];
-                for (int i = 0; i < m_iCAs; i++)
-                {
+                for (int i = 0; i < m_iCAs; i++) {
                     temp[i] = m_CABytes[i];
                     tempCon[i] = m_CACons[i];
                 }
@@ -104,11 +93,9 @@ namespace System.Reflection.Emit
         }
 
         // Helper to ensure the type name is unique underneath assemblyBuilder
-        internal void CheckTypeNameConflict(String strTypeName, TypeBuilder enclosingType)
-        {
+        internal void CheckTypeNameConflict(String strTypeName, TypeBuilder enclosingType) {
             BCLDebug.Log("DYNIL", "## DYNIL LOGGING: AssemblyBuilderData.CheckTypeNameConflict( " + strTypeName + " )");
-            for (int i = 0; i < m_moduleBuilderList.Count; i++)
-            {
+            for (int i = 0; i < m_moduleBuilderList.Count; i++) {
                 ModuleBuilder curModule = m_moduleBuilderList[i];
                 curModule.CheckTypeNameConflict(strTypeName, enclosingType);
             }
@@ -165,8 +152,7 @@ namespace System.Reflection.Emit
     * AssemblyBuilder & ModuleBuilder.
     *
     **********************************************/
-    internal class ResWriterData
-    {
+    internal class ResWriterData {
         internal String m_strName;
         internal String m_strFileName;
         internal String m_strFullFileName;
@@ -175,10 +161,8 @@ namespace System.Reflection.Emit
         internal ResourceAttributes m_attribute;
     }
 
-    internal class NativeVersionInfo
-    {
-        internal NativeVersionInfo()
-        {
+    internal class NativeVersionInfo {
+        internal NativeVersionInfo() {
             m_strDescription = null;
             m_strCompany = null;
             m_strTitle = null;

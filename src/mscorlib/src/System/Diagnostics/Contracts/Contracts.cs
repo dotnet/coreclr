@@ -42,8 +42,7 @@ using System.Runtime.ConstrainedExecution;
 using System.Security;
 #endif
 
-namespace System.Diagnostics.Contracts
-{
+namespace System.Diagnostics.Contracts {
     #region Attributes
 
     /// <summary>
@@ -51,8 +50,7 @@ namespace System.Diagnostics.Contracts
     /// </summary>
     [Conditional("CONTRACTS_FULL")]
     [AttributeUsage(AttributeTargets.Constructor | AttributeTargets.Method | AttributeTargets.Property | AttributeTargets.Event | AttributeTargets.Delegate | AttributeTargets.Class | AttributeTargets.Parameter, AllowMultiple = false, Inherited = true)]
-    public sealed class PureAttribute : Attribute
-    {
+    public sealed class PureAttribute : Attribute {
     }
 
     /// <summary>
@@ -61,17 +59,14 @@ namespace System.Diagnostics.Contracts
     [Conditional("CONTRACTS_FULL")]
     [Conditional("DEBUG")]
     [AttributeUsage(AttributeTargets.Class | AttributeTargets.Interface | AttributeTargets.Delegate, AllowMultiple = false, Inherited = false)]
-    public sealed class ContractClassAttribute : Attribute
-    {
+    public sealed class ContractClassAttribute : Attribute {
         private Type _typeWithContracts;
 
-        public ContractClassAttribute(Type typeContainingContracts)
-        {
+        public ContractClassAttribute(Type typeContainingContracts) {
             _typeWithContracts = typeContainingContracts;
         }
 
-        public Type TypeContainingContracts
-        {
+        public Type TypeContainingContracts {
             get { return _typeWithContracts; }
         }
     }
@@ -81,17 +76,14 @@ namespace System.Diagnostics.Contracts
     /// </summary>
     [Conditional("CONTRACTS_FULL")]
     [AttributeUsage(AttributeTargets.Class, AllowMultiple = false, Inherited = false)]
-    public sealed class ContractClassForAttribute : Attribute
-    {
+    public sealed class ContractClassForAttribute : Attribute {
         private Type _typeIAmAContractFor;
 
-        public ContractClassForAttribute(Type typeContractsAreFor)
-        {
+        public ContractClassForAttribute(Type typeContractsAreFor) {
             _typeIAmAContractFor = typeContractsAreFor;
         }
 
-        public Type TypeContractsAreFor
-        {
+        public Type TypeContractsAreFor {
             get { return _typeIAmAContractFor; }
         }
     }
@@ -106,16 +98,14 @@ namespace System.Diagnostics.Contracts
     /// </summary>
     [Conditional("CONTRACTS_FULL")]
     [AttributeUsage(AttributeTargets.Method, AllowMultiple = false, Inherited = false)]
-    public sealed class ContractInvariantMethodAttribute : Attribute
-    {
+    public sealed class ContractInvariantMethodAttribute : Attribute {
     }
 
     /// <summary>
     /// Attribute that specifies that an assembly is a reference assembly with contracts.
     /// </summary>
     [AttributeUsage(AttributeTargets.Assembly)]
-    public sealed class ContractReferenceAssemblyAttribute : Attribute
-    {
+    public sealed class ContractReferenceAssemblyAttribute : Attribute {
     }
 
     /// <summary>
@@ -123,8 +113,7 @@ namespace System.Diagnostics.Contracts
     /// </summary>
     [Conditional("CONTRACTS_FULL")]
     [AttributeUsage(AttributeTargets.Method | AttributeTargets.Property, AllowMultiple = false, Inherited = true)]
-    public sealed class ContractRuntimeIgnoredAttribute : Attribute
-    {
+    public sealed class ContractRuntimeIgnoredAttribute : Attribute {
     }
 
     /*
@@ -171,14 +160,12 @@ namespace System.Diagnostics.Contracts
     /// </remarks>
     [Conditional("CONTRACTS_FULL")]
     [AttributeUsage(AttributeTargets.Assembly | AttributeTargets.Class | AttributeTargets.Struct | AttributeTargets.Method | AttributeTargets.Constructor | AttributeTargets.Property)]
-    public sealed class ContractVerificationAttribute : Attribute
-    {
+    public sealed class ContractVerificationAttribute : Attribute {
         private bool _value;
 
         public ContractVerificationAttribute(bool value) { _value = value; }
 
-        public bool Value
-        {
+        public bool Value {
             get { return _value; }
         }
     }
@@ -190,17 +177,14 @@ namespace System.Diagnostics.Contracts
     [Conditional("CONTRACTS_FULL")]
     [AttributeUsage(AttributeTargets.Field)]
     [SuppressMessage("Microsoft.Design", "CA1019:DefineAccessorsForAttributeArguments", Justification = "Thank you very much, but we like the names we've defined for the accessors")]
-    public sealed class ContractPublicPropertyNameAttribute : Attribute
-    {
+    public sealed class ContractPublicPropertyNameAttribute : Attribute {
         private String _publicName;
 
-        public ContractPublicPropertyNameAttribute(String name)
-        {
+        public ContractPublicPropertyNameAttribute(String name) {
             _publicName = name;
         }
 
-        public String Name
-        {
+        public String Name {
             get { return _publicName; }
         }
     }
@@ -211,8 +195,7 @@ namespace System.Diagnostics.Contracts
     /// </summary>
     [AttributeUsage(AttributeTargets.Method, AllowMultiple = false)]
     [Conditional("CONTRACTS_FULL")]
-    public sealed class ContractArgumentValidatorAttribute : Attribute
-    {
+    public sealed class ContractArgumentValidatorAttribute : Attribute {
     }
 
     /// <summary>
@@ -220,8 +203,7 @@ namespace System.Diagnostics.Contracts
     /// </summary>
     [AttributeUsage(AttributeTargets.Method, AllowMultiple = false)]
     [Conditional("CONTRACTS_FULL")]
-    public sealed class ContractAbbreviatorAttribute : Attribute
-    {
+    public sealed class ContractAbbreviatorAttribute : Attribute {
     }
 
     /// <summary>
@@ -229,44 +211,37 @@ namespace System.Diagnostics.Contracts
     /// </summary>
     [AttributeUsage(AttributeTargets.All, AllowMultiple = true, Inherited = false)]
     [Conditional("CONTRACTS_FULL")]
-    public sealed class ContractOptionAttribute : Attribute
-    {
+    public sealed class ContractOptionAttribute : Attribute {
         private String _category;
         private String _setting;
         private bool _enabled;
         private String _value;
 
-        public ContractOptionAttribute(String category, String setting, bool enabled)
-        {
+        public ContractOptionAttribute(String category, String setting, bool enabled) {
             _category = category;
             _setting = setting;
             _enabled = enabled;
         }
 
-        public ContractOptionAttribute(String category, String setting, String value)
-        {
+        public ContractOptionAttribute(String category, String setting, String value) {
             _category = category;
             _setting = setting;
             _value = value;
         }
 
-        public String Category
-        {
+        public String Category {
             get { return _category; }
         }
 
-        public String Setting
-        {
+        public String Setting {
             get { return _setting; }
         }
 
-        public bool Enabled
-        {
+        public bool Enabled {
             get { return _enabled; }
         }
 
-        public String Value
-        {
+        public String Value {
             get { return _value; }
         }
     }
@@ -283,8 +258,7 @@ namespace System.Diagnostics.Contracts
     /// symbol CONTRACTS_PRECONDITIONS will include all preconditions expressed using Contract.Requires in your 
     /// build.  The symbol CONTRACTS_FULL will include postconditions and object invariants, and requires the binary rewriter.
     /// </remarks>
-    public static partial class Contract
-    {
+    public static partial class Contract {
         #region User Methods
 
         #region Assume
@@ -301,10 +275,8 @@ namespace System.Diagnostics.Contracts
         [Conditional("CONTRACTS_FULL")]
 #if FEATURE_RELIABILITY_CONTRACTS
 #endif
-        public static void Assume(bool condition)
-        {
-            if (!condition)
-            {
+        public static void Assume(bool condition) {
+            if (!condition) {
                 ReportFailure(ContractFailureKind.Assume, null, null, null);
             }
         }
@@ -322,10 +294,8 @@ namespace System.Diagnostics.Contracts
         [Conditional("CONTRACTS_FULL")]
 #if FEATURE_RELIABILITY_CONTRACTS
 #endif
-        public static void Assume(bool condition, String userMessage)
-        {
-            if (!condition)
-            {
+        public static void Assume(bool condition, String userMessage) {
+            if (!condition) {
                 ReportFailure(ContractFailureKind.Assume, userMessage, null, null);
             }
         }
@@ -343,8 +313,7 @@ namespace System.Diagnostics.Contracts
         [Conditional("CONTRACTS_FULL")]
 #if FEATURE_RELIABILITY_CONTRACTS
 #endif
-        public static void Assert(bool condition)
-        {
+        public static void Assert(bool condition) {
             if (!condition)
                 ReportFailure(ContractFailureKind.Assert, null, null, null);
         }
@@ -359,8 +328,7 @@ namespace System.Diagnostics.Contracts
         [Conditional("CONTRACTS_FULL")]
 #if FEATURE_RELIABILITY_CONTRACTS
 #endif
-        public static void Assert(bool condition, String userMessage)
-        {
+        public static void Assert(bool condition, String userMessage) {
             if (!condition)
                 ReportFailure(ContractFailureKind.Assert, userMessage, null, null);
         }
@@ -382,8 +350,7 @@ namespace System.Diagnostics.Contracts
         [Conditional("CONTRACTS_FULL")]
 #if FEATURE_RELIABILITY_CONTRACTS
 #endif
-        public static void Requires(bool condition)
-        {
+        public static void Requires(bool condition) {
             AssertMustUseRewriter(ContractFailureKind.Precondition, "Requires");
         }
 
@@ -401,8 +368,7 @@ namespace System.Diagnostics.Contracts
         [Conditional("CONTRACTS_FULL")]
 #if FEATURE_RELIABILITY_CONTRACTS
 #endif
-        public static void Requires(bool condition, String userMessage)
-        {
+        public static void Requires(bool condition, String userMessage) {
             AssertMustUseRewriter(ContractFailureKind.Precondition, "Requires");
         }
 
@@ -420,8 +386,7 @@ namespace System.Diagnostics.Contracts
         [Pure]
 #if FEATURE_RELIABILITY_CONTRACTS
 #endif
-        public static void Requires<TException>(bool condition) where TException : Exception
-        {
+        public static void Requires<TException>(bool condition) where TException : Exception {
             AssertMustUseRewriter(ContractFailureKind.Precondition, "Requires<TException>");
         }
 
@@ -441,8 +406,7 @@ namespace System.Diagnostics.Contracts
         [Pure]
 #if FEATURE_RELIABILITY_CONTRACTS
 #endif
-        public static void Requires<TException>(bool condition, String userMessage) where TException : Exception
-        {
+        public static void Requires<TException>(bool condition, String userMessage) where TException : Exception {
             AssertMustUseRewriter(ContractFailureKind.Precondition, "Requires<TException>");
         }
 
@@ -463,8 +427,7 @@ namespace System.Diagnostics.Contracts
         [Conditional("CONTRACTS_FULL")]
 #if FEATURE_RELIABILITY_CONTRACTS
 #endif
-        public static void Ensures(bool condition)
-        {
+        public static void Ensures(bool condition) {
             AssertMustUseRewriter(ContractFailureKind.Postcondition, "Ensures");
         }
 
@@ -482,8 +445,7 @@ namespace System.Diagnostics.Contracts
         [Conditional("CONTRACTS_FULL")]
 #if FEATURE_RELIABILITY_CONTRACTS
 #endif
-        public static void Ensures(bool condition, String userMessage)
-        {
+        public static void Ensures(bool condition, String userMessage) {
             AssertMustUseRewriter(ContractFailureKind.Postcondition, "Ensures");
         }
 
@@ -502,8 +464,7 @@ namespace System.Diagnostics.Contracts
         [SuppressMessage("Microsoft.Design", "CA1004:GenericMethodsShouldProvideTypeParameter", Justification = "Exception type used in tools.")]
 #if FEATURE_RELIABILITY_CONTRACTS
 #endif
-        public static void EnsuresOnThrow<TException>(bool condition) where TException : Exception
-        {
+        public static void EnsuresOnThrow<TException>(bool condition) where TException : Exception {
             AssertMustUseRewriter(ContractFailureKind.PostconditionOnException, "EnsuresOnThrow");
         }
 
@@ -523,8 +484,7 @@ namespace System.Diagnostics.Contracts
         [SuppressMessage("Microsoft.Design", "CA1004:GenericMethodsShouldProvideTypeParameter", Justification = "Exception type used in tools.")]
 #if FEATURE_RELIABILITY_CONTRACTS
 #endif
-        public static void EnsuresOnThrow<TException>(bool condition, String userMessage) where TException : Exception
-        {
+        public static void EnsuresOnThrow<TException>(bool condition, String userMessage) where TException : Exception {
             AssertMustUseRewriter(ContractFailureKind.PostconditionOnException, "EnsuresOnThrow");
         }
 
@@ -593,8 +553,7 @@ namespace System.Diagnostics.Contracts
         [Conditional("CONTRACTS_FULL")]
 #if FEATURE_RELIABILITY_CONTRACTS
 #endif
-        public static void Invariant(bool condition)
-        {
+        public static void Invariant(bool condition) {
             AssertMustUseRewriter(ContractFailureKind.Invariant, "Invariant");
         }
 
@@ -612,8 +571,7 @@ namespace System.Diagnostics.Contracts
         [Conditional("CONTRACTS_FULL")]
 #if FEATURE_RELIABILITY_CONTRACTS
 #endif
-        public static void Invariant(bool condition, String userMessage)
-        {
+        public static void Invariant(bool condition, String userMessage) {
             AssertMustUseRewriter(ContractFailureKind.Invariant, "Invariant");
         }
 
@@ -636,8 +594,7 @@ namespace System.Diagnostics.Contracts
         [Pure]
 #if FEATURE_RELIABILITY_CONTRACTS
 #endif
-        public static bool ForAll(int fromInclusive, int toExclusive, Predicate<int> predicate)
-        {
+        public static bool ForAll(int fromInclusive, int toExclusive, Predicate<int> predicate) {
             if (fromInclusive > toExclusive)
 #if CORECLR
                 throw new ArgumentException(SR.Argument_ToExclusiveLessThanFromExclusive);
@@ -666,8 +623,7 @@ namespace System.Diagnostics.Contracts
         [Pure]
 #if FEATURE_RELIABILITY_CONTRACTS
 #endif
-        public static bool ForAll<T>(IEnumerable<T> collection, Predicate<T> predicate)
-        {
+        public static bool ForAll<T>(IEnumerable<T> collection, Predicate<T> predicate) {
             if (collection == null)
                 throw new ArgumentNullException(nameof(collection));
             if (predicate == null)
@@ -696,8 +652,7 @@ namespace System.Diagnostics.Contracts
         [Pure]
 #if FEATURE_RELIABILITY_CONTRACTS
 #endif
-        public static bool Exists(int fromInclusive, int toExclusive, Predicate<int> predicate)
-        {
+        public static bool Exists(int fromInclusive, int toExclusive, Predicate<int> predicate) {
             if (fromInclusive > toExclusive)
 #if CORECLR
                 throw new ArgumentException(SR.Argument_ToExclusiveLessThanFromExclusive);
@@ -725,8 +680,7 @@ namespace System.Diagnostics.Contracts
         [Pure]
 #if FEATURE_RELIABILITY_CONTRACTS
 #endif
-        public static bool Exists<T>(IEnumerable<T> collection, Predicate<T> predicate)
-        {
+        public static bool Exists<T>(IEnumerable<T> collection, Predicate<T> predicate) {
             if (collection == null)
                 throw new ArgumentNullException(nameof(collection));
             if (predicate == null)
@@ -778,8 +732,7 @@ namespace System.Diagnostics.Contracts
         #endregion
     }
 
-    public enum ContractFailureKind
-    {
+    public enum ContractFailureKind {
         Precondition,
         [SuppressMessage("Microsoft.Naming", "CA1704:IdentifiersShouldBeSpelledCorrectly", MessageId = "Postcondition")]
         Postcondition,
@@ -795,11 +748,9 @@ namespace System.Diagnostics.Contracts
 // namespace to remove an ugly wart of a namespace from the Windows 8 profile.  But we still need the
 // old locations left around, so we can support rewritten .NET FX 4.0 libraries.  Consider removing
 // these from our reference assembly in a future version.
-namespace System.Diagnostics.Contracts.Internal
-{
+namespace System.Diagnostics.Contracts.Internal {
     [Obsolete("Use the ContractHelper class in the System.Runtime.CompilerServices namespace instead.")]
-    public static class ContractHelper
-    {
+    public static class ContractHelper {
         #region Rewriter Failure Hooks
 
         /// <summary>
@@ -812,8 +763,7 @@ namespace System.Diagnostics.Contracts.Internal
         [System.Diagnostics.DebuggerNonUserCode]
 #if FEATURE_RELIABILITY_CONTRACTS
 #endif
-        public static string RaiseContractFailedEvent(ContractFailureKind failureKind, String userMessage, String conditionText, Exception innerException)
-        {
+        public static string RaiseContractFailedEvent(ContractFailureKind failureKind, String userMessage, String conditionText, Exception innerException) {
             return System.Runtime.CompilerServices.ContractHelper.RaiseContractFailedEvent(failureKind, userMessage, conditionText, innerException);
         }
 
@@ -823,8 +773,7 @@ namespace System.Diagnostics.Contracts.Internal
         [System.Diagnostics.DebuggerNonUserCode]
 #if FEATURE_RELIABILITY_CONTRACTS
 #endif
-        public static void TriggerFailure(ContractFailureKind kind, String displayMessage, String userMessage, String conditionText, Exception innerException)
-        {
+        public static void TriggerFailure(ContractFailureKind kind, String displayMessage, String userMessage, String conditionText, Exception innerException) {
             System.Runtime.CompilerServices.ContractHelper.TriggerFailure(kind, displayMessage, userMessage, conditionText, innerException);
         }
 
@@ -833,10 +782,8 @@ namespace System.Diagnostics.Contracts.Internal
 }  // namespace System.Diagnostics.Contracts.Internal
 
 
-namespace System.Runtime.CompilerServices
-{
-    public static partial class ContractHelper
-    {
+namespace System.Runtime.CompilerServices {
+    public static partial class ContractHelper {
         #region Rewriter Failure Hooks
 
         /// <summary>
@@ -849,8 +796,7 @@ namespace System.Runtime.CompilerServices
         [System.Diagnostics.DebuggerNonUserCode]
 #if FEATURE_RELIABILITY_CONTRACTS
 #endif
-        public static string RaiseContractFailedEvent(ContractFailureKind failureKind, String userMessage, String conditionText, Exception innerException)
-        {
+        public static string RaiseContractFailedEvent(ContractFailureKind failureKind, String userMessage, String conditionText, Exception innerException) {
             var resultFailureMessage = "Contract failed"; // default in case implementation does not assign anything.
             RaiseContractFailedEventImplementation(failureKind, userMessage, conditionText, innerException, ref resultFailureMessage);
             return resultFailureMessage;
@@ -863,8 +809,7 @@ namespace System.Runtime.CompilerServices
         [System.Diagnostics.DebuggerNonUserCode]
 #if FEATURE_RELIABILITY_CONTRACTS
 #endif
-        public static void TriggerFailure(ContractFailureKind kind, String displayMessage, String userMessage, String conditionText, Exception innerException)
-        {
+        public static void TriggerFailure(ContractFailureKind kind, String displayMessage, String userMessage, String conditionText, Exception innerException) {
             TriggerFailureImplementation(kind, displayMessage, userMessage, conditionText, innerException);
         }
 

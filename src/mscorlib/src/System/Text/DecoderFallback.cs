@@ -11,11 +11,9 @@ using System.Globalization;
 using System.Diagnostics;
 using System.Diagnostics.Contracts;
 
-namespace System.Text
-{
+namespace System.Text {
     [Serializable]
-    public abstract class DecoderFallback
-    {
+    public abstract class DecoderFallback {
         internal bool bIsMicrosoftBestFitFallback = false;
 
         private static volatile DecoderFallback replacementFallback; // Default fallback, uses no best fit & "?"
@@ -23,12 +21,9 @@ namespace System.Text
 
         // Private object for locking instead of locking on a internal type for SQL reliability work.
         private static Object s_InternalSyncObject;
-        private static Object InternalSyncObject
-        {
-            get
-            {
-                if (s_InternalSyncObject == null)
-                {
+        private static Object InternalSyncObject {
+            get {
+                if (s_InternalSyncObject == null) {
                     Object o = new Object();
                     Interlocked.CompareExchange<Object>(ref s_InternalSyncObject, o, null);
                 }
@@ -38,10 +33,8 @@ namespace System.Text
 
         // Get each of our generic fallbacks.
 
-        public static DecoderFallback ReplacementFallback
-        {
-            get
-            {
+        public static DecoderFallback ReplacementFallback {
+            get {
                 if (replacementFallback == null)
                     lock (InternalSyncObject)
                         if (replacementFallback == null)
@@ -52,10 +45,8 @@ namespace System.Text
         }
 
 
-        public static DecoderFallback ExceptionFallback
-        {
-            get
-            {
+        public static DecoderFallback ExceptionFallback {
+            get {
                 if (exceptionFallback == null)
                     lock (InternalSyncObject)
                         if (exceptionFallback == null)
@@ -79,8 +70,7 @@ namespace System.Text
     }
 
 
-    public abstract class DecoderFallbackBuffer
-    {
+    public abstract class DecoderFallbackBuffer {
         // Most implimentations will probably need an implimenation-specific constructor
 
         // internal methods that cannot be overriden that let us do our fallback thing
@@ -102,8 +92,7 @@ namespace System.Text
 
         // Clear the buffer
 
-        public virtual void Reset()
-        {
+        public virtual void Reset() {
             while (GetNextChar() != (char)0) ;
         }
 
@@ -113,16 +102,14 @@ namespace System.Text
         internal unsafe char* charEnd;
 
         // Internal Reset
-        internal unsafe void InternalReset()
-        {
+        internal unsafe void InternalReset() {
             byteStart = null;
             Reset();
         }
 
         // Set the above values
         // This can't be part of the constructor because DecoderFallbacks would have to know how to impliment these.
-        internal unsafe void InternalInitialize(byte* byteStart, char* charEnd)
-        {
+        internal unsafe void InternalInitialize(byte* byteStart, char* charEnd) {
             this.byteStart = byteStart;
             this.charEnd = charEnd;
         }
@@ -135,8 +122,7 @@ namespace System.Text
         // Right now this has both bytes and bytes[], since we might have extra bytes, hence the
         // array, and we might need the index, hence the byte*
         // Don't touch ref chars unless we succeed
-        internal unsafe virtual bool InternalFallback(byte[] bytes, byte* pBytes, ref char* chars)
-        {
+        internal unsafe virtual bool InternalFallback(byte[] bytes, byte* pBytes, ref char* chars) {
             // Copy bytes to array (slow, but right now that's what we get to do.
             //  byte[] bytesUnknown = new byte[count];
             //            for (int i = 0; i < count; i++)
@@ -145,26 +131,21 @@ namespace System.Text
             Debug.Assert(byteStart != null, "[DecoderFallback.InternalFallback]Used InternalFallback without calling InternalInitialize");
 
             // See if there's a fallback character and we have an output buffer then copy our string.
-            if (this.Fallback(bytes, (int)(pBytes - byteStart - bytes.Length)))
-            {
+            if (this.Fallback(bytes, (int)(pBytes - byteStart - bytes.Length))) {
                 // Copy the chars to our output
                 char ch;
                 char* charTemp = chars;
                 bool bHighSurrogate = false;
-                while ((ch = GetNextChar()) != 0)
-                {
+                while ((ch = GetNextChar()) != 0) {
                     // Make sure no mixed up surrogates
-                    if (Char.IsSurrogate(ch))
-                    {
-                        if (Char.IsHighSurrogate(ch))
-                        {
+                    if (Char.IsSurrogate(ch)) {
+                        if (Char.IsHighSurrogate(ch)) {
                             // High Surrogate
                             if (bHighSurrogate)
                                 throw new ArgumentException(SR.Argument_InvalidCharSequenceNoIndex);
                             bHighSurrogate = true;
                         }
-                        else
-                        {
+                        else {
                             // Low surrogate
                             if (bHighSurrogate == false)
                                 throw new ArgumentException(SR.Argument_InvalidCharSequenceNoIndex);
@@ -172,8 +153,7 @@ namespace System.Text
                         }
                     }
 
-                    if (charTemp >= charEnd)
-                    {
+                    if (charTemp >= charEnd) {
                         // No buffer space
                         return false;
                     }
@@ -205,26 +185,21 @@ namespace System.Text
             Debug.Assert(byteStart != null, "[DecoderFallback.InternalFallback]Used InternalFallback without calling InternalInitialize");
 
             // See if there's a fallback character and we have an output buffer then copy our string.
-            if (this.Fallback(bytes, (int)(pBytes - byteStart - bytes.Length)))
-            {
+            if (this.Fallback(bytes, (int)(pBytes - byteStart - bytes.Length))) {
                 int count = 0;
 
                 char ch;
                 bool bHighSurrogate = false;
-                while ((ch = GetNextChar()) != 0)
-                {
+                while ((ch = GetNextChar()) != 0) {
                     // Make sure no mixed up surrogates
-                    if (Char.IsSurrogate(ch))
-                    {
-                        if (Char.IsHighSurrogate(ch))
-                        {
+                    if (Char.IsSurrogate(ch)) {
+                        if (Char.IsHighSurrogate(ch)) {
                             // High Surrogate
                             if (bHighSurrogate)
                                 throw new ArgumentException(SR.Argument_InvalidCharSequenceNoIndex);
                             bHighSurrogate = true;
                         }
-                        else
-                        {
+                        else {
                             // Low surrogate
                             if (bHighSurrogate == false)
                                 throw new ArgumentException(SR.Argument_InvalidCharSequenceNoIndex);
@@ -247,13 +222,11 @@ namespace System.Text
         }
 
         // private helper methods
-        internal void ThrowLastBytesRecursive(byte[] bytesUnknown)
-        {
+        internal void ThrowLastBytesRecursive(byte[] bytesUnknown) {
             // Create a string representation of our bytes.
             StringBuilder strBytes = new StringBuilder(bytesUnknown.Length * 3);
             int i;
-            for (i = 0; i < bytesUnknown.Length && i < 20; i++)
-            {
+            for (i = 0; i < bytesUnknown.Length && i < 20; i++) {
                 if (strBytes.Length > 0)
                     strBytes.Append(" ");
                 strBytes.Append(String.Format(CultureInfo.InvariantCulture, "\\x{0:X2}", bytesUnknown[i]));

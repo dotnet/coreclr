@@ -23,14 +23,11 @@ using System.Globalization;
 using System.Diagnostics;
 using System.Diagnostics.Contracts;
 
-namespace System.Reflection.Emit
-{
-    public class CustomAttributeBuilder
-    {
+namespace System.Reflection.Emit {
+    public class CustomAttributeBuilder {
         // public constructor to form the custom attribute with constructor and constructor
         // parameters.
-        public CustomAttributeBuilder(ConstructorInfo con, Object[] constructorArgs)
-        {
+        public CustomAttributeBuilder(ConstructorInfo con, Object[] constructorArgs) {
             InitCustomAttributeBuilder(con, constructorArgs,
                                        new PropertyInfo[] { }, new Object[] { },
                                        new FieldInfo[] { }, new Object[] { });
@@ -39,8 +36,7 @@ namespace System.Reflection.Emit
         // public constructor to form the custom attribute with constructor, constructor
         // parameters and named properties.
         public CustomAttributeBuilder(ConstructorInfo con, Object[] constructorArgs,
-                                      PropertyInfo[] namedProperties, Object[] propertyValues)
-        {
+                                      PropertyInfo[] namedProperties, Object[] propertyValues) {
             InitCustomAttributeBuilder(con, constructorArgs, namedProperties,
                                        propertyValues, new FieldInfo[] { }, new Object[] { });
         }
@@ -48,8 +44,7 @@ namespace System.Reflection.Emit
         // public constructor to form the custom attribute with constructor and constructor
         // parameters.
         public CustomAttributeBuilder(ConstructorInfo con, Object[] constructorArgs,
-                                      FieldInfo[] namedFields, Object[] fieldValues)
-        {
+                                      FieldInfo[] namedFields, Object[] fieldValues) {
             InitCustomAttributeBuilder(con, constructorArgs, new PropertyInfo[] { },
                                        new Object[] { }, namedFields, fieldValues);
         }
@@ -58,27 +53,21 @@ namespace System.Reflection.Emit
         // parameters.
         public CustomAttributeBuilder(ConstructorInfo con, Object[] constructorArgs,
                                       PropertyInfo[] namedProperties, Object[] propertyValues,
-                                      FieldInfo[] namedFields, Object[] fieldValues)
-        {
+                                      FieldInfo[] namedFields, Object[] fieldValues) {
             InitCustomAttributeBuilder(con, constructorArgs, namedProperties,
                                        propertyValues, namedFields, fieldValues);
         }
 
         // Check that a type is suitable for use in a custom attribute.
-        private bool ValidateType(Type t)
-        {
-            if (t.IsPrimitive)
-            {
+        private bool ValidateType(Type t) {
+            if (t.IsPrimitive) {
                 return t != typeof(IntPtr) && t != typeof(UIntPtr);
             }
-            if (t == typeof(String) || t == typeof(Type))
-            {
+            if (t == typeof(String) || t == typeof(Type)) {
                 return true;
             }
-            if (t.IsEnum)
-            {
-                switch (Type.GetTypeCode(Enum.GetUnderlyingType(t)))
-                {
+            if (t.IsEnum) {
+                switch (Type.GetTypeCode(Enum.GetUnderlyingType(t))) {
                     case TypeCode.SByte:
                     case TypeCode.Byte:
                     case TypeCode.Int16:
@@ -92,8 +81,7 @@ namespace System.Reflection.Emit
                         return false;
                 }
             }
-            if (t.IsArray)
-            {
+            if (t.IsArray) {
                 if (t.GetArrayRank() != 1)
                     return false;
                 return ValidateType(t.GetElementType());
@@ -103,8 +91,7 @@ namespace System.Reflection.Emit
 
         internal void InitCustomAttributeBuilder(ConstructorInfo con, Object[] constructorArgs,
                                                  PropertyInfo[] namedProperties, Object[] propertyValues,
-                                                 FieldInfo[] namedFields, Object[] fieldValues)
-        {
+                                                 FieldInfo[] namedFields, Object[] fieldValues) {
             if (con == null)
                 throw new ArgumentNullException(nameof(con));
             if (constructorArgs == null)
@@ -151,18 +138,15 @@ namespace System.Reflection.Emit
                     throw new ArgumentException(SR.Argument_BadTypeInCustomAttribute);
 
             // Now verify that the types of the actual parameters are compatible with the types of the formal parameters.
-            for (i = 0; i < paramTypes.Length; i++)
-            {
+            for (i = 0; i < paramTypes.Length; i++) {
                 object constructorArg = constructorArgs[i];
-                if (constructorArg == null)
-                {
-                    if (paramTypes[i].IsValueType)
-                    {
-                        throw new ArgumentNullException($"{nameof(constructorArgs)}[{i}]");
+                if (constructorArg == null) {
+                    if (paramTypes[i].IsValueType) {
+                        throw new ArgumentNullException($" {nameof(constructorArgs)}[ {i}]");
                     }
                     continue;
                 }
-                VerifyTypeAndPassedObjectType(paramTypes[i], constructorArg.GetType(), $"{nameof(constructorArgs)}[{i}]");
+                VerifyTypeAndPassedObjectType(paramTypes[i], constructorArg.GetType(), $" {nameof(constructorArgs)}[ {i}]");
             }
 
             // Allocate a memory stream to represent the CA blob in the metadata and a binary writer to help format it.
@@ -180,8 +164,7 @@ namespace System.Reflection.Emit
             writer.Write((ushort)(namedProperties.Length + namedFields.Length));
 
             // Emit all the property sets.
-            for (i = 0; i < namedProperties.Length; i++)
-            {
+            for (i = 0; i < namedProperties.Length; i++) {
                 // Validate the property.
                 PropertyInfo property = namedProperties[i];
                 if (property == null)
@@ -204,13 +187,11 @@ namespace System.Reflection.Emit
                 // Property has to be from the same class or base class as ConstructorInfo.
                 if (property.DeclaringType != con.DeclaringType
                     && (!(con.DeclaringType is TypeBuilderInstantiation))
-                    && !con.DeclaringType.IsSubclassOf(property.DeclaringType))
-                {
+                    && !con.DeclaringType.IsSubclassOf(property.DeclaringType)) {
                     // Might have failed check because one type is a XXXBuilder
                     // and the other is not. Deal with these special cases
                     // separately.
-                    if (!TypeBuilder.IsTypeEqual(property.DeclaringType, con.DeclaringType))
-                    {
+                    if (!TypeBuilder.IsTypeEqual(property.DeclaringType, con.DeclaringType)) {
                         // IsSubclassOf is overloaded to do the right thing if
                         // the constructor is a TypeBuilder, but we still need
                         // to deal with the case where the property's declaring
@@ -223,9 +204,8 @@ namespace System.Reflection.Emit
 
                 // Make sure the property's type can take the given value.
                 // Note that there will be no coersion.
-                if (propertyValue != null)
-                {
-                    VerifyTypeAndPassedObjectType(propType, propertyValue.GetType(), $"{nameof(propertyValues)}[{i}]");
+                if (propertyValue != null) {
+                    VerifyTypeAndPassedObjectType(propType, propertyValue.GetType(), $" {nameof(propertyValues)}[ {i}]");
                 }
 
                 // First a byte indicating that this is a property.
@@ -238,8 +218,7 @@ namespace System.Reflection.Emit
             }
 
             // Emit all the field sets.
-            for (i = 0; i < namedFields.Length; i++)
-            {
+            for (i = 0; i < namedFields.Length; i++) {
                 // Validate the field.
                 FieldInfo namedField = namedFields[i];
                 if (namedField == null)
@@ -258,13 +237,11 @@ namespace System.Reflection.Emit
                 // Field has to be from the same class or base class as ConstructorInfo.
                 if (namedField.DeclaringType != con.DeclaringType
                     && (!(con.DeclaringType is TypeBuilderInstantiation))
-                    && !con.DeclaringType.IsSubclassOf(namedField.DeclaringType))
-                {
+                    && !con.DeclaringType.IsSubclassOf(namedField.DeclaringType)) {
                     // Might have failed check because one type is a XXXBuilder
                     // and the other is not. Deal with these special cases
                     // separately.
-                    if (!TypeBuilder.IsTypeEqual(namedField.DeclaringType, con.DeclaringType))
-                    {
+                    if (!TypeBuilder.IsTypeEqual(namedField.DeclaringType, con.DeclaringType)) {
                         // IsSubclassOf is overloaded to do the right thing if
                         // the constructor is a TypeBuilder, but we still need
                         // to deal with the case where the field's declaring
@@ -277,9 +254,8 @@ namespace System.Reflection.Emit
 
                 // Make sure the field's type can take the given value.
                 // Note that there will be no coersion.
-                if (fieldValue != null)
-                {
-                    VerifyTypeAndPassedObjectType(fldType, fieldValue.GetType(), $"{nameof(fieldValues)}[{i}]");
+                if (fieldValue != null) {
+                    VerifyTypeAndPassedObjectType(fldType, fieldValue.GetType(), $" {nameof(fieldValues)}[ {i}]");
                 }
 
                 // First a byte indicating that this is a field.
@@ -295,24 +271,18 @@ namespace System.Reflection.Emit
             m_blob = ((MemoryStream)writer.BaseStream).ToArray();
         }
 
-        private static void VerifyTypeAndPassedObjectType(Type type, Type passedType, string paramName)
-        {
-            if (type != typeof(object) && Type.GetTypeCode(passedType) != Type.GetTypeCode(type))
-            {
+        private static void VerifyTypeAndPassedObjectType(Type type, Type passedType, string paramName) {
+            if (type != typeof(object) && Type.GetTypeCode(passedType) != Type.GetTypeCode(type)) {
                 throw new ArgumentException(SR.Argument_ConstantDoesntMatch);
             }
-            if (passedType == typeof(IntPtr) || passedType == typeof(UIntPtr))
-            {
+            if (passedType == typeof(IntPtr) || passedType == typeof(UIntPtr)) {
                 throw new ArgumentException(SR.Argument_BadParameterTypeForCAB, paramName);
             }
         }
 
-        private void EmitType(BinaryWriter writer, Type type)
-        {
-            if (type.IsPrimitive)
-            {
-                switch (Type.GetTypeCode(type))
-                {
+        private void EmitType(BinaryWriter writer, Type type) {
+            if (type.IsPrimitive) {
+                switch (Type.GetTypeCode(type)) {
                     case TypeCode.SByte:
                         writer.Write((byte)CustomAttributeEncoding.SByte);
                         break;
@@ -354,47 +324,38 @@ namespace System.Reflection.Emit
                         break;
                 }
             }
-            else if (type.IsEnum)
-            {
+            else if (type.IsEnum) {
                 writer.Write((byte)CustomAttributeEncoding.Enum);
                 EmitString(writer, type.AssemblyQualifiedName);
             }
-            else if (type == typeof(String))
-            {
+            else if (type == typeof(String)) {
                 writer.Write((byte)CustomAttributeEncoding.String);
             }
-            else if (type == typeof(Type))
-            {
+            else if (type == typeof(Type)) {
                 writer.Write((byte)CustomAttributeEncoding.Type);
             }
-            else if (type.IsArray)
-            {
+            else if (type.IsArray) {
                 writer.Write((byte)CustomAttributeEncoding.Array);
                 EmitType(writer, type.GetElementType());
             }
-            else
-            {
+            else {
                 // Tagged object case.
                 writer.Write((byte)CustomAttributeEncoding.Object);
             }
         }
 
-        private void EmitString(BinaryWriter writer, String str)
-        {
+        private void EmitString(BinaryWriter writer, String str) {
             // Strings are emitted with a length prefix in a compressed format (1, 2 or 4 bytes) as used internally by metadata.
             byte[] utf8Str = Encoding.UTF8.GetBytes(str);
             uint length = (uint)utf8Str.Length;
-            if (length <= 0x7f)
-            {
+            if (length <= 0x7f) {
                 writer.Write((byte)length);
             }
-            else if (length <= 0x3fff)
-            {
+            else if (length <= 0x3fff) {
                 writer.Write((byte)((length >> 8) | 0x80));
                 writer.Write((byte)(length & 0xff));
             }
-            else
-            {
+            else {
                 writer.Write((byte)((length >> 24) | 0xc0));
                 writer.Write((byte)((length >> 16) & 0xff));
                 writer.Write((byte)((length >> 8) & 0xff));
@@ -403,12 +364,9 @@ namespace System.Reflection.Emit
             writer.Write(utf8Str);
         }
 
-        private void EmitValue(BinaryWriter writer, Type type, Object value)
-        {
-            if (type.IsEnum)
-            {
-                switch (Type.GetTypeCode(Enum.GetUnderlyingType(type)))
-                {
+        private void EmitValue(BinaryWriter writer, Type type, Object value) {
+            if (type.IsEnum) {
+                switch (Type.GetTypeCode(Enum.GetUnderlyingType(type))) {
                     case TypeCode.SByte:
                         writer.Write((sbyte)value);
                         break;
@@ -438,31 +396,26 @@ namespace System.Reflection.Emit
                         break;
                 }
             }
-            else if (type == typeof(String))
-            {
+            else if (type == typeof(String)) {
                 if (value == null)
                     writer.Write((byte)0xff);
                 else
                     EmitString(writer, (String)value);
             }
-            else if (type == typeof(Type))
-            {
+            else if (type == typeof(Type)) {
                 if (value == null)
                     writer.Write((byte)0xff);
-                else
-                {
+                else {
                     String typeName = TypeNameBuilder.ToString((Type)value, TypeNameBuilder.Format.AssemblyQualifiedName);
                     if (typeName == null)
                         throw new ArgumentException(SR.Format(SR.Argument_InvalidTypeForCA, value.GetType()));
                     EmitString(writer, typeName);
                 }
             }
-            else if (type.IsArray)
-            {
+            else if (type.IsArray) {
                 if (value == null)
                     writer.Write((uint)0xffffffff);
-                else
-                {
+                else {
                     Array a = (Array)value;
                     Type et = type.GetElementType();
                     writer.Write(a.Length);
@@ -470,10 +423,8 @@ namespace System.Reflection.Emit
                         EmitValue(writer, et, a.GetValue(i));
                 }
             }
-            else if (type.IsPrimitive)
-            {
-                switch (Type.GetTypeCode(type))
-                {
+            else if (type.IsPrimitive) {
+                switch (Type.GetTypeCode(type)) {
                     case TypeCode.SByte:
                         writer.Write((sbyte)value);
                         break;
@@ -515,8 +466,7 @@ namespace System.Reflection.Emit
                         break;
                 }
             }
-            else if (type == typeof(object))
-            {
+            else if (type == typeof(object)) {
                 // Tagged object case. Type instances aren't actually Type, they're some subclass (such as RuntimeType or
                 // TypeBuilder), so we need to canonicalize this case back to Type. If we have a null value we follow the convention
                 // used by C# and emit a null typed as a string (it doesn't really matter what type we pick as long as it's a
@@ -531,8 +481,7 @@ namespace System.Reflection.Emit
                 EmitType(writer, ot);
                 EmitValue(writer, ot, value);
             }
-            else
-            {
+            else {
                 string typename = "null";
 
                 if (value != null)
@@ -546,16 +495,14 @@ namespace System.Reflection.Emit
 
 
         // return the byte interpretation of the custom attribute
-        internal void CreateCustomAttribute(ModuleBuilder mod, int tkOwner)
-        {
+        internal void CreateCustomAttribute(ModuleBuilder mod, int tkOwner) {
             CreateCustomAttribute(mod, tkOwner, mod.GetConstructorToken(m_con).Token, false);
         }
 
         //*************************************************
         // Call this function with toDisk=1, after on disk module has been snapped.
         //*************************************************
-        internal void CreateCustomAttribute(ModuleBuilder mod, int tkOwner, int tkAttrib, bool toDisk)
-        {
+        internal void CreateCustomAttribute(ModuleBuilder mod, int tkOwner, int tkAttrib, bool toDisk) {
             TypeBuilder.DefineCustomAttribute(mod, tkOwner, tkAttrib, m_blob, toDisk,
                                                       typeof(System.Diagnostics.DebuggableAttribute) == m_con.DeclaringType);
         }

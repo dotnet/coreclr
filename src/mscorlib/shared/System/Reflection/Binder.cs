@@ -4,10 +4,8 @@
 
 using System.Globalization;
 
-namespace System.Reflection
-{
-    public abstract class Binder
-    {
+namespace System.Reflection {
+    public abstract class Binder {
         protected Binder() { }
         public abstract FieldInfo BindToField(BindingFlags bindingAttr, FieldInfo[] match, object value, CultureInfo culture);
         public abstract MethodBase BindToMethod(BindingFlags bindingAttr, MethodBase[] match, ref object[] args, ParameterModifier[] modifiers, CultureInfo culture, string[] names, out object state);
