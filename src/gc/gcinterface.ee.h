@@ -141,7 +141,7 @@ public:
     // Asks the EE if it wants a particular object to be finalized when unloading
     // an app domain.
     virtual
-    bool ShouldFinalizeObjectForUnload(AppDomain *pDomain, Object* obj) = 0;
+    bool ShouldFinalizeObjectForUnload(AppDomain* pDomain, Object* obj) = 0;
 };
 
 #endif // _GCINTERFACE_EE_H_

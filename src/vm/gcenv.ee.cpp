@@ -1350,7 +1350,7 @@ void GCToEEInterface::HandleFatalError(unsigned int exitCode)
     EEPOLICY_HANDLE_FATAL_ERROR(exitCode);
 }
 
-bool GCToEEInterface::ShouldFinalizeObjectForUnload(AppDomain *pDomain, Object* obj)
+bool GCToEEInterface::ShouldFinalizeObjectForUnload(AppDomain* pDomain, Object* obj)
 {
     MethodTable *pMT = obj->GetMethodTable();
     if (pMT->IsAgileAndFinalizable())

@@ -270,7 +270,7 @@ void GCToEEInterface::HandleFatalError(unsigned int exitCode)
     abort();
 }
 
-bool GCToEEInterface::ShouldFinalizeObjectForUnload(AppDomain *pDomain, Object* obj)
+bool GCToEEInterface::ShouldFinalizeObjectForUnload(AppDomain* pDomain, Object* obj)
 {
     return true;
 }
