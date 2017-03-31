@@ -1352,36 +1352,7 @@ void GCToEEInterface::HandleFatalError(unsigned int exitCode)
 
 bool GCToEEInterface::ShouldFinalizeObjectForUnload(AppDomain* pDomain, Object* obj)
 {
-    MethodTable *pMT = obj->GetMethodTable();
-    if (pMT->IsAgileAndFinalizable())
-    {
-        // If an object is both agile & finalizable, we leave it in the
-        // finalization queue during unload.  This is OK, since it's agile.
-        // Right now only threads can be this way, so if that ever changes, change
-        // the assert to just continue if not a thread.
-        _ASSERTE(pMT == g_pThreadClass);
-
-        if (pMT == g_pThreadClass)
-        {
-            // However, an unstarted thread should be finalized. It could be holding a delegate
-            // in the domain we want to unload. Once the thread has been started, its
-            // delegate is cleared so only unstarted threads are a problem.
-            Thread *pThread = ((THREADBASEREF)ObjectToOBJECTREF(obj))->GetInternal();
-            if (!pThread || !pThread->IsUnstarted())
-            {
-                // This appdomain is going to be gone soon so let us assign
-                // it the appdomain that's guaranteed to exist
-                // The object is agile and the delegate should be null so we can do it
-                obj->GetHeader()->ResetAppDomainIndexNoFailure(SystemDomain::System()->DefaultDomain()->GetIndex());
-                return false;
-            }
-        }
-        else
-        {
-            obj->GetHeader()->ResetAppDomainIndexNoFailure(SystemDomain::System()->DefaultDomain()->GetIndex());
-            return false;
-        }
-    }
-
+    // CoreCLR does not have appdomains, so this code path is dead. Other runtimes may
+    // choose to inspect the object being finalized here.
     return true;
 }

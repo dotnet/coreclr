@@ -36105,12 +36105,6 @@ CFinalize::FinalizeSegForAppDomain (AppDomain *pDomain,
             continue;
         }
 
-        // skip objects not in the unloading appdomain
-        if (obj->GetAppDomainIndex() != pDomain->GetIndex())
-        {
-            continue;
-        }
-
         // does the EE actually want us to finalize this object? (is it agile?)
         if (!GCToEEInterface::ShouldFinalizeObjectForUnload(pDomain, obj))
         {
