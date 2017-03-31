@@ -349,9 +349,9 @@ namespace System
 
         public bool IsNormalized(NormalizationForm normalizationForm)
         {
-            if (this.IsFastSort())
+            if (IsAscii())
             {
-                // If its FastSort && one of the 4 main forms, then its already normalized
+                // If its ASCII && one of the 4 main forms, then its already normalized
                 if (normalizationForm == NormalizationForm.FormC ||
                     normalizationForm == NormalizationForm.FormKC ||
                     normalizationForm == NormalizationForm.FormD ||
@@ -369,9 +369,9 @@ namespace System
 
         public String Normalize(NormalizationForm normalizationForm)
         {
-            if (this.IsAscii())
+            if (IsAscii())
             {
-                // If its FastSort && one of the 4 main forms, then its already normalized
+                // If its ASCII && one of the 4 main forms, then its already normalized
                 if (normalizationForm == NormalizationForm.FormC ||
                     normalizationForm == NormalizationForm.FormKC ||
                     normalizationForm == NormalizationForm.FormD ||
@@ -821,11 +821,7 @@ namespace System
         {
             return Convert.DefaultToType((IConvertible)this, type, provider);
         }
-
-        // Is this a string that can be compared quickly (that is it has only characters > 0x80 
-        // and not a - or '
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        internal extern bool IsFastSort();
+        
         // Is this a string that only contains characters < 0x80.
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         internal extern bool IsAscii();

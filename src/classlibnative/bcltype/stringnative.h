@@ -54,7 +54,6 @@ public:
     //
     // Search/Query Methods
     //
-    static FCDECL1(FC_BOOL_RET, IsFastSort, StringObject* pThisRef);
     static FCDECL1(FC_BOOL_RET, IsAscii, StringObject* pThisRef);
 
     static FCDECL2(INT32, FCCompareOrdinalIgnoreCaseWC, StringObject* strA, __in_z INT8 *strB);
