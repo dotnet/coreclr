@@ -384,6 +384,7 @@
     <Compile Include="$(BclSourcesRoot)\System\Random.cs" />
     <Compile Include="$(BclSourcesRoot)\System\ResId.cs" />
     <Compile Include="$(BclSourcesRoot)\System\RtType.cs" />
+    <Compile Include="$(BclSourcesRoot)\System\RuntimeArgumentHandle.cs" />
     <Compile Include="$(BclSourcesRoot)\System\RuntimeHandles.cs" />
     <Compile Include="$(BclSourcesRoot)\System\SByte.cs" />
     <Compile Include="$(BclSourcesRoot)\System\SerializableAttribute.cs" />
