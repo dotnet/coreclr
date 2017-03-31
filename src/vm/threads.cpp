@@ -6094,17 +6094,18 @@ void ThreadStore::TriggerGCForDeadThreadsIfNecessary()
     IGCHeap *gcHeap = GCHeapUtilities::GetGCHeap();
     _ASSERTE(gcHeap != nullptr);
     SIZE_T generationCountThreshold = static_cast<SIZE_T>(s_DeadThreadCountThresholdForGCTrigger) / 2;
+    unsigned maxGeneration = gcHeap->GetMaxGeneration();
     if (!s_DeadThreadGenerationCounts)
     {
         // initialize this field on first use with an entry for every table.
-        s_DeadThreadGenerationCounts = new (nothrow) SIZE_T[gcHeap->GetMaxGeneration() + 1];
+        s_DeadThreadGenerationCounts = new (nothrow) SIZE_T[maxGeneration + 1];
         if (!s_DeadThreadGenerationCounts)
         {
             return;
         }
     }
 
-    memset(s_DeadThreadGenerationCounts, 0, sizeof(SIZE_T) * (gcHeap->GetMaxGeneration() + 1));
+    memset(s_DeadThreadGenerationCounts, 0, sizeof(SIZE_T) * (maxGeneration + 1));
     {
         ThreadStoreLockHolder threadStoreLockHolder;
         GCX_COOP();
@@ -6131,7 +6132,7 @@ void ThreadStore::TriggerGCForDeadThreadsIfNecessary()
             if (exposedObjectGeneration > gcGenerationToTrigger && newDeadThreadGenerationCount >= generationCountThreshold)
             {
                 gcGenerationToTrigger = exposedObjectGeneration;
-                if (gcGenerationToTrigger >= gcHeap->GetMaxGeneration())
+                if (gcGenerationToTrigger >= maxGeneration)
                 {
                     break;
                 }
@@ -6165,7 +6166,7 @@ void ThreadStore::TriggerGCForDeadThreadsIfNecessary()
                 continue;
             }
 
-            if (gcGenerationToTrigger < gcHeap->GetMaxGeneration() &&
+            if (gcGenerationToTrigger < maxGeneration &&
                 gcHeap->WhichGeneration(exposedObject) > gcGenerationToTrigger)
             {
                 continue;
