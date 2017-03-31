@@ -988,7 +988,7 @@ PTR_VOID GetUnwindDataBlob(TADDR moduleBase, PTR_RUNTIME_FUNCTION pRuntimeFuncti
 #elif defined(_TARGET_X86_) && defined(FEATURE_PAL)
     PTR_UNWIND_INFO pUnwindInfo(dac_cast<PTR_UNWIND_INFO>(moduleBase + RUNTIME_FUNCTION__GetUnwindInfoAddress(pRuntimeFunction)));
 
-    *pSize = ALIGN_UP(sizeof(UNWIND_INFO), sizeof(BYTE));
+    *pSize = ALIGN_UP(sizeof(UNWIND_INFO), sizeof(DWORD));
 
     return pUnwindInfo;
 
