@@ -12814,10 +12814,17 @@ void Compiler::impImportBlockCode(BasicBlock* block)
 
 #ifdef FEATURE_CORECLR
                     // In coreclr the delegate transparency rule needs to be enforced even if verification is disabled
-                    typeInfo              tiActualFtn          = impStackTop(0).seTypeInfo;
-                    CORINFO_METHOD_HANDLE delegateMethodHandle = tiActualFtn.GetMethod2();
+                    typeInfo tiActualFtn = impStackTop(0).seTypeInfo;
+                    if (tiActualFtn.GetType() != TI_ERROR)
+                    {
+                        CORINFO_METHOD_HANDLE delegateMethodHandle = tiActualFtn.GetMethod();
+                        impInsertCalloutForDelegate(info.compMethodHnd, delegateMethodHandle, resolvedToken.hClass);
+                    }
+                    else
+                    {
+                        // the issue 10620.
+                    }
 
-                    impInsertCalloutForDelegate(info.compMethodHnd, delegateMethodHandle, resolvedToken.hClass);
 #endif // FEATURE_CORECLR
                 }
 
