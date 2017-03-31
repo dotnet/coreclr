@@ -36105,7 +36105,7 @@ CFinalize::FinalizeSegForAppDomain (AppDomain *pDomain,
             continue;
         }
 
-        // does the EE actually want us to finalize this object? (is it agile?)
+        // does the EE actually want us to finalize this object?
         if (!GCToEEInterface::ShouldFinalizeObjectForUnload(pDomain, obj))
         {
             continue;
