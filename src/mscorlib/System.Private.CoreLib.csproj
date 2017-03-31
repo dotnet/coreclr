@@ -349,7 +349,6 @@
     <Compile Include="$(BclSourcesRoot)\System\Boolean.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Buffer.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Byte.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\TypeUnloadedException.cs" />
     <Compile Include="$(BclSourcesRoot)\System\CompatibilitySwitches.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Currency.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Decimal.cs" />
@@ -385,7 +384,6 @@
     <Compile Include="$(BclSourcesRoot)\System\Random.cs" />
     <Compile Include="$(BclSourcesRoot)\System\ResId.cs" />
     <Compile Include="$(BclSourcesRoot)\System\RtType.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\RuntimeArgumentHandle.cs" />
     <Compile Include="$(BclSourcesRoot)\System\RuntimeHandles.cs" />
     <Compile Include="$(BclSourcesRoot)\System\SByte.cs" />
     <Compile Include="$(BclSourcesRoot)\System\SerializableAttribute.cs" />
