@@ -11,10 +11,8 @@ using System.Runtime.InteropServices;
 using System.Security;
 using System.Threading;
 
-namespace Internal.Runtime.Augments
-{
-    public class RuntimeThread : CriticalFinalizerObject
-    {
+namespace Internal.Runtime.Augments {
+    public class RuntimeThread : CriticalFinalizerObject {
         internal RuntimeThread() { }
 
         public static RuntimeThread Create(ThreadStart start) => new Thread(start);
@@ -22,8 +20,7 @@ namespace Internal.Runtime.Augments
         public static RuntimeThread Create(ParameterizedThreadStart start) => new Thread(start);
         public static RuntimeThread Create(ParameterizedThreadStart start, int maxStackSize) => new Thread(start, maxStackSize);
 
-        private Thread AsThread()
-        {
+        private Thread AsThread() {
             Debug.Assert(this is Thread);
             return (Thread)this;
         }
@@ -33,8 +30,7 @@ namespace Internal.Runtime.Augments
         /*=========================================================================
         ** Returns true if the thread has been started and is not dead.
         =========================================================================*/
-        public extern bool IsAlive
-        {
+        public extern bool IsAlive {
             [MethodImpl(MethodImplOptions.InternalCall)]
             get;
         }
@@ -45,8 +41,7 @@ namespace Internal.Runtime.Augments
         **
         ** Exceptions: ThreadStateException if the thread is dead.
         =========================================================================*/
-        public bool IsBackground
-        {
+        public bool IsBackground {
             get { return IsBackgroundNative(); }
             set { SetBackgroundNative(value); }
         }
@@ -60,8 +55,7 @@ namespace Internal.Runtime.Augments
         /*=========================================================================
         ** Returns true if the thread is a threadpool thread.
         =========================================================================*/
-        public extern bool IsThreadPoolThread
-        {
+        public extern bool IsThreadPoolThread {
             [MethodImpl(MethodImplOptions.InternalCall)]
             get;
         }
@@ -74,8 +68,7 @@ namespace Internal.Runtime.Augments
         **
         ** Exceptions: ThreadStateException if the thread is dead.
         =========================================================================*/
-        public ThreadPriority Priority
-        {
+        public ThreadPriority Priority {
             get { return (ThreadPriority)GetPriorityNative(); }
             set { SetPriorityNative((int)value); }
         }
@@ -90,16 +83,14 @@ namespace Internal.Runtime.Augments
         ** Return the thread state as a consistent set of bits.  This is more
         ** general then IsAlive or IsBackground.
         =========================================================================*/
-        public ThreadState ThreadState
-        {
+        public ThreadState ThreadState {
             get { return (ThreadState)GetThreadStateNative(); }
         }
 
         [MethodImpl(MethodImplOptions.InternalCall)]
         private extern int GetThreadStateNative();
 
-        public ApartmentState GetApartmentState()
-        {
+        public ApartmentState GetApartmentState() {
 #if FEATURE_COMINTEROP_APARTMENT_SUPPORT
             return (ApartmentState)GetApartmentStateNative();
 #else // !FEATURE_COMINTEROP_APARTMENT_SUPPORT
@@ -112,8 +103,7 @@ namespace Internal.Runtime.Augments
         ** An unstarted thread can be marked to indicate that it will host a
         ** single-threaded or multi-threaded apartment.
         =========================================================================*/
-        public bool TrySetApartmentState(ApartmentState state)
-        {
+        public bool TrySetApartmentState(ApartmentState state) {
 #if FEATURE_COMINTEROP_APARTMENT_SUPPORT
             return SetApartmentStateHelper(state, false);
 #else // !FEATURE_COMINTEROP_APARTMENT_SUPPORT
@@ -123,8 +113,7 @@ namespace Internal.Runtime.Augments
         }
 
 #if FEATURE_COMINTEROP_APARTMENT_SUPPORT
-        internal bool SetApartmentStateHelper(ApartmentState state, bool fireMDAOnMismatch)
-        {
+        internal bool SetApartmentStateHelper(ApartmentState state, bool fireMDAOnMismatch) {
             ApartmentState retState = (ApartmentState)SetApartmentStateNative((int)state, fireMDAOnMismatch);
 
             // Special case where we pass in Unknown and get back MTA.

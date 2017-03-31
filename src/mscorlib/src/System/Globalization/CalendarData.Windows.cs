@@ -8,8 +8,7 @@ using System.Runtime.CompilerServices;
 using System.Diagnostics.Contracts;
 using System.Collections.Generic;
 
-namespace System.Globalization
-{
+namespace System.Globalization {
 #if CORECLR
     using IntList = List<int>;
     using StringList = List<string>;
@@ -18,10 +17,8 @@ namespace System.Globalization
     using StringList = LowLevelList<string>;
 #endif 
     
-    internal partial class CalendarData
-    {
-        private bool LoadCalendarDataFromSystem(String localeName, CalendarId calendarId)
-        {
+    internal partial class CalendarData {
+        private bool LoadCalendarDataFromSystem(String localeName, CalendarId calendarId) {
             Debug.Assert(!GlobalizationMode.Invariant);
 
             bool ret = true;
@@ -31,8 +28,7 @@ namespace System.Globalization
             //
             // Windows doesn't support some calendars right now, so remap those.
             //
-            switch (calendarId)
-            {
+            switch (calendarId) {
                 case CalendarId.JAPANESELUNISOLAR:    // Data looks like Japanese
                     calendarId = CalendarId.JAPAN;
                     break;
@@ -88,8 +84,7 @@ namespace System.Globalization
             GetCalendarDayInfo(localeName, calendarId, CAL_SSHORTESTDAYNAME7, out this.saSuperShortDayNames);
 
             // Gregorian may have genitive month names
-            if (calendarId == CalendarId.GREGORIAN)
-            {
+            if (calendarId == CalendarId.GREGORIAN) {
                 GetCalendarMonthInfo(localeName, calendarId, CAL_SMONTHNAME1 | CAL_RETURN_GENITIVE_NAMES, out this.saMonthGenitiveNames);
                 GetCalendarMonthInfo(localeName, calendarId, CAL_SABBREVMONTHNAME1 | CAL_RETURN_GENITIVE_NAMES, out this.saAbbrevMonthGenitiveNames);
             }
@@ -116,17 +111,14 @@ namespace System.Globalization
         }
 
         // Get native two digit year max
-        internal static int GetTwoDigitYearMax(CalendarId calendarId)
-        {
-            if (GlobalizationMode.Invariant)
-            {
+        internal static int GetTwoDigitYearMax(CalendarId calendarId) {
+            if (GlobalizationMode.Invariant) {
                 return Invariant.iTwoDigitYearMax;
             }
 
             int twoDigitYearMax = -1;
 
-            if (!CallGetCalendarInfoEx(null, calendarId, (uint)CAL_ITWODIGITYEARMAX, out twoDigitYearMax))
-            {
+            if (!CallGetCalendarInfoEx(null, calendarId, (uint)CAL_ITWODIGITYEARMAX, out twoDigitYearMax)) {
                 twoDigitYearMax = -1;
             }
 
@@ -134,8 +126,7 @@ namespace System.Globalization
         }
 
         // Call native side to figure out which calendars are allowed
-        internal static int GetCalendars(String localeName, bool useUserOverride, CalendarId[] calendars)
-        {
+        internal static int GetCalendars(String localeName, bool useUserOverride, CalendarId[] calendars) {
             Debug.Assert(!GlobalizationMode.Invariant);
 
             EnumCalendarsData data = new EnumCalendarsData();
@@ -143,22 +134,19 @@ namespace System.Globalization
             data.calendars = new IntList();
 
             // First call GetLocaleInfo if necessary
-            if (useUserOverride)
-            {
+            if (useUserOverride) {
                 // They want user overrides, see if the user calendar matches the input calendar
                 int userCalendar = CultureData.GetLocaleInfoExInt(localeName, LOCALE_ICALENDARTYPE);
 
                 // If we got a default, then use it as the first calendar
-                if (userCalendar != 0)
-                {
+                if (userCalendar != 0) {
                     data.userOverride = userCalendar;
                     data.calendars.Add(userCalendar);
                 }
             }
 
             GCHandle contextHandle = GCHandle.Alloc(data);
-            try
-            {
+            try {
                 // Now call the enumeration API. Work is done by our callback function
 #if CORECLR
                 Interop.Kernel32.EnumCalendarInfoExEx(EnumCalendarsCallback, localeName, ENUM_ALL_CALENDARS, null, CAL_ICALINTVALUE, (IntPtr)contextHandle);
@@ -167,8 +155,7 @@ namespace System.Globalization
                 Interop.Kernel32.EnumCalendarInfoExEx(callback, localeName, ENUM_ALL_CALENDARS, null, CAL_ICALINTVALUE, (IntPtr)contextHandle);
 #endif
             }
-            finally
-            {
+            finally {
                 contextHandle.Free();
             }
 
@@ -180,8 +167,7 @@ namespace System.Globalization
             return data.calendars.Count;
         }
 
-        private static bool SystemSupportsTaiwaneseCalendar()
-        {
+        private static bool SystemSupportsTaiwaneseCalendar() {
             Debug.Assert(!GlobalizationMode.Invariant);
 
             string data;
@@ -231,23 +217,19 @@ namespace System.Globalization
         //    This will be updated to new fallback locale name if needed.
         //
         ////////////////////////////////////////////////////////////////////////
-        private static void CheckSpecialCalendar(ref CalendarId calendar, ref string localeName)
-        {
+        private static void CheckSpecialCalendar(ref CalendarId calendar, ref string localeName) {
             string data;
 
             // Gregorian-US isn't always available in the OS, however it is the same for all locales
-            switch (calendar)
-            {
+            switch (calendar) {
                 case CalendarId.GREGORIAN_US:
                     // See if this works
-                    if (!CallGetCalendarInfoEx(localeName, calendar, CAL_SCALNAME, out data))
-                    {
+                    if (!CallGetCalendarInfoEx(localeName, calendar, CAL_SCALNAME, out data)) {
                         // Failed, set it to a locale (fa-IR) that's alway has Gregorian US available in the OS
                         localeName = "fa-IR";
                     }
                     // See if that works
-                    if (!CallGetCalendarInfoEx(localeName, calendar, CAL_SCALNAME, out data))
-                    {
+                    if (!CallGetCalendarInfoEx(localeName, calendar, CAL_SCALNAME, out data)) {
                         // Failed again, just use en-US with the gregorian calendar
                         localeName = "en-US";
                         calendar = CalendarId.GREGORIAN;
@@ -257,31 +239,26 @@ namespace System.Globalization
                     // Taiwan calendar data is not always in all language version of OS due to Geopolical reasons.
                     // It is only available in zh-TW localized versions of Windows.
                     // Let's check if OS supports it.  If not, fallback to Greogrian localized for Taiwan calendar.
-                    if (!SystemSupportsTaiwaneseCalendar())
-                    {
+                    if (!SystemSupportsTaiwaneseCalendar()) {
                         calendar = CalendarId.GREGORIAN;
                     }
                     break;
             }
         }
 
-        private static bool CallGetCalendarInfoEx(string localeName, CalendarId calendar, uint calType, out int data)
-        {
+        private static bool CallGetCalendarInfoEx(string localeName, CalendarId calendar, uint calType, out int data) {
             return (Interop.Kernel32.GetCalendarInfoEx(localeName, (uint)calendar, IntPtr.Zero, calType | CAL_RETURN_NUMBER, IntPtr.Zero, 0, out data) != 0);
         }
 
-        private static unsafe bool CallGetCalendarInfoEx(string localeName, CalendarId calendar, uint calType, out string data)
-        {
+        private static unsafe bool CallGetCalendarInfoEx(string localeName, CalendarId calendar, uint calType, out string data) {
             const int BUFFER_LENGTH = 80;
 
             // The maximum size for values returned from GetCalendarInfoEx is 80 characters.
             char* buffer = stackalloc char[BUFFER_LENGTH];
 
             int ret = Interop.Kernel32.GetCalendarInfoEx(localeName, (uint)calendar, IntPtr.Zero, calType, (IntPtr)buffer, BUFFER_LENGTH, IntPtr.Zero);
-            if (ret > 0)
-            {
-                if (buffer[ret - 1] == '\0')
-                {
+            if (ret > 0) {
+                if (buffer[ret - 1] == '\0') {
                     ret--; // don't include the null termination in the string
                 }
                 data = new string(buffer, 0, ret);
@@ -292,8 +269,7 @@ namespace System.Globalization
         }
 
         // Context for EnumCalendarInfoExEx callback.
-        private class EnumData
-        {
+        private class EnumData {
             public string userOverride;
             public StringList strings;
         }
@@ -302,11 +278,9 @@ namespace System.Globalization
 #if !CORECLR
         [NativeCallable(CallingConvention = CallingConvention.StdCall)]
 #endif
-        private static unsafe Interop.BOOL EnumCalendarInfoCallback(IntPtr lpCalendarInfoString, uint calendar, IntPtr pReserved, IntPtr lParam)
-        {
+        private static unsafe Interop.BOOL EnumCalendarInfoCallback(IntPtr lpCalendarInfoString, uint calendar, IntPtr pReserved, IntPtr lParam) {
             EnumData context = (EnumData)((GCHandle)lParam).Target;
-            try
-            {
+            try {
                 string calendarInfo = new string((char*)lpCalendarInfoString);
 
                 // If we had a user override, check to make sure this differs
@@ -315,14 +289,12 @@ namespace System.Globalization
 
                 return Interop.BOOL.TRUE;
             }
-            catch (Exception)
-            {
+            catch (Exception) {
                 return Interop.BOOL.FALSE;
             }
         }
 
-        private static unsafe bool CallEnumCalendarInfo(string localeName, CalendarId calendar, uint calType, uint lcType, out string[] data)
-        {
+        private static unsafe bool CallEnumCalendarInfo(string localeName, CalendarId calendar, uint calType, uint lcType, out string[] data) {
             EnumData context = new EnumData();
             context.userOverride = null;
             context.strings = new StringList();
@@ -330,20 +302,17 @@ namespace System.Globalization
             if (((lcType != 0) && ((lcType & CAL_NOUSEROVERRIDE) == 0)) &&
                 // Get user locale, see if it matches localeName.
                 // Note that they should match exactly, including letter case
-                GetUserDefaultLocaleName() == localeName)
-            {
+                GetUserDefaultLocaleName() == localeName) {
                 // They want user overrides, see if the user calendar matches the input calendar
                 CalendarId userCalendar = (CalendarId)CultureData.GetLocaleInfoExInt(localeName, LOCALE_ICALENDARTYPE);
 
                 // If the calendars were the same, see if the locales were the same
-                if (userCalendar == calendar)
-                {
+                if (userCalendar == calendar) {
                     // They matched, get the user override since locale & calendar match
                     string res = CultureData.GetLocaleInfoEx(localeName, lcType);
 
                     // if it succeeded remember the override for the later callers
-                    if (res != "")
-                    {
+                    if (res != "") {
                         // Remember this was the override (so we can look for duplicates later in the enum function)
                         context.userOverride = res;
 
@@ -354,8 +323,7 @@ namespace System.Globalization
             }
 
             GCHandle contextHandle = GCHandle.Alloc(context);
-            try
-            {
+            try {
 #if CORECLR
                 Interop.Kernel32.EnumCalendarInfoExEx(EnumCalendarInfoCallback, localeName, (uint)calendar, null, calType, (IntPtr)contextHandle);
 #else
@@ -364,22 +332,19 @@ namespace System.Globalization
                 Interop.Kernel32.EnumCalendarInfoExEx(callback, localeName, (uint)calendar, null, calType, (IntPtr)contextHandle);
 #endif // CORECLR
             }
-            finally
-            {
+            finally {
                 contextHandle.Free();
             }
 
             // Now we have a list of data, fail if we didn't find anything.
-            if (context.strings.Count == 0)
-            {
+            if (context.strings.Count == 0) {
                 data = null;
                 return false;
             }
 
             string[] output = context.strings.ToArray();
 
-            if (calType == CAL_SABBREVERASTRING || calType == CAL_SERASTRING)
-            {
+            if (calType == CAL_SABBREVERASTRING || calType == CAL_SERASTRING) {
                 // Eras are enumerated backwards.  (oldest era name first, but
                 // Japanese calendar has newest era first in array, and is only
                 // calendar with multiple eras)
@@ -402,8 +367,7 @@ namespace System.Globalization
         //      OUT pOutputStrings      The output string[] value.
         //
         ////////////////////////////////////////////////////////////////////////
-        private static bool GetCalendarDayInfo(string localeName, CalendarId calendar, uint calType, out string[] outputStrings)
-        {
+        private static bool GetCalendarDayInfo(string localeName, CalendarId calendar, uint calType, out string[] outputStrings) {
             bool result = true;
 
             //
@@ -412,8 +376,7 @@ namespace System.Globalization
             string[] results = new string[7];
 
             // Get each one of them
-            for (int i = 0; i < 7; i++, calType++)
-            {
+            for (int i = 0; i < 7; i++, calType++) {
                 result &= CallGetCalendarInfoEx(localeName, calendar, calType, out results[i]);
 
                 // On the first iteration we need to go from CAL_SDAYNAME7 to CAL_SDAYNAME1, so subtract 7 before the ++ happens
@@ -435,16 +398,14 @@ namespace System.Globalization
         //      OUT pOutputStrings      The output string[] value.
         //
         ////////////////////////////////////////////////////////////////////////
-        private static bool GetCalendarMonthInfo(string localeName, CalendarId calendar, uint calType, out string[] outputStrings)
-        {
+        private static bool GetCalendarMonthInfo(string localeName, CalendarId calendar, uint calType, out string[] outputStrings) {
             //
             // We'll need a new array of 13 items
             //
             string[] results = new string[13];
 
             // Get each one of them
-            for (int i = 0; i < 13; i++, calType++)
-            {
+            for (int i = 0; i < 13; i++, calType++) {
                 if (!CallGetCalendarInfoEx(localeName, calendar, calType, out results[i]))
                     results[i] = "";
             }
@@ -457,8 +418,7 @@ namespace System.Globalization
         //
         // struct to help our calendar data enumaration callback
         //
-        private class EnumCalendarsData
-        {
+        private class EnumCalendarsData {
             public int userOverride;   // user override value (if found)
             public IntList calendars;      // list of calendars found so far
         }
@@ -466,25 +426,21 @@ namespace System.Globalization
 #if !CORECLR
         [NativeCallable(CallingConvention = CallingConvention.StdCall)]
 #endif
-        private static Interop.BOOL EnumCalendarsCallback(IntPtr lpCalendarInfoString, uint calendar, IntPtr reserved, IntPtr lParam)
-        {
+        private static Interop.BOOL EnumCalendarsCallback(IntPtr lpCalendarInfoString, uint calendar, IntPtr reserved, IntPtr lParam) {
             EnumCalendarsData context = (EnumCalendarsData)((GCHandle)lParam).Target;
-            try
-            {
+            try {
                 // If we had a user override, check to make sure this differs
                 if (context.userOverride != calendar)
                     context.calendars.Add((int)calendar);
 
                 return Interop.BOOL.TRUE;
             }
-            catch (Exception)
-            {
+            catch (Exception) {
                 return Interop.BOOL.FALSE;
             }
         }
 
-        private static unsafe String GetUserDefaultLocaleName()
-        {
+        private static unsafe String GetUserDefaultLocaleName() {
             Debug.Assert(!GlobalizationMode.Invariant);
 
             const int LOCALE_NAME_MAX_LENGTH = 85;

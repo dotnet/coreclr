@@ -17,22 +17,19 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics.Contracts;
 
-namespace System
-{
+namespace System {
     // Note: users should make sure they copy the fields out of an ArraySegment onto their stack
     // then validate that the fields describe valid bounds within the array.  This must be done
     // because assignments to value types are not atomic, and also because one thread reading 
     // three fields from an ArraySegment may not see the same ArraySegment from one call to another
     // (ie, users could assign a new value to the old location).  
     [Serializable]
-    public struct ArraySegment<T> : IList<T>, IReadOnlyList<T>
-    {
+    public struct ArraySegment<T> : IList<T>, IReadOnlyList<T> {
         private readonly T[] _array;
         private readonly int _offset;
         private readonly int _count;
 
-        public ArraySegment(T[] array)
-        {
+        public ArraySegment(T[] array) {
             if (array == null)
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
             Contract.EndContractBlock();
@@ -42,8 +39,7 @@ namespace System
             _count = array.Length;
         }
 
-        public ArraySegment(T[] array, int offset, int count)
-        {
+        public ArraySegment(T[] array, int offset, int count) {
             // Validate arguments, check is minimal instructions with reduced branching for inlinable fast-path
             // Negative values discovered though conversion to high values when converted to unsigned
             // Failure should be rare and location determination and message is delegated to failure functions
@@ -62,8 +58,7 @@ namespace System
 
         public int Count => _count;
 
-        public Enumerator GetEnumerator()
-        {
+        public Enumerator GetEnumerator() {
             if (_array == null)
                 ThrowHelper.ThrowInvalidOperationException(ExceptionResource.InvalidOperation_NullArray);
             Contract.EndContractBlock();
@@ -71,10 +66,8 @@ namespace System
             return new Enumerator(this);
         }
 
-        public override int GetHashCode()
-        {
-            if (_array == null)
-            {
+        public override int GetHashCode() {
+            if (_array == null) {
                 return 0;
             }
 
@@ -88,34 +81,28 @@ namespace System
             return hash;
         }
 
-        public override bool Equals(Object obj)
-        {
+        public override bool Equals(Object obj) {
             if (obj is ArraySegment<T>)
                 return Equals((ArraySegment<T>)obj);
             else
                 return false;
         }
 
-        public bool Equals(ArraySegment<T> obj)
-        {
+        public bool Equals(ArraySegment<T> obj) {
             return obj._array == _array && obj._offset == _offset && obj._count == _count;
         }
 
-        public static bool operator ==(ArraySegment<T> a, ArraySegment<T> b)
-        {
+        public static bool operator ==(ArraySegment<T> a, ArraySegment<T> b) {
             return a.Equals(b);
         }
 
-        public static bool operator !=(ArraySegment<T> a, ArraySegment<T> b)
-        {
+        public static bool operator !=(ArraySegment<T> a, ArraySegment<T> b) {
             return !(a == b);
         }
 
         #region IList<T>
-        T IList<T>.this[int index]
-        {
-            get
-            {
+        T IList<T>.this[int index] {
+            get {
                 if (_array == null)
                     ThrowHelper.ThrowInvalidOperationException(ExceptionResource.InvalidOperation_NullArray);
                 if (index < 0 || index >= _count)
@@ -125,8 +112,7 @@ namespace System
                 return _array[_offset + index];
             }
 
-            set
-            {
+            set {
                 if (_array == null)
                     ThrowHelper.ThrowInvalidOperationException(ExceptionResource.InvalidOperation_NullArray);
                 if (index < 0 || index >= _count)
@@ -137,8 +123,7 @@ namespace System
             }
         }
 
-        int IList<T>.IndexOf(T item)
-        {
+        int IList<T>.IndexOf(T item) {
             if (_array == null)
                 ThrowHelper.ThrowInvalidOperationException(ExceptionResource.InvalidOperation_NullArray);
             Contract.EndContractBlock();
@@ -151,22 +136,18 @@ namespace System
             return index >= 0 ? index - _offset : -1;
         }
 
-        void IList<T>.Insert(int index, T item)
-        {
+        void IList<T>.Insert(int index, T item) {
             ThrowHelper.ThrowNotSupportedException();
         }
 
-        void IList<T>.RemoveAt(int index)
-        {
+        void IList<T>.RemoveAt(int index) {
             ThrowHelper.ThrowNotSupportedException();
         }
         #endregion
 
         #region IReadOnlyList<T>
-        T IReadOnlyList<T>.this[int index]
-        {
-            get
-            {
+        T IReadOnlyList<T>.this[int index] {
+            get {
                 if (_array == null)
                     ThrowHelper.ThrowInvalidOperationException(ExceptionResource.InvalidOperation_NullArray);
                 if (index < 0 || index >= _count)
@@ -179,28 +160,23 @@ namespace System
         #endregion IReadOnlyList<T>
 
         #region ICollection<T>
-        bool ICollection<T>.IsReadOnly
-        {
-            get
-            {
+        bool ICollection<T>.IsReadOnly {
+            get {
                 // the indexer setter does not throw an exception although IsReadOnly is true.
                 // This is to match the behavior of arrays.
                 return true;
             }
         }
 
-        void ICollection<T>.Add(T item)
-        {
+        void ICollection<T>.Add(T item) {
             ThrowHelper.ThrowNotSupportedException();
         }
 
-        void ICollection<T>.Clear()
-        {
+        void ICollection<T>.Clear() {
             ThrowHelper.ThrowNotSupportedException();
         }
 
-        bool ICollection<T>.Contains(T item)
-        {
+        bool ICollection<T>.Contains(T item) {
             if (_array == null)
                 ThrowHelper.ThrowInvalidOperationException(ExceptionResource.InvalidOperation_NullArray);
             Contract.EndContractBlock();
@@ -213,8 +189,7 @@ namespace System
             return index >= 0;
         }
 
-        void ICollection<T>.CopyTo(T[] array, int arrayIndex)
-        {
+        void ICollection<T>.CopyTo(T[] array, int arrayIndex) {
             if (_array == null)
                 ThrowHelper.ThrowInvalidOperationException(ExceptionResource.InvalidOperation_NullArray);
             Contract.EndContractBlock();
@@ -222,8 +197,7 @@ namespace System
             System.Array.Copy(_array, _offset, array, arrayIndex, _count);
         }
 
-        bool ICollection<T>.Remove(T item)
-        {
+        bool ICollection<T>.Remove(T item) {
             ThrowHelper.ThrowNotSupportedException();
             return default(bool);
         }
@@ -240,15 +214,13 @@ namespace System
         #endregion
 
         [Serializable]
-        public struct Enumerator : IEnumerator<T>
-        {
+        public struct Enumerator : IEnumerator<T> {
             private readonly T[] _array;
             private readonly int _start;
             private readonly int _end; // cache Offset + Count, since it's a little slow
             private int _current;
 
-            internal Enumerator(ArraySegment<T> arraySegment)
-            {
+            internal Enumerator(ArraySegment<T> arraySegment) {
                 Contract.Requires(arraySegment.Array != null);
                 Contract.Requires(arraySegment.Offset >= 0);
                 Contract.Requires(arraySegment.Count >= 0);
@@ -260,20 +232,16 @@ namespace System
                 _current = arraySegment.Offset - 1;
             }
 
-            public bool MoveNext()
-            {
-                if (_current < _end)
-                {
+            public bool MoveNext() {
+                if (_current < _end) {
                     _current++;
                     return (_current < _end);
                 }
                 return false;
             }
 
-            public T Current
-            {
-                get
-                {
+            public T Current {
+                get {
                     if (_current < _start)
                         ThrowHelper.ThrowInvalidOperationException_InvalidOperation_EnumNotStarted();
                     if (_current >= _end)
@@ -284,13 +252,11 @@ namespace System
 
             object IEnumerator.Current => Current;
 
-            void IEnumerator.Reset()
-            {
+            void IEnumerator.Reset() {
                 _current = _start - 1;
             }
 
-            public void Dispose()
-            {
+            public void Dispose() {
             }
         }
     }

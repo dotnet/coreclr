@@ -8,19 +8,16 @@ using System;
 using System.Runtime.InteropServices;
 using System.Security;
 
-namespace System.Runtime.InteropServices.WindowsRuntime
-{
+namespace System.Runtime.InteropServices.WindowsRuntime {
 #if BIT64
     [StructLayout(LayoutKind.Explicit, Size = 24)]
 #else
     [StructLayout(LayoutKind.Explicit, Size = 20)]
 #endif
-    internal unsafe struct HSTRING_HEADER
-    {
+    internal unsafe struct HSTRING_HEADER {
     }
 
-    internal static class UnsafeNativeMethods
-    {
+    internal static class UnsafeNativeMethods {
         [DllImport("api-ms-win-core-winrt-error-l1-1-0.dll", PreserveSig = false)]
         [SuppressUnmanagedCodeSecurity]
         internal static extern IRestrictedErrorInfo GetRestrictedErrorInfo();

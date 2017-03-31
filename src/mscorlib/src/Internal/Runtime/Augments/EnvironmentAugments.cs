@@ -7,11 +7,9 @@ using System.Collections;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 
-namespace Internal.Runtime.Augments
-{
+namespace Internal.Runtime.Augments {
     /// <summary>For internal use only.  Exposes runtime functionality to the Environments implementation in corefx.</summary>
-    public static class EnvironmentAugments
-    {
+    public static class EnvironmentAugments {
         public static int CurrentManagedThreadId => Environment.CurrentManagedThreadId;
         public static void Exit(int exitCode) => Environment.Exit(exitCode);
         public static int ExitCode { get { return Environment.ExitCode; } set { Environment.ExitCode = value; } }
@@ -26,11 +24,9 @@ namespace Internal.Runtime.Augments
         public static void SetEnvironmentVariable(string variable, string value) => Environment.SetEnvironmentVariable(variable, value);
         public static void SetEnvironmentVariable(string variable, string value, EnvironmentVariableTarget target) => Environment.SetEnvironmentVariable(variable, value, target);
 
-        public static string StackTrace
-        {
+        public static string StackTrace {
             [MethodImpl(MethodImplOptions.NoInlining)] // Prevent inlining from affecting where the stacktrace starts
-            get
-            {
+            get {
                 return new StackTrace(1 /* skip this one frame */, true).ToString(System.Diagnostics.StackTrace.TraceFormat.Normal);
             }
         }

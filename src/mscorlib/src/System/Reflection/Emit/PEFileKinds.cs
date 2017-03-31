@@ -5,12 +5,10 @@
 
 using System;
 
-namespace System.Reflection.Emit
-{
+namespace System.Reflection.Emit {
     // This Enum matchs the CorFieldAttr defined in CorHdr.h
     [Serializable]
-    public enum PEFileKinds
-    {
+    public enum PEFileKinds {
         Dll = 0x0001,
         ConsoleApplication = 0x0002,
         WindowApplication = 0x0003,

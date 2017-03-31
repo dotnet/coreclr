@@ -11,14 +11,12 @@
 **
 ===========================================================*/
 
-namespace System
-{
+namespace System {
     /// <summary>
     /// A composite format string along with the arguments to be formatted. An instance of this
     /// type may result from the use of the C# or VB language primitive "interpolated string".
     /// </summary>
-    public abstract class FormattableString : IFormattable
-    {
+    public abstract class FormattableString : IFormattable {
         /// <summary>
         /// The composite format string.
         /// </summary>
@@ -45,8 +43,7 @@ namespace System
         /// </summary>
         public abstract string ToString(IFormatProvider formatProvider);
 
-        string IFormattable.ToString(string ignored, IFormatProvider formatProvider)
-        {
+        string IFormattable.ToString(string ignored, IFormatProvider formatProvider) {
             return ToString(formatProvider);
         }
 
@@ -63,18 +60,15 @@ namespace System
         /// Invariant($"{{ lat = {latitude}; lon = {longitude} }}")
         /// </code>
         /// </summary>
-        public static string Invariant(FormattableString formattable)
-        {
-            if (formattable == null)
-            {
+        public static string Invariant(FormattableString formattable) {
+            if (formattable == null) {
                 throw new ArgumentNullException(nameof(formattable));
             }
 
             return formattable.ToString(Globalization.CultureInfo.InvariantCulture);
         }
 
-        public override string ToString()
-        {
+        public override string ToString() {
             return ToString(Globalization.CultureInfo.CurrentCulture);
         }
     }

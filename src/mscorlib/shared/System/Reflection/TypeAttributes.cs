@@ -4,12 +4,10 @@
 
 using System.Runtime.InteropServices;
 
-namespace System.Reflection
-{
+namespace System.Reflection {
     // This Enum matchs the CorTypeAttr defined in CorHdr.h
     [Flags]
-    public enum TypeAttributes
-    {
+    public enum TypeAttributes {
         VisibilityMask = 0x00000007,
         NotPublic = 0x00000000,     // Class is not public scope.
         Public = 0x00000001,     // Class is public scope.

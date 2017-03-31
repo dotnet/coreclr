@@ -15,15 +15,11 @@
 using System;
 using System.Security;
 
-namespace System.Runtime.InteropServices
-{
+namespace System.Runtime.InteropServices {
     [Serializable]
-    public sealed class DispatchWrapper
-    {
-        public DispatchWrapper(Object obj)
-        {
-            if (obj != null)
-            {
+    public sealed class DispatchWrapper {
+        public DispatchWrapper(Object obj) {
+            if (obj != null) {
                 // Make sure this guy has an IDispatch
                 IntPtr pdisp = Marshal.GetIDispatchForObject(obj);
 
@@ -33,10 +29,8 @@ namespace System.Runtime.InteropServices
             m_WrappedObject = obj;
         }
 
-        public Object WrappedObject
-        {
-            get
-            {
+        public Object WrappedObject {
+            get {
                 return m_WrappedObject;
             }
         }

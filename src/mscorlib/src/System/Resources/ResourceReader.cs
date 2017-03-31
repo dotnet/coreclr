@@ -15,8 +15,7 @@
 ** 
 ===========================================================*/
 
-namespace System.Resources
-{
+namespace System.Resources {
     using System;
     using System.IO;
     using System.Text;
@@ -38,41 +37,35 @@ namespace System.Resources
     // default file format.
     // 
 
-    internal struct ResourceLocator
-    {
+    internal struct ResourceLocator {
         internal Object _value;  // Can be null.  Consider WeakReference instead?
         internal int _dataPos;
 
-        internal ResourceLocator(int dataPos, Object value)
-        {
+        internal ResourceLocator(int dataPos, Object value) {
             _dataPos = dataPos;
             _value = value;
         }
 
-        internal int DataPosition
-        {
+        internal int DataPosition {
             get { return _dataPos; }
             //set { _dataPos = value; }
         }
 
         // Allows adding in profiling data in a future version, or a special
         // resource profiling build.  We could also use WeakReference.
-        internal Object Value
-        {
+        internal Object Value {
             get { return _value; }
             set { _value = value; }
         }
 
-        internal static bool CanCache(ResourceTypeCode value)
-        {
+        internal static bool CanCache(ResourceTypeCode value) {
             Debug.Assert(value >= 0, "negative ResourceTypeCode.  What?");
             return value <= ResourceTypeCode.LastPrimitive;
         }
     }
 
 
-    public sealed class ResourceReader : IResourceReader
-    {
+    public sealed class ResourceReader : IResourceReader {
         // A reasonable default buffer size for reading from files, especially
         // when we will likely be seeking frequently.  Could be smaller, but does
         // it make sense to use anything less than one page?
@@ -111,25 +104,21 @@ namespace System.Resources
 #endif
 
 
-        public ResourceReader(String fileName)
-        {
+        public ResourceReader(String fileName) {
             _resCache = new Dictionary<String, ResourceLocator>(FastResourceComparer.Default);
             _store = new BinaryReader(new FileStream(fileName, FileMode.Open, FileAccess.Read, FileShare.Read, DefaultFileStreamBufferSize, FileOptions.RandomAccess), Encoding.UTF8);
             BCLDebug.Log("RESMGRFILEFORMAT", "ResourceReader .ctor(String).  UnmanagedMemoryStream: " + (_ums != null));
 
-            try
-            {
+            try {
                 ReadResources();
             }
-            catch
-            {
+            catch {
                 _store.Close(); // If we threw an exception, close the file.
                 throw;
             }
         }
 
-        public ResourceReader(Stream stream)
-        {
+        public ResourceReader(Stream stream) {
             if (stream == null)
                 throw new ArgumentNullException(nameof(stream));
             if (!stream.CanRead)
@@ -149,8 +138,7 @@ namespace System.Resources
         // passing in the stream to read from and the RuntimeResourceSet's 
         // internal hash table (hash table of names with file offsets
         // and values, coupled to this ResourceReader).
-        internal ResourceReader(Stream stream, Dictionary<String, ResourceLocator> resCache)
-        {
+        internal ResourceReader(Stream stream, Dictionary<String, ResourceLocator> resCache) {
             Contract.Requires(stream != null, "Need a stream!");
             Contract.Requires(stream.CanRead, "Stream should be readable!");
             Contract.Requires(resCache != null, "Need a Dictionary!");
@@ -165,23 +153,18 @@ namespace System.Resources
         }
 
 
-        public void Close()
-        {
+        public void Close() {
             Dispose(true);
         }
 
-        public void Dispose()
-        {
+        public void Dispose() {
             Close();
         }
 
-        private unsafe void Dispose(bool disposing)
-        {
-            if (_store != null)
-            {
+        private unsafe void Dispose(bool disposing) {
+            if (_store != null) {
                 _resCache = null;
-                if (disposing)
-                {
+                if (disposing) {
                     // Close the stream in a thread-safe way.  This fix means 
                     // that we may call Close n times, but that's safe.
                     BinaryReader copyOfStore = _store;
@@ -198,26 +181,22 @@ namespace System.Resources
             }
         }
 
-        internal static unsafe int ReadUnalignedI4(int* p)
-        {
+        internal static unsafe int ReadUnalignedI4(int* p) {
             byte* buffer = (byte*)p;
             // Unaligned, little endian format
             return buffer[0] | (buffer[1] << 8) | (buffer[2] << 16) | (buffer[3] << 24);
         }
 
 
-        private void SkipString()
-        {
+        private void SkipString() {
             int stringLength = _store.Read7BitEncodedInt();
-            if (stringLength < 0)
-            {
+            if (stringLength < 0) {
                 throw new BadImageFormatException(SR.BadImageFormat_NegativeStringLength);
             }
             _store.BaseStream.Seek(stringLength, SeekOrigin.Current);
         }
 
-        private unsafe int GetNameHash(int index)
-        {
+        private unsafe int GetNameHash(int index) {
             Debug.Assert(index >= 0 && index < _numResources, "Bad index into hash array.  index: " + index);
             Debug.Assert((_ums == null && _nameHashes != null && _nameHashesPtr == null) ||
                             (_ums != null && _nameHashes == null && _nameHashesPtr != null), "Internal state mangled.");
@@ -227,8 +206,7 @@ namespace System.Resources
                 return ReadUnalignedI4(&_nameHashesPtr[index]);
         }
 
-        private unsafe int GetNamePosition(int index)
-        {
+        private unsafe int GetNamePosition(int index) {
             Debug.Assert(index >= 0 && index < _numResources, "Bad index into name position array.  index: " + index);
             Debug.Assert((_ums == null && _namePositions != null && _namePositionsPtr == null) ||
                             (_ums != null && _namePositions == null && _namePositionsPtr != null), "Internal state mangled.");
@@ -237,27 +215,23 @@ namespace System.Resources
                 r = _namePositions[index];
             else
                 r = ReadUnalignedI4(&_namePositionsPtr[index]);
-            if (r < 0 || r > _dataSectionOffset - _nameSectionOffset)
-            {
+            if (r < 0 || r > _dataSectionOffset - _nameSectionOffset) {
                 throw new FormatException(SR.Format(SR.BadImageFormat_ResourcesNameInvalidOffset, r));
             }
             return r;
         }
 
-        IEnumerator IEnumerable.GetEnumerator()
-        {
+        IEnumerator IEnumerable.GetEnumerator() {
             return GetEnumerator();
         }
 
-        public IDictionaryEnumerator GetEnumerator()
-        {
+        public IDictionaryEnumerator GetEnumerator() {
             if (_resCache == null)
                 throw new InvalidOperationException(SR.ResourceReaderIsClosed);
             return new ResourceEnumerator(this);
         }
 
-        internal ResourceEnumerator GetEnumeratorInternal()
-        {
+        internal ResourceEnumerator GetEnumeratorInternal() {
             return new ResourceEnumerator(this);
         }
 
@@ -265,8 +239,7 @@ namespace System.Resources
         // To read the data, seek to _dataSectionOffset + dataPos, then
         // read the resource type & data.
         // This does a binary search through the names.
-        internal int FindPosForResource(String name)
-        {
+        internal int FindPosForResource(String name) {
             Debug.Assert(_store != null, "ResourceReader is closed!");
             int hash = FastResourceComparer.HashFunction(name);
             BCLDebug.Log("RESMGRFILEFORMAT", "FindPosForResource for " + name + "  hash: " + hash.ToString("x", CultureInfo.InvariantCulture));
@@ -276,8 +249,7 @@ namespace System.Resources
             int hi = _numResources - 1;
             int index = -1;
             bool success = false;
-            while (lo <= hi)
-            {
+            while (lo <= hi) {
                 index = (lo + hi) >> 1;
                 // Do NOT use subtraction here, since it will wrap for large
                 // negative numbers. 
@@ -290,8 +262,7 @@ namespace System.Resources
                 else
                     c = 1;
                 //BCLDebug.Log("RESMGRFILEFORMAT", "  Probing index "+index+"  lo: "+lo+"  hi: "+hi+"  c: "+c);
-                if (c == 0)
-                {
+                if (c == 0) {
                     success = true;
                     break;
                 }
@@ -300,8 +271,7 @@ namespace System.Resources
                 else
                     hi = index - 1;
             }
-            if (!success)
-            {
+            if (!success) {
 #if RESOURCE_FILE_FORMAT_DEBUG
                 String lastReadString;
                 lock(this) {
@@ -318,29 +288,23 @@ namespace System.Resources
             // There could be collisions in our hash function.  Check on both sides 
             // of index to find the range of hash values that are equal to the
             // target hash value.
-            if (lo != index)
-            {
+            if (lo != index) {
                 lo = index;
                 while (lo > 0 && GetNameHash(lo - 1) == hash)
                     lo--;
             }
-            if (hi != index)
-            {
+            if (hi != index) {
                 hi = index;
                 while (hi < _numResources - 1 && GetNameHash(hi + 1) == hash)
                     hi++;
             }
 
-            lock (this)
-            {
-                for (int i = lo; i <= hi; i++)
-                {
+            lock (this) {
+                for (int i = lo; i <= hi; i++) {
                     _store.BaseStream.Seek(_nameSectionOffset + GetNamePosition(i), SeekOrigin.Begin);
-                    if (CompareStringEqualsName(name))
-                    {
+                    if (CompareStringEqualsName(name)) {
                         int dataPos = _store.ReadInt32();
-                        if (dataPos < 0 || dataPos >= _store.BaseStream.Length - _dataSectionOffset)
-                        {
+                        if (dataPos < 0 || dataPos >= _store.BaseStream.Length - _dataSectionOffset) {
                             throw new FormatException(SR.Format(SR.BadImageFormat_ResourcesDataInvalidOffset, dataPos));
                         }
                         return dataPos;
@@ -355,21 +319,17 @@ namespace System.Resources
         // with the string you pass in. 
         // Whoever calls this method should make sure that they take a lock
         // so no one else can cause us to seek in the stream.
-        private unsafe bool CompareStringEqualsName(String name)
-        {
+        private unsafe bool CompareStringEqualsName(String name) {
             Debug.Assert(_store != null, "ResourceReader is closed!");
             int byteLen = _store.Read7BitEncodedInt();
-            if (byteLen < 0)
-            {
+            if (byteLen < 0) {
                 throw new BadImageFormatException(SR.BadImageFormat_NegativeStringLength);
             }
-            if (_ums != null)
-            {
+            if (_ums != null) {
                 byte* bytes = _ums.PositionPointer;
                 // Skip over the data in the Stream, positioning ourselves right after it.
                 _ums.Seek(byteLen, SeekOrigin.Current);
-                if (_ums.Position > _ums.Length)
-                {
+                if (_ums.Position > _ums.Length) {
                     throw new BadImageFormatException(SR.BadImageFormat_ResourcesNameTooLong);
                 }
 
@@ -378,13 +338,11 @@ namespace System.Resources
                 //return FastResourceComparer.CompareOrdinal((char*)bytes, byteLen/2, name) == 0;
                 return FastResourceComparer.CompareOrdinal(bytes, byteLen, name) == 0;
             }
-            else
-            {
+            else {
                 // This code needs to be fast
                 byte[] bytes = new byte[byteLen];
                 int numBytesToRead = byteLen;
-                while (numBytesToRead > 0)
-                {
+                while (numBytesToRead > 0) {
                     int n = _store.Read(bytes, byteLen - numBytesToRead, numBytesToRead);
                     if (n == 0)
                         throw new BadImageFormatException(SR.BadImageFormat_ResourceNameCorrupted);
@@ -397,24 +355,20 @@ namespace System.Resources
         // This is used in the enumerator.  The enumerator iterates from 0 to n
         // of our resources and this returns the resource name for a particular
         // index.  The parameter is NOT a virtual offset.
-        private unsafe String AllocateStringForNameIndex(int index, out int dataOffset)
-        {
+        private unsafe String AllocateStringForNameIndex(int index, out int dataOffset) {
             Debug.Assert(_store != null, "ResourceReader is closed!");
             byte[] bytes;
             int byteLen;
             long nameVA = GetNamePosition(index);
-            lock (this)
-            {
+            lock (this) {
                 _store.BaseStream.Seek(nameVA + _nameSectionOffset, SeekOrigin.Begin);
                 // Can't use _store.ReadString, since it's using UTF-8!
                 byteLen = _store.Read7BitEncodedInt();
-                if (byteLen < 0)
-                {
+                if (byteLen < 0) {
                     throw new BadImageFormatException(SR.BadImageFormat_NegativeStringLength);
                 }
 
-                if (_ums != null)
-                {
+                if (_ums != null) {
                     if (_ums.Position > _ums.Length - byteLen)
                         throw new BadImageFormatException(SR.Format(SR.BadImageFormat_ResourcesIndexTooLong, index));
 
@@ -436,8 +390,7 @@ namespace System.Resources
 #endif //IA64
                     _ums.Position += byteLen;
                     dataOffset = _store.ReadInt32();
-                    if (dataOffset < 0 || dataOffset >= _store.BaseStream.Length - _dataSectionOffset)
-                    {
+                    if (dataOffset < 0 || dataOffset >= _store.BaseStream.Length - _dataSectionOffset) {
                         throw new FormatException(SR.Format(SR.BadImageFormat_ResourcesDataInvalidOffset, dataOffset));
                     }
                     return s;
@@ -448,16 +401,14 @@ namespace System.Resources
                 // Use a blocking read in case the stream doesn't give us back
                 // everything immediately.
                 int count = byteLen;
-                while (count > 0)
-                {
+                while (count > 0) {
                     int n = _store.Read(bytes, byteLen - count, count);
                     if (n == 0)
                         throw new EndOfStreamException(SR.Format(SR.BadImageFormat_ResourceNameCorrupted_NameIndex, index));
                     count -= n;
                 }
                 dataOffset = _store.ReadInt32();
-                if (dataOffset < 0 || dataOffset >= _store.BaseStream.Length - _dataSectionOffset)
-                {
+                if (dataOffset < 0 || dataOffset >= _store.BaseStream.Length - _dataSectionOffset) {
                     throw new FormatException(SR.Format(SR.BadImageFormat_ResourcesDataInvalidOffset, dataOffset));
                 }
             }
@@ -467,18 +418,15 @@ namespace System.Resources
         // This is used in the enumerator.  The enumerator iterates from 0 to n
         // of our resources and this returns the resource value for a particular
         // index.  The parameter is NOT a virtual offset.
-        private Object GetValueForNameIndex(int index)
-        {
+        private Object GetValueForNameIndex(int index) {
             Debug.Assert(_store != null, "ResourceReader is closed!");
             long nameVA = GetNamePosition(index);
-            lock (this)
-            {
+            lock (this) {
                 _store.BaseStream.Seek(nameVA + _nameSectionOffset, SeekOrigin.Begin);
                 SkipString();
                 //BCLDebug.Log("RESMGRFILEFORMAT", "GetValueForNameIndex for index: "+index+"  skip (name length): "+skip);
                 int dataPos = _store.ReadInt32();
-                if (dataPos < 0 || dataPos >= _store.BaseStream.Length - _dataSectionOffset)
-                {
+                if (dataPos < 0 || dataPos >= _store.BaseStream.Length - _dataSectionOffset) {
                     throw new FormatException(SR.Format(SR.BadImageFormat_ResourcesDataInvalidOffset, dataPos));
                 }
                 BCLDebug.Log("RESMGRFILEFORMAT", "GetValueForNameIndex: dataPos: " + dataPos);
@@ -494,25 +442,21 @@ namespace System.Resources
         // from that location.
         // Anyone who calls LoadObject should make sure they take a lock so 
         // no one can cause us to do a seek in here.
-        internal String LoadString(int pos)
-        {
+        internal String LoadString(int pos) {
             Debug.Assert(_store != null, "ResourceReader is closed!");
             _store.BaseStream.Seek(_dataSectionOffset + pos, SeekOrigin.Begin);
             String s = null;
             int typeIndex = _store.Read7BitEncodedInt();
-            if (_version == 1)
-            {
+            if (_version == 1) {
                 if (typeIndex == -1)
                     return null;
                 if (FindType(typeIndex) != typeof(String))
                     throw new InvalidOperationException(SR.Format(SR.InvalidOperation_ResourceNotString_Type, FindType(typeIndex).FullName));
                 s = _store.ReadString();
             }
-            else
-            {
+            else {
                 ResourceTypeCode typeCode = (ResourceTypeCode)typeIndex;
-                if (typeCode != ResourceTypeCode.String && typeCode != ResourceTypeCode.Null)
-                {
+                if (typeCode != ResourceTypeCode.String && typeCode != ResourceTypeCode.Null) {
                     String typeString;
                     if (typeCode < ResourceTypeCode.StartOfUserTypes)
                         typeString = typeCode.ToString();
@@ -528,18 +472,15 @@ namespace System.Resources
         }
 
         // Called from RuntimeResourceSet
-        internal Object LoadObject(int pos)
-        {
+        internal Object LoadObject(int pos) {
             if (_version == 1)
                 return LoadObjectV1(pos);
             ResourceTypeCode typeCode;
             return LoadObjectV2(pos, out typeCode);
         }
 
-        internal Object LoadObject(int pos, out ResourceTypeCode typeCode)
-        {
-            if (_version == 1)
-            {
+        internal Object LoadObject(int pos, out ResourceTypeCode typeCode) {
+            if (_version == 1) {
                 Object o = LoadObjectV1(pos);
                 typeCode = (o is String) ? ResourceTypeCode.String : ResourceTypeCode.StartOfUserTypes;
                 return o;
@@ -551,29 +492,24 @@ namespace System.Resources
         // from that location.
         // Anyone who calls LoadObject should make sure they take a lock so 
         // no one can cause us to do a seek in here.
-        internal Object LoadObjectV1(int pos)
-        {
+        internal Object LoadObjectV1(int pos) {
             Debug.Assert(_store != null, "ResourceReader is closed!");
             Debug.Assert(_version == 1, ".resources file was not a V1 .resources file!");
 
-            try
-            {
+            try {
                 // mega try-catch performs exceptionally bad on x64; factored out body into 
                 // _LoadObjectV1 and wrap here.
                 return _LoadObjectV1(pos);
             }
-            catch (EndOfStreamException eof)
-            {
+            catch (EndOfStreamException eof) {
                 throw new BadImageFormatException(SR.BadImageFormat_TypeMismatch, eof);
             }
-            catch (ArgumentOutOfRangeException e)
-            {
+            catch (ArgumentOutOfRangeException e) {
                 throw new BadImageFormatException(SR.BadImageFormat_TypeMismatch, e);
             }
         }
 
-        private Object _LoadObjectV1(int pos)
-        {
+        private Object _LoadObjectV1(int pos) {
             _store.BaseStream.Seek(_dataSectionOffset + pos, SeekOrigin.Begin);
             int typeIndex = _store.Read7BitEncodedInt();
             if (typeIndex == -1)
@@ -606,57 +542,48 @@ namespace System.Resources
                 return _store.ReadSingle();
             else if (type == typeof(Double))
                 return _store.ReadDouble();
-            else if (type == typeof(DateTime))
-            {
+            else if (type == typeof(DateTime)) {
                 // Ideally we should use DateTime's ToBinary & FromBinary,
                 // but we can't for compatibility reasons.
                 return new DateTime(_store.ReadInt64());
             }
             else if (type == typeof(TimeSpan))
                 return new TimeSpan(_store.ReadInt64());
-            else if (type == typeof(Decimal))
-            {
+            else if (type == typeof(Decimal)) {
                 int[] bits = new int[4];
                 for (int i = 0; i < bits.Length; i++)
                     bits[i] = _store.ReadInt32();
                 return new Decimal(bits);
             }
-            else
-            {
+            else {
                 throw new NotSupportedException(SR.NotSupported_ResourceObjectSerialization);
             }
         }
 
-        internal Object LoadObjectV2(int pos, out ResourceTypeCode typeCode)
-        {
+        internal Object LoadObjectV2(int pos, out ResourceTypeCode typeCode) {
             Debug.Assert(_store != null, "ResourceReader is closed!");
             Debug.Assert(_version >= 2, ".resources file was not a V2 (or higher) .resources file!");
 
-            try
-            {
+            try {
                 // mega try-catch performs exceptionally bad on x64; factored out body into 
                 // _LoadObjectV2 and wrap here.
                 return _LoadObjectV2(pos, out typeCode);
             }
-            catch (EndOfStreamException eof)
-            {
+            catch (EndOfStreamException eof) {
                 throw new BadImageFormatException(SR.BadImageFormat_TypeMismatch, eof);
             }
-            catch (ArgumentOutOfRangeException e)
-            {
+            catch (ArgumentOutOfRangeException e) {
                 throw new BadImageFormatException(SR.BadImageFormat_TypeMismatch, e);
             }
         }
 
-        private Object _LoadObjectV2(int pos, out ResourceTypeCode typeCode)
-        {
+        private Object _LoadObjectV2(int pos, out ResourceTypeCode typeCode) {
             _store.BaseStream.Seek(_dataSectionOffset + pos, SeekOrigin.Begin);
             typeCode = (ResourceTypeCode)_store.Read7BitEncodedInt();
 
             BCLDebug.Log("RESMGRFILEFORMAT", "LoadObjectV2 type: " + typeCode + "  pos: 0x" + _store.BaseStream.Position.ToString("x", CultureInfo.InvariantCulture));
 
-            switch (typeCode)
-            {
+            switch (typeCode) {
                 case ResourceTypeCode.Null:
                     return null;
 
@@ -712,25 +639,20 @@ namespace System.Resources
                     return new TimeSpan(ticks);
 
                 // Special types
-                case ResourceTypeCode.ByteArray:
-                    {
+                case ResourceTypeCode.ByteArray: {
                         int len = _store.ReadInt32();
-                        if (len < 0)
-                        {
+                        if (len < 0) {
                             throw new BadImageFormatException(SR.Format(SR.BadImageFormat_ResourceDataLengthInvalid, len));
                         }
 
-                        if (_ums == null)
-                        {
-                            if (len > _store.BaseStream.Length)
-                            {
+                        if (_ums == null) {
+                            if (len > _store.BaseStream.Length) {
                                 throw new BadImageFormatException(SR.Format(SR.BadImageFormat_ResourceDataLengthInvalid, len));
                             }
                             return _store.ReadBytes(len);
                         }
 
-                        if (len > _ums.Length - _ums.Position)
-                        {
+                        if (len > _ums.Length - _ums.Position) {
                             throw new BadImageFormatException(SR.Format(SR.BadImageFormat_ResourceDataLengthInvalid, len));
                         }
 
@@ -740,37 +662,31 @@ namespace System.Resources
                         return bytes;
                     }
 
-                case ResourceTypeCode.Stream:
-                    {
+                case ResourceTypeCode.Stream: {
                         int len = _store.ReadInt32();
-                        if (len < 0)
-                        {
+                        if (len < 0) {
                             throw new BadImageFormatException(SR.Format(SR.BadImageFormat_ResourceDataLengthInvalid, len));
                         }
-                        if (_ums == null)
-                        {
+                        if (_ums == null) {
                             byte[] bytes = _store.ReadBytes(len);
                             // Lifetime of memory == lifetime of this stream.
                             return new PinnedBufferMemoryStream(bytes);
                         }
 
                         // make sure we don't create an UnmanagedMemoryStream that is longer than the resource stream. 
-                        if (len > _ums.Length - _ums.Position)
-                        {
+                        if (len > _ums.Length - _ums.Position) {
                             throw new BadImageFormatException(SR.Format(SR.BadImageFormat_ResourceDataLengthInvalid, len));
                         }
 
                         // For the case that we've memory mapped in the .resources
                         // file, just return a Stream pointing to that block of memory.
-                        unsafe
-                        {
+                        unsafe {
                             return new UnmanagedMemoryStream(_ums.PositionPointer, len, len, FileAccess.Read);
                         }
                     }
 
                 default:
-                    if (typeCode < ResourceTypeCode.StartOfUserTypes)
-                    {
+                    if (typeCode < ResourceTypeCode.StartOfUserTypes) {
                         throw new BadImageFormatException(SR.BadImageFormat_TypeMismatch);
                     }
                     break;
@@ -785,28 +701,23 @@ namespace System.Resources
         // Reads in the header information for a .resources file.  Verifies some
         // of the assumptions about this resource set, and builds the class table
         // for the default resource file format.
-        private void ReadResources()
-        {
+        private void ReadResources() {
             Debug.Assert(_store != null, "ResourceReader is closed!");
 
-            try
-            {
+            try {
                 // mega try-catch performs exceptionally bad on x64; factored out body into 
                 // _ReadResources and wrap here.
                 _ReadResources();
             }
-            catch (EndOfStreamException eof)
-            {
+            catch (EndOfStreamException eof) {
                 throw new BadImageFormatException(SR.BadImageFormat_ResourcesHeaderCorrupted, eof);
             }
-            catch (IndexOutOfRangeException e)
-            {
+            catch (IndexOutOfRangeException e) {
                 throw new BadImageFormatException(SR.BadImageFormat_ResourcesHeaderCorrupted, e);
             }
         }
 
-        private void _ReadResources()
-        {
+        private void _ReadResources() {
             // Read ResourceManager header
             // Check for magic number
             int magicNum = _store.ReadInt32();
@@ -818,17 +729,14 @@ namespace System.Resources
             // use this to skip to the end of the header
             int resMgrHeaderVersion = _store.ReadInt32();
             int numBytesToSkip = _store.ReadInt32();
-            if (numBytesToSkip < 0 || resMgrHeaderVersion < 0)
-            {
+            if (numBytesToSkip < 0 || resMgrHeaderVersion < 0) {
                 throw new BadImageFormatException(SR.BadImageFormat_ResourcesHeaderCorrupted);
             }
-            if (resMgrHeaderVersion > 1)
-            {
+            if (resMgrHeaderVersion > 1) {
                 BCLDebug.Log("RESMGRFILEFORMAT", LogLevel.Status, "ReadResources: Unexpected ResMgr header version: {0}  Skipping ahead {1} bytes.", resMgrHeaderVersion, numBytesToSkip);
                 _store.BaseStream.Seek(numBytesToSkip, SeekOrigin.Current);
             }
-            else
-            {
+            else {
                 BCLDebug.Log("RESMGRFILEFORMAT", "ReadResources: Parsing ResMgr header v1.");
                 // We don't care about numBytesToSkip; read the rest of the header
 
@@ -873,8 +781,7 @@ namespace System.Resources
 #endif
 
             _numResources = _store.ReadInt32();
-            if (_numResources < 0)
-            {
+            if (_numResources < 0) {
                 throw new BadImageFormatException(SR.BadImageFormat_ResourcesHeaderCorrupted);
             }
             BCLDebug.Log("RESMGRFILEFORMAT", "ReadResources: Expecting " + _numResources + " resources.");
@@ -886,14 +793,12 @@ namespace System.Resources
             // Read type positions into type positions array.
             // But delay initialize the type table.
             int numTypes = _store.ReadInt32();
-            if (numTypes < 0)
-            {
+            if (numTypes < 0) {
                 throw new BadImageFormatException(SR.BadImageFormat_ResourcesHeaderCorrupted);
             }
             _typeTable = new RuntimeType[numTypes];
             _typeNamePositions = new int[numTypes];
-            for (int i = 0; i < numTypes; i++)
-            {
+            for (int i = 0; i < numTypes; i++) {
                 _typeNamePositions[i] = (int)_store.BaseStream.Position;
 
                 // Skip over the Strings in the file.  Don't create types.
@@ -913,10 +818,8 @@ namespace System.Resources
             //  should be aligned   No need to verify the byte values.
             long pos = _store.BaseStream.Position;
             int alignBytes = ((int)pos) & 7;
-            if (alignBytes != 0)
-            {
-                for (int i = 0; i < 8 - alignBytes; i++)
-                {
+            if (alignBytes != 0) {
+                for (int i = 0; i < 8 - alignBytes; i++) {
                     _store.ReadByte();
                 }
             }
@@ -929,23 +832,18 @@ namespace System.Resources
                 }
 #endif
 
-            if (_ums == null)
-            {
+            if (_ums == null) {
                 _nameHashes = new int[_numResources];
-                for (int i = 0; i < _numResources; i++)
-                {
+                for (int i = 0; i < _numResources; i++) {
                     _nameHashes[i] = _store.ReadInt32();
                 }
             }
-            else
-            {
+            else {
                 int seekPos = unchecked(4 * _numResources);
-                if (seekPos < 0)
-                {
+                if (seekPos < 0) {
                     throw new BadImageFormatException(SR.BadImageFormat_ResourcesHeaderCorrupted);
                 }
-                unsafe
-                {
+                unsafe {
                     _nameHashesPtr = (int*)_ums.PositionPointer;
                     // Skip over the array of nameHashes.
                     _ums.Seek(seekPos, SeekOrigin.Current);
@@ -961,29 +859,23 @@ namespace System.Resources
                 _store.BaseStream.Position += 8;
             }
 #endif
-            if (_ums == null)
-            {
+            if (_ums == null) {
                 _namePositions = new int[_numResources];
-                for (int i = 0; i < _numResources; i++)
-                {
+                for (int i = 0; i < _numResources; i++) {
                     int namePosition = _store.ReadInt32();
-                    if (namePosition < 0)
-                    {
+                    if (namePosition < 0) {
                         throw new BadImageFormatException(SR.BadImageFormat_ResourcesHeaderCorrupted);
                     }
 
                     _namePositions[i] = namePosition;
                 }
             }
-            else
-            {
+            else {
                 int seekPos = unchecked(4 * _numResources);
-                if (seekPos < 0)
-                {
+                if (seekPos < 0) {
                     throw new BadImageFormatException(SR.BadImageFormat_ResourcesHeaderCorrupted);
                 }
-                unsafe
-                {
+                unsafe {
                     _namePositionsPtr = (int*)_ums.PositionPointer;
                     // Skip over the array of namePositions.
                     _ums.Seek(seekPos, SeekOrigin.Current);
@@ -994,8 +886,7 @@ namespace System.Resources
 
             // Read location of data section.
             _dataSectionOffset = _store.ReadInt32();
-            if (_dataSectionOffset < 0)
-            {
+            if (_dataSectionOffset < 0) {
                 throw new BadImageFormatException(SR.BadImageFormat_ResourcesHeaderCorrupted);
             }
 
@@ -1003,8 +894,7 @@ namespace System.Resources
             _nameSectionOffset = _store.BaseStream.Position;
 
             // _nameSectionOffset should be <= _dataSectionOffset; if not, it's corrupt
-            if (_dataSectionOffset < _nameSectionOffset)
-            {
+            if (_dataSectionOffset < _nameSectionOffset) {
                 throw new BadImageFormatException(SR.BadImageFormat_ResourcesHeaderCorrupted);
             }
 
@@ -1014,17 +904,13 @@ namespace System.Resources
         // This allows us to delay-initialize the Type[].  This might be a 
         // good startup time savings, since we might have to load assemblies
         // and initialize Reflection.
-        private RuntimeType FindType(int typeIndex)
-        {
-            if (typeIndex < 0 || typeIndex >= _typeTable.Length)
-            {
+        private RuntimeType FindType(int typeIndex) {
+            if (typeIndex < 0 || typeIndex >= _typeTable.Length) {
                 throw new BadImageFormatException(SR.BadImageFormat_InvalidType);
             }
-            if (_typeTable[typeIndex] == null)
-            {
+            if (_typeTable[typeIndex] == null) {
                 long oldPos = _store.BaseStream.Position;
-                try
-                {
+                try {
                     _store.BaseStream.Position = _typeNamePositions[typeIndex];
                     String typeName = _store.ReadString();
                     _typeTable[typeIndex] = (RuntimeType)Type.GetType(typeName, true);
@@ -1039,12 +925,10 @@ namespace System.Resources
                 //
                 // We don't want to regress the expected case by checking the type info before 
                 // getting to Type.GetType -- this is costly with v1 resource formats.
-                catch (FileNotFoundException)
-                {
+                catch (FileNotFoundException) {
                     throw new NotSupportedException(SR.NotSupported_ResourceObjectSerialization);
                 }
-                finally
-                {
+                finally {
                     _store.BaseStream.Position = oldPos;
                 }
             }
@@ -1053,8 +937,7 @@ namespace System.Resources
         }
 
 
-        public void GetResourceData(String resourceName, out String resourceType, out byte[] resourceData)
-        {
+        public void GetResourceData(String resourceName, out String resourceType, out byte[] resourceData) {
             if (resourceName == null)
                 throw new ArgumentNullException(nameof(resourceName));
             Contract.EndContractBlock();
@@ -1067,28 +950,23 @@ namespace System.Resources
             // off the length of the type code).
             int[] sortedDataPositions = new int[_numResources];
             int dataPos = FindPosForResource(resourceName);
-            if (dataPos == -1)
-            {
+            if (dataPos == -1) {
                 throw new ArgumentException(SR.Format(SR.Arg_ResourceNameNotExist, resourceName));
             }
 
-            lock (this)
-            {
+            lock (this) {
                 // Read all the positions of data within the data section.
-                for (int i = 0; i < _numResources; i++)
-                {
+                for (int i = 0; i < _numResources; i++) {
                     _store.BaseStream.Position = _nameSectionOffset + GetNamePosition(i);
                     // Skip over name of resource
                     int numBytesToSkip = _store.Read7BitEncodedInt();
-                    if (numBytesToSkip < 0)
-                    {
+                    if (numBytesToSkip < 0) {
                         throw new FormatException(SR.Format(SR.BadImageFormat_ResourcesNameInvalidOffset, numBytesToSkip));
                     }
                     _store.BaseStream.Position += numBytesToSkip;
 
                     int dPos = _store.ReadInt32();
-                    if (dPos < 0 || dPos >= _store.BaseStream.Length - _dataSectionOffset)
-                    {
+                    if (dPos < 0 || dPos >= _store.BaseStream.Length - _dataSectionOffset) {
                         throw new FormatException(SR.Format(SR.BadImageFormat_ResourcesDataInvalidOffset, dPos));
                     }
                     sortedDataPositions[i] = dPos;
@@ -1104,8 +982,7 @@ namespace System.Resources
                 // Read type code then byte[]
                 _store.BaseStream.Position = _dataSectionOffset + dataPos;
                 ResourceTypeCode typeCode = (ResourceTypeCode)_store.Read7BitEncodedInt();
-                if (typeCode < 0 || typeCode >= ResourceTypeCode.StartOfUserTypes + _typeTable.Length)
-                {
+                if (typeCode < 0 || typeCode >= ResourceTypeCode.StartOfUserTypes + _typeTable.Length) {
                     throw new BadImageFormatException(SR.BadImageFormat_InvalidType);
                 }
                 resourceType = TypeNameFromTypeCode(typeCode);
@@ -1120,26 +997,21 @@ namespace System.Resources
             }
         }
 
-        private String TypeNameFromTypeCode(ResourceTypeCode typeCode)
-        {
+        private String TypeNameFromTypeCode(ResourceTypeCode typeCode) {
             Contract.Requires(typeCode >= 0, "can't be negative");
-            if (typeCode < ResourceTypeCode.StartOfUserTypes)
-            {
+            if (typeCode < ResourceTypeCode.StartOfUserTypes) {
                 Debug.Assert(!String.Equals(typeCode.ToString(), "LastPrimitive"), "Change ResourceTypeCode metadata order so LastPrimitive isn't what Enum.ToString prefers.");
                 return "ResourceTypeCode." + typeCode.ToString();
             }
-            else
-            {
+            else {
                 int typeIndex = typeCode - ResourceTypeCode.StartOfUserTypes;
                 Debug.Assert(typeIndex >= 0 && typeIndex < _typeTable.Length, "TypeCode is broken or corrupted!");
                 long oldPos = _store.BaseStream.Position;
-                try
-                {
+                try {
                     _store.BaseStream.Position = _typeNamePositions[typeIndex];
                     return _store.ReadString();
                 }
-                finally
-                {
+                finally {
                     _store.BaseStream.Position = oldPos;
                 }
             }
@@ -1147,8 +1019,7 @@ namespace System.Resources
 
 
 
-        internal sealed class ResourceEnumerator : IDictionaryEnumerator
-        {
+        internal sealed class ResourceEnumerator : IDictionaryEnumerator {
             private const int ENUM_DONE = Int32.MinValue;
             private const int ENUM_NOT_STARTED = -1;
 
@@ -1157,17 +1028,14 @@ namespace System.Resources
             private int _currentName;
             private int _dataPosition; // cached for case-insensitive table
 
-            internal ResourceEnumerator(ResourceReader reader)
-            {
+            internal ResourceEnumerator(ResourceReader reader) {
                 _currentName = ENUM_NOT_STARTED;
                 _reader = reader;
                 _dataPosition = -2;
             }
 
-            public bool MoveNext()
-            {
-                if (_currentName == _reader._numResources - 1 || _currentName == ENUM_DONE)
-                {
+            public bool MoveNext() {
+                if (_currentName == _reader._numResources - 1 || _currentName == ENUM_DONE) {
                     _currentIsValid = false;
                     _currentName = ENUM_DONE;
                     return false;
@@ -1177,10 +1045,8 @@ namespace System.Resources
                 return true;
             }
 
-            public Object Key
-            {
-                get
-                {
+            public Object Key {
+                get {
                     if (_currentName == ENUM_DONE) throw new InvalidOperationException(SR.GetResourceString(ResId.InvalidOperation_EnumEnded));
                     if (!_currentIsValid) throw new InvalidOperationException(SR.GetResourceString(ResId.InvalidOperation_EnumNotStarted));
                     if (_reader._resCache == null) throw new InvalidOperationException(SR.ResourceReaderIsClosed);
@@ -1189,45 +1055,35 @@ namespace System.Resources
                 }
             }
 
-            public Object Current
-            {
-                get
-                {
+            public Object Current {
+                get {
                     return Entry;
                 }
             }
 
             // Warning: This requires that you call the Key or Entry property FIRST before calling it!
-            internal int DataPosition
-            {
-                get
-                {
+            internal int DataPosition {
+                get {
                     return _dataPosition;
                 }
             }
 
-            public DictionaryEntry Entry
-            {
-                get
-                {
+            public DictionaryEntry Entry {
+                get {
                     if (_currentName == ENUM_DONE) throw new InvalidOperationException(SR.GetResourceString(ResId.InvalidOperation_EnumEnded));
                     if (!_currentIsValid) throw new InvalidOperationException(SR.GetResourceString(ResId.InvalidOperation_EnumNotStarted));
                     if (_reader._resCache == null) throw new InvalidOperationException(SR.ResourceReaderIsClosed);
 
                     String key;
                     Object value = null;
-                    lock (_reader)
-                    { // locks should be taken in the same order as in RuntimeResourceSet.GetObject to avoid deadlock
-                        lock (_reader._resCache)
-                        {
+                    lock (_reader) { // locks should be taken in the same order as in RuntimeResourceSet.GetObject to avoid deadlock
+                        lock (_reader._resCache) {
                             key = _reader.AllocateStringForNameIndex(_currentName, out _dataPosition); // AllocateStringForNameIndex could lock on _reader
                             ResourceLocator locator;
-                            if (_reader._resCache.TryGetValue(key, out locator))
-                            {
+                            if (_reader._resCache.TryGetValue(key, out locator)) {
                                 value = locator.Value;
                             }
-                            if (value == null)
-                            {
+                            if (value == null) {
                                 if (_dataPosition == -1)
                                     value = _reader.GetValueForNameIndex(_currentName);
                                 else
@@ -1244,10 +1100,8 @@ namespace System.Resources
                 }
             }
 
-            public Object Value
-            {
-                get
-                {
+            public Object Value {
+                get {
                     if (_currentName == ENUM_DONE) throw new InvalidOperationException(SR.GetResourceString(ResId.InvalidOperation_EnumEnded));
                     if (!_currentIsValid) throw new InvalidOperationException(SR.GetResourceString(ResId.InvalidOperation_EnumNotStarted));
                     if (_reader._resCache == null) throw new InvalidOperationException(SR.ResourceReaderIsClosed);
@@ -1260,8 +1114,7 @@ namespace System.Resources
                 }
             }
 
-            public void Reset()
-            {
+            public void Reset() {
                 if (_reader._resCache == null) throw new InvalidOperationException(SR.ResourceReaderIsClosed);
                 _currentIsValid = false;
                 _currentName = ENUM_NOT_STARTED;

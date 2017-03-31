@@ -5,16 +5,13 @@
 using System;
 using System.Diagnostics.Contracts;
 
-namespace System.Collections
-{
+namespace System.Collections {
     // An IList is an ordered collection of objects.  The exact ordering
     // is up to the implementation of the list, ranging from a sorted
     // order to insertion order.
-    public interface IList : ICollection
-    {
+    public interface IList : ICollection {
         // The Item property provides methods to read and edit entries in the List.
-        Object this[int index]
-        {
+        Object this[int index] {
             get;
             set;
         }
@@ -31,12 +28,10 @@ namespace System.Collections
         // Removes all items from the list.
         void Clear();
 
-        bool IsReadOnly
-        { get; }
+        bool IsReadOnly { get; }
 
 
-        bool IsFixedSize
-        {
+        bool IsFixedSize {
             get;
         }
 

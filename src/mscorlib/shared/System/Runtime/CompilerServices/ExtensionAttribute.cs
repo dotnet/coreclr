@@ -4,8 +4,7 @@
 
 using System;
 
-namespace System.Runtime.CompilerServices
-{
+namespace System.Runtime.CompilerServices {
     /// <summary>
     /// Indicates that a method is an extension method, or that a class or assembly contains extension methods.
     /// </summary>

@@ -4,8 +4,7 @@
 
 //
 
-namespace System.Threading
-{
+namespace System.Threading {
     using System;
     using System.Security;
     using Microsoft.Win32;
@@ -43,20 +42,17 @@ namespace System.Threading
     //
     // Note that all instance methods of this class require that the caller hold a lock on TimerQueue.Instance.
     //
-    internal class TimerQueue
-    {
+    internal class TimerQueue {
         #region singleton pattern implementation
 
         // The one-and-only TimerQueue for the AppDomain.
         private static TimerQueue s_queue = new TimerQueue();
 
-        public static TimerQueue Instance
-        {
+        public static TimerQueue Instance {
             get { return s_queue; }
         }
 
-        private TimerQueue()
-        {
+        private TimerQueue() {
             // empty private constructor to ensure we remain a singleton.
         }
 
@@ -73,13 +69,10 @@ namespace System.Threading
         // So, on Win8, we use QueryUnbiasedInterruptTime instead; this does not count time spent
         // in sleep/hibernate mode.
         //
-        private static int TickCount
-        {
-            get
-            {
+        private static int TickCount {
+            get {
 #if !FEATURE_PAL
-                if (Environment.IsWindows8OrAbove)
-                {
+                if (Environment.IsWindows8OrAbove) {
                     ulong time100ns;
 
                     bool result = Win32Native.QueryUnbiasedInterruptTime(out time100ns);
@@ -100,15 +93,12 @@ namespace System.Threading
         //
         // We use a SafeHandle to ensure that the native timer is destroyed when the AppDomain is unloaded.
         //
-        private class AppDomainTimerSafeHandle : SafeHandleZeroOrMinusOneIsInvalid
-        {
+        private class AppDomainTimerSafeHandle : SafeHandleZeroOrMinusOneIsInvalid {
             public AppDomainTimerSafeHandle()
-                : base(true)
-            {
+                : base(true) {
             }
 
-            protected override bool ReleaseHandle()
-            {
+            protected override bool ReleaseHandle() {
                 return DeleteAppDomainTimer(handle);
             }
         }
@@ -119,8 +109,7 @@ namespace System.Threading
         private int m_currentAppDomainTimerStartTicks;
         private uint m_currentAppDomainTimerDuration;
 
-        private bool EnsureAppDomainTimerFiresBy(uint requestedDuration)
-        {
+        private bool EnsureAppDomainTimerFiresBy(uint requestedDuration) {
             //
             // The VM's timer implementation does not work well for very long-duration timers.
             // See kb 950807.
@@ -132,8 +121,7 @@ namespace System.Threading
             const uint maxPossibleDuration = 0x0fffffff;
             uint actualDuration = Math.Min(requestedDuration, maxPossibleDuration);
 
-            if (m_isAppDomainTimerScheduled)
-            {
+            if (m_isAppDomainTimerScheduled) {
                 uint elapsed = (uint)(TickCount - m_currentAppDomainTimerStartTicks);
                 if (elapsed >= m_currentAppDomainTimerDuration)
                     return true; //the timer's about to fire
@@ -145,41 +133,34 @@ namespace System.Threading
 
             // If Pause is underway then do not schedule the timers
             // A later update during resume will re-schedule
-            if (m_pauseTicks != 0)
-            {
+            if (m_pauseTicks != 0) {
                 Debug.Assert(!m_isAppDomainTimerScheduled);
                 Debug.Assert(m_appDomainTimer == null);
                 return true;
             }
 
-            if (m_appDomainTimer == null || m_appDomainTimer.IsInvalid)
-            {
+            if (m_appDomainTimer == null || m_appDomainTimer.IsInvalid) {
                 Debug.Assert(!m_isAppDomainTimerScheduled);
 
                 m_appDomainTimer = CreateAppDomainTimer(actualDuration);
-                if (!m_appDomainTimer.IsInvalid)
-                {
+                if (!m_appDomainTimer.IsInvalid) {
                     m_isAppDomainTimerScheduled = true;
                     m_currentAppDomainTimerStartTicks = TickCount;
                     m_currentAppDomainTimerDuration = actualDuration;
                     return true;
                 }
-                else
-                {
+                else {
                     return false;
                 }
             }
-            else
-            {
-                if (ChangeAppDomainTimer(m_appDomainTimer, actualDuration))
-                {
+            else {
+                if (ChangeAppDomainTimer(m_appDomainTimer, actualDuration)) {
                     m_isAppDomainTimerScheduled = true;
                     m_currentAppDomainTimerStartTicks = TickCount;
                     m_currentAppDomainTimerDuration = actualDuration;
                     return true;
                 }
-                else
-                {
+                else {
                     return false;
                 }
             }
@@ -188,8 +169,7 @@ namespace System.Threading
         //
         // The VM calls this when the native timer fires.
         //
-        internal static void AppDomainTimerCallback()
-        {
+        internal static void AppDomainTimerCallback() {
             Instance.FireNextTimers();
         }
 
@@ -221,20 +201,17 @@ namespace System.Threading
         //
         // Fire any timers that have expired, and update the native timer to schedule the rest of them.
         //
-        private void FireNextTimers()
-        {
+        private void FireNextTimers() {
             //
             // we fire the first timer on this thread; any other timers that might have fired are queued
             // to the ThreadPool.
             //
             TimerQueueTimer timerToFireOnThisThread = null;
 
-            lock (this)
-            {
+            lock (this) {
                 // prevent ThreadAbort while updating state
                 try { }
-                finally
-                {
+                finally {
                     //
                     // since we got here, that means our previous timer has fired.
                     //
@@ -250,34 +227,29 @@ namespace System.Threading
                     // other timers.
                     //
                     TimerQueueTimer timer = m_timers;
-                    while (timer != null)
-                    {
+                    while (timer != null) {
                         Debug.Assert(timer.m_dueTime != Timeout.UnsignedInfinite);
 
                         uint elapsed = (uint)(nowTicks - timer.m_startTicks);
-                        if (elapsed >= timer.m_dueTime)
-                        {
+                        if (elapsed >= timer.m_dueTime) {
                             //
                             // Remember the next timer in case we delete this one
                             //
                             TimerQueueTimer nextTimer = timer.m_next;
 
-                            if (timer.m_period != Timeout.UnsignedInfinite)
-                            {
+                            if (timer.m_period != Timeout.UnsignedInfinite) {
                                 timer.m_startTicks = nowTicks;
                                 timer.m_dueTime = timer.m_period;
 
                                 //
                                 // This is a repeating timer; schedule it to run again.
                                 //
-                                if (timer.m_dueTime < nextAppDomainTimerDuration)
-                                {
+                                if (timer.m_dueTime < nextAppDomainTimerDuration) {
                                     haveTimerToSchedule = true;
                                     nextAppDomainTimerDuration = timer.m_dueTime;
                                 }
                             }
-                            else
-                            {
+                            else {
                                 //
                                 // Not repeating; remove it from the queue
                                 //
@@ -295,14 +267,12 @@ namespace System.Threading
 
                             timer = nextTimer;
                         }
-                        else
-                        {
+                        else {
                             //
                             // This timer hasn't fired yet.  Just update the next time the native timer fires.
                             //
                             uint remaining = timer.m_dueTime - elapsed;
-                            if (remaining < nextAppDomainTimerDuration)
-                            {
+                            if (remaining < nextAppDomainTimerDuration) {
                                 haveTimerToSchedule = true;
                                 nextAppDomainTimerDuration = remaining;
                             }
@@ -322,8 +292,7 @@ namespace System.Threading
                 timerToFireOnThisThread.Fire();
         }
 
-        private static void QueueTimerCompletion(TimerQueueTimer timer)
-        {
+        private static void QueueTimerCompletion(TimerQueueTimer timer) {
             WaitCallback callback = s_fireQueuedTimerCompletion;
             if (callback == null)
                 s_fireQueuedTimerCompletion = callback = new WaitCallback(FireQueuedTimerCompletion);
@@ -335,8 +304,7 @@ namespace System.Threading
 
         private static WaitCallback s_fireQueuedTimerCompletion;
 
-        private static void FireQueuedTimerCompletion(object state)
-        {
+        private static void FireQueuedTimerCompletion(object state) {
             ((TimerQueueTimer)state).Fire();
         }
 
@@ -344,10 +312,8 @@ namespace System.Threading
 
         #region Queue implementation
 
-        public bool UpdateTimer(TimerQueueTimer timer, uint dueTime, uint period)
-        {
-            if (timer.m_dueTime == Timeout.UnsignedInfinite)
-            {
+        public bool UpdateTimer(TimerQueueTimer timer, uint dueTime, uint period) {
+            if (timer.m_dueTime == Timeout.UnsignedInfinite) {
                 // the timer is not in the list; add it (as the head of the list).
                 timer.m_next = m_timers;
                 timer.m_prev = null;
@@ -361,10 +327,8 @@ namespace System.Threading
             return EnsureAppDomainTimerFiresBy(dueTime);
         }
 
-        public void DeleteTimer(TimerQueueTimer timer)
-        {
-            if (timer.m_dueTime != Timeout.UnsignedInfinite)
-            {
+        public void DeleteTimer(TimerQueueTimer timer) {
+            if (timer.m_dueTime != Timeout.UnsignedInfinite) {
                 if (timer.m_next != null)
                     timer.m_next.m_prev = timer.m_prev;
                 if (timer.m_prev != null)
@@ -386,8 +350,7 @@ namespace System.Threading
     //
     // A timer in our TimerQueue.
     //
-    internal sealed class TimerQueueTimer
-    {
+    internal sealed class TimerQueueTimer {
         //
         // All fields of this class are protected by a lock on TimerQueue.Instance.
         //
@@ -431,8 +394,7 @@ namespace System.Threading
         private volatile WaitHandle m_notifyWhenNoCallbacksRunning;
 
 
-        internal TimerQueueTimer(TimerCallback timerCallback, object state, uint dueTime, uint period)
-        {
+        internal TimerQueueTimer(TimerCallback timerCallback, object state, uint dueTime, uint period) {
             m_timerCallback = timerCallback;
             m_state = state;
             m_dueTime = Timeout.UnsignedInfinite;
@@ -448,28 +410,23 @@ namespace System.Threading
         }
 
 
-        internal bool Change(uint dueTime, uint period)
-        {
+        internal bool Change(uint dueTime, uint period) {
             bool success;
 
-            lock (TimerQueue.Instance)
-            {
+            lock (TimerQueue.Instance) {
                 if (m_canceled)
                     throw new ObjectDisposedException(null, SR.ObjectDisposed_Generic);
 
                 // prevent ThreadAbort while updating state
                 try { }
-                finally
-                {
+                finally {
                     m_period = period;
 
-                    if (dueTime == Timeout.UnsignedInfinite)
-                    {
+                    if (dueTime == Timeout.UnsignedInfinite) {
                         TimerQueue.Instance.DeleteTimer(this);
                         success = true;
                     }
-                    else
-                    {
+                    else {
                         if (FrameworkEventSource.IsInitialized && FrameworkEventSource.Log.IsEnabled(EventLevel.Informational, FrameworkEventSource.Keywords.ThreadTransfer))
                             FrameworkEventSource.Log.ThreadTransferSendObj(this, 1, string.Empty, true);
 
@@ -482,16 +439,12 @@ namespace System.Threading
         }
 
 
-        public void Close()
-        {
-            lock (TimerQueue.Instance)
-            {
+        public void Close() {
+            lock (TimerQueue.Instance) {
                 // prevent ThreadAbort while updating state
                 try { }
-                finally
-                {
-                    if (!m_canceled)
-                    {
+                finally {
+                    if (!m_canceled) {
                         m_canceled = true;
                         TimerQueue.Instance.DeleteTimer(this);
                     }
@@ -500,23 +453,18 @@ namespace System.Threading
         }
 
 
-        public bool Close(WaitHandle toSignal)
-        {
+        public bool Close(WaitHandle toSignal) {
             bool success;
             bool shouldSignal = false;
 
-            lock (TimerQueue.Instance)
-            {
+            lock (TimerQueue.Instance) {
                 // prevent ThreadAbort while updating state
                 try { }
-                finally
-                {
-                    if (m_canceled)
-                    {
+                finally {
+                    if (m_canceled) {
                         success = false;
                     }
-                    else
-                    {
+                    else {
                         m_canceled = true;
                         m_notifyWhenNoCallbacksRunning = toSignal;
                         TimerQueue.Instance.DeleteTimer(this);
@@ -536,16 +484,13 @@ namespace System.Threading
         }
 
 
-        internal void Fire()
-        {
+        internal void Fire() {
             bool canceled = false;
 
-            lock (TimerQueue.Instance)
-            {
+            lock (TimerQueue.Instance) {
                 // prevent ThreadAbort while updating state
                 try { }
-                finally
-                {
+                finally {
                     canceled = m_canceled;
                     if (!canceled)
                         m_callbacksRunning++;
@@ -558,12 +503,10 @@ namespace System.Threading
             CallCallback();
 
             bool shouldSignal = false;
-            lock (TimerQueue.Instance)
-            {
+            lock (TimerQueue.Instance) {
                 // prevent ThreadAbort while updating state
                 try { }
-                finally
-                {
+                finally {
                     m_callbacksRunning--;
                     if (m_canceled && m_callbacksRunning == 0 && m_notifyWhenNoCallbacksRunning != null)
                         shouldSignal = true;
@@ -574,29 +517,24 @@ namespace System.Threading
                 SignalNoCallbacksRunning();
         }
 
-        internal void SignalNoCallbacksRunning()
-        {
+        internal void SignalNoCallbacksRunning() {
             Win32Native.SetEvent(m_notifyWhenNoCallbacksRunning.SafeWaitHandle);
         }
 
-        internal void CallCallback()
-        {
+        internal void CallCallback() {
             if (FrameworkEventSource.IsInitialized && FrameworkEventSource.Log.IsEnabled(EventLevel.Informational, FrameworkEventSource.Keywords.ThreadTransfer))
                 FrameworkEventSource.Log.ThreadTransferReceiveObj(this, 1, string.Empty);
 
             // call directly if EC flow is suppressed
-            if (m_executionContext == null)
-            {
+            if (m_executionContext == null) {
                 m_timerCallback(m_state);
             }
-            else
-            {
+            else {
                 ExecutionContext.Run(m_executionContext, s_callCallbackInContext, this);
             }
         }
 
-        private static readonly ContextCallback s_callCallbackInContext = state =>
-        {
+        private static readonly ContextCallback s_callCallbackInContext = state => {
             TimerQueueTimer t = (TimerQueueTimer)state;
             t.m_timerCallback(t.m_state);
         };
@@ -612,17 +550,14 @@ namespace System.Threading
     // change, because any code that happened to be suppressing finalization of Timer objects would now
     // unwittingly be changing the lifetime of those timers.
     //
-    internal sealed class TimerHolder
-    {
+    internal sealed class TimerHolder {
         internal TimerQueueTimer m_timer;
 
-        public TimerHolder(TimerQueueTimer timer)
-        {
+        public TimerHolder(TimerQueueTimer timer) {
             m_timer = timer;
         }
 
-        ~TimerHolder()
-        {
+        ~TimerHolder() {
             //
             // If shutdown has started, another thread may be suspended while holding the timer lock.
             // So we can't safely close the timer.  
@@ -639,14 +574,12 @@ namespace System.Threading
             m_timer.Close();
         }
 
-        public void Close()
-        {
+        public void Close() {
             m_timer.Close();
             GC.SuppressFinalize(this);
         }
 
-        public bool Close(WaitHandle notifyObject)
-        {
+        public bool Close(WaitHandle notifyObject) {
             bool result = m_timer.Close(notifyObject);
             GC.SuppressFinalize(this);
             return result;
@@ -654,8 +587,7 @@ namespace System.Threading
     }
 
 
-    public sealed class Timer : MarshalByRefObject, IDisposable
-    {
+    public sealed class Timer : MarshalByRefObject, IDisposable {
         private const UInt32 MAX_SUPPORTED_TIMEOUT = (uint)0xfffffffe;
 
         private TimerHolder m_timer;
@@ -663,8 +595,7 @@ namespace System.Threading
         public Timer(TimerCallback callback,
                      Object state,
                      int dueTime,
-                     int period)
-        {
+                     int period) {
             if (dueTime < -1)
                 throw new ArgumentOutOfRangeException(nameof(dueTime), SR.ArgumentOutOfRange_NeedNonNegOrNegative1);
             if (period < -1)
@@ -677,8 +608,7 @@ namespace System.Threading
         public Timer(TimerCallback callback,
                      Object state,
                      TimeSpan dueTime,
-                     TimeSpan period)
-        {
+                     TimeSpan period) {
             long dueTm = (long)dueTime.TotalMilliseconds;
             if (dueTm < -1)
                 throw new ArgumentOutOfRangeException(nameof(dueTm), SR.ArgumentOutOfRange_NeedNonNegOrNegative1);
@@ -698,16 +628,14 @@ namespace System.Threading
         public Timer(TimerCallback callback,
                      Object state,
                      UInt32 dueTime,
-                     UInt32 period)
-        {
+                     UInt32 period) {
             TimerSetup(callback, state, dueTime, period);
         }
 
         public Timer(TimerCallback callback,
                      Object state,
                      long dueTime,
-                     long period)
-        {
+                     long period) {
             if (dueTime < -1)
                 throw new ArgumentOutOfRangeException(nameof(dueTime), SR.ArgumentOutOfRange_NeedNonNegOrNegative1);
             if (period < -1)
@@ -720,8 +648,7 @@ namespace System.Threading
             TimerSetup(callback, state, (UInt32)dueTime, (UInt32)period);
         }
 
-        public Timer(TimerCallback callback)
-        {
+        public Timer(TimerCallback callback) {
             int dueTime = -1;    // we want timer to be registered, but not activated.  Requires caller to call
             int period = -1;    // Change after a timer instance is created.  This is to avoid the potential
                                 // for a timer to be fired before the returned value is assigned to the variable,
@@ -733,8 +660,7 @@ namespace System.Threading
         private void TimerSetup(TimerCallback callback,
                                 Object state,
                                 UInt32 dueTime,
-                                UInt32 period)
-        {
+                                UInt32 period) {
             if (callback == null)
                 throw new ArgumentNullException(nameof(TimerCallback));
             Contract.EndContractBlock();
@@ -742,8 +668,7 @@ namespace System.Threading
             m_timer = new TimerHolder(new TimerQueueTimer(callback, state, dueTime, period));
         }
 
-        public bool Change(int dueTime, int period)
-        {
+        public bool Change(int dueTime, int period) {
             if (dueTime < -1)
                 throw new ArgumentOutOfRangeException(nameof(dueTime), SR.ArgumentOutOfRange_NeedNonNegOrNegative1);
             if (period < -1)
@@ -753,19 +678,16 @@ namespace System.Threading
             return m_timer.m_timer.Change((UInt32)dueTime, (UInt32)period);
         }
 
-        public bool Change(TimeSpan dueTime, TimeSpan period)
-        {
+        public bool Change(TimeSpan dueTime, TimeSpan period) {
             return Change((long)dueTime.TotalMilliseconds, (long)period.TotalMilliseconds);
         }
 
         [CLSCompliant(false)]
-        public bool Change(UInt32 dueTime, UInt32 period)
-        {
+        public bool Change(UInt32 dueTime, UInt32 period) {
             return m_timer.m_timer.Change(dueTime, period);
         }
 
-        public bool Change(long dueTime, long period)
-        {
+        public bool Change(long dueTime, long period) {
             if (dueTime < -1)
                 throw new ArgumentOutOfRangeException(nameof(dueTime), SR.ArgumentOutOfRange_NeedNonNegOrNegative1);
             if (period < -1)
@@ -779,8 +701,7 @@ namespace System.Threading
             return m_timer.m_timer.Change((UInt32)dueTime, (UInt32)period);
         }
 
-        public bool Dispose(WaitHandle notifyObject)
-        {
+        public bool Dispose(WaitHandle notifyObject) {
             if (notifyObject == null)
                 throw new ArgumentNullException(nameof(notifyObject));
             Contract.EndContractBlock();
@@ -788,13 +709,11 @@ namespace System.Threading
             return m_timer.Close(notifyObject);
         }
 
-        public void Dispose()
-        {
+        public void Dispose() {
             m_timer.Close();
         }
 
-        internal void KeepRootedWhileScheduled()
-        {
+        internal void KeepRootedWhileScheduled() {
             GC.SuppressFinalize(m_timer);
         }
     }

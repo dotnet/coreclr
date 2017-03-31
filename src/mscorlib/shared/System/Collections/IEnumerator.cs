@@ -5,12 +5,10 @@
 using System;
 using System.Runtime.InteropServices;
 
-namespace System.Collections
-{
+namespace System.Collections {
     // Base interface for all enumerators, providing a simple approach
     // to iterating over a collection.
-    public interface IEnumerator
-    {
+    public interface IEnumerator {
         // Advances the enumerator to the next element of the enumeration and
         // returns a boolean indicating whether an element is available. Upon
         // creation, an enumerator is conceptually positioned before the first
@@ -25,8 +23,7 @@ namespace System.Collections
         // GetCurrent with no intervening calls to MoveNext 
         // will return the same object.
         // 
-        Object Current
-        {
+        Object Current {
             get;
         }
 

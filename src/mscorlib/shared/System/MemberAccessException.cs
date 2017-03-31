@@ -10,20 +10,17 @@
 
 using System.Runtime.Serialization;
 
-namespace System
-{
+namespace System {
     // The MemberAccessException is thrown when trying to access a class
     // member fails.
     // 
     [Serializable]
-    public class MemberAccessException : SystemException
-    {
+    public class MemberAccessException : SystemException {
         // Creates a new MemberAccessException with its message string set to
         // the empty string, its HRESULT set to COR_E_MEMBERACCESS, 
         // and its ExceptionInfo reference set to null. 
         public MemberAccessException()
-            : base(SR.Arg_AccessException)
-        {
+            : base(SR.Arg_AccessException) {
             HResult = __HResults.COR_E_MEMBERACCESS;
         }
 
@@ -32,14 +29,12 @@ namespace System
         // and its ExceptionInfo reference set to null. 
         // 
         public MemberAccessException(String message)
-            : base(message)
-        {
+            : base(message) {
             HResult = __HResults.COR_E_MEMBERACCESS;
         }
 
         public MemberAccessException(String message, Exception inner)
-            : base(message, inner)
-        {
+            : base(message, inner) {
             HResult = __HResults.COR_E_MEMBERACCESS;
         }
 

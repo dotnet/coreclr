@@ -5,10 +5,8 @@
 using System.Globalization;
 using System.Diagnostics;
 
-namespace System.Reflection
-{
-    public abstract partial class MethodBase : MemberInfo
-    {
+namespace System.Reflection {
+    public abstract partial class MethodBase : MemberInfo {
         protected MethodBase() { }
 
         public abstract ParameterInfo[] GetParameters();
@@ -19,10 +17,8 @@ namespace System.Reflection
         public virtual CallingConventions CallingConvention => CallingConventions.Standard;
 
         public bool IsAbstract => (Attributes & MethodAttributes.Abstract) != 0;
-        public bool IsConstructor
-        {
-            get
-            {
+        public bool IsConstructor {
+            get {
                 // To be backward compatible we only return true for instance RTSpecialName ctors.
                 return (this is ConstructorInfo &&
                         !IsStatic &&
@@ -62,8 +58,7 @@ namespace System.Reflection
         public override bool Equals(object obj) => base.Equals(obj);
         public override int GetHashCode() => base.GetHashCode();
 
-        public static bool operator ==(MethodBase left, MethodBase right)
-        {
+        public static bool operator ==(MethodBase left, MethodBase right) {
             if (object.ReferenceEquals(left, right))
                 return true;
 

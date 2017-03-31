@@ -14,27 +14,21 @@
 
 using System;
 
-namespace System.Runtime.InteropServices
-{
+namespace System.Runtime.InteropServices {
     [Serializable]
-    public sealed class CurrencyWrapper
-    {
-        public CurrencyWrapper(Decimal obj)
-        {
+    public sealed class CurrencyWrapper {
+        public CurrencyWrapper(Decimal obj) {
             m_WrappedObject = obj;
         }
 
-        public CurrencyWrapper(Object obj)
-        {
+        public CurrencyWrapper(Object obj) {
             if (!(obj is Decimal))
                 throw new ArgumentException(SR.Arg_MustBeDecimal, nameof(obj));
             m_WrappedObject = (Decimal)obj;
         }
 
-        public Decimal WrappedObject
-        {
-            get
-            {
+        public Decimal WrappedObject {
+            get {
                 return m_WrappedObject;
             }
         }

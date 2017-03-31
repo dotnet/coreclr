@@ -14,8 +14,7 @@
 
 using Internal.Runtime.Augments;
 
-namespace System.Threading
-{
+namespace System.Threading {
     using System.Threading;
     using System.Runtime;
     using System.Runtime.InteropServices;
@@ -32,76 +31,61 @@ namespace System.Threading
 
     internal delegate Object InternalCrossContextDelegate(Object[] args);
 
-    internal class ThreadHelper
-    {
+    internal class ThreadHelper {
         private Delegate _start;
         private Object _startArg = null;
         private ExecutionContext _executionContext = null;
-        internal ThreadHelper(Delegate start)
-        {
+        internal ThreadHelper(Delegate start) {
             _start = start;
         }
 
-        internal void SetExecutionContextHelper(ExecutionContext ec)
-        {
+        internal void SetExecutionContextHelper(ExecutionContext ec) {
             _executionContext = ec;
         }
 
         static internal ContextCallback _ccb = new ContextCallback(ThreadStart_Context);
 
-        static private void ThreadStart_Context(Object state)
-        {
+        static private void ThreadStart_Context(Object state) {
             ThreadHelper t = (ThreadHelper)state;
-            if (t._start is ThreadStart)
-            {
+            if (t._start is ThreadStart) {
                 ((ThreadStart)t._start)();
             }
-            else
-            {
+            else {
                 ((ParameterizedThreadStart)t._start)(t._startArg);
             }
         }
 
         // call back helper
-        internal void ThreadStart(object obj)
-        {
+        internal void ThreadStart(object obj) {
             _startArg = obj;
-            if (_executionContext != null)
-            {
+            if (_executionContext != null) {
                 ExecutionContext.Run(_executionContext, _ccb, (Object)this);
             }
-            else
-            {
+            else {
                 ((ParameterizedThreadStart)_start)(obj);
             }
         }
 
         // call back helper
-        internal void ThreadStart()
-        {
-            if (_executionContext != null)
-            {
+        internal void ThreadStart() {
+            if (_executionContext != null) {
                 ExecutionContext.Run(_executionContext, _ccb, (Object)this);
             }
-            else
-            {
+            else {
                 ((ThreadStart)_start)();
             }
         }
     }
 
-    internal struct ThreadHandle
-    {
+    internal struct ThreadHandle {
         private IntPtr m_ptr;
 
-        internal ThreadHandle(IntPtr pThread)
-        {
+        internal ThreadHandle(IntPtr pThread) {
             m_ptr = pThread;
         }
     }
 
-    internal sealed class Thread : RuntimeThread
-    {
+    internal sealed class Thread : RuntimeThread {
         /*=========================================================================
         ** Data accessed from managed code that needs to be defined in
         ** ThreadBaseObject to maintain alignment between the two classes.
@@ -155,20 +139,16 @@ namespace System.Threading
         **
         ** Exceptions: ArgumentNullException if start == null.
         =========================================================================*/
-        public Thread(ThreadStart start)
-        {
-            if (start == null)
-            {
+        public Thread(ThreadStart start) {
+            if (start == null) {
                 throw new ArgumentNullException(nameof(start));
             }
             Contract.EndContractBlock();
             SetStartHelper((Delegate)start, 0);  //0 will setup Thread with default stackSize
         }
 
-        internal Thread(ThreadStart start, int maxStackSize)
-        {
-            if (start == null)
-            {
+        internal Thread(ThreadStart start, int maxStackSize) {
+            if (start == null) {
                 throw new ArgumentNullException(nameof(start));
             }
             if (0 > maxStackSize)
@@ -176,20 +156,16 @@ namespace System.Threading
             Contract.EndContractBlock();
             SetStartHelper((Delegate)start, maxStackSize);
         }
-        public Thread(ParameterizedThreadStart start)
-        {
-            if (start == null)
-            {
+        public Thread(ParameterizedThreadStart start) {
+            if (start == null) {
                 throw new ArgumentNullException(nameof(start));
             }
             Contract.EndContractBlock();
             SetStartHelper((Delegate)start, 0);
         }
 
-        internal Thread(ParameterizedThreadStart start, int maxStackSize)
-        {
-            if (start == null)
-            {
+        internal Thread(ParameterizedThreadStart start, int maxStackSize) {
+            if (start == null) {
                 throw new ArgumentNullException(nameof(start));
             }
             if (0 > maxStackSize)
@@ -198,20 +174,17 @@ namespace System.Threading
             SetStartHelper((Delegate)start, maxStackSize);
         }
 
-        public override int GetHashCode()
-        {
+        public override int GetHashCode() {
             return m_ManagedThreadId;
         }
 
-        extern public new int ManagedThreadId
-        {
+        extern public new int ManagedThreadId {
             [MethodImplAttribute(MethodImplOptions.InternalCall)]
             get;
         }
 
         // Returns handle for interop with EE. The handle is guaranteed to be non-null.
-        internal unsafe ThreadHandle GetNativeHandle()
-        {
+        internal unsafe ThreadHandle GetNativeHandle() {
             IntPtr thread = DONT_USE_InternalThread;
 
             // This should never happen under normal circumstances. m_assembly is always assigned before it is handed out to the user.
@@ -232,19 +205,16 @@ namespace System.Threading
         ** Exceptions: ThreadStateException if the thread has already been started.
         =========================================================================*/
         [System.Security.DynamicSecurityMethod] // Methods containing StackCrawlMark local var has to be marked DynamicSecurityMethod
-        public new void Start()
-        {
+        public new void Start() {
             StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
             Start(ref stackMark);
         }
 
         [System.Security.DynamicSecurityMethod] // Methods containing StackCrawlMark local var has to be marked DynamicSecurityMethod
-        public new void Start(object parameter)
-        {
+        public new void Start(object parameter) {
             //In the case of a null delegate (second call to start on same thread)
             //    StartInternal method will take care of the error reporting
-            if (m_Delegate is ThreadStart)
-            {
+            if (m_Delegate is ThreadStart) {
                 //We expect the thread to be setup with a ParameterizedThreadStart
                 //    if this constructor is called.
                 //If we got here then that wasn't the case
@@ -255,8 +225,7 @@ namespace System.Threading
             Start(ref stackMark);
         }
 
-        private void Start(ref StackCrawlMark stackMark)
-        {
+        private void Start(ref StackCrawlMark stackMark) {
 #if FEATURE_COMINTEROP_APARTMENT_SUPPORT
             // Eagerly initialize the COM Apartment state of the thread if we're allowed to.
             StartupSetApartmentStateInternal();
@@ -265,8 +234,7 @@ namespace System.Threading
             // Attach current thread's security principal object to the new
             // thread. Be careful not to bind the current thread to a principal
             // if it's not already bound.
-            if (m_Delegate != null)
-            {
+            if (m_Delegate != null) {
                 // If we reach here with a null delegate, something is broken. But we'll let the StartInternal method take care of
                 // reporting an error. Just make sure we dont try to dereference a null delegate.
                 ThreadHelper t = (ThreadHelper)(m_Delegate.Target);
@@ -277,14 +245,12 @@ namespace System.Threading
             StartInternal(ref stackMark);
         }
 
-        internal ExecutionContext ExecutionContext
-        {
+        internal ExecutionContext ExecutionContext {
             get { return m_ExecutionContext; }
             set { m_ExecutionContext = value; }
         }
 
-        internal SynchronizationContext SynchronizationContext
-        {
+        internal SynchronizationContext SynchronizationContext {
             get { return m_SynchronizationContext; }
             set { m_SynchronizationContext = value; }
         }
@@ -310,16 +276,14 @@ namespace System.Threading
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         private static extern void SleepInternal(int millisecondsTimeout);
 
-        public static new void Sleep(int millisecondsTimeout)
-        {
+        public static new void Sleep(int millisecondsTimeout) {
             SleepInternal(millisecondsTimeout);
             // Ensure we don't return to app code when the pause is underway
             if (AppDomainPauseManager.IsPaused)
                 AppDomainPauseManager.ResumeEvent.WaitOneWithoutFAS();
         }
 
-        public static void Sleep(TimeSpan timeout)
-        {
+        public static void Sleep(TimeSpan timeout) {
             long tm = (long)timeout.TotalMilliseconds;
             if (tm < -1 || tm > (long)Int32.MaxValue)
                 throw new ArgumentOutOfRangeException(nameof(timeout), SR.ArgumentOutOfRange_NeedNonNegOrNegative1);
@@ -334,8 +298,7 @@ namespace System.Threading
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         private static extern void SpinWaitInternal(int iterations);
 
-        public static new void SpinWait(int iterations)
-        {
+        public static new void SpinWait(int iterations) {
             SpinWaitInternal(iterations);
         }
 
@@ -343,15 +306,12 @@ namespace System.Threading
         [SuppressUnmanagedCodeSecurity]
         private static extern bool YieldInternal();
 
-        internal static new bool Yield()
-        {
+        internal static new bool Yield() {
             return YieldInternal();
         }
 
-        public static new Thread CurrentThread
-        {
-            get
-            {
+        public static new Thread CurrentThread {
+            get {
                 Contract.Ensures(Contract.Result<Thread>() != null);
                 return GetCurrentThreadNative();
             }
@@ -359,17 +319,14 @@ namespace System.Threading
         [MethodImplAttribute(MethodImplOptions.InternalCall), ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]
         private static extern Thread GetCurrentThreadNative();
 
-        private void SetStartHelper(Delegate start, int maxStackSize)
-        {
+        private void SetStartHelper(Delegate start, int maxStackSize) {
             Debug.Assert(maxStackSize >= 0);
 
             ThreadHelper threadStartCallBack = new ThreadHelper(start);
-            if (start is ThreadStart)
-            {
+            if (start is ThreadStart) {
                 SetStart(new ThreadStart(threadStartCallBack.ThreadStart), maxStackSize);
             }
-            else
-            {
+            else {
                 SetStart(new ParameterizedThreadStart(threadStartCallBack.ThreadStart), maxStackSize);
             }
         }
@@ -384,8 +341,7 @@ namespace System.Threading
         /*=========================================================================
         ** Clean up the thread when it goes away.
         =========================================================================*/
-        ~Thread()
-        {
+        ~Thread() {
             // Delegate to the unmanaged portion.
             InternalFinalize();
         }
@@ -433,16 +389,13 @@ namespace System.Threading
         // app domain get unloaded there is a code to clean up the culture from the thread
         // using the code in AppDomain::ReleaseDomainStores.
 
-        public CultureInfo CurrentUICulture
-        {
-            get
-            {
+        public CultureInfo CurrentUICulture {
+            get {
                 Contract.Ensures(Contract.Result<CultureInfo>() != null);
                 return CultureInfo.CurrentUICulture;
             }
 
-            set
-            {
+            set {
                 // If you add more pre-conditions to this method, check to see if you also need to 
                 // add them to CultureInfo.DefaultThreadCurrentUICulture.set.
 
@@ -467,16 +420,13 @@ namespace System.Threading
         // app domain get unloaded there is a code to clean up the culture from the thread
         // using the code in AppDomain::ReleaseDomainStores.
 
-        public CultureInfo CurrentCulture
-        {
-            get
-            {
+        public CultureInfo CurrentCulture {
+            get {
                 Contract.Ensures(Contract.Result<CultureInfo>() != null);
                 return CultureInfo.CurrentCulture;
             }
 
-            set
-            {
+            set {
                 Contract.EndContractBlock();
 
                 // If you add more pre-conditions to this method, check to see if you also need to 
@@ -502,8 +452,7 @@ namespace System.Threading
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         private static extern AppDomain GetFastDomainInternal();
 
-        internal static AppDomain GetDomain()
-        {
+        internal static AppDomain GetDomain() {
             Contract.Ensures(Contract.Result<AppDomain>() != null);
 
 
@@ -519,24 +468,19 @@ namespace System.Threading
         /*
          *  This returns a unique id to identify an appdomain.
          */
-        internal static int GetDomainID()
-        {
+        internal static int GetDomainID() {
             return GetDomain().GetId();
         }
 
 
         // Retrieves the name of the thread.
         //
-        public new String Name
-        {
-            get
-            {
+        public new String Name {
+            get {
                 return m_Name;
             }
-            set
-            {
-                lock (this)
-                {
+            set {
+                lock (this) {
                     if (m_Name != null)
                         throw new InvalidOperationException(SR.InvalidOperation_WriteOnce);
                     m_Name = value;
@@ -556,8 +500,7 @@ namespace System.Threading
     // stack crawl will both prevent inlining of the calle and pass an ESP point to stack crawl to
     // Declaring these in EH clauses is illegal; they must declared in the main method body
     [Serializable]
-    internal enum StackCrawlMark
-    {
+    internal enum StackCrawlMark {
         LookForMe = 0,
         LookForMyCaller = 1,
         LookForMyCallersCaller = 2,

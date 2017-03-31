@@ -2,8 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-namespace System
-{
+namespace System {
     // The IConvertible interface represents an object that contains a value. This
     // interface is implemented by the following types in the System namespace:
     // Boolean, Char, SByte, Byte, Int16, UInt16, Int32, UInt32, Int64, UInt64,
@@ -20,8 +19,7 @@ namespace System
     // IConvertible implementation should simply throw an InvalidCastException.
 
     [CLSCompliant(false)]
-    public interface IConvertible
-    {
+    public interface IConvertible {
         // Returns the type code of this object. An implementation of this method
         // must not return TypeCode.Empty (which represents a null reference) or
         // TypeCode.Object (which represents an object that doesn't implement the

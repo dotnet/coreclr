@@ -7,11 +7,9 @@ using System.Globalization;
 using System.Runtime.Serialization;
 using RuntimeTypeCache = System.RuntimeType.RuntimeTypeCache;
 
-namespace System.Reflection
-{
+namespace System.Reflection {
     [Serializable]
-    internal sealed unsafe class MdFieldInfo : RuntimeFieldInfo, ISerializable
-    {
+    internal sealed unsafe class MdFieldInfo : RuntimeFieldInfo, ISerializable {
         #region Private Data Members
         private int m_tkField;
         private string m_name;
@@ -22,8 +20,7 @@ namespace System.Reflection
         #region Constructor
         internal MdFieldInfo(
         int tkField, FieldAttributes fieldAttributes, RuntimeTypeHandle declaringTypeHandle, RuntimeTypeCache reflectedTypeCache, BindingFlags bindingFlags)
-            : base(reflectedTypeCache, declaringTypeHandle.GetRuntimeType(), bindingFlags)
-        {
+            : base(reflectedTypeCache, declaringTypeHandle.GetRuntimeType(), bindingFlags) {
             m_tkField = tkField;
             m_name = null;
             m_fieldAttributes = fieldAttributes;
@@ -31,8 +28,7 @@ namespace System.Reflection
         #endregion
 
         #region Internal Members
-        internal override bool CacheEquals(object o)
-        {
+        internal override bool CacheEquals(object o) {
             MdFieldInfo m = o as MdFieldInfo;
 
             if ((object)m == null)
@@ -45,10 +41,8 @@ namespace System.Reflection
         #endregion
 
         #region MemberInfo Overrides
-        public override String Name
-        {
-            get
-            {
+        public override String Name {
+            get {
                 if (m_name == null)
                     m_name = GetRuntimeModule().MetadataImport.GetName(m_tkField).ToString();
 
@@ -70,29 +64,25 @@ namespace System.Reflection
 
         [DebuggerStepThroughAttribute]
         [Diagnostics.DebuggerHidden]
-        public override Object GetValueDirect(TypedReference obj)
-        {
+        public override Object GetValueDirect(TypedReference obj) {
             return GetValue(null);
         }
 
         [DebuggerStepThroughAttribute]
         [Diagnostics.DebuggerHidden]
-        public override void SetValueDirect(TypedReference obj, Object value)
-        {
+        public override void SetValueDirect(TypedReference obj, Object value) {
             throw new FieldAccessException(SR.Acc_ReadOnly);
         }
 
         [DebuggerStepThroughAttribute]
         [Diagnostics.DebuggerHidden]
-        public unsafe override Object GetValue(Object obj)
-        {
+        public unsafe override Object GetValue(Object obj) {
             return GetValue(false);
         }
 
         public unsafe override Object GetRawConstantValue() { return GetValue(true); }
 
-        private unsafe Object GetValue(bool raw)
-        {
+        private unsafe Object GetValue(bool raw) {
             // Cannot cache these because they could be user defined non-agile enumerations
 
             Object value = MdConstant.GetValue(GetRuntimeModule().MetadataImport, m_tkField, FieldType.GetTypeHandleInternal(), raw);
@@ -105,17 +95,13 @@ namespace System.Reflection
 
         [DebuggerStepThroughAttribute]
         [Diagnostics.DebuggerHidden]
-        public override void SetValue(Object obj, Object value, BindingFlags invokeAttr, Binder binder, CultureInfo culture)
-        {
+        public override void SetValue(Object obj, Object value, BindingFlags invokeAttr, Binder binder, CultureInfo culture) {
             throw new FieldAccessException(SR.Acc_ReadOnly);
         }
 
-        public override Type FieldType
-        {
-            get
-            {
-                if (m_fieldType == null)
-                {
+        public override Type FieldType {
+            get {
+                if (m_fieldType == null) {
                     ConstArray fieldMarshal = GetRuntimeModule().MetadataImport.GetSigOfFieldDef(m_tkField);
 
                     m_fieldType = new Signature(fieldMarshal.Signature.ToPointer(),
@@ -126,13 +112,11 @@ namespace System.Reflection
             }
         }
 
-        public override Type[] GetRequiredCustomModifiers()
-        {
+        public override Type[] GetRequiredCustomModifiers() {
             return EmptyArray<Type>.Value;
         }
 
-        public override Type[] GetOptionalCustomModifiers()
-        {
+        public override Type[] GetOptionalCustomModifiers() {
             return EmptyArray<Type>.Value;
         }
 

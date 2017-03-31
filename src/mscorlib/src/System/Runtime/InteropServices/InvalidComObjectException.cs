@@ -15,31 +15,25 @@
 using System;
 using System.Runtime.Serialization;
 
-namespace System.Runtime.InteropServices
-{
+namespace System.Runtime.InteropServices {
     [Serializable]
-    public class InvalidComObjectException : SystemException
-    {
+    public class InvalidComObjectException : SystemException {
         public InvalidComObjectException()
-            : base(SR.Arg_InvalidComObjectException)
-        {
+            : base(SR.Arg_InvalidComObjectException) {
             SetErrorCode(__HResults.COR_E_INVALIDCOMOBJECT);
         }
 
         public InvalidComObjectException(String message)
-            : base(message)
-        {
+            : base(message) {
             SetErrorCode(__HResults.COR_E_INVALIDCOMOBJECT);
         }
 
         public InvalidComObjectException(String message, Exception inner)
-            : base(message, inner)
-        {
+            : base(message, inner) {
             SetErrorCode(__HResults.COR_E_INVALIDCOMOBJECT);
         }
 
-        protected InvalidComObjectException(SerializationInfo info, StreamingContext context) : base(info, context)
-        {
+        protected InvalidComObjectException(SerializationInfo info, StreamingContext context) : base(info, context) {
         }
     }
 }

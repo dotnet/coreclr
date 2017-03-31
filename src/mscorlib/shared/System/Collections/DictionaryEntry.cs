@@ -4,53 +4,43 @@
 
 using System.ComponentModel;
 
-namespace System.Collections
-{
+namespace System.Collections {
     // A DictionaryEntry holds a key and a value from a dictionary.
     // It is returned by IDictionaryEnumerator::GetEntry().
     [Serializable]
-    public struct DictionaryEntry
-    {
+    public struct DictionaryEntry {
         private Object _key;
         private Object _value;
 
         // Constructs a new DictionaryEnumerator by setting the Key
         // and Value fields appropriately.
-        public DictionaryEntry(Object key, Object value)
-        {
+        public DictionaryEntry(Object key, Object value) {
             _key = key;
             _value = value;
         }
 
-        public Object Key
-        {
-            get
-            {
+        public Object Key {
+            get {
                 return _key;
             }
 
-            set
-            {
+            set {
                 _key = value;
             }
         }
 
-        public Object Value
-        {
-            get
-            {
+        public Object Value {
+            get {
                 return _value;
             }
 
-            set
-            {
+            set {
                 _value = value;
             }
         }
 
         [EditorBrowsable(EditorBrowsableState.Never)]
-        public void Deconstruct(out object key, out object value)
-        {
+        public void Deconstruct(out object key, out object value) {
             key = Key;
             value = Value;
         }

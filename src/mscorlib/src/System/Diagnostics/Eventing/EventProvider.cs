@@ -32,8 +32,7 @@ namespace System.Diagnostics.Tracing
 #endif
 {
     // New in CLR4.0
-    internal enum ControllerCommand
-    {
+    internal enum ControllerCommand {
         // Strictly Positive numbers are for provider-specific commands, negative number are for 'shared' commands. 256
         // The first 256 negative numbers are reserved for the framework.  
         Update = 0,                 // Not used by EventPrividerBase.  
@@ -49,14 +48,12 @@ namespace System.Diagnostics.Tracing
 #if !CORECLR
     [System.Security.Permissions.HostProtection(MayLeakOnAbort = true)]
 #endif // CORECLR
-    internal partial class EventProvider : IDisposable
-    {
+    internal partial class EventProvider : IDisposable {
         // This is the windows EVENT_DATA_DESCRIPTOR structure.  We expose it because this is what
         // subclasses of EventProvider use when creating efficient (but unsafe) version of
         // EventWrite.   We do make it a nested type because we really don't expect anyone to use 
         // it except subclasses (and then only rarely).  
-        public struct EventData
-        {
+        public struct EventData {
             internal unsafe ulong Ptr;
             internal uint Size;
             internal uint Reserved;
@@ -68,13 +65,11 @@ namespace System.Diagnostics.Tracing
         /// has specified one non-zero bit in the reserved range 44-47 in the 
         /// 'allKeywords' value it passed in for a specific EventProvider.
         /// </summary>
-        public struct SessionInfo
-        {
+        public struct SessionInfo {
             internal int sessionIdBit;      // the index of the bit used for tracing in the "reserved" field of AllKeywords
             internal int etwSessionId;      // the machine-wide ETW session ID
 
-            internal SessionInfo(int sessionIdBit_, int etwSessionId_)
-            { sessionIdBit = sessionIdBit_; etwSessionId = etwSessionId_; }
+            internal SessionInfo(int sessionIdBit_, int etwSessionId_) { sessionIdBit = sessionIdBit_; etwSessionId = etwSessionId_; }
         }
 
         private static bool m_setInformationMissing;
@@ -100,8 +95,7 @@ namespace System.Diagnostics.Tracing
         private const int s_traceEventMaximumStringSize = 32724;
 
         [SuppressMessage("Microsoft.Design", "CA1034:NestedTypesShouldNotBeVisible")]
-        public enum WriteEventErrorCode : int
-        {
+        public enum WriteEventErrorCode : int {
             //check mapping to runtime codes
             NoError = 0,
             NoFreeBuffers = 1,
@@ -118,8 +112,7 @@ namespace System.Diagnostics.Tracing
         // it registers a callback from native code you MUST dispose it BEFORE shutdown, otherwise
         // you may get native callbacks during shutdown when we have destroyed the delegate.  
         // EventSource has special logic to do this, no one else should be calling EventProvider.  
-        internal EventProvider()
-        {
+        internal EventProvider() {
         }
 
         /// <summary>
@@ -132,15 +125,13 @@ namespace System.Diagnostics.Tracing
         // <SatisfiesLinkDemand Name="Win32Exception..ctor(System.Int32)" />
         // <ReferencesCritical Name="Method: EtwEnableCallBack(Guid&, Int32, Byte, Int64, Int64, Void*, Void*):Void" Ring="1" />
         // </SecurityKernel>
-        internal unsafe void Register(Guid providerGuid)
-        {
+        internal unsafe void Register(Guid providerGuid) {
             m_providerId = providerGuid;
             uint status;
             m_etwCallback = new UnsafeNativeMethods.ManifestEtw.EtwEnableCallback(EtwEnableCallBack);
 
             status = EventRegister(ref m_providerId, m_etwCallback);
-            if (status != 0)
-            {
+            if (status != 0) {
                 throw new ArgumentException(Win32Native.GetMessage(unchecked((int)status)));
             }
         }
@@ -151,8 +142,7 @@ namespace System.Diagnostics.Tracing
         // Once the user is done with the provider it needs to call Close() or Dispose()
         // If neither are called the finalizer will unregister the provider anyway
         //
-        public void Dispose()
-        {
+        public void Dispose() {
             Dispose(true);
             GC.SuppressFinalize(this);
         }
@@ -160,8 +150,7 @@ namespace System.Diagnostics.Tracing
         // <SecurityKernel Critical="True" TreatAsSafe="Does not expose critical resource" Ring="1">
         // <ReferencesCritical Name="Method: Deregister():Void" Ring="1" />
         // </SecurityKernel>
-        protected virtual void Dispose(bool disposing)
-        {
+        protected virtual void Dispose(bool disposing) {
             //
             // explicit cleanup is done by calling Dispose with true from 
             // Dispose() or Close(). The disposing arguement is ignored because there
@@ -180,8 +169,7 @@ namespace System.Diagnostics.Tracing
             // Do most of the work under a lock to avoid shutdown race.
 
             long registrationHandle = 0;
-            lock (EventListener.EventListenersLock)
-            {
+            lock (EventListener.EventListenersLock) {
                 // Double check
                 if (m_disposed)
                     return;
@@ -207,13 +195,11 @@ namespace System.Diagnostics.Tracing
         /// This method deregisters the controlGuid of this class with ETW.
         /// 
         /// </summary>
-        public virtual void Close()
-        {
+        public virtual void Close() {
             Dispose();
         }
 
-        ~EventProvider()
-        {
+        ~EventProvider() {
             Dispose(false);
         }
 
@@ -229,18 +215,15 @@ namespace System.Diagnostics.Tracing
                         [In] long allKeyword,
                         [In] UnsafeNativeMethods.ManifestEtw.EVENT_FILTER_DESCRIPTOR* filterData,
                         [In] void* callbackContext
-                        )
-        {
+                        ) {
             // This is an optional callback API. We will therefore ignore any failures that happen as a 
             // result of turning on this provider as to not crash the app.
             // EventSource has code to validate whether initialization it expected to occur actually occurred
-            try
-            {
+            try {
                 ControllerCommand command = ControllerCommand.Update;
                 IDictionary<string, string> args = null;
                 bool skipFinalOnControllerCommand = false;
-                if (controlCode == UnsafeNativeMethods.ManifestEtw.EVENT_CONTROL_CODE_ENABLE_PROVIDER)
-                {
+                if (controlCode == UnsafeNativeMethods.ManifestEtw.EVENT_CONTROL_CODE_ENABLE_PROVIDER) {
                     m_enabled = true;
                     m_level = setLevel;
                     m_anyKeywordMask = anyKeyword;
@@ -253,8 +236,7 @@ namespace System.Diagnostics.Tracing
                     // switch is at least partially independent of FEATURE_ACTIVITYSAMPLING
 
                     List<Tuple<SessionInfo, bool>> sessionsChanged = GetSessions();
-                    foreach (var session in sessionsChanged)
-                    {
+                    foreach (var session in sessionsChanged) {
                         int sessionChanged = session.Item1.sessionIdBit;
                         int etwSessionId = session.Item1.etwSessionId;
                         bool bEnabling = session.Item2;
@@ -271,16 +253,13 @@ namespace System.Diagnostics.Tracing
                         byte[] data;
                         int keyIndex;
                         if (bEnabling &&
-                            GetDataFromController(etwSessionId, filterData, out command, out data, out keyIndex))
-                        {
+                            GetDataFromController(etwSessionId, filterData, out command, out data, out keyIndex)) {
                             args = new Dictionary<string, string>(4);
-                            while (keyIndex < data.Length)
-                            {
+                            while (keyIndex < data.Length) {
                                 int keyEnd = FindNull(data, keyIndex);
                                 int valueIdx = keyEnd + 1;
                                 int valueEnd = FindNull(data, valueIdx);
-                                if (valueEnd < data.Length)
-                                {
+                                if (valueEnd < data.Length) {
                                     string key = System.Text.Encoding.UTF8.GetString(data, keyIndex, keyEnd - keyIndex);
                                     string value = System.Text.Encoding.UTF8.GetString(data, valueIdx, valueEnd - valueIdx);
                                     args[key] = value;
@@ -293,16 +272,14 @@ namespace System.Diagnostics.Tracing
                         OnControllerCommand(command, args, (bEnabling ? sessionChanged : -sessionChanged), etwSessionId);
                     }
                 }
-                else if (controlCode == UnsafeNativeMethods.ManifestEtw.EVENT_CONTROL_CODE_DISABLE_PROVIDER)
-                {
+                else if (controlCode == UnsafeNativeMethods.ManifestEtw.EVENT_CONTROL_CODE_DISABLE_PROVIDER) {
                     m_enabled = false;
                     m_level = 0;
                     m_anyKeywordMask = 0;
                     m_allKeywordMask = 0;
                     m_liveSessions = null;
                 }
-                else if (controlCode == UnsafeNativeMethods.ManifestEtw.EVENT_CONTROL_CODE_CAPTURE_STATE)
-                {
+                else if (controlCode == UnsafeNativeMethods.ManifestEtw.EVENT_CONTROL_CODE_CAPTURE_STATE) {
                     command = ControllerCommand.SendManifest;
                 }
                 else
@@ -311,8 +288,7 @@ namespace System.Diagnostics.Tracing
                 if (!skipFinalOnControllerCommand)
                     OnControllerCommand(command, args, 0, 0);
             }
-            catch (Exception)
-            {
+            catch (Exception) {
                 // We want to ignore any failures that happen as a result of turning on this provider as to
                 // not crash the app.
             }
@@ -324,8 +300,7 @@ namespace System.Diagnostics.Tracing
         protected EventKeywords MatchAnyKeyword { get { return (EventKeywords)m_anyKeywordMask; } set { m_anyKeywordMask = unchecked((long)value); } }
         protected EventKeywords MatchAllKeyword { get { return (EventKeywords)m_allKeywordMask; } set { m_allKeywordMask = unchecked((long)value); } }
 
-        static private int FindNull(byte[] buffer, int idx)
-        {
+        static private int FindNull(byte[] buffer, int idx) {
             while (idx < buffer.Length && buffer[idx] != 0)
                 idx++;
             return idx;
@@ -341,8 +316,7 @@ namespace System.Diagnostics.Tracing
         /// ETW session that was added or remove, and the bool specifies whether the
         /// session was added or whether it was removed from the set.
         /// </summary>
-        private List<Tuple<SessionInfo, bool>> GetSessions()
-        {
+        private List<Tuple<SessionInfo, bool>> GetSessions() {
             List<SessionInfo> liveSessionList = null;
 
             GetSessionInfo(
@@ -354,10 +328,8 @@ namespace System.Diagnostics.Tracing
 
             // first look for sessions that have gone away (or have changed)
             // (present in the m_liveSessions but not in the new liveSessionList)
-            if (m_liveSessions != null)
-            {
-                foreach (SessionInfo s in m_liveSessions)
-                {
+            if (m_liveSessions != null) {
+                foreach (SessionInfo s in m_liveSessions) {
                     int idx;
                     if ((idx = IndexOfSessionInList(liveSessionList, s.etwSessionId)) < 0 ||
                         (liveSessionList[idx].sessionIdBit != s.sessionIdBit))
@@ -366,10 +338,8 @@ namespace System.Diagnostics.Tracing
             }
             // next look for sessions that were created since the last callback  (or have changed)
             // (present in the new liveSessionList but not in m_liveSessions)
-            if (liveSessionList != null)
-            {
-                foreach (SessionInfo s in liveSessionList)
-                {
+            if (liveSessionList != null) {
+                foreach (SessionInfo s in liveSessionList) {
                     int idx;
                     if ((idx = IndexOfSessionInList(m_liveSessions, s.etwSessionId)) < 0 ||
                         (m_liveSessions[idx].sessionIdBit != s.sessionIdBit))
@@ -388,8 +358,7 @@ namespace System.Diagnostics.Tracing
         /// GetSessionInfo() passes in.
         /// </summary>
         private static void GetSessionInfoCallback(int etwSessionId, long matchAllKeywords,
-                                ref List<SessionInfo> sessionList)
-        {
+                                ref List<SessionInfo> sessionList) {
             uint sessionIdBitMask = (uint)SessionMask.FromEventKeywords(unchecked((ulong)matchAllKeywords));
             // an ETW controller that specifies more than the mandated bit for our EventSource
             // will be ignored...
@@ -399,13 +368,11 @@ namespace System.Diagnostics.Tracing
             if (sessionList == null)
                 sessionList = new List<SessionInfo>(8);
 
-            if (bitcount(sessionIdBitMask) == 1)
-            {
+            if (bitcount(sessionIdBitMask) == 1) {
                 // activity-tracing-aware etw session
                 sessionList.Add(new SessionInfo(bitindex(sessionIdBitMask) + 1, etwSessionId));
             }
-            else
-            {
+            else {
                 // legacy etw session
                 sessionList.Add(new SessionInfo(bitcount((uint)SessionMask.All) + 1, etwSessionId));
             }
@@ -418,8 +385,7 @@ namespace System.Diagnostics.Tracing
         /// for the current process ID, calling 'action' for each session, and passing it the
         /// ETW session and the 'AllKeywords' the session enabled for the current provider.
         /// </summary>
-        private unsafe void GetSessionInfo(SessionInfoCallback action, ref List<SessionInfo> sessionList)
-        {
+        private unsafe void GetSessionInfo(SessionInfoCallback action, ref List<SessionInfo> sessionList) {
             // We wish the EventSource package to be legal for Windows Store applications.   
             // Currently EnumerateTraceGuidsEx is not an allowed API, so we avoid its use here
             // and use the information in the registry instead.  This means that ETW controllers
@@ -431,14 +397,12 @@ namespace System.Diagnostics.Tracing
 #if ES_SESSION_INFO || !ES_BUILD_STANDALONE  
             int buffSize = 256;     // An initial guess that probably works most of the time.  
             byte* buffer;
-            for (;;)
-            {
+            for (;;) {
                 var space = stackalloc byte[buffSize];
                 buffer = space;
                 var hr = 0;
 
-                fixed (Guid* provider = &m_providerId)
-                {
+                fixed (Guid* provider = &m_providerId) {
                     hr = UnsafeNativeMethods.ManifestEtw.EnumerateTraceGuidsEx(UnsafeNativeMethods.ManifestEtw.TRACE_QUERY_INFO_CLASS.TraceGuidQueryInfo,
                         provider, sizeof(Guid), buffer, buffSize, ref buffSize);
                 }
@@ -452,10 +416,8 @@ namespace System.Diagnostics.Tracing
             var providerInstance = (UnsafeNativeMethods.ManifestEtw.TRACE_PROVIDER_INSTANCE_INFO*)&providerInfos[1];
             int processId = unchecked((int)Win32Native.GetCurrentProcessId());
             // iterate over the instances of the EventProvider in all processes
-            for (int i = 0; i < providerInfos->InstanceCount; i++)
-            {
-                if (providerInstance->Pid == processId)
-                {
+            for (int i = 0; i < providerInfos->InstanceCount; i++) {
+                if (providerInstance->Pid == processId) {
                     var enabledInfos = (UnsafeNativeMethods.ManifestEtw.TRACE_ENABLE_INFO*)&providerInstance[1];
                     // iterate over the list of active ETW sessions "listening" to the current provider
                     for (int j = 0; j < providerInstance->EnableCount; j++)
@@ -524,8 +486,7 @@ namespace System.Diagnostics.Tracing
         /// Returns the index of the SesisonInfo from 'sessions' that has the specified 'etwSessionId'
         /// or -1 if the value is not present.
         /// </summary>
-        private static int IndexOfSessionInList(List<SessionInfo> sessions, int etwSessionId)
-        {
+        private static int IndexOfSessionInList(List<SessionInfo> sessions, int etwSessionId) {
             if (sessions == null)
                 return -1;
             // for non-coreclr code we could use List<T>.FindIndex(Predicate<T>), but we need this to compile
@@ -546,12 +507,10 @@ namespace System.Diagnostics.Tracing
         /// starts, and the command being issued associated with that data.  
         /// </summary>
         private unsafe bool GetDataFromController(int etwSessionId,
-                UnsafeNativeMethods.ManifestEtw.EVENT_FILTER_DESCRIPTOR* filterData, out ControllerCommand command, out byte[] data, out int dataStart)
-        {
+                UnsafeNativeMethods.ManifestEtw.EVENT_FILTER_DESCRIPTOR* filterData, out ControllerCommand command, out byte[] data, out int dataStart) {
             data = null;
             dataStart = 0;
-            if (filterData == null)
-            {
+            if (filterData == null) {
 #if (!ES_BUILD_PCL && !PROJECTN && !FEATURE_PAL)
                 string regKey = @"\Microsoft\Windows\CurrentVersion\Winevt\Publishers\{" + m_providerId + "}";
                 if (System.Runtime.InteropServices.Marshal.SizeOf(typeof(IntPtr)) == 8)
@@ -566,18 +525,15 @@ namespace System.Diagnostics.Tracing
                 (new RegistryPermission(RegistryPermissionAccess.Read, regKey)).Assert();
 #endif
                 data = Microsoft.Win32.Registry.GetValue(regKey, valueName, null) as byte[];
-                if (data != null)
-                {
+                if (data != null) {
                     // We only used the persisted data from the registry for updates.   
                     command = ControllerCommand.Update;
                     return true;
                 }
 #endif
             }
-            else
-            {
-                if (filterData->Ptr != 0 && 0 < filterData->Size && filterData->Size <= 1024)
-                {
+            else {
+                if (filterData->Ptr != 0 && 0 < filterData->Size && filterData->Size <= 1024) {
                     data = new byte[filterData->Size];
                     Marshal.Copy((IntPtr)filterData->Ptr, data, 0, data.Length);
                 }
@@ -592,8 +548,7 @@ namespace System.Diagnostics.Tracing
         /// <summary>
         /// IsEnabled, method used to test if provider is enabled
         /// </summary>
-        public bool IsEnabled()
-        {
+        public bool IsEnabled() {
             return m_enabled;
         }
 
@@ -606,28 +561,24 @@ namespace System.Diagnostics.Tracing
         /// <param name="keywords">
         /// Keyword  to test
         /// </param>
-        public bool IsEnabled(byte level, long keywords)
-        {
+        public bool IsEnabled(byte level, long keywords) {
             //
             // If not enabled at all, return false.
             //
-            if (!m_enabled)
-            {
+            if (!m_enabled) {
                 return false;
             }
 
             // This also covers the case of Level == 0.
             if ((level <= m_level) ||
-                (m_level == 0))
-            {
+                (m_level == 0)) {
                 //
                 // Check if Keyword is enabled
                 //
 
                 if ((keywords == 0) ||
                     (((keywords & m_anyKeywordMask) != 0) &&
-                     ((keywords & m_allKeywordMask) == m_allKeywordMask)))
-                {
+                     ((keywords & m_allKeywordMask) == m_allKeywordMask))) {
                     return true;
                 }
             }
@@ -636,18 +587,15 @@ namespace System.Diagnostics.Tracing
         }
 
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1024:UsePropertiesWhereAppropriate")]
-        public static WriteEventErrorCode GetLastWriteEventError()
-        {
+        public static WriteEventErrorCode GetLastWriteEventError() {
             return s_returnCode;
         }
 
         //
         // Helper function to set the last error on the thread
         //
-        private static void SetLastError(int error)
-        {
-            switch (error)
-            {
+        private static void SetLastError(int error) {
+            switch (error) {
                 case UnsafeNativeMethods.ManifestEtw.ERROR_ARITHMETIC_OVERFLOW:
                 case UnsafeNativeMethods.ManifestEtw.ERROR_MORE_DATA:
                     s_returnCode = WriteEventErrorCode.EventTooBig;
@@ -707,12 +655,10 @@ namespace System.Diagnostics.Tracing
             string sRet = data as string;
             byte[] blobRet = null;
 
-            if (sRet != null)
-            {
+            if (sRet != null) {
                 dataDescriptor->Size = ((uint)sRet.Length + 1) * 2;
             }
-            else if ((blobRet = data as byte[]) != null)
-            {
+            else if ((blobRet = data as byte[]) != null) {
                 // first store array length
                 *(int*)dataBuffer = blobRet.Length;
                 dataDescriptor->Ptr = (ulong)dataBuffer;
@@ -724,121 +670,103 @@ namespace System.Diagnostics.Tracing
                 dataBuffer += s_basicTypeAllocationBufferSize;
                 dataDescriptor->Size = (uint)blobRet.Length;
             }
-            else if (data is IntPtr)
-            {
+            else if (data is IntPtr) {
                 dataDescriptor->Size = (uint)sizeof(IntPtr);
                 IntPtr* intptrPtr = (IntPtr*)dataBuffer;
                 *intptrPtr = (IntPtr)data;
                 dataDescriptor->Ptr = (ulong)intptrPtr;
             }
-            else if (data is int)
-            {
+            else if (data is int) {
                 dataDescriptor->Size = (uint)sizeof(int);
                 int* intptr = (int*)dataBuffer;
                 *intptr = (int)data;
                 dataDescriptor->Ptr = (ulong)intptr;
             }
-            else if (data is long)
-            {
+            else if (data is long) {
                 dataDescriptor->Size = (uint)sizeof(long);
                 long* longptr = (long*)dataBuffer;
                 *longptr = (long)data;
                 dataDescriptor->Ptr = (ulong)longptr;
             }
-            else if (data is uint)
-            {
+            else if (data is uint) {
                 dataDescriptor->Size = (uint)sizeof(uint);
                 uint* uintptr = (uint*)dataBuffer;
                 *uintptr = (uint)data;
                 dataDescriptor->Ptr = (ulong)uintptr;
             }
-            else if (data is UInt64)
-            {
+            else if (data is UInt64) {
                 dataDescriptor->Size = (uint)sizeof(ulong);
                 UInt64* ulongptr = (ulong*)dataBuffer;
                 *ulongptr = (ulong)data;
                 dataDescriptor->Ptr = (ulong)ulongptr;
             }
-            else if (data is char)
-            {
+            else if (data is char) {
                 dataDescriptor->Size = (uint)sizeof(char);
                 char* charptr = (char*)dataBuffer;
                 *charptr = (char)data;
                 dataDescriptor->Ptr = (ulong)charptr;
             }
-            else if (data is byte)
-            {
+            else if (data is byte) {
                 dataDescriptor->Size = (uint)sizeof(byte);
                 byte* byteptr = (byte*)dataBuffer;
                 *byteptr = (byte)data;
                 dataDescriptor->Ptr = (ulong)byteptr;
             }
-            else if (data is short)
-            {
+            else if (data is short) {
                 dataDescriptor->Size = (uint)sizeof(short);
                 short* shortptr = (short*)dataBuffer;
                 *shortptr = (short)data;
                 dataDescriptor->Ptr = (ulong)shortptr;
             }
-            else if (data is sbyte)
-            {
+            else if (data is sbyte) {
                 dataDescriptor->Size = (uint)sizeof(sbyte);
                 sbyte* sbyteptr = (sbyte*)dataBuffer;
                 *sbyteptr = (sbyte)data;
                 dataDescriptor->Ptr = (ulong)sbyteptr;
             }
-            else if (data is ushort)
-            {
+            else if (data is ushort) {
                 dataDescriptor->Size = (uint)sizeof(ushort);
                 ushort* ushortptr = (ushort*)dataBuffer;
                 *ushortptr = (ushort)data;
                 dataDescriptor->Ptr = (ulong)ushortptr;
             }
-            else if (data is float)
-            {
+            else if (data is float) {
                 dataDescriptor->Size = (uint)sizeof(float);
                 float* floatptr = (float*)dataBuffer;
                 *floatptr = (float)data;
                 dataDescriptor->Ptr = (ulong)floatptr;
             }
-            else if (data is double)
-            {
+            else if (data is double) {
                 dataDescriptor->Size = (uint)sizeof(double);
                 double* doubleptr = (double*)dataBuffer;
                 *doubleptr = (double)data;
                 dataDescriptor->Ptr = (ulong)doubleptr;
             }
-            else if (data is bool)
-            {
+            else if (data is bool) {
                 // WIN32 Bool is 4 bytes
                 dataDescriptor->Size = 4;
                 int* intptr = (int*)dataBuffer;
-                if (((bool)data))
-                {
+                if (((bool)data)) {
                     *intptr = 1;
                 }
-                else
-                {
+                else {
                     *intptr = 0;
                 }
                 dataDescriptor->Ptr = (ulong)intptr;
             }
-            else if (data is Guid)
-            {
+            else if (data is Guid) {
                 dataDescriptor->Size = (uint)sizeof(Guid);
                 Guid* guidptr = (Guid*)dataBuffer;
                 *guidptr = (Guid)data;
                 dataDescriptor->Ptr = (ulong)guidptr;
             }
-            else if (data is decimal)
-            {
+            else if (data is decimal) {
                 dataDescriptor->Size = (uint)sizeof(decimal);
                 decimal* decimalptr = (decimal*)dataBuffer;
                 *decimalptr = (decimal)data;
                 dataDescriptor->Ptr = (ulong)decimalptr;
             }
-            else if (data is DateTime)
-            {
+            else if (data is DateTime) {
                 const long UTCMinTicks = 504911232000000000;
                 long dateTimeTicks = 0;
                 // We cannot translate dates sooner than 1/1/1601 in UTC. 
@@ -850,13 +778,10 @@ namespace System.Diagnostics.Tracing
                 *longptr = dateTimeTicks;
                 dataDescriptor->Ptr = (ulong)longptr;
             }
-            else
-            {
-                if (data is System.Enum)
-                {
+            else {
+                if (data is System.Enum) {
                     Type underlyingType = Enum.GetUnderlyingType(data.GetType());
-                    if (underlyingType == typeof(int))
-                    {
+                    if (underlyingType == typeof(int)) {
 #if !ES_BUILD_PCL
                         data = ((IConvertible)data).ToInt32(null);
 #else
@@ -864,8 +789,7 @@ namespace System.Diagnostics.Tracing
 #endif
                         goto Again;
                     }
-                    else if (underlyingType == typeof(long))
-                    {
+                    else if (underlyingType == typeof(long)) {
 #if !ES_BUILD_PCL
                         data = ((IConvertible)data).ToInt64(null);
 #else
@@ -926,19 +850,15 @@ namespace System.Diagnostics.Tracing
         // </SecurityKernel>
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Maintainability", "CA1502:AvoidExcessiveComplexity", Justification = "Performance-critical code")]
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1045:DoNotPassTypesByReference")]
-        internal unsafe bool WriteEvent(ref EventDescriptor eventDescriptor, Guid* activityID, Guid* childActivityID, params object[] eventPayload)
-        {
+        internal unsafe bool WriteEvent(ref EventDescriptor eventDescriptor, Guid* activityID, Guid* childActivityID, params object[] eventPayload) {
             int status = 0;
 
-            if (IsEnabled(eventDescriptor.Level, eventDescriptor.Keywords))
-            {
+            if (IsEnabled(eventDescriptor.Level, eventDescriptor.Keywords)) {
                 int argCount = 0;
-                unsafe
-                {
+                unsafe {
                     argCount = eventPayload.Length;
 
-                    if (argCount > s_etwMaxNumberArguments)
-                    {
+                    if (argCount > s_etwMaxNumberArguments) {
                         s_returnCode = WriteEventErrorCode.TooManyArgs;
                         return false;
                     }
@@ -960,21 +880,16 @@ namespace System.Diagnostics.Tracing
                     // size value set in EncodeObject method.
                     //
                     bool hasNonStringRefArgs = false;
-                    for (index = 0; index < eventPayload.Length; index++)
-                    {
-                        if (eventPayload[index] != null)
-                        {
+                    for (index = 0; index < eventPayload.Length; index++) {
+                        if (eventPayload[index] != null) {
                             object supportedRefObj;
                             supportedRefObj = EncodeObject(ref eventPayload[index], ref userDataPtr, ref currentBuffer, ref totalEventSize);
 
-                            if (supportedRefObj != null)
-                            {
+                            if (supportedRefObj != null) {
                                 // EncodeObject advanced userDataPtr to the next empty slot
                                 int idx = (int)(userDataPtr - userData - 1);
-                                if (!(supportedRefObj is string))
-                                {
-                                    if (eventPayload.Length + idx + 1 - index > s_etwMaxNumberArguments)
-                                    {
+                                if (!(supportedRefObj is string)) {
+                                    if (eventPayload.Length + idx + 1 - index > s_etwMaxNumberArguments) {
                                         s_returnCode = WriteEventErrorCode.TooManyArgs;
                                         return false;
                                     }
@@ -985,8 +900,7 @@ namespace System.Diagnostics.Tracing
                                 refObjIndex++;
                             }
                         }
-                        else
-                        {
+                        else {
                             s_returnCode = WriteEventErrorCode.NullInput;
                             return false;
                         }
@@ -995,21 +909,18 @@ namespace System.Diagnostics.Tracing
                     // update argCount based on actual number of arguments written to 'userData'
                     argCount = (int)(userDataPtr - userData);
 
-                    if (totalEventSize > s_traceEventMaximumSize)
-                    {
+                    if (totalEventSize > s_traceEventMaximumSize) {
                         s_returnCode = WriteEventErrorCode.EventTooBig;
                         return false;
                     }
 
                     // the optimized path (using "fixed" instead of allocating pinned GCHandles
-                    if (!hasNonStringRefArgs && (refObjIndex < s_etwAPIMaxRefObjCount))
-                    {
+                    if (!hasNonStringRefArgs && (refObjIndex < s_etwAPIMaxRefObjCount)) {
                         // Fast path: at most 8 string arguments
 
                         // ensure we have at least s_etwAPIMaxStringCount in dataString, so that
                         // the "fixed" statement below works
-                        while (refObjIndex < s_etwAPIMaxRefObjCount)
-                        {
+                        while (refObjIndex < s_etwAPIMaxRefObjCount) {
                             dataRefObj.Add(null);
                             ++refObjIndex;
                         }
@@ -1018,63 +929,50 @@ namespace System.Diagnostics.Tracing
                         // now fix any string arguments and set the pointer on the data descriptor 
                         //
                         fixed (char* v0 = (string)dataRefObj[0], v1 = (string)dataRefObj[1], v2 = (string)dataRefObj[2], v3 = (string)dataRefObj[3],
-                                v4 = (string)dataRefObj[4], v5 = (string)dataRefObj[5], v6 = (string)dataRefObj[6], v7 = (string)dataRefObj[7])
-                        {
+                                v4 = (string)dataRefObj[4], v5 = (string)dataRefObj[5], v6 = (string)dataRefObj[6], v7 = (string)dataRefObj[7]) {
                             userDataPtr = (EventData*)userData;
-                            if (dataRefObj[0] != null)
-                            {
+                            if (dataRefObj[0] != null) {
                                 userDataPtr[refObjPosition[0]].Ptr = (ulong)v0;
                             }
-                            if (dataRefObj[1] != null)
-                            {
+                            if (dataRefObj[1] != null) {
                                 userDataPtr[refObjPosition[1]].Ptr = (ulong)v1;
                             }
-                            if (dataRefObj[2] != null)
-                            {
+                            if (dataRefObj[2] != null) {
                                 userDataPtr[refObjPosition[2]].Ptr = (ulong)v2;
                             }
-                            if (dataRefObj[3] != null)
-                            {
+                            if (dataRefObj[3] != null) {
                                 userDataPtr[refObjPosition[3]].Ptr = (ulong)v3;
                             }
-                            if (dataRefObj[4] != null)
-                            {
+                            if (dataRefObj[4] != null) {
                                 userDataPtr[refObjPosition[4]].Ptr = (ulong)v4;
                             }
-                            if (dataRefObj[5] != null)
-                            {
+                            if (dataRefObj[5] != null) {
                                 userDataPtr[refObjPosition[5]].Ptr = (ulong)v5;
                             }
-                            if (dataRefObj[6] != null)
-                            {
+                            if (dataRefObj[6] != null) {
                                 userDataPtr[refObjPosition[6]].Ptr = (ulong)v6;
                             }
-                            if (dataRefObj[7] != null)
-                            {
+                            if (dataRefObj[7] != null) {
                                 userDataPtr[refObjPosition[7]].Ptr = (ulong)v7;
                             }
 
                             status = UnsafeNativeMethods.ManifestEtw.EventWriteTransferWrapper(m_regHandle, ref eventDescriptor, activityID, childActivityID, argCount, userData);
                         }
                     }
-                    else
-                    {
+                    else {
                         // Slow path: use pinned handles
                         userDataPtr = (EventData*)userData;
 
                         GCHandle[] rgGCHandle = new GCHandle[refObjIndex];
-                        for (int i = 0; i < refObjIndex; ++i)
-                        {
+                        for (int i = 0; i < refObjIndex; ++i) {
                             // below we still use "fixed" to avoid taking dependency on the offset of the first field
                             // in the object (the way we would need to if we used GCHandle.AddrOfPinnedObject)
                             rgGCHandle[i] = GCHandle.Alloc(dataRefObj[i], GCHandleType.Pinned);
-                            if (dataRefObj[i] is string)
-                            {
+                            if (dataRefObj[i] is string) {
                                 fixed (char* p = (string)dataRefObj[i])
                                     userDataPtr[refObjPosition[i]].Ptr = (ulong)p;
                             }
-                            else
-                            {
+                            else {
                                 fixed (byte* p = (byte[])dataRefObj[i])
                                     userDataPtr[refObjPosition[i]].Ptr = (ulong)p;
                             }
@@ -1082,16 +980,14 @@ namespace System.Diagnostics.Tracing
 
                         status = UnsafeNativeMethods.ManifestEtw.EventWriteTransferWrapper(m_regHandle, ref eventDescriptor, activityID, childActivityID, argCount, userData);
 
-                        for (int i = 0; i < refObjIndex; ++i)
-                        {
+                        for (int i = 0; i < refObjIndex; ++i) {
                             rgGCHandle[i].Free();
                         }
                     }
                 }
             }
 
-            if (status != 0)
-            {
+            if (status != 0) {
                 SetLastError((int)status);
                 return false;
             }
@@ -1122,10 +1018,8 @@ namespace System.Diagnostics.Tracing
         // <CallsSuppressUnmanagedCode Name="UnsafeNativeMethods.ManifestEtw.EventWrite(System.Int64,EventDescriptor&,System.UInt32,System.Void*):System.UInt32" />
         // </SecurityKernel>
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1045:DoNotPassTypesByReference")]
-        internal unsafe protected bool WriteEvent(ref EventDescriptor eventDescriptor, Guid* activityID, Guid* childActivityID, int dataCount, IntPtr data)
-        {
-            if (childActivityID != null)
-            {
+        internal unsafe protected bool WriteEvent(ref EventDescriptor eventDescriptor, Guid* activityID, Guid* childActivityID, int dataCount, IntPtr data) {
+            if (childActivityID != null) {
                 // activity transfers are supported only for events that specify the Send or Receive opcode
                 Debug.Assert((EventOpcode)eventDescriptor.Opcode == EventOpcode.Send ||
                                 (EventOpcode)eventDescriptor.Opcode == EventOpcode.Receive ||
@@ -1135,8 +1029,7 @@ namespace System.Diagnostics.Tracing
 
             int status = UnsafeNativeMethods.ManifestEtw.EventWriteTransferWrapper(m_regHandle, ref eventDescriptor, activityID, childActivityID, dataCount, (EventData*)data);
 
-            if (status != 0)
-            {
+            if (status != 0) {
                 SetLastError(status);
                 return false;
             }
@@ -1149,8 +1042,7 @@ namespace System.Diagnostics.Tracing
             Guid* activityID,
             Guid* relatedActivityID,
             int dataCount,
-            IntPtr data)
-        {
+            IntPtr data) {
             int status;
 
             status = UnsafeNativeMethods.ManifestEtw.EventWriteTransferWrapper(
@@ -1161,8 +1053,7 @@ namespace System.Diagnostics.Tracing
                 dataCount,
                 (EventData*)data);
 
-            if (status != 0)
-            {
+            if (status != 0) {
                 SetLastError(status);
                 return false;
             }
@@ -1172,28 +1063,24 @@ namespace System.Diagnostics.Tracing
 
         // These are look-alikes to the Manifest based ETW OS APIs that have been shimmed to work
         // either with Manifest ETW or Classic ETW (if Manifest based ETW is not available).  
-        private unsafe uint EventRegister(ref Guid providerId, UnsafeNativeMethods.ManifestEtw.EtwEnableCallback enableCallback)
-        {
+        private unsafe uint EventRegister(ref Guid providerId, UnsafeNativeMethods.ManifestEtw.EtwEnableCallback enableCallback) {
             m_providerId = providerId;
             m_etwCallback = enableCallback;
             return UnsafeNativeMethods.ManifestEtw.EventRegister(ref providerId, enableCallback, null, ref m_regHandle);
         }
 
-        private uint EventUnregister(long registrationHandle)
-        {
+        private uint EventUnregister(long registrationHandle) {
             return UnsafeNativeMethods.ManifestEtw.EventUnregister(registrationHandle);
         }
 
         private static int[] nibblebits = { 0, 1, 1, 2, 1, 2, 2, 3, 1, 2, 2, 3, 2, 3, 3, 4 };
-        private static int bitcount(uint n)
-        {
+        private static int bitcount(uint n) {
             int count = 0;
             for (; n != 0; n = n >> 4)
                 count += nibblebits[n & 0x0f];
             return count;
         }
-        private static int bitindex(uint n)
-        {
+        private static int bitindex(uint n) {
             Debug.Assert(bitcount(n) == 1);
             int idx = 0;
             while ((n & (1 << idx)) == 0)

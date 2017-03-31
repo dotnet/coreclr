@@ -13,26 +13,21 @@
 
 using System.Runtime.Serialization;
 
-namespace System
-{
+namespace System {
     [Serializable]
-    public class PlatformNotSupportedException : NotSupportedException
-    {
+    public class PlatformNotSupportedException : NotSupportedException {
         public PlatformNotSupportedException()
-            : base(SR.Arg_PlatformNotSupported)
-        {
+            : base(SR.Arg_PlatformNotSupported) {
             HResult = __HResults.COR_E_PLATFORMNOTSUPPORTED;
         }
 
         public PlatformNotSupportedException(String message)
-            : base(message)
-        {
+            : base(message) {
             HResult = __HResults.COR_E_PLATFORMNOTSUPPORTED;
         }
 
         public PlatformNotSupportedException(String message, Exception inner)
-            : base(message, inner)
-        {
+            : base(message, inner) {
             HResult = __HResults.COR_E_PLATFORMNOTSUPPORTED;
         }
 

@@ -17,11 +17,9 @@ using System.Diagnostics;
 using System.Diagnostics.Contracts;
 using System.Runtime.Serialization;
 
-namespace System.Globalization
-{
+namespace System.Globalization {
     [Serializable]
-    public class StringInfo
-    {
+    public class StringInfo {
         [OptionalField(VersionAdded = 2)] 
         private string _str;
 
@@ -32,50 +30,40 @@ namespace System.Globalization
         public StringInfo() : this("") { }
 
         // Primary, useful constructor
-        public StringInfo(string value)
-        {
+        public StringInfo(string value) {
             this.String = value;
         }
 
         [OnDeserializing]
-        private void OnDeserializing(StreamingContext ctx)
-        {
+        private void OnDeserializing(StreamingContext ctx) {
             _str = String.Empty;
         }
 
         [OnDeserialized]
-        private void OnDeserialized(StreamingContext ctx)
-        {
-            if (_str.Length == 0)
-            {
+        private void OnDeserialized(StreamingContext ctx) {
+            if (_str.Length == 0) {
                 _indexes = null;
             }
         }
 
-        public override bool Equals(Object value)
-        {
+        public override bool Equals(Object value) {
             StringInfo that = value as StringInfo;
-            if (that != null)
-            {
+            if (that != null) {
                 return (_str.Equals(that._str));
             }
             return (false);
         }
 
-        public override int GetHashCode()
-        {
+        public override int GetHashCode() {
             return _str.GetHashCode();
         }
 
 
         // Our zero-based array of index values into the string. Initialize if 
         // our private array is not yet, in fact, initialized.
-        private int[] Indexes
-        {
-            get
-            {
-                if ((null == _indexes) && (0 < this.String.Length))
-                {
+        private int[] Indexes {
+            get {
+                if ((null == _indexes) && (0 < this.String.Length)) {
                     _indexes = StringInfo.ParseCombiningCharacters(this.String);
                 }
 
@@ -83,16 +71,12 @@ namespace System.Globalization
             }
         }
 
-        public string String
-        {
-            get
-            {
+        public string String {
+            get {
                 return (_str);
             }
-            set
-            {
-                if (null == value)
-                {
+            set {
+                if (null == value) {
                     throw new ArgumentNullException("String",
                         SR.ArgumentNull_String);
                 }
@@ -103,12 +87,9 @@ namespace System.Globalization
             }
         }
 
-        public int LengthInTextElements
-        {
-            get
-            {
-                if (null == this.Indexes)
-                {
+        public int LengthInTextElements {
+            get {
+                if (null == this.Indexes) {
                     // Indexes not initialized, so assume length zero
                     return (0);
                 }
@@ -117,62 +98,50 @@ namespace System.Globalization
             }
         }
 
-        public string SubstringByTextElements(int startingTextElement) 
-        {
+        public string SubstringByTextElements(int startingTextElement) {
             // If the string is empty, no sense going further. 
-            if (null == this.Indexes) 
-            {
+            if (null == this.Indexes) {
                 // Just decide which error to give depending on the param they gave us....
-                if (startingTextElement < 0) 
-                {
+                if (startingTextElement < 0) {
                     throw new ArgumentOutOfRangeException(nameof(startingTextElement), SR.ArgumentOutOfRange_NeedPosNum);
                 }
-                else
-                {
+                else {
                     throw new ArgumentOutOfRangeException(nameof(startingTextElement), SR.Arg_ArgumentOutOfRangeException);
                 }
             }
             return (SubstringByTextElements(startingTextElement, Indexes.Length - startingTextElement));
         }
 
-        public string SubstringByTextElements(int startingTextElement, int lengthInTextElements) 
-        {
-            if (startingTextElement < 0)
-            {
+        public string SubstringByTextElements(int startingTextElement, int lengthInTextElements) {
+            if (startingTextElement < 0) {
                 throw new ArgumentOutOfRangeException(nameof(startingTextElement), SR.ArgumentOutOfRange_NeedPosNum);
             }
 
-            if (this.String.Length == 0 || startingTextElement >= Indexes.Length)
-            {
+            if (this.String.Length == 0 || startingTextElement >= Indexes.Length) {
                 throw new ArgumentOutOfRangeException(nameof(startingTextElement), SR.Arg_ArgumentOutOfRangeException);
             }
 
-            if (lengthInTextElements < 0)
-            {
+            if (lengthInTextElements < 0) {
                 throw new ArgumentOutOfRangeException(nameof(lengthInTextElements), SR.ArgumentOutOfRange_NeedPosNum);
             }
 
-            if (startingTextElement > Indexes.Length - lengthInTextElements)
-            {
+            if (startingTextElement > Indexes.Length - lengthInTextElements) {
                 throw new ArgumentOutOfRangeException(nameof(lengthInTextElements), SR.Arg_ArgumentOutOfRangeException);
             }
 
             int start = Indexes[startingTextElement];
 
-            if (startingTextElement + lengthInTextElements == Indexes.Length)
-            {
+            if (startingTextElement + lengthInTextElements == Indexes.Length) {
                 // We are at the last text element in the string and because of that
                 // must handle the call differently.
                 return (this.String.Substring(start));
             }
-            else
-            {
+            else {
                 return (this.String.Substring(start, (Indexes[lengthInTextElements + startingTextElement] - start)));
             }
         }
 
-        public static string GetNextTextElement(string str)
-        {
+        public static string GetNextTextElement(string str) {
             return (GetNextTextElement(str, 0));
         }
 
@@ -209,12 +178,10 @@ namespace System.Globalization
         //
         ////////////////////////////////////////////////////////////////////////
 
-        internal static int GetCurrentTextElementLen(string str, int index, int len, ref UnicodeCategory ucCurrent, ref int currentCharCount)
-        {
+        internal static int GetCurrentTextElementLen(string str, int index, int len, ref UnicodeCategory ucCurrent, ref int currentCharCount) {
             Debug.Assert(index >= 0 && len >= 0, "StringInfo.GetCurrentTextElementLen() : index = " + index + ", len = " + len);
             Debug.Assert(index < len, "StringInfo.GetCurrentTextElementLen() : index = " + index + ", len = " + len);
-            if (index + currentCharCount == len)
-            {
+            if (index + currentCharCount == len) {
                 // This is the last character/surrogate in the string.
                 return (currentCharCount);
             }
@@ -222,8 +189,7 @@ namespace System.Globalization
             // Call an internal GetUnicodeCategory, which will tell us both the unicode category, and also tell us if it is a surrogate pair or not.
             int nextCharCount;
             UnicodeCategory ucNext = CharUnicodeInfo.InternalGetUnicodeCategory(str, index + currentCharCount, out nextCharCount);
-            if (CharUnicodeInfo.IsCombiningCategory(ucNext))
-            {
+            if (CharUnicodeInfo.IsCombiningCategory(ucNext)) {
                 // The next element is a combining class.
                 // Check if the current text element to see if it is a valid base category (i.e. it should not be a combining category,
                 // not a format character, and not a control character).
@@ -233,11 +199,10 @@ namespace System.Globalization
                     || (ucCurrent == UnicodeCategory.Control)
                     || (ucCurrent == UnicodeCategory.OtherNotAssigned)
                     || (ucCurrent == UnicodeCategory.Surrogate))    // An unpair high surrogate or low surrogate
-                {
+{
                     // Will fall thru and return the currentCharCount
                 }
-                else
-                {
+                else {
                     int startIndex = index; // Remember the current index.
 
                     // We have a valid base characters, and we have a character (or surrogate) that is combining.
@@ -245,11 +210,9 @@ namespace System.Globalization
                     // Check if the next character is a nonspacing character.
                     index += currentCharCount + nextCharCount;
 
-                    while (index < len)
-                    {
+                    while (index < len) {
                         ucNext = CharUnicodeInfo.InternalGetUnicodeCategory(str, index, out nextCharCount);
-                        if (!CharUnicodeInfo.IsCombiningCategory(ucNext))
-                        {
+                        if (!CharUnicodeInfo.IsCombiningCategory(ucNext)) {
                             ucCurrent = ucNext;
                             currentCharCount = nextCharCount;
                             break;
@@ -272,22 +235,18 @@ namespace System.Globalization
         // of str.  It recognizes a base character plus one or more combining 
         // characters or a properly formed surrogate pair as a text element.  See also 
         // the ParseCombiningCharacters() and the ParseSurrogates() methods.
-        public static string GetNextTextElement(string str, int index)
-        {
+        public static string GetNextTextElement(string str, int index) {
             //
             // Validate parameters.
             //
-            if (str == null)
-            {
+            if (str == null) {
                 throw new ArgumentNullException(nameof(str));
             }
             Contract.EndContractBlock();
 
             int len = str.Length;
-            if (index < 0 || index >= len)
-            {
-                if (index == len)
-                {
+            if (index < 0 || index >= len) {
+                if (index == len) {
                     return (String.Empty);
                 }
                 throw new ArgumentOutOfRangeException(nameof(index), SR.ArgumentOutOfRange_Index);
@@ -298,25 +257,21 @@ namespace System.Globalization
             return (str.Substring(index, GetCurrentTextElementLen(str, index, len, ref uc, ref charLen)));
         }
 
-        public static TextElementEnumerator GetTextElementEnumerator(string str)
-        {
+        public static TextElementEnumerator GetTextElementEnumerator(string str) {
             return (GetTextElementEnumerator(str, 0));
         }
 
-        public static TextElementEnumerator GetTextElementEnumerator(string str, int index)
-        {
+        public static TextElementEnumerator GetTextElementEnumerator(string str, int index) {
             //
             // Validate parameters.
             //
-            if (str == null)
-            {
+            if (str == null) {
                 throw new ArgumentNullException(nameof(str));
             }
             Contract.EndContractBlock();
 
             int len = str.Length;
-            if (index < 0 || (index > len))
-            {
+            if (index < 0 || (index > len)) {
                 throw new ArgumentOutOfRangeException(nameof(index), SR.ArgumentOutOfRange_Index);
             }
 
@@ -335,18 +290,15 @@ namespace System.Globalization
          * return the indices: 0, 2, 4.
          */
 
-        public static int[] ParseCombiningCharacters(string str)
-        {
-            if (str == null)
-            {
+        public static int[] ParseCombiningCharacters(string str) {
+            if (str == null) {
                 throw new ArgumentNullException(nameof(str));
             }
             Contract.EndContractBlock();
 
             int len = str.Length;
             int[] result = new int[len];
-            if (len == 0)
-            {
+            if (len == 0) {
                 return (result);
             }
 
@@ -356,14 +308,12 @@ namespace System.Globalization
             int currentCharLen;
             UnicodeCategory currentCategory = CharUnicodeInfo.InternalGetUnicodeCategory(str, 0, out currentCharLen);
 
-            while (i < len)
-            {
+            while (i < len) {
                 result[resultCount++] = i;
                 i += GetCurrentTextElementLen(str, i, len, ref currentCategory, ref currentCharLen);
             }
 
-            if (resultCount < len)
-            {
+            if (resultCount < len) {
                 int[] returnArray = new int[resultCount];
                 Array.Copy(result, returnArray, resultCount);
                 return (returnArray);

@@ -6,16 +6,14 @@ using System.Diagnostics;
 using System.Diagnostics.Contracts;
 using System.Text;
 
-namespace System.IO
-{
+namespace System.IO {
     // Provides methods for processing file system strings in a cross-platform manner.
     // Most of the methods don't do a complete parsing (such as examining a UNC hostname), 
     // but they will handle most string operations.
 #if PROJECTN
     [Internal.Runtime.CompilerServices.RelocatedTypeAttribute("System.Runtime.Extensions")]
 #endif
-    public static partial class Path
-    {
+    public static partial class Path {
         // Public static readonly variant of the separators. The Path implementation itself is using
         // internal const variant of the separators for better performance.
         public static readonly char DirectorySeparatorChar = PathInternal.DirectorySeparatorChar;
@@ -41,26 +39,21 @@ namespace System.IO
         // returns null. If path does not contain a file extension,
         // the new file extension is appended to the path. If extension
         // is null, any existing extension is removed from path.
-        public static string ChangeExtension(string path, string extension)
-        {
-            if (path != null)
-            {
+        public static string ChangeExtension(string path, string extension) {
+            if (path != null) {
                 PathInternal.CheckInvalidPathChars(path);
 
                 string s = path;
-                for (int i = path.Length - 1; i >= 0; i--)
-                {
+                for (int i = path.Length - 1; i >= 0; i--) {
                     char ch = path[i];
-                    if (ch == '.')
-                    {
+                    if (ch == '.') {
                         s = path.Substring(0, i);
                         break;
                     }
                     if (PathInternal.IsDirectoryOrVolumeSeparator(ch)) break;
                 }
 
-                if (extension != null && path.Length != 0)
-                {
+                if (extension != null && path.Length != 0) {
                     s = (extension.Length == 0 || extension[0] != '.') ?
                         s + "." + extension :
                         s + extension;
@@ -77,17 +70,14 @@ namespace System.IO
         // backslash ("\") in the file path. The returned value is null if the file
         // path is null or if the file path denotes a root (such as "\", "C:", or
         // "\\server\share").
-        public static string GetDirectoryName(string path)
-        {
-            if (path != null)
-            {
+        public static string GetDirectoryName(string path) {
+            if (path != null) {
                 PathInternal.CheckInvalidPathChars(path);
                 path = PathInternal.NormalizeDirectorySeparators(path);
                 int root = PathInternal.GetRootLength(path);
 
                 int i = path.Length;
-                if (i > root)
-                {
+                if (i > root) {
                     while (i > root && !PathInternal.IsDirectorySeparator(path[--i])) ;
                     return path.Substring(0, i);
                 }
@@ -100,18 +90,15 @@ namespace System.IO
         // ".cpp". The returned value is null if the given path is
         // null or if the given path does not include an extension.
         [Pure]
-        public static string GetExtension(string path)
-        {
+        public static string GetExtension(string path) {
             if (path == null)
                 return null;
 
             PathInternal.CheckInvalidPathChars(path);
             int length = path.Length;
-            for (int i = length - 1; i >= 0; i--)
-            {
+            for (int i = length - 1; i >= 0; i--) {
                 char ch = path[i];
-                if (ch == '.')
-                {
+                if (ch == '.') {
                     if (i != length - 1)
                         return path.Substring(i, length - i);
                     else
@@ -127,8 +114,7 @@ namespace System.IO
         // string contains the characters of path that follow the last
         // separator in path. The resulting string is null if path is null.
         [Pure]
-        public static string GetFileName(string path)
-        {
+        public static string GetFileName(string path) {
             if (path == null)
                 return null;
 
@@ -138,8 +124,7 @@ namespace System.IO
         }
 
         [Pure]
-        public static string GetFileNameWithoutExtension(string path)
-        {
+        public static string GetFileNameWithoutExtension(string path) {
             if (path == null)
                 return null;
 
@@ -154,8 +139,7 @@ namespace System.IO
 
         // Returns a cryptographically strong random 8.3 string that can be 
         // used as either a folder name or a file name.
-        public static unsafe string GetRandomFileName()
-        {
+        public static unsafe string GetRandomFileName() {
             byte* pKey = stackalloc byte[KeyLength];
             Interop.GetRandomBytes(pKey, KeyLength);
 
@@ -170,17 +154,13 @@ namespace System.IO
         // separator ('\\' or '/') or volume separator (':') in the path include 
         // a period (".") other than a terminal period. The result is false otherwise.
         [Pure]
-        public static bool HasExtension(string path)
-        {
-            if (path != null)
-            {
+        public static bool HasExtension(string path) {
+            if (path != null) {
                 PathInternal.CheckInvalidPathChars(path);
 
-                for (int i = path.Length - 1; i >= 0; i--)
-                {
+                for (int i = path.Length - 1; i >= 0; i--) {
                     char ch = path[i];
-                    if (ch == '.')
-                    {
+                    if (ch == '.') {
                         return i != path.Length - 1;
                     }
                     if (PathInternal.IsDirectoryOrVolumeSeparator(ch)) break;
@@ -189,8 +169,7 @@ namespace System.IO
             return false;
         }
 
-        public static string Combine(string path1, string path2)
-        {
+        public static string Combine(string path1, string path2) {
             if (path1 == null || path2 == null)
                 throw new ArgumentNullException((path1 == null) ? nameof(path1) : nameof(path2));
             Contract.EndContractBlock();
@@ -201,8 +180,7 @@ namespace System.IO
             return CombineNoChecks(path1, path2);
         }
 
-        public static string Combine(string path1, string path2, string path3)
-        {
+        public static string Combine(string path1, string path2, string path3) {
             if (path1 == null || path2 == null || path3 == null)
                 throw new ArgumentNullException((path1 == null) ? nameof(path1) : (path2 == null) ? nameof(path2) : nameof(path3));
             Contract.EndContractBlock();
@@ -214,8 +192,7 @@ namespace System.IO
             return CombineNoChecks(path1, path2, path3);
         }
 
-        public static string Combine(string path1, string path2, string path3, string path4)
-        {
+        public static string Combine(string path1, string path2, string path3, string path4) {
             if (path1 == null || path2 == null || path3 == null || path4 == null)
                 throw new ArgumentNullException((path1 == null) ? nameof(path1) : (path2 == null) ? nameof(path2) : (path3 == null) ? nameof(path3) : nameof(path4));
             Contract.EndContractBlock();
@@ -228,10 +205,8 @@ namespace System.IO
             return CombineNoChecks(path1, path2, path3, path4);
         }
 
-        public static string Combine(params string[] paths)
-        {
-            if (paths == null)
-            {
+        public static string Combine(params string[] paths) {
+            if (paths == null) {
                 throw new ArgumentNullException(nameof(paths));
             }
             Contract.EndContractBlock();
@@ -242,27 +217,22 @@ namespace System.IO
             // We have two passes, the first calculates how large a buffer to allocate and does some precondition
             // checks on the paths passed in.  The second actually does the combination.
 
-            for (int i = 0; i < paths.Length; i++)
-            {
-                if (paths[i] == null)
-                {
+            for (int i = 0; i < paths.Length; i++) {
+                if (paths[i] == null) {
                     throw new ArgumentNullException(nameof(paths));
                 }
 
-                if (paths[i].Length == 0)
-                {
+                if (paths[i].Length == 0) {
                     continue;
                 }
 
                 PathInternal.CheckInvalidPathChars(paths[i]);
 
-                if (IsPathRooted(paths[i]))
-                {
+                if (IsPathRooted(paths[i])) {
                     firstComponent = i;
                     finalSize = paths[i].Length;
                 }
-                else
-                {
+                else {
                     finalSize += paths[i].Length;
                 }
 
@@ -273,22 +243,17 @@ namespace System.IO
 
             StringBuilder finalPath = StringBuilderCache.Acquire(finalSize);
 
-            for (int i = firstComponent; i < paths.Length; i++)
-            {
-                if (paths[i].Length == 0)
-                {
+            for (int i = firstComponent; i < paths.Length; i++) {
+                if (paths[i].Length == 0) {
                     continue;
                 }
 
-                if (finalPath.Length == 0)
-                {
+                if (finalPath.Length == 0) {
                     finalPath.Append(paths[i]);
                 }
-                else
-                {
+                else {
                     char ch = finalPath[finalPath.Length - 1];
-                    if (!PathInternal.IsDirectoryOrVolumeSeparator(ch))
-                    {
+                    if (!PathInternal.IsDirectoryOrVolumeSeparator(ch)) {
                         finalPath.Append(PathInternal.DirectorySeparatorChar);
                     }
 
@@ -299,8 +264,7 @@ namespace System.IO
             return StringBuilderCache.GetStringAndRelease(finalPath);
         }
 
-        private static string CombineNoChecks(string path1, string path2)
-        {
+        private static string CombineNoChecks(string path1, string path2) {
             if (path2.Length == 0)
                 return path1;
 
@@ -316,8 +280,7 @@ namespace System.IO
                 path1 + PathInternal.DirectorySeparatorCharAsString + path2;
         }
 
-        private static string CombineNoChecks(string path1, string path2, string path3)
-        {
+        private static string CombineNoChecks(string path1, string path2, string path3) {
             if (path1.Length == 0)
                 return CombineNoChecks(path2, path3);
             if (path2.Length == 0)
@@ -333,20 +296,16 @@ namespace System.IO
             bool hasSep1 = PathInternal.IsDirectoryOrVolumeSeparator(path1[path1.Length - 1]);
             bool hasSep2 = PathInternal.IsDirectoryOrVolumeSeparator(path2[path2.Length - 1]);
 
-            if (hasSep1 && hasSep2)
-            {
+            if (hasSep1 && hasSep2) {
                 return path1 + path2 + path3;
             }
-            else if (hasSep1)
-            {
+            else if (hasSep1) {
                 return path1 + path2 + PathInternal.DirectorySeparatorCharAsString + path3;
             }
-            else if (hasSep2)
-            {
+            else if (hasSep2) {
                 return path1 + PathInternal.DirectorySeparatorCharAsString + path2 + path3;
             }
-            else
-            {
+            else {
                 // string.Concat only has string-based overloads up to four arguments; after that requires allocating
                 // a params string[].  Instead, try to use a cached StringBuilder.
                 StringBuilder sb = StringBuilderCache.Acquire(path1.Length + path2.Length + path3.Length + 2);
@@ -359,8 +318,7 @@ namespace System.IO
             }
         }
 
-        private static string CombineNoChecks(string path1, string path2, string path3, string path4)
-        {
+        private static string CombineNoChecks(string path1, string path2, string path3, string path4) {
             if (path1.Length == 0)
                 return CombineNoChecks(path2, path3, path4);
             if (path2.Length == 0)
@@ -381,32 +339,27 @@ namespace System.IO
             bool hasSep2 = PathInternal.IsDirectoryOrVolumeSeparator(path2[path2.Length - 1]);
             bool hasSep3 = PathInternal.IsDirectoryOrVolumeSeparator(path3[path3.Length - 1]);
 
-            if (hasSep1 && hasSep2 && hasSep3)
-            {
+            if (hasSep1 && hasSep2 && hasSep3) {
                 // Use string.Concat overload that takes four strings
                 return path1 + path2 + path3 + path4;
             }
-            else
-            {
+            else {
                 // string.Concat only has string-based overloads up to four arguments; after that requires allocating
                 // a params string[].  Instead, try to use a cached StringBuilder.
                 StringBuilder sb = StringBuilderCache.Acquire(path1.Length + path2.Length + path3.Length + path4.Length + 3);
 
                 sb.Append(path1);
-                if (!hasSep1)
-                {
+                if (!hasSep1) {
                     sb.Append(PathInternal.DirectorySeparatorChar);
                 }
 
                 sb.Append(path2);
-                if (!hasSep2)
-                {
+                if (!hasSep2) {
                     sb.Append(PathInternal.DirectorySeparatorChar);
                 }
 
                 sb.Append(path3);
-                if (!hasSep3)
-                {
+                if (!hasSep3) {
                     sb.Append(PathInternal.DirectorySeparatorChar);
                 }
 
@@ -422,14 +375,13 @@ namespace System.IO
                 'q', 'r', 's', 't', 'u', 'v', 'w', 'x',
                 'y', 'z', '0', '1', '2', '3', '4', '5'};
 
-        private static unsafe void Populate83FileNameFromRandomBytes(byte* bytes, int byteCount, char* chars, int charCount)
-        {
+        private static unsafe void Populate83FileNameFromRandomBytes(byte* bytes, int byteCount, char* chars, int charCount) {
             Debug.Assert(bytes != null);
             Debug.Assert(chars != null);
 
             // This method requires bytes of length 8 and chars of length 12.
-            Debug.Assert(byteCount == 8, $"Unexpected {nameof(byteCount)}");
-            Debug.Assert(charCount == 12, $"Unexpected {nameof(charCount)}");
+            Debug.Assert(byteCount == 8, $"Unexpected  {nameof(byteCount)}");
+            Debug.Assert(charCount == 12, $"Unexpected  {nameof(charCount)}");
 
             byte b0 = bytes[0];
             byte b1 = bytes[1];
@@ -482,13 +434,11 @@ namespace System.IO
         /// <param name="path">The destination path.</param>
         /// <returns>The relative path or <paramref name="path"/> if the paths don't share the same root.</returns>
         /// <exception cref="ArgumentNullException">Thrown if <paramref name="relativeTo"/> or <paramref name="path"/> is <c>null</c> or an empty string.</exception>
-        public static string GetRelativePath(string relativeTo, string path)
-        {
+        public static string GetRelativePath(string relativeTo, string path) {
             return GetRelativePath(relativeTo, path, StringComparison);
         }
 
-        private static string GetRelativePath(string relativeTo, string path, StringComparison comparisonType)
-        {
+        private static string GetRelativePath(string relativeTo, string path, StringComparison comparisonType) {
             if (string.IsNullOrEmpty(relativeTo)) throw new ArgumentNullException(nameof(relativeTo));
             if (string.IsNullOrWhiteSpace(path)) throw new ArgumentNullException(nameof(path));
             Debug.Assert(comparisonType == StringComparison.Ordinal || comparisonType == StringComparison.OrdinalIgnoreCase);
@@ -532,20 +482,16 @@ namespace System.IO
             StringBuilder sb = StringBuilderCache.Acquire(Math.Max(relativeTo.Length, path.Length));
 
             // Add parent segments for segments past the common on the "from" path
-            if (commonLength < relativeToLength)
-            {
+            if (commonLength < relativeToLength) {
                 sb.Append(PathInternal.ParentDirectoryPrefix);
 
-                for (int i = commonLength; i < relativeToLength; i++)
-                {
-                    if (PathInternal.IsDirectorySeparator(relativeTo[i]))
-                    {
+                for (int i = commonLength; i < relativeToLength; i++) {
+                    if (PathInternal.IsDirectorySeparator(relativeTo[i])) {
                         sb.Append(PathInternal.ParentDirectoryPrefix);
                     }
                 }
             }
-            else if (PathInternal.IsDirectorySeparator(path[commonLength]))
-            {
+            else if (PathInternal.IsDirectorySeparator(path[commonLength])) {
                 // No parent segments and we need to eat the initial separator
                 //  (C:\Foo C:\Foo\Bar case)
                 commonLength++;
@@ -564,10 +510,8 @@ namespace System.IO
         // too low in System.Runtime.Extensions to use it (no FileStream, etc.)
 
         /// <summary>Returns a comparison that can be used to compare file and directory names for equality.</summary>
-        internal static StringComparison StringComparison
-        {
-            get
-            {
+        internal static StringComparison StringComparison {
+            get {
                 return IsCaseSensitive ?
                     StringComparison.Ordinal :
                     StringComparison.OrdinalIgnoreCase;

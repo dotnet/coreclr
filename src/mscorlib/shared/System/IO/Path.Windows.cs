@@ -5,12 +5,9 @@
 using System.Diagnostics;
 using System.Text;
 
-namespace System.IO
-{
-    public static partial class Path
-    {
-        public static char[] GetInvalidFileNameChars() => new char[]
-        {
+namespace System.IO {
+    public static partial class Path {
+        public static char[] GetInvalidFileNameChars() => new char[] {
             '\"', '<', '>', '|', '\0',
             (char)1, (char)2, (char)3, (char)4, (char)5, (char)6, (char)7, (char)8, (char)9, (char)10,
             (char)11, (char)12, (char)13, (char)14, (char)15, (char)16, (char)17, (char)18, (char)19, (char)20,
@@ -18,8 +15,7 @@ namespace System.IO
             (char)31, ':', '*', '?', '\\', '/'
         };
 
-        public static char[] GetInvalidPathChars() => new char[]
-        {
+        public static char[] GetInvalidPathChars() => new char[] {
             '|', '\0',
             (char)1, (char)2, (char)3, (char)4, (char)5, (char)6, (char)7, (char)8, (char)9, (char)10,
             (char)11, (char)12, (char)13, (char)14, (char)15, (char)16, (char)17, (char)18, (char)19, (char)20,
@@ -32,8 +28,7 @@ namespace System.IO
         internal const int MaxPath = 260;
 
         // Expands the given path to a fully qualified path. 
-        public static string GetFullPath(string path)
-        {
+        public static string GetFullPath(string path) {
             if (path == null)
                 throw new ArgumentNullException(nameof(path));
 
@@ -43,8 +38,7 @@ namespace System.IO
             if (path.IndexOf('\0') != -1)
                 throw new ArgumentException(SR.Argument_InvalidPathChars, nameof(path));
 
-            if (PathInternal.IsExtended(path))
-            {
+            if (PathInternal.IsExtended(path)) {
                 // We can't really know what is valid for all cases of extended paths.
                 //
                 //  - object names can include other characters as well (':', '/', etc.)
@@ -56,8 +50,7 @@ namespace System.IO
             }
 
             bool isDevice = PathInternal.IsDevice(path);
-            if (!isDevice)
-            {
+            if (!isDevice) {
                 // Toss out paths with colons that aren't a valid drive specifier.
                 // Cannot start with a colon and can only be of the form "C:".
                 // (Note that we used to explicitly check "http:" and "file:"- these are caught by this check now.)
@@ -68,8 +61,7 @@ namespace System.IO
 
                 if ((path.Length > 0 && path[0] == PathInternal.VolumeSeparatorChar)
                     || (path.Length >= startIndex && path[startIndex - 1] == PathInternal.VolumeSeparatorChar && !PathInternal.IsValidDriveChar(path[startIndex - 2]))
-                    || (path.Length > startIndex && path.IndexOf(PathInternal.VolumeSeparatorChar, startIndex) != -1))
-                {
+                    || (path.Length > startIndex && path.IndexOf(PathInternal.VolumeSeparatorChar, startIndex) != -1)) {
                     throw new NotSupportedException(SR.Argument_PathFormatNotSupported);
                 }
             }
@@ -81,8 +73,7 @@ namespace System.IO
             // We don't want to check invalid characters for device format- see comments for extended above
             string fullPath = PathHelper.Normalize(path, checkInvalidCharacters: !isDevice, expandShortPaths: true);
 
-            if (!isDevice)
-            {
+            if (!isDevice) {
                 // Emulate FileIOPermissions checks, retained for compatibility (normal invalid characters have already been checked)
                 if (PathInternal.HasWildCardCharacters(fullPath))
                     throw new ArgumentException(SR.Argument_InvalidPathChars, nameof(path));
@@ -91,8 +82,7 @@ namespace System.IO
             return fullPath;
         }
 
-        public static string GetTempPath()
-        {
+        public static string GetTempPath() {
             StringBuilder sb = StringBuilderCache.Acquire(MaxPath);
             uint r = Interop.Kernel32.GetTempPathW(MaxPath, sb);
             if (r == 0)
@@ -102,8 +92,7 @@ namespace System.IO
 
         // Returns a unique temporary file name, and creates a 0-byte file by that
         // name on disk.
-        public static string GetTempFileName()
-        {
+        public static string GetTempFileName() {
             string path = GetTempPath();
 
             StringBuilder sb = StringBuilderCache.Acquire(MaxPath);
@@ -115,10 +104,8 @@ namespace System.IO
 
         // Tests if the given path contains a root. A path is considered rooted
         // if it starts with a backslash ("\") or a valid drive letter and a colon (":").
-        public static bool IsPathRooted(string path)
-        {
-            if (path != null)
-            {
+        public static bool IsPathRooted(string path) {
+            if (path != null) {
                 PathInternal.CheckInvalidPathChars(path);
 
                 int length = path.Length;
@@ -137,8 +124,7 @@ namespace System.IO
         // where X is the drive letter), "X:\" (an absolute path on a given drive),
         // and "\\server\share" (a UNC path for a given server and share name).
         // The resulting string is null if path is null.
-        public static string GetPathRoot(string path)
-        {
+        public static string GetPathRoot(string path) {
             if (path == null) return null;
             PathInternal.CheckInvalidPathChars(path);
 

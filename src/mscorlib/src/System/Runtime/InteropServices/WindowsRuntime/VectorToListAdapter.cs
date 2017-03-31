@@ -13,8 +13,7 @@ using System.Diagnostics.Contracts;
 using System.Runtime.InteropServices;
 using System.Runtime.CompilerServices;
 
-namespace System.Runtime.InteropServices.WindowsRuntime
-{
+namespace System.Runtime.InteropServices.WindowsRuntime {
     // This is a set of stub methods implementing the support for the IList`1 interface on WinRT
     // objects that support IVector`1. Used by the interop mashaling infrastructure.
     //
@@ -23,16 +22,13 @@ namespace System.Runtime.InteropServices.WindowsRuntime
     // for all of these methods are not VectorToListAdapter objects. Rather, they are of type
     // IVector<T>. No actual VectorToListAdapter object is ever instantiated. Thus, you will see
     // a lot of expressions that cast "this" to "IVector<T>".
-    internal sealed class VectorToListAdapter
-    {
-        private VectorToListAdapter()
-        {
+    internal sealed class VectorToListAdapter {
+        private VectorToListAdapter() {
             Debug.Assert(false, "This class is never instantiated");
         }
 
         // T this[int index] { get }
-        internal T Indexer_Get<T>(int index)
-        {
+        internal T Indexer_Get<T>(int index) {
             if (index < 0)
                 throw new ArgumentOutOfRangeException(nameof(index));
 
@@ -41,8 +37,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         }
 
         // T this[int index] { set }
-        internal void Indexer_Set<T>(int index, T value)
-        {
+        internal void Indexer_Set<T>(int index, T value) {
             if (index < 0)
                 throw new ArgumentOutOfRangeException(nameof(index));
 
@@ -51,8 +46,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         }
 
         // int IndexOf(T item)
-        internal int IndexOf<T>(T item)
-        {
+        internal int IndexOf<T>(T item) {
             IVector<T> _this = JitHelpers.UnsafeCast<IVector<T>>(this);
 
             uint index;
@@ -61,8 +55,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             if (!exists)
                 return -1;
 
-            if (((uint)Int32.MaxValue) < index)
-            {
+            if (((uint)Int32.MaxValue) < index) {
                 throw new InvalidOperationException(SR.InvalidOperation_CollectionBackingListTooLarge);
             }
 
@@ -70,8 +63,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         }
 
         // void Insert(int index, T item)
-        internal void Insert<T>(int index, T item)
-        {
+        internal void Insert<T>(int index, T item) {
             if (index < 0)
                 throw new ArgumentOutOfRangeException(nameof(index));
 
@@ -80,8 +72,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         }
 
         // void RemoveAt(int index)
-        internal void RemoveAt<T>(int index)
-        {
+        internal void RemoveAt<T>(int index) {
             if (index < 0)
                 throw new ArgumentOutOfRangeException(nameof(index));
 
@@ -91,17 +82,14 @@ namespace System.Runtime.InteropServices.WindowsRuntime
 
         // Helpers:
 
-        internal static T GetAt<T>(IVector<T> _this, uint index)
-        {
-            try
-            {
+        internal static T GetAt<T>(IVector<T> _this, uint index) {
+            try {
                 return _this.GetAt(index);
 
                 // We delegate bounds checking to the underlying collection and if it detected a fault,
                 // we translate it to the right exception:
             }
-            catch (Exception ex)
-            {
+            catch (Exception ex) {
                 if (__HResults.E_BOUNDS == ex._HResult)
                     throw new ArgumentOutOfRangeException(nameof(index));
 
@@ -109,17 +97,14 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             }
         }
 
-        private static void SetAt<T>(IVector<T> _this, UInt32 index, T value)
-        {
-            try
-            {
+        private static void SetAt<T>(IVector<T> _this, UInt32 index, T value) {
+            try {
                 _this.SetAt(index, value);
 
                 // We deligate bounds checking to the underlying collection and if it detected a fault,
                 // we translate it to the right exception:
             }
-            catch (Exception ex)
-            {
+            catch (Exception ex) {
                 if (__HResults.E_BOUNDS == ex._HResult)
                     throw new ArgumentOutOfRangeException(nameof(index));
 
@@ -127,17 +112,14 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             }
         }
 
-        private static void InsertAtHelper<T>(IVector<T> _this, uint index, T item)
-        {
-            try
-            {
+        private static void InsertAtHelper<T>(IVector<T> _this, uint index, T item) {
+            try {
                 _this.InsertAt(index, item);
 
                 // We delegate bounds checking to the underlying collection and if it detected a fault,
                 // we translate it to the right exception:
             }
-            catch (Exception ex)
-            {
+            catch (Exception ex) {
                 if (__HResults.E_BOUNDS == ex._HResult)
                     throw new ArgumentOutOfRangeException(nameof(index));
 
@@ -145,17 +127,14 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             }
         }
 
-        internal static void RemoveAtHelper<T>(IVector<T> _this, uint index)
-        {
-            try
-            {
+        internal static void RemoveAtHelper<T>(IVector<T> _this, uint index) {
+            try {
                 _this.RemoveAt(index);
 
                 // We delegate bounds checking to the underlying collection and if it detected a fault,
                 // we translate it to the right exception:
             }
-            catch (Exception ex)
-            {
+            catch (Exception ex) {
                 if (__HResults.E_BOUNDS == ex._HResult)
                     throw new ArgumentOutOfRangeException(nameof(index));
 

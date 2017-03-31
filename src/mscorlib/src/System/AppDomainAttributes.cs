@@ -11,11 +11,9 @@
 **
 =============================================================================*/
 
-namespace System
-{
+namespace System {
     [Serializable]
-    internal enum LoaderOptimization
-    {
+    internal enum LoaderOptimization {
         NotSpecified = 0,
         SingleDomain = 1,
         MultiDomain = 2,

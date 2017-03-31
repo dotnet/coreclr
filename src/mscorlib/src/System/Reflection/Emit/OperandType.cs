@@ -15,11 +15,9 @@
 
 using System;
 
-namespace System.Reflection.Emit
-{
+namespace System.Reflection.Emit {
     [Serializable]
-    public enum OperandType
-    {
+    public enum OperandType {
         InlineBrTarget = 0,
         InlineField = 1,
         InlineI = 2,

@@ -11,8 +11,7 @@
 **
 ============================================================*/
 
-namespace System
-{
+namespace System {
     using System.IO;
     using System.Text;
     using System.Runtime.Remoting;
@@ -24,8 +23,7 @@ namespace System
     using System.Diagnostics.Contracts;
 
     [Serializable]
-    internal enum LogLevel
-    {
+    internal enum LogLevel {
         Trace = 0,
         Status = 20,
         Warning = 40,
@@ -33,13 +31,11 @@ namespace System
         Panic = 100,
     }
 
-    internal struct SwitchStructure
-    {
+    internal struct SwitchStructure {
         internal String name;
         internal int value;
 
-        internal SwitchStructure(String n, int v)
-        {
+        internal SwitchStructure(String n, int v) {
             name = n;
             value = v;
         }
@@ -47,8 +43,7 @@ namespace System
 
 
     // Only statics, does not need to be marked with the serializable attribute
-    internal static class BCLDebug
-    {
+    internal static class BCLDebug {
         internal static volatile bool m_registryChecked = false;
         internal static volatile bool m_loggingNotEnabled = false;
         internal static bool m_perfWarnings;
@@ -91,30 +86,25 @@ namespace System
 
 
 #if _DEBUG
-        internal static void WaitForFinalizers(Object sender, EventArgs e)
-        {
-            if (!m_registryChecked)
-            {
+        internal static void WaitForFinalizers(Object sender, EventArgs e) {
+            if (!m_registryChecked) {
                 CheckRegistry();
             }
-            if (m_correctnessWarnings)
-            {
+            if (m_correctnessWarnings) {
                 GC.GetTotalMemory(true);
                 GC.WaitForPendingFinalizers();
             }
         }
 #endif
         [Conditional("_DEBUG")]
-        static public void Assert(bool condition)
-        {
+        static public void Assert(bool condition) {
 #if _DEBUG
             Assert(condition, "Assert failed.");
 #endif
         }
 
         [Conditional("_DEBUG")]
-        static public void Assert(bool condition, String message)
-        {
+        static public void Assert(bool condition, String message) {
 #if _DEBUG
             // Speed up debug builds marginally by avoiding the garbage from
             // concatinating "BCL Assert: " and the message.
@@ -125,12 +115,10 @@ namespace System
 
         [Pure]
         [Conditional("_LOGGING")]
-        static public void Log(String message)
-        {
+        static public void Log(String message) {
             if (AppDomain.CurrentDomain.IsUnloadingForcedFinalize())
                 return;
-            if (!m_registryChecked)
-            {
+            if (!m_registryChecked) {
                 CheckRegistry();
             }
             System.Diagnostics.Log.Trace(message);
@@ -139,26 +127,21 @@ namespace System
 
         [Pure]
         [Conditional("_LOGGING")]
-        static public void Log(String switchName, String message)
-        {
+        static public void Log(String switchName, String message) {
             if (AppDomain.CurrentDomain.IsUnloadingForcedFinalize())
                 return;
-            if (!m_registryChecked)
-            {
+            if (!m_registryChecked) {
                 CheckRegistry();
             }
-            try
-            {
+            try {
                 LogSwitch ls;
                 ls = LogSwitch.GetSwitch(switchName);
-                if (ls != null)
-                {
+                if (ls != null) {
                     System.Diagnostics.Log.Trace(ls, message);
                     System.Diagnostics.Log.Trace(ls, Environment.NewLine);
                 }
             }
-            catch
-            {
+            catch {
                 System.Diagnostics.Log.Trace("Exception thrown in logging." + Environment.NewLine);
                 System.Diagnostics.Log.Trace("Switch was: " + ((switchName == null) ? "<null>" : switchName) + Environment.NewLine);
                 System.Diagnostics.Log.Trace("Message was: " + ((message == null) ? "<null>" : message) + Environment.NewLine);
@@ -172,12 +155,10 @@ namespace System
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         private extern static int GetRegistryLoggingValues(out bool loggingEnabled, out bool logToConsole, out int logLevel, out bool perfWarnings, out bool correctnessWarnings, out bool safeHandleStackTraces);
 
-        private static void CheckRegistry()
-        {
+        private static void CheckRegistry() {
             if (AppDomain.CurrentDomain.IsUnloadingForcedFinalize())
                 return;
-            if (m_registryChecked)
-            {
+            if (m_registryChecked) {
                 return;
             }
 
@@ -192,26 +173,20 @@ namespace System
             // Note we can get into some recursive situations where we call
             // ourseves recursively through the .cctor.  That's why we have the 
             // check for levelConversions == null.
-            if (!loggingEnabled)
-            {
+            if (!loggingEnabled) {
                 m_loggingNotEnabled = true;
             }
-            if (loggingEnabled && levelConversions != null)
-            {
-                try
-                {
+            if (loggingEnabled && levelConversions != null) {
+                try {
                     //The values returned for the logging levels in the registry don't map nicely onto the
                     //values which we support internally (which are an approximation of the ones that 
                     //the System.Diagnostics namespace uses) so we have a quick map.
                     Assert(logLevel >= 0 && logLevel <= 10, "logLevel>=0 && logLevel<=10");
                     logLevel = (int)levelConversions[logLevel];
 
-                    if (facilityValue > 0)
-                    {
-                        for (int i = 0; i < switches.Length; i++)
-                        {
-                            if ((switches[i].value & facilityValue) != 0)
-                            {
+                    if (facilityValue > 0) {
+                        for (int i = 0; i < switches.Length; i++) {
+                            if ((switches[i].value & facilityValue) != 0) {
                                 LogSwitch L = new LogSwitch(switches[i].name, switches[i].name, System.Diagnostics.Log.GlobalSwitch);
                                 L.MinimumLevel = (LoggingLevels)logLevel;
                             }
@@ -220,37 +195,31 @@ namespace System
                         System.Diagnostics.Log.IsConsoleEnabled = logToConsole;
                     }
                 }
-                catch
-                {
+                catch {
                     //Silently eat any exceptions.
                 }
             }
         }
 
-        internal static bool CheckEnabled(String switchName)
-        {
+        internal static bool CheckEnabled(String switchName) {
             if (AppDomain.CurrentDomain.IsUnloadingForcedFinalize())
                 return false;
             if (!m_registryChecked)
                 CheckRegistry();
             LogSwitch logSwitch = LogSwitch.GetSwitch(switchName);
-            if (logSwitch == null)
-            {
+            if (logSwitch == null) {
                 return false;
             }
             return ((int)logSwitch.MinimumLevel <= (int)LogLevel.Trace);
         }
 
-        private static bool CheckEnabled(String switchName, LogLevel level, out LogSwitch logSwitch)
-        {
-            if (AppDomain.CurrentDomain.IsUnloadingForcedFinalize())
-            {
+        private static bool CheckEnabled(String switchName, LogLevel level, out LogSwitch logSwitch) {
+            if (AppDomain.CurrentDomain.IsUnloadingForcedFinalize()) {
                 logSwitch = null;
                 return false;
             }
             logSwitch = LogSwitch.GetSwitch(switchName);
-            if (logSwitch == null)
-            {
+            if (logSwitch == null) {
                 return false;
             }
             return ((int)logSwitch.MinimumLevel <= (int)level);
@@ -258,41 +227,33 @@ namespace System
 
         [Pure]
         [Conditional("_LOGGING")]
-        public static void Log(String switchName, LogLevel level, params Object[] messages)
-        {
+        public static void Log(String switchName, LogLevel level, params Object[] messages) {
             if (AppDomain.CurrentDomain.IsUnloadingForcedFinalize())
                 return;
             //Add code to check if logging is enabled in the registry.
             LogSwitch logSwitch;
 
-            if (!m_registryChecked)
-            {
+            if (!m_registryChecked) {
                 CheckRegistry();
             }
 
-            if (!CheckEnabled(switchName, level, out logSwitch))
-            {
+            if (!CheckEnabled(switchName, level, out logSwitch)) {
                 return;
             }
 
             StringBuilder sb = StringBuilderCache.Acquire();
 
-            for (int i = 0; i < messages.Length; i++)
-            {
+            for (int i = 0; i < messages.Length; i++) {
                 String s;
-                try
-                {
-                    if (messages[i] == null)
-                    {
+                try {
+                    if (messages[i] == null) {
                         s = "<null>";
                     }
-                    else
-                    {
+                    else {
                         s = messages[i].ToString();
                     }
                 }
-                catch
-                {
+                catch {
                     s = "<unable to convert>";
                 }
                 sb.Append(s);
@@ -302,16 +263,13 @@ namespace System
 
         [Pure]
         [Conditional("_LOGGING")]
-        public static void Trace(String switchName, String format, params Object[] messages)
-        {
-            if (m_loggingNotEnabled)
-            {
+        public static void Trace(String switchName, String format, params Object[] messages) {
+            if (m_loggingNotEnabled) {
                 return;
             }
 
             LogSwitch logSwitch;
-            if (!CheckEnabled(switchName, LogLevel.Trace, out logSwitch))
-            {
+            if (!CheckEnabled(switchName, LogLevel.Trace, out logSwitch)) {
                 return;
             }
 
@@ -325,8 +283,7 @@ namespace System
         // For perf-related asserts.  On a debug build, set the registry key
         // BCLPerfWarnings to non-zero.
         [Conditional("_DEBUG")]
-        internal static void Perf(bool expr, String msg)
-        {
+        internal static void Perf(bool expr, String msg) {
             if (AppDomain.CurrentDomain.IsUnloadingForcedFinalize())
                 return;
             if (!m_registryChecked)
@@ -334,8 +291,7 @@ namespace System
             if (!m_perfWarnings)
                 return;
 
-            if (!expr)
-            {
+            if (!expr) {
                 Log("PERF", "BCL Perf Warning: " + msg);
             }
             System.Diagnostics.Assert.Check(expr, "BCL Perf Warning: Your perf may be less than perfect because...", msg);
@@ -346,8 +302,7 @@ namespace System
         [Conditional("_DEBUG")]
 #if _DEBUG
 #endif
-        internal static void Correctness(bool expr, String msg)
-        {
+        internal static void Correctness(bool expr, String msg) {
 #if _DEBUG
             if (AppDomain.CurrentDomain.IsUnloadingForcedFinalize())
                 return;
@@ -356,14 +311,12 @@ namespace System
             if (!m_correctnessWarnings)
                 return;
 
-            if (!m_domainUnloadAdded)
-            {
+            if (!m_domainUnloadAdded) {
                 m_domainUnloadAdded = true;
                 AppDomain.CurrentDomain.DomainUnload += new EventHandler(WaitForFinalizers);
             }
 
-            if (!expr)
-            {
+            if (!expr) {
                 Log("CORRECTNESS", "BCL Correctness Warning: " + msg);
             }
             System.Diagnostics.Assert.Check(expr, "BCL Correctness Warning: Your program may not work because...", msg);
@@ -372,10 +325,8 @@ namespace System
 
         // Whether SafeHandles include a stack trace showing where they 
         // were allocated.  Only useful in checked & debug builds.
-        internal static bool SafeHandleStackTracesEnabled
-        {
-            get
-            {
+        internal static bool SafeHandleStackTracesEnabled {
+            get {
 #if _DEBUG
                 if (!m_registryChecked)
                     CheckRegistry();

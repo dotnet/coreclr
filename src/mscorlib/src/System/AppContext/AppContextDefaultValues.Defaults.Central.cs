@@ -8,16 +8,13 @@
 // This should be compiled only in mscorlib where the AppContext class is available
 //
 
-namespace System
-{
-    internal static partial class AppContextDefaultValues
-    {
+namespace System {
+    internal static partial class AppContextDefaultValues {
         /// <summary>
         /// This method allows reading the override for a switch. 
         /// The implementation is platform specific
         /// </summary>
-        public static bool TryGetSwitchOverride(string switchName, out bool overrideValue)
-        {
+        public static bool TryGetSwitchOverride(string switchName, out bool overrideValue) {
             // The default value for a switch is 'false'
             overrideValue = false;
 

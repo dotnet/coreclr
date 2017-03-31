@@ -4,12 +4,9 @@
 
 using System.Globalization;
 
-namespace System.Reflection
-{
-    public abstract partial class FieldInfo : MemberInfo
-    {
-        public static FieldInfo GetFieldFromHandle(RuntimeFieldHandle handle)
-        {
+namespace System.Reflection {
+    public abstract partial class FieldInfo : MemberInfo {
+        public static FieldInfo GetFieldFromHandle(RuntimeFieldHandle handle) {
             if (handle.IsNullHandle())
                 throw new ArgumentException(SR.Argument_InvalidHandle, nameof(handle));
 
@@ -24,8 +21,7 @@ namespace System.Reflection
             return f;
         }
 
-        public static FieldInfo GetFieldFromHandle(RuntimeFieldHandle handle, RuntimeTypeHandle declaringType)
-        {
+        public static FieldInfo GetFieldFromHandle(RuntimeFieldHandle handle, RuntimeTypeHandle declaringType) {
             if (handle.IsNullHandle())
                 throw new ArgumentException(SR.Argument_InvalidHandle);
 

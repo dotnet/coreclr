@@ -7,14 +7,12 @@ using System.Diagnostics.Contracts;
 using System.Runtime.CompilerServices;
 using System.Security;
 
-namespace System
-{
+namespace System {
     // The BitConverter class contains methods for
     // converting an array of bytes to one of the base data 
     // types, as well as for converting a base data type to an
     // array of bytes.
-    public static class BitConverter
-    {
+    public static class BitConverter {
         // This field indicates the "endianess" of the architecture.
         // The value is set to true if the architecture is
         // little endian; false if it is big endian.
@@ -25,8 +23,7 @@ namespace System
 #endif
 
         // Converts a Boolean into an array of bytes with length one.
-        public static byte[] GetBytes(bool value)
-        {
+        public static byte[] GetBytes(bool value) {
             Contract.Ensures(Contract.Result<byte[]>() != null);
             Contract.Ensures(Contract.Result<byte[]>().Length == 1);
 
@@ -36,8 +33,7 @@ namespace System
         }
 
         // Converts a char into an array of bytes with length two.
-        public static byte[] GetBytes(char value)
-        {
+        public static byte[] GetBytes(char value) {
             Contract.Ensures(Contract.Result<byte[]>() != null);
             Contract.Ensures(Contract.Result<byte[]>().Length == sizeof(char));
 
@@ -48,8 +44,7 @@ namespace System
 
         // Converts a short into an array of bytes with length
         // two.
-        public static byte[] GetBytes(short value)
-        {
+        public static byte[] GetBytes(short value) {
             Contract.Ensures(Contract.Result<byte[]>() != null);
             Contract.Ensures(Contract.Result<byte[]>().Length == sizeof(short));
 
@@ -60,8 +55,7 @@ namespace System
 
         // Converts an int into an array of bytes with length 
         // four.
-        public static byte[] GetBytes(int value)
-        {
+        public static byte[] GetBytes(int value) {
             Contract.Ensures(Contract.Result<byte[]>() != null);
             Contract.Ensures(Contract.Result<byte[]>().Length == sizeof(int));
 
@@ -72,8 +66,7 @@ namespace System
 
         // Converts a long into an array of bytes with length 
         // eight.
-        public static byte[] GetBytes(long value)
-        {
+        public static byte[] GetBytes(long value) {
             Contract.Ensures(Contract.Result<byte[]>() != null);
             Contract.Ensures(Contract.Result<byte[]>().Length == sizeof(long));
 
@@ -85,8 +78,7 @@ namespace System
         // Converts an ushort into an array of bytes with
         // length two.
         [CLSCompliant(false)]
-        public static byte[] GetBytes(ushort value)
-        {
+        public static byte[] GetBytes(ushort value) {
             Contract.Ensures(Contract.Result<byte[]>() != null);
             Contract.Ensures(Contract.Result<byte[]>().Length == sizeof(ushort));
 
@@ -98,8 +90,7 @@ namespace System
         // Converts an uint into an array of bytes with
         // length four.
         [CLSCompliant(false)]
-        public static byte[] GetBytes(uint value)
-        {
+        public static byte[] GetBytes(uint value) {
             Contract.Ensures(Contract.Result<byte[]>() != null);
             Contract.Ensures(Contract.Result<byte[]>().Length == sizeof(uint));
 
@@ -111,8 +102,7 @@ namespace System
         // Converts an unsigned long into an array of bytes with
         // length eight.
         [CLSCompliant(false)]
-        public static byte[] GetBytes(ulong value)
-        {
+        public static byte[] GetBytes(ulong value) {
             Contract.Ensures(Contract.Result<byte[]>() != null);
             Contract.Ensures(Contract.Result<byte[]>().Length == sizeof(ulong));
 
@@ -123,8 +113,7 @@ namespace System
 
         // Converts a float into an array of bytes with length 
         // four.
-        public static byte[] GetBytes(float value)
-        {
+        public static byte[] GetBytes(float value) {
             Contract.Ensures(Contract.Result<byte[]>() != null);
             Contract.Ensures(Contract.Result<byte[]>().Length == sizeof(float));
 
@@ -135,8 +124,7 @@ namespace System
 
         // Converts a double into an array of bytes with length 
         // eight.
-        public static byte[] GetBytes(double value)
-        {
+        public static byte[] GetBytes(double value) {
             Contract.Ensures(Contract.Result<byte[]>() != null);
             Contract.Ensures(Contract.Result<byte[]>().Length == sizeof(double));
 
@@ -148,8 +136,7 @@ namespace System
         // Converts an array of bytes into a char.  
         public static char ToChar(byte[] value, int startIndex) => unchecked((char)ReadInt16(value, startIndex));
 
-        private static short ReadInt16(byte[] value, int startIndex)
-        {
+        private static short ReadInt16(byte[] value, int startIndex) {
             if (value == null)
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.value);
             if (unchecked((uint)startIndex) >= unchecked((uint)value.Length))
@@ -161,8 +148,7 @@ namespace System
             return Unsafe.ReadUnaligned<short>(ref value[startIndex]);
         }
 
-        private static int ReadInt32(byte[] value, int startIndex)
-        {
+        private static int ReadInt32(byte[] value, int startIndex) {
             if (value == null)
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.value);
             if (unchecked((uint)startIndex) >= unchecked((uint)value.Length))
@@ -174,8 +160,7 @@ namespace System
             return Unsafe.ReadUnaligned<int>(ref value[startIndex]);
         }
 
-        private static long ReadInt64(byte[] value, int startIndex)
-        {
+        private static long ReadInt64(byte[] value, int startIndex) {
             if (value == null)
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.value);
             if (unchecked((uint)startIndex) >= unchecked((uint)value.Length))
@@ -212,24 +197,20 @@ namespace System
         public static ulong ToUInt64(byte[] value, int startIndex) => unchecked((ulong)ReadInt64(value, startIndex));
 
         // Converts an array of bytes into a float.  
-        public static unsafe float ToSingle(byte[] value, int startIndex)
-        {
+        public static unsafe float ToSingle(byte[] value, int startIndex) {
             int val = ReadInt32(value, startIndex);
             return *(float*)&val;
         }
 
         // Converts an array of bytes into a double.  
-        public static unsafe double ToDouble(byte[] value, int startIndex)
-        {
+        public static unsafe double ToDouble(byte[] value, int startIndex) {
             long val = ReadInt64(value, startIndex);
             return *(double*)&val;
         }
 
-        private static char GetHexValue(int i)
-        {
+        private static char GetHexValue(int i) {
             Debug.Assert(i >= 0 && i < 16, "i is out of range.");
-            if (i < 10)
-            {
+            if (i < 10) {
                 return (char)(i + '0');
             }
 
@@ -237,8 +218,7 @@ namespace System
         }
 
         // Converts an array of bytes into a String.  
-        public static string ToString(byte[] value, int startIndex, int length)
-        {
+        public static string ToString(byte[] value, int startIndex, int length) {
             if (value == null)
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.value);
             if (startIndex < 0 || startIndex >= value.Length && startIndex > 0)
@@ -249,28 +229,23 @@ namespace System
                 ThrowHelper.ThrowArgumentException(ExceptionResource.Arg_ArrayPlusOffTooSmall, ExceptionArgument.value);
             Contract.EndContractBlock();
 
-            if (length == 0)
-            {
+            if (length == 0) {
                 return string.Empty;
             }
 
-            if (length > (int.MaxValue / 3))
-            {
+            if (length > (int.MaxValue / 3)) {
                 // (Int32.MaxValue / 3) == 715,827,882 Bytes == 699 MB
                 throw new ArgumentOutOfRangeException(nameof(length), SR.Format(SR.ArgumentOutOfRange_LengthTooLarge, (int.MaxValue / 3)));
             }
 
             int chArrayLength = length * 3;
             const int StackLimit = 512; // arbitrary limit to switch from stack to heap allocation
-            unsafe
-            {
-                if (chArrayLength < StackLimit)
-                {
+            unsafe {
+                if (chArrayLength < StackLimit) {
                     char* chArrayPtr = stackalloc char[chArrayLength];
                     return ToString(value, startIndex, length, chArrayPtr, chArrayLength);
                 }
-                else
-                {
+                else {
                     char[] chArray = new char[chArrayLength];
                     fixed (char* chArrayPtr = &chArray[0])
                         return ToString(value, startIndex, length, chArrayPtr, chArrayLength);
@@ -278,15 +253,13 @@ namespace System
             }
         }
 
-        private static unsafe string ToString(byte[] value, int startIndex, int length, char* chArray, int chArrayLength)
-        {
+        private static unsafe string ToString(byte[] value, int startIndex, int length, char* chArray, int chArrayLength) {
             Debug.Assert(length > 0);
             Debug.Assert(chArrayLength == length * 3);
 
             char* p = chArray;
             int endIndex = startIndex + length;
-            for (int i = startIndex; i < endIndex; i++)
-            {
+            for (int i = startIndex; i < endIndex; i++) {
                 byte b = value[i];
                 *p++ = GetHexValue(b >> 4);
                 *p++ = GetHexValue(b & 0xF);
@@ -298,8 +271,7 @@ namespace System
         }
 
         // Converts an array of bytes into a String.  
-        public static string ToString(byte[] value)
-        {
+        public static string ToString(byte[] value) {
             if (value == null)
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.value);
             Contract.Ensures(Contract.Result<string>() != null);
@@ -308,8 +280,7 @@ namespace System
         }
 
         // Converts an array of bytes into a String.  
-        public static string ToString(byte[] value, int startIndex)
-        {
+        public static string ToString(byte[] value, int startIndex) {
             if (value == null)
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.value);
             Contract.Ensures(Contract.Result<string>() != null);
@@ -326,8 +297,7 @@ namespace System
         **Exceptions: See ToInt4.
         ==============================================================================*/
         // Converts an array of bytes into a boolean.  
-        public static bool ToBoolean(byte[] value, int startIndex)
-        {
+        public static bool ToBoolean(byte[] value, int startIndex) {
             if (value == null)
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.value);
             if (startIndex < 0)
@@ -339,23 +309,19 @@ namespace System
             return value[startIndex] != 0;
         }
 
-        public static unsafe long DoubleToInt64Bits(double value)
-        {
+        public static unsafe long DoubleToInt64Bits(double value) {
             return *((long*)&value);
         }
 
-        public static unsafe double Int64BitsToDouble(long value)
-        {
+        public static unsafe double Int64BitsToDouble(long value) {
             return *((double*)&value);
         }
 
-        public static unsafe int SingleToInt32Bits(float value)
-        {
+        public static unsafe int SingleToInt32Bits(float value) {
             return *((int*)&value);
         }
 
-        public static unsafe float Int32BitsToSingle(int value)
-        {
+        public static unsafe float Int32BitsToSingle(int value) {
             return *((float*)&value);
         }
     }

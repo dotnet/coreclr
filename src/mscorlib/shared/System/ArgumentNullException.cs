@@ -13,38 +13,32 @@
 
 using System.Runtime.Serialization;
 
-namespace System
-{
+namespace System {
     // The ArgumentException is thrown when an argument 
     // is null when it shouldn't be.
     // 
     [Serializable]
-    public class ArgumentNullException : ArgumentException
-    {
+    public class ArgumentNullException : ArgumentException {
         // Creates a new ArgumentNullException with its message 
         // string set to a default message explaining an argument was null.
         public ArgumentNullException()
-             : base(SR.ArgumentNull_Generic)
-        {
+             : base(SR.ArgumentNull_Generic) {
             // Use E_POINTER - COM used that for null pointers.  Description is "invalid pointer"
             HResult = __HResults.E_POINTER;
         }
 
         public ArgumentNullException(String paramName)
-            : base(SR.ArgumentNull_Generic, paramName)
-        {
+            : base(SR.ArgumentNull_Generic, paramName) {
             HResult = __HResults.E_POINTER;
         }
 
         public ArgumentNullException(String message, Exception innerException)
-            : base(message, innerException)
-        {
+            : base(message, innerException) {
             HResult = __HResults.E_POINTER;
         }
 
         public ArgumentNullException(String paramName, String message)
-            : base(message, paramName)
-        {
+            : base(message, paramName) {
             HResult = __HResults.E_POINTER;
         }
 

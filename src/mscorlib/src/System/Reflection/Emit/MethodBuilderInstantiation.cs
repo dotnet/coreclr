@@ -10,13 +10,10 @@ using System.Collections;
 using System.Globalization;
 using System.Diagnostics.Contracts;
 
-namespace System.Reflection.Emit
-{
-    internal sealed class MethodBuilderInstantiation : MethodInfo
-    {
+namespace System.Reflection.Emit {
+    internal sealed class MethodBuilderInstantiation : MethodInfo {
         #region Static Members
-        internal static MethodInfo MakeGenericMethod(MethodInfo method, Type[] inst)
-        {
+        internal static MethodInfo MakeGenericMethod(MethodInfo method, Type[] inst) {
             if (!method.IsGenericMethodDefinition)
                 throw new InvalidOperationException();
             Contract.EndContractBlock();
@@ -32,15 +29,13 @@ namespace System.Reflection.Emit
         #endregion
 
         #region Constructor
-        internal MethodBuilderInstantiation(MethodInfo method, Type[] inst)
-        {
+        internal MethodBuilderInstantiation(MethodInfo method, Type[] inst) {
             m_method = method;
             m_inst = inst;
         }
         #endregion
 
-        internal override Type[] GetParameterTypes()
-        {
+        internal override Type[] GetParameterTypes() {
             return m_method.GetParameterTypes();
         }
 
@@ -61,20 +56,16 @@ namespace System.Reflection.Emit
         public override MethodImplAttributes GetMethodImplementationFlags() { return m_method.GetMethodImplementationFlags(); }
         public override RuntimeMethodHandle MethodHandle { get { throw new NotSupportedException(SR.NotSupported_DynamicModule); } }
         public override MethodAttributes Attributes { get { return m_method.Attributes; } }
-        public override Object Invoke(Object obj, BindingFlags invokeAttr, Binder binder, Object[] parameters, CultureInfo culture)
-        {
+        public override Object Invoke(Object obj, BindingFlags invokeAttr, Binder binder, Object[] parameters, CultureInfo culture) {
             throw new NotSupportedException();
         }
         public override CallingConventions CallingConvention { get { return m_method.CallingConvention; } }
         public override Type[] GetGenericArguments() { return m_inst; }
         public override MethodInfo GetGenericMethodDefinition() { return m_method; }
         public override bool IsGenericMethodDefinition { get { return false; } }
-        public override bool ContainsGenericParameters
-        {
-            get
-            {
-                for (int i = 0; i < m_inst.Length; i++)
-                {
+        public override bool ContainsGenericParameters {
+            get {
+                for (int i = 0; i < m_inst.Length; i++) {
                     if (m_inst[i].ContainsGenericParameters)
                         return true;
                 }
@@ -86,8 +77,7 @@ namespace System.Reflection.Emit
             }
         }
 
-        public override MethodInfo MakeGenericMethod(params Type[] arguments)
-        {
+        public override MethodInfo MakeGenericMethod(params Type[] arguments) {
             throw new InvalidOperationException(SR.Arg_NotGenericMethodDefinition);
         }
 
@@ -96,10 +86,8 @@ namespace System.Reflection.Emit
         #endregion
 
         #region Public Abstract\Virtual Members
-        public override Type ReturnType
-        {
-            get
-            {
+        public override Type ReturnType {
+            get {
                 return m_method.ReturnType;
             }
         }

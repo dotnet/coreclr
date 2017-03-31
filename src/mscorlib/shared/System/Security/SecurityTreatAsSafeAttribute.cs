@@ -2,8 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-namespace System.Security
-{
+namespace System.Security {
     // SecurityTreatAsSafeAttribute:
     // Indicates that the code may contain violations to the security critical rules (e.g. transitions from
     //      critical to non-public transparent, transparent to non-public critical, etc.), has been audited for
@@ -24,8 +23,7 @@ namespace System.Security
         AllowMultiple = false,
         Inherited = false)]
     [Obsolete("SecurityTreatAsSafe is only used for .NET 2.0 transparency compatibility.  Please use the SecuritySafeCriticalAttribute instead.")]
-    public sealed class SecurityTreatAsSafeAttribute : Attribute
-    {
+    public sealed class SecurityTreatAsSafeAttribute : Attribute {
         public SecurityTreatAsSafeAttribute() { }
     }
 }

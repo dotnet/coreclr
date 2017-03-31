@@ -20,10 +20,8 @@ using System.Runtime.ConstrainedExecution;
 using System.Runtime.Versioning;
 using System.Diagnostics.Contracts;
 
-namespace System
-{
-    public static class Math
-    {
+namespace System {
+    public static class Math {
         private static double doubleRoundLimit = 1e16d;
 
         private const int maxRoundingDigits = 15;
@@ -46,8 +44,7 @@ namespace System
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         public static extern double Atan2(double y, double x);
 
-        public static Decimal Ceiling(Decimal d)
-        {
+        public static Decimal Ceiling(Decimal d) {
             return Decimal.Ceiling(d);
         }
 
@@ -60,30 +57,24 @@ namespace System
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         public static extern double Cosh(double value);
 
-        public static Decimal Floor(Decimal d)
-        {
+        public static Decimal Floor(Decimal d) {
             return Decimal.Floor(d);
         }
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         public static extern double Floor(double d);
 
-        private static unsafe double InternalRound(double value, int digits, MidpointRounding mode)
-        {
-            if (Abs(value) < doubleRoundLimit)
-            {
+        private static unsafe double InternalRound(double value, int digits, MidpointRounding mode) {
+            if (Abs(value) < doubleRoundLimit) {
                 Double power10 = roundPower10Double[digits];
                 value *= power10;
-                if (mode == MidpointRounding.AwayFromZero)
-                {
+                if (mode == MidpointRounding.AwayFromZero) {
                     double fraction = SplitFractionDouble(&value);
-                    if (Abs(fraction) >= 0.5d)
-                    {
+                    if (Abs(fraction) >= 0.5d) {
                         value += Sign(fraction);
                     }
                 }
-                else
-                {
+                else {
                     // On X86 this can be inlined to just a few instructions
                     value = Round(value);
                 }
@@ -92,8 +83,7 @@ namespace System
             return value;
         }
 
-        private unsafe static double InternalTruncate(double d)
-        {
+        private unsafe static double InternalTruncate(double d) {
             SplitFractionDouble(&d);
             return d;
         }
@@ -110,61 +100,51 @@ namespace System
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         public static extern double Round(double a);
 
-        public static double Round(double value, int digits)
-        {
+        public static double Round(double value, int digits) {
             if ((digits < 0) || (digits > maxRoundingDigits))
                 throw new ArgumentOutOfRangeException(nameof(digits), SR.ArgumentOutOfRange_RoundingDigits);
             Contract.EndContractBlock();
             return InternalRound(value, digits, MidpointRounding.ToEven);
         }
 
-        public static double Round(double value, MidpointRounding mode)
-        {
+        public static double Round(double value, MidpointRounding mode) {
             return Round(value, 0, mode);
         }
 
-        public static double Round(double value, int digits, MidpointRounding mode)
-        {
+        public static double Round(double value, int digits, MidpointRounding mode) {
             if ((digits < 0) || (digits > maxRoundingDigits))
                 throw new ArgumentOutOfRangeException(nameof(digits), SR.ArgumentOutOfRange_RoundingDigits);
-            if (mode < MidpointRounding.ToEven || mode > MidpointRounding.AwayFromZero)
-            {
+            if (mode < MidpointRounding.ToEven || mode > MidpointRounding.AwayFromZero) {
                 throw new ArgumentException(SR.Format(SR.Argument_InvalidEnumValue, mode, nameof(MidpointRounding)), nameof(mode));
             }
             Contract.EndContractBlock();
             return InternalRound(value, digits, mode);
         }
 
-        public static Decimal Round(Decimal d)
-        {
+        public static Decimal Round(Decimal d) {
             return Decimal.Round(d, 0);
         }
 
-        public static Decimal Round(Decimal d, int decimals)
-        {
+        public static Decimal Round(Decimal d, int decimals) {
             return Decimal.Round(d, decimals);
         }
 
-        public static Decimal Round(Decimal d, MidpointRounding mode)
-        {
+        public static Decimal Round(Decimal d, MidpointRounding mode) {
             return Decimal.Round(d, 0, mode);
         }
 
-        public static Decimal Round(Decimal d, int decimals, MidpointRounding mode)
-        {
+        public static Decimal Round(Decimal d, int decimals, MidpointRounding mode) {
             return Decimal.Round(d, decimals, mode);
         }
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         private static unsafe extern double SplitFractionDouble(double* value);
 
-        public static Decimal Truncate(Decimal d)
-        {
+        public static Decimal Truncate(Decimal d) {
             return Decimal.Truncate(d);
         }
 
-        public static double Truncate(double d)
-        {
+        public static double Truncate(double d) {
             return InternalTruncate(d);
         }
 
@@ -179,50 +159,39 @@ namespace System
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         public static extern double Pow(double x, double y);
 
-        public static double IEEERemainder(double x, double y)
-        {
-            if (Double.IsNaN(x))
-            {
+        public static double IEEERemainder(double x, double y) {
+            if (Double.IsNaN(x)) {
                 return x; // IEEE 754-2008: NaN payload must be preserved
             }
-            if (Double.IsNaN(y))
-            {
+            if (Double.IsNaN(y)) {
                 return y; // IEEE 754-2008: NaN payload must be preserved
             }
 
             double regularMod = x % y;
-            if (Double.IsNaN(regularMod))
-            {
+            if (Double.IsNaN(regularMod)) {
                 return Double.NaN;
             }
-            if (regularMod == 0)
-            {
-                if (Double.IsNegative(x))
-                {
+            if (regularMod == 0) {
+                if (Double.IsNegative(x)) {
                     return Double.NegativeZero;
                 }
             }
             double alternativeResult;
             alternativeResult = regularMod - (Math.Abs(y) * Math.Sign(x));
-            if (Math.Abs(alternativeResult) == Math.Abs(regularMod))
-            {
+            if (Math.Abs(alternativeResult) == Math.Abs(regularMod)) {
                 double divisionResult = x / y;
                 double roundedResult = Math.Round(divisionResult);
-                if (Math.Abs(roundedResult) > Math.Abs(divisionResult))
-                {
+                if (Math.Abs(roundedResult) > Math.Abs(divisionResult)) {
                     return alternativeResult;
                 }
-                else
-                {
+                else {
                     return regularMod;
                 }
             }
-            if (Math.Abs(alternativeResult) < Math.Abs(regularMod))
-            {
+            if (Math.Abs(alternativeResult) < Math.Abs(regularMod)) {
                 return alternativeResult;
             }
-            else
-            {
+            else {
                 return regularMod;
             }
         }
@@ -231,16 +200,14 @@ namespace System
         **Returns the absolute value of it's argument.
         ============================================================================*/
         [CLSCompliant(false)]
-        public static sbyte Abs(sbyte value)
-        {
+        public static sbyte Abs(sbyte value) {
             if (value >= 0)
                 return value;
             else
                 return AbsHelper(value);
         }
 
-        private static sbyte AbsHelper(sbyte value)
-        {
+        private static sbyte AbsHelper(sbyte value) {
             Contract.Requires(value < 0, "AbsHelper should only be called for negative values! (workaround for JIT inlining)");
             if (value == SByte.MinValue)
                 throw new OverflowException(SR.Overflow_NegateTwosCompNum);
@@ -248,16 +215,14 @@ namespace System
             return ((sbyte)(-value));
         }
 
-        public static short Abs(short value)
-        {
+        public static short Abs(short value) {
             if (value >= 0)
                 return value;
             else
                 return AbsHelper(value);
         }
 
-        private static short AbsHelper(short value)
-        {
+        private static short AbsHelper(short value) {
             Contract.Requires(value < 0, "AbsHelper should only be called for negative values! (workaround for JIT inlining)");
             if (value == Int16.MinValue)
                 throw new OverflowException(SR.Overflow_NegateTwosCompNum);
@@ -265,16 +230,14 @@ namespace System
             return (short)-value;
         }
 
-        public static int Abs(int value)
-        {
+        public static int Abs(int value) {
             if (value >= 0)
                 return value;
             else
                 return AbsHelper(value);
         }
 
-        private static int AbsHelper(int value)
-        {
+        private static int AbsHelper(int value) {
             Contract.Requires(value < 0, "AbsHelper should only be called for negative values! (workaround for JIT inlining)");
             if (value == Int32.MinValue)
                 throw new OverflowException(SR.Overflow_NegateTwosCompNum);
@@ -282,16 +245,14 @@ namespace System
             return -value;
         }
 
-        public static long Abs(long value)
-        {
+        public static long Abs(long value) {
             if (value >= 0)
                 return value;
             else
                 return AbsHelper(value);
         }
 
-        private static long AbsHelper(long value)
-        {
+        private static long AbsHelper(long value) {
             Contract.Requires(value < 0, "AbsHelper should only be called for negative values! (workaround for JIT inlining)");
             if (value == Int64.MinValue)
                 throw new OverflowException(SR.Overflow_NegateTwosCompNum);
@@ -321,8 +282,7 @@ namespace System
         // it runs the else case, which returns +value instead of negating it. 
         // return (value < 0) ? -value : value;
 
-        public static Decimal Abs(Decimal value)
-        {
+        public static Decimal Abs(Decimal value) {
             return Decimal.Abs(value);
         }
 
@@ -331,58 +291,49 @@ namespace System
         ============================================================================*/
         [CLSCompliant(false)]
         [System.Runtime.Versioning.NonVersionable]
-        public static sbyte Max(sbyte val1, sbyte val2)
-        {
+        public static sbyte Max(sbyte val1, sbyte val2) {
             return (val1 >= val2) ? val1 : val2;
         }
 
         [System.Runtime.Versioning.NonVersionable]
-        public static byte Max(byte val1, byte val2)
-        {
+        public static byte Max(byte val1, byte val2) {
             return (val1 >= val2) ? val1 : val2;
         }
 
         [System.Runtime.Versioning.NonVersionable]
-        public static short Max(short val1, short val2)
-        {
+        public static short Max(short val1, short val2) {
             return (val1 >= val2) ? val1 : val2;
         }
 
         [CLSCompliant(false)]
         [System.Runtime.Versioning.NonVersionable]
-        public static ushort Max(ushort val1, ushort val2)
-        {
+        public static ushort Max(ushort val1, ushort val2) {
             return (val1 >= val2) ? val1 : val2;
         }
 
         [System.Runtime.Versioning.NonVersionable]
-        public static int Max(int val1, int val2)
-        {
+        public static int Max(int val1, int val2) {
             return (val1 >= val2) ? val1 : val2;
         }
 
         [CLSCompliant(false)]
         [System.Runtime.Versioning.NonVersionable]
-        public static uint Max(uint val1, uint val2)
-        {
+        public static uint Max(uint val1, uint val2) {
             return (val1 >= val2) ? val1 : val2;
         }
 
         [System.Runtime.Versioning.NonVersionable]
-        public static long Max(long val1, long val2)
-        {
+        public static long Max(long val1, long val2) {
             return (val1 >= val2) ? val1 : val2;
         }
 
         [CLSCompliant(false)]
         [System.Runtime.Versioning.NonVersionable]
-        public static ulong Max(ulong val1, ulong val2)
-        {
+        public static ulong Max(ulong val1, ulong val2) {
             return (val1 >= val2) ? val1 : val2;
         }
 
-        public static float Max(float val1, float val2)
-        {
+        public static float Max(float val1, float val2) {
             if (val1 > val2)
                 return val1;
 
@@ -392,8 +343,7 @@ namespace System
             return val2;
         }
 
-        public static double Max(double val1, double val2)
-        {
+        public static double Max(double val1, double val2) {
             if (val1 > val2)
                 return val1;
 
@@ -403,8 +353,7 @@ namespace System
             return val2;
         }
 
-        public static Decimal Max(Decimal val1, Decimal val2)
-        {
+        public static Decimal Max(Decimal val1, Decimal val2) {
             return Decimal.Max(val1, val2);
         }
 
@@ -413,58 +362,49 @@ namespace System
         ============================================================================*/
         [CLSCompliant(false)]
         [System.Runtime.Versioning.NonVersionable]
-        public static sbyte Min(sbyte val1, sbyte val2)
-        {
+        public static sbyte Min(sbyte val1, sbyte val2) {
             return (val1 <= val2) ? val1 : val2;
         }
 
         [System.Runtime.Versioning.NonVersionable]
-        public static byte Min(byte val1, byte val2)
-        {
+        public static byte Min(byte val1, byte val2) {
             return (val1 <= val2) ? val1 : val2;
         }
 
         [System.Runtime.Versioning.NonVersionable]
-        public static short Min(short val1, short val2)
-        {
+        public static short Min(short val1, short val2) {
             return (val1 <= val2) ? val1 : val2;
         }
 
         [CLSCompliant(false)]
         [System.Runtime.Versioning.NonVersionable]
-        public static ushort Min(ushort val1, ushort val2)
-        {
+        public static ushort Min(ushort val1, ushort val2) {
             return (val1 <= val2) ? val1 : val2;
         }
 
         [System.Runtime.Versioning.NonVersionable]
-        public static int Min(int val1, int val2)
-        {
+        public static int Min(int val1, int val2) {
             return (val1 <= val2) ? val1 : val2;
         }
 
         [CLSCompliant(false)]
         [System.Runtime.Versioning.NonVersionable]
-        public static uint Min(uint val1, uint val2)
-        {
+        public static uint Min(uint val1, uint val2) {
             return (val1 <= val2) ? val1 : val2;
         }
 
         [System.Runtime.Versioning.NonVersionable]
-        public static long Min(long val1, long val2)
-        {
+        public static long Min(long val1, long val2) {
             return (val1 <= val2) ? val1 : val2;
         }
 
         [CLSCompliant(false)]
         [System.Runtime.Versioning.NonVersionable]
-        public static ulong Min(ulong val1, ulong val2)
-        {
+        public static ulong Min(ulong val1, ulong val2) {
             return (val1 <= val2) ? val1 : val2;
         }
 
-        public static float Min(float val1, float val2)
-        {
+        public static float Min(float val1, float val2) {
             if (val1 < val2)
                 return val1;
 
@@ -474,8 +414,7 @@ namespace System
             return val2;
         }
 
-        public static double Min(double val1, double val2)
-        {
+        public static double Min(double val1, double val2) {
             if (val1 < val2)
                 return val1;
 
@@ -485,8 +424,7 @@ namespace System
             return val2;
         }
 
-        public static Decimal Min(Decimal val1, Decimal val2)
-        {
+        public static Decimal Min(Decimal val1, Decimal val2) {
             return Decimal.Min(val1, val2);
         }
 
@@ -494,8 +432,7 @@ namespace System
         **
         ==============================================================================*/
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static Byte Clamp(Byte value, Byte min, Byte max)
-        {
+        public static Byte Clamp(Byte value, Byte min, Byte max) {
             if (min > max)
                 ThrowMinMaxException(min, max);
             if (value < min)
@@ -506,8 +443,7 @@ namespace System
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static Decimal Clamp(Decimal value, Decimal min, Decimal max)
-        {
+        public static Decimal Clamp(Decimal value, Decimal min, Decimal max) {
             if (min > max)
                 ThrowMinMaxException(min, max);
             if (value < min)
@@ -518,8 +454,7 @@ namespace System
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static Double Clamp(Double value, Double min, Double max)
-        {
+        public static Double Clamp(Double value, Double min, Double max) {
             if (min > max)
                 ThrowMinMaxException(min, max);
             if (value < min)
@@ -530,8 +465,7 @@ namespace System
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static Int16 Clamp(Int16 value, Int16 min, Int16 max)
-        {
+        public static Int16 Clamp(Int16 value, Int16 min, Int16 max) {
             if (min > max)
                 ThrowMinMaxException(min, max);
             if (value < min)
@@ -542,8 +476,7 @@ namespace System
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static Int32 Clamp(Int32 value, Int32 min, Int32 max)
-        {
+        public static Int32 Clamp(Int32 value, Int32 min, Int32 max) {
             if (min > max)
                 ThrowMinMaxException(min, max);
             if (value < min)
@@ -554,8 +487,7 @@ namespace System
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static Int64 Clamp(Int64 value, Int64 min, Int64 max)
-        {
+        public static Int64 Clamp(Int64 value, Int64 min, Int64 max) {
             if (min > max)
                 ThrowMinMaxException(min, max);
             if (value < min)
@@ -567,8 +499,7 @@ namespace System
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         [CLSCompliant(false)]
-        public static SByte Clamp(SByte value, SByte min, SByte max)
-        {
+        public static SByte Clamp(SByte value, SByte min, SByte max) {
             if (min > max)
                 ThrowMinMaxException(min, max);
             if (value < min)
@@ -579,8 +510,7 @@ namespace System
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static Single Clamp(Single value, Single min, Single max)
-        {
+        public static Single Clamp(Single value, Single min, Single max) {
             if (min > max)
                 ThrowMinMaxException(min, max);
             if (value < min)
@@ -592,8 +522,7 @@ namespace System
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         [CLSCompliant(false)]
-        public static UInt16 Clamp(UInt16 value, UInt16 min, UInt16 max)
-        {
+        public static UInt16 Clamp(UInt16 value, UInt16 min, UInt16 max) {
             if (min > max)
                 ThrowMinMaxException(min, max);
             if (value < min)
@@ -605,8 +534,7 @@ namespace System
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         [CLSCompliant(false)]
-        public static UInt32 Clamp(UInt32 value, UInt32 min, UInt32 max)
-        {
+        public static UInt32 Clamp(UInt32 value, UInt32 min, UInt32 max) {
             if (min > max)
                 ThrowMinMaxException(min, max);
             if (value < min)
@@ -618,8 +546,7 @@ namespace System
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         [CLSCompliant(false)]
-        public static UInt64 Clamp(UInt64 value, UInt64 min, UInt64 max)
-        {
+        public static UInt64 Clamp(UInt64 value, UInt64 min, UInt64 max) {
             if (min > max)
                 ThrowMinMaxException(min, max);
             if (value < min)
@@ -629,22 +556,18 @@ namespace System
             return value;
         }
 
-        private static void ThrowMinMaxException<T>(T min, T max)
-        {
+        private static void ThrowMinMaxException<T>(T min, T max) {
             throw new ArgumentException(SR.Format(SR.Argument_MinMaxValue, min, max));
         }
 
         /*=====================================Log======================================
         **
         ==============================================================================*/
-        public static double Log(double a, double newBase)
-        {
-            if (Double.IsNaN(a))
-            {
+        public static double Log(double a, double newBase) {
+            if (Double.IsNaN(a)) {
                 return a; // IEEE 754-2008: NaN payload must be preserved
             }
-            if (Double.IsNaN(newBase))
-            {
+            if (Double.IsNaN(newBase)) {
                 return newBase; // IEEE 754-2008: NaN payload must be preserved
             }
 
@@ -660,8 +583,7 @@ namespace System
         // Sign function for VB.  Returns -1, 0, or 1 if the sign of the number
         // is negative, 0, or positive.  Throws for floating point NaN's.
         [CLSCompliant(false)]
-        public static int Sign(sbyte value)
-        {
+        public static int Sign(sbyte value) {
             if (value < 0)
                 return -1;
             else if (value > 0)
@@ -673,8 +595,7 @@ namespace System
 
         // Sign function for VB.  Returns -1, 0, or 1 if the sign of the number
         // is negative, 0, or positive.  Throws for floating point NaN's.
-        public static int Sign(short value)
-        {
+        public static int Sign(short value) {
             if (value < 0)
                 return -1;
             else if (value > 0)
@@ -685,8 +606,7 @@ namespace System
 
         // Sign function for VB.  Returns -1, 0, or 1 if the sign of the number
         // is negative, 0, or positive.  Throws for floating point NaN's.
-        public static int Sign(int value)
-        {
+        public static int Sign(int value) {
             if (value < 0)
                 return -1;
             else if (value > 0)
@@ -695,8 +615,7 @@ namespace System
                 return 0;
         }
 
-        public static int Sign(long value)
-        {
+        public static int Sign(long value) {
             if (value < 0)
                 return -1;
             else if (value > 0)
@@ -705,8 +624,7 @@ namespace System
                 return 0;
         }
 
-        public static int Sign(float value)
-        {
+        public static int Sign(float value) {
             if (value < 0)
                 return -1;
             else if (value > 0)
@@ -716,8 +634,7 @@ namespace System
             throw new ArithmeticException(SR.Arithmetic_NaN);
         }
 
-        public static int Sign(double value)
-        {
+        public static int Sign(double value) {
             if (value < 0)
                 return -1;
             else if (value > 0)
@@ -727,8 +644,7 @@ namespace System
             throw new ArithmeticException(SR.Arithmetic_NaN);
         }
 
-        public static int Sign(Decimal value)
-        {
+        public static int Sign(Decimal value) {
             if (value < 0)
                 return -1;
             else if (value > 0)
@@ -737,13 +653,11 @@ namespace System
                 return 0;
         }
 
-        public static long BigMul(int a, int b)
-        {
+        public static long BigMul(int a, int b) {
             return ((long)a) * b;
         }
 
-        public static int DivRem(int a, int b, out int result)
-        {
+        public static int DivRem(int a, int b, out int result) {
             // TODO https://github.com/dotnet/coreclr/issues/3439:
             // Restore to using % and / when the JIT is able to eliminate one of the idivs.
             // In the meantime, a * and - is measurably faster than an extra /.
@@ -752,8 +666,7 @@ namespace System
             return div;
         }
 
-        public static long DivRem(long a, long b, out long result)
-        {
+        public static long DivRem(long a, long b, out long result) {
             // TODO https://github.com/dotnet/coreclr/issues/3439:
             // Restore to using % and / when the JIT is able to eliminate one of the idivs.
             // In the meantime, a * and - is measurably faster than an extra /.

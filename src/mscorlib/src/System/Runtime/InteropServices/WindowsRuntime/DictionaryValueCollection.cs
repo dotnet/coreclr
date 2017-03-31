@@ -11,24 +11,20 @@ using System.Runtime.InteropServices;
 using System.Runtime.InteropServices.WindowsRuntime;
 
 
-namespace System.Runtime.InteropServices.WindowsRuntime
-{
+namespace System.Runtime.InteropServices.WindowsRuntime {
     [Serializable]
     [DebuggerDisplay("Count = {Count}")]
-    internal sealed class DictionaryValueCollection<TKey, TValue> : ICollection<TValue>
-    {
+    internal sealed class DictionaryValueCollection<TKey, TValue> : ICollection<TValue> {
         private readonly IDictionary<TKey, TValue> dictionary;
 
-        public DictionaryValueCollection(IDictionary<TKey, TValue> dictionary)
-        {
+        public DictionaryValueCollection(IDictionary<TKey, TValue> dictionary) {
             if (dictionary == null)
                 throw new ArgumentNullException(nameof(dictionary));
 
             this.dictionary = dictionary;
         }
 
-        public void CopyTo(TValue[] array, int index)
-        {
+        public void CopyTo(TValue[] array, int index) {
             if (array == null)
                 throw new ArgumentNullException(nameof(array));
             if (index < 0)
@@ -39,34 +35,28 @@ namespace System.Runtime.InteropServices.WindowsRuntime
                 throw new ArgumentException(SR.Argument_InsufficientSpaceToCopyCollection);
 
             int i = index;
-            foreach (KeyValuePair<TKey, TValue> mapping in dictionary)
-            {
+            foreach (KeyValuePair<TKey, TValue> mapping in dictionary) {
                 array[i++] = mapping.Value;
             }
         }
 
-        public int Count
-        {
+        public int Count {
             get { return dictionary.Count; }
         }
 
-        bool ICollection<TValue>.IsReadOnly
-        {
+        bool ICollection<TValue>.IsReadOnly {
             get { return true; }
         }
 
-        void ICollection<TValue>.Add(TValue item)
-        {
+        void ICollection<TValue>.Add(TValue item) {
             throw new NotSupportedException(SR.NotSupported_ValueCollectionSet);
         }
 
-        void ICollection<TValue>.Clear()
-        {
+        void ICollection<TValue>.Clear() {
             throw new NotSupportedException(SR.NotSupported_ValueCollectionSet);
         }
 
-        public bool Contains(TValue item)
-        {
+        public bool Contains(TValue item) {
             EqualityComparer<TValue> comparer = EqualityComparer<TValue>.Default;
             foreach (TValue value in this)
                 if (comparer.Equals(item, value))
@@ -74,31 +64,26 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             return false;
         }
 
-        bool ICollection<TValue>.Remove(TValue item)
-        {
+        bool ICollection<TValue>.Remove(TValue item) {
             throw new NotSupportedException(SR.NotSupported_ValueCollectionSet);
         }
 
-        IEnumerator IEnumerable.GetEnumerator()
-        {
+        IEnumerator IEnumerable.GetEnumerator() {
             return ((IEnumerable<TValue>)this).GetEnumerator();
         }
 
-        public IEnumerator<TValue> GetEnumerator()
-        {
+        public IEnumerator<TValue> GetEnumerator() {
             return new DictionaryValueEnumerator<TKey, TValue>(dictionary);
         }
     }  // public class DictionaryValueCollection<TKey, TValue>
 
 
     [Serializable]
-    internal sealed class DictionaryValueEnumerator<TKey, TValue> : IEnumerator<TValue>
-    {
+    internal sealed class DictionaryValueEnumerator<TKey, TValue> : IEnumerator<TValue> {
         private readonly IDictionary<TKey, TValue> dictionary;
         private IEnumerator<KeyValuePair<TKey, TValue>> enumeration;
 
-        public DictionaryValueEnumerator(IDictionary<TKey, TValue> dictionary)
-        {
+        public DictionaryValueEnumerator(IDictionary<TKey, TValue> dictionary) {
             if (dictionary == null)
                 throw new ArgumentNullException(nameof(dictionary));
 
@@ -106,28 +91,23 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             enumeration = dictionary.GetEnumerator();
         }
 
-        void IDisposable.Dispose()
-        {
+        void IDisposable.Dispose() {
             enumeration.Dispose();
         }
 
-        public bool MoveNext()
-        {
+        public bool MoveNext() {
             return enumeration.MoveNext();
         }
 
-        Object IEnumerator.Current
-        {
+        Object IEnumerator.Current {
             get { return ((IEnumerator<TValue>)this).Current; }
         }
 
-        public TValue Current
-        {
+        public TValue Current {
             get { return enumeration.Current.Value; }
         }
 
-        public void Reset()
-        {
+        public void Reset() {
             enumeration = dictionary.GetEnumerator();
         }
     }  // class DictionaryValueEnumerator<TKey, TValue>

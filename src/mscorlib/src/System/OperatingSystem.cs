@@ -16,24 +16,19 @@ using System.Globalization;
 using System.Runtime.InteropServices;
 using System.Diagnostics.Contracts;
 
-namespace System
-{
+namespace System {
     [Serializable]
-    internal sealed class OperatingSystem : ICloneable, ISerializable
-    {
+    internal sealed class OperatingSystem : ICloneable, ISerializable {
         private Version _version;
         private PlatformID _platform;
         private string _servicePack;
         private string _versionString;
 
-        private OperatingSystem()
-        {
+        private OperatingSystem() {
         }
 
-        internal OperatingSystem(PlatformID platform, Version version, string servicePack)
-        {
-            if (platform < PlatformID.Win32S || platform > PlatformID.MacOSX)
-            {
+        internal OperatingSystem(PlatformID platform, Version version, string servicePack) {
+            if (platform < PlatformID.Win32S || platform > PlatformID.MacOSX) {
                 throw new ArgumentException(
                     SR.Format(SR.Arg_EnumIllegalVal, (int)platform),
                     nameof(platform));
@@ -48,13 +43,10 @@ namespace System
             _servicePack = servicePack;
         }
 
-        private OperatingSystem(SerializationInfo info, StreamingContext context)
-        {
+        private OperatingSystem(SerializationInfo info, StreamingContext context) {
             SerializationInfoEnumerator enumerator = info.GetEnumerator();
-            while (enumerator.MoveNext())
-            {
-                switch (enumerator.Name)
-                {
+            while (enumerator.MoveNext()) {
+                switch (enumerator.Name) {
                     case "_version":
                         _version = (Version)info.GetValue("_version", typeof(Version));
                         break;
@@ -67,16 +59,13 @@ namespace System
                 }
             }
 
-            if (_version == null)
-            {
+            if (_version == null) {
                 throw new SerializationException(SR.Format(SR.Serialization_MissField, "_version"));
             }
         }
 
-        public void GetObjectData(SerializationInfo info, StreamingContext context)
-        {
-            if (info == null)
-            {
+        public void GetObjectData(SerializationInfo info, StreamingContext context) {
+            if (info == null) {
                 throw new ArgumentNullException(nameof(info));
             }
             Contract.EndContractBlock();
@@ -86,34 +75,27 @@ namespace System
             info.AddValue("_servicePack", _servicePack);
         }
 
-        public Version Version
-        {
+        public Version Version {
             get { return _version; }
         }
 
-        public Object Clone()
-        {
+        public Object Clone() {
             return new OperatingSystem(_platform,
                                        _version, _servicePack);
         }
 
-        public override String ToString()
-        {
+        public override String ToString() {
             return VersionString;
         }
 
-        public String VersionString
-        {
-            get
-            {
-                if (_versionString != null)
-                {
+        public String VersionString {
+            get {
+                if (_versionString != null) {
                     return _versionString;
                 }
 
                 String os;
-                switch (_platform)
-                {
+                switch (_platform) {
                     case PlatformID.Win32NT:
                         os = "Microsoft Windows NT ";
                         break;
@@ -138,12 +120,10 @@ namespace System
                         break;
                 }
 
-                if (String.IsNullOrEmpty(_servicePack))
-                {
+                if (String.IsNullOrEmpty(_servicePack)) {
                     _versionString = os + _version.ToString();
                 }
-                else
-                {
+                else {
                     _versionString = os + _version.ToString(3) + " " + _servicePack;
                 }
 

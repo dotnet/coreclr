@@ -4,15 +4,13 @@
 
 using System.Collections.Generic;
 
-namespace System.Runtime.CompilerServices
-{
+namespace System.Runtime.CompilerServices {
     /// <summary>
     /// Indicates that the use of <see cref="System.ValueTuple"/> on a member is meant to be treated as a tuple with element names.
     /// </summary>
     [CLSCompliant(false)]
     [AttributeUsage(AttributeTargets.Field | AttributeTargets.Parameter | AttributeTargets.Property | AttributeTargets.ReturnValue | AttributeTargets.Class | AttributeTargets.Struct | AttributeTargets.Event)]
-    public sealed class TupleElementNamesAttribute : Attribute
-    {
+    public sealed class TupleElementNamesAttribute : Attribute {
         private readonly string[] _transformNames;
 
         /// <summary>
@@ -37,10 +35,8 @@ namespace System.Runtime.CompilerServices
         /// <c>transformNames</c> value of <c>{ "name1", "name2", null, null,
         /// null }</c>.
         /// </remarks>
-        public TupleElementNamesAttribute(string[] transformNames)
-        {
-            if (transformNames == null)
-            {
+        public TupleElementNamesAttribute(string[] transformNames) {
+            if (transformNames == null) {
                 throw new ArgumentNullException(nameof(transformNames));
             }
 

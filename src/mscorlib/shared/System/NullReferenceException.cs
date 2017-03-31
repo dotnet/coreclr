@@ -13,26 +13,21 @@
 
 using System.Runtime.Serialization;
 
-namespace System
-{
+namespace System {
     [Serializable]
-    public class NullReferenceException : SystemException
-    {
+    public class NullReferenceException : SystemException {
         public NullReferenceException()
-            : base(SR.Arg_NullReferenceException)
-        {
+            : base(SR.Arg_NullReferenceException) {
             HResult = __HResults.COR_E_NULLREFERENCE;
         }
 
         public NullReferenceException(String message)
-            : base(message)
-        {
+            : base(message) {
             HResult = __HResults.COR_E_NULLREFERENCE;
         }
 
         public NullReferenceException(String message, Exception innerException)
-            : base(message, innerException)
-        {
+            : base(message, innerException) {
             HResult = __HResults.COR_E_NULLREFERENCE;
         }
 

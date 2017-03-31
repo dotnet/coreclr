@@ -12,10 +12,8 @@
 
 using System;
 
-namespace System.Runtime.CompilerServices
-{
-    public interface ICastable
-    {
+namespace System.Runtime.CompilerServices {
+    public interface ICastable {
         // This is called if casting this object to the given interface type would otherwise fail. Casting
         // here means the IL isinst and castclass instructions in the case where they are given an interface
         // type as the target type.
@@ -67,15 +65,12 @@ namespace System.Runtime.CompilerServices
     /// RuntimeTypeHandle is a struct and is always passed in stack in x86, which our VM call helpers don't
     /// particularly like.
     /// </summary>
-    internal class ICastableHelpers
-    {
-        internal static bool IsInstanceOfInterface(ICastable castable, RuntimeType type, out Exception castError)
-        {
+    internal class ICastableHelpers {
+        internal static bool IsInstanceOfInterface(ICastable castable, RuntimeType type, out Exception castError) {
             return castable.IsInstanceOfInterface(new RuntimeTypeHandle(type), out castError);
         }
 
-        internal static RuntimeType GetImplType(ICastable castable, RuntimeType interfaceType)
-        {
+        internal static RuntimeType GetImplType(ICastable castable, RuntimeType interfaceType) {
             return castable.GetImplType(new RuntimeTypeHandle(interfaceType)).GetRuntimeType();
         }
     }

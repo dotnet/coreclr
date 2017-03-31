@@ -17,13 +17,11 @@ using System.Runtime.CompilerServices;
 using System.Runtime.Versioning;
 using System.Diagnostics.Contracts;
 
-namespace System
-{
+namespace System {
     [Serializable]
     // This class is sealed to mitigate security issues caused by Object::MemberwiseClone.
     public sealed class WeakReference<T> : ISerializable
-        where T : class
-    {
+        where T : class {
         // If you fix bugs here, please fix them in WeakReference at the same time.
 
         // This field is not a regular GC handle. It can have a special values that are used to prevent a race condition between setting the target and finalization.
@@ -33,21 +31,17 @@ namespace System
         // Assumes a Short Weak Reference (ie TrackResurrection is false.)
         //
         public WeakReference(T target)
-            : this(target, false)
-        {
+            : this(target, false) {
         }
 
         //Creates a new WeakReference that keeps track of target.
         //
-        public WeakReference(T target, bool trackResurrection)
-        {
+        public WeakReference(T target, bool trackResurrection) {
             Create(target, trackResurrection);
         }
 
-        internal WeakReference(SerializationInfo info, StreamingContext context)
-        {
-            if (info == null)
-            {
+        internal WeakReference(SerializationInfo info, StreamingContext context) {
+            if (info == null) {
                 throw new ArgumentNullException(nameof(info));
             }
             Contract.EndContractBlock();
@@ -66,22 +60,19 @@ namespace System
         //          DoSomething(ref.Target)
         //
         [MethodImplAttribute(MethodImplOptions.AggressiveInlining)]
-        public bool TryGetTarget(out T target)
-        {
+        public bool TryGetTarget(out T target) {
             // Call the worker method that has more performant but less user friendly signature.
             T o = this.Target;
             target = o;
             return o != null;
         }
 
-        public void SetTarget(T target)
-        {
+        public void SetTarget(T target) {
             this.Target = target;
         }
 
         // This is property for better debugging experience (VS debugger shows values of properties when you hover over the variables)
-        private extern T Target
-        {
+        private extern T Target {
             [MethodImplAttribute(MethodImplOptions.InternalCall)]
             get;
             [MethodImplAttribute(MethodImplOptions.InternalCall)]
@@ -97,10 +88,8 @@ namespace System
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         extern ~WeakReference();
 
-        public void GetObjectData(SerializationInfo info, StreamingContext context)
-        {
-            if (info == null)
-            {
+        public void GetObjectData(SerializationInfo info, StreamingContext context) {
+            if (info == null) {
                 throw new ArgumentNullException(nameof(info));
             }
             Contract.EndContractBlock();

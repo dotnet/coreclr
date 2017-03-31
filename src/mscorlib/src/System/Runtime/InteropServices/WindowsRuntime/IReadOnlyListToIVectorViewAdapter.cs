@@ -13,8 +13,7 @@ using System.Diagnostics.Contracts;
 using System.Runtime.InteropServices;
 using System.Runtime.CompilerServices;
 
-namespace System.Runtime.InteropServices.WindowsRuntime
-{
+namespace System.Runtime.InteropServices.WindowsRuntime {
     // This is a set of stub methods implementing the support for the IVectorView`1 interface on managed
     // objects that implement IReadOnlyList`1. Used by the interop mashaling infrastructure.
     //
@@ -24,55 +23,45 @@ namespace System.Runtime.InteropServices.WindowsRuntime
     // IReadOnlyList<T>. No actual IReadOnlyListToIVectorViewAdapter object is ever instantiated. Thus, you will
     // see a lot of expressions that cast "this" to "IReadOnlyList<T>". 
     [DebuggerDisplay("Size = {Size}")]
-    internal sealed class IReadOnlyListToIVectorViewAdapter
-    {
-        private IReadOnlyListToIVectorViewAdapter()
-        {
+    internal sealed class IReadOnlyListToIVectorViewAdapter {
+        private IReadOnlyListToIVectorViewAdapter() {
             Debug.Assert(false, "This class is never instantiated");
         }
 
         // T GetAt(uint index)
-        internal T GetAt<T>(uint index)
-        {
+        internal T GetAt<T>(uint index) {
             IReadOnlyList<T> _this = JitHelpers.UnsafeCast<IReadOnlyList<T>>(this);
             EnsureIndexInt32(index, _this.Count);
 
-            try
-            {
+            try {
                 return _this[(int)index];
             }
-            catch (ArgumentOutOfRangeException ex)
-            {
+            catch (ArgumentOutOfRangeException ex) {
                 ex.SetErrorCode(__HResults.E_BOUNDS);
                 throw;
             }
         }
 
         // uint Size { get }
-        internal uint Size<T>()
-        {
+        internal uint Size<T>() {
             IReadOnlyList<T> _this = JitHelpers.UnsafeCast<IReadOnlyList<T>>(this);
             return (uint)_this.Count;
         }
 
         // bool IndexOf(T value, out uint index)
-        internal bool IndexOf<T>(T value, out uint index)
-        {
+        internal bool IndexOf<T>(T value, out uint index) {
             IReadOnlyList<T> _this = JitHelpers.UnsafeCast<IReadOnlyList<T>>(this);
 
             int ind = -1;
             int max = _this.Count;
-            for (int i = 0; i < max; i++)
-            {
-                if (EqualityComparer<T>.Default.Equals(value, _this[i]))
-                {
+            for (int i = 0; i < max; i++) {
+                if (EqualityComparer<T>.Default.Equals(value, _this[i])) {
                     ind = i;
                     break;
                 }
             }
 
-            if (-1 == ind)
-            {
+            if (-1 == ind) {
                 index = 0;
                 return false;
             }
@@ -82,8 +71,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         }
 
         // uint GetMany(uint startIndex, T[] items)
-        internal uint GetMany<T>(uint startIndex, T[] items)
-        {
+        internal uint GetMany<T>(uint startIndex, T[] items) {
             IReadOnlyList<T> _this = JitHelpers.UnsafeCast<IReadOnlyList<T>>(this);
 
             // REX spec says "calling GetMany with startIndex equal to the length of the vector 
@@ -94,20 +82,17 @@ namespace System.Runtime.InteropServices.WindowsRuntime
 
             EnsureIndexInt32(startIndex, _this.Count);
 
-            if (items == null)
-            {
+            if (items == null) {
                 return 0;
             }
 
             uint itemCount = Math.Min((uint)items.Length, (uint)_this.Count - startIndex);
 
-            for (uint i = 0; i < itemCount; ++i)
-            {
+            for (uint i = 0; i < itemCount; ++i) {
                 items[i] = _this[(int)(i + startIndex)];
             }
 
-            if (typeof(T) == typeof(string))
-            {
+            if (typeof(T) == typeof(string)) {
                 string[] stringItems = items as string[];
 
                 // Fill in the rest of the array with String.Empty to avoid marshaling failure
@@ -120,12 +105,10 @@ namespace System.Runtime.InteropServices.WindowsRuntime
 
         #region Helpers
 
-        private static void EnsureIndexInt32(uint index, int listCapacity)
-        {
+        private static void EnsureIndexInt32(uint index, int listCapacity) {
             // We use '<=' and not '<' because Int32.MaxValue == index would imply
             // that Size > Int32.MaxValue:
-            if (((uint)Int32.MaxValue) <= index || index >= (uint)listCapacity)
-            {
+            if (((uint)Int32.MaxValue) <= index || index >= (uint)listCapacity) {
                 Exception e = new ArgumentOutOfRangeException(nameof(index), SR.ArgumentOutOfRange_IndexLargerThanMaxValue);
                 e.SetErrorCode(__HResults.E_BOUNDS);
                 throw e;

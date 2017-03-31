@@ -2,11 +2,9 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-namespace System.Reflection
-{
+namespace System.Reflection {
     [Flags]
-    public enum PortableExecutableKinds
-    {
+    public enum PortableExecutableKinds {
         NotAPortableExecutableImage = 0x0,
         ILOnly = 0x1,
         Required32Bit = 0x2,

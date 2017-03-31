@@ -14,8 +14,7 @@
 
 using System;
 
-namespace System.Diagnostics.CodeAnalysis
-{
+namespace System.Diagnostics.CodeAnalysis {
     [AttributeUsage(
      AttributeTargets.All,
      Inherited = false,
@@ -23,8 +22,7 @@ namespace System.Diagnostics.CodeAnalysis
      )
     ]
     [Conditional("CODE_ANALYSIS")]
-    public sealed class SuppressMessageAttribute : Attribute
-    {
+    public sealed class SuppressMessageAttribute : Attribute {
         private string category;
         private string justification;
         private string checkId;
@@ -32,42 +30,35 @@ namespace System.Diagnostics.CodeAnalysis
         private string target;
         private string messageId;
 
-        public SuppressMessageAttribute(string category, string checkId)
-        {
+        public SuppressMessageAttribute(string category, string checkId) {
             this.category = category;
             this.checkId = checkId;
         }
 
-        public string Category
-        {
+        public string Category {
             get { return category; }
         }
 
-        public string CheckId
-        {
+        public string CheckId {
             get { return checkId; }
         }
 
-        public string Scope
-        {
+        public string Scope {
             get { return scope; }
             set { scope = value; }
         }
 
-        public string Target
-        {
+        public string Target {
             get { return target; }
             set { target = value; }
         }
 
-        public string MessageId
-        {
+        public string MessageId {
             get { return messageId; }
             set { messageId = value; }
         }
 
-        public string Justification
-        {
+        public string Justification {
             get { return justification; }
             set { justification = value; }
         }

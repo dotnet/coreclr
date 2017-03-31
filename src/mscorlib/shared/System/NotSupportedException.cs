@@ -13,26 +13,21 @@
 
 using System.Runtime.Serialization;
 
-namespace System
-{
+namespace System {
     [Serializable]
-    public class NotSupportedException : SystemException
-    {
+    public class NotSupportedException : SystemException {
         public NotSupportedException()
-            : base(SR.Arg_NotSupportedException)
-        {
+            : base(SR.Arg_NotSupportedException) {
             HResult = __HResults.COR_E_NOTSUPPORTED;
         }
 
         public NotSupportedException(String message)
-            : base(message)
-        {
+            : base(message) {
             HResult = __HResults.COR_E_NOTSUPPORTED;
         }
 
         public NotSupportedException(String message, Exception innerException)
-            : base(message, innerException)
-        {
+            : base(message, innerException) {
             HResult = __HResults.COR_E_NOTSUPPORTED;
         }
 

@@ -9,12 +9,10 @@ using System.IO;
 using System.Reflection;
 using System.Diagnostics.Contracts;
 
-namespace System.Diagnostics
-{
+namespace System.Diagnostics {
     // There is no good reason for the methods of this class to be virtual.
     [Serializable]
-    public class StackFrame
-    {
+    public class StackFrame {
         private MethodBase method;
         private int offset;
         private int ILOffset;
@@ -25,8 +23,7 @@ namespace System.Diagnostics
         [System.Runtime.Serialization.OptionalField]
         private bool fIsLastFrameFromForeignExceptionStackTrace;
 
-        internal void InitMembers()
-        {
+        internal void InitMembers() {
             method = null;
             offset = OFFSET_UNKNOWN;
             ILOffset = OFFSET_UNKNOWN;
@@ -37,31 +34,27 @@ namespace System.Diagnostics
         }
 
         // Constructs a StackFrame corresponding to the active stack frame.
-        public StackFrame()
-        {
+        public StackFrame() {
             InitMembers();
             BuildStackFrame(0 + StackTrace.METHODS_TO_SKIP, false);// iSkipFrames=0
         }
 
         // Constructs a StackFrame corresponding to the active stack frame.
-        public StackFrame(bool fNeedFileInfo)
-        {
+        public StackFrame(bool fNeedFileInfo) {
             InitMembers();
             BuildStackFrame(0 + StackTrace.METHODS_TO_SKIP, fNeedFileInfo);// iSkipFrames=0
         }
 
         // Constructs a StackFrame corresponding to a calling stack frame.
         // 
-        public StackFrame(int skipFrames)
-        {
+        public StackFrame(int skipFrames) {
             InitMembers();
             BuildStackFrame(skipFrames + StackTrace.METHODS_TO_SKIP, false);
         }
 
         // Constructs a StackFrame corresponding to a calling stack frame.
         // 
-        public StackFrame(int skipFrames, bool fNeedFileInfo)
-        {
+        public StackFrame(int skipFrames, bool fNeedFileInfo) {
             InitMembers();
             BuildStackFrame(skipFrames + StackTrace.METHODS_TO_SKIP, fNeedFileInfo);
         }
@@ -69,8 +62,7 @@ namespace System.Diagnostics
 
         // Called from the class "StackTrace"
         // 
-        internal StackFrame(bool DummyFlag1, bool DummyFlag2)
-        {
+        internal StackFrame(bool DummyFlag1, bool DummyFlag2) {
             InitMembers();
         }
 
@@ -78,8 +70,7 @@ namespace System.Diagnostics
         // name and line number.  Use when you don't want to use the 
         // debugger's line mapping logic.
         //
-        public StackFrame(String fileName, int lineNumber)
-        {
+        public StackFrame(String fileName, int lineNumber) {
             InitMembers();
             BuildStackFrame(StackTrace.METHODS_TO_SKIP, false);
             strFileName = fileName;
@@ -92,8 +83,7 @@ namespace System.Diagnostics
         // name, line number and column number.  Use when you don't want to 
         // use the debugger's line mapping logic.
         //
-        public StackFrame(String fileName, int lineNumber, int colNumber)
-        {
+        public StackFrame(String fileName, int lineNumber, int colNumber) {
             InitMembers();
             BuildStackFrame(StackTrace.METHODS_TO_SKIP, false);
             strFileName = fileName;
@@ -106,50 +96,41 @@ namespace System.Diagnostics
         public const int OFFSET_UNKNOWN = -1;
 
 
-        internal virtual void SetMethodBase(MethodBase mb)
-        {
+        internal virtual void SetMethodBase(MethodBase mb) {
             method = mb;
         }
 
-        internal virtual void SetOffset(int iOffset)
-        {
+        internal virtual void SetOffset(int iOffset) {
             offset = iOffset;
         }
 
-        internal virtual void SetILOffset(int iOffset)
-        {
+        internal virtual void SetILOffset(int iOffset) {
             ILOffset = iOffset;
         }
 
-        internal virtual void SetFileName(String strFName)
-        {
+        internal virtual void SetFileName(String strFName) {
             strFileName = strFName;
         }
 
-        internal virtual void SetLineNumber(int iLine)
-        {
+        internal virtual void SetLineNumber(int iLine) {
             iLineNumber = iLine;
         }
 
-        internal virtual void SetColumnNumber(int iCol)
-        {
+        internal virtual void SetColumnNumber(int iCol) {
             iColumnNumber = iCol;
         }
 
-        internal virtual void SetIsLastFrameFromForeignExceptionStackTrace(bool fIsLastFrame)
-        {
+        internal virtual void SetIsLastFrameFromForeignExceptionStackTrace(bool fIsLastFrame) {
             fIsLastFrameFromForeignExceptionStackTrace = fIsLastFrame;
         }
 
-        internal virtual bool GetIsLastFrameFromForeignExceptionStackTrace()
-        {
+        internal virtual bool GetIsLastFrameFromForeignExceptionStackTrace() {
             return fIsLastFrameFromForeignExceptionStackTrace;
         }
 
         // Returns the method the frame is executing
         // 
-        public virtual MethodBase GetMethod()
-        {
+        public virtual MethodBase GetMethod() {
             Contract.Ensures(Contract.Result<MethodBase>() != null);
 
             return method;
@@ -158,8 +139,7 @@ namespace System.Diagnostics
         // Returns the offset from the start of the native (jitted) code for the
         // method being executed
         // 
-        public virtual int GetNativeOffset()
-        {
+        public virtual int GetNativeOffset() {
             return offset;
         }
 
@@ -168,8 +148,7 @@ namespace System.Diagnostics
         // method being executed.  This offset may be approximate depending
         // on whether the jitter is generating debuggable code or not.
         // 
-        public virtual int GetILOffset()
-        {
+        public virtual int GetILOffset() {
             return ILOffset;
         }
 
@@ -177,8 +156,7 @@ namespace System.Diagnostics
         // information is normally extracted from the debugging symbols
         // for the executable.
         //
-        public virtual String GetFileName()
-        {
+        public virtual String GetFileName() {
             return strFileName;
         }
 
@@ -186,8 +164,7 @@ namespace System.Diagnostics
         // This information is normally extracted from the debugging symbols
         // for the executable.
         //
-        public virtual int GetFileLineNumber()
-        {
+        public virtual int GetFileLineNumber() {
             return iLineNumber;
         }
 
@@ -195,32 +172,27 @@ namespace System.Diagnostics
         // This information is normally extracted from the debugging symbols
         // for the executable.
         //
-        public virtual int GetFileColumnNumber()
-        {
+        public virtual int GetFileColumnNumber() {
             return iColumnNumber;
         }
 
 
         // Builds a readable representation of the stack frame
         //
-        public override String ToString()
-        {
+        public override String ToString() {
             StringBuilder sb = new StringBuilder(255);
 
-            if (method != null)
-            {
+            if (method != null) {
                 sb.Append(method.Name);
 
                 // deal with the generic portion of the method
-                if (method is MethodInfo && ((MethodInfo)method).IsGenericMethod)
-                {
+                if (method is MethodInfo && ((MethodInfo)method).IsGenericMethod) {
                     Type[] typars = ((MethodInfo)method).GetGenericArguments();
 
                     sb.Append('<');
                     int k = 0;
                     bool fFirstTyParam = true;
-                    while (k < typars.Length)
-                    {
+                    while (k < typars.Length) {
                         if (fFirstTyParam == false)
                             sb.Append(',');
                         else
@@ -252,8 +224,7 @@ namespace System.Diagnostics
                 sb.Append(':');
                 sb.Append(iColumnNumber);
             }
-            else
-            {
+            else {
                 sb.Append("<null>");
             }
             sb.Append(Environment.NewLine);
@@ -262,23 +233,19 @@ namespace System.Diagnostics
         }
 
 
-        private void BuildStackFrame(int skipFrames, bool fNeedFileInfo)
-        {
-            using (StackFrameHelper StackF = new StackFrameHelper(null))
-            {
+        private void BuildStackFrame(int skipFrames, bool fNeedFileInfo) {
+            using (StackFrameHelper StackF = new StackFrameHelper(null)) {
                 StackF.InitializeSourceInfo(0, fNeedFileInfo, null);
 
                 int iNumOfFrames = StackF.GetNumberOfFrames();
 
                 skipFrames += StackTrace.CalculateFramesToSkip(StackF, iNumOfFrames);
 
-                if ((iNumOfFrames - skipFrames) > 0)
-                {
+                if ((iNumOfFrames - skipFrames) > 0) {
                     method = StackF.GetMethodBase(skipFrames);
                     offset = StackF.GetOffset(skipFrames);
                     ILOffset = StackF.GetILOffset(skipFrames);
-                    if (fNeedFileInfo)
-                    {
+                    if (fNeedFileInfo) {
                         strFileName = StackF.GetFilename(skipFrames);
                         iLineNumber = StackF.GetLineNumber(skipFrames);
                         iColumnNumber = StackF.GetColumnNumber(skipFrames);

@@ -5,15 +5,12 @@
 
 using System;
 
-namespace System.Runtime.CompilerServices
-{
+namespace System.Runtime.CompilerServices {
     [Serializable, AttributeUsage(AttributeTargets.Method, Inherited = false, AllowMultiple = false)]
-    public class StateMachineAttribute : Attribute
-    {
+    public class StateMachineAttribute : Attribute {
         public Type StateMachineType { get; private set; }
 
-        public StateMachineAttribute(Type stateMachineType)
-        {
+        public StateMachineAttribute(Type stateMachineType) {
             this.StateMachineType = stateMachineType;
         }
     }

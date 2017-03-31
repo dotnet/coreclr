@@ -14,14 +14,12 @@
 
 using System;
 
-namespace System.Runtime.InteropServices
-{
+namespace System.Runtime.InteropServices {
     //====================================================================
     // The enum of the return value of IQuerable.GetInterface
     //====================================================================
     [Serializable]
-    public enum CustomQueryInterfaceResult
-    {
+    public enum CustomQueryInterfaceResult {
         Handled = 0,
         NotHandled = 1,
         Failed = 2,
@@ -30,8 +28,7 @@ namespace System.Runtime.InteropServices
     //====================================================================
     // The interface for customizing IQueryInterface
     //====================================================================
-    public interface ICustomQueryInterface
-    {
+    public interface ICustomQueryInterface {
         CustomQueryInterfaceResult GetInterface([In]ref Guid iid, out IntPtr ppv);
     }
 }

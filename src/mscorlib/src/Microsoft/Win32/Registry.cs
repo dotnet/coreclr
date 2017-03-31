@@ -7,8 +7,7 @@ using System;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 
-namespace Microsoft.Win32
-{
+namespace Microsoft.Win32 {
     /**
      * Registry encapsulation. Contains members representing all top level system
      * keys.
@@ -16,8 +15,7 @@ namespace Microsoft.Win32
      * @security(checkClassLinking=on)
      */
     //This class contains only static members and does not need to be serializable.
-    internal static class Registry
-    {
+    internal static class Registry {
         /**
          * Current User Key.
          * 
@@ -66,27 +64,22 @@ namespace Microsoft.Win32
         // If the keyName is not valid, we will throw ArgumentException.
         // The return value shouldn't be null. 
         //
-        private static RegistryKey GetBaseKeyFromKeyName(string keyName, out string subKeyName)
-        {
-            if (keyName == null)
-            {
+        private static RegistryKey GetBaseKeyFromKeyName(string keyName, out string subKeyName) {
+            if (keyName == null) {
                 throw new ArgumentNullException(nameof(keyName));
             }
 
             string basekeyName;
             int i = keyName.IndexOf('\\');
-            if (i != -1)
-            {
+            if (i != -1) {
                 basekeyName = keyName.Substring(0, i).ToUpper(System.Globalization.CultureInfo.InvariantCulture);
             }
-            else
-            {
+            else {
                 basekeyName = keyName.ToUpper(System.Globalization.CultureInfo.InvariantCulture);
             }
             RegistryKey basekey = null;
 
-            switch (basekeyName)
-            {
+            switch (basekeyName) {
                 case "HKEY_CURRENT_USER":
                     basekey = Registry.CurrentUser;
                     break;
@@ -108,33 +101,27 @@ namespace Microsoft.Win32
                 default:
                     throw new ArgumentException(SR.Format(SR.Arg_RegInvalidKeyName, nameof(keyName)));
             }
-            if (i == -1 || i == keyName.Length)
-            {
+            if (i == -1 || i == keyName.Length) {
                 subKeyName = string.Empty;
             }
-            else
-            {
+            else {
                 subKeyName = keyName.Substring(i + 1, keyName.Length - i - 1);
             }
             return basekey;
         }
 
-        public static object GetValue(string keyName, string valueName, object defaultValue)
-        {
+        public static object GetValue(string keyName, string valueName, object defaultValue) {
             string subKeyName;
             RegistryKey basekey = GetBaseKeyFromKeyName(keyName, out subKeyName);
             BCLDebug.Assert(basekey != null, "basekey can't be null.");
             RegistryKey key = basekey.OpenSubKey(subKeyName);
-            if (key == null)
-            { // if the key doesn't exist, do nothing
+            if (key == null) { // if the key doesn't exist, do nothing
                 return null;
             }
-            try
-            {
+            try {
                 return key.GetValue(valueName, defaultValue);
             }
-            finally
-            {
+            finally {
                 key.Close();
             }
         }

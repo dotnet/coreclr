@@ -10,11 +10,9 @@ using System.Reflection;
 using System.Diagnostics;
 using System.Diagnostics.Contracts;
 
-namespace System.Runtime.InteropServices
-{
+namespace System.Runtime.InteropServices {
     [AttributeUsage(AttributeTargets.Delegate, AllowMultiple = false, Inherited = false)]
-    public sealed class UnmanagedFunctionPointerAttribute : Attribute
-    {
+    public sealed class UnmanagedFunctionPointerAttribute : Attribute {
         private CallingConvention m_callingConvention;
 
         public UnmanagedFunctionPointerAttribute(CallingConvention callingConvention) { m_callingConvention = callingConvention; }
@@ -33,8 +31,7 @@ namespace System.Runtime.InteropServices
     }
 
     [AttributeUsage(AttributeTargets.Interface | AttributeTargets.Enum | AttributeTargets.Struct | AttributeTargets.Delegate, AllowMultiple = false, Inherited = false)]
-    public sealed class TypeIdentifierAttribute : Attribute
-    {
+    public sealed class TypeIdentifierAttribute : Attribute {
         public TypeIdentifierAttribute() { }
         public TypeIdentifierAttribute(string scope, string identifier) { Scope_ = scope; Identifier_ = identifier; }
 
@@ -48,27 +45,22 @@ namespace System.Runtime.InteropServices
     // To be used on methods that sink reverse P/Invoke calls.
     // This attribute is a CoreCLR-only security measure, currently ignored by the desktop CLR.
     [AttributeUsage(AttributeTargets.Method, AllowMultiple = false, Inherited = false)]
-    public sealed class AllowReversePInvokeCallsAttribute : Attribute
-    {
-        public AllowReversePInvokeCallsAttribute()
-        {
+    public sealed class AllowReversePInvokeCallsAttribute : Attribute {
+        public AllowReversePInvokeCallsAttribute() {
         }
     }
 
     [AttributeUsage(AttributeTargets.Method | AttributeTargets.Field | AttributeTargets.Property | AttributeTargets.Event, Inherited = false)]
-    public sealed class DispIdAttribute : Attribute
-    {
+    public sealed class DispIdAttribute : Attribute {
         internal int _val;
-        public DispIdAttribute(int dispId)
-        {
+        public DispIdAttribute(int dispId) {
             _val = dispId;
         }
         public int Value { get { return _val; } }
     }
 
     [Serializable]
-    public enum ComInterfaceType
-    {
+    public enum ComInterfaceType {
         InterfaceIsDual = 0,
         InterfaceIsIUnknown = 1,
         InterfaceIsIDispatch = 2,
@@ -77,27 +69,22 @@ namespace System.Runtime.InteropServices
     }
 
     [AttributeUsage(AttributeTargets.Interface, Inherited = false)]
-    public sealed class InterfaceTypeAttribute : Attribute
-    {
+    public sealed class InterfaceTypeAttribute : Attribute {
         internal ComInterfaceType _val;
-        public InterfaceTypeAttribute(ComInterfaceType interfaceType)
-        {
+        public InterfaceTypeAttribute(ComInterfaceType interfaceType) {
             _val = interfaceType;
         }
-        public InterfaceTypeAttribute(short interfaceType)
-        {
+        public InterfaceTypeAttribute(short interfaceType) {
             _val = (ComInterfaceType)interfaceType;
         }
         public ComInterfaceType Value { get { return _val; } }
     }
 
     [AttributeUsage(AttributeTargets.Class, Inherited = false)]
-    public sealed class ComDefaultInterfaceAttribute : Attribute
-    {
+    public sealed class ComDefaultInterfaceAttribute : Attribute {
         internal Type _val;
 
-        public ComDefaultInterfaceAttribute(Type defaultInterface)
-        {
+        public ComDefaultInterfaceAttribute(Type defaultInterface) {
             _val = defaultInterface;
         }
 
@@ -105,91 +92,74 @@ namespace System.Runtime.InteropServices
     }
 
     [Serializable]
-    public enum ClassInterfaceType
-    {
+    public enum ClassInterfaceType {
         None = 0,
         AutoDispatch = 1,
         AutoDual = 2
     }
 
     [AttributeUsage(AttributeTargets.Assembly | AttributeTargets.Class, Inherited = false)]
-    public sealed class ClassInterfaceAttribute : Attribute
-    {
+    public sealed class ClassInterfaceAttribute : Attribute {
         internal ClassInterfaceType _val;
-        public ClassInterfaceAttribute(ClassInterfaceType classInterfaceType)
-        {
+        public ClassInterfaceAttribute(ClassInterfaceType classInterfaceType) {
             _val = classInterfaceType;
         }
-        public ClassInterfaceAttribute(short classInterfaceType)
-        {
+        public ClassInterfaceAttribute(short classInterfaceType) {
             _val = (ClassInterfaceType)classInterfaceType;
         }
         public ClassInterfaceType Value { get { return _val; } }
     }
 
     [AttributeUsage(AttributeTargets.Assembly | AttributeTargets.Interface | AttributeTargets.Class | AttributeTargets.Struct | AttributeTargets.Delegate | AttributeTargets.Enum | AttributeTargets.Field | AttributeTargets.Method | AttributeTargets.Property, Inherited = false)]
-    public sealed class ComVisibleAttribute : Attribute
-    {
+    public sealed class ComVisibleAttribute : Attribute {
         internal bool _val;
-        public ComVisibleAttribute(bool visibility)
-        {
+        public ComVisibleAttribute(bool visibility) {
             _val = visibility;
         }
         public bool Value { get { return _val; } }
     }
 
     [AttributeUsage(AttributeTargets.Method, Inherited = false)]
-    public sealed class LCIDConversionAttribute : Attribute
-    {
+    public sealed class LCIDConversionAttribute : Attribute {
         internal int _val;
-        public LCIDConversionAttribute(int lcid)
-        {
+        public LCIDConversionAttribute(int lcid) {
             _val = lcid;
         }
         public int Value { get { return _val; } }
     }
 
     [AttributeUsage(AttributeTargets.Class, Inherited = false)]
-    public sealed class ProgIdAttribute : Attribute
-    {
+    public sealed class ProgIdAttribute : Attribute {
         internal String _val;
-        public ProgIdAttribute(String progId)
-        {
+        public ProgIdAttribute(String progId) {
             _val = progId;
         }
         public String Value { get { return _val; } }
     }
 
     [AttributeUsage(AttributeTargets.Class, Inherited = true)]
-    public sealed class ComSourceInterfacesAttribute : Attribute
-    {
+    public sealed class ComSourceInterfacesAttribute : Attribute {
         internal String _val;
-        public ComSourceInterfacesAttribute(String sourceInterfaces)
-        {
+        public ComSourceInterfacesAttribute(String sourceInterfaces) {
             _val = sourceInterfaces;
         }
-        public ComSourceInterfacesAttribute(Type sourceInterface)
-        {
+        public ComSourceInterfacesAttribute(Type sourceInterface) {
             _val = sourceInterface.FullName;
         }
-        public ComSourceInterfacesAttribute(Type sourceInterface1, Type sourceInterface2)
-        {
+        public ComSourceInterfacesAttribute(Type sourceInterface1, Type sourceInterface2) {
             _val = sourceInterface1.FullName + "\0" + sourceInterface2.FullName;
         }
-        public ComSourceInterfacesAttribute(Type sourceInterface1, Type sourceInterface2, Type sourceInterface3)
-        {
+        public ComSourceInterfacesAttribute(Type sourceInterface1, Type sourceInterface2, Type sourceInterface3) {
             _val = sourceInterface1.FullName + "\0" + sourceInterface2.FullName + "\0" + sourceInterface3.FullName;
         }
-        public ComSourceInterfacesAttribute(Type sourceInterface1, Type sourceInterface2, Type sourceInterface3, Type sourceInterface4)
-        {
+        public ComSourceInterfacesAttribute(Type sourceInterface1, Type sourceInterface2, Type sourceInterface3, Type sourceInterface4) {
             _val = sourceInterface1.FullName + "\0" + sourceInterface2.FullName + "\0" + sourceInterface3.FullName + "\0" + sourceInterface4.FullName;
         }
         public String Value { get { return _val; } }
     }
 
     [Serializable]
-    public enum VarEnum
-    {
+    public enum VarEnum {
         VT_EMPTY = 0,
         VT_NULL = 1,
         VT_I2 = 2,
@@ -238,8 +208,7 @@ namespace System.Runtime.InteropServices
 
     [Serializable]
     // Note that this enum should remain in-sync with the CorNativeType enum in corhdr.h
-    public enum UnmanagedType
-    {
+    public enum UnmanagedType {
         Bool = 0x2,         // 4 byte boolean value (true != 0, false == 0)
 
         I1 = 0x3,         // 1 byte signed value
@@ -318,30 +287,24 @@ namespace System.Runtime.InteropServices
     }
 
     [AttributeUsage(AttributeTargets.Parameter | AttributeTargets.Field | AttributeTargets.ReturnValue, Inherited = false)]
-    public unsafe sealed class MarshalAsAttribute : Attribute
-    {
-        internal static Attribute GetCustomAttribute(RuntimeParameterInfo parameter)
-        {
+    public unsafe sealed class MarshalAsAttribute : Attribute {
+        internal static Attribute GetCustomAttribute(RuntimeParameterInfo parameter) {
             return GetCustomAttribute(parameter.MetadataToken, parameter.GetRuntimeModule());
         }
 
-        internal static bool IsDefined(RuntimeParameterInfo parameter)
-        {
+        internal static bool IsDefined(RuntimeParameterInfo parameter) {
             return GetCustomAttribute(parameter) != null;
         }
 
-        internal static Attribute GetCustomAttribute(RuntimeFieldInfo field)
-        {
+        internal static Attribute GetCustomAttribute(RuntimeFieldInfo field) {
             return GetCustomAttribute(field.MetadataToken, field.GetRuntimeModule()); ;
         }
 
-        internal static bool IsDefined(RuntimeFieldInfo field)
-        {
+        internal static bool IsDefined(RuntimeFieldInfo field) {
             return GetCustomAttribute(field) != null;
         }
 
-        internal static Attribute GetCustomAttribute(int token, RuntimeModule scope)
-        {
+        internal static Attribute GetCustomAttribute(int token, RuntimeModule scope) {
             UnmanagedType unmanagedType, arraySubType;
             VarEnum safeArraySubType;
             int sizeParamIndex = 0, sizeConst = 0;
@@ -360,12 +323,10 @@ namespace System.Runtime.InteropServices
                 RuntimeTypeHandle.GetTypeByNameUsingCARules(safeArrayUserDefinedTypeName, scope);
             RuntimeType marshalTypeRef = null;
 
-            try
-            {
+            try {
                 marshalTypeRef = marshalTypeName == null ? null : RuntimeTypeHandle.GetTypeByNameUsingCARules(marshalTypeName, scope);
             }
-            catch (System.TypeLoadException)
-            {
+            catch (System.TypeLoadException) {
                 // The user may have supplied a bad type name string causing this TypeLoadException
                 // Regardless, we return the bad type name
                 Debug.Assert(marshalTypeName != null);
@@ -377,8 +338,7 @@ namespace System.Runtime.InteropServices
         }
 
         internal MarshalAsAttribute(UnmanagedType val, VarEnum safeArraySubType, RuntimeType safeArrayUserDefinedSubType, UnmanagedType arraySubType,
-            short sizeParamIndex, int sizeConst, string marshalType, RuntimeType marshalTypeRef, string marshalCookie, int iidParamIndex)
-        {
+            short sizeParamIndex, int sizeConst, string marshalType, RuntimeType marshalTypeRef, string marshalCookie, int iidParamIndex) {
             _val = val;
             SafeArraySubType = safeArraySubType;
             SafeArrayUserDefinedSubType = safeArrayUserDefinedSubType;
@@ -392,12 +352,10 @@ namespace System.Runtime.InteropServices
         }
 
         internal UnmanagedType _val;
-        public MarshalAsAttribute(UnmanagedType unmanagedType)
-        {
+        public MarshalAsAttribute(UnmanagedType unmanagedType) {
             _val = unmanagedType;
         }
-        public MarshalAsAttribute(short unmanagedType)
-        {
+        public MarshalAsAttribute(short unmanagedType) {
             _val = (UnmanagedType)unmanagedType;
         }
         public UnmanagedType Value { get { return _val; } }
@@ -422,112 +380,89 @@ namespace System.Runtime.InteropServices
     }
 
     [AttributeUsage(AttributeTargets.Class | AttributeTargets.Interface, Inherited = false)]
-    public sealed class ComImportAttribute : Attribute
-    {
-        internal static Attribute GetCustomAttribute(RuntimeType type)
-        {
+    public sealed class ComImportAttribute : Attribute {
+        internal static Attribute GetCustomAttribute(RuntimeType type) {
             if ((type.Attributes & TypeAttributes.Import) == 0)
                 return null;
 
             return new ComImportAttribute();
         }
 
-        internal static bool IsDefined(RuntimeType type)
-        {
+        internal static bool IsDefined(RuntimeType type) {
             return (type.Attributes & TypeAttributes.Import) != 0;
         }
 
-        public ComImportAttribute()
-        {
+        public ComImportAttribute() {
         }
     }
 
     [AttributeUsage(AttributeTargets.Assembly | AttributeTargets.Interface | AttributeTargets.Class | AttributeTargets.Enum | AttributeTargets.Struct | AttributeTargets.Delegate, Inherited = false)]
-    public sealed class GuidAttribute : Attribute
-    {
+    public sealed class GuidAttribute : Attribute {
         internal String _val;
-        public GuidAttribute(String guid)
-        {
+        public GuidAttribute(String guid) {
             _val = guid;
         }
         public String Value { get { return _val; } }
     }
 
     [AttributeUsage(AttributeTargets.Method, Inherited = false)]
-    public sealed class PreserveSigAttribute : Attribute
-    {
-        internal static Attribute GetCustomAttribute(RuntimeMethodInfo method)
-        {
+    public sealed class PreserveSigAttribute : Attribute {
+        internal static Attribute GetCustomAttribute(RuntimeMethodInfo method) {
             if ((method.GetMethodImplementationFlags() & MethodImplAttributes.PreserveSig) == 0)
                 return null;
 
             return new PreserveSigAttribute();
         }
 
-        internal static bool IsDefined(RuntimeMethodInfo method)
-        {
+        internal static bool IsDefined(RuntimeMethodInfo method) {
             return (method.GetMethodImplementationFlags() & MethodImplAttributes.PreserveSig) != 0;
         }
 
-        public PreserveSigAttribute()
-        {
+        public PreserveSigAttribute() {
         }
     }
 
     [AttributeUsage(AttributeTargets.Parameter, Inherited = false)]
-    public sealed class InAttribute : Attribute
-    {
-        internal static Attribute GetCustomAttribute(RuntimeParameterInfo parameter)
-        {
+    public sealed class InAttribute : Attribute {
+        internal static Attribute GetCustomAttribute(RuntimeParameterInfo parameter) {
             return parameter.IsIn ? new InAttribute() : null;
         }
-        internal static bool IsDefined(RuntimeParameterInfo parameter)
-        {
+        internal static bool IsDefined(RuntimeParameterInfo parameter) {
             return parameter.IsIn;
         }
 
-        public InAttribute()
-        {
+        public InAttribute() {
         }
     }
 
     [AttributeUsage(AttributeTargets.Parameter, Inherited = false)]
-    public sealed class OutAttribute : Attribute
-    {
-        internal static Attribute GetCustomAttribute(RuntimeParameterInfo parameter)
-        {
+    public sealed class OutAttribute : Attribute {
+        internal static Attribute GetCustomAttribute(RuntimeParameterInfo parameter) {
             return parameter.IsOut ? new OutAttribute() : null;
         }
-        internal static bool IsDefined(RuntimeParameterInfo parameter)
-        {
+        internal static bool IsDefined(RuntimeParameterInfo parameter) {
             return parameter.IsOut;
         }
 
-        public OutAttribute()
-        {
+        public OutAttribute() {
         }
     }
 
     [AttributeUsage(AttributeTargets.Parameter, Inherited = false)]
-    public sealed class OptionalAttribute : Attribute
-    {
-        internal static Attribute GetCustomAttribute(RuntimeParameterInfo parameter)
-        {
+    public sealed class OptionalAttribute : Attribute {
+        internal static Attribute GetCustomAttribute(RuntimeParameterInfo parameter) {
             return parameter.IsOptional ? new OptionalAttribute() : null;
         }
-        internal static bool IsDefined(RuntimeParameterInfo parameter)
-        {
+        internal static bool IsDefined(RuntimeParameterInfo parameter) {
             return parameter.IsOptional;
         }
 
-        public OptionalAttribute()
-        {
+        public OptionalAttribute() {
         }
     }
 
     [Flags]
-    public enum DllImportSearchPath
-    {
+    public enum DllImportSearchPath {
         UseDllDirectoryForDependencies = 0x100,
         ApplicationDirectory = 0x200,
         UserDirectories = 0x400,
@@ -538,11 +473,9 @@ namespace System.Runtime.InteropServices
     }
 
     [AttributeUsage(AttributeTargets.Assembly | AttributeTargets.Method, AllowMultiple = false)]
-    public sealed class DefaultDllImportSearchPathsAttribute : Attribute
-    {
+    public sealed class DefaultDllImportSearchPathsAttribute : Attribute {
         internal DllImportSearchPath _paths;
-        public DefaultDllImportSearchPathsAttribute(DllImportSearchPath paths)
-        {
+        public DefaultDllImportSearchPathsAttribute(DllImportSearchPath paths) {
             _paths = paths;
         }
 
@@ -550,10 +483,8 @@ namespace System.Runtime.InteropServices
     }
 
     [AttributeUsage(AttributeTargets.Method, Inherited = false)]
-    public unsafe sealed class DllImportAttribute : Attribute
-    {
-        internal static Attribute GetCustomAttribute(RuntimeMethodInfo method)
-        {
+    public unsafe sealed class DllImportAttribute : Attribute {
+        internal static Attribute GetCustomAttribute(RuntimeMethodInfo method) {
             if ((method.Attributes & MethodAttributes.PinvokeImpl) == 0)
                 return null;
 
@@ -566,8 +497,7 @@ namespace System.Runtime.InteropServices
 
             CharSet charSet = CharSet.None;
 
-            switch (flags & PInvokeAttributes.CharSetMask)
-            {
+            switch (flags & PInvokeAttributes.CharSetMask) {
                 case PInvokeAttributes.CharSetNotSpec: charSet = CharSet.None; break;
                 case PInvokeAttributes.CharSetAnsi: charSet = CharSet.Ansi; break;
                 case PInvokeAttributes.CharSetUnicode: charSet = CharSet.Unicode; break;
@@ -579,8 +509,7 @@ namespace System.Runtime.InteropServices
 
             CallingConvention callingConvention = CallingConvention.Cdecl;
 
-            switch (flags & PInvokeAttributes.CallConvMask)
-            {
+            switch (flags & PInvokeAttributes.CallConvMask) {
                 case PInvokeAttributes.CallConvWinapi: callingConvention = CallingConvention.Winapi; break;
                 case PInvokeAttributes.CallConvCdecl: callingConvention = CallingConvention.Cdecl; break;
                 case PInvokeAttributes.CallConvStdcall: callingConvention = CallingConvention.StdCall; break;
@@ -602,16 +531,14 @@ namespace System.Runtime.InteropServices
                 callingConvention, bestFitMapping, throwOnUnmappableChar);
         }
 
-        internal static bool IsDefined(RuntimeMethodInfo method)
-        {
+        internal static bool IsDefined(RuntimeMethodInfo method) {
             return (method.Attributes & MethodAttributes.PinvokeImpl) != 0;
         }
 
 
         internal DllImportAttribute(
             string dllName, string entryPoint, CharSet charSet, bool exactSpelling, bool setLastError, bool preserveSig,
-            CallingConvention callingConvention, bool bestFitMapping, bool throwOnUnmappableChar)
-        {
+            CallingConvention callingConvention, bool bestFitMapping, bool throwOnUnmappableChar) {
             _val = dllName;
             EntryPoint = entryPoint;
             CharSet = charSet;
@@ -625,8 +552,7 @@ namespace System.Runtime.InteropServices
 
         internal String _val;
 
-        public DllImportAttribute(String dllName)
-        {
+        public DllImportAttribute(String dllName) {
             _val = dllName;
         }
         public String Value { get { return _val; } }
@@ -642,19 +568,16 @@ namespace System.Runtime.InteropServices
     }
 
     [AttributeUsage(AttributeTargets.Class | AttributeTargets.Struct, Inherited = false)]
-    public unsafe sealed class StructLayoutAttribute : Attribute
-    {
+    public unsafe sealed class StructLayoutAttribute : Attribute {
         private const int DEFAULT_PACKING_SIZE = 8;
 
-        internal static Attribute GetCustomAttribute(RuntimeType type)
-        {
+        internal static Attribute GetCustomAttribute(RuntimeType type) {
             if (!IsDefined(type))
                 return null;
 
             int pack = 0, size = 0;
             LayoutKind layoutKind = LayoutKind.Auto;
-            switch (type.Attributes & TypeAttributes.LayoutMask)
-            {
+            switch (type.Attributes & TypeAttributes.LayoutMask) {
                 case TypeAttributes.ExplicitLayout: layoutKind = LayoutKind.Explicit; break;
                 case TypeAttributes.AutoLayout: layoutKind = LayoutKind.Auto; break;
                 case TypeAttributes.SequentialLayout: layoutKind = LayoutKind.Sequential; break;
@@ -662,8 +585,7 @@ namespace System.Runtime.InteropServices
             }
 
             CharSet charSet = CharSet.None;
-            switch (type.Attributes & TypeAttributes.StringFormatMask)
-            {
+            switch (type.Attributes & TypeAttributes.StringFormatMask) {
                 case TypeAttributes.AnsiClass: charSet = CharSet.Ansi; break;
                 case TypeAttributes.AutoClass: charSet = CharSet.Auto; break;
                 case TypeAttributes.UnicodeClass: charSet = CharSet.Unicode; break;
@@ -680,8 +602,7 @@ namespace System.Runtime.InteropServices
             return new StructLayoutAttribute(layoutKind, pack, size, charSet);
         }
 
-        internal static bool IsDefined(RuntimeType type)
-        {
+        internal static bool IsDefined(RuntimeType type) {
             if (type.IsInterface || type.HasElementType || type.IsGenericParameter)
                 return false;
 
@@ -690,20 +611,17 @@ namespace System.Runtime.InteropServices
 
         internal LayoutKind _val;
 
-        internal StructLayoutAttribute(LayoutKind layoutKind, int pack, int size, CharSet charSet)
-        {
+        internal StructLayoutAttribute(LayoutKind layoutKind, int pack, int size, CharSet charSet) {
             _val = layoutKind;
             Pack = pack;
             Size = size;
             CharSet = charSet;
         }
 
-        public StructLayoutAttribute(LayoutKind layoutKind)
-        {
+        public StructLayoutAttribute(LayoutKind layoutKind) {
             _val = layoutKind;
         }
-        public StructLayoutAttribute(short layoutKind)
-        {
+        public StructLayoutAttribute(short layoutKind) {
             _val = (LayoutKind)layoutKind;
         }
         public LayoutKind Value { get { return _val; } }
@@ -713,10 +631,8 @@ namespace System.Runtime.InteropServices
     }
 
     [AttributeUsage(AttributeTargets.Field, Inherited = false)]
-    public unsafe sealed class FieldOffsetAttribute : Attribute
-    {
-        internal static Attribute GetCustomAttribute(RuntimeFieldInfo field)
-        {
+    public unsafe sealed class FieldOffsetAttribute : Attribute {
+        internal static Attribute GetCustomAttribute(RuntimeFieldInfo field) {
             int fieldOffset;
 
             if (field.DeclaringType != null &&
@@ -726,26 +642,22 @@ namespace System.Runtime.InteropServices
             return null;
         }
 
-        internal static bool IsDefined(RuntimeFieldInfo field)
-        {
+        internal static bool IsDefined(RuntimeFieldInfo field) {
             return GetCustomAttribute(field) != null;
         }
 
         internal int _val;
-        public FieldOffsetAttribute(int offset)
-        {
+        public FieldOffsetAttribute(int offset) {
             _val = offset;
         }
         public int Value { get { return _val; } }
     }
 
     [AttributeUsage(AttributeTargets.Interface, Inherited = false)]
-    public sealed class CoClassAttribute : Attribute
-    {
+    public sealed class CoClassAttribute : Attribute {
         internal Type _CoClass;
 
-        public CoClassAttribute(Type coClass)
-        {
+        public CoClassAttribute(Type coClass) {
             _CoClass = coClass;
         }
 
@@ -753,12 +665,10 @@ namespace System.Runtime.InteropServices
     }
 
     [AttributeUsage(AttributeTargets.Assembly | AttributeTargets.Interface | AttributeTargets.Class | AttributeTargets.Struct, Inherited = false)]
-    public sealed class BestFitMappingAttribute : Attribute
-    {
+    public sealed class BestFitMappingAttribute : Attribute {
         internal bool _bestFitMapping;
 
-        public BestFitMappingAttribute(bool BestFitMapping)
-        {
+        public BestFitMappingAttribute(bool BestFitMapping) {
             _bestFitMapping = BestFitMapping;
         }
 
@@ -767,12 +677,10 @@ namespace System.Runtime.InteropServices
     }
 
     [AttributeUsage(AttributeTargets.Module, Inherited = false)]
-    public sealed class DefaultCharSetAttribute : Attribute
-    {
+    public sealed class DefaultCharSetAttribute : Attribute {
         internal CharSet _CharSet;
 
-        public DefaultCharSetAttribute(CharSet charSet)
-        {
+        public DefaultCharSetAttribute(CharSet charSet) {
             _CharSet = charSet;
         }
 

@@ -17,23 +17,18 @@
 using System;
 using System.Runtime.InteropServices;
 
-namespace System.Runtime.Remoting
-{
-    public class ObjectHandle
-    {
+namespace System.Runtime.Remoting {
+    public class ObjectHandle {
         private Object WrappedObject;
 
-        private ObjectHandle()
-        {
+        private ObjectHandle() {
         }
 
-        internal ObjectHandle(Object o)
-        {
+        internal ObjectHandle(Object o) {
             WrappedObject = o;
         }
 
-        internal Object Unwrap()
-        {
+        internal Object Unwrap() {
             return WrappedObject;
         }
     }

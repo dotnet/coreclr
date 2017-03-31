@@ -25,10 +25,8 @@ using System.Runtime.Versioning;
 using System.Diagnostics;
 using System.Diagnostics.Contracts;
 
-namespace System.Threading
-{
-    public static class Monitor
-    {
+namespace System.Threading {
+    public static class Monitor {
         /*=========================================================================
         ** Obtain the monitor lock of obj. Will block if another thread holds the lock
         ** Will not block if the current thread holds the lock,
@@ -46,8 +44,7 @@ namespace System.Threading
         // could be uninitialized if we threw an exception in our prolog.
         // The JIT should inline this method to allow check of lockTaken argument to be optimized out
         // in the typical case. Note that the method has to be transparent for inlining to be allowed by the VM.
-        public static void Enter(Object obj, ref bool lockTaken)
-        {
+        public static void Enter(Object obj, ref bool lockTaken) {
             if (lockTaken)
                 ThrowLockTakenException();
 
@@ -55,8 +52,7 @@ namespace System.Threading
             Debug.Assert(lockTaken);
         }
 
-        private static void ThrowLockTakenException()
-        {
+        private static void ThrowLockTakenException() {
             throw new ArgumentException(SR.Argument_MustBeFalse, "lockTaken");
         }
 
@@ -84,8 +80,7 @@ namespace System.Threading
         **
         ** Exceptions: ArgumentNullException if object is null.
         =========================================================================*/
-        public static bool TryEnter(Object obj)
-        {
+        public static bool TryEnter(Object obj) {
             bool lockTaken = false;
             TryEnter(obj, 0, ref lockTaken);
             return lockTaken;
@@ -93,8 +88,7 @@ namespace System.Threading
 
         // The JIT should inline this method to allow check of lockTaken argument to be optimized out
         // in the typical case. Note that the method has to be transparent for inlining to be allowed by the VM.
-        public static void TryEnter(Object obj, ref bool lockTaken)
-        {
+        public static void TryEnter(Object obj, ref bool lockTaken) {
             if (lockTaken)
                 ThrowLockTakenException();
 
@@ -111,38 +105,33 @@ namespace System.Threading
         =========================================================================*/
         // The JIT should inline this method to allow check of lockTaken argument to be optimized out
         // in the typical case. Note that the method has to be transparent for inlining to be allowed by the VM.
-        public static bool TryEnter(Object obj, int millisecondsTimeout)
-        {
+        public static bool TryEnter(Object obj, int millisecondsTimeout) {
             bool lockTaken = false;
             TryEnter(obj, millisecondsTimeout, ref lockTaken);
             return lockTaken;
         }
 
-        private static int MillisecondsTimeoutFromTimeSpan(TimeSpan timeout)
-        {
+        private static int MillisecondsTimeoutFromTimeSpan(TimeSpan timeout) {
             long tm = (long)timeout.TotalMilliseconds;
             if (tm < -1 || tm > (long)Int32.MaxValue)
                 throw new ArgumentOutOfRangeException(nameof(timeout), SR.ArgumentOutOfRange_NeedNonNegOrNegative1);
             return (int)tm;
         }
 
-        public static bool TryEnter(Object obj, TimeSpan timeout)
-        {
+        public static bool TryEnter(Object obj, TimeSpan timeout) {
             return TryEnter(obj, MillisecondsTimeoutFromTimeSpan(timeout));
         }
 
         // The JIT should inline this method to allow check of lockTaken argument to be optimized out
         // in the typical case. Note that the method has to be transparent for inlining to be allowed by the VM.
-        public static void TryEnter(Object obj, int millisecondsTimeout, ref bool lockTaken)
-        {
+        public static void TryEnter(Object obj, int millisecondsTimeout, ref bool lockTaken) {
             if (lockTaken)
                 ThrowLockTakenException();
 
             ReliableEnterTimeout(obj, millisecondsTimeout, ref lockTaken);
         }
 
-        public static void TryEnter(Object obj, TimeSpan timeout, ref bool lockTaken)
-        {
+        public static void TryEnter(Object obj, TimeSpan timeout, ref bool lockTaken) {
             if (lockTaken)
                 ThrowLockTakenException();
 
@@ -152,8 +141,7 @@ namespace System.Threading
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         private static extern void ReliableEnterTimeout(Object obj, int timeout, ref bool lockTaken);
 
-        public static bool IsEntered(object obj)
-        {
+        public static bool IsEntered(object obj) {
             if (obj == null)
                 throw new ArgumentNullException(nameof(obj));
 
@@ -177,30 +165,25 @@ namespace System.Threading
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         private static extern bool ObjWait(bool exitContext, int millisecondsTimeout, Object obj);
 
-        public static bool Wait(Object obj, int millisecondsTimeout, bool exitContext)
-        {
+        public static bool Wait(Object obj, int millisecondsTimeout, bool exitContext) {
             if (obj == null)
                 throw (new ArgumentNullException(nameof(obj)));
             return ObjWait(exitContext, millisecondsTimeout, obj);
         }
 
-        public static bool Wait(Object obj, TimeSpan timeout, bool exitContext)
-        {
+        public static bool Wait(Object obj, TimeSpan timeout, bool exitContext) {
             return Wait(obj, MillisecondsTimeoutFromTimeSpan(timeout), exitContext);
         }
 
-        public static bool Wait(Object obj, int millisecondsTimeout)
-        {
+        public static bool Wait(Object obj, int millisecondsTimeout) {
             return Wait(obj, millisecondsTimeout, false);
         }
 
-        public static bool Wait(Object obj, TimeSpan timeout)
-        {
+        public static bool Wait(Object obj, TimeSpan timeout) {
             return Wait(obj, MillisecondsTimeoutFromTimeSpan(timeout), false);
         }
 
-        public static bool Wait(Object obj)
-        {
+        public static bool Wait(Object obj) {
             return Wait(obj, Timeout.Infinite, false);
         }
 
@@ -212,10 +195,8 @@ namespace System.Threading
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         private static extern void ObjPulse(Object obj);
 
-        public static void Pulse(Object obj)
-        {
-            if (obj == null)
-            {
+        public static void Pulse(Object obj) {
+            if (obj == null) {
                 throw new ArgumentNullException(nameof(obj));
             }
             Contract.EndContractBlock();
@@ -228,10 +209,8 @@ namespace System.Threading
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         private static extern void ObjPulseAll(Object obj);
 
-        public static void PulseAll(Object obj)
-        {
-            if (obj == null)
-            {
+        public static void PulseAll(Object obj) {
+            if (obj == null) {
                 throw new ArgumentNullException(nameof(obj));
             }
             Contract.EndContractBlock();

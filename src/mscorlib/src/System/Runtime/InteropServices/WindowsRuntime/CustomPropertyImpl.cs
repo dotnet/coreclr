@@ -15,20 +15,17 @@ using System.Runtime.Serialization;
 using System.StubHelpers;
 using System.Globalization;
 
-namespace System.Runtime.InteropServices.WindowsRuntime
-{
+namespace System.Runtime.InteropServices.WindowsRuntime {
     //
     // ICustomProperty implementation - basically a wrapper of PropertyInfo
     //
-    internal sealed class CustomPropertyImpl : ICustomProperty
-    {
+    internal sealed class CustomPropertyImpl : ICustomProperty {
         private PropertyInfo m_property;
 
         //
         // Constructor
         //
-        public CustomPropertyImpl(PropertyInfo propertyInfo)
-        {
+        public CustomPropertyImpl(PropertyInfo propertyInfo) {
             if (propertyInfo == null)
                 throw new ArgumentNullException(nameof(propertyInfo));
 
@@ -39,62 +36,50 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         // ICustomProperty interface implementation
         //
 
-        public string Name
-        {
-            get
-            {
+        public string Name {
+            get {
                 return m_property.Name;
             }
         }
 
-        public bool CanRead
-        {
-            get
-            {
+        public bool CanRead {
+            get {
                 // Return false if the getter is not public
                 return m_property.GetGetMethod() != null;
             }
         }
 
-        public bool CanWrite
-        {
-            get
-            {
+        public bool CanWrite {
+            get {
                 // Return false if the setter is not public
                 return m_property.GetSetMethod() != null;
             }
         }
 
-        public object GetValue(object target)
-        {
+        public object GetValue(object target) {
             return InvokeInternal(target, null, true);
         }
 
         // Unlike normal .Net, Jupiter properties can have at most one indexer parameter. A null
         // indexValue here means that the property has an indexer argument and its value is null.
-        public object GetValue(object target, object indexValue)
-        {
+        public object GetValue(object target, object indexValue) {
             return InvokeInternal(target, new object[] { indexValue }, true);
         }
 
-        public void SetValue(object target, object value)
-        {
+        public void SetValue(object target, object value) {
             InvokeInternal(target, new object[] { value }, false);
         }
 
         // Unlike normal .Net, Jupiter properties can have at most one indexer parameter. A null
         // indexValue here means that the property has an indexer argument and its value is null.
-        public void SetValue(object target, object value, object indexValue)
-        {
+        public void SetValue(object target, object value, object indexValue) {
             InvokeInternal(target, new object[] { indexValue, value }, false);
         }
 
-        private object InvokeInternal(object target, object[] args, bool getValue)
-        {
+        private object InvokeInternal(object target, object[] args, bool getValue) {
             // Forward to the right object if we are dealing with a proxy
             IGetProxyTarget proxy = target as IGetProxyTarget;
-            if (proxy != null)
-            {
+            if (proxy != null) {
                 target = proxy.GetTarget();
             }
 
@@ -126,10 +111,8 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             return rtMethod.UnsafeInvoke(target, BindingFlags.Default, null, args, null);
         }
 
-        public Type Type
-        {
-            get
-            {
+        public Type Type {
+            get {
                 return m_property.PropertyType;
             }
         }

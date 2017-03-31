@@ -10,19 +10,15 @@ using System.Collections;
 using System.Globalization;
 using System.Diagnostics.Contracts;
 
-namespace System.Reflection.Emit
-{
-    internal sealed class TypeBuilderInstantiation : TypeInfo
-    {
-        public override bool IsAssignableFrom(System.Reflection.TypeInfo typeInfo)
-        {
+namespace System.Reflection.Emit {
+    internal sealed class TypeBuilderInstantiation : TypeInfo {
+        public override bool IsAssignableFrom(System.Reflection.TypeInfo typeInfo) {
             if (typeInfo == null) return false;
             return IsAssignableFrom(typeInfo.AsType());
         }
 
         #region Static Members
-        internal static Type MakeGenericType(Type type, Type[] typeArguments)
-        {
+        internal static Type MakeGenericType(Type type, Type[] typeArguments) {
             Contract.Requires(type != null, "this is only called from RuntimeType.MakeGenericType and TypeBuilder.MakeGenericType so 'type' cannot be null");
 
             if (!type.IsGenericTypeDefinition)
@@ -32,8 +28,7 @@ namespace System.Reflection.Emit
                 throw new ArgumentNullException(nameof(typeArguments));
             Contract.EndContractBlock();
 
-            foreach (Type t in typeArguments)
-            {
+            foreach (Type t in typeArguments) {
                 if (t == null)
                     throw new ArgumentNullException(nameof(typeArguments));
             }
@@ -52,8 +47,7 @@ namespace System.Reflection.Emit
         #endregion
 
         #region Constructor
-        private TypeBuilderInstantiation(Type type, Type[] inst)
-        {
+        private TypeBuilderInstantiation(Type type, Type[] inst) {
             m_type = type;
             m_inst = inst;
             m_hashtable = new Hashtable();
@@ -61,8 +55,7 @@ namespace System.Reflection.Emit
         #endregion
 
         #region Object Overrides
-        public override String ToString()
-        {
+        public override String ToString() {
             return TypeNameBuilder.ToString(this, TypeNameBuilder.Format.ToString);
         }
         #endregion
@@ -78,20 +71,16 @@ namespace System.Reflection.Emit
         #endregion
 
         #region Type Overrides
-        public override Type MakePointerType()
-        {
+        public override Type MakePointerType() {
             return SymbolType.FormCompoundType("*", this, 0);
         }
-        public override Type MakeByRefType()
-        {
+        public override Type MakeByRefType() {
             return SymbolType.FormCompoundType("&", this, 0);
         }
-        public override Type MakeArrayType()
-        {
+        public override Type MakeArrayType() {
             return SymbolType.FormCompoundType("[]", this, 0);
         }
-        public override Type MakeArrayType(int rank)
-        {
+        public override Type MakeArrayType(int rank) {
             if (rank <= 0)
                 throw new IndexOutOfRangeException();
             Contract.EndContractBlock();
@@ -107,10 +96,8 @@ namespace System.Reflection.Emit
         public override Object InvokeMember(String name, BindingFlags invokeAttr, Binder binder, Object target, Object[] args, ParameterModifier[] modifiers, CultureInfo culture, String[] namedParameters) { throw new NotSupportedException(); }
         public override Assembly Assembly { get { return m_type.Assembly; } }
         public override RuntimeTypeHandle TypeHandle { get { throw new NotSupportedException(); } }
-        public override String FullName
-        {
-            get
-            {
+        public override String FullName {
+            get {
                 if (m_strFullQualName == null)
                     m_strFullQualName = TypeNameBuilder.ToString(this, TypeNameBuilder.Format.FullName);
                 return m_strFullQualName;
@@ -118,42 +105,35 @@ namespace System.Reflection.Emit
         }
         public override String Namespace { get { return m_type.Namespace; } }
         public override String AssemblyQualifiedName { get { return TypeNameBuilder.ToString(this, TypeNameBuilder.Format.AssemblyQualifiedName); } }
-        private Type Substitute(Type[] substitutes)
-        {
+        private Type Substitute(Type[] substitutes) {
             Type[] inst = GetGenericArguments();
             Type[] instSubstituted = new Type[inst.Length];
 
-            for (int i = 0; i < instSubstituted.Length; i++)
-            {
+            for (int i = 0; i < instSubstituted.Length; i++) {
                 Type t = inst[i];
 
-                if (t is TypeBuilderInstantiation)
-                {
+                if (t is TypeBuilderInstantiation) {
                     instSubstituted[i] = (t as TypeBuilderInstantiation).Substitute(substitutes);
                 }
-                else if (t is GenericTypeParameterBuilder)
-                {
+                else if (t is GenericTypeParameterBuilder) {
                     // Substitute
                     instSubstituted[i] = substitutes[t.GenericParameterPosition];
                 }
-                else
-                {
+                else {
                     instSubstituted[i] = t;
                 }
             }
 
             return GetGenericTypeDefinition().MakeGenericType(instSubstituted);
         }
-        public override Type BaseType
-        {
+        public override Type BaseType {
             // B<A,B,C>
             // D<T,S> : B<S,List<T>,char>
 
             // D<string,int> : B<int,List<string>,char>
             // D<S,T> : B<T,List<S>,char>        
             // D<S,string> : B<string,List<S>,char>        
-            get
-            {
+            get {
                 Type typeBldrBase = m_type.BaseType;
 
                 if (typeBldrBase == null)
@@ -206,12 +186,9 @@ namespace System.Reflection.Emit
         public override bool IsGenericParameter { get { return false; } }
         public override int GenericParameterPosition { get { throw new InvalidOperationException(); } }
         protected override bool IsValueTypeImpl() { return m_type.IsValueType; }
-        public override bool ContainsGenericParameters
-        {
-            get
-            {
-                for (int i = 0; i < m_inst.Length; i++)
-                {
+        public override bool ContainsGenericParameters {
+            get {
+                for (int i = 0; i < m_inst.Length; i++) {
                     if (m_inst[i].ContainsGenericParameters)
                         return true;
                 }
@@ -225,8 +202,7 @@ namespace System.Reflection.Emit
         public override bool IsAssignableFrom(Type c) { throw new NotSupportedException(); }
 
         [Pure]
-        public override bool IsSubclassOf(Type c)
-        {
+        public override bool IsSubclassOf(Type c) {
             throw new NotSupportedException();
         }
         #endregion

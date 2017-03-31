@@ -15,11 +15,9 @@
 
 using System;
 
-namespace System.Reflection.Emit
-{
+namespace System.Reflection.Emit {
     [Serializable]
-    public enum OpCodeType
-    {
+    public enum OpCodeType {
         [Obsolete("This API has been deprecated. http://go.microsoft.com/fwlink/?linkid=14202")]
         Annotation = 0,
         Macro = 1,

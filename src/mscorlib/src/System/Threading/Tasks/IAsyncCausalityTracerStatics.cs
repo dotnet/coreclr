@@ -14,13 +14,11 @@ using System.Runtime.InteropServices.WindowsRuntime;
 // they're hidden by the metadata adapter. We redeclare the interfaces manually
 // to be able to talk to native WinRT objects.
 
-namespace Windows.Foundation.Diagnostics
-{
+namespace Windows.Foundation.Diagnostics {
     [ComImport]
     [Guid("50850B26-267E-451B-A890-AB6A370245EE")]
     [WindowsRuntimeImport]
-    internal interface IAsyncCausalityTracerStatics
-    {
+    internal interface IAsyncCausalityTracerStatics {
         void TraceOperationCreation(CausalityTraceLevel traceLevel, CausalitySource source, Guid platformId, ulong operationId, string operationName, ulong relatedContext);
         void TraceOperationCompletion(CausalityTraceLevel traceLevel, CausalitySource source, Guid platformId, ulong operationId, AsyncCausalityStatus status);
         void TraceOperationRelation(CausalityTraceLevel traceLevel, CausalitySource source, Guid platformId, ulong operationId, CausalityRelation relation);
@@ -34,8 +32,7 @@ namespace Windows.Foundation.Diagnostics
     [ComImport]
     [Guid("410B7711-FF3B-477F-9C9A-D2EFDA302DC3")]
     [WindowsRuntimeImport]
-    internal interface ITracingStatusChangedEventArgs
-    {
+    internal interface ITracingStatusChangedEventArgs {
         bool Enabled { get; }
         CausalityTraceLevel TraceLevel { get; }
     }
@@ -46,23 +43,19 @@ namespace Windows.Foundation.Diagnostics
     [ComImport]
     [Guid("410B7711-FF3B-477F-9C9A-D2EFDA302DC3")]
     [WindowsRuntimeImport]
-    internal sealed class TracingStatusChangedEventArgs : ITracingStatusChangedEventArgs
-    {
-        public extern bool Enabled
-        {
+    internal sealed class TracingStatusChangedEventArgs : ITracingStatusChangedEventArgs {
+        public extern bool Enabled {
             [MethodImpl(MethodImplOptions.InternalCall)]
             get;
         }
 
-        public extern CausalityTraceLevel TraceLevel
-        {
+        public extern CausalityTraceLevel TraceLevel {
             [MethodImpl(MethodImplOptions.InternalCall)]
             get;
         }
     }
 
-    internal enum CausalityRelation
-    {
+    internal enum CausalityRelation {
         AssignDelegate,
         Join,
         Choice,
@@ -70,29 +63,25 @@ namespace Windows.Foundation.Diagnostics
         Error
     }
 
-    internal enum CausalitySource
-    {
+    internal enum CausalitySource {
         Application,
         Library,
         System
     }
 
-    internal enum CausalitySynchronousWork
-    {
+    internal enum CausalitySynchronousWork {
         CompletionNotification,
         ProgressNotification,
         Execution
     }
 
-    internal enum CausalityTraceLevel
-    {
+    internal enum CausalityTraceLevel {
         Required,
         Important,
         Verbose
     }
 
-    internal enum AsyncCausalityStatus
-    {
+    internal enum AsyncCausalityStatus {
         Canceled = 2,
         Completed = 1,
         Error = 3,

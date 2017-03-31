@@ -5,19 +5,16 @@
 using System.IO;
 using System.Runtime.Serialization;
 
-namespace System.Reflection
-{
+namespace System.Reflection {
     [Serializable]
-    public class StrongNameKeyPair : IDeserializationCallback, ISerializable
-    {
+    public class StrongNameKeyPair : IDeserializationCallback, ISerializable {
         private bool _keyPairExported;
         private byte[] _keyPairArray;
         private string _keyPairContainer;
         private byte[] _publicKey;
 
         // Build key pair from file.
-        public StrongNameKeyPair(FileStream keyPairFile)
-        {
+        public StrongNameKeyPair(FileStream keyPairFile) {
             if (keyPairFile == null)
                 throw new ArgumentNullException(nameof(keyPairFile));
 
@@ -29,8 +26,7 @@ namespace System.Reflection
         }
 
         // Build key pair from byte array in memory.
-        public StrongNameKeyPair(byte[] keyPairArray)
-        {
+        public StrongNameKeyPair(byte[] keyPairArray) {
             if (keyPairArray == null)
                 throw new ArgumentNullException(nameof(keyPairArray));
 
@@ -40,29 +36,24 @@ namespace System.Reflection
             _keyPairExported = true;
         }
 
-        protected StrongNameKeyPair(SerializationInfo info, StreamingContext context)
-        {
+        protected StrongNameKeyPair(SerializationInfo info, StreamingContext context) {
             _keyPairExported = (bool)info.GetValue("_keyPairExported", typeof(bool));
             _keyPairArray = (byte[])info.GetValue("_keyPairArray", typeof(byte[]));
             _keyPairContainer = (string)info.GetValue("_keyPairContainer", typeof(string));
             _publicKey = (byte[])info.GetValue("_publicKey", typeof(byte[]));
         }
 
-        public StrongNameKeyPair(string keyPairContainer)
-        {
+        public StrongNameKeyPair(string keyPairContainer) {
             throw new PlatformNotSupportedException(SR.PlatformNotSupported_StrongNameSigning);
         }
 
-        public byte[] PublicKey
-        {
-            get
-            {
+        public byte[] PublicKey {
+            get {
                 throw new PlatformNotSupportedException(SR.PlatformNotSupported_StrongNameSigning);
             }
         }
 
-        void ISerializable.GetObjectData(SerializationInfo info, StreamingContext context)
-        {
+        void ISerializable.GetObjectData(SerializationInfo info, StreamingContext context) {
             info.AddValue("_keyPairExported", _keyPairExported);
             info.AddValue("_keyPairArray", _keyPairArray);
             info.AddValue("_keyPairContainer", _keyPairContainer);

@@ -5,8 +5,7 @@
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 
-namespace System.Threading
-{
+namespace System.Threading {
     //
     // Implementation of ThreadPoolBoundHandle that sits on top of the CLR's ThreadPool and Overlapped infrastructure
     //
@@ -15,13 +14,11 @@ namespace System.Threading
     ///     Represents an I/O handle that is bound to the system thread pool and enables low-level
     ///     components to receive notifications for asynchronous I/O operations.
     /// </summary>
-    public sealed partial class ThreadPoolBoundHandle : IDisposable
-    {
+    public sealed partial class ThreadPoolBoundHandle : IDisposable {
         private readonly SafeHandle _handle;
         private bool _isDisposed;
 
-        private ThreadPoolBoundHandle(SafeHandle handle)
-        {
+        private ThreadPoolBoundHandle(SafeHandle handle) {
             _handle = handle;
         }
 
@@ -31,8 +28,7 @@ namespace System.Threading
         /// <value>
         ///     A <see cref="SafeHandle"/> object that holds the bound operating system handle.
         /// </value>
-        public SafeHandle Handle
-        {
+        public SafeHandle Handle {
             get { return _handle; }
         }
 
@@ -75,23 +71,20 @@ namespace System.Threading
         ///     <see cref="ThreadPoolBoundHandle"/> does not take ownership of <paramref name="handle"/>, 
         ///     it remains the responsibility of the caller to call <see cref="SafeHandle.Dispose"/>.
         /// </remarks>
-        public static ThreadPoolBoundHandle BindHandle(SafeHandle handle)
-        {
+        public static ThreadPoolBoundHandle BindHandle(SafeHandle handle) {
             if (handle == null)
                 throw new ArgumentNullException(nameof(handle));
 
             if (handle.IsClosed || handle.IsInvalid)
                 throw new ArgumentException(SR.Argument_InvalidHandle, nameof(handle));
 
-            try
-            {
+            try {
                 // ThreadPool.BindHandle will always return true, otherwise, it throws. See the underlying FCall
                 // implementation in ThreadPoolNative::CorBindIoCompletionCallback to see the implementation.
                 bool succeeded = ThreadPool.BindHandle(handle);
                 Debug.Assert(succeeded);
             }
-            catch (Exception ex)
-            {   // BindHandle throws ApplicationException on full CLR and Exception on CoreCLR.
+            catch (Exception ex) {   // BindHandle throws ApplicationException on full CLR and Exception on CoreCLR.
                 // We do not let either of these leak and convert them to ArgumentException to 
                 // indicate that the specified handles are invalid.
 
@@ -149,8 +142,7 @@ namespace System.Threading
         ///     This method was called after the <see cref="ThreadPoolBoundHandle"/> was disposed.
         /// </exception>
         [CLSCompliant(false)]
-        public unsafe NativeOverlapped* AllocateNativeOverlapped(IOCompletionCallback callback, object state, object pinData)
-        {
+        public unsafe NativeOverlapped* AllocateNativeOverlapped(IOCompletionCallback callback, object state, object pinData) {
             if (callback == null)
                 throw new ArgumentNullException(nameof(callback));
 
@@ -190,16 +182,14 @@ namespace System.Threading
         /// </exception>
         /// <seealso cref="PreAllocatedOverlapped"/>
         [CLSCompliant(false)]
-        public unsafe NativeOverlapped* AllocateNativeOverlapped(PreAllocatedOverlapped preAllocated)
-        {
+        public unsafe NativeOverlapped* AllocateNativeOverlapped(PreAllocatedOverlapped preAllocated) {
             if (preAllocated == null)
                 throw new ArgumentNullException(nameof(preAllocated));
 
             EnsureNotDisposed();
 
             preAllocated.AddRef();
-            try
-            {
+            try {
                 ThreadPoolBoundHandleOverlapped overlapped = preAllocated._overlapped;
 
                 if (overlapped._boundHandle != null)
@@ -209,8 +199,7 @@ namespace System.Threading
 
                 return overlapped._nativeOverlapped;
             }
-            catch
-            {
+            catch {
                 preAllocated.Release();
                 throw;
             }
@@ -240,8 +229,7 @@ namespace System.Threading
         ///     This method was called after the <see cref="ThreadPoolBoundHandle"/> was disposed.
         /// </exception>
         [CLSCompliant(false)]
-        public unsafe void FreeNativeOverlapped(NativeOverlapped* overlapped)
-        {
+        public unsafe void FreeNativeOverlapped(NativeOverlapped* overlapped) {
             if (overlapped == null)
                 throw new ArgumentNullException(nameof(overlapped));
 
@@ -275,8 +263,7 @@ namespace System.Threading
         ///     <paramref name="overlapped"/> is <see langword="null"/>.
         /// </exception>
         [CLSCompliant(false)]
-        public unsafe static object GetNativeOverlappedState(NativeOverlapped* overlapped)
-        {
+        public unsafe static object GetNativeOverlappedState(NativeOverlapped* overlapped) {
             if (overlapped == null)
                 throw new ArgumentNullException(nameof(overlapped));
 
@@ -285,23 +272,19 @@ namespace System.Threading
             return wrapper._userState;
         }
 
-        private static unsafe ThreadPoolBoundHandleOverlapped GetOverlappedWrapper(NativeOverlapped* overlapped, ThreadPoolBoundHandle expectedBoundHandle)
-        {
+        private static unsafe ThreadPoolBoundHandleOverlapped GetOverlappedWrapper(NativeOverlapped* overlapped, ThreadPoolBoundHandle expectedBoundHandle) {
             ThreadPoolBoundHandleOverlapped wrapper;
-            try
-            {
+            try {
                 wrapper = (ThreadPoolBoundHandleOverlapped)Overlapped.Unpack(overlapped);
             }
-            catch (NullReferenceException ex)
-            {
+            catch (NullReferenceException ex) {
                 throw new ArgumentException(SR.Argument_NativeOverlappedAlreadyFree, nameof(overlapped), ex);
             }
 
             return wrapper;
         }
 
-        public void Dispose()
-        {
+        public void Dispose() {
             // .NET Native's version of ThreadPoolBoundHandle that wraps the Win32 ThreadPool holds onto
             // native resources so it needs to be disposable. To match the contract, we are also disposable.
             // We also implement a disposable state to mimic behavior between this implementation and 
@@ -310,8 +293,7 @@ namespace System.Threading
         }
 
 
-        private void EnsureNotDisposed()
-        {
+        private void EnsureNotDisposed() {
             if (_isDisposed)
                 throw new ObjectDisposedException(GetType().ToString());
         }

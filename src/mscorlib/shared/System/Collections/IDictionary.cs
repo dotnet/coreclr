@@ -5,32 +5,27 @@
 using System;
 using System.Diagnostics.Contracts;
 
-namespace System.Collections
-{
+namespace System.Collections {
     // An IDictionary is a possibly unordered set of key-value pairs.
     // Keys can be any non-null object.  Values can be any object.
     // You can look up a value in an IDictionary via the default indexed
     // property, Items.
-    public interface IDictionary : ICollection
-    {
+    public interface IDictionary : ICollection {
         // Interfaces are not serializable
         // The Item property provides methods to read and edit entries 
         // in the Dictionary.
-        Object this[Object key]
-        {
+        Object this[Object key] {
             get;
             set;
         }
 
         // Returns a collections of the keys in this dictionary.
-        ICollection Keys
-        {
+        ICollection Keys {
             get;
         }
 
         // Returns a collections of the values in this dictionary.
-        ICollection Values
-        {
+        ICollection Values {
             get;
         }
 
@@ -45,11 +40,9 @@ namespace System.Collections
         // Removes all pairs from the dictionary.
         void Clear();
 
-        bool IsReadOnly
-        { get; }
+        bool IsReadOnly { get; }
 
-        bool IsFixedSize
-        { get; }
+        bool IsFixedSize { get; }
 
         // Returns an IDictionaryEnumerator for this dictionary.
         new IDictionaryEnumerator GetEnumerator();

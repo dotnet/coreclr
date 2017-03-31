@@ -5,32 +5,27 @@
 using System;
 using System.Diagnostics.Contracts;
 
-namespace System.Collections.Generic
-{
+namespace System.Collections.Generic {
     // An IDictionary is a possibly unordered set of key-value pairs.
     // Keys can be any non-null object.  Values can be any object.
     // You can look up a value in an IDictionary via the default indexed
     // property, Items.
-    public interface IDictionary<TKey, TValue> : ICollection<KeyValuePair<TKey, TValue>>
-    {
+    public interface IDictionary<TKey, TValue> : ICollection<KeyValuePair<TKey, TValue>> {
         // Interfaces are not serializable
         // The Item property provides methods to read and edit entries 
         // in the Dictionary.
-        TValue this[TKey key]
-        {
+        TValue this[TKey key] {
             get;
             set;
         }
 
         // Returns a collections of the keys in this dictionary.
-        ICollection<TKey> Keys
-        {
+        ICollection<TKey> Keys {
             get;
         }
 
         // Returns a collections of the values in this dictionary.
-        ICollection<TValue> Values
-        {
+        ICollection<TValue> Values {
             get;
         }
 

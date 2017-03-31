@@ -14,8 +14,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
 
-namespace System.Collections.Concurrent
-{
+namespace System.Collections.Concurrent {
     /// <summary>
     /// Defines methods to manipulate thread-safe collections intended for producer/consumer usage.
     /// </summary>
@@ -24,8 +23,7 @@ namespace System.Collections.Concurrent
     /// All implementations of this interface must enable all members of this interface
     /// to be used concurrently from multiple threads.
     /// </remarks>
-    internal interface IProducerConsumerCollection<T> : IEnumerable<T>, ICollection
-    {
+    internal interface IProducerConsumerCollection<T> : IEnumerable<T>, ICollection {
         /// <summary>
         /// Copies the elements of the <see cref="IProducerConsumerCollection{T}"/> to
         /// an
@@ -60,8 +58,7 @@ namespace System.Collections.Concurrent
     /// collection's contents at a point in time.
     /// </summary>
     /// <typeparam name="T">The type of elements stored within.</typeparam>
-    internal sealed class SystemCollectionsConcurrent_ProducerConsumerCollectionDebugView<T>
-    {
+    internal sealed class SystemCollectionsConcurrent_ProducerConsumerCollectionDebugView<T> {
         private IProducerConsumerCollection<T> m_collection; // The collection being viewed.
     }
 }

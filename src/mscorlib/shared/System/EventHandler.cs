@@ -4,8 +4,7 @@
 
 using System;
 
-namespace System
-{
+namespace System {
     [Serializable]
     public delegate void EventHandler(Object sender, EventArgs e);
 

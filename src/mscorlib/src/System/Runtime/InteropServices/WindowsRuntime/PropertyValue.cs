@@ -11,11 +11,9 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Security;
 
-namespace System.Runtime.InteropServices.WindowsRuntime
-{
+namespace System.Runtime.InteropServices.WindowsRuntime {
     // Note this is a copy of the PropertyType enumeration from Windows.Foundation.winmd
-    internal enum PropertyType
-    {
+    internal enum PropertyType {
         // WARNING: These values have to match enum Windows.Foundation.PropertyType !!!
         Empty = 0,
         UInt8 = 1,

@@ -6,55 +6,43 @@ using System;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 
-namespace System.Security
-{
-    public sealed partial class SecureString : IDisposable
-    {
+namespace System.Security {
+    public sealed partial class SecureString : IDisposable {
         private const int MaxLength = 65536;
         private readonly object _methodLock = new object();
         private bool _readOnly;
         private int _decryptedLength;
 
-        public unsafe SecureString()
-        {
+        public unsafe SecureString() {
             InitializeSecureString(null, 0);
         }
 
         [CLSCompliant(false)]
-        public unsafe SecureString(char* value, int length)
-        {
-            if (value == null)
-            {
+        public unsafe SecureString(char* value, int length) {
+            if (value == null) {
                 throw new ArgumentNullException(nameof(value));
             }
-            if (length < 0)
-            {
+            if (length < 0) {
                 throw new ArgumentOutOfRangeException(nameof(length), SR.ArgumentOutOfRange_NeedNonNegNum);
             }
-            if (length > MaxLength)
-            {
+            if (length > MaxLength) {
                 throw new ArgumentOutOfRangeException(nameof(length), SR.ArgumentOutOfRange_Length);
             }
 
             InitializeSecureString(value, length);
         }
 
-        public int Length
-        {
-            get
-            {
-                lock (_methodLock)
-                {
+        public int Length {
+            get {
+                lock (_methodLock) {
                     EnsureNotDisposed();
                     return _decryptedLength;
                 }
             }
         }
 
-        public void AppendChar(char c)
-        {
-            lock (_methodLock)
-            {
+        public void AppendChar(char c) {
+            lock (_methodLock) {
                 EnsureNotDisposed();
                 EnsureNotReadOnly();
                 AppendCharCore(c);
@@ -62,10 +50,8 @@ namespace System.Security
         }
 
         // clears the current contents. Only available if writable
-        public void Clear()
-        {
-            lock (_methodLock)
-            {
+        public void Clear() {
+            lock (_methodLock) {
                 EnsureNotDisposed();
                 EnsureNotReadOnly();
                 ClearCore();
@@ -73,29 +59,22 @@ namespace System.Security
         }
 
         // Do a deep-copy of the SecureString 
-        public SecureString Copy()
-        {
-            lock (_methodLock)
-            {
+        public SecureString Copy() {
+            lock (_methodLock) {
                 EnsureNotDisposed();
                 return new SecureString(this);
             }
         }
 
-        public void Dispose()
-        {
-            lock (_methodLock)
-            {
+        public void Dispose() {
+            lock (_methodLock) {
                 DisposeCore();
             }
         }
 
-        public void InsertAt(int index, char c)
-        {
-            lock (_methodLock)
-            {
-                if (index < 0 || index > _decryptedLength)
-                {
+        public void InsertAt(int index, char c) {
+            lock (_methodLock) {
+                if (index < 0 || index > _decryptedLength) {
                     throw new ArgumentOutOfRangeException(nameof(index), SR.ArgumentOutOfRange_IndexString);
                 }
 
@@ -106,33 +85,26 @@ namespace System.Security
             }
         }
 
-        public bool IsReadOnly()
-        {
-            lock (_methodLock)
-            {
+        public bool IsReadOnly() {
+            lock (_methodLock) {
                 EnsureNotDisposed();
                 return _readOnly;
             }
         }
 
-        public void MakeReadOnly()
-        {
-            lock (_methodLock)
-            {
+        public void MakeReadOnly() {
+            lock (_methodLock) {
                 EnsureNotDisposed();
                 _readOnly = true;
             }
         }
 
-        public void RemoveAt(int index)
-        {
-            lock (_methodLock)
-            {
+        public void RemoveAt(int index) {
+            lock (_methodLock) {
                 EnsureNotDisposed();
                 EnsureNotReadOnly();
 
-                if (index < 0 || index >= _decryptedLength)
-                {
+                if (index < 0 || index >= _decryptedLength) {
                     throw new ArgumentOutOfRangeException(nameof(index), SR.ArgumentOutOfRange_IndexString);
                 }
 
@@ -140,12 +112,9 @@ namespace System.Security
             }
         }
 
-        public void SetAt(int index, char c)
-        {
-            lock (_methodLock)
-            {
-                if (index < 0 || index >= _decryptedLength)
-                {
+        public void SetAt(int index, char c) {
+            lock (_methodLock) {
+                if (index < 0 || index >= _decryptedLength) {
                     throw new ArgumentOutOfRangeException(nameof(index), SR.ArgumentOutOfRange_IndexString);
                 }
                 Debug.Assert(index <= Int32.MaxValue / sizeof(char));
@@ -157,31 +126,24 @@ namespace System.Security
             }
         }
 
-        private void EnsureNotReadOnly()
-        {
-            if (_readOnly)
-            {
+        private void EnsureNotReadOnly() {
+            if (_readOnly) {
                 throw new InvalidOperationException(SR.InvalidOperation_ReadOnly);
             }
         }
 
-        internal unsafe IntPtr MarshalToString(bool globalAlloc, bool unicode)
-        {
-            lock (_methodLock)
-            {
+        internal unsafe IntPtr MarshalToString(bool globalAlloc, bool unicode) {
+            lock (_methodLock) {
                 EnsureNotDisposed();
                 return MarshalToStringCore(globalAlloc, unicode);
             }
         }
 
-        private static void MarshalFree(IntPtr ptr, bool globalAlloc)
-        {
-            if (globalAlloc)
-            {
+        private static void MarshalFree(IntPtr ptr, bool globalAlloc) {
+            if (globalAlloc) {
                 Marshal.FreeHGlobal(ptr);
             }
-            else
-            {
+            else {
                 Marshal.FreeCoTaskMem(ptr);
             }
         }

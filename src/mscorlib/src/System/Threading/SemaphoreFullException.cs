@@ -6,26 +6,20 @@ using System;
 using System.Runtime.Serialization;
 using System.Runtime.InteropServices;
 
-namespace System.Threading
-{
+namespace System.Threading {
     [Serializable]
     [ComVisibleAttribute(false)]
-    public class SemaphoreFullException : SystemException
-    {
-        public SemaphoreFullException() : base(SR.Threading_SemaphoreFullException)
-        {
+    public class SemaphoreFullException : SystemException {
+        public SemaphoreFullException() : base(SR.Threading_SemaphoreFullException) {
         }
 
-        public SemaphoreFullException(String message) : base(message)
-        {
+        public SemaphoreFullException(String message) : base(message) {
         }
 
-        public SemaphoreFullException(String message, Exception innerException) : base(message, innerException)
-        {
+        public SemaphoreFullException(String message, Exception innerException) : base(message, innerException) {
         }
 
-        protected SemaphoreFullException(SerializationInfo info, StreamingContext context) : base(info, context)
-        {
+        protected SemaphoreFullException(SerializationInfo info, StreamingContext context) : base(info, context) {
         }
     }
 }

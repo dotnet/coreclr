@@ -8,10 +8,8 @@ using System.Reflection;
 using System.Diagnostics;
 using System.Collections.Generic;
 
-namespace System
-{
-    internal static class MemberSerializationStringGenerator
-    {
+namespace System {
+    internal static class MemberSerializationStringGenerator {
         //
         // Generate the "Signature2" binary serialization string for PropertyInfos
         //

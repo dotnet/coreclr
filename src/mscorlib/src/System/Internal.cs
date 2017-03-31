@@ -27,10 +27,8 @@ using System.Runtime.InteropServices.WindowsRuntime;
 // mscorlib would like to have its literal strings frozen if possible
 [assembly: System.Runtime.CompilerServices.StringFreezingAttribute()]
 
-namespace System
-{
-    static class CommonlyUsedGenericInstantiations
-    {
+namespace System {
+    static class CommonlyUsedGenericInstantiations {
         // This method is purely an aid for NGen to statically deduce which
         // instantiations to save in the ngen image.
         // Otherwise, the JIT-compiler gets used, which is bad for working-set.
@@ -45,8 +43,7 @@ namespace System
         // instantiation closure process is driven by "fixup" references 
         // left in the final code stream.
         [MethodImplAttribute(MethodImplOptions.NoOptimization)]
-        static CommonlyUsedGenericInstantiations()
-        {
+        static CommonlyUsedGenericInstantiations() {
             // Make absolutely sure we include some of the most common 
             // instantiations here in mscorlib's ngen image.
             // Note that reference type instantiations are already included
@@ -157,16 +154,14 @@ namespace System
 #pragma warning restore 4014
         }
 
-        private static T NullableHelper<T>() where T : struct
-        {
+        private static T NullableHelper<T>() where T : struct {
             Nullable.Compare<T>(null, null);
             Nullable.Equals<T>(null, null);
             Nullable<T> nullable = new Nullable<T>();
             return nullable.GetValueOrDefault();
         }
 
-        private static void SZArrayHelper<T>(SZArrayHelper oSZArrayHelper)
-        {
+        private static void SZArrayHelper<T>(SZArrayHelper oSZArrayHelper) {
             // Instantiate common methods for IList implementation on Array
             oSZArrayHelper.get_Count<T>();
             oSZArrayHelper.get_Item<T>(0);
@@ -175,21 +170,18 @@ namespace System
 
         // System.Runtime.CompilerServices.AsyncVoidMethodBuilder
         // System.Runtime.CompilerServices.TaskAwaiter
-        private static async void AsyncHelper<T>()
-        {
+        private static async void AsyncHelper<T>() {
             await Task.Delay(1);
         }
         // System.Runtime.CompilerServices.AsyncTaskMethodBuilder`1[System.__Canon]
         // System.Runtime.CompilerServices.TaskAwaiter'[System.__Canon]
-        private static async Task<String> AsyncHelper2<T>()
-        {
+        private static async Task<String> AsyncHelper2<T>() {
             return await Task.FromResult<string>("");
         }
 
         // System.Runtime.CompilerServices.AsyncTaskMethodBuilder
         // System.Runtime.CompilerServices.AsyncTaskMethodBuilder'1[VoidTaskResult]
-        private static async Task AsyncHelper3()
-        {
+        private static async Task AsyncHelper3() {
             await Task.FromResult<string>("");
         }
 
@@ -202,8 +194,7 @@ namespace System
         // typed as matching instantiations of mscorlib copies of WinRT interfaces (IIterable<T>, IVector<T>,
         // IMap<K, V>, ...) which is necessary to generate all required IL stubs.
 
-        private static void CommonlyUsedWinRTRedirectedInterfaceStubs()
-        {
+        private static void CommonlyUsedWinRTRedirectedInterfaceStubs() {
             WinRT_IEnumerable<byte>(null, null, null);
             WinRT_IEnumerable<char>(null, null, null);
             WinRT_IEnumerable<short>(null, null, null);
@@ -248,15 +239,13 @@ namespace System
             WinRT_Nullable<double>();
         }
 
-        private static void WinRT_IEnumerable<T>(IterableToEnumerableAdapter iterableToEnumerableAdapter, EnumerableToIterableAdapter enumerableToIterableAdapter, IIterable<T> iterable)
-        {
+        private static void WinRT_IEnumerable<T>(IterableToEnumerableAdapter iterableToEnumerableAdapter, EnumerableToIterableAdapter enumerableToIterableAdapter, IIterable<T> iterable) {
             // instantiate stubs for the one method on IEnumerable<T> and the one method on IIterable<T>
             iterableToEnumerableAdapter.GetEnumerator_Stub<T>();
             enumerableToIterableAdapter.First_Stub<T>();
         }
 
-        private static void WinRT_IList<T>(VectorToListAdapter vectorToListAdapter, VectorToCollectionAdapter vectorToCollectionAdapter, ListToVectorAdapter listToVectorAdapter, IVector<T> vector)
-        {
+        private static void WinRT_IList<T>(VectorToListAdapter vectorToListAdapter, VectorToCollectionAdapter vectorToCollectionAdapter, ListToVectorAdapter listToVectorAdapter, IVector<T> vector) {
             WinRT_IEnumerable<T>(null, null, null);
 
             // instantiate stubs for commonly used methods on IList<T> and ICollection<T>
@@ -279,16 +268,14 @@ namespace System
             listToVectorAdapter.Clear<T>();
         }
 
-        private static void WinRT_IReadOnlyCollection<T>(VectorViewToReadOnlyCollectionAdapter vectorViewToReadOnlyCollectionAdapter)
-        {
+        private static void WinRT_IReadOnlyCollection<T>(VectorViewToReadOnlyCollectionAdapter vectorViewToReadOnlyCollectionAdapter) {
             WinRT_IEnumerable<T>(null, null, null);
 
             // instantiate stubs for commonly used methods on IReadOnlyCollection<T>
             vectorViewToReadOnlyCollectionAdapter.Count<T>();
         }
 
-        private static void WinRT_IReadOnlyList<T>(IVectorViewToIReadOnlyListAdapter vectorToListAdapter, IReadOnlyListToIVectorViewAdapter listToVectorAdapter, IVectorView<T> vectorView)
-        {
+        private static void WinRT_IReadOnlyList<T>(IVectorViewToIReadOnlyListAdapter vectorToListAdapter, IReadOnlyListToIVectorViewAdapter listToVectorAdapter, IVectorView<T> vectorView) {
             WinRT_IEnumerable<T>(null, null, null);
             WinRT_IReadOnlyCollection<T>(null);
 
@@ -300,8 +287,7 @@ namespace System
             listToVectorAdapter.Size<T>();
         }
 
-        private static void WinRT_IDictionary<K, V>(MapToDictionaryAdapter mapToDictionaryAdapter, MapToCollectionAdapter mapToCollectionAdapter, DictionaryToMapAdapter dictionaryToMapAdapter, IMap<K, V> map)
-        {
+        private static void WinRT_IDictionary<K, V>(MapToDictionaryAdapter mapToDictionaryAdapter, MapToCollectionAdapter mapToCollectionAdapter, DictionaryToMapAdapter dictionaryToMapAdapter, IMap<K, V> map) {
             WinRT_IEnumerable<KeyValuePair<K, V>>(null, null, null);
 
             // instantiate stubs for commonly used methods on IDictionary<K, V> and ICollection<KeyValuePair<K, V>>
@@ -325,8 +311,7 @@ namespace System
             dictionaryToMapAdapter.Clear<K, V>();
         }
 
-        private static void WinRT_IReadOnlyDictionary<K, V>(IMapViewToIReadOnlyDictionaryAdapter mapToDictionaryAdapter, IReadOnlyDictionaryToIMapViewAdapter dictionaryToMapAdapter, IMapView<K, V> mapView, MapViewToReadOnlyCollectionAdapter mapViewToReadOnlyCollectionAdapter)
-        {
+        private static void WinRT_IReadOnlyDictionary<K, V>(IMapViewToIReadOnlyDictionaryAdapter mapToDictionaryAdapter, IReadOnlyDictionaryToIMapViewAdapter dictionaryToMapAdapter, IMapView<K, V> mapView, MapViewToReadOnlyCollectionAdapter mapViewToReadOnlyCollectionAdapter) {
             WinRT_IEnumerable<KeyValuePair<K, V>>(null, null, null);
             WinRT_IReadOnlyCollection<KeyValuePair<K, V>>(null);
 
@@ -345,8 +330,7 @@ namespace System
             dictionaryToMapAdapter.HasKey<K, V>(default(K));
         }
 
-        private static void WinRT_Nullable<T>() where T : struct
-        {
+        private static void WinRT_Nullable<T>() where T : struct {
             Nullable<T> nullable = new Nullable<T>();
             NullableMarshaler.ConvertToNative(ref nullable);
             NullableMarshaler.ConvertToManagedRetVoid(IntPtr.Zero, ref nullable);

@@ -14,26 +14,21 @@
 using System;
 using System.Runtime.Serialization;
 
-namespace System
-{
+namespace System {
     [Serializable]
-    public class EntryPointNotFoundException : TypeLoadException
-    {
+    public class EntryPointNotFoundException : TypeLoadException {
         public EntryPointNotFoundException()
-            : base(SR.Arg_EntryPointNotFoundException)
-        {
+            : base(SR.Arg_EntryPointNotFoundException) {
             HResult = __HResults.COR_E_ENTRYPOINTNOTFOUND;
         }
 
         public EntryPointNotFoundException(String message)
-            : base(message)
-        {
+            : base(message) {
             HResult = __HResults.COR_E_ENTRYPOINTNOTFOUND;
         }
 
         public EntryPointNotFoundException(String message, Exception inner)
-            : base(message, inner)
-        {
+            : base(message, inner) {
             HResult = __HResults.COR_E_ENTRYPOINTNOTFOUND;
         }
 

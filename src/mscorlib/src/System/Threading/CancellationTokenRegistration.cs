@@ -8,23 +8,20 @@
 using System.Diagnostics.Contracts;
 using System.Runtime.CompilerServices;
 
-namespace System.Threading
-{
+namespace System.Threading {
     /// <summary>
     /// Represents a callback delegate that has been registered with a <see cref="T:System.Threading.CancellationToken">CancellationToken</see>.
     /// </summary>
     /// <remarks>
     /// To unregister a callback, dispose the corresponding Registration instance.
     /// </remarks>
-    public struct CancellationTokenRegistration : IEquatable<CancellationTokenRegistration>, IDisposable
-    {
+    public struct CancellationTokenRegistration : IEquatable<CancellationTokenRegistration>, IDisposable {
         private readonly CancellationCallbackInfo m_callbackInfo;
         private readonly SparselyPopulatedArrayAddInfo<CancellationCallbackInfo> m_registrationInfo;
 
         internal CancellationTokenRegistration(
             CancellationCallbackInfo callbackInfo,
-            SparselyPopulatedArrayAddInfo<CancellationCallbackInfo> registrationInfo)
-        {
+            SparselyPopulatedArrayAddInfo<CancellationCallbackInfo> registrationInfo) {
             m_callbackInfo = callbackInfo;
             m_registrationInfo = registrationInfo;
         }
@@ -35,8 +32,7 @@ namespace System.Threading
         /// </summary>
         /// <returns>True if the callback was found and deregistered, false otherwise.</returns>
         [FriendAccessAllowed]
-        internal bool TryDeregister()
-        {
+        internal bool TryDeregister() {
             if (m_registrationInfo.Source == null)  //can be null for dummy registrations.
                 return false;
 
@@ -57,8 +53,7 @@ namespace System.Threading
         /// If the target callback is currently executing this method will wait until it completes, except
         /// in the degenerate cases where a callback method deregisters itself.
         /// </summary>
-        public void Dispose()
-        {
+        public void Dispose() {
             // Remove the entry from the array.
             // This call includes a full memory fence which prevents potential reorderings of the reads below
             bool deregisterOccurred = TryDeregister();
@@ -73,14 +68,13 @@ namespace System.Threading
             //       => poll until cts.ExecutingCallback is not the one we are trying to deregister.
 
             var callbackInfo = m_callbackInfo;
-            if (callbackInfo != null)
-            {
+            if (callbackInfo != null) {
                 var tokenSource = callbackInfo.CancellationTokenSource;
                 if (tokenSource.IsCancellationRequested && //running callbacks has commenced.
                     !tokenSource.IsCancellationCompleted && //running callbacks hasn't finished
                     !deregisterOccurred && //deregistration failed (ie the callback is missing from the list)
                     tokenSource.ThreadIDExecutingCallbacks != Thread.CurrentThread.ManagedThreadId) //the executingThreadID is not this threadID.
-                {
+{
                     // Callback execution is in progress, the executing thread is different to us and has taken the callback for execution
                     // so observe and wait until this target callback is no longer the executing callback.
                     tokenSource.WaitForCallbackToComplete(m_callbackInfo);
@@ -96,8 +90,7 @@ namespace System.Threading
         /// <param name="left">The first instance.</param>
         /// <param name="right">The second instance.</param>
         /// <returns>True if the instances are equal; otherwise, false.</returns>
-        public static bool operator ==(CancellationTokenRegistration left, CancellationTokenRegistration right)
-        {
+        public static bool operator ==(CancellationTokenRegistration left, CancellationTokenRegistration right) {
             return left.Equals(right);
         }
 
@@ -107,8 +100,7 @@ namespace System.Threading
         /// <param name="left">The first instance.</param>
         /// <param name="right">The second instance.</param>
         /// <returns>True if the instances are not equal; otherwise, false.</returns>
-        public static bool operator !=(CancellationTokenRegistration left, CancellationTokenRegistration right)
-        {
+        public static bool operator !=(CancellationTokenRegistration left, CancellationTokenRegistration right) {
             return !left.Equals(right);
         }
 
@@ -122,8 +114,7 @@ namespace System.Threading
         /// they both refer to the output of a single call to the same Register method of a 
         /// <see cref="T:System.Threading.CancellationToken">CancellationToken</see>. 
         /// </returns>
-        public override bool Equals(object obj)
-        {
+        public override bool Equals(object obj) {
             return ((obj is CancellationTokenRegistration) && Equals((CancellationTokenRegistration)obj));
         }
 
@@ -137,8 +128,7 @@ namespace System.Threading
         /// they both refer to the output of a single call to the same Register method of a 
         /// <see cref="T:System.Threading.CancellationToken">CancellationToken</see>. 
         /// </returns>
-        public bool Equals(CancellationTokenRegistration other)
-        {
+        public bool Equals(CancellationTokenRegistration other) {
             return m_callbackInfo == other.m_callbackInfo &&
                    m_registrationInfo.Source == other.m_registrationInfo.Source &&
                    m_registrationInfo.Index == other.m_registrationInfo.Index;
@@ -148,8 +138,7 @@ namespace System.Threading
         /// Serves as a hash function for a <see cref="T:System.Threading.CancellationTokenRegistration">CancellationTokenRegistration.</see>.
         /// </summary>
         /// <returns>A hash code for the current <see cref="T:System.Threading.CancellationTokenRegistration">CancellationTokenRegistration</see> instance.</returns>
-        public override int GetHashCode()
-        {
+        public override int GetHashCode() {
             if (m_registrationInfo.Source != null)
                 return m_registrationInfo.Source.GetHashCode() ^ m_registrationInfo.Index.GetHashCode();
 

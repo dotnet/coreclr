@@ -11,37 +11,31 @@ namespace Microsoft.Diagnostics.Tracing
 namespace System.Diagnostics.Tracing
 #endif
 {
-    internal sealed class ArrayTypeInfo : TraceLoggingTypeInfo
-    {
+    internal sealed class ArrayTypeInfo : TraceLoggingTypeInfo {
         private readonly TraceLoggingTypeInfo elementInfo;
 
         public ArrayTypeInfo(Type type, TraceLoggingTypeInfo elementInfo)
-            : base(type)
-        {
+            : base(type) {
             this.elementInfo = elementInfo;
         }
 
         public override void WriteMetadata(
             TraceLoggingMetadataCollector collector,
             string name,
-            EventFieldFormat format)
-        {
+            EventFieldFormat format) {
             collector.BeginBufferedArray();
             elementInfo.WriteMetadata(collector, name, format);
             collector.EndBufferedArray();
         }
 
-        public override void WriteData(TraceLoggingDataCollector collector, PropertyValue value)
-        {
+        public override void WriteData(TraceLoggingDataCollector collector, PropertyValue value) {
             var bookmark = collector.BeginBufferedArray();
 
             var count = 0;
             Array array = (Array)value.ReferenceValue;
-            if (array != null)
-            {
+            if (array != null) {
                 count = array.Length;
-                for (int i = 0; i < array.Length; i++)
-                {
+                for (int i = 0; i < array.Length; i++) {
                     elementInfo.WriteData(collector, elementInfo.PropertyValueFactory(array.GetValue(i)));
                 }
             }
@@ -49,12 +43,10 @@ namespace System.Diagnostics.Tracing
             collector.EndBufferedArray(bookmark, count);
         }
 
-        public override object GetData(object value)
-        {
+        public override object GetData(object value) {
             var array = (Array)value;
             var serializedArray = new object[array.Length];
-            for (int i = 0; i < array.Length; i++)
-            {
+            for (int i = 0; i < array.Length; i++) {
                 serializedArray[i] = elementInfo.GetData(array.GetValue(i));
             }
             return serializedArray;

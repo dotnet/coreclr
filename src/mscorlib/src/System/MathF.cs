@@ -17,10 +17,8 @@ using System.Runtime.ConstrainedExecution;
 using System.Runtime.Versioning;
 using System.Diagnostics.Contracts;
 
-namespace System
-{
-    public static class MathF
-    {
+namespace System {
+    public static class MathF {
         private static float singleRoundLimit = 1e8f;
 
         private const int maxRoundingDigits = 6;
@@ -63,53 +61,43 @@ namespace System
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         public static extern float Floor(float x);
 
-        public static float IEEERemainder(float x, float y)
-        {
-            if (float.IsNaN(x))
-            {
+        public static float IEEERemainder(float x, float y) {
+            if (float.IsNaN(x)) {
                 return x; // IEEE 754-2008: NaN payload must be preserved
             }
 
-            if (float.IsNaN(y))
-            {
+            if (float.IsNaN(y)) {
                 return y; // IEEE 754-2008: NaN payload must be preserved
             }
 
             var regularMod = x % y;
 
-            if (float.IsNaN(regularMod))
-            {
+            if (float.IsNaN(regularMod)) {
                 return float.NaN;
             }
 
-            if ((regularMod == 0) && float.IsNegative(x))
-            {
+            if ((regularMod == 0) && float.IsNegative(x)) {
                 return float.NegativeZero;
             }
 
             var alternativeResult = (regularMod - (Abs(y) * Sign(x)));
 
-            if (Abs(alternativeResult) == Abs(regularMod))
-            {
+            if (Abs(alternativeResult) == Abs(regularMod)) {
                 var divisionResult = x / y;
                 var roundedResult = Round(divisionResult);
 
-                if (Abs(roundedResult) > Abs(divisionResult))
-                {
+                if (Abs(roundedResult) > Abs(divisionResult)) {
                     return alternativeResult;
                 }
-                else
-                {
+                else {
                     return regularMod;
                 }
             }
 
-            if (Abs(alternativeResult) < Abs(regularMod))
-            {
+            if (Abs(alternativeResult) < Abs(regularMod)) {
                 return alternativeResult;
             }
-            else
-            {
+            else {
                 return regularMod;
             }
         }
@@ -117,25 +105,20 @@ namespace System
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         public static extern float Log(float x);
 
-        public static float Log(float x, float y)
-        {
-            if (float.IsNaN(x))
-            {
+        public static float Log(float x, float y) {
+            if (float.IsNaN(x)) {
                 return x; // IEEE 754-2008: NaN payload must be preserved
             }
 
-            if (float.IsNaN(y))
-            {
+            if (float.IsNaN(y)) {
                 return y; // IEEE 754-2008: NaN payload must be preserved
             }
 
-            if (y == 1)
-            {
+            if (y == 1) {
                 return float.NaN;
             }
 
-            if ((x != 1) && ((y == 0) || float.IsPositiveInfinity(y)))
-            {
+            if ((x != 1) && ((y == 0) || float.IsPositiveInfinity(y))) {
                 return float.NaN;
             }
 
@@ -155,10 +138,8 @@ namespace System
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         public static extern float Round(float x);
 
-        public static float Round(float x, int digits)
-        {
-            if ((digits < 0) || (digits > maxRoundingDigits))
-            {
+        public static float Round(float x, int digits) {
+            if ((digits < 0) || (digits > maxRoundingDigits)) {
                 throw new ArgumentOutOfRangeException(nameof(digits), SR.ArgumentOutOfRange_RoundingDigits);
             }
             Contract.EndContractBlock();
@@ -166,15 +147,12 @@ namespace System
             return InternalRound(x, digits, MidpointRounding.ToEven);
         }
 
-        public static float Round(float x, int digits, MidpointRounding mode)
-        {
-            if ((digits < 0) || (digits > maxRoundingDigits))
-            {
+        public static float Round(float x, int digits, MidpointRounding mode) {
+            if ((digits < 0) || (digits > maxRoundingDigits)) {
                 throw new ArgumentOutOfRangeException(nameof(digits), SR.ArgumentOutOfRange_RoundingDigits);
             }
 
-            if (mode < MidpointRounding.ToEven || mode > MidpointRounding.AwayFromZero)
-            {
+            if (mode < MidpointRounding.ToEven || mode > MidpointRounding.AwayFromZero) {
                 throw new ArgumentException(SR.Format(SR.Argument_InvalidEnum, mode, nameof(MidpointRounding)), nameof(mode));
             }
             Contract.EndContractBlock();
@@ -182,10 +160,8 @@ namespace System
             return InternalRound(x, digits, mode);
         }
 
-        public static float Round(float x, MidpointRounding mode)
-        {
-            if (mode < MidpointRounding.ToEven || mode > MidpointRounding.AwayFromZero)
-            {
+        public static float Round(float x, MidpointRounding mode) {
+            if (mode < MidpointRounding.ToEven || mode > MidpointRounding.AwayFromZero) {
                 throw new ArgumentException(SR.Format(SR.Argument_InvalidEnum, mode, nameof(MidpointRounding)), nameof(mode));
             }
             Contract.EndContractBlock();
@@ -212,25 +188,20 @@ namespace System
 
         public static float Truncate(float x) => InternalTruncate(x);
 
-        private static unsafe float InternalRound(float x, int digits, MidpointRounding mode)
-        {
-            if (Abs(x) < singleRoundLimit)
-            {
+        private static unsafe float InternalRound(float x, int digits, MidpointRounding mode) {
+            if (Abs(x) < singleRoundLimit) {
                 var power10 = roundPower10Single[digits];
 
                 x *= power10;
 
-                if (mode == MidpointRounding.AwayFromZero)
-                {
+                if (mode == MidpointRounding.AwayFromZero) {
                     var fraction = SplitFractionSingle(&x);
 
-                    if (Abs(fraction) >= 0.5f)
-                    {
+                    if (Abs(fraction) >= 0.5f) {
                         x += Sign(fraction);
                     }
                 }
-                else
-                {
+                else {
                     x = Round(x);
                 }
 
@@ -240,8 +211,7 @@ namespace System
             return x;
         }
 
-        private unsafe static float InternalTruncate(float x)
-        {
+        private unsafe static float InternalTruncate(float x) {
             SplitFractionSingle(&x);
             return x;
         }

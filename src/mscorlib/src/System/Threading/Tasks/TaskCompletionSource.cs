@@ -22,8 +22,7 @@ using System.Threading;
 // Disable the "reference to volatile field not treated as volatile" error.
 #pragma warning disable 0420
 
-namespace System.Threading.Tasks
-{
+namespace System.Threading.Tasks {
     /// <summary>
     /// Represents the producer side of a <see cref="T:System.Threading.Tasks.Task{TResult}"/> unbound to a
     /// delegate, providing access to the consumer side through the <see cref="Task"/> property.
@@ -47,15 +46,13 @@ namespace System.Threading.Tasks
     /// </remarks>
     /// <typeparam name="TResult">The type of the result value assocatied with this <see
     /// cref="TaskCompletionSource{TResult}"/>.</typeparam>
-    public class TaskCompletionSource<TResult>
-    {
+    public class TaskCompletionSource<TResult> {
         private readonly Task<TResult> m_task;
 
         /// <summary>
         /// Creates a <see cref="TaskCompletionSource{TResult}"/>.
         /// </summary>
-        public TaskCompletionSource()
-        {
+        public TaskCompletionSource() {
             m_task = new Task<TResult>();
         }
 
@@ -75,8 +72,7 @@ namespace System.Threading.Tasks
         /// with a <see cref="TaskCompletionSource{TResult}"/>.
         /// </exception>
         public TaskCompletionSource(TaskCreationOptions creationOptions)
-            : this(null, creationOptions)
-        {
+            : this(null, creationOptions) {
         }
 
         /// <summary>
@@ -86,8 +82,7 @@ namespace System.Threading.Tasks
         /// <param name="state">The state to use as the underlying 
         /// <see cref="T:System.Threading.Tasks.Task{TResult}"/>'s AsyncState.</param>
         public TaskCompletionSource(object state)
-            : this(state, TaskCreationOptions.None)
-        {
+            : this(state, TaskCreationOptions.None) {
         }
 
         /// <summary>
@@ -102,8 +97,7 @@ namespace System.Threading.Tasks
         /// The <paramref name="creationOptions"/> represent options invalid for use
         /// with a <see cref="TaskCompletionSource{TResult}"/>.
         /// </exception>
-        public TaskCompletionSource(object state, TaskCreationOptions creationOptions)
-        {
+        public TaskCompletionSource(object state, TaskCreationOptions creationOptions) {
             m_task = new Task<TResult>(state, creationOptions);
         }
 
@@ -120,15 +114,13 @@ namespace System.Threading.Tasks
         /// methods (and their "Try" variants) on this instance all result in the relevant state
         /// transitions on this underlying Task.
         /// </remarks>
-        public Task<TResult> Task
-        {
+        public Task<TResult> Task {
             get { return m_task; }
         }
 
         /// <summary>Spins until the underlying task is completed.</summary>
         /// <remarks>This should only be called if the task is in the process of being completed by another thread.</remarks>
-        private void SpinUntilCompleted()
-        {
+        private void SpinUntilCompleted() {
             // Spin wait until the completion is finalized by another thread.
             var sw = new SpinWait();
             while (!m_task.IsCompleted)
@@ -153,8 +145,7 @@ namespace System.Threading.Tasks
         /// </remarks>
         /// <exception cref="T:System.ArgumentNullException">The <paramref name="exception"/> argument is null.</exception>
         /// <exception cref="T:System.ObjectDisposedException">The <see cref="Task"/> was disposed.</exception>
-        public bool TrySetException(Exception exception)
-        {
+        public bool TrySetException(Exception exception) {
             if (exception == null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.exception);
 
             bool rval = m_task.TrySetException(exception);
@@ -182,13 +173,11 @@ namespace System.Threading.Tasks
         /// <exception cref="T:System.ArgumentException">There are one or more null elements in <paramref name="exceptions"/>.</exception>
         /// <exception cref="T:System.ArgumentException">The <paramref name="exceptions"/> collection is empty.</exception>
         /// <exception cref="T:System.ObjectDisposedException">The <see cref="Task"/> was disposed.</exception>
-        public bool TrySetException(IEnumerable<Exception> exceptions)
-        {
+        public bool TrySetException(IEnumerable<Exception> exceptions) {
             if (exceptions == null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.exceptions);
 
             List<Exception> defensiveCopy = new List<Exception>();
-            foreach (Exception e in exceptions)
-            {
+            foreach (Exception e in exceptions) {
                 if (e == null)
                     ThrowHelper.ThrowArgumentException(ExceptionResource.TaskCompletionSourceT_TrySetException_NullException, ExceptionArgument.exceptions);
                 defensiveCopy.Add(e);
@@ -219,12 +208,10 @@ namespace System.Threading.Tasks
         /// <see cref="System.Threading.Tasks.TaskStatus.Canceled">Canceled</see>.
         /// </exception>
         /// <exception cref="T:System.ObjectDisposedException">The <see cref="Task"/> was disposed.</exception>
-        public void SetException(Exception exception)
-        {
+        public void SetException(Exception exception) {
             if (exception == null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.exception);
 
-            if (!TrySetException(exception))
-            {
+            if (!TrySetException(exception)) {
                 ThrowHelper.ThrowInvalidOperationException(ExceptionResource.TaskT_TransitionToFinal_AlreadyCompleted);
             }
         }
@@ -247,10 +234,8 @@ namespace System.Threading.Tasks
         /// <see cref="System.Threading.Tasks.TaskStatus.Canceled">Canceled</see>.
         /// </exception>
         /// <exception cref="T:System.ObjectDisposedException">The <see cref="Task"/> was disposed.</exception>
-        public void SetException(IEnumerable<Exception> exceptions)
-        {
-            if (!TrySetException(exceptions))
-            {
+        public void SetException(IEnumerable<Exception> exceptions) {
+            if (!TrySetException(exceptions)) {
                 ThrowHelper.ThrowInvalidOperationException(ExceptionResource.TaskT_TransitionToFinal_AlreadyCompleted);
             }
         }
@@ -273,8 +258,7 @@ namespace System.Threading.Tasks
         /// <see cref="System.Threading.Tasks.TaskStatus.Canceled">Canceled</see>.
         /// </remarks>
         /// <exception cref="T:System.ObjectDisposedException">The <see cref="Task"/> was disposed.</exception>
-        public bool TrySetResult(TResult result)
-        {
+        public bool TrySetResult(TResult result) {
             bool rval = m_task.TrySetResult(result);
             if (!rval) SpinUntilCompleted();
             return rval;
@@ -296,8 +280,7 @@ namespace System.Threading.Tasks
         /// <see cref="System.Threading.Tasks.TaskStatus.Canceled">Canceled</see>.
         /// </exception>
         /// <exception cref="T:System.ObjectDisposedException">The <see cref="Task"/> was disposed.</exception>
-        public void SetResult(TResult result)
-        {
+        public void SetResult(TResult result) {
             if (!TrySetResult(result))
                 ThrowHelper.ThrowInvalidOperationException(ExceptionResource.TaskT_TransitionToFinal_AlreadyCompleted);
         }
@@ -317,14 +300,12 @@ namespace System.Threading.Tasks
         /// <see cref="System.Threading.Tasks.TaskStatus.Canceled">Canceled</see>.
         /// </remarks>
         /// <exception cref="T:System.ObjectDisposedException">The <see cref="Task"/> was disposed.</exception>
-        public bool TrySetCanceled()
-        {
+        public bool TrySetCanceled() {
             return TrySetCanceled(default(CancellationToken));
         }
 
         // Enables a token to be stored into the canceled task
-        public bool TrySetCanceled(CancellationToken cancellationToken)
-        {
+        public bool TrySetCanceled(CancellationToken cancellationToken) {
             bool rval = m_task.TrySetCanceled(cancellationToken);
             if (!rval && !m_task.IsCompleted) SpinUntilCompleted();
             return rval;
@@ -344,8 +325,7 @@ namespace System.Threading.Tasks
         /// <see cref="System.Threading.Tasks.TaskStatus.Canceled">Canceled</see>.
         /// </exception>
         /// <exception cref="T:System.ObjectDisposedException">The <see cref="Task"/> was disposed.</exception>
-        public void SetCanceled()
-        {
+        public void SetCanceled() {
             if (!TrySetCanceled())
                 ThrowHelper.ThrowInvalidOperationException(ExceptionResource.TaskT_TransitionToFinal_AlreadyCompleted);
         }

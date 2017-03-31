@@ -7,10 +7,8 @@ using System.Threading.Tasks;
 using Microsoft.Reflection;
 using Microsoft.Win32;
 
-namespace System.Diagnostics.Tracing
-{
-    public partial class EventSource
-    {
+namespace System.Diagnostics.Tracing {
+    public partial class EventSource {
         // ActivityID support (see also WriteEventWithRelatedActivityIdCore)
         /// <summary>
         /// When a thread starts work that is on behalf of 'something else' (typically another 
@@ -29,8 +27,7 @@ namespace System.Diagnostics.Tracing
         /// </summary>
         /// <param name="activityId">A Guid that represents the new activity with which to mark 
         /// the current thread</param>
-        public static void SetCurrentThreadActivityId(Guid activityId)
-        {
+        public static void SetCurrentThreadActivityId(Guid activityId) {
             if (TplEtwProvider.Log != null)
                 TplEtwProvider.Log.SetActivityId(activityId);
 #if FEATURE_MANAGED_ETW
@@ -42,8 +39,7 @@ namespace System.Diagnostics.Tracing
 
             if (UnsafeNativeMethods.ManifestEtw.EventActivityIdControl(
                 UnsafeNativeMethods.ManifestEtw.ActivityControl.EVENT_ACTIVITY_CTRL_GET_SET_ID,
-                ref activityId) == 0)
-            {
+                ref activityId) == 0) {
 #if FEATURE_ACTIVITYSAMPLING
                 var activityDying = s_activityDying;
                 if (activityDying != null && newId != activityId)
@@ -79,8 +75,7 @@ namespace System.Diagnostics.Tracing
         /// the current thread</param>
         /// <param name="oldActivityThatWillContinue">The Guid that represents the current activity  
         /// which will continue at some point in the future, on the current thread</param>
-        public static void SetCurrentThreadActivityId(Guid activityId, out Guid oldActivityThatWillContinue)
-        {
+        public static void SetCurrentThreadActivityId(Guid activityId, out Guid oldActivityThatWillContinue) {
             oldActivityThatWillContinue = activityId;
 #if FEATURE_MANAGED_ETW
             // We ignore errors to keep with the convention that EventSources do not throw errors.
@@ -100,10 +95,8 @@ namespace System.Diagnostics.Tracing
         /// <summary>
         /// Retrieves the ETW activity ID associated with the current thread.
         /// </summary>
-        public static Guid CurrentThreadActivityId
-        {
-            get
-            {
+        public static Guid CurrentThreadActivityId {
+            get {
                 // We ignore errors to keep with the convention that EventSources do not throw 
                 // errors. Note we can't access m_throwOnWrites because this is a static method.
                 Guid retVal = new Guid();
@@ -116,30 +109,24 @@ namespace System.Diagnostics.Tracing
             }
         }
 
-        private int GetParameterCount(EventMetadata eventData)
-        {
+        private int GetParameterCount(EventMetadata eventData) {
             return eventData.Parameters.Length;
         }
 
-        private Type GetDataType(EventMetadata eventData, int parameterId)
-        {
+        private Type GetDataType(EventMetadata eventData, int parameterId) {
             return eventData.Parameters[parameterId].ParameterType;
         }
 
-        private static string GetResourceString(string key, params object[] args)
-        {
+        private static string GetResourceString(string key, params object[] args) {
             return SR.Format(SR.GetResourceString(key), args);
         }
 
         private static readonly bool m_EventSourcePreventRecursion = false;
     }
 
-    internal partial class ManifestBuilder
-    {
-        private string GetTypeNameHelper(Type type)
-        {
-            switch (type.GetTypeCode())
-            {
+    internal partial class ManifestBuilder {
+        private string GetTypeNameHelper(Type type) {
+            switch (type.GetTypeCode()) {
                 case TypeCode.Boolean:
                     return "win:Boolean";
                 case TypeCode.Byte:
@@ -181,27 +168,22 @@ namespace System.Diagnostics.Tracing
         }
     }
 
-    internal partial class EventProvider
-    {
+    internal partial class EventProvider {
         internal unsafe int SetInformation(
             UnsafeNativeMethods.ManifestEtw.EVENT_INFO_CLASS eventInfoClass,
             IntPtr data,
-            uint dataSize)
-        {
+            uint dataSize) {
             int status = UnsafeNativeMethods.ManifestEtw.ERROR_NOT_SUPPORTED;
 
-            if (!m_setInformationMissing)
-            {
-                try
-                {
+            if (!m_setInformationMissing) {
+                try {
                     status = UnsafeNativeMethods.ManifestEtw.EventSetInformation(
                         m_regHandle,
                         eventInfoClass,
                         (void*)data,
                         (int)dataSize);
                 }
-                catch (TypeLoadException)
-                {
+                catch (TypeLoadException) {
                     m_setInformationMissing = true;
                 }
             }
@@ -210,10 +192,8 @@ namespace System.Diagnostics.Tracing
         }
     }
 
-    internal static class Resources
-    {
-        internal static string GetResourceString(string key, params object[] args)
-        {
+    internal static class Resources {
+        internal static string GetResourceString(string key, params object[] args) {
             return SR.Format(SR.GetResourceString(key), args);
         }
     }

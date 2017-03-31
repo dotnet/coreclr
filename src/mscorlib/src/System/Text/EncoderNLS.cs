@@ -7,8 +7,7 @@ using System.Text;
 using System;
 using System.Diagnostics.Contracts;
 
-namespace System.Text
-{
+namespace System.Text {
     // An Encoder is used to encode a sequence of blocks of characters into
     // a sequence of blocks of bytes. Following instantiation of an encoder,
     // sequential blocks of characters are converted into blocks of bytes through
@@ -22,8 +21,7 @@ namespace System.Text
     //
 
     [Serializable]
-    internal class EncoderNLS : Encoder, ISerializable
-    {
+    internal class EncoderNLS : Encoder, ISerializable {
         // Need a place for the last left over character, most of our encodings use this
         internal char charLeftOver;
 
@@ -36,8 +34,7 @@ namespace System.Text
         #region Serialization
 
         // Constructor called by serialization. called during deserialization.
-        internal EncoderNLS(SerializationInfo info, StreamingContext context)
-        {
+        internal EncoderNLS(SerializationInfo info, StreamingContext context) {
             throw new NotSupportedException(
                         String.Format(
                             System.Globalization.CultureInfo.CurrentCulture,
@@ -45,8 +42,7 @@ namespace System.Text
         }
 
         // ISerializable implementation. called during serialization.
-        void ISerializable.GetObjectData(SerializationInfo info, StreamingContext context)
-        {
+        void ISerializable.GetObjectData(SerializationInfo info, StreamingContext context) {
             SerializeEncoder(info);
             info.AddValue("encoding", this.m_encoding);
             info.AddValue("charLeftOver", this.charLeftOver);
@@ -55,29 +51,25 @@ namespace System.Text
 
         #endregion Serialization 
 
-        internal EncoderNLS(Encoding encoding)
-        {
+        internal EncoderNLS(Encoding encoding) {
             this.m_encoding = encoding;
             this.m_fallback = this.m_encoding.EncoderFallback;
             this.Reset();
         }
 
         // This one is used when deserializing (like UTF7Encoding.Encoder)
-        internal EncoderNLS()
-        {
+        internal EncoderNLS() {
             this.m_encoding = null;
             this.Reset();
         }
 
-        public override void Reset()
-        {
+        public override void Reset() {
             this.charLeftOver = (char)0;
             if (m_fallbackBuffer != null)
                 m_fallbackBuffer.Reset();
         }
 
-        public override unsafe int GetByteCount(char[] chars, int index, int count, bool flush)
-        {
+        public override unsafe int GetByteCount(char[] chars, int index, int count, bool flush) {
             // Validate input parameters
             if (chars == null)
                 throw new ArgumentNullException(nameof(chars),
@@ -98,15 +90,13 @@ namespace System.Text
 
             // Just call the pointer version
             int result = -1;
-            fixed (char* pChars = &chars[0])
-            {
+            fixed (char* pChars = &chars[0]) {
                 result = GetByteCount(pChars + index, count, flush);
             }
             return result;
         }
 
-        public unsafe override int GetByteCount(char* chars, int count, bool flush)
-        {
+        public unsafe override int GetByteCount(char* chars, int count, bool flush) {
             // Validate input parameters
             if (chars == null)
                 throw new ArgumentNullException(nameof(chars),
@@ -123,8 +113,7 @@ namespace System.Text
         }
 
         public override unsafe int GetBytes(char[] chars, int charIndex, int charCount,
-                                              byte[] bytes, int byteIndex, bool flush)
-        {
+                                              byte[] bytes, int byteIndex, bool flush) {
             // Validate parameters
             if (chars == null || bytes == null)
                 throw new ArgumentNullException((chars == null ? nameof(chars) : nameof(bytes)),
@@ -159,8 +148,7 @@ namespace System.Text
                                 pBytes + byteIndex, byteCount, flush);
         }
 
-        public unsafe override int GetBytes(char* chars, int charCount, byte* bytes, int byteCount, bool flush)
-        {
+        public unsafe override int GetBytes(char* chars, int charCount, byte* bytes, int byteCount, bool flush) {
             // Validate parameters
             if (chars == null || bytes == null)
                 throw new ArgumentNullException((chars == null ? nameof(chars) : nameof(bytes)),
@@ -180,8 +168,7 @@ namespace System.Text
         // Just call the pointer version.  (This gets bytes)
         public override unsafe void Convert(char[] chars, int charIndex, int charCount,
                                               byte[] bytes, int byteIndex, int byteCount, bool flush,
-                                              out int charsUsed, out int bytesUsed, out bool completed)
-        {
+                                              out int charsUsed, out int bytesUsed, out bool completed) {
             // Validate parameters
             if (chars == null || bytes == null)
                 throw new ArgumentNullException((chars == null ? nameof(chars) : nameof(bytes)),
@@ -212,10 +199,8 @@ namespace System.Text
                 bytes = new byte[1];
 
             // Just call the pointer version (can't do this for non-msft encoders)
-            fixed (char* pChars = &chars[0])
-            {
-                fixed (byte* pBytes = &bytes[0])
-                {
+            fixed (char* pChars = &chars[0]) {
+                fixed (byte* pBytes = &bytes[0]) {
                     Convert(pChars + charIndex, charCount, pBytes + byteIndex, byteCount, flush,
                         out charsUsed, out bytesUsed, out completed);
                 }
@@ -226,8 +211,7 @@ namespace System.Text
         // after setting our appropriate internal variables.  This is getting bytes
         public override unsafe void Convert(char* chars, int charCount,
                                               byte* bytes, int byteCount, bool flush,
-                                              out int charsUsed, out int bytesUsed, out bool completed)
-        {
+                                              out int charsUsed, out int bytesUsed, out bool completed) {
             // Validate input parameters
             if (bytes == null || chars == null)
                 throw new ArgumentNullException(bytes == null ? nameof(bytes) : nameof(chars),
@@ -253,35 +237,28 @@ namespace System.Text
             // Our data thingys are now full, we can return
         }
 
-        public Encoding Encoding
-        {
-            get
-            {
+        public Encoding Encoding {
+            get {
                 return m_encoding;
             }
         }
 
-        public bool MustFlush
-        {
-            get
-            {
+        public bool MustFlush {
+            get {
                 return m_mustFlush;
             }
         }
 
 
         // Anything left in our encoder?
-        internal virtual bool HasState
-        {
-            get
-            {
+        internal virtual bool HasState {
+            get {
                 return (this.charLeftOver != (char)0);
             }
         }
 
         // Allow encoding to clear our must flush instead of throwing (in ThrowBytesOverflow)
-        internal void ClearMustFlush()
-        {
+        internal void ClearMustFlush() {
             m_mustFlush = false;
         }
     }

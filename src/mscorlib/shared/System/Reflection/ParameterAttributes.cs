@@ -5,12 +5,10 @@
 // ParameterAttributes is an enum defining the attributes that may be 
 // associated with a Parameter.  These are defined in CorHdr.h.
 
-namespace System.Reflection
-{
+namespace System.Reflection {
     // This Enum matchs the CorParamAttr defined in CorHdr.h
     [Flags]
-    public enum ParameterAttributes
-    {
+    public enum ParameterAttributes {
         None = 0x0000,      // no flag is specified
         In = 0x0001,     // Param is [In]    
         Out = 0x0002,     // Param is [Out]   

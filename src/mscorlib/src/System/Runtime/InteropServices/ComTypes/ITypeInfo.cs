@@ -13,11 +13,9 @@
 
 using System;
 
-namespace System.Runtime.InteropServices.ComTypes
-{
+namespace System.Runtime.InteropServices.ComTypes {
     [Serializable]
-    public enum TYPEKIND
-    {
+    public enum TYPEKIND {
         TKIND_ENUM = 0,
         TKIND_RECORD = TKIND_ENUM + 1,
         TKIND_MODULE = TKIND_RECORD + 1,
@@ -31,8 +29,7 @@ namespace System.Runtime.InteropServices.ComTypes
 
     [Serializable]
     [Flags()]
-    public enum TYPEFLAGS : short
-    {
+    public enum TYPEFLAGS : short {
         TYPEFLAG_FAPPOBJECT = 0x1,
         TYPEFLAG_FCANCREATE = 0x2,
         TYPEFLAG_FLICENSED = 0x4,
@@ -52,8 +49,7 @@ namespace System.Runtime.InteropServices.ComTypes
 
     [Serializable]
     [Flags()]
-    public enum IMPLTYPEFLAGS
-    {
+    public enum IMPLTYPEFLAGS {
         IMPLTYPEFLAG_FDEFAULT = 0x1,
         IMPLTYPEFLAG_FSOURCE = 0x2,
         IMPLTYPEFLAG_FRESTRICTED = 0x4,
@@ -62,8 +58,7 @@ namespace System.Runtime.InteropServices.ComTypes
 
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
 
-    public struct TYPEATTR
-    {
+    public struct TYPEATTR {
         // Constant used with the memid fields.
         public const int MEMBER_ID_NIL = unchecked((int)0xFFFFFFFF);
 
@@ -90,8 +85,7 @@ namespace System.Runtime.InteropServices.ComTypes
 
     [StructLayout(LayoutKind.Sequential)]
 
-    public struct FUNCDESC
-    {
+    public struct FUNCDESC {
         public int memid;                   //MEMBERID memid;
         public IntPtr lprgscode;            // /* [size_is(cScodes)] */ SCODE RPC_FAR *lprgscode;
         public IntPtr lprgelemdescParam;    // /* [size_is(cParams)] */ ELEMDESC __RPC_FAR *lprgelemdescParam;
@@ -108,8 +102,7 @@ namespace System.Runtime.InteropServices.ComTypes
 
     [Serializable]
     [Flags()]
-    public enum IDLFLAG : short
-    {
+    public enum IDLFLAG : short {
         IDLFLAG_NONE = PARAMFLAG.PARAMFLAG_NONE,
         IDLFLAG_FIN = PARAMFLAG.PARAMFLAG_FIN,
         IDLFLAG_FOUT = PARAMFLAG.PARAMFLAG_FOUT,
@@ -119,16 +112,14 @@ namespace System.Runtime.InteropServices.ComTypes
 
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
 
-    public struct IDLDESC
-    {
+    public struct IDLDESC {
         public IntPtr dwReserved;
         public IDLFLAG wIDLFlags;
     }
 
     [Serializable]
     [Flags()]
-    public enum PARAMFLAG : short
-    {
+    public enum PARAMFLAG : short {
         PARAMFLAG_NONE = 0,
         PARAMFLAG_FIN = 0x1,
         PARAMFLAG_FOUT = 0x2,
@@ -141,30 +132,26 @@ namespace System.Runtime.InteropServices.ComTypes
 
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
 
-    public struct PARAMDESC
-    {
+    public struct PARAMDESC {
         public IntPtr lpVarValue;
         public PARAMFLAG wParamFlags;
     }
 
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
 
-    public struct TYPEDESC
-    {
+    public struct TYPEDESC {
         public IntPtr lpValue;
         public Int16 vt;
     }
 
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
 
-    public struct ELEMDESC
-    {
+    public struct ELEMDESC {
         public TYPEDESC tdesc;
 
         [System.Runtime.InteropServices.StructLayout(LayoutKind.Explicit, CharSet = CharSet.Unicode)]
 
-        public struct DESCUNION
-        {
+        public struct DESCUNION {
             [FieldOffset(0)]
             public IDLDESC idldesc;
             [FieldOffset(0)]
@@ -174,8 +161,7 @@ namespace System.Runtime.InteropServices.ComTypes
     }
 
     [Serializable]
-    public enum VARKIND : int
-    {
+    public enum VARKIND : int {
         VAR_PERINSTANCE = 0x0,
         VAR_STATIC = 0x1,
         VAR_CONST = 0x2,
@@ -184,15 +170,13 @@ namespace System.Runtime.InteropServices.ComTypes
 
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
 
-    public struct VARDESC
-    {
+    public struct VARDESC {
         public int memid;
         public String lpstrSchema;
 
         [System.Runtime.InteropServices.StructLayout(LayoutKind.Explicit, CharSet = CharSet.Unicode)]
 
-        public struct DESCUNION
-        {
+        public struct DESCUNION {
             [FieldOffset(0)]
             public int oInst;
             [FieldOffset(0)]
@@ -208,8 +192,7 @@ namespace System.Runtime.InteropServices.ComTypes
 
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
 
-    public struct DISPPARAMS
-    {
+    public struct DISPPARAMS {
         public IntPtr rgvarg;
         public IntPtr rgdispidNamedArgs;
         public int cArgs;
@@ -218,8 +201,7 @@ namespace System.Runtime.InteropServices.ComTypes
 
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
 
-    public struct EXCEPINFO
-    {
+    public struct EXCEPINFO {
         public Int16 wCode;
         public Int16 wReserved;
         [MarshalAs(UnmanagedType.BStr)] public String bstrSource;
@@ -232,8 +214,7 @@ namespace System.Runtime.InteropServices.ComTypes
     }
 
     [Serializable]
-    public enum FUNCKIND : int
-    {
+    public enum FUNCKIND : int {
         FUNC_VIRTUAL = 0,
         FUNC_PUREVIRTUAL = 1,
         FUNC_NONVIRTUAL = 2,
@@ -243,8 +224,7 @@ namespace System.Runtime.InteropServices.ComTypes
 
     [Serializable]
     [Flags]
-    public enum INVOKEKIND : int
-    {
+    public enum INVOKEKIND : int {
         INVOKE_FUNC = 0x1,
         INVOKE_PROPERTYGET = 0x2,
         INVOKE_PROPERTYPUT = 0x4,
@@ -252,8 +232,7 @@ namespace System.Runtime.InteropServices.ComTypes
     }
 
     [Serializable]
-    public enum CALLCONV : int
-    {
+    public enum CALLCONV : int {
         CC_CDECL = 1,
         CC_MSCPASCAL = 2,
         CC_PASCAL = CC_MSCPASCAL,
@@ -268,8 +247,7 @@ namespace System.Runtime.InteropServices.ComTypes
 
     [Serializable]
     [Flags()]
-    public enum FUNCFLAGS : short
-    {
+    public enum FUNCFLAGS : short {
         FUNCFLAG_FRESTRICTED = 0x1,
         FUNCFLAG_FSOURCE = 0x2,
         FUNCFLAG_FBINDABLE = 0x4,
@@ -287,8 +265,7 @@ namespace System.Runtime.InteropServices.ComTypes
 
     [Serializable]
     [Flags()]
-    public enum VARFLAGS : short
-    {
+    public enum VARFLAGS : short {
         VARFLAG_FREADONLY = 0x1,
         VARFLAG_FSOURCE = 0x2,
         VARFLAG_FBINDABLE = 0x4,
@@ -307,8 +284,7 @@ namespace System.Runtime.InteropServices.ComTypes
     [Guid("00020401-0000-0000-C000-000000000046")]
     [InterfaceTypeAttribute(ComInterfaceType.InterfaceIsIUnknown)]
     [ComImport]
-    public interface ITypeInfo
-    {
+    public interface ITypeInfo {
         void GetTypeAttr(out IntPtr ppTypeAttr);
         void GetTypeComp(out ITypeComp ppTComp);
         void GetFuncDesc(int index, out IntPtr ppFuncDesc);

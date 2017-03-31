@@ -22,8 +22,7 @@
 // "internal" and "external" ModuleBuilders are similar
 //*************************************************************************************************************
 
-namespace System.Reflection.Emit
-{
+namespace System.Reflection.Emit {
     using System;
     using System.Collections.Generic;
     using System.Diagnostics;
@@ -43,8 +42,7 @@ namespace System.Reflection.Emit
 
     // These must match the definitions in Assembly.hpp
     [Flags]
-    internal enum DynamicAssemblyFlags
-    {
+    internal enum DynamicAssemblyFlags {
         None = 0x00000000,
 
         // Security attributes which affect the module security descriptor
@@ -71,13 +69,11 @@ namespace System.Reflection.Emit
     // This also makes the change transparent to the loader. This is good because most of the complexity
     // of Assembly building is in the loader code so not touching that code reduces the chance of 
     // introducing new bugs.
-    internal sealed class InternalAssemblyBuilder : RuntimeAssembly
-    {
+    internal sealed class InternalAssemblyBuilder : RuntimeAssembly {
         private InternalAssemblyBuilder() { }
 
         #region object overrides
-        public override bool Equals(object obj)
-        {
+        public override bool Equals(object obj) {
             if (obj == null)
                 return false;
 
@@ -92,61 +88,48 @@ namespace System.Reflection.Emit
 
         // Assembly methods that are overridden by AssemblyBuilder should be overridden by InternalAssemblyBuilder too
         #region Methods inherited from Assembly
-        public override String[] GetManifestResourceNames()
-        {
+        public override String[] GetManifestResourceNames() {
             throw new NotSupportedException(SR.NotSupported_DynamicAssembly);
         }
 
-        public override FileStream GetFile(String name)
-        {
+        public override FileStream GetFile(String name) {
             throw new NotSupportedException(SR.NotSupported_DynamicAssembly);
         }
 
-        public override FileStream[] GetFiles(bool getResourceModules)
-        {
+        public override FileStream[] GetFiles(bool getResourceModules) {
             throw new NotSupportedException(SR.NotSupported_DynamicAssembly);
         }
 
-        public override Stream GetManifestResourceStream(Type type, String name)
-        {
+        public override Stream GetManifestResourceStream(Type type, String name) {
             throw new NotSupportedException(SR.NotSupported_DynamicAssembly);
         }
 
-        public override Stream GetManifestResourceStream(String name)
-        {
+        public override Stream GetManifestResourceStream(String name) {
             throw new NotSupportedException(SR.NotSupported_DynamicAssembly);
         }
 
-        public override ManifestResourceInfo GetManifestResourceInfo(String resourceName)
-        {
+        public override ManifestResourceInfo GetManifestResourceInfo(String resourceName) {
             throw new NotSupportedException(SR.NotSupported_DynamicAssembly);
         }
 
-        public override String Location
-        {
-            get
-            {
+        public override String Location {
+            get {
                 throw new NotSupportedException(SR.NotSupported_DynamicAssembly);
             }
         }
 
-        public override String CodeBase
-        {
-            get
-            {
+        public override String CodeBase {
+            get {
                 throw new NotSupportedException(SR.NotSupported_DynamicAssembly);
             }
         }
 
-        public override Type[] GetExportedTypes()
-        {
+        public override Type[] GetExportedTypes() {
             throw new NotSupportedException(SR.NotSupported_DynamicAssembly);
         }
 
-        public override String ImageRuntimeVersion
-        {
-            get
-            {
+        public override String ImageRuntimeVersion {
+            get {
                 return RuntimeEnvironment.GetSystemVersion();
             }
         }
@@ -155,14 +138,12 @@ namespace System.Reflection.Emit
 
     // AssemblyBuilder class.
     // deliberately not [serializable]
-    public sealed class AssemblyBuilder : Assembly
-    {
+    public sealed class AssemblyBuilder : Assembly {
         #region FCALL
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         private static extern RuntimeModule GetInMemoryAssemblyModule(RuntimeAssembly assembly);
 
-        private Module nGetInMemoryAssemblyModule()
-        {
+        private Module nGetInMemoryAssemblyModule() {
             return AssemblyBuilder.GetInMemoryAssemblyModule(GetNativeHandle());
         }
 
@@ -177,13 +158,11 @@ namespace System.Reflection.Emit
         private bool m_fManifestModuleUsedAsDefinedModule;
         internal const string MANIFEST_MODULE_NAME = "RefEmit_InMemoryManifestModule";
 
-        internal ModuleBuilder GetModuleBuilder(InternalModuleBuilder module)
-        {
+        internal ModuleBuilder GetModuleBuilder(InternalModuleBuilder module) {
             Contract.Requires(module != null);
             Debug.Assert(this.InternalAssembly == module.Assembly);
 
-            lock (SyncRoot)
-            {
+            lock (SyncRoot) {
                 // in CoreCLR there is only one module in each dynamic assembly, the manifest module
                 if (m_manifestModuleBuilder.InternalModule == module)
                     return m_manifestModuleBuilder;
@@ -192,24 +171,19 @@ namespace System.Reflection.Emit
             }
         }
 
-        internal object SyncRoot
-        {
-            get
-            {
+        internal object SyncRoot {
+            get {
                 return InternalAssembly.SyncRoot;
             }
         }
 
-        internal InternalAssemblyBuilder InternalAssembly
-        {
-            get
-            {
+        internal InternalAssemblyBuilder InternalAssembly {
+            get {
                 return m_internalAssemblyBuilder;
             }
         }
 
-        internal RuntimeAssembly GetNativeHandle()
-        {
+        internal RuntimeAssembly GetNativeHandle() {
             return InternalAssembly.GetNativeHandle();
         }
         #endregion
@@ -222,21 +196,18 @@ namespace System.Reflection.Emit
                                  Evidence evidence,
                                  ref StackCrawlMark stackMark,
                                  IEnumerable<CustomAttributeBuilder> unsafeAssemblyAttributes,
-                                 SecurityContextSource securityContextSource)
-        {
+                                 SecurityContextSource securityContextSource) {
             if (name == null)
                 throw new ArgumentNullException(nameof(name));
 
             if (access != AssemblyBuilderAccess.Run
                 && access != AssemblyBuilderAccess.RunAndCollect
-                )
-            {
+                ) {
                 throw new ArgumentException(SR.Format(SR.Arg_EnumIllegalVal, (int)access), nameof(access));
             }
 
             if (securityContextSource < SecurityContextSource.CurrentAppDomain ||
-                securityContextSource > SecurityContextSource.CurrentAssembly)
-            {
+                securityContextSource > SecurityContextSource.CurrentAssembly) {
                 throw new ArgumentOutOfRangeException(nameof(securityContextSource));
             }
 
@@ -250,22 +221,17 @@ namespace System.Reflection.Emit
             DynamicAssemblyFlags assemblyFlags = DynamicAssemblyFlags.None;
             byte[] securityRulesBlob = null;
             byte[] aptcaBlob = null;
-            if (unsafeAssemblyAttributes != null)
-            {
+            if (unsafeAssemblyAttributes != null) {
                 // Create a copy to ensure that it cannot be modified from another thread
                 // as it is used further below.
                 assemblyAttributes = new List<CustomAttributeBuilder>(unsafeAssemblyAttributes);
 
 #pragma warning disable 618 // We deal with legacy attributes here as well for compat
-                foreach (CustomAttributeBuilder attribute in assemblyAttributes)
-                {
-                    if (attribute.m_con.DeclaringType == typeof(SecurityTransparentAttribute))
-                    {
+                foreach (CustomAttributeBuilder attribute in assemblyAttributes) {
+                    if (attribute.m_con.DeclaringType == typeof(SecurityTransparentAttribute)) {
                         assemblyFlags |= DynamicAssemblyFlags.Transparent;
                     }
-                    else if (attribute.m_con.DeclaringType == typeof(SecurityCriticalAttribute))
-                    {
-                        {
+                    else if (attribute.m_con.DeclaringType == typeof(SecurityCriticalAttribute)) { {
                             assemblyFlags |= DynamicAssemblyFlags.AllCritical;
                         }
                     }
@@ -292,15 +258,13 @@ namespace System.Reflection.Emit
             // We need to do this before setting any CustomAttribute
             InitManifestModule();
 
-            if (assemblyAttributes != null)
-            {
+            if (assemblyAttributes != null) {
                 foreach (CustomAttributeBuilder assemblyAttribute in assemblyAttributes)
                     SetCustomAttribute(assemblyAttribute);
             }
         }
 
-        private void InitManifestModule()
-        {
+        private void InitManifestModule() {
             InternalModuleBuilder modBuilder = (InternalModuleBuilder)nGetInMemoryAssemblyModule();
 
             // Note that this ModuleBuilder cannot be used for RefEmit yet
@@ -330,8 +294,7 @@ namespace System.Reflection.Emit
         [System.Security.DynamicSecurityMethod] // Methods containing StackCrawlMark local var has to be marked DynamicSecurityMethod
         public static AssemblyBuilder DefineDynamicAssembly(
             AssemblyName name,
-            AssemblyBuilderAccess access)
-        {
+            AssemblyBuilderAccess access) {
             Contract.Ensures(Contract.Result<AssemblyBuilder>() != null);
 
             StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
@@ -343,8 +306,7 @@ namespace System.Reflection.Emit
         public static AssemblyBuilder DefineDynamicAssembly(
             AssemblyName name,
             AssemblyBuilderAccess access,
-            IEnumerable<CustomAttributeBuilder> assemblyAttributes)
-        {
+            IEnumerable<CustomAttributeBuilder> assemblyAttributes) {
             Contract.Ensures(Contract.Result<AssemblyBuilder>() != null);
 
             StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
@@ -376,10 +338,8 @@ namespace System.Reflection.Emit
             Evidence evidence,
             ref StackCrawlMark stackMark,
             IEnumerable<CustomAttributeBuilder> unsafeAssemblyAttributes,
-            SecurityContextSource securityContextSource)
-        {
-            lock (typeof(AssemblyBuilderLock))
-            {
+            SecurityContextSource securityContextSource) {
+            lock (typeof(AssemblyBuilderLock)) {
                 // we can only create dynamic assemblies in the current domain
                 return new AssemblyBuilder(AppDomain.CurrentDomain,
                                            name,
@@ -403,8 +363,7 @@ namespace System.Reflection.Emit
         **********************************************/
         [System.Security.DynamicSecurityMethod] // Methods containing StackCrawlMark local var has to be marked DynamicSecurityMethod
         public ModuleBuilder DefineDynamicModule(
-            String name)
-        {
+            String name) {
             Contract.Ensures(Contract.Result<ModuleBuilder>() != null);
 
             StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
@@ -415,7 +374,7 @@ namespace System.Reflection.Emit
         public ModuleBuilder DefineDynamicModule(
             String name,
             bool emitSymbolInfo)         // specify if emit symbol info or not
-        {
+{
             Contract.Ensures(Contract.Result<ModuleBuilder>() != null);
 
             StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
@@ -425,10 +384,8 @@ namespace System.Reflection.Emit
         private ModuleBuilder DefineDynamicModuleInternal(
             String name,
             bool emitSymbolInfo,         // specify if emit symbol info or not
-            ref StackCrawlMark stackMark)
-        {
-            lock (SyncRoot)
-            {
+            ref StackCrawlMark stackMark) {
+            lock (SyncRoot) {
                 return DefineDynamicModuleInternalNoLock(name, emitSymbolInfo, ref stackMark);
             }
         }
@@ -436,8 +393,7 @@ namespace System.Reflection.Emit
         private ModuleBuilder DefineDynamicModuleInternalNoLock(
             String name,
             bool emitSymbolInfo,         // specify if emit symbol info or not
-            ref StackCrawlMark stackMark)
-        {
+            ref StackCrawlMark stackMark) {
             if (name == null)
                 throw new ArgumentNullException(nameof(name));
             if (name.Length == 0)
@@ -463,8 +419,7 @@ namespace System.Reflection.Emit
             dynModule = m_manifestModuleBuilder;
 
             // Create the symbol writer
-            if (emitSymbolInfo)
-            {
+            if (emitSymbolInfo) {
                 writer = SymWrapperCore.SymWriter.CreateSymWriter();
 
                 String fileName = "Unused"; // this symfile is never written to disk so filename does not matter.
@@ -480,8 +435,7 @@ namespace System.Reflection.Emit
             dynModule.SetSymWriter(writer);
             m_assemblyData.AddModule(dynModule);
 
-            if (dynModule == m_manifestModuleBuilder)
-            {   // We are reusing manifest module as user-defined dynamic module
+            if (dynModule == m_manifestModuleBuilder) {   // We are reusing manifest module as user-defined dynamic module
                 m_fManifestModuleUsedAsDefinedModule = true;
             }
 
@@ -490,8 +444,7 @@ namespace System.Reflection.Emit
 
         #endregion
 
-        internal void CheckContext(params Type[][] typess)
-        {
+        internal void CheckContext(params Type[][] typess) {
             if (typess == null)
                 return;
 
@@ -500,13 +453,11 @@ namespace System.Reflection.Emit
                     CheckContext(types);
         }
 
-        internal void CheckContext(params Type[] types)
-        {
+        internal void CheckContext(params Type[] types) {
             if (types == null)
                 return;
 
-            foreach (Type type in types)
-            {
+            foreach (Type type in types) {
                 if (type == null)
                     continue;
 
@@ -525,8 +476,7 @@ namespace System.Reflection.Emit
         }
 
         #region object overrides
-        public override bool Equals(object obj)
-        {
+        public override bool Equals(object obj) {
             return InternalAssembly.Equals(obj);
         }
         // Need a dummy GetHashCode to pair with Equals
@@ -534,188 +484,149 @@ namespace System.Reflection.Emit
         #endregion
 
         #region ICustomAttributeProvider Members
-        public override Object[] GetCustomAttributes(bool inherit)
-        {
+        public override Object[] GetCustomAttributes(bool inherit) {
             return InternalAssembly.GetCustomAttributes(inherit);
         }
 
-        public override Object[] GetCustomAttributes(Type attributeType, bool inherit)
-        {
+        public override Object[] GetCustomAttributes(Type attributeType, bool inherit) {
             return InternalAssembly.GetCustomAttributes(attributeType, inherit);
         }
 
-        public override bool IsDefined(Type attributeType, bool inherit)
-        {
+        public override bool IsDefined(Type attributeType, bool inherit) {
             return InternalAssembly.IsDefined(attributeType, inherit);
         }
 
-        public override IList<CustomAttributeData> GetCustomAttributesData()
-        {
+        public override IList<CustomAttributeData> GetCustomAttributesData() {
             return InternalAssembly.GetCustomAttributesData();
         }
         #endregion
 
         #region Assembly overrides
         // Returns the names of all the resources
-        public override String[] GetManifestResourceNames()
-        {
+        public override String[] GetManifestResourceNames() {
             return InternalAssembly.GetManifestResourceNames();
         }
 
-        public override FileStream GetFile(String name)
-        {
+        public override FileStream GetFile(String name) {
             return InternalAssembly.GetFile(name);
         }
 
-        public override FileStream[] GetFiles(bool getResourceModules)
-        {
+        public override FileStream[] GetFiles(bool getResourceModules) {
             return InternalAssembly.GetFiles(getResourceModules);
         }
 
-        public override Stream GetManifestResourceStream(Type type, String name)
-        {
+        public override Stream GetManifestResourceStream(Type type, String name) {
             return InternalAssembly.GetManifestResourceStream(type, name);
         }
 
-        public override Stream GetManifestResourceStream(String name)
-        {
+        public override Stream GetManifestResourceStream(String name) {
             return InternalAssembly.GetManifestResourceStream(name);
         }
 
-        public override ManifestResourceInfo GetManifestResourceInfo(String resourceName)
-        {
+        public override ManifestResourceInfo GetManifestResourceInfo(String resourceName) {
             return InternalAssembly.GetManifestResourceInfo(resourceName);
         }
 
-        public override String Location
-        {
-            get
-            {
+        public override String Location {
+            get {
                 return InternalAssembly.Location;
             }
         }
 
-        public override String ImageRuntimeVersion
-        {
-            get
-            {
+        public override String ImageRuntimeVersion {
+            get {
                 return InternalAssembly.ImageRuntimeVersion;
             }
         }
 
-        public override String CodeBase
-        {
-            get
-            {
+        public override String CodeBase {
+            get {
                 return InternalAssembly.CodeBase;
             }
         }
 
         // Override the EntryPoint method on Assembly.
         // This doesn't need to be synchronized because it is simple enough
-        public override MethodInfo EntryPoint
-        {
-            get
-            {
+        public override MethodInfo EntryPoint {
+            get {
                 return m_assemblyData.m_entryPointMethod;
             }
         }
 
         // Get an array of all the public types defined in this assembly
-        public override Type[] GetExportedTypes()
-        {
+        public override Type[] GetExportedTypes() {
             return InternalAssembly.GetExportedTypes();
         }
 
-        public override AssemblyName GetName(bool copiedName)
-        {
+        public override AssemblyName GetName(bool copiedName) {
             return InternalAssembly.GetName(copiedName);
         }
 
-        public override String FullName
-        {
-            get
-            {
+        public override String FullName {
+            get {
                 return InternalAssembly.FullName;
             }
         }
 
-        public override Type GetType(String name, bool throwOnError, bool ignoreCase)
-        {
+        public override Type GetType(String name, bool throwOnError, bool ignoreCase) {
             return InternalAssembly.GetType(name, throwOnError, ignoreCase);
         }
 
-        public override Module ManifestModule
-        {
-            get
-            {
+        public override Module ManifestModule {
+            get {
                 return m_manifestModuleBuilder.InternalModule;
             }
         }
 
-        public override bool ReflectionOnly
-        {
-            get
-            {
+        public override bool ReflectionOnly {
+            get {
                 return InternalAssembly.ReflectionOnly;
             }
         }
 
-        public override Module GetModule(String name)
-        {
+        public override Module GetModule(String name) {
             return InternalAssembly.GetModule(name);
         }
 
-        public override AssemblyName[] GetReferencedAssemblies()
-        {
+        public override AssemblyName[] GetReferencedAssemblies() {
             return InternalAssembly.GetReferencedAssemblies();
         }
 
-        public override bool GlobalAssemblyCache
-        {
-            get
-            {
+        public override bool GlobalAssemblyCache {
+            get {
                 return InternalAssembly.GlobalAssemblyCache;
             }
         }
 
-        public override Int64 HostContext
-        {
-            get
-            {
+        public override Int64 HostContext {
+            get {
                 return InternalAssembly.HostContext;
             }
         }
 
-        public override Module[] GetModules(bool getResourceModules)
-        {
+        public override Module[] GetModules(bool getResourceModules) {
             return InternalAssembly.GetModules(getResourceModules);
         }
 
-        public override Module[] GetLoadedModules(bool getResourceModules)
-        {
+        public override Module[] GetLoadedModules(bool getResourceModules) {
             return InternalAssembly.GetLoadedModules(getResourceModules);
         }
 
         [System.Security.DynamicSecurityMethod] // Methods containing StackCrawlMark local var has to be marked DynamicSecurityMethod
-        public override Assembly GetSatelliteAssembly(CultureInfo culture)
-        {
+        public override Assembly GetSatelliteAssembly(CultureInfo culture) {
             StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
             return InternalAssembly.InternalGetSatelliteAssembly(culture, null, ref stackMark);
         }
 
         // Useful for binding to a very specific version of a satellite assembly
         [System.Security.DynamicSecurityMethod] // Methods containing StackCrawlMark local var has to be marked DynamicSecurityMethod
-        public override Assembly GetSatelliteAssembly(CultureInfo culture, Version version)
-        {
+        public override Assembly GetSatelliteAssembly(CultureInfo culture, Version version) {
             StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
             return InternalAssembly.InternalGetSatelliteAssembly(culture, version, ref stackMark);
         }
 
-        public override bool IsDynamic
-        {
-            get
-            {
+        public override bool IsDynamic {
+            get {
                 return true;
             }
         }
@@ -729,16 +640,15 @@ namespace System.Reflection.Emit
         **********************************************/
         public ModuleBuilder GetDynamicModule(
             String name)                   // the name of module for the look up
-        {
-            lock (SyncRoot)
-            {
+{
+            lock (SyncRoot) {
                 return GetDynamicModuleNoLock(name);
             }
         }
 
         private ModuleBuilder GetDynamicModuleNoLock(
             String name)                   // the name of module for the look up
-        {
+{
             if (name == null)
                 throw new ArgumentNullException(nameof(name));
             if (name.Length == 0)
@@ -747,11 +657,9 @@ namespace System.Reflection.Emit
 
             BCLDebug.Log("DYNIL", "## DYNIL LOGGING: AssemblyBuilder.GetDynamicModule( " + name + " )");
             int size = m_assemblyData.m_moduleBuilderList.Count;
-            for (int i = 0; i < size; i++)
-            {
+            for (int i = 0; i < size; i++) {
                 ModuleBuilder moduleBuilder = (ModuleBuilder)m_assemblyData.m_moduleBuilderList[i];
-                if (moduleBuilder.m_moduleData.m_strModuleName.Equals(name))
-                {
+                if (moduleBuilder.m_moduleData.m_strModuleName.Equals(name)) {
                     return moduleBuilder;
                 }
             }
@@ -762,22 +670,19 @@ namespace System.Reflection.Emit
         /**********************************************
         * Use this function if client decides to form the custom attribute blob themselves
         **********************************************/
-        public void SetCustomAttribute(ConstructorInfo con, byte[] binaryAttribute)
-        {
+        public void SetCustomAttribute(ConstructorInfo con, byte[] binaryAttribute) {
             if (con == null)
                 throw new ArgumentNullException(nameof(con));
             if (binaryAttribute == null)
                 throw new ArgumentNullException(nameof(binaryAttribute));
             Contract.EndContractBlock();
 
-            lock (SyncRoot)
-            {
+            lock (SyncRoot) {
                 SetCustomAttributeNoLock(con, binaryAttribute);
             }
         }
 
-        private void SetCustomAttributeNoLock(ConstructorInfo con, byte[] binaryAttribute)
-        {
+        private void SetCustomAttributeNoLock(ConstructorInfo con, byte[] binaryAttribute) {
             TypeBuilder.DefineCustomAttribute(
                 m_manifestModuleBuilder,     // pass in the in-memory assembly module
                 AssemblyBuilderData.m_tkAssembly,           // This is the AssemblyDef token
@@ -787,8 +692,7 @@ namespace System.Reflection.Emit
                 typeof(System.Diagnostics.DebuggableAttribute) == con.DeclaringType);
 
             // Track the CA for persistence
-            if (m_assemblyData.m_access != AssemblyBuilderAccess.Run)
-            {
+            if (m_assemblyData.m_access != AssemblyBuilderAccess.Run) {
                 // tracking the CAs for persistence
                 m_assemblyData.AddCustomAttribute(con, binaryAttribute);
             }
@@ -797,29 +701,24 @@ namespace System.Reflection.Emit
         /**********************************************
         * Use this function if client wishes to build CustomAttribute using CustomAttributeBuilder
         **********************************************/
-        public void SetCustomAttribute(CustomAttributeBuilder customBuilder)
-        {
-            if (customBuilder == null)
-            {
+        public void SetCustomAttribute(CustomAttributeBuilder customBuilder) {
+            if (customBuilder == null) {
                 throw new ArgumentNullException(nameof(customBuilder));
             }
             Contract.EndContractBlock();
 
-            lock (SyncRoot)
-            {
+            lock (SyncRoot) {
                 SetCustomAttributeNoLock(customBuilder);
             }
         }
 
-        private void SetCustomAttributeNoLock(CustomAttributeBuilder customBuilder)
-        {
+        private void SetCustomAttributeNoLock(CustomAttributeBuilder customBuilder) {
             customBuilder.CreateCustomAttribute(
                 m_manifestModuleBuilder,
                 AssemblyBuilderData.m_tkAssembly);          // This is the AssemblyDef token 
 
             // Track the CA for persistence
-            if (m_assemblyData.m_access != AssemblyBuilderAccess.Run)
-            {
+            if (m_assemblyData.m_access != AssemblyBuilderAccess.Run) {
                 m_assemblyData.AddCustomAttribute(customBuilder);
             }
         }

@@ -5,13 +5,10 @@
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 
-namespace System.Buffers
-{
-    internal static class Utilities
-    {
+namespace System.Buffers {
+    internal static class Utilities {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static int SelectBucketIndex(int bufferSize)
-        {
+        internal static int SelectBucketIndex(int bufferSize) {
             uint bitsRemaining = ((uint)bufferSize - 1) >> 4;
 
             int poolIndex = 0;
@@ -25,8 +22,7 @@ namespace System.Buffers
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static int GetMaxSizeForBucket(int binIndex)
-        {
+        internal static int GetMaxSizeForBucket(int binIndex) {
             int maxSize = 16 << binIndex;
             Debug.Assert(maxSize >= 0);
             return maxSize;

@@ -4,20 +4,17 @@
 
 using System.Collections.Generic;
 
-namespace System.Runtime.Serialization
-{
+namespace System.Runtime.Serialization {
     // SafeSerializationEventArgs are provided to the delegates which do safe serialization.  Each delegate
     // serializes its own state into an IDeserializationCallback instance which must, itself, be serializable.
     // These indivdiual states are then added to the SafeSerializationEventArgs in order to be saved away when
     // the original ISerializable type is serialized.
-    public sealed class SafeSerializationEventArgs : EventArgs
-    {
+    public sealed class SafeSerializationEventArgs : EventArgs {
         private readonly List<object> _serializedStates = new List<object>();
 
         internal SafeSerializationEventArgs() { }
 
-        public void AddSerializedState(ISafeSerializationData serializedState)
-        {
+        public void AddSerializedState(ISafeSerializationData serializedState) {
             if (serializedState == null)
                 throw new ArgumentNullException(nameof(serializedState));
             if (!serializedState.GetType().IsSerializable)

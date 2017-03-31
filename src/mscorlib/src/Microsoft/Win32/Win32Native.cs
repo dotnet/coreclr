@@ -87,8 +87,7 @@
  * in your DllImportAttribute.
  */
 
-namespace Microsoft.Win32
-{
+namespace Microsoft.Win32 {
     using System;
     using System.Security;
     using System.Text;
@@ -112,8 +111,7 @@ namespace Microsoft.Win32
     // global declaration on the class.
 
     [SuppressUnmanagedCodeSecurityAttribute()]
-    internal static class Win32Native
-    {
+    internal static class Win32Native {
         internal const int KEY_QUERY_VALUE = 0x0001;
         internal const int KEY_SET_VALUE = 0x0002;
         internal const int KEY_CREATE_SUB_KEY = 0x0004;
@@ -175,8 +173,7 @@ namespace Microsoft.Win32
         internal const int LOAD_STRING_MAX_LENGTH = 500;
 
         [StructLayout(LayoutKind.Sequential)]
-        internal struct SystemTime
-        {
+        internal struct SystemTime {
             [MarshalAs(UnmanagedType.U2)]
             public short Year;
             [MarshalAs(UnmanagedType.U2)]
@@ -196,8 +193,7 @@ namespace Microsoft.Win32
         }
 
         [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
-        internal struct TimeZoneInformation
-        {
+        internal struct TimeZoneInformation {
             [MarshalAs(UnmanagedType.I4)]
             public Int32 Bias;
             [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 32)]
@@ -211,8 +207,7 @@ namespace Microsoft.Win32
             [MarshalAs(UnmanagedType.I4)]
             public Int32 DaylightBias;
 
-            public TimeZoneInformation(Win32Native.DynamicTimeZoneInformation dtzi)
-            {
+            public TimeZoneInformation(Win32Native.DynamicTimeZoneInformation dtzi) {
                 Bias = dtzi.Bias;
                 StandardName = dtzi.StandardName;
                 StandardDate = dtzi.StandardDate;
@@ -225,8 +220,7 @@ namespace Microsoft.Win32
 
 
         [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
-        internal struct DynamicTimeZoneInformation
-        {
+        internal struct DynamicTimeZoneInformation {
             [MarshalAs(UnmanagedType.I4)]
             public Int32 Bias;
             [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 32)]
@@ -247,8 +241,7 @@ namespace Microsoft.Win32
 
 
         [StructLayout(LayoutKind.Sequential)]
-        internal struct RegistryTimeZoneInformation
-        {
+        internal struct RegistryTimeZoneInformation {
             [MarshalAs(UnmanagedType.I4)]
             public Int32 Bias;
             [MarshalAs(UnmanagedType.I4)]
@@ -258,8 +251,7 @@ namespace Microsoft.Win32
             public SystemTime StandardDate;
             public SystemTime DaylightDate;
 
-            public RegistryTimeZoneInformation(Win32Native.TimeZoneInformation tzi)
-            {
+            public RegistryTimeZoneInformation(Win32Native.TimeZoneInformation tzi) {
                 Bias = tzi.Bias;
                 StandardDate = tzi.StandardDate;
                 StandardBias = tzi.StandardBias;
@@ -267,8 +259,7 @@ namespace Microsoft.Win32
                 DaylightBias = tzi.DaylightBias;
             }
 
-            public RegistryTimeZoneInformation(Byte[] bytes)
-            {
+            public RegistryTimeZoneInformation(Byte[] bytes) {
                 //
                 // typedef struct _REG_TZI_FORMAT {
                 // [00-03]    LONG Bias;
@@ -294,8 +285,7 @@ namespace Microsoft.Win32
                 // [42-43]        WORD wMilliseconds;
                 // } REG_TZI_FORMAT;
                 //
-                if (bytes == null || bytes.Length != 44)
-                {
+                if (bytes == null || bytes.Length != 44) {
                     throw new ArgumentException(SR.Argument_InvalidREG_TZI_FORMAT, nameof(bytes));
                 }
                 Bias = BitConverter.ToInt32(bytes, 0);
@@ -351,10 +341,8 @@ namespace Microsoft.Win32
         internal const int LPTR = (LMEM_FIXED | LMEM_ZEROINIT);
 
         [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Auto)]
-        internal class OSVERSIONINFO
-        {
-            internal OSVERSIONINFO()
-            {
+        internal class OSVERSIONINFO {
+            internal OSVERSIONINFO() {
                 OSVersionInfoSize = (int)Marshal.SizeOf(this);
             }
 
@@ -369,10 +357,8 @@ namespace Microsoft.Win32
         }
 
         [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Auto)]
-        internal class OSVERSIONINFOEX
-        {
-            public OSVERSIONINFOEX()
-            {
+        internal class OSVERSIONINFOEX {
+            public OSVERSIONINFOEX() {
                 OSVersionInfoSize = (int)Marshal.SizeOf(this);
             }
 
@@ -392,8 +378,7 @@ namespace Microsoft.Win32
         }
 
         [StructLayout(LayoutKind.Sequential)]
-        internal class SECURITY_ATTRIBUTES
-        {
+        internal class SECURITY_ATTRIBUTES {
             internal int nLength = 0;
             // don't remove null, or this field will disappear in bcl.small
             internal unsafe byte* pSecurityDescriptor = null;
@@ -402,8 +387,7 @@ namespace Microsoft.Win32
 
         [Serializable]
         [StructLayout(LayoutKind.Sequential)]
-        internal struct WIN32_FILE_ATTRIBUTE_DATA
-        {
+        internal struct WIN32_FILE_ATTRIBUTE_DATA {
             internal int fileAttributes;
             internal uint ftCreationTimeLow;
             internal uint ftCreationTimeHigh;
@@ -414,8 +398,7 @@ namespace Microsoft.Win32
             internal int fileSizeHigh;
             internal int fileSizeLow;
 
-            internal void PopulateFrom(WIN32_FIND_DATA findData)
-            {
+            internal void PopulateFrom(WIN32_FIND_DATA findData) {
                 // Copy the information to data
                 fileAttributes = findData.dwFileAttributes;
                 ftCreationTimeLow = findData.ftCreationTime_dwLowDateTime;
@@ -430,8 +413,7 @@ namespace Microsoft.Win32
         }
 
         [StructLayout(LayoutKind.Sequential)]
-        internal struct MEMORYSTATUSEX
-        {
+        internal struct MEMORYSTATUSEX {
             // The length field must be set to the size of this data structure.
             internal int length;
             internal int memoryLoad;
@@ -445,8 +427,7 @@ namespace Microsoft.Win32
         }
 
         [StructLayout(LayoutKind.Sequential)]
-        internal unsafe struct MEMORY_BASIC_INFORMATION
-        {
+        internal unsafe struct MEMORY_BASIC_INFORMATION {
             internal void* BaseAddress;
             internal void* AllocationBase;
             internal uint AllocationProtect;
@@ -485,19 +466,16 @@ namespace Microsoft.Win32
                     int nSize, IntPtr va_list_arguments);
 
         // Gets an error message for a Win32 error code.
-        internal static String GetMessage(int errorCode)
-        {
+        internal static String GetMessage(int errorCode) {
             StringBuilder sb = StringBuilderCache.Acquire(512);
             int result = Win32Native.FormatMessage(FORMAT_MESSAGE_IGNORE_INSERTS |
                 FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_ARGUMENT_ARRAY,
                 IntPtr.Zero, errorCode, 0, sb, sb.Capacity, IntPtr.Zero);
-            if (result != 0)
-            {
+            if (result != 0) {
                 // result is the # of characters copied to the StringBuilder.
                 return StringBuilderCache.GetStringAndRelease(sb);
             }
-            else
-            {
+            else {
                 StringBuilderCache.Release(sb);
                 return SR.Format(SR.UnknownError_Num, errorCode);
             }
@@ -513,8 +491,7 @@ namespace Microsoft.Win32
         [DllImport(NTDLL, EntryPoint = "RtlZeroMemory")]
         internal static extern void ZeroMemory(IntPtr address, UIntPtr length);
 
-        internal static bool GlobalMemoryStatusEx(ref MEMORYSTATUSEX buffer)
-        {
+        internal static bool GlobalMemoryStatusEx(ref MEMORYSTATUSEX buffer) {
             buffer.length = Marshal.SizeOf(typeof(MEMORYSTATUSEX));
             return GlobalMemoryStatusExNative(ref buffer);
         }
@@ -602,8 +579,7 @@ namespace Microsoft.Win32
         internal const int FIND_FROMEND = 0x00800000; // look for value in source, starting at the end
 
         [StructLayout(LayoutKind.Sequential)]
-        internal struct NlsVersionInfoEx
-        {
+        internal struct NlsVersionInfoEx {
             internal int dwNLSVersionInfoSize;
             internal int dwNLSVersion;
             internal int dwDefinedVersion;
@@ -726,8 +702,7 @@ namespace Microsoft.Win32
 
         // Use this to translate error codes like the above into HRESULTs like
         // 0x80070006 for ERROR_INVALID_HANDLE
-        internal static int MakeHRFromErrorCode(int errorCode)
-        {
+        internal static int MakeHRFromErrorCode(int errorCode) {
             BCLDebug.Assert((0xFFFF0000 & errorCode) == 0, "This is an HRESULT, not an error code!");
             return unchecked(((int)0x80070000) | errorCode);
         }
@@ -736,8 +711,7 @@ namespace Microsoft.Win32
         [Serializable]
         [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Auto)]
         [BestFitMapping(false)]
-        internal class WIN32_FIND_DATA
-        {
+        internal class WIN32_FIND_DATA {
             internal int dwFileAttributes = 0;
             // ftCreationTime was a by-value FILETIME structure
             internal uint ftCreationTime_dwLowDateTime = 0;
@@ -790,8 +764,7 @@ namespace Microsoft.Win32
         private static readonly Version ThreadErrorModeMinOsVersion = new Version(6, 1, 7600);
 
         // this method uses the thread-safe version of SetErrorMode on Windows 7 / Windows Server 2008 R2 operating systems.
-        internal static int SetErrorMode(int newMode)
-        {
+        internal static int SetErrorMode(int newMode) {
             return SetErrorMode_VistaAndOlder(newMode);
         }
 

@@ -2,13 +2,11 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-namespace System.Threading
-{
+namespace System.Threading {
     /// <summary>
     /// Overlapped subclass adding data needed by ThreadPoolBoundHandle.
     /// </summary>
-    internal sealed class ThreadPoolBoundHandleOverlapped : Overlapped
-    {
+    internal sealed class ThreadPoolBoundHandleOverlapped : Overlapped {
         private static readonly unsafe IOCompletionCallback s_completionCallback = CompletionCallback;
 
         private readonly IOCompletionCallback _userCallback;
@@ -18,8 +16,7 @@ namespace System.Threading
         internal ThreadPoolBoundHandle _boundHandle;
         internal bool _completed;
 
-        public unsafe ThreadPoolBoundHandleOverlapped(IOCompletionCallback callback, object state, object pinData, PreAllocatedOverlapped preAllocated)
-        {
+        public unsafe ThreadPoolBoundHandleOverlapped(IOCompletionCallback callback, object state, object pinData, PreAllocatedOverlapped preAllocated) {
             _userCallback = callback;
             _userState = state;
             _preAllocated = preAllocated;
@@ -29,8 +26,7 @@ namespace System.Threading
             _nativeOverlapped->OffsetHigh = 0;
         }
 
-        private unsafe static void CompletionCallback(uint errorCode, uint numBytes, NativeOverlapped* nativeOverlapped)
-        {
+        private unsafe static void CompletionCallback(uint errorCode, uint numBytes, NativeOverlapped* nativeOverlapped) {
             ThreadPoolBoundHandleOverlapped overlapped = (ThreadPoolBoundHandleOverlapped)Overlapped.Unpack(nativeOverlapped);
 
             //

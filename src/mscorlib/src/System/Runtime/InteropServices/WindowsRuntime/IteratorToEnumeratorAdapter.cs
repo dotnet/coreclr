@@ -13,8 +13,7 @@ using System.Runtime.InteropServices;
 using System.Runtime.CompilerServices;
 using System.Security;
 
-namespace System.Runtime.InteropServices.WindowsRuntime
-{
+namespace System.Runtime.InteropServices.WindowsRuntime {
     internal delegate IEnumerator<T> GetEnumerator_Delegate<out T>();
 
     // This is a set of stub methods implementing the support for the IEnumerable`1 interface on WinRT
@@ -25,16 +24,13 @@ namespace System.Runtime.InteropServices.WindowsRuntime
     // for all of these methods are not IterableToEnumerableAdapter objects. Rather, they are of type
     // IIterable<T>. No actual IterableToEnumerableAdapter object is ever instantiated. Thus, you will
     // see a lot of expressions that cast "this" to "IIterable<T>". 
-    internal sealed class IterableToEnumerableAdapter
-    {
-        private IterableToEnumerableAdapter()
-        {
+    internal sealed class IterableToEnumerableAdapter {
+        private IterableToEnumerableAdapter() {
             Debug.Assert(false, "This class is never instantiated");
         }
 
         // This method is invoked when GetEnumerator is called on a WinRT-backed implementation of IEnumerable<T>.
-        internal IEnumerator<T> GetEnumerator_Stub<T>()
-        {
+        internal IEnumerator<T> GetEnumerator_Stub<T>() {
             IIterable<T> _this = JitHelpers.UnsafeCast<IIterable<T>>(this);
             return new IteratorToEnumeratorAdapter<T>(_this.First());
         }
@@ -43,21 +39,18 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         // and it is possible that the implementation supports IEnumerable<Type>/IEnumerable<string>/IEnumerable<Exception>/
         // IEnumerable<array>/IEnumerable<delegate> rather than IEnumerable<T> because T is assignable from Type/string/
         // Exception/array/delegate via co-variance.
-        internal IEnumerator<T> GetEnumerator_Variance_Stub<T>() where T : class
-        {
+        internal IEnumerator<T> GetEnumerator_Variance_Stub<T>() where T : class {
             bool fUseString;
             Delegate target = System.StubHelpers.StubHelpers.GetTargetForAmbiguousVariantCall(
                 this,
                 typeof(IEnumerable<T>).TypeHandle.Value,
                 out fUseString);
 
-            if (target != null)
-            {
+            if (target != null) {
                 return (JitHelpers.UnsafeCast<GetEnumerator_Delegate<T>>(target))();
             }
 
-            if (fUseString)
-            {
+            if (fUseString) {
                 return JitHelpers.UnsafeCast<IEnumerator<T>>(GetEnumerator_Stub<string>());
             }
 
@@ -65,19 +58,15 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         }
     }
 
-    internal sealed class BindableIterableToEnumerableAdapter
-    {
-        private BindableIterableToEnumerableAdapter()
-        {
+    internal sealed class BindableIterableToEnumerableAdapter {
+        private BindableIterableToEnumerableAdapter() {
             Debug.Assert(false, "This class is never instantiated");
         }
 
-        private sealed class NonGenericToGenericIterator : IIterator<object>
-        {
+        private sealed class NonGenericToGenericIterator : IIterator<object> {
             private IBindableIterator iterator;
 
-            public NonGenericToGenericIterator(IBindableIterator iterator)
-            { this.iterator = iterator; }
+            public NonGenericToGenericIterator(IBindableIterator iterator) { this.iterator = iterator; }
 
             public object Current { get { return iterator.Current; } }
             public bool HasCurrent { get { return iterator.HasCurrent; } }
@@ -86,8 +75,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         }
 
         // This method is invoked when GetEnumerator is called on a WinRT-backed implementation of IEnumerable.
-        internal IEnumerator GetEnumerator_Stub()
-        {
+        internal IEnumerator GetEnumerator_Stub() {
             IBindableIterable _this = JitHelpers.UnsafeCast<IBindableIterable>(this);
             return new IteratorToEnumeratorAdapter<object>(new NonGenericToGenericIterator(_this.First()));
         }
@@ -100,25 +88,21 @@ namespace System.Runtime.InteropServices.WindowsRuntime
     // addressed. Iterator starts at index 0 while IEnumerator starts at index -1 as a result of which 
     // the first call to IEnumerator.Current is correct only after calling MoveNext(). 
     // Also IEnumerator throws an exception when we call Current after reaching the end of collection.
-    internal sealed class IteratorToEnumeratorAdapter<T> : IEnumerator<T>
-    {
+    internal sealed class IteratorToEnumeratorAdapter<T> : IEnumerator<T> {
         private IIterator<T> m_iterator;
         private bool m_hadCurrent;
         private T m_current;
         private bool m_isInitialized;
 
-        internal IteratorToEnumeratorAdapter(IIterator<T> iterator)
-        {
+        internal IteratorToEnumeratorAdapter(IIterator<T> iterator) {
             Contract.Requires(iterator != null);
             m_iterator = iterator;
             m_hadCurrent = true;
             m_isInitialized = false;
         }
 
-        public T Current
-        {
-            get
-            {
+        public T Current {
+            get {
                 // The enumerator has not been advanced to the first element yet.
                 if (!m_isInitialized)
                     ThrowHelper.ThrowInvalidOperationException_InvalidOperation_EnumNotStarted();
@@ -129,10 +113,8 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             }
         }
 
-        object IEnumerator.Current
-        {
-            get
-            {
+        object IEnumerator.Current {
+            get {
                 // The enumerator has not been advanced to the first element yet.
                 if (!m_isInitialized)
                     ThrowHelper.ThrowInvalidOperationException_InvalidOperation_EnumNotStarted();
@@ -143,26 +125,21 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             }
         }
 
-        public bool MoveNext()
-        {
+        public bool MoveNext() {
             // If we've passed the end of the iteration, IEnumerable<T> should return false, while
             // IIterable will fail the interface call
-            if (!m_hadCurrent)
-            {
+            if (!m_hadCurrent) {
                 return false;
             }
 
             // IIterators start at index 0, rather than -1.  If this is the first call, we need to just
             // check HasCurrent rather than actually moving to the next element
-            try
-            {
-                if (!m_isInitialized)
-                {
+            try {
+                if (!m_isInitialized) {
                     m_hadCurrent = m_iterator.HasCurrent;
                     m_isInitialized = true;
                 }
-                else
-                {
+                else {
                     m_hadCurrent = m_iterator.MoveNext();
                 }
 
@@ -174,20 +151,16 @@ namespace System.Runtime.InteropServices.WindowsRuntime
                 //  2. This allows us to preserve the same semantics as generic collection iteration when iterating
                 //     beyond the end of the collection - namely that Current continues to return the last value
                 //     of the collection
-                if (m_hadCurrent)
-                {
+                if (m_hadCurrent) {
                     m_current = m_iterator.Current;
                 }
             }
-            catch (Exception e)
-            {
+            catch (Exception e) {
                 // Translate E_CHANGED_STATE into an InvalidOperationException for an updated enumeration
-                if (Marshal.GetHRForException(e) == __HResults.E_CHANGED_STATE)
-                {
+                if (Marshal.GetHRForException(e) == __HResults.E_CHANGED_STATE) {
                     ThrowHelper.ThrowInvalidOperationException_InvalidOperation_EnumFailedVersion();
                 }
-                else
-                {
+                else {
                     throw;
                 }
             }
@@ -195,13 +168,11 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             return m_hadCurrent;
         }
 
-        public void Reset()
-        {
+        public void Reset() {
             throw new NotSupportedException();
         }
 
-        public void Dispose()
-        {
+        public void Dispose() {
         }
     }
 }

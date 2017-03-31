@@ -7,21 +7,17 @@ using System.Runtime;
 using System.Diagnostics;
 using System.Diagnostics.Contracts;
 
-namespace System.Text
-{
+namespace System.Text {
     [Serializable]
-    public sealed class EncoderReplacementFallback : EncoderFallback
-    {
+    public sealed class EncoderReplacementFallback : EncoderFallback {
         // Our variables
         private String strDefault;
 
         // Construction.  Default replacement fallback uses no best fit and ? replacement string
-        public EncoderReplacementFallback() : this("?")
-        {
+        public EncoderReplacementFallback() : this("?") {
         }
 
-        public EncoderReplacementFallback(String replacement)
-        {
+        public EncoderReplacementFallback(String replacement) {
             // Must not be null
             if (replacement == null)
                 throw new ArgumentNullException(nameof(replacement));
@@ -29,24 +25,19 @@ namespace System.Text
 
             // Make sure it doesn't have bad surrogate pairs
             bool bFoundHigh = false;
-            for (int i = 0; i < replacement.Length; i++)
-            {
+            for (int i = 0; i < replacement.Length; i++) {
                 // Found a surrogate?
-                if (Char.IsSurrogate(replacement, i))
-                {
+                if (Char.IsSurrogate(replacement, i)) {
                     // High or Low?
-                    if (Char.IsHighSurrogate(replacement, i))
-                    {
+                    if (Char.IsHighSurrogate(replacement, i)) {
                         // if already had a high one, stop
                         if (bFoundHigh)
                             break;  // break & throw at the bFoundHIgh below
                         bFoundHigh = true;
                     }
-                    else
-                    {
+                    else {
                         // Low, did we have a high?
-                        if (!bFoundHigh)
-                        {
+                        if (!bFoundHigh) {
                             // Didn't have one, make if fail when we stop
                             bFoundHigh = true;
                             break;
@@ -66,67 +57,55 @@ namespace System.Text
             strDefault = replacement;
         }
 
-        public String DefaultString
-        {
-            get
-            {
+        public String DefaultString {
+            get {
                 return strDefault;
             }
         }
 
-        public override EncoderFallbackBuffer CreateFallbackBuffer()
-        {
+        public override EncoderFallbackBuffer CreateFallbackBuffer() {
             return new EncoderReplacementFallbackBuffer(this);
         }
 
         // Maximum number of characters that this instance of this fallback could return
-        public override int MaxCharCount
-        {
-            get
-            {
+        public override int MaxCharCount {
+            get {
                 return strDefault.Length;
             }
         }
 
-        public override bool Equals(Object value)
-        {
+        public override bool Equals(Object value) {
             EncoderReplacementFallback that = value as EncoderReplacementFallback;
-            if (that != null)
-            {
+            if (that != null) {
                 return (strDefault == that.strDefault);
             }
             return (false);
         }
 
-        public override int GetHashCode()
-        {
+        public override int GetHashCode() {
             return strDefault.GetHashCode();
         }
     }
 
 
 
-    public sealed class EncoderReplacementFallbackBuffer : EncoderFallbackBuffer
-    {
+    public sealed class EncoderReplacementFallbackBuffer : EncoderFallbackBuffer {
         // Store our default string
         private String strDefault;
         private int fallbackCount = -1;
         private int fallbackIndex = -1;
 
         // Construction
-        public EncoderReplacementFallbackBuffer(EncoderReplacementFallback fallback)
-        {
+        public EncoderReplacementFallbackBuffer(EncoderReplacementFallback fallback) {
             // 2X in case we're a surrogate pair
             strDefault = fallback.DefaultString + fallback.DefaultString;
         }
 
         // Fallback Methods
-        public override bool Fallback(char charUnknown, int index)
-        {
+        public override bool Fallback(char charUnknown, int index) {
             // If we had a buffer already we're being recursive, throw, it's probably at the suspect
             // character in our array.
-            if (fallbackCount >= 1)
-            {
+            if (fallbackCount >= 1) {
                 // If we're recursive we may still have something in our buffer that makes this a surrogate
                 if (char.IsHighSurrogate(charUnknown) && fallbackCount >= 0 &&
                     char.IsLowSurrogate(strDefault[fallbackIndex + 1]))
@@ -144,8 +123,7 @@ namespace System.Text
             return fallbackCount != 0;
         }
 
-        public override bool Fallback(char charUnknownHigh, char charUnknownLow, int index)
-        {
+        public override bool Fallback(char charUnknownHigh, char charUnknownLow, int index) {
             // Double check input surrogate pair
             if (!Char.IsHighSurrogate(charUnknownHigh))
                 throw new ArgumentOutOfRangeException(nameof(charUnknownHigh),
@@ -168,8 +146,7 @@ namespace System.Text
             return fallbackCount != 0;
         }
 
-        public override char GetNextChar()
-        {
+        public override char GetNextChar() {
             // We want it to get < 0 because == 0 means that the current/last character is a fallback
             // and we need to detect recursion.  We could have a flag but we already have this counter.
             fallbackCount--;
@@ -181,8 +158,7 @@ namespace System.Text
 
             // Need to get it out of the buffer.
             // Make sure it didn't wrap from the fast count-- path
-            if (fallbackCount == int.MaxValue)
-            {
+            if (fallbackCount == int.MaxValue) {
                 fallbackCount = -1;
                 return '\0';
             }
@@ -194,11 +170,9 @@ namespace System.Text
             return strDefault[fallbackIndex];
         }
 
-        public override bool MovePrevious()
-        {
+        public override bool MovePrevious() {
             // Back up one, only if we just processed the last character (or earlier)
-            if (fallbackCount >= -1 && fallbackIndex >= 0)
-            {
+            if (fallbackCount >= -1 && fallbackIndex >= 0) {
                 fallbackIndex--;
                 fallbackCount++;
                 return true;
@@ -209,18 +183,15 @@ namespace System.Text
         }
 
         // How many characters left to output?
-        public override int Remaining
-        {
-            get
-            {
+        public override int Remaining {
+            get {
                 // Our count is 0 for 1 character left.
                 return (fallbackCount < 0) ? 0 : fallbackCount;
             }
         }
 
         // Clear the buffer
-        public override unsafe void Reset()
-        {
+        public override unsafe void Reset() {
             fallbackCount = -1;
             fallbackIndex = 0;
             charStart = null;

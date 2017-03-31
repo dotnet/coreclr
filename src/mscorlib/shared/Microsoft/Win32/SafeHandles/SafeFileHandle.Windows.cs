@@ -8,44 +8,36 @@ using System.Runtime.InteropServices;
 using System.Threading;
 using Microsoft.Win32;
 
-namespace Microsoft.Win32.SafeHandles
-{
+namespace Microsoft.Win32.SafeHandles {
 #if PROJECTN
     [Internal.Runtime.CompilerServices.RelocatedTypeAttribute("System.IO.FileSystem")]
 #endif
-    public sealed class SafeFileHandle : SafeHandleZeroOrMinusOneIsInvalid
-    {
+    public sealed class SafeFileHandle : SafeHandleZeroOrMinusOneIsInvalid {
         private bool? _isAsync;
 
-        private SafeFileHandle() : base(true)
-        {
+        private SafeFileHandle() : base(true) {
             _isAsync = null;
         }
 
-        public SafeFileHandle(IntPtr preexistingHandle, bool ownsHandle) : base(ownsHandle)
-        {
+        public SafeFileHandle(IntPtr preexistingHandle, bool ownsHandle) : base(ownsHandle) {
             SetHandle(preexistingHandle);
 
             _isAsync = null;
         }
 
-        internal bool? IsAsync
-        {
-            get
-            {
+        internal bool? IsAsync {
+            get {
                 return _isAsync;
             }
 
-            set
-            {
+            set {
                 _isAsync = value;
             }
         }
 
         internal ThreadPoolBoundHandle ThreadPoolBinding { get; set; }
 
-        override protected bool ReleaseHandle()
-        {
+        override protected bool ReleaseHandle() {
             return Interop.Kernel32.CloseHandle(handle);
         }
     }

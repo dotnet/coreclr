@@ -14,8 +14,7 @@ using System.Diagnostics.Contracts;
 using System.Runtime.InteropServices;
 using System.Runtime.CompilerServices;
 
-namespace System.Runtime.InteropServices.WindowsRuntime
-{
+namespace System.Runtime.InteropServices.WindowsRuntime {
     // This is a set of stub methods implementing the support for the ICollection interface on WinRT
     // objects that support IBindableVector. Used by the interop mashaling infrastructure.
     //
@@ -24,21 +23,17 @@ namespace System.Runtime.InteropServices.WindowsRuntime
     // for all of these methods are not BindableVectorToCollectionAdapter objects. Rather, they are
     // of type IBindableVector. No actual BindableVectorToCollectionAdapter object is ever instantiated.
     // Thus, you will see a lot of expressions that cast "this" to "IBindableVector".
-    internal sealed class BindableVectorToCollectionAdapter
-    {
-        private BindableVectorToCollectionAdapter()
-        {
+    internal sealed class BindableVectorToCollectionAdapter {
+        private BindableVectorToCollectionAdapter() {
             Debug.Assert(false, "This class is never instantiated");
         }
 
         // int Count { get }
         [Pure]
-        internal int Count()
-        {
+        internal int Count() {
             IBindableVector _this = JitHelpers.UnsafeCast<IBindableVector>(this);
             uint size = _this.Size;
-            if (((uint)Int32.MaxValue) < size)
-            {
+            if (((uint)Int32.MaxValue) < size) {
                 throw new InvalidOperationException(SR.InvalidOperation_CollectionBackingListTooLarge);
             }
 
@@ -47,22 +42,19 @@ namespace System.Runtime.InteropServices.WindowsRuntime
 
         // bool IsSynchronized { get }
         [Pure]
-        internal bool IsSynchronized()
-        {
+        internal bool IsSynchronized() {
             return false;
         }
 
         // object SyncRoot { get }
         [Pure]
-        internal object SyncRoot()
-        {
+        internal object SyncRoot() {
             return this;
         }
 
         // void CopyTo(Array array, int index)
         [Pure]
-        internal void CopyTo(Array array, int arrayIndex)
-        {
+        internal void CopyTo(Array array, int arrayIndex) {
             if (array == null)
                 throw new ArgumentNullException(nameof(array));
 
@@ -96,8 +88,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             // We need to verify the index as we;
             IBindableVector _this = JitHelpers.UnsafeCast<IBindableVector>(this);
 
-            for (uint i = 0; i < srcLen; i++)
-            {
+            for (uint i = 0; i < srcLen; i++) {
                 array.SetValue(_this.GetAt(i), i + arrayIndex);
             }
         }

@@ -2,13 +2,10 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-namespace System.Reflection
-{
+namespace System.Reflection {
     [AttributeUsage(AttributeTargets.Assembly, Inherited = false)]
-    public sealed class AssemblyCopyrightAttribute : Attribute
-    {
-        public AssemblyCopyrightAttribute(string copyright)
-        {
+    public sealed class AssemblyCopyrightAttribute : Attribute {
+        public AssemblyCopyrightAttribute(string copyright) {
             Copyright = copyright;
         }
 

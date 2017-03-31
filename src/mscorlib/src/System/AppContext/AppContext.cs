@@ -5,13 +5,10 @@
 
 using System.Collections.Generic;
 
-namespace System
-{
-    public static class AppContext
-    {
+namespace System {
+    public static class AppContext {
         [Flags]
-        private enum SwitchValueState
-        {
+        private enum SwitchValueState {
             HasFalseValue = 0x1,
             HasTrueValue = 0x2,
             HasLookedForOverride = 0x4,
@@ -19,8 +16,7 @@ namespace System
         }
         private static readonly Dictionary<string, SwitchValueState> s_switchMap = new Dictionary<string, SwitchValueState>();
 
-        static AppContext()
-        {
+        static AppContext() {
             // Unloading event must happen before ProcessExit event
             AppDomain.CurrentDomain.ProcessExit += OnUnloading;
             AppDomain.CurrentDomain.ProcessExit += OnProcessExit;
@@ -29,56 +25,44 @@ namespace System
             AppContextDefaultValues.PopulateDefaultValues();
         }
 
-        public static string BaseDirectory
-        {
-            get
-            {
+        public static string BaseDirectory {
+            get {
                 // The value of APP_CONTEXT_BASE_DIRECTORY key has to be a string and it is not allowed to be any other type. 
                 // Otherwise the caller will get invalid cast exception
                 return (string)AppDomain.CurrentDomain.GetData("APP_CONTEXT_BASE_DIRECTORY") ?? AppDomain.CurrentDomain.BaseDirectory;
             }
         }
 
-        public static string TargetFrameworkName
-        {
-            get
-            {
+        public static string TargetFrameworkName {
+            get {
                 // Forward the value that is set on the current domain.
                 return AppDomain.CurrentDomain.SetupInformation.TargetFrameworkName;
             }
         }
 
-        public static object GetData(string name)
-        {
+        public static object GetData(string name) {
             return AppDomain.CurrentDomain.GetData(name);
         }
 
-        public static void SetData(string name, object data)
-        {
+        public static void SetData(string name, object data) {
             AppDomain.CurrentDomain.SetData(name, data);
         }
 
-        public static event UnhandledExceptionEventHandler UnhandledException
-        {
-            add
-            {
+        public static event UnhandledExceptionEventHandler UnhandledException {
+            add {
                 AppDomain.CurrentDomain.UnhandledException += value;
             }
 
-            remove
-            {
+            remove {
                 AppDomain.CurrentDomain.UnhandledException -= value;
             }
         }
 
-        public static event System.EventHandler<System.Runtime.ExceptionServices.FirstChanceExceptionEventArgs> FirstChanceException
-        {
-            add
-            {
+        public static event System.EventHandler<System.Runtime.ExceptionServices.FirstChanceExceptionEventArgs> FirstChanceException {
+            add {
                 AppDomain.CurrentDomain.FirstChanceException += value;
             }
-            remove
-            {
+            remove {
                 AppDomain.CurrentDomain.FirstChanceException -= value;
             }
         }
@@ -86,20 +70,16 @@ namespace System
         public static event System.EventHandler ProcessExit;
         internal static event System.EventHandler Unloading;
 
-        private static void OnProcessExit(object sender, EventArgs e)
-        {
+        private static void OnProcessExit(object sender, EventArgs e) {
             var processExit = ProcessExit;
-            if (processExit != null)
-            {
+            if (processExit != null) {
                 processExit(null, EventArgs.Empty);
             }
         }
 
-        private static void OnUnloading(object sender, EventArgs e)
-        {
+        private static void OnUnloading(object sender, EventArgs e) {
             var unloading = Unloading;
-            if (unloading != null)
-            {
+            if (unloading != null) {
                 unloading(null, EventArgs.Empty);
             }
         }
@@ -111,8 +91,7 @@ namespace System
         /// <param name="switchName">The name of the switch</param>
         /// <param name="isEnabled">A variable where to place the value of the switch</param>
         /// <returns>A return value of true represents that the switch was set and <paramref name="isEnabled"/> contains the value of the switch</returns>
-        public static bool TryGetSwitch(string switchName, out bool isEnabled)
-        {
+        public static bool TryGetSwitch(string switchName, out bool isEnabled) {
             if (switchName == null)
                 throw new ArgumentNullException(nameof(switchName));
             if (switchName.Length == 0)
@@ -122,10 +101,8 @@ namespace System
             isEnabled = false;
 
             SwitchValueState switchValue;
-            lock (s_switchMap)
-            {
-                if (s_switchMap.TryGetValue(switchName, out switchValue))
-                {
+            lock (s_switchMap) {
+                if (s_switchMap.TryGetValue(switchName, out switchValue)) {
                     // The value is in the dictionary. 
                     // There are 3 cases here:
                     // 1. The value of the switch is 'unknown'. This means that the switch name is not known to the system (either via defaults or checking overrides).
@@ -137,8 +114,7 @@ namespace System
                     //    Example: TryGetSwitch is called for the first time for a switch that has a default value 
 
                     // 1. The value is unknown
-                    if (switchValue == SwitchValueState.UnknownValue)
-                    {
+                    if (switchValue == SwitchValueState.UnknownValue) {
                         isEnabled = false;
                         return false;
                     }
@@ -147,8 +123,7 @@ namespace System
                     isEnabled = (switchValue & SwitchValueState.HasTrueValue) == SwitchValueState.HasTrueValue;
 
                     // 2. The switch has a valid value AND we have checked for overrides
-                    if ((switchValue & SwitchValueState.HasLookedForOverride) == SwitchValueState.HasLookedForOverride)
-                    {
+                    if ((switchValue & SwitchValueState.HasLookedForOverride) == SwitchValueState.HasLookedForOverride) {
                         return true;
                     }
 
@@ -156,8 +131,7 @@ namespace System
                     // Regardless of whether or not the switch has an override, we need to update the value to reflect
                     // the fact that we checked for overrides. 
                     bool overrideValue;
-                    if (AppContextDefaultValues.TryGetSwitchOverride(switchName, out overrideValue))
-                    {
+                    if (AppContextDefaultValues.TryGetSwitchOverride(switchName, out overrideValue)) {
                         // we found an override!
                         isEnabled = overrideValue;
                     }
@@ -168,8 +142,7 @@ namespace System
 
                     return true;
                 }
-                else
-                {
+                else {
                     // The value is NOT in the dictionary
                     // In this case we need to see if we have an override defined for the value.
                     // There are 2 cases:
@@ -184,8 +157,7 @@ namespace System
 
                     // 1. The value has an override specified.
                     bool overrideValue;
-                    if (AppContextDefaultValues.TryGetSwitchOverride(switchName, out overrideValue))
-                    {
+                    if (AppContextDefaultValues.TryGetSwitchOverride(switchName, out overrideValue)) {
                         isEnabled = overrideValue;
 
                         // Update the switch in the dictionary to mark it as 'checked for override'
@@ -207,8 +179,7 @@ namespace System
         /// </summary>
         /// <param name="switchName">The name of the switch</param>
         /// <param name="isEnabled">The value to assign</param>
-        public static void SetSwitch(string switchName, bool isEnabled)
-        {
+        public static void SetSwitch(string switchName, bool isEnabled) {
             if (switchName == null)
                 throw new ArgumentNullException(nameof(switchName));
             if (switchName.Length == 0)
@@ -217,8 +188,7 @@ namespace System
             SwitchValueState switchValue = (isEnabled ? SwitchValueState.HasTrueValue : SwitchValueState.HasFalseValue)
                                             | SwitchValueState.HasLookedForOverride;
 
-            lock (s_switchMap)
-            {
+            lock (s_switchMap) {
                 // Store the new value and the fact that we checked in the dictionary
                 s_switchMap[switchName] = switchValue;
             }
@@ -229,8 +199,7 @@ namespace System
         /// default values for the switches. !!!! This method is called during the static constructor so it does not
         /// take a lock !!!! If you are planning to use this outside of that, please ensure proper locking.
         /// </summary>
-        internal static void DefineSwitchDefault(string switchName, bool isEnabled)
-        {
+        internal static void DefineSwitchDefault(string switchName, bool isEnabled) {
             s_switchMap[switchName] = isEnabled ? SwitchValueState.HasTrueValue : SwitchValueState.HasFalseValue;
         }
         #endregion

@@ -2,8 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-namespace System
-{
+namespace System {
     using System;
     using System.Runtime.InteropServices;
     using System.Runtime.CompilerServices;
@@ -14,8 +13,7 @@ namespace System
     // Note: This type must have the same layout as the CLR's VARARGS type in CLRVarArgs.h.
     // It also contains an inline SigPointer data structure - must keep those fields in sync.
     [StructLayout(LayoutKind.Sequential)]
-    public struct ArgIterator
-    {
+    public struct ArgIterator {
         private IntPtr ArgCookie;               // Cookie from the EE.
 
         // The SigPointer structure consists of the following members.  (Note: this is an inline native SigPointer data type)
@@ -134,51 +132,42 @@ namespace System
             throw new NotSupportedException(SR.NotSupported_NYI);
         }
 #else
-        public ArgIterator(RuntimeArgumentHandle arglist)
-        {
+        public ArgIterator(RuntimeArgumentHandle arglist) {
             throw new PlatformNotSupportedException(SR.PlatformNotSupported_ArgIterator); // https://github.com/dotnet/coreclr/issues/9204
         }
 
         [CLSCompliant(false)]
-        public unsafe ArgIterator(RuntimeArgumentHandle arglist, void* ptr)
-        {
+        public unsafe ArgIterator(RuntimeArgumentHandle arglist, void* ptr) {
             throw new PlatformNotSupportedException(SR.PlatformNotSupported_ArgIterator); // https://github.com/dotnet/coreclr/issues/9204
         }
 
-        public void End()
-        {
+        public void End() {
             throw new PlatformNotSupportedException(SR.PlatformNotSupported_ArgIterator); // https://github.com/dotnet/coreclr/issues/9204
         }
 
-        public override bool Equals(Object o)
-        {
+        public override bool Equals(Object o) {
             throw new PlatformNotSupportedException(SR.PlatformNotSupported_ArgIterator); // https://github.com/dotnet/coreclr/issues/9204
         }
 
-        public override int GetHashCode()
-        {
+        public override int GetHashCode() {
             throw new PlatformNotSupportedException(SR.PlatformNotSupported_ArgIterator); // https://github.com/dotnet/coreclr/issues/9204
         }
 
         [System.CLSCompliantAttribute(false)]
-        public System.TypedReference GetNextArg()
-        {
+        public System.TypedReference GetNextArg() {
             throw new PlatformNotSupportedException(SR.PlatformNotSupported_ArgIterator); // https://github.com/dotnet/coreclr/issues/9204
         }
 
         [System.CLSCompliantAttribute(false)]
-        public System.TypedReference GetNextArg(System.RuntimeTypeHandle rth)
-        {
+        public System.TypedReference GetNextArg(System.RuntimeTypeHandle rth) {
             throw new PlatformNotSupportedException(SR.PlatformNotSupported_ArgIterator); // https://github.com/dotnet/coreclr/issues/9204
         }
 
-        public unsafe System.RuntimeTypeHandle GetNextArgType()
-        {
+        public unsafe System.RuntimeTypeHandle GetNextArgType() {
             throw new PlatformNotSupportedException(SR.PlatformNotSupported_ArgIterator); // https://github.com/dotnet/coreclr/issues/9204
         }
 
-        public int GetRemainingCount()
-        {
+        public int GetRemainingCount() {
             throw new PlatformNotSupportedException(SR.PlatformNotSupported_ArgIterator); // https://github.com/dotnet/coreclr/issues/9204
         }
 #endif //VARARGS_ENABLED

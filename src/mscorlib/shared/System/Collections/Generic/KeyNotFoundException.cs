@@ -5,26 +5,21 @@
 using System;
 using System.Runtime.Serialization;
 
-namespace System.Collections.Generic
-{
+namespace System.Collections.Generic {
     [Serializable]
-    public class KeyNotFoundException : SystemException
-    {
+    public class KeyNotFoundException : SystemException {
         public KeyNotFoundException()
-            : base(SR.Arg_KeyNotFound)
-        {
+            : base(SR.Arg_KeyNotFound) {
             HResult = __HResults.COR_E_KEYNOTFOUND;
         }
 
         public KeyNotFoundException(String message)
-            : base(message)
-        {
+            : base(message) {
             HResult = __HResults.COR_E_KEYNOTFOUND;
         }
 
         public KeyNotFoundException(String message, Exception innerException)
-            : base(message, innerException)
-        {
+            : base(message, innerException) {
             HResult = __HResults.COR_E_KEYNOTFOUND;
         }
 

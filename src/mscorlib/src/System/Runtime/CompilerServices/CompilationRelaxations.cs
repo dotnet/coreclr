@@ -8,30 +8,24 @@
 
 using System;
 
-namespace System.Runtime.CompilerServices
-{
+namespace System.Runtime.CompilerServices {
     [Serializable]
     [AttributeUsage(AttributeTargets.Assembly | AttributeTargets.Module | AttributeTargets.Class | AttributeTargets.Method)]
-    public class CompilationRelaxationsAttribute : Attribute
-    {
+    public class CompilationRelaxationsAttribute : Attribute {
         private int m_relaxations;      // The relaxations.
 
         public CompilationRelaxationsAttribute(
-            int relaxations)
-        {
+            int relaxations) {
             m_relaxations = relaxations;
         }
 
         public CompilationRelaxationsAttribute(
-            CompilationRelaxations relaxations)
-        {
+            CompilationRelaxations relaxations) {
             m_relaxations = (int)relaxations;
         }
 
-        public int CompilationRelaxations
-        {
-            get
-            {
+        public int CompilationRelaxations {
+            get {
                 return m_relaxations;
             }
         }

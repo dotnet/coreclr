@@ -10,7 +10,6 @@
 ** 
 ===========================================================*/
 
-namespace System.Threading
-{
+namespace System.Threading {
     public delegate void SendOrPostCallback(Object state);
 }

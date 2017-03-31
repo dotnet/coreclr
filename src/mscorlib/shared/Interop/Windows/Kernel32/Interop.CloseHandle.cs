@@ -5,10 +5,8 @@
 using System;
 using System.Runtime.InteropServices;
 
-internal partial class Interop
-{
-    internal partial class Kernel32
-    {
+internal partial class Interop {
+    internal partial class Kernel32 {
         [DllImport(Libraries.Kernel32, SetLastError = true)]
         [return: MarshalAs(UnmanagedType.Bool)]
         internal static extern bool CloseHandle(IntPtr handle);

@@ -18,43 +18,34 @@ using System.Diagnostics;
 using System.Collections;
 using System.Diagnostics.Contracts;
 
-namespace System.Runtime.Serialization
-{
+namespace System.Runtime.Serialization {
     //
     // The tuple returned by SerializationInfoEnumerator.Current.
     //
-    public struct SerializationEntry
-    {
+    public struct SerializationEntry {
         private Type m_type;
         private Object m_value;
         private String m_name;
 
-        public Object Value
-        {
-            get
-            {
+        public Object Value {
+            get {
                 return m_value;
             }
         }
 
-        public String Name
-        {
-            get
-            {
+        public String Name {
+            get {
                 return m_name;
             }
         }
 
-        public Type ObjectType
-        {
-            get
-            {
+        public Type ObjectType {
+            get {
                 return m_type;
             }
         }
 
-        internal SerializationEntry(String entryName, Object entryValue, Type entryType)
-        {
+        internal SerializationEntry(String entryName, Object entryValue, Type entryType) {
             m_value = entryValue;
             m_name = entryName;
             m_type = entryType;
@@ -66,8 +57,7 @@ namespace System.Runtime.Serialization
     // This does not snapshot the values, it just keeps pointers to the 
     // member variables of the SerializationInfo that created it.
     //
-    public sealed class SerializationInfoEnumerator : IEnumerator
-    {
+    public sealed class SerializationInfoEnumerator : IEnumerator {
         private String[] m_members;
         private Object[] m_data;
         private Type[] m_types;
@@ -75,8 +65,7 @@ namespace System.Runtime.Serialization
         private int m_currItem;
         private bool m_current;
 
-        internal SerializationInfoEnumerator(String[] members, Object[] info, Type[] types, int numItems)
-        {
+        internal SerializationInfoEnumerator(String[] members, Object[] info, Type[] types, int numItems) {
             Debug.Assert(members != null, "[SerializationInfoEnumerator.ctor]members!=null");
             Debug.Assert(info != null, "[SerializationInfoEnumerator.ctor]info!=null");
             Debug.Assert(types != null, "[SerializationInfoEnumerator.ctor]types!=null");
@@ -95,78 +84,59 @@ namespace System.Runtime.Serialization
             m_current = false;
         }
 
-        public bool MoveNext()
-        {
-            if (m_currItem < m_numItems)
-            {
+        public bool MoveNext() {
+            if (m_currItem < m_numItems) {
                 m_currItem++;
                 m_current = true;
             }
-            else
-            {
+            else {
                 m_current = false;
             }
             return m_current;
         }
 
-        Object IEnumerator.Current
-        { //Actually returns a SerializationEntry
-            get
-            {
-                if (m_current == false)
-                {
+        Object IEnumerator.Current { //Actually returns a SerializationEntry
+            get {
+                if (m_current == false) {
                     throw new InvalidOperationException(SR.InvalidOperation_EnumOpCantHappen);
                 }
                 return (Object)(new SerializationEntry(m_members[m_currItem], m_data[m_currItem], m_types[m_currItem]));
             }
         }
 
-        public SerializationEntry Current
-        { //Actually returns a SerializationEntry
-            get
-            {
-                if (m_current == false)
-                {
+        public SerializationEntry Current { //Actually returns a SerializationEntry
+            get {
+                if (m_current == false) {
                     throw new InvalidOperationException(SR.InvalidOperation_EnumOpCantHappen);
                 }
                 return (new SerializationEntry(m_members[m_currItem], m_data[m_currItem], m_types[m_currItem]));
             }
         }
 
-        public void Reset()
-        {
+        public void Reset() {
             m_currItem = -1;
             m_current = false;
         }
 
-        public String Name
-        {
-            get
-            {
-                if (m_current == false)
-                {
+        public String Name {
+            get {
+                if (m_current == false) {
                     throw new InvalidOperationException(SR.InvalidOperation_EnumOpCantHappen);
                 }
                 return m_members[m_currItem];
             }
         }
-        public Object Value
-        {
-            get
-            {
-                if (m_current == false)
-                {
+        public Object Value {
+            get {
+                if (m_current == false) {
                     throw new InvalidOperationException(SR.InvalidOperation_EnumOpCantHappen);
                 }
                 return m_data[m_currItem];
             }
         }
-        public Type ObjectType
-        {
-            get
-            {
-                if (m_current == false)
-                {
+        public Type ObjectType {
+            get {
+                if (m_current == false) {
                     throw new InvalidOperationException(SR.InvalidOperation_EnumOpCantHappen);
                 }
                 return m_types[m_currItem];

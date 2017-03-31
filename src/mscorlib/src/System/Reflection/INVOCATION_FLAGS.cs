@@ -2,15 +2,13 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-namespace System.Reflection
-{
+namespace System.Reflection {
     //
     // Invocation cached flags. Those are used in unmanaged code as well
     // so be careful if you change them
     //
     [Flags]
-    internal enum INVOCATION_FLAGS : uint
-    {
+    internal enum INVOCATION_FLAGS : uint {
         INVOCATION_FLAGS_UNKNOWN = 0x00000000,
         INVOCATION_FLAGS_INITIALIZED = 0x00000001,
         // it's used for both method and field to signify that no access is allowed

@@ -7,14 +7,10 @@ using System.Runtime.CompilerServices;
 using System.Diagnostics.Contracts;
 using StackCrawlMark = System.Threading.StackCrawlMark;
 
-namespace System
-{
-    public abstract partial class Type : MemberInfo, IReflect
-    {
-        public bool IsInterface
-        {
-            get
-            {
+namespace System {
+    public abstract partial class Type : MemberInfo, IReflect {
+        public bool IsInterface {
+            get {
                 RuntimeType rt = this as RuntimeType;
                 if (rt != null)
                     return RuntimeTypeHandle.IsInterface(rt);
@@ -23,22 +19,19 @@ namespace System
         }
 
         [System.Security.DynamicSecurityMethod] // Methods containing StackCrawlMark local var has to be marked DynamicSecurityMethod
-        public static Type GetType(String typeName, bool throwOnError, bool ignoreCase)
-        {
+        public static Type GetType(String typeName, bool throwOnError, bool ignoreCase) {
             StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
             return RuntimeType.GetType(typeName, throwOnError, ignoreCase, false, ref stackMark);
         }
 
         [System.Security.DynamicSecurityMethod] // Methods containing StackCrawlMark local var has to be marked DynamicSecurityMethod
-        public static Type GetType(String typeName, bool throwOnError)
-        {
+        public static Type GetType(String typeName, bool throwOnError) {
             StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
             return RuntimeType.GetType(typeName, throwOnError, false, false, ref stackMark);
         }
 
         [System.Security.DynamicSecurityMethod] // Methods containing StackCrawlMark local var has to be marked DynamicSecurityMethod
-        public static Type GetType(String typeName)
-        {
+        public static Type GetType(String typeName) {
             StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
             return RuntimeType.GetType(typeName, false, false, false, ref stackMark);
         }
@@ -47,8 +40,7 @@ namespace System
         public static Type GetType(
             string typeName,
             Func<AssemblyName, Assembly> assemblyResolver,
-            Func<Assembly, string, bool, Type> typeResolver)
-        {
+            Func<Assembly, string, bool, Type> typeResolver) {
             StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
             return TypeNameParser.GetType(typeName, assemblyResolver, typeResolver, false, false, ref stackMark);
         }
@@ -58,8 +50,7 @@ namespace System
             string typeName,
             Func<AssemblyName, Assembly> assemblyResolver,
             Func<Assembly, string, bool, Type> typeResolver,
-            bool throwOnError)
-        {
+            bool throwOnError) {
             StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
             return TypeNameParser.GetType(typeName, assemblyResolver, typeResolver, throwOnError, false, ref stackMark);
         }
@@ -70,8 +61,7 @@ namespace System
             Func<AssemblyName, Assembly> assemblyResolver,
             Func<Assembly, string, bool, Type> typeResolver,
             bool throwOnError,
-            bool ignoreCase)
-        {
+            bool ignoreCase) {
             StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
             return TypeNameParser.GetType(typeName, assemblyResolver, typeResolver, throwOnError, ignoreCase, ref stackMark);
         }
@@ -85,8 +75,7 @@ namespace System
         //   param progID:     the progID of the class to retrieve
         //   returns:          the class object associated to the progID
         ////
-        public static Type GetTypeFromProgID(String progID, String server, bool throwOnError)
-        {
+        public static Type GetTypeFromProgID(String progID, String server, bool throwOnError) {
             return RuntimeType.GetTypeFromProgIDImpl(progID, server, throwOnError);
         }
 
@@ -97,13 +86,11 @@ namespace System
         //   param CLSID:      the CLSID of the class to retrieve
         //   returns:          the class object associated to the CLSID
         ////
-        public static Type GetTypeFromCLSID(Guid clsid, String server, bool throwOnError)
-        {
+        public static Type GetTypeFromCLSID(Guid clsid, String server, bool throwOnError) {
             return RuntimeType.GetTypeFromCLSIDImpl(clsid, server, throwOnError);
         }
 
-        internal virtual RuntimeTypeHandle GetTypeHandleInternal()
-        {
+        internal virtual RuntimeTypeHandle GetTypeHandleInternal() {
             return TypeHandle;
         }
 
@@ -119,60 +106,48 @@ namespace System
 
 
 #if FEATURE_COMINTEROP
-        internal bool IsWindowsRuntimeObject
-        {
+        internal bool IsWindowsRuntimeObject {
             [Pure]
             get { return IsWindowsRuntimeObjectImpl(); }
         }
 
-        internal bool IsExportedToWindowsRuntime
-        {
+        internal bool IsExportedToWindowsRuntime {
             [Pure]
             get { return IsExportedToWindowsRuntimeImpl(); }
         }
 
 
         // Protected routine to determine if this class represents a Windows Runtime object
-        virtual internal bool IsWindowsRuntimeObjectImpl()
-        {
+        virtual internal bool IsWindowsRuntimeObjectImpl() {
             throw new NotImplementedException();
         }
 
         // Determines if this type is exported to WinRT (i.e. is an activatable class in a managed .winmd)
-        virtual internal bool IsExportedToWindowsRuntimeImpl()
-        {
+        virtual internal bool IsExportedToWindowsRuntimeImpl() {
             throw new NotImplementedException();
         }
 #endif // FEATURE_COMINTEROP
 
-        internal bool NeedsReflectionSecurityCheck
-        {
-            get
-            {
-                if (!IsVisible)
-                {
+        internal bool NeedsReflectionSecurityCheck {
+            get {
+                if (!IsVisible) {
                     // Types which are not externally visible require security checks
                     return true;
                 }
-                else if (IsSecurityCritical && !IsSecuritySafeCritical)
-                {
+                else if (IsSecurityCritical && !IsSecuritySafeCritical) {
                     // Critical types require security checks
                     return true;
                 }
-                else if (IsGenericType)
-                {
+                else if (IsGenericType) {
                     // If any of the generic arguments to this type require a security check, then this type
                     // also requires one.
-                    foreach (Type genericArgument in GetGenericArguments())
-                    {
-                        if (genericArgument.NeedsReflectionSecurityCheck)
-                        {
+                    foreach (Type genericArgument in GetGenericArguments()) {
+                        if (genericArgument.NeedsReflectionSecurityCheck) {
                             return true;
                         }
                     }
                 }
-                else if (IsArray || IsPointer)
-                {
+                else if (IsArray || IsPointer) {
                     return GetElementType().NeedsReflectionSecurityCheck;
                 }
 
@@ -181,13 +156,11 @@ namespace System
         }
 
         // This is only ever called on RuntimeType objects.
-        internal string FormatTypeName()
-        {
+        internal string FormatTypeName() {
             return FormatTypeName(false);
         }
 
-        internal virtual string FormatTypeName(bool serialization)
-        {
+        internal virtual string FormatTypeName(bool serialization) {
             throw new NotImplementedException();
         }
 

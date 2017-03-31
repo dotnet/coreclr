@@ -24,35 +24,28 @@ namespace System.Diagnostics.Tracing
     /// The type of the item, used for GetOrAdd.
     /// </typeparam>
     internal struct ConcurrentSet<KeyType, ItemType>
-        where ItemType : ConcurrentSetItem<KeyType, ItemType>
-    {
+        where ItemType : ConcurrentSetItem<KeyType, ItemType> {
         private ItemType[] items;
 
-        public ItemType TryGet(KeyType key)
-        {
+        public ItemType TryGet(KeyType key) {
             ItemType item;
             var oldItems = items;
 
-            if (oldItems != null)
-            {
+            if (oldItems != null) {
                 var lo = 0;
                 var hi = oldItems.Length;
-                do
-                {
+                do {
                     int i = (lo + hi) / 2;
                     item = oldItems[i];
 
                     int cmp = item.Compare(key);
-                    if (cmp == 0)
-                    {
+                    if (cmp == 0) {
                         goto Done;
                     }
-                    else if (cmp < 0)
-                    {
+                    else if (cmp < 0) {
                         lo = i + 1;
                     }
-                    else
-                    {
+                    else {
                         hi = i;
                     }
                 }
@@ -66,38 +59,31 @@ namespace System.Diagnostics.Tracing
             return item;
         }
 
-        public ItemType GetOrAdd(ItemType newItem)
-        {
+        public ItemType GetOrAdd(ItemType newItem) {
             ItemType item;
             var oldItems = items;
             ItemType[] newItems;
 
         Retry:
 
-            if (oldItems == null)
-            {
+            if (oldItems == null) {
                 newItems = new ItemType[] { newItem };
             }
-            else
-            {
+            else {
                 var lo = 0;
                 var hi = oldItems.Length;
-                do
-                {
+                do {
                     int i = (lo + hi) / 2;
                     item = oldItems[i];
 
                     int cmp = item.Compare(newItem);
-                    if (cmp == 0)
-                    {
+                    if (cmp == 0) {
                         goto Done;
                     }
-                    else if (cmp < 0)
-                    {
+                    else if (cmp < 0) {
                         lo = i + 1;
                     }
-                    else
-                    {
+                    else {
                         hi = i;
                     }
                 }
@@ -111,8 +97,7 @@ namespace System.Diagnostics.Tracing
             }
 
             newItems = Interlocked.CompareExchange(ref items, newItems, oldItems);
-            if (oldItems != newItems)
-            {
+            if (oldItems != newItems) {
                 oldItems = newItems;
                 goto Retry;
             }

@@ -4,23 +4,18 @@
 
 using System.Runtime.Serialization;
 
-namespace System
-{
+namespace System {
     [Serializable]
-    public class InvalidTimeZoneException : Exception
-    {
-        public InvalidTimeZoneException()
-        {
+    public class InvalidTimeZoneException : Exception {
+        public InvalidTimeZoneException() {
         }
 
         public InvalidTimeZoneException(String message)
-            : base(message)
-        {
+            : base(message) {
         }
 
         public InvalidTimeZoneException(String message, Exception innerException)
-            : base(message, innerException)
-        {
+            : base(message, innerException) {
         }
 
         protected InvalidTimeZoneException(SerializationInfo info, StreamingContext context) : base(info, context) { }

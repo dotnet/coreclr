@@ -5,34 +5,28 @@
 using System.ComponentModel;
 using System.Text;
 
-namespace System.Collections.Generic
-{
+namespace System.Collections.Generic {
     // Provides the Create factory method for KeyValuePair<TKey, TValue>.
-    public static class KeyValuePair
-    {
+    public static class KeyValuePair {
         // Creates a new KeyValuePair<TKey, TValue> from the given values.
-        public static KeyValuePair<TKey, TValue> Create<TKey, TValue>(TKey key, TValue value)
-        {
+        public static KeyValuePair<TKey, TValue> Create<TKey, TValue>(TKey key, TValue value) {
             return new KeyValuePair<TKey, TValue>(key, value);
         }
 
         /// <summary>
         /// Used by KeyValuePair.ToString to reduce generic code
         /// </summary>
-        internal static string PairToString(object key, object value)
-        {
+        internal static string PairToString(object key, object value) {
             StringBuilder s = StringBuilderCache.Acquire();
             s.Append('[');
 
-            if (key != null)
-            {
+            if (key != null) {
                 s.Append(key);
             }
 
             s.Append(", ");
 
-            if (value != null)
-            {
+            if (value != null) {
                 s.Append(value);
             }
 
@@ -46,35 +40,29 @@ namespace System.Collections.Generic
     // It is used by the IEnumerable<T> implementation for both IDictionary<TKey, TValue>
     // and IReadOnlyDictionary<TKey, TValue>.
     [Serializable]
-    public struct KeyValuePair<TKey, TValue>
-    {
+    public struct KeyValuePair<TKey, TValue> {
         private TKey key;       // DO NOT change the field name, it's required for compatibility with desktop .NET as it appears in serialization payload.
         private TValue value;   // DO NOT change the field name, it's required for compatibility with desktop .NET as it appears in serialization payload.
 
-        public KeyValuePair(TKey key, TValue value)
-        {
+        public KeyValuePair(TKey key, TValue value) {
             this.key = key;
             this.value = value;
         }
 
-        public TKey Key
-        {
+        public TKey Key {
             get { return key; }
         }
 
-        public TValue Value
-        {
+        public TValue Value {
             get { return value; }
         }
 
-        public override string ToString()
-        {
+        public override string ToString() {
             return KeyValuePair.PairToString(Key, Value);
         }
 
         [EditorBrowsable(EditorBrowsableState.Never)]
-        public void Deconstruct(out TKey key, out TValue value)
-        {
+        public void Deconstruct(out TKey key, out TValue value) {
             key = Key;
             value = Value;
         }

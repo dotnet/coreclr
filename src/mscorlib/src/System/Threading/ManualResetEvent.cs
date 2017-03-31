@@ -15,10 +15,8 @@
 using System;
 using System.Runtime.InteropServices;
 
-namespace System.Threading
-{
-    public sealed class ManualResetEvent : EventWaitHandle
-    {
+namespace System.Threading {
+    public sealed class ManualResetEvent : EventWaitHandle {
         public ManualResetEvent(bool initialState) : base(initialState, EventResetMode.ManualReset) { }
     }
 }

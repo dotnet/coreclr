@@ -14,11 +14,9 @@
 
 using System;
 
-namespace System.Reflection.Emit
-{
+namespace System.Reflection.Emit {
     [Serializable]
-    public enum FlowControl
-    {
+    public enum FlowControl {
         Branch = 0,
         Break = 1,
         Call = 2,

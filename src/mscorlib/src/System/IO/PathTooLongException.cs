@@ -17,31 +17,25 @@
 using System;
 using System.Runtime.Serialization;
 
-namespace System.IO
-{
+namespace System.IO {
     [Serializable]
-    public class PathTooLongException : IOException
-    {
+    public class PathTooLongException : IOException {
         public PathTooLongException()
-            : base(SR.IO_PathTooLong)
-        {
+            : base(SR.IO_PathTooLong) {
             SetErrorCode(__HResults.COR_E_PATHTOOLONG);
         }
 
         public PathTooLongException(String message)
-            : base(message)
-        {
+            : base(message) {
             SetErrorCode(__HResults.COR_E_PATHTOOLONG);
         }
 
         public PathTooLongException(String message, Exception innerException)
-            : base(message, innerException)
-        {
+            : base(message, innerException) {
             SetErrorCode(__HResults.COR_E_PATHTOOLONG);
         }
 
-        protected PathTooLongException(SerializationInfo info, StreamingContext context) : base(info, context)
-        {
+        protected PathTooLongException(SerializationInfo info, StreamingContext context) : base(info, context) {
         }
     }
 }

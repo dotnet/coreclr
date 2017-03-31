@@ -15,14 +15,11 @@
 
 using System;
 
-namespace System
-{
+namespace System {
     [Serializable]
     [AttributeUsage(AttributeTargets.Field, Inherited = false)]
-    public class ThreadStaticAttribute : Attribute
-    {
-        public ThreadStaticAttribute()
-        {
+    public class ThreadStaticAttribute : Attribute {
+        public ThreadStaticAttribute() {
         }
     }
 }

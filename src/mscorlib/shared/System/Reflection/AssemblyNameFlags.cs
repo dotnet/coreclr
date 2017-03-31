@@ -2,11 +2,9 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-namespace System.Reflection
-{
+namespace System.Reflection {
     [Flags]
-    public enum AssemblyNameFlags
-    {
+    public enum AssemblyNameFlags {
         None = 0x0000,
         // Flag used to indicate that an assembly ref contains the full public key, not the compressed token.
         // Must match afPublicKey in CorHdr.h.

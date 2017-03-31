@@ -21,14 +21,12 @@ namespace System.Diagnostics.Tracing
 #if (!ES_BUILD_PCL && !PROJECTN)
     [Serializable]
 #endif
-    public class EventSourceException : Exception
-    {
+    public class EventSourceException : Exception {
         /// <summary>
         /// Initializes a new instance of the EventSourceException class.
         /// </summary>
         public EventSourceException() :
-            base(Resources.GetResourceString("EventSource_ListenerWriteFailure"))
-        { }
+            base(Resources.GetResourceString("EventSource_ListenerWriteFailure")) { }
 
         /// <summary>
         /// Initializes a new instance of the EventSourceException class with a specified error message.
@@ -49,7 +47,6 @@ namespace System.Diagnostics.Tracing
 #endif
 
         internal EventSourceException(Exception innerException) :
-            base(Resources.GetResourceString("EventSource_ListenerWriteFailure"), innerException)
-        { }
+            base(Resources.GetResourceString("EventSource_ListenerWriteFailure"), innerException) { }
     }
 }

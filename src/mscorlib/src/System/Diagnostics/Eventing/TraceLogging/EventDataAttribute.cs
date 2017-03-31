@@ -22,8 +22,7 @@ namespace System.Diagnostics.Tracing
     /// </summary>
     [AttributeUsage(AttributeTargets.Class | AttributeTargets.Struct, Inherited = false)]
     public class EventDataAttribute
-        : Attribute
-    {
+        : Attribute {
         private EventLevel level = (EventLevel)(-1);
         private EventOpcode opcode = (EventOpcode)(-1);
 
@@ -53,8 +52,7 @@ namespace System.Diagnostics.Tracing
         /// else
         ///     fieldName = typeof(T).Name;
         /// </summary>
-        public string Name
-        {
+        public string Name {
             get;
             set;
         }
@@ -79,8 +77,7 @@ namespace System.Diagnostics.Tracing
         /// else
         ///     eventLevel = EventLevel.LogAlways;
         /// </summary>
-        internal EventLevel Level
-        {
+        internal EventLevel Level {
             get { return level; }
             set { level = value; }
         }
@@ -105,8 +102,7 @@ namespace System.Diagnostics.Tracing
         /// else
         ///     eventOpcode = EventOpcode.Info;
         /// </summary>
-        internal EventOpcode Opcode
-        {
+        internal EventOpcode Opcode {
             get { return opcode; }
             set { opcode = value; }
         }
@@ -127,8 +123,7 @@ namespace System.Diagnostics.Tracing
         /// if (a field/property contained in data has a TraceLoggingEvent attribute)
         ///     eventKeywords |= attribute.Keywords;
         /// </summary>
-        internal EventKeywords Keywords
-        {
+        internal EventKeywords Keywords {
             get;
             set;
         }
@@ -137,8 +132,7 @@ namespace System.Diagnostics.Tracing
         /// Gets or sets the flags for an event. These flags are ignored by ETW,
         /// but can have meaning to the event consumer.
         /// </summary>
-        internal EventTags Tags
-        {
+        internal EventTags Tags {
             get;
             set;
         }

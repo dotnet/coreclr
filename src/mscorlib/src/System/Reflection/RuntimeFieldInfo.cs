@@ -7,11 +7,9 @@ using System.Diagnostics.Contracts;
 using System.Runtime.Serialization;
 using RuntimeTypeCache = System.RuntimeType.RuntimeTypeCache;
 
-namespace System.Reflection
-{
+namespace System.Reflection {
     [Serializable]
-    internal abstract class RuntimeFieldInfo : FieldInfo, ISerializable
-    {
+    internal abstract class RuntimeFieldInfo : FieldInfo, ISerializable {
         #region Private Data Members
         private BindingFlags m_bindingFlags;
         protected RuntimeTypeCache m_reflectedTypeCache;
@@ -19,12 +17,10 @@ namespace System.Reflection
         #endregion
 
         #region Constructor
-        protected RuntimeFieldInfo()
-        {
+        protected RuntimeFieldInfo() {
             // Used for dummy head node during population
         }
-        protected RuntimeFieldInfo(RuntimeTypeCache reflectedTypeCache, RuntimeType declaringType, BindingFlags bindingFlags)
-        {
+        protected RuntimeFieldInfo(RuntimeTypeCache reflectedTypeCache, RuntimeType declaringType, BindingFlags bindingFlags) {
             m_bindingFlags = bindingFlags;
             m_declaringType = declaringType;
             m_reflectedTypeCache = reflectedTypeCache;
@@ -33,16 +29,13 @@ namespace System.Reflection
 
         #region NonPublic Members
         internal BindingFlags BindingFlags { get { return m_bindingFlags; } }
-        private RuntimeType ReflectedTypeInternal
-        {
-            get
-            {
+        private RuntimeType ReflectedTypeInternal {
+            get {
                 return m_reflectedTypeCache.GetRuntimeType();
             }
         }
 
-        internal RuntimeType GetDeclaringTypeInternal()
-        {
+        internal RuntimeType GetDeclaringTypeInternal() {
             return m_declaringType;
         }
 
@@ -52,18 +45,14 @@ namespace System.Reflection
 
         #region MemberInfo Overrides
         public override MemberTypes MemberType { get { return MemberTypes.Field; } }
-        public override Type ReflectedType
-        {
-            get
-            {
+        public override Type ReflectedType {
+            get {
                 return m_reflectedTypeCache.IsGlobal ? null : ReflectedTypeInternal;
             }
         }
 
-        public override Type DeclaringType
-        {
-            get
-            {
+        public override Type DeclaringType {
+            get {
                 return m_reflectedTypeCache.IsGlobal ? null : m_declaringType;
             }
         }
@@ -72,20 +61,17 @@ namespace System.Reflection
         #endregion
 
         #region Object Overrides
-        public unsafe override String ToString()
-        {
+        public unsafe override String ToString() {
             return FieldType.FormatTypeName() + " " + Name;
         }
         #endregion
 
         #region ICustomAttributeProvider
-        public override Object[] GetCustomAttributes(bool inherit)
-        {
+        public override Object[] GetCustomAttributes(bool inherit) {
             return CustomAttribute.GetCustomAttributes(this, typeof(object) as RuntimeType);
         }
 
-        public override Object[] GetCustomAttributes(Type attributeType, bool inherit)
-        {
+        public override Object[] GetCustomAttributes(Type attributeType, bool inherit) {
             if (attributeType == null)
                 throw new ArgumentNullException(nameof(attributeType));
             Contract.EndContractBlock();
@@ -98,8 +84,7 @@ namespace System.Reflection
             return CustomAttribute.GetCustomAttributes(this, attributeRuntimeType);
         }
 
-        public override bool IsDefined(Type attributeType, bool inherit)
-        {
+        public override bool IsDefined(Type attributeType, bool inherit) {
             if (attributeType == null)
                 throw new ArgumentNullException(nameof(attributeType));
             Contract.EndContractBlock();
@@ -112,8 +97,7 @@ namespace System.Reflection
             return CustomAttribute.IsDefined(this, attributeRuntimeType);
         }
 
-        public override IList<CustomAttributeData> GetCustomAttributesData()
-        {
+        public override IList<CustomAttributeData> GetCustomAttributesData() {
             return CustomAttributeData.GetCustomAttributesInternal(this);
         }
         #endregion
@@ -123,8 +107,7 @@ namespace System.Reflection
         #endregion
 
         #region ISerializable Implementation
-        public void GetObjectData(SerializationInfo info, StreamingContext context)
-        {
+        public void GetObjectData(SerializationInfo info, StreamingContext context) {
             if (info == null)
                 throw new ArgumentNullException(nameof(info));
             Contract.EndContractBlock();

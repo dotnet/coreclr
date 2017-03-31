@@ -6,13 +6,10 @@ using Microsoft.Win32.SafeHandles;
 using System;
 using System.Runtime.InteropServices;
 
-internal partial class Interop
-{
-    internal partial class Kernel32
-    {
+internal partial class Interop {
+    internal partial class Kernel32 {
         [StructLayout(LayoutKind.Sequential)]
-        internal struct SECURITY_ATTRIBUTES
-        {
+        internal struct SECURITY_ATTRIBUTES {
             internal uint nLength;
             internal IntPtr lpSecurityDescriptor;
             internal BOOL bInheritHandle;

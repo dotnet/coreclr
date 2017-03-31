@@ -5,67 +5,54 @@
 using System;
 using System.Text;
 
-namespace System.Text
-{
+namespace System.Text {
     [Serializable]
-    public sealed class EncodingInfo
-    {
+    public sealed class EncodingInfo {
         private int iCodePage;          // Code Page #
         private String strEncodingName;    // Short name (web name)
         private String strDisplayName;     // Full localized name
 
-        internal EncodingInfo(int codePage, string name, string displayName)
-        {
+        internal EncodingInfo(int codePage, string name, string displayName) {
             iCodePage = codePage;
             strEncodingName = name;
             strDisplayName = displayName;
         }
 
 
-        public int CodePage
-        {
-            get
-            {
+        public int CodePage {
+            get {
                 return iCodePage;
             }
         }
 
 
-        public String Name
-        {
-            get
-            {
+        public String Name {
+            get {
                 return strEncodingName;
             }
         }
 
 
-        public String DisplayName
-        {
-            get
-            {
+        public String DisplayName {
+            get {
                 return strDisplayName;
             }
         }
 
 
-        public Encoding GetEncoding()
-        {
+        public Encoding GetEncoding() {
             return Encoding.GetEncoding(iCodePage);
         }
 
-        public override bool Equals(Object value)
-        {
+        public override bool Equals(Object value) {
             EncodingInfo that = value as EncodingInfo;
-            if (that != null)
-            {
+            if (that != null) {
                 return (this.CodePage == that.CodePage);
             }
             return (false);
         }
 
-        public override int GetHashCode()
-        {
+        public override int GetHashCode() {
             return this.CodePage;
         }
     }

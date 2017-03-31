@@ -22,8 +22,7 @@ namespace System.Diagnostics.Tracing
     /// Non-generic base class for TraceLoggingTypeInfo&lt;DataType>. Do not derive
     /// from this class. Instead, derive from TraceLoggingTypeInfo&lt;DataType>.
     /// </summary>
-    internal abstract class TraceLoggingTypeInfo
-    {
+    internal abstract class TraceLoggingTypeInfo {
         private readonly string name;
         private readonly EventKeywords keywords;
         private readonly EventLevel level = (EventLevel)(-1);
@@ -32,10 +31,8 @@ namespace System.Diagnostics.Tracing
         private readonly Type dataType;
         private readonly Func<object, PropertyValue> propertyValueFactory;
 
-        internal TraceLoggingTypeInfo(Type dataType)
-        {
-            if (dataType == null)
-            {
+        internal TraceLoggingTypeInfo(Type dataType) {
+            if (dataType == null) {
                 throw new ArgumentNullException(nameof(dataType));
             }
 
@@ -52,15 +49,12 @@ namespace System.Diagnostics.Tracing
             EventLevel level,
             EventOpcode opcode,
             EventKeywords keywords,
-            EventTags tags)
-        {
-            if (dataType == null)
-            {
+            EventTags tags) {
+            if (dataType == null) {
                 throw new ArgumentNullException(nameof(dataType));
             }
 
-            if (name == null)
-            {
+            if (name == null) {
                 throw new ArgumentNullException(nameof(name));
             }
 
@@ -82,8 +76,7 @@ namespace System.Diagnostics.Tracing
         /// or the name to use for an implicitly-named field.
         /// Never null.
         /// </summary>
-        public string Name
-        {
+        public string Name {
             get { return name; }
         }
 
@@ -92,8 +85,7 @@ namespace System.Diagnostics.Tracing
         /// is an associated event level. Any value outside the range 0..255 is invalid and
         /// indicates that this type has no associated event level.
         /// </summary>
-        public EventLevel Level
-        {
+        public EventLevel Level {
             get { return level; }
         }
 
@@ -102,34 +94,29 @@ namespace System.Diagnostics.Tracing
         /// is an associated event opcode. Any value outside the range 0..255 is invalid and
         /// indicates that this type has no associated event opcode.
         /// </summary>
-        public EventOpcode Opcode
-        {
+        public EventOpcode Opcode {
             get { return opcode; }
         }
 
         /// <summary>
         /// Gets the keyword(s) associated with this type.
         /// </summary>
-        public EventKeywords Keywords
-        {
+        public EventKeywords Keywords {
             get { return keywords; }
         }
 
         /// <summary>
         /// Gets the event tags associated with this type.
         /// </summary>
-        public EventTags Tags
-        {
+        public EventTags Tags {
             get { return tags; }
         }
 
-        internal Type DataType
-        {
+        internal Type DataType {
             get { return dataType; }
         }
 
-        internal Func<object, PropertyValue> PropertyValueFactory
-        {
+        internal Func<object, PropertyValue> PropertyValueFactory {
             get { return propertyValueFactory; }
         }
 
@@ -181,21 +168,18 @@ namespace System.Diagnostics.Tracing
         /// </summary>
         /// <param name="value"></param>
         /// <returns></returns>
-        public virtual object GetData(object value)
-        {
+        public virtual object GetData(object value) {
             return value;
         }
 
         [ThreadStatic] // per-thread cache to avoid synchronization
         private static Dictionary<Type, TraceLoggingTypeInfo> threadCache;
 
-        public static TraceLoggingTypeInfo GetInstance(Type type, List<Type> recursionCheck)
-        {
+        public static TraceLoggingTypeInfo GetInstance(Type type, List<Type> recursionCheck) {
             var cache = threadCache ?? (threadCache = new Dictionary<Type, TraceLoggingTypeInfo>());
 
             TraceLoggingTypeInfo instance;
-            if (!cache.TryGetValue(type, out instance))
-            {
+            if (!cache.TryGetValue(type, out instance)) {
                 if (recursionCheck == null)
                     recursionCheck = new List<Type>();
                 var recursionCheckCount = recursionCheck.Count;

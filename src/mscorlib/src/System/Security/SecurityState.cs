@@ -5,14 +5,11 @@
 using System;
 using System.Security;
 
-namespace System.Security
-{
-    internal abstract class SecurityState
-    {
+namespace System.Security {
+    internal abstract class SecurityState {
         protected SecurityState() { }
 
-        public bool IsStateAvailable()
-        {
+        public bool IsStateAvailable() {
             AppDomainManager domainManager = AppDomainManager.CurrentAppDomainManager;
 
             // CheckSecuritySettings only when appdomainManager is present. So if there is no 

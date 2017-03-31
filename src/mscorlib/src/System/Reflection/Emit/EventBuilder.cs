@@ -18,14 +18,12 @@ using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Diagnostics.Contracts;
 
-namespace System.Reflection.Emit
-{
+namespace System.Reflection.Emit {
     // 
     // A EventBuilder is always associated with a TypeBuilder.  The TypeBuilder.DefineEvent
     // method will return a new EventBuilder to a client.
     // 
-    public sealed class EventBuilder
-    {
+    public sealed class EventBuilder {
         // Make a private constructor so these cannot be constructed externally.
         private EventBuilder() { }
 
@@ -37,8 +35,7 @@ namespace System.Reflection.Emit
             EventAttributes attr,                    // event attribute such as Public, Private, and Protected defined above
                                                      //int            eventType,                // event type
             TypeBuilder type,                    // containing type
-            EventToken evToken)
-        {
+            EventToken evToken) {
             m_name = name;
             m_module = mod;
             m_attributes = attr;
@@ -48,15 +45,12 @@ namespace System.Reflection.Emit
 
         // Return the Token for this event within the TypeBuilder that the
         // event is defined within.
-        public EventToken GetEventToken()
-        {
+        public EventToken GetEventToken() {
             return m_evToken;
         }
 
-        private void SetMethodSemantics(MethodBuilder mdBuilder, MethodSemanticsAttributes semantics)
-        {
-            if (mdBuilder == null)
-            {
+        private void SetMethodSemantics(MethodBuilder mdBuilder, MethodSemanticsAttributes semantics) {
+            if (mdBuilder == null) {
                 throw new ArgumentNullException(nameof(mdBuilder));
             }
             Contract.EndContractBlock();
@@ -69,30 +63,25 @@ namespace System.Reflection.Emit
                 mdBuilder.GetToken().Token);
         }
 
-        public void SetAddOnMethod(MethodBuilder mdBuilder)
-        {
+        public void SetAddOnMethod(MethodBuilder mdBuilder) {
             SetMethodSemantics(mdBuilder, MethodSemanticsAttributes.AddOn);
         }
 
-        public void SetRemoveOnMethod(MethodBuilder mdBuilder)
-        {
+        public void SetRemoveOnMethod(MethodBuilder mdBuilder) {
             SetMethodSemantics(mdBuilder, MethodSemanticsAttributes.RemoveOn);
         }
 
-        public void SetRaiseMethod(MethodBuilder mdBuilder)
-        {
+        public void SetRaiseMethod(MethodBuilder mdBuilder) {
             SetMethodSemantics(mdBuilder, MethodSemanticsAttributes.Fire);
         }
 
-        public void AddOtherMethod(MethodBuilder mdBuilder)
-        {
+        public void AddOtherMethod(MethodBuilder mdBuilder) {
             SetMethodSemantics(mdBuilder, MethodSemanticsAttributes.Other);
         }
 
         // Use this function if client decides to form the custom attribute blob themselves
 
-        public void SetCustomAttribute(ConstructorInfo con, byte[] binaryAttribute)
-        {
+        public void SetCustomAttribute(ConstructorInfo con, byte[] binaryAttribute) {
             if (con == null)
                 throw new ArgumentNullException(nameof(con));
             if (binaryAttribute == null)
@@ -109,10 +98,8 @@ namespace System.Reflection.Emit
         }
 
         // Use this function if client wishes to build CustomAttribute using CustomAttributeBuilder
-        public void SetCustomAttribute(CustomAttributeBuilder customBuilder)
-        {
-            if (customBuilder == null)
-            {
+        public void SetCustomAttribute(CustomAttributeBuilder customBuilder) {
+            if (customBuilder == null) {
                 throw new ArgumentNullException(nameof(customBuilder));
             }
             Contract.EndContractBlock();

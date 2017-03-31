@@ -13,12 +13,10 @@
 
 using System;
 
-namespace System.Runtime.InteropServices.ComTypes
-{
+namespace System.Runtime.InteropServices.ComTypes {
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
 
-    public struct CONNECTDATA
-    {
+    public struct CONNECTDATA {
         [MarshalAs(UnmanagedType.Interface)]
         public Object pUnk;
         public int dwCookie;
@@ -27,8 +25,7 @@ namespace System.Runtime.InteropServices.ComTypes
     [Guid("B196B287-BAB4-101A-B69C-00AA00341D07")]
     [InterfaceTypeAttribute(ComInterfaceType.InterfaceIsIUnknown)]
     [ComImport]
-    public interface IEnumConnections
-    {
+    public interface IEnumConnections {
         [PreserveSig]
         int Next(int celt, [MarshalAs(UnmanagedType.LPArray, SizeParamIndex = 0), Out] CONNECTDATA[] rgelt, IntPtr pceltFetched);
         [PreserveSig]

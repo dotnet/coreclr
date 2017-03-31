@@ -16,19 +16,15 @@ using System.Runtime.CompilerServices;
 using System.Runtime.ConstrainedExecution;
 using System.Runtime.Versioning;
 
-namespace Microsoft.Win32.SafeHandles
-{
-    internal sealed class SafeRegistryHandle : SafeHandleZeroOrMinusOneIsInvalid
-    {
+namespace Microsoft.Win32.SafeHandles {
+    internal sealed class SafeRegistryHandle : SafeHandleZeroOrMinusOneIsInvalid {
         internal SafeRegistryHandle() : base(true) { }
 
-        public SafeRegistryHandle(IntPtr preexistingHandle, bool ownsHandle) : base(ownsHandle)
-        {
+        public SafeRegistryHandle(IntPtr preexistingHandle, bool ownsHandle) : base(ownsHandle) {
             SetHandle(preexistingHandle);
         }
 
-        override protected bool ReleaseHandle()
-        {
+        override protected bool ReleaseHandle() {
             return (RegCloseKey(handle) == Win32Native.ERROR_SUCCESS);
         }
 

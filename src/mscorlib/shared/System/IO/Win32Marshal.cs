@@ -6,18 +6,15 @@ using System;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 
-namespace System.IO
-{
+namespace System.IO {
     /// <summary>
     ///     Provides static methods for converting from Win32 errors codes to exceptions, HRESULTS and error messages.
     /// </summary>
-    internal static class Win32Marshal
-    {
+    internal static class Win32Marshal {
         /// <summary>
         ///     Converts, resetting it, the last Win32 error into a corresponding <see cref="Exception"/> object.
         /// </summary>
-        internal static Exception GetExceptionForLastWin32Error()
-        {
+        internal static Exception GetExceptionForLastWin32Error() {
             int errorCode = Marshal.GetLastWin32Error();
             return GetExceptionForWin32Error(errorCode, string.Empty);
         }
@@ -25,8 +22,7 @@ namespace System.IO
         /// <summary>
         ///     Converts the specified Win32 error into a corresponding <see cref="Exception"/> object.
         /// </summary>
-        internal static Exception GetExceptionForWin32Error(int errorCode)
-        {
+        internal static Exception GetExceptionForWin32Error(int errorCode) {
             return GetExceptionForWin32Error(errorCode, string.Empty);
         }
 
@@ -34,10 +30,8 @@ namespace System.IO
         ///     Converts the specified Win32 error into a corresponding <see cref="Exception"/> object, optionally 
         ///     including the specified path in the error message.
         /// </summary>
-        internal static Exception GetExceptionForWin32Error(int errorCode, string path)
-        {
-            switch (errorCode)
-            {
+        internal static Exception GetExceptionForWin32Error(int errorCode, string path) {
+            switch (errorCode) {
                 case Interop.Errors.ERROR_FILE_NOT_FOUND:
                     if (path.Length == 0)
                         return new FileNotFoundException(SR.IO_FileNotFound);
@@ -91,8 +85,7 @@ namespace System.IO
         /// <summary>
         ///     Returns a HRESULT for the specified Win32 error code.
         /// </summary>
-        internal static int MakeHRFromErrorCode(int errorCode)
-        {
+        internal static int MakeHRFromErrorCode(int errorCode) {
             Debug.Assert((0xFFFF0000 & errorCode) == 0, "This is an HRESULT, not an error code!");
 
             return unchecked(((int)0x80070000) | errorCode);
@@ -101,8 +94,7 @@ namespace System.IO
         /// <summary>
         ///     Returns a string message for the specified Win32 error code.
         /// </summary>
-        internal static string GetMessage(int errorCode)
-        {
+        internal static string GetMessage(int errorCode) {
             return Interop.Kernel32.GetMessage(errorCode);
         }
     }

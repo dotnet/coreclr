@@ -17,23 +17,19 @@
 using System;
 using System.Diagnostics.Contracts;
 
-namespace System.Resources
-{
+namespace System.Resources {
     [AttributeUsage(AttributeTargets.Assembly, AllowMultiple = false)]
-    public sealed class SatelliteContractVersionAttribute : Attribute
-    {
+    public sealed class SatelliteContractVersionAttribute : Attribute {
         private String _version;
 
-        public SatelliteContractVersionAttribute(String version)
-        {
+        public SatelliteContractVersionAttribute(String version) {
             if (version == null)
                 throw new ArgumentNullException(nameof(version));
             Contract.EndContractBlock();
             _version = version;
         }
 
-        public String Version
-        {
+        public String Version {
             get { return _version; }
         }
     }

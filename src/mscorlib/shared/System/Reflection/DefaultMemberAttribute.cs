@@ -2,15 +2,12 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-namespace System.Reflection
-{
+namespace System.Reflection {
     [Serializable]
     [AttributeUsage(AttributeTargets.Class | AttributeTargets.Struct | AttributeTargets.Interface)]
-    public sealed class DefaultMemberAttribute : Attribute
-    {
+    public sealed class DefaultMemberAttribute : Attribute {
         // You must provide the name of the member, this is required
-        public DefaultMemberAttribute(string memberName)
-        {
+        public DefaultMemberAttribute(string memberName) {
             MemberName = memberName;
         }
 

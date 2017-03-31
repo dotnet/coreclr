@@ -5,13 +5,11 @@
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 
-namespace System
-{
+namespace System {
     /// <summary>
     /// Provides extension methods for <see cref="Tuple"/> instances to interop with C# tuples features (deconstruction syntax, converting from and to <see cref="ValueTuple"/>).
     /// </summary>
-    public static class TupleExtensions
-    {
+    public static class TupleExtensions {
         #region Deconstruct
         /// <summary>
         /// Deconstruct a properly nested <see cref="Tuple"/> with 1 elements.
@@ -19,8 +17,7 @@ namespace System
         [EditorBrowsable(EditorBrowsableState.Never)]
         public static void Deconstruct<T1>(
             this Tuple<T1> value,
-            out T1 item1)
-        {
+            out T1 item1) {
             item1 = value.Item1;
         }
 
@@ -30,8 +27,7 @@ namespace System
         [EditorBrowsable(EditorBrowsableState.Never)]
         public static void Deconstruct<T1, T2>(
             this Tuple<T1, T2> value,
-            out T1 item1, out T2 item2)
-        {
+            out T1 item1, out T2 item2) {
             item1 = value.Item1;
             item2 = value.Item2;
         }
@@ -42,8 +38,7 @@ namespace System
         [EditorBrowsable(EditorBrowsableState.Never)]
         public static void Deconstruct<T1, T2, T3>(
             this Tuple<T1, T2, T3> value,
-            out T1 item1, out T2 item2, out T3 item3)
-        {
+            out T1 item1, out T2 item2, out T3 item3) {
             item1 = value.Item1;
             item2 = value.Item2;
             item3 = value.Item3;
@@ -55,8 +50,7 @@ namespace System
         [EditorBrowsable(EditorBrowsableState.Never)]
         public static void Deconstruct<T1, T2, T3, T4>(
             this Tuple<T1, T2, T3, T4> value,
-            out T1 item1, out T2 item2, out T3 item3, out T4 item4)
-        {
+            out T1 item1, out T2 item2, out T3 item3, out T4 item4) {
             item1 = value.Item1;
             item2 = value.Item2;
             item3 = value.Item3;
@@ -69,8 +63,7 @@ namespace System
         [EditorBrowsable(EditorBrowsableState.Never)]
         public static void Deconstruct<T1, T2, T3, T4, T5>(
             this Tuple<T1, T2, T3, T4, T5> value,
-            out T1 item1, out T2 item2, out T3 item3, out T4 item4, out T5 item5)
-        {
+            out T1 item1, out T2 item2, out T3 item3, out T4 item4, out T5 item5) {
             item1 = value.Item1;
             item2 = value.Item2;
             item3 = value.Item3;
@@ -84,8 +77,7 @@ namespace System
         [EditorBrowsable(EditorBrowsableState.Never)]
         public static void Deconstruct<T1, T2, T3, T4, T5, T6>(
             this Tuple<T1, T2, T3, T4, T5, T6> value,
-            out T1 item1, out T2 item2, out T3 item3, out T4 item4, out T5 item5, out T6 item6)
-        {
+            out T1 item1, out T2 item2, out T3 item3, out T4 item4, out T5 item5, out T6 item6) {
             item1 = value.Item1;
             item2 = value.Item2;
             item3 = value.Item3;
@@ -100,8 +92,7 @@ namespace System
         [EditorBrowsable(EditorBrowsableState.Never)]
         public static void Deconstruct<T1, T2, T3, T4, T5, T6, T7>(
             this Tuple<T1, T2, T3, T4, T5, T6, T7> value,
-            out T1 item1, out T2 item2, out T3 item3, out T4 item4, out T5 item5, out T6 item6, out T7 item7)
-        {
+            out T1 item1, out T2 item2, out T3 item3, out T4 item4, out T5 item5, out T6 item6, out T7 item7) {
             item1 = value.Item1;
             item2 = value.Item2;
             item3 = value.Item3;
@@ -117,8 +108,7 @@ namespace System
         [EditorBrowsable(EditorBrowsableState.Never)]
         public static void Deconstruct<T1, T2, T3, T4, T5, T6, T7, T8>(
             this Tuple<T1, T2, T3, T4, T5, T6, T7, Tuple<T8>> value,
-            out T1 item1, out T2 item2, out T3 item3, out T4 item4, out T5 item5, out T6 item6, out T7 item7, out T8 item8)
-        {
+            out T1 item1, out T2 item2, out T3 item3, out T4 item4, out T5 item5, out T6 item6, out T7 item7, out T8 item8) {
             item1 = value.Item1;
             item2 = value.Item2;
             item3 = value.Item3;
@@ -135,8 +125,7 @@ namespace System
         [EditorBrowsable(EditorBrowsableState.Never)]
         public static void Deconstruct<T1, T2, T3, T4, T5, T6, T7, T8, T9>(
             this Tuple<T1, T2, T3, T4, T5, T6, T7, Tuple<T8, T9>> value,
-            out T1 item1, out T2 item2, out T3 item3, out T4 item4, out T5 item5, out T6 item6, out T7 item7, out T8 item8, out T9 item9)
-        {
+            out T1 item1, out T2 item2, out T3 item3, out T4 item4, out T5 item5, out T6 item6, out T7 item7, out T8 item8, out T9 item9) {
             item1 = value.Item1;
             item2 = value.Item2;
             item3 = value.Item3;
@@ -154,8 +143,7 @@ namespace System
         [EditorBrowsable(EditorBrowsableState.Never)]
         public static void Deconstruct<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10>(
             this Tuple<T1, T2, T3, T4, T5, T6, T7, Tuple<T8, T9, T10>> value,
-            out T1 item1, out T2 item2, out T3 item3, out T4 item4, out T5 item5, out T6 item6, out T7 item7, out T8 item8, out T9 item9, out T10 item10)
-        {
+            out T1 item1, out T2 item2, out T3 item3, out T4 item4, out T5 item5, out T6 item6, out T7 item7, out T8 item8, out T9 item9, out T10 item10) {
             item1 = value.Item1;
             item2 = value.Item2;
             item3 = value.Item3;
@@ -174,8 +162,7 @@ namespace System
         [EditorBrowsable(EditorBrowsableState.Never)]
         public static void Deconstruct<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11>(
             this Tuple<T1, T2, T3, T4, T5, T6, T7, Tuple<T8, T9, T10, T11>> value,
-            out T1 item1, out T2 item2, out T3 item3, out T4 item4, out T5 item5, out T6 item6, out T7 item7, out T8 item8, out T9 item9, out T10 item10, out T11 item11)
-        {
+            out T1 item1, out T2 item2, out T3 item3, out T4 item4, out T5 item5, out T6 item6, out T7 item7, out T8 item8, out T9 item9, out T10 item10, out T11 item11) {
             item1 = value.Item1;
             item2 = value.Item2;
             item3 = value.Item3;
@@ -195,8 +182,7 @@ namespace System
         [EditorBrowsable(EditorBrowsableState.Never)]
         public static void Deconstruct<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12>(
             this Tuple<T1, T2, T3, T4, T5, T6, T7, Tuple<T8, T9, T10, T11, T12>> value,
-            out T1 item1, out T2 item2, out T3 item3, out T4 item4, out T5 item5, out T6 item6, out T7 item7, out T8 item8, out T9 item9, out T10 item10, out T11 item11, out T12 item12)
-        {
+            out T1 item1, out T2 item2, out T3 item3, out T4 item4, out T5 item5, out T6 item6, out T7 item7, out T8 item8, out T9 item9, out T10 item10, out T11 item11, out T12 item12) {
             item1 = value.Item1;
             item2 = value.Item2;
             item3 = value.Item3;
@@ -217,8 +203,7 @@ namespace System
         [EditorBrowsable(EditorBrowsableState.Never)]
         public static void Deconstruct<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13>(
             this Tuple<T1, T2, T3, T4, T5, T6, T7, Tuple<T8, T9, T10, T11, T12, T13>> value,
-            out T1 item1, out T2 item2, out T3 item3, out T4 item4, out T5 item5, out T6 item6, out T7 item7, out T8 item8, out T9 item9, out T10 item10, out T11 item11, out T12 item12, out T13 item13)
-        {
+            out T1 item1, out T2 item2, out T3 item3, out T4 item4, out T5 item5, out T6 item6, out T7 item7, out T8 item8, out T9 item9, out T10 item10, out T11 item11, out T12 item12, out T13 item13) {
             item1 = value.Item1;
             item2 = value.Item2;
             item3 = value.Item3;
@@ -240,8 +225,7 @@ namespace System
         [EditorBrowsable(EditorBrowsableState.Never)]
         public static void Deconstruct<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14>(
             this Tuple<T1, T2, T3, T4, T5, T6, T7, Tuple<T8, T9, T10, T11, T12, T13, T14>> value,
-            out T1 item1, out T2 item2, out T3 item3, out T4 item4, out T5 item5, out T6 item6, out T7 item7, out T8 item8, out T9 item9, out T10 item10, out T11 item11, out T12 item12, out T13 item13, out T14 item14)
-        {
+            out T1 item1, out T2 item2, out T3 item3, out T4 item4, out T5 item5, out T6 item6, out T7 item7, out T8 item8, out T9 item9, out T10 item10, out T11 item11, out T12 item12, out T13 item13, out T14 item14) {
             item1 = value.Item1;
             item2 = value.Item2;
             item3 = value.Item3;
@@ -264,8 +248,7 @@ namespace System
         [EditorBrowsable(EditorBrowsableState.Never)]
         public static void Deconstruct<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15>(
             this Tuple<T1, T2, T3, T4, T5, T6, T7, Tuple<T8, T9, T10, T11, T12, T13, T14, Tuple<T15>>> value,
-            out T1 item1, out T2 item2, out T3 item3, out T4 item4, out T5 item5, out T6 item6, out T7 item7, out T8 item8, out T9 item9, out T10 item10, out T11 item11, out T12 item12, out T13 item13, out T14 item14, out T15 item15)
-        {
+            out T1 item1, out T2 item2, out T3 item3, out T4 item4, out T5 item5, out T6 item6, out T7 item7, out T8 item8, out T9 item9, out T10 item10, out T11 item11, out T12 item12, out T13 item13, out T14 item14, out T15 item15) {
             item1 = value.Item1;
             item2 = value.Item2;
             item3 = value.Item3;
@@ -289,8 +272,7 @@ namespace System
         [EditorBrowsable(EditorBrowsableState.Never)]
         public static void Deconstruct<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16>(
             this Tuple<T1, T2, T3, T4, T5, T6, T7, Tuple<T8, T9, T10, T11, T12, T13, T14, Tuple<T15, T16>>> value,
-            out T1 item1, out T2 item2, out T3 item3, out T4 item4, out T5 item5, out T6 item6, out T7 item7, out T8 item8, out T9 item9, out T10 item10, out T11 item11, out T12 item12, out T13 item13, out T14 item14, out T15 item15, out T16 item16)
-        {
+            out T1 item1, out T2 item2, out T3 item3, out T4 item4, out T5 item5, out T6 item6, out T7 item7, out T8 item8, out T9 item9, out T10 item10, out T11 item11, out T12 item12, out T13 item13, out T14 item14, out T15 item15, out T16 item16) {
             item1 = value.Item1;
             item2 = value.Item2;
             item3 = value.Item3;
@@ -315,8 +297,7 @@ namespace System
         [EditorBrowsable(EditorBrowsableState.Never)]
         public static void Deconstruct<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17>(
             this Tuple<T1, T2, T3, T4, T5, T6, T7, Tuple<T8, T9, T10, T11, T12, T13, T14, Tuple<T15, T16, T17>>> value,
-            out T1 item1, out T2 item2, out T3 item3, out T4 item4, out T5 item5, out T6 item6, out T7 item7, out T8 item8, out T9 item9, out T10 item10, out T11 item11, out T12 item12, out T13 item13, out T14 item14, out T15 item15, out T16 item16, out T17 item17)
-        {
+            out T1 item1, out T2 item2, out T3 item3, out T4 item4, out T5 item5, out T6 item6, out T7 item7, out T8 item8, out T9 item9, out T10 item10, out T11 item11, out T12 item12, out T13 item13, out T14 item14, out T15 item15, out T16 item16, out T17 item17) {
             item1 = value.Item1;
             item2 = value.Item2;
             item3 = value.Item3;
@@ -342,8 +323,7 @@ namespace System
         [EditorBrowsable(EditorBrowsableState.Never)]
         public static void Deconstruct<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18>(
             this Tuple<T1, T2, T3, T4, T5, T6, T7, Tuple<T8, T9, T10, T11, T12, T13, T14, Tuple<T15, T16, T17, T18>>> value,
-            out T1 item1, out T2 item2, out T3 item3, out T4 item4, out T5 item5, out T6 item6, out T7 item7, out T8 item8, out T9 item9, out T10 item10, out T11 item11, out T12 item12, out T13 item13, out T14 item14, out T15 item15, out T16 item16, out T17 item17, out T18 item18)
-        {
+            out T1 item1, out T2 item2, out T3 item3, out T4 item4, out T5 item5, out T6 item6, out T7 item7, out T8 item8, out T9 item9, out T10 item10, out T11 item11, out T12 item12, out T13 item13, out T14 item14, out T15 item15, out T16 item16, out T17 item17, out T18 item18) {
             item1 = value.Item1;
             item2 = value.Item2;
             item3 = value.Item3;
@@ -370,8 +350,7 @@ namespace System
         [EditorBrowsable(EditorBrowsableState.Never)]
         public static void Deconstruct<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19>(
             this Tuple<T1, T2, T3, T4, T5, T6, T7, Tuple<T8, T9, T10, T11, T12, T13, T14, Tuple<T15, T16, T17, T18, T19>>> value,
-            out T1 item1, out T2 item2, out T3 item3, out T4 item4, out T5 item5, out T6 item6, out T7 item7, out T8 item8, out T9 item9, out T10 item10, out T11 item11, out T12 item12, out T13 item13, out T14 item14, out T15 item15, out T16 item16, out T17 item17, out T18 item18, out T19 item19)
-        {
+            out T1 item1, out T2 item2, out T3 item3, out T4 item4, out T5 item5, out T6 item6, out T7 item7, out T8 item8, out T9 item9, out T10 item10, out T11 item11, out T12 item12, out T13 item13, out T14 item14, out T15 item15, out T16 item16, out T17 item17, out T18 item18, out T19 item19) {
             item1 = value.Item1;
             item2 = value.Item2;
             item3 = value.Item3;
@@ -399,8 +378,7 @@ namespace System
         [EditorBrowsable(EditorBrowsableState.Never)]
         public static void Deconstruct<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20>(
             this Tuple<T1, T2, T3, T4, T5, T6, T7, Tuple<T8, T9, T10, T11, T12, T13, T14, Tuple<T15, T16, T17, T18, T19, T20>>> value,
-            out T1 item1, out T2 item2, out T3 item3, out T4 item4, out T5 item5, out T6 item6, out T7 item7, out T8 item8, out T9 item9, out T10 item10, out T11 item11, out T12 item12, out T13 item13, out T14 item14, out T15 item15, out T16 item16, out T17 item17, out T18 item18, out T19 item19, out T20 item20)
-        {
+            out T1 item1, out T2 item2, out T3 item3, out T4 item4, out T5 item5, out T6 item6, out T7 item7, out T8 item8, out T9 item9, out T10 item10, out T11 item11, out T12 item12, out T13 item13, out T14 item14, out T15 item15, out T16 item16, out T17 item17, out T18 item18, out T19 item19, out T20 item20) {
             item1 = value.Item1;
             item2 = value.Item2;
             item3 = value.Item3;
@@ -429,8 +407,7 @@ namespace System
         [EditorBrowsable(EditorBrowsableState.Never)]
         public static void Deconstruct<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21>(
             this Tuple<T1, T2, T3, T4, T5, T6, T7, Tuple<T8, T9, T10, T11, T12, T13, T14, Tuple<T15, T16, T17, T18, T19, T20, T21>>> value,
-            out T1 item1, out T2 item2, out T3 item3, out T4 item4, out T5 item5, out T6 item6, out T7 item7, out T8 item8, out T9 item9, out T10 item10, out T11 item11, out T12 item12, out T13 item13, out T14 item14, out T15 item15, out T16 item16, out T17 item17, out T18 item18, out T19 item19, out T20 item20, out T21 item21)
-        {
+            out T1 item1, out T2 item2, out T3 item3, out T4 item4, out T5 item5, out T6 item6, out T7 item7, out T8 item8, out T9 item9, out T10 item10, out T11 item11, out T12 item12, out T13 item13, out T14 item14, out T15 item15, out T16 item16, out T17 item17, out T18 item18, out T19 item19, out T20 item20, out T21 item21) {
             item1 = value.Item1;
             item2 = value.Item2;
             item3 = value.Item3;
@@ -461,8 +438,7 @@ namespace System
         /// </summary>
         public static ValueTuple<T1>
             ToValueTuple<T1>(
-                this Tuple<T1> value)
-        {
+                this Tuple<T1> value) {
             return ValueTuple.Create(value.Item1);
         }
 
@@ -471,8 +447,7 @@ namespace System
         /// </summary>
         public static ValueTuple<T1, T2>
             ToValueTuple<T1, T2>(
-                this Tuple<T1, T2> value)
-        {
+                this Tuple<T1, T2> value) {
             return ValueTuple.Create(value.Item1, value.Item2);
         }
 
@@ -481,8 +456,7 @@ namespace System
         /// </summary>
         public static ValueTuple<T1, T2, T3>
             ToValueTuple<T1, T2, T3>(
-                this Tuple<T1, T2, T3> value)
-        {
+                this Tuple<T1, T2, T3> value) {
             return ValueTuple.Create(value.Item1, value.Item2, value.Item3);
         }
 
@@ -491,8 +465,7 @@ namespace System
         /// </summary>
         public static ValueTuple<T1, T2, T3, T4>
             ToValueTuple<T1, T2, T3, T4>(
-                this Tuple<T1, T2, T3, T4> value)
-        {
+                this Tuple<T1, T2, T3, T4> value) {
             return ValueTuple.Create(value.Item1, value.Item2, value.Item3, value.Item4);
         }
 
@@ -501,8 +474,7 @@ namespace System
         /// </summary>
         public static ValueTuple<T1, T2, T3, T4, T5>
             ToValueTuple<T1, T2, T3, T4, T5>(
-                this Tuple<T1, T2, T3, T4, T5> value)
-        {
+                this Tuple<T1, T2, T3, T4, T5> value) {
             return ValueTuple.Create(value.Item1, value.Item2, value.Item3, value.Item4, value.Item5);
         }
 
@@ -511,8 +483,7 @@ namespace System
         /// </summary>
         public static ValueTuple<T1, T2, T3, T4, T5, T6>
             ToValueTuple<T1, T2, T3, T4, T5, T6>(
-                this Tuple<T1, T2, T3, T4, T5, T6> value)
-        {
+                this Tuple<T1, T2, T3, T4, T5, T6> value) {
             return ValueTuple.Create(value.Item1, value.Item2, value.Item3, value.Item4, value.Item5, value.Item6);
         }
 
@@ -521,8 +492,7 @@ namespace System
         /// </summary>
         public static ValueTuple<T1, T2, T3, T4, T5, T6, T7>
             ToValueTuple<T1, T2, T3, T4, T5, T6, T7>(
-                this Tuple<T1, T2, T3, T4, T5, T6, T7> value)
-        {
+                this Tuple<T1, T2, T3, T4, T5, T6, T7> value) {
             return ValueTuple.Create(value.Item1, value.Item2, value.Item3, value.Item4, value.Item5, value.Item6, value.Item7);
         }
 
@@ -531,8 +501,7 @@ namespace System
         /// </summary>
         public static ValueTuple<T1, T2, T3, T4, T5, T6, T7, ValueTuple<T8>>
             ToValueTuple<T1, T2, T3, T4, T5, T6, T7, T8>(
-                this Tuple<T1, T2, T3, T4, T5, T6, T7, Tuple<T8>> value)
-        {
+                this Tuple<T1, T2, T3, T4, T5, T6, T7, Tuple<T8>> value) {
             return CreateLong(value.Item1, value.Item2, value.Item3, value.Item4, value.Item5, value.Item6, value.Item7,
                         ValueTuple.Create(value.Rest.Item1));
         }
@@ -542,8 +511,7 @@ namespace System
         /// </summary>
         public static ValueTuple<T1, T2, T3, T4, T5, T6, T7, ValueTuple<T8, T9>>
             ToValueTuple<T1, T2, T3, T4, T5, T6, T7, T8, T9>(
-                this Tuple<T1, T2, T3, T4, T5, T6, T7, Tuple<T8, T9>> value)
-        {
+                this Tuple<T1, T2, T3, T4, T5, T6, T7, Tuple<T8, T9>> value) {
             return CreateLong(value.Item1, value.Item2, value.Item3, value.Item4, value.Item5, value.Item6, value.Item7,
                         ValueTuple.Create(value.Rest.Item1, value.Rest.Item2));
         }
@@ -553,8 +521,7 @@ namespace System
         /// </summary>
         public static ValueTuple<T1, T2, T3, T4, T5, T6, T7, ValueTuple<T8, T9, T10>>
             ToValueTuple<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10>(
-                this Tuple<T1, T2, T3, T4, T5, T6, T7, Tuple<T8, T9, T10>> value)
-        {
+                this Tuple<T1, T2, T3, T4, T5, T6, T7, Tuple<T8, T9, T10>> value) {
             return CreateLong(value.Item1, value.Item2, value.Item3, value.Item4, value.Item5, value.Item6, value.Item7,
                         ValueTuple.Create(value.Rest.Item1, value.Rest.Item2, value.Rest.Item3));
         }
@@ -564,8 +531,7 @@ namespace System
         /// </summary>
         public static ValueTuple<T1, T2, T3, T4, T5, T6, T7, ValueTuple<T8, T9, T10, T11>>
             ToValueTuple<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11>(
-                this Tuple<T1, T2, T3, T4, T5, T6, T7, Tuple<T8, T9, T10, T11>> value)
-        {
+                this Tuple<T1, T2, T3, T4, T5, T6, T7, Tuple<T8, T9, T10, T11>> value) {
             return CreateLong(value.Item1, value.Item2, value.Item3, value.Item4, value.Item5, value.Item6, value.Item7,
                         ValueTuple.Create(value.Rest.Item1, value.Rest.Item2, value.Rest.Item3, value.Rest.Item4));
         }
@@ -575,8 +541,7 @@ namespace System
         /// </summary>
         public static ValueTuple<T1, T2, T3, T4, T5, T6, T7, ValueTuple<T8, T9, T10, T11, T12>>
             ToValueTuple<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12>(
-                this Tuple<T1, T2, T3, T4, T5, T6, T7, Tuple<T8, T9, T10, T11, T12>> value)
-        {
+                this Tuple<T1, T2, T3, T4, T5, T6, T7, Tuple<T8, T9, T10, T11, T12>> value) {
             return CreateLong(value.Item1, value.Item2, value.Item3, value.Item4, value.Item5, value.Item6, value.Item7,
                         ValueTuple.Create(value.Rest.Item1, value.Rest.Item2, value.Rest.Item3, value.Rest.Item4, value.Rest.Item5));
         }
@@ -586,8 +551,7 @@ namespace System
         /// </summary>
         public static ValueTuple<T1, T2, T3, T4, T5, T6, T7, ValueTuple<T8, T9, T10, T11, T12, T13>>
             ToValueTuple<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13>(
-                this Tuple<T1, T2, T3, T4, T5, T6, T7, Tuple<T8, T9, T10, T11, T12, T13>> value)
-        {
+                this Tuple<T1, T2, T3, T4, T5, T6, T7, Tuple<T8, T9, T10, T11, T12, T13>> value) {
             return CreateLong(value.Item1, value.Item2, value.Item3, value.Item4, value.Item5, value.Item6, value.Item7,
                         ValueTuple.Create(value.Rest.Item1, value.Rest.Item2, value.Rest.Item3, value.Rest.Item4, value.Rest.Item5, value.Rest.Item6));
         }
@@ -597,8 +561,7 @@ namespace System
         /// </summary>
         public static ValueTuple<T1, T2, T3, T4, T5, T6, T7, ValueTuple<T8, T9, T10, T11, T12, T13, T14>>
             ToValueTuple<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14>(
-                this Tuple<T1, T2, T3, T4, T5, T6, T7, Tuple<T8, T9, T10, T11, T12, T13, T14>> value)
-        {
+                this Tuple<T1, T2, T3, T4, T5, T6, T7, Tuple<T8, T9, T10, T11, T12, T13, T14>> value) {
             return CreateLong(value.Item1, value.Item2, value.Item3, value.Item4, value.Item5, value.Item6, value.Item7,
                         ValueTuple.Create(value.Rest.Item1, value.Rest.Item2, value.Rest.Item3, value.Rest.Item4, value.Rest.Item5, value.Rest.Item6, value.Rest.Item7));
         }
@@ -608,8 +571,7 @@ namespace System
         /// </summary>
         public static ValueTuple<T1, T2, T3, T4, T5, T6, T7, ValueTuple<T8, T9, T10, T11, T12, T13, T14, ValueTuple<T15>>>
             ToValueTuple<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15>(
-                this Tuple<T1, T2, T3, T4, T5, T6, T7, Tuple<T8, T9, T10, T11, T12, T13, T14, Tuple<T15>>> value)
-        {
+                this Tuple<T1, T2, T3, T4, T5, T6, T7, Tuple<T8, T9, T10, T11, T12, T13, T14, Tuple<T15>>> value) {
             return CreateLong(value.Item1, value.Item2, value.Item3, value.Item4, value.Item5, value.Item6, value.Item7,
                         CreateLong(value.Rest.Item1, value.Rest.Item2, value.Rest.Item3, value.Rest.Item4, value.Rest.Item5, value.Rest.Item6, value.Rest.Item7,
                             ValueTuple.Create(value.Rest.Rest.Item1)));
@@ -620,8 +582,7 @@ namespace System
         /// </summary>
         public static ValueTuple<T1, T2, T3, T4, T5, T6, T7, ValueTuple<T8, T9, T10, T11, T12, T13, T14, ValueTuple<T15, T16>>>
             ToValueTuple<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16>(
-                this Tuple<T1, T2, T3, T4, T5, T6, T7, Tuple<T8, T9, T10, T11, T12, T13, T14, Tuple<T15, T16>>> value)
-        {
+                this Tuple<T1, T2, T3, T4, T5, T6, T7, Tuple<T8, T9, T10, T11, T12, T13, T14, Tuple<T15, T16>>> value) {
             return CreateLong(value.Item1, value.Item2, value.Item3, value.Item4, value.Item5, value.Item6, value.Item7,
                         CreateLong(value.Rest.Item1, value.Rest.Item2, value.Rest.Item3, value.Rest.Item4, value.Rest.Item5, value.Rest.Item6, value.Rest.Item7,
                             ValueTuple.Create(value.Rest.Rest.Item1, value.Rest.Rest.Item2)));
@@ -632,8 +593,7 @@ namespace System
         /// </summary>
         public static ValueTuple<T1, T2, T3, T4, T5, T6, T7, ValueTuple<T8, T9, T10, T11, T12, T13, T14, ValueTuple<T15, T16, T17>>>
             ToValueTuple<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17>(
-                this Tuple<T1, T2, T3, T4, T5, T6, T7, Tuple<T8, T9, T10, T11, T12, T13, T14, Tuple<T15, T16, T17>>> value)
-        {
+                this Tuple<T1, T2, T3, T4, T5, T6, T7, Tuple<T8, T9, T10, T11, T12, T13, T14, Tuple<T15, T16, T17>>> value) {
             return CreateLong(value.Item1, value.Item2, value.Item3, value.Item4, value.Item5, value.Item6, value.Item7,
                         CreateLong(value.Rest.Item1, value.Rest.Item2, value.Rest.Item3, value.Rest.Item4, value.Rest.Item5, value.Rest.Item6, value.Rest.Item7,
                             ValueTuple.Create(value.Rest.Rest.Item1, value.Rest.Rest.Item2, value.Rest.Rest.Item3)));
@@ -644,8 +604,7 @@ namespace System
         /// </summary>
         public static ValueTuple<T1, T2, T3, T4, T5, T6, T7, ValueTuple<T8, T9, T10, T11, T12, T13, T14, ValueTuple<T15, T16, T17, T18>>>
             ToValueTuple<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18>(
-                this Tuple<T1, T2, T3, T4, T5, T6, T7, Tuple<T8, T9, T10, T11, T12, T13, T14, Tuple<T15, T16, T17, T18>>> value)
-        {
+                this Tuple<T1, T2, T3, T4, T5, T6, T7, Tuple<T8, T9, T10, T11, T12, T13, T14, Tuple<T15, T16, T17, T18>>> value) {
             return CreateLong(value.Item1, value.Item2, value.Item3, value.Item4, value.Item5, value.Item6, value.Item7,
                         CreateLong(value.Rest.Item1, value.Rest.Item2, value.Rest.Item3, value.Rest.Item4, value.Rest.Item5, value.Rest.Item6, value.Rest.Item7,
                             ValueTuple.Create(value.Rest.Rest.Item1, value.Rest.Rest.Item2, value.Rest.Rest.Item3, value.Rest.Rest.Item4)));
@@ -656,8 +615,7 @@ namespace System
         /// </summary>
         public static ValueTuple<T1, T2, T3, T4, T5, T6, T7, ValueTuple<T8, T9, T10, T11, T12, T13, T14, ValueTuple<T15, T16, T17, T18, T19>>>
             ToValueTuple<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19>(
-                this Tuple<T1, T2, T3, T4, T5, T6, T7, Tuple<T8, T9, T10, T11, T12, T13, T14, Tuple<T15, T16, T17, T18, T19>>> value)
-        {
+                this Tuple<T1, T2, T3, T4, T5, T6, T7, Tuple<T8, T9, T10, T11, T12, T13, T14, Tuple<T15, T16, T17, T18, T19>>> value) {
             return CreateLong(value.Item1, value.Item2, value.Item3, value.Item4, value.Item5, value.Item6, value.Item7,
                         CreateLong(value.Rest.Item1, value.Rest.Item2, value.Rest.Item3, value.Rest.Item4, value.Rest.Item5, value.Rest.Item6, value.Rest.Item7,
                             ValueTuple.Create(value.Rest.Rest.Item1, value.Rest.Rest.Item2, value.Rest.Rest.Item3, value.Rest.Rest.Item4, value.Rest.Rest.Item5)));
@@ -668,8 +626,7 @@ namespace System
         /// </summary>
         public static ValueTuple<T1, T2, T3, T4, T5, T6, T7, ValueTuple<T8, T9, T10, T11, T12, T13, T14, ValueTuple<T15, T16, T17, T18, T19, T20>>>
             ToValueTuple<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20>(
-                this Tuple<T1, T2, T3, T4, T5, T6, T7, Tuple<T8, T9, T10, T11, T12, T13, T14, Tuple<T15, T16, T17, T18, T19, T20>>> value)
-        {
+                this Tuple<T1, T2, T3, T4, T5, T6, T7, Tuple<T8, T9, T10, T11, T12, T13, T14, Tuple<T15, T16, T17, T18, T19, T20>>> value) {
             return CreateLong(value.Item1, value.Item2, value.Item3, value.Item4, value.Item5, value.Item6, value.Item7,
                         CreateLong(value.Rest.Item1, value.Rest.Item2, value.Rest.Item3, value.Rest.Item4, value.Rest.Item5, value.Rest.Item6, value.Rest.Item7,
                             ValueTuple.Create(value.Rest.Rest.Item1, value.Rest.Rest.Item2, value.Rest.Rest.Item3, value.Rest.Rest.Item4, value.Rest.Rest.Item5, value.Rest.Rest.Item6)));
@@ -680,8 +637,7 @@ namespace System
         /// </summary>
         public static ValueTuple<T1, T2, T3, T4, T5, T6, T7, ValueTuple<T8, T9, T10, T11, T12, T13, T14, ValueTuple<T15, T16, T17, T18, T19, T20, T21>>>
             ToValueTuple<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21>(
-                this Tuple<T1, T2, T3, T4, T5, T6, T7, Tuple<T8, T9, T10, T11, T12, T13, T14, Tuple<T15, T16, T17, T18, T19, T20, T21>>> value)
-        {
+                this Tuple<T1, T2, T3, T4, T5, T6, T7, Tuple<T8, T9, T10, T11, T12, T13, T14, Tuple<T15, T16, T17, T18, T19, T20, T21>>> value) {
             return CreateLong(value.Item1, value.Item2, value.Item3, value.Item4, value.Item5, value.Item6, value.Item7,
                         CreateLong(value.Rest.Item1, value.Rest.Item2, value.Rest.Item3, value.Rest.Item4, value.Rest.Item5, value.Rest.Item6, value.Rest.Item7,
                             ValueTuple.Create(value.Rest.Rest.Item1, value.Rest.Rest.Item2, value.Rest.Rest.Item3, value.Rest.Rest.Item4, value.Rest.Rest.Item5, value.Rest.Rest.Item6, value.Rest.Rest.Item7)));
@@ -694,8 +650,7 @@ namespace System
         /// </summary>
         public static Tuple<T1>
             ToTuple<T1>(
-                this ValueTuple<T1> value)
-        {
+                this ValueTuple<T1> value) {
             return Tuple.Create(value.Item1);
         }
 
@@ -704,8 +659,7 @@ namespace System
         /// </summary>
         public static Tuple<T1, T2>
             ToTuple<T1, T2>(
-                this ValueTuple<T1, T2> value)
-        {
+                this ValueTuple<T1, T2> value) {
             return Tuple.Create(value.Item1, value.Item2);
         }
 
@@ -714,8 +668,7 @@ namespace System
         /// </summary>
         public static Tuple<T1, T2, T3>
             ToTuple<T1, T2, T3>(
-                this ValueTuple<T1, T2, T3> value)
-        {
+                this ValueTuple<T1, T2, T3> value) {
             return Tuple.Create(value.Item1, value.Item2, value.Item3);
         }
 
@@ -724,8 +677,7 @@ namespace System
         /// </summary>
         public static Tuple<T1, T2, T3, T4>
             ToTuple<T1, T2, T3, T4>(
-                this ValueTuple<T1, T2, T3, T4> value)
-        {
+                this ValueTuple<T1, T2, T3, T4> value) {
             return Tuple.Create(value.Item1, value.Item2, value.Item3, value.Item4);
         }
 
@@ -734,8 +686,7 @@ namespace System
         /// </summary>
         public static Tuple<T1, T2, T3, T4, T5>
             ToTuple<T1, T2, T3, T4, T5>(
-                this ValueTuple<T1, T2, T3, T4, T5> value)
-        {
+                this ValueTuple<T1, T2, T3, T4, T5> value) {
             return Tuple.Create(value.Item1, value.Item2, value.Item3, value.Item4, value.Item5);
         }
 
@@ -744,8 +695,7 @@ namespace System
         /// </summary>
         public static Tuple<T1, T2, T3, T4, T5, T6>
             ToTuple<T1, T2, T3, T4, T5, T6>(
-                this ValueTuple<T1, T2, T3, T4, T5, T6> value)
-        {
+                this ValueTuple<T1, T2, T3, T4, T5, T6> value) {
             return Tuple.Create(value.Item1, value.Item2, value.Item3, value.Item4, value.Item5, value.Item6);
         }
 
@@ -754,8 +704,7 @@ namespace System
         /// </summary>
         public static Tuple<T1, T2, T3, T4, T5, T6, T7>
             ToTuple<T1, T2, T3, T4, T5, T6, T7>(
-                this ValueTuple<T1, T2, T3, T4, T5, T6, T7> value)
-        {
+                this ValueTuple<T1, T2, T3, T4, T5, T6, T7> value) {
             return Tuple.Create(value.Item1, value.Item2, value.Item3, value.Item4, value.Item5, value.Item6, value.Item7);
         }
 
@@ -764,8 +713,7 @@ namespace System
         /// </summary>
         public static Tuple<T1, T2, T3, T4, T5, T6, T7, Tuple<T8>>
             ToTuple<T1, T2, T3, T4, T5, T6, T7, T8>(
-                this ValueTuple<T1, T2, T3, T4, T5, T6, T7, ValueTuple<T8>> value)
-        {
+                this ValueTuple<T1, T2, T3, T4, T5, T6, T7, ValueTuple<T8>> value) {
             return CreateLongRef(value.Item1, value.Item2, value.Item3, value.Item4, value.Item5, value.Item6, value.Item7,
                         Tuple.Create(value.Rest.Item1));
         }
@@ -775,8 +723,7 @@ namespace System
         /// </summary>
         public static Tuple<T1, T2, T3, T4, T5, T6, T7, Tuple<T8, T9>>
             ToTuple<T1, T2, T3, T4, T5, T6, T7, T8, T9>(
-                this ValueTuple<T1, T2, T3, T4, T5, T6, T7, ValueTuple<T8, T9>> value)
-        {
+                this ValueTuple<T1, T2, T3, T4, T5, T6, T7, ValueTuple<T8, T9>> value) {
             return CreateLongRef(value.Item1, value.Item2, value.Item3, value.Item4, value.Item5, value.Item6, value.Item7,
                         Tuple.Create(value.Rest.Item1, value.Rest.Item2));
         }
@@ -786,8 +733,7 @@ namespace System
         /// </summary>
         public static Tuple<T1, T2, T3, T4, T5, T6, T7, Tuple<T8, T9, T10>>
             ToTuple<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10>(
-                this ValueTuple<T1, T2, T3, T4, T5, T6, T7, ValueTuple<T8, T9, T10>> value)
-        {
+                this ValueTuple<T1, T2, T3, T4, T5, T6, T7, ValueTuple<T8, T9, T10>> value) {
             return CreateLongRef(value.Item1, value.Item2, value.Item3, value.Item4, value.Item5, value.Item6, value.Item7,
                         Tuple.Create(value.Rest.Item1, value.Rest.Item2, value.Rest.Item3));
         }
@@ -797,8 +743,7 @@ namespace System
         /// </summary>
         public static Tuple<T1, T2, T3, T4, T5, T6, T7, Tuple<T8, T9, T10, T11>>
             ToTuple<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11>(
-                this ValueTuple<T1, T2, T3, T4, T5, T6, T7, ValueTuple<T8, T9, T10, T11>> value)
-        {
+                this ValueTuple<T1, T2, T3, T4, T5, T6, T7, ValueTuple<T8, T9, T10, T11>> value) {
             return CreateLongRef(value.Item1, value.Item2, value.Item3, value.Item4, value.Item5, value.Item6, value.Item7,
                         Tuple.Create(value.Rest.Item1, value.Rest.Item2, value.Rest.Item3, value.Rest.Item4));
         }
@@ -808,8 +753,7 @@ namespace System
         /// </summary>
         public static Tuple<T1, T2, T3, T4, T5, T6, T7, Tuple<T8, T9, T10, T11, T12>>
             ToTuple<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12>(
-                this ValueTuple<T1, T2, T3, T4, T5, T6, T7, ValueTuple<T8, T9, T10, T11, T12>> value)
-        {
+                this ValueTuple<T1, T2, T3, T4, T5, T6, T7, ValueTuple<T8, T9, T10, T11, T12>> value) {
             return CreateLongRef(value.Item1, value.Item2, value.Item3, value.Item4, value.Item5, value.Item6, value.Item7,
                         Tuple.Create(value.Rest.Item1, value.Rest.Item2, value.Rest.Item3, value.Rest.Item4, value.Rest.Item5));
         }
@@ -819,8 +763,7 @@ namespace System
         /// </summary>
         public static Tuple<T1, T2, T3, T4, T5, T6, T7, Tuple<T8, T9, T10, T11, T12, T13>>
             ToTuple<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13>(
-                this ValueTuple<T1, T2, T3, T4, T5, T6, T7, ValueTuple<T8, T9, T10, T11, T12, T13>> value)
-        {
+                this ValueTuple<T1, T2, T3, T4, T5, T6, T7, ValueTuple<T8, T9, T10, T11, T12, T13>> value) {
             return CreateLongRef(value.Item1, value.Item2, value.Item3, value.Item4, value.Item5, value.Item6, value.Item7,
                         Tuple.Create(value.Rest.Item1, value.Rest.Item2, value.Rest.Item3, value.Rest.Item4, value.Rest.Item5, value.Rest.Item6));
         }
@@ -830,8 +773,7 @@ namespace System
         /// </summary>
         public static Tuple<T1, T2, T3, T4, T5, T6, T7, Tuple<T8, T9, T10, T11, T12, T13, T14>>
             ToTuple<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14>(
-                this ValueTuple<T1, T2, T3, T4, T5, T6, T7, ValueTuple<T8, T9, T10, T11, T12, T13, T14>> value)
-        {
+                this ValueTuple<T1, T2, T3, T4, T5, T6, T7, ValueTuple<T8, T9, T10, T11, T12, T13, T14>> value) {
             return CreateLongRef(value.Item1, value.Item2, value.Item3, value.Item4, value.Item5, value.Item6, value.Item7,
                         Tuple.Create(value.Rest.Item1, value.Rest.Item2, value.Rest.Item3, value.Rest.Item4, value.Rest.Item5, value.Rest.Item6, value.Rest.Item7));
         }
@@ -841,8 +783,7 @@ namespace System
         /// </summary>
         public static Tuple<T1, T2, T3, T4, T5, T6, T7, Tuple<T8, T9, T10, T11, T12, T13, T14, Tuple<T15>>>
             ToTuple<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15>(
-                this ValueTuple<T1, T2, T3, T4, T5, T6, T7, ValueTuple<T8, T9, T10, T11, T12, T13, T14, ValueTuple<T15>>> value)
-        {
+                this ValueTuple<T1, T2, T3, T4, T5, T6, T7, ValueTuple<T8, T9, T10, T11, T12, T13, T14, ValueTuple<T15>>> value) {
             return CreateLongRef(value.Item1, value.Item2, value.Item3, value.Item4, value.Item5, value.Item6, value.Item7,
                         CreateLongRef(value.Rest.Item1, value.Rest.Item2, value.Rest.Item3, value.Rest.Item4, value.Rest.Item5, value.Rest.Item6, value.Rest.Item7,
                             Tuple.Create(value.Rest.Rest.Item1)));
@@ -853,8 +794,7 @@ namespace System
         /// </summary>
         public static Tuple<T1, T2, T3, T4, T5, T6, T7, Tuple<T8, T9, T10, T11, T12, T13, T14, Tuple<T15, T16>>>
             ToTuple<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16>(
-                this ValueTuple<T1, T2, T3, T4, T5, T6, T7, ValueTuple<T8, T9, T10, T11, T12, T13, T14, ValueTuple<T15, T16>>> value)
-        {
+                this ValueTuple<T1, T2, T3, T4, T5, T6, T7, ValueTuple<T8, T9, T10, T11, T12, T13, T14, ValueTuple<T15, T16>>> value) {
             return CreateLongRef(value.Item1, value.Item2, value.Item3, value.Item4, value.Item5, value.Item6, value.Item7,
                         CreateLongRef(value.Rest.Item1, value.Rest.Item2, value.Rest.Item3, value.Rest.Item4, value.Rest.Item5, value.Rest.Item6, value.Rest.Item7,
                             Tuple.Create(value.Rest.Rest.Item1, value.Rest.Rest.Item2)));
@@ -865,8 +805,7 @@ namespace System
         /// </summary>
         public static Tuple<T1, T2, T3, T4, T5, T6, T7, Tuple<T8, T9, T10, T11, T12, T13, T14, Tuple<T15, T16, T17>>>
             ToTuple<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17>(
-                this ValueTuple<T1, T2, T3, T4, T5, T6, T7, ValueTuple<T8, T9, T10, T11, T12, T13, T14, ValueTuple<T15, T16, T17>>> value)
-        {
+                this ValueTuple<T1, T2, T3, T4, T5, T6, T7, ValueTuple<T8, T9, T10, T11, T12, T13, T14, ValueTuple<T15, T16, T17>>> value) {
             return CreateLongRef(value.Item1, value.Item2, value.Item3, value.Item4, value.Item5, value.Item6, value.Item7,
                         CreateLongRef(value.Rest.Item1, value.Rest.Item2, value.Rest.Item3, value.Rest.Item4, value.Rest.Item5, value.Rest.Item6, value.Rest.Item7,
                             Tuple.Create(value.Rest.Rest.Item1, value.Rest.Rest.Item2, value.Rest.Rest.Item3)));
@@ -877,8 +816,7 @@ namespace System
         /// </summary>
         public static Tuple<T1, T2, T3, T4, T5, T6, T7, Tuple<T8, T9, T10, T11, T12, T13, T14, Tuple<T15, T16, T17, T18>>>
             ToTuple<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18>(
-                this ValueTuple<T1, T2, T3, T4, T5, T6, T7, ValueTuple<T8, T9, T10, T11, T12, T13, T14, ValueTuple<T15, T16, T17, T18>>> value)
-        {
+                this ValueTuple<T1, T2, T3, T4, T5, T6, T7, ValueTuple<T8, T9, T10, T11, T12, T13, T14, ValueTuple<T15, T16, T17, T18>>> value) {
             return CreateLongRef(value.Item1, value.Item2, value.Item3, value.Item4, value.Item5, value.Item6, value.Item7,
                         CreateLongRef(value.Rest.Item1, value.Rest.Item2, value.Rest.Item3, value.Rest.Item4, value.Rest.Item5, value.Rest.Item6, value.Rest.Item7,
                             Tuple.Create(value.Rest.Rest.Item1, value.Rest.Rest.Item2, value.Rest.Rest.Item3, value.Rest.Rest.Item4)));
@@ -889,8 +827,7 @@ namespace System
         /// </summary>
         public static Tuple<T1, T2, T3, T4, T5, T6, T7, Tuple<T8, T9, T10, T11, T12, T13, T14, Tuple<T15, T16, T17, T18, T19>>>
             ToTuple<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19>(
-                this ValueTuple<T1, T2, T3, T4, T5, T6, T7, ValueTuple<T8, T9, T10, T11, T12, T13, T14, ValueTuple<T15, T16, T17, T18, T19>>> value)
-        {
+                this ValueTuple<T1, T2, T3, T4, T5, T6, T7, ValueTuple<T8, T9, T10, T11, T12, T13, T14, ValueTuple<T15, T16, T17, T18, T19>>> value) {
             return CreateLongRef(value.Item1, value.Item2, value.Item3, value.Item4, value.Item5, value.Item6, value.Item7,
                         CreateLongRef(value.Rest.Item1, value.Rest.Item2, value.Rest.Item3, value.Rest.Item4, value.Rest.Item5, value.Rest.Item6, value.Rest.Item7,
                             Tuple.Create(value.Rest.Rest.Item1, value.Rest.Rest.Item2, value.Rest.Rest.Item3, value.Rest.Rest.Item4, value.Rest.Rest.Item5)));
@@ -901,8 +838,7 @@ namespace System
         /// </summary>
         public static Tuple<T1, T2, T3, T4, T5, T6, T7, Tuple<T8, T9, T10, T11, T12, T13, T14, Tuple<T15, T16, T17, T18, T19, T20>>>
             ToTuple<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20>(
-                this ValueTuple<T1, T2, T3, T4, T5, T6, T7, ValueTuple<T8, T9, T10, T11, T12, T13, T14, ValueTuple<T15, T16, T17, T18, T19, T20>>> value)
-        {
+                this ValueTuple<T1, T2, T3, T4, T5, T6, T7, ValueTuple<T8, T9, T10, T11, T12, T13, T14, ValueTuple<T15, T16, T17, T18, T19, T20>>> value) {
             return CreateLongRef(value.Item1, value.Item2, value.Item3, value.Item4, value.Item5, value.Item6, value.Item7,
                         CreateLongRef(value.Rest.Item1, value.Rest.Item2, value.Rest.Item3, value.Rest.Item4, value.Rest.Item5, value.Rest.Item6, value.Rest.Item7,
                             Tuple.Create(value.Rest.Rest.Item1, value.Rest.Rest.Item2, value.Rest.Rest.Item3, value.Rest.Rest.Item4, value.Rest.Rest.Item5, value.Rest.Rest.Item6)));
@@ -913,8 +849,7 @@ namespace System
         /// </summary>
         public static Tuple<T1, T2, T3, T4, T5, T6, T7, Tuple<T8, T9, T10, T11, T12, T13, T14, Tuple<T15, T16, T17, T18, T19, T20, T21>>>
             ToTuple<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21>(
-                this ValueTuple<T1, T2, T3, T4, T5, T6, T7, ValueTuple<T8, T9, T10, T11, T12, T13, T14, ValueTuple<T15, T16, T17, T18, T19, T20, T21>>> value)
-        {
+                this ValueTuple<T1, T2, T3, T4, T5, T6, T7, ValueTuple<T8, T9, T10, T11, T12, T13, T14, ValueTuple<T15, T16, T17, T18, T19, T20, T21>>> value) {
             return CreateLongRef(value.Item1, value.Item2, value.Item3, value.Item4, value.Item5, value.Item6, value.Item7,
                         CreateLongRef(value.Rest.Item1, value.Rest.Item2, value.Rest.Item3, value.Rest.Item4, value.Rest.Item5, value.Rest.Item6, value.Rest.Item7,
                             Tuple.Create(value.Rest.Rest.Item1, value.Rest.Rest.Item2, value.Rest.Rest.Item3, value.Rest.Rest.Item4, value.Rest.Rest.Item5, value.Rest.Rest.Item6, value.Rest.Rest.Item7)));

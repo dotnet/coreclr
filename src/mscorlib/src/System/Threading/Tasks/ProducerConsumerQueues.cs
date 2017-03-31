@@ -28,12 +28,10 @@ using System.Diagnostics;
 using System.Diagnostics.Contracts;
 using System.Runtime.InteropServices;
 
-namespace System.Threading.Tasks
-{
+namespace System.Threading.Tasks {
     /// <summary>Represents a producer/consumer queue used internally by dataflow blocks.</summary>
     /// <typeparam name="T">Specifies the type of data contained in the queue.</typeparam>
-    internal interface IProducerConsumerQueue<T> : IEnumerable<T>
-    {
+    internal interface IProducerConsumerQueue<T> : IEnumerable<T> {
         /// <summary>Enqueues an item into the queue.</summary>
         /// <param name="item">The item to enqueue.</param>
         /// <remarks>This method is meant to be thread-safe subject to the particular nature of the implementation.</remarks>
@@ -59,8 +57,7 @@ namespace System.Threading.Tasks
     /// </summary>
     /// <typeparam name="T">Specifies the type of data contained in the queue.</typeparam>
     [DebuggerDisplay("Count = {Count}")]
-    internal sealed class MultiProducerMultiConsumerQueue<T> : ConcurrentQueue<T>, IProducerConsumerQueue<T>
-    {
+    internal sealed class MultiProducerMultiConsumerQueue<T> : ConcurrentQueue<T>, IProducerConsumerQueue<T> {
         /// <summary>Enqueues an item into the queue.</summary>
         /// <param name="item">The item to enqueue.</param>
         void IProducerConsumerQueue<T>.Enqueue(T item) { base.Enqueue(item); }
@@ -83,8 +80,7 @@ namespace System.Threading.Tasks
     /// <typeparam name="T">Specifies the type of data contained in the queue.</typeparam>
     [DebuggerDisplay("Count = {Count}")]
     [DebuggerTypeProxy(typeof(SingleProducerSingleConsumerQueue<>.SingleProducerSingleConsumerQueue_DebugView))]
-    internal sealed class SingleProducerSingleConsumerQueue<T> : IProducerConsumerQueue<T>
-    {
+    internal sealed class SingleProducerSingleConsumerQueue<T> : IProducerConsumerQueue<T> {
         // Design:
         //
         // SingleProducerSingleConsumerQueue (SPSCQueue) is a concurrent queue designed to be used 
@@ -128,8 +124,7 @@ namespace System.Threading.Tasks
         private volatile Segment m_tail;
 
         /// <summary>Initializes the queue.</summary>
-        internal SingleProducerSingleConsumerQueue()
-        {
+        internal SingleProducerSingleConsumerQueue() {
             // Validate constants in ctor rather than in an explicit cctor that would cause perf degradation
             Debug.Assert(INIT_SEGMENT_SIZE > 0, "Initial segment size must be > 0.");
             Debug.Assert((INIT_SEGMENT_SIZE & (INIT_SEGMENT_SIZE - 1)) == 0, "Initial segment size must be a power of 2");
@@ -142,16 +137,14 @@ namespace System.Threading.Tasks
 
         /// <summary>Enqueues an item into the queue.</summary>
         /// <param name="item">The item to enqueue.</param>
-        public void Enqueue(T item)
-        {
+        public void Enqueue(T item) {
             Segment segment = m_tail;
             var array = segment.m_array;
             int last = segment.m_state.m_last; // local copy to avoid multiple volatile reads
 
             // Fast path: there's obviously room in the current segment
             int tail2 = (last + 1) & (array.Length - 1);
-            if (tail2 != segment.m_state.m_firstCopy)
-            {
+            if (tail2 != segment.m_state.m_firstCopy) {
                 array[last] = item;
                 segment.m_state.m_last = tail2;
             }
@@ -162,12 +155,10 @@ namespace System.Threading.Tasks
         /// <summary>Enqueues an item into the queue.</summary>
         /// <param name="item">The item to enqueue.</param>
         /// <param name="segment">The segment in which to first attempt to store the item.</param>
-        private void EnqueueSlow(T item, ref Segment segment)
-        {
+        private void EnqueueSlow(T item, ref Segment segment) {
             Contract.Requires(segment != null, "Expected a non-null segment.");
 
-            if (segment.m_state.m_firstCopy != segment.m_state.m_first)
-            {
+            if (segment.m_state.m_firstCopy != segment.m_state.m_first) {
                 segment.m_state.m_firstCopy = segment.m_state.m_first;
                 Enqueue(item); // will only recur once for this enqueue operation
                 return;
@@ -183,8 +174,7 @@ namespace System.Threading.Tasks
             newSegment.m_state.m_lastCopy = 1;
 
             try { }
-            finally
-            {
+            finally {
                 // Finally block to protect against corruption due to a thread abort 
                 // between setting m_next and setting m_tail.
                 Volatile.Write(ref m_tail.m_next, newSegment); // ensure segment not published until item is fully stored
@@ -195,15 +185,13 @@ namespace System.Threading.Tasks
         /// <summary>Attempts to dequeue an item from the queue.</summary>
         /// <param name="result">The dequeued item.</param>
         /// <returns>true if an item could be dequeued; otherwise, false.</returns>
-        public bool TryDequeue(out T result)
-        {
+        public bool TryDequeue(out T result) {
             Segment segment = m_head;
             var array = segment.m_array;
             int first = segment.m_state.m_first; // local copy to avoid multiple volatile reads
 
             // Fast path: there's obviously data available in the current segment
-            if (first != segment.m_state.m_lastCopy)
-            {
+            if (first != segment.m_state.m_lastCopy) {
                 result = array[first];
                 array[first] = default(T); // Clear the slot to release the element
                 segment.m_state.m_first = (first + 1) & (array.Length - 1);
@@ -218,19 +206,16 @@ namespace System.Threading.Tasks
         /// <param name="segment">The segment from which the item was dequeued.</param>
         /// <param name="result">The dequeued item.</param>
         /// <returns>true if an item could be dequeued; otherwise, false.</returns>
-        private bool TryDequeueSlow(ref Segment segment, ref T[] array, out T result)
-        {
+        private bool TryDequeueSlow(ref Segment segment, ref T[] array, out T result) {
             Contract.Requires(segment != null, "Expected a non-null segment.");
             Contract.Requires(array != null, "Expected a non-null item array.");
 
-            if (segment.m_state.m_last != segment.m_state.m_lastCopy)
-            {
+            if (segment.m_state.m_last != segment.m_state.m_lastCopy) {
                 segment.m_state.m_lastCopy = segment.m_state.m_last;
                 return TryDequeue(out result); // will only recur once for this dequeue operation
             }
 
-            if (segment.m_next != null && segment.m_state.m_first == segment.m_state.m_last)
-            {
+            if (segment.m_next != null && segment.m_state.m_first == segment.m_state.m_last) {
                 segment = segment.m_next;
                 array = segment.m_array;
                 m_head = segment;
@@ -238,8 +223,7 @@ namespace System.Threading.Tasks
 
             var first = segment.m_state.m_first; // local copy to avoid extraneous volatile reads
 
-            if (first == segment.m_state.m_last)
-            {
+            if (first == segment.m_state.m_last) {
                 result = default(T);
                 return false;
             }
@@ -254,11 +238,9 @@ namespace System.Threading.Tasks
 
         /// <summary>Gets whether the collection is currently empty.</summary>
         /// <remarks>WARNING: This should not be used concurrently without further vetting.</remarks>
-        public bool IsEmpty
-        {
+        public bool IsEmpty {
             // This implementation is optimized for calls from the consumer.
-            get
-            {
+            get {
                 var head = m_head;
                 if (head.m_state.m_first != head.m_state.m_lastCopy) return false; // m_first is volatile, so the read of m_lastCopy cannot get reordered
                 if (head.m_state.m_first != head.m_state.m_last) return false;
@@ -268,14 +250,11 @@ namespace System.Threading.Tasks
 
         /// <summary>Gets an enumerable for the collection.</summary>
         /// <remarks>WARNING: This should only be used for debugging purposes.  It is not safe to be used concurrently.</remarks>
-        public IEnumerator<T> GetEnumerator()
-        {
-            for (Segment segment = m_head; segment != null; segment = segment.m_next)
-            {
+        public IEnumerator<T> GetEnumerator() {
+            for (Segment segment = m_head; segment != null; segment = segment.m_next) {
                 for (int pt = segment.m_state.m_first;
                     pt != segment.m_state.m_last;
-                    pt = (pt + 1) & (segment.m_array.Length - 1))
-                {
+                    pt = (pt + 1) & (segment.m_array.Length - 1)) {
                     yield return segment.m_array[pt];
                 }
             }
@@ -286,17 +265,14 @@ namespace System.Threading.Tasks
 
         /// <summary>Gets the number of items in the collection.</summary>
         /// <remarks>WARNING: This should only be used for debugging purposes.  It is not meant to be used concurrently.</remarks>
-        public int Count
-        {
-            get
-            {
+        public int Count {
+            get {
                 int count = 0;
-                for (Segment segment = m_head; segment != null; segment = segment.m_next)
-                {
+                for (Segment segment = m_head; segment != null; segment = segment.m_next) {
                     int arraySize = segment.m_array.Length;
                     int first, last;
                     while (true) // Count is not meant to be used concurrently, but this helps to avoid issues if it is
-                    {
+{
                         first = segment.m_state.m_first;
                         last = segment.m_state.m_last;
                         if (first == segment.m_state.m_first) break;
@@ -309,8 +285,7 @@ namespace System.Threading.Tasks
 
         /// <summary>A segment in the queue containing one or more items.</summary>
         [StructLayout(LayoutKind.Sequential)]
-        private sealed class Segment
-        {
+        private sealed class Segment {
             /// <summary>The next segment in the linked list of segments.</summary>
             internal Segment m_next;
             /// <summary>The data stored in this segment.</summary>
@@ -320,8 +295,7 @@ namespace System.Threading.Tasks
 
             /// <summary>Initializes the segment.</summary>
             /// <param name="size">The size to use for this segment.</param>
-            internal Segment(int size)
-            {
+            internal Segment(int size) {
                 Contract.Requires((size & (size - 1)) == 0, "Size must be a power of 2");
                 m_array = new T[size];
             }
@@ -329,8 +303,7 @@ namespace System.Threading.Tasks
 
         /// <summary>Stores information about a segment.</summary>
         [StructLayout(LayoutKind.Sequential)] // enforce layout so that padding reduces false sharing
-        private struct SegmentState
-        {
+        private struct SegmentState {
             /// <summary>Padding to reduce false sharing between the segment's array and m_first.</summary>
             internal PaddingFor32 m_pad0;
 
@@ -352,15 +325,13 @@ namespace System.Threading.Tasks
         }
 
         /// <summary>Debugger type proxy for a SingleProducerSingleConsumerQueue of T.</summary>
-        private sealed class SingleProducerSingleConsumerQueue_DebugView
-        {
+        private sealed class SingleProducerSingleConsumerQueue_DebugView {
             /// <summary>The queue being visualized.</summary>
             private readonly SingleProducerSingleConsumerQueue<T> m_queue;
 
             /// <summary>Initializes the debug view.</summary>
             /// <param name="enumerable">The queue being debugged.</param>
-            public SingleProducerSingleConsumerQueue_DebugView(SingleProducerSingleConsumerQueue<T> queue)
-            {
+            public SingleProducerSingleConsumerQueue_DebugView(SingleProducerSingleConsumerQueue<T> queue) {
                 Contract.Requires(queue != null, "Expected a non-null queue.");
                 m_queue = queue;
             }
@@ -368,15 +339,13 @@ namespace System.Threading.Tasks
     }
 
     /// <summary>A placeholder class for common padding constants and eventually routines.</summary>
-    internal static class PaddingHelpers
-    {
+    internal static class PaddingHelpers {
         /// <summary>A size greater than or equal to the size of the most common CPU cache lines.</summary>
         internal const int CACHE_LINE_SIZE = 128;
     }
 
     /// <summary>Padding structure used to minimize false sharing in SingleProducerSingleConsumerQueue{T}.</summary>
     [StructLayout(LayoutKind.Explicit, Size = PaddingHelpers.CACHE_LINE_SIZE - sizeof(Int32))] // Based on common case of 64-byte cache lines
-    internal struct PaddingFor32
-    {
+    internal struct PaddingFor32 {
     }
 }

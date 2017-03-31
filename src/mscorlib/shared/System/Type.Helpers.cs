@@ -4,23 +4,17 @@
 
 using System.Reflection;
 
-namespace System
-{
+namespace System {
     // This file collects the longer methods of Type to make the main Type class more readable.
-    public abstract partial class Type : MemberInfo, IReflect
-    {
-        public virtual bool IsSerializable
-        {
-            get
-            {
+    public abstract partial class Type : MemberInfo, IReflect {
+        public virtual bool IsSerializable {
+            get {
                 if ((GetAttributeFlagsImpl() & TypeAttributes.Serializable) != 0)
                     return true;
 
                 Type underlyingType = UnderlyingSystemType;
-                if (underlyingType.IsRuntimeImplemented())
-                {
-                    do
-                    {
+                if (underlyingType.IsRuntimeImplemented()) {
+                    do {
                         // In all sane cases we only need to compare the direct level base type with
                         // System.Enum and System.MulticastDelegate. However, a generic parameter can
                         // have a base type constraint that is Delegate or even a real delegate type.
@@ -37,10 +31,8 @@ namespace System
             }
         }
 
-        public virtual bool ContainsGenericParameters
-        {
-            get
-            {
+        public virtual bool ContainsGenericParameters {
+            get {
                 if (HasElementType)
                     return GetRootElementType().ContainsGenericParameters;
 
@@ -51,8 +43,7 @@ namespace System
                     return false;
 
                 Type[] genericArguments = GetGenericArguments();
-                for (int i = 0; i < genericArguments.Length; i++)
-                {
+                for (int i = 0; i < genericArguments.Length; i++) {
                     if (genericArguments[i].ContainsGenericParameters)
                         return true;
                 }
@@ -61,8 +52,7 @@ namespace System
             }
         }
 
-        internal Type GetRootElementType()
-        {
+        internal Type GetRootElementType() {
             Type rootElementType = this;
 
             while (rootElementType.HasElementType)
@@ -71,10 +61,8 @@ namespace System
             return rootElementType;
         }
 
-        public bool IsVisible
-        {
-            get
-            {
+        public bool IsVisible {
+            get {
 #if CORECLR
                 RuntimeType rt = this as RuntimeType;
                 if (rt != null)
@@ -88,8 +76,7 @@ namespace System
                     return GetElementType().IsVisible;
 
                 Type type = this;
-                while (type.IsNested)
-                {
+                while (type.IsNested) {
                     if (!type.IsNestedPublic)
                         return false;
 
@@ -101,10 +88,8 @@ namespace System
                 if (!type.IsPublic)
                     return false;
 
-                if (IsGenericType && !IsGenericTypeDefinition)
-                {
-                    foreach (Type t in GetGenericArguments())
-                    {
+                if (IsGenericType && !IsGenericTypeDefinition) {
+                    foreach (Type t in GetGenericArguments()) {
                         if (!t.IsVisible)
                             return false;
                     }
@@ -114,15 +99,13 @@ namespace System
             }
         }
 
-        public virtual Type[] FindInterfaces(TypeFilter filter, object filterCriteria)
-        {
+        public virtual Type[] FindInterfaces(TypeFilter filter, object filterCriteria) {
             if (filter == null)
                 throw new ArgumentNullException(nameof(filter));
 
             Type[] c = GetInterfaces();
             int cnt = 0;
-            for (int i = 0; i < c.Length; i++)
-            {
+            for (int i = 0; i < c.Length; i++) {
                 if (!filter(c[i], filterCriteria))
                     c[i] = null;
                 else
@@ -133,16 +116,14 @@ namespace System
 
             Type[] ret = new Type[cnt];
             cnt = 0;
-            for (int i = 0; i < c.Length; i++)
-            {
+            for (int i = 0; i < c.Length; i++) {
                 if (c[i] != null)
                     ret[cnt++] = c[i];
             }
             return ret;
         }
 
-        public virtual MemberInfo[] FindMembers(MemberTypes memberType, BindingFlags bindingAttr, MemberFilter filter, object filterCriteria)
-        {
+        public virtual MemberInfo[] FindMembers(MemberTypes memberType, BindingFlags bindingAttr, MemberFilter filter, object filterCriteria) {
             // Define the work arrays
             MethodInfo[] m = null;
             ConstructorInfo[] c = null;
@@ -155,109 +136,91 @@ namespace System
             int cnt = 0;            // Total Matchs
 
             // Check the methods
-            if ((memberType & MemberTypes.Method) != 0)
-            {
+            if ((memberType & MemberTypes.Method) != 0) {
                 m = GetMethods(bindingAttr);
-                if (filter != null)
-                {
+                if (filter != null) {
                     for (i = 0; i < m.Length; i++)
                         if (!filter(m[i], filterCriteria))
                             m[i] = null;
                         else
                             cnt++;
                 }
-                else
-                {
+                else {
                     cnt += m.Length;
                 }
             }
 
             // Check the constructors
-            if ((memberType & MemberTypes.Constructor) != 0)
-            {
+            if ((memberType & MemberTypes.Constructor) != 0) {
                 c = GetConstructors(bindingAttr);
-                if (filter != null)
-                {
+                if (filter != null) {
                     for (i = 0; i < c.Length; i++)
                         if (!filter(c[i], filterCriteria))
                             c[i] = null;
                         else
                             cnt++;
                 }
-                else
-                {
+                else {
                     cnt += c.Length;
                 }
             }
 
             // Check the fields
-            if ((memberType & MemberTypes.Field) != 0)
-            {
+            if ((memberType & MemberTypes.Field) != 0) {
                 f = GetFields(bindingAttr);
-                if (filter != null)
-                {
+                if (filter != null) {
                     for (i = 0; i < f.Length; i++)
                         if (!filter(f[i], filterCriteria))
                             f[i] = null;
                         else
                             cnt++;
                 }
-                else
-                {
+                else {
                     cnt += f.Length;
                 }
             }
 
             // Check the Properties
-            if ((memberType & MemberTypes.Property) != 0)
-            {
+            if ((memberType & MemberTypes.Property) != 0) {
                 p = GetProperties(bindingAttr);
-                if (filter != null)
-                {
+                if (filter != null) {
                     for (i = 0; i < p.Length; i++)
                         if (!filter(p[i], filterCriteria))
                             p[i] = null;
                         else
                             cnt++;
                 }
-                else
-                {
+                else {
                     cnt += p.Length;
                 }
             }
 
             // Check the Events
-            if ((memberType & MemberTypes.Event) != 0)
-            {
+            if ((memberType & MemberTypes.Event) != 0) {
                 e = GetEvents(bindingAttr);
-                if (filter != null)
-                {
+                if (filter != null) {
                     for (i = 0; i < e.Length; i++)
                         if (!filter(e[i], filterCriteria))
                             e[i] = null;
                         else
                             cnt++;
                 }
-                else
-                {
+                else {
                     cnt += e.Length;
                 }
             }
 
             // Check the Types
-            if ((memberType & MemberTypes.NestedType) != 0)
-            {
+            if ((memberType & MemberTypes.NestedType) != 0) {
                 t = GetNestedTypes(bindingAttr);
-                if (filter != null)
-                {
+                if (filter != null) {
                     for (i = 0; i < t.Length; i++)
                         if (!filter(t[i], filterCriteria))
                             t[i] = null;
                         else
                             cnt++;
                 }
-                else
-                {
+                else {
                     cnt += t.Length;
                 }
             }
@@ -267,48 +230,42 @@ namespace System
 
             // Copy the Methods
             cnt = 0;
-            if (m != null)
-            {
+            if (m != null) {
                 for (i = 0; i < m.Length; i++)
                     if (m[i] != null)
                         ret[cnt++] = m[i];
             }
 
             // Copy the Constructors
-            if (c != null)
-            {
+            if (c != null) {
                 for (i = 0; i < c.Length; i++)
                     if (c[i] != null)
                         ret[cnt++] = c[i];
             }
 
             // Copy the Fields
-            if (f != null)
-            {
+            if (f != null) {
                 for (i = 0; i < f.Length; i++)
                     if (f[i] != null)
                         ret[cnt++] = f[i];
             }
 
             // Copy the Properties
-            if (p != null)
-            {
+            if (p != null) {
                 for (i = 0; i < p.Length; i++)
                     if (p[i] != null)
                         ret[cnt++] = p[i];
             }
 
             // Copy the Events
-            if (e != null)
-            {
+            if (e != null) {
                 for (i = 0; i < e.Length; i++)
                     if (e[i] != null)
                         ret[cnt++] = e[i];
             }
 
             // Copy the Types
-            if (t != null)
-            {
+            if (t != null) {
                 for (i = 0; i < t.Length; i++)
                     if (t[i] != null)
                         ret[cnt++] = t[i];
@@ -317,13 +274,11 @@ namespace System
             return ret;
         }
 
-        public virtual bool IsSubclassOf(Type c)
-        {
+        public virtual bool IsSubclassOf(Type c) {
             Type p = this;
             if (p == c)
                 return false;
-            while (p != null)
-            {
+            while (p != null) {
                 if (p == c)
                     return true;
                 p = p.BaseType;
@@ -331,8 +286,7 @@ namespace System
             return false;
         }
 
-        public virtual bool IsAssignableFrom(Type c)
-        {
+        public virtual bool IsAssignableFrom(Type c) {
             if (c == null)
                 return false;
 
@@ -349,12 +303,10 @@ namespace System
             if (c.IsSubclassOf(this))
                 return true;
 
-            if (this.IsInterface)
-            {
+            if (this.IsInterface) {
                 return c.ImplementInterface(this);
             }
-            else if (IsGenericParameter)
-            {
+            else if (IsGenericParameter) {
                 Type[] constraints = GetGenericParameterConstraints();
                 for (int i = 0; i < constraints.Length; i++)
                     if (!constraints[i].IsAssignableFrom(c))
@@ -366,16 +318,12 @@ namespace System
             return false;
         }
 
-        internal bool ImplementInterface(Type ifaceType)
-        {
+        internal bool ImplementInterface(Type ifaceType) {
             Type t = this;
-            while (t != null)
-            {
+            while (t != null) {
                 Type[] interfaces = t.GetInterfaces();
-                if (interfaces != null)
-                {
-                    for (int i = 0; i < interfaces.Length; i++)
-                    {
+                if (interfaces != null) {
+                    for (int i = 0; i < interfaces.Length; i++) {
                         // Interfaces don't derive from other interfaces, they implement them.
                         // So instead of IsSubclassOf, we should use ImplementInterface instead.
                         if (interfaces[i] == ifaceType ||
@@ -393,25 +341,20 @@ namespace System
         // FilterAttribute
         //  This method will search for a member based upon the attribute passed in.
         //  filterCriteria -- an Int32 representing the attribute
-        private static bool FilterAttributeImpl(MemberInfo m, object filterCriteria)
-        {
+        private static bool FilterAttributeImpl(MemberInfo m, object filterCriteria) {
             // Check that the criteria object is an Integer object
             if (filterCriteria == null)
                 throw new InvalidFilterCriteriaException(SR.InvalidFilterCriteriaException_CritInt);
 
-            switch (m.MemberType)
-            {
+            switch (m.MemberType) {
                 case MemberTypes.Constructor:
-                case MemberTypes.Method:
-                    {
+                case MemberTypes.Method: {
                         MethodAttributes criteria = 0;
-                        try
-                        {
+                        try {
                             int i = (int)filterCriteria;
                             criteria = (MethodAttributes)i;
                         }
-                        catch
-                        {
+                        catch {
                             throw new InvalidFilterCriteriaException(SR.InvalidFilterCriteriaException_CritInt);
                         }
 
@@ -436,16 +379,13 @@ namespace System
                             return false;
                         return true;
                     }
-                case MemberTypes.Field:
-                    {
+                case MemberTypes.Field: {
                         FieldAttributes criteria = 0;
-                        try
-                        {
+                        try {
                             int i = (int)filterCriteria;
                             criteria = (FieldAttributes)i;
                         }
-                        catch
-                        {
+                        catch {
                             throw new InvalidFilterCriteriaException(SR.InvalidFilterCriteriaException_CritInt);
                         }
 
@@ -473,8 +413,7 @@ namespace System
         // This method will filter based upon the name.  A partial wildcard
         //  at the end of the string is supported.
         //  filterCriteria -- This is the string name
-        private static bool FilterNameImpl(MemberInfo m, object filterCriteria)
-        {
+        private static bool FilterNameImpl(MemberInfo m, object filterCriteria) {
             // Check that the criteria object is a String object
             if (filterCriteria == null || !(filterCriteria is string))
                 throw new InvalidFilterCriteriaException(SR.InvalidFilterCriteriaException_CritString);
@@ -488,8 +427,7 @@ namespace System
             if (m.MemberType == MemberTypes.NestedType)
                 name = name.Substring(name.LastIndexOf('+') + 1);
             // Check to see if this is a prefix or exact match requirement
-            if (str.Length > 0 && str[str.Length - 1] == '*')
-            {
+            if (str.Length > 0 && str[str.Length - 1] == '*') {
                 str = str.Substring(0, str.Length - 1);
                 return (name.StartsWith(str, StringComparison.Ordinal));
             }
@@ -500,8 +438,7 @@ namespace System
         // FilterIgnoreCase
         // This delegate will do a name search but does it with the
         //  ignore case specified.
-        private static bool FilterNameIgnoreCaseImpl(MemberInfo m, object filterCriteria)
-        {
+        private static bool FilterNameIgnoreCaseImpl(MemberInfo m, object filterCriteria) {
             // Check that the criteria object is a String object
             if (filterCriteria == null || !(filterCriteria is string))
                 throw new InvalidFilterCriteriaException(SR.InvalidFilterCriteriaException_CritString);
@@ -514,8 +451,7 @@ namespace System
             if (m.MemberType == MemberTypes.NestedType)
                 name = name.Substring(name.LastIndexOf('+') + 1);
             // Check to see if this is a prefix or exact match requirement
-            if (str.Length > 0 && str[str.Length - 1] == '*')
-            {
+            if (str.Length > 0 && str[str.Length - 1] == '*') {
                 str = str.Substring(0, str.Length - 1);
                 return (string.Compare(name, 0, str, 0, str.Length, StringComparison.OrdinalIgnoreCase) == 0);
             }

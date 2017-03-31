@@ -6,10 +6,8 @@ using System;
 using System.Threading;
 using System.Diagnostics.Contracts;
 
-namespace System.Reflection.Emit
-{
-    public struct OpCode
-    {
+namespace System.Reflection.Emit {
+    public struct OpCode {
         //
         // Use packed bitfield for flags to avoid code bloat
         //
@@ -38,92 +36,72 @@ namespace System.Reflection.Emit
         private OpCodeValues m_value;
         private int m_flags;
 
-        internal OpCode(OpCodeValues value, int flags)
-        {
+        internal OpCode(OpCodeValues value, int flags) {
             m_value = value;
             m_flags = flags;
         }
 
-        internal bool EndsUncondJmpBlk()
-        {
+        internal bool EndsUncondJmpBlk() {
             return (m_flags & EndsUncondJmpBlkFlag) != 0;
         }
 
-        internal int StackChange()
-        {
+        internal int StackChange() {
             return (m_flags >> StackChangeShift);
         }
 
-        public OperandType OperandType
-        {
-            get
-            {
+        public OperandType OperandType {
+            get {
                 return (OperandType)(m_flags & OperandTypeMask);
             }
         }
 
-        public FlowControl FlowControl
-        {
-            get
-            {
+        public FlowControl FlowControl {
+            get {
                 return (FlowControl)((m_flags >> FlowControlShift) & FlowControlMask);
             }
         }
 
-        public OpCodeType OpCodeType
-        {
-            get
-            {
+        public OpCodeType OpCodeType {
+            get {
                 return (OpCodeType)((m_flags >> OpCodeTypeShift) & OpCodeTypeMask);
             }
         }
 
-        public StackBehaviour StackBehaviourPop
-        {
-            get
-            {
+        public StackBehaviour StackBehaviourPop {
+            get {
                 return (StackBehaviour)((m_flags >> StackBehaviourPopShift) & StackBehaviourMask);
             }
         }
 
-        public StackBehaviour StackBehaviourPush
-        {
-            get
-            {
+        public StackBehaviour StackBehaviourPush {
+            get {
                 return (StackBehaviour)((m_flags >> StackBehaviourPushShift) & StackBehaviourMask);
             }
         }
 
-        public int Size
-        {
-            get
-            {
+        public int Size {
+            get {
                 return (m_flags >> SizeShift) & SizeMask;
             }
         }
 
-        public short Value
-        {
-            get
-            {
+        public short Value {
+            get {
                 return (short)m_value;
             }
         }
 
         private static volatile string[] g_nameCache;
 
-        public String Name
-        {
-            get
-            {
+        public String Name {
+            get {
                 if (Size == 0)
                     return null;
 
                 // Create and cache the opcode names lazily. They should be rarely used (only for logging, etc.)
                 // Note that we do not any locks here because of we always get the same names. The last one wins.
                 string[] nameCache = g_nameCache;
-                if (nameCache == null)
-                {
+                if (nameCache == null) {
                     nameCache = new String[0x11f];
                     g_nameCache = nameCache;
                 }
@@ -131,16 +109,13 @@ namespace System.Reflection.Emit
                 OpCodeValues opCodeValue = (OpCodeValues)(ushort)Value;
 
                 int idx = (int)opCodeValue;
-                if (idx > 0xFF)
-                {
-                    if (idx >= 0xfe00 && idx <= 0xfe1e)
-                    {
+                if (idx > 0xFF) {
+                    if (idx >= 0xfe00 && idx <= 0xfe1e) {
                         // Transform two byte opcode value to lower range that's suitable
                         // for array index
                         idx = 0x100 + (idx - 0xfe00);
                     }
-                    else
-                    {
+                    else {
                         // Unknown opcode
                         return null;
                     }
@@ -158,8 +133,7 @@ namespace System.Reflection.Emit
         }
 
         [Pure]
-        public override bool Equals(Object obj)
-        {
+        public override bool Equals(Object obj) {
             if (obj is OpCode)
                 return Equals((OpCode)obj);
             else
@@ -167,30 +141,25 @@ namespace System.Reflection.Emit
         }
 
         [Pure]
-        public bool Equals(OpCode obj)
-        {
+        public bool Equals(OpCode obj) {
             return obj.Value == Value;
         }
 
         [Pure]
-        public static bool operator ==(OpCode a, OpCode b)
-        {
+        public static bool operator ==(OpCode a, OpCode b) {
             return a.Equals(b);
         }
 
         [Pure]
-        public static bool operator !=(OpCode a, OpCode b)
-        {
+        public static bool operator !=(OpCode a, OpCode b) {
             return !(a == b);
         }
 
-        public override int GetHashCode()
-        {
+        public override int GetHashCode() {
             return Value;
         }
 
-        public override String ToString()
-        {
+        public override String ToString() {
             return Name;
         }
     }

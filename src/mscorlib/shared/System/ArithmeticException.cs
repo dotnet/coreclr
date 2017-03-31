@@ -13,20 +13,17 @@
 
 using System.Runtime.Serialization;
 
-namespace System
-{
+namespace System {
     // The ArithmeticException is thrown when overflow or underflow
     // occurs.
     // 
     [Serializable]
-    public class ArithmeticException : SystemException
-    {
+    public class ArithmeticException : SystemException {
         // Creates a new ArithmeticException with its message string set to
         // the empty string, its HRESULT set to COR_E_ARITHMETIC, 
         // and its ExceptionInfo reference set to null. 
         public ArithmeticException()
-            : base(SR.Arg_ArithmeticException)
-        {
+            : base(SR.Arg_ArithmeticException) {
             HResult = __HResults.COR_E_ARITHMETIC;
         }
 
@@ -35,14 +32,12 @@ namespace System
         // and its ExceptionInfo reference set to null. 
         // 
         public ArithmeticException(String message)
-            : base(message)
-        {
+            : base(message) {
             HResult = __HResults.COR_E_ARITHMETIC;
         }
 
         public ArithmeticException(String message, Exception innerException)
-            : base(message, innerException)
-        {
+            : base(message, innerException) {
             HResult = __HResults.COR_E_ARITHMETIC;
         }
 

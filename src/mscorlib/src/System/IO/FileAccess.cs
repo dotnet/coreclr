@@ -17,15 +17,13 @@
 
 using System;
 
-namespace System.IO
-{
+namespace System.IO {
     // Contains constants for specifying the access you want for a file.
     // You can have Read, Write or ReadWrite access.
     // 
     [Serializable]
     [Flags]
-    public enum FileAccess
-    {
+    public enum FileAccess {
         // Specifies read access to the file. Data can be read from the file and
         // the file pointer can be moved. Combine with WRITE for read-write access.
         Read = 1,

@@ -13,26 +13,21 @@
 
 using System.Runtime.Serialization;
 
-namespace System
-{
+namespace System {
     [Serializable]
-    public sealed class InvalidProgramException : SystemException
-    {
+    public sealed class InvalidProgramException : SystemException {
         public InvalidProgramException()
-            : base(SR.InvalidProgram_Default)
-        {
+            : base(SR.InvalidProgram_Default) {
             HResult = __HResults.COR_E_INVALIDPROGRAM;
         }
 
         public InvalidProgramException(String message)
-            : base(message)
-        {
+            : base(message) {
             HResult = __HResults.COR_E_INVALIDPROGRAM;
         }
 
         public InvalidProgramException(String message, Exception inner)
-            : base(message, inner)
-        {
+            : base(message, inner) {
             HResult = __HResults.COR_E_INVALIDPROGRAM;
         }
 

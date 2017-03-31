@@ -5,11 +5,9 @@
 // EventAttributes are an enum defining the attributes associated with and Event.
 // These are defined in CorHdr.h and are a combination of bits and enums.
 
-namespace System.Reflection
-{
+namespace System.Reflection {
     [Flags]
-    public enum EventAttributes
-    {
+    public enum EventAttributes {
         None = 0x0000,
 
         // This Enum matchs the CorEventAttr defined in CorHdr.h

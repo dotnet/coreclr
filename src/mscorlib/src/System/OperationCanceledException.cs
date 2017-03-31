@@ -15,59 +15,49 @@ using System;
 using System.Runtime.Serialization;
 using System.Threading;
 
-namespace System
-{
+namespace System {
     [Serializable]
-    public class OperationCanceledException : SystemException
-    {
+    public class OperationCanceledException : SystemException {
         [NonSerialized]
         private CancellationToken _cancellationToken;
 
-        public CancellationToken CancellationToken
-        {
+        public CancellationToken CancellationToken {
             get { return _cancellationToken; }
             private set { _cancellationToken = value; }
         }
 
         public OperationCanceledException()
-            : base(SR.OperationCanceled)
-        {
+            : base(SR.OperationCanceled) {
             SetErrorCode(__HResults.COR_E_OPERATIONCANCELED);
         }
 
         public OperationCanceledException(String message)
-            : base(message)
-        {
+            : base(message) {
             SetErrorCode(__HResults.COR_E_OPERATIONCANCELED);
         }
 
         public OperationCanceledException(String message, Exception innerException)
-            : base(message, innerException)
-        {
+            : base(message, innerException) {
             SetErrorCode(__HResults.COR_E_OPERATIONCANCELED);
         }
 
 
         public OperationCanceledException(CancellationToken token)
-            : this()
-        {
+            : this() {
             CancellationToken = token;
         }
 
         public OperationCanceledException(String message, CancellationToken token)
-            : this(message)
-        {
+            : this(message) {
             CancellationToken = token;
         }
 
         public OperationCanceledException(String message, Exception innerException, CancellationToken token)
-            : this(message, innerException)
-        {
+            : this(message, innerException) {
             CancellationToken = token;
         }
 
-        protected OperationCanceledException(SerializationInfo info, StreamingContext context) : base(info, context)
-        {
+        protected OperationCanceledException(SerializationInfo info, StreamingContext context) : base(info, context) {
         }
     }
 }

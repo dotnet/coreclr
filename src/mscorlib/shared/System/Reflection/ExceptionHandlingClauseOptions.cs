@@ -2,11 +2,9 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-namespace System.Reflection
-{
+namespace System.Reflection {
     [Flags]
-    public enum ExceptionHandlingClauseOptions : int
-    {
+    public enum ExceptionHandlingClauseOptions : int {
         Clause = 0x0,
         Filter = 0x1,
         Finally = 0x2,

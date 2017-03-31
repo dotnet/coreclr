@@ -16,13 +16,11 @@ using System;
 using System.Globalization;
 using System.Diagnostics.Contracts;
 
-namespace System
-{
+namespace System {
     // The Boolean class provides the
     // object representation of the boolean primitive type.
     [Serializable]
-    public struct Boolean : IComparable, IConvertible, IComparable<Boolean>, IEquatable<Boolean>
-    {
+    public struct Boolean : IComparable, IConvertible, IComparable<Boolean>, IEquatable<Boolean> {
         //
         // Member Variables
         //
@@ -72,8 +70,7 @@ namespace System
         **Overriden From: Value
         ==============================================================================*/
         // Provides a hash code for this instance.
-        public override int GetHashCode()
-        {
+        public override int GetHashCode() {
             return (m_value) ? True : False;
         }
 
@@ -83,30 +80,24 @@ namespace System
         **Exceptions: None.
         ==============================================================================*/
         // Converts the boolean value of this instance to a String.
-        public override String ToString()
-        {
-            if (false == m_value)
-            {
+        public override String ToString() {
+            if (false == m_value) {
                 return FalseLiteral;
             }
             return TrueLiteral;
         }
 
-        public String ToString(IFormatProvider provider)
-        {
-            if (false == m_value)
-            {
+        public String ToString(IFormatProvider provider) {
+            if (false == m_value) {
                 return FalseLiteral;
             }
             return TrueLiteral;
         }
 
         // Determines whether two Boolean objects are equal.
-        public override bool Equals(Object obj)
-        {
+        public override bool Equals(Object obj) {
             //If it's not a boolean, we're definitely not equal
-            if (!(obj is Boolean))
-            {
+            if (!(obj is Boolean)) {
                 return false;
             }
 
@@ -114,8 +105,7 @@ namespace System
         }
 
         [System.Runtime.Versioning.NonVersionable]
-        public bool Equals(Boolean obj)
-        {
+        public bool Equals(Boolean obj) {
             return m_value == obj;
         }
 
@@ -126,36 +116,28 @@ namespace System
         // 
         // Returns a value less than zero if this  object
         // 
-        public int CompareTo(Object obj)
-        {
-            if (obj == null)
-            {
+        public int CompareTo(Object obj) {
+            if (obj == null) {
                 return 1;
             }
-            if (!(obj is Boolean))
-            {
+            if (!(obj is Boolean)) {
                 throw new ArgumentException(SR.Arg_MustBeBoolean);
             }
 
-            if (m_value == ((Boolean)obj).m_value)
-            {
+            if (m_value == ((Boolean)obj).m_value) {
                 return 0;
             }
-            else if (m_value == false)
-            {
+            else if (m_value == false) {
                 return -1;
             }
             return 1;
         }
 
-        public int CompareTo(Boolean value)
-        {
-            if (m_value == value)
-            {
+        public int CompareTo(Boolean value) {
+            if (m_value == value) {
                 return 0;
             }
-            else if (m_value == false)
-            {
+            else if (m_value == false) {
                 return -1;
             }
             return 1;
@@ -167,39 +149,32 @@ namespace System
 
         // Determines whether a String represents true or false.
         // 
-        public static Boolean Parse(String value)
-        {
+        public static Boolean Parse(String value) {
             if (value == null) throw new ArgumentNullException(nameof(value));
             Contract.EndContractBlock();
             Boolean result = false;
-            if (!TryParse(value, out result))
-            {
+            if (!TryParse(value, out result)) {
                 throw new FormatException(SR.Format_BadBoolean);
             }
-            else
-            {
+            else {
                 return result;
             }
         }
 
         // Determines whether a String represents true or false.
         // 
-        public static Boolean TryParse(String value, out Boolean result)
-        {
+        public static Boolean TryParse(String value, out Boolean result) {
             result = false;
-            if (value == null)
-            {
+            if (value == null) {
                 return false;
             }
             // For perf reasons, let's first see if they're equal, then do the
             // trim to get rid of white space, and check again.
-            if (TrueLiteral.Equals(value, StringComparison.OrdinalIgnoreCase))
-            {
+            if (TrueLiteral.Equals(value, StringComparison.OrdinalIgnoreCase)) {
                 result = true;
                 return true;
             }
-            if (FalseLiteral.Equals(value, StringComparison.OrdinalIgnoreCase))
-            {
+            if (FalseLiteral.Equals(value, StringComparison.OrdinalIgnoreCase)) {
                 result = false;
                 return true;
             }
@@ -207,14 +182,12 @@ namespace System
             // Special case: Trim whitespace as well as null characters.
             value = TrimWhiteSpaceAndNull(value);
 
-            if (TrueLiteral.Equals(value, StringComparison.OrdinalIgnoreCase))
-            {
+            if (TrueLiteral.Equals(value, StringComparison.OrdinalIgnoreCase)) {
                 result = true;
                 return true;
             }
 
-            if (FalseLiteral.Equals(value, StringComparison.OrdinalIgnoreCase))
-            {
+            if (FalseLiteral.Equals(value, StringComparison.OrdinalIgnoreCase)) {
                 result = false;
                 return true;
             }
@@ -222,25 +195,20 @@ namespace System
             return false;
         }
 
-        private static String TrimWhiteSpaceAndNull(String value)
-        {
+        private static String TrimWhiteSpaceAndNull(String value) {
             int start = 0;
             int end = value.Length - 1;
             char nullChar = (char)0x0000;
 
-            while (start < value.Length)
-            {
-                if (!Char.IsWhiteSpace(value[start]) && value[start] != nullChar)
-                {
+            while (start < value.Length) {
+                if (!Char.IsWhiteSpace(value[start]) && value[start] != nullChar) {
                     break;
                 }
                 start++;
             }
 
-            while (end >= start)
-            {
-                if (!Char.IsWhiteSpace(value[end]) && value[end] != nullChar)
-                {
+            while (end >= start) {
+                if (!Char.IsWhiteSpace(value[end]) && value[end] != nullChar) {
                     break;
                 }
                 end--;
@@ -253,84 +221,68 @@ namespace System
         // IConvertible implementation
         // 
 
-        public TypeCode GetTypeCode()
-        {
+        public TypeCode GetTypeCode() {
             return TypeCode.Boolean;
         }
 
 
-        bool IConvertible.ToBoolean(IFormatProvider provider)
-        {
+        bool IConvertible.ToBoolean(IFormatProvider provider) {
             return m_value;
         }
 
-        char IConvertible.ToChar(IFormatProvider provider)
-        {
+        char IConvertible.ToChar(IFormatProvider provider) {
             throw new InvalidCastException(SR.Format(SR.InvalidCast_FromTo, "Boolean", "Char"));
         }
 
-        sbyte IConvertible.ToSByte(IFormatProvider provider)
-        {
+        sbyte IConvertible.ToSByte(IFormatProvider provider) {
             return Convert.ToSByte(m_value);
         }
 
-        byte IConvertible.ToByte(IFormatProvider provider)
-        {
+        byte IConvertible.ToByte(IFormatProvider provider) {
             return Convert.ToByte(m_value);
         }
 
-        short IConvertible.ToInt16(IFormatProvider provider)
-        {
+        short IConvertible.ToInt16(IFormatProvider provider) {
             return Convert.ToInt16(m_value);
         }
 
-        ushort IConvertible.ToUInt16(IFormatProvider provider)
-        {
+        ushort IConvertible.ToUInt16(IFormatProvider provider) {
             return Convert.ToUInt16(m_value);
         }
 
-        int IConvertible.ToInt32(IFormatProvider provider)
-        {
+        int IConvertible.ToInt32(IFormatProvider provider) {
             return Convert.ToInt32(m_value);
         }
 
-        uint IConvertible.ToUInt32(IFormatProvider provider)
-        {
+        uint IConvertible.ToUInt32(IFormatProvider provider) {
             return Convert.ToUInt32(m_value);
         }
 
-        long IConvertible.ToInt64(IFormatProvider provider)
-        {
+        long IConvertible.ToInt64(IFormatProvider provider) {
             return Convert.ToInt64(m_value);
         }
 
-        ulong IConvertible.ToUInt64(IFormatProvider provider)
-        {
+        ulong IConvertible.ToUInt64(IFormatProvider provider) {
             return Convert.ToUInt64(m_value);
         }
 
-        float IConvertible.ToSingle(IFormatProvider provider)
-        {
+        float IConvertible.ToSingle(IFormatProvider provider) {
             return Convert.ToSingle(m_value);
         }
 
-        double IConvertible.ToDouble(IFormatProvider provider)
-        {
+        double IConvertible.ToDouble(IFormatProvider provider) {
             return Convert.ToDouble(m_value);
         }
 
-        Decimal IConvertible.ToDecimal(IFormatProvider provider)
-        {
+        Decimal IConvertible.ToDecimal(IFormatProvider provider) {
             return Convert.ToDecimal(m_value);
         }
 
-        DateTime IConvertible.ToDateTime(IFormatProvider provider)
-        {
+        DateTime IConvertible.ToDateTime(IFormatProvider provider) {
             throw new InvalidCastException(SR.Format(SR.InvalidCast_FromTo, "Boolean", "DateTime"));
         }
 
-        Object IConvertible.ToType(Type type, IFormatProvider provider)
-        {
+        Object IConvertible.ToType(Type type, IFormatProvider provider) {
             return Convert.DefaultToType((IConvertible)this, type, provider);
         }
     }

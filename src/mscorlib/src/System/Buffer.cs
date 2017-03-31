@@ -6,8 +6,7 @@
 #define HAS_CUSTOM_BLOCKS
 #endif
 
-namespace System
-{
+namespace System {
     //Only contains static methods.  Does not require serialization
 
     using System;
@@ -26,8 +25,7 @@ namespace System
     using nuint = System.UInt32;
 #endif // BIT64
 
-    public static class Buffer
-    {
+    public static class Buffer {
         // Copies from one primitive array to another primitive array without
         // respecting types.  This calls memmove internally.  The count and 
         // offset parameters here are in bytes.  If you want to use traditional
@@ -49,15 +47,13 @@ namespace System
         // It is however cross platform as the CRT hasn't ported their fast version to 64-bit
         // platforms.
         //
-        internal unsafe static int IndexOfByte(byte* src, byte value, int index, int count)
-        {
+        internal unsafe static int IndexOfByte(byte* src, byte value, int index, int count) {
             Debug.Assert(src != null, "src should not be null");
 
             byte* pByte = src + index;
 
             // Align up the pointer to sizeof(int).
-            while (((int)pByte & 3) != 0)
-            {
+            while (((int)pByte & 3) != 0) {
                 if (count == 0)
                     return -1;
                 else if (*pByte == value)
@@ -76,8 +72,7 @@ namespace System
 
             // Run through buffer until we hit a 4-byte section which contains
             // the byte we're looking for or until we exhaust the buffer.
-            while (count > 3)
-            {
+            while (count > 3) {
                 // Test the buffer for presence of value. comparer contains the byte
                 // replicated 4 times.
                 uint t1 = *(uint*)pByte;
@@ -88,8 +83,7 @@ namespace System
                 t1 = t1 & 0x81010100;
 
                 // if t1 is zero then these 4-bytes don't contain a match
-                if (t1 != 0)
-                {
+                if (t1 != 0) {
                     // We've found a match for value, figure out which position it's in.
                     int foundIndex = (int)(pByte - src);
                     if (pByte[0] == value)
@@ -107,8 +101,7 @@ namespace System
             }
 
             // Catch any bytes that might be left at the tail of the buffer
-            while (count > 0)
-            {
+            while (count > 0) {
                 if (*pByte == value)
                     return (int)(pByte - src);
 
@@ -134,8 +127,7 @@ namespace System
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         private static extern byte _GetByte(Array array, int index);
 
-        public static byte GetByte(Array array, int index)
-        {
+        public static byte GetByte(Array array, int index) {
             // Is the array present?
             if (array == null)
                 throw new ArgumentNullException(nameof(array));
@@ -160,8 +152,7 @@ namespace System
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         private static extern void _SetByte(Array array, int index, byte value);
 
-        public static void SetByte(Array array, int index, byte value)
-        {
+        public static void SetByte(Array array, int index, byte value) {
             // Is the array present?
             if (array == null)
                 throw new ArgumentNullException(nameof(array));
@@ -188,8 +179,7 @@ namespace System
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         private static extern int _ByteLength(Array array);
 
-        public static int ByteLength(Array array)
-        {
+        public static int ByteLength(Array array) {
             // Is the array present?
             if (array == null)
                 throw new ArgumentNullException(nameof(array));
@@ -201,36 +191,31 @@ namespace System
             return _ByteLength(array);
         }
 
-        internal unsafe static void ZeroMemory(byte* src, long len)
-        {
+        internal unsafe static void ZeroMemory(byte* src, long len) {
             while (len-- > 0)
                 *(src + len) = 0;
         }
 
-        internal unsafe static void Memcpy(byte[] dest, int destIndex, byte* src, int srcIndex, int len)
-        {
+        internal unsafe static void Memcpy(byte[] dest, int destIndex, byte* src, int srcIndex, int len) {
             Debug.Assert((srcIndex >= 0) && (destIndex >= 0) && (len >= 0), "Index and length must be non-negative!");
             Debug.Assert(dest.Length - destIndex >= len, "not enough bytes in dest");
             // If dest has 0 elements, the fixed statement will throw an 
             // IndexOutOfRangeException.  Special-case 0-byte copies.
             if (len == 0)
                 return;
-            fixed (byte* pDest = dest)
-            {
+            fixed (byte* pDest = dest) {
                 Memcpy(pDest + destIndex, src + srcIndex, len);
             }
         }
 
-        internal unsafe static void Memcpy(byte* pDest, int destIndex, byte[] src, int srcIndex, int len)
-        {
+        internal unsafe static void Memcpy(byte* pDest, int destIndex, byte[] src, int srcIndex, int len) {
             Debug.Assert((srcIndex >= 0) && (destIndex >= 0) && (len >= 0), "Index and length must be non-negative!");
             Debug.Assert(src.Length - srcIndex >= len, "not enough bytes in src");
             // If dest has 0 elements, the fixed statement will throw an 
             // IndexOutOfRangeException.  Special-case 0-byte copies.
             if (len == 0)
                 return;
-            fixed (byte* pSrc = src)
-            {
+            fixed (byte* pSrc = src) {
                 Memcpy(pDest + destIndex, pSrc + srcIndex, len);
             }
         }
@@ -250,16 +235,14 @@ namespace System
         internal unsafe static extern void Memcpy(byte* dest, byte* src, int len);
 #else // ARM
         [MethodImplAttribute(MethodImplOptions.AggressiveInlining)]
-        internal unsafe static void Memcpy(byte* dest, byte* src, int len)
-        {
+        internal unsafe static void Memcpy(byte* dest, byte* src, int len) {
             Debug.Assert(len >= 0, "Negative length in memcopy!");
             Memmove(dest, src, (uint)len);
         }
 #endif // ARM
 
         // This method has different signature for x64 and other platforms and is done for performance reasons.
-        internal unsafe static void Memmove(byte* dest, byte* src, nuint len)
-        {
+        internal unsafe static void Memmove(byte* dest, byte* src, nuint len) {
 #if AMD64 || (BIT32 && !ARM)
             const nuint CopyThreshold = 2048;
 #else
@@ -365,8 +348,7 @@ namespace System
 
             MCPY05:
             // PInvoke to the native version when the copy length exceeds the threshold.
-            if (len > CopyThreshold)
-            {
+            if (len > CopyThreshold) {
                 goto PInvoke;
             }
 
@@ -432,8 +414,7 @@ namespace System
         // Non-inlinable wrapper around the QCall that avoids poluting the fast path
         // with P/Invoke prolog/epilog.
         [MethodImplAttribute(MethodImplOptions.NoInlining)]
-        private unsafe static void _Memmove(byte* dest, byte* src, nuint len)
-        {
+        private unsafe static void _Memmove(byte* dest, byte* src, nuint len) {
             __Memmove(dest, src, len);
         }
 
@@ -445,10 +426,8 @@ namespace System
         // Please do not edit unless intentional.
         [MethodImplAttribute(MethodImplOptions.AggressiveInlining)]
         [CLSCompliant(false)]
-        public static unsafe void MemoryCopy(void* source, void* destination, long destinationSizeInBytes, long sourceBytesToCopy)
-        {
-            if (sourceBytesToCopy > destinationSizeInBytes)
-            {
+        public static unsafe void MemoryCopy(void* source, void* destination, long destinationSizeInBytes, long sourceBytesToCopy) {
+            if (sourceBytesToCopy > destinationSizeInBytes) {
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.sourceBytesToCopy);
             }
             Memmove((byte*)destination, (byte*)source, checked((nuint)sourceBytesToCopy));
@@ -459,10 +438,8 @@ namespace System
         // Please do not edit unless intentional.
         [MethodImplAttribute(MethodImplOptions.AggressiveInlining)]
         [CLSCompliant(false)]
-        public static unsafe void MemoryCopy(void* source, void* destination, ulong destinationSizeInBytes, ulong sourceBytesToCopy)
-        {
-            if (sourceBytesToCopy > destinationSizeInBytes)
-            {
+        public static unsafe void MemoryCopy(void* source, void* destination, ulong destinationSizeInBytes, ulong sourceBytesToCopy) {
+            if (sourceBytesToCopy > destinationSizeInBytes) {
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.sourceBytesToCopy);
             }
 #if BIT64

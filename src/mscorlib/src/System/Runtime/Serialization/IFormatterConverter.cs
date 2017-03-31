@@ -16,11 +16,9 @@
 
 using System;
 
-namespace System.Runtime.Serialization
-{
+namespace System.Runtime.Serialization {
     [CLSCompliant(false)]
-    public interface IFormatterConverter
-    {
+    public interface IFormatterConverter {
         Object Convert(Object value, Type type);
         Object Convert(Object value, TypeCode typeCode);
         bool ToBoolean(Object value);

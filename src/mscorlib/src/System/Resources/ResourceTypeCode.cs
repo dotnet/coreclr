@@ -13,8 +13,7 @@
 ** 
 ===========================================================*/
 
-namespace System.Resources
-{
+namespace System.Resources {
     /* An internal implementation detail for .resources files, describing
        what type an object is.  
        Ranges:
@@ -25,8 +24,7 @@ namespace System.Resources
        internals of .resources files.
     */
     [Serializable]
-    internal enum ResourceTypeCode
-    {
+    internal enum ResourceTypeCode {
         // Primitives
         Null = 0,
         String = 1,

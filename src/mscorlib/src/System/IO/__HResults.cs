@@ -14,11 +14,9 @@
 
 using System;
 
-namespace System.IO
-{
+namespace System.IO {
     // Only static data no need to serialize
-    internal static class __HResults
-    {
+    internal static class __HResults {
         // These use an error code from WinError.h
         public const int COR_E_ENDOFSTREAM = unchecked((int)0x80070026);  // OS defined
         public const int COR_E_FILELOAD = unchecked((int)0x80131621);

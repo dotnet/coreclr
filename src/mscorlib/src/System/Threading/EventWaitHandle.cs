@@ -13,18 +13,14 @@
 =============================================================================*/
 
 
-namespace System.Security.AccessControl
-{
-    internal class EventWaitHandleSecurity
-    {
+namespace System.Security.AccessControl {
+    internal class EventWaitHandleSecurity {
     }
-    internal enum EventWaitHandleRights
-    {
+    internal enum EventWaitHandleRights {
     }
 }
 
-namespace System.Threading
-{
+namespace System.Threading {
     using System;
     using System.Threading;
     using System.Runtime.CompilerServices;
@@ -37,19 +33,15 @@ namespace System.Threading
     using System.Diagnostics.Contracts;
 
     [ComVisibleAttribute(true)]
-    public class EventWaitHandle : WaitHandle
-    {
+    public class EventWaitHandle : WaitHandle {
         public EventWaitHandle(bool initialState, EventResetMode mode) : this(initialState, mode, null) { }
 
-        public EventWaitHandle(bool initialState, EventResetMode mode, string name)
-        {
-            if (name != null)
-            {
+        public EventWaitHandle(bool initialState, EventResetMode mode, string name) {
+            if (name != null) {
 #if PLATFORM_UNIX
                 throw new PlatformNotSupportedException(SR.PlatformNotSupported_NamedSynchronizationPrimitives);
 #else
-                if (System.IO.Path.MaxPath < name.Length)
-                {
+                if (System.IO.Path.MaxPath < name.Length) {
                     throw new ArgumentException(SR.Format(SR.Argument_WaitHandleNameTooLong, Path.MaxPath), nameof(name));
                 }
 #endif
@@ -57,8 +49,7 @@ namespace System.Threading
             Contract.EndContractBlock();
 
             SafeWaitHandle _handle = null;
-            switch (mode)
-            {
+            switch (mode) {
                 case EventResetMode.ManualReset:
                     _handle = Win32Native.CreateEvent(null, true, initialState, name);
                     break;
@@ -70,8 +61,7 @@ namespace System.Threading
                     throw new ArgumentException(SR.Format(SR.Argument_InvalidFlag, name));
             };
 
-            if (_handle.IsInvalid)
-            {
+            if (_handle.IsInvalid) {
                 int errorCode = Marshal.GetLastWin32Error();
 
                 _handle.SetHandleAsInvalid();
@@ -84,19 +74,15 @@ namespace System.Threading
         }
 
         public EventWaitHandle(bool initialState, EventResetMode mode, string name, out bool createdNew)
-            : this(initialState, mode, name, out createdNew, null)
-        {
+            : this(initialState, mode, name, out createdNew, null) {
         }
 
-        internal unsafe EventWaitHandle(bool initialState, EventResetMode mode, string name, out bool createdNew, EventWaitHandleSecurity eventSecurity)
-        {
-            if (name != null)
-            {
+        internal unsafe EventWaitHandle(bool initialState, EventResetMode mode, string name, out bool createdNew, EventWaitHandleSecurity eventSecurity) {
+            if (name != null) {
 #if PLATFORM_UNIX
                 throw new PlatformNotSupportedException(SR.PlatformNotSupported_NamedSynchronizationPrimitives);
 #else
-                if (System.IO.Path.MaxPath < name.Length)
-                {
+                if (System.IO.Path.MaxPath < name.Length) {
                     throw new ArgumentException(SR.Format(SR.Argument_WaitHandleNameTooLong, Path.MaxPath), nameof(name));
                 }
 #endif
@@ -106,8 +92,7 @@ namespace System.Threading
 
             SafeWaitHandle _handle = null;
             Boolean isManualReset;
-            switch (mode)
-            {
+            switch (mode) {
                 case EventResetMode.ManualReset:
                     isManualReset = true;
                     break;
@@ -122,8 +107,7 @@ namespace System.Threading
             _handle = Win32Native.CreateEvent(secAttrs, isManualReset, initialState, name);
             int errorCode = Marshal.GetLastWin32Error();
 
-            if (_handle.IsInvalid)
-            {
+            if (_handle.IsInvalid) {
                 _handle.SetHandleAsInvalid();
                 if (null != name && 0 != name.Length && Win32Native.ERROR_INVALID_HANDLE == errorCode)
                     throw new WaitHandleCannotBeOpenedException(SR.Format(SR.Threading_WaitHandleCannotBeOpenedException_InvalidHandle, name));
@@ -134,21 +118,17 @@ namespace System.Threading
             SetHandleInternal(_handle);
         }
 
-        private EventWaitHandle(SafeWaitHandle handle)
-        {
+        private EventWaitHandle(SafeWaitHandle handle) {
             SetHandleInternal(handle);
         }
 
-        public static EventWaitHandle OpenExisting(string name)
-        {
+        public static EventWaitHandle OpenExisting(string name) {
             return OpenExisting(name, (EventWaitHandleRights)0);
         }
 
-        internal static EventWaitHandle OpenExisting(string name, EventWaitHandleRights rights)
-        {
+        internal static EventWaitHandle OpenExisting(string name, EventWaitHandleRights rights) {
             EventWaitHandle result;
-            switch (OpenExistingWorker(name, rights, out result))
-            {
+            switch (OpenExistingWorker(name, rights, out result)) {
                 case OpenExistingResult.NameNotFound:
                     throw new WaitHandleCannotBeOpenedException();
 
@@ -164,28 +144,23 @@ namespace System.Threading
             }
         }
 
-        public static bool TryOpenExisting(string name, out EventWaitHandle result)
-        {
+        public static bool TryOpenExisting(string name, out EventWaitHandle result) {
             return OpenExistingWorker(name, (EventWaitHandleRights)0, out result) == OpenExistingResult.Success;
         }
 
-        private static OpenExistingResult OpenExistingWorker(string name, EventWaitHandleRights rights, out EventWaitHandle result)
-        {
+        private static OpenExistingResult OpenExistingWorker(string name, EventWaitHandleRights rights, out EventWaitHandle result) {
 #if PLATFORM_UNIX
             throw new PlatformNotSupportedException(SR.PlatformNotSupported_NamedSynchronizationPrimitives);
 #else
-            if (name == null)
-            {
+            if (name == null) {
                 throw new ArgumentNullException(nameof(name), SR.ArgumentNull_WithParamName);
             }
 
-            if (name.Length == 0)
-            {
+            if (name.Length == 0) {
                 throw new ArgumentException(SR.Argument_EmptyName, nameof(name));
             }
 
-            if (null != name && System.IO.Path.MaxPath < name.Length)
-            {
+            if (null != name && System.IO.Path.MaxPath < name.Length) {
                 throw new ArgumentException(SR.Format(SR.Argument_WaitHandleNameTooLong, Path.MaxPath), nameof(name));
             }
 
@@ -195,8 +170,7 @@ namespace System.Threading
 
             SafeWaitHandle myHandle = Win32Native.OpenEvent(Win32Native.EVENT_MODIFY_STATE | Win32Native.SYNCHRONIZE, false, name);
 
-            if (myHandle.IsInvalid)
-            {
+            if (myHandle.IsInvalid) {
                 int errorCode = Marshal.GetLastWin32Error();
 
                 if (Win32Native.ERROR_FILE_NOT_FOUND == errorCode || Win32Native.ERROR_INVALID_NAME == errorCode)
@@ -212,15 +186,13 @@ namespace System.Threading
             return OpenExistingResult.Success;
 #endif
         }
-        public bool Reset()
-        {
+        public bool Reset() {
             bool res = Win32Native.ResetEvent(safeWaitHandle);
             if (!res)
                 __Error.WinIOError();
             return res;
         }
-        public bool Set()
-        {
+        public bool Set() {
             bool res = Win32Native.SetEvent(safeWaitHandle);
 
             if (!res)

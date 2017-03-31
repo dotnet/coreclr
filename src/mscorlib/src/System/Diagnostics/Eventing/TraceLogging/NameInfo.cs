@@ -17,16 +17,13 @@ namespace System.Diagnostics.Tracing
     /// to a tracelogging event type+name+tags combination.
     /// </summary>
     internal sealed class NameInfo
-        : ConcurrentSetItem<KeyValuePair<string, EventTags>, NameInfo>
-    {
+        : ConcurrentSetItem<KeyValuePair<string, EventTags>, NameInfo> {
         /// <summary>
         /// Insure that eventIds strictly less than 'eventId' will not be
         /// used by the SelfDescribing events.   
         /// </summary>
-        internal static void ReserveEventIDsBelow(int eventId)
-        {
-            for (;;)
-            {
+        internal static void ReserveEventIDsBelow(int eventId) {
+            for (;;) {
                 int snapshot = lastIdentity;
                 int newIdentity = (lastIdentity & ~0xFFFFFF) + eventId;
                 newIdentity = Math.Max(newIdentity, snapshot);      // Should be redundant.  as we only create descriptors once.  
@@ -41,8 +38,7 @@ namespace System.Diagnostics.Tracing
         internal readonly int identity;
         internal readonly byte[] nameMetadata;
 
-        public NameInfo(string name, EventTags tags, int typeMetadataSize)
-        {
+        public NameInfo(string name, EventTags tags, int typeMetadataSize) {
             this.name = name;
             this.tags = tags & Statics.EventTagsMask;
             this.identity = Interlocked.Increment(ref lastIdentity);
@@ -56,21 +52,17 @@ namespace System.Diagnostics.Tracing
             Statics.EncodeTags((int)this.tags, ref tagsPos, this.nameMetadata);
         }
 
-        public override int Compare(NameInfo other)
-        {
+        public override int Compare(NameInfo other) {
             return this.Compare(other.name, other.tags);
         }
 
-        public override int Compare(KeyValuePair<string, EventTags> key)
-        {
+        public override int Compare(KeyValuePair<string, EventTags> key) {
             return this.Compare(key.Key, key.Value & Statics.EventTagsMask);
         }
 
-        private int Compare(string otherName, EventTags otherTags)
-        {
+        private int Compare(string otherName, EventTags otherTags) {
             int result = StringComparer.Ordinal.Compare(this.name, otherName);
-            if (result == 0 && this.tags != otherTags)
-            {
+            if (result == 0 && this.tags != otherTags) {
                 result = this.tags < otherTags ? -1 : 1;
             }
             return result;

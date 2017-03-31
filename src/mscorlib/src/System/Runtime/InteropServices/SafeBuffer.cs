@@ -75,18 +75,15 @@ using Microsoft.Win32.SafeHandles;
 using System.Diagnostics;
 using System.Diagnostics.Contracts;
 
-namespace System.Runtime.InteropServices
-{
-    public abstract unsafe class SafeBuffer : SafeHandleZeroOrMinusOneIsInvalid
-    {
+namespace System.Runtime.InteropServices {
+    public abstract unsafe class SafeBuffer : SafeHandleZeroOrMinusOneIsInvalid {
         // Steal UIntPtr.MaxValue as our uninitialized value.
         private static readonly UIntPtr Uninitialized = (UIntPtr.Size == 4) ?
             ((UIntPtr)UInt32.MaxValue) : ((UIntPtr)UInt64.MaxValue);
 
         private UIntPtr _numBytes;
 
-        protected SafeBuffer(bool ownsHandle) : base(ownsHandle)
-        {
+        protected SafeBuffer(bool ownsHandle) : base(ownsHandle) {
             _numBytes = Uninitialized;
         }
 
@@ -96,8 +93,7 @@ namespace System.Runtime.InteropServices
         /// </summary>
         /// <param name="numBytes">Number of valid bytes in memory.</param>
         [CLSCompliant(false)]
-        public void Initialize(ulong numBytes)
-        {
+        public void Initialize(ulong numBytes) {
             if (numBytes < 0)
                 throw new ArgumentOutOfRangeException(nameof(numBytes), SR.ArgumentOutOfRange_NeedNonNegNum);
             if (IntPtr.Size == 4 && numBytes > UInt32.MaxValue)
@@ -115,8 +111,7 @@ namespace System.Runtime.InteropServices
         /// elements in an array.  Must be called before using the SafeBuffer.
         /// </summary>
         [CLSCompliant(false)]
-        public void Initialize(uint numElements, uint sizeOfEachElement)
-        {
+        public void Initialize(uint numElements, uint sizeOfEachElement) {
             if (numElements < 0)
                 throw new ArgumentOutOfRangeException(nameof(numElements), SR.ArgumentOutOfRange_NeedNonNegNum);
             if (sizeOfEachElement < 0)
@@ -137,8 +132,7 @@ namespace System.Runtime.InteropServices
         /// elements in an array.  Must be called before using the SafeBuffer.
         /// </summary>
         [CLSCompliant(false)]
-        public void Initialize<T>(uint numElements) where T : struct
-        {
+        public void Initialize<T>(uint numElements) where T : struct {
             Initialize(numElements, Marshal.AlignedSizeOf<T>());
         }
 
@@ -173,26 +167,22 @@ namespace System.Runtime.InteropServices
         /// the pointer from within the SafeBuffer.  You must set
         /// pointer to null before calling this method.</param>
         [CLSCompliant(false)]
-        public void AcquirePointer(ref byte* pointer)
-        {
+        public void AcquirePointer(ref byte* pointer) {
             if (_numBytes == Uninitialized)
                 throw NotInitialized();
 
             pointer = null;
             RuntimeHelpers.PrepareConstrainedRegions();
-            try
-            {
+            try {
             }
-            finally
-            {
+            finally {
                 bool junk = false;
                 DangerousAddRef(ref junk);
                 pointer = (byte*)handle;
             }
         }
 
-        public void ReleasePointer()
-        {
+        public void ReleasePointer() {
             if (_numBytes == Uninitialized)
                 throw NotInitialized();
 
@@ -208,8 +198,7 @@ namespace System.Runtime.InteropServices
         /// may have to consider alignment.</param>
         /// <returns>An instance of T read from memory.</returns>
         [CLSCompliant(false)]
-        public T Read<T>(ulong byteOffset) where T : struct
-        {
+        public T Read<T>(ulong byteOffset) where T : struct {
             if (_numBytes == Uninitialized)
                 throw NotInitialized();
 
@@ -221,14 +210,12 @@ namespace System.Runtime.InteropServices
             T value;
             bool mustCallRelease = false;
             RuntimeHelpers.PrepareConstrainedRegions();
-            try
-            {
+            try {
                 DangerousAddRef(ref mustCallRelease);
 
                 GenericPtrToStructure<T>(ptr, out value, sizeofT);
             }
-            finally
-            {
+            finally {
                 if (mustCallRelease)
                     DangerousRelease();
             }
@@ -237,8 +224,7 @@ namespace System.Runtime.InteropServices
 
         [CLSCompliant(false)]
         public void ReadArray<T>(ulong byteOffset, T[] array, int index, int count)
-            where T : struct
-        {
+            where T : struct {
             if (array == null)
                 throw new ArgumentNullException(nameof(array), SR.ArgumentNull_Buffer);
             if (index < 0)
@@ -259,15 +245,13 @@ namespace System.Runtime.InteropServices
 
             bool mustCallRelease = false;
             RuntimeHelpers.PrepareConstrainedRegions();
-            try
-            {
+            try {
                 DangerousAddRef(ref mustCallRelease);
 
                 for (int i = 0; i < count; i++)
                     unsafe { GenericPtrToStructure<T>(ptr + alignedSizeofT * i, out array[i + index], sizeofT); }
             }
-            finally
-            {
+            finally {
                 if (mustCallRelease)
                     DangerousRelease();
             }
@@ -282,8 +266,7 @@ namespace System.Runtime.InteropServices
         /// may have to consider alignment.</param>
         /// <param name="value">The value type to write to memory.</param>
         [CLSCompliant(false)]
-        public void Write<T>(ulong byteOffset, T value) where T : struct
-        {
+        public void Write<T>(ulong byteOffset, T value) where T : struct {
             if (_numBytes == Uninitialized)
                 throw NotInitialized();
 
@@ -294,13 +277,11 @@ namespace System.Runtime.InteropServices
             // *((T*) (_ptr + byteOffset)) = value;
             bool mustCallRelease = false;
             RuntimeHelpers.PrepareConstrainedRegions();
-            try
-            {
+            try {
                 DangerousAddRef(ref mustCallRelease);
                 GenericStructureToPtr(ref value, ptr, sizeofT);
             }
-            finally
-            {
+            finally {
                 if (mustCallRelease)
                     DangerousRelease();
             }
@@ -308,8 +289,7 @@ namespace System.Runtime.InteropServices
 
         [CLSCompliant(false)]
         public void WriteArray<T>(ulong byteOffset, T[] array, int index, int count)
-            where T : struct
-        {
+            where T : struct {
             if (array == null)
                 throw new ArgumentNullException(nameof(array), SR.ArgumentNull_Buffer);
             if (index < 0)
@@ -330,14 +310,12 @@ namespace System.Runtime.InteropServices
 
             bool mustCallRelease = false;
             RuntimeHelpers.PrepareConstrainedRegions();
-            try
-            {
+            try {
                 DangerousAddRef(ref mustCallRelease);
                 for (int i = 0; i < count; i++)
                     unsafe { GenericStructureToPtr(ref array[i + index], ptr + alignedSizeofT * i, sizeofT); }
             }
-            finally
-            {
+            finally {
                 if (mustCallRelease)
                     DangerousRelease();
             }
@@ -348,10 +326,8 @@ namespace System.Runtime.InteropServices
         /// Returns the number of bytes in the memory region.
         /// </summary>
         [CLSCompliant(false)]
-        public ulong ByteLength
-        {
-            get
-            {
+        public ulong ByteLength {
+            get {
                 if (_numBytes == Uninitialized)
                     throw NotInitialized();
 
@@ -362,29 +338,25 @@ namespace System.Runtime.InteropServices
         /* No indexer.  The perf would be misleadingly bad.  People should use 
          * AcquirePointer and ReleasePointer instead.  */
 
-        private void SpaceCheck(byte* ptr, ulong sizeInBytes)
-        {
+        private void SpaceCheck(byte* ptr, ulong sizeInBytes) {
             if ((ulong)_numBytes < sizeInBytes)
                 NotEnoughRoom();
             if ((ulong)(ptr - (byte*)handle) > ((ulong)_numBytes) - sizeInBytes)
                 NotEnoughRoom();
         }
 
-        private static void NotEnoughRoom()
-        {
+        private static void NotEnoughRoom() {
             throw new ArgumentException(SR.Arg_BufferTooSmall);
         }
 
-        private static InvalidOperationException NotInitialized()
-        {
+        private static InvalidOperationException NotInitialized() {
             Debug.Assert(false, "Uninitialized SafeBuffer!  Someone needs to call Initialize before using this instance!");
             return new InvalidOperationException(SR.InvalidOperation_MustCallInitialize);
         }
 
         // FCALL limitations mean we can't have generic FCALL methods.  However, we can pass 
         // TypedReferences to FCALL methods.
-        internal static void GenericPtrToStructure<T>(byte* ptr, out T structure, uint sizeofT) where T : struct
-        {
+        internal static void GenericPtrToStructure<T>(byte* ptr, out T structure, uint sizeofT) where T : struct {
             structure = default(T);  // Dummy assignment to silence the compiler
             PtrToStructureNative(ptr, __makeref(structure), sizeofT);
         }
@@ -392,8 +364,7 @@ namespace System.Runtime.InteropServices
         [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern void PtrToStructureNative(byte* ptr, /*out T*/ TypedReference structure, uint sizeofT);
 
-        internal static void GenericStructureToPtr<T>(ref T structure, byte* ptr, uint sizeofT) where T : struct
-        {
+        internal static void GenericStructureToPtr<T>(ref T structure, byte* ptr, uint sizeofT) where T : struct {
             StructureToPtrNative(__makeref(structure), ptr, sizeofT);
         }
 

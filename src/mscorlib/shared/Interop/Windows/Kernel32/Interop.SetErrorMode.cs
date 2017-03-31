@@ -4,10 +4,8 @@
 
 using System.Runtime.InteropServices;
 
-internal partial class Interop
-{
-    internal partial class Kernel32
-    {
+internal partial class Interop {
+    internal partial class Kernel32 {
         [DllImport(Libraries.Kernel32, SetLastError = false, EntryPoint = "SetErrorMode", ExactSpelling = true)]
         internal static extern uint SetErrorMode(uint newMode);
 

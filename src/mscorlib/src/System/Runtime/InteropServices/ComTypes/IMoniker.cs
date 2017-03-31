@@ -13,12 +13,10 @@
 
 using System;
 
-namespace System.Runtime.InteropServices.ComTypes
-{
+namespace System.Runtime.InteropServices.ComTypes {
     [StructLayout(LayoutKind.Sequential)]
 
-    public struct FILETIME
-    {
+    public struct FILETIME {
         public int dwLowDateTime;
         public int dwHighDateTime;
     }
@@ -26,8 +24,7 @@ namespace System.Runtime.InteropServices.ComTypes
     [Guid("0000000f-0000-0000-C000-000000000046")]
     [InterfaceTypeAttribute(ComInterfaceType.InterfaceIsIUnknown)]
     [ComImport]
-    public interface IMoniker
-    {
+    public interface IMoniker {
         // IPersist portion
         void GetClassID(out Guid pClassID);
 

@@ -11,11 +11,9 @@ using System.Runtime.Serialization;
 using System.Diagnostics;
 using System.Diagnostics.Contracts;
 
-namespace System.Text
-{
+namespace System.Text {
     [Serializable]
-    public class UTF7Encoding : Encoding
-    {
+    public class UTF7Encoding : Encoding {
         private const String base64Chars =
             "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
         //   0123456789111111111122222222223333333333444444444455555555556666
@@ -51,13 +49,12 @@ namespace System.Text
 
 
         public UTF7Encoding()
-            : this(false)
-        {
+            : this(false) {
         }
 
         public UTF7Encoding(bool allowOptionals)
             : base(UTF7_CODEPAGE) //Set the data item.
-        {
+{
             // Allowing optionals?
             m_allowOptionals = allowOptionals;
 
@@ -65,8 +62,7 @@ namespace System.Text
             MakeTables();
         }
 
-        private void MakeTables()
-        {
+        private void MakeTables() {
             // Build our tables
             base64Bytes = new byte[64];
             for (int i = 0; i < 64; i++) base64Bytes[i] = (byte)base64Chars[i];
@@ -75,24 +71,20 @@ namespace System.Text
             for (int i = 0; i < 64; i++) base64Values[base64Bytes[i]] = (sbyte)i;
             directEncode = new bool[128];
             int count = directChars.Length;
-            for (int i = 0; i < count; i++)
-            {
+            for (int i = 0; i < count; i++) {
                 directEncode[directChars[i]] = true;
             }
 
-            if (m_allowOptionals)
-            {
+            if (m_allowOptionals) {
                 count = optionalChars.Length;
-                for (int i = 0; i < count; i++)
-                {
+                for (int i = 0; i < count; i++) {
                     directEncode[optionalChars[i]] = true;
                 }
             }
         }
 
         // We go ahead and set this because Encoding expects it, however nothing can fall back in UTF7.
-        internal override void SetDefaultFallbacks()
-        {
+        internal override void SetDefaultFallbacks() {
             // UTF7 had an odd decoderFallback behavior, and the Encoder fallback
             // is irrelevent because we encode surrogates individually and never check for unmatched ones
             // (so nothing can fallback during encoding)
@@ -102,19 +94,16 @@ namespace System.Text
 
 
         [OnDeserializing]
-        private void OnDeserializing(StreamingContext ctx)
-        {
+        private void OnDeserializing(StreamingContext ctx) {
             // make sure the optional fields initialized correctly.
             base.OnDeserializing();
         }
 
         [OnDeserialized]
-        private void OnDeserialized(StreamingContext ctx)
-        {
+        private void OnDeserialized(StreamingContext ctx) {
             base.OnDeserialized();
 
-            if (m_deserializedFromEverett)
-            {
+            if (m_deserializedFromEverett) {
                 // If 1st optional char is encoded we're allowing optionals
                 m_allowOptionals = directEncode[optionalChars[0]];
             }
@@ -124,11 +113,9 @@ namespace System.Text
 
 
 
-        public override bool Equals(Object value)
-        {
+        public override bool Equals(Object value) {
             UTF7Encoding that = value as UTF7Encoding;
-            if (that != null)
-            {
+            if (that != null) {
                 return (m_allowOptionals == that.m_allowOptionals) &&
                        (EncoderFallback.Equals(that.EncoderFallback)) &&
                        (DecoderFallback.Equals(that.DecoderFallback));
@@ -138,8 +125,7 @@ namespace System.Text
 
         // Compared to all the other encodings, variations of UTF7 are unlikely
 
-        public override int GetHashCode()
-        {
+        public override int GetHashCode() {
             return this.CodePage + this.EncoderFallback.GetHashCode() + this.DecoderFallback.GetHashCode();
         }
 
@@ -160,25 +146,21 @@ namespace System.Text
         // Returns the number of bytes required to encode a range of characters in
         // a character array.
 
-        public override int GetByteCount(char[] chars, int index, int count)
-        {
+        public override int GetByteCount(char[] chars, int index, int count) {
             return EncodingForwarder.GetByteCount(this, chars, index, count);
         }
 
-        public override int GetByteCount(String s)
-        {
+        public override int GetByteCount(String s) {
             return EncodingForwarder.GetByteCount(this, s);
         }
 
         [CLSCompliant(false)]
-        public override unsafe int GetByteCount(char* chars, int count)
-        {
+        public override unsafe int GetByteCount(char* chars, int count) {
             return EncodingForwarder.GetByteCount(this, chars, count);
         }
 
         public override int GetBytes(String s, int charIndex, int charCount,
-                                              byte[] bytes, int byteIndex)
-        {
+                                              byte[] bytes, int byteIndex) {
             return EncodingForwarder.GetBytes(this, s, charIndex, charCount, bytes, byteIndex);
         }
 
@@ -192,55 +174,47 @@ namespace System.Text
         // number of characters, regardless of the actual character values.
 
         public override int GetBytes(char[] chars, int charIndex, int charCount,
-                                               byte[] bytes, int byteIndex)
-        {
+                                               byte[] bytes, int byteIndex) {
             return EncodingForwarder.GetBytes(this, chars, charIndex, charCount, bytes, byteIndex);
         }
 
         [CLSCompliant(false)]
-        public override unsafe int GetBytes(char* chars, int charCount, byte* bytes, int byteCount)
-        {
+        public override unsafe int GetBytes(char* chars, int charCount, byte* bytes, int byteCount) {
             return EncodingForwarder.GetBytes(this, chars, charCount, bytes, byteCount);
         }
 
         // Returns the number of characters produced by decoding a range of bytes
         // in a byte array.
 
-        public override int GetCharCount(byte[] bytes, int index, int count)
-        {
+        public override int GetCharCount(byte[] bytes, int index, int count) {
             return EncodingForwarder.GetCharCount(this, bytes, index, count);
         }
 
         [CLSCompliant(false)]
-        public override unsafe int GetCharCount(byte* bytes, int count)
-        {
+        public override unsafe int GetCharCount(byte* bytes, int count) {
             return EncodingForwarder.GetCharCount(this, bytes, count);
         }
 
         public override int GetChars(byte[] bytes, int byteIndex, int byteCount,
-                                              char[] chars, int charIndex)
-        {
+                                              char[] chars, int charIndex) {
             return EncodingForwarder.GetChars(this, bytes, byteIndex, byteCount, chars, charIndex);
         }
 
         [CLSCompliant(false)]
-        public unsafe override int GetChars(byte* bytes, int byteCount, char* chars, int charCount)
-        {
+        public unsafe override int GetChars(byte* bytes, int byteCount, char* chars, int charCount) {
             return EncodingForwarder.GetChars(this, bytes, byteCount, chars, charCount);
         }
 
         // Returns a string containing the decoded representation of a range of
         // bytes in a byte array.
 
-        public override String GetString(byte[] bytes, int index, int count)
-        {
+        public override String GetString(byte[] bytes, int index, int count) {
             return EncodingForwarder.GetString(this, bytes, index, count);
         }
 
         // End of overridden methods which use EncodingForwarder
 
-        internal override unsafe int GetByteCount(char* chars, int count, EncoderNLS baseEncoder)
-        {
+        internal override unsafe int GetByteCount(char* chars, int count, EncoderNLS baseEncoder) {
             Debug.Assert(chars != null, "[UTF7Encoding.GetByteCount]chars!=null");
             Debug.Assert(count >= 0, "[UTF7Encoding.GetByteCount]count >=0");
 
@@ -249,8 +223,7 @@ namespace System.Text
         }
 
         internal override unsafe int GetBytes(char* chars, int charCount,
-                                                byte* bytes, int byteCount, EncoderNLS baseEncoder)
-        {
+                                                byte* bytes, int byteCount, EncoderNLS baseEncoder) {
             Debug.Assert(byteCount >= 0, "[UTF7Encoding.GetBytes]byteCount >=0");
             Debug.Assert(chars != null, "[UTF7Encoding.GetBytes]chars!=null");
             Debug.Assert(charCount >= 0, "[UTF7Encoding.GetBytes]charCount >=0");
@@ -266,14 +239,12 @@ namespace System.Text
             Encoding.EncodingByteBuffer buffer = new Encoding.EncodingByteBuffer(
                 this, encoder, bytes, byteCount, chars, charCount);
 
-            if (encoder != null)
-            {
+            if (encoder != null) {
                 bits = encoder.bits;
                 bitCount = encoder.bitCount;
 
                 // May have had too many left over
-                while (bitCount >= 6)
-                {
+                while (bitCount >= 6) {
                     bitCount -= 6;
                     // If we fail we'll never really have enough room
                     if (!buffer.AddByte(base64Bytes[(bits >> bitCount) & 0x3F]))
@@ -281,16 +252,12 @@ namespace System.Text
                 }
             }
 
-            while (buffer.MoreData)
-            {
+            while (buffer.MoreData) {
                 char currentChar = buffer.GetNextChar();
 
-                if (currentChar < 0x80 && directEncode[currentChar])
-                {
-                    if (bitCount >= 0)
-                    {
-                        if (bitCount > 0)
-                        {
+                if (currentChar < 0x80 && directEncode[currentChar]) {
+                    if (bitCount >= 0) {
+                        if (bitCount > 0) {
                             // Try to add the next byte
                             if (!buffer.AddByte(base64Bytes[bits << 6 - bitCount & 0x3F]))
                                 break;                                          // Stop here, didn't throw
@@ -309,15 +276,12 @@ namespace System.Text
                     if (!buffer.AddByte((byte)currentChar))
                         break;                                          // Stop here, didn't throw
                 }
-                else if (bitCount < 0 && currentChar == '+')
-                {
+                else if (bitCount < 0 && currentChar == '+') {
                     if (!buffer.AddByte((byte)'+', (byte)'-'))
                         break;                                          // Stop here, didn't throw
                 }
-                else
-                {
-                    if (bitCount < 0)
-                    {
+                else {
+                    if (bitCount < 0) {
                         // Need to emit a + and 12 bits (3 bytes)
                         // Only 12 of the 16 bits will be emitted this time, the other 4 wait 'til next time
                         if (!buffer.AddByte((byte)'+'))
@@ -331,11 +295,9 @@ namespace System.Text
                     bits = bits << 16 | currentChar;
                     bitCount += 16;
 
-                    while (bitCount >= 6)
-                    {
+                    while (bitCount >= 6) {
                         bitCount -= 6;
-                        if (!buffer.AddByte(base64Bytes[(bits >> bitCount) & 0x3F]))
-                        {
+                        if (!buffer.AddByte(base64Bytes[(bits >> bitCount) & 0x3F])) {
                             bitCount += 6;                              // We didn't use these bits
                             currentChar = buffer.GetNextChar();              // We're processing this char still, but AddByte
                                                                              // --'d it when we ran out of space
@@ -350,21 +312,17 @@ namespace System.Text
 
             // Now if we have bits left over we have to encode them.
             // MustFlush may have been cleared by encoding.ThrowBytesOverflow earlier if converting
-            if (bitCount >= 0 && (encoder == null || encoder.MustFlush))
-            {
+            if (bitCount >= 0 && (encoder == null || encoder.MustFlush)) {
                 // Do we have bits we have to stick in?
-                if (bitCount > 0)
-                {
-                    if (buffer.AddByte(base64Bytes[(bits << (6 - bitCount)) & 0x3F]))
-                    {
+                if (bitCount > 0) {
+                    if (buffer.AddByte(base64Bytes[(bits << (6 - bitCount)) & 0x3F])) {
                         // Emitted spare bits, 0 bits left
                         bitCount = 0;
                     }
                 }
 
                 // If converting and failed bitCount above, then we'll fail this too
-                if (buffer.AddByte((byte)'-'))
-                {
+                if (buffer.AddByte((byte)'-')) {
                     // turned off bit mode';
                     bits = 0;
                     bitCount = -1;
@@ -377,8 +335,7 @@ namespace System.Text
 
             // Do we have an encoder we're allowed to use?
             // bytes == null if counting, so don't use encoder then
-            if (bytes != null && encoder != null)
-            {
+            if (bytes != null && encoder != null) {
                 // We already cleared bits & bitcount for mustflush case
                 encoder.bits = bits;
                 encoder.bitCount = bitCount;
@@ -388,8 +345,7 @@ namespace System.Text
             return buffer.Count;
         }
 
-        internal override unsafe int GetCharCount(byte* bytes, int count, DecoderNLS baseDecoder)
-        {
+        internal override unsafe int GetCharCount(byte* bytes, int count, DecoderNLS baseDecoder) {
             Debug.Assert(count >= 0, "[UTF7Encoding.GetCharCount]count >=0");
             Debug.Assert(bytes != null, "[UTF7Encoding.GetCharCount]bytes!=null");
 
@@ -398,8 +354,7 @@ namespace System.Text
         }
 
         internal override unsafe int GetChars(byte* bytes, int byteCount,
-                                                char* chars, int charCount, DecoderNLS baseDecoder)
-        {
+                                                char* chars, int charCount, DecoderNLS baseDecoder) {
             Debug.Assert(byteCount >= 0, "[UTF7Encoding.GetChars]byteCount >=0");
             Debug.Assert(bytes != null, "[UTF7Encoding.GetChars]bytes!=null");
             Debug.Assert(charCount >= 0, "[UTF7Encoding.GetChars]charCount >=0");
@@ -415,8 +370,7 @@ namespace System.Text
             int bits = 0;
             int bitCount = -1;
             bool firstByte = false;
-            if (decoder != null)
-            {
+            if (decoder != null) {
                 bits = decoder.bits;
                 bitCount = decoder.bitCount;
                 firstByte = decoder.firstByte;
@@ -426,8 +380,7 @@ namespace System.Text
             }
 
             // We may have had bits in the decoder that we couldn't output last time, so do so now
-            if (bitCount >= 16)
-            {
+            if (bitCount >= 16) {
                 // Check our decoder buffer
                 if (!buffer.AddChar((char)((bits >> (bitCount - 16)) & 0xFFFF)))
                     ThrowCharsOverflow(decoder, true);  // Always throw, they need at least 1 char even in Convert
@@ -437,37 +390,31 @@ namespace System.Text
             }
 
             // Loop through the input
-            while (buffer.MoreData)
-            {
+            while (buffer.MoreData) {
                 byte currentByte = buffer.GetNextByte();
                 int c;
 
-                if (bitCount >= 0)
-                {
+                if (bitCount >= 0) {
                     //
                     // Modified base 64 encoding.
                     //
                     sbyte v;
-                    if (currentByte < 0x80 && ((v = base64Values[currentByte]) >= 0))
-                    {
+                    if (currentByte < 0x80 && ((v = base64Values[currentByte]) >= 0)) {
                         firstByte = false;
                         bits = (bits << 6) | ((byte)v);
                         bitCount += 6;
-                        if (bitCount >= 16)
-                        {
+                        if (bitCount >= 16) {
                             c = (bits >> (bitCount - 16)) & 0xFFFF;
                             bitCount -= 16;
                         }
                         // If not enough bits just continue
                         else continue;
                     }
-                    else
-                    {
+                    else {
                         // If it wasn't a base 64 byte, everything's going to turn off base 64 mode
                         bitCount = -1;
 
-                        if (currentByte != '-')
-                        {
+                        if (currentByte != '-') {
                             // >= 0x80 (because of 1st if statemtn)
                             // We need this check since the base64Values[b] check below need b <= 0x7f.
                             // This is not a valid base 64 byte.  Terminate the shifted-sequence and
@@ -496,8 +443,7 @@ namespace System.Text
                     // End of modified base 64 encoding block.
                     //
                 }
-                else if (currentByte == '+')
-                {
+                else if (currentByte == '+') {
                     //
                     // Found the start of a modified base 64 encoding block or a plus sign.
                     //
@@ -505,11 +451,9 @@ namespace System.Text
                     firstByte = true;
                     continue;
                 }
-                else
-                {
+                else {
                     // Normal character
-                    if (currentByte >= 0x80)
-                    {
+                    if (currentByte >= 0x80) {
                         // Try to fallback
                         if (!buffer.Fallback(currentByte))
                             break;                                          // Stop here, didn't throw
@@ -522,15 +466,13 @@ namespace System.Text
                     c = currentByte;
                 }
 
-                if (c >= 0)
-                {
+                if (c >= 0) {
                     // Check our buffer
-                    if (!buffer.AddChar((char)c))
-                    {
+                    if (!buffer.AddChar((char)c)) {
                         // No room.  If it was a plain char we'll try again later.
                         // Note, we'll consume this byte and stick it in decoder, even if we can't output it
                         if (bitCount >= 0)                                  // Can we rememmber this byte (char)
-                        {
+{
                             buffer.AdjustBytes(+1);                         // Need to readd the byte that AddChar subtracted when it failed
                             bitCount += 16;                                 // We'll still need that char we have in our bits
                         }
@@ -540,18 +482,15 @@ namespace System.Text
             }
 
             // Stick stuff in the decoder if we can (chars == null if counting, so don't store decoder)
-            if (chars != null && decoder != null)
-            {
+            if (chars != null && decoder != null) {
                 // MustFlush?  (Could've been cleared by ThrowCharsOverflow if Convert & didn't reach end of buffer)
-                if (decoder.MustFlush)
-                {
+                if (decoder.MustFlush) {
                     // RFC doesn't specify what would happen if we have non-0 leftover bits, we just drop them
                     decoder.bits = 0;
                     decoder.bitCount = -1;
                     decoder.firstByte = false;
                 }
-                else
-                {
+                else {
                     decoder.bits = bits;
                     decoder.bitCount = bitCount;
                     decoder.firstByte = firstByte;
@@ -565,20 +504,17 @@ namespace System.Text
         }
 
 
-        public override System.Text.Decoder GetDecoder()
-        {
+        public override System.Text.Decoder GetDecoder() {
             return new UTF7Encoding.Decoder(this);
         }
 
 
-        public override System.Text.Encoder GetEncoder()
-        {
+        public override System.Text.Encoder GetEncoder() {
             return new UTF7Encoding.Encoder(this);
         }
 
 
-        public override int GetMaxByteCount(int charCount)
-        {
+        public override int GetMaxByteCount(int charCount) {
             if (charCount < 0)
                 throw new ArgumentOutOfRangeException(nameof(charCount),
                      SR.ArgumentOutOfRange_NeedNonNegNum);
@@ -610,8 +546,7 @@ namespace System.Text
         }
 
 
-        public override int GetMaxCharCount(int byteCount)
-        {
+        public override int GetMaxCharCount(int byteCount) {
             if (byteCount < 0)
                 throw new ArgumentOutOfRangeException(nameof(byteCount),
                      SR.ArgumentOutOfRange_NeedNonNegNum);
@@ -628,8 +563,7 @@ namespace System.Text
         [Serializable]
         // Of all the amazing things... This MUST be Decoder so that our com name
         // for System.Text.Decoder doesn't change
-        private sealed class Decoder : DecoderNLS, ISerializable
-        {
+        private sealed class Decoder : DecoderNLS, ISerializable {
             /*private*/
             internal int bits;
             /*private*/
@@ -637,14 +571,12 @@ namespace System.Text
             /*private*/
             internal bool firstByte;
 
-            public Decoder(UTF7Encoding encoding) : base(encoding)
-            {
+            public Decoder(UTF7Encoding encoding) : base(encoding) {
                 // base calls reset
             }
 
             // Constructor called by serialization, have to handle deserializing from Everett
-            internal Decoder(SerializationInfo info, StreamingContext context)
-            {
+            internal Decoder(SerializationInfo info, StreamingContext context) {
                 // Any info?
                 if (info == null) throw new ArgumentNullException(nameof(info));
                 Contract.EndContractBlock();
@@ -657,8 +589,7 @@ namespace System.Text
             }
 
             // ISerializable implementation, get data for this object
-            void ISerializable.GetObjectData(SerializationInfo info, StreamingContext context)
-            {
+            void ISerializable.GetObjectData(SerializationInfo info, StreamingContext context) {
                 // Any info?
                 if (info == null) throw new ArgumentNullException(nameof(info));
                 Contract.EndContractBlock();
@@ -670,8 +601,7 @@ namespace System.Text
                 info.AddValue("firstByte", this.firstByte);
             }
 
-            public override void Reset()
-            {
+            public override void Reset() {
                 this.bits = 0;
                 this.bitCount = -1;
                 this.firstByte = false;
@@ -680,10 +610,8 @@ namespace System.Text
             }
 
             // Anything left in our encoder?
-            internal override bool HasState
-            {
-                get
-                {
+            internal override bool HasState {
+                get {
                     // NOTE: This forces the last -, which some encoder might not encode.  If we
                     // don't see it we don't think we're done reading.
                     return (this.bitCount != -1);
@@ -694,21 +622,18 @@ namespace System.Text
         [Serializable]
         // Of all the amazing things... This MUST be Encoder so that our com name
         // for System.Text.Encoder doesn't change
-        private sealed class Encoder : EncoderNLS, ISerializable
-        {
+        private sealed class Encoder : EncoderNLS, ISerializable {
             /*private*/
             internal int bits;
             /*private*/
             internal int bitCount;
 
-            public Encoder(UTF7Encoding encoding) : base(encoding)
-            {
+            public Encoder(UTF7Encoding encoding) : base(encoding) {
                 // base calls reset
             }
 
             // Constructor called by serialization, have to handle deserializing from Everett
-            internal Encoder(SerializationInfo info, StreamingContext context)
-            {
+            internal Encoder(SerializationInfo info, StreamingContext context) {
                 // Any info?
                 if (info == null) throw new ArgumentNullException(nameof(info));
                 Contract.EndContractBlock();
@@ -720,8 +645,7 @@ namespace System.Text
             }
 
             // ISerializable implementation, get data for this object
-            void ISerializable.GetObjectData(SerializationInfo info, StreamingContext context)
-            {
+            void ISerializable.GetObjectData(SerializationInfo info, StreamingContext context) {
                 // Any info?
                 if (info == null) throw new ArgumentNullException(nameof(info));
                 Contract.EndContractBlock();
@@ -732,8 +656,7 @@ namespace System.Text
                 info.AddValue("bitCount", this.bitCount);
             }
 
-            public override void Reset()
-            {
+            public override void Reset() {
                 this.bitCount = -1;
                 this.bits = 0;
                 if (m_fallbackBuffer != null)
@@ -741,10 +664,8 @@ namespace System.Text
             }
 
             // Anything left in our encoder?
-            internal override bool HasState
-            {
-                get
-                {
+            internal override bool HasState {
+                get {
                     return (this.bits != 0 || this.bitCount != -1);
                 }
             }
@@ -753,59 +674,48 @@ namespace System.Text
         // Preexisting UTF7 behavior for bad bytes was just to spit out the byte as the next char
         // and turn off base64 mode if it was in that mode.  We still exit the mode, but now we fallback.
         [Serializable]
-        private sealed class DecoderUTF7Fallback : DecoderFallback
-        {
+        private sealed class DecoderUTF7Fallback : DecoderFallback {
             // Construction.  Default replacement fallback uses no best fit and ? replacement string
-            public DecoderUTF7Fallback()
-            {
+            public DecoderUTF7Fallback() {
             }
 
-            public override DecoderFallbackBuffer CreateFallbackBuffer()
-            {
+            public override DecoderFallbackBuffer CreateFallbackBuffer() {
                 return new DecoderUTF7FallbackBuffer(this);
             }
 
             // Maximum number of characters that this instance of this fallback could return
-            public override int MaxCharCount
-            {
-                get
-                {
+            public override int MaxCharCount {
+                get {
                     // returns 1 char per bad byte
                     return 1;
                 }
             }
 
-            public override bool Equals(Object value)
-            {
+            public override bool Equals(Object value) {
                 DecoderUTF7Fallback that = value as DecoderUTF7Fallback;
-                if (that != null)
-                {
+                if (that != null) {
                     return true;
                 }
                 return (false);
             }
 
-            public override int GetHashCode()
-            {
+            public override int GetHashCode() {
                 return 984;
             }
         }
 
-        private sealed class DecoderUTF7FallbackBuffer : DecoderFallbackBuffer
-        {
+        private sealed class DecoderUTF7FallbackBuffer : DecoderFallbackBuffer {
             // Store our default string
             private char cFallback = (char)0;
             private int iCount = -1;
             private int iSize;
 
             // Construction
-            public DecoderUTF7FallbackBuffer(DecoderUTF7Fallback fallback)
-            {
+            public DecoderUTF7FallbackBuffer(DecoderUTF7Fallback fallback) {
             }
 
             // Fallback Methods
-            public override bool Fallback(byte[] bytesUnknown, int index)
-            {
+            public override bool Fallback(byte[] bytesUnknown, int index) {
                 // We expect no previous fallback in our buffer
                 Debug.Assert(iCount < 0, "[DecoderUTF7FallbackBuffer.Fallback] Can't have recursive fallbacks");
                 Debug.Assert(bytesUnknown.Length == 1, "[DecoderUTF7FallbackBuffer.Fallback] Only possible fallback case should be 1 unknown byte");
@@ -814,8 +724,7 @@ namespace System.Text
                 cFallback = (char)bytesUnknown[0];
 
                 // Any of the fallback characters can be handled except for 0
-                if (cFallback == 0)
-                {
+                if (cFallback == 0) {
                     return false;
                 }
 
@@ -824,8 +733,7 @@ namespace System.Text
                 return true;
             }
 
-            public override char GetNextChar()
-            {
+            public override char GetNextChar() {
                 if (iCount-- > 0)
                     return cFallback;
 
@@ -833,10 +741,8 @@ namespace System.Text
                 return (char)0;
             }
 
-            public override bool MovePrevious()
-            {
-                if (iCount >= 0)
-                {
+            public override bool MovePrevious() {
+                if (iCount >= 0) {
                     iCount++;
                 }
 
@@ -845,17 +751,14 @@ namespace System.Text
             }
 
             // Return # of chars left in this fallback
-            public override int Remaining
-            {
-                get
-                {
+            public override int Remaining {
+                get {
                     return (iCount > 0) ? iCount : 0;
                 }
             }
 
             // Clear the buffer
-            public override unsafe void Reset()
-            {
+            public override unsafe void Reset() {
                 iCount = -1;
                 byteStart = null;
             }
@@ -867,8 +770,7 @@ namespace System.Text
             {
                 // We expect no previous fallback in our buffer
                 Debug.Assert(iCount < 0, "[DecoderUTF7FallbackBuffer.InternalFallback] Can't have recursive fallbacks");
-                if (bytes.Length != 1)
-                {
+                if (bytes.Length != 1) {
                     throw new ArgumentException(SR.Argument_InvalidCharSequenceNoIndex);
                 }
 

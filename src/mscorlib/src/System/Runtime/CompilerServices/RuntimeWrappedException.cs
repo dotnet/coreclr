@@ -16,29 +16,23 @@ using System.Runtime.Serialization;
 using System.Runtime.Remoting;
 using System.Diagnostics.Contracts;
 
-namespace System.Runtime.CompilerServices
-{
+namespace System.Runtime.CompilerServices {
     [Serializable]
-    public sealed class RuntimeWrappedException : Exception
-    {
+    public sealed class RuntimeWrappedException : Exception {
         private RuntimeWrappedException(Object thrownObject)
-            : base(SR.RuntimeWrappedException)
-        {
+            : base(SR.RuntimeWrappedException) {
             SetErrorCode(System.__HResults.COR_E_RUNTIMEWRAPPED);
             m_wrappedException = thrownObject;
         }
 
-        public Object WrappedException
-        {
+        public Object WrappedException {
             get { return m_wrappedException; }
         }
 
         private Object m_wrappedException;
 
-        public override void GetObjectData(SerializationInfo info, StreamingContext context)
-        {
-            if (info == null)
-            {
+        public override void GetObjectData(SerializationInfo info, StreamingContext context) {
+            if (info == null) {
                 throw new ArgumentNullException(nameof(info));
             }
             Contract.EndContractBlock();
@@ -47,8 +41,7 @@ namespace System.Runtime.CompilerServices
         }
 
         internal RuntimeWrappedException(SerializationInfo info, StreamingContext context)
-            : base(info, context)
-        {
+            : base(info, context) {
             m_wrappedException = info.GetValue("WrappedException", typeof(Object));
         }
     }

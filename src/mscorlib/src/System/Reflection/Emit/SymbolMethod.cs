@@ -4,16 +4,14 @@
 
 // 
 
-namespace System.Reflection.Emit
-{
+namespace System.Reflection.Emit {
     using System.Runtime.InteropServices;
     using System;
     using System.Reflection;
     using System.Diagnostics.Contracts;
     using CultureInfo = System.Globalization.CultureInfo;
 
-    internal sealed class SymbolMethod : MethodInfo
-    {
+    internal sealed class SymbolMethod : MethodInfo {
         #region Private Data Members
         private ModuleBuilder m_module;
         private Type m_containingType;
@@ -27,8 +25,7 @@ namespace System.Reflection.Emit
 
         #region Constructor
         internal SymbolMethod(ModuleBuilder mod, MethodToken token, Type arrayClass, String methodName,
-            CallingConventions callingConvention, Type returnType, Type[] parameterTypes)
-        {
+            CallingConventions callingConvention, Type returnType, Type[] parameterTypes) {
             // This is a kind of MethodInfo to represent methods for array type of unbaked type
 
             // Another way to look at this class is as a glorified MethodToken wrapper. At the time of this comment
@@ -40,13 +37,11 @@ namespace System.Reflection.Emit
 
             // The ParameterTypes are also a bit interesting in that they may be unbaked TypeBuilders.
             m_returnType = returnType;
-            if (parameterTypes != null)
-            {
+            if (parameterTypes != null) {
                 m_parameterTypes = new Type[parameterTypes.Length];
                 Array.Copy(parameterTypes, 0, m_parameterTypes, 0, parameterTypes.Length);
             }
-            else
-            {
+            else {
                 m_parameterTypes = EmptyArray<Type>.Value;
             }
 
@@ -61,120 +56,99 @@ namespace System.Reflection.Emit
         #endregion
 
         #region Internal Members
-        internal override Type[] GetParameterTypes()
-        {
+        internal override Type[] GetParameterTypes() {
             return m_parameterTypes;
         }
 
-        internal MethodToken GetToken(ModuleBuilder mod)
-        {
+        internal MethodToken GetToken(ModuleBuilder mod) {
             return mod.GetArrayMethodToken(m_containingType, m_name, m_callingConvention, m_returnType, m_parameterTypes);
         }
 
         #endregion
 
         #region MemberInfo Overrides
-        public override Module Module
-        {
+        public override Module Module {
             get { return m_module; }
         }
 
-        public override Type ReflectedType
-        {
+        public override Type ReflectedType {
             get { return m_containingType as Type; }
         }
 
-        public override String Name
-        {
+        public override String Name {
             get { return m_name; }
         }
 
-        public override Type DeclaringType
-        {
+        public override Type DeclaringType {
             get { return m_containingType; }
         }
         #endregion
 
         #region MethodBase Overrides
         [Pure]
-        public override ParameterInfo[] GetParameters()
-        {
+        public override ParameterInfo[] GetParameters() {
             throw new NotSupportedException(SR.NotSupported_SymbolMethod);
         }
 
-        public override MethodImplAttributes GetMethodImplementationFlags()
-        {
+        public override MethodImplAttributes GetMethodImplementationFlags() {
             throw new NotSupportedException(SR.NotSupported_SymbolMethod);
         }
 
-        public override MethodAttributes Attributes
-        {
+        public override MethodAttributes Attributes {
             get { throw new NotSupportedException(SR.NotSupported_SymbolMethod); }
         }
 
-        public override CallingConventions CallingConvention
-        {
+        public override CallingConventions CallingConvention {
             get { return m_callingConvention; }
         }
 
-        public override RuntimeMethodHandle MethodHandle
-        {
+        public override RuntimeMethodHandle MethodHandle {
             get { throw new NotSupportedException(SR.NotSupported_SymbolMethod); }
         }
 
         #endregion
 
         #region MethodInfo Overrides
-        public override Type ReturnType
-        {
-            get
-            {
+        public override Type ReturnType {
+            get {
                 return m_returnType;
             }
         }
 
-        public override ICustomAttributeProvider ReturnTypeCustomAttributes
-        {
+        public override ICustomAttributeProvider ReturnTypeCustomAttributes {
             get { return null; }
         }
 
-        public override Object Invoke(Object obj, BindingFlags invokeAttr, Binder binder, Object[] parameters, CultureInfo culture)
-        {
+        public override Object Invoke(Object obj, BindingFlags invokeAttr, Binder binder, Object[] parameters, CultureInfo culture) {
             throw new NotSupportedException(SR.NotSupported_SymbolMethod);
         }
 
-        public override MethodInfo GetBaseDefinition()
-        {
+        public override MethodInfo GetBaseDefinition() {
             return this;
         }
         #endregion
 
         #region ICustomAttributeProvider Implementation
-        public override Object[] GetCustomAttributes(bool inherit)
-        {
+        public override Object[] GetCustomAttributes(bool inherit) {
             throw new NotSupportedException(SR.NotSupported_SymbolMethod);
         }
 
-        public override Object[] GetCustomAttributes(Type attributeType, bool inherit)
-        {
+        public override Object[] GetCustomAttributes(Type attributeType, bool inherit) {
             throw new NotSupportedException(SR.NotSupported_SymbolMethod);
         }
 
-        public override bool IsDefined(Type attributeType, bool inherit)
-        {
+        public override bool IsDefined(Type attributeType, bool inherit) {
             throw new NotSupportedException(SR.NotSupported_SymbolMethod);
         }
 
         #endregion
 
         #region Public Members
-        public Module GetModule()
-        {
+        public Module GetModule() {
             return m_module;
         }
 
-        public MethodToken GetToken()
-        {
+        public MethodToken GetToken() {
             return m_mdMethod;
         }
 

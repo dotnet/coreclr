@@ -21,22 +21,17 @@ using System.Runtime.Versioning;
 using Microsoft.Win32;
 using System.Threading;
 
-namespace Microsoft.Win32.SafeHandles
-{
-    public sealed class SafeWaitHandle : SafeHandleZeroOrMinusOneIsInvalid
-    {
+namespace Microsoft.Win32.SafeHandles {
+    public sealed class SafeWaitHandle : SafeHandleZeroOrMinusOneIsInvalid {
         // Called by P/Invoke marshaler
-        private SafeWaitHandle() : base(true)
-        {
+        private SafeWaitHandle() : base(true) {
         }
 
-        public SafeWaitHandle(IntPtr existingHandle, bool ownsHandle) : base(ownsHandle)
-        {
+        public SafeWaitHandle(IntPtr existingHandle, bool ownsHandle) : base(ownsHandle) {
             SetHandle(existingHandle);
         }
 
-        override protected bool ReleaseHandle()
-        {
+        override protected bool ReleaseHandle() {
             return Win32Native.CloseHandle(handle);
         }
     }

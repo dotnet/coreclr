@@ -13,11 +13,9 @@
 
 using System;
 
-namespace System.Configuration.Assemblies
-{
+namespace System.Configuration.Assemblies {
     [Serializable]
-    public enum AssemblyVersionCompatibility
-    {
+    public enum AssemblyVersionCompatibility {
         SameMachine = 1,
         SameProcess = 2,
         SameDomain = 3,

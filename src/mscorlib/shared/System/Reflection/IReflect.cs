@@ -4,10 +4,8 @@
 
 using System.Globalization;
 
-namespace System.Reflection
-{
-    public interface IReflect
-    {
+namespace System.Reflection {
+    public interface IReflect {
         // Return the requested method if it is implemented by the Reflection object.  The
         // match is based upon the name and DescriptorInfo which describes the signature
         // of the method. 

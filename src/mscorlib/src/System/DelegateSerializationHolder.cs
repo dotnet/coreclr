@@ -10,15 +10,12 @@ using System.Runtime.Serialization;
 using System.Globalization;
 using System.Diagnostics.Contracts;
 
-namespace System
-{
+namespace System {
     [Serializable]
-    internal sealed class DelegateSerializationHolder : IObjectReference, ISerializable
-    {
+    internal sealed class DelegateSerializationHolder : IObjectReference, ISerializable {
         #region Static Members
         internal static DelegateEntry GetDelegateSerializationInfo(
-            SerializationInfo info, Type delegateType, Object target, MethodInfo method, int targetIndex)
-        {
+            SerializationInfo info, Type delegateType, Object target, MethodInfo method, int targetIndex) {
             // Used for MulticastDelegate
 
             if (method == null)
@@ -36,8 +33,7 @@ namespace System
             DelegateEntry de = new DelegateEntry(delegateType.FullName, delegateType.Module.Assembly.FullName, target,
                 method.ReflectedType.Module.Assembly.FullName, method.ReflectedType.FullName, method.Name);
 
-            if (info.MemberCount == 0)
-            {
+            if (info.MemberCount == 0) {
                 info.SetType(typeof(DelegateSerializationHolder));
                 info.AddValue("Delegate", de, typeof(DelegateEntry));
             }
@@ -47,8 +43,7 @@ namespace System
             // info then the rules of deserialization will guarantee that it will be available when
             // needed
 
-            if (target != null)
-            {
+            if (target != null) {
                 String targetName = "target" + targetIndex;
                 info.AddValue(targetName, de.target);
                 de.target = targetName;
@@ -69,8 +64,7 @@ namespace System
 
         #region Definitions
         [Serializable]
-        internal class DelegateEntry
-        {
+        internal class DelegateEntry {
             #region Internal Data Members
             internal String type;
             internal String assembly;
@@ -83,8 +77,7 @@ namespace System
 
             #region Constructor
             internal DelegateEntry(
-                String type, String assembly, Object target, String targetTypeAssembly, String targetTypeName, String methodName)
-            {
+                String type, String assembly, Object target, String targetTypeAssembly, String targetTypeName, String methodName) {
                 this.type = type;
                 this.assembly = assembly;
                 this.target = target;
@@ -95,8 +88,7 @@ namespace System
             #endregion
 
             #region Internal Members
-            internal DelegateEntry Entry
-            {
+            internal DelegateEntry Entry {
                 get { return delegateEntry; }
                 set { delegateEntry = value; }
             }
@@ -111,34 +103,28 @@ namespace System
         #endregion
 
         #region Constructor
-        private DelegateSerializationHolder(SerializationInfo info, StreamingContext context)
-        {
+        private DelegateSerializationHolder(SerializationInfo info, StreamingContext context) {
             if (info == null)
                 throw new ArgumentNullException(nameof(info));
             Contract.EndContractBlock();
 
             bool bNewWire = true;
 
-            try
-            {
+            try {
                 m_delegateEntry = (DelegateEntry)info.GetValue("Delegate", typeof(DelegateEntry));
             }
-            catch
-            {
+            catch {
                 // Old wire format
                 m_delegateEntry = OldDelegateWireFormat(info, context);
                 bNewWire = false;
             }
 
-            if (bNewWire)
-            {
+            if (bNewWire) {
                 // retrieve the targets
                 DelegateEntry deiter = m_delegateEntry;
                 int count = 0;
-                while (deiter != null)
-                {
-                    if (deiter.target != null)
-                    {
+                while (deiter != null) {
+                    if (deiter.target != null) {
                         string stringTarget = deiter.target as string; //need test to pass older wire format
                         if (stringTarget != null)
                             deiter.target = info.GetValue(stringTarget, typeof(Object));
@@ -151,8 +137,7 @@ namespace System
                 // them into an ordered array if present.
                 MethodInfo[] methods = new MethodInfo[count];
                 int i;
-                for (i = 0; i < count; i++)
-                {
+                for (i = 0; i < count; i++) {
                     String methodInfoName = "method" + i;
                     methods[i] = (MethodInfo)info.GetValueNoThrow(methodInfoName, typeof(MethodInfo));
                     if (methods[i] == null)
@@ -167,14 +152,12 @@ namespace System
         #endregion
 
         #region Private Members
-        private void ThrowInsufficientState(string field)
-        {
+        private void ThrowInsufficientState(string field) {
             throw new SerializationException(
                 SR.Format(SR.Serialization_InsufficientDeserializationState, field));
         }
 
-        private DelegateEntry OldDelegateWireFormat(SerializationInfo info, StreamingContext context)
-        {
+        private DelegateEntry OldDelegateWireFormat(SerializationInfo info, StreamingContext context) {
             if (info == null)
                 throw new ArgumentNullException(nameof(info));
             Contract.EndContractBlock();
@@ -189,12 +172,10 @@ namespace System
             return new DelegateEntry(delegateType, delegateAssembly, target, targetTypeAssembly, targetTypeName, methodName);
         }
 
-        private Delegate GetDelegate(DelegateEntry de, int index)
-        {
+        private Delegate GetDelegate(DelegateEntry de, int index) {
             Delegate d;
 
-            try
-            {
+            try {
                 if (de.methodName == null || de.methodName.Length == 0)
                     ThrowInsufficientState("MethodName");
 
@@ -209,17 +190,14 @@ namespace System
                 RuntimeType targetType = (RuntimeType)Assembly.GetType_Compat(de.targetTypeAssembly, de.targetTypeName);
 
                 // If we received the new style delegate encoding we already have the target MethodInfo in hand.
-                if (m_methods != null)
-                {
+                if (m_methods != null) {
                     if (de.target != null && !targetType.IsInstanceOfType(de.target))
                         throw new InvalidCastException();
                     Object target = de.target;
                     d = Delegate.CreateDelegateNoSecurityCheck(type, target, m_methods[index]);
                 }
-                else
-                {
-                    if (de.target != null)
-                    {
+                else {
+                    if (de.target != null) {
                         if (!targetType.IsInstanceOfType(de.target))
                             throw new InvalidCastException();
                         d = Delegate.CreateDelegate(type, de.target, de.methodName);
@@ -228,8 +206,7 @@ namespace System
                         d = Delegate.CreateDelegate(type, targetType, de.methodName);
                 }
             }
-            catch (Exception e)
-            {
+            catch (Exception e) {
                 if (e is SerializationException)
                     throw e;
 
@@ -241,24 +218,20 @@ namespace System
         #endregion
 
         #region IObjectReference
-        public Object GetRealObject(StreamingContext context)
-        {
+        public Object GetRealObject(StreamingContext context) {
             int count = 0;
             for (DelegateEntry de = m_delegateEntry; de != null; de = de.Entry)
                 count++;
 
             int maxindex = count - 1;
 
-            if (count == 1)
-            {
+            if (count == 1) {
                 return GetDelegate(m_delegateEntry, 0);
             }
-            else
-            {
+            else {
                 object[] invocationList = new object[count];
 
-                for (DelegateEntry de = m_delegateEntry; de != null; de = de.Entry)
-                {
+                for (DelegateEntry de = m_delegateEntry; de != null; de = de.Entry) {
                     // Be careful to match the index we pass to GetDelegate (used to look up extra information for each delegate) to
                     // the order we process the entries: we're actually looking at them in reverse order.
                     --count;
@@ -270,8 +243,7 @@ namespace System
         #endregion
 
         #region ISerializable
-        public void GetObjectData(SerializationInfo info, StreamingContext context)
-        {
+        public void GetObjectData(SerializationInfo info, StreamingContext context) {
             throw new NotSupportedException(SR.NotSupported_DelegateSerHolderSerial);
         }
         #endregion

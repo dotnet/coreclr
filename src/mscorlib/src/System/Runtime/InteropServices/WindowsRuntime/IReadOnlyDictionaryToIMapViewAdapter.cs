@@ -13,8 +13,7 @@ using System.Diagnostics.Contracts;
 using System.Runtime.InteropServices;
 using System.Runtime.CompilerServices;
 
-namespace System.Runtime.InteropServices.WindowsRuntime
-{
+namespace System.Runtime.InteropServices.WindowsRuntime {
     // This is a set of stub methods implementing the support for the IMapView`2 interface on managed
     // objects that implement IReadOnlyDictionary`2. Used by the interop mashaling infrastructure.
     //
@@ -24,22 +23,18 @@ namespace System.Runtime.InteropServices.WindowsRuntime
     // IReadOnlyDictionary<K, V>. No actual IReadOnlyDictionaryToIMapViewAdapter object is ever instantiated. Thus, you will
     // see a lot of expressions that cast "this" to "IReadOnlyDictionary<K, V>". 
     [DebuggerDisplay("Size = {Size}")]
-    internal sealed class IReadOnlyDictionaryToIMapViewAdapter
-    {
-        private IReadOnlyDictionaryToIMapViewAdapter()
-        {
+    internal sealed class IReadOnlyDictionaryToIMapViewAdapter {
+        private IReadOnlyDictionaryToIMapViewAdapter() {
             Debug.Assert(false, "This class is never instantiated");
         }
 
         // V Lookup(K key)
-        internal V Lookup<K, V>(K key)
-        {
+        internal V Lookup<K, V>(K key) {
             IReadOnlyDictionary<K, V> _this = JitHelpers.UnsafeCast<IReadOnlyDictionary<K, V>>(this);
             V value;
             bool keyFound = _this.TryGetValue(key, out value);
 
-            if (!keyFound)
-            {
+            if (!keyFound) {
                 Exception e = new KeyNotFoundException(SR.Arg_KeyNotFound);
                 e.SetErrorCode(__HResults.E_BOUNDS);
                 throw e;
@@ -49,26 +44,22 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         }
 
         // uint Size { get }
-        internal uint Size<K, V>()
-        {
+        internal uint Size<K, V>() {
             IReadOnlyDictionary<K, V> _this = JitHelpers.UnsafeCast<IReadOnlyDictionary<K, V>>(this);
             return (uint)_this.Count;
         }
 
         // bool HasKey(K key)
-        internal bool HasKey<K, V>(K key)
-        {
+        internal bool HasKey<K, V>(K key) {
             IReadOnlyDictionary<K, V> _this = JitHelpers.UnsafeCast<IReadOnlyDictionary<K, V>>(this);
             return _this.ContainsKey(key);
         }
 
         // void Split(out IMapView<K, V> first, out IMapView<K, V> second)
-        internal void Split<K, V>(out IMapView<K, V> first, out IMapView<K, V> second)
-        {
+        internal void Split<K, V>(out IMapView<K, V> first, out IMapView<K, V> second) {
             IReadOnlyDictionary<K, V> _this = JitHelpers.UnsafeCast<IReadOnlyDictionary<K, V>>(this);
 
-            if (_this.Count < 2)
-            {
+            if (_this.Count < 2) {
                 first = null;
                 second = null;
                 return;

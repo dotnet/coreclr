@@ -4,11 +4,9 @@
 
 using System;
 
-namespace System.Globalization
-{
+namespace System.Globalization {
     [Serializable]
-    public enum CalendarWeekRule
-    {
+    public enum CalendarWeekRule {
         FirstDay = 0,           // Week 1 begins on the first day of the year
 
         FirstFullWeek = 1,      // Week 1 begins on first FirstDayOfWeek not before the first day of the year

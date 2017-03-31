@@ -14,18 +14,15 @@ using System.Runtime.CompilerServices;
 using System.Security;
 using System.Runtime.Serialization;
 
-namespace System.Collections.Generic
-{
+namespace System.Collections.Generic {
     [Serializable]
     [TypeDependencyAttribute("System.Collections.Generic.ObjectComparer`1")]
-    public abstract class Comparer<T> : IComparer, IComparer<T>
-    {
+    public abstract class Comparer<T> : IComparer, IComparer<T> {
         // To minimize generic instantiation overhead of creating the comparer per type, we keep the generic portion of the code as small
         // as possible and define most of the creation logic in a non-generic class.
         public static Comparer<T> Default { get; } = (Comparer<T>)ComparerHelpers.CreateDefaultComparer(typeof(T));
 
-        public static Comparer<T> Create(Comparison<T> comparison)
-        {
+        public static Comparer<T> Create(Comparison<T> comparison) {
             Contract.Ensures(Contract.Result<Comparer<T>>() != null);
 
             if (comparison == null)
@@ -36,8 +33,7 @@ namespace System.Collections.Generic
 
         public abstract int Compare(T x, T y);
 
-        int IComparer.Compare(object x, object y)
-        {
+        int IComparer.Compare(object x, object y) {
             if (x == null) return y == null ? 0 : -1;
             if (y == null) return 1;
             if (x is T && y is T) return Compare((T)x, (T)y);
@@ -53,12 +49,9 @@ namespace System.Collections.Generic
     // for value types.
 
     [Serializable]
-    internal sealed class GenericComparer<T> : Comparer<T> where T : IComparable<T>
-    {
-        public override int Compare(T x, T y)
-        {
-            if (x != null)
-            {
+    internal sealed class GenericComparer<T> : Comparer<T> where T : IComparable<T> {
+        public override int Compare(T x, T y) {
+            if (x != null) {
                 if (y != null) return x.CompareTo(y);
                 return 1;
             }
@@ -75,12 +68,9 @@ namespace System.Collections.Generic
     }
 
     [Serializable]
-    internal sealed class NullableComparer<T> : Comparer<T?> where T : struct, IComparable<T>
-    {
-        public override int Compare(T? x, T? y)
-        {
-            if (x.HasValue)
-            {
+    internal sealed class NullableComparer<T> : Comparer<T?> where T : struct, IComparable<T> {
+        public override int Compare(T? x, T? y) {
+            if (x.HasValue) {
                 if (y.HasValue) return x.value.CompareTo(y.value);
                 return 1;
             }
@@ -97,10 +87,8 @@ namespace System.Collections.Generic
     }
 
     [Serializable]
-    internal sealed class ObjectComparer<T> : Comparer<T>
-    {
-        public override int Compare(T x, T y)
-        {
+    internal sealed class ObjectComparer<T> : Comparer<T> {
+        public override int Compare(T x, T y) {
             return System.Collections.Comparer.Default.Compare(x, y);
         }
 
@@ -113,17 +101,14 @@ namespace System.Collections.Generic
     }
 
     [Serializable]
-    internal sealed class ComparisonComparer<T> : Comparer<T>
-    {
+    internal sealed class ComparisonComparer<T> : Comparer<T> {
         private readonly Comparison<T> _comparison;
 
-        public ComparisonComparer(Comparison<T> comparison)
-        {
+        public ComparisonComparer(Comparison<T> comparison) {
             _comparison = comparison;
         }
 
-        public override int Compare(T x, T y)
-        {
+        public override int Compare(T x, T y) {
             return _comparison(x, y);
         }
     }
@@ -135,18 +120,15 @@ namespace System.Collections.Generic
     // back-compat reasons (see below).
 
     [Serializable]
-    internal sealed class Int32EnumComparer<T> : Comparer<T>, ISerializable where T : struct
-    {
-        public Int32EnumComparer()
-        {
+    internal sealed class Int32EnumComparer<T> : Comparer<T>, ISerializable where T : struct {
+        public Int32EnumComparer() {
             Debug.Assert(typeof(T).IsEnum);
         }
 
         // Used by the serialization engine.
         private Int32EnumComparer(SerializationInfo info, StreamingContext context) { }
 
-        public override int Compare(T x, T y)
-        {
+        public override int Compare(T x, T y) {
             int ix = JitHelpers.UnsafeEnumCast(x);
             int iy = JitHelpers.UnsafeEnumCast(y);
             return ix.CompareTo(iy);
@@ -159,8 +141,7 @@ namespace System.Collections.Generic
         public override int GetHashCode() =>
             GetType().GetHashCode();
 
-        public void GetObjectData(SerializationInfo info, StreamingContext context)
-        {
+        public void GetObjectData(SerializationInfo info, StreamingContext context) {
             // Previously Comparer<T> was not specialized for enums,
             // and instead fell back to ObjectComparer which uses boxing.
             // Set the type as ObjectComparer here so code that serializes
@@ -170,18 +151,15 @@ namespace System.Collections.Generic
     }
 
     [Serializable]
-    internal sealed class UInt32EnumComparer<T> : Comparer<T>, ISerializable where T : struct
-    {
-        public UInt32EnumComparer()
-        {
+    internal sealed class UInt32EnumComparer<T> : Comparer<T>, ISerializable where T : struct {
+        public UInt32EnumComparer() {
             Debug.Assert(typeof(T).IsEnum);
         }
 
         // Used by the serialization engine.
         private UInt32EnumComparer(SerializationInfo info, StreamingContext context) { }
 
-        public override int Compare(T x, T y)
-        {
+        public override int Compare(T x, T y) {
             uint ix = (uint)JitHelpers.UnsafeEnumCast(x);
             uint iy = (uint)JitHelpers.UnsafeEnumCast(y);
             return ix.CompareTo(iy);
@@ -194,22 +172,18 @@ namespace System.Collections.Generic
         public override int GetHashCode() =>
             GetType().GetHashCode();
 
-        public void GetObjectData(SerializationInfo info, StreamingContext context)
-        {
+        public void GetObjectData(SerializationInfo info, StreamingContext context) {
             info.SetType(typeof(ObjectComparer<T>));
         }
     }
 
     [Serializable]
-    internal sealed class Int64EnumComparer<T> : Comparer<T>, ISerializable where T : struct
-    {
-        public Int64EnumComparer()
-        {
+    internal sealed class Int64EnumComparer<T> : Comparer<T>, ISerializable where T : struct {
+        public Int64EnumComparer() {
             Debug.Assert(typeof(T).IsEnum);
         }
 
-        public override int Compare(T x, T y)
-        {
+        public override int Compare(T x, T y) {
             long lx = JitHelpers.UnsafeEnumCastLong(x);
             long ly = JitHelpers.UnsafeEnumCastLong(y);
             return lx.CompareTo(ly);
@@ -222,25 +196,21 @@ namespace System.Collections.Generic
         public override int GetHashCode() =>
             GetType().GetHashCode();
 
-        public void GetObjectData(SerializationInfo info, StreamingContext context)
-        {
+        public void GetObjectData(SerializationInfo info, StreamingContext context) {
             info.SetType(typeof(ObjectComparer<T>));
         }
     }
 
     [Serializable]
-    internal sealed class UInt64EnumComparer<T> : Comparer<T>, ISerializable where T : struct
-    {
-        public UInt64EnumComparer()
-        {
+    internal sealed class UInt64EnumComparer<T> : Comparer<T>, ISerializable where T : struct {
+        public UInt64EnumComparer() {
             Debug.Assert(typeof(T).IsEnum);
         }
 
         // Used by the serialization engine.
         private UInt64EnumComparer(SerializationInfo info, StreamingContext context) { }
 
-        public override int Compare(T x, T y)
-        {
+        public override int Compare(T x, T y) {
             ulong lx = (ulong)JitHelpers.UnsafeEnumCastLong(x);
             ulong ly = (ulong)JitHelpers.UnsafeEnumCastLong(y);
             return lx.CompareTo(ly);
@@ -253,8 +223,7 @@ namespace System.Collections.Generic
         public override int GetHashCode() =>
             GetType().GetHashCode();
 
-        public void GetObjectData(SerializationInfo info, StreamingContext context)
-        {
+        public void GetObjectData(SerializationInfo info, StreamingContext context) {
             info.SetType(typeof(ObjectComparer<T>));
         }
     }

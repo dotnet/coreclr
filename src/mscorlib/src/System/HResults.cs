@@ -12,8 +12,7 @@
 
 using System;
 
-namespace System
-{
+namespace System {
     // Note: FACILITY_URT is defined as 0x13 (0x8013xxxx).  Within that
     // range, 0x1yyy is for Runtime errors (used for Security, Metadata, etc).
     // In that subrange, 0x15zz and 0x16zz have been allocated for classlib-type 
@@ -27,8 +26,7 @@ namespace System
 
     // There are HResults files in the IO, Remoting, Reflection & 
     // Security/Util directories as well, so choose your HResults carefully.
-    internal static class HResults
-    {
+    internal static class HResults {
         internal const int APPMODEL_ERROR_NO_PACKAGE = unchecked((int)0x80073D54);
         internal const int CLDB_E_FILE_CORRUPT = unchecked((int)0x8013110e);
         internal const int CLDB_E_FILE_OLDVER = unchecked((int)0x80131107);

@@ -7,21 +7,17 @@
 using System;
 using System.Diagnostics.Contracts;
 
-namespace System.Runtime.InteropServices.WindowsRuntime
-{
+namespace System.Runtime.InteropServices.WindowsRuntime {
     [ComImport]
     [Guid("30DA92C0-23E8-42A0-AE7C-734A0E5D2782")]
     [WindowsRuntimeImport]
-    internal interface ICustomProperty
-    {
-        Type Type
-        {
+    internal interface ICustomProperty {
+        Type Type {
             [Pure]
             get;
         }
 
-        string Name
-        {
+        string Name {
             [Pure]
             get;
         }
@@ -36,14 +32,12 @@ namespace System.Runtime.InteropServices.WindowsRuntime
 
         void SetValue(object target, object value, object indexValue);
 
-        bool CanWrite
-        {
+        bool CanWrite {
             [Pure]
             get;
         }
 
-        bool CanRead
-        {
+        bool CanRead {
             [Pure]
             get;
         }

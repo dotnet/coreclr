@@ -3,10 +3,8 @@
 // See the LICENSE file in the project root for more information.
 
 
-namespace Microsoft.Win32
-{
-    internal enum RegistryValueKind
-    {
+namespace Microsoft.Win32 {
+    internal enum RegistryValueKind {
         String = Win32Native.REG_SZ,
         ExpandString = Win32Native.REG_EXPAND_SZ,
         Binary = Win32Native.REG_BINARY,

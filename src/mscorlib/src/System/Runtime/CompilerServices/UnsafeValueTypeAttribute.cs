@@ -4,11 +4,9 @@
 
 using System;
 
-namespace System.Runtime.CompilerServices
-{
+namespace System.Runtime.CompilerServices {
     [Serializable]
     [AttributeUsage(AttributeTargets.Struct)]
-    sealed public class UnsafeValueTypeAttribute : Attribute
-    {
+    sealed public class UnsafeValueTypeAttribute : Attribute {
     }
 }

@@ -2,8 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-namespace System.Buffers
-{
+namespace System.Buffers {
     /// <summary>
     /// Provides a resource pool that enables reusing instances of type <see cref="T:T[]"/>. 
     /// </summary>
@@ -17,8 +16,7 @@ namespace System.Buffers
     /// This class is thread-safe.  All members may be used by multiple threads concurrently.
     /// </para>
     /// </remarks>
-    public abstract class ArrayPool<T>
-    {
+    public abstract class ArrayPool<T> {
         /// <summary>
         /// Retrieves a shared <see cref="ArrayPool{T}"/> instance.
         /// </summary>

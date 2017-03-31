@@ -4,16 +4,13 @@
 
 using System.Diagnostics.Tracing;
 
-namespace System.Buffers
-{
+namespace System.Buffers {
     [EventSource(Name = "System.Buffers.ArrayPoolEventSource")]
-    internal sealed class ArrayPoolEventSource : EventSource
-    {
+    internal sealed class ArrayPoolEventSource : EventSource {
         internal readonly static ArrayPoolEventSource Log = new ArrayPoolEventSource();
 
         /// <summary>The reason for a BufferAllocated event.</summary>
-        internal enum BufferAllocatedReason : int
-        {
+        internal enum BufferAllocatedReason : int {
             /// <summary>The pool is allocating a buffer to be pooled in a bucket.</summary>
             Pooled,
             /// <summary>The requested buffer size was too large to be pooled.</summary>
@@ -31,8 +28,7 @@ namespace System.Buffers
         /// less than).
         /// </summary>
         [Event(1, Level = EventLevel.Verbose)]
-        internal unsafe void BufferRented(int bufferId, int bufferSize, int poolId, int bucketId)
-        {
+        internal unsafe void BufferRented(int bufferId, int bufferSize, int poolId, int bucketId) {
             EventData* payload = stackalloc EventData[4];
             payload[0].Size = sizeof(int);
             payload[0].DataPointer = ((IntPtr)(&bufferId));
@@ -51,8 +47,7 @@ namespace System.Buffers
         /// BufferReturned events.
         /// </summary>
         [Event(2, Level = EventLevel.Informational)]
-        internal unsafe void BufferAllocated(int bufferId, int bufferSize, int poolId, int bucketId, BufferAllocatedReason reason)
-        {
+        internal unsafe void BufferAllocated(int bufferId, int bufferSize, int poolId, int bucketId, BufferAllocatedReason reason) {
             EventData* payload = stackalloc EventData[5];
             payload[0].Size = sizeof(int);
             payload[0].DataPointer = ((IntPtr)(&bufferId));

@@ -11,26 +11,21 @@
 
 using System.Runtime.Serialization;
 
-namespace System
-{
+namespace System {
     [Serializable]
-    public class MethodAccessException : MemberAccessException
-    {
+    public class MethodAccessException : MemberAccessException {
         public MethodAccessException()
-            : base(SR.Arg_MethodAccessException)
-        {
+            : base(SR.Arg_MethodAccessException) {
             HResult = __HResults.COR_E_METHODACCESS;
         }
 
         public MethodAccessException(String message)
-            : base(message)
-        {
+            : base(message) {
             HResult = __HResults.COR_E_METHODACCESS;
         }
 
         public MethodAccessException(String message, Exception inner)
-            : base(message, inner)
-        {
+            : base(message, inner) {
             HResult = __HResults.COR_E_METHODACCESS;
         }
 

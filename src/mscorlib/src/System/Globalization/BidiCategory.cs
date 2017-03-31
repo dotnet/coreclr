@@ -10,11 +10,9 @@
 **
 ============================================================*/
 
-namespace System.Globalization
-{
+namespace System.Globalization {
     [Serializable]
-    internal enum BidiCategory
-    {
+    internal enum BidiCategory {
         LeftToRight = 0,
         LeftToRightEmbedding = 1,
         LeftToRightOverride = 2,

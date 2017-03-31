@@ -19,21 +19,17 @@ using System;
 using System.Runtime.Serialization;
 using System.Runtime.CompilerServices;
 
-namespace System.Threading
-{
+namespace System.Threading {
     [Serializable]
-    internal sealed class ThreadAbortException : SystemException
-    {
+    internal sealed class ThreadAbortException : SystemException {
         private ThreadAbortException()
-            : base(GetMessageFromNativeResources(ExceptionMessageKind.ThreadAbort))
-        {
+            : base(GetMessageFromNativeResources(ExceptionMessageKind.ThreadAbort)) {
             SetErrorCode(__HResults.COR_E_THREADABORTED);
         }
 
         //required for serialization
         internal ThreadAbortException(SerializationInfo info, StreamingContext context)
-            : base(info, context)
-        {
+            : base(info, context) {
         }
     }
 }

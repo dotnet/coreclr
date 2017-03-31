@@ -4,19 +4,15 @@
 
 using System.Configuration.Assemblies;
 
-namespace System.Reflection
-{
+namespace System.Reflection {
     [AttributeUsage(AttributeTargets.Assembly, Inherited = false)]
-    public sealed class AssemblyAlgorithmIdAttribute : Attribute
-    {
-        public AssemblyAlgorithmIdAttribute(AssemblyHashAlgorithm algorithmId)
-        {
+    public sealed class AssemblyAlgorithmIdAttribute : Attribute {
+        public AssemblyAlgorithmIdAttribute(AssemblyHashAlgorithm algorithmId) {
             AlgorithmId = (uint)algorithmId;
         }
 
         [CLSCompliant(false)]
-        public AssemblyAlgorithmIdAttribute(uint algorithmId)
-        {
+        public AssemblyAlgorithmIdAttribute(uint algorithmId) {
             AlgorithmId = algorithmId;
         }
 

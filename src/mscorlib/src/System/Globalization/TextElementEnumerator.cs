@@ -14,15 +14,13 @@ using System.Collections;
 using System.Diagnostics;
 using System.Runtime.Serialization;
 
-namespace System.Globalization
-{
+namespace System.Globalization {
     //
     // This is public because GetTextElement() is public.
     //
 
     [Serializable]
-    public class TextElementEnumerator : IEnumerator
-    {
+    public class TextElementEnumerator : IEnumerator {
         private String _str;
         private int _index;
         private int _startIndex;
@@ -39,8 +37,7 @@ namespace System.Globalization
         [OptionalField(VersionAdded = 2)] 
         private int _charLen;            // The next abstract char to look at after MoveNext() is called.  It could be 1 or 2, depending on if it is a surrogate or not.
 
-        internal TextElementEnumerator(String str, int startIndex, int strLen)
-        {
+        internal TextElementEnumerator(String str, int startIndex, int strLen) {
             Debug.Assert(str != null, "TextElementEnumerator(): str != null");
             Debug.Assert(startIndex >= 0 && strLen >= 0, "TextElementEnumerator(): startIndex >= 0 && strLen >= 0");
             Debug.Assert(strLen >= startIndex, "TextElementEnumerator(): strLen >= startIndex");
@@ -56,34 +53,28 @@ namespace System.Globalization
         private int _nextTextElementLen;
 
         [OnDeserializing]
-        private void OnDeserializing(StreamingContext ctx)
-        {
+        private void OnDeserializing(StreamingContext ctx) {
             _charLen = -1;
         }
 
         [OnDeserialized]
-        private void OnDeserialized(StreamingContext ctx)
-        {
+        private void OnDeserialized(StreamingContext ctx) {
             _strLen = _endIndex + 1;
             _currTextElementLen = _nextTextElementLen;
 
-            if (_charLen == -1)
-            {
+            if (_charLen == -1) {
                 _uc = CharUnicodeInfo.InternalGetUnicodeCategory(_str, _index, out _charLen);
             }
         }
 
         [OnSerializing]
-        private void OnSerializing(StreamingContext ctx)
-        {
+        private void OnSerializing(StreamingContext ctx) {
             _endIndex = _strLen - 1;
             _nextTextElementLen = _currTextElementLen;
         }
 
-        public bool MoveNext()
-        {
-            if (_index >= _strLen)
-            {
+        public bool MoveNext() {
+            if (_index >= _strLen) {
                 // Make the _index to be greater than _strLen so that we can throw exception if GetTextElement() is called.
                 _index = _strLen + 1;
                 return (false);
@@ -97,10 +88,8 @@ namespace System.Globalization
         // Get the current text element.
         //
 
-        public Object Current
-        {
-            get
-            {
+        public Object Current {
+            get {
                 return (GetTextElement());
             }
         }
@@ -109,14 +98,11 @@ namespace System.Globalization
         // Get the current text element.
         //
 
-        public String GetTextElement()
-        {
-            if (_index == _startIndex)
-            {
+        public String GetTextElement() {
+            if (_index == _startIndex) {
                 throw new InvalidOperationException(SR.InvalidOperation_EnumNotStarted);
             }
-            if (_index > _strLen)
-            {
+            if (_index > _strLen) {
                 throw new InvalidOperationException(SR.InvalidOperation_EnumEnded);
             }
 
@@ -127,12 +113,9 @@ namespace System.Globalization
         // Get the starting index of the current text element.
         //
 
-        public int ElementIndex
-        {
-            get
-            {
-                if (_index == _startIndex)
-                {
+        public int ElementIndex {
+            get {
+                if (_index == _startIndex) {
                     throw new InvalidOperationException(SR.InvalidOperation_EnumNotStarted);
                 }
                 return (_index - _currTextElementLen);
@@ -140,11 +123,9 @@ namespace System.Globalization
         }
 
 
-        public void Reset()
-        {
+        public void Reset() {
             _index = _startIndex;
-            if (_index < _strLen)
-            {
+            if (_index < _strLen) {
                 // If we have more than 1 character, get the category of the current char.
                 _uc = CharUnicodeInfo.InternalGetUnicodeCategory(_str, _index, out _charLen);
             }

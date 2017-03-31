@@ -14,24 +14,19 @@
 
 using System.Runtime.Serialization;
 
-namespace System
-{
+namespace System {
     [Serializable]
-    public class NotImplementedException : SystemException
-    {
+    public class NotImplementedException : SystemException {
         public NotImplementedException()
-            : base(SR.Arg_NotImplementedException)
-        {
+            : base(SR.Arg_NotImplementedException) {
             HResult = __HResults.E_NOTIMPL;
         }
         public NotImplementedException(String message)
-            : base(message)
-        {
+            : base(message) {
             HResult = __HResults.E_NOTIMPL;
         }
         public NotImplementedException(String message, Exception inner)
-            : base(message, inner)
-        {
+            : base(message, inner) {
             HResult = __HResults.E_NOTIMPL;
         }
 

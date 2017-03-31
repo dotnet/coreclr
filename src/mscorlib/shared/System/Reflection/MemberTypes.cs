@@ -2,11 +2,9 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-namespace System.Reflection
-{
+namespace System.Reflection {
     [Flags]
-    public enum MemberTypes
-    {
+    public enum MemberTypes {
         Constructor = 0x01,
         Event = 0x02,
         Field = 0x04,

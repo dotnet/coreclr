@@ -13,8 +13,7 @@
 **
 =============================================================================*/
 
-namespace System
-{
+namespace System {
     using System;
     using System.Reflection;
     using System.Runtime;
@@ -40,10 +39,8 @@ namespace System
     [Serializable]
     internal delegate void AppDomainInitializer(string[] args);
 
-    internal class AppDomainInitializerInfo
-    {
-        internal class ItemInfo
-        {
+    internal class AppDomainInitializerInfo {
+        internal class ItemInfo {
             public string TargetTypeAssembly;
             public string TargetTypeName;
             public string MethodName;
@@ -51,8 +48,7 @@ namespace System
 
         internal ItemInfo[] Info;
 
-        internal AppDomainInitializerInfo(AppDomainInitializer init)
-        {
+        internal AppDomainInitializerInfo(AppDomainInitializer init) {
             Info = null;
             if (init == null)
                 return;
@@ -61,14 +57,11 @@ namespace System
             nestedDelegates.Add(init);
             int idx = 0;
 
-            while (nestedDelegates.Count > idx)
-            {
+            while (nestedDelegates.Count > idx) {
                 AppDomainInitializer curr = nestedDelegates[idx++];
                 Delegate[] list = curr.GetInvocationList();
-                for (int i = 0; i < list.Length; i++)
-                {
-                    if (!list[i].Method.IsStatic)
-                    {
+                for (int i = 0; i < list.Length; i++) {
+                    if (!list[i].Method.IsStatic) {
                         if (list[i].Target == null)
                             continue;
 
@@ -79,8 +72,7 @@ namespace System
                             throw new ArgumentException(SR.Arg_MustBeStatic,
                                list[i].Method.ReflectedType.FullName + "::" + list[i].Method.Name);
                     }
-                    else
-                    {
+                    else {
                         ItemInfo info = new ItemInfo();
                         info.TargetTypeAssembly = list[i].Method.ReflectedType.Module.Assembly.FullName;
                         info.TargetTypeName = list[i].Method.ReflectedType.FullName;
@@ -93,13 +85,11 @@ namespace System
             Info = itemInfo.ToArray();
         }
 
-        internal AppDomainInitializer Unwrap()
-        {
+        internal AppDomainInitializer Unwrap() {
             if (Info == null)
                 return null;
             AppDomainInitializer retVal = null;
-            for (int i = 0; i < Info.Length; i++)
-            {
+            for (int i = 0; i < Info.Length; i++) {
                 Assembly assembly = Assembly.Load(Info[i].TargetTypeAssembly);
                 AppDomainInitializer newVal = (AppDomainInitializer)Delegate.CreateDelegate(typeof(AppDomainInitializer),
                         assembly.GetType(Info[i].TargetTypeName),
@@ -113,8 +103,7 @@ namespace System
         }
     }
 
-    internal sealed class AppDomain
-    {
+    internal sealed class AppDomain {
         // Domain security information
         // These fields initialized from the other side only. (NOTE: order 
         // of these fields cannot be changed without changing the layout in 
@@ -131,20 +120,15 @@ namespace System
 
         private ResolveEventHandler _TypeResolve;
 
-        public event ResolveEventHandler TypeResolve
-        {
-            add
-            {
-                lock (this)
-                {
+        public event ResolveEventHandler TypeResolve {
+            add {
+                lock (this) {
                     _TypeResolve += value;
                 }
             }
 
-            remove
-            {
-                lock (this)
-                {
+            remove {
+                lock (this) {
                     _TypeResolve -= value;
                 }
             }
@@ -152,20 +136,15 @@ namespace System
 
         private ResolveEventHandler _ResourceResolve;
 
-        public event ResolveEventHandler ResourceResolve
-        {
-            add
-            {
-                lock (this)
-                {
+        public event ResolveEventHandler ResourceResolve {
+            add {
+                lock (this) {
                     _ResourceResolve += value;
                 }
             }
 
-            remove
-            {
-                lock (this)
-                {
+            remove {
+                lock (this) {
                     _ResourceResolve -= value;
                 }
             }
@@ -173,20 +152,15 @@ namespace System
 
         private ResolveEventHandler _AssemblyResolve;
 
-        public event ResolveEventHandler AssemblyResolve
-        {
-            add
-            {
-                lock (this)
-                {
+        public event ResolveEventHandler AssemblyResolve {
+            add {
+                lock (this) {
                     _AssemblyResolve += value;
                 }
             }
 
-            remove
-            {
-                lock (this)
-                {
+            remove {
+                lock (this) {
                     _AssemblyResolve -= value;
                 }
             }
@@ -223,8 +197,7 @@ namespace System
         // Keep in async with vm\appdomainnative.cpp
         //
         [Flags]
-        private enum APPX_FLAGS
-        {
+        private enum APPX_FLAGS {
             APPX_FLAGS_INITIALIZED = 0x01,
 
             APPX_FLAGS_APPX_MODEL = 0x02,
@@ -233,10 +206,8 @@ namespace System
                                             APPX_FLAGS_APPX_DESIGN_MODE,
         }
 
-        private static APPX_FLAGS Flags
-        {
-            get
-            {
+        private static APPX_FLAGS Flags {
+            get {
                 if (s_flags == 0)
                     s_flags = nGetAppXFlags();
 
@@ -278,12 +249,10 @@ namespace System
         /// <summary>
         ///     Get a handle used to make a call into the VM pointing to this domain
         /// </summary>
-        internal AppDomainHandle GetNativeHandle()
-        {
+        internal AppDomainHandle GetNativeHandle() {
             // This should never happen under normal circumstances. However, there ar ways to create an
             // uninitialized object through remoting, etc.
-            if (_pDomain.IsNull())
-            {
+            if (_pDomain.IsNull()) {
                 throw new InvalidOperationException(SR.Argument_InvalidHandle);
             }
 
@@ -294,35 +263,29 @@ namespace System
         ///     If this AppDomain is configured to have an AppDomain manager then create the instance of it.
         ///     This method is also called from the VM to create the domain manager in the default domain.
         /// </summary>
-        private void CreateAppDomainManager()
-        {
+        private void CreateAppDomainManager() {
             Debug.Assert(_domainManager == null, "_domainManager == null");
 
             AppDomainSetup adSetup = FusionStore;
             String trustedPlatformAssemblies = (String)(GetData("TRUSTED_PLATFORM_ASSEMBLIES"));
-            if (trustedPlatformAssemblies != null)
-            {
+            if (trustedPlatformAssemblies != null) {
                 String platformResourceRoots = (String)(GetData("PLATFORM_RESOURCE_ROOTS"));
-                if (platformResourceRoots == null)
-                {
+                if (platformResourceRoots == null) {
                     platformResourceRoots = String.Empty;
                 }
 
                 String appPaths = (String)(GetData("APP_PATHS"));
-                if (appPaths == null)
-                {
+                if (appPaths == null) {
                     appPaths = String.Empty;
                 }
 
                 String appNiPaths = (String)(GetData("APP_NI_PATHS"));
-                if (appNiPaths == null)
-                {
+                if (appNiPaths == null) {
                     appNiPaths = String.Empty;
                 }
 
                 String appLocalWinMD = (String)(GetData("APP_LOCAL_WINMETADATA"));
-                if (appLocalWinMD == null)
-                {
+                if (appLocalWinMD == null) {
                     appLocalWinMD = String.Empty;
                 }
                 SetupBindingPaths(trustedPlatformAssemblies, platformResourceRoots, appPaths, appNiPaths, appLocalWinMD);
@@ -332,27 +295,21 @@ namespace System
             string domainManagerType;
             GetAppDomainManagerType(out domainManagerAssembly, out domainManagerType);
 
-            if (domainManagerAssembly != null && domainManagerType != null)
-            {
-                try
-                {
+            if (domainManagerAssembly != null && domainManagerType != null) {
+                try {
                     _domainManager = CreateInstanceAndUnwrap(domainManagerAssembly, domainManagerType) as AppDomainManager;
                 }
-                catch (FileNotFoundException e)
-                {
+                catch (FileNotFoundException e) {
                     throw new TypeLoadException(SR.Argument_NoDomainManager, e);
                 }
-                catch (SecurityException e)
-                {
+                catch (SecurityException e) {
                     throw new TypeLoadException(SR.Argument_NoDomainManager, e);
                 }
-                catch (TypeLoadException e)
-                {
+                catch (TypeLoadException e) {
                     throw new TypeLoadException(SR.Argument_NoDomainManager, e);
                 }
 
-                if (_domainManager == null)
-                {
+                if (_domainManager == null) {
                     throw new TypeLoadException(SR.Argument_NoDomainManager);
                 }
 
@@ -383,13 +340,11 @@ namespace System
         ///     Initialize the compatibility flags to non-NULL values.
         ///     This method is also called from the VM when the default domain dosen't have a domain manager.
         /// </summary>
-        private void InitializeCompatibilityFlags()
-        {
+        private void InitializeCompatibilityFlags() {
             AppDomainSetup adSetup = FusionStore;
 
             // set up shim flags regardless of whether we create a DomainManager in this method.
-            if (adSetup.GetCompatibilityFlags() != null)
-            {
+            if (adSetup.GetCompatibilityFlags() != null) {
                 _compatFlags = new Dictionary<String, object>(adSetup.GetCompatibilityFlags(), StringComparer.OrdinalIgnoreCase);
             }
 
@@ -405,8 +360,7 @@ namespace System
         /// <summary>
         ///     Returns the setting of the corresponding compatibility config switch (see CreateAppDomainManager for the impact).
         /// </summary>
-        internal bool DisableFusionUpdatesFromADManager()
-        {
+        internal bool DisableFusionUpdatesFromADManager() {
             return DisableFusionUpdatesFromADManager(GetNativeHandle());
         }
 
@@ -414,8 +368,7 @@ namespace System
         ///     Returns whether the current AppDomain follows the AppX rules.
         /// </summary>
         [Pure]
-        internal static bool IsAppXModel()
-        {
+        internal static bool IsAppXModel() {
 #if FEATURE_APPX
             return (Flags & APPX_FLAGS.APPX_FLAGS_APPX_MODEL) != 0;
 #else
@@ -427,8 +380,7 @@ namespace System
         ///     Returns the setting of the AppXDevMode config switch.
         /// </summary>
         [Pure]
-        internal static bool IsAppXDesignMode()
-        {
+        internal static bool IsAppXDesignMode() {
 #if FEATURE_APPX
             return (Flags & APPX_FLAGS.APPX_FLAGS_APPX_MASK) == (APPX_FLAGS.APPX_FLAGS_APPX_MODEL | APPX_FLAGS.APPX_FLAGS_APPX_DESIGN_MODE);
 #else
@@ -440,8 +392,7 @@ namespace System
         ///     Checks (and throws on failure) if the domain supports Assembly.LoadFrom.
         /// </summary>
         [Pure]
-        internal static void CheckLoadFromSupported()
-        {
+        internal static void CheckLoadFromSupported() {
 #if FEATURE_APPX
             if (IsAppXModel())
                 throw new NotSupportedException(SR.Format(SR.NotSupported_AppX, "Assembly.LoadFrom"));
@@ -452,8 +403,7 @@ namespace System
         ///     Checks (and throws on failure) if the domain supports Assembly.LoadFile.
         /// </summary>
         [Pure]
-        internal static void CheckLoadFileSupported()
-        {
+        internal static void CheckLoadFileSupported() {
 #if FEATURE_APPX
             if (IsAppXModel())
                 throw new NotSupportedException(SR.Format(SR.NotSupported_AppX, "Assembly.LoadFile"));
@@ -464,8 +414,7 @@ namespace System
         ///     Checks (and throws on failure) if the domain supports Assembly.ReflectionOnlyLoad.
         /// </summary>
         [Pure]
-        internal static void CheckReflectionOnlyLoadSupported()
-        {
+        internal static void CheckReflectionOnlyLoadSupported() {
 #if FEATURE_APPX
             if (IsAppXModel())
                 throw new NotSupportedException(SR.Format(SR.NotSupported_AppX, "Assembly.ReflectionOnlyLoad"));
@@ -476,8 +425,7 @@ namespace System
         ///     Checks (and throws on failure) if the domain supports Assembly.Load(byte[] ...).
         /// </summary>
         [Pure]
-        internal static void CheckLoadByteArraySupported()
-        {
+        internal static void CheckLoadByteArraySupported() {
 #if FEATURE_APPX
             if (IsAppXModel())
                 throw new NotSupportedException(SR.Format(SR.NotSupported_AppX, "Assembly.Load(byte[], ...)"));
@@ -487,8 +435,7 @@ namespace System
         /// <summary>
         ///     Get the name of the assembly and type that act as the AppDomainManager for this domain
         /// </summary>
-        internal void GetAppDomainManagerType(out string assembly, out string type)
-        {
+        internal void GetAppDomainManagerType(out string assembly, out string type) {
             // We can't just use our parameters because we need to ensure that the strings used for hte QCall
             // are on the stack.
             string localAssembly = null;
@@ -505,8 +452,7 @@ namespace System
         /// <summary>
         ///     Set the assembly and type which act as the AppDomainManager for this domain
         /// </summary>
-        private void SetAppDomainManagerType(string assembly, string type)
-        {
+        private void SetAppDomainManagerType(string assembly, string type) {
             Debug.Assert(assembly != null, "assembly != null");
             Debug.Assert(type != null, "type != null");
             SetAppDomainManagerType(GetNativeHandle(), assembly, type);
@@ -519,27 +465,23 @@ namespace System
                                               Evidence creatorsSecurityInfo,
                                               bool generateDefaultEvidence,
                                               IntPtr parentSecurityDescriptor,
-                                              bool publishAppDomain)
-        {
+                                              bool publishAppDomain) {
             AppDomainSetup adSetup = FusionStore;
 
             bool runtimeSuppliedHomogenousGrant = false;
             ApplicationTrust appTrust = adSetup.ApplicationTrust;
 
-            if (appTrust != null)
-            {
+            if (appTrust != null) {
                 SetupDomainSecurityForHomogeneousDomain(appTrust, runtimeSuppliedHomogenousGrant);
             }
-            else if (_IsFastFullTrustDomain)
-            {
+            else if (_IsFastFullTrustDomain) {
                 SetSecurityHomogeneousFlag(GetNativeHandle(), runtimeSuppliedHomogenousGrant);
             }
 
             // Get the evidence supplied for the domain.  If no evidence was supplied, it means that we want
             // to use the default evidence creation strategy for this domain
             Evidence newAppDomainEvidence = (providedSecurityInfo != null ? providedSecurityInfo : creatorsSecurityInfo);
-            if (newAppDomainEvidence == null && generateDefaultEvidence)
-            {
+            if (newAppDomainEvidence == null && generateDefaultEvidence) {
                 newAppDomainEvidence = new Evidence();
             }
 
@@ -555,8 +497,7 @@ namespace System
         }
 
         private void SetupDomainSecurityForHomogeneousDomain(ApplicationTrust appTrust,
-                                                             bool runtimeSuppliedHomogenousGrantSet)
-        {
+                                                             bool runtimeSuppliedHomogenousGrantSet) {
             // If the CLR has supplied the homogenous grant set (that is, this domain would have been
             // heterogenous in v2.0), then we need to strip the ApplicationTrust from the AppDomainSetup of
             // the current domain.  This prevents code which does:
@@ -564,8 +505,7 @@ namespace System
             // 
             // From looking like it is trying to create a homogenous domain intentionally, and therefore
             // having its evidence check bypassed.
-            if (runtimeSuppliedHomogenousGrantSet)
-            {
+            if (runtimeSuppliedHomogenousGrantSet) {
                 BCLDebug.Assert(_FusionStore.ApplicationTrust != null, "Expected to find runtime supplied ApplicationTrust");
             }
 
@@ -576,18 +516,15 @@ namespace System
                                        runtimeSuppliedHomogenousGrantSet);
         }
 
-        public AppDomainManager DomainManager
-        {
-            get
-            {
+        public AppDomainManager DomainManager {
+            get {
                 return _domainManager;
             }
         }
 
 
         public ObjectHandle CreateInstance(String assemblyName,
-                                           String typeName)
-
+                                           String typeName) 
         {
             // jit does not check for that, so we should do it ...
             if (this == null)
@@ -601,30 +538,24 @@ namespace System
                                             typeName);
         }
 
-        public static AppDomain CurrentDomain
-        {
-            get
-            {
+        public static AppDomain CurrentDomain {
+            get {
                 Contract.Ensures(Contract.Result<AppDomain>() != null);
                 return Thread.GetDomain();
             }
         }
 
-        public String BaseDirectory
-        {
-            get
-            {
+        public String BaseDirectory {
+            get {
                 return FusionStore.ApplicationBase;
             }
         }
 
-        public override String ToString()
-        {
+        public override String ToString() {
             StringBuilder sb = StringBuilderCache.Acquire();
 
             String fn = nGetFriendlyName();
-            if (fn != null)
-            {
+            if (fn != null) {
                 sb.Append(SR.Loader_Name + fn);
                 sb.Append(Environment.NewLine);
             }
@@ -632,12 +563,10 @@ namespace System
             if (_Policies == null || _Policies.Length == 0)
                 sb.Append(SR.Loader_NoContextPolicies
                           + Environment.NewLine);
-            else
-            {
+            else {
                 sb.Append(SR.Loader_ContextPolicies
                           + Environment.NewLine);
-                for (int i = 0; i < _Policies.Length; i++)
-                {
+                for (int i = 0; i < _Policies.Length; i++) {
                     sb.Append(_Policies[i]);
                     sb.Append(Environment.NewLine);
                 }
@@ -658,46 +587,38 @@ namespace System
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         internal static extern void PublishAnonymouslyHostedDynamicMethodsAssembly(RuntimeAssembly assemblyHandle);
 
-        public void SetData(string name, object data)
-        {
+        public void SetData(string name, object data) {
             if (name == null)
                 throw new ArgumentNullException(nameof(name));
             Contract.EndContractBlock();
 
             // SetData should only be used to set values that don't already exist.
             object currentVal;
-            lock (((ICollection)LocalStore).SyncRoot)
-            {
+            lock (((ICollection)LocalStore).SyncRoot) {
                 LocalStore.TryGetValue(name, out currentVal);
             }
-            if (currentVal != null)
-            {
+            if (currentVal != null) {
                 throw new InvalidOperationException(SR.InvalidOperation_SetData_OnlyOnce);
             }
 
-            lock (((ICollection)LocalStore).SyncRoot)
-            {
+            lock (((ICollection)LocalStore).SyncRoot) {
                 LocalStore[name] = data;
             }
         }
 
         [Pure]
-        public Object GetData(string name)
-        {
+        public Object GetData(string name) {
             if (name == null)
                 throw new ArgumentNullException(nameof(name));
             Contract.EndContractBlock();
 
             int key = AppDomainSetup.Locate(name);
-            if (key == -1)
-            {
+            if (key == -1) {
                 if (name.Equals(AppDomainSetup.LoaderOptimizationKey))
                     return FusionStore.LoaderOptimization;
-                else
-                {
+                else {
                     object data;
-                    lock (((ICollection)LocalStore).SyncRoot)
-                    {
+                    lock (((ICollection)LocalStore).SyncRoot) {
                         LocalStore.TryGetValue(name, out data);
                     }
                     if (data == null)
@@ -705,12 +626,10 @@ namespace System
                     return data;
                 }
             }
-            else
-            {
+            else {
                 // Be sure to call these properties, not Value, so
                 // that the appropriate permission demand will be done
-                switch (key)
-                {
+                switch (key) {
                     case (int)AppDomainSetup.LoaderInformation.ApplicationBaseValue:
                         return FusionStore.ApplicationBase;
                     case (int)AppDomainSetup.LoaderInformation.ApplicationNameValue:
@@ -726,8 +645,7 @@ namespace System
         [DllImport(Microsoft.Win32.Win32Native.KERNEL32)]
         public static extern int GetCurrentThreadId();
 
-        private AppDomain()
-        {
+        private AppDomain() {
             throw new NotSupportedException(SR.GetResourceString(ResId.NotSupported_Constructor));
         }
 
@@ -738,8 +656,7 @@ namespace System
         [SuppressUnmanagedCodeSecurity]
         private static extern void nSetupBindingPaths(String trustedPlatformAssemblies, String platformResourceRoots, String appPath, String appNiPaths, String appLocalWinMD);
 
-        internal void SetupBindingPaths(String trustedPlatformAssemblies, String platformResourceRoots, String appPath, String appNiPaths, String appLocalWinMD)
-        {
+        internal void SetupBindingPaths(String trustedPlatformAssemblies, String platformResourceRoots, String appPath, String appNiPaths, String appLocalWinMD) {
             nSetupBindingPaths(trustedPlatformAssemblies, platformResourceRoots, appPath, appNiPaths, appLocalWinMD);
         }
 
@@ -752,57 +669,45 @@ namespace System
         // that reliability is not guaranteed.  But if it is a single cast
         // scenario, we can make it work.
 
-        public event EventHandler ProcessExit
-        {
-            add
-            {
-                if (value != null)
-                {
+        public event EventHandler ProcessExit {
+            add {
+                if (value != null) {
                     RuntimeHelpers.PrepareContractedDelegate(value);
                     lock (this)
                         _processExit += value;
                 }
             }
-            remove
-            {
+            remove {
                 lock (this)
                     _processExit -= value;
             }
         }
 
 
-        public event EventHandler DomainUnload
-        {
-            add
-            {
-                if (value != null)
-                {
+        public event EventHandler DomainUnload {
+            add {
+                if (value != null) {
                     RuntimeHelpers.PrepareContractedDelegate(value);
                     lock (this)
                         _domainUnload += value;
                 }
             }
-            remove
-            {
+            remove {
                 lock (this)
                     _domainUnload -= value;
             }
         }
 
 
-        public event UnhandledExceptionEventHandler UnhandledException
-        {
-            add
-            {
-                if (value != null)
-                {
+        public event UnhandledExceptionEventHandler UnhandledException {
+            add {
+                if (value != null) {
                     RuntimeHelpers.PrepareContractedDelegate(value);
                     lock (this)
                         _unhandledException += value;
                 }
             }
-            remove
-            {
+            remove {
                 lock (this)
                     _unhandledException -= value;
             }
@@ -812,45 +717,37 @@ namespace System
         // about first chance exceptions. 
         //
         // To register/unregister the callback, the code must be SecurityCritical.
-        public event EventHandler<FirstChanceExceptionEventArgs> FirstChanceException
-        {
-            add
-            {
-                if (value != null)
-                {
+        public event EventHandler<FirstChanceExceptionEventArgs> FirstChanceException {
+            add {
+                if (value != null) {
                     RuntimeHelpers.PrepareContractedDelegate(value);
                     lock (this)
                         _firstChanceException += value;
                 }
             }
-            remove
-            {
+            remove {
                 lock (this)
                     _firstChanceException -= value;
             }
         }
 
-        private void OnAssemblyLoadEvent(RuntimeAssembly LoadedAssembly)
-        {
+        private void OnAssemblyLoadEvent(RuntimeAssembly LoadedAssembly) {
             AssemblyLoadEventHandler eventHandler = AssemblyLoad;
-            if (eventHandler != null)
-            {
+            if (eventHandler != null) {
                 AssemblyLoadEventArgs ea = new AssemblyLoadEventArgs(LoadedAssembly);
                 eventHandler(this, ea);
             }
         }
 
         // This method is called by the VM.
-        private RuntimeAssembly OnResourceResolveEvent(RuntimeAssembly assembly, String resourceName)
-        {
+        private RuntimeAssembly OnResourceResolveEvent(RuntimeAssembly assembly, String resourceName) {
             ResolveEventHandler eventHandler = _ResourceResolve;
             if (eventHandler == null)
                 return null;
 
             Delegate[] ds = eventHandler.GetInvocationList();
             int len = ds.Length;
-            for (int i = 0; i < len; i++)
-            {
+            for (int i = 0; i < len; i++) {
                 Assembly asm = ((ResolveEventHandler)ds[i])(this, new ResolveEventArgs(resourceName, assembly));
                 RuntimeAssembly ret = GetRuntimeAssembly(asm);
                 if (ret != null)
@@ -861,16 +758,14 @@ namespace System
         }
 
         // This method is called by the VM
-        private RuntimeAssembly OnTypeResolveEvent(RuntimeAssembly assembly, String typeName)
-        {
+        private RuntimeAssembly OnTypeResolveEvent(RuntimeAssembly assembly, String typeName) {
             ResolveEventHandler eventHandler = _TypeResolve;
             if (eventHandler == null)
                 return null;
 
             Delegate[] ds = eventHandler.GetInvocationList();
             int len = ds.Length;
-            for (int i = 0; i < len; i++)
-            {
+            for (int i = 0; i < len; i++) {
                 Assembly asm = ((ResolveEventHandler)ds[i])(this, new ResolveEventArgs(typeName, assembly));
                 RuntimeAssembly ret = GetRuntimeAssembly(asm);
                 if (ret != null)
@@ -881,19 +776,16 @@ namespace System
         }
 
         // This method is called by the VM.
-        private RuntimeAssembly OnAssemblyResolveEvent(RuntimeAssembly assembly, String assemblyFullName)
-        {
+        private RuntimeAssembly OnAssemblyResolveEvent(RuntimeAssembly assembly, String assemblyFullName) {
             ResolveEventHandler eventHandler = _AssemblyResolve;
 
-            if (eventHandler == null)
-            {
+            if (eventHandler == null) {
                 return null;
             }
 
             Delegate[] ds = eventHandler.GetInvocationList();
             int len = ds.Length;
-            for (int i = 0; i < len; i++)
-            {
+            for (int i = 0; i < len; i++) {
                 Assembly asm = ((ResolveEventHandler)ds[i])(this, new ResolveEventArgs(assemblyFullName, assembly));
                 RuntimeAssembly ret = GetRuntimeAssembly(asm);
                 if (ret != null)
@@ -905,24 +797,20 @@ namespace System
 
 #if FEATURE_COMINTEROP
         // Called by VM - code:CLRPrivTypeCacheWinRT::RaiseDesignerNamespaceResolveEvent
-        private string[] OnDesignerNamespaceResolveEvent(string namespaceName)
-        {
+        private string[] OnDesignerNamespaceResolveEvent(string namespaceName) {
             return System.Runtime.InteropServices.WindowsRuntime.WindowsRuntimeMetadata.OnDesignerNamespaceResolveEvent(this, namespaceName);
         }
 #endif // FEATURE_COMINTEROP
 
-        internal AppDomainSetup FusionStore
-        {
-            get
-            {
+        internal AppDomainSetup FusionStore {
+            get {
                 Debug.Assert(_FusionStore != null,
                                 "Fusion store has not been correctly setup in this domain");
                 return _FusionStore;
             }
         }
 
-        internal static RuntimeAssembly GetRuntimeAssembly(Assembly asm)
-        {
+        internal static RuntimeAssembly GetRuntimeAssembly(Assembly asm) {
             if (asm == null)
                 return null;
 
@@ -937,14 +825,11 @@ namespace System
             return null;
         }
 
-        private Dictionary<String, Object> LocalStore
-        {
-            get
-            {
+        private Dictionary<String, Object> LocalStore {
+            get {
                 if (_LocalStore != null)
                     return _LocalStore;
-                else
-                {
+                else {
                     _LocalStore = new Dictionary<String, Object>();
                     return _LocalStore;
                 }
@@ -955,12 +840,10 @@ namespace System
         [SuppressUnmanagedCodeSecurity]
         private static extern void nSetNativeDllSearchDirectories(string paths);
 
-        private void SetupFusionStore(AppDomainSetup info, AppDomainSetup oldInfo)
-        {
+        private void SetupFusionStore(AppDomainSetup info, AppDomainSetup oldInfo) {
             Contract.Requires(info != null);
 
-            if (info.ApplicationBase == null)
-            {
+            if (info.ApplicationBase == null) {
                 info.SetupDefaults(RuntimeEnvironment.GetModuleFileName(), imageLocationAlreadyNormalized: true);
             }
 
@@ -972,10 +855,8 @@ namespace System
             _FusionStore = info;
         }
 
-        private static void RunInitializer(AppDomainSetup setup)
-        {
-            if (setup.AppDomainInitializer != null)
-            {
+        private static void RunInitializer(AppDomainSetup setup) {
+            if (setup.AppDomainInitializer != null) {
                 string[] args = null;
                 if (setup.AppDomainInitializerArguments != null)
                     args = (string[])setup.AppDomainInitializerArguments.Clone();
@@ -995,8 +876,7 @@ namespace System
                                                         IntPtr parentSecurityDescriptor,
                                                         string sandboxName,
                                                         string[] propertyNames,
-                                                        string[] propertyValues)
-        {
+                                                        string[] propertyValues) {
             byte[] serializedEvidence = null;
             bool generateDefaultEvidence = false;
 
@@ -1015,26 +895,21 @@ namespace System
             // System.AppDomainManager.CreateDomain() and add the flags to the AppDomainSetup
             List<String> compatList = new List<String>();
 
-            if (propertyNames != null && propertyValues != null)
-            {
-                for (int i = 0; i < propertyNames.Length; i++)
-                {
-                    if (String.Compare(propertyNames[i], "AppDomainCompatSwitch", StringComparison.OrdinalIgnoreCase) == 0)
-                    {
+            if (propertyNames != null && propertyValues != null) {
+                for (int i = 0; i < propertyNames.Length; i++) {
+                    if (String.Compare(propertyNames[i], "AppDomainCompatSwitch", StringComparison.OrdinalIgnoreCase) == 0) {
                         compatList.Add(propertyValues[i]);
                         propertyNames[i] = null;
                         propertyValues[i] = null;
                     }
                 }
 
-                if (compatList.Count > 0)
-                {
+                if (compatList.Count > 0) {
                     newSetup.SetCompatibilitySwitches(compatList);
                 }
             }
 
-            return new Object[]
-            {
+            return new Object[] {
                 friendlyName,
                 newSetup,
                 parentSecurityDescriptor,
@@ -1047,8 +922,7 @@ namespace System
             };
         } // PrepareDataForSetup
 
-        private static Object Setup(Object arg)
-        {
+        private static Object Setup(Object arg) {
             Contract.Requires(arg != null && arg is Object[]);
             Contract.Requires(((Object[])arg).Length >= 8);
 
@@ -1069,14 +943,11 @@ namespace System
             AppDomain ad = AppDomain.CurrentDomain;
             AppDomainSetup newSetup = new AppDomainSetup(setup, false);
 
-            if (propertyNames != null && propertyValues != null)
-            {
-                for (int i = 0; i < propertyNames.Length; i++)
-                {
+            if (propertyNames != null && propertyValues != null) {
+                for (int i = 0; i < propertyNames.Length; i++) {
                     // We want to set native dll probing directories before any P/Invokes have a
                     // chance to fire. The Path class, for one, has P/Invokes.
-                    if (propertyNames[i] == "NATIVE_DLL_SEARCH_DIRECTORIES")
-                    {
+                    if (propertyNames[i] == "NATIVE_DLL_SEARCH_DIRECTORIES") {
                         if (propertyValues[i] == null)
                             throw new ArgumentNullException("NATIVE_DLL_SEARCH_DIRECTORIES");
 
@@ -1088,10 +959,9 @@ namespace System
                     }
                 }
 
-                for (int i = 0; i < propertyNames.Length; i++)
-                {
+                for (int i = 0; i < propertyNames.Length; i++) {
                     if (propertyNames[i] == "APPBASE") // make sure in sync with Fusion
-                    {
+{
                         if (propertyValues[i] == null)
                             throw new ArgumentNullException("APPBASE");
 
@@ -1100,13 +970,11 @@ namespace System
 
                         newSetup.ApplicationBase = NormalizePath(propertyValues[i], fullCheck: true);
                     }
-                    else if (propertyNames[i] == "LOADER_OPTIMIZATION")
-                    {
+                    else if (propertyNames[i] == "LOADER_OPTIMIZATION") {
                         if (propertyValues[i] == null)
                             throw new ArgumentNullException("LOADER_OPTIMIZATION");
 
-                        switch (propertyValues[i])
-                        {
+                        switch (propertyValues[i]) {
                             case "SingleDomain": newSetup.LoaderOptimization = LoaderOptimization.SingleDomain; break;
                             case "MultiDomain": newSetup.LoaderOptimization = LoaderOptimization.MultiDomain; break;
                             case "MultiDomainHost": newSetup.LoaderOptimization = LoaderOptimization.MultiDomainHost; break;
@@ -1117,16 +985,14 @@ namespace System
                     else if (propertyNames[i] == "TRUSTED_PLATFORM_ASSEMBLIES" ||
                        propertyNames[i] == "PLATFORM_RESOURCE_ROOTS" ||
                        propertyNames[i] == "APP_PATHS" ||
-                       propertyNames[i] == "APP_NI_PATHS")
-                    {
+                       propertyNames[i] == "APP_NI_PATHS") {
                         string values = propertyValues[i];
                         if (values == null)
                             throw new ArgumentNullException(propertyNames[i]);
 
                         ad.SetData(propertyNames[i], NormalizeAppPaths(values));
                     }
-                    else if (propertyNames[i] != null)
-                    {
+                    else if (propertyNames[i] != null) {
                         ad.SetData(propertyNames[i], propertyValues[i]);     // just propagate
                     }
                 }
@@ -1144,15 +1010,13 @@ namespace System
             ad.nSetupFriendlyName(friendlyName);
 
 #if FEATURE_COMINTEROP
-            if (setup != null && setup.SandboxInterop)
-            {
+            if (setup != null && setup.SandboxInterop) {
                 ad.nSetDisableInterfaceCache();
             }
 #endif // FEATURE_COMINTEROP
 
             // set up the AppDomainManager for this domain and initialize security.
-            if (adSetup.AppDomainManagerAssembly != null && adSetup.AppDomainManagerType != null)
-            {
+            if (adSetup.AppDomainManagerAssembly != null && adSetup.AppDomainManagerType != null) {
                 ad.SetAppDomainManagerType(adSetup.AppDomainManagerAssembly, adSetup.AppDomainManagerType);
             }
 
@@ -1171,23 +1035,19 @@ namespace System
             return null;
         }
 
-        private static string NormalizeAppPaths(string values)
-        {
+        private static string NormalizeAppPaths(string values) {
             int estimatedLength = values.Length + 1; // +1 for extra separator temporarily added at end
             StringBuilder sb = StringBuilderCache.Acquire(estimatedLength);
 
-            for (int pos = 0; pos < values.Length; pos++)
-            {
+            for (int pos = 0; pos < values.Length; pos++) {
                 string path;
 
                 int nextPos = values.IndexOf(Path.PathSeparator, pos);
-                if (nextPos == -1)
-                {
+                if (nextPos == -1) {
                     path = values.Substring(pos);
                     pos = values.Length - 1;
                 }
-                else
-                {
+                else {
                     path = values.Substring(pos, nextPos - pos);
                     pos = nextPos;
                 }
@@ -1205,30 +1065,25 @@ namespace System
             }
 
             // Strip the last separator
-            if (sb.Length > 0)
-            {
+            if (sb.Length > 0) {
                 sb.Remove(sb.Length - 1, 1);
             }
 
             return StringBuilderCache.GetStringAndRelease(sb);
         }
 
-        internal static string NormalizePath(string path, bool fullCheck)
-        {
+        internal static string NormalizePath(string path, bool fullCheck) {
             return Path.GetFullPath(path);
         }
 
         // This routine is called from unmanaged code to
         // set the default fusion context.
-        private void SetupDomain(bool allowRedirects, String path, String configFile, String[] propertyNames, String[] propertyValues)
-        {
+        private void SetupDomain(bool allowRedirects, String path, String configFile, String[] propertyNames, String[] propertyValues) {
             // It is possible that we could have multiple threads initializing
             // the default domain. We will just take the winner of these two.
             // (eg. one thread doing a com call and another doing attach for IJW)
-            lock (this)
-            {
-                if (_FusionStore == null)
-                {
+            lock (this) {
+                if (_FusionStore == null) {
                     AppDomainSetup setup = new AppDomainSetup();
 
                     // always use internet permission set
@@ -1240,8 +1095,7 @@ namespace System
 
         private void SetupDomainSecurity(Evidence appDomainEvidence,
                                          IntPtr creatorsSecurityDescriptor,
-                                         bool publishAppDomain)
-        {
+                                         bool publishAppDomain) {
             Evidence stackEvidence = appDomainEvidence;
             SetupDomainSecurity(GetNativeHandle(),
                                 JitHelpers.GetObjectHandleOnStack(ref stackEvidence),
@@ -1267,10 +1121,8 @@ namespace System
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         internal extern void UpdateLoaderOptimization(LoaderOptimization optimization);
 
-        public AppDomainSetup SetupInformation
-        {
-            get
-            {
+        public AppDomainSetup SetupInformation {
+            get {
                 return new AppDomainSetup(FusionStore, true);
             }
         }
@@ -1285,17 +1137,14 @@ namespace System
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         private static extern void GetGrantSet(AppDomainHandle domain, ObjectHandleOnStack retGrantSet);
 
-        public bool IsFullyTrusted
-        {
-            get
-            {
+        public bool IsFullyTrusted {
+            get {
                 return true;
             }
         }
 
         public Object CreateInstanceAndUnwrap(String assemblyName,
-                                              String typeName)
-        {
+                                              String typeName) {
             ObjectHandle oh = CreateInstance(assemblyName, typeName);
             if (oh == null)
                 return null;
@@ -1303,10 +1152,8 @@ namespace System
             return oh.Unwrap();
         } // CreateInstanceAndUnwrap
 
-        public Int32 Id
-        {
-            get
-            {
+        public Int32 Id {
+            get {
                 return GetId();
             }
         }
@@ -1319,15 +1166,13 @@ namespace System
     ///     Handle used to marshal an AppDomain to the VM (eg QCall). When marshaled via a QCall, the target
     ///     method in the VM will recieve a QCall::AppDomainHandle parameter.
     /// </summary>
-    internal struct AppDomainHandle
-    {
+    internal struct AppDomainHandle {
         private IntPtr m_appDomainHandle;
 
         // Note: generall an AppDomainHandle should not be directly constructed, instead the
         // code:System.AppDomain.GetNativeHandle method should be called to get the handle for a specific
         // AppDomain.
-        internal AppDomainHandle(IntPtr domainHandle)
-        {
+        internal AppDomainHandle(IntPtr domainHandle) {
             m_appDomainHandle = domainHandle;
         }
     }

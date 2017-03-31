@@ -6,10 +6,8 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Security;
 
-namespace System.Reflection.Metadata
-{
-    public static class AssemblyExtensions
-    {
+namespace System.Reflection.Metadata {
+    public static class AssemblyExtensions {
         [DllImport(JitHelpers.QCall)]
         [SuppressUnmanagedCodeSecurity]
         [return: MarshalAs(UnmanagedType.Bool)]
@@ -23,10 +21,8 @@ namespace System.Reflection.Metadata
         //     associated, is alive. The caller is responsible for keeping the assembly object alive while accessing the
         //     metadata blob.
         [CLSCompliant(false)] // out byte* blob
-        public unsafe static bool TryGetRawMetadata(this Assembly assembly, out byte* blob, out int length)
-        {
-            if (assembly == null)
-            {
+        public unsafe static bool TryGetRawMetadata(this Assembly assembly, out byte* blob, out int length) {
+            if (assembly == null) {
                 throw new ArgumentNullException(nameof(assembly));
             }
 
@@ -34,8 +30,7 @@ namespace System.Reflection.Metadata
             length = 0;
 
             var runtimeAssembly = assembly as RuntimeAssembly;
-            if (runtimeAssembly == null)
-            {
+            if (runtimeAssembly == null) {
                 return false;
             }
 

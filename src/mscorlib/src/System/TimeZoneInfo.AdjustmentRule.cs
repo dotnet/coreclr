@@ -5,13 +5,10 @@
 using System.Diagnostics.Contracts;
 using System.Runtime.Serialization;
 
-namespace System
-{
-    public sealed partial class TimeZoneInfo
-    {
+namespace System {
+    public sealed partial class TimeZoneInfo {
         [Serializable]
-        public sealed class AdjustmentRule : IEquatable<AdjustmentRule>, ISerializable, IDeserializationCallback
-        {
+        public sealed class AdjustmentRule : IEquatable<AdjustmentRule>, ISerializable, IDeserializationCallback {
             private readonly DateTime _dateStart;
             private readonly DateTime _dateEnd;
             private readonly TimeSpan _daylightDelta;
@@ -61,8 +58,7 @@ namespace System
                 TransitionTime daylightTransitionStart,
                 TransitionTime daylightTransitionEnd,
                 TimeSpan baseUtcOffsetDelta,
-                bool noDaylightTransitions)
-            {
+                bool noDaylightTransitions) {
                 ValidateAdjustmentRule(dateStart, dateEnd, daylightDelta,
                        daylightTransitionStart, daylightTransitionEnd, noDaylightTransitions);
 
@@ -80,8 +76,7 @@ namespace System
                 DateTime dateEnd,
                 TimeSpan daylightDelta,
                 TransitionTime daylightTransitionStart,
-                TransitionTime daylightTransitionEnd)
-            {
+                TransitionTime daylightTransitionEnd) {
                 return new AdjustmentRule(
                     dateStart,
                     dateEnd,
@@ -99,8 +94,7 @@ namespace System
                 TransitionTime daylightTransitionStart,
                 TransitionTime daylightTransitionEnd,
                 TimeSpan baseUtcOffsetDelta,
-                bool noDaylightTransitions)
-            {
+                bool noDaylightTransitions) {
                 return new AdjustmentRule(
                     dateStart,
                     dateEnd,
@@ -140,25 +134,20 @@ namespace System
                 TimeSpan daylightDelta,
                 TransitionTime daylightTransitionStart,
                 TransitionTime daylightTransitionEnd,
-                bool noDaylightTransitions)
-            {
-                if (dateStart.Kind != DateTimeKind.Unspecified && dateStart.Kind != DateTimeKind.Utc)
-                {
+                bool noDaylightTransitions) {
+                if (dateStart.Kind != DateTimeKind.Unspecified && dateStart.Kind != DateTimeKind.Utc) {
                     throw new ArgumentException(SR.Argument_DateTimeKindMustBeUnspecifiedOrUtc, nameof(dateStart));
                 }
 
-                if (dateEnd.Kind != DateTimeKind.Unspecified && dateEnd.Kind != DateTimeKind.Utc)
-                {
+                if (dateEnd.Kind != DateTimeKind.Unspecified && dateEnd.Kind != DateTimeKind.Utc) {
                     throw new ArgumentException(SR.Argument_DateTimeKindMustBeUnspecifiedOrUtc, nameof(dateEnd));
                 }
 
-                if (daylightTransitionStart.Equals(daylightTransitionEnd) && !noDaylightTransitions)
-                {
+                if (daylightTransitionStart.Equals(daylightTransitionEnd) && !noDaylightTransitions) {
                     throw new ArgumentException(SR.Argument_TransitionTimesAreIdentical, nameof(daylightTransitionEnd));
                 }
 
-                if (dateStart > dateEnd)
-                {
+                if (dateStart > dateEnd) {
                     throw new ArgumentException(SR.Argument_OutOfOrderDateTimes, nameof(dateStart));
                 }
 
@@ -166,48 +155,39 @@ namespace System
                 // which caused their current BaseUtcOffset to be +13. But on the other side of the line it was UTC-11 (+1 for daylight).
                 // So when trying to describe DaylightDeltas for those times, the DaylightDelta needs
                 // to be -23 (what it takes to go from UTC+13 to UTC-10)
-                if (daylightDelta.TotalHours < -23.0 || daylightDelta.TotalHours > 14.0)
-                {
+                if (daylightDelta.TotalHours < -23.0 || daylightDelta.TotalHours > 14.0) {
                     throw new ArgumentOutOfRangeException(nameof(daylightDelta), daylightDelta, SR.ArgumentOutOfRange_UtcOffset);
                 }
 
-                if (daylightDelta.Ticks % TimeSpan.TicksPerMinute != 0)
-                {
+                if (daylightDelta.Ticks % TimeSpan.TicksPerMinute != 0) {
                     throw new ArgumentException(SR.Argument_TimeSpanHasSeconds, nameof(daylightDelta));
                 }
 
-                if (dateStart != DateTime.MinValue && dateStart.Kind == DateTimeKind.Unspecified && dateStart.TimeOfDay != TimeSpan.Zero)
-                {
+                if (dateStart != DateTime.MinValue && dateStart.Kind == DateTimeKind.Unspecified && dateStart.TimeOfDay != TimeSpan.Zero) {
                     throw new ArgumentException(SR.Argument_DateTimeHasTimeOfDay, nameof(dateStart));
                 }
 
-                if (dateEnd != DateTime.MaxValue && dateEnd.Kind == DateTimeKind.Unspecified && dateEnd.TimeOfDay != TimeSpan.Zero)
-                {
+                if (dateEnd != DateTime.MaxValue && dateEnd.Kind == DateTimeKind.Unspecified && dateEnd.TimeOfDay != TimeSpan.Zero) {
                     throw new ArgumentException(SR.Argument_DateTimeHasTimeOfDay, nameof(dateEnd));
                 }
                 Contract.EndContractBlock();
             }
 
-            void IDeserializationCallback.OnDeserialization(object sender)
-            {
+            void IDeserializationCallback.OnDeserialization(object sender) {
                 // OnDeserialization is called after each instance of this class is deserialized.
                 // This callback method performs AdjustmentRule validation after being deserialized.
 
-                try
-                {
+                try {
                     ValidateAdjustmentRule(_dateStart, _dateEnd, _daylightDelta,
                                            _daylightTransitionStart, _daylightTransitionEnd, _noDaylightTransitions);
                 }
-                catch (ArgumentException e)
-                {
+                catch (ArgumentException e) {
                     throw new SerializationException(SR.Serialization_InvalidData, e);
                 }
             }
 
-            void ISerializable.GetObjectData(SerializationInfo info, StreamingContext context)
-            {
-                if (info == null)
-                {
+            void ISerializable.GetObjectData(SerializationInfo info, StreamingContext context) {
+                if (info == null) {
                     throw new ArgumentNullException(nameof(info));
                 }
                 Contract.EndContractBlock();
@@ -221,10 +201,8 @@ namespace System
                 info.AddValue("NoDaylightTransitions", _noDaylightTransitions);
             }
 
-            private AdjustmentRule(SerializationInfo info, StreamingContext context)
-            {
-                if (info == null)
-                {
+            private AdjustmentRule(SerializationInfo info, StreamingContext context) {
+                if (info == null) {
                     throw new ArgumentNullException(nameof(info));
                 }
 
@@ -235,14 +213,12 @@ namespace System
                 _daylightTransitionEnd = (TransitionTime)info.GetValue("DaylightTransitionEnd", typeof(TransitionTime));
 
                 object o = info.GetValueNoThrow("BaseUtcOffsetDelta", typeof(TimeSpan));
-                if (o != null)
-                {
+                if (o != null) {
                     _baseUtcOffsetDelta = (TimeSpan)o;
                 }
 
                 o = info.GetValueNoThrow("NoDaylightTransitions", typeof(bool));
-                if (o != null)
-                {
+                if (o != null) {
                     _noDaylightTransitions = (bool)o;
                 }
             }

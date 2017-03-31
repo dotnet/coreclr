@@ -13,8 +13,7 @@
 ** 
 ===========================================================*/
 
-namespace System.Reflection.Emit
-{
+namespace System.Reflection.Emit {
     using System;
     using System.Reflection;
     using CultureInfo = System.Globalization.CultureInfo;
@@ -25,8 +24,7 @@ namespace System.Reflection.Emit
     // A PropertyBuilder is always associated with a TypeBuilder.  The TypeBuilder.DefineProperty
     // method will return a new PropertyBuilder to a client.
     // 
-    public sealed class PropertyBuilder : PropertyInfo
-    {
+    public sealed class PropertyBuilder : PropertyInfo {
         // Make a private constructor so these cannot be constructed externally.
         private PropertyBuilder() { }
 
@@ -40,7 +38,7 @@ namespace System.Reflection.Emit
             Type returnType,     // return type of the property.
             PropertyToken prToken,        // the metadata token for this property
             TypeBuilder containingType) // the containing type
-        {
+{
             if (name == null)
                 throw new ArgumentNullException(nameof(name));
             if (name.Length == 0)
@@ -62,8 +60,7 @@ namespace System.Reflection.Emit
         //************************************************
         // Set the default value of the Property
         //************************************************
-        public void SetConstant(Object defaultValue)
-        {
+        public void SetConstant(Object defaultValue) {
             m_containingType.ThrowIfCreated();
 
             TypeBuilder.SetConstantValue(
@@ -76,23 +73,18 @@ namespace System.Reflection.Emit
 
         // Return the Token for this property within the TypeBuilder that the
         // property is defined within.
-        public PropertyToken PropertyToken
-        {
+        public PropertyToken PropertyToken {
             get { return m_prToken; }
         }
 
-        public override Module Module
-        {
-            get
-            {
+        public override Module Module {
+            get {
                 return m_containingType.Module;
             }
         }
 
-        private void SetMethodSemantics(MethodBuilder mdBuilder, MethodSemanticsAttributes semantics)
-        {
-            if (mdBuilder == null)
-            {
+        private void SetMethodSemantics(MethodBuilder mdBuilder, MethodSemanticsAttributes semantics) {
+            if (mdBuilder == null) {
                 throw new ArgumentNullException(nameof(mdBuilder));
             }
 
@@ -104,27 +96,23 @@ namespace System.Reflection.Emit
                 mdBuilder.GetToken().Token);
         }
 
-        public void SetGetMethod(MethodBuilder mdBuilder)
-        {
+        public void SetGetMethod(MethodBuilder mdBuilder) {
             SetMethodSemantics(mdBuilder, MethodSemanticsAttributes.Getter);
             m_getMethod = mdBuilder;
         }
 
-        public void SetSetMethod(MethodBuilder mdBuilder)
-        {
+        public void SetSetMethod(MethodBuilder mdBuilder) {
             SetMethodSemantics(mdBuilder, MethodSemanticsAttributes.Setter);
             m_setMethod = mdBuilder;
         }
 
-        public void AddOtherMethod(MethodBuilder mdBuilder)
-        {
+        public void AddOtherMethod(MethodBuilder mdBuilder) {
             SetMethodSemantics(mdBuilder, MethodSemanticsAttributes.Other);
         }
 
         // Use this function if client decides to form the custom attribute blob themselves
 
-        public void SetCustomAttribute(ConstructorInfo con, byte[] binaryAttribute)
-        {
+        public void SetCustomAttribute(ConstructorInfo con, byte[] binaryAttribute) {
             if (con == null)
                 throw new ArgumentNullException(nameof(con));
             if (binaryAttribute == null)
@@ -140,10 +128,8 @@ namespace System.Reflection.Emit
         }
 
         // Use this function if client wishes to build CustomAttribute using CustomAttributeBuilder
-        public void SetCustomAttribute(CustomAttributeBuilder customBuilder)
-        {
-            if (customBuilder == null)
-            {
+        public void SetCustomAttribute(CustomAttributeBuilder customBuilder) {
+            if (customBuilder == null) {
                 throw new ArgumentNullException(nameof(customBuilder));
             }
             m_containingType.ThrowIfCreated();
@@ -151,33 +137,27 @@ namespace System.Reflection.Emit
         }
 
         // Not supported functions in dynamic module.
-        public override Object GetValue(Object obj, Object[] index)
-        {
+        public override Object GetValue(Object obj, Object[] index) {
             throw new NotSupportedException(SR.NotSupported_DynamicModule);
         }
 
-        public override Object GetValue(Object obj, BindingFlags invokeAttr, Binder binder, Object[] index, CultureInfo culture)
-        {
+        public override Object GetValue(Object obj, BindingFlags invokeAttr, Binder binder, Object[] index, CultureInfo culture) {
             throw new NotSupportedException(SR.NotSupported_DynamicModule);
         }
 
-        public override void SetValue(Object obj, Object value, Object[] index)
-        {
+        public override void SetValue(Object obj, Object value, Object[] index) {
             throw new NotSupportedException(SR.NotSupported_DynamicModule);
         }
 
-        public override void SetValue(Object obj, Object value, BindingFlags invokeAttr, Binder binder, Object[] index, CultureInfo culture)
-        {
+        public override void SetValue(Object obj, Object value, BindingFlags invokeAttr, Binder binder, Object[] index, CultureInfo culture) {
             throw new NotSupportedException(SR.NotSupported_DynamicModule);
         }
 
-        public override MethodInfo[] GetAccessors(bool nonPublic)
-        {
+        public override MethodInfo[] GetAccessors(bool nonPublic) {
             throw new NotSupportedException(SR.NotSupported_DynamicModule);
         }
 
-        public override MethodInfo GetGetMethod(bool nonPublic)
-        {
+        public override MethodInfo GetGetMethod(bool nonPublic) {
             if (nonPublic || m_getMethod == null)
                 return m_getMethod;
             // now check to see if m_getMethod is public
@@ -186,8 +166,7 @@ namespace System.Reflection.Emit
             return null;
         }
 
-        public override MethodInfo GetSetMethod(bool nonPublic)
-        {
+        public override MethodInfo GetSetMethod(bool nonPublic) {
             if (nonPublic || m_setMethod == null)
                 return m_setMethod;
             // now check to see if m_setMethod is public
@@ -196,58 +175,47 @@ namespace System.Reflection.Emit
             return null;
         }
 
-        public override ParameterInfo[] GetIndexParameters()
-        {
+        public override ParameterInfo[] GetIndexParameters() {
             throw new NotSupportedException(SR.NotSupported_DynamicModule);
         }
 
-        public override Type PropertyType
-        {
+        public override Type PropertyType {
             get { return m_returnType; }
         }
 
-        public override PropertyAttributes Attributes
-        {
+        public override PropertyAttributes Attributes {
             get { return m_attributes; }
         }
 
-        public override bool CanRead
-        {
+        public override bool CanRead {
             get { if (m_getMethod != null) return true; else return false; }
         }
 
-        public override bool CanWrite
-        {
+        public override bool CanWrite {
             get { if (m_setMethod != null) return true; else return false; }
         }
 
-        public override Object[] GetCustomAttributes(bool inherit)
-        {
+        public override Object[] GetCustomAttributes(bool inherit) {
             throw new NotSupportedException(SR.NotSupported_DynamicModule);
         }
 
-        public override Object[] GetCustomAttributes(Type attributeType, bool inherit)
-        {
+        public override Object[] GetCustomAttributes(Type attributeType, bool inherit) {
             throw new NotSupportedException(SR.NotSupported_DynamicModule);
         }
 
-        public override bool IsDefined(Type attributeType, bool inherit)
-        {
+        public override bool IsDefined(Type attributeType, bool inherit) {
             throw new NotSupportedException(SR.NotSupported_DynamicModule);
         }
 
-        public override String Name
-        {
+        public override String Name {
             get { return m_name; }
         }
 
-        public override Type DeclaringType
-        {
+        public override Type DeclaringType {
             get { return m_containingType; }
         }
 
-        public override Type ReflectedType
-        {
+        public override Type ReflectedType {
             get { return m_containingType; }
         }
 

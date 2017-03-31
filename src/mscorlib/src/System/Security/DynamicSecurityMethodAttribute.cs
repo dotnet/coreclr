@@ -4,8 +4,7 @@
 
 using System.Runtime.InteropServices;
 
-namespace System.Security
-{
+namespace System.Security {
     // DynamicSecurityMethodAttribute:
     //  All methods that use StackCrawlMark should be marked with this attribute. This attribute
     //  disables inlining of the calling method to allow stackwalking to find the exact caller.
@@ -14,8 +13,7 @@ namespace System.Security
     //  to be allocated on the callers stack. It is not used for this purpose anymore because of security 
     //  stackwalks are not ever done in CoreCLR.
     [AttributeUsage(AttributeTargets.Method | AttributeTargets.Constructor, AllowMultiple = true, Inherited = false)]
-    internal sealed class DynamicSecurityMethodAttribute : Attribute
-    {
+    internal sealed class DynamicSecurityMethodAttribute : Attribute {
         public DynamicSecurityMethodAttribute() { }
     }
 }

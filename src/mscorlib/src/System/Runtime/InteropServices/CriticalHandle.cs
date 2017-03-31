@@ -128,8 +128,7 @@ using System.IO;
 
  */
 
-namespace System.Runtime.InteropServices
-{
+namespace System.Runtime.InteropServices {
     // This class should not be serializable - it's a handle.  We require unmanaged
     // code permission to subclass CriticalHandle to prevent people from writing a 
     // subclass and suddenly being able to run arbitrary native code with the
@@ -137,8 +136,7 @@ namespace System.Runtime.InteropServices
     // we'll do this to ensure we've cut off all attack vectors.  Similarly, all
     // methods have a link demand to ensure untrusted code cannot directly edit
     // or alter a handle.
-    public abstract class CriticalHandle : CriticalFinalizerObject, IDisposable
-    {
+    public abstract class CriticalHandle : CriticalFinalizerObject, IDisposable {
         // ! Do not add or rearrange fields as the EE depends on this layout.
         //------------------------------------------------------------------
 #if DEBUG
@@ -148,8 +146,7 @@ namespace System.Runtime.InteropServices
         private bool _isClosed;     // Set by SetHandleAsInvalid or Close/Dispose/finalization.
 
         // Creates a CriticalHandle class.  Users must then set the Handle property or allow P/Invoke marshaling to set it implicitly.
-        protected CriticalHandle(IntPtr invalidHandleValue)
-        {
+        protected CriticalHandle(IntPtr invalidHandleValue) {
             handle = invalidHandleValue;
             _isClosed = false;
 
@@ -164,13 +161,11 @@ namespace System.Runtime.InteropServices
         // Adding an empty default constructor for annotation purposes
         private CriticalHandle() { }
 
-        ~CriticalHandle()
-        {
+        ~CriticalHandle() {
             Dispose(false);
         }
 
-        private void Cleanup()
-        {
+        private void Cleanup() {
             if (IsClosed)
                 return;
             _isClosed = true;
@@ -194,15 +189,13 @@ namespace System.Runtime.InteropServices
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         private extern void FireCustomerDebugProbe();
 
-        protected void SetHandle(IntPtr handle)
-        {
+        protected void SetHandle(IntPtr handle) {
             this.handle = handle;
         }
 
         // Returns whether the handle has been explicitly marked as closed
         // (Close/Dispose) or invalid (SetHandleAsInvalid).
-        public bool IsClosed
-        {
+        public bool IsClosed {
             get { return _isClosed; }
         }
 
@@ -210,23 +203,19 @@ namespace System.Runtime.InteropServices
         // of the handle's designated illegal values). CriticalHandle itself doesn't
         // know what an invalid handle looks like, so this method is abstract and
         // must be provided by a derived type.
-        public abstract bool IsInvalid
-        {
+        public abstract bool IsInvalid {
             get;
         }
 
-        public void Close()
-        {
+        public void Close() {
             Dispose(true);
         }
 
-        public void Dispose()
-        {
+        public void Dispose() {
             Dispose(true);
         }
 
-        protected virtual void Dispose(bool disposing)
-        {
+        protected virtual void Dispose(bool disposing) {
             Cleanup();
         }
 
@@ -234,8 +223,7 @@ namespace System.Runtime.InteropServices
         // your handle is invalid and you want to record that information.
         // An example is calling a syscall and getting back ERROR_INVALID_HANDLE.
         // This method will normally leak handles!
-        public void SetHandleAsInvalid()
-        {
+        public void SetHandleAsInvalid() {
             _isClosed = true;
             GC.SuppressFinalize(this);
         }

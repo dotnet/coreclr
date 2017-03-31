@@ -21,15 +21,13 @@ using System.Text;
 using System.Diagnostics;
 using System.Diagnostics.Contracts;
 
-namespace System.IO
-{
+namespace System.IO {
     // This abstract base class represents a writer that can write
     // primitives to an arbitrary stream. A subclass can override methods to
     // give unique encodings.
     //
     [Serializable]
-    public class BinaryWriter : IDisposable
-    {
+    public class BinaryWriter : IDisposable {
         public static readonly BinaryWriter Null = new BinaryWriter();
 
         protected Stream OutStream;
@@ -48,24 +46,20 @@ namespace System.IO
 
         // Protected default constructor that sets the output stream
         // to a null stream (a bit bucket).
-        protected BinaryWriter()
-        {
+        protected BinaryWriter() {
             OutStream = Stream.Null;
             _buffer = new byte[16];
             _encoding = EncodingCache.UTF8NoBOM;
             _encoder = _encoding.GetEncoder();
         }
 
-        public BinaryWriter(Stream output) : this(output, EncodingCache.UTF8NoBOM, false)
-        {
+        public BinaryWriter(Stream output) : this(output, EncodingCache.UTF8NoBOM, false) {
         }
 
-        public BinaryWriter(Stream output, Encoding encoding) : this(output, encoding, false)
-        {
+        public BinaryWriter(Stream output, Encoding encoding) : this(output, encoding, false) {
         }
 
-        public BinaryWriter(Stream output, Encoding encoding, bool leaveOpen)
-        {
+        public BinaryWriter(Stream output, Encoding encoding, bool leaveOpen) {
             if (output == null)
                 throw new ArgumentNullException(nameof(output));
             if (encoding == null)
@@ -84,15 +78,12 @@ namespace System.IO
         // Closes this writer and releases any system resources associated with the
         // writer. Following a call to Close, any operations on the writer
         // may raise exceptions. 
-        public virtual void Close()
-        {
+        public virtual void Close() {
             Dispose(true);
         }
 
-        protected virtual void Dispose(bool disposing)
-        {
-            if (disposing)
-            {
+        protected virtual void Dispose(bool disposing) {
+            if (disposing) {
                 if (_leaveOpen)
                     OutStream.Flush();
                 else
@@ -100,8 +91,7 @@ namespace System.IO
             }
         }
 
-        public void Dispose()
-        {
+        public void Dispose() {
             Dispose(true);
         }
 
@@ -110,10 +100,8 @@ namespace System.IO
          * writes before returning. All subclasses should override Flush to
          * ensure that all buffered data is sent to the stream.
          */
-        public virtual Stream BaseStream
-        {
-            get
-            {
+        public virtual Stream BaseStream {
+            get {
                 Flush();
                 return OutStream;
             }
@@ -121,21 +109,18 @@ namespace System.IO
 
         // Clears all buffers for this writer and causes any buffered data to be
         // written to the underlying device. 
-        public virtual void Flush()
-        {
+        public virtual void Flush() {
             OutStream.Flush();
         }
 
-        public virtual long Seek(int offset, SeekOrigin origin)
-        {
+        public virtual long Seek(int offset, SeekOrigin origin) {
             return OutStream.Seek(offset, origin);
         }
 
         // Writes a boolean to this stream. A single byte is written to the stream
         // with the value 0 representing false or the value 1 representing true.
         // 
-        public virtual void Write(bool value)
-        {
+        public virtual void Write(bool value) {
             _buffer[0] = (byte)(value ? 1 : 0);
             OutStream.Write(_buffer, 0, 1);
         }
@@ -143,8 +128,7 @@ namespace System.IO
         // Writes a byte to this stream. The current position of the stream is
         // advanced by one.
         // 
-        public virtual void Write(byte value)
-        {
+        public virtual void Write(byte value) {
             OutStream.WriteByte(value);
         }
 
@@ -152,8 +136,7 @@ namespace System.IO
         // is advanced by one.
         // 
         [CLSCompliant(false)]
-        public virtual void Write(sbyte value)
-        {
+        public virtual void Write(sbyte value) {
             OutStream.WriteByte((byte)value);
         }
 
@@ -162,8 +145,7 @@ namespace System.IO
         // This default implementation calls the Write(Object, int, int)
         // method to write the byte array.
         // 
-        public virtual void Write(byte[] buffer)
-        {
+        public virtual void Write(byte[] buffer) {
             if (buffer == null)
                 throw new ArgumentNullException(nameof(buffer));
             Contract.EndContractBlock();
@@ -175,8 +157,7 @@ namespace System.IO
         // This default implementation calls the Write(Object, int, int)
         // method to write the byte array.
         // 
-        public virtual void Write(byte[] buffer, int index, int count)
-        {
+        public virtual void Write(byte[] buffer, int index, int count) {
             OutStream.Write(buffer, index, count);
         }
 
@@ -185,16 +166,14 @@ namespace System.IO
         // advanced by two.
         // Note this method cannot handle surrogates properly in UTF-8.
         // 
-        public unsafe virtual void Write(char ch)
-        {
+        public unsafe virtual void Write(char ch) {
             if (Char.IsSurrogate(ch))
                 throw new ArgumentException(SR.Arg_SurrogatesNotAllowedAsSingleChar);
             Contract.EndContractBlock();
 
             Debug.Assert(_encoding.GetMaxByteCount(1) <= 16, "_encoding.GetMaxByteCount(1) <= 16)");
             int numBytes = 0;
-            fixed (byte* pBytes = &_buffer[0])
-            {
+            fixed (byte* pBytes = &_buffer[0]) {
                 numBytes = _encoder.GetBytes(&ch, 1, pBytes, _buffer.Length, flush: true);
             }
             OutStream.Write(_buffer, 0, numBytes);
@@ -205,8 +184,7 @@ namespace System.IO
         // This default implementation calls the Write(Object, int, int)
         // method to write the character array.
         // 
-        public virtual void Write(char[] chars)
-        {
+        public virtual void Write(char[] chars) {
             if (chars == null)
                 throw new ArgumentNullException(nameof(chars));
             Contract.EndContractBlock();
@@ -220,8 +198,7 @@ namespace System.IO
         // This default implementation calls the Write(Object, int, int)
         // method to write the character array.
         // 
-        public virtual void Write(char[] chars, int index, int count)
-        {
+        public virtual void Write(char[] chars, int index, int count) {
             byte[] bytes = _encoding.GetBytes(chars, index, count);
             OutStream.Write(bytes, 0, bytes.Length);
         }
@@ -230,8 +207,7 @@ namespace System.IO
         // Writes a double to this stream. The current position of the stream is
         // advanced by eight.
         // 
-        public unsafe virtual void Write(double value)
-        {
+        public unsafe virtual void Write(double value) {
             ulong TmpValue = *(ulong*)&value;
             _buffer[0] = (byte)TmpValue;
             _buffer[1] = (byte)(TmpValue >> 8);
@@ -244,8 +220,7 @@ namespace System.IO
             OutStream.Write(_buffer, 0, 8);
         }
 
-        public virtual void Write(decimal value)
-        {
+        public virtual void Write(decimal value) {
             Decimal.GetBytes(value, _buffer);
             OutStream.Write(_buffer, 0, 16);
         }
@@ -253,8 +228,7 @@ namespace System.IO
         // Writes a two-byte signed integer to this stream. The current position of
         // the stream is advanced by two.
         // 
-        public virtual void Write(short value)
-        {
+        public virtual void Write(short value) {
             _buffer[0] = (byte)value;
             _buffer[1] = (byte)(value >> 8);
             OutStream.Write(_buffer, 0, 2);
@@ -264,8 +238,7 @@ namespace System.IO
         // of the stream is advanced by two.
         // 
         [CLSCompliant(false)]
-        public virtual void Write(ushort value)
-        {
+        public virtual void Write(ushort value) {
             _buffer[0] = (byte)value;
             _buffer[1] = (byte)(value >> 8);
             OutStream.Write(_buffer, 0, 2);
@@ -274,8 +247,7 @@ namespace System.IO
         // Writes a four-byte signed integer to this stream. The current position
         // of the stream is advanced by four.
         // 
-        public virtual void Write(int value)
-        {
+        public virtual void Write(int value) {
             _buffer[0] = (byte)value;
             _buffer[1] = (byte)(value >> 8);
             _buffer[2] = (byte)(value >> 16);
@@ -287,8 +259,7 @@ namespace System.IO
         // of the stream is advanced by four.
         // 
         [CLSCompliant(false)]
-        public virtual void Write(uint value)
-        {
+        public virtual void Write(uint value) {
             _buffer[0] = (byte)value;
             _buffer[1] = (byte)(value >> 8);
             _buffer[2] = (byte)(value >> 16);
@@ -299,8 +270,7 @@ namespace System.IO
         // Writes an eight-byte signed integer to this stream. The current position
         // of the stream is advanced by eight.
         // 
-        public virtual void Write(long value)
-        {
+        public virtual void Write(long value) {
             _buffer[0] = (byte)value;
             _buffer[1] = (byte)(value >> 8);
             _buffer[2] = (byte)(value >> 16);
@@ -316,8 +286,7 @@ namespace System.IO
         // position of the stream is advanced by eight.
         // 
         [CLSCompliant(false)]
-        public virtual void Write(ulong value)
-        {
+        public virtual void Write(ulong value) {
             _buffer[0] = (byte)value;
             _buffer[1] = (byte)(value >> 8);
             _buffer[2] = (byte)(value >> 16);
@@ -332,8 +301,7 @@ namespace System.IO
         // Writes a float to this stream. The current position of the stream is
         // advanced by four.
         // 
-        public unsafe virtual void Write(float value)
-        {
+        public unsafe virtual void Write(float value) {
             uint TmpValue = *(uint*)&value;
             _buffer[0] = (byte)TmpValue;
             _buffer[1] = (byte)(TmpValue >> 8);
@@ -348,8 +316,7 @@ namespace System.IO
         // a four-byte unsigned integer, and then writes that many characters 
         // to the stream.
         // 
-        public unsafe virtual void Write(String value)
-        {
+        public unsafe virtual void Write(String value) {
             if (value == null)
                 throw new ArgumentNullException(nameof(value));
             Contract.EndContractBlock();
@@ -357,20 +324,17 @@ namespace System.IO
             int len = _encoding.GetByteCount(value);
             Write7BitEncodedInt(len);
 
-            if (_largeByteBuffer == null)
-            {
+            if (_largeByteBuffer == null) {
                 _largeByteBuffer = new byte[LargeByteBufferSize];
                 _maxChars = _largeByteBuffer.Length / _encoding.GetMaxByteCount(1);
             }
 
-            if (len <= _largeByteBuffer.Length)
-            {
+            if (len <= _largeByteBuffer.Length) {
                 //Debug.Assert(len == _encoding.GetBytes(chars, 0, chars.Length, _largeByteBuffer, 0), "encoding's GetByteCount & GetBytes gave different answers!  encoding type: "+_encoding.GetType().Name);
                 _encoding.GetBytes(value, 0, value.Length, _largeByteBuffer, 0);
                 OutStream.Write(_largeByteBuffer, 0, len);
             }
-            else
-            {
+            else {
                 // Aggressively try to not allocate memory in this loop for
                 // runtime performance reasons.  Use an Encoder to write out 
                 // the string correctly (handling surrogates crossing buffer
@@ -380,22 +344,17 @@ namespace System.IO
 #if _DEBUG
                 int totalBytes = 0;
 #endif
-                while (numLeft > 0)
-                {
+                while (numLeft > 0) {
                     // Figure out how many chars to process this round.
                     int charCount = (numLeft > _maxChars) ? _maxChars : numLeft;
                     int byteLen;
 
-                    checked
-                    {
-                        if (charStart < 0 || charCount < 0 || charStart > value.Length - charCount)
-                        {
+                    checked {
+                        if (charStart < 0 || charCount < 0 || charStart > value.Length - charCount) {
                             throw new ArgumentOutOfRangeException(nameof(charCount));
                         }
-                        fixed (char* pChars = value)
-                        {
-                            fixed (byte* pBytes = &_largeByteBuffer[0])
-                            {
+                        fixed (char* pChars = value) {
+                            fixed (byte* pBytes = &_largeByteBuffer[0]) {
                                 byteLen = _encoder.GetBytes(pChars + charStart, charCount, pBytes, _largeByteBuffer.Length, charCount == numLeft);
                             }
                         }
@@ -414,13 +373,11 @@ namespace System.IO
             }
         }
 
-        protected void Write7BitEncodedInt(int value)
-        {
+        protected void Write7BitEncodedInt(int value) {
             // Write out an int 7 bits at a time.  The high bit of the byte,
             // when on, tells reader to continue reading more bytes.
             uint v = (uint)value;   // support negative numbers
-            while (v >= 0x80)
-            {
+            while (v >= 0x80) {
                 Write((byte)(v | 0x80));
                 v >>= 7;
             }

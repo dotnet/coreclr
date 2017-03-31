@@ -10,8 +10,7 @@
 ** 
 ===========================================================*/
 
-namespace System.Threading
-{
+namespace System.Threading {
     using Microsoft.Win32.SafeHandles;
     using System.Runtime.InteropServices;
     using System.Runtime.CompilerServices;
@@ -27,8 +26,7 @@ namespace System.Threading
 
 
     [Flags]
-    internal enum SynchronizationContextProperties
-    {
+    internal enum SynchronizationContextProperties {
         None = 0,
         RequireWaitNotification = 0x1
     };
@@ -39,18 +37,15 @@ namespace System.Threading
     // I'd like this to be an interface, or at least an abstract class - but neither seems to play nice with FriendAccessAllowed.
     //
     [FriendAccessAllowed]
-    internal class WinRTSynchronizationContextFactoryBase
-    {
+    internal class WinRTSynchronizationContextFactoryBase {
         public virtual SynchronizationContext Create(object coreDispatcher) { return null; }
     }
 #endif //FEATURE_COMINTEROP
 
-    public class SynchronizationContext
-    {
+    public class SynchronizationContext {
         private SynchronizationContextProperties _props = SynchronizationContextProperties.None;
 
-        public SynchronizationContext()
-        {
+        public SynchronizationContext() {
         }
 
 
@@ -65,8 +60,7 @@ namespace System.Threading
 
         // protected so that only the derived sync context class can enable these flags
         [SuppressMessage("Microsoft.Concurrency", "CA8001", Justification = "We never dereference s_cachedPreparedType*, so ordering is unimportant")]
-        protected void SetWaitNotificationRequired()
-        {
+        protected void SetWaitNotificationRequired() {
             //
             // Prepare the method so that it can be called in a reliable fashion when a wait is needed.
             // This will obviously only make the Wait reliable if the Wait method is itself reliable. The only thing
@@ -83,8 +77,7 @@ namespace System.Threading
                 s_cachedPreparedType2 != type &&
                 s_cachedPreparedType3 != type &&
                 s_cachedPreparedType4 != type &&
-                s_cachedPreparedType5 != type)
-            {
+                s_cachedPreparedType5 != type) {
                 RuntimeHelpers.PrepareDelegate(new WaitDelegate(this.Wait));
 
                 if (s_cachedPreparedType1 == null) s_cachedPreparedType1 = type;
@@ -97,19 +90,16 @@ namespace System.Threading
             _props |= SynchronizationContextProperties.RequireWaitNotification;
         }
 
-        public bool IsWaitNotificationRequired()
-        {
+        public bool IsWaitNotificationRequired() {
             return ((_props & SynchronizationContextProperties.RequireWaitNotification) != 0);
         }
 
 
-        public virtual void Send(SendOrPostCallback d, Object state)
-        {
+        public virtual void Send(SendOrPostCallback d, Object state) {
             d(state);
         }
 
-        public virtual void Post(SendOrPostCallback d, Object state)
-        {
+        public virtual void Post(SendOrPostCallback d, Object state) {
             ThreadPool.QueueUserWorkItem(new WaitCallback(d), state);
         }
 
@@ -117,30 +107,25 @@ namespace System.Threading
         /// <summary>
         ///     Optional override for subclasses, for responding to notification that operation is starting.
         /// </summary>
-        public virtual void OperationStarted()
-        {
+        public virtual void OperationStarted() {
         }
 
         /// <summary>
         ///     Optional override for subclasses, for responding to notification that operation has completed.
         /// </summary>
-        public virtual void OperationCompleted()
-        {
+        public virtual void OperationCompleted() {
         }
 
         // Method called when the CLR does a wait operation
         [CLSCompliant(false)]
-        public virtual int Wait(IntPtr[] waitHandles, bool waitAll, int millisecondsTimeout)
-        {
+        public virtual int Wait(IntPtr[] waitHandles, bool waitAll, int millisecondsTimeout) {
             return WaitHelper(waitHandles, waitAll, millisecondsTimeout);
         }
 
         // Method that can be called by Wait overrides
         [CLSCompliant(false)]
-        protected static int WaitHelper(IntPtr[] waitHandles, bool waitAll, int millisecondsTimeout)
-        {
-            if (waitHandles == null)
-            {
+        protected static int WaitHelper(IntPtr[] waitHandles, bool waitAll, int millisecondsTimeout) {
+            if (waitHandles == null) {
                 throw new ArgumentNullException(nameof(waitHandles));
             }
             Contract.EndContractBlock();
@@ -154,15 +139,12 @@ namespace System.Threading
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         private static extern int WaitHelperNative(IntPtr[] waitHandles, bool waitAll, int millisecondsTimeout);
 
-        public static void SetSynchronizationContext(SynchronizationContext syncContext)
-        {
+        public static void SetSynchronizationContext(SynchronizationContext syncContext) {
             Thread.CurrentThread.SynchronizationContext = syncContext;
         }
 
-        public static SynchronizationContext Current
-        {
-            get
-            {
+        public static SynchronizationContext Current {
+            get {
                 SynchronizationContext context = Thread.CurrentThread.SynchronizationContext;
 
 #if FEATURE_APPX
@@ -175,18 +157,15 @@ namespace System.Threading
         }
 
         // Get the last SynchronizationContext that was set explicitly (not flowed via ExecutionContext.Capture/Run)        
-        internal static SynchronizationContext CurrentNoFlow
-        {
+        internal static SynchronizationContext CurrentNoFlow {
             [FriendAccessAllowed]
-            get
-            {
+            get {
                 return Current; // SC never flows
             }
         }
 
 #if FEATURE_APPX
-        private static SynchronizationContext GetWinRTContext()
-        {
+        private static SynchronizationContext GetWinRTContext() {
             Debug.Assert(Environment.IsWinRTSupported);
             Debug.Assert(AppDomain.IsAppXModel());
 
@@ -209,16 +188,14 @@ namespace System.Threading
 
         private static WinRTSynchronizationContextFactoryBase s_winRTContextFactory;
 
-        private static WinRTSynchronizationContextFactoryBase GetWinRTSynchronizationContextFactory()
-        {
+        private static WinRTSynchronizationContextFactoryBase GetWinRTSynchronizationContextFactory() {
             //
             // Since we can't directly reference System.Runtime.WindowsRuntime from mscorlib, we have to get the factory via reflection.
             // It would be better if we could just implement WinRTSynchronizationContextFactory in mscorlib, but we can't, because
             // we can do very little with WinRT stuff in mscorlib.
             //
             WinRTSynchronizationContextFactoryBase factory = s_winRTContextFactory;
-            if (factory == null)
-            {
+            if (factory == null) {
                 Type factoryType = Type.GetType("System.Threading.WinRTSynchronizationContextFactory, " + AssemblyRef.SystemRuntimeWindowsRuntime, true);
                 s_winRTContextFactory = factory = (WinRTSynchronizationContextFactoryBase)Activator.CreateInstance(factoryType, true);
             }
@@ -233,14 +210,12 @@ namespace System.Threading
 
 
         // helper to Clone this SynchronizationContext, 
-        public virtual SynchronizationContext CreateCopy()
-        {
+        public virtual SynchronizationContext CreateCopy() {
             // the CLR dummy has an empty clone function - no member data
             return new SynchronizationContext();
         }
 
-        private static int InvokeWaitMethodHelper(SynchronizationContext syncContext, IntPtr[] waitHandles, bool waitAll, int millisecondsTimeout)
-        {
+        private static int InvokeWaitMethodHelper(SynchronizationContext syncContext, IntPtr[] waitHandles, bool waitAll, int millisecondsTimeout) {
             return syncContext.Wait(waitHandles, waitAll, millisecondsTimeout);
         }
     }

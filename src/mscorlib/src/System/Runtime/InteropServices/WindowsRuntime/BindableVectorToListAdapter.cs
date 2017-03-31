@@ -14,8 +14,7 @@ using System.Diagnostics.Contracts;
 using System.Runtime.InteropServices;
 using System.Runtime.CompilerServices;
 
-namespace System.Runtime.InteropServices.WindowsRuntime
-{
+namespace System.Runtime.InteropServices.WindowsRuntime {
     // This is a set of stub methods implementing the support for the IList interface on WinRT
     // objects that support IBindableVector. Used by the interop mashaling infrastructure.
     //
@@ -24,16 +23,13 @@ namespace System.Runtime.InteropServices.WindowsRuntime
     // for all of these methods are not BindableVectorToListAdapter objects. Rather, they are
     // of type IBindableVector. No actual BindableVectorToListAdapter object is ever instantiated.
     // Thus, you will see a lot of expressions that cast "this" to "IBindableVector".
-    internal sealed class BindableVectorToListAdapter
-    {
-        private BindableVectorToListAdapter()
-        {
+    internal sealed class BindableVectorToListAdapter {
+        private BindableVectorToListAdapter() {
             Debug.Assert(false, "This class is never instantiated");
         }
 
         // object this[int index] { get }
-        internal object Indexer_Get(int index)
-        {
+        internal object Indexer_Get(int index) {
             if (index < 0)
                 throw new ArgumentOutOfRangeException(nameof(index));
 
@@ -42,8 +38,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         }
 
         // object this[int index] { set }
-        internal void Indexer_Set(int index, object value)
-        {
+        internal void Indexer_Set(int index, object value) {
             if (index < 0)
                 throw new ArgumentOutOfRangeException(nameof(index));
 
@@ -52,14 +47,12 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         }
 
         // int Add(object value)
-        internal int Add(object value)
-        {
+        internal int Add(object value) {
             IBindableVector _this = JitHelpers.UnsafeCast<IBindableVector>(this);
             _this.Append(value);
 
             uint size = _this.Size;
-            if (((uint)Int32.MaxValue) < size)
-            {
+            if (((uint)Int32.MaxValue) < size) {
                 throw new InvalidOperationException(SR.InvalidOperation_CollectionBackingListTooLarge);
             }
 
@@ -67,8 +60,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         }
 
         // bool Contains(object item)
-        internal bool Contains(object item)
-        {
+        internal bool Contains(object item) {
             IBindableVector _this = JitHelpers.UnsafeCast<IBindableVector>(this);
 
             uint index;
@@ -76,29 +68,25 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         }
 
         // void Clear()
-        internal void Clear()
-        {
+        internal void Clear() {
             IBindableVector _this = JitHelpers.UnsafeCast<IBindableVector>(this);
             _this.Clear();
         }
 
         // bool IsFixedSize { get }
         [Pure]
-        internal bool IsFixedSize()
-        {
+        internal bool IsFixedSize() {
             return false;
         }
 
         // bool IsReadOnly { get }
         [Pure]
-        internal bool IsReadOnly()
-        {
+        internal bool IsReadOnly() {
             return false;
         }
 
         // int IndexOf(object item)
-        internal int IndexOf(object item)
-        {
+        internal int IndexOf(object item) {
             IBindableVector _this = JitHelpers.UnsafeCast<IBindableVector>(this);
 
             uint index;
@@ -107,8 +95,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             if (!exists)
                 return -1;
 
-            if (((uint)Int32.MaxValue) < index)
-            {
+            if (((uint)Int32.MaxValue) < index) {
                 throw new InvalidOperationException(SR.InvalidOperation_CollectionBackingListTooLarge);
             }
 
@@ -116,8 +103,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         }
 
         // void Insert(int index, object item)
-        internal void Insert(int index, object item)
-        {
+        internal void Insert(int index, object item) {
             if (index < 0)
                 throw new ArgumentOutOfRangeException(nameof(index));
 
@@ -126,17 +112,14 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         }
 
         // bool Remove(object item)
-        internal void Remove(object item)
-        {
+        internal void Remove(object item) {
             IBindableVector _this = JitHelpers.UnsafeCast<IBindableVector>(this);
 
             uint index;
             bool exists = _this.IndexOf(item, out index);
 
-            if (exists)
-            {
-                if (((uint)Int32.MaxValue) < index)
-                {
+            if (exists) {
+                if (((uint)Int32.MaxValue) < index) {
                     throw new InvalidOperationException(SR.InvalidOperation_CollectionBackingListTooLarge);
                 }
 
@@ -145,8 +128,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         }
 
         // void RemoveAt(int index)
-        internal void RemoveAt(int index)
-        {
+        internal void RemoveAt(int index) {
             if (index < 0)
                 throw new ArgumentOutOfRangeException(nameof(index));
 
@@ -156,17 +138,14 @@ namespace System.Runtime.InteropServices.WindowsRuntime
 
         // Helpers:
 
-        private static object GetAt(IBindableVector _this, uint index)
-        {
-            try
-            {
+        private static object GetAt(IBindableVector _this, uint index) {
+            try {
                 return _this.GetAt(index);
 
                 // We delegate bounds checking to the underlying collection and if it detected a fault,
                 // we translate it to the right exception:
             }
-            catch (Exception ex)
-            {
+            catch (Exception ex) {
                 if (__HResults.E_BOUNDS == ex._HResult)
                     throw new ArgumentOutOfRangeException(nameof(index));
 
@@ -174,17 +153,14 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             }
         }
 
-        private static void SetAt(IBindableVector _this, uint index, object value)
-        {
-            try
-            {
+        private static void SetAt(IBindableVector _this, uint index, object value) {
+            try {
                 _this.SetAt(index, value);
 
                 // We delegate bounds checking to the underlying collection and if it detected a fault,
                 // we translate it to the right exception:
             }
-            catch (Exception ex)
-            {
+            catch (Exception ex) {
                 if (__HResults.E_BOUNDS == ex._HResult)
                     throw new ArgumentOutOfRangeException(nameof(index));
 
@@ -192,17 +168,14 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             }
         }
 
-        private static void InsertAtHelper(IBindableVector _this, uint index, object item)
-        {
-            try
-            {
+        private static void InsertAtHelper(IBindableVector _this, uint index, object item) {
+            try {
                 _this.InsertAt(index, item);
 
                 // We delegate bounds checking to the underlying collection and if it detected a fault,
                 // we translate it to the right exception:
             }
-            catch (Exception ex)
-            {
+            catch (Exception ex) {
                 if (__HResults.E_BOUNDS == ex._HResult)
                     throw new ArgumentOutOfRangeException(nameof(index));
 
@@ -210,17 +183,14 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             }
         }
 
-        private static void RemoveAtHelper(IBindableVector _this, uint index)
-        {
-            try
-            {
+        private static void RemoveAtHelper(IBindableVector _this, uint index) {
+            try {
                 _this.RemoveAt(index);
 
                 // We delegate bounds checking to the underlying collection and if it detected a fault,
                 // we translate it to the right exception:
             }
-            catch (Exception ex)
-            {
+            catch (Exception ex) {
                 if (__HResults.E_BOUNDS == ex._HResult)
                     throw new ArgumentOutOfRangeException(nameof(index));
 

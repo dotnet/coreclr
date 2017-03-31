@@ -7,22 +7,18 @@
 using System;
 using System.Diagnostics.Contracts;
 
-namespace System.Runtime.InteropServices.WindowsRuntime
-{
+namespace System.Runtime.InteropServices.WindowsRuntime {
     [ComImport]
     [WindowsRuntimeImport]
     [Guid("6a79e863-4300-459a-9966-cbb660963ee1")]
-    internal interface IIterator<T>
-    {
+    internal interface IIterator<T> {
         [Pure]
-        T Current
-        {
+        T Current {
             get;
         }
 
         [Pure]
-        bool HasCurrent
-        {
+        bool HasCurrent {
             get;
         }
 
@@ -35,17 +31,14 @@ namespace System.Runtime.InteropServices.WindowsRuntime
     [ComImport]
     [WindowsRuntimeImport]
     [Guid("6a1d6c07-076d-49f2-8314-f52c9c9a8331")]
-    internal interface IBindableIterator
-    {
+    internal interface IBindableIterator {
         [Pure]
-        object Current
-        {
+        object Current {
             get;
         }
 
         [Pure]
-        bool HasCurrent
-        {
+        bool HasCurrent {
             get;
         }
 

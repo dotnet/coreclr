@@ -16,11 +16,9 @@
 
 using System.Runtime.InteropServices;
 
-namespace System.Threading
-{
+namespace System.Threading {
     [ComVisibleAttribute(false)]
-    public enum EventResetMode
-    {
+    public enum EventResetMode {
         AutoReset = 0,
         ManualReset = 1
     }

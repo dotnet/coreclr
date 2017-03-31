@@ -5,10 +5,8 @@
 using System;
 using System.Runtime.InteropServices;
 
-internal static partial class Interop
-{
-    internal static unsafe partial class Kernel32
-    {
+internal static partial class Interop {
+    internal static unsafe partial class Kernel32 {
         internal const int  LOCALE_NAME_MAX_LENGTH      = 85;
         internal const uint LOCALE_ALLOW_NEUTRAL_NAMES  = 0x08000000; // Flag to allow returning neutral names/lcids for name conversion
         internal const uint LOCALE_SUPPLEMENTAL         = 0x00000002;
@@ -116,8 +114,7 @@ internal static partial class Interop
         internal delegate BOOL EnumCalendarInfoProcExEx(IntPtr lpCalendarInfoString, uint Calendar, IntPtr lpReserved, IntPtr lParam);
 
         [StructLayout(LayoutKind.Sequential)]
-        internal struct NlsVersionInfoEx 
-        {
+        internal struct NlsVersionInfoEx {
             internal int dwNLSVersionInfoSize;
             internal int dwNLSVersion;
             internal int dwDefinedVersion;

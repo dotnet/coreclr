@@ -9,12 +9,10 @@ using System.Collections.Generic;
 using System.Diagnostics.Contracts;
 using System.Threading;
 
-namespace System.Runtime.InteropServices.WindowsRuntime
-{
+namespace System.Runtime.InteropServices.WindowsRuntime {
     // An event registration token table stores mappings from delegates to event tokens, in order to support
     // sourcing WinRT style events from managed code.
-    public sealed class EventRegistrationTokenTable<T> where T : class
-    {
+    public sealed class EventRegistrationTokenTable<T> where T : class {
         // Note this dictionary is also used as the synchronization object for this table
         private Dictionary<EventRegistrationToken, T> m_tokens = new Dictionary<EventRegistrationToken, T>();
 
@@ -22,64 +20,52 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         // will be accessed frequently in common coding paterns, so we don't want to calculate it repeatedly.
         private volatile T m_invokeList;
 
-        public EventRegistrationTokenTable()
-        {
+        public EventRegistrationTokenTable() {
             // T must be a delegate type, but we cannot constrain on being a delegate.  Therefore, we'll do a
             // static check at construction time
-            if (!typeof(Delegate).IsAssignableFrom(typeof(T)))
-            {
+            if (!typeof(Delegate).IsAssignableFrom(typeof(T))) {
                 throw new InvalidOperationException(SR.Format(SR.InvalidOperation_EventTokenTableRequiresDelegate, typeof (T)));
             }
         }
 
         // The InvocationList property provides access to a delegate which will invoke every registered event handler
         // in this table.  If the property is set, the new value will replace any existing token registrations.
-        public T InvocationList
-        {
-            get
-            {
+        public T InvocationList {
+            get {
                 return m_invokeList;
             }
 
-            set
-            {
-                lock (m_tokens)
-                {
+            set {
+                lock (m_tokens) {
                     // The value being set replaces any of the existing values
                     m_tokens.Clear();
                     m_invokeList = null;
 
-                    if (value != null)
-                    {
+                    if (value != null) {
                         AddEventHandlerNoLock(value);
                     }
                 }
             }
         }
 
-        public EventRegistrationToken AddEventHandler(T handler)
-        {
+        public EventRegistrationToken AddEventHandler(T handler) {
             // Windows Runtime allows null handlers.  Assign those a token value of 0 for easy identity
-            if (handler == null)
-            {
+            if (handler == null) {
                 return new EventRegistrationToken(0);
             }
 
-            lock (m_tokens)
-            {
+            lock (m_tokens) {
                 return AddEventHandlerNoLock(handler);
             }
         }
 
-        private EventRegistrationToken AddEventHandlerNoLock(T handler)
-        {
+        private EventRegistrationToken AddEventHandlerNoLock(T handler) {
             Contract.Requires(handler != null);
 
             // Get a registration token, making sure that we haven't already used the value.  This should be quite
             // rare, but in the case it does happen, just keep trying until we find one that's unused.
             EventRegistrationToken token = GetPreferredToken(handler);
-            while (m_tokens.ContainsKey(token))
-            {
+            while (m_tokens.ContainsKey(token)) {
                 token = new EventRegistrationToken(token.Value + 1);
             }
             m_tokens[token] = handler;
@@ -96,13 +82,10 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         // remove the registration from the table at the same time.  If the token is not registered,
         // Extract returns null and does not modify the table.
         [System.Runtime.CompilerServices.FriendAccessAllowed]
-        internal T ExtractHandler(EventRegistrationToken token)
-        {
+        internal T ExtractHandler(EventRegistrationToken token) {
             T handler = null;
-            lock (m_tokens)
-            {
-                if (m_tokens.TryGetValue(token, out handler))
-                {
+            lock (m_tokens) {
+                if (m_tokens.TryGetValue(token, out handler)) {
                     RemoveEventHandlerNoLock(token);
                 }
             }
@@ -125,8 +108,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         // Effectively the only reasonable thing to do with this value is either to:
         //  1. Use it as a good starting point for generating a token for handler
         //  2. Use it as a guess to quickly see if the handler was really assigned this token value
-        private static EventRegistrationToken GetPreferredToken(T handler)
-        {
+        private static EventRegistrationToken GetPreferredToken(T handler) {
             Contract.Requires(handler != null);
 
             // We want to generate a token value that has the following properties:
@@ -156,12 +138,10 @@ namespace System.Runtime.InteropServices.WindowsRuntime
 
             uint handlerHashCode = 0;
             Delegate[] invocationList = ((Delegate)(object)handler).GetInvocationList();
-            if (invocationList.Length == 1)
-            {
+            if (invocationList.Length == 1) {
                 handlerHashCode = (uint)invocationList[0].Method.GetHashCode();
             }
-            else
-            {
+            else {
                 handlerHashCode = (uint)handler.GetHashCode();
             }
 
@@ -169,30 +149,24 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             return new EventRegistrationToken(tokenValue);
         }
 
-        public void RemoveEventHandler(EventRegistrationToken token)
-        {
+        public void RemoveEventHandler(EventRegistrationToken token) {
             // The 0 token is assigned to null handlers, so there's nothing to do
-            if (token.Value == 0)
-            {
+            if (token.Value == 0) {
                 return;
             }
 
-            lock (m_tokens)
-            {
+            lock (m_tokens) {
                 RemoveEventHandlerNoLock(token);
             }
         }
 
-        public void RemoveEventHandler(T handler)
-        {
+        public void RemoveEventHandler(T handler) {
             // To match the Windows Runtime behaivor when adding a null handler, removing one is a no-op
-            if (handler == null)
-            {
+            if (handler == null) {
                 return;
             }
 
-            lock (m_tokens)
-            {
+            lock (m_tokens) {
                 // Fast path - if the delegate is stored with its preferred token, then there's no need to do
                 // a full search of the table for it.  Note that even if we find something stored using the
                 // preferred token value, it's possible we have a collision and another delegate was using that
@@ -200,10 +174,8 @@ namespace System.Runtime.InteropServices.WindowsRuntime
                 // fast path.
                 EventRegistrationToken preferredToken = GetPreferredToken(handler);
                 T registeredHandler;
-                if (m_tokens.TryGetValue(preferredToken, out registeredHandler))
-                {
-                    if (registeredHandler == handler)
-                    {
+                if (m_tokens.TryGetValue(preferredToken, out registeredHandler)) {
+                    if (registeredHandler == handler) {
                         RemoveEventHandlerNoLock(preferredToken);
                         return;
                     }
@@ -211,10 +183,8 @@ namespace System.Runtime.InteropServices.WindowsRuntime
 
                 // Slow path - we didn't find the delegate with its preferred token, so we need to fall
                 // back to a search of the table
-                foreach (KeyValuePair<EventRegistrationToken, T> registration in m_tokens)
-                {
-                    if (registration.Value == (T)(object)handler)
-                    {
+                foreach (KeyValuePair<EventRegistrationToken, T> registration in m_tokens) {
+                    if (registration.Value == (T)(object)handler) {
                         RemoveEventHandlerNoLock(registration.Key);
 
                         // If a delegate has been added multiple times to handle an event, then it
@@ -229,11 +199,9 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             }
         }
 
-        private void RemoveEventHandlerNoLock(EventRegistrationToken token)
-        {
+        private void RemoveEventHandlerNoLock(EventRegistrationToken token) {
             T handler;
-            if (m_tokens.TryGetValue(token, out handler))
-            {
+            if (m_tokens.TryGetValue(token, out handler)) {
                 m_tokens.Remove(token);
 
                 // Update the current invocation list to remove the delegate
@@ -243,10 +211,8 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             }
         }
 
-        public static EventRegistrationTokenTable<T> GetOrCreateEventRegistrationTokenTable(ref EventRegistrationTokenTable<T> refEventTable)
-        {
-            if (refEventTable == null)
-            {
+        public static EventRegistrationTokenTable<T> GetOrCreateEventRegistrationTokenTable(ref EventRegistrationTokenTable<T> refEventTable) {
+            if (refEventTable == null) {
                 Interlocked.CompareExchange(ref refEventTable, new EventRegistrationTokenTable<T>(), null);
             }
             return refEventTable;

@@ -24,16 +24,13 @@
 using System;
 using System.Diagnostics.Contracts;
 
-namespace System.Resources
-{
+namespace System.Resources {
     [AttributeUsage(AttributeTargets.Assembly, AllowMultiple = false)]
-    public sealed class NeutralResourcesLanguageAttribute : Attribute
-    {
+    public sealed class NeutralResourcesLanguageAttribute : Attribute {
         private String _culture;
         private UltimateResourceFallbackLocation _fallbackLoc;
 
-        public NeutralResourcesLanguageAttribute(String cultureName)
-        {
+        public NeutralResourcesLanguageAttribute(String cultureName) {
             if (cultureName == null)
                 throw new ArgumentNullException(nameof(cultureName));
             Contract.EndContractBlock();
@@ -42,8 +39,7 @@ namespace System.Resources
             _fallbackLoc = UltimateResourceFallbackLocation.MainAssembly;
         }
 
-        public NeutralResourcesLanguageAttribute(String cultureName, UltimateResourceFallbackLocation location)
-        {
+        public NeutralResourcesLanguageAttribute(String cultureName, UltimateResourceFallbackLocation location) {
             if (cultureName == null)
                 throw new ArgumentNullException(nameof(cultureName));
             if (!Enum.IsDefined(typeof(UltimateResourceFallbackLocation), location))
@@ -54,13 +50,11 @@ namespace System.Resources
             _fallbackLoc = location;
         }
 
-        public String CultureName
-        {
+        public String CultureName {
             get { return _culture; }
         }
 
-        public UltimateResourceFallbackLocation Location
-        {
+        public UltimateResourceFallbackLocation Location {
             get { return _fallbackLoc; }
         }
     }

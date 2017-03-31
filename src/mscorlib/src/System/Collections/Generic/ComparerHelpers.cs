@@ -5,8 +5,7 @@
 using System.Diagnostics;
 using static System.RuntimeTypeHandle;
 
-namespace System.Collections.Generic
-{
+namespace System.Collections.Generic {
     /// <summary>
     /// Helper class for creating the default <see cref="Comparer{T}"/> and <see cref="EqualityComparer{T}"/>.
     /// </summary>
@@ -16,8 +15,7 @@ namespace System.Collections.Generic
     /// much since they will only be run once per type parameter, but generic code involved in creating the comparers needs to be
     /// kept to a minimum.
     /// </remarks>
-    internal static class ComparerHelpers
-    {
+    internal static class ComparerHelpers {
         /// <summary>
         /// Creates the default <see cref="Comparer{T}"/>.
         /// </summary>
@@ -25,30 +23,25 @@ namespace System.Collections.Generic
         /// <remarks>
         /// The logic in this method is replicated in vm/compile.cpp to ensure that NGen saves the right instantiations.
         /// </remarks>
-        internal static object CreateDefaultComparer(Type type)
-        {
+        internal static object CreateDefaultComparer(Type type) {
             Debug.Assert(type != null && type is RuntimeType);
 
             object result = null;
             var runtimeType = (RuntimeType)type;
 
             // If T implements IComparable<T> return a GenericComparer<T>
-            if (typeof(IComparable<>).MakeGenericType(type).IsAssignableFrom(type))
-            {
+            if (typeof(IComparable<>).MakeGenericType(type).IsAssignableFrom(type)) {
                 result = CreateInstanceForAnotherGenericParameter((RuntimeType)typeof(GenericComparer<int>), runtimeType);
             }
             // Nullable does not implement IComparable<T?> directly because that would add an extra interface call per comparison.
             // Instead, it relies on Comparer<T?>.Default to specialize for nullables and do the lifted comparisons if T implements IComparable.
-            else if (type.IsGenericType)
-            {
-                if (type.GetGenericTypeDefinition() == typeof(Nullable<>))
-                {
+            else if (type.IsGenericType) {
+                if (type.GetGenericTypeDefinition() == typeof(Nullable<>)) {
                     result = TryCreateNullableComparer(runtimeType);
                 }
             }
             // The comparer for enums is specialized to avoid boxing.
-            else if (type.IsEnum)
-            {
+            else if (type.IsEnum) {
                 result = TryCreateEnumComparer(runtimeType);
             }
             
@@ -59,15 +52,13 @@ namespace System.Collections.Generic
         /// Creates the default <see cref="Comparer{T}"/> for a nullable type.
         /// </summary>
         /// <param name="nullableType">The nullable type to create the default comparer for.</param>
-        private static object TryCreateNullableComparer(RuntimeType nullableType)
-        {
+        private static object TryCreateNullableComparer(RuntimeType nullableType) {
             Debug.Assert(nullableType != null);
             Debug.Assert(nullableType.IsGenericType && nullableType.GetGenericTypeDefinition() == typeof(Nullable<>));
             
             var embeddedType = (RuntimeType)nullableType.GetGenericArguments()[0];
 
-            if (typeof(IComparable<>).MakeGenericType(embeddedType).IsAssignableFrom(embeddedType))
-            {
+            if (typeof(IComparable<>).MakeGenericType(embeddedType).IsAssignableFrom(embeddedType)) {
                 return RuntimeTypeHandle.CreateInstanceForAnotherGenericParameter((RuntimeType)typeof(NullableComparer<int>), embeddedType);
             }
 
@@ -78,8 +69,7 @@ namespace System.Collections.Generic
         /// Creates the default <see cref="Comparer{T}"/> for an enum type.
         /// </summary>
         /// <param name="enumType">The enum type to create the default comparer for.</param>
-        private static object TryCreateEnumComparer(RuntimeType enumType)
-        {
+        private static object TryCreateEnumComparer(RuntimeType enumType) {
             Debug.Assert(enumType != null);
             Debug.Assert(enumType.IsEnum);
 
@@ -90,8 +80,7 @@ namespace System.Collections.Generic
             
             // Depending on the enum type, we need to special case the comparers so that we avoid boxing.
             // Specialize differently for signed/unsigned types so we avoid problems with large numbers.
-            switch (underlyingTypeCode)
-            {
+            switch (underlyingTypeCode) {
                 case TypeCode.SByte:
                 case TypeCode.Int16:
                 case TypeCode.Int32:
@@ -117,35 +106,29 @@ namespace System.Collections.Generic
         /// <remarks>
         /// The logic in this method is replicated in vm/compile.cpp to ensure that NGen saves the right instantiations.
         /// </remarks>
-        internal static object CreateDefaultEqualityComparer(Type type)
-        {
+        internal static object CreateDefaultEqualityComparer(Type type) {
             Debug.Assert(type != null && type is RuntimeType);
 
             object result = null;
             var runtimeType = (RuntimeType)type;
 
             // Specialize for byte so Array.IndexOf is faster.
-            if (type == typeof(byte))
-            {
+            if (type == typeof(byte)) {
                 result = new ByteEqualityComparer();
             }
             // If T implements IEquatable<T> return a GenericEqualityComparer<T>
-            else if (typeof(IEquatable<>).MakeGenericType(type).IsAssignableFrom(type))
-            {
+            else if (typeof(IEquatable<>).MakeGenericType(type).IsAssignableFrom(type)) {
                 result = CreateInstanceForAnotherGenericParameter((RuntimeType)typeof(GenericEqualityComparer<int>), runtimeType);
             }
             // Nullable does not implement IEquatable<T?> directly because that would add an extra interface call per comparison.
             // Instead, it relies on EqualityComparer<T?>.Default to specialize for nullables and do the lifted comparisons if T implements IEquatable.
-            else if (type.IsGenericType)
-            {
-                if (type.GetGenericTypeDefinition() == typeof(Nullable<>))
-                {
+            else if (type.IsGenericType) {
+                if (type.GetGenericTypeDefinition() == typeof(Nullable<>)) {
                     result = TryCreateNullableEqualityComparer(runtimeType);
                 }
             }
             // The equality comparer for enums is specialized to avoid boxing.
-            else if (type.IsEnum)
-            {
+            else if (type.IsEnum) {
                 result = TryCreateEnumEqualityComparer(runtimeType);
             }
             
@@ -156,15 +139,13 @@ namespace System.Collections.Generic
         /// Creates the default <see cref="EqualityComparer{T}"/> for a nullable type.
         /// </summary>
         /// <param name="nullableType">The nullable type to create the default equality comparer for.</param>
-        private static object TryCreateNullableEqualityComparer(RuntimeType nullableType)
-        {
+        private static object TryCreateNullableEqualityComparer(RuntimeType nullableType) {
             Debug.Assert(nullableType != null);
             Debug.Assert(nullableType.IsGenericType && nullableType.GetGenericTypeDefinition() == typeof(Nullable<>));
 
             var embeddedType = (RuntimeType)nullableType.GetGenericArguments()[0];
 
-            if (typeof(IEquatable<>).MakeGenericType(embeddedType).IsAssignableFrom(embeddedType))
-            {
+            if (typeof(IEquatable<>).MakeGenericType(embeddedType).IsAssignableFrom(embeddedType)) {
                 return RuntimeTypeHandle.CreateInstanceForAnotherGenericParameter((RuntimeType)typeof(NullableEqualityComparer<int>), embeddedType);
             }
             
@@ -175,8 +156,7 @@ namespace System.Collections.Generic
         /// Creates the default <see cref="EqualityComparer{T}"/> for an enum type.
         /// </summary>
         /// <param name="enumType">The enum type to create the default equality comparer for.</param>
-        private static object TryCreateEnumEqualityComparer(RuntimeType enumType)
-        {
+        private static object TryCreateEnumEqualityComparer(RuntimeType enumType) {
             Debug.Assert(enumType != null);
             Debug.Assert(enumType.IsEnum);
 
@@ -188,8 +168,7 @@ namespace System.Collections.Generic
             // Depending on the enum type, we need to special case the comparers so that we avoid boxing.
             // Note: We have different comparers for short and sbyte, since for those types GetHashCode does not simply return the value.
             // We need to preserve what they would return.
-            switch (underlyingTypeCode)
-            {
+            switch (underlyingTypeCode) {
                 case TypeCode.Int16:
                     return RuntimeTypeHandle.CreateInstanceForAnotherGenericParameter((RuntimeType)typeof(ShortEnumEqualityComparer<short>), enumType);
                 case TypeCode.SByte:

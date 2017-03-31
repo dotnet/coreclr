@@ -2,8 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-namespace System.Runtime.Serialization
-{
+namespace System.Runtime.Serialization {
     //
     // #SafeSerialization
     // 
@@ -197,8 +196,7 @@ namespace System.Runtime.Serialization
     // 
 
     // Interface to be supported by objects which are stored in safe serialization stores
-    public interface ISafeSerializationData
-    {
+    public interface ISafeSerializationData {
         // CompleteDeserialization is called when the object to which the extra serialized data was attached
         // has completed its deserialization, and now needs to be populated with the extra data stored in
         // this object.

@@ -14,8 +14,7 @@ namespace System.Diagnostics.Tracing
     /// EventActivityOptions flags allow to specify different activity related characteristics.
     /// </summary>
     [Flags]
-    public enum EventActivityOptions
-    {
+    public enum EventActivityOptions {
         /// <summary>
         /// No special options are added to the event.
         /// </summary>

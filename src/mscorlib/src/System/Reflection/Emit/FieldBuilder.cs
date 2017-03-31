@@ -4,16 +4,14 @@
 
 // 
 
-namespace System.Reflection.Emit
-{
+namespace System.Reflection.Emit {
     using System.Runtime.InteropServices;
     using System;
     using CultureInfo = System.Globalization.CultureInfo;
     using System.Reflection;
     using System.Diagnostics.Contracts;
 
-    public sealed class FieldBuilder : FieldInfo
-    {
+    public sealed class FieldBuilder : FieldInfo {
         #region Private Data Members
         private int m_fieldTok;
         private FieldToken m_tkField;
@@ -25,8 +23,7 @@ namespace System.Reflection.Emit
 
         #region Constructor
         internal FieldBuilder(TypeBuilder typeBuilder, String fieldName, Type type,
-            Type[] requiredCustomModifiers, Type[] optionalCustomModifiers, FieldAttributes attributes)
-        {
+            Type[] requiredCustomModifiers, Type[] optionalCustomModifiers, FieldAttributes attributes) {
             if (fieldName == null)
                 throw new ArgumentNullException(nameof(fieldName));
 
@@ -63,32 +60,26 @@ namespace System.Reflection.Emit
         #endregion
 
         #region Internal Members
-        internal void SetData(byte[] data, int size)
-        {
+        internal void SetData(byte[] data, int size) {
             ModuleBuilder.SetFieldRVAContent(m_typeBuilder.GetModuleBuilder().GetNativeHandle(), m_tkField.Token, data, size);
         }
         #endregion
 
         #region MemberInfo Overrides
-        internal int MetadataTokenInternal
-        {
+        internal int MetadataTokenInternal {
             get { return m_fieldTok; }
         }
 
-        public override Module Module
-        {
+        public override Module Module {
             get { return m_typeBuilder.Module; }
         }
 
-        public override String Name
-        {
+        public override String Name {
             get { return m_fieldName; }
         }
 
-        public override Type DeclaringType
-        {
-            get
-            {
+        public override Type DeclaringType {
+            get {
                 if (m_typeBuilder.m_isHiddenGlobalType == true)
                     return null;
 
@@ -96,10 +87,8 @@ namespace System.Reflection.Emit
             }
         }
 
-        public override Type ReflectedType
-        {
-            get
-            {
+        public override Type ReflectedType {
+            get {
                 if (m_typeBuilder.m_isHiddenGlobalType == true)
                     return null;
 
@@ -110,13 +99,11 @@ namespace System.Reflection.Emit
         #endregion
 
         #region FieldInfo Overrides
-        public override Type FieldType
-        {
+        public override Type FieldType {
             get { return m_fieldType; }
         }
 
-        public override Object GetValue(Object obj)
-        {
+        public override Object GetValue(Object obj) {
             // NOTE!!  If this is implemented, make sure that this throws 
             // a NotSupportedException for Save-only dynamic assemblies.
             // Otherwise, it could cause the .cctor to be executed.
@@ -124,8 +111,7 @@ namespace System.Reflection.Emit
             throw new NotSupportedException(SR.NotSupported_DynamicModule);
         }
 
-        public override void SetValue(Object obj, Object val, BindingFlags invokeAttr, Binder binder, CultureInfo culture)
-        {
+        public override void SetValue(Object obj, Object val, BindingFlags invokeAttr, Binder binder, CultureInfo culture) {
             // NOTE!!  If this is implemented, make sure that this throws 
             // a NotSupportedException for Save-only dynamic assemblies.
             // Otherwise, it could cause the .cctor to be executed.
@@ -133,59 +119,50 @@ namespace System.Reflection.Emit
             throw new NotSupportedException(SR.NotSupported_DynamicModule);
         }
 
-        public override RuntimeFieldHandle FieldHandle
-        {
+        public override RuntimeFieldHandle FieldHandle {
             get { throw new NotSupportedException(SR.NotSupported_DynamicModule); }
         }
 
-        public override FieldAttributes Attributes
-        {
+        public override FieldAttributes Attributes {
             get { return m_Attributes; }
         }
 
         #endregion
 
         #region ICustomAttributeProvider Implementation
-        public override Object[] GetCustomAttributes(bool inherit)
-        {
+        public override Object[] GetCustomAttributes(bool inherit) {
             throw new NotSupportedException(SR.NotSupported_DynamicModule);
         }
 
-        public override Object[] GetCustomAttributes(Type attributeType, bool inherit)
-        {
+        public override Object[] GetCustomAttributes(Type attributeType, bool inherit) {
             throw new NotSupportedException(SR.NotSupported_DynamicModule);
         }
 
-        public override bool IsDefined(Type attributeType, bool inherit)
-        {
+        public override bool IsDefined(Type attributeType, bool inherit) {
             throw new NotSupportedException(SR.NotSupported_DynamicModule);
         }
 
         #endregion
 
         #region Public Members
-        public FieldToken GetToken()
-        {
+        public FieldToken GetToken() {
             return m_tkField;
         }
 
-        public void SetOffset(int iOffset)
-        {
+        public void SetOffset(int iOffset) {
             m_typeBuilder.ThrowIfCreated();
 
             TypeBuilder.SetFieldLayoutOffset(m_typeBuilder.GetModuleBuilder().GetNativeHandle(), GetToken().Token, iOffset);
         }
 
-        public void SetConstant(Object defaultValue)
-        {
+        public void SetConstant(Object defaultValue) {
             m_typeBuilder.ThrowIfCreated();
 
             TypeBuilder.SetConstantValue(m_typeBuilder.GetModuleBuilder(), GetToken().Token, m_fieldType, defaultValue);
         }
 
 
-        public void SetCustomAttribute(ConstructorInfo con, byte[] binaryAttribute)
-        {
+        public void SetCustomAttribute(ConstructorInfo con, byte[] binaryAttribute) {
             if (con == null)
                 throw new ArgumentNullException(nameof(con));
 
@@ -201,8 +178,7 @@ namespace System.Reflection.Emit
                 m_tkField.Token, module.GetConstructorToken(con).Token, binaryAttribute, false, false);
         }
 
-        public void SetCustomAttribute(CustomAttributeBuilder customBuilder)
-        {
+        public void SetCustomAttribute(CustomAttributeBuilder customBuilder) {
             if (customBuilder == null)
                 throw new ArgumentNullException(nameof(customBuilder));
             Contract.EndContractBlock();

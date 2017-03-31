@@ -5,10 +5,8 @@
 using System.Reflection;
 using System.Runtime.CompilerServices;
 
-namespace System
-{
-    internal partial class DefaultBinder : Binder
-    {
+namespace System {
+    internal partial class DefaultBinder : Binder {
         // CanChangePrimitive
         // This will determine if the source can be converted to the target type
         private static bool CanChangePrimitive(Type source, Type target) => CanConvertPrimitive((RuntimeType)source, (RuntimeType)target);

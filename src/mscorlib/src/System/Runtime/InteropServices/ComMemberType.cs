@@ -7,11 +7,9 @@
 
 using System;
 
-namespace System.Runtime.InteropServices
-{
+namespace System.Runtime.InteropServices {
     [Serializable]
-    public enum ComMemberType
-    {
+    public enum ComMemberType {
         Method = 0,
         PropGet = 1,
         PropSet = 2

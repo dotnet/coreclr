@@ -13,13 +13,11 @@
 
 using System;
 
-namespace System.Runtime.InteropServices.ComTypes
-{
+namespace System.Runtime.InteropServices.ComTypes {
     [Guid("00020412-0000-0000-C000-000000000046")]
     [InterfaceTypeAttribute(ComInterfaceType.InterfaceIsIUnknown)]
     [ComImport]
-    public interface ITypeInfo2 : ITypeInfo
-    {
+    public interface ITypeInfo2 : ITypeInfo {
         new void GetTypeAttr(out IntPtr ppTypeAttr);
         new void GetTypeComp(out ITypeComp ppTComp);
         new void GetFuncDesc(int index, out IntPtr ppFuncDesc);

@@ -13,8 +13,7 @@ using System.Diagnostics.Contracts;
 using System.Runtime.InteropServices;
 using System.Runtime.CompilerServices;
 
-namespace System.Runtime.InteropServices.WindowsRuntime
-{
+namespace System.Runtime.InteropServices.WindowsRuntime {
     // These stubs will be used when a call via IReadOnlyCollection<KeyValuePair<K, V>> is made in managed code.
     // This can mean two things - either the underlying unmanaged object implements IMapView<K, V> or it
     // implements IVectorView<IKeyValuePair<K, V>> and we cannot determine this statically in the general
@@ -26,38 +25,31 @@ namespace System.Runtime.InteropServices.WindowsRuntime
     // IVectorView<KeyValuePair<K, V>> or IMapView<K, V>. No actual MapViewToReadOnlyCollectionAdapter object is ever
     // instantiated. Thus, you will see a lot of expressions that cast "this" to "IVectorView<KeyValuePair<K, V>>"
     // or "IMapView<K, V>".
-    internal sealed class MapViewToReadOnlyCollectionAdapter
-    {
-        private MapViewToReadOnlyCollectionAdapter()
-        {
+    internal sealed class MapViewToReadOnlyCollectionAdapter {
+        private MapViewToReadOnlyCollectionAdapter() {
             Debug.Assert(false, "This class is never instantiated");
         }
 
         // int Count { get }
         [Pure]
-        internal int Count<K, V>()
-        {
+        internal int Count<K, V>() {
             object _this = JitHelpers.UnsafeCast<object>(this);
 
             IMapView<K, V> _this_map = _this as IMapView<K, V>;
-            if (_this_map != null)
-            {
+            if (_this_map != null) {
                 uint size = _this_map.Size;
 
-                if (((uint)Int32.MaxValue) < size)
-                {
+                if (((uint)Int32.MaxValue) < size) {
                     throw new InvalidOperationException(SR.InvalidOperation_CollectionBackingDictionaryTooLarge);
                 }
 
                 return (int)size;
             }
-            else
-            {
+            else {
                 IVectorView<KeyValuePair<K, V>> _this_vector = JitHelpers.UnsafeCast<IVectorView<KeyValuePair<K, V>>>(this);
                 uint size = _this_vector.Size;
 
-                if (((uint)Int32.MaxValue) < size)
-                {
+                if (((uint)Int32.MaxValue) < size) {
                     throw new InvalidOperationException(SR.InvalidOperation_CollectionBackingListTooLarge);
                 }
 

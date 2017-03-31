@@ -15,11 +15,9 @@
 using System;
 using System.Reflection;
 
-namespace System.Runtime.InteropServices.Expando
-{
+namespace System.Runtime.InteropServices.Expando {
     [Guid("AFBF15E6-C37C-11d2-B88E-00A0C9B471B8")]
-    internal interface IExpando : IReflect
-    {
+    internal interface IExpando : IReflect {
         // Add a new Field to the reflection object.  The field has
         // name as its name.
         FieldInfo AddField(String name);

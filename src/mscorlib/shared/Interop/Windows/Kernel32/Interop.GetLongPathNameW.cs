@@ -5,10 +5,8 @@
 using System;
 using System.Runtime.InteropServices;
 
-internal partial class Interop
-{
-    internal partial class Kernel32
-    {
+internal partial class Interop {
+    internal partial class Kernel32 {
         /// <summary>
         /// WARNING: This method does not implicitly handle long paths. Use GetFullPath/PathHelper.
         /// </summary>

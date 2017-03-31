@@ -6,12 +6,9 @@ using Microsoft.Win32.SafeHandles;
 using System;
 using System.Runtime.InteropServices;
 
-internal partial class Interop
-{
-    internal partial class Kernel32
-    {
-        internal enum FILE_INFO_BY_HANDLE_CLASS : uint
-        {
+internal partial class Interop {
+    internal partial class Kernel32 {
+        internal enum FILE_INFO_BY_HANDLE_CLASS : uint {
             FileBasicInfo = 0x0u,
             FileStandardInfo = 0x1u,
             FileNameInfo = 0x2u,

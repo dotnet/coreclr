@@ -8,11 +8,9 @@ using System.Runtime.InteropServices;
 using System.Runtime.CompilerServices;
 using System.Diagnostics.Contracts;
 
-namespace System.Collections.Generic
-{
+namespace System.Collections.Generic {
     // Implement this interface if you need to support foreach semantics.
-    public interface IEnumerable<out T> : IEnumerable
-    {
+    public interface IEnumerable<out T> : IEnumerable {
         // Returns an IEnumerator for this enumerable Object.  The enumerator provides
         // a simple way to access all the contents of a collection.
         /// <include file='doc\IEnumerable.uex' path='docs/doc[@for="IEnumerable.GetEnumerator"]/*' />

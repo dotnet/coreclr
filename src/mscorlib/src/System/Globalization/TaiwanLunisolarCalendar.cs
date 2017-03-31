@@ -5,8 +5,7 @@
 using System;
 using System.Diagnostics.Contracts;
 
-namespace System.Globalization
-{
+namespace System.Globalization {
     ////////////////////////////////////////////////////////////////////////////
     //
     //  Notes about TaiwanLunisolarCalendar
@@ -21,8 +20,7 @@ namespace System.Globalization
     */
 
     [Serializable]
-    public class TaiwanLunisolarCalendar : EastAsianLunisolarCalendar
-    {
+    public class TaiwanLunisolarCalendar : EastAsianLunisolarCalendar {
         // Since
         //    Gregorian Year = Era Year + yearOffset
         // When Gregorian Year 1912 is year 1, so that
@@ -51,35 +49,28 @@ namespace System.Globalization
         internal static DateTime minDate = new DateTime(MIN_GREGORIAN_YEAR, MIN_GREGORIAN_MONTH, MIN_GREGORIAN_DAY);
         internal static DateTime maxDate = new DateTime((new DateTime(MAX_GREGORIAN_YEAR, MAX_GREGORIAN_MONTH, MAX_GREGORIAN_DAY, 23, 59, 59, 999)).Ticks + 9999);
 
-        public override DateTime MinSupportedDateTime
-        {
-            get
-            {
+        public override DateTime MinSupportedDateTime {
+            get {
                 return (minDate);
             }
         }
 
 
 
-        public override DateTime MaxSupportedDateTime
-        {
-            get
-            {
+        public override DateTime MaxSupportedDateTime {
+            get {
                 return (maxDate);
             }
         }
 
-        protected override int DaysInYearBeforeMinSupportedYear
-        {
-            get
-            {
+        protected override int DaysInYearBeforeMinSupportedYear {
+            get {
                 // 1911 from ChineseLunisolarCalendar
                 return 384;
             }
         }
 
-        private static readonly int[,] s_yinfo =
-        {
+        private static readonly int[,] s_yinfo = {
             /*Y            LM        Lmon    Lday        DaysPerMonth    D1    D2    D3    D4    D5    D6    D7    D8    D9    D10    D11    D12    D13    #Days
             1912    */
           {    0    ,    2    ,    18    ,    42192    },/*    30    29    30    29    29    30    29    29    30    30    29    30    0    354
@@ -224,50 +215,38 @@ namespace System.Globalization
         */};
 
 
-        internal override int MinCalendarYear
-        {
-            get
-            {
+        internal override int MinCalendarYear {
+            get {
                 return (MIN_LUNISOLAR_YEAR);
             }
         }
 
-        internal override int MaxCalendarYear
-        {
-            get
-            {
+        internal override int MaxCalendarYear {
+            get {
                 return (MAX_LUNISOLAR_YEAR);
             }
         }
 
-        internal override DateTime MinDate
-        {
-            get
-            {
+        internal override DateTime MinDate {
+            get {
                 return (minDate);
             }
         }
 
-        internal override DateTime MaxDate
-        {
-            get
-            {
+        internal override DateTime MaxDate {
+            get {
                 return (maxDate);
             }
         }
 
-        internal override EraInfo[] CalEraInfo
-        {
-            get
-            {
+        internal override EraInfo[] CalEraInfo {
+            get {
                 return (taiwanLunisolarEraInfo);
             }
         }
 
-        internal override int GetYearInfo(int lunarYear, int index)
-        {
-            if ((lunarYear < MIN_LUNISOLAR_YEAR) || (lunarYear > MAX_LUNISOLAR_YEAR))
-            {
+        internal override int GetYearInfo(int lunarYear, int index) {
+            if ((lunarYear < MIN_LUNISOLAR_YEAR) || (lunarYear > MAX_LUNISOLAR_YEAR)) {
                 throw new ArgumentOutOfRangeException(
                             "year",
                             String.Format(
@@ -281,48 +260,38 @@ namespace System.Globalization
             return s_yinfo[lunarYear - MIN_LUNISOLAR_YEAR, index];
         }
 
-        internal override int GetYear(int year, DateTime time)
-        {
+        internal override int GetYear(int year, DateTime time) {
             return helper.GetYear(year, time);
         }
 
-        internal override int GetGregorianYear(int year, int era)
-        {
+        internal override int GetGregorianYear(int year, int era) {
             return helper.GetGregorianYear(year, era);
         }
 
-        public TaiwanLunisolarCalendar()
-        {
+        public TaiwanLunisolarCalendar() {
             helper = new GregorianCalendarHelper(this, taiwanLunisolarEraInfo);
         }
 
-        public override int GetEra(DateTime time)
-        {
+        public override int GetEra(DateTime time) {
             return (helper.GetEra(time));
         }
 
-        internal override CalendarId BaseCalendarID
-        {
-            get
-            {
+        internal override CalendarId BaseCalendarID {
+            get {
                 return (CalendarId.TAIWAN);
             }
         }
 
-        internal override CalendarId ID
-        {
-            get
-            {
+        internal override CalendarId ID {
+            get {
                 return (CalendarId.TAIWANLUNISOLAR);
             }
         }
 
 
 
-        public override int[] Eras
-        {
-            get
-            {
+        public override int[] Eras {
+            get {
                 return (helper.Eras);
             }
         }

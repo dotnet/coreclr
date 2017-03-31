@@ -7,16 +7,13 @@ using System.Collections;
 using System.Runtime.CompilerServices;
 using System.Diagnostics.Contracts;
 
-namespace System.Collections.Generic
-{
+namespace System.Collections.Generic {
     // An IList is an ordered collection of objects.  The exact ordering
     // is up to the implementation of the list, ranging from a sorted
     // order to insertion order.  
-    public interface IList<T> : ICollection<T>
-    {
+    public interface IList<T> : ICollection<T> {
         // The Item property provides methods to read and edit entries in the List.
-        T this[int index]
-        {
+        T this[int index] {
             get;
             set;
         }

@@ -7,8 +7,7 @@ using System.Text;
 using System;
 using System.Diagnostics.Contracts;
 
-namespace System.Text
-{
+namespace System.Text {
     // A Decoder is used to decode a sequence of blocks of bytes into a
     // sequence of blocks of characters. Following instantiation of a decoder,
     // sequential blocks of bytes are converted into blocks of characters through
@@ -22,8 +21,7 @@ namespace System.Text
     //
 
     [Serializable]
-    internal class DecoderNLS : Decoder, ISerializable
-    {
+    internal class DecoderNLS : Decoder, ISerializable {
         // Remember our encoding
         protected Encoding m_encoding;
         [NonSerialized] protected bool m_mustFlush;
@@ -33,8 +31,7 @@ namespace System.Text
         #region Serialization
 
         // Constructor called by serialization. called during deserialization.
-        internal DecoderNLS(SerializationInfo info, StreamingContext context)
-        {
+        internal DecoderNLS(SerializationInfo info, StreamingContext context) {
             throw new NotSupportedException(
                         String.Format(
                             System.Globalization.CultureInfo.CurrentCulture,
@@ -42,8 +39,7 @@ namespace System.Text
         }
 
         // ISerializable implementation. called during serialization.
-        void ISerializable.GetObjectData(SerializationInfo info, StreamingContext context)
-        {
+        void ISerializable.GetObjectData(SerializationInfo info, StreamingContext context) {
             SerializeDecoder(info);
             info.AddValue("encoding", this.m_encoding);
             info.SetType(typeof(Encoding.DefaultDecoder));
@@ -51,33 +47,28 @@ namespace System.Text
 
         #endregion Serialization 
 
-        internal DecoderNLS(Encoding encoding)
-        {
+        internal DecoderNLS(Encoding encoding) {
             this.m_encoding = encoding;
             this.m_fallback = this.m_encoding.DecoderFallback;
             this.Reset();
         }
 
         // This is used by our child deserializers
-        internal DecoderNLS()
-        {
+        internal DecoderNLS() {
             this.m_encoding = null;
             this.Reset();
         }
 
-        public override void Reset()
-        {
+        public override void Reset() {
             if (m_fallbackBuffer != null)
                 m_fallbackBuffer.Reset();
         }
 
-        public override unsafe int GetCharCount(byte[] bytes, int index, int count)
-        {
+        public override unsafe int GetCharCount(byte[] bytes, int index, int count) {
             return GetCharCount(bytes, index, count, false);
         }
 
-        public override unsafe int GetCharCount(byte[] bytes, int index, int count, bool flush)
-        {
+        public override unsafe int GetCharCount(byte[] bytes, int index, int count, bool flush) {
             // Validate Parameters
             if (bytes == null)
                 throw new ArgumentNullException(nameof(bytes),
@@ -102,8 +93,7 @@ namespace System.Text
                 return GetCharCount(pBytes + index, count, flush);
         }
 
-        public unsafe override int GetCharCount(byte* bytes, int count, bool flush)
-        {
+        public unsafe override int GetCharCount(byte* bytes, int count, bool flush) {
             // Validate parameters
             if (bytes == null)
                 throw new ArgumentNullException(nameof(bytes),
@@ -123,14 +113,12 @@ namespace System.Text
         }
 
         public override unsafe int GetChars(byte[] bytes, int byteIndex, int byteCount,
-                                             char[] chars, int charIndex)
-        {
+                                             char[] chars, int charIndex) {
             return GetChars(bytes, byteIndex, byteCount, chars, charIndex, false);
         }
 
         public override unsafe int GetChars(byte[] bytes, int byteIndex, int byteCount,
-                                             char[] chars, int charIndex, bool flush)
-        {
+                                             char[] chars, int charIndex, bool flush) {
             // Validate Parameters
             if (bytes == null || chars == null)
                 throw new ArgumentNullException(bytes == null ? nameof(bytes) : nameof(chars),
@@ -167,8 +155,7 @@ namespace System.Text
         }
 
         public unsafe override int GetChars(byte* bytes, int byteCount,
-                                              char* chars, int charCount, bool flush)
-        {
+                                              char* chars, int charCount, bool flush) {
             // Validate parameters
             if (chars == null || bytes == null)
                 throw new ArgumentNullException((chars == null ? nameof(chars) : nameof(bytes)),
@@ -191,8 +178,7 @@ namespace System.Text
         // Just call the pointer version.  (This gets chars)
         public override unsafe void Convert(byte[] bytes, int byteIndex, int byteCount,
                                               char[] chars, int charIndex, int charCount, bool flush,
-                                              out int bytesUsed, out int charsUsed, out bool completed)
-        {
+                                              out int bytesUsed, out int charsUsed, out bool completed) {
             // Validate parameters
             if (bytes == null || chars == null)
                 throw new ArgumentNullException((bytes == null ? nameof(bytes) : nameof(chars)),
@@ -223,10 +209,8 @@ namespace System.Text
                 chars = new char[1];
 
             // Just call the pointer version (public overrides can't do this)
-            fixed (byte* pBytes = &bytes[0])
-            {
-                fixed (char* pChars = &chars[0])
-                {
+            fixed (byte* pBytes = &bytes[0]) {
+                fixed (char* pChars = &chars[0]) {
                     Convert(pBytes + byteIndex, byteCount, pChars + charIndex, charCount, flush,
                         out bytesUsed, out charsUsed, out completed);
                 }
@@ -237,8 +221,7 @@ namespace System.Text
         // after setting our appropriate internal variables.  This is getting chars
         public unsafe override void Convert(byte* bytes, int byteCount,
                                               char* chars, int charCount, bool flush,
-                                              out int bytesUsed, out int charsUsed, out bool completed)
-        {
+                                              out int bytesUsed, out int charsUsed, out bool completed) {
             // Validate input parameters
             if (chars == null || bytes == null)
                 throw new ArgumentNullException(chars == null ? nameof(chars) : nameof(bytes),
@@ -265,26 +248,21 @@ namespace System.Text
             // Our data thingys are now full, we can return
         }
 
-        public bool MustFlush
-        {
-            get
-            {
+        public bool MustFlush {
+            get {
                 return m_mustFlush;
             }
         }
 
         // Anything left in our decoder?
-        internal virtual bool HasState
-        {
-            get
-            {
+        internal virtual bool HasState {
+            get {
                 return false;
             }
         }
 
         // Allow encoding to clear our must flush instead of throwing (in ThrowCharsOverflow)
-        internal void ClearMustFlush()
-        {
+        internal void ClearMustFlush() {
             m_mustFlush = false;
         }
     }

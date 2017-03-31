@@ -18,13 +18,10 @@ using System;
 using System.Reflection;
 using System.Diagnostics.Contracts;
 
-namespace System.Reflection.Emit
-{
-    public class ParameterBuilder
-    {
+namespace System.Reflection.Emit {
+    public class ParameterBuilder {
         // Set the default value of the parameter
-        public virtual void SetConstant(Object defaultValue)
-        {
+        public virtual void SetConstant(Object defaultValue) {
             TypeBuilder.SetConstantValue(
                 m_methodBuilder.GetModuleBuilder(),
                 m_pdToken.Token,
@@ -34,8 +31,7 @@ namespace System.Reflection.Emit
 
         // Use this function if client decides to form the custom attribute blob themselves
 
-        public void SetCustomAttribute(ConstructorInfo con, byte[] binaryAttribute)
-        {
+        public void SetCustomAttribute(ConstructorInfo con, byte[] binaryAttribute) {
             if (con == null)
                 throw new ArgumentNullException(nameof(con));
             if (binaryAttribute == null)
@@ -51,10 +47,8 @@ namespace System.Reflection.Emit
         }
 
         // Use this function if client wishes to build CustomAttribute using CustomAttributeBuilder
-        public void SetCustomAttribute(CustomAttributeBuilder customBuilder)
-        {
-            if (customBuilder == null)
-            {
+        public void SetCustomAttribute(CustomAttributeBuilder customBuilder) {
+            if (customBuilder == null) {
                 throw new ArgumentNullException(nameof(customBuilder));
             }
             Contract.EndContractBlock();
@@ -72,7 +66,7 @@ namespace System.Reflection.Emit
             int sequence,
             ParameterAttributes attributes,
             String strParamName)            // can be NULL string
-        {
+{
             m_iPosition = sequence;
             m_strParamName = strParamName;
             m_methodBuilder = methodBuilder;
@@ -86,36 +80,29 @@ namespace System.Reflection.Emit
                         strParamName));
         }
 
-        public virtual ParameterToken GetToken()
-        {
+        public virtual ParameterToken GetToken() {
             return m_pdToken;
         }
 
-        public virtual String Name
-        {
+        public virtual String Name {
             get { return m_strParamName; }
         }
 
-        public virtual int Position
-        {
+        public virtual int Position {
             get { return m_iPosition; }
         }
 
-        public virtual int Attributes
-        {
+        public virtual int Attributes {
             get { return (int)m_attributes; }
         }
 
-        public bool IsIn
-        {
+        public bool IsIn {
             get { return ((m_attributes & ParameterAttributes.In) != 0); }
         }
-        public bool IsOut
-        {
+        public bool IsOut {
             get { return ((m_attributes & ParameterAttributes.Out) != 0); }
         }
-        public bool IsOptional
-        {
+        public bool IsOptional {
             get { return ((m_attributes & ParameterAttributes.Optional) != 0); }
         }
 

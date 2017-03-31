@@ -5,10 +5,8 @@
 using System;
 using System.Runtime.InteropServices;
 
-internal partial class Interop
-{
-    internal partial class Normaliz
-    {
+internal partial class Interop {
+    internal partial class Normaliz {
         //
         //  Idn APIs
         //

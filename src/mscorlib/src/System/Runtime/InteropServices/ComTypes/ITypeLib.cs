@@ -13,11 +13,9 @@
 
 using System;
 
-namespace System.Runtime.InteropServices.ComTypes
-{
+namespace System.Runtime.InteropServices.ComTypes {
     [Serializable]
-    public enum SYSKIND
-    {
+    public enum SYSKIND {
         SYS_WIN16 = 0,
         SYS_WIN32 = SYS_WIN16 + 1,
         SYS_MAC = SYS_WIN32 + 1,
@@ -26,8 +24,7 @@ namespace System.Runtime.InteropServices.ComTypes
 
     [Serializable]
     [Flags()]
-    public enum LIBFLAGS : short
-    {
+    public enum LIBFLAGS : short {
         LIBFLAG_FRESTRICTED = 0x1,
         LIBFLAG_FCONTROL = 0x2,
         LIBFLAG_FHIDDEN = 0x4,
@@ -36,8 +33,7 @@ namespace System.Runtime.InteropServices.ComTypes
 
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
     [Serializable]
-    public struct TYPELIBATTR
-    {
+    public struct TYPELIBATTR {
         public Guid guid;
         public int lcid;
         public SYSKIND syskind;
@@ -49,8 +45,7 @@ namespace System.Runtime.InteropServices.ComTypes
     [Guid("00020402-0000-0000-C000-000000000046")]
     [InterfaceTypeAttribute(ComInterfaceType.InterfaceIsIUnknown)]
     [ComImport]
-    public interface ITypeLib
-    {
+    public interface ITypeLib {
         [PreserveSig]
         int GetTypeInfoCount();
         void GetTypeInfo(int index, out ITypeInfo ppTI);

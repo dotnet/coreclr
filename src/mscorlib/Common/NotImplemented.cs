@@ -2,8 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-namespace System
-{
+namespace System {
     //
     // This simple class enables one to throw a NotImplementedException using the following
     // idiom:
@@ -15,18 +14,14 @@ namespace System
     //
     // This makes it distinguishable both from human eyes and CCI from NYI's that truly represent undone work.
     //
-    internal static class NotImplemented
-    {
-        internal static Exception ByDesign
-        {
-            get
-            {
+    internal static class NotImplemented {
+        internal static Exception ByDesign {
+            get {
                 return new NotImplementedException();
             }
         }
 
-        internal static Exception ByDesignWithMessage(string message)
-        {
+        internal static Exception ByDesignWithMessage(string message) {
             return new NotImplementedException(message);
         }
     }

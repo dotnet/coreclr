@@ -13,10 +13,8 @@
 
 using System;
 
-namespace System
-{
-    public interface IFormatProvider
-    {
+namespace System {
+    public interface IFormatProvider {
         // Interface does not need to be marked with the serializable attribute
         Object GetFormat(Type formatType);
     }

@@ -13,20 +13,16 @@
 
 using System.Runtime.Serialization;
 
-namespace System
-{
+namespace System {
     // The DuplicateWaitObjectException is thrown when an object 
     // appears more than once in the list of objects to WaitAll or WaitAny.
     // 
     [Serializable]
-    public class DuplicateWaitObjectException : ArgumentException
-    {
+    public class DuplicateWaitObjectException : ArgumentException {
         private static volatile String s_duplicateWaitObjectMessage = null;
 
-        private static String DuplicateWaitObjectMessage
-        {
-            get
-            {
+        private static String DuplicateWaitObjectMessage {
+            get {
                 if (s_duplicateWaitObjectMessage == null)
                     s_duplicateWaitObjectMessage = SR.Arg_DuplicateWaitObjectException;
                 return s_duplicateWaitObjectMessage;
@@ -36,26 +32,22 @@ namespace System
         // Creates a new DuplicateWaitObjectException with its message 
         // string set to a default message.
         public DuplicateWaitObjectException()
-            : base(DuplicateWaitObjectMessage)
-        {
+            : base(DuplicateWaitObjectMessage) {
             HResult = __HResults.COR_E_DUPLICATEWAITOBJECT;
         }
 
         public DuplicateWaitObjectException(String parameterName)
-            : base(DuplicateWaitObjectMessage, parameterName)
-        {
+            : base(DuplicateWaitObjectMessage, parameterName) {
             HResult = __HResults.COR_E_DUPLICATEWAITOBJECT;
         }
 
         public DuplicateWaitObjectException(String parameterName, String message)
-            : base(message, parameterName)
-        {
+            : base(message, parameterName) {
             HResult = __HResults.COR_E_DUPLICATEWAITOBJECT;
         }
 
         public DuplicateWaitObjectException(String message, Exception innerException)
-            : base(message, innerException)
-        {
+            : base(message, innerException) {
             HResult = __HResults.COR_E_DUPLICATEWAITOBJECT;
         }
 

@@ -14,31 +14,25 @@
 using System;
 using System.Runtime.Serialization;
 
-namespace System.Runtime.InteropServices
-{
+namespace System.Runtime.InteropServices {
     [Serializable]
-    public class InvalidOleVariantTypeException : SystemException
-    {
+    public class InvalidOleVariantTypeException : SystemException {
         public InvalidOleVariantTypeException()
-            : base(SR.Arg_InvalidOleVariantTypeException)
-        {
+            : base(SR.Arg_InvalidOleVariantTypeException) {
             SetErrorCode(__HResults.COR_E_INVALIDOLEVARIANTTYPE);
         }
 
         public InvalidOleVariantTypeException(String message)
-            : base(message)
-        {
+            : base(message) {
             SetErrorCode(__HResults.COR_E_INVALIDOLEVARIANTTYPE);
         }
 
         public InvalidOleVariantTypeException(String message, Exception inner)
-            : base(message, inner)
-        {
+            : base(message, inner) {
             SetErrorCode(__HResults.COR_E_INVALIDOLEVARIANTTYPE);
         }
 
-        protected InvalidOleVariantTypeException(SerializationInfo info, StreamingContext context) : base(info, context)
-        {
+        protected InvalidOleVariantTypeException(SerializationInfo info, StreamingContext context) : base(info, context) {
         }
     }
 }

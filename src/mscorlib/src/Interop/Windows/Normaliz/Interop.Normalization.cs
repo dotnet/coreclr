@@ -5,10 +5,8 @@
 using System;
 using System.Runtime.InteropServices;
 
-internal partial class Interop
-{
-    internal partial class Normaliz
-    {
+internal partial class Interop {
+    internal partial class Normaliz {
         [DllImport("Normaliz.dll", CharSet = CharSet.Unicode, SetLastError = true)]
         internal static extern bool IsNormalizedString(int normForm, string source, int length);
 

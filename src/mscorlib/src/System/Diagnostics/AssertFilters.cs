@@ -14,11 +14,9 @@
 
 using System;
 
-namespace System.Diagnostics
-{
+namespace System.Diagnostics {
     [Serializable]
-    internal enum AssertFilters
-    {
+    internal enum AssertFilters {
         FailDebug = 0,
         FailIgnore = 1,
         FailTerminate = 2,

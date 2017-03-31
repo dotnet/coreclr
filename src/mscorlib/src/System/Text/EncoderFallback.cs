@@ -8,11 +8,9 @@ using System.Threading;
 using System.Diagnostics;
 using System.Diagnostics.Contracts;
 
-namespace System.Text
-{
+namespace System.Text {
     [Serializable]
-    public abstract class EncoderFallback
-    {
+    public abstract class EncoderFallback {
         // disable csharp compiler warning #0414: field assigned unused value
 #pragma warning disable 0414
         internal bool bIsMicrosoftBestFitFallback = false;
@@ -23,12 +21,9 @@ namespace System.Text
 
         // Private object for locking instead of locking on a public type for SQL reliability work.
         private static Object s_InternalSyncObject;
-        private static Object InternalSyncObject
-        {
-            get
-            {
-                if (s_InternalSyncObject == null)
-                {
+        private static Object InternalSyncObject {
+            get {
+                if (s_InternalSyncObject == null) {
                     Object o = new Object();
                     Interlocked.CompareExchange<Object>(ref s_InternalSyncObject, o, null);
                 }
@@ -38,10 +33,8 @@ namespace System.Text
 
         // Get each of our generic fallbacks.
 
-        public static EncoderFallback ReplacementFallback
-        {
-            get
-            {
+        public static EncoderFallback ReplacementFallback {
+            get {
                 if (replacementFallback == null)
                     lock (InternalSyncObject)
                         if (replacementFallback == null)
@@ -52,10 +45,8 @@ namespace System.Text
         }
 
 
-        public static EncoderFallback ExceptionFallback
-        {
-            get
-            {
+        public static EncoderFallback ExceptionFallback {
+            get {
                 if (exceptionFallback == null)
                     lock (InternalSyncObject)
                         if (exceptionFallback == null)
@@ -79,8 +70,7 @@ namespace System.Text
     }
 
 
-    public abstract class EncoderFallbackBuffer
-    {
+    public abstract class EncoderFallbackBuffer {
         // Most implementations will probably need an implemenation-specific constructor
 
         // Public methods that cannot be overriden that let us do our fallback thing
@@ -105,8 +95,7 @@ namespace System.Text
         // Not sure if this should be public or not.
         // Clear the buffer
 
-        public virtual void Reset()
-        {
+        public virtual void Reset() {
             while (GetNextChar() != (char)0) ;
         }
 
@@ -123,8 +112,7 @@ namespace System.Text
 
         // Internal Reset
         // For example, what if someone fails a conversion and wants to reset one of our fallback buffers?
-        internal unsafe void InternalReset()
-        {
+        internal unsafe void InternalReset() {
             charStart = null;
             bFallingBack = false;
             iRecursionCount = 0;
@@ -133,8 +121,7 @@ namespace System.Text
 
         // Set the above values
         // This can't be part of the constructor because EncoderFallbacks would have to know how to impliment these.
-        internal unsafe void InternalInitialize(char* charStart, char* charEnd, EncoderNLS encoder, bool setEncoder)
-        {
+        internal unsafe void InternalInitialize(char* charStart, char* charEnd, EncoderNLS encoder, bool setEncoder) {
             this.charStart = charStart;
             this.charEnd = charEnd;
             this.encoder = encoder;
@@ -144,8 +131,7 @@ namespace System.Text
             this.iRecursionCount = 0;
         }
 
-        internal char InternalGetNextChar()
-        {
+        internal char InternalGetNextChar() {
             char ch = GetNextChar();
             bFallingBack = (ch != 0);
             if (ch == 0) iRecursionCount = 0;
@@ -160,8 +146,7 @@ namespace System.Text
         // Note that this could also change the contents of this.encoder, which is the same
         // object that the caller is using, so the caller could mess up the encoder for us
         // if they aren't careful.
-        internal unsafe virtual bool InternalFallback(char ch, ref char* chars)
-        {
+        internal unsafe virtual bool InternalFallback(char ch, ref char* chars) {
             // Shouldn't have null charStart
             Debug.Assert(charStart != null,
                 "[EncoderFallback.InternalFallbackBuffer]Fallback buffer is not initialized");
@@ -170,18 +155,14 @@ namespace System.Text
             int index = (int)(chars - charStart) - 1;
 
             // See if it was a high surrogate
-            if (Char.IsHighSurrogate(ch))
-            {
+            if (Char.IsHighSurrogate(ch)) {
                 // See if there's a low surrogate to go with it
-                if (chars >= this.charEnd)
-                {
+                if (chars >= this.charEnd) {
                     // Nothing left in input buffer
                     // No input, return 0 if mustflush is false
-                    if (this.encoder != null && !this.encoder.MustFlush)
-                    {
+                    if (this.encoder != null && !this.encoder.MustFlush) {
                         // Done, nothing to fallback
-                        if (this.setEncoder)
-                        {
+                        if (this.setEncoder) {
                             bUsedEncoder = true;
                             this.encoder.charLeftOver = ch;
                         }
@@ -189,12 +170,10 @@ namespace System.Text
                         return false;
                     }
                 }
-                else
-                {
+                else {
                     // Might have a low surrogate
                     char cNext = *chars;
-                    if (Char.IsLowSurrogate(cNext))
-                    {
+                    if (Char.IsLowSurrogate(cNext)) {
                         // If already falling back then fail
                         if (bFallingBack && iRecursionCount++ > iMaxRecursion)
                             ThrowLastCharRecursive(Char.ConvertToUtf32(ch, cNext));
@@ -220,8 +199,7 @@ namespace System.Text
         }
 
         // private helper methods
-        internal void ThrowLastCharRecursive(int charRecursive)
-        {
+        internal void ThrowLastCharRecursive(int charRecursive) {
             // Throw it, using our complete character
             throw new ArgumentException(
                 SR.Format(SR.Argument_RecursiveFallback, charRecursive), "chars");

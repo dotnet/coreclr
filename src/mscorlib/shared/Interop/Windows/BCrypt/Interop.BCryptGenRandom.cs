@@ -6,12 +6,9 @@ using System;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 
-internal partial class Interop
-{
-    internal partial class BCrypt
-    {
-        internal static unsafe int BCryptGenRandom(byte* pbBuffer, int count)
-        {
+internal partial class Interop {
+    internal partial class BCrypt {
+        internal static unsafe int BCryptGenRandom(byte* pbBuffer, int count) {
             Debug.Assert(pbBuffer != null);
             Debug.Assert(count >= 0);
 
@@ -26,17 +23,13 @@ internal partial class Interop
         private static unsafe extern int BCryptGenRandom(IntPtr hAlgorithm, byte* pbBuffer, int cbBuffer, int dwFlags);
     }
 
-    internal static unsafe void GetRandomBytes(byte* buffer, int length)
-    {
+    internal static unsafe void GetRandomBytes(byte* buffer, int length) {
         int status = BCrypt.BCryptGenRandom(buffer, length);
-        if (status != BCrypt.STATUS_SUCCESS)
-        {
-            if (status == BCrypt.STATUS_NO_MEMORY)
-            {
+        if (status != BCrypt.STATUS_SUCCESS) {
+            if (status == BCrypt.STATUS_NO_MEMORY) {
                 throw new OutOfMemoryException();
             }
-            else
-            {
+            else {
                 throw new InvalidOperationException();
             }
         }

@@ -13,12 +13,10 @@
 using System.Runtime.InteropServices;
 using System;
 
-namespace System.Runtime.InteropServices
-{
+namespace System.Runtime.InteropServices {
     // This Enum matchs the CorPinvokeMap defined in CorHdr.h
     [Serializable]
-    internal enum PInvokeMap
-    {
+    internal enum PInvokeMap {
         NoMangle = 0x0001,   // Pinvoke is to use the member name as specified.
         CharSetMask = 0x0006,   // Heuristic used in data type & name mapping.
         CharSetNotSpec = 0x0000,

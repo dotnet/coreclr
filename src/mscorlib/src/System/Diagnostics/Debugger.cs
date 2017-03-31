@@ -13,17 +13,14 @@ using System.Runtime.CompilerServices;
 using System.Security;
 using System.Runtime.Versioning;
 
-namespace System.Diagnostics
-{
+namespace System.Diagnostics {
     // No data, does not need to be marked with the serializable attribute
-    public sealed class Debugger
-    {
+    public sealed class Debugger {
         // This should have been a static class, but wasn't as of v3.5.  Clearly, this is
         // broken.  We'll keep this in V4 for binary compat, but marked obsolete as error
         // so migrated source code gets fixed.
         [Obsolete("Do not create instances of the Debugger class.  Call the static methods directly on this type instead", true)]
-        public Debugger()
-        {
+        public Debugger() {
             // Should not have been instantiable - here for binary compatibility in V4.
         }
 
@@ -31,14 +28,12 @@ namespace System.Diagnostics
         // is attached, the user is asked if he wants to attach a debugger. If yes, then the 
         // debugger is launched.
         [MethodImplAttribute(MethodImplOptions.NoInlining)]
-        public static void Break()
-        {
+        public static void Break() {
             // Causing a break is now allowed.
             BreakInternal();
         }
 
-        private static void BreakCanThrow()
-        {
+        private static void BreakCanThrow() {
             BreakInternal();
         }
 
@@ -48,8 +43,7 @@ namespace System.Diagnostics
         // Launch launches & attaches a debugger to the process. If a debugger is already attached,
         // nothing happens.  
         //
-        public static bool Launch()
-        {
+        public static bool Launch() {
             if (Debugger.IsAttached)
                 return (true);
 
@@ -60,18 +54,15 @@ namespace System.Diagnostics
         // This class implements code:ICustomDebuggerNotification and provides a type to be used to notify
         // the debugger that execution is about to enter a path that involves a cross-thread dependency. 
         // See code:NotifyOfCrossThreadDependency for more details. 
-        private class CrossThreadDependencyNotification : ICustomDebuggerNotification
-        {
+        private class CrossThreadDependencyNotification : ICustomDebuggerNotification {
             // constructor
-            public CrossThreadDependencyNotification()
-            {
+            public CrossThreadDependencyNotification() {
             }
         }
 
         // Do not inline the slow path 
         [MethodImplAttribute(MethodImplOptions.NoInlining)]
-        private static void NotifyOfCrossThreadDependencySlow()
-        {
+        private static void NotifyOfCrossThreadDependencySlow() {
             CrossThreadDependencyNotification notification = new CrossThreadDependencyNotification();
             CustomNotification(notification);
         }
@@ -84,10 +75,8 @@ namespace System.Diagnostics
         // notification will apprise the debugger that it will need  to slip a thread or abort the funceval 
         // in such a situation. The notification is subject to collection after this function returns. 
         // 
-        public static void NotifyOfCrossThreadDependency()
-        {
-            if (Debugger.IsAttached)
-            {
+        public static void NotifyOfCrossThreadDependency() {
+            if (Debugger.IsAttached) {
                 NotifyOfCrossThreadDependencySlow();
             }
         }
@@ -97,8 +86,7 @@ namespace System.Diagnostics
 
         // Returns whether or not a debugger is attached to the process.
         //
-        public static extern bool IsAttached
-        {
+        public static extern bool IsAttached {
             [MethodImplAttribute(MethodImplOptions.InternalCall)]
             get;
         }

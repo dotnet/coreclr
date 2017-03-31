@@ -11,12 +11,10 @@
 //
 //===========================================================================*/
 #if FEATURE_APPX
-namespace System.Resources
-{
+namespace System.Resources {
     using System;
     // Only static data no need to serialize
-    internal static class __HResults
-    {
+    internal static class __HResults {
         // From WinError.h
         public const int ERROR_MRM_MAP_NOT_FOUND = unchecked((int)0x80073B1F);
     }

@@ -4,13 +4,10 @@
 
 using System;
 
-namespace System.Globalization
-{
-    internal class InternalGloablizationHelper
-    {
+namespace System.Globalization {
+    internal class InternalGloablizationHelper {
         // Copied from the TimeSpan to be used inside the globalization code and avoid internal dependancy on TimeSpan class
-        internal static long TimeToTicks(int hour, int minute, int second)
-        {
+        internal static long TimeToTicks(int hour, int minute, int second) {
             // totalSeconds is bounded by 2^31 * 2^12 + 2^31 * 2^8 + 2^31,
             // which is less than 2^44, meaning we won't overflow totalSeconds.
             long totalSeconds = (long)hour * 3600 + (long)minute * 60 + (long)second;

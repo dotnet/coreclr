@@ -22,13 +22,11 @@ using Microsoft.Win32.SafeHandles;
 using System.Diagnostics;
 using System.Diagnostics.Contracts;
 
-namespace System.IO
-{
+namespace System.IO {
     /// Perf notes: ReadXXX, WriteXXX (for basic types) acquire and release the 
     /// SafeBuffer pointer rather than relying on generic Read(T) from SafeBuffer because
     /// this gives better throughput; benchmarks showed about 12-15% better.
-    public class UnmanagedMemoryAccessor : IDisposable
-    {
+    public class UnmanagedMemoryAccessor : IDisposable {
         private SafeBuffer _buffer;
         private Int64 _offset;
         [ContractPublicPropertyName("Capacity")]
@@ -38,8 +36,7 @@ namespace System.IO
         private bool _canRead;
         private bool _canWrite;
 
-        protected UnmanagedMemoryAccessor()
-        {
+        protected UnmanagedMemoryAccessor() {
             _isOpen = false;
         }
 
@@ -47,61 +44,47 @@ namespace System.IO
         // <SecurityKernel Critical="True" Ring="1">
         // <ReferencesCritical Name="Method: Initialize(SafeBuffer, Int64, Int64, FileAccess):Void" Ring="1" />
         // </SecurityKernel>
-        public UnmanagedMemoryAccessor(SafeBuffer buffer, Int64 offset, Int64 capacity)
-        {
+        public UnmanagedMemoryAccessor(SafeBuffer buffer, Int64 offset, Int64 capacity) {
             Initialize(buffer, offset, capacity, FileAccess.Read);
         }
 
-        public UnmanagedMemoryAccessor(SafeBuffer buffer, Int64 offset, Int64 capacity, FileAccess access)
-        {
+        public UnmanagedMemoryAccessor(SafeBuffer buffer, Int64 offset, Int64 capacity, FileAccess access) {
             Initialize(buffer, offset, capacity, access);
         }
 
-        protected void Initialize(SafeBuffer buffer, Int64 offset, Int64 capacity, FileAccess access)
-        {
-            if (buffer == null)
-            {
+        protected void Initialize(SafeBuffer buffer, Int64 offset, Int64 capacity, FileAccess access) {
+            if (buffer == null) {
                 throw new ArgumentNullException(nameof(buffer));
             }
-            if (offset < 0)
-            {
+            if (offset < 0) {
                 throw new ArgumentOutOfRangeException(nameof(offset), SR.ArgumentOutOfRange_NeedNonNegNum);
             }
-            if (capacity < 0)
-            {
+            if (capacity < 0) {
                 throw new ArgumentOutOfRangeException(nameof(capacity), SR.ArgumentOutOfRange_NeedNonNegNum);
             }
-            if (buffer.ByteLength < (UInt64)(offset + capacity))
-            {
+            if (buffer.ByteLength < (UInt64)(offset + capacity)) {
                 throw new ArgumentException(SR.Argument_OffsetAndCapacityOutOfBounds);
             }
-            if (access < FileAccess.Read || access > FileAccess.ReadWrite)
-            {
+            if (access < FileAccess.Read || access > FileAccess.ReadWrite) {
                 throw new ArgumentOutOfRangeException(nameof(access));
             }
             Contract.EndContractBlock();
 
-            if (_isOpen)
-            {
+            if (_isOpen) {
                 throw new InvalidOperationException(SR.InvalidOperation_CalledTwice);
             }
 
-            unsafe
-            {
+            unsafe {
                 byte* pointer = null;
                 RuntimeHelpers.PrepareConstrainedRegions();
-                try
-                {
+                try {
                     buffer.AcquirePointer(ref pointer);
-                    if (((byte*)((Int64)pointer + offset + capacity)) < pointer)
-                    {
+                    if (((byte*)((Int64)pointer + offset + capacity)) < pointer) {
                         throw new ArgumentException(SR.Argument_UnmanagedMemAccessorWrapAround);
                     }
                 }
-                finally
-                {
-                    if (pointer != null)
-                    {
+                finally {
+                    if (pointer != null) {
                         buffer.ReleasePointer();
                     }
                 }
@@ -118,48 +101,38 @@ namespace System.IO
 
         #endregion
 
-        public Int64 Capacity
-        {
-            get
-            {
+        public Int64 Capacity {
+            get {
                 return _capacity;
             }
         }
 
-        public bool CanRead
-        {
-            get
-            {
+        public bool CanRead {
+            get {
                 return _isOpen && _canRead;
             }
         }
 
-        public bool CanWrite
-        {
-            get
-            {
+        public bool CanWrite {
+            get {
                 return _isOpen && _canWrite;
             }
         }
 
-        protected virtual void Dispose(bool disposing)
-        {
+        protected virtual void Dispose(bool disposing) {
             _isOpen = false;
         }
 
-        public void Dispose()
-        {
+        public void Dispose() {
             Dispose(true);
             GC.SuppressFinalize(this);
         }
 
-        protected bool IsOpen
-        {
+        protected bool IsOpen {
             get { return _isOpen; }
         }
 
-        public bool ReadBoolean(Int64 position)
-        {
+        public bool ReadBoolean(Int64 position) {
             int sizeOfType = sizeof(bool);
             EnsureSafeToRead(position, sizeOfType);
 
@@ -167,32 +140,26 @@ namespace System.IO
             return b != 0;
         }
 
-        public byte ReadByte(Int64 position)
-        {
+        public byte ReadByte(Int64 position) {
             int sizeOfType = sizeof(byte);
             EnsureSafeToRead(position, sizeOfType);
 
             return InternalReadByte(position);
         }
 
-        public char ReadChar(Int64 position)
-        {
+        public char ReadChar(Int64 position) {
             EnsureSafeToRead(position, sizeof(char));
 
             char result;
-            unsafe
-            {
+            unsafe {
                 byte* pointer = null;
                 RuntimeHelpers.PrepareConstrainedRegions();
-                try
-                {
+                try {
                     _buffer.AcquirePointer(ref pointer);
                     result = Unsafe.ReadUnaligned<char>(pointer + _offset + position);
                 }
-                finally
-                {
-                    if (pointer != null)
-                    {
+                finally {
+                    if (pointer != null) {
                         _buffer.ReleasePointer();
                     }
                 }
@@ -202,24 +169,19 @@ namespace System.IO
         }
 
         // See comment above.
-        public Int16 ReadInt16(Int64 position)
-        {
+        public Int16 ReadInt16(Int64 position) {
             EnsureSafeToRead(position, sizeof(Int16));
 
             Int16 result;
-            unsafe
-            {
+            unsafe {
                 byte* pointer = null;
                 RuntimeHelpers.PrepareConstrainedRegions();
-                try
-                {
+                try {
                     _buffer.AcquirePointer(ref pointer);
                     result = Unsafe.ReadUnaligned<Int16>(pointer + _offset + position);
                 }
-                finally
-                {
-                    if (pointer != null)
-                    {
+                finally {
+                    if (pointer != null) {
                         _buffer.ReleasePointer();
                     }
                 }
@@ -229,24 +191,19 @@ namespace System.IO
         }
 
 
-        public Int32 ReadInt32(Int64 position)
-        {
+        public Int32 ReadInt32(Int64 position) {
             EnsureSafeToRead(position, sizeof(Int32));
 
             Int32 result;
-            unsafe
-            {
+            unsafe {
                 byte* pointer = null;
                 RuntimeHelpers.PrepareConstrainedRegions();
-                try
-                {
+                try {
                     _buffer.AcquirePointer(ref pointer);
                     result = Unsafe.ReadUnaligned<Int32>(pointer + _offset + position);
                 }
-                finally
-                {
-                    if (pointer != null)
-                    {
+                finally {
+                    if (pointer != null) {
                         _buffer.ReleasePointer();
                     }
                 }
@@ -255,24 +212,19 @@ namespace System.IO
             return result;
         }
 
-        public Int64 ReadInt64(Int64 position)
-        {
+        public Int64 ReadInt64(Int64 position) {
             EnsureSafeToRead(position, sizeof(Int64));
 
             Int64 result;
-            unsafe
-            {
+            unsafe {
                 byte* pointer = null;
                 RuntimeHelpers.PrepareConstrainedRegions();
-                try
-                {
+                try {
                     _buffer.AcquirePointer(ref pointer);
                     result = Unsafe.ReadUnaligned<Int64>(pointer + _offset + position);
                 }
-                finally
-                {
-                    if (pointer != null)
-                    {
+                finally {
+                    if (pointer != null) {
                         _buffer.ReleasePointer();
                     }
                 }
@@ -281,8 +233,7 @@ namespace System.IO
             return result;
         }
 
-        public Decimal ReadDecimal(Int64 position)
-        {
+        public Decimal ReadDecimal(Int64 position) {
             const int ScaleMask = 0x00FF0000;
             const int SignMask = unchecked((int)0x80000000);
 
@@ -290,11 +241,9 @@ namespace System.IO
 
             int lo, mid, hi, flags;
 
-            unsafe
-            {
+            unsafe {
                 byte* pointer = null;
-                try
-                {
+                try {
                     _buffer.AcquirePointer(ref pointer);
                     
                     lo = Unsafe.ReadUnaligned<Int32>(pointer + _offset + position);
@@ -302,18 +251,15 @@ namespace System.IO
                     hi = Unsafe.ReadUnaligned<Int32>(pointer + _offset + position + 8);
                     flags = Unsafe.ReadUnaligned<Int32>(pointer + _offset + position + 12);
                 }
-                finally
-                {
-                    if (pointer != null)
-                    {
+                finally {
+                    if (pointer != null) {
                         _buffer.ReleasePointer();
                     }
                 }
             }
 
             // Check for invalid Decimal values
-            if (!((flags & ~(SignMask | ScaleMask)) == 0 && (flags & ScaleMask) <= (28 << 16)))
-            {
+            if (!((flags & ~(SignMask | ScaleMask)) == 0 && (flags & ScaleMask) <= (28 << 16))) {
                 throw new ArgumentException(SR.Arg_BadDecimal); // Throw same Exception type as Decimal(int[]) ctor for compat
             }
 
@@ -323,24 +269,19 @@ namespace System.IO
             return new decimal(lo, mid, hi, isNegative, scale);
         }
 
-        public Single ReadSingle(Int64 position)
-        {
+        public Single ReadSingle(Int64 position) {
             EnsureSafeToRead(position, sizeof(Single));
 
             Single result;
-            unsafe
-            {
+            unsafe {
                 byte* pointer = null;
                 RuntimeHelpers.PrepareConstrainedRegions();
-                try
-                {
+                try {
                     _buffer.AcquirePointer(ref pointer);
                     result = Unsafe.ReadUnaligned<Single>(pointer + _offset + position);
                 }
-                finally
-                {
-                    if (pointer != null)
-                    {
+                finally {
+                    if (pointer != null) {
                         _buffer.ReleasePointer();
                     }
                 }
@@ -349,24 +290,19 @@ namespace System.IO
             return result;
         }
 
-        public Double ReadDouble(Int64 position)
-        {
+        public Double ReadDouble(Int64 position) {
             EnsureSafeToRead(position, sizeof(Double));
 
             Double result;
-            unsafe
-            {
+            unsafe {
                 byte* pointer = null;
                 RuntimeHelpers.PrepareConstrainedRegions();
-                try
-                {
+                try {
                     _buffer.AcquirePointer(ref pointer);
                     result = Unsafe.ReadUnaligned<Double>(pointer + _offset + position);
                 }
-                finally
-                {
-                    if (pointer != null)
-                    {
+                finally {
+                    if (pointer != null) {
                         _buffer.ReleasePointer();
                     }
                 }
@@ -376,25 +312,20 @@ namespace System.IO
         }
 
         [CLSCompliant(false)]
-        public SByte ReadSByte(Int64 position)
-        {
+        public SByte ReadSByte(Int64 position) {
             int sizeOfType = sizeof(SByte);
             EnsureSafeToRead(position, sizeOfType);
 
             SByte result;
-            unsafe
-            {
+            unsafe {
                 byte* pointer = null;
                 RuntimeHelpers.PrepareConstrainedRegions();
-                try
-                {
+                try {
                     _buffer.AcquirePointer(ref pointer);
                     result = *((SByte*)(pointer + _offset + position));
                 }
-                finally
-                {
-                    if (pointer != null)
-                    {
+                finally {
+                    if (pointer != null) {
                         _buffer.ReleasePointer();
                     }
                 }
@@ -404,24 +335,19 @@ namespace System.IO
         }
 
         [CLSCompliant(false)]
-        public UInt16 ReadUInt16(Int64 position)
-        {
+        public UInt16 ReadUInt16(Int64 position) {
             EnsureSafeToRead(position, sizeof(UInt16));
 
             UInt16 result;
-            unsafe
-            {
+            unsafe {
                 byte* pointer = null;
                 RuntimeHelpers.PrepareConstrainedRegions();
-                try
-                {
+                try {
                     _buffer.AcquirePointer(ref pointer);
                     result = Unsafe.ReadUnaligned<UInt16>(pointer + _offset + position);
                 }
-                finally
-                {
-                    if (pointer != null)
-                    {
+                finally {
+                    if (pointer != null) {
                         _buffer.ReleasePointer();
                     }
                 }
@@ -431,24 +357,19 @@ namespace System.IO
         }
 
         [CLSCompliant(false)]
-        public UInt32 ReadUInt32(Int64 position)
-        {
+        public UInt32 ReadUInt32(Int64 position) {
             EnsureSafeToRead(position, sizeof(UInt32));
 
             UInt32 result;
-            unsafe
-            {
+            unsafe {
                 byte* pointer = null;
                 RuntimeHelpers.PrepareConstrainedRegions();
-                try
-                {
+                try {
                     _buffer.AcquirePointer(ref pointer);
                     result = Unsafe.ReadUnaligned<UInt32>(pointer + _offset + position);
                 }
-                finally
-                {
-                    if (pointer != null)
-                    {
+                finally {
+                    if (pointer != null) {
                         _buffer.ReleasePointer();
                     }
                 }
@@ -458,24 +379,19 @@ namespace System.IO
         }
 
         [CLSCompliant(false)]
-        public UInt64 ReadUInt64(Int64 position)
-        {
+        public UInt64 ReadUInt64(Int64 position) {
             EnsureSafeToRead(position, sizeof(UInt64));
 
             UInt64 result;
-            unsafe
-            {
+            unsafe {
                 byte* pointer = null;
                 RuntimeHelpers.PrepareConstrainedRegions();
-                try
-                {
+                try {
                     _buffer.AcquirePointer(ref pointer);
                     result = Unsafe.ReadUnaligned<UInt64>(pointer + _offset + position);
                 }
-                finally
-                {
-                    if (pointer != null)
-                    {
+                finally {
+                    if (pointer != null) {
                         _buffer.ReleasePointer();
                     }
                 }
@@ -498,32 +414,25 @@ namespace System.IO
         // such, it is best to use the ReadXXX methods for small standard types such as ints, longs, 
         // bools, etc.
 
-        public void Read<T>(Int64 position, out T structure) where T : struct
-        {
-            if (position < 0)
-            {
+        public void Read<T>(Int64 position, out T structure) where T : struct {
+            if (position < 0) {
                 throw new ArgumentOutOfRangeException(nameof(position), SR.ArgumentOutOfRange_NeedNonNegNum);
             }
             Contract.EndContractBlock();
 
-            if (!_isOpen)
-            {
+            if (!_isOpen) {
                 throw new ObjectDisposedException("UnmanagedMemoryAccessor", SR.ObjectDisposed_ViewAccessorClosed);
             }
-            if (!CanRead)
-            {
+            if (!CanRead) {
                 throw new NotSupportedException(SR.NotSupported_Reading);
             }
 
             UInt32 sizeOfT = Marshal.SizeOfType(typeof(T));
-            if (position > _capacity - sizeOfT)
-            {
-                if (position >= _capacity)
-                {
+            if (position > _capacity - sizeOfT) {
+                if (position >= _capacity) {
                     throw new ArgumentOutOfRangeException(nameof(position), SR.ArgumentOutOfRange_PositionLessThanCapacityRequired);
                 }
-                else
-                {
+                else {
                     throw new ArgumentException(SR.Format(SR.Argument_NotEnoughBytesToRead, typeof (T).FullName), nameof(position));
                 }
             }
@@ -537,60 +446,47 @@ namespace System.IO
         // struct that contains reference members will most likely cause the runtime to AV. This
         // is consistent with Marshal.PtrToStructure.
 
-        public int ReadArray<T>(Int64 position, T[] array, Int32 offset, Int32 count) where T : struct
-        {
-            if (array == null)
-            {
+        public int ReadArray<T>(Int64 position, T[] array, Int32 offset, Int32 count) where T : struct {
+            if (array == null) {
                 throw new ArgumentNullException(nameof(array), "Buffer cannot be null.");
             }
-            if (offset < 0)
-            {
+            if (offset < 0) {
                 throw new ArgumentOutOfRangeException(nameof(offset), SR.ArgumentOutOfRange_NeedNonNegNum);
             }
-            if (count < 0)
-            {
+            if (count < 0) {
                 throw new ArgumentOutOfRangeException(nameof(count), SR.ArgumentOutOfRange_NeedNonNegNum);
             }
-            if (array.Length - offset < count)
-            {
+            if (array.Length - offset < count) {
                 throw new ArgumentException(SR.Argument_OffsetAndLengthOutOfBounds);
             }
             Contract.EndContractBlock();
-            if (!CanRead)
-            {
-                if (!_isOpen)
-                {
+            if (!CanRead) {
+                if (!_isOpen) {
                     throw new ObjectDisposedException("UnmanagedMemoryAccessor", SR.ObjectDisposed_ViewAccessorClosed);
                 }
-                else
-                {
+                else {
                     throw new NotSupportedException(SR.NotSupported_Reading);
                 }
             }
-            if (position < 0)
-            {
+            if (position < 0) {
                 throw new ArgumentOutOfRangeException(nameof(position), SR.ArgumentOutOfRange_NeedNonNegNum);
             }
 
             UInt32 sizeOfT = Marshal.AlignedSizeOf<T>();
 
             // only check position and ask for fewer Ts if count is too big
-            if (position >= _capacity)
-            {
+            if (position >= _capacity) {
                 throw new ArgumentOutOfRangeException(nameof(position), SR.ArgumentOutOfRange_PositionLessThanCapacityRequired);
             }
 
             int n = count;
             long spaceLeft = _capacity - position;
-            if (spaceLeft < 0)
-            {
+            if (spaceLeft < 0) {
                 n = 0;
             }
-            else
-            {
+            else {
                 ulong spaceNeeded = (ulong)(sizeOfT * count);
-                if ((ulong)spaceLeft < spaceNeeded)
-                {
+                if ((ulong)spaceLeft < spaceNeeded) {
                     n = (int)(spaceLeft / sizeOfT);
                 }
             }
@@ -608,8 +504,7 @@ namespace System.IO
         // double, short, int, long, sbyte, float, ushort, uint, or ulong. 
 
 
-        public void Write(Int64 position, bool value)
-        {
+        public void Write(Int64 position, bool value) {
             int sizeOfType = sizeof(bool);
             EnsureSafeToWrite(position, sizeOfType);
 
@@ -617,31 +512,25 @@ namespace System.IO
             InternalWrite(position, b);
         }
 
-        public void Write(Int64 position, byte value)
-        {
+        public void Write(Int64 position, byte value) {
             int sizeOfType = sizeof(byte);
             EnsureSafeToWrite(position, sizeOfType);
 
             InternalWrite(position, value);
         }
 
-        public void Write(Int64 position, char value)
-        {
+        public void Write(Int64 position, char value) {
             EnsureSafeToWrite(position, sizeof(char));
 
-            unsafe
-            {
+            unsafe {
                 byte* pointer = null;
                 RuntimeHelpers.PrepareConstrainedRegions();
-                try
-                {
+                try {
                     _buffer.AcquirePointer(ref pointer);
                     Unsafe.WriteUnaligned<char>(pointer + _offset + position, value);
                 }
-                finally
-                {
-                    if (pointer != null)
-                    {
+                finally {
+                    if (pointer != null) {
                         _buffer.ReleasePointer();
                     }
                 }
@@ -649,23 +538,18 @@ namespace System.IO
         }
 
 
-        public void Write(Int64 position, Int16 value)
-        {
+        public void Write(Int64 position, Int16 value) {
             EnsureSafeToWrite(position, sizeof(Int16));
 
-            unsafe
-            {
+            unsafe {
                 byte* pointer = null;
                 RuntimeHelpers.PrepareConstrainedRegions();
-                try
-                {
+                try {
                     _buffer.AcquirePointer(ref pointer);
                     Unsafe.WriteUnaligned<Int16>(pointer + _offset + position, value);
                 }
-                finally
-                {
-                    if (pointer != null)
-                    {
+                finally {
+                    if (pointer != null) {
                         _buffer.ReleasePointer();
                     }
                 }
@@ -673,58 +557,46 @@ namespace System.IO
         }
 
 
-        public void Write(Int64 position, Int32 value)
-        {
+        public void Write(Int64 position, Int32 value) {
             EnsureSafeToWrite(position, sizeof(Int32));
 
-            unsafe
-            {
+            unsafe {
                 byte* pointer = null;
                 RuntimeHelpers.PrepareConstrainedRegions();
-                try
-                {
+                try {
                     _buffer.AcquirePointer(ref pointer);
                     Unsafe.WriteUnaligned<Int32>(pointer + _offset + position, value);
                 }
-                finally
-                {
-                    if (pointer != null)
-                    {
+                finally {
+                    if (pointer != null) {
                         _buffer.ReleasePointer();
                     }
                 }
             }
         }
 
-        public void Write(Int64 position, Int64 value)
-        {
+        public void Write(Int64 position, Int64 value) {
             EnsureSafeToWrite(position, sizeof(Int64));
 
-            unsafe
-            {
+            unsafe {
                 byte* pointer = null;
                 RuntimeHelpers.PrepareConstrainedRegions();
-                try
-                {
+                try {
                     _buffer.AcquirePointer(ref pointer);
                     Unsafe.WriteUnaligned<Int64>(pointer + _offset + position, value);
                 }
-                finally
-                {
-                    if (pointer != null)
-                    {
+                finally {
+                    if (pointer != null) {
                         _buffer.ReleasePointer();
                     }
                 }
             }
         }
 
-        public void Write(Int64 position, Decimal value)
-        {
+        public void Write(Int64 position, Decimal value) {
             EnsureSafeToWrite(position, sizeof(Decimal));
 
-            unsafe
-            {
+            unsafe {
                 int* valuePtr = (int*)(&value);
                 int flags = *valuePtr;
                 int hi = *(valuePtr + 1);
@@ -732,8 +604,7 @@ namespace System.IO
                 int mid = *(valuePtr + 3);
 
                 byte* pointer = null;
-                try
-                {
+                try {
                     _buffer.AcquirePointer(ref pointer);
 
                     Unsafe.WriteUnaligned<Int32>(pointer + _offset + position, lo);
@@ -741,56 +612,44 @@ namespace System.IO
                     Unsafe.WriteUnaligned<Int32>(pointer + _offset + position + 8, hi);
                     Unsafe.WriteUnaligned<Int32>(pointer + _offset + position + 12, flags);
                 }
-                finally
-                {
-                    if (pointer != null)
-                    {
+                finally {
+                    if (pointer != null) {
                         _buffer.ReleasePointer();
                     }
                 }
             }
         }
 
-        public void Write(Int64 position, Single value)
-        {
+        public void Write(Int64 position, Single value) {
             EnsureSafeToWrite(position, sizeof(Single));
 
-            unsafe
-            {
+            unsafe {
                 byte* pointer = null;
                 RuntimeHelpers.PrepareConstrainedRegions();
-                try
-                {
+                try {
                     _buffer.AcquirePointer(ref pointer);
                     Unsafe.WriteUnaligned<Single>(pointer + _offset + position, value);
                 }
-                finally
-                {
-                    if (pointer != null)
-                    {
+                finally {
+                    if (pointer != null) {
                         _buffer.ReleasePointer();
                     }
                 }
             }
         }
 
-        public void Write(Int64 position, Double value)
-        {
+        public void Write(Int64 position, Double value) {
             EnsureSafeToWrite(position, sizeof(Double));
 
-            unsafe
-            {
+            unsafe {
                 byte* pointer = null;
                 RuntimeHelpers.PrepareConstrainedRegions();
-                try
-                {
+                try {
                     _buffer.AcquirePointer(ref pointer);
                     Unsafe.WriteUnaligned<Double>(pointer + _offset + position, value);
                 }
-                finally
-                {
-                    if (pointer != null)
-                    {
+                finally {
+                    if (pointer != null) {
                         _buffer.ReleasePointer();
                     }
                 }
@@ -798,23 +657,18 @@ namespace System.IO
         }
 
         [CLSCompliant(false)]
-        public void Write(Int64 position, SByte value)
-        {
+        public void Write(Int64 position, SByte value) {
             EnsureSafeToWrite(position, sizeof(SByte));
 
-            unsafe
-            {
+            unsafe {
                 byte* pointer = null;
                 RuntimeHelpers.PrepareConstrainedRegions();
-                try
-                {
+                try {
                     _buffer.AcquirePointer(ref pointer);
                     *((SByte*)(pointer + _offset + position)) = value;
                 }
-                finally
-                {
-                    if (pointer != null)
-                    {
+                finally {
+                    if (pointer != null) {
                         _buffer.ReleasePointer();
                     }
                 }
@@ -822,24 +676,19 @@ namespace System.IO
         }
 
         [CLSCompliant(false)]
-        public void Write(Int64 position, UInt16 value)
-        {
+        public void Write(Int64 position, UInt16 value) {
             int sizeOfType = sizeof(UInt16);
             EnsureSafeToWrite(position, sizeOfType);
 
-            unsafe
-            {
+            unsafe {
                 byte* pointer = null;
                 RuntimeHelpers.PrepareConstrainedRegions();
-                try
-                {
+                try {
                     _buffer.AcquirePointer(ref pointer);
                     Unsafe.WriteUnaligned<UInt16>(pointer + _offset + position, value);
                 }
-                finally
-                {
-                    if (pointer != null)
-                    {
+                finally {
+                    if (pointer != null) {
                         _buffer.ReleasePointer();
                     }
                 }
@@ -847,23 +696,18 @@ namespace System.IO
         }
 
         [CLSCompliant(false)]
-        public void Write(Int64 position, UInt32 value)
-        {
+        public void Write(Int64 position, UInt32 value) {
             EnsureSafeToWrite(position, sizeof(UInt32));
 
-            unsafe
-            {
+            unsafe {
                 byte* pointer = null;
                 RuntimeHelpers.PrepareConstrainedRegions();
-                try
-                {
+                try {
                     _buffer.AcquirePointer(ref pointer);
                     Unsafe.WriteUnaligned<UInt32>(pointer + _offset + position, value);
                 }
-                finally
-                {
-                    if (pointer != null)
-                    {
+                finally {
+                    if (pointer != null) {
                         _buffer.ReleasePointer();
                     }
                 }
@@ -871,23 +715,18 @@ namespace System.IO
         }
 
         [CLSCompliant(false)]
-        public void Write(Int64 position, UInt64 value)
-        {
+        public void Write(Int64 position, UInt64 value) {
             EnsureSafeToWrite(position, sizeof(UInt64));
 
-            unsafe
-            {
+            unsafe {
                 byte* pointer = null;
                 RuntimeHelpers.PrepareConstrainedRegions();
-                try
-                {
+                try {
                     _buffer.AcquirePointer(ref pointer);
                     Unsafe.WriteUnaligned<UInt64>(pointer + _offset + position, value);
                 }
-                finally
-                {
-                    if (pointer != null)
-                    {
+                finally {
+                    if (pointer != null) {
                         _buffer.ReleasePointer();
                     }
                 }
@@ -899,32 +738,25 @@ namespace System.IO
         // though this is number is JIT and architecture dependent).   As such, it is best to use 
         // the WriteX methods for small standard types such as ints, longs, bools, etc.
 
-        public void Write<T>(Int64 position, ref T structure) where T : struct
-        {
-            if (position < 0)
-            {
+        public void Write<T>(Int64 position, ref T structure) where T : struct {
+            if (position < 0) {
                 throw new ArgumentOutOfRangeException(nameof(position), SR.ArgumentOutOfRange_NeedNonNegNum);
             }
             Contract.EndContractBlock();
 
-            if (!_isOpen)
-            {
+            if (!_isOpen) {
                 throw new ObjectDisposedException("UnmanagedMemoryAccessor", SR.ObjectDisposed_ViewAccessorClosed);
             }
-            if (!CanWrite)
-            {
+            if (!CanWrite) {
                 throw new NotSupportedException(SR.NotSupported_Writing);
             }
 
             UInt32 sizeOfT = Marshal.SizeOfType(typeof(T));
-            if (position > _capacity - sizeOfT)
-            {
-                if (position >= _capacity)
-                {
+            if (position > _capacity - sizeOfT) {
+                if (position >= _capacity) {
                     throw new ArgumentOutOfRangeException(nameof(position), SR.ArgumentOutOfRange_PositionLessThanCapacityRequired);
                 }
-                else
-                {
+                else {
                     throw new ArgumentException(SR.Format(SR.Argument_NotEnoughBytesToWrite, typeof (T).FullName), nameof(position));
                 }
             }
@@ -935,66 +767,52 @@ namespace System.IO
         // Writes 'count' structs of type T from 'array' (starting at 'offset') into unmanaged memory. 
 
 
-        public void WriteArray<T>(Int64 position, T[] array, Int32 offset, Int32 count) where T : struct
-        {
-            if (array == null)
-            {
+        public void WriteArray<T>(Int64 position, T[] array, Int32 offset, Int32 count) where T : struct {
+            if (array == null) {
                 throw new ArgumentNullException(nameof(array), "Buffer cannot be null.");
             }
-            if (offset < 0)
-            {
+            if (offset < 0) {
                 throw new ArgumentOutOfRangeException(nameof(offset), SR.ArgumentOutOfRange_NeedNonNegNum);
             }
-            if (count < 0)
-            {
+            if (count < 0) {
                 throw new ArgumentOutOfRangeException(nameof(count), SR.ArgumentOutOfRange_NeedNonNegNum);
             }
-            if (array.Length - offset < count)
-            {
+            if (array.Length - offset < count) {
                 throw new ArgumentException(SR.Argument_OffsetAndLengthOutOfBounds);
             }
-            if (position < 0)
-            {
+            if (position < 0) {
                 throw new ArgumentOutOfRangeException(nameof(position), SR.ArgumentOutOfRange_NeedNonNegNum);
             }
-            if (position >= Capacity)
-            {
+            if (position >= Capacity) {
                 throw new ArgumentOutOfRangeException(nameof(position), SR.ArgumentOutOfRange_PositionLessThanCapacityRequired);
             }
             Contract.EndContractBlock();
 
-            if (!_isOpen)
-            {
+            if (!_isOpen) {
                 throw new ObjectDisposedException("UnmanagedMemoryAccessor", SR.ObjectDisposed_ViewAccessorClosed);
             }
-            if (!CanWrite)
-            {
+            if (!CanWrite) {
                 throw new NotSupportedException(SR.NotSupported_Writing);
             }
 
             _buffer.WriteArray<T>((UInt64)(_offset + position), array, offset, count);
         }
 
-        private byte InternalReadByte(Int64 position)
-        {
+        private byte InternalReadByte(Int64 position) {
             Debug.Assert(CanRead, "UMA not readable");
             Debug.Assert(position >= 0, "position less than 0");
             Debug.Assert(position <= _capacity - sizeof(byte), "position is greater than capacity - sizeof(byte)");
 
             byte result;
-            unsafe
-            {
+            unsafe {
                 byte* pointer = null;
                 RuntimeHelpers.PrepareConstrainedRegions();
-                try
-                {
+                try {
                     _buffer.AcquirePointer(ref pointer);
                     result = *(pointer + _offset + position);
                 }
-                finally
-                {
-                    if (pointer != null)
-                    {
+                finally {
+                    if (pointer != null) {
                         _buffer.ReleasePointer();
                     }
                 }
@@ -1002,82 +820,63 @@ namespace System.IO
             return result;
         }
 
-        private void InternalWrite(Int64 position, byte value)
-        {
+        private void InternalWrite(Int64 position, byte value) {
             Debug.Assert(CanWrite, "UMA not writable");
             Debug.Assert(position >= 0, "position less than 0");
             Debug.Assert(position <= _capacity - sizeof(byte), "position is greater than capacity - sizeof(byte)");
 
-            unsafe
-            {
+            unsafe {
                 byte* pointer = null;
                 RuntimeHelpers.PrepareConstrainedRegions();
-                try
-                {
+                try {
                     _buffer.AcquirePointer(ref pointer);
                     *(pointer + _offset + position) = value;
                 }
-                finally
-                {
-                    if (pointer != null)
-                    {
+                finally {
+                    if (pointer != null) {
                         _buffer.ReleasePointer();
                     }
                 }
             }
         }
 
-        private void EnsureSafeToRead(Int64 position, int sizeOfType)
-        {
-            if (!_isOpen)
-            {
+        private void EnsureSafeToRead(Int64 position, int sizeOfType) {
+            if (!_isOpen) {
                 throw new ObjectDisposedException("UnmanagedMemoryAccessor", SR.ObjectDisposed_ViewAccessorClosed);
             }
-            if (!CanRead)
-            {
+            if (!CanRead) {
                 throw new NotSupportedException(SR.NotSupported_Reading);
             }
-            if (position < 0)
-            {
+            if (position < 0) {
                 throw new ArgumentOutOfRangeException(nameof(position), SR.ArgumentOutOfRange_NeedNonNegNum);
             }
             Contract.EndContractBlock();
-            if (position > _capacity - sizeOfType)
-            {
-                if (position >= _capacity)
-                {
+            if (position > _capacity - sizeOfType) {
+                if (position >= _capacity) {
                     throw new ArgumentOutOfRangeException(nameof(position), SR.ArgumentOutOfRange_PositionLessThanCapacityRequired);
                 }
-                else
-                {
+                else {
                     throw new ArgumentException(SR.Argument_NotEnoughBytesToRead, nameof(position));
                 }
             }
         }
 
-        private void EnsureSafeToWrite(Int64 position, int sizeOfType)
-        {
-            if (!_isOpen)
-            {
+        private void EnsureSafeToWrite(Int64 position, int sizeOfType) {
+            if (!_isOpen) {
                 throw new ObjectDisposedException("UnmanagedMemoryAccessor", SR.ObjectDisposed_ViewAccessorClosed);
             }
-            if (!CanWrite)
-            {
+            if (!CanWrite) {
                 throw new NotSupportedException(SR.NotSupported_Writing);
             }
-            if (position < 0)
-            {
+            if (position < 0) {
                 throw new ArgumentOutOfRangeException(nameof(position), SR.ArgumentOutOfRange_NeedNonNegNum);
             }
             Contract.EndContractBlock();
-            if (position > _capacity - sizeOfType)
-            {
-                if (position >= _capacity)
-                {
+            if (position > _capacity - sizeOfType) {
+                if (position >= _capacity) {
                     throw new ArgumentOutOfRangeException(nameof(position), SR.ArgumentOutOfRange_PositionLessThanCapacityRequired);
                 }
-                else
-                {
+                else {
                     throw new ArgumentException(SR.Format(SR.Argument_NotEnoughBytesToWrite, nameof(Byte)), nameof(position));
                 }
             }

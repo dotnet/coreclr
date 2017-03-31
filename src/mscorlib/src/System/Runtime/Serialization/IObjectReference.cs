@@ -18,11 +18,9 @@
 
 using System;
 
-namespace System.Runtime.Serialization
-{
+namespace System.Runtime.Serialization {
     // Interface does not need to be marked with the serializable attribute
-    public interface IObjectReference
-    {
+    public interface IObjectReference {
         Object GetRealObject(StreamingContext context);
     }
 }

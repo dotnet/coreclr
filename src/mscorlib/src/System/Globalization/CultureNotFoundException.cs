@@ -6,110 +6,88 @@ using System;
 using System.Runtime.Serialization;
 using System.Threading;
 
-namespace System.Globalization
-{
+namespace System.Globalization {
     [Serializable]
-    public class CultureNotFoundException : ArgumentException, ISerializable
-    {
+    public class CultureNotFoundException : ArgumentException, ISerializable {
         private string _invalidCultureName; // unrecognized culture name
         private int? _invalidCultureId;     // unrecognized culture Lcid
 
         public CultureNotFoundException()
-            : base(DefaultMessage)
-        {
+            : base(DefaultMessage) {
         }
 
         public CultureNotFoundException(String message)
-            : base(message)
-        {
+            : base(message) {
         }
 
         public CultureNotFoundException(String paramName, String message)
-            : base(message, paramName)
-        {
+            : base(message, paramName) {
         }
 
         public CultureNotFoundException(String message, Exception innerException)
-            : base(message, innerException)
-        {
+            : base(message, innerException) {
         }
 
         public CultureNotFoundException(String paramName, string invalidCultureName, String message)
-            : base(message, paramName)
-        {
+            : base(message, paramName) {
             _invalidCultureName = invalidCultureName;
         }
 
         public CultureNotFoundException(String message, string invalidCultureName, Exception innerException)
-            : base(message, innerException)
-        {
+            : base(message, innerException) {
             _invalidCultureName = invalidCultureName;
         }
 
         public CultureNotFoundException(string message, int invalidCultureId, Exception innerException)
-            : base(message, innerException)
-        {
+            : base(message, innerException) {
             _invalidCultureId = invalidCultureId;
         }
 
         public CultureNotFoundException(string paramName, int invalidCultureId, string message)
-            : base(message, paramName)
-        {
+            : base(message, paramName) {
             _invalidCultureId = invalidCultureId;
         }
 
         protected CultureNotFoundException(SerializationInfo info, StreamingContext context)
-            : base(info, context)
-        {
+            : base(info, context) {
             _invalidCultureId = (int?)info.GetValue("InvalidCultureId", typeof(int?));
             _invalidCultureName = (string)info.GetValue("InvalidCultureName", typeof(string));
         }
 
-        public override void GetObjectData(SerializationInfo info, StreamingContext context)
-        {
+        public override void GetObjectData(SerializationInfo info, StreamingContext context) {
             base.GetObjectData(info, context);
             info.AddValue("InvalidCultureId", _invalidCultureId, typeof(int?));
             info.AddValue("InvalidCultureName", _invalidCultureName, typeof(string));
         }
 
-        public virtual Nullable<int> InvalidCultureId
-        {
+        public virtual Nullable<int> InvalidCultureId {
             get { return _invalidCultureId; }
         }
 
-        public virtual string InvalidCultureName
-        {
+        public virtual string InvalidCultureName {
             get { return _invalidCultureName; }
         }
 
-        private static String DefaultMessage
-        {
-            get
-            {
+        private static String DefaultMessage {
+            get {
                 return SR.Argument_CultureNotSupported;
             }
         }
 
-        private String FormatedInvalidCultureId
-        {
-            get
-            {
+        private String FormatedInvalidCultureId {
+            get {
                 return InvalidCultureId != null ?
                     String.Format(CultureInfo.InvariantCulture, "{0} (0x{0:x4})", (int)InvalidCultureId) :
                     InvalidCultureName;
             }
         }
 
-        public override String Message
-        {
-            get
-            {
+        public override String Message {
+            get {
                 String s = base.Message;
-                if (_invalidCultureId != null || _invalidCultureName != null)
-                {
+                if (_invalidCultureId != null || _invalidCultureName != null) {
                     String valueMessage = SR.Format(SR.Argument_CultureInvalidIdentifier, FormatedInvalidCultureId);
-                    if (s == null)
-                    {
+                    if (s == null) {
                         return valueMessage;
                     }
 

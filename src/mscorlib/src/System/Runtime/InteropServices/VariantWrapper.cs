@@ -14,21 +14,16 @@
 
 using System;
 
-namespace System.Runtime.InteropServices
-{
+namespace System.Runtime.InteropServices {
     [Serializable]
 
-    public sealed class VariantWrapper
-    {
-        public VariantWrapper(Object obj)
-        {
+    public sealed class VariantWrapper {
+        public VariantWrapper(Object obj) {
             m_WrappedObject = obj;
         }
 
-        public Object WrappedObject
-        {
-            get
-            {
+        public Object WrappedObject {
+            get {
                 return m_WrappedObject;
             }
         }

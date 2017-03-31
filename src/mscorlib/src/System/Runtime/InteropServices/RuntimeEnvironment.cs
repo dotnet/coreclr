@@ -22,15 +22,12 @@ using Microsoft.Win32;
 using System.Runtime.Versioning;
 using StackCrawlMark = System.Threading.StackCrawlMark;
 
-namespace System.Runtime.InteropServices
-{
-    static internal class RuntimeEnvironment
-    {
+namespace System.Runtime.InteropServices {
+    static internal class RuntimeEnvironment {
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         internal static extern String GetModuleFileName();
 
-        public static String GetSystemVersion()
-        {
+        public static String GetSystemVersion() {
             return Assembly.GetExecutingAssembly().ImageRuntimeVersion;
         }
     }

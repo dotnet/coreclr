@@ -101,14 +101,12 @@
 using System;
 using System.Runtime.Remoting;
 
-namespace System.Runtime.InteropServices
-{
+namespace System.Runtime.InteropServices {
     /// <summary>
     /// The static methods provided in ComEventsHelper allow using .NET delegates to subscribe to events
     /// raised COM objects.
     /// </summary>
-    public static class ComEventsHelper
-    {
+    public static class ComEventsHelper {
         /// <summary>
         /// Adds a delegate to the invocation list of events originating from the COM object.
         /// </summary>
@@ -116,24 +114,20 @@ namespace System.Runtime.InteropServices
         /// <param name="iid">identifier of the source interface used by COM object to fire events</param>
         /// <param name="dispid">dispatch identifier of the method on the source interface</param>
         /// <param name="d">delegate to invoke when specifed COM event is fired</param>
-        public static void Combine(object rcw, Guid iid, int dispid, System.Delegate d)
-        {
+        public static void Combine(object rcw, Guid iid, int dispid, System.Delegate d) {
             rcw = UnwrapIfTransparentProxy(rcw);
 
-            lock (rcw)
-            {
+            lock (rcw) {
                 ComEventsInfo eventsInfo = ComEventsInfo.FromObject(rcw);
 
                 ComEventsSink sink = eventsInfo.FindSink(ref iid);
-                if (sink == null)
-                {
+                if (sink == null) {
                     sink = eventsInfo.AddSink(ref iid);
                 }
 
 
                 ComEventsMethod method = sink.FindMethod(dispid);
-                if (method == null)
-                {
+                if (method == null) {
                     method = sink.AddMethod(dispid);
                 }
 
@@ -149,12 +143,10 @@ namespace System.Runtime.InteropServices
         /// <param name="dispid">dispatch identifier of the method on the source interface</param>
         /// <param name="d">delegate to remove from the invocation list</param>
         /// <returns></returns>
-        public static Delegate Remove(object rcw, Guid iid, int dispid, System.Delegate d)
-        {
+        public static Delegate Remove(object rcw, Guid iid, int dispid, System.Delegate d) {
             rcw = UnwrapIfTransparentProxy(rcw);
 
-            lock (rcw)
-            {
+            lock (rcw) {
                 ComEventsInfo eventsInfo = ComEventsInfo.Find(rcw);
                 if (eventsInfo == null)
                     return null;
@@ -167,18 +159,15 @@ namespace System.Runtime.InteropServices
 
                 method.RemoveDelegate(d);
 
-                if (method.Empty)
-                {
+                if (method.Empty) {
                     // removed the last event handler for this dispid - need to remove dispid handler
                     method = sink.RemoveMethod(method);
                 }
-                if (method == null)
-                {
+                if (method == null) {
                     // removed last dispid handler for this sink - need to remove the sink
                     sink = eventsInfo.RemoveSink(sink);
                 }
-                if (sink == null)
-                {
+                if (sink == null) {
                     // removed last sink for this rcw - need to remove all traces of event info
                     Marshal.SetComObjectData(rcw, typeof(ComEventsInfo), null);
                     GC.SuppressFinalize(eventsInfo);
@@ -188,8 +177,7 @@ namespace System.Runtime.InteropServices
             }
         }
 
-        internal static object UnwrapIfTransparentProxy(object rcw)
-        {
+        internal static object UnwrapIfTransparentProxy(object rcw) {
             return rcw;
         }
     }

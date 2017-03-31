@@ -4,10 +4,8 @@
 
 using System.Diagnostics;
 
-namespace System.Globalization
-{
-    internal class CalendricalCalculationsHelper
-    {
+namespace System.Globalization {
+    internal class CalendricalCalculationsHelper {
         private const double FullCircleOfArc = 360.0; // 360.0;
         private const int HalfCircleOfArc = 180;
         private const double TwelveHours = 0.5; // half a day
@@ -36,47 +34,38 @@ namespace System.Globalization
         private static readonly double[] s_coefficientsA = new double[] { 124.90, -1934.134, 0.002063 };
         private static readonly double[] s_coefficientsB = new double[] { 201.11, 72001.5377, 0.00057 };
 
-        private static double RadiansFromDegrees(double degree)
-        {
+        private static double RadiansFromDegrees(double degree) {
             return degree * Math.PI / 180;
         }
 
-        private static double SinOfDegree(double degree)
-        {
+        private static double SinOfDegree(double degree) {
             return Math.Sin(RadiansFromDegrees(degree));
         }
 
-        private static double CosOfDegree(double degree)
-        {
+        private static double CosOfDegree(double degree) {
             return Math.Cos(RadiansFromDegrees(degree));
         }
-        private static double TanOfDegree(double degree)
-        {
+        private static double TanOfDegree(double degree) {
             return Math.Tan(RadiansFromDegrees(degree));
         }
 
-        public static double Angle(int degrees, int minutes, double seconds)
-        {
+        public static double Angle(int degrees, int minutes, double seconds) {
             return ((seconds / SecondsPerMinute + minutes) / MinutesPerDegree) + degrees;
         }
 
-        private static double Obliquity(double julianCenturies)
-        {
+        private static double Obliquity(double julianCenturies) {
             return PolynomialSum(s_coefficients, julianCenturies);
         }
 
-        internal static long GetNumberOfDays(DateTime date)
-        {
+        internal static long GetNumberOfDays(DateTime date) {
             return date.Ticks / GregorianCalendar.TicksPerDay;
         }
 
-        private static int GetGregorianYear(double numberOfDays)
-        {
+        private static int GetGregorianYear(double numberOfDays) {
             return new DateTime(Math.Min((long)(Math.Floor(numberOfDays) * GregorianCalendar.TicksPerDay), DateTime.MaxValue.Ticks)).Year;
         }
 
-        private enum CorrectionAlgorithm
-        {
+        private enum CorrectionAlgorithm {
             Default,
             Year1988to2019,
             Year1900to1987,
@@ -85,10 +74,8 @@ namespace System.Globalization
             Year1620to1699
         }
 
-        private struct EphemerisCorrectionAlgorithmMap
-        {
-            public EphemerisCorrectionAlgorithmMap(int year, CorrectionAlgorithm algorithm)
-            {
+        private struct EphemerisCorrectionAlgorithmMap {
+            public EphemerisCorrectionAlgorithmMap(int year, CorrectionAlgorithm algorithm) {
                 _lowestYear = year;
                 _algorithm = algorithm;
             }
@@ -97,8 +84,7 @@ namespace System.Globalization
             internal CorrectionAlgorithm _algorithm;
         };
 
-        private static readonly EphemerisCorrectionAlgorithmMap[] s_ephemerisCorrectionTable = new EphemerisCorrectionAlgorithmMap[]
-        {
+        private static readonly EphemerisCorrectionAlgorithmMap[] s_ephemerisCorrectionTable = new EphemerisCorrectionAlgorithmMap[] {
             // lowest year that starts algorithm, algorithm to use
             new EphemerisCorrectionAlgorithmMap(2020, CorrectionAlgorithm.Default),
             new EphemerisCorrectionAlgorithmMap(1988, CorrectionAlgorithm.Year1988to2019),
@@ -109,33 +95,27 @@ namespace System.Globalization
             new EphemerisCorrectionAlgorithmMap(int.MinValue, CorrectionAlgorithm.Default) // default must be last
         };
 
-        private static double Reminder(double divisor, double dividend)
-        {
+        private static double Reminder(double divisor, double dividend) {
             double whole = Math.Floor(divisor / dividend);
             return divisor - (dividend * whole);
         }
 
-        private static double NormalizeLongitude(double longitude)
-        {
+        private static double NormalizeLongitude(double longitude) {
             longitude = Reminder(longitude, FullCircleOfArc);
-            if (longitude < 0)
-            {
+            if (longitude < 0) {
                 longitude += FullCircleOfArc;
             }
             return longitude;
         }
 
-        public static double AsDayFraction(double longitude)
-        {
+        public static double AsDayFraction(double longitude) {
             return longitude / FullCircleOfArc;
         }
 
-        private static double PolynomialSum(double[] coefficients, double indeterminate)
-        {
+        private static double PolynomialSum(double[] coefficients, double indeterminate) {
             double sum = coefficients[0];
             double indeterminateRaised = 1;
-            for (int i = 1; i < coefficients.Length; i++)
-            {
+            for (int i = 1; i < coefficients.Length; i++) {
                 indeterminateRaised *= indeterminate;
                 sum += (coefficients[i] * indeterminateRaised);
             }
@@ -143,15 +123,13 @@ namespace System.Globalization
             return sum;
         }
 
-        private static double CenturiesFrom1900(int gregorianYear)
-        {
+        private static double CenturiesFrom1900(int gregorianYear) {
             long july1stOfYear = GetNumberOfDays(new DateTime(gregorianYear, 7, 1));
             return (double)(july1stOfYear - s_startOf1900Century) / DaysInUniformLengthCentury;
         }
 
         // the following formulas defines a polynomial function which gives us the amount that the earth is slowing down for specific year ranges
-        private static double DefaultEphemerisCorrection(int gregorianYear)
-        {
+        private static double DefaultEphemerisCorrection(int gregorianYear) {
             Debug.Assert(gregorianYear < 1620 || 2020 <= gregorianYear);
             long january1stOfYear = GetNumberOfDays(new DateTime(gregorianYear, 1, 1));
             double daysSinceStartOf1810 = january1stOfYear - s_startOf1810;
@@ -159,50 +137,41 @@ namespace System.Globalization
             return ((Math.Pow(x, 2) / 41048480) - 15) / SecondsPerDay;
         }
 
-        private static double EphemerisCorrection1988to2019(int gregorianYear)
-        {
+        private static double EphemerisCorrection1988to2019(int gregorianYear) {
             Debug.Assert(1988 <= gregorianYear && gregorianYear <= 2019);
             return (double)(gregorianYear - 1933) / SecondsPerDay;
         }
 
-        private static double EphemerisCorrection1900to1987(int gregorianYear)
-        {
+        private static double EphemerisCorrection1900to1987(int gregorianYear) {
             Debug.Assert(1900 <= gregorianYear && gregorianYear <= 1987);
             double centuriesFrom1900 = CenturiesFrom1900(gregorianYear);
             return PolynomialSum(s_coefficients1900to1987, centuriesFrom1900);
         }
 
-        private static double EphemerisCorrection1800to1899(int gregorianYear)
-        {
+        private static double EphemerisCorrection1800to1899(int gregorianYear) {
             Debug.Assert(1800 <= gregorianYear && gregorianYear <= 1899);
             double centuriesFrom1900 = CenturiesFrom1900(gregorianYear);
             return PolynomialSum(s_coefficients1800to1899, centuriesFrom1900);
         }
 
-        private static double EphemerisCorrection1700to1799(int gregorianYear)
-        {
+        private static double EphemerisCorrection1700to1799(int gregorianYear) {
             Debug.Assert(1700 <= gregorianYear && gregorianYear <= 1799);
             double yearsSince1700 = gregorianYear - 1700;
             return PolynomialSum(s_coefficients1700to1799, yearsSince1700) / SecondsPerDay;
         }
 
-        private static double EphemerisCorrection1620to1699(int gregorianYear)
-        {
+        private static double EphemerisCorrection1620to1699(int gregorianYear) {
             Debug.Assert(1620 <= gregorianYear && gregorianYear <= 1699);
             double yearsSince1600 = gregorianYear - 1600;
             return PolynomialSum(s_coefficients1620to1699, yearsSince1600) / SecondsPerDay;
         }
 
         // ephemeris-correction: correction to account for the slowing down of the rotation of the earth
-        private static double EphemerisCorrection(double time)
-        {
+        private static double EphemerisCorrection(double time) {
             int year = GetGregorianYear(time);
-            foreach (EphemerisCorrectionAlgorithmMap map in s_ephemerisCorrectionTable)
-            {
-                if (map._lowestYear <= year)
-                {
-                    switch (map._algorithm)
-                    {
+            foreach (EphemerisCorrectionAlgorithmMap map in s_ephemerisCorrectionTable) {
+                if (map._lowestYear <= year) {
+                    switch (map._algorithm) {
                         case CorrectionAlgorithm.Default: return DefaultEphemerisCorrection(year);
                         case CorrectionAlgorithm.Year1988to2019: return EphemerisCorrection1988to2019(year);
                         case CorrectionAlgorithm.Year1900to1987: return EphemerisCorrection1900to1987(year);
@@ -219,19 +188,16 @@ namespace System.Globalization
             return DefaultEphemerisCorrection(year);
         }
 
-        public static double JulianCenturies(double moment)
-        {
+        public static double JulianCenturies(double moment) {
             double dynamicalMoment = moment + EphemerisCorrection(moment);
             return (dynamicalMoment - Noon2000Jan01) / DaysInUniformLengthCentury;
         }
 
-        private static bool IsNegative(double value)
-        {
+        private static bool IsNegative(double value) {
             return Math.Sign(value) == -1;
         }
 
-        private static double CopySign(double value, double sign)
-        {
+        private static double CopySign(double value, double sign) {
             return (IsNegative(value) == IsNegative(sign)) ? value : -value;
         }
 
@@ -241,8 +207,7 @@ namespace System.Globalization
         // GMHA is the Greenwich Mean Hour Angle of the mean (fictitious) Sun
         // http://www.esrl.noaa.gov/gmd/grad/solcalc/
         // http://en.wikipedia.org/wiki/Equation_of_time
-        private static double EquationOfTime(double time)
-        {
+        private static double EquationOfTime(double time) {
             double julianCenturies = JulianCenturies(time);
             double lambda = PolynomialSum(s_lambdaCoefficients, julianCenturies);
             double anomaly = PolynomialSum(s_anomalyCoefficients, julianCenturies);
@@ -265,37 +230,31 @@ namespace System.Globalization
             return CopySign(Math.Min(Math.Abs(equation), TwelveHours), equation);
         }
 
-        private static double AsLocalTime(double apparentMidday, double longitude)
-        {
+        private static double AsLocalTime(double apparentMidday, double longitude) {
             // slightly inaccurate since equation of time takes mean time not apparent time as its argument, but the difference is negligible
             double universalTime = apparentMidday - AsDayFraction(longitude);
             return apparentMidday - EquationOfTime(universalTime);
         }
 
         // midday
-        public static double Midday(double date, double longitude)
-        {
+        public static double Midday(double date, double longitude) {
             return AsLocalTime(date + TwelveHours, longitude) - AsDayFraction(longitude);
         }
 
-        private static double InitLongitude(double longitude)
-        {
+        private static double InitLongitude(double longitude) {
             return NormalizeLongitude(longitude + HalfCircleOfArc) - HalfCircleOfArc;
         }
 
         // midday-in-tehran
-        public static double MiddayAtPersianObservationSite(double date)
-        {
+        public static double MiddayAtPersianObservationSite(double date) {
             return Midday(date, InitLongitude(52.5)); // 52.5 degrees east - longitude of UTC+3:30 which defines Iranian Standard Time
         }
 
-        private static double PeriodicTerm(double julianCenturies, int x, double y, double z)
-        {
+        private static double PeriodicTerm(double julianCenturies, int x, double y, double z) {
             return x * SinOfDegree(y + z * julianCenturies);
         }
 
-        private static double SumLongSequenceOfPeriodicTerms(double julianCenturies)
-        {
+        private static double SumLongSequenceOfPeriodicTerms(double julianCenturies) {
             double sum = 0.0;
             sum += PeriodicTerm(julianCenturies, 403406, 270.54861, 0.9287892);
             sum += PeriodicTerm(julianCenturies, 195207, 340.19128, 35999.1376958);
@@ -349,20 +308,17 @@ namespace System.Globalization
             return sum;
         }
 
-        private static double Aberration(double julianCenturies)
-        {
+        private static double Aberration(double julianCenturies) {
             return (0.0000974 * CosOfDegree(177.63 + (35999.01848 * julianCenturies))) - 0.005575;
         }
 
-        private static double Nutation(double julianCenturies)
-        {
+        private static double Nutation(double julianCenturies) {
             double a = PolynomialSum(s_coefficientsA, julianCenturies);
             double b = PolynomialSum(s_coefficientsB, julianCenturies);
             return (-0.004778 * SinOfDegree(a)) - (0.0003667 * SinOfDegree(b));
         }
 
-        public static double Compute(double time)
-        {
+        public static double Compute(double time) {
             double julianCenturies = JulianCenturies(time);
             double lambda = 282.7771834
                 + (36000.76953744 * julianCenturies)
@@ -372,13 +328,11 @@ namespace System.Globalization
             return InitLongitude(longitude);
         }
 
-        public static double AsSeason(double longitude)
-        {
+        public static double AsSeason(double longitude) {
             return (longitude < 0) ? (longitude + FullCircleOfArc) : longitude;
         }
 
-        private static double EstimatePrior(double longitude, double time)
-        {
+        private static double EstimatePrior(double longitude, double time) {
             double timeSunLastAtLongitude = time - (MeanSpeedOfSun * AsSeason(InitLongitude(Compute(time) - longitude)));
             double longitudeErrorDelta = InitLongitude(Compute(timeSunLastAtLongitude) - longitude);
             return Math.Min(time, timeSunLastAtLongitude - (MeanSpeedOfSun * longitudeErrorDelta));
@@ -387,20 +341,17 @@ namespace System.Globalization
         // persian-new-year-on-or-before
         //  number of days is the absolute date. The absolute date is the number of days from January 1st, 1 A.D.
         //  1/1/0001 is absolute date 1.
-        internal static long PersianNewYearOnOrBefore(long numberOfDays)
-        {
+        internal static long PersianNewYearOnOrBefore(long numberOfDays) {
             double date = (double)numberOfDays;
 
             double approx = EstimatePrior(LongitudeSpring, MiddayAtPersianObservationSite(date));
             long lowerBoundNewYearDay = (long)Math.Floor(approx) - 1;
             long upperBoundNewYearDay = lowerBoundNewYearDay + 3; // estimate is generally within a day of the actual occurrance (at the limits, the error expands, since the calculations rely on the mean tropical year which changes...)
             long day = lowerBoundNewYearDay;
-            for (; day != upperBoundNewYearDay; ++day)
-            {
+            for (; day != upperBoundNewYearDay; ++day) {
                 double midday = MiddayAtPersianObservationSite((double)day);
                 double l = Compute(midday);
-                if ((LongitudeSpring <= l) && (l <= TwoDegreesAfterSpring))
-                {
+                if ((LongitudeSpring <= l) && (l <= TwoDegreesAfterSpring)) {
                     break;
                 }
             }

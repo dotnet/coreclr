@@ -15,8 +15,7 @@ namespace System.Diagnostics.Tracing
     /// to the EventListener. The EventListener determines the semantics of the flags.
     /// </summary>
     [Flags]
-    public enum EventTags
-    {
+    public enum EventTags {
         /// <summary>
         /// No special traits are added to the event.
         /// </summary>

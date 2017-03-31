@@ -14,26 +14,21 @@
 
 using System.Runtime.Serialization;
 
-namespace System
-{
+namespace System {
     [Serializable]
-    public class InvalidOperationException : SystemException
-    {
+    public class InvalidOperationException : SystemException {
         public InvalidOperationException()
-            : base(SR.Arg_InvalidOperationException)
-        {
+            : base(SR.Arg_InvalidOperationException) {
             HResult = __HResults.COR_E_INVALIDOPERATION;
         }
 
         public InvalidOperationException(String message)
-            : base(message)
-        {
+            : base(message) {
             HResult = __HResults.COR_E_INVALIDOPERATION;
         }
 
         public InvalidOperationException(String message, Exception innerException)
-            : base(message, innerException)
-        {
+            : base(message, innerException) {
             HResult = __HResults.COR_E_INVALIDOPERATION;
         }
 

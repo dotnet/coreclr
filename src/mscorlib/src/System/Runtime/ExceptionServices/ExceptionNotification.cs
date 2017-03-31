@@ -14,20 +14,16 @@
 using System;
 using System.Runtime.ConstrainedExecution;
 
-namespace System.Runtime.ExceptionServices
-{
+namespace System.Runtime.ExceptionServices {
     // Definition of the argument-type passed to the FirstChanceException event handler
-    public class FirstChanceExceptionEventArgs : EventArgs
-    {
+    public class FirstChanceExceptionEventArgs : EventArgs {
         // Constructor
-        public FirstChanceExceptionEventArgs(Exception exception)
-        {
+        public FirstChanceExceptionEventArgs(Exception exception) {
             m_Exception = exception;
         }
 
         // Returns the exception object pertaining to the first chance exception
-        public Exception Exception
-        {
+        public Exception Exception {
             get { return m_Exception; }
         }
 

@@ -2,8 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-namespace System.Collections
-{
+namespace System.Collections {
     // This interface represents an enumerator that allows sequential access to the
     // elements of a dictionary. Upon creation, an enumerator is conceptually
     // positioned before the first element of the enumeration. The first call to the
@@ -31,16 +30,14 @@ namespace System.Collections
     // return the same DictionaryEntry and avoids boxing the DictionaryEntry (boxing
     // is somewhat expensive).
     // 
-    public interface IDictionaryEnumerator : IEnumerator
-    {
+    public interface IDictionaryEnumerator : IEnumerator {
         // Returns the key of the current element of the enumeration. The returned
         // value is undefined before the first call to GetNext and following
         // a call to GetNext that returned false. Multiple calls to
         // GetKey with no intervening calls to GetNext will return
         // the same object.
         // 
-        Object Key
-        {
+        Object Key {
             get;
         }
 
@@ -50,8 +47,7 @@ namespace System.Collections
         // to GetValue with no intervening calls to GetNext will
         // return the same object.
         // 
-        Object Value
-        {
+        Object Value {
             get;
         }
 
@@ -60,8 +56,7 @@ namespace System.Collections
         // copy as much as possible into the Array.  The number of elements
         // copied is returned.
         // 
-        DictionaryEntry Entry
-        {
+        DictionaryEntry Entry {
             get;
         }
     }

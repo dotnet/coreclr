@@ -6,11 +6,9 @@ using System;
 using System.Diagnostics.Contracts;
 using System.Runtime.CompilerServices;
 
-namespace System.Collections.Generic
-{
+namespace System.Collections.Generic {
     // Provides a read-only, covariant view of a generic list.
-    public interface IReadOnlyCollection<out T> : IEnumerable<T>
-    {
+    public interface IReadOnlyCollection<out T> : IEnumerable<T> {
         int Count { get; }
     }
 }

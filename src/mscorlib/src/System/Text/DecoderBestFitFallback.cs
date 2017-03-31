@@ -12,55 +12,45 @@ using System.Threading;
 using System.Diagnostics;
 using System.Diagnostics.Contracts;
 
-namespace System.Text
-{
+namespace System.Text {
     [Serializable]
-    internal sealed class InternalDecoderBestFitFallback : DecoderFallback
-    {
+    internal sealed class InternalDecoderBestFitFallback : DecoderFallback {
         // Our variables
         internal Encoding encoding = null;
         internal char[] arrayBestFit = null;
         internal char cReplacement = '?';
 
-        internal InternalDecoderBestFitFallback(Encoding encoding)
-        {
+        internal InternalDecoderBestFitFallback(Encoding encoding) {
             // Need to load our replacement characters table.
             this.encoding = encoding;
             this.bIsMicrosoftBestFitFallback = true;
         }
 
-        public override DecoderFallbackBuffer CreateFallbackBuffer()
-        {
+        public override DecoderFallbackBuffer CreateFallbackBuffer() {
             return new InternalDecoderBestFitFallbackBuffer(this);
         }
 
         // Maximum number of characters that this instance of this fallback could return
-        public override int MaxCharCount
-        {
-            get
-            {
+        public override int MaxCharCount {
+            get {
                 return 1;
             }
         }
 
-        public override bool Equals(Object value)
-        {
+        public override bool Equals(Object value) {
             InternalDecoderBestFitFallback that = value as InternalDecoderBestFitFallback;
-            if (that != null)
-            {
+            if (that != null) {
                 return (this.encoding.CodePage == that.encoding.CodePage);
             }
             return (false);
         }
 
-        public override int GetHashCode()
-        {
+        public override int GetHashCode() {
             return this.encoding.CodePage;
         }
     }
 
-    internal sealed class InternalDecoderBestFitFallbackBuffer : DecoderFallbackBuffer
-    {
+    internal sealed class InternalDecoderBestFitFallbackBuffer : DecoderFallbackBuffer {
         // Our variables
         internal char cBestFit = '\0';
         internal int iCount = -1;
@@ -69,12 +59,9 @@ namespace System.Text
 
         // Private object for locking instead of locking on a public type for SQL reliability work.
         private static Object s_InternalSyncObject;
-        private static Object InternalSyncObject
-        {
-            get
-            {
-                if (s_InternalSyncObject == null)
-                {
+        private static Object InternalSyncObject {
+            get {
+                if (s_InternalSyncObject == null) {
                     Object o = new Object();
                     Interlocked.CompareExchange<Object>(ref s_InternalSyncObject, o, null);
                 }
@@ -83,15 +70,12 @@ namespace System.Text
         }
 
         // Constructor
-        public InternalDecoderBestFitFallbackBuffer(InternalDecoderBestFitFallback fallback)
-        {
+        public InternalDecoderBestFitFallbackBuffer(InternalDecoderBestFitFallback fallback) {
             oFallback = fallback;
 
-            if (oFallback.arrayBestFit == null)
-            {
+            if (oFallback.arrayBestFit == null) {
                 // Lock so we don't confuse ourselves.
-                lock (InternalSyncObject)
-                {
+                lock (InternalSyncObject) {
                     // Double check before we do it again.
                     if (oFallback.arrayBestFit == null)
                         oFallback.arrayBestFit = fallback.encoding.GetBestFitBytesToUnicodeData();
@@ -100,8 +84,7 @@ namespace System.Text
         }
 
         // Fallback methods
-        public override bool Fallback(byte[] bytesUnknown, int index)
-        {
+        public override bool Fallback(byte[] bytesUnknown, int index) {
             // We expect no previous fallback in our buffer
             Debug.Assert(iCount < 1, "[DecoderReplacementFallbackBuffer.Fallback] Calling fallback without a previously empty buffer");
 
@@ -115,8 +98,7 @@ namespace System.Text
         }
 
         // Default version is overridden in DecoderReplacementFallback.cs
-        public override char GetNextChar()
-        {
+        public override char GetNextChar() {
             // We want it to get < 0 because == 0 means that the current/last character is a fallback
             // and we need to detect recursion.  We could have a flag but we already have this counter.
             iCount--;
@@ -127,8 +109,7 @@ namespace System.Text
 
             // Need to get it out of the buffer.
             // Make sure it didn't wrap from the fast count-- path
-            if (iCount == int.MaxValue)
-            {
+            if (iCount == int.MaxValue) {
                 iCount = -1;
                 return '\0';
             }
@@ -137,8 +118,7 @@ namespace System.Text
             return cBestFit;
         }
 
-        public override bool MovePrevious()
-        {
+        public override bool MovePrevious() {
             // Exception fallback doesn't have anywhere to back up to.
             if (iCount >= 0)
                 iCount++;
@@ -148,17 +128,14 @@ namespace System.Text
         }
 
         // How many characters left to output?
-        public override int Remaining
-        {
-            get
-            {
+        public override int Remaining {
+            get {
                 return (iCount > 0) ? iCount : 0;
             }
         }
 
         // Clear the buffer
-        public override unsafe void Reset()
-        {
+        public override unsafe void Reset() {
             iCount = -1;
             byteStart = null;
         }
@@ -174,8 +151,7 @@ namespace System.Text
         }
 
         // private helper methods
-        private char TryBestFit(byte[] bytesCheck)
-        {
+        private char TryBestFit(byte[] bytesCheck) {
             // Need to figure out our best fit character, low is beginning of array, high is 1 AFTER end of array
             int lowBound = 0;
             int highBound = oFallback.arrayBestFit.Length;
@@ -201,37 +177,31 @@ namespace System.Text
 
             // Binary search the array
             int iDiff;
-            while ((iDiff = (highBound - lowBound)) > 6)
-            {
+            while ((iDiff = (highBound - lowBound)) > 6) {
                 // Look in the middle, which is complicated by the fact that we have 2 #s for each pair,
                 // so we don't want index to be odd because it must be word aligned.
                 // Also note that index can never == highBound (because diff is rounded down)
                 index = ((iDiff / 2) + lowBound) & 0xFFFE;
 
                 char cTest = oFallback.arrayBestFit[index];
-                if (cTest == cCheck)
-                {
+                if (cTest == cCheck) {
                     // We found it
                     Debug.Assert(index + 1 < oFallback.arrayBestFit.Length,
                         "[InternalDecoderBestFitFallbackBuffer.TryBestFit]Expected replacement character at end of array");
                     return oFallback.arrayBestFit[index + 1];
                 }
-                else if (cTest < cCheck)
-                {
+                else if (cTest < cCheck) {
                     // We weren't high enough
                     lowBound = index;
                 }
-                else
-                {
+                else {
                     // We weren't low enough
                     highBound = index;
                 }
             }
 
-            for (index = lowBound; index < highBound; index += 2)
-            {
-                if (oFallback.arrayBestFit[index] == cCheck)
-                {
+            for (index = lowBound; index < highBound; index += 2) {
+                if (oFallback.arrayBestFit[index] == cCheck) {
                     // We found it
                     Debug.Assert(index + 1 < oFallback.arrayBestFit.Length,
                         "[InternalDecoderBestFitFallbackBuffer.TryBestFit]Expected replacement character at end of array");

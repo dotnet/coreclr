@@ -6,22 +6,17 @@
 // Stubbed out types to be cleanup from CoreLib
 //
 
-namespace System.Security
-{
-    internal enum SecurityContextSource
-    {
+namespace System.Security {
+    internal enum SecurityContextSource {
         CurrentAppDomain = 0,
         CurrentAssembly
     }
 }
 
-namespace System.Security.Policy
-{
-    internal sealed class Evidence
-    {
+namespace System.Security.Policy {
+    internal sealed class Evidence {
     }
 
-    internal sealed class ApplicationTrust
-    {
+    internal sealed class ApplicationTrust {
     }
 }

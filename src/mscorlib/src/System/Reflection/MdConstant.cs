@@ -6,12 +6,9 @@
 
 using System;
 
-namespace System.Reflection
-{
-    internal static class MdConstant
-    {
-        public static unsafe Object GetValue(MetadataImport scope, int token, RuntimeTypeHandle fieldTypeHandle, bool raw)
-        {
+namespace System.Reflection {
+    internal static class MdConstant {
+        public static unsafe Object GetValue(MetadataImport scope, int token, RuntimeTypeHandle fieldTypeHandle, bool raw) {
             CorElementType corElementType = 0;
             long buffer = 0;
             int length;
@@ -21,12 +18,10 @@ namespace System.Reflection
 
             RuntimeType fieldType = fieldTypeHandle.GetRuntimeType();
 
-            if (fieldType.IsEnum && raw == false)
-            {
+            if (fieldType.IsEnum && raw == false) {
                 long defaultValue = 0;
 
-                switch (corElementType)
-                {
+                switch (corElementType) {
                     #region Switch
 
                     case CorElementType.Void:
@@ -75,12 +70,10 @@ namespace System.Reflection
 
                 return RuntimeType.CreateEnum(fieldType, defaultValue);
             }
-            else if (fieldType == typeof(DateTime))
-            {
+            else if (fieldType == typeof(DateTime)) {
                 long defaultValue = 0;
 
-                switch (corElementType)
-                {
+                switch (corElementType) {
                     #region Switch
 
                     case CorElementType.Void:
@@ -101,10 +94,8 @@ namespace System.Reflection
 
                 return new DateTime(defaultValue);
             }
-            else
-            {
-                switch (corElementType)
-                {
+            else {
+                switch (corElementType) {
                     #region Switch
 
                     case CorElementType.Void:

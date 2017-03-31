@@ -6,8 +6,7 @@
 // Don't override IsAlwaysNormalized because it is just a Unicode Transformation and could be confused.
 //
 
-namespace System.Text
-{
+namespace System.Text {
     using System;
     using System.Globalization;
     using System.Runtime.Serialization;
@@ -16,8 +15,7 @@ namespace System.Text
 
 
     [Serializable]
-    public class UnicodeEncoding : Encoding
-    {
+    public class UnicodeEncoding : Encoding {
         // Used by Encoding.BigEndianUnicode/Unicode for lazy initialization
         // The initialization code will not be run until a static member of the class is referenced
         internal static readonly UnicodeEncoding s_bigEndianDefault = new UnicodeEncoding(bigEndian: true, byteOrderMark: true);
@@ -34,20 +32,18 @@ namespace System.Text
 
 
         public UnicodeEncoding()
-            : this(false, true)
-        {
+            : this(false, true) {
         }
 
 
         public UnicodeEncoding(bool bigEndian, bool byteOrderMark)
-            : this(bigEndian, byteOrderMark, false)
-        {
+            : this(bigEndian, byteOrderMark, false) {
         }
 
 
         public UnicodeEncoding(bool bigEndian, bool byteOrderMark, bool throwOnInvalidBytes)
             : base(bigEndian ? 1201 : 1200)  //Set the data item.
-        {
+{
             this.isThrowException = throwOnInvalidBytes;
             this.bigEndian = bigEndian;
             this.byteOrderMark = byteOrderMark;
@@ -59,23 +55,19 @@ namespace System.Text
 
         #region Serialization 
         [OnDeserializing]
-        private void OnDeserializing(StreamingContext ctx)
-        {
+        private void OnDeserializing(StreamingContext ctx) {
             // In Everett it is false. Whidbey will overwrite this value.
             isThrowException = false;
         }
         #endregion Serialization
 
-        internal override void SetDefaultFallbacks()
-        {
+        internal override void SetDefaultFallbacks() {
             // For UTF-X encodings, we use a replacement fallback with an empty string
-            if (this.isThrowException)
-            {
+            if (this.isThrowException) {
                 this.encoderFallback = EncoderFallback.ExceptionFallback;
                 this.decoderFallback = DecoderFallback.ExceptionFallback;
             }
-            else
-            {
+            else {
                 this.encoderFallback = new EncoderReplacementFallback("\xFFFD");
                 this.decoderFallback = new DecoderReplacementFallback("\xFFFD");
             }
@@ -98,25 +90,21 @@ namespace System.Text
         // Returns the number of bytes required to encode a range of characters in
         // a character array.
 
-        public override int GetByteCount(char[] chars, int index, int count)
-        {
+        public override int GetByteCount(char[] chars, int index, int count) {
             return EncodingForwarder.GetByteCount(this, chars, index, count);
         }
 
-        public override int GetByteCount(String s)
-        {
+        public override int GetByteCount(String s) {
             return EncodingForwarder.GetByteCount(this, s);
         }
 
         [CLSCompliant(false)]
-        public override unsafe int GetByteCount(char* chars, int count)
-        {
+        public override unsafe int GetByteCount(char* chars, int count) {
             return EncodingForwarder.GetByteCount(this, chars, count);
         }
 
         public override int GetBytes(String s, int charIndex, int charCount,
-                                              byte[] bytes, int byteIndex)
-        {
+                                              byte[] bytes, int byteIndex) {
             return EncodingForwarder.GetBytes(this, s, charIndex, charCount, bytes, byteIndex);
         }
 
@@ -130,55 +118,47 @@ namespace System.Text
         // number of characters, regardless of the actual character values.
 
         public override int GetBytes(char[] chars, int charIndex, int charCount,
-                                               byte[] bytes, int byteIndex)
-        {
+                                               byte[] bytes, int byteIndex) {
             return EncodingForwarder.GetBytes(this, chars, charIndex, charCount, bytes, byteIndex);
         }
 
         [CLSCompliant(false)]
-        public override unsafe int GetBytes(char* chars, int charCount, byte* bytes, int byteCount)
-        {
+        public override unsafe int GetBytes(char* chars, int charCount, byte* bytes, int byteCount) {
             return EncodingForwarder.GetBytes(this, chars, charCount, bytes, byteCount);
         }
 
         // Returns the number of characters produced by decoding a range of bytes
         // in a byte array.
 
-        public override int GetCharCount(byte[] bytes, int index, int count)
-        {
+        public override int GetCharCount(byte[] bytes, int index, int count) {
             return EncodingForwarder.GetCharCount(this, bytes, index, count);
         }
 
         [CLSCompliant(false)]
-        public override unsafe int GetCharCount(byte* bytes, int count)
-        {
+        public override unsafe int GetCharCount(byte* bytes, int count) {
             return EncodingForwarder.GetCharCount(this, bytes, count);
         }
 
         public override int GetChars(byte[] bytes, int byteIndex, int byteCount,
-                                              char[] chars, int charIndex)
-        {
+                                              char[] chars, int charIndex) {
             return EncodingForwarder.GetChars(this, bytes, byteIndex, byteCount, chars, charIndex);
         }
 
         [CLSCompliant(false)]
-        public unsafe override int GetChars(byte* bytes, int byteCount, char* chars, int charCount)
-        {
+        public unsafe override int GetChars(byte* bytes, int byteCount, char* chars, int charCount) {
             return EncodingForwarder.GetChars(this, bytes, byteCount, chars, charCount);
         }
 
         // Returns a string containing the decoded representation of a range of
         // bytes in a byte array.
 
-        public override String GetString(byte[] bytes, int index, int count)
-        {
+        public override String GetString(byte[] bytes, int index, int count) {
             return EncodingForwarder.GetString(this, bytes, index, count);
         }
 
         // End of overridden methods which use EncodingForwarder
 
-        internal override unsafe int GetByteCount(char* chars, int count, EncoderNLS encoder)
-        {
+        internal override unsafe int GetByteCount(char* chars, int count, EncoderNLS encoder) {
             Debug.Assert(chars != null, "[UnicodeEncoding.GetByteCount]chars!=null");
             Debug.Assert(count >= 0, "[UnicodeEncoding.GetByteCount]count >=0");
 
@@ -206,8 +186,7 @@ namespace System.Text
             EncoderFallbackBuffer fallbackBuffer = null;
             char* charsForFallback;
 
-            if (encoder != null)
-            {
+            if (encoder != null) {
                 charLeftOver = encoder.charLeftOver;
 
                 // Assume extra bytes to encode charLeftOver if it existed
@@ -215,8 +194,7 @@ namespace System.Text
                     byteCount += 2;
 
                 // We mustn't have left over fallback data when counting
-                if (encoder.InternalHasFallbackBuffer)
-                {
+                if (encoder.InternalHasFallbackBuffer) {
                     fallbackBuffer = encoder.FallbackBuffer;
                     if (fallbackBuffer.Remaining > 0)
                         throw new ArgumentException(SR.Format(SR.Argument_EncoderFallbackNotEmpty, this.EncodingName, encoder.Fallback.GetType()));
@@ -229,11 +207,9 @@ namespace System.Text
             char ch;
         TryAgain:
 
-            while (((ch = (fallbackBuffer == null) ? (char)0 : fallbackBuffer.InternalGetNextChar()) != 0) || chars < charEnd)
-            {
+            while (((ch = (fallbackBuffer == null) ? (char)0 : fallbackBuffer.InternalGetNextChar()) != 0) || chars < charEnd) {
                 // First unwind any fallback
-                if (ch == 0)
-                {
+                if (ch == 0) {
                     // No fallback, maybe we can do it fast
 #if !NO_FAST_UNICODE_LOOP
 #if BIGENDIAN       // If endianess is backwards then each pair of bytes would be backwards.
@@ -251,13 +227,11 @@ namespace System.Text
                         // Need new char* so we can check 4 at a time
                         ulong* longChars = (ulong*)chars;
 
-                        while (longChars < longEnd)
-                        {
+                        while (longChars < longEnd) {
                             // See if we potentially have surrogates (0x8000 bit set)
                             // (We're either big endian on a big endian machine or little endian on 
                             // a little endian machine so this'll work)                            
-                            if ((0x8000800080008000 & *longChars) != 0)
-                            {
+                            if ((0x8000800080008000 & *longChars) != 0) {
                                 // See if any of these are high or low surrogates (0xd800 - 0xdfff).  If the high
                                 // 5 bits looks like 11011, then its a high or low surrogate.
                                 // We do the & f800 to filter the 5 bits, then ^ d800 to ensure the 0 isn't set.
@@ -271,8 +245,7 @@ namespace System.Text
                                 if ((uTemp & 0xFFFF000000000000) == 0 ||
                                     (uTemp & 0x0000FFFF00000000) == 0 ||
                                     (uTemp & 0x00000000FFFF0000) == 0 ||
-                                    (uTemp & 0x000000000000FFFF) == 0)
-                                {
+                                    (uTemp & 0x000000000000FFFF) == 0) {
                                     // It has at least 1 surrogate, but we don't know if they're high or low surrogates,
                                     // or if there's 1 or 4 surrogates
 
@@ -311,21 +284,17 @@ namespace System.Text
                     ch = *chars;
                     chars++;
                 }
-                else
-                {
+                else {
                     // We weren't preallocating fallback space.
                     byteCount += 2;
                 }
 
                 // Check for high or low surrogates
-                if (ch >= 0xd800 && ch <= 0xdfff)
-                {
+                if (ch >= 0xd800 && ch <= 0xdfff) {
                     // Was it a high surrogate?
-                    if (ch <= 0xdbff)
-                    {
+                    if (ch <= 0xdbff) {
                         // Its a high surrogate, if we already had a high surrogate do its fallback
-                        if (charLeftOver > 0)
-                        {
+                        if (charLeftOver > 0) {
                             // Unwind the current character, this should be safe because we
                             // don't have leftover data in the fallback, so chars must have
                             // advanced already.
@@ -338,8 +307,7 @@ namespace System.Text
 
                             // Fallback the previous surrogate
                             // Need to initialize fallback buffer?
-                            if (fallbackBuffer == null)
-                            {
+                            if (fallbackBuffer == null) {
                                 if (encoder == null)
                                     fallbackBuffer = this.encoderFallback.CreateFallbackBuffer();
                                 else
@@ -365,16 +333,14 @@ namespace System.Text
 
 
                     // Its a low surrogate
-                    if (charLeftOver == 0)
-                    {
+                    if (charLeftOver == 0) {
                         // Expected a previous high surrogate.
                         // Don't count this one (we'll count its fallback if necessary)
                         byteCount -= 2;
 
                         // fallback this one
                         // Need to initialize fallback buffer?
-                        if (fallbackBuffer == null)
-                        {
+                        if (fallbackBuffer == null) {
                             if (encoder == null)
                                 fallbackBuffer = this.encoderFallback.CreateFallbackBuffer();
                             else
@@ -393,8 +359,7 @@ namespace System.Text
                     charLeftOver = (char)0;
                     continue;
                 }
-                else if (charLeftOver > 0)
-                {
+                else if (charLeftOver > 0) {
                     // Expected a low surrogate, but this char is normal
 
                     // Rewind the current character, fallback previous character.
@@ -406,8 +371,7 @@ namespace System.Text
 
                     // fallback previous chars
                     // Need to initialize fallback buffer?
-                    if (fallbackBuffer == null)
-                    {
+                    if (fallbackBuffer == null) {
                         if (encoder == null)
                             fallbackBuffer = this.encoderFallback.CreateFallbackBuffer();
                         else
@@ -431,24 +395,19 @@ namespace System.Text
             }
 
             // Don't allocate space for left over char
-            if (charLeftOver > 0)
-            {
+            if (charLeftOver > 0) {
                 byteCount -= 2;
 
                 // If we have to flush, stick it in fallback and try again
-                if (encoder == null || encoder.MustFlush)
-                {
-                    if (wasHereBefore)
-                    {
+                if (encoder == null || encoder.MustFlush) {
+                    if (wasHereBefore) {
                         // Throw it, using our complete character
                         throw new ArgumentException(
                             SR.Format(SR.Argument_RecursiveFallback, charLeftOver), nameof(chars));
                     }
-                    else
-                    {
+                    else {
                         // Need to initialize fallback buffer?
-                        if (fallbackBuffer == null)
-                        {
+                        if (fallbackBuffer == null) {
                             if (encoder == null)
                                 fallbackBuffer = this.encoderFallback.CreateFallbackBuffer();
                             else
@@ -477,8 +436,7 @@ namespace System.Text
         }
 
         internal override unsafe int GetBytes(char* chars, int charCount,
-                                                byte* bytes, int byteCount, EncoderNLS encoder)
-        {
+                                                byte* bytes, int byteCount, EncoderNLS encoder) {
             Debug.Assert(chars != null, "[UnicodeEncoding.GetBytes]chars!=null");
             Debug.Assert(byteCount >= 0, "[UnicodeEncoding.GetBytes]byteCount >=0");
             Debug.Assert(charCount >= 0, "[UnicodeEncoding.GetBytes]charCount >=0");
@@ -499,13 +457,11 @@ namespace System.Text
             char* charsForFallback;
 
             // Get our encoder, but don't clear it yet.
-            if (encoder != null)
-            {
+            if (encoder != null) {
                 charLeftOver = encoder.charLeftOver;
 
                 // We mustn't have left over fallback data when counting
-                if (encoder.InternalHasFallbackBuffer)
-                {
+                if (encoder.InternalHasFallbackBuffer) {
                     // We always need the fallback buffer in get bytes so we can flush any remaining ones if necessary
                     fallbackBuffer = encoder.FallbackBuffer;
                     if (fallbackBuffer.Remaining > 0 && encoder.m_throwOnOverflow)
@@ -519,11 +475,9 @@ namespace System.Text
         TryAgain:
             while (((ch = (fallbackBuffer == null) ?
                         (char)0 : fallbackBuffer.InternalGetNextChar()) != 0) ||
-                    chars < charEnd)
-            {
+                    chars < charEnd) {
                 // First unwind any fallback
-                if (ch == 0)
-                {
+                if (ch == 0) {
                     // No fallback, maybe we can do it fast
 #if !NO_FAST_UNICODE_LOOP
 #if BIGENDIAN           // If endianess is backwards then each pair of bytes would be backwards.
@@ -536,8 +490,7 @@ namespace System.Text
 #else
                         (unchecked((int)chars) & 3) == 0 && (unchecked((int)bytes) & 3) == 0 &&
 #endif // BIT64
-                        charLeftOver == 0)
-                    {
+                        charLeftOver == 0) {
                         // Need -1 to check 2 at a time.  If we have an even #, longChars will go
                         // from longEnd - 1/2 long to longEnd + 1/2 long.  If we're odd, longChars
                         // will go from longEnd - 1 long to longEnd. (Might not get to use this)
@@ -550,13 +503,11 @@ namespace System.Text
                         ulong* longChars = (ulong*)chars;
                         ulong* longBytes = (ulong*)bytes;
 
-                        while (longChars < longEnd)
-                        {
+                        while (longChars < longEnd) {
                             // See if we potentially have surrogates (0x8000 bit set)
                             // (We're either big endian on a big endian machine or little endian on 
                             // a little endian machine so this'll work)                            
-                            if ((0x8000800080008000 & *longChars) != 0)
-                            {
+                            if ((0x8000800080008000 & *longChars) != 0) {
                                 // See if any of these are high or low surrogates (0xd800 - 0xdfff).  If the high
                                 // 5 bits looks like 11011, then its a high or low surrogate.
                                 // We do the & f800 to filter the 5 bits, then ^ d800 to ensure the 0 isn't set.
@@ -570,8 +521,7 @@ namespace System.Text
                                 if ((uTemp & 0xFFFF000000000000) == 0 ||
                                     (uTemp & 0x0000FFFF00000000) == 0 ||
                                     (uTemp & 0x00000000FFFF0000) == 0 ||
-                                    (uTemp & 0x000000000000FFFF) == 0)
-                                {
+                                    (uTemp & 0x000000000000FFFF) == 0) {
                                     // It has at least 1 surrogate, but we don't know if they're high or low surrogates,
                                     // or if there's 1 or 4 surrogates
 
@@ -622,8 +572,7 @@ namespace System.Text
 #else
                         (unchecked((int)chars) & 3) != (unchecked((int)bytes) & 3) &&  // Only do this if chars & bytes are out of line, otherwise faster loop'll be faster next time
 #endif // BIT64
-                        (unchecked((int)(bytes)) & 1) == 0)
-                    {
+                        (unchecked((int)(bytes)) & 1) == 0) {
                         // # to use
                         long iCount = ((byteEnd - bytes) >> 1 < charEnd - chars) ?
                                        (byteEnd - bytes) >> 1 : charEnd - chars;
@@ -632,10 +581,8 @@ namespace System.Text
                         char* charOut = ((char*)bytes);     // a char* for our output
                         char* tempEnd = chars + iCount - 1; // Our end pointer
 
-                        while (chars < tempEnd)
-                        {
-                            if (*chars >= (char)0xd800 && *chars <= (char)0xdfff)
-                            {
+                        while (chars < tempEnd) {
+                            if (*chars >= (char)0xd800 && *chars <= (char)0xdfff) {
                                 // break for fallback for low surrogate
                                 if (*chars >= 0xdc00)
                                     break;
@@ -647,8 +594,7 @@ namespace System.Text
                                 // They both exist, use them
                             }
                             // If 2nd char is surrogate & this one isn't then only add one
-                            else if (*(chars + 1) >= (char)0xd800 && *(chars + 1) <= 0xdfff)
-                            {
+                            else if (*(chars + 1) >= (char)0xd800 && *(chars + 1) <= 0xdfff) {
                                 *charOut = *chars;
                                 charOut++;
                                 chars++;
@@ -674,14 +620,11 @@ namespace System.Text
                 }
 
                 // Check for high or low surrogates
-                if (ch >= 0xd800 && ch <= 0xdfff)
-                {
+                if (ch >= 0xd800 && ch <= 0xdfff) {
                     // Was it a high surrogate?
-                    if (ch <= 0xdbff)
-                    {
+                    if (ch <= 0xdbff) {
                         // Its a high surrogate, see if we already had a high surrogate
-                        if (charLeftOver > 0)
-                        {
+                        if (charLeftOver > 0) {
                             // Unwind the current character, this should be safe because we
                             // don't have leftover data in the fallback, so chars must have
                             // advanced already.
@@ -691,8 +634,7 @@ namespace System.Text
 
                             // Fallback the previous surrogate
                             // Might need to create our fallback buffer
-                            if (fallbackBuffer == null)
-                            {
+                            if (fallbackBuffer == null) {
                                 if (encoder == null)
                                     fallbackBuffer = this.encoderFallback.CreateFallbackBuffer();
                                 else
@@ -716,12 +658,10 @@ namespace System.Text
                     }
 
                     // Its a low surrogate
-                    if (charLeftOver == 0)
-                    {
+                    if (charLeftOver == 0) {
                         // We'll fall back this one
                         // Might need to create our fallback buffer
-                        if (fallbackBuffer == null)
-                        {
+                        if (fallbackBuffer == null) {
                             if (encoder == null)
                                 fallbackBuffer = this.encoderFallback.CreateFallbackBuffer();
                             else
@@ -738,11 +678,9 @@ namespace System.Text
                     }
 
                     // Valid surrogate pair, add our charLeftOver
-                    if (bytes + 3 >= byteEnd)
-                    {
+                    if (bytes + 3 >= byteEnd) {
                         // Not enough room to add this surrogate pair
-                        if (fallbackBuffer != null && fallbackBuffer.bFallingBack)
-                        {
+                        if (fallbackBuffer != null && fallbackBuffer.bFallingBack) {
                             // These must have both been from the fallbacks.
                             // Both of these MUST have been from a fallback because if the 1st wasn't
                             // from a fallback, then a high surrogate followed by an illegal char 
@@ -751,8 +689,7 @@ namespace System.Text
                             fallbackBuffer.MovePrevious();                     // Didn't use either fallback surrogate
                             fallbackBuffer.MovePrevious();
                         }
-                        else
-                        {
+                        else {
                             // If we don't have enough room, then either we should've advanced a while
                             // or we should have bytes==byteStart and throw below
                             Debug.Assert(chars > charStart + 1 || bytes == byteStart,
@@ -764,21 +701,18 @@ namespace System.Text
                         break;                                               // Didn't throw, but stop 'til next time.
                     }
 
-                    if (bigEndian)
-                    {
+                    if (bigEndian) {
                         *(bytes++) = (byte)(charLeftOver >> 8);
                         *(bytes++) = (byte)charLeftOver;
                     }
-                    else
-                    {
+                    else {
                         *(bytes++) = (byte)charLeftOver;
                         *(bytes++) = (byte)(charLeftOver >> 8);
                     }
 
                     charLeftOver = (char)0;
                 }
-                else if (charLeftOver > 0)
-                {
+                else if (charLeftOver > 0) {
                     // Expected a low surrogate, but this char is normal
 
                     // Rewind the current character, fallback previous character.
@@ -790,8 +724,7 @@ namespace System.Text
 
                     // fallback previous chars
                     // Might need to create our fallback buffer
-                    if (fallbackBuffer == null)
-                    {
+                    if (fallbackBuffer == null) {
                         if (encoder == null)
                             fallbackBuffer = this.encoderFallback.CreateFallbackBuffer();
                         else
@@ -811,13 +744,11 @@ namespace System.Text
                 }
 
                 // Ok, we have a char to add
-                if (bytes + 1 >= byteEnd)
-                {
+                if (bytes + 1 >= byteEnd) {
                     // Couldn't add this char
                     if (fallbackBuffer != null && fallbackBuffer.bFallingBack)
                         fallbackBuffer.MovePrevious();                     // Not using this fallback char
-                    else
-                    {
+                    else {
                         // Lonely charLeftOver (from previous call) would've been caught up above,
                         // so this must be a case where we've already read an input char.
                         Debug.Assert(chars > charStart,
@@ -828,36 +759,29 @@ namespace System.Text
                     break;                                               // didn't throw, just stop
                 }
 
-                if (bigEndian)
-                {
+                if (bigEndian) {
                     *(bytes++) = (byte)(ch >> 8);
                     *(bytes++) = (byte)ch;
                 }
-                else
-                {
+                else {
                     *(bytes++) = (byte)ch;
                     *(bytes++) = (byte)(ch >> 8);
                 }
             }
 
             // Don't allocate space for left over char
-            if (charLeftOver > 0)
-            {
+            if (charLeftOver > 0) {
                 // If we aren't flushing we need to fall this back
-                if (encoder == null || encoder.MustFlush)
-                {
-                    if (wasHereBefore)
-                    {
+                if (encoder == null || encoder.MustFlush) {
+                    if (wasHereBefore) {
                         // Throw it, using our complete character
                         throw new ArgumentException(
                             SR.Format(SR.Argument_RecursiveFallback, charLeftOver), nameof(chars));
                     }
-                    else
-                    {
+                    else {
                         // If we have to flush, stick it in fallback and try again
                         // Might need to create our fallback buffer
-                        if (fallbackBuffer == null)
-                        {
+                        if (fallbackBuffer == null) {
                             if (encoder == null)
                                 fallbackBuffer = this.encoderFallback.CreateFallbackBuffer();
                             else
@@ -880,8 +804,7 @@ namespace System.Text
             }
 
             // Not flushing, remember it in the encoder
-            if (encoder != null)
-            {
+            if (encoder != null) {
                 encoder.charLeftOver = charLeftOver;
                 encoder.m_charsUsed = (int)(chars - charStart);
             }
@@ -901,8 +824,7 @@ namespace System.Text
             return (int)(bytes - byteStart);
         }
 
-        internal override unsafe int GetCharCount(byte* bytes, int count, DecoderNLS baseDecoder)
-        {
+        internal override unsafe int GetCharCount(byte* bytes, int count, DecoderNLS baseDecoder) {
             Debug.Assert(bytes != null, "[UnicodeEncoding.GetCharCount]bytes!=null");
             Debug.Assert(count >= 0, "[UnicodeEncoding.GetCharCount]count >=0");
 
@@ -926,8 +848,7 @@ namespace System.Text
             // For fallback we may need a fallback buffer
             DecoderFallbackBuffer fallbackBuffer = null;
 
-            if (decoder != null)
-            {
+            if (decoder != null) {
                 lastByte = decoder.lastByte;
                 lastChar = decoder.lastChar;
 
@@ -936,8 +857,7 @@ namespace System.Text
                     charCount++;
 
                 // Assume extra char if extra last byte makes up odd # of input bytes
-                if (lastByte >= 0 && (count & 1) == 1)
-                {
+                if (lastByte >= 0 && (count & 1) == 1) {
                     charCount++;
                 }
 
@@ -947,8 +867,7 @@ namespace System.Text
                     "[UnicodeEncoding.GetCharCount]Expected empty fallback buffer at start");
             }
 
-            while (bytes < byteEnd)
-            {
+            while (bytes < byteEnd) {
                 // If we're aligned then maybe we can do it fast
                 // This'll hurt if we're unaligned because we'll always test but never be aligned
 #if !NO_FAST_UNICODE_LOOP
@@ -962,18 +881,15 @@ namespace System.Text
 #else
                     (unchecked((int)bytes) & 3) == 0 &&
 #endif // BIT64
-                    lastByte == -1 && lastChar == 0)
-                {
+                    lastByte == -1 && lastChar == 0) {
                     // Need new char* so we can check 4 at a time
                     ulong* longBytes = (ulong*)bytes;
 
-                    while (longBytes < longEnd)
-                    {
+                    while (longBytes < longEnd) {
                         // See if we potentially have surrogates (0x8000 bit set)
                         // (We're either big endian on a big endian machine or little endian on 
                         // a little endian machine so this'll work)
-                        if ((0x8000800080008000 & *longBytes) != 0)
-                        {
+                        if ((0x8000800080008000 & *longBytes) != 0) {
                             // See if any of these are high or low surrogates (0xd800 - 0xdfff).  If the high
                             // 5 bits looks like 11011, then its a high or low surrogate.
                             // We do the & f800 to filter the 5 bits, then ^ d800 to ensure the 0 isn't set.
@@ -987,8 +903,7 @@ namespace System.Text
                             if ((uTemp & 0xFFFF000000000000) == 0 ||
                                 (uTemp & 0x0000FFFF00000000) == 0 ||
                                 (uTemp & 0x00000000FFFF0000) == 0 ||
-                                (uTemp & 0x000000000000FFFF) == 0)
-                            {
+                                (uTemp & 0x000000000000FFFF) == 0) {
                                 // It has at least 1 surrogate, but we don't know if they're high or low surrogates,
                                 // or if there's 1 or 4 surrogates
 
@@ -1024,52 +939,41 @@ namespace System.Text
 #endif // !NO_FAST_UNICODE_LOOP
 
                 // Get 1st byte
-                if (lastByte < 0)
-                {
+                if (lastByte < 0) {
                     lastByte = *bytes++;
                     if (bytes >= byteEnd) break;
                 }
 
                 // Get full char
                 char ch;
-                if (bigEndian)
-                {
+                if (bigEndian) {
                     ch = (char)(lastByte << 8 | *(bytes++));
                 }
-                else
-                {
+                else {
                     ch = (char)(*(bytes++) << 8 | lastByte);
                 }
                 lastByte = -1;
 
                 // See if the char's valid
-                if (ch >= 0xd800 && ch <= 0xdfff)
-                {
+                if (ch >= 0xd800 && ch <= 0xdfff) {
                     // Was it a high surrogate?
-                    if (ch <= 0xdbff)
-                    {
+                    if (ch <= 0xdbff) {
                         // Its a high surrogate, if we had one then do fallback for previous one
-                        if (lastChar > 0)
-                        {
+                        if (lastChar > 0) {
                             // Ignore previous bad high surrogate
                             charCount--;
 
                             // Get fallback for previous high surrogate
                             // Note we have to reconstruct bytes because some may have been in decoder
                             byte[] byteBuffer = null;
-                            if (bigEndian)
-                            {
-                                byteBuffer = new byte[]
-                                    { unchecked((byte)(lastChar >> 8)), unchecked((byte)lastChar) };
+                            if (bigEndian) {
+                                byteBuffer = new byte[] { unchecked((byte)(lastChar >> 8)), unchecked((byte)lastChar) };
                             }
-                            else
-                            {
-                                byteBuffer = new byte[]
-                                    { unchecked((byte)lastChar), unchecked((byte)(lastChar >> 8)) };
+                            else {
+                                byteBuffer = new byte[] { unchecked((byte)lastChar), unchecked((byte)(lastChar >> 8)) };
                             }
 
-                            if (fallbackBuffer == null)
-                            {
+                            if (fallbackBuffer == null) {
                                 if (decoder == null)
                                     fallbackBuffer = this.decoderFallback.CreateFallbackBuffer();
                                 else
@@ -1090,27 +994,21 @@ namespace System.Text
                     }
 
                     // Its a low surrogate
-                    if (lastChar == 0)
-                    {
+                    if (lastChar == 0) {
                         // Expected a previous high surrogate
                         charCount--;
 
                         // Get fallback for this low surrogate
                         // Note we have to reconstruct bytes because some may have been in decoder
                         byte[] byteBuffer = null;
-                        if (bigEndian)
-                        {
-                            byteBuffer = new byte[]
-                                { unchecked((byte)(ch >> 8)), unchecked((byte)ch) };
+                        if (bigEndian) {
+                            byteBuffer = new byte[] { unchecked((byte)(ch >> 8)), unchecked((byte)ch) };
                         }
-                        else
-                        {
-                            byteBuffer = new byte[]
-                                { unchecked((byte)ch), unchecked((byte)(ch >> 8)) };
+                        else {
+                            byteBuffer = new byte[] { unchecked((byte)ch), unchecked((byte)(ch >> 8)) };
                         }
 
-                        if (fallbackBuffer == null)
-                        {
+                        if (fallbackBuffer == null) {
                             if (decoder == null)
                                 fallbackBuffer = this.decoderFallback.CreateFallbackBuffer();
                             else
@@ -1129,27 +1027,21 @@ namespace System.Text
                     // Valid surrogate pair, already counted.
                     lastChar = (char)0;
                 }
-                else if (lastChar > 0)
-                {
+                else if (lastChar > 0) {
                     // Had a high surrogate, expected a low surrogate
                     // Uncount the last high surrogate
                     charCount--;
 
                     // fall back the high surrogate.
                     byte[] byteBuffer = null;
-                    if (bigEndian)
-                    {
-                        byteBuffer = new byte[]
-                            { unchecked((byte)(lastChar >> 8)), unchecked((byte)lastChar) };
+                    if (bigEndian) {
+                        byteBuffer = new byte[] { unchecked((byte)(lastChar >> 8)), unchecked((byte)lastChar) };
                     }
-                    else
-                    {
-                        byteBuffer = new byte[]
-                            { unchecked((byte)lastChar), unchecked((byte)(lastChar >> 8)) };
+                    else {
+                        byteBuffer = new byte[] { unchecked((byte)lastChar), unchecked((byte)(lastChar >> 8)) };
                     }
 
-                    if (fallbackBuffer == null)
-                    {
+                    if (fallbackBuffer == null) {
                         if (decoder == null)
                             fallbackBuffer = this.decoderFallback.CreateFallbackBuffer();
                         else
@@ -1170,26 +1062,19 @@ namespace System.Text
             }
 
             // Extra space if we can't use decoder
-            if (decoder == null || decoder.MustFlush)
-            {
-                if (lastChar > 0)
-                {
+            if (decoder == null || decoder.MustFlush) {
+                if (lastChar > 0) {
                     // No hanging high surrogates allowed, do fallback and remove count for it
                     charCount--;
                     byte[] byteBuffer = null;
-                    if (bigEndian)
-                    {
-                        byteBuffer = new byte[]
-                            { unchecked((byte)(lastChar >> 8)), unchecked((byte)lastChar) };
+                    if (bigEndian) {
+                        byteBuffer = new byte[] { unchecked((byte)(lastChar >> 8)), unchecked((byte)lastChar) };
                     }
-                    else
-                    {
-                        byteBuffer = new byte[]
-                            { unchecked((byte)lastChar), unchecked((byte)(lastChar >> 8)) };
+                    else {
+                        byteBuffer = new byte[] { unchecked((byte)lastChar), unchecked((byte)(lastChar >> 8)) };
                     }
 
-                    if (fallbackBuffer == null)
-                    {
+                    if (fallbackBuffer == null) {
                         if (decoder == null)
                             fallbackBuffer = this.decoderFallback.CreateFallbackBuffer();
                         else
@@ -1204,10 +1089,8 @@ namespace System.Text
                     lastChar = (char)0;
                 }
 
-                if (lastByte >= 0)
-                {
-                    if (fallbackBuffer == null)
-                    {
+                if (lastByte >= 0) {
+                    if (fallbackBuffer == null) {
                         if (decoder == null)
                             fallbackBuffer = this.decoderFallback.CreateFallbackBuffer();
                         else
@@ -1236,8 +1119,7 @@ namespace System.Text
         }
 
         internal override unsafe int GetChars(byte* bytes, int byteCount,
-                                                char* chars, int charCount, DecoderNLS baseDecoder)
-        {
+                                                char* chars, int charCount, DecoderNLS baseDecoder) {
             Debug.Assert(chars != null, "[UnicodeEncoding.GetChars]chars!=null");
             Debug.Assert(byteCount >= 0, "[UnicodeEncoding.GetChars]byteCount >=0");
             Debug.Assert(charCount >= 0, "[UnicodeEncoding.GetChars]charCount >=0");
@@ -1250,8 +1132,7 @@ namespace System.Text
             char lastChar = (char)0;
 
             // Get our decoder (but don't clear it yet)
-            if (decoder != null)
-            {
+            if (decoder != null) {
                 lastByte = decoder.lastByte;
                 lastChar = decoder.lastChar;
 
@@ -1270,8 +1151,7 @@ namespace System.Text
             byte* byteStart = bytes;
             char* charStart = chars;
 
-            while (bytes < byteEnd)
-            {
+            while (bytes < byteEnd) {
                 // If we're aligned then maybe we can do it fast
                 // This'll hurt if we're unaligned because we'll always test but never be aligned
 #if !NO_FAST_UNICODE_LOOP
@@ -1285,8 +1165,7 @@ namespace System.Text
 #else
                     (unchecked((int)chars) & 3) == 0 && (unchecked((int)bytes) & 3) == 0 &&
 #endif // BIT64
-                    lastByte == -1 && lastChar == 0)
-                {
+                    lastByte == -1 && lastChar == 0) {
                     // Need -1 to check 2 at a time.  If we have an even #, longChars will go
                     // from longEnd - 1/2 long to longEnd + 1/2 long.  If we're odd, longChars
                     // will go from longEnd - 1 long to longEnd. (Might not get to use this)
@@ -1299,13 +1178,11 @@ namespace System.Text
                     ulong* longBytes = (ulong*)bytes;
                     ulong* longChars = (ulong*)chars;
 
-                    while (longBytes < longEnd)
-                    {
+                    while (longBytes < longEnd) {
                         // See if we potentially have surrogates (0x8000 bit set)
                         // (We're either big endian on a big endian machine or little endian on 
                         // a little endian machine so this'll work)
-                        if ((0x8000800080008000 & *longBytes) != 0)
-                        {
+                        if ((0x8000800080008000 & *longBytes) != 0) {
                             // See if any of these are high or low surrogates (0xd800 - 0xdfff).  If the high
                             // 5 bits looks like 11011, then its a high or low surrogate.
                             // We do the & f800 to filter the 5 bits, then ^ d800 to ensure the 0 isn't set.
@@ -1319,8 +1196,7 @@ namespace System.Text
                             if ((uTemp & 0xFFFF000000000000) == 0 ||
                                 (uTemp & 0x0000FFFF00000000) == 0 ||
                                 (uTemp & 0x00000000FFFF0000) == 0 ||
-                                (uTemp & 0x000000000000FFFF) == 0)
-                            {
+                                (uTemp & 0x000000000000FFFF) == 0) {
                                 // It has at least 1 surrogate, but we don't know if they're high or low surrogates,
                                 // or if there's 1 or 4 surrogates
 
@@ -1359,49 +1235,38 @@ namespace System.Text
 #endif // !NO_FAST_UNICODE_LOOP
 
                 // Get 1st byte
-                if (lastByte < 0)
-                {
+                if (lastByte < 0) {
                     lastByte = *bytes++;
                     continue;
                 }
 
                 // Get full char
                 char ch;
-                if (bigEndian)
-                {
+                if (bigEndian) {
                     ch = (char)(lastByte << 8 | *(bytes++));
                 }
-                else
-                {
+                else {
                     ch = (char)(*(bytes++) << 8 | lastByte);
                 }
                 lastByte = -1;
 
                 // See if the char's valid
-                if (ch >= 0xd800 && ch <= 0xdfff)
-                {
+                if (ch >= 0xd800 && ch <= 0xdfff) {
                     // Was it a high surrogate?
-                    if (ch <= 0xdbff)
-                    {
+                    if (ch <= 0xdbff) {
                         // Its a high surrogate, if we had one then do fallback for previous one
-                        if (lastChar > 0)
-                        {
+                        if (lastChar > 0) {
                             // Get fallback for previous high surrogate
                             // Note we have to reconstruct bytes because some may have been in decoder
                             byte[] byteBuffer = null;
-                            if (bigEndian)
-                            {
-                                byteBuffer = new byte[]
-                                    { unchecked((byte)(lastChar >> 8)), unchecked((byte)lastChar) };
+                            if (bigEndian) {
+                                byteBuffer = new byte[] { unchecked((byte)(lastChar >> 8)), unchecked((byte)lastChar) };
                             }
-                            else
-                            {
-                                byteBuffer = new byte[]
-                                    { unchecked((byte)lastChar), unchecked((byte)(lastChar >> 8)) };
+                            else {
+                                byteBuffer = new byte[] { unchecked((byte)lastChar), unchecked((byte)(lastChar >> 8)) };
                             }
 
-                            if (fallbackBuffer == null)
-                            {
+                            if (fallbackBuffer == null) {
                                 if (decoder == null)
                                     fallbackBuffer = this.decoderFallback.CreateFallbackBuffer();
                                 else
@@ -1415,8 +1280,7 @@ namespace System.Text
                             bool fallbackResult = fallbackBuffer.InternalFallback(byteBuffer, bytes, ref charsForFallback);
                             chars = charsForFallback;
 
-                            if (!fallbackResult)
-                            {
+                            if (!fallbackResult) {
                                 // couldn't fall back lonely surrogate
                                 // We either advanced bytes or chars should == charStart and throw below
                                 Debug.Assert(bytes >= byteStart + 2 || chars == charStart,
@@ -1435,25 +1299,19 @@ namespace System.Text
                     }
 
                     // Its a low surrogate
-                    if (lastChar == 0)
-                    {
+                    if (lastChar == 0) {
                         // Expected a previous high surrogate
                         // Get fallback for this low surrogate
                         // Note we have to reconstruct bytes because some may have been in decoder
                         byte[] byteBuffer = null;
-                        if (bigEndian)
-                        {
-                            byteBuffer = new byte[]
-                                { unchecked((byte)(ch >> 8)), unchecked((byte)ch) };
+                        if (bigEndian) {
+                            byteBuffer = new byte[] { unchecked((byte)(ch >> 8)), unchecked((byte)ch) };
                         }
-                        else
-                        {
-                            byteBuffer = new byte[]
-                                { unchecked((byte)ch), unchecked((byte)(ch >> 8)) };
+                        else {
+                            byteBuffer = new byte[] { unchecked((byte)ch), unchecked((byte)(ch >> 8)) };
                         }
 
-                        if (fallbackBuffer == null)
-                        {
+                        if (fallbackBuffer == null) {
                             if (decoder == null)
                                 fallbackBuffer = this.decoderFallback.CreateFallbackBuffer();
                             else
@@ -1467,8 +1325,7 @@ namespace System.Text
                         bool fallbackResult = fallbackBuffer.InternalFallback(byteBuffer, bytes, ref charsForFallback);
                         chars = charsForFallback;
 
-                        if (!fallbackResult)
-                        {
+                        if (!fallbackResult) {
                             // couldn't fall back lonely surrogate
                             // We either advanced bytes or chars should == charStart and throw below
                             Debug.Assert(bytes >= byteStart + 2 || chars == charStart,
@@ -1484,8 +1341,7 @@ namespace System.Text
                     }
 
                     // Valid surrogate pair, add our lastChar (will need 2 chars)
-                    if (chars >= charEnd - 1)
-                    {
+                    if (chars >= charEnd - 1) {
                         // couldn't find room for this surrogate pair
                         // We either advanced bytes or chars should == charStart and throw below
                         Debug.Assert(bytes >= byteStart + 2 || chars == charStart,
@@ -1499,23 +1355,17 @@ namespace System.Text
                     *chars++ = lastChar;
                     lastChar = (char)0;
                 }
-                else if (lastChar > 0)
-                {
+                else if (lastChar > 0) {
                     // Had a high surrogate, expected a low surrogate, fall back the high surrogate.
                     byte[] byteBuffer = null;
-                    if (bigEndian)
-                    {
-                        byteBuffer = new byte[]
-                            { unchecked((byte)(lastChar >> 8)), unchecked((byte)lastChar) };
+                    if (bigEndian) {
+                        byteBuffer = new byte[] { unchecked((byte)(lastChar >> 8)), unchecked((byte)lastChar) };
                     }
-                    else
-                    {
-                        byteBuffer = new byte[]
-                            { unchecked((byte)lastChar), unchecked((byte)(lastChar >> 8)) };
+                    else {
+                        byteBuffer = new byte[] { unchecked((byte)lastChar), unchecked((byte)(lastChar >> 8)) };
                     }
 
-                    if (fallbackBuffer == null)
-                    {
+                    if (fallbackBuffer == null) {
                         if (decoder == null)
                             fallbackBuffer = this.decoderFallback.CreateFallbackBuffer();
                         else
@@ -1529,8 +1379,7 @@ namespace System.Text
                     bool fallbackResult = fallbackBuffer.InternalFallback(byteBuffer, bytes, ref charsForFallback);
                     chars = charsForFallback;
 
-                    if (!fallbackResult)
-                    {
+                    if (!fallbackResult) {
                         // couldn't fall back high surrogate, or char that would be next
                         // We either advanced bytes or chars should == charStart and throw below
                         Debug.Assert(bytes >= byteStart + 2 || chars == charStart,
@@ -1546,8 +1395,7 @@ namespace System.Text
                 }
 
                 // Valid char, room for it?
-                if (chars >= charEnd)
-                {
+                if (chars >= charEnd) {
                     // 2 bytes couldn't fall back
                     // We either advanced bytes or chars should == charStart and throw below
                     Debug.Assert(bytes >= byteStart + 2 || chars == charStart,
@@ -1562,25 +1410,18 @@ namespace System.Text
             }
 
             // Remember our decoder if we must
-            if (decoder == null || decoder.MustFlush)
-            {
-                if (lastChar > 0)
-                {
+            if (decoder == null || decoder.MustFlush) {
+                if (lastChar > 0) {
                     // No hanging high surrogates allowed, do fallback and remove count for it
                     byte[] byteBuffer = null;
-                    if (bigEndian)
-                    {
-                        byteBuffer = new byte[]
-                            { unchecked((byte)(lastChar >> 8)), unchecked((byte)lastChar) };
+                    if (bigEndian) {
+                        byteBuffer = new byte[] { unchecked((byte)(lastChar >> 8)), unchecked((byte)lastChar) };
                     }
-                    else
-                    {
-                        byteBuffer = new byte[]
-                            { unchecked((byte)lastChar), unchecked((byte)(lastChar >> 8)) };
+                    else {
+                        byteBuffer = new byte[] { unchecked((byte)lastChar), unchecked((byte)(lastChar >> 8)) };
                     }
 
-                    if (fallbackBuffer == null)
-                    {
+                    if (fallbackBuffer == null) {
                         if (decoder == null)
                             fallbackBuffer = this.decoderFallback.CreateFallbackBuffer();
                         else
@@ -1594,8 +1435,7 @@ namespace System.Text
                     bool fallbackResult = fallbackBuffer.InternalFallback(byteBuffer, bytes, ref charsForFallback);
                     chars = charsForFallback;
 
-                    if (!fallbackResult)
-                    {
+                    if (!fallbackResult) {
                         // 2 bytes couldn't fall back
                         // We either advanced bytes or chars should == charStart and throw below
                         Debug.Assert(bytes >= byteStart + 2 || chars == charStart,
@@ -1616,10 +1456,8 @@ namespace System.Text
                     lastChar = (char)0;
                 }
 
-                if (lastByte >= 0)
-                {
-                    if (fallbackBuffer == null)
-                    {
+                if (lastByte >= 0) {
+                    if (fallbackBuffer == null) {
                         if (decoder == null)
                             fallbackBuffer = this.decoderFallback.CreateFallbackBuffer();
                         else
@@ -1634,8 +1472,7 @@ namespace System.Text
                     bool fallbackResult = fallbackBuffer.InternalFallback(new byte[] { unchecked((byte)lastByte) }, bytes, ref charsForFallback);
                     chars = charsForFallback;
 
-                    if (!fallbackResult)
-                    {
+                    if (!fallbackResult) {
                         // odd byte couldn't fall back
                         bytes--;                                        // didn't use this byte
                         fallbackBuffer.InternalReset();
@@ -1653,8 +1490,7 @@ namespace System.Text
         End:
 
             // Remember our decoder if we must
-            if (decoder != null)
-            {
+            if (decoder != null) {
                 Debug.Assert((decoder.MustFlush == false) || ((lastChar == (char)0) && (lastByte == -1)),
                     "[UnicodeEncoding.GetChars] Expected no left over chars or bytes if flushing"
                     //                    + " " + ((int)lastChar).ToString("X4") + " " + lastByte.ToString("X2")
@@ -1677,22 +1513,18 @@ namespace System.Text
         }
 
 
-        public override System.Text.Encoder GetEncoder()
-        {
+        public override System.Text.Encoder GetEncoder() {
             return new EncoderNLS(this);
         }
 
 
-        public override System.Text.Decoder GetDecoder()
-        {
+        public override System.Text.Decoder GetDecoder() {
             return new UnicodeEncoding.Decoder(this);
         }
 
 
-        public override byte[] GetPreamble()
-        {
-            if (byteOrderMark)
-            {
+        public override byte[] GetPreamble() {
+            if (byteOrderMark) {
                 // Note - we must allocate new byte[]'s here to prevent someone
                 // from modifying a cached byte[].
                 if (bigEndian)
@@ -1704,8 +1536,7 @@ namespace System.Text
         }
 
 
-        public override int GetMaxByteCount(int charCount)
-        {
+        public override int GetMaxByteCount(int charCount) {
             if (charCount < 0)
                 throw new ArgumentOutOfRangeException(nameof(charCount),
                      SR.ArgumentOutOfRange_NeedNonNegNum);
@@ -1727,8 +1558,7 @@ namespace System.Text
         }
 
 
-        public override int GetMaxCharCount(int byteCount)
-        {
+        public override int GetMaxCharCount(int byteCount) {
             if (byteCount < 0)
                 throw new ArgumentOutOfRangeException(nameof(byteCount),
                      SR.ArgumentOutOfRange_NeedNonNegNum);
@@ -1751,11 +1581,9 @@ namespace System.Text
         }
 
 
-        public override bool Equals(Object value)
-        {
+        public override bool Equals(Object value) {
             UnicodeEncoding that = value as UnicodeEncoding;
-            if (that != null)
-            {
+            if (that != null) {
                 //
                 // Big Endian Unicode has different code page (1201) than small Endian one (1200),
                 // so we still have to check m_codePage here.
@@ -1770,26 +1598,22 @@ namespace System.Text
             return (false);
         }
 
-        public override int GetHashCode()
-        {
+        public override int GetHashCode() {
             return CodePage + this.EncoderFallback.GetHashCode() + this.DecoderFallback.GetHashCode() +
                    (byteOrderMark ? 4 : 0) + (bigEndian ? 8 : 0);
         }
 
         [Serializable]
-        private sealed class Decoder : System.Text.DecoderNLS, ISerializable
-        {
+        private sealed class Decoder : System.Text.DecoderNLS, ISerializable {
             internal int lastByte = -1;
             internal char lastChar = '\0';
 
-            public Decoder(UnicodeEncoding encoding) : base(encoding)
-            {
+            public Decoder(UnicodeEncoding encoding) : base(encoding) {
                 // base calls reset
             }
 
             // Constructor called by serialization, have to handle deserializing from Everett
-            internal Decoder(SerializationInfo info, StreamingContext context)
-            {
+            internal Decoder(SerializationInfo info, StreamingContext context) {
                 // Any info?
                 if (info == null) throw new ArgumentNullException(nameof(info));
                 Contract.EndContractBlock();
@@ -1797,15 +1621,13 @@ namespace System.Text
                 // Get Common Info
                 this.lastByte = (int)info.GetValue("lastByte", typeof(int));
 
-                try
-                {
+                try {
                     // Try the encoding, which is only serialized in Whidbey
                     this.m_encoding = (Encoding)info.GetValue("m_encoding", typeof(Encoding));
                     this.lastChar = (char)info.GetValue("lastChar", typeof(char));
                     this.m_fallback = (DecoderFallback)info.GetValue("m_fallback", typeof(DecoderFallback));
                 }
-                catch (SerializationException)
-                {
+                catch (SerializationException) {
                     // Everett didn't serialize the UnicodeEncoding, get the default one
                     bool bigEndian = (bool)info.GetValue("bigEndian", typeof(bool));
                     this.m_encoding = new UnicodeEncoding(bigEndian, false);
@@ -1813,8 +1635,7 @@ namespace System.Text
             }
 
             // ISerializable implementation, get data for this object
-            void ISerializable.GetObjectData(SerializationInfo info, StreamingContext context)
-            {
+            void ISerializable.GetObjectData(SerializationInfo info, StreamingContext context) {
                 // Any info?
                 if (info == null) throw new ArgumentNullException(nameof(info));
                 Contract.EndContractBlock();
@@ -1829,8 +1650,7 @@ namespace System.Text
                 info.AddValue("bigEndian", ((UnicodeEncoding)(this.m_encoding)).bigEndian);
             }
 
-            public override void Reset()
-            {
+            public override void Reset() {
                 lastByte = -1;
                 lastChar = '\0';
                 if (m_fallbackBuffer != null)
@@ -1838,10 +1658,8 @@ namespace System.Text
             }
 
             // Anything left in our decoder?
-            internal override bool HasState
-            {
-                get
-                {
+            internal override bool HasState {
+                get {
                     return (this.lastByte != -1 || this.lastChar != '\0');
                 }
             }

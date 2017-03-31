@@ -2,14 +2,12 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-namespace System.Threading
-{
+namespace System.Threading {
     /// <summary>
     /// Represents pre-allocated state for native overlapped I/O operations.
     /// </summary>
     /// <seealso cref="ThreadPoolBoundHandle.AllocateNativeOverlapped(PreAllocatedOverlapped)"/>
-    public sealed class PreAllocatedOverlapped : IDisposable, IDeferredDisposable
-    {
+    public sealed class PreAllocatedOverlapped : IDisposable, IDeferredDisposable {
         internal readonly ThreadPoolBoundHandleOverlapped _overlapped;
         private DeferredDisposableLifetime<PreAllocatedOverlapped> _lifetime;
 
@@ -48,35 +46,30 @@ namespace System.Threading
         ///     This method was called after the <see cref="ThreadPoolBoundHandle"/> was disposed.
         /// </exception>
         [CLSCompliant(false)]
-        public unsafe PreAllocatedOverlapped(IOCompletionCallback callback, object state, object pinData)
-        {
+        public unsafe PreAllocatedOverlapped(IOCompletionCallback callback, object state, object pinData) {
             if (callback == null)
                 throw new ArgumentNullException(nameof(callback));
 
             _overlapped = new ThreadPoolBoundHandleOverlapped(callback, state, pinData, this);
         }
 
-        internal bool AddRef()
-        {
+        internal bool AddRef() {
             return _lifetime.AddRef(this);
         }
 
-        internal void Release()
-        {
+        internal void Release() {
             _lifetime.Release(this);
         }
 
         /// <summary>
         /// Frees the resources associated with this <see cref="PreAllocatedOverlapped"/> instance. 
         /// </summary>
-        public unsafe void Dispose()
-        {
+        public unsafe void Dispose() {
             _lifetime.Dispose(this);
             GC.SuppressFinalize(this);
         }
 
-        ~PreAllocatedOverlapped()
-        {
+        ~PreAllocatedOverlapped() {
             //
             // During shutdown, don't automatically clean up, because this instance may still be
             // reachable/usable by other code.
@@ -85,16 +78,12 @@ namespace System.Threading
                 Dispose();
         }
 
-        unsafe void IDeferredDisposable.OnFinalRelease(bool disposed)
-        {
-            if (_overlapped != null)
-            {
-                if (disposed)
-                {
+        unsafe void IDeferredDisposable.OnFinalRelease(bool disposed) {
+            if (_overlapped != null) {
+                if (disposed) {
                     Overlapped.Free(_overlapped._nativeOverlapped);
                 }
-                else
-                {
+                else {
                     _overlapped._boundHandle = null;
                     _overlapped._completed = false;
                     *_overlapped._nativeOverlapped = default(NativeOverlapped);

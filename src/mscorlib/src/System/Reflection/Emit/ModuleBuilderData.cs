@@ -14,16 +14,13 @@ using System.IO;
 using System.Reflection;
 using System.Runtime.Versioning;
 
-namespace System.Reflection.Emit
-{
+namespace System.Reflection.Emit {
     // This is a package private class. This class hold all of the managed
     // data member for ModuleBuilder. Note that what ever data members added to
     // this class cannot be accessed from the EE.
     [Serializable]
-    internal class ModuleBuilderData
-    {
-        internal ModuleBuilderData(ModuleBuilder module, String strModuleName, String strFileName, int tkFile)
-        {
+    internal class ModuleBuilderData {
+        internal ModuleBuilderData(ModuleBuilder module, String strModuleName, String strFileName, int tkFile) {
             m_globalTypeBuilder = new TypeBuilder(module);
             m_module = module;
             m_tkFile = tkFile;
@@ -32,19 +29,15 @@ namespace System.Reflection.Emit
         }
 
         // Initialize module and file names.
-        private void InitNames(String strModuleName, String strFileName)
-        {
+        private void InitNames(String strModuleName, String strFileName) {
             m_strModuleName = strModuleName;
-            if (strFileName == null)
-            {
+            if (strFileName == null) {
                 // fake a transient module file name
                 m_strFileName = strModuleName;
             }
-            else
-            {
+            else {
                 String strExtension = Path.GetExtension(strFileName);
-                if (strExtension == null || strExtension == String.Empty)
-                {
+                if (strExtension == null || strExtension == String.Empty) {
                     // This is required by our loader. It cannot load module file that does not have file extension.
                     throw new ArgumentException(SR.Format(SR.Argument_NoModuleFileExtension, strFileName));
                 }

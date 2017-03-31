@@ -16,18 +16,15 @@
 
 using System;
 
-namespace System.Runtime.CompilerServices
-{
+namespace System.Runtime.CompilerServices {
     [Serializable]
     [AttributeUsage(AttributeTargets.Assembly, Inherited = false, AllowMultiple = false)]
-    public sealed class RuntimeCompatibilityAttribute : Attribute
-    {
+    public sealed class RuntimeCompatibilityAttribute : Attribute {
         // fields
         private bool m_wrapNonExceptionThrows;
 
         // constructors
-        public RuntimeCompatibilityAttribute()
-        {
+        public RuntimeCompatibilityAttribute() {
             // legacy behavior is the default, and m_wrapNonExceptionThrows is implicitly
             // false thanks to the CLR's guarantee of zeroed memory.
         }
@@ -37,14 +34,11 @@ namespace System.Runtime.CompilerServices
         // If a non-CLSCompliant exception (i.e. one that doesn't derive from System.Exception) is
         // thrown, should it be wrapped up in a System.Runtime.CompilerServices.RuntimeWrappedException
         // instance when presented to catch handlers?
-        public bool WrapNonExceptionThrows
-        {
-            get
-            {
+        public bool WrapNonExceptionThrows {
+            get {
                 return m_wrapNonExceptionThrows;
             }
-            set
-            {
+            set {
                 m_wrapNonExceptionThrows = value;
             }
         }

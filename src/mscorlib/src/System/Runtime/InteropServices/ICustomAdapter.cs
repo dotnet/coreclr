@@ -14,10 +14,8 @@
 
 using System;
 
-namespace System.Runtime.InteropServices
-{
-    public interface ICustomAdapter
-    {
+namespace System.Runtime.InteropServices {
+    public interface ICustomAdapter {
         [return: MarshalAs(UnmanagedType.IUnknown)] Object GetUnderlyingObject();
     }
 }

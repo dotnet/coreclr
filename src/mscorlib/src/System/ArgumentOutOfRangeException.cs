@@ -18,20 +18,16 @@ using System.Runtime.Serialization;
 using System.Globalization;
 using System.Diagnostics.Contracts;
 
-namespace System
-{
+namespace System {
     // The ArgumentOutOfRangeException is thrown when an argument 
     // is outside the legal range for that argument.  
     [Serializable]
-    public class ArgumentOutOfRangeException : ArgumentException, ISerializable
-    {
+    public class ArgumentOutOfRangeException : ArgumentException, ISerializable {
         private static volatile String _rangeMessage;
         private Object m_actualValue;
 
-        private static String RangeMessage
-        {
-            get
-            {
+        private static String RangeMessage {
+            get {
                 if (_rangeMessage == null)
                     _rangeMessage = SR.Arg_ArgumentOutOfRangeException;
                 return _rangeMessage;
@@ -41,26 +37,22 @@ namespace System
         // Creates a new ArgumentOutOfRangeException with its message 
         // string set to a default message explaining an argument was out of range.
         public ArgumentOutOfRangeException()
-            : base(RangeMessage)
-        {
+            : base(RangeMessage) {
             SetErrorCode(__HResults.COR_E_ARGUMENTOUTOFRANGE);
         }
 
         public ArgumentOutOfRangeException(String paramName)
-            : base(RangeMessage, paramName)
-        {
+            : base(RangeMessage, paramName) {
             SetErrorCode(__HResults.COR_E_ARGUMENTOUTOFRANGE);
         }
 
         public ArgumentOutOfRangeException(String paramName, String message)
-            : base(message, paramName)
-        {
+            : base(message, paramName) {
             SetErrorCode(__HResults.COR_E_ARGUMENTOUTOFRANGE);
         }
 
         public ArgumentOutOfRangeException(String message, Exception innerException)
-            : base(message, innerException)
-        {
+            : base(message, innerException) {
             SetErrorCode(__HResults.COR_E_ARGUMENTOUTOFRANGE);
         }
 
@@ -68,19 +60,15 @@ namespace System
         // anyone that's really interested so they don't have to stick a bunch
         // of printf's in their code.
         public ArgumentOutOfRangeException(String paramName, Object actualValue, String message)
-            : base(message, paramName)
-        {
+            : base(message, paramName) {
             m_actualValue = actualValue;
             SetErrorCode(__HResults.COR_E_ARGUMENTOUTOFRANGE);
         }
 
-        public override String Message
-        {
-            get
-            {
+        public override String Message {
+            get {
                 String s = base.Message;
-                if (m_actualValue != null)
-                {
+                if (m_actualValue != null) {
                     String valueMessage = SR.Format(SR.ArgumentOutOfRange_ActualValue, m_actualValue.ToString());
                     if (s == null)
                         return valueMessage;
@@ -94,15 +82,12 @@ namespace System
         // Note - we don't set this anywhere in the class libraries in 
         // version 1, but it might come in handy for other developers who
         // want to avoid sticking printf's in their code.
-        public virtual Object ActualValue
-        {
+        public virtual Object ActualValue {
             get { return m_actualValue; }
         }
 
-        public override void GetObjectData(SerializationInfo info, StreamingContext context)
-        {
-            if (info == null)
-            {
+        public override void GetObjectData(SerializationInfo info, StreamingContext context) {
+            if (info == null) {
                 throw new ArgumentNullException(nameof(info));
             }
             Contract.EndContractBlock();
@@ -110,8 +95,7 @@ namespace System
             info.AddValue("ActualValue", m_actualValue, typeof(Object));
         }
 
-        protected ArgumentOutOfRangeException(SerializationInfo info, StreamingContext context) : base(info, context)
-        {
+        protected ArgumentOutOfRangeException(SerializationInfo info, StreamingContext context) : base(info, context) {
             m_actualValue = info.GetValue("ActualValue", typeof(Object));
         }
     }

@@ -6,12 +6,10 @@ using System.Diagnostics;
 using System.Diagnostics.Contracts;
 using System.Security;
 
-namespace System.Text
-{
+namespace System.Text {
     // Shared implementations for commonly overriden Encoding methods
 
-    internal static class EncodingForwarder
-    {
+    internal static class EncodingForwarder {
         // We normally have to duplicate a lot of code between UTF8Encoding,
         // UTF7Encoding, EncodingNLS, etc. because we want to override many
         // of the methods in all of those classes to just forward to the unsafe
@@ -32,21 +30,17 @@ namespace System.Text
         // the parameter, it will call the same method again, which will eventually
         // lead to a StackOverflowException.
 
-        public unsafe static int GetByteCount(Encoding encoding, char[] chars, int index, int count)
-        {
+        public unsafe static int GetByteCount(Encoding encoding, char[] chars, int index, int count) {
             // Validate parameters
 
             Debug.Assert(encoding != null); // this parameter should only be affected internally, so just do a debug check here
-            if (chars == null)
-            {
+            if (chars == null) {
                 throw new ArgumentNullException(nameof(chars), SR.ArgumentNull_Array);
             }
-            if (index < 0 || count < 0)
-            {
+            if (index < 0 || count < 0) {
                 throw new ArgumentOutOfRangeException(index < 0 ? nameof(index) : nameof(count), SR.ArgumentOutOfRange_NeedNonNegNum);
             }
-            if (chars.Length - index < count)
-            {
+            if (chars.Length - index < count) {
                 throw new ArgumentOutOfRangeException(nameof(chars), SR.ArgumentOutOfRange_IndexCountBuffer);
             }
             Contract.EndContractBlock();
@@ -60,11 +54,9 @@ namespace System.Text
                 return encoding.GetByteCount(pChars + index, count, encoder: null);
         }
 
-        public unsafe static int GetByteCount(Encoding encoding, string s)
-        {
+        public unsafe static int GetByteCount(Encoding encoding, string s) {
             Debug.Assert(encoding != null);
-            if (s == null)
-            {
+            if (s == null) {
                 string paramName = encoding is ASCIIEncoding ? "chars" : nameof(s); // ASCIIEncoding calls the string chars
                 // UTF8Encoding does this as well, but it originally threw an ArgumentNull for "s" so don't check for that
                 throw new ArgumentNullException(paramName);
@@ -83,15 +75,12 @@ namespace System.Text
                 return encoding.GetByteCount(pChars, s.Length, encoder: null);
         }
 
-        public unsafe static int GetByteCount(Encoding encoding, char* chars, int count)
-        {
+        public unsafe static int GetByteCount(Encoding encoding, char* chars, int count) {
             Debug.Assert(encoding != null);
-            if (chars == null)
-            {
+            if (chars == null) {
                 throw new ArgumentNullException(nameof(chars), SR.ArgumentNull_Array);
             }
-            if (count < 0)
-            {
+            if (count < 0) {
                 throw new ArgumentOutOfRangeException(nameof(count), SR.ArgumentOutOfRange_NeedNonNegNum);
             }
             Contract.EndContractBlock();
@@ -100,26 +89,21 @@ namespace System.Text
             return encoding.GetByteCount(chars, count, encoder: null);
         }
 
-        public unsafe static int GetBytes(Encoding encoding, string s, int charIndex, int charCount, byte[] bytes, int byteIndex)
-        {
+        public unsafe static int GetBytes(Encoding encoding, string s, int charIndex, int charCount, byte[] bytes, int byteIndex) {
             Debug.Assert(encoding != null);
-            if (s == null || bytes == null)
-            {
+            if (s == null || bytes == null) {
                 string stringName = encoding is ASCIIEncoding ? "chars" : nameof(s); // ASCIIEncoding calls the first parameter chars
                 throw new ArgumentNullException(s == null ? stringName : nameof(bytes), SR.ArgumentNull_Array);
             }
-            if (charIndex < 0 || charCount < 0)
-            {
+            if (charIndex < 0 || charCount < 0) {
                 throw new ArgumentOutOfRangeException(charIndex < 0 ? nameof(charIndex) : nameof(charCount), SR.ArgumentOutOfRange_NeedNonNegNum);
             }
-            if (s.Length - charIndex < charCount)
-            {
+            if (s.Length - charIndex < charCount) {
                 string stringName = encoding is ASCIIEncoding ? "chars" : nameof(s); // ASCIIEncoding calls the first parameter chars
                 // Duplicate the above check since we don't want the overhead of a type check on the general path
                 throw new ArgumentOutOfRangeException(stringName, SR.ArgumentOutOfRange_IndexCount);
             }
-            if (byteIndex < 0 || byteIndex > bytes.Length)
-            {
+            if (byteIndex < 0 || byteIndex > bytes.Length) {
                 throw new ArgumentOutOfRangeException(nameof(byteIndex), SR.ArgumentOutOfRange_Index);
             }
             Contract.EndContractBlock();
@@ -130,29 +114,23 @@ namespace System.Text
             if (bytes.Length == 0)
                 bytes = new byte[1];
 
-            fixed (char* pChars = s) fixed (byte* pBytes = &bytes[0])
-            {
+            fixed (char* pChars = s) fixed (byte* pBytes = &bytes[0]) {
                 return encoding.GetBytes(pChars + charIndex, charCount, pBytes + byteIndex, byteCount, encoder: null);
             }
         }
 
-        public unsafe static int GetBytes(Encoding encoding, char[] chars, int charIndex, int charCount, byte[] bytes, int byteIndex)
-        {
+        public unsafe static int GetBytes(Encoding encoding, char[] chars, int charIndex, int charCount, byte[] bytes, int byteIndex) {
             Debug.Assert(encoding != null);
-            if (chars == null || bytes == null)
-            {
+            if (chars == null || bytes == null) {
                 throw new ArgumentNullException(chars == null ? nameof(chars) : nameof(bytes), SR.ArgumentNull_Array);
             }
-            if (charIndex < 0 || charCount < 0)
-            {
+            if (charIndex < 0 || charCount < 0) {
                 throw new ArgumentOutOfRangeException(charIndex < 0 ? nameof(charIndex) : nameof(charCount), SR.ArgumentOutOfRange_NeedNonNegNum);
             }
-            if (chars.Length - charIndex < charCount)
-            {
+            if (chars.Length - charIndex < charCount) {
                 throw new ArgumentOutOfRangeException(nameof(chars), SR.ArgumentOutOfRange_IndexCountBuffer);
             }
-            if (byteIndex < 0 || byteIndex > bytes.Length)
-            {
+            if (byteIndex < 0 || byteIndex > bytes.Length) {
                 throw new ArgumentOutOfRangeException(nameof(byteIndex), SR.ArgumentOutOfRange_Index);
             }
             Contract.EndContractBlock();
@@ -170,21 +148,17 @@ namespace System.Text
                 bytes = new byte[1];
 
             // Just call the (internal) pointer version
-            fixed (char* pChars = chars) fixed (byte* pBytes = &bytes[0])
-            {
+            fixed (char* pChars = chars) fixed (byte* pBytes = &bytes[0]) {
                 return encoding.GetBytes(pChars + charIndex, charCount, pBytes + byteIndex, byteCount, encoder: null);
             }
         }
 
-        public unsafe static int GetBytes(Encoding encoding, char* chars, int charCount, byte* bytes, int byteCount)
-        {
+        public unsafe static int GetBytes(Encoding encoding, char* chars, int charCount, byte* bytes, int byteCount) {
             Debug.Assert(encoding != null);
-            if (bytes == null || chars == null)
-            {
+            if (bytes == null || chars == null) {
                 throw new ArgumentNullException(bytes == null ? nameof(bytes) : nameof(chars), SR.ArgumentNull_Array);
             }
-            if (charCount < 0 || byteCount < 0)
-            {
+            if (charCount < 0 || byteCount < 0) {
                 throw new ArgumentOutOfRangeException(charCount < 0 ? nameof(charCount) : nameof(byteCount), SR.ArgumentOutOfRange_NeedNonNegNum);
             }
             Contract.EndContractBlock();
@@ -192,19 +166,15 @@ namespace System.Text
             return encoding.GetBytes(chars, charCount, bytes, byteCount, encoder: null);
         }
 
-        public unsafe static int GetCharCount(Encoding encoding, byte[] bytes, int index, int count)
-        {
+        public unsafe static int GetCharCount(Encoding encoding, byte[] bytes, int index, int count) {
             Debug.Assert(encoding != null);
-            if (bytes == null)
-            {
+            if (bytes == null) {
                 throw new ArgumentNullException(nameof(bytes), SR.ArgumentNull_Array);
             }
-            if (index < 0 || count < 0)
-            {
+            if (index < 0 || count < 0) {
                 throw new ArgumentOutOfRangeException(index < 0 ? nameof(index) : nameof(count), SR.ArgumentOutOfRange_NeedNonNegNum);
             }
-            if (bytes.Length - index < count)
-            {
+            if (bytes.Length - index < count) {
                 throw new ArgumentOutOfRangeException(nameof(bytes), SR.ArgumentOutOfRange_IndexCountBuffer);
             }
             Contract.EndContractBlock();
@@ -218,15 +188,12 @@ namespace System.Text
                 return encoding.GetCharCount(pBytes + index, count, decoder: null);
         }
 
-        public unsafe static int GetCharCount(Encoding encoding, byte* bytes, int count)
-        {
+        public unsafe static int GetCharCount(Encoding encoding, byte* bytes, int count) {
             Debug.Assert(encoding != null);
-            if (bytes == null)
-            {
+            if (bytes == null) {
                 throw new ArgumentNullException(nameof(bytes), SR.ArgumentNull_Array);
             }
-            if (count < 0)
-            {
+            if (count < 0) {
                 throw new ArgumentOutOfRangeException(nameof(count), SR.ArgumentOutOfRange_NeedNonNegNum);
             }
             Contract.EndContractBlock();
@@ -234,23 +201,18 @@ namespace System.Text
             return encoding.GetCharCount(bytes, count, decoder: null);
         }
 
-        public unsafe static int GetChars(Encoding encoding, byte[] bytes, int byteIndex, int byteCount, char[] chars, int charIndex)
-        {
+        public unsafe static int GetChars(Encoding encoding, byte[] bytes, int byteIndex, int byteCount, char[] chars, int charIndex) {
             Debug.Assert(encoding != null);
-            if (bytes == null || chars == null)
-            {
+            if (bytes == null || chars == null) {
                 throw new ArgumentNullException(bytes == null ? nameof(bytes) : nameof(chars), SR.ArgumentNull_Array);
             }
-            if (byteIndex < 0 || byteCount < 0)
-            {
+            if (byteIndex < 0 || byteCount < 0) {
                 throw new ArgumentOutOfRangeException(byteIndex < 0 ? nameof(byteIndex) : nameof(byteCount), SR.ArgumentOutOfRange_NeedNonNegNum);
             }
-            if (bytes.Length - byteIndex < byteCount)
-            {
+            if (bytes.Length - byteIndex < byteCount) {
                 throw new ArgumentOutOfRangeException(nameof(bytes), SR.ArgumentOutOfRange_IndexCountBuffer);
             }
-            if (charIndex < 0 || charIndex > chars.Length)
-            {
+            if (charIndex < 0 || charIndex > chars.Length) {
                 throw new ArgumentOutOfRangeException(nameof(charIndex), SR.ArgumentOutOfRange_Index);
             }
             Contract.EndContractBlock();
@@ -266,21 +228,17 @@ namespace System.Text
             if (chars.Length == 0)
                 chars = new char[1];
 
-            fixed (byte* pBytes = bytes) fixed (char* pChars = &chars[0])
-            {
+            fixed (byte* pBytes = bytes) fixed (char* pChars = &chars[0]) {
                 return encoding.GetChars(pBytes + byteIndex, byteCount, pChars + charIndex, charCount, decoder: null);
             }
         }
 
-        public unsafe static int GetChars(Encoding encoding, byte* bytes, int byteCount, char* chars, int charCount)
-        {
+        public unsafe static int GetChars(Encoding encoding, byte* bytes, int byteCount, char* chars, int charCount) {
             Debug.Assert(encoding != null);
-            if (bytes == null || chars == null)
-            {
+            if (bytes == null || chars == null) {
                 throw new ArgumentNullException(bytes == null ? nameof(bytes) : nameof(chars), SR.ArgumentNull_Array);
             }
-            if (charCount < 0 || byteCount < 0)
-            {
+            if (charCount < 0 || byteCount < 0) {
                 throw new ArgumentOutOfRangeException(charCount < 0 ? nameof(charCount) : nameof(byteCount), SR.ArgumentOutOfRange_NeedNonNegNum);
             }
             Contract.EndContractBlock();
@@ -288,23 +246,19 @@ namespace System.Text
             return encoding.GetChars(bytes, byteCount, chars, charCount, decoder: null);
         }
 
-        public unsafe static string GetString(Encoding encoding, byte[] bytes, int index, int count)
-        {
+        public unsafe static string GetString(Encoding encoding, byte[] bytes, int index, int count) {
             Debug.Assert(encoding != null);
-            if (bytes == null)
-            {
+            if (bytes == null) {
                 throw new ArgumentNullException(nameof(bytes), SR.ArgumentNull_Array);
             }
-            if (index < 0 || count < 0)
-            {
+            if (index < 0 || count < 0) {
                 // ASCIIEncoding has different names for its parameters here (byteIndex, byteCount)
                 bool ascii = encoding is ASCIIEncoding;
                 string indexName = ascii ? "byteIndex" : nameof(index);
                 string countName = ascii ? "byteCount" : nameof(count);
                 throw new ArgumentOutOfRangeException(index < 0 ? indexName : countName, SR.ArgumentOutOfRange_NeedNonNegNum);
             }
-            if (bytes.Length - index < count)
-            {
+            if (bytes.Length - index < count) {
                 throw new ArgumentOutOfRangeException(nameof(bytes), SR.ArgumentOutOfRange_IndexCountBuffer);
             }
             Contract.EndContractBlock();
@@ -320,8 +274,7 @@ namespace System.Text
             // call the string constructor; instead we decode
             // directly into the string.
 
-            fixed (byte* pBytes = bytes)
-            {
+            fixed (byte* pBytes = bytes) {
                 return string.CreateStringFromEncoding(pBytes + index, count, encoding);
             }
         }

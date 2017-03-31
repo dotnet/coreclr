@@ -15,29 +15,23 @@
 using System.Collections;
 using System.Collections.Generic;
 
-namespace System
-{
-    public sealed class CharEnumerator : IEnumerator, IEnumerator<char>, IDisposable, ICloneable
-    {
+namespace System {
+    public sealed class CharEnumerator : IEnumerator, IEnumerator<char>, IDisposable, ICloneable {
         private String _str;
         private int _index;
         private char _currentElement;
 
-        internal CharEnumerator(String str)
-        {
+        internal CharEnumerator(String str) {
             _str = str;
             _index = -1;
         }
 
-        public object Clone()
-        {
+        public object Clone() {
             return MemberwiseClone();
         }
 
-        public bool MoveNext()
-        {
-            if (_index < (_str.Length - 1))
-            {
+        public bool MoveNext() {
+            if (_index < (_str.Length - 1)) {
                 _index++;
                 _currentElement = _str[_index];
                 return true;
@@ -47,22 +41,18 @@ namespace System
             return false;
         }
 
-        public void Dispose()
-        {
+        public void Dispose() {
             if (_str != null)
                 _index = _str.Length;
             _str = null;
         }
 
-        Object IEnumerator.Current
-        {
+        Object IEnumerator.Current {
             get { return Current; }
         }
 
-        public char Current
-        {
-            get
-            {
+        public char Current {
+            get {
                 if (_index == -1)
                     throw new InvalidOperationException(SR.InvalidOperation_EnumNotStarted);
                 if (_index >= _str.Length)
@@ -71,8 +61,7 @@ namespace System
             }
         }
 
-        public void Reset()
-        {
+        public void Reset() {
             _currentElement = (char)0;
             _index = -1;
         }

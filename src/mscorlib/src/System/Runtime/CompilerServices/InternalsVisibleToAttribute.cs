@@ -7,29 +7,23 @@
 
 using System;
 
-namespace System.Runtime.CompilerServices
-{
+namespace System.Runtime.CompilerServices {
     [AttributeUsage(AttributeTargets.Assembly, AllowMultiple = true, Inherited = false)]
-    public sealed class InternalsVisibleToAttribute : Attribute
-    {
+    public sealed class InternalsVisibleToAttribute : Attribute {
         private string _assemblyName;
         private bool _allInternalsVisible = true;
 
-        public InternalsVisibleToAttribute(string assemblyName)
-        {
+        public InternalsVisibleToAttribute(string assemblyName) {
             _assemblyName = assemblyName;
         }
 
-        public string AssemblyName
-        {
-            get
-            {
+        public string AssemblyName {
+            get {
                 return _assemblyName;
             }
         }
 
-        public bool AllInternalsVisible
-        {
+        public bool AllInternalsVisible {
             get { return _allInternalsVisible; }
             set { _allInternalsVisible = value; }
         }
@@ -51,8 +45,7 @@ namespace System.Runtime.CompilerServices
         AllowMultiple = false,
         Inherited = false)]
     [FriendAccessAllowed]
-    internal sealed class FriendAccessAllowedAttribute : Attribute
-    {
+    internal sealed class FriendAccessAllowedAttribute : Attribute {
     }
 }
 

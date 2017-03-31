@@ -4,22 +4,18 @@
 
 using System;
 
-namespace System.Globalization
-{
+namespace System.Globalization {
     // This class represents a starting/ending time for a period of daylight saving time.
     [Serializable]
-    public class DaylightTime
-    {
+    public class DaylightTime {
         private readonly DateTime _start;
         private readonly DateTime _end;
         private readonly TimeSpan _delta;
 
-        private DaylightTime()
-        {
+        private DaylightTime() {
         }
 
-        public DaylightTime(DateTime start, DateTime end, TimeSpan delta)
-        {
+        public DaylightTime(DateTime start, DateTime end, TimeSpan delta) {
             _start = start;
             _end = end;
             _delta = delta;
@@ -36,10 +32,8 @@ namespace System.Globalization
     }
 
     // Value type version of DaylightTime
-    internal struct DaylightTimeStruct
-    {
-        public DaylightTimeStruct(DateTime start, DateTime end, TimeSpan delta)
-        {
+    internal struct DaylightTimeStruct {
+        public DaylightTimeStruct(DateTime start, DateTime end, TimeSpan delta) {
             Start = start;
             End = end;
             Delta = delta;

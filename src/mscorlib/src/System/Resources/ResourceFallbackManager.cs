@@ -22,10 +22,8 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 
-namespace System.Resources
-{
-    internal class ResourceFallbackManager : IEnumerable<CultureInfo>
-    {
+namespace System.Resources {
+    internal class ResourceFallbackManager : IEnumerable<CultureInfo> {
         private CultureInfo m_startingCulture;
         private CultureInfo m_neutralResourcesCulture;
         private bool m_useParents;
@@ -39,14 +37,11 @@ namespace System.Resources
         [ThreadStatic]
         private static CultureInfo[] cachedOsFallbackArray;
 
-        internal ResourceFallbackManager(CultureInfo startingCulture, CultureInfo neutralResourcesCulture, bool useParents)
-        {
-            if (startingCulture != null)
-            {
+        internal ResourceFallbackManager(CultureInfo startingCulture, CultureInfo neutralResourcesCulture, bool useParents) {
+            if (startingCulture != null) {
                 m_startingCulture = startingCulture;
             }
-            else
-            {
+            else {
                 m_startingCulture = CultureInfo.CurrentUICulture;
             }
 
@@ -54,22 +49,18 @@ namespace System.Resources
             m_useParents = useParents;
         }
 
-        IEnumerator IEnumerable.GetEnumerator()
-        {
+        IEnumerator IEnumerable.GetEnumerator() {
             return GetEnumerator();
         }
 
         // WARING: This function must be kept in sync with ResourceManager.GetFirstResourceSet()
-        public IEnumerator<CultureInfo> GetEnumerator()
-        {
+        public IEnumerator<CultureInfo> GetEnumerator() {
             bool reachedNeutralResourcesCulture = false;
 
             // 1. starting culture chain, up to neutral
             CultureInfo currentCulture = m_startingCulture;
-            do
-            {
-                if (m_neutralResourcesCulture != null && currentCulture.Name == m_neutralResourcesCulture.Name)
-                {
+            do {
+                if (m_neutralResourcesCulture != null && currentCulture.Name == m_neutralResourcesCulture.Name) {
                     // Return the invariant culture all the time, even if the UltimateResourceFallbackLocation
                     // is a satellite assembly.  This is fixed up later in ManifestBasedResourceGroveler::UltimateFallbackFixup.
                     yield return CultureInfo.InvariantCulture;
@@ -80,8 +71,7 @@ namespace System.Resources
                 currentCulture = currentCulture.Parent;
             } while (m_useParents && !currentCulture.HasInvariantCultureName);
 
-            if (!m_useParents || m_startingCulture.HasInvariantCultureName)
-            {
+            if (!m_useParents || m_startingCulture.HasInvariantCultureName) {
                 yield break;
             }
 

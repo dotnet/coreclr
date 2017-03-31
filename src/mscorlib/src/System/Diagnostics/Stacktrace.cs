@@ -16,15 +16,13 @@ using System.Runtime.Serialization;
 using System.Runtime.Versioning;
 using System.Diagnostics.Contracts;
 
-namespace System.Diagnostics
-{
+namespace System.Diagnostics {
     // READ ME:
     // Modifying the order or fields of this object may require other changes 
     // to the unmanaged definition of the StackFrameHelper class, in 
     // VM\DebugDebugger.h. The binder will catch some of these layout problems.
     [Serializable]
-    internal class StackFrameHelper : IDisposable
-    {
+    internal class StackFrameHelper : IDisposable {
         [NonSerialized]
         private Thread targetThread;
         private int[] rgiOffset;
@@ -65,8 +63,7 @@ namespace System.Diagnostics
         [ThreadStatic]
         private static int t_reentrancy = 0;
 
-        public StackFrameHelper(Thread target)
-        {
+        public StackFrameHelper(Thread target) {
             targetThread = target;
             rgMethodBase = null;
             rgMethodHandle = null;
@@ -101,8 +98,7 @@ namespace System.Diagnostics
         // rgiLineNumber and rgiColumnNumber fields using the portable PDB reader if not already
         // done by GetStackFramesInternal (on Windows for old PDB format).
         //
-        internal void InitializeSourceInfo(int iSkip, bool fNeedFileInfo, Exception exception)
-        {
+        internal void InitializeSourceInfo(int iSkip, bool fNeedFileInfo, Exception exception) {
             StackTrace.GetStackFramesInternal(this, iSkip, fNeedFileInfo, exception);
 
             if (!fNeedFileInfo)
@@ -113,10 +109,8 @@ namespace System.Diagnostics
                 return;
 
             t_reentrancy++;
-            try
-            {
-                if (s_symbolsMethodInfo == null)
-                {
+            try {
+                if (s_symbolsMethodInfo == null) {
                     s_symbolsType = Type.GetType(
                         "System.Diagnostics.StackTraceSymbols, System.Diagnostics.StackTrace, Version=4.0.1.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a",
                         throwOnError: false);
@@ -129,8 +123,7 @@ namespace System.Diagnostics
                         return;
                 }
 
-                if (getSourceLineInfo == null)
-                {
+                if (getSourceLineInfo == null) {
                     // Create an instance of System.Diagnostics.Stacktrace.Symbols
                     object target = Activator.CreateInstance(s_symbolsType);
 
@@ -138,41 +131,33 @@ namespace System.Diagnostics
                     getSourceLineInfo = (GetSourceLineInfoDelegate)s_symbolsMethodInfo.CreateDelegate(typeof(GetSourceLineInfoDelegate), target);
                 }
 
-                for (int index = 0; index < iFrameCount; index++)
-                {
+                for (int index = 0; index < iFrameCount; index++) {
                     // If there was some reason not to try get the symbols from the portable PDB reader like the module was
                     // ENC or the source/line info was already retrieved, the method token is 0.
-                    if (rgiMethodToken[index] != 0)
-                    {
+                    if (rgiMethodToken[index] != 0) {
                         getSourceLineInfo(rgAssemblyPath[index], rgLoadedPeAddress[index], rgiLoadedPeSize[index],
                             rgInMemoryPdbAddress[index], rgiInMemoryPdbSize[index], rgiMethodToken[index],
                             rgiILOffset[index], out rgFilename[index], out rgiLineNumber[index], out rgiColumnNumber[index]);
                     }
                 }
             }
-            catch
-            {
+            catch {
             }
-            finally
-            {
+            finally {
                 t_reentrancy--;
             }
         }
 
-        void IDisposable.Dispose()
-        {
-            if (getSourceLineInfo != null)
-            {
+        void IDisposable.Dispose() {
+            if (getSourceLineInfo != null) {
                 IDisposable disposable = getSourceLineInfo.Target as IDisposable;
-                if (disposable != null)
-                {
+                if (disposable != null) {
                     disposable.Dispose();
                 }
             }
         }
 
-        public virtual MethodBase GetMethodBase(int i)
-        {
+        public virtual MethodBase GetMethodBase(int i) {
             // There may be a better way to do this.
             // we got RuntimeMethodHandles here and we need to go to MethodBase
             // but we don't know whether the reflection info has been initialized
@@ -194,8 +179,7 @@ namespace System.Diagnostics
         public virtual int GetLineNumber(int i) { return rgiLineNumber == null ? 0 : rgiLineNumber[i]; }
         public virtual int GetColumnNumber(int i) { return rgiColumnNumber == null ? 0 : rgiColumnNumber[i]; }
 
-        public virtual bool IsLastFrameFromForeignExceptionStackTrace(int i)
-        {
+        public virtual bool IsLastFrameFromForeignExceptionStackTrace(int i) {
             return (rgiLastFrameFromForeignExceptionStackTrace == null) ? false : rgiLastFrameFromForeignExceptionStackTrace[i];
         }
 
@@ -205,16 +189,13 @@ namespace System.Diagnostics
         // serialization implementation
         //
         [OnSerializing]
-        private void OnSerializing(StreamingContext context)
-        {
+        private void OnSerializing(StreamingContext context) {
             // this is called in the process of serializing this object.
             // For compatibility with Everett we need to assign the rgMethodBase field as that is the field
             // that will be serialized
             rgMethodBase = (rgMethodHandle == null) ? null : new MethodBase[rgMethodHandle.Length];
-            if (rgMethodHandle != null)
-            {
-                for (int i = 0; i < rgMethodHandle.Length; i++)
-                {
+            if (rgMethodHandle != null) {
+                for (int i = 0; i < rgMethodHandle.Length; i++) {
                     if (!rgMethodHandle[i].IsNull())
                         rgMethodBase[i] = RuntimeType.GetMethodBase(new RuntimeMethodInfoStub(rgMethodHandle[i], this));
                 }
@@ -222,21 +203,17 @@ namespace System.Diagnostics
         }
 
         [OnSerialized]
-        private void OnSerialized(StreamingContext context)
-        {
+        private void OnSerialized(StreamingContext context) {
             // after we are done serializing null the rgMethodBase field
             rgMethodBase = null;
         }
 
         [OnDeserialized]
-        private void OnDeserialized(StreamingContext context)
-        {
+        private void OnDeserialized(StreamingContext context) {
             // after we are done deserializing we need to transform the rgMethodBase in rgMethodHandle
             rgMethodHandle = (rgMethodBase == null) ? null : new IntPtr[rgMethodBase.Length];
-            if (rgMethodBase != null)
-            {
-                for (int i = 0; i < rgMethodBase.Length; i++)
-                {
+            if (rgMethodBase != null) {
+                for (int i = 0; i < rgMethodBase.Length; i++) {
                     if (rgMethodBase[i] != null)
                         rgMethodHandle[i] = rgMethodBase[i].MethodHandle.Value;
                 }
@@ -252,16 +229,14 @@ namespace System.Diagnostics
     // StackTrace, we use an InheritanceDemand to prevent partially-trusted
     // subclasses.
     [Serializable]
-    public class StackTrace
-    {
+    public class StackTrace {
         private StackFrame[] frames;
         private int m_iNumOfFrames;
         public const int METHODS_TO_SKIP = 0;
         private int m_iMethodsToSkip;
 
         // Constructs a stack trace from the current location.
-        public StackTrace()
-        {
+        public StackTrace() {
             m_iNumOfFrames = 0;
             m_iMethodsToSkip = 0;
             CaptureStackTrace(METHODS_TO_SKIP, false, null, null);
@@ -269,8 +244,7 @@ namespace System.Diagnostics
 
         // Constructs a stack trace from the current location.
         //
-        public StackTrace(bool fNeedFileInfo)
-        {
+        public StackTrace(bool fNeedFileInfo) {
             m_iNumOfFrames = 0;
             m_iMethodsToSkip = 0;
             CaptureStackTrace(METHODS_TO_SKIP, fNeedFileInfo, null, null);
@@ -279,8 +253,7 @@ namespace System.Diagnostics
         // Constructs a stack trace from the current location, in a caller's
         // frame
         //
-        public StackTrace(int skipFrames)
-        {
+        public StackTrace(int skipFrames) {
             if (skipFrames < 0)
                 throw new ArgumentOutOfRangeException(nameof(skipFrames),
                     SR.ArgumentOutOfRange_NeedNonNegNum);
@@ -295,8 +268,7 @@ namespace System.Diagnostics
         // Constructs a stack trace from the current location, in a caller's
         // frame
         //
-        public StackTrace(int skipFrames, bool fNeedFileInfo)
-        {
+        public StackTrace(int skipFrames, bool fNeedFileInfo) {
             if (skipFrames < 0)
                 throw new ArgumentOutOfRangeException(nameof(skipFrames),
                     SR.ArgumentOutOfRange_NeedNonNegNum);
@@ -310,8 +282,7 @@ namespace System.Diagnostics
 
 
         // Constructs a stack trace from the current location.
-        public StackTrace(Exception e)
-        {
+        public StackTrace(Exception e) {
             if (e == null)
                 throw new ArgumentNullException(nameof(e));
             Contract.EndContractBlock();
@@ -323,8 +294,7 @@ namespace System.Diagnostics
 
         // Constructs a stack trace from the current location.
         //
-        public StackTrace(Exception e, bool fNeedFileInfo)
-        {
+        public StackTrace(Exception e, bool fNeedFileInfo) {
             if (e == null)
                 throw new ArgumentNullException(nameof(e));
             Contract.EndContractBlock();
@@ -337,8 +307,7 @@ namespace System.Diagnostics
         // Constructs a stack trace from the current location, in a caller's
         // frame
         //
-        public StackTrace(Exception e, int skipFrames)
-        {
+        public StackTrace(Exception e, int skipFrames) {
             if (e == null)
                 throw new ArgumentNullException(nameof(e));
 
@@ -356,8 +325,7 @@ namespace System.Diagnostics
         // Constructs a stack trace from the current location, in a caller's
         // frame
         //
-        public StackTrace(Exception e, int skipFrames, bool fNeedFileInfo)
-        {
+        public StackTrace(Exception e, int skipFrames, bool fNeedFileInfo) {
             if (e == null)
                 throw new ArgumentNullException(nameof(e));
 
@@ -376,8 +344,7 @@ namespace System.Diagnostics
         // Constructs a "fake" stack trace, just containing a single frame.  
         // Does not have the overhead of a full stack trace.
         //
-        public StackTrace(StackFrame frame)
-        {
+        public StackTrace(StackFrame frame) {
             frames = new StackFrame[1];
             frames[0] = frame;
             m_iMethodsToSkip = 0;
@@ -388,19 +355,16 @@ namespace System.Diagnostics
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         internal static extern void GetStackFramesInternal(StackFrameHelper sfh, int iSkip, bool fNeedFileInfo, Exception e);
 
-        internal static int CalculateFramesToSkip(StackFrameHelper StackF, int iNumFrames)
-        {
+        internal static int CalculateFramesToSkip(StackFrameHelper StackF, int iNumFrames) {
             int iRetVal = 0;
             String PackageName = "System.Diagnostics";
 
             // Check if this method is part of the System.Diagnostics
             // package. If so, increment counter keeping track of 
             // System.Diagnostics functions
-            for (int i = 0; i < iNumFrames; i++)
-            {
+            for (int i = 0; i < iNumFrames; i++) {
                 MethodBase mb = StackF.GetMethodBase(i);
-                if (mb != null)
-                {
+                if (mb != null) {
                     Type t = mb.DeclaringType;
                     if (t == null)
                         break;
@@ -419,12 +383,10 @@ namespace System.Diagnostics
         // Retrieves an object with stack trace information encoded.
         // It leaves out the first "iSkip" lines of the stacktrace.
         //
-        private void CaptureStackTrace(int iSkip, bool fNeedFileInfo, Thread targetThread, Exception e)
-        {
+        private void CaptureStackTrace(int iSkip, bool fNeedFileInfo, Thread targetThread, Exception e) {
             m_iMethodsToSkip += iSkip;
 
-            using (StackFrameHelper StackF = new StackFrameHelper(targetThread))
-            {
+            using (StackFrameHelper StackF = new StackFrameHelper(targetThread)) {
                 StackF.InitializeSourceInfo(0, fNeedFileInfo, e);
 
                 m_iNumOfFrames = StackF.GetNumberOfFrames();
@@ -432,12 +394,10 @@ namespace System.Diagnostics
                 if (m_iMethodsToSkip > m_iNumOfFrames)
                     m_iMethodsToSkip = m_iNumOfFrames;
 
-                if (m_iNumOfFrames != 0)
-                {
+                if (m_iNumOfFrames != 0) {
                     frames = new StackFrame[m_iNumOfFrames];
 
-                    for (int i = 0; i < m_iNumOfFrames; i++)
-                    {
+                    for (int i = 0; i < m_iNumOfFrames; i++) {
                         bool fDummy1 = true;
                         bool fDummy2 = true;
                         StackFrame sfTemp = new StackFrame(fDummy1, fDummy2);
@@ -448,8 +408,7 @@ namespace System.Diagnostics
 
                         sfTemp.SetIsLastFrameFromForeignExceptionStackTrace(StackF.IsLastFrameFromForeignExceptionStackTrace(i));
 
-                        if (fNeedFileInfo)
-                        {
+                        if (fNeedFileInfo) {
                             sfTemp.SetFileName(StackF.GetFilename(i));
                             sfTemp.SetLineNumber(StackF.GetLineNumber(i));
                             sfTemp.SetColumnNumber(StackF.GetColumnNumber(i));
@@ -464,8 +423,7 @@ namespace System.Diagnostics
                         m_iMethodsToSkip += CalculateFramesToSkip(StackF, m_iNumOfFrames);
 
                     m_iNumOfFrames -= m_iMethodsToSkip;
-                    if (m_iNumOfFrames < 0)
-                    {
+                    if (m_iNumOfFrames < 0) {
                         m_iNumOfFrames = 0;
                     }
                 }
@@ -478,8 +436,7 @@ namespace System.Diagnostics
 
         // Property to get the number of frames in the stack trace
         //
-        public virtual int FrameCount
-        {
+        public virtual int FrameCount {
             get { return m_iNumOfFrames; }
         }
 
@@ -487,8 +444,7 @@ namespace System.Diagnostics
         // Returns a given stack frame.  Stack frames are numbered starting at
         // zero, which is the last stack frame pushed.
         //
-        public virtual StackFrame GetFrame(int index)
-        {
+        public virtual StackFrame GetFrame(int index) {
             if ((frames != null) && (index < m_iNumOfFrames) && (index >= 0))
                 return frames[index + m_iMethodsToSkip];
 
@@ -500,8 +456,7 @@ namespace System.Diagnostics
         // The nth element of this array is the same as GetFrame(n). 
         // The length of the array is the same as FrameCount.
         // 
-        public virtual StackFrame[] GetFrames()
-        {
+        public virtual StackFrame[] GetFrames() {
             if (frames == null || m_iNumOfFrames <= 0)
                 return null;
 
@@ -514,16 +469,14 @@ namespace System.Diagnostics
 
         // Builds a readable representation of the stack trace
         //
-        public override String ToString()
-        {
+        public override String ToString() {
             // Include a trailing newline for backwards compatibility
             return ToString(TraceFormat.TrailingNewLine);
         }
 
         // TraceFormat is Used to specify options for how the 
         // string-representation of a StackTrace should be generated.
-        internal enum TraceFormat
-        {
+        internal enum TraceFormat {
             Normal,
             TrailingNewLine,        // include a trailing new line character
             NoResourceLookup    // to prevent infinite resource recusion
@@ -531,26 +484,22 @@ namespace System.Diagnostics
 
         // Builds a readable representation of the stack trace, specifying 
         // the format for backwards compatibility.
-        internal String ToString(TraceFormat traceFormat)
-        {
+        internal String ToString(TraceFormat traceFormat) {
             bool displayFilenames = true;   // we'll try, but demand may fail
             String word_At = "at";
             String inFileLineNum = "in {0}:line {1}";
 
-            if (traceFormat != TraceFormat.NoResourceLookup)
-            {
+            if (traceFormat != TraceFormat.NoResourceLookup) {
                 word_At = SR.Word_At;
                 inFileLineNum = SR.StackTrace_InFileLineNumber;
             }
 
             bool fFirstFrame = true;
             StringBuilder sb = new StringBuilder(255);
-            for (int iFrameIndex = 0; iFrameIndex < m_iNumOfFrames; iFrameIndex++)
-            {
+            for (int iFrameIndex = 0; iFrameIndex < m_iNumOfFrames; iFrameIndex++) {
                 StackFrame sf = GetFrame(iFrameIndex);
                 MethodBase mb = sf.GetMethod();
-                if (mb != null)
-                {
+                if (mb != null) {
                     // We want a newline at the end of every line except for the last
                     if (fFirstFrame)
                         fFirstFrame = false;
@@ -561,12 +510,10 @@ namespace System.Diagnostics
 
                     Type t = mb.DeclaringType;
                     // if there is a type (non global method) print it
-                    if (t != null)
-                    {
+                    if (t != null) {
                         // Append t.FullName, replacing '+' with '.'
                         string fullName = t.FullName;
-                        for (int i = 0; i < fullName.Length; i++)
-                        {
+                        for (int i = 0; i < fullName.Length; i++) {
                             char ch = fullName[i];
                             sb.Append(ch == '+' ? '.' : ch);
                         }
@@ -575,14 +522,12 @@ namespace System.Diagnostics
                     sb.Append(mb.Name);
 
                     // deal with the generic portion of the method
-                    if (mb is MethodInfo && ((MethodInfo)mb).IsGenericMethod)
-                    {
+                    if (mb is MethodInfo && ((MethodInfo)mb).IsGenericMethod) {
                         Type[] typars = ((MethodInfo)mb).GetGenericArguments();
                         sb.Append('[');
                         int k = 0;
                         bool fFirstTyParam = true;
-                        while (k < typars.Length)
-                        {
+                        while (k < typars.Length) {
                             if (fFirstTyParam == false)
                                 sb.Append(',');
                             else
@@ -595,22 +540,18 @@ namespace System.Diagnostics
                     }
 
                     ParameterInfo[] pi = null;
-                    try
-                    {
+                    try {
                         pi = mb.GetParameters();
                     }
-                    catch
-                    {
+                    catch {
                         // The parameter info cannot be loaded, so we don't
                         // append the parameter list.
                     }
-                    if (pi != null)
-                    {
+                    if (pi != null) {
                         // arguments printing
                         sb.Append('(');
                         bool fFirstParam = true;
-                        for (int j = 0; j < pi.Length; j++)
-                        {
+                        for (int j = 0; j < pi.Length; j++) {
                             if (fFirstParam == false)
                                 sb.Append(", ");
                             else
@@ -627,8 +568,7 @@ namespace System.Diagnostics
                     }
 
                     // source location printing
-                    if (displayFilenames && (sf.GetILOffset() != -1))
-                    {
+                    if (displayFilenames && (sf.GetILOffset() != -1)) {
                         // If we don't have a PDB or PDB-reading is disabled for the module,
                         // then the file name will be null.
                         String fileName = null;
@@ -636,27 +576,23 @@ namespace System.Diagnostics
                         // Getting the filename from a StackFrame is a privileged operation - we won't want
                         // to disclose full path names to arbitrarily untrusted code.  Rather than just omit
                         // this we could probably trim to just the filename so it's still mostly usefull.
-                        try
-                        {
+                        try {
                             fileName = sf.GetFileName();
                         }
-                        catch (SecurityException)
-                        {
+                        catch (SecurityException) {
                             // If the demand for displaying filenames fails, then it won't
                             // succeed later in the loop.  Avoid repeated exceptions by not trying again.
                             displayFilenames = false;
                         }
 
-                        if (fileName != null)
-                        {
+                        if (fileName != null) {
                             // tack on " in c:\tmp\MyFile.cs:line 5"
                             sb.Append(' ');
                             sb.AppendFormat(CultureInfo.InvariantCulture, inFileLineNum, fileName, sf.GetFileLineNumber());
                         }
                     }
 
-                    if (sf.GetIsLastFrameFromForeignExceptionStackTrace())
-                    {
+                    if (sf.GetIsLastFrameFromForeignExceptionStackTrace()) {
                         sb.Append(Environment.NewLine);
                         sb.Append(SR.Exception_EndStackTraceFromPreviousThrow);
                     }
@@ -671,8 +607,7 @@ namespace System.Diagnostics
 
         // This helper is called from within the EE to construct a string representation
         // of the current stack trace.
-        private static String GetManagedStackTraceStringHelper(bool fNeedFileInfo)
-        {
+        private static String GetManagedStackTraceStringHelper(bool fNeedFileInfo) {
             // Note all the frames in System.Diagnostics will be skipped when capturing 
             // a normal stack trace (not from an exception) so we don't need to explicitly
             // skip the GetManagedStackTraceStringHelper frame.

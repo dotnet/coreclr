@@ -8,21 +8,18 @@ using System.Runtime.CompilerServices;
 using System.Runtime.ConstrainedExecution;
 using System.Diagnostics.Contracts;
 
-namespace System.Runtime
-{
+namespace System.Runtime {
     // These settings are the same format as in clr\src\vm\gcpriv.h
     // make sure you change that file if you change this file!
 
     [Serializable]
-    public enum GCLargeObjectHeapCompactionMode
-    {
+    public enum GCLargeObjectHeapCompactionMode {
         Default = 1,
         CompactOnce = 2
     }
 
     [Serializable]
-    public enum GCLatencyMode
-    {
+    public enum GCLatencyMode {
         Batch = 0,
         Interactive = 1,
         LowLatency = 2,
@@ -30,26 +27,20 @@ namespace System.Runtime
         NoGCRegion = 4
     }
 
-    public static class GCSettings
-    {
-        private enum SetLatencyModeStatus
-        {
+    public static class GCSettings {
+        private enum SetLatencyModeStatus {
             Succeeded = 0,
             NoGCInProgress = 1 // NoGCRegion is in progress, can't change pause mode.
         };
 
-        public static GCLatencyMode LatencyMode
-        {
-            get
-            {
+        public static GCLatencyMode LatencyMode {
+            get {
                 return (GCLatencyMode)(GC.GetGCLatencyMode());
             }
 
             // We don't want to allow this API when hosted.
-            set
-            {
-                if ((value < GCLatencyMode.Batch) || (value > GCLatencyMode.SustainedLowLatency))
-                {
+            set {
+                if ((value < GCLatencyMode.Batch) || (value > GCLatencyMode.SustainedLowLatency)) {
                     throw new ArgumentOutOfRangeException(SR.ArgumentOutOfRange_Enum);
                 }
                 Contract.EndContractBlock();
@@ -59,19 +50,15 @@ namespace System.Runtime
             }
         }
 
-        public static GCLargeObjectHeapCompactionMode LargeObjectHeapCompactionMode
-        {
-            get
-            {
+        public static GCLargeObjectHeapCompactionMode LargeObjectHeapCompactionMode {
+            get {
                 return (GCLargeObjectHeapCompactionMode)(GC.GetLOHCompactionMode());
             }
 
             // We don't want to allow this API when hosted.
-            set
-            {
+            set {
                 if ((value < GCLargeObjectHeapCompactionMode.Default) ||
-                    (value > GCLargeObjectHeapCompactionMode.CompactOnce))
-                {
+                    (value > GCLargeObjectHeapCompactionMode.CompactOnce)) {
                     throw new ArgumentOutOfRangeException(SR.ArgumentOutOfRange_Enum);
                 }
                 Contract.EndContractBlock();
@@ -80,10 +67,8 @@ namespace System.Runtime
             }
         }
 
-        public static bool IsServerGC
-        {
-            get
-            {
+        public static bool IsServerGC {
+            get {
                 return GC.IsServerGC();
             }
         }

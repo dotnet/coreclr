@@ -18,8 +18,7 @@ using System.Diagnostics;
 using System.Diagnostics.Contracts;
 using System.Runtime.Versioning;
 
-namespace System.Threading.Tasks
-{
+namespace System.Threading.Tasks {
     /// <summary>
     /// Provides support for creating and scheduling
     /// <see cref="T:System.Threading.Tasks.Task{TResult}">Task{TResult}</see> objects.
@@ -38,8 +37,7 @@ namespace System.Threading.Tasks
     /// <see cref="System.Threading.Tasks.Task{TResult}.Factory">Task{TResult}.Factory</see> property.
     /// </para>
     /// </remarks>
-    public class TaskFactory<TResult>
-    {
+    public class TaskFactory<TResult> {
         // Member variables, DefaultScheduler, other properties and ctors 
         // copied right out of TaskFactory...  Lots of duplication here...
         // Should we be thinking about a TaskFactoryBase class?
@@ -50,18 +48,15 @@ namespace System.Threading.Tasks
         private TaskCreationOptions m_defaultCreationOptions;
         private TaskContinuationOptions m_defaultContinuationOptions;
 
-        private TaskScheduler DefaultScheduler
-        {
-            get
-            {
+        private TaskScheduler DefaultScheduler {
+            get {
                 if (m_defaultScheduler == null) return TaskScheduler.Current;
                 else return m_defaultScheduler;
             }
         }
 
         // sister method to above property -- avoids a TLS lookup
-        private TaskScheduler GetDefaultScheduler(Task currTask)
-        {
+        private TaskScheduler GetDefaultScheduler(Task currTask) {
             if (m_defaultScheduler != null) return m_defaultScheduler;
             else if ((currTask != null)
                 && ((currTask.CreationOptions & TaskCreationOptions.HideScheduler) == 0)
@@ -86,8 +81,7 @@ namespace System.Threading.Tasks
         /// cref="System.Threading.Tasks.TaskScheduler.Current">TaskScheduler.Current</see>).
         /// </remarks>
         public TaskFactory()
-            : this(default(CancellationToken), TaskCreationOptions.None, TaskContinuationOptions.None, null)
-        {
+            : this(default(CancellationToken), TaskCreationOptions.None, TaskContinuationOptions.None, null) {
         }
 
         /// <summary>
@@ -107,8 +101,7 @@ namespace System.Threading.Tasks
         /// cref="System.Threading.Tasks.TaskScheduler.Current">TaskScheduler.Current</see>).
         /// </remarks>
         public TaskFactory(CancellationToken cancellationToken)
-            : this(cancellationToken, TaskCreationOptions.None, TaskContinuationOptions.None, null)
-        {
+            : this(cancellationToken, TaskCreationOptions.None, TaskContinuationOptions.None, null) {
         }
 
         /// <summary>
@@ -131,8 +124,7 @@ namespace System.Threading.Tasks
         /// cref="System.Threading.Tasks.TaskScheduler.Current">TaskScheduler.Current</see>).
         /// </remarks>
         public TaskFactory(TaskScheduler scheduler) // null means to use TaskScheduler.Current
-            : this(default(CancellationToken), TaskCreationOptions.None, TaskContinuationOptions.None, scheduler)
-        {
+            : this(default(CancellationToken), TaskCreationOptions.None, TaskContinuationOptions.None, scheduler) {
         }
 
         /// <summary>
@@ -162,8 +154,7 @@ namespace System.Threading.Tasks
         /// cref="System.Threading.Tasks.TaskScheduler.Current">TaskScheduler.Current</see>).
         /// </remarks>
         public TaskFactory(TaskCreationOptions creationOptions, TaskContinuationOptions continuationOptions)
-            : this(default(CancellationToken), creationOptions, continuationOptions, null)
-        {
+            : this(default(CancellationToken), creationOptions, continuationOptions, null) {
         }
 
         /// <summary>
@@ -201,8 +192,7 @@ namespace System.Threading.Tasks
         /// current scheduler (see <see
         /// cref="System.Threading.Tasks.TaskScheduler.Current">TaskScheduler.Current</see>).
         /// </remarks>
-        public TaskFactory(CancellationToken cancellationToken, TaskCreationOptions creationOptions, TaskContinuationOptions continuationOptions, TaskScheduler scheduler)
-        {
+        public TaskFactory(CancellationToken cancellationToken, TaskCreationOptions creationOptions, TaskContinuationOptions continuationOptions, TaskScheduler scheduler) {
             TaskFactory.CheckMultiTaskContinuationOptions(continuationOptions);
             TaskFactory.CheckCreationOptions(creationOptions);
 
@@ -276,8 +266,7 @@ namespace System.Threading.Tasks
         /// However, unless creation and scheduling must be separated, StartNew is the recommended approach
         /// for both simplicity and performance.
         /// </remarks>
-        public Task<TResult> StartNew(Func<TResult> function)
-        {
+        public Task<TResult> StartNew(Func<TResult> function) {
             Task currTask = Task.InternalCurrent;
             return Task<TResult>.StartNew(currTask, function, m_defaultCancellationToken,
                 m_defaultCreationOptions, InternalTaskOptions.None, GetDefaultScheduler(currTask));
@@ -303,8 +292,7 @@ namespace System.Threading.Tasks
         /// However, unless creation and scheduling must be separated, StartNew is the recommended approach
         /// for both simplicity and performance.
         /// </remarks>
-        public Task<TResult> StartNew(Func<TResult> function, CancellationToken cancellationToken)
-        {
+        public Task<TResult> StartNew(Func<TResult> function, CancellationToken cancellationToken) {
             Task currTask = Task.InternalCurrent;
             return Task<TResult>.StartNew(currTask, function, cancellationToken,
                 m_defaultCreationOptions, InternalTaskOptions.None, GetDefaultScheduler(currTask));
@@ -332,8 +320,7 @@ namespace System.Threading.Tasks
         /// However, unless creation and scheduling must be separated, StartNew is the recommended approach
         /// for both simplicity and performance.
         /// </remarks>
-        public Task<TResult> StartNew(Func<TResult> function, TaskCreationOptions creationOptions)
-        {
+        public Task<TResult> StartNew(Func<TResult> function, TaskCreationOptions creationOptions) {
             Task currTask = Task.InternalCurrent;
             return Task<TResult>.StartNew(currTask, function, m_defaultCancellationToken,
                 creationOptions, InternalTaskOptions.None, GetDefaultScheduler(currTask));
@@ -372,8 +359,7 @@ namespace System.Threading.Tasks
         /// However, unless creation and scheduling must be separated, StartNew is the recommended approach
         /// for both simplicity and performance.
         /// </remarks>
-        public Task<TResult> StartNew(Func<TResult> function, CancellationToken cancellationToken, TaskCreationOptions creationOptions, TaskScheduler scheduler)
-        {
+        public Task<TResult> StartNew(Func<TResult> function, CancellationToken cancellationToken, TaskCreationOptions creationOptions, TaskScheduler scheduler) {
             return Task<TResult>.StartNew(
                 Task.InternalCurrentIfAttached(creationOptions), function, cancellationToken,
                 creationOptions, InternalTaskOptions.None, scheduler);
@@ -397,8 +383,7 @@ namespace System.Threading.Tasks
         /// However, unless creation and scheduling must be separated, StartNew is the recommended approach
         /// for both simplicity and performance.
         /// </remarks>
-        public Task<TResult> StartNew(Func<Object, TResult> function, Object state)
-        {
+        public Task<TResult> StartNew(Func<Object, TResult> function, Object state) {
             Task currTask = Task.InternalCurrent;
             return Task<TResult>.StartNew(currTask, function, state, m_defaultCancellationToken,
                 m_defaultCreationOptions, InternalTaskOptions.None, GetDefaultScheduler(currTask));
@@ -426,8 +411,7 @@ namespace System.Threading.Tasks
         /// However, unless creation and scheduling must be separated, StartNew is the recommended approach
         /// for both simplicity and performance.
         /// </remarks>
-        public Task<TResult> StartNew(Func<Object, TResult> function, Object state, CancellationToken cancellationToken)
-        {
+        public Task<TResult> StartNew(Func<Object, TResult> function, Object state, CancellationToken cancellationToken) {
             Task currTask = Task.InternalCurrent;
             return Task<TResult>.StartNew(currTask, function, state, cancellationToken,
                 m_defaultCreationOptions, InternalTaskOptions.None, GetDefaultScheduler(currTask));
@@ -457,8 +441,7 @@ namespace System.Threading.Tasks
         /// However, unless creation and scheduling must be separated, StartNew is the recommended approach
         /// for both simplicity and performance.
         /// </remarks>
-        public Task<TResult> StartNew(Func<Object, TResult> function, Object state, TaskCreationOptions creationOptions)
-        {
+        public Task<TResult> StartNew(Func<Object, TResult> function, Object state, TaskCreationOptions creationOptions) {
             Task currTask = Task.InternalCurrent;
             return Task<TResult>.StartNew(currTask, function, state, m_defaultCancellationToken,
                 creationOptions, InternalTaskOptions.None, GetDefaultScheduler(currTask));
@@ -499,8 +482,7 @@ namespace System.Threading.Tasks
         /// However, unless creation and scheduling must be separated, StartNew is the recommended approach
         /// for both simplicity and performance.
         /// </remarks>
-        public Task<TResult> StartNew(Func<Object, TResult> function, Object state, CancellationToken cancellationToken, TaskCreationOptions creationOptions, TaskScheduler scheduler)
-        {
+        public Task<TResult> StartNew(Func<Object, TResult> function, Object state, CancellationToken cancellationToken, TaskCreationOptions creationOptions, TaskScheduler scheduler) {
             return Task<TResult>.StartNew(Task.InternalCurrentIfAttached(creationOptions), function, state, cancellationToken,
                 creationOptions, InternalTaskOptions.None, scheduler);
         }
@@ -515,56 +497,44 @@ namespace System.Threading.Tasks
             Func<IAsyncResult, TResult> endFunction,
             Action<IAsyncResult> endAction,
             Task<TResult> promise,
-            bool requiresSynchronization)
-        {
+            bool requiresSynchronization) {
             Contract.Requires((endFunction != null) != (endAction != null), "Expected exactly one of endFunction/endAction to be non-null");
 
             Exception ex = null;
             OperationCanceledException oce = null;
             TResult result = default(TResult);
 
-            try
-            {
-                if (endFunction != null)
-                {
+            try {
+                if (endFunction != null) {
                     result = endFunction(iar);
                 }
-                else
-                {
+                else {
                     endAction(iar);
                 }
             }
             catch (OperationCanceledException _oce) { oce = _oce; }
             catch (Exception e) { ex = e; }
-            finally
-            {
-                if (oce != null)
-                {
+            finally {
+                if (oce != null) {
                     promise.TrySetCanceled(oce.CancellationToken, oce);
                 }
-                else if (ex != null)
-                {
+                else if (ex != null) {
                     bool bWonSetException = promise.TrySetException(ex);
-                    if (bWonSetException && ex is ThreadAbortException)
-                    {
+                    if (bWonSetException && ex is ThreadAbortException) {
                         promise.m_contingentProperties.m_exceptionsHolder.MarkAsHandled(false);
                     }
                 }
-                else
-                {
+                else {
                     if (AsyncCausalityTracer.LoggingOn)
                         AsyncCausalityTracer.TraceOperationCompletion(CausalityTraceLevel.Required, promise.Id, AsyncCausalityStatus.Completed);
 
-                    if (Task.s_asyncDebuggingEnabled)
-                    {
+                    if (Task.s_asyncDebuggingEnabled) {
                         Task.RemoveFromActiveTasks(promise.Id);
                     }
-                    if (requiresSynchronization)
-                    {
+                    if (requiresSynchronization) {
                         promise.TrySetResult(result);
                     }
-                    else
-                    {
+                    else {
                         promise.DangerousSetResult(result);
                     }
                 }
@@ -585,8 +555,7 @@ namespace System.Threading.Tasks
         /// <paramref name="endMethod"/> argument is null.</exception>
         /// <returns>A <see cref="T:System.Threading.Tasks.Task{TResult}">Task</see> that represents the
         /// asynchronous operation.</returns>
-        public Task<TResult> FromAsync(IAsyncResult asyncResult, Func<IAsyncResult, TResult> endMethod)
-        {
+        public Task<TResult> FromAsync(IAsyncResult asyncResult, Func<IAsyncResult, TResult> endMethod) {
             return FromAsyncImpl(asyncResult, endMethod, null, m_defaultCreationOptions, DefaultScheduler);
         }
 
@@ -612,8 +581,7 @@ namespace System.Threading.Tasks
         public Task<TResult> FromAsync(
             IAsyncResult asyncResult,
             Func<IAsyncResult, TResult> endMethod,
-            TaskCreationOptions creationOptions)
-        {
+            TaskCreationOptions creationOptions) {
             return FromAsyncImpl(asyncResult, endMethod, null, creationOptions, DefaultScheduler);
         }
 
@@ -646,8 +614,7 @@ namespace System.Threading.Tasks
             IAsyncResult asyncResult,
             Func<IAsyncResult, TResult> endMethod,
             TaskCreationOptions creationOptions,
-            TaskScheduler scheduler)
-        {
+            TaskScheduler scheduler) {
             return FromAsyncImpl(asyncResult, endMethod, null, creationOptions, scheduler);
         }
 
@@ -658,8 +625,7 @@ namespace System.Threading.Tasks
             Func<IAsyncResult, TResult> endFunction,
             Action<IAsyncResult> endAction,
             TaskCreationOptions creationOptions,
-            TaskScheduler scheduler)
-        {
+            TaskScheduler scheduler) {
             if (asyncResult == null)
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.asyncResult);
 
@@ -679,16 +645,14 @@ namespace System.Threading.Tasks
             if (AsyncCausalityTracer.LoggingOn)
                 AsyncCausalityTracer.TraceOperationCreation(CausalityTraceLevel.Required, promise.Id, "TaskFactory.FromAsync", 0);
 
-            if (Task.s_asyncDebuggingEnabled)
-            {
+            if (Task.s_asyncDebuggingEnabled) {
                 Task.AddToActiveTasks(promise);
             }
 
             // Just specify this task as detached. No matter what happens, we want endMethod 
             // to be called -- even if the parent is canceled.  So we don't want to flow 
             // RespectParentCancellation.
-            Task t = new Task(new Action<object>(delegate
-            {
+            Task t = new Task(new Action<object>(delegate {
                 FromAsyncCoreLogic(asyncResult, endFunction, endAction, promise, requiresSynchronization: true);
             }),
                 (object)null, null,
@@ -697,22 +661,18 @@ namespace System.Threading.Tasks
             if (AsyncCausalityTracer.LoggingOn)
                 AsyncCausalityTracer.TraceOperationCreation(CausalityTraceLevel.Verbose, t.Id, "TaskFactory.FromAsync Callback", 0);
 
-            if (Task.s_asyncDebuggingEnabled)
-            {
+            if (Task.s_asyncDebuggingEnabled) {
                 Task.AddToActiveTasks(t);
             }
 
-            if (asyncResult.IsCompleted)
-            {
+            if (asyncResult.IsCompleted) {
                 try { t.InternalRunSynchronously(scheduler, waitForCompletion: false); }
                 catch (Exception e) { promise.TrySetException(e); } // catch and log any scheduler exceptions
             }
-            else
-            {
+            else {
                 ThreadPool.RegisterWaitForSingleObject(
                     asyncResult.AsyncWaitHandle,
-                    delegate
-                    {
+                    delegate {
                         try { t.InternalRunSynchronously(scheduler, waitForCompletion: false); }
                         catch (Exception e) { promise.TrySetException(e); } // catch and log any scheduler exceptions
                     },
@@ -743,8 +703,7 @@ namespace System.Threading.Tasks
         /// </remarks>
         public Task<TResult> FromAsync(
             Func<AsyncCallback, object, IAsyncResult> beginMethod,
-            Func<IAsyncResult, TResult> endMethod, object state)
-        {
+            Func<IAsyncResult, TResult> endMethod, object state) {
             return FromAsyncImpl(beginMethod, endMethod, null, state, m_defaultCreationOptions);
         }
 
@@ -772,8 +731,7 @@ namespace System.Threading.Tasks
         /// </remarks>
         public Task<TResult> FromAsync(
             Func<AsyncCallback, object, IAsyncResult> beginMethod,
-            Func<IAsyncResult, TResult> endMethod, object state, TaskCreationOptions creationOptions)
-        {
+            Func<IAsyncResult, TResult> endMethod, object state, TaskCreationOptions creationOptions) {
             return FromAsyncImpl(beginMethod, endMethod, null, state, creationOptions);
         }
 
@@ -781,8 +739,7 @@ namespace System.Threading.Tasks
         // method can access the logic w/o declaring a TaskFactory<TResult> instance.
         internal static Task<TResult> FromAsyncImpl(Func<AsyncCallback, object, IAsyncResult> beginMethod,
             Func<IAsyncResult, TResult> endFunction, Action<IAsyncResult> endAction,
-            object state, TaskCreationOptions creationOptions)
-        {
+            object state, TaskCreationOptions creationOptions) {
             if (beginMethod == null)
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.beginMethod);
 
@@ -798,33 +755,27 @@ namespace System.Threading.Tasks
             if (AsyncCausalityTracer.LoggingOn)
                 AsyncCausalityTracer.TraceOperationCreation(CausalityTraceLevel.Required, promise.Id, "TaskFactory.FromAsync: " + beginMethod.Method.Name, 0);
 
-            if (Task.s_asyncDebuggingEnabled)
-            {
+            if (Task.s_asyncDebuggingEnabled) {
                 Task.AddToActiveTasks(promise);
             }
 
-            try
-            {
+            try {
                 //This is 4.5 behaviour
                 //if we don't require synchronization, a faster set result path is taken
-                var asyncResult = beginMethod(iar =>
-                {
+                var asyncResult = beginMethod(iar => {
                     if (!iar.CompletedSynchronously)
                         FromAsyncCoreLogic(iar, endFunction, endAction, promise, requiresSynchronization: true);
                 }, state);
-                if (asyncResult.CompletedSynchronously)
-                {
+                if (asyncResult.CompletedSynchronously) {
                     Debug.Assert(asyncResult.IsCompleted, "If the operation completed synchronously, it must be completed.");
                     FromAsyncCoreLogic(asyncResult, endFunction, endAction, promise, requiresSynchronization: false);
                 }
             }
-            catch
-            {
+            catch {
                 if (AsyncCausalityTracer.LoggingOn)
                     AsyncCausalityTracer.TraceOperationCompletion(CausalityTraceLevel.Required, promise.Id, AsyncCausalityStatus.Error);
 
-                if (Task.s_asyncDebuggingEnabled)
-                {
+                if (Task.s_asyncDebuggingEnabled) {
                     Task.RemoveFromActiveTasks(promise.Id);
                 }
 
@@ -860,8 +811,7 @@ namespace System.Threading.Tasks
         public Task<TResult> FromAsync<TArg1>(
             Func<TArg1, AsyncCallback, object, IAsyncResult> beginMethod,
             Func<IAsyncResult, TResult> endMethod,
-            TArg1 arg1, object state)
-        {
+            TArg1 arg1, object state) {
             return FromAsyncImpl(beginMethod, endMethod, null, arg1, state, m_defaultCreationOptions);
         }
 
@@ -894,8 +844,7 @@ namespace System.Threading.Tasks
         public Task<TResult> FromAsync<TArg1>(
             Func<TArg1, AsyncCallback, object, IAsyncResult> beginMethod,
             Func<IAsyncResult, TResult> endMethod,
-            TArg1 arg1, object state, TaskCreationOptions creationOptions)
-        {
+            TArg1 arg1, object state, TaskCreationOptions creationOptions) {
             return FromAsyncImpl(beginMethod, endMethod, null, arg1, state, creationOptions);
         }
 
@@ -903,8 +852,7 @@ namespace System.Threading.Tasks
         // method can access the logic w/o declaring a TaskFactory<TResult> instance.
         internal static Task<TResult> FromAsyncImpl<TArg1>(Func<TArg1, AsyncCallback, object, IAsyncResult> beginMethod,
             Func<IAsyncResult, TResult> endFunction, Action<IAsyncResult> endAction,
-            TArg1 arg1, object state, TaskCreationOptions creationOptions)
-        {
+            TArg1 arg1, object state, TaskCreationOptions creationOptions) {
             if (beginMethod == null)
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.beginMethod);
 
@@ -920,32 +868,26 @@ namespace System.Threading.Tasks
             if (AsyncCausalityTracer.LoggingOn)
                 AsyncCausalityTracer.TraceOperationCreation(CausalityTraceLevel.Required, promise.Id, "TaskFactory.FromAsync: " + beginMethod.Method.Name, 0);
 
-            if (Task.s_asyncDebuggingEnabled)
-            {
+            if (Task.s_asyncDebuggingEnabled) {
                 Task.AddToActiveTasks(promise);
             }
 
-            try
-            {
+            try {
                 //if we don't require synchronization, a faster set result path is taken
-                var asyncResult = beginMethod(arg1, iar =>
-                {
+                var asyncResult = beginMethod(arg1, iar => {
                     if (!iar.CompletedSynchronously)
                         FromAsyncCoreLogic(iar, endFunction, endAction, promise, requiresSynchronization: true);
                 }, state);
-                if (asyncResult.CompletedSynchronously)
-                {
+                if (asyncResult.CompletedSynchronously) {
                     Debug.Assert(asyncResult.IsCompleted, "If the operation completed synchronously, it must be completed.");
                     FromAsyncCoreLogic(asyncResult, endFunction, endAction, promise, requiresSynchronization: false);
                 }
             }
-            catch
-            {
+            catch {
                 if (AsyncCausalityTracer.LoggingOn)
                     AsyncCausalityTracer.TraceOperationCompletion(CausalityTraceLevel.Required, promise.Id, AsyncCausalityStatus.Error);
 
-                if (Task.s_asyncDebuggingEnabled)
-                {
+                if (Task.s_asyncDebuggingEnabled) {
                     Task.RemoveFromActiveTasks(promise.Id);
                 }
 
@@ -985,8 +927,7 @@ namespace System.Threading.Tasks
         public Task<TResult> FromAsync<TArg1, TArg2>(
             Func<TArg1, TArg2, AsyncCallback, object, IAsyncResult> beginMethod,
             Func<IAsyncResult, TResult> endMethod,
-            TArg1 arg1, TArg2 arg2, object state)
-        {
+            TArg1 arg1, TArg2 arg2, object state) {
             return FromAsyncImpl(beginMethod, endMethod, null, arg1, arg2, state, m_defaultCreationOptions);
         }
 
@@ -1023,8 +964,7 @@ namespace System.Threading.Tasks
         public Task<TResult> FromAsync<TArg1, TArg2>(
             Func<TArg1, TArg2, AsyncCallback, object, IAsyncResult> beginMethod,
             Func<IAsyncResult, TResult> endMethod,
-            TArg1 arg1, TArg2 arg2, object state, TaskCreationOptions creationOptions)
-        {
+            TArg1 arg1, TArg2 arg2, object state, TaskCreationOptions creationOptions) {
             return FromAsyncImpl(beginMethod, endMethod, null, arg1, arg2, state, creationOptions);
         }
 
@@ -1032,8 +972,7 @@ namespace System.Threading.Tasks
         // method can access the logic w/o declaring a TaskFactory<TResult> instance.
         internal static Task<TResult> FromAsyncImpl<TArg1, TArg2>(Func<TArg1, TArg2, AsyncCallback, object, IAsyncResult> beginMethod,
             Func<IAsyncResult, TResult> endFunction, Action<IAsyncResult> endAction,
-            TArg1 arg1, TArg2 arg2, object state, TaskCreationOptions creationOptions)
-        {
+            TArg1 arg1, TArg2 arg2, object state, TaskCreationOptions creationOptions) {
             if (beginMethod == null)
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.beginMethod);
 
@@ -1049,32 +988,26 @@ namespace System.Threading.Tasks
             if (AsyncCausalityTracer.LoggingOn)
                 AsyncCausalityTracer.TraceOperationCreation(CausalityTraceLevel.Required, promise.Id, "TaskFactory.FromAsync: " + beginMethod.Method.Name, 0);
 
-            if (Task.s_asyncDebuggingEnabled)
-            {
+            if (Task.s_asyncDebuggingEnabled) {
                 Task.AddToActiveTasks(promise);
             }
 
-            try
-            {
+            try {
                 //if we don't require synchronization, a faster set result path is taken
-                var asyncResult = beginMethod(arg1, arg2, iar =>
-                {
+                var asyncResult = beginMethod(arg1, arg2, iar => {
                     if (!iar.CompletedSynchronously)
                         FromAsyncCoreLogic(iar, endFunction, endAction, promise, requiresSynchronization: true);
                 }, state);
-                if (asyncResult.CompletedSynchronously)
-                {
+                if (asyncResult.CompletedSynchronously) {
                     Debug.Assert(asyncResult.IsCompleted, "If the operation completed synchronously, it must be completed.");
                     FromAsyncCoreLogic(asyncResult, endFunction, endAction, promise, requiresSynchronization: false);
                 }
             }
-            catch
-            {
+            catch {
                 if (AsyncCausalityTracer.LoggingOn)
                     AsyncCausalityTracer.TraceOperationCompletion(CausalityTraceLevel.Required, promise.Id, AsyncCausalityStatus.Error);
 
-                if (Task.s_asyncDebuggingEnabled)
-                {
+                if (Task.s_asyncDebuggingEnabled) {
                     Task.RemoveFromActiveTasks(promise.Id);
                 }
 
@@ -1118,8 +1051,7 @@ namespace System.Threading.Tasks
         public Task<TResult> FromAsync<TArg1, TArg2, TArg3>(
             Func<TArg1, TArg2, TArg3, AsyncCallback, object, IAsyncResult> beginMethod,
             Func<IAsyncResult, TResult> endMethod,
-            TArg1 arg1, TArg2 arg2, TArg3 arg3, object state)
-        {
+            TArg1 arg1, TArg2 arg2, TArg3 arg3, object state) {
             return FromAsyncImpl(beginMethod, endMethod, null, arg1, arg2, arg3, state, m_defaultCreationOptions);
         }
 
@@ -1160,8 +1092,7 @@ namespace System.Threading.Tasks
         public Task<TResult> FromAsync<TArg1, TArg2, TArg3>(
             Func<TArg1, TArg2, TArg3, AsyncCallback, object, IAsyncResult> beginMethod,
             Func<IAsyncResult, TResult> endMethod,
-            TArg1 arg1, TArg2 arg2, TArg3 arg3, object state, TaskCreationOptions creationOptions)
-        {
+            TArg1 arg1, TArg2 arg2, TArg3 arg3, object state, TaskCreationOptions creationOptions) {
             return FromAsyncImpl(beginMethod, endMethod, null, arg1, arg2, arg3, state, creationOptions);
         }
 
@@ -1169,8 +1100,7 @@ namespace System.Threading.Tasks
         // method can access the logic w/o declaring a TaskFactory<TResult> instance.
         internal static Task<TResult> FromAsyncImpl<TArg1, TArg2, TArg3>(Func<TArg1, TArg2, TArg3, AsyncCallback, object, IAsyncResult> beginMethod,
             Func<IAsyncResult, TResult> endFunction, Action<IAsyncResult> endAction,
-            TArg1 arg1, TArg2 arg2, TArg3 arg3, object state, TaskCreationOptions creationOptions)
-        {
+            TArg1 arg1, TArg2 arg2, TArg3 arg3, object state, TaskCreationOptions creationOptions) {
             if (beginMethod == null)
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.beginMethod);
 
@@ -1186,32 +1116,26 @@ namespace System.Threading.Tasks
             if (AsyncCausalityTracer.LoggingOn)
                 AsyncCausalityTracer.TraceOperationCreation(CausalityTraceLevel.Required, promise.Id, "TaskFactory.FromAsync: " + beginMethod.Method.Name, 0);
 
-            if (Task.s_asyncDebuggingEnabled)
-            {
+            if (Task.s_asyncDebuggingEnabled) {
                 Task.AddToActiveTasks(promise);
             }
 
-            try
-            {
+            try {
                 //if we don't require synchronization, a faster set result path is taken
-                var asyncResult = beginMethod(arg1, arg2, arg3, iar =>
-                {
+                var asyncResult = beginMethod(arg1, arg2, arg3, iar => {
                     if (!iar.CompletedSynchronously)
                         FromAsyncCoreLogic(iar, endFunction, endAction, promise, requiresSynchronization: true);
                 }, state);
-                if (asyncResult.CompletedSynchronously)
-                {
+                if (asyncResult.CompletedSynchronously) {
                     Debug.Assert(asyncResult.IsCompleted, "If the operation completed synchronously, it must be completed.");
                     FromAsyncCoreLogic(asyncResult, endFunction, endAction, promise, requiresSynchronization: false);
                 }
             }
-            catch
-            {
+            catch {
                 if (AsyncCausalityTracer.LoggingOn)
                     AsyncCausalityTracer.TraceOperationCompletion(CausalityTraceLevel.Required, promise.Id, AsyncCausalityStatus.Error);
 
-                if (Task.s_asyncDebuggingEnabled)
-                {
+                if (Task.s_asyncDebuggingEnabled) {
                     Task.RemoveFromActiveTasks(promise.Id);
                 }
 
@@ -1239,8 +1163,7 @@ namespace System.Threading.Tasks
             TInstance thisRef, TArgs args,
             Func<TInstance, TArgs, AsyncCallback, object, IAsyncResult> beginMethod,
             Func<TInstance, IAsyncResult, TResult> endMethod)
-            where TInstance : class
-        {
+            where TInstance : class {
             // Validate arguments, but only with asserts, as this is an internal only implementation.
             Debug.Assert(thisRef != null, "Expected a non-null thisRef");
             Debug.Assert(beginMethod != null, "Expected a non-null beginMethod");
@@ -1255,8 +1178,7 @@ namespace System.Threading.Tasks
 
             // If the IAsyncResult completed asynchronously, completing the promise will be handled by the callback.
             // If it completed synchronously, we'll handle that here.
-            if (asyncResult.CompletedSynchronously)
-            {
+            if (asyncResult.CompletedSynchronously) {
                 Debug.Assert(asyncResult.IsCompleted, "If the operation completed synchronously, it must be completed.");
                 promise.Complete(thisRef, endMethod, asyncResult, requiresSynchronization: false);
             }
@@ -1270,8 +1192,7 @@ namespace System.Threading.Tasks
         /// state so that we can avoid unnecessary closure/delegate allocations.
         /// </summary>
         /// <typeparam name="TInstance">Specifies the type of the instance on which the APM implementation lives.</typeparam>
-        private sealed class FromAsyncTrimPromise<TInstance> : Task<TResult> where TInstance : class
-        {
+        private sealed class FromAsyncTrimPromise<TInstance> : Task<TResult> where TInstance : class {
             /// <summary>A cached delegate used as the callback for the BeginXx method.</summary>
             internal readonly static AsyncCallback s_completeFromAsyncResult = CompleteFromAsyncResult;
 
@@ -1283,8 +1204,7 @@ namespace System.Threading.Tasks
             /// <summary>Initializes the promise.</summary>
             /// <param name="thisRef">A reference to the object on which the begin/end methods are invoked.</param>
             /// <param name="endMethod">The end method.</param>
-            internal FromAsyncTrimPromise(TInstance thisRef, Func<TInstance, IAsyncResult, TResult> endMethod) : base()
-            {
+            internal FromAsyncTrimPromise(TInstance thisRef, Func<TInstance, IAsyncResult, TResult> endMethod) : base() {
                 Contract.Requires(thisRef != null, "Expected a non-null thisRef");
                 Contract.Requires(endMethod != null, "Expected a non-null endMethod");
                 m_thisRef = thisRef;
@@ -1296,8 +1216,7 @@ namespace System.Threading.Tasks
             /// IAsyncResult.AsyncState neeeds to be the FromAsyncTrimPromise to complete.
             /// </summary>
             /// <param name="asyncResult">The IAsyncResult for the async operation.</param>
-            internal static void CompleteFromAsyncResult(IAsyncResult asyncResult)
-            {
+            internal static void CompleteFromAsyncResult(IAsyncResult asyncResult) {
                 // Validate argument
                 if (asyncResult == null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.asyncResult);
                 Contract.EndContractBlock();
@@ -1314,8 +1233,7 @@ namespace System.Threading.Tasks
 
                 // Complete the promise.  If the IAsyncResult completed synchronously,
                 // we'll instead complete the promise at the call site.
-                if (!asyncResult.CompletedSynchronously)
-                {
+                if (!asyncResult.CompletedSynchronously) {
                     promise.Complete(thisRef, endMethod, asyncResult, requiresSynchronization: true);
                 }
             }
@@ -1335,21 +1253,17 @@ namespace System.Threading.Tasks
             /// </permission>
             internal void Complete(
                 TInstance thisRef, Func<TInstance, IAsyncResult, TResult> endMethod, IAsyncResult asyncResult,
-                bool requiresSynchronization)
-            {
+                bool requiresSynchronization) {
                 Debug.Assert(!IsCompleted, "The task should not have been completed yet.");
 
                 // Run the end method and complete the task
                 bool successfullySet = false;
-                try
-                {
+                try {
                     var result = endMethod(thisRef, asyncResult);
-                    if (requiresSynchronization)
-                    {
+                    if (requiresSynchronization) {
                         successfullySet = TrySetResult(result);
                     }
-                    else
-                    {
+                    else {
                         // If requiresSynchronization is false, we can use the DangerousSetResult
                         // method, which uses no synchronization to complete the task.  This is
                         // only valid when the operation is completing synchronously such
@@ -1358,12 +1272,10 @@ namespace System.Threading.Tasks
                         successfullySet = true;
                     }
                 }
-                catch (OperationCanceledException oce)
-                {
+                catch (OperationCanceledException oce) {
                     successfullySet = TrySetCanceled(oce.CancellationToken, oce);
                 }
-                catch (Exception exc)
-                {
+                catch (Exception exc) {
                     successfullySet = TrySetException(exc);
                 }
                 Debug.Assert(successfullySet, "Expected the task to not yet be completed");
@@ -1372,8 +1284,7 @@ namespace System.Threading.Tasks
 
         // Utility method to create a canceled future-style task.
         // Used by ContinueWhenAll/Any to bail out early on a pre-canceled token.
-        private static Task<TResult> CreateCanceledTask(TaskContinuationOptions continuationOptions, CancellationToken ct)
-        {
+        private static Task<TResult> CreateCanceledTask(TaskContinuationOptions continuationOptions, CancellationToken ct) {
             TaskCreationOptions tco;
             InternalTaskOptions dontcare;
             Task.CreationOptionsFromContinuationOptions(continuationOptions, out tco, out dontcare);
@@ -1400,8 +1311,7 @@ namespace System.Threading.Tasks
         /// <paramref name="tasks"/> array contains a null value.</exception>
         /// <exception cref="T:System.ArgumentException">The exception that is thrown when the 
         /// <paramref name="tasks"/> array is empty.</exception>
-        public Task<TResult> ContinueWhenAll(Task[] tasks, Func<Task[], TResult> continuationFunction)
-        {
+        public Task<TResult> ContinueWhenAll(Task[] tasks, Func<Task[], TResult> continuationFunction) {
             if (continuationFunction == null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.continuationFunction);
             Contract.EndContractBlock();
 
@@ -1429,8 +1339,7 @@ namespace System.Threading.Tasks
         /// <exception cref="T:System.ObjectDisposedException">The provided <see cref="System.Threading.CancellationToken">CancellationToken</see>
         /// has already been disposed.
         /// </exception>
-        public Task<TResult> ContinueWhenAll(Task[] tasks, Func<Task[], TResult> continuationFunction, CancellationToken cancellationToken)
-        {
+        public Task<TResult> ContinueWhenAll(Task[] tasks, Func<Task[], TResult> continuationFunction, CancellationToken cancellationToken) {
             if (continuationFunction == null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.continuationFunction);
             Contract.EndContractBlock();
 
@@ -1464,8 +1373,7 @@ namespace System.Threading.Tasks
         /// which constrain for which <see cref="System.Threading.Tasks.TaskStatus">TaskStatus</see> states a continuation 
         /// will be executed, are illegal with ContinueWhenAll.
         /// </remarks>
-        public Task<TResult> ContinueWhenAll(Task[] tasks, Func<Task[], TResult> continuationFunction, TaskContinuationOptions continuationOptions)
-        {
+        public Task<TResult> ContinueWhenAll(Task[] tasks, Func<Task[], TResult> continuationFunction, TaskContinuationOptions continuationOptions) {
             if (continuationFunction == null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.continuationFunction);
             Contract.EndContractBlock();
 
@@ -1510,8 +1418,7 @@ namespace System.Threading.Tasks
         /// will be executed, are illegal with ContinueWhenAll.
         /// </remarks>
         public Task<TResult> ContinueWhenAll(Task[] tasks, Func<Task[], TResult> continuationFunction,
-            CancellationToken cancellationToken, TaskContinuationOptions continuationOptions, TaskScheduler scheduler)
-        {
+            CancellationToken cancellationToken, TaskContinuationOptions continuationOptions, TaskScheduler scheduler) {
             if (continuationFunction == null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.continuationFunction);
             Contract.EndContractBlock();
 
@@ -1535,8 +1442,7 @@ namespace System.Threading.Tasks
         /// <paramref name="tasks"/> array contains a null value.</exception>
         /// <exception cref="T:System.ArgumentException">The exception that is thrown when the
         /// <paramref name="tasks"/> array is empty.</exception>
-        public Task<TResult> ContinueWhenAll<TAntecedentResult>(Task<TAntecedentResult>[] tasks, Func<Task<TAntecedentResult>[], TResult> continuationFunction)
-        {
+        public Task<TResult> ContinueWhenAll<TAntecedentResult>(Task<TAntecedentResult>[] tasks, Func<Task<TAntecedentResult>[], TResult> continuationFunction) {
             if (continuationFunction == null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.continuationFunction);
             Contract.EndContractBlock();
 
@@ -1566,8 +1472,7 @@ namespace System.Threading.Tasks
         /// has already been disposed.
         /// </exception>
         public Task<TResult> ContinueWhenAll<TAntecedentResult>(Task<TAntecedentResult>[] tasks, Func<Task<TAntecedentResult>[], TResult> continuationFunction,
-            CancellationToken cancellationToken)
-        {
+            CancellationToken cancellationToken) {
             if (continuationFunction == null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.continuationFunction);
             Contract.EndContractBlock();
 
@@ -1603,8 +1508,7 @@ namespace System.Threading.Tasks
         /// will be executed, are illegal with ContinueWhenAll.
         /// </remarks>
         public Task<TResult> ContinueWhenAll<TAntecedentResult>(Task<TAntecedentResult>[] tasks, Func<Task<TAntecedentResult>[], TResult> continuationFunction,
-            TaskContinuationOptions continuationOptions)
-        {
+            TaskContinuationOptions continuationOptions) {
             if (continuationFunction == null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.continuationFunction);
             Contract.EndContractBlock();
 
@@ -1650,8 +1554,7 @@ namespace System.Threading.Tasks
         /// will be executed, are illegal with ContinueWhenAll.
         /// </remarks>
         public Task<TResult> ContinueWhenAll<TAntecedentResult>(Task<TAntecedentResult>[] tasks, Func<Task<TAntecedentResult>[], TResult> continuationFunction,
-            CancellationToken cancellationToken, TaskContinuationOptions continuationOptions, TaskScheduler scheduler)
-        {
+            CancellationToken cancellationToken, TaskContinuationOptions continuationOptions, TaskScheduler scheduler) {
             if (continuationFunction == null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.continuationFunction);
             Contract.EndContractBlock();
 
@@ -1663,8 +1566,7 @@ namespace System.Threading.Tasks
         // Note: if you make any changes to this method, please do the same to the non-generic version too. 
         internal static Task<TResult> ContinueWhenAllImpl<TAntecedentResult>(Task<TAntecedentResult>[] tasks,
             Func<Task<TAntecedentResult>[], TResult> continuationFunction, Action<Task<TAntecedentResult>[]> continuationAction,
-            TaskContinuationOptions continuationOptions, CancellationToken cancellationToken, TaskScheduler scheduler)
-        {
+            TaskContinuationOptions continuationOptions, CancellationToken cancellationToken, TaskScheduler scheduler) {
             // check arguments
             TaskFactory.CheckMultiTaskContinuationOptions(continuationOptions);
             if (tasks == null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.tasks);
@@ -1679,8 +1581,7 @@ namespace System.Threading.Tasks
             // Bail early if cancellation has been requested.
             if (cancellationToken.IsCancellationRequested
                 && ((continuationOptions & TaskContinuationOptions.LazyCancellation) == 0)
-                )
-            {
+                ) {
                 return CreateCanceledTask(continuationOptions, cancellationToken);
             }
 
@@ -1688,15 +1589,13 @@ namespace System.Threading.Tasks
             var starter = TaskFactory.CommonCWAllLogic(tasksCopy);
 
             // returned continuation task, off of starter
-            if (continuationFunction != null)
-            {
+            if (continuationFunction != null) {
                 return starter.ContinueWith<TResult>(
                    // use a cached delegate
                    GenericDelegateCache<TAntecedentResult, TResult>.CWAllFuncDelegate,
                    continuationFunction, scheduler, cancellationToken, continuationOptions);
             }
-            else
-            {
+            else {
                 Debug.Assert(continuationAction != null);
 
                 return starter.ContinueWith<TResult>(
@@ -1710,8 +1609,7 @@ namespace System.Threading.Tasks
         // Note: if you make any changes to this method, please do the same to the generic version too. 
         internal static Task<TResult> ContinueWhenAllImpl(Task[] tasks,
             Func<Task[], TResult> continuationFunction, Action<Task[]> continuationAction,
-            TaskContinuationOptions continuationOptions, CancellationToken cancellationToken, TaskScheduler scheduler)
-        {
+            TaskContinuationOptions continuationOptions, CancellationToken cancellationToken, TaskScheduler scheduler) {
             // check arguments
             TaskFactory.CheckMultiTaskContinuationOptions(continuationOptions);
             if (tasks == null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.tasks);
@@ -1726,8 +1624,7 @@ namespace System.Threading.Tasks
             // Bail early if cancellation has been requested.
             if (cancellationToken.IsCancellationRequested
                 && ((continuationOptions & TaskContinuationOptions.LazyCancellation) == 0)
-                )
-            {
+                ) {
                 return CreateCanceledTask(continuationOptions, cancellationToken);
             }
 
@@ -1735,28 +1632,24 @@ namespace System.Threading.Tasks
             var starter = TaskFactory.CommonCWAllLogic(tasksCopy);
 
             // returned continuation task, off of starter
-            if (continuationFunction != null)
-            {
+            if (continuationFunction != null) {
                 return starter.ContinueWith(
                     //the following delegate avoids closure capture as much as possible
                     //completedTasks.Result == tasksCopy;
                     //state == continuationFunction
-                    (completedTasks, state) =>
-                    {
+                    (completedTasks, state) => {
                         completedTasks.NotifyDebuggerOfWaitCompletionIfNecessary();
                         return ((Func<Task[], TResult>)state)(completedTasks.Result);
                     },
                     continuationFunction, scheduler, cancellationToken, continuationOptions);
             }
-            else
-            {
+            else {
                 Debug.Assert(continuationAction != null);
                 return starter.ContinueWith<TResult>(
                    //the following delegate avoids closure capture as much as possible
                    //completedTasks.Result == tasksCopy;
                    //state == continuationAction
-                   (completedTasks, state) =>
-                   {
+                   (completedTasks, state) => {
                        completedTasks.NotifyDebuggerOfWaitCompletionIfNecessary();
                        ((Action<Task[]>)state)(completedTasks.Result); return default(TResult);
                    },
@@ -1784,8 +1677,7 @@ namespace System.Threading.Tasks
         /// <paramref name="tasks"/> array contains a null value.</exception>
         /// <exception cref="T:System.ArgumentException">The exception that is thrown when the
         /// <paramref name="tasks"/> array is empty.</exception>
-        public Task<TResult> ContinueWhenAny(Task[] tasks, Func<Task, TResult> continuationFunction)
-        {
+        public Task<TResult> ContinueWhenAny(Task[] tasks, Func<Task, TResult> continuationFunction) {
             if (continuationFunction == null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.continuationFunction);
             Contract.EndContractBlock();
 
@@ -1813,8 +1705,7 @@ namespace System.Threading.Tasks
         /// <exception cref="T:System.ObjectDisposedException">The provided <see cref="System.Threading.CancellationToken">CancellationToken</see>
         /// has already been disposed.
         /// </exception>
-        public Task<TResult> ContinueWhenAny(Task[] tasks, Func<Task, TResult> continuationFunction, CancellationToken cancellationToken)
-        {
+        public Task<TResult> ContinueWhenAny(Task[] tasks, Func<Task, TResult> continuationFunction, CancellationToken cancellationToken) {
             if (continuationFunction == null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.continuationFunction);
             Contract.EndContractBlock();
 
@@ -1848,8 +1739,7 @@ namespace System.Threading.Tasks
         /// which constrain for which <see cref="System.Threading.Tasks.TaskStatus">TaskStatus</see> states a continuation 
         /// will be executed, are illegal with ContinueWhenAny.
         /// </remarks>
-        public Task<TResult> ContinueWhenAny(Task[] tasks, Func<Task, TResult> continuationFunction, TaskContinuationOptions continuationOptions)
-        {
+        public Task<TResult> ContinueWhenAny(Task[] tasks, Func<Task, TResult> continuationFunction, TaskContinuationOptions continuationOptions) {
             if (continuationFunction == null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.continuationFunction);
             Contract.EndContractBlock();
 
@@ -1894,8 +1784,7 @@ namespace System.Threading.Tasks
         /// will be executed, are illegal with ContinueWhenAny.
         /// </remarks>
         public Task<TResult> ContinueWhenAny(Task[] tasks, Func<Task, TResult> continuationFunction,
-            CancellationToken cancellationToken, TaskContinuationOptions continuationOptions, TaskScheduler scheduler)
-        {
+            CancellationToken cancellationToken, TaskContinuationOptions continuationOptions, TaskScheduler scheduler) {
             if (continuationFunction == null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.continuationFunction);
             Contract.EndContractBlock();
 
@@ -1919,8 +1808,7 @@ namespace System.Threading.Tasks
         /// <paramref name="tasks"/> array contains a null value.</exception>
         /// <exception cref="T:System.ArgumentException">The exception that is thrown when the
         /// <paramref name="tasks"/> array is empty.</exception>
-        public Task<TResult> ContinueWhenAny<TAntecedentResult>(Task<TAntecedentResult>[] tasks, Func<Task<TAntecedentResult>, TResult> continuationFunction)
-        {
+        public Task<TResult> ContinueWhenAny<TAntecedentResult>(Task<TAntecedentResult>[] tasks, Func<Task<TAntecedentResult>, TResult> continuationFunction) {
             if (continuationFunction == null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.continuationFunction);
             Contract.EndContractBlock();
 
@@ -1950,8 +1838,7 @@ namespace System.Threading.Tasks
         /// has already been disposed.
         /// </exception>
         public Task<TResult> ContinueWhenAny<TAntecedentResult>(Task<TAntecedentResult>[] tasks, Func<Task<TAntecedentResult>, TResult> continuationFunction,
-            CancellationToken cancellationToken)
-        {
+            CancellationToken cancellationToken) {
             if (continuationFunction == null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.continuationFunction);
             Contract.EndContractBlock();
 
@@ -1987,8 +1874,7 @@ namespace System.Threading.Tasks
         /// will be executed, are illegal with ContinueWhenAny.
         /// </remarks>
         public Task<TResult> ContinueWhenAny<TAntecedentResult>(Task<TAntecedentResult>[] tasks, Func<Task<TAntecedentResult>, TResult> continuationFunction,
-            TaskContinuationOptions continuationOptions)
-        {
+            TaskContinuationOptions continuationOptions) {
             if (continuationFunction == null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.continuationFunction);
             Contract.EndContractBlock();
 
@@ -2034,8 +1920,7 @@ namespace System.Threading.Tasks
         /// will be executed, are illegal with ContinueWhenAny.
         /// </remarks>
         public Task<TResult> ContinueWhenAny<TAntecedentResult>(Task<TAntecedentResult>[] tasks, Func<Task<TAntecedentResult>, TResult> continuationFunction,
-            CancellationToken cancellationToken, TaskContinuationOptions continuationOptions, TaskScheduler scheduler)
-        {
+            CancellationToken cancellationToken, TaskContinuationOptions continuationOptions, TaskScheduler scheduler) {
             if (continuationFunction == null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.continuationFunction);
             Contract.EndContractBlock();
 
@@ -2046,8 +1931,7 @@ namespace System.Threading.Tasks
         // Note: if you make any changes to this method, be sure to do the same to the generic version 
         internal static Task<TResult> ContinueWhenAnyImpl(Task[] tasks,
             Func<Task, TResult> continuationFunction, Action<Task> continuationAction,
-            TaskContinuationOptions continuationOptions, CancellationToken cancellationToken, TaskScheduler scheduler)
-        {
+            TaskContinuationOptions continuationOptions, CancellationToken cancellationToken, TaskScheduler scheduler) {
             // check arguments
             TaskFactory.CheckMultiTaskContinuationOptions(continuationOptions);
             if (tasks == null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.tasks);
@@ -2064,22 +1948,19 @@ namespace System.Threading.Tasks
             // Bail early if cancellation has been requested.
             if (cancellationToken.IsCancellationRequested
                 && ((continuationOptions & TaskContinuationOptions.LazyCancellation) == 0)
-                )
-            {
+                ) {
                 return CreateCanceledTask(continuationOptions, cancellationToken);
             }
 
             // returned continuation task, off of starter
-            if (continuationFunction != null)
-            {
+            if (continuationFunction != null) {
                 return starter.ContinueWith(
                      //the following delegate avoids closure capture as much as possible
                      //completedTask.Result is the winning task; state == continuationAction
                      (completedTask, state) => { return ((Func<Task, TResult>)state)(completedTask.Result); },
                      continuationFunction, scheduler, cancellationToken, continuationOptions);
             }
-            else
-            {
+            else {
                 Debug.Assert(continuationAction != null);
                 return starter.ContinueWith<TResult>(
                     //the following delegate avoids closure capture as much as possible
@@ -2094,8 +1975,7 @@ namespace System.Threading.Tasks
         // Note: if you make any changes to this method, be sure to do the same to the non-generic version 
         internal static Task<TResult> ContinueWhenAnyImpl<TAntecedentResult>(Task<TAntecedentResult>[] tasks,
             Func<Task<TAntecedentResult>, TResult> continuationFunction, Action<Task<TAntecedentResult>> continuationAction,
-            TaskContinuationOptions continuationOptions, CancellationToken cancellationToken, TaskScheduler scheduler)
-        {
+            TaskContinuationOptions continuationOptions, CancellationToken cancellationToken, TaskScheduler scheduler) {
             // check arguments
             TaskFactory.CheckMultiTaskContinuationOptions(continuationOptions);
             if (tasks == null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.tasks);
@@ -2111,21 +1991,18 @@ namespace System.Threading.Tasks
             // Bail early if cancellation has been requested.
             if (cancellationToken.IsCancellationRequested
                 && ((continuationOptions & TaskContinuationOptions.LazyCancellation) == 0)
-                )
-            {
+                ) {
                 return CreateCanceledTask(continuationOptions, cancellationToken);
             }
 
             // returned continuation task, off of starter
-            if (continuationFunction != null)
-            {
+            if (continuationFunction != null) {
                 return starter.ContinueWith<TResult>(
                     // Use a cached delegate
                     GenericDelegateCache<TAntecedentResult, TResult>.CWAnyFuncDelegate,
                     continuationFunction, scheduler, cancellationToken, continuationOptions);
             }
-            else
-            {
+            else {
                 Debug.Assert(continuationAction != null);
                 return starter.ContinueWith<TResult>(
                     // Use a cached delegate
@@ -2138,12 +2015,10 @@ namespace System.Threading.Tasks
     // For the ContinueWhenAnyImpl/ContinueWhenAllImpl methods that are generic on TAntecedentResult,
     // the compiler won't cache the internal ContinueWith delegate because it is generic on both
     // TAntecedentResult and TResult.  The GenericDelegateCache serves as a cache for those delegates.
-    internal static class GenericDelegateCache<TAntecedentResult, TResult>
-    {
+    internal static class GenericDelegateCache<TAntecedentResult, TResult> {
         // ContinueWith delegate for TaskFactory<TResult>.ContinueWhenAnyImpl<TAntecedentResult>(non-null continuationFunction)
         internal static Func<Task<Task>, object, TResult> CWAnyFuncDelegate =
-            (Task<Task> wrappedWinner, object state) =>
-            {
+            (Task<Task> wrappedWinner, object state) => {
                 var func = (Func<Task<TAntecedentResult>, TResult>)state;
                 var arg = (Task<TAntecedentResult>)wrappedWinner.Result;
                 return func(arg);
@@ -2151,8 +2026,7 @@ namespace System.Threading.Tasks
 
         // ContinueWith delegate for TaskFactory<TResult>.ContinueWhenAnyImpl<TAntecedentResult>(non-null continuationAction)
         internal static Func<Task<Task>, object, TResult> CWAnyActionDelegate =
-            (Task<Task> wrappedWinner, object state) =>
-            {
+            (Task<Task> wrappedWinner, object state) => {
                 var action = (Action<Task<TAntecedentResult>>)state;
                 var arg = (Task<TAntecedentResult>)wrappedWinner.Result;
                 action(arg);
@@ -2161,8 +2035,7 @@ namespace System.Threading.Tasks
 
         // ContinueWith delegate for TaskFactory<TResult>.ContinueWhenAllImpl<TAntecedentResult>(non-null continuationFunction)
         internal static Func<Task<Task<TAntecedentResult>[]>, object, TResult> CWAllFuncDelegate =
-            (Task<Task<TAntecedentResult>[]> wrappedAntecedents, object state) =>
-            {
+            (Task<Task<TAntecedentResult>[]> wrappedAntecedents, object state) => {
                 wrappedAntecedents.NotifyDebuggerOfWaitCompletionIfNecessary();
                 var func = (Func<Task<TAntecedentResult>[], TResult>)state;
                 return func(wrappedAntecedents.Result);
@@ -2170,8 +2043,7 @@ namespace System.Threading.Tasks
 
         // ContinueWith delegate for TaskFactory<TResult>.ContinueWhenAllImpl<TAntecedentResult>(non-null continuationAction)
         internal static Func<Task<Task<TAntecedentResult>[]>, object, TResult> CWAllActionDelegate =
-            (Task<Task<TAntecedentResult>[]> wrappedAntecedents, object state) =>
-            {
+            (Task<Task<TAntecedentResult>[]> wrappedAntecedents, object state) => {
                 wrappedAntecedents.NotifyDebuggerOfWaitCompletionIfNecessary();
                 var action = (Action<Task<TAntecedentResult>[]>)state;
                 action(wrappedAntecedents.Result);

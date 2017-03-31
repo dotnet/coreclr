@@ -11,17 +11,13 @@ using nuint = System.UInt64;
     using nuint = System.UInt32;
 #endif
 
-namespace System.Runtime
-{
-    public class RuntimeImports
-    {
+namespace System.Runtime {
+    public class RuntimeImports {
         // Non-inlinable wrapper around the QCall that avoids poluting the fast path
         // with P/Invoke prolog/epilog.
         [MethodImpl(MethodImplOptions.NoInlining)]
-        internal unsafe static void RhZeroMemory(ref byte b, nuint byteLength)
-        {
-            fixed (byte* bytePointer = &b)
-            {
+        internal unsafe static void RhZeroMemory(ref byte b, nuint byteLength) {
+            fixed (byte* bytePointer = &b) {
                 RhZeroMemory(bytePointer, byteLength);
             }
         }

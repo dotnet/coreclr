@@ -5,8 +5,7 @@
 
 using System;
 
-namespace System
-{
+namespace System {
     //  This value type is used for constructing System.ArgIterator. 
     // 
     //  SECURITY : m_ptr cannot be set to anything other than null by untrusted
@@ -15,8 +14,7 @@ namespace System
     //  This corresponds to EE VARARGS cookie.
 
     // Cannot be serialized
-    public struct RuntimeArgumentHandle
-    {
+    public struct RuntimeArgumentHandle {
         private IntPtr m_ptr;
 
         internal IntPtr Value { get { return m_ptr; } }

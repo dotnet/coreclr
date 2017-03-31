@@ -14,10 +14,8 @@
 
 using System;
 
-namespace System.Runtime.InteropServices
-{
-    public interface ICustomMarshaler
-    {
+namespace System.Runtime.InteropServices {
+    public interface ICustomMarshaler {
         Object MarshalNativeToManaged(IntPtr pNativeData);
 
         IntPtr MarshalManagedToNative(Object ManagedObj);

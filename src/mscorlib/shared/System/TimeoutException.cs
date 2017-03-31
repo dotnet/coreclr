@@ -13,26 +13,21 @@
 
 using System.Runtime.Serialization;
 
-namespace System
-{
+namespace System {
     [Serializable]
-    public class TimeoutException : SystemException
-    {
+    public class TimeoutException : SystemException {
         public TimeoutException()
-            : base(SR.Arg_TimeoutException)
-        {
+            : base(SR.Arg_TimeoutException) {
             HResult = __HResults.COR_E_TIMEOUT;
         }
 
         public TimeoutException(String message)
-            : base(message)
-        {
+            : base(message) {
             HResult = __HResults.COR_E_TIMEOUT;
         }
 
         public TimeoutException(String message, Exception innerException)
-            : base(message, innerException)
-        {
+            : base(message, innerException) {
             HResult = __HResults.COR_E_TIMEOUT;
         }
 

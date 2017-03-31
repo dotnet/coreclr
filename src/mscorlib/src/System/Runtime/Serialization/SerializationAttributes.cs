@@ -15,22 +15,17 @@ using System;
 using System.Diagnostics.Contracts;
 using System.Reflection;
 
-namespace System.Runtime.Serialization
-{
+namespace System.Runtime.Serialization {
     [AttributeUsage(AttributeTargets.Field, Inherited = false)]
-    public sealed class OptionalFieldAttribute : Attribute
-    {
+    public sealed class OptionalFieldAttribute : Attribute {
         private int versionAdded = 1;
         public OptionalFieldAttribute() { }
 
-        public int VersionAdded
-        {
-            get
-            {
+        public int VersionAdded {
+            get {
                 return versionAdded;
             }
-            set
-            {
+            set {
                 if (value < 1)
                     throw new ArgumentException(SR.Serialization_OptionalFieldVersionValue);
                 Contract.EndContractBlock();
@@ -40,22 +35,18 @@ namespace System.Runtime.Serialization
     }
 
     [AttributeUsage(AttributeTargets.Method, Inherited = false)]
-    public sealed class OnSerializingAttribute : Attribute
-    {
+    public sealed class OnSerializingAttribute : Attribute {
     }
 
     [AttributeUsage(AttributeTargets.Method, Inherited = false)]
-    public sealed class OnSerializedAttribute : Attribute
-    {
+    public sealed class OnSerializedAttribute : Attribute {
     }
 
     [AttributeUsage(AttributeTargets.Method, Inherited = false)]
-    public sealed class OnDeserializingAttribute : Attribute
-    {
+    public sealed class OnDeserializingAttribute : Attribute {
     }
 
     [AttributeUsage(AttributeTargets.Method, Inherited = false)]
-    public sealed class OnDeserializedAttribute : Attribute
-    {
+    public sealed class OnDeserializedAttribute : Attribute {
     }
 }

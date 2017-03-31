@@ -20,14 +20,11 @@
 using System;
 using System.Runtime.InteropServices;
 
-namespace System.Runtime.ConstrainedExecution
-{
+namespace System.Runtime.ConstrainedExecution {
     [AttributeUsage(AttributeTargets.Constructor | AttributeTargets.Method, Inherited = false)]
 
-    internal sealed class PrePrepareMethodAttribute : Attribute
-    {
-        public PrePrepareMethodAttribute()
-        {
+    internal sealed class PrePrepareMethodAttribute : Attribute {
+        public PrePrepareMethodAttribute() {
         }
     }
 }

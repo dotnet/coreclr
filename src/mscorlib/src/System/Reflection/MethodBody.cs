@@ -4,10 +4,8 @@
 
 using System.Collections.Generic;
 
-namespace System.Reflection
-{
-    public class MethodBody
-    {
+namespace System.Reflection {
+    public class MethodBody {
         #region costructor
         // This class can only be created from inside the EE.
         protected MethodBody() { }

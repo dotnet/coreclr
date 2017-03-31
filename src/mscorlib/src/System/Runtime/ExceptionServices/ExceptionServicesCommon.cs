@@ -17,8 +17,7 @@
 
 using System;
 
-namespace System.Runtime.ExceptionServices
-{
+namespace System.Runtime.ExceptionServices {
     // This class defines support for seperating the exception dispatch details
     // (like stack trace, watson buckets, etc) from the actual managed exception
     // object. This allows us to track error (via the exception object) independent
@@ -26,8 +25,7 @@ namespace System.Runtime.ExceptionServices
     //
     // This is particularly useful for frameworks like PFX, APM, etc that wish to
     // propagate exceptions (i.e. errors to be precise) across threads.
-    public sealed class ExceptionDispatchInfo
-    {
+    public sealed class ExceptionDispatchInfo {
         // Private members that will hold the relevant details.
         private Exception m_Exception;
         private string m_remoteStackTrace;
@@ -36,8 +34,7 @@ namespace System.Runtime.ExceptionServices
         private UIntPtr m_IPForWatsonBuckets;
         private Object m_WatsonBuckets;
 
-        private ExceptionDispatchInfo(Exception exception)
-        {
+        private ExceptionDispatchInfo(Exception exception) {
             // Copy over the details we need to save.
             m_Exception = exception;
             m_remoteStackTrace = exception.RemoteStackTrace;
@@ -54,42 +51,32 @@ namespace System.Runtime.ExceptionServices
             m_WatsonBuckets = exception.WatsonBuckets;
         }
 
-        internal UIntPtr IPForWatsonBuckets
-        {
-            get
-            {
+        internal UIntPtr IPForWatsonBuckets {
+            get {
                 return m_IPForWatsonBuckets;
             }
         }
 
-        internal object WatsonBuckets
-        {
-            get
-            {
+        internal object WatsonBuckets {
+            get {
                 return m_WatsonBuckets;
             }
         }
 
-        internal object BinaryStackTraceArray
-        {
-            get
-            {
+        internal object BinaryStackTraceArray {
+            get {
                 return m_stackTrace;
             }
         }
 
-        internal object DynamicMethodArray
-        {
-            get
-            {
+        internal object DynamicMethodArray {
+            get {
                 return m_dynamicMethods;
             }
         }
 
-        internal string RemoteStackTrace
-        {
-            get
-            {
+        internal string RemoteStackTrace {
+            get {
                 return m_remoteStackTrace;
             }
         }
@@ -97,10 +84,8 @@ namespace System.Runtime.ExceptionServices
         // This static method is used to create an instance of ExceptionDispatchInfo for
         // the specified exception object and save all the required details that maybe
         // needed to be propagated when the exception is "rethrown" on a different thread.
-        public static ExceptionDispatchInfo Capture(Exception source)
-        {
-            if (source == null)
-            {
+        public static ExceptionDispatchInfo Capture(Exception source) {
+            if (source == null) {
                 throw new ArgumentNullException(nameof(source), SR.ArgumentNull_Obj);
             }
 
@@ -108,10 +93,8 @@ namespace System.Runtime.ExceptionServices
         }
 
         // Return the exception object represented by this ExceptionDispatchInfo instance
-        public Exception SourceException
-        {
-            get
-            {
+        public Exception SourceException {
+            get {
                 return m_Exception;
             }
         }
@@ -123,8 +106,7 @@ namespace System.Runtime.ExceptionServices
         // This method will restore the original stack trace and bucketing details before throwing
         // the exception so that it is easy, from debugging standpoint, to understand what really went wrong on
         // the original thread.
-        public void Throw()
-        {
+        public void Throw() {
             // Restore the exception dispatch details before throwing the exception.
             m_Exception.RestoreExceptionDispatchInfo(this);
             throw m_Exception;
