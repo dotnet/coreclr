@@ -4163,6 +4163,14 @@ bool EECodeManager::EnumGcRefs( PREGDISPLAY     pContext,
         GC_NOTRIGGER;
     } CONTRACTL_END;
 
+#ifdef WIN64EXCEPTIONS
+    if (flags & ParentOfFuncletStackFrame)
+    {
+        LOG((LF_GCROOTS, LL_INFO100000, "Not reporting this frame because it was already reported via another funclet.\n"));
+        return true;
+    }
+#endif // WIN64EXCEPTIONS
+
     GCInfoToken gcInfoToken = pCodeInfo->GetGCInfoToken();
     unsigned  curOffs = pCodeInfo->GetRelOffset();
 
@@ -4586,10 +4594,6 @@ bool EECodeManager::EnumGcRefs( PREGDISPLAY     pContext,
     unsigned ptrAddr;
     unsigned lowBits;
 
-#ifdef WIN64EXCEPTIONS
-    if (!pCodeInfo->IsFunclet())
-#endif
-    {
 
     /* Process the untracked frame variable table */
 
@@ -4647,8 +4651,6 @@ bool EECodeManager::EnumGcRefs( PREGDISPLAY     pContext,
                   DAC_ARG(DacSlotLocation(info.ebpFrame ? REGI_EBP : REGI_ESP,
                                           info.ebpFrame ? EBP - ptrAddr : ptrAddr - ESP,
                                           true)));
-    }
-
     }
 
 #if VERIFY_GC_TABLES
