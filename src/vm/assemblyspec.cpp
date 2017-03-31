@@ -18,6 +18,7 @@
 
 #include <stdlib.h>
 
+#include "../binder/inc/applicationcontext.hpp"
 #include "assemblyspec.hpp"
 #include "security.h"
 #include "eeconfig.h"
@@ -972,6 +973,25 @@ Assembly *AssemblySpec::LoadAssembly(LPCWSTR pFilePath)
 
     AssemblySpec spec;
     spec.SetCodeBase(pFilePath);
+
+    // TODO: Extract file name without extension as simpleName from pFilePath.
+    PathString simpleName(pFilePath);
+
+    if (spec.GetAppDomain()->GetTPABinderContext()->GetAppContext()->IsTpaListProvided())
+    {
+        BINDER_SPACE::SimpleNameToFileNameMap* tpaMap = spec.GetAppDomain()->GetTPABinderContext()->GetAppContext()->GetTpaList();
+        const BINDER_SPACE::SimpleNameToFileNameMapEntry* existingEntry = tpaMap->LookupPtr(simpleName.GetUnicode());
+        if (existingEntry != nullptr && wcscmp(existingEntry->m_wszILFileName, pFilePath) != 0)
+        {
+            BINDER_SPACE::SimpleNameToFileNameMapEntry mapEntry;
+            mapEntry.m_wszSimpleName = simpleName.GetUnicode();
+            mapEntry.m_wszILFileName = const_cast<LPWSTR>(pFilePath);
+            mapEntry.m_wszNIFileName = existingEntry->m_wszNIFileName;
+
+            tpaMap->AddOrReplace(mapEntry);
+        }
+    }
+
     RETURN spec.LoadAssembly(FILE_LOADED);
 }
 
