@@ -5750,6 +5750,7 @@ void ThreadStore::InitThreadStore()
     }
     s_DeadThreadGCTriggerPeriodMilliseconds =
         CLRConfig::GetConfigValue(CLRConfig::INTERNAL_Thread_DeadThreadGCTriggerPeriodMilliseconds);
+    s_DeadThreadGenerationCounts = nullptr;
 }
 
 // Enter and leave the critical section around the thread store.  Clients should
@@ -5986,6 +5987,7 @@ void ThreadStore::TransferStartedThread(Thread *thread, BOOL bRequiresTSL)
 
 LONG ThreadStore::s_DeadThreadCountThresholdForGCTrigger = 0;
 DWORD ThreadStore::s_DeadThreadGCTriggerPeriodMilliseconds = 0;
+SIZE_T *ThreadStore::s_DeadThreadGenerationCounts = nullptr;
 
 void ThreadStore::IncrementDeadThreadCountForGCTrigger()
 {
@@ -6092,14 +6094,17 @@ void ThreadStore::TriggerGCForDeadThreadsIfNecessary()
     IGCHeap *gcHeap = GCHeapUtilities::GetGCHeap();
     _ASSERTE(gcHeap != nullptr);
     SIZE_T generationCountThreshold = static_cast<SIZE_T>(s_DeadThreadCountThresholdForGCTrigger) / 2;
-    NewArrayHolder<SIZE_T> newDeadThreadGenerationCounts = new (nothrow) SIZE_T[gcHeap->GetMaxGeneration() + 1];
-    if (newDeadThreadGenerationCounts == nullptr)
+    if (!s_DeadThreadGenerationCounts)
     {
-        // pretty unlikely that this would happen - this code path induces GCs when they otherwise
-        // wouldn't be happening, and they certainly will be happening if we are low on memory.
-        return;
+        // initialize this field on first use with an entry for every table.
+        s_DeadThreadGenerationCounts = new (nothrow) SIZE_T[gcHeap->GetMaxGeneration() + 1];
+        if (!s_DeadThreadGenerationCounts)
+        {
+            return;
+        }
     }
 
+    memset(s_DeadThreadGenerationCounts, 0, sizeof(SIZE_T) * (gcHeap->GetMaxGeneration() + 1));
     {
         ThreadStoreLockHolder threadStoreLockHolder;
         GCX_COOP();
@@ -6122,7 +6127,7 @@ void ThreadStore::TriggerGCForDeadThreadsIfNecessary()
             }
 
             unsigned exposedObjectGeneration = gcHeap->WhichGeneration(exposedObject);
-            SIZE_T newDeadThreadGenerationCount = ++newDeadThreadGenerationCounts[exposedObjectGeneration];
+            SIZE_T newDeadThreadGenerationCount = ++s_DeadThreadGenerationCounts[exposedObjectGeneration];
             if (exposedObjectGeneration > gcGenerationToTrigger && newDeadThreadGenerationCount >= generationCountThreshold)
             {
                 gcGenerationToTrigger = exposedObjectGeneration;
@@ -6161,7 +6166,7 @@ void ThreadStore::TriggerGCForDeadThreadsIfNecessary()
             }
 
             if (gcGenerationToTrigger < gcHeap->GetMaxGeneration() &&
-                static_cast<int>(gcHeap->WhichGeneration(exposedObject)) > gcGenerationToTrigger)
+                gcHeap->WhichGeneration(exposedObject) > gcGenerationToTrigger)
             {
                 continue;
             }
