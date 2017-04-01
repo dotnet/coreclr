@@ -166,9 +166,6 @@
     <OfficialBuildRID Include="android.21-arm64">
       <Platform>arm64</Platform>
     </OfficialBuildRID>
-    <OfficialBuildRID Include="android.21-arm">
-      <Platform>arm</Platform>
-    </OfficialBuildRID>
   </ItemGroup>
   <ItemGroup>
     <!-- Ensure we have a RID-specific package for the current build, even if it isn't in our official set, but 
