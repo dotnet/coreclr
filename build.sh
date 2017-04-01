@@ -73,13 +73,14 @@ initTargetDistroRid()
     if [ $__CrossBuild == 1 ]; then
         if [ "$__BuildOS" == "Linux" ]; then
             if [ ! -e $ROOTFS_DIR/etc/os-release ]; then
-                echo "WARNING: Can not determine runtime id for current distro."
-                #Test hack to generate __DistroRid for Android
-                #TODO Find reliable way to generate __DistroRid for Android.
-                export __DistroRid="android.21-arm64"
-            else
-                source $ROOTFS_DIR/etc/os-release
-                export __DistroRid="$ID.$VERSION_ID-$__BuildArch"
+                if [ $__DistroRid ]; then
+                    export __DistroRid=$__DistroRid
+                elif [ -e source $ROOTFS_DIR/etc/os-release ]; then
+                    export __DistroRid="$ID.$VERSION_ID-$__BuildArch"
+                else
+                    echo "WARNING: Can not determine runtime id for current distro."
+                    export __DistroRid=""
+                fi
             fi
         fi
     else
@@ -456,7 +457,7 @@ generate_NugetPackages()
     fi
 
     echo "Generating nuget packages for "$__BuildOS
-
+    echo "DistroRid is "$__DistroRid
     # Build the packages
     $__ProjectRoot/run.sh build -Project=$__SourceDir/.nuget/packages.builds -MsBuildLog="/flp:Verbosity=normal;LogFile=$__LogsDir/Nuget_$__BuildOS__$__BuildArch__$__BuildType.log" -BuildTarget -__IntermediatesDir=$__IntermediatesDir -__RootBinDir=$__RootBinDir -BuildNugetPackage=false -UseSharedCompilation=false $__RunArgs $__UnprocessedBuildArgs
 
@@ -583,7 +584,7 @@ __ClangMajorVersion=0
 __ClangMinorVersion=0
 __NuGetPath="$__PackagesDir/NuGet.exe"
 __HostDistroRid=""
-__DistroRid=""
+#__DistroRid=""
 __cmakeargs=""
 __SkipGenerateVersion=0
 __DoCrossArchBuild=0
