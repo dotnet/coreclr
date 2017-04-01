@@ -288,7 +288,7 @@ T11:
 X0:
 
   ldc.i4.0
-  conv.i8
+  conv.i
 
 X1:
 
@@ -309,7 +309,7 @@ X1:
 X2:
 
   ldc.i4.0
-  conv.i8
+  conv.i
 
 X3:
 

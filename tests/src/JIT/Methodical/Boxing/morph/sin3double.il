@@ -78,7 +78,7 @@
   IL_0073:  br.s       IL_0077
 
   IL_0075:  ldc.i4.0
-  IL_0076:  conv.i8
+  IL_0076:  conv.i
   IL_0077:  ldind.r8
   IL_0078:  stloc.s    V_4
   IL_007a:  ldloc.s    V_13
@@ -92,7 +92,7 @@
   IL_008e:  br.s       IL_0092
 
   IL_0090:  ldc.i4.0
-  IL_0091:  conv.i8
+  IL_0091:  conv.i
   IL_0092:  ldind.r8
   IL_0093:  stloc.3
   IL_0094:  ldloc.s    V_12
@@ -106,7 +106,7 @@
   IL_00a8:  br.s       IL_00ac
 
   IL_00aa:  ldc.i4.0
-  IL_00ab:  conv.i8
+  IL_00ab:  conv.i
   IL_00ac:  ldind.r8
   IL_00ad:  stloc.2
   IL_00ae:  ldloc.s    V_11
@@ -120,7 +120,7 @@
   IL_00c2:  br.s       IL_00c6
 
   IL_00c4:  ldc.i4.0
-  IL_00c5:  conv.i8
+  IL_00c5:  conv.i
   IL_00c6:  ldind.r8
   IL_00c7:  stloc.s    V_16
   IL_00c9:  ldloc.s    V_10
@@ -134,7 +134,7 @@
   IL_00dd:  br.s       IL_00e1
 
   IL_00df:  ldc.i4.0
-  IL_00e0:  conv.i8
+  IL_00e0:  conv.i
   IL_00e1:  ldind.r8
   IL_00e2:  stloc.1
   IL_00e3:  ldarg.0
@@ -238,7 +238,7 @@
   IL_0050:  br.s       IL_0054
 
   IL_0052:  ldc.i4.0
-  IL_0053:  conv.i8
+  IL_0053:  conv.i
   IL_0054:  ldind.r8
   IL_0055:  stloc.3
   IL_0056:  ldloc.s    V_9
@@ -252,7 +252,7 @@
   IL_006a:  br.s       IL_006e
 
   IL_006c:  ldc.i4.0
-  IL_006d:  conv.i8
+  IL_006d:  conv.i
   IL_006e:  ldind.r8
   IL_006f:  stloc.2
   IL_0070:  ldloc.s    V_8
@@ -266,7 +266,7 @@
   IL_0084:  br.s       IL_0088
 
   IL_0086:  ldc.i4.0
-  IL_0087:  conv.i8
+  IL_0087:  conv.i
   IL_0088:  ldind.r8
   IL_0089:  stloc.1
   IL_008a:  ldloca.s   V_11
@@ -385,6 +385,7 @@
   IL_01c7:  conv.i8
   IL_01c8:  mul
   IL_01c9:  add
+            conv.i
   IL_01ca:  ldind.r4
   IL_01cb:  conv.r8
   IL_01cc:  ldloc.2
@@ -406,6 +407,7 @@
   IL_01f7:  conv.i8
   IL_01f8:  mul
   IL_01f9:  add
+            conv.i
   IL_01fa:  ldind.r4
   IL_01fb:  conv.r8
   IL_01fc:  ldloc.1
@@ -422,7 +424,7 @@
 
   IL_0222:  br         IL_00f7
 
-  IL_0227:  ldstr      "Yippee, all corredct"
+  IL_0227:  ldstr      "Yippee, all correct"
   IL_0231:  call       void [console]System.Console::WriteLine(string)
   IL_0236:  ldc.i4.s   100
   IL_0238:  stloc.s    V_4
