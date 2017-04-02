@@ -993,13 +993,12 @@ Assembly *AssemblySpec::LoadAssembly(LPCWSTR pFilePath)
 
     // Extract file name without extension as simpleName from pFilePath.
     size_t dotIndex = len - 1;
-    size_t slashIndex = dotIndex;
     while(dotIndex > 1 && pFilePath[dotIndex] != W('.') && pFilePath[dotIndex] != slashChar)
     {
         --dotIndex;
     }
 
-    slashIndex = dotIndex;
+    size_t slashIndex = dotIndex;
     while(slashIndex > 1 && pFilePath[slashIndex] != slashChar)
     {
         --slashIndex;
