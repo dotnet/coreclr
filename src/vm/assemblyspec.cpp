@@ -985,6 +985,12 @@ Assembly *AssemblySpec::LoadAssembly(LPCWSTR pFilePath)
         RETURN spec.LoadAssembly(FILE_LOADED);
     }
 
+    BINDER_SPACE::ApplicationContext* appContext = spec.GetAppDomain()->GetTPABinderContext()->GetAppContext();
+    if (!appContext->IsTpaListProvided())
+    {
+        RETURN spec.LoadAssembly(FILE_LOADED);
+    }
+
 #ifdef _WIN32
     WCHAR slashChar = W('\\');
 #else
@@ -1032,20 +1038,21 @@ Assembly *AssemblySpec::LoadAssembly(LPCWSTR pFilePath)
     simpleName[simpleNameLength - 1] = '\0';
 
     // Ensure we're using correct IL file path in the application context.
-    BINDER_SPACE::ApplicationContext* appContext = spec.GetAppDomain()->GetTPABinderContext()->GetAppContext();
-    if (appContext->IsTpaListProvided())
+    BINDER_SPACE::SimpleNameToFileNameMap* tpaMap = appContext->GetTpaList();
+    const BINDER_SPACE::SimpleNameToFileNameMapEntry* existingEntry = tpaMap->LookupPtr(simpleName);
+    if (existingEntry != nullptr && wcscmp(existingEntry->m_wszILFileName, pFilePath) != 0)
     {
-        BINDER_SPACE::SimpleNameToFileNameMap* tpaMap = appContext->GetTpaList();
-        const BINDER_SPACE::SimpleNameToFileNameMapEntry* existingEntry = tpaMap->LookupPtr(simpleName);
-        if (existingEntry != nullptr && wcscmp(existingEntry->m_wszILFileName, pFilePath) != 0)
-        {
-            BINDER_SPACE::SimpleNameToFileNameMapEntry mapEntry;
-            mapEntry.m_wszSimpleName = simpleName;
-            mapEntry.m_wszILFileName = const_cast<LPWSTR>(pFilePath);
-            mapEntry.m_wszNIFileName = existingEntry->m_wszNIFileName;
+        BINDER_SPACE::SimpleNameToFileNameMapEntry mapEntry;
+        mapEntry.m_wszSimpleName = simpleName;
+        mapEntry.m_wszILFileName = const_cast<LPWSTR>(pFilePath);
+        mapEntry.m_wszNIFileName = existingEntry->m_wszNIFileName;
 
-            tpaMap->AddOrReplace(mapEntry);
-        }
+        tpaMap->AddOrReplace(mapEntry);
+    }
+    else
+    {
+        delete[] simpleName;
+        simpleName = nullptr;
     }
 
     RETURN spec.LoadAssembly(FILE_LOADED);
