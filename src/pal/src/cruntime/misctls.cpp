@@ -171,12 +171,6 @@ _ecvt( double value, int count, int * dec, int * sign )
     // the caller of _ecvt should already checked the Infinity and NAN values
     _ASSERTE(GetExponent(value) != 0x7ff);
 
-#if !defined(__APPLE__) && !defined(__FreeBSD__)
-    // OSX and FreeBSD doesn't support evct_r. it support evct but we cannot use it either as it is not thread safe
-    ecvt_r(value, count, dec, sign, lpStartOfReturnBuffer, ECVT_MAX_BUFFER_SIZE);
-    goto done;
-#else // !__APPLE__ && !__FreeBSD__
-
     CHAR TempBuffer[ECVT_MAX_BUFFER_SIZE];
    
     *dec = *sign = 0;
@@ -292,7 +286,6 @@ _ecvt( double value, int count, int * dec, int * sign )
             lpStartOfReturnBuffer[i]++;
         }    
     }
-#endif // !__APPLE__ && !__FreeBSD__ 
 
 done:
 
