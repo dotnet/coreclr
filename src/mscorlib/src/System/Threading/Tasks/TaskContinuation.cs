@@ -261,15 +261,9 @@ namespace System.Threading.Tasks
             catch (Exception e)
             {
                 // Either TryRunInline() or QueueTask() threw an exception. Record the exception, marking the task as Faulted.
-                // However if it was a ThreadAbortException coming from TryRunInline we need to skip here, 
-                // because it would already have been handled in Task.Execute()
-                if (!(e is ThreadAbortException &&
-                      (task.m_stateFlags & Task.TASK_STATE_THREAD_WAS_ABORTED) != 0))    // this ensures TAEs from QueueTask will be wrapped in TSE
-                {
-                    TaskSchedulerException tse = new TaskSchedulerException(e);
-                    task.AddException(tse);
-                    task.Finish(false);
-                }
+                TaskSchedulerException tse = new TaskSchedulerException(e);
+                task.AddException(tse);
+                task.Finish(false);
 
                 // Don't re-throw.
             }
@@ -673,11 +667,6 @@ namespace System.Threading.Tasks
             }
         }
 
-        /// <summary>
-        /// The ThreadPool calls this if a ThreadAbortException is thrown while trying to execute this workitem.
-        /// </summary>
-        void IThreadPoolWorkItem.MarkAborted(ThreadAbortException tae) { /* nop */ }
-
         /// <summary>Cached delegate that invokes an Action passed as an object parameter.</summary>
         private static ContextCallback s_invokeActionCallback;
 
@@ -789,7 +778,7 @@ namespace System.Threading.Tasks
         /// <param name="exc">The exception to throw.</param>
         protected static void ThrowAsyncIfNecessary(Exception exc)
         {
-            // Awaits should never experience an exception (other than an TAE or ADUE), 
+            // Awaits should never experience an exception (other than an ADUE), 
             // unless a malicious user is explicitly passing a throwing action into the TaskAwaiter. 
             // We don't want to allow the exception to propagate on this stack, as it'll emerge in random places, 
             // and we can't fail fast, as that would allow for elevation of privilege.
@@ -797,7 +786,7 @@ namespace System.Threading.Tasks
             // If unhandled error reporting APIs are available use those, otherwise since this 
             // would have executed on the thread pool otherwise, let it propagate there.
 
-            if (!(exc is ThreadAbortException || exc is AppDomainUnloadedException))
+            if (!(exc is AppDomainUnloadedException))
             {
 #if FEATURE_COMINTEROP
                 if (!WindowsRuntimeMarshal.ReportUnhandledError(exc))

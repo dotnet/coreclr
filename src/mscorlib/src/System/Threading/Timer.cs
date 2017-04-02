@@ -231,83 +231,78 @@ namespace System.Threading
 
             lock (this)
             {
-                // prevent ThreadAbort while updating state
-                try { }
-                finally
+                //
+                // since we got here, that means our previous timer has fired.
+                //
+                m_isAppDomainTimerScheduled = false;
+                bool haveTimerToSchedule = false;
+                uint nextAppDomainTimerDuration = uint.MaxValue;
+
+                int nowTicks = TickCount;
+
+                //
+                // Sweep through all timers.  The ones that have reached their due time
+                // will fire.  We will calculate the next native timer due time from the
+                // other timers.
+                //
+                TimerQueueTimer timer = m_timers;
+                while (timer != null)
                 {
-                    //
-                    // since we got here, that means our previous timer has fired.
-                    //
-                    m_isAppDomainTimerScheduled = false;
-                    bool haveTimerToSchedule = false;
-                    uint nextAppDomainTimerDuration = uint.MaxValue;
+                    Debug.Assert(timer.m_dueTime != Timeout.UnsignedInfinite);
 
-                    int nowTicks = TickCount;
-
-                    //
-                    // Sweep through all timers.  The ones that have reached their due time
-                    // will fire.  We will calculate the next native timer due time from the
-                    // other timers.
-                    //
-                    TimerQueueTimer timer = m_timers;
-                    while (timer != null)
+                    uint elapsed = (uint)(nowTicks - timer.m_startTicks);
+                    if (elapsed >= timer.m_dueTime)
                     {
-                        Debug.Assert(timer.m_dueTime != Timeout.UnsignedInfinite);
+                        //
+                        // Remember the next timer in case we delete this one
+                        //
+                        TimerQueueTimer nextTimer = timer.m_next;
 
-                        uint elapsed = (uint)(nowTicks - timer.m_startTicks);
-                        if (elapsed >= timer.m_dueTime)
+                        if (timer.m_period != Timeout.UnsignedInfinite)
                         {
-                            //
-                            // Remember the next timer in case we delete this one
-                            //
-                            TimerQueueTimer nextTimer = timer.m_next;
+                            timer.m_startTicks = nowTicks;
+                            timer.m_dueTime = timer.m_period;
 
-                            if (timer.m_period != Timeout.UnsignedInfinite)
+                            //
+                            // This is a repeating timer; schedule it to run again.
+                            //
+                            if (timer.m_dueTime < nextAppDomainTimerDuration)
                             {
-                                timer.m_startTicks = nowTicks;
-                                timer.m_dueTime = timer.m_period;
-
-                                //
-                                // This is a repeating timer; schedule it to run again.
-                                //
-                                if (timer.m_dueTime < nextAppDomainTimerDuration)
-                                {
-                                    haveTimerToSchedule = true;
-                                    nextAppDomainTimerDuration = timer.m_dueTime;
-                                }
+                                haveTimerToSchedule = true;
+                                nextAppDomainTimerDuration = timer.m_dueTime;
                             }
-                            else
-                            {
-                                //
-                                // Not repeating; remove it from the queue
-                                //
-                                DeleteTimer(timer);
-                            }
-
-                            //
-                            // If this is the first timer, we'll fire it on this thread.  Otherwise, queue it
-                            // to the ThreadPool.
-                            //
-                            if (timerToFireOnThisThread == null)
-                                timerToFireOnThisThread = timer;
-                            else
-                                QueueTimerCompletion(timer);
-
-                            timer = nextTimer;
                         }
                         else
                         {
                             //
-                            // This timer hasn't fired yet.  Just update the next time the native timer fires.
+                            // Not repeating; remove it from the queue
                             //
-                            uint remaining = timer.m_dueTime - elapsed;
-                            if (remaining < nextAppDomainTimerDuration)
-                            {
-                                haveTimerToSchedule = true;
-                                nextAppDomainTimerDuration = remaining;
-                            }
-                            timer = timer.m_next;
+                            DeleteTimer(timer);
                         }
+
+                        //
+                        // If this is the first timer, we'll fire it on this thread.  Otherwise, queue it
+                        // to the ThreadPool.
+                        //
+                        if (timerToFireOnThisThread == null)
+                            timerToFireOnThisThread = timer;
+                        else
+                            QueueTimerCompletion(timer);
+
+                        timer = nextTimer;
+                    }
+                    else
+                    {
+                        //
+                        // This timer hasn't fired yet.  Just update the next time the native timer fires.
+                        //
+                        uint remaining = timer.m_dueTime - elapsed;
+                        if (remaining < nextAppDomainTimerDuration)
+                        {
+                            haveTimerToSchedule = true;
+                            nextAppDomainTimerDuration = remaining;
+                        }
+                        timer = timer.m_next;
                     }
 
                     if (haveTimerToSchedule)
@@ -457,24 +452,19 @@ namespace System.Threading
                 if (m_canceled)
                     throw new ObjectDisposedException(null, SR.ObjectDisposed_Generic);
 
-                // prevent ThreadAbort while updating state
-                try { }
-                finally
+                m_period = period;
+
+                if (dueTime == Timeout.UnsignedInfinite)
                 {
-                    m_period = period;
+                    TimerQueue.Instance.DeleteTimer(this);
+                    success = true;
+                }
+                else
+                {
+                    if (FrameworkEventSource.IsInitialized && FrameworkEventSource.Log.IsEnabled(EventLevel.Informational, FrameworkEventSource.Keywords.ThreadTransfer))
+                        FrameworkEventSource.Log.ThreadTransferSendObj(this, 1, string.Empty, true);
 
-                    if (dueTime == Timeout.UnsignedInfinite)
-                    {
-                        TimerQueue.Instance.DeleteTimer(this);
-                        success = true;
-                    }
-                    else
-                    {
-                        if (FrameworkEventSource.IsInitialized && FrameworkEventSource.Log.IsEnabled(EventLevel.Informational, FrameworkEventSource.Keywords.ThreadTransfer))
-                            FrameworkEventSource.Log.ThreadTransferSendObj(this, 1, string.Empty, true);
-
-                        success = TimerQueue.Instance.UpdateTimer(this, dueTime, period);
-                    }
+                    success = TimerQueue.Instance.UpdateTimer(this, dueTime, period);
                 }
             }
 
@@ -486,15 +476,10 @@ namespace System.Threading
         {
             lock (TimerQueue.Instance)
             {
-                // prevent ThreadAbort while updating state
-                try { }
-                finally
+                if (!m_canceled)
                 {
-                    if (!m_canceled)
-                    {
-                        m_canceled = true;
-                        TimerQueue.Instance.DeleteTimer(this);
-                    }
+                    m_canceled = true;
+                    TimerQueue.Instance.DeleteTimer(this);
                 }
             }
         }
@@ -507,25 +492,20 @@ namespace System.Threading
 
             lock (TimerQueue.Instance)
             {
-                // prevent ThreadAbort while updating state
-                try { }
-                finally
+                if (m_canceled)
                 {
-                    if (m_canceled)
-                    {
-                        success = false;
-                    }
-                    else
-                    {
-                        m_canceled = true;
-                        m_notifyWhenNoCallbacksRunning = toSignal;
-                        TimerQueue.Instance.DeleteTimer(this);
+                    success = false;
+                }
+                else
+                {
+                    m_canceled = true;
+                    m_notifyWhenNoCallbacksRunning = toSignal;
+                    TimerQueue.Instance.DeleteTimer(this);
 
-                        if (m_callbacksRunning == 0)
-                            shouldSignal = true;
+                    if (m_callbacksRunning == 0)
+                        shouldSignal = true;
 
-                        success = true;
-                    }
+                    success = true;
                 }
             }
 
@@ -542,14 +522,9 @@ namespace System.Threading
 
             lock (TimerQueue.Instance)
             {
-                // prevent ThreadAbort while updating state
-                try { }
-                finally
-                {
-                    canceled = m_canceled;
-                    if (!canceled)
-                        m_callbacksRunning++;
-                }
+                canceled = m_canceled;
+                if (!canceled)
+                    m_callbacksRunning++;
             }
 
             if (canceled)
@@ -560,14 +535,9 @@ namespace System.Threading
             bool shouldSignal = false;
             lock (TimerQueue.Instance)
             {
-                // prevent ThreadAbort while updating state
-                try { }
-                finally
-                {
-                    m_callbacksRunning--;
-                    if (m_canceled && m_callbacksRunning == 0 && m_notifyWhenNoCallbacksRunning != null)
-                        shouldSignal = true;
-                }
+                m_callbacksRunning--;
+                if (m_canceled && m_callbacksRunning == 0 && m_notifyWhenNoCallbacksRunning != null)
+                    shouldSignal = true;
             }
 
             if (shouldSignal)

@@ -112,24 +112,19 @@ namespace System.Threading
 
             set
             {
-                // Set safeWaitHandle and waitHandle in a CER so we won't take
-                // a thread abort between the statements and leave the wait
-                // handle in an invalid state. Note this routine is not thread
+                // Note this routine is not thread
                 // safe however.
                 RuntimeHelpers.PrepareConstrainedRegions();
-                try { }
-                finally
+                
+                if (value == null)
                 {
-                    if (value == null)
-                    {
-                        safeWaitHandle = null;
-                        waitHandle = InvalidHandle;
-                    }
-                    else
-                    {
-                        safeWaitHandle = value;
-                        waitHandle = safeWaitHandle.DangerousGetHandle();
-                    }
+                    safeWaitHandle = null;
+                    waitHandle = InvalidHandle;
+                }
+                else
+                {
+                    safeWaitHandle = value;
+                    waitHandle = safeWaitHandle.DangerousGetHandle();
                 }
             }
         }

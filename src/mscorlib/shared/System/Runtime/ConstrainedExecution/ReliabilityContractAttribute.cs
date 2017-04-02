@@ -10,7 +10,7 @@
 ** Purpose: Defines a publically documentable contract for 
 ** reliability between a method and its callers, expressing
 ** what state will remain consistent in the presence of 
-** failures (ie async exceptions like thread abort) and whether
+** failures (ie async exceptions) and whether
 ** the method needs to be called from within a CER.
 **
 **

@@ -592,22 +592,6 @@ namespace System.Threading
                 // If we get here, it's because our quantum expired.  Tell the VM we're returning normally.
                 return true;
             }
-            catch (ThreadAbortException tae)
-            {
-                //
-                // This is here to catch the case where this thread is aborted between the time we exit the finally block in the dispatch
-                // loop, and the time we execute the work item.  QueueUserWorkItemCallback uses this to update its accounting of whether
-                // it was executed or not (in debug builds only).  Task uses this to communicate the ThreadAbortException to anyone
-                // who waits for the task to complete.
-                //
-                workItem?.MarkAborted(tae);
-
-                //
-                // In this case, the VM is going to request another thread on our behalf.  No need to do it twice.
-                //
-                needAnotherThread = false;
-                // throw;  //no need to explicitly rethrow a ThreadAbortException, and doing so causes allocations on amd64.
-            }
             finally
             {
                 //
@@ -617,10 +601,6 @@ namespace System.Threading
                 if (needAnotherThread)
                     workQueue.EnsureThreadRequested();
             }
-
-            // we can never reach this point, but the C# compiler doesn't know that, because it doesn't know the ThreadAbortException will be reraised above.
-            Debug.Fail("Should never reach this point");
-            return true;
         }
     }
 
@@ -806,7 +786,7 @@ namespace System.Threading
             // but the process is exiting anyway.
             //
             // During AD-unload, we don�t finalize live objects until all threads have been 
-            // aborted out of the AD.  Since these locked regions are CERs, we won�t abort them 
+            // aborted out of the AD.  Since these locked regions are CERs, we won't abort them 
             // while the lock is held.  So there should be no leak on AD-unload.
             //
             if (Interlocked.CompareExchange(ref m_lock, 1, 0) == 0)
@@ -894,7 +874,6 @@ namespace System.Threading
     internal interface IThreadPoolWorkItem
     {
         void ExecuteWorkItem();
-        void MarkAborted(ThreadAbortException tae);
     }
 
     internal sealed class QueueUserWorkItemCallback : IThreadPoolWorkItem
@@ -947,15 +926,6 @@ namespace System.Threading
             }
         }
 
-        void IThreadPoolWorkItem.MarkAborted(ThreadAbortException tae)
-        {
-#if DEBUG
-            // this workitem didn't execute because we got a ThreadAbortException prior to the call to ExecuteWorkItem.  
-            // This counts as being executed for our purposes.
-            MarkExecuted(aborted: true);
-#endif
-        }
-
         internal static readonly ContextCallback ccb = new ContextCallback(WaitCallback_Context);
 
         private static void WaitCallback_Context(Object state)
@@ -1003,15 +973,6 @@ namespace System.Threading
             MarkExecuted(aborted: false);
 #endif
             ExecutionContext.Run(ExecutionContext.Default, ccb, this);
-        }
-
-        void IThreadPoolWorkItem.MarkAborted(ThreadAbortException tae)
-        {
-#if DEBUG
-            // this workitem didn't execute because we got a ThreadAbortException prior to the call to ExecuteWorkItem.  
-            // This counts as being executed for our purposes.
-            MarkExecuted(aborted: true);
-#endif
         }
 
         internal static readonly ContextCallback ccb = new ContextCallback(WaitCallback_Context);

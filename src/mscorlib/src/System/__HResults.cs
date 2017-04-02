@@ -101,7 +101,6 @@ namespace System
         internal const int COR_E_TARGET = unchecked((int)0x80131603);
         internal const int COR_E_TARGETINVOCATION = unchecked((int)0x80131604);
         internal const int COR_E_TARGETPARAMCOUNT = unchecked((int)0x8002000e);
-        internal const int COR_E_THREADABORTED = unchecked((int)0x80131530);
         internal const int COR_E_THREADINTERRUPTED = unchecked((int)0x80131519);
         internal const int COR_E_THREADSTATE = unchecked((int)0x80131520);
         internal const int COR_E_THREADSTOP = unchecked((int)0x80131521);

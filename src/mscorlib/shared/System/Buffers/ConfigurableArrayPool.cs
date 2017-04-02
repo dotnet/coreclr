@@ -191,8 +191,7 @@ namespace System.Buffers
 
                 // While holding the lock, grab whatever is at the next available index and
                 // update the index.  We do as little work as possible while holding the spin
-                // lock to minimize contention with other threads.  The try/finally is
-                // necessary to properly handle thread aborts on platforms which have them.
+                // lock to minimize contention with other threads.  
                 bool lockTaken = false, allocateBuffer = false;
                 try
                 {
@@ -243,8 +242,6 @@ namespace System.Buffers
 
                 // While holding the spin lock, if there's room available in the bucket,
                 // put the buffer into the next available slot.  Otherwise, we just drop it.
-                // The try/finally is necessary to properly handle thread aborts on platforms
-                // which have them.
                 bool lockTaken = false;
                 try
                 {
