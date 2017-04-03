@@ -4313,10 +4313,6 @@ GenTreeCall* Compiler::fgMorphArgs(GenTreeCall* call)
     {
         call->fgArgInfo->ArgsComplete();
 
-#if defined(UNIX_X86_ABI) && FEATURE_FIXED_OUT_ARGS
-        call->fgArgInfo->ReverseArgumentSlot();
-#endif // UNIX_X86_ABI && FEATURE_FIXED_OUT_ARGS
-
 #ifdef LEGACY_BACKEND
         call->gtCallRegUsedMask = genIntAllRegArgMask(intArgRegNum);
 #if defined(_TARGET_ARM_)
