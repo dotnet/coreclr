@@ -1288,9 +1288,8 @@ namespace System
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static char HexToChar(int a)
         {
-            // casts for short asm https://github.com/dotnet/coreclr/issues/10666#issuecomment-291246896
-            var b = (char)(a & 0xf);
-            return (char)(b + ((b > 9) ? (char)0x30 : (char)(0x61 - 10)));
+            a = a & 0xf;
+            return (char)((a > 9) ? a - 10 + 0x61 : a + 0x30);
         }
 
         unsafe private static int HexsToChars(char* guidChars, int a, int b)
