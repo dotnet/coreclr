@@ -164,7 +164,10 @@ set(VM_SOURCES_WKS
     eepolicy.cpp
     eetoprofinterfaceimpl.cpp
     eventpipe.cpp
+    eventpipeconfiguration.cpp
+    eventpipeevent.cpp
     eventpipejsonfile.cpp
+    eventpipeprovider.cpp
     eventstore.cpp
     fcall.cpp
     fieldmarshaler.cpp

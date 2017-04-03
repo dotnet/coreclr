@@ -15,6 +15,7 @@ EventPipeJsonFile::EventPipeJsonFile(SString &outFilePath)
     }
     CONTRACTL_END;
 
+    m_writeErrorEncountered = false;
     m_pFileStream = new CFileStream();
     if(FAILED(m_pFileStream->OpenForWrite(outFilePath)))
     {

@@ -5,9 +5,13 @@
 #ifndef __EVENTPIPE_H__
 #define __EVENTPIPE_H__
 
-#include "common.h"
+#include "crst.h"
+#include "stackwalk.h"
 
+class EventPipeConfiguration;
+class EventPipeEvent;
 class EventPipeJsonFile;
+class MethodDesc;
 
 // The data fields common to every event.
 struct CommonEventFields
@@ -107,6 +111,11 @@ public:
 
 class EventPipe
 {
+    // Declare friends.
+    friend class EventPipeConfiguration;
+    friend class EventPipeProvider;
+    friend class SampleProfiler;
+
     public:
 
         // Initialize the event pipe.
@@ -124,12 +133,9 @@ class EventPipe
         // Disable tracing via the event pipe.
         static void Disable();
 
-        // Determine whether or not the specified provider/keyword combination is enabled.
-        static bool EventEnabled(GUID& providerID, INT64 keyword);
-
-        // Write out an event.  The event is identified by the providerID/eventID pair.
+        // Write out an event.
         // Data is written as a serialized blob matching the ETW serialization conventions.
-        static void WriteEvent(GUID& providerID, INT64 eventID, BYTE *pData, size_t length, bool sampleStack);
+        static void WriteEvent(EventPipeEvent &event, BYTE *pData, size_t length);
 
         // Write out a sample profile event with the specified stack.
         static void WriteSampleProfileEvent(Thread *pThread, StackContents &stackContents);
@@ -145,9 +151,20 @@ class EventPipe
         // Callback function for the stack walker.  For each frame walked, this callback is invoked.
         static StackWalkAction StackWalkCallback(CrawlFrame *pCf, StackContents *pData);
 
-        static CrstStatic s_initCrst;
+        // Get the configuration object.
+        // This is called directly by the EventPipeProvider constructor to register the new provider.
+        static EventPipeConfiguration* GetConfiguration();
+
+        // Populate common fields for every event.
+        static void PopulateCommonEventFields(CommonEventFields &commonEventFields, Thread *pThread);
+
+        // Get the event pipe configuration lock.
+        static CrstStatic* GetLock();
+
+        static CrstStatic s_configCrst;
         static bool s_tracingInitialized;
         static bool s_tracingEnabled;
+        static EventPipeConfiguration *s_pConfig;
         static EventPipeJsonFile *s_pJsonFile;
 };
 
