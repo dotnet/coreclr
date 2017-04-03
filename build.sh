@@ -84,7 +84,7 @@ initTargetDistroRid()
                 source $ROOTFS_DIR/etc/os-release
                 export __DistroRid="$ID.$VERSION_ID-$__BuildArch"
             fi
-         fi
+        fi
     else
         export __DistroRid="$__HostDistroRid"
     fi
