@@ -1369,6 +1369,11 @@ bool GCToEEInterface::ShouldFinalizeObjectForUnload(AppDomain* pDomain, Object* 
     return true;
 }
 
+bool GCToEEInterface::ShouldElevateForAppDomainCleanup()
+{
+    return !!SystemDomain::System()->RequireAppDomainCleanup();
+}
+
 bool GCToEEInterface::EagerFinalized(Object* obj)
 {
     MethodTable* pMT = obj->GetGCSafeMethodTable();
