@@ -350,6 +350,12 @@ StackEntry& Compiler::impStackTop(unsigned n)
 
     return verCurrentState.esStack[verCurrentState.esStackDepth - n - 1];
 }
+
+unsigned Compiler::impStackHeight()
+{
+    return verCurrentState.esStackDepth;
+}
+
 /*****************************************************************************
  *  Some of the trees are spilled specially. While unspilling them, or
  *  making a copy, these need to be handled specially. The function
@@ -7291,11 +7297,19 @@ var_types Compiler::impImportCall(OPCODE                  opcode,
         exactContextHnd = nullptr;
     }
 
-    if (opcode == CEE_NEWOBJ && clsFlags & CORINFO_FLG_DELEGATE)
+    if ((opcode == CEE_NEWOBJ) && ((clsFlags & CORINFO_FLG_DELEGATE) != 0))
     {
-        typeInfo delegateTypeInfo = impStackTop().seTypeInfo;
-        assert(delegateTypeInfo.IsType(TI_TOKEN));
-        ldftnToken = delegateTypeInfo.GetToken();
+        // Only verifiable cases are supported.
+        // dup; ldvirtftn; newobj; or ldftn; newobj.
+        // IL test could contain unverifiable sequence, in this case optimization should not be done.
+        if (impStackHeight() > 0)
+        {
+            typeInfo delegateTypeInfo = impStackTop().seTypeInfo;
+            if (delegateTypeInfo.IsToken())
+            {
+                ldftnToken = delegateTypeInfo.GetToken();
+            }
+        }
     }
 
     //-------------------------------------------------------------------------
@@ -7378,7 +7392,6 @@ var_types Compiler::impImportCall(OPCODE                  opcode,
             {
                 // New inliner morph it in impImportCall.
                 // This will allow us to inline the call to the delegate constructor.
-                assert(ldftnToken);
                 call = fgOptimizeDelegateConstructor(call->AsCall(), &exactContextHnd, ldftnToken);
             }
 
@@ -12390,7 +12403,7 @@ void Compiler::impImportBlockCode(BasicBlock* block)
 
                 CORINFO_RESOLVED_TOKEN* heapToken = new CORINFO_RESOLVED_TOKEN(resolvedToken);
                 assert(heapToken->tokenType == CORINFO_TOKENKIND_Method);
-                heapToken->tokenType = CORINFO_TOKENKIND_LdvirtualToken;
+                heapToken->tokenType = CORINFO_TOKENKIND_Ldvirtftn;
                 impPushOnStack(fptr, typeInfo(heapToken));
 
                 break;

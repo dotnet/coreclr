@@ -27,7 +27,7 @@ enum ti_types
 #define DEF_TI(ti, nm) ti,
 #include "titypes.h"
 #undef DEF_TI
-    TI_ONLY_ENUM = TI_TOKEN, // Enum values with greater value are completely described by the enumeration.
+    TI_ONLY_ENUM = TI_METHOD, // Enum values with greater value are completely described by the enumeration.
 };
 
 #if defined(_TARGET_64BIT_)
@@ -222,6 +222,9 @@ inline ti_types JITtype2tiType(CorInfoType type)
 // since conversions between them are not verifiable.
 #define TI_FLAG_NATIVE_INT 0x00000200
 
+// This item contains resolved token. It is used for ctor delegate optimization.
+#define TI_FLAG_TOKEN 0x00000400
+
 // This item contains the 'this' pointer (used for tracking)
 
 #define TI_FLAG_THIS_PTR 0x00001000
@@ -289,7 +292,8 @@ private:
             unsigned byref : 1;            // used
             unsigned byref_readonly : 1;   // used
             unsigned nativeInt : 1;        // used
-            unsigned : 2;                  // unused
+            unsigned token : 1;            // used
+            unsigned : 1;                  // unused
             unsigned thisPtr : 1;          // used
             unsigned thisPermHome : 1;     // used
             unsigned generic_type_var : 1; // used
@@ -369,8 +373,11 @@ public:
 
     typeInfo(CORINFO_RESOLVED_TOKEN* token)
     {
-        assert(token != nullptr && token->hMethod != nullptr && !isInvalidHandle(token->hMethod));
-        m_flags = TI_TOKEN;
+        assert(token != nullptr);
+        assert(token->hMethod != nullptr);
+        assert(!isInvalidHandle(token->hMethod));
+        m_flags = TI_METHOD;
+        SetIsToken();
         m_token = token;
     }
 
@@ -452,6 +459,12 @@ public:
     /////////////////////////////////////////////////////////////////////////
     // Operations
     /////////////////////////////////////////////////////////////////////////
+
+    void SetIsToken()
+    {
+        m_flags |= TI_FLAG_TOKEN;
+        assert(m_bits.token);
+    }
 
     void SetIsThisPtr()
     {
@@ -561,17 +574,17 @@ public:
 
     CORINFO_METHOD_HANDLE GetMethod() const
     {
-        if (GetType() == TI_TOKEN)
+        assert(GetType() == TI_METHOD);
+        if (IsToken())
         {
             return m_token->hMethod;
         }
-        assert(GetType() == TI_METHOD);
         return m_method;
     }
 
     CORINFO_RESOLVED_TOKEN* GetToken() const
     {
-        assert(GetType() == TI_TOKEN);
+        assert(IsToken());
         return m_token;
     }
 
@@ -635,7 +648,7 @@ public:
     // Returns whether this is a method desc
     BOOL IsMethod() const
     {
-        return (GetType() == TI_METHOD || GetType() == TI_TOKEN);
+        return GetType() == TI_METHOD;
     }
 
     BOOL IsStruct() const
@@ -654,8 +667,8 @@ public:
     BOOL IsValueClassWithClsHnd() const
     {
         if ((GetType() == TI_STRUCT) ||
-            (m_cls && GetType() != TI_REF && !IsMethod() && GetType() != TI_ERROR)) // necessary because if byref bit is
-                                                                                    // set, we return TI_ERROR)
+            (m_cls && GetType() != TI_REF && GetType() != TI_METHOD &&
+             GetType() != TI_ERROR)) // necessary because if byref bit is set, we return TI_ERROR)
         {
             return TRUE;
         }
@@ -737,6 +750,11 @@ public:
     BOOL IsUninitialisedObjRef() const
     {
         return (m_flags & TI_FLAG_UNINIT_OBJREF);
+    }
+
+    BOOL IsToken() const
+    {
+        return IsMethod() && ((m_flags & TI_FLAG_TOKEN) != 0);
     }
 
 private:
