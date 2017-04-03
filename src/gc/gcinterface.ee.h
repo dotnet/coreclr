@@ -142,6 +142,13 @@ public:
     // an app domain.
     virtual
     bool ShouldFinalizeObjectForUnload(AppDomain* pDomain, Object* obj) = 0;
+
+    // Finalizes the given object, if it is a weak reference. Returns true if the
+    // given object was a weak reference and was finalized by the EE, false if
+    // the object was not a weak reference.
+    virtual
+    bool FinalizeIfWeakReference(Object* obj) = 0;
+
 };
 
 #endif // _GCINTERFACE_EE_H_

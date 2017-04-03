@@ -275,6 +275,13 @@ bool GCToEEInterface::ShouldFinalizeObjectForUnload(AppDomain* pDomain, Object* 
     return true;
 }
 
+bool GCToEEInterface::FinalizeIfWeakReference(Object* obj)
+{
+    // The sample does not implement weak references, so there is nothing
+    // to do with them.
+    return false;
+}
+
 bool IsGCSpecialThread()
 {
     // TODO: Implement for background GC

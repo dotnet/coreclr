@@ -219,6 +219,12 @@ ALWAYS_INLINE bool GCToEEInterface::ShouldFinalizeObjectForUnload(AppDomain* pDo
     return g_theGCToCLR->ShouldFinalizeObjectForUnload(pDomain, obj);
 }
 
+ALWAYS_INLINE bool GCToEEInterface::FinalizeIfWeakReference(Object* obj)
+{
+    assert(g_theGCToCLR != nullptr);
+    return g_theGCToCLR->FinalizeIfWeakReference(obj);
+}
+
 #undef ALWAYS_INLINE
 
 #endif // __GCTOENV_EE_STANDALONE_INL__
