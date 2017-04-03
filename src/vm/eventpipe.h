@@ -7,6 +7,7 @@
 
 #include "common.h"
 
+class EventPipeConfiguration;
 class EventPipeJsonFile;
 
 // The data fields common to every event.
@@ -125,11 +126,11 @@ class EventPipe
         static void Disable();
 
         // Determine whether or not the specified provider/keyword combination is enabled.
-        static bool EventEnabled(GUID& providerID, INT64 keyword);
+        static bool EventEnabled(GUID &providerID, INT64 keyword);
 
-        // Write out an event.  The event is identified by the providerID/eventID pair.
+        // Write out an event.  The event is identified by the providerID/keyword/eventID tuple.
         // Data is written as a serialized blob matching the ETW serialization conventions.
-        static void WriteEvent(GUID& providerID, INT64 eventID, BYTE *pData, size_t length, bool sampleStack);
+        static void WriteEvent(GUID &providerID, INT64 keyword, INT64 eventID, BYTE *pData, size_t length, bool sampleStack);
 
         // Write out a sample profile event with the specified stack.
         static void WriteSampleProfileEvent(Thread *pThread, StackContents &stackContents);
@@ -148,6 +149,7 @@ class EventPipe
         static CrstStatic s_initCrst;
         static bool s_tracingInitialized;
         static bool s_tracingEnabled;
+        static EventPipeConfiguration *s_pConfig;
         static EventPipeJsonFile *s_pJsonFile;
 };
 

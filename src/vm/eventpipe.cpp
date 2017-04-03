@@ -4,12 +4,14 @@
 
 #include "common.h"
 #include "eventpipe.h"
+#include "eventpipeconfiguration.h"
 #include "eventpipejsonfile.h"
 #include "sampleprofiler.h"
 
 CrstStatic EventPipe::s_initCrst;
 bool EventPipe::s_tracingInitialized = false;
 bool EventPipe::s_tracingEnabled = false;
+EventPipeConfiguration* EventPipe::s_pConfig = NULL;
 EventPipeJsonFile* EventPipe::s_pJsonFile = NULL;
 
 void EventPipe::Initialize()
@@ -66,8 +68,14 @@ void EventPipe::Enable()
         return;
     }
 
-    // Take the lock and enable tracing.
+    // Take the lock before enabling tracing.
     CrstHolder _crst(&s_initCrst);
+
+    // Reset the config.
+    // TODO: How should config be exposed?  Do we want the concept of "multiple consumers"?
+    s_pConfig = new EventPipeConfiguration();
+
+    // Set the bit that actually enables tracing.
     s_tracingEnabled = true;
     if(CLRConfig::GetConfigValue(CLRConfig::INTERNAL_PerformanceTracing) == 2)
     {
@@ -90,18 +98,29 @@ void EventPipe::Disable()
     }
     CONTRACTL_END;
 
+    // Take the lock before disabling tracing.
     CrstHolder _crst(&s_initCrst);
+
+    // Actually disable tracing.
     s_tracingEnabled = false;
     SampleProfiler::Disable();
 
+    // TODO: Fix race conditions.  It's possible that these resources get deleted
+    // while other threads are attempting to use them.
     if(s_pJsonFile != NULL)
     {
         delete(s_pJsonFile);
         s_pJsonFile = NULL;
     }
+
+    if(s_pConfig != NULL)
+    {
+        delete(s_pConfig);
+        s_pConfig = NULL;
+    }
 }
 
-bool EventPipe::EventEnabled(GUID& providerID, INT64 keyword)
+bool EventPipe::EventEnabled(GUID &providerID, INT64 keyword)
 {
     CONTRACTL
     {
@@ -111,11 +130,15 @@ bool EventPipe::EventEnabled(GUID& providerID, INT64 keyword)
     }
     CONTRACTL_END;
 
-    // TODO: Implement filtering.
-    return false;
+    if(s_pConfig == NULL)
+    {
+        return false;
+    }
+
+    return s_pConfig->KeywordEnabled(providerID, keyword);
 }
 
-void EventPipe::WriteEvent(GUID& providerID, INT64 eventID, BYTE *pData, size_t length, bool sampleStack)
+void EventPipe::WriteEvent(GUID &providerID, INT64 keyword, INT64 eventID, BYTE *pData, size_t length, bool sampleStack)
 {
     CONTRACTL
     {
@@ -125,9 +148,15 @@ void EventPipe::WriteEvent(GUID& providerID, INT64 eventID, BYTE *pData, size_t 
     }
     CONTRACTL_END;
 
+    // Exit early if the event is not enabled.
+    if(!EventEnabled(providerID, keyword))
+    {
+        return;
+    }
+
+    // Walk the stack if requested.
     StackContents stackContents;
     bool stackWalkSucceeded;
-
     if(sampleStack)
     {
         stackWalkSucceeded = WalkManagedStackForCurrentThread(stackContents);
