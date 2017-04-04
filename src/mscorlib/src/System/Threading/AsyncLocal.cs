@@ -118,6 +118,7 @@ namespace System.Threading
     {
         bool TryGetValue(IAsyncLocal key, out object value);
         IAsyncLocalValueMap Set(IAsyncLocal key, object value);
+        int Count { get; }
     }
 
     //
@@ -144,6 +145,8 @@ namespace System.Threading
                 value = null;
                 return false;
             }
+
+            public int Count => 0;
         }
 
         // Instance with one key/value pair.
@@ -191,6 +194,8 @@ namespace System.Threading
                     return false;
                 }
             }
+
+            public int Count => 1;
         }
 
         // Instance with two key/value pairs.
@@ -246,6 +251,8 @@ namespace System.Threading
                     return false;
                 }
             }
+
+            public int Count => 2;
         }
 
         // Instance with three key/value pairs.
@@ -315,6 +322,8 @@ namespace System.Threading
                     return false;
                 }
             }
+
+            public int Count => 3;
         }
 
         // Instance with up to 16 key/value pairs.
@@ -414,6 +423,8 @@ namespace System.Threading
                 value = null;
                 return false;
             }
+
+            public int Count => _keyValues.Length;
         }
 
         // Instance with any number of key/value pairs.
