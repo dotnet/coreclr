@@ -90,6 +90,7 @@ public class Driver<K, V>
     {
         ConditionalWeakTable<K,V> tbl = new ConditionalWeakTable<K,V>();
 
+        // Try to remove key from an empty dictionary
         // Remove should return false
         Test.Eval(!tbl.Remove(keys[0]), "Err_005 Expected Remove to return false");
 
