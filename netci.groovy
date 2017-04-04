@@ -1536,6 +1536,10 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                     if (architecture == 'x86' && os == 'Ubuntu') {
                         // build only, not test yet
                         buildCommands += "./tests/scripts/x86_ci_script.sh --buildConfig=${lowerConfiguration}"
+                        // And pal tests
+                        if (lowerConfiguration == "debug") {
+                            Utilities.addXUnitDotNETResults(newJob, '**/pal_tests.xml')
+                        }
                         break;
                     }
 
