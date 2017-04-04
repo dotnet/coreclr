@@ -219,10 +219,10 @@ ALWAYS_INLINE bool GCToEEInterface::ShouldFinalizeObjectForUnload(AppDomain* pDo
     return g_theGCToCLR->ShouldFinalizeObjectForUnload(pDomain, obj);
 }
 
-ALWAYS_INLINE bool GCToEEInterface::ShouldElevateForAppDomainCleanup()
+ALWAYS_INLINE bool GCToEEInterface::ForceFullGCToBeBlocking()
 {
     assert(g_theGCToCLR != nullptr);
-    return g_theGCToCLR->ShouldElevateForAppDomainCleanup();
+    return g_theGCToCLR->ForceFullGCToBeBlocking();
 }
 
 ALWAYS_INLINE bool GCToEEInterface::EagerFinalized(Object* obj)

@@ -275,7 +275,7 @@ bool GCToEEInterface::ShouldFinalizeObjectForUnload(AppDomain* pDomain, Object* 
     return true;
 }
 
-bool GCToEEInterface::ShouldElevateForAppDomainCleanup()
+bool GCToEEInterface::ForceFullGCToBeBlocking()
 {
     return false;
 }

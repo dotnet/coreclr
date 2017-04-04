@@ -15136,7 +15136,7 @@ exit:
         }
     }
 
-    if (n == max_generation && GCToEEInterface::ShouldElevateForAppDomainCleanup())
+    if (n == max_generation && GCToEEInterface::ForceFullGCToBeBlocking())
     {
 #ifdef BACKGROUND_GC
         // do not turn stress-induced collections into blocking GCs, unless there

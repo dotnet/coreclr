@@ -155,6 +155,12 @@ public:
     // and it's up to the GC to finalize it later.
     virtual
     bool EagerFinalized(Object* obj) = 0;
+
+    // Asks the EE if it wishes for the current GC to be a blocking GC. The GC will
+    // only invoke this callback when it intends to do a full GC, so at this point
+    // the EE can opt to elevate that collection to be a blocking GC and not a background one.
+    virtual
+    bool ForceFullGCToBeBlocking() = 0;
 };
 
 #endif // _GCINTERFACE_EE_H_

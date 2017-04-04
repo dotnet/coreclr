@@ -71,6 +71,7 @@ public:
 
     static void HandleFatalError(unsigned int exitCode);
     static bool ShouldFinalizeObjectForUnload(AppDomain* pDomain, Object* obj);
+    static bool ForceFullGCToBeBlocking();
     static bool ShouldElevateForAppDomainCleanup();
     static bool EagerFinalized(Object* obj);
 };
