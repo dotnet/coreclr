@@ -4211,6 +4211,10 @@ GenTreeCall* Compiler::fgMorphArgs(GenTreeCall* call)
 #if defined(FEATURE_UNIX_AMD64_STRUCT_PASSING) || (defined(UNIX_X86_ABI) && FEATURE_FIXED_OUT_ARGS)
             hasStackArgCopy = true;
 #endif
+#if defined(UNIX_X86_ABI) && FEATURE_FIXED_OUT_ARGS
+            // Let struct use copy as argx
+            argx = args->gtOp.gtOp1;
+#endif
         }
 
 #ifndef LEGACY_BACKEND
