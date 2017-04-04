@@ -275,10 +275,9 @@ bool GCToEEInterface::ShouldFinalizeObjectForUnload(AppDomain* pDomain, Object* 
     return true;
 }
 
-bool GCToEEInterface::FinalizeIfWeakReference(Object* obj)
+bool GCToEEInterface::EagerFinalized(Object* obj)
 {
-    // The sample does not implement weak references, so there is nothing
-    // to do with them.
+    // The sample does not finalize anything eagerly.
     return false;
 }
 
