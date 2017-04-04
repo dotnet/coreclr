@@ -304,9 +304,9 @@ private:
 
     union {
         CORINFO_CLASS_HANDLE m_cls;
-        // Valid only for type TI_METHOD
+        // Valid only for type TI_METHOD without IsToken
         CORINFO_METHOD_HANDLE m_method;
-        // Valid only for type TI_TOKEN
+        // Valid only for TI_TOKEN with IsToken
         CORINFO_RESOLVED_TOKEN* m_token;
     };
 
