@@ -12295,7 +12295,7 @@ void Compiler::impImportBlockCode(BasicBlock* block)
                     return;
                 }
 
-                CORINFO_RESOLVED_TOKEN* heapToken = new CORINFO_RESOLVED_TOKEN(resolvedToken);
+                CORINFO_RESOLVED_TOKEN* heapToken = impAllocateToken(resolvedToken);
                 impPushOnStack(op1, typeInfo(heapToken));
 
                 break;
@@ -12401,7 +12401,7 @@ void Compiler::impImportBlockCode(BasicBlock* block)
                     return;
                 }
 
-                CORINFO_RESOLVED_TOKEN* heapToken = new CORINFO_RESOLVED_TOKEN(resolvedToken);
+                CORINFO_RESOLVED_TOKEN* heapToken = impAllocateToken(resolvedToken);
                 assert(heapToken->tokenType == CORINFO_TOKENKIND_Method);
                 heapToken->tokenType = CORINFO_TOKENKIND_Ldvirtftn;
                 impPushOnStack(fptr, typeInfo(heapToken));
@@ -18722,4 +18722,19 @@ void Compiler::impDevirtualizeCall(GenTreeCall*            call,
                baseMethodName, derivedClassName, derivedMethodName, note);
     }
 #endif // defined(DEBUG)
+}
+
+//------------------------------------------------------------------------
+// impAllocateToken: create CORINFO_RESOLVED_TOKEN into jit-allocated memory and init it.
+//
+// Arguments:
+//    token - init value for the allocated token.
+//
+// Return Value:
+//    pointer to token into jit-allocated memory.
+CORINFO_RESOLVED_TOKEN* Compiler::impAllocateToken(CORINFO_RESOLVED_TOKEN token)
+{
+    CORINFO_RESOLVED_TOKEN* memory = (CORINFO_RESOLVED_TOKEN*)compGetMem(sizeof(token));
+    *memory                        = token;
+    return memory;
 }
