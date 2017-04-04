@@ -1369,10 +1369,11 @@ bool GCToEEInterface::ShouldFinalizeObjectForUnload(AppDomain* pDomain, Object* 
     return true;
 }
 
-bool GCToEEInterface::FinalizeIfWeakReference(Object* obj)
+bool GCToEEInterface::EagerFinalized(Object* obj)
 {
-    MethodTable* pMT = obj->GetMethodTable();
-    if (pMT == pWeakReferenceMT || pMT == pWeakReferenceOfTCanonMT)
+    MethodTable* pMT = obj->GetGCSafeMethodTable();
+    if (pMT == pWeakReferenceMT ||
+        pMT->GetCanonicalMethodTable() == pWeakReferenceOfTCanonMT)
     {
         FinalizeWeakReference(obj);
         return true;

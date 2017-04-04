@@ -46,7 +46,7 @@ public:
     void EnableFinalization(bool foundFinalizers);
     void HandleFatalError(unsigned int exitCode);
     bool ShouldFinalizeObjectForUnload(AppDomain* pDomain, Object* obj);
-    bool FinalizeIfWeakReference(Object* obj);
+    bool EagerFinalized(Object* obj);
 };
 
 #endif // FEATURE_STANDALONE_GC

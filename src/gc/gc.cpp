@@ -36269,7 +36269,7 @@ CFinalize::ScanForFinalization (promote_func* pfn, int gen, BOOL mark_only_p,
 
                     assert (method_table(obj)->HasFinalizer());
 
-                    if (GCToEEInterface::FinalizeIfWeakReference(obj))
+                    if (GCToEEInterface::EagerFinalized(obj))
                     {
                         MoveItem (i, Seg, FreeList);
                     }
