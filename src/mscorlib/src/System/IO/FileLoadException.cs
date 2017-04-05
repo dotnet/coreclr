@@ -26,7 +26,7 @@ using SecurityException = System.Security.SecurityException;
 namespace System.IO
 {
     [Serializable]
-    public class FileLoadException : IOException
+    public partial class FileLoadException : IOException
     {
         public FileLoadException()
             : base(SR.IO_FileLoad)
@@ -70,6 +70,7 @@ namespace System.IO
         }
 
         public string FileName { get; }
+        public string FusionLog { get; }
 
         public override string ToString()
         {
@@ -112,17 +113,6 @@ namespace System.IO
             }
         }
 
-        private FileLoadException(string fileName, string fusionLog, int hResult)
-            : base(null)
-        {
-            SetErrorCode(hResult);
-            FileName = fileName;
-            FusionLog = fusionLog;
-            _message = FormatFileLoadExceptionMessage(FileName, HResult);
-        }
-
-        public string FusionLog { get; }
-
         public override void GetObjectData(SerializationInfo info, StreamingContext context)
         {
             // Serialize data for our base classes.  base will verify info != null.
@@ -136,25 +126,5 @@ namespace System.IO
                 info.AddValue("FileLoad_FusionLog", fusionLog, typeof(string));
             }
         }
-
-        internal static string FormatFileLoadExceptionMessage(string fileName,
-            int hResult)
-        {
-            string format = null;
-            GetFileLoadExceptionMessage(hResult, JitHelpers.GetStringHandleOnStack(ref format));
-
-            string message = null;
-            GetMessageForHR(hResult, JitHelpers.GetStringHandleOnStack(ref message));
-
-            return string.Format(CultureInfo.CurrentCulture, format, fileName, message);
-        }
-
-        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        [SuppressUnmanagedCodeSecurity]
-        private static extern void GetFileLoadExceptionMessage(int hResult, StringHandleOnStack retString);
-
-        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        [SuppressUnmanagedCodeSecurity]
-        private static extern void GetMessageForHR(int hresult, StringHandleOnStack retString);
     }
 }
