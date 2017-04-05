@@ -1394,3 +1394,19 @@ bool GCToEEInterface::EagerFinalized(Object* obj)
 
     return false;
 }
+
+MethodTable* GCToEEInterface::GetFreeObjectMethodTable()
+{
+    assert(g_pFreeObjectMethodTable != nullptr);
+    return g_pFreeObjectMethodTable;
+}
+
+size_t GCToEEInterface::GetSizeOfArrayBase()
+{
+    return sizeof(ArrayBase);
+}
+
+size_t GCToEEInterface::GetArrayOffsetOfNumComponents()
+{
+    return ArrayBase::GetOffsetOfNumComponents();
+}
