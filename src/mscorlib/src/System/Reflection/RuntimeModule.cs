@@ -20,7 +20,7 @@ namespace System.Reflection
         #region FCalls
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         [SuppressUnmanagedCodeSecurity]
-        private extern static void GetType(RuntimeModule module, String className, bool ignoreCase, bool throwOnError, ObjectHandleOnStack type, ObjectHandleOnStack keepAlive);
+        private extern static void GetType(RuntimeModule module, String className, bool throwOnError, bool ignoreCase, ObjectHandleOnStack type, ObjectHandleOnStack keepAlive);
 
         [DllImport(JitHelpers.QCall)]
         [SuppressUnmanagedCodeSecurity]
@@ -464,7 +464,7 @@ namespace System.Reflection
 
             RuntimeType retType = null;
             Object keepAlive = null;
-            GetType(GetNativeHandle(), className, ignoreCase, throwOnError, JitHelpers.GetObjectHandleOnStack(ref retType), JitHelpers.GetObjectHandleOnStack(ref keepAlive));
+            GetType(GetNativeHandle(), className, throwOnError, ignoreCase, JitHelpers.GetObjectHandleOnStack(ref retType), JitHelpers.GetObjectHandleOnStack(ref keepAlive));
             GC.KeepAlive(keepAlive);
             return retType;
         }
