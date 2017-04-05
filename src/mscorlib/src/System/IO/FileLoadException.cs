@@ -78,7 +78,7 @@ namespace System.IO
 
         public override string ToString()
         {
-            string s = GetType().FullName + ": " + Message;
+            string s = GetType().ToString() + ": " + Message;
 
             if (FileName != null && FileName.Length != 0)
                 s += Environment.NewLine + SR.Format(SR.IO_FileName_Name, FileName);
