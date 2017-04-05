@@ -44,11 +44,11 @@ get_current_linux_name() {
         return 0
     elif [ "$(cat /etc/os-release | grep -cim1 fedora)" -eq 1 ]; then
         if [ "$(cat /etc/os-release | grep -cim1 23)" -eq 1 ]; then
-            echo "fedora.23"
+            echo "fedora.24"
             return 0
         fi
         if [ "$(cat /etc/os-release | grep -cim1 24)" -eq 1 ]; then
-            echo "fedora.24"
+            echo "fedora.25"
             return 0
         fi
     elif [ "$(cat /etc/os-release | grep -cim1 opensuse)" -eq 1 ]; then
