@@ -2,26 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-/*============================================================
-**
-**
-** 
-** 
-**
-**
-** Purpose: Exception for failure to load a file that was successfully found.
-**
-**
-===========================================================*/
-
-using System;
-using System.Globalization;
 using System.Runtime.Serialization;
-using System.Runtime.InteropServices;
-using System.Runtime.CompilerServices;
-using System.Security;
-using System.Runtime.Versioning;
-using SecurityException = System.Security.SecurityException;
 
 namespace System.IO
 {
@@ -64,7 +45,9 @@ namespace System.IO
             get
             {
                 if (_message == null)
+                {
                     _message = FormatFileLoadExceptionMessage(FileName, HResult);
+                }
                 return _message;
             }
         }
@@ -97,7 +80,8 @@ namespace System.IO
             return s;
         }
 
-        protected FileLoadException(SerializationInfo info, StreamingContext context) : base(info, context)
+        protected FileLoadException(SerializationInfo info, StreamingContext context)
+            : base(info, context)
         {
             // Base class constructor will check info != null.
 
