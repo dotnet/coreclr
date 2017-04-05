@@ -28,8 +28,8 @@ namespace System.IO
     [Serializable]
     public class FileLoadException : IOException
     {
-        private String _fileName;   // the name of the file we could not load.
-        private String _fusionLog;  // fusion log (when applicable)
+        private string _fileName;   // the name of the file we could not load.
+        private string _fusionLog;  // fusion log (when applicable)
 
         public FileLoadException()
             : base(SR.IO_FileLoad)
@@ -37,32 +37,32 @@ namespace System.IO
             SetErrorCode(__HResults.COR_E_FILELOAD);
         }
 
-        public FileLoadException(String message)
+        public FileLoadException(string message)
             : base(message)
         {
             SetErrorCode(__HResults.COR_E_FILELOAD);
         }
 
-        public FileLoadException(String message, Exception inner)
+        public FileLoadException(string message, Exception inner)
             : base(message, inner)
         {
             SetErrorCode(__HResults.COR_E_FILELOAD);
         }
 
-        public FileLoadException(String message, String fileName) : base(message)
+        public FileLoadException(string message, string fileName) : base(message)
         {
             SetErrorCode(__HResults.COR_E_FILELOAD);
             _fileName = fileName;
         }
 
-        public FileLoadException(String message, String fileName, Exception inner)
+        public FileLoadException(string message, string fileName, Exception inner)
             : base(message, inner)
         {
             SetErrorCode(__HResults.COR_E_FILELOAD);
             _fileName = fileName;
         }
 
-        public override String Message
+        public override string Message
         {
             get
             {
@@ -77,14 +77,14 @@ namespace System.IO
                 _message = FormatFileLoadExceptionMessage(_fileName, HResult);
         }
 
-        public String FileName
+        public string FileName
         {
             get { return _fileName; }
         }
 
-        public override String ToString()
+        public override string ToString()
         {
-            String s = GetType().FullName + ": " + Message;
+            string s = GetType().FullName + ": " + Message;
 
             if (_fileName != null && _fileName.Length != 0)
                 s += Environment.NewLine + SR.Format(SR.IO_FileName_Name, _fileName);
@@ -129,7 +129,7 @@ namespace System.IO
             }
         }
 
-        private FileLoadException(String fileName, String fusionLog, int hResult)
+        private FileLoadException(string fileName, string fusionLog, int hResult)
             : base(null)
         {
             SetErrorCode(hResult);
@@ -138,7 +138,7 @@ namespace System.IO
             SetMessageField();
         }
 
-        public String FusionLog
+        public string FusionLog
         {
             get { return _fusionLog; }
         }
@@ -149,18 +149,18 @@ namespace System.IO
             base.GetObjectData(info, context);
 
             // Serialize data for this class
-            info.AddValue("FileLoad_FileName", _fileName, typeof(String));
+            info.AddValue("FileLoad_FileName", _fileName, typeof(string));
 
             try
             {
-                info.AddValue("FileLoad_FusionLog", FusionLog, typeof(String));
+                info.AddValue("FileLoad_FusionLog", FusionLog, typeof(string));
             }
             catch (SecurityException)
             {
             }
         }
 
-        internal static String FormatFileLoadExceptionMessage(String fileName,
+        internal static string FormatFileLoadExceptionMessage(string fileName,
             int hResult)
         {
             string format = null;
@@ -169,7 +169,7 @@ namespace System.IO
             string message = null;
             GetMessageForHR(hResult, JitHelpers.GetStringHandleOnStack(ref message));
 
-            return String.Format(CultureInfo.CurrentCulture, format, fileName, message);
+            return string.Format(CultureInfo.CurrentCulture, format, fileName, message);
         }
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
