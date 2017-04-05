@@ -384,7 +384,7 @@ void HelperMethodFrame::UpdateRegDisplay(const PREGDISPLAY pRD)
 #endif // DACCESS_COMPILE
 
     pRD->pCurrentContext->Eip = pRD->ControlPC = m_MachState.GetRetAddr();
-    pRD->pCurrentContext->Esp = pRD->pCurrentContext->ResumeEsp = pRD->SP = (DWORD) m_MachState.esp();
+    pRD->pCurrentContext->Esp = pRD->SP = (DWORD) m_MachState.esp();
 
 #define CALLEE_SAVED_REGISTER(regname) pRD->pCurrentContext->regname = *((DWORD*) m_MachState.p##regname());
     ENUM_CALLEE_SAVED_REGISTERS();
@@ -401,6 +401,11 @@ void HelperMethodFrame::UpdateRegDisplay(const PREGDISPLAY pRD)
     //
 
     ClearRegDisplayArgumentAndScratchRegisters(pRD);
+
+    //
+    // Fix up ResumeSp
+    //
+    pRD->pCurrentContext->ResumeEsp = EECodeManager::GetResumeSp(pRD);
 
 #else // WIN64EXCEPTIONS
 

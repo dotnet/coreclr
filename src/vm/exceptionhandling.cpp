@@ -441,12 +441,23 @@ void ExceptionTracker::UpdateNonvolatileRegisters(CONTEXT *pContextRecord, REGDI
         }                                                                                   \
     } while (0)
 
+#define UPDATEREG_VAL(reg)                                                                  \
+    do {                                                                                    \
+        STRESS_LOG2(LF_GCROOTS, LL_INFO100, "Updating " #reg " %p to %p\n",                 \
+                pContextRecord->reg,                                                        \
+                pRegDisplay->pCurrentContext->reg);                                         \
+        pContextRecord->reg = pRegDisplay->pCurrentContext->reg;                            \
+    } while (0)
+
+
 #if defined(_TARGET_X86_)
 
     UPDATEREG(Ebx);
     UPDATEREG(Esi);
     UPDATEREG(Edi);
     UPDATEREG(Ebp);
+
+    UPDATEREG_VAL(ResumeEsp);
 
 #elif defined(_TARGET_AMD64_)
 

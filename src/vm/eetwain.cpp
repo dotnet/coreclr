@@ -4033,6 +4033,50 @@ bool UnwindStackFrame(PREGDISPLAY     pContext,
 
 #endif // _TARGET_X86_
 
+#ifdef WIN64EXCEPTIONS
+#ifdef _TARGET_X86_
+size_t EECodeManager::GetResumeSp( PREGDISPLAY  pRD )
+{
+    EECodeInfo codeInfo(pRD->ControlPC);
+
+    PTR_CBYTE methodStart = PTR_CBYTE(codeInfo.GetSavedMethodCode());
+
+    GCInfoToken gcInfoToken = codeInfo.GetGCInfoToken();
+    PTR_VOID    methodInfoPtr = gcInfoToken.Info;
+    DWORD       curOffs = codeInfo.GetRelOffset();
+
+    CodeManStateBuf stateBuf;
+
+    stateBuf.hdrInfoSize = (DWORD)DecodeGCHdrInfo(gcInfoToken,
+                                                  curOffs,
+                                                  &stateBuf.hdrInfoBody);
+
+    PTR_CBYTE table = dac_cast<PTR_CBYTE>(methodInfoPtr) + stateBuf.hdrInfoSize;
+
+    hdrInfo *info = &stateBuf.hdrInfoBody;
+
+    _ASSERTE(info->epilogOffs == hdrInfo::NOT_IN_EPILOG && info->prologOffs == hdrInfo::NOT_IN_PROLOG);
+
+    bool isESPFrame = !info->ebpFrame && !info->doubleAlign;
+
+    if (codeInfo.IsFunclet())
+    {
+        // Treat funclet's frame as ESP frame
+        isESPFrame = true;
+    }
+
+    if (isESPFrame)
+    {
+        const size_t curESP = pRD->SP;
+        return curESP + GetPushedArgSize(info, table, curOffs);
+    }
+
+    const size_t curEBP = *pRD->GetEbpLocation();
+    return GetOutermostBaseFP(curEBP, info);
+}
+#endif // _TARGET_X86_
+#endif // WIN64EXCEPTIONS
+
 #ifndef CROSSGEN_COMPILE
 #ifndef WIN64EXCEPTIONS
 
