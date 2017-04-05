@@ -1682,9 +1682,6 @@ public:
         // clear the GC flag bits off the MethodTable
         // equivalent to Object::GetGCSafeMethodTable()
         *mt &= ~1;
-        // Ensure nobody use the last but one bit
-        // Should be removed after CI
-        _ASSERTE((*mt & 3) == 0);
         return true;
     }
 
