@@ -63,15 +63,10 @@ namespace System.IO
         {
             get
             {
-                SetMessageField();
+                if (_message == null)
+                    _message = FormatFileLoadExceptionMessage(FileName, HResult);
                 return _message;
             }
-        }
-
-        private void SetMessageField()
-        {
-            if (_message == null)
-                _message = FormatFileLoadExceptionMessage(FileName, HResult);
         }
 
         public string FileName { get; }
@@ -123,7 +118,7 @@ namespace System.IO
             SetErrorCode(hResult);
             FileName = fileName;
             FusionLog = fusionLog;
-            SetMessageField();
+            _message = FormatFileLoadExceptionMessage(FileName, HResult);
         }
 
         public string FusionLog { get; }
