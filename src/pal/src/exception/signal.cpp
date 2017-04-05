@@ -81,6 +81,7 @@ struct SignalHandlerWorkerReturnPoint
 
 /* internal function declarations *********************************************/
 
+static void sigterm_handler(int code, siginfo_t *siginfo, void *context);
 #if !HAVE_MACH_EXCEPTIONS
 static void sigill_handler(int code, siginfo_t *siginfo, void *context);
 static void sigfpe_handler(int code, siginfo_t *siginfo, void *context);
@@ -89,10 +90,7 @@ static void sigtrap_handler(int code, siginfo_t *siginfo, void *context);
 static void sigbus_handler(int code, siginfo_t *siginfo, void *context);
 static void sigint_handler(int code, siginfo_t *siginfo, void *context);
 static void sigquit_handler(int code, siginfo_t *siginfo, void *context);
-#endif // !HAVE_MACH_EXCEPTIONS
-static void sigterm_handler(int code, siginfo_t *siginfo, void *context);
 
-#if !HAVE_MACH_EXCEPTIONS
 static bool common_signal_handler(int code, siginfo_t *siginfo, void *sigcontext, int numParams, ...);
 
 #ifdef INJECT_ACTIVATION_SIGNAL
@@ -105,6 +103,9 @@ static void restore_signal(int signal_id, struct sigaction *previousAction);
 
 /* internal data declarations *********************************************/
 
+static bool registered_sigterm_handler = false;
+
+struct sigaction g_previous_sigterm;
 #if !HAVE_MACH_EXCEPTIONS
 struct sigaction g_previous_sigill;
 struct sigaction g_previous_sigtrap;
@@ -113,12 +114,7 @@ struct sigaction g_previous_sigbus;
 struct sigaction g_previous_sigsegv;
 struct sigaction g_previous_sigint;
 struct sigaction g_previous_sigquit;
-#endif // !HAVE_MACH_EXCEPTIONS
-struct sigaction g_previous_sigterm;
 
-static bool registered_sigterm_handler = false;
-
-#if !HAVE_MACH_EXCEPTIONS
 #ifdef INJECT_ACTIVATION_SIGNAL
 struct sigaction g_previous_activation;
 #endif
