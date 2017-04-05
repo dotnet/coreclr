@@ -28,9 +28,6 @@ namespace System.IO
     [Serializable]
     public class FileLoadException : IOException
     {
-        private string _fileName;   // the name of the file we could not load.
-        private string _fusionLog;  // fusion log (when applicable)
-
         public FileLoadException()
             : base(SR.IO_FileLoad)
         {
@@ -52,14 +49,14 @@ namespace System.IO
         public FileLoadException(string message, string fileName) : base(message)
         {
             SetErrorCode(__HResults.COR_E_FILELOAD);
-            _fileName = fileName;
+            FileName = fileName;
         }
 
         public FileLoadException(string message, string fileName, Exception inner)
             : base(message, inner)
         {
             SetErrorCode(__HResults.COR_E_FILELOAD);
-            _fileName = fileName;
+            FileName = fileName;
         }
 
         public override string Message
@@ -74,20 +71,17 @@ namespace System.IO
         private void SetMessageField()
         {
             if (_message == null)
-                _message = FormatFileLoadExceptionMessage(_fileName, HResult);
+                _message = FormatFileLoadExceptionMessage(FileName, HResult);
         }
 
-        public string FileName
-        {
-            get { return _fileName; }
-        }
+        public string FileName { get; }
 
         public override string ToString()
         {
             string s = GetType().FullName + ": " + Message;
 
-            if (_fileName != null && _fileName.Length != 0)
-                s += Environment.NewLine + SR.Format(SR.IO_FileName_Name, _fileName);
+            if (FileName != null && FileName.Length != 0)
+                s += Environment.NewLine + SR.Format(SR.IO_FileName_Name, FileName);
 
             if (InnerException != null)
                 s = s + " ---> " + InnerException.ToString();
@@ -117,15 +111,15 @@ namespace System.IO
         {
             // Base class constructor will check info != null.
 
-            _fileName = info.GetString("FileLoad_FileName");
+            FileName = info.GetString("FileLoad_FileName");
 
             try
             {
-                _fusionLog = info.GetString("FileLoad_FusionLog");
+                FusionLog = info.GetString("FileLoad_FusionLog");
             }
             catch
             {
-                _fusionLog = null;
+                FusionLog = null;
             }
         }
 
@@ -133,15 +127,12 @@ namespace System.IO
             : base(null)
         {
             SetErrorCode(hResult);
-            _fileName = fileName;
-            _fusionLog = fusionLog;
+            FileName = fileName;
+            FusionLog = fusionLog;
             SetMessageField();
         }
 
-        public string FusionLog
-        {
-            get { return _fusionLog; }
-        }
+        public string FusionLog { get; }
 
         public override void GetObjectData(SerializationInfo info, StreamingContext context)
         {
@@ -149,7 +140,7 @@ namespace System.IO
             base.GetObjectData(info, context);
 
             // Serialize data for this class
-            info.AddValue("FileLoad_FileName", _fileName, typeof(string));
+            info.AddValue("FileLoad_FileName", FileName, typeof(string));
 
             try
             {
