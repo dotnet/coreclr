@@ -2448,9 +2448,7 @@ void fgArgInfo::EvalArgsToTemps()
 // It would be better not to do this if possible.
 void fgArgInfo::ReverseArgumentSlot()
 {
-    // To get the padding amount, sum up all the slots and get the remainder for padding
     unsigned curInx;
-    unsigned numSlots     = 0;
     unsigned numStackArgs = 0;
 
     for (curInx = 0; curInx < argCount; curInx++)
@@ -2461,7 +2459,6 @@ void fgArgInfo::ReverseArgumentSlot()
             // The argument may be REG_STK or constant or register that goes to stack
             assert(nextSlotNum >= curArgTabEntry->slotNum);
 
-            numSlots += curArgTabEntry->numSlots;
             numStackArgs++;
         }
     }
