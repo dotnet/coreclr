@@ -366,8 +366,9 @@ LEAF_ENTRY HelperMethodFrameRestoreState, _TEXT
     PROLOG_BEG
     PROLOG_END
 
-    // Call HelperMethodFrameConfirmState
-    sub         esp, 4
+    // Call HelperMethodFrameConfirmState (with stack alignment padding)
+    #define STACK_ALIGN_PADDING 4
+    sub         esp, STACK_ALIGN_PADDING
     push        eax     // eax = ebp
     push        ebx
     push        edi
@@ -375,7 +376,8 @@ LEAF_ENTRY HelperMethodFrameRestoreState, _TEXT
     push        ecx     // HelperFrame*
     CHECK_STACK_ALIGNMENT
     call        C_FUNC(HelperMethodFrameConfirmState)
-    add         esp, 4
+    add         esp, STACK_ALIGN_PADDING
+    #undef STACK_ALIGN_PADDING
 
     // Restore EBP
     EPILOG_BEG
