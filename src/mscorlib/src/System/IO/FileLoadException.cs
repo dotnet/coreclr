@@ -89,19 +89,13 @@ namespace System.IO
             if (StackTrace != null)
                 s += Environment.NewLine + StackTrace;
 
-            try
+            if (FusionLog != null)
             {
-                if (FusionLog != null)
-                {
-                    if (s == null)
-                        s = " ";
-                    s += Environment.NewLine;
-                    s += Environment.NewLine;
-                    s += FusionLog;
-                }
-            }
-            catch (SecurityException)
-            {
+                if (s == null)
+                    s = " ";
+                s += Environment.NewLine;
+                s += Environment.NewLine;
+                s += FusionLog;
             }
 
             return s;
@@ -141,13 +135,10 @@ namespace System.IO
 
             // Serialize data for this class
             info.AddValue("FileLoad_FileName", FileName, typeof(string));
-
-            try
+            string fusionLog = FusionLog;
+            if (fusionLog != null)
             {
-                info.AddValue("FileLoad_FusionLog", FusionLog, typeof(string));
-            }
-            catch (SecurityException)
-            {
+                info.AddValue("FileLoad_FusionLog", fusionLog, typeof(string));
             }
         }
 
