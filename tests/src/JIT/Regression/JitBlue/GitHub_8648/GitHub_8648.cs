@@ -25,12 +25,14 @@ class Program
         return (x * 2) + (p.y * z);
     }
 
-    static void Main()
+    static int Main()
     {
+        bool success = true;
         try
         {
             Case1((sbyte)42);
             Console.WriteLine("Case 1 failed: expected a DivideByZeroException, but none was thrown");
+            success = false;
         }
         catch (DivideByZeroException)
         {
@@ -38,19 +40,24 @@ class Program
         catch (Exception e)
         {
             Console.WriteLine("Case 1 failed: expected a DivideByZeroException, but {0} was thrown instead", e);
+            success = false;
         }
 
         try
         {
             Case2(null, 5, 0);
-            Console.WriteLine("Case 1 failed: expected a NullReferenceException, but none was thrown");
+            Console.WriteLine("Case 2 failed: expected a NullReferenceException, but none was thrown");
+            success = false;
         }
         catch (NullReferenceException)
         {
         }
         catch (Exception e)
         {
-            Console.WriteLine("Case 1 failed: expected a NullReferenceException, but {0} was thrown instead", e);
+            Console.WriteLine("Case 2 failed: expected a NullReferenceException, but {0} was thrown instead", e);
+            success = false;
         }
+
+        return success ? 100 : 0;
     }
 }

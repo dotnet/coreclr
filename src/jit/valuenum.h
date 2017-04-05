@@ -537,6 +537,9 @@ public:
     // Returns true iff the VN represents an integeral constant.
     bool IsVNInt32Constant(ValueNum vn);
 
+    // Returns true iff the VN represents an integral constant that is not 0.
+    bool IsVNNonZeroIntConstant(ValueNum vn);
+
     struct ArrLenUnsignedBoundInfo
     {
         unsigned cmpOper;

@@ -3096,6 +3096,33 @@ bool ValueNumStore::IsVNInt32Constant(ValueNum vn)
     return TypeOfVN(vn) == TYP_INT;
 }
 
+bool ValueNumStore::IsVNNonZeroIntConstant(ValueNum vn)
+{
+    if (!IsVNConstant(vn))
+    {
+        return false;
+    }
+
+    switch (TypeOfVN(vn))
+    {
+        case TYP_BOOL:
+        case TYP_BYTE:
+        case TYP_UBYTE:
+        case TYP_CHAR:
+        case TYP_SHORT:
+        case TYP_USHORT:
+        case TYP_INT:
+        case TYP_UINT:
+            return ConstantValue<int>(vn) != 0;
+
+        case TYP_LONG:
+        case TYP_ULONG:
+            return ConstantValue<INT64>(vn) != 0;
+    }
+
+    return false;
+}
+
 unsigned ValueNumStore::GetHandleFlags(ValueNum vn)
 {
     assert(IsVNHandle(vn));
@@ -6904,12 +6931,25 @@ void Compiler::fgValueNumberTree(GenTreePtr tree, bool evalAsgLhsInd)
                         excSet = vnStore->VNPExcSetUnion(excSet, ValueNumPair(overflowExcSet, overflowExcSet));
                     }
 
-                    // Divides add a divide-by-zero exception.
-                    if (tree->OperIs(GT_DIV, GT_UDIV))
+                    // Integer divides add a divide-by-zero exception unless the dividend is a constant that is not zero.
+                    if (!varTypeIsFloating(tree) && tree->OperIs(GT_DIV, GT_UDIV, GT_MOD, GT_UMOD))
                     {
-                        ValueNum divideByZeroExcSet =
-                            vnStore->VNExcSetSingleton(vnStore->VNForFunc(TYP_REF, VNF_DivideByZeroExc));
-                        excSet = vnStore->VNPExcSetUnion(excSet, ValueNumPair(divideByZeroExcSet, divideByZeroExcSet));
+                        ValueNumPair xvnp = ValueNumStore::VNPForEmptyExcSet();
+                        if (!vnStore->IsVNNonZeroIntConstant(op2vnp.GetLiberal()))
+                        {
+                            ValueNum divideByZeroExcSet =
+                                vnStore->VNExcSetSingleton(vnStore->VNForFunc(TYP_REF, VNF_DivideByZeroExc));
+                            xvnp.SetLiberal(divideByZeroExcSet);
+                        }
+
+                        if (!vnStore->IsVNNonZeroIntConstant(op2vnp.GetConservative()))
+                        {
+                            ValueNum divideByZeroExcSet =
+                                vnStore->VNExcSetSingleton(vnStore->VNForFunc(TYP_REF, VNF_DivideByZeroExc));
+                            xvnp.SetConservative(divideByZeroExcSet);
+                        }
+
+                        excSet = vnStore->VNPExcSetUnion(excSet, xvnp);
                     }
 
                     tree->gtVNPair = vnStore->VNPWithExc(normalRes, excSet);
