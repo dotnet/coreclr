@@ -86,15 +86,7 @@ namespace System.IO
             // Base class constructor will check info != null.
 
             FileName = info.GetString("FileLoad_FileName");
-
-            try
-            {
-                FusionLog = info.GetString("FileLoad_FusionLog");
-            }
-            catch
-            {
-                FusionLog = null;
-            }
+            FusionLog = info.GetString("FileLoad_FusionLog");
         }
 
         public override void GetObjectData(SerializationInfo info, StreamingContext context)
@@ -104,11 +96,7 @@ namespace System.IO
 
             // Serialize data for this class
             info.AddValue("FileLoad_FileName", FileName, typeof(string));
-            string fusionLog = FusionLog;
-            if (fusionLog != null)
-            {
-                info.AddValue("FileLoad_FusionLog", fusionLog, typeof(string));
-            }
+            info.AddValue("FileLoad_FusionLog", FusionLog, typeof(string));
         }
     }
 }
