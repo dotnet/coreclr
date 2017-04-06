@@ -119,10 +119,8 @@ namespace System.Text
             if (bytes.Length == 0)
                 bytes = new byte[1];
 
-            fixed (char* pChars = s)
-                fixed ( byte* pBytes = bytes)
-                    return GetBytes(pChars + charIndex, charCount,
-                                    pBytes + byteIndex, byteCount, null);
+            fixed (char* pChars = s) fixed (byte* pBytes = &bytes[0])
+                return GetBytes(pChars + charIndex, charCount, pBytes + byteIndex, byteCount, null);
         }
 
         // Encodes a range of characters in a character array into a range of bytes
@@ -166,11 +164,9 @@ namespace System.Text
             if (bytes.Length == 0)
                 bytes = new byte[1];
 
-            fixed (char* pChars = chars)
-                fixed (byte* pBytes = bytes)
-                    // Remember that byteCount is # to decode, not size of array.
-                    return GetBytes(pChars + charIndex, charCount,
-                                    pBytes + byteIndex, byteCount, null);            
+            fixed (char* pChars = chars) fixed (byte* pBytes = &bytes[0])
+                // Remember that byteCount is # to decode, not size of array.
+                return GetBytes(pChars + charIndex, charCount, pBytes + byteIndex, byteCount, null);            
         }
 
         // All of our public Encodings that don't use EncodingNLS must have this (including EncodingNLS)
@@ -266,11 +262,9 @@ namespace System.Text
             if (chars.Length == 0)
                 chars = new char[1];
 
-            fixed (byte* pBytes = bytes)
-                fixed (char* pChars = chars)
-                    // Remember that charCount is # to decode, not size of array
-                    return GetChars(pBytes + byteIndex, byteCount,
-                                    pChars + charIndex, charCount, null);
+            fixed (byte* pBytes = bytes) fixed (char* pChars = &chars[0])
+                // Remember that charCount is # to decode, not size of array
+                return GetChars(pBytes + byteIndex, byteCount, pChars + charIndex, charCount, null);
         }
 
         // All of our public Encodings that don't use EncodingNLS must have this (including EncodingNLS)
