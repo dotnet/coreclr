@@ -3118,9 +3118,10 @@ bool ValueNumStore::IsVNNonZeroIntConstant(ValueNum vn)
         case TYP_LONG:
         case TYP_ULONG:
             return ConstantValue<INT64>(vn) != 0;
-    }
 
-    return false;
+        default:
+            return false;
+    }
 }
 
 unsigned ValueNumStore::GetHandleFlags(ValueNum vn)
