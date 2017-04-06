@@ -4166,6 +4166,7 @@ struct GenTreeAddrMode : public GenTreeOp
     GenTreeAddrMode(var_types type, GenTreePtr base, GenTreePtr index, unsigned scale, unsigned offset)
         : GenTreeOp(GT_LEA, type, base, index)
     {
+        assert(base != nullptr || index != nullptr);
         gtScale  = scale;
         gtOffset = offset;
     }
