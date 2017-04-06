@@ -8634,9 +8634,9 @@ CorInfoIntrinsics CEEInfo::getIntrinsicID(CORINFO_METHOD_HANDLE methodHnd,
     else
     {
         MethodTable * pMT = method->GetMethodTable();
-        if (pMT->IsByRefLike() && pMT->GetModule()->IsSystem())
+        if (pMT->GetModule()->IsSystem())
         {
-            if (pMT->HasSameTypeDefAs(g_pByReferenceClass))
+            if (pMT->IsByRefLike() && pMT->HasSameTypeDefAs(g_pByReferenceClass))
             {
                 // ByReference<T> has just two methods: constructor and Value property
                 if (method->IsCtor())
@@ -8648,10 +8648,25 @@ CorInfoIntrinsics CEEInfo::getIntrinsicID(CORINFO_METHOD_HANDLE methodHnd,
                     _ASSERTE(strcmp(method->GetName(), "get_Value") == 0);
                     result = CORINFO_INTRINSIC_ByReference_Value;
                 }
-                *pMustExpand = true;
+                if (pMustExpand != nullptr)
+                {
+                    *pMustExpand = true;
+                }
             }
-
-            // TODO-SPAN: Span<T> intrinsics for optimizations
+            else if (pMT->HasSameTypeDefAs(MscorlibBinder::GetClass(CLASS__SPAN)))
+            {
+                if (method->HasSameMethodDefAs(MscorlibBinder::GetMethod(METHOD__SPAN__GET_ITEM)))
+                {
+                    result = CORINFO_INTRINSIC_Span_GetItem;
+                }
+            }
+            else if (pMT->HasSameTypeDefAs(MscorlibBinder::GetClass(CLASS__READONLY_SPAN)))
+            {
+                if (method->HasSameMethodDefAs(MscorlibBinder::GetMethod(METHOD__READONLY_SPAN__GET_ITEM)))
+                {
+                    result = CORINFO_INTRINSIC_ReadOnlySpan_GetItem;
+                }
+            }
         }
     }
 

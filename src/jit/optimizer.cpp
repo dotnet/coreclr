@@ -7638,11 +7638,25 @@ bool Compiler::optExtractArrIndex(GenTreePtr tree, ArrIndex* result, unsigned lh
     {
         return false;
     }
-    if (arrBndsChk->gtArrLen->gtGetOp1()->gtOper != GT_LCL_VAR)
+
+    // For span we may see gtArrLen is a local var.
+    unsigned arrLcl = BAD_VAR_NUM;
+
+    if (arrBndsChk->gtArrLen->gtOper == GT_LCL_VAR)
+    {
+        arrLcl = arrBndsChk->gtArrLen->gtLclVarCommon.gtLclNum;
+    }
+    else if (arrBndsChk->gtArrLen->gtGetOp1()->gtOper == GT_LCL_VAR)
+    {
+        arrLcl = arrBndsChk->gtArrLen->gtGetOp1()->gtLclVarCommon.gtLclNum;
+    }
+    else
     {
         return false;
     }
-    unsigned arrLcl = arrBndsChk->gtArrLen->gtGetOp1()->gtLclVarCommon.gtLclNum;
+
+    assert(arrLcl != BAD_VAR_NUM);
+
     if (lhsNum != BAD_VAR_NUM && arrLcl != lhsNum)
     {
         return false;

@@ -213,12 +213,11 @@ TODO: Talk about initializing strutures before use
     #define SELECTANY extern __declspec(selectany)
 #endif
 
-// Update this one
-SELECTANY const GUID JITEEVersionIdentifier = { /* f00b3f49-ddd2-49be-ba43-6e49ffa66959 */
-    0xf00b3f49,
-    0xddd2,
-    0x49be,
-    { 0xba, 0x43, 0x6e, 0x49, 0xff, 0xa6, 0x69, 0x59 }
+SELECTANY const GUID JITEEVersionIdentifier = { /* 2d784407-bfb1-40d0-95ea-5ad77e46f645 */
+    0x2d784407,
+    0xbfb1,
+    0x40d0,
+    {0x95, 0xea, 0x5a, 0xd7, 0x7e, 0x46, 0xf6, 0x45}
 };
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -959,6 +958,8 @@ enum CorInfoIntrinsics
     CORINFO_INTRINSIC_GetManagedThreadId,
     CORINFO_INTRINSIC_ByReference_Ctor,
     CORINFO_INTRINSIC_ByReference_Value,
+    CORINFO_INTRINSIC_Span_GetItem,
+    CORINFO_INTRINSIC_ReadOnlySpan_GetItem,
 
     CORINFO_INTRINSIC_Count,
     CORINFO_INTRINSIC_Illegal = -1,         // Not a true intrinsic,
