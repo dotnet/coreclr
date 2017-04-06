@@ -8,7 +8,7 @@ namespace System.IO
 {
     // Thrown when trying to access a file that doesn't exist on disk.
     [Serializable]
-    public class FileNotFoundException : IOException
+    public partial class FileNotFoundException : IOException
     {
         public FileNotFoundException()
             : base(SR.IO_FileNotFound)
@@ -98,15 +98,6 @@ namespace System.IO
 
             FileName = info.GetString("FileNotFound_FileName");
             FusionLog = info.GetString("FileNotFound_FusionLog");
-        }
-
-        private FileNotFoundException(string fileName, string fusionLog, int hResult)
-            : base(null)
-        {
-            SetErrorCode(hResult);
-            FileName = fileName;
-            FusionLog = fusionLog;
-            SetMessageField();
         }
 
         public override void GetObjectData(SerializationInfo info, StreamingContext context)
