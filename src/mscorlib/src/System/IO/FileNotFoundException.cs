@@ -2,10 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-using System;
 using System.Runtime.Serialization;
-using SecurityException = System.Security.SecurityException;
-using System.Globalization;
 
 namespace System.IO
 {
@@ -31,7 +28,8 @@ namespace System.IO
             SetErrorCode(__HResults.COR_E_FILENOTFOUND);
         }
 
-        public FileNotFoundException(string message, string fileName) : base(message)
+        public FileNotFoundException(string message, string fileName) 
+            : base(message)
         {
             SetErrorCode(__HResults.COR_E_FILENOTFOUND);
             FileName = fileName;
@@ -69,7 +67,6 @@ namespace System.IO
         public string FileName { get; }
         public string FusionLog { get; }
 
-
         public override string ToString()
         {
             string s = GetType().ToString() + ": " + Message;
@@ -83,36 +80,24 @@ namespace System.IO
             if (StackTrace != null)
                 s += Environment.NewLine + StackTrace;
 
-            try
+            if (FusionLog != null)
             {
-                if (FusionLog != null)
-                {
-                    if (s == null)
-                        s = " ";
-                    s += Environment.NewLine;
-                    s += Environment.NewLine;
-                    s += FusionLog;
-                }
-            }
-            catch (SecurityException)
-            {
+                if (s == null)
+                    s = " ";
+                s += Environment.NewLine;
+                s += Environment.NewLine;
+                s += FusionLog;
             }
             return s;
         }
 
-        protected FileNotFoundException(SerializationInfo info, StreamingContext context) : base(info, context)
+        protected FileNotFoundException(SerializationInfo info, StreamingContext context)
+            : base(info, context)
         {
             // Base class constructor will check info != null.
 
             FileName = info.GetString("FileNotFound_FileName");
-            try
-            {
-                FusionLog = info.GetString("FileNotFound_FusionLog");
-            }
-            catch
-            {
-                FusionLog = null;
-            }
+            FusionLog = info.GetString("FileNotFound_FusionLog");
         }
 
         private FileNotFoundException(string fileName, string fusionLog, int hResult)
@@ -131,14 +116,7 @@ namespace System.IO
 
             // Serialize data for this class
             info.AddValue("FileNotFound_FileName", FileName, typeof(string));
-
-            try
-            {
-                info.AddValue("FileNotFound_FusionLog", FusionLog, typeof(string));
-            }
-            catch (SecurityException)
-            {
-            }
+            info.AddValue("FileNotFound_FusionLog", FusionLog, typeof(string));
         }
     }
 }
