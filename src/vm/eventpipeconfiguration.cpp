@@ -4,18 +4,16 @@
 
 #include "common.h"
 #include "eventpipeconfiguration.h"
-
-EventPipeConfiguration::ProviderConfiguration EventPipeConfiguration::s_runtimeProviderConfig = {RuntimeProviderID,0};
-EventPipeConfiguration::ProviderConfiguration EventPipeConfiguration::s_privateProviderConfig = {PrivateProviderID,0};
-EventPipeConfiguration::ProviderConfiguration EventPipeConfiguration::s_rundownProviderConfig = {RundownProviderID,0};
-EventPipeConfiguration::ProviderConfiguration EventPipeConfiguration::s_stressProviderConfig = {StressProviderID,0};
+#include "eventpipeprovider.h"
 
 EventPipeConfiguration::EventPipeConfiguration()
 {
     LIMITED_METHOD_CONTRACT;
+
+    m_nextProviderIndex = 0;
 }
 
-bool EventPipeConfiguration::SetConfiguration(const GUID &providerID, INT64 keywords)
+void EventPipeConfiguration::DisableAllProviders()
 {
     CONTRACTL
     {
@@ -25,16 +23,10 @@ bool EventPipeConfiguration::SetConfiguration(const GUID &providerID, INT64 keyw
     }
     CONTRACTL_END;
 
-    EventPipeConfiguration::ProviderConfiguration *pConfig = GetProviderConfig(providerID);
-    if(pConfig == NULL)
-    {
-        return false;
-    }
-
-    return pConfig->SetKeywords(keywords);
+    // TODO
 }
 
-bool EventPipeConfiguration::DisableAllProviders()
+EventPipeProvider* EventPipeConfiguration::GetOrCreateProvider(const GUID &providerID)
 {
     CONTRACTL
     {
@@ -44,84 +36,25 @@ bool EventPipeConfiguration::DisableAllProviders()
     }
     CONTRACTL_END;
 
-    return (SetConfiguration(RuntimeProviderID, 0) &&
-        SetConfiguration(PrivateProviderID, 0) &&
-        SetConfiguration(RundownProviderID, 0) &&
-        SetConfiguration(StressProviderID, 0));
-}
+    EventPipeProvider * pProvider = NULL;
 
-bool EventPipeConfiguration::ProviderEnabled(const GUID &providerID)
-{
-    CONTRACTL
+    // Attempt to find the provider.
+    for(int i=0; i<m_nextProviderIndex; i++)
     {
-        NOTHROW;
-        GC_NOTRIGGER;
-        MODE_ANY;
-    }
-    CONTRACTL_END;
-
-    EventPipeConfiguration::ProviderConfiguration *pConfig = NULL;
-    pConfig = GetProviderConfig(providerID);
-    if(pConfig != NULL)
-    {
-        return (pConfig->GetEnabledKeywords() != 0);
+        _ASSERTE(m_providers[i] != NULL);
+        if(providerID == m_providers[i]->GetProviderID())
+        {
+            pProvider = m_providers[i];
+            break;
+        }
     }
 
-    return false;
-}
-
-bool EventPipeConfiguration::KeywordEnabled(const GUID &providerID, INT64 keyword)
-{
-    CONTRACTL
+    // If we did not find the provider create it.
+    if(pProvider == NULL)
     {
-        NOTHROW;
-        GC_NOTRIGGER;
-        MODE_ANY;
-    }
-    CONTRACTL_END;
-
-    EventPipeConfiguration::ProviderConfiguration *pConfig = NULL;
-    pConfig = GetProviderConfig(providerID);
-    if(pConfig != NULL)
-    {
-        return (pConfig->GetEnabledKeywords() & keyword);
+        pProvider = new EventPipeProvider(providerID);
+        m_providers[m_nextProviderIndex++] = pProvider;
     }
 
-    return false;
-}
-
-EventPipeConfiguration::ProviderConfiguration* EventPipeConfiguration::GetProviderConfig(const GUID &providerID)
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_NOTRIGGER;
-        MODE_ANY;
-    }
-    CONTRACTL_END;
-
-    EventPipeConfiguration::ProviderConfiguration *pConfig = NULL;
-
-    if(IsEqualGUID(providerID, RuntimeProviderID))
-    {
-        pConfig = &s_runtimeProviderConfig;
-    }
-    else if(IsEqualGUID(providerID, PrivateProviderID))
-    {
-        pConfig = &s_privateProviderConfig;
-    }
-    else if(IsEqualGUID(providerID, RundownProviderID))
-    {
-        pConfig = &s_rundownProviderConfig;
-    }
-    else if(IsEqualGUID(providerID, StressProviderID))
-    {
-        pConfig = &s_stressProviderConfig;
-    }
-    else
-    {
-        _ASSERT(!"Invalid provider ID specified.");
-    }
-
-    return pConfig;
+    return pProvider;
 }

@@ -5,6 +5,7 @@
 #include "common.h"
 #include "eventpipe.h"
 #include "eventpipeconfiguration.h"
+#include "eventpipeevent.h"
 #include "eventpipejsonfile.h"
 #include "sampleprofiler.h"
 
@@ -120,25 +121,7 @@ void EventPipe::Disable()
     }
 }
 
-bool EventPipe::EventEnabled(GUID &providerID, INT64 keyword)
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_NOTRIGGER;
-        MODE_ANY;
-    }
-    CONTRACTL_END;
-
-    if(s_pConfig == NULL)
-    {
-        return false;
-    }
-
-    return s_pConfig->KeywordEnabled(providerID, keyword);
-}
-
-void EventPipe::WriteEvent(GUID &providerID, INT64 keyword, INT64 eventID, BYTE *pData, size_t length, bool sampleStack)
+void EventPipe::WriteEvent(EventPipeEvent &event, BYTE *pData, size_t length)
 {
     CONTRACTL
     {
@@ -149,15 +132,16 @@ void EventPipe::WriteEvent(GUID &providerID, INT64 keyword, INT64 eventID, BYTE 
     CONTRACTL_END;
 
     // Exit early if the event is not enabled.
-    if(!EventEnabled(providerID, keyword))
+    if(!event.IsEnabled())
     {
         return;
     }
 
     // Walk the stack if requested.
     StackContents stackContents;
-    bool stackWalkSucceeded;
-    if(sampleStack)
+    bool stackWalkSucceeded = false;
+
+    if(event.NeedStack())
     {
         stackWalkSucceeded = WalkManagedStackForCurrentThread(stackContents);
     }
