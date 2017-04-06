@@ -2,18 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-/*============================================================
-**
-** 
-** 
-** 
-**
-**
-** Purpose: Exception for accessing a file that doesn't exist.
-**
-**
-===========================================================*/
-
 using System;
 using System.Runtime.Serialization;
 using SecurityException = System.Security.SecurityException;
@@ -25,8 +13,8 @@ namespace System.IO
     [Serializable]
     public class FileNotFoundException : IOException
     {
-        private String _fileName;  // The name of the file that isn't found.
-        private String _fusionLog;  // fusion log (when applicable)
+        private string _fileName;  // The name of the file that isn't found.
+        private string _fusionLog;  // fusion log (when applicable)
 
         public FileNotFoundException()
             : base(SR.IO_FileNotFound)
@@ -34,32 +22,32 @@ namespace System.IO
             SetErrorCode(__HResults.COR_E_FILENOTFOUND);
         }
 
-        public FileNotFoundException(String message)
+        public FileNotFoundException(string message)
             : base(message)
         {
             SetErrorCode(__HResults.COR_E_FILENOTFOUND);
         }
 
-        public FileNotFoundException(String message, Exception innerException)
+        public FileNotFoundException(string message, Exception innerException)
             : base(message, innerException)
         {
             SetErrorCode(__HResults.COR_E_FILENOTFOUND);
         }
 
-        public FileNotFoundException(String message, String fileName) : base(message)
+        public FileNotFoundException(string message, string fileName) : base(message)
         {
             SetErrorCode(__HResults.COR_E_FILENOTFOUND);
             _fileName = fileName;
         }
 
-        public FileNotFoundException(String message, String fileName, Exception innerException)
+        public FileNotFoundException(string message, string fileName, Exception innerException)
             : base(message, innerException)
         {
             SetErrorCode(__HResults.COR_E_FILENOTFOUND);
             _fileName = fileName;
         }
 
-        public override String Message
+        public override string Message
         {
             get
             {
@@ -81,14 +69,14 @@ namespace System.IO
             }
         }
 
-        public String FileName
+        public string FileName
         {
             get { return _fileName; }
         }
 
-        public override String ToString()
+        public override string ToString()
         {
-            String s = GetType().FullName + ": " + Message;
+            string s = GetType().FullName + ": " + Message;
 
             if (_fileName != null && _fileName.Length != 0)
                 s += Environment.NewLine + SR.Format(SR.IO_FileName_Name, _fileName);
@@ -131,7 +119,7 @@ namespace System.IO
             }
         }
 
-        private FileNotFoundException(String fileName, String fusionLog, int hResult)
+        private FileNotFoundException(string fileName, string fusionLog, int hResult)
             : base(null)
         {
             SetErrorCode(hResult);
@@ -140,7 +128,7 @@ namespace System.IO
             SetMessageField();
         }
 
-        public String FusionLog
+        public string FusionLog
         {
             get { return _fusionLog; }
         }
@@ -151,11 +139,11 @@ namespace System.IO
             base.GetObjectData(info, context);
 
             // Serialize data for this class
-            info.AddValue("FileNotFound_FileName", _fileName, typeof(String));
+            info.AddValue("FileNotFound_FileName", _fileName, typeof(string));
 
             try
             {
-                info.AddValue("FileNotFound_FusionLog", FusionLog, typeof(String));
+                info.AddValue("FileNotFound_FusionLog", FusionLog, typeof(string));
             }
             catch (SecurityException)
             {
