@@ -8166,7 +8166,6 @@ void CodeGen::genPushReg(var_types type, regNumber srcReg)
 //    type   - the type of value to be stored
 //    reg    - the register containing the value
 //    offset - the offset from the base (see Assumptions below)
-// argOffset - additional argument offset from the base like m_stkArgOffset
 //
 // Notes:
 //    A type of TYP_STRUCT instructs this method to store a 16-byte chunk
