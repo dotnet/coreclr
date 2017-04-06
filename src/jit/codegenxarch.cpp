@@ -7859,12 +7859,6 @@ void CodeGen::genPutArgStkFieldList(GenTreePutArgStk* putArgStk)
                     // mov      gword ptr [esp+argOffset], eax
                     getEmitter()->emitIns_R_S(ins_Store(fieldType), typeSize, REG_SCRATCH, tmp->tdTempNum(), 0);
                     getEmitter()->emitIns_AR_R(ins_Store(fieldType), EA_4BYTE, REG_SCRATCH, REG_SPBASE, argOffsetOut);
-
-                    // remove this after we meet this block and it's tested
-                    instGen(INS_nop);
-                    instGen(INS_nop);
-                    instGen(INS_nop);
-                    assert(false);
 #else
                     getEmitter()->emitIns_S(INS_push, typeSize, tmp->tdTempNum(), 0);
 #endif
