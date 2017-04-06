@@ -692,29 +692,6 @@ void Assembler::StartMethod(__in __nullterminated char* name, BinStr* sig, CorMe
             {
                 flags = (CorMethodAttr)(flags | mdSpecialName);
                 if(IsTdInterface(m_pCurClass->m_Attr)) report->error("Instance constructor in interface\n");
-
-            }
-            if(!IsMdStatic(flags))
-            {
-                if(IsTdInterface(m_pCurClass->m_Attr))
-                {
-                    // Allow explicit method override in interfaces on C#
-                    // @DIM_TODO - Add other checks once we made a decision on which visibility flags are allowed
-                    // if(!IsMdPublic(flags)) report->error("Non-public instance method in interface\n");
-
-                    // Allow both abstract and non-abstract virtual slots (for default interface method support)
-                    if(!IsMdVirtual(flags))
-                    {
-                        // @DIM_TODO - What about non-virtuals?
-                        if(OnErrGo) report->error("Non-virtual instance method in interface\n");
-                        else
-                        {
-                            report->warn("Non-virtual instance method in interface, set to such\n");
-                            flags = (CorMethodAttr)(flags | mdVirtual);
-                        }
-                    }
-    
-                }
             }
             m_pCurMethod = new Method(this, m_pCurClass, name, sig, flags);
         }

@@ -5,6 +5,34 @@ interface IBlah
     int Blah(int c);    
 }
 
+// All methods go into IBlah
+class IBlah_Impl
+{
+    public int Blah(int c)
+    {
+        Console.WriteLine("At IBlah.Blah"); 
+        return c + Blah_Private_GetA() + Blah_Internal_GetB() + Blah_Protected_GetC();        
+    }
+
+    private int Blah_Private_GetA()
+    {
+        Console.WriteLine("At IBlah.Blah_Private_GetA");
+        return 1;
+    }
+
+    internal int Blah_Internal_GetB()
+    {
+        Console.WriteLine("At IBlah.Blah_Internal_GetB"); 
+        return 2;
+    }
+
+    protected int Blah_Protected_GetC()
+    {
+        Console.WriteLine("At IBlah.Blah_Protected_GetC"); 
+        return 3;
+    }
+}
+
 interface IFoo
 {
     int Foo(int a);
@@ -19,8 +47,8 @@ class Base : IBlah
 {
     public int Blah(int c)
     {
-        Console.WriteLine("At IBlah.Blah");
-        return c+20;
+        // Dummy
+        return 0;    
     }
 }
 
@@ -36,6 +64,12 @@ class FooBar : Base, IFoo, IBar
     {
         Console.WriteLine("At IBar.Bar");
         return b+10;
+    }
+
+    public int CallBlahProtected()
+    {
+        // change to IBlah.Blah_Protected_GetC();        
+        return CallBlahProtected();
     }
 }
 
@@ -54,8 +88,12 @@ class Program
         Console.WriteLine("Calling IBar.Bar on FooBar - expecting default method on IBar.Bar. ");
         Test.Assert(bar.Bar(10) == 20, "Calling IBar.Bar on FooBar");
 
-        Console.WriteLine("Calling IBar.Bar on FooBar - expecting default method on IBlah.Blah from Base. ");
-        Test.Assert(blah.Blah(10) == 30, "Calling IBlah.Blah on FooBar");
+        Console.WriteLine("Calling IBlah.Blah on FooBar - expecting default method on IBlah.Blah from Base. ");
+        Test.Assert(blah.Blah(10) == 16, "Calling IBlah.Blah on FooBar");
+
+
+        Console.WriteLine("Calling FooBar.CallBlahProtected - expecting protected methods on interface can be called");
+        Test.Assert(fooBar.CallBlahProtected() == 3, "Calling FooBar.CallBlahProtected");
 
         return Test.Ret();
     }

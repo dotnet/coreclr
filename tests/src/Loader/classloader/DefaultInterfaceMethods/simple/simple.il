@@ -23,13 +23,13 @@
   .ver 0:0:0:0
 }
 .module simple.exe
-// MVID: {0DD8B5A1-29C8-446C-AD18-E902ACD231D1}
+// MVID: {0B8FCFD0-673A-4DEB-90CC-B96749DE09C8}
 .imagebase 0x00400000
 .file alignment 0x00000200
 .stackreserve 0x00100000
 .subsystem 0x0003       // WINDOWS_CUI
 .corflags 0x00000001    //  ILONLY
-// Image base: 0x01030000
+// Image base: 0x01A80000
 
 
 // =============== CLASS MEMBERS DECLARATION ===================
@@ -39,7 +39,7 @@
   .method public hidebysig newslot virtual 
           instance int32  Blah(int32 c) cil managed
   {
-    // Code size       21 (0x15)
+    // Code size       39 (0x27)
     .maxstack  2
     .locals init (int32 V_0)
     IL_0000:  nop
@@ -47,15 +47,75 @@
     IL_0006:  call       void [mscorlib]System.Console::WriteLine(string)
     IL_000b:  nop
     IL_000c:  ldarg.1
-    IL_000d:  ldc.i4.s   20
-    IL_000f:  add
-    IL_0010:  stloc.0
-    IL_0011:  br.s       IL_0013
+    IL_000d:  ldarg.0
+    IL_000e:  call       instance int32 IBlah::Blah_Private_GetA()
+    IL_0013:  add
+    IL_0014:  ldarg.0
+    IL_0015:  call       instance int32 IBlah::Blah_Internal_GetB()
+    IL_001a:  add
+    IL_001b:  ldarg.0
+    IL_001c:  call       instance int32 IBlah::Blah_Protected_GetC()
+    IL_0021:  add
+    IL_0022:  stloc.0
+    IL_0023:  br.s       IL_0025
 
-    IL_0013:  ldloc.0
-    IL_0014:  ret   
+    IL_0025:  ldloc.0
+    IL_0026:  ret 
   } // end of method IBlah::Blah
 
+  .method private hidebysig instance int32 
+          Blah_Private_GetA() cil managed
+  {
+    // Code size       18 (0x12)
+    .maxstack  1
+    .locals init (int32 V_0)
+    IL_0000:  nop
+    IL_0001:  ldstr      "At IBlah.Blah_Private_GetA"
+    IL_0006:  call       void [mscorlib]System.Console::WriteLine(string)
+    IL_000b:  nop
+    IL_000c:  ldc.i4.1
+    IL_000d:  stloc.0
+    IL_000e:  br.s       IL_0010
+
+    IL_0010:  ldloc.0
+    IL_0011:  ret
+  } // end of method IBlah_Impl::Blah_Private_GetA
+
+  .method assembly hidebysig instance int32 
+          Blah_Internal_GetB() cil managed
+  {
+    // Code size       18 (0x12)
+    .maxstack  1
+    .locals init (int32 V_0)
+    IL_0000:  nop
+    IL_0001:  ldstr      "At IBlah.Blah_Internal_GetB"
+    IL_0006:  call       void [mscorlib]System.Console::WriteLine(string)
+    IL_000b:  nop
+    IL_000c:  ldc.i4.2
+    IL_000d:  stloc.0
+    IL_000e:  br.s       IL_0010
+
+    IL_0010:  ldloc.0
+    IL_0011:  ret
+  } // end of method IBlah_Impl::Blah_Internal_GetB
+
+  .method family hidebysig instance int32 
+          Blah_Protected_GetC() cil managed
+  {
+    // Code size       18 (0x12)
+    .maxstack  1
+    .locals init (int32 V_0)
+    IL_0000:  nop
+    IL_0001:  ldstr      "At IBlah.Blah_Protected_GetC"
+    IL_0006:  call       void [mscorlib]System.Console::WriteLine(string)
+    IL_000b:  nop
+    IL_000c:  ldc.i4.3
+    IL_000d:  stloc.0
+    IL_000e:  br.s       IL_0010
+
+    IL_0010:  ldloc.0
+    IL_0011:  ret
+  } // end of method IBlah_Impl::Blah_Protected_GetC
 } // end of class IBlah
 
 .class interface private abstract auto ansi IFoo
@@ -128,6 +188,22 @@
        implements IFoo,
                   IBar
 {
+  .method public hidebysig instance int32 
+          CallBlahProtected() cil managed
+  {
+    // Code size       12 (0xc)
+    .maxstack  1
+    .locals init (int32 V_0)
+    IL_0000:  nop
+    IL_0001:  ldarg.0
+    IL_0002:  call       instance int32 IBlah::Blah_Protected_GetC()
+    IL_0007:  stloc.0
+    IL_0008:  br.s       IL_000a
+
+    IL_000a:  ldloc.0
+    IL_000b:  ret
+  } // end of method FooBar::CallBlahProtected
+
   .method public hidebysig specialname rtspecialname 
           instance void  .ctor() cil managed
   {
@@ -147,7 +223,7 @@
   .method public hidebysig static int32  Main() cil managed
   {
     .entrypoint
-    // Code size       127 (0x7f)
+    // Code size       158 (0x9e)
     .maxstack  2
     .locals init (class FooBar V_0,
              class IFoo V_1,
@@ -189,25 +265,37 @@
     IL_004b:  call       void Test::Assert(bool,
                                            string)
     IL_0050:  nop
-    IL_0051:  ldstr      "Calling IBar.Bar on FooBar - expecting default met"
-    + "hod on IBlah.Blah from Base. "
+    IL_0051:  ldstr      "Calling IBlah.Blah on FooBar - expecting default m"
+    + "ethod on IBlah.Blah from Base. "
     IL_0056:  call       void [mscorlib]System.Console::WriteLine(string)
     IL_005b:  nop
     IL_005c:  ldloc.3
     IL_005d:  ldc.i4.s   10
     IL_005f:  callvirt   instance int32 IBlah::Blah(int32)
-    IL_0064:  ldc.i4.s   30
+    IL_0064:  ldc.i4.s   16
     IL_0066:  ceq
     IL_0068:  ldstr      "Calling IBlah.Blah on FooBar"
     IL_006d:  call       void Test::Assert(bool,
                                            string)
     IL_0072:  nop
-    IL_0073:  call       int32 Test::Ret()
-    IL_0078:  stloc.s    V_4
-    IL_007a:  br.s       IL_007c
+    IL_0073:  ldstr      "Calling FooBar.CallBlahProtected - expecting prote"
+    + "cted methods on interface can be called"
+    IL_0078:  call       void [mscorlib]System.Console::WriteLine(string)
+    IL_007d:  nop
+    IL_007e:  ldloc.0
+    IL_007f:  callvirt   instance int32 FooBar::CallBlahProtected()
+    IL_0084:  ldc.i4.3
+    IL_0085:  ceq
+    IL_0087:  ldstr      "Calling FooBar.CallBlahProtected"
+    IL_008c:  call       void Test::Assert(bool,
+                                           string)
+    IL_0091:  nop
+    IL_0092:  call       int32 Test::Ret()
+    IL_0097:  stloc.s    V_4
+    IL_0099:  br.s       IL_009b
 
-    IL_007c:  ldloc.s    V_4
-    IL_007e:  ret
+    IL_009b:  ldloc.s    V_4
+    IL_009d:  ret
   } // end of method Program::Main
 
   .method public hidebysig specialname rtspecialname 

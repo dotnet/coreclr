@@ -1,40 +1,52 @@
 using System;
 
-interface IFoo
+interface IValue
 {
-    int Foo(int a);
-}
-
-interface ISum
-{
-    int Sum();
+    int GetValue();
+    void SetValue(int a);
+    int Add(int a);
 }
 
 // This class is only needed to spit out IL that assumes 'this' is an object (and therefore don't box)
-class FooBarStruct_
+struct FooBarStruct_ : IValue
 {
-    public int Foo(int a)
+    public int GetValue()
     {
-        Console.WriteLine("At ISum::Sum");
-        ISum sum = (ISum) this;
-        return sum.Sum() + a;
+        return 0;
+    }
+
+    public void SetValue(int val)
+    {
+    }
+
+    public int Add(int a)
+    {
+        // Force cast and boxing
+        IValue valueIntf = this as IValue; 
+        int val = valueIntf.GetValue();
+        val += a;
+        valueIntf.SetValue(val);
+        return val;
     }
 }
 
-struct FooBarStruct : IFoo, ISum
+struct FooBarStruct : IValue
 {
-    public int a;
-    public int b;
+    public int _val;
 
-    public int Sum()
+    public int GetValue()
     {
-        Console.WriteLine("At FooBarStruct::Sum");
-        return a+b;
+        return _val;
     }
 
-    public int Foo(int a)
+    public void SetValue(int val)
     {
-        // Dummy code - real code is in FooBarStruct_
+        _val = val;
+    }
+
+    public int Add(int a)
+    {
+        // Dummy
         return 0;
     }   
 }
@@ -45,13 +57,13 @@ class Program
     {
         FooBarStruct fooBar = new FooBarStruct();
 
-        fooBar.a = 10;
-        fooBar.b = 20;
+        fooBar._val = 10;
 
-        IFoo foo = (IFoo) fooBar;
+        IValue foo = (IValue) fooBar;
 
         Console.WriteLine("Calling IFoo.Foo on FooBarStruct");
-        Test.Assert(foo.Foo(10) == 40, "Calling default method IFoo.Foo on FooBarStruct failed");
+        Test.Assert(foo.Add(10) == 20, "Calling default method IValue.Add on FooBarStruct failed");
+        Test.Assert(fooBar.GetValue() == 10, "FooBarStruct value should remain unchanged");
 
         return Test.Ret();
     }

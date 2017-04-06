@@ -2620,19 +2620,6 @@ VOID    MethodTableBuilder::EnumerateClassMethods()
             }
         }
 
-        // Some interface checks.
-        if (IsInterface())
-        {
-            if (!IsMdVirtual(dwMemberAttrs))
-            {
-                // Instance field/method
-                if (!IsMdStatic(dwMemberAttrs))
-                {
-                    BuildMethodTableThrowException(BFA_NONVIRT_INST_INT_METHOD);
-                }
-            }
-        }
-
         // No synchronized methods in ValueTypes
         if(fIsClassValueType && IsMiSynchronized(dwImplFlags))
         {

@@ -23,83 +23,90 @@
   .ver 0:0:0:0
 }
 .module valuetypes.exe
-// MVID: {9846D80F-5EE3-4996-B805-CDC59811204D}
+// MVID: {E191F723-B724-4D70-B3A8-CEA89FD033D3}
 .imagebase 0x00400000
 .file alignment 0x00000200
 .stackreserve 0x00100000
 .subsystem 0x0003       // WINDOWS_CUI
 .corflags 0x00000001    //  ILONLY
-// Image base: 0x01020000
+// Image base: 0x01170000
 
 
 // =============== CLASS MEMBERS DECLARATION ===================
 
-.class interface private abstract auto ansi IFoo
-{
-  .method public hidebysig newslot virtual 
-          instance int32  Foo(int32 a) cil managed
-  {
-    // Code size       32 (0x20)
-    .maxstack  2
-    .locals init (class ISum V_0,
-             int32 V_1)
-    IL_0000:  nop
-    IL_0001:  ldstr      "At ISum::Sum"
-    IL_0006:  call       void [mscorlib]System.Console::WriteLine(string)
-    IL_000b:  nop
-    IL_000c:  ldarg.0
-    IL_000d:  castclass  ISum
-    IL_0012:  stloc.0
-    IL_0013:  ldloc.0
-    IL_0014:  callvirt   instance int32 ISum::Sum()
-    IL_0019:  ldarg.1
-    IL_001a:  add
-    IL_001b:  stloc.1
-    IL_001c:  br.s       IL_001e
-
-    IL_001e:  ldloc.1
-    IL_001f:  ret
-  } // end of method IFoo::Foo
-
-} // end of class IFoo
-
-.class interface private abstract auto ansi ISum
+.class interface private abstract auto ansi IValue
 {
   .method public hidebysig newslot abstract virtual 
-          instance int32  Sum() cil managed
+          instance int32  GetValue() cil managed
   {
-  } // end of method ISum::Sum
+  } // end of method IValue::GetValue
 
-} // end of class ISum
+  .method public hidebysig newslot abstract virtual 
+          instance void  SetValue(int32 a) cil managed
+  {
+  } // end of method IValue::SetValue
+
+  .method public hidebysig newslot virtual 
+          instance int32  Add(int32 a) cil managed
+  {
+    // Code size       26 (0x1a)
+    .maxstack  2
+    .locals init (int32 V_0,
+             int32 V_1)
+    IL_0000:  nop
+    IL_0001:  ldarg.0
+    IL_0002:  call       instance int32 IValue::GetValue()
+    IL_0007:  stloc.0
+    IL_0008:  ldloc.0
+    IL_0009:  ldarg.1
+    IL_000a:  add
+    IL_000b:  stloc.0
+    IL_000c:  ldarg.0
+    IL_000d:  ldloc.0
+    IL_000e:  call       instance void IValue::SetValue(int32)
+    IL_0013:  nop
+    IL_0014:  ldloc.0
+    IL_0015:  stloc.1
+    IL_0016:  br.s       IL_0018
+
+    IL_0018:  ldloc.1
+    IL_0019:  ret
+  } // end of method IValue::Add
+
+} // end of class IValue
 
 .class private sequential ansi sealed beforefieldinit FooBarStruct
        extends [mscorlib]System.ValueType
-       implements IFoo,
-                  ISum
+       implements IValue
 {
-  .field public int32 a
-  .field public int32 b
+  .field public int32 _val
   .method public hidebysig newslot virtual final 
-          instance int32  Sum() cil managed
+          instance int32  GetValue() cil managed
   {
-    // Code size       30 (0x1e)
-    .maxstack  2
+    // Code size       12 (0xc)
+    .maxstack  1
     .locals init (int32 V_0)
     IL_0000:  nop
-    IL_0001:  ldstr      "At FooBarStruct::Sum"
-    IL_0006:  call       void [mscorlib]System.Console::WriteLine(string)
-    IL_000b:  nop
-    IL_000c:  ldarg.0
-    IL_000d:  ldfld      int32 FooBarStruct::a
-    IL_0012:  ldarg.0
-    IL_0013:  ldfld      int32 FooBarStruct::b
-    IL_0018:  add
-    IL_0019:  stloc.0
-    IL_001a:  br.s       IL_001c
+    IL_0001:  ldarg.0
+    IL_0002:  ldfld      int32 FooBarStruct::_val
+    IL_0007:  stloc.0
+    IL_0008:  br.s       IL_000a
 
-    IL_001c:  ldloc.0
-    IL_001d:  ret
-  } // end of method FooBarStruct::Sum
+    IL_000a:  ldloc.0
+    IL_000b:  ret
+  } // end of method FooBarStruct::GetValue
+
+  .method public hidebysig newslot virtual final 
+          instance void  SetValue(int32 val) cil managed
+  {
+    // Code size       9 (0x9)
+    .maxstack  8
+    IL_0000:  nop
+    IL_0001:  ldarg.0
+    IL_0002:  ldarg.1
+    IL_0003:  stfld      int32 FooBarStruct::_val
+    IL_0008:  ret
+  } // end of method FooBarStruct::SetValue
 } // end of class FooBarStruct
 
 .class private auto ansi beforefieldinit Program
@@ -108,42 +115,42 @@
   .method public hidebysig static int32  Main() cil managed
   {
     .entrypoint
-    // Code size       78 (0x4e)
     .maxstack  2
     .locals init (valuetype FooBarStruct V_0,
-             class IFoo V_1,
+             class IValue V_1,
              int32 V_2)
     IL_0000:  nop
     IL_0001:  ldloca.s   V_0
     IL_0003:  initobj    FooBarStruct
     IL_0009:  ldloca.s   V_0
     IL_000b:  ldc.i4.s   10
-    IL_000d:  stfld      int32 FooBarStruct::a
-    IL_0012:  ldloca.s   V_0
-    IL_0014:  ldc.i4.s   20
-    IL_0016:  stfld      int32 FooBarStruct::b
-    IL_001b:  ldloc.0
-    IL_001c:  box        FooBarStruct
-    IL_0021:  stloc.1
-    IL_0022:  ldstr      "Calling IFoo.Foo on FooBarStruct"
-    IL_0027:  call       void [mscorlib]System.Console::WriteLine(string)
-    IL_002c:  nop
-    IL_002d:  ldloc.1
-    IL_002e:  ldc.i4.s   10
-    IL_0030:  callvirt   instance int32 IFoo::Foo(int32)
-    IL_0035:  ldc.i4.s   40
-    IL_0037:  ceq
-    IL_0039:  ldstr      "Calling default method IFoo.Foo on FooBarStruct fa"
-    + "iled"
-    IL_003e:  call       void Test::Assert(bool,
+    IL_000d:  stfld      int32 FooBarStruct::_val
+    IL_0012:  ldloc.0
+    IL_0013:  box        FooBarStruct
+    IL_0018:  stloc.1
+    IL_0019:  ldstr      "Calling IFoo.Foo on FooBarStruct"
+    IL_001e:  call       void [mscorlib]System.Console::WriteLine(string)
+    IL_0023:  nop
+    IL_0024:  ldloc.1
+    IL_0025:  ldc.i4.s   10
+    IL_0027:  callvirt   instance int32 IValue::Add(int32)
+    IL_002c:  ldc.i4.s   20
+    IL_002e:  ceq
+    IL_0030:  ldstr      "Calling default method IValue.Add on FooBarStruct "
+    + "failed"
+    IL_0035:  call       void Test::Assert(bool,
                                            string)
-    IL_0043:  nop
-    IL_0044:  call       int32 Test::Ret()
-    IL_0049:  stloc.2
-    IL_004a:  br.s       IL_004c
-
-    IL_004c:  ldloc.2
-    IL_004d:  ret
+    IL_003a:  nop
+    IL_003b:  ldloca     V_0
+              callvirt   instance int32 FooBarStruct::GetValue()
+              ldc.i4.s   10
+              ceq
+              ldstr      "FooBarStruct value should remain unchanged"
+              call       void Test::Assert(bool,
+                                           string)
+              nop
+              call       int32 Test::Ret()
+              ret
   } // end of method Program::Main
 
   .method public hidebysig specialname rtspecialname 

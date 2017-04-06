@@ -2886,6 +2886,17 @@ MethodTableBuilder::EnumerateClassMethods()
                 BuildMethodTableThrowException(BFA_NONVIRT_AB_METHOD);
             }
         }
+        else if(fIsClassInterface)		
+        {		
+            if (IsMdRTSpecialName(dwMemberAttrs))
+            {		
+                CONSISTENCY_CHECK(CheckPointer(strMethodName));		
+                if (strcmp(strMethodName, COR_CCTOR_METHOD_NAME))		
+                {		
+                    BuildMethodTableThrowException(BFA_NONAB_NONCCTOR_METHOD_ON_INT);		
+                }		
+            }		
+        }
 
         // Virtual / not virtual
         if(IsMdVirtual(dwMemberAttrs))
@@ -2901,19 +2912,6 @@ MethodTableBuilder::EnumerateClassMethods()
             if(strMethodName && (0==strcmp(strMethodName, COR_CTOR_METHOD_NAME)))
             {
                 BuildMethodTableThrowException(BFA_VIRTUAL_INSTANCE_CTOR);
-            }
-        }
-
-        // Some interface checks.
-        if (IsInterface())
-        {
-            if (!IsMdVirtual(dwMemberAttrs))
-            {
-                // Instance field/method
-                if (!IsMdStatic(dwMemberAttrs))
-                {
-                    BuildMethodTableThrowException(BFA_NONVIRT_INST_INT_METHOD);
-                }
             }
         }
 
@@ -7704,23 +7702,6 @@ MethodTableBuilder::PlaceInterfaceMethods()
                 PlaceMethodFromParentEquivalentInterfaceIntoInterfaceSlot(itfSlotIt, pCurItfEntry, &rgInterfaceDispatchMapTypeIDs, dwCurInterface);
             }
 #endif
-
-            /*
-            if (!fFoundMatchInBuildingClass && curItfSlot.Impl() == INVALID_SLOT_INDEX)
-            {
-                MethodDesc *pInterfaceMD = pCurItfMT->GetMethodDescForSlot(itfSlotIt->Decl().GetSlotIndex());
-                if (pInterfaceMD->GetRVA() != 0)
-                {
-                    DispatchMapTypeID dispatchMapTypeID =
-                        DispatchMapTypeID::InterfaceClassID(dwCurInterface);
-                    bmtVT->pDispatchMapBuilder->InsertMDMapping(
-                        dispatchMapTypeID,
-                        static_cast<UINT32>(itfSlotIt.CurrentIndex()),
-                        pInterfaceMD,
-                        FALSE);
-                }
-            }
-            */
         }
     }
 } // MethodTableBuilder::PlaceInterfaceMethods
@@ -11078,7 +11059,7 @@ void MethodTableBuilder::VerifyVirtualMethodsImplemented(MethodTable::MethodData
             MethodTable::MethodIterator it(hData);
             for (; it.IsValid() && it.IsVirtual(); it.Next())
             {
-                // @DESIGN - What is the right level of check if the interface itself does not have default implementation
+                // @DIM_TODO - What is the right level of check if the interface itself does not have default implementation
                 // but a derived interface do
                 // if (it.GetTarget().IsNull())
                 // {
