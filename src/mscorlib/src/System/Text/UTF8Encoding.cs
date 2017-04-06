@@ -64,7 +64,6 @@ namespace System.Text
         // Used by Encoding.UTF8 for lazy initialization
         // The initialization code will not be run until a static member of the class is referenced
         internal static readonly UTF8EncodingSealed s_default = new UTF8EncodingSealed();
-        internal static readonly UTF8EncodingSealed s_defaultNoBOM = new UTF8EncodingSealed(encoderShouldEmitUTF8Identifier: false);
 
         // Yes, the idea of emitting U+FEFF as a UTF-8 identifier has made it into
         // the standard.
