@@ -31,7 +31,6 @@ using System;
 using System.Buffers;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Diagnostics.Contracts;
 using System.IO;
 
 namespace Microsoft.Win32
@@ -43,10 +42,12 @@ namespace Microsoft.Win32
     internal sealed class RegistryKey : MarshalByRefObject, IDisposable
     {
         // Use the public Registry.CurrentUser
-        internal static readonly RegistryKey CurrentUser = GetBaseKey(HKEY_CURRENT_USER, "HKEY_CURRENT_USER");
+        internal static readonly RegistryKey CurrentUser =
+            GetBaseKey(new IntPtr(unchecked((int)0x80000001)), "HKEY_CURRENT_USER");
 
         // Use the public Registry.LocalMachine
-        internal static readonly RegistryKey LocalMachine = GetBaseKey(HKEY_LOCAL_MACHINE, "HKEY_LOCAL_MACHINE");
+        internal static readonly RegistryKey LocalMachine =
+            GetBaseKey(new IntPtr(unchecked((int)0x80000002)), "HKEY_LOCAL_MACHINE");
 
         // We could use const here, if C# supported ELEMENT_TYPE_I fully.
         private static readonly IntPtr HKEY_CURRENT_USER = new IntPtr(unchecked((int)0x80000001));
@@ -639,7 +640,6 @@ namespace Microsoft.Win32
 
         static private void ValidateKeyName(string name)
         {
-            Contract.Ensures(name != null);
             if (name == null)
             {
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.name);
