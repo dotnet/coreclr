@@ -13,9 +13,6 @@ namespace System.IO
     [Serializable]
     public class FileNotFoundException : IOException
     {
-        private string _fileName;  // The name of the file that isn't found.
-        private string _fusionLog;  // fusion log (when applicable)
-
         public FileNotFoundException()
             : base(SR.IO_FileNotFound)
         {
@@ -37,14 +34,14 @@ namespace System.IO
         public FileNotFoundException(string message, string fileName) : base(message)
         {
             SetErrorCode(__HResults.COR_E_FILENOTFOUND);
-            _fileName = fileName;
+            FileName = fileName;
         }
 
         public FileNotFoundException(string message, string fileName, Exception innerException)
             : base(message, innerException)
         {
             SetErrorCode(__HResults.COR_E_FILENOTFOUND);
-            _fileName = fileName;
+            FileName = fileName;
         }
 
         public override string Message
@@ -60,26 +57,25 @@ namespace System.IO
         {
             if (_message == null)
             {
-                if ((_fileName == null) &&
+                if ((FileName == null) &&
                     (HResult == System.__HResults.COR_E_EXCEPTION))
                     _message = SR.IO_FileNotFound;
 
-                else if (_fileName != null)
-                    _message = FileLoadException.FormatFileLoadExceptionMessage(_fileName, HResult);
+                else if (FileName != null)
+                    _message = FileLoadException.FormatFileLoadExceptionMessage(FileName, HResult);
             }
         }
 
-        public string FileName
-        {
-            get { return _fileName; }
-        }
+        public string FileName { get; }
+        public string FusionLog { get; }
+
 
         public override string ToString()
         {
             string s = GetType().FullName + ": " + Message;
 
-            if (_fileName != null && _fileName.Length != 0)
-                s += Environment.NewLine + SR.Format(SR.IO_FileName_Name, _fileName);
+            if (FileName != null && FileName.Length != 0)
+                s += Environment.NewLine + SR.Format(SR.IO_FileName_Name, FileName);
 
             if (InnerException != null)
                 s = s + " ---> " + InnerException.ToString();
@@ -108,14 +104,14 @@ namespace System.IO
         {
             // Base class constructor will check info != null.
 
-            _fileName = info.GetString("FileNotFound_FileName");
+            FileName = info.GetString("FileNotFound_FileName");
             try
             {
-                _fusionLog = info.GetString("FileNotFound_FusionLog");
+                FusionLog = info.GetString("FileNotFound_FusionLog");
             }
             catch
             {
-                _fusionLog = null;
+                FusionLog = null;
             }
         }
 
@@ -123,14 +119,9 @@ namespace System.IO
             : base(null)
         {
             SetErrorCode(hResult);
-            _fileName = fileName;
-            _fusionLog = fusionLog;
+            FileName = fileName;
+            FusionLog = fusionLog;
             SetMessageField();
-        }
-
-        public string FusionLog
-        {
-            get { return _fusionLog; }
         }
 
         public override void GetObjectData(SerializationInfo info, StreamingContext context)
@@ -139,7 +130,7 @@ namespace System.IO
             base.GetObjectData(info, context);
 
             // Serialize data for this class
-            info.AddValue("FileNotFound_FileName", _fileName, typeof(string));
+            info.AddValue("FileNotFound_FileName", FileName, typeof(string));
 
             try
             {
