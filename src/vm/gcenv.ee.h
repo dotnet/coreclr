@@ -48,9 +48,6 @@ public:
     bool ShouldFinalizeObjectForUnload(AppDomain* pDomain, Object* obj);
     bool ForceFullGCToBeBlocking();
     bool EagerFinalized(Object* obj);
-    MethodTable* GetFreeObjectMethodTable();
-    size_t GetSizeOfArrayBase();
-    size_t GetArrayOffsetOfNumComponents();
 };
 
 #endif // FEATURE_STANDALONE_GC

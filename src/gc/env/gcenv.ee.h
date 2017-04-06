@@ -73,9 +73,6 @@ public:
     static bool ShouldFinalizeObjectForUnload(AppDomain* pDomain, Object* obj);
     static bool ForceFullGCToBeBlocking();
     static bool EagerFinalized(Object* obj);
-    static MethodTable* GetFreeObjectMethodTable();
-    static size_t GetSizeOfArrayBase();
-    static size_t GetArrayOffsetOfNumComponents();
 };
 
 #endif // __GCENV_EE_H__

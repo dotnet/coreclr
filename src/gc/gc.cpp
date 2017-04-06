@@ -3761,6 +3761,8 @@ size_t gcard_of ( uint8_t*);
 #define GC_MARKED       (size_t)0x1
 #define slot(i, j) ((uint8_t**)(i))[j+1]
 
+#define free_object_base_size (plug_skew + sizeof(ArrayBase))
+
 class CObjectHeader : public Object
 {
 public:
@@ -3770,9 +3772,7 @@ public:
     // by Redhawk's version of Object.
     uint32_t GetNumComponents()
     {
-        uint8_t* base = reinterpret_cast<uint8_t*>(this);
-        size_t* components = reinterpret_cast<size_t*>(&base[g_arrayBaseNumComponentsOffset]);
-        return static_cast<uint32_t>(*components);
+        return ((ArrayBase *)this)->GetNumComponents();
     }
 
     void Validate(BOOL bDeep=TRUE, BOOL bVerifyNextHeader = TRUE)
@@ -3889,28 +3889,27 @@ public:
 
     void SetFree(size_t size)
     {
-        assert (size >= g_freeObjectBaseSize);
+        assert (size >= free_object_base_size);
 
-        assert (g_gc_pFreeObjectMethodTable->GetBaseSize() == g_freeObjectBaseSize);
-        assert (g_gc_pFreeObjectMethodTable->RawGetComponentSize() == 1);
+        assert (g_pFreeObjectMethodTable->GetBaseSize() == free_object_base_size);
+        assert (g_pFreeObjectMethodTable->RawGetComponentSize() == 1);
 
-        RawSetMethodTable( g_gc_pFreeObjectMethodTable );
+        RawSetMethodTable( g_pFreeObjectMethodTable );
 
-        uint8_t* basePtr = reinterpret_cast<uint8_t*>(this);
-        size_t* numComponentsPtr = reinterpret_cast<size_t*>(&basePtr[g_arrayBaseNumComponentsOffset]);
-        *numComponentsPtr = size - g_freeObjectBaseSize;
+        size_t* numComponentsPtr = (size_t*) &((uint8_t*) this)[ArrayBase::GetOffsetOfNumComponents()];
+        *numComponentsPtr = size - free_object_base_size;
 #ifdef VERIFY_HEAP
         //This introduces a bug in the free list management. 
         //((void**) this)[-1] = 0;    // clear the sync block,
         assert (*numComponentsPtr >= 0);
         if (g_pConfig->GetHeapVerifyLevel() & EEConfig::HEAPVERIFY_GC)
-            memset (basePtr + g_arrayBaseSize, 0xcc, *numComponentsPtr);
+            memset (((uint8_t*)this)+sizeof(ArrayBase), 0xcc, *numComponentsPtr);
 #endif //VERIFY_HEAP
     }
 
     void UnsetFree()
     {
-        size_t size = g_freeObjectBaseSize - plug_skew;
+        size_t size = free_object_base_size - plug_skew;
 
         // since we only need to clear 2 ptr size, we do it manually
         PTR_PTR m = (PTR_PTR) this;
@@ -3920,7 +3919,7 @@ public:
 
     BOOL IsFree () const
     {
-        return (GetMethodTable() == g_gc_pFreeObjectMethodTable);
+        return (GetMethodTable() == g_pFreeObjectMethodTable);
     }
 
 #ifdef FEATURE_STRUCTALIGN
@@ -3988,8 +3987,8 @@ inline size_t unused_array_size(uint8_t * p)
 {
     assert(((CObjectHeader*)p)->IsFree());
 
-    size_t* numComponentsPtr = (size_t*)(p + g_arrayBaseNumComponentsOffset);
-    return g_freeObjectBaseSize + *numComponentsPtr;
+    size_t* numComponentsPtr = (size_t*)(p + ArrayBase::GetOffsetOfNumComponents());
+    return free_object_base_size + *numComponentsPtr;
 }
 
 heap_segment* heap_segment_rw (heap_segment* ns)
@@ -11902,7 +11901,7 @@ void gc_heap::bgc_loh_alloc_clr (uint8_t* alloc_start,
     }
 #endif //FEATURE_APPDOMAIN_RESOURCE_MONITORING
 
-    size_t size_of_array_base = g_arrayBaseSize;
+    size_t size_of_array_base = sizeof(ArrayBase);
 
     bgc_alloc_lock->loh_alloc_done_with_index (lock_index);
 
@@ -21091,7 +21090,7 @@ BOOL gc_heap::plan_loh()
         {
             while (o < heap_segment_allocated (seg) && !marked (o))
             {
-                dprintf (1235, ("%Ix(%Id) F (%d)", o, AlignQword (size (o)), ((method_table (o) == g_gc_pFreeObjectMethodTable) ? 1 : 0)));
+                dprintf (1235, ("%Ix(%Id) F (%d)", o, AlignQword (size (o)), ((method_table (o) == g_pFreeObjectMethodTable) ? 1 : 0)));
                 o = o + AlignQword (size (o));
             }
         }
@@ -23392,7 +23391,7 @@ void gc_heap::make_unused_array (uint8_t* x, size_t size, BOOL clearp, BOOL rese
 #error "This won't work on big endian platforms"
 #endif
 
-    size_t size_as_object = (uint32_t)(size - g_freeObjectBaseSize) + g_freeObjectBaseSize;
+    size_t size_as_object = (uint32_t)(size - free_object_base_size) + free_object_base_size;
 
     if (size_as_object < size)
     {
@@ -23440,7 +23439,7 @@ void gc_heap::clear_unused_array (uint8_t* x, size_t size)
 
     // The memory could have been cleared in the meantime. We have to mirror the algorithm
     // from make_unused_array since we cannot depend on the object sizes in memory.
-    size_t size_as_object = (uint32_t)(size - g_freeObjectBaseSize) + g_freeObjectBaseSize;
+    size_t size_as_object = (uint32_t)(size - free_object_base_size) + free_object_base_size;
 
     if (size_as_object < size)
     {
@@ -24347,7 +24346,7 @@ void gc_heap::walk_survivors_for_bgc (void* profiling_context, record_surv_fn fn
 
         while (o < end)
         {
-            if (method_table(o) == g_gc_pFreeObjectMethodTable)
+            if (method_table(o) == g_pFreeObjectMethodTable)
             {
                 o += Align (size (o), align_const);
                 continue;
@@ -24358,7 +24357,7 @@ void gc_heap::walk_survivors_for_bgc (void* profiling_context, record_surv_fn fn
 
             uint8_t* plug_start = o;
 
-            while (method_table(o) != g_gc_pFreeObjectMethodTable)
+            while (method_table(o) != g_pFreeObjectMethodTable)
             {
                 o += Align (size (o), align_const);
                 if (o >= end)
@@ -31544,7 +31543,7 @@ void gc_heap::background_sweep()
                     seg = start_seg;
                     prev_seg = 0;
                     o = generation_allocation_start (gen);
-                    assert (method_table (o) == g_gc_pFreeObjectMethodTable);
+                    assert (method_table (o) == g_pFreeObjectMethodTable);
                     align_const = get_alignment_constant (FALSE);
                     o = o + Align(size (o), align_const);
                     plug_end = o;
@@ -32886,7 +32885,7 @@ void gc_heap::verify_partial ()
                             //dprintf (3, ("VOM: verifying member %Ix in obj %Ix", (size_t)*oo, o));
                             MethodTable *pMT = method_table (*oo);
 
-                            if (pMT == g_gc_pFreeObjectMethodTable)
+                            if (pMT == g_pFreeObjectMethodTable)
                             {
                                 free_ref_p = TRUE;
                                 FATAL_GC_ERROR();
@@ -33320,12 +33319,12 @@ gc_heap::verify_heap (BOOL begin_gc_p)
             }
         }
 
-        if (*((uint8_t**)curr_object) != (uint8_t *) g_gc_pFreeObjectMethodTable)
+        if (*((uint8_t**)curr_object) != (uint8_t *) g_pFreeObjectMethodTable)
         {
 #ifdef FEATURE_LOH_COMPACTION
             if ((curr_gen_num == (max_generation+1)) && (prev_object != 0))
             {
-                assert (method_table (prev_object) == g_gc_pFreeObjectMethodTable);
+                assert (method_table (prev_object) == g_pFreeObjectMethodTable);
             }
 #endif //FEATURE_LOH_COMPACTION
 
@@ -33630,11 +33629,6 @@ HRESULT GCHeap::Initialize ()
     {
         return E_FAIL;
     }
-
-    g_gc_pFreeObjectMethodTable = GCToEEInterface::GetFreeObjectMethodTable();
-    g_arrayBaseSize = GCToEEInterface::GetSizeOfArrayBase();
-    g_arrayBaseNumComponentsOffset = GCToEEInterface::GetArrayOffsetOfNumComponents();
-    g_freeObjectBaseSize = plug_skew + g_arrayBaseSize;
 
 //Initialize the static members.
 #ifdef TRACE_GC

@@ -224,31 +224,6 @@ ALWAYS_INLINE bool GCToEEInterface::ForceFullGCToBeBlocking()
     assert(g_theGCToCLR != nullptr);
     return g_theGCToCLR->ForceFullGCToBeBlocking();
 }
-
-ALWAYS_INLINE bool GCToEEInterface::EagerFinalized(Object* obj)
-{
-    assert(g_theGCToCLR != nullptr);
-    return g_theGCToCLR->EagerFinalized(obj);
-}
-
-ALWAYS_INLINE MethodTable* GCToEEInterface::GetFreeObjectMethodTable()
-{
-    assert(g_theGCToCLR != nullptr);
-    return g_theGCToCLR->GetFreeObjectMethodTable();
-}
-
-ALWAYS_INLINE size_t GCToEEInterface::GetSizeOfArrayBase()
-{
-    assert(g_theGCToCLR != nullptr);
-    return g_theGCToCLR->GetSizeOfArrayBase();
-}
-
-ALWAYS_INLINE size_t GCToEEInterface::GetArrayOffsetOfNumComponents()
-{
-    assert(g_theGCToCLR != nullptr);
-    return g_theGCToCLR->GetArrayOffsetOfNumComponents();
-}
-
 #undef ALWAYS_INLINE
 
 #endif // __GCTOENV_EE_STANDALONE_INL__

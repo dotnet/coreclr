@@ -286,22 +286,6 @@ bool GCToEEInterface::EagerFinalized(Object* obj)
     return false;
 }
 
-MethodTable* GCToEEInterface::GetFreeObjectMethodTable()
-{
-    return g_pFreeObjectMethodTable;
-}
-
-
-size_t GCToEEInterface::GetSizeOfArrayBase()
-{
-    return sizeof(ArrayBase);
-}
-
-size_t GCToEEInterface::GetArrayOffsetOfNumComponents()
-{
-    return ArrayBase::GetOffsetOfNumComponents();
-}
-
 bool IsGCSpecialThread()
 {
     // TODO: Implement for background GC
