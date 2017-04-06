@@ -24941,19 +24941,23 @@ unsigned Compiler::fgMeasureIR()
 //
 void Compiler::fgCompDominatedByExceptionalEntryBlocks()
 {
-    for (unsigned i = 1; i <= fgBBNumMax; ++i)
+    assert(fgEnterBlksSetValid);
+    if (BlockSetOps::Count(this, fgEnterBlks) != 1) // There are exception entries.
     {
-        BasicBlock* block = fgBBInvPostOrder[i];
-        if (BlockSetOps::IsMember(this, fgEnterBlks, block->bbNum))
+        for (unsigned i = 1; i <= fgBBNumMax; ++i)
         {
-            if (fgFirstBB != block) // skip the normal entry.
+            BasicBlock* block = fgBBInvPostOrder[i];
+            if (BlockSetOps::IsMember(this, fgEnterBlks, block->bbNum))
+            {
+                if (fgFirstBB != block) // skip the normal entry.
+                {
+                    block->SetDominatedByExceptionalEntryFlag();
+                }
+            }
+            else if (block->bbIDom->IsDominatedByExceptionalEntryFlag())
             {
                 block->SetDominatedByExceptionalEntryFlag();
             }
-        }
-        else if (block->bbIDom->IsDominatedByExceptionalEntryFlag())
-        {
-            block->SetDominatedByExceptionalEntryFlag();
         }
     }
 }
