@@ -1162,20 +1162,30 @@ NESTED_END ResolveWorkerChainLookupAsmStub, _TEXT
 NESTED_ENTRY BackPatchWorkerAsmStub, _TEXT, NoHandler
     PROLOG_BEG
     PROLOG_PUSH eax // it may contain siteAddrForRegisterIndirect
+    PROLOG_PUSH ebx
     PROLOG_PUSH ecx
     PROLOG_PUSH edx
     PROLOG_END
 
-    sub     esp, 4     //  for 16 bytes align
-    push    eax        //  push any indirect call address as the second arg to BackPatchWorker
-    push    [ebp+8]    //  and push return address as the first arg to BackPatchWorker
+    // Align Stack Frame
+    mov     ebx, esp
+    and     esp, -16
 
+    // Call BackPatchWorkerStaticStub
+    sub     esp, 8     //  16-bytes align padding
+    push    eax        //  push any indirect call address as the second arg to BackPatchWorker
+    push    [ebp + 8]  //  and push return address as the first arg to BackPatchWorker
+
+    CHECK_STACK_ALIGNMENT
     call    C_FUNC(BackPatchWorkerStaticStub)
-    add     esp, 12
+
+    // Restore Stack Frame
+    mov     esp, ebx
 
     EPILOG_BEG
     EPILOG_POP edx
     EPILOG_POP ecx
+    EPILOG_POP ebx
     EPILOG_POP eax
     EPILOG_END
     ret
