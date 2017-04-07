@@ -400,12 +400,12 @@ uint32_t GCHeap::WaitUntilGCComplete(bool bConsiderGCStart)
 
     if (GcInProgress) 
     {
-        ASSERT( WaitForGCEvent->IsValid() );
+        ASSERT(WaitForGCEvent);
 
 #ifdef DETECT_DEADLOCK
         // wait for GC to complete
 BlockAgain:
-        dwWaitResult = WaitForGCEvent->Wait(DETECT_DEADLOCK_TIMEOUT, FALSE );
+        dwWaitResult = GCToEEInterface::WaitOnEvent(WaitForGCEvent, DETECT_DEADLOCK_TIMEOUT, false);
 
         if (dwWaitResult == WAIT_TIMEOUT) {
             //  Even in retail, stop in the debugger if available.  Ideally, the
@@ -419,7 +419,7 @@ BlockAgain:
 
 #else  //DETECT_DEADLOCK
         
-        dwWaitResult = WaitForGCEvent->Wait(INFINITE, FALSE );
+        dwWaitResult = GCToEEInterface::WaitOnEvent(WaitForGCEvent, INFINITE, false);
         
 #endif //DETECT_DEADLOCK
     }
@@ -540,7 +540,7 @@ uint32_t gc_heap::user_thread_wait (CLREvent *event, BOOL no_mode_change, int ti
         }
     }
 
-    dwWaitResult = event->Wait(time_out_ms, FALSE);
+    dwWaitResult = GCToEEInterface::WaitOnEvent(event, time_out_ms, false);
 
     if (!no_mode_change && mode)
     {
