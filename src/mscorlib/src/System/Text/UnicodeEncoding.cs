@@ -194,7 +194,17 @@ namespace System.Text
         [System.Runtime.InteropServices.ComVisible(false)]
         public override unsafe int GetCharCount(byte* bytes, int count)
         {
-            return EncodingForwarder.GetCharCount(this, bytes, count);
+            // Validate Parameters
+            if (bytes == null)
+                throw new ArgumentNullException("bytes",
+                    Environment.GetResourceString("ArgumentNull_Array"));
+
+            if (count < 0)
+                throw new ArgumentOutOfRangeException("count",
+                    Environment.GetResourceString("ArgumentOutOfRange_NeedNonNegNum"));
+            Contract.EndContractBlock();
+
+            return GetCharCount(bytes, count, null);
         }
 
         // All of our public Encodings that don't use EncodingNLS must have this (including EncodingNLS)
