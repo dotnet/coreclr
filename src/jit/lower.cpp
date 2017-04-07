@@ -2017,9 +2017,9 @@ void Lowering::LowerCompare(GenTree* cmp)
             BlockRange().Remove(src1);
             BlockRange().Remove(src2);
 
-            genTreeOps condition = cmp->OperGet();
-            GenTree* loCmp;
-            GenTree* hiCmp;
+            GenCondition condition  = GenCondition::FromCompareTree(cmp);
+            GenTree*     loCmp;
+            GenTree*     hiCmp;
 
             if (cmp->OperIs(GT_EQ, GT_NE))
             {
@@ -2080,10 +2080,10 @@ void Lowering::LowerCompare(GenTree* cmp)
                 {
                     std::swap(loSrc1, loSrc2);
                     std::swap(hiSrc1, hiSrc2);
-                    condition = GenTree::SwapRelop(condition);
+                    condition.Swap();
                 }
 
-                assert((condition == GT_LT) || (condition == GT_GE));
+                assert(condition.Is(GenCondition::SLT, GenCondition::ULT, GenCondition::SGE, GenCondition::UGE));
 
                 if (loSrc2->IsIntegralConst(0))
                 {
@@ -2305,39 +2305,43 @@ void Lowering::LowerCompare(GenTree* cmp)
             // performs the necessary mapping.
             //
 
-            genTreeOps hiCmpOper;
-            genTreeOps loCmpOper;
+            GenCondition hiCmpOper;
+            genTreeOps   loCmpOper;
 
             switch (cmp->OperGet())
             {
                 case GT_LT:
                     cmp->gtOper = GT_GT;
-                    hiCmpOper   = GT_LT;
+                    hiCmpOper   = GenCondition::SLT;
                     loCmpOper   = GT_LT;
                     break;
                 case GT_LE:
                     cmp->gtOper = GT_GT;
-                    hiCmpOper   = GT_LT;
+                    hiCmpOper   = GenCondition::SLT;
                     loCmpOper   = GT_LE;
                     break;
                 case GT_GT:
                     cmp->gtOper = GT_LT;
-                    hiCmpOper   = GT_GT;
+                    hiCmpOper   = GenCondition::SGT;
                     loCmpOper   = GT_GT;
                     break;
                 case GT_GE:
                     cmp->gtOper = GT_LT;
-                    hiCmpOper   = GT_GT;
+                    hiCmpOper   = GenCondition::SGT;
                     loCmpOper   = GT_GE;
                     break;
                 default:
                     unreached();
             }
 
+            if (cmp->IsUnsigned())
+            {
+                hiCmpOper.MakeUnsigned();
+            }
+
             BasicBlock* newBlock2 = comp->fgSplitBlockAtEnd(newBlock);
 
             GenTree* hiJcc = new (comp, GT_JCC) GenTreeCC(GT_JCC, hiCmpOper);
-            hiJcc->gtFlags = cmp->gtFlags;
             LIR::AsRange(newBlock).InsertAfter(nullptr, hiJcc);
 
             BlockRange().Remove(loSrc1.Def());

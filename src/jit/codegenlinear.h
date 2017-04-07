@@ -54,6 +54,19 @@ void genJccLongHi(genTreeOps cmp, BasicBlock* jumpTrue, BasicBlock* jumpFalse, b
 void genJccLongLo(genTreeOps cmp, BasicBlock* jumpTrue, BasicBlock* jumpFalse);
 #endif // defined(_TARGET_ARM_)
 
+#if defined(_TARGET_XARCH_)
+struct GenConditionDesc
+{
+    emitJumpKind jmpKind[2];
+    bool         jmpToTrueLabel[2];
+};
+
+static const GenConditionDesc& GetConditionDesc(GenCondition condition);
+
+void genSETCC(GenTreeCC* setcc);
+void genJCC(GenTreeCC* jcc);
+#endif
+
 #ifdef FEATURE_SIMD
 enum SIMDScalarMoveType
 {

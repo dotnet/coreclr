@@ -1893,32 +1893,12 @@ void CodeGen::genCodeForTreeNode(GenTreePtr treeNode)
             break;
 
         case GT_JCC:
-        {
-            GenTreeCC* jcc = treeNode->AsCC();
-
-            assert(compiler->compCurBB->bbJumpKind == BBJ_COND);
-
-            CompareKind  compareKind = ((jcc->gtFlags & GTF_UNSIGNED) != 0) ? CK_UNSIGNED : CK_SIGNED;
-            emitJumpKind jumpKind    = genJumpKindForOper(jcc->gtCondition, compareKind);
-
-            inst_JMP(jumpKind, compiler->compCurBB->bbJumpDest);
-        }
-        break;
+            genJCC(treeNode->AsCC());
+            break;
 
         case GT_SETCC:
-        {
-            GenTreeCC*   setcc       = treeNode->AsCC();
-            regNumber    dstReg      = setcc->gtRegNum;
-            CompareKind  compareKind = setcc->IsUnsigned() ? CK_UNSIGNED : CK_SIGNED;
-            emitJumpKind jumpKind    = genJumpKindForOper(setcc->gtCondition, compareKind);
-
-            assert(genIsValidIntReg(dstReg) && isByteReg(dstReg));
-
-            inst_SET(jumpKind, dstReg);
-            inst_RV_RV(ins_Move_Extend(TYP_UBYTE, true), dstReg, dstReg, TYP_UBYTE, emitTypeSize(TYP_UBYTE));
-            genProduceReg(setcc);
-        }
-        break;
+            genSETCC(treeNode->AsCC());
+            break;
 
         case GT_RETURNTRAP:
         {
@@ -8502,5 +8482,117 @@ void CodeGen::genAmd64EmitterUnitTests()
 #endif // defined(DEBUG) && defined(LATE_DISASM) && defined(_TARGET_AMD64_)
 
 #endif // _TARGET_AMD64_
+
+const CodeGen::GenConditionDesc& CodeGen::GetConditionDesc(GenCondition condition)
+{
+    // clang-format off
+    static constexpr GenConditionDesc map[32]
+    {
+        { { EJ_je,  EJ_NONE }, { true,  true } }, // EQ
+        { { EJ_jne, EJ_NONE }, { true,  true } }, // NE
+        { { EJ_jl,  EJ_NONE }, { true,  true } }, // SLT
+        { { EJ_jle, EJ_NONE }, { true,  true } }, // SLE
+        { { EJ_jge, EJ_NONE }, { true,  true } }, // SGE
+        { { EJ_jg,  EJ_NONE }, { true,  true } }, // SGT
+        { { EJ_js,  EJ_NONE }, { true,  true } }, // S
+        { { EJ_jns, EJ_NONE }, { true,  true } }, // NS
+
+        { { EJ_je,  EJ_NONE }, { true,  true } }, // EQ
+        { { EJ_jne, EJ_NONE }, { true,  true } }, // NE
+        { { EJ_jb,  EJ_NONE }, { true,  true } }, // ULT
+        { { EJ_jbe, EJ_NONE }, { true,  true } }, // ULE
+        { { EJ_jae, EJ_NONE }, { true,  true } }, // UGE
+        { { EJ_ja,  EJ_NONE }, { true,  true } }, // UGT
+        { { EJ_jb,  EJ_NONE }, { true,  true } }, // C
+        { { EJ_jae, EJ_NONE }, { true,  true } }, // NC
+
+        { { EJ_jpe, EJ_je   }, { false, true } }, // FEQ
+        { { EJ_jne, EJ_NONE }, { true,  true } }, // FNE
+        { },                                      // FLT
+        { },                                      // FLE
+        { { EJ_jae, EJ_NONE }, { true,  true } }, // FGE
+        { { EJ_ja,  EJ_NONE }, { true,  true } }, // FGT
+        { { EJ_jo,  EJ_NONE }, { true,  true } }, // O
+        { { EJ_jno, EJ_NONE }, { true,  true } }, // NO
+
+        { { EJ_je,  EJ_NONE }, { true,  true } }, // FEQU
+        { { EJ_jpe, EJ_jne  }, { true,  true } }, // FNEU
+        { { EJ_jb,  EJ_NONE }, { true,  true } }, // FLTU
+        { { EJ_jbe, EJ_NONE }, { true,  true } }, // FLEU
+        { },                                      // FGEU
+        { },                                      // FGTU
+        { { EJ_jpe, EJ_NONE }, { true,  true } }, // P
+        { { EJ_jpo, EJ_NONE }, { true,  true } }, // NP
+    };
+    // clang-format on
+
+    assert(condition.Value() < COUNTOF(map));
+    const GenConditionDesc& desc = map[condition.Value()];
+    assert(desc.jmpKind[0] != EJ_NONE);
+    return desc;
+}
+
+void CodeGen::genSETCC(GenTreeCC* setcc)
+{
+    assert(setcc->OperIs(GT_SETCC));
+
+    regNumber dstReg = setcc->gtRegNum;
+
+    assert(genIsValidIntReg(dstReg) && isByteReg(dstReg));
+
+    const GenConditionDesc& desc = GetConditionDesc(setcc->gtCondition);
+
+    if (desc.jmpKind[1] == EJ_NONE)
+    {
+        inst_SET(desc.jmpKind[0], dstReg);
+    }
+    else
+    {
+        inst_SET(desc.jmpToTrueLabel[0] ? desc.jmpKind[0] : emitter::emitReverseJumpKind(desc.jmpKind[0]), dstReg);
+        BasicBlock* skipLabel = genCreateTempLabel();
+        inst_JMP(desc.jmpKind[0], skipLabel);
+        inst_SET(desc.jmpKind[1], dstReg);
+        genDefineTempLabel(skipLabel);
+    }
+
+    if (genTypeSize(setcc) > sizeof(BYTE))
+    {
+        inst_RV_RV(ins_Move_Extend(TYP_UBYTE, true), dstReg, dstReg, TYP_UBYTE, emitTypeSize(TYP_UBYTE));
+    }
+
+    genProduceReg(setcc);
+}
+
+void CodeGen::genJCC(GenTreeCC* jcc)
+{
+    assert(jcc->OperIs(GT_JCC));
+    assert(compiler->compCurBB->bbJumpKind == BBJ_COND);
+
+    const GenConditionDesc& desc = GetConditionDesc(jcc->gtCondition);
+
+    if (desc.jmpKind[1] == EJ_NONE)
+    {
+        inst_JMP(desc.jmpKind[0], compiler->compCurBB->bbJumpDest);
+    }
+    else
+    {
+        BasicBlock* jmpTarget = compiler->compCurBB->bbJumpDest;
+        BasicBlock* skipLabel = nullptr;
+
+        if (!desc.jmpToTrueLabel[0])
+        {
+            skipLabel = genCreateTempLabel();
+            jmpTarget = skipLabel;
+        }
+
+        inst_JMP(desc.jmpKind[0], jmpTarget);
+        inst_JMP(desc.jmpKind[1], compiler->compCurBB->bbJumpDest);
+
+        if (skipLabel != nullptr)
+        {
+            genDefineTempLabel(skipLabel);
+        }
+    }
+}
 
 #endif // !LEGACY_BACKEND
