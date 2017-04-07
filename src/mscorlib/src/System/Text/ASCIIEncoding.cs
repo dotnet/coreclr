@@ -157,7 +157,7 @@ namespace System.Text
             return EncodingForwarder.GetString(this, bytes, byteIndex, byteCount);
         }
         
-        // End of overridden methods which use EncodingForwarder
+        // End of overriden methods which use EncodingForwarder
 
         // GetByteCount
         // Note: We start by assuming that the output will be the same as count.  Having
