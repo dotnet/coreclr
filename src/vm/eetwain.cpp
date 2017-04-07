@@ -4035,9 +4035,13 @@ bool UnwindStackFrame(PREGDISPLAY     pContext,
 
 #ifdef WIN64EXCEPTIONS
 #ifdef _TARGET_X86_
-size_t EECodeManager::GetResumeSp( PREGDISPLAY  pRD )
+size_t EECodeManager::GetResumeSp( PCONTEXT  pContext )
 {
-    EECodeInfo codeInfo(pRD->ControlPC);
+    PCODE currentPc = PCODE(pContext->Eip);
+
+    _ASSERTE(ExecutionManager::IsManagedCode(currentPc));
+
+    EECodeInfo codeInfo(currentPc);
 
     PTR_CBYTE methodStart = PTR_CBYTE(codeInfo.GetSavedMethodCode());
 
@@ -4067,11 +4071,11 @@ size_t EECodeManager::GetResumeSp( PREGDISPLAY  pRD )
 
     if (isESPFrame)
     {
-        const size_t curESP = pRD->SP;
+        const size_t curESP = (size_t)(pContext->Esp);
         return curESP + GetPushedArgSize(info, table, curOffs);
     }
 
-    const size_t curEBP = *pRD->GetEbpLocation();
+    const size_t curEBP = (size_t)(pContext->Ebp);
     return GetOutermostBaseFP(curEBP, info);
 }
 #endif // _TARGET_X86_

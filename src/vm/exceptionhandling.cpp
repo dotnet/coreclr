@@ -123,6 +123,24 @@ bool FixNonvolatileRegisters(UINT_PTR  uOriginalSP,
                              bool      fAborting
                              );
 
+void FixContext(PCONTEXT pContextRecord)
+{
+#define FIXUPREG(reg, value)                                                                \
+    do {                                                                                    \
+        STRESS_LOG2(LF_GCROOTS, LL_INFO100, "Updating " #reg " %p to %p\n",                 \
+                pContextRecord->reg,                                                        \
+                (value));                                                                   \
+        pContextRecord->reg = (value);                                                      \
+    } while (0)
+
+#ifdef _TARGET_X86_
+    size_t resumeSp = EECodeManager::GetResumeSp(pContextRecord);
+    FIXUPREG(ResumeEsp, resumeSp);
+#endif // _TARGET_X86_
+
+#undef FIXUPREG
+}
+
 MethodDesc * GetUserMethodForILStub(Thread * pThread, UINT_PTR uStubSP, MethodDesc * pILStubMD, Frame ** ppFrameOut);
 
 #ifdef FEATURE_PAL
@@ -441,14 +459,6 @@ void ExceptionTracker::UpdateNonvolatileRegisters(CONTEXT *pContextRecord, REGDI
         }                                                                                   \
     } while (0)
 
-#define UPDATEREG_VAL(reg)                                                                  \
-    do {                                                                                    \
-        STRESS_LOG2(LF_GCROOTS, LL_INFO100, "Updating " #reg " %p to %p\n",                 \
-                pContextRecord->reg,                                                        \
-                pRegDisplay->pCurrentContext->reg);                                         \
-        pContextRecord->reg = pRegDisplay->pCurrentContext->reg;                            \
-    } while (0)
-
 
 #if defined(_TARGET_X86_)
 
@@ -456,8 +466,6 @@ void ExceptionTracker::UpdateNonvolatileRegisters(CONTEXT *pContextRecord, REGDI
     UPDATEREG(Esi);
     UPDATEREG(Edi);
     UPDATEREG(Ebp);
-
-    UPDATEREG_VAL(ResumeEsp);
 
 #elif defined(_TARGET_AMD64_)
 
@@ -1194,6 +1202,8 @@ ProcessCLRException(IN     PEXCEPTION_RECORD   pExceptionRecord
 
                 SetIP(pContextRecord, (PCODE)uResumePC);
             }
+
+            FixContext(pContextRecord);
 
 #ifdef STACK_GUARDS_DEBUG
             // We are transitioning back to managed code, so ensure that we are in

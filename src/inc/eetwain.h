@@ -653,7 +653,7 @@ HRESULT FixContextForEnC(PCONTEXT        pCtx,
     static void EnsureCallerContextIsValid( PREGDISPLAY pRD, StackwalkCacheEntry* pCacheEntry, EECodeInfo * pCodeInfo = NULL );
     static size_t GetCallerSp( PREGDISPLAY  pRD );
 #ifdef _TARGET_X86_
-    static size_t GetResumeSp( PREGDISPLAY  pRD );
+    static size_t GetResumeSp( PCONTEXT  pContext );
 #endif // _TARGET_X86_
 #endif // WIN64EXCEPTIONS
 
