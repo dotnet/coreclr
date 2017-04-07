@@ -52,9 +52,15 @@ namespace System.Text
         // EncodingNLS, UTF7Encoding, UTF8Encoding, UTF32Encoding, ASCIIEncoding, UnicodeEncoding
         // parent method is safe
         [System.Security.SecuritySafeCritical] // overrides public transparent member
-        public override int GetByteCount(String s)
+        public override unsafe int GetByteCount(String s)
         {
-            return EncodingForwarder.GetByteCount(this, s);
+            // Validate input
+            if (s==null)
+                throw new ArgumentNullException("s");
+            Contract.EndContractBlock();
+
+            fixed (char* pChars = s)
+                return GetByteCount(pChars, s.Length, null);
         }       
 
         // All of our public Encodings that don't use EncodingNLS must have this (including EncodingNLS)
