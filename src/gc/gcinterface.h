@@ -8,6 +8,7 @@
 struct ScanContext;
 struct gc_alloc_context;
 class CrawlFrame;
+class CLREventStatic;
 
 // Callback passed to GcScanRoots.
 typedef void promote_func(PTR_PTR_Object, ScanContext*, uint32_t);

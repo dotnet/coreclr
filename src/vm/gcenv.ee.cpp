@@ -1394,3 +1394,120 @@ bool GCToEEInterface::EagerFinalized(Object* obj)
 
     return false;
 }
+
+CLREventStatic* GCToEEInterface::CreateAutoEvent(bool initialState)
+{
+    CONTRACTL {
+      NOTHROW;
+      GC_NOTRIGGER;
+    } CONTRACTL_END;
+
+    NewHolder<CLREventStatic> event = new (nothrow) CLREventStatic();
+    if (!event)
+    {
+        return nullptr;
+    }
+
+    if (!event->CreateAutoEventNoThrow(initialState))
+    {
+        return nullptr;
+    }
+
+    assert(event->IsValid());
+    return event.Extract();
+}
+
+CLREventStatic* GCToEEInterface::CreateManualEvent(bool initialState)
+{
+    CONTRACTL {
+      NOTHROW;
+      GC_NOTRIGGER;
+    } CONTRACTL_END;
+
+    NewHolder<CLREventStatic> event = new (nothrow) CLREventStatic();
+    if (!event)
+    {
+        return nullptr;
+    }
+
+    if (!event->CreateManualEventNoThrow(initialState))
+    {
+        return nullptr;
+    }
+
+    assert(event->IsValid());
+    return event.Extract();
+}
+
+CLREventStatic* GCToEEInterface::CreateOSAutoEvent(bool initialState)
+{
+    CONTRACTL {
+      NOTHROW;
+      GC_NOTRIGGER;
+    } CONTRACTL_END;
+
+    NewHolder<CLREventStatic> event = new (nothrow) CLREventStatic();
+    if (!event)
+    {
+        return nullptr;
+    }
+
+    if (!event->CreateOSAutoEventNoThrow(initialState))
+    {
+        return nullptr;
+    }
+
+    assert(event->IsValid());
+    return event.Extract();
+}
+
+CLREventStatic* GCToEEInterface::CreateOSManualEvent(bool initialState)
+{
+    CONTRACTL {
+      NOTHROW;
+      GC_NOTRIGGER;
+    } CONTRACTL_END;
+
+    NewHolder<CLREventStatic> event = new (nothrow) CLREventStatic();
+    if (!event)
+    {
+        return nullptr;
+    }
+
+    if (!event->CreateOSManualEventNoThrow(initialState))
+    {
+        return nullptr;
+    }
+
+    assert(event->IsValid());
+    return event.Extract();
+}
+
+void GCToEEInterface::CloseEvent(CLREventStatic* event)
+{
+    assert(event != nullptr);
+    assert(event->IsValid());
+    event->CloseEvent();
+    delete event;
+}
+
+bool GCToEEInterface::SetEvent(CLREventStatic* event)
+{
+    assert(event != nullptr);
+    assert(event->IsValid());
+    return !!event->Set();
+}
+
+bool GCToEEInterface::ResetEvent(CLREventStatic* event)
+{
+    assert(event != nullptr);
+    assert(event->IsValid());
+    return !!event->Reset();
+}
+
+uint32_t GCToEEInterface::WaitOnEvent(CLREventStatic* event, uint32_t milliseconds, bool alertable)
+{
+    assert(event != nullptr);
+    assert(event->IsValid());
+    return event->Wait(milliseconds, alertable);
+}

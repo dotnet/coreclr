@@ -555,9 +555,9 @@ uint32_t gc_heap::user_thread_wait (CLREvent *event, BOOL no_mode_change, int ti
 uint32_t gc_heap::background_gc_wait (alloc_wait_reason awr, int time_out_ms)
 {
     dprintf(2, ("Waiting end of background gc"));
-    assert (background_gc_done_event.IsValid());
+    assert (background_gc_done_event);
     fire_alloc_wait_event_begin (awr);
-    uint32_t dwRet = user_thread_wait (&background_gc_done_event, FALSE, time_out_ms);
+    uint32_t dwRet = user_thread_wait (background_gc_done_event, FALSE, time_out_ms);
     fire_alloc_wait_event_end (awr);
     dprintf(2, ("Waiting end of background gc is done"));
 
@@ -568,9 +568,9 @@ uint32_t gc_heap::background_gc_wait (alloc_wait_reason awr, int time_out_ms)
 void gc_heap::background_gc_wait_lh (alloc_wait_reason awr)
 {
     dprintf(2, ("Waiting end of background large sweep"));
-    assert (gc_lh_block_event.IsValid());
+    assert (gc_lh_block_event);
     fire_alloc_wait_event_begin (awr);
-    user_thread_wait (&gc_lh_block_event, FALSE);
+    user_thread_wait (gc_lh_block_event, FALSE);
     fire_alloc_wait_event_end (awr);
     dprintf(2, ("Waiting end of background large sweep is done"));
 }

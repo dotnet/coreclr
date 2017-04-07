@@ -2766,7 +2766,7 @@ public:
     BOOL     dont_restart_ee_p;
 
     PER_HEAP_ISOLATED
-    CLREvent bgc_start_event;
+    CLREvent* bgc_start_event;
 #endif //BACKGROUND_GC
 
     // The variables in this block are known to the DAC and must come first
@@ -2833,9 +2833,9 @@ public:
 
     PER_HEAP
 #ifndef MULTIPLE_HEAPS
-    CLREvent gc_done_event;
+    CLREvent* gc_done_event;
 #else // MULTIPLE_HEAPS
-    CLREvent gc_done_event;
+    CLREvent* gc_done_event;
 #endif // MULTIPLE_HEAPS
 
     PER_HEAP
@@ -2890,10 +2890,10 @@ public:
     // notification feature which is only enabled if concurrent
     // GC is disabled.
     PER_HEAP_ISOLATED
-    CLREvent full_gc_approach_event;
+    CLREvent* full_gc_approach_event;
 
     PER_HEAP_ISOLATED
-    CLREvent full_gc_end_event;
+    CLREvent* full_gc_end_event;
 
     // Full GC Notification percentages.
     PER_HEAP_ISOLATED
@@ -2943,10 +2943,10 @@ public:
     bool gc_thread_no_affinitize_p;
 
     PER_HEAP_ISOLATED
-    CLREvent gc_start_event;
+    CLREvent* gc_start_event;
 
     PER_HEAP_ISOLATED
-    CLREvent ee_suspend_event;
+    CLREvent* ee_suspend_event;
 
     PER_HEAP
     heap_segment* new_heap_segment;
@@ -3133,7 +3133,7 @@ protected:
     // we need to create them on the thread that called 
     // SuspendEE which is heap 0.
     PER_HEAP_ISOLATED
-    CLREvent bgc_threads_sync_event;
+    CLREvent* bgc_threads_sync_event;
 
     PER_HEAP
     Thread* bgc_thread;
@@ -3142,13 +3142,13 @@ protected:
     CLRCriticalSection bgc_threads_timeout_cs;
 
     PER_HEAP_ISOLATED
-    CLREvent background_gc_done_event;
+    CLREvent* background_gc_done_event;
 
     PER_HEAP_ISOLATED
-    CLREvent ee_proceed_event;
+    CLREvent* ee_proceed_event;
 
     PER_HEAP
-    CLREvent gc_lh_block_event;
+    CLREvent* gc_lh_block_event;
 
     PER_HEAP_ISOLATED
     bool gc_can_use_concurrent;

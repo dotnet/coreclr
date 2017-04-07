@@ -73,6 +73,16 @@ public:
     static bool ShouldFinalizeObjectForUnload(AppDomain* pDomain, Object* obj);
     static bool ForceFullGCToBeBlocking();
     static bool EagerFinalized(Object* obj);
+
+    // CLREventStatic methods
+    static CLREventStatic* CreateAutoEvent(bool initialState);
+    static CLREventStatic* CreateManualEvent(bool initialState);
+    static CLREventStatic* CreateOSAutoEvent(bool initialState);
+    static CLREventStatic* CreateOSManualEvent(bool initialState);
+    static void CloseEvent(CLREventStatic* event);
+    static bool SetEvent(CLREventStatic* event);
+    static bool ResetEvent(CLREventStatic* event);
+    static uint32_t WaitOnEvent(CLREventStatic* event, uint32_t milliseconds, bool alertable);
 };
 
 #endif // __GCENV_EE_H__

@@ -48,6 +48,14 @@ public:
     bool ShouldFinalizeObjectForUnload(AppDomain* pDomain, Object* obj);
     bool ForceFullGCToBeBlocking();
     bool EagerFinalized(Object* obj);
+    CLREventStatic* CreateAutoEvent(bool initialState);
+    CLREventStatic* CreateManualEvent(bool initialState);
+    CLREventStatic* CreateOSAutoEvent(bool initialState);
+    CLREventStatic* CreateOSManualEvent(bool initialState);
+    void CloseEvent(CLREventStatic* event);
+    bool SetEvent(CLREventStatic* event);
+    bool ResetEvent(CLREventStatic* event);
+    uint32_t WaitOnEvent(CLREventStatic* event, uint32_t milliseconds, bool alertable);
 };
 
 #endif // FEATURE_STANDALONE_GC
