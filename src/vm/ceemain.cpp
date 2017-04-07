@@ -229,6 +229,8 @@
 #include "perfmap.h"
 #endif
 
+#include "eventpipe.h"
+
 #ifndef FEATURE_PAL
 // Included for referencing __security_cookie
 #include "process.h"
@@ -483,6 +485,7 @@ void InitializeStartupFlags()
 
 
     InitializeHeapType((flags & STARTUP_SERVER_GC) != 0);
+    g_heap_type = (flags & STARTUP_SERVER_GC) == 0 ? GC_HEAP_WKS : GC_HEAP_SVR;
 
 #ifdef FEATURE_LOADER_OPTIMIZATION            
     g_dwGlobalSharePolicy = (flags&STARTUP_LOADER_OPTIMIZATION_MASK)>>1;
@@ -582,6 +585,23 @@ void InitGSCookie()
     }
 }
 
+Volatile<BOOL> g_bIsGarbageCollectorFullyInitialized = FALSE;
+
+void SetGarbageCollectorFullyInitialized()
+{
+    LIMITED_METHOD_CONTRACT;
+
+    g_bIsGarbageCollectorFullyInitialized = TRUE;
+}
+
+// Tells whether the garbage collector is fully initialized
+// Stronger than IsGCHeapInitialized
+BOOL IsGarbageCollectorFullyInitialized()
+{
+    LIMITED_METHOD_CONTRACT;
+
+    return g_bIsGarbageCollectorFullyInitialized;
+}
 
 // ---------------------------------------------------------------------------
 // %%Function: EEStartupHelper
@@ -845,19 +865,20 @@ void EEStartupHelper(COINITIEE fFlags)
 
 #ifndef CROSSGEN_COMPILE
 
+        InitializeGarbageCollector();
+
         // Initialize remoting
 
-        // weak_short, weak_long, strong; no pin
-        if (!Ref_Initialize())
+        if (!GCHeapUtilities::GetGCHandleTable()->Initialize())
+        {
             IfFailGo(E_OUTOFMEMORY);
+        }
 
         // Initialize contexts
         Context::Initialize();
 
         g_pEEShutDownEvent = new CLREvent();
         g_pEEShutDownEvent->CreateManualEvent(FALSE);
-
-
 
 #ifdef FEATURE_IPCMAN
         // Initialize CCLRSecurityAttributeManager
@@ -867,7 +888,6 @@ void EEStartupHelper(COINITIEE fFlags)
         VirtualCallStubManager::InitStatic();
 
         GCInterface::m_MemoryPressureLock.Init(CrstGCMemoryPressure);
-
 
 #endif // CROSSGEN_COMPILE
 
@@ -886,6 +906,10 @@ void EEStartupHelper(COINITIEE fFlags)
         ExecutionManager::Init();
 
 #ifndef CROSSGEN_COMPILE
+
+        // This isn't done as part of InitializeGarbageCollector() above because thread
+        // creation requires AppDomains to have been set up.
+        FinalizerThread::FinalizerThreadCreate();
 
 #ifndef FEATURE_PAL
         // Watson initialization must precede InitializeDebugger() and InstallUnhandledExceptionFilter() 
@@ -990,7 +1014,14 @@ void EEStartupHelper(COINITIEE fFlags)
         }
 #endif
 
-        InitializeGarbageCollector();
+        // This isn't done as part of InitializeGarbageCollector() above because it
+        // requires write barriers to have been set up on x86, which happens as part
+        // of InitJITHelpers1.
+        hr = g_pGCHeap->Initialize();
+        IfFailGo(hr);
+
+        // Now we really have fully initialized the garbage collector
+        SetGarbageCollectorFullyInitialized();
 
         InitializePinHandleTable();
 
@@ -1003,7 +1034,12 @@ void EEStartupHelper(COINITIEE fFlags)
              SystemDomain::System()->DefaultDomain()));
         SystemDomain::System()->PublishAppDomainAndInformDebugger(SystemDomain::System()->DefaultDomain());
 #endif
- 
+
+#ifdef FEATURE_PERFTRACING
+        // Initialize the event pipe and start it if requested.
+        EventPipe::Initialize();
+        EventPipe::EnableOnStartup();
+#endif // FEATURE_PERFTRACING
 
 #endif // CROSSGEN_COMPILE
 
@@ -1672,6 +1708,11 @@ void STDMETHODCALLTYPE EEShutDownHelper(BOOL fIsDllUnloading)
         PerfMap::Destroy();
 #endif
 
+#ifdef FEATURE_PERFTRACING
+        // Shutdown the event pipe.
+        EventPipe::Shutdown();
+#endif // FEATURE_PERFTRACING
+
 #ifdef FEATURE_PREJIT
         {
             // If we're doing basic block profiling, we need to write the log files to disk.
@@ -1680,8 +1721,19 @@ void STDMETHODCALLTYPE EEShutDownHelper(BOOL fIsDllUnloading)
             if (!fIBCLoggingDone)
             {
                 if (g_IBCLogger.InstrEnabled())
-                    Module::WriteAllModuleProfileData(true);
+                {
+                    Thread * pThread = GetThread();
+                    ThreadLocalIBCInfo* pInfo = pThread->GetIBCInfo();
 
+                    // Acquire the Crst lock before creating the IBCLoggingDisabler object.
+                    // Only one thread at a time can be processing an IBC logging event.
+                    CrstHolder lock(g_IBCLogger.GetSync());
+                    {
+                        IBCLoggingDisabler disableLogging( pInfo );  // runs IBCLoggingDisabler::DisableLogging
+                        
+                        Module::WriteAllModuleProfileData(true);
+                    }
+                }
                 fIBCLoggingDone = TRUE;
             }
         }
@@ -1828,7 +1880,7 @@ part2:
 #ifdef SHOULD_WE_CLEANUP
                 if (!g_fFastExitProcess)
                 {
-                    Ref_Shutdown(); // shut down the handle table
+                    GCHeapUtilities::GetGCHandleTable()->Shutdown();
                 }
 #endif /* SHOULD_WE_CLEANUP */
 
@@ -2378,11 +2430,6 @@ void STDMETHODCALLTYPE CoUninitializeEE(BOOL fIsDllUnloading)
 
 }
 
-
-
-
-
-
 //*****************************************************************************
 BOOL ExecuteDLL_ReturnOrThrow(HRESULT hr, BOOL fFromThunk)
 {
@@ -2400,28 +2447,6 @@ BOOL ExecuteDLL_ReturnOrThrow(HRESULT hr, BOOL fFromThunk)
         COMPlusThrowHR(hr);
     }
     return SUCCEEDED(hr);
-}
-
-
-
-
-
-Volatile<BOOL> g_bIsGarbageCollectorFullyInitialized = FALSE;
-    
-void SetGarbageCollectorFullyInitialized()
-{
-    LIMITED_METHOD_CONTRACT;
-    
-    g_bIsGarbageCollectorFullyInitialized = TRUE;
-}
-
-// Tells whether the garbage collector is fully initialized
-// Stronger than IsGCHeapInitialized
-BOOL IsGarbageCollectorFullyInitialized()
-{
-    LIMITED_METHOD_CONTRACT;      
-
-    return g_bIsGarbageCollectorFullyInitialized;
 }
 
 //
@@ -2458,15 +2483,17 @@ void InitializeGarbageCollector()
     IGCToCLR* gcToClr = nullptr;
 #endif
 
+    IGCHandleTable *pGcHandleTable;
 
     IGCHeap *pGCHeap;
-    if (!InitializeGarbageCollector(gcToClr, &pGCHeap, &g_gc_dac_vars)) 
+    if (!InitializeGarbageCollector(gcToClr, &pGCHeap, &pGcHandleTable, &g_gc_dac_vars)) 
     {
         ThrowOutOfMemory();
     }
 
     assert(pGCHeap != nullptr);
     g_pGCHeap = pGCHeap;
+    g_pGCHandleTable = pGcHandleTable;
     g_gcDacGlobals = &g_gc_dac_vars;
 
     // Apparently the Windows linker removes global variables if they are never
@@ -2474,15 +2501,6 @@ void InitializeGarbageCollector()
     // only the DAC will read from it. This forces the linker to include
     // g_gcDacGlobals.
     volatile void* _dummy = g_gcDacGlobals;
-
-    hr = pGCHeap->Initialize();
-    IfFailThrow(hr);
-
-    // Thread for running finalizers...
-    FinalizerThread::FinalizerThreadCreate();
-
-    // Now we really have fully initialized the garbage collector
-    SetGarbageCollectorFullyInitialized();
 }
 
 /*****************************************************************************/
@@ -3402,24 +3420,4 @@ void ContractRegressionCheck()
 
 #endif // ENABLE_CONTRACTS_IMPL
 
-
 #endif // CROSSGEN_COMPILE
-
-
-//
-// GetOSVersion - Gets the real OS version bypassing the OS compatibility shim
-// Mscoree.dll resides in System32 dir and is always excluded from compat shim.
-// This function calls mscoree!shim function via mscoreei ICLRRuntimeHostInternal interface
-// to get the OS version. We do not do this PAL or coreclr..we direclty call the OS
-// in that case.
-//
-BOOL GetOSVersion(LPOSVERSIONINFO lposVer)
-{
-// Fix for warnings when building against WinBlue build 9444.0.130614-1739
-// warning C4996: 'GetVersionExW': was declared deprecated
-// externalapis\windows\winblue\sdk\inc\sysinfoapi.h(442)
-// Deprecated. Use VerifyVersionInfo* or IsWindows* macros from VersionHelpers.
-#pragma warning( disable : 4996 )
-    return WszGetVersionEx(lposVer);
-#pragma warning( default : 4996 )
-}

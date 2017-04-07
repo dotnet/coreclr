@@ -947,12 +947,14 @@ AssertionIndex Compiler::optCreateAssertion(GenTreePtr       op1,
             while (vnStore->GetVNFunc(vn, &funcAttr) && (funcAttr.m_func == (VNFunc)GT_ADD) &&
                    (vnStore->TypeOfVN(vn) == TYP_BYREF))
             {
-                if (vnStore->IsVNConstant(funcAttr.m_args[1]))
+                if (vnStore->IsVNConstant(funcAttr.m_args[1]) &&
+                    varTypeIsIntegral(vnStore->TypeOfVN(funcAttr.m_args[1])))
                 {
                     offset += vnStore->CoercedConstantValue<ssize_t>(funcAttr.m_args[1]);
                     vn = funcAttr.m_args[0];
                 }
-                else if (vnStore->IsVNConstant(funcAttr.m_args[0]))
+                else if (vnStore->IsVNConstant(funcAttr.m_args[0]) &&
+                         varTypeIsIntegral(vnStore->TypeOfVN(funcAttr.m_args[0])))
                 {
                     offset += vnStore->CoercedConstantValue<ssize_t>(funcAttr.m_args[0]);
                     vn = funcAttr.m_args[1];
@@ -1483,13 +1485,15 @@ void Compiler::optPrintVnAssertionMapping()
  */
 void Compiler::optAddVnAssertionMapping(ValueNum vn, AssertionIndex index)
 {
-    ASSERT_TP cur;
-    if (!optValueNumToAsserts->Lookup(vn, &cur))
+    ASSERT_TP* cur = optValueNumToAsserts->LookupPointer(vn);
+    if (cur == nullptr)
     {
-        cur = BitVecOps::MakeEmpty(apTraits);
-        optValueNumToAsserts->Set(vn, cur);
+        optValueNumToAsserts->Set(vn, BitVecOps::MakeSingleton(apTraits, index - 1));
     }
-    BitVecOps::AddElemD(apTraits, cur, index - 1);
+    else
+    {
+        BitVecOps::AddElemD(apTraits, *cur, index - 1);
+    }
 }
 
 /*****************************************************************************

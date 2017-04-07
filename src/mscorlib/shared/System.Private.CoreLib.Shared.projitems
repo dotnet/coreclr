@@ -15,6 +15,7 @@
   </PropertyGroup>
   <ItemGroup Condition="$(TargetsWindows)">
     <Compile Include="$(MSBuildThisFileDirectory)Interop\Windows\BCrypt\Interop.BCryptGenRandom.cs"/>
+    <Compile Include="$(MSBuildThisFileDirectory)Interop\Windows\Crypt32\Interop.CryptProtectMemory.cs"/>
     <Compile Include="$(MSBuildThisFileDirectory)Interop\Windows\Interop.BOOL.cs"/>
     <Compile Include="$(MSBuildThisFileDirectory)Interop\Windows\Interop.Errors.cs"/>
     <Compile Include="$(MSBuildThisFileDirectory)Interop\Windows\Interop.Libraries.cs"/>
@@ -33,6 +34,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)Interop\Windows\Kernel32\Interop.GetTempFileNameW.cs"/>
     <Compile Include="$(MSBuildThisFileDirectory)Interop\Windows\Kernel32\Interop.GetTempPathW.cs"/>
     <Compile Include="$(MSBuildThisFileDirectory)Interop\Windows\Kernel32\Interop.LockFile.cs"/>
+    <Compile Include="$(MSBuildThisFileDirectory)Interop\Windows\Kernel32\Interop.OutputDebugString.cs"/>
     <Compile Include="$(MSBuildThisFileDirectory)Interop\Windows\Kernel32\Interop.ReadFile_SafeHandle_IntPtr.cs"/>
     <Compile Include="$(MSBuildThisFileDirectory)Interop\Windows\Kernel32\Interop.ReadFile_SafeHandle_NativeOverlapped.cs"/>
     <Compile Include="$(MSBuildThisFileDirectory)Interop\Windows\Kernel32\Interop.SECURITY_ATTRIBUTES.cs"/>
@@ -40,6 +42,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)Interop\Windows\Kernel32\Interop.SetEndOfFile.cs"/>
     <Compile Include="$(MSBuildThisFileDirectory)Interop\Windows\Kernel32\Interop.SetErrorMode.cs"/>
     <Compile Include="$(MSBuildThisFileDirectory)Interop\Windows\Kernel32\Interop.SetFilePointerEx.cs"/>
+    <Compile Include="$(MSBuildThisFileDirectory)Interop\Windows\Kernel32\Interop.WideCharToMultiByte.cs"/>
     <Compile Include="$(MSBuildThisFileDirectory)Interop\Windows\Kernel32\Interop.WriteFile_SafeHandle_IntPtr.cs"/>
     <Compile Include="$(MSBuildThisFileDirectory)Interop\Windows\Kernel32\Interop.WriteFile_SafeHandle_NativeOverlapped.cs"/>
   </ItemGroup>
@@ -47,6 +50,14 @@
     <Compile Include="$(MSBuildThisFileDirectory)Interop\Unix\Interop.Errors.cs"/>
     <Compile Include="$(MSBuildThisFileDirectory)Interop\Unix\Interop.IOErrors.cs"/>
     <Compile Include="$(MSBuildThisFileDirectory)Interop\Unix\Interop.Libraries.cs"/>
+    <Compile Include="$(MSBuildThisFileDirectory)Interop\Unix\System.Globalization.Native\Interop.Calendar.cs" Condition="'$(EnableDummyGlobalizationImplementation)' != 'true'"/>
+    <Compile Include="$(MSBuildThisFileDirectory)Interop\Unix\System.Globalization.Native\Interop.Casing.cs" Condition="'$(EnableDummyGlobalizationImplementation)' != 'true'"/>
+    <Compile Include="$(MSBuildThisFileDirectory)Interop\Unix\System.Globalization.Native\Interop.Idna.cs" Condition="'$(EnableDummyGlobalizationImplementation)' != 'true'"/>
+    <Compile Include="$(MSBuildThisFileDirectory)Interop\Unix\System.Globalization.Native\Interop.Locale.cs" Condition="'$(EnableDummyGlobalizationImplementation)' != 'true'"/>
+    <Compile Include="$(MSBuildThisFileDirectory)Interop\Unix\System.Globalization.Native\Interop.Normalization.cs" Condition="'$(EnableDummyGlobalizationImplementation)' != 'true'"/>
+    <Compile Include="$(MSBuildThisFileDirectory)Interop\Unix\System.Globalization.Native\Interop.ResultCode.cs" Condition="'$(EnableDummyGlobalizationImplementation)' != 'true'"/>
+    <Compile Include="$(MSBuildThisFileDirectory)Interop\Unix\System.Globalization.Native\Interop.TimeZoneInfo.cs" Condition="'$(EnableDummyGlobalizationImplementation)' != 'true'"/>
+    <Compile Include="$(MSBuildThisFileDirectory)Interop\Unix\System.Globalization.Native\Interop.Utils.cs" Condition="'$(EnableDummyGlobalizationImplementation)' != 'true'"/>
     <Compile Include="$(MSBuildThisFileDirectory)Interop\Unix\System.Native\Interop.Close.cs"/>
     <Compile Include="$(MSBuildThisFileDirectory)Interop\Unix\System.Native\Interop.FLock.cs"/>
     <Compile Include="$(MSBuildThisFileDirectory)Interop\Unix\System.Native\Interop.FSync.cs"/>
@@ -62,6 +73,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)Interop\Unix\System.Native\Interop.PosixFAdvise.cs"/>
     <Compile Include="$(MSBuildThisFileDirectory)Interop\Unix\System.Native\Interop.Read.cs"/>
     <Compile Include="$(MSBuildThisFileDirectory)Interop\Unix\System.Native\Interop.Stat.cs"/>
+    <Compile Include="$(MSBuildThisFileDirectory)Interop\Unix\System.Native\Interop.SysLog.cs"/>
     <Compile Include="$(MSBuildThisFileDirectory)Interop\Unix\System.Native\Interop.Unlink.cs"/>
     <Compile Include="$(MSBuildThisFileDirectory)Interop\Unix\System.Native\Interop.Write.cs"/>
   </ItemGroup>
@@ -73,6 +85,8 @@
     <Compile Include="$(MSBuildThisFileDirectory)System\ArgumentNullException.cs"/>
     <Compile Include="$(MSBuildThisFileDirectory)System\ArithmeticException.cs"/>
     <Compile Include="$(MSBuildThisFileDirectory)System\ArrayTypeMismatchException.cs"/>
+    <Compile Include="$(MSBuildThisFileDirectory)System\AssemblyLoadEventArgs.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)System\AssemblyLoadEventHandler.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)System\AsyncCallback.cs"/>
     <Compile Include="$(MSBuildThisFileDirectory)System\AttributeTargets.cs"/>
     <Compile Include="$(MSBuildThisFileDirectory)System\AttributeUsageAttribute.cs"/>
@@ -80,6 +94,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)System\Buffers\ConfigurableArrayPool.cs"/>
     <Compile Include="$(MSBuildThisFileDirectory)System\Buffers\TlsOverPerCoreLockedStacksArrayPool.cs"/>
     <Compile Include="$(MSBuildThisFileDirectory)System\Buffers\Utilities.cs"/>
+    <Compile Include="$(MSBuildThisFileDirectory)System\Char.cs"/>
     <Compile Include="$(MSBuildThisFileDirectory)System\CharEnumerator.cs"/>
     <Compile Include="$(MSBuildThisFileDirectory)System\CLSCompliantAttribute.cs"/>
     <Compile Include="$(MSBuildThisFileDirectory)System\Collections\DictionaryEntry.cs"/>
@@ -107,12 +122,15 @@
     <Compile Include="$(MSBuildThisFileDirectory)System\Collections\IStructuralEquatable.cs"/>
     <Compile Include="$(MSBuildThisFileDirectory)System\ComponentModel\EditorBrowsableAttribute.cs"/>
     <Compile Include="$(MSBuildThisFileDirectory)System\Convert.cs"/>
+    <Compile Include="$(MSBuildThisFileDirectory)System\CurrentSystemTimeZone.cs"/>
     <Compile Include="$(MSBuildThisFileDirectory)System\DataMisalignedException.cs"/>
     <Compile Include="$(MSBuildThisFileDirectory)System\DateTime.cs"/>
     <Compile Include="$(MSBuildThisFileDirectory)System\DateTimeKind.cs"/>
+    <Compile Include="$(MSBuildThisFileDirectory)System\DateTimeOffset.cs"/>
     <Compile Include="$(MSBuildThisFileDirectory)System\DayOfWeek.cs"/>
     <Compile Include="$(MSBuildThisFileDirectory)System\DBNull.cs"/>
     <Compile Include="$(MSBuildThisFileDirectory)System\DefaultBinder.cs"/>
+    <Compile Include="$(MSBuildThisFileDirectory)System\Diagnostics\Debug.cs"/>
     <Compile Include="$(MSBuildThisFileDirectory)System\DivideByZeroException.cs"/>
     <Compile Include="$(MSBuildThisFileDirectory)System\DuplicateWaitObjectException.cs"/>
     <Compile Include="$(MSBuildThisFileDirectory)System\EntryPointNotFoundException.cs"/>
@@ -123,6 +141,39 @@
     <Compile Include="$(MSBuildThisFileDirectory)System\FlagsAttribute.cs"/>
     <Compile Include="$(MSBuildThisFileDirectory)System\FormatException.cs"/>
     <Compile Include="$(MSBuildThisFileDirectory)System\FormattableString.cs"/>
+    <Compile Include="$(MSBuildThisFileDirectory)System\Globalization\CalendarAlgorithmType.cs"/>
+    <Compile Include="$(MSBuildThisFileDirectory)System\Globalization\CalendarWeekRule.cs"/>
+    <Compile Include="$(MSBuildThisFileDirectory)System\Globalization\CalendricalCalculationsHelper.cs"/>
+    <Compile Include="$(MSBuildThisFileDirectory)System\Globalization\ChineseLunisolarCalendar.cs"/>
+    <Compile Include="$(MSBuildThisFileDirectory)System\Globalization\CultureNotFoundException.cs"/>
+    <Compile Include="$(MSBuildThisFileDirectory)System\Globalization\CultureTypes.cs"/>
+    <Compile Include="$(MSBuildThisFileDirectory)System\Globalization\DateTimeFormat.cs"/>
+    <Compile Include="$(MSBuildThisFileDirectory)System\Globalization\DateTimeFormatInfo.cs"/>
+    <Compile Include="$(MSBuildThisFileDirectory)System\Globalization\DateTimeFormatInfoScanner.cs"/>
+    <Compile Include="$(MSBuildThisFileDirectory)System\Globalization\DateTimeParse.cs"/>
+    <Compile Include="$(MSBuildThisFileDirectory)System\Globalization\DateTimeStyles.cs"/>
+    <Compile Include="$(MSBuildThisFileDirectory)System\Globalization\DaylightTime.cs"/>
+    <Compile Include="$(MSBuildThisFileDirectory)System\Globalization\DigitShapes.cs"/>
+    <Compile Include="$(MSBuildThisFileDirectory)System\Globalization\EastAsianLunisolarCalendar.cs"/>
+    <Compile Include="$(MSBuildThisFileDirectory)System\Globalization\GregorianCalendarTypes.cs"/>
+    <Compile Include="$(MSBuildThisFileDirectory)System\Globalization\HebrewCalendar.cs"/>
+    <Compile Include="$(MSBuildThisFileDirectory)System\Globalization\HebrewNumber.cs"/>
+    <Compile Include="$(MSBuildThisFileDirectory)System\Globalization\HijriCalendar.cs"/>
+    <Compile Include="$(MSBuildThisFileDirectory)System\Globalization\InternalGlobalizationHelper.cs"/>
+    <Compile Include="$(MSBuildThisFileDirectory)System\Globalization\JapaneseCalendar.cs"/>
+    <Compile Include="$(MSBuildThisFileDirectory)System\Globalization\JapaneseLunisolarCalendar.cs"/>
+    <Compile Include="$(MSBuildThisFileDirectory)System\Globalization\JulianCalendar.cs"/>
+    <Compile Include="$(MSBuildThisFileDirectory)System\Globalization\KoreanCalendar.cs"/>
+    <Compile Include="$(MSBuildThisFileDirectory)System\Globalization\KoreanLunisolarCalendar.cs"/>
+    <Compile Include="$(MSBuildThisFileDirectory)System\Globalization\NumberStyles.cs"/>
+    <Compile Include="$(MSBuildThisFileDirectory)System\Globalization\PersianCalendar.cs"/>
+    <Compile Include="$(MSBuildThisFileDirectory)System\Globalization\SortVersion.cs"/>
+    <Compile Include="$(MSBuildThisFileDirectory)System\Globalization\TaiwanCalendar.cs"/>
+    <Compile Include="$(MSBuildThisFileDirectory)System\Globalization\TaiwanLunisolarCalendar.cs"/>
+    <Compile Include="$(MSBuildThisFileDirectory)System\Globalization\ThaiBuddhistCalendar.cs"/>
+    <Compile Include="$(MSBuildThisFileDirectory)System\Globalization\TimeSpanStyles.cs"/>
+    <Compile Include="$(MSBuildThisFileDirectory)System\Globalization\UmAlQuraCalendar.cs"/>
+    <Compile Include="$(MSBuildThisFileDirectory)System\Globalization\UnicodeCategory.cs"/>
     <Compile Include="$(MSBuildThisFileDirectory)System\IAsyncResult.cs"/>
     <Compile Include="$(MSBuildThisFileDirectory)System\IComparable.cs"/>
     <Compile Include="$(MSBuildThisFileDirectory)System\IConvertible.cs"/>
@@ -138,9 +189,11 @@
     <Compile Include="$(MSBuildThisFileDirectory)System\InvalidProgramException.cs"/>
     <Compile Include="$(MSBuildThisFileDirectory)System\InvalidTimeZoneException.cs"/>
     <Compile Include="$(MSBuildThisFileDirectory)System\IO\Error.cs"/>
-    <Compile Include="$(MSBuildThisFileDirectory)System\IO\FileStream.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)System\IO\Path.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)System\IO\PathInternal.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)System\IO\FileLoadException.cs"/>
+    <Compile Include="$(MSBuildThisFileDirectory)System\IO\FileStream.cs"/>
+    <Compile Include="$(MSBuildThisFileDirectory)System\IO\Path.cs"/>
+    <Compile Include="$(MSBuildThisFileDirectory)System\IO\PathInternal.cs"/>
+    <Compile Include="$(MSBuildThisFileDirectory)System\IO\StreamHelpers.CopyValidation.cs"/>
     <Compile Include="$(MSBuildThisFileDirectory)System\IObservable.cs"/>
     <Compile Include="$(MSBuildThisFileDirectory)System\IObserver.cs"/>
     <Compile Include="$(MSBuildThisFileDirectory)System\IProgress.cs"/>
@@ -219,6 +272,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)System\Reflection\ParameterAttributes.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)System\Reflection\ParameterInfo.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)System\Reflection\ParameterModifier.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)System\Reflection\Pointer.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)System\Reflection\PortableExecutableKinds.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)System\Reflection\ProcessorArchitecture.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)System\Reflection\PropertyAttributes.cs" />
@@ -235,6 +289,8 @@
     <Compile Include="$(MSBuildThisFileDirectory)System\Reflection\TypeDelegator.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)System\Reflection\TypeFilter.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)System\Reflection\TypeInfo.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)System\ResolveEventArgs.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)System\ResolveEventHandler.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)System\Runtime\CompilerServices\CompilationRelaxations.cs"/>
     <Compile Include="$(MSBuildThisFileDirectory)System\Runtime\CompilerServices\CompilerGlobalScopeAttribute.cs"/>
     <Compile Include="$(MSBuildThisFileDirectory)System\Runtime\CompilerServices\DefaultDependencyAttribute.cs"/>
@@ -260,6 +316,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)System\Security\AllowPartiallyTrustedCallersAttribute.cs"/>
     <Compile Include="$(MSBuildThisFileDirectory)System\Security\CryptographicException.cs"/>
     <Compile Include="$(MSBuildThisFileDirectory)System\Security\PartialTrustVisibilityLevel.cs"/>
+    <Compile Include="$(MSBuildThisFileDirectory)System\Security\SecureString.cs"/>
     <Compile Include="$(MSBuildThisFileDirectory)System\Security\SecurityCriticalAttribute.cs"/>
     <Compile Include="$(MSBuildThisFileDirectory)System\Security\SecurityCriticalScope.cs"/>
     <Compile Include="$(MSBuildThisFileDirectory)System\Security\SecurityException.cs"/>
@@ -271,12 +328,19 @@
     <Compile Include="$(MSBuildThisFileDirectory)System\Security\SuppressUnmanagedCodeSecurityAttribute.cs"/>
     <Compile Include="$(MSBuildThisFileDirectory)System\Security\UnverifiableCodeAttribute.cs"/>
     <Compile Include="$(MSBuildThisFileDirectory)System\StackOverflowException.cs"/>
+    <Compile Include="$(MSBuildThisFileDirectory)System\StringComparer.cs"/>
+    <Compile Include="$(MSBuildThisFileDirectory)System\StringComparison.cs"/>
     <Compile Include="$(MSBuildThisFileDirectory)System\StringSplitOptions.cs"/>
     <Compile Include="$(MSBuildThisFileDirectory)System\SystemException.cs"/>
+    <Compile Include="$(MSBuildThisFileDirectory)System\TimeZone.cs"/>
     <Compile Include="$(MSBuildThisFileDirectory)System\Text\Normalization.cs"/>
     <Compile Include="$(MSBuildThisFileDirectory)System\Text\StringBuilder.cs"/>
     <Compile Include="$(MSBuildThisFileDirectory)System\ThreadAttributes.cs"/>
     <Compile Include="$(MSBuildThisFileDirectory)System\Threading\DeferredDisposableLifetime.cs"/>
+    <Compile Include="$(MSBuildThisFileDirectory)System\Threading\Tasks\TaskCanceledException.cs"/>
+    <Compile Include="$(MSBuildThisFileDirectory)System\Threading\Tasks\TaskExtensions.cs"/>
+    <Compile Include="$(MSBuildThisFileDirectory)System\Threading\Tasks\TaskSchedulerException.cs"/>
+    <Compile Include="$(MSBuildThisFileDirectory)System\Threading\ThreadAbortException.cs"/>
     <Compile Include="$(MSBuildThisFileDirectory)System\Threading\Timeout.cs"/>
     <Compile Include="$(MSBuildThisFileDirectory)System\ThreadStaticAttribute.cs"/>
     <Compile Include="$(MSBuildThisFileDirectory)System\TimeoutException.cs"/>
@@ -288,6 +352,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)System\TypeAccessException.cs"/>
     <Compile Include="$(MSBuildThisFileDirectory)System\TypeCode.cs"/>
     <Compile Include="$(MSBuildThisFileDirectory)System\TypeInitializationException.cs"/>
+    <Compile Include="$(MSBuildThisFileDirectory)System\TypeUnloadedException.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)System\UnauthorizedAccessException.cs"/>
     <Compile Include="$(MSBuildThisFileDirectory)System\UnhandledExceptionEventArgs.cs"/>
     <Compile Include="$(MSBuildThisFileDirectory)System\UnhandledExceptionEventHandler.cs"/>
@@ -308,14 +373,57 @@
   </ItemGroup>
   <ItemGroup Condition="$(TargetsUnix)">
     <Compile Include="$(MSBuildThisFileDirectory)Microsoft\Win32\SafeHandles\SafeFileHandle.Unix.cs"/>
+    <Compile Include="$(MSBuildThisFileDirectory)System\Globalization\LocaleData.Unix.cs" Condition="'$(EnableDummyGlobalizationImplementation)' != 'true'"/>
     <Compile Include="$(MSBuildThisFileDirectory)System\IO\FileStream.Unix.cs"/>
     <Compile Include="$(MSBuildThisFileDirectory)System\IO\Path.Unix.cs"/>
     <Compile Include="$(MSBuildThisFileDirectory)System\IO\PathInternal.Unix.cs"/>
+    <Compile Include="$(MSBuildThisFileDirectory)System\Security\SecureString.Unix.cs"/>
   </ItemGroup>
   <ItemGroup Condition="$(TargetsUnix) and $(TargetsOSX)">
     <Compile Include="$(MSBuildThisFileDirectory)System\IO\FileStream.OSX.cs"/>
   </ItemGroup>
   <ItemGroup Condition="$(TargetsUnix) and !$(TargetsOSX)">
     <Compile Include="$(MSBuildThisFileDirectory)System\IO\FileStream.Linux.cs"/>
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="$(MSBuildThisFileDirectory)System\Diagnostics\Tracing\ActivityTracker.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)System\Diagnostics\Tracing\EventActivityOptions.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)System\Diagnostics\Tracing\EventCounter.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)System\Diagnostics\Tracing\EventDescriptor.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)System\Diagnostics\Tracing\EventProvider.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)System\Diagnostics\Tracing\EventSource.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)System\Diagnostics\Tracing\EventSourceException.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)System\Diagnostics\Tracing\StubEnvironment.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)System\Diagnostics\Tracing\Winmeta.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)System\Diagnostics\Tracing\TraceLogging\ArrayTypeInfo.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)System\Diagnostics\Tracing\TraceLogging\ConcurrentSet.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)System\Diagnostics\Tracing\TraceLogging\ConcurrentSetItem.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)System\Diagnostics\Tracing\TraceLogging\DataCollector.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)System\Diagnostics\Tracing\TraceLogging\EmptyStruct.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)System\Diagnostics\Tracing\TraceLogging\EnumerableTypeInfo.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)System\Diagnostics\Tracing\TraceLogging\EnumHelper.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)System\Diagnostics\Tracing\TraceLogging\EventDataAttribute.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)System\Diagnostics\Tracing\TraceLogging\EventFieldAttribute.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)System\Diagnostics\Tracing\TraceLogging\EventFieldFormat.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)System\Diagnostics\Tracing\TraceLogging\EventIgnoreAttribute.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)System\Diagnostics\Tracing\TraceLogging\EventPayload.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)System\Diagnostics\Tracing\TraceLogging\EventSourceActivity.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)System\Diagnostics\Tracing\TraceLogging\EventSourceOptions.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)System\Diagnostics\Tracing\TraceLogging\FieldMetadata.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)System\Diagnostics\Tracing\TraceLogging\InvokeTypeInfo.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)System\Diagnostics\Tracing\TraceLogging\NameInfo.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)System\Diagnostics\Tracing\TraceLogging\PropertyAnalysis.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)System\Diagnostics\Tracing\TraceLogging\PropertyValue.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)System\Diagnostics\Tracing\TraceLogging\SimpleEventTypes.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)System\Diagnostics\Tracing\TraceLogging\SimpleTypeInfos.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)System\Diagnostics\Tracing\TraceLogging\Statics.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)System\Diagnostics\Tracing\TraceLogging\TraceLoggingDataCollector.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)System\Diagnostics\Tracing\TraceLogging\TraceLoggingDataType.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)System\Diagnostics\Tracing\TraceLogging\TraceLoggingEventSource.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)System\Diagnostics\Tracing\TraceLogging\TraceLoggingEventTraits.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)System\Diagnostics\Tracing\TraceLogging\TraceLoggingEventTypes.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)System\Diagnostics\Tracing\TraceLogging\TraceLoggingMetadataCollector.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)System\Diagnostics\Tracing\TraceLogging\TraceLoggingTypeInfo.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)System\Diagnostics\Tracing\TraceLogging\TypeAnalysis.cs" />
   </ItemGroup>
 </Project>

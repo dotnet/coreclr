@@ -29,6 +29,15 @@
 #include "comcallablewrapper.h"
 #endif // FEATURE_COMINTEROP
 
+// the method table for the WeakReference class
+extern MethodTable* pWeakReferenceMT;
+
+// The canonical method table for WeakReference<T>
+extern MethodTable* pWeakReferenceOfTCanonMT;
+
+// Finalizes a weak reference directly.
+extern void FinalizeWeakReference(Object* obj);
+
 void GCToEEInterface::SuspendEE(SUSPEND_REASON reason)
 {
     WRAPPER_NO_CONTRACT;
@@ -626,6 +635,11 @@ void GCToEEInterface::GcStartWork (int condemned, int max_gen)
     // 
     RCWWalker::OnGCStarted(condemned);
 #endif // FEATURE_COMINTEROP
+
+    if (condemned == max_gen)
+    {
+        ThreadStore::s_pThreadStore->OnMaxGenerationGCStarted();
+    }
 }
 
 void GCToEEInterface::GcDone(int condemned)
@@ -950,7 +964,7 @@ void GcScanRootsForProfilerAndETW(promote_func* fn, int condemned, int max_gen, 
     }
 }
 
-void ScanHandleForProfilerAndETW(Object** pRef, Object* pSec, uint32_t flags, ScanContext* context, BOOL isDependent)
+void ScanHandleForProfilerAndETW(Object** pRef, Object* pSec, uint32_t flags, ScanContext* context, bool isDependent)
 {
     ProfilingScanContext* pSC = (ProfilingScanContext*)context;
 
@@ -1011,6 +1025,7 @@ void GCProfileWalkHeapWorker(BOOL fProfilerPinned, BOOL fShouldWalkHeapRootsForE
 {
     {
         ProfilingScanContext SC(fProfilerPinned);
+        unsigned max_generation = GCHeapUtilities::GetGCHeap()->GetMaxGeneration();
 
         // **** Scan roots:  Only scan roots if profiling API wants them or ETW wants them.
         if (fProfilerPinned || fShouldWalkHeapRootsForEtw)
@@ -1063,7 +1078,7 @@ void GCProfileWalkHeapWorker(BOOL fProfilerPinned, BOOL fShouldWalkHeapRootsForE
         // **** Walk objects on heap: only if profiling API wants them or ETW wants them.
         if (fProfilerPinned || fShouldWalkHeapObjectsForEtw)
         {
-            GCHeapUtilities::GetGCHeap()->DiagWalkHeap(&HeapWalkHelper, &profilerWalkHeapContext, max_generation, TRUE /* walk the large object heap */);
+            GCHeapUtilities::GetGCHeap()->DiagWalkHeap(&HeapWalkHelper, &profilerWalkHeapContext, max_generation, true /* walk the large object heap */);
         }
 
 #ifdef FEATURE_EVENT_TRACE
@@ -1113,7 +1128,7 @@ void GCProfileWalkHeap()
 #endif // defined(GC_PROFILING) || defined(FEATURE_EVENT_TRACE)
 }
 
-void WalkFReachableObjects(BOOL isCritical, void* objectID)
+void WalkFReachableObjects(bool isCritical, void* objectID)
 {
 	g_profControlBlock.pProfInterface->FinalizeableObjectQueued(isCritical, (ObjectID)objectID);
 }
@@ -1131,7 +1146,7 @@ void GCToEEInterface::DiagGCStart(int gen, bool isInduced)
 
         // When we're walking objects allocated by class, then we don't want to walk the large
         // object heap because then it would count things that may have been around for a while.
-        GCHeapUtilities::GetGCHeap()->DiagWalkHeap(&AllocByClassHelper, (void *)&context, 0, FALSE);
+        GCHeapUtilities::GetGCHeap()->DiagWalkHeap(&AllocByClassHelper, (void *)&context, 0, false);
 
         // Notify that we've reached the end of the Gen 0 scan
         g_profControlBlock.pProfInterface->EndAllocByClass(&context);
@@ -1178,13 +1193,13 @@ void GCToEEInterface::DiagWalkFReachableObjects(void* gcContext)
 // don't get confused.
 void WalkMovedReferences(uint8_t* begin, uint8_t* end, 
                          ptrdiff_t reloc,
-                         size_t context, 
-                         BOOL fCompacting,
-                         BOOL fBGC)
+                         void* context, 
+                         bool fCompacting,
+                         bool fBGC)
 {
     ETW::GCLog::MovedReference(begin, end,
                                (fCompacting ? reloc : 0),
-                               context,
+                               (size_t)context,
                                fCompacting,
                                !fBGC);
 }
@@ -1196,7 +1211,7 @@ void GCToEEInterface::DiagWalkSurvivors(void* gcContext)
     {
         size_t context = 0;
         ETW::GCLog::BeginMovedReferences(&context);
-        GCHeapUtilities::GetGCHeap()->DiagWalkSurvivorsWithType(gcContext, &WalkMovedReferences, context, walk_for_gc);
+        GCHeapUtilities::GetGCHeap()->DiagWalkSurvivorsWithType(gcContext, &WalkMovedReferences, (void*)context, walk_for_gc);
         ETW::GCLog::EndMovedReferences(context);
     }
 #endif //GC_PROFILING || FEATURE_EVENT_TRACE
@@ -1209,7 +1224,7 @@ void GCToEEInterface::DiagWalkLOHSurvivors(void* gcContext)
     {
         size_t context = 0;
         ETW::GCLog::BeginMovedReferences(&context);
-        GCHeapUtilities::GetGCHeap()->DiagWalkSurvivorsWithType(gcContext, &WalkMovedReferences, context, walk_for_loh);
+        GCHeapUtilities::GetGCHeap()->DiagWalkSurvivorsWithType(gcContext, &WalkMovedReferences, (void*)context, walk_for_loh);
         ETW::GCLog::EndMovedReferences(context);
     }
 #endif //GC_PROFILING || FEATURE_EVENT_TRACE
@@ -1222,7 +1237,7 @@ void GCToEEInterface::DiagWalkBGCSurvivors(void* gcContext)
     {
         size_t context = 0;
         ETW::GCLog::BeginMovedReferences(&context);
-        GCHeapUtilities::GetGCHeap()->DiagWalkSurvivorsWithType(gcContext, &WalkMovedReferences, context, walk_for_bgc);
+        GCHeapUtilities::GetGCHeap()->DiagWalkSurvivorsWithType(gcContext, &WalkMovedReferences, (void*)context, walk_for_bgc);
         ETW::GCLog::EndMovedReferences(context);
     }
 #endif //GC_PROFILING || FEATURE_EVENT_TRACE
@@ -1343,4 +1358,39 @@ void GCToEEInterface::EnableFinalization(bool foundFinalizers)
 void GCToEEInterface::HandleFatalError(unsigned int exitCode)
 {
     EEPOLICY_HANDLE_FATAL_ERROR(exitCode);
+}
+
+bool GCToEEInterface::ShouldFinalizeObjectForUnload(AppDomain* pDomain, Object* obj)
+{
+    // CoreCLR does not have appdomains, so this code path is dead. Other runtimes may
+    // choose to inspect the object being finalized here.
+    // [DESKTOP TODO] Desktop looks for "agile and finalizable" objects and may choose
+    // to move them to a new app domain instead of finalizing them here.
+    return true;
+}
+
+bool GCToEEInterface::ForceFullGCToBeBlocking()
+{
+    // In theory, there is nothing fundamental that requires an AppDomain unload to induce
+    // a blocking GC. In the past, this workaround was done to fix an Stress AV, but the root
+    // cause of the AV was never discovered and this workaround remains in place.
+    //
+    // It would be nice if this were not necessary. However, it's not clear if the aformentioned
+    // stress bug is still lurking and will return if this workaround is removed. We should
+    // do some experiments: remove this workaround and see if the stress bug still repros.
+    // If so, we should find the root cause instead of relying on this.
+    return !!SystemDomain::System()->RequireAppDomainCleanup();
+}
+
+bool GCToEEInterface::EagerFinalized(Object* obj)
+{
+    MethodTable* pMT = obj->GetGCSafeMethodTable();
+    if (pMT == pWeakReferenceMT ||
+        pMT->GetCanonicalMethodTable() == pWeakReferenceOfTCanonMT)
+    {
+        FinalizeWeakReference(obj);
+        return true;
+    }
+
+    return false;
 }

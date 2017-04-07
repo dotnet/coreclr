@@ -5524,7 +5524,7 @@ unsigned Compiler::gtSetEvalOrder(GenTree* tree)
             }
 
 #ifdef FEATURE_READYTORUN_COMPILER
-#ifdef _TARGET_ARM64_
+#if defined(_TARGET_ARMARCH_)
             if (tree->gtCall.IsR2RRelativeIndir())
             {
                 ftreg |= RBM_R2R_INDIRECT_PARAM;
@@ -7900,8 +7900,7 @@ GenTreePtr Compiler::gtCloneExpr(
                 copy = new (this, oper) GenTreeFptrVal(tree->gtType, tree->gtFptrVal.gtFptrMethod);
 
 #ifdef FEATURE_READYTORUN_COMPILER
-                copy->gtFptrVal.gtEntryPoint         = tree->gtFptrVal.gtEntryPoint;
-                copy->gtFptrVal.gtLdftnResolvedToken = tree->gtFptrVal.gtLdftnResolvedToken;
+                copy->gtFptrVal.gtEntryPoint = tree->gtFptrVal.gtEntryPoint;
 #endif
                 goto DONE;
 
@@ -16076,9 +16075,7 @@ bool GenTreeIntConCommon::FitsInAddrBase(Compiler* comp)
 #endif
 #endif //! LEGACY_BACKEND
 
-    // TODO-x86 - TLS field handles are excluded for now as they are accessed relative to FS segment.
-    // Handling of TLS field handles is a NYI and this needs to be relooked after implementing it.
-    return IsCnsIntOrI() && !IsIconHandle(GTF_ICON_TLS_HDL);
+    return IsCnsIntOrI();
 }
 
 // Returns true if this icon value is encoded as addr needs recording a relocation with VM
@@ -16380,6 +16377,14 @@ CORINFO_CLASS_HANDLE Compiler::gtGetClassHandle(GenTreePtr tree, bool* isExact, 
     *isNonNull                    = false;
     *isExact                      = false;
     CORINFO_CLASS_HANDLE objClass = nullptr;
+
+    // Bail out if we're just importing and not generating code, since
+    // the jit uses TYP_REF for CORINFO_TYPE_VAR locals and args, but
+    // these may not be ref types.
+    if (compIsForImportOnly())
+    {
+        return objClass;
+    }
 
     // Bail out if the tree is not a ref type.
     var_types treeType = tree->TypeGet();

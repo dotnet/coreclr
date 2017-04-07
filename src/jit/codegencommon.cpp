@@ -652,7 +652,7 @@ regMaskTP Compiler::compHelperCallKillSet(CorInfoHelpFunc helper)
 #if defined(_TARGET_AMD64_)
             return RBM_RSI | RBM_RDI | RBM_CALLEE_TRASH;
 #elif defined(_TARGET_ARM64_)
-            return RBM_CALLEE_TRASH_NOGC;
+            return RBM_WRITE_BARRIER_SRC_BYREF | RBM_WRITE_BARRIER_DST_BYREF | RBM_CALLEE_TRASH_NOGC;
 #elif defined(_TARGET_X86_)
             return RBM_ESI | RBM_EDI | RBM_ECX;
 #else
@@ -722,6 +722,8 @@ regMaskTP Compiler::compNoGCHelperCallKillSet(CorInfoHelpFunc helper)
 #elif defined(_TARGET_X86_)
             // This helper only trashes ECX.
             return RBM_ECX;
+#elif defined(_TARGET_ARM64_)
+            return RBM_CALLEE_TRASH_NOGC & ~(RBM_WRITE_BARRIER_SRC_BYREF | RBM_WRITE_BARRIER_DST_BYREF);
 #else
             return RBM_CALLEE_TRASH_NOGC;
 #endif // defined(_TARGET_AMD64_)
@@ -1637,7 +1639,7 @@ void CodeGen::genDefineTempLabel(BasicBlock* label)
 
 void CodeGen::genAdjustSP(ssize_t delta)
 {
-#ifdef _TARGET_X86_
+#if defined(_TARGET_X86_) && !defined(UNIX_X86_ABI)
     if (delta == sizeof(int))
         inst_RV(INS_pop, REG_ECX, TYP_INT);
     else
@@ -2608,6 +2610,51 @@ emitJumpKind CodeGen::genJumpKindForOper(genTreeOps cmp, CompareKind compareKind
     return result;
 }
 
+#ifndef LEGACY_BACKEND
+#ifdef _TARGET_ARMARCH_
+//------------------------------------------------------------------------
+// genEmitGSCookieCheck: Generate code to check that the GS cookie
+// wasn't thrashed by a buffer overrun. Coomon code for ARM32 and ARM64
+//
+void CodeGen::genEmitGSCookieCheck(bool pushReg)
+{
+    noway_assert(compiler->gsGlobalSecurityCookieAddr || compiler->gsGlobalSecurityCookieVal);
+
+    // Make sure that the return register is reported as live GC-ref so that any GC that kicks in while
+    // executing GS cookie check will not collect the object pointed to by REG_INTRET (R0).
+    if (!pushReg && (compiler->info.compRetType == TYP_REF))
+        gcInfo.gcRegGCrefSetCur |= RBM_INTRET;
+
+    regNumber regGSConst = REG_TMP_0;
+    regNumber regGSValue = REG_TMP_1;
+
+    if (compiler->gsGlobalSecurityCookieAddr == nullptr)
+    {
+        // load the GS cookie constant into a reg
+        //
+        genSetRegToIcon(regGSConst, compiler->gsGlobalSecurityCookieVal, TYP_I_IMPL);
+    }
+    else
+    {
+        // Ngen case - GS cookie constant needs to be accessed through an indirection.
+        instGen_Set_Reg_To_Imm(EA_HANDLE_CNS_RELOC, regGSConst, (ssize_t)compiler->gsGlobalSecurityCookieAddr);
+        getEmitter()->emitIns_R_R_I(ins_Load(TYP_I_IMPL), EA_PTRSIZE, regGSConst, regGSConst, 0);
+    }
+    // Load this method's GS value from the stack frame
+    getEmitter()->emitIns_R_S(ins_Load(TYP_I_IMPL), EA_PTRSIZE, regGSValue, compiler->lvaGSSecurityCookie, 0);
+    // Compare with the GC cookie constant
+    getEmitter()->emitIns_R_R(INS_cmp, EA_PTRSIZE, regGSConst, regGSValue);
+
+    BasicBlock*  gsCheckBlk = genCreateTempLabel();
+    emitJumpKind jmpEqual   = genJumpKindForOper(GT_EQ, CK_SIGNED);
+    inst_JMP(jmpEqual, gsCheckBlk);
+    // regGSConst and regGSValue aren't needed anymore, we can use them for helper call
+    genEmitHelperCall(CORINFO_HELP_FAIL_FAST, 0, EA_UNKNOWN, regGSConst);
+    genDefineTempLabel(gsCheckBlk);
+}
+#endif // _TARGET_ARMARCH_
+#endif // !LEGACY_BACKEND
+
 /*****************************************************************************
  *
  *  Generate an exit sequence for a return from a method (note: when compiling
@@ -3156,14 +3203,11 @@ void CodeGen::genGenerateCode(void** codePtr, ULONG* nativeSizeOfCode)
 
     bool trackedStackPtrsContig; // are tracked stk-ptrs contiguous ?
 
-#ifdef _TARGET_AMD64_
+#if defined(_TARGET_AMD64_) || defined(_TARGET_ARM64_)
     trackedStackPtrsContig = false;
 #elif defined(_TARGET_ARM_)
     // On arm due to prespilling of arguments, tracked stk-ptrs may not be contiguous
     trackedStackPtrsContig = !compiler->opts.compDbgEnC && !compiler->compIsProfilerHookNeeded();
-#elif defined(_TARGET_ARM64_)
-    // Incoming vararg registers are homed on the top of the stack. Tracked var may not be contiguous.
-    trackedStackPtrsContig = !compiler->opts.compDbgEnC && !compiler->info.compIsVarArgs;
 #else
     trackedStackPtrsContig = !compiler->opts.compDbgEnC;
 #endif
@@ -8092,6 +8136,14 @@ void CodeGen::genFinalizeFrame()
     }
 #endif // defined(_TARGET_ARMARCH_)
 
+#if defined(_TARGET_ARM_)
+    // If there are any reserved registers, add them to the
+    if (regSet.rsMaskResvd != RBM_NONE)
+    {
+        regSet.rsSetRegsModified(regSet.rsMaskResvd);
+    }
+#endif // _TARGET_ARM_
+
 #ifdef DEBUG
     if (verbose)
     {
@@ -9718,17 +9770,25 @@ void CodeGen::genFnEpilog(BasicBlock* block)
         unsigned stkArgSize = 0; // Zero on all platforms except x86
 
 #if defined(_TARGET_X86_)
-
-        noway_assert(compiler->compArgSize >= intRegState.rsCalleeRegArgCount * sizeof(void*));
-        stkArgSize = compiler->compArgSize - intRegState.rsCalleeRegArgCount * sizeof(void*);
-
-        noway_assert(compiler->compArgSize < 0x10000); // "ret" only has 2 byte operand
+        bool     fCalleePop = true;
 
         // varargs has caller pop
         if (compiler->info.compIsVarArgs)
-            stkArgSize = 0;
+            fCalleePop = false;
 
-#endif // defined(_TARGET_X86_)
+#ifdef UNIX_X86_ABI
+        if (IsCallerPop(compiler->info.compMethodInfo->args.callConv))
+            fCalleePop = false;
+#endif // UNIX_X86_ABI
+
+        if (fCalleePop)
+        {
+            noway_assert(compiler->compArgSize >= intRegState.rsCalleeRegArgCount * sizeof(void*));
+            stkArgSize = compiler->compArgSize - intRegState.rsCalleeRegArgCount * sizeof(void*);
+
+            noway_assert(compiler->compArgSize < 0x10000); // "ret" only has 2 byte operand
+        }
+#endif // _TARGET_X86_
 
         /* Return, popping our arguments (if any) */
         instGen_Return(stkArgSize);

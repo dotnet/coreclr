@@ -213,6 +213,24 @@ ALWAYS_INLINE void GCToEEInterface::HandleFatalError(unsigned int exitCode)
     g_theGCToCLR->HandleFatalError(exitCode);
 }
 
+ALWAYS_INLINE bool GCToEEInterface::ShouldFinalizeObjectForUnload(AppDomain* pDomain, Object* obj)
+{
+    assert(g_theGCToCLR != nullptr);
+    return g_theGCToCLR->ShouldFinalizeObjectForUnload(pDomain, obj);
+}
+
+ALWAYS_INLINE bool GCToEEInterface::ForceFullGCToBeBlocking()
+{
+    assert(g_theGCToCLR != nullptr);
+    return g_theGCToCLR->ForceFullGCToBeBlocking();
+}
+
+ALWAYS_INLINE bool GCToEEInterface::EagerFinalized(Object* obj)
+{
+    assert(g_theGCToCLR != nullptr);
+    return g_theGCToCLR->EagerFinalized(obj);
+}
+
 #undef ALWAYS_INLINE
 
 #endif // __GCTOENV_EE_STANDALONE_INL__

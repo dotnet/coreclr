@@ -1,6 +1,6 @@
 {
   "dependencies": {
-    "Microsoft.TargetingPack.Private.CoreCLR": "2.0.0-beta-25123-08"
+    "Microsoft.TargetingPack.Private.CoreCLR": "2.0.0-preview1-25207-02"
   },
   "frameworks": {
     "netcoreapp1.1": {
@@ -20,6 +20,6 @@
     "centos.7-x64": {},
     "rhel.7-x64": {},
     "debian.8-x64": {},
-    "fedora.23-x64": {}
+    "fedora.24-x64": {}
   }
 }

@@ -11,6 +11,9 @@ project(CoreCLR)
 # Include cmake functions
 include(functions.cmake)
 
+# Include global configure settings
+include(configure.cmake)
+
 if (WIN32)
   message(STATUS "VS_PLATFORM_TOOLSET is ${CMAKE_VS_PLATFORM_TOOLSET}")
   message(STATUS "VS_PLATFORM_NAME is ${CMAKE_VS_PLATFORM_NAME}")
@@ -101,7 +104,7 @@ else (WIN32)
     else (CMAKE_SYSTEM_NAME STREQUAL Darwin)
 
       # Ensure that objcopy is present
-      if (DEFINED ENV{CROSSCOMPILE} AND NOT DEFINED CLR_CROSS_COMPONENTS_BUILD)
+      if (CLR_UNIX_CROSS_BUILD AND NOT DEFINED CLR_CROSS_COMPONENTS_BUILD)
         if (CMAKE_SYSTEM_PROCESSOR STREQUAL armv7l OR CMAKE_SYSTEM_PROCESSOR STREQUAL aarch64 OR CMAKE_SYSTEM_PROCESSOR STREQUAL arm)
           find_program(OBJCOPY ${TOOLCHAIN}-objcopy)
         elseif(CMAKE_SYSTEM_PROCESSOR STREQUAL i686)
@@ -161,15 +164,12 @@ if(CMAKE_SYSTEM_NAME STREQUAL Linux)
     endif()
     set(CLR_CMAKE_PLATFORM_LINUX 1)
 
-    # Detect Alpine Linux
-    SET(OS_RELEASE_FILENAME "/etc/os-release")
-    if (EXISTS ${OS_RELEASE_FILENAME})
-        file(READ ${OS_RELEASE_FILENAME} OS_RELEASE)
-        string(FIND "${OS_RELEASE}" "ID=alpine" CLR_CMAKE_PLATFORM_ALPINE_LINUX)
-        if(CLR_CMAKE_PLATFORM_ALPINE_LINUX EQUAL -1)
-            unset(CLR_CMAKE_PLATFORM_ALPINE_LINUX)
-        endif(CLR_CMAKE_PLATFORM_ALPINE_LINUX EQUAL -1)
-    endif(EXISTS ${OS_RELEASE_FILENAME})
+    # Detect Linux ID
+    if(DEFINED CLR_CMAKE_LINUX_ID)
+        if(CLR_CMAKE_LINUX_ID STREQUAL alpine)
+            set(CLR_CMAKE_PLATFORM_ALPINE_LINUX 1)
+        endif()
+    endif(DEFINED CLR_CMAKE_LINUX_ID)
 endif(CMAKE_SYSTEM_NAME STREQUAL Linux)
 
 if(CMAKE_SYSTEM_NAME STREQUAL Darwin)
@@ -542,7 +542,7 @@ include(pgosupport.cmake)
 #     - do not depend on clr's compile definitions
 #-----------------------------------------
 if(CLR_CMAKE_PLATFORM_UNIX AND NOT DEFINED CLR_CROSS_COMPONENTS_BUILD)
-  add_subdirectory(src/corefx)
+    add_subdirectory(src/corefx)
 endif()
 
 if(CLR_CMAKE_PLATFORM_UNIX)

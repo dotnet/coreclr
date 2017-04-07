@@ -5452,15 +5452,8 @@ CorDebugUserState DacDbiInterfaceImpl::GetPartialUserState(VMPTR_Thread vmThread
         result |= USER_WAIT_SLEEP_JOIN;          
     }
 
-    // Don't report a SuspendRequested if the thread has actually Suspended.
-    if ((ts & Thread::TS_UserSuspendPending) && (ts & Thread::TS_SyncSuspended))
-    {
-        result |= USER_SUSPENDED;
-    }
-    else if (ts & Thread::TS_UserSuspendPending)
-    {
-        result |= USER_SUSPEND_REQUESTED;
-    }
+    // CoreCLR does not support user-requested thread suspension
+    _ASSERTE(!(ts & Thread::TS_UserSuspendPending));
 
     if (pThread->IsThreadPoolThread())
     {
@@ -5725,9 +5718,9 @@ BOOL DacDbiInterfaceImpl::IsVmObjectHandleValid(VMPTR_OBJECTHANDLE vmHandle)
     // SEH exceptions will be caught
     EX_TRY
     {
-        OBJECTREF objRef = ObjectFromHandle((OBJECTHANDLE)vmHandle.GetDacPtr());
+        OBJECTREF objRef = HndFetchHandle((OBJECTHANDLE)vmHandle.GetDacPtr());
 
-        // NULL is certinally valid...
+        // NULL is certainly valid...
         if (objRef != NULL)
         {
             if (objRef->ValidateObjectWithPossibleAV())

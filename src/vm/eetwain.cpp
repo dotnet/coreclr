@@ -3815,7 +3815,10 @@ bool UnwindEbpDoubleAlignFrame(
         // TODO Currently we assume that ESP of funclet frames is always fixed but actually it could change.
         if (pCodeInfo->IsFunclet())
         {
-            baseSP = curESP + 12; // padding for 16byte stack alignment allocated in genFuncletProlog()
+            // Set baseSP as initial SP
+            baseSP = pContext->pCurrentContext->ResumeEsp;
+            // 16-byte stack alignment padding (allocated in genFuncletProlog)
+            baseSP += 12;
 
             pContext->PCTAddr = baseSP;
             pContext->ControlPC = *PTR_PCODE(pContext->PCTAddr);
@@ -4162,6 +4165,14 @@ bool EECodeManager::EnumGcRefs( PREGDISPLAY     pContext,
         NOTHROW;
         GC_NOTRIGGER;
     } CONTRACTL_END;
+
+#ifdef WIN64EXCEPTIONS
+    if (flags & ParentOfFuncletStackFrame)
+    {
+        LOG((LF_GCROOTS, LL_INFO100000, "Not reporting this frame because it was already reported via another funclet.\n"));
+        return true;
+    }
+#endif // WIN64EXCEPTIONS
 
     GCInfoToken gcInfoToken = pCodeInfo->GetGCInfoToken();
     unsigned  curOffs = pCodeInfo->GetRelOffset();
@@ -4751,6 +4762,18 @@ bool EECodeManager::EnumGcRefs( PREGDISPLAY     pContext,
 #if VERIFY_GC_TABLES
     _ASSERTE(*castto(table, unsigned short *)++ == 0xBABE);
 #endif
+
+#ifdef WIN64EXCEPTIONS   // funclets
+    //
+    // If we're in a funclet, we do not want to report the incoming varargs.  This is
+    // taken care of by the parent method and the funclet should access those arguments
+    // by way of the parent method's stack frame.
+    //
+    if(pCodeInfo->IsFunclet())
+    {
+        return true;
+    }
+#endif // WIN64EXCEPTIONS
 
     /* Are we a varargs function, if so we have to report all args
        except 'this' (note that the GC tables created by the x86 jit

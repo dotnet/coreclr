@@ -38,7 +38,7 @@ which is a system to package, distribute and version software components.  See [
 for more information on Nuget.   For now it is enough to know Nuget is a system that
 bundles components into `*.nupkg` files (which are ZIP archives) and these packages can be 'published' 
 either through a local file system path or by a URL (e.g. https://www.nuget.org/).   There are then tools 
-(e.g. Nuget.exe, Visual Studio, dotnet.exe) that based on a configuration file (project.json) know 
+(e.g. Nuget.exe, Visual Studio, dotnet.exe) that based on a configuration file (.csproj) know 
 how to search these publishing locations and pull down consistent set of packages for the 
 application.   
 
@@ -189,7 +189,7 @@ time to runt tests.  See [Running .NET Core Tests](Documentation/workflow/Runnin
 ## Contributing to Repository 
 
 Looking for something to work on? The list 
-of [up-for-grabs issues](https://github.com/dotnet/coreclr/issues?q=is%3Aopen+is%3Aissue+label%3Aup-for-grabs) is a great place to start.
+of [up-for-grabs issues](https://github.com/dotnet/coreclr/labels/up-for-grabs) is a great place to start.
 
 Please read the following documents to get started.
 

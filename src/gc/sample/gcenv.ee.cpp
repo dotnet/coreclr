@@ -137,7 +137,7 @@ void ThreadStore::AttachCurrentThread()
 
 void GCToEEInterface::SuspendEE(SUSPEND_REASON reason)
 {
-    g_theGCHeap->SetGCInProgress(TRUE);
+    g_theGCHeap->SetGCInProgress(true);
 
     // TODO: Implement
 }
@@ -146,7 +146,7 @@ void GCToEEInterface::RestartEE(bool bFinishedGC)
 {
     // TODO: Implement
 
-    g_theGCHeap->SetGCInProgress(FALSE);
+    g_theGCHeap->SetGCInProgress(false);
 }
 
 void GCToEEInterface::GcScanRoots(promote_func* fn,  int condemned, int max_gen, ScanContext* sc)
@@ -268,6 +268,22 @@ void GCToEEInterface::EnableFinalization(bool foundFinalizers)
 void GCToEEInterface::HandleFatalError(unsigned int exitCode)
 {
     abort();
+}
+
+bool GCToEEInterface::ShouldFinalizeObjectForUnload(AppDomain* pDomain, Object* obj)
+{
+    return true;
+}
+
+bool GCToEEInterface::ForceFullGCToBeBlocking()
+{
+    return false;
+}
+
+bool GCToEEInterface::EagerFinalized(Object* obj)
+{
+    // The sample does not finalize anything eagerly.
+    return false;
 }
 
 bool IsGCSpecialThread()

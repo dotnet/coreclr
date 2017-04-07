@@ -3586,8 +3586,21 @@ void Module::StartUnload()
     }
 #endif // PROFILING_SUPPORTED
 #ifdef FEATURE_PREJIT 
-    // Write out the method profile data
-    /*hr=*/WriteMethodProfileDataLogFile(true);
+    if (g_IBCLogger.InstrEnabled())
+    {
+        Thread * pThread = GetThread();
+        ThreadLocalIBCInfo* pInfo = pThread->GetIBCInfo();
+
+        // Acquire the Crst lock before creating the IBCLoggingDisabler object.
+        // Only one thread at a time can be processing an IBC logging event.
+        CrstHolder lock(g_IBCLogger.GetSync());
+        {
+            IBCLoggingDisabler disableLogging( pInfo );  // runs IBCLoggingDisabler::DisableLogging
+
+            // Write out the method profile data
+            /*hr=*/WriteMethodProfileDataLogFile(true);
+        }
+    }
 #endif // FEATURE_PREJIT
     SetBeingUnloaded();
 }
@@ -6511,7 +6524,9 @@ MethodDesc *Module::FindMethod(mdToken pMethod)
         CONTRACT_VIOLATION(ThrowsViolation);
         char szMethodName [MAX_CLASSNAME_LENGTH];
         CEEInfo::findNameOfToken(this, pMethod, szMethodName, COUNTOF (szMethodName));
-        LOG((LF_IJW, LL_INFO10, "Failed to find Method: %s for Vtable Fixup\n", szMethodName));
+        // This used to be LF_IJW, but changed to LW_INTEROP to reclaim a bit in our log facilities
+        // IJW itself is not supported in coreclr so this code should never be run.
+        LOG((LF_INTEROP, LL_INFO10, "Failed to find Method: %s for Vtable Fixup\n", szMethodName));
 #endif // _DEBUG
     }
     EX_END_CATCH(SwallowAllExceptions)

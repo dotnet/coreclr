@@ -834,13 +834,13 @@ namespace Microsoft.Win32
 
         [DllImport(ADVAPI32, CharSet = CharSet.Auto, BestFitMapping = false)]
         internal unsafe static extern int RegEnumKeyEx(SafeRegistryHandle hKey, int dwIndex,
-                    char* lpName, ref int lpcbName, int[] lpReserved,
+                    char[] lpName, ref int lpcbName, int[] lpReserved,
                     [Out]StringBuilder lpClass, int[] lpcbClass,
                     long[] lpftLastWriteTime);
 
         [DllImport(ADVAPI32, CharSet = CharSet.Auto, BestFitMapping = false)]
         internal unsafe static extern int RegEnumValue(SafeRegistryHandle hKey, int dwIndex,
-                    char* lpValueName, ref int lpcbValueName,
+                    char[] lpValueName, ref int lpcbValueName,
                     IntPtr lpReserved_MustBeZero, int[] lpType, byte[] lpData,
                     int[] lpcbData);
 
@@ -971,5 +971,15 @@ namespace Microsoft.Win32
 #else
         private const int BCRYPT_USE_SYSTEM_PREFERRED_RNG = 0x00000002;
 #endif
+
+        internal const byte VER_GREATER_EQUAL = 0x3;
+        internal const uint VER_MAJORVERSION = 0x0000002;
+        internal const uint VER_MINORVERSION = 0x0000001;
+        internal const uint VER_SERVICEPACKMAJOR = 0x0000020;
+        internal const uint VER_SERVICEPACKMINOR = 0x0000010;
+        [DllImport("kernel32.dll")]
+        internal static extern bool VerifyVersionInfoW([In, Out] OSVERSIONINFOEX lpVersionInfo, uint dwTypeMask, ulong dwlConditionMask);
+        [DllImport("kernel32.dll")]
+        internal static extern ulong VerSetConditionMask(ulong dwlConditionMask, uint dwTypeBitMask, byte dwConditionMask);        
     }
 }

@@ -87,6 +87,7 @@ class IGCHeapInternal;
 
 /* misc defines */
 #define LARGE_OBJECT_SIZE ((size_t)(85000))
+#define max_generation 2
 
 #ifdef GC_CONFIG_DRIVEN
 #define MAX_GLOBAL_GC_MECHANISMS_COUNT 6
@@ -110,6 +111,10 @@ extern "C" uint32_t* g_gc_card_bundle_table;
 extern "C" uint32_t* g_gc_card_table;
 extern "C" uint8_t* g_gc_lowest_address;
 extern "C" uint8_t* g_gc_highest_address;
+extern "C" GCHeapType g_gc_heap_type;
+extern "C" uint32_t g_max_generation;
+
+::IGCHandleTable*  CreateGCHandleTable();
 
 namespace WKS {
     ::IGCHeapInternal* CreateGCHeap();
@@ -217,24 +222,22 @@ public:
 
     unsigned GetMaxGeneration()
     {
-        return IGCHeap::maxGeneration;
+        return max_generation;
     }
 
-    BOOL IsValidSegmentSize(size_t cbSize)
+    bool IsValidSegmentSize(size_t cbSize)
     {
         //Must be aligned on a Mb and greater than 4Mb
         return (((cbSize & (1024*1024-1)) ==0) && (cbSize >> 22));
     }
 
-    BOOL IsValidGen0MaxSize(size_t cbSize)
+    bool IsValidGen0MaxSize(size_t cbSize)
     {
         return (cbSize >= 64*1024);
     }
 
     BOOL IsLargeObject(MethodTable *mt)
     {
-        WRAPPER_NO_CONTRACT;
-
         return mt->GetBaseSize() >= LARGE_OBJECT_SIZE;
     }
 
@@ -253,30 +256,24 @@ void TouchPages(void * pStart, size_t cb);
 void updateGCShadow(Object** ptr, Object* val);
 #endif
 
-// the method table for the WeakReference class
-extern MethodTable  *pWeakReferenceMT;
-// The canonical method table for WeakReference<T>
-extern MethodTable  *pWeakReferenceOfTCanonMT;
-extern void FinalizeWeakReference(Object * obj);
-
 // The single GC heap instance, shared with the VM.
 extern IGCHeapInternal* g_theGCHeap;
 
-#ifndef DACCESS_COMPILE
-inline BOOL IsGCInProgress(bool bConsiderGCStart = FALSE)
-{
-    WRAPPER_NO_CONTRACT;
+// The single GC handle table instance, shared with the VM.
+extern IGCHandleTable* g_theGCHandleTable;
 
+#ifndef DACCESS_COMPILE
+inline bool IsGCInProgress(bool bConsiderGCStart = false)
+{
     return g_theGCHeap != nullptr ? g_theGCHeap->IsGCInProgressHelper(bConsiderGCStart) : false;
 }
 #endif // DACCESS_COMPILE
 
-inline BOOL IsServerHeap()
+inline bool IsServerHeap()
 {
-    LIMITED_METHOD_CONTRACT;
 #ifdef FEATURE_SVR_GC
-    _ASSERTE(IGCHeap::gcHeapType != IGCHeap::GC_HEAP_INVALID);
-    return (IGCHeap::gcHeapType == IGCHeap::GC_HEAP_SVR);
+    assert(g_gc_heap_type != GC_HEAP_INVALID);
+    return g_gc_heap_type == GC_HEAP_SVR;
 #else // FEATURE_SVR_GC
     return false;
 #endif // FEATURE_SVR_GC

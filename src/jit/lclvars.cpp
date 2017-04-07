@@ -257,7 +257,8 @@ void Compiler::lvaInitTypeRef()
 
         if (strip(corInfoType) == CORINFO_TYPE_CLASS)
         {
-            varDsc->lvClassHnd = info.compCompHnd->getArgClass(&info.compMethodInfo->locals, localsSig);
+            CORINFO_CLASS_HANDLE clsHnd = info.compCompHnd->getArgClass(&info.compMethodInfo->locals, localsSig);
+            lvaSetClass(varNum, clsHnd);
         }
     }
 
@@ -404,6 +405,7 @@ void Compiler::lvaInitThisPtr(InitVarDscInfo* varDscInfo)
         else
         {
             varDsc->lvType = TYP_REF;
+            lvaSetClass(varDscInfo->varNum, info.compClassHnd);
         }
 
         if (tiVerificationNeeded)
@@ -419,8 +421,6 @@ void Compiler::lvaInitThisPtr(InitVarDscInfo* varDscInfo)
         {
             varDsc->lvVerTypeInfo = typeInfo();
         }
-
-        varDsc->lvClassHnd = info.compClassHnd;
 
         // Mark the 'this' pointer for the method
         varDsc->lvVerTypeInfo.SetIsThisPtr();
@@ -562,7 +562,8 @@ void Compiler::lvaInitUserArgs(InitVarDscInfo* varDscInfo)
 
         if (strip(corInfoType) == CORINFO_TYPE_CLASS)
         {
-            varDsc->lvClassHnd = info.compCompHnd->getArgClass(&info.compMethodInfo->args, argLst);
+            CORINFO_CLASS_HANDLE clsHnd = info.compCompHnd->getArgClass(&info.compMethodInfo->args, argLst);
+            lvaSetClass(varDscInfo->varNum, clsHnd);
         }
 
         // For ARM, ARM64, and AMD64 varargs, all arguments go in integer registers
@@ -676,11 +677,6 @@ void Compiler::lvaInitUserArgs(InitVarDscInfo* varDscInfo)
                 codeGen->regSet.rsMaskPreSpillRegArg |= regMask;
             }
         }
-        else
-        {
-            varDsc->lvOnFrame = true; // The final home for this incoming register might be our local stack frame
-        }
-
 #else // !_TARGET_ARM_
 #if defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
         SYSTEMV_AMD64_CORINFO_STRUCT_REG_PASSING_DESCRIPTOR structDesc;
@@ -722,12 +718,11 @@ void Compiler::lvaInitUserArgs(InitVarDscInfo* varDscInfo)
             }
         }
 #endif // FEATURE_UNIX_AMD64_STRUCT_PASSING
+#endif // !_TARGET_ARM_
 
         // The final home for this incoming register might be our local stack frame.
         // For System V platforms the final home will always be on the local stack frame.
         varDsc->lvOnFrame = true;
-
-#endif // !_TARGET_ARM_
 
         bool canPassArgInRegisters = false;
 
@@ -2297,6 +2292,199 @@ void Compiler::lvaSetStruct(unsigned varNum, CORINFO_CLASS_HANDLE typeHnd, bool 
     }
 }
 
+//------------------------------------------------------------------------
+// lvaSetClass: set class information for a local var.
+//
+// Arguments:
+//    varNum -- number of the variable
+//    clsHnd -- class handle to use in set or update
+//    isExact -- true if class is known exactly
+//
+// Notes:
+//    varNum must not already have a ref class handle.
+
+void Compiler::lvaSetClass(unsigned varNum, CORINFO_CLASS_HANDLE clsHnd, bool isExact)
+{
+    noway_assert(varNum < lvaCount);
+
+    // If we are just importing, we cannot reliably track local ref types,
+    // since the jit maps CORINFO_TYPE_VAR to TYP_REF.
+    if (compIsForImportOnly())
+    {
+        return;
+    }
+
+    // Else we should have a type handle.
+    assert(clsHnd != nullptr);
+
+    LclVarDsc* varDsc = &lvaTable[varNum];
+    assert(varDsc->lvType == TYP_REF);
+
+    // We shoud not have any ref type information for this var.
+    assert(varDsc->lvClassHnd == nullptr);
+    assert(!varDsc->lvClassIsExact);
+
+    JITDUMP("\nlvaSetClass: setting class for V%02i to (%p) %s %s\n", varNum, clsHnd,
+            info.compCompHnd->getClassName(clsHnd), isExact ? " [exact]" : "");
+
+    varDsc->lvClassHnd     = clsHnd;
+    varDsc->lvClassIsExact = isExact;
+}
+
+//------------------------------------------------------------------------
+// lvaSetClass: set class information for a local var from a tree or stack type
+//
+// Arguments:
+//    varNum -- number of the variable. Must be a single def local
+//    tree  -- tree establishing the variable's value
+//    stackHnd -- handle for the type from the evaluation stack
+//
+// Notes:
+//    Preferentially uses the tree's type, when available. Since not all
+//    tree kinds can track ref types, the stack type is used as a
+//    fallback.
+
+void Compiler::lvaSetClass(unsigned varNum, GenTreePtr tree, CORINFO_CLASS_HANDLE stackHnd)
+{
+    bool                 isExact   = false;
+    bool                 isNonNull = false;
+    CORINFO_CLASS_HANDLE clsHnd    = gtGetClassHandle(tree, &isExact, &isNonNull);
+
+    if (clsHnd != nullptr)
+    {
+        lvaSetClass(varNum, clsHnd, isExact);
+    }
+    else if (stackHnd != nullptr)
+    {
+        lvaSetClass(varNum, stackHnd);
+    }
+}
+
+//------------------------------------------------------------------------
+// lvaUpdateClass: update class information for a local var.
+//
+// Arguments:
+//    varNum -- number of the variable
+//    clsHnd -- class handle to use in set or update
+//    isExact -- true if class is known exactly
+//
+// Notes:
+//
+//    This method models the type update rule for an assignment.
+//
+//    Updates currently should only happen for single-def user args or
+//    locals, when we are processing the expression actually being
+//    used to initialize the local (or inlined arg). The update will
+//    change the local from the declared type to the type of the
+//    initial value.
+//
+//    These updates should always *improve* what we know about the
+//    type, that is making an inexact type exact, or changing a type
+//    to some subtype. However the jit lacks precise type information
+//    for shared code, so ensuring this is so is currently not
+//    possible.
+
+void Compiler::lvaUpdateClass(unsigned varNum, CORINFO_CLASS_HANDLE clsHnd, bool isExact)
+{
+    noway_assert(varNum < lvaCount);
+
+    // If we are just importing, we cannot reliably track local ref types,
+    // since the jit maps CORINFO_TYPE_VAR to TYP_REF.
+    if (compIsForImportOnly())
+    {
+        return;
+    }
+
+    // Else we should have a class handle to consider
+    assert(clsHnd != nullptr);
+
+    LclVarDsc* varDsc = &lvaTable[varNum];
+    assert(varDsc->lvType == TYP_REF);
+
+    // We should already have a class
+    assert(varDsc->lvClassHnd != nullptr);
+
+#if defined(DEBUG)
+
+    // In general we only expect one update per local var. However if
+    // a block is re-imported and that block has the only STLOC for
+    // the var, we may see multiple updates. All subsequent updates
+    // should agree on the type, since reimportation is triggered by
+    // type mismatches for things other than ref types.
+    if (varDsc->lvClassInfoUpdated)
+    {
+        assert(varDsc->lvClassHnd == clsHnd);
+        assert(varDsc->lvClassIsExact == isExact);
+    }
+
+    // This counts as an update, even if nothing changes.
+    varDsc->lvClassInfoUpdated = true;
+
+#endif // defined(DEBUG)
+
+    // If previous type was exact, there is nothing to update.  Would
+    // like to verify new type is compatible but can't do this yet.
+    if (varDsc->lvClassIsExact)
+    {
+        return;
+    }
+
+    // Are we updating the type?
+    if (varDsc->lvClassHnd != clsHnd)
+    {
+        JITDUMP("\nlvaUpdateClass: Updating class for V%02i from (%p) %s to (%p) %s %s\n", varNum, varDsc->lvClassHnd,
+                info.compCompHnd->getClassName(varDsc->lvClassHnd), clsHnd, info.compCompHnd->getClassName(clsHnd),
+                isExact ? " [exact]" : "");
+
+        varDsc->lvClassHnd     = clsHnd;
+        varDsc->lvClassIsExact = isExact;
+        return;
+    }
+
+    // Class info matched. Are we updating exactness?
+    if (isExact)
+    {
+        JITDUMP("\nlvaUpdateClass: Updating class for V%02i (%p) %s to be exact\n", varNum, varDsc->lvClassHnd,
+                info.compCompHnd->getClassName(varDsc->lvClassHnd));
+
+        varDsc->lvClassIsExact = isExact;
+        return;
+    }
+
+    // Else we have the same handle and (in)exactness as before. Do nothing.
+    return;
+}
+
+//------------------------------------------------------------------------
+// lvaUpdateClass: Uupdate class information for a local var from a tree
+//  or stack type
+//
+// Arguments:
+//    varNum -- number of the variable. Must be a single def local
+//    tree  -- tree establishing the variable's value
+//    stackHnd -- handle for the type from the evaluation stack
+//
+// Notes:
+//    Preferentially uses the tree's type, when available. Since not all
+//    tree kinds can track ref types, the stack type is used as a
+//    fallback.
+
+void Compiler::lvaUpdateClass(unsigned varNum, GenTreePtr tree, CORINFO_CLASS_HANDLE stackHnd)
+{
+    bool                 isExact   = false;
+    bool                 isNonNull = false;
+    CORINFO_CLASS_HANDLE clsHnd    = gtGetClassHandle(tree, &isExact, &isNonNull);
+
+    if (clsHnd != nullptr)
+    {
+        lvaUpdateClass(varNum, clsHnd, isExact);
+    }
+    else if (stackHnd != nullptr)
+    {
+        lvaUpdateClass(varNum, stackHnd);
+    }
+}
+
 /*****************************************************************************
  * Returns the array of BYTEs containing the GC layout information
  */
@@ -3434,23 +3622,9 @@ void Compiler::lvaMarkLclRefs(GenTreePtr tree)
     }
 
 #if ASSERTION_PROP
-    /* Exclude the normal entry block */
-    if (fgDomsComputed && (lvaMarkRefsCurBlock->bbNum != 1) && lvaMarkRefsCurBlock->bbIDom != nullptr)
+    if (fgDomsComputed && IsDominatedByExceptionalEntry(lvaMarkRefsCurBlock))
     {
-        // If any entry block except the normal entry block dominates the block, then mark the local with the
-        // lvVolatileHint flag.
-
-        if (BlockSetOps::MayBeUninit(lvaMarkRefsCurBlock->bbDoms))
-        {
-            // Lazy init (If a block is not dominated by any other block, we'll redo this every time, but it'll be fast)
-            BlockSetOps::AssignNoCopy(this, lvaMarkRefsCurBlock->bbDoms, fgGetDominatorSet(lvaMarkRefsCurBlock));
-            BlockSetOps::RemoveElemD(this, lvaMarkRefsCurBlock->bbDoms, fgFirstBB->bbNum);
-        }
-        assert(fgEnterBlksSetValid);
-        if (!BlockSetOps::IsEmptyIntersection(this, lvaMarkRefsCurBlock->bbDoms, fgEnterBlks))
-        {
-            varDsc->lvVolatileHint = 1;
-        }
+        SetVolatileHint(varDsc);
     }
 
     /* Record if the variable has a single def or not */
@@ -3533,6 +3707,29 @@ void Compiler::lvaMarkLclRefs(GenTreePtr tree)
         }
     }
 #endif
+}
+
+//------------------------------------------------------------------------
+// IsDominatedByExceptionalEntry: Check is the block dominated by an exception entry block.
+//
+// Arguments:
+//    block - the checking block.
+//
+bool Compiler::IsDominatedByExceptionalEntry(BasicBlock* block)
+{
+    assert(fgDomsComputed);
+    return block->IsDominatedByExceptionalEntryFlag();
+}
+
+//------------------------------------------------------------------------
+// SetVolatileHint: Set a local var's volatile hint.
+//
+// Arguments:
+//    varDsc - the local variable that needs the hint.
+//
+void Compiler::SetVolatileHint(LclVarDsc* varDsc)
+{
+    varDsc->lvVolatileHint = true;
 }
 
 /*****************************************************************************
@@ -6490,6 +6687,14 @@ void Compiler::lvaDumpEntry(unsigned lclNum, FrameLayoutState curState, size_t r
     if (varDsc->lvStackByref)
     {
         printf(" stack-byref");
+    }
+    if (varDsc->lvClassHnd != nullptr)
+    {
+        printf(" class-hnd");
+    }
+    if (varDsc->lvClassIsExact)
+    {
+        printf(" exact");
     }
 #ifndef _TARGET_64BIT_
     if (varDsc->lvStructDoubleAlign)

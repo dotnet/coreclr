@@ -10,6 +10,7 @@
 
 #include "gc.h"
 #include "gcscan.h"
+#include "gchandletableimpl.h"
 
 #ifdef SERVER_GC
 #undef SERVER_GC

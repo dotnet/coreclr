@@ -1283,49 +1283,6 @@ void CodeGen::genSetRegToIcon(regNumber reg, ssize_t val, var_types type, insFla
     instGen_Set_Reg_To_Imm(emitActualTypeSize(type), reg, val, flags);
 }
 
-/*****************************************************************************
- *
- *   Generate code to check that the GS cookie wasn't thrashed by a buffer
- *   overrun.  On ARM64 we always use REG_TMP_0 and REG_TMP_1 as temp registers
- *   and this works fine in the case of tail calls
- *   Implementation Note: pushReg = true, in case of tail calls.
- */
-void CodeGen::genEmitGSCookieCheck(bool pushReg)
-{
-    noway_assert(compiler->gsGlobalSecurityCookieAddr || compiler->gsGlobalSecurityCookieVal);
-
-    // Make sure that the return register is reported as live GC-ref so that any GC that kicks in while
-    // executing GS cookie check will not collect the object pointed to by REG_INTRET (R0).
-    if (!pushReg && (compiler->info.compRetType == TYP_REF))
-        gcInfo.gcRegGCrefSetCur |= RBM_INTRET;
-
-    regNumber regGSConst = REG_TMP_0;
-    regNumber regGSValue = REG_TMP_1;
-
-    if (compiler->gsGlobalSecurityCookieAddr == nullptr)
-    {
-        // load the GS cookie constant into a reg
-        //
-        genSetRegToIcon(regGSConst, compiler->gsGlobalSecurityCookieVal, TYP_I_IMPL);
-    }
-    else
-    {
-        // Ngen case - GS cookie constant needs to be accessed through an indirection.
-        instGen_Set_Reg_To_Imm(EA_HANDLE_CNS_RELOC, regGSConst, (ssize_t)compiler->gsGlobalSecurityCookieAddr);
-        getEmitter()->emitIns_R_R_I(ins_Load(TYP_I_IMPL), EA_PTRSIZE, regGSConst, regGSConst, 0);
-    }
-    // Load this method's GS value from the stack frame
-    getEmitter()->emitIns_R_S(ins_Load(TYP_I_IMPL), EA_PTRSIZE, regGSValue, compiler->lvaGSSecurityCookie, 0);
-    // Compare with the GC cookie constant
-    getEmitter()->emitIns_R_R(INS_cmp, EA_PTRSIZE, regGSConst, regGSValue);
-
-    BasicBlock*  gsCheckBlk = genCreateTempLabel();
-    emitJumpKind jmpEqual   = genJumpKindForOper(GT_EQ, CK_SIGNED);
-    inst_JMP(jmpEqual, gsCheckBlk);
-    genEmitHelperCall(CORINFO_HELP_FAIL_FAST, 0, EA_UNKNOWN);
-    genDefineTempLabel(gsCheckBlk);
-}
-
 BasicBlock* CodeGen::genCallFinally(BasicBlock* block)
 {
     // Generate a call to the finally, like this:
@@ -1883,8 +1840,8 @@ void CodeGen::genReturn(GenTreePtr treeNode)
 
         if (movRequired)
         {
-            emitAttr movSize = EA_ATTR(genTypeSize(targetType));
-            getEmitter()->emitIns_R_R(INS_mov, movSize, retReg, op1->gtRegNum);
+            emitAttr attr = emitTypeSize(targetType);
+            getEmitter()->emitIns_R_R(INS_mov, attr, retReg, op1->gtRegNum);
         }
     }
 
@@ -3633,11 +3590,6 @@ void CodeGen::genCodeForCpObj(GenTreeObj* cpObjNode)
                 default:
                     // In the case of a GC-Pointer we'll call the ByRef write barrier helper
                     genEmitHelperCall(CORINFO_HELP_ASSIGN_BYREF, 0, EA_PTRSIZE);
-
-                    // genEmitHelperCall(CORINFO_HELP_ASSIGN_BYREF...) killed these registers.
-                    // However they are still live references to the structures we are copying.
-                    gcInfo.gcMarkRegPtrVal(REG_WRITE_BARRIER_SRC_BYREF, TYP_BYREF);
-                    gcInfo.gcMarkRegPtrVal(REG_WRITE_BARRIER_DST_BYREF, TYP_BYREF);
 
                     gcPtrCount--;
                     break;

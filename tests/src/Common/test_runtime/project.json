@@ -1,6 +1,6 @@
 {
   "dependencies": {
-    "Microsoft.NETCore.Platforms": "2.0.0-beta-25122-02",
+    "Microsoft.NETCore.Platforms": "2.0.0-preview1-25205-01",
     "Microsoft.DotNet.CoreCLR.TestDependencies": "1.0.0-prerelease",
     "jit-dasm": "0.0.1.4",
     "cijobs": "0.0.1.2",
@@ -24,6 +24,6 @@
     "centos.7-x64": {},
     "rhel.7-x64": {},
     "debian.8-x64": {},
-    "fedora.23-x64": {}
+    "fedora.24-x64": {}
   }
 }
