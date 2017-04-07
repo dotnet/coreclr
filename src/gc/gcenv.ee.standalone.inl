@@ -225,6 +225,12 @@ ALWAYS_INLINE bool GCToEEInterface::ForceFullGCToBeBlocking()
     return g_theGCToCLR->ForceFullGCToBeBlocking();
 }
 
+ALWAYS_INLINE bool GCToEEInterface::EagerFinalized(Object* obj)
+{
+    assert(g_theGCToCLR != nullptr);
+    return g_theGCToCLR->EagerFinalized(obj);
+}
+
 ALWAYS_INLINE MethodTable* GCToEEInterface::GetFreeObjectMethodTable()
 {
     assert(g_theGCToCLR != nullptr);
