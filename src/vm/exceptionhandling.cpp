@@ -1200,10 +1200,10 @@ ProcessCLRException(IN     PEXCEPTION_RECORD   pExceptionRecord
 
                 pThread->SetFrame(pLimitFrame);
 
+                FixContext(pContextRecord);
+
                 SetIP(pContextRecord, (PCODE)uResumePC);
             }
-
-            FixContext(pContextRecord);
 
 #ifdef STACK_GUARDS_DEBUG
             // We are transitioning back to managed code, so ensure that we are in
