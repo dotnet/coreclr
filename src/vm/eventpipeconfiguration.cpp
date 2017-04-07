@@ -23,7 +23,11 @@ void EventPipeConfiguration::DisableAllProviders()
     }
     CONTRACTL_END;
 
-    // TODO
+    for(int i=0; i<m_nextProviderIndex; i++)
+    {
+        _ASSERTE(m_providers[i] != NULL);
+        m_providers[i]->SetConfiguration(0 /* keywords */, 0 /* level */);
+    }
 }
 
 EventPipeProvider* EventPipeConfiguration::GetOrCreateProvider(const GUID &providerID)

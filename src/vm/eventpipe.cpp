@@ -22,6 +22,8 @@ void EventPipe::Initialize()
     s_tracingInitialized = s_initCrst.InitNoThrow(
         CrstEventPipe,
         (CrstFlags)(CRST_TAKEN_DURING_SHUTDOWN));
+
+    s_pConfig = new EventPipeConfiguration();
 }
 
 void EventPipe::EnableOnStartup()
@@ -71,10 +73,6 @@ void EventPipe::Enable()
 
     // Take the lock before enabling tracing.
     CrstHolder _crst(&s_initCrst);
-
-    // Reset the config.
-    // TODO: How should config be exposed?  Do we want the concept of "multiple consumers"?
-    s_pConfig = new EventPipeConfiguration();
 
     // Set the bit that actually enables tracing.
     s_tracingEnabled = true;

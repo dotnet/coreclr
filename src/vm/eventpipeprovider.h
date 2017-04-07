@@ -13,6 +13,9 @@ private:
     // The GUID of the provider.
     GUID m_providerID;
 
+    // True if the provider is enabled.
+    bool m_enabled;
+
     // Bit vector containing the currently enabled keywords.
     INT64 m_keywords;
 

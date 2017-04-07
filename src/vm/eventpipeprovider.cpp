@@ -10,6 +10,7 @@ EventPipeProvider::EventPipeProvider(const GUID &providerID)
     LIMITED_METHOD_CONTRACT;
 
     m_providerID = providerID;
+    m_enabled = false;
     m_keywords = 0;
 
     // TODO: What is the right default?
@@ -28,20 +29,21 @@ bool EventPipeProvider::Enabled() const
 {
     LIMITED_METHOD_CONTRACT;
 
-    return m_keywords != 0;
+    return m_enabled;
 }
 
 bool EventPipeProvider::EventEnabled(INT64 keywords) const
 {
     LIMITED_METHOD_CONTRACT;
 
-    return ((m_keywords & keywords) != 0);
+    return (Enabled() && ((m_keywords & keywords) != 0));
 }
 
 bool EventPipeProvider::EventEnabled(INT64 keywords, int level) const
 {
     LIMITED_METHOD_CONTRACT;
 
+    // TODO: Should actually be something like level <= m_level
     return (EventEnabled(keywords) && (level == m_level));
 }
 
@@ -49,7 +51,6 @@ void EventPipeProvider::SetConfiguration(INT64 keywords, int level)
 {
     LIMITED_METHOD_CONTRACT;
 
-    // TODO: Do we need to handle synchronization here?
     m_keywords = keywords;
     m_level = level;
 }
