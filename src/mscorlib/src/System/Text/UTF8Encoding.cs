@@ -150,7 +150,18 @@ namespace System.Text
         [System.Runtime.InteropServices.ComVisible(false)]
         public override unsafe int GetByteCount(char* chars, int count)
         {
-            return EncodingForwarder.GetByteCount(this, chars, count);
+            // Validate Parameters
+            if (chars == null)
+                throw new ArgumentNullException("chars",
+                    Environment.GetResourceString("ArgumentNull_Array"));
+
+            if (count < 0)
+                throw new ArgumentOutOfRangeException("count",
+                    Environment.GetResourceString("ArgumentOutOfRange_NeedNonNegNum"));
+            Contract.EndContractBlock();
+
+            // Call it with empty encoder
+            return GetByteCount(chars, count, null);
         }
 
         // Parent method is safe.
