@@ -69,6 +69,8 @@ namespace System.Text
         [System.Security.SecuritySafeCritical]  // auto-generated
         public override int GetByteCount(String chars)
         {
+            // NOTE: If chars is null, this will throw an ArgumentNullException
+            // with the parameter name "s" rather than "chars"
             return EncodingForwarder.GetByteCount(this, chars);
         }
 
@@ -84,6 +86,7 @@ namespace System.Text
         public override int GetBytes(String chars, int charIndex, int charCount,
                                               byte[] bytes, int byteIndex)
         {
+            // NOTE: Will throw ArgumentNull of "s" is chars is null.
             return EncodingForwarder.GetBytes(this, chars, charIndex, charCount, bytes, byteIndex);
         }
 
@@ -149,6 +152,8 @@ namespace System.Text
         [System.Security.SecuritySafeCritical]  // auto-generated
         public override String GetString(byte[] bytes, int byteIndex, int byteCount)
         {
+            // NOTE: If the byteIndex/byteCount parameters are invalid, this will
+            // throw an ArgumentOutOfRange for "index" or "count" instead of those names.
             return EncodingForwarder.GetString(this, bytes, byteIndex, byteCount);
         }
         
