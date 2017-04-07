@@ -285,7 +285,17 @@ namespace System.Text
         [System.Runtime.InteropServices.ComVisible(false)]
         public unsafe override int GetChars(byte* bytes, int byteCount, char* chars, int charCount)
         {
-            return EncodingForwarder.GetChars(this, bytes, byteCount, chars, charCount);
+            // Validate Parameters
+            if (bytes == null || chars == null)
+                throw new ArgumentNullException(bytes == null ? "bytes" : "chars",
+                    Environment.GetResourceString("ArgumentNull_Array"));
+
+            if (charCount < 0 || byteCount < 0)
+                throw new ArgumentOutOfRangeException((charCount<0 ? "charCount" : "byteCount"),
+                    Environment.GetResourceString("ArgumentOutOfRange_NeedNonNegNum"));
+            Contract.EndContractBlock();
+
+            return GetChars(bytes, byteCount, chars, charCount, null);
         }
 
         // Returns a string containing the decoded representation of a range of
