@@ -99,11 +99,13 @@ namespace System.Text
         // Returns the number of bytes required to encode a range of characters in
         // a character array.
 
+        [System.Security.SecuritySafeCritical]  // auto-generated
         public override int GetByteCount(char[] chars, int index, int count)
         {
             return EncodingForwarder.GetByteCount(this, chars, index, count);
         }
 
+        [System.Security.SecuritySafeCritical]  // auto-generated
         public override int GetByteCount(String s)
         {
             return EncodingForwarder.GetByteCount(this, s);
@@ -117,6 +119,7 @@ namespace System.Text
             return EncodingForwarder.GetByteCount(this, chars, count);
         }
 
+        [System.Security.SecuritySafeCritical]  // auto-generated
         public override int GetBytes(String s, int charIndex, int charCount,
                                               byte[] bytes, int byteIndex)
         {
@@ -132,6 +135,7 @@ namespace System.Text
         // determine the maximum number of bytes that will be produced for a given
         // number of characters, regardless of the actual character values.
 
+        [System.Security.SecuritySafeCritical]  // auto-generated
         public override int GetBytes(char[] chars, int charIndex, int charCount,
                                                byte[] bytes, int byteIndex)
         {
@@ -149,6 +153,7 @@ namespace System.Text
         // Returns the number of characters produced by decoding a range of bytes
         // in a byte array.
 
+        [System.Security.SecuritySafeCritical]  // auto-generated
         public override int GetCharCount(byte[] bytes, int index, int count)
         {
             return EncodingForwarder.GetCharCount(this, bytes, index, count);
@@ -162,6 +167,7 @@ namespace System.Text
             return EncodingForwarder.GetCharCount(this, bytes, count);
         }
 
+        [System.Security.SecuritySafeCritical]  // auto-generated
         public override int GetChars(byte[] bytes, int byteIndex, int byteCount,
                                               char[] chars, int charIndex)
         {
@@ -179,6 +185,7 @@ namespace System.Text
         // Returns a string containing the decoded representation of a range of
         // bytes in a byte array.
 
+        [System.Security.SecuritySafeCritical]  // auto-generated
         [System.Runtime.InteropServices.ComVisible(false)]
         public override String GetString(byte[] bytes, int index, int count)
         {
